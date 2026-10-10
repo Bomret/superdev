@@ -165,14 +165,55 @@ superdev subagent that omits one):
     `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section (three or fewer slices is
     `lite`). On a **`lite`** scope, `final-reviewer` applies **Missing RED** to every slice's trace lines
     exactly as `slice-reviewer` does (Important, the checklist's closing sequence, no finding without a
-    trace); at the fix cap a scope whose only remaining Critical or Important finding is **Missing RED** proceeds
-    and §3's report names it with its slice. A trace line's second field is its slice (the slice id, or `scope`), and a `dispatch` line
+    trace); at the fix cap it takes the escape path the fail-to-pass bullet below states. A trace line's second field is its slice (the slice id, or `scope`), and a `dispatch` line
     carries the plugin-scoped agent type, so it matches on the name part (`slice-reviewer`,
     `implementer`). On the lite tier a slice is `behavior` when its ledger row's type says so
     (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>`). On a **`full`** scope, every merged slice needs a `dispatch superdev:slice-reviewer` whose
     `dispatch-end` comes after that slice's last `dispatch-end` of `superdev:implementer`, or a
     `**Degraded:**` ledger entry naming that slice's denied review: a slice with neither is an Important
     finding, **Unreviewed slice**. No trace, or no events for a slice: it names that in the report and raises neither finding.
+  - **Also tell it the fail-to-pass rule on a `lite` scope, so it reads the outcome lines.** `final-reviewer`
+    applies `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` to every `behavior`
+    slice: an **Important** finding, **Pass-to-pass**, where the slice's latest
+    outcome line over its recorded range (the trace's `fail-to-pass` line, which is no test run) reads `pass-to-pass`,
+    and an **Important** finding, **Missing fail-to-pass run**, where its range changes both a test-path file and
+    another file and has no outcome line over it, or, where its ledger row records no range, where its own
+    `edit test` and `edit impl` trace lines show both. With no trace, no `edit` line for the slice, or no test
+    command it raises neither and names the gap in the report. Only `edit` lines count as a slice's or a cycle's
+    change events, so a `run` or `ledger` line is none, even one written after the trace began for a slice whose
+    edits came before it. Both take Missing RED's 3-cycle cap and
+    escape path: a scope whose only remaining Critical or Important findings are **Missing RED**,
+    **Pass-to-pass**, or **Missing fail-to-pass run** proceeds, and §3's report names each with its slice; any of
+    them beside a Critical or Important finding of another kind blocks.
+  - **Also tell it that a fail-to-pass `unknown` is no finding.** A `fail-to-pass` trace line reading `unknown`
+    records a run that could not judge. `final-reviewer` names every one in its report with its slice and its reason
+    (the exit status or signal in `control=`, or the `bound=` the run before the change ran under), raises no finding for it,
+    and starts no fix cycle. The line counts as an outcome line for **Missing fail-to-pass run**, and the latest line
+    reading `fail-to-pass` or `pass-to-pass` decides **Pass-to-pass**.
+  - **Also tell it the fix-cycle rule on either tier, so it reads each cycle's outcome line.** `final-reviewer`
+    applies `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` to each fix cycle of the
+    scope branch. A fix cycle's re-review hands it the cycle's range, `<cycle-base>..<cycle-tip>` as full commits:
+    an **Important** finding, **Pass-to-pass**, where the cycle's latest outcome line over that range reads
+    `pass-to-pass`, and an **Important** finding, **Missing fail-to-pass run**, where the range changes both a
+    test-path file and another file and has no outcome line over it. A **Pass-to-pass** finding closes only on a
+    `fail-to-pass` outcome over a range from the original change's base to the tip current when that closing run
+    ran, and stays closed once that line is written. That holds at every dispatch, the entry dispatch included (it
+    runs no cycle and hands no range) and a re-review (it hands only its own cycle's range). A `scope` line that
+    follows a finding's own `pass-to-pass` line and starts its range at that line's base is the finding's closing
+    run, not a cycle: it closes the finding or keeps it open, and raises no second finding.
+    Run handoff has no re-review of its own, so `final-reviewer` reads run handoff's cycles and the scope's earlier
+    review cycles from the trace at every dispatch, a `scope` range whose latest outcome line reads
+    `pass-to-pass`, and an `implementer` `dispatch` of `scope` with `edit` lines in its window, whose commits that
+    landed in that window change both a test-path file and another file, with no outcome line over those commits.
+    A fix cycle's window runs from its `implementer` `dispatch` line of `scope` to the first `dispatch` line,
+    whatever its agent type or slice, after that implementer's `dispatch-end` line, or to the end of the trace when
+    none follows. A denied, failed, or interrupted dispatch leaves no `dispatch-end` line, and its window ends at the
+    first `dispatch` line after its own `dispatch` line, or at the end of the trace. A cycle's commits are read along
+    the scope branch's first-parent chain, so the base commits a merge brings in are none of them, and neither is a
+    merge commit that brings the base in. No trace, a run handoff cycle with no
+    `edit` lines, and a repository with no test command get no finding: name the gap in the report. A cycle whose
+    commits change only test-path files, or no file, gets no finding, and the report names no gap for it. Both take
+    Missing RED's 3-cycle cap and escape path (§4), and §3's report names a cycle's finding with its range.
   - **Also tell it to judge every `dod.md` line, ticked or not.** `final-reviewer` returns a verdict for
     each — holds, broken, or ceiling — in its own `### Criteria` section (`agents/final-reviewer.md`'s
     `## Judge every criterion`). §4 below unticks and re-ticks from that list; the axes above (Correctness,
@@ -257,6 +298,8 @@ net: -<N> lines possible   (or "Lean already" if nothing to cut)
 [final-reviewer's ceiling note, carried through verbatim when it wrote one; omit this section entirely
 when it didn't]
 
+### Fail-to-pass unknown [final-reviewer's notes, one per outcome, carried through verbatim; omit this section entirely when it wrote none]
+
 ### Deferred to a plan
 [a finding whose remedy would add a capability the Definition of Done never named — §4's boundary (a guard-rail remedy is not one); one
 line each, with the follow-up `/superdev:plan`. Omit this section when there is none]
@@ -277,8 +320,9 @@ has no notion of deferral and lands its own line at the finding's actual severit
 remaining findings are `### Deferred to a plan` entries — §4's exit clause already treats that verdict as
 clean — lands the combined `Ready to merge?` as `Yes`, naming the deferrals in the Reasoning line, rather
 than carrying `final-reviewer`'s raw `No` into a report for a scope the run went on to advance. At the fix
-cap the same holds for a verdict whose only remaining Critical or Important finding is **Missing RED**
-(§4): the combined line lands `Yes`, and the Reasoning line names each such finding with its slice.
+cap the same holds for a verdict whose only remaining Critical or Important findings are **Missing RED**,
+**Pass-to-pass**, or **Missing fail-to-pass run** (§4): the combined line lands `Yes`, and the Reasoning line names
+each such finding with its slice, or a cycle's finding with its range.
 
 **Apply nothing — on an ad-hoc range.** Never edit, commit, or merge, however small the fix looks. To act
 on findings, the operator runs `/superdev:plan` to slice the fix, the command this run's Next block
@@ -492,6 +536,35 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
     three-option choice above.
   - **`--unattended` → fix every finding**, Minors included, without asking: the fix loop is the point of
     this gate, and a review that found real defects and left them is worth less than no review.
+  - **Missing fail-to-pass run** (a finding of that name in the chosen set) → answer it yourself, with no
+    implementer cycle: run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <base>..<tip>` from the
+    scope checkout over the slice's range, and leave it off the **Confirmed** list below, dispatching
+    none when no finding remains on it. Every run of the verb goes in the background when the suite outlasts the
+    Bash tool's time limit, and you wait for its end before you read its outcome
+    (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`). A slice whose ledger row records no range first has its range recorded:
+    read the slice's commits from the scope branch's log, then run `scope.js slice <id> merged --range <base>..<tip> --root <run-root>`.
+  - **Fail-to-pass run around each fix cycle** (ADR 0134, INV-0138) → before each fix dispatch below, record the scope
+    tip, `git -C <run-root>/scopetree rev-parse HEAD`, as the cycle's `<base>`. Once the cycle's report is accepted,
+    after any send-back to the implementer for a report defect or a missed sibling surface, and before the
+    re-review, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <base>..<tip>` from the
+    scopetree over the cycle's commits (`<tip>` is `git rev-parse HEAD` after them), where they change both a
+    test-path file (`docs/agents/verification.md`'s `## Test paths`, the defaults where it has none) and another
+    file. The trace line names `scope`, because the range matches no ledger row and no slice is in progress. A
+    cycle whose commits change only test-path files, or no file, needs no outcome line and draws no finding. Where
+    the chosen set holds a **Pass-to-pass** finding, also run the verb over a range from that finding's original
+    base to the current tip: the base of the range the finding's `pass-to-pass` line names, a lite slice's recorded
+    range base or a fix cycle's own base. That finding closes on the `fail-to-pass` outcome of this run, so a fix
+    that only strengthens the test closes it, and it stays closed once that line is written. Neither run is a test
+    run or a cycle of its own: neither satisfies a Missing RED step, moves a suite record, or counts as a cycle
+    beside the implementer cycle it follows, and a refusal or a missing outcome line blocks no loop (INV-0017). A
+    **Missing fail-to-pass run** finding on a cycle takes the answer of the bullet above over the cycle's range,
+    which for a run handoff cycle you read from the scope branch's first-parent log over the cycle's window (§2). A
+    run of either bullet that prints `pass-to-pass` reaches a re-review over that run's range, dispatched as §2
+    states, even where no implementer cycle preceded it, so the **Pass-to-pass** finding is raised. Where a run
+    answering a **Missing fail-to-pass run** finding prints `pass-to-pass` and no **Confirmed** implementer below is
+    dispatched before the re-review after it, that run and that re-review count as one of the 3 cycles. Where a
+    **Confirmed** implementer is dispatched before that same re-review, the run, the implementer, and the re-review
+    they share count together as one cycle.
   - **Confirmed** (fix every finding, or fix only Critical and Important) → dispatch **one**
     `superdev:implementer` (`model: opus`; `haiku` only when every finding in the list is a mechanical
     finding, one whose fix changes no stated rule or behaviour, and any other finding keeps the whole
@@ -521,18 +594,20 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
     **only Minor findings** takes the clean-verdict path below once the exit full-suite run above is
     green (a red exit run at the cap is a remaining red suite): the stage write, with the leftover Minors
     named in the report and nowhere else — no `unresolved add`, no `deferred add`, no triage record
-    (INV-0094). A scope whose only remaining Critical or Important finding is **Missing RED** proceeds
-    so, §3's report naming each with its slice; **Missing RED** beside another Critical or Important
-    finding blocks (ADR 0125, INV-0118). At the cap a remaining
+    (INV-0094). A scope whose only remaining Critical or Important findings are **Missing RED**,
+    **Pass-to-pass**, or **Missing fail-to-pass run** proceeds so, §3's report naming each with its slice; any
+    of them beside a Critical or Important finding of another kind blocks (ADR 0125, ADR 0134, INV-0118,
+    INV-0138). At the cap a remaining
     **Critical or Important finding, a broken criterion, or a red suite** means a wrong cut, not a
     bug: stop, say so, write the `**Unresolved:**` entry — at a `submitted` stage, also invalidate the tip's suite record the same way the Declined branch above does
     — leave the stage where it is, and publish the snapshot before stopping — per
     `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section — since no later
     stage write in this run will do it. **`--unattended` → block** at that cap when a Critical or
-    Important finding, a broken criterion, or a red suite remains — a **Missing RED** finding alone
-    proceeds unattended too, exactly as above (ADR 0125) — per that file's **Unattended**
-    section, writing the same entry (and, at a `submitted` stage, invalidating the suite record the same
-    way), publishing the same way, and leaving the stage where it is. **A clean verdict ends the loop
+    Important finding, a broken criterion, or a red suite remains, per
+    that file's **Unattended** section, writing the same entry (and, at a `submitted` stage, invalidating the
+    suite record the same way), publishing the same way, and leaving the stage where it is. A remainder whose only
+    Critical or Important findings are **Missing RED**, **Pass-to-pass**, or **Missing fail-to-pass run** proceeds
+    unattended too, exactly as above. **A clean verdict ends the loop
     here too, attended or unattended** — a finding it leaves standing outside the chosen set is a
     follow-up, never a fourth cycle. **An observation never joins the fix list**: a defect the scope did
     not cause, met during a fix cycle, gets its triage record per

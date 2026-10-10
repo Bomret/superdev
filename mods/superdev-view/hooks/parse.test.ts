@@ -38,6 +38,18 @@ test('trace agents come from dispatches alone; a bound id folds in, an unbound o
   })
 })
 
+// scope.js fail-to-pass writes this line, not the run-trace hook, so it stays out of trace-fixtures.ts.
+test('a fail-to-pass outcome line adds no agent, ends none, and folds into none', () => {
+  const trace = [
+    'T1 scope main dispatch superdev:final-reviewer tu1 Final\\x20review',
+    '2026-10-10T16:26:24.706Z scope main fail-to-pass 0cdd06b7cbe5328b5fb7d99424a724b1d9268578..7813b9b7d31d5ee21894d1fb6891b0d17721fc15 fail-to-pass control=0,put-back=1',
+  ].join('\n')
+  expect(traceAgents(trace)).toEqual({
+    agents: [{ key: 'tu1', type: 'superdev:final-reviewer', desc: 'Final review', slice: 'scope', isDone: false, start: null, end: null }],
+    activity: { tu1: { last: 'T1', lastKind: 'dispatched', events: 0 } },
+  })
+})
+
 test("a trace agent's start is its dispatch line's time", () => {
   expect(traceAgents('2026-01-01T00:00:00.000Z 01 main dispatch superdev:implementer tu1 Build').agents[0]?.start).toBe(Date.parse('2026-01-01T00:00:00.000Z'))
 })

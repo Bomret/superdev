@@ -25,6 +25,15 @@ Adapted into superdev:
   - ponytail-review → agents/simplicity-reviewer.md (over-engineering review rubric)
 
 --------------------------------------------------------------------------------
+pstack (cursor/plugins) — Copyright (c) 2026 Lauren Tan
+https://github.com/cursor/plugins/tree/main/pstack
+
+Adapted into superdev:
+  - principle-test-behavior-not-implementation → references/review-checklist.md
+        (Tautological test: the probe, its shapes, and its carve-outs) and
+        agents/test-auditor.md (the same category)
+
+--------------------------------------------------------------------------------
 Skills — Copyright (c) 2026 Matt Pocock
 https://github.com/mattpocock/skills
 
@@ -124,6 +133,6 @@ ISBN 978-1-319-36220-1
 
 --------------------------------------------------------------------------------
 The MIT License text is in the LICENSE file. It applies to superdev's own code and, per their terms,
-to the Superpowers, ponytail, Skills, agent-skills, and DOX portions bundled above. It does not apply to the
+to the Superpowers, ponytail, pstack, Skills, agent-skills, and DOX portions bundled above. It does not apply to the
 ASD-STE100, tekom, Technical Writing 101, or Handbook of Technical Writing material, which is prior
 art credited above under its own terms.

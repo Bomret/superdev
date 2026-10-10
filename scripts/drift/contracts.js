@@ -807,6 +807,50 @@ const AGENT_LENS_LIST_CONTRACTS = [
     /five categories are the whole set/,
     "state that the five categories are the whole set — a dispatch that names fewer overrides `test-auditor`'s own lens sentence",
   ],
+  // The test-smell entries all three test-reading agents apply (ADR 0134): `## Anti-patterns` carries
+  // **Tautological test** and **Weakened net**, and `test-auditor`'s category row restates the definition.
+  // Every row pins prompt prose that a reviewing model reads. No dispatch can contradict the definition:
+  // `skills/review-tests/SKILL.md` names the five categories and states none of them.
+  [
+    path.join('references', 'review-checklist.md'),
+    /## Anti-patterns(?:(?!\s## )[\s\S])*?\*\*Tautological test\*\* — a test that passes whatever the code under test does/,
+    'define **Tautological test** under `## Anti-patterns` as a test that passes whatever the code under test does — the section `slice-reviewer`, `final-reviewer`, and `test-auditor` read, not only an expectation recomputed the way the code computes it',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /\*\*Tautological test\*\*(?:(?!\s- \*\*)[\s\S])*?would it still pass if every call to the code under test returned an empty value \(nothing, zero, an empty collection\) or a wrong one/,
+    "give **Tautological test** its probe — would the test still pass if every call to the code under test returned an empty value or a wrong one — so a reviewer tests a case instead of judging by feel",
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /\*\*Tautological test\*\*(?:(?!\s- \*\*)[\s\S])*?Name the shape in the finding(?:(?!\s- \*\*)[\s\S])*?an assertion on presence, type, or the absence of an error alone(?:(?!\s- \*\*)[\s\S])*?an assertion that a collaborator was called, with no check of what it received(?:(?!\s- \*\*)[\s\S])*?an expected value recomputed the way the code computes it(?:(?!\s- \*\*)[\s\S])*?a restated constant or configuration value where the mechanism that reads it could run instead(?:(?!\s- \*\*)[\s\S])*?an assertion on data the test built, with the code under test never called/,
+    'tell the reviewer to name the shape in the finding, and name every **Tautological test** shape — presence, type, or no error alone; a collaborator called with no check of what it received; a recomputed expectation; a restated constant; data the test built',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /\*\*Tautological test\*\*(?:(?!\s- \*\*)[\s\S])*?The expected value comes from an independent source of truth(?:(?!\s- \*\*)[\s\S])*?Pair an absence assertion \(no error, no match, nothing returned\) with a presence assertion on another input/,
+    'state that **Tautological test**\'s expected value comes from an independent source of truth, and that an absence assertion is paired with a presence assertion on another input',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /\*\*Tautological test\*\*(?:(?!\s- \*\*)[\s\S])*?Two cases are not this smell: a check that two sources agree(?:(?!\s- \*\*)[\s\S])*?a pin on text whose only runtime reader is a person or a model/,
+    "carve out of **Tautological test** a check that two sources agree and a pin on text only a person or a model reads — this repository's own drift contract rows that pin prompt prose are the second kind, and a finding on them is noise",
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /\*\*Tautological test\*\*(?:(?!\s- \*\*)[\s\S])*?A `fail-to-pass` outcome does not clear this finding(?:(?!\s- \*\*)[\s\S])*?a test of a symbol the change introduces(?:(?!\s- \*\*)[\s\S])*?a weak test beside a discriminating one/,
+    'state that a `fail-to-pass` outcome does not clear **Tautological test**, and name the two cases a fail-to-pass run cannot see: a test of a symbol the change introduces, and a weak test beside a discriminating one',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /\*\*Weakened net\*\*(?:(?!\s- \*\*)[\s\S])*?Regenerating a snapshot, a golden file, or another recorded expected output to match new output is\s+the same smell(?:(?!\s- \*\*)[\s\S])*?unless a slice's acceptance criteria or the Definition of Done changed that output/,
+    "carry in **Weakened net** that regenerating a snapshot, golden file, or recorded expected output to match new output is the same smell as weakening the net, unless a slice's acceptance criteria or the Definition of Done changed that output",
+  ],
+  [
+    path.join('agents', 'test-auditor.md'),
+    /\| `tautological test` \| a test that passes whatever the code under test does[^|]*Name the shape[^|]*are not this\. \|/,
+    "state in `test-auditor`'s `tautological test` category the same definition as the checklist, name the shape, and keep the two carve-outs",
+  ],
 ];
 
 // `slice-reviewer.md`'s sentence pin above only asserts that ONE sentence still names the
@@ -7234,11 +7278,6 @@ const RUN_TRACE_ORDER_CONTRACTS = [
   ],
   [
     path.join('agents', 'slice-reviewer.md'),
-    /No\s+trace,\s+or\s+no\s+events\s+for\s+the\s+slice,\s+gets\s+no\s+finding:\s+name\s+the\s+gap\s+in\s+the\s+report\.\s+A\s+repository\s+with\s+no\s+test\s+command\s+gets\s+no\s+order\s+check/,
-    'name a missing trace or an event-less slice in the report with no finding, and run no order check without a test command',
-  ],
-  [
-    path.join('agents', 'slice-reviewer.md'),
     /Missing\s+RED\s+finding\s+on\s+a\s+re-review\*\*\s+closes\s+only\s+when\s+the\s+trace\s+shows,\s+after\s+the\s+finding,\s+a\s+revert\s+\(or\s+an\s+implementation\s+edit\),\s+a\s+failing\s+run\s+that\s+covers\s+that\s+test[\s\S]{0,200}a\s+restore\s+\(or\s+an\s+implementation\s+edit\),\s+and\s+a\s+passing\s+run/,
     'close a Missing RED finding on a re-review only on the sequence revert or edit, failing run covering the test, restore or edit, passing run',
   ],
@@ -7506,6 +7545,24 @@ const RUN_TRACE_ORDER_CONTRACTS = [
     /A\s+suite\s+longer\s+than\s+the\s+Bash\s+tool's\s+time\s+limit\s+runs\s+through\s+the\s+runner\s+in\s+the\s+background,\s+and\s+you\s+wait\s+for\s+its\s+end/,
     'state that the controller\'s own suite longer than the Bash tool\'s time limit runs through the runner in the background and it waits for its end',
   ]),
+  // ADR 0134: `scope.js fail-to-pass` runs the test command up to twice, so a slow suite outlasts the Bash tool's time limit,
+  // and a verb the limit kills writes no outcome line. test-selection.md extends its background rule to the verb, and every
+  // prose that runs the verb cites it.
+  [
+    path.join('references', 'test-selection.md'),
+    /`scope\.js\s+fail-to-pass`\s+follows\s+the\s+same\s+rule:\*\*\s+it\s+runs\s+the\s+test\s+command\s+up\s+to\s+twice,\s+so\s+run\s+it\s+in\s+the\s+background\s+when\s+the\s+suite\s+outlasts\s+the\s+Bash\s+tool's\s+time\s+limit,\s+and\s+wait\s+for\s+its\s+end\s+before\s+you\s+read\s+its\s+outcome/,
+    'extend the background rule to scope.js fail-to-pass: run it in the background when the suite outlasts the Bash tool\'s time limit, and wait for its end before reading its outcome',
+  ],
+  ...[
+    path.join('references', 'implement-full.md'),
+    path.join('references', 'implement-lite.md'),
+    path.join('references', 'run-handoff.md'),
+    path.join('skills', 'review', 'SKILL.md'),
+  ].map((doc) => [
+    doc,
+    /Every\s+run\s+of\s+the\s+verb\s+goes\s+in\s+the\s+background\s+when\s+the\s+suite\s+outlasts\s+the\s+Bash\s+tool's\s+time\s+limit,\s+and\s+you\s+wait\s+for\s+its\s+end\s+before\s+you\s+read\s+its\s+outcome\s+\(`\$\{CLAUDE_PLUGIN_ROOT\}\/references\/test-selection\.md`\)/,
+    'run every fail-to-pass verb call in the background when the suite outlasts the Bash tool\'s time limit, waiting for its end, citing test-selection.md\'s rule',
+  ]),
   [
     path.join('agents', 'implementer.md'),
     /edit\s+files\s+through\s+the\s+edit\s+tools,\s+never\s+through\s+a\s+script/,
@@ -7521,47 +7578,708 @@ const RUN_TRACE_ORDER_CONTRACTS = [
     /controller\s+never\s+edits\s+a\s+slice's\s+tree\s+to\s+produce\s+a\s+failing\s+run/,
     'direct the controller never to edit a slice\'s tree to produce a failing run',
   ],
-  // ADR 0125, INV-0118: at the 3-cycle fix cap Missing RED alone never blocks; the run's final report names it.
+  // ADR 0125, ADR 0134, INV-0118, INV-0138: at the 3-cycle fix cap a remainder of only Missing RED, Pass-to-pass, and
+  // Missing fail-to-pass run findings, in any mix, never blocks; the run's final report names each. Any of them beside a
+  // Critical or Important finding of another kind blocks.
   ...[
     [
       path.join('references', 'implement-full.md'),
-      'state, in step 3, that at the fix cap a slice whose only remaining Critical or Important finding is Missing RED proceeds and the final report names it, and Missing RED beside another such finding blocks',
+      'state, in step 3, that at the fix cap a slice whose only remaining Critical or Important findings are Missing RED, Pass-to-pass, or Missing fail-to-pass run proceeds and the final report names each with its slice, and any of them beside a finding of another kind blocks',
     ],
     [
       path.join('skills', 'implement', 'SKILL.md'),
-      'state, in `## Invariants (both playbooks)`, that at the 3-strike cap a Missing RED remainder alone proceeds and the final report names it, and Missing RED beside another such finding blocks',
+      'state, in `## Invariants (both playbooks)`, that at the 3-strike cap a remainder of only Missing RED, Pass-to-pass, or Missing fail-to-pass run proceeds and the final report names each with its slice, and any of them beside a finding of another kind blocks',
     ],
-    [
-      path.join('skills', 'review', 'SKILL.md'),
-      'state, in the fix loop, that at the 3-strike cap a scope whose only remaining Critical or Important finding is Missing RED proceeds and the final report names it, and Missing RED beside another such finding blocks',
-    ],
-  ].map(([doc, reason]) => [doc, /whose\s+only\s+remaining\s+Critical\s+or\s+Important\s+finding\s+is\s+\*\*Missing\s+RED\*\*[\s\S]{0,200}proceeds[\s\S]{0,300}report[\s\S]{0,120}with\s+its\s+slice[\s\S]{0,300}another\s+Critical\s+or\s+Important\s+finding\s+blocks/, reason]),
+  ].map(([doc, reason]) => [doc, /whose\s+only\s+remaining\s+Critical\s+or\s+Important\s+findings\s+are\s+\*\*Missing\s+RED\*\*,\s+\*\*Pass-to-pass\*\*,\s+or\s+\*\*Missing\s+fail-to-pass\s+run\*\*\s+proceeds[\s\S]{0,200}final\s+report\s+names\s+each\s+finding\s+with\s+its\s+slice[\s\S]{0,200}of\s+another\s+kind\s+blocks/, reason]),
   [
     path.join('skills', 'review', 'SKILL.md'),
-    /applies\s+\*\*Missing\s+RED\*\*[\s\S]{0,600}at\s+the\s+fix\s+cap\s+a\s+scope\s+whose\s+only\s+remaining\s+Critical\s+or\s+Important\s+finding\s+is\s+\*\*Missing\s+RED\*\*\s+proceeds[\s\S]{0,120}with\s+its\s+slice/,
-    'dispatch final-reviewer with the lite-tier cap rule: Missing RED alone proceeds at the fix cap, and the report names it with its slice',
+    /A\s+scope\s+whose\s+only\s+remaining\s+Critical\s+or\s+Important\s+findings\s+are\s+\*\*Missing\s+RED\*\*,\s+\*\*Pass-to-pass\*\*,\s+or\s+\*\*Missing\s+fail-to-pass\s+run\*\*\s+proceeds\s+so,\s+§3's\s+report\s+naming\s+each\s+with\s+its\s+slice;\s+any\s+of\s+them\s+beside\s+a\s+Critical\s+or\s+Important\s+finding\s+of\s+another\s+kind\s+blocks/,
+    'state, in the fix loop, that at the 3-strike cap a scope whose only remaining Critical or Important findings are Missing RED, Pass-to-pass, or Missing fail-to-pass run proceeds and the final report names each with its slice, and any of them beside a finding of another kind blocks',
   ],
   [
     path.join('skills', 'review', 'SKILL.md'),
-    /`--unattended`\s+→\s+block\*\*\s+at\s+that\s+cap\s+when\s+a\s+Critical\s+or\s+Important\s+finding[\s\S]{0,120}remains\s+—\s+a\s+\*\*Missing\s+RED\*\*\s+finding\s+alone\s+proceeds\s+unattended\s+too/,
-    'state, in the fix loop\'s unattended cap rule, that a Missing RED finding alone proceeds unattended too, never blocking at the cap',
+    /applies\s+\*\*Missing\s+RED\*\*[\s\S]{0,600}at\s+the\s+fix\s+cap\s+it\s+takes\s+the\s+escape\s+path\s+the\s+fail-to-pass\s+bullet\s+below\s+states/,
+    'dispatch final-reviewer with Missing RED sent at the fix cap to the one escape path the fail-to-pass bullet states for it and both fail-to-pass findings',
   ],
   [
     path.join('skills', 'review', 'SKILL.md'),
-    /lands\s+the\s+combined\s+`Ready\s+to\s+merge\?`\s+as\s+`Yes`[\s\S]{0,400}At\s+the\s+fix\s+cap[\s\S]{0,200}only\s+remaining\s+Critical\s+or\s+Important\s+finding\s+is\s+\*\*Missing\s+RED\*\*[\s\S]{0,200}`Yes`[\s\S]{0,200}with\s+its\s+slice/,
-    'state, in the §3 Assessment exception, that at the fix cap a verdict whose only remaining Critical or Important finding is Missing RED lands the combined Ready to merge line as Yes, naming each finding with its slice',
+    /`--unattended`\s+→\s+block\*\*\s+at\s+that\s+cap\s+when\s+a\s+Critical\s+or\s+Important\s+finding[\s\S]{0,400}leaving\s+the\s+stage\s+where\s+it\s+is\.\s+A\s+remainder\s+whose\s+only\s+Critical\s+or\s+Important\s+findings\s+are\s+\*\*Missing\s+RED\*\*,\s+\*\*Pass-to-pass\*\*,\s+or\s+\*\*Missing\s+fail-to-pass\s+run\*\*\s+proceeds\s+unattended\s+too/,
+    'state, in the fix loop\'s unattended cap rule, that a remainder whose only Critical or Important findings are Missing RED, Pass-to-pass, or Missing fail-to-pass run proceeds unattended too, never blocking at the cap',
   ],
-  ...['slice-reviewer.md', 'final-reviewer.md'].map((doc) => [
-    path.join('agents', doc),
-    /Missing\s+RED\*\*[\s\S]{0,400}whose\s+only\s+remaining\s+Critical\s+or\s+Important\s+finding\s+is\s+\*\*Missing\s+RED\*\*[\s\S]{0,100}merges[\s\S]{0,100}report\s+names\s+the\s+finding\s+with\s+its\s+slice[\s\S]{0,300}report\s+it\s+as\s+\*\*Important\*\*[\s\S]{0,200}another\s+Critical\s+or\s+Important\s+finding\s+blocks/,
-    'state that at the 3-cycle fix cap a slice whose only remaining Critical or Important finding is Missing RED merges, and the report names the finding with its slice, that the reviewer still reports it as Important, and that Missing RED beside another such finding blocks',
-  ]),
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /lands\s+the\s+combined\s+`Ready\s+to\s+merge\?`\s+as\s+`Yes`[\s\S]{0,400}At\s+the\s+fix\s+cap\s+the\s+same\s+holds\s+for\s+a\s+verdict\s+whose\s+only\s+remaining\s+Critical\s+or\s+Important\s+findings\s+are\s+\*\*Missing\s+RED\*\*,\s+\*\*Pass-to-pass\*\*,\s+or\s+\*\*Missing\s+fail-to-pass\s+run\*\*\s+\(§4\):\s+the\s+combined\s+line\s+lands\s+`Yes`,\s+and\s+the\s+Reasoning\s+line\s+names\s+each\s+such\s+finding\s+with\s+its\s+slice,\s+or\s+a\s+cycle's\s+finding\s+with\s+its\s+range/,
+    'state, in the §3 Assessment exception, that at the fix cap a verdict whose only remaining Critical or Important findings are Missing RED, Pass-to-pass, or Missing fail-to-pass run lands the combined Ready to merge line as Yes, naming each finding with its slice, or a cycle\'s finding with its range',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /\*\*Missing\s+RED\*\*,\s+closed\s+only\s+by\s+the\s+checklist's\s+closing\s+sequence\.\s+At\s+the\s+3-cycle\s+fix\s+cap\s+it\s+takes\s+the\s+escape\s+path\s+stated\s+under\s+\*\*Fail-to-pass\s+outcome\*\*\s+below/,
+    'send Missing RED at the 3-cycle fix cap to the one escape path the Fail-to-pass outcome paragraph states for it and both fail-to-pass findings',
+  ],
   [
     path.join('references', 'run-handoff.md'),
-    /merged\s+at\s+the\s+fix\s+cap\s+with\s+only\s+\*\*Missing\s+RED\*\*\s+left,\s+named\s+with\s+its\s+finding/,
-    'give the Report bullet a place for each slice merged at the fix cap with only Missing RED left, named with its finding',
+    /merged\s+at\s+the\s+fix\s+cap\s+with\s+only\s+\*\*Missing\s+RED\*\*,\s+\*\*Pass-to-pass\*\*,\s+or\s+\*\*Missing\s+fail-to-pass\s+run\*\*\s+left,\s+named\s+with\s+each\s+finding/,
+    'give the Report bullet a place for each slice merged at the fix cap with only Missing RED, Pass-to-pass, or Missing fail-to-pass run left, named with each finding, since a slice can be left with more than one',
   ],
 ];
+
+// ADR 0134, INV-0138: a fail-to-pass run's outcome line is no test run, and on a lite scope `final-reviewer` raises two
+// Important findings from it, **Pass-to-pass** and **Missing fail-to-pass run**, which take Missing RED's 3-cycle cap
+// and escape path. The reviewer body, the review checklist's `## Fail-to-pass run`, the lite playbook that runs the verb
+// and records the range, and `/superdev:review`'s dispatch and fix loop each carry the rule they reach, because a dispatch
+// is the later, more specific instruction and wins a conflict (CONTEXT.md → *Dispatch prose*, ADR 0035). These rows join
+// the `run-trace-order` table, the check that pins the run trace's readers, rather than open a check of their own.
+RUN_TRACE_ORDER_CONTRACTS.push(
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /a\s+`fail-to-pass`\s+trace\s+line\s+carries\s+a\s+range,\s+an\s+outcome,\s+and\s+a\s+reason,\s+and\s+is\s+no\s+test\s+run:\s+it\s+satisfies\s+no\s+\*\*Missing\s+RED\*\*\s+step/,
+    'state that a fail-to-pass outcome line is no test run and satisfies no Missing RED step',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /On\s+a\s+\*\*`lite`\*\*\s+scope,\s+apply\s+`##\s+Fail-to-pass\s+run`\s+in\s+`\$\{CLAUDE_PLUGIN_ROOT\}\/references\/review-checklist\.md`\s+to\s+every\s+`behavior`\s+slice\./,
+    'have final-reviewer apply the checklist\'s Fail-to-pass run section to every behavior slice on a lite scope, whether or not its ledger row records a range',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /latest\s+outcome\s+line\s+over\s+its\s+recorded\s+range\s+reads\s+`pass-to-pass`\s+is\s+an\s+\*\*Important\*\*\s+finding,\s+\*\*Pass-to-pass\*\*/,
+    'name Pass-to-pass as an Important finding for a slice whose latest outcome line over its range reads pass-to-pass',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /range\s+changes\s+both\s+a\s+test-path\s+file\s+and\s+another\s+file,\s+and\s+has\s+no\s+outcome\s+line\s+over\s+that\s+range,\s+is\s+an\s+\*\*Important\*\*\s+finding,\s+\*\*Missing\s+fail-to-pass\s+run\*\*/,
+    'name Missing fail-to-pass run as an Important finding for a slice whose range changes a test-path file and another file and has no outcome line',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /A\s+slice\s+whose\s+ledger\s+row\s+records\s+no\s+range\s+gets\s+that\s+finding\s+when\s+its\s+own\s+`edit\s+test`\s+and\s+`edit\s+impl`\s+trace\s+lines\s+show\s+both\s+a\s+test-path\s+file\s+and\s+another\s+file/,
+    'raise Missing fail-to-pass run on a slice with no recorded range when its own edit test and edit impl trace lines show a test-path file and another file',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /No\s+trace,\s+no\s+`edit`\s+line\s+for\s+the\s+slice,\s+and\s+a\s+repository\s+with\s+no\s+test\s+command\s+get\s+no\s+finding:\s+name\s+the\s+gap\s+in\s+the\s+report\.\s+Only\s+`edit`\s+lines\s+count\s+as\s+a\s+slice's\s+or\s+a\s+cycle's\s+change\s+events,\s+so\s+a\s+`run`\s+or\s+`ledger`\s+line\s+is\s+none/,
+    'raise no fail-to-pass finding without a trace, an edit line for the slice, or a test command, and name the gap in the report; only edit lines count as change events, so a run or ledger line written after the trace began for a slice whose edits came before it draws no finding; a missing range exempts no slice',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /Both\s+findings\s+take\s+Missing\s+RED's\s+3-cycle\s+cap\s+and\s+escape\s+path[\s\S]{0,60}only\s+remaining\s+Critical\s+or\s+Important\s+findings\s+are\s+\*\*Missing\s+RED\*\*,\s+\*\*Pass-to-pass\*\*,\s+or\s+\*\*Missing\s+fail-to-pass\s+run\*\*\s+merges[\s\S]{0,120}you\s+still\s+report\s+each\s+as\s+\*\*Important\*\*[\s\S]{0,100}finding\s+of\s+another\s+kind\s+blocks/,
+    'state that both fail-to-pass findings take the 3-cycle cap and escape path, still reported as Important, and block beside a finding of another kind',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /A\s+fail-to-pass\s+run\s+puts\s+back\s+every\s+file\s+a\s+`behavior`\s+slice's\s+range\s+changed\s+outside\s+its\s+test-path\s+files[\s\S]{0,300}it\s+is\s+no\s+test\s+run:\s+it\s+satisfies\s+no\s+Missing\s+RED\s+step\s+and\s+closes\s+no\s+Missing\s+RED\s+finding/,
+    'define a fail-to-pass run and state that its outcome line is no test run: it satisfies no Missing RED step and closes no Missing RED finding',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /\*\*Pass-to-pass\*\*\s+—\s+on\s+a\s+`behavior`\s+slice,\s+a\s+latest\s+outcome\s+line\s+over\s+the\s+slice's\s+range\s+that\s+reads\s+`pass-to-pass`[\s\S]{0,300}Severity\s+Important\./,
+    'define Pass-to-pass as an Important finding for a behavior slice whose latest outcome line over its range reads pass-to-pass',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /At\s+every\s+dispatch,\s+an\s+entry\s+dispatch\s+included,\s+the\s+finding\s+closes\s+only\s+when\s+the\s+trace\s+records,\s+after\s+its\s+`pass-to-pass`\s+line,\s+an\s+outcome\s+line\s+that\s+reads\s+`fail-to-pass`\s+over\s+a\s+range\s+from\s+the\s+original\s+change's\s+base\s+to\s+the\s+tip\s+current\s+when\s+that\s+closing\s+run\s+ran,\s+so\s+a\s+fix\s+that\s+only\s+strengthens\s+the\s+test\s+closes\s+it,\s+and\s+the\s+finding\s+stays\s+closed\s+once\s+that\s+line\s+is\s+written/,
+    'close a Pass-to-pass finding, at every dispatch and not only a re-review, only on a fail-to-pass outcome line over a range from the original change\'s base to the tip current when that closing run ran, and keep it closed once that line is written',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /\*\*Missing\s+fail-to-pass\s+run\*\*\s+—\s+on\s+a\s+`behavior`\s+slice,\s+a\s+range\s+that\s+changes\s+both\s+a\s+test-path\s+file\s+and\s+another\s+file,\s+with\s+no\s+outcome\s+line\s+over\s+that\s+range\.\s+Severity\s+Important\./,
+    'define Missing fail-to-pass run as an Important finding for a behavior slice whose range changes a test-path file and another file with no outcome line',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /A\s+slice\s+with\s+no\s+`edit`\s+line,\s+a\s+run\s+with\s+no\s+trace,\s+and\s+a\s+repository\s+with\s+no\s+test\s+command\s+get\s+no\s+finding:\s+the\s+report\s+names\s+the\s+gap\.\s+Only\s+`edit`\s+lines\s+count\s+as\s+a\s+slice's\s+or\s+a\s+cycle's\s+change\s+events,\s+so\s+a\s+`run`\s+or\s+`ledger`\s+line\s+is\s+none/,
+    'exempt from Missing fail-to-pass run only a slice with no edit line, a run with no trace, and a repository with no test command, naming the gap; only edit lines count as change events, so a run or ledger line written after the trace began for a slice whose edits came before it draws no finding',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /A\s+slice\s+whose\s+ledger\s+row\s+records\s+no\s+range\s+is\s+read\s+from\s+its\s+own\s+trace:\s+its\s+`edit\s+test`\s+and\s+`edit\s+impl`\s+lines\s+name\s+both\s+a\s+test-path\s+file\s+and\s+another\s+file/,
+    'read a slice with no recorded range from its own trace: its edit test and edit impl lines name a test-path file and another file',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /The\s+controller\s+answers\s+the\s+finding\s+by\s+running\s+`scope\.js\s+fail-to-pass\s+<base>\.\.<tip>`\s+over\s+the\s+range\s+itself,\s+with\s+no\s+implementer\s+cycle/,
+    'have the controller answer Missing fail-to-pass run by running the verb itself, with no implementer cycle',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /Where\s+the\s+row\s+records\s+no\s+range,\s+the\s+controller\s+first\s+reads\s+the\s+slice's\s+commits\s+from\s+the\s+scope\s+branch's\s+log\s+and\s+records\s+the\s+range\s+with\s+`scope\.js\s+slice\s+<id>\s+merged\s+--range\s+<base>\.\.<tip>\s+--root\s+<run-root>`,\s+then\s+runs\s+the\s+verb\s+over\s+it/,
+    'have the controller record the range of a slice with none, read from the scope branch\'s log, through scope.js slice merged --range, before it runs the verb',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /Both\s+findings\s+take\s+Missing\s+RED's\s+3-cycle\s+fix\s+cap\s+and\s+escape\s+path\s+\(ADR\s+0125\):[\s\S]{0,200}only\s+remaining\s+Critical\s+or\s+Important\s+findings\s+are\s+Missing\s+RED,\s+Pass-to-pass,\s+or\s+Missing\s+fail-to-pass\s+run\s+proceeds[\s\S]{0,100}names\s+each\s+finding\s+with\s+its\s+slice[\s\S]{0,100}finding\s+of\s+another\s+kind\s+blocks/,
+    'state that both fail-to-pass findings take Missing RED\'s 3-cycle cap and escape path: proceed and named with the slice, blocking beside a finding of another kind',
+  ],
+  [
+    path.join('references', 'implement-lite.md'),
+    /`merged`\s+write\s+carries\s+`--range\s+<base>\.\.<tip>`,\s+both\s+full\s+commits/,
+    'state that a behavior slice\'s merged write carries its commit range as full commits',
+  ],
+  [
+    path.join('references', 'implement-lite.md'),
+    /range\s+changes\s+both\s+a\s+test-path\s+file[\s\S]{0,200}and\s+another\s+file,\s+run\s+`node\s+"\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/scope\.js"\s+fail-to-pass\s+<base>\.\.<tip>`[\s\S]{0,200}while\s+the\s+slice\s+is\s+still\s+`in-progress`/,
+    'run the fail-to-pass verb over a behavior slice\'s range, where it changes a test-path file and another file, before the merged write while the slice is still in progress',
+  ],
+  [
+    path.join('references', 'implement-lite.md'),
+    /It\s+is\s+no\s+test\s+run:\s+it\s+satisfies\s+no\s+Missing\s+RED\s+step\s+and\s+moves\s+no\s+suite\s+record/,
+    'state that the fail-to-pass run is no test run: it satisfies no Missing RED step and moves no suite record',
+  ],
+  // ADR 0134, INV-0139: a fail-to-pass outcome of `unknown` is no finding. Each reviewer that reads the trace names it with its
+  // reason in the report and starts no fix cycle, and each dispatch that reaches one carries the same clause; the scope run's
+  // first `unknown` is an observation the controller captures.
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /\*\*Fail-to-pass\s+`unknown`\s+\(scope\s+mode\s+only\)\*\*[\s\S]{0,300}Name\s+every\s+one\s+in\s+the\s+report\s+with\s+its\s+slice\s+and\s+its\s+reason[\s\S]{0,200}raise\s+no\s+finding\s+for\s+it,\s+and\s+start\s+no\s+fix\s+cycle/,
+    'name every fail-to-pass unknown outcome in the report with its slice and its reason, raise no finding for it, and start no fix cycle',
+  ],
+  ...[
+    path.join('agents', 'final-reviewer.md'),
+    path.join('references', 'review-checklist.md'),
+  ].map((rel) => [
+    rel,
+    /counts\s+as\s+an\s+outcome\s+line\s+for\s+\*\*Missing\s+fail-to-pass\s+run\*\*,\s+and\s+the\s+latest\s+line\s+reading\s+`fail-to-pass`\s+or\s+`pass-to-pass`\s+decides\s+\*\*Pass-to-pass\*\*/,
+    'count a fail-to-pass unknown line as an outcome line for Missing fail-to-pass run, and let the latest fail-to-pass or pass-to-pass line decide Pass-to-pass',
+  ]),
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /\*\*An\s+`unknown`\s+fail-to-pass\s+outcome\s+is\s+no\s+finding\.\*\*[\s\S]{0,300}Name\s+every\s+one\s+for\s+the\s+slice\s+in\s+the\s+report\s+with\s+its\s+reason[\s\S]{0,200}raise\s+no\s+finding\s+for\s+it,\s+and\s+start\s+no\s+fix\s+cycle/,
+    'name every fail-to-pass unknown outcome of the slice in the report with its reason, raise no finding for it, and start no fix cycle',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /\*\*An\s+`unknown`\s+outcome\s+is\s+no\s+finding\.\*\*[\s\S]{0,700}names\s+every\s+`unknown`\s+in\s+its\s+report\s+with\s+its\s+slice\s+and\s+its\s+reason,\s+raises\s+no\s+finding\s+for\s+it,\s+and\s+starts\s+no\s+fix\s+cycle/,
+    'state that a reviewer names every fail-to-pass unknown in its report with its slice and its reason, raises no finding for it, and starts no fix cycle',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /the\s+tests\s+did\s+not\s+pass\s+against\s+the\s+changed\s+code[\s\S]{0,400}outlasted\s+ten\s+times\s+the\s+duration\s+the\s+run\s+against\s+the\s+changed\s+code\s+took/,
+    'define the two reasons a fail-to-pass run reads unknown: the tests did not pass against the changed code, or the run before the change outlasted ten times the duration the run against the changed code took',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /Also\s+tell\s+it\s+that\s+a\s+fail-to-pass\s+`unknown`\s+is\s+no\s+finding\.\*\*[\s\S]{0,400}names\s+every\s+one\s+in\s+its\s+report\s+with\s+its\s+slice\s+and\s+its\s+reason[\s\S]{0,200}raises\s+no\s+finding\s+for\s+it,\s+and\s+starts\s+no\s+fix\s+cycle/,
+    'dispatch final-reviewer to name every fail-to-pass unknown in its report with its slice and its reason, raise no finding for it, and start no fix cycle',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /counts\s+as\s+an\s+outcome\s+line\s+for\s+\*\*Missing\s+fail-to-pass\s+run\*\*,\s+and\s+the\s+latest\s+line\s+reading\s+`fail-to-pass`\s+or\s+`pass-to-pass`\s+decides\s+\*\*Pass-to-pass\*\*/,
+    'dispatch final-reviewer to count a fail-to-pass unknown line as an outcome line for Missing fail-to-pass run, and let the latest fail-to-pass or pass-to-pass line decide Pass-to-pass',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /\*\*A\s+fail-to-pass\s+`unknown`\s+is\s+no\s+finding\.\*\*[\s\S]{0,300}`superdev:slice-reviewer`\s+dispatch\s+tells\s+it\s+to\s+name\s+every\s+one\s+for\s+the\s+slice\s+in\s+its\s+report\s+with\s+its\s+reason[\s\S]{0,200}to\s+raise\s+no\s+finding\s+for\s+it,\s+and\s+to\s+start\s+no\s+fix\s+cycle/,
+    'dispatch slice-reviewer to name every fail-to-pass unknown of the slice in its report with its reason, raise no finding for it, and start no fix cycle',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /first\s+`unknown`\s+is\s+an\s+observation:\s+when\s+the\s+verb\s+says\s+so\s+on\s+stderr,\s+write\s+its\s+triage\s+record[\s\S]{0,100}environment\s+gap/,
+    'capture the scope run\'s first fail-to-pass unknown as an observation naming the environment gap, when the verb says it is the first',
+  ],
+  [
+    path.join('references', 'implement-lite.md'),
+    /first\s+`unknown`\s+is\s+an\s+observation:\s+the\s+verb\s+says\s+so\s+on\s+stderr,\s+and\s+you\s+write\s+its\s+triage\s+record[\s\S]{0,200}`##\s+Observations`[\s\S]{0,80}environment\s+gap/,
+    'capture the scope run\'s first fail-to-pass unknown as an observation naming the environment gap, when the verb says it is the first',
+  ],
+  [
+    path.join('references', 'implement-lite.md'),
+    /prints\s+`fail-to-pass`,\s+`pass-to-pass`,\s+or\s+`unknown`[\s\S]{0,900}status\s+2\s+means\s+no\s+outcome\s+was\s+read\s+because\s+no\s+test\s+command\s+is\s+configured/,
+    'state that the verb prints fail-to-pass, pass-to-pass, or unknown, and that exit status 2 means only that no test command is configured',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /prints\s+`fail-to-pass`,\s+`pass-to-pass`,\s+or\s+`unknown`,\s+and\s+appends\s+a\s+`fail-to-pass`\s+line\s+to\s+the\s+run\s+trace/,
+    'state that the verb prints fail-to-pass, pass-to-pass, or unknown, and appends a fail-to-pass line to the run trace',
+  ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /\*\*A\s+fail-to-pass\s+run\s+that\s+reads\s+`unknown`\s+is\s+an\s+observation\s+when\s+it\s+is\s+the\s+scope\s+run's\s+first\*\*[\s\S]{0,1500}A\s+later\s+`unknown`\s+in\s+the\s+same\s+scope\s+run\s+writes\s+none/,
+    'make a fail-to-pass run\'s first unknown in the scope run an observation naming the environment gap, and a later unknown in the same scope run writes none',
+  ],
+  // The reviewers' Output templates and the review report's template each carry a line where an `unknown` outcome is named
+  // with its reason, as a note and never under Issues, so no reviewer or controller places it ad hoc.
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /###\s+Fail-to-pass\s+unknown\s+\(only\s+when\s+the\s+trace\s+holds\s+one\)[^\n]*never\s+an\s+Issue[^\n]*control=[^\n]*bound=/,
+    'give slice-reviewer\'s Output template a Fail-to-pass unknown line, present only when the trace holds one, naming the outcome\'s reason (control= or bound=) as a note, never an Issue',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /###\s+Fail-to-pass\s+unknown\s+\[scope\s+mode\s+only;[^\n]*never\s+an\s+Issue[^\n]*control=[^\n]*bound=/,
+    'give final-reviewer\'s Output template a Fail-to-pass unknown line, scope mode only, naming each outcome\'s slice and reason (control= or bound=) as a note, never an Issue',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /###\s+Fail-to-pass\s+unknown\s+\[final-reviewer's\s+notes[^\n]*carried\s+through\s+verbatim[^\n]*omit\s+this\s+section\s+entirely\s+when\s+it\s+wrote\s+none/,
+    'give the review report\'s §3 template a Fail-to-pass unknown section that carries final-reviewer\'s notes through verbatim and is omitted when it wrote none',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /A\s+`fail-to-pass`\s+line\s+carries\s+a\s+range,\s+an\s+outcome,\s+and\s+a\s+reason,\s+and\s+is\s+no\s+test\s+run:\s+it\s+satisfies\s+no\s+\*\*Missing\s+RED\*\*\s+step/,
+    'state that a fail-to-pass outcome line is no test run and satisfies no Missing RED step',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /Apply\s+`##\s+Fail-to-pass\s+run`\s+in\s+`\$\{CLAUDE_PLUGIN_ROOT\}\/references\/review-checklist\.md`\s+to\s+each\s+range\s+the\s+dispatch\s+names/,
+    'have slice-reviewer apply the checklist\'s Fail-to-pass run section to each range its dispatch names, in the blind pass',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /The\s+\*\*ranges\*\*\s+for\s+the\s+fail-to-pass\s+check\s+below,\s+each\s+with\s+both\s+ends\s+full\s+commits\./,
+    'list, among what the controller hands slice-reviewer, the ranges for the fail-to-pass check, each with both ends full commits',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /the\s+slice's\s+range,\s+from\s+the\s+commit\s+its\s+branch\s+was\s+cut\s+from\s+to\s+the\s+tip\s+the\s+first\s+review\s+read\s+\(the\s+same\s+range\s+on\s+every\s+review\)/,
+    'name the slice\'s own range as running from the commit its branch was cut from to the tip the first review read, the same range on every review',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /on\s+a\s+re-review\s+the\s+fix\s+cycle's\s+range\s+as\s+well,\s+from\s+the\s+tip\s+the\s+earlier\s+review\s+read\s+to\s+the\s+current\s+tip/,
+    'name a re-review\'s fix cycle range as running from the tip the earlier review read to the current tip',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /On\s+a\s+`behavior`\s+slice,\s+a\s+latest\s+outcome\s+line\s+over\s+a\s+range\s+that\s+reads\s+`pass-to-pass`\s+is\s+an\s+\*\*Important\*\*\s+finding,\s+\*\*Pass-to-pass\*\*/,
+    'name Pass-to-pass as an Important finding on a behavior slice whose latest outcome line over a range reads pass-to-pass',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /range\s+that\s+changes\s+both\s+a\s+test-path\s+file\s+and\s+another\s+file,\s+and\s+has\s+no\s+outcome\s+line\s+over\s+it,\s+is\s+an\s+\*\*Important\*\*\s+finding,\s+\*\*Missing\s+fail-to-pass\s+run\*\*/,
+    'name Missing fail-to-pass run as an Important finding for a range that changes a test-path file and another file and has no outcome line',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /A\s+fix\s+cycle\s+whose\s+range\s+is\s+empty,\s+or\s+whose\s+commits\s+change\s+only\s+test-path\s+files,\s+needs\s+no\s+outcome\s+line\s+and\s+draws\s+no\s+finding/,
+    'raise no fail-to-pass finding for a fix cycle whose range is empty or whose commits change only test-path files',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /On\s+the\s+slice's\s+own\s+range,\s+the\s+latest\s+outcome\s+line\s+over\s+any\s+range\s+that\s+starts\s+at\s+the\s+slice's\s+base\s+decides\s+\*\*Pass-to-pass\*\*:\s+a\s+`fail-to-pass`\s+line\s+over\s+a\s+range\s+from\s+the\s+base\s+to\s+a\s+later\s+tip\s+of\s+the\s+slice\s+supersedes\s+the\s+earlier\s+`pass-to-pass`\s+line/,
+    'decide Pass-to-pass on the slice\'s own range by the latest outcome line over any range that starts at the slice\'s base, so a fail-to-pass line over the base to a later tip supersedes the earlier pass-to-pass line',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /An\s+outcome\s+line\s+over\s+any\s+range\s+that\s+starts\s+at\s+the\s+slice's\s+base\s+also\s+satisfies\s+\*\*Missing\s+fail-to-pass\s+run\*\*\s+on\s+the\s+slice's\s+own\s+range\./,
+    'satisfy Missing fail-to-pass run on the slice\'s own range by an outcome line over any range that starts at the slice\'s base',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /Each\s+\*\*Pass-to-pass\*\*\s+and\s+\*\*Missing\s+fail-to-pass\s+run\*\*\s+finding\s+names\s+its\s+range,\s+both\s+ends\s+full\s+commits/,
+    'have slice-reviewer name the range in each Pass-to-pass and Missing fail-to-pass run finding, both ends full commits',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /outcome\s+line\s+is\s+trace\s+evidence,\s+never\s+the\s+implementer's\s+own\s+account/,
+    'read the outcome line as trace evidence in the blind pass, never from the implementer\'s own account',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /whose\s+only\s+remaining\s+Critical\s+or\s+Important\s+findings\s+are\s+\*\*Missing\s+RED\*\*,\s+\*\*Pass-to-pass\*\*,\s+or\s+\*\*Missing\s+fail-to-pass\s+run\*\*\s+merges[\s\S]{0,100}report\s+names\s+each\s+finding\s+with\s+its\s+slice[\s\S]{0,100}you\s+still\s+report\s+each\s+as\s+\*\*Important\*\*[\s\S]{0,160}of\s+another\s+kind\s+blocks\.\s+No\s+trace,\s+no\s+events\s+for\s+the\s+slice,\s+and\s+a\s+repository\s+with\s+no\s+test\s+command\s+get\s+no\s+\*\*Missing\s+RED\*\*\s+finding:\s+name\s+the\s+gap\s+in\s+the\s+report\.\s+No\s+trace,\s+no\s+`edit`\s+line\s+for\s+the\s+slice,\s+and\s+a\s+repository\s+with\s+no\s+test\s+command\s+get\s+no\s+\*\*Pass-to-pass\*\*\s+or\s+\*\*Missing\s+fail-to-pass\s+run\*\*\s+finding:\s+name\s+the\s+gap\s+in\s+the\s+report\.\s+Only\s+`edit`\s+lines\s+count\s+as\s+a\s+slice's\s+or\s+a\s+cycle's\s+change\s+events,\s+so\s+a\s+`run`\s+or\s+`ledger`\s+line\s+is\s+none/,
+    'state that at the 3-cycle fix cap a slice whose only remaining Critical or Important findings are Missing RED, Pass-to-pass, or Missing fail-to-pass run merges and the report names each finding with its slice, that the reviewer still reports each as Important, that any of them beside a finding of another kind blocks, that no trace, no events for the slice, and no test command get no Missing RED finding, as the checklist and the implement-full dispatch state it, and that no trace, no edit line for the slice, and no test command get no Pass-to-pass or Missing fail-to-pass run finding, the gap named in the report each time, only edit lines counting as change events so a run or ledger line is none',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /Pass-to-pass\s+finding\s+on\s+a\s+re-review\*\*\s+closes\s+only\s+when\s+the\s+trace\s+records,\s+after\s+the\s+finding,\s+an\s+outcome\s+line\s+that\s+reads\s+`fail-to-pass`\s+over\s+a\s+range\s+from\s+the\s+base\s+of\s+the\s+range\s+that\s+drew\s+the\s+finding\s+to\s+the\s+current\s+tip/,
+    'close a Pass-to-pass finding on a re-review only on a fail-to-pass outcome line over a range from the base of the range that drew it to the current tip',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /A\s+fix\s+that\s+only\s+strengthens\s+the\s+test\s+closes\s+it,\s+and\s+an\s+outcome\s+line\s+over\s+a\s+range\s+that\s+starts\s+later\s+than\s+that\s+base\s+does\s+not[\s\S]{0,200}\*\*Missing\s+fail-to-pass\s+run\*\*\s+finding\s+closes\s+on\s+the\s+outcome\s+line\s+the\s+controller's\s+own\s+run\s+writes,\s+and\s+when\s+that\s+line\s+reads\s+`pass-to-pass`\s+it\s+is\s+a\s+\*\*Pass-to-pass\*\*\s+finding\s+on\s+that\s+range,\s+which\s+closes\s+as\s+above/,
+    'close a Pass-to-pass finding for a fix that only strengthens the test, never on a range that starts later than the original base, and a Missing fail-to-pass run finding on the outcome line the controller\'s own run writes, a pass-to-pass line there being a Pass-to-pass finding on that range that closes the same way',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /\*\*A\s+`behavior`\s+slice's\s+fail-to-pass\s+run\s+comes\s+before\s+its\s+review\*\*[\s\S]{0,400}changes\s+both\s+a\s+test-path\s+file[\s\S]{0,200}and\s+another\s+file,\s+run\s+`node\s+"\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/scope\.js"\s+fail-to-pass\s+<base>\.\.<tip>`\s+from\s+the\s+slice's\s+slicetree[\s\S]{0,200}before\s+you\s+dispatch\s+`superdev:slice-reviewer`/,
+    'have the full-tier controller run the fail-to-pass verb over a behavior slice\'s range, where it changes a test-path file and another file, from the slice\'s slicetree before it dispatches slice-reviewer',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /Run\s+from\s+the\s+slicetree,\s+the\s+line\s+names\s+the\s+slice,\s+and\s+each\s+run\s+works\s+in\s+a\s+throwaway\s+worktree\s+of\s+its\s+own,\s+so\s+slices\s+running\s+in\s+parallel\s+run\s+theirs\s+at\s+the\s+same\s+time\s+without\s+interfering/,
+    'state that a fail-to-pass run from the slicetree names its slice and works in a worktree of its own, so parallel slices do not interfere',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /The\s+line\s+is\s+no\s+test\s+run:\s+it\s+satisfies\s+no\s+Missing\s+RED\s+step\s+and\s+moves\s+no\s+suite\s+record/,
+    'state that the fail-to-pass run is no test run: it satisfies no Missing RED step and moves no suite record',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /The\s+dispatch\s+also\s+names\s+the\s+slice's\s+range,\s+from\s+the\s+commit\s+its\s+branch\s+was\s+cut\s+from\s+to\s+the\s+tip\s+the\s+first\s+review\s+read\s+\(the\s+same\s+range\s+on\s+every\s+review\)/,
+    'dispatch slice-reviewer with the slice\'s own range, from the commit its branch was cut from to the tip the first review read, the same range on every review',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /and\s+on\s+a\s+re-review\s+the\s+fix\s+cycle's\s+range,\s+from\s+the\s+tip\s+the\s+earlier\s+review\s+read\s+to\s+the\s+current\s+tip/,
+    'dispatch slice-reviewer, on a re-review, with the fix cycle\'s range, from the tip the earlier review read to the current tip',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /each\s+range\s+with\s+both\s+ends\s+full\s+commits/,
+    'dispatch slice-reviewer with each range having both ends full commits, so the reviewer matches it against the full commits an outcome line carries',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /It\s+tells\s+the\s+reviewer\s+to\s+apply\s+`##\s+Fail-to-pass\s+run`\s+in\s+`\$\{CLAUDE_PLUGIN_ROOT\}\/references\/review-checklist\.md`\s+to\s+each/,
+    'tell slice-reviewer to apply the checklist\'s Fail-to-pass run section to each range its dispatch names',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /a\s+latest\s+outcome\s+line\s+over\s+a\s+range\s+that\s+reads\s+`pass-to-pass`\s+is\s+an\s+Important\s+finding,\s+\*\*Pass-to-pass\*\*,\s+and\s+a\s+range\s+that\s+changes\s+both\s+a\s+test-path\s+file\s+and\s+another\s+file,\s+with\s+no\s+outcome\s+line\s+over\s+it,\s+is\s+an\s+Important\s+finding,\s+\*\*Missing\s+fail-to-pass\s+run\*\*/,
+    'dispatch slice-reviewer with both fail-to-pass findings, Pass-to-pass and Missing fail-to-pass run, each Important',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /A\s+fix\s+cycle\s+whose\s+range\s+is\s+empty,\s+or\s+whose\s+commits\s+change\s+only\s+test\s+files,\s+needs\s+no\s+outcome\s+line\s+and\s+draws\s+no\s+finding/,
+    'dispatch slice-reviewer with the rule that a fix cycle whose range is empty, or whose commits change only test files, needs no outcome line and draws no finding',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /On\s+the\s+slice's\s+own\s+range,\s+the\s+latest\s+outcome\s+line\s+over\s+any\s+range\s+that\s+starts\s+at\s+the\s+slice's\s+base\s+decides\s+\*\*Pass-to-pass\*\*,\s+and\s+an\s+outcome\s+line/,
+    'dispatch slice-reviewer with the rule that the latest outcome line over any range that starts at the slice\'s base decides Pass-to-pass on the slice\'s own range',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /an\s+outcome\s+line\s+over\s+any\s+range\s+that\s+starts\s+at\s+the\s+slice's\s+base\s+satisfies\s+\*\*Missing\s+fail-to-pass\s+run\*\*/,
+    'dispatch slice-reviewer with the rule that an outcome line over any range that starts at the slice\'s base satisfies Missing fail-to-pass run on the slice\'s own range',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /Each\s+\*\*Pass-to-pass\*\*\s+and\s+\*\*Missing\s+fail-to-pass\s+run\*\*\s+finding\s+names\s+its\s+range,\s+both\s+ends\s+full\s+commits/,
+    'dispatch slice-reviewer with the rule that each Pass-to-pass and Missing fail-to-pass run finding names its range, both ends full commits',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /A\s+re-review\s+closes\s+a\s+\*\*Pass-to-pass\*\*\s+finding\s+only\s+when\s+the\s+trace\s+records,\s+after\s+the\s+finding,\s+an\s+outcome\s+line\s+that\s+reads\s+`fail-to-pass`\s+over\s+a\s+range\s+from\s+the\s+base\s+of\s+the\s+range\s+that\s+drew\s+the\s+finding\s+to\s+the\s+current\s+tip/,
+    'dispatch slice-reviewer with the closing of a Pass-to-pass finding: only a later fail-to-pass outcome line over a range from the base of the range that drew it to the current tip',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /It\s+closes\s+a\s+\*\*Missing\s+fail-to-pass\s+run\*\*\s+finding\s+on\s+the\s+outcome\s+line\s+your\s+own\s+run\s+writes,\s+and\s+a\s+`pass-to-pass`\s+line\s+there\s+is\s+a\s+\*\*Pass-to-pass\*\*\s+finding\s+on\s+that\s+range/,
+    'dispatch slice-reviewer with the closing of a Missing fail-to-pass run finding on the outcome line the controller\'s own run writes, a pass-to-pass line there being a Pass-to-pass finding on that range',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /reads\s+the\s+outcome\s+line\s+from\s+the\s+trace\s+and\s+never\s+from\s+the\s+dispatch,\s+which\s+carries\s+no\s+outcome\s+\(INV-0114\)[\s\S]{0,200}no\s+trace,\s+no\s+`edit`\s+line\s+for\s+the\s+slice,\s+or\s+no\s+test\s+command\s+gets\s+no\s+finding,\s+only\s+a\s+named\s+gap\.\s+Only\s+`edit`\s+lines\s+count\s+as\s+a\s+slice's\s+or\s+a\s+cycle's\s+change\s+events,\s+so\s+a\s+`run`\s+or\s+`ledger`\s+line\s+is\s+none/,
+    'have slice-reviewer read the outcome line from the trace, never from the dispatch, with no finding for a missing trace, a slice with no edit line, or no test command; only edit lines count as change events, so a run or ledger line written after the trace began for a slice whose edits came before it draws no finding',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /\*\*A\s+fix\s+cycle's\s+fail-to-pass\s+run\s+comes\s+before\s+its\s+re-review\*\*[\s\S]{0,200}before\s+you\s+dispatch\s+the\s+re-review,\s+run\s+`scope\.js\s+fail-to-pass\s+<base>\.\.<tip>`\s+from\s+the\s+slice's\s+slicetree\s+over\s+the\s+cycle's\s+range[\s\S]{0,200}change\s+both\s+a\s+test-path\s+file\s+and\s+another\s+file/,
+    'have the full-tier controller run the verb over each fix cycle\'s range, where it changes a test-path file and another file, from the slicetree before the re-review',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /Where\s+a\s+\*\*Pass-to-pass\*\*\s+finding\s+stands,\s+also\s+run\s+the\s+verb\s+over\s+a\s+range\s+from\s+the\s+base\s+of\s+the\s+range\s+that\s+drew\s+the\s+finding\s+to\s+the\s+current\s+tip[\s\S]{0,300}closes\s+the\s+finding\s+when\s+it\s+reads\s+`fail-to-pass`/,
+    'have the full-tier controller close a Pass-to-pass finding with a run over a range from the base of the range that drew it to the current tip, so a fix that only strengthens the test closes it',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /Answer\s+a\s+\*\*Missing\s+fail-to-pass\s+run\*\*\s+finding\s+yourself,\s+with\s+no\s+implementer\s+cycle\.\s+Run\s+the\s+verb\s+from\s+the\s+slicetree\s+over\s+the\s+slice's\s+base\s+to\s+the\s+current\s+tip\s+for\s+a\s+finding\s+on\s+the\s+slice's\s+own\s+range/,
+    'have the full-tier controller answer Missing fail-to-pass run by running the verb itself, with no implementer cycle, over the slice\'s base to the current tip for a finding on the slice\'s own range',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /starts\s+at\s+the\s+slice's\s+base\s+satisfies\s+it,\s+and\s+over\s+the\s+range\s+the\s+finding\s+names\s+otherwise/,
+    'have the full-tier controller answer a Missing fail-to-pass run finding on any range other than the slice\'s own over the range the finding names',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /A\s+`pass-to-pass`\s+line\s+that\s+run\s+writes\s+is\s+a\s+\*\*Pass-to-pass\*\*\s+finding\s+on\s+that\s+range,\s+which\s+the\s+next\s+re-review\s+judges/,
+    'state that a pass-to-pass line the controller\'s answer to Missing fail-to-pass run writes is a Pass-to-pass finding on that range, judged at the next re-review',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /Where\s+no\s+implementer\s+fix\s+is\s+dispatched\s+before\s+the\s+re-review\s+after\s+that\s+answer,\s+the\s+answer\s+and\s+that\s+re-review\s+count\s+as\s+one\s+of\s+the\s+3\s+cycles\.\s+Where\s+an\s+implementer\s+fix\s+is\s+dispatched\s+before\s+that\s+same\s+re-review,\s+the\s+answer,\s+the\s+fix,\s+and\s+the\s+re-review\s+they\s+share\s+count\s+together\s+as\s+one\s+cycle/,
+    'count the full-tier controller\'s answer to Missing fail-to-pass run and the re-review after it as one of the 3 cycles only where no implementer fix goes out before that re-review, and count the answer, a fix dispatched before the same re-review, and that re-review together as one cycle, so a loop of answers stops at the cap and a mixed cycle counts once',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /add\s+`--range\s+<base>\.\.<tip>`,\s+both\s+full\s+commits,\s+to\s+record\s+the\s+slice's\s+commit\s+range:\s+every\s+`behavior`\s+slice\s+records\s+it/,
+    'state that every behavior slice\'s merged write on the full tier carries its commit range as full commits',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /On\s+the\s+full\s+tier,\s+`slice-reviewer`\s+applies\s+both\s+entries\*\*[\s\S]{0,60}to\s+each\s+range\s+its\s+dispatch\s+names:/,
+    'have slice-reviewer apply both fail-to-pass entries on the full tier to each range its dispatch names',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /the\s+slice's\s+range,\s+from\s+the\s+commit\s+its\s+slice\s+branch\s+was\s+cut\s+from\s+to\s+the\s+tip\s+the\s+first\s+review\s+read\s+\(the\s+same\s+range\s+on\s+every\s+review/,
+    'name a full-tier slice\'s own range as running from the commit its slice branch was cut from to the tip the first review read, the same range on every review',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /on\s+a\s+re-review\s+the\s+fix\s+cycle's\s+range\s+as\s+well,\s+from\s+the\s+tip\s+the\s+earlier\s+review\s+read\s+to\s+the\s+current\s+tip/,
+    'name a full-tier re-review\'s fix cycle range as running from the tip the earlier review read to the current tip',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /The\s+slice's\s+ledger\s+row\s+records\s+no\s+range\s+while\s+the\s+slice\s+is\s+under\s+review,\s+so\s+the\s+range\s+comes\s+from\s+the\s+dispatch\s+and\s+the\s+controller\s+answers\s+Missing\s+fail-to-pass\s+run\s+by\s+running\s+the\s+verb,\s+recording\s+no\s+range\s+first:\s+over\s+the\s+slice's\s+base\s+to\s+the\s+current\s+tip\s+for\s+a\s+finding\s+on\s+the\s+slice's\s+own\s+range,\s+and\s+over\s+the\s+range\s+the\s+finding\s+names\s+otherwise/,
+    'state that a full-tier slice\'s ledger row records no range while the slice is under review, so the range comes from the dispatch and the controller answers Missing fail-to-pass run by running the verb, recording no range first, over the slice\'s base to the current tip for a finding on the slice\'s own range and over the range the finding names otherwise, as implement-full.md states it',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /A\s+fix\s+cycle\s+whose\s+range\s+is\s+empty,\s+or\s+whose\s+commits\s+change\s+only\s+test-path\s+files,\s+has\s+nothing\s+to\s+put\s+back:\s+it\s+needs\s+no\s+outcome\s+line\s+and\s+draws\s+neither\s+finding/,
+    'state that a fix cycle whose range is empty, or whose commits change only test-path files, needs no outcome line and draws neither fail-to-pass finding',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /A\s+Pass-to-pass\s+finding\s+closes\s+on\s+a\s+`fail-to-pass`\s+outcome\s+over\s+a\s+range\s+from\s+the\s+base\s+of\s+the\s+range\s+that\s+drew\s+it\s+to\s+the\s+current\s+tip:\s+the\s+slice's\s+base\s+for\s+the\s+slice's\s+own\s+range,\s+the\s+tip\s+before\s+the\s+cycle\s+for\s+a\s+fix\s+cycle's\s+range/,
+    'close a full-tier Pass-to-pass finding only on a fail-to-pass outcome over a range from the base of the range that drew it to the current tip: the slice\'s base for the slice\'s own range, the tip before the cycle for a fix cycle\'s range',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /On\s+the\s+slice's\s+own\s+range,\s+the\s+latest\s+outcome\s+line\s+over\s+any\s+range\s+that\s+starts\s+at\s+the\s+slice's\s+base\s+decides\s+Pass-to-pass,\s+and\s+an\s+outcome\s+line/,
+    'decide a full-tier Pass-to-pass finding on the slice\'s own range by the latest outcome line over any range that starts at the slice\'s base',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /an\s+outcome\s+line\s+over\s+any\s+range\s+that\s+starts\s+at\s+the\s+slice's\s+base\s+satisfies\s+Missing\s+fail-to-pass\s+run/,
+    'satisfy a full-tier Missing fail-to-pass run on the slice\'s own range by an outcome line over any range that starts at the slice\'s base',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /A\s+`pass-to-pass`\s+line\s+the\s+controller's\s+own\s+run\s+writes\s+to\s+answer\s+a\s+Missing\s+fail-to-pass\s+run\s+finding\s+is\s+a\s+Pass-to-pass\s+finding\s+on\s+that\s+range,\s+closed\s+the\s+same\s+way/,
+    'state that, on the full tier, a pass-to-pass line the controller\'s own run writes to answer a Missing fail-to-pass run finding is a Pass-to-pass finding on that range, closed the same way',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /Also\s+tell\s+it\s+the\s+fail-to-pass\s+rule\s+on\s+a\s+`lite`\s+scope[\s\S]{0,200}applies\s+`##\s+Fail-to-pass\s+run`\s+in\s+`\$\{CLAUDE_PLUGIN_ROOT\}\/references\/review-checklist\.md`\s+to\s+every\s+`behavior`\s+slice:/,
+    'dispatch final-reviewer with the lite-tier fail-to-pass rule: the checklist section, applied to every behavior slice, whether or not its ledger row records a range',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /an\s+\*\*Important\*\*\s+finding,\s+\*\*Pass-to-pass\*\*,\s+where\s+the\s+slice's\s+latest\s+outcome\s+line\s+over\s+its\s+recorded\s+range[\s\S]{0,80}reads\s+`pass-to-pass`,\s+and\s+an\s+\*\*Important\*\*\s+finding,\s+\*\*Missing\s+fail-to-pass\s+run\*\*,\s+where\s+its\s+range\s+changes\s+both\s+a\s+test-path\s+file\s+and\s+another\s+file\s+and\s+has\s+no\s+outcome\s+line\s+over\s+it/,
+    'dispatch final-reviewer with both fail-to-pass findings, Pass-to-pass and Missing fail-to-pass run, each Important',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /or,\s+where\s+its\s+ledger\s+row\s+records\s+no\s+range,\s+where\s+its\s+own\s+`edit\s+test`\s+and\s+`edit\s+impl`\s+trace\s+lines\s+show\s+both/,
+    'dispatch final-reviewer to raise Missing fail-to-pass run on a slice with no recorded range from its own edit test and edit impl trace lines',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /With\s+no\s+trace,\s+no\s+`edit`\s+line\s+for\s+the\s+slice,\s+or\s+no\s+test\s+command\s+it\s+raises\s+neither\s+and\s+names\s+the\s+gap\s+in\s+the\s+report\.\s+Only\s+`edit`\s+lines\s+count\s+as\s+a\s+slice's\s+or\s+a\s+cycle's\s+change\s+events,\s+so\s+a\s+`run`\s+or\s+`ledger`\s+line\s+is\s+none/,
+    'dispatch final-reviewer with the no-finding-without-a-trace, an edit line, or a test command rule for the fail-to-pass findings, only edit lines counting as change events so a run or ledger line is none; a missing range exempts no slice',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /Both\s+take\s+Missing\s+RED's\s+3-cycle\s+cap\s+and\s+escape\s+path:\s+a\s+scope\s+whose\s+only\s+remaining\s+Critical\s+or\s+Important\s+findings\s+are\s+\*\*Missing\s+RED\*\*,\s+\*\*Pass-to-pass\*\*,\s+or\s+\*\*Missing\s+fail-to-pass\s+run\*\*\s+proceeds,\s+and\s+§3's\s+report\s+names\s+each\s+with\s+its\s+slice;\s+any\s+of\s+them\s+beside\s+a\s+Critical\s+or\s+Important\s+finding\s+of\s+another\s+kind\s+blocks/,
+    'dispatch final-reviewer with the cap rule for Missing RED and the fail-to-pass findings: a remainder of only those proceeds at the fix cap, the report naming each with its slice, and any of them beside a finding of another kind blocks',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /\*\*Missing\s+fail-to-pass\s+run\*\*\s+\(a\s+finding\s+of\s+that\s+name\s+in\s+the\s+chosen\s+set\)\s+→\s+answer\s+it\s+yourself,\s+with\s+no\s+implementer\s+cycle:\s+run\s+`node\s+"\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/scope\.js"\s+fail-to-pass\s+<base>\.\.<tip>`[\s\S]{0,100}slice's\s+range,\s+and\s+leave\s+it\s+off\s+the\s+\*\*Confirmed\*\*\s+list/,
+    'have the review controller answer Missing fail-to-pass run by running the verb itself over the slice\'s range, with no implementer cycle',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /A\s+slice\s+whose\s+ledger\s+row\s+records\s+no\s+range\s+first\s+has\s+its\s+range\s+recorded:\s+read\s+the\s+slice's\s+commits\s+from\s+the\s+scope\s+branch's\s+log,\s+then\s+run\s+`scope\.js\s+slice\s+<id>\s+merged\s+--range\s+<base>\.\.<tip>\s+--root\s+<run-root>`/,
+    'have the review controller record the range of a slice with none, read from the scope branch\'s log, through scope.js slice merged --range before it runs the verb',
+  ],
+);
+
+// ADR 0134, INV-0138: a fix cycle of `/superdev:review`'s fix loop or of run handoff's fix loop is a change too. These
+// rows pin the controller's two loops and the `final-reviewer` that reads their outcome lines from the trace at every
+// dispatch, on both sides of each dispatch, in the same `run-trace-order` table.
+RUN_TRACE_ORDER_CONTRACTS.push(
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /a\s+fix\s+cycle\s+is\s+a\s+change\s+too,\s+on\s+either\s+tier\s+\(ADR\s+0134\):\s+apply\s+`##\s+Fail-to-pass\s+run`\s+in\s+`\$\{CLAUDE_PLUGIN_ROOT\}\/references\/review-checklist\.md`\s+to\s+each\s+fix\s+cycle\s+of\s+the\s+scope\s+branch[\s\S]{0,200}latest\s+outcome\s+line\s+over\s+its\s+range\s+reads\s+`pass-to-pass`\s+is\s+an\s+\*\*Important\*\*\s+finding,\s+\*\*Pass-to-pass\*\*[\s\S]{0,300}has\s+no\s+outcome\s+line\s+over\s+that\s+range,\s+is\s+an\s+\*\*Important\*\*\s+finding,\s+\*\*Missing\s+fail-to-pass\s+run\*\*/,
+    'apply the checklist\'s Fail-to-pass run section to each fix cycle on either tier: an Important Pass-to-pass finding where the cycle\'s latest outcome line over its range reads pass-to-pass, and an Important Missing fail-to-pass run finding where its range changes a test-path file and another file with no outcome line',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /Run\s+handoff\s+has\s+no\s+re-review\s+of\s+its\s+own,\s+and\s+a\s+re-review\s+hands\s+you\s+only\s+the\s+current\s+cycle's\s+range,\s+so\s+you\s+read\s+run\s+handoff's\s+cycles\s+and\s+the\s+scope's\s+earlier\s+review\s+cycles\s+from\s+the\s+trace\s+at\s+every\s+dispatch:\s+a\s+`scope`\s+range\s+whose\s+latest\s+outcome\s+line\s+reads\s+`pass-to-pass`\s+is\s+\*\*Pass-to-pass\*\*/,
+    'read run handoff\'s fix cycles and the scope\'s earlier review cycles from the trace at every dispatch, since run handoff has no re-review and a re-review hands only the current cycle\'s range: a scope range whose latest outcome line reads pass-to-pass is Pass-to-pass, so a later fail-to-pass line over the same range cancels it',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /and\s+an\s+`implementer`\s+`dispatch`\s+of\s+`scope`\s+with\s+`edit`\s+lines\s+in\s+its\s+window,\s+whose\s+commits\s+that\s+landed\s+in\s+that\s+window\s+change\s+both\s+a\s+test-path\s+file\s+and\s+another\s+file,\s+with\s+no\s+outcome\s+line\s+over\s+those\s+commits,\s+is\s+\*\*Missing\s+fail-to-pass\s+run\*\*/,
+    'detect a run handoff fix cycle\'s Missing fail-to-pass run from an implementer dispatch of scope with edit lines in its window whose commits that landed in that window change a test-path file and another file, with no outcome line over those commits',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /A\s+fix\s+cycle's\s+window\s+runs\s+from\s+its\s+`implementer`\s+`dispatch`\s+line\s+of\s+`scope`\s+to\s+the\s+first\s+`dispatch`\s+line,\s+whatever\s+its\s+agent\s+type\s+or\s+slice,\s+after\s+that\s+implementer's\s+`dispatch-end`\s+line,\s+or\s+to\s+the\s+end\s+of\s+the\s+trace\s+when\s+none\s+follows\.\s+A\s+denied,\s+failed,\s+or\s+interrupted\s+dispatch\s+leaves\s+no\s+`dispatch-end`\s+line,\s+and\s+its\s+window\s+ends\s+at\s+the\s+first\s+`dispatch`\s+line\s+after\s+its\s+own\s+`dispatch`\s+line,\s+or\s+at\s+the\s+end\s+of\s+the\s+trace\.\s+A\s+cycle's\s+commits\s+are\s+read\s+along\s+the\s+scope\s+branch's\s+first-parent\s+chain,\s+so\s+the\s+base\s+commits\s+a\s+merge\s+brings\s+in\s+are\s+none\s+of\s+them,\s+and\s+neither\s+is\s+a\s+merge\s+commit\s+that\s+brings\s+the\s+base\s+in/,
+    'bound any fix cycle\'s window at its implementer dispatch line of scope and the first dispatch line of any agent type or slice after that implementer\'s dispatch-end line, or the end of the trace, so a dispatch that starts while the implementer still runs cuts no window short, a send-back\'s commits fall inside it, and a later doc pass\'s commits fall outside it; end a dispatch with no dispatch-end line, a denied, failed, or interrupted one, at the first dispatch line after its own; and read a cycle\'s commits along the scope branch\'s first-parent chain, leaving out the base commits a merge brings in and the merge commit itself',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /A\s+\*\*Pass-to-pass\*\*\s+finding\s+closes\s+only\s+on\s+a\s+`fail-to-pass`\s+outcome\s+over\s+a\s+range\s+from\s+the\s+original\s+change's\s+base\s+to\s+the\s+tip\s+current\s+when\s+that\s+closing\s+run\s+ran:\s+a\s+lite\s+slice's\s+recorded\s+range\s+base,\s+or\s+the\s+fix\s+cycle's\s+own\s+base\.\s+The\s+finding\s+stays\s+closed\s+once\s+that\s+line\s+is\s+written,\s+and\s+this\s+closing\s+rule\s+holds\s+at\s+every\s+dispatch,\s+the\s+entry\s+dispatch\s+included/,
+    'close a Pass-to-pass finding only on a fail-to-pass outcome from the original change\'s base, a lite slice\'s recorded range base or the fix cycle\'s own base, to the tip current when that closing run ran, keep it closed once that line is written, and apply the rule at every dispatch and not only a re-review',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /On\s+either\s+tier,\s+both\s+fix-cycle\s+findings\s+take\s+Missing\s+RED's\s+3-cycle\s+cap\s+and\s+escape\s+path\s+\(ADR\s+0125\),\s+which\s+\*\*Fail-to-pass\s+outcome\*\*\s+above\s+states,\s+and\s+the\s+report\s+names\s+a\s+cycle's\s+finding\s+with\s+its\s+range/,
+    'apply Missing RED\'s 3-cycle cap and escape path, named explicitly as the Fail-to-pass outcome paragraph states them, to the fix-cycle findings on either tier, the report naming a cycle\'s finding with its range',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /No\s+trace,\s+a\s+run\s+handoff\s+cycle\s+with\s+no\s+`edit`\s+lines,\s+and\s+a\s+repository\s+with\s+no\s+test\s+command\s+get\s+no\s+finding:\s+name\s+the\s+gap\s+in\s+the\s+report\.\s+A\s+cycle\s+whose\s+commits\s+change\s+only\s+test-path\s+files,\s+or\s+no\s+file,\s+has\s+nothing\s+to\s+put\s+back:\s+it\s+gets\s+no\s+finding,\s+and\s+you\s+name\s+no\s+gap\s+for\s+it/,
+    'exempt from the fix-cycle findings, naming the gap, only a run with no trace, a run handoff cycle with no edit lines, and a repository with no test command, so a review cycle\'s commits decide without edit lines; and give a cycle whose commits change only test-path files, or no file, no finding and no gap note',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /A\s+`scope`\s+line\s+that\s+follows\s+a\s+finding's\s+own\s+`pass-to-pass`\s+line\s+and\s+starts\s+its\s+range\s+at\s+that\s+line's\s+base\s+is\s+the\s+finding's\s+closing\s+run,\s+not\s+a\s+cycle:\s+it\s+closes\s+the\s+finding\s+or\s+keeps\s+it\s+open,\s+and\s+raises\s+no\s+second\s+finding/,
+    'read a scope line that follows a finding\'s own pass-to-pass line and starts at that line\'s base as the finding\'s closing run, not a cycle: it closes the finding or keeps it open and raises no second finding',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /A\s+fix\s+cycle\s+is\s+a\s+change\s+too,\s+on\s+either\s+tier,\s+in\s+`\/superdev:review`'s\s+fix\s+loop\s+and\s+in\s+run\s+handoff's\s+fix\s+loop[\s\S]{0,300}the\s+controller\s+runs\s+`scope\.js\s+fail-to-pass\s+<base>\.\.<tip>`\s+over\s+that\s+range\s+from\s+the\s+scope\s+checkout,\s+and\s+the\s+trace\s+line\s+names\s+`scope`/,
+    'define a fix cycle as a change too, in review\'s and run handoff\'s fix loops, whose range the controller runs the verb over from the scope checkout, the trace line naming scope',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /Run\s+handoff\s+has\s+no\s+re-review\s+of\s+its\s+own,\s+and\s+a\s+re-review\s+hands\s+`final-reviewer`\s+only\s+the\s+current\s+cycle's\s+range,\s+so\s+it\s+reads\s+run\s+handoff's\s+cycles\s+and\s+the\s+scope's\s+earlier\s+review\s+cycles\s+from\s+the\s+trace\s+at\s+every\s+dispatch\s+of\s+`\/superdev:review`:\s+a\s+`scope`\s+range\s+whose\s+latest\s+outcome\s+line\s+reads\s+`pass-to-pass`\s+is\s+a\s+Pass-to-pass\s+finding/,
+    'have final-reviewer read run handoff\'s fix cycles and the scope\'s earlier review cycles from the trace at every dispatch of /superdev:review, since run handoff has no re-review and a re-review hands only the current cycle\'s range: a scope range whose latest outcome line reads pass-to-pass is a Pass-to-pass finding, so a later fail-to-pass line over the same range cancels it',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /and\s+an\s+`implementer`\s+`dispatch`\s+of\s+`scope`\s+with\s+`edit`\s+lines\s+in\s+its\s+window,\s+whose\s+commits\s+that\s+landed\s+in\s+that\s+window\s+change\s+both\s+a\s+test-path\s+file\s+and\s+another\s+file,\s+with\s+no\s+outcome\s+line\s+over\s+those\s+commits,\s+is\s+a\s+Missing\s+fail-to-pass\s+run\s+finding/,
+    'detect a run handoff fix cycle\'s Missing fail-to-pass run finding from an implementer dispatch of scope with edit lines in its window whose commits that landed in that window change a test-path file and another file, with no outcome line over those commits',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /A\s+fix\s+cycle's\s+window\s+runs\s+from\s+its\s+`implementer`\s+`dispatch`\s+line\s+of\s+`scope`\s+to\s+the\s+first\s+`dispatch`\s+line,\s+whatever\s+its\s+agent\s+type\s+or\s+slice,\s+after\s+that\s+implementer's\s+`dispatch-end`\s+line,\s+or\s+to\s+the\s+end\s+of\s+the\s+trace\s+when\s+none\s+follows\.\s+A\s+denied,\s+failed,\s+or\s+interrupted\s+dispatch\s+leaves\s+no\s+`dispatch-end`\s+line,\s+and\s+its\s+window\s+ends\s+at\s+the\s+first\s+`dispatch`\s+line\s+after\s+its\s+own\s+`dispatch`\s+line,\s+or\s+at\s+the\s+end\s+of\s+the\s+trace\.\s+A\s+cycle's\s+commits\s+are\s+read\s+along\s+the\s+scope\s+branch's\s+first-parent\s+chain,\s+so\s+the\s+base\s+commits\s+a\s+merge\s+brings\s+in\s+are\s+none\s+of\s+them,\s+and\s+neither\s+is\s+a\s+merge\s+commit\s+that\s+brings\s+the\s+base\s+in/,
+    'bound any fix cycle\'s window at its implementer dispatch line of scope and the first dispatch line of any agent type or slice after that implementer\'s dispatch-end line, or the end of the trace, so a dispatch that starts while the implementer still runs cuts no window short, a send-back\'s commits fall inside it, and a later doc pass\'s commits fall outside it; end a dispatch with no dispatch-end line, a denied, failed, or interrupted one, at the first dispatch line after its own; and read a cycle\'s commits along the scope branch\'s first-parent chain, leaving out the base commits a merge brings in and the merge commit itself',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /The\s+original\s+change's\s+base\s+is\s+the\s+base\s+of\s+the\s+range\s+the\s+finding's\s+`pass-to-pass`\s+line\s+names:\s+a\s+lite\s+slice's\s+recorded\s+range\s+base,\s+or\s+the\s+fix\s+cycle's\s+own\s+base/,
+    'name the original change\'s base as the base of the range the finding\'s pass-to-pass line names: a lite slice\'s recorded range base, or the fix cycle\'s own base',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /The\s+controller\s+answers\s+a\s+cycle's\s+Missing\s+finding\s+the\s+same\s+way\s+it\s+answers\s+a\s+slice's,\s+over\s+the\s+cycle's\s+range[\s\S]{0,200}scope\s+branch's\s+first-parent\s+log\s+over\s+that\s+window/,
+    'have the controller answer a fix cycle\'s Missing fail-to-pass run finding as it answers a slice\'s, over the cycle\'s range, read from the scope branch\'s first-parent log over the cycle\'s window for a run handoff cycle',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /The\s+report\s+names\s+a\s+cycle's\s+finding\s+with\s+its\s+range\.\s+No\s+trace,\s+a\s+run\s+handoff\s+cycle\s+with\s+no\s+`edit`\s+lines,\s+and\s+a\s+repository\s+with\s+no\s+test\s+command\s+get\s+no\s+finding:\s+the\s+report\s+names\s+the\s+gap\.\s+A\s+cycle\s+whose\s+commits\s+change\s+only\s+test-path\s+files,\s+or\s+no\s+file,\s+has\s+nothing\s+to\s+put\s+back:\s+it\s+needs\s+no\s+outcome\s+line\s+and\s+gets\s+no\s+finding,\s+and\s+the\s+report\s+names\s+no\s+gap\s+for\s+it/,
+    'name a cycle\'s finding with its range in the report, exempt from both findings, naming the gap, only a run with no trace, a run handoff cycle with no edit lines, and a repository with no test command, so a review cycle\'s commits decide without edit lines; and give a cycle whose commits change only test-path files, or no file, no outcome line, no finding, and no gap note',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /Its\s+range\s+runs\s+from\s+the\s+scope\s+tip\s+the\s+controller\s+recorded\s+before\s+the\s+fix\s+dispatch\s+to\s+the\s+tip\s+once\s+the\s+cycle's\s+report\s+is\s+accepted/,
+    'run a fix cycle\'s range from the scope tip recorded before the fix dispatch to the tip once the cycle\'s report is accepted, after any send-back',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /A\s+`scope`\s+line\s+that\s+follows\s+a\s+finding's\s+own\s+`pass-to-pass`\s+line\s+and\s+starts\s+its\s+range\s+at\s+that\s+line's\s+base\s+is\s+the\s+finding's\s+closing\s+run,\s+not\s+a\s+cycle:\s+it\s+closes\s+the\s+finding\s+or\s+keeps\s+it\s+open,\s+and\s+raises\s+no\s+second\s+finding/,
+    'read a scope line that follows a finding\'s own pass-to-pass line and starts at that line\'s base as the finding\'s closing run, not a cycle: it closes the finding or keeps it open and raises no second finding',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /Also\s+tell\s+it\s+the\s+fix-cycle\s+rule\s+on\s+either\s+tier[\s\S]{0,300}to\s+each\s+fix\s+cycle\s+of\s+the\s+scope\s+branch\.\s+A\s+fix\s+cycle's\s+re-review\s+hands\s+it\s+the\s+cycle's\s+range,\s+`<cycle-base>\.\.<cycle-tip>`\s+as\s+full\s+commits/,
+    'dispatch final-reviewer with the fix-cycle rule on either tier: a re-review hands it the cycle\'s range as full commits',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /an\s+\*\*Important\*\*\s+finding,\s+\*\*Pass-to-pass\*\*,\s+where\s+the\s+cycle's\s+latest\s+outcome\s+line\s+over\s+that\s+range\s+reads\s+`pass-to-pass`,\s+and\s+an\s+\*\*Important\*\*\s+finding,\s+\*\*Missing\s+fail-to-pass\s+run\*\*,\s+where\s+the\s+range\s+changes\s+both\s+a\s+test-path\s+file\s+and\s+another\s+file\s+and\s+has\s+no\s+outcome\s+line\s+over\s+it/,
+    'dispatch final-reviewer to raise an Important Pass-to-pass finding where a fix cycle\'s latest outcome line over its range reads pass-to-pass, and an Important Missing fail-to-pass run finding where the range changes a test-path file and another file with no outcome line over it',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /A\s+\*\*Pass-to-pass\*\*\s+finding\s+closes\s+only\s+on\s+a\s+`fail-to-pass`\s+outcome\s+over\s+a\s+range\s+from\s+the\s+original\s+change's\s+base\s+to\s+the\s+tip\s+current\s+when\s+that\s+closing\s+run\s+ran,\s+and\s+stays\s+closed\s+once\s+that\s+line\s+is\s+written/,
+    'dispatch final-reviewer with the closing rule: a Pass-to-pass finding closes only on a fail-to-pass outcome from the original change\'s base to the tip current when that closing run ran, and stays closed once that line is written',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /That\s+holds\s+at\s+every\s+dispatch,\s+the\s+entry\s+dispatch\s+included\s+\(it\s+runs\s+no\s+cycle\s+and\s+hands\s+no\s+range\)\s+and\s+a\s+re-review\s+\(it\s+hands\s+only\s+its\s+own\s+cycle's\s+range\)\.\s+A\s+`scope`\s+line\s+that\s+follows\s+a\s+finding's\s+own\s+`pass-to-pass`\s+line\s+and\s+starts\s+its\s+range\s+at\s+that\s+line's\s+base\s+is\s+the\s+finding's\s+closing\s+run,\s+not\s+a\s+cycle:\s+it\s+closes\s+the\s+finding\s+or\s+keeps\s+it\s+open,\s+and\s+raises\s+no\s+second\s+finding/,
+    'dispatch final-reviewer with the closing rule at every dispatch, the entry dispatch included (no cycle, no range) and a re-review (only its own cycle\'s range), and the closing run: a scope line that follows a finding\'s own pass-to-pass line and starts at that line\'s base closes the finding or keeps it open and raises no second finding',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /Run\s+handoff\s+has\s+no\s+re-review\s+of\s+its\s+own,\s+so\s+`final-reviewer`\s+reads\s+run\s+handoff's\s+cycles\s+and\s+the\s+scope's\s+earlier\s+review\s+cycles\s+from\s+the\s+trace\s+at\s+every\s+dispatch/,
+    'dispatch final-reviewer to read run handoff\'s fix cycles and the scope\'s earlier review cycles from the trace at every dispatch, since run handoff has no re-review of its own',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /a\s+`scope`\s+range\s+whose\s+latest\s+outcome\s+line\s+reads\s+`pass-to-pass`,\s+and\s+an\s+`implementer`\s+`dispatch`\s+of\s+`scope`\s+with\s+`edit`\s+lines\s+in\s+its\s+window,\s+whose\s+commits\s+that\s+landed\s+in\s+that\s+window\s+change\s+both\s+a\s+test-path\s+file\s+and\s+another\s+file,\s+with\s+no\s+outcome\s+line\s+over\s+those\s+commits/,
+    'dispatch final-reviewer to read run handoff\'s fix cycles from the trace: a scope range whose latest outcome line reads pass-to-pass, and an implementer dispatch of scope with edit lines in its window whose commits that landed in that window change a test-path file and another file, with no outcome line over those commits',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /A\s+fix\s+cycle's\s+window\s+runs\s+from\s+its\s+`implementer`\s+`dispatch`\s+line\s+of\s+`scope`\s+to\s+the\s+first\s+`dispatch`\s+line,\s+whatever\s+its\s+agent\s+type\s+or\s+slice,\s+after\s+that\s+implementer's\s+`dispatch-end`\s+line,\s+or\s+to\s+the\s+end\s+of\s+the\s+trace\s+when\s+none\s+follows\.\s+A\s+denied,\s+failed,\s+or\s+interrupted\s+dispatch\s+leaves\s+no\s+`dispatch-end`\s+line,\s+and\s+its\s+window\s+ends\s+at\s+the\s+first\s+`dispatch`\s+line\s+after\s+its\s+own\s+`dispatch`\s+line,\s+or\s+at\s+the\s+end\s+of\s+the\s+trace\.\s+A\s+cycle's\s+commits\s+are\s+read\s+along\s+the\s+scope\s+branch's\s+first-parent\s+chain,\s+so\s+the\s+base\s+commits\s+a\s+merge\s+brings\s+in\s+are\s+none\s+of\s+them,\s+and\s+neither\s+is\s+a\s+merge\s+commit\s+that\s+brings\s+the\s+base\s+in/,
+    'dispatch final-reviewer with any fix cycle\'s window, bounded at its implementer dispatch line of scope and the first dispatch line of any agent type or slice after that implementer\'s dispatch-end line, or the end of the trace, so a dispatch that starts while the implementer still runs cuts no window short, a send-back\'s commits fall inside it, and a later doc pass\'s commits fall outside it, with a dispatch that has no dispatch-end line ending at the first dispatch line after its own, and with a cycle\'s commits read along the scope branch\'s first-parent chain, leaving out the base commits a merge brings in and the merge commit itself',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /No\s+trace,\s+a\s+run\s+handoff\s+cycle\s+with\s+no\s+`edit`\s+lines,\s+and\s+a\s+repository\s+with\s+no\s+test\s+command\s+get\s+no\s+finding:\s+name\s+the\s+gap\s+in\s+the\s+report\.\s+A\s+cycle\s+whose\s+commits\s+change\s+only\s+test-path\s+files,\s+or\s+no\s+file,\s+gets\s+no\s+finding,\s+and\s+the\s+report\s+names\s+no\s+gap\s+for\s+it/,
+    'dispatch final-reviewer with the fix-cycle no-finding cases the agent body states: no trace, a run handoff cycle with no edit lines, and a repository with no test command get no finding and the report names the gap, and a cycle whose commits change only test-path files, or no file, gets no finding and no gap note, so the dispatch contradicts no exemption of the body',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /Both\s+take\s+Missing\s+RED's\s+3-cycle\s+cap\s+and\s+escape\s+path\s+\(§4\),\s+and\s+§3's\s+report\s+names\s+a\s+cycle's\s+finding\s+with\s+its\s+range/,
+    'dispatch final-reviewer with the cap rule for the fix-cycle findings: Missing RED\'s 3-cycle cap and escape path, the report naming a cycle\'s finding with its range',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /\*\*Fail-to-pass\s+run\s+around\s+each\s+fix\s+cycle\*\*[\s\S]{0,60}before\s+each\s+fix\s+dispatch\s+below,\s+record\s+the\s+scope\s+tip,\s+`git\s+-C\s+<run-root>\/scopetree\s+rev-parse\s+HEAD`,\s+as\s+the\s+cycle's\s+`<base>`\.\s+Once\s+the\s+cycle's\s+report\s+is\s+accepted,\s+after\s+any\s+send-back\s+to\s+the\s+implementer\s+for\s+a\s+report\s+defect\s+or\s+a\s+missed\s+sibling\s+surface,\s+and\s+before\s+the\s+re-review,\s+run\s+`node\s+"\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/scope\.js"\s+fail-to-pass\s+<base>\.\.<tip>`\s+from\s+the\s+scopetree[\s\S]{0,300}and\s+another\s+file/,
+    'have the review controller record the scope tip before each fix dispatch and, once the cycle\'s report is accepted after any send-back, run the verb over the cycle\'s range from the scopetree where it changes a test-path file and another file',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /The\s+trace\s+line\s+names\s+`scope`,\s+because\s+the\s+range\s+matches\s+no\s+ledger\s+row\s+and\s+no\s+slice\s+is\s+in\s+progress\.\s+A\s+cycle\s+whose\s+commits\s+change\s+only\s+test-path\s+files,\s+or\s+no\s+file,\s+needs\s+no\s+outcome\s+line\s+and\s+draws\s+no\s+finding/,
+    'state that a review fix cycle\'s trace line names scope, and that a cycle whose commits change only test-path files, or no file, needs no outcome line and draws no finding',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /Where\s+the\s+chosen\s+set\s+holds\s+a\s+\*\*Pass-to-pass\*\*\s+finding,\s+also\s+run\s+the\s+verb\s+over\s+a\s+range\s+from\s+that\s+finding's\s+original\s+base\s+to\s+the\s+current\s+tip[\s\S]{0,200}a\s+lite\s+slice's\s+recorded\s+range\s+base\s+or\s+a\s+fix\s+cycle's\s+own\s+base/,
+    'have the review controller close a Pass-to-pass finding with its own run from the finding\'s original base, a lite slice\'s recorded range base or a fix cycle\'s own base, to the current tip',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /That\s+finding\s+closes\s+on\s+the\s+`fail-to-pass`\s+outcome\s+of\s+this\s+run,\s+so\s+a\s+fix\s+that\s+only\s+strengthens\s+the\s+test\s+closes\s+it,\s+and\s+it\s+stays\s+closed\s+once\s+that\s+line\s+is\s+written/,
+    'state that the review controller\'s closing run closes the Pass-to-pass finding on its fail-to-pass outcome, and that the finding stays closed once that line is written',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /A\s+\*\*Missing\s+fail-to-pass\s+run\*\*\s+finding\s+on\s+a\s+cycle\s+takes\s+the\s+answer\s+of\s+the\s+bullet\s+above\s+over\s+the\s+cycle's\s+range,\s+which\s+for\s+a\s+run\s+handoff\s+cycle\s+you\s+read\s+from\s+the\s+scope\s+branch's\s+first-parent\s+log\s+over\s+the\s+cycle's\s+window\s+\(§2\)/,
+    'have the review controller answer a fix cycle\'s Missing fail-to-pass run finding by running the verb itself over the cycle\'s range, read from the scope branch\'s first-parent log for a run handoff cycle',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /Neither\s+run\s+is\s+a\s+test\s+run\s+or\s+a\s+cycle\s+of\s+its\s+own:\s+neither\s+satisfies\s+a\s+Missing\s+RED\s+step,\s+moves\s+a\s+suite\s+record,\s+or\s+counts\s+as\s+a\s+cycle\s+beside\s+the\s+implementer\s+cycle\s+it\s+follows,\s+and\s+a\s+refusal\s+or\s+a\s+missing\s+outcome\s+line\s+blocks\s+no\s+loop\s+\(INV-0017\)/,
+    'state that the controller\'s fail-to-pass runs around a fix cycle are no test run and no cycle of their own: they satisfy no Missing RED step, move no suite record, count as no cycle beside the implementer cycle they follow, and a refusal or a missing outcome line blocks no loop (INV-0017)',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /A\s+run\s+of\s+either\s+bullet\s+that\s+prints\s+`pass-to-pass`\s+reaches\s+a\s+re-review\s+over\s+that\s+run's\s+range,\s+dispatched\s+as\s+§2\s+states,\s+even\s+where\s+no\s+implementer\s+cycle\s+preceded\s+it,\s+so\s+the\s+\*\*Pass-to-pass\*\*\s+finding\s+is\s+raised/,
+    'have the review controller dispatch a re-review over the range of a run of either answer bullet, the slice\'s or the cycle\'s, that prints pass-to-pass, even where no implementer cycle preceded it, so the Pass-to-pass finding is raised',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /Where\s+a\s+run\s+answering\s+a\s+\*\*Missing\s+fail-to-pass\s+run\*\*\s+finding\s+prints\s+`pass-to-pass`\s+and\s+no\s+\*\*Confirmed\*\*\s+implementer\s+below\s+is\s+dispatched\s+before\s+the\s+re-review\s+after\s+it,\s+that\s+run\s+and\s+that\s+re-review\s+count\s+as\s+one\s+of\s+the\s+3\s+cycles\.\s+Where\s+a\s+\*\*Confirmed\*\*\s+implementer\s+is\s+dispatched\s+before\s+that\s+same\s+re-review,\s+the\s+run,\s+the\s+implementer,\s+and\s+the\s+re-review\s+they\s+share\s+count\s+together\s+as\s+one\s+cycle/,
+    'count a review controller\'s run answering Missing fail-to-pass run that prints pass-to-pass, with the re-review after it, as one of the 3 cycles only where no Confirmed implementer goes out before that re-review, and count the run, a Confirmed implementer dispatched before the same re-review, and that re-review together as one cycle, so a loop of answers stops at the cap and a mixed cycle counts once',
+  ],
+  [
+    path.join('references', 'run-handoff.md'),
+    /Before\s+each\s+fix\s+dispatch,\s+record\s+the\s+scope\s+tip,\s+`git\s+-C\s+<run-root>\/scopetree\s+rev-parse\s+HEAD`,\s+as\s+the\s+cycle's\s+`<base>`\.\s+Once\s+the\s+cycle's\s+report\s+is\s+accepted,\s+after\s+any\s+send-back\s+to\s+the\s+implementer\s+for\s+a\s+report\s+defect\s+or\s+a\s+missed\s+sibling\s+surface,\s+run\s+`node\s+"\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/scope\.js"\s+fail-to-pass\s+<base>\.\.<tip>`\s+from\s+the\s+scopetree[\s\S]{0,300}and\s+another\s+file/,
+    'have run handoff record the scope tip before each fix dispatch and, once the cycle\'s report is accepted after any send-back, run the verb over the cycle\'s range from the scopetree where it changes a test-path file and another file',
+  ],
+  [
+    path.join('references', 'run-handoff.md'),
+    /The\s+trace\s+line\s+names\s+`scope`,\s+because\s+the\s+range\s+matches\s+no\s+ledger\s+row\s+and\s+no\s+slice\s+is\s+in\s+progress\.\s+A\s+cycle\s+whose\s+commits\s+change\s+only\s+test-path\s+files,\s+or\s+no\s+file,\s+needs\s+no\s+run/,
+    'state that a run handoff fix cycle\'s trace line names scope, and that a cycle whose commits change only test-path files, or no file, needs no run',
+  ],
+  [
+    path.join('references', 'run-handoff.md'),
+    /The\s+fix\s+dispatch\s+names\s+no\s+`slicetrees\/<id>`\s+path\s+and\s+no\s+`reports\/<id>\/`\s+path,\s+so\s+the\s+run\s+trace\s+attributes\s+the\s+dispatch\s+to\s+`scope`,\s+and\s+`final-reviewer`\s+finds\s+the\s+cycle\s+by\s+that\s+`implementer`\s+`dispatch`\s+of\s+`scope`/,
+    'state that run handoff\'s fix dispatch names no slicetrees/<id> path and no reports/<id>/ path, so the run trace attributes the dispatch to scope, which is how final-reviewer finds the cycle',
+  ],
+  [
+    path.join('references', 'run-handoff.md'),
+    /The\s+run\s+is\s+no\s+test\s+run\s+and\s+no\s+cycle:\s+it\s+satisfies\s+no\s+Missing\s+RED\s+step,\s+moves\s+no\s+suite\s+record,\s+and\s+adds\s+nothing\s+to\s+the\s+cycle\s+count,\s+and\s+neither\s+a\s+refusal\s+nor\s+a\s+missing\s+outcome\s+blocks\s+the\s+loop/,
+    'state that run handoff\'s fail-to-pass run is no test run and no cycle: it satisfies no Missing RED step, moves no suite record, and adds nothing to the cycle count, and neither a refusal nor a missing outcome blocks the loop',
+  ],
+  [
+    path.join('references', 'run-handoff.md'),
+    /This\s+loop\s+has\s+no\s+re-review\s+of\s+its\s+own,\s+so\s+`final-reviewer`\s+reads\s+the\s+outcome\s+lines\s+at\s+`\/superdev:review`/,
+    'state that run handoff\'s fix loop has no re-review, so final-reviewer reads its outcome lines at /superdev:review',
+  ],
+);
 
 // ADR 0117: setup proposes a repository's test paths and writes them as the unfenced `## Test paths`
 // section; its check names a missing section as an advisory naming the defaults, never as drift.

@@ -123,6 +123,13 @@ plan runs test-first, inline in the scopetree.
   also performs the documentation pass itself, in that same scopetree, as the last step before hand-off
   ([ADR 0031](docs/adr/0031-the-lite-tier-writes-its-own-documentation.md)). The `/superdev:document`
   entry below describes what that changes downstream.
+  On either tier, a `behavior` slice whose commits change a test file and another file also gets a
+  **fail-to-pass run**. The `scope.js fail-to-pass` verb runs the slice's tests against the changed code, then again
+  with the slice's other files put back as they stood before it. The verb writes the result as an **outcome line**, a
+  `fail-to-pass` line in the run trace. Tests that still pass without the change draw an
+  Important **Pass-to-pass** finding, and a slice with no outcome line draws **Missing fail-to-pass run**. A run that
+  cannot judge records `unknown`, which draws no finding
+  ([ADR 0134](docs/adr/0134-a-fail-to-pass-run-shows-a-change-s-tests-discriminate.md)).
   Either tier stops here, once every slice sits on the scope branch. `/superdev:review` runs next: one
   **whole-scope review** that gates the pull request `/superdev:submit-pr` opens later.
 - **`/superdev:status`**. A read-only snapshot of every in-flight `/superdev:implement` run in the repo:
@@ -479,6 +486,8 @@ again. One answer lands outside that tree: the slice store's **assignee** goes t
   never configured: a prose caller finding it stops and names `/superdev:setup`, running no command, and
   `hooks/green-gate.js` runs the full command it found and emits a one-line notice instead of stopping.
   [`references/test-selection.md`](plugin/references/test-selection.md) owns the full-versus-focused rule.
+  The `/superdev:implement` entry above describes the **fail-to-pass run**. That run uses the focused command over the
+  change's whole path set where the focused command carries `{paths}`, and the full command otherwise.
   In a monorepo the full command may take an **affected form**: it runs every project the change reaches,
   dependents included, as the repository's own dependency-graph tool (nx, turborepo, pnpm, or
   `dotnet-affected`) computes them. Such a repository also records an optional `## Whole-repo command`

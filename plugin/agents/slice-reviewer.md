@@ -23,6 +23,7 @@ behaviour (ADR 0002).
 
 - The slice **specification** + **acceptance criteria**.
 - The **diff** to review (slice branch vs scope).
+- The **ranges** for the fail-to-pass check below, each with both ends full commits.
 - Global constraints that bind the slice.
 - The slice's **progress-log** path (`<run-root>/reports/<id>/progress.md`). It holds the implementer's
   own account of its work, and you open it only after the blind pass below. The dispatch carries no text
@@ -38,11 +39,36 @@ alone. Then read the slice's **run-trace lines** (`node "${CLAUDE_PLUGIN_ROOT}/s
 `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`: hooks wrote the trace, so it belongs to the blind
 pass. On a `behavior` slice, a test edit followed by an implementation edit or a passing run with no failing run between
 them is an **Important** finding, **Missing RED**. A `mechanical` or `docs` slice gets no order finding.
-At the 3-cycle fix cap a slice whose only remaining Critical or Important finding is **Missing RED**
-merges, and the report names the finding with its slice (ADR 0125); you still report it as **Important**, and the
-controller applies the cap. **Missing RED** beside another Critical or Important finding blocks.
-No trace, or no events for the slice, gets no finding: name the gap in the report. A repository with no
-test command gets no order check.
+
+**Fail-to-pass outcome, in the blind pass too.** The slice's run-trace lines also carry its `fail-to-pass`
+lines. A `fail-to-pass` line carries a range, an outcome, and a reason, and is no test run: it satisfies no
+**Missing RED** step (ADR 0134). Apply `## Fail-to-pass run` in
+`${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` to each range the dispatch names: the slice's range, from the
+commit its branch was cut from to the tip the first review read (the same range on every review), and on a
+re-review the fix cycle's range as well, from the tip the earlier review read to the current tip. On a `behavior`
+slice, a latest outcome line over a range that reads
+`pass-to-pass` is an **Important** finding, **Pass-to-pass**, and a range that changes both a test-path file and
+another file, and has no outcome line over it, is an **Important** finding, **Missing fail-to-pass run**. A fix
+cycle whose range is empty, or whose commits change only test-path files, needs no outcome line and draws no
+finding. On the slice's own range, the latest outcome line over any range that starts at the slice's base decides
+**Pass-to-pass**: a `fail-to-pass` line over a range from the base to a later tip of the slice supersedes the
+earlier `pass-to-pass` line. An outcome line over any range that starts at the slice's base also satisfies
+**Missing fail-to-pass run** on the slice's own range. Each **Pass-to-pass** and **Missing fail-to-pass run** finding
+names its range, both ends full commits. The outcome line is trace evidence, never the implementer's own account.
+
+At the 3-cycle fix cap a slice whose only remaining Critical or Important findings are **Missing RED**,
+**Pass-to-pass**, or **Missing fail-to-pass run** merges, and the report names each finding with its slice
+(ADR 0125); you still report each as **Important**, and the controller applies the cap. Any of them beside a
+Critical or Important finding of another kind blocks.
+No trace, no events for the slice, and a repository with no test command get no **Missing RED** finding: name the
+gap in the report. No trace, no `edit` line for the slice, and a repository with no test command get no
+**Pass-to-pass** or **Missing fail-to-pass run** finding: name the gap in the report. Only `edit` lines count as a
+slice's or a cycle's change events, so a `run` or `ledger` line is none, even one written after the trace began for a
+slice whose edits came before it.
+
+**An `unknown` fail-to-pass outcome is no finding.** A `fail-to-pass` trace line reading `unknown` records a run that
+could not judge (ADR 0134, INV-0139). Name every one for the slice in the report with its reason (the exit status or
+signal in `control=`, or the `bound=` the run before the change ran under), raise no finding for it, and start no fix cycle.
 
 **Then read the progress log, one way.** Reading it can **add a finding** or **raise a finding's
 severity**. It never withdraws a finding and never downgrades one. A deviation from the specification that
@@ -65,6 +91,13 @@ with the URL checked — because its remedy lives in the log and not in the diff
 **A Missing RED finding on a re-review** closes only when the trace shows, after the finding, a revert (or
 an implementation edit), a failing run that covers that test (the full or focused command, or a run naming
 that test file), a restore (or an implementation edit), and a passing run. A `run … unknown` line is not a failing run: it neither satisfies the RED step nor closes the finding, and the implementer answers it by re-running the test through `scope.js test`.
+
+**A Pass-to-pass finding on a re-review** closes only when the trace records, after the finding, an outcome line
+that reads `fail-to-pass` over a range from the base of the range that drew the finding to the current tip: the
+slice's base for a finding on the slice's own range, the tip before the fix cycle for a finding on a fix cycle's
+range. A fix that only strengthens the test closes it, and an outcome line over a range that starts later than that
+base does not. A **Missing fail-to-pass run** finding closes on the outcome line the controller's own run writes,
+and when that line reads `pass-to-pass` it is a **Pass-to-pass** finding on that range, which closes as above.
 
 **A progress log that is missing** at the point you open it is named in the after-reading section. A missing log
 voids nothing from the blind pass, and the dependency findings it causes still move the verdict.
@@ -133,6 +166,8 @@ For each: file:line · what's wrong · why it matters · how to fix (if not obvi
 
 ### Uncovered input I'd add a test for
 - <the specific case>
+
+### Fail-to-pass unknown (only when the trace holds one) — a note, never an Issue: <its reason: control=<exit status or signal>, or bound=<ms>>
 
 ### After reading the progress log
 - Added: <finding, severity, file:line · what's wrong · how to fix>

@@ -687,6 +687,13 @@ assert.deepEqual(tail(trace(A)).map((l) => l.split(' ').slice(0, 2).join(' ')), 
   editOut(T);
   appendTrace(A, { slice: '03', kind: 'run', fields: ['full', 'fail', 'unknown', 'unknown', '-'] });
   assert.equal(postOut(`node ${SCOPE} test full`), '', 'a failing run line from the verb satisfies the RED step');
+  // A fail-to-pass run is no test run (ADR 0134): a call of its verb records no run line, and its outcome line is no failing run.
+  reset();
+  editOut(T);
+  assert.equal(postOut(`node ${SCOPE} fail-to-pass abc..def`), '', 'a fail-to-pass call after a test edit notes nothing');
+  assert.deepEqual(trace(A).filter((l) => l[2] === 'run'), [], 'and records no run line');
+  appendTrace(A, { slice: '03', kind: 'fail-to-pass', fields: ['abc..def', 'fail-to-pass', 'control=0,put-back=1'] });
+  assert.ok(editOut('src/n.js').includes('Missing RED'), 'an outcome line does not satisfy the RED step');
   reset();
   editOut(T);
   const bg = `node ${SCOPE} test full`;

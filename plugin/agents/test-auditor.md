@@ -49,7 +49,7 @@ set, and every finding you return is one of them, named:
 |---|---|
 | `redundant coverage` | a case another test already proves. Name the covering test's location. |
 | `overweight fixture` | a heavier fixture than the behaviour requires. Name the lighter form. |
-| `tautological test` | an assertion that recomputes its expected value the way the code does. |
+| `tautological test` | a test that passes whatever the code under test does: it would still pass if every call to the code returned an empty or a wrong value. Name the shape: presence, type, or no error alone; a collaborator called with no check of what it received; an expected value recomputed the way the code computes it; a restated constant; data the test built. A check that two sources agree, and a pin on text only a person or a model reads, are not this. |
 | `dead test` | a test whose subject is gone, or which the runner skips. |
 | `expensive test` | a measured duration out of proportion to what the test proves. |
 

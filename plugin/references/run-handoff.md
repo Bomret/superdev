@@ -59,6 +59,21 @@ tiers: record that slice execution finished, name what comes next.
     hand it the `dod.md` **path** plus the `scope`-tagged Definition-of-Done lines this red suite blocks
     — there may be none — and it reports back one line per listed line, the same three shapes an
     implementer's report always takes.
+  - **Run the fail-to-pass run around each cycle** (ADR 0134, INV-0138). Before each fix dispatch, record the scope
+    tip, `git -C <run-root>/scopetree rev-parse HEAD`, as the cycle's `<base>`. Once the cycle's report is accepted,
+    after any send-back to the implementer for a report defect or a missed sibling surface, run
+    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <base>..<tip>` from the scopetree over the cycle's
+    commits (`<tip>` is `git rev-parse HEAD` after them), where they change both a test-path file
+    (`docs/agents/verification.md`'s `## Test paths`, the defaults where it has none) and another file. The trace
+    line names `scope`, because the range matches no ledger row and no slice is in progress. A cycle whose commits
+    change only test-path files, or no file, needs no run. Every run of the verb goes in the background when the
+    suite outlasts the Bash tool's time limit, and you wait for its end before you read its outcome
+    (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`). The fix dispatch names no `slicetrees/<id>` path and no
+    `reports/<id>/` path, so the run trace attributes the dispatch to `scope`, and `final-reviewer` finds the cycle
+    by that `implementer` `dispatch` of `scope`. The run is no test run and no cycle: it satisfies no Missing RED step,
+    moves no suite record, and adds nothing to the cycle count, and neither a refusal nor a missing outcome
+    blocks the loop. This loop has no re-review of its own, so `final-reviewer` reads the
+    outcome lines at `/superdev:review` and raises **Pass-to-pass** and **Missing fail-to-pass run** from them.
   - **Inside each cycle, run only the focused command** — per
     `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`, over the commits that cycle's implementer just
     landed, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths>` — never the full suite; a full re-run inside every cycle is the cost ADR 0075's own loop shape
@@ -125,8 +140,8 @@ tiers: record that slice execution finished, name what comes next.
   down.
 - **Report** the scope branch, the slice count, the commit range, and the suite record above left behind
   (**Green.**, **No test command configured.**, **A denied test command, recorded and continued
-  attended.**, or **Green after the fix loop.**), and each slice merged at the fix cap with only **Missing RED** left, named
-  with its finding (ADR 0125). Then **say the conversation is
+  attended.**, or **Green after the fix loop.**), and each slice merged at the fix cap with only **Missing RED**,
+  **Pass-to-pass**, or **Missing fail-to-pass run** left, named with each finding (ADR 0125, ADR 0134). Then **say the conversation is
   disposable**: the ledger, `dod.md`, `interfaces.md`, and the per-slice progress logs now hold
   everything `/superdev:review` needs, so a `/clear` before it costs nothing — a fresh-context review
   reads the run state cold, which is the least anchored shape a reviewer can start in.

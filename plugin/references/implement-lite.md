@@ -87,10 +87,30 @@ A stop there dispatches no slice.
 - **Commit per slice** on the scope branch (Conventional Commits) as each goes green — all commits in the
   scopetree. Update the ledger with
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" slice <id> <status> --root <run-root>` (add
-  `--range <commit-range>` on the `merged` write to record the slice's commit range, when you have one):
+  `--range <commit-range>` on the `merged` write to record the slice's commit range; a `behavior` slice always records it, as the next bullet states):
   `todo` → `in-progress` → `merged`, where `merged` means "committed to the scope branch" — there is no
   separate slice branch. Update the tracker status too, and **skip the `in-review` transition**: lite has
   no per-slice review.
+- **Record every `behavior` slice's commit range, and run its fail-to-pass run** (ADR 0134). A `behavior`
+  slice's `merged` write carries `--range <base>..<tip>`, both full commits: `<base>` is the scope branch's
+  tip before the slice's first commit, the `git rev-parse HEAD` you recorded when the slice started, and
+  `<tip>` is `git rev-parse HEAD` once the slice's last commit is in. Where the range changes both a test-path
+  file (`docs/agents/verification.md`'s `## Test paths`, the defaults where it has none) and another file, run
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <base>..<tip>` from the scopetree first, while the
+  slice is still `in-progress`, so the trace line names the slice. Every run of the verb goes in the background when
+  the suite outlasts the Bash tool's time limit, and you wait for its end before you read its outcome
+  (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`). The verb runs the slice's tests twice in a
+  throwaway worktree, the second time with the files the slice changed outside its test files put back as they
+  stood at `<base>`, prints `fail-to-pass`, `pass-to-pass`, or `unknown`, and appends a `fail-to-pass` line to the run
+  trace. It is no test run: it satisfies no Missing RED step and moves no suite record. Exit status 0 means
+  the verb read and printed an outcome; inside a run root it appends the line, and a failed append is reported
+  on stderr with the status still 0. Status 1 means the verb refused the range or hit an error, and status 2
+  means no outcome was read because no test command is configured (nothing ran). Neither status blocks the
+  slice, and `final-reviewer` reads the trace at the scope review. An `unknown` (status 0) means the verb could
+  not judge: the tests did not pass against the changed code, or the run before the change outlasted ten times the
+  duration the first run took or ended by a signal. It draws no finding and starts no fix cycle. The scope run's
+  first `unknown` is an observation: the verb says so on stderr, and you write its triage record under
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations`, naming the environment gap.
 - **No per-slice review, no per-slice progress log.** Your own context is the record of how each slice
   unfolded; the ledger is the durable trace once that context is gone.
 - **Tick from your own report, the same way the full tier's controller ticks from an implementer's**

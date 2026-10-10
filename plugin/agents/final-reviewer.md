@@ -194,13 +194,62 @@ together. *Break it:* find the load that makes it fall over.
   apply `## Test order` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` exactly as
   `slice-reviewer` does: on a `behavior` slice, a test edit followed by an implementation edit or a passing
   run with no failing run between them is an **Important** finding, **Missing RED**, closed only by the
-  checklist's closing sequence. At the 3-cycle fix cap a scope whose only remaining Critical or Important
-  finding is **Missing RED** merges, and the report names the finding with its slice (ADR 0125); you still report it as **Important**, and the
-  controller applies the cap. **Missing RED** beside another Critical or Important finding blocks. On a **`full`** scope, every merged slice needs a `dispatch`
+  checklist's closing sequence. At the 3-cycle fix cap it takes the escape path stated under
+  **Fail-to-pass outcome** below (ADR 0125). On a **`full`** scope, every merged slice needs a `dispatch`
   line of agent type `slice-reviewer` whose `dispatch-end` comes after that slice's last `dispatch-end` of
   `implementer`, or a `**Degraded:**` ledger entry naming that slice's denied review. A slice with
   neither is an **Important** finding, **Unreviewed slice**. No trace, or no events for a slice, gets no
   finding: name the gap in the report.
+
+**Fail-to-pass outcome (scope mode only)** — a `fail-to-pass` trace line carries a range, an outcome, and a
+  reason, and is no test run: it satisfies no **Missing RED** step (ADR 0134). On a **`lite`** scope, apply
+  `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` to every `behavior` slice.
+  A slice whose latest outcome line over its recorded range reads `pass-to-pass`
+  is an **Important** finding, **Pass-to-pass**. A slice whose range changes both a test-path file and
+  another file, and has no outcome line over that range, is an **Important** finding, **Missing
+  fail-to-pass run**. A slice whose ledger row records no range gets that finding when its own `edit test`
+  and `edit impl` trace lines show both a test-path file and another file. No trace, no `edit` line for the slice,
+  and a repository with no test command get no finding: name the gap in the report. Only `edit` lines count as a
+  slice's or a cycle's change events, so a `run` or `ledger` line is none, even one written after the trace began
+  for a slice whose edits came before it. Both findings take Missing
+  RED's 3-cycle cap and escape path (ADR 0125): a scope whose only remaining Critical or Important findings
+  are **Missing RED**, **Pass-to-pass**, or **Missing fail-to-pass run** merges, and the report names each
+  finding with its slice; you still report each as **Important**, and the controller applies the cap. Any
+  of them beside a Critical or Important finding of another kind blocks.
+
+**Fail-to-pass `unknown` (scope mode only)** — a `fail-to-pass` trace line reading `unknown` records a run that could
+  not judge (ADR 0134, INV-0139). Name every one in the report with its slice and its reason (the exit status or
+  signal in `control=`, or the `bound=` the run before the change ran under), raise no finding for it, and start no fix cycle.
+  The line counts as an outcome line for **Missing fail-to-pass run**, and the latest line reading `fail-to-pass` or
+  `pass-to-pass` decides **Pass-to-pass**.
+
+**Fix-cycle outcome (scope mode only)** — a fix cycle is a change too, on either tier (ADR 0134): apply
+  `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` to each fix cycle of the scope
+  branch. A re-review's dispatch hands you the cycle's range. A cycle whose latest outcome line over its range
+  reads `pass-to-pass` is an **Important** finding, **Pass-to-pass**. A cycle whose range changes both a
+  test-path file and another file, and has no outcome line over that range, is an **Important** finding,
+  **Missing fail-to-pass run**. Run handoff has no re-review of its own, and a re-review hands you only the current
+  cycle's range, so you read run handoff's cycles and the scope's earlier review cycles from the trace at every
+  dispatch: a `scope` range whose latest outcome line reads `pass-to-pass` is **Pass-to-pass**, and an
+  `implementer` `dispatch` of `scope` with `edit` lines in its window, whose commits that landed in that window
+  change both a test-path file and another file, with no outcome line over those commits, is **Missing
+  fail-to-pass run**. A fix cycle's window runs from its `implementer` `dispatch` line of `scope` to the first
+  `dispatch` line, whatever its agent type or slice, after that implementer's `dispatch-end` line, or to the end of
+  the trace when none follows. A denied, failed, or interrupted dispatch leaves no `dispatch-end` line, and its window
+  ends at the first `dispatch` line after its own `dispatch` line, or at the end of the trace. A cycle's commits are
+  read along the scope branch's first-parent chain, so the base commits a merge brings in are none of them, and
+  neither is a merge commit that brings the base in. An implementer that edits a file to show RED and restores it
+  leaves an `edit` line that no commit carries, so the `edit` lines find a cycle and its commits decide it.
+  A **Pass-to-pass** finding closes only on a `fail-to-pass` outcome over a range from the original change's base
+  to the tip current when that closing run ran: a lite slice's recorded range base, or the fix cycle's own base.
+  The finding stays closed once that line is written, and this closing rule holds at every dispatch, the entry
+  dispatch included. A `scope` line that follows a finding's own `pass-to-pass` line and starts its range at that
+  line's base is the finding's closing run, not a cycle: it closes the finding or keeps it open, and raises no
+  second finding. No trace, a run handoff cycle with no `edit` lines, and a repository with no test command get no
+  finding: name the gap in the report. A cycle whose commits change only test-path files, or no file, has nothing to
+  put back: it gets no finding, and you name no gap for it. On either tier, both fix-cycle findings take Missing
+  RED's 3-cycle cap and escape path (ADR 0125), which **Fail-to-pass outcome** above states, and the report names a
+  cycle's finding with its range.
 
 **Judge discipline** — verify the integrated behaviour against the DoD yourself; don't defer to the
 implementer's or controller's narrative of what was built. Length ≠ completeness. Reject a "DoD met"
@@ -250,6 +299,8 @@ document order: `<criterion>` — holds | broken: <why> | ceiling: <partial evid
 
 ### Ceiling
 [one note, per the four gates above; omit this section entirely when nothing qualifies]
+
+### Fail-to-pass unknown [scope mode only; omit this section entirely when the trace holds none] — one note per outcome, never an Issue: <slice> · <its reason: control=<exit status or signal>, or bound=<ms>>
 
 ### Assessment
 Full-suite run: [pass | fail | not run | denied — degraded pass]

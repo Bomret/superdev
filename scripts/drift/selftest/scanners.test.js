@@ -3606,7 +3606,28 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   const ALL_GLOSSARY_READ =
     'Grep those terms against the\nglossary\'s entry headwords and `_Avoid` lines and open only the entries that match.';
   const ALL_GLOSSARY_LACKS = 'A term the glossary\nlacks is no finding: adding one needs a human\'s confirmation.';
+  // the test-smell entries the same table pins in `## Anti-patterns` (ADR 0134), carried whole in every
+  // fixture that expects zero gaps from `review-checklist.md`
+  const ALL_TEST_SMELLS_CLEAN =
+    '## Anti-patterns\n\n' +
+    '- **Weakened net** — a diff that edits a pre-existing test to get the suite green. Regenerating a ' +
+    'snapshot, a golden file, or another recorded expected output to match new output is the same smell, ' +
+    "unless a slice's acceptance criteria or the Definition of Done changed that output.\n" +
+    '- **Tautological test** — a test that passes whatever the code under test does. The probe: would it ' +
+    'still pass if every call to the code under test returned an empty value (nothing, zero, an empty ' +
+    'collection) or a wrong one? Name the shape in the finding:\n' +
+    '  - an assertion on presence, type, or the absence of an error alone;\n' +
+    '  - an assertion that a collaborator was called, with no check of what it received;\n' +
+    '  - an expected value recomputed the way the code computes it;\n' +
+    '  - a restated constant or configuration value where the mechanism that reads it could run instead;\n' +
+    '  - an assertion on data the test built, with the code under test never called.\n\n' +
+    '  The expected value comes from an independent source of truth. Pair an absence assertion (no error, ' +
+    'no match, nothing returned) with a presence assertion on another input. Two cases are not this smell: ' +
+    'a check that two sources agree, and a pin on text whose only runtime reader is a person or a model. ' +
+    'A `fail-to-pass` outcome does not clear this finding: a fail-to-pass run cannot see a test of a ' +
+    'symbol the change introduces, or a weak test beside a discriminating one.\n\n';
   const ALL_GLOSSARY_CLEAN =
+    ALL_TEST_SMELLS_CLEAN +
     '## Consistency\n\n- **Glossary drift** — flag a synonym listed in an entry\'s `_Avoid` line as Minor. ' +
     ALL_GLOSSARY_READ +
     ' ' +
@@ -3632,7 +3653,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     }),
     AGENT_LENS_LIST_CONTRACTS,
   );
-  // every review-checklist.md row anchors on the bullet, so a dropped bullet fails each of them
+  // every review-checklist.md row anchors on a clause this fixture lacks, so each of them fails
   const ALL_GLOSSARY_ROWS = AGENT_LENS_LIST_CONTRACTS.filter(
     ([rel]) => rel === path.join('references', 'review-checklist.md'),
   ).length;
@@ -3668,6 +3689,44 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   assert.equal(allGlossaryNoLacks.length, 1, 'flags the glossary-drift lens without its absent-term rule');
   assert.equal(
     allGlossaryNoLacks[0].source,
+    path.join('references', 'review-checklist.md'),
+    'names review-checklist.md',
+  );
+  // the carve-out stated the other way round ("Two cases are this smell") is the gap: the row pins the
+  // polarity, not only the words around it
+  const allTautologyCarveOutFlipped = scanContract(
+    fixture({
+      'agents/slice-reviewer.md': ALL_SLICE_CLEAN,
+      'agents/final-reviewer.md': ALL_FINAL_CLEAN,
+      'references/review-checklist.md': ALL_GLOSSARY_CLEAN.replace(
+        'Two cases are not this smell',
+        'Two cases are this smell',
+      ),
+    }),
+    AGENT_LENS_LIST_CONTRACTS,
+  );
+  assert.equal(allTautologyCarveOutFlipped.length, 1, 'flags the tautological-test carve-out with its polarity flipped');
+  assert.equal(
+    allTautologyCarveOutFlipped[0].source,
+    path.join('references', 'review-checklist.md'),
+    'names review-checklist.md',
+  );
+  // the regenerated-output clause stated the other way round ("is not this smell") is the gap: the row
+  // pins the polarity of the **Weakened net** clause, not only the words around it
+  const allWeakenedNetFlipped = scanContract(
+    fixture({
+      'agents/slice-reviewer.md': ALL_SLICE_CLEAN,
+      'agents/final-reviewer.md': ALL_FINAL_CLEAN,
+      'references/review-checklist.md': ALL_GLOSSARY_CLEAN.replace(
+        'to match new output is the same smell',
+        'to match new output is not this smell',
+      ),
+    }),
+    AGENT_LENS_LIST_CONTRACTS,
+  );
+  assert.equal(allWeakenedNetFlipped.length, 1, 'flags the weakened-net regeneration clause with its polarity flipped');
+  assert.equal(
+    allWeakenedNetFlipped[0].source,
     path.join('references', 'review-checklist.md'),
     'names review-checklist.md',
   );

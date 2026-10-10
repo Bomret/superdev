@@ -388,7 +388,7 @@ assert.equal(bash('grep sed ' + L + ' -i').block, true, 'a flag after the file b
 
 // The refusal names every ledger-writing verb in scope.js's usage text: every top-level verb there except the read-only ones.
 {
-  const READ_ONLY = new Set(['get', 'trace', 'status', 'publish', 'root', 'staging', 'dod-line', 'collisions', 'test']);
+  const READ_ONLY = new Set(['get', 'trace', 'status', 'publish', 'root', 'staging', 'dod-line', 'collisions', 'test', 'fail-to-pass']);
   const scopeJs = path.join(path.dirname(hookPath), '..', 'scripts', 'scope.js');
   const help = cp.spawnSync(process.execPath, [scopeJs, '--help'], { encoding: 'utf8', timeout: 5000 });
   assertSpawnDecided(help, 'scope.js --help');

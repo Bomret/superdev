@@ -26,7 +26,9 @@ redirects, backgrounds, or wraps the call. To trim the output, pipe the runner i
 file outside the working tree, such as one from `mktemp` under `$TMPDIR`, and read the file afterwards.
 A redirect into the working tree leaves an untracked file, and on a passing run also records an implementation edit.
 **A suite longer than the Bash tool's time limit runs through the runner in the background, and you wait for
-its end before acting on it.** The run trace records a run made outside the runner as `unknown` whenever its
+its end before acting on it.** **`scope.js fail-to-pass` follows the same rule:** it runs the test command up to
+twice, so run it in the background when the suite outlasts the Bash tool's time limit, and wait for its end before
+you read its outcome. A verb the tool's limit kills writes no outcome line. The run trace records a run made outside the runner as `unknown` whenever its
 exit status does not reflect the test. An `unknown` run is no passing run, so `scope.js suite reusable` never
 reuses it and the suite runs again at the next gate. The whole-repo command is the third command
 (`## Whole-repo command` below), and `scope.js suite reusable` reads its runs too.
@@ -143,6 +145,10 @@ Each caller judges its own range and builds the set from it:
   doc commits — the ones the doc-writer just landed on the scope branch, never the wider range the chain
   is reconciling.
 - **Run handoff's own fix loop.** The commits that cycle's implementer just landed, on the scope checkout.
+- **The `scope.js fail-to-pass` verb.** Every path changed in `<base>..<tip>`, with a rename split into its
+  old and its new path (`--no-renames`). The command and the test paths come from the tip's own
+  `docs/agents/verification.md`, never a working tree's. The verb refuses an empty range, so the fallback
+  below never applies to it.
 
 ## Fallback to the full command
 

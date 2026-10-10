@@ -5417,6 +5417,96 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       `${rel} holding the old two-step remedy fails a run-trace order row`,
     );
   }
+  // A fix cycle's window held to an older form fails the table in the agent body, the checklist, and the dispatch
+  // prose alike: a window defined for run handoff cycles only, an end bound that a dispatch starting while the
+  // implementer still runs can cut short, no end for a dispatch the trace never ends, and commits not read along the
+  // scope branch's first-parent chain, so the base commits a merge brings in count.
+  const windowFlips = [
+    [/A\s+fix\s+cycle's\s+window/, "A run handoff cycle's window", 'a window defined for run handoff cycles only'],
+    [
+      /to\s+the\s+first\s+`dispatch`\s+line,\s+whatever\s+its\s+agent\s+type\s+or\s+slice,\s+after\s+that\s+implementer's\s+`dispatch-end`\s+line,/,
+      'to the next `dispatch` line of `scope`, of any agent type,',
+      'an end bound that can fall before the implementer\'s own dispatch-end',
+    ],
+    [/\s+A\s+denied,\s+failed,\s+or\s+interrupted\s+dispatch\s+leaves\s+no\s+`dispatch-end`\s+line,[\s\S]*?end\s+of\s+the\s+trace\./, '', 'no end bound for a dispatch with no dispatch-end line'],
+    [
+      /A\s+cycle's\s+commits\s+are\s+read\s+along\s+the\s+scope\s+branch's\s+first-parent\s+chain,[\s\S]*?brings\s+the\s+base\s+in(?=\.)/,
+      "A merge commit that brings the base in is none of the cycle's commits",
+      'only the merge commit left out of a cycle\'s commits',
+    ],
+  ];
+  for (const rel of ['agents/final-reviewer.md', 'references/review-checklist.md', 'skills/review/SKILL.md']) {
+    for (const [from, to, what] of windowFlips) {
+      const flipped = rtReal[rel].replace(from, to);
+      assert.notEqual(flipped, rtReal[rel], `${rel} carries the clause the flip to ${what} rewrites`);
+      assert.notDeepEqual(
+        scanContract(fixture({ ...rtReal, [rel]: flipped }), RUN_TRACE_ORDER_CONTRACTS),
+        [],
+        `${rel} holding ${what} fails a run-trace order row`,
+      );
+    }
+  }
+  // A fail-to-pass no-finding case keyed on any trace event, or on `run` lines as well as `edit` lines, so a slice
+  // whose edits predate the trace still draws the finding from its later test runs, fails the table on every surface
+  // that states the case.
+  const gapFlips = [
+    [/no\s+`edit`\s+line\b/g, 'no events', 'a no-finding case keyed on any event'],
+    [/no\s+`edit`\s+line\b/g, 'no `edit` or `run` line', 'a no-finding case keyed on edit or run lines'],
+    [/Only\s+`edit`\s+lines\s+count/g, 'Only `edit` and `run` lines count', 'run lines counted as change events'],
+  ];
+  for (const rel of ['agents/final-reviewer.md', 'agents/slice-reviewer.md', 'references/review-checklist.md', 'references/implement-full.md', 'skills/review/SKILL.md']) {
+    for (const [from, to, what] of gapFlips) {
+      const flipped = rtReal[rel].replace(from, to);
+      assert.notEqual(flipped, rtReal[rel], `${rel} carries the clause the flip to ${what} rewrites`);
+      assert.notDeepEqual(
+        scanContract(fixture({ ...rtReal, [rel]: flipped }), RUN_TRACE_ORDER_CONTRACTS),
+        [],
+        `${rel} holding ${what} fails a run-trace order row`,
+      );
+    }
+  }
+  // slice-reviewer giving Missing RED the fail-to-pass findings' `edit`-line gap wording, which the checklist's Missing
+  // RED entry and the implement-full dispatch do not carry, fails the table.
+  {
+    const rel = 'agents/slice-reviewer.md';
+    const flipped = rtReal[rel].replace(
+      /no\s+events\s+for\s+the\s+slice,\s+and\s+a\s+repository\s+with\s+no\s+test\s+command\s+get\s+no\s+\*\*Missing\s+RED\*\*/,
+      'no `edit` line for the slice, and a repository with no test command get no **Missing RED**',
+    );
+    assert.notEqual(flipped, rtReal[rel], `${rel} carries the Missing RED no-events clause`);
+    assert.notDeepEqual(
+      scanContract(fixture({ ...rtReal, [rel]: flipped }), RUN_TRACE_ORDER_CONTRACTS),
+      [],
+      `${rel} giving Missing RED the edit-line gap wording fails a run-trace order row`,
+    );
+  }
+  // How the controller's own answer to Missing fail-to-pass run counts toward the 3-cycle cap, held to the wording
+  // that counts it beside an implementer dispatched before the same re-review, or dropped, fails the table in both fix
+  // loops: the double count reaches the cap a cycle early, and a lost rule lets a loop of answers run past it.
+  const answerCycleFlips = {
+    'skills/review/SKILL.md': [
+      /Where\s+a\s+run\s+answering\s+a\s+\*\*Missing\s+fail-to-pass\s+run\*\*\s+finding\s+prints\s+`pass-to-pass`\s+and\s+no\s+\*\*Confirmed\*\*[\s\S]*?count\s+together\s+as\s+one\s+cycle\./,
+      'Where a run answering a **Missing fail-to-pass run** finding prints `pass-to-pass` with no implementer cycle before it, that run and the re-review after it count as one of the 3 cycles.',
+    ],
+    'references/implement-full.md': [
+      /Where\s+no\s+implementer\s+fix\s+is\s+dispatched\s+before\s+the\s+re-review\s+after\s+that\s+answer,[\s\S]*?count\s+together\s+as\s+one\s+cycle\./,
+      'That answer and the re-review after it count as one of the 3 cycles.',
+    ],
+  };
+  for (const [rel, [from, doubleCount]] of Object.entries(answerCycleFlips)) {
+    for (const [to, what] of [
+      [doubleCount, 'the cycle count that counts an answer twice'],
+      ['', 'no cycle count for an answer'],
+    ]) {
+      const flipped = rtReal[rel].replace(from, to);
+      assert.notEqual(flipped, rtReal[rel], `${rel} carries the clause the flip to ${what} rewrites`);
+      assert.notDeepEqual(
+        scanContract(fixture({ ...rtReal, [rel]: flipped }), RUN_TRACE_ORDER_CONTRACTS),
+        [],
+        `${rel} holding ${what} fails a run-trace order row`,
+      );
+    }
+  }
 
   // --- OBSERVATION_CAPTURE_CONTRACTS: an observation — a real defect a run meets that no slice covers
   // and the scope did not cause — is recorded, never judged (ADR 0088, INV-0010). Every row pins

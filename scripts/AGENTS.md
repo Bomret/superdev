@@ -29,7 +29,7 @@ This doc owns what each script guards and the contracts between them. Repo-wide 
 `base set <sha>`, `base resolve --branch <b> --base <ref>`,
 `get stage|branch|anchor|slices|unresolved|degraded|deferred|denials|docs|pr|suite`,
 `status` (which renders the whole `/superdev:status` report), `trace [--slice <id>]` (prints the run trace, read-only), `publish`, `adopt`, `root <slug>`,
-`staging <scope> [--count]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `dod-line`, and `test`.
+`staging <scope> [--count]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `dod-line`, `fail-to-pass <base>..<tip>`, and `test`.
 `--help` or `-h`, alone or after any verb, prints the usage and exits 0, except that a flag's value, or the bullet text after `add` or `add-denial`, is data and never a help request. It is checked before any verb
 reads stdin or touches a ledger, so a stdin verb such as `dod-line` never waits on input for it.
 `suite set` writes the **suite record** (CONTEXT.md) — the last full-suite run's result and the commit
@@ -148,6 +148,33 @@ kind, slice, or tree state. It requires `hooks/run-trace.js` at call time for `l
 `treeState` from `hooks/run-trace.js` under that hook's bounded git probe (`GIT_BOUND_MS`), so both attribute a run
 to the same tree. `hooks/run-trace.js` records no run for a Bash command that runs `scope.js test`, and still evaluates the Missing
 RED note after a foreground call.
+
+`fail-to-pass <base>..<tip>` runs a commit range's tests twice and reports whether they discriminate
+(CONTEXT.md **Fail-to-pass run**, ADR 0134, INV-0139). It creates a throwaway worktree detached at `<tip>`. In a run
+root the worktree sits beside `slicetrees/`, outside every tree the run trace attributes a run to. Outside a run root it
+sits under `.superdev/`, which the verb git-ignores first through the repository's `info/exclude`. The command and the
+test paths come from `<tip>`'s own `docs/agents/verification.md`. The verb runs the focused command over the range's whole
+changed-path set where the focused command carries `{paths}`, and the full command otherwise.
+
+The first run is against the changed code and must pass. The verb then resets and cleans the worktree. The verb puts
+every changed file outside the test paths back as that file stood at `<base>`, and commits the put-back on the detached
+HEAD. The verb runs the command again and bounds that second run at 10 times the first run's duration, measured in the
+same invocation (INV-0009). The verb refuses a range that changes no file and a range that changes only test files,
+because nothing is put back.
+
+The outcome is `fail-to-pass` when the second run fails, and `pass-to-pass` when it passes. It is `unknown` when the first
+run fails, and when the second run is killed at its bound or ended by a signal. No reviewer reads `unknown` as a verdict,
+and no gate reads it as green.
+
+Inside a run root the verb appends one `fail-to-pass` trace line, `<base>..<tip> <outcome> <reason>`. Its slice is the
+ledger row that records exactly that range, else the slice the run's directory attributes to, else `scope`. The line is no
+`run` line, so it satisfies no Missing RED step and moves no suite record. The scope run's first `unknown` draws a stderr
+note that tells the controller to capture an observation (`references/scope-mode.md`, `## Observations`).
+
+The verb exits 0 when it read an outcome and 1 on a refusal or an error. It exits 2 when no test command is configured, so
+nothing ran, and 128 plus the signal number when interrupted. An interrupt ends the command's process group, and a watcher
+process covers `SIGKILL`, so no worktree outlives the verb. A suite that outlasts the Bash tool's time limit runs the verb
+in the background (`references/test-selection.md`).
 
 `dod-line` is another verb that touches no ledger, and makes no store call of its own
 (`references/dod-ticks.md`, INV-0014, triage #664): `--match <criterion text>|--match-file <path>
@@ -950,6 +977,19 @@ dispatch prose that reaches `slice-reviewer` and `final-reviewer` (`references/i
 rows close the contract alone. `agents/test-auditor.md` reads the test-cost lenses (ADR 0066), and its
 own dispatch — `skills/review-tests/SKILL.md` — restates the lens set instead of deferring to the agent
 body, so that dispatch carries a pinned row of its own alongside the agent-body row.
+
+Further rows pin the test-smell entries (ADR 0134). `references/review-checklist.md` defines **Tautological test** under
+`## Anti-patterns` as a test that passes whatever the code under test does. `slice-reviewer`, `final-reviewer`, and
+`test-auditor` all read that section. Its rows pin the named shapes, the independent source of truth, and the probe (would
+the test still pass if every call returned an empty or a wrong value). Its rows also pin the two carve-outs and the
+statement that a `fail-to-pass` outcome does not clear the finding.
+
+One row pins that **Weakened net** counts regenerating a snapshot, golden file, or recorded expected output as the same
+smell. The row exempts output that the slice's acceptance criteria or the Definition of Done changed.
+`agents/test-auditor.md`'s `tautological test` category restates the **Tautological test** definition. The selftest flips
+the carve-out lead-in, `Two cases are not this smell`, and the regeneration clause, `is the same smell`, in the checklist
+fixture. Each flip must make its own row fail.
+
 The `orphan-lens-placement` contract (ADR 0062), `scanOrphanLensPlacement()`:
 `references/review-checklist.md` names **Orphan production symbol** under `## Design smells`, states it
 with its own scoping clause, and does **not** also carry it under `## Anti-patterns`. Which section an
@@ -1249,7 +1289,7 @@ full-suite fail, or a Critical or Important finding, stands. That last clause is
 red scope, distinct from the finding merely being named. ADR 0075 adds the loop's own rows: each fix
 cycle runs the focused command over the fix diff and hands that result to the re-review; a full suite
 runs once more when a verdict first comes back clean, with a red result there counting toward the
-3-strike cap (a Missing RED-alone remainder at the cap advances instead, ADR 0125); and a denied exit run takes the entry run's own local deviation — record and continue
+3-strike cap (a remainder of only Missing RED, Pass-to-pass, and Missing fail-to-pass run findings at the cap advances instead, ADR 0125, ADR 0134); and a denied exit run takes the entry run's own local deviation — record and continue
 attended, block unattended — rather than the generic record-and-continue default, since it is the gate
 the stage advances on. Each row lost has its own failure — dropping the exit run advances a stage on a
 suite that never saw the fixes, dropping the focused cycle run silently reinstates a full suite per
@@ -2838,23 +2878,23 @@ fires on any finding, a Minor-only verdict included, and offers fix every findin
 Important findings, or fix none; `--unattended` fixes every finding without asking; each cycle dispatches
 one implementer with the complete list the chosen option covers, capped at 3 cycles in total with every
 cycle counting; at the cap a remainder of only Minor findings takes the clean-verdict path with no
-`unresolved add`, no `deferred add`, and no triage record, while a Critical or Important finding other than a lone Missing RED (ADR 0125), a broken
+`unresolved add`, no `deferred add`, and no triage record, while a Critical or Important finding of any other kind than Missing RED, Pass-to-pass, and Missing fail-to-pass run (ADR 0125, ADR 0134), a broken
 criterion, or a red suite keeps the `**Unresolved:**` entry; a declined fix splits the same way; the
 RED-test rule is conditional; and an observation never joins the fix list (INV-0010).
 `skills/review/SKILL.md` §4 also pins the exit run: the full suite runs once more when a re-review first
 comes back clean or the cap leaves only Minor findings, so the stage never advances on focused runs alone.
 The controller takes the cap's Minor-only clean-verdict path only once that exit run is green.
 `skills/implement/SKILL.md`'s `## Invariants (both playbooks)` pins three rules. A Critical or Important
-remainder at the cap blocks, except one whose only such finding is Missing RED, which proceeds and is named in
-the final report (ADR 0125). A Minor-only remainder proceeds. The RED-test rule is conditional.
+remainder at the cap blocks, except one whose only such findings are Missing RED, Pass-to-pass, or Missing fail-to-pass run,
+which proceeds and is named in the final report (ADR 0125, ADR 0134). A Minor-only remainder proceeds. The RED-test rule is conditional.
 `agents/implementer.md` carries the conditional RED-test rule, so the dispatch and the agent body agree.
 `references/implement-full.md` step 3 carries the per-slice loop's rows:
 
 - One fresh implementer fix per cycle for any finding outside the deferred ones, a Minor-only verdict
   included, carrying the complete fix list.
 - Re-review capped at 3 cycles in total.
-- A Critical or Important remainder at the cap blocks, except one whose only such finding is Missing RED
-  (ADR 0125). A Minor-only remainder proceeds and is written
+- A Critical or Important remainder at the cap blocks, except one whose only such findings are Missing RED,
+  Pass-to-pass, or Missing fail-to-pass run (ADR 0125, ADR 0134). A Minor-only remainder proceeds and is written
   nowhere.
 - The loop never asks the operator.
 - The RED-test rule is conditional.
@@ -2901,6 +2941,57 @@ reach. The rows:
 - `references/test-selection.md` states that the full, focused, and whole-repo commands run alone, after
   nothing but `cd` and `set -o pipefail`, and that trimmed output goes to a file outside the working tree. A run
   whose exit status does not reflect the test records `unknown`, and `scope.js suite reusable` never reuses it.
+  `references/test-selection.md` also extends that background rule to `scope.js fail-to-pass`, which runs the test
+  command up to twice. Each of `references/implement-full.md`, `references/implement-lite.md`,
+  `references/run-handoff.md`, and `skills/review/SKILL.md` cites the rule at the call.
+
+The same table pins the fail-to-pass run's readers (ADR 0134, INV-0138). The rows state each rule on every surface that
+reaches it, because a dispatch is the later, more specific instruction and wins a conflict (CONTEXT.md **Dispatch prose**):
+
+- `agents/final-reviewer.md`, `agents/slice-reviewer.md`, `references/review-checklist.md`'s `## Fail-to-pass run`,
+  `references/implement-full.md`, and `references/implement-lite.md` state that a `fail-to-pass` trace line is no test
+  run. That line satisfies no Missing RED step and moves no suite record.
+- `references/review-checklist.md` defines **Pass-to-pass** and **Missing fail-to-pass run** as Important findings. A
+  `pass-to-pass` finding closes only on a `fail-to-pass` line. That line covers the range from the original change's base
+  to the tip current at the closing run. The finding stays closed once the verb writes that line. A trace-less run, a
+  slice with no `edit` line, and a repository with no test command draw no finding. A fix cycle whose commits change only
+  test-path files draws none either. Only `edit` lines count as change events of a slice or a cycle. A `run` or `ledger`
+  line is none, even one written after the trace began for a slice whose edits came earlier. Rows pin that rule in
+  `agents/final-reviewer.md`, `agents/slice-reviewer.md`, `references/review-checklist.md`,
+  `references/implement-full.md`, and `skills/review/SKILL.md`.
+- `agents/final-reviewer.md` raises both findings on the lite tier for every `behavior` slice. It reads a slice with no
+  recorded range from its own `edit test` and `edit impl` lines. `agents/slice-reviewer.md` raises them on the full tier
+  over each range its dispatch names, each range with both ends full commits.
+- `references/implement-full.md` runs the verb from the slicetree before it dispatches `slice-reviewer` and after each fix
+  cycle. It also records a `behavior` slice's range as full commits. `references/implement-lite.md` records the range and
+  runs the verb before the `merged` write, while the slice is still in progress.
+- `skills/review/SKILL.md` and `references/run-handoff.md` run the verb around each scope fix cycle whose commits change a
+  test-path file and another file. `agents/final-reviewer.md` reads run handoff's cycles and earlier review cycles from
+  the trace at every dispatch.
+- `agents/final-reviewer.md`, `references/review-checklist.md`, and `skills/review/SKILL.md` bound a fix cycle's window
+  and name its commits. The trace attributes the cycle's `implementer` `dispatch` line to `scope`, its name for a
+  dispatch that belongs to no slice. The window runs from that line to the first `dispatch` line after the implementer's
+  `dispatch-end` line. That `dispatch` line closes the window whatever agent type or slice it names. With no such line,
+  the window runs to the end of the trace. A denied, failed, or interrupted implementer dispatch has no `dispatch-end`
+  line, and its window ends at the first `dispatch` line after the implementer's own. `final-reviewer` reads a cycle's
+  commits along the scope branch's first-parent chain. A cycle's commits exclude the base commits a merge brings in, and
+  they exclude the merge commit itself. The review controller reads a run handoff cycle's range along the same
+  first-parent chain.
+- `references/implement-full.md` and `skills/review/SKILL.md` count a cycle that a controller's own fail-to-pass run
+  answers, each by its own rule. The controller answers a Missing fail-to-pass run finding by running the verb itself.
+  Where no implementer fix is dispatched before the re-review after the answer, `references/implement-full.md` counts the
+  answer and that re-review as one of the 3 cycles. A fix dispatched before that re-review joins the answer and the
+  re-review in one cycle. In `skills/review/SKILL.md`, the same two rules hold for a run that prints `pass-to-pass`. A
+  review run that prints another outcome counts toward no cap. A loop of counted answers reaches the cap, and a cycle
+  that holds an answer and a fix counts once (ADR 0134).
+- At the 3-cycle fix cap, a remainder of only Missing RED, Pass-to-pass, and Missing fail-to-pass run proceeds and the
+  report names each. Any of them beside a finding of another kind blocks. Rows pin the sentence in
+  `references/implement-full.md`, `skills/implement/SKILL.md`, `skills/review/SKILL.md` (the fix loop, the unattended cap rule,
+  and the §3 Assessment exception), `agents/final-reviewer.md`, `agents/slice-reviewer.md`,
+  `references/review-checklist.md`, and `references/run-handoff.md`'s Report bullet.
+- An `unknown` outcome draws no finding and starts no fix cycle. Each reviewer and the review report name it with its slice
+  and reason, and the output templates carry a **Fail-to-pass unknown** line. `references/scope-mode.md`, the two
+  playbooks, and the verb's own stderr note make the scope run's first `unknown` an observation, and a later one writes none.
 
 The `setup-test-paths` contract (ADR 0117) pins `skills/setup/SKILL.md`. Its rows:
 

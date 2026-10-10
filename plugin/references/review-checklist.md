@@ -36,11 +36,31 @@ Every smell is a labelled judgment call ("possible feature envy"), never a hard 
   derived once from a single source of truth.
 - **Weakened net** — a diff that edits, deletes, or skips a *pre-existing* test to get the suite green.
   The existing suite is the safety net; a change that must loosen it is hiding a regression, not fixing
-  one.
-- **Tautological test** — an assertion that recomputes the expected value the way the code does (e.g.
-  `expect(add(a,b)).toBe(a+b)`), so it passes by construction and would keep passing if the code were
-  wrong. The expected value must come from an independent source of truth — a literal, a worked example,
-  the specification.
+  one. Regenerating a snapshot, a golden file, or another recorded expected output to match new output is
+  the same smell, unless a slice's acceptance criteria or the Definition of Done changed that output: the
+  recorded output was the net, and the diff replaces it with whatever the code now produces.
+- **Tautological test** — a test that passes whatever the code under test does. The probe: would it still
+  pass if every call to the code under test returned an empty value (nothing, zero, an empty collection)
+  or a wrong one? Name the shape in the finding:
+  - an assertion on presence, type, or the absence of an error alone (`assertNotNull(result)`,
+    `assert isinstance(result, dict)`, `expect(run).not.toThrow()`, a Go `require.NoError(t, err)` with
+    nothing after it);
+  - an assertion that a collaborator was called, with no check of what it received
+    (`verify(mailer).send(any())`, `mock.assert_called()`);
+  - an expected value recomputed the way the code computes it (`expect(add(a, b)).toBe(a + b)`);
+  - a restated constant or configuration value where the mechanism that reads it could run instead
+    (`assert TIMEOUT == 30` where a call could show the timeout applied);
+  - an assertion on data the test built, with the code under test never called.
+
+  The expected value comes from an independent source of truth: a literal, a worked example, the
+  specification. Pair an absence assertion (no error, no match, nothing returned) with a presence assertion
+  on another input, so a function that always returns nothing fails one of the two. Two cases are not this
+  smell: a check that two sources agree (a schema and its fixture, a table's rows against each other), and
+  a pin on text whose only runtime reader is a person or a model (a prompt's wording, a clause a document
+  must carry). A `fail-to-pass` outcome does not clear this finding, because a fail-to-pass run reads exit
+  statuses only and cannot see two cases: a test of a symbol the change introduces fails before the change
+  at compile, import, or name lookup in every language, and a weak test beside a discriminating one leaves
+  the whole change reading `fail-to-pass`. Read the assertions of both.
 - **Happy-path-only suite** — new behaviour whose tests exercise only the success path, with no assertion
   for the failure and boundary cases named in its acceptance criteria. Name the specific uncovered case,
   not a vague "add more tests."
@@ -152,6 +172,91 @@ run trace (`scope.js trace`), which hooks wrote, and no diff shows it (ADR 0117)
   `dispatch` line of agent type `slice-reviewer` whose `dispatch-end` comes after the slice's last `dispatch-end` of
   `implementer`, and no `**Degraded:**` ledger entry naming that slice's denied review. Severity
   Important. No trace gets no finding: the report names the gap.
+
+## Fail-to-pass run
+
+**`final-reviewer` reads this section** on a `lite` scope and for fix cycles on either tier, and `slice-reviewer` reads it on the full tier, because both entries below are judged against the
+run trace (`scope.js trace`), which `scope.js` wrote (ADR 0134, ADR 0117). A fail-to-pass run puts back every
+file a `behavior` slice's range changed outside its test-path files and runs the slice's tests again. Its
+outcome line is a `fail-to-pass` line carrying the range, the outcome, and a reason, and it is no test run: it
+satisfies no Missing RED step and closes no Missing RED finding.
+
+- **Pass-to-pass** — on a `behavior` slice, a latest outcome line over the slice's range that reads
+  `pass-to-pass`: the slice's tests passed with the slice's other files put back as they stood before it, so
+  they do not discriminate what it changed. Severity Important. A slice whose latest outcome line reads
+  `fail-to-pass`, and a slice with no outcome line, get no such finding. At every dispatch, an entry dispatch
+  included, the finding closes only when the trace records, after its `pass-to-pass` line, an outcome line that
+  reads `fail-to-pass` over a range from the original change's base to the tip current when that closing run
+  ran, so a fix that only strengthens the test closes it, and the finding stays closed once that line is
+  written. A test that pins existing behavior on purpose passes before the change by design and still draws
+  the finding: the escape path below carries it.
+- **Missing fail-to-pass run** — on a `behavior` slice, a range that changes both a test-path file and another
+  file, with no outcome line over that range. Severity Important. A slice whose ledger row records no range is
+  read from its own trace: its `edit test` and `edit impl` lines name both a test-path file and another file.
+  A slice with no `edit` line, a run with no trace, and a repository with no test command get no finding: the report
+  names the gap. Only `edit` lines count as a slice's or a cycle's change events, so a `run` or `ledger` line is none,
+  even one written after the trace began for a slice whose edits came before it. The controller answers the finding
+  by running `scope.js fail-to-pass <base>..<tip>` over the range itself, with no implementer cycle, and the finding closes on the outcome line that run
+  writes. Where the row records no range, the controller first reads the slice's commits from the scope
+  branch's log and records the range with `scope.js slice <id> merged --range <base>..<tip> --root <run-root>`,
+  then runs the verb over it.
+
+A fix cycle is a change too, on either tier, in `/superdev:review`'s fix loop and in run handoff's fix loop
+(ADR 0134). Its range runs from the scope tip the controller recorded before the fix dispatch to the tip once the
+cycle's report is accepted, after any send-back to the implementer, and both findings apply to it. Where the cycle's commits change both a test-path file and another file, the
+controller runs `scope.js fail-to-pass <base>..<tip>` over that range from the scope checkout, and the trace
+line names `scope`, because no ledger row records the range and no slice is in progress. `final-reviewer` reads a
+review cycle's range from the re-review's dispatch. Run handoff has no re-review of its own, and a re-review hands
+`final-reviewer` only the current cycle's range, so it reads run handoff's cycles and the scope's earlier review
+cycles from the trace at every dispatch of `/superdev:review`: a `scope` range whose latest outcome line reads
+`pass-to-pass` is a Pass-to-pass finding, and an `implementer` `dispatch` of `scope` with `edit` lines in its
+window, whose commits that landed in that window change both a test-path file and another file, with no outcome
+line over those commits, is a Missing fail-to-pass run finding. A fix cycle's window runs from its `implementer`
+`dispatch` line of `scope` to the first `dispatch` line, whatever its agent type or slice, after that implementer's
+`dispatch-end` line, or to the end of the trace when none follows. A denied, failed, or interrupted dispatch leaves no
+`dispatch-end` line, and its window ends at the first `dispatch` line after its own `dispatch` line, or at the end of
+the trace. A cycle's commits are read along the scope branch's first-parent chain, so the base commits a merge brings
+in are none of them, and neither is a merge commit that brings the base in. An implementer that edits a file to show
+RED and restores it leaves an `edit` line that no commit carries, so the `edit` lines find a cycle and its commits
+decide it. The original change's base is the base of the range the finding's `pass-to-pass` line names: a lite
+slice's recorded range base, or the fix cycle's own base. A `scope` line that follows a finding's own `pass-to-pass`
+line and starts its range at that line's base is the finding's closing run, not a cycle: it closes the finding or
+keeps it open, and raises no second finding. The controller answers a cycle's Missing finding the same way it answers a slice's, over the
+cycle's range, which for a run handoff cycle it reads from the scope branch's first-parent log over that window.
+The report names a cycle's finding with its range. No trace, a run handoff cycle with no `edit` lines, and a
+repository with no test command get no finding: the report names the gap. A cycle whose commits change only
+test-path files, or no file, has nothing to put back: it needs no outcome line and gets no finding, and the report
+names no gap for it.
+
+Both findings take Missing RED's 3-cycle fix cap and escape path (ADR 0125): a scope whose only remaining
+Critical or Important findings are Missing RED, Pass-to-pass, or Missing fail-to-pass run proceeds, and the
+report names each finding with its slice. Any of them beside a Critical or Important finding of another kind
+blocks.
+
+**On the full tier, `slice-reviewer` applies both entries** (ADR 0134) to each range its dispatch names: the slice's
+range, from the commit its slice branch was cut from to the tip the first review read (the same range on every
+review, which the outcome line the controller wrote before the first dispatch covers), and on a re-review the fix
+cycle's range as well, from the tip the earlier review read to the current tip. A fix cycle whose range is empty, or
+whose commits change only test-path files, has nothing to put back: it needs no outcome line and draws neither
+finding. On the slice's own range, the latest outcome line over any range that starts at the slice's base decides
+Pass-to-pass, and an outcome line over any range that starts at the slice's base satisfies Missing fail-to-pass run.
+A Pass-to-pass finding closes on a `fail-to-pass` outcome over a range from the base of the range that drew it to the
+current tip: the slice's base for the slice's own range, the tip before the cycle for a fix cycle's range. A
+`pass-to-pass` line the controller's own run writes to answer a Missing fail-to-pass run finding is a Pass-to-pass
+finding on that range, closed the same way. The slice's ledger row records no range while the slice is under review,
+so the range comes from the dispatch and the controller answers Missing fail-to-pass run by running the verb,
+recording no range first: over the slice's base to the current tip for a finding on the slice's own range, and over
+the range the finding names otherwise.
+
+**An `unknown` outcome is no finding.** A `fail-to-pass` line reading `unknown` records a run that could not judge
+(ADR 0134, INV-0139), for one of two reasons. Either the tests did not pass against the changed code, and `control=`
+names the exit status or the signal they ended with. Or the run before the change outlasted ten times the duration
+the run against the changed code took, or ended by a signal, and `bound=` names the bound the run ran under. A reviewer
+that reads the trace (`slice-reviewer`, `final-reviewer`) names every `unknown` in its report
+with its slice and its reason, raises no finding for it, and starts no fix cycle. The line counts as an outcome line
+for **Missing fail-to-pass run**, and the latest line reading `fail-to-pass` or `pass-to-pass` decides
+**Pass-to-pass**, so an `unknown` neither raises nor closes it. The controller, not the reviewer, captures the scope
+run's first `unknown` as an observation (`references/scope-mode.md`'s `## Observations`).
 
 ## Dependency verification
 

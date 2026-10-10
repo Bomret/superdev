@@ -317,7 +317,10 @@ This root owns every other subtree directly:
   (ADR 0080). The verb `staging <scope>` resolves a scope's staging directory the same way (ADR 0119), and `collisions` finds a numbering collision between a scope branch and the base by number (ADR 0126).
   The verb `test` runs a test command and records its own exit status as an Observed run, requiring
   `plugin/hooks/run-trace.js` at call time (ADR 0127).
-  It also writes the `planned` stage on `init`, which `/superdev:implement`'s run init moves
+  The verb `fail-to-pass <base>..<tip>` runs a commit range's tests twice in a throwaway worktree. The first run uses
+  the changed code. The second run puts the range's files outside the test paths back as they stood at `<base>`. The
+  verb appends the outcome as a trace line of its own kind. That line is no test run and moves no suite record
+  (ADR 0134). `scope.js` also writes the `planned` stage on `init`, which `/superdev:implement`'s run init moves
   forward out of, ADR 0079),
   `plugin/scripts/kb-patch.js` (the deterministic section merge behind a staged page's `action: patch`,
   called by `/superdev:publish-kb`, ADR 0027 — the commands invoke this and `scope.js` at runtime),
