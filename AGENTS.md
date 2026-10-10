@@ -379,7 +379,9 @@ This root owns every other subtree directly:
   Nothing under `plugin/` requires it, and the
   root marketplace does not list it, so no adopter install carries it. Install it into a session with
   `/plugin marketplace add <repo>/mods/superdev-view`, then `/plugin install superdev-view@superdev-view`
-  and `/reload-plugins`. Its own tests run under `claude plugin test mods/superdev-view`. `bun run test`
+  and `/reload-plugins`. Claude Code caches an install by the `version` in the mod's own
+  `.claude-plugin/plugin.json`, which is set by hand: a change reaches an install only after that
+  version is raised and `claude plugin update superdev-view@superdev-view` runs. Its own tests run under `claude plugin test mods/superdev-view`. `bun run test`
   runs none of them and reads only the mod's shared fixture files. `tests/run-trace.test.js` reads
   `hooks/attribution-fixtures.ts` and `hooks/trace-fixtures.ts`, and `tests/scope.test.js` reads
   `hooks/ledger-fixtures.ts`. `hooks/parse.ts` reads the ledger and the run trace that `scope.js` writes,
