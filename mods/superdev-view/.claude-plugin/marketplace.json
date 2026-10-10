@@ -1,0 +1,8 @@
+{
+  "name": "superdev-view",
+  "description": "Maintainer mod: a live pane of a repository's .superdev folder.",
+  "owner": { "name": "Stefan Reichel" },
+  "plugins": [
+    { "name": "superdev-view", "description": "Live pane of the repository's .superdev folder: areas, scopes, stages, slices, and the agents of active scopes.", "source": "./" }
+  ]
+}

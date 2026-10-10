@@ -64,6 +64,11 @@ docs/adr/              — architecture decision records (why the plugin is buil
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification, deployment)
 docs/known-issues.md   — Claude Code platform behaviour superdev works around, each entry with its
                          shipped mitigation and dated verification
+mods/superdev-view/    — maintainer-only Claude Code mod: a live pane of a repository's `.superdev/`
+                         folder, its own single-plugin marketplace (`.claude-plugin/marketplace.json`);
+                         never shipped. Its own suites run under `claude plugin test`; `bun run test` runs none
+                         of them, and only reads its fixture files through `tests/run-trace.test.js`
+                         and `tests/scope.test.js`
 scripts/               — the maintainer-only CLIs wired into `bun run test`: `drift-check.js` with its
                          `drift/` modules (registry, contract tables, scanners, shared helpers,
                          selftest suites), `invariant-check.js`, the invariant register validator, and
@@ -349,4 +354,30 @@ This root owns every other subtree directly:
   install runs the latest release, the artifact an adopter installs. A checkout loaded with
   `claude --plugin-dir ./plugin` runs its working tree instead, so a half-edited guardrail hook fires on
   the very run editing it. Personal overrides belong in the gitignored `.claude/settings.local.json`.
+- `mods/superdev-view/`. A maintainer-only Claude Code mod, a hooks module (`hooks/register.tsx`) that
+  draws a pane of the main working tree's `.superdev/` folder. It reads only the items superdev's own
+  docs define there (`info.json`, `brainstorm/`, `scopes/`, `kb-pending/`, `design/`,
+  `dod-draft-<slug>.md`) and ignores every other entry. A scope's agents come from the `dispatch` lines
+  of its `trace.log` alone: a line from an agent id no `dispatch-bind` names adds no agent. In the session
+  that runs the scope, that session's own `agent.spawn`, `tool.call`, `turn.step`, and `turn.complete`
+  events add live agents, and a live agent joins a scope only when its run root is the pane's own
+  `<root>/scopes/<name>`. Every one of those hooks passes its event on unchanged (INV-0135). Each agent's
+  card is a `Client` surface module (`hooks/card.tsx`) that posts once a second for its latest record, so
+  a tool call or a clock tick redraws the card alone, never the pane. A done card keeps posting for a
+  short grace of 5 seconds after it first sees its agent done, then stops. VS Code and mobile, which have no
+  `Client`, show the same fields as static text. The mod attributes a dispatch to a scope and slice by
+  `plugin/hooks/run-trace.js`'s `recordDispatch` rule, and `hooks/attribution-fixtures.ts` is the fixture
+  list both suites assert (INV-0136): a change to either rule must change the other.
+  Desktop draws animated SVG, the terminal draws text. Nothing under `plugin/` requires it, and the
+  root marketplace does not list it, so no adopter install carries it. Install it into a session with
+  `/plugin marketplace add <repo>/mods/superdev-view`, then `/plugin install superdev-view@superdev-view`
+  and `/reload-plugins`. Its own tests run under `claude plugin test mods/superdev-view`. `bun run test`
+  runs none of them and reads only the mod's shared fixture files. `tests/run-trace.test.js` reads
+  `hooks/attribution-fixtures.ts` and `hooks/trace-fixtures.ts`, and `tests/scope.test.js` reads
+  `hooks/ledger-fixtures.ts`. `hooks/parse.ts` reads the ledger and the run trace that `scope.js` writes,
+  and two pins hold that coupling. The ledger pin in `tests/scope.test.js` asserts that `scope.js` writes
+  the lines in `hooks/ledger-fixtures.ts`. The trace pin in `tests/run-trace.test.js` asserts that
+  `plugin/hooks/run-trace.js` writes the lines in `hooks/trace-fixtures.ts`. `hooks/parse.test.ts` parses
+  both fixture files. A change to the ledger or trace layout fails one of these suites, so the change
+  must update `hooks/parse.ts` and the fixture file together.
 - `CONTEXT.md`. The domain glossary.

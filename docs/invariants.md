@@ -1131,3 +1131,22 @@ Statement: A scope branch never reaches the base branch carrying a numbering col
 Breaks: silently
 Check: tests/scope.test.js — the collision verb reports a same-number ADR with a different slug, and an invariant id, that base holds; scripts/drift-check.js — no two ADRs in docs/adr/ share a number
 Paths: plugin/scripts/scope.js, plugin/references/scope-mode.md, plugin/references/merge-conflicts.md, plugin/skills/ship/SKILL.md
+
+### INV-0135
+
+Class: architecture
+Concepts: Run trace, Scope
+Statement: The superdev-view mod only watches. Every hook it registers on a tool call, a model step, a turn's end, or a subagent spawn passes on what the hooks beneath it answered, unchanged; none denies, rewrites, or delays one, and a malformed event fails none of them. The mod writes no file.
+Breaks: silently
+Check: mods/superdev-view/hooks/events.test.tsx — each event hook returns what beneath answered, including for an event naming no known agent, a missing usage, or an unknown tool, and hands it back while the mod's own state writes are still held
+Paths: mods/superdev-view/hooks/**
+
+### INV-0136
+
+Class: architecture
+Concepts: Run trace, Run root, Slicetree
+Statement: superdev-view attributes a subagent dispatch to a scope and slice by the rule the run trace's `recordDispatch` applies: a run root counts only when it holds a ledger, exactly one run root attributes, and exactly one slice id names the slice while zero or several give the scope level. The pane and the trace never disagree about which scope and slice an agent works on.
+Breaks: silently
+Check: tests/run-trace.test.js and mods/superdev-view/hooks/live.test.ts — one shared fixture list, mods/superdev-view/hooks/attribution-fixtures.ts, yields the same root and slice through both
+Symbols: recordDispatch, attribute
+Paths: plugin/hooks/run-trace.js, mods/superdev-view/hooks/**

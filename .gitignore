@@ -9,3 +9,6 @@ plugin/.data/
 
 # local Claude Code settings (personal, per-machine)
 .claude/settings.local.json
+
+# types Claude Code lays into a loaded mod (regenerated on every load)
+mods/*/.claude-plugin/types/

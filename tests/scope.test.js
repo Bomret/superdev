@@ -100,6 +100,37 @@ try {
     'a sibling with no status still defaults to todo: ' + appendedText,
   );
 
+  // The ledger layout superdev-view's parse.ts reads: scope.js writes exactly the shared ledger, and the
+  // mod's suite parses the same text into headers and slice rows, so a layout change on either side fails one suite.
+  {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'mods', 'superdev-view', 'hooks', 'ledger-fixtures.ts'), 'utf8');
+    const lines = JSON.parse(src.slice(src.indexOf('/* ledger:start */') + 18, src.indexOf('/* ledger:end */')));
+    const viewTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-view-'));
+    const viewRoot = path.join(viewTmp, '.superdev', 'scopes', 'view');
+    const viewJson = JSON.stringify({
+      anchor: '#9 — Show the pane',
+      slices: [
+        { id: '01', issue: '#10', title: 'Draw the tiles', type: 'behavior', 'depends-on': '—' },
+        { id: '02', issue: '#11', title: 'Draw the scope map', type: 'behavior', 'depends-on': '01' },
+        { id: '03', issue: '#12', title: 'Document the mod', type: 'docs', 'depends-on': '02' },
+        { id: '04', issue: '#13', title: 'Split | merge the panes', type: 'behavior', 'depends-on': '03' },
+      ],
+    });
+    const origView = console.log;
+    console.log = () => {};
+    try {
+      run(['init', 'feat/view', 'planned'], viewTmp, viewJson);
+      run(['stage', '--root', viewRoot, 'set', 'implementing'], viewTmp);
+      run(['slice', '--root', viewRoot, '01', 'merged', '--range', 'a1b2c3d..e4f5a6b'], viewTmp);
+      run(['slice', '--root', viewRoot, '02', 'in-progress'], viewTmp);
+      console.log = origView;
+      assert.deepEqual(fs.readFileSync(path.join(viewRoot, 'ledger.md'), 'utf8').split('\n'), lines, 'scope.js writes the ledger superdev-view parses');
+    } finally {
+      console.log = origView;
+      fs.rmSync(viewTmp, { recursive: true, force: true });
+    }
+  }
+
   // init: a slice list that is entirely merged (a second run over a fully-shipped appended feature,
   // ADR 0004) writes `merged` into every row — nothing defaults to `todo`. Isolated in its own root
   // so its 2-of-2-merged tally doesn't collide with the shipped-scope tally assertion below.

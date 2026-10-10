@@ -1,0 +1,9 @@
+{
+  "name": "superdev-view",
+  "version": "0.1.1",
+  "description": "Live pane of the repository's .superdev folder: areas, scopes, stages, slices, and the agents of active scopes",
+  "author": {
+    "name": "Stefan Reichel"
+  },
+  "types": "./types/index.d.ts"
+}

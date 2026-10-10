@@ -736,6 +736,35 @@ assert.deepEqual(tail(trace(A)).map((l) => l.split(' ').slice(0, 2).join(' ')), 
 // Subagent dispatches: PreToolUse on Agent records `dispatch`, PostToolUse `completed` (or async_launched then SubagentStop) the `dispatch-end`.
 const agentPre = (prompt, tu, type, description, cwd) => ({ hook_event_name: 'PreToolUse', tool_name: 'Agent', tool_use_id: tu, tool_input: { prompt, subagent_type: type || 'superdev:implementer', description: description || 'build it' }, cwd: cwd || tmp });
 const agentPost = (tu, response, cwd) => ({ hook_event_name: 'PostToolUse', tool_name: 'Agent', tool_use_id: tu, tool_response: response, cwd: cwd || tmp });
+// The attribution fixtures superdev-view shares (INV-0136): every entry attributes here exactly as the mod's
+// own suite asserts it does there, so the pane and the trace never disagree about an agent's scope and slice.
+{
+  const src = fs.readFileSync(path.join(__dirname, '..', 'mods', 'superdev-view', 'hooks', 'attribution-fixtures.ts'), 'utf8');
+  const fixtures = JSON.parse(src.slice(src.indexOf('/* fixtures:start */') + 20, src.indexOf('/* fixtures:end */')));
+  const roots = { A, B, NOLEDGER: path.join(tmp, '.superdev', 'scopes', 'nope') };
+  assert.ok(fixtures.length > 0, 'the shared fixture list parses');
+  fixtures.forEach((f, i) => {
+    reset();
+    run(agentPre(f.prompt.replace(/\{(A|B|NOLEDGER)\}/g, (_, k) => roots[k]), `fx${i}`));
+    const got = [['A', A], ['B', B]].filter(([, r]) => trace(r).some((l) => l[2] === 'dispatch' && l[4] === `fx${i}`));
+    assert.deepEqual(got.map(([k]) => k), f.root ? [f.root] : [], `fixture ${i} root: ${f.prompt}`);
+    if (f.root) assert.equal(trace(f.root === 'A' ? A : B).find((l) => l[4] === `fx${i}`)[0], f.slice, `fixture ${i} slice: ${f.prompt}`);
+  });
+}
+// The trace layout superdev-view's parse.ts reads: the hook writes exactly the shared lines, and the mod's
+// suite parses the same lines into agents, so a layout change on either side fails one suite.
+{
+  const src = fs.readFileSync(path.join(__dirname, '..', 'mods', 'superdev-view', 'hooks', 'trace-fixtures.ts'), 'utf8');
+  const lines = JSON.parse(src.slice(src.indexOf('/* trace:start */') + 17, src.indexOf('/* trace:end */')));
+  reset();
+  run(agentPre(`Work in ${A}/slicetrees/04`, 'tu1', 'superdev:implementer', 'Build slice 04'));
+  run(agentPost('tu1', { status: 'async_launched', agentId: 'ag1' }));
+  run({ hook_event_name: 'SubagentStop', agent_id: 'ag1', agent_type: 'superdev:implementer', cwd: tmp });
+  run(agentPre(`Review ${A}/scopetree`, 'tu2', 'superdev:final-reviewer', 'Final review'));
+  run(agentPost('tu2', { status: 'completed' }));
+  run(agentPre(`Work in ${A}/slicetrees/05`, 'tu3', 'superdev:implementer', 'Build slice 05'));
+  assert.deepEqual(trace(A).map((l) => l.join(' ')), lines, 'the hook writes the trace lines superdev-view parses');
+}
 {
   reset();
   const stop = (id, cwd) => run({ hook_event_name: 'SubagentStop', agent_id: id, agent_type: 'superdev:implementer', cwd: cwd || tmp });
