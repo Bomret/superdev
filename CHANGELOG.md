@@ -1,3 +1,10 @@
+# [0.70.0](https://codeberg.org/bomret/superdev/compare/v0.69.1...v0.70.0) (2026-10-11)
+
+
+### Features
+
+* **run-trace:** the run trace records every fact the scope view shows ([#1058](https://codeberg.org/bomret/superdev/issues/1058)) ([d3ad873](https://codeberg.org/bomret/superdev/commit/d3ad873b4e8679014ca9bdd17ae02fd68d03497f))
+
 ## [0.69.1](https://codeberg.org/bomret/superdev/compare/v0.69.0...v0.69.1) (2026-10-11)
 
 
