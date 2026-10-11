@@ -1,3 +1,10 @@
+## [0.69.1](https://codeberg.org/bomret/superdev/compare/v0.69.0...v0.69.1) (2026-10-11)
+
+
+### Bug Fixes
+
+* **hooks:** Bash hooks read shell words with one balancing scanner ([#1050](https://codeberg.org/bomret/superdev/issues/1050)) ([305344c](https://codeberg.org/bomret/superdev/commit/305344cb93021a5af5e80f9ce1cd4bfbd8581432))
+
 # [0.69.0](https://codeberg.org/bomret/superdev/compare/v0.68.0...v0.69.0) (2026-10-11)
 
 
