@@ -63,110 +63,19 @@ try {
   // left null: traceSuiteRun() records nothing
 }
 
-// (?![-\w]) so read-only helpers `git merge-base` / `merge-tree` don't trip the gate (a `\b` would
-// match them — mirror merge-guard). `\n` lead-in + `m` so a merge on a later line of a multi-line
-// command is still gated. The optional group skips git's global options (`-C <path>`, `-c k=v`,
-// inline `--flags`) so `git -C <path> merge` is gated too — mirror merge-guard. Each option's
-// argument is one shell word — ARG below — so a quoted `-C`/`-c` value, an unquoted value with a
-// backslash-escaped space, and a partly-quoted `key=value` (`-c k="v w"`, `--git-dir="a b"`) are
-// all matched as a single token, not just the first non-space run a bare `\S+` would stop at.
-// Command substitutions, `${…}` expansions, and backtick groups are one word too; merge-guard.js
-// explains the reading and its limits beside its copy.
-// Which option named the tree is read back out of the matched option region by optionValue() below,
-// not from a capture group: the reason sits at IS_MERGE.
-const ARG = /(?:[^\s"'\\$`]|\$(?![({])|\\.|"(?:[^"\\]|\\.)*"|'[^']*'|\$\((?:[^()\\]|\\.|\((?:[^()\\]|\\.)*\))*\)|\$\{(?:[^{}\\"'`]|\\.|"(?:[^"\\]|\\.)*"|'[^']*'|`(?:[^`\\]|\\.)*`)*\}|`(?:[^`\\]|\\.)*`)+/.source;
-// `--abort` and `--quit` undo or abandon a merge — nothing new landed, so nothing to gate.
-// `--continue` completes one and stays gated.
-// A long global option takes its value in two spellings — `--work-tree=<path>` and `--work-tree
-// <path>` — and `--${ARG}` alone only ever spans the first, so `git --work-tree /wt merge x` tripped
-// no matcher and the gate never fired. The value-taking options are enumerated rather than accepting an
-// optional following word after any long option — the reasoning, and the list itself (git's own
-// value-taking global options, from `handle_options()` in git.c), are merge-guard's own, beside its copy
-// of this token, including why the space-form value is required not to start with `-`
-// (`(?:=|\s+(?!-))`): unrestricted, a long run of enumerated names with no verb backtracks
-// exponentially — the same shape as the pathological command the hook's own 600s timeout above exists
-// to bound, and hitting that ceiling would mean this test never even runs. A valueless use of one of
-// these (`git --exec-path merge x`) still matches, through the `--${ARG}` alternative that follows —
-// `--exec-path` takes no value in git itself, so it stays out of this enumeration.
-// No alternative captures. JS resets every capture group inside a quantified group on each iteration,
-// so only the last option's own capture would survive a match — `git --work-tree /b -C /a merge` would
-// lose `/b`. optionValue() below reads each option out of the matched option region instead.
-const LONG_VALUE_OPT = /--(?:git-dir|work-tree|namespace|config-env|shallow-file|attr-source)/.source;
-// A git global option whose value ARG cannot read to the end of its shell word — the next character is not
-// whitespace, as past one `$(…)` nesting level — is unknowable: IS_MERGE would split the word at its first
-// space and the gate would never see the merge. The atomic `(?=(ARG|))\2` takes ARG's greedy match once, so
-// no shorter reading of the value can pass the `(?=\S)` test. Mirrors merge-guard's STUCK, including the
-// generic `--<name>=` lead on the final option only; fails closed.
-// STUCK_MERGE's and IS_MERGE's lead-in is `[ \t]*`, never `\s*`: a newline is itself a lead-in, and `\s*`
-// after it re-scans every following newline from each one, which is quadratic on a long run of blank lines.
-const GLOBAL_OPTS = `(?:\\s+(?:-[cC]\\s+${ARG}|${LONG_VALUE_OPT}(?:=|\\s+(?!-))${ARG}|--${ARG}))*`;
-const VALUE_OPT_LEAD = `(?:-[cC]\\s+|${LONG_VALUE_OPT}(?:=|\\s+(?!-))|--[\\w-]+=)`;
-// RTK's PreToolUse hook rewrites `git commit` to `rtk git commit`, and this PostToolUse hook sees the
-// rewritten command (docs/known-issues.md). Each matcher therefore takes an optional `rtk` before `git`,
-// with rtk's own value-less global options, so a merge or commit RTK rewrote is still a candidate. An
-// optional run-anything subcommand follows (`proxy`, `err`, `run`, `summary`, `test`, rtk 0.51.0), each of
-// which executes the command after it, with its value-less options and an optional `--` separator. The whole
-// prefix repeats, so an rtk behind another rtk matches too. The groups capture nothing, so STUCK_MERGE's `\2`
-// keeps its meaning.
-// merge-guard carries a byte-identical copy for a hand-typed prefix, pinned by this hook's suite.
-const RTK_PREFIX = `(?:rtk(?:[ \\t]+(?:-v+|--verbose|--ultra-compact|--skip-env))*[ \\t]+(?:(?:proxy|err|run|summary|test)(?:[ \\t]+(?:--ultra-compact|--skip-env))*(?:[ \\t]+--)?[ \\t]+)?)*`;
-const STUCK_MERGE = new RegExp(
-  `(^|[;&|\\n])[ \\t]*${RTK_PREFIX}git${GLOBAL_OPTS}\\s+${VALUE_OPT_LEAD}(?=(${ARG}|))\\2(?=\\S)(?=[^\\n]*\\smerge(?![-\\w])(?!\\s+--(?:abort|quit)\\b))`,
-  'm'
-);
-const IS_MERGE = new RegExp(
-  `(^|[;&|\\n])[ \\t]*${RTK_PREFIX}git${GLOBAL_OPTS}\\s+merge(?![-\\w])(?!\\s+--(?:abort|quit)\\b)`,
-  'm'
-);
-// A `git commit` names a candidate too: it concludes a conflicted merge, and only the HEAD reflog says
-// whether it did (mergeLanded() below). Same lead-in and option region as IS_MERGE.
-const IS_COMMIT = new RegExp(`(^|[;&|\\n])[ \\t]*${RTK_PREFIX}git${GLOBAL_OPTS}\\s+commit(?![-\\w])`, 'm');
-
-// Unquotes a captured ARG token so it reaches path.resolve as a plain string. ARG (the comment
-// above it) matches a run of concatenated pieces — unquoted, single-quoted, double-quoted, and
-// substitutions (`$(…)`, `${…}`, a backtick group) — with no separating whitespace
-// (`-C /base/"my dir"`, `-C "/base"/sub`), the same way a shell resolves one word built from several
-// quoting styles. A substitution never reaches here: resolveCwdFromTokens() returns null first. So this
-// walks the token piece by piece instead of keying off raw[0]: a single-quoted span passes through
-// untouched (no escapes in the shell), a double-quoted span un-escapes `\x` to `x`, and an unquoted
-// run does the same un-escaping.
-function unquoteArg(raw) {
-  let out = '';
-  let i = 0;
-  while (i < raw.length) {
-    const c = raw[i];
-    if (c === "'") {
-      const end = raw.indexOf("'", i + 1);
-      // resolveCwdFromTokens() returns null for any value holding `$` or a backtick, so every value reaching
-      // here has balanced quotes and this never fires on ARG output — but `end === -1` would otherwise
-      // slice to -1 and rewind `i` to 0, spinning forever on the same unclosed quote.
-      if (end === -1) break;
-      out += raw.slice(i + 1, end);
-      i = end + 1;
-    } else if (c === '"') {
-      i += 1;
-      // Bounded by raw.length too: an unclosed double quote would otherwise leave `raw[i]`
-      // `undefined` forever, which is never `'"'`, spinning past the end of the string.
-      while (i < raw.length && raw[i] !== '"') {
-        if (raw[i] === '\\') {
-          out += raw[i + 1];
-          i += 2;
-        } else {
-          out += raw[i];
-          i += 1;
-        }
-      }
-      i += 1; // skip the closing quote
-    } else if (c === '\\') {
-      out += raw[i + 1];
-      i += 2;
-    } else {
-      out += c;
-      i += 1;
-    }
-  }
-  return out;
+// The shared shell scanner (ADR 0135) reads the command. A scanner that cannot load leaves `shellWords`
+// null, and parseMergeCommand() then reports `{ broken: true }`: the gate fails closed with a blind
+// verification (INV-0140).
+let shellWords = null;
+try {
+  shellWords = require('./shell-words.js');
+} catch {
+  // left null: every command reads as broken
 }
+
+// The raw-text rule for a command the scanner cannot read: the word `git`, then later the word `merge` (or `pull`, read in readMerge()).
+const MERGE_WORD = /(?<![-\w])merge(?![-\w])/;
+const PULL_WORD = /(?<![-\w])pull(?![-\w])/;
 
 // A directory-changing builtin in command position. `cd <worktree> && git merge …`, a `pushd`, or a
 // subshell that cds moves the merge somewhere the session cwd no longer names, and the command carries
@@ -175,11 +84,131 @@ function unquoteArg(raw) {
 // cost of a surface — chained `cd`s, variables, `~`, relative-on-relative, a `cd` inside a subshell
 // that does not outlive it — where every wrong resolution runs the suite in the wrong tree and reports
 // a confident green. Failing closed leaves the merge landed and unverified, named in the block message
-// below, with `-C` the way to get a gated merge next time. The regex also over-fires: `echo "note;
-// cd nowhere" && git merge s` reads a quoted `cd` as a real one and blocks a command that never left the
-// session cwd. That direction is safe — the recovery is the same one `-C` — so it is left uncorrected.
-// Upgrade to resolution only with a shell parser, never with a regex.
-const CHANGES_DIR = /(^|[;&|(\n])\s*(?:cd|pushd|popd)(\s|$)/;
+// below, with `-C` the way to get a gated merge next time. Any `cd`, `pushd`, or `popd` command that the
+// scanner lists before the merge counts, one in a subshell or an unrelated branch included. That direction
+// is safe — the recovery is the same one `-C`.
+const CHANGES_DIR = new Set(['cd', 'pushd', 'popd']);
+
+// The `git merge` options that take their value as the next word (`-m msg`, `--into-name x`); the `=` and
+// attached forms (`-mmsg`, `--into-name=x`) are one word and match nothing here. Git also accepts an
+// unambiguous prefix of a long option (`--mess`) and a bundle of short options (`-nm`), so the test below
+// reads both.
+const MERGE_LONG_VALUE = ['message', 'file', 'strategy', 'strategy-option', 'into-name'];
+// Every other long option `git merge` takes, so a prefix such as `--s` or `--f` reads as ambiguous.
+const MERGE_LONG_OTHER = [
+  'commit', 'no-commit', 'edit', 'no-edit', 'cleanup', 'ff', 'no-ff', 'ff-only', 'gpg-sign', 'no-gpg-sign', 'log',
+  'no-log', 'signoff', 'no-signoff', 'stat', 'no-stat', 'summary', 'no-summary', 'compact-summary', 'squash',
+  'no-squash', 'verify', 'no-verify', 'verify-signatures', 'no-verify-signatures', 'rerere-autoupdate',
+  'no-rerere-autoupdate', 'allow-unrelated-histories', 'progress', 'no-progress', 'autostash', 'no-autostash',
+  'overwrite-ignore', 'no-overwrite-ignore', 'quiet', 'verbose', 'abort', 'quit', 'continue', 'help',
+];
+function takesMergeValue(w) {
+  if (/^-[A-Za-z]+$/.test(w)) {
+    const i = w.search(/[mFsX]/);
+    return i === w.length - 1; // a value letter mid-bundle takes the rest of the word, so no next word
+  }
+  const m = /^--([a-z-]+)$/.exec(w);
+  if (!m) return false;
+  if (MERGE_LONG_VALUE.includes(m[1])) return true;
+  const hits = [...MERGE_LONG_VALUE, ...MERGE_LONG_OTHER].filter((o) => o.startsWith(m[1]));
+  return hits.length === 1 && MERGE_LONG_VALUE.includes(hits[0]);
+}
+
+// What the command names: `null` when no merge candidate, else
+//   { verb: 'merge' | 'commit' | 'pull', quoted, tokens, dirChanged }   a candidate read from the command's words (past
+//                                                               its `NAME=` words and prefix wrappers, an inline alias resolved),
+//   { stuck: true }                                             an unreadable command that holds a merge,
+//   { stuck: true, verb: 'pull' }                               an unreadable command that holds a pull and no merge,
+//   { broken: true }                                            a scanner that cannot load or run.
+// `tokens` are the value-taking git global options of the candidate (`{ name, value }`), `dirChanged` is
+// true when a directory-changing command comes before it at the command line's own level, and `quoted` is
+// true when the candidate sits inside the text of a quoted word, a quoted text that reads as no command line
+// included (readMerge() below). A merge the command runs itself (not
+// inside quoted text) beats a commit or a pull, which beats a quoted merge, which beats a quoted commit or pull. A commit and
+// a pull are gated only when the reflog shows a landed merge (decide()). `merge
+// --abort` and `merge --quit`, in any option position before the first non-option word or `--` (and not as
+// the value of an option such as `-m`), undo or abandon a merge — nothing new landed, so nothing to gate;
+// `--continue` completes one and stays gated.
+function parseMergeCommand(cmd) {
+  // Every call into the scanner module sits in the try: a throw anywhere in the read is a broken install (INV-0140).
+  try {
+    if (!shellWords) return { broken: true };
+    return readMerge(shellWords.scan(cmd, { quoted: true }), cmd);
+  } catch {
+    return { broken: true };
+  }
+}
+// A quoted text that reads as no command line (`bash -c "git merge x; echo don't"`) runs its lines before the syntax error, so
+// one naming `git … merge` by the raw-text rule is a quoted merge candidate, ranked as one: the reflog decides, in the session
+// cwd. A commit message or a grep pattern holding such text (`git commit -m "don't git merge twice"`) then stays silent unless a
+// merge landed. A heredoc body or here-string text (the scan's `texts`) naming `git … merge` is a quoted merge candidate the same
+// way, whatever command receives it, a file sink included, when the line holds no unquoted `git merge`, `commit`, or `pull`: that candidate is
+// returned first, so `git commit -F - <<E` with a body naming `git merge` is read as its unquoted `commit` candidate, never as a
+// quoted merge. A body a known shell reads also gates as the command line it is.
+// A quoted text naming `git … pull` the same way is a quoted pull candidate, ranked below a quoted merge. An unreadable command naming
+// `git … pull` and no merge is a stuck pull: decide() reports its blind verification only when the reflog shows a landed merge.
+function readMerge(r, cmd) {
+  if (!r.readable) {
+    if (shellWords.rawNamesVerb(cmd, MERGE_WORD)) return { stuck: true };
+    return shellWords.rawNamesVerb(cmd, PULL_WORD) ? { stuck: true, verb: 'pull' } : null;
+  }
+  const best = bestCandidate(r);
+  if (best && !best.quoted) return best;
+  if (best && best.verb === 'merge') return best;
+  const failed = (re) => r.failedQuoted.some((t) => shellWords.rawNamesVerb(t, re)) || r.texts.some((t) => shellWords.rawNamesVerb(t.text, re));
+  if (failed(MERGE_WORD)) return { verb: 'merge', quoted: true, tokens: [], dirChanged: false };
+  if (best) return best;
+  return failed(PULL_WORD) ? { verb: 'pull', quoted: true, tokens: [], dirChanged: false } : null;
+}
+function bestCandidate(r) {
+  let best = null;
+  let rank = 4;
+  let dirChanged = false;
+  for (const c of r.commands) {
+    if (c.level === 0 && c.words.length && CHANGES_DIR.has(c.words[0].value)) dirChanged = true;
+    // The git command is read past the `NAME=` words and prefix wrappers (`nice -n 5`, `eval`, `sudo -u bob`), as merge-guard reads it.
+    const words = c.words.slice(shellWords.commandStart(c.words));
+    const g = shellWords.gitSubcommand(words);
+    if (!g) continue;
+    let verb = null;
+    // A subcommand defined inline as an alias runs its value: `git -c alias.m=merge m`, or a `!` shell command naming `git … merge`.
+    let sub = g.subcommand;
+    if (g.alias !== null) {
+      sub = g.alias.startsWith('!')
+        ? (shellWords.rawNamesVerb(g.alias.slice(1), MERGE_WORD) ? 'merge' : shellWords.rawNamesVerb(g.alias.slice(1), PULL_WORD) ? 'pull' : null)
+        : g.alias.trim().split(/\s+/)[0];
+    }
+    if (sub === 'merge') {
+      // Every option word before the first non-option or `--` may be the `--abort` or `--quit`; the word after
+      // a value-taking option is that option's value, whatever it reads like.
+      let undoes = false;
+      for (let k = g.index + 1; k < words.length; k++) {
+        const w = words[k].value;
+        if (w === '--' || !w.startsWith('-')) break;
+        if (/^--(abort|quit)$/.test(w)) undoes = true;
+        else if (takesMergeValue(w)) k++;
+      }
+      if (!undoes) verb = 'merge';
+    } else if (sub === 'commit' || sub === 'pull') verb = sub;
+    if (!verb) continue;
+    const quoted = c.level > 0;
+    const r2 = (quoted ? 2 : 0) + (verb === 'merge' ? 0 : 1);
+    if (r2 < rank) {
+      rank = r2;
+      best = { verb, quoted, tokens: g.options, dirChanged };
+    }
+  }
+  return best;
+}
+
+// The hook sees the command before the shell expands it, so a `-C` or `--work-tree` value holding
+// `$NAME`, `${NAME}`, `$(…)`, a backtick, or a leading `~` names a path the hook cannot know.
+// simplicity: tested on the unquoted word text, so a single-quoted or backslash-escaped `$` over-fires. That
+// direction is safe (it blocks and names `-C` with a literal path); upgrade only with a shell parser.
+const SHELL_EXPANSION = /[$`]|^~/;
+function namesShellExpansion(tokens) {
+  return ['-C', '--work-tree'].some((o) => optionValues(tokens, o).some((v) => SHELL_EXPANSION.test(v)));
+}
 
 // The merge's own working tree: a `--work-tree <path>` or `-C <path>` on the command, resolved
 // against the session cwd (git itself resolves both relative to the shell's cwd at invocation, not to
@@ -187,8 +216,6 @@ const CHANGES_DIR = /(^|[;&|(\n])\s*(?:cd|pushd|popd)(\s|$)/;
 // keeps running where it always has. **`null` when the tree is unknowable**, in three shapes:
 // the command changed directory before the merge and named no tree, it named only `--git-dir`, or a
 // `-C` or `--work-tree` value holds shell syntax the hook sees unexpanded.
-// A git option value ARG cannot read to its end (STUCK_MERGE) is not one of them: this function never sees
-// that merge, and resolveVerification() fails it closed before any suite runs, whatever this returns.
 //
 // git applies every `-C` in order, each against the directory the previous one left, before it looks at
 // `--work-tree` — so `-C` is folded cumulatively here too (`git -C /a -C b` lands at `/a/b`), and a
@@ -214,66 +241,25 @@ const CHANGES_DIR = /(^|[;&|(\n])\s*(?:cd|pushd|popd)(\s|$)/;
 // Residual ceiling: a `--work-tree` is resolvable but not meaningful when it points at a tree that is
 // not a checkout of the repository whose HEAD the merge is advancing — the gate cannot tell that case
 // apart from a real one, and runs the suite over whatever tree the path names.
-// How many times the merge command's option region has actually been walked (parseOptions() calls) —
-// exactly one per parseMergeCommand() call below. tests/green-gate.test.js reads this counter through
-// the getOptionRegionWalks()/resetOptionRegionWalks() exports below to prove one decision walks the
-// region once, not the up-to-four separate walks that used to run when resolveMergeCwd,
-// namesOnlyGitDir, and resolvingOption each re-matched IS_MERGE and re-parsed the region on their own.
-let optionRegionWalks = 0;
-function resetOptionRegionWalks() {
-  optionRegionWalks = 0;
-}
-function getOptionRegionWalks() {
-  return optionRegionWalks;
-}
-
-// Parses the merge command's global-option region once: the IS_MERGE match locates the region and
-// where it starts in `cmd` (resolveCwdFromTokens()'s CHANGES_DIR check needs that start), then
-// parseOptions() walks it into a token list. `null` when cmd is not a merge. resolveMergeCwd,
-// namesOnlyGitDir, and resolvingOption all take that same token list instead of re-matching IS_MERGE
-// and re-walking the region themselves.
-function parseMergeCommand(cmd) {
-  let verb = 'merge';
-  let m = IS_MERGE.exec(cmd);
-  if (!m) {
-    verb = 'commit';
-    m = IS_COMMIT.exec(cmd);
-  }
-  if (!m) return null;
-  optionRegionWalks += 1;
-  return { tokens: parseOptions(optionRegion(m, verb)), index: m.index };
-}
-
-// The hook sees the command before the shell expands it, so a `-C` or `--work-tree` value holding
-// `$NAME`, `${NAME}`, `$(…)`, a backtick, or a leading `~` names a path the hook cannot know.
-// simplicity: tested on the raw text, so a single-quoted or backslash-escaped `$` over-fires. That
-// direction is safe (it blocks and names `-C` with a literal path); upgrade only with a shell parser.
-const SHELL_EXPANSION = /[$`]|^~/;
-function namesShellExpansion(tokens) {
-  return ['-C', '--work-tree'].some((o) => optionValues(tokens, o).some((v) => SHELL_EXPANSION.test(v)));
-}
-
-function resolveCwdFromTokens(tokens, index, cmd, sessionCwd) {
+function resolveCwdFromTokens(tokens, dirChanged, sessionCwd) {
   const cValues = optionValues(tokens, '-C');
   if (namesShellExpansion(tokens)) return null;
-  const cBase = cValues.reduce((base, v) => path.resolve(base, unquoteArg(v)), sessionCwd);
+  const cBase = cValues.reduce((base, v) => path.resolve(base, v), sessionCwd);
   const workTree = optionValue(tokens, '--work-tree');
-  if (workTree) return path.resolve(cBase, unquoteArg(workTree));
+  if (workTree) return path.resolve(cBase, workTree);
   if (optionValue(tokens, '--git-dir')) return null;
   if (cValues.length) return cBase;
-  if (CHANGES_DIR.test(cmd.slice(0, index))) return null;
+  if (dirChanged) return null;
   return sessionCwd;
 }
 
 function resolveMergeCwd(cmd, sessionCwd) {
   const parsed = parseMergeCommand(cmd);
-  if (!parsed) return sessionCwd;
-  return resolveCwdFromTokens(parsed.tokens, parsed.index, cmd, sessionCwd);
+  if (!parsed || !parsed.tokens) return sessionCwd;
+  return resolveCwdFromTokens(parsed.tokens, parsed.dirChanged, sessionCwd);
 }
 
 // Which of the two unknowable shapes a command is, for the blind reason resolveVerification() writes.
-// Takes the token list resolveVerification already parsed, rather than re-matching IS_MERGE and
-// re-walking the region.
 function namesOnlyGitDir(tokens) {
   return Boolean(optionValue(tokens, '--git-dir')) && !optionValue(tokens, '--work-tree');
 }
@@ -282,46 +268,17 @@ function namesOnlyGitDir(tokens) {
 // resolveVerification() writes when that tree turns out to carry no verification doc. Mirrors
 // resolveCwdFromTokens()'s own precedence: `--work-tree` wins when present, `-C` otherwise — this is
 // only called once resolveMergeCwd() has already returned a resolved (non-null, non-session) cwd, so
-// one of the two is guaranteed to be there. Takes the already-parsed token list, same reason as
-// namesOnlyGitDir above.
+// one of the two is guaranteed to be there.
 function resolvingOption(tokens) {
   return optionValue(tokens, '--work-tree') ? '--work-tree' : '-C';
 }
 
-// The command's global-option run: everything IS_MERGE or IS_COMMIT matched up to the verb it ends on.
-function optionRegion(match, verb) {
-  return match[0].slice(0, -verb.length);
-}
-
-// Walks the region option-by-option, using the same alternation IS_MERGE itself matched against —
-// `-c`/`-C ARG`, a long value-taking option's ARG, or a bare `--ARG` — so each option's own value is
-// consumed as one token and the scan resumes only past it. That is what closes the gap a flat
-// `region.match(optionName)` scan left open: `-c msg="a -C /elsewhere"` or `-c "msg=a --work-tree
-// /elsewhere"` used to read the quoted VALUE's own text as a second, real option, because the flat scan
-// had no notion of "already inside another option's value" — matchAll's non-overlapping search
-// advances past the whole consumed token, so the embedded text is never revisited.
-const OPTION_TOKEN = new RegExp(
-  `(-[cC])\\s+(${ARG})|(${LONG_VALUE_OPT})(?:=|\\s+(?!-))(${ARG})|--(${ARG})`,
-  'g'
-);
-function parseOptions(region) {
-  const tokens = [];
-  for (const m of region.matchAll(OPTION_TOKEN)) {
-    if (m[1]) tokens.push({ name: m[1], value: m[2] });
-    else if (m[3]) tokens.push({ name: m[3], value: m[4] });
-    else tokens.push({ name: `--${m[5]}`, value: null });
-  }
-  return tokens;
-}
-
-// Every occurrence of one global option, out of an already-parsed token list, in the order it
-// appears — both spellings (`--opt=value`, `--opt value`).
+// Every occurrence of one global option, in the order it appears, a value-less one left out.
 function optionValues(tokens, option) {
-  return tokens.filter((t) => t.name === option).map((t) => t.value);
+  return tokens.filter((t) => t.name === option && t.value !== null).map((t) => t.value);
 }
 
-// One global option's value, out of an already-parsed token list — the last occurrence, as git
-// itself takes it.
+// One global option's value — the last occurrence, as git itself takes it.
 function optionValue(tokens, option) {
   const values = optionValues(tokens, option);
   return values.length ? values[values.length - 1] : null;
@@ -332,15 +289,19 @@ const SHELL_BLIND =
   '(`$`, a backtick, or `~`) that the gate cannot expand, so it could not see the merge\'s working tree. ' +
   'Run the full test command in the merge\'s tree now, or revert this merge. ' +
   'Pass literal option values next time, such as a literal path: `git -C /abs/path merge …`.';
-// The STUCK_MERGE shape can be a shell syntax error (an unterminated `$(`, backtick, or quote) that ran
-// nothing, so it claims no landed merge: an obedient revert would otherwise undo a real commit.
+// An unreadable command can be a shell syntax error (an unterminated quote, `$(`, `${`, or backtick) that
+// ran nothing, so it claims no landed merge: an obedient revert would otherwise undo a real commit.
 const SHELL_BLIND_STUCK =
-  'superdev: if this command merged, nobody verified it. A git option value holds shell syntax ' +
-  '(for example an unterminated quote, `$(`, `${`, or backtick, nesting too deep, ' +
-  'or a quoted `)` or a literal `{` inside a substitution) ' +
+  'superdev: if this command merged, nobody verified it. The command holds shell syntax ' +
+  '(for example an unterminated quote, `$(`, `${`, or backtick, or nesting too deep) ' +
   'that the gate cannot read to its end, so it could not see the merge\'s working tree. ' +
   'If it merged, run the full test command in the merge\'s tree now, or revert that merge. ' +
   'Pass literal option values next time, such as a literal path: `git -C /abs/path merge …`.';
+// The scanner behind every command read failed to load or to run (INV-0140).
+const SHELL_BLIND_BROKEN =
+  'superdev: green-gate could not read this command because the shared shell scanner (hooks/shell-words.js) ' +
+  'failed to load or to run, so nobody can tell whether it merged. The superdev install is broken: ' +
+  'reinstall or update the plugin. If this command merged, run the full test command in the merge\'s tree now.';
 
 // What the gate runs, and where — or that it cannot tell. Both blind spots end here, because both are
 // invisible to `decide()`: a tree it cannot name, and a resolved tree carrying no verification document
@@ -349,14 +310,13 @@ const SHELL_BLIND_STUCK =
 // inert on a repository that configured it.
 // Takes `parsed` — the caller's own parseMergeCommand(cmd) result — instead of parsing `cmd` itself, so
 // a decision that also needs the cwd (main()'s own case) shares one parse across both.
-// `stuck` is decide()'s own STUCK_MERGE test of `cmd`; a direct caller leaves it out and it is tested here.
-function resolveVerification(parsed, cmd, sessionCwd, stuck = STUCK_MERGE.test(cmd)) {
+function resolveVerification(parsed, cmd, sessionCwd) {
   const session = readVerification(sessionCwd);
-  if (stuck) {
+  if (parsed && (parsed.stuck || parsed.broken)) {
     if (!session.full) return session;
-    return { full: session.full, focused: session.focused, blind: SHELL_BLIND_STUCK };
+    return { full: session.full, focused: session.focused, blind: parsed.broken ? SHELL_BLIND_BROKEN : SHELL_BLIND_STUCK };
   }
-  const cwd = parsed ? resolveCwdFromTokens(parsed.tokens, parsed.index, cmd, sessionCwd) : sessionCwd;
+  const cwd = parsed ? resolveCwdFromTokens(parsed.tokens, parsed.dirChanged, sessionCwd) : sessionCwd;
   if (cwd === null) {
     // No verification document anywhere → the repository configured no gate, so there is nothing to
     // fail closed about: stay inert, exactly as an unconfigured repository always has.
@@ -472,25 +432,32 @@ function pickCommand(verification, getChangedPaths) {
 // decide() is pure over its inputs so it is unit-testable; getVerification, runTests,
 // getChangedPaths, mergeInProgress, getCurrentBranch, and mergeLanded inject the side effects.
 // getVerification is a thunk — PostToolUse(Bash) fires on every Bash call, so the doc read only
-// happens once the cheap checks say this is a gated merge. It receives the one STUCK_MERGE result,
-// so nothing tests it twice.
+// happens once the cheap checks say this is a gated merge. It receives the one parseMergeCommand()
+// result, so nothing parses the command twice; a caller that already parsed passes it as `parsed`.
 // ADR 0123: a command naming `git merge` or `git commit` is a candidate, on PostToolUse and on
 // PostToolUseFailure alike. A successful `git merge` call is gated from its command text alone. Every
-// other candidate — a failed call, or a `git commit` — runs the suite only when mergeLanded() finds a
-// merge on top of the tree's HEAD reflog.
-function decide(input, getVerification, runTests, getChangedPaths, mergeInProgress, getCurrentBranch = () => '', mergeLanded = () => false) {
+// other candidate — a failed call, a `git commit`, or a merge found only inside the text of a quoted
+// word (INV-0141) — runs the suite only when mergeLanded() finds a merge on top of the tree's HEAD reflog.
+// For a quoted candidate decideMerge()'s mergeLanded() also requires that the gate has not run the suite on
+// that HEAD yet (ranOnHead()), so a `grep "git merge"` after a gate run on that HEAD runs nothing.
+function decide(input, getVerification, runTests, getChangedPaths, mergeInProgress, getCurrentBranch = () => '', mergeLanded = () => false, parsed) {
   if (input && input.agent_id) return { block: false }; // subagent → not our concern
   const cmd = (input && input.tool_input && input.tool_input.command) || '';
-  const stuck = STUCK_MERGE.test(cmd);
-  const namesMerge = stuck || IS_MERGE.test(cmd);
-  if (!namesMerge && !IS_COMMIT.test(cmd)) return { block: false }; // names neither verb
+  if (parsed === undefined) parsed = parseMergeCommand(cmd);
+  if (!parsed) return { block: false }; // names neither verb
+  const stuck = Boolean(parsed.stuck || parsed.broken);
+  // A stuck pull is probed like any pull: its blind verification needs a landed merge on the reflog.
+  const stuckPull = Boolean(parsed.stuck && parsed.verb === 'pull');
+  const namesMerge = (stuck && !stuckPull) || (parsed.verb === 'merge' && !parsed.quoted);
   const probe = !namesMerge || input.hook_event_name === 'PostToolUseFailure';
-  const verification = getVerification(stuck);
+  const verification = getVerification(parsed);
   // A blind spot fails closed, before every check below: each of them — the configured command, the
   // branch read, the in-progress check — asks a question about a tree the gate could not resolve.
   // A candidate the reflog must decide has no tree to read it in, so it stays silent unless the
-  // command is a stuck merge shape, whose reason already reads "if this command merged".
-  if (verification && verification.blind) return stuck || !probe ? { block: true, reason: verification.blind } : { block: false };
+  // command is unreadable, whose reason already reads "if this command merged".
+  if (verification && verification.blind) {
+    return (stuck && (!stuckPull || mergeLanded())) || !probe ? { block: true, reason: verification.blind } : { block: false };
+  }
   if (!verification || !verification.full) return { block: false }; // no gate configured
   // ADR 0033: a merge whose checkout is on an integration branch is a wide refactor's batch merge —
   // green is promised at the integrate-and-verify merge into the scope branch, so the gate defers here
@@ -626,14 +593,42 @@ function mergeInProgress(cwd) {
 
 // ADR 0123: a merge landed when the top entry of the tree's HEAD reflog reads `merge …` (a completed
 // merge, a fast-forward included) or `commit (merge)…` (a commit concluding a conflicted merge, from
-// `git commit` or `git merge --continue`). decide() has already ruled out a merge still waiting on a
+// `git commit` or `git merge --continue`), or `pull …` (a `git pull` that merged, fast-forwarded, or rebased).
+// decide() has already ruled out a merge still waiting on a
 // conflict. A repository with its reflog off, or no repository, yields no entry: not landed.
 function mergeLanded(cwd) {
   try {
     const subject = execSync('git reflog -1 --format=%gs HEAD', { cwd, stdio: 'pipe', encoding: 'utf8' });
-    return /^(merge |commit \(merge\))/.test(subject);
+    return /^(merge |commit \(merge\)|pull[ :])/.test(subject);
   } catch {
     return false;
+  }
+}
+
+// The HEAD sha the gate last ran a suite on, red or green, kept in a file of the tree's own git directory so
+// it works in a run root and outside one. A merge named only inside quoted text (`grep -rn "git merge" .`)
+// is gated for a landed merge the gate has not run the suite on yet: once a suite ran on this HEAD, and its
+// result was reported, the same reflog entry gates nothing more. Any failure to read or write the marker
+// reads as no run on this HEAD.
+const RAN_HEAD_FILE = 'green-gate-ran-head';
+function git(args, cwd) {
+  return execSync(`git ${args}`, { cwd, stdio: 'pipe', encoding: 'utf8', timeout: 10000 }).trim();
+}
+function ranHeadFile(cwd) {
+  return path.resolve(cwd, git(`rev-parse --git-path ${RAN_HEAD_FILE}`, cwd));
+}
+function ranOnHead(cwd) {
+  try {
+    return fs.readFileSync(ranHeadFile(cwd), 'utf8') === git('rev-parse HEAD', cwd);
+  } catch {
+    return false;
+  }
+}
+function recordRanHead(cwd) {
+  try {
+    fs.writeFileSync(ranHeadFile(cwd), git('rev-parse HEAD', cwd));
+  } catch {
+    // no marker: the next quoted candidate gates the merge again, a cost of one suite run
   }
 }
 
@@ -666,11 +661,10 @@ function getChangedPaths(cwd) {
   return [];
 }
 
-// The full decision for one PostToolUse(Bash) input: parses the command's option region once and
-// shares that single parse between the cwd resolution and the verification lookup, exactly the
-// sharing this slice exists to prove. main() calls this from the parsed stdin input;
-// tests/green-gate.test.js calls it directly, so both run the same wiring instead of the suite
-// re-deriving its own copy.
+// The full decision for one PostToolUse(Bash) input: parses the command once and
+// shares that single parse between the cwd resolution and the verification lookup. main() calls this
+// from the parsed stdin input; tests/green-gate.test.js calls it directly, so both run the same wiring
+// instead of the suite re-deriving its own copy.
 // INV-0017: the gate's own suite run is evidence the run trace carries, so `scope.js suite reusable`
 // accepts a clean merge's tip. One `run` line in the run root that owns `cwd` (a scopetree or slicetree
 // with a readable ledger): `full` only when the command run is the configured full command, the outcome,
@@ -694,20 +688,23 @@ function decideMerge(input, sessionCwd, timeoutMs) {
   const parsed = parseMergeCommand(cmd);
   // `null` when the tree is unknowable: resolveVerification() turns that into the blind reason
   // decide() blocks on, and the injected side effects below are never reached in that case.
-  const cwd = parsed ? resolveCwdFromTokens(parsed.tokens, parsed.index, cmd, sessionCwd) : sessionCwd;
+  const cwd = parsed && parsed.tokens ? resolveCwdFromTokens(parsed.tokens, parsed.dirChanged, sessionCwd) : sessionCwd;
   let verification = null;
   return decide(
     input,
-    (stuck) => (verification = resolveVerification(parsed, cmd, sessionCwd, stuck)),
+    (p) => (verification = resolveVerification(p, cmd, sessionCwd)),
     (tc) => {
       const result = runTests(tc, cwd, timeoutMs);
       traceSuiteRun(cwd, tc === verification.full ? 'full' : 'focused', result);
+      if (!result.killed && !result.notStarted) recordRanHead(cwd);
       return result;
     },
     () => getChangedPaths(cwd),
     () => mergeInProgress(cwd),
     () => getCurrentBranch(cwd),
-    () => mergeLanded(cwd),
+    // A pull that landed nothing leaves an older entry on top, so a pull, like a quoted candidate, gates only a HEAD not yet run on.
+    () => mergeLanded(cwd) && !(parsed && (parsed.quoted || parsed.verb === 'pull') && ranOnHead(cwd)),
+    parsed,
   );
 }
 
@@ -748,25 +745,17 @@ module.exports = {
   decide,
   decideMerge,
   resolveMergeCwd,
-  unquoteArg,
   readVerification,
   runTests,
   traceSuiteRun,
   mergeInProgress,
   mergeLanded,
   getChangedPaths,
-  IS_MERGE,
-  IS_COMMIT,
-  STUCK_MERGE,
-  ARG,
   VERIFICATION_DOC,
   parseMergeCommand,
   resolveVerification,
-  resetOptionRegionWalks,
-  getOptionRegionWalks,
   readHookTimeoutMs,
   suiteBoundMs,
   SUITE_MARGIN_MS,
   SUITE_TIMEOUT_MS,
 };
-

@@ -1081,7 +1081,7 @@ Paths: plugin/hooks/green-gate.js, plugin/hooks/hooks.json
 
 Class: architecture
 Concepts: Run trace, Focused test command, Suite record
-Statement: The run trace records a test run only for a command that executes a configured test command, and records it under that command's own kind. A command that only quotes a test command records no run, and a focused run is never recorded as a full run, whatever its spelling (a full or whole-repo command with extra argument words included), so it backs a reused suite record only as the run at the tip of a Markdown-only range (INV-0017, ADR 0128).
+Statement: The run trace records a test run only for a command that executes a configured test command, and records it under that command's own kind. A command that only quotes a test command, or sits in a function body (or in a line whose function header takes a bare compound body), records no run, a run records pass or fail only in a plain list of simple commands, so a run in a command line with a `!` negation, inside compound structure, or inside a substitution reads `unknown`, and a focused run is never recorded as a full run, whatever its spelling (a full or whole-repo command with extra argument words included), so it backs a reused suite record only as the run at the tip of a Markdown-only range (INV-0017, ADR 0128).
 Breaks: silently
 Check: tests/run-trace.test.js — quoted mentions record nothing, compound runs record, a substituted focused run records as focused, a full- or whole-template match with extra argument words records as focused
 Paths: plugin/hooks/run-trace.js
@@ -1177,6 +1177,24 @@ Statement: A fail-to-pass run records `fail-to-pass` or `pass-to-pass` only afte
 Breaks: silently
 Check: tests/scope-fail-to-pass.test.js — the fail-to-pass cases
 Paths: plugin/scripts/scope.js
+
+### INV-0140
+
+Class: safety
+Concepts: Guardrail, Green-gate
+Statement: A guardrail that reads a Bash command's words through the shared shell scanner fails closed when it cannot load the scanner: merge-guard and ledger-guard deny the Bash call, and green-gate reports a blind verification. Only run-trace, which records evidence and guards nothing, records nothing instead (ADR 0135).
+Breaks: silently
+Check: tests/merge-guard.test.js, tests/ledger-guard.test.js, and tests/green-gate.test.js — each runs its hook with the scanner module unloadable and asserts the fail-closed verdict; tests/run-trace.test.js — with the scanner unloadable, a Bash write, a slice-reviewer hand-back, and a stop record nothing, and with its scan throwing a Bash write records nothing, against a control run that records
+Paths: plugin/hooks/merge-guard.js, plugin/hooks/ledger-guard.js, plugin/hooks/green-gate.js, plugin/hooks/run-trace.js
+
+### INV-0141
+
+Class: safety
+Concepts: Guardrail
+Statement: merge-guard and ledger-guard read the text of every quoted word in a Bash command as a command line too, whatever program receives the word, so a guarded verb or ledger write inside `sh -c "…"`, `ssh host "…"`, or any other string-executing wrapper is caught. merge-guard denies a heredoc body or here-string whose text names a guarded integration whatever command receives it, `cat <<E` and `ssh host <<E` included, as the base hooks denied heredoc text, except a body that a file sink (`cat > f`, `tee -a f > g`) or a message sink that opens no editor on it (`git commit -F -`, `gh … --body-file -`, `tea … --description-file -`) receives while standing alone on the line, unless a line of it starts with a guarded `git` verb, as the base hooks read it. ledger-guard reads a heredoc body or here-string as data unless a known shell reads it, directly or indirectly, or the line runs an interpreter that reads its script from stdin, in which case one naming a ledger is denied wherever it sits, so `scope.js … - <<E` and `git commit -F - <<E` naming a ledger pass. The stdin interpreters are `python` with optional digits and dots (`python`, `python2`, `python3.11`), `node`, `perl`, and `ruby`, matched by basename. An interpreter reads stdin when its script operand, the first word past every option and option value, is absent, is `-`, `/dev/stdin`, `/dev/fd/0`, or `/proc/self/fd/0`, or holds no `.` and no `/`; an inline script (`-c`, `-e`) also makes stdin judged. Two fail-closed false positives are accepted: a script operand held in a variable (`node "$S" … -`) holds no `.` or `/`, so a piped or heredoc body naming a ledger is judged; and the rule reads the whole command line, so text naming a ledger is denied when the same line runs a stdin-judged interpreter, even if that text goes elsewhere. The text an `echo` or `printf` writes is read as a command line when a known shell reads it on stdin (`echo … | sh`), and a heredoc body a known shell reads on stdin (`bash <<E`, `cat <<E | sh`) is read as a command line by every Bash hook, run-trace included. green-gate reads quoted text, heredoc bodies, and here-strings too, and gates a merge found only there when a readable tree's HEAD reflog shows a landed merge that the gate has not run a suite on yet, whether that run was red or green. run-trace reads quoted text as data (ADR 0135).
+Breaks: silently
+Check: tests/merge-guard.test.js, tests/ledger-guard.test.js, and tests/green-gate.test.js — a guarded verb or ledger write inside a quoted word passed to an unlisted wrapper is caught, a heredoc body or here-string naming an integration is denied unless a lone file or message sink receives it, one naming a ledger is denied when a shell or an interpreter's stdin script reads it, and green-gate gates a quoted merge only on a landed reflog entry the gate has not run a suite on yet
+Paths: plugin/hooks/merge-guard.js, plugin/hooks/ledger-guard.js, plugin/hooks/green-gate.js
 
 ### INV-0142
 

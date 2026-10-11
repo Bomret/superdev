@@ -42,23 +42,22 @@ assert.equal(decide(sub('git --git-dir /wt/.git push origin main')).block, true,
 assert.equal(decide(sub('git --git-dir /wt/.git --work-tree /wt merge x')).block, true, 'two space-form options before the verb');
 assert.equal(decide(sub('git --work-tree "a b" merge x')).block, true, 'a quoted space-form value is one shell word');
 assert.equal(decide(sub('git --no-pager merge x')).block, true, 'a valueless long option still reaches the verb');
-assert.equal(decide(sub('git --exec-path merge x')).block, true, '--exec-path (not enumerated — git itself takes no value there) still reaches the verb, via the --ARG fallback');
+assert.equal(decide(sub('git --exec-path merge x')).block, true, '--exec-path (not enumerated — git itself takes no value there) still reaches the verb, read as a value-less option');
 assert.equal(decide(sub('git --shallow-file /dev/null merge x')).block, true, 'git --shallow-file <path> merge (space form)');
 assert.equal(decide(sub('git --attr-source main merge x')).block, true, 'git --attr-source <tree> merge (space form)');
+// `$[ … ]` is arithmetic, and bash runs the substitutions and backtick groups it holds.
+for (const c of ['echo $[1+$(git push)]', 'echo $[1+`git push`]']) {
+  assert.equal(decide(sub(c)).block, true, 'a guarded verb inside $[…] is denied: ' + c);
+}
+assert.equal(decide(sub('echo $[1>2]')).block, false, 'arithmetic naming no verb is allowed');
 
-// a long run of enumerated option names with no verb must not backtrack exponentially (the comment
-// above LONG_VALUE_OPT owns why) — a qualitative bound (AGENTS.md, ADR 0086): catastrophic
-// backtracking is effectively unbounded, so this ceiling stays loose rather than tight. 44 repeats resolve in
-// about a millisecond. Without the `(?!-)` after the space-form value, the mutant took 47s at 36 repeats, 54s at
-// 38, 212s at 40, 419s at 42, and 320s at 44, measured 2026-10-09 by running this suite against a mutated copy of
-// the hook, at load averages between 70 and 300 on 8 cores; load varied between runs, so the non-monotonic numbers
-// (419s at 42 but 320s at 44) are noise. 44 is the size where the mutant fails the 120s ceiling by 1.5x or more in
-// every run measured, and a regression still fails the suite within minutes.
+// a long run of enumerated option names with no verb answers without backtracking: a qualitative bound
+// (AGENTS.md, ADR 0086), loose because exponential backtracking is effectively unbounded.
 {
-  const pathological = 'git ' + '--git-dir '.repeat(44) + 'x; git ' + 'merge main';
   const t0 = Date.now();
-  decide(sub(pathological));
+  const verdict = decide(sub('git ' + '--git-dir '.repeat(44) + 'x; git ' + 'merge main'));
   const elapsed = Date.now() - t0;
+  assert.equal(verdict.block, true, 'the merge after the option run is denied');
   assert.ok(elapsed < 120000, `a pathological long-option run must resolve quickly, took ${elapsed}ms`);
 }
 assert.equal(decide({ tool_input: { command: 'git --work-tree /wt merge x' } }).block, false, 'the controller still merges in the space form');
@@ -70,8 +69,8 @@ for (const value of ['$(git rev-parse --show-toplevel)/wt', '$(a $(b c))/wt', '`
   assert.equal(decide(sub(`git --work-tree ${value} push origin s`)).block, true, `--work-tree ${value} push: a subagent is blocked`);
   assert.equal(decide({ tool_input: { command: `git -C ${value} merge --no-ff s` } }).block, false, `-C ${value} merge: the controller passes`);
 }
-// past one nesting level ARG cannot read the value to its end: the guard fails closed
-// instead of splitting at the first space
+// a value nested past one level, or holding a quoted `)`, is one word to the scanner: the guard reads the verb
+// after it instead of splitting at the first space
 for (const value of ['$(dirname $(dirname $(pwd)))/wt', '$((1+(2)))/wt', '$(echo ")")/wt']) {
   assert.equal(decide(sub(`git -C ${value} merge s`)).block, true, `-C ${value} merge: a subagent is blocked`);
   assert.equal(decide(sub(`git --work-tree ${value} push origin s`)).block, true, `--work-tree ${value} push: a subagent is blocked`);
@@ -108,15 +107,9 @@ assert.equal(decide(sub('git -C $(dirname $(dirname $(pwd)))/wt status')).block,
 assert.equal(decide(sub('echo $(dirname $(dirname $(pwd))) && git merge-base a b')).block, false, 'a substitution outside a git option value never blocks');
 assert.equal(decide(sub('git -C $(dirname $(pwd))/wt log -1')).block, false, 'a closed one-level value never blocks');
 // a merge/push word inside a substitution used as an option value is part of that value, not git's subcommand
-// (a subshell running git stays a documented bypass, see merge-guard.js's `simplicity:` comment)
-for (const cmd of ['git -C $(echo merge) x', 'git -C $(git push o) log']) {
-  assert.equal(decide(sub(cmd)).block, false, `${cmd}: a verb inside an option value is not the subcommand`);
-}
-// unterminated groups and long runs of them resolve without catastrophic backtracking
-// (qualitative bound, ADR 0086). With STUCK's atomic `(?=(ARG|))\2` as a plain `(?:ARG|)`, the `$(echo ")")` unit
-// took 4.7s at 500 repeats, under the 120s ceiling, 68s at 1000, 413s at 1600, and 1108s at 2400 (measured
-// 2026-10-09); it runs at 1600, where the shipped regex takes a few seconds. A `+` on ARG's first double-quoted
-// `(?:[^"\\]|` ran the block past 200s unfinished at the sizes below.
+assert.equal(decide(sub('git -C $(echo merge) x')).block, false, 'a verb inside an option value is not the subcommand');
+assert.equal(decide(sub('git -C $(git push o) log')).block, true, 'a git push run inside an option value is a command of its own');
+// unterminated groups and long runs of them resolve in bounded time (qualitative bound, ADR 0086)
 {
   const t0 = Date.now();
   decide(sub('git -C ' + '$('.repeat(500) + ' x'));
@@ -142,6 +135,203 @@ assert.equal(decide(sub('git -C ../scope status')).block, false, 'git -C read is
 assert.equal(decide(sub('gh pr merge 5 --squash')).block, true, 'gh pr merge');
 assert.equal(decide(sub('tea pr merge 5')).block, true, 'tea pr merge');
 assert.equal(decide(sub('gh pr view 5')).block, false, 'gh read is fine');
+// `pulls` and `pull` are tea's own names for `pr`, read by the scanner, the raw line-start reading, and the raw-text rule.
+for (const cmd of ['tea pulls merge 3', 'tea pull merge 3', 'sh -c "sudo tea pulls merge 3"', "cat <<'E'\ntea pulls merge 3\nE", 'tea pulls merge "3']) {
+  assert.equal(decide(sub(cmd)).block, true, `tea's pulls route is denied: ${JSON.stringify(cmd)}`);
+}
+assert.equal(decide(sub('tea pulls list')).block, false, 'a tea pulls read is fine');
+// Options before `pr` and before `merge` are read past, their values included; tea's `m` is its alias for `merge`.
+for (const cmd of ['gh pr -R o/r merge 1', 'gh --repo o/r pr merge 1', 'gh -R o/r pr merge 1', 'gh -Ro/r pr merge 1', 'gh --repo=o/r pr merge 1',
+  'gh pr --repo=o/r merge 1', 'tea pr m 3', 'tea pulls m 3', 'tea pr --repo o/r merge 3', 'tea pulls -r o/r m 3', 'tea --debug pr -l me merge 3']) {
+  assert.equal(decide(sub(cmd)).block, true, `a pr merge past options is denied: ${cmd}`);
+}
+for (const cmd of ['gh pr -R o/r view 1', 'gh -R o/r pr list', 'tea pr -r merge list', 'gh pr m 1']) {
+  assert.equal(decide(sub(cmd)).block, false, `no pr merge: ${cmd}`);
+}
+// `gh`/`tea pr merge` is read through the scanner at every level, past `NAME=` words, keywords, and wrappers.
+for (const cmd of [
+  "sh -c 'gh pr merge 1'", '(gh pr merge 1)', 'x=$(gh pr merge 1)', 'if true; then gh pr merge 1; fi', '! gh pr merge 1',
+  'GH_TOKEN=x gh pr merge 1', 'time gh pr merge 1', '{ gh pr merge 1; }', '`tea pr merge 2`', 'ssh h "tea pr merge 2"',
+  'echo $[1+$(gh pr merge 1)]', 'sudo gh pr merge 1', 'env A=1 tea pr merge 2',
+]) {
+  assert.equal(decide(sub(cmd)).block, true, `a gh/tea pr merge is denied: ${cmd}`);
+  assert.equal(decide({ tool_input: { command: cmd } }).block, false, `the controller is not: ${cmd}`);
+}
+for (const cmd of ['gh pr merge "1', 'x; tea pr merge $(a']) {
+  assert.equal(decide(sub(cmd)).block, true, `an unreadable gh/tea pr merge is denied by its raw text: ${cmd}`);
+}
+assert.equal(decide(sub('gh pr view "1')).block, false, 'an unreadable gh read is allowed');
+// The raw line-start reading stays beside the scanned one, so every shape it denied stays denied, heredoc text included.
+for (const cmd of ["cat <<'E'\ngh pr merge 1\nE", 'cat <<E\ntea pr merge 1\nE', 'gh pr merge-x']) {
+  assert.equal(decide(sub(cmd)).block, true, `the raw line-start reading still denies: ${JSON.stringify(cmd)}`);
+}
+// A heredoc body a known shell reads on stdin is a command line (#1016); any body naming an integration is denied (below).
+for (const cmd of ['bash <<E\ngit push origin x\nE', "sh <<'E'\ngit merge x\nE", 'bash <<"E"\ngit rebase main\nE', 'zsh <<-E\n\tgit push\n\tE',
+  'dash << E\ngit push\nE', 'ksh <<E\ngit push\nE', '/bin/bash <<E\ngit push\nE', 'env bash <<E\ngit push\nE', 'cat <<E | sh\ngit push\nE',
+  'bash -s <<E\ngit push\nE', 'bash -s -- a <<E\ngit push\nE', 'sh /dev/stdin <<E\ngit push\nE', 'source /dev/stdin <<E\ngit push\nE',
+  '. /dev/stdin <<E\ngit push\nE', 'bash -c "$(cat <<E\ngit push\nE\n)"', 'eval "$(cat <<E\ngit push\nE\n)"', 'x=$(bash <<E\ngit push\nE\n)',
+  'cat <<A; bash <<B\ndata\nA\ngit push\nB', 'bash <<E\necho don\'t; git push\nE']) {
+  assert.equal(decide(sub(cmd)).block, true, `a shell-fed heredoc body is read: ${JSON.stringify(cmd)}`);
+}
+// Any heredoc body or here-string text that names a guarded integration is denied, whatever command receives it (the base rule):
+// a shell reached through a process substitution, a descriptor, `$(cat)`, `eval`, `busybox`, `ssh`, or `xargs git` included, and
+// data alike, a known false positive of the quoted-word class. Only a pure file sink or message sink is exempt (below).
+for (const cmd of ["cat <<'E'\ngit push\nE", 'cat <<E\ngit merge x\nE', 'ssh host <<E\ngit push\nE', 'x=$(cat <<E\ngit push\nE\n)',
+  'cat <<E > >(sh)\ngit push\nE', 'cat <<E >(sh)\ngit push\nE', 'cat <<E 1> >(bash)\ngit push\nE', '{ cat <<E; } > >(sh)\ngit push\nE',
+  'cat <<E | tee >(sh)\ngit push\nE', '(cat <<E) > >(sh)\ngit push\nE', 'cat <<E | sh -c "$(cat)"\ngit push\nE',
+  'cat <<E | bash -c "$(cat)"\ngit push\nE', 'cat <<E | eval "$(cat)"\ngit push\nE', 'f() { eval "$(cat)"; }; cat <<E | f\ngit push\nE',
+  'exec 3<<E; sh <&3-\ngit push\nE', 'exec 4<<E; exec 3<&4; sh <&3\ngit push\nE', 'exec 3<<E; sh /proc/self/fd/3\ngit push\nE',
+  'cat <<E | busybox sh\ngit push\nE', "eval 'f() { sh; }'; cat <<E | f\ngit push\nE", 'cat <<E | xargs git\npush\nE',
+  'cat <<-E\n\tgh pr merge 1\n\tE', 'cat 3<<E\ntea pulls merge 3\nE', 'cat <<E\ngh api -X PUT repos/o/r/pulls/1/merge\nE',
+  'cat <<<"git push"', 'cat <<<"git push" | sh', "cat <<<'gh pr merge 1'", '3<<<"git rebase main" cat']) {
+  assert.equal(decide(sub(cmd)).block, true, `heredoc or here-string text naming an integration is denied: ${JSON.stringify(cmd)}`);
+  assert.equal(decide({ tool_input: { command: cmd } }).block, false, `the controller is not: ${JSON.stringify(cmd)}`);
+}
+// `xargs` appends stdin words to the command behind it: a git, gh, or tea command there that stops before its verb fails closed.
+for (const cmd of ['echo push | xargs git', 'printf "pr merge 1" | xargs gh', 'xargs -n 1 tea pulls < f']) {
+  assert.equal(decide(sub(cmd)).block, true, `a verb xargs may append is denied: ${cmd}`);
+}
+for (const cmd of ['git ls-files | xargs git log', 'xargs gh pr view < f', 'echo a | xargs git -C x status']) {
+  assert.equal(decide(sub(cmd)).block, false, `a verb the command names itself decides: ${cmd}`);
+}
+for (const cmd of ['cat <<E\nhello\nE', 'gh pr create --body-file - <<E\nfix\nE', "git commit -F - <<'E'\nfix: read names\nE", 'cat <<<"hello" | sh']) {
+  assert.equal(decide(sub(cmd)).block, false, `heredoc or here-string text naming nothing guarded is allowed: ${JSON.stringify(cmd)}`);
+}
+// A pure file sink (`cat`, or `tee` with at most `-a`, its stdout to a plain file) or a message sink (`git commit -F -`, `gh pr|issue …
+// --body-file -`, `tea issue|issues|pull|pulls|pr … --description-file -`) standing alone on the line takes a body naming an integration as data.
+// `/dev/null` is a plain file.
+for (const cmd of ["cat >> /abs/.superdev/scopes/demo/reports/02/progress.md <<'SUPERDEV_TEXT_EOF'\nImportant: `git push` inside $[ ] is allowed\nSUPERDEV_TEXT_EOF",
+  'cat > f <<E\nfix: git push\nE', 'cat >f <<-E\n\tthen gh pr merge 1\n\tE', '/bin/cat 1> f <<E\nfix: git push\nE', 'cat >| f <<E\nfix: git push\nE',
+  'cat &> f <<E\nfix: git push\nE', 'cat > "notes dir/f.md" <<E\nfix: git push\nE', 'cat > f <<<"fix: git push"', 'tee -a f <<E >/dev/null\nfix: git push\nE',
+  'tee f g <<E > h\nfix: git push\nE', 'cat > f <<E; echo done\nfix: git push\nE', 'cat > f <<E && git status\nfix: git push\nE',
+  'git commit -F - <<E\nfix: git push fails\nE', "git -C /wt commit --file=- <<'E'\nfix: git merge x\nE", 'git commit -q --file - <<E\nfix: git push\nE',
+  "gh pr create --body-file - <<'E'\nthen git merge x\nE", 'gh issue comment 3 -F - <<E\nfix: git push\nE', 'gh pr edit 1 --body-file=- <<E\nfix: git push\nE',
+  "tea issues create -t x --description-file - <<'E'\nfix: git push\nE", 'tea pr create --title x --description-file - <<E\nthen tea pr merge 1\nE']) {
+  assert.equal(decide(sub(cmd)).block, false, `a file or message sink takes the body as data: ${JSON.stringify(cmd)}`);
+}
+// A sink's text is still read by the base hook's line rule: a line or `;`, `&`, `|` segment that starts with `git` (behind any `rtk`
+// prefix) and later names a guarded verb is denied, as the base hook denied it.
+for (const cmd of ['cat > f <<E\ngit push\nE', 'cat >> f <<E\nnotes\n  git -C x merge y\nE', 'cat > f <<E\nok; git rebase main\nE', 'cat > f <<<"git push"',
+  'tee -a f <<E >/dev/null\nrtk git push\nE', 'git commit -F - <<E\nfix: x\n\ngit push origin main\nE', 'gh pr create --body-file - <<E\na | git pull\nE']) {
+  assert.equal(decide(sub(cmd)).block, true, `a sink's line that starts with a guarded git verb is denied: ${JSON.stringify(cmd)}`);
+}
+// The raw line-start rule (BLOCK_CLI) and the raw API merge check still read the whole command, a sink's body included.
+for (const cmd of ['cat > f <<E\ngh pr merge 1\nE', 'cat > f <<E\ntea api -X POST /repos/o/r/pulls/1/merge\nE']) {
+  assert.equal(decide(sub(cmd)).block, true, `the raw text rules still read a sink's body: ${JSON.stringify(cmd)}`);
+}
+// Every other receiver, and a sink whose output can reach a shell, is denied (fail closed).
+for (const cmd of ['cat <<E > >(sh)\ngit push\nE', 'cat > >(sh) <<E\ngit push\nE', 'cat > /dev/fd/1 <<E\ngit push\nE', 'cat > /dev/stdout <<E\ngit push\nE',
+  'cat > /proc/self/fd/1 <<E\ngit push\nE', 'cat <<E >f | sh\ngit push\nE', 'cat > f <<E |& sh\ngit push\nE', '{ cat > f <<E; } | sh\ngit push\nE',
+  '{ cat > f <<E; } > g\ngit push\nE', 'tee f <<E | sh\ngit push\nE', 'tee f <<E\ngit push\nE', 'tee >(sh) <<E >/dev/null\ngit push\nE',
+  'tee --append f <<E >/dev/null\ngit push\nE', 'cat <<E | tee f\ngit push\nE', 'f() { cat > x <<E; }; f | sh\ngit push\nE', 'sudo cat > f <<E\ngit push\nE',
+  'X=1 cat > f <<E\ngit push\nE', 'cat -v > f <<E\ngit push\nE', 'cat - > f <<E\ngit push\nE', 'cat > "$F" <<E\ngit push\nE', 'cat > $(echo f) <<E\ngit push\nE',
+  'cat > f 3<<E\ngit push\nE', 'cat > f 2>&1 <<E\ngit push\nE', 'x=$(cat > f <<E\ngit push\nE\n)', 'echo `cat > f <<E\ngit push\nE\n`',
+  'if true; then cat > f <<E; fi\ngit push\nE', '(cat > f <<E)\ngit push\nE', 'exec > >(sh); cat > /tmp/o <<E\ngit push\nE',
+  "sh -c 'cat > f <<E\ngit push\nE'", 'git commit -F - <<E | sh\ngit push\nE', 'git commit -F - <<E > >(sh)\ngit push\nE',
+  'git commit -F f <<E\ngit push\nE', 'git -c alias.commit=x commit -F - <<E\ngit push\nE', 'gh api repos/o/r -F - <<E\ngit push\nE',
+  'gh pr create --body-file - <<E | sh\ngit push\nE', 'tea comment 3 <<E\ngit push\nE', 'env git commit -F - <<E\ngit push\nE']) {
+  assert.equal(decide(sub(cmd)).block, true, `no sink exempts the body: ${JSON.stringify(cmd)}`);
+}
+// A message sink that opens an editor on its text (git `-e`/`--edit` or a `-c`/`--config-env` editor setting, gh `-e`/`--editor`)
+// runs that editor over the body, so it exempts nothing; an editor set by an environment word (`GIT_EDITOR=sh`) is no sink already.
+for (const cmd of ["git -c core.editor=sh commit -F - -e <<'E'\n(git push)\nE", 'git commit -F - --edit <<E\n(git push)\nE', 'git commit -eF - <<E\n(git push)\nE',
+  'git commit -F - -ve <<E\n(git push)\nE', 'git -c core.editor=vi commit -F - <<E\nfix: git push\nE', 'git -c Core.Editor=sh commit -F - <<E\n(git push)\nE',
+  'git -c sequence.editor=sh commit -F - <<E\n(git push)\nE', 'git --config-env=core.editor=ED commit -F - <<E\n(git push)\nE',
+  'git --config-env core.editor=ED commit -F - <<E\n(git push)\nE', 'GIT_EDITOR=sh git commit -F - -e <<E\n(git push)\nE', 'EDITOR=sh git commit -F - <<E\n(git push)\nE',
+  'VISUAL=sh gh pr create --body-file - <<E\n(git push)\nE', 'gh pr create --body-file - --editor <<E\n(git push)\nE', 'gh issue create -e -F - <<E\n(git push)\nE',
+  'gh pr comment 1 -eF - <<E\n(git push)\nE']) {
+  assert.equal(decide(sub(cmd)).block, true, `a sink that runs an editor exempts nothing: ${JSON.stringify(cmd)}`);
+}
+for (const cmd of ['git -c user.name=x commit -F - <<E\n(git push)\nE', 'git commit -F - --no-edit <<E\n(git push)\nE', 'gh pr create -t x --body-file - <<E\n(git push)\nE']) {
+  assert.equal(decide(sub(cmd)).block, false, `a sink running no editor still takes the body as data: ${JSON.stringify(cmd)}`);
+}
+// A here-string, and the text `echo` or `printf` writes, that a known shell reads on stdin is read as a command line.
+for (const cmd of ['bash <<<"git push"', "bash <<<'git push'", 'sh <<< "git merge x"', "sh <<<$'git\\x20push'", 'cat <<<"git push" | sh',
+  'echo git push | sh', 'echo "git" "push" | sh', 'sh < <(echo git push origin x)', "printf 'true\\ngit push' | sh", "printf 'git\\x20push' | sh"]) {
+  assert.equal(decide(sub(cmd)).block, true, `text a shell reads is read: ${cmd}`);
+}
+for (const cmd of ['echo git push', 'echo git push | cat', 'cat file | sh']) {
+  assert.equal(decide(sub(cmd)).block, false, `text no shell reads is data: ${cmd}`);
+}
+// A compound or grouped pipeline element feeds every later element: a heredoc or echo text inside one reaches a shell that a
+// later element is or holds (#1016).
+for (const cmd of ['{ cat <<E; } | sh\ngit push\nE', '{ cat <<E\ngit push\nE\n} | sh', 'if true; then cat <<E; fi | sh\ngit push\nE',
+  'for i in 1; do cat <<E; done | bash\ngit push\nE', 'cat <<E | (bash)\ngit push\nE', 'cat <<E | { bash; }\ngit push\nE',
+  '{ echo git push; } | sh', 'echo git push | (sh)', 'while false; do :; done; case x in *) cat <<E;; esac | sh\ngit push\nE',
+  '(cat <<E) | sh\ngit push\nE', '{ cat <<E; true; } | cat | sh\ngit push\nE']) {
+  assert.equal(decide(sub(cmd)).block, true, `a compound pipeline element feeds a later shell: ${JSON.stringify(cmd)}`);
+}
+assert.equal(decide(sub('{ echo git push; } | cat')).block, false, 'no later shell reads the echo text');
+// A heredoc body naming an integration is denied by the base rule even where no later shell reads it.
+for (const cmd of ['{ cat <<E; } | grep x\ngit push\nE', '{ cat <<E; } && sh\ngit push\nE', 'if true; then cat <<E; fi; sh\ngit push\nE',
+  'sh | { cat <<E; }\ngit push\nE', '(cat <<E) ; (grep x)\ngit push\nE', '( (cat <<E) ) ; sh\ngit push\nE']) {
+  assert.equal(decide(sub(cmd)).block, true, `a heredoc body naming an integration is denied: ${JSON.stringify(cmd)}`);
+}
+// A shell the command line reaches indirectly reads a heredoc body or echo text as a command line, failing closed: `xargs` running a
+// known shell, a defined alias naming one, a function whose body holds a stdin-reading shell or holds the heredoc and is piped to
+// one, and a numbered heredoc a shell of the line reads through `<&N`, `0<&N`, or `/dev/fd/N`.
+for (const cmd of ['cat <<E | xargs sh -c\ngit push\nE', 'cat <<E | xargs -I{} sh -c {}\ngit push\nE', 'echo git push | xargs -0 bash -c',
+  'alias s=sh; cat <<E | s\ngit push\nE', "alias x=y s='/bin/bash -s'; s <<E\ngit push\nE", 'alias s=sh; echo git push | s',
+  'f() { cat <<E; } ; f | sh\ngit push\nE', 'function f { cat <<E; }; f | sh\ngit push\nE', 'f() { sh; }; cat <<E | f\ngit push\nE',
+  'f() { echo git push; }; f | bash', 'g() { xargs sh -c; }; echo git push | g', 'f() { cat <<E; }; g() { f; }; g | sh\ngit push\nE',
+  'exec 3<<E; sh <&3\ngit push\nE', 'sh /dev/fd/3 3<<E\ngit push\nE', 'sh <&3 3<<E\ngit push\nE', 'sh 0<&3 3<<E\ngit push\nE',
+  'exec 4<<-E; bash < /dev/fd/4\n\tgit push\n\tE', 'exec 3<<E; source /dev/fd/3\ngit push\nE']) {
+  assert.equal(decide(sub(cmd)).block, true, `an indirect shell reads the text: ${JSON.stringify(cmd)}`);
+}
+for (const cmd of ['cat <<E | xargs echo\ngit push\nE', 'alias s=cat; cat <<E | s\ngit push\nE', 'f() { cat <<E; }; f | grep x\ngit push\nE',
+  'f() { grep x; }; cat <<E | f\ngit push\nE', 'exec 3<<E; cat <&3\ngit push\nE', 'exec 3<<E; sh <&4\ngit push\nE']) {
+  assert.equal(decide(sub(cmd)).block, true, `a heredoc body naming an integration is denied, whoever reads it: ${JSON.stringify(cmd)}`);
+}
+for (const cmd of ['alias s=cat; echo git push | s', 'f() { grep x; }; echo git push | f']) {
+  assert.equal(decide(sub(cmd)).block, false, `no shell reads the echo text: ${cmd}`);
+}
+// A wrapper or command name spelled in many raw characters (empty quote pairs) is still that name, so the command behind it is read.
+{
+  const e1 = "''".repeat(600);
+  const e2 = '""'.repeat(600);
+  for (const cmd of ['env' + e1 + ' git push', 'sudo' + e1 + ' git push', 'nohup' + e1 + ' git push', 'exec' + e1 + ' git push',
+    'eval' + e1 + ' git push', 'command' + e1 + ' git push', 'timeout' + e1 + ' 5 git push', "sudo -u''" + e1 + ' bob git push',
+    'e' + e2 + 'nv git push', "sh -c 'env" + e2 + " git push'", 'cat <<E | sh\nenv' + e1 + ' git push\nE']) {
+    assert.equal(decide(sub(cmd)).block, true, `a long-spelled name is read as its name: ${cmd.slice(0, 40)}…`);
+  }
+  for (const cmd of ['f' + "''".repeat(40) + '() { sh; }; echo git push | f', 'function f' + "''".repeat(40) + ' { sh; }; echo git push | f']) {
+    assert.equal(decide(sub(cmd)).block, true, `a long-spelled function name is read as its name: ${cmd}`);
+  }
+}
+// A quoted word's text past an unquoted `NAME=` or command-string option prefix is read as a command line.
+for (const cmd of ["alias g='git push origin x'", "export PROMPT_COMMAND='git push'", "env -S'git push origin x'", "env --split-string='git push'",
+  "su -c'git push'", "su --command='git push'"]) {
+  assert.equal(decide(sub(cmd)).block, true, `the text past the prefix is read: ${cmd}`);
+}
+// `git pull` merges or rebases, `git subtree push` pushes, and a git alias defined inline runs the verb it names.
+for (const cmd of ['git pull', 'git pull --rebase origin main', 'git -C ../wt pull', 'git subtree push --prefix=x origin main', 'git subtree -P x push origin main',
+  'git -c alias.p=push p origin x', "git -c alias.X='!git push' X", 'git -c alias.m=merge m x', 'git -c alias.r=rebase r main', 'git -c alias.l=pull l',
+  'git -c Alias.P=push p', "git -c alias.s='subtree push' s -P x o m", "sh -c 'git pull'"]) {
+  assert.equal(decide(sub(cmd)).block, true, `an integration is denied: ${cmd}`);
+}
+for (const cmd of ['git subtree split -P x', 'git -c alias.l=log l', 'git -c alias.p=push status', "git -c alias.X='!git log' X"]) {
+  assert.equal(decide(sub(cmd)).block, false, `no integration: ${cmd}`);
+}
+// An ANSI-C quoted text is decoded before it is read as a command line.
+for (const cmd of ["bash -c $'git\\x20push'", "bash -c $'git\\tpush'", "bash -c $'true\\ngit push'", "bash -c $'true\\x0agit push'"]) {
+  assert.equal(decide(sub(cmd)).block, true, `an ANSI-C text is decoded: ${cmd}`);
+}
+// The API merge call is read per scanned command too.
+assert.equal(decide(sub("sh -c 'GH_TOKEN=x gh api -X PUT /repos/o/r/pulls/1/merge'")).block, true, 'a gh api merge in quoted text behind NAME= is denied');
+assert.equal(decide(sub('sudo tea api -X POST /repos/o/r/pulls/1/merge')).block, true, 'a tea api merge behind a wrapper is denied');
+// A leading word that runs the command after it is skipped, as ledger-guard skips it.
+for (const cmd of ['env A=1 git push', 'sudo git push', 'nohup git push', 'xargs git push', 'exec git push', 'eval git merge x',
+  'command git push', 'sudo -u bob git rebase main', 'timeout 5 git push', 'env -u X git merge y']) {
+  assert.equal(decide(sub(cmd)).block, true, `a guarded verb behind a wrapper is denied: ${cmd}`);
+}
+for (const cmd of ['arch -arm64 git push', 'arch -x86_64 git push', 'arch -arm64e git push', 'arch -arch arm64 git push', 'caffeinate -i git push',
+  'caffeinate -t 5 git push', 'flock /tmp/l git push', 'flock -w 5 /tmp/l git push', 'flock -x /tmp/l git push', 'chronic git push', 'unbuffer git push',
+  'unbuffer -p git push', 'ionice -c 2 -n 7 git push', 'ionice -c2 git push', 'taskset 0x1 git push', 'taskset -c 0,1 git push', 'nice -n 5 arch -arm64 git merge x']) {
+  assert.equal(decide(sub(cmd)).block, true, `a guarded verb behind a wrapper is denied: ${cmd}`);
+}
+for (const cmd of ['sudo git status', 'env A=1 git log', 'xargs echo push', 'eval echo git merge', 'flock /tmp/push git status', 'taskset -c 0 echo push']) {
+  assert.equal(decide(sub(cmd)).block, false, `a wrapped command with no guarded verb is allowed: ${cmd}`);
+}
 
 // An `rtk` prefix (RTK's output filter) runs the same command, so a hand-typed `rtk git push` or
 // `rtk gh pr merge` integrates exactly as the bare form does (triage #958).
@@ -288,8 +478,137 @@ for (const cmd of [
 assert.equal(decide({ tool_input: { command: `gh api -X PUT ${GM}` } }).block, false, 'the controller runs the gh api merge');
 assert.match(decide(sub(`gh api -X PUT ${GM}`)).reason, /gh api/, 'the block reason names the gh api merge');
 
+// --- the shared scanner reads the command (ADR 0135) ---
+const ctl = (command) => ({ tool_input: { command } });
+// a guarded verb after a git option value holding any shell construct
+for (const cmd of [
+  'git -C $(case x in a) y;; esac)/wt merge s',
+  'git -C "$(echo "a b")" merge x',
+  'git -C $(a $(b $(c))) merge x',
+  'git -C $(a $(b $(c $(d)))) push',
+  'git -C "a\nb" rebase x',
+  'git -C $(echo a # )\n) merge x',
+  'git -C $(echo ")") merge x',
+  'git -C ${a:-$(b)} merge x',
+  'git -c a=${a:-$(b)} push',
+  'rtk git -C $(case x in a) y;; esac)/wt merge s',
+  'rtk proxy -- git -C "$(echo "a b")" push',
+  'echo $(git merge x)',
+  'echo `git push`',
+  '(git push)',
+  'x=$(git rebase main)',
+  'cat <(git push)',
+  'cat <<E\n$(git merge x)\nE',
+  'cat <<E\n`git push`\nE',
+  "cat <<'E'\n$(git merge x)\nE",
+  'x=1 git push',
+]) {
+  assert.equal(decide(sub(cmd)).block, true, `a subagent is denied: ${JSON.stringify(cmd)}`);
+  assert.equal(decide(ctl(cmd)).block, false, `the controller is not: ${JSON.stringify(cmd)}`);
+}
+for (const cmd of [
+  'git -C $(a $(b $(c))) log --grep push',
+  'git log --grep merge',
+  'git -C $(case x in a) y;; esac)/wt log --grep push',
+  'git commit -m "wip" -- merge push',
+  'echo "unterminated',
+  'git -C $(echo ")") status',
+]) assert.equal(decide(sub(cmd)).block, false, `a subagent may run: ${JSON.stringify(cmd)}`);
+// the text of a quoted word is a command line too, whatever program receives it
+for (const cmd of ['sh -c "git merge x"', 'ssh host "git push"', 'watch "git rebase main"', "bash -c 'cd x; git push'", 'x "y \\"z `git push`\\""']) {
+  assert.equal(decide(sub(cmd)).block, true, `a quoted verb is denied: ${cmd}`);
+  assert.equal(decide(ctl(cmd)).block, false, `the controller is not: ${cmd}`);
+}
+assert.equal(decide(sub('grep -E "x|git merge" file')).block, true, 'the known quoted false positive stays');
+// The false-positive class: any quoted word whose text names a guarded integration is denied, read as a command line or, when
+// it reads as none (a parenthesis, an apostrophe), by the raw-text rule.
+for (const cmd of [
+  'grep -rn "git merge" docs/',
+  "rg 'git (merge|push)' plugin/",
+  'git commit -m "fix(hooks): green-gate verifies a git merge behind rtk"',
+  'git commit -m "docs: explain why git push is the controller\'s job"',
+  'git commit -m "git push fails behind rtk"',
+  'gh pr create --body "Run git push after review (see #12)"',
+  'git commit -m "docs: use gh pr merge (not curl)"',
+]) assert.equal(decide(sub(cmd)).block, true, `a quoted word naming a guarded integration is denied: ${cmd}`);
+assert.match(decide(sub('git commit -m "git push fails behind rtk"')).reason, /quoted word/, 'the deny message names the quoted-word trigger');
+// an unreadable command is denied only when its raw text holds `git` and later a guarded verb
+for (const cmd of ['git merge "x', 'git -C $(a merge x', 'echo "a; git push', 'sh -c "git merge x', 'git ${ push', "git pull; echo '"]) {
+  assert.equal(decide(sub(cmd)).block, true, `an unreadable git … verb is denied: ${cmd}`);
+}
+for (const cmd of ['echo "unterminated', 'merge push git "x', 'forgit push "x', 'git-merge "x']) {
+  assert.equal(decide(sub(cmd)).block, false, `an unreadable command with no git … verb is allowed: ${cmd}`);
+}
+// a quoted text that does not read as a command line is judged by the raw-text rule alone
+assert.equal(decide(sub('echo "git merge \'x"')).block, true, 'a quoted text holding git … merge that does not read is denied');
+assert.equal(decide(sub('bash -c "git pull; echo don\'t"')).block, true, 'a quoted text holding git … pull that does not read is denied');
+assert.equal(decide(sub('echo "it\'s a push"')).block, false, 'a quoted text with no git word is allowed');
+
+// the guard fails closed when the scanner cannot be used (INV-0140)
+{
+  const brokenInstall = /broken|install/i;
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'merge-guard-noscanner-'));
+  try {
+    const lone = path.join(dir, 'merge-guard.js');
+    fs.copyFileSync(hookPath, lone); // no sibling shell-words.js: the require throws
+    const { decide: loneDecide } = require(lone);
+    const v = loneDecide(sub('echo hi'));
+    assert.equal(v.block, true, 'an unloadable scanner denies the call');
+    assert.match(v.reason, brokenInstall, 'and names the broken install');
+    assert.equal(loneDecide(ctl('echo hi')).block, false, 'the controller is never denied');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  const words = require('../plugin/hooks/shell-words.js');
+  const realScan = words.scan;
+  words.scan = () => { throw new Error('boom'); };
+  try {
+    const v = decide(sub('echo hi'));
+    assert.equal(v.block, true, 'a scan that throws denies the call');
+    assert.match(v.reason, brokenInstall);
+    assert.equal(decide(ctl('git merge x')).block, false, 'the controller is never denied');
+  } finally {
+    words.scan = realScan;
+  }
+}
+
+// a run of nested-substitution commands four times as long takes about four times the time against a same-run baseline (ADR 0086)
+{
+  // timePair repeats each sample to about 25 ms and takes the best of three, so neither a descheduled call nor a sub-millisecond
+  // baseline sets the reading.
+  const { timePair } = require('./linear-time');
+  const nestedHeredocs = (d) => {
+    let s = '';
+    for (let k = d; k >= 1; k--) s = `cat <<E${k}\n$(${s})\nE${k}\n`;
+    return s;
+  };
+  // Four times the input takes about four times as long when linear and sixteen times when quadratic; the ceiling sits at
+  // nine, between them, loose for scheduler noise.
+  const grows = (label, make, n) => {
+    const [base, big] = timePair((cmd) => decide(sub(cmd)), make(n), make(4 * n));
+    assert.ok(big < base * 9, `${label}: time grows linearly: ${n} repeats took ${base} ns, ${4 * n} took ${big} ns`);
+  };
+  grows('nested substitutions', (n) => 'git -C $(a $(b $(c))) log; echo "$(x $(y))" ;'.repeat(n), 2000);
+  grows('nested heredocs', nestedHeredocs, 400);
+  grows('nested alias values', (n) => 'alias a="$( '.repeat(n) + 'x' + ' )"'.repeat(n), 2000);
+  grows('long-spelled wrappers', (n) => ('env' + "''".repeat(600) + ' true; ').repeat(n), 20);
+  // A sink is read once per command, however many heredocs it holds, and a tee sink's operands once.
+  grows('one file sink holding many heredocs', (n) => 'cat > f ' + '<<E '.repeat(n) + '\n' + 'git push\nE\n'.repeat(n), 400);
+  grows('a tee sink with many operands', (n) => 'tee -a ' + 'f '.repeat(n) + '<<E >/dev/null\ngit push\nE', 2000);
+  grows('many file sinks', (n) => 'cat >> f <<E\nfix: git push\nE\n'.repeat(n), 400);
+  // A message sink's options and git's `-c` values are read once for an editor.
+  grows('a git message sink with many options', (n) => 'git ' + '-c a.b=c '.repeat(n) + 'commit ' + '-q '.repeat(n) + '-F - <<E\nfix: git push\nE', 2000);
+  grows('a gh message sink with many options', (n) => 'gh pr create ' + '-l x '.repeat(n) + '--body-file - <<E\nfix: git push\nE', 2000);
+  // A sink's text is read line by line for the base line rule, a long `rtk` lead-in and many lines included.
+  grows('a sink body of many git lines', (n) => 'cat > f <<E\nfix: git push\n' + 'git log\n'.repeat(n) + 'E', 2000);
+  grows('a sink body line of many rtk words', (n) => 'cat > f <<E\nfix: git push\n' + 'rtk '.repeat(n) + 'x\nE', 2000);
+}
+
 // a long run of newlines before a `tea`/`gh`/`git` lead-in must not backtrack quadratically (the comment
-// above BLOCK_CLI owns why). Measured against the same run's own 2000-newline baseline (AGENTS.md, ADR 0086):
+// above API_CALL owns why). Measured against the same run's own 2000-newline baseline (AGENTS.md, ADR 0086):
 // 10x the input costs ~10x when linear and ~100x when quadratic, so the 50x ceiling falsifies only the latter.
 {
   const run = (n) => {

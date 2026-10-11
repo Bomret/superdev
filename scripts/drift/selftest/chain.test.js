@@ -43,7 +43,6 @@ const {
   TIER_SKIP_CONTRACTS,
   SIMPLICITY_BESIDE_FIRST_REVIEW_CONTRACTS,
   ARG_TOKEN_CONTRACTS,
-  ARG_TOKEN_LINE,
   SOURCE_SECTION_CONTRACTS,
   SPECIALISING_SECTIONS,
   specialisingGenericRows,
@@ -2706,45 +2705,90 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'the real final-reviewer.md carries neither a full-suite run nor the optionality clause',
   );
 
-  // --- ARG_TOKEN_CONTRACTS: merge-guard, green-gate, and ledger-guard each parse the same shell-word
-  // shape out of a Bash command line, by hand. A copy that drifts reopens the quoted-argument bypass. ---
+  // --- ARG_TOKEN_CONTRACTS: the Bash hooks read a command line through ./shell-words.js (ADR 0135)
+  // and declare no shell-word reader of their own. A private reader reopens the quoted-argument bypass. ---
 
-  // positive: one hook narrows its copy back to a bare `\S+` — the pre-fix shape, which stops at the
-  // first space inside a quoted path and lets `git -C "my repo" merge` past the guard
+  const SCANNER_REQUIRE = "const sw = require('./shell-words.js');\n";
+
+  // positive: a hook carrying its own `const ARG =` beside the require
   const argGaps1 = scanContract(
-    fixture({ 'hooks/merge-guard.js': 'const ARG = /\\S+/.source;\n' }),
+    fixture({ 'hooks/merge-guard.js': SCANNER_REQUIRE + 'const ARG = /\\S+/.source;\n' }),
     ARG_TOKEN_CONTRACTS,
   );
-  assert.equal(argGaps1.length, 1, 'flags a hook whose ARG token narrowed');
+  assert.equal(argGaps1.length, 1, 'flags a hook that declares its own ARG');
   assert.equal(argGaps1[0].source, path.join('hooks', 'merge-guard.js'), 'names the hook that drifted');
 
-  // positive: a subtler drift — the token's closing quantifier loses its `+`, so it matches one piece
-  // where it used to match a run. Every other character of the line is unchanged.
+  // positive: each other reader name fails the same way
+  for (const name of ['RAW_ARG', 'STUCK', 'STUCK_MERGE']) {
+    assert.equal(
+      scanContract(fixture({ 'hooks/green-gate.js': SCANNER_REQUIRE + `const ${name} = /x/;\n` }), ARG_TOKEN_CONTRACTS)
+        .length,
+      1,
+      `flags a hook that declares its own ${name}`,
+    );
+  }
   assert.equal(
     scanContract(
-      fixture({
-        'hooks/green-gate.js': ARG_TOKEN_LINE.replace('`)+/.source', '`)/.source') + '\n',
-      }),
+      fixture({ 'hooks/ledger-guard.js': SCANNER_REQUIRE + 'function stripHeredocs(s) { return s; }\n' }),
       ARG_TOKEN_CONTRACTS,
     ).length,
     1,
-    'flags a one-character drift in the token',
+    'flags a hook that declares its own stripHeredocs',
   );
 
-  // negative: the canonical line, carried verbatim in all three
+  // positive: a hook that never requires the scanner
+  assert.equal(
+    scanContract(fixture({ 'hooks/run-trace.js': 'const x = 1;\n' }), ARG_TOKEN_CONTRACTS).length,
+    1,
+    'flags a hook that does not require ./shell-words.js',
+  );
+
+  // negative: every hook requires the scanner and declares no reader of its own
   assert.equal(
     scanContract(
       fixture({
-        'hooks/merge-guard.js': '// leading comment\n' + ARG_TOKEN_LINE + '\n',
-        'hooks/green-gate.js': ARG_TOKEN_LINE + '\nconst IS_MERGE = null;\n',
-        'hooks/ledger-guard.js': ARG_TOKEN_LINE + '\n',
-        'hooks/run-trace.js': ARG_TOKEN_LINE + '\n',
+        'hooks/merge-guard.js': '// leading comment\n' + SCANNER_REQUIRE,
+        'hooks/green-gate.js': SCANNER_REQUIRE + 'const IS_MERGE = null;\n',
+        'hooks/ledger-guard.js': SCANNER_REQUIRE,
+        'hooks/run-trace.js': SCANNER_REQUIRE,
       }),
       ARG_TOKEN_CONTRACTS,
     ).length,
     0,
-    'the canonical token in every hook yields zero gaps',
+    'a require of ./shell-words.js in every hook yields zero gaps',
   );
+
+  // positive: a `let` or `var` declaration, and a later declarator of a multi-declarator statement, name a reader too
+  for (const decl of ['let ARG = /x/;\n', 'var STUCK = /x/;\n', 'const x = 1, ARG = /x/;\n', 'let a = 1,\n  stripHeredocs = (s) => s;\n']) {
+    assert.equal(
+      scanContract(fixture({ 'hooks/merge-guard.js': SCANNER_REQUIRE + decl }), ARG_TOKEN_CONTRACTS).length,
+      1,
+      `flags a hook that declares a reader through ${JSON.stringify(decl)}`,
+    );
+  }
+
+  // positive: a require that sits only in a comment is no require
+  for (const text of [
+    "// const sw = require('./shell-words.js');\n",
+    "/* const sw = require('./shell-words.js'); */\n",
+    " * require('./shell-words.js')\n",
+    "const x = 1; // require('./shell-words.js')\n",
+  ]) {
+    assert.equal(
+      scanContract(fixture({ 'hooks/run-trace.js': text }), ARG_TOKEN_CONTRACTS).length,
+      1,
+      `flags a hook whose only require is commented out: ${JSON.stringify(text)}`,
+    );
+  }
+
+  // negative: a require with spaces inside its parentheses, and a destructured one, still count
+  for (const text of ["const sw = require( './shell-words.js' );\n", "({ scan } = require(\"./shell-words.js\"));\n"]) {
+    assert.equal(
+      scanContract(fixture({ 'hooks/run-trace.js': text }), ARG_TOKEN_CONTRACTS).length,
+      0,
+      `accepts the require ${JSON.stringify(text)}`,
+    );
+  }
 
   // --- SOURCE_SECTION_CONTRACTS: each canonical reference still carries the sections its readers are
   // sent to. The readers are pinned already (a loop consumer must say *read test-selection.md*, a doc

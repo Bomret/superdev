@@ -2005,9 +2005,8 @@ try {
   );
 
   // Pin: scope.js shares kb-patch.js's fence-masking rule via `require` rather than growing a
-  // private copy that could silently diverge (ADR 0022's second-reader lesson) — the equivalent of
-  // ledger-guard.js's byte-identity pin against merge-guard.js's ARG token, adapted for a shared
-  // function instead of a duplicated constant.
+  // private copy that could silently diverge (ADR 0022's second-reader lesson) — the same shape as the
+  // drift `arg-token` contract, which holds every Bash hook to a require of ./shell-words.js.
   {
     const src = fs.readFileSync(scopePath, 'utf8');
     assert.ok(

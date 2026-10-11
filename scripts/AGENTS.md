@@ -277,8 +277,8 @@ The stage machine's transition rules are enforced in its code, not in prose, and
 drift assertions along with scope.js's own behavior: the stage machine, the ledger schema and header
 lines, a pre-CLI ledger parsing unchanged, and the scope-slug charset staying equal across `scope.js`,
 `hooks/run-lock.js`, and `references/scope-mode.md`. A further pin — the same class of assertion as
-`hooks/ledger-guard.js`'s byte-identical `ARG` token against `hooks/merge-guard.js`, adapted for a
-shared function instead of a duplicated constant — asserts that `scope.js`'s own source still requires
+the `arg-token` pin of the Bash hooks' scanner require, adapted for a
+shared function instead of a shared module — asserts that `scope.js`'s own source still requires
 `maskFencedLines` from `kb-patch.js` and declares no private function of that name, so a reintroduced
 private copy of the masking rule fails this instead of only being caught by chance, on whichever
 fixture happens to exercise the drift.
@@ -1459,21 +1459,18 @@ does anywhere else in this file. Both sides of the comparison are whitespace-nor
 whitespace, including a line break, collapse to a single space. That matters because `CONTEXT.md` and
 `references/scope-mode.md` are hard-wrapped and a canonical clause can span a line break in the real
 document. Nothing executes the glossary, so it is the copy most likely to drift.
-The `arg-token` contract: `hooks/merge-guard.js`, `hooks/green-gate.js`, and `hooks/ledger-guard.js`
-each carry the canonical `const ARG = …` shell-word token **verbatim**. The three parse the same shape
-out of a Bash command line by hand, and nothing links the copies, so this pins the literal rather than
-testing mutual equality. A token that narrows in one hook reopens the quoted-argument bypass there:
-`git -C "my repo" merge` walks past the guard. A token with a narrower reading of a command substitution
-or a `${…}` parameter expansion reopens a second bypass:
-`git -C $(git rev-parse --show-toplevel)/wt merge` or `git -C ${X:-a b} merge`. A deliberate improvement
-is meant to reach all three hooks and this pin in one commit. `ledger-guard.js` also scans with a second
-token, `RAW_ARG`, which no pin covers. Same shape as the scope-slug charset assertion in
-`tests/scope.test.js`.
+The `arg-token` contract (ADR 0135): `hooks/merge-guard.js`, `hooks/green-gate.js`, `hooks/ledger-guard.js`,
+and `hooks/run-trace.js` each `require('./shell-words.js')` on a line that is no comment, and declare none of
+`ARG`, `RAW_ARG`, `STUCK`, `STUCK_MERGE`, or `stripHeredocs` themselves, whether after `const`, `let`, `var`,
+or `function`, or as a later declarator of one statement. A private shell-word reader reopens the
+quoted-argument and command-substitution bypasses the shared scanner closes. The pin matches the require
+and the absence of those names, so it never compares token text. The shared scanner's own behavior lives
+in `tests/shell-words.test.js`.
 The `audit-set` contract: `skills/setup/SKILL.md` still records decision C's answer as the
 `## Audit set` section of `docs/agents/documentation.md`, `skills/document/SKILL.md` still reads that
 section back with its stated fallback for when it is absent, and `references/documentation.md` still
 seeds the section as optional, for `/setup` to fill in. These documents agree on the section only in
-prose, the same shape as the `arg-token` triple. A renamed heading or a dropped
+prose, the same shape as the `arg-token` pins. A renamed heading or a dropped
 fallback clause leaves the section unreachable in every repo that carries it, unnoticed, until a doc
 audit runs on one and finds nothing there.
 The `chained-code-review` contract (ADR 0068) pins rows on `skills/review/SKILL.md`: it still names

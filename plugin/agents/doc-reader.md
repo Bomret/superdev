@@ -82,7 +82,7 @@ voiced prose are exempt: the standard states its own scope.
 
 ## Read-only
 
-Read-only git only — a hook blocks `git merge`/`push`/`rebase` and the code-host merge calls `gh`/`tea pr merge`,
+Read-only git only — a hook blocks `git merge`/`push`/`rebase`/`pull`/`subtree push` and the code-host merge calls `gh`/`tea pr merge`,
 `tea api`, and `gh api` from a subagent dispatch. You change nothing: no edits, no commits. You report; the controller re-dispatches the
 doc-writer to fix.
 

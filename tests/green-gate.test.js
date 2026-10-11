@@ -19,21 +19,14 @@ const {
   decide,
   decideMerge,
   resolveMergeCwd,
-  unquoteArg,
   readVerification,
   runTests,
   traceSuiteRun,
   mergeInProgress,
   getChangedPaths,
-  IS_MERGE,
-  IS_COMMIT,
-  STUCK_MERGE,
-  ARG,
   VERIFICATION_DOC,
   parseMergeCommand,
   resolveVerification,
-  resetOptionRegionWalks,
-  getOptionRegionWalks,
   readHookTimeoutMs,
   suiteBoundMs,
 } = require(hookPath);
@@ -77,8 +70,8 @@ assert.equal(decide(merge('git merge-tree a b'), full('npm test'), red, notCalle
   const reflogNotRead = () => {
     throw new Error('the reflog should not be read when the tree is unknowable');
   };
-  const STUCK = 'git -C $(a $(b $(c))) merge y';
-  assert.equal(STUCK_MERGE.test(STUCK), true, 'the fixture is a stuck merge shape');
+  const STUCK = 'git merge "y';
+  assert.equal(parseMergeCommand(STUCK).stuck, true, 'the fixture is an unreadable command holding a merge');
   const verdict = (command, event) =>
     decide(merge(command, { hook_event_name: event }), blind, suiteNotRun, notCalled, () => false, () => '', reflogNotRead);
   assert.equal(verdict('cd x && git merge y', 'PostToolUseFailure').block, false, 'a failed call whose tree is unknowable stays silent');
@@ -104,15 +97,41 @@ assert.equal(decide(merge('git --git-dir /wt/.git --work-tree /wt merge slice/x/
 assert.equal(decide(merge('git --work-tree "a b" merge slice/x/1'), full('npm test'), red, notCalled).block, true, 'a quoted space-form value is one shell word');
 assert.equal(decide(merge('git --no-pager merge slice/x/1'), full('npm test'), red, notCalled).block, true, 'a valueless long option still reaches the verb');
 assert.equal(decide(merge('git --no-replace-objects merge slice/x/1'), full('npm test'), red, notCalled).block, true, 'another valueless long option reaches the verb');
-assert.equal(decide(merge('git --exec-path merge slice/x/1'), full('npm test'), red, notCalled).block, true, '--exec-path (not enumerated — git itself takes no value there) still reaches the verb, via the --ARG fallback');
+assert.equal(decide(merge('git --exec-path merge slice/x/1'), full('npm test'), red, notCalled).block, true, '--exec-path (not enumerated — git itself takes no value there) still reaches the verb, read as a value-less option');
 assert.equal(decide(merge('git --shallow-file /dev/null merge slice/x/1'), full('npm test'), red, notCalled).block, true, 'git --shallow-file <path> merge (space form) is gated');
 assert.equal(decide(merge('git --attr-source main merge slice/x/1'), full('npm test'), red, notCalled).block, true, 'git --attr-source <tree> merge (space form) is gated');
-assert.equal(IS_MERGE.test('git --version'), false, 'git --version is not a merge');
+assert.equal(parseMergeCommand('git --version'), null, 'git --version is not a merge');
 assert.equal(decide(merge('git --work-tree /wt status'), full('npm test'), red, notCalled).block, false, 'a space-form read command is not a merge');
 assert.equal(decide(merge('git -c core.editor=true commit -m x'), full('npm test'), red, notCalled).block, false, 'git -c commit ignored');
 assert.equal(decide(merge('git merge --abort'), full('npm test'), red, notCalled).block, false, 'merge --abort undoes a merge, not gated');
 assert.equal(decide(merge('git merge --quit'), full('npm test'), red, notCalled).block, false, 'merge --quit abandons a merge, not gated');
 assert.equal(decide(merge('git merge --continue'), full('npm test'), red, notCalled).block, true, 'merge --continue completes a merge, gated');
+// A heredoc body a known shell reads on stdin is a command line (#1016): its merge is gated like a bare one.
+for (const cmd of ['bash <<E\ngit merge x\nE', "sh <<'E'\ngit merge x\nE", 'cat <<E | sh\ngit merge x\nE', 'bash -s <<E\ngit merge x\nE',
+  '{ cat <<E; } | sh\ngit merge x\nE', 'cat <<E | xargs sh -c\ngit merge x\nE', 'f() { cat <<E; }; f | sh\ngit merge x\nE', 'exec 3<<E; sh <&3\ngit merge x\nE',
+  'cat <<E > >(sh)\ngit merge x\nE', 'cat <<E | sh -c "$(cat)"\ngit merge x\nE', 'exec 3<<E; sh <&3-\ngit merge x\nE']) {
+  assert.equal(decide(merge(cmd), full('npm test'), red, notCalled).block, true, `a shell-fed heredoc merge is gated: ${JSON.stringify(cmd)}`);
+}
+// A heredoc body or here-string text no shell reads that names a merge is a quoted merge candidate: the reflog decides.
+for (const cmd of ["cat <<'E'\ngit merge x\nE", 'cat <<E\ngit merge x\nE', 'cat <<<"git merge x"', 'cat > f <<E\ngit merge x\nE', 'git commit -F - <<E\ngit merge x\nE']) {
+  assert.equal(decide(merge(cmd), full('npm test'), red, notCalled, () => false, () => '', () => true).block, true, `gated on a landed merge: ${JSON.stringify(cmd)}`);
+  assert.equal(decide(merge(cmd), full('npm test'), red, notCalled, () => false, () => '', () => false).block, false, `silent without one: ${JSON.stringify(cmd)}`);
+}
+assert.equal(parseMergeCommand('cat <<E\nhello\nE'), null, 'a heredoc body naming no merge names no merge');
+// A merge behind a prefix wrapper, or through an inline alias, is a merge; a `git pull` is gated when the reflog shows it landed.
+for (const cmd of ['nice -n 5 git merge x', 'eval git merge x', 'sudo -u bob git merge x', 'git -c alias.m=merge m x', "git -c alias.m='!git merge x' m",
+  'env' + "''".repeat(600) + ' git merge x']) {
+  assert.equal(decide(merge(cmd), full('npm test'), red, notCalled).block, true, `gated: ${cmd}`);
+}
+for (const cmd of ['git pull', 'git pull --rebase origin main', 'git -c alias.p=pull p', 'nice git pull']) {
+  assert.equal(decide(merge(cmd), full('npm test'), red, notCalled, () => false, () => '', () => true).block, true, `a pull that landed is gated: ${cmd}`);
+  assert.equal(decide(merge(cmd), full('npm test'), red, notCalled, () => false, () => '', () => false).block, false, `a pull that landed nothing is silent: ${cmd}`);
+}
+// A here-string or `echo` text a shell reads is a quoted merge candidate: the reflog decides.
+for (const cmd of ['echo git merge x | sh', 'bash <<<"git merge x"']) {
+  assert.equal(decide(merge(cmd), full('npm test'), red, notCalled, () => false, () => '', () => true).block, true, `gated on a landed merge: ${cmd}`);
+  assert.equal(decide(merge(cmd), full('npm test'), red, notCalled, () => false, () => '', () => false).block, false, `silent without one: ${cmd}`);
+}
 // RTK's PreToolUse hook rewrites `git commit` to `rtk git commit`, and PostToolUse sees the rewritten
 // command (docs/known-issues.md). rtk 0.51.0 leaves `git merge` alone; the merge rows guard a later
 // version that rewrites it too.
@@ -322,50 +341,15 @@ assert.equal(
   assert.match(result.reason, /more output than maxBuffer allows/i, 'the reason names the chatty-suite case, not just the kill');
 }
 
-// ARG mirrors merge-guard's token (the comment above owns why); hooks stay standalone, so pin
-// the copy against the canonical one instead of sharing it — silent drift would be a bug.
+// a long run of enumerated option names with no verb, and runs of substitution, parameter-expansion, and
+// backtick units, parse in bounded time: a qualitative bound (AGENTS.md, ADR 0086) on a reading that is
+// effectively unbounded when it backtracks, so the ceiling stays loose.
 {
-  const sibling = fs.readFileSync(path.join(path.dirname(hookPath), 'merge-guard.js'), 'utf8');
-  const m = sibling.match(/^const ARG = \/(.*)\/\.source;$/m);
-  assert.ok(m, 'merge-guard.js declares its ARG token where this pin expects it');
-  assert.equal(ARG, m[1], 'green-gate ARG is byte-identical to merge-guard ARG');
-  // The regex constants that build on ARG, and the optional `rtk` prefix both hooks' matchers take, carry
-  // the same pin: their declarations are compared as source text, so a one-sided edit to either hook fails here.
-  const own = fs.readFileSync(hookPath, 'utf8');
-  for (const name of ['LONG_VALUE_OPT', 'GLOBAL_OPTS', 'VALUE_OPT_LEAD', 'RTK_PREFIX']) {
-    const decl = new RegExp(`^const ${name} = (.*);$`, 'm');
-    const theirs = sibling.match(decl);
-    assert.ok(theirs, `merge-guard.js declares ${name} where this pin expects it`);
-    assert.equal(own.match(decl)[1], theirs[1], `green-gate ${name} is byte-identical to merge-guard ${name}`);
-  }
-}
-
-// a long run of enumerated option names with no verb must not backtrack exponentially (the comment
-// above LONG_VALUE_OPT owns why) — a qualitative bound (AGENTS.md, ADR 0086): catastrophic
-// backtracking is effectively unbounded, so this ceiling stays loose rather than tight. 44 repeats resolve in
-// about a millisecond. Without the `(?!-)` after the space-form value, the mutant took 78s at 38 repeats, 145s at
-// 40, 239s at 42, and 669s at 44, measured 2026-10-09 by running this suite against a mutated copy of the hook, at
-// load averages between 70 and 300 on 8 cores. 44 is the size where the mutant fails the 120s ceiling by 1.5x or more in
-// every run measured, and a regression still fails the suite within minutes. A standalone timing overstates the
-// in-suite one: V8 interprets a regex's first call before compiling it to native code, and the mutant's cold first
-// call at 38 took 655s.
-{
-  const pathological = 'git ' + '--git-dir '.repeat(44) + 'x; git ' + 'merge main';
   const t0 = Date.now();
-  IS_MERGE.test(pathological);
+  assert.equal(parseMergeCommand('git ' + '--git-dir '.repeat(44) + 'x; git ' + 'merge main').verb, 'merge', 'the merge after the option run is found');
   const elapsed = Date.now() - t0;
   assert.ok(elapsed < 120000, `a pathological long-option run must resolve quickly, took ${elapsed}ms`);
 }
-
-// substitution, parameter-expansion, and backtick runs through STUCK_MERGE and IS_MERGE: a qualitative
-// bound (AGENTS.md, ADR 0086) on exponential backtracking. Stuck-segment runs are quadratic through the
-// line-wide verb lookahead (triage #814). Only the `$(echo ")")` unit at 1200 repeats has a reconstructable
-// pre-fix mutant that fails it: STUCK_MERGE with its atomic `(?=(ARG|))\2` as a plain `(?:ARG|)` grows
-// cubically on it (0.6s at 300 repeats, 4.6s at 600, 40s at 1200; measured 2026-10-08), and a `+` on ARG's
-// double-quoted `(?:[^"\\]|` took over 20s at 1200. That unit runs at 2400 repeats, where the shipped regex
-// stays quadratic (about 0.3s) and the atomic mutant takes about 5 minutes. No mutant tried fails the other
-// units, so they keep the sizes they were written at. The block costs 2-3s as shipped, so the 120s ceiling
-// clears a loaded machine and still fails the mutant.
 {
   const t0 = Date.now();
   for (const [unit, repeats] of [
@@ -375,9 +359,7 @@ assert.equal(
     ['git -C ${a b} x; ', 2000],
     ['git -C `a x; ', 2000],
   ]) {
-    STUCK_MERGE.test(unit.repeat(repeats));
-    IS_MERGE.test(unit.repeat(repeats));
-    IS_COMMIT.test(unit.repeat(repeats));
+    parseMergeCommand(unit.repeat(repeats));
   }
   for (const run of [
     'git -C ' + '$('.repeat(500) + ' x',
@@ -388,24 +370,18 @@ assert.equal(
     'git -C ' + '`'.repeat(5001) + ' x',
     'git --exec-path=' + '$(a '.repeat(2000) + 'x',
   ]) {
-    STUCK_MERGE.test(run);
-    IS_MERGE.test(run);
-    IS_COMMIT.test(run);
+    parseMergeCommand(run);
   }
   const elapsed = Date.now() - t0;
   assert.ok(elapsed < 120000, `command-substitution runs must resolve quickly, took ${elapsed}ms`);
 }
 
-// A newline is itself a lead-in, so a `\s*` after it rescans every later blank line from each one: quadratic.
-// With that mutant, 64000 blank lines took 68s (STUCK_MERGE), 54s (IS_MERGE) and 21s (IS_COMMIT), all under the
-// 120s ceiling; 128000 took 214s (STUCK_MERGE) and 243s (IS_MERGE), and 256000 took 422s (IS_COMMIT, the fastest
-// at 64000), measured 2026-10-09. All three lead-ins are `[ \t]*`, linear: 256000 blank lines take a few
-// milliseconds, and each regex answers under the same qualitative ceiling (AGENTS.md, ADR 0086).
-for (const [name, regex] of [['STUCK_MERGE', STUCK_MERGE], ['IS_MERGE', IS_MERGE], ['IS_COMMIT', IS_COMMIT]]) {
+// A long run of blank lines parses in linear time, under a qualitative ceiling (AGENTS.md, ADR 0086).
+{
   const t0 = Date.now();
-  regex.test('\n'.repeat(256000) + 'x');
+  parseMergeCommand('\n'.repeat(256000) + 'x');
   const elapsed = Date.now() - t0;
-  assert.ok(elapsed < 120000, `${name} must answer in linear time on a long run of blank lines, took ${elapsed}ms`);
+  assert.ok(elapsed < 120000, `a long run of blank lines must answer in linear time, took ${elapsed}ms`);
 }
 
 // --- resolveMergeCwd(): the merge's own working tree, from -C or the session cwd fallback ---
@@ -483,13 +459,54 @@ for (const value of ['$(git rev-parse --show-toplevel)/wt', '$(a $(b c))/wt', '`
   assert.equal(resolveMergeCwd(`git -C ${value} merge --no-ff s`, '/session'), null, `-C ${value} (spaces inside the substitution): unknowable`);
   assert.equal(resolveMergeCwd(`git --work-tree ${value} merge s`, '/session'), null, `--work-tree ${value} too`);
 }
-// past one nesting level ARG cannot read the value to its end: the merge is still seen, and its tree is unknowable
-for (const value of ['$(dirname $(dirname $(pwd)))/wt', '$((1+(2)))/wt', '$(echo ")")/wt']) {
-  assert.ok(STUCK_MERGE.test(`git -C ${value} merge s`), `-C ${value} merge: seen as an unknowable merge`);
-  assert.ok(STUCK_MERGE.test(`git --work-tree=${value} merge s`), `--work-tree=${value} merge: seen as an unknowable merge`);
+// at any nesting depth the merge is still seen, and its tree is unknowable
+for (const value of ['$(dirname $(dirname $(pwd)))/wt', '$((1+(2)))/wt', '$(echo ")")/wt', '$(case x in a) y;; esac)/wt', '"$(echo "a b")"']) {
+  assert.equal(resolveMergeCwd(`git -C ${value} merge s`, '/session'), null, `-C ${value} merge: seen as an unknowable merge`);
+  assert.equal(resolveMergeCwd(`git --work-tree=${value} merge s`, '/session'), null, `--work-tree=${value} merge: seen as an unknowable merge`);
 }
-assert.ok(!STUCK_MERGE.test('git -C $(dirname $(pwd))/wt merge s'), 'a closed one-level value is not stuck');
-assert.ok(!STUCK_MERGE.test('echo $(dirname $(dirname $(pwd))) && git -C /wt merge s'), 'a substitution outside an option value is not stuck');
+assert.equal(parseMergeCommand('git -C $(a $(b $(c))) log --grep merge'), null, 'a git command that is not a merge names no candidate');
+assert.equal(parseMergeCommand('echo $(dirname $(dirname $(pwd))) && git -C /wt merge s').verb, 'merge', 'a merge after a substitution is found');
+assert.equal(parseMergeCommand('git merge --abort'), null, 'merge --abort is no candidate');
+assert.equal(parseMergeCommand('git merge --no-edit --abort'), null, 'merge --abort after another option is no candidate');
+assert.equal(parseMergeCommand('git merge -q --quit'), null, 'merge --quit after another option is no candidate');
+assert.equal(parseMergeCommand('git merge --no-edit x').verb, 'merge', 'a merge with options and a branch is a candidate');
+assert.equal(parseMergeCommand('git merge x --abort').verb, 'merge', 'an --abort after the branch is a ref name, not the option');
+for (const c of ['git merge -m --abort feature', 'git merge -m=--abort feature', 'git merge -F --quit feature', 'git merge -s --abort feature', 'git merge --into-name --abort feature', 'git merge -- --abort']) {
+  assert.equal(parseMergeCommand(c).verb, 'merge', `${c}: an option value or a word after \`--\` is no abort, so the merge stays gated`);
+}
+for (const c of ['git merge --mess --abort feature', 'git merge --messa --quit feature', 'git merge --fi --abort feature', 'git merge --strategy-o --abort feature', 'git merge -nm --abort feature', 'git merge -qnF --quit feature']) {
+  assert.equal(parseMergeCommand(c).verb, 'merge', `${c}: an abbreviated long option or a short bundle ending in a value letter takes the next word as its value, so the merge stays gated`);
+}
+for (const c of ['git merge --mess=x --abort', 'git merge -nmmsg --abort', 'git merge -n --abort', 'git merge --no-e --abort']) {
+  assert.equal(parseMergeCommand(c), null, `${c}: an attached value or a no-value option leaves the abort an abort`);
+}
+for (const c of ['git merge -m msg --abort','git merge -mmsg --abort', 'git merge -X ours --quit', 'git merge --into-name=x --abort']) {
+  assert.equal(parseMergeCommand(c), null, `${c}: the abort after a value-taking option is no candidate`);
+}
+assert.equal(parseMergeCommand('git merge s').quoted, false);
+assert.equal(parseMergeCommand('sh -c "git merge s"').quoted, true, 'a merge inside a quoted word is a quoted candidate');
+assert.equal(parseMergeCommand('sh -c "git commit" && git merge s').verb, 'merge', 'a merge the command runs beats a quoted commit');
+assert.equal(parseMergeCommand('git merge "x').stuck, true, 'an unreadable command holding a merge is stuck');
+assert.equal(parseMergeCommand('echo "x'), null, 'an unreadable command holding no merge is no candidate');
+// A quoted text that reads as no command line and names `git … merge` is a quoted merge candidate: `sh -c` runs its lines
+// before the syntax error, so the reflog decides.
+assert.deepEqual(parseMergeCommand('bash -c "git merge x; echo don\'t"'), { verb: 'merge', quoted: true, tokens: [], dirChanged: false }, 'a failed quoted text holding a merge is a quoted merge');
+assert.deepEqual(parseMergeCommand('bash -c "git pull; echo don\'t"'), { verb: 'pull', quoted: true, tokens: [], dirChanged: false }, 'a failed quoted text holding a pull is a quoted pull');
+assert.equal(parseMergeCommand('bash -c "git pull; echo don\'t; git merge x"').verb, 'merge', 'a failed quoted merge beats a failed quoted pull');
+// An unreadable command naming `git … pull` and no merge reports a blind verification only when the reflog shows a landed merge.
+{
+  assert.deepEqual(parseMergeCommand("git pull; echo '"), { stuck: true, verb: 'pull' }, 'an unreadable command holding a pull is a stuck pull');
+  const blind = () => ({ full: 'npm test', focused: null, blind: 'superdev: cannot see the merge tree' });
+  const suiteNotRun = () => {
+    throw new Error('the suite should not run when the tree is unknowable');
+  };
+  const stuckPull = (landed) => decide(merge("git pull; echo '"), blind, suiteNotRun, notCalled, () => false, () => '', () => landed);
+  assert.equal(stuckPull(true).block, true, 'a stuck pull that landed reports a blind verification');
+  assert.equal(stuckPull(false).block, false, 'a stuck pull that landed nothing is silent');
+}
+assert.equal(parseMergeCommand('git commit -m "Merge (git merge x)"').verb, 'commit', 'a commit the command runs beats a failed quoted merge');
+assert.equal(parseMergeCommand('git commit -m "don\'t push"').verb, 'commit', 'a failed quoted text holding no merge leaves the candidate');
+assert.equal(parseMergeCommand('git merge s && git commit -m "why git merge isn\'t enough"').verb, 'merge', 'a merge the command runs beats a failed quoted text');
 assert.equal(resolveMergeCwd('git -c "msg=$X" -C /wt merge s', '/session'), '/wt', 'a $ in another option\'s value is not a -C value');
 assert.equal(resolveMergeCwd('git --namespace foo merge s', '/session'), '/session', 'another value-taking option names no tree');
 
@@ -527,15 +544,6 @@ assert.equal(
   'a -C path with a leading quoted segment is unquoted across both the quoted and unquoted runs',
 );
 
-// unquoteArg() is bounded even on a malformed, unbalanced token — ARG guarantees balance in
-// practice, so this is defensive: without the bound, an unclosed `'` rewinds `i` to 0 and an
-// unclosed `"` never meets its terminator, either way spinning forever instead of returning.
-assert.equal(unquoteArg("it's"), 'it', "an unclosed single quote terminates instead of spinning");
-assert.equal(
-  unquoteArg('unterminated "double'),
-  'unterminated double',
-  'an unclosed double quote terminates instead of spinning',
-);
 
 // --- references/test-selection.md: full vs. focused command selection ---
 
@@ -773,41 +781,27 @@ fs.writeFileSync(
   assert.equal(result.notice, undefined, 'two fenced blocks with a whole-repo section carry no one-fence notice');
 }
 
-// --- the option region is walked exactly once per decision — resolveVerification()'s own call
-// graph used to walk it up to four times: once each for -C, --work-tree, and --git-dir inside
-// resolveMergeCwd, once more inside namesOnlyGitDir or resolvingOption ---
+// --- the scanner reads the command exactly once per decision. Calling decideMerge() itself, rather than
+// re-assembling its steps here, makes this a regression test on main()'s own wiring: main() calls this exact
+// function, so a second parseMergeCommand(cmd) call added inside it fails this assertion ---
 {
-  resetOptionRegionWalks();
-  const gitDirCmd = 'git --git-dir /wt/.git merge x';
-  resolveVerification(parseMergeCommand(gitDirCmd), gitDirCmd, dir);
-  assert.equal(getOptionRegionWalks(), 1, 'a blind --git-dir decision walks the option region exactly once');
-
-  resetOptionRegionWalks();
-  const cTargetCmd = `git -C '${path.join(dir, 'does-not-exist')}' merge x`;
-  resolveVerification(parseMergeCommand(cTargetCmd), cTargetCmd, dir);
-  assert.equal(
-    getOptionRegionWalks(),
-    1,
-    'a -C target carrying no verification doc walks the option region exactly once',
-  );
-
-  // A full decision — the cwd resolution AND the verification lookup together — must also walk the
-  // region once. The two isolated resolveVerification() calls above never see this. Calling
-  // decideMerge() itself, rather than re-assembling its steps here, is what makes this a real
-  // regression test on main()'s own wiring: main() calls this exact function, so a future second
-  // parseMergeCommand(cmd) call added inside it fails this assertion, not just a hand-rolled copy.
-  resetOptionRegionWalks();
-  const decisionCmd = 'git merge --no-ff slice/x/1';
-  // `true`, not `npm test`: decideMerge() actually runs the configured full command (it is not
-  // stubbed here, unlike decide()'s injected runTests elsewhere in this file), so the doc must
-  // name something fast and side-effect-free.
-  fs.writeFileSync(path.join(dir, VERIFICATION_DOC), '# Verification\n\n```sh\ntrue\n```\n');
-  decideMerge(merge(decisionCmd), dir);
-  assert.equal(
-    getOptionRegionWalks(),
-    1,
-    "a full decision (cwd resolution + verification lookup) walks the option region exactly once, mirroring main()'s own wiring",
-  );
+  const words = require('../plugin/hooks/shell-words.js');
+  const realScan = words.scan;
+  let scans = 0;
+  words.scan = (...args) => { scans += 1; return realScan(...args); };
+  try {
+    // `true`, not `npm test`: decideMerge() actually runs the configured full command (it is not
+    // stubbed here, unlike decide()'s injected runTests elsewhere in this file), so the doc must
+    // name something fast and side-effect-free.
+    fs.writeFileSync(path.join(dir, VERIFICATION_DOC), '# Verification\n\n```sh\ntrue\n```\n');
+    decideMerge(merge('git merge --no-ff slice/x/1'), dir);
+    assert.equal(scans, 1, 'a full decision (cwd resolution + verification lookup) reads the command once');
+    scans = 0;
+    decideMerge(merge(`git -C '${path.join(dir, 'does-not-exist')}' merge x`), dir);
+    assert.equal(scans, 1, 'a -C target carrying no verification doc reads the command once');
+  } finally {
+    words.scan = realScan;
+  }
 }
 
 // --- getChangedPaths(): a real git repo, exercising the ORIG_HEAD / HEAD^1 correction ---
@@ -1090,7 +1084,7 @@ fs.writeFileSync(
     fs.rmSync(session, { recursive: true, force: true });
   }
 
-  // an unquoted command substitution, backtick group, or parameter expansion that ARG reads whole: the gate
+  // an unquoted command substitution, backtick group, or parameter expansion that the scanner reads as one word: the gate
   // still sees the merge and blocks it
   {
     const session = tmp('gg-session-');
@@ -1123,11 +1117,18 @@ fs.writeFileSync(
     for (const value of ['$(dirname $(dirname $(pwd)))/wt', '$((1+(2)))/wt', '$(echo ")")/wt']) {
       for (const opt of ['-C', '--work-tree']) stuck.push(`git ${opt} ${value} merge s`);
     }
-    stuck.push('git --exec-path=$(dirname $(dirname $(which git))) merge x', 'git -C $(pwd merge s', 'git -C `pwd merge x', 'git -C ${X:-a b merge x');
+    // a readable merge whose -C value holds a substitution: the tree is unknowable, and the merge is claimed landed
     for (const command of stuck) {
       const result = runHook({ cwd: session, tool_input: { command } });
       assert.equal(result.status, 2, `${command} blocks`);
-      assert.match(result.stderr, /shell/i, 'the block names the shell expansion as the cause');
+      assert.match(result.stderr, /literal path/, 'the block asks for a literal path');
+      assert.match(result.stderr, /has landed/, 'the merge read as a real merge');
+    }
+    // a command the scanner cannot read to its end: the block is conditional, since it may have merged nothing
+    for (const command of ['git -C $(pwd merge s', 'git -C `pwd merge x', 'git -C ${X:-a b merge x']) {
+      const result = runHook({ cwd: session, tool_input: { command } });
+      assert.equal(result.status, 2, `${command} blocks`);
+      assert.match(result.stderr, /shell/i, 'the block names the shell syntax as the cause');
       assert.match(result.stderr, /literal path/, 'the block asks for a literal path');
       assert.match(result.stderr, /if this command merged, nobody verified it/i, 'the block is conditional: the command may have merged nothing');
       assert.doesNotMatch(result.stderr, /has landed/, 'the block does not claim the merge landed');
@@ -1138,25 +1139,163 @@ fs.writeFileSync(
     fs.rmSync(session, { recursive: true, force: true });
   }
 
-  // a stuck decision tests STUCK_MERGE once, not once in decide() and again in resolveVerification()
-  {
-    const session = tmp('gg-session-');
+  // --- the shared scanner reads the command (ADR 0135) ---
+  // A session repository whose suite is red and whose HEAD reflog tops with a landed merge (`landed`) or a commit.
+  const redSession = (landed) => {
+    const session = tmp('gg-scan-');
     initRepo(session);
     commitFile(session, 'base.txt', 'x\n');
-    writeVerification(session, 'node -e "process.exit(0)"');
-    const original = STUCK_MERGE.test;
-    let calls = 0;
-    STUCK_MERGE.test = function (value) {
-      calls += 1;
-      return original.call(this, value);
-    };
-    try {
-      assert.equal(decideMerge({ tool_input: { command: 'git -C $(a $(b $(c)))/wt merge s' } }, session).block, true, 'the stuck merge blocks');
-    } finally {
-      STUCK_MERGE.test = original;
+    git2(['checkout', '-q', '-b', 'other'], session);
+    commitFile(session, 'o.txt', 'o\n');
+    git2(['checkout', '-q', 'main'], session);
+    commitFile(session, 'm.txt', 'm\n');
+    if (landed) git2(['merge', '-q', '--no-ff', '-m', 'merge other', 'other'], session);
+    writeVerification(session, `node -e "console.error('RED-CHECK'); process.exit(1)"`);
+    return session;
+  };
+  {
+    const landed = redSession(true);
+    const notLanded = redSession(false);
+    // a merge reached through any shape is verified
+    for (const command of [
+      'echo $(git merge x)',
+      'echo `git merge x`',
+      '(git merge x)',
+      'cat <<E\n$(git merge x)\nE',
+      'git -C $(echo a)/wt log && git merge x',
+      'git -C "$(echo "a b")" log; git merge x',
+      'x=1 git merge x',
+    ]) {
+      const result = runHook({ cwd: landed, tool_input: { command } });
+      assert.equal(result.status, 2, `a merge in ${JSON.stringify(command)} is verified`);
+      assert.match(result.stderr, /RED-CHECK/, 'the suite ran in the session tree');
     }
-    assert.equal(calls, 1, 'STUCK_MERGE is tested once per decision');
-    fs.rmSync(session, { recursive: true, force: true });
+    // a git command that is not a merge reports nothing
+    for (const command of ['git -C $(a $(b $(c))) log --grep merge', 'git -C $(case x in a) y;; esac)/wt log --grep merge', 'echo merge']) {
+      const result = runHook({ cwd: landed, tool_input: { command } });
+      assert.equal(result.status, 0, `${command} reports nothing`);
+      assert.equal(result.stderr, '', 'and prints nothing');
+    }
+    // a merge found only in a quoted word is gated only when a readable tree's reflog shows a landed merge
+    {
+      // a landed merge the gate has not run the suite on yet: a quoted merge gates it, once
+      const fresh = redSession(true);
+      const first = runHook({ cwd: fresh, tool_input: { command: 'sh -c "git merge s"' } });
+      assert.equal(first.status, 2, 'a quoted merge is gated on a landed reflog');
+      assert.match(first.stderr, /RED-CHECK/, 'the gate run on this HEAD is red');
+      // the gate already ran the suite on that HEAD, red or green, and reported it: quoted text naming a merge
+      // verb (a grep, a log search) reruns nothing
+      for (const command of ['grep -rn "git merge" .', 'git log --grep "git merge"', "rg 'git commit' .", 'sh -c "git merge s"']) {
+        const again = runHook({ cwd: fresh, tool_input: { command } });
+        assert.equal(again.status, 0, `${command} after a red gate run on the same HEAD is silent`);
+        assert.equal(again.stderr, '', 'and prints nothing');
+      }
+      // a new merge lands: the quoted merge gates it again
+      git2(['checkout', '-q', '-b', 'other2'], fresh);
+      commitFile(fresh, 'o2.txt', 'o\n');
+      git2(['checkout', '-q', 'main'], fresh);
+      git2(['merge', '-q', '--no-ff', '-m', 'merge other2', 'other2'], fresh);
+      assert.equal(runHook({ cwd: fresh, tool_input: { command: 'sh -c "git merge other2"' } }).status, 2, 'a quoted merge that lands a new merge is gated');
+    }
+    assert.equal(runHook({ cwd: notLanded, tool_input: { command: 'sh -c "git merge s"' } }).status, 0, 'a quoted merge is silent without a landed merge');
+    assert.equal(runHook({ cwd: landed, tool_input: { command: 'cd /nonexistent && sh -c "git merge s"' } }).status, 0, 'a quoted merge after a cd has no readable tree: silent');
+    assert.equal(runHook({ cwd: landed, tool_input: { command: 'sh -c "git -C \\"$X\\" merge s"' } }).status, 0, 'a quoted merge with an unexpanded -C is silent');
+    // an unreadable command holding a merge reports a blind verification; any other one is silent
+    const blind = runHook({ cwd: notLanded, tool_input: { command: 'git merge "x' } });
+    assert.equal(blind.status, 2, 'an unreadable merge reports a blind verification');
+    assert.match(blind.stderr, /if this command merged, nobody verified it/i);
+    assert.equal(runHook({ cwd: notLanded, tool_input: { command: 'echo "unterminated' } }).status, 0, 'any other unreadable command is silent');
+    // an unreadable or failed quoted `git … pull` is probed: silent without a landed merge, gated with one
+    for (const command of ["git pull; echo '", 'bash -c "git pull; echo don\'t"']) {
+      assert.equal(runHook({ cwd: notLanded, tool_input: { command } }).status, 0, `${command} without a landed merge is silent`);
+      const fresh = redSession(true);
+      assert.equal(runHook({ cwd: fresh, tool_input: { command } }).status, 2, `${command} after a landed merge is gated`);
+      fs.rmSync(fresh, { recursive: true, force: true });
+    }
+    // a real merge whose -C value the hook cannot expand: a blind verification, not a conditional one
+    const expanded = runHook({ cwd: landed, tool_input: { command: 'git -C $(case x in a) y;; esac)/wt merge s' } });
+    assert.equal(expanded.status, 2);
+    assert.match(expanded.stderr, /has landed/);
+    // the scanner cannot be loaded: a blind verification (INV-0140)
+    const dir = tmp('gg-noscanner-');
+    try {
+      const lone = path.join(dir, 'green-gate.js');
+      fs.copyFileSync(hookPath, lone);
+      const result = cp.spawnSync(process.execPath, [lone], { input: JSON.stringify({ cwd: notLanded, tool_input: { command: 'echo hi' } }), encoding: 'utf8', timeout: 15000 });
+      assertSpawnDecided(result, 'green-gate.js without its scanner');
+      assert.equal(result.status, 2, 'an unloadable scanner reports a blind verification');
+      assert.match(result.stderr, /broken/i, 'and names the broken install');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+    // the scanner throws: the same
+    const words = require('../plugin/hooks/shell-words.js');
+    const realScan = words.scan;
+    words.scan = () => { throw new Error('boom'); };
+    try {
+      const v = decideMerge({ tool_input: { command: 'echo hi' } }, notLanded);
+      assert.equal(v.block, true, 'a scan that throws reports a blind verification');
+      assert.match(v.reason, /broken/i);
+    } finally {
+      words.scan = realScan;
+    }
+    // a helper of the scanner module throws after the scan: the same blind verification, never a crash
+    for (const [name, command] of [['gitSubcommand', 'git merge s'], ['rawNamesVerb', 'git merge "x']]) {
+      const real = words[name];
+      words[name] = () => { throw new Error('boom'); };
+      try {
+        assert.deepEqual(parseMergeCommand(command), { broken: true }, `a throwing ${name} reads as broken`);
+        const v = decideMerge({ tool_input: { command } }, notLanded);
+        assert.equal(v.block, true, `a throwing ${name} reports a blind verification`);
+        assert.match(v.reason, /broken/i);
+      } finally {
+        words[name] = real;
+      }
+    }
+    // a quoted merge after a `cd` that names its tree with a literal -C is gated in that tree (slice 02, acceptance 6)
+    {
+      const named = redSession(true);
+      const result = runHook({ cwd: notLanded, tool_input: { command: `cd /x && sh -c "git -C ${named} merge s"` } });
+      assert.equal(result.status, 2, 'the quoted merge with a literal -C is gated');
+      assert.match(result.stderr, /RED-CHECK/, 'the suite ran in the -C tree');
+    }
+    // a failed quoted text naming a merge is a quoted merge candidate: the reflog decides, never a blind verification
+    for (const command of [
+      'bash -c "git merge x; echo don\'t"',
+      'git commit -m "fix: don\'t git merge twice"',
+      'grep -rn "can\'t git merge" docs',
+      'git commit -m "Merge (git merge x)"',
+    ]) {
+      const result = runHook({ cwd: notLanded, tool_input: { command } });
+      assert.equal(result.status, 0, `${command} without a landed merge is silent`);
+      assert.equal(result.stderr, '', 'and prints nothing');
+    }
+    {
+      const fresh = redSession(true);
+      const result = runHook({ cwd: fresh, tool_input: { command: 'bash -c "git merge x; echo don\'t"' } });
+      assert.equal(result.status, 2, 'a merge in a failed quoted text is gated on a landed reflog');
+      assert.match(result.stderr, /RED-CHECK/, 'the suite ran in the session tree');
+      fs.rmSync(fresh, { recursive: true, force: true });
+    }
+    // a run of nested-substitution commands four times as long takes about four times the time against a same-run baseline (ADR 0086)
+    // timePair repeats each sample to about 25 ms and takes the best of three, so neither a descheduled call nor a sub-millisecond
+    // baseline sets the reading.
+    const { timePair } = require('./linear-time');
+    const nestedHeredocs = (d) => {
+      let s = '';
+      for (let k = d; k >= 1; k--) s = `cat <<E${k}\n$(${s})\nE${k}\n`;
+      return s;
+    };
+    // Four times the input takes about four times as long when linear and sixteen times when quadratic; the ceiling sits at
+    // nine, between them, loose for scheduler noise.
+    const grows = (label, make, n) => {
+      const [base, big] = timePair((command) => decide(merge(command), () => ({ full: null, focused: null }), red, notCalled), make(n), make(4 * n));
+      assert.ok(big < base * 9, `${label}: time grows linearly: ${n} repeats took ${base} ns, ${4 * n} took ${big} ns`);
+    };
+    grows('nested substitutions', (n) => 'git -C $(a $(b $(c))) log; echo "$(x $(y))" ;'.repeat(n), 2000);
+    grows('nested heredocs', nestedHeredocs, 400);
+    fs.rmSync(landed, { recursive: true, force: true });
+    fs.rmSync(notLanded, { recursive: true, force: true });
   }
 
   // a stuck merge abort/quit is no landed merge: nothing blocks
@@ -1201,11 +1340,12 @@ fs.writeFileSync(
     commitFile(session, 'base.txt', 'x\n');
     writeVerification(session, 'node -e "process.exit(0)"');
     const result = runHook({ cwd: session, tool_input: { command: 'git -c a=$(b $(c $(d))) merge --no-ff other' } });
-    assert.equal(result.status, 2, 'a merge with -c holding unexpandable shell syntax blocks');
-    assert.match(result.stderr, /git option value/, 'the block names "a git option value" (not specifically -C or --work-tree)');
-    assert.match(result.stderr, /shell/i, 'the block names the shell expansion as the cause');
-    assert.match(result.stderr, /if this command merged, nobody verified it/i, 'the block is conditional');
-    assert.match(result.stderr, /literal option value/, 'the advice names literal option values');
+    assert.equal(result.status, 0, 'a merge with -c holding a substitution names no tree: the session suite runs and passes');
+    const unread = runHook({ cwd: session, tool_input: { command: 'git -c a=$(b $(c $(d)) merge --no-ff other' } });
+    assert.equal(unread.status, 2, 'the same command with an unclosed substitution blocks');
+    assert.match(unread.stderr, /shell/i, 'the block names the shell syntax as the cause');
+    assert.match(unread.stderr, /if this command merged, nobody verified it/i, 'the block is conditional');
+    assert.match(unread.stderr, /literal option value/, 'the advice names literal option values');
     fs.rmSync(session, { recursive: true, force: true });
   }
 
@@ -1496,6 +1636,15 @@ fs.writeFileSync(
       rm(dir);
     }
 
+    // a `git pull` that merged writes the reflog subject `pull …: Merge made by …`: it counts as landed, once per HEAD
+    {
+      const dir = forked(false);
+      gitEnv(dir, ['pull', '-q', '--no-rebase', '--no-edit', '.', 'other']);
+      assertRan(run(dir, OK, 'git pull . other'), 'a pull that merged');
+      assertIdle(run(dir, OK, 'git pull . other'), 'a pull that landed nothing on a HEAD the gate already ran on');
+      rm(dir);
+    }
+
     // a failed merge that never started, with an older merge still on top of the reflog, runs the suite on it
     {
       const dir = merged(false);
@@ -1709,6 +1858,11 @@ fs.writeFileSync(
     const d = decideMerge({ tool_input: { command: 'git merge --no-ff feature' } }, tree, 300);
     assert.equal(d.block, true, 'a killed run blocks the merge');
     assert.equal(traceOf(runRoot), '', 'a killed run records nothing');
+    assert.equal(
+      fs.existsSync(path.resolve(tree, git(['rev-parse', '--git-path', 'green-gate-ran-head'], tree))),
+      false,
+      'a killed run writes no ran-HEAD marker, so a quoted candidate gates the merge again',
+    );
     fs.rmSync(root, { recursive: true, force: true });
   }
 

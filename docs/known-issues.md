@@ -118,11 +118,14 @@ or `nohup`, and it skips rtk's `proxy` subcommand after it. RTK passes the wrapp
 through, so the run records its outcome. `hooks/run-trace.js` skips none of rtk's other subcommands
 that run a command: `rtk err`, `rtk run`, `rtk summary`, or `rtk test` in front of the configured
 verification command records no configured-command run, and a named test file still records a `path`
-run (triage #941). `RTK_PREFIX` in `hooks/green-gate.js` and `hooks/merge-guard.js` takes all five.
-`hooks/ledger-guard.js` knows `rtk` too, because `tests/ledger-guard.test.js` pins that it knows every
-wrapper `run-trace.js` knows. `hooks/run-trace.js` reads a `git restore` or `git checkout` behind `rtk`
-through the same wrapper list. `hooks/green-gate.js` takes an optional `rtk`, with rtk's value-less
-global options, before `git` in its merge and commit matchers. RTK rewrites `git commit` to
+run (triage #941). `commandStart` and `gitSubcommand` in `hooks/shell-words.js`, which merge-guard
+and green-gate read commands through, skip all five, and so does `RTK_PREFIX` in `hooks/merge-guard.js`.
+`hooks/ledger-guard.js` skips all five too, because it finds the command word through the same
+`commandStart`, and `tests/ledger-guard.test.js` pins that it refuses an editor behind every
+wrapper `run-trace.js` knows and a copy behind `rtk proxy`. `hooks/run-trace.js` reads a `git restore` or `git checkout` behind `rtk`
+through the same wrapper list. `hooks/green-gate.js` reads its merge, commit, and pull candidates through
+`commandStart` and `gitSubcommand` in `hooks/shell-words.js`, which skip `rtk` with its value-less global
+options and each of its five run-anything subcommands. RTK rewrites `git commit` to
 `rtk git commit`, so without the prefix a commit that concluded a conflicted merge ran no suite (#957).
 A rewrite by another hook that puts an unknown word in front of the command still hides the run.
 
@@ -134,18 +137,21 @@ read no command.
 
 An agent can still type the `rtk` prefix itself, and RTK runs the command behind it. `hooks/merge-guard.js`
 therefore takes the same optional `rtk`, with rtk's value-less global options, before `git` in its merge,
-push, and rebase matchers and before `gh` or `tea` in its pull-request merge and API merge matchers.
+push, rebase, pull, and subtree push checks and before `gh` or `tea` in its pull-request merge and API merge matchers.
 Without the prefix, a subagent's hand-typed `rtk git push` or `rtk gh pr merge` passed the guard (#958).
 rtk's run-anything subcommands, `proxy`, `err`, `run`, `summary`, and `test`, execute the command after
-them, so `RTK_PREFIX` also takes one of them, with its value-less options and an optional `--`
+them, so the prefix also takes one of them, with its value-less options and an optional `--`
 separator, after rtk's global options. The whole prefix repeats, so an rtk behind another rtk matches
 too. Without these, `rtk proxy git push`, `rtk proxy -- git push`, and `rtk proxy rtk git push` passed
-the guard. `tests/green-gate.test.js` pins the two hooks'
-`RTK_PREFIX` declarations byte-identical.
+the guard. The git checks of `hooks/green-gate.js` read it through `commandStart` and `gitSubcommand` in
+`hooks/shell-words.js`. `hooks/merge-guard.js` reads its git, `gh`, and `tea` checks past it through
+`commandStart` in the same module, and `RTK_PREFIX` in `hooks/merge-guard.js` serves its raw-text
+pull-request merge and API merge tests.
 
 **Fix required at:** no platform fix is due, because the hook sees the command that actually ran. A
-different rewriting hook needs its prefix added to the wrapper lists and to the `RTK_PREFIX` that
-`hooks/green-gate.js` and `hooks/merge-guard.js` both carry.
+different rewriting hook needs its prefix added to the wrapper table (`WRAPPER` in
+`hooks/shell-words.js`) and run-trace's wrapper list, to `gitSubcommand`, and to the `RTK_PREFIX` of
+`hooks/merge-guard.js`.
 
 Verified 2026-10-08, on Claude Code 2.1.289 and rtk 0.51.0. Two session transcripts of that day show
 RTK's PreToolUse hook rewriting `bun run test` to `rtk bun run test`, and the run-trace hook of superdev

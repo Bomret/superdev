@@ -21,8 +21,12 @@ event:
 
 - an edit, classified as test or implementation by the `## Test paths` globs in
   `docs/agents/verification.md`, or by default patterns where that section is absent;
-- a test run with its outcome (pass, fail, or unknown for a piped command) and the HEAD commit. A test
-  run is the full, focused, or whole-repo command, or a command that names a test-path file;
+- a test run with its outcome (pass, fail, or unknown for a piped command or a command line with a `!`
+  negation) and the HEAD commit. A test run is the full, focused, or whole-repo command, or a command
+  that names a test-path file; a command inside a function body records no run, and neither does any
+  command of a line whose function header takes a bare compound body (`f() case …`). Pass or fail is
+  recorded only for a plain list of simple commands, so a run inside `case`, `if`, `for`, a group, a
+  substitution, or after `[[ … ]]` reads unknown;
 - a revert or restore of implementation files through `git restore` or `git checkout -- <paths>`;
 - a subagent dispatch and its end, mapped to the run through the dispatch prompt (recorded from the
   `Agent` tool's events since 2026-10-08, see the update under the platform basis);

@@ -923,8 +923,8 @@ const LABEL_VALIDATION_CONTRACTS = [
 // the hook's timeout is killed mid-run — the gate then silently doesn't fire, exactly the failure it
 // exists to prevent. `hooks/hooks.json` sets the green-gate entry's own `timeout` to 600s, which is
 // also Claude Code's own default for a `command` hook: the entry states the ceiling where the suite
-// runs, and holds it if that default ever moves. The comment beside `IS_MERGE` in
-// `hooks/green-gate.js` names the same number and the same default. A comment that names a wrong
+// runs, and holds it if that default ever moves. The comments at the top of
+// `hooks/green-gate.js` and beside `readHookTimeoutMs` name the same number and the same default. A comment that names a wrong
 // default sends a consumer whose suite is too slow to the wrong knob, and a comment that no longer
 // names 600 documents a ceiling that no longer holds — either drift is silent everywhere else,
 // because the suite stays green until a run happens to exceed the ceiling.
@@ -2546,30 +2546,27 @@ const SUBMIT_PR_WHOLE_REPO_CONTRACTS = [
   ],
 ];
 
-// Three hooks parse the same shell-word shape out of a Bash command line: `merge-guard` and `green-gate`
-// to see past git's global options (`-C <path>`, `-c k=v`) to the verb, and `ledger-guard` to read a
-// write target. The token is one regex source string, duplicated by hand in each file, and a quoted,
-// backslash-escaped, or substitution-bearing argument (`$(…)`, `${…}`, a backtick group) is exactly what it
-// exists to keep whole — the bypass a narrower copy reopens is a guard that misses `git -C "my repo" merge`
-// or `git -C $(git rev-parse --show-toplevel)/wt merge`. Nothing links the three copies, so this pins
-// the literal: the canonical source below must appear verbatim in all three. The same shape as the
-// scope-slug charset assertion in `tests/scope.test.js`, and deliberately strict — a genuine
-// improvement to the token is meant to be applied to all three files and re-pinned here in one commit,
-// not to drift into one hook and be discovered by a bypass.
-// The token holds backtick groups, and a backtick cannot sit inside String.raw`…` — BT stands in for it.
-const BT = '`';
-const ARG_TOKEN_LINE = String.raw`const ARG = /(?:[^\s"'\\$${BT}]|\$(?![({])|\\.|"(?:[^"\\]|\\.)*"|'[^']*'|\$\((?:[^()\\]|\\.|\((?:[^()\\]|\\.)*\))*\)|\$\{(?:[^{}\\"'${BT}]|\\.|"(?:[^"\\]|\\.)*"|'[^']*'|${BT}(?:[^${BT}\\]|\\.)*${BT})*\}|${BT}(?:[^${BT}\\]|\\.)*${BT})+/.source;`;
-
-const ARG_TOKEN_PATTERN = new RegExp(ARG_TOKEN_LINE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+// The Bash hooks `merge-guard`, `green-gate`, `ledger-guard`, and `run-trace` read a command line through
+// the one shared scanner `hooks/shell-words.js` (ADR 0135). A hook that grows its own shell-word reader
+// reopens the quoted-argument and command-substitution bypasses the scanner closes, so each hook must
+// require the module and declare none of the reader's names itself. The pattern holds a negative
+// lookahead at the start of the text (no `m` flag, so `^` is the text start) and then the require.
+// The require counts only on a line that is no comment, ahead of any `//` on that line, and with any spacing inside its
+// parentheses. A reader name counts after `const`, `let`, `var`, or `function`, and as a later declarator of one statement
+// (`const x = 1, ARG = …`).
+const SHELL_WORDS_REQUIRE = String.raw`(?:^|\n)(?![ \t]*(?:\/\/|\/?\*))(?:(?!\/\/)[^\n])*?\brequire\(\s*(['"])\.\/shell-words\.js\1\s*\)`;
+const READER_NAME = String.raw`(?:ARG|RAW_ARG|STUCK|STUCK_MERGE|stripHeredocs)`;
+const OWN_READER_DECLARATION = String.raw`(?:\b(?:const|let|var|function)\s+${READER_NAME}\b|,\s*${READER_NAME}\s*=(?!=))`;
+const SCANNER_ONLY_PATTERN = new RegExp(`^(?![\\s\\S]*${OWN_READER_DECLARATION})[\\s\\S]*${SHELL_WORDS_REQUIRE}`);
 
 const ARG_TOKEN_EXPECTATION =
-  'carry the canonical ARG shell-word token verbatim — all three hooks parse the same shape, and a copy that drifts reopens the quoted-argument or the command-substitution bypass';
+  'require ./shell-words.js and declare no ARG, RAW_ARG, STUCK, STUCK_MERGE, or stripHeredocs of its own — a private shell-word reader reopens the quoted-argument or the command-substitution bypass';
 
 const ARG_TOKEN_CONTRACTS = [
-  [path.join('hooks', 'merge-guard.js'), ARG_TOKEN_PATTERN, ARG_TOKEN_EXPECTATION],
-  [path.join('hooks', 'green-gate.js'), ARG_TOKEN_PATTERN, ARG_TOKEN_EXPECTATION],
-  [path.join('hooks', 'ledger-guard.js'), ARG_TOKEN_PATTERN, ARG_TOKEN_EXPECTATION],
-  [path.join('hooks', 'run-trace.js'), ARG_TOKEN_PATTERN, ARG_TOKEN_EXPECTATION],
+  [path.join('hooks', 'merge-guard.js'), SCANNER_ONLY_PATTERN, ARG_TOKEN_EXPECTATION],
+  [path.join('hooks', 'green-gate.js'), SCANNER_ONLY_PATTERN, ARG_TOKEN_EXPECTATION],
+  [path.join('hooks', 'ledger-guard.js'), SCANNER_ONLY_PATTERN, ARG_TOKEN_EXPECTATION],
+  [path.join('hooks', 'run-trace.js'), SCANNER_ONLY_PATTERN, ARG_TOKEN_EXPECTATION],
 ];
 
 // `## Audit set` is a three-document agreement, the same shape as
@@ -8959,7 +8956,6 @@ module.exports = {
   WHOLE_REPO_SHIP_CONTRACTS,
   SUBMIT_PR_WHOLE_REPO_CONTRACTS,
   TIER_SKIP_CONTRACTS,
-  ARG_TOKEN_LINE,
   ARG_TOKEN_CONTRACTS,
   AUDIT_SET_CONTRACTS,
   CHAINED_CODE_REVIEW_CONTRACTS,

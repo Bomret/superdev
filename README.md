@@ -313,25 +313,51 @@ read ([ADR 0003](docs/adr/0003-doc-reconcile-runs-serially.md)).
 The hooks are cross-platform Node. Claude Code provides `node` as a runtime dependency, so there are no
 bash or PowerShell variants.
 
-- **merge-guard.** Blocks `git merge`, `git push`, `git rebase`, `gh pr merge`, `tea pr merge`, and a
+- **merge-guard.** Blocks `git merge`, `git push`, `git rebase`, `git pull`, `git subtree push`, a git
+  alias defined inline that runs one of them (`git -c alias.p=push p`), `gh pr merge`, `tea pr merge` (or tea's
+  `pulls merge` and `pull merge`, and its `m` alias), with options before `pr` and `merge` read past, and a
   `tea api` POST or `gh api` PUT or POST to a pull request's `/merge` endpoint from inside a subagent,
   scoped by `agent_id`. It blocks each of these behind an `rtk` prefix too, with or without one of rtk's run-anything
   subcommands (`proxy`, `err`, `run`, `summary`, `test`) after it, its `--` separator, or a second `rtk` (#958). A `curl` call to the
-  `/merge` endpoint stays a prose contract the subagent bodies carry. The guard also blocks an integrating command when a git global option value holds shell
-  syntax that the guard cannot read to its end. The options are `-C`, `-c`, any `--<name>=`, and
-  git's value-taking long options in either spelling: `--git-dir`, `--work-tree`, `--namespace`,
-  `--config-env`, `--shallow-file`, and `--attr-source`. Examples are nesting past one level, nested
-  arithmetic, and a nested `${…}` such as `${X:-${Y:-a b}}`. Some shapes the guard misreads still pass
-  (triage #814). The controller integrates.
+  `/merge` endpoint stays a prose contract the subagent bodies carry. The guard reads the command with one
+  shared shell scanner (ADR 0135): every command it holds, at every level, past `NAME=value` words and
+  prefix wrappers such as `env`, `sudo`, `nohup`, `xargs`, `exec`, `eval`, `flock`, and `taskset`. It reads the text of every
+  quoted word as a command line too, so `sh -c "git merge x"` and `ssh host "gh pr merge 1"` are blocked.
+  It blocks any heredoc body or here-string whose text names one of these, whatever command receives it
+  (`cat <<E`, `cat <<E | sh`, `cat <<E > >(sh)`, `ssh host <<E`). Two receivers are exempt when the command stands
+  alone on the line, behind no wrapper, with no pipe after it, and with no substitution, subshell, function body, group,
+  or compound command around it. The first is a file sink: `cat`, or `tee` with at most `-a`, whose output goes only to
+  plain files, such as `cat >> progress.md <<'E'`. The second is a message sink: `git commit -F -`,
+  `gh pr|issue … --body-file -`, or `tea issue|issues|pull|pulls|pr … --description-file -`, that opens no editor on its text:
+  a git commit with `-e`, `--edit`, or a `-c` or `--config-env` setting of `core.editor` or `sequence.editor`, and a `gh`
+  command with `-e` or `--editor`, are no sinks. A plain file is a path with no expansion and
+  no process substitution, under neither `/dev/` nor `/proc/`, with `/dev/null` allowed. A line that runs `exec`
+  exempts neither receiver. A sink's body is still blocked where the base hook blocked it: a line or `;`, `&`, `|` segment
+  that starts with `git` and later names a guarded verb, a line that starts with `gh pr merge` or `tea pr merge`, and an
+  API merge call. It reads the text an `echo` or `printf` writes as a
+  command line when a known shell reads it on stdin (`echo git push | sh`), also through `xargs sh -c` or an alias or a
+  function that runs a shell. The contents of a file piped to a shell stay unread. A git, `gh`, or `tea` command behind
+  `xargs` that stops before its verb is blocked, because `xargs` takes the verb from stdin.
+  Any quoted word, and any heredoc body or here-string no sink receives, whose text names one of these is blocked as well,
+  a known false positive: a grep pattern (`grep -rn "git merge" docs/`), a commit message
+  (`git commit -m "git push fails behind rtk"`), or a pull request body passed as a quoted word. A command the scanner cannot read to its end, and a quoted text that does not read as a
+  command line (a commit message with a parenthesis or an apostrophe), is blocked only when its raw text
+  holds the word `git` and, later, `merge`, `push`, `rebase`, or `pull`, or the word `gh` or `tea` and, later,
+  `pr merge`, `pulls merge`, or `pull merge`. A scanner that cannot load blocks the call and names the broken install. The controller
+  integrates.
 - **model-explicit.** Blocks a dispatch to a superdev subagent that omits an explicit `model`, so cost
   is always warrant-scaled.
 - **green-gate.** After a controller merge lands, runs the command
   [`references/test-selection.md`](plugin/references/test-selection.md) picks and reports a RED result to the
   controller, which fixes or reverts before the run continues. That file owns the full-versus-focused rule
   the gate follows. The merge has landed by then, so the gate cannot undo it. A merge counts as landed when
-  the top `HEAD` reflog entry of its tree reads `merge …` or `commit (merge)…`. The gate runs whether the
-  Bash call that landed the merge succeeded or failed, and after a `git commit` that concludes a conflicted
-  merge (ADR 0123). "Tests pass on scope after merging" is therefore checked by a hook, not merely
+  the top `HEAD` reflog entry of its tree reads `merge …`, `commit (merge)…`, or `pull …`. The gate runs whether the
+  Bash call that landed the merge succeeded or failed, after a `git commit` that concludes a conflicted
+  merge (ADR 0123), and after a `git pull` that landed a merge. It reads a merge behind a prefix wrapper
+  (`nice -n 5 git merge x`, `eval git merge x`) and through an alias defined inline (`git -c alias.m=merge m x`). The gate reads the text of a quoted word as a command line too, but a merge it finds
+  only there (`sh -c "git merge x"`, a `grep` for the words, or a commit message with an apostrophe that does
+  not read as a command line) runs the suite only for a landed merge the gate has not yet run the suite on. A heredoc body or
+  here-string naming a merge is read the same way, and a heredoc body a known shell reads on stdin is read as the command line it is. "Tests pass on scope after merging" is therefore checked by a hook, not merely
   prompted. A killed suite is reported too, rather than passing: a
   process the gate's own bound ended carries no verdict (INV-0009, ADR 0086). The gate spawns the
   suite under a bound from its hook ceiling. The gate, not the platform, ends a runaway suite and
@@ -360,21 +386,40 @@ bash or PowerShell variants.
   (triage #910). A stale lock (older than the staleness threshold) or no lock at all passes through,
   which covers a crash resume and a new run.
 - **ledger-guard.** Blocks the direct write shapes to a scope's `ledger.md`: an `Edit`, a `Write`, and a
-  `Bash` write (redirect, `tee`, `sed -i`, `cp`, `mv`, `install`, `ln`, `patch`, `rsync`) are all denied. An interpreter wrapper
-  and some substitution shapes still pass. Only `scripts/scope.js`, the run-state CLI that owns the
+  `Bash` write (a redirect, `<>` included, `tee`, `sed -i`, `cp`, `mv`, `install`, `ln`, `patch`, `rsync`, a `vim -es` script,
+  `curl -o`, `wget -O`, `ditto`, `xxd`, `tar -x`, or a recursive copy or extraction into a run root) are all denied. An interpreter
+  (`python`, `node`, `perl`, `ruby`) whose inline script names a ledger is denied too, a read included,
+  because only the language's own parser could tell the two apart; `cat <> L` is denied as well, a fail-closed false
+  positive. An interpreter that reads its script from a heredoc or here-string naming a ledger is denied too. An
+  interpreter whose script operand names a script file, such as `node scope.js deferred add - <<'E'`, reads that stdin as data.
+  The script operand is the first word past every option and option value (`node -r ./a.js`, `ruby -I ./lib`), and `-`,
+  `/dev/stdin`, `/dev/fd/0`, and `/proc/self/fd/0` name stdin, not a script file, and an operand holding no `.` or `/` is no script
+  file either. The interpreters that read stdin are `python` (with optional digits and dots, `python3.11`), `node`, `perl`, and
+  `ruby`, matched by basename; an inline script makes stdin judged too. On a line that runs an interpreter reading
+  its script from stdin, any heredoc body, here-string, or `echo`/`printf` word naming a ledger is denied, wherever it sits
+  (`cat <<E | python3`, `echo "…" | node -`), a fail-closed reading. Two fail-closed false positives are accepted: a script
+  operand held in a variable (`node "$S" … -`) reads as no script file, so its piped body is judged; and text naming a ledger
+  is denied beside a stdin interpreter on the same line even when that text goes elsewhere.
+  The hook reads every Bash command through the shared shell scanner, and it reads nested substitutions and the text of
+  quoted words as command lines. It also reads a heredoc body, a here-string, or `echo`/`printf` text that a known shell
+  reads on stdin, directly or indirectly (`cat <<E | sh`, `cat <<E > >(sh)`, `sh -c "$(cat)"`, `exec 3<<E; sh <&3-`). Any
+  other heredoc body or here-string is data, so prose piped into `cat`, `git commit -F -`, or `scope.js … -` passes. An unreadable command is denied only when its raw text names a ledger path. A quoted text that does not read as a
+  command line is denied only when it names a ledger path and holds a write form. A command that names a ledger
+  path and writes it when read as dash reads `((` is denied: the guard reads a command as written and again with each `((` that is no `$((` spread to `( (`. A scanner that fails to load denies the Bash call. Only `scripts/scope.js`, the run-state CLI that owns the
   ledger's schema, may write it. A write to the run trace (`trace.log`) is refused the same way, because
   only the hooks and `scripts/scope.js` write it.
 - **run-trace.** A hook that records every file edit of a run into the run trace
   (`<run-root>/trace.log`), through the edit tools and through a shell write (redirect, `tee`, `sed -i`,
   `cp`, `mv`, `install`, `git apply`). Each line names its slice, its agent, and whether the file is a
   test or an implementation, by the `## Test paths` section of `docs/agents/verification.md` or the default
-  patterns. It also records each test run with its outcome (a run in the background or behind a pipe reads
-  `unknown`). A test run counts only where the configured test command stands at command position. The hook
+  patterns. It also records each test run with its outcome (a run in the background, behind a pipe, or in a
+  command line with a `!` negation, or inside compound structure or a substitution reads `unknown`; only a plain list of simple commands reads pass or fail). A command inside a function body, or anywhere in a line whose function takes a bare compound body, records no run. A test run counts only where the configured test command stands at command position. The hook
   records nothing for a quoted mention. A full or whole-repo command with extra argument words records as a
   focused run. The hook also records each revert or restore of files, and each subagent dispatch and its end. After an
   implementation edit or a passing run on a `behavior` slice, it adds a Missing RED note when the latest
   test edit has no failing run since. The hook registers on `PreToolUse` for the `Agent` tool, `PostToolUse`,
-  `PostToolUseFailure`, and `SubagentStop`. An edit outside every run root records nothing. A write behind
+  `PostToolUseFailure`, and `SubagentStop`. An edit outside every run root records nothing. A write inside a
+  function body records at the definition, and a write in a heredoc body a known shell reads on stdin records too. A write behind
   `bash -c` or a variable passes unseen. The hook never blocks a tool call.
 - **slicetree-sweep.** A `Stop` hook that removes each slicetree and branch once its slice is
   fully merged. Finished slicetrees therefore cannot pile up when the controller skips the prompted

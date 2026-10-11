@@ -15,7 +15,7 @@ const { assertSpawnDecided } = require('./spawn-verdict');
 const { inProgressSlices, appendTrace, isTestPath } = require('../plugin/scripts/scope.js');
 
 const hookPath = require.resolve('../plugin/hooks/run-trace.js');
-const { record, bashTargets, ARG, verificationKind } = require(hookPath);
+const { record, bashTargets, verificationKind, testRuns } = require(hookPath);
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'run-trace-'));
 const ledger = (rows) =>
@@ -172,6 +172,39 @@ assert.deepEqual(bashTargets("echo $$'a\\' '<<EOF' \\'\necho hi > out.txt", '/r'
 assert.deepEqual(bashTargets("echo $$$$'a\\' '<<EOF' \\'\necho hi > out.txt", '/r'), [path.resolve('/r', 'out.txt')]);
 assert.deepEqual(bashTargets("echo $$$'it\\'s'\ncat > f <<EOF\nfoo > bar\nEOF", '/r'), [path.resolve('/r', 'f')]);
 
+// A `cd` inside a subshell or substitution moves nothing outside it; a brace group runs in the current shell.
+assert.deepEqual(bashTargets('(cd sub); echo > b', '/r'), [path.resolve('/r', 'b')]);
+assert.deepEqual(bashTargets('echo $(cd sub); echo > b', '/r'), [path.resolve('/r', 'b')]);
+assert.deepEqual(bashTargets('{ cd sub; }; echo > b', '/r'), [path.resolve('/r', 'sub/b')]);
+assert.deepEqual(bashTargets('(cd sub; echo > b)', '/r'), [path.resolve('/r', 'sub/b')]);
+// A backtick body runs where its backtick stands, before the `cd` that follows it.
+assert.deepEqual(bashTargets('echo `cat > f`; cd a', '/r'), [path.resolve('/r', 'f')]);
+// A heredoc body expands when its opener's command runs, before the `cd` that follows on the line.
+assert.deepEqual(bashTargets('cat <<EOF; cd a\n$(echo > x)\nEOF', '/r'), [path.resolve('/r', 'x')]);
+// `$[ … ]` is arithmetic: its `>` is no redirect.
+assert.deepEqual(bashTargets('echo $[1>2]', '/r'), []);
+// The substitutions and backtick groups a `$[ … ]` holds run, so their writes record.
+assert.deepEqual(bashTargets('echo $[1+$(echo x > f)]', '/r'), [path.resolve('/r', 'f')]);
+assert.deepEqual(bashTargets('echo $[1+`echo x > g`]', '/r'), [path.resolve('/r', 'g')]);
+// bash reads quotes inside `$[ … ]`, so a quoted `]` closes nothing and the substitution after it runs.
+assert.deepEqual(bashTargets("echo $[ ']' + $(cat a > b) + '' ]", '/r'), [path.resolve('/r', 'b')]);
+assert.deepEqual(bashTargets('echo $[ "]" + $(cat a > c) ]', '/r'), [path.resolve('/r', 'c')]);
+// bash reads quotes inside `$(( … ))` too, so a quoted `)` closes nothing and the substitution after it runs.
+assert.deepEqual(bashTargets('echo $(( ")" + $(cat a > d) ))', '/r'), [path.resolve('/r', 'd')]);
+// Sibling subshells do not share a directory: the `group` id tells them apart.
+assert.deepEqual(bashTargets('(cd a); (echo > x)', '/r'), [path.resolve('/r', 'x')]);
+// `<>` opens its target for writing, creating it.
+assert.deepEqual(bashTargets('exec 3<>f', '/r'), [path.resolve('/r', 'f')]);
+// An unquoted heredoc body's substitutions are scanned, so a write inside one records beside the redirect.
+assert.deepEqual(bashTargets('cat <<EOF > f\n$(echo > x)\nEOF', '/r').sort(), [path.resolve('/r', 'f'), path.resolve('/r', 'x')].sort());
+// A heredoc body a known shell reads on stdin is a command line (#1016): its writes record, and its `cd` moves only the child shell.
+assert.deepEqual(bashTargets("bash <<'E'\necho x > f\nE", '/r'), [path.resolve('/r', 'f')]);
+assert.deepEqual(bashTargets('cat <<E | sh\ncp a f\nE', '/r'), [path.resolve('/r', 'f')]);
+// A delimiter line ending in the `)` of its substitution closes both, as bash reads it.
+assert.deepEqual(bashTargets('x=$(cat > f <<E\nx\nE)', '/r'), [path.resolve('/r', 'f')]);
+assert.deepEqual(bashTargets('bash <<E\ncd a; echo x > f\nE\necho > g', '/r'), [path.resolve('/r', 'a/f'), path.resolve('/r', 'g')]);
+assert.deepEqual(bashTargets("cat > n <<'E'\necho x > f\nE", '/r'), [path.resolve('/r', 'n')], 'a body no shell reads is data');
+
 // The command word must be in command position: arguments named like a command record nothing.
 for (const cmd of ['npm install lodash', 'echo cp a b', 'grep sed x']) {
   reset();
@@ -198,6 +231,88 @@ assert.equal(trace(A).length, 0, 'git add mv x records nothing (mv is not subcom
 fs.mkdirSync(path.join(S3, 'src', 'sub'), { recursive: true });
 bash('git -C sub mv ../d/c.js w.js', S3src);
 assert.deepEqual(trace(A).map((l) => l[4]), ['src/sub/w.js'], 'git -C <dir> mv still records');
+
+// The shared scanner reads the command: a redirect in a substitution records its own target (#947).
+assert.deepEqual(bashTargets('echo $(cat a > b)', '/r'), [path.resolve('/r', 'b')]);
+assert.deepEqual(bashTargets('echo `cat a > b`', '/r'), [path.resolve('/r', 'b')]);
+// A `>` in awk's quoted program is data (#968), and so is one in arithmetic or a `case` pattern (#988).
+for (const cmd of ["awk 'NR>2680' f", "awk -F: '$1>2280 && $1<2620' f", 'echo $((x>0))', 'case $x in 0) echo a;; esac', 'case x in\n  0)\n    echo a;;\nesac']) {
+  assert.deepEqual(bashTargets(cmd, '/r'), [], cmd);
+}
+// An fd redirect or duplication records no descriptor path, and a write to /dev/null records nothing.
+for (const cmd of ['cmd 2>/dev/null', 'cmd >&2', 'cmd 2>&1', 'cmd >/dev/null 2>&1', 'cmd &>/dev/null']) {
+  assert.deepEqual(bashTargets(cmd, '/r'), [], cmd);
+}
+assert.deepEqual(bashTargets('cmd 2>err.log', '/r'), [path.resolve('/r', 'err.log')]);
+assert.deepEqual(bashTargets('cmd &>all.log', '/r'), [path.resolve('/r', 'all.log')]);
+// A heredoc opener followed by a backslash-newline continuation: the body is data and the continued words are read (#950).
+assert.deepEqual(bashTargets('cat <<EOF \\\n> f\nx > not\nEOF', '/r'), [path.resolve('/r', 'f')]);
+// A `#` in the middle of a word starts no comment (#954); a `#` at a word start does.
+assert.deepEqual(bashTargets('echo a#b > f', '/r'), [path.resolve('/r', 'f')]);
+assert.deepEqual(bashTargets('echo a # b > f', '/r'), []);
+// An unreadable command records nothing.
+assert.deepEqual(bashTargets('echo "unclosed > f', '/r'), []);
+assert.deepEqual(bashTargets('echo $(cat > f', '/r'), []);
+assert.deepEqual(bashTargets('cat <<EOF > f\nbody', '/r'), []);
+// `cd` and `git -C` still re-base what the scanner returns.
+assert.deepEqual(bashTargets('cd sub && tee f', '/r'), [path.resolve('/r', 'sub', 'f')]);
+assert.deepEqual(bashTargets('git -C sub mv a b', '/r'), [path.resolve('/r', 'sub', 'b')]);
+// ARG and stripHeredocs are no exports.
+assert.equal(require(hookPath).ARG, undefined);
+assert.equal(require(hookPath).stripHeredocs, undefined);
+
+// With shell-words.js unloadable, or scan throwing, the hook records nothing; a control run records.
+{
+  const preload = path.join(tmp, 'preload.js');
+  const write = path.join(S3, 'src', 'unloadable.js');
+  // `setup` runs in-process first, scanner loadable; `events` are recorded in the spawned hook; returns the lines `events` added.
+  const hookRuns = (patch, events, setup) => {
+    fs.writeFileSync(preload, patch);
+    reset();
+    if (setup) setup();
+    const before = trace(A).length;
+    const evs = events || [{ tool_name: 'Bash', tool_input: { command: `echo x > ${write}` }, cwd: tmp }];
+    const code = `const { record } = require(${JSON.stringify(hookPath)}); for (const e of ${JSON.stringify(evs)}) record(e);`;
+    const r = cp.spawnSync(process.execPath, ['-r', preload, '-e', code], { encoding: 'utf8', timeout: 10000 });
+    assertSpawnDecided(r, 'run-trace.js with a broken scanner');
+    assert.equal(r.status, 0, r.stderr);
+    return trace(A).slice(before).map((l) => l[2]);
+  };
+  const intercept = (body) => `const M = require('module'); const load = M._load; M._load = function (req, ...a) { if (/shell-words/.test(req)) { ${body} } return load.call(this, req, ...a); };`;
+  const unloadable = intercept("throw new Error('gone');");
+  assert.deepEqual(hookRuns(''), ['edit'], 'control: the write records');
+  assert.deepEqual(hookRuns(unloadable), [], 'shell-words.js unloadable records nothing');
+  assert.deepEqual(hookRuns(intercept('return { scan() { throw new Error("boom"); } };')), [], 'scan throwing records nothing');
+  // A non-Bash event records nothing either (INV-0140): a bound slice-reviewer's hand-back and stop write no verdict and no end.
+  const bound = () => {
+    run({ hook_event_name: 'PreToolUse', tool_name: 'Agent', tool_use_id: 'ur1', tool_input: { prompt: `${S3}`, subagent_type: 'superdev:slice-reviewer', description: 'review' }, cwd: tmp });
+    run({ hook_event_name: 'PostToolUse', tool_name: 'Agent', tool_use_id: 'ur1', tool_response: { status: 'async_launched', agentId: 'aur1' }, cwd: tmp });
+  };
+  const review = [
+    { hook_event_name: 'PostToolUse', tool_name: 'SubagentHandback', agent_id: 'aur1', agent_type: 'superdev:slice-reviewer', tool_input: { message: '### Verdict: specification ✅ | quality: approved' }, cwd: tmp },
+    { hook_event_name: 'SubagentStop', agent_id: 'aur1', agent_type: 'superdev:slice-reviewer', cwd: tmp },
+  ];
+  assert.deepEqual(hookRuns('', review, bound), ['verdict', 'dispatch-end'], 'control: the review records its verdict and end');
+  assert.deepEqual(hookRuns(unloadable, review, bound), [], 'shell-words.js unloadable records no verdict and no dispatch-end');
+  reset();
+}
+
+// Linear time (ADR 0086): four times the input takes about four times as long when linear and sixteen times when quadratic, against
+// a same-run baseline; the ceiling sits at nine, between them. A long command; one shell command holding many heredoc process
+// substitutions, whose words are read once, not once per substitution; and commands at a rising subshell depth, where each subshell
+// instance starts in the directory of the one around it, read in constant time, not by a walk over every depth.
+{
+  const { timePair } = require('./linear-time');
+  for (const [label, make] of [
+    ['a long command', (n) => 'echo $(echo $(cat a > b)) "x > y" | tee c; '.repeat(n / 4)],
+    ['many heredoc process substitutions', (n) => 'sh ' + '<(cat <<E\nx\nE\n) '.repeat(n / 2)],
+    ['nested $(', (d) => 'echo ' + '$('.repeat(d) + 'echo x' + ')'.repeat(d)],
+    ['nested "$( with a shell-fed heredoc', (d) => 'cat <<E | sh\ntrue\nE\necho ' + '"$('.repeat(d) + 'echo x' + ')"'.repeat(d)],
+  ]) {
+    const [base, big] = timePair((c) => bashTargets(c, '/r'), make(4000), make(16000));
+    assert.ok(big < base * 9, `${label}: time grows linearly: ${base} ns, four times the input ${big} ns`);
+  }
+}
 
 // Test paths: defaults without a section; a configured section overrides; a malformed entry is skipped.
 reset();
@@ -510,12 +625,79 @@ reset();
 for (const c of ['bash -c "bun run test"', 'xargs bun run test', 'npx bun run test']) post(c);
 assert.deepEqual(trace(A), [], 'a quoted or indirect test command records no run');
 
+// A substitution inside the test's own command is no later stage; a command after a subshell run is.
+reset();
+post('bun run test $(cat x)');
+post('(bun run test) && echo ok');
+assert.deepEqual(trace(A).map((l) => l.slice(3, 5).join(' ')), ['focused pass', 'full unknown'], 'the substitution word narrows the run and ends nothing');
+
 // `!` inverts the exit status, so the outcome of a negated run names no pass or fail (INV-0017).
 reset();
 post('! bun run test');
 post('if ! bun run test; then echo bad; fi');
 fail('! bun run test');
 assert.deepEqual(trace(A).map((l) => l.slice(3, 5).join(' ')), ['full unknown', 'full unknown', 'full unknown'], 'a negated run reads unknown on both events');
+// The `!` holds behind a keyword and in front of a group.
+reset();
+for (const c of ['! { bun run test; }', '! time bun run test', '! (bun run test)']) fail(c);
+assert.deepEqual(trace(A).map((l) => l.slice(3, 5).join(' ')), ['full unknown', 'full unknown', 'full unknown'], 'a negated group or keyword run reads unknown');
+// A `!` before a group negates the group's last command, so any negated command ahead of the test makes its status unknown.
+reset();
+const negGroups = ['! { cd sub; bun run test; }', '! (cd sub && bun run test)', '! { set -e; bun run test; }', '! { true; bun run test; }', '! (true; bun run test)'];
+for (const c of negGroups) { post(c); fail(c); }
+assert.deepEqual(trace(A).map((l) => l.slice(3, 5).join(' ')), negGroups.flatMap(() => ['full unknown', 'full unknown']), 'a run behind a negated group reads unknown on both events');
+
+// Any unquoted `!` negation in the command line makes every test run of it unknown, wherever the negation lands.
+reset();
+const negLines = ['! case x in *) bun run test;; esac', '! case x in *) true; bun run test;; esac', '! if true; then bun run test; fi', '! while false; do :; done; bun run test',
+  '! { cd sub; bun run test; }', '! [[ -n x ]] || bun run test'];
+for (const c of negLines) { post(c); fail(c); }
+assert.deepEqual(trace(A).map((l) => l.slice(3, 5).join(' ')), negLines.flatMap(() => ['full unknown', 'full unknown']), 'a `!` anywhere in the line reads every run unknown');
+// A `!` in quotes, in `[[ ]]` operands, or inside a word is no negation.
+for (const c of ['[[ a != b ]] && bun run test', "echo '!' ; bun run test", '[[ ! -n x ]] && bun run test', 'echo a!b && bun run test']) {
+  assert.deepEqual(testRuns(c, S3).map((r) => r.unknown), [false], c);
+}
+
+// A function definition runs nothing: its body records no run, restore, or `scope.js test` call.
+reset();
+for (const c of ['x() { bun run test; }', 'function x { bun run test; }', 'function x () { bun run test; }', 'x() { bun run test; }; x']) { post(c); fail(c); }
+assert.deepEqual(trace(A), [], 'a test inside a function body records no run');
+
+// A function header with a body that is no group records no run on either event.
+reset();
+for (const c of ['f() case x in *) bun run test;; esac', 'f() for i in 1; do bun run test; done', 'f() if true; then bun run test; fi', 'f() while false; do bun run test; done',
+  'f() until true; do bun run test; done', 'f() select x in 1; do bun run test; done', 'f() [[ -n x ]]; bun run test', 'f() (( 1 )); bun run test']) { post(c); fail(c); }
+assert.deepEqual(trace(A), [], 'a bare compound function body records no run');
+
+// A run records pass or fail only in a plain list of simple commands: a test inside compound structure or a substitution reads unknown.
+reset();
+const compoundLines = ['case $(bun run test) in *) ;; esac', 'case "$(bun run test)" in *) ;; esac', 'case `bun run test` in *) ;; esac', 'case x in $(bun run test)) ;; esac',
+  'if true; then bun run test; fi', 'for i in 1; do bun run test; done', '{ bun run test; }', '(bun run test)', '[[ -n x ]] && bun run test'];
+for (const c of compoundLines) { post(c); fail(c); }
+assert.deepEqual(trace(A).map((l) => l.slice(3, 5).join(' ')), compoundLines.flatMap(() => ['full unknown', 'full unknown']), 'a run in compound structure reads unknown on both events');
+// A coprocess runs asynchronously and the line exits at once, so the status is not the test's.
+reset();
+const asyncLines = ['coproc bun run test', 'time coproc bun run test', 'set -o pipefail; coproc bun run test | cat'];
+for (const c of asyncLines) { post(c); fail(c); }
+assert.deepEqual(trace(A).map((l) => l.slice(3, 5).join(' ')), asyncLines.flatMap(() => ['full unknown', 'full unknown']), 'a coprocess run reads unknown on both events');
+// A backtick body runs before the command it sits in, so its commands come first in the list as in the `$( )` spelling.
+reset();
+const tickLines = ['cd `echo nowhere` && bun run test', 'set `echo x`; bun run test | cat'];
+for (const c of tickLines) { post(c); fail(c); }
+assert.deepEqual(trace(A).map((l) => l.slice(3, 5).join(' ')), tickLines.flatMap(() => ['full unknown', 'full unknown']), 'a run after a backtick body reads unknown on both events');
+// A heredoc body's commands (`exit 1` in a substitution) are no test paths and leave no run of their own.
+reset();
+fail('cd tests <<EOF && bun run test\n$(exit 1)\nEOF');
+assert.deepEqual(trace(A).map((l) => l.slice(3, 5).join(' ')), ['full unknown'], 'a heredoc body adds no run line');
+// A plain list keeps its outcome.
+reset();
+for (const c of ['bun run test', 'cd sub && bun run test', 'set -o pipefail; bun run test | tail -5']) { post(c); fail(c); }
+assert.deepEqual(trace(A).map((l) => l.slice(3, 5).join(' ')), ['full pass', 'full fail', 'full pass', 'full fail', 'full pass', 'full fail'], 'a plain list of simple commands keeps pass and fail');
+
+// A function body's writes record at its definition, since a call of it later writes them; its `cd` moves nothing outside it.
+assert.deepEqual(bashTargets('f() { echo x > out; }; f', S3), [path.join(S3, 'out')], 'a function body write records');
+assert.deepEqual(bashTargets('function f { cp a out; }; f', S3), [path.join(S3, 'out')], 'a `function` body write records');
+assert.deepEqual(bashTargets('f() { cd sub; }; echo > out', S3), [path.join(S3, 'out')], 'a function body cd moves nothing at definition');
 
 // The wrappers `timeout` and `env` take `--` and their option flags before the command.
 reset();
@@ -577,17 +759,6 @@ for (const [template, command] of [['node scripts/run-tests.js --related {paths}
   assert.equal(r.status, 1, `a focused run alone is no full-suite evidence (${template})`);
   assert.ok(/no full or whole run/.test(r.stderr), r.stderr);
   fs.rmSync(root, { recursive: true, force: true });
-}
-
-// The shell-word token is a copy of the Bash hooks' (hooks stay standalone): pin it.
-{
-  const sibling = (name) => fs.readFileSync(path.join(path.dirname(hookPath), name), 'utf8');
-  const argOf = (text) => (text.match(/^const ARG = \/(.*)\/\.source;$/m) || [])[1];
-  assert.ok(argOf(sibling('merge-guard.js')), 'merge-guard.js declares its ARG token where this pin expects it');
-  const pinned = (copy, original) => copy === original;
-  assert.ok(pinned(ARG, argOf(sibling('merge-guard.js'))), 'run-trace ARG is byte-identical to merge-guard ARG');
-  // The pin's comparison rejects a diverged copy.
-  assert.ok(!pinned(ARG.replace(')+', ')*'), argOf(sibling('merge-guard.js'))), 'a mutated ARG fails the pin');
 }
 
 // No verification.md: no full run, still a path run.

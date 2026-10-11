@@ -12,7 +12,9 @@ const cp = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
 
 const hookPath = require.resolve('../plugin/hooks/ledger-guard.js');
-const { decide, ARG } = require(hookPath);
+const { decide } = require(hookPath);
+// The shell-word token the base (338163f6) hook carried, kept here for the differential block below.
+const ARG = /(?:[^\s"'\\$`]|\$(?![({])|\\.|"(?:[^"\\]|\\.)*"|'[^']*'|\$\((?:[^()\\]|\\.|\((?:[^()\\]|\\.)*\))*\)|\$\{(?:[^{}\\"'`]|\\.|"(?:[^"\\]|\\.)*"|'[^']*'|`(?:[^`\\]|\\.)*`)*\}|`(?:[^`\\]|\\.)*`)+/.source;
 
 const file = (file_path) => decide({ tool_input: { file_path } });
 const bash = (command) => decide({ tool_input: { command } });
@@ -35,7 +37,7 @@ assert.equal(bash('echo x > ".superdev/scopes/demo/ledger.md"').block, true, 'do
 assert.equal(bash("echo x >> '.superdev/scopes/demo/ledger.md'").block, true, 'single-quoted append denied');
 assert.equal(bash('echo x > .superdev/scopes/my\\ demo/ledger.md').block, true, 'backslash-escaped path denied');
 assert.equal(bash('echo x > $(printf %s .superdev/scopes/a/ledger.md)').block, true, 'redirect to a command substitution holding spaces denied');
-// a redirect target whose substitution ARG cannot balance is still judged on its raw text
+// a redirect target behind nested substitutions or arithmetic is denied
 for (const target of ['$((1+(2)))/@', '$(a$(b$(c)))/@', '/x$((1*(2)))/@', '$((1+(2)))"/my dir/@"', '$((1+(2)))/my\\ dir/@', "$(a$(b$(c)))'/x y/@'", 'x$((1+(2)))"/a b/@"']) {
   assert.equal(bash('echo x > ' + target.replace('@', L)).block, true, 'redirect behind an unbalanced substitution denied: ' + target);
 }
@@ -47,7 +49,7 @@ for (const verb of ['cat new | tee @', 'cat new | tee -a @', 'cp new @', 'mv new
     }
   }
 }
-// a ledger path crossing a space inside a balanced substitution is read by ARG alone: RAW_ARG splits it
+// a ledger path crossing a space inside a balanced substitution is one word
 for (const verb of ['cat new | tee @', 'cat new | tee -a @', 'cp new @', 'mv new @', 'install -m 644 new @', "sed -i 's/a/b/' @"]) {
   for (const sub of ['$(echo a b)', '${X:-a b}', '`echo a b`']) {
     const target = '.superdev/scopes/' + sub + '/' + 'ledger.md';
@@ -115,15 +117,6 @@ assert.equal(bash('sed -n "1,5p" ' + L).block, false, 'sed without -i passes');
 assert.equal(bash('echo hi > /tmp/out.txt').block, false, 'redirect elsewhere passes');
 assert.equal(bash('bun run test').block, false, 'unrelated bash passes');
 
-// ARG mirrors merge-guard's token (comment at the declaration); hooks stay standalone, so pin the
-// copy against the canonical one instead of sharing it — silent drift would be a bug.
-{
-  const sibling = fs.readFileSync(path.join(path.dirname(hookPath), 'merge-guard.js'), 'utf8');
-  const m = sibling.match(/^const ARG = \/(.*)\/\.source;$/m);
-  assert.ok(m, 'merge-guard.js declares its ARG token where this pin expects it');
-  assert.equal(ARG, m[1], 'ledger-guard ARG is byte-identical to merge-guard ARG');
-}
-
 // require.main guard: requiring this hook never runs main()'s stdin/decide dispatch, and
 // spawning it directly (as Claude Code's hook invocation does) decides.
 {
@@ -152,7 +145,7 @@ assert.equal(bash('bun run test').block, false, 'unrelated bash passes');
   }
   assert.equal(bash('cat ' + T).block, false, 'a read passes');
   assert.equal(bash('node scope.js trace --root /r/.superdev/scopes/demo').block, false, 'a scope.js call passes');
-  // A heredoc body is data: prose naming cp, tee, and ledger/trace paths passes; a real write still blocks.
+  // A heredoc body no shell reads is data: prose naming cp, tee, and ledger/trace paths passes; a real write still blocks.
   const prose = 'cp and tee write ' + L + ' and ' + T;
   assert.equal(bash("cat > notes.md <<'EOF'\n" + prose + '\nEOF').block, false, 'quoted heredoc body passes');
   assert.equal(bash('cat > notes.md <<-EOF\n\t' + prose + '\n\tEOF').block, false, 'indented heredoc body passes');
@@ -217,7 +210,7 @@ const INPLACE_DENY = [
   // A tool behind a prefix wrapper is in command position, at the top level and inside a shell string.
   'sudo perl -pi -e x @', 'sudo ed @', 'sudo -u bob perl -pi -e x @', 'env perl -pi -e x @', 'env FOO=1 ed @', 'env -u X ex @', 'xargs perl -pi -e x < @',
   'xargs -n 1 ed @', 'nice ed @', 'nice -n 5 ed @', 'nohup ed @', 'command ed @', 'time ed @', 'timeout 5 ed @', 'timeout -s KILL 5 perl -pi -e x @', 'sudo env nice ed @',
-  'rtk ed @', 'rtk sed -i p @', 'sudo -- ed @', 'sudo truncate -s 0 @', 'nice sort -o @ @',
+  'rtk ed @', 'rtk sed -i p @', 'rtk proxy cp a @', 'rtk -v run ed @', 'sudo -- ed @', 'sudo truncate -s 0 @', 'nice sort -o @ @', 'eval cp /tmp/x @', 'eval ed @',
   // An ANSI-C `$'…'` word is a quoted string, so a shell reads its content as a command line.
   "bash -c $'perl -pi -e x @'", "sh -c $'sed -i x @'", "bash -c $'sudo ed @'", 'bash -c $"perl -pi -e x @"',
   // `truncate -r REF FILE` sizes FILE from REF, so FILE is written; the reference file is only read.
@@ -260,6 +253,7 @@ const INTO_ROOT = ['cp -t R /tmp/B', 'cp --target-directory=R /tmp/B', 'cp --tar
 const wrap = (c) => {
   const q = !c.includes("'") ? "'" : !c.includes('"') ? '"' : null;
   const shells = q ? ['sh', 'bash'].flatMap((sh) => [sh + ' -c ' + q + c + q, sh + ' -c ' + q + '(' + c + ')' + q]) : [];
+  // `((c))` reads as arithmetic in bash and as nested subshells in dash, so the guard also reads the command with `((` spread to `( (`.
   return [c, '(' + c + ')', 'echo $(' + c + ')', '`' + c + '`', '{ ' + c + '; }', 'echo "$(' + c + ')"', 'x=$(' + c + ')', 'x=`' + c + '`', 'FOO="$(' + c + ')"', 'echo "`' + c + '`"', 'cat <(' + c + ')', 'cat >(' + c + ')', ...shells];
 };
 {
@@ -281,7 +275,7 @@ const wrap = (c) => {
       'dd if=@', 'truncate -s 0 /tmp/x', 'grep awk @', 'grep truncate @', 'grep sort @', 'grep dd @', "sh -c 'sort -o /tmp/x @'",
       "sh -c 'dd if=@ of=/tmp/x'", 'FOO=1 sort @', "\\awk '{print}' @",
       "awk '/ -i inplace/' @", "awk -F: '/ -i inplace/' @", "awk '/ --include inplace/' @",
-      "echo '$(perl -pi -e x @)'", "echo '`perl -pi -e x @`'", 'echo "$(cat @)"', 'x=$(sort @)', "bash -c 'for f in @; do cat $f; done'",
+      'echo "$(cat @)"', 'x=$(sort @)', "bash -c 'for f in @; do cat $f; done'",
       'rg x @', "rg --pre-glob '*.md' x @", 'sudo cat @', 'env sed -n 1p @', 'nice sort @', 'nice -n 5 sort @', 'xargs cat < @', 'sudo -u bob cat @', 'timeout 5 grep a @', "bash -c 'sudo cat @'",
       "bash -c 'env sed -n 1p @'", "bash -c $'sed -n 1p @'", "bash -c $'cat @'", 'sudo sort -o /tmp/x @', 'env FOO=1 grep ed @', 'command -v sed',
       'truncate -r @ /tmp/x', 'truncate --reference=@ /tmp/x', 'truncate --reference @ /tmp/x', 'truncate -r @ -s 0 /tmp/x', 'sudo --user bob cat @',
@@ -347,38 +341,14 @@ const wrap = (c) => {
   assert.ok(elapsed < 120000, 'wrapper runs must resolve quickly, took ' + elapsed + 'ms');
 }
 
-// The two hooks agree on the wrapper names they share (each keeps its own copy, hooks stay standalone): every wrapper
-// run-trace reads a test run behind is a wrapper or keyword here.
+// Every wrapper run-trace reads a test run behind is skipped here too: an editor behind it is refused.
 {
   const traceSrc = fs.readFileSync(path.join(path.dirname(hookPath), 'run-trace.js'), 'utf8');
-  const guardSrc = fs.readFileSync(hookPath, 'utf8');
   const traceNames = /^const WRAPPERS = \/\^\(\?:([^)]*)\)\$\/;$/m.exec(traceSrc)[1].split('|').concat('timeout');
-  const guardNames = [...guardSrc.matchAll(/^ {2}\['([a-z]+)', new Set\(/gm)].map((m) => m[1]);
-  const keywords = /^const KEYWORD = \/\^\(\?:([^)]*)\)\$\/;$/m.exec(guardSrc)[1].split('|');
-  assert.ok(traceNames.length >= 7 && guardNames.length >= 11, 'both lists are read: ' + traceNames + ' / ' + guardNames);
-  for (const name of traceNames) assert.ok(guardNames.includes(name) || keywords.includes(name), 'ledger-guard knows the wrapper run-trace knows: ' + name);
+  assert.ok(traceNames.length >= 7, 'run-trace\'s list is read: ' + traceNames);
   for (const name of traceNames) {
     const cmd = name + ' perl -pi -e x ' + L;
     assert.equal(bash(cmd).block, true, 'an editor behind run-trace\'s wrapper is refused: ' + cmd);
-  }
-  // The value-option sets and the option reader are copies too: each name run-trace lists takes the same options here, and both
-  // readers find the same command word. `time` is a KEYWORD here, so it has no set to compare.
-  const lift = (src, re) => new Function('return ' + re.exec(src)[1])();
-  const traceOpts = lift(traceSrc, /^const WRAPPER_VALUE_OPTS = (new Map\(\[[\s\S]*?\n\]\));$/m);
-  const guardOpts = lift(guardSrc, /^const WRAPPER = (new Map\(\[[\s\S]*?\n\]\));$/m);
-  const optionEnd = lift(traceSrc, /^(function optionEnd[\s\S]*?\n\})$/m);
-  const optionWords = lift(guardSrc, /^(function optionWords[\s\S]*?\n\})$/m);
-  assert.ok(traceOpts.size >= 4, 'run-trace\'s option sets are read: ' + [...traceOpts.keys()]);
-  for (const [name, opts] of traceOpts) {
-    if (name === 'time') continue;
-    assert.deepEqual([...opts].sort(), [...guardOpts.get(name)].sort(), 'the value options of ' + name + ' agree');
-  }
-  const sudo = guardOpts.get('sudo');
-  for (const ws of [['-iu', 'bob'], ['-uroot'], ['-n5'], ['-n', '5'], ['--user=x'], ['--user', 'x'], ['--'], ['-E'], ['-D', '/x'], ['--chdir', '/x']]) {
-    const nice = new Set(['-n', '--adjustment']);
-    for (const opts of [sudo, nice]) {
-      assert.equal(optionEnd(ws, 0, opts) + 1, optionWords(ws[0], opts), 'both readers take the same words of ' + ws.join(' '));
-    }
   }
 }
 
@@ -397,6 +367,290 @@ assert.equal(bash('grep sed ' + L + ' -i').block, true, 'a flag after the file b
   const { reason } = file(L);
   const named = /\(([^)]*) verbs\)/.exec(reason)[1].split('/');
   for (const v of verbs) assert.ok(named.includes(v), 'refusal names verb ' + v);
+}
+
+// The shared scanner (ADR 0135) reads the command: substitutions at any depth, separators inside them, nested `${…}`.
+{
+  const D = '/.superdev/scopes/x/ledger.md';
+  for (const c of [
+    'echo x > $(a $(b $(c d)))' + D,
+    'tee $(echo a | tr a b)' + D,
+    'cp new $(echo a; echo b)' + D,
+    'cp new $(echo a && echo b)' + D,
+    'echo x > ${X:-${Y:-a b}}' + D,
+    'tee ${X:-${Y:-a b}}' + D,
+    'install -m 644 new $(a $(b $(c d)))' + D,
+    'sed -i s/a/b/ $(a $(b $(c d)))' + D,
+  ]) assert.equal(bash(c).block, true, 'denied: ' + c);
+  // A heredoc opener followed by a backslash-newline, and a mid-word `#`, leave the next line a command (#950, #954).
+  assert.equal(bash('cat <<x\\\necho hi > .superdev/scopes/x/ledger.md').block, true, 'a heredoc opener with a backslash-newline: redirect denied');
+  assert.equal(bash(": #'\ncp src .superdev/scopes/x/ledger.md\n'").block, true, 'a mid-word # opens no comment: cp denied');
+  // Quoted text is read as a command line (INV-0141).
+  assert.equal(bash('sh -c "echo x > .superdev/scopes/x/ledger.md"').block, true, 'sh -c redirect denied');
+  assert.equal(bash("ssh host 'echo x > .superdev/scopes/x/ledger.md'").block, true, 'ssh host quoted redirect denied');
+  assert.equal(bash('watch "tee .superdev/scopes/x/ledger.md"').block, true, 'watch quoted tee denied');
+  assert.equal(bash("echo '$(perl -pi -e x .superdev/scopes/x/ledger.md)'").block, true, 'a quoted substitution is read as a command line');
+  // An unreadable command is denied only when its text names a ledger path.
+  assert.equal(bash('echo "unterminated .superdev/scopes/x/ledger.md').block, true, 'unreadable naming a ledger denied');
+  assert.equal(bash('echo "unterminated').block, false, 'unreadable naming none allowed');
+  assert.equal(bash('git status $(').block, false, 'unclosed substitution naming none allowed');
+  assert.equal(bash('cat <<EOF\nno delimiter line').block, false, 'a heredoc with no delimiter line, naming none, allowed');
+  assert.equal(bash('cat <<EOF\nrm .superdev/scopes/x/ledger.md').block, true, 'a heredoc with no delimiter line naming a ledger denied');
+  // A text that reads as no command line is denied only when it names a ledger and holds a write form: prose naming a ledger passes.
+  assert.equal(bash('sh -c "cp a .superdev/scopes/x/ledger.md; \'"').block, true, 'broken quoted text holding a write denied');
+  assert.equal(bash('git commit -m "fix: don\'t rewrite .superdev/scopes/x/ledger.md by hand"').block, false, 'a commit message naming a ledger allowed');
+  assert.equal(bash('tea issues create --body "The guard (ledger-guard) refuses writes to .superdev/scopes/x/ledger.md."').block, false, 'an issue body naming a ledger allowed');
+  // Arithmetic `((…))` runs nothing in bash but nested subshells in dash: denied when the dash reading writes a ledger.
+  assert.equal(bash('((cp a .superdev/scopes/x/ledger.md))').block, true, 'arithmetic command naming a ledger denied');
+  assert.equal(bash('((sed -i x .superdev/scopes/x/ledger.md))').block, true, 'arithmetic sed -i naming a ledger denied');
+  assert.equal(bash('echo $((1 + 2))').block, false, 'arithmetic naming none allowed');
+  // `$[ … ]` is arithmetic too, and bash runs the substitutions it holds (`echo $[1+$(echo 2)]` prints 3).
+  for (const c of ['echo $[1+$(cp a @)]', 'echo $[1+$(echo x > @)]', 'echo $[1+$(echo x | tee @)]', 'echo $[1+$(mv a @)]', 'echo $[1+$(truncate -s 0 @)]',
+    'echo $[1+$(dd of=@)]', 'echo $[1+$(sort -o @ @)]', 'echo $[1+$(perl -pi -e x @)]', 'echo $[1+`cp a @`]']) {
+    assert.equal(bash(c.replaceAll('@', '.superdev/scopes/x/ledger.md')).block, true, 'a ledger write inside $[…] denied: ' + c);
+  }
+  assert.equal(bash('echo $[1>2] .superdev/scopes/x/ledger.md').block, false, 'the `>` of $[…] is no redirect');
+  // dash runs `((…))` as two nested subshells, so the guard reads a command twice: as written, and with every `((` that is no `$((` rewritten
+  // to `( (`. A `((` that reads as no command (`grep "((" L`, prose in a quoted text) stays allowed; `$((1 + 2))` is untouched.
+  for (const c of ['grep "((" @', 'grep -n "foo((" @', 'awk "/((/" @', 'echo "a (( b" ; cat @', 'echo $((1 + 2)) @', 'echo $(((1 + 2) * 3)) @', "grep '((' @",
+    'git commit -m "fix ((x)) in @"', 'echo "((note)) about @"', 'gh pr create --body "uses (( in docs; reads @"', 'git commit -m "fix: don\'t rewrite @ by hand"']) {
+    assert.equal(bash(c.replaceAll('@', '.superdev/scopes/x/ledger.md')).block, false, 'a read with a `((` that runs nothing allowed: ' + c);
+  }
+  // `echo sh "((cp a L))"` reads as the quoted text `cp a L`, a write, so it is denied (a known over-deny: echo only prints it). The rewrite
+  // reads no shell name, so `echo sh -c "((x" ; cat L` reads only the redirect-free `cat`; the quoted `((x` reads as no command and holds no write form.
+  assert.equal(bash('echo sh "((cp a .superdev/scopes/x/ledger.md))"').block, true, 'a quoted `((cp a L))` is read as the command it holds (known over-deny)');
+  assert.equal(bash('echo sh -c "((x" ; cat .superdev/scopes/x/ledger.md').block, false, 'a quoted unclosed `((x` with a read of a ledger allowed');
+  for (const c of ['dash -c "((cp a @))"', 'find . -exec dash -c "((cp a @))" \\;', 'find . -execdir dash -c "((cp a @))" \\;', 'arch -arm64 dash -c "((cp a @))"',
+    'caffeinate -i dash -c "((cp a @))"', 'ionice dash -c "((cp a @))"', 'watch dash -c "((cp a @))"', 'parallel dash -c ::: "((cp a @))"',
+    'busybox sh -c "((cp a @))"', 'rtk proxy dash -c "((cp a @))"',
+    // The text of a quoted word is rewritten too, so a shell that runs it (eval, a pipe into a shell) is read as dash reads it.
+    'eval "((cp a @))"', "eval '((cp a @))'", 'command eval "((cp a @))"', 'dash -c "eval \'((cp a @))\'"', 'eval "eval \'((cp a @))\'"', 'echo "((cp a @))" | dash',
+    // A backslash-newline inside the quoted word joins a ledger path split across it: `\\` in double quotes is one backslash, so the evaluated text holds `\<NL>`.
+    'eval "((cp a .superdev/scopes/x/ledger.m\\\\\nd))"', 'eval "((cp a .superdev/scopes/x/\\\\\nledger.md))"', 'echo "((cp a .superdev/scopes/x/ledger.m\\\\\nd))" | dash',
+    // A text that passes through more than one shell is unescaped once per level: a doubled or tripled backslash inside nested quoting still names the ledger.
+    'dash -c "cp a .superdev/scopes/x/led\\\\ger.md"', 'eval "cp a .superdev/scopes/x/led\\\\ger.md"', 'dash -c "((cp a .superdev/scopes/x/led\\\\ger.md))"',
+    'eval "((cp a .superdev/scopes/x/led\\\\ger.md))"', 'dash -c "cp a .superdev/scopes/x/led\\\\\\ger.md"', 'dash -c "cp a .superdev/scopes/x/led\\\\\\\\ger.md"',
+    'echo "((cp a .superdev/scopes/x/led\\\\ger.md))" | dash',
+    '(( x )) && cp a @', 'true; ((cp a @))', 'if true; then ((cp a @)); fi', '{ ((sed -i x @)); }', '((cp a @', '(((cp a @)))',
+    'echo hi\n((cp a @))', 'echo # "\n((cp a @))', 'echo "$(echo \'"\')"; ((cp a @))', 'case x in x) ((cp a @));; esac', 'echo x;;\n((cp a @))']) {
+    assert.equal(bash(c.replaceAll('@', '.superdev/scopes/x/ledger.md')).block, true, 'a command dash runs that writes a ledger denied: ' + c);
+  }
+  // Accepted over-denies: an unreadable text naming a ledger is refused (fail closed), so a bash `for ((…))` loop and a mid-word unquoted `foo((`
+  // that name a ledger are denied although both only read it.
+  for (const c of ['for ((i=0;i<3;i++)); do cat @; done', 'grep -n foo(( @']) {
+    assert.equal(bash(c.replaceAll('@', '.superdev/scopes/x/ledger.md')).block, true, 'known over-deny: ' + c);
+  }
+  // A failed quoted text naming a ledger is denied when it holds `patch` or a bare `>`, even in prose (WRITE_FORM boundary).
+  assert.equal(bash('git commit -m "patch .superdev/scopes/x/ledger.md; \'"').block, true, 'a failed quoted text with `patch` denied');
+  assert.equal(bash('git commit -m "a -> b in .superdev/scopes/x/ledger.md; \'"').block, true, 'a failed quoted text with a bare `>` denied');
+  // A `$"…"` locale string is read as a double-quoted span.
+  assert.equal(bash('bash -c $"perl -pi -e x .superdev/scopes/x/ledger.md"').block, true, 'a $"…" command string denied');
+  // Substitutions in an unquoted heredoc body run.
+  assert.equal(bash('cat <<EOF\n$(cp a .superdev/scopes/x/ledger.md)\nEOF').block, true, 'a substitution in an unquoted heredoc body denied');
+  assert.equal(bash("cat <<'EOF'\n$(cp a .superdev/scopes/x/ledger.md)\nEOF").block, false, 'a quoted heredoc body is data');
+  // A heredoc body a known shell reads on stdin is a command line (#1016), in every write form.
+  {
+    const LX = '.superdev/scopes/x/ledger.md';
+    const writes = ['echo x > ' + LX, 'echo x >> ' + LX, 'cp a ' + LX, 'tee ' + LX + ' < a', 'sed -i s/a/b/ ' + LX, 'mv a ' + LX, 'truncate -s 0 ' + LX];
+    const feeds = [(s) => 'bash <<E\n' + s + '\nE', (s) => "sh <<'E'\n" + s + '\nE', (s) => 'bash <<"E"\n' + s + '\nE', (s) => 'dash <<-E\n\t' + s + '\n\tE',
+      (s) => 'bash << E\n' + s + '\nE', (s) => '/bin/zsh <<E\n' + s + '\nE', (s) => 'env ksh <<E\n' + s + '\nE', (s) => 'cat <<E | sh\n' + s + '\nE',
+      (s) => 'bash -s <<E\n' + s + '\nE', (s) => 'sh /dev/stdin <<E\n' + s + '\nE', (s) => 'source /dev/stdin <<E\n' + s + '\nE',
+      (s) => '. /dev/stdin <<E\n' + s + '\nE', (s) => 'eval "$(cat <<E\n' + s + '\nE\n)"', (s) => 'x=$(bash <<E\n' + s + '\nE\n)',
+      (s) => 'cat <<A; bash <<B\ndata\nA\n' + s + '\nB',
+      // A compound or grouped pipeline element feeds every later element.
+      (s) => '{ cat <<E; } | sh\n' + s + '\nE', (s) => '{ cat <<E\n' + s + '\nE\n} | sh', (s) => 'if true; then cat <<E; fi | sh\n' + s + '\nE',
+      (s) => 'for i in 1; do cat <<E; done | bash\n' + s + '\nE', (s) => 'cat <<E | (bash)\n' + s + '\nE', (s) => 'cat <<E | { bash; }\n' + s + '\nE',
+      // A shell the line reaches indirectly: a function, an alias, xargs, or a descriptor a shell reads.
+      (s) => 'f() { cat <<E; } ; f | sh\n' + s + '\nE', (s) => 'function f { cat <<E; }; f | sh\n' + s + '\nE', (s) => 'f() { sh; }; cat <<E | f\n' + s + '\nE',
+      (s) => 'alias s=sh; cat <<E | s\n' + s + '\nE', (s) => 'cat <<E | xargs sh -c\n' + s + '\nE', (s) => 'cat <<E | xargs -I{} sh -c {}\n' + s + '\nE',
+      (s) => 'exec 3<<E; sh <&3\n' + s + '\nE', (s) => 'sh /dev/fd/3 3<<E\n' + s + '\nE'];
+    for (const w of writes) for (const f of feeds) assert.equal(bash(f(w)).block, true, 'a shell-fed heredoc write denied: ' + JSON.stringify(f(w)));
+    // A shell the body reaches through a process substitution it is written into, a `$(cat)` command string, or a moved descriptor.
+    for (const c of ['cat <<E > >(sh)', 'cat <<E >(sh)', 'cat <<E 1> >(bash)', 'cat <<E | tee >(sh)', 'cat <<E | sh -c "$(cat)"',
+      'cat <<E | bash -c "$(cat)"', 'cat <<E | eval "$(cat)"', 'f() { eval "$(cat)"; }; cat <<E | f', 'exec 3<<E; sh <&3-']) {
+      assert.equal(bash(c + '\ncp a ' + LX + '\nE').block, true, 'a heredoc body a shell reads is denied: ' + c);
+    }
+    // A heredoc body no shell reads is data, whatever run-state path it names, for the controller and a subagent alike.
+    for (const c of ["cat > notes.md <<'E'", '{ cat <<E; } | grep x', 'f() { cat <<E; }; f | grep x', 'alias s=cat; cat <<E | s', 'cat <<E | xargs echo',
+      'exec 3<<E; cat <&3', 'cat 3<<-E', 'git commit -F - <<E', "git commit -F - <<'E'", 'gh pr create --body-file - <<E',
+      "node scope.js deferred add - --root /abs/.superdev/scopes/x <<'SUPERDEV_TEXT_EOF'"]) {
+      const body = c.endsWith('SUPERDEV_TEXT_EOF\'') ? '\nfinding: a write to /abs/' + LX + ' is allowed\nSUPERDEV_TEXT_EOF' : '\ncp a ' + LX + '\nE';
+      assert.equal(bash(c + body).block, false, 'a heredoc body no shell reads is data: ' + c);
+      assert.equal(decide({ agent_id: 'a1', tool_input: { command: c + body } }).block, false, 'a heredoc body no shell reads is data, for a subagent: ' + c);
+    }
+    // Every quoted-heredoc shape the shipped prose prescribes passes with a body naming a ledger: scope.js's `-` verbs (review,
+    // document, run-handoff.md, scope-mode.md), the tick's criterion and note files and a store's `title=$(cat <<…)` with a
+    // `--description-file -` body (issue-tracker-*.md, code-management-forgejo.md), a progress-log append (slice-reviewer.md),
+    // and a commit message.
+    const S = 'node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js"';
+    const B = "\nfix: a write to /abs/" + LX + " is denied, `$(x)`\nSUPERDEV_TEXT_EOF";
+    for (const c of [S + " deferred add - --root /abs/.superdev/scopes/x <<'SUPERDEV_TEXT_EOF'" + B,
+      "cat <<'SUPERDEV_TEXT_EOF' | " + S + ' unresolved add - --root /abs/.superdev/scopes/x' + B,
+      S + " degraded add-denial - --root /abs/.superdev/scopes/x <<'SUPERDEV_TEXT_EOF'" + B,
+      S + " degraded reset-denials - --root /abs/.superdev/scopes/x <<'SUPERDEV_TEXT_EOF'" + B,
+      S + " deferred resolve - --root /abs/.superdev/scopes/x <<'SUPERDEV_TEXT_EOF'" + B,
+      "cat > /tmp/match.txt <<'SUPERDEV_TEXT_EOF'" + B,
+      "title=$(cat <<'SUPERDEV_TEXT_EOF'" + B + '\n)\ntea issues create -t "$title" --description-file - <<\'SUPERDEV_TEXT_EOF\'' + B,
+      "tea pr create --base main --head feat/x --title \"$title\" --description-file - <<'SUPERDEV_TEXT_EOF'" + B,
+      "cat >> /abs/.superdev/scopes/x/reports/02/progress.md <<'SUPERDEV_TEXT_EOF'" + B, "git commit -F - <<'SUPERDEV_TEXT_EOF'" + B]) {
+      assert.equal(bash(c).block, false, 'a prescribed heredoc shape passes: ' + JSON.stringify(c));
+      assert.equal(decide({ agent_id: 'a1', tool_input: { command: c } }).block, false, 'a prescribed heredoc shape passes, for a subagent: ' + JSON.stringify(c));
+    }
+  }
+  // A here-string, and the text `echo` or `printf` writes, that a known shell reads on stdin is read as a command line.
+  {
+    const LX = '.superdev/scopes/x/ledger.md';
+    for (const w of ['echo x > ' + LX, 'cp a ' + LX, 'tee ' + LX, 'sed -i s/a/b/ ' + LX]) {
+      for (const c of ["bash <<<'" + w + "'", 'bash <<<"' + w + '"', 'bash <<< "' + w + '"', "sh <<<$'" + w + "'", 'cat <<<"' + w + '" | sh']) {
+        assert.equal(bash(c).block, true, 'a here-string write denied: ' + c);
+      }
+    }
+    for (const c of ['echo cp a ' + LX + ' | sh', "printf 'true\\ncp a " + LX + "' | sh", 'echo echo x \\> ' + LX + ' | sh', 'sh < <(echo echo x \\> ' + LX + ')',
+      '{ echo cp a ' + LX + '; } | sh', 'echo cp a ' + LX + ' | (sh)']) {
+      assert.equal(bash(c).block, true, 'echo or printf text a shell reads denied: ' + c);
+    }
+    assert.equal(bash('cat <<<"cp a ' + LX + '"').block, false, 'a here-string no shell reads is data');
+    assert.equal(bash('echo cp a ' + LX).block, false, 'echo text no shell reads is data');
+  }
+  // Writers outside the in-place editors: vim scripts, curl and wget output, ditto, xxd, tar extraction, a recursive copy into a
+  // run root, and an interpreter's inline script naming a ledger (fail closed: such a script that only reads is denied too).
+  {
+    const RR = '.superdev/scopes/x';
+    for (const c of ['vim -es -c wq @', 'vi -e -s @', 'ex -s @', 'vim +wq @', 'vim -c wq @', 'nvim --headless -c wq @', 'curl -o @ https://x', 'curl --output @ https://x',
+      'curl -sSLo @ https://x', 'curl -o@ https://x', 'curl --output=@ https://x', 'wget -O @ https://x', 'wget -qO @ https://x', 'wget -O@ https://x',
+      'wget --output-document=@ https://x', 'wget --output-document @ https://x', 'ditto a @', 'xxd -r hex @', 'xxd -r - @', 'tar -xf a.tar -C ' + RR,
+      'tar xf a.tar -C ' + RR + '/', 'tar -x -f a.tar --directory=' + RR, 'tar -xf a.tar --directory ' + RR, 'tar -xf a.tar @', 'cp -r d/. ' + RR + '/',
+      'cp -R d/ ' + RR, 'cp -a d/. ' + RR + '/.', 'rsync -a d/ ' + RR + '/', 'ditto d ' + RR, 'python3 -c "open(\'@\',\'w\').write(\'x\')"',
+      'python -c "open(\'@\',\'w\')"', 'node -e "require(\'fs\').writeFileSync(\'@\',\'x\')"', 'perl -e \'open(F,">@")\'', 'ruby -e \'File.write("@","x")\'',
+      'python3 -c \'print(open("@").read())\'', 'python3 <<E\nopen("@","w").write("x")\nE', "node <<<'require(\"fs\").writeFileSync(\"@\",\"x\")'",
+      'python3 - <<E\nopen("@","w")\nE', 'python3 -W ignore <<E\nopen("@","w")\nE', 'python3 -c "import sys; open(sys.stdin.read(),\'w\')" <<<@']) {
+      assert.equal(bash(c.replace(/@/g, RR + '/ledger.md')).block, true, 'a writer denied: ' + JSON.stringify(c));
+    }
+    for (const c of ['curl -o /tmp/x https://x/@', 'wget -O /tmp/x https://x', 'tar -xf a.tar -C /tmp', 'cp -r d/. /tmp/', 'tar -cf /tmp/a.tar ' + RR,
+      'cp -r ' + RR + ' /tmp/', 'python3 script.py', 'xxd @', 'xxd @ /tmp/x', 'vim --version', 'cat @',
+      // An interpreter running a script file reads its stdin as data: the sanctioned `scope.js … -` write takes prose naming a ledger.
+      "node scope.js deferred add - --root /r <<'E'\na write to @ is denied\nE", 'node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-line - <<<"@"',
+      'python3 tools/x.py <<E\n@\nE']) {
+      assert.equal(bash(c.replace(/@/g, RR + '/ledger.md')).block, false, 'allowed: ' + JSON.stringify(c));
+    }
+    // A stdin operand (`-`, /dev/stdin, /dev/fd/0, /proc/self/fd/0) is no script file, and an option's value is no operand.
+    const W = '<<E\nopen("/abs/@","w")\nE';
+    for (const c of ['python3 /dev/stdin ' + W, 'node /dev/stdin ' + W, 'perl /dev/fd/0 ' + W, 'ruby /proc/self/fd/0 ' + W, 'node - ' + W,
+      'node -r ./a.js ' + W, 'node --require ./a.js ' + W, 'node --require=./a.js ' + W, 'node --import ./a.mjs ' + W, 'node --loader ./l.mjs ' + W,
+      'ruby -I ./lib ' + W, 'ruby -r ./a.rb ' + W, 'ruby -C ./d ' + W, 'ruby -wI ./lib ' + W, 'python3 -X a.b ' + W, 'python3 -W ignore::x.y ' + W,
+      'python3 -bW ignore::x.y ' + W, 'python3 -m json.tool ' + W, 'perl -I ./lib ' + W, 'perl -M Foo::Bar ' + W, 'perl -m Foo::Bar ' + W, 'python3 -- /dev/stdin ' + W]) {
+      assert.equal(bash(c.replace(/@/g, RR + '/ledger.md')).block, true, 'an interpreter reading its script from stdin denied: ' + JSON.stringify(c));
+    }
+    for (const c of ['node -r ./a.js scope.js deferred add - ' + W, 'ruby -I ./lib tools/x.rb ' + W, 'python3 -W ignore tools/x.py ' + W, 'perl -Ilib tools/x.pl ' + W]) {
+      assert.equal(bash(c.replace(/@/g, RR + '/ledger.md')).block, false, 'a script file past option values reads stdin as data: ' + JSON.stringify(c));
+    }
+    // A text piped or fed to an interpreter that reads its script from stdin is judged by the interpreter rule: naming a ledger denies.
+    // `@B` is the line's heredoc body, written after the line.
+    const B = (line) => line.replace('@B', '<<E') + '\nopen("@","w")\nE';
+    for (const c of [B('cat @B | python3'), B('cat @B | node -'), B('cat @B | perl /dev/stdin'), B('cat @B | ruby'),
+      B('cat @B | python3 -c "import sys; exec(sys.stdin.read())"'), "echo \"open('@','w')\" | python3 -", "printf '%s' \"open('@','w')\" | node",
+      "python3 <<<\"open('@','w')\"", 'cat <<<"open(\'@\',\'w\')" | python3', B('{ cat @B; } | python3'), B('cat @B | (python3)'),
+      B('cat @B | env python3'), B('f() { python3; }; cat @B | f'), "sh -c 'cat <<E | python3\nopen(\"@\")\nE'"]) {
+      assert.equal(bash(c.replace(/@/g, RR + '/ledger.md')).block, true, 'text fed to an interpreter reading stdin denied: ' + JSON.stringify(c));
+    }
+    for (const c of [B('cat @B | python3 tools/x.py'), B('cat @B | node scope.js deferred add - --root /r'), 'echo @ | node scope.js dod-line -',
+      'cat <<E | python3\nprint(1)\nE', B('cat @B | grep open')]) {
+      assert.equal(bash(c.replace(/@/g, RR + '/ledger.md')).block, false, 'text fed to a script file, or naming no ledger, allowed: ' + JSON.stringify(c));
+    }
+  }
+  // Every command-position writer is read behind `rtk proxy`, as commandStart skips it.
+  for (const c of ['rtk proxy cp a @', 'rtk proxy cp ledger.md .superdev/scopes/x/', 'rtk proxy cp -t .superdev/scopes/x ledger.md', 'rtk proxy install a @',
+    'rtk proxy install -t .superdev/scopes/x ledger.md', 'rtk proxy ln -sf a @', 'rtk proxy rsync a @', 'rtk proxy patch @ p.diff', 'rtk proxy ex -s @',
+    'rtk proxy mv a @', 'rtk proxy tee @']) {
+    assert.equal(bash(c.replace('@', '.superdev/scopes/x/ledger.md')).block, true, 'a writer behind rtk proxy denied: ' + c);
+  }
+  // The wrappers arch, caffeinate, flock, chronic, unbuffer, ionice, and taskset run the command after their options.
+  for (const c of ['arch -arm64 cp a @', 'arch -arch x86_64 tee @', 'caffeinate -t 5 cp a @', 'flock /tmp/l cp a @', 'flock -w 5 /tmp/l mv a @',
+    'chronic cp a @', 'unbuffer -p tee @', 'ionice -c 3 cp a @', 'taskset -c 0 tee @', 'taskset 0x1 cp a @']) {
+    assert.equal(bash(c.replace('@', '.superdev/scopes/x/ledger.md')).block, true, 'a write behind a wrapper denied: ' + c);
+  }
+  // `<>` opens its target for reading and writing, so it is a write: `cat <> L` is a known fail-closed false positive.
+  {
+    const LX = '.superdev/scopes/x/ledger.md';
+    for (const c of ['echo x 1<> ' + LX, 'exec 3<> ' + LX + '; echo x >&3', 'exec 4<>' + LX, "bash -c 'echo x 1<>" + LX + "'", "echo 'exec 3<>" + LX + "' | sh",
+      "eval 'exec 3<>" + LX + "'", 'x=$(exec 3<>' + LX + ')', "echo a | xargs sh -c 'exec 3<>" + LX + "'", 'rtk proxy cat 3<>' + LX, 'cat <> ' + LX]) {
+      assert.equal(bash(c).block, true, 'a <> redirect denied: ' + c);
+    }
+  }
+  // A quoted word's text past an unquoted `NAME=` or command-string option prefix is read as a command line.
+  for (const c of ["export PROMPT_COMMAND='cp a .superdev/scopes/x/ledger.md'", "alias w='echo x > .superdev/scopes/x/ledger.md'"]) {
+    assert.equal(bash(c).block, true, 'the text past the prefix is read: ' + c);
+  }
+  // An ANSI-C quoted text is decoded before it is read as a command line.
+  for (const c of ["bash -c $'cp\\x20a\\x20.superdev/scopes/x/ledger.md'", "bash -c $'true\\ncp a .superdev/scopes/x/ledger.md'"]) {
+    assert.equal(bash(c).block, true, 'an ANSI-C write is decoded: ' + c);
+  }
+  // Allowed: names no ledger.
+  for (const c of ['echo x > $(a $(b $(c d)))/out', 'tee $(echo a | tr a b)/out', 'sh -c "echo x > /tmp/out"', 'cat <<x\\\necho hi > /tmp/out']) {
+    assert.equal(bash(c).block, false, 'allowed: ' + c);
+  }
+}
+
+// INV-0140: with the shared scanner unloadable, or throwing, a Bash call is denied and an Edit or Write call still decides alone.
+{
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ledger-guard-'));
+  const copy = path.join(dir, 'ledger-guard.js');
+  fs.copyFileSync(hookPath, copy);
+  const probe = (label, stub) => {
+    const scanner = path.join(dir, 'shell-words.js');
+    fs.rmSync(scanner, { force: true });
+    if (stub !== null) fs.writeFileSync(scanner, stub);
+    const run = (tool_input) => {
+      const r = cp.spawnSync(process.execPath, [copy], { input: JSON.stringify({ tool_input }), encoding: 'utf8', timeout: 10000 });
+      assertSpawnDecided(r, 'ledger-guard.js with ' + label);
+      return r;
+    };
+    const denied = run({ command: 'echo hi' });
+    assert.equal(denied.status, 2, 'a Bash call is denied with ' + label);
+    assert.match(denied.stderr, /broken/, 'the denial names the broken install with ' + label);
+    assert.equal(run({ file_path: 'src/index.js' }).status, 0, 'an Edit of a non-ledger path is allowed with ' + label);
+    assert.equal(run({ file_path: L }).status, 2, 'an Edit of a ledger is still denied with ' + label);
+  };
+  probe('no shell-words.js', null);
+  probe('a shell-words.js that throws on load', "throw new Error('boom');");
+  probe('a scan that throws', "exports.scan = () => { throw new Error('boom'); };");
+  fs.rmSync(dir, { recursive: true, force: true });
+}
+
+// Linear time (ADR 0086): a command four times as long takes about four times as long when linear and sixteen times when quadratic,
+// against a baseline measured in the same run; the ceiling sits at nine, between them, so a memory knee or load noise in one reading
+// stays below it. The size grows until one run takes about 25 ms, and timePair repeats each sample to that length too.
+{
+  const { timePair } = require('./linear-time');
+  const once = (c) => {
+    const t0 = process.hrtime.bigint();
+    bash(c);
+    return Number(process.hrtime.bigint() - t0);
+  };
+  const quadruples = (label, make, cap) => {
+    let n = 1500;
+    while (n < cap && once(make(n)) < 25e6) n *= 2;
+    const [base, big] = timePair(bash, make(n), make(n * 4));
+    assert.ok(big < 9 * base, label + ' stays about linear: ' + base + 'ns at ' + n + ', four times the input ' + big + 'ns');
+  };
+  for (const unit of ['$(a ', '$(tee ', 'x=$(echo ']) {
+    quadruples(unit, (n) => 'echo x > ' + unit.repeat(n) + ')'.repeat(n) + '/.superdev/scopes/x/ledger.md', 200000);
+  }
+  // An unclosed `((` run names a ledger once, and repeated `((` between statements, unquoted or in a quoted word, are rewritten and read once each.
+  for (const make of [(n) => 'cat .superdev/scopes/x/ledger.md ' + '(('.repeat(n), (n) => 'cat .superdev/scopes/x/ledger.md ; ' + 'echo ((;'.repeat(n),
+    (n) => 'cat .superdev/scopes/x/ledger.md ; ' + 'echo "((x))" ((y));'.repeat(n),
+    // Many process substitutions of one shell command: its words are read once, not once per substitution.
+    (n) => 'cat .superdev/scopes/x/ledger.md ; sh ' + '<(echo a) '.repeat(n), (n) => 'cat .superdev/scopes/x/ledger.md ; sh ' + '<(cat <<E\nx\nE\n) '.repeat(n)]) {
+    quadruples(JSON.stringify(make(2)), make, 1e7);
+  }
+  // A word holding many run-state directory prefixes and no ledger name is tested for a ledger path once, not once per prefix.
+  quadruples('a run of run-state prefixes', (n) => 'echo x > ' + '.superdev/scopes/'.repeat(n), 200000);
+  // A line running a stdin interpreter is read once for the texts that feed it: many heredocs, many `echo` commands, many
+  // interpreters, and an interpreter with many option values.
+  for (const make of [(n) => 'python3 - ; ' + 'cat <<E\nx .superdev/scopes/x\nE\n'.repeat(n), (n) => 'python3 - ; ' + 'echo .superdev/scopes/x ; '.repeat(n),
+    (n) => 'python3 -X a.b ; '.repeat(n) + 'cat <<E\n.superdev/scopes/x\nE', (n) => 'python3 ' + '-W x '.repeat(n) + '<<E\n.superdev/scopes/x\nE']) {
+    quadruples(JSON.stringify(make(2)), make, 1e6);
+  }
 }
 
 console.log('ledger-guard tests ok');

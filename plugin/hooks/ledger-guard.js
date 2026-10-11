@@ -5,86 +5,89 @@
 // (ADR 0117). scripts/scope.js is the only sanctioned writer of .superdev/scopes/*/ledger.md, and the
 // hooks and scope.js's appendTrace the only writers of .superdev/scopes/*/trace.log, so an
 // Edit/Write tool call targeting a ledger, or a Bash shell write into one (redirect, tee, an in-place
-// sed, gsed, perl, ruby, ed, ex, awk -i inplace, sort -o, truncate -s or -r, dd of=, cp/mv/install, ln, patch, rsync), is denied with a
-// message naming scope.js. Reads pass; scope.js invocations pass
+// sed, gsed, perl, ruby, ed, ex, awk -i inplace, sort -o, truncate -s or -r, dd of=, cp/mv/install, ln, patch, rsync, a vi/vim/nvim script,
+// curl -o, wget -O, ditto, xxd's output operand, tar extraction, a recursive copy or extraction into a run root, or an interpreter's inline or
+// stdin script that names a ledger), is denied with a
+// message naming scope.js. Reads pass, except an interpreter script naming a ledger (fail closed); scope.js invocations pass
 // (they never name ledger.md — the CLI takes --root, the run-root directory).
 //
+// A Bash command is read through the shared scanner, ./shell-words.js (ADR 0135): every simple command it returns,
+// nested substitutions, subshells, the text of every quoted word (INV-0141), and a heredoc body a known shell reads on stdin
+// (`bash <<E`, `cat <<E | sh`, and through `xargs sh -c`, an alias or function that runs a shell, `exec 3<<E; sh <&3`, `sh -c "$(cat)"`,
+// or a `>( … )` it is written into) included,
+// is read as words and redirects. A heredoc body any other program reads stays data, prose naming a run-state path piped into
+// `cat`, `git commit -F -`, or `scope.js … -` included, except on a line running an interpreter that reads its script from stdin
+// (`python`/`python3`, `node`, `perl`, `ruby`, matched by basename, reading stdin when the script operand is absent, `-`, `/dev/stdin`,
+// `/dev/fd/0`, `/proc/self/fd/0`, or holds no `.` or `/`, and always with an inline script): there a heredoc body, here-string, or
+// `echo`/`printf` word naming a ledger is denied, wherever it sits on the line (`cat <<E | python3`, `echo "…" | node -`), because the
+// interpreter may run it. Two fail-closed false positives are accepted: a script operand held in a variable (`node "$S" … -`) holds no
+// `.` or `/`, so its piped body is judged; and the rule reads the whole line, so text naming a ledger is denied beside a stdin interpreter.
+// A here-string and the text an `echo` or `printf` writes are read as command lines when a known shell reads them on stdin
+// (`bash <<<'echo x > L'`, `echo cp a L | sh`, `printf 'true\ncp a L' | sh`).
 // An in-place edit is refused when either of two checks fires, so a wrapper one check does not unwrap is
 // still caught by the other:
 //  - the word-level check reads each tool's own flags (the INPLACE table, which also holds the write verbs tee, cp, install, mv, ln, rsync and patch
 //    and the operands they write) after the leading `\`, `NAME=value`
-//    words, and the openers `(`, `$(`, a backtick and `{`, and reads the commands inside a `sh -c`/`bash -c`
-//    string, inside the command string of `su -c`, `flock FILE -c` and `env -S`, inside the value of `rg --pre`, and inside
-//    every `$( )` or backtick substitution outside single quotes. A string is read as the shell reads it: `\"` is a quote;
-//  - the segment-wide check (SED_SEGMENT) refuses any segment that names `sed`, a run-state file and ` -i`,
-//    whatever the wrapper. A segment whose command word is a read-only searcher (grep, egrep, fgrep, rg) is exempt, so
-//    `grep -i sed <ledger>` reads, unless it holds a process substitution (`<(`, `>(`), whose command may edit, or `--pre`,
+//    words, and the compound keywords, and reads the command lines inside the command string of `su -c`, `flock FILE -c` and `env -S`,
+//    and inside the value of `rg --pre`;
+//  - the command-wide check refuses any command that names `sed`, a run-state file and ` -i`,
+//    whatever the wrapper. A command whose command word is a read-only searcher (grep, egrep, fgrep, rg) is exempt, so
+//    `grep -i sed <ledger>` reads, unless it holds `--pre`,
 //    whose command rg runs on every file it searches (the word-level check reads that command). The check stays fail-closed otherwise: `sed -n "s/ -i//p" <ledger>` is refused.
-// A prefix wrapper (sudo, env, xargs, nice, nohup, command, time, timeout, exec, doas, stdbuf, builtin) is skipped before the
-// command word is read, with its options, a long option's separate value and a short cluster read as getopt reads it (`sudo -iu bob` takes the next word, `sudo -uroot` carries its value)
+// A prefix wrapper of shell-words.js's WRAPPER table (sudo, env, xargs, nice, nohup, command, time, timeout, exec, doas, stdbuf, builtin, eval, rtk,
+// arch, caffeinate, flock with its lock file, chronic, unbuffer, ionice, taskset with its CPU mask) is skipped before the
+// command word is read by shell-words.js's commandStart, with rtk's run-anything subcommand (`rtk proxy cp …`) and its options, a long option's separate value and a short cluster read as getopt reads it (`sudo -iu bob` takes the next word, `sudo -uroot` carries its value)
 // included, and a path prefix (`/usr/bin/tee`) is dropped from the command word. This word-level read covers every tool of
 // the INPLACE table, so tee, cp, mv, install, ln, rsync and patch behind a wrapper are refused too, and a file copied or moved into the
 // run root under a run-state name (`cp -t <run-root> /tmp/ledger.md`) counts as a write of it. `cp <ledger> /tmp/x` and
 // `tee /tmp/x < <ledger>` only read it and pass; `mv` and `ln` change every operand, so they refuse any run-state operand, and so does `cp` under `-s`, `-l`, `--symbolic-link` or `--link`, which make a second
 // name for a source. `rsync` writes its destination (`rsync <ledger> /tmp/x` reads) and `patch` any run-state operand, but not a `<` redirect source (`patch -p1 < <ledger>` reads the ledger as patch input; `patch <ledger> < p` writes it).
-// `truncate` writes its file operands, so `truncate -r REF <ledger>` is refused and `truncate -r <ledger> /tmp/x` passes. A redirect is `>`, `>>`, `>|`, or `>&`.
+// `truncate` writes its file operands, so `truncate -r REF <ledger>` is refused and `truncate -r <ledger> /tmp/x` passes. A redirect is `>`, `>>`, `>|`, `>&`, `&>`, `&>>`, or `<>`.
+// A command the scanner cannot read to its end is refused only when its text names a ledger or run trace path. A quoted text that reads
+// as no command line is refused only when it names one and holds a write form (WRITE_FORM), so a commit message that mentions a ledger passes.
+// dash runs `((…))` as nested subshells where bash reads arithmetic, so a command is read twice, as written and with each `((` that is no `$((` spread to `( (`
+// (as dash reads it), and a ledger write in either reading is refused: `((cp a L))`, `eval "((cp a L))"` and `echo "((cp a L))" | dash` are refused, `grep "((" L` reads.
+// The raw-text tests (the unreadable-command rule and the ledger-name gate) share one normalizer, `plainText`, that drops every backslash and quote character. When the scanner cannot be loaded or
+// throws, every Bash call is refused (INV-0140): the guard has no reader of its own to fall back on.
 // Ceiling: a command built at run time (a variable, an `eval` of assembled text, a wrapper script), a path produced only when the
-// command runs (`find … -exec sed -i …`, `xargs` stdin, a glob, a patch file's own header, a recursive copy into a run root), a wrapper this list does not
+// command runs (`find … -exec sed -i …`, `xargs` stdin, a glob, a patch file's own header, an archive extracted without `-C` in the run root), a
+// script file an interpreter runs (`python3 w.py L`), a ledger named only as an interpreter's operand, a file piped to a shell, a wrapper this list does not
 // name, an rsync option whose value is a separate word after the destination, and a command word spelled by obfuscation (split quotes `"e"d L`, a backslash inside the word `e\d L`, `pe\rl -pi …`) are not
 // read; this is a guardrail against the model's normal output, not a sandbox.
 
-// One shell word, quoted/escaped forms included — the merge-guard ARG token.
-const ARG = /(?:[^\s"'\\$`]|\$(?![({])|\\.|"(?:[^"\\]|\\.)*"|'[^']*'|\$\((?:[^()\\]|\\.|\((?:[^()\\]|\\.)*\))*\)|\$\{(?:[^{}\\"'`]|\\.|"(?:[^"\\]|\\.)*"|'[^']*'|`(?:[^`\\]|\\.)*`)*\}|`(?:[^`\\]|\\.)*`)+/.source;
+let scan = null;
+let commandStart = null;
+let optionWords = null;
+let loadError = null;
+try {
+  ({ scan, commandStart, optionWords } = require('./shell-words.js'));
+  if (typeof scan !== 'function') throw new Error('./shell-words.js exports no scan');
+} catch (e) {
+  loadError = e;
+}
 
 // A word references a scopes ledger or run trace when, unquoted/unescaped, it carries
 // `.superdev/scopes/…/ledger.md` or `…/trace.log` (relative or under any absolute prefix).
+// The one normalizer for raw text: a backslash-newline joins the halves of a word, and every backslash and quote character is dropped
+// whatever the nesting depth, so a text that passes through several shells (`dash -c "…"`, `eval`), each undoing one level of quoting
+// (`led\\ger.md`), still spells the path. It over-matches, which is fail closed: it only affects a text that spells a ledger path.
+const plainText = (text) => text.replace(/\\\n/g, '').replace(/[\\"']/g, '');
+// The ledger or trace name must follow the run-state directory on the same line. Only the first directory of each line is looked
+// up, the one that leaves the most text after it, so a line of many directory prefixes is read once, in linear time.
+const RUN_STATE = '.superdev/scopes/';
 function refsLedger(word) {
-  const plain = word.replace(/\\(.)/g, '$1').replace(/["']/g, '');
-  return /\.superdev\/scopes\/.*(?:ledger\.md|trace\.log)/.test(plain);
+  // A line ends at each character `.` does not match (a line terminator).
+  return plainText(word).split(/(?!.)[^]/).some((line) => {
+    const i = line.indexOf(RUN_STATE);
+    return i >= 0 && /ledger\.md|trace\.log/.test(line.slice(i + RUN_STATE.length));
+  });
 }
+// A looser test on a whole command text, ahead of any reading: every deny needs the run-state directory and a ledger or trace
+// name in its words, in either order (`cp /tmp/ledger.md .superdev/scopes/x/` copies into the run root). A text that fails it needs no further reading.
+// A recursive copy or an archive extracted into a run root writes its ledger without naming it (`cp -r d/. .superdev/scopes/x/`), so the
+// run-state directory alone is enough to read on.
+const textMentionsLedger = (text) => plainText(text).includes('.superdev/scopes/');
 
-// The shell write shapes the spec names. The redirect scans capture their target word(s); the write verbs (tee, cp, mv, install,
-// ln) are read per `[;&|\n]`-delimited segment, so a `cp`/`mv`/`tee` elsewhere never swallows a later command's pure ledger read
-// into its target scan.
-// Every write scan reads its words with both tokens (`words`). RAW_ARG reads `$(`, `${` and a backtick as
-// plain characters and splits at every unquoted space. A target blocks when either reading names a ledger:
-// ARG catches a ledger path behind a balanced substitution holding spaces, RAW_ARG one behind a
-// substitution ARG cannot balance (`$((1+(2)))/…`).
-// A redirect reads one word after `>`, so a target whose unbalanced substitution holds a space still
-// passes (triage #814).
-const RAW_ARG = /(?:[^\s"'\\]|\\.|"(?:[^"\\]|\\.)*"|'[^']*')+/.source;
-const ARG_WORDS = new RegExp(ARG, 'g');
-const RAW_ARG_WORDS = new RegExp(RAW_ARG, 'g');
-const words = (t) => [...(t.match(ARG_WORDS) || []), ...(t.match(RAW_ARG_WORDS) || [])];
-// `>|` is the clobber redirect and `>&` the stdout-and-stderr one: the target is the word after the `|` or `&`.
-const REDIR = new RegExp('>{1,2}[|&]?\\s*(' + ARG + ')', 'g');
-const REDIR_RAW = new RegExp('>{1,2}[|&]?\\s*(' + RAW_ARG + ')', 'g');
-const SED_SEGMENT = /(^|[;&|\n])([^;&|\n]*\bsed\b[^;&|\n]*)/gm;
-const INPLACE_TOOL = /\b(?:sed|gsed|perl|ruby|ed|ex|awk|gawk|sort|truncate|dd|tee|cp|mv|install|ln|rsync|patch)\b/;
-// The segments of a command line: the text between `;`, `&`, `|` and newline separators that sit outside quotes, so a
-// quoted `sh -c 'for f in L; do perl -pi -e x $f; done'` stays one segment. A quote with no closing partner is a plain character.
-function splitSegments(text) {
-  const segs = [];
-  let start = 0;
-  let i = 0;
-  while (i < text.length) {
-    const c = text[i];
-    if (c === '\\') i += /["'\\]/.test(text[i + 1] || '') ? 2 : 1;
-    else if (c === "'") {
-      const j = text.indexOf("'", i + 1);
-      i = j < 0 ? i + 1 : j + 1;
-    } else if (c === '"') {
-      let j = i + 1;
-      while (j < text.length && text[j] !== '"') j += text[j] === '\\' ? 2 : 1;
-      i = j < text.length ? j + 1 : i + 1;
-    } else if (';&|\n'.includes(c)) {
-      segs.push(text.slice(start, i));
-      start = ++i;
-    } else i++;
-  }
-  segs.push(text.slice(start));
-  return segs;
-}
 // The in-place flag of each editor, read from the words after the tool's own name: sed and gsed `-i`, a short
 // cluster holding `i` (`-Ei`, `-i.bak`) or `--in-place[=SUFFIX]`; perl and ruby `-i[EXT]` after flags that
 // take no argument (`-pi`, `-0777pi`, never `-Mstrict`, whose `i` is part of a module name). `ed` and `ex`
@@ -184,86 +187,138 @@ function patchTargets(args) {
   }
   return out;
 }
+// vi, vim, and nvim edit the named file from a script: `-e`/`-s` (ex and silent mode, a cluster holding either), `-c CMD`, `+CMD`,
+// `--cmd`, or `--headless`. Without one they are interactive, which a Bash call cannot drive.
+const vimLike = anyWord(/^(?:-[a-zA-Z]*[esc]|\+|--cmd|--headless)/);
+// wget writes `-O FILE`, `-OFILE`, a cluster ending in `O`, or `--output-document[=]FILE`.
+function wgetTargets(args) {
+  const out = [];
+  args.forEach((w, i) => {
+    let m;
+    if (w === '--output-document' || /^-[a-zA-Z]*O$/.test(w)) out.push(args[i + 1] || '');
+    else if ((m = /^--output-document=(.*)$/.exec(w) || /^-[a-zA-Z]*?O(.+)$/.exec(w))) out.push(m[1]);
+  });
+  return out;
+}
+// xxd writes its second operand (`xxd -r hex L`, `xxd in out`); `-` is an operand (stdin), and these options take a value.
+const XXD_VALUE = new Set(['-c', '-cols', '-g', '-groupsize', '-l', '-len', '-s', '-seek', '-o', '-n', '-name']);
+function xxdTargets(args) {
+  const ops = [];
+  for (let i = 0; i < args.length; i++) {
+    if (XXD_VALUE.has(args[i])) i++;
+    else if (args[i] === '-' || !args[i].startsWith('-')) ops.push(args[i]);
+  }
+  return ops.slice(1, 2);
+}
+// A directory that is a run root (`.superdev/scopes/<scope>`, with a trailing `/` or `/.`) holds the ledger, so a recursive copy or an
+// archive extracted into it can write the ledger: the target is read as `<dir>/ledger.md`.
+const isRunRoot = (w) => /\.superdev\/scopes\/[^/]+(?:\/\.?)?$/.test(plainText(w));
+const ledgerIn = (dir) => dir.replace(/\/\.?$/, '') + '/ledger.md';
+// tar extracting (`-x`, a cluster holding `x`, `--extract`, `--get`, or an old-style first word such as `xf`) writes every member it
+// names and the run root a `-C DIR` or `--directory[=]DIR` points it into.
+function tarTargets(args) {
+  if (!args.some((w, i) => /^-[a-zA-Z]*x|^--(?:extract|get)$/.test(w) || (i === 0 && /^[a-zA-Z]*x[a-zA-Z]*$/.test(w)))) return [];
+  const out = [];
+  args.forEach((w, i) => {
+    let m;
+    const dir = w === '-C' || w === '--directory' ? args[i + 1] || '' : (m = /^--directory=(.*)$/.exec(w)) ? m[1] : null;
+    if (dir !== null && isRunRoot(dir)) out.push(ledgerIn(dir));
+    if (!w.startsWith('-')) out.push(w);
+  });
+  return out;
+}
+// A recursive copy (cp `-r`/`-R`/`-a` or a cluster holding one, `--recursive`, `--archive`; rsync `-r`/`-a`; ditto always) into a
+// run root counts as a write of its ledger, whatever the sources hold.
+const RECURSIVE = /^(?:-[a-zA-Z]*[rRa]|--recursive$|--archive$)/;
+const intoRunRoot = (targets, recursive) => (args) => {
+  const out = targets(args);
+  const { ops, dir } = operandsOf(args, targets === rsyncTargets);
+  const into = dir === null ? ops[ops.length - 1] : dir;
+  return recursive(args) && into !== undefined && isRunRoot(into) ? [...out, ledgerIn(into)] : out;
+};
+const rsyncTargets = copyTargets(false, true);
 // Per tool: whether the words after its name edit a file in place. `true` means the edited file is any word of
 // the command, an array the words it writes.
 const INPLACE = { sed: sedLike, gsed: sedLike, perl: perlLike, ruby: perlLike, ed: anyArg, ex: anyArg, awk: awkLike, gawk: awkLike, truncate: truncateTargets, sort: sortTargets, dd: ddTargets,
-  tee: teeTargets, cp: cpTargets, install: copyTargets(false), mv: copyTargets(true), ln: copyTargets(true), rsync: copyTargets(false, true), patch: patchTargets };
-const TOOL = /^(?:sed|gsed|perl|ruby|ed|ex|awk|gawk|sort|truncate|dd|tee|cp|mv|install|ln|rsync|patch)$/;
+  tee: teeTargets, cp: intoRunRoot(cpTargets, anyWord(RECURSIVE)), install: copyTargets(false), mv: copyTargets(true), ln: copyTargets(true),
+  rsync: intoRunRoot(rsyncTargets, anyWord(/^(?:-[a-zA-Z]*[ra]|--recursive$|--archive$)/)), patch: patchTargets,
+  vi: vimLike, vim: vimLike, nvim: vimLike, curl: sortTargets, wget: wgetTargets, ditto: intoRunRoot(copyTargets(false), () => true), xxd: xxdTargets, tar: tarTargets };
+const TOOL = /^(?:sed|gsed|perl|ruby|ed|ex|awk|gawk|sort|truncate|dd|tee|cp|mv|install|ln|rsync|patch|vi|vim|nvim|curl|wget|ditto|xxd|tar)$/;
 const SHELL = /^(?:sh|bash|zsh|dash|ksh|eval)$/;
 // `ed`/`ex` and the write verbs are real words in read-only commands (`grep ed file`), so they count only in command position.
-const COMMAND_ONLY = new Set(['ed', 'ex', 'tee', 'cp', 'mv', 'install', 'ln', 'rsync', 'patch']);
+const COMMAND_ONLY = new Set(['ed', 'ex', 'tee', 'cp', 'mv', 'install', 'ln', 'rsync', 'patch', 'vi', 'vim', 'nvim', 'curl', 'wget', 'ditto', 'xxd', 'tar']);
+// An interpreter whose inline script (`python3 -c`, `node -e`/`-p`/`--eval`/`--print`, `perl -e`/`-E`, `ruby -e`) or stdin script (a heredoc or
+// here-string) names a ledger in its text is refused, a read included: telling its writes from its reads would need the language's own
+// parser. A ledger named only as an operand (`perl -ne 'print' L`) is no script text. Per interpreter: the short flags that carry the script,
+// read lazily in a cluster (`perl -ne CODE`, `python3 -cCODE`), the long ones, and the options that take a value, short (alone, or
+// ending a cluster: `ruby -wI ./lib`) or long (`node --require ./a.js`), which are read past when the script operand is located.
+const INTERPRETERS = [
+  [/^python[0-9.]*$/, /^-[a-zA-Z]*?c([^]*)$/, null, new Set(['-c', '-m', '-W', '-X', '-Q'])],
+  [/^node$/, /^-[a-zA-Z]*?[ep]([^]*)$/, /^--(?:eval|print)(?:=([^]*))?$/,
+    new Set(['-r', '-e', '-p', '-C', '--require', '--import', '--loader', '--experimental-loader', '--eval', '--print', '--conditions', '--input-type'])],
+  [/^perl$/, /^-[a-zA-Z]*?[eE]([^]*)$/, null, new Set(['-I', '-M', '-m', '-e', '-E'])],
+  [/^ruby$/, /^-[a-zA-Z]*?e([^]*)$/, null, new Set(['-I', '-r', '-e', '-C', '-E'])],
+];
+// The operands that name stdin itself: an interpreter given one reads its script from stdin.
+const STDIN_OPERANDS = new Set(['-', '/dev/stdin', '/dev/fd/0', '/proc/self/fd/0']);
+// The script operand of an interpreter's arguments: the first word that is no option and no option's value (getopt's reading,
+// shell-words.js's optionWords), or the word after `--`; undefined when none.
+function scriptOperand(args, valueOpts) {
+  for (let k = 0; k < args.length; k++) {
+    const w = args[k];
+    if (w === '--') return args[k + 1];
+    if (w === '-' || !w.startsWith('-')) return w;
+    k += optionWords(w, valueOpts) - 1;
+  }
+  return undefined;
+}
+// The script texts an interpreter's arguments carry.
+function inlineScripts(args, short, long) {
+  const out = [];
+  for (let k = 0; k < args.length; k++) {
+    const m = (args[k].startsWith('--') ? long && long.exec(args[k]) : short.exec(args[k])) || null;
+    if (m) out.push(m[1] ? m[1] : args[k + 1] || '');
+  }
+  return out;
+}
+// No tool name, wrapper, or `--pre` flag is longer than this, so a longer word (a nested substitution holds every
+// command below it) is never read for one: the read of a command stays linear in the command's length.
+const NAME_MAX = 4096;
 
 // A word without its leading backslash (the alias-bypass escape) and its leading `(`, `$(`, `<(`, `>(`, backtick and `{` openers.
 const bare = (w) => w.replace(/^(?:[$<>]\(|[(`{])+/, '').replace(/^\\/, '');
 // Words that open a command inside a compound statement (`do perl -pi …`), skipped like an environment prefix.
 const KEYWORD = /^(?:do|then|else|elif|if|while|until|time|!)$/;
 const SEARCHER = /^(?:grep|egrep|fgrep|rg)$/;
-// Prefix wrappers: each runs the command that follows its own options. The value is the set of options, short and long, that
-// take a separate value. `time` is a KEYWORD here. run-trace.js keeps its own copy of the shared names (hooks stay standalone)
-// in WRAPPERS, and tests/ledger-guard.test.js pins that every name there is known here and takes the same value options. This
-// list adds `xargs`, `doas`, `stdbuf`, and `builtin`: run-trace records no test run behind those, and this guard must see an
-// editor behind them.
-const WRAPPER = new Map([
-  ['sudo', new Set(['-u', '-g', '-C', '-h', '-p', '-r', '-t', '-T', '-U', '-D', '-R', '--user', '--group', '--host', '--prompt', '--role', '--type',
-    '--other-user', '--close-from', '--chdir', '--chroot', '--login-class'])],
-  ['env', new Set(['-u', '-C', '-S', '-a', '--unset', '--chdir', '--split-string', '--argv0'])],
-  ['xargs', new Set(['-n', '-I', '-P', '-L', '-d', '-a', '-s', '-E', '--max-args', '--max-procs', '--max-lines', '--max-chars', '--delimiter',
-    '--arg-file', '--process-slot-var'])],
-  ['nice', new Set(['-n', '--adjustment'])],
-  ['nohup', new Set()],
-  ['command', new Set()],
-  ['timeout', new Set(['-s', '-k', '--signal', '--kill-after'])],
-  ['exec', new Set(['-a'])],
-  ['doas', new Set(['-u', '-C'])],
-  ['stdbuf', new Set(['-i', '-o', '-e', '--input', '--output', '--error'])],
-  ['builtin', new Set()],
-  ['rtk', new Set()],
-]);
-// The words an option word takes, read as getopt reads it: a long option takes the next word when it is a value option. A short
-// cluster is walked left to right to its first value option, whose value is the characters after it (`sudo -uroot`, one word) or,
-// when it ends the cluster (`sudo -iu bob`), the next word.
-function optionWords(w, valueOpts) {
-  if (w.startsWith('--')) return valueOpts.has(w) ? 2 : 1;
-  const at = [...w.slice(1)].findIndex((c) => valueOpts.has('-' + c));
-  return at < 0 || at + 2 < w.length ? 1 : 2;
-}
-// The index of the command word in a bared word list: past `NAME=value` words, compound keywords, and every prefix wrapper with its options.
+// The index of the command word in a bared word list: past compound keywords, and past what shell-words.js's commandStart skips
+// (`NAME=value` words, every prefix wrapper with its options, and `rtk` with a run-anything subcommand), shared with merge-guard.js.
 function commandIndex(bared) {
   let i = 0;
-  while (i < bared.length) {
-    const w = bared[i];
-    if (/^\w+=/.test(w) || KEYWORD.test(w)) {
-      i++;
-      continue;
-    }
-    const name = w.replace(/^.*\//, '');
-    const valueOpts = WRAPPER.get(name);
-    if (!valueOpts) break;
-    i++;
-    while (i < bared.length && bared[i].startsWith('-')) i += optionWords(bared[i], valueOpts);
-    if (name === 'timeout' && /^\d/.test(bared[i] || '')) i++;
+  for (;;) {
+    while (i < bared.length && bared[i].length <= NAME_MAX && KEYWORD.test(bared[i])) i++;
+    const next = commandStart(bared, i);
+    if (next === i) return i;
+    i = next;
   }
-  return i;
-}
-// A word's content with each quoted span replaced by what the span holds, `$'…'` and `$"…"` included. A double-quoted
-// span loses the backslash of `\"`, `\\`, `\$` and a backtick escape, as the shell reads it.
-function unquote(w) {
-  return w.replace(/\$(?=["'])/g, '').replace(/"((?:[^"\\]|\\.)*)"|'([^']*)'/g, (m, dq, sq) => (sq === undefined ? dq.replace(/\\([$`"\\])/g, '$1') : sq));
 }
 // The tools that take a whole command line as one string, and the option that carries it: `su -c`, `flock FILE -c`, `env -S`,
 // alone or ending a short cluster (`su -lc`, `flock -xc`, `env -iS`).
 const STRING_FLAG = new Map([['su', /^(?:-[a-zA-Z]*?c|--command=?)/], ['flock', /^(?:-[a-zA-Z]*?c|--command=?)/], ['env', /^(?:-[a-zA-Z]*?S|--split-string=?)/]]);
 // The command lines such an option carries, in one pass: the option counts from the nearest such tool before it.
-function stringCommands(raw) {
+function stringCommands(words) {
   const out = [];
   let flag = null;
-  raw.forEach((w, i) => {
-    const f = STRING_FLAG.get(bare(w.replace(/["']/g, '')).replace(/^.*\//, ''));
+  words.forEach((w, i) => {
+    const f = w.length <= NAME_MAX && STRING_FLAG.get(bare(w).replace(/^.*\//, ''));
     if (f) flag = f;
-    const m = !f && flag && flag.exec(w);
-    if (m) out.push(unquote(w.slice(m[0].length) || raw[i + 1] || ''));
+    const m = !f && flag && w.length <= NAME_MAX && flag.exec(w);
+    if (m) out.push(w.slice(m[0].length) || words[i + 1] || '');
   });
   return out;
+}
+// rg runs the command `--pre CMD` (or `--pre=CMD`) on every file it searches, so its value is a command line.
+function preCommands(words) {
+  return words.flatMap((w, i) => (w === '--pre' ? [words[i + 1] || ''] : w.startsWith('--pre=') && w.length <= NAME_MAX ? [w.slice(6)] : []));
 }
 // The command word of a word list: past `NAME=value` words, and inside the first command string of a shell wrapper.
 function commandWord(list) {
@@ -280,149 +335,128 @@ function commandWord(list) {
 // `sh -c "sed -i …"`) read the tool only in command position.
 function runsInplaceEditor(words, strict) {
   // Leading `NAME=value` words are an environment prefix, so the command word follows them. A leading
-  // backslash (`\sed`, the alias-bypass escape) or opener (`(sed`) names the same tool.
-  const bared = words.map(bare).filter(Boolean);
+  // backslash (`\sed`, the alias-bypass escape) names the same tool.
+  const bared = words.map((w) => (w.length > NAME_MAX ? w : bare(w))).filter(Boolean);
   const argv = bared.slice(commandIndex(bared));
-  const at = argv.findIndex((w) => TOOL.test(w.replace(/^.*\//, '')));
+  const at = argv.findIndex((w) => w.length <= NAME_MAX && TOOL.test(w.replace(/^.*\//, '')));
   if (at < 0) return false;
   const tool = argv[at].replace(/^.*\//, '');
   if ((strict || COMMAND_ONLY.has(tool)) && at !== 0) return false;
   return INPLACE[tool](argv.slice(at + 1));
 }
-// The command text inside each `$( )`, `<( )`, `>( )` and backtick substitution of a word, wherever it sits: after `NAME=`, inside double
-// quotes, but never inside single quotes, which the shell does not expand. Nested substitutions come out of the recursion in inplaceHits.
-function substitutions(word) {
-  const out = [];
-  let i = 0;
-  let dq = false;
-  while (i < word.length) {
-    const c = word[i];
-    if (c === '\\') i += 2;
-    else if (c === "'" && !dq) {
-      const j = word.indexOf("'", i + 1);
-      i = j < 0 ? word.length : j + 1;
-    } else if (c === '"') {
-      dq = !dq;
-      i++;
-    } else if (c === '`') {
-      let j = i + 1;
-      while (j < word.length && word[j] !== '`') j += word[j] === '\\' ? 2 : 1;
-      out.push(word.slice(i + 1, j));
-      i = j + 1;
-    } else if ((c === '$' || c === '<' || c === '>') && word[i + 1] === '(') {
-      let depth = 0;
-      let q = null;
-      let j = i + 1;
-      for (; j < word.length; j++) {
-        const d = word[j];
-        if (d === '\\') j++;
-        else if (q) {
-          if (d === q) q = null;
-        } else if (d === "'" || d === '"') q = d;
-        else if (d === '(') depth++;
-        else if (d === ')' && --depth === 0) break;
-      }
-      out.push(word.slice(i + 2, j));
-      i = j + 1;
-    } else i++;
-  }
-  return out;
+
+// The write redirects: `>`, `>>`, `>|`, `>&`, `&>`, `&>>`, and `<>`, which opens its target for reading and writing
+// (`exec 3<> L; echo x >&3`). A `<>` that only reads (`cat <> L`) is denied too, a fail-closed false positive.
+const WRITE_REDIRECT = /^(?:>>?|>[|&]|&>>?|<>)$/;
+
+// Whether a command runs an interpreter (INTERPRETERS) whose inline script, or whose script on stdin (a heredoc body or a here-string),
+// names a ledger. Stdin is the script unless the script operand (scriptOperand: past every option and option value) names a script
+// file: no stdin operand (STDIN_OPERANDS), and a word holding a `.` or a `/` (`node scope.js … -`, `python3 tools/x.py`), which reads its
+// stdin as data; with an inline script, stdin is data that script may write out, so it is judged too (fail closed).
+// interpreterOf(values) -> { scripts, stdin } | null: the inline script texts, and whether the stdin text is judged; null for no interpreter.
+function interpreterOf(values) {
+  const bared = values.map((w) => (w.length > NAME_MAX ? w : bare(w))).filter(Boolean);
+  const at = commandIndex(bared);
+  if (at >= bared.length || bared[at].length > NAME_MAX) return null;
+  const name = bared[at].replace(/^.*\//, '');
+  const it = INTERPRETERS.find(([re]) => re.test(name));
+  if (!it) return null;
+  const args = bared.slice(at + 1);
+  const scripts = inlineScripts(args, it[1], it[2]);
+  const operand = scriptOperand(args, it[3]);
+  const scriptFile = operand !== undefined && !STDIN_OPERANDS.has(operand) && /[./]/.test(operand);
+  return { scripts, stdin: scripts.length > 0 || !scriptFile };
 }
-// rg runs the command `--pre CMD` (or `--pre=CMD`) on every file it searches, so its value is a command line.
-function preCommands(raw) {
-  return raw.flatMap((w, i) => (w === '--pre' ? [unquote(raw[i + 1] || '')] : w.startsWith('--pre=') ? [unquote(w.slice(6))] : []));
+// Whether a scanned line feeds an interpreter a script naming a ledger: some command runs an interpreter whose stdin text is judged
+// (interpreterOf), and a heredoc body or here-string anywhere on the line, or a word an `echo` or `printf` writes, names a ledger. Which
+// stdin that text reaches is not traced (`cat <<E | python3`, `{ cat <<E; } | python3`, `f() { node; }; cat <<E | f` alike), so a text
+// naming a ledger beside an unrelated stdin interpreter is denied too, failing closed.
+function feedsInterpreterLedger(scanned) {
+  const values = (c) => c.words.map((w) => w.value);
+  const stdinScript = (c) => {
+    const it = c.words.some((w) => w.raw.length <= NAME_MAX) && interpreterOf(values(c));
+    return Boolean(it) && it.stdin;
+  };
+  if (!scanned.commands.some(stdinScript)) return false;
+  const producer = (c) => {
+    const bared = values(c).map((w) => (w.length > NAME_MAX ? w : bare(w))).filter(Boolean);
+    const at = commandIndex(bared);
+    return at < bared.length && /^(?:echo|printf)$/.test(bared[at].replace(/^.*\//, ''));
+  };
+  return scanned.texts.some((t) => refsLedger(t.text)) || scanned.commands.some((c) => producer(c) && c.words.some((w) => refsLedger(w.value)));
 }
-// The in-place hits (see runsInplaceEditor) of a segment's text, and of the command lines inside it: a quoted word
-// holding whitespace after a shell (`sh -c "sed -i …"`), and every `$( )`, `<( )`, `>( )` or backtick substitution (read from the text,
-// whose nested quotes the word tokens cannot balance). A line is split into segments again, each read with the tool in
-// command position. ponytail: nesting deeper than 8 levels is not read.
-function inplaceHits(text, strict, depth = 0) {
-  const raw = text.match(ARG_WORDS) || [];
-  const argv = raw.map((w) => w.replace(/["']/g, ''));
-  const shell = argv.findIndex((w) => SHELL.test(bare(w).replace(/^.*\//, '')));
-  const inner = [
-    ...(shell < 0 ? [] : raw.slice(shell + 1).filter((w) => /\s/.test(w.replace(/["']/g, ''))).map(unquote)),
-    ...preCommands(raw),
-    ...stringCommands(raw),
-    ...substitutions(text),
-  ];
-  const nested = depth >= 8 ? [] : inner.flatMap((line) => splitSegments(line).flatMap((seg) => inplaceHits(seg, true, depth + 1)));
-  return [runsInplaceEditor(argv, strict), ...nested].filter((h) => (Array.isArray(h) ? h.length : h));
+function interpreterNamesLedger(cmd, values) {
+  const it = interpreterOf(values);
+  if (!it) return false;
+  if (it.scripts.some(refsLedger)) return true;
+  return it.stdin && cmd.redirects.some((r) => (r.op === '<<' || r.op === '<<-' ? refsLedger(r.body || '') : r.op === '<<<' && refsLedger(r.target.value)));
 }
 
-// A heredoc body is data, not a command: drop every body (and its closing delimiter line) so prose in it
-// that names `cp`, `tee`, or a ledger path is never scanned. The command line carrying `<<` stays.
-function stripHeredocs(cmd) {
-  const out = [];
-  const queue = []; // Queue of [delimiter, indented] pairs for pending heredocs
-  for (const line of cmd.split('\n')) {
-    // If we're inside a heredoc body, check if this line closes the first pending heredoc
-    if (queue.length > 0) {
-      const [delim, indented] = queue[0];
-      if ((indented ? line.trim() : line) === delim) {
-        queue.shift(); // Matched delimiter line — skip it
-      }
-      // If still inside a heredoc body, skip this line
-      if (queue.length > 0) continue;
-      continue; // Also skip the delimiter line itself
-    }
-
-    out.push(line);
-    // Mask quoted text, `$(( ))` arithmetic, and comments so a `<<` inside them is no opener; `<<<` is
-    // a here-string. Comments are `#` not preceded by `$` (which would be `$#`, the arg count parameter)
-    // through to end of line. Match either (non-$ character before #) or (# at line start).
-    const masked = line.replace(/"(?:[^"\\]|\\.)*"|'[^']*'|\$\(\([^)]*\)\)|(?:(?<!\$)#|^#).*$/g, (m) => '_'.repeat(m.length));
-    // Find all heredoc openers on this line
-    const heredocRe = /(?<!<)<<(?!<)/g;
-    let match;
-    // eslint-disable-next-line no-cond-assign
-    while ((match = heredocRe.exec(masked)) !== null) {
-      const at = match.index;
-      const h = /^<<(-?)\s*(?:'([^']+)'|"([^"]+)"|\\?(\w+))/.exec(line.slice(at));
-      if (h) {
-        queue.push([h[2] || h[3] || h[4], h[1] === '-']);
-      }
-    }
+// Whether one simple command writes a ledger. `level` > 0 is a command read from quoted text, read with the tool in command position.
+function commandWritesLedger(cmd) {
+  if (cmd.redirects.some((r) => WRITE_REDIRECT.test(r.op) && refsLedger(r.target.value))) return true;
+  // A word longer than NAME_MAX can be no tool, wrapper, or flag, and a command with no word that could be one is read no further.
+  if (cmd.words.every((w) => w.raw.length > NAME_MAX)) return false;
+  const values = cmd.words.map((w) => w.value);
+  const hit = runsInplaceEditor(values, cmd.level > 0);
+  const targets = () => [...values, ...cmd.redirects.map((r) => r.target.value)];
+  // A tool that names its output (sort, dd, tee, cp, ...) blocks only when that output is a ledger; the others, when any word is.
+  if (hit === true && targets().some(refsLedger)) return true;
+  if (Array.isArray(hit) && hit.some(refsLedger)) return true;
+  if (interpreterNamesLedger(cmd, values)) return true;
+  // The command-wide backstop: a command naming `sed` and ` -i` that names a run-state file is refused, whatever wraps it.
+  const joined = values.filter((w) => w.length <= NAME_MAX).join(' ');
+  if (/\bsed\b/.test(joined) && /\s-i/.test(joined) && targets().some(refsLedger)) {
+    if (!(SEARCHER.test(commandWord(values)) && !values.some((w) => w === '--pre' || w.startsWith('--pre=')))) return true;
   }
-  return out.join('\n');
+  return false;
 }
 
-function bashWritesLedger(command) {
-  const cmd = stripHeredocs(command);
-  let m;
-  for (const re of [REDIR, REDIR_RAW]) {
-    re.lastIndex = 0;
-    while ((m = re.exec(cmd))) {
-      if (refsLedger(m[1])) return true;
-    }
-  }
-  for (const seg of splitSegments(cmd)) {
-    if (!INPLACE_TOOL.test(seg)) continue;
-    // Flags are read only from the words after the first tool name, so `grep -i sed ledger.md` passes.
-    // The segment is read with both tokens, so a target behind a substitution ARG cannot balance still counts.
-    const rawArgv = (seg.match(RAW_ARG_WORDS) || []).map((w) => w.replace(/["']/g, ''));
-    const hits = [...inplaceHits(seg, false), runsInplaceEditor(rawArgv, false)].filter((h) => (Array.isArray(h) ? h.length : h));
-    if (!hits.length) continue; // a plain read passes
-    // A tool that names its output (sort, dd, tee, cp, ...) blocks only when that output is a ledger; the others, when any word is.
-    for (const word of hits.includes(true) ? words(seg) : hits.flat().flatMap((w) => [w, ...words(w)])) {
-      if (refsLedger(word)) return true;
-    }
-  }
-  // The segment-wide backstop: a segment naming `sed` and ` -i` that names a run-state file is refused, whatever wraps it.
-  SED_SEGMENT.lastIndex = 0;
-  while ((m = SED_SEGMENT.exec(cmd))) {
-    const seg = m[2];
-    if (!/\s-i/.test(seg) || (!/[<>]\(|--pre(?![\w-])/.test(seg) && SEARCHER.test(commandWord((seg.match(ARG_WORDS) || []).map((w) => w.replace(/["']/g, '')))))) continue;
-    for (const word of words(seg)) {
-      if (refsLedger(word)) return true;
+// A quoted word that names a ledger and holds an in-place editor writes it, whichever other word of the quoted text names the file
+// (`sh -c 'for f in L; do perl -pi -e x $f; done'`): the editor's own words do not hold the path.
+const editsInPlace = (text) => {
+  const inner = scan(text);
+  return inner.readable && inner.commands.some((c) => c.words.some((x) => x.raw.length <= NAME_MAX) && runsInplaceEditor(c.words.map((x) => x.value), true) === true);
+};
+const quotedEditorNamesLedger = (cmd) => cmd.words.some((w) => w.quoted && refsLedger(w.value) && editsInPlace(w.value));
+
+// A quoted text that reads as no command line is data to the guard unless it holds a write form: a `>` redirect, or a write or
+// in-place-editor word of the INPLACE table (`ed` and `ex` only at the start of a statement, where they are no English words).
+const WRITE_FORM = />|\b(?:tee|cp|mv|install|ln|rsync|patch|truncate|gsed|awk|gawk|dd|sort)\b|\bsed\b[^]*\s-(?:[a-zA-Z]*i|-in-place)|\b(?:perl|ruby)\b[^]*\s-[0-9a-zA-Z]*i|(?:^|[;&|\n({`])\s*(?:ed|ex)\s/;
+
+// Whether a command line, read as the scanner reads it, writes a ledger. `depth` counts the command lines carried as one word (`su -c`, `env -S`, `rg --pre`).
+function readsAsWriting(command, depth) {
+  const scanned = scan(command, { quoted: true });
+  // An unreadable command is denied only when its text names a ledger.
+  if (!scanned.readable) return refsLedger(command);
+  if (!textMentionsLedger(command)) return false;
+  if (scanned.failedQuoted.some((t) => refsLedger(t) && WRITE_FORM.test(t))) return true;
+  if (feedsInterpreterLedger(scanned)) return true;
+  for (const cmd of scanned.commands) {
+    if (commandWritesLedger(cmd) || quotedEditorNamesLedger(cmd)) return true;
+    if (depth >= 8 || cmd.words.every((w) => w.raw.length > NAME_MAX)) continue;
+    const values = cmd.words.map((w) => w.value);
+    for (const line of [...stringCommands(values), ...preCommands(values)]) {
+      // An editor carried as a command string edits the file the carrying command names (`rg --pre 'perl -pi -e 1' x L`).
+      if (readsAsWriting(line, depth + 1) || (editsInPlace(line) && values.some(refsLedger))) return true;
     }
   }
   return false;
 }
-// simplicity: same ceiling as merge-guard — honest/common forms only. A `cd` into the scopes
-// dir followed by a bare `> ledger.md`, an interpreter wrapper (`bash -c "…"`) around anything but an in-place editor or a write verb,
-// or a `cp`/`mv`/`install` invoked through a variable or a wrapper script, slips past; this is a guardrail
-// against the model's normal output, not a sandbox.
+
+// `((…))` is arithmetic in bash, which the scanner reads, and two nested subshells in dash, which run what is inside. So a command is read twice,
+// as written and as dash reads it: each run of two or more `(` that is no `$((` is spread (`((` becomes `( (`), in unquoted text, quoted words and
+// heredoc bodies alike, and a ledger write in either reading is a write. `))` stays, which keeps `$((1 + 2))` whole. The rewrite is one linear pass,
+// and a run it spreads is read by the same scanner, quoted text included, so the quoted-text and unreadable-command rules decide every `((` case.
+function writesLedger(command) {
+  const text = command.replace(/\\\n/g, '');
+  if (readsAsWriting(command, 0)) return true;
+  const dash = text.replace(/(?<![$(])\(\(+/g, (run) => run.split('').join(' '));
+  return dash !== text && readsAsWriting(dash, 0);
+}
+// simplicity: same ceiling as merge-guard — honest/common forms only. The text of a quoted word is read as a command line (INV-0141), so
+// `bash -c "…"` is read through. A `cd` into the scopes dir followed by a bare `> ledger.md`, or a `cp`/`mv`/`install` invoked
+// through a variable or a wrapper script, slips past; this is a guardrail against the model's normal output, not a sandbox.
 
 function decide(input) {
   const ti = (input && input.tool_input) || {};
@@ -441,7 +475,18 @@ function decide(input) {
   }
 
   if (typeof ti.command === 'string') {
-    if (bashWritesLedger(ti.command)) return { block: true, reason };
+    // INV-0140: a guard that cannot read the command denies it, naming the broken install.
+    const broken = (why) => ({
+      block: true,
+      reason: 'superdev: ledger-guard cannot read this Bash command because its shared shell scanner (hooks/shell-words.js) ' + why +
+        '. The superdev install is broken: reinstall the plugin. (ledger-guard)',
+    });
+    if (loadError) return broken('failed to load (' + loadError.message + ')');
+    try {
+      if (writesLedger(ti.command)) return { block: true, reason };
+    } catch (e) {
+      return broken('failed while reading it (' + (e && e.message) + ')');
+    }
     return { block: false };
   }
 
@@ -472,4 +517,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { decide, ARG };
+module.exports = { decide };

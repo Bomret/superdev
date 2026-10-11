@@ -4,100 +4,104 @@
 // merge-guard: deterministic PreToolUse(Bash) guard.
 // Subagents must never integrate — only the controller merges. A subagent's tool
 // call carries `agent_id` on the hook stdin; the controller's does not. So we block
-// `git merge`/`push`/`rebase` ONLY when agent_id is present, leaving the controller free.
-// one regex, one rule, no deps.
+// `git merge`/`push`/`rebase`/`pull`/`subtree push` ONLY when agent_id is present, leaving the controller free.
+//
+// The command is read by the shared shell scanner (shell-words.js, ADR 0135), which returns every simple
+// command in it, the ones nested in substitutions, `$[ … ]` arithmetic, backtick groups, subshells, and heredoc
+// bodies included. A heredoc body (any delimiter quoting, `<<-` and a numbered descriptor included) or a `<<<` here-string text
+// that names a guarded integration by the raw-text rule below, or a `gh`/`tea api` merge, is denied whatever command receives it
+// (`cat <<E`, `cat <<E > >(sh)`, `exec 3<<E; sh <&3-`, `ssh host <<E`): the base rule. Two receivers are exempt, each standing alone
+// on the line (shell-words.js's `alone`: no pipe after it, no substitution, subshell, function body, group, or compound command
+// around it), behind no wrapper or `NAME=` word, its text on stdin, and its other redirects writing plain files (no expansion, no
+// process substitution, no `/dev/` or `/proc/` path but `/dev/null`), on a line running no `exec` (sinks below): a file sink, `cat`
+// with no operand or `tee` with at most `-a` and plain file operands, its stdout redirected to such a file (`cat >> progress.md <<'E'`);
+// and a message sink, `git commit -F -`, `gh pr|issue … --body-file -`, or `tea issue|issues|pull|pulls|pr … --description-file -`,
+// that opens no editor on its text (no git `-e`/`--edit` or `-c` editor setting, no gh `-e`/`--editor`). A sink's text
+// is still denied where the base hook denied it: a line or `;`, `&`, `|` segment starting with `git` that later names a guarded
+// verb (lineIntegrates), and the raw BLOCK_CLI and API merge tests below, which read the whole command. A body
+// that names nothing guarded is allowed, so a body any other command receives is denied only when it names one, a known
+// false positive of the quoted-word class below. Each command is read past its `NAME=value` words and the prefix wrappers of
+// shell-words.js's WRAPPER table (`env`, `sudo`, `nohup`, `xargs`, `exec`, `eval`, `command`, `timeout`, `rtk`, …) by `commandStart`,
+// a wrapper spelled in many raw characters (`env''''…`) included. A git, gh, or tea command behind `xargs` that stops before its
+// subcommand or `pr` verb takes it from stdin, and is denied.
+// The guard denies a command whose git subcommand (read past git's global options by `gitSubcommand`) is a
+// guarded verb (`merge`, `push`, `rebase`, `pull`, or `subtree push`), directly or through an alias defined inline
+// (`git -c alias.p=push p`, `git -c alias.x='!git push' x`), a `gh`/`tea pr merge` (tea's `pulls`/`pull` names for `pr` included), and a `gh`/`tea api` write to a pull request's /merge endpoint. A git
+// command with any other subcommand is allowed, whatever words follow it: `git -C $(a $(b $(c))) log --grep push`,
+// and `git merge-base`/`merge-tree` (read-only helpers), are not integrations.
+// The scan also reads the text of every quoted word as a command line (INV-0141), whatever program
+// receives the word: `sh -c "git merge x"`, `ssh host "git push"`, and `watch "git rebase main"` are
+// denied. The text an `echo` or `printf` writes, and a here-string, that a known shell reads on stdin is read the same way
+// (`echo git push | sh`, `sh < <(echo git push)`, `bash <<<"git push"`); a file piped to a shell (`cat f | sh`) is not read. The guard fails closed instead of guessing which program runs the text, so any quoted word whose
+// text names a guarded integration is denied too: a grep or rg pattern (`grep -rn "git merge" docs/`), a commit
+// message (`git commit -m "git push fails behind rtk"`), or a PR body. That is a known false positive class.
+// A command the scanner cannot read to its end is denied only when its raw text holds the word `git` and,
+// later, the word `merge`, `push`, `rebase`, or `pull`, or the word `gh` or `tea` and, later, `pr merge`, `pulls merge`, or
+// `pull merge`. A quoted text
+// that does not read as a command line (an apostrophe or a parenthesis in a commit message is enough) is judged
+// by the same raw-text rule, alone. A scanner that cannot load, or that throws, denies the call and names the
+// broken install (INV-0140).
+//
+// simplicity: the guard catches a command the scanner reads as git, gh, or tea once the table's wrappers are
+// skipped. A wrapper the table does not name, a command built at run time (a variable, `eval "$x"`), or a
+// wrapper script slips past. This is a deterministic guardrail against the model's normal output, not a
+// sandbox; airtight subagent isolation is the platform's job (see AGENTS.md known issues).
 
-// (?![-\w]) so the subcommand is exactly `merge`/`push`/`rebase` — not read-only helpers
-// like `git merge-base` / `merge-tree` (a `\b` would match those, blocking them as false positives).
-// The lead-in class includes `\n` (+ `m` flag) so a `git push` on its own line of a multi-line
-// command string is caught, not just one after `;`/`&`/`|` or at string start.
-// The optional group skips git's global options before the subcommand — `git -C <path> push`,
-// `git -c k=v merge`, and `git --git-dir=<path> push` are the natural forms in a multi-worktree
-// layout and must not slip past. Each option's argument is one shell word — ARG below — so a
-// quoted `-C`/`-c` value (`-C "path with spaces"`), an unquoted value with a backslash-escaped
-// space (`-C ~/my\ path`), and a partly-quoted `key=value` (`-c k="v w"`, `--git-dir="a b"`) are
-// all matched as a single token, not just the first non-space run a bare `\S+` would stop at.
-// The double-quoted alternative tolerates a backslash-escaped internal quote so an escaped `"`
-// inside the value doesn't close the span early; single quotes have no escapes in POSIX shells, so
-// `'[^']*'` stays literal.
-// A command substitution (`$(…)`, one nested level), a parameter expansion (`${…}`), or a backtick group is
-// one word however many spaces it holds: `git -C $(git rev-parse --show-toplevel)/wt merge x` or
-// `git -C ${X:-a b} merge x` would otherwise end the word at the first space, match no verb, and let a
-// subagent integrate. A plain `$` excludes the `$(` and `${` openers and the plain class excludes the
-// backtick, so each character has exactly one live reading and the match stays linear. An unterminated `$(`,
-// `${`, or backtick is a shell syntax error and ends the word. A `${…}` body reads quoted strings and
-// backtick groups whole, so a quoted `}` stays inside it. It excludes `{`, so a nested `${…${…}…}` or a
-// literal `{` (`${X:-{a}`) fails the piece. A quoted `)` inside a substitution (`$(echo ")")`) is one
-// level, but ARG is blind to quotes and ends the group at that `)`. Past one level ARG cannot read the
-// word to its end either: deeper nesting (`$(dirname $(dirname $(pwd)))/wt`) and nested arithmetic
-// (`$((1+(2)))`). STUCK below catches those shapes and fails closed, as it does a value that leaves a
-// non-space character after the match. STUCK misses a shape ARG misreads without leaving a non-space
-// character (a quoted `)` before whitespace, a case or comment paren, a quoted substitution holding a
-// double-quoted space, a `${…}` holding a `$(…)` with a bare `}`). It also misses a stuck value with a
-// newline before the verb, because the verb lookahead `[^\n]*` stops at the newline. It also misses a
-// quoted `)` before a later quote of the same kind, because the misread quote piece swallows the verb
-// (triage #814).
-const ARG = /(?:[^\s"'\\$`]|\$(?![({])|\\.|"(?:[^"\\]|\\.)*"|'[^']*'|\$\((?:[^()\\]|\\.|\((?:[^()\\]|\\.)*\))*\)|\$\{(?:[^{}\\"'`]|\\.|"(?:[^"\\]|\\.)*"|'[^']*'|`(?:[^`\\]|\\.)*`)*\}|`(?:[^`\\]|\\.)*`)+/.source;
-// A long global option takes its value in two spellings — `--work-tree=<path>` and `--work-tree
-// <path>` — and `--${ARG}` alone only ever spans the first, so `git --work-tree /wt merge x` matched
-// nothing at all and a subagent could integrate through it. The value-taking options are enumerated
-// rather than accepting an optional following word after any long option: the general form is shorter
-// but leans on backtracking to keep `git --no-pager merge x` matching, which makes `git --a --b --c …`
-// with no verb ambiguous between "option with value" and "two options" at every step. The list is
-// git's own set of value-taking global options, from `handle_options()` in git.c — re-derive it there.
-// The space-form value is required not to start with `-` (`(?:=|\s+(?!-))`): without that restriction
-// a run of enumerated names with no verb (`--git-dir --git-dir … x; git merge main`) keeps both
-// readings of every adjacent pair live — "the first took the second as its value" and "both are bare"
-// — and that ambiguity compounds across the run, exponentially: measured on this file's own regex, 26
-// tokens took 25ms and 30 took 156ms, doubling every two tokens. `hooks.json` sets no `timeout` on this
-// hook's entry, so it runs at the platform default, and a PreToolUse hook that exceeds its timeout
-// fails OPEN — it never reached a verdict, so nothing blocks. The restriction collapses each pair to
-// one live reading (a value can never itself look like another option), which is linear regardless of
-// the run's length — 0ms at 400 tokens, measured. A valueless use of one of these (`git --exec-path
-// merge x`) still matches, through the `--${ARG}` alternative that follows — `--exec-path` takes no
-// value in git itself, so it stays out of this enumeration.
-const LONG_VALUE_OPT = /--(?:git-dir|work-tree|namespace|config-env|shallow-file|attr-source)/.source;
-const GLOBAL_OPTS = `(?:\\s+(?:-[cC]\\s+${ARG}|${LONG_VALUE_OPT}(?:=|\\s+(?!-))${ARG}|--${ARG}))*`;
-// Known false positive: a quoted verb after a lead-in character inside a read-only command
-// (`grep -E "x|git merge" file`) is refused, because the lead-in class matches the `|` inside the quotes.
-// The guard does not mask quoted spans to avoid it: `sh -c "cd x; git merge x"` runs a verb inside a quoted
-// span, so masking would let a subagent integrate through any shell wrapper. The guard fails closed instead.
-// A hand-typed `rtk` prefix (RTK's output filter) runs the command behind it unchanged. merge-guard is a
-// PreToolUse hook and sees the command as written, never RTK's own rewrite, so `rtk git push` reaches it
-// only when typed (docs/known-issues.md). Each matcher therefore takes an optional `rtk` before `git`, `gh`,
-// or `tea`, with rtk's own value-less global options (triage #958), then an optional run-anything
-// subcommand with its own value-less options and an optional `--` separator: `proxy`, `err`, `run`, `summary`,
-// and `test` each execute the command after them (rtk 0.51.0). The whole prefix repeats, so an rtk behind
-// another rtk (`rtk proxy rtk git push`) matches too. The groups capture nothing, so STUCK's `\2` still
-// names its ARG lookahead. Mirrors green-gate's RTK_PREFIX; tests/green-gate.test.js pins the two byte-identical.
+let shellWords = null;
+let loadError = null;
+try {
+  shellWords = require('./shell-words.js');
+} catch (e) {
+  loadError = e;
+}
+
+// The git subcommands that integrate: `pull` merges or rebases. `subtree push` and an inline alias are read in gitIntegrates().
+const GUARDED = new Set(['merge', 'push', 'rebase', 'pull']);
+// The verbs the raw-text rule reads for, in an unreadable command, a quoted text that reads as no command line, and a `!` alias.
+const VERB_WORD = /(?<![-\w])(?:merge|push|rebase|pull)(?![-\w])/;
+// The `git subtree` options that take the next word as their value.
+const SUBTREE_VALUE = new Set(['-P', '--prefix', '-m', '--message', '-b', '--branch', '--onto']);
+// The raw-text rule for `gh`/`tea pr merge`: the word `gh` or `tea`, then later `pr merge` (or tea's `pulls merge`, `pull merge`).
+const CLI_WORD = /(?<![-\w])(?:gh|tea)(?![-\w])/;
+const PR_MERGE = /(?<![-\w])(?:pr|pulls?)[ \t]+merge(?![-\w])/;
+const CLI = /^(?:.*\/)?(gh|tea)$/;
+// tea's own names for its `pr` command (`tea pulls merge 3`); tea also names `merge` `m` (tea 0.16.0, `tea pr --help`).
+const TEA_PULLS = /^pulls?$/;
+// The options of `gh` and `tea` (and of their `pr` commands) that take the next word as their value, read past before `pr` and `merge`.
+const CLI_VALUE_OPTS = {
+  gh: new Set(['-R', '--repo', '--hostname']),
+  tea: new Set(['-r', '--repo', '-R', '--remote', '-l', '--login', '-o', '--output', '-f', '--fields', '--state', '-p', '--page', '--limit', '--lm']),
+};
+
+// The lead-in of an RTK-prefixed or bare `gh`/`tea` call, for the raw BLOCK_CLI and API_CALL tests below. A hand-typed `rtk` prefix (RTK's
+// output filter) runs the command behind it unchanged. merge-guard is a PreToolUse hook and sees the command as written,
+// never RTK's own rewrite, so `rtk gh pr merge` reaches it only when typed (docs/known-issues.md). The
+// matcher takes an optional `rtk` before `gh` or `tea`, with rtk's own value-less global options (triage
+// #958), then an optional run-anything subcommand with its own value-less options and an optional `--`
+// separator: `proxy`, `err`, `run`, `summary`, and `test` each execute the command after them (rtk 0.51.0).
+// The whole prefix repeats, so an rtk behind another rtk (`rtk proxy rtk gh pr merge`) matches too.
 const RTK_PREFIX = `(?:rtk(?:[ \\t]+(?:-v+|--verbose|--ultra-compact|--skip-env))*[ \\t]+(?:(?:proxy|err|run|summary|test)(?:[ \\t]+(?:--ultra-compact|--skip-env))*(?:[ \\t]+--)?[ \\t]+)?)*`;
-const BLOCK = new RegExp(`(^|[;&|\\n])[ \\t]*${RTK_PREFIX}git${GLOBAL_OPTS}\\s+(merge|push|rebase)(?![-\\w])`, 'm');
-// A git global option whose value ARG cannot read to the end of its shell word — the next character is not
-// whitespace — is unknowable: the command would otherwise split at the value's first space and slip past
-// BLOCK. The atomic `(?=(ARG|))\2` takes ARG's greedy match once, so no shorter reading of the value can
-// pass the `(?=\S)` test; a verb later on the line makes it an integration. Fails closed. The lead adds a
-// generic `--<name>=` to the enumerated options: its value is stuck the same way (`--exec-path=$(a $(b c))`),
-// and only the final option needs it, so the loop's own alternation stays unambiguous.
-const VALUE_OPT_LEAD = `(?:-[cC]\\s+|${LONG_VALUE_OPT}(?:=|\\s+(?!-))|--[\\w-]+=)`;
-const STUCK = new RegExp(
-  `(^|[;&|\\n])[ \\t]*${RTK_PREFIX}git${GLOBAL_OPTS}\\s+${VALUE_OPT_LEAD}(?=(${ARG}|))\\2(?=\\S)(?=[^\\n]*\\s(?:merge|push|rebase)(?![-\\w]))`,
-  'm'
-);
-// Integration via the code-host CLI is the controller's job too: `gh pr merge` / `tea pr merge`.
+// Integration via the code-host CLI is the controller's job too: `gh pr merge` / `tea pr merge`, read from the scanned
+// commands like the git verbs, and from the raw text as a line-start match (BLOCK_CLI), which keeps every shape that match
+// denies denied, a line of heredoc text included.
 // The REST-API path through `curl … /pulls/<n>/merge` can't be caught deterministically without
 // false-positiving on legitimate read curls, so the `curl` forms stay a prose contract the subagent
 // bodies carry. The `tea api` and `gh api` forms are caught: `tea api` is the documented pinned merge
 // path (ADR 0111), so it cannot stay open, and `gh api` reaches the same endpoint (triage #793).
-// The leading horizontal whitespace is `[ \t]*`, never `\s*`: a newline is itself a lead-in, and `\s*`
-// after it re-scans every following newline from each one, which is quadratic on a long run of blank lines.
-const BLOCK_CLI = new RegExp(`(^|[;&|\\n])[ \\t]*${RTK_PREFIX}(gh|tea)\\s+pr\\s+merge\\b`, 'm');
 // A `tea api` / `gh api` call merges when its endpoint names a pull request's `/merge` path and its method
 // writes: an explicit `-X`/`--method`, or — with none — a body flag, which defaults the call to POST. A GET of
-// the same endpoint (the merged-status read) is not a merge. Each call is one `;&|\n`-bounded segment, led by a
+// the same endpoint (the merged-status read) is not a merge. The call is read from every scanned command, and from the raw
+// text too: there each call is one `;&|\n`-bounded segment, led by a
 // line start, separator, `(`, backtick (so `$(` too), `{`, `!`, or a `if`/`then`/`do`/`while`/`until`/`elif`/`else` keyword.
+// The leading horizontal whitespace is `[ \t]*`, never `\s*`: a newline is itself a lead-in, and `\s*`
+// after it re-scans every following newline from each one, which is quadratic on a long run of blank lines.
 // Known gap, like curl: a GraphQL route (`gh api graphql -f query='mutation{mergePullRequest…}'`) names no
-// `/merge` endpoint and is not caught.
+// `/merge` endpoint and is not caught, and neither is an endpoint built at run time (`x=…/pulls/1; gh api -X PUT $x/merge`):
+// no rule tells it from the many legitimate writes through a variable without denying them too.
+// The scanned reading skips the options before `pr` and before `merge`, their values included (`gh -R o/r pr merge 1`,
+// `gh pr --repo=o/r merge 1`), and reads tea's `m` as `merge` (`tea pulls m 3`).
 // `tea api` merges with POST only; `gh api` with PUT or POST (GitHub's merge endpoint is PUT).
+const BLOCK_CLI = new RegExp(`(^|[;&|\\n])[ \\t]*${RTK_PREFIX}(?:gh\\s+pr|tea\\s+(?:pr|pulls?))\\s+merge\\b`, 'm');
 const API_CALL = new RegExp(
   `(?:^|[;&|\\n(\`{!])[ \\t]*(?:(?:if|then|do|while|until|elif|else)\\s+)?${RTK_PREFIX}(tea|gh)\\s+api\\b([^;&|\\n]*)`,
   'gm'
@@ -109,34 +113,165 @@ const API_BODY = {
   gh: /\s(?:-[fF]|--(?:field|raw-field|input))(?![A-Za-z-])/,
 };
 const API_MERGE_METHODS = { tea: ['POST'], gh: ['PUT', 'POST'] };
+// Whether a `tool api` call with these arguments (one text, each word led by a space) merges.
+function apiMerges(tool, args) {
+  if (!MERGE_ENDPOINT.test(args)) return false;
+  const method = API_METHOD.exec(args);
+  return method ? API_MERGE_METHODS[tool].includes(method[1].toUpperCase()) : API_BODY[tool].test(args);
+}
 function isApiMerge(cmd) {
   // a backslash-newline continuation is one logical line
-  for (const m of cmd.replace(/\\\r?\n/g, ' ').matchAll(API_CALL)) {
-    if (!MERGE_ENDPOINT.test(m[2])) continue;
-    const method = API_METHOD.exec(m[2]);
-    if (method ? API_MERGE_METHODS[m[1]].includes(method[1].toUpperCase()) : API_BODY[m[1]].test(m[2])) return true;
+  for (const m of cmd.replace(/\\\r?\n/g, ' ').matchAll(API_CALL)) if (apiMerges(m[1], m[2])) return true;
+  return false;
+}
+// The raw `tea api` / `gh api` test also blocks text that merely quotes the call (`git commit -m "… (tea api -X POST
+// …/merge)"`): a known false positive, accepted because it fails closed with a clear message.
+
+const INTEGRATE =
+  "superdev: subagents must not integrate. `git merge`/`push`/`rebase`/`pull`/`subtree push`, `gh`/`tea pr merge`, and a `tea api` or `gh api` write to a pull request's /merge endpoint " +
+  "are the controller's job — commit on your slice branch and report your status. A quoted word, heredoc body, or here-string " +
+  'that names one of them (a grep pattern, a commit message, a PR body) is denied too, except a heredoc or here-string, no line of ' +
+  'it starting with such a command, standing ' +
+  "alone on the line into `cat > file`, `tee -a file > file`, `git commit -F -`, `gh pr|issue … --body-file -`, or `tea … --description-file -`. (merge-guard)";
+const BROKEN =
+  'superdev: merge-guard could not read this command because the shared shell scanner (hooks/shell-words.js) ' +
+  'failed to load or to run, so it denies every subagent Bash call. The superdev install is broken: ' +
+  'reinstall or update the plugin. (merge-guard)';
+
+// The raw-text rule: the word `git` and later a guarded verb, or `gh`/`tea` and later `pr merge`.
+const rawIntegrates = (text) => shellWords.rawNamesVerb(text, VERB_WORD) || shellWords.rawNamesVerb(text, PR_MERGE, CLI_WORD);
+
+// True when a git command integrates: its subcommand is guarded, it is `subtree` whose own subcommand is `push`, or it is defined
+// inline as an alias (`git -c alias.p=push p`) whose value, with the words after it, does either, or whose `!` shell command names
+// `git` and later a guarded verb. `args` are the words after the subcommand, as strings.
+function gitIntegrates(g, args) {
+  let ws = [g.subcommand, ...args];
+  if (g.alias !== null) {
+    if (g.alias.startsWith('!')) return shellWords.rawNamesVerb(g.alias.slice(1), VERB_WORD);
+    ws = [...g.alias.trim().split(/\s+/), ...args];
+  }
+  if (GUARDED.has(ws[0])) return true;
+  if (ws[0] !== 'subtree') return false;
+  for (let k = 1; k < ws.length; k++) {
+    if (SUBTREE_VALUE.has(ws[k])) k++;
+    else if (!ws[k].startsWith('-')) return ws[k] === 'push';
   }
   return false;
 }
-// simplicity: catches the honest/common forms only. A leading token with no separator before `git`
-// (`env FOO=1 git push`, `time git push`, `sudo git push`), a subshell (`$(git push)`), or an
-// interpreter wrapper (`bash -c "git push"`) still slip past — the char before `git` isn't a line
-// start or a `;`/`&`/`|`/`\n`. This is a deterministic guardrail against the model's normal output,
-// not a sandbox; airtight subagent isolation is the platform's job (see AGENTS.md known issues).
-// The `tea api` / `gh api` lead-ins also block text that merely quotes the call (`git commit -m "… (tea api -X POST
-// …/merge)"`): a known false positive, accepted because it fails closed with a clear message.
+
+// True when one scanned command, read past its `NAME=` words, wrappers, and `rtk`, integrates.
+// `xargs` appends the words it reads on stdin to the command behind it, so a git, gh, or tea command behind `xargs` that stops before
+// its subcommand or its `pr` verb takes that word from stdin (`cat <<E | xargs git` with a body `push`): it is denied, failing closed.
+function commandIntegrates(c) {
+  const start = shellWords.commandStart(c.words);
+  const words = c.words.slice(start);
+  if (!words.length) return false;
+  const open = c.words.slice(0, start).some((w) => /(?:^|\/)xargs$/.test(w.name || ''));
+  const g = shellWords.gitSubcommand(words);
+  if (g) return g.subcommand === null ? open : gitIntegrates(g, g.subcommand === 'subtree' || g.alias !== null ? words.slice(g.index + 1).map((w) => w.value) : []);
+  const tool = words[0].value.length > 64 ? null : CLI.exec(words[0].value);
+  if (!tool) return false;
+  // The next word that is no option, past each option and the separate value a value option takes (`gh -R o/r pr merge 1`).
+  const opts = CLI_VALUE_OPTS[tool[1]];
+  const next = (k) => {
+    while (k < words.length && words[k].value.startsWith('-')) k += opts.has(words[k].value) ? 2 : 1;
+    return k;
+  };
+  const at = next(1);
+  if (at >= words.length) return open;
+  const w = words[at].value;
+  if (w === 'pr' || (tool[1] === 'tea' && TEA_PULLS.test(w))) {
+    const verb = next(at + 1);
+    return verb < words.length ? words[verb].value === 'merge' || (tool[1] === 'tea' && words[verb].value === 'm') : open;
+  }
+  return w === 'api' && apiMerges(tool[1], words.slice(at + 1).map((x) => ' ' + x.value).join(''));
+}
+
+// The redirects a sink may carry besides its text on stdin: output to a plain file, for stdout or stderr.
+const FILE_OPS = new Set(['>', '>>', '>|', '&>', '&>>']);
+const TEXT_OPS = new Set(['<<', '<<-', '<<<']);
+// A plain file path: no expansion, substitution, or process substitution, and no device or descriptor path but /dev/null.
+const plainPath = (w) => !/[$`()<>]/.test(w.raw) && (w.value === '/dev/null' || !/(?:^|\/)(?:dev|proc)\//.test(w.value));
+// Whether `args` hands a stdin body to one of the options `names` (`-F -`, `--file -`, `--file=-`).
+const stdinOption = (args, names) => args.some((w, k) => (names.includes(w.value) && k + 1 < args.length && args[k + 1].value === '-') ||
+  names.some((n) => n.startsWith('--') && w.value === n + '=-'));
+const MESSAGE_GH = /^(?:pr|issue)$/;
+const MESSAGE_TEA = /^(?:issues?|pulls?|pr)$/;
+// A message sink that opens an editor on its text runs that editor over the body, so it is no sink: git's `-e` (alone or in a short
+// cluster), `--edit` or a prefix of it, or a `-c`/`--config-env` value setting `core.editor` or `sequence.editor` (keys read
+// case-insensitively, as git reads them); gh's `-e` (alone or in a short cluster) or `--editor`. tea 0.16.0 has no editor flag on its
+// `--description-file` commands. An editor set by an environment word (`GIT_EDITOR=sh git …`) leaves no sink already: a sink takes no `NAME=` word.
+const EDITOR_CONFIG = /^(?:core|sequence)\.editor(?:=|$)/i;
+const GIT_EDIT = /^(?:-[a-zA-Z]*e|--e(?:d(?:it?)?)?$)/;
+const GH_EDIT = /^(?:-[a-zA-Z]*e|--editor$)/;
+
+// sink(t) -> boolean
+// True when the heredoc body or here-string text `t` (a scan `texts` entry) goes to a pure file sink or a message sink standing
+// alone on the line (see the header), so its text is data, never a command line. The answer is kept on the command (`sink`), which
+// all its texts share, so a command holding many heredocs reads its redirects once.
+function sink(t) {
+  if (!t.alone) return false;
+  if (t.cmd.sink === undefined) t.cmd.sink = isSink(t.cmd);
+  return t.cmd.sink;
+}
+function isSink({ words, redirects }) {
+  if (!words.length) return false;
+  let out = false;
+  for (const r of redirects) {
+    if (TEXT_OPS.has(r.op)) {
+      if (r.fd !== null && r.fd !== '0') return false;
+    } else if (FILE_OPS.has(r.op) && (r.fd === null || r.fd === '1' || r.fd === '2') && plainPath(r.target)) {
+      if (r.fd !== '2') out = true;
+    } else return false;
+  }
+  const name = words[0].name === null ? '' : words[0].name;
+  const base = name.replace(/^.*\//, '');
+  const args = words.slice(1);
+  if (base === 'cat') return out && args.length === 0;
+  if (base === 'tee') return out && args.every((w) => w.value === '-a' || (!w.value.startsWith('-') && plainPath(w)));
+  if (base === 'git') {
+    const g = shellWords.gitSubcommand(words);
+    if (g === null || g.subcommand !== 'commit' || g.alias !== null) return false;
+    const rest = words.slice(g.index + 1);
+    if (g.options.some((o) => o.value !== null && EDITOR_CONFIG.test(o.value)) || rest.some((w) => GIT_EDIT.test(w.value))) return false;
+    return stdinOption(rest, ['-F', '--file']);
+  }
+  if (base === 'gh') return args.length > 0 && MESSAGE_GH.test(args[0].value) && !args.some((w) => GH_EDIT.test(w.value)) && stdinOption(args, ['-F', '--body-file']);
+  if (base === 'tea') return args.length > 0 && MESSAGE_TEA.test(args[0].value) && stdinOption(args, ['--description-file']);
+  return false;
+}
+
+// The base hook's line rule, which still reads a sink's text: a line or `;`, `&`, `|` segment that starts with `git`, behind any
+// `rtk` prefix, and later names a guarded verb (`cat > f <<E` with a line `git push`). The base hook denied that whatever received it.
+const SEGMENT_GIT = new RegExp(`^[ \\t]*${RTK_PREFIX}git(?![-\\w])`);
+const lineIntegrates = (text) => text.split(/[;&|\n]/).some((s) => {
+  const m = SEGMENT_GIT.exec(s);
+  return m !== null && VERB_WORD.test(s.slice(m[0].length));
+});
+
+// True when the scanned command integrates, or cannot be read and names an integration in its raw text.
+function integrates(cmd) {
+  const r = shellWords.scan(cmd, { quoted: true });
+  if (!r.readable) return rawIntegrates(cmd);
+  if (r.failedQuoted.some(rawIntegrates)) return true;
+  // A heredoc body or here-string text naming an integration is denied unless a sink receives it (the base rule). A line running
+  // `exec` may point a sink's file at a shell (`exec > >(sh); cat > /dev/stdout`), so it exempts none.
+  const exec = r.commands.some((c) => c.words.slice(0, shellWords.commandStart(c.words) + 1).some((w) => w.name === 'exec'));
+  if (r.texts.some((t) => (rawIntegrates(t.text) || isApiMerge(t.text)) && (exec || !sink(t) || lineIntegrates(t.text)))) return true;
+  return r.commands.some(commandIntegrates);
+}
 
 function decide(input) {
   if (!input || !input.agent_id) return { block: false }; // controller (or unknown) → allow
   const cmd = (input.tool_input && input.tool_input.command) || '';
-  if (BLOCK.test(cmd) || STUCK.test(cmd) || BLOCK_CLI.test(cmd) || isApiMerge(cmd)) {
-    return {
-      block: true,
-      reason:
-        "superdev: subagents must not integrate. `git merge`/`push`/`rebase`, `gh`/`tea pr merge`, and a `tea api` or `gh api` write to a pull request's /merge endpoint " +
-        "are the controller's job — commit on your slice branch and report your status. (merge-guard)",
-    };
+  let hit;
+  try {
+    if (!shellWords) return { block: true, reason: BROKEN };
+    hit = integrates(cmd);
+  } catch {
+    return { block: true, reason: BROKEN };
   }
+  if (hit || BLOCK_CLI.test(cmd) || isApiMerge(cmd)) return { block: true, reason: INTEGRATE };
   return { block: false };
 }
 

@@ -493,7 +493,7 @@ module.exports = [
     run: scanUnresolvedGlossaryContract,
     format: contractGap,
   },
-  table('arg-token', ARG_TOKEN_CONTRACTS, 'the three Bash hooks carry the same ARG shell-word token'),
+  table('arg-token', ARG_TOKEN_CONTRACTS, 'the Bash hooks read shell words through ./shell-words.js and carry no reader of their own'),
   table(
     'audit-set',
     AUDIT_SET_CONTRACTS,

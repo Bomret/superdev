@@ -44,7 +44,9 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
   agents/              — the subagents (*.md): implementer, slice-reviewer, simplicity-reviewer,
                          final-reviewer, doc-writer, doc-reader, test-auditor
   hooks/               — the deterministic Node hooks + hooks.json: merge-guard, model-explicit,
-                         green-gate, run-lock, ledger-guard, run-trace, slicetree-sweep, scope-prune, update-check
+                         green-gate, run-lock, ledger-guard, run-trace, slicetree-sweep, scope-prune, update-check,
+                         plus `shell-words.js`, the shared shell scanner the four Bash hooks (merge-guard,
+                         green-gate, ledger-guard, run-trace) read a command through (a module, not a hook, ADR 0135)
   references/          — backend seed templates + the non-seed runtime references (plan-contract,
                          documentation convention, controlled-prose, content-types, doc pass, run init,
                          run handoff, execution playbooks, test-selection, scope-mode, authoring
@@ -60,6 +62,7 @@ tests/                 — one suite per shipped executable (the hooks, `scope.j
                          `scope`, `scope-test-verb`, and `scope-fail-to-pass` (ADR 0139); `spawn-verdict.js` and `fixture-git.js`
                          are the shared helpers, not suites — `assertSpawnDecided` (INV-0009), asserted by
                          `spawn-verdict.test.js` and called from every other suite's bounded-spawn sites;
+                         `linear-time.js` is the shared same-run timing helper of the linear-time pins (`timePair`);
                          `fixture-git.js` appends `commit.gpgsign=false` to the `GIT_CONFIG_*` environment
 docs/adr/              — architecture decision records (why the plugin is built this way)
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification, deployment)
@@ -306,7 +309,10 @@ This root owns every other subtree directly:
   default-branch content check (ADR 0089). These are the only
   places a hook depends on a script instead of standing alone. A `require` failure leaves the hook
   with no fallback reader: it sweeps, prunes, or records nothing and says nothing. The probe has its own, narrower
-  fallback — `scope-prune.js` prunes by tree comparison alone, still silently.
+  fallback — `scope-prune.js` prunes by tree comparison alone, still silently. The four Bash hooks
+  (`merge-guard.js`, `green-gate.js`, `ledger-guard.js`, `run-trace.js`) each `require` the sibling module
+  `shell-words.js` and keep no shell-word reader of their own (ADR 0135, the `arg-token` drift check). When the
+  module cannot load, the three guardrails fail closed and `run-trace.js` records nothing (INV-0140).
 - `scripts/` and `plugin/scripts/`. Owned by [`scripts/AGENTS.md`](scripts/AGENTS.md):
   `plugin/scripts/scope.js` (the run-state CLI, ADR 0022: owns the ledger schema, is the only
   `ledger.md` read and write path, exports `readLedgerHeader` for `plugin/hooks/scope-prune.js` and
