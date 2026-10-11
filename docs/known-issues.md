@@ -56,8 +56,11 @@ ADR 0127). `SubagentStart` carries `agent_id`, `agent_type`, and no `prompt`, so
 the dispatch, keyed by `tool_use_id`. The `PostToolUse` `tool_response` for `Agent` carries a `status` field:
 `completed` for a foreground dispatch, `async_launched` with an `agentId` for a background one. The hooks
 reference documents both fields (its `PostToolUse` section for the `Agent` tool, which lists the
-`async_launched` field set and says subagents run in the background by default). `run-trace.js` ties the `agentId` to the dispatch with a
-`dispatch-bind` line, and the first `SubagentStop` with that `agent_id` ends it (a repeat writes no second end). A change to either field leaves a
+`async_launched` field set and says subagents run in the background by default). A `completed` response carries the
+`agentId` as well. `run-trace.js` ties the `agentId` of either status to the dispatch with one `dispatch-bind` line. The
+first `SubagentStop` with that `agent_id` ends a background dispatch (a repeat writes no second end). A foreground
+dispatch ends on its `completed` response, and its first run's `SubagentStop` fires before that response, while no bind
+names the agent yet. A change to either field leaves a
 dispatch without an end, and `final-reviewer`'s per-slice review check then reports the review missing.
 
 **Mitigation:** the hook never blocks on an `Agent` event; a missing field records no end, which the check
@@ -76,6 +79,13 @@ main checkout): the agent id that run-trace's hook payloads carry inside a backg
 that dispatch. Still open: no captured `SubagentStop` payload confirms that its `agent_id` carries the same
 value.
 
+Verified 2026-10-11, on Claude Code 2.1.296, against the live hook payloads of the resume probe (see "A SendMessage
+resumes a finished subagent as a new run" below). The `PostToolUse` payload of a foreground `Agent` call carried
+`tool_response.status: "completed"` with `agentId: "a2f6704ab6019b817"`, `agentType`, and `content`. That call's
+`SubagentStart` and `SubagentStop` carried the same `agent_id`, and its `SubagentStop` fired before the
+`PostToolUse`. This confirms the `SubagentStop` `agent_id` for a foreground subagent. A background one is still
+unconfirmed.
+
 ## A subagent's report arrives through the SubagentHandback tool
 
 The run trace records a slice review's verdict from the reviewer's own report (ADR 0136). On Claude Code
@@ -86,7 +96,7 @@ and the last assistant message of the subagent is the hand-back call, not the re
 reads the verdict from `PostToolUse` on `SubagentHandback`, matched in `hooks.json`, and falls back to
 `SubagentStop`'s `last_assistant_message` for a reviewer that answers in plain text. Both events carry the
 reviewer's `agent_id`, which the `dispatch-bind` line ties to its dispatch. A foreground reviewer has no
-`dispatch-bind` when its hand-back fires, so it gets no `verdict` line.
+`dispatch-bind` when its hand-back fires, so its report is read at `PostToolUse` on `Agent` instead (below).
 
 **Mitigation:** the hook never blocks on either event. A report it cannot read records `unknown`, and a
 review whose events never arrive records no `verdict` line, which a reader treats as a verdict not
@@ -103,6 +113,73 @@ hook.
 
 Verified 2026-10-10, on the same hooks reference: it states that Claude Code provides `SubagentHandback` in auto
 mode. Whether a run outside auto mode ever has the tool was not tested.
+
+A foreground review carries its report differently. Its `PostToolUse` payload on `Agent` has
+`tool_response.status: completed` and the report text in `tool_response.handbackReport.text`. `run-trace.js` reads
+the report there (a plain-string `handbackReport` is read too), writes a `slice-reviewer`'s `verdict` line and a `final-reviewer`'s `final-verdict` line from it,
+and writes each at most once per dispatch, whichever event reaches the hook first. A completed call with no
+`handbackReport` text records no line.
+
+Verified 2026-10-11, on Claude Code 2.1.295, in a session transcript dated 2026-10-10 and re-read 2026-10-11: the
+`Agent` tool result of a foreground review has `status: completed` and `handbackReport` as an object,
+`{"text": "<report>"}`, with the review's report in `text`. Recorded transcripts from Claude Code 2.1.284 to
+2.1.295 hold the same shape; none holds a plain string.
+
+## A subagent dispatch can end with no SubagentStop
+
+The run trace gives every dispatch one end with an outcome (ADR 0140). `SubagentStop` reports only a
+subagent that finishes. A failed `Agent` call fires `PostToolUseFailure` with its `tool_use_id`. A
+`TaskStop` on a background subagent fires no `SubagentStop`, and its own `PostToolUse` carries the
+subagent's agent id as `tool_input.task_id`. A `PreToolUse` hook that blocks an `Agent` call fires no
+event for that call afterward. `/exit` while a background subagent runs fires `SessionEnd` and no
+`SubagentStop`.
+
+**Mitigation:** `run-trace.js` ends a dispatch from the event that names it: `PostToolUseFailure` and
+`PermissionDenied` on `Agent` by `tool_use_id`, and `PostToolUse` on `TaskStop` by the agent id a
+`dispatch-bind` line recorded. A dispatch that no event names ends at the main session's next `Stop`,
+`UserPromptSubmit`, or `SessionEnd` with the outcome `unknown`, or `session-end` where the session ends
+while it runs. The `dispatch` line carries the session id for that match. The first end for a dispatch wins,
+so a `SubagentStop` that fires after one of these ends adds none.
+
+Verified 2026-10-11, on Claude Code 2.1.296, with the throwaway hook probe on branch
+`prototype/hook-end-probe` (commit `a273217c`), which logged every hook event of four `claude -p` sessions
+and one interactive session. An `Agent` call with a nonexistent subagent type fired `PreToolUse`, then
+`PostToolUseFailure` carrying the same `tool_use_id`, then `Stop`. An `Agent` call that a `PreToolUse` hook
+denied fired `PreToolUse`, then `Stop`, with no `PostToolUseFailure` and no `PermissionDenied`. A background
+subagent stopped with `TaskStop` fired `PreToolUse` and `PostToolUse` on `TaskStop` with `task_id` equal to the
+`agent_id` of its `SubagentStart`, then a `UserPromptSubmit` carrying a `<task-notification>`, then `Stop`, and
+no `SubagentStop`. In the interactive session, a background subagent ran across four turns: each turn's `Stop`
+listed it in `background_tasks` with status `running`, so a `Stop` is no end of a background dispatch. The
+session then ended with `/exit` (`SessionEnd`, reason `prompt_input_exit`) while that subagent still ran, and
+no `SubagentStop` for it followed.
+
+`PermissionDenied` is not observed: the hooks reference (`https://code.claude.com/docs/en/hooks`) states that
+it fires only in auto mode and carries `tool_use_id`, and the probe ran under `bypassPermissions`.
+
+## A SendMessage resumes a finished subagent as a new run
+
+A `SendMessage` to the agent id of a finished subagent resumes it, and the resumed run ends on its own
+(issue #992). The dispatch's `Agent` call fired its events once, so only the `SendMessage` call and the
+subagent's own start and stop events mark the new run.
+
+**Mitigation:** `run-trace.js` reads `PreToolUse` on `SendMessage`. When `tool_input.to` names an agent id that
+a `dispatch-bind` line ties to an ended dispatch, foreground or background, it appends a `dispatch-resume <tool_use_id> <agent_id>
+<session_id> <sendmessage_tool_use_id>` line on that dispatch's slice, which opens a new run. The resumed run's `SubagentStop` writes its
+own `dispatch-end`, and a session end with the resumed run open ends it `session-end`. The `SendMessage` call
+that opened the run, named by the line's last field, ends that run `failed` or `denied` when it fails
+(`PostToolUseFailure`) or is denied (`PermissionDenied`). A later `SendMessage` to the running dispatch ends
+nothing, and a `TaskStop` ends the run `stopped`. A `SendMessage` to a
+running dispatch or to an agent id no `dispatch-bind` names writes nothing. The hook reads `PreToolUse`, so the
+resume line lands before the resumed run's `SubagentStop` can fire.
+
+Verified 2026-10-11, on Claude Code 2.1.296, with a throwaway `claude -p` probe in the shape of branch
+`prototype/hook-end-probe` (every hook event logged as one JSON line). A foreground `Agent` call (agent id
+`a2f6704ab6019b817`) fired `PreToolUse` on `Agent`, `SubagentStart`, `SubagentStop`, and `PostToolUse` on `Agent`.
+That `PostToolUse` response carried `status: "completed"` and the agent id as `agentId`, which binds the dispatch.
+A `SendMessage` with `tool_input.to` equal to that agent id then fired `PreToolUse` and `PostToolUse` on
+`SendMessage`. The `PostToolUse` response carried `success: true` and `resumedAgentId` equal to the agent id. A
+`SubagentStart` and a second `SubagentStop` for the same `agent_id` followed. The `SendMessage` tool is deferred, so
+the probe loaded it through `ToolSearch` first.
 
 ## A PreToolUse command rewrite reaches PostToolUse hooks
 

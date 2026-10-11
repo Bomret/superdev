@@ -200,8 +200,10 @@ together. *Break it:* find the load that makes it fall over.
   run with no failing run between them is an **Important** finding, **Missing RED**, closed only by the
   checklist's closing sequence. At the 3-cycle fix cap it takes the escape path stated under
   **Fail-to-pass outcome** below (ADR 0125). On a **`full`** scope, every merged slice needs a `dispatch`
-  line of agent type `slice-reviewer` whose `dispatch-end` comes after that slice's last `dispatch-end` of
-  `implementer`, or a `**Degraded:**` ledger entry naming that slice's denied review. A slice with
+  line of agent type `slice-reviewer` whose `completed` `dispatch-end` comes after that slice's last `completed`
+  `dispatch-end` of `implementer`, or a `**Degraded:**` ledger entry naming that slice's denied review. A
+  `dispatch-end` line ends with its outcome (`completed`, `failed`, `denied`, `stopped`, `unknown`, or `session-end`),
+  a line with no outcome reads `completed`, and only a `completed` end finishes a dispatch. A slice with
   neither is an **Important** finding, **Unreviewed slice**. No trace, or no events for a slice, gets no
   finding: name the gap in the report.
 
@@ -237,10 +239,12 @@ together. *Break it:* find the load that makes it fall over.
   dispatch: a `scope` range whose latest outcome line reads `pass-to-pass` is **Pass-to-pass**, and an
   `implementer` `dispatch` of `scope` with `edit` lines in its window, whose commits that landed in that window
   change both a test-path file and another file, with no outcome line over those commits, is **Missing
-  fail-to-pass run**. A fix cycle's window runs from its `implementer` `dispatch` line of `scope` to the first
-  `dispatch` line, whatever its agent type or slice, after that implementer's `dispatch-end` line, or to the end of
-  the trace when none follows. A denied, failed, or interrupted dispatch leaves no `dispatch-end` line, and its window
-  ends at the first `dispatch` line after its own `dispatch` line, or at the end of the trace. A cycle's commits are
+  fail-to-pass run**. A fix cycle's window runs from each run of its `implementer` dispatch of `scope` (its
+  `dispatch` line, and each `dispatch-resume` line of that dispatch) to the first `dispatch` line, whatever its agent
+  type or slice, after the `dispatch-end` line that closes that run, or to the end of the trace when none follows.
+  Whatever the end's outcome (`completed`, `failed`, `denied`, `stopped`, `unknown`, or `session-end`), the window is
+  bounded the same way. An implementer run with no `dispatch-end` line has a window that ends at the first `dispatch`
+  line after its own `dispatch` or `dispatch-resume` line, or at the end of the trace. A cycle's commits are
   read along the scope branch's first-parent chain, so the base commits a merge brings in are none of them, and
   neither is a merge commit that brings the base in. An implementer that edits a file to show RED and restores it
   leaves an `edit` line that no commit carries, so the `edit` lines find a cycle and its commits decide it.

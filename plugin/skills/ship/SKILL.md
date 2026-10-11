@@ -45,7 +45,8 @@ checkout at all.
 ## 3. Read the pull request, and gate
 
 Read the ledger's `**Stage:**` line with
-`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>`:
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>`. The first bullet's refusal records no step; every other stage records the step with
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set ship --root <run-root>`, before any other ledger or store write, then takes its bullet:
 
 - **Anything short of `submitted`** (`planned`, `implementing`, `merged`, `reviewed`, `documented`,
   `documented-unreviewed`, or no line at all) → refuse: name the missing step, print `/superdev:submit-pr`
@@ -55,7 +56,7 @@ Read the ledger's `**Stage:**` line with
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deploy get --root <run-root>`; the listed targets are
   the anchor's `**Deploy:**` line, per `docs/agents/issue-tracker.md`. **Every listed target reads
   `deployed`, or no target is listed** → this run finished, merge and deploy alike: report "already
-  shipped", print the next command §5's **Hand off** picks, and stop, whether or not the scope checkout is present. An
+  shipped", run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root <run-root>`, print the next command §5's **Hand off** picks, and stop, whether or not the scope checkout is present. An
   "already shipped" report needs no scope checkout, so recreate none. **Otherwise** read the posture at
   the merge commit, with no scope checkout, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
   `## Reading the posture at the merge commit`: from the invoking checkout, reading the pull request by the
@@ -66,7 +67,7 @@ Read the ledger's `**Stage:**` line with
   commit"** below: nothing merges again. Recreate the absent scope checkout only when the posture is `auto`
   and a target is undeployed, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`, since §5's detach runs
   through it. **The posture is not
-  `auto`** → this run finished too: report "already shipped", print the next command §5's **Hand off** picks, and stop,
+  `auto`** → this run finished too: report "already shipped", run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root <run-root>`, print the next command §5's **Hand off** picks, and stop,
   recreating nothing. Nothing to merge, and nothing to refuse.
 - **`shipped`, and the ledger carries no `**PR:**` header** (`scope.js get pr` prints `absent`) → a
   version before ADR 0096 wrote this stage the moment it opened the pull request, not once it merged —
@@ -106,7 +107,7 @@ Either way:
   `/superdev:ship <scope>` again, which reads it by index and adopts or refuses as usual. Merge nothing
   either way. **Reached from a legacy `shipped` ledger rather than `submitted`** → skip the `pr set`
   recovery above: the run already shipped under the old meaning, so report that nothing is left to
-  merge, change nothing, and refuse nothing.
+  merge, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root <run-root>`, change nothing else, and refuse nothing.
 - **Closed, and `merged` is false** → refuse: name that it was closed without merging, and merge nothing.
 - **`merged` is true** → **adopt it, then skip straight to §5.** Its `head.sha` reusable off the ledger's
   last recorded green suite result — `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable
@@ -159,7 +160,7 @@ merged tip of a moved base. **No such section** → the call stays as written, s
 **Entries standing.** Read every bullet with
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get unresolved --root <run-root>` — one bullet per line.
 **No output** → proceed silently. **Output present** → name every bullet and **ask once** whether to
-merge with it standing. Declined → stop, merge nothing, write nothing. Confirmed → proceed and record in
+merge with it standing. Declined → stop, merge nothing, write nothing further. Confirmed → proceed and record in
 the report that the scope merged with the defect standing.
 
 ## 4. Base moved, then the merge
@@ -330,7 +331,7 @@ when the commit is missing, then
     commit above and starts again at the first target this run left undeployed. Stop.
   - **Every listed target now `deployed`** → go on to the hand-off below.
 
-**Hand off.** Ship writes no tick anywhere, closes no anchor, and removes no checkout, slice checkout, or
+**Hand off.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root <run-root>` first: every target is deployed or none applies, and a run that wrote no stage has no other clear. A failed or declined deploy stopped above and runs no clear here; on a resumed run its step stays standing. Ship writes no tick anywhere, closes no anchor, and removes no checkout, slice checkout, or
 lock: the anchor stays open and the run stays standing until `/superdev:wrap-up` (ADR 0106, INV-0099). Pick
 the next command by `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
 `## Routing a shipped run` (ADR 0116, INV-0116). Its reads only choose the command: ship writes no verdict

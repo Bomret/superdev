@@ -36,7 +36,9 @@ From `$ARGUMENTS`:
 
 ## 3. Dispatch
 
-**Read the run's inline-doc-pass record first**, whenever §2 found a live scope run:
+**Record the step first**, whenever §2 found a live scope run, before any other ledger or store write: run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set document --root <run-root>`.
+
+**Read the run's inline-doc-pass record next**, whenever §2 found a live scope run:
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get docs --root <run-root>`. Anything but `absent` means
 that run already performed the pass in its own context, while it still held the scope (ADR 0031), so the
 work this section would dispatch is done:
@@ -142,20 +144,20 @@ Only when §2 found a live run. Everything above still applies; this adds the ru
   first: printing anything means an earlier pass's untick still stands unresolved, and this pass writing
   `documented` over it would advance the stage past review while a criterion stands unmet (INV-0016), the
   same violation an untick of this pass's own would cause. Either case leaves the ledger's `**Stage:**`
-  line exactly as it stands: write nothing, and skip straight to the next-command bullet below. **Neither
+  line exactly as it stands: write no stage, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root <run-root>`, and skip straight to the next-command bullet below. **Neither
   case** → write the line with
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set <value> --root <run-root>`, per that file's
   rule that a stage write never undoes completed work — the verb enforces it and refuses a write that
   breaks it. Read the current stage first (`scope.js get stage`). `shipped`, `submitted`, or `closed` → leave the
-  line alone and say so in one line; a shipped scope never regains an earlier stage, a submitted one
+  line alone, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root <run-root>`, and say so in one line; a shipped scope never regains an earlier stage, a submitted one
   already has an open pull request the next command merges rather than re-opens, and a closed one is terminal. `reviewed` → write
-  `documented`. `documented` → leave it; the docs are already recorded as reconciled. Anything else,
-  including no line at all → write `documented-unreviewed`, which records that the review step never ran
+  `documented`. `documented` → leave it, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root <run-root>`; the docs are already recorded as reconciled. Anything else,
+  including no line at all → write `documented-unreviewed`, then run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root <run-root>`, because a write of the value the stage already holds keeps the step; the value records that the review step never ran
   before this doc pass. A pass in which the doc-writer changed nothing still counts: the docs already
   agreed with the code, which is the state this stage records. **Wrote `documented` or
   `documented-unreviewed` above** →
   publish the snapshot, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state`
-  section. The two leave-alone branches, and the untick branch above, wrote nothing, so there is nothing
+  section. The two leave-alone branches, and the untick branch above, wrote no stage, so there is nothing
   to publish there.
 - **Close with the Next block.** Where a command is printed, say first that the conversation is
   disposable: the ledger's stage and `dod.md` carry everything the next command reads, so a `/clear`

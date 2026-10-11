@@ -359,9 +359,10 @@ const tail = (rows) => rows.map((l) => l.slice(2).join(' '));
 reset();
 post('bun run test');
 fail('bun run test');
-post('GITEA_TOKEN=abc bun run test');
+// The sentinel holds a character no hex sha contains, so a commit sha never matches it by chance.
+post('GITEA_TOKEN=zz-secret-zz bun run test');
 assert.deepEqual(tail(trace(A)), [`run full pass ${sha} clean -`, `run full fail ${sha} clean -`, `run full pass ${sha} clean -`], 'full command, both events; env value and command text never recorded');
-assert.ok(!fs.readFileSync(path.join(A, 'trace.log'), 'utf8').includes('abc'));
+assert.ok(!fs.readFileSync(path.join(A, 'trace.log'), 'utf8').includes('zz-secret-zz'));
 
 reset();
 post('node tests/x.test.js');
@@ -912,7 +913,7 @@ assert.deepEqual(tail(trace(A)).map((l) => l.split(' ').slice(0, 2).join(' ')), 
 }
 
 // Subagent dispatches: PreToolUse on Agent records `dispatch`, PostToolUse `completed` (or async_launched then SubagentStop) the `dispatch-end`.
-const agentPre = (prompt, tu, type, description, cwd) => ({ hook_event_name: 'PreToolUse', tool_name: 'Agent', tool_use_id: tu, tool_input: { prompt, subagent_type: type || 'superdev:implementer', description: description || 'build it' }, cwd: cwd || tmp });
+const agentPre = (prompt, tu, type, description, cwd, session) => ({ hook_event_name: 'PreToolUse', tool_name: 'Agent', tool_use_id: tu, tool_input: { prompt, subagent_type: type || 'superdev:implementer', description: description || 'build it' }, cwd: cwd || tmp, ...(session ? { session_id: session } : {}) });
 const agentPost = (tu, response, cwd) => ({ hook_event_name: 'PostToolUse', tool_name: 'Agent', tool_use_id: tu, tool_response: response, cwd: cwd || tmp });
 // The attribution fixtures superdev-view shares (INV-0136): every entry attributes here exactly as the mod's
 // own suite asserts it does there, so the pane and the trace never disagree about an agent's scope and slice.
@@ -935,13 +936,16 @@ const agentPost = (tu, response, cwd) => ({ hook_event_name: 'PostToolUse', tool
   const src = fs.readFileSync(path.join(__dirname, '..', 'mods', 'superdev-view', 'hooks', 'trace-fixtures.ts'), 'utf8');
   const lines = JSON.parse(src.slice(src.indexOf('/* trace:start */') + 17, src.indexOf('/* trace:end */')));
   reset();
-  run(agentPre(`Work in ${A}/slicetrees/04`, 'tu1', 'superdev:implementer', 'Build slice 04'));
+  run(agentPre(`Work in ${A}/slicetrees/04`, 'tu1', 'superdev:implementer', 'Build slice 04', undefined, 's1'));
   run(agentPost('tu1', { status: 'async_launched', agentId: 'ag1' }));
   run({ hook_event_name: 'SubagentStop', agent_id: 'ag1', agent_type: 'superdev:implementer', cwd: tmp });
-  run(agentPre(`Review ${A}/scopetree`, 'tu2', 'superdev:final-reviewer', 'Final review'));
-  run(agentPost('tu2', { status: 'completed' }));
-  run(agentPre(`Work in ${A}/slicetrees/05`, 'tu3', 'superdev:implementer', 'Build slice 05'));
-  run(agentPre(`Review ${A}/slicetrees/04`, 'tu4', 'superdev:slice-reviewer', 'Review slice 04'));
+  run({ hook_event_name: 'PreToolUse', tool_name: 'SendMessage', tool_use_id: 'sm1', tool_input: { to: 'ag1', message: 'go on' }, session_id: 's1', cwd: tmp });
+  run({ hook_event_name: 'SubagentStop', agent_id: 'ag1', agent_type: 'superdev:implementer', cwd: tmp });
+  appendTrace(A, { slice: 'scope', agent: 'main', kind: 'ledger', fields: ['step', 'set', 'review'] });
+  run(agentPre(`Review ${A}/scopetree`, 'tu2', 'superdev:final-reviewer', 'Final review', undefined, 's1'));
+  run(agentPost('tu2', { status: 'completed', agentId: 'ag2', handbackReport: { text: 'Ready to merge? With fixes' } }));
+  run(agentPre(`Work in ${A}/slicetrees/05`, 'tu3', 'superdev:implementer', 'Build slice 05', undefined, 's1'));
+  run(agentPre(`Review ${A}/slicetrees/04`, 'tu4', 'superdev:slice-reviewer', 'Review slice 04', undefined, 's1'));
   run(agentPost('tu4', { status: 'async_launched', agentId: 'ag4' }));
   run({ hook_event_name: 'PostToolUse', tool_name: 'SubagentHandback', agent_id: 'ag4', tool_input: { message: '### Verdict: specification ❌ | quality: changes-needed' }, cwd: tmp });
   run({ hook_event_name: 'SubagentStop', agent_id: 'ag4', agent_type: 'superdev:slice-reviewer', cwd: tmp });
@@ -951,9 +955,9 @@ const agentPost = (tu, response, cwd) => ({ hook_event_name: 'PostToolUse', tool
   reset();
   const stop = (id, cwd) => run({ hook_event_name: 'SubagentStop', agent_id: id, agent_type: 'superdev:implementer', cwd: cwd || tmp });
   run(agentPre(`Work in ${A}/slicetrees/04 please`, 't1', 'superdev:implementer', 'two words'));
-  assert.deepEqual(trace(A), [['04', 'main', 'dispatch', 'superdev:implementer', 't1', 'two\\x20words']]);
+  assert.deepEqual(trace(A), [['04', 'main', 'dispatch', 'superdev:implementer', 't1', 'two\\x20words', '-']], 'a payload with no session id records `-` for it');
   run(agentPost('t1', { status: 'completed' }));
-  assert.deepEqual(trace(A)[1], ['04', 'main', 'dispatch-end', 'superdev:implementer', 't1'], 'a foreground dispatch ends on its PostToolUse');
+  assert.deepEqual(trace(A)[1], ['04', 'main', 'dispatch-end', 'superdev:implementer', 't1', 'completed'], 'a foreground dispatch ends on its PostToolUse');
   run(agentPre(`Append to ${A}/reports/04/progress.md`, 't2', 'superdev:slice-reviewer'));
   assert.deepEqual(trace(A)[2].slice(0, 5), ['04', 'main', 'dispatch', 'superdev:slice-reviewer', 't2']);
   run(agentPre(`${A}/slicetrees/04 and ${A}/reports/04/progress.md`, 't3'));
@@ -979,7 +983,7 @@ const agentPost = (tu, response, cwd) => ({ hook_event_name: 'PostToolUse', tool
   stop('other');
   assert.equal(trace(A).filter((l) => l[2] === 'dispatch-end').length, 0, 'an unbound agent id ends nothing');
   stop('ag1');
-  assert.deepEqual(trace(A).filter((l) => l[2] === 'dispatch-end'), [['04', 'main', 'dispatch-end', 'superdev:slice-reviewer', 'b1']]);
+  assert.deepEqual(trace(A).filter((l) => l[2] === 'dispatch-end'), [['04', 'main', 'dispatch-end', 'superdev:slice-reviewer', 'b1', 'completed']]);
 
   // A SubagentStop another hook blocked fires again: one dispatch still gets one end.
   stop('ag1');
@@ -999,12 +1003,12 @@ const agentPost = (tu, response, cwd) => ({ hook_event_name: 'PostToolUse', tool
   run(agentPost('x1', { status: 'completed' }));
   assert.deepEqual(trace(A).filter((l) => l[2] === 'dispatch-end').map((l) => [l[0], l[4]]), [['02', 'x2'], ['01', 'x1']]);
 
-  // A dispatch with no PostToolUse, or a PostToolUseFailure, has no end; a denied or failed result carries no completed status.
+  // A dispatch with no PostToolUse has no end yet; a PostToolUseFailure ends only its own dispatch.
   reset();
   run(agentPre(`${A}/slicetrees/01`, 'f1'));
   run(agentPre(`${A}/slicetrees/02`, 'f2'));
   run({ hook_event_name: 'PostToolUseFailure', tool_name: 'Agent', tool_use_id: 'f2', error: 'boom', cwd: tmp });
-  assert.equal(trace(A).filter((l) => l[2] === 'dispatch-end').length, 0);
+  assert.deepEqual(trace(A).filter((l) => l[2] === 'dispatch-end').map((l) => [l[0], l[4], l[5]]), [['02', 'f2', 'failed']]);
   assert.deepEqual(trace(A).filter((l) => l[2] === 'dispatch').map((l) => [l[0], l[4]]), [['01', 'f1'], ['02', 'f2']]);
 
   // Another status, a non-object tool_response, and async_launched without an agentId each write no end and print nothing.
@@ -1034,6 +1038,206 @@ const agentPost = (tu, response, cwd) => ({ hook_event_name: 'PostToolUse', tool
   assert.equal(spawnOut({ hook_event_name: 'SubagentStart', agent_id: 'z', agent_type: 'superdev:implementer', cwd: tmp }), '');
   assert.equal(trace(A).filter((l) => l[4] === 'o1' && l[2] === 'dispatch-end').length, 1);
   assert.equal(trace(A).length, 6);
+}
+
+// Dispatch outcomes (ADR 0140, INV-0145): every dispatch gets one `dispatch-end` naming how it ended, shaped as the
+// hook probe recorded the events (Claude Code 2.1.296): PostToolUseFailure and PermissionDenied on Agent carry the
+// call's tool_use_id, TaskStop's PostToolUse carries the subagent's agent id as tool_input.task_id, and Stop,
+// UserPromptSubmit, and SessionEnd carry the main session's session_id.
+{
+  const pre = (slice, tu, session, type) => run(agentPre(`${A}/slicetrees/${slice}`, tu, type, undefined, undefined, session));
+  const bind = (tu, ag) => run(agentPost(tu, { status: 'async_launched', agentId: ag }));
+  const boundary = (hook_event_name, session_id, extra) => run({ hook_event_name, session_id, cwd: tmp, ...extra });
+  const ends = () => trace(A).filter((l) => l[2] === 'dispatch-end').map((l) => [l[4], l[5]]);
+  const stopSub = (ag) => run({ hook_event_name: 'SubagentStop', agent_id: ag, agent_type: 'superdev:implementer', cwd: tmp });
+
+  // completed: a foreground dispatch on its PostToolUse, a background one on its SubagentStop, each once.
+  reset();
+  pre('01', 'c1', 'S1');
+  run(agentPost('c1', { status: 'completed' }));
+  run(agentPost('c1', { status: 'completed' }));
+  pre('01', 'c2', 'S1');
+  bind('c2', 'agc2');
+  stopSub('agc2');
+  stopSub('agc2');
+  assert.deepEqual(ends(), [['c1', 'completed'], ['c2', 'completed']], 'each completed dispatch ends once');
+  assert.equal(trace(A).find((l) => l[2] === 'dispatch')[6], 'S1', 'the dispatch line ends with its session id');
+
+  // failed and denied: matched by tool_use_id; a later end event for the dispatch writes nothing.
+  reset();
+  pre('01', 'x1', 'S1');
+  pre('01', 'x2', 'S1');
+  pre('01', 'x3', 'S1');
+  run({ hook_event_name: 'PostToolUseFailure', tool_name: 'Agent', tool_use_id: 'x1', error: 'boom', cwd: tmp });
+  run({ hook_event_name: 'PermissionDenied', tool_name: 'Agent', tool_use_id: 'x2', cwd: tmp });
+  run({ hook_event_name: 'PermissionDenied', tool_name: 'Agent', tool_use_id: 'nobody', cwd: tmp });
+  run({ hook_event_name: 'PostToolUseFailure', tool_name: 'Agent', tool_use_id: 'x2', cwd: tmp });
+  run(agentPost('x1', { status: 'completed' }));
+  assert.deepEqual(ends(), [['x1', 'failed'], ['x2', 'denied']], 'the first end wins, and a tool_use_id naming no dispatch writes nothing');
+
+  // stopped: a TaskStop naming a bound agent ends its dispatch; one naming no bound agent writes nothing.
+  reset();
+  pre('01', 'k1', 'S1');
+  bind('k1', 'agk1');
+  const taskStop = (task_id) => run({ hook_event_name: 'PostToolUse', tool_name: 'TaskStop', tool_input: { task_id }, tool_response: { task_id }, cwd: tmp });
+  taskStop('agother');
+  assert.deepEqual(ends(), [], 'a TaskStop naming no bound agent writes nothing');
+  taskStop('agk1');
+  assert.deepEqual(ends(), [['k1', 'stopped']]);
+  stopSub('agk1');
+  taskStop('agk1');
+  assert.deepEqual(ends(), [['k1', 'stopped']], 'a later SubagentStop or TaskStop writes no second end');
+
+  // unknown: at the session's Stop, a dispatch with no bind ends; a bound one and another session's stay open.
+  reset();
+  pre('01', 'u1', 'S1');
+  pre('01', 'u2', 'S1');
+  bind('u2', 'agu2');
+  pre('02', 'u3', 'S2');
+  boundary('Stop', 'S1');
+  assert.deepEqual(ends(), [['u1', 'unknown']], 'only the unbound dispatch of the session ends');
+  boundary('Stop', 'S1');
+  assert.deepEqual(ends(), [['u1', 'unknown']], 'a second Stop writes nothing');
+  pre('01', 'u4', 'S1');
+  boundary('UserPromptSubmit', 'S1', { prompt: 'go' });
+  assert.deepEqual(ends(), [['u1', 'unknown'], ['u4', 'unknown']], 'UserPromptSubmit ends it too');
+  boundary('Stop', 'S1', { agent_id: 'agu2' });
+  assert.equal(ends().length, 2, 'a Stop that names a subagent ends nothing');
+
+  // session-end: SessionEnd ends the session's open dispatches, bound ones `session-end` and unbound ones `unknown`;
+  // a dispatch line with no session id and another session's dispatch stay open.
+  pre('01', 'u5', 'S1');
+  appendTrace(A, { slice: '01', agent: 'main', kind: 'dispatch', fields: ['superdev:implementer', 'old1', 'legacy'] });
+  boundary('SessionEnd', 'S1', { reason: 'other' });
+  assert.deepEqual(ends().slice(2), [['u2', 'session-end'], ['u5', 'unknown']], 'SessionEnd ends the session\'s open dispatches');
+  assert.equal(ends().length, 4, 'a dispatch of another session and one with no session id stay open');
+  stopSub('agu2');
+  boundary('SessionEnd', 'S1');
+  assert.equal(ends().length, 4, 'a SubagentStop after a session-end end writes no second end');
+  boundary('SessionEnd', 'S2');
+  assert.deepEqual(ends().slice(4), [['u3', 'unknown']]);
+
+  // resumed (issue #992): a SendMessage naming the agent of an ended, bound dispatch opens a new run of it, with its own
+  // end; one naming a running dispatch or an unbound agent writes nothing. Shaped as the resume probe recorded the
+  // events (Claude Code 2.1.296): PreToolUse on SendMessage carries tool_input.to = the agent id, and the resumed run fires
+  // SubagentStart and SubagentStop again.
+  reset();
+  const send = (to, session_id = 'S1', tool_use_id = 'sm') => run({ hook_event_name: 'PreToolUse', tool_name: 'SendMessage', tool_use_id, tool_input: { to, message: 'go' }, session_id, cwd: tmp });
+  const resumes = () => trace(A).filter((l) => l[2] === 'dispatch-resume');
+  pre('01', 'm1', 'S1');
+  bind('m1', 'agm1');
+  send('agm1');
+  assert.deepEqual(resumes(), [], 'a SendMessage to a running dispatch writes nothing');
+  stopSub('agm1');
+  send('agnobody');
+  assert.deepEqual(resumes(), [], 'a SendMessage to an unbound agent id writes nothing');
+  send('agm1', 'S2');
+  assert.deepEqual(resumes(), [['01', 'main', 'dispatch-resume', 'm1', 'agm1', 'S2', 'sm']], 'a SendMessage to an ended dispatch reopens it on its slice, carrying its own tool_use_id');
+  send('agm1');
+  assert.equal(resumes().length, 1, 'a SendMessage to the reopened, running dispatch writes nothing');
+  stopSub('agm1');
+  assert.deepEqual(ends(), [['m1', 'completed'], ['m1', 'completed']], 'the resumed run ends with its own completed end');
+  stopSub('agm1');
+  assert.equal(ends().length, 2, 'a repeated SubagentStop writes no third end');
+  send('agm1', 'S2');
+  boundary('SessionEnd', 'S1');
+  assert.equal(ends().length, 2, 'a session other than the resuming one ends nothing');
+  boundary('SessionEnd', 'S2');
+  assert.deepEqual(ends().slice(2), [['m1', 'session-end']], 'a session end with the resumed run open ends it session-end');
+  assert.equal(spawnOut({ hook_event_name: 'PreToolUse', tool_name: 'SendMessage', tool_input: { to: 5 }, cwd: tmp }), '', 'a malformed SendMessage writes nothing');
+
+  // A SendMessage that fails or is denied leaves no subagent behind its resume line: it ends that run `failed` or `denied`.
+  // A TaskStop ends a resumed run `stopped`. A failed SendMessage to a dispatch whose last run line is no resume writes nothing.
+  reset();
+  pre('01', 'n1', 'S1');
+  bind('n1', 'agn1');
+  const sendEnd = (hook_event_name, to, tool_use_id = 'sm') => run({ hook_event_name, tool_name: 'SendMessage', tool_use_id, tool_input: { to, message: 'go' }, cwd: tmp });
+  sendEnd('PostToolUseFailure', 'agn1');
+  assert.deepEqual(ends(), [], 'a failed SendMessage to a running dispatch ends nothing');
+  stopSub('agn1');
+  send('agn1');
+  sendEnd('PostToolUseFailure', 'agn1');
+  assert.deepEqual(ends(), [['n1', 'completed'], ['n1', 'failed']], 'a failed SendMessage ends the resumed run it opened');
+  sendEnd('PostToolUseFailure', 'agn1');
+  assert.equal(ends().length, 2, 'a second failure writes no third end');
+  send('agn1');
+  sendEnd('PermissionDenied', 'agn1');
+  assert.deepEqual(ends().slice(2), [['n1', 'denied']], 'a denied SendMessage ends the resumed run it opened');
+  send('agn1');
+  run({ hook_event_name: 'PostToolUse', tool_name: 'TaskStop', tool_input: { task_id: 'agn1' }, cwd: tmp });
+  assert.deepEqual(ends().slice(3), [['n1', 'stopped']], 'a TaskStop ends a resumed run stopped');
+
+  // A second SendMessage to a resumed, still-running dispatch opened no run: its failure or denial ends nothing, and the
+  // run's own SubagentStop still writes `completed`.
+  reset();
+  pre('01', 'p1', 'S1');
+  bind('p1', 'agp1');
+  stopSub('agp1');
+  send('agp1', 'S1', 'sm1');
+  send('agp1', 'S1', 'sm2');
+  sendEnd('PostToolUseFailure', 'agp1', 'sm2');
+  sendEnd('PermissionDenied', 'agp1', 'sm2');
+  assert.deepEqual(ends(), [['p1', 'completed']], 'a failed or denied second SendMessage ends no live run');
+  stopSub('agp1');
+  assert.deepEqual(ends(), [['p1', 'completed'], ['p1', 'completed']], 'the live run still ends with its own SubagentStop');
+
+  // A foreground dispatch binds too: its completed PostToolUse carries the agentId (the resume probe, Claude Code 2.1.296,
+  // saw the first run's SubagentStop fire before that PostToolUse). A SendMessage to that agent reopens the dispatch, the
+  // resumed run's SubagentStop ends it, a turn boundary leaves the resumed run open, and a session end ends it.
+  reset();
+  pre('01', 'q1', 'S1');
+  stopSub('agq1');
+  run(agentPost('q1', { status: 'completed', agentId: 'agq1' }));
+  run(agentPost('q1', { status: 'completed', agentId: 'agq1' }));
+  assert.deepEqual(ends(), [['q1', 'completed']], 'the first run of a foreground dispatch ends once');
+  assert.equal(trace(A).filter((l) => l[2] === 'dispatch-bind').length, 1, 'a foreground dispatch gets one bind');
+  send('agq1', 'S1', 'smq1');
+  assert.deepEqual(resumes(), [['01', 'main', 'dispatch-resume', 'q1', 'agq1', 'S1', 'smq1']], 'a SendMessage reopens a completed foreground dispatch');
+  stopSub('agq1');
+  assert.deepEqual(ends(), [['q1', 'completed'], ['q1', 'completed']], 'the resumed run of a foreground dispatch ends with its own completed end');
+  send('agq1', 'S1', 'smq2');
+  boundary('Stop', 'S1');
+  assert.equal(ends().length, 2, 'a turn boundary leaves the resumed run open');
+  boundary('SessionEnd', 'S1');
+  assert.deepEqual(ends().slice(2), [['q1', 'session-end']], 'a session end with the resumed run open ends it session-end');
+
+  // A payload outside every run root or malformed records nothing; the spawned hook exits 0 with no output.
+  const before = fs.readFileSync(path.join(A, 'trace.log'), 'utf8');
+  pre('01', 'z1', 'S9');
+  const withZ = fs.readFileSync(path.join(A, 'trace.log'), 'utf8');
+  for (const ev of ['Stop', 'UserPromptSubmit', 'SessionEnd']) {
+    assert.equal(spawnOut({ hook_event_name: ev, session_id: 'S9', cwd: path.join(tmp, 'no', 'such', 'dir') }), '');
+    assert.equal(spawnOut({ hook_event_name: ev, cwd: tmp }), '', `${ev} with no session id`);
+    assert.equal(spawnOut({ hook_event_name: ev, session_id: 9, cwd: tmp }), '', `${ev} with a non-string session id`);
+    assert.equal(spawnOut({ hook_event_name: ev, session_id: 'S9', cwd: 42 }), '', `${ev} with a malformed cwd`);
+  }
+  const away = path.join(tmp, 'no', 'such', 'dir');
+  for (const ev of [{ hook_event_name: 'PostToolUseFailure', tool_name: 'Agent', tool_use_id: 'z1' }, { hook_event_name: 'PermissionDenied', tool_name: 'Agent', tool_use_id: 'z1' }, { hook_event_name: 'PostToolUse', tool_name: 'TaskStop', tool_input: { task_id: 'agz1' } }]) {
+    assert.equal(spawnOut({ ...ev, session_id: 'S9', cwd: away }), '', `${ev.hook_event_name} ${ev.tool_name} outside every run root`);
+  }
+  assert.equal(spawnOut(null, '{"hook_event_name":"Stop"'), '');
+  assert.equal(fs.readFileSync(path.join(A, 'trace.log'), 'utf8'), withZ, 'none of them wrote a line');
+  assert.ok(withZ.startsWith(before));
+  for (const ev of [{ hook_event_name: 'PostToolUseFailure', tool_name: 'Agent' }, { hook_event_name: 'PermissionDenied', tool_name: 'Agent', tool_use_id: 7 }, { hook_event_name: 'PostToolUse', tool_name: 'TaskStop' }, { hook_event_name: 'PostToolUse', tool_name: 'TaskStop', tool_input: { task_id: 5 } }]) {
+    assert.equal(spawnOut({ ...ev, cwd: tmp }), '');
+  }
+  assert.equal(fs.readFileSync(path.join(A, 'trace.log'), 'utf8'), withZ, 'a malformed end event wrote nothing');
+
+  // hooks.json runs the turn and session boundaries in every repository: one with no `.superdev/scopes` directory gets
+  // nothing written, and the hook exits 0 silently.
+  const bare = fs.mkdtempSync(path.join(os.tmpdir(), 'run-trace-bare-'));
+  cp.execFileSync('git', ['init', '-q', bare]);
+  for (const ev of ['Stop', 'UserPromptSubmit', 'SessionEnd']) assert.equal(spawnOut({ hook_event_name: ev, session_id: 'S9', cwd: bare }), '', `${ev} in a repository with no run`);
+  assert.deepEqual(fs.readdirSync(bare), ['.git'], 'the boundaries wrote nothing in a repository with no run');
+  fs.rmSync(bare, { recursive: true, force: true });
+
+  // hooks.json registers the end events for run-trace.js.
+  const hooks = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'plugin', 'hooks', 'hooks.json'), 'utf8')).hooks;
+  const runsTrace = (g) => g.hooks.some((h) => h.command.includes('hooks/run-trace.js'));
+  for (const ev of ['PostToolUseFailure', 'PermissionDenied']) for (const tool of ['Agent', 'SendMessage']) assert.ok(hooks[ev].some((g) => g.matcher.split('|').includes(tool) && runsTrace(g)), `${ev} on ${tool} runs run-trace.js`);
+  assert.ok(hooks.PostToolUse.some((g) => g.matcher.split('|').includes('TaskStop') && runsTrace(g)), 'PostToolUse on TaskStop runs run-trace.js');
+  for (const ev of ['Stop', 'UserPromptSubmit', 'SessionEnd']) assert.ok(hooks[ev].some(runsTrace), `${ev} runs run-trace.js`);
+  assert.ok(hooks.PreToolUse.some((g) => g.matcher === 'SendMessage' && runsTrace(g)), 'PreToolUse on SendMessage runs run-trace.js');
 }
 
 // Review verdicts (ADR 0136, INV-0142): a background slice-reviewer's report writes one `verdict` line
@@ -1128,6 +1332,137 @@ const agentPost = (tu, response, cwd) => ({ hook_event_name: 'PostToolUse', tool
   // hooks.json registers run-trace.js for PostToolUse on SubagentHandback.
   const registered = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'plugin', 'hooks', 'hooks.json'), 'utf8')).hooks;
   assert.ok(registered.PostToolUse.some((g) => g.matcher.split('|').includes('SubagentHandback') && g.hooks.some((h) => h.command.includes('hooks/run-trace.js'))), 'PostToolUse on SubagentHandback runs run-trace.js');
+
+  // Only a `completed` end finishes a dispatch: a stopped implementer is not the reviewed one, and a stopped reviewer is no
+  // cycle. An end with no outcome field (a trace written before outcomes) reads `completed`.
+  const taskStop = (task_id) => run({ hook_event_name: 'PostToolUse', tool_name: 'TaskStop', tool_input: { task_id }, cwd: tmp });
+  bg('08', 'i8a', 'superdev:implementer', 'ai8a');
+  stop('ai8a');
+  bg('08', 'i8b', 'superdev:implementer', 'ai8b');
+  taskStop('ai8b');
+  bg('08', 'r8a', 'superdev:slice-reviewer', 'ar8a');
+  taskStop('ar8a');
+  appendTrace(A, { slice: '08', agent: 'main', kind: 'dispatch', fields: ['superdev:slice-reviewer', 'r8old', 'legacy'] });
+  appendTrace(A, { slice: '08', agent: 'main', kind: 'dispatch-end', fields: ['superdev:slice-reviewer', 'r8old'] });
+  bg('08', 'r8b', 'superdev:slice-reviewer', 'ar8b');
+  handback('ar8b', PASS);
+  assert.deepEqual(verdicts()[5], ['08', 'main', 'verdict', 'r8b', 'pass', 'approved', '1', 'i8a'], 'a stopped reviewer is no cycle, a legacy end counts, a stopped implementer is not reviewed');
+
+  // A foreground slice review reports through `tool_response.handbackReport` at PostToolUse; one dispatch gets one line.
+  run(agentPre(`Review ${A}/slicetrees/09`, 'r9', 'superdev:slice-reviewer'));
+  run(agentPost('r9', { status: 'completed', handbackReport: { text: PASS } }));
+  assert.deepEqual(verdicts()[6], ['09', 'main', 'verdict', 'r9', 'pass', 'approved', '0', '-'], 'a foreground slice review records its verdict');
+  run(agentPost('r9', { status: 'completed', handbackReport: { text: FAIL } }));
+  assert.equal(verdicts().length, 7, 'a repeated report writes no second line');
+
+  // A resumed slice-reviewer ends once per run and counts as one cycle.
+  reset();
+  bg('04', 'q1', 'superdev:slice-reviewer', 'aq1');
+  stop('aq1');
+  run({ hook_event_name: 'PreToolUse', tool_name: 'SendMessage', tool_input: { to: 'aq1', message: 'again' }, session_id: 'S1', cwd: tmp });
+  stop('aq1');
+  bg('04', 'q2', 'superdev:slice-reviewer', 'aq2');
+  handback('aq2', PASS);
+  assert.equal(verdicts().pop()[6], '1', 'a resumed reviewer counts once in the cycle');
+}
+// Final-review verdicts (INV-0146): `final-verdict <tool_use_id> <answer> <cycle>` for a final-reviewer inside an open review step.
+{
+  const { parseFinalVerdict } = require(hookPath);
+  const tpl = fs.readFileSync(path.join(__dirname, '..', 'plugin', 'agents', 'final-reviewer.md'), 'utf8').split('\n').find((l) => l.startsWith('Ready to merge?'));
+  assert.ok(tpl, 'final-reviewer.md prescribes a `Ready to merge?` line');
+  const options = /\[(.*)\]/.exec(tpl)[1].split('|').map((w) => w.trim());
+  assert.deepEqual(options.map((w) => parseFinalVerdict(tpl.replace(/\[.*\]/, w))).sort(), ['no', 'with-fixes', 'yes'], `every answer ${tpl} offers parses`);
+  assert.equal(parseFinalVerdict('Ready to merge? with-fixes'), 'with-fixes', 'a hyphen spells the answer');
+  assert.equal(parseFinalVerdict('Ready to merge? WITH   FIXES'), 'with-fixes', 'any whitespace run and any case spell the answer');
+  assert.equal(parseFinalVerdict('Ready to merge? With fixes'), 'with-fixes');
+  assert.equal(parseFinalVerdict('Ready to merge? No\nReady to merge? **Yes**'), 'yes', 'the last line decides');
+  assert.equal(parseFinalVerdict('Ready to merge? Maybe'), 'unknown');
+  assert.equal(parseFinalVerdict(undefined), 'unknown');
+
+  const fv = () => trace(A).filter((l) => l[2] === 'final-verdict');
+  const step = (...fields) => appendTrace(A, { slice: 'scope', agent: 'main', kind: 'ledger', fields });
+  const handback = (ag, message) => run({ hook_event_name: 'PostToolUse', tool_name: 'SubagentHandback', agent_id: ag, tool_input: { message }, cwd: tmp });
+  const bgFinal = (tu, ag) => { run(agentPre(`Review ${A}/scopetree`, tu, 'superdev:final-reviewer')); run(agentPost(tu, { status: 'async_launched', agentId: ag })); };
+  const stopAg = (ag) => run({ hook_event_name: 'SubagentStop', agent_id: ag, agent_type: 'superdev:final-reviewer', cwd: tmp });
+
+  reset();
+  bgFinal('f0', 'af0');
+  handback('af0', 'Ready to merge? With fixes');
+  assert.equal(fv().length, 0, 'a final review before any review step line records nothing');
+  step('step', 'set', 'review');
+  bgFinal('f1', 'af1');
+  handback('af1', 'Ready to merge? With fixes');
+  assert.deepEqual(fv(), [['scope', 'main', 'final-verdict', 'f1', 'with-fixes', '0']], 'the review that opens the loop is cycle 0');
+  stopAg('af1');
+  handback('af1', 'Ready to merge? Yes');
+  assert.equal(fv().length, 1, 'the hand-back and the stop path give one line');
+  run(agentPre(`Review ${A}/scopetree`, 'f2', 'superdev:final-reviewer'));
+  run(agentPost('f2', { status: 'async_launched', agentId: 'af2' }));
+  run({ hook_event_name: 'PostToolUseFailure', tool_name: 'Agent', tool_use_id: 'f2', cwd: tmp });
+  bgFinal('f3', 'af3');
+  stopAg('af3');
+  assert.deepEqual(fv()[1], ['scope', 'main', 'final-verdict', 'f3', 'unknown', '1'], 'a failed dispatch does not advance the cycle; an unreadable report is unknown');
+  step('step', 'clear');
+  step('step', 'set', 'review');
+  run(agentPre(`Review ${A}/scopetree`, 'f4', 'superdev:final-reviewer'));
+  run(agentPost('f4', { status: 'completed', handbackReport: { text: 'Assessment\nReady to merge? Yes\nReasoning: ok' } }));
+  assert.deepEqual(fv()[2], ['scope', 'main', 'final-verdict', 'f4', 'yes', '0'], 'a second review step line restarts the cycle; a foreground review reports through handbackReport');
+  run(agentPost('f4', { status: 'completed', handbackReport: { text: 'Ready to merge? No' } }));
+  assert.equal(fv().length, 3, 'a repeated foreground report writes no second line');
+  run(agentPre(`Review ${A}/scopetree`, 'f5', 'superdev:final-reviewer'));
+  run(agentPost('f5', { status: 'completed', handbackReport: 'Ready to merge? No' }));
+  assert.deepEqual(fv()[3], ['scope', 'main', 'final-verdict', 'f5', 'no', '1'], 'a plain string report is read too');
+  // The review-step window reads step lines only: a step clear, or another step, closes it; a stage line never does.
+  step('stage', 'set', 'merged');
+  step('stage', 'set', 'merged');
+  run(agentPre(`Review ${A}/scopetree`, 'f6', 'superdev:final-reviewer'));
+  run(agentPost('f6', { status: 'completed', handbackReport: { text: 'Ready to merge? No' } }));
+  assert.equal(fv()[4][3], 'f6', 'a same-value stage write keeps the review step');
+  step('stage', 'set', 'reviewed');
+  step('step', 'clear'); // what `scope.js stage set` mirrors when the stage change removes the step
+  run(agentPre(`Review ${A}/scopetree`, 'f7', 'superdev:final-reviewer'));
+  run(agentPost('f7', { status: 'completed', handbackReport: { text: 'Ready to merge? No' } }));
+  assert.equal(fv().length, 5, 'a stage write that clears the step closes the review step');
+  step('step', 'set', 'review');
+  step('step', 'set', 'document');
+  run(agentPre(`Review ${A}/scopetree`, 'f8', 'superdev:final-reviewer'));
+  run(agentPost('f8', { status: 'completed', handbackReport: { text: 'Ready to merge? No' } }));
+  assert.equal(fv().length, 5, 'another step closes the review step');
+  step('step', 'set', 'review');
+  step('step', 'clear');
+  run(agentPre(`Review ${A}/scopetree`, 'f9', 'superdev:final-reviewer'));
+  run(agentPost('f9', { status: 'completed', handbackReport: { text: 'Ready to merge? No' } }));
+  assert.equal(fv().length, 5, 'a step clear closes the review step');
+  step('step', 'set', 'review');
+  run(agentPre(`Review ${A}/scopetree`, 'f10', 'superdev:final-reviewer'));
+  run(agentPost('f10', { status: 'completed', handbackReport: { text: 'Ready to merge? No' } }));
+  assert.deepEqual(fv()[5], ['scope', 'main', 'final-verdict', 'f10', 'no', '0'], 'a later review step reopens the window with a fresh cycle');
+  // An `adopt` line, then the step, then a same-value stage write: the step stays open.
+  reset();
+  step('adopt');
+  step('step', 'set', 'review');
+  step('stage', 'set', 'merged');
+  run(agentPre(`Review ${A}/scopetree`, 'g1', 'superdev:final-reviewer'));
+  run(agentPost('g1', { status: 'completed', handbackReport: { text: 'Ready to merge? No' } }));
+  assert.equal(fv().length, 1, 'a stage line that kept the ledger step leaves the review step open');
+  reset();
+  step('adopt');
+  step('step', 'set', 'review');
+  step('stage', 'set', 'reviewed');
+  step('step', 'clear');
+  run(agentPre(`Review ${A}/scopetree`, 'g2', 'superdev:final-reviewer'));
+  run(agentPost('g2', { status: 'completed', handbackReport: { text: 'Ready to merge? No' } }));
+  assert.equal(fv().length, 0, 'the step clear a stage write mirrors closes the review step');
+  // A resumed final-reviewer ends once per run and counts as one cycle.
+  reset();
+  step('step', 'set', 'review');
+  bgFinal('h1', 'ah1');
+  stopAg('ah1');
+  run({ hook_event_name: 'PreToolUse', tool_name: 'SendMessage', tool_input: { to: 'ah1', message: 'again' }, session_id: 'S1', cwd: tmp });
+  stopAg('ah1');
+  bgFinal('h2', 'ah2');
+  handback('ah2', 'Ready to merge? Yes');
+  assert.equal(fv().pop()[5], '1', 'a resumed final-reviewer counts once in the cycle');
 }
 // SubagentStop from a controller whose cwd is a subdirectory of the main checkout or a worktree of it.
 {
@@ -1162,7 +1497,7 @@ const agentPost = (tu, response, cwd) => ({ hook_event_name: 'PostToolUse', tool
   const d = fs.readFileSync(path.join(C, 'trace.log'), 'utf8').split('\n').filter((l) => l.includes(' t-w3 ') && l.includes(' dispatch '));
   assert.equal(d.length, 1, 'one line for the dispatch');
   assert.ok(d[0].includes(' dispatch superdev:implementer t-w3 a'), 'backslash prompt records the dispatch');
-  assert.ok(d[0].endsWith(' a\\nb'), 'newline escaped on one line');
+  assert.ok(d[0].endsWith(' a\\nb -'), 'newline escaped on one line, and no session id reads `-`');
 }
 
 // A git call that stalls while SubagentStop resolves the main checkout ends at the bound and records nothing.

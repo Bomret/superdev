@@ -233,6 +233,13 @@ higher stage) moves forward out of it and no later write moves back. `init` over
 stage `planned` overwrites it, since a plan that cut the branch and scopetree but ran no slice yet has
 nothing to lose; any other stage still refuses.
 
+`step set <name>` and `step clear` write the ledger's `**Step:**` line, the chain step a command has started and not
+yet completed (ADR 0140). `<name>` is one of `review`, `document`, `submit`, `ship`, `verify-ship`, or `wrap-up`. A
+stage write to a new value completes the open step, and a same-value stage write leaves it. Each write appends a `step`
+line to the run trace, and the review-step window reads those lines alone. The `run-trace-order` table pins where each
+chain skill writes and clears the step. The same table pins that final-reviewer and the checklist count only a
+`completed` dispatch end as a finished dispatch (ADR 0140, INV-0119).
+
 `publish` and `adopt` (ADR 0042) mirror the ledger to the scope anchor's **published snapshot**, and
 neither performs store I/O: slice-store I/O stays in-agent (ADR 0022). `publish --root <run-root>`
 prints the ledger on stdout as a single `## Run state` section: that heading, then the ledger — its
@@ -2991,10 +2998,12 @@ reaches it, because a dispatch is the later, more specific instruction and wins 
   the trace at every dispatch.
 - `agents/final-reviewer.md`, `references/review-checklist.md`, and `skills/review/SKILL.md` bound a fix cycle's window
   and name its commits. The trace attributes the cycle's `implementer` `dispatch` line to `scope`, its name for a
-  dispatch that belongs to no slice. The window runs from that line to the first `dispatch` line after the implementer's
-  `dispatch-end` line. That `dispatch` line closes the window whatever agent type or slice it names. With no such line,
-  the window runs to the end of the trace. A denied, failed, or interrupted implementer dispatch has no `dispatch-end`
-  line, and its window ends at the first `dispatch` line after the implementer's own. `final-reviewer` reads a cycle's
+  dispatch that belongs to no slice. The window runs from each run of that dispatch (its `dispatch` line and each
+  `dispatch-resume` line) to the first `dispatch` line after the `dispatch-end` line that closes that run. That
+  `dispatch` line closes the window whatever agent type or slice it names. With no such line, the window runs to the end
+  of the trace. A dispatch end carries an outcome (`completed`, `failed`, `denied`, `stopped`, `unknown`, or
+  `session-end`), and the window is bounded the same way whichever it is. An implementer run with no `dispatch-end` line
+  ends at the first `dispatch` line after its own `dispatch` or `dispatch-resume` line, or at the end of the trace. `final-reviewer` reads a cycle's
   commits along the scope branch's first-parent chain. A cycle's commits exclude the base commits a merge brings in, and
   they exclude the merge commit itself. The review controller reads a run handoff cycle's range along the same
   first-parent chain.

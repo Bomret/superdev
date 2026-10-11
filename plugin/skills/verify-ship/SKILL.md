@@ -42,7 +42,8 @@ Read the stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --r
   `documented-unreviewed`, `submitted`, or no line at all) → refuse: name the command that comes first
   (`/superdev:submit-pr` for a scope short of `submitted`, `/superdev:ship` for `submitted`), and
   observe nothing.
-- **`shipped`** → continue.
+- **`shipped`** → record the step with
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set verify-ship --root <run-root>`, before any other ledger or store write, then continue.
 
 ## 3. Deploy check, before anything is observed
 
@@ -100,6 +101,8 @@ anchor, per `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s *Verify-ship's cas
 and the `dod.md` verdict stands.
 
 ## 6. End
+
+Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root <run-root>`, because this step completes with no stage write.
 
 Publish the snapshot when a deploy record changed, per
 `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section. Print a summary: the

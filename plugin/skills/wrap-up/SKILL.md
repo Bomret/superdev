@@ -35,12 +35,13 @@ Read the stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --r
 - **Below `shipped`** (`planned`, `implementing`, `merged`, `reviewed`, `documented`,
   `documented-unreviewed`, `submitted`, or no line at all) → refuse: name the command that comes first
   (`/superdev:submit-pr` for a scope short of `submitted`, `/superdev:ship` for `submitted`), and change
-  nothing.
-- **`shipped`** → continue.
+  nothing else.
+- **`shipped`** → record the step with
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set wrap-up --root <run-root>`, before any other ledger or store write, then continue.
 
 ## 3. Gate
 
-Collect every reason that holds, then name all of them in one refusal. Change nothing while any reason
+Collect every reason that holds, then name all of them in one refusal. Change nothing else while any reason
 holds.
 
 - **The pull request is not merged.** `scope.js get pr` prints a number → read that pull request by
@@ -84,7 +85,7 @@ holds.
 The gate passed. Read `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get unresolved --root <run-root>`.
 Ask once per entry: close with it standing, or keep open.
 
-- **Keep open** → refuse, and change nothing.
+- **Keep open** → refuse, and change nothing else.
 - **Close with it standing** → proceed. Nothing new goes to the ledger: the published Run state snapshot
   (§7) shows the entry.
 

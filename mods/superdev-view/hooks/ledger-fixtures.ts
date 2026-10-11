@@ -18,3 +18,19 @@ export const LEDGER_LINES: string[] = /* ledger:start */ [
   "| 04 | #13 | Split \\| merge the panes | behavior | 03 | todo | — |",
   ""
 ] /* ledger:end */
+
+// The ledger of a run that has started `/superdev:review`: scope `view`, one slice `merged`, stage `merged`, then `step set review`.
+// tests/scope.test.js asserts scope.js writes exactly these lines, the way it does for LEDGER_LINES.
+export const LEDGER_STEP_LINES: string[] = /* ledger-step:start */ [
+  "# Ledger — view",
+  "",
+  "**Stage:** merged",
+  "**Step:** review",
+  "**Branch:** feat/view",
+  "**Anchor:** #9 — Show the pane",
+  "",
+  "| id | issue | title | type | depends-on | status | range |",
+  "|---|---|---|---|---|---|---|",
+  "| 01 | #10 | Draw the tiles | behavior | — | merged | a1b2c3d..e4f5a6b |",
+  ""
+] /* ledger-step:end */

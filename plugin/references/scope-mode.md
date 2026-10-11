@@ -105,6 +105,16 @@ write, naming `scope.js`.
 - **`**Stage:**`** — how far the scope has moved through the chain. Read with `get stage`, written with
   `stage set <value>`; `## The stage never moves backwards` owns the value set, which `scope.js` enforces
   in code.
+- **`**Step:**`** — the chain step a command has started and not yet completed: `review`, `document`,
+  `submit`, `ship`, `verify-ship`, or `wrap-up` (ADR 0140). Read with `get step`, which prints `none` when
+  the line is absent, and written with `step set <name>` as the step starts. `scope.js` refuses any other
+  name and leaves the ledger and the trace unchanged. A `stage set` that writes a new stage clears the line
+  in the same write and appends a `step clear` line to the run trace, and a refused or same-stage `stage set` leaves it. A step that completes with no
+  stage write removes it with `step clear`, which succeeds and changes nothing when the line is absent. A
+  step that stops blocked keeps it. Each `step set` and `step clear` that changes the ledger appends a
+  `ledger` line to the run trace, and `status` prints the step beside the stage. `publish` carries the line
+  in the snapshot, `adopt` refuses a snapshot whose step is not one of those names, and a ledger without it reads as no step started. No review rule reads the line as
+  evidence (INV-0117).
 - **`**Branch:**`** — the scope branch. `## The scope branch` owns how it is written and resolved.
 - **`**Anchor:** <key> — <title>`** — the scope anchor's store key and title, e.g. `**Anchor:** #183 —
   Audit fixes`. Run init hands it to `init`, per the store's `## Scope anchor`

@@ -131,6 +131,91 @@ try {
     }
   }
 
+  // The **Step** line (ADR 0140): `step set|clear`, `get step`, the `stage set` clear, the trace mirror, status, publish, adopt.
+  {
+    const stepRoot = path.join(tmp, '.superdev', 'scopes', 'stepper');
+    const stepLedger = () => fs.readFileSync(path.join(stepRoot, 'ledger.md'), 'utf8');
+    const stepTrace = () => (fs.existsSync(path.join(stepRoot, 'trace.log')) ? fs.readFileSync(path.join(stepRoot, 'trace.log'), 'utf8').split('\n').filter(Boolean) : []);
+    assert.ok(call(['init', 'feat/stepper', 'implementing'], sliceJson).ok, 'step fixture init');
+    assert.ok(call(['stage', '--root', stepRoot, 'set', 'merged']).ok, 'step fixture at merged');
+    assert.equal(call(['get', '--root', stepRoot, 'step']).out, 'none', 'a ledger with no step line reads none');
+    assert.ok(call(['status']).out.includes('stepper  (2 slices, stage: merged)'), 'a step-less run prints as before');
+    const t0 = stepTrace().length;
+    assert.ok(call(['step', '--root', stepRoot, 'set', 'review']).ok, 'step set review');
+    assert.ok(stepLedger().split('\n').includes('**Step:** review'), 'step set writes the line');
+    assert.equal(call(['get', '--root', stepRoot, 'step']).out, 'review', 'get step prints the step');
+    assert.equal(stepTrace().length, t0 + 1, 'step set appends one trace line');
+    assert.match(stepTrace()[t0], / ledger step set review$/, 'step set mirrors its fields');
+    assert.ok(call(['status']).out.includes('stepper  (2 slices, stage: merged, step: review)'), 'status prints the step beside the stage');
+    assert.ok(publishText(stepRoot).includes('**Step:** review'), 'publish carries the step');
+    {
+      const adoptStep = path.join(tmp, 'elsewhere', 'stepper');
+      assert.ok(call(['adopt', '--root', adoptStep], publishText(stepRoot)).ok, 'adopt reads a snapshot with a step');
+      assert.equal(call(['get', '--root', adoptStep, 'step']).out, 'review', 'adopt keeps the step');
+      const badAdopt = path.join(tmp, 'elsewhere2', 'stepper');
+      const refused = call(['adopt', '--root', badAdopt], publishText(stepRoot).replace('**Step:** review', '**Step:** bogus'));
+      assert.ok(!refused.ok, 'adopt refuses an unknown step');
+      assert.ok(refused.err.includes('bogus'), 'the adopt refusal names the step');
+    }
+    const before = stepLedger();
+    const t1 = stepTrace().length;
+    const bad = call(['step', '--root', stepRoot, 'set', 'reviewing']);
+    assert.ok(!bad.ok, 'step set with an unknown name is refused');
+    for (const name of ['review', 'document', 'submit', 'ship', 'verify-ship', 'wrap-up']) assert.ok(bad.err.includes(name), `the refusal names ${name}`);
+    assert.equal(stepLedger(), before, 'a refused step set leaves the ledger');
+    assert.equal(stepTrace().length, t1, 'a refused step set appends no trace line');
+    assert.ok(!call(['stage', '--root', stepRoot, 'set', 'implementing']).ok, 'a backwards stage set is refused');
+    assert.equal(call(['get', '--root', stepRoot, 'step']).out, 'review', 'a refused stage set leaves the step');
+    const t6 = stepTrace().length;
+    assert.ok(call(['stage', '--root', stepRoot, 'set', 'merged']).ok, 'a same-stage write succeeds');
+    assert.equal(stepTrace().length, t6 + 1, 'a same-stage write with a step appends no step clear');
+    assert.equal(call(['get', '--root', stepRoot, 'step']).out, 'review', 'a same-stage write leaves the step');
+    const t4 = stepTrace().length;
+    assert.ok(call(['stage', '--root', stepRoot, 'set', 'reviewed']).ok, 'stage set reviewed');
+    assert.equal(call(['get', '--root', stepRoot, 'step']).out, 'none', 'a stage write clears the step');
+    assert.equal(stepTrace().length, t4 + 2, 'a stage write that clears the step appends its own line and one step clear');
+    assert.match(stepTrace()[t4], / ledger step clear$/, 'the step clear precedes the stage line');
+    const t5 = stepTrace().length;
+    assert.ok(call(['stage', '--root', stepRoot, 'set', 'reviewed']).ok, 'a step-less same-value stage write');
+    assert.equal(stepTrace().length, t5 + 1, 'a stage write with no step appends only its own line');
+    call(['step', '--root', stepRoot, 'set', 'document']);
+    const t2 = stepTrace().length;
+    assert.ok(call(['step', '--root', stepRoot, 'clear']).ok, 'step clear');
+    assert.equal(call(['get', '--root', stepRoot, 'step']).out, 'none', 'step clear removes the line');
+    assert.equal(stepTrace().length, t2 + 1, 'step clear mirrors the write');
+    assert.match(stepTrace()[t2], / ledger step clear$/, 'step clear mirrors its fields');
+    assert.ok(call(['step', '--root', stepRoot, 'clear']).ok, 'a second step clear succeeds');
+    assert.equal(stepTrace().length, t2 + 1, 'a second step clear appends nothing');
+    // The same write twice changes nothing, so it mirrors once.
+    call(['step', '--root', stepRoot, 'set', 'ship']);
+    const t3 = stepTrace().length;
+    call(['step', '--root', stepRoot, 'set', 'ship']);
+    assert.equal(stepTrace().length, t3, 'a step set that changes nothing appends no trace line');
+    // A shipped run prints its step too: verify-ship and wrap-up start at `shipped`.
+    assert.ok(call(['stage', '--root', stepRoot, 'set', 'shipped']).ok, 'stage set shipped');
+    assert.ok(call(['status']).out.includes('stepper  (shipped)'), 'a step-less shipped run prints as before');
+    call(['step', '--root', stepRoot, 'set', 'verify-ship']);
+    assert.ok(call(['status']).out.includes('stepper  (shipped, step: verify-ship)'), 'status prints the step of a shipped run');
+    // The ledger the mod's fixture holds for a run with a step.
+    const src = fs.readFileSync(path.join(__dirname, '..', 'mods', 'superdev-view', 'hooks', 'ledger-fixtures.ts'), 'utf8');
+    const stepLines = JSON.parse(src.slice(src.indexOf('/* ledger-step:start */') + 23, src.indexOf('/* ledger-step:end */')));
+    const viewTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-viewstep-'));
+    const viewRoot = path.join(viewTmp, '.superdev', 'scopes', 'view');
+    const origStep = console.log;
+    console.log = () => {};
+    try {
+      run(['init', 'feat/view', 'planned'], viewTmp, JSON.stringify({ anchor: '#9 — Show the pane', slices: [{ id: '01', issue: '#10', title: 'Draw the tiles', type: 'behavior', 'depends-on': '—' }] }));
+      run(['stage', '--root', viewRoot, 'set', 'merged'], viewTmp);
+      run(['slice', '--root', viewRoot, '01', 'merged', '--range', 'a1b2c3d..e4f5a6b'], viewTmp);
+      run(['step', '--root', viewRoot, 'set', 'review'], viewTmp);
+      console.log = origStep;
+      assert.deepEqual(fs.readFileSync(path.join(viewRoot, 'ledger.md'), 'utf8').split('\n'), stepLines, 'scope.js writes the ledger with a step that superdev-view parses');
+    } finally {
+      console.log = origStep;
+      fs.rmSync(viewTmp, { recursive: true, force: true });
+    }
+  }
+
   // init: a slice list that is entirely merged (a second run over a fully-shipped appended feature,
   // ADR 0004) writes `merged` into every row — nothing defaults to `todo`. Isolated in its own root
   // so its 2-of-2-merged tally doesn't collide with the shipped-scope tally assertion below.
@@ -4252,6 +4337,7 @@ try {
         init: ['init', 'feat/g-init', 'implementing'],
         stage: ['stage', 'set', 'reviewed'],
         slice: ['slice', '01', 'merged'],
+        step: ['step', 'set', 'review'],
         degraded: ['degraded', 'add', 'x'],
         unresolved: ['unresolved', 'add', 'x'],
         deferred: ['deferred', 'add', 'x'],

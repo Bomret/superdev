@@ -43,7 +43,7 @@ shipped. The stage says which of those already happened, so add nothing of your 
 A run at stage `planned` prints the same way, its slice tally at zero and `stage: planned` named — a plan
 cut the branch and scopetree, but no slice has run yet (ADR 0079).
 
-A **shipped** or **closed** scope prints as one line, `<scope>  (shipped)` or `<scope>  (closed)`, with no
+A **shipped** or **closed** scope prints as one line, `<scope>  (shipped)` or `<scope>  (closed)` (`<scope>  (shipped, step: verify-ship)` while a step is open), with no
 slice tally and no blocked list. `closed` is the terminal stage: `hooks/scope-prune.js` reaps its run root
 together with its scope branch once the staleness TTL elapses and that branch is contained in base or gone
 (ADR 0007, ADR 0053, ADR 0071, ADR 0106). Neither is work in flight. Its degrade

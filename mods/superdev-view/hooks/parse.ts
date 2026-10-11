@@ -54,8 +54,8 @@ const time = (ts: string): number | null => {
 }
 
 // Agents from trace.log's `dispatch` lines alone (type, tool_use_id, description, and start time), closed by
-// `dispatch-end`, whose time is the agent's end. A `dispatch-bind` names the agentId whose own lines fold into that dispatch's activity;
-// a line from an agentId no dispatch binds (a foreground subagent, or one no scope attributes) adds no
+// `dispatch-end`, whose time is the agent's end; a `dispatch-resume` line reopens the agent until its next end. A `dispatch-bind` names the agentId whose own lines fold into that dispatch's activity;
+// a line from an agentId no dispatch binds (a foreground subagent still running, or one no scope attributes) adds no
 // agent, so no agent shows twice and a scope-less one shows nowhere. The structure (who, which slice,
 // done) goes to the pane; what each last did goes to its card alone, so a new trace line that starts or
 // ends nothing changes nothing the pane draws. A `verdict` line gives its reviewer's dispatch the review it
@@ -72,6 +72,12 @@ export const traceAgents = (trace: string): { agents: Agent[]; activity: Record<
       activity[key] = { last: ts, lastKind: 'dispatched', events: 0 }
     } else if (kind === 'dispatch-bind') {
       alias.set(untrace(f[2]), untrace(f[1]))
+    } else if (kind === 'dispatch-resume') {
+      // A SendMessage resumed the dispatch's subagent: it runs again until its next `dispatch-end`.
+      const key = untrace(f[0])
+      const a = byKey.get(key)
+      if (a) Object.assign(a, { isDone: false, end: null })
+      if (activity[key]) activity[key] = { ...activity[key], last: ts, lastKind: 'resumed' }
     } else if (kind === 'dispatch-end') {
       const key = untrace(f[1])
       const a = byKey.get(key)

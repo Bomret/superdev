@@ -6,6 +6,9 @@
 // Events: Edit/Write/NotebookEdit, and a Bash command writing a file through a redirect, `tee`,
 // `sed -i`, `cp`/`mv`/`install`, `git mv`, or `git apply`; and a Bash command that runs tests (with
 // outcome, commit, and tree state, on PostToolUse and PostToolUseFailure) or reverts or restores files.
+// And every subagent dispatch and its end with an outcome (ADR 0140): PreToolUse on Agent, then PostToolUse, PostToolUseFailure,
+// or PermissionDenied on Agent, SubagentStop, PostToolUse on TaskStop, or the main session's Stop, UserPromptSubmit, or SessionEnd.
+// PreToolUse on SendMessage reopens an ended dispatch (`dispatch-resume`), and the resumed run ends again the same ways.
 // Any error exits 0 silently; the hook never blocks.
 // simplicity: a write behind `bash -c` or a variable is not seen (a write inside `$( … )`, backticks, or a heredoc body a known
 // shell reads on stdin, such as `bash <<E`, is); a guardrail-grade
@@ -635,23 +638,31 @@ function recordDispatch(input) {
     if (m[2] || m[3]) ids.add(m[2] || m[3]);
   }
   if (roots.size !== 1) return;
-  appendTrace([...roots][0], { slice: ids.size === 1 ? [...ids][0] : 'scope', agent: 'main', kind: 'dispatch', fields: [ti.subagent_type, input.tool_use_id, ti.description] });
+  // The session id is the last field: the boundary close (`closeSession`) matches a dispatch to the session that made it.
+  appendTrace([...roots][0], { slice: ids.size === 1 ? [...ids][0] : 'scope', agent: 'main', kind: 'dispatch', fields: [ti.subagent_type, input.tool_use_id, ti.description, typeof input.session_id === 'string' ? input.session_id : undefined] });
 }
 
-// The run whose trace holds a `dispatch` line, found among the scopes dir's runs: by its `tool_use_id`, or (`viaAgent`) by the
-// `dispatch-bind` line that tied an `agentId` to one. Returns { runRoot, d } or undefined.
-function findDispatch(cwd, key, viaAgent) {
+// The runs under the scopes dir of cwd's repository, as { runRoot, events }: each run with a readable ledger and trace.
+function runsOf(cwd) {
   const m = /^(.*?\/\.superdev)\/scopes\//.exec(cwd.replace(/\\/g, '/'));
   // The main working tree holds the scopes dir, whatever checkout or subdirectory the controller stands in.
   const main = m ? null : mainWorkTree(cwd, { timeout: GIT_BOUND_MS }) || cwd;
   const scopes = path.join(m ? m[1] : path.join(main, '.superdev'), 'scopes');
+  const runs = [];
   for (const name of fs.readdirSync(scopes)) {
     const runRoot = path.join(scopes, name);
-    let events;
     try {
       fs.readFileSync(path.join(runRoot, 'ledger.md'));
-      events = readTrace(fs.readFileSync(path.join(runRoot, 'trace.log'), 'utf8'));
+      runs.push({ runRoot, events: readTrace(fs.readFileSync(path.join(runRoot, 'trace.log'), 'utf8')) });
     } catch { continue; }
+  }
+  return runs;
+}
+
+// The run whose trace holds a `dispatch` line, found among the scopes dir's runs: by its `tool_use_id`, or (`viaAgent`) by the
+// `dispatch-bind` line that tied an `agentId` to one. Returns { runRoot, d, events } or undefined.
+function findDispatch(cwd, key, viaAgent) {
+  for (const { runRoot, events } of runsOf(cwd)) {
     let id = key;
     if (viaAgent) {
       const bind = events.find((e) => e.kind === 'dispatch-bind' && e.fields[2] !== undefined && untraceField(e.fields[2]) === key);
@@ -662,22 +673,113 @@ function findDispatch(cwd, key, viaAgent) {
   }
 }
 
-// PostToolUse on Agent: `completed` ends the dispatch; `async_launched` binds its `agentId` for the SubagentStop that ends it.
-// A denied, failed (PostToolUseFailure), or interrupted dispatch never reaches here, so it gets no end.
+// Whether a trace holds an event of `kind` whose first-keyed field (index `at`) names the dispatch `tu`.
+const holds = (events, kind, at, tu) => events.some((e) => e.kind === kind && e.fields[at] !== undefined && untraceField(e.fields[at]) === tu);
+
+// The last line that opened or closed a run of the dispatch `tu`: its `dispatch`, a `dispatch-resume` (whose first field is
+// the `tool_use_id`), or a `dispatch-end`. The dispatch is running unless that line is an end.
+function lastRunLine(events, tu) {
+  let last;
+  for (const e of events) {
+    const at = e.kind === 'dispatch-resume' ? 0 : 1;
+    if ((e.kind === 'dispatch' || e.kind === 'dispatch-resume' || e.kind === 'dispatch-end') && e.fields[at] !== undefined && untraceField(e.fields[at]) === tu) last = e;
+  }
+  return last;
+}
+
+// Ends the run of the dispatch line `d` with `outcome`. The first end of a run wins (INV-0145): a run that already has one
+// gets nothing, and a resumed run (`dispatch-resume`) has its own.
+function endDispatch(runRoot, events, d, outcome) {
+  const tu = untraceField(d.fields[1]);
+  const last = lastRunLine(events, tu);
+  if (last && last.kind === 'dispatch-end') return;
+  appendTrace(runRoot, { slice: untraceField(d.slice), agent: 'main', kind: 'dispatch-end', fields: [untraceField(d.fields[0]), tu, outcome] });
+}
+
+// A `dispatch-end` line finishes its dispatch only when it reads `completed`; an end with no outcome field, written before
+// outcomes, reads `completed`.
+const completedEnd = (e) => e.kind === 'dispatch-end' && (e.fields[2] === undefined || untraceField(e.fields[2]) === 'completed');
+
+// PostToolUse on Agent: both statuses carry the subagent's `agentId`, and the first one seen binds it to the dispatch
+// (one `dispatch-bind` per dispatch) for the SubagentStop, TaskStop, and SendMessage that name the agent. `completed`
+// ends the dispatch; an `async_launched` one ends on its SubagentStop. A foreground run's own SubagentStop fires before
+// this event, while no bind names it yet, so its one end is this one.
+// A failed (PostToolUseFailure) or denied (PermissionDenied) call ends it through `recordAgentEnd`.
 function recordAgentResult(input, cwd) {
   const r = input.tool_response;
   if (!r || typeof r !== 'object' || typeof input.tool_use_id !== 'string') return;
   const f = r.status === 'completed' || r.status === 'async_launched' ? findDispatch(cwd, input.tool_use_id) : null;
   if (!f) return;
-  const fields = [untraceField(f.d.fields[0]), input.tool_use_id];
-  if (r.status === 'completed') appendTrace(f.runRoot, { slice: untraceField(f.d.slice), agent: 'main', kind: 'dispatch-end', fields });
-  else if (typeof r.agentId === 'string' && r.agentId) appendTrace(f.runRoot, { slice: untraceField(f.d.slice), agent: 'main', kind: 'dispatch-bind', fields: [...fields, r.agentId] });
+  if (typeof r.agentId === 'string' && r.agentId && !holds(f.events, 'dispatch-bind', 1, input.tool_use_id)) appendTrace(f.runRoot, { slice: untraceField(f.d.slice), agent: 'main', kind: 'dispatch-bind', fields: [untraceField(f.d.fields[0]), input.tool_use_id, r.agentId] });
+  if (r.status === 'completed') {
+    // A foreground review's report rides on `tool_response.handbackReport`: the verdict line lands before the end.
+    // Claude Code carries it as `{ text }`; a plain string is read too.
+    const report = r.handbackReport && typeof r.handbackReport === 'object' ? r.handbackReport.text : r.handbackReport;
+    if (typeof report === 'string') recordVerdict(f, report);
+    endDispatch(f.runRoot, f.events, f.d, 'completed');
+  }
 }
 
-// SubagentStop: ends the dispatch `f` whose `agentId` was bound, once: a stop another hook blocks fires again.
-function recordSubagentStop(f) {
-  if (!f || f.events.some((e) => e.kind === 'dispatch-end' && e.fields[1] !== undefined && untraceField(e.fields[1]) === untraceField(f.d.fields[1]))) return;
-  appendTrace(f.runRoot, { slice: untraceField(f.d.slice), agent: 'main', kind: 'dispatch-end', fields: [untraceField(f.d.fields[0]), untraceField(f.d.fields[1])] });
+// PostToolUseFailure and PermissionDenied on Agent: the call's `tool_use_id` names the dispatch it ends.
+function recordAgentEnd(input, cwd, outcome) {
+  if (typeof input.tool_use_id !== 'string') return;
+  const f = findDispatch(cwd, input.tool_use_id);
+  if (f) endDispatch(f.runRoot, f.events, f.d, outcome);
+}
+
+// PostToolUse on TaskStop: `task_id` is the stopped subagent's agent id, which a `dispatch-bind` tied to its dispatch.
+function recordTaskStop(input, cwd) {
+  const id = input.tool_input && input.tool_input.task_id;
+  if (typeof id !== 'string' || !id) return;
+  const f = findDispatch(cwd, id, true);
+  if (f) endDispatch(f.runRoot, f.events, f.d, 'stopped');
+}
+
+// PreToolUse on SendMessage: `to` is the agent id the message resumes (the probe saw `SubagentStart` and a second
+// `SubagentStop` follow). An ended, bound dispatch is running again, so its `dispatch-resume` line (the dispatch's
+// `tool_use_id`, the agent id, the resuming session, and the `SendMessage` call's own `tool_use_id`) reopens it on its slice.
+// A running dispatch or an unbound agent id writes nothing.
+function recordSendMessage(input, cwd) {
+  const to = input.tool_input && input.tool_input.to;
+  if (typeof to !== 'string' || !to) return;
+  const f = findDispatch(cwd, to, true);
+  const tu = f && untraceField(f.d.fields[1]);
+  const last = f && lastRunLine(f.events, tu);
+  if (!last || last.kind !== 'dispatch-end') return;
+  appendTrace(f.runRoot, { slice: untraceField(f.d.slice), agent: 'main', kind: 'dispatch-resume', fields: [tu, to, typeof input.session_id === 'string' ? input.session_id : undefined, typeof input.tool_use_id === 'string' ? input.tool_use_id : undefined] });
+}
+
+// PostToolUseFailure and PermissionDenied on SendMessage: a message that failed or was denied reaches no subagent, so the
+// run its `dispatch-resume` opened ends with `outcome`. Only the call whose `tool_use_id` the open resume line carries ends
+// it: a later message to the still-running resumed dispatch opened no run, so its failure leaves the live run alone.
+function recordSendMessageEnd(input, cwd, outcome) {
+  const to = input.tool_input && input.tool_input.to;
+  if (typeof to !== 'string' || !to || typeof input.tool_use_id !== 'string') return;
+  const f = findDispatch(cwd, to, true);
+  const last = f && lastRunLine(f.events, untraceField(f.d.fields[1]));
+  if (last && last.kind === 'dispatch-resume' && last.fields[3] !== undefined && untraceField(last.fields[3]) === input.tool_use_id) endDispatch(f.runRoot, f.events, f.d, outcome);
+}
+
+// Stop, UserPromptSubmit, and SessionEnd of the main session end the session's dispatches that no event named: a dispatch
+// with no `dispatch-bind` and no end is a foreground or blocked call that cannot outlive its turn (`unknown`; a foreground
+// one is bound only by the PostToolUse that ends it), and at SessionEnd a bound one still open ends `session-end`. A background dispatch is left open at a turn boundary. A dispatch
+// line with no session id, written before ids, matches no session. These events fire on every turn of every session, so
+// a payload this cannot read, or a repository with no run, records nothing.
+function closeSession(input, cwd) {
+  const sid = input.session_id;
+  if (typeof sid !== 'string' || !sid || sid === '-' || input.agent_id) return;
+  for (const { runRoot, events } of runsOf(cwd)) {
+    for (const d of events) {
+      if (d.kind !== 'dispatch') continue;
+      // The session of the open run: the dispatch's own, or the one that resumed it.
+      const last = lastRunLine(events, untraceField(d.fields[1]));
+      const at = last.kind === 'dispatch-resume' ? 2 : 3;
+      if (last.kind === 'dispatch-end' || last.fields[at] === undefined || untraceField(last.fields[at]) !== sid) continue;
+      const bound = holds(events, 'dispatch-bind', 1, untraceField(d.fields[1]));
+      if (!bound) endDispatch(runRoot, events, d, 'unknown');
+      else if (input.hook_event_name === 'SessionEnd') endDispatch(runRoot, events, d, 'session-end');
+    }
+  }
 }
 
 // ---- review verdicts (ADR 0136, INV-0142) ----
@@ -690,26 +792,55 @@ function parseVerdict(text) {
   return { spec: spec ? (spec[1] === '✅' ? 'pass' : 'fail') : 'unknown', quality: quality ? quality[1] : 'unknown' };
 }
 
-// A background slice-reviewer's report (its hand-back, or its stop's last message): one `verdict` line on its dispatch's
-// slice. The cycle counts the slice's reviewer dispatches that ended before this one was dispatched; the reviewed
-// implementer is the slice's last one to end before it. A foreground reviewer has no `dispatch-bind`, so it gets none.
-// `f` is the dispatch `findDispatch` bound to the reviewer's `agentId`.
+// The last `Ready to merge?` line of a final-reviewer's report: yes, no, or with-fixes; `unknown` when unreadable.
+function parseFinalVerdict(text) {
+  const line = typeof text === 'string' ? text.split('\n').filter((l) => /Ready to merge\?/.test(l)).pop() : undefined;
+  const m = line && /Ready to merge\?\W*(yes|no|with[-\s]+fixes)\b/i.exec(line);
+  return m ? m[1].toLowerCase().replace(/[-\s]+/, '-') : 'unknown';
+}
+
+// A review's report (a background one's hand-back or its stop's last message, a foreground one's `handbackReport`): one
+// `verdict` line for a slice-reviewer, one `final-verdict` line for a final-reviewer, each once per dispatch. The slice-reviewer's line is on its dispatch's
+// slice. The cycle counts the slice's reviewer dispatches that completed before this one was dispatched; the reviewed
+// implementer is the slice's last one to complete before it. A final-reviewer records only inside an open `review` step; its
+// cycle counts the final-reviewer dispatches that completed inside that window before it (INV-0146).
+// `f` is the dispatch `findDispatch` found, by `agentId` or by `tool_use_id`.
 function recordVerdict(f, text) {
   try {
-    if (!f || untraceField(f.d.fields[0]) !== 'superdev:slice-reviewer') return;
+    if (!f) return;
     const tu = untraceField(f.d.fields[1]);
-    if (f.events.some((e) => e.kind === 'verdict' && e.fields[0] !== undefined && untraceField(e.fields[0]) === tu)) return;
+    if (untraceField(f.d.fields[0]) === 'superdev:final-reviewer') {
+      const before = f.events.slice(0, f.events.indexOf(f.d));
+      if (holds(f.events, 'final-verdict', 0, tu)) return;
+      // The review step is open from its `step set review` line to the first line that ends it: a `step clear`, a
+      // `step set` of another step. A stage write that removes the ledger's step mirrors a `step clear` line, so
+      // step lines alone carry the window.
+      let open = false;
+      // A resumed reviewer ends once per run, so the cycle counts distinct dispatches (`tool_use_id`).
+      let done = new Set();
+      for (const e of before) {
+        if (e.kind === 'ledger' && e.fields[0] === 'step') {
+          open = e.fields[1] === 'set' && e.fields[2] === 'review';
+          done = new Set();
+        } else if (open && completedEnd(e) && untraceField(e.fields[0]) === 'superdev:final-reviewer') done.add(untraceField(e.fields[1]));
+      }
+      if (!open) return;
+      appendTrace(f.runRoot, { slice: untraceField(f.d.slice), agent: 'main', kind: 'final-verdict', fields: [tu, parseFinalVerdict(text), String(done.size)] });
+      return;
+    }
+    if (untraceField(f.d.fields[0]) !== 'superdev:slice-reviewer') return;
+    if (holds(f.events, 'verdict', 0, tu)) return;
     const slice = untraceField(f.d.slice);
-    let cycle = 0;
+    const reviewed = new Set(); // distinct dispatches: a resumed reviewer ends once per run
     let impl = '';
     for (const e of f.events.slice(0, f.events.indexOf(f.d))) {
-      if (e.kind !== 'dispatch-end' || untraceField(e.slice) !== slice) continue;
+      if (!completedEnd(e) || untraceField(e.slice) !== slice) continue;
       const type = untraceField(e.fields[0]);
-      if (type === 'superdev:slice-reviewer') cycle++;
+      if (type === 'superdev:slice-reviewer') reviewed.add(untraceField(e.fields[1]));
       else if (type === 'superdev:implementer') impl = untraceField(e.fields[1]);
     }
     const v = parseVerdict(text);
-    appendTrace(f.runRoot, { slice, agent: 'main', kind: 'verdict', fields: [tu, v.spec, v.quality, String(cycle), impl] });
+    appendTrace(f.runRoot, { slice, agent: 'main', kind: 'verdict', fields: [tu, v.spec, v.quality, String(reviewed.size), impl] });
   } catch {
     // records nothing
   }
@@ -722,6 +853,24 @@ function record(input) {
   if (input.tool_name === 'Agent') {
     if (input.hook_event_name === 'PreToolUse') recordDispatch(input);
     else if (input.hook_event_name === 'PostToolUse') recordAgentResult(input, cwd);
+    else if (input.hook_event_name === 'PostToolUseFailure') recordAgentEnd(input, cwd, 'failed');
+    else if (input.hook_event_name === 'PermissionDenied') recordAgentEnd(input, cwd, 'denied');
+    return null;
+  }
+  if (input.tool_name === 'SendMessage') {
+    if (input.hook_event_name === 'PreToolUse') {
+      try { recordSendMessage(input, cwd); } catch { /* no scopes dir or an unreadable run: nothing to reopen */ }
+    } else if (input.hook_event_name === 'PostToolUseFailure' || input.hook_event_name === 'PermissionDenied') {
+      try { recordSendMessageEnd(input, cwd, input.hook_event_name === 'PermissionDenied' ? 'denied' : 'failed'); } catch { /* no scopes dir or an unreadable run: nothing to end */ }
+    }
+    return null;
+  }
+  if (input.tool_name === 'TaskStop') {
+    if (input.hook_event_name === 'PostToolUse') recordTaskStop(input, cwd);
+    return null;
+  }
+  if (input.hook_event_name === 'Stop' || input.hook_event_name === 'UserPromptSubmit' || input.hook_event_name === 'SessionEnd') {
+    try { closeSession(input, cwd); } catch { /* no scopes dir or an unreadable run: nothing to end */ }
     return null;
   }
   if (input.tool_name === 'SubagentHandback') {
@@ -737,7 +886,8 @@ function record(input) {
       // One lookup serves both: the verdict line lands before the dispatch-end.
       const f = findDispatch(cwd, input.agent_id, true);
       recordVerdict(f, input.last_assistant_message);
-      recordSubagentStop(f);
+      // A stop another hook blocks fires again: endDispatch ends the dispatch once.
+      if (f) endDispatch(f.runRoot, f.events, f.d, 'completed');
     }
     return null;
   }
@@ -785,4 +935,4 @@ function main() {
 if (require.main === module) main();
 
 // `locate`, `testRuns`, and `treeState` are also `scope.js test`'s classifier and tree reader (ADR 0127): the verb and the hook never disagree.
-module.exports = { record, parseVerdict, bashTargets, verificationKind, locate, testRuns, treeState };
+module.exports = { record, parseVerdict, parseFinalVerdict, bashTargets, verificationKind, locate, testRuns, treeState };

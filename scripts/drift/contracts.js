@@ -5696,8 +5696,8 @@ const DOC_UNTICK_ON_BREAK_CONTRACTS = [
   // this pass writes must gate the stage write that follows it, not just the Unresolved entry above.
   [
     path.join('skills', 'document', 'SKILL.md'),
-    /unless the re-check above unticked a line[\s\S]{0,600}leaves the ledger's `\*\*Stage:\*\*` line exactly as it stands: write nothing/,
-    'leave the ledger\'s `**Stage:**` line exactly as it stands, writing nothing, when this pass unticked a line',
+    /unless the re-check above unticked a line[\s\S]{0,600}leaves the ledger's `\*\*Stage:\*\*` line exactly as it stands: write no stage/,
+    'leave the ledger\'s `**Stage:**` line exactly as it stands, writing no stage, when this pass unticked a line',
   ],
   [
     path.join('skills', 'document', 'SKILL.md'),
@@ -6480,14 +6480,14 @@ const SHIP_LEGACY_SHIPPED_CONTRACTS = [
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
-    /carries a `\*\*PR:\*\*` header[\s\S]{0,1200}?report "already\s*\n?\s*shipped", print the next command §5's \*\*Hand off\*\* picks, and stop, whether or not the scope checkout is present/,
+    /carries a `\*\*PR:\*\*` header[\s\S]{0,1200}?report "already\s*\n?\s*shipped", run `[^`]*step clear[^`]*`, print the next command §5's \*\*Hand off\*\* picks, and stop, whether or not the scope checkout is present/,
     'report "already shipped", print the next command §5\'s hand-off picks, and stop, with nothing to merge and nothing to refuse, on a `shipped` ' +
       'ledger that carries a `**PR:**` header and whose deploy record shows nothing left undeployed, ' +
       'whether or not the scope checkout is present (#720, ADR 0106)',
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
-    /\*\*The posture is not\s+`auto`\*\*\s*→\s*this run finished too: report "already shipped", print the next command §5's \*\*Hand off\*\* picks,\s+and stop/,
+    /\*\*The posture is not\s+`auto`\*\*\s*→\s*this run finished too: report "already shipped", run `[^`]*step clear[^`]*`, print the next command §5's \*\*Hand off\*\* picks,\s+and stop/,
     'report "already shipped", print the next command §5\'s hand-off picks, and stop when a `shipped` run\'s posture is not `auto`, ' +
       'so the exit names the next command instead of ending bare',
   ],
@@ -6733,7 +6733,7 @@ const SHIP_DEPLOY_CONTRACTS = [
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
-    /\*\*Hand off\.\*\*[\s\S]{0,1200}\*\*It routes to wrap-up\*\* → print `\/superdev:wrap-up <scope>` as the next command[\s\S]{0,400}hand-sync[\s\S]{0,120}`First:`/,
+    /\*\*Hand off\.\*\*[\s\S]{0,1500}\*\*It routes to wrap-up\*\* → print `\/superdev:wrap-up <scope>` as the next command[\s\S]{0,400}hand-sync[\s\S]{0,120}`First:`/,
     'print `/superdev:wrap-up <scope>` when the rule routes to wrap-up, the hand-sync under `First:` for an ' +
       'unpaired line (ADR 0116)',
   ],
@@ -7301,8 +7301,8 @@ const RUN_TRACE_ORDER_CONTRACTS = [
   ],
   [
     path.join('agents', 'final-reviewer.md'),
-    /On\s+a\s+\*\*`full`\*\*\s+scope,\s+every\s+merged\s+slice\s+needs\s+a\s+`dispatch`\s+line\s+of\s+agent\s+type\s+`slice-reviewer`\s+whose\s+`dispatch-end`\s+comes\s+after[\s\S]{0,200}`\*\*Degraded:\*\*`\s+ledger\s+entry\s+naming\s+that\s+slice's\s+denied\s+review[\s\S]{0,100}\*\*Important\*\*\s+finding,\s+\*\*Unreviewed\s+slice\*\*\.\s+No\s+trace/,
-    'have final-reviewer raise Unreviewed slice, Important, on a full scope for a slice with neither a later slice-reviewer dispatch-end nor a degraded entry, and no finding without a trace',
+    /On\s+a\s+\*\*`full`\*\*\s+scope,\s+every\s+merged\s+slice\s+needs\s+a\s+`dispatch`\s+line\s+of\s+agent\s+type\s+`slice-reviewer`\s+whose\s+`completed`\s+`dispatch-end`\s+comes\s+after[\s\S]{0,200}`\*\*Degraded:\*\*`\s+ledger\s+entry\s+naming\s+that\s+slice's\s+denied\s+review[\s\S]{0,300}only\s+a\s+`completed`\s+end\s+finishes\s+a\s+dispatch[\s\S]{0,100}\*\*Important\*\*\s+finding,\s+\*\*Unreviewed\s+slice\*\*\.\s+No\s+trace/,
+    'have final-reviewer raise Unreviewed slice, Important, on a full scope for a slice with neither a later completed slice-reviewer dispatch-end nor a degraded entry, count only a completed end as a finished dispatch, and give no finding without a trace',
   ],
   [
     path.join('skills', 'review', 'SKILL.md'),
@@ -7326,8 +7326,13 @@ const RUN_TRACE_ORDER_CONTRACTS = [
   ],
   [
     path.join('skills', 'review', 'SKILL.md'),
-    /On\s+a\s+\*\*`full`\*\*\s+scope,\s+every\s+merged\s+slice\s+needs\s+a\s+`dispatch\s+superdev:slice-reviewer`[\s\S]{0,200}`\*\*Degraded:\*\*`\s+ledger\s+entry\s+naming\s+that\s+slice's\s+denied\s+review[\s\S]{0,100}\*\*Unreviewed\s+slice\*\*\.\s+No\s+trace,\s+or\s+no\s+events\s+for\s+a\s+slice:/,
-    'dispatch final-reviewer with the full-tier Unreviewed slice rule and the no-trace and no-events exemption',
+    /On\s+a\s+\*\*`full`\*\*\s+scope,\s+every\s+merged\s+slice\s+needs\s+a\s+`dispatch\s+superdev:slice-reviewer`\s+whose\s+`completed`\s+`dispatch-end`[\s\S]{0,200}`\*\*Degraded:\*\*`\s+ledger\s+entry\s+naming\s+that\s+slice's\s+denied\s+review[\s\S]{0,300}only\s+a\s+`completed`\s+end\s+finishes\s+a\s+dispatch[\s\S]{0,100}\*\*Unreviewed\s+slice\*\*\.\s+No\s+trace,\s+or\s+no\s+events\s+for\s+a\s+slice:/,
+    'dispatch final-reviewer with the full-tier Unreviewed slice rule, which counts only a completed end as a finished dispatch, and the no-trace and no-events exemption',
+  ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /\*\*Unreviewed\s+slice\*\*\s+—[\s\S]{0,700}A\s+line\s+with\s+no\s+outcome\s+reads\s+`completed`,\s+and\s+only\s+a\s+`completed`\s+end\s+finishes\s+a\s+dispatch,\s+so\s+a\s+slice\s+review\s+that\s+ended\s+any\s+other\s+way\s+reviewed\s+nothing/,
+    "define, in the checklist's Unreviewed slice entry, that only a completed end finishes a dispatch, so a slice review that ended any other way reviewed nothing",
   ],
   [
     path.join('references', 'implement-full.md'),
@@ -8099,8 +8104,8 @@ RUN_TRACE_ORDER_CONTRACTS.push(
   ],
   [
     path.join('agents', 'final-reviewer.md'),
-    /A\s+fix\s+cycle's\s+window\s+runs\s+from\s+its\s+`implementer`\s+`dispatch`\s+line\s+of\s+`scope`\s+to\s+the\s+first\s+`dispatch`\s+line,\s+whatever\s+its\s+agent\s+type\s+or\s+slice,\s+after\s+that\s+implementer's\s+`dispatch-end`\s+line,\s+or\s+to\s+the\s+end\s+of\s+the\s+trace\s+when\s+none\s+follows\.\s+A\s+denied,\s+failed,\s+or\s+interrupted\s+dispatch\s+leaves\s+no\s+`dispatch-end`\s+line,\s+and\s+its\s+window\s+ends\s+at\s+the\s+first\s+`dispatch`\s+line\s+after\s+its\s+own\s+`dispatch`\s+line,\s+or\s+at\s+the\s+end\s+of\s+the\s+trace\.\s+A\s+cycle's\s+commits\s+are\s+read\s+along\s+the\s+scope\s+branch's\s+first-parent\s+chain,\s+so\s+the\s+base\s+commits\s+a\s+merge\s+brings\s+in\s+are\s+none\s+of\s+them,\s+and\s+neither\s+is\s+a\s+merge\s+commit\s+that\s+brings\s+the\s+base\s+in/,
-    'bound any fix cycle\'s window at its implementer dispatch line of scope and the first dispatch line of any agent type or slice after that implementer\'s dispatch-end line, or the end of the trace, so a dispatch that starts while the implementer still runs cuts no window short, a send-back\'s commits fall inside it, and a later doc pass\'s commits fall outside it; end a dispatch with no dispatch-end line, a denied, failed, or interrupted one, at the first dispatch line after its own; and read a cycle\'s commits along the scope branch\'s first-parent chain, leaving out the base commits a merge brings in and the merge commit itself',
+    /A\s+fix\s+cycle's\s+window\s+runs\s+from\s+each\s+run\s+of\s+its\s+`implementer`\s+dispatch\s+of\s+`scope`\s+\(its\s+`dispatch`\s+line,\s+and\s+each\s+`dispatch-resume`\s+line\s+of\s+that\s+dispatch\)\s+to\s+the\s+first\s+`dispatch`\s+line,\s+whatever\s+its\s+agent\s+type\s+or\s+slice,\s+after\s+the\s+`dispatch-end`\s+line\s+that\s+closes\s+that\s+run,\s+or\s+to\s+the\s+end\s+of\s+the\s+trace\s+when\s+none\s+follows\.\s+Whatever\s+the\s+end's\s+outcome\s+\(`completed`,\s+`failed`,\s+`denied`,\s+`stopped`,\s+`unknown`,\s+or\s+`session-end`\),\s+the\s+window\s+is\s+bounded\s+the\s+same\s+way\.\s+An\s+implementer\s+run\s+with\s+no\s+`dispatch-end`\s+line\s+has\s+a\s+window\s+that\s+ends\s+at\s+the\s+first\s+`dispatch`\s+line\s+after\s+its\s+own\s+`dispatch`\s+or\s+`dispatch-resume`\s+line,\s+or\s+at\s+the\s+end\s+of\s+the\s+trace\.\s+A\s+cycle's\s+commits\s+are\s+read\s+along\s+the\s+scope\s+branch's\s+first-parent\s+chain,\s+so\s+the\s+base\s+commits\s+a\s+merge\s+brings\s+in\s+are\s+none\s+of\s+them,\s+and\s+neither\s+is\s+a\s+merge\s+commit\s+that\s+brings\s+the\s+base\s+in/,
+    'bound any fix cycle\'s window from each run of its implementer dispatch of scope (its dispatch line and each dispatch-resume line of that dispatch) to the first dispatch line of any agent type or slice after the dispatch-end line that closes that run, or the end of the trace, so a dispatch that starts while the implementer still runs cuts no window short, a send-back\'s commits fall inside it, and a later doc pass\'s commits fall outside it; bound it the same way whatever the outcome of that end (completed, failed, denied, stopped, unknown, or session-end); end an implementer run with no dispatch-end line at the first dispatch line after its own dispatch or dispatch-resume line; and read a cycle\'s commits along the scope branch\'s first-parent chain, leaving out the base commits a merge brings in and the merge commit itself',
   ],
   [
     path.join('agents', 'final-reviewer.md'),
@@ -8139,8 +8144,8 @@ RUN_TRACE_ORDER_CONTRACTS.push(
   ],
   [
     path.join('references', 'review-checklist.md'),
-    /A\s+fix\s+cycle's\s+window\s+runs\s+from\s+its\s+`implementer`\s+`dispatch`\s+line\s+of\s+`scope`\s+to\s+the\s+first\s+`dispatch`\s+line,\s+whatever\s+its\s+agent\s+type\s+or\s+slice,\s+after\s+that\s+implementer's\s+`dispatch-end`\s+line,\s+or\s+to\s+the\s+end\s+of\s+the\s+trace\s+when\s+none\s+follows\.\s+A\s+denied,\s+failed,\s+or\s+interrupted\s+dispatch\s+leaves\s+no\s+`dispatch-end`\s+line,\s+and\s+its\s+window\s+ends\s+at\s+the\s+first\s+`dispatch`\s+line\s+after\s+its\s+own\s+`dispatch`\s+line,\s+or\s+at\s+the\s+end\s+of\s+the\s+trace\.\s+A\s+cycle's\s+commits\s+are\s+read\s+along\s+the\s+scope\s+branch's\s+first-parent\s+chain,\s+so\s+the\s+base\s+commits\s+a\s+merge\s+brings\s+in\s+are\s+none\s+of\s+them,\s+and\s+neither\s+is\s+a\s+merge\s+commit\s+that\s+brings\s+the\s+base\s+in/,
-    'bound any fix cycle\'s window at its implementer dispatch line of scope and the first dispatch line of any agent type or slice after that implementer\'s dispatch-end line, or the end of the trace, so a dispatch that starts while the implementer still runs cuts no window short, a send-back\'s commits fall inside it, and a later doc pass\'s commits fall outside it; end a dispatch with no dispatch-end line, a denied, failed, or interrupted one, at the first dispatch line after its own; and read a cycle\'s commits along the scope branch\'s first-parent chain, leaving out the base commits a merge brings in and the merge commit itself',
+    /A\s+fix\s+cycle's\s+window\s+runs\s+from\s+each\s+run\s+of\s+its\s+`implementer`\s+dispatch\s+of\s+`scope`\s+\(its\s+`dispatch`\s+line,\s+and\s+each\s+`dispatch-resume`\s+line\s+of\s+that\s+dispatch\)\s+to\s+the\s+first\s+`dispatch`\s+line,\s+whatever\s+its\s+agent\s+type\s+or\s+slice,\s+after\s+the\s+`dispatch-end`\s+line\s+that\s+closes\s+that\s+run,\s+or\s+to\s+the\s+end\s+of\s+the\s+trace\s+when\s+none\s+follows\.\s+Whatever\s+the\s+end's\s+outcome\s+\(`completed`,\s+`failed`,\s+`denied`,\s+`stopped`,\s+`unknown`,\s+or\s+`session-end`\),\s+the\s+window\s+is\s+bounded\s+the\s+same\s+way\.\s+An\s+implementer\s+run\s+with\s+no\s+`dispatch-end`\s+line\s+has\s+a\s+window\s+that\s+ends\s+at\s+the\s+first\s+`dispatch`\s+line\s+after\s+its\s+own\s+`dispatch`\s+or\s+`dispatch-resume`\s+line,\s+or\s+at\s+the\s+end\s+of\s+the\s+trace\.\s+A\s+cycle's\s+commits\s+are\s+read\s+along\s+the\s+scope\s+branch's\s+first-parent\s+chain,\s+so\s+the\s+base\s+commits\s+a\s+merge\s+brings\s+in\s+are\s+none\s+of\s+them,\s+and\s+neither\s+is\s+a\s+merge\s+commit\s+that\s+brings\s+the\s+base\s+in/,
+    'bound any fix cycle\'s window from each run of its implementer dispatch of scope (its dispatch line and each dispatch-resume line of that dispatch) to the first dispatch line of any agent type or slice after the dispatch-end line that closes that run, or the end of the trace, so a dispatch that starts while the implementer still runs cuts no window short, a send-back\'s commits fall inside it, and a later doc pass\'s commits fall outside it; bound it the same way whatever the outcome of that end (completed, failed, denied, stopped, unknown, or session-end); end an implementer run with no dispatch-end line at the first dispatch line after its own dispatch or dispatch-resume line; and read a cycle\'s commits along the scope branch\'s first-parent chain, leaving out the base commits a merge brings in and the merge commit itself',
   ],
   [
     path.join('references', 'review-checklist.md'),
@@ -8199,8 +8204,8 @@ RUN_TRACE_ORDER_CONTRACTS.push(
   ],
   [
     path.join('skills', 'review', 'SKILL.md'),
-    /A\s+fix\s+cycle's\s+window\s+runs\s+from\s+its\s+`implementer`\s+`dispatch`\s+line\s+of\s+`scope`\s+to\s+the\s+first\s+`dispatch`\s+line,\s+whatever\s+its\s+agent\s+type\s+or\s+slice,\s+after\s+that\s+implementer's\s+`dispatch-end`\s+line,\s+or\s+to\s+the\s+end\s+of\s+the\s+trace\s+when\s+none\s+follows\.\s+A\s+denied,\s+failed,\s+or\s+interrupted\s+dispatch\s+leaves\s+no\s+`dispatch-end`\s+line,\s+and\s+its\s+window\s+ends\s+at\s+the\s+first\s+`dispatch`\s+line\s+after\s+its\s+own\s+`dispatch`\s+line,\s+or\s+at\s+the\s+end\s+of\s+the\s+trace\.\s+A\s+cycle's\s+commits\s+are\s+read\s+along\s+the\s+scope\s+branch's\s+first-parent\s+chain,\s+so\s+the\s+base\s+commits\s+a\s+merge\s+brings\s+in\s+are\s+none\s+of\s+them,\s+and\s+neither\s+is\s+a\s+merge\s+commit\s+that\s+brings\s+the\s+base\s+in/,
-    'dispatch final-reviewer with any fix cycle\'s window, bounded at its implementer dispatch line of scope and the first dispatch line of any agent type or slice after that implementer\'s dispatch-end line, or the end of the trace, so a dispatch that starts while the implementer still runs cuts no window short, a send-back\'s commits fall inside it, and a later doc pass\'s commits fall outside it, with a dispatch that has no dispatch-end line ending at the first dispatch line after its own, and with a cycle\'s commits read along the scope branch\'s first-parent chain, leaving out the base commits a merge brings in and the merge commit itself',
+    /A\s+fix\s+cycle's\s+window\s+runs\s+from\s+each\s+run\s+of\s+its\s+`implementer`\s+dispatch\s+of\s+`scope`\s+\(its\s+`dispatch`\s+line,\s+and\s+each\s+`dispatch-resume`\s+line\s+of\s+that\s+dispatch\)\s+to\s+the\s+first\s+`dispatch`\s+line,\s+whatever\s+its\s+agent\s+type\s+or\s+slice,\s+after\s+the\s+`dispatch-end`\s+line\s+that\s+closes\s+that\s+run,\s+or\s+to\s+the\s+end\s+of\s+the\s+trace\s+when\s+none\s+follows\.\s+Whatever\s+the\s+end's\s+outcome\s+\(`completed`,\s+`failed`,\s+`denied`,\s+`stopped`,\s+`unknown`,\s+or\s+`session-end`\),\s+the\s+window\s+is\s+bounded\s+the\s+same\s+way\.\s+An\s+implementer\s+run\s+with\s+no\s+`dispatch-end`\s+line\s+has\s+a\s+window\s+that\s+ends\s+at\s+the\s+first\s+`dispatch`\s+line\s+after\s+its\s+own\s+`dispatch`\s+or\s+`dispatch-resume`\s+line,\s+or\s+at\s+the\s+end\s+of\s+the\s+trace\.\s+A\s+cycle's\s+commits\s+are\s+read\s+along\s+the\s+scope\s+branch's\s+first-parent\s+chain,\s+so\s+the\s+base\s+commits\s+a\s+merge\s+brings\s+in\s+are\s+none\s+of\s+them,\s+and\s+neither\s+is\s+a\s+merge\s+commit\s+that\s+brings\s+the\s+base\s+in/,
+    'dispatch final-reviewer with any fix cycle\'s window, bounded from each run of its implementer dispatch of scope (its dispatch line and each dispatch-resume line of that dispatch) to the first dispatch line of any agent type or slice after the dispatch-end line that closes that run, or the end of the trace, so a dispatch that starts while the implementer still runs cuts no window short, a send-back\'s commits fall inside it, and a later doc pass\'s commits fall outside it, bounded the same way whatever the outcome of that end (completed, failed, denied, stopped, unknown, or session-end), with an implementer run that has no dispatch-end line ending at the first dispatch line after its own dispatch or dispatch-resume line, and with a cycle\'s commits read along the scope branch\'s first-parent chain, leaving out the base commits a merge brings in and the merge commit itself',
   ],
   [
     path.join('skills', 'review', 'SKILL.md'),
@@ -8836,6 +8841,114 @@ const SIMPLICITY_BESIDE_FIRST_REVIEW_CONTRACTS = [
     'keep the lite tier free of a per-slice review and a per-slice over-engineering pass',
   ],
 ];
+
+// ADR 0140, INV-0119: the chain commands write the step they start, the full-tier playbook writes `in-review` to the
+// ledger before a slice's first review, the review and verify-ship clear the step on an exit that writes no stage, and the
+// scope review names its remedy for an Unreviewed slice finding. These rows join the `run-trace-order` table, the check
+// that pins what the run trace records.
+// A row's source writes a space where the document may break a line and `@SJ` for the scope.js invocation.
+const stepRe = (src) =>
+  new RegExp(src.replace(/@SJ/g, 'node "\\$\\{CLAUDE_PLUGIN_ROOT\\}\\/scripts\\/scope\\.js"').replace(/ /g, '\\s+'));
+RUN_TRACE_ORDER_CONTRACTS.push(
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    stepRe(
+      'record the step before any other ledger or store write\\.\\*\\* Read the step with `@SJ get step --root <run-root>`\\. It prints `review` → run `@SJ step clear --root <run-root>`, then `@SJ step set review --root <run-root>`; any other value → run `@SJ step set review --root <run-root>` alone, which replaces the standing step\\. The clear makes each invocation write its own `step review` line',
+    ),
+    'have each scope-mode review invocation, before any other ledger or store write, clear the step and then set it to review only when the step reads review, and set it alone otherwise, so it writes its own step review line without a clear line for another step',
+  ],
+  [
+    path.join('skills', 'document', 'SKILL.md'),
+    stepRe(
+      '## 3\\. Dispatch \\*\\*Record the step first\\*\\*, whenever §2 found a live scope run, before any other ledger or store write: run `@SJ step set document --root <run-root>`\\.',
+    ),
+    'have document record `step set document` at the start of §3, before its dispatch and any other ledger or store write',
+  ],
+  // The lead of each row is the text that must stand before the step sentence: the gate's terminal and wrong-order exits.
+  ...[
+    ['ship', 'ship', "The first bullet's refusal records no step; every other stage records"],
+    [
+      'submit-pr',
+      'submit',
+      'Never open a second\\. - \\*\\*Any other stage\\*\\* → under `--unattended`, a stage other than `documented` refuses before any step is recorded: name what is missing \\(`/superdev:review`, `/superdev:document`, or both\\), open no pull request, and stop\\. A caller that drove the whole chain never reaches this refusal, so reaching it unattended means a step really was skipped — and submitting unreviewed code is not a decision a token stands in for\\. Every other run records',
+    ],
+    ['verify-ship', 'verify-ship', 'and observe nothing\\. - \\*\\*`shipped`\\*\\* → record'],
+    ['wrap-up', 'wrap-up', 'and change nothing else\\. - \\*\\*`shipped`\\*\\* → record'],
+  ].map(([skill, step, lead]) => [
+    path.join('skills', skill, 'SKILL.md'),
+    stepRe(`${lead} the step with \`@SJ step set ${step} --root <run-root>\`, before any other ledger or store write`),
+    `have ${skill} record \`step set ${step}\` after its terminal-stage and wrong-order exits and before any other ledger or store write`,
+  ]),
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    stepRe(
+      'On every clean-verdict exit, after the stage write or the leave-alone, run `@SJ step clear --root <run-root>`, which changes nothing when no step stands',
+    ),
+    'have the review clear the step on every clean-verdict exit, after the stage write or the leave-alone, so a same-value stage write leaves no step standing',
+  ],
+  [
+    path.join('skills', 'document', 'SKILL.md'),
+    stepRe('`shipped`, `submitted`, or `closed` → leave the line alone, run `@SJ step clear --root <run-root>`, and say so in one line'),
+    'have document clear the step on its leave-alone exit at shipped, submitted, or closed, where it writes no stage',
+  ],
+  [
+    path.join('skills', 'document', 'SKILL.md'),
+    stepRe('`documented` → leave it, run `@SJ step clear --root <run-root>`; the docs are already recorded as reconciled'),
+    'have document clear the step on its leave-alone exit at documented, where it writes no stage',
+  ],
+  [
+    path.join('skills', 'document', 'SKILL.md'),
+    stepRe('write no stage, run `@SJ step clear --root <run-root>`, and skip straight to the next-command bullet below'),
+    'have document clear the step on its exit that writes no stage because an untick or a standing Unresolved entry holds the stage',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    stepRe('report "already shipped", run `@SJ step clear --root <run-root>`, print the next command §5\'s \\*\\*Hand off\\*\\* picks, and stop, whether or not'),
+    'have ship clear the step on its already-shipped exit for a finished merge and deploy, where it writes no stage',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    stepRe('this run finished too: report "already shipped", run `@SJ step clear --root <run-root>`, print the next command'),
+    'have ship clear the step on its already-shipped exit for a posture that is not auto, where it writes no stage',
+  ],
+  [
+    path.join('skills', 'document', 'SKILL.md'),
+    stepRe('write `documented-unreviewed`, then run `@SJ step clear --root <run-root>`, because a write of the value the stage already holds keeps the step'),
+    'have document clear the step after its documented-unreviewed write, which a second pass makes a same-value write',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    stepRe('\\*\\*Hand off\\.\\*\\* Run `@SJ step clear --root <run-root>` first'),
+    'have ship clear the step at the start of its hand-off, where a run that wrote no stage finishes',
+  ],
+  [
+    path.join('skills', 'ship', 'SKILL.md'),
+    stepRe('nothing is left to merge, run `@SJ step clear --root <run-root>`, change nothing else, and refuse nothing'),
+    'have ship clear the step on its exit for a legacy shipped ledger, where it writes no stage',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    stepRe(
+      '\\*\\*Unreviewed slice\\*\\* \\(a finding of that name in the chosen set\\) → answer it yourself, with no implementer cycle: dispatch the `superdev:slice-reviewer` with an explicit `model`, handing over the slice\'s `spec`, `acceptance`, range, and progress-log path `<run-root>/reports/<id>/progress\\.md`, and leave it off the \\*\\*Confirmed\\*\\* list below',
+    ),
+    'have the review fix loop answer an Unreviewed slice finding with the slice-reviewer dispatch over the slice, with no implementer cycle',
+  ],
+  [
+    path.join('skills', 'verify-ship', 'SKILL.md'),
+    /##\s+6\.\s+End\s+Run\s+`node\s+"\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/scope\.js"\s+step\s+clear\s+--root\s+<run-root>`,\s+because\s+this\s+step\s+completes\s+with\s+no\s+stage\s+write/,
+    'have verify-ship clear the step at its end, which writes no stage',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /`node\s+"\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/scope\.js"\s+slice\s+<id>\s+in-review\s+--root\s+<run-root>`\s+before\s+the\s+first\s+slice\s+review\s+dispatch\s+\(the\s+row\s+stays\s+`in-review`\s+through\s+the\s+parallel\s+simplicity\s+pass\s+and\s+every\s+fix\s+cycle,\s+until\s+the\s+merge\s+or\s+a\s+block\)/,
+    'have step 3 write the in-review status to the ledger before the first slice review dispatch, the row staying in-review through the simplicity pass and every fix cycle until the merge or a block',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /The\s+remedy\s+for\s+an\s+\*\*Unreviewed\s+slice\*\*\s+finding\s+is\s+a\s+`superdev:slice-reviewer`\s+dispatch\s+that\s+hands\s+over\s+the\s+slice's\s+`spec`,\s+`acceptance`,\s+range,\s+and\s+progress-log\s+path\s+`<run-root>\/reports\/<id>\/progress\.md`,\s+so\s+the\s+run\s+trace\s+records\s+the\s+dispatch\s+on\s+that\s+slice/,
+    "name the Unreviewed slice remedy: a slice-reviewer dispatch handing over the slice's spec, acceptance, range, and progress-log path, so the run trace records it on that slice",
+  ],
+);
 
 module.exports = {
   SIMPLICITY_BESIDE_FIRST_REVIEW_CONTRACTS,

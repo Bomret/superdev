@@ -132,6 +132,14 @@ standing tree `/superdev:sweep` asked this leg to read.
 **State the concrete range/target** (e.g. "Reviewing `a1b2c3..d4e5f6`" or "Reviewing working tree changes
 incl. untracked") before dispatching.
 
+**In scope mode, record the step before any other ledger or store write.** Read the step with
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get step --root <run-root>`. It prints `review` → run
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root <run-root>`, then
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set review --root <run-root>`; any other value → run
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set review --root <run-root>` alone, which replaces the standing step. The clear makes each
+invocation write its own `step review` line, even when the step already reads `review`, so the run trace
+starts a new fix loop for this invocation.
+
 **Size caution (qualitative, non-blocking).** Glance at `git diff --stat`. If the change spans enough
 files or churn that one review pass would likely miss things — a judgment call, not a line count — say so
 alongside the range announcement (e.g. "large, multi-concern diff; consider splitting it via
@@ -173,9 +181,13 @@ superdev subagent that omits one):
     carries the plugin-scoped agent type, so it matches on the name part (`slice-reviewer`,
     `implementer`). On the lite tier a slice is `behavior` when its ledger row's type says so
     (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>`). On a **`full`** scope, every merged slice needs a `dispatch superdev:slice-reviewer` whose
-    `dispatch-end` comes after that slice's last `dispatch-end` of `superdev:implementer`, or a
-    `**Degraded:**` ledger entry naming that slice's denied review: a slice with neither is an Important
+    `completed` `dispatch-end` comes after that slice's last `completed` `dispatch-end` of `superdev:implementer`, or a
+    `**Degraded:**` ledger entry naming that slice's denied review. A `dispatch-end` line ends with its outcome
+    (`completed`, `failed`, `denied`, `stopped`, `unknown`, or `session-end`), a line with no outcome reads `completed`, and only a
+    `completed` end finishes a dispatch. A slice with neither is an Important
     finding, **Unreviewed slice**. No trace, or no events for a slice: it names that in the report and raises neither finding.
+    The remedy for an **Unreviewed slice** finding is a `superdev:slice-reviewer` dispatch that hands over the slice's
+    `spec`, `acceptance`, range, and progress-log path `<run-root>/reports/<id>/progress.md`, so the run trace records the dispatch on that slice.
   - **Also tell it the fail-to-pass rule on a `lite` scope, so it reads the outcome lines.** `final-reviewer`
     applies `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` to every `behavior`
     slice: an **Important** finding, **Pass-to-pass**, where the slice's latest
@@ -209,10 +221,12 @@ superdev subagent that omits one):
     review cycles from the trace at every dispatch, a `scope` range whose latest outcome line reads
     `pass-to-pass`, and an `implementer` `dispatch` of `scope` with `edit` lines in its window, whose commits that
     landed in that window change both a test-path file and another file, with no outcome line over those commits.
-    A fix cycle's window runs from its `implementer` `dispatch` line of `scope` to the first `dispatch` line,
-    whatever its agent type or slice, after that implementer's `dispatch-end` line, or to the end of the trace when
-    none follows. A denied, failed, or interrupted dispatch leaves no `dispatch-end` line, and its window ends at the
-    first `dispatch` line after its own `dispatch` line, or at the end of the trace. A cycle's commits are read along
+    A fix cycle's window runs from each run of its `implementer` dispatch of `scope` (its `dispatch`
+    line, and each `dispatch-resume` line of that dispatch) to the first `dispatch` line, whatever its agent type or
+    slice, after the `dispatch-end` line that closes that run, or to the end of the trace when none follows. Whatever
+    the end's outcome (`completed`, `failed`, `denied`, `stopped`, `unknown`, or `session-end`), the window is bounded
+    the same way. An implementer run with no `dispatch-end` line has a window that ends at the first `dispatch` line
+    after its own `dispatch` or `dispatch-resume` line, or at the end of the trace. A cycle's commits are read along
     the scope branch's first-parent chain, so the base commits a merge brings in are none of them, and neither is a
     merge commit that brings the base in. No trace, a run handoff cycle with no
     `edit` lines, and a repository with no test command get no finding: name the gap in the report. A cycle whose
@@ -547,6 +561,11 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
     Bash tool's time limit, and you wait for its end before you read its outcome
     (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`). A slice whose ledger row records no range first has its range recorded:
     read the slice's commits from the scope branch's log, then run `scope.js slice <id> merged --range <base>..<tip> --root <run-root>`.
+  - **Unreviewed slice** (a finding of that name in the chosen set) → answer it yourself, with no implementer
+    cycle: dispatch the `superdev:slice-reviewer` with an explicit `model`, handing over the slice's `spec`,
+    `acceptance`, range, and progress-log path `<run-root>/reports/<id>/progress.md`, and leave it off the
+    **Confirmed** list below, dispatching no implementer when no finding remains on it. The run trace records that
+    dispatch on the slice, which is what closes the finding at the re-review (§2).
   - **Fail-to-pass run around each fix cycle** (ADR 0134, INV-0138) → before each fix dispatch below, record the scope
     tip, `git -C <run-root>/scopetree rev-parse HEAD`, as the cycle's `<base>`. Once the cycle's report is accepted,
     after any send-back to the implementer for a report defect or a missed sibling surface, and before the
@@ -658,6 +677,8 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
     moved past this gate. A `submitted` run's suite result — recorded above — is what
     `/superdev:ship` reads back when base has moved since the pull request opened.
   - Anything else → write `reviewed`.
+
+  On every clean-verdict exit, after the stage write or the leave-alone, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root <run-root>`, which changes nothing when no step stands. A stage write that changes the stage already cleared the step, and a write of the stage already standing (`reviewed` over `reviewed`) keeps it, so this run is what ends the step on every exit.
 
   **A fix cycle that landed commits also clears the inline-doc-pass record**, with
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs clear --root <run-root>`. A `lite` run wrote that

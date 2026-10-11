@@ -5273,7 +5273,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'Apply the same verdict to the anchor\'s own Definition of Done checklist, through the active store\'s own `## Definition of Done ticks` section — best-effort. ' +
       'An untick here also writes the ledger\'s `**Unresolved:**` entry, naming the criterion it broke — `scope.js unresolved add` — and publishes the snapshot, per `Publishing run state`. ' +
       'Write the stage — unless the re-check above unticked a line. This pass unticked a line — ' +
-      'leaves the ledger\'s `**Stage:**` line exactly as it stands: write nothing. ' +
+      'leaves the ledger\'s `**Stage:**` line exactly as it stands: write no stage.' +
       'This pass unticked a line above — print `/superdev:review <range>`, naming the criterion that stands unmet ' +
       'and that review\'s fix loop is what re-ticks it. ' +
       'or a standing `**Unresolved:**` entry already stands — run `scope.js get unresolved --root <run-root>` first. ' +
@@ -5310,7 +5310,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'skills/document/SKILL.md':
       dubClauses['skills/document/SKILL.md'].replace(
         "Write the stage — unless the re-check above unticked a line. This pass unticked a line — " +
-          "leaves the ledger's `**Stage:**` line exactly as it stands: write nothing. ",
+          "leaves the ledger's `**Stage:**` line exactly as it stands: write no stage.",
         'Write the stage: `reviewed` writes `documented`, always. ',
       ),
   });
@@ -5331,7 +5331,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'Apply the same verdict to the anchor\'s own Definition of Done checklist, through the active store\'s own `## Definition of Done ticks` section — best-effort. ' +
       'An untick here also writes the ledger\'s `**Unresolved:**` entry, naming the criterion it broke — `scope.js unresolved add` — and publishes the snapshot, per `Publishing run state`. ' +
       'Write the stage — unless the re-check above unticked a line. This pass unticked a line — ' +
-      'leaves the ledger\'s `**Stage:**` line exactly as it stands: write nothing. ' +
+      'leaves the ledger\'s `**Stage:**` line exactly as it stands: write no stage.' +
       'This pass unticked a line above — print `/superdev:review <range>`, naming the criterion that stands unmet ' +
       'and that review\'s fix loop is what re-ticks it. ' +
       'or a standing `**Unresolved:**` entry already stands — run `scope.js get unresolved --root <run-root>` first. ' +
@@ -5355,7 +5355,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'Apply the same verdict to the anchor\'s own Definition of Done checklist, through the sanctioned body edit the active store\'s own `## Run state` section names — best-effort. ' +
       'An untick here also writes the ledger\'s `**Unresolved:**` entry, naming the criterion it broke — `scope.js unresolved add` — and publishes the snapshot, per `Publishing run state`. ' +
       'Write the stage — unless the re-check above unticked a line. This pass unticked a line — ' +
-      'leaves the ledger\'s `**Stage:**` line exactly as it stands: write nothing. ' +
+      'leaves the ledger\'s `**Stage:**` line exactly as it stands: write no stage.' +
       'This pass unticked a line above — print `/superdev:review <range>`, naming the criterion that stands unmet ' +
       'and that review\'s fix loop is what re-ticks it. ' +
       'or a standing `**Unresolved:**` entry already stands — run `scope.js get unresolved --root <run-root>` first. ' +
@@ -5483,11 +5483,12 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   const windowFlips = [
     [/A\s+fix\s+cycle's\s+window/, "A run handoff cycle's window", 'a window defined for run handoff cycles only'],
     [
-      /to\s+the\s+first\s+`dispatch`\s+line,\s+whatever\s+its\s+agent\s+type\s+or\s+slice,\s+after\s+that\s+implementer's\s+`dispatch-end`\s+line,/,
+      /to\s+the\s+first\s+`dispatch`\s+line,\s+whatever\s+its\s+agent\s+type\s+or\s+slice,\s+after\s+the\s+`dispatch-end`\s+line\s+that\s+closes\s+that\s+run,/,
       'to the next `dispatch` line of `scope`, of any agent type,',
       'an end bound that can fall before the implementer\'s own dispatch-end',
     ],
-    [/\s+A\s+denied,\s+failed,\s+or\s+interrupted\s+dispatch\s+leaves\s+no\s+`dispatch-end`\s+line,[\s\S]*?end\s+of\s+the\s+trace\./, '', 'no end bound for a dispatch with no dispatch-end line'],
+    [/\s+An\s+implementer\s+run\s+with\s+no\s+`dispatch-end`\s+line[\s\S]*?end\s+of\s+the\s+trace\./, '', 'no end bound for a dispatch with no dispatch-end line'],
+    [/\s+Whatever\s+the\s+end's\s+outcome\s+\([^)]*\),\s+the\s+window\s+is\s+bounded\s+the\s+same\s+way\./, '', 'a window bound that does not hold whatever the end\'s outcome'],
     [
       /A\s+cycle's\s+commits\s+are\s+read\s+along\s+the\s+scope\s+branch's\s+first-parent\s+chain,[\s\S]*?brings\s+the\s+base\s+in(?=\.)/,
       "A merge commit that brings the base in is none of the cycle's commits",
@@ -5504,6 +5505,38 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
         `${rel} holding ${what} fails a run-trace order row`,
       );
     }
+  }
+  // The checklist's Unreviewed slice entry without the clause that only a `completed` end finishes a dispatch fails the table.
+  {
+    const rel = 'references/review-checklist.md';
+    const flipped = rtReal[rel].replace(/,\s+and\s+only\s+a\s+`completed`\s+end\s+finishes\s+a\s+dispatch,\s+so\s+a\s+slice\s+review\s+that\s+ended\s+any\s+other\s+way\s+reviewed\s+nothing/, '');
+    assert.notEqual(flipped, rtReal[rel], `${rel} carries the completed-end clause`);
+    assert.notDeepEqual(
+      scanContract(fixture({ ...rtReal, [rel]: flipped }), RUN_TRACE_ORDER_CONTRACTS),
+      [],
+      `${rel} without the completed-end clause fails a run-trace order row`,
+    );
+  }
+  // The final-reviewer and review-skill Unreviewed slice rows, without the clause that only a `completed` end finishes a dispatch, fail the table.
+  {
+    const rel = 'agents/final-reviewer.md';
+    const flipped = rtReal[rel].replace(/,\s+and\s+only\s+a\s+`completed`\s+end\s+finishes\s+a\s+dispatch/, '');
+    assert.notEqual(flipped, rtReal[rel], `${rel} carries the completed-end clause`);
+    assert.notDeepEqual(
+      scanContract(fixture({ ...rtReal, [rel]: flipped }), RUN_TRACE_ORDER_CONTRACTS),
+      [],
+      `${rel} without the completed-end clause fails a run-trace order row`,
+    );
+  }
+  {
+    const rel = 'skills/review/SKILL.md';
+    const flipped = rtReal[rel].replace(/,\s+and\s+only\s+a\s+`completed`\s+end\s+finishes\s+a\s+dispatch/, '');
+    assert.notEqual(flipped, rtReal[rel], `${rel} carries the completed-end clause`);
+    assert.notDeepEqual(
+      scanContract(fixture({ ...rtReal, [rel]: flipped }), RUN_TRACE_ORDER_CONTRACTS),
+      [],
+      `${rel} without the completed-end clause fails a run-trace order row`,
+    );
   }
   // A fail-to-pass no-finding case keyed on any trace event, or on `run` lines as well as `edit` lines, so a slice
   // whose edits predate the trace still draws the finding from its later test runs, fails the table on every surface

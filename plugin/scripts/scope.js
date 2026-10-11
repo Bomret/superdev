@@ -130,7 +130,7 @@ function headerRe(name) {
 // Every other header is PROSE. `Anchor` carries an issue title that reaches a pull request through
 // `/superdev:review`, and a title may legitimately end in `.` or `:` or contain one, or carry internal
 // whitespace. It is trimmed and otherwise taken as written.
-const TOKEN_HEADERS = new Set(['Stage', 'Branch', 'Docs', 'PR']);
+const TOKEN_HEADERS = new Set(['Stage', 'Branch', 'Step', 'Docs', 'PR']);
 
 function normalizeHeaderValue(name, raw) {
   const trimmed = raw.trim();
@@ -291,7 +291,7 @@ function lastHeaderLineIndex(lines, names) {
 
 // Every header a verb appends after the block. A verb inserting an absent header anchors on all of
 // them, so header order does not depend on write order.
-const APPENDED_HEADERS = ['Stage', 'Branch', 'Anchor', 'Docs', 'PR', 'Suite', 'Base', 'Deploy'];
+const APPENDED_HEADERS = ['Stage', 'Step', 'Branch', 'Anchor', 'Docs', 'PR', 'Suite', 'Base', 'Deploy'];
 
 // The bullet list under a header line, if any: `**Degraded:**` (scope-mode `## Degraded passes`) and
 // `**Unresolved:**` (`## Unresolved defects`) carry one each, in the same shape. Read by both status
@@ -504,7 +504,43 @@ function verbStage(root, sub, value) {
       fail(`stage "${cur}" does not move to "${value}" — allowed: ${allowed.join(', ') || 'none (terminal)'}`);
     }
   }
+  // A new stage completes whatever step was open (ADR 0140); a same-stage write leaves it.
+  if (cur !== value) {
+    const at = lines.findIndex((l) => headerRe('Step').test(l));
+    if (at >= 0) {
+      lines.splice(at, 1);
+      // The trace records the clear as a `step clear` line, so the review-step window reads step lines alone.
+      appendTrace(root, { kind: 'ledger', fields: ['step', 'clear'] });
+    }
+  }
   writeLines(root, setHeader(lines, 'Stage', value));
+}
+
+// The chain step a command has started and not yet completed (ADR 0140, scope-mode `## The ledger`).
+// Returns whether the ledger changed, so the caller mirrors only a real write.
+const STEPS = ['review', 'document', 'submit', 'ship', 'verify-ship', 'wrap-up'];
+function verbStep(root, sub, value) {
+  const lines = readLines(root);
+  const at = lines.findIndex((l) => headerRe('Step').test(l));
+  if (sub === 'clear') {
+    if (at < 0) return false;
+    lines.splice(at, 1);
+    writeLines(root, lines);
+    return true;
+  }
+  if (sub !== 'set') fail(`unknown step subcommand "${sub}" — use set|clear`);
+  if (!STEPS.includes(value)) fail(`unknown step "${value}" (${STEPS.join(', ')})`);
+  if (at >= 0) {
+    if (getHeader(lines, 'Step') === value) return false;
+    setHeader(lines, 'Step', value);
+  } else {
+    // Sits right after the stage line it qualifies.
+    const stageAt = lines.findIndex((l) => headerRe('Stage').test(l));
+    if (stageAt < 0) setHeader(lines, 'Step', value);
+    else lines.splice(stageAt + 1, 0, `**Step:** ${value}`);
+  }
+  writeLines(root, lines);
+  return true;
 }
 
 function verbSlice(root, id, status, range) {
@@ -1197,9 +1233,13 @@ function verbGet(root, field) {
     console.log(m ? `${m[1]} ${m[2]}${m[3] ? ' whole' : ''}` : v);
     return;
   }
+  if (field === 'step') {
+    console.log(getHeader(readLines(root), 'Step') || 'none');
+    return;
+  }
   const names = { stage: 'Stage', branch: 'Branch', anchor: 'Anchor', docs: 'Docs', pr: 'PR' };
   const name = names[field];
-  if (!name) fail(`unknown field "${field}" — use stage|branch|anchor|docs|pr|slices|unresolved|degraded|deferred|denials|suite`);
+  if (!name) fail(`unknown field "${field}" — use stage|step|branch|anchor|docs|pr|slices|unresolved|degraded|deferred|denials|suite`);
   const v = getHeader(readLines(root), name);
   console.log(v === null ? 'absent' : v);
 }
@@ -1284,6 +1324,8 @@ function adoptLines(root, body, shipped = false) {
   if (rootSlug !== slug) fail(`run root "${rootSlug}" does not match the branch slug "${slug}" — refusing to adopt`);
   const stage = getHeader(payload, 'Stage');
   if (stage !== null && !STAGES.includes(stage)) fail(`run-state payload carries unknown stage "${stage}"`);
+  const step = getHeader(payload, 'Step');
+  if (step !== null && !STEPS.includes(step)) fail(`run-state payload carries unknown step "${step}"`);
   // `closed` is terminal (`## The stage never moves backwards`), and `shipped` is a stage
   // run-init.md stops at (a run awaiting wrap-up), and it rotates aside only `closed`. Plain `adopt` refuses both,
   // the same posture every other schema invariant here takes, rather than trust that its caller
@@ -1416,6 +1458,7 @@ function verbStatus(cwd) {
     }
     try {
       const stage = getHeader(lines, 'Stage');
+      const step = getHeader(lines, 'Step');
       const rows = tableRowIndexes(lines).map((i) => splitRow(lines[i]));
       if (rows.some((c) => c.length !== 7)) {
         out.push(`${scope}: ledger unreadable`);
@@ -1433,7 +1476,7 @@ function verbStatus(cwd) {
       // work nobody has planned yet (ADR 0035); and a page nobody publishes is invisible everywhere else
       // (ADR 0023) — a finished scope is exactly where any of them waits.
       if (stage === 'shipped' || stage === 'closed') {
-        out.push(`${scope}  (${stage})`);
+        out.push(`${scope}  (${stage}${step ? `, step: ${step}` : ''})`);
         const finishedDegraded = readBullets(lines, 'Degraded');
         if (finishedDegraded.length) out.push(`  degraded: ${finishedDegraded.join(', ')}`);
         const finishedUnresolved = readBullets(lines, 'Unresolved');
@@ -1454,7 +1497,7 @@ function verbStatus(cwd) {
       const degraded = readBullets(lines, 'Degraded');
       const unresolved = readBullets(lines, 'Unresolved');
       const deploy = getHeader(lines, 'Deploy');
-      out.push(`${scope}  (${rows.length} slices${stage ? `, stage: ${stage}` : ''})`);
+      out.push(`${scope}  (${rows.length} slices${stage ? `, stage: ${stage}` : ''}${step ? `, step: ${step}` : ''})`);
       out.push(`  todo: ${counts.todo}  in-progress: ${counts['in-progress']}  in-review: ${counts['in-review']}  blocked: ${counts.blocked}  merged: ${counts.merged}`);
       if (blocked.length) out.push(`  blocked: ${blocked.join(', ')}`);
       if (degraded.length) out.push(`  degraded: ${degraded.join(', ')}`);
@@ -1777,7 +1820,9 @@ function verbStaging(cwd, args) {
 //   run <full|focused|whole|path> <pass|fail|unknown> <sha|unknown> <clean|dirty|unknown> [<files>]
 //   revert <paths> / restore <paths>
 //   note <test path>
-//   dispatch <agent_type> <tool_use_id> <description> / dispatch-bind <agent_type> <tool_use_id> <agent_id> / dispatch-end <agent_type> <tool_use_id>
+//   dispatch <agent_type> <tool_use_id> <description> <session_id|-> / dispatch-bind <agent_type> <tool_use_id> <agent_id> /
+//   dispatch-end <agent_type> <tool_use_id> <completed|failed|denied|stopped|unknown|session-end>   (an end with no outcome reads completed, ADR 0140)
+//   dispatch-resume <tool_use_id> <agent_id> <session_id|-> <sendmessage_tool_use_id|->   (a SendMessage resumed the dispatch's subagent: a new run, with its own dispatch-end)
 //   verdict <reviewer tool_use_id> <pass|fail|unknown> <approved|changes-needed|unknown> <cycle> <implementer tool_use_id|->   (ADR 0136; at most one per review in sequential delivery, and a reader takes the first per dispatch)
 //   ledger <verb> <args>     (written only by the ledger-writing verbs of this CLI, after they succeed)
 //   fail-to-pass <base>..<tip> <fail-to-pass|pass-to-pass|unknown> <reason>     (written only by `fail-to-pass`, which derives all three fields; no test run)
@@ -2302,6 +2347,8 @@ function usage() {
     '  init <type>/<slug> <stage>          stage is planned|implementing (ADR 0079, no default) —',
     '                                      stdin: {"anchor":"…","slices":[{id,issue,title,type,…}]}',
     '  stage set <value> --root <run-root>',
+    '  step set review|document|submit|ship|verify-ship|wrap-up   --root <run-root>   the step a command has started; a stage set clears it',
+    '  step clear   --root <run-root>',
     '  slice <id> <status> [--range <r>]   --root <run-root>',
     '  degraded add|add-denial|reset-denials <text>   --root <run-root>',
     '  unresolved add <text>|clear   --root <run-root>',
@@ -2315,7 +2362,7 @@ function usage() {
     '  suite reusable --branch <b> [--whole]   --root <run-root>   exits 0 (reusable) or 1',
     '  base set <sha>   --root <run-root>   records the merged base tip',
     '  base resolve --branch <b> --base <base-ref>   --root <run-root>   prints the scope\'s range base',
-    '  get stage|branch|anchor|docs|pr|slices|unresolved|degraded|deferred|denials|suite --root <run-root>',
+    '  get stage|step|branch|anchor|docs|pr|slices|unresolved|degraded|deferred|denials|suite --root <run-root>',
     '  trace [--slice <id>] --root <run-root>   prints the run trace, oldest first (read-only)',
     '  test full|whole                    runs the configured command, records the run line the command\'s own exit status makes',
     '  test focused [<path>…]             {paths} takes the paths; none runs the full command, recorded full',
@@ -2367,6 +2414,12 @@ function run(argv, cwd, stdinJson) {
       const root = takeRoot(args);
       verbStage(root, args[0], args[1]);
       ledgerEvent = { root, fields: ['stage', args[0], args[1]] };
+      break;
+    }
+    case 'step': {
+      const root = takeRoot(args);
+      const changed = verbStep(root, args[0], args[1]);
+      if (changed) ledgerEvent = { root, fields: ['step', args[0], ...(args[1] ? [args[1]] : [])] };
       break;
     }
     case 'slice': {

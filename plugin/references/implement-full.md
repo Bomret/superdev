@@ -151,7 +151,9 @@ Repeat until every slice is `merged`:
      raise no finding for it, and to start no fix cycle, so you start none either. The scope run's first `unknown` is an
      observation: when the verb says so on stderr, write its triage record under the `## Observations` rule above,
      naming the environment gap.
-   - **`behavior`** slice → move it → `in-review`, then dispatch **`superdev:slice-reviewer`**
+   - **`behavior`** slice → move it → `in-review`, beside the store move, with
+     `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" slice <id> in-review --root <run-root>` before the first slice review dispatch
+     (the row stays `in-review` through the parallel simplicity pass and every fix cycle, until the merge or a block), then dispatch **`superdev:slice-reviewer`**
      (correctness + independent verification; it reads the review checklist itself via
      `${CLAUDE_PLUGIN_ROOT}`). **On the slice's first review, dispatch `superdev:simplicity-reviewer` in parallel with it**,
      over the same tip and the slice's range, and build the fix list once both have returned (ADR 0138). **Warrant a

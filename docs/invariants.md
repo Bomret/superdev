@@ -973,7 +973,7 @@ Paths: plugin/skills/ship/SKILL.md, plugin/skills/backlog/SKILL.md, plugin/skill
 
 Class: process
 Concepts: Run trace
-Statement: Only superdev's hooks and `scope.js` write a run trace. An agent's Edit or Write of a `trace.log` under a run root, and a shell write into one, are refused, and no `scope.js` verb appends an event its caller chooses: `scope.js test` appends only the exit status of a command it ran itself. Every event a reviewer reads there is one the agent under review did not author (ADR 0117, ADR 0127).
+Statement: Only superdev's hooks and `scope.js` write a run trace. An agent's Edit or Write of a `trace.log` under a run root, and a shell write into one, are refused, and no `scope.js` verb appends an event its caller chooses: `scope.js test` appends only the exit status of a command it ran itself. A ledger write's mirror line, such as a stage or **Step** write, records state the controller declares and is no evidence event: no reviewer judges a slice on it. Every evidence event a reviewer reads there is one the agent under review did not author (ADR 0117, ADR 0127, ADR 0140).
 Breaks: silently
 Check: tests/ledger-guard.test.js — the trace-file refusal cases
 Paths: plugin/hooks/**, plugin/scripts/scope.js
@@ -1213,3 +1213,30 @@ Statement: The scope review's `final-reviewer` reads the whole scope range on ev
 Breaks: silently
 Check: scripts/drift-check.js — the whole-range row on `final-reviewer` and the review skill's dispatch that hands it the range
 Paths: plugin/agents/final-reviewer.md, plugin/skills/review/**
+
+### INV-0144
+
+Class: architecture
+Concepts: Run trace, Ledger
+Statement: superdev-view draws only facts the ledger and the run trace state. A fact the view needs and the run files lack is recorded by the plugin, never derived by the mod from order, timing, or a dispatch description (ADR 0140).
+Breaks: silently
+Check: none — a heuristic can enter the mod's parser in any form, and no cheap test tells a reading from a derivation; a reviewer of a `mods/superdev-view/` change applies it.
+Paths: mods/superdev-view/hooks/**
+
+### INV-0145
+
+Class: process
+Concepts: Run trace, Dispatch outcome
+Statement: Every `dispatch` line in a run trace, and every `dispatch-resume` line that reopens one, gets exactly one `dispatch-end` line once the session that made it has ended, written only by the run-trace hook and carrying one dispatch outcome: completed, failed, denied, stopped, unknown, or session-end. The first end written for a run of a dispatch wins (ADR 0140).
+Breaks: silently
+Check: tests/run-trace.test.js — the dispatch outcome cases
+Paths: plugin/hooks/run-trace.js, plugin/hooks/hooks.json
+
+### INV-0146
+
+Class: process
+Concepts: Run trace, Final-review verdict, Step, Final-reviewer
+Statement: Every completed `final-reviewer` dispatch inside an open review step gets at most one `final-verdict` line in the run trace, written only by the run-trace hook. A `step set review` line opens the step, and a `step clear` line or a `step set` line of another step closes it. The line carries the report's ready-to-merge answer and the review's cycle, counted in distinct completed `final-reviewer` dispatches inside that open review step before it (a resumed dispatch counts once), and nothing else from the report (ADR 0140).
+Breaks: silently
+Check: tests/run-trace.test.js — the final verdict cases
+Paths: plugin/hooks/run-trace.js, plugin/agents/final-reviewer.md

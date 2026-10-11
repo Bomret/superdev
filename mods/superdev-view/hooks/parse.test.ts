@@ -1,11 +1,15 @@
 import { test, expect } from 'claude-code/testing'
 import { cycles, frontmatter, header, intent, progress, slices, traceAgents, untrace, waves } from './parse'
 import type { Agent } from '../types'
-import { LEDGER_LINES } from './ledger-fixtures'
+import { LEDGER_LINES, LEDGER_STEP_LINES } from './ledger-fixtures'
 import { TRACE_LINES } from './trace-fixtures'
 
 test('a header the ledger lacks reads empty', () => {
   expect(header(LEDGER_LINES.join('\n'), 'PR')).toBe('')
+})
+
+test('reads the step of a ledger that carries one', () => {
+  expect(header(LEDGER_STEP_LINES.join('\n'), 'Step')).toBe('review')
 })
 
 test('reads the ledger scope.js writes', () => {
@@ -66,6 +70,20 @@ test('reads the trace lines the run-trace hook writes', () => {
       review: { spec: 'fail', quality: 'changes-needed', cycle: 0, reviewed: 'tu1' },
     },
   ])
+})
+
+test('a dispatch-resume line reopens its dispatch, the resumed run lands on the dispatch, and the next end closes it', () => {
+  const head = [
+    '2026-01-01T00:00:00.000Z 01 main dispatch superdev:implementer tu1 Build s1',
+    '2026-01-01T00:00:01.000Z 01 main dispatch-bind superdev:implementer tu1 ag1',
+    '2026-01-01T00:00:02.000Z 01 main dispatch-end superdev:implementer tu1 completed',
+    '2026-01-01T00:00:03.000Z 01 main dispatch-resume tu1 ag1 s1 sm1',
+  ]
+  const open = traceAgents([...head, '2026-01-01T00:00:04.000Z 01 ag1 edit impl a.js'].join('\n'))
+  expect(open.agents[0]).toMatchObject({ isDone: false, start: Date.parse('2026-01-01T00:00:00.000Z'), end: null })
+  expect(open.activity.tu1).toMatchObject({ lastKind: 'edit impl a.js', events: 1 })
+  const closed = traceAgents([...head, '2026-01-01T00:00:05.000Z 01 main dispatch-end superdev:implementer tu1 completed'].join('\n'))
+  expect(closed.agents[0]).toMatchObject({ isDone: true, end: Date.parse('2026-01-01T00:00:05.000Z') })
 })
 
 test('a verdict line attaches to its reviewer only; one naming no dispatch is ignored, and `-` reviews no implementer', () => {

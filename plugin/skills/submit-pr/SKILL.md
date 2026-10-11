@@ -46,23 +46,22 @@ all):
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get pr --root <run-root>` and print that pull request; a
   ledger predating that header (`absent`) falls back to printing the existing pull request if the code
   host still lists one. Stop. Never open a second.
-- **`documented`** → the whole chain ran. Proceed silently.
-- **`documented-unreviewed`** → `/superdev:document` ran while the stage was earlier than `reviewed`, so
-  the review step never ran. Treat it exactly like the review-missing case below: name `/superdev:review`
-  as missing and **ask once**.
-- **Anything earlier** (`implementing`, `merged`, `reviewed`), or **no line at all** → name exactly what
-  has not run (`/superdev:review`, `/superdev:document`, or both) and **ask once** whether to submit
-  anyway. Declined → stop and print the missing command. Confirmed → proceed and record in the report
-  that the scope was submitted without it. **`--unattended` → refuse**: name what is missing, open no
-  pull request, and stop. A caller that drove the whole chain never reaches this bullet, so reaching it
-  unattended means a step really was skipped — and submitting unreviewed code is not a decision a token
-  stands in for.
+- **Any other stage** → under `--unattended`, a stage other than `documented` refuses before any step is recorded: name what is missing (`/superdev:review`, `/superdev:document`, or both), open no pull request, and stop. A caller that drove the whole chain never reaches this refusal, so reaching it unattended means a step really was skipped — and submitting unreviewed code is not a decision a token stands in for. Every other run records the step with
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set submit --root <run-root>`, before any other ledger or store write, then:
+  - **`documented`** → the whole chain ran. Proceed silently.
+  - **`documented-unreviewed`** → `/superdev:document` ran while the stage was earlier than `reviewed`, so
+    the review step never ran. Treat it exactly like the review-missing case below: name `/superdev:review`
+    as missing and **ask once**.
+  - **Anything earlier** (`implementing`, `merged`, `reviewed`), or **no line at all** → name exactly what
+    has not run (`/superdev:review`, `/superdev:document`, or both) and **ask once** whether to submit
+    anyway. Declined → stop and print the missing command. Confirmed → proceed and record in the report
+    that the scope was submitted without it.
 
 **Entries standing.** Read every bullet with
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get unresolved --root <run-root>` — one bullet per line,
 never through cwd-dependent `status` — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
 `## Unresolved defects` section. **No output** → proceed silently. **Output present** → name every bullet
-and **ask once** whether to submit with it standing. Declined → stop, open no pull request, write nothing.
+and **ask once** whether to submit with it standing. Declined → stop, open no pull request, write nothing further.
 Confirmed → proceed and record in the report that the scope was submitted with the defect standing.
 **`--unattended` → refuse**: name what stands, open no pull request, and stop. A `dod.md` criterion noted
 `accepted:` — an attended operator's own decision that it stands accepted as unmet (ADR 0095) — is
