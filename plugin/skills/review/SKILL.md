@@ -203,7 +203,8 @@ superdev subagent that omits one):
     them beside a Critical or Important finding of another kind blocks.
   - **Also tell it that a fail-to-pass `unknown` is no finding.** A `fail-to-pass` trace line reading `unknown`
     records a run that could not judge. `final-reviewer` names every one in its report with its slice and its reason
-    (the exit status or signal in `control=`, or the `bound=` the run before the change ran under), raises no finding for it,
+    (the exit status or signal in `control=`, or the `bound=` the run before the change ran under, or `start-failed:<code>`
+    where a run could not start), raises no finding for it,
     and starts no fix cycle. The line counts as an outcome line for **Missing fail-to-pass run**, and the latest line
     reading `fail-to-pass` or `pass-to-pass` decides **Pass-to-pass**.
   - **Also tell it the fix-cycle rule on either tier, so it reads each cycle's outcome line.** `final-reviewer`

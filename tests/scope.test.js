@@ -341,6 +341,139 @@ try {
     assert.strictEqual(second.length, 2, 'a second rotation never overwrites the first: ' + second.join(', '));
   }
 
+  // init over a closed ledger moves the run's trace.log aside with it, under the rotated ledger's own
+  // name stem, so the new run's trace starts with its own `ledger init` line alone.
+  {
+    const slug = 'rotate-trace';
+    const tRoot = path.join(tmp, '.superdev', 'scopes', slug);
+    const closeRun = () => {
+      assert.ok(call(['stage', 'set', 'shipped', '--root', tRoot]).ok);
+      assert.ok(call(['stage', 'set', 'closed', '--root', tRoot]).ok);
+    };
+    const traceLines = () => fs.readFileSync(path.join(tRoot, 'trace.log'), 'utf8').split('\n').filter(Boolean);
+    const pairs = () => {
+      const ledgers = fs.readdirSync(tRoot).filter((f) => /^ledger-closed-.*\.md$/.test(f)).sort();
+      const traces = fs.readdirSync(tRoot).filter((f) => /^trace-closed-.*\.log$/.test(f)).sort();
+      return { ledgers, traces };
+    };
+    assert.ok(call(['init', 'feat/' + slug, 'planned'], sliceJson).ok);
+    closeRun();
+    const earlier = fs.readFileSync(path.join(tRoot, 'trace.log'), 'utf8');
+    assert.strictEqual(traceLines().length, 3, 'the earlier run traced init and two stage moves');
+    assert.ok(call(['init', 'feat/' + slug, 'planned'], sliceJson).ok, 'init over a closed ledger rotates');
+    const now = traceLines();
+    assert.strictEqual(now.length, 1, 'the new trace holds only its own init line: ' + now.join(' | '));
+    assert.ok(/ ledger init feat\/rotate-trace planned$/.test(now[0]), 'that line is the init: ' + now[0]);
+    let p = pairs();
+    assert.strictEqual(p.traces.length, 1, 'one rotated trace: ' + p.traces.join(', '));
+    assert.strictEqual(p.traces[0].replace(/^trace-/, 'ledger-').replace(/\.log$/, '.md'), p.ledgers[0], 'same name stem as the ledger');
+    assert.strictEqual(fs.readFileSync(path.join(tRoot, p.traces[0]), 'utf8'), earlier, 'the earlier trace moved byte for byte');
+
+    // A stamp the ledger rotation has to suffix gives the trace the same suffix. Plant ledger names for
+    // the next few seconds so the next rotation's stamp is certain to collide.
+    const planted = [];
+    for (let s = 0; s < 5; s++) {
+      const stamp = new Date(Date.now() + s * 1000).toISOString().slice(0, 19).replace(/:/g, '');
+      const name = `ledger-closed-${stamp}.md`;
+      if (!fs.existsSync(path.join(tRoot, name))) {
+        fs.writeFileSync(path.join(tRoot, name), 'planted\n');
+        planted.push(name);
+      }
+    }
+    closeRun();
+    assert.ok(call(['init', 'feat/' + slug, 'planned'], sliceJson).ok, 'a colliding rotation passes');
+    p = pairs();
+    const suffixed = p.traces.filter((t) => /-\d+\.log$/.test(t));
+    assert.strictEqual(suffixed.length, 1, 'the colliding trace took a suffix: ' + p.traces.join(', '));
+    assert.ok(p.ledgers.includes(suffixed[0].replace(/^trace-/, 'ledger-').replace(/\.log$/, '.md')), 'the ledger took the same suffix');
+    for (const name of planted) fs.unlinkSync(path.join(tRoot, name));
+
+    // An earlier run that recorded no trace rotates its ledger alone, and init succeeds.
+    closeRun();
+    fs.unlinkSync(path.join(tRoot, 'trace.log'));
+    const before = pairs();
+    assert.ok(call(['init', 'feat/' + slug, 'planned'], sliceJson).ok, 'a trace-less closed run rotates');
+    const after = pairs();
+    assert.strictEqual(after.ledgers.length, before.ledgers.length + 1, 'the ledger rotated');
+    assert.strictEqual(after.traces.length, before.traces.length, 'no trace was invented');
+
+    // A re-init over a `planned` ledger is the same run: its trace stays, with every line.
+    const plannedBefore = traceLines();
+    assert.ok(call(['init', 'feat/' + slug, 'planned'], sliceJson).ok);
+    assert.deepStrictEqual(traceLines().slice(0, plannedBefore.length), plannedBefore, 'the planned run keeps its trace');
+    assert.strictEqual(pairs().traces.length, after.traces.length, 'nothing rotated over planned');
+
+    // A refused init leaves both files byte-identical.
+    assert.ok(call(['stage', 'set', 'implementing', '--root', tRoot]).ok);
+    const ledgerText = fs.readFileSync(path.join(tRoot, 'ledger.md'), 'utf8');
+    const traceText = fs.readFileSync(path.join(tRoot, 'trace.log'), 'utf8');
+    assert.ok(!call(['init', 'feat/' + slug, 'planned'], sliceJson).ok, 'init over implementing refuses');
+    assert.strictEqual(fs.readFileSync(path.join(tRoot, 'ledger.md'), 'utf8'), ledgerText, 'refused init: ledger untouched');
+    assert.strictEqual(fs.readFileSync(path.join(tRoot, 'trace.log'), 'utf8'), traceText, 'refused init: trace untouched');
+
+    // A trace that cannot be moved stops init with the earlier, closed ledger still in place.
+    assert.ok(call(['stage', 'set', 'shipped', '--root', tRoot]).ok);
+    assert.ok(call(['stage', 'set', 'closed', '--root', tRoot]).ok);
+    const closedText = fs.readFileSync(path.join(tRoot, 'ledger.md'), 'utf8');
+    fs.chmodSync(tRoot, 0o555);
+    let stuck;
+    try {
+      stuck = call(['init', 'feat/' + slug, 'planned'], sliceJson);
+    } finally {
+      fs.chmodSync(tRoot, 0o755);
+    }
+    assert.ok(!stuck.ok && /trace/.test(stuck.err), 'an unmovable trace refuses init: ' + (stuck.err || stuck.out));
+    assert.strictEqual(fs.readFileSync(path.join(tRoot, 'ledger.md'), 'utf8'), closedText, 'the closed ledger stays in place');
+
+    // A ledger that cannot be moved after the trace moved puts the trace back and stops init with a
+    // one-line refusal: `ledger.md` and `trace.log` both stay as they were. The fault is injected on
+    // the ledger's own rename, the one step no file layout can make fail after the trace rename passed.
+    const traceBefore = fs.readFileSync(path.join(tRoot, 'trace.log'), 'utf8');
+    const rotatedBefore = pairs();
+    const realRename = fs.renameSync;
+    fs.renameSync = (from, to) => {
+      if (from === path.join(tRoot, 'ledger.md')) throw Object.assign(new Error('EACCES: injected'), { code: 'EACCES' });
+      return realRename(from, to);
+    };
+    let ledgerStuck;
+    try {
+      ledgerStuck = call(['init', 'feat/' + slug, 'planned'], sliceJson);
+    } catch (e) {
+      ledgerStuck = { ok: false, raw: e };
+    } finally {
+      fs.renameSync = realRename;
+    }
+    assert.ok(!ledgerStuck.ok && !ledgerStuck.raw, 'an unmovable ledger refuses init, never throws raw: ' + (ledgerStuck.raw && ledgerStuck.raw.stack));
+    assert.ok(/ledger/.test(ledgerStuck.err) && !ledgerStuck.err.includes('\n'), 'one-line refusal: ' + ledgerStuck.err);
+    assert.strictEqual(fs.readFileSync(path.join(tRoot, 'ledger.md'), 'utf8'), closedText, 'the closed ledger stays in place');
+    assert.strictEqual(fs.readFileSync(path.join(tRoot, 'trace.log'), 'utf8'), traceBefore, 'the trace moved back');
+    assert.deepStrictEqual(pairs(), rotatedBefore, 'nothing is left rotated aside');
+
+    // When the trace cannot be put back either, init still stops with one line: it names the ledger
+    // failure and the stranded trace's path, so the operator can move it back by hand.
+    fs.renameSync = (from, to) => {
+      if (from === path.join(tRoot, 'ledger.md')) throw Object.assign(new Error('EACCES: injected'), { code: 'EACCES' });
+      if (to === path.join(tRoot, 'trace.log')) throw Object.assign(new Error('EACCES: injected'), { code: 'EACCES' });
+      return realRename(from, to);
+    };
+    let bothStuck;
+    try {
+      bothStuck = call(['init', 'feat/' + slug, 'planned'], sliceJson);
+    } catch (e) {
+      bothStuck = { ok: false, raw: e };
+    } finally {
+      fs.renameSync = realRename;
+    }
+    assert.ok(!bothStuck.ok && !bothStuck.raw, 'an unrestorable trace refuses init, never throws raw: ' + (bothStuck.raw && bothStuck.raw.stack));
+    const stranded = pairs().traces.find((t) => !rotatedBefore.traces.includes(t));
+    assert.ok(stranded, 'the trace is stranded aside');
+    assert.ok(
+      /ledger/.test(bothStuck.err) && bothStuck.err.includes(path.join(tRoot, stranded)) && !bothStuck.err.includes('\n'),
+      'one-line refusal naming the stranded trace: ' + bothStuck.err,
+    );
+    assert.strictEqual(fs.readFileSync(path.join(tRoot, 'ledger.md'), 'utf8'), closedText, 'the closed ledger stays in place');
+  }
+
   // init: a refused init over a `closed` ledger leaves it in place and rotates nothing — rotation
   // happens only after every validation of stdin passes (Important review finding G), so a malformed
   // payload never destroys the run's ledger.
@@ -482,6 +615,19 @@ try {
   assert.ok(!r.ok && /use set/.test(r.err), 'stage is set-only — get stage is the read path');
   r = call(['stage', 'set', 'polished', ...R]);
   assert.ok(!r.ok && /unknown stage/.test(r.err), 'unknown stage refused');
+
+  // stage set on a ledger with no Stage line refuses, as an unknown stage does, and writes nothing.
+  {
+    const noStageRoot = path.join(tmp, '.superdev', 'scopes', 'no-stage');
+    fs.mkdirSync(noStageRoot, { recursive: true });
+    const noStageText = '# Ledger — no-stage\n\n**Branch:** feat/no-stage\n\n| id | issue | title | type | depends-on | status | range |\n|---|---|---|---|---|---|---|\n';
+    fs.writeFileSync(path.join(noStageRoot, 'ledger.md'), noStageText);
+    for (const value of ['planned', 'implementing', 'merged', 'reviewed', 'documented-unreviewed', 'documented', 'submitted', 'shipped', 'closed']) {
+      const refused = call(['stage', 'set', value, '--root', noStageRoot]);
+      assert.ok(!refused.ok && /\*\*Stage:\*\*/.test(refused.err) && /by hand/.test(refused.err), `stage set ${value} on a stage-less ledger refused: ` + (refused.err || refused.out));
+      assert.strictEqual(fs.readFileSync(path.join(noStageRoot, 'ledger.md'), 'utf8'), noStageText, `stage set ${value}: the ledger is byte-identical`);
+    }
+  }
   assert.ok(call(['stage', 'set', 'merged', ...R]).ok, 'implementing → merged');
   r = call(['stage', 'set', 'implementing', ...R]);
   assert.ok(!r.ok, 'backwards move refused');
@@ -1034,6 +1180,70 @@ try {
       ),
       'the Docs line lands after the glued bullet, not between Anchor and it: ' + glued2Docs
     );
+  }
+
+  // One placement rule for an absent header: after the last present APPENDED_HEADERS entry, whichever
+  // verb writes it, `**Docs:**` included. A header already present changes only its own line.
+  {
+    const hdrDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-headers-'));
+    try {
+      const g = (args) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd: hdrDir, encoding: 'utf8' }).trim();
+      g(['init', '-q', '-b', 'main']);
+      fs.writeFileSync(path.join(hdrDir, 'f'), 'a');
+      g(['add', 'f']);
+      g(['commit', '-q', '-m', 'a']);
+      const sha1 = g(['rev-parse', 'HEAD']);
+      fs.writeFileSync(path.join(hdrDir, 'f'), 'b');
+      g(['commit', '-q', '-am', 'b']);
+      const sha2 = g(['rev-parse', 'HEAD']);
+      const hcall = (argv, stdin) => {
+        const orig = console.log;
+        console.log = () => {};
+        try {
+          run(argv, hdrDir, stdin || '');
+        } finally {
+          console.log = orig;
+        }
+      };
+      const hRoot = (slug) => path.join(hdrDir, '.superdev', 'scopes', slug);
+      const hLines = (slug) => fs.readFileSync(path.join(hRoot(slug), 'ledger.md'), 'utf8').split('\n');
+      const at = (lines, name) => lines.findIndex((l) => l.startsWith(`**${name}:**`));
+
+      hcall(['init', 'feat/hdr-pr-first', 'implementing'], sliceJson);
+      hcall(['pr', 'set', '1', '--root', hRoot('hdr-pr-first')]);
+      hcall(['docs', 'set', 'inline', '--root', hRoot('hdr-pr-first')]);
+      const prFirst = hLines('hdr-pr-first');
+      assert.strictEqual(at(prFirst, 'Docs'), at(prFirst, 'PR') + 1, 'docs set places an absent Docs after the last present header, PR: ' + prFirst.join(' | '));
+      hcall(['init', 'feat/hdr-docs-first', 'implementing'], sliceJson);
+      hcall(['docs', 'set', 'inline', '--root', hRoot('hdr-docs-first')]);
+      hcall(['pr', 'set', '1', '--root', hRoot('hdr-docs-first')]);
+      const docsFirst = hLines('hdr-docs-first');
+      assert.strictEqual(at(docsFirst, 'PR'), at(docsFirst, 'Docs') + 1, 'pr set places an absent PR the same way on the mirrored ledger');
+
+      // Every header present, then each verb writes its header again: only that line changes.
+      const full = hRoot('hdr-full');
+      hcall(['init', 'feat/hdr-full', 'implementing'], sliceJson);
+      for (const argv of [['step', 'set', 'review'], ['docs', 'set', 'inline'], ['pr', 'set', '1'], ['suite', 'set', 'green', sha1], ['base', 'set', sha1], ['deploy', 'set', 'pve', 'pending']]) {
+        hcall([...argv, '--root', full]);
+      }
+      for (const [name, argv] of [
+        ['Step', ['step', 'set', 'document']],
+        ['Docs', ['docs', 'set', 'other']],
+        ['PR', ['pr', 'set', '2']],
+        ['Suite', ['suite', 'set', 'red', sha2]],
+        ['Base', ['base', 'set', sha2]],
+        ['Deploy', ['deploy', 'set', 'pve', 'deployed']],
+      ]) {
+        const before = hLines('hdr-full');
+        hcall([...argv, '--root', full]);
+        const after = hLines('hdr-full');
+        assert.strictEqual(after.length, before.length, `${argv[0]} set on a present header adds no line`);
+        const changed = after.map((l, i) => (l === before[i] ? -1 : i)).filter((i) => i >= 0);
+        assert.deepStrictEqual(changed, [at(before, name)], `${argv[0]} set changes only the ${name} line, in place`);
+      }
+    } finally {
+      fs.rmSync(hdrDir, { recursive: true, force: true });
+    }
   }
 
   // docs clear: removes the line and leaves every other byte alone.
@@ -1852,6 +2062,13 @@ try {
   r = call(['adopt', '--root', closedRoot], shippedBody.replace('Stage:** shipped', 'Stage:** closed').replace('shipped-snapshot', 'closed-snapshot'));
   assert.ok(!r.ok && /closed/.test(r.err), 'adopt with a closed snapshot refused: ' + (r.err || ''));
   assert.ok(!fs.existsSync(path.join(closedRoot, 'ledger.md')), 'adopt writes nothing on that refusal');
+
+  // adopt: a payload with no Stage line refuses as `--shipped` does, since a ledger adopted without one
+  // could never move its stage again.
+  const stagelessRoot = path.join(tmp, 'adopted-elsewhere', 'stageless-snapshot');
+  r = call(['adopt', '--root', stagelessRoot], shippedBody.replace('**Stage:** shipped\n', '').replace('shipped-snapshot', 'stageless-snapshot'));
+  assert.ok(!r.ok && /no \*\*Stage:\*\* line/.test(r.err), 'adopt with a stage-less snapshot refused, naming the line: ' + (r.err || ''));
+  assert.ok(!fs.existsSync(path.join(stagelessRoot, 'ledger.md')), 'adopt writes nothing on a stage-less payload');
 
   // adopt --shipped: the explicit opt-in recreates a shipped original's run root from its anchor's
   // snapshot (scope-mode.md's `## Adopting a shipped original`, ADR 0124), where plain adopt refuses.
@@ -4251,6 +4468,19 @@ try {
     res = spawnScope(['deferred', 'resolve', '-h', '--root', root]);
     assertSpawnDecided(res, 'deferred resolve -h');
     assert.ok(!res.stdout.includes('usage:'), 'deferred resolve -h prints no usage');
+
+    // `degraded reset-denials` takes a reason the same way: `-h` and `--help` there are recorded, not usage.
+    for (const flag of ['-h', '--help']) {
+      res = spawnScope(['degraded', 'reset-denials', flag, '--root', root]);
+      assertSpawnDecided(res, 'degraded reset-denials ' + flag);
+      assert.strictEqual(res.status, 0, `degraded reset-denials ${flag} exits 0: ` + res.stderr);
+      assert.ok(!res.stdout.includes('usage:'), `degraded reset-denials ${flag} prints no usage`);
+      res = spawnScope(['get', 'degraded', '--root', root]);
+      assert.ok(res.stdout.split('\n').some((l) => l.endsWith(' ' + flag)), `degraded reset-denials ${flag} records ${flag}: ` + res.stdout);
+    }
+    res = spawnScope(['degraded', '--help']);
+    assertSpawnDecided(res, 'degraded --help');
+    assert.ok(res.stdout.includes('usage: node scope.js'), 'degraded --help still prints usage');
   }
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });

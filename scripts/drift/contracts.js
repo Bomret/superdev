@@ -7756,8 +7756,8 @@ RUN_TRACE_ORDER_CONTRACTS.push(
   ],
   [
     path.join('references', 'review-checklist.md'),
-    /the\s+tests\s+did\s+not\s+pass\s+against\s+the\s+changed\s+code[\s\S]{0,400}outlasted\s+ten\s+times\s+the\s+duration\s+the\s+run\s+against\s+the\s+changed\s+code\s+took/,
-    'define the two reasons a fail-to-pass run reads unknown: the tests did not pass against the changed code, or the run before the change outlasted ten times the duration the run against the changed code took',
+    /the\s+tests\s+did\s+not\s+pass\s+against\s+the\s+changed\s+code[\s\S]{0,400}outlasted\s+ten\s+times\s+the\s+duration\s+the\s+run\s+against\s+the\s+changed\s+code\s+took[\s\S]{0,300}could\s+not\s+start\s+reads\s+`start-failed:<code>`/,
+    'define the reasons a fail-to-pass run reads unknown: the tests did not pass against the changed code, or the run before the change outlasted ten times the duration the run against the changed code took, or a run\'s command could not start (start-failed:<code>)',
   ],
   [
     path.join('skills', 'review', 'SKILL.md'),
@@ -7803,13 +7803,13 @@ RUN_TRACE_ORDER_CONTRACTS.push(
   // with its reason, as a note and never under Issues, so no reviewer or controller places it ad hoc.
   [
     path.join('agents', 'slice-reviewer.md'),
-    /###\s+Fail-to-pass\s+unknown\s+\(only\s+when\s+the\s+trace\s+holds\s+one\)[^\n]*never\s+an\s+Issue[^\n]*control=[^\n]*bound=/,
-    'give slice-reviewer\'s Output template a Fail-to-pass unknown line, present only when the trace holds one, naming the outcome\'s reason (control= or bound=) as a note, never an Issue',
+    /###\s+Fail-to-pass\s+unknown\s+\(only\s+when\s+the\s+trace\s+holds\s+one\)[^\n]*never\s+an\s+Issue[^\n]*control=[^\n]*bound=[^\n]*start-failed:/,
+    'give slice-reviewer\'s Output template a Fail-to-pass unknown line, present only when the trace holds one, naming the outcome\'s reason (control=, bound=, or start-failed:) as a note, never an Issue',
   ],
   [
     path.join('agents', 'final-reviewer.md'),
-    /###\s+Fail-to-pass\s+unknown\s+\[scope\s+mode\s+only;[^\n]*never\s+an\s+Issue[^\n]*control=[^\n]*bound=/,
-    'give final-reviewer\'s Output template a Fail-to-pass unknown line, scope mode only, naming each outcome\'s slice and reason (control= or bound=) as a note, never an Issue',
+    /###\s+Fail-to-pass\s+unknown\s+\[scope\s+mode\s+only;[^\n]*never\s+an\s+Issue[^\n]*control=[^\n]*bound=[^\n]*start-failed:/,
+    'give final-reviewer\'s Output template a Fail-to-pass unknown line, scope mode only, naming each outcome\'s slice and reason (control=, bound=, or start-failed:) as a note, never an Issue',
   ],
   [
     path.join('skills', 'review', 'SKILL.md'),

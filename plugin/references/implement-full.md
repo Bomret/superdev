@@ -147,7 +147,8 @@ Repeat until every slice is `merged`:
      nothing: the reviewer reads the trace, and a range left with no outcome line draws the omission finding below.
    - **A fail-to-pass `unknown` is no finding.** A `fail-to-pass` trace line reading `unknown` records a run that could
      not judge (ADR 0134, INV-0139). The `superdev:slice-reviewer` dispatch tells it to name every one for the slice in its
-     report with its reason (the exit status or signal in `control=`, or the `bound=` the run before the change ran under), to
+     report with its reason (the exit status or signal in `control=`, or the `bound=` the run before the change ran under, or
+     `start-failed:<code>` where a run could not start), to
      raise no finding for it, and to start no fix cycle, so you start none either. The scope run's first `unknown` is an
      observation: when the verb says so on stderr, write its triage record under the `## Observations` rule above,
      naming the environment gap.

@@ -110,7 +110,8 @@ A stop there dispatches no slice.
   means no outcome was read because no test command is configured (nothing ran). Neither status blocks the
   slice, and `final-reviewer` reads the trace at the scope review. An `unknown` (status 0) means the verb could
   not judge: the tests did not pass against the changed code, or the run before the change outlasted ten times the
-  duration the first run took or ended by a signal. It draws no finding and starts no fix cycle. The scope run's
+  duration the first run took or ended by a signal, or a run's command could not start (`start-failed:<code>` in its
+  reason). It draws no finding and starts no fix cycle. The scope run's
   first `unknown` is an observation: the verb says so on stderr, and you write its triage record under
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations`, naming the environment gap.
 - **No per-slice review, no per-slice over-engineering pass, no per-slice progress log.** Your own context is the record of how each slice

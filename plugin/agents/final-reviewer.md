@@ -225,7 +225,8 @@ together. *Break it:* find the load that makes it fall over.
 
 **Fail-to-pass `unknown` (scope mode only)** — a `fail-to-pass` trace line reading `unknown` records a run that could
   not judge (ADR 0134, INV-0139). Name every one in the report with its slice and its reason (the exit status or
-  signal in `control=`, or the `bound=` the run before the change ran under), raise no finding for it, and start no fix cycle.
+  signal in `control=`, or the `bound=` the run before the change ran under, or `start-failed:<code>` where a run could not
+  start), raise no finding for it, and start no fix cycle.
   The line counts as an outcome line for **Missing fail-to-pass run**, and the latest line reading `fail-to-pass` or
   `pass-to-pass` decides **Pass-to-pass**.
 
@@ -308,7 +309,7 @@ document order: `<criterion>` — holds | broken: <why> | ceiling: <partial evid
 ### Ceiling
 [one note, per the four gates above; omit this section entirely when nothing qualifies]
 
-### Fail-to-pass unknown [scope mode only; omit this section entirely when the trace holds none] — one note per outcome, never an Issue: <slice> · <its reason: control=<exit status or signal>, or bound=<ms>>
+### Fail-to-pass unknown [scope mode only; omit this section entirely when the trace holds none] — one note per outcome, never an Issue: <slice> · <its reason: control=<exit status or signal>, or bound=<ms>, or start-failed:<code> in control= or put-back=>
 
 ### Assessment
 Full-suite run: [pass | fail | not run | denied — degraded pass]

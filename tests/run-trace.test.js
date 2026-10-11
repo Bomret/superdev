@@ -372,6 +372,18 @@ post('git diff tests/x.test.js');
 post('bun run test:unit');
 assert.deepEqual(tail(trace(A)), [`run path pass ${sha} clean tests/x.test.js`], 'a path run records; reads and a sibling command record nothing');
 
+// A quoted note that begins with a test path is free text, never a path: a command writing it records no run.
+reset();
+post(`node scripts/note.js dod-line 3 "tests/x.test.js adopt block: a stage-less payload is refused"`);
+assert.deepEqual(tail(trace(A)), [], 'a note argument starting with a test path records no run');
+// A quoted test path that holds a space and names a file is still a path run.
+fs.mkdirSync(path.join(S3, 'tests'));
+fs.writeFileSync(path.join(S3, 'tests', 'x y.test.js'), '');
+reset();
+post(`node "tests/x y.test.js"`);
+fs.rmSync(path.join(S3, 'tests'), { recursive: true });
+assert.deepEqual(tail(trace(A)).map((l) => l.split(' ').slice(0, 2).join(' ')), ['run path'], 'a quoted test path with a space records');
+
 // A compound configured command matches across the segments it spans, with the outcome rules of a direct run (#928).
 const vfSaved = fs.readFileSync(vf, 'utf8');
 fs.writeFileSync(vf, '# V\n\n```sh\nbun test && bash scripts/test-affected.sh\n```\n\n```sh\nbun test {paths}\n```\n');

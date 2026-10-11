@@ -434,6 +434,8 @@ function testRunsOf(segs, cwd, outside) {
       for (const w of [cmd, ...args]) {
         const p = !w.startsWith('-') && (w !== cmd || w.includes('/')) ? plain(w) : null;
         if (!p) continue;
+        // A quoted word holding whitespace is free text (a note that begins with a test path) unless it names a file.
+        if (/\s/.test(p) && !fs.existsSync(path.resolve(runDir, p))) continue;
         let rel = path.relative(tree, path.resolve(runDir, p));
         if (rel.startsWith('..') || path.isAbsolute(rel)) continue;
         if (/\/$/.test(p)) rel += '/';

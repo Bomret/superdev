@@ -1173,7 +1173,7 @@ Paths: plugin/agents/slice-reviewer.md, plugin/agents/final-reviewer.md, plugin/
 
 Class: process
 Concepts: Fail-to-pass run, Run trace
-Statement: A fail-to-pass run records `fail-to-pass` or `pass-to-pass` only after the tests passed against the changed code in the same worktree. A run against the changed code that does not pass, and a run killed at its bound or ended by a signal, record `unknown`, which no reviewer reads as a failing or a passing run and no gate reads as green (ADR 0134, INV-0009).
+Statement: A fail-to-pass run records `fail-to-pass` or `pass-to-pass` only after the tests passed against the changed code in the same worktree. A run against the changed code that does not pass, a run killed at its bound or ended by a signal, and a run whose command could not start record `unknown`, which no reviewer reads as a failing or a passing run and no gate reads as green (ADR 0134, INV-0009).
 Breaks: silently
 Check: tests/scope-fail-to-pass.test.js — the fail-to-pass cases
 Paths: plugin/scripts/scope.js

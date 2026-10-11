@@ -2,7 +2,8 @@
 'use strict';
 
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
-// Verbs: init, stage, slice, degraded, unresolved, deferred, suite, base, get, status, root, dod-line. Exit
+// Verbs: init, stage, step, slice, degraded, unresolved, deferred, docs, pr, deploy, suite, base, get, status,
+// publish, adopt, trace, collisions, root, staging, dod-line; `main()` also runs test and fail-to-pass. Exit
 // nonzero with a one-line stderr reason on any refusal. hooks/ledger-guard.js makes this the only
 // ledger write path.
 // `root` and `dod-line` touch no ledger: `root` resolves a run root's absolute
@@ -277,7 +278,7 @@ function verificationCommandsOf(raw, keepLines) {
   return { full: norm(blocks[0]), focused: norm(blocks[1]), whole: norm(span && span[1]) };
 }
 
-// Where `verbDocs`/`verbSuite` insert a header line that was absent: after the *whole* header block,
+// Where `insertHeader` inserts a header line that was absent: after the *whole* header block,
 // never spliced between one of `names`' header lines and any bullets that immediately follow it — a
 // hand-edited ledger can carry a bullet glued directly to a header line.
 // `readBullets`'s own `- ` prefix test is the shape to skip past; `-1` (nothing found) means "no such
@@ -289,8 +290,8 @@ function lastHeaderLineIndex(lines, names) {
   return end;
 }
 
-// Every header a verb appends after the block. A verb inserting an absent header anchors on all of
-// them, so header order does not depend on write order.
+// The ledger's header lines. An absent one is inserted after the last present entry of this list
+// (`insertHeader`), so placement does not depend on which verb writes the header.
 const APPENDED_HEADERS = ['Stage', 'Step', 'Branch', 'Anchor', 'Docs', 'PR', 'Suite', 'Base', 'Deploy'];
 
 // The bullet list under a header line, if any: `**Degraded:**` (scope-mode `## Degraded passes`) and
@@ -307,6 +308,15 @@ function readBullets(lines, name) {
     }
   }
   return bullets;
+}
+
+// Inserts an absent header after the last present `APPENDED_HEADERS` line (and any bullets glued to it), or by
+// `setHeader`'s title-anchored fallback when the ledger carries none.
+function insertHeader(lines, name, value) {
+  const last = lastHeaderLineIndex(lines, APPENDED_HEADERS);
+  if (last < 0) return setHeader(lines, name, value);
+  lines.splice(last + 1, 0, `**${name}:** ${value}`);
+  return lines;
 }
 
 function setHeader(lines, name, value) {
@@ -379,13 +389,41 @@ const INIT_ENTRY_STAGES = ['planned', 'implementing'];
 // rather than instructing a reader to perform it by hand. Renamed aside to `ledger-<stage>-<date>.md`,
 // `date +%FT%H%M%S` precision — fine enough that two same-day rotations essentially never collide, and
 // the loop below still never overwrites one that does. Nothing is deleted, so ADR 0007's seven-day
-// trail and `scope-prune`'s contained-or-gone reap rule (ADR 0053) both stand unchanged.
+// trail and `scope-prune`'s contained-or-gone reap rule (ADR 0053) both stand unchanged. The run's
+// `trace.log` moves aside first, to `trace-<stage>-<date>.log` under the same name stem, so the new run's
+// trace holds only its own lines. A trace that cannot be moved stops init with the ledger still in place;
+// a ledger that cannot be moved puts the moved trace back and stops init, so both files stay in place —
+// and when the trace cannot go back either, init stops naming the stranded trace's path; a run that
+// recorded no trace rotates its ledger alone.
 function rotateFinishedLedger(root, stage) {
   const stamp = new Date().toISOString().slice(0, 19).replace(/:/g, '');
-  let name = `ledger-${stage}-${stamp}.md`;
-  for (let n = 2; fs.existsSync(path.join(root, name)); n++) name = `ledger-${stage}-${stamp}-${n}.md`;
-  const dest = path.join(root, name);
-  fs.renameSync(ledgerPath(root), dest);
+  let stem = `${stage}-${stamp}`;
+  const taken = (s) => fs.existsSync(path.join(root, `ledger-${s}.md`)) || fs.existsSync(path.join(root, `trace-${s}.log`));
+  for (let n = 2; taken(stem); n++) stem = `${stage}-${stamp}-${n}`;
+  const trace = path.join(root, 'trace.log');
+  const traceDest = path.join(root, `trace-${stem}.log`);
+  let traceMoved = false;
+  try {
+    fs.renameSync(trace, traceDest);
+    traceMoved = true;
+  } catch (e) {
+    if (e.code !== 'ENOENT') fail(`cannot move the ${stage} run's trace.log aside (${e.code}) — the ledger stays in place`);
+  }
+  const dest = path.join(root, `ledger-${stem}.md`);
+  try {
+    fs.renameSync(ledgerPath(root), dest);
+  } catch (e) {
+    // The trace goes back, so a refused rotation leaves both files as they were. A trace that cannot go
+    // back is named by path, so the operator can move it back by hand.
+    if (traceMoved) {
+      try {
+        fs.renameSync(traceDest, trace);
+      } catch (back) {
+        fail(`cannot move the ${stage} run's ledger.md aside (${e.code}), and cannot move its trace back (${back.code}) — the ledger stays in place; move ${traceDest} back to ${trace} by hand`);
+      }
+    }
+    fail(`cannot move the ${stage} run's ledger.md aside (${e.code}) — the ledger and its trace stay in place`);
+  }
   console.log(`rotated ${stage} ledger to ${dest}`);
 }
 
@@ -497,7 +535,8 @@ function verbStage(root, sub, value) {
   if (sub !== 'set') fail(`unknown stage subcommand "${sub}" — use set`);
   if (!STAGES.includes(value)) fail(`unknown stage "${value}" (${STAGES.join(', ')})`);
   const cur = getHeader(lines, 'Stage');
-  if (cur !== null && cur !== value) {
+  if (cur === null) fail('ledger carries no **Stage:** line — fix the ledger by hand first');
+  if (cur !== value) {
     if (!STAGES.includes(cur)) fail(`ledger carries unknown stage "${cur}" — fix the ledger by hand first`);
     if (!stageMoveAllowed(cur, value)) {
       const allowed = STAGES.filter((s) => s !== cur && stageMoveAllowed(cur, s));
@@ -534,10 +573,7 @@ function verbStep(root, sub, value) {
     if (getHeader(lines, 'Step') === value) return false;
     setHeader(lines, 'Step', value);
   } else {
-    // Sits right after the stage line it qualifies.
-    const stageAt = lines.findIndex((l) => headerRe('Stage').test(l));
-    if (stageAt < 0) setHeader(lines, 'Step', value);
-    else lines.splice(stageAt + 1, 0, `**Step:** ${value}`);
+    insertHeader(lines, 'Step', value);
   }
   writeLines(root, lines);
   return true;
@@ -701,16 +737,7 @@ function verbDocs(root, sub, value) {
     writeLines(root, lines);
     return true;
   }
-  // Absent: sit with the other header lines rather than above them, which is where `setHeader`'s
-  // title-anchored fallback would put it — after the whole block, never inside a bullet list glued to
-  // one of its lines (`lastHeaderLineIndex`).
-  const last = lastHeaderLineIndex(lines, ['Stage', 'Branch', 'Anchor']);
-  if (last < 0) {
-    writeLines(root, setHeader(lines, 'Docs', value));
-    return true;
-  }
-  lines.splice(last + 1, 0, `**Docs:** ${value}`);
-  writeLines(root, lines);
+  writeLines(root, insertHeader(lines, 'Docs', value));
   return true;
 }
 
@@ -739,15 +766,7 @@ function verbPr(root, sub, value) {
     writeLines(root, lines);
     return true;
   }
-  // Absent: sit with the other header lines, after the whole block — the same placement `verbDocs`
-  // and `verbSuite` give their own header, rather than `setHeader`'s title-anchored fallback.
-  const last = lastHeaderLineIndex(lines, APPENDED_HEADERS);
-  if (last < 0) {
-    writeLines(root, setHeader(lines, 'PR', rendered));
-    return true;
-  }
-  lines.splice(last + 1, 0, `**PR:** ${rendered}`);
-  writeLines(root, lines);
+  writeLines(root, insertHeader(lines, 'PR', rendered));
   return true;
 }
 
@@ -795,15 +814,7 @@ function verbDeploySet(root, target, state, exitCode) {
     writeLines(root, lines);
     return;
   }
-  // Absent: sit with the other header lines, after the whole block — the same placement `verbPr`
-  // gives `**PR:**`.
-  const last = lastHeaderLineIndex(lines, APPENDED_HEADERS);
-  if (last < 0) {
-    writeLines(root, setHeader(lines, 'Deploy', value));
-    return;
-  }
-  lines.splice(last + 1, 0, `**Deploy:** ${value}`);
-  writeLines(root, lines);
+  writeLines(root, insertHeader(lines, 'Deploy', value));
 }
 
 function verbDeployGet(root) {
@@ -1070,15 +1081,7 @@ function verbSuite(cwd, root, sub, result, sha, whole) {
     writeLines(root, lines);
     return;
   }
-  // Absent: sit with the other header lines, after the whole block — the same placement `verbDocs`
-  // gives `**Docs:**`, rather than `setHeader`'s title-anchored fallback.
-  const last = lastHeaderLineIndex(lines, APPENDED_HEADERS);
-  if (last < 0) {
-    writeLines(root, setHeader(lines, 'Suite', value));
-    return;
-  }
-  lines.splice(last + 1, 0, `**Suite:** ${value}`);
-  writeLines(root, lines);
+  writeLines(root, insertHeader(lines, 'Suite', value));
 }
 
 // INV-0017's reuse rule: a green suite record is reusable on the exact commit it was recorded on, and
@@ -1167,13 +1170,7 @@ function verbBaseSet(cwd, root, sha) {
     writeLines(root, lines);
     return;
   }
-  const last = lastHeaderLineIndex(lines, APPENDED_HEADERS);
-  if (last < 0) {
-    writeLines(root, setHeader(lines, 'Base', commit));
-    return;
-  }
-  lines.splice(last + 1, 0, `**Base:** ${commit}`);
-  writeLines(root, lines);
+  writeLines(root, insertHeader(lines, 'Base', commit));
 }
 
 function verbBaseResolve(cwd, root, branch, base) {
@@ -1335,6 +1332,8 @@ function adoptLines(root, body, shipped = false) {
   if (shipped) {
     if (stage === null) fail('--shipped adopts only a run-state payload at stage "shipped", and this one carries no **Stage:** line');
     if (stage !== 'shipped') fail(`--shipped adopts only a run-state payload at stage "shipped", not "${stage}"`);
+  } else if (stage === null) {
+    fail('the run-state payload carries no **Stage:** line — a ledger adopted without one could never move its stage');
   } else if (stage === 'shipped' || stage === 'closed') {
     fail(`run-state payload carries stage "${stage}" — a finished run has nothing to adopt`);
   }
@@ -2007,14 +2006,16 @@ function verbTest(cwd, args) {
 //   fail-to-pass: the tests passed against the changed code and failed with the range's other files put back.
 //   pass-to-pass: they passed both times, so they do not discriminate what the range changed.
 //   unknown:      the run could not judge (INV-0139): the tests did not pass against the changed code, or the run with the
-//                 files put back outlasted its bound or ended by a signal (INV-0009). No reviewer reads it as a verdict.
+//                 files put back outlasted its bound or ended by a signal (INV-0009), or a run's command could not start. No
+//                 reviewer reads it as a verdict.
 //
 // @typedef {object} FailToPassRun
 //   base, tip: the range's two full commits; `tip` is the commit the command and the test paths are read from.
 //   command:   the one command string both runs use.
 //   outcome:   FailToPassOutcome. reason: `control=<exit>,put-back=<exit>`, the two exit statuses and nothing else; for
 //              `unknown`, `control=<exit or signal>` where the control did not pass, else
-//              `control=0,put-back=<exit or signal>,bound=<ms>ms`, the bound ten times the control's duration.
+//              `control=0,put-back=<exit or signal>,bound=<ms>ms`, the bound ten times the control's duration. A run whose
+//              command could not start reads `start-failed:<error code>` in place of its exit, and the second carries no bound.
 //
 // The trace line is `<ts> <slice|scope> main fail-to-pass <base>..<tip> <outcome> <reason>`. The slice is the one whose
 // ledger row records exactly this range, else the one the run's directory attributes to, else `scope`.
@@ -2146,11 +2147,17 @@ async function verbFailToPass(cwd, args) {
   const git = (gitArgs, input) => spawnSync('git', [...noHooks, '--literal-pathspecs', ...gitArgs], { cwd: dir, input, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
   const step = (what, gitArgs, input) => { const r = git(gitArgs, input); if (r.status !== 0) fail(`fail-to-pass: git could not ${what}: ${r.stderr.trim()}`); };
   // The command runs in its own process group, which an interrupt ends with it. `limitMs`, where given, bounds the run: its
-  // group is killed when the bound expires, and `expired` says so. The result carries the run's own duration in `ms`.
-  const exec = (limitMs) => new Promise((resolve, reject) => {
+  // group is killed when the bound expires, and `expired` says so. The result carries the run's own duration in `ms`. A
+  // command that cannot start (E2BIG on a long `{paths}` list, which spawn throws, or an error it emits) resolves with
+  // `startError`, its error code, and no exit.
+  const exec = (limitMs) => new Promise((resolve) => {
     const started = performance.now();
-    const child = cp.spawn('bash', ['-c', command], { cwd: dir, stdio: ['ignore', 2, 2], detached: true });
-    child.on('error', reject);
+    let child;
+    try {
+      child = cp.spawn('bash', ['-c', command], { cwd: dir, stdio: ['ignore', 2, 2], detached: true });
+    } catch (e) {
+      return resolve({ startError: e.code || e.message });
+    }
     running = child;
     if (child.pid) watcher.stdin.write(`${child.pid}\n`);
     let expired = false;
@@ -2158,6 +2165,11 @@ async function verbFailToPass(cwd, args) {
       expired = true;
       try { process.kill(-child.pid, 'SIGKILL'); } catch { /* already gone */ }
     }, limitMs);
+    child.on('error', (e) => {
+      clearTimeout(timer);
+      running = null;
+      resolve({ startError: e.code || e.message });
+    });
     child.on('exit', (code, signal) => {
       clearTimeout(timer);
       running = null;
@@ -2175,7 +2187,7 @@ async function verbFailToPass(cwd, args) {
     // Only a control that passed gives the second run a meaning (INV-0139); a control that did not pass records `unknown`,
     // and the second run never starts.
     const control = await exec();
-    const status = (run) => run.signal || run.code;
+    const status = (run) => (run.startError ? `start-failed:${run.startError}` : run.signal || run.code);
     const record = (outcome, reason) => {
       // The scope run's first `unknown` is an observation (references/scope-mode.md's `## Observations`), and the run root's
       // own trace says whether an earlier one exists, so the caller counts nothing. simplicity: two `unknown` outcomes
@@ -2215,14 +2227,13 @@ async function verbFailToPass(cwd, args) {
     const bound = Math.ceil(control.ms * 10);
     const putBack = await exec(bound);
     // A run whose bound expired, or that a signal ended, carries no verdict whether or not the kill landed (INV-0009).
+    if (putBack.startError) return record('unknown', `control=0,put-back=${status(putBack)}`);
     if (putBack.expired || putBack.signal) return record('unknown', `control=0,put-back=${status(putBack)},bound=${bound}ms`);
     record(putBack.code === 0 ? 'pass-to-pass' : 'fail-to-pass', `control=${control.code},put-back=${putBack.code}`);
   } finally {
     cleanup();
   }
 }
-
-// --- CLI ---------------------------------------------------------------------
 
 // --- collisions: a numbering collision found by number (ADR 0126, INV-0134) ---------------------
 //
@@ -2340,6 +2351,8 @@ function verbCollisions(cwd, args) {
   if (found.length) process.exitCode = 1;
 }
 
+// --- CLI ---------------------------------------------------------------------
+
 function usage() {
   return [
     'usage: node scope.js <verb> …   (ledger CLI — the only ledger.md write path)',
@@ -2372,7 +2385,8 @@ function usage() {
     '                                     (fail-to-pass|pass-to-pass|unknown) on stdout and the command output on stderr, and inside',
     '                                     a run root appends the outcome as its own trace line, never a test run; the second run is',
     '                                     bounded at ten times the first run\'s duration, and `unknown` (the first run did not pass,',
-    '                                     or the second outlasted its bound or was ended by a signal) names its reason;',
+    '                                     or the second outlasted its bound or was ended by a signal, or a run could not start)',
+    '                                     names its reason;',
     '                                     exits 0 (an outcome was read and printed; a failed trace append is reported on stderr),',
     '                                     1 (a refusal or an error, message on stderr, no outcome), 2 (no outcome: no test command',
     '                                     is configured so nothing ran), or 128 plus the signal number (interrupted)',
@@ -2615,7 +2629,7 @@ function asksForHelp(argv) {
     if (VALUE_FLAGS.includes(argv[i])) i++;
     else rest.push(argv[i]);
   }
-  if (BULLET_STDIN_VERBS.includes(rest[0]) && (rest[1] === 'add' || rest[1] === 'add-denial' || rest[1] === 'resolve') && rest[2] !== '-') rest.length = 2; // `-` reads stdin: no text on the command line
+  if (BULLET_STDIN_VERBS.includes(rest[0]) && BULLET_STDIN_SUBS.includes(rest[1]) && rest[2] !== '-') rest.length = 2; // `-` reads stdin: no text on the command line
   return rest.includes('--help') || rest.includes('-h');
 }
 

@@ -167,7 +167,12 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
     `ledger-closed-<date>.md` and nothing is deleted, so ADR
     0007's seven-day trail and `scope-prune`'s contained-or-gone reap rule (ADR 0053) both stand
     unchanged. Rotation, not deletion, is what lets a new feature reusing a retired label begin beside a
-    finished run's trail (ADR 0083). The ledger `init` then writes is this run's own, so the run kind is
+    finished run's trail (ADR 0083). The run's `trace.log` moves aside first, to `trace-closed-<date>.log`
+    under the rotated ledger's own name stem, so the new run's trace holds only its own lines; a trace that
+    cannot be moved stops `init` with the closed ledger still in place, and a ledger that cannot be moved
+    puts the trace back and stops `init` with both files in place. When the trace cannot go back either,
+    `init` stops with the ledger in place and names the stranded `trace-closed-<date>.log`, to move back
+    to `trace.log` by hand. The ledger `init` then writes is this run's own, so the run kind is
     `fresh`.
   - **`planned`** — the normal entry for a feature `/superdev:plan` cut (ADR 0079): skip `init`, move the
     stage forward now, before your playbook's first dispatch —

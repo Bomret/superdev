@@ -30,7 +30,7 @@ This doc owns what each script guards and the contracts between them. Repo-wide 
 `get stage|branch|anchor|slices|unresolved|degraded|deferred|denials|docs|pr|suite`,
 `status` (which renders the whole `/superdev:status` report), `trace [--slice <id>]` (prints the run trace, read-only), `publish`, `adopt`, `root <slug>`,
 `staging <scope> [--count]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `dod-line`, `fail-to-pass <base>..<tip>`, and `test`.
-`--help` or `-h`, alone or after any verb, prints the usage and exits 0, except that a flag's value, or the bullet text after `add` or `add-denial`, is data and never a help request. It is checked before any verb
+`--help` or `-h`, alone or after any verb, prints the usage and exits 0, except that a flag's value, or the text after `add`, `add-denial`, `reset-denials`, or `resolve`, is data and never a help request. It is checked before any verb
 reads stdin or touches a ledger, so a stdin verb such as `dod-line` never waits on input for it.
 `suite set` writes the **suite record** (CONTEXT.md) — the last full-suite run's result and the commit
 it ran on, as `**Suite:** <result> @ <sha>` — refusing a sha that does not resolve to a commit in the
@@ -132,7 +132,9 @@ working tree.
 streams the command's output and exits with its status. `full`, `focused`, and `whole` run the command
 `docs/agents/verification.md` configures, as written; `focused` substitutes its shell-quoted paths for `{paths}`
 and, given none, runs the full command and records `full`. `--` runs a command that `hooks/run-trace.js`'s
-`testRuns` classifies as exactly one test run, and records the kind and files a direct run records. A status the
+`testRuns` classifies as exactly one test run, and records the kind and files a direct run records. A quoted word that holds
+whitespace counts as a path argument of that classification only when it names an existing file or directory. A
+quoted note that begins with a test path is therefore free text. A status the
 command shape hides from the test, such as a pipe without `pipefail`, records `unknown`. A command that classifies
 as no test run, or a kind with no configured command, is refused and nothing runs. The verb reads the run root,
 slice, commit, and tree state when the command starts, and appends the line when it finishes. A run during which
@@ -163,7 +165,9 @@ same invocation (INV-0009). The verb refuses a range that changes no file and a 
 because nothing is put back.
 
 The outcome is `fail-to-pass` when the second run fails, and `pass-to-pass` when it passes. It is `unknown` when the first
-run fails, and when the second run is killed at its bound or ended by a signal. No reviewer reads `unknown` as a verdict,
+run fails, when the second run is killed at its bound or ended by a signal, and when either run's command cannot start
+(E2BIG on a long `{paths}` list among the causes), its reason then reading `start-failed:<code>` in place of the exit
+status. No reviewer reads `unknown` as a verdict,
 and no gate reads it as green.
 
 Inside a run root the verb appends one `fail-to-pass` trace line, `<base>..<tip> <outcome> <reason>`. Its slice is the
@@ -231,7 +235,10 @@ argument given together.
 chain rather than naming a step within it, ranked below `implementing` so `stage set implementing` (or any
 higher stage) moves forward out of it and no later write moves back. `init` over an existing ledger at
 stage `planned` overwrites it, since a plan that cut the branch and scopetree but ran no slice yet has
-nothing to lose; any other stage still refuses.
+nothing to lose; any other stage still refuses. `stage set` refuses a ledger that carries no `**Stage:**` line, as it
+refuses one carrying an unknown stage, and writes nothing. A header-writing verb (`step`, `docs`, `pr`, `deploy`,
+`suite`, `base`) that finds its header absent inserts it after the last present header line, the same rule for every
+verb; a header already present keeps its line and position.
 
 `step set <name>` and `step clear` write the ledger's `**Step:**` line, the chain step a command has started and not
 yet completed (ADR 0140). `<name>` is one of `review`, `document`, `submit`, `ship`, `verify-ship`, or `wrap-up`. A
@@ -271,7 +278,8 @@ the fenced example as live state. An unterminated fence in the body refuses outr
 a real marker past it. `adopt` refuses, writing nothing, when the opening marker is absent, when it
 appears more than once (which payload to adopt cannot be resolved), when the closing marker is absent,
 or when the closing marker precedes the opening one. It also refuses when the payload carries no
-`**Branch:**` line (the heading cannot be reconstructed without it), when the run root's directory name
+`**Branch:**` line (the heading cannot be reconstructed without it), when it carries no `**Stage:**` line (the
+adopted ledger could never move its stage), when the run root's directory name
 does not match the Branch line's slug, or when a ledger already exists at that root.
 
 `status` also reports every scope's **staged knowledge-base pages** under `.superdev/kb-pending/`
@@ -1666,6 +1674,11 @@ closes twice in one calendar day keeps both trails instead of the second rotatio
 `scope-prune` keeps a run root on disk past merge, so a new feature reusing that retired label
 can land while the finished run's ledger is still there; `init` rotates that ledger aside only for `closed`, and refuses over `shipped` (ADR 0083, ADR 0106). A document that goes back to treating any
 present ledger as an in-progress resume re-dispatches a finished run instead of beginning the new one.
+The rotation moves the run's `trace.log` aside first, to `trace-closed-<date>.log` under the rotated ledger's own name
+stem and collision suffix, so the new run's trace holds only its own lines; a trace that cannot be moved stops `init`
+with the closed ledger in place, and a run with no trace rotates its ledger alone. A ledger that cannot be moved aside
+puts the moved trace back and stops `init` with both files in place. When the trace cannot be put back either, `init` stops.
+It names the stranded `trace-<stem>.log` and the `trace.log` path to move it back to by hand.
 `init` owns the rotation mechanics — `plugin/scripts/scope.js`'s `rotateFinishedLedger()`, called only
 after `verbInit` has validated stdin, so a refused `init` never rotates a ledger it is about to leave
 in place (Important review finding G) — because `scope.js` is the
@@ -1675,7 +1688,8 @@ first, which is what let the instruction die stranded after the branch, scopetre
 existed when `/superdev:plan` itself became an `init` caller over a `shipped` ledger (`docs/agents/
 issue-tracker.md`'s ADR 0004 append flow). `tests/scope.test.js` carries the rotation's own coverage: the
 fresh ledger lands at the requested entry stage, the rotated file carries the closed ledger byte for
-byte, a second same-day rotation never overwrites the first, nothing is deleted, and `init` over a `shipped`
+byte, the trace moves with it under the same stem, a second same-day rotation never overwrites the first, nothing is
+deleted, and `init` over a `shipped`
 ledger refuses, naming both commands, and writes nothing. The
 `parked-questions` contract (ADR 0004, ADR 0005) pins rows against `skills/plan/SKILL.md`. It surfaces an
 epic's `## Parked questions` the moment §0 loads it, before the interview diverges into new ground. A

@@ -731,6 +731,51 @@ const { appendTrace } = require(scopePath);
     const timeline = cli(s, ['trace']).stdout.split('\n');
     assert.ok(timeline.some((l) => new RegExp(` 01 main fail-to-pass ${s.range} fail-to-pass control=0,put-back=1$`).test(l)), 'trace prints the outcome line');
     assert.ok(cli(s, ['trace', '--slice', '01']).stdout.includes(' fail-to-pass '), 'and the slice filter keeps it');
+
+    // A test command that cannot start (here one past the argument size limit, E2BIG) records `unknown` naming the start
+    // failure, in one line with no stack trace, and leaves no worktree. Inside a run root the line reaches the trace;
+    // outside one nothing is written.
+    // A 600 KB command passes one argument past Linux's per-argument limit; six 100 KB variables bring the total past
+    // macOS's whole-exec limit too, while every git child, which carries no such argument, still starts.
+    const HUGE = `: ${'x'.repeat(600 * 1024)}; ${CMD}`;
+    const padding = Object.fromEntries([1, 2, 3, 4, 5, 6].map((i) => [`F2P_PAD_${i}`, 'p'.repeat(100 * 1024)]));
+    for (const bare of [false, true]) {
+      s = scenario({
+        bare,
+        base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(HUGE) },
+        tip: { 'src.txt': 'b\n', 'tests/t.sh': probe },
+      });
+      r = s.run(s.range, bare ? { cwd: s.repo, env: padding } : { env: padding });
+      const where = bare ? 'outside a run root' : 'inside a run root';
+      assert.equal(r.status, 0, `${where}: a start failure is an unknown outcome: ` + r.stderr.slice(0, 2000));
+      assert.match(r.stdout.trim(), /^unknown control=\S*E2BIG\S*$/, `${where}: one unknown line naming the start failure`);
+      assert.doesNotMatch(r.stderr, /\n\s+at /, `${where}: no stack trace`);
+      const home = bare ? path.join(s.repo, '.superdev') : s.root;
+      assert.deepEqual(fs.existsSync(home) ? fs.readdirSync(home).filter((f) => f.startsWith('fail-to-pass-')) : [], [], `${where}: no worktree left`);
+      if (bare) assert.ok(!fs.existsSync(home), 'outside a run root nothing is written');
+      else assert.deepEqual(s.trace().map((l) => l.split(' ').slice(2, 5).join(' ')), [`fail-to-pass ${s.range} unknown`], 'the trace line reads unknown');
+    }
+
+    // A second run that cannot start records `unknown` naming the put-back's start failure, in one line with no stack
+    // trace, and leaves no worktree. The verb starts each run as `bash -c <command>`, so a missing script only exits 127;
+    // what fails the start is the shell itself going missing. PATH holds one directory of links to the tools the verb
+    // and the command use, and the control run deletes the `bash` link, so the second spawn finds no shell (ENOENT).
+    s = scenario({
+      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif('rm -f "$F2P_DIR/bin/bash"') },
+      tip: { 'src.txt': 'b\n', 'tests/t.sh': probe },
+    });
+    const bin = path.join(s.dir, 'bin');
+    fs.mkdirSync(bin);
+    for (const tool of ['bash', 'git', 'rm']) {
+      const real = process.env.PATH.split(path.delimiter).map((d) => path.join(d, tool)).find((p) => fs.existsSync(p));
+      fs.symlinkSync(real, path.join(bin, tool));
+    }
+    r = s.run(s.range, { env: { PATH: bin } });
+    assert.equal(r.status, 0, 'a put-back start failure is an unknown outcome: ' + r.stderr.slice(0, 2000));
+    assert.equal(r.stdout.trim(), 'unknown control=0,put-back=start-failed:ENOENT', 'one unknown line naming the put-back start failure');
+    assert.doesNotMatch(r.stderr, /\n\s+at /, 'no stack trace');
+    assert.deepEqual(fs.readdirSync(s.root).filter((f) => f.startsWith('fail-to-pass-')), [], 'no worktree left');
+    assert.deepEqual(s.trace().map((l) => l.split(' ').slice(2, 5).join(' ')), [`fail-to-pass ${s.range} unknown`], 'the trace line reads unknown');
   } finally {
     fs.rmSync(D, { recursive: true, force: true });
   }

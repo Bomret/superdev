@@ -70,7 +70,8 @@ slice whose edits came before it.
 
 **An `unknown` fail-to-pass outcome is no finding.** A `fail-to-pass` trace line reading `unknown` records a run that
 could not judge (ADR 0134, INV-0139). Name every one for the slice in the report with its reason (the exit status or
-signal in `control=`, or the `bound=` the run before the change ran under), raise no finding for it, and start no fix cycle.
+signal in `control=`, or the `bound=` the run before the change ran under, or `start-failed:<code>` where a run could not
+start), raise no finding for it, and start no fix cycle.
 
 **Then read the progress log, one way.** Reading it can **add a finding** or **raise a finding's
 severity**. It never withdraws a finding and never downgrades one. A deviation from the specification that
@@ -177,7 +178,7 @@ For each: file:line · what's wrong · why it matters · how to fix (if not obvi
 ### Uncovered input I'd add a test for
 - <the specific case>
 
-### Fail-to-pass unknown (only when the trace holds one) — a note, never an Issue: <its reason: control=<exit status or signal>, or bound=<ms>>
+### Fail-to-pass unknown (only when the trace holds one) — a note, never an Issue: <its reason: control=<exit status or signal>, or bound=<ms>, or start-failed:<code> in control= or put-back=>
 
 ### After reading the progress log
 - Added: <finding, severity, file:line · what's wrong · how to fix>
