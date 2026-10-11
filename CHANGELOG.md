@@ -1,3 +1,17 @@
+# [0.69.0](https://codeberg.org/bomret/superdev/compare/v0.68.0...v0.69.0) (2026-10-11)
+
+
+### Features
+
+* **implement:** a fail-to-pass run shows a change's tests discriminate ([5411a91](https://codeberg.org/bomret/superdev/commit/5411a91cedbb39e3f9f9bb8c4fd60d4eeff5c4ad))
+* **plan:** every plan carries release-risk criteria ([#1002](https://codeberg.org/bomret/superdev/issues/1002)) ([ed2ad23](https://codeberg.org/bomret/superdev/commit/ed2ad23d502af31e988e188d5664685ecf738c63))
+* **run-trace:** record each slice review's verdict in the run trace ([#1035](https://codeberg.org/bomret/superdev/issues/1035)) ([b955709](https://codeberg.org/bomret/superdev/commit/b955709f5c52151e4118f4bec341146f7632157b))
+
+
+### Performance Improvements
+
+* **implement:** faster full-tier slice loop ([#1043](https://codeberg.org/bomret/superdev/issues/1043)) ([382af86](https://codeberg.org/bomret/superdev/commit/382af86707cb8baaf26f920777f9029f521d1fb7))
+
 # [0.68.0](https://codeberg.org/bomret/superdev/compare/v0.67.1...v0.68.0) (2026-10-09)
 
 
