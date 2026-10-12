@@ -7,7 +7,7 @@ const cp = require('node:child_process');
 const path = require('node:path');
 const { assertSpawnDecided } = require('./spawn-verdict.js');
 const { timePair } = require('./linear-time.js');
-const { scan, gitSubcommand, rawNamesVerb, WRAPPER, optionWords, MAX_QUOTED_DEPTH } = require(path.join(__dirname, '..', 'plugin', 'hooks', 'shell-words.js'));
+const { scan, gitSubcommand, rawNamesVerb, WRAPPER, optionWords, MAX_QUOTED_DEPTH, dashReading } = require(path.join(__dirname, '..', 'plugin', 'hooks', 'shell-words.js'));
 
 const cmds = (s, opts) => {
   const r = scan(s, opts);
@@ -421,6 +421,13 @@ assert.equal(scan('grep "it\'s" f').readable, true, 'quoted text is read only on
     if (r.readable) assert.equal(r.commands.filter((c) => vals(c)[0] === 'git').length, 1, `the git command is found at depth ${k}`);
   }
 }
+
+// --- dashReading: a command as dash reads it, each `((` that is no `$((` spread into nested subshells (#1062) ---
+assert.equal(dashReading('((git push))'), '( (git push))');
+assert.equal(dashReading('dash -c "(((a)))"'), 'dash -c "( ( (a)))"');
+assert.equal(dashReading('dash -c \\(\\(git\\ push\\)\\)'), 'dash -c \\(\\ \\(git\\ push\\)\\)', 'an escaped run spreads with an escaped space');
+assert.equal(dashReading('a \\\n((b))'), 'a ( (b))', 'a backslash-newline is joined first');
+for (const c of ['echo $((1 + 2))', 'echo $(((1) * 2))', 'git status', 'echo (a)']) assert.equal(dashReading(c), null, `${c}: nothing to spread`);
 
 // --- unreadable ---
 for (const s of ["echo 'a", 'echo "a', 'echo $(a', 'echo ${a', 'echo `a', 'echo $((1', 'cat <<E\nx', 'cat <<E', 'echo )', 'echo (a', 'case x in a) b', 'a &&', 'a >', "echo $'a", 'echo $(a "b)"']) unreadable(s);

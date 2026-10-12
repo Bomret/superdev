@@ -29,10 +29,12 @@
 // (`git -c alias.p=push p`, `git -c alias.x='!git push' x`), a `gh`/`tea pr merge` (tea's `pulls`/`pull` names for `pr` included), and a `gh`/`tea api` write to a pull request's /merge endpoint. A git
 // command with any other subcommand is allowed, whatever words follow it: `git -C $(a $(b $(c))) log --grep push`,
 // and `git merge-base`/`merge-tree` (read-only helpers), are not integrations.
-// The scan also reads the text of every quoted word as a command line (INV-0141), whatever program
-// receives the word: `sh -c "git merge x"`, `ssh host "git push"`, and `watch "git rebase main"` are
+// The scan also reads the text of every quoted or backslash-escaped word as a command line (INV-0141), whatever program
+// receives the word: `sh -c "git merge x"`, `ssh host "git push"`, `watch "git rebase main"`, and `dash -c git\ push` are
 // denied. The text an `echo` or `printf` writes, and a here-string, that a known shell reads on stdin is read the same way
-// (`echo git push | sh`, `sh < <(echo git push)`, `bash <<<"git push"`); a file piped to a shell (`cat f | sh`) is not read. The guard fails closed instead of guessing which program runs the text, so any quoted word whose
+// (`echo git push | sh`, `sh < <(echo git push)`, `bash <<<"git push"`); a file piped to a shell (`cat f | sh`) is not read. A command is
+// also read as dash reads it (shell-words.js's dashReading), where `((…))` runs nested subshells, and so is every quoted text the scan
+// re-reads: `dash -c "((git push))"` and `dash -c "dash -c \\(\\(git\\ push\\)\\)"` are denied. The guard fails closed instead of guessing which program runs the text, so any quoted word whose
 // text names a guarded integration is denied too: a grep or rg pattern (`grep -rn "git merge" docs/`), a commit
 // message (`git commit -m "git push fails behind rtk"`), or a PR body. That is a known false positive class.
 // A command the scanner cannot read to its end is denied only when its raw text holds the word `git` and,
@@ -267,7 +269,8 @@ function decide(input) {
   let hit;
   try {
     if (!shellWords) return { block: true, reason: BROKEN };
-    hit = integrates(cmd);
+    const dash = shellWords.dashReading(cmd);
+    hit = integrates(cmd) || (dash !== null && integrates(dash));
   } catch {
     return { block: true, reason: BROKEN };
   }

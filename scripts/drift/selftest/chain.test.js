@@ -2736,6 +2736,32 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'flags a hook that declares its own stripHeredocs',
   );
 
+  // positive: a hook that spreads dash's `((` itself, instead of reading it through the scanner's dashReading (#1062)
+  assert.equal(
+    scanContract(
+      fixture({ 'hooks/ledger-guard.js': SCANNER_REQUIRE + "const dash = text.replace(/(?<![$(])\\(\\(+/g, (r) => r.split('').join(' '));\n" }),
+      ARG_TOKEN_CONTRACTS,
+    ).length,
+    1,
+    'flags a hook that declares its own (( spread',
+  );
+  // positive: the same spread spelled with a quantifier or a character class
+  for (const spread of ['/\\({2,}/g', '/[(]{2,}/g', '/\\(+\\(/g', '/[(][(]/g']) {
+    assert.equal(
+      scanContract(fixture({ 'hooks/green-gate.js': SCANNER_REQUIRE + `const dash = text.replace(${spread}, (r) => r.split('').join(' '));\n` }), ARG_TOKEN_CONTRACTS)
+        .length,
+      1,
+      `flags a hook that spreads (( written ${spread}`,
+    );
+  }
+  // negative: a comment naming the escaped spelling is no spread
+  assert.equal(
+    scanContract(fixture({ 'hooks/merge-guard.js': SCANNER_REQUIRE + '// `dash -c \\(\\(git\\ push\\)\\)` is read through dashReading\n' }), ARG_TOKEN_CONTRACTS)
+      .length,
+    0,
+    'a comment naming \\(\\( is no spread',
+  );
+
   // positive: a hook that never requires the scanner
   assert.equal(
     scanContract(fixture({ 'hooks/run-trace.js': 'const x = 1;\n' }), ARG_TOKEN_CONTRACTS).length,

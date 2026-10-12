@@ -41,7 +41,7 @@
 //             bodies, function bodies, any pipeline element), and one more for each enclosing `( … )`,
 //             `$( … )`, backtick group, `<( … )`, `>( … )`, or heredoc body a shell reads. A command read out of quoted text counts `nest`
 //             within that text, from 0. `level` 0 is the command itself, N > 0 is a command
-//             read out of the text of a quoted word (`scan(..., { quoted: true })`).
+//             read out of the text of a quoted or backslash-escaped word (`scan(..., { quoted: true })`).
 //             `fn` is true for a command inside a function body (`f() { … }`, `function f { … }`, `f() ( … )`), nested
 //             groups, substitutions, backtick groups, and heredoc bodies included: a definition runs nothing.
 //             A body that is no `{ … }` or `( … )` group (`f() if …; fi`) is not marked; the scan result's `fnBare` reports it.
@@ -86,6 +86,10 @@ const SHELLS = new Set(['sh', 'bash', 'zsh', 'dash', 'ksh']);
 const DQ_ESCAPE = /\\([$`"\\\n])/g;
 // The unquoted prefixes a quoted word's text is read past: a `NAME=` assignment, and the attached command-string options `-c`
 // (a short cluster ending in it, as `su -lc`), `-S`, `--command=`, and `--split-string=`.
+// An escaped character that lets an unquoted, backslash-escaped word spell a command line once a shell reads its value again:
+// whitespace, an operator, a backtick, or a `$`. Only the word's `escape` spans are tested, so no value is built, and an escaped
+// backslash, or a `$` the word holds unescaped, re-reads nothing: the next shell reads that text as one word.
+const ESCAPED_LINE = /[\s;&|<>()`$]/;
 const QUOTED_PREFIX = /^(?:[A-Za-z_][A-Za-z0-9_]*(?:\[[^\]]*\])?\+?=|-[A-Za-z]*[cS]|--(?:command|split-string)=)/;
 
 const CMD_PLAIN = /[^ \t\n'"`$\\;&|<>()]+/y;
@@ -159,7 +163,7 @@ const RESCAN_FLOOR = 4096;
 const HEREDOC_REREAD_FACTOR = 4;
 const HEREDOC_REREAD_FLOOR = 4096;
 
-// Scans one text (the command, a backtick body, or the text of a quoted word). Appends its commands to
+// Scans one text (the command, a backtick body, or the text of a quoted or backslash-escaped word). Appends its commands to
 // `cmds` and queues backtick bodies on `queue`. Throws Unreadable.
 // `hdRead` is the scan's one budget for heredoc bodies read again: `{ used, max }` in characters.
 // `baseAt` is where the text sits in the text it was read from (a backtick body, a heredoc body), or undefined for the root.
@@ -841,8 +845,9 @@ function run(src, cmds, queue, level, heredocBody, baseNest, hdRead, baseGroup, 
 // (level 0), in the current shell (nest 0), outside a function body and any compound command or group, and piping into nothing.
 // merge-guard applies its raw-text rule to each text a sink it names does not receive, and green-gate reads each as a quoted merge
 // candidate. A here-string's text is charged to the heredoc re-read budget before it is built.
-// With `quoted: true` the value of every quoted word (not a redirect target) is read as a command line
-// too, down to MAX_QUOTED_DEPTH. A quoted text that does not read as a command line leaves the scan
+// With `quoted: true` the value of every quoted word, and of every backslash-escaped word that escapes whitespace, an operator, a
+// backtick, or a `$` (ESCAPED_LINE), not a redirect target, is read as a command line too, down to MAX_QUOTED_DEPTH, and so is that
+// value's dash reading (dashReading) when it spreads a `((`. A quoted text that does not read as a command line leaves the scan
 // readable and comes back in `failedQuoted`, a list of those texts (empty when none): `sh -c` runs the lines before a syntax
 // error, so a caller applies its raw-text rule to each failed text, and only to those. A heredoc body a shell reads on stdin
 // (feedsShell) is read as a command line at the level of its command, with or without `quoted`, and one that does not read as
@@ -912,15 +917,27 @@ function scan(command, opts = {}) {
           }
         }
         if (!opts.quoted) continue;
-        // The budget is charged before a text is built, so a text past it is never built.
-        const readAsCommand = (text, cost) => {
-          if (item.level >= MAX_QUOTED_DEPTH) fail(`quoted text nested deeper than ${MAX_QUOTED_DEPTH}`);
+        // The budget is charged before a text is built, so a text past it is never built. Each text is read as dash reads it too
+        // (dashReading), charged again, so a `((` escaped for any shell level opens subshells at the level that unescapes it.
+        const charge = (cost) => {
           queued += cost;
           if (queued > budget) fail('quoted text too large to read as command lines');
-          queue.push({ text: text(), level: item.level + 1 });
+        };
+        const readAsCommand = (text, cost) => {
+          if (item.level >= MAX_QUOTED_DEPTH) fail(`quoted text nested deeper than ${MAX_QUOTED_DEPTH}`);
+          charge(cost);
+          const t = text();
+          queue.push({ text: t, level: item.level + 1 });
+          const dash = dashReading(t);
+          if (dash === null) return;
+          charge(cost);
+          queue.push({ text: dash, level: item.level + 1 });
         };
         for (const w of c.words) {
-          if (!w.quoted) continue;
+          // A backslash-escaped word is quoted text to a shell that reads it again (`dash -c git\ push`), though not `quoted`. One whose
+          // escaped characters hold no whitespace, operator, backtick, or `$` (ESCAPED_LINE) is one word to that shell too, so a run of
+          // backslashes (`\\\\n`, `\\\\$`) adds no level.
+          if (!w.quoted && !w.spans.some((s) => s.quote === 'escape' && ESCAPED_LINE.test(s.text))) continue;
           readAsCommand(() => w.value, w.raw.length);
           // An unquoted `NAME=` or command-string option prefix joins the text (`alias g='git push'`, `su -c'…'`), so the text past it is read too.
           const pre = w.spans[0].quote === null && w.spans[0].text.length <= 4096 ? QUOTED_PREFIX.exec(w.spans[0].text) : null;
@@ -1276,4 +1293,21 @@ function producerArgs(words) {
   return words.slice(k);
 }
 
-module.exports = { scan, gitSubcommand, rawNamesVerb, commandStart, WRAPPER, optionWords, MAX_QUOTED_DEPTH };
+// dashReading(command) -> text | null
+// The command as dash reads it: bash reads `((…))` as arithmetic, dash a run of two or more `(` that is no `$((` as nested subshells.
+// Each such run, unquoted, in a quoted word, or in a heredoc body, is spread (`((` becomes `( (`), and a run of escaped parens
+// (`\(\(`) is spread with an escaped space (`\(\ \(`), so the re-read text of an escaped word opens subshells too. `))` stays, which
+// keeps `$((1 + 2))` whole. One linear pass, after backslash-newlines are joined. null when no run is spread. The Bash guards scan
+// both the command and this reading, and a verdict that denies, or a candidate found, in either counts. `scan` with `quoted` reads
+// each quoted text it re-reads this way too, so a `((` escaped for a deeper shell level is spread at the level that unescapes it.
+const DASH_RUN = /(?<![$(\\])\\?\((?:\\?\()+/g;
+function dashReading(command) {
+  const text = command.replace(/\\\n/g, '');
+  const dash = text.replace(DASH_RUN, (run) => {
+    const parens = run.match(/\\?\(/g);
+    return parens.join(parens[0].length === 2 ? '\\ ' : ' ');
+  });
+  return dash === text ? null : dash;
+}
+
+module.exports = { scan, gitSubcommand, rawNamesVerb, commandStart, WRAPPER, optionWords, MAX_QUOTED_DEPTH, dashReading };

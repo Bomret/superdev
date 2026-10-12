@@ -150,6 +150,7 @@ assert.deepEqual(bashTargets('tee -a f <<- END\n\tx\n\tEND', '/r'), [path.resolv
 assert.deepEqual(bashTargets('tee f <<< hello', '/r'), [path.resolve('/r', 'f')]);
 assert.deepEqual(bashTargets('tee log2>x', '/r').sort(), [path.resolve('/r', 'log2'), path.resolve('/r', 'x')].sort());
 assert.deepEqual(bashTargets('tee a\\>b', '/r'), [path.resolve('/r', 'a>b')]);
+assert.deepEqual(bashTargets('echo a\\ \\>\\ b', '/r'), [], 'backslash-escaped text is data: no edit');
 for (const cmd of ['git commit -m "fix\n\n- a -> b\n- c | d\n- e > f"', "git commit -m 'x\ny > z'"]) {
   assert.deepEqual(bashTargets(cmd, '/r'), [], cmd);
 }

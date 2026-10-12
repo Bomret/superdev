@@ -12,7 +12,7 @@
 // (they never name ledger.md — the CLI takes --root, the run-root directory).
 //
 // A Bash command is read through the shared scanner, ./shell-words.js (ADR 0135): every simple command it returns,
-// nested substitutions, subshells, the text of every quoted word (INV-0141), and a heredoc body a known shell reads on stdin
+// nested substitutions, subshells, the text of every quoted or backslash-escaped word (INV-0141), and a heredoc body a known shell reads on stdin
 // (`bash <<E`, `cat <<E | sh`, and through `xargs sh -c`, an alias or function that runs a shell, `exec 3<<E; sh <&3`, `sh -c "$(cat)"`,
 // or a `>( … )` it is written into) included,
 // is read as words and redirects. A heredoc body any other program reads stays data, prose naming a run-state path piped into
@@ -45,9 +45,9 @@
 // `truncate` writes its file operands, so `truncate -r REF <ledger>` is refused and `truncate -r <ledger> /tmp/x` passes. A redirect is `>`, `>>`, `>|`, `>&`, `&>`, `&>>`, or `<>`.
 // A command the scanner cannot read to its end is refused only when its text names a ledger or run trace path. A quoted text that reads
 // as no command line is refused only when it names one and holds a write form (WRITE_FORM), so a commit message that mentions a ledger passes.
-// dash runs `((…))` as nested subshells where bash reads arithmetic, so a command is read twice, as written and with each `((` that is no `$((` spread to `( (`
-// (as dash reads it), and a ledger write in either reading is refused: `((cp a L))`, `eval "((cp a L))"` and `echo "((cp a L))" | dash` are refused, `grep "((" L` reads.
-// The raw-text tests (the unreadable-command rule and the ledger-name gate) share one normalizer, `plainText`, that drops every backslash and quote character. When the scanner cannot be loaded or
+// dash runs `((…))` as nested subshells where bash reads arithmetic, so a command is read twice, as written and as dash reads it (shell-words.js's dashReading, which spreads `\(\(` too)
+// and a ledger write in either reading is refused; the scanner reads every quoted text it re-reads both ways too: `((cp a L))`, `eval "((cp a L))"`, `echo "((cp a L))" | dash`, and `dash -c \(\(cp\ a\ L\)\)` are refused, `grep "((" L` reads.
+// The raw-text tests (the unreadable-command rule and the ledger-name gate) share one normalizer, `plainText`, that drops every backslash and quote character and also reads each path with its doubled slashes, `.` segments, and `<name>/..` segments collapsed. When the scanner cannot be loaded or
 // throws, every Bash call is refused (INV-0140): the guard has no reader of its own to fall back on.
 // Ceiling: a command built at run time (a variable, an `eval` of assembled text, a wrapper script), a path produced only when the
 // command runs (`find … -exec sed -i …`, `xargs` stdin, a glob, a patch file's own header, an archive extracted without `-C` in the run root), a
@@ -58,9 +58,10 @@
 let scan = null;
 let commandStart = null;
 let optionWords = null;
+let dashReading = null;
 let loadError = null;
 try {
-  ({ scan, commandStart, optionWords } = require('./shell-words.js'));
+  ({ scan, commandStart, optionWords, dashReading } = require('./shell-words.js'));
   if (typeof scan !== 'function') throw new Error('./shell-words.js exports no scan');
 } catch (e) {
   loadError = e;
@@ -71,7 +72,27 @@ try {
 // The one normalizer for raw text: a backslash-newline joins the halves of a word, and every backslash and quote character is dropped
 // whatever the nesting depth, so a text that passes through several shells (`dash -c "…"`, `eval`), each undoing one level of quoting
 // (`led\\ger.md`), still spells the path. It over-matches, which is fail closed: it only affects a text that spells a ledger path.
-const plainText = (text) => text.replace(/\\\n/g, '').replace(/[\\"']/g, '');
+// A text holding a path spelled with a doubled slash, a `.` segment, or a `<name>/..` segment (#1030) gets a second line, each
+// such path collapsed lexically (`.superdev//scopes`, `./.superdev/./scopes`, `.superdev/kb-pending/../scopes`), so every test
+// reads both spellings and denies when either names a run-state path. A symlink `<name>` makes the collapse over-match, which denies.
+const plainText = (text) => {
+  const plain = text.replace(/\\\n/g, '').replace(/[\\"']/g, '');
+  if (!/\/\/|(?:^|\/)\.\.?(?:\/|$)/m.test(plain)) return plain;
+  return plain + '\n' + plain.replace(/\S+/g, (w) => (w.includes('/') ? collapsePath(w) : w));
+};
+// One word's path segments, collapsed with a stack in one pass: an empty segment is dropped unless it leads (an absolute path) or
+// ends the word (a trailing `/`), a `.` segment is dropped, and `..` drops the segment before it unless that is `..` or none.
+function collapsePath(word) {
+  const segs = word.split('/');
+  const out = [];
+  segs.forEach((s, i) => {
+    if (s === '' && i > 0 && i < segs.length - 1) return;
+    if (s === '.' && segs.length > 1) return;
+    if (s === '..' && out.length && out[out.length - 1] !== '..' && out[out.length - 1] !== '') { out.pop(); return; }
+    out.push(s);
+  });
+  return out.join('/');
+}
 // The ledger or trace name must follow the run-state directory on the same line. Only the first directory of each line is looked
 // up, the one that leaves the most text after it, so a line of many directory prefixes is read once, in linear time.
 const RUN_STATE = '.superdev/scopes/';
@@ -212,7 +233,7 @@ function xxdTargets(args) {
 }
 // A directory that is a run root (`.superdev/scopes/<scope>`, with a trailing `/` or `/.`) holds the ledger, so a recursive copy or an
 // archive extracted into it can write the ledger: the target is read as `<dir>/ledger.md`.
-const isRunRoot = (w) => /\.superdev\/scopes\/[^/]+(?:\/\.?)?$/.test(plainText(w));
+const isRunRoot = (w) => /\.superdev\/scopes\/[^/\n]+(?:\/\.?)?$/m.test(plainText(w));
 const ledgerIn = (dir) => dir.replace(/\/\.?$/, '') + '/ledger.md';
 // tar extracting (`-x`, a cluster holding `x`, `--extract`, `--get`, or an old-style first word such as `xf`) writes every member it
 // names and the run root a `-C DIR` or `--directory[=]DIR` points it into.
@@ -445,16 +466,14 @@ function readsAsWriting(command, depth) {
 }
 
 // `((…))` is arithmetic in bash, which the scanner reads, and two nested subshells in dash, which run what is inside. So a command is read twice,
-// as written and as dash reads it: each run of two or more `(` that is no `$((` is spread (`((` becomes `( (`), in unquoted text, quoted words and
-// heredoc bodies alike, and a ledger write in either reading is a write. `))` stays, which keeps `$((1 + 2))` whole. The rewrite is one linear pass,
-// and a run it spreads is read by the same scanner, quoted text included, so the quoted-text and unreadable-command rules decide every `((` case.
+// as written and as dash reads it (shell-words.js's dashReading), and a ledger write in either reading is a write. A run the reading spreads is read
+// by the same scanner, quoted text included, so the quoted-text and unreadable-command rules decide every `((` case.
 function writesLedger(command) {
-  const text = command.replace(/\\\n/g, '');
   if (readsAsWriting(command, 0)) return true;
-  const dash = text.replace(/(?<![$(])\(\(+/g, (run) => run.split('').join(' '));
-  return dash !== text && readsAsWriting(dash, 0);
+  const dash = dashReading(command);
+  return dash !== null && readsAsWriting(dash, 0);
 }
-// simplicity: same ceiling as merge-guard — honest/common forms only. The text of a quoted word is read as a command line (INV-0141), so
+// simplicity: same ceiling as merge-guard — honest/common forms only. The text of a quoted or backslash-escaped word is read as a command line (INV-0141), so
 // `bash -c "…"` is read through. A `cd` into the scopes dir followed by a bare `> ledger.md`, or a `cp`/`mv`/`install` invoked
 // through a variable or a wrapper script, slips past; this is a guardrail against the model's normal output, not a sandbox.
 

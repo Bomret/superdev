@@ -122,7 +122,7 @@ function takesMergeValue(w) {
 //   { broken: true }                                            a scanner that cannot load or run.
 // `tokens` are the value-taking git global options of the candidate (`{ name, value }`), `dirChanged` is
 // true when a directory-changing command comes before it at the command line's own level, and `quoted` is
-// true when the candidate sits inside the text of a quoted word, a quoted text that reads as no command line
+// true when the candidate sits inside the text of a quoted or backslash-escaped word, a quoted text that reads as no command line
 // included (readMerge() below). A merge the command runs itself (not
 // inside quoted text) beats a commit or a pull, which beats a quoted merge, which beats a quoted commit or pull. A commit and
 // a pull are gated only when the reflog shows a landed merge (decide()). `merge
@@ -133,7 +133,11 @@ function parseMergeCommand(cmd) {
   // Every call into the scanner module sits in the try: a throw anywhere in the read is a broken install (INV-0140).
   try {
     if (!shellWords) return { broken: true };
-    return readMerge(shellWords.scan(cmd, { quoted: true }), cmd);
+    // A command with no candidate as written is read again as dash reads it (dashReading): `dash -c "((git merge x))"`. The scan
+    // reads each quoted text it re-reads both ways itself.
+    const found = readMerge(shellWords.scan(cmd, { quoted: true }), cmd);
+    const dash = found === null ? shellWords.dashReading(cmd) : null;
+    return dash === null ? found : readMerge(shellWords.scan(dash, { quoted: true }), dash);
   } catch {
     return { broken: true };
   }

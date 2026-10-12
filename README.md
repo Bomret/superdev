@@ -322,7 +322,9 @@ bash or PowerShell variants.
   `/merge` endpoint stays a prose contract the subagent bodies carry. The guard reads the command with one
   shared shell scanner (ADR 0135): every command it holds, at every level, past `NAME=value` words and
   prefix wrappers such as `env`, `sudo`, `nohup`, `xargs`, `exec`, `eval`, `flock`, and `taskset`. It reads the text of every
-  quoted word as a command line too, so `sh -c "git merge x"` and `ssh host "gh pr merge 1"` are blocked.
+  quoted or backslash-escaped word as a command line too, so `sh -c "git merge x"`, `dash -c git\ push`, and
+  `ssh host "gh pr merge 1"` are blocked. The scan re-reads a backslash-escaped word as a command line only when a character it escapes is whitespace, an operator (a parenthesis included), a backtick, or a `$`. It also reads the command, and every quoted text it reads as a command line, as
+  dash reads it, where `((…))` runs nested subshells, so `dash -c "((git push))"` is blocked.
   It blocks any heredoc body or here-string whose text names one of these, whatever command receives it
   (`cat <<E`, `cat <<E | sh`, `cat <<E > >(sh)`, `ssh host <<E`). Two receivers are exempt when the command stands
   alone on the line, behind no wrapper, with no pipe after it, and with no substitution, subshell, function body, group,
@@ -354,8 +356,9 @@ bash or PowerShell variants.
   the top `HEAD` reflog entry of its tree reads `merge …`, `commit (merge)…`, or `pull …`. The gate runs whether the
   Bash call that landed the merge succeeded or failed, after a `git commit` that concludes a conflicted
   merge (ADR 0123), and after a `git pull` that landed a merge. It reads a merge behind a prefix wrapper
-  (`nice -n 5 git merge x`, `eval git merge x`) and through an alias defined inline (`git -c alias.m=merge m x`). The gate reads the text of a quoted word as a command line too, but a merge it finds
-  only there (`sh -c "git merge x"`, a `grep` for the words, or a commit message with an apostrophe that does
+  (`nice -n 5 git merge x`, `eval git merge x`) and through an alias defined inline (`git -c alias.m=merge m x`). The gate reads the text of a quoted or backslash-escaped word as a command line too, and a command with no
+  merge as written is read again as dash reads `((…))`. A merge it finds only there (`sh -c "git merge x"`,
+  `dash -c "((git merge x))"`, a `grep` for the words, or a commit message with an apostrophe that does
   not read as a command line) runs the suite only for a landed merge the gate has not yet run the suite on. A heredoc body or
   here-string naming a merge is read the same way, and a heredoc body a known shell reads on stdin is read as the command line it is. "Tests pass on scope after merging" is therefore checked by a hook, not merely
   prompted. A killed suite is reported too, rather than passing: a
@@ -401,11 +404,13 @@ bash or PowerShell variants.
   operand held in a variable (`node "$S" … -`) reads as no script file, so its piped body is judged; and text naming a ledger
   is denied beside a stdin interpreter on the same line even when that text goes elsewhere.
   The hook reads every Bash command through the shared shell scanner, and it reads nested substitutions and the text of
-  quoted words as command lines. It also reads a heredoc body, a here-string, or `echo`/`printf` text that a known shell
+  quoted or backslash-escaped words as command lines. It also reads a heredoc body, a here-string, or `echo`/`printf` text that a known shell
   reads on stdin, directly or indirectly (`cat <<E | sh`, `cat <<E > >(sh)`, `sh -c "$(cat)"`, `exec 3<<E; sh <&3-`). Any
   other heredoc body or here-string is data, so prose piped into `cat`, `git commit -F -`, or `scope.js … -` passes. An unreadable command is denied only when its raw text names a ledger path. A quoted text that does not read as a
   command line is denied only when it names a ledger path and holds a write form. A command that names a ledger
-  path and writes it when read as dash reads `((` is denied: the guard reads a command as written and again with each `((` that is no `$((` spread to `( (`. A scanner that fails to load denies the Bash call. Only `scripts/scope.js`, the run-state CLI that owns the
+  path and writes it when read as dash reads `((` is denied: the guard reads a command as written and again with each `((` that is no `$((` spread to `( (`, an
+  escaped `\(\(` included. The guard reads a run-state path with its doubled slashes, `.` segments, and `<name>/..`
+  segments collapsed too, so `.superdev//scopes/x/ledger.md` names a ledger. A scanner that fails to load denies the Bash call. Only `scripts/scope.js`, the run-state CLI that owns the
   ledger's schema, may write it. A write to the run trace (`trace.log`) is refused the same way, because
   only the hooks and `scripts/scope.js` write it.
 - **run-trace.** A hook that records every file edit of a run into the run trace

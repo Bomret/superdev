@@ -485,6 +485,14 @@ for (const c of ['git merge -m msg --abort','git merge -mmsg --abort', 'git merg
 }
 assert.equal(parseMergeCommand('git merge s').quoted, false);
 assert.equal(parseMergeCommand('sh -c "git merge s"').quoted, true, 'a merge inside a quoted word is a quoted candidate');
+assert.deepEqual(parseMergeCommand('dash -c git\\ merge\\ x'), parseMergeCommand('dash -c "git merge x"'), 'a backslash-escaped merge is the candidate its quoted spelling is');
+// dash runs `((…))` as nested subshells: a merge inside one is the quoted candidate its quoted spelling is (#1062)
+assert.deepEqual(parseMergeCommand('dash -c "((git merge x))"'), parseMergeCommand('dash -c "git merge x"'), 'a (( merge is a quoted merge candidate');
+for (const c of ['echo $((1 + 2))', '(( i++ ))', 'git log --grep "((push))"']) assert.equal(parseMergeCommand(c), null, `${c}: no candidate`);
+// every re-read level is read as dash reads it, so a `((` merge escaped for a second shell level is the quoted candidate too
+assert.deepEqual(parseMergeCommand('dash -c "dash -c \\\\(\\\\(git\\\\ merge\\\\ x\\\\)\\\\)"'), parseMergeCommand('dash -c "git merge x"'), 'a (( merge escaped for a second level is a quoted merge candidate');
+// a run of backslashes in quoted text is no re-read level: the commit stays the candidate it is
+assert.deepEqual(parseMergeCommand("git commit -m 'fix \\\\\\\\n in merge path'"), { verb: 'commit', quoted: false, tokens: [], dirChanged: false }, 'a backslash run leaves a commit candidate');
 assert.equal(parseMergeCommand('sh -c "git commit" && git merge s').verb, 'merge', 'a merge the command runs beats a quoted commit');
 assert.equal(parseMergeCommand('git merge "x').stuck, true, 'an unreadable command holding a merge is stuck');
 assert.equal(parseMergeCommand('echo "x'), null, 'an unreadable command holding no merge is no candidate');
@@ -1197,6 +1205,13 @@ fs.writeFileSync(
       git2(['merge', '-q', '--no-ff', '-m', 'merge other2', 'other2'], fresh);
       assert.equal(runHook({ cwd: fresh, tool_input: { command: 'sh -c "git merge other2"' } }).status, 2, 'a quoted merge that lands a new merge is gated');
     }
+    {
+      // a merge inside dash's `((…))` subshells gates a landed merge as its quoted spelling does (#1062)
+      const fresh = redSession(true);
+      assert.equal(runHook({ cwd: fresh, tool_input: { command: 'dash -c "((git merge s))"' } }).status, 2, 'a (( merge is gated on a landed reflog');
+      fs.rmSync(fresh, { recursive: true, force: true });
+    }
+    assert.equal(runHook({ cwd: notLanded, tool_input: { command: 'dash -c "((git merge s))"' } }).status, 0, 'a (( merge is silent without a landed merge');
     assert.equal(runHook({ cwd: notLanded, tool_input: { command: 'sh -c "git merge s"' } }).status, 0, 'a quoted merge is silent without a landed merge');
     assert.equal(runHook({ cwd: landed, tool_input: { command: 'cd /nonexistent && sh -c "git merge s"' } }).status, 0, 'a quoted merge after a cd has no readable tree: silent');
     assert.equal(runHook({ cwd: landed, tool_input: { command: 'sh -c "git -C \\"$X\\" merge s"' } }).status, 0, 'a quoted merge with an unexpanded -C is silent');
@@ -1294,6 +1309,7 @@ fs.writeFileSync(
     };
     grows('nested substitutions', (n) => 'git -C $(a $(b $(c))) log; echo "$(x $(y))" ;'.repeat(n), 2000);
     grows('nested heredocs', nestedHeredocs, 400);
+    grows('many (( runs', (n) => 'echo "((x))" ((y)) \\(\\(z\\)\\);'.repeat(n), 2000);
     fs.rmSync(landed, { recursive: true, force: true });
     fs.rmSync(notLanded, { recursive: true, force: true });
   }

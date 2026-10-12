@@ -519,6 +519,44 @@ for (const cmd of ['sh -c "git merge x"', 'ssh host "git push"', 'watch "git reb
   assert.equal(decide(sub(cmd)).block, true, `a quoted verb is denied: ${cmd}`);
   assert.equal(decide(ctl(cmd)).block, false, `the controller is not: ${cmd}`);
 }
+// a backslash-escaped word is a command line too, as its quoted spelling is (#1027)
+for (const cmd of ['dash -c git\\ push', 'eval git\\ push', 'echo x | sh -c git\\ -C\\ y\\ merge\\ z', 'dash -c dash\\ -c\\ git\\\\\\ push']) {
+  assert.equal(decide(sub(cmd)).block, true, `an escaped verb is denied: ${cmd}`);
+  assert.equal(decide(ctl(cmd)).block, false, `the controller is not: ${cmd}`);
+}
+for (const cmd of ['git commit -m fix\\ git\\ push\\ bug', 'cat a\\ \\(1\\).txt']) {
+  assert.equal(decide(sub(cmd)).block, false, `an escaped word reads as its quoted spelling: ${cmd}`);
+}
+{
+  // An escape nested past MAX_QUOTED_DEPTH shell levels is unreadable, and the raw-text rule denies it.
+  const esc = (s) => 'sh -c ' + s.replace(/[\\ ]/g, '\\$&');
+  let s = 'git push';
+  for (let k = 0; k <= require('../plugin/hooks/shell-words.js').MAX_QUOTED_DEPTH; k++) s = esc(s);
+  assert.equal(require('../plugin/hooks/shell-words.js').scan(s, { quoted: true }).readable, false, 'an escape past the depth limit is unreadable');
+  assert.equal(decide(sub(s)).block, true, 'and the unreadable-command rule denies it');
+}
+// dash runs `((…))` as nested subshells, so the guard also reads a command as dash reads it (#1062)
+for (const cmd of ['dash -c "((git push))"', 'dash -c \\(\\(git\\ push\\)\\)', '((git push))']) {
+  assert.equal(decide(sub(cmd)).block, true, `a (( verb is denied: ${cmd}`);
+  assert.equal(decide(ctl(cmd)).block, false, `the controller is not: ${cmd}`);
+}
+for (const cmd of ['echo $((1 + 2))', '(( i++ ))', 'git log --grep "((push))"']) {
+  assert.equal(decide(sub(cmd)).block, false, `arithmetic or a (( pattern keeps its verdict: ${cmd}`);
+}
+// every re-read level is read as dash reads it too, so a `((` escaped for a second shell level opens subshells there
+for (const cmd of [
+  'dash -c "dash -c \\\\(\\\\(git\\\\ push\\\\)\\\\)"',
+  'dash -c dash\\ -c\\ \\\\\\(\\\\\\(git\\\\\\ push\\\\\\)\\\\\\)',
+  'eval eval\\ \\\\\\(\\\\\\(git\\\\\\ push\\\\\\)\\\\\\)',
+]) {
+  assert.equal(decide(sub(cmd)).block, true, `a (( verb escaped for a second level is denied: ${cmd}`);
+  assert.equal(decide(ctl(cmd)).block, false, `the controller is not: ${cmd}`);
+}
+// a run of backslashes in quoted text is no re-read level: an escaped word that escapes no whitespace, operator, backtick, or `$` spells no command line
+for (const cmd of ["git commit -m 'escape \\\\\\\\n before push'", "git log --oneline -S'\\\\\\\\x' -- src/push.js", "git commit -m 'match \\\\\\\\$ before push'",
+  "git commit -m 'match \\\\\\\\` before push'"]) {
+  assert.equal(decide(sub(cmd)).block, false, `a backslash run keeps its verdict: ${cmd}`);
+}
 assert.equal(decide(sub('grep -E "x|git merge" file')).block, true, 'the known quoted false positive stays');
 // The false-positive class: any quoted word whose text names a guarded integration is denied, read as a command line or, when
 // it reads as none (a parenthesis, an apostrophe), by the raw-text rule.
@@ -593,6 +631,9 @@ assert.equal(decide(sub('echo "it\'s a push"')).block, false, 'a quoted text wit
   };
   grows('nested substitutions', (n) => 'git -C $(a $(b $(c))) log; echo "$(x $(y))" ;'.repeat(n), 2000);
   grows('nested heredocs', nestedHeredocs, 400);
+  grows('many (( runs', (n) => 'echo "((x))" ((y)) \\(\\(z\\)\\);'.repeat(n), 2000);
+  grows('many (( runs escaped for a second level', (n) => 'dash -c dash\\ -c\\ \\\\\\(\\\\\\(x\\\\\\ y\\\\\\)\\\\\\); eval "eval \\\\(\\\\(z\\\\)\\\\)";'.repeat(n), 2000);
+  grows('many backslash-escaped words', (n) =>'echo ' + 'a\\ git\\ push\\ b '.repeat(n), 2000);
   grows('nested alias values', (n) => 'alias a="$( '.repeat(n) + 'x' + ' )"'.repeat(n), 2000);
   grows('long-spelled wrappers', (n) => ('env' + "''".repeat(600) + ' true; ').repeat(n), 20);
   // A sink is read once per command, however many heredocs it holds, and a tee sink's operands once.

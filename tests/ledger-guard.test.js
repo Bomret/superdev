@@ -390,6 +390,20 @@ assert.equal(bash('grep sed ' + L + ' -i').block, true, 'a flag after the file b
   assert.equal(bash("ssh host 'echo x > .superdev/scopes/x/ledger.md'").block, true, 'ssh host quoted redirect denied');
   assert.equal(bash('watch "tee .superdev/scopes/x/ledger.md"').block, true, 'watch quoted tee denied');
   assert.equal(bash("echo '$(perl -pi -e x .superdev/scopes/x/ledger.md)'").block, true, 'a quoted substitution is read as a command line');
+  // A run-state path spelled with a doubled slash, a `.` segment, or a `<name>/..` segment is the same path (#1030).
+  for (const c of ['cp a .superdev//scopes/x/ledger.md', 'cp a ./.superdev/./scopes/x/ledger.md', 'cp a .superdev/kb-pending/../scopes/x/ledger.md',
+    'echo x > .superdev//scopes/x/trace.log', 'cp -r d/. .superdev//scopes/x/', 'echo "unterminated .superdev//scopes/x/ledger.md',
+    'sh -c "cp a .superdev/./scopes/x/ledger.md; \'"', 'cp a .superdev/a/b/../../scopes/x/ledger.md']) {
+    assert.equal(bash(c).block, true, 'a non-canonical run-state path denied: ' + c);
+  }
+  for (const c of ['cp a .superdev/scopes/../kb-pending/x.md', 'cp a ../../.superdev-other/scopes/x/ledger.md']) {
+    assert.equal(bash(c).block, false, 'a path that leaves the run-state directory reads: ' + c);
+  }
+  // A backslash-escaped word is read as a command line, as its quoted spelling is (#1027).
+  for (const c of ['dash -c cp\\ a\\ .superdev/scopes/x/ledger.md', 'eval cp\\ a\\ .superdev/scopes/x/ledger.md', 'dash -c cp\\ a\\ .superdev/scopes/x/trace.log']) {
+    assert.equal(bash(c).block, true, 'an escaped write denied: ' + c);
+  }
+  assert.equal(bash('cat a\\ \\(1\\).txt .superdev/scopes/x/ledger.md').block, false, 'an escaped word that writes nothing reads');
   // An unreadable command is denied only when its text names a ledger path.
   assert.equal(bash('echo "unterminated .superdev/scopes/x/ledger.md').block, true, 'unreadable naming a ledger denied');
   assert.equal(bash('echo "unterminated').block, false, 'unreadable naming none allowed');
@@ -410,6 +424,15 @@ assert.equal(bash('grep sed ' + L + ' -i').block, true, 'a flag after the file b
     assert.equal(bash(c.replaceAll('@', '.superdev/scopes/x/ledger.md')).block, true, 'a ledger write inside $[…] denied: ' + c);
   }
   assert.equal(bash('echo $[1>2] .superdev/scopes/x/ledger.md').block, false, 'the `>` of $[…] is no redirect');
+  // The dash reading spreads an escaped `\(\(` too, so the re-read text of an escaped word opens subshells (#1062).
+  assert.equal(bash('dash -c \\(\\(cp\\ a\\ .superdev/scopes/x/ledger.md\\)\\)').block, true, 'an escaped (( write denied');
+  // Every re-read level is read as dash reads it, so a `((` escaped for a second shell level opens subshells there too.
+  assert.equal(bash('dash -c dash\\ -c\\ \\\\\\(\\\\\\(cp\\\\\\ a\\\\\\ .superdev/scopes/x/ledger.md\\\\\\)\\\\\\)').block, true, 'a (( write escaped for a second level denied');
+  // A run of backslashes in quoted text is no re-read level.
+  for (const c of ["grep -c '\\\\\\\\t' @", "grep -c '\\\\\\\\$' @", "grep -c '\\\\\\\\`' @"]) {
+    assert.equal(bash(c.replaceAll('@', '.superdev/scopes/x/ledger.md')).block, false, 'a backslash run in a quoted pattern beside a ledger read allowed: ' + c);
+  }
+  assert.equal(bash('(( i++ )) ; cat .superdev/scopes/x/ledger.md').block, false, 'arithmetic beside a read allowed');
   // dash runs `((…))` as two nested subshells, so the guard reads a command twice: as written, and with every `((` that is no `$((` rewritten
   // to `( (`. A `((` that reads as no command (`grep "((" L`, prose in a quoted text) stays allowed; `$((1 + 2))` is untouched.
   for (const c of ['grep "((" @', 'grep -n "foo((" @', 'awk "/((/" @', 'echo "a (( b" ; cat @', 'echo $((1 + 2)) @', 'echo $(((1 + 2) * 3)) @', "grep '((' @",
@@ -643,6 +666,10 @@ assert.equal(bash('grep sed ' + L + ' -i').block, true, 'a flag after the file b
     (n) => 'cat .superdev/scopes/x/ledger.md ; sh ' + '<(echo a) '.repeat(n), (n) => 'cat .superdev/scopes/x/ledger.md ; sh ' + '<(cat <<E\nx\nE\n) '.repeat(n)]) {
     quadruples(JSON.stringify(make(2)), make, 1e7);
   }
+  quadruples('many backslash-escaped words', (n) => 'cat .superdev/scopes/x/ledger.md ; ' + 'echo a\\ cp\\ b ; '.repeat(n), 1e6);
+  // A path of many `<name>/..` segments, and a long word beside a doubled slash, are collapsed in one pass each.
+  quadruples('many dot-dot segments', (n) => 'cp a ' + 'x/'.repeat(n) + '../'.repeat(n) + '.superdev//scopes/x/ledger.md', 200000);
+  quadruples('a long word beside a doubled slash', (n) => 'echo // ' + 'a'.repeat(n) + ' .superdev/scopes/', 1e7);
   // A word holding many run-state directory prefixes and no ledger name is tested for a ledger path once, not once per prefix.
   quadruples('a run of run-state prefixes', (n) => 'echo x > ' + '.superdev/scopes/'.repeat(n), 200000);
   // A line running a stdin interpreter is read once for the texts that feed it: many heredocs, many `echo` commands, many

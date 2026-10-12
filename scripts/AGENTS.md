@@ -1477,8 +1477,11 @@ document. Nothing executes the glossary, so it is the copy most likely to drift.
 The `arg-token` contract (ADR 0135): `hooks/merge-guard.js`, `hooks/green-gate.js`, `hooks/ledger-guard.js`,
 and `hooks/run-trace.js` each `require('./shell-words.js')` on a line that is no comment, and declare none of
 `ARG`, `RAW_ARG`, `STUCK`, `STUCK_MERGE`, or `stripHeredocs` themselves, whether after `const`, `let`, `var`,
-or `function`, or as a later declarator of one statement. A private shell-word reader reopens the
-quoted-argument and command-substitution bypasses the shared scanner closes. The pin matches the require
+or `function`, or as a later declarator of one statement. Each also carries no `((` spread of its own: a regex
+literal on a line that is no comment, holding a paren (`\(` or `[(]`) followed by a second one or by a `+` quantifier or a `{` quantifier whose count starts at 2 to 9
+(`\(\(`, `\({2,}`, `\({3}`, `[(]{4,}`, `\(+\(`, `[(][(]`), fails the pin, because `shell-words.js`'s `dashReading` is the one
+dash reading the hooks share. A private shell-word reader reopens the quoted-argument, command-substitution, and
+dash `((` bypasses the shared scanner closes. The pin matches the require
 and the absence of those names, so it never compares token text. The shared scanner's own behavior lives
 in `tests/shell-words.test.js`.
 The `audit-set` contract: `skills/setup/SKILL.md` still records decision C's answer as the

@@ -2557,10 +2557,15 @@ const SUBMIT_PR_WHOLE_REPO_CONTRACTS = [
 const SHELL_WORDS_REQUIRE = String.raw`(?:^|\n)(?![ \t]*(?:\/\/|\/?\*))(?:(?!\/\/)[^\n])*?\brequire\(\s*(['"])\.\/shell-words\.js\1\s*\)`;
 const READER_NAME = String.raw`(?:ARG|RAW_ARG|STUCK|STUCK_MERGE|stripHeredocs)`;
 const OWN_READER_DECLARATION = String.raw`(?:\b(?:const|let|var|function)\s+${READER_NAME}\b|,\s*${READER_NAME}\s*=(?!=))`;
-const SCANNER_ONLY_PATTERN = new RegExp(`^(?![\\s\\S]*${OWN_READER_DECLARATION})[\\s\\S]*${SHELL_WORDS_REQUIRE}`);
+// A `((` spread of a hook's own (a regex holding a paren, `\(` or `[(]`, followed by a second one, `{2`, or `+`: `\(\(`, `\({2,}`,
+// `[(]{2,}`, `\(+`, on a line that is no comment, ahead of any `//` on it) is a private dash reading: shell-words.js's dashReading is
+// the one reading every Bash hook shares (#1062).
+const PAREN_ATOM = String.raw`(?:\\\(|\[\\?\(\])`;
+const OWN_DASH_SPREAD = String.raw`(?:^|\n)(?![ \t]*(?:\/\/|\/?\*))(?:(?!\/\/)[^\n])*?${PAREN_ATOM}(?:${PAREN_ATOM}|\{[2-9]|\+)`;
+const SCANNER_ONLY_PATTERN = new RegExp(`^(?![\\s\\S]*(?:${OWN_READER_DECLARATION}|${OWN_DASH_SPREAD}))[\\s\\S]*${SHELL_WORDS_REQUIRE}`);
 
 const ARG_TOKEN_EXPECTATION =
-  'require ./shell-words.js and declare no ARG, RAW_ARG, STUCK, STUCK_MERGE, or stripHeredocs of its own — a private shell-word reader reopens the quoted-argument or the command-substitution bypass';
+  'require ./shell-words.js and declare no ARG, RAW_ARG, STUCK, STUCK_MERGE, stripHeredocs, or `((` spread of its own — a private shell-word reader reopens the quoted-argument, the command-substitution, or the dash `((` bypass';
 
 const ARG_TOKEN_CONTRACTS = [
   [path.join('hooks', 'merge-guard.js'), SCANNER_ONLY_PATTERN, ARG_TOKEN_EXPECTATION],
