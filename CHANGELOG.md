@@ -1,3 +1,12 @@
+## [0.70.1](https://codeberg.org/bomret/superdev/compare/v0.70.0...v0.70.1) (2026-10-12)
+
+
+### Bug Fixes
+
+* **hooks:** Bash guards read backslash-escaped words, dash's (( subshells, and non-canonical run-state paths ([#1071](https://codeberg.org/bomret/superdev/issues/1071)) ([6fdeee6](https://codeberg.org/bomret/superdev/commit/6fdeee6f478ebb4ee0845a03241441e259ae2ec7))
+* **scope:** rotate the trace with a closed ledger, refuse Stage-less input, record fail-to-pass start failures ([6527d8e](https://codeberg.org/bomret/superdev/commit/6527d8ea8b47db3dbfd926f95b28aeb5dbc6be68))
+* **superdev-view:** every event-log line stays one row on the desktop side pane ([79b9957](https://codeberg.org/bomret/superdev/commit/79b99578e88d8243256d6d5d26820b2ae3ad0f9a))
+
 # [0.70.0](https://codeberg.org/bomret/superdev/compare/v0.69.1...v0.70.0) (2026-10-11)
 
 
