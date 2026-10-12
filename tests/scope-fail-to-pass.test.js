@@ -16,6 +16,9 @@ const { assertSpawnDecided } = require('./spawn-verdict');
 const scopePath = require.resolve('../plugin/scripts/scope.js');
 const { appendTrace } = require(scopePath);
 
+// Every case runs at the default floor of the bound unless it sets its own (ADR 0142).
+delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
+
 // `scope.js fail-to-pass` (ADR 0134, INV-0138, INV-0139): runs a range's tests twice in a throwaway worktree, the second
 // time with every file the range touched outside its test files put back as it stood at the range's base, and records
 // the outcome as a trace line of its own kind. Each scenario is a real repository: a base commit, a tip commit, a run
@@ -384,7 +387,8 @@ const { appendTrace } = require(scopePath);
         tip: { 'src.txt': 'b\n', 'tests/t.sh': hangs },
       });
       const startedAt = Date.now();
-      const out = b.run(b.range, { env: { F2P_SLEEP: String(sleepSeconds), ...env } });
+      // A floor of 1 ms lets the factor alone set the bound, so a hanging run is killed without waiting the 10 000 ms floor.
+      const out = b.run(b.range, { env: { F2P_SLEEP: String(sleepSeconds), SUPERDEV_FAIL_TO_PASS_FLOOR_MS: '1', ...env } });
       return { b, out, elapsedMs: Date.now() - startedAt };
     };
     const shortRun = bounded(0.05);
@@ -413,6 +417,35 @@ const { appendTrace } = require(scopePath);
     // A run that takes three times the control's duration ends inside its bound and reads a verdict.
     const slow = bounded(0.2, { F2P_SLOW: '0.6' });
     assert.equal(slow.out.stdout.trim(), 'fail-to-pass control=0,put-back=1', slow.out.stderr);
+
+    // The bound has a floor (ADR 0142, #1059). A control that finishes in milliseconds would give a bound shorter than the
+    // delays a loaded machine adds, so a run before the change that ends on its own after more than ten times the control,
+    // but well under the floor, still reads a verdict. The control here is a shell builtin or two, so ten times it stays
+    // far below the second run's one-second sleep. A floor override that is empty, not a number, zero, negative, or above
+    // 2147483647 (the longest delay Node's timer holds; a longer one fires at once) reads as no override. A set value it
+    // rejects says so once on stderr; an unset or empty one says nothing. One case per class: `5s` is the non-numeric one,
+    // because a leading-digit parse would read it as 5 ms and lose the verdict.
+    const floored = (env) => {
+      const f = scenario({
+        base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
+        tip: { 'src.txt': 'b\n', 'tests/t.sh': 'grep -q b src.txt && exit 0\nsleep 1; exit 1\n' },
+      });
+      return f.run(f.range, { env });
+    };
+    const floorNote = /SUPERDEV_FAIL_TO_PASS_FLOOR_MS/g;
+    for (const [value, notes] of [[undefined, 0], ['', 0], ['5s', 1], ['0', 1], ['-5', 1], ['2147483648', 1]]) {
+      const out = floored(value === undefined ? {} : { SUPERDEV_FAIL_TO_PASS_FLOOR_MS: value });
+      assert.equal(out.stdout.trim(), 'fail-to-pass control=0,put-back=1', `a fast control keeps its verdict at the default floor (${JSON.stringify(value)}): ${out.stderr}`);
+      assert.equal((out.stderr.match(floorNote) || []).length, notes, `a rejected override is named once on stderr, an unset or empty one never (${JSON.stringify(value)}): ${out.stderr}`);
+      if (notes) assert.match(out.stderr, /SUPERDEV_FAIL_TO_PASS_FLOOR_MS=.*10000 ms/, 'the note names the value fallen back to');
+    }
+    // An override sets the floor: a hanging run after a fast control is killed at the floor it names, never earlier.
+    const atFloor = bounded(0.01, { SUPERDEV_FAIL_TO_PASS_FLOOR_MS: '1500' });
+    const floorBound = /^unknown control=0,put-back=SIGKILL,bound=(\d+)ms$/.exec(atFloor.out.stdout.trim());
+    assert.ok(floorBound, 'a run killed at the floor records `unknown` naming the bound: ' + atFloor.out.stdout);
+    assert.ok(Number(floorBound[1]) >= 1500, `the bound is at least the floor: ${floorBound[1]}ms`);
+    assert.doesNotMatch(atFloor.out.stderr, floorNote, 'a valid override says nothing on stderr');
+    assertGone('no process the run killed at the floor started keeps running', path.join(atFloor.b.dir, 'pid'), path.join(atFloor.b.dir, 'child'));
 
     // A real run's trace holds lines already: its ledger lines and an earlier outcome that read a verdict, which is no
     // `unknown`, so the first `unknown` after them still says so.

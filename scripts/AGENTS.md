@@ -161,7 +161,10 @@ changed-path set where the focused command carries `{paths}`, and the full comma
 The first run is against the changed code and must pass. The verb then resets and cleans the worktree. The verb puts
 every changed file outside the test paths back as that file stood at `<base>`, and commits the put-back on the detached
 HEAD. The verb runs the command again and bounds that second run at 10 times the first run's duration, measured in the
-same invocation (INV-0009). The verb refuses a range that changes no file and a range that changes only test files,
+same invocation, or at a floor of 10 000 ms, whichever is larger (INV-0009, ADR 0142). `SUPERDEV_FAIL_TO_PASS_FLOOR_MS`
+overrides the floor in milliseconds; a value that is not a positive integer, or that exceeds 2147483647 (the
+longest delay Node's timer holds), reads as absent, and the verb names that value in one line on stderr. The suite's cases that hang
+the second run set the override, so none waits the floor. The verb refuses a range that changes no file and a range that changes only test files,
 because nothing is put back.
 
 The outcome is `fail-to-pass` when the second run fails, and `pass-to-pass` when it passes. It is `unknown` when the first

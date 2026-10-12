@@ -254,7 +254,8 @@ the range the finding names otherwise.
 **An `unknown` outcome is no finding.** A `fail-to-pass` line reading `unknown` records a run that could not judge
 (ADR 0134, INV-0139). Either the tests did not pass against the changed code, and `control=`
 names the exit status or the signal they ended with. Or the run before the change outlasted ten times the duration
-the run against the changed code took, or ended by a signal, and `bound=` names the bound the run ran under. A run
+the run against the changed code took or 10 seconds, whichever is larger (ADR 0142;
+`SUPERDEV_FAIL_TO_PASS_FLOOR_MS` overrides the 10-second floor), or ended by a signal, and `bound=` names the bound the run ran under. A run
 whose command could not start reads `start-failed:<code>` in place of its exit status. A reviewer
 that reads the trace (`slice-reviewer`, `final-reviewer`) names every `unknown` in its report
 with its slice and its reason, raises no finding for it, and starts no fix cycle. The line counts as an outcome line

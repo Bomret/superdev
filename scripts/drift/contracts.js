@@ -7761,8 +7761,8 @@ RUN_TRACE_ORDER_CONTRACTS.push(
   ],
   [
     path.join('references', 'review-checklist.md'),
-    /the\s+tests\s+did\s+not\s+pass\s+against\s+the\s+changed\s+code[\s\S]{0,400}outlasted\s+ten\s+times\s+the\s+duration\s+the\s+run\s+against\s+the\s+changed\s+code\s+took[\s\S]{0,300}could\s+not\s+start\s+reads\s+`start-failed:<code>`/,
-    'define the reasons a fail-to-pass run reads unknown: the tests did not pass against the changed code, or the run before the change outlasted ten times the duration the run against the changed code took, or a run\'s command could not start (start-failed:<code>)',
+    /the\s+tests\s+did\s+not\s+pass\s+against\s+the\s+changed\s+code[\s\S]{0,400}outlasted\s+ten\s+times\s+the\s+duration\s+the\s+run\s+against\s+the\s+changed\s+code\s+took\s+or\s+10\s+seconds,\s+whichever\s+is\s+larger\s+\(ADR\s+0142;\s+`SUPERDEV_FAIL_TO_PASS_FLOOR_MS`\s+overrides\s+the\s+10-second\s+floor\)[\s\S]{0,300}could\s+not\s+start\s+reads\s+`start-failed:<code>`/,
+    'define the reasons a fail-to-pass run reads unknown: the tests did not pass against the changed code, or the run before the change outlasted ten times the duration the run against the changed code took or 10 seconds, whichever is larger, a floor SUPERDEV_FAIL_TO_PASS_FLOOR_MS overrides, or a run\'s command could not start (start-failed:<code>)',
   ],
   [
     path.join('skills', 'review', 'SKILL.md'),

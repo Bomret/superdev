@@ -880,10 +880,12 @@ unchanged.
 **A fail-to-pass run that reads `unknown` is an observation when it is the scope run's first** (ADR 0134,
 INV-0139). `scope.js fail-to-pass` reads `unknown` where it cannot judge. Either the tests did not pass against the
 changed code in the verb's throwaway worktree, an environment gap that no slice of the scope covers, or the run before
-the change was killed at its bound, ten times the first run's duration, or ended by a signal, or a run's command could
+the change was killed at its bound, ten times the first run's duration or 10 seconds, whichever is larger (ADR 0142;
+`SUPERDEV_FAIL_TO_PASS_FLOOR_MS` overrides the 10-second floor),
+or ended by a signal, or a run's command could
 not start (`start-failed:<code>`, an argument list too long among the causes). A run killed at the bound
-can be a timing artifact rather than an environment gap: an async test that waits out a per-test timeout outlasts ten
-times a sub-second first run. Write its triage record when the verb says, on stderr, that this is the scope run's
+can be a timing artifact rather than an environment gap: an async test that waits out a per-test timeout can outlast
+the bound. Write its triage record when the verb says, on stderr, that this is the scope run's
 first `unknown` outcome. The record names the environment gap: the range, the reason the outcome carries (the exit
 status or signal, or the bound, or the start failure's code), and that the fail-to-pass run cannot judge this repository's tests in a throwaway
 worktree. For a run killed at the bound, the record also says that the bound can be a timing artifact. A later

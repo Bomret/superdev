@@ -6,6 +6,9 @@
 fail-to-pass run is no suite run, and it runs the full command where the focused command carries no
 `{paths}`.
 
+**Amended by:** [ADR 0142](0142-the-fail-to-pass-bound-has-a-floor.md), which puts a floor of 10 000 ms
+under the bound of the run before the change.
+
 **Context.** Every superdev gate reads a passing test as evidence, and a test can pass without being able
 to fail for the defect it names. Triage #576 records a fix-cycle test that passed on the exact regression
 it was written for. Triage #631 records six checks in four runs that passed without exercising what they

@@ -1999,6 +1999,24 @@ function verbTest(cwd, args) {
 
 // --- fail-to-pass run (ADR 0134, INV-0138, INV-0139) -------------------------------------------
 
+// The floor of the bound on the run with the files put back (ADR 0142): 10 000 ms, or the positive whole number of
+// milliseconds `SUPERDEV_FAIL_TO_PASS_FLOOR_MS` names. A value that is not a positive integer — empty, a word, zero,
+// negative — reads as absent rather than as "kill immediately". That positive-integer rule is the one
+// `SUPERDEV_PUBLISH_KB_TIMEOUT_MS` applies; the cap below is this override's own.
+// A value above 2147483647 reads as absent too: Node's setTimeout fires a longer delay after 1 ms, which would kill
+// the run at once under a bound it never ran under. A set value it rejects is named in one line on stderr, so the
+// operator sees why the override took no effect; an unset or empty one says nothing. The verb reads the floor once.
+const FAIL_TO_PASS_FLOOR_MS = 10000;
+const MAX_TIMER_MS = 2147483647;
+
+function failToPassFloorMs() {
+  const raw = (process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS || '').trim();
+  const n = /^\d+$/.test(raw) ? Number(raw) : 0;
+  if (n > 0 && n <= MAX_TIMER_MS) return n;
+  if (raw) process.stderr.write(`fail-to-pass: SUPERDEV_FAIL_TO_PASS_FLOOR_MS=${JSON.stringify(raw)} is not a whole number of milliseconds from 1 to ${MAX_TIMER_MS}; the floor stays ${FAIL_TO_PASS_FLOOR_MS} ms\n`);
+  return FAIL_TO_PASS_FLOOR_MS;
+}
+
 // The domain shapes, named as CONTEXT.md names them. A **fail-to-pass run** is a performed test comparison over a
 // commit range; its **outcome** is what the two runs showed, and the run trace carries it as a line of its own kind.
 //
@@ -2014,8 +2032,9 @@ function verbTest(cwd, args) {
 //   command:   the one command string both runs use.
 //   outcome:   FailToPassOutcome. reason: `control=<exit>,put-back=<exit>`, the two exit statuses and nothing else; for
 //              `unknown`, `control=<exit or signal>` where the control did not pass, else
-//              `control=0,put-back=<exit or signal>,bound=<ms>ms`, the bound ten times the control's duration. A run whose
-//              command could not start reads `start-failed:<error code>` in place of its exit, and the second carries no bound.
+//              `control=0,put-back=<exit or signal>,bound=<ms>ms`, the bound ten times the control's duration or the floor,
+//              whichever is larger (`failToPassFloorMs`; `SUPERDEV_FAIL_TO_PASS_FLOOR_MS` overrides the floor, ADR 0142).
+//              A run whose command could not start reads `start-failed:<error code>` in place of its exit, and the second carries no bound.
 //
 // The trace line is `<ts> <slice|scope> main fail-to-pass <base>..<tip> <outcome> <reason>`. The slice is the one whose
 // ledger row records exactly this range, else the one the run's directory attributes to, else `scope`.
@@ -2223,8 +2242,9 @@ async function verbFailToPass(cwd, args) {
     // outlive the verb, its cwd in the worktree the exit handler removes.
     step('put the files back', ['-c', 'user.name=superdev', '-c', 'user.email=superdev@localhost', '-c', 'commit.gpgsign=false', '-c', 'maintenance.auto=false', '-c', 'gc.auto=0', 'commit', '-q', '-m', 'fail-to-pass put-back']);
     // Code missing the feature can hang, so the second run is bounded at ten times the duration the control took in this
-    // invocation, never a fixed number (root AGENTS.md's duration rule, ADR 0086).
-    const bound = Math.ceil(control.ms * 10);
+    // invocation, or the floor, whichever is larger: a millisecond control would otherwise give a bound shorter than the
+    // delays a loaded machine adds (ADR 0142).
+    const bound = Math.max(Math.ceil(control.ms * 10), failToPassFloorMs());
     const putBack = await exec(bound);
     // A run whose bound expired, or that a signal ended, carries no verdict whether or not the kill landed (INV-0009).
     if (putBack.startError) return record('unknown', `control=0,put-back=${status(putBack)}`);
@@ -2384,7 +2404,8 @@ function usage() {
     '                                     files it changed outside its test files put back as at <base>; prints the outcome',
     '                                     (fail-to-pass|pass-to-pass|unknown) on stdout and the command output on stderr, and inside',
     '                                     a run root appends the outcome as its own trace line, never a test run; the second run is',
-    '                                     bounded at ten times the first run\'s duration, and `unknown` (the first run did not pass,',
+    '                                     bounded at ten times the first run\'s duration or a floor of 10000 ms',
+    '                                     (SUPERDEV_FAIL_TO_PASS_FLOOR_MS overrides the floor), and `unknown` (the first run did not pass,',
     '                                     or the second outlasted its bound or was ended by a signal, or a run could not start)',
     '                                     names its reason;',
     '                                     exits 0 (an outcome was read and printed; a failed trace append is reported on stderr),',
