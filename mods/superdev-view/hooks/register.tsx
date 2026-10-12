@@ -151,41 +151,60 @@ export const register: Register = on => {
     const back = () => void update($, selected, () => null)
     // A closed scope's page needs its trace, which the scan reads only once the scope is picked.
     const choose = (name: string) => () => void update($, selected, () => name).then(() => scan($))
-    // One log line, cut to one row: the pane is a narrow side tab.
+    // One log line: a row of sibling Text parts, cut to one row. Desktop wraps a Text holding a nested Text at the
+    // nested child, so no part nests another. Only the part marked `shrink` gives up room; a `grow` spacer
+    // pushes the parts after it to the right edge.
+    type Part = { text: string; color?: string; dim?: boolean; bold?: boolean; shrink?: boolean } | 'grow'
+    const row = (key: string, parts: (Part | false | '')[]) => (
+      <Box key={key} flexDirection="row">
+        {parts.filter((p): p is Part => !!p).map((p, n) => p === 'grow' ? <Box key={`${key}-${n}`} flexGrow={1} /> : (
+          <Box key={`${key}-${n}`} flexShrink={p.shrink ? 1 : 0} minWidth={p.shrink ? 0 : undefined}>
+            <Text color={p.color} dimColor={p.dim} bold={p.bold} wrap="truncate-end">{p.text}</Text>
+          </Box>
+        ))}
+      </Box>
+    )
     const logLine = (e: LogEntry, n: number) => {
       const key = `log-${n}`
       const type = (t: string) => t.replace(/^superdev:/, '')
       switch (e.kind) {
         case 'date':
-          return <Text key={key} bold dimColor wrap="truncate-end">{new Date(e.at).toDateString()}</Text>
+          return row(key, [{ text: new Date(e.at).toDateString(), bold: true, dim: true, shrink: true }])
         case 'command':
-          return (
-            <Box key={key} flexDirection="row" justifyContent="space-between" columnGap={1}>
-              <Text bold wrap="truncate-end">{e.isDone ? '✓' : <Text color="green">●</Text>} {e.name}</Text>
-              <Text dimColor wrap="truncate-end">{clock(e.ms)}</Text>
-            </Box>
-          )
+          return row(key, [
+            e.isDone ? { text: '✓', bold: true } : { text: '●', color: 'green', bold: true },
+            { text: ` ${e.name}`, bold: true, shrink: true },
+            'grow',
+            { text: ` ${clock(e.ms)}`, dim: true },
+          ])
         case 'wait':
-          return <Text key={key} dimColor wrap="truncate-end">⋯ {clock(e.ms)}</Text>
+          return row(key, [{ text: `⋯ ${clock(e.ms)}`, dim: true, shrink: true }])
         case 'stage':
-          return <Text key={key} wrap="truncate-end">{hm(e.at)} stage {e.stage}</Text>
+          return row(key, [{ text: `${hm(e.at)} ` }, { text: `stage ${e.stage}`, shrink: true }])
         case 'slice':
-          return <Text key={key} wrap="truncate-end">{hm(e.at)} <Text color={e.status === 'merged' ? 'green' : 'red'}>{e.status === 'merged' ? '✓' : '⨯'}</Text> slice {e.id} {e.status}</Text>
+          return row(key, [
+            { text: `${hm(e.at)} ` },
+            { text: e.status === 'merged' ? '✓' : '⨯', color: e.status === 'merged' ? 'green' : 'red' },
+            { text: ` slice ${e.id} ${e.status}`, shrink: true },
+          ])
         case 'start':
-          return <Text key={key} wrap="truncate-end">{hm(e.at)} <Text color="green">▶</Text> {type(e.type)} {e.slice}{e.isResumed ? ' · resumed' : ''}</Text>
+          return row(key, [
+            { text: `${hm(e.at)} ` },
+            { text: '▶', color: 'green' },
+            { text: ` ${type(e.type)} ${e.slice}`, shrink: true },
+            e.isResumed && { text: ' · resumed' },
+          ])
         case 'end': {
-          const review = e.review && `${e.review.spec} ${e.review.quality}`
           const reviewColor = e.review?.spec === 'pass' && e.review.quality === 'approved' ? 'green' : e.review?.spec === 'fail' || e.review?.quality === 'changes-needed' ? 'red' : 'yellow'
           const outcome = e.outcome !== '' && e.outcome !== 'completed' ? e.outcome : ''
-          return (
-            <Text key={key} wrap="truncate-end">
-              {hm(e.at)} ■ {type(e.type)} {e.slice}
-              {review && <Text color={reviewColor}>{` · ${review}`}</Text>}
-              {e.ready && <Text color={READY_COLOR[e.ready] ?? 'yellow'}>{` · ${e.ready}`}</Text>}
-              {outcome && <Text color={OUTCOME_COLOR[outcome] ?? 'yellow'}>{` · ${outcome}`}</Text>}
-              {` · ${clock(e.ms)}`}
-            </Text>
-          )
+          return row(key, [
+            { text: `${hm(e.at)} ■` },
+            { text: ` ${type(e.type)} ${e.slice}`, shrink: true },
+            !!e.review && { text: ` · ${e.review.spec} ${e.review.quality}`, color: reviewColor },
+            !!e.ready && { text: ` · ${e.ready}`, color: READY_COLOR[e.ready] ?? 'yellow' },
+            !!outcome && { text: ` · ${outcome}`, color: OUTCOME_COLOR[outcome] ?? 'yellow' },
+            { text: ` · ${clock(e.ms)}` },
+          ])
         }
       }
     }
@@ -206,9 +225,7 @@ export const register: Register = on => {
           {log.running > 0 && <Text color="green">● {log.running} running</Text>}
           <Box key="log" flexDirection="column">
             {log.entries.map((e, n) => logLine(e, n))}
-            {log.ahead !== null && (
-              <Text key="ahead" dimColor wrap="truncate-end">{log.ahead === 'closed' ? '■ closed' : `○ ${log.ahead.join(' · ')}`}</Text>
-            )}
+            {log.ahead !== null && row('ahead', [{ text: log.ahead === 'closed' ? '■ closed' : `○ ${log.ahead.join(' · ')}`, dim: true, shrink: true }])}
           </Box>
         </Box>
       )

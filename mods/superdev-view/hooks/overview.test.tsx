@@ -130,7 +130,9 @@ test('the Scopes section lists closed scopes after active ones, each with an act
     expect(await ui.find({ type: 'Text', text: /^1\/1 slices · DoD 0\/0 · 0 running$/ })).toBeDefined()
     await ui.press({ key: 'scope-c' })
     expect(await ui.find({ key: 'back' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /^✓ plan$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^ plan$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^✓$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^●$/ })).toBeUndefined()
     expect(await ui.find({ type: 'Text', text: /^■ closed$/ })).toBeDefined()
     await ui.press({ key: 'back' })
     await ui.unmount()
@@ -149,7 +151,8 @@ test("with no scope page open the pane reads no closed scope's trace, and a clos
   await ui.press({ key: 'scope-c' })
   await $.command.run(runCommand)
   expect(reads.filter(p => p.includes('/scopes/c/')).length).toBeGreaterThan(0)
-  expect(await ui.find({ type: 'Text', text: /^✓ plan$|^● plan$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^ plan$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^[✓●]$/ })).toBeDefined()
 })
 
 test('a closed scope whose run root is removed leaves the list, and its open page returns to the overview', async ($, on) => {
