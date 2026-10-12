@@ -320,7 +320,7 @@ This root owns every other subtree directly:
   the field decoder `untraceField`, the ledger row readers `inProgressSlices` and `sliceType`, the verification-command reader
   `verificationCommands`, the test-path classifier `isTestPath` (ADR 0128), the scope-slug pattern `SLUG_RE`, and the main-checkout resolver `mainWorkTree`, for `plugin/hooks/run-trace.js` (ADR 0117), exports the containment test `testContainment` and its second-tier
   probe `baseHistoryHasPatch` for `plugin/scripts/publish-kb.js` and `plugin/hooks/scope-prune.js`
-  (ADR 0053, ADR 0065, ADR 0082), exports `mainWorkTree`, `CHANGE_TYPES`, and `refResolves` for `publish-kb.js` (`SLUG_RE` too, and `mainWorkTree` and `CHANGE_TYPES` for `profile.js`), and carries verbs that touch no ledger: `root <slug>`,
+  (ADR 0053, ADR 0065, ADR 0082), exports `mainWorkTree`, `CHANGE_TYPES`, and `refResolves` for `publish-kb.js` (`SLUG_RE` too, and `mainWorkTree`, `CHANGE_TYPES`, and `verificationCommands` for `profile.js`), and carries verbs that touch no ledger: `root <slug>`,
   which resolves a run root's absolute path against the repository's main working tree from any cwd
   (ADR 0080). The verb `staging <scope>` resolves a scope's staging directory the same way (ADR 0119), and `collisions` finds a numbering collision between a scope branch and the base by number (ADR 0126).
   The verb `test` runs a test command and records its own exit status as an Observed run, requiring

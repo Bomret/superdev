@@ -519,6 +519,64 @@ writeTree(projectsDir, alphaTree(REPO));
     'the path keys past the version directory, so 0.41.0 and 0.42.0 running the same script group under one key, not two');
 }
 
+// The test runner keys by its mode: `scope.js test full|whole|focused|--` and `scope.js fail-to-pass`
+// each make their own row, whatever path ran the script, and paths, the wrapped command, and the range
+// never enter the key. Every other scope.js verb keys as before.
+{
+  const keysOf = (commands) => {
+    const dir = path.join(tmp(), 'projects');
+    const entries = [cmd(0, REPO, 'implement', 'feat/alpha')];
+    commands.forEach((command, i) => entries.push(use(10 * i + 1, REPO, `t${i}`, 'Bash', { command }), result(10 * i + 1 + (i + 1), REPO, `t${i}`)));
+    entries.push(say(10 * commands.length + 5, REPO));
+    writeTree(dir, { [enc(REPO)]: { s: { entries } } });
+    return profile({ projectsDir: dir, repoRoot: REPO, slug: 'alpha' }).commands
+      .map((c) => [c.command, c.count, c.total]).sort((a, b) => a[0].localeCompare(b[0]));
+  };
+  assert.deepEqual(keysOf([
+    'node plugin/scripts/scope.js test full',
+    'node plugin/scripts/scope.js test whole',
+    'node plugin/scripts/scope.js test focused a.js b.js',
+    'node plugin/scripts/scope.js test -- node tests/x.test.js',
+    'node plugin/scripts/scope.js fail-to-pass abc..def',
+  ]), [
+    ['scope.js fail-to-pass', 1, 5000],
+    ['scope.js test --', 1, 4000],
+    ['scope.js test focused', 1, 3000],
+    ['scope.js test full', 1, 1000],
+    ['scope.js test whole', 1, 2000],
+  ], 'one row per mode, each with its own count and total');
+  assert.deepEqual(keysOf([
+    'node plugin/scripts/scope.js test focused a.js',
+    'node plugin/scripts/scope.js test focused b.js c.md',
+  ]), [['scope.js test focused', 2, 3000]], 'two focused runs with different paths share one row');
+  assert.deepEqual(keysOf([
+    'node plugin/scripts/scope.js test full',
+    'node /Users/x/superdev/plugin/scripts/scope.js test full',
+    'node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full',
+    'node "/Users/x/.claude/plugins/cache/superdev/superdev/0.70.0/scripts/scope.js" test full',
+  ]), [['scope.js test full', 4, 10000]], 'a relative, absolute, quoted, and versioned plugin-cache path share one row');
+  assert.deepEqual(keysOf([
+    'node "$SCOPE" test full',
+    'node $SCOPE test focused a.js',
+    'node "$SCOPE" fail-to-pass abc..def',
+    'node "$SCOPE" root alpha',
+  ]), [
+    ['node $SCOPE', 1, 4000],
+    ['scope.js fail-to-pass', 1, 3000],
+    ['scope.js test focused', 1, 2000],
+    ['scope.js test full', 1, 1000],
+  ], 'a shell-variable script argument followed by a test mode or fail-to-pass keys as the mode row; any other verb keys as before');
+  assert.deepEqual(keysOf([
+    'node plugin/scripts/scope.js slice 01 merged',
+    'node "/Users/x/.claude/plugins/cache/superdev/superdev/0.70.0/scripts/scope.js" root alpha',
+    'node tests/profile.test.js',
+  ]), [
+    ['node plugin/scripts/scope.js', 1, 1000],
+    ['node scripts/scope.js', 1, 2000],
+    ['node tests/profile.test.js', 1, 3000],
+  ], 'every other scope.js verb and every other script keys exactly as before');
+}
+
 // Parallel Stop hooks: the session only waited for the slowest one, so that is the hook time, but the
 // per-name breakdown keeps each hook's own duration, so it can sum to more than the hook column
 // (parallel hook timing).
@@ -622,9 +680,8 @@ writeTree(projectsDir, alphaTree(REPO));
   cs = run([['echo x; git log', 0]]);
   assert.deepEqual(cs.map((c) => c.total), [0, 0], 'all-zero weights split evenly');
   const p = render({ ...profile({ projectsDir: (() => { const d = path.join(tmp(), 'projects'); writeTree(d, { [enc(REPO)]: { s: { entries: [cmd(0, REPO, 'implement', 'feat/alpha'), use(1, REPO, 'a', 'Bash', { command: 'git status; git log' }), result(5, REPO, 'a'), say(9, REPO)] } } }); return d; })(), repoRoot: REPO, slug: 'alpha' }) });
-  assert.doesNotMatch(p, /overlap/, 'the totals no longer overlap, so no overlap notice');
   assert.match(p, /compound call's time is shared/i);
-  assert.match(p, /Bash time of every call that ran a command/, 'the render names what the totals sum to');
+  assert.match(p, /can overlap other rows/, 'the render says a background row can overlap the others');
 }
 
 // A key's weight comes from its solo calls in every session of the repository, not only the profiled
@@ -995,6 +1052,85 @@ writeTree(projectsDir, alphaTree(REPO));
   assert.equal(p.segments[0].times.human, 0);
 }
 
+// --- a background Bash call counts from its launch to its completion notification (ADR 0143) ------
+// Its own tool_result returns at launch; the `<task-notification>` naming its tool-use id, carried by a
+// queued_command attachment, ends it.
+const bgUse = (s, cwd, id, command) => use(s, cwd, id, 'Bash', { command, run_in_background: true });
+const bgNote = (s, cwd, id, status = 'completed') => ({
+  type: 'attachment', timestamp: ts(s), cwd,
+  attachment: {
+    type: 'queued_command', commandMode: 'task-notification',
+    prompt: `<task-notification>\n<task-id>bg-${id}</task-id>\n<tool-use-id>${id}</tool-use-id>\n<output-file>/tmp/${id}.output</output-file>\n<status>${status}</status>\n<summary>Background command finished</summary>\n</task-notification>`,
+  },
+});
+{
+  const run = (entries) => {
+    const dir = path.join(tmp(), 'projects');
+    writeTree(dir, { [enc(REPO)]: { s: { entries: [cmd(0, REPO, 'implement', 'feat/alpha'), ...entries] } } });
+    return profile({ projectsDir: dir, repoRoot: REPO, slug: 'alpha' });
+  };
+  // completed: the call runs from 1 to the notification at 63; the turn-end gap it covers is tool time.
+  let p = run([bgUse(1, REPO, 'g1', 'bun run test'), result(2, REPO, 'g1'), say(3, REPO), bgNote(63, REPO, 'g1'), say(65, REPO)]);
+  assert.deepEqual(p.commands, [{ command: 'bun run test', count: 1, total: 62000 }], 'a background call counts from launch to its completion notification');
+  assert.equal(p.segments[0].times.idle, 0, 'the turn-end gap the background call runs across is not idle');
+  assert.equal(p.segments[0].times.tool, 62000, 'the background call is tool time from launch to notification');
+  assert.deepEqual(p.unfinished, []);
+
+  // failed and killed end the call the same way; a second notification changes nothing; a notification
+  // naming no call adds nothing and is not unrecognized.
+  for (const status of ['failed', 'killed']) {
+    p = run([bgUse(1, REPO, 'g1', 'bun run test'), result(2, REPO, 'g1'), say(3, REPO), bgNote(21, REPO, 'g1', status),
+      say(22, REPO), bgNote(40, REPO, 'g1'), bgNote(41, REPO, 'nobody'), say(45, REPO)]);
+    assert.deepEqual(p.commands, [{ command: 'bun run test', count: 1, total: 20000 }], `a ${status} notification ends the call, and the first notification wins`);
+    assert.deepEqual(p.unrecognized, [], 'a notification naming no call is not unrecognized');
+  }
+
+  // no notification: unfinished, and nothing counts, its launch included.
+  p = run([bgUse(1, REPO, 'g1', 'bun run test'), result(2, REPO, 'g1'), say(3, REPO), user(30, REPO, 'go on'), say(35, REPO)]);
+  assert.deepEqual(p.unfinished.map((u) => [u.segment, u.tool]), [[0, 'Bash']], 'a background call with no notification is unfinished');
+  assert.deepEqual(p.commands, [], 'and adds nothing to the commands table');
+  assert.equal(p.segments[0].times.tool, 0, 'nor to tool time, its launch included');
+
+  // a gap no background call or subagent runs across stays idle.
+  p = run([bgUse(1, REPO, 'g1', 'bun run test'), result(2, REPO, 'g1'), bgNote(10, REPO, 'g1'), say(12, REPO), peerWake(40, REPO), say(45, REPO)]);
+  assert.equal(p.segments[0].times.idle, 28000, 'a gap after the background call ended stays idle');
+
+  // a call spanning two phase segments adds to each only the part inside it.
+  p = run([bgUse(5, REPO, 'g1', 'bun run test'), result(6, REPO, 'g1'), cmd(20, REPO, 'review', 'feat/alpha'),
+    say(21, REPO), bgNote(30, REPO, 'g1'), say(31, REPO)]);
+  assert.deepEqual(p.segments.map((s) => s.times.tool), [15000, 10000], 'each segment holds only its own part of the call');
+
+  // human wait is never tool time (INV-0102).
+  p = run([bgUse(5, REPO, 'g1', 'bun run test'), result(6, REPO, 'g1'), say(10, REPO), user(50, REPO, 'go on'), say(52, REPO),
+    bgNote(100, REPO, 'g1'), say(101, REPO)]);
+  assert.equal(p.segments[0].times.human, 40000, 'the typed-prompt gap stays human wait');
+  assert.equal(p.segments[0].times.tool, 55000, 'the background call is tool time only outside it');
+
+  // a subagent's own background call counts the same way, and one with no notification is unfinished.
+  {
+    const SLICE = path.join(REPO, '.superdev', 'scopes', 'alpha', 'slicetrees', '01');
+    const dir = path.join(tmp(), 'projects');
+    writeTree(dir, { [enc(REPO)]: { s: { entries: [
+      cmd(0, REPO, 'implement', 'feat/alpha'),
+      use(5, REPO, 'a1', 'Agent', { description: 'Implement slice 01' }),
+      result(90, REPO, 'a1', { toolUseResult: { totalDurationMs: 85000, totalToolUseCount: 2, totalTokens: 10 } }),
+      say(91, REPO),
+    ], agents: { x1: {
+      meta: { agentType: 'superdev:implementer', description: 'Implement slice 01', toolUseId: 'a1' },
+      entries: [user(6, SLICE, 'go'), bgUse(7, SLICE, 'h1', 'bun run test'), result(8, SLICE, 'h1'),
+        bgUse(9, SLICE, 'h2', 'git log'), result(10, SLICE, 'h2'), bgNote(67, SLICE, 'h1'), say(89, SLICE)],
+    } } } } });
+    p = profile({ projectsDir: dir, repoRoot: REPO, slug: 'alpha' });
+    assert.deepEqual(p.commands, [{ command: 'bun run test', count: 1, total: 60000 }], "a subagent's background call counts launch to notification");
+    assert.deepEqual(p.unfinished.map((u) => [u.segment, u.tool]), [[0, 'Bash']], "a subagent's background call with no notification is unfinished");
+  }
+
+  // the footnote names the new reading.
+  const text = render(run([bgUse(1, REPO, 'g1', 'bun run test'), result(2, REPO, 'g1'), say(3, REPO), bgNote(63, REPO, 'g1'), say(65, REPO)]));
+  assert.match(text, /background call counts from its launch to its completion and can overlap other rows/);
+  assert.doesNotMatch(text, /sum to the Bash time/, 'the totals no longer claim to sum to the Bash time');
+}
+
 // --- an async dispatch whose notification never arrived is not yet notified, never zero (INV-0101),
 // and is not reported as a format problem -------------------------------------------------------
 {
@@ -1120,6 +1256,177 @@ writeTree(projectsDir, alphaTree(REPO));
   const p = profile({ projectsDir: dir, repoRoot: REPO, slug: 'alpha' });
   assert.deepEqual(p.dispatches.map((d) => [d.duration, d.pending]), [[null, false]], 'a returned, non-async result missing totalDurationMs is not pending');
   assert.ok(p.unrecognized.some((u) => /totalDurationMs/.test(u.reason)), 'so it is still reported unrecognized');
+}
+
+// --- time sinks: fixed rules over the whole scope, each holding at least 20% of machine time (ADR 0143,
+// INV-0148, INV-0149) ----------------------------------------------------------------------------
+{
+  const sinkRun = (entries, agents) => {
+    const dir = path.join(tmp(), 'projects');
+    writeTree(dir, { [enc(REPO)]: { s: { entries: [cmd(0, REPO, 'implement', 'feat/alpha'), ...entries], agents } } });
+    return profile({ projectsDir: dir, repoRoot: REPO, slug: 'alpha' });
+  };
+  const names = (p) => p.sinks.map((s) => s.name);
+  const sink = (p, name) => p.sinks.find((s) => s.name === name);
+  const SC = 'node plugin/scripts/scope.js';
+  const FOCUSED_LEVER = /^Lever: the focused command in `docs\/agents\/verification\.md`, which did not narrow for this change set\.$/;
+  const REVIEW_TESTS_LEVER = /^Lever: `\/superdev:review-tests`/;
+  const PERMISSION_LEVER = /^Lever: the permission mode\.$/;
+  const NO_LEVER = /^The repository holds no lever for it\.$/;
+  const SLICE = path.join(REPO, '.superdev', 'scopes', 'alpha', 'slicetrees', '01');
+
+  // test runs and model time; model time at exactly 20% fires.
+  let p = sinkRun([use(1, REPO, 't1', 'Bash', { command: `${SC} test full` }), result(81, REPO, 't1'), say(100, REPO)]);
+  assert.equal(p.machine, 100000);
+  assert.deepEqual(names(p), ['test runs', 'model time'], 'longest first; model time at exactly 20% fires');
+  assert.equal(sink(p, 'test runs').ms, 80000);
+  assert.match(sink(p, 'test runs').lever, REVIEW_TESTS_LEVER, 'one kind of run only: the lever is /superdev:review-tests');
+  assert.match(sink(p, 'model time').lever, NO_LEVER);
+  // just under 20%: model time 19.9 s of 99.9 s does not fire.
+  p = sinkRun([use(1, REPO, 't1', 'Bash', { command: `${SC} test full` }), result(81, REPO, 't1'), say(99.9, REPO)]);
+  assert.deepEqual(names(p), ['test runs'], 'a cause just under 20% does not fire');
+  // ties list by name.
+  p = sinkRun([use(0, REPO, 't1', 'Bash', { command: `${SC} test full` }), result(50, REPO, 't1'), say(100, REPO)]);
+  assert.deepEqual(names(p), ['model time', 'test runs'], 'equal figures list by name');
+
+  // the test-run lever: focused median at 80% of the full-or-whole median names the focused command.
+  const runs = (focused, other, otherMode = 'full') => sinkRun([
+    use(0, REPO, 'f1', 'Bash', { command: `${SC} test focused a.js` }), result(focused, REPO, 'f1'),
+    use(focused, REPO, 'f2', 'Bash', { command: `${SC} test focused b.js` }), result(2 * focused, REPO, 'f2'),
+    use(2 * focused, REPO, 'f3', 'Bash', { command: `${SC} test focused c.md` }), result(3 * focused, REPO, 'f3'),
+    ...(other ? [use(3 * focused, REPO, 'u1', 'Bash', { command: `${SC} test ${otherMode}` }), result(3 * focused + other, REPO, 'u1')] : []),
+    say(3 * focused + other + 1, REPO),
+  ]);
+  p = runs(10, 12.5);
+  assert.match(sink(p, 'test runs').lever, FOCUSED_LEVER, 'focused median exactly 80% of the full median names the focused command');
+  assert.match(sink(p, 'test runs').detail, /4 runs/);
+  assert.match(sink(p, 'test runs').detail, /test focused 3×, 30s, median 10s/);
+  assert.match(sink(p, 'test runs').detail, /test full 1×, 13s, median 13s/);
+  assert.match(sink(runs(10, 12.5, 'whole'), 'test runs').lever, FOCUSED_LEVER, 'a whole run counts with the full runs');
+  assert.match(sink(runs(10, 12.6), 'test runs').lever, REVIEW_TESTS_LEVER, 'below 80% names /superdev:review-tests');
+  assert.match(sink(runs(10, 0), 'test runs').lever, REVIEW_TESTS_LEVER, 'focused runs alone name /superdev:review-tests');
+
+  // the repository's configured verification commands, run directly, are test runs too.
+  const verifiedRun = (fences, entries) => {
+    const repo = tmp();
+    fs.mkdirSync(path.join(repo, 'docs', 'agents'), { recursive: true });
+    fs.writeFileSync(path.join(repo, 'docs', 'agents', 'verification.md'),
+      `# Verification\n\n${fences.map((f) => `\`\`\`\n${f}\n\`\`\`\n`).join('\n')}`);
+    const dir = path.join(tmp(), 'projects');
+    writeTree(dir, { [enc(repo)]: { s: { entries: [cmd(0, repo, 'implement', 'feat/alpha'), ...entries(repo)] } } });
+    return profile({ projectsDir: dir, repoRoot: repo, slug: 'alpha' });
+  };
+  p = verifiedRun(['bun run test'], (r) => [use(1, r, 't1', 'Bash', { command: 'bun run test' }), result(81, r, 't1'), say(100, r)]);
+  assert.deepEqual(names(p), ['test runs', 'model time'], 'the configured full command is a test run, not a command sink');
+  assert.equal(sink(p, 'test runs').ms, 80000);
+  const directRuns = (focused, full) => verifiedRun(['bun run test', 'node scripts/run-tests.js --related {paths}'], (r) => [
+    use(0, r, 'f1', 'Bash', { command: 'node scripts/run-tests.js --related a.js' }), result(focused, r, 'f1'),
+    use(focused, r, 'f2', 'Bash', { command: 'node scripts/run-tests.js --related b.js c.md' }), result(2 * focused, r, 'f2'),
+    use(2 * focused, r, 'f3', 'Bash', { command: 'bun run test' }), result(2 * focused + full, r, 'f3'),
+    say(2 * focused + full + 1, r),
+  ]);
+  assert.match(sink(directRuns(10, 12.5), 'test runs').lever, FOCUSED_LEVER, 'the 80% lever rule reads the configured focused and full commands');
+  assert.match(sink(directRuns(10, 12.5), 'test runs').detail, /3 runs/);
+  assert.match(sink(directRuns(10, 12.6), 'test runs').lever, REVIEW_TESTS_LEVER, 'below 80% names /superdev:review-tests');
+  assert.match(sink(directRuns(10, 12.5), 'test runs').detail, /test focused 2×, 20s, median 10s; test full 1×, 13s, median 13s/,
+    'a configured run is labelled by its mode, comparable with the runner rows');
+  // a full and a focused command sharing one key: each run's own text decides its mode.
+  const pytestRuns = (focused, full) => verifiedRun(['pytest', 'pytest {paths}'], (r) => [
+    use(0, r, 'f1', 'Bash', { command: 'pytest a.py' }), result(focused, r, 'f1'),
+    use(focused, r, 'f2', 'Bash', { command: 'pytest b.py c.py' }), result(2 * focused, r, 'f2'),
+    use(2 * focused, r, 'f3', 'Bash', { command: 'pytest a.py 2>&1 | tail -5' }), result(3 * focused, r, 'f3'),
+    use(3 * focused, r, 'u1', 'Bash', { command: 'pytest' }), result(3 * focused + full, r, 'u1'),
+    say(3 * focused + full + 1, r),
+  ]);
+  assert.match(sink(pytestRuns(10, 12.5), 'test runs').lever, FOCUSED_LEVER, 'focused runs sharing the full command\'s key still count as focused');
+  assert.match(sink(pytestRuns(10, 12.6), 'test runs').lever, REVIEW_TESTS_LEVER);
+  // a run of the focused command's program with no paths did not narrow: it is a full run.
+  p = verifiedRun(['bun run test', 'node scripts/run-tests.js --related {paths}'], (r) => [
+    use(1, r, 't1', 'Bash', { command: 'node scripts/run-tests.js' }), result(81, r, 't1'), say(100, r)]);
+  assert.match(sink(p, 'test runs').detail, /; test full 1×/, 'a bare node scripts/run-tests.js is not labelled focused');
+
+  // permission mode: tool time in a prompting phase.
+  p = sinkRun([use(1, REPO, 'g1', 'Bash', { command: 'git status' }), result(61, REPO, 'g1', { permissionMode: 'default' }), say(70, REPO)]);
+  assert.deepEqual(names(p), ['command: git status', 'permission mode']);
+  assert.match(sink(p, 'permission mode').detail, /#1 implement/);
+  assert.match(sink(p, 'permission mode').detail, /approval waits are inside this time/);
+  assert.match(sink(p, 'permission mode').lever, PERMISSION_LEVER);
+  assert.match(sink(p, 'command: git status').lever, NO_LEVER, 'a command sink carries no remedy');
+  assert.match(sink(p, 'command: git status').detail, /1×, 1m00s/);
+  p = sinkRun([use(1, REPO, 'g1', 'Bash', { command: 'git status' }), result(61, REPO, 'g1'), say(70, REPO)]);
+  assert.ok(!names(p).includes('permission mode'), 'an auto-mode phase gives no permission sink');
+
+  // subagent time per agent type.
+  const agentRun = (end) => sinkRun([
+    use(5, REPO, 'a1', 'Agent', { description: 'Implement slice 01' }),
+    result(end + 1, REPO, 'a1', { toolUseResult: { totalDurationMs: (end - 4) * 1000, totalToolUseCount: 1, totalTokens: 1 } }),
+    say(100, REPO),
+  ], { x1: { meta: { agentType: 'superdev:implementer', description: 'Implement slice 01', toolUseId: 'a1' }, entries: [user(6, SLICE, 'go'), say(end, SLICE)] } });
+  p = agentRun(84);
+  assert.equal(sink(p, 'subagent time: superdev:implementer').ms, 78000);
+  assert.match(sink(p, 'subagent time: superdev:implementer').lever, NO_LEVER);
+  assert.ok(!names(agentRun(9)).some((n) => n.startsWith('subagent time')), 'a short dispatch gives no subagent sink');
+
+  // hook time per event.
+  const hookRun = (ms) => sinkRun([use(1, REPO, 'b1', 'Bash', { command: 'git status' }), hook(1, REPO, 'PreToolUse', 'PreToolUse:Bash', ms),
+    result(41, REPO, 'b1'), say(100, REPO)]);
+  p = hookRun(30000);
+  assert.equal(sink(p, 'hook time: PreToolUse:Bash').ms, 30000);
+  assert.match(sink(p, 'hook time: PreToolUse:Bash').lever, NO_LEVER);
+  assert.ok(!names(hookRun(1000)).some((n) => n.startsWith('hook time')), 'a short hook gives no hook sink');
+  // parallel Stop hooks: the sink figure is the slowest one, the wait the session had.
+  p = sinkRun([say(5, REPO),
+    { type: 'system', subtype: 'stop_hook_summary', timestamp: ts(35), cwd: REPO,
+      hookInfos: [{ command: 'node stop-a.js', durationMs: 30000 }, { command: 'node stop-b.js', durationMs: 30000 }] },
+    user(60, REPO, 'go on'), say(100, REPO)]);
+  assert.equal(sink(p, 'hook time: Stop').ms, 30000, 'two parallel 30 s Stop hooks are a 30 s sink, not 60 s');
+
+  // a foreground loop polling a background test run fires no command sink; the test-run sink carries it.
+  p = sinkRun([
+    bgUse(1, REPO, 'g1', `${SC} test full`), result(2, REPO, 'g1'),
+    use(3, REPO, 'p1', 'Bash', { command: 'sleep 30; tail -5 /tmp/log' }), result(33, REPO, 'p1'),
+    use(34, REPO, 'p2', 'Bash', { command: 'sleep 30; tail -5 /tmp/log' }), result(64, REPO, 'p2'),
+    use(65, REPO, 'p3', 'Bash', { command: 'sleep 30; tail -5 /tmp/log' }), result(95, REPO, 'p3'),
+    say(96, REPO), bgNote(101, REPO, 'g1'), say(102, REPO),
+  ]);
+  assert.deepEqual(names(p), ['test runs'], 'the polling loop fires no command sink');
+  assert.equal(sink(p, 'test runs').ms, 100000);
+  p = sinkRun([use(1, REPO, 's1', 'Bash', { command: 'sleep 60' }), result(61, REPO, 's1'), say(70, REPO)]);
+  assert.deepEqual(names(p), ['command: sleep'], 'the same loop with no background test run is a command sink');
+
+  // the wait sink: alone when machine time is zero, and beside the machine sinks otherwise.
+  p = sinkRun([say(0, REPO), user(60, REPO, 'go on')]);
+  assert.equal(p.machine, 0);
+  assert.deepEqual(names(p), ['human wait and idle'], 'with no machine time only the wait sink fires');
+  assert.match(sink(p, 'human wait and idle').detail, /human wait 1m00s and idle 0\.0s exceed machine time 0\.0s; this time was not machine time/);
+  assert.match(sink(p, 'human wait and idle').lever, NO_LEVER);
+  p = sinkRun([say(5, REPO), user(65, REPO, 'go on'), say(70, REPO)]);
+  assert.deepEqual(names(p), ['human wait and idle', 'model time']);
+  assert.ok(!names(sinkRun([say(5, REPO), user(6, REPO, 'go on'), say(70, REPO)])).includes('human wait and idle'), 'a short wait gives no wait sink');
+
+  // human wait and idle never enter a machine figure or the denominator (INV-0102).
+  p = sinkRun([bgUse(1, REPO, 'g1', `${SC} test full`), result(2, REPO, 'g1'), say(10, REPO), user(50, REPO, 'go on'), say(52, REPO),
+    bgNote(101, REPO, 'g1'), say(102, REPO)]);
+  assert.equal(p.machine, 62000, 'the denominator is wall time less human wait and idle');
+  assert.equal(sink(p, 'test runs').ms, 60000, 'the test run leaves out the human wait it spanned');
+
+  // no rule fires; the exclusion note.
+  const spread = ['git status', 'git log', 'git diff', 'ls', 'echo a', 'pwd']
+    .flatMap((c, i) => [use(15 * i, REPO, `c${i}`, 'Bash', { command: c }), result(15 * i + 15, REPO, `c${i}`)]);
+  p = sinkRun([...spread, say(100, REPO)]);
+  assert.deepEqual(p.sinks, [], 'no cause holds 20%');
+  let text = render(p);
+  assert.match(text, /\nTime sinks/);
+  assert.match(text, /No dominant cause was found\./);
+  assert.doesNotMatch(text, /exclude/);
+  p = sinkRun([...spread, use(95, REPO, 'r1', 'Read', {}), say(100, REPO)]);
+  assert.match(render(p), /These figures exclude 1 unfinished call and 0 unrecognized entries\./);
+
+  // the section prints each sink with its figures and its lever, after every other section.
+  text = render(runs(10, 12.5));
+  assert.match(text, /Time sinks — machine time 44s; a machine-time sink holds at least 20% of it\n {2}43s {2}test runs: 4 runs/);
+  assert.match(text, /\n {2}Lever: the focused command in `docs\/agents\/verification\.md`, which did not narrow for this change set\.\n/);
+  assert.ok(text.trimEnd().endsWith('this change set.'), 'the section closes the report');
 }
 
 // --- unrecognized entries (INV-0101) -------------------------------------------------------------

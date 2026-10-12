@@ -14,7 +14,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { mainWorkTree, SLUG_RE, CHANGE_TYPES } = require('./scope.js');
+const { mainWorkTree, SLUG_RE, CHANGE_TYPES, verificationCommands } = require('./scope.js');
 
 // The chain commands a run profile reports. Every other superdev command still ends a segment.
 const CHAIN = new Set(['implement', 'review', 'document', 'submit-pr', 'ship']);
@@ -35,7 +35,8 @@ const AGENT_TOOLS = new Set(['Agent', 'Task']);
 // Domain shapes (CONTEXT.md):
 // - Run profile: { slug, projectsDir, segments: PhaseSegment[], unfinished, unrecognized }
 // - Phase segment: { command, args, session, start, end, times: { wall, subagent, tool, hook, human,
-//   idle, model }, hooks: { <hook name>: ms }, promptingMode }
+//   idle, model }, hooks: { <hook name>: ms }, hookWait: { <hook name>: ms }, promptingMode } — `hooks`
+//   sums every hook's own duration, `hookWait` the wait the session had (parallel Stop hooks at their slowest)
 // - Human wait: the `human` intervals `sessionEvents` collects; `times.human` is their measure.
 // - Idle: the `idle` intervals `sessionEvents` collects; `times.idle` is their measure.
 
@@ -174,6 +175,18 @@ function noteFromText(txt) {
     toolUses: u ? Number(u[2]) : null,
     durationMs: u ? Number(u[3]) : null,
   };
+}
+
+// The time of the first task-notification naming each tool-use id: a background Bash call's completion
+// (ADR 0143). A later notification for the same call changes nothing.
+function firstNotes(entries) {
+  const at = new Map();
+  for (const e of entries) {
+    if (!isTaskNotification(e)) continue;
+    const note = noteFromText(e.type === 'attachment' ? e.attachment.prompt || '' : text(e));
+    if (note && !at.has(note.id)) at.set(note.id, e.t);
+  }
+  return at;
 }
 
 function readSession(file, unrecognized) {
@@ -315,6 +328,8 @@ function stripMultilineBodies(command) {
 // name collapses `node tests/profile.test.js`, `node plugin/scripts/profile.js`, and every `node -e`
 // one-liner into a single `node` row.
 const INTERPRETERS = new Set(['node', 'python3', 'python', 'bun', 'deno', 'ruby', 'bash', 'sh']);
+// The `scope.js test` modes, each its own row in the repeated-commands table.
+const TEST_MODES = new Set(['full', 'whole', 'focused', '--']);
 
 // Shell keywords that never name a command themselves: a leading one is dropped from its statement, so
 // the real command after it (`do bun run test`) keys on that command instead of on the keyword, and a
@@ -383,7 +398,8 @@ function splitStatements(text) {
 // An interpreter keys instead by its first non-flag argument when that argument looks like a script path
 // (`node tests/profile.test.js`) or starts with `$` (`node $S`, quoted or not), or by that argument
 // itself when it is an inline-source flag (`node -e`, `python3 -c`, `node -`); an argument that is
-// neither — `run` in `bun run test` — falls back to the plain-word rule instead.
+// neither — `run` in `bun run test` — falls back to the plain-word rule instead. A `scope.js` path or a
+// `$` argument followed by `test <mode>` or `fail-to-pass` keys as that runner mode's own row instead.
 // simplicity: still a line-based scanner, not a shell parser — a backtick substitution, a nested
 // `$(...)` inside another, or a keyword mid-statement (`x() { …; }`) can still misgroup; parse properly if a real command still groups wrong.
 function commandKeys(command) {
@@ -423,10 +439,16 @@ function commandKeys(command) {
       const first = rest[0];
       if (first === '-e' || first === '-c' || first === '-') key = [words[0], first];
       else {
-        const scriptArg = rest.find((w) => !w.startsWith('-'));
+        const at = rest.findIndex((w) => !w.startsWith('-'));
+        const scriptArg = rest[at];
         if (scriptArg) {
           const unquoted = scriptArg.replace(/^(['"])(.*)\1$/, '$2');
-          if (/[./]/.test(unquoted) || unquoted.startsWith('$')) key = [words[0], normalizeScriptArg(unquoted)];
+          const [verb, mode] = rest.slice(at + 1);
+          // The test runner keys by its mode alone, whatever path or shell variable ran it (ADR 0143).
+          const runner = /(^|\/)scope\.js$/.test(unquoted) || unquoted.startsWith('$');
+          if (runner && verb === 'test' && TEST_MODES.has(mode)) key = ['scope.js test', mode];
+          else if (runner && verb === 'fail-to-pass') key = ['scope.js fail-to-pass'];
+          else if (/[./]/.test(unquoted) || unquoted.startsWith('$')) key = [words[0], normalizeScriptArg(unquoted)];
         }
       }
     }
@@ -531,14 +553,18 @@ function sessionEvents(s) {
     }
   });
 
+  const noteAt = firstNotes(s.entries);
   const tool = [];
+  const background = []; // a background Bash call, launch to completion: tool time that wins over idle
   const subagent = [];
   const unfinished = [];
-  const bash = []; // { t, command, ms } — t is the dispatch time for a subagent's own call
+  const bash = []; // { t, start, bg, command, ms } — t is the dispatch time for a subagent's own call
   const dispatches = []; // { t, id, start, end, meta, info }
   for (const [id, u] of uses) {
     const r = results.get(id);
-    const end = r && r.t;
+    // A background call's own result returns at launch; its completion notification ends it.
+    const bg = u.name === 'Bash' && u.input.run_in_background === true;
+    const end = bg ? noteAt.get(id) : r && r.t;
     if (end === undefined) {
       unfinished.push({ t: u.t, tool: u.name });
       continue;
@@ -552,20 +578,30 @@ function sessionEvents(s) {
       const a = s.agents.get(id);
       const span = a && a.entries.length ? a.entries.map((e) => e.t) : [u.t, end];
       dispatches.push({ t: u.t, id, start: Math.min(...span), end: Math.max(...span), meta: (a && a.meta) || {}, info: r.info, file: s.file });
-    } else tool.push([u.t, end]);
-    if (u.name === 'Bash') bash.push({ t: u.t, command: String(u.input.command || '').trim(), ms: end - u.t });
+    } else if (bg) background.push([u.t, end]);
+    else tool.push([u.t, end]);
+    if (u.name === 'Bash') bash.push({ t: u.t, start: u.t, bg, command: String(u.input.command || '').trim(), ms: end - u.t });
   }
   for (const [id, a] of s.agents) {
     const dispatched = uses.has(id) ? uses.get(id).t : null;
     const au = new Map();
     for (const e of a.entries) {
       for (const b of blocks(e)) {
-        if (b.type === 'tool_use' && b.name === 'Bash') au.set(b.id, { t: e.t, command: String((b.input || {}).command || '').trim() });
-        if (b.type === 'tool_result' && au.has(b.tool_use_id)) {
+        if (b.type === 'tool_use' && b.name === 'Bash') {
+          au.set(b.id, { t: e.t, command: String((b.input || {}).command || '').trim(), bg: (b.input || {}).run_in_background === true });
+        }
+        if (b.type === 'tool_result' && au.has(b.tool_use_id) && !au.get(b.tool_use_id).bg) {
           const u = au.get(b.tool_use_id);
-          bash.push({ t: dispatched === null ? u.t : dispatched, command: u.command, ms: e.t - u.t });
+          bash.push({ t: dispatched === null ? u.t : dispatched, start: u.t, bg: false, command: u.command, ms: e.t - u.t });
         }
       }
+    }
+    const notes = firstNotes(a.entries);
+    for (const [bid, u] of au) {
+      if (!u.bg) continue;
+      const t = dispatched === null ? u.t : dispatched;
+      if (notes.has(bid)) bash.push({ t, start: u.t, bg: true, command: u.command, ms: notes.get(bid) - u.t });
+      else unfinished.push({ t, tool: 'Bash' });
     }
   }
   // A subagent's own transcript span covers a background dispatch whose call returned at once.
@@ -582,7 +618,7 @@ function sessionEvents(s) {
     const dispatched = uses.has(id) ? uses.get(id).t : Math.min(...t);
     for (const e of a.entries) if (e.cwd) cwds.push({ t: dispatched, cwd: e.cwd });
   }
-  return { human, idle, subagent, tool, hooks, hookBreakdown, unfinished, cwds, modes, bash, dispatches, notifications };
+  return { human, idle, subagent, background, tool, hooks, hookBreakdown, unfinished, cwds, modes, bash, dispatches, notifications };
 }
 
 function segmentsOf(s) {
@@ -629,18 +665,24 @@ function times(seg, ev) {
   const { start, end } = seg;
   const H = clip(ev.human, start, end);
   const S = clip(ev.subagent, start, end);
+  const B = clip(ev.background, start, end);
   const I = clip(ev.idle, start, end);
   const T = clip(ev.tool, start, end);
   const wall = end - start;
   const human = measure(H);
   const subagent = measure([...H, ...S]) - human;
-  // Idle only claims what human wait and subagent time left over: either one covering the same gap
-  // wins (human wait always does; a subagent interval wins over idle).
-  const idle = measure([...H, ...S, ...I]) - human - subagent;
-  const toolRaw = measure([...H, ...S, ...I, ...T]) - human - subagent - idle;
+  const bg = measure([...H, ...S, ...B]) - human - subagent;
+  // Idle only claims what human wait, subagent time, and a background call left over: any of them
+  // covering the same gap wins (human wait always does; a subagent interval or a background call wins
+  // over idle).
+  const idle = measure([...H, ...S, ...B, ...I]) - human - subagent - bg;
+  const toolRaw = measure([...H, ...S, ...B, ...I, ...T]) - human - subagent - idle;
   const hooks = ev.hooks.filter((h) => h.t >= start && h.t < end);
   const byName = {};
   for (const h of ev.hookBreakdown.filter((h) => h.t >= start && h.t < end)) byName[h.name] = (byName[h.name] || 0) + h.ms;
+  // The wait per name: parallel Stop hooks count once, at their slowest, as the time sinks read it.
+  const waitByName = {};
+  for (const h of hooks) waitByName[h.name] = (waitByName[h.name] || 0) + h.ms;
   const sum = (xs) => xs.reduce((n, h) => n + h.ms, 0);
   // simplicity: a hook's recorded duration is taken out of the time around it, capped so the split
   // still sums to wall-clock time; a hook fired inside a subagent stays subagent time.
@@ -650,6 +692,7 @@ function times(seg, ev) {
   return {
     times: { wall, human, idle, subagent, tool: toolRaw - toolHook, hook: toolHook + otherHook, model: rest - otherHook },
     hooks: byName,
+    hookWait: waitByName,
   };
 }
 
@@ -721,7 +764,7 @@ function profile({ projectsDir, repoRoot, slug }) {
     for (const b of ev.bash) {
       if (!inSeg(b.t)) continue;
       const keys = b.keys;
-      if (keys.length) calls.push({ keys, ms: b.ms });
+      if (keys.length) calls.push({ keys, command: b.command, ms: b.ms, start: b.start, bg: b.bg, human: clip(ev.human, b.start, b.start + b.ms) });
     }
     for (const d of ev.dispatches) {
       if (!inSeg(d.t)) continue;
@@ -748,9 +791,11 @@ function profile({ projectsDir, repoRoot, slug }) {
       if (duration === null && !pending && !status) {
         unrecognized.push({ file: d.file, line: 0, reason: `Agent result for "${d.meta.description || d.id}" has no totalDurationMs` });
       }
+      const span = clip([[d.start, d.end]], seg.start, seg.end);
       dispatches.push({
         agentType: d.meta.agentType || null, description: d.meta.description || null, duration,
         toolUses, tokens, segment: i, start: d.start, end: d.end, batch: null, slowest: false, pending, status,
+        span, human: span.length ? clip(ev.human, span[0][0], span[0][1]) : [],
       });
     }
   });
@@ -758,16 +803,13 @@ function profile({ projectsDir, repoRoot, slug }) {
   // a compound call's time splits by the weights of its keys, so the per-key totals sum to the Bash time
   // of every call that ran a command.
   const weight = new Map();
-  for (const [k, xs] of solo) {
-    xs.sort((a, b) => a - b);
-    const mid = xs.length >> 1;
-    weight.set(k, xs.length % 2 ? xs[mid] : (xs[mid - 1] + xs[mid]) / 2);
-  }
+  for (const [k, xs] of solo) weight.set(k, median(xs));
   for (const c of calls) {
     const known = c.keys.filter((k) => weight.has(k)).map((k) => weight.get(k));
     const fill = known.length ? known.reduce((a, b) => a + b, 0) / known.length : 0;
     const ws = c.keys.map((k) => (weight.has(k) ? weight.get(k) : fill));
     const sum = ws.reduce((a, b) => a + b, 0);
+    c.shares = c.keys.map((k, j) => (sum > 0 ? ws[j] / sum : 1 / c.keys.length));
     c.keys.forEach((k, j) => {
       const g = groups.get(k) || { command: k, count: 0, total: 0 };
       g.count += 1;
@@ -791,7 +833,149 @@ function profile({ projectsDir, repoRoot, slug }) {
     i = j;
   }
   const commands = [...groups.values()].sort((a, b) => b.total - a.total);
-  return { slug: target, projectsDir, dirs, segments, unfinished, unrecognized, commands, dispatches };
+  const { machine, sinks } = timeSinks(segments, calls, dispatches, configuredTests(repoRoot));
+  return { slug: target, projectsDir, dirs, segments, unfinished, unrecognized, commands, dispatches, machine, sinks };
+}
+
+const plural = (k, one, many) => `${k} ${k === 1 ? one : many}`;
+
+function median(xs) {
+  const s = [...xs].sort((a, b) => a - b);
+  const mid = s.length >> 1;
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+}
+
+// --- time sinks (ADR 0143) ---------------------------------------------------------------------
+// Domain shape (CONTEXT.md): Time sink — { name, ms, detail, lever }. Every sink comes from a rule
+// below (INV-0148); a lever names only something the operator controls, or says there is none
+// (INV-0149). Human wait and idle enter no machine figure and not the denominator (INV-0102).
+const TEST_KEY = /^scope\.js (?:test |fail-to-pass$)/;
+const REVIEW_TESTS_LEVER = 'Lever: `/superdev:review-tests`, to find the tests that cost more than they prove.';
+const NO_LEVER = 'The repository holds no lever for it.';
+
+// A statement's command words, past its pipeline's later stages, redirections, variable assignments,
+// and a leading `time`, joined by single spaces: the text a configured verification command is matched against.
+const statementWords = (statement) => statement.split('|')[0].trim().split(/\s+/)
+  .filter((w) => w && !/^\d*[<>]/.test(w) && !/^[A-Za-z_][A-Za-z0-9_]*=/.test(w))
+  .filter((w, i, ws) => !(w === 'time' && ws.slice(0, i).every((x) => x === 'time'))).join(' ');
+
+// The repository's configured verification commands, run directly rather than through `scope.js test`:
+// the function returned decides, from the text of a Bash call's statement under `key`, the runner mode
+// that statement ran, or null for no test run. A statement matching the focused command, its `{paths}`
+// standing for one or more words, is `focused`; one equal to the full or whole command is `full` or
+// `whole`. Any other statement sharing a configured command's key did not narrow, so it is `whole` when
+// the key is the whole command's alone, and `full` otherwise.
+// simplicity: a command that keys to more than one key (a compound fence) marks none of them, and the
+// match is literal on words, so a run quoting a word differently or adding a flag before `{paths}` reads
+// as a wide run; parse the fences properly if a real focused run is counted wide.
+function configuredTests(repoRoot) {
+  const cmds = verificationCommands(repoRoot);
+  const keyModes = new Map();
+  for (const mode of ['focused', 'whole', 'full']) {
+    const keys = cmds[mode] ? commandKeys(cmds[mode]) : [];
+    if (keys.length === 1) keyModes.set(keys[0], [...(keyModes.get(keys[0]) || []), mode]);
+  }
+  const text = (mode) => (cmds[mode] ? statementWords(cmds[mode]) : null);
+  const focused = text('focused') && new RegExp(`^${text('focused').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    .replace(/\\\{paths\\\}/g, '\\S+(?: \\S+)*')}$`);
+  return (command, key) => {
+    const own = splitStatements(stripMultilineBodies(command)).find((s) => commandKeys(s)[0] === key);
+    const words = own ? statementWords(own.replace(/^\s*[({]+/, '')) : '';
+    if (focused && focused.test(words)) return 'focused';
+    if (words === text('full')) return 'full';
+    if (words === text('whole')) return 'whole';
+    const modes = keyModes.get(key);
+    if (!modes) return null;
+    return modes.length === 1 && modes[0] === 'whole' ? 'whole' : 'full';
+  };
+}
+
+function timeSinks(segments, calls, dispatches, configured) {
+  const sum = (k) => segments.reduce((n, s) => n + s.times[k], 0);
+  const human = sum('human');
+  const idle = sum('idle');
+  const machine = sum('wall') - human - idle;
+  const sinks = [];
+  // A machine-time sink holds at least 20% of machine time, compared unrounded.
+  const add = (name, ms, detail, lever) => { if (machine > 0 && ms * 5 >= machine) sinks.push({ name, ms, detail, lever }); };
+
+  // Test runs and other commands, each call's share less the human wait it spans. A command's share also
+  // leaves out the time it overlaps a background test run, so a loop polling one counts toward test runs.
+  // A test run is a `scope.js test`/`fail-to-pass` call or a direct run of a configured verification command.
+  // A configured run joins the row of its runner mode, so `test full` holds every full run however it ran.
+  const testRow = (c, k) => {
+    if (TEST_KEY.test(k)) return k;
+    const mode = configured(c.command, k);
+    return mode && `scope.js test ${mode}`;
+  };
+  const modeOf = (k) => k.replace(/^scope\.js test /, '');
+  const bgTests = calls.filter((c) => c.bg && c.keys.some((k) => testRow(c, k)));
+  const modes = new Map();
+  const other = new Map();
+  for (const c of calls) {
+    const end = c.start + c.ms;
+    const humanMs = measure(c.human);
+    const bgIv = bgTests.filter((b) => b !== c).flatMap((b) => clip([[b.start, b.start + b.ms]], c.start, end));
+    const coveredMs = measure([...c.human, ...bgIv]);
+    c.keys.forEach((k, j) => {
+      const row = testRow(c, k);
+      if (row) {
+        if (!modes.has(row)) modes.set(row, []);
+        modes.get(row).push((c.ms - humanMs) * c.shares[j]);
+      } else {
+        const g = other.get(k) || { count: 0, ms: 0 };
+        g.count += 1;
+        g.ms += (c.ms - coveredMs) * c.shares[j];
+        other.set(k, g);
+      }
+    });
+  }
+  if (modes.size) {
+    const all = [...modes.values()].flat();
+    const total = all.reduce((a, b) => a + b, 0);
+    const per = [...modes.keys()].sort().map((k) => {
+      const xs = modes.get(k);
+      return `${k.replace(/^scope\.js /, '')} ${xs.length}×, ${dur(xs.reduce((a, b) => a + b, 0))}, median ${dur(median(xs))}`;
+    });
+    const ofMode = (...ms) => [...modes].filter(([k]) => ms.includes(modeOf(k))).flatMap(([, xs]) => xs);
+    const focused = ofMode('focused');
+    const wide = ofMode('full', 'whole');
+    const narrowed = !(focused.length && wide.length && median(focused) * 5 >= median(wide) * 4);
+    add('test runs', total, `${plural(all.length, 'run', 'runs')}, ${dur(total)}; ${per.join('; ')}`, narrowed ? REVIEW_TESTS_LEVER
+      : 'Lever: the focused command in `docs/agents/verification.md`, which did not narrow for this change set.');
+  }
+  for (const [k, g] of other) add(`command: ${k}`, g.ms, `${g.count}×, ${dur(g.ms)}`, NO_LEVER);
+
+  const prompting = segments.map((s, i) => ({ s, i })).filter(({ s }) => s.promptingMode);
+  if (prompting.length) {
+    const ms = prompting.reduce((n, { s }) => n + s.times.tool, 0);
+    const where = prompting.map(({ s, i }) => `#${i + 1} ${s.command} (${s.promptingMode})`).join(', ');
+    add('permission mode', ms, `tool time in ${where}; approval waits are inside this time`, 'Lever: the permission mode.');
+  }
+
+  add('model time', sum('model'), `the model's own time across every phase`, NO_LEVER);
+  const byType = new Map();
+  for (const d of dispatches) {
+    const t = d.agentType || '?';
+    const g = byType.get(t) || { count: 0, span: [], human: [] };
+    g.count += 1;
+    g.span.push(...d.span);
+    g.human.push(...d.human);
+    byType.set(t, g);
+  }
+  for (const [t, g] of byType) add(`subagent time: ${t}`, measure(g.span) - measure(g.human), plural(g.count, 'dispatch', 'dispatches'), NO_LEVER);
+  const byHook = new Map();
+  for (const s of segments) for (const [n, ms] of Object.entries(s.hookWait)) byHook.set(n, (byHook.get(n) || 0) + ms);
+  for (const [n, ms] of byHook) add(`hook time: ${n}`, ms, `across every phase`, NO_LEVER);
+
+  if (human + idle > machine) {
+    sinks.push({
+      name: 'human wait and idle', ms: human + idle, lever: NO_LEVER,
+      detail: `human wait ${dur(human)} and idle ${dur(idle)} exceed machine time ${dur(machine)}; this time was not machine time`,
+    });
+  }
+  sinks.sort((a, b) => b.ms - a.ms || a.name.localeCompare(b.name));
+  return { machine, sinks };
 }
 
 // --- report ------------------------------------------------------------------------------------
@@ -823,7 +1007,8 @@ function render(p) {
     out.push('', 'Repeated commands (Bash, orchestrator and subagents)');
     for (const c of p.commands.slice(0, 15)) out.push(`  ${dur(c.total).padStart(7)}  ${String(c.count).padStart(3)}×  ${c.command}`);
     if (p.commands.length > 15) out.push(`  … and ${p.commands.length - 15} more`);
-    out.push("  A compound call's time is shared among its commands by each command's median solo run across the repository's transcripts, so these totals sum to the Bash time of every call that ran a command.");
+    out.push("  A compound call's time is shared among its commands by each command's median solo run across the repository's transcripts.");
+    out.push('  A background call counts from its launch to its completion and can overlap other rows.');
   }
   if (p.dispatches.length) {
     out.push('', 'Dispatches');
@@ -842,6 +1027,12 @@ function render(p) {
     out.push('', `Unrecognized entries (${p.unrecognized.length}, not counted):`);
     for (const u of p.unrecognized.slice(0, 5)) out.push(`  ${u.file}:${u.line} — ${u.reason}`);
     if (p.unrecognized.length > 5) out.push(`  … and ${p.unrecognized.length - 5} more`);
+  }
+  out.push('', `Time sinks — machine time ${dur(p.machine)}; a machine-time sink holds at least 20% of it`);
+  if (!p.sinks.length) out.push('  No dominant cause was found.');
+  for (const s of p.sinks) out.push(`  ${dur(s.ms)}  ${s.name}: ${s.detail}`, `  ${s.lever}`);
+  if (p.unfinished.length || p.unrecognized.length) {
+    out.push(`  These figures exclude ${plural(p.unfinished.length, 'unfinished call', 'unfinished calls')} and ${plural(p.unrecognized.length, 'unrecognized entry', 'unrecognized entries')}.`);
   }
   return out.join('\n') + '\n';
 }

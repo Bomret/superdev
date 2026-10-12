@@ -144,7 +144,10 @@ plan runs test-first, inline in the scopetree.
   appears per subagent, with the slowest of each parallel batch flagged. A dispatch that never finished is
   named by its status (rejected, denied, blocked, failed, killed, or not yet notified) instead of a duration.
   Time spent waiting for you is always shown on its own. So is idle time: the time the run sat with
-  nothing running, for a reason other than you. Without a slug it profiles the scope that ran last
+  nothing running, for a reason other than you. It closes with the run's time sinks: each cause that held
+  at least 20% of the machine time (the wall time less the time spent waiting for you and idle), with the lever you control or the statement that your repository holds
+  none ([ADR 0143](docs/adr/0143-the-run-profile-names-time-sinks-by-fixed-rules.md)). Without a slug it
+  profiles the scope that ran last
   ([ADR 0103](docs/adr/0103-the-run-profile-reads-claude-codes-transcripts.md)). It sits outside the
   implement chain, and writes nothing.
 - **`/superdev:backlog`**. A read-only survey of the **slice store**, where `/superdev:status` reports the

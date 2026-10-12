@@ -493,8 +493,8 @@ staged page's `live-hash` frontmatter against a known live body — and separate
 
 ### profile.js, the run profile (ADR 0103)
 
-`profile.js` prints where a scope run's wall-clock time went, and `skills/profile/SKILL.md` runs it
-and explains the report. It reads the transcripts Claude Code writes under
+`profile.js` prints where a scope run's wall-clock time went. `skills/profile/SKILL.md` runs it
+and prints the report as written, with no reading of its own (INV-0148). The script reads the transcripts Claude Code writes under
 `${CLAUDE_CONFIG_DIR:-~/.claude}/projects/` and writes nothing there (INV-0101). The repository's
 transcript directory is the main working tree's absolute path with every non-alphanumeric character
 replaced by `-`. A directory carrying that name plus `--superdev-scopes-` holds the sessions started
@@ -519,7 +519,9 @@ argument, the scope whose segment ended last is profiled, ties broken alphabetic
 The phases view splits each segment's wall-clock time by precedence, so the columns sum to it: human
 wait first (`AskUserQuestion`, a rejected dispatch's own window, and the gap from a turn's end to
 whatever closes it, INV-0102), then subagent time (each `Agent` call's window joined with its subagent
-transcript's own span), then idle time, then tool time. A turn end is `type: "system"`, an assistant
+transcript's own span), then the time of a background Bash call, then idle time, then tool time. The
+background call is a precedence step only: its time reports in the tool column, and the view has no
+separate background column. A turn end is `type: "system"`, an assistant
 entry with no `tool_use` block, a synthetic assistant entry (`message.model === "<synthetic>"` — a
 rate-limit or spend-limit notice, a "No response requested." filler after a cut-off), or an interrupt
 entry (`type: "user"`, not `isMeta`, its text `[Request interrupted by user]` or a variant such as
@@ -545,13 +547,19 @@ such as "Continue from where you left off." or "Your response above was cut off.
 task-notification attachment. A typed prompt makes the gap human wait; anything else — a cross-session
 message from a peer Claude Code session, a resumption note, or a task notification — makes it **Idle**
 (CONTEXT.md, INV-0102). There is no separate allow-list of wake shapes: whatever is not a typed prompt is
-idle. Idle only claims what human wait and subagent time left uncovered, so a subagent interval spanning
-the same gap stays subagent time instead. Recorded hook durations come out of the tool time around a
+idle. Idle only claims what human wait, subagent time, and a background Bash call left uncovered. A
+subagent interval that spans the same gap stays subagent time. A background call that spans it stays tool
+time. Recorded hook durations come out of the tool time around a
 tool hook and out of the remainder for every other hook, and model time is what is left. Several Stop
 hooks in one `stop_hook_summary` run in parallel, so only the slowest one's duration is taken out as hook
 time — the session waited for that one, not their sum — while the per-hook-name breakdown the report
 prints keeps every hook's own duration, so it can sum to more than the hook column. A tool call with
-no result is listed as unfinished and adds nothing (INV-0103). A dispatch rejected at the permission
+no result is listed as unfinished and adds nothing (INV-0103). A background Bash call
+(`run_in_background`) returns its own result at launch. It runs from its launch to the first
+task-notification whose `<tool-use-id>` names it, whatever its `<status>` (ADR 0143). That holds in the
+main session and in a subagent, in the phases view and the repeated-commands view alike. A later
+notification for the same call changes nothing, and a notification that names no call adds nothing. A
+background call with no notification is listed as unfinished and adds nothing, its launch included. A dispatch rejected at the permission
 prompt counts its own window as human wait — the operator deciding, not the machine working — while a
 dispatch denied by the auto-mode classifier or blocked by a PreToolUse:Agent hook stays subagent time,
 since the classifier or a hook decided, not the operator. The repeated-commands view drops the body
@@ -589,13 +597,17 @@ rather than collapsing every one under the interpreter's own name; an argument t
 version-numbered directory — the shape a plugin cache installs a script under
 (`…/superdev/0.41.0/scripts/scope.js`) — keys past that directory (`node scripts/scope.js`), so two
 plugin versions running the same script group under one key rather than splitting one row per version.
-A call with one key credits its whole duration to that key. A call with
+`scope.js` keys by its test-runner mode instead, whatever path ran it. The rows are `scope.js test full`,
+`scope.js test whole`, `scope.js test focused`, `scope.js test --`, and `scope.js fail-to-pass`. A call
+through a shell-variable script argument, such as `node $S test full`, keys the same way. The paths after `focused`, the command after `--`, and the range after `fail-to-pass` never
+enter the key. Every other `scope.js` verb keys by its script path. A call with one key credits its whole duration to that key. A call with
 several keys splits its duration by weights: a key's weight is the median duration of its single-key
 calls across every transcript session the profile reads for the repository, not only the profiled
 scope's segments. A key with no single-key call takes the mean of the other
 keys' weights in that call, or an even split when none has one, and a call whose weights are all 0 splits
-evenly. The count stays the number of calls that ran the command, so the per-key totals sum exactly to
-the Bash time of every call that ran a command (a call with no command key, such as `cd /tmp` or `X=1`, is in no total), and the report says how a compound call's time is shared. The dispatches view reads each `Agent` result's
+evenly. The count stays the number of calls that ran the command. A call with no command key, such as
+`cd /tmp` or `X=1`, is in no total. The report says how a compound call's time is shared, and that a
+background row counts from launch to completion and can overlap other rows. The dispatches view reads each `Agent` result's
 `totalDurationMs`, `totalToolUseCount`, and `totalTokens`; a background (`run_in_background`) dispatch's
 own result carries none of these, so its figures come from the later task-notification entry's `<usage>`
 block instead, keyed by the dispatch's tool-use id. A dispatch whose notification never arrives is
@@ -608,6 +620,36 @@ starting "Error: PreToolUse:Agent hook error:" for a hook block. The report name
 "killed", "rejected", "denied", or "blocked" — in place of a duration, still never zero and never
 unrecognized. The view groups dispatches whose time spans overlap into numbered parallel batches,
 flagging each batch's longest.
+
+The report closes with the **Time sinks** section (`CONTEXT.md`, ADR 0143), which `timeSinks` builds from
+fixed rules alone (INV-0148). Machine time is the scope's summed phase wall time less human wait and idle.
+A machine-time sink holds at least 20% of it, compared unrounded. The rules are:
+
+- **Test runs.** The `scope.js test` and `scope.js fail-to-pass` keys, and every direct run of a
+  configured verification command (`verificationCommands` from `scope.js`), each call by its weighted
+  share, with count, total, and median per mode. A direct run takes its mode from its own statement's
+  words. A statement that matches the focused command, with `{paths}` standing for one or more words, is
+  `focused`. A statement equal to the full command is `full`, and one equal to the whole command is `whole`.
+  Any other statement that shares a configured command's key is `whole` when that key belongs to the whole
+  command alone. Otherwise it is `full`. The run is labelled by that mode and joins the row of the same
+  `scope.js test <mode>`. The lever is the focused command in
+  `docs/agents/verification.md` when focused runs and full or whole runs both ran and the focused median
+  is at least 80% of the full-or-whole median. Otherwise it is `/superdev:review-tests`.
+- **Permission mode.** The tool time of the phases run in a prompting permission mode. Approval waits are
+  inside that time, and the lever is the permission mode.
+- **Model time, subagent time per agent type, and hook time per event.** Subagent time is the joined span
+  of that type's dispatches. The hook sink uses the same slowest-hook figure as the phases view, for parallel Stop hooks of one summary. These sinks carry no lever.
+- **Other commands.** Any other key's share, less the time the call overlaps another call's background
+  test run. A loop that polls a background test run therefore counts toward the test-run sink alone. No
+  lever.
+- **Wait.** Human wait plus idle, when it exceeds machine time. With no machine time, it is the only sink
+  that can appear. No lever.
+
+Each call's figure leaves out the human wait it spans. The machine-time denominator leaves out human wait
+and idle (INV-0102). Sinks are listed longest first, ties by name. Every remedy names the
+focused command, `/superdev:review-tests`, or the permission mode, or says the repository holds no lever
+(INV-0149). With no sink, the section says no dominant cause was found. When the report lists unfinished
+calls or unrecognized entries, the section says its figures exclude them.
 
 The exit codes are 0 for a report, 1 for no transcript directory, no segment for the slug, or an
 unrecognized format, and 2 for an argument that is not a slug. Each non-zero exit prints one line on

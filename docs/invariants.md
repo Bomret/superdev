@@ -1249,3 +1249,21 @@ Statement: Every label superdev-view draws is a value the ledger or the run trac
 Breaks: silently
 Check: none — a label can enter the mod's drawing code in any form, and no cheap test tells a recorded value from a coined one; a reviewer of a `mods/superdev-view/` change applies it.
 Paths: mods/superdev-view/hooks/**
+
+### INV-0148
+
+Class: architecture
+Concepts: Run profile, Time sink
+Statement: A fixed rule in the profile script produces every time sink the run profile prints. The profile skill prints the script's report as written and adds no reading of its own (ADR 0143).
+Breaks: silently
+Check: tests/profile.test.js — each rule has a fixture that fires it and one that does not; the skill's own prose has no automated check, and a reviewer of `plugin/skills/profile/SKILL.md` applies it.
+Paths: plugin/scripts/profile.js, plugin/skills/profile/SKILL.md, tests/profile.test.js
+
+### INV-0149
+
+Class: behavior
+Concepts: Run profile, Time sink
+Statement: A cause one of the time-sink rules covers, holding at least 20% of a scope's machine time, appears as a time sink whether or not the operator can act on it. A sink's remedy names only a lever the operator controls in their own repository or session, and a sink with none says so (ADR 0143).
+Breaks: silently
+Check: tests/profile.test.js — a fixture whose largest cause is model time prints that sink with no remedy.
+Paths: plugin/scripts/profile.js, tests/profile.test.js
