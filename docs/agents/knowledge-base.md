@@ -73,8 +73,9 @@ not used: it reads a disabled wiki's 404 as an empty listing.
   titleless `PATCH` overwrites the same `unnamed` slot, taking the first page's content with it. The
   wiki's git history (`https://codeberg.org/bomret/superdev.wiki.git`) is what recovers a page lost this
   way.
-- **Find an existing page:** `tea api /repos/bomret/superdev/wiki/pages`. It returns metadata only
-  (`title`, `html_url`, `sub_url`, `last_commit`), and **no body**.
+- **Find an existing page:** `tea api '/repos/bomret/superdev/wiki/pages?page=<p>&limit=50'`, paged until
+  a page returns fewer than 50 entries. It returns metadata only (`title`, `html_url`, `sub_url`,
+  `last_commit`), and **no body**.
 - **Read a page's body:** `tea api /repos/bomret/superdev/wiki/page/<sub_url>` returns
   `content_base64`, which decodes to the page markdown. `<sub_url>` is not the title slugged by hand. A
   title's `sub_url` diverges in ways a slugger cannot guess: `ADR 0023: The knowledge-base publish is
@@ -97,11 +98,11 @@ and filters by title, emitting the matching entry's `sub_url`; `read`, `update`,
 destroys the page. `find` maps `jq -e`'s exit 1 (a genuine no-match) to exit 3, the only outcome
 `scripts/publish-kb.js` reads as positive absence; any other `jq` exit — a parse error, a usage
 error — maps to exit 2, "could not answer," so a page never gets created from a listing `jq` failed to
-read. The listing itself is capped at `limit=50`, Forgejo's own `max_response_items` ceiling
-(`https://forgejo.org/docs/latest/user/api/usage/`); a listing that returns exactly that many entries
-without finding the title also answers exit 2, since the title could sit on a page this call never
-fetched. A non-200 listing, a disabled wiki's 404 included, answers exit 2 as well: only a 200 listing that
-lacks the title reads as absent.
+read. Each listing page holds at most `limit=50` entries, Forgejo's own `max_response_items` ceiling
+(`https://forgejo.org/docs/latest/user/api/usage/`). `find` reads page after page until one holds the
+title, or until a page returns fewer than 50 entries, which ends the listing. A non-200 page, a disabled
+wiki's 404 included, answers exit 2: only a full listing, every page answering 200, that lacks the title
+reads as absent.
 
 Every template opens with the same login line, so it stands alone under the bound below:
 `tea login list -o json` narrowed to the one entry whose `url` is `https://codeberg.org`, exit 2 on none, no
@@ -119,20 +120,21 @@ the status line `-i` writes to stderr and maps anything but success to its own f
 ```sh
 logins=$(tea login list -o json 2>/dev/null) || { echo "superdev: tea is missing or cannot list logins; install it, then run: tea login add --url https://codeberg.org" >&2; exit 2; }
 login=$(printf '%s' "$logins" | jq -er --arg want "${SUPERDEV_KB_TEA_LOGIN:-}" '[.[] | select(.url == "https://codeberg.org")] | if $want != "" then map(select(.name == $want)) else . end | if length == 1 then .[0].name else empty end' 2>/dev/null) || { names=$(printf '%s' "$logins" | jq -r '[.[] | select(.url == "https://codeberg.org") | .name] | join(", ")' 2>/dev/null); n=$(printf '%s' "$logins" | jq '[.[] | select(.url == "https://codeberg.org")] | length' 2>/dev/null); if [ -n "${SUPERDEV_KB_TEA_LOGIN:-}" ] && [ "$n" -ge 1 ] 2>/dev/null; then echo "superdev: SUPERDEV_KB_TEA_LOGIN=$SUPERDEV_KB_TEA_LOGIN names none of the tea logins for https://codeberg.org ($names)" >&2; elif [ "$n" -gt 1 ] 2>/dev/null; then echo "superdev: several tea logins match https://codeberg.org ($names); set SUPERDEV_KB_TEA_LOGIN=<name> to pick one, or add the right one: tea login add --url https://codeberg.org" >&2; else echo "superdev: no tea login for https://codeberg.org; run: tea login add --url https://codeberg.org" >&2; fi; exit 2; }
-hdr=$(mktemp) || exit 2
-pages=$(tea api --login "$login" --repo bomret/superdev -i \
-  '/repos/bomret/superdev/wiki/pages?limit=50' 2>"$hdr") || { rm -f "$hdr"; exit 2; }
-code=$(head -1 "$hdr" | cut -d' ' -f2); rm -f "$hdr"
-[ "$code" = 200 ] || exit 2
-count=$(printf '%s' "$pages" | jq 'length') || exit 2
-page=$(printf '%s' "$pages" | jq -e --arg title "$SUPERDEV_KB_TITLE" '[.[] | select(.title == $title)][0]')
-status=$?
-if [ "$status" -eq 1 ]; then
-  [ "$count" -ge 50 ] && exit 2
-  exit 3
-fi
-[ "$status" -ne 0 ] && exit 2
-printf '%s' "$page" | jq -c '{sub_url}'
+p=1
+while :; do
+  hdr=$(mktemp) || exit 2
+  pages=$(tea api --login "$login" --repo bomret/superdev -i \
+    "/repos/bomret/superdev/wiki/pages?page=$p&limit=50" 2>"$hdr") || { rm -f "$hdr"; exit 2; }
+  code=$(head -1 "$hdr" | cut -d' ' -f2); rm -f "$hdr"
+  [ "$code" = 200 ] || exit 2
+  count=$(printf '%s' "$pages" | jq 'length') || exit 2
+  page=$(printf '%s' "$pages" | jq -e --arg title "$SUPERDEV_KB_TITLE" '[.[] | select(.title == $title)][0]')
+  status=$?
+  [ "$status" -eq 0 ] && { printf '%s' "$page" | jq -c '{sub_url}'; exit 0; }
+  [ "$status" -eq 1 ] || exit 2
+  [ "$count" -lt 50 ] && exit 3
+  p=$((p + 1))
+done
 ```
 
 ### read

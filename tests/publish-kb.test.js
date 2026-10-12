@@ -1267,8 +1267,7 @@ withState((stateFile) => {
 });
 
 // --- the real `### find` template in docs/agents/knowledge-base.md separates "genuinely absent"
-// from a jq failure that is not absence, and refuses to answer 3 once its own listing hits its
-// pagination ceiling. The runFind-level mapping (exit 3 -> absent, anything else -> unknown) is
+// from a jq failure that is not absence, and reads every listing page before it answers 3. The runFind-level mapping (exit 3 -> absent, anything else -> unknown) is
 // already pinned above (`find exited 5` and the JSON-array case) — this pins the template text
 // itself, the thing that decides which of those exit codes a real find call actually produces.
 {
@@ -1278,11 +1277,16 @@ withState((stateFile) => {
 
   // Stubs `tea` on PATH so the template runs against a canned response instead of the real network:
   // `tea login list -o json` answers TEA_STUB_LOGINS, and `tea api` writes the status line `-i` gives to
-  // stderr and the body to stdout.
+  // stderr and the body to stdout. With TEA_STUB_PAGE_DIR set, a listing call answers the files
+  // `<page>.body` and `<page>.status` there, `<page>` read from the URL's `page=` parameter.
   const stubDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tea-stub-'));
   fs.writeFileSync(path.join(stubDir, 'tea'),
     '#!/bin/sh\n' +
     'if [ "$1" = login ]; then printf "%s" "$TEA_STUB_LOGINS"; exit 0; fi\n' +
+    'if [ -n "$TEA_STUB_PAGE_DIR" ]; then for a; do url=$a; done\n' +
+    '  p=$(printf "%s" "$url" | sed -n "s/.*[?&]page=\\([0-9]*\\).*/\\1/p")\n' +
+    '  printf "HTTP/2.0 %s\\n" "$(cat "$TEA_STUB_PAGE_DIR/$p.status" 2>/dev/null || echo 200 OK)" >&2\n' +
+    '  cat "$TEA_STUB_PAGE_DIR/$p.body"; exit 0; fi\n' +
     'printf "HTTP/2.0 %s\\n" "$TEA_STUB_STATUS" >&2\nprintf "%s" "$TEA_STUB_BODY"\n', { mode: 0o755 });
   // A PATH holding `jq` and the system tools but no `tea`: the "no tea installed" case.
   const noTeaDir = fs.mkdtempSync(path.join(os.tmpdir(), 'no-tea-'));
@@ -1326,9 +1330,26 @@ withState((stateFile) => {
   const malformed = runFindTemplate('not json at all');
   assert.equal(malformed.status, 2, 'a jq parse failure is not absence — must answer 2, never 3');
 
-  const atCeiling = JSON.stringify(Array.from({ length: 50 }, (_, i) => ({ title: `Page ${i}`, sub_url: `s${i}` })));
-  const ceilingHit = runFindTemplate(atCeiling);
-  assert.equal(ceilingHit.status, 2, 'a listing at its own 50-entry ceiling must not answer absent either');
+  // A full page of 50 is never the last page: find reads the next one, and only a short page ends
+  // the listing. Every page must answer 200, or the whole find answers 2.
+  function runPagedFind(pages) {
+    const dir = fs.mkdtempSync(path.join(stubDir, 'pages-'));
+    pages.forEach(([body, status], i) => {
+      fs.writeFileSync(path.join(dir, `${i + 1}.body`), body);
+      if (status) fs.writeFileSync(path.join(dir, `${i + 1}.status`), status);
+    });
+    return runFindTemplate('', '200 OK', oneLogin, { TEA_STUB_PAGE_DIR: dir });
+  }
+  const fullPage = JSON.stringify(Array.from({ length: 50 }, (_, i) => ({ title: `Page ${i}`, sub_url: `s${i}` })));
+  const onPageTwo = runPagedFind([[fullPage], [JSON.stringify([{ title: 'Missing Page', sub_url: 'on-two' }])]]);
+  assert.equal(onPageTwo.status, 0, 'a title on the second listing page answers found (0)');
+  assert.deepEqual(JSON.parse(onPageTwo.stdout), { sub_url: 'on-two' });
+  const absentAfterTwo = runPagedFind([[fullPage], [JSON.stringify([{ title: 'Other Page', sub_url: 'x' }])]]);
+  assert.equal(absentAfterTwo.status, 3, 'a title on no page, ended by a short page, answers absent (3)');
+  const emptyPageTwo = runPagedFind([[fullPage], ['[]']]);
+  assert.equal(emptyPageTwo.status, 3, 'an empty page after a full one ends the listing as absent (3)');
+  const pageTwoFails = runPagedFind([[fullPage], [JSON.stringify({ message: 'boom' }), '500 Internal Server Error']]);
+  assert.equal(pageTwoFails.status, 2, 'a failed later page must answer 2, never 3');
 
   // The login is resolved from the host URL inside the template: none, or several, could not answer.
   const missPage = JSON.stringify([{ title: 'Other Page', sub_url: 'x' }]);
