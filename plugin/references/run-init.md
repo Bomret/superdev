@@ -207,3 +207,10 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
   branch and the scopetree, so nothing here is cut. Carry the kind into your playbook's branch step; its
   branch model acts on that value, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Cutting the
   scope branch`. One determination, made here (ADR 0028).
+- **Record the implement step** (ADR 0147). Every entry whose run continues at the `implementing` stage, a
+  `resumed` run included, ends this run init with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set
+  implement --root <run-root>`, after the ledger writes above: `init … implementing` and `stage set
+  implementing` write no step and would erase an earlier one. An entry on a scope whose stage is `merged`
+  or later sets no implement step. The `merged` stage write clears it. Every exit this command reaches after
+  `step set implement` ends in a `step clear`, a stage write, or `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js"
+  step block --root <run-root>`: a blocked stop, a refusal, and a `First:` wait each run `step block` first.

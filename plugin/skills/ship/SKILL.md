@@ -46,7 +46,7 @@ checkout at all.
 
 Read the ledger's `**Stage:**` line with
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>`. The first bullet's refusal records no step; every other stage records the step with
-`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set ship --root <run-root>`, before any other ledger or store write, then takes its bullet:
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set ship --root <run-root>`, before any other ledger or store write. Every exit after that call ends in a `step clear`, a stage write, or `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step block --root <run-root>`: a blocked stop, a refusal, and a `First:` wait each run `step block` first. The run then takes its bullet:
 
 - **Anything short of `submitted`** (`planned`, `implementing`, `merged`, `reviewed`, `documented`,
   `documented-unreviewed`, or no line at all) → refuse: name the missing step, print `/superdev:submit-pr`

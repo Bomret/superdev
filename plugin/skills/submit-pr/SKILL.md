@@ -47,7 +47,7 @@ all):
   ledger predating that header (`absent`) falls back to printing the existing pull request if the code
   host still lists one. Stop. Never open a second.
 - **Any other stage** → under `--unattended`, a stage other than `documented` refuses before any step is recorded: name what is missing (`/superdev:review`, `/superdev:document`, or both), open no pull request, and stop. A caller that drove the whole chain never reaches this refusal, so reaching it unattended means a step really was skipped — and submitting unreviewed code is not a decision a token stands in for. Every other run records the step with
-  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set submit --root <run-root>`, before any other ledger or store write, then:
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set submit --root <run-root>`, before any other ledger or store write. Every exit after that call ends in a `step clear`, a stage write, or `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step block --root <run-root>`: a blocked stop, a refusal, and a `First:` wait each run `step block` first. Then:
   - **`documented`** → the whole chain ran. Proceed silently.
   - **`documented-unreviewed`** → `/superdev:document` ran while the stage was earlier than `reviewed`, so
     the review step never ran. Treat it exactly like the review-missing case below: name `/superdev:review`

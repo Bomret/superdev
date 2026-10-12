@@ -4,6 +4,8 @@
 
 **Amends:** [ADR 0136](0136-the-run-trace-records-each-slice-review-verdict.md).
 
+**Amended by:** [ADR 0147](0147-every-chain-command-records-its-start-and-its-end.md).
+
 **Context.** The superdev-view scope page draws a run from its ledger and run trace. A timeline prototype
 of that page (shell-scanner, 2026-10-10) showed facts the plugin does not record. A stage names the last
 completed step, so `/superdev:review`'s whole fix loop runs while the ledger reads `merged`. No record

@@ -132,13 +132,14 @@ standing tree `/superdev:sweep` asked this leg to read.
 **State the concrete range/target** (e.g. "Reviewing `a1b2c3..d4e5f6`" or "Reviewing working tree changes
 incl. untracked") before dispatching.
 
-**In scope mode, record the step before any other ledger or store write.** Read the step with
-`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get step --root <run-root>`. It prints `review` → run
-`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root <run-root>`, then
-`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set review --root <run-root>`; any other value → run
-`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set review --root <run-root>` alone, which replaces the standing step. The clear makes each
-invocation write its own `step review` line, even when the step already reads `review`, so the run trace
-starts a new fix loop for this invocation.
+**In scope mode, record the step before any other ledger or store write.** Run
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set review --root <run-root>`, which replaces any standing step. Every
+`step set` writes its own `step review` line, even when the step already reads `review`, so the run trace
+starts a new fix loop for this invocation. Every exit this command reaches after that call ends in a
+`step clear`, a stage write, or `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step block --root <run-root>`: a
+blocked stop, a refusal, a `First:` wait, and a review exit without a clean verdict each run `step block`
+first, which closes the final review's verdict window and leaves the step standing, so `/superdev:status`
+and the published run state still show it.
 
 **Size caution (qualitative, non-blocking).** Glance at `git diff --stat`. If the change spans enough
 files or churn that one review pass would likely miss things — a judgment call, not a line count — say so

@@ -968,7 +968,12 @@ const agentPost = (tu, response, cwd) => ({ hook_event_name: 'PostToolUse', tool
   };
   fs.rmSync(path.join(A, 'ledger.md'));
   scopeCli(['init', 'feat/a', 'planned'], JSON.stringify({ anchor: '#1 — A', slices: [{ id: '04', issue: '#4', title: 't', type: 'behavior', 'depends-on': '—' }, { id: '05', issue: '#5', title: 't', type: 'behavior', 'depends-on': '—' }] }));
+  scopeCli(['step', 'set', 'plan', '--root', A]);
+  scopeCli(['step', 'clear', '--root', A]);
   scopeCli(['stage', '--root', A, 'set', 'implementing']);
+  scopeCli(['step', 'set', 'implement', '--root', A]);
+  scopeCli(['slice', '--root', A, '04', 'in-progress']);
+  scopeCli(['slice', '--root', A, '05', 'in-progress']);
   run(agentPre(`Work in ${A}/slicetrees/04`, 'tu1', 'superdev:implementer', 'Build slice 04', undefined, 's1'));
   run(agentPost('tu1', { status: 'async_launched', agentId: 'ag1' }));
   run({ hook_event_name: 'SubagentStop', agent_id: 'ag1', agent_type: 'superdev:implementer', cwd: tmp });
@@ -976,7 +981,7 @@ const agentPost = (tu, response, cwd) => ({ hook_event_name: 'PostToolUse', tool
   run({ hook_event_name: 'SubagentStop', agent_id: 'ag1', agent_type: 'superdev:implementer', cwd: tmp });
   scopeCli(['slice', '--root', A, '04', 'merged', '--range', 'a1b2c3d..e4f5a6b']);
   scopeCli(['slice', '--root', A, '05', 'blocked']);
-  appendTrace(A, { slice: 'scope', agent: 'main', kind: 'ledger', fields: ['step', 'set', 'review'] });
+  scopeCli(['step', 'set', 'review', '--root', A]);
   run(agentPre(`Review ${A}/scopetree`, 'tu2', 'superdev:final-reviewer', 'Final review', undefined, 's1'));
   run(agentPost('tu2', { status: 'completed', agentId: 'ag2', handbackReport: { text: 'Ready to merge? With fixes' } }));
   run(agentPre(`Work in ${A}/slicetrees/05`, 'tu3', 'superdev:implementer', 'Build slice 05', undefined, 's1'));
@@ -984,6 +989,7 @@ const agentPost = (tu, response, cwd) => ({ hook_event_name: 'PostToolUse', tool
   run(agentPost('tu4', { status: 'async_launched', agentId: 'ag4' }));
   run({ hook_event_name: 'PostToolUse', tool_name: 'SubagentHandback', agent_id: 'ag4', tool_input: { message: '### Verdict: specification ❌ | quality: changes-needed' }, cwd: tmp });
   run({ hook_event_name: 'SubagentStop', agent_id: 'ag4', agent_type: 'superdev:slice-reviewer', cwd: tmp });
+  scopeCli(['step', 'block', '--root', A]);
   assert.deepEqual(trace(A).map((l) => l.join(' ')), lines, 'the hook writes the trace lines superdev-view parses');
   fs.writeFileSync(path.join(A, 'ledger.md'), ledger([['02', 'todo'], ['03', 'in-progress']]));
 }
@@ -1438,8 +1444,7 @@ const agentPost = (tu, response, cwd) => ({ hook_event_name: 'PostToolUse', tool
   bgFinal('f3', 'af3');
   stopAg('af3');
   assert.deepEqual(fv()[1], ['scope', 'main', 'final-verdict', 'f3', 'unknown', '1'], 'a failed dispatch does not advance the cycle; an unreadable report is unknown');
-  step('step', 'clear');
-  step('step', 'set', 'review');
+  step('step', 'set', 'review'); // a repeated `step set review` is a new start (ADR 0147), with no clear between
   run(agentPre(`Review ${A}/scopetree`, 'f4', 'superdev:final-reviewer'));
   run(agentPost('f4', { status: 'completed', handbackReport: { text: 'Assessment\nReady to merge? Yes\nReasoning: ok' } }));
   assert.deepEqual(fv()[2], ['scope', 'main', 'final-verdict', 'f4', 'yes', '0'], 'a second review step line restarts the cycle; a foreground review reports through handbackReport');
@@ -1448,7 +1453,7 @@ const agentPost = (tu, response, cwd) => ({ hook_event_name: 'PostToolUse', tool
   run(agentPre(`Review ${A}/scopetree`, 'f5', 'superdev:final-reviewer'));
   run(agentPost('f5', { status: 'completed', handbackReport: 'Ready to merge? No' }));
   assert.deepEqual(fv()[3], ['scope', 'main', 'final-verdict', 'f5', 'no', '1'], 'a plain string report is read too');
-  // The review-step window reads step lines only: a step clear, or another step, closes it; a stage line never does.
+  // The review-step window reads step lines only: a step clear, a step block, or another step closes it; a stage line never does.
   step('stage', 'set', 'merged');
   step('stage', 'set', 'merged');
   run(agentPre(`Review ${A}/scopetree`, 'f6', 'superdev:final-reviewer'));
@@ -1469,6 +1474,11 @@ const agentPost = (tu, response, cwd) => ({ hook_event_name: 'PostToolUse', tool
   run(agentPre(`Review ${A}/scopetree`, 'f9', 'superdev:final-reviewer'));
   run(agentPost('f9', { status: 'completed', handbackReport: { text: 'Ready to merge? No' } }));
   assert.equal(fv().length, 5, 'a step clear closes the review step');
+  step('step', 'set', 'review');
+  step('step', 'block', 'review');
+  run(agentPre(`Review ${A}/scopetree`, 'f9b', 'superdev:final-reviewer'));
+  run(agentPost('f9b', { status: 'completed', handbackReport: { text: 'Ready to merge? No' } }));
+  assert.equal(fv().length, 5, 'a step block closes the review step');
   step('step', 'set', 'review');
   run(agentPre(`Review ${A}/scopetree`, 'f10', 'superdev:final-reviewer'));
   run(agentPost('f10', { status: 'completed', handbackReport: { text: 'Ready to merge? No' } }));

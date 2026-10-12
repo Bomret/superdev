@@ -161,7 +161,7 @@ try {
     const t1 = stepTrace().length;
     const bad = call(['step', '--root', stepRoot, 'set', 'reviewing']);
     assert.ok(!bad.ok, 'step set with an unknown name is refused');
-    for (const name of ['review', 'document', 'submit', 'ship', 'verify-ship', 'wrap-up']) assert.ok(bad.err.includes(name), `the refusal names ${name}`);
+    for (const name of ['plan', 'implement', 'review', 'document', 'submit', 'ship', 'verify-ship', 'wrap-up']) assert.ok(bad.err.includes(name), `the refusal names ${name}`);
     assert.equal(stepLedger(), before, 'a refused step set leaves the ledger');
     assert.equal(stepTrace().length, t1, 'a refused step set appends no trace line');
     assert.ok(!call(['stage', '--root', stepRoot, 'set', 'implementing']).ok, 'a backwards stage set is refused');
@@ -186,11 +186,71 @@ try {
     assert.match(stepTrace()[t2], / ledger step clear$/, 'step clear mirrors its fields');
     assert.ok(call(['step', '--root', stepRoot, 'clear']).ok, 'a second step clear succeeds');
     assert.equal(stepTrace().length, t2 + 1, 'a second step clear appends nothing');
-    // The same write twice changes nothing, so it mirrors once.
+    // Every `step set` records a start (ADR 0147): the same write twice leaves the ledger alone and traces twice.
     call(['step', '--root', stepRoot, 'set', 'ship']);
     const t3 = stepTrace().length;
+    const shipLedger = stepLedger();
     call(['step', '--root', stepRoot, 'set', 'ship']);
-    assert.equal(stepTrace().length, t3, 'a step set that changes nothing appends no trace line');
+    assert.equal(stepTrace().length, t3 + 1, 'a step set naming the standing step appends a trace line');
+    assert.match(stepTrace()[t3], / ledger step set ship$/, 'the repeated step set mirrors its fields');
+    assert.equal(stepLedger(), shipLedger, 'a repeated step set leaves the ledger byte-identical');
+    // `step block` records a stop with the step standing (ADR 0147): a trace line, the ledger untouched.
+    {
+      call(['step', '--root', stepRoot, 'set', 'review']);
+      const blockLedger = stepLedger();
+      const b0 = stepTrace().length;
+      assert.ok(call(['step', '--root', stepRoot, 'block']).ok, 'step block with a step standing succeeds');
+      assert.equal(stepTrace().length, b0 + 1, 'step block appends one trace line');
+      assert.match(stepTrace()[b0], / ledger step block review$/, 'the line names the standing step');
+      assert.equal(stepLedger(), blockLedger, 'step block leaves the ledger byte-identical');
+      const extra = call(['step', '--root', stepRoot, 'block', 'review']);
+      assert.ok(!extra.ok, 'step block with an extra argument is refused');
+      assert.equal(stepLedger(), blockLedger, 'a refused step block leaves the ledger');
+      assert.equal(stepTrace().length, b0 + 1, 'a refused step block appends no trace line');
+      const empty = call(['step', '--root', stepRoot, 'block', '']);
+      assert.ok(!empty.ok, 'step block with an empty-string argument is refused');
+      assert.equal(stepLedger(), blockLedger, 'an empty-string step block leaves the ledger');
+      assert.equal(stepTrace().length, b0 + 1, 'an empty-string step block appends no trace line');
+      assert.equal(call(['get', '--root', stepRoot, 'step']).out, 'review', 'the step still reads review after a block');
+      call(['step', '--root', stepRoot, 'set', 'review']);
+      assert.match(stepTrace()[b0 + 1], / ledger step set review$/, 'a resumed step set records a new start');
+      call(['step', '--root', stepRoot, 'clear']);
+      const b1 = stepTrace().length;
+      assert.ok(call(['step', '--root', stepRoot, 'block']).ok, 'step block with no step standing succeeds');
+      assert.equal(stepTrace().length, b1, 'step block with no step standing appends nothing');
+    }
+    // `plan` and `implement` are steps (ADR 0147): set, read, published, adopted, kept by a planned `init`, cleared by the merged stage write.
+    {
+      assert.ok(call(['step', '--root', stepRoot, 'set', 'plan']).ok, 'step set plan');
+      assert.equal(call(['get', '--root', stepRoot, 'step']).out, 'plan', 'get step prints plan');
+      const planSnap = publishText(stepRoot);
+      assert.ok(planSnap.includes('**Step:** plan'), 'publish carries the plan step');
+      assert.ok(call(['adopt', '--root', path.join(tmp, 'elsewhere3', 'stepper')], planSnap).ok, 'adopt carries the plan step');
+      assert.ok(call(['step', '--root', stepRoot, 'set', 'implement']).ok, 'step set implement');
+      assert.equal(call(['get', '--root', stepRoot, 'step']).out, 'implement', 'get step prints implement');
+      const implSnap = publishText(stepRoot);
+      assert.ok(implSnap.includes('**Step:** implement'), 'publish carries the implement step');
+      assert.ok(call(['adopt', '--root', path.join(tmp, 'elsewhere4', 'stepper')], implSnap).ok, 'adopt carries the implement step');
+      const keepRoot = path.join(tmp, '.superdev', 'scopes', 'keeper');
+      assert.ok(call(['init', 'feat/keeper', 'planned'], sliceJson).ok, 'keeper fixture init');
+      assert.ok(call(['step', '--root', keepRoot, 'set', 'plan']).ok, 'keeper step set plan');
+      assert.ok(call(['init', 'feat/keeper', 'planned'], sliceJson).ok, 'planned init over a planned ledger');
+      assert.equal(call(['get', '--root', keepRoot, 'step']).out, 'plan', 'a planned rewrite keeps the plan step');
+      assert.ok(call(['step', '--root', keepRoot, 'set', 'review']).ok, 'keeper step set review');
+      assert.ok(call(['init', 'feat/keeper', 'planned'], sliceJson).ok, 'planned init over a planned ledger holding another step');
+      assert.equal(call(['get', '--root', keepRoot, 'step']).out, 'review', 'a planned rewrite keeps any standing step');
+      assert.ok(call(['init', 'feat/keeper', 'implementing'], sliceJson).ok, 'implementing init over a planned ledger');
+      assert.equal(call(['get', '--root', keepRoot, 'step']).out, 'none', 'an implementing init writes no step');
+      assert.ok(call(['step', '--root', keepRoot, 'set', 'implement']).ok, 'keeper step set implement');
+      const t7 = stepTrace().length;
+      const kt = () => fs.readFileSync(path.join(keepRoot, 'trace.log'), 'utf8').split('\n').filter(Boolean);
+      const k0 = kt().length;
+      assert.ok(call(['stage', '--root', keepRoot, 'set', 'merged']).ok, 'keeper stage set merged');
+      assert.equal(call(['get', '--root', keepRoot, 'step']).out, 'none', 'the merged stage write clears the implement step');
+      assert.match(kt()[k0], / ledger step clear$/, 'the merged stage write traces step clear');
+      assert.equal(stepTrace().length, t7, 'the keeper run leaves the stepper trace alone');
+      call(['step', '--root', stepRoot, 'clear']);
+    }
     // A shipped run prints its step too: verify-ship and wrap-up start at `shipped`.
     assert.ok(call(['stage', '--root', stepRoot, 'set', 'shipped']).ok, 'stage set shipped');
     assert.ok(call(['status']).out.includes('stepper  (shipped)'), 'a step-less shipped run prints as before');

@@ -243,10 +243,14 @@ refuses one carrying an unknown stage, and writes nothing. A header-writing verb
 `suite`, `base`) that finds its header absent inserts it after the last present header line, the same rule for every
 verb; a header already present keeps its line and position.
 
-`step set <name>` and `step clear` write the ledger's `**Step:**` line, the chain step a command has started and not
-yet completed (ADR 0140). `<name>` is one of `review`, `document`, `submit`, `ship`, `verify-ship`, or `wrap-up`. A
-stage write to a new value completes the open step, and a same-value stage write leaves it. Each write appends a `step`
-line to the run trace, and the review-step window reads those lines alone. The `run-trace-order` table pins where each
+The ledger's `**Step:**` line names the chain step a command has started and not yet completed: the open step
+(ADR 0140, ADR 0147). `step set <name>` writes it, `step clear` removes it, and `step block` records a stop. `<name>` is
+one of `plan`, `implement`, `review`, `document`, `submit`, `ship`, `verify-ship`, or `wrap-up`. A
+stage write to a new value completes the open step, and a same-value stage write leaves it. `step set` traces every
+call, so a repeated step is a new start. `step block` takes no argument and leaves the ledger as it is. It traces
+`step block <step>` when a step is open and traces nothing otherwise. A `planned` re-init keeps the open step.
+The review-step window reads the trace's step lines alone. It opens at a `step set review`. It ends at a `step clear`,
+a `step block`, or a `step set` of another step. The `run-trace-order` table pins where each
 chain skill writes and clears the step. The same table pins that final-reviewer and the checklist count only a
 `completed` dispatch end as a finished dispatch (ADR 0140, INV-0119).
 

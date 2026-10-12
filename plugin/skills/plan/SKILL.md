@@ -419,6 +419,14 @@ also what ensures `.superdev/` is git-ignored (`init` runs `ensureSuperdevIgnore
 the ledger write to right after the cut, rather than leaving it to §6, is what closes the gap where the
 freshly cut `<run-root>/scopetree` could otherwise sit ignored by nothing for the rest of the interview.
 
+**Record the plan step right after the first `scope.js init … planned`** (ADR 0147), whether it ran here or
+at §6, and on every plan run, an append onto a `planned` ledger included: run
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set plan --root <run-root>`. Each plan run records a
+start of its own. A later `init … planned` over the same ledger keeps the step. Every exit this command
+reaches after `step set plan` ends in a `step clear`, a stage write, or
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step block --root <run-root>`: a blocked stop, a refusal, and
+a `First:` wait each run `step block` first.
+
 A capture that crystallises before §1 has settled the feature label has nowhere to cut yet: hold it in
 the conversation until the label exists, then cut and write it the moment it does. **A label revised
 before §6 writes to the store** undoes it under the old label — remove the scopetree
@@ -654,7 +662,9 @@ cut the way §2's own cut rule would have, per
 reference §2 already defers to, which decides what to do when the branch or scopetree is already
 present — write `<run-root>/run.lock` right after, per `## The run lock`, and write the ledger the same
 way §2 does at its own cut — `{"anchor": "<key> — <title>", "slices": []}` piped to `scope.js init
-<type>/<scope> planned` — since no capture ever crystallised to trigger §2's own write. Every plan
+<type>/<scope> planned` — since no capture ever crystallised to trigger §2's own write.
+**Record the plan step right after this cut's `init`:** run
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set plan --root <run-root>`, the same call as at §2's cut. Every plan
 run ends the same shape — a branch, a scopetree, and the ledger below — whether or not a design doc
 ever crystallised.
 
@@ -673,6 +683,8 @@ yet, whether this is a new feature or an append. **This call always overwrites**
 above already wrote a ledger at `planned` carrying no slice rows (or, on an append, the earlier session's
 own held slices), so this is `init`'s own overwrite-a-`planned`-ledger path filling in the real table, on
 every run kind, not only an append.
+On an append, where this run cut nothing, record the plan step right after this `init`: run
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set plan --root <run-root>`, because this `init` is the first one at `planned` this run makes.
 **Refresh `<run-root>/run.lock`** once `init` returns, per `## The run lock`.
 
 **Ask whether to release the plan.** `plan-contract.md`'s *Release* section owns what a release is; the
@@ -696,6 +708,9 @@ authorization to run the whole chain unattended answers a different question, wh
 may proceed once this feature is released, never whether to release it now, so it is not that answer —
 and a correction the user names on seeing the list is applied to the store before the question is put
 again.
+
+**Clear the plan step as this command's last act**, once the release question is answered and applied: run
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root <run-root>`, then print the next command.
 
 Every command in the chain hands off by printing its next command (ADR 0013), and the feature label is also what
 fixes the run's scope, its branch, and its run root. Then **print the next command with

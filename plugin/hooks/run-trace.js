@@ -815,7 +815,7 @@ function recordVerdict(f, text) {
       const before = f.events.slice(0, f.events.indexOf(f.d));
       if (holds(f.events, 'final-verdict', 0, tu)) return;
       // The review step is open from its `step set review` line to the first line that ends it: a `step clear`, a
-      // `step set` of another step. A stage write that removes the ledger's step mirrors a `step clear` line, so
+      // `step block` (a stopped review), a `step set` of another step. A stage write that removes the ledger's step mirrors a `step clear` line, so
       // step lines alone carry the window.
       let open = false;
       // A resumed reviewer ends once per run, so the cycle counts distinct dispatches (`tool_use_id`).

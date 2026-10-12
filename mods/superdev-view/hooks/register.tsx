@@ -16,6 +16,7 @@ const STAGE_COLOR: Record<string, string> = {
 const SLICE_COLOR: Record<string, string> = { todo: 'gray', 'in-progress': 'yellow', 'in-review': 'blue', merged: 'green', blocked: 'red' }
 const OUTCOME_COLOR: Record<string, string> = { failed: 'red', denied: 'red', stopped: 'yellow', unknown: 'yellow', 'session-end': 'yellow' }
 const READY_COLOR: Record<string, string> = { yes: 'green', no: 'red', 'with-fixes': 'yellow' }
+const reviewColor = (r: { spec: string; quality: string }) => r.spec === 'pass' && r.quality === 'approved' ? 'green' : r.spec === 'fail' || r.quality === 'changes-needed' ? 'red' : 'yellow'
 // A duration as mm:ss under an hour, else h:mm:ss; a time of day as local HH:MM.
 const clock = (ms: number) => {
   const sec = Math.max(0, Math.floor(ms / 1000))
@@ -172,21 +173,44 @@ export const register: Register = on => {
           return row(key, [{ text: new Date(e.at).toDateString(), bold: true, dim: true, shrink: true }])
         case 'command':
           return row(key, [
-            e.isDone ? { text: '✓', bold: true } : { text: '●', color: 'green', bold: true },
+            { text: `${hm(e.at)} ` },
+            e.isBlocked ? { text: '✗', color: 'red', bold: true } : e.isDone ? { text: '✓', bold: true } : { text: '●', color: 'green', bold: true },
             { text: ` ${e.name}`, bold: true, shrink: true },
-            'grow',
-            { text: ` ${clock(e.ms)}`, dim: true },
+            !e.isDone && 'grow',
+            !e.isDone && { text: ` ${clock(e.ms)}`, dim: true },
+          ])
+        case 'commandEnd':
+          return row(key, [
+            { text: `${hm(e.at)} ■` },
+            { text: ` ${e.name}`, bold: true, shrink: true },
+            { text: ` · ${clock(e.ms)}` },
+            e.isBlocked && { text: ' · blocked', color: 'red' },
           ])
         case 'wait':
           return row(key, [{ text: `⋯ ${clock(e.ms)}`, dim: true, shrink: true }])
         case 'stage':
           return row(key, [{ text: `${hm(e.at)} ` }, { text: `stage ${e.stage}`, shrink: true }])
-        case 'slice':
+        case 'sliceStart':
           return row(key, [
             { text: `${hm(e.at)} ` },
-            { text: e.status === 'merged' ? '✓' : '⨯', color: e.status === 'merged' ? 'green' : 'red' },
-            { text: ` slice ${e.id} ${e.status}`, shrink: true },
+            { text: '▶', color: 'green' },
+            { text: ` ${e.id}` },
+            e.title !== '' && { text: ` ${e.title}`, shrink: true },
           ])
+        case 'sliceEnd':
+          return row(key, [
+            { text: `${hm(e.at)} ■` },
+            { text: ` ${e.id}` },
+            e.title !== '' && { text: ` ${e.title}`, shrink: true },
+            e.ms !== undefined && { text: ` · ${clock(e.ms)}` },
+            e.status === 'blocked' && { text: ' · blocked', color: 'red' },
+            !!e.review && { text: ` · ${e.review.spec} ${e.review.quality}`, color: reviewColor(e.review) },
+          ])
+        case 'sliceSummary': {
+          const group = (name: string, g: { fail: number; pass: number }) => g.fail + g.pass > 0 && `${name} ✗${g.fail} ✓${g.pass}`
+          const text = [group('path', e.path), group('suite', e.suite), e.review > 0 && `review ×${e.review}`, e.f2p !== '' && `f2p ${e.f2p}`].filter(Boolean).join(' · ')
+          return row(key, [{ text: `      ${text}`, dim: true, shrink: true }])
+        }
         case 'start':
           return row(key, [
             { text: `${hm(e.at)} ` },
@@ -195,12 +219,11 @@ export const register: Register = on => {
             e.isResumed && { text: ' · resumed' },
           ])
         case 'end': {
-          const reviewColor = e.review?.spec === 'pass' && e.review.quality === 'approved' ? 'green' : e.review?.spec === 'fail' || e.review?.quality === 'changes-needed' ? 'red' : 'yellow'
           const outcome = e.outcome !== '' && e.outcome !== 'completed' ? e.outcome : ''
           return row(key, [
             { text: `${hm(e.at)} ■` },
             { text: ` ${type(e.type)} ${e.slice}`, shrink: true },
-            !!e.review && { text: ` · ${e.review.spec} ${e.review.quality}`, color: reviewColor },
+            !!e.review && { text: ` · ${e.review.spec} ${e.review.quality}`, color: reviewColor(e.review) },
             !!e.ready && { text: ` · ${e.ready}`, color: READY_COLOR[e.ready] ?? 'yellow' },
             !!outcome && { text: ` · ${outcome}`, color: OUTCOME_COLOR[outcome] ?? 'yellow' },
             { text: ` · ${clock(e.ms)}` },

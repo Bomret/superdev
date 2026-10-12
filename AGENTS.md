@@ -380,21 +380,32 @@ This root owns every other subtree directly:
   opens the scope page, the scope run's event log, oldest first. `eventLog` in `hooks/parse.ts` reads the
   scope's ledger and `trace.log` to build it.
 
-  A header line opens each chain command the trace records as started, with its duration and a done or
-  running mark. `plan` starts at the run's first `ledger init`, `implement` at the `implementing` stage,
-  and every later command at its `ledger step set` line. A trace with no `ledger step set` line that
-  holds a stage write past `merged` was written before the step lines existed. The pane draws each stage
-  write after `implement` of such a trace as a plain line under no command.
+  A header line opens each chain command the trace records as started. Its mark is done, stopped, or
+  running, and only the running header carries the elapsed time. Every command starts at its
+  `ledger step set` line. A repeated `step set` of one command is a start of its own. Until a
+  `step set plan` line has passed, the run's first `ledger init` at `planned` starts `plan`. Until a
+  `step set implement` line has passed, the first `implementing` stage write starts `implement`. A start
+  made from `ledger init` or the `implementing` stage write opens a fallback header. A later `step set` of
+  the same command takes that header over only when no log entry was drawn since. Otherwise the step line
+  ends the fallback command and opens a new one. An end line follows each command and shows its duration.
+  The header shows a stopped mark when the trace records a `step block` for it. A trace with no
+  `ledger step set` line that holds a stage write past `merged` was written before the step lines
+  existed. The pane draws each stage write after `implement` of such a trace as a plain line under no
+  command.
 
   Between the headers the log draws these lines:
   - the start and end of each dispatch run, with the first `verdict` and `final-verdict` line of the
     dispatch on its end line;
-  - each slice's merge or block;
+  - each slice's start, when its ledger status becomes `in-progress`;
+  - each slice's end, when it merges or blocks, with its duration and the last slice-review verdict.
+    A summary line follows it when any count exists. The summary holds the path-test and suite run
+    counts, the review count, and the fail-to-pass outcome;
   - a wait of a minute or more between two commands;
   - a date line on a day change.
 
-  One dispatch can have several runs, because a `dispatch-resume` line reopens it. When any dispatch has
-  a run with no recorded end, one line above the log counts those dispatches. One line after the log
+  One dispatch can have several runs, because a `dispatch-resume` line reopens it. A dispatch can have a
+  run with no recorded end. A slice can have started and not ended. One line above the log counts those
+  dispatches and slices when any exist. One line after the log
   names the commands still ahead, when any remain, or `closed` once the scope has closed. That ahead line
   is absent when the trace records no command yet, when the trace predates the step lines and is past
   `implement`, and when no command is left.
@@ -403,8 +414,9 @@ This root owns every other subtree directly:
   holds a nested Text, because desktop wraps a nested Text at its child instead of cutting the line.
   When a line is too wide, only the part that `row()` in `hooks/register.tsx` flags `shrink` gives up
   width. Every other part keeps its width. The `shrink` part is the agent type and slice on a start or
-  end line, and the command name on a header. On a slice, stage, wait, date, or ahead line it is the
-  label after the time and mark. A wait, date, or ahead line has only that label part.
+  end line, and the command name on a header or command end line. On a slice start or slice end line it
+  is the title. On a stage, wait, date, or ahead line it is the label after the time and mark. A slice summary line is one
+  dim part that shrinks. A wait, date, or ahead line has only that label part.
 
   The scan reads a closed scope's trace only while its page is open. The scope stays in the list until
   `hooks/scope-prune.js` reaps its run root. The pane attributes an agent to the scope whose trace

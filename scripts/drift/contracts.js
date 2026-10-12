@@ -9219,9 +9219,34 @@ RUN_TRACE_ORDER_CONTRACTS.push(
   [
     path.join('skills', 'review', 'SKILL.md'),
     stepRe(
-      'record the step before any other ledger or store write\\.\\*\\* Read the step with `@SJ get step --root <run-root>`\\. It prints `review` → run `@SJ step clear --root <run-root>`, then `@SJ step set review --root <run-root>`; any other value → run `@SJ step set review --root <run-root>` alone, which replaces the standing step\\. The clear makes each invocation write its own `step review` line',
+      'record the step before any other ledger or store write\\.\\*\\* Run `@SJ step set review --root <run-root>`, which replaces any standing step\\. Every `step set` writes its own `step review` line, even when the step already reads `review`',
     ),
-    'have each scope-mode review invocation, before any other ledger or store write, clear the step and then set it to review only when the step reads review, and set it alone otherwise, so it writes its own step review line without a clear line for another step',
+    'have each scope-mode review invocation, before any other ledger or store write, run a single step set review, which writes its own step review line even when the step already reads review',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    stepRe('Record the plan step right after the first `scope\\.js init … planned`\\*\\* \\(ADR 0147\\), whether it ran here or at §6, and on every plan run, an append onto a `planned` ledger included: run `@SJ step set plan --root <run-root>`'),
+    'have plan record `step set plan` right after its first init at planned, on every plan run, so each run records a start of its own',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    stepRe('Record the plan step right after this cut\'s `init`:\\*\\* run `@SJ step set plan --root <run-root>`, the same call as at §2\'s cut'),
+    'have plan record the step right after the section 6 cut\'s init, the first init at planned when nothing crystallised, with the same call as at section 2\'s cut',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    stepRe('On an append, where this run cut nothing, record the plan step right after this `init`: run `@SJ step set plan --root <run-root>`'),
+    'have plan record the step right after the section 6 ledger write\'s init on an append, where this run cut nothing and that init is the first at planned',
+  ],
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    stepRe('Clear the plan step as this command\'s last act\\*\\*, once the release question is answered and applied: run `@SJ step clear --root <run-root>`, then print the next command'),
+    'have plan clear the step as its last act, after the release question and before the next command is printed',
+  ],
+  [
+    path.join('references', 'run-init.md'),
+    stepRe('Every entry whose run continues at the `implementing` stage, a `resumed` run included, ends this run init with `@SJ step set implement --root <run-root>`, after the ledger writes above'),
+    'have run init record `step set implement` on every entry that continues at the implementing stage, after its ledger writes',
   ],
   [
     path.join('skills', 'document', 'SKILL.md'),
@@ -9308,6 +9333,27 @@ RUN_TRACE_ORDER_CONTRACTS.push(
     path.join('references', 'implement-full.md'),
     /`node\s+"\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/scope\.js"\s+slice\s+<id>\s+in-review\s+--root\s+<run-root>`\s+before\s+the\s+first\s+slice\s+review\s+dispatch\s+\(the\s+row\s+stays\s+`in-review`\s+through\s+the\s+parallel\s+simplicity\s+pass\s+and\s+every\s+fix\s+cycle,\s+until\s+the\s+merge\s+or\s+a\s+block\)/,
     'have step 3 write the in-review status to the ledger before the first slice review dispatch, the row staying in-review through the simplicity pass and every fix cycle until the merge or a block',
+  ],
+  // ADR 0147: every exit after a `step set` ends in a `step clear`, a stage write, or a `step block`, stated beside each `step set`.
+  ...[
+    ['skills/plan/SKILL.md', 'plan'],
+    ['references/run-init.md', 'implement'],
+    ['skills/review/SKILL.md', 'review'],
+    ['skills/document/SKILL.md', 'document'],
+    ['skills/submit-pr/SKILL.md', 'submit'],
+    ['skills/ship/SKILL.md', 'ship'],
+    ['skills/verify-ship/SKILL.md', 'verify-ship'],
+    ['skills/wrap-up/SKILL.md', 'wrap-up'],
+  ].map(([doc, step]) => [
+    path.join(...doc.split('/')),
+    // The clause stands within 400 characters after the `step set <step>` call, so it cannot drift to another part of the document.
+    stepRe(`step set ${step}[\\s\\S]{0,400}?ends in a \`step clear\`, a stage write, or \`@SJ step block --root <run-root>\`: a blocked stop, a refusal, `),
+    `state beside \`step set ${step}\` that every exit ends in a step clear, a stage write, or a step block`,
+  ]),
+  [
+    path.join('references', 'scope-mode.md'),
+    stepRe('Every exit a chain command reaches after its `step set` ends in a `step clear`, a stage write, or a `step block`\\.\\*\\*'),
+    'state once, in the ledger section, that every exit after a step set ends in a step clear, a stage write, or a step block',
   ],
   [
     path.join('skills', 'review', 'SKILL.md'),

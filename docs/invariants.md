@@ -1236,7 +1236,7 @@ Paths: plugin/hooks/run-trace.js, plugin/hooks/hooks.json
 
 Class: process
 Concepts: Run trace, Final-review verdict, Step, Final-reviewer
-Statement: Every completed `final-reviewer` dispatch inside an open review step gets at most one `final-verdict` line in the run trace, written only by the run-trace hook. A `step set review` line opens the step, and a `step clear` line or a `step set` line of another step closes it. The line carries the report's ready-to-merge answer and the review's cycle, counted in distinct completed `final-reviewer` dispatches inside that open review step before it (a resumed dispatch counts once), and nothing else from the report (ADR 0140).
+Statement: Every completed `final-reviewer` dispatch inside an open review step gets at most one `final-verdict` line in the run trace, written only by the run-trace hook. A `step set review` line opens the step, and a `step clear` line, a `step block` line, or a `step set` line of another step closes it. A repeated `step set review` line opens a new step, whose cycle count starts again at zero. The line carries the report's ready-to-merge answer and the review's cycle, counted in distinct completed `final-reviewer` dispatches inside that open review step before it (a resumed dispatch counts once), and nothing else from the report (ADR 0140).
 Breaks: silently
 Check: tests/run-trace.test.js — the final verdict cases
 Paths: plugin/hooks/run-trace.js, plugin/agents/final-reviewer.md

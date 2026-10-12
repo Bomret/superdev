@@ -36,7 +36,7 @@ From `$ARGUMENTS`:
 
 ## 3. Dispatch
 
-**Record the step first**, whenever §2 found a live scope run, before any other ledger or store write: run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set document --root <run-root>`.
+**Record the step first**, whenever §2 found a live scope run, before any other ledger or store write: run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set document --root <run-root>`. Every exit this command reaches after that call ends in a `step clear`, a stage write, or `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step block --root <run-root>`: a blocked stop, a refusal, and a `First:` wait each run `step block` first.
 
 **Read the run's inline-doc-pass record next**, whenever §2 found a live scope run:
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get docs --root <run-root>`. Anything but `absent` means

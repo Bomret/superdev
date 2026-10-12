@@ -453,8 +453,11 @@ function verbInit(cwd, label, stage, stdinJson) {
   // plan revising it, or `/superdev:plan`'s own §6 filling in the slice table §2 left empty —
   // regenerates the ledger instead of refusing.
   let priorStage;
+  let priorStep = null;
   if (fs.existsSync(ledgerPath(root))) {
-    priorStage = getHeader(readLines(root), 'Stage');
+    const priorLines = readLines(root);
+    priorStage = getHeader(priorLines, 'Stage');
+    priorStep = getHeader(priorLines, 'Step');
     if (priorStage === 'shipped') {
       // A shipped run is finished only when wrap-up closes it (ADR 0106); re-initialising it would
       // rotate away a ledger verify-ship and wrap-up still read.
@@ -523,6 +526,8 @@ function verbInit(cwd, label, stage, stdinJson) {
     ...rows,
     '',
   ];
+  // A planned rewrite keeps the standing step (ADR 0147): `/superdev:plan`'s step survives its own re-init.
+  if (priorStage === 'planned' && stage === 'planned' && priorStep !== null) insertHeader(doc, 'Step', priorStep);
   fs.mkdirSync(root, { recursive: true });
   writeLines(root, doc);
   console.log(root);
@@ -556,8 +561,8 @@ function verbStage(root, sub, value) {
 }
 
 // The chain step a command has started and not yet completed (ADR 0140, scope-mode `## The ledger`).
-// Returns whether the ledger changed, so the caller mirrors only a real write.
-const STEPS = ['review', 'document', 'submit', 'ship', 'verify-ship', 'wrap-up'];
+// Returns whether the caller traces the call: `set` always (a repeated step is a new start), `clear` only when a step stood.
+const STEPS = ['plan', 'implement', 'review', 'document', 'submit', 'ship', 'verify-ship', 'wrap-up'];
 function verbStep(root, sub, value) {
   const lines = readLines(root);
   const at = lines.findIndex((l) => headerRe('Step').test(l));
@@ -567,10 +572,16 @@ function verbStep(root, sub, value) {
     writeLines(root, lines);
     return true;
   }
-  if (sub !== 'set') fail(`unknown step subcommand "${sub}" — use set|clear`);
+  // `block` records a stop with the step standing (ADR 0147): the ledger stays, so a resumed run reads its own step.
+  if (sub === 'block') {
+    if (value !== undefined) fail('step block takes no argument');
+    return at >= 0;
+  }
+  if (sub !== 'set') fail(`unknown step subcommand "${sub}" — use set|clear|block`);
   if (!STEPS.includes(value)) fail(`unknown step "${value}" (${STEPS.join(', ')})`);
+  // Every `set` records a start of its own (ADR 0147), so it returns true even when the ledger line is unchanged.
   if (at >= 0) {
-    if (getHeader(lines, 'Step') === value) return false;
+    if (getHeader(lines, 'Step') === value) return true;
     setHeader(lines, 'Step', value);
   } else {
     insertHeader(lines, 'Step', value);
@@ -2380,8 +2391,9 @@ function usage() {
     '  init <type>/<slug> <stage>          stage is planned|implementing (ADR 0079, no default) —',
     '                                      stdin: {"anchor":"…","slices":[{id,issue,title,type,…}]}',
     '  stage set <value> --root <run-root>',
-    '  step set review|document|submit|ship|verify-ship|wrap-up   --root <run-root>   the step a command has started; a stage set clears it',
+    '  step set plan|implement|review|document|submit|ship|verify-ship|wrap-up   --root <run-root>   the step a command has started, traced on every call; a stage set clears it',
     '  step clear   --root <run-root>',
+    '  step block   --root <run-root>   a stop with the step standing: traced as `step block <step>`, the ledger unchanged; nothing when no step stands',
     '  slice <id> <status> [--range <r>]   --root <run-root>',
     '  degraded add|add-denial|reset-denials <text>   --root <run-root>',
     '  unresolved add <text>|clear   --root <run-root>',
@@ -2454,7 +2466,8 @@ function run(argv, cwd, stdinJson) {
     case 'step': {
       const root = takeRoot(args);
       const changed = verbStep(root, args[0], args[1]);
-      if (changed) ledgerEvent = { root, fields: ['step', args[0], ...(args[1] ? [args[1]] : [])] };
+      // `block` names the standing step, which the ledger holds.
+      if (changed) ledgerEvent = { root, fields: ['step', args[0], ...(args[0] === 'block' ? [getHeader(readLines(root), 'Step')] : args[1] ? [args[1]] : [])] };
       break;
     }
     case 'slice': {

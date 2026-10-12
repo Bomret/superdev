@@ -105,13 +105,21 @@ write, naming `scope.js`.
 - **`**Stage:**`** — how far the scope has moved through the chain. Read with `get stage`, written with
   `stage set <value>`; `## The stage never moves backwards` owns the value set, which `scope.js` enforces
   in code.
-- **`**Step:**`** — the chain step a command has started and not yet completed: `review`, `document`,
+- **`**Step:**`** — the chain step a command has started and not yet completed: `plan`, `implement`, `review`, `document`,
   `submit`, `ship`, `verify-ship`, or `wrap-up` (ADR 0140). Read with `get step`, which prints `none` when
   the line is absent, and written with `step set <name>` as the step starts. `scope.js` refuses any other
-  name and leaves the ledger and the trace unchanged. A `stage set` that writes a new stage clears the line
+  name and leaves the ledger and the trace unchanged. Every `step set` appends its `step set` trace line, also
+  when the ledger already carries that step, because each invocation of a command is a start of its own
+  (ADR 0147). An `init` with entry stage `planned` that overwrites a `planned` ledger keeps the line, and an
+  `init` with entry stage `implementing` writes none. A `stage set` that writes a new stage clears the line
   in the same write and appends a `step clear` line to the run trace, and a refused or same-stage `stage set` leaves it. A step that completes with no
   stage write removes it with `step clear`, which succeeds and changes nothing when the line is absent. A
-  step that stops blocked keeps it. Each `step set` and `step clear` that changes the ledger appends a
+  step that stops keeps it and records the stop with `step block` (ADR 0147), which takes no argument,
+  appends a `step block <step>` trace line, and leaves the ledger unchanged; with no step standing it writes
+  nothing and succeeds. **Every exit a chain command reaches after its `step set` ends in a `step clear`, a
+  stage write, or a `step block`.** A blocked stop, a refusal, a `First:` wait on the operator, and a review
+  exit without a clean verdict each run `step block` first. Each `step set`, each `step block` with a step
+  standing, and each `step clear` that changes the ledger, appends a
   `ledger` line to the run trace, and `status` prints the step beside the stage. `publish` carries the line
   in the snapshot, `adopt` refuses a snapshot whose step is not one of those names, and a ledger without it reads as no step started. No review rule reads the line as
   evidence (INV-0117).
@@ -584,7 +592,8 @@ any more than this one's. At each stop where it would otherwise do either:
 
 **Blocking** means: move the slice, where one is in play, and the scope anchor to `blocked` per the
 status map in `docs/agents/issue-tracker.md`; comment on the anchor naming the stop reached and why; then
-stop, leaving the scope branch standing and unshipped. **A block at the denial cap names
+stop, leaving the scope branch standing and unshipped. A command whose step stands runs `scope.js step block`
+before that stop, per `## The ledger`'s exit rule. **A block at the denial cap names
 `scope.js degraded reset-denials` in that comment**, beside the quoted refusal, so the maintainer who
 fixes the cause finds the way back where they are already reading (`## Degraded passes` states it in
 full — the reset call plus clearing the `blocked` label this same procedure just wrote). A store with no

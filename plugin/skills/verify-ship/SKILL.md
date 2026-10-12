@@ -43,7 +43,7 @@ Read the stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --r
   (`/superdev:submit-pr` for a scope short of `submitted`, `/superdev:ship` for `submitted`), and
   observe nothing.
 - **`shipped`** → record the step with
-  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set verify-ship --root <run-root>`, before any other ledger or store write, then continue.
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set verify-ship --root <run-root>`, before any other ledger or store write, then continue. Every exit after that call ends in a `step clear`, a stage write, or `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step block --root <run-root>`: a blocked stop, a refusal, and a `First:` wait each run `step block` first.
 
 ## 3. Deploy check, before anything is observed
 
