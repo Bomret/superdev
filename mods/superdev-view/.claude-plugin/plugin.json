@@ -1,7 +1,7 @@
 {
   "name": "superdev-view",
-  "version": "0.1.8",
-  "description": "Live pane of the repository's .superdev folder: areas, scopes, stages, slices, and the agents of active scopes",
+  "version": "0.2.0",
+  "description": "Pane of the repository's .superdev folder: areas, scopes, and each scope run's event log",
   "author": {
     "name": "Stefan Reichel"
   },

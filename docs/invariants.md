@@ -1136,19 +1136,19 @@ Paths: plugin/scripts/scope.js, plugin/references/scope-mode.md, plugin/referenc
 
 Class: architecture
 Concepts: Run trace, Scope
-Statement: The superdev-view mod only watches. Every hook it registers on a tool call, a model step, a turn's end, or a subagent spawn passes on what the hooks beneath it answered, unchanged; none denies, rewrites, or delays one, and a malformed event fails none of them. The mod writes no file.
+Statement: The superdev-view mod only reads. It registers no hook on a tool call, a model step, a turn's end, or a subagent spawn, so it can deny, rewrite, or delay none of them, and it writes no file. The pane draws from the files under `.superdev/` alone (ADR 0141).
 Breaks: silently
-Check: mods/superdev-view/hooks/events.test.tsx — each event hook returns what beneath answered, including for an event naming no known agent, a missing usage, or an unknown tool, and hands it back while the mod's own state writes are still held
+Check: mods/superdev-view/hooks/pane.test.tsx — the mod registers no agent, tool-call, model-step, or turn hook
 Paths: mods/superdev-view/hooks/**
 
 ### INV-0136
 
 Class: architecture
 Concepts: Run trace, Run root, Slicetree
-Statement: superdev-view attributes a subagent dispatch to a scope and slice by the rule the run trace's `recordDispatch` applies: a run root counts only when it holds a ledger, exactly one run root attributes, and exactly one slice id names the slice while zero or several give the scope level. The pane and the trace never disagree about which scope and slice an agent works on.
+Statement: The run trace's `recordDispatch` attributes a subagent dispatch to a scope and slice: a run root counts only when it holds a ledger, exactly one run root attributes, and exactly one slice id names the slice while zero or several give the scope level. superdev-view applies no attribution rule of its own: it shows an agent under the scope whose trace records it and the slice that trace line names, so the pane and the trace never disagree about which scope and slice an agent works on (ADR 0141).
 Breaks: silently
-Check: tests/run-trace.test.js and mods/superdev-view/hooks/live.test.ts — one shared fixture list, mods/superdev-view/hooks/attribution-fixtures.ts, yields the same root and slice through both
-Symbols: recordDispatch, attribute
+Check: tests/run-trace.test.js — the dispatch attribution cases; mods/superdev-view/hooks/parse.test.ts — an agent's slice is its trace line's slice field
+Symbols: recordDispatch
 Paths: plugin/hooks/run-trace.js, mods/superdev-view/hooks/**
 
 ### INV-0137
@@ -1240,3 +1240,12 @@ Statement: Every completed `final-reviewer` dispatch inside an open review step 
 Breaks: silently
 Check: tests/run-trace.test.js — the final verdict cases
 Paths: plugin/hooks/run-trace.js, plugin/agents/final-reviewer.md
+
+### INV-0147
+
+Class: architecture
+Concepts: Run trace, Ledger, Stage, Step
+Statement: Every label superdev-view draws is a value the ledger or the run trace records, a `CONTEXT.md` glossary term, or a term the shipped prose defines. A label that needs a new term gets its glossary entry before the mod draws it (ADR 0141).
+Breaks: silently
+Check: none — a label can enter the mod's drawing code in any form, and no cheap test tells a recorded value from a coined one; a reviewer of a `mods/superdev-view/` change applies it.
+Paths: mods/superdev-view/hooks/**

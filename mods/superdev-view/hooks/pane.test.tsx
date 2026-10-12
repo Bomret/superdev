@@ -1,4 +1,6 @@
 import { test, expect } from 'claude-code/testing'
+import { register } from './register'
+import { R as ROOT, dir as d, fakeRepo, ledger, runCommand, PANE as P } from './testkit'
 
 const R = '/r/.superdev'
 const S = `${R}/scopes/pin`
@@ -18,7 +20,7 @@ const PANE = {
   props: { title: 'superdev', isFocused: true, bodyColumns: 120, placement: 'dock', scroll: { offset: 0, bodyRows: 40 }, view: {} },
 } as const
 
-test('clicking an active scope shows its agents, back returns', async ($, on) => {
+test('clicking an active scope shows its log, back returns', async ($, on) => {
   on('session.cwd', async () => ({ value: '/r' }))
   on('env.get', async () => ({ value: undefined }))
   on('process.run', async () => ({ value: { exitCode: 0, stdout: '/r/.git\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
@@ -39,9 +41,9 @@ test('clicking an active scope shows its agents, back returns', async ($, on) =>
     const ui = await $.ui.mount({ plugin: 'superdev-view', surface, ...PANE })
     expect(await ui.find({ key: 'back' })).toBeUndefined()
     await ui.press({ key: 'scope-pin' })
-    expect(await ui.find({ type: 'Text', text: /^DoD 0\/0 · 1 live$/ })).toBeDefined()
-    expect(await ui.find({ type: 'Client', key: 'card-tu1' })).toBeDefined()
-    expect(await ui.find({ type: 'Box', key: 'card-tu2' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^DoD 0\/0$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^● 1 running$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Box', key: 'log' })).toBeDefined()
     await ui.press({ key: 'back' })
     expect(await ui.find({ type: 'Text', text: /afk-blocks|kb-backup/ })).toBeUndefined()
     expect(await ui.find({ key: 'back' })).toBeUndefined()
@@ -73,4 +75,41 @@ test('a rescan with nothing changed writes no snapshot, so the pane does not red
   await run()
   await run()
   expect(writes).toBe(1)
+})
+
+test('the mod registers no hook on a subagent spawn, a tool call, a model step, or a turn end (INV-0135)', async () => {
+  const events: string[] = []
+  register(((event: string) => { events.push(event) }) as never)
+  expect(events.filter(e => ['agent.spawn', 'tool.call', 'turn.step', 'turn.complete', 'ui.message'].includes(e))).toEqual([])
+  expect(events).toContain('ui.render')
+})
+
+const repo = () => ({
+  files: { [`${ROOT}/scopes/a/ledger.md`]: ledger('implementing', [['01', 'in-progress']]), [`${ROOT}/scopes/b/ledger.md`]: ledger('implementing', [['01', 'in-progress']]) } as Record<string, string>,
+  lists: { [ROOT]: [d('scopes')], [`${ROOT}/scopes`]: [d('a'), d('b')], [`${ROOT}/scopes/a`]: [], [`${ROOT}/scopes/b`]: [] } as Record<string, ReturnType<typeof d>[]>,
+})
+const A = `${ROOT}/scopes/a`
+
+test('a session started inside a scopetree shows the main working tree', async ($, on) => {
+  const { files, lists } = repo()
+  fakeRepo(on, files, lists, `${A}/scopetree`)
+  await $.command.run(runCommand)
+  const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'terminal', ...P })
+  expect(await ui.find({ key: 'scope-a' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^~\/\.superdev$/ })).toBeDefined()
+})
+
+test('a scan whose scopes read fails keeps the scopes the last scan stored', async ($, on) => {
+  const { files, lists } = repo()
+  const clock = fakeRepo(on, files, lists)
+  let stored: { scopes?: { name: string }[] | null } | null = null
+  on('state.set', async (_$, e, next) => {
+    if (e.key === 'snapshot') stored = e.value as typeof stored
+    return next(e)
+  })
+  await $.command.run(runCommand)
+  delete lists[`${ROOT}/scopes`]
+  await $.command.run(runCommand)
+  await clock.settle()
+  expect(stored!.scopes?.map(s => s.name)).toEqual(['a', 'b'])
 })

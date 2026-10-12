@@ -68,7 +68,7 @@ docs/adr/              — architecture decision records (why the plugin is buil
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification, deployment)
 docs/known-issues.md   — Claude Code platform behaviour superdev works around, each entry with its
                          shipped mitigation and dated verification
-mods/superdev-view/    — maintainer-only Claude Code mod: a live pane of a repository's `.superdev/`
+mods/superdev-view/    — maintainer-only Claude Code mod: a pane of a repository's `.superdev/`
                          folder, its own single-plugin marketplace (`.claude-plugin/marketplace.json`);
                          never shipped. Its own suites run under `claude plugin test`; `bun run test` runs none
                          of them, and only reads its fixture files through `tests/run-trace.test.js`
@@ -368,30 +368,33 @@ This root owns every other subtree directly:
 - `mods/superdev-view/`. A maintainer-only Claude Code mod, a hooks module (`hooks/register.tsx`) that
   draws a pane of the main working tree's `.superdev/` folder. It reads only the items superdev's own
   docs define there (`info.json`, `brainstorm/`, `scopes/`, `kb-pending/`, `design/`,
-  `dod-draft-<slug>.md`) and ignores every other entry. A scope's agents come from the `dispatch` lines
-  of its `trace.log` alone: a line from an agent id no `dispatch-bind` names adds no agent. In the session
-  that runs the scope, that session's own `agent.spawn`, `tool.call`, `turn.step`, and `turn.complete`
-  events add live agents, and a live agent joins a scope only when its run root is the pane's own
-  `<root>/scopes/<name>`. Every one of those hooks passes its event on unchanged (INV-0135). The first `verdict`
-  line of a slice-reviewer dispatch gives that agent the review it records, its verdicts, review cycle,
-  and reviewed implementer (ADR 0136, INV-0142). The pane is
-  a docked side tab, often narrow, so every surface draws the same Box/Text tree at the host's own text
-  size, wrapped to the pane's width. The overview is a column of collapsible sections: Brainstorm,
-  Scopes, Pending knowledge-base pages, Design sketches, and DoD drafts. A section's open state lives
-  in the `sections` plugin state atom for the session, and a press writes no file. A scope row opens the
-  scope page, which groups the slices into dependency waves read from the ledger's depends-on column and
-  draws each agent of a slice as a card. Each slice-reviewer closes a review cycle, and a dim header
-  above that cycle's cards names it: `Cycle n`, followed by `· review` and the verdict's outcome when a
-  `verdict` line records one. Agents after the last review that a simplicity-reviewer leads are headed
-  `Simplicity`, and the implementers applying its cuts belong to that group. Each agent's
-  card is a `Client` surface module (`hooks/card.tsx`) that posts once a second for its latest record, so
-  a tool call or a clock tick redraws the card alone, never the pane. Every `Client` of a page
-  shares one message budget, so a card is a `Client` only while its agent runs, and the pane draws a done
-  agent's card itself from the same drawing code. VS Code and mobile, which
-  have no `Client`, show the same fields as static text as of the pane's last redraw. The mod attributes a
-  dispatch to a scope and slice by
-  `plugin/hooks/run-trace.js`'s `recordDispatch` rule, and `hooks/attribution-fixtures.ts` is the fixture
-  list both suites assert (INV-0136): a change to either rule must change the other.
+  `dod-draft-<slug>.md`) and ignores every other entry. The pane draws from the run files alone. It
+  registers no hook on the session's subagent spawn, tool call, model step, or turn end. It writes no
+  file (INV-0135, ADR 0141). The pane is a docked side tab, often narrow, so every surface draws the same
+  Box/Text tree at the host's own text size. The overview is a column of collapsible sections: Brainstorm,
+  Scopes, Pending knowledge-base pages, Design sketches, and DoD drafts. A section's open state lives in
+  the `sections` plugin state atom for the session, and a press writes no file. The Scopes section lists
+  the active scopes, then the closed ones, each row with its stage, a bar segment per slice, and its
+  counts. A row opens the scope page, which is the scope run's event log, oldest first, read by
+  `eventLog` in `hooks/parse.ts` from the scope's ledger and `trace.log`. A header line opens each chain
+  command the trace records as started, with its duration and a done or running mark. `plan` starts at
+  the run's first `ledger init`, `implement` at the `implementing` stage, and every later command at its
+  `ledger step set` line. A trace with no `ledger step set` line that holds a stage write past `merged`
+  was written before the step lines existed. The pane draws each stage write after `implement` of such a
+  trace as a plain line under no command. Between the headers the log draws these lines:
+  - the start and end of each dispatch run (one dispatch can have several runs, because a
+    `dispatch-resume` line reopens it), with the first `verdict` and `final-verdict` line of the
+    dispatch on its end line;
+  - each slice's merge or block;
+  - a wait of a minute or more between two commands;
+  - a date line on a day change.
+
+  One line above the log counts the dispatches whose run has no recorded end. One line after it names
+  the commands still ahead or `closed`. Every log line is cut to one row. The scan reads a closed
+  scope's trace only while its page is open. The scope stays in the list until `hooks/scope-prune.js`
+  reaps its run root. The pane attributes an agent to the scope whose trace records it and to the slice
+  that trace line names. Therefore `plugin/hooks/run-trace.js`'s `recordDispatch` is the one attribution
+  rule. `tests/run-trace.test.js` holds its cases (INV-0136).
   Nothing under `plugin/` requires it, and the
   root marketplace does not list it, so no adopter install carries it. Install it into a session with
   `/plugin marketplace add <repo>/mods/superdev-view`, then `/plugin install superdev-view@superdev-view`
@@ -399,7 +402,7 @@ This root owns every other subtree directly:
   `.claude-plugin/plugin.json`, which is set by hand: a change reaches an install only after that
   version is raised and `claude plugin update superdev-view@superdev-view` runs. Its own tests run under `claude plugin test mods/superdev-view`. `bun run test`
   runs none of them and reads only the mod's shared fixture files. `tests/run-trace.test.js` reads
-  `hooks/attribution-fixtures.ts` and `hooks/trace-fixtures.ts`, and `tests/scope.test.js` reads
+  `hooks/trace-fixtures.ts`, and `tests/scope.test.js` reads
   `hooks/ledger-fixtures.ts`. `hooks/parse.ts` reads the ledger and the run trace that `scope.js` writes,
   and two pins hold that coupling. The ledger pin in `tests/scope.test.js` asserts that `scope.js` writes
   the lines in `hooks/ledger-fixtures.ts`. The trace pin in `tests/run-trace.test.js` asserts that

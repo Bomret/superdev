@@ -928,11 +928,22 @@ assert.deepEqual(tail(trace(A)).map((l) => l.split(' ').slice(0, 2).join(' ')), 
 // Subagent dispatches: PreToolUse on Agent records `dispatch`, PostToolUse `completed` (or async_launched then SubagentStop) the `dispatch-end`.
 const agentPre = (prompt, tu, type, description, cwd, session) => ({ hook_event_name: 'PreToolUse', tool_name: 'Agent', tool_use_id: tu, tool_input: { prompt, subagent_type: type || 'superdev:implementer', description: description || 'build it' }, cwd: cwd || tmp, ...(session ? { session_id: session } : {}) });
 const agentPost = (tu, response, cwd) => ({ hook_event_name: 'PostToolUse', tool_name: 'Agent', tool_use_id: tu, tool_response: response, cwd: cwd || tmp });
-// The attribution fixtures superdev-view shares (INV-0136): every entry attributes here exactly as the mod's
-// own suite asserts it does there, so the pane and the trace never disagree about an agent's scope and slice.
+// Dispatch prompts and the scope and slice each one attributes to (INV-0136). `{A}` and `{B}` stand for two run
+// roots that hold a ledger, `{NOLEDGER}` for one that holds none. The `{A}.x` entry sits on scope.js's SLUG_RE
+// boundary: a `.` ends the slug, so a slug pattern that admits it fails.
 {
-  const src = fs.readFileSync(path.join(__dirname, '..', 'mods', 'superdev-view', 'hooks', 'attribution-fixtures.ts'), 'utf8');
-  const fixtures = JSON.parse(src.slice(src.indexOf('/* fixtures:start */') + 20, src.indexOf('/* fixtures:end */')));
+  const fixtures = [
+    { "prompt": "Work in {A}/slicetrees/04 please", "root": "A", "slice": "04" },
+    { "prompt": "Append to {A}/reports/04/progress.md", "root": "A", "slice": "04" },
+    { "prompt": "{A}/slicetrees/04 and {A}/reports/04/progress.md", "root": "A", "slice": "04" },
+    { "prompt": "{A}/slicetrees/04 and {A}/slicetrees/05", "root": "A", "slice": "scope" },
+    { "prompt": "Review the scope at {A}/scopetree against {A}/dod.md", "root": "A", "slice": "scope" },
+    { "prompt": "Work in {A}/. and {A}, then {A}/slicetrees/04.", "root": "A", "slice": "04" },
+    { "prompt": "Work in {A}.x/slicetrees/04", "root": "A", "slice": "scope" },
+    { "prompt": "no run root here", "root": null, "slice": null },
+    { "prompt": "{A}/slicetrees/04 and {B}/slicetrees/01", "root": null, "slice": null },
+    { "prompt": "{NOLEDGER}/slicetrees/01", "root": null, "slice": null }
+  ];
   const roots = { A, B, NOLEDGER: path.join(tmp, '.superdev', 'scopes', 'nope') };
   assert.ok(fixtures.length > 0, 'the shared fixture list parses');
   fixtures.forEach((f, i) => {
@@ -949,11 +960,22 @@ const agentPost = (tu, response, cwd) => ({ hook_event_name: 'PostToolUse', tool
   const src = fs.readFileSync(path.join(__dirname, '..', 'mods', 'superdev-view', 'hooks', 'trace-fixtures.ts'), 'utf8');
   const lines = JSON.parse(src.slice(src.indexOf('/* trace:start */') + 17, src.indexOf('/* trace:end */')));
   reset();
+  // scope.js writes the ledger lines: the run's init, its stage, and a slice merged and one blocked.
+  const scopeCli = (args, input) => {
+    const r = cp.spawnSync(process.execPath, [require.resolve('../plugin/scripts/scope.js'), ...args], { cwd: tmp, input: input || '', encoding: 'utf8', timeout: 10000 });
+    assertSpawnDecided(r, `scope.js ${args[0]}`);
+    assert.equal(r.status, 0, r.stderr);
+  };
+  fs.rmSync(path.join(A, 'ledger.md'));
+  scopeCli(['init', 'feat/a', 'planned'], JSON.stringify({ anchor: '#1 — A', slices: [{ id: '04', issue: '#4', title: 't', type: 'behavior', 'depends-on': '—' }, { id: '05', issue: '#5', title: 't', type: 'behavior', 'depends-on': '—' }] }));
+  scopeCli(['stage', '--root', A, 'set', 'implementing']);
   run(agentPre(`Work in ${A}/slicetrees/04`, 'tu1', 'superdev:implementer', 'Build slice 04', undefined, 's1'));
   run(agentPost('tu1', { status: 'async_launched', agentId: 'ag1' }));
   run({ hook_event_name: 'SubagentStop', agent_id: 'ag1', agent_type: 'superdev:implementer', cwd: tmp });
   run({ hook_event_name: 'PreToolUse', tool_name: 'SendMessage', tool_use_id: 'sm1', tool_input: { to: 'ag1', message: 'go on' }, session_id: 's1', cwd: tmp });
   run({ hook_event_name: 'SubagentStop', agent_id: 'ag1', agent_type: 'superdev:implementer', cwd: tmp });
+  scopeCli(['slice', '--root', A, '04', 'merged', '--range', 'a1b2c3d..e4f5a6b']);
+  scopeCli(['slice', '--root', A, '05', 'blocked']);
   appendTrace(A, { slice: 'scope', agent: 'main', kind: 'ledger', fields: ['step', 'set', 'review'] });
   run(agentPre(`Review ${A}/scopetree`, 'tu2', 'superdev:final-reviewer', 'Final review', undefined, 's1'));
   run(agentPost('tu2', { status: 'completed', agentId: 'ag2', handbackReport: { text: 'Ready to merge? With fixes' } }));
@@ -963,6 +985,7 @@ const agentPost = (tu, response, cwd) => ({ hook_event_name: 'PostToolUse', tool
   run({ hook_event_name: 'PostToolUse', tool_name: 'SubagentHandback', agent_id: 'ag4', tool_input: { message: '### Verdict: specification ❌ | quality: changes-needed' }, cwd: tmp });
   run({ hook_event_name: 'SubagentStop', agent_id: 'ag4', agent_type: 'superdev:slice-reviewer', cwd: tmp });
   assert.deepEqual(trace(A).map((l) => l.join(' ')), lines, 'the hook writes the trace lines superdev-view parses');
+  fs.writeFileSync(path.join(A, 'ledger.md'), ledger([['02', 'todo'], ['03', 'in-progress']]));
 }
 {
   reset();

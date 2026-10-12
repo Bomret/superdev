@@ -1,49 +1,20 @@
-// `dependsOn`: the ids of the ledger's depends-on cell, none for `—` or an empty cell.
-export type Slice = { id: string; title: string; status: string; dependsOn: string[] }
-// An agent as the pane's structure knows it: what changes only when it starts or ends. `start` is its dispatch
-// time: the trace's `dispatch` line, or this session's spawn; null when the line's time does not parse. `end` is
-// its end time the same way: the trace's `dispatch-end` line, or this session's end; null while it runs.
-export type Agent = { key: string; type: string; desc: string; slice: string; isDone: boolean; start: number | null; end: number | null; review?: Review }
-// A slice review's verdict as the run trace records it (ADR 0136): `reviewed` is the implementer dispatch's key, or '' for none.
-export type Review = { spec: string; quality: string; cycle: number; reviewed: string }
-// What the run trace says an agent last did: read by its card, never by the pane.
-export type Activity = { last: string; lastKind: string; events: number }
-// A subagent this session saw start, attributed to one scope and slice (INV-0136). Written on its start and on
-// its end only, never by a tool call or a model step.
-export type LiveAgent = {
-  key: string
-  agentId: string | null
-  root: string
-  scope: string
-  slice: string
-  type: string
-  desc: string
-  start: number
-  end: number | null
-}
-// An agent's calls and ctx. A running agent's, keyed by its agentId, are written on every tool call and
-// model step, and kept for every running agent the index names and for only the latest few ids it does not
-// name. An ended agent's final ones, keyed by its dispatch, are written at its end and by a call or step
-// bookkept after it. Both are read by its card, and by the static text of a surface without cards as of the
-// pane's last redraw.
-export type LiveDetail = { calls: string[]; ctx: number | null }
-// What a card draws, handed to it as props and refreshed by its once-a-second post.
-export type CardData = {
-  key: string
-  type: string
-  scope: string
-  slice: string
-  desc: string
-  isDone: boolean
-  isLive: boolean
-  start: number | null
-  end: number | null
-  calls: string[]
-  ctx: number | null
-  last: string | null
-  events: number | null
-  now: number
-}
+export type Slice = { id: string; title: string; status: string }
+// One line of a scope's event log (ADR 0141), oldest first. `command` is a chain command the trace records as
+// started: its duration runs to its end, or to now while it runs. `wait` is the time between one command's end and
+// the next command's start, a minute or more. `stage` is a stage write after implement, in a trace with no step
+// lines and a stage write past merged. `start` and `end` are one run of a dispatch; `end` carries that run's dispatch outcome ('' when the
+// line records none), and the first `verdict` or `final-verdict` line of its dispatch. `date` opens a new day.
+export type LogEntry =
+  | { kind: 'date'; at: number }
+  | { kind: 'command'; at: number; name: string; ms: number; isDone: boolean }
+  | { kind: 'wait'; at: number; ms: number }
+  | { kind: 'stage'; at: number; stage: string }
+  | { kind: 'start'; at: number; type: string; slice: string; isResumed: boolean }
+  | { kind: 'end'; at: number; type: string; slice: string; ms: number; outcome: string; review?: { spec: string; quality: string }; ready?: string }
+  | { kind: 'slice'; at: number; id: string; status: string }
+// `running`: the dispatches whose last run has no recorded end. `ahead`: the commands still ahead in chain order,
+// 'closed' once the scope closed, or null when the log names none.
+export type EventLog = { entries: LogEntry[]; running: number; ahead: string[] | 'closed' | null }
 export type Progress = { done: number; total: number }
 export type Scope = {
   name: string
@@ -53,8 +24,7 @@ export type Scope = {
   lockMtime: number | null
   dod: Progress
   slices: Slice[]
-  slicetrees: string[]
-  agents: Agent[]
+  log: EventLog
 }
 // `isDraft` from the frontmatter's `status: draft` alone (ADR 0112); `status` is the body's `**Status:**` line, if any.
 export type Intent = { name: string; title: string; status: string; isDraft: boolean }
@@ -79,10 +49,6 @@ declare module 'claude-code' {
       snapshot: Snapshot | null
       selected: string | null
       sections: Record<string, boolean> // overview section id -> open, set by a press
-      liveIndex: Record<string, LiveAgent>
-      liveDetail: Record<string, LiveDetail> // by agentId, unindexed ids bounded
-      liveFinal: Record<string, LiveDetail> // by dispatch key, one per ended agent of an active scope
-      traceActivity: Record<string, Activity>
     }
   }
 }
