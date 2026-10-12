@@ -1,3 +1,18 @@
+# [0.71.0](https://codeberg.org/bomret/superdev/compare/v0.70.1...v0.71.0) (2026-10-12)
+
+
+### Bug Fixes
+
+* **kb:** find reads every wiki listing page before it answers absent ([#1103](https://codeberg.org/bomret/superdev/issues/1103)) ([626b892](https://codeberg.org/bomret/superdev/commit/626b892a6e0f1ba81ef52d41ab19202b2bd2113c))
+* **scope:** the fail-to-pass bound has a floor of 10 seconds ([6a5b5aa](https://codeberg.org/bomret/superdev/commit/6a5b5aa5680cbd3079b04274faed320f95c9ac21))
+
+
+### Features
+
+* **plan:** absorb open triage records, and a triage write joins a matching one ([d4df17a](https://codeberg.org/bomret/superdev/commit/d4df17a654965c9368082913d84dd3f54144aa3a))
+* **profile:** name a scope run's time sinks ([fa64f8e](https://codeberg.org/bomret/superdev/commit/fa64f8e49f1e950c9a8fc2c620ee7195e262760a))
+* **scope:** every chain command records its start and its end, and the event log draws them ([c00b85a](https://codeberg.org/bomret/superdev/commit/c00b85aca8103f11174e501efe1ed0112254c3d0))
+
 ## [0.70.1](https://codeberg.org/bomret/superdev/compare/v0.70.0...v0.70.1) (2026-10-12)
 
 
