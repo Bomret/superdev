@@ -5,6 +5,9 @@
 **Amended by:** [ADR 0121](0121-a-run-resolves-a-deferred-finding-it-later-fixes.md), which lets a run
 resolve a deferred finding it later fixes, so a `Deferred:` entry is no longer permanent.
 
+**Amended by:** [ADR 0145](0145-a-triage-write-comments-on-a-matching-open-record.md), which has the
+capture comment on a matching open record instead of writing nothing.
+
 **Context.** A run meets defects that no slice covers. `/superdev:review` has a path for a finding whose
 remedy adds a capability the Definition of Done never named: it writes a triage record and a `Deferred:`
 ledger bullet (ADR 0035). That path fires only on a finding the reviewer reports, and

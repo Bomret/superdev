@@ -6,6 +6,11 @@
 Consequences claim that a scope that never ships loses nothing. On the local plan-file store, the record
 needs its scope to ship before it reaches any listing.
 
+**Amended by:** [ADR 0144](0144-plan-absorbs-open-triage-records.md), which takes the deferred option of
+`/superdev:plan` reading open triage records, and [ADR
+0145](0145-a-triage-write-comments-on-a-matching-open-record.md), which has every writer comment on a
+matching open record instead of creating one.
+
 ## Context
 
 ADR 0035 gave a deferred finding two homes: the review's own report, and the run's ledger, from where

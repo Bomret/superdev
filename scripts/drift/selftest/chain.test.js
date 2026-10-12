@@ -2330,7 +2330,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'Ask once before fixing, then dispatch one `superdev:implementer` with the complete findings list.\n',
   });
   const fbGaps1 = scanContract(fb1, FIX_BOUNDARY_CONTRACTS);
-  assert.equal(fbGaps1.length, 6, 'flags every review row on a review.md whose fix loop states no scope boundary');
+  assert.equal(fbGaps1.length, 8, 'flags every review row on a review.md whose fix loop states no scope boundary');
   assert.ok(
     fbGaps1.every((g) => g.source === path.join('skills', 'review', 'SKILL.md')),
     'every gap names review.md',
@@ -2345,8 +2345,8 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   });
   assert.equal(
     scanContract(fb2, FIX_BOUNDARY_CONTRACTS).length,
-    5,
-    'naming the boundary without a destination, an exit, or the carve-out leaves five gaps',
+    7,
+    'naming the boundary without a destination, an exit, or the carve-outs leaves seven gaps',
   );
 
   // positive: §3's report template alone carries the boundary phrase, so a row anchored on that phrase
@@ -2359,7 +2359,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   });
   assert.equal(
     scanContract(fb4, FIX_BOUNDARY_CONTRACTS).length,
-    6,
+    8,
     "the report template alone satisfies none of the review rows — §4's own instruction is what is pinned",
   );
 
@@ -2372,7 +2372,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       'defect in what the Definition of Done does name stays in this loop.\n',
   });
   const fbGaps3 = scanContract(fb3, FIX_BOUNDARY_CONTRACTS);
-  assert.equal(fbGaps3.length, 4, 'boundary plus destination alone still leaves the exit-less deadlock, and no carve-out');
+  assert.equal(fbGaps3.length, 6,'boundary plus destination alone still leaves the exit-less deadlock, and no carve-out');
   assert.match(fbGaps3[0].expectation, /counts as|deferred finding|deadlock/i, 'names the missing exit');
 
   // negative (GREEN): boundary, destination, and exit together satisfy every row
@@ -2384,7 +2384,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   });
   assert.equal(
     scanContract(fb5, FIX_BOUNDARY_CONTRACTS).length,
-    3,
+    5,
     'boundary, destination, and exit together satisfy the three boundary rows and leave only the carve-out rows',
   );
 
@@ -3022,7 +3022,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // positive (RED reproduction): the real review.md with its create-the-record paragraph excised — the
   // row must flag this, since a review that dropped the create step still runs `deferred add` and would
   // otherwise read as compliant
-  const createStart = realReview.indexOf('**Otherwise, create the triage record first**');
+  const createStart = realReview.indexOf('**When no record plainly matches, create the triage record first**');
   const createEnd = realReview.indexOf(
     "the run's own record is the one that gates nothing on a store being reachable.",
   );
@@ -3044,7 +3044,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // --- BACKLOG_SURVEY_CONTRACTS: `/superdev:backlog` resolves the candidate, triage, and untriaged
   // listings through the store document, reads an in-flight scope's stage off the ledger
   // `/superdev:status` also reads, and states as a contract that it writes nothing (ADR 0049). Each of
-  // the five clauses fails silently on its own. ---
+  // the clauses fails silently on its own. ---
 
   const bsOpts = { stripFrontmatterFirst: true };
   const backlogAnchor = "Its `## Scope anchor` section states how to list the candidates. Follow it.\n";
@@ -3052,10 +3052,19 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   const backlogUntriaged =
     "Its `## Untriaged item` section states the listing call for this backend.\n";
   const backlogStage = 'For each, read its stage: `node "scope.js" get stage --root <run-root>`.\n';
+  const backlogBucket = '| `absorbed` | a triage record that an open anchor\'s Absorbs line names | its next step |\n';
+  const backlogAbsorbsRead =
+    "Read every open anchor's Absorbs line through the store document's **Read an anchor's Absorbs line** call. " +
+    'A record whose absorbing anchor is closed, or that no open anchor names, is `needs planning`.\n';
+  const backlogRecommend =
+    "An `absorbed` row is never the move: the absorbing\nanchor's own row is.\n";
   const backlogReadOnly =
-    '**This survey writes nothing.** No issue, no label, no comment, no file, no `.superdev/` directory.\n';
+    '**This survey writes nothing.** No issue, no label, no comment, no file, no `.superdev/` directory.\n' +
+    backlogBucket +
+    backlogAbsorbsRead +
+    backlogRecommend;
 
-  // negative: all five clauses present yields zero gaps
+  // negative: all clauses present yields zero gaps
   assert.equal(
     scanContract(
       fixture({
@@ -3066,7 +3075,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       bsOpts,
     ).length,
     0,
-    'all five backlog-survey clauses yield zero gaps',
+    'all backlog-survey clauses yield zero gaps',
   );
 
   // positive: dropping the `## Scope anchor` reference
@@ -3116,7 +3125,10 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
         backlogTriage +
         backlogUntriaged +
         backlogStage +
-        'This survey writes nothing. No issue, no label, no comment, no file.\n',
+        'This survey writes nothing. No issue, no label, no comment, no file.\n' +
+        backlogBucket +
+        backlogAbsorbsRead +
+        backlogRecommend,
     }),
     BACKLOG_SURVEY_CONTRACTS,
     bsOpts,
@@ -3131,13 +3143,57 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
         backlogTriage +
         backlogUntriaged +
         backlogStage +
-        'It mostly writes nothing, though a label update is fine.\n',
+        'It mostly writes nothing, though a label update is fine.\n' +
+        backlogBucket +
+        backlogAbsorbsRead +
+        backlogRecommend,
     }),
     BACKLOG_SURVEY_CONTRACTS,
     bsOpts,
   );
   assert.equal(bsHedged.length, 1, 'flags a survey that hedges "writes nothing" instead of stating it flatly');
   assert.ok(/writes nothing/.test(bsHedged[0].expectation), 'names the read-only clause');
+
+  // positive: dropping the `absorbed` bucket row, or the Absorbs read with its closed-anchor return
+  const bsBase = backlogAnchor + backlogTriage + backlogUntriaged + backlogStage +
+    '**This survey writes nothing.** No issue.\n' + backlogRecommend;
+  const bsNoBucket = scanContract(
+    fixture({ 'skills/backlog/SKILL.md': bsBase + backlogAbsorbsRead }),
+    BACKLOG_SURVEY_CONTRACTS,
+    bsOpts,
+  );
+  assert.equal(bsNoBucket.length, 1, 'flags a survey with no `absorbed` bucket row');
+  assert.ok(/absorbed/.test(bsNoBucket[0].expectation), 'names the absorbed-bucket clause');
+  const bsNoAbsorbsRead = scanContract(
+    fixture({ 'skills/backlog/SKILL.md': bsBase + backlogBucket }),
+    BACKLOG_SURVEY_CONTRACTS,
+    bsOpts,
+  );
+  assert.equal(bsNoAbsorbsRead.length, 1, 'flags a survey that never reads the Absorbs line');
+  assert.ok(/Absorbs line/.test(bsNoAbsorbsRead[0].expectation), 'names the Absorbs-read clause');
+  const bsInverted = scanContract(
+    fixture({
+      'skills/backlog/SKILL.md':
+        bsBase +
+        backlogBucket +
+        "Read every open anchor's Absorbs line through the store document's **Read an anchor's Absorbs line** call. " +
+        'A record whose absorbing anchor is closed stays `absorbed`; one no open anchor names is `needs planning`.\n',
+    }),
+    BACKLOG_SURVEY_CONTRACTS,
+    bsOpts,
+  );
+  assert.equal(bsInverted.length, 1, 'flags an inverted closed-anchor clause');
+  const bsNoRecommend = scanContract(
+    fixture({
+      'skills/backlog/SKILL.md':
+        backlogAnchor + backlogTriage + backlogUntriaged + backlogStage +
+        '**This survey writes nothing.** No issue.\n' + backlogBucket + backlogAbsorbsRead,
+    }),
+    BACKLOG_SURVEY_CONTRACTS,
+    bsOpts,
+  );
+  assert.equal(bsNoRecommend.length, 1, 'flags a Recommend ranking that never sets `absorbed` aside');
+  assert.ok(/Recommend/.test(bsNoRecommend[0].expectation), 'names the Recommend clause');
 
   // --- DEPLOYMENT_CONTRACTS (ADR 0101, INV-0098): the seed states its posture, its targets table, the
   // absent-document default, and the ship-only/auto-only rule; setup proposes `manual` by default and
@@ -5661,7 +5717,8 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'Report it to the operator once, naming why — the store document defines no create call to make — ' +
     'and continue. This is the one case here where an observation is reported and dropped rather than ' +
     'recorded. Capture is otherwise best-effort, exactly as every other store write in the chain. An ' +
-    'open-records read that fails, and a read a permission classifier denies, are each reported once — ' +
+    'open-records read that fails, a read a permission classifier denies, a comment that fails, and a ' +
+    'comment a permission classifier denies are each reported once — ' +
     'and each still writes the record, the possible duplicate the asymmetry above prefers over a ' +
     'dropped observation. A create that fails, and a create a permission classifier denies, are each ' +
     'reported once too, with the run continuing regardless.';

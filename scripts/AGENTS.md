@@ -1467,6 +1467,48 @@ the field mapping, the **Record the Repairs line** write, the **Read an anchor's
 its absent-line reading, and the line's own promotion sentence. Each document is its own row, because
 losing one store's row leaves the backend a repository has configured unable to write or read the link
 that `/superdev:plan`, `/superdev:backlog`, and `/superdev:wrap-up` rely on.
+The `absorbs-line` contract (ADR 0144, INV-0150, INV-0151): `references/plan-contract.md`'s `## Scope anchor`
+section defines the `**Absorbs:**` line as optional and anchor-only, revised in place on an append and read
+entry by entry, and its *Append mode* migrates the line to the new epic on a single-slice promotion.
+`docs/agents/issue-tracker.md` and every `references/issue-tracker-*.md` seed each carry four rows: the field
+mapping, the **Record the Absorbs line** write, the **Read an anchor's Absorbs line** read with its
+absent-line reading, and the line's own promotion sentence. Each document is its own row, because losing
+one store's row leaves that backend unable to write or read the line.
+The `triage-comment` contract (ADR 0144): `docs/agents/issue-tracker.md` and every
+`references/issue-tracker-*.md` seed each carry the `## Triage record` **Comment on it** call, with the
+comment text set from a quoted heredoc into a variable that `jq --arg` receives, so a `$(` or backtick in a
+finding stays literal. Each document is its own row, because losing one store's call leaves that backend
+unable to comment on a record.
+The `plan-absorb` contract (ADR 0144, INV-0151, INV-0039): `skills/plan/SKILL.md`'s Audit for prior art carries a
+check that reads every open triage record through the store document's **List the records** call, names the
+open anchor that already absorbs a record through **Read an anchor's Absorbs line** and offers it no more, offers
+each other match through `AskUserQuestion` and asks nothing when none matches, cites each picked record in exactly
+one Definition-of-Done criterion in the `(triage <reference>)` form, and lists the matches, absorbs none, and names `/superdev:setup` when the store
+document describes no Absorbs line. Its §6 writes the Absorbs line through **Record the Absorbs line**, revising it
+in place on an append. Each clause is its own row, because each fails on its own.
+
+The `wrap-up-absorbed` contract (ADR 0144, INV-0151, INV-0016): `skills/wrap-up/SKILL.md`'s §5 reads the
+anchor's Absorbs line through the store call and closes nothing when no line exists. It finds each citing
+criterion by the `(triage <reference>)` form alone. It reads that criterion's verdict from `dod.md`'s note. It closes a `met:` record with a comment naming the merge commit and
+the scope anchor. It asks once per `accepted:` record. It comments on a kept one. It reports a failed absorbed
+close naming the record, without stopping. It leaves a record no criterion cites open, and skips a record a
+rerun already closed, and asks again about a record kept earlier. Each store document's **Close it** posts the comment its caller names. Each
+clause is its own row.
+
+The `triage-write` contract (ADR 0145, INV-0061, INV-0062): `references/plan-contract.md`'s *Triage record*
+states that every trigger lists the open records before it creates one, comments on a plain match, and
+creates a record for an uncertain match or a failed or denied listing or comment. A store document with no
+**List the records** call skips the read and creates the record. A store document with no **Comment on it**
+call creates a new record on a match. These two fallbacks are separate rows, because a missing call is
+neither a failure nor a denial. The section also states that a resolved deferred finding closes only a
+record whose own body names this run's scope anchor. It also states that the closed record is one that no open anchor absorbs (INV-0151).
+`references/scope-mode.md`'s resolve step carries the same close condition. It also carries two rows of
+its own. A store document with no **Comment on it** call leaves the record open and reports that once
+per run. A failed or denied read of the record, the open anchors, or an Absorbs line also leaves the
+record open. `references/plan-contract.md` carries the failed-read clause too. Each clause is its own
+row. `references/scope-mode.md`'s `## Observations` and `## Deferred findings`, `skills/review/SKILL.md`,
+`references/implement-full.md`, and `skills/plan/SKILL.md`'s found-defect **Later** step each cite that rule,
+and each citation is its own row. No `agents/` row exists, because no dispatched agent reads these clauses.
 The `plan-repair-choice` contract (ADR 0124, INV-0131, INV-0004): `skills/plan/SKILL.md`'s §0 asks new,
 extend, or repair; repair lists exactly the `shipped` run roots whose `dod.md` holds a `not met:` verdict,
 read by the note, marks a candidate an open repair already names and still lets it be picked, says there
@@ -1970,6 +2012,18 @@ criterion the code fails staying a deferred finding. One row each sits on `refer
 template's own phrase. The selftest copies the shipped documents, removes each row's matched clause, and
 expects that row to fail (INV-0095).
 
+ADR 0146 adds one row per document for a failure-mode class: a later instance of a class that a
+Definition-of-Done criterion names is in scope for the fix loop and never a deferred finding. The rows sit
+on `skills/review/SKILL.md` §4, on `references/implement-full.md`'s per-slice fix loop, and on the
+deferred-finding definitions in `references/plan-contract.md` and `references/scope-mode.md`'s
+`## Deferred findings`. A loop or definition without its row defers the second instance of a named class
+as new work, and each fix cycle then repairs one instance and leaves the class.
+
+ADR 0144 adds one row per document, on the same four documents, for an absorbed triage record. A finding
+that plainly states the same defect as a record that this run's scope anchor absorbs is in scope for the
+fix loop. It is never a deferred finding. A criterion already cites that record. If the finding were
+deferred, wrap-up would close the record as `met:` with this instance still unfixed.
+
 The `deferred-resolve` contract (ADR 0121, INV-0125) pins the way back out of the deferred record. On
 `skills/review/SKILL.md` §4 and `references/implement-full.md` step 3: a deferred finding re-enters the fix
 loop only when a later review names a guard-rail remedy for it, and the run resolves it once the fix
@@ -2382,6 +2436,16 @@ A fix cycle found the prior anchor spanning newlines between two unrelated bold 
 document that asserted the opposite. That opposite assertion was: "it mostly writes nothing, though a
 label update is fine". Unbolded hedging prose sat unmatched in between. "Writes nothing" is exactly the phrase that recurs in passing
 prose about some other command, and a passing mention is not the contract.
+
+Two rows pin the `absorbed` bucket (ADR 0144). One requires a bucket-table row for `absorbed` that names
+the Absorbs line, so a record an open anchor absorbs falls back into `needs planning` when the row goes. The
+other requires the survey to read every open anchor's Absorbs line through the store document's **Read an
+anchor's Absorbs line** call, and to state that a record whose anchor is closed, or that no open anchor
+names, is `needs planning`. It is anchored on that clause, so an inverted sentence fails. Without the
+store-document call the bucket reads a store's own mechanics, and without the return clause an absorbed
+record stays out of the planning queue after its anchor closes. A third row pins the Recommend ranking's
+sentence that an `absorbed` row is never the move and the absorbing anchor's own row is. Without it,
+Recommend can name an absorbed record as the next move, and the survey still reads correctly.
 
 Each row fails silently on its own, which is why they are pinned rather than reviewed. A survey
 that has quietly started writing looks identical in its own output. One that has learned a backend's own
@@ -3142,8 +3206,11 @@ The `plan-derives-criteria` contract (ADR 0099, INV-0096) pins the derive pass o
 `skills/plan/SKILL.md` §1 carries these rows:
 
 - It dispatches `superdev:final-reviewer` in derive mode with an explicit `model`.
-- It hands over the settled problem statement and solution shape as text, and the drafted Definition of
-  Done by path, never inlined.
+- It hands over the settled problem statement and solution shape as text, the paths of the files the
+  solution shape changes, and the drafted Definition of Done by path, never inlined, and asks for the
+  failure-mode classes in the changed code, each with a cited file (ADR 0146). One row pins the whole
+  sentence. Losing the paths leaves the reviewer no code to read, and losing the ask leaves it deriving
+  criteria only.
 - It keeps the draft in `.superdev/dod-draft-<slug>.md`, keyed by the feature slug and outside every run
   root, so the pass creates no run root before the cut.
 - It drafts an append from the epic's Definition of Done loaded in §0.
@@ -3156,10 +3223,18 @@ The `plan-derives-criteria` contract (ADR 0099, INV-0096) pins the derive pass o
   or, on a single-slice plan, a spec exclusion.
 - No plan reaches §3 with a gap unsettled.
 - A pass with no gaps is reported in one line.
-- A denied dispatch derives inline.
+- A gap that is a failure-mode class the Definition of Done does not name becomes a criterion stated as
+  the class, a fold, or a named non-goal (ADR 0146). Without the row, a class stays a note that no
+  criterion carries, and a later instance of it is a deferred finding.
+- A denied dispatch derives inline, and runs the same failure-mode class pass inline over the changed
+  files, so a denial skips no class (ADR 0146).
 
 `agents/final-reviewer.md` carries the `## Derive mode` section. It returns the uncovered derived
-criteria with a reason and a lean, and states the derived list before it opens the DoD path. It writes no
+criteria with a reason and a lean, and states the derived list before it opens the DoD path. It reads the
+handed changed-file paths and names the failure-mode classes in that code, each with a cited file, also
+before it opens the DoD path, so the draft cannot steer which classes it names (ADR 0146). When the
+dispatch hands no changed-file path, it names no class and says so, as the plan dispatch's empty-list
+rule says. The plan dispatch carries the other half of that rule, so `skills/plan/SKILL.md`'s "with none, skip the class pass and say so in the dispatch" is pinned too. It writes no
 `### Issues`, `### Criteria`, `### Ceiling`, or `### Assessment` section. Its `description` names the plan
 dispatch. The selftest removes each row's own clause and expects that row to fail.
 Losing a plan row ships a feature short of its intent; losing a reviewer row leaves the dispatch asking

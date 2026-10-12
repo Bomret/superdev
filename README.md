@@ -69,6 +69,10 @@ plan runs test-first, inline in the scopetree.
   observed false. The repair has its own anchor, branch, and Definition of Done, and its anchor carries a
   `**Repairs:**` line naming the original. Nothing is written to the original, and only the original's own
   `/superdev:verify-ship` settles the failed criterion, once the repair has shipped (ADR 0124).
+  Its prior-art audit also reads every open triage record and offers each match for absorption. A record
+  you pick is cited by one Definition-of-Done criterion, and the scope anchor lists it on an `**Absorbs:**`
+  line (ADR 0144). The derive pass reads the changed code and names its failure-mode classes, each with a
+  cited file. So the Definition of Done settles a class before the first slice (ADR 0146).
   Every Definition of Done it writes
   carries a `Reachable:` criterion naming the entrance a user reaches the feature through — or `none` and
   the reason, such as no in-repo consumer or an unchanged entrance on a refactor — so a feature cannot be
@@ -154,7 +158,7 @@ plan runs test-first, inline in the scopetree.
   **runs**. It groups every open scope anchor, every triage record, every stranded run root, and every
   **untriaged item** — an open record you filed and no `/superdev:plan` interview has yet reached — by the
   action it needs — blocked, stranded, in flight, waiting on another feature, needing a plan, unreleased,
-  untriaged, or ready to build — and ends with one recommended next move. Untriaged items are capped at 5,
+  untriaged, absorbed by an open scope, or ready to build — and ends with one recommended next move. Untriaged items are capped at 5,
   oldest first, so a store with real reporters doesn't drown the rest of the table. It shows an
   unreleased plan, an anchor nobody decomposed, a triage record a review deferred, and an untriaged item.
   It resolves an ambiguity toward showing the row, because it reports rather than acts
@@ -180,7 +184,10 @@ plan runs test-first, inline in the scopetree.
   it: no candidate listing and no slice loader selects it. A later review in the same run can name a
   cheaper remedy for it, such as a new test or a new drift-table row. The run then fixes it after all,
   removes the ledger bullet, and closes the record
-  ([ADR 0121](docs/adr/0121-a-run-resolves-a-deferred-finding-it-later-fixes.md)). A real defect the run meets that no slice
+  ([ADR 0121](docs/adr/0121-a-run-resolves-a-deferred-finding-it-later-fixes.md)). It closes only a record
+  its own run filed that no open anchor absorbs. Every writer of a triage record reads the open records
+  first and comments on a record that plainly states the same defect. It files no second record
+  ([ADR 0145](docs/adr/0145-a-triage-write-comments-on-a-matching-open-record.md)). A real defect the run meets that no slice
   covers, and that the scope did not cause, earns the same kind of record. A flaky test in untouched
   code is an example. Whichever chain command meets
   it writes the record then, never at a handoff, and `/superdev:plan` writes one when you place a found
@@ -619,8 +626,9 @@ A tiny feature end to end, with GitHub Issues as the slice store and GitHub as t
   repository's own deploy posture is `none`), with the stage at `shipped`. Every criterion is already ticked and nothing waits on a deploy,
   so it offers `/superdev:wrap-up health-check` and prints that command when you decline. `/superdev:verify-ship` runs only for a scope with a
   criterion left open or a `manual` deploy to confirm.
-- **`/superdev:wrap-up health-check`**. Checks the merge and the deploy record, closes the slice issues and
-  the epic, removes the scopetree and the run, and sets the stage `closed`.
+- **`/superdev:wrap-up health-check`**. Checks the merge and the deploy record, closes the slice issues, the
+  triage records the anchor's `**Absorbs:**` line names (a `met:` record closes with a comment, an `accepted:`
+  record asks first), and the epic, removes the scopetree and the run, and sets the stage `closed`.
 - **After.** Review comments and flaky CI on the open pull request are a `/loop` job, not this chain's
   concern. See [After the PR](#after-the-pr).
 

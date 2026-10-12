@@ -6,6 +6,9 @@
 controller settle each gap itself and state the settlement as one proposal, in place of the multi-select
 question.
 
+**Amended by:** [ADR 0146](0146-derive-mode-reads-the-changed-code-for-failure-mode-classes.md), which
+has the derive pass also read the code the solution shape changes and name its failure-mode classes.
+
 **Context.** `final-reviewer` derives acceptance criteria from the intent alone, before it reads the
 Definition of Done, and reports every criterion the DoD left out (ADR 0020). That derivation runs only at
 review, after the scope is built. `/superdev:review` defers every criterion missing from `dod.md` to a

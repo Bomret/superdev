@@ -81,6 +81,11 @@ const {
   DEPLOYMENT_CONTRACTS,
   PLAN_DEPLOY_CONTRACTS,
   REPAIRS_LINE_CONTRACTS,
+  ABSORBS_LINE_CONTRACTS,
+  TRIAGE_COMMENT_CONTRACTS,
+  PLAN_ABSORB_CONTRACTS,
+  WRAP_UP_ABSORBED_CONTRACTS,
+  TRIAGE_WRITE_CONTRACTS,
   PLAN_REPAIR_CONTRACTS,
   REPAIR_ROUTING_CONTRACTS,
   DERIVED_CRITERIA_CONTRACTS,
@@ -455,6 +460,38 @@ module.exports = [
     REPAIRS_LINE_CONTRACTS,
     'plan-contract defines the `**Repairs:**` line, and every store document writes it, reads it, reads a ' +
       'value outside its own key shape as no line, and migrates it on promotion',
+  ),
+  table(
+    'absorbs-line',
+    ABSORBS_LINE_CONTRACTS,
+    'plan-contract defines the `**Absorbs:**` line, and every store document writes it, reads it, and migrates it ' +
+      'on promotion',
+  ),
+  table(
+    'triage-comment',
+    TRIAGE_COMMENT_CONTRACTS,
+    'every store document carries the Triage record call that comments on a record, with the comment text set ' +
+      'from a quoted heredoc',
+  ),
+  table(
+    'plan-absorb',
+    PLAN_ABSORB_CONTRACTS,
+    "/plan's prior-art audit reads every open triage record, offers each concept match for absorption unless an open " +
+      'anchor already absorbs it, cites each picked record in one criterion, degrades on a store document without ' +
+      'the Absorbs line or a listing, and §6 writes the Absorbs line',
+  ),
+  table(
+    'wrap-up-absorbed',
+    WRAP_UP_ABSORBED_CONTRACTS,
+    "wrap-up's close step reads the Absorbs line, closes a met record with a comment naming the merge commit " +
+      'and the anchor, asks about an accepted one, and treats a failed close as best-effort',
+  ),
+  table(
+    'triage-write',
+    TRIAGE_WRITE_CONTRACTS,
+    'every triage-record trigger lists the open records before it creates one, comments on a plain match, creates ' +
+      'when unsure, and a resolved deferred finding closes only a record naming this run\'s anchor that no open ' +
+      'anchor absorbs (ADR 0145)',
   ),
   table(
     'plan-repair-choice',

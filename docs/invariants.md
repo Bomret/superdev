@@ -511,10 +511,10 @@ Paths: plugin/skills/review/SKILL.md
 
 Class: process
 Concepts: Triage record, Deferred finding, Ledger
-Statement: Within one run, a finding the ledger already carries as deferred creates no second triage record and no second ledger bullet.
+Statement: Within one run, a finding the ledger already carries as deferred creates no second triage record and no second ledger bullet. Across runs, a finding that an open triage record plainly states gets a comment on that record and no second record; the ledger bullet carries that record's reference (ADR 0145).
 Breaks: silently
 Check: none — no pin exists today
-Paths: plugin/skills/review/SKILL.md
+Paths: plugin/skills/review/SKILL.md, plugin/references/implement-full.md, plugin/references/scope-mode.md
 
 ### INV-0062
 
@@ -1267,3 +1267,21 @@ Statement: A cause one of the time-sink rules covers, holding at least 20% of a 
 Breaks: silently
 Check: tests/profile.test.js — a fixture whose largest cause is model time prints that sink with no remedy.
 Paths: plugin/scripts/profile.js, tests/profile.test.js
+
+### INV-0150
+
+Class: process
+Concepts: Triage record, Deferred finding, Observation
+Statement: Every finding or observation a trigger meets reaches a triage record, as a new record or as a comment on an open record that plainly states the same defect. An uncertain match, a comment that fails or is denied, and a store document that defines no comment call create a new record. The one exception is a store document that defines no triage record (ADR 0145).
+Breaks: silently
+Check: none — whether two findings state the same defect is a judgment no test can check; a reviewer of a change to a triage-record writer applies it.
+Paths: plugin/references/plan-contract.md, plugin/references/scope-mode.md, plugin/skills/review/SKILL.md, plugin/references/implement-full.md, plugin/skills/plan/SKILL.md
+
+### INV-0151
+
+Class: process
+Concepts: Absorbed triage record, Triage record, Scope anchor
+Statement: `/superdev:plan` absorbs a triage record only when the operator picks it. Only `/superdev:wrap-up` closes an absorbed record, and only once its citing criterion's verdict is met or the operator chose to close it. A run that resolves a deferred finding closes only a record whose provenance names its own scope anchor and that no open scope anchor absorbs, and a read of the record or of an Absorbs line that fails or is denied leaves the record open (ADR 0144, ADR 0145).
+Breaks: silently
+Check: scripts/drift-check.js — the `plan-absorb` check pins the plan half, and the `wrap-up-absorbed` table pins wrap-up's absorbed-record close, ask, keep, and no-citing-criterion clauses and each store document's Close it comment, and the `triage-write` table pins the resolve half
+Paths: plugin/skills/plan/SKILL.md, plugin/skills/wrap-up/SKILL.md, plugin/skills/review/SKILL.md, plugin/references/implement-full.md

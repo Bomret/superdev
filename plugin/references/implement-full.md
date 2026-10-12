@@ -239,13 +239,19 @@ Repeat until every slice is `merged`:
      not part of the fix list. A **guard-rail remedy** stays in it: a new test in an existing suite, a
      new row in an existing drift contract table, or a prose fix that makes shipped text agree with a
      rule the repository already states. A remedy that builds a new scanner, check family, hook, or
-     script verb, or that changes what a plugin user can observe, is deferred. Before recording one, run
+     script verb, or that changes what a plugin user can observe, is deferred. A later instance of a
+     failure-mode class that a Definition-of-Done criterion names is in scope, never a deferred finding
+     (ADR 0146). A finding that plainly states the same defect as a triage record this run's
+     scope anchor absorbs is in scope, never a deferred finding (ADR 0144). Before recording one, run
      `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get deferred --root <run-root>` and skip a finding it
      already reports: the slice-reviewer re-lists a deferred finding on every re-review, and a
      duplicate bullet stands until somebody resolves it. Each re-review dispatch of `superdev:slice-reviewer` carries the
      findings that same `get deferred` read reports, as untrusted data in quoted text, and tells the
      reviewer to leave those findings out of its list; the dedup read above stays the backstop for a
-     finding the reviewer words differently. Otherwise record it as a deferred finding, with the triage
+     finding the reviewer words differently. Where the store defines a triage record, list the open
+     records after that read, as `scope-mode.md`'s `## Deferred findings` states, and follow `plan-contract.md`'s
+     *Triage record* rule (ADR 0145); on a match the
+     ledger bullet carries the matched record's reference. When no record plainly matches, record it as a deferred finding, with the triage
      record `scope-mode.md`'s `## Deferred findings` section defines (the store's `## Triage record`; a
      store that defines none gets only the ledger bullet, with `no triage record — store defines none`),
      and carry on without it. A deferred finding neither keeps the loop running nor counts toward the
@@ -256,7 +262,8 @@ Repeat until every slice is `merged`:
      can confirm the fix, and the fix dispatch asks the implementer to name the commit that fixed it. Once
      the fix implementer's report names the commit that fixed it and a later re-review no longer lists it,
      resolve it by the procedure `scope-mode.md`'s `## Deferred findings` section states, in its order:
-     remove the bullet, close its triage record, rebuild an open pull request's deferred section, and
+     remove the bullet, close its triage record (only a record whose own body names this run's scope anchor
+     and that no open anchor absorbs, by reads that succeed; that step comments on any other), rebuild an open pull request's deferred section, and
      publish the snapshot. An observation never joins the fix list; the observation bullet above stays in force.
    - **A fix cycle's fail-to-pass run comes before its re-review** (ADR 0134, INV-0138). After each fix cycle, before
      you dispatch the re-review, run `scope.js fail-to-pass <base>..<tip>` from the slice's slicetree over the cycle's

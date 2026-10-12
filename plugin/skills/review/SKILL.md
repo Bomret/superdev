@@ -438,7 +438,10 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   section is what the store document owes, and the operator writes it by hand, from one of the shipped
   `references/issue-tracker-*.md` seeds. This folds into the best-effort posture the rest of this bullet
   already states.
-  **Otherwise, create the triage record first**, in the configured slice store, the way that store's own
+  **Where the store defines a triage record, list the open records after that read** and follow
+  `${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md`'s *Triage record* rule (ADR 0145); on a match the
+  ledger bullet carries the matched record's reference.
+  **When no record plainly matches, create the triage record first**, in the configured slice store, the way that store's own
   `## Triage record` section states. Its body carries the finding, why no
   Definition of Done criterion covered it, the date, the feature label, the scope branch, the scope
   anchor's reference, and a copy-pasteable `/superdev:plan "<the finding>"` line — and **no pull-request
@@ -470,6 +473,10 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   that makes shipped text agree with a rule the repository already states. It adds no behaviour, so it
   produces no deferred finding and no triage record. A remedy that builds a new scanner, check family,
   hook, or script verb, or that changes what a plugin user can observe, is still a deferred finding.
+  A later instance of a failure-mode class that a Definition-of-Done criterion names is in scope, never a
+  deferred finding (ADR 0146): the criterion states the class, so the remedy completes what the plan
+  asked for. A finding that plainly states the same defect as a triage record this run's scope anchor
+  absorbs is in scope, never a deferred finding: a criterion already cites that record (ADR 0144).
   **Severity does not move the boundary.** A Minor finding whose remedy adds a capability the Definition of
   Done never named is a deferred finding, with the triage record, ledger bullet, store-defines-none
   fallback, and dedup read above, exactly as one of any other severity.
@@ -485,7 +492,8 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   list like any other, and the dispatch asks the fix implementer to name the commit that fixed it. Once the
   fix implementer's report names the commit that fixed it and a later re-review no longer lists it, resolve
   it by the procedure `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Deferred findings` section
-  states, in its order: remove the bullet, close its triage record, rebuild an open pull request's
+  states, in its order: remove the bullet, close its triage record (only a record whose own body names this run's scope anchor
+  and that no open anchor absorbs, by reads that succeed; that step comments on any other), rebuild an open pull request's
   deferred section, and publish the snapshot.
 - **A line `final-reviewer`'s `### Criteria` calls broken is a Critical finding, and you untick it
   first.** Read the `<run-root>/dod.md`, ticked or not — a ticked line the branch no longer satisfies, or

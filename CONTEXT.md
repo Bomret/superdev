@@ -253,6 +253,14 @@ _Avoid: "verification discipline" (too generic, because this means not trusting 
 **Derived criteria**: the acceptance criteria `final-reviewer` writes itself, from the feature's intent alone, before it reads the Definition of Done or the diff. Diffing them against the DoD surfaces criteria the plan never wrote. It needs a DoD written by someone else to diff against, so the dispatch hands over the DoD's **path** rather than its text, and the reviewer opens it after its own list exists (ADR 0020). Two surfaces dispatch it: `/superdev:review` in scope mode, and `/superdev:plan` before slicing, where every gap becomes a DoD criterion, a fold into an existing criterion, or a named non-goal (INV-0096).
 _Avoid: "independent criteria", "own criteria" (the point is where they come from, not whose they are)_
 
+**Failure-mode class**: a family of inputs or states in the code a feature changes that fail the same
+way, named once instead of case by case: every shell-word spelling that `eval` and `sh -c` accept, every
+way a path can be spelled, every listing that can return less than every record. `/superdev:plan`'s derive
+pass reads the changed code and names each class it finds, and the plan settles it as a criterion stated
+as the class, a fold into an existing criterion, or a named non-goal. A later instance of a class the
+Definition of Done names is in scope for the fix loop, never a **Deferred finding** (ADR 0146).
+_Avoid: "edge case" (that names one instance, and the class is the point)_
+
 **Blind pass**: the part of a full-tier slice review that settles a verdict from the slice's specification, its acceptance criteria, and its diff, before `slice-reviewer` opens the slice's **Progress log**. The log carries the implementer's account of its own work, so the dispatch hands over the log's **path** and never the implementer's report text. Reading the log afterwards can add a finding or raise one's severity, and never withdraws or downgrades one.
 _Avoid: "first pass", "independent review" (the point is what the reviewer has not yet read, not how many passes it makes)_
 
@@ -272,8 +280,10 @@ run's ledger carrying that record's reference, and the pull-request body `/super
 bullet into. The triage record outlives the run root and the closed scope anchor regardless of whether
 the scope ever ships (ADR 0035, 0046, 0110). A deferred finding re-enters the fix loop only when a later
 review names a **Guard-rail remedy** for it. Once a re-review confirms that fix, the run resolves it: the
-ledger bullet goes, the triage record closes, and an open pull request's deferred section is rebuilt
-(ADR 0121).
+ledger bullet goes, the triage record closes only when its own body names this run's scope anchor and no
+open scope anchor absorbs it (on any other record, and when a read of the record or of an Absorbs line fails or
+is denied, the run comments with the fixing commit and leaves it open), and an open pull request's
+deferred section is rebuilt (ADR 0121, ADR 0145).
 _Avoid: "scope growth", "out-of-scope finding" (the point is the DoD boundary, not that the finding is
 unwelcome or off-topic)_
 
@@ -303,9 +313,20 @@ the scope review's fix loop or the full tier's per-slice loop at the moment it d
 the moment it meets an observation, and by `/superdev:plan` at the moment its interview places a found
 defect later. It is neither a slice nor a scope anchor, which is what keeps every run and every sweep from
 selecting it as work to build. How a given store expresses it is stated in that store's own
-`## Triage record` section, which specialises `plan-contract.md` → *Triage record* (ADR 0046).
+`## Triage record` section, which specialises `plan-contract.md` → *Triage record* (ADR 0046). Every
+writer reads the open records before it creates one: a record that plainly states the same defect gets a
+comment carrying the new finding, and no second record is created (ADR 0145).
 _Avoid: "draft issue" (no backend the plugin supports has a draft issue state outside GitHub's project
 boards), "triage slice" (it has no spec, no acceptance, and no place in a DAG)_
+
+**Absorbed triage record**: an open **Triage record** that `/superdev:plan`'s prior-art audit offered
+and the operator chose to build in this scope. A Definition-of-Done criterion cites it by its reference,
+written `(triage <reference>)`, and one criterion may cite several records of one class. The scope anchor's **Absorbs line**,
+`**Absorbs:** #<n>[, #<n>]`, names every record the scope absorbed. `/superdev:backlog` shows it in its own
+`absorbed` bucket while that anchor is open, and `/superdev:wrap-up` closes it once its citing criterion is
+met, or once the operator chooses to close it when that criterion is accepted unmet (ADR 0144).
+_Avoid: "folded record" ("fold" is the derive pass's word for merging a derived criterion into an existing
+one), "planned record" (it stays a triage record, not a slice)_
 
 **Untriaged item**: an open record in the slice store that superdev never wrote — it carries neither a
 feature label nor the store's triage signal, so it is neither a **Scope anchor**, nor a slice, nor a

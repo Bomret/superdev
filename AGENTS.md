@@ -276,7 +276,7 @@ This root owns every other subtree directly:
   routed skill through the Skill tool, and prints the command when the operator does not take the offer. A yes
   starts the routed skill. After a started verify-ship, ship routes again. A route to wrap-up with no hand-sync
   pending starts wrap-up. Any other route ends on a Next block (ADR 0132). `/superdev:verify-ship`
-  settles the criteria only a deployed system can show, and `/superdev:wrap-up` closes the scope anchor and takes
+  settles the criteria only a deployed system can show. `/superdev:wrap-up` closes the triage records the anchor's Absorbs line names, then the scope anchor, and takes
   the run down. Only ship carries `disable-model-invocation: true`. The other two are model-invocable and start
   only when the operator typed the command, asked for it, or agreed to an offer ship makes (ADR 0132, INV-0093). A criterion verify-ship observes false routes to `/superdev:plan`'s
   repair choice, which plans a `fix` feature on its own anchor, linked to the original by a `**Repairs:**`
@@ -284,8 +284,8 @@ This root owns every other subtree directly:
   Whoever invokes a chain command passes `--unattended` to run it unattended (ADR 0016, ADR 0108);
   superdev ships no driver. Some skills sit outside the chain: publish-kb sends a scope's
   staged knowledge-base pages to a remote backend on the operator's own clock (ADR 0023), backlog surveys
-  the slice store read-only, grouping every open scope anchor, triage record, stranded run root, and
-  untriaged item by the action it needs and resolving an ambiguity toward showing the row
+  the slice store read-only, grouping every open scope anchor, triage record (an `absorbed` row when an open anchor's Absorbs line
+  names it, ADR 0144), stranded run root, and untriaged item by the action it needs and resolving an ambiguity toward showing the row
   (ADR 0049), prose-check applies `references/controlled-prose.md` to one piece of prose on demand,
   unconditionally rather than gated on a repo's own `## Writing standard` config (ADR 0057),
   review-tests audits what a test suite costs, sweeping the whole test tree in one `test-auditor`
