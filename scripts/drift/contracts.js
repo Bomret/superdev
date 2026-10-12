@@ -4716,7 +4716,7 @@ const PLAN_ABSORB_CONTRACTS = [
   ],
 ];
 
-// ADR 0144 / INV-0151 / INV-0016: `/superdev:wrap-up`'s §5 closes the records its scope absorbed. Each clause
+// ADR 0144 / INV-0151 / INV-0014 / INV-0016: `/superdev:wrap-up`'s §5 closes the records its scope absorbed. Each clause
 // is its own row, because each fails on its own: the Absorbs read and its nothing-to-close case, the verdict
 // read from `dod.md`'s note, the `met:` close naming the merge commit and the anchor, the `accepted:` ask with
 // its kept-record comment, and the best-effort failure rule.
@@ -4728,7 +4728,7 @@ const WRAP_UP_ABSORBED_CONTRACTS = [
   ],
   [
     path.join('skills', 'wrap-up', 'SKILL.md'),
-    /that criterion's verdict from\s+`<run-root>\/dod\.md`'s note, never the box \(INV-0016\)/,
+    /that criterion's verdict from\s+`<run-root>\/dod\.md`'s note, never the box \(INV-0014\)/,
     "read a citing criterion's verdict from dod.md's note, never the box",
   ],
   [
