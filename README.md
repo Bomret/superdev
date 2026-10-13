@@ -423,6 +423,16 @@ bash or PowerShell variants.
   segments collapsed too, so `.superdev//scopes/x/ledger.md` names a ledger. A scanner that fails to load denies the Bash call. Only `scripts/scope.js`, the run-state CLI that owns the
   ledger's schema, may write it. A write to the run trace (`trace.log`) is refused the same way, because
   only the hooks and `scripts/scope.js` write it.
+- **tree-guard.** Blocks a dispatched implementer's `Edit`, `Write`, or `NotebookEdit` aimed at a
+  checkout of a repository that holds a superdev run, outside its main working tree's `.superdev/`, such
+  as the checkout you started the run from, or at that repository's Git directory, such as `.git/config`,
+  a linked worktree's own Git directory, or a submodule's Git directory under `.git/modules/`. The implementer writes only in its slicetree, and the
+  refusal of a checkout write names the path to write there instead. The hook judges where the bytes would land, so a
+  relative path, `..`, a symbolic link, or a different letter case leads to the same verdict. A Git
+  directory reached by its real path outside `<repo>/.git`, or through a symbolic-link `.git` in another
+  letter case, passes (ADR 0148). It checks
+  only the implementer and only the file tools: a Bash write such as `sed -i` passes. When it cannot place
+  a path, for example because a Git call fails, it lets the write through (ADR 0148).
 - **run-trace.** A hook that records every file edit of a run into the run trace
   (`<run-root>/trace.log`), through the edit tools and through a shell write (redirect, `tee`, `sed -i`,
   `cp`, `mv`, `install`, `git apply`). Each line names its slice, its agent, and whether the file is a

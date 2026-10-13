@@ -1285,3 +1285,12 @@ Statement: `/superdev:plan` absorbs a triage record only when the operator picks
 Breaks: silently
 Check: scripts/drift-check.js — the `plan-absorb` check pins the plan half, and the `wrap-up-absorbed` table pins wrap-up's absorbed-record close, ask, keep, and no-citing-criterion clauses and each store document's Close it comment, and the `triage-write` table pins the resolve half
 Paths: plugin/skills/plan/SKILL.md, plugin/skills/wrap-up/SKILL.md, plugin/skills/review/SKILL.md, plugin/references/implement-full.md
+
+### INV-0152
+
+Class: safety
+Concepts: Implementer, Slicetree, Invoking checkout, Guardrail
+Statement: A dispatched implementer's Edit, Write, or NotebookEdit call never lands in a working tree of a repository that holds a superdev run outside that repository's main-working-tree `.superdev/` directory, nor under that repository's main `.git/` directory, its linked working trees' and submodules' gitdirs included, whatever the target's spelling. A git directory spelled by its real path outside `<repo>/.git` (a `.git` symlink's target, a `--separate-git-dir` directory), or through a symlinked `.git` in another letter case, is outside this rule. A call the guard cannot judge passes, and Bash writes are outside this rule (ADR 0148).
+Breaks: silently
+Check: tests/tree-guard.test.js — an implementer write into the main checkout, into another linked working tree, into the main `.git/` (through a `.git` that is a symlink included), into a linked working tree's gitdir, and into a submodule's gitdir under `.git/modules/` is denied, one into a slicetree, a run root, a repository holding no run, or a bare repository holding no run inside the main checkout passes, and every other caller passes
+Paths: plugin/hooks/tree-guard.js, plugin/hooks/hooks.json

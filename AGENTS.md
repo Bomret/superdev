@@ -44,7 +44,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
   agents/              — the subagents (*.md): implementer, slice-reviewer, simplicity-reviewer,
                          final-reviewer, doc-writer, doc-reader, test-auditor
   hooks/               — the deterministic Node hooks + hooks.json: merge-guard, model-explicit,
-                         green-gate, run-lock, ledger-guard, run-trace, slicetree-sweep, scope-prune, update-check,
+                         green-gate, run-lock, ledger-guard, tree-guard, run-trace, slicetree-sweep, scope-prune, update-check,
                          plus `shell-words.js`, the shared shell scanner the four Bash hooks (merge-guard,
                          green-gate, ledger-guard, run-trace) read a command through (a module, not a hook, ADR 0135)
   references/          — backend seed templates + the non-seed runtime references (plan-contract,
@@ -298,17 +298,22 @@ This root owns every other subtree directly:
 - `plugin/hooks/`. Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working
   rules, Hooks are CommonJS** and **Every shipped executable has a suite in `tests/`, named for it**.
   This is the strongest future child-doc candidate, if its rules outgrow this root. Of the
-  hooks, `scope-prune.js`, `slicetree-sweep.js`, `run-trace.js`, and `green-gate.js` depend on `plugin/scripts/`
+  hooks, `scope-prune.js`, `slicetree-sweep.js`, `run-trace.js`, `green-gate.js`, and `tree-guard.js` depend on `plugin/scripts/`
   (`green-gate.js` requires `scope.js` for `appendTrace` and `run-trace.js` for `locate` and `treeState`, so
   its run line attributes like the trace's own, ADR 0127), and the scripts
   `publish-kb.js` and `profile.js` require `scope.js` as well. `scope-prune.js` and `slicetree-sweep.js` both
   `require` `../scripts/scope.js` for their ledger-header reader (ADR 0022), `run-trace.js` requires it for
   the trace writer and reader and the ledger row readers (ADR 0117), and `scope-prune.js`
-  takes the containment probe `baseHistoryHasPatch` off that same call (ADR 0082). `slicetree-sweep.js`
+  takes the containment probe `baseHistoryHasPatch` off that same call (ADR 0082). `tree-guard.js` requires
+  it for the main-working-tree resolver `mainWorkTree`. It denies a dispatched implementer's Edit, Write, or
+  NotebookEdit into a checkout of a repository that holds a run, outside its main working tree's `.superdev/`.
+  It also denies such a write into that repository's git directory. That covers the main `.git/`, a linked
+  worktree's gitdir, and a submodule's gitdir (ADR 0148, INV-0152). It is the one guardrail that fails open:
+  when `scope.js` cannot load, or git cannot place the target, the write passes. `slicetree-sweep.js`
   tests a worked slice branch's tip against its scope branch's first-parent chain, alongside the
   default-branch content check (ADR 0089). These are the only
   places a hook depends on a script instead of standing alone. A `require` failure leaves the hook
-  with no fallback reader: it sweeps, prunes, or records nothing and says nothing. The probe has its own, narrower
+  with no fallback reader: it sweeps, prunes, records, or denies nothing and says nothing. The probe has its own, narrower
   fallback — `scope-prune.js` prunes by tree comparison alone, still silently. The four Bash hooks
   (`merge-guard.js`, `green-gate.js`, `ledger-guard.js`, `run-trace.js`) each `require` the sibling module
   `shell-words.js` and keep no shell-word reader of their own (ADR 0135, the `arg-token` drift check). When the
@@ -318,7 +323,7 @@ This root owns every other subtree directly:
   `ledger.md` read and write path, exports `readLedgerHeader` for `plugin/hooks/scope-prune.js` and
   `plugin/hooks/slicetree-sweep.js`, exports the trace writer `appendTrace`, the trace reader `readTrace`,
   the field decoder `untraceField`, the ledger row readers `inProgressSlices` and `sliceType`, the verification-command reader
-  `verificationCommands`, the test-path classifier `isTestPath` (ADR 0128), the scope-slug pattern `SLUG_RE`, and the main-checkout resolver `mainWorkTree`, for `plugin/hooks/run-trace.js` (ADR 0117), exports the containment test `testContainment` and its second-tier
+  `verificationCommands`, the test-path classifier `isTestPath` (ADR 0128), the scope-slug pattern `SLUG_RE`, and the main-checkout resolver `mainWorkTree`, for `plugin/hooks/run-trace.js` (ADR 0117), exports `mainWorkTree` for `plugin/hooks/tree-guard.js` (ADR 0148), exports the containment test `testContainment` and its second-tier
   probe `baseHistoryHasPatch` for `plugin/scripts/publish-kb.js` and `plugin/hooks/scope-prune.js`
   (ADR 0053, ADR 0065, ADR 0082), exports `mainWorkTree`, `CHANGE_TYPES`, and `refResolves` for `publish-kb.js` (`SLUG_RE` too, and `mainWorkTree`, `CHANGE_TYPES`, and `verificationCommands` for `profile.js`), and carries verbs that touch no ledger: `root <slug>`,
   which resolves a run root's absolute path against the repository's main working tree from any cwd

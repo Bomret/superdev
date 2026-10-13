@@ -3540,9 +3540,10 @@ clause from one skill fails its own row.
 
 ## Work Guidance
 
-- Scripts are CommonJS, like the hooks. `hooks/scope-prune.js` and `hooks/slicetree-sweep.js` both
-  `require` `scope.js`, so `scope.js` must stay `require`-able under plain `node`. These are the only
-  two dependencies `hooks/` has on `scripts/`.
+- Scripts are CommonJS, like the hooks. `hooks/scope-prune.js`, `hooks/slicetree-sweep.js`,
+  `hooks/run-trace.js`, `hooks/green-gate.js`, and `hooks/tree-guard.js` each `require` `scope.js`, so
+  `scope.js` must stay `require`-able under plain `node`. These are the only dependencies `hooks/` has on
+  `scripts/`.
   `scope.js` in turn `require`s `kb-patch.js` for `maskFencedLines`, so `kb-patch.js` must stay
   `require`-able under plain `node` too. `publish-kb.js` `require`s both `scope.js` and `kb-patch.js`,
   and `profile.js` `require`s `scope.js`. `adopt`'s

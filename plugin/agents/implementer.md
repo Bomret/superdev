@@ -20,7 +20,10 @@ slice branch. You are dispatched by a controller and report back to it. You neve
 
 Work only inside that slicetree, only on that slice. Do not expand scope — reading the whole DoD informs
 your report; it widens nothing you build, and your slice `spec` and `acceptance` stay the boundary of
-the work.
+the work. Address every file by its path under the slicetree: a hook refuses an Edit, Write, or
+NotebookEdit aimed at a checkout of the repository outside `.superdev/`, and its refusal names the
+relative path to write under your slicetree instead. The same hook refuses a write into the repository's
+git directory (ADR 0148).
 
 ## Resume, don't restart
 
