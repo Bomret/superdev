@@ -768,8 +768,7 @@ The walk prunes `.git/`, `node_modules/`, `.superdev/` and `.claude/` — the la
 no `.gitignore`: an ignored file outside the pruned directories still counts toward `Concepts`,
 `Paths`, `Symbols` and citations. Parsing `.gitignore`, or shelling out to `git ls-files`, is out of scope — the
 CLI is deliberately pure Node with no shell-out. It builds relative paths with `/` itself, so
-a glob matches the same files on every OS. `globMatcher` is its own: `fs.globSync` needs Node 22, and
-`package.json` supports Node 20.8.1. The validator filters and ranks no entry — `/superdev:plan` and
+a glob matches the same files on every OS. `globMatcher` is its own: the CLI does not call `fs.globSync`, which needs Node 22. The validator filters and ranks no entry — `/superdev:plan` and
 `final-reviewer` still read the register whole (INV-0088) — and nothing under `plugin/` requires it
 (INV-0051). Its suite, `tests/invariant-check.test.js`, runs the CLI against throwaway repositories under
 the OS temp dir, every spawn through `assertSpawnDecided` (INV-0009).

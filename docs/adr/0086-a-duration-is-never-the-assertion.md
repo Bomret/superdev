@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0149](0149-a-linear-time-pin-reads-the-main-thread-s-cpu-time.md), under which a
+linear-time pin's same-run baseline is measured in the main thread's CPU time.
+
 **Context.** `tests/scope.test.js` asserts that a refetch against a black-holed remote returns inside a
 bounded window, by bracketing the call with `Date.now()` and requiring the elapsed value under 8000 ms.
 During the `feat/verification-ceiling` run it failed with `took 118965ms`, and the same suite's other

@@ -430,10 +430,12 @@ try {
     assert.strictEqual(fs.readFileSync(path.join(tRoot, p.traces[0]), 'utf8'), earlier, 'the earlier trace moved byte for byte');
 
     // A stamp the ledger rotation has to suffix gives the trace the same suffix. Plant ledger names for
-    // the next few seconds so the next rotation's stamp is certain to collide.
+    // the next 120 seconds, so the next rotation's stamp collides unless the stage moves and the init
+    // between planting and rotating take longer than two minutes, however loaded the machine is.
     const planted = [];
-    for (let s = 0; s < 5; s++) {
-      const stamp = new Date(Date.now() + s * 1000).toISOString().slice(0, 19).replace(/:/g, '');
+    const plantedAt = Date.now();
+    for (let s = 0; s < 120; s++) {
+      const stamp = new Date(plantedAt + s * 1000).toISOString().slice(0, 19).replace(/:/g, '');
       const name = `ledger-closed-${stamp}.md`;
       if (!fs.existsSync(path.join(tRoot, name))) {
         fs.writeFileSync(path.join(tRoot, name), 'planted\n');

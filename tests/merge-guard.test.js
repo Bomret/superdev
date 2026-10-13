@@ -649,19 +649,17 @@ assert.equal(decide(sub('echo "it\'s a push"')).block, false, 'a quoted text wit
 }
 
 // a long run of newlines before a `tea`/`gh`/`git` lead-in must not backtrack quadratically (the comment
-// above API_CALL owns why). Measured against the same run's own 2000-newline baseline (AGENTS.md, ADR 0086):
-// 10x the input costs ~10x when linear and ~100x when quadratic, so the 50x ceiling falsifies only the latter.
+// above API_CALL owns why). Measured against the same run's own 2000-newline baseline through timePair (AGENTS.md, ADR 0086,
+// ADR 0149): 10x the input costs ~10x when linear and ~100x when quadratic, so the 50x ceiling falsifies only the latter.
 {
+  const { timePair } = require('./linear-time');
   const run = (n) => {
-    const t0 = process.hrtime.bigint();
     decide(sub('\n'.repeat(n) + 'tea api -X POST ' + M));
     decide(sub('\n'.repeat(n) + 'gh pr merge 5'));
     decide(sub('\n'.repeat(n) + 'git status'));
-    return Number(process.hrtime.bigint() - t0) / 1e6;
   };
-  const base = run(2000);
-  const big = run(20000);
-  assert.ok(big < 50 * (base + 5), `a long run of newlines must scale linearly: 2000 took ${base}ms, 20000 took ${big}ms`);
+  const [base, big] = timePair(run, 2000, 20000);
+  assert.ok(big < 50 * base, `a long run of newlines must scale linearly: 2000 took ${base} ns, 20000 took ${big} ns`);
 }
 
 // require.main guard: requiring this hook must never run main()'s stdin/decide dispatch, and

@@ -644,11 +644,11 @@ assert.equal(bash('grep sed ' + L + ' -i').block, true, 'a flag after the file b
 // against a baseline measured in the same run; the ceiling sits at nine, between them, so a memory knee or load noise in one reading
 // stays below it. The size grows until one run takes about 25 ms, and timePair repeats each sample to that length too.
 {
-  const { timePair } = require('./linear-time');
+  const { timePair, cpuNs } = require('./linear-time');
   const once = (c) => {
-    const t0 = process.hrtime.bigint();
+    const t0 = cpuNs();
     bash(c);
-    return Number(process.hrtime.bigint() - t0);
+    return cpuNs() - t0;
   };
   const quadruples = (label, make, cap) => {
     let n = 1500;

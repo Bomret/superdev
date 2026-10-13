@@ -62,7 +62,8 @@ tests/                 — one suite per shipped executable (the hooks, `scope.j
                          `scope`, `scope-test-verb`, and `scope-fail-to-pass` (ADR 0139); `spawn-verdict.js` and `fixture-git.js`
                          are the shared helpers, not suites — `assertSpawnDecided` (INV-0009), asserted by
                          `spawn-verdict.test.js` and called from every other suite's bounded-spawn sites;
-                         `linear-time.js` is the shared same-run timing helper of the linear-time pins (`timePair`);
+                         `linear-time.js` is the shared same-run timing helper of the linear-time pins (`timePair`,
+                         and `cpuNs`, the thread CPU clock a pin reads to size its input), asserted by `linear-time.test.js`;
                          `fixture-git.js` appends `commit.gpgsign=false` to the `GIT_CONFIG_*` environment
 docs/adr/              — architecture decision records (why the plugin is built this way)
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification, deployment)
@@ -133,7 +134,12 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   command must also clear is itself taken from the same run, never fixed. Where the failure
   the assertion catches is qualitative — catastrophic backtracking is effectively unbounded — a loose
   ceiling still falsifies exactly what a tight one did, so keep the ceiling and loosen it rather than
-  drop it (`tests/green-gate.test.js` and `tests/merge-guard.test.js`'s `LONG_VALUE_OPT` guards).
+  drop it (`tests/green-gate.test.js` and `tests/merge-guard.test.js`'s `LONG_VALUE_OPT` guards). A
+  linear-time pin takes both readings through `tests/linear-time.js`'s `timePair`, which measures the CPU
+  time of the thread running the code, so time the process spends descheduled reaches neither reading
+  (ADR 0149). It keeps its own input ratio and a multiplier ceiling between linear and quadratic growth.
+  `timePair` needs `process.threadCpuUsage()`, so `package.json`'s `engines.node` requires Node 24 or later
+  for the test toolchain. The hooks under `plugin/` do not use it.
 - **Version lives only in `plugin/.claude-plugin/plugin.json`.** Never hand-edit it. semantic-release and
   `semantic-release-replace-plugin` bump it on release. `marketplace.json` carries no version, which
   avoids a double pin where `plugin.json` would silently win. Its source's `ref` names the release tag,

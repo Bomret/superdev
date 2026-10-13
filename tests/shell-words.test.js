@@ -440,19 +440,8 @@ assert.equal(scan(null).readable, false, 'a non-string never throws');
 // --- linear time against a same-run baseline (ADR 0086) ---
 {
   const unit = 'git -C $(a $(b $(c))) x;';
-  const best = (reps) => {
-    const s = unit.repeat(reps);
-    let t = Infinity;
-    for (let k = 0; k < 3; k++) {
-      const t0 = process.hrtime.bigint();
-      const r = scan(s);
-      t = Math.min(t, Number(process.hrtime.bigint() - t0));
-      assert.equal(r.readable, true);
-    }
-    return t;
-  };
-  const base = best(5000);
-  const big = best(20000);
+  for (const reps of [5000, 20000]) assert.equal(scan(unit.repeat(reps)).readable, true);
+  const [base, big] = timePair(scan, unit.repeat(5000), unit.repeat(20000));
   // Four times the input takes about four times as long when linear and sixteen times as long when quadratic;
   // the ceiling sits between them, loose for scheduler noise.
   assert.ok(big < base * 9, `scan time grows linearly: ${base} ns, four times the input ${big} ns`);
@@ -460,16 +449,6 @@ assert.equal(scan(null).readable, false, 'a non-string never throws');
 
 // --- nesting costs linear time and memory, with and without quoted-text reading ---
 {
-  const best = (s, opts) => {
-    let t = Infinity;
-    let r;
-    for (let k = 0; k < 3; k++) {
-      const t0 = process.hrtime.bigint();
-      r = scan(s, opts);
-      t = Math.min(t, Number(process.hrtime.bigint() - t0));
-    }
-    return { t, r };
-  };
   // Four times the input takes about four times as long when linear and sixteen times as long when quadratic;
   // the ceiling sits between them, loose for scheduler noise. A quadratic memory cost aborts the run instead.
   const quadruples = (label, make, opts, verdict) => {
@@ -489,14 +468,9 @@ assert.equal(scan(null).readable, false, 'a non-string never throws');
   quadruples('ANSI-C escapes', (d) => "bash -c $'" + 'g\\x20\\101\\n\\u00e9\\cA'.repeat(d / 4) + "'", { quoted: true }, true);
   // `$((` and `((` that do not close as arithmetic read again as subshells; every rewind spends from a
   // budget in proportion to the input, so a nest of them stays linear (unreadable once the budget is gone).
-  // Both sizes run before either is timed, and each reading is the best of six runs, so a cold first run inflates neither.
   const rewinds = (label, make) => {
-    best(make(500));
-    best(make(2000));
-    const timed = (s) => Math.min(best(s).t, best(s).t);
-    const base = { t: timed(make(500)) };
-    const big = { t: timed(make(2000)) };
-    assert.ok(big.t < base.t * 9, `${label}: time grows linearly: ${base.t} ns, four times the input ${big.t} ns`);
+    const [base, big] = timePair(scan, make(500), make(2000));
+    assert.ok(big < base * 9, `${label}: time grows linearly: ${base} ns, four times the input ${big} ns`);
   };
   rewinds('nested $(( that fall back', (d) => '$(('.repeat(d) + 'a' + ') )'.repeat(d));
   rewinds('nested $(( that fall back, after a command', (d) => 'git merge x; ' + '$(('.repeat(d) + 'a' + ') )'.repeat(d));

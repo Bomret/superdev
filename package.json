@@ -8,7 +8,7 @@
     "release": "semantic-release --no-ci"
   },
   "engines": {
-    "node": ">=20.8.1"
+    "node": ">=24.0.0"
   },
   "devDependencies": {
     "@saithodev/semantic-release-gitea": "^2.1.0",

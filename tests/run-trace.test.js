@@ -1642,18 +1642,14 @@ assert.equal(trace(A).length, 1, 'a missing verification.md still records, with 
 }
 
 // Reading a large trace stays linear: the trace has no cap and every event re-reads it. The ceiling is
-// relative to the same run's own baseline, a small trace read as often as it takes to cover the same
-// line count, so scheduler noise scales both sides alike (ADR 0086).
+// relative to the same run's own baseline through timePair (ADR 0086, ADR 0149): 100 times the lines cost
+// about 100 times when linear and about 10000 times when quadratic, so the 2000x ceiling falsifies only the latter.
 {
+  const { timePair } = require('./linear-time');
   const { readTrace } = require('../plugin/scripts/scope.js');
   const line = '2026-01-01T00:00:00Z 02 implementer run test abc123 pass\n';
-  const small = line.repeat(500);
-  const large = line.repeat(50000);
-  const time = (fn) => { const t = process.hrtime.bigint(); fn(); return Number(process.hrtime.bigint() - t); };
-  readTrace(small);
-  const baseline = time(() => { for (let i = 0; i < 100; i++) readTrace(small); });
-  const big = time(() => readTrace(large));
-  assert.ok(big < baseline * 20 + 5e7, 'reading a trace of 50000 lines costs a small multiple of reading the same lines in small traces');
+  const [base, big] = timePair(readTrace, line.repeat(500), line.repeat(50000));
+  assert.ok(big < base * 2000, `reading a trace of 50000 lines stays linear: 500 lines took ${base} ns, 50000 took ${big} ns`);
 }
 
 fs.rmSync(tmp, { recursive: true, force: true });
