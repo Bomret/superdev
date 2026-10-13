@@ -1,3 +1,15 @@
+# [0.72.0](https://codeberg.org/bomret/superdev/compare/v0.71.0...v0.72.0) (2026-10-13)
+
+
+### Bug Fixes
+
+* **hooks:** refuse a dispatched implementer's file-tool write outside .superdev/ ([#1129](https://codeberg.org/bomret/superdev/issues/1129)) ([d53e431](https://codeberg.org/bomret/superdev/commit/d53e431ca25a64fd10ff10d71462ea18e15cfac1))
+
+
+### Features
+
+* **superdev-view:** draw each slice as a collapsible group and each dispatch run as one line ([#1130](https://codeberg.org/bomret/superdev/issues/1130)) ([f777c1c](https://codeberg.org/bomret/superdev/commit/f777c1c40610d7cf4269298e9b17734ef60fb13c))
+
 # [0.71.0](https://codeberg.org/bomret/superdev/compare/v0.70.1...v0.71.0) (2026-10-12)
 
 
