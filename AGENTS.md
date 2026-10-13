@@ -405,14 +405,33 @@ This root owns every other subtree directly:
   command.
 
   Between the headers the log draws these lines:
-  - the start and end of each dispatch run, with the first `verdict` and `final-verdict` line of the
-    dispatch on its end line;
-  - each slice's start, when its ledger status becomes `in-progress`;
-  - each slice's end, when it merges or blocks, with its duration and the last slice-review verdict.
-    A summary line follows it when any count exists. The summary holds the path-test and suite run
-    counts, the review count, and the fail-to-pass outcome;
-  - a wait of a minute or more between two commands;
+  - one line per dispatch run, at the run's start time. An ended run shows the first `verdict` and
+    `final-verdict` line of its dispatch, its outcome, and its duration. A run with no recorded end shows
+    `running` and the time from its start to the scan's now, so each rescan advances it. A run that a
+    `dispatch-resume` line reopened is marked `resumed`. A slice-review verdict shows its quality part
+    alone when its spec part is `pass` or empty. Otherwise it shows `spec <value>` before the quality part.
+  - one group per slice that a trace line names.
+  - a wait of a minute or more between two commands.
   - a date line on a day change.
+
+  A slice group sits where the first trace line naming the slice falls. Every later line whose slice
+  field names the slice draws inside the group, also after the slice merged or blocked, and under a later
+  command. The group holds the slice's dispatch runs, without the slice id. It holds a summary line for
+  each time the slice ran, when any count exists. The summary holds the path-test and suite run counts,
+  the review count, and the fail-to-pass outcome. A slice that ran more than once also keeps the end line
+  of each earlier run, with its status and duration. A slice that goes `blocked` and then `merged`, with no
+  `in-progress` line between, keeps the `blocked` end line too, because the header stands for the merge. A slice that only the ledger lists draws no group.
+  The group's header row shows these parts in order: the open mark, a time, the status mark, the slice id,
+  and the title. The time is the first `in-progress` time, or the first line's time when none exists. The
+  status mark comes from the latest `ledger slice` line of the run trace that names the slice. It is ✓
+  for `merged`, ✗ for `blocked`, and ▶ for `in-progress`, and absent for any other status. `review ×N`
+  counts the slice's completed slice-reviewer dispatches. A merged or blocked slice then shows the time
+  from its first start to its last end, and an `in-progress` slice shows `running` and the time from its
+  first start. A merged group starts closed, unless it holds a run with no recorded end. Every other group
+  starts open. The open mark is a Button beside the row's Text parts. A press writes the `groups` plugin
+  state atom, keyed by scope and slice id, for the session, and writes no file. The day-change rule runs
+  on the flat log and on each group's lines separately. The flat log dates a group by where it sits. A
+  group's own lines start from the day of its header time.
 
   One dispatch can have several runs, because a `dispatch-resume` line reopens it. A dispatch can have a
   run with no recorded end. A slice can have started and not ended. One line above the log counts those
@@ -424,10 +443,12 @@ This root owns every other subtree directly:
   The pane cuts every log line to one row. Each line is a row Box of sibling Text parts, and no Text
   holds a nested Text, because desktop wraps a nested Text at its child instead of cutting the line.
   When a line is too wide, only the part that `row()` in `hooks/register.tsx` flags `shrink` gives up
-  width. Every other part keeps its width. The `shrink` part is the agent type and slice on a start or
-  end line, and the command name on a header or command end line. On a slice start or slice end line it
-  is the title. On a stage, wait, date, or ahead line it is the label after the time and mark. A slice summary line is one
-  dim part that shrinks. A wait, date, or ahead line has only that label part.
+  width. Every other part keeps its width. On a dispatch run line it is the agent type and, outside a
+  group, the slice. On a header or command end line it is the command name. On a slice group
+  header it is the title, and a header with an empty title draws no title part. On an earlier run's end
+  line inside a group it is the status. On a stage, wait, date, or ahead line it is the label after the
+  time and mark. A slice summary line is one dim part that shrinks. A wait, date, or ahead line has only
+  that label part.
 
   The scan reads a closed scope's trace only while its page is open. The scope stays in the list until
   `hooks/scope-prune.js` reaps its run root. The pane attributes an agent to the scope whose trace

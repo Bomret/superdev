@@ -1,6 +1,6 @@
 {
   "name": "superdev-view",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Pane of the repository's .superdev folder: areas, scopes, and each scope run's event log",
   "author": {
     "name": "Stefan Reichel"

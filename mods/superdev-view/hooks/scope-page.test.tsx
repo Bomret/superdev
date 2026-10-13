@@ -72,19 +72,15 @@ test('the scope page draws the run as one oldest-first log, with no wave, scope-
       `${hm(at('09:00:00'))} ✓ plan`,
       `${hm(at('10:00:00'))} ■ plan · 1:00:00`,
       `${hm(at('10:00:00'))} ✓ implement`,
-      `${hm(at('10:00:30'))} ▶ 01 Slice 01`,
-      `${hm(at('10:01:00'))} ▶ implementer 02`,
-      `${hm(at('10:03:00'))} ■ implementer 02 · failed · 02:00`,
-      `${hm(at('10:04:00'))} ▶ implementer 02 · resumed`,
-      `${hm(at('10:05:00'))} ■ implementer 02 · 01:00`,
-      `${hm(at('10:05:30'))} ▶ slice-reviewer 02`,
-      `${hm(at('10:05:50'))} ■ slice-reviewer 02 · fail changes-needed · 00:20`,
-      `${hm(at('10:05:55'))} ■ 01 Slice 01 · 05:25`,
-      '      path ✗0 ✓1 · f2p fail-to-pass',
+      ` ${hm(at('10:00:30'))} ✓ 01 Slice 01 · 05:25`,
+      ` ${hm(at('10:01:00'))} 02 Slice 02 · review ×1`,
+      `${hm(at('10:01:00'))} ■ implementer · failed · 02:00`,
+      `${hm(at('10:04:00'))} ■ implementer · resumed · 01:00`,
+      `${hm(at('10:05:30'))} ■ slice-reviewer · spec fail changes-needed · 00:20`,
       `${hm(at('10:06:00'))} ■ implement · 06:00`,
       '⋯ 04:00',
       expect.stringMatching(new RegExp(`^${hm(at('10:10:00'))} ● review \\d+:\\d\\d:\\d\\d$`)),
-      `${hm(at('10:11:00'))} ▶ final-reviewer scope`,
+      expect.stringMatching(new RegExp(`^${hm(at('10:11:00'))} ▶ final-reviewer scope · running \\d+:\\d\\d:\\d\\d$`)),
       '○ document · submit · ship · wrap-up',
     ])
     await ui.press({ key: 'back' })
@@ -103,7 +99,7 @@ test('a line above the log counts the running dispatches, and is absent when non
   await $.command.run(runCommand)
   await ui.press({ key: 'scope-a' })
   expect(await ui.find({ type: 'Text', text: /running$/ })).toBeUndefined()
-  expect((await logLines(ui)).at(-2)).toBe(`${hm(at('10:13:00'))} ■ final-reviewer scope · yes · 02:00`)
+  expect((await logLines(ui)).at(-2)).toBe(`${hm(at('10:11:00'))} ■ final-reviewer scope · yes · 02:00`)
 })
 
 test('a trace without step lines draws its stage writes after implement under no command, and no commands-ahead line', async ($, on) => {
@@ -162,7 +158,7 @@ test("the log draws agents from the run trace alone: another session's dispatch 
   await clock.settle()
   await $.command.run(runCommand)
   const ui = await open($, 'desktop')
-  expect(await logLines(ui)).toEqual([`${hm(at('10:00:00'))} ▶ implementer 02`, `${hm(at('10:01:00'))} ▶ implementer 02`])
+  expect((await logLines(ui)).map(l => l.replace(/ · running .*$/, ''))).toEqual([` ${hm(at('10:00:00'))} 02 Slice 02`, `${hm(at('10:00:00'))} ▶ implementer`, `${hm(at('10:01:00'))} ▶ implementer`])
   expect(await ui.find({ type: 'Text', text: /^● 2 running$/ })).toBeDefined()
 })
 
@@ -186,14 +182,13 @@ test('no log line nests a Text in a Text, and each colored part keeps its color,
     expect(nested.map(text)).toEqual([])
     const color = (line: string, part: string) =>
       rows.find(r => r.text === line)?.parts.find(t => text(t) === part)?.props as { color?: string } | undefined
-    expect(color(`${hm(at('10:05:50'))} ■ slice-reviewer 02 · fail changes-needed · 00:20`, ' · fail changes-needed')?.color).toBe('red')
-    expect(color(`${hm(at('10:13:00'))} ■ final-reviewer scope · no · denied · 02:00`, ' · no')?.color).toBe('red')
-    expect(color(`${hm(at('10:13:00'))} ■ final-reviewer scope · no · denied · 02:00`, ' · denied')?.color).toBe('red')
-    expect(color(`${hm(at('10:03:00'))} ■ implementer 02 · failed · 02:00`, ' · failed')?.color).toBe('red')
-    expect(color(`${hm(at('10:14:00'))} ■ 02 Slice 02 · blocked · fail changes-needed`, ' · blocked')?.color).toBe('red')
-    expect(color(`${hm(at('10:00:30'))} ▶ 01 Slice 01`, '▶')?.color).toBe('green')
-    expect(color(`${hm(at('10:14:00'))} ■ 02 Slice 02 · blocked · fail changes-needed`, ' · fail changes-needed')?.color).toBe('red')
-    expect(color(`${hm(at('10:15:00'))} ▶ implementer scope`, '▶')?.color).toBe('green')
+    expect(color(`${hm(at('10:05:30'))} ■ slice-reviewer · spec fail changes-needed · 00:20`, ' · spec fail changes-needed')?.color).toBe('red')
+    expect(color(`${hm(at('10:11:00'))} ■ final-reviewer scope · no · denied · 02:00`, ' · no')?.color).toBe('red')
+    expect(color(`${hm(at('10:11:00'))} ■ final-reviewer scope · no · denied · 02:00`, ' · denied')?.color).toBe('red')
+    expect(color(`${hm(at('10:01:00'))} ■ implementer · failed · 02:00`, ' · failed')?.color).toBe('red')
+    expect(color(` ${hm(at('10:01:00'))} ✗ 02 Slice 02 · review ×1`, ' ✗')?.color).toBe('red')
+    expect(color(` ${hm(at('10:00:30'))} ✓ 01 Slice 01 · 05:25`, ' ✓')?.color).toBe('green')
+    expect(rows.find(r => r.text.startsWith(`${hm(at('10:15:00'))} ▶ implementer scope · running `))?.parts.find(t => text(t) === '▶')?.props).toMatchObject({ color: 'green' })
     expect(rows.find(r => /^\d\d:\d\d ● review /.test(r.text))?.parts.find(t => text(t) === '●')?.props).toMatchObject({ color: 'green' })
     await ui.press({ key: 'back' })
     await ui.unmount()
@@ -222,10 +217,9 @@ test('in every log line only the shrink part shrinks, and every other part keeps
   expect(stepped.map(r => r.shrink)).toEqual([
     [' plan'], [' plan'], [' implement'],
     [' Slice 01'],
-    [' implementer 02'], [' implementer 02'], [' implementer 02'], [' implementer 02'],
-    [' slice-reviewer 02'], [' slice-reviewer 02'],
-    [' Slice 01'],
-    ['      path ✗0 ✓1 · f2p fail-to-pass'],
+    [' Slice 02'],
+    [' implementer'], [' implementer'],
+    [' slice-reviewer'],
     [' implement'],
     ['⋯ 04:00'],
     [' review'],
@@ -245,9 +239,10 @@ test('an absent verdict, ready answer, outcome, or resume leaves no empty part a
   const rows = await logRows(ui)
   const parts = (line: string) => rows.find(r => r.text === line)?.parts.map(text)
   expect(rows.flatMap(r => r.parts).map(text).filter(t => t.trim() === '' || t.trim() === '·')).toEqual([])
-  expect(parts(`${hm(at('10:01:00'))} ▶ implementer 02`)).toEqual([`${hm(at('10:01:00'))} `, '▶', ' implementer 02'])
-  expect(parts(`${hm(at('10:05:00'))} ■ implementer 02 · 01:00`)).toEqual([`${hm(at('10:05:00'))} ■`, ' implementer 02', ' · 01:00'])
-  expect(parts(`${hm(at('10:03:00'))} ■ implementer 02 · failed · 02:00`)).toEqual([`${hm(at('10:03:00'))} ■`, ' implementer 02', ' · failed', ' · 02:00'])
+  expect(parts(`${hm(at('10:04:00'))} ■ implementer · resumed · 01:00`)).toEqual([`${hm(at('10:04:00'))} ■`, ' implementer', ' · resumed', ' · 01:00'])
+  expect(parts(`${hm(at('10:01:00'))} ■ implementer · failed · 02:00`)).toEqual([`${hm(at('10:01:00'))} ■`, ' implementer', ' · failed', ' · 02:00'])
+  expect(parts(` ${hm(at('10:01:00'))} 02 Slice 02 · review ×1`)).toEqual([` ${hm(at('10:01:00'))}`, ' 02', ' Slice 02', ' · review ×1'])
+  expect(rows.find(r => r.text.startsWith(`${hm(at('10:11:00'))} ▶ final-reviewer scope · running `))?.parts.map(text).slice(0, 3)).toEqual([`${hm(at('10:11:00'))} `, '▶', ' final-reviewer scope'])
 })
 
 test('a blocked command draws a stopped header with no elapsed time, and a blocked end line, each in one row with the command name shrinking', async ($, on) => {
@@ -262,11 +257,82 @@ test('a blocked command draws a stopped header with no elapsed time, and a block
   expect(rows.slice(0, 2).every(r => r.parts.every(t => t.props?.wrap === 'truncate-end'))).toBe(true)
 })
 
-test('a slice start for an id absent from the ledger draws its id alone, with no empty title part', async ($, on) => {
+test('a running slice absent from the ledger draws one header row with no empty title part and its elapsed time', async ($, on) => {
   const { files, lists } = repo([`${at('10:00:00')} 09 main ledger slice 09 in-progress`])
   fakeRepo(on, files, lists)
   await $.command.run(runCommand)
-  const ui = await open($, 'terminal')
-  const row = (await logRows(ui)).find(r => r.text === `${hm(at('10:00:00'))} ▶ 09`)
-  expect(row?.parts.map(text)).toEqual([`${hm(at('10:00:00'))} `, '▶', ' 09'])
+  const ui = await open($, 'desktop')
+  const rows = await logRows(ui)
+  expect(rows.length).toBe(1)
+  expect(rows[0]?.text).toMatch(new RegExp(`^ ${hm(at('10:00:00'))} ▶ 09 · running \\d+:\\d\\d:\\d\\d$`))
+  expect(rows[0]?.parts.map(text).slice(0, 3)).toEqual([` ${hm(at('10:00:00'))}`, ' ▶', ' 09'])
+  expect(rows[0]?.parts.find(t => text(t) === ' ▶')?.props).toMatchObject({ color: 'green' })
+  expect(rows[0]?.node.props).toMatchObject({ flexDirection: 'row' })
+  expect(await ui.find({ key: 'toggle-09' })).toBeDefined()
+})
+
+test('a slice-reviewer verdict whose spec part is pass or empty shows its quality part alone, any other spec value shows as spec <value>', async ($, on) => {
+  const review = (n: number, verdict: string) => [
+    `${at(`10:0${n}:00`)} 02 main dispatch superdev:slice-reviewer r${n} Review s1`,
+    `${at(`10:0${n}:10`)} 02 main verdict r${n} ${verdict} 0 i1`,
+    `${at(`10:0${n}:20`)} 02 main dispatch-end superdev:slice-reviewer r${n} completed`,
+  ]
+  const { files, lists } = repo([...review(1, 'pass approved'), ...review(2, 'pass changes-needed'), ...review(3, '- approved'), ...review(4, 'fail changes-needed')])
+  fakeRepo(on, files, lists)
+  await $.command.run(runCommand)
+  const ui = await open($, 'desktop')
+  const rows = (await logRows(ui)).slice(1)
+  expect(rows.map(r => r.text)).toEqual([
+    `${hm(at('10:01:00'))} ■ slice-reviewer · approved · 00:20`,
+    `${hm(at('10:02:00'))} ■ slice-reviewer · changes-needed · 00:20`,
+    `${hm(at('10:03:00'))} ■ slice-reviewer · approved · 00:20`,
+    `${hm(at('10:04:00'))} ■ slice-reviewer · spec fail changes-needed · 00:20`,
+  ])
+  expect(rows.map(r => (r.parts[2]?.props as { color?: string } | undefined)?.color)).toEqual(['green', 'red', 'yellow', 'red'])
+})
+
+test('a merged slice draws one closed group; pressing its open mark shows its lines indented without the slice id, and the choice holds across a rescan', async ($, on) => {
+  const round = (n: number, m: number, verdict: string) => [
+    `${at(`10:${m}:00`)} 01 main dispatch superdev:slice-reviewer r${n} Review s1`,
+    `${at(`10:${m}:10`)} 01 main verdict r${n} ${verdict} 0 i1`,
+    `${at(`10:${m}:20`)} 01 main dispatch-end superdev:slice-reviewer r${n} completed`,
+  ]
+  const { files, lists } = repo([
+    `${at('10:00:00')} 01 main ledger slice 01 in-progress`,
+    `${at('10:01:00')} 01 main ledger slice 01 blocked`,
+    `${at('10:02:00')} 01 main ledger slice 01 in-progress`,
+    ...round(1, 10, 'fail changes-needed'), ...round(2, 11, 'pass changes-needed'), ...round(3, 12, 'pass changes-needed'), ...round(4, 13, 'pass approved'),
+    `${at('10:30:00')} 01 main ledger slice 01 merged a..b`,
+    `${at('10:31:00')} 02 main ledger slice 02 in-progress`,
+    `${at('10:32:00')} 02 main ledger slice 02 blocked`,
+  ])
+  fakeRepo(on, files, lists)
+  await $.command.run(runCommand)
+  const ui = await open($, 'desktop')
+  expect(await logLines(ui)).toEqual([` ${hm(at('10:00:00'))} ✓ 01 Slice 01 · review ×4 · 30:00`, ` ${hm(at('10:31:00'))} ✗ 02 Slice 02 · 01:00`])
+  expect((await ui.find({ key: 'toggle-01' }))?.props).toMatchObject({ label: '▸' })
+  expect((await ui.find({ key: 'toggle-02' }))?.props).toMatchObject({ label: '▾' })
+  await ui.press({ key: 'toggle-01' })
+  const rows = await logRows(ui)
+  expect(rows.map(r => r.text)).toEqual([
+    ` ${hm(at('10:00:00'))} ✓ 01 Slice 01 · review ×4 · 30:00`,
+    `${hm(at('10:01:00'))} ■ blocked · 01:00`,
+    `${hm(at('10:10:00'))} ■ slice-reviewer · spec fail changes-needed · 00:20`,
+    `${hm(at('10:11:00'))} ■ slice-reviewer · changes-needed · 00:20`,
+    `${hm(at('10:12:00'))} ■ slice-reviewer · changes-needed · 00:20`,
+    `${hm(at('10:13:00'))} ■ slice-reviewer · approved · 00:20`,
+    '      review ×4',
+    ` ${hm(at('10:31:00'))} ✗ 02 Slice 02 · 01:00`,
+  ])
+  expect(rows.slice(1, 7).every(r => (r.node.props as { paddingLeft?: number }).paddingLeft === 2)).toBe(true)
+  // The earlier run's end line inside the group gives up width only at its status part.
+  const endParts = (rows[1]?.node.children ?? []).filter((b): b is Node => typeof b !== 'string' && text(b) !== '')
+  expect(endParts.filter(b => b.props?.flexShrink === 1).map(text)).toEqual([' blocked'])
+  expect(endParts.filter(b => b.props?.flexShrink !== 1).every(b => b.props?.flexShrink === 0)).toBe(true)
+  expect(rows[0]?.parts.find(t => text(t) === ' ✓')?.props).toMatchObject({ color: 'green' })
+  await $.command.run(runCommand)
+  await ui.press({ key: 'toggle-02' })
+  expect(await logLines(ui)).toHaveLength(8)
+  expect((await ui.find({ key: 'toggle-01' }))?.props).toMatchObject({ label: '▾' })
+  expect((await ui.find({ key: 'toggle-02' }))?.props).toMatchObject({ label: '▸' })
 })

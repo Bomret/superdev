@@ -51,14 +51,14 @@ export const frontmatter = (md: string) => ({ title: fmField(md, 'title'), actio
 const CHAIN = ['plan', 'implement', 'review', 'document', 'submit', 'ship', 'verify-ship', 'wrap-up']
 const WAIT_MS = 60e3
 
-type Run = { end?: Extract<LogEntry, { kind: 'end' }>; review?: { spec: string; quality: string }; ready?: string }
+type Run = Extract<LogEntry, { kind: 'run' }>
 type Stretch = {
   start?: number; isEnded: boolean
   path: { fail: number; pass: number }; suite: { fail: number; pass: number }
   reviews: Set<string>; f2p: string
-  verdict?: { spec: string; quality: string }
 }
-type Dispatch = { type: string; slice: string; start: number; runs: Run[]; hasVerdict: boolean }
+type Group = Extract<LogEntry, { kind: 'slice' }>
+type Dispatch = { type: string; slice: string; runs: Run[]; hasVerdict: boolean }
 
 // Commands: every command starts at its `ledger step set` line, each line a start of its own. Until a `step set
 // plan` line has passed, the first `ledger init … planned` starts `plan`, and until a `step set implement` line
@@ -68,10 +68,35 @@ type Dispatch = { type: string; slice: string; start: number; runs: Run[]; hasVe
 // stopped command), a stage write, or the next `step set`; each end draws a `commandEnd` entry, and a clear or
 // block with no open command draws nothing. A trace with no step line but a stage write past `merged` was
 // written before the step lines existed: it draws every stage write after implement as a plain line. A
-// dispatch's first end per run wins, and its first `verdict` or `final-verdict` line goes on the end of the
-// run it falls in.
+// dispatch run is one entry at its start; a dispatch's first end per run wins, and its first `verdict` or
+// `final-verdict` line goes on the run it falls in, also when it arrives after that run's end. Slices: every line
+// whose slice field names a slice id draws inside that slice's group, which sits where the slice's first line
+// falls; its header reads the slice's latest status, its first start, and its last end.
 export const eventLog = (ledger: string, trace: string, now: number): EventLog => {
   const entries: LogEntry[] = []
+  // The entry drawn last, flat or inside a group: a fallback header gives way to its `step set` only while it is.
+  let last: LogEntry | null = null
+  const groups = new Map<string, { group: Group; start?: number; end?: number; reviews: Set<string> }>()
+  // Where each group sits: its first line's time, which its header `at` may move past to the first start.
+  const placed = new Map<LogEntry, number>()
+  const isSliceId = (id: string) => id !== '' && id !== 'scope'
+  const groupOf = (id: string, at: number) => {
+    let g = groups.get(id)
+    if (!g) {
+      g = { group: { kind: 'slice', at, id, title: titleOf(id), status: '', isRunning: false, review: 0, isOpenByDefault: true, entries: [] }, reviews: new Set() }
+      groups.set(id, g)
+      placed.set(g.group, at)
+      entries.push(g.group)
+      last = g.group
+    }
+    return g
+  }
+  // Draws an entry in the flat log, or inside the group of the slice it names.
+  const draw = (e: LogEntry, slice = '') => {
+    if (isSliceId(slice)) groupOf(slice, e.at).group.entries.push(e)
+    else entries.push(e)
+    last = e
+  }
   const isStepless = !/ ledger step set /.test(trace) && / ledger stage set (?!(?:planned|implementing|merged)$)\S+$/m.test(trace)
   const dispatches = new Map<string, Dispatch>()
   const commands: Extract<LogEntry, { kind: 'command' }>[] = []
@@ -93,21 +118,23 @@ export const eventLog = (ledger: string, trace: string, now: number): EventLog =
     open.entry.ms = at - open.entry.at
     open.entry.isDone = true
     open.entry.isBlocked = isBlocked
-    entries.push({ kind: 'commandEnd', at, name: open.entry.name, ms: open.entry.ms, isBlocked })
+    draw({ kind: 'commandEnd', at, name: open.entry.name, ms: open.entry.ms, isBlocked })
     if (open.entry.name === 'implement') hasImplementEnded = true
     lastEnd = at
     open = null
   }
   const begin = (at: number, name: string) => {
     close(at)
-    if (lastEnd !== null && at - lastEnd >= WAIT_MS) entries.push({ kind: 'wait', at, ms: at - lastEnd })
+    if (lastEnd !== null && at - lastEnd >= WAIT_MS) draw({ kind: 'wait', at, ms: at - lastEnd })
     const entry = { kind: 'command' as const, at, name, ms: 0, isDone: false, isBlocked: false }
-    entries.push(entry)
+    draw(entry)
     commands.push(entry)
     open = { entry }
   }
   // One slice's stretch since its latest start (`start` is undefined for lines seen before any start): its counts
   // and last review verdict. Only a line whose slice field names the slice counts, and only until the stretch ends.
+  const titles = new Map(slices(ledger).map(s => [s.id, s.title]))
+  const titleOf = (id: string) => titles.get(id) ?? ''
   const stretches = new Map<string, Stretch>()
   const newStretch = (start?: number): Stretch => ({ start, isEnded: false, path: { fail: 0, pass: 0 }, suite: { fail: 0, pass: 0 }, reviews: new Set(), f2p: '' })
   const counting = (id: string) => {
@@ -115,8 +142,6 @@ export const eventLog = (ledger: string, trace: string, now: number): EventLog =
     if (!s && id !== 'scope') stretches.set(id, (s = newStretch()))
     return s?.isEnded ? undefined : s
   }
-  const titles = new Map(slices(ledger).map(s => [s.id, s.title]))
-  const titleOf = (id: string) => titles.get(id) ?? ''
   const verdictRun = (key: string) => {
     const d = dispatches.get(key)
     if (!d || d.hasVerdict) return undefined
@@ -128,6 +153,7 @@ export const eventLog = (ledger: string, trace: string, now: number): EventLog =
     const [ts = '', slice = '', , kind, ...f] = line.split(' ')
     const at = Date.parse(ts)
     if (Number.isNaN(at) || !kind) continue
+    if (isSliceId(untrace(slice))) groupOf(untrace(slice), at)
     if (kind === 'ledger') {
       const [verb, a, b] = f
       if (verb === 'init' && b === 'planned') startFallback(at, 'plan')
@@ -136,32 +162,35 @@ export const eventLog = (ledger: string, trace: string, now: number): EventLog =
         startFallback(at, 'implement')
       } else if (verb === 'stage' && a === 'set' && b && b !== 'planned') {
         close(at)
-        if (isStepless && hasImplementEnded) entries.push({ kind: 'stage', at, stage: b })
+        if (isStepless && hasImplementEnded) draw({ kind: 'stage', at, stage: b })
       } else if (verb === 'step' && a === 'set' && b) {
-        if (fallback && fallback.name === b && !fallback.isDone && entries.at(-1) === fallback) fallback.at = at
+        if (fallback && fallback.name === b && !fallback.isDone && last === fallback) fallback.at = at
         else begin(at, b)
         seenSteps.add(b)
         fallback = null
       }
       else if (verb === 'step' && a === 'clear') close(at)
       else if (verb === 'step' && a === 'block') close(at, true)
-      else if (verb === 'slice' && a) {
+      else if (verb === 'slice' && isSliceId(a ?? '') && b) {
+        const g = groupOf(a!, at)
+        g.group.status = b
         if (b === 'in-progress') {
-          stretches.set(a, newStretch(at))
-          entries.push({ kind: 'sliceStart', at, id: a, title: titleOf(a) })
+          stretches.set(a!, newStretch(at))
+          if (g.start === undefined) g.group.at = g.start = at
         } else if (b === 'merged' || b === 'blocked') {
-          const s = stretches.get(a)
+          // The header's last end follows every merged or blocked line; a stretch already ended draws no second end.
+          g.end = at
+          const s = stretches.get(a!)
           if (s?.isEnded) continue
           const sum = s ?? newStretch()
           sum.isEnded = true
-          stretches.set(a, sum)
-          const end: Extract<LogEntry, { kind: 'sliceEnd' }> = { kind: 'sliceEnd', at, id: a, title: titleOf(a), status: b }
+          stretches.set(a!, sum)
+          const end: Extract<LogEntry, { kind: 'sliceEnd' }> = { kind: 'sliceEnd', at, status: b }
           if (sum.start !== undefined) end.ms = at - sum.start
-          if (sum.verdict) end.review = sum.verdict
-          entries.push(end)
+          draw(end, a)
           const { path, suite, f2p } = sum
           const review = sum.reviews.size
-          if (path.fail + path.pass + suite.fail + suite.pass + review > 0 || f2p) entries.push({ kind: 'sliceSummary', at, id: a, path, suite, review, f2p })
+          if (path.fail + path.pass + suite.fail + suite.pass + review > 0 || f2p) draw({ kind: 'sliceSummary', at, id: a!, path, suite, review, f2p }, a)
         }
       }
     } else if (kind === 'run') {
@@ -174,54 +203,75 @@ export const eventLog = (ledger: string, trace: string, now: number): EventLog =
     } else if (kind === 'dispatch') {
       const key = untrace(f[1])
       if (!key || dispatches.has(key)) continue
-      const d = { type: untrace(f[0]), slice: untrace(slice), start: at, runs: [{}], hasVerdict: false }
-      dispatches.set(key, d)
-      entries.push({ kind: 'start', at, type: d.type, slice: d.slice, isResumed: false })
+      const run: Run = { kind: 'run', at, type: untrace(f[0]), slice: untrace(slice), isResumed: false, isEnded: false, ms: 0, outcome: '' }
+      dispatches.set(key, { type: run.type, slice: run.slice, runs: [run], hasVerdict: false })
+      draw(run, run.slice)
     } else if (kind === 'dispatch-resume') {
       const d = dispatches.get(untrace(f[0]))
-      if (!d || !d.runs.at(-1)?.end) continue
-      d.start = at
-      d.runs.push({})
-      entries.push({ kind: 'start', at, type: d.type, slice: d.slice, isResumed: true })
+      if (!d || !d.runs.at(-1)?.isEnded) continue
+      const run: Run = { kind: 'run', at, type: d.type, slice: d.slice, isResumed: true, isEnded: false, ms: 0, outcome: '' }
+      d.runs.push(run)
+      draw(run, run.slice)
     } else if (kind === 'dispatch-end') {
       const d = dispatches.get(untrace(f[1]))
       const run = d?.runs.at(-1)
-      if (!d || !run || run.end) continue
-      run.end = { kind: 'end', at, type: d.type, slice: d.slice, ms: at - d.start, outcome: untrace(f[2]) }
-      if (run.review) run.end.review = run.review
-      if (run.ready) run.end.ready = run.ready
-      entries.push(run.end)
+      if (!d || !run || run.isEnded) continue
+      run.isEnded = true
+      run.ms = at - run.at
+      run.outcome = untrace(f[2])
       // A dispatch counts once per stretch, however many runs a resume adds; an end with no outcome is completed.
-      if (d.type === 'superdev:slice-reviewer' && (run.end.outcome === 'completed' || run.end.outcome === '')) counting(d.slice)?.reviews.add(untrace(f[1]))
+      if (d.type === 'superdev:slice-reviewer' && (run.outcome === 'completed' || run.outcome === '')) {
+        counting(d.slice)?.reviews.add(untrace(f[1]))
+        if (isSliceId(d.slice)) groupOf(d.slice, at).reviews.add(untrace(f[1]))
+      }
     } else if (kind === 'verdict') {
-      const d = dispatches.get(untrace(f[0]))
-      const s = d?.type === 'superdev:slice-reviewer' ? counting(d.slice) : undefined
-      if (s) s.verdict = { spec: untrace(f[1]), quality: untrace(f[2]) }
       const run = verdictRun(untrace(f[0]))
       if (!run) continue
       run.review = { spec: untrace(f[1]), quality: untrace(f[2]) }
-      if (run.end) run.end.review = run.review
     } else if (kind === 'final-verdict') {
       const run = verdictRun(untrace(f[0]))
       if (!run) continue
       run.ready = untrace(f[1])
-      if (run.end) run.end.ready = run.ready
     }
   }
   for (const c of commands) if (!c.isDone) c.ms = now - c.at
+  for (const d of dispatches.values()) for (const r of d.runs) if (!r.isEnded) r.ms = now - r.at
+  // A group's header: ended slices run from the first start to the last end, a running one to now. The last
+  // stretch's end is the header itself when its status is the header's, so only that end line leaves the group;
+  // an end whose status a later merged or blocked line changed with no start between stays inside it.
+  for (const { group: g, start, end, reviews } of groups.values()) {
+    const isEnded = g.status === 'merged' || g.status === 'blocked'
+    g.isRunning = g.status === 'in-progress'
+    if (start !== undefined && isEnded && end !== undefined) g.ms = end - start
+    if (start !== undefined && g.isRunning) g.ms = now - start
+    g.review = reviews.size
+    g.isOpenByDefault = g.status !== 'merged' || g.entries.some(e => e.kind === 'run' && !e.isEnded)
+    if (isEnded) {
+      const i = g.entries.findLastIndex(e => e.kind === 'sliceEnd')
+      if (i >= 0 && (g.entries[i] as Extract<LogEntry, { kind: 'sliceEnd' }>).status === g.status) g.entries.splice(i, 1)
+    }
+  }
 
   const isClosed = header(ledger, 'Stage') === 'closed'
   const reached = Math.max(-1, ...commands.map(c => CHAIN.indexOf(c.name)))
   const rest = CHAIN.slice(reached + 1).filter(c => c !== 'verify-ship')
   const ahead = isClosed ? 'closed' : !commands.length || (isStepless && hasImplementEnded) || !rest.length ? null : rest
-  const running = [...dispatches.values()].filter(d => !d.runs.at(-1)?.end).length + [...stretches.values()].filter(s => s.start !== undefined && !s.isEnded).length
+  const running = [...dispatches.values()].filter(d => !d.runs.at(-1)?.isEnded).length + [...stretches.values()].filter(s => s.start !== undefined && !s.isEnded).length
 
-  const day = (ms: number) => new Date(ms).toDateString()
-  const dated: LogEntry[] = []
-  for (const e of entries) {
-    const prev = dated.at(-1)
-    if (prev && day(prev.at) !== day(e.at)) dated.push({ kind: 'date', at: e.at })
-    dated.push(e)
+  // The day-change rule runs on the flat log and on each group's lines separately. The flat log reads a group at
+  // where it sits; a group's lines start from its header's day.
+  const dated = (list: LogEntry[], from?: number) => {
+    const out: LogEntry[] = []
+    let prev = from === undefined ? '' : new Date(from).toDateString()
+    for (const e of list) {
+      const at = placed.get(e) ?? e.at
+      const day = new Date(at).toDateString()
+      if (prev && prev !== day) out.push({ kind: 'date', at })
+      prev = day
+      out.push(e)
+    }
+    return out
   }
-  return { entries: dated, running, ahead }
+  for (const { group } of groups.values()) group.entries = dated(group.entries, group.at)
+  return { entries: dated(entries), running, ahead }
 }

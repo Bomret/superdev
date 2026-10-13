@@ -9,6 +9,8 @@ const snapshot = atom({ plugin: 'superdev-view', key: 'snapshot' } as const, nul
 const selected = atom({ plugin: 'superdev-view', key: 'selected' } as const, null)
 // Which overview sections a press opened or closed, by section id; a section absent here takes its default.
 const sections = atom({ plugin: 'superdev-view', key: 'sections' } as const, {})
+// Which slice groups a press opened or closed, by `<scope>/<slice id>`; a group absent here takes its default.
+const groups = atom({ plugin: 'superdev-view', key: 'groups' } as const, {})
 const STAGE_COLOR: Record<string, string> = {
   planned: 'gray', implementing: 'yellow', merged: 'cyan', reviewed: 'cyan',
   'documented-unreviewed': 'cyan', documented: 'blue', submitted: 'magenta', shipped: 'green', closed: 'gray',
@@ -16,6 +18,8 @@ const STAGE_COLOR: Record<string, string> = {
 const SLICE_COLOR: Record<string, string> = { todo: 'gray', 'in-progress': 'yellow', 'in-review': 'blue', merged: 'green', blocked: 'red' }
 const OUTCOME_COLOR: Record<string, string> = { failed: 'red', denied: 'red', stopped: 'yellow', unknown: 'yellow', 'session-end': 'yellow' }
 const READY_COLOR: Record<string, string> = { yes: 'green', no: 'red', 'with-fixes': 'yellow' }
+// A slice-review verdict: its quality part alone when the spec part is `pass` or empty, else `spec <value>` before it.
+const verdictText = (r: { spec: string; quality: string }) => (r.spec === 'pass' || r.spec === '' ? r.quality : `spec ${r.spec} ${r.quality}`)
 const reviewColor = (r: { spec: string; quality: string }) => r.spec === 'pass' && r.quality === 'approved' ? 'green' : r.spec === 'fail' || r.quality === 'changes-needed' ? 'red' : 'yellow'
 // A duration as mm:ss under an hour, else h:mm:ss; a time of day as local HH:MM.
 const clock = (ms: number) => {
@@ -156,8 +160,10 @@ export const register: Register = on => {
     // nested child, so no part nests another. Only the part marked `shrink` gives up room; a `grow` spacer
     // pushes the parts after it to the right edge.
     type Part = { text: string; color?: string; dim?: boolean; bold?: boolean; shrink?: boolean } | 'grow'
-    const row = (key: string, parts: (Part | false | '')[]) => (
-      <Box key={key} flexDirection="row">
+    // `indent` draws a line inside a slice group; `toggle` puts a group's open mark beside the parts, never around them.
+    const row = (key: string, parts: (Part | false | '')[], indent = false, toggle?: { key: string; label: string; onPress: () => void }) => (
+      <Box key={key} flexDirection="row" paddingLeft={indent ? 2 : undefined}>
+        {toggle && <Button key={toggle.key} label={toggle.label} onPress={toggle.onPress} />}
         {parts.filter((p): p is Part => !!p).map((p, n) => p === 'grow' ? <Box key={`${key}-${n}`} flexGrow={1} /> : (
           <Box key={`${key}-${n}`} flexShrink={p.shrink ? 1 : 0} minWidth={p.shrink ? 0 : undefined}>
             <Text color={p.color} dimColor={p.dim} bold={p.bold} wrap="truncate-end">{p.text}</Text>
@@ -165,12 +171,9 @@ export const register: Register = on => {
         ))}
       </Box>
     )
-    const logLine = (e: LogEntry, n: number) => {
-      const key = `log-${n}`
+    const logLine = (e: LogEntry, key: string, isInGroup = false) => {
       const type = (t: string) => t.replace(/^superdev:/, '')
       switch (e.kind) {
-        case 'date':
-          return row(key, [{ text: new Date(e.at).toDateString(), bold: true, dim: true, shrink: true }])
         case 'command':
           return row(key, [
             { text: `${hm(e.at)} ` },
@@ -190,50 +193,67 @@ export const register: Register = on => {
           return row(key, [{ text: `⋯ ${clock(e.ms)}`, dim: true, shrink: true }])
         case 'stage':
           return row(key, [{ text: `${hm(e.at)} ` }, { text: `stage ${e.stage}`, shrink: true }])
-        case 'sliceStart':
-          return row(key, [
-            { text: `${hm(e.at)} ` },
-            { text: '▶', color: 'green' },
-            { text: ` ${e.id}` },
-            e.title !== '' && { text: ` ${e.title}`, shrink: true },
-          ])
+        case 'slice':
+          return null
         case 'sliceEnd':
           return row(key, [
             { text: `${hm(e.at)} ■` },
-            { text: ` ${e.id}` },
-            e.title !== '' && { text: ` ${e.title}`, shrink: true },
+            { text: ` ${e.status}`, color: e.status === 'blocked' ? 'red' : undefined, shrink: true },
             e.ms !== undefined && { text: ` · ${clock(e.ms)}` },
-            e.status === 'blocked' && { text: ' · blocked', color: 'red' },
-            !!e.review && { text: ` · ${e.review.spec} ${e.review.quality}`, color: reviewColor(e.review) },
-          ])
+          ], isInGroup)
         case 'sliceSummary': {
           const group = (name: string, g: { fail: number; pass: number }) => g.fail + g.pass > 0 && `${name} ✗${g.fail} ✓${g.pass}`
           const text = [group('path', e.path), group('suite', e.suite), e.review > 0 && `review ×${e.review}`, e.f2p !== '' && `f2p ${e.f2p}`].filter(Boolean).join(' · ')
-          return row(key, [{ text: `      ${text}`, dim: true, shrink: true }])
+          return row(key, [{ text: `      ${text}`, dim: true, shrink: true }], isInGroup)
         }
-        case 'start':
-          return row(key, [
+        case 'run': {
+          // One line per dispatch run, at its start: an ended run carries its verdict parts and duration, a running one its elapsed
+          // time. Inside a slice group the slice id goes unsaid.
+          const agent = isInGroup ? ` ${type(e.type)}` : ` ${type(e.type)} ${e.slice}`
+          if (!e.isEnded) return row(key, [
             { text: `${hm(e.at)} ` },
             { text: '▶', color: 'green' },
-            { text: ` ${type(e.type)} ${e.slice}`, shrink: true },
+            { text: agent, shrink: true },
             e.isResumed && { text: ' · resumed' },
-          ])
-        case 'end': {
+            { text: ` · running ${clock(e.ms)}` },
+          ], isInGroup)
           const outcome = e.outcome !== '' && e.outcome !== 'completed' ? e.outcome : ''
           return row(key, [
             { text: `${hm(e.at)} ■` },
-            { text: ` ${type(e.type)} ${e.slice}`, shrink: true },
-            !!e.review && { text: ` · ${e.review.spec} ${e.review.quality}`, color: reviewColor(e.review) },
+            { text: agent, shrink: true },
+            e.isResumed && { text: ' · resumed' },
+            !!e.review && { text: ` · ${verdictText(e.review)}`, color: reviewColor(e.review) },
             !!e.ready && { text: ` · ${e.ready}`, color: READY_COLOR[e.ready] ?? 'yellow' },
             !!outcome && { text: ` · ${outcome}`, color: OUTCOME_COLOR[outcome] ?? 'yellow' },
             { text: ` · ${clock(e.ms)}` },
-          ])
+          ], isInGroup)
         }
+        case 'date':
+          return row(key, [{ text: new Date(e.at).toDateString(), bold: true, dim: true, shrink: true }], isInGroup)
       }
     }
 
     if (open) {
       const log = open.log
+      const groupsOpen = await read($, groups)
+      const STATUS_MARK: Record<string, Part> = { merged: { text: ' ✓', color: 'green' }, blocked: { text: ' ✗', color: 'red' }, 'in-progress': { text: ' ▶', color: 'green' } }
+      // A slice group: its header row, then its lines while open.
+      const group = (g: Extract<LogEntry, { kind: 'slice' }>) => {
+        const id = `${open.name}/${g.id}`
+        const isOpen = groupsOpen[id] ?? g.isOpenByDefault
+        const toggle = () => void update($, groups, m => ({ ...m, [id]: !isOpen }))
+        return [
+          row(`group-${g.id}`, [
+            { text: ` ${hm(g.at)}` },
+            STATUS_MARK[g.status] ?? false,
+            { text: ` ${g.id}` },
+            g.title !== '' && { text: ` ${g.title}`, shrink: true },
+            g.review > 0 && { text: ` · review ×${g.review}` },
+            g.ms !== undefined && { text: g.isRunning ? ` · running ${clock(g.ms)}` : ` · ${clock(g.ms)}` },
+          ], false, { key: `toggle-${g.id}`, label: isOpen ? '▾' : '▸', onPress: toggle }),
+          ...(isOpen ? g.entries.map((e, n) => logLine(e, `log-${g.id}-${n}`, true)) : []),
+        ]
+      }
       return (
         <Box flexDirection="column" gap={1}>
           <Box flexDirection="row" flexWrap="wrap" columnGap={1}>
@@ -247,7 +267,7 @@ export const register: Register = on => {
           </Text>
           {log.running > 0 && <Text color="green">● {log.running} running</Text>}
           <Box key="log" flexDirection="column">
-            {log.entries.map((e, n) => logLine(e, n))}
+            {log.entries.flatMap((e, n) => (e.kind === 'slice' ? group(e) : [logLine(e, `log-${n}`)]))}
             {log.ahead !== null && row('ahead', [{ text: log.ahead === 'closed' ? '■ closed' : `○ ${log.ahead.join(' · ')}`, dim: true, shrink: true }])}
           </Box>
         </Box>

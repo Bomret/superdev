@@ -75,7 +75,7 @@ test('a trace with step lines draws each started command, done with its duration
   // a wait of a minute or more: implement's end at 10:06 to review at 10:10, ship's end at 10:17 to wrap-up at 11:17
   expect(log.entries.filter(e => e.kind === 'wait').map(e => e.kind === 'wait' && e.ms)).toEqual([240e3, 3600e3])
   const kinds = log.entries.map(e => (e.kind === 'command' ? e.name : e.kind === 'commandEnd' ? `end ${e.name}` : e.kind))
-  expect(kinds.slice(0, 9)).toEqual(['plan', 'end plan', 'implement', 'sliceStart', 'sliceEnd', 'end implement', 'wait', 'review', 'start'])
+  expect(kinds.slice(0, 8)).toEqual(['plan', 'end plan', 'implement', 'slice', 'end implement', 'wait', 'review', 'run'])
   expect(log.ahead).toEqual('closed')
   expect(log.entries.some(e => e.kind === 'stage')).toBe(false)
 })
@@ -165,6 +165,14 @@ test('an implement run from before the step lines keeps its header when a later 
   expect(log.entries.filter(e => e.kind === 'command' && e.name === 'implement').map(e => e.at)).toEqual([t('09:30:00'), t('10:30:00')])
 })
 
+test('a line drawn into a slice group since the fallback implement header keeps that header when step set implement follows', () => {
+  const opened = [`${at('09:00:00')} scope main ledger init fix/x planned`, `${at('09:20:00')} 01 main run path pass 6e9 dirty a.js`, `${at('09:30:00')} scope main ledger stage set implementing`]
+  const heads = (lines: string[]) => eventLog(LEDGER_OPEN, lines.join('\n'), t('11:00:00')).entries.filter(e => e.kind === 'command' && e.name === 'implement').map(e => e.at)
+  // A trace line that only opens the slice's group, and a dispatch drawn inside a group that already sits in the log.
+  expect(heads([...opened.slice(0, 1), opened[2]!, `${at('09:31:00')} 02 main edit impl b.js`, `${at('10:30:00')} scope main ledger step set implement`])).toEqual([t('09:30:00'), t('10:30:00')])
+  expect(heads([...opened, `${at('09:31:00')} 01 main dispatch superdev:implementer i1 Build s1`, `${at('10:30:00')} scope main ledger step set implement`])).toEqual([t('09:30:00'), t('10:30:00')])
+})
+
 test('a plan run from before the step lines keeps its header when a later plan run writes step set plan', () => {
   const lines = [`${at('09:00:00')} scope main ledger init fix/x planned`, `${at('10:00:00')} scope main ledger init fix/x planned`, `${at('10:00:10')} scope main ledger step set plan`]
   const log = eventLog(LEDGER_OPEN, lines.join('\n'), t('11:00:00'))
@@ -194,7 +202,7 @@ test('a trace parked at merged before its first step line draws no stage line an
   expect(log.ahead).toEqual(['review', 'document', 'submit', 'ship', 'wrap-up'])
 })
 
-test('start and end lines carry type, slice, resumed, duration, verdict, ready-to-merge answer, and an outcome', () => {
+test('each dispatch run is one entry at its start time, carrying type, slice, resumed, duration, verdict, ready-to-merge answer, and an outcome', () => {
   const trace = [
     `${at('10:00:00')} 02 main dispatch superdev:implementer i1 Build s1`,
     `${at('10:02:00')} 02 main dispatch-end superdev:implementer i1 completed`,
@@ -211,56 +219,62 @@ test('start and end lines carry type, slice, resumed, duration, verdict, ready-t
     `${at('10:10:00')} scope main dispatch-end superdev:final-reviewer f1`,
     `${at('10:11:00')} scope main dispatch superdev:slice-reviewer r2 Review s1`,
     `${at('10:12:00')} scope main dispatch-end superdev:slice-reviewer r2 completed`,
+    `${at('10:13:00')} 03 main dispatch superdev:slice-reviewer r3 Review s1`,
+    `${at('10:14:00')} 03 main dispatch-end superdev:slice-reviewer r3 completed`,
+    `${at('10:15:00')} 03 main verdict r3 pass changes-needed 0 i1`,
+    `${at('10:16:00')} 03 main dispatch superdev:implementer i4 Fix s1`,
   ].join('\n')
-  const { entries } = eventLog(LEDGER_OPEN, trace, t('11:00:00'))
-  expect(entries.filter(e => e.kind === 'start')).toEqual([
-    { kind: 'start', at: t('10:00:00'), type: 'superdev:implementer', slice: '02', isResumed: false },
-    { kind: 'start', at: t('10:03:00'), type: 'superdev:implementer', slice: '02', isResumed: true },
-    { kind: 'start', at: t('10:05:00'), type: 'superdev:slice-reviewer', slice: '02', isResumed: false },
-    { kind: 'start', at: t('10:08:00'), type: 'superdev:final-reviewer', slice: 'scope', isResumed: false },
-    { kind: 'start', at: t('10:11:00'), type: 'superdev:slice-reviewer', slice: 'scope', isResumed: false },
+  const log = eventLog(LEDGER_OPEN, trace, t('11:00:00'))
+  const { running } = log
+  const entries = log.entries.flatMap(e => (e.kind === 'slice' ? e.entries : [e]))
+  expect(entries.map(e => e.kind)).toEqual(['run', 'run', 'run', 'run', 'run', 'run', 'run'])
+  expect(entries).toEqual([
+    { kind: 'run', at: t('10:00:00'), type: 'superdev:implementer', slice: '02', isResumed: false, isEnded: true, ms: 120e3, outcome: 'completed' },
+    { kind: 'run', at: t('10:03:00'), type: 'superdev:implementer', slice: '02', isResumed: true, isEnded: true, ms: 60e3, outcome: 'failed' },
+    { kind: 'run', at: t('10:05:00'), type: 'superdev:slice-reviewer', slice: '02', isResumed: false, isEnded: true, ms: 120e3, outcome: 'completed', review: { spec: 'fail', quality: 'changes-needed' } },
+    { kind: 'run', at: t('10:08:00'), type: 'superdev:final-reviewer', slice: 'scope', isResumed: false, isEnded: true, ms: 120e3, outcome: '', ready: 'with-fixes' },
+    { kind: 'run', at: t('10:11:00'), type: 'superdev:slice-reviewer', slice: 'scope', isResumed: false, isEnded: true, ms: 60e3, outcome: 'completed' },
+    { kind: 'run', at: t('10:13:00'), type: 'superdev:slice-reviewer', slice: '03', isResumed: false, isEnded: true, ms: 60e3, outcome: 'completed', review: { spec: 'pass', quality: 'changes-needed' } },
+    { kind: 'run', at: t('10:16:00'), type: 'superdev:implementer', slice: '03', isResumed: false, isEnded: false, ms: t('11:00:00') - t('10:16:00'), outcome: '' },
   ])
-  expect(entries.filter(e => e.kind === 'end')).toEqual([
-    { kind: 'end', at: t('10:02:00'), type: 'superdev:implementer', slice: '02', ms: 120e3, outcome: 'completed' },
-    { kind: 'end', at: t('10:04:00'), type: 'superdev:implementer', slice: '02', ms: 60e3, outcome: 'failed' },
-    { kind: 'end', at: t('10:07:00'), type: 'superdev:slice-reviewer', slice: '02', ms: 120e3, outcome: 'completed', review: { spec: 'fail', quality: 'changes-needed' } },
-    { kind: 'end', at: t('10:10:00'), type: 'superdev:final-reviewer', slice: 'scope', ms: 120e3, outcome: '', ready: 'with-fixes' },
-    { kind: 'end', at: t('10:12:00'), type: 'superdev:slice-reviewer', slice: 'scope', ms: 60e3, outcome: 'completed' },
-  ])
+  expect(running).toBe(1)
 })
 
 test('a run crossing midnight gets a date line before the first line of each new day', () => {
   const trace = [
-    `${at('12:00:00', '11')} 02 main dispatch superdev:implementer i1 Build s1`,
-    `${at('12:30:00', '11')} 02 main dispatch-end superdev:implementer i1 completed`,
-    `${at('12:00:00', '12')} 02 main dispatch superdev:implementer i2 Fix s1`,
-    `${at('12:10:00', '12')} 02 main dispatch-end superdev:implementer i2 completed`,
+    `${at('12:00:00', '11')} scope main dispatch superdev:implementer i1 Build s1`,
+    `${at('12:30:00', '11')} scope main dispatch-end superdev:implementer i1 completed`,
+    `${at('12:00:00', '12')} scope main dispatch superdev:implementer i2 Fix s1`,
+    `${at('12:10:00', '12')} scope main dispatch-end superdev:implementer i2 completed`,
   ].join('\n')
   const kinds = eventLog(LEDGER_OPEN, trace, t('13:00:00', '12')).entries.map(e => e.kind)
-  expect(kinds).toEqual(['start', 'end', 'date', 'start', 'end'])
+  expect(kinds).toEqual(['run', 'date', 'run'])
 })
 
 test('a missing or empty trace draws nothing; a torn line, a bad time, and an unknown kind are skipped', () => {
   expect(eventLog(LEDGER_OPEN, '', 0)).toEqual({ entries: [], running: 0, ahead: null })
   const trace = [
-    `${at('10:00:00')} 02 main dispatch superdev:implementer i1 Build s1`,
-    `${at('10:00:30')} 02 main fail-to-pass a..b fail-to-pass control=0,put-back=1`,
-    `${at('10:00:40')} 02 main run unit pass`,
-    `not-a-time 02 main dispatch-end superdev:implementer i1 completed`,
-    `${at('10:01:00')} 02 main dispatch-end superdev:implementer i1 completed`,
-    `${at('10:02:00')} 02 ma`,
+    `${at('10:00:00')} scope main dispatch superdev:implementer i1 Build s1`,
+    `${at('10:00:30')} scope main fail-to-pass a..b fail-to-pass control=0,put-back=1`,
+    `${at('10:00:40')} scope main run unit pass`,
+    `not-a-time scope main dispatch-end superdev:implementer i1 completed`,
+    `${at('10:01:00')} scope main dispatch-end superdev:implementer i1 completed`,
+    `${at('10:02:00')} scope ma`,
   ].join('\n')
-  expect(eventLog(LEDGER_OPEN, trace, t('11:00:00')).entries.map(e => e.kind)).toEqual(['start', 'end'])
+  expect(eventLog(LEDGER_OPEN, trace, t('11:00:00')).entries.map(e => e.kind)).toEqual(['run'])
 })
 
-// --- slice start, end, and summary lines (ADR 0141) ---
+// --- slice groups (ADR 0141) ---
 
-const SLICES = '| id | issue | title | type | depends-on | status | range |\n|---|---|---|---|---|---|---|\n| 01 | #1 | Draw tiles | behavior | — | merged | — |\n| 02 | #2 | Draw map | behavior | — | merged | — |\n'
-const sliceLines = (trace: string[], ledger = LEDGER_OPEN + SLICES) => eventLog(ledger, trace.join('\n'), t('12:00:00')).entries.filter(e => e.kind.startsWith('slice'))
+const SLICES = '| id | issue | title | type | depends-on | status | range |\n|---|---|---|---|---|---|---|\n| 01 | #1 | Draw tiles | behavior | — | merged | — |\n| 02 | #2 | Draw map | behavior | — | merged | — |\n| 03 | #3 | Never ran | behavior | — | todo | — |\n'
+const logOf = (trace: string[], now = t('12:00:00')) => eventLog(LEDGER_OPEN + SLICES, trace.join('\n'), now)
+type Group = Extract<ReturnType<typeof eventLog>['entries'][number], { kind: 'slice' }>
+const groups = (trace: string[], now?: number) => logOf(trace, now).entries.filter((e): e is Group => e.kind === 'slice')
 const none = { fail: 0, pass: 0 }
 
-test('an inline-tier slice draws a start, an end with title and duration, and a summary of its run and fail-to-pass lines', () => {
-  expect(sliceLines([
+test('an inline-tier slice draws one closed group at its start, with its status, duration, no review count, and its summary inside', () => {
+  const log = logOf([
+    `${at('09:59:00')} scope main ledger stage set implementing`,
     `${at('10:00:00')} 01 main ledger slice 01 in-progress`,
     `${at('10:01:00')} 01 main run path fail 6e9 dirty a.js`,
     `${at('10:02:00')} 01 main run path pass 6e9 dirty a.js`,
@@ -269,30 +283,31 @@ test('an inline-tier slice draws a start, an end with title and duration, and a 
     `${at('10:03:30')} 01 main run whole fail 6e9 clean -`,
     `${at('10:04:00')} 01 main fail-to-pass a..b fail-to-pass control=0,put-back=1`,
     `${at('10:05:00')} 01 main ledger slice 01 merged a..b`,
-  ])).toEqual([
-    { kind: 'sliceStart', at: t('10:00:00'), id: '01', title: 'Draw tiles' },
-    { kind: 'sliceEnd', at: t('10:05:00'), id: '01', title: 'Draw tiles', status: 'merged', ms: 300e3 },
-    { kind: 'sliceSummary', at: t('10:05:00'), id: '01', path: { fail: 1, pass: 1 }, suite: { fail: 1, pass: 1 }, review: 0, f2p: 'fail-to-pass' },
   ])
+  expect(log.entries.map(e => e.kind)).toEqual(['command', 'slice'])
+  expect(log.entries[1]).toEqual({
+    kind: 'slice', at: t('10:00:00'), id: '01', title: 'Draw tiles', status: 'merged', ms: 300e3, isRunning: false, review: 0, isOpenByDefault: false,
+    entries: [{ kind: 'sliceSummary', at: t('10:05:00'), id: '01', path: { fail: 1, pass: 1 }, suite: { fail: 1, pass: 1 }, review: 0, f2p: 'fail-to-pass' }],
+  })
 })
 
-test('a slicetree slice with four review rounds draws the last verdict on its end line and review ×4 in its summary', () => {
+test('a merged slice with four review rounds draws review ×4 and holds its runs and summary', () => {
   const round = (n: number, m: number, verdict: string) => [
     `${at(`10:${m}:00`)} 01 main dispatch superdev:slice-reviewer r${n} Review s1`,
     `${at(`10:${m}:10`)} 01 main verdict r${n} ${verdict} 0 i1`,
     `${at(`10:${m}:20`)} 01 main dispatch-end superdev:slice-reviewer r${n} completed`,
   ]
-  const [, end, summary] = sliceLines([
+  const [g] = groups([
     `${at('10:00:00')} 01 main ledger slice 01 in-progress`,
     ...round(1, 10, 'fail changes-needed'), ...round(2, 11, 'pass changes-needed'), ...round(3, 12, 'pass changes-needed'), ...round(4, 13, 'pass approved'),
     `${at('10:30:00')} 01 main ledger slice 01 merged a..b`,
   ])
-  expect(end).toMatchObject({ kind: 'sliceEnd', review: { spec: 'pass', quality: 'approved' } })
-  expect(summary).toMatchObject({ kind: 'sliceSummary', review: 4 })
+  expect(g).toMatchObject({ status: 'merged', review: 4, ms: 1800e3, isOpenByDefault: false })
+  expect(g?.entries.map(e => e.kind)).toEqual(['run', 'run', 'run', 'run', 'sliceSummary'])
 })
 
-test('a slice blocked and resumed draws two start and end pairs, each summary counting its own stretch', () => {
-  const lines = sliceLines([
+test('a slice blocked then merged draws one group: the blocked end line and both summaries inside, its header merged from the first start to the last end', () => {
+  const log = logOf([
     `${at('10:00:00')} 01 main ledger slice 01 in-progress`,
     `${at('10:01:00')} 01 main run path fail 6e9 dirty a.js`,
     `${at('10:02:00')} 01 main ledger slice 01 blocked`,
@@ -300,115 +315,197 @@ test('a slice blocked and resumed draws two start and end pairs, each summary co
     `${at('10:11:00')} 01 main run path pass 6e9 dirty a.js`,
     `${at('10:15:00')} 01 main ledger slice 01 merged a..b`,
   ])
-  expect(lines.map(e => e.kind)).toEqual(['sliceStart', 'sliceEnd', 'sliceSummary', 'sliceStart', 'sliceEnd', 'sliceSummary'])
-  expect(lines[1]).toMatchObject({ status: 'blocked', ms: 120e3 })
-  expect(lines[2]).toMatchObject({ path: { fail: 1, pass: 0 } })
-  expect(lines[4]).toMatchObject({ status: 'merged', ms: 300e3 })
-  expect(lines[5]).toMatchObject({ path: { fail: 0, pass: 1 } })
+  expect(log.entries.map(e => e.kind)).toEqual(['slice'])
+  const [g] = log.entries as Group[]
+  expect(g).toMatchObject({ status: 'merged', ms: 900e3 })
+  expect(g?.entries).toEqual([
+    { kind: 'sliceEnd', at: t('10:02:00'), status: 'blocked', ms: 120e3 },
+    { kind: 'sliceSummary', at: t('10:02:00'), id: '01', path: { fail: 1, pass: 0 }, suite: none, review: 0, f2p: '' },
+    { kind: 'sliceSummary', at: t('10:15:00'), id: '01', path: { fail: 0, pass: 1 }, suite: none, review: 0, f2p: '' },
+  ])
 })
 
-test('two slices in progress at once count no run line for the wrong slice', () => {
-  const lines = sliceLines([
+test('a slice blocked then merged with no start between keeps the blocked end line, and its header runs to the merge', () => {
+  const [g] = groups([
+    `${at('10:00:00')} 01 main ledger slice 01 in-progress`,
+    `${at('10:02:00')} 01 main ledger slice 01 blocked`,
+    `${at('10:05:00')} 01 main ledger slice 01 merged a..b`,
+  ])
+  expect(g).toMatchObject({ status: 'merged', ms: 300e3 })
+  expect(g?.entries).toEqual([{ kind: 'sliceEnd', at: t('10:02:00'), status: 'blocked', ms: 120e3 }])
+})
+
+test('a blocked slice starts open with ✗ status; a running slice starts open with its elapsed time to now', () => {
+  const [blocked, running] = groups([
+    `${at('10:00:00')} 01 main ledger slice 01 in-progress`,
+    `${at('10:02:00')} 01 main ledger slice 01 blocked`,
+    `${at('10:03:00')} 02 main ledger slice 02 in-progress`,
+  ], t('10:13:00'))
+  expect(blocked).toMatchObject({ status: 'blocked', ms: 120e3, isRunning: false, isOpenByDefault: true })
+  expect(running).toMatchObject({ status: 'in-progress', ms: 600e3, isRunning: true, isOpenByDefault: true })
+})
+
+test('a dispatch naming a slice after its merge, under a later command, draws inside that slice group, and the flat log keeps the rest', () => {
+  const log = logOf([
+    `${at('10:00:00')} scope main ledger step set implement`,
+    `${at('10:01:00')} 01 main ledger slice 01 in-progress`,
+    `${at('10:02:00')} 01 main ledger slice 01 merged a..b`,
+    `${at('10:03:00')} scope main ledger step set review`,
+    `${at('10:04:00')} scope main dispatch superdev:final-reviewer f1 Final s1`,
+    `${at('10:05:00')} 01 main dispatch superdev:implementer i1 Fix s1`,
+    `${at('10:06:00')} 01 main dispatch-end superdev:implementer i1 completed`,
+    `${at('10:07:00')} 01 main dispatch superdev:slice-reviewer r1 Review s1`,
+    `${at('10:07:30')} 01 main dispatch-end superdev:slice-reviewer r1 completed`,
+  ])
+  expect(log.entries.map(e => e.kind)).toEqual(['command', 'slice', 'commandEnd', 'command', 'run'])
+  const g = log.entries[1] as Group
+  expect(g.entries.map(e => e.kind === 'run' && e.type)).toEqual(['superdev:implementer', 'superdev:slice-reviewer'])
+  expect(g).toMatchObject({ status: 'merged', ms: 60e3, review: 1 })
+})
+
+test('two slices in progress at once draw two groups, each holding only its own lines', () => {
+  const [one, two] = groups([
     `${at('10:00:00')} 01 main ledger slice 01 in-progress`,
     `${at('10:00:10')} 02 main ledger slice 02 in-progress`,
+    `${at('10:00:20')} 01 main dispatch superdev:implementer i1 Build s1`,
+    `${at('10:00:30')} 02 main dispatch superdev:implementer i2 Build s1`,
     `${at('10:01:00')} 01 main run path fail 6e9 dirty a.js`,
     `${at('10:01:10')} 02 main run full pass 6e9 clean -`,
     `${at('10:01:20')} scope main run full pass 6e9 clean -`,
     `${at('10:02:00')} 01 main ledger slice 01 merged a..b`,
     `${at('10:03:00')} 02 main ledger slice 02 merged a..b`,
   ])
-  const sums = lines.filter(e => e.kind === 'sliceSummary')
-  expect(sums).toEqual([
-    { kind: 'sliceSummary', at: t('10:02:00'), id: '01', path: { fail: 1, pass: 0 }, suite: none, review: 0, f2p: '' },
-    { kind: 'sliceSummary', at: t('10:03:00'), id: '02', path: none, suite: { fail: 0, pass: 1 }, review: 0, f2p: '' },
-  ])
+  expect(one?.entries.map(e => (e.kind === 'run' ? e.slice : e.kind === 'sliceSummary' ? `${e.id} ${e.path.fail}${e.suite.pass}` : e.kind))).toEqual(['01', '01 10'])
+  expect(two?.entries.map(e => (e.kind === 'run' ? e.slice : e.kind === 'sliceSummary' ? `${e.id} ${e.path.fail}${e.suite.pass}` : e.kind))).toEqual(['02', '02 01'])
 })
 
-test('a second merged draws no second end; a merged with no start draws an end with no duration; an absent slice draws its id alone', () => {
-  expect(sliceLines([
+test('a slice with dispatch lines and no in-progress line draws a group at its first line, with no status and no duration; a slice the trace never names draws none', () => {
+  const log = logOf([
+    `${at('10:00:00')} 02 main dispatch superdev:implementer i1 Build s1`,
+    `${at('10:01:00')} 02 main dispatch-end superdev:implementer i1 completed`,
+  ])
+  expect(log.entries).toEqual([{
+    kind: 'slice', at: t('10:00:00'), id: '02', title: 'Draw map', status: '', isRunning: false, review: 0, isOpenByDefault: true,
+    entries: [{ kind: 'run', at: t('10:00:00'), type: 'superdev:implementer', slice: '02', isResumed: false, isEnded: true, ms: 60e3, outcome: 'completed' }],
+  }])
+})
+
+test('a merged group holding a run with no end starts open; in-review shows no status and no duration', () => {
+  const [merged, reviewing] = groups([
     `${at('10:00:00')} 01 main ledger slice 01 in-progress`,
+    `${at('10:00:10')} 01 main dispatch superdev:implementer i1 Build s1`,
     `${at('10:01:00')} 01 main ledger slice 01 merged a..b`,
-    `${at('10:02:00')} 01 main ledger slice 01 merged a..b`,
-    `${at('10:03:00')} 02 main ledger slice 02 merged a..b`,
-    `${at('10:04:00')} 09 main ledger slice 09 blocked`,
-  ]).filter(e => e.kind === 'sliceEnd')).toEqual([
-    { kind: 'sliceEnd', at: t('10:01:00'), id: '01', title: 'Draw tiles', status: 'merged', ms: 60e3 },
-    { kind: 'sliceEnd', at: t('10:03:00'), id: '02', title: 'Draw map', status: 'merged' },
-    { kind: 'sliceEnd', at: t('10:04:00'), id: '09', title: '', status: 'blocked' },
+    `${at('10:02:00')} 02 main ledger slice 02 in-progress`,
+    `${at('10:03:00')} 02 main ledger slice 02 in-review`,
   ])
+  expect(merged).toMatchObject({ status: 'merged', isOpenByDefault: true })
+  expect(reviewing).toMatchObject({ status: 'in-review', isRunning: false, isOpenByDefault: true })
+  expect(reviewing?.ms).toBeUndefined()
 })
 
-test('a slice with only unknown runs and no fail-to-pass draws no summary line', () => {
-  const kinds = sliceLines([
-    `${at('10:00:00')} 01 main ledger slice 01 in-progress`,
-    `${at('10:01:00')} 01 main run path unknown 6e9 dirty a.js`,
-    `${at('10:02:00')} 01 main fail-to-pass a..b unknown control=1`,
-    `${at('10:03:00')} 01 main ledger slice 01 merged a..b`,
-  ]).map(e => e.kind)
-  expect(kinds).toEqual(['sliceStart', 'sliceEnd'])
+test('a merged with no start draws a group with no duration; a second merged changes nothing', () => {
+  const [g] = groups([
+    `${at('10:03:00')} 02 main ledger slice 02 merged a..b`,
+    `${at('10:04:00')} 02 main ledger slice 02 merged a..b`,
+  ])
+  expect(g).toMatchObject({ at: t('10:03:00'), status: 'merged', entries: [] })
+  expect(g?.ms).toBeUndefined()
 })
 
-test('a slice in progress with no end counts as running, and in-review draws no line and leaves the count', () => {
-  const lines = [`${at('10:00:00')} 01 main ledger slice 01 in-progress`, `${at('10:00:10')} 02 main ledger slice 02 in-progress`]
-  expect(eventLog(LEDGER_OPEN, lines.join('\n'), t('11:00:00')).running).toBe(2)
-  const reviewed = [...lines, `${at('10:01:00')} 02 main ledger slice 02 in-review`]
-  const log = eventLog(LEDGER_OPEN, reviewed.join('\n'), t('11:00:00'))
-  expect(log.running).toBe(2)
-  expect(log.entries.map(e => e.kind)).toEqual(['sliceStart', 'sliceStart'])
-  expect(eventLog(LEDGER_OPEN, [...reviewed, `${at('10:02:00')} 02 main ledger slice 02 merged a..b`].join('\n'), t('11:00:00')).running).toBe(1)
+test('a day change inside a group draws a date line inside it, and the flat log draws none for a day whose lines all moved into groups', () => {
+  const log = eventLog(LEDGER_OPEN + SLICES, [
+    `${at('11:00:00', '11')} scope main ledger step set implement`,
+    `${at('11:10:00', '11')} 01 main ledger slice 01 in-progress`,
+    `${at('11:20:00', '11')} 01 main dispatch superdev:implementer i1 Build s1`,
+    `${at('11:50:00', '11')} 01 main dispatch-end superdev:implementer i1 completed`,
+    `${at('12:20:00', '12')} 01 main dispatch superdev:implementer i2 Fix s1`,
+    `${at('12:30:00', '12')} 01 main dispatch-end superdev:implementer i2 completed`,
+  ].join('\n'), t('13:00:00', '12'))
+  expect(log.entries.map(e => e.kind)).toEqual(['command', 'slice'])
+  expect((log.entries[1] as Group).entries.map(e => e.kind)).toEqual(['run', 'date', 'run'])
 })
 
-test('a reviewer resumed through dispatch-resume counts one review', () => {
-  const [, , summary] = sliceLines([
+test('a group whose first line falls on a later day than its header opens with a date line', () => {
+  const [g] = groups([
+    `${at('11:10:00', '11')} 01 main ledger slice 01 in-progress`,
+    `${at('12:20:00', '12')} 01 main dispatch superdev:implementer i1 Build s1`,
+  ], t('13:00:00', '12'))
+  expect(g?.entries.map(e => e.kind)).toEqual(['date', 'run'])
+})
+
+test('the flat log dates a group by where it sits, not by its later in-progress header time', () => {
+  const log = eventLog(LEDGER_OPEN + SLICES, [
+    `${at('11:00:00', '11')} scope main ledger step set implement`,
+    `${at('11:10:00', '11')} 01 main run path fail 6e9 dirty a.js`,
+    `${at('11:20:00', '11')} scope main dispatch superdev:final-reviewer f1 Final\\x20review s1`,
+    `${at('12:10:00', '12')} 01 main ledger slice 01 in-progress`,
+  ].join('\n'), t('13:00:00', '12'))
+  expect(log.entries.map(e => e.kind)).toEqual(['command', 'slice', 'run'])
+})
+
+test('reviews count across every stretch; a resumed reviewer counts once; a failed or denied reviewer counts none', () => {
+  const [g] = groups([
     `${at('10:00:00')} 01 main ledger slice 01 in-progress`,
     `${at('10:01:00')} 01 main dispatch superdev:slice-reviewer r1 Review s1`,
     `${at('10:01:10')} 01 main dispatch-end superdev:slice-reviewer r1 completed`,
     `${at('10:02:00')} 01 main dispatch-resume r1`,
     `${at('10:02:10')} 01 main dispatch-end superdev:slice-reviewer r1 completed`,
+    `${at('10:02:20')} 01 main ledger slice 01 blocked`,
+    `${at('10:03:00')} 01 main ledger slice 01 in-progress`,
+    `${at('10:03:10')} 01 main dispatch superdev:slice-reviewer r2 Review s1`,
+    `${at('10:03:20')} 01 main dispatch-end superdev:slice-reviewer r2`,
+    `${at('10:03:30')} 01 main dispatch superdev:slice-reviewer r3 Review s1`,
+    `${at('10:03:40')} 01 main dispatch-end superdev:slice-reviewer r3 failed`,
+    `${at('10:03:50')} 01 main dispatch superdev:slice-reviewer r4 Review s1`,
+    `${at('10:03:55')} 01 main dispatch-end superdev:slice-reviewer r4 denied`,
     `${at('10:04:00')} 01 main ledger slice 01 merged a..b`,
   ])
-  expect(summary).toMatchObject({ kind: 'sliceSummary', review: 1 })
+  expect(g?.review).toBe(2)
 })
 
-test('a slice-reviewer ending with no outcome counts as completed', () => {
-  const [, , summary] = sliceLines([
+test('a slice with only unknown runs and no fail-to-pass holds no summary line', () => {
+  const [g] = groups([
     `${at('10:00:00')} 01 main ledger slice 01 in-progress`,
-    `${at('10:03:00')} 01 main dispatch superdev:slice-reviewer r2 Review s1`,
-    `${at('10:03:10')} 01 main dispatch-end superdev:slice-reviewer r2`,
-    `${at('10:04:00')} 01 main ledger slice 01 merged a..b`,
+    `${at('10:01:00')} 01 main run path unknown 6e9 dirty a.js`,
+    `${at('10:02:00')} 01 main fail-to-pass a..b unknown control=1`,
+    `${at('10:03:00')} 01 main ledger slice 01 merged a..b`,
   ])
-  expect(summary).toMatchObject({ kind: 'sliceSummary', review: 1 })
+  expect(g?.entries).toEqual([])
 })
 
-test('a slice-reviewer ending failed or denied counts no review', () => {
-  const kinds = sliceLines([
-    `${at('10:00:00')} 01 main ledger slice 01 in-progress`,
-    `${at('10:01:00')} 01 main dispatch superdev:slice-reviewer r1 Review s1`,
-    `${at('10:01:10')} 01 main dispatch-end superdev:slice-reviewer r1 failed`,
-    `${at('10:02:00')} 01 main dispatch superdev:slice-reviewer r2 Review s1`,
-    `${at('10:02:10')} 01 main dispatch-end superdev:slice-reviewer r2 denied`,
-    `${at('10:04:00')} 01 main ledger slice 01 merged a..b`,
-  ]).map(e => e.kind)
-  expect(kinds).toEqual(['sliceStart', 'sliceEnd'])
+test('a slice in progress with no end counts as running, and in-review leaves the count', () => {
+  const lines = [`${at('10:00:00')} 01 main ledger slice 01 in-progress`, `${at('10:00:10')} 02 main ledger slice 02 in-progress`]
+  expect(logOf(lines, t('11:00:00')).running).toBe(2)
+  const reviewed = [...lines, `${at('10:01:00')} 02 main ledger slice 02 in-review`]
+  const log = logOf(reviewed, t('11:00:00'))
+  expect(log.running).toBe(2)
+  expect(log.entries.map(e => e.kind)).toEqual(['slice', 'slice'])
+  expect(logOf([...reviewed, `${at('10:02:00')} 02 main ledger slice 02 merged a..b`], t('11:00:00')).running).toBe(1)
 })
 
-test('run and verdict lines before any start count into a stretch with no start, and its end carries them', () => {
-  const [end, summary] = sliceLines([
+test('run and verdict lines before any start count into the stretch the merge ends', () => {
+  const [g] = groups([
     `${at('10:00:00')} 01 main run path pass 6e9 dirty a.js`,
     `${at('10:00:10')} 01 main dispatch superdev:slice-reviewer r1 Review s1`,
     `${at('10:00:20')} 01 main verdict r1 pass approved 0 i1`,
     `${at('10:01:00')} 01 main ledger slice 01 merged a..b`,
   ])
-  expect(end).toEqual({ kind: 'sliceEnd', at: t('10:01:00'), id: '01', title: 'Draw tiles', status: 'merged', review: { spec: 'pass', quality: 'approved' } })
-  expect(summary).toMatchObject({ kind: 'sliceSummary', path: { fail: 0, pass: 1 }, review: 0 })
+  expect(g).toMatchObject({ at: t('10:00:00'), status: 'merged' })
+  expect(g?.entries.at(-1)).toMatchObject({ kind: 'sliceSummary', path: { fail: 0, pass: 1 }, review: 0 })
 })
 
 test('reads the ledger and dispatch lines of the shared trace fixture', () => {
   const trace = TRACE_LINES.map((l, i) => `2026-10-11T10:00:${String(i).padStart(2, '0')}.000Z ${l}`).join('\n')
   const log = eventLog(LEDGER_OPEN, trace, t('11:00:00'))
-  const kinds = log.entries.map(e => (e.kind === 'command' ? e.name : e.kind === 'sliceStart' ? `${e.id} started` : e.kind === 'sliceEnd' ? `${e.id} ${e.status}` : e.kind))
-  expect(kinds.filter(k => !['start', 'end'].includes(k))).toEqual(['plan', 'commandEnd', 'implement', '04 started', '05 started', '04 merged', '05 blocked', 'commandEnd', 'review', 'commandEnd'])
+  const kinds = log.entries.map(e => (e.kind === 'command' ? e.name : e.kind === 'slice' ? `${e.id} ${e.status}` : e.kind))
+  expect(kinds.filter(k => k !== 'run')).toEqual(['plan', 'commandEnd', 'implement', '04 merged', '05 blocked', 'commandEnd', 'review', 'commandEnd'])
   expect(log.entries.at(-1)).toMatchObject({ kind: 'commandEnd', name: 'review', isBlocked: true })
-  expect(log.entries.find(e => e.kind === 'end' && e.type === 'superdev:final-reviewer')).toMatchObject({ ready: 'with-fixes' })
+  expect(log.entries.find(e => e.kind === 'run' && e.type === 'superdev:final-reviewer')).toMatchObject({ ready: 'with-fixes' })
+  const runs = log.entries.flatMap(e => (e.kind === 'slice' ? e.entries : [e])).filter(e => e.kind === 'run')
+  expect(runs.map(e => e.kind === 'run' && [e.type, e.slice, e.isResumed, e.isEnded])).toEqual([
+    ['superdev:implementer', '04', false, true], ['superdev:implementer', '04', true, true], ['superdev:slice-reviewer', '04', false, true],
+    ['superdev:implementer', '05', false, false], ['superdev:final-reviewer', 'scope', false, true],
+  ])
+  expect(log.entries.filter(e => e.kind === 'slice').map(e => e.kind === 'slice' && [e.id, e.review, e.isOpenByDefault])).toEqual([['04', 1, false], ['05', 0, true]])
   expect(log.running).toBe(1)
 })

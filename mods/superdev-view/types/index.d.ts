@@ -2,23 +2,29 @@ export type Slice = { id: string; title: string; status: string }
 // One line of a scope's event log (ADR 0141), oldest first. `command` is a chain command the trace records as
 // started: its duration runs to its end, or to now while it runs. `wait` is the time between one command's end and
 // the next command's start, a minute or more. `stage` is a stage write after implement, in a trace with no step
-// lines and a stage write past merged. `start` and `end` are one run of a dispatch; `end` carries that run's dispatch outcome ('' when the
-// line records none), and the first `verdict` or `final-verdict` line of its dispatch. `date` opens a new day.
+// lines and a stage write past merged. `run` is one run of a dispatch, placed at its start (a resumed run at its resume): `ms` is its
+// duration once it ended (`isEnded`), else the time from its start to now; `outcome` is its dispatch outcome ('' when none is
+// recorded), and `review` and `ready` are the first `verdict` or `final-verdict` line of its dispatch. `date` opens a new day: the
+// flat log reads a group on the day where it sits, and a group's own lines start from the day of its header's `at`.
 export type LogEntry =
   | { kind: 'date'; at: number }
   | { kind: 'command'; at: number; name: string; ms: number; isDone: boolean; isBlocked: boolean }
   | { kind: 'commandEnd'; at: number; name: string; ms: number; isBlocked: boolean }
   | { kind: 'wait'; at: number; ms: number }
   | { kind: 'stage'; at: number; stage: string }
-  | { kind: 'start'; at: number; type: string; slice: string; isResumed: boolean }
-  | { kind: 'end'; at: number; type: string; slice: string; ms: number; outcome: string; review?: { spec: string; quality: string }; ready?: string }
-  | { kind: 'sliceStart'; at: number; id: string; title: string }
-  | { kind: 'sliceEnd'; at: number; id: string; title: string; status: string; ms?: number; review?: { spec: string; quality: string } }
+  | { kind: 'run'; at: number; type: string; slice: string; isResumed: boolean; isEnded: boolean; ms: number; outcome: string; review?: { spec: string; quality: string }; ready?: string }
+  | { kind: 'slice'; at: number; id: string; title: string; status: string; ms?: number; isRunning: boolean; review: number; isOpenByDefault: boolean; entries: LogEntry[] }
+  | { kind: 'sliceEnd'; at: number; status: string; ms?: number }
   | ({ kind: 'sliceSummary'; at: number; id: string } & SliceSummary)
-// `sliceStart` is a slice going in progress, `sliceEnd` its merge or block (`ms` runs from that slice's latest start,
-// absent with none; `review` is the slice's last recorded slice-reviewer verdict), and `sliceSummary` counts the
-// trace lines naming the slice since that start: `path` and `suite` runs failed and passed, completed slice-review
-// rounds, and the latest fail-to-pass outcome ('' when none).
+// `slice` is one slice's group, placed where the first trace line naming the slice falls, and holding every later line
+// that names it. `at` is its first `in-progress` line, else its first line. `status` is its latest ledger status ('' with
+// none). `ms` runs from the first start to the last end of a merged or blocked slice, or to now while it is in progress
+// (`isRunning`), and is absent otherwise. `review` counts its completed slice-reviewer dispatches. `isOpenByDefault` is
+// false for a merged slice with no run still open. Inside a group, `sliceEnd` is an end line the header does not stand
+// for: the end of an earlier stretch of a slice that ran more than once, or an end whose status a later merged or blocked
+// line changed with no start between (`ms` from that stretch's start, absent with none), and `sliceSummary` counts the trace lines naming the
+// slice in one stretch: `path` and `suite` runs failed and passed, completed slice-review rounds, and the latest
+// fail-to-pass outcome ('' when none).
 export type SliceSummary = { path: { fail: number; pass: number }; suite: { fail: number; pass: number }; review: number; f2p: string }
 // `running`: the dispatches whose last run has no recorded end, plus the slices started and not yet merged or blocked. `ahead`: the commands still ahead in chain order,
 // 'closed' once the scope closed, or null when the log names none.
@@ -57,6 +63,7 @@ declare module 'claude-code' {
       snapshot: Snapshot | null
       selected: string | null
       sections: Record<string, boolean> // overview section id -> open, set by a press
+      groups: Record<string, boolean> // `<scope>/<slice id>` -> slice group open, set by a press
     }
   }
 }
