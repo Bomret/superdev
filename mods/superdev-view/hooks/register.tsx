@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Draft, Intent, KbPage, LogEntry, Scope, Snapshot } from '../types'
-import { eventLog, frontmatter, header, intent, progress, slices } from './parse'
+import { closedAt, eventLog, frontmatter, header, intent, progress, slices } from './parse'
 
 const PANE = 'superdev-view'
 const snapshot = atom({ plugin: 'superdev-view', key: 'snapshot' } as const, null)
@@ -24,6 +24,9 @@ const tally = (all: { status: string }[]) => {
   for (const x of all) counts.set(x.status, (counts.get(x.status) ?? 0) + 1)
   return [...counts].filter(([, n]) => n > 0)
 }
+// The address a scope row's link carries: never opened, only matched by the pane's own press handler. The slug charset
+// needs no escaping in a Markdown link.
+const scopeHref = (name: string) => `https://superdev.invalid/scope/${name}`
 const share = (n: number, total: number) => (total === 0 ? 0 : Math.round((n / total) * 100))
 // A status's fill where the surface draws an Svg; the terminal draws its named color from SLICE_COLOR instead.
 const SLICE_HEX: Record<string, string> = { todo: '#6b6b6b', 'in-progress': '#d4a72c', 'in-review': '#4a7fd6', merged: '#4c9a6a', blocked: '#d0573f' }
@@ -61,7 +64,6 @@ const barSvg = (segments: [string, number][], height: number, name: string) => {
   })
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 ${height}" preserveAspectRatio="none" width="2000" height="${height}"><clipPath id="${id}"><rect width="100" height="${height}" rx="${height / 2}"/></clipPath><g clip-path="url(#${id})"><rect x="0" y="0" width="100" height="${height}" fill="#3a3a3a"/>${rects.join('')}</g></svg>`
 }
-const swatchSvg = (fill: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" width="10" height="10"><rect x="0" y="0" width="10" height="10" rx="2" fill="${fill}"/></svg>`
 const OUTCOME_COLOR: Record<string, string> = { failed: 'red', denied: 'red', stopped: 'yellow', unknown: 'yellow', 'session-end': 'yellow' }
 const READY_COLOR: Record<string, string> = { yes: 'green', no: 'red', 'with-fixes': 'yellow' }
 // A slice-review verdict: its quality part alone when the spec part is `pass` or empty, else `spec <value>` before it.
@@ -83,6 +85,10 @@ function age(ms: number): string {
   return `${Math.round(ms / 3600e3)}h`
 }
 
+// A closed scope's close time, by name: a closed trace no longer changes, so the overview reads it once. An entry
+// goes when its scope is seen open again (a label reused after retirement).
+const closedTimes = new Map<string, number | null>()
+
 // A directory whose ledger does not read is no scope (null).
 // A closed scope's trace is read only while its page is open (`isOpen`); its overview row needs the ledger alone.
 async function scanScope($: EngineInterface, dir: string, name: string, isOpen: boolean): Promise<Scope | null> {
@@ -93,6 +99,8 @@ async function scanScope($: EngineInterface, dir: string, name: string, isOpen: 
   const lock = await $.fs.stat(`${dir}/run.lock`).catch(() => null)
   const dod = await $.fs.read(`${dir}/dod.md`).catch(() => '')
   const trace = isTraceRead ? await $.fs.read(`${dir}/trace.log`).catch(() => '') : ''
+  if (stage !== 'closed') closedTimes.delete(name)
+  else if (!closedTimes.has(name)) closedTimes.set(name, closedAt(isTraceRead ? trace : await $.fs.read(`${dir}/trace.log`).catch(() => '')))
   return {
     name,
     stage,
@@ -102,6 +110,7 @@ async function scanScope($: EngineInterface, dir: string, name: string, isOpen: 
     dod: progress(dod),
     slices: slices(ledger),
     log: eventLog(ledger, trace, Date.now()),
+    closedAt: closedTimes.get(name) ?? null,
   }
 }
 
@@ -185,8 +194,8 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const table = $.ui.resolve(e)
-    const { Box, Text, Button } = table
-    // The terminal draws no Svg; every other surface draws the bars and the legend squares as one.
+    const { Box, Text, Button, Markdown } = table
+    // The terminal draws no Svg; every other surface draws the bars as one, and the legend squares in the bars' fills.
     const Svg = e.surface !== 'terminal' && 'Svg' in table ? table.Svg : undefined
 
     const snap: Snapshot | null = await read($, snapshot)
@@ -197,7 +206,8 @@ export const register: Register = on => {
     if (snap.error) return <Text dimColor>{snap.error} ({tilde(snap.root)})</Text>
     const all = snap.scopes ?? []
     const active = all.filter(s => s.stage !== 'closed')
-    const closed = all.filter(s => s.stage === 'closed')
+    // The most recently closed first; a scope whose trace records no close goes last.
+    const closed = all.filter(s => s.stage === 'closed').sort((x, y) => (y.closedAt ?? -Infinity) - (x.closedAt ?? -Infinity))
     const now = Date.now()
     const pick = await read($, selected)
     const open = all.find(s => s.name === pick)
@@ -366,12 +376,13 @@ export const register: Register = on => {
           </Box>
         )))}
         {section('scopes', 'Scopes', `${active.length} active · ${closed.length} closed`, true, () => {
-          // A scope's head row: the name Button, which gives up width, and the stage on the right, outside the Button,
-          // because desktop draws a Button's label in one color. A closed scope's row is dim and stands alone.
+          // A scope's head row: the name as a link, which gives up width, and the stage on the right. A Markdown link
+          // presses without a Button's chrome: the pane answers it, and no surface opens the URL. A closed scope's row is
+          // dim and stands alone.
           const head = (s: Scope, isClosed: boolean) => (
             <Box key={`head-${s.name}`} flexDirection="row" alignItems="center" columnGap={1}>
               <Box key={`scope-name-${s.name}`} flexShrink={1} minWidth={0}>
-                <Button key={`scope-${s.name}`} label={s.name} dimColor={isClosed || undefined} onPress={choose(s.name)} />
+                <Markdown key={`scope-${s.name}`} text={`[${s.name}](${scopeHref(s.name)})`} dimColor={isClosed || undefined} onLinkPress={choose(s.name)} />
               </Box>
               <Box flexGrow={1} />
               <Box key={`stage-${s.name}`} flexShrink={0}><Text color={STAGE_COLOR[s.stage] ?? 'white'}>{s.stage}</Text></Box>
@@ -403,7 +414,7 @@ export const register: Register = on => {
                 const label = status || '—'
                 return (
                   <Box key={`legend-${label}`} flexDirection="row" columnGap={1}>
-                    {Svg ? <Box key={`swatch-${label}`}><Svg source={swatchSvg(hex(status))} alt="" width={10} height={10} /></Box> : <Text color={SLICE_COLOR[status] ?? 'gray'}>■</Text>}
+                    <Text color={Svg ? hex(status) : SLICE_COLOR[status] ?? 'gray'}>■</Text>
                     <Box flexShrink={1} minWidth={0}><Text>{label}</Text></Box>
                     <Box flexGrow={1} />
                     <Text dimColor>{n}</Text>

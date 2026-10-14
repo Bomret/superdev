@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { PANE, R, dir, fakeRepo, file, ledger, runCommand } from './testkit'
+import { PANE, R, dir, fakeRepo, file, ledger, runCommand, scopeLink } from './testkit'
 import type { Entry } from './testkit'
 // --- the overview: collapsible cards on every surface ---
 
@@ -32,7 +32,8 @@ test('the overview draws framed cards in order, Scopes open, the others closed, 
   for (const surface of SURFACES) {
     const ui = await $.ui.mount({ plugin: 'superdev-view', surface, ...PANE })
     expect((await ui.findAll({ type: 'Svg' })).length > 0).toBe(surface !== 'terminal')
-    expect(await buttons(ui)).toEqual(['section-brainstorm', 'section-scopes', 'scope-a', 'scope-c', 'section-kb', 'section-design', 'section-drafts'])
+    expect(await buttons(ui)).toEqual(['section-brainstorm', 'section-scopes', 'section-kb', 'section-design', 'section-drafts'])
+    expect((await ui.findAll({ type: 'Markdown' })).map(m => [m.key, m.props.text])).toEqual([['scope-a', '[a](https://superdev.invalid/scope/a)'], ['scope-c', '[c](https://superdev.invalid/scope/c)']])
     expect((await ui.find({ key: 'section-kb' }))?.text).toMatch(/Pending knowledge-base pages$/)
     for (const [id, value] of [['brainstorm', '1'], ['scopes', '1 active · 1 closed'], ['kb', '1'], ['design', '1'], ['drafts', '1']]) {
       const card = await ui.find({ key: `card-${id}` })
@@ -55,7 +56,7 @@ test('pressing a section header opens or closes it, and the state survives a sco
     await ui.press({ key: 'section-scopes' })
     expect(await ui.find({ key: 'scope-a' })).toBeUndefined()
     await ui.press({ key: 'section-scopes' })
-    await ui.press({ key: 'scope-a' })
+    await ui.press(scopeLink('a'))
     await ui.press({ key: 'back' })
     expect([(await ui.find({ key: 'kb-a-p.md' }))?.text, (await ui.find({ key: 'kb-a-p.md-value' }))?.text]).toEqual(['Page', 'patch · scope a'])
     expect(await ui.find({ key: 'scope-a' })).toBeDefined()
@@ -101,7 +102,8 @@ test('off the terminal each bar is an Svg with no text, the stacked bar 6 px and
     expect(total?.width).toBeUndefined()
     expect(fills(String(total?.source))).toEqual([HEX.merged, HEX.blocked, HEX.todo])
     expect(fills(String(scope?.source))).toEqual([HEX.todo, HEX.merged, HEX.blocked])
-    const squares = await Promise.all(['merged', 'blocked', 'todo'].map(async s => fills(String(svgIn(await ui.find({ key: `swatch-${s}` }))?.source))[0]))
+    // A legend square is Text in its status's fill: an Svg that small draws nothing on the desktop.
+    const squares = (await ui.findAll({ type: 'Text', text: '■' })).map(s => s.props.color)
     expect(squares).toEqual([HEX.merged, HEX.blocked, HEX.todo])
     await ui.unmount()
   }
@@ -159,7 +161,7 @@ test('no ledger text reaches an Svg source on desktop, neither a status nor a sl
   await $.command.run(runCommand)
   const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'desktop', ...PANE })
   const sources = (await ui.findAll({ type: 'Svg' })).map(s => String(s.props.source))
-  expect([sources.length > 0, (await legend(ui)).includes('<x150%')]).toEqual([true, true])
+  expect([sources.length > 0, (await legend(ui)).includes('■<x150%')]).toEqual([true, true])
   expect(sources.filter(s => s.includes('<x') || s.includes('evil') || s.includes('<text'))).toEqual([])
 })
 
@@ -195,7 +197,7 @@ test('the Scopes card counts the active scopes\' slices in its summary and legen
   for (const surface of SURFACES) {
     const ui = await $.ui.mount({ plugin: 'superdev-view', surface, ...PANE })
     expect([(await ui.find({ key: 'merged-share' }))?.text, (await ui.find({ key: 'slice-count' }))?.text]).toEqual(['33% merged', '1 / 3 slices'])
-    expect(await legend(ui)).toEqual([`${surface === 'terminal' ? '■' : ''}merged133%`, `${surface === 'terminal' ? '■' : ''}in-progress133%`, `${surface === 'terminal' ? '■' : ''}todo133%`])
+    expect(await legend(ui)).toEqual(['■merged133%', '■in-progress133%', '■todo133%'])
     await ui.unmount()
   }
 })
@@ -233,7 +235,7 @@ test('a section with no item is absent, and Scopes with no active scope says so 
   fakeRepo(on, { [`${R}/scopes/c/ledger.md`]: ledger('closed', [['01', 'merged']]) }, { [R]: [dir('scopes'), dir('brainstorm'), dir('design')], [`${R}/scopes`]: [dir('c')], [`${R}/scopes/c`]: [], [`${R}/brainstorm`]: [], [`${R}/design`]: [] })
   await $.command.run(runCommand)
   const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'terminal', ...PANE })
-  expect(await buttons(ui)).toEqual(['section-scopes', 'scope-c'])
+  expect(await buttons(ui)).toEqual(['section-scopes'])
   expect(await ui.find({ type: 'Text', text: /no active scope/ })).toBeDefined()
 })
 
@@ -243,7 +245,7 @@ test('a scope row shows its name, its stage in color on the right, a bar segment
   await $.command.run(runCommand)
   for (const surface of SURFACES) {
     const ui = await $.ui.mount({ plugin: 'superdev-view', surface, ...PANE })
-    expect((await ui.find({ key: 'scope-a' }))?.text).toBe('a')
+    expect((await ui.find({ key: 'scope-a' }))?.props.text).toBe('[a](https://superdev.invalid/scope/a)')
     expect((await ui.find({ key: 'scope-a' }))?.props.dimColor).toBeFalsy()
     const name = await ui.find({ key: 'scope-name-a' })
     expect([name?.props.flexShrink, name?.props.minWidth]).toEqual([1, 0])
@@ -254,7 +256,7 @@ test('a scope row shows its name, its stage in color on the right, a bar segment
     if (surface === 'terminal') expect((bar?.children as { props: { color: string }; children: unknown }[]).map(c => [c.props.color, [c.children].flat().join('')])).toEqual([['green', '▬'], ['yellow', '▬'], ['gray', '▬']])
     else expect([svgIn(bar)?.height, fills(String(svgIn(bar)?.source))]).toEqual([4, [HEX.merged, HEX['in-progress'], HEX.todo]])
     expect(await ui.find({ type: 'Text', text: /^1\/3 slices · DoD 1\/2 · 0 running$/ })).toBeDefined()
-    await ui.press({ key: 'scope-a' })
+    await ui.press(scopeLink('a'))
     expect(await ui.find({ key: 'back' })).toBeDefined()
     await ui.press({ key: 'back' })
     await ui.unmount()
@@ -302,7 +304,9 @@ test('a press writes no file', async ($, on) => {
   })
   await $.command.run(runCommand)
   const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'terminal', ...PANE })
-  for (const key of ['section-brainstorm', 'section-scopes', 'section-scopes', 'scope-a', 'back']) await ui.press({ key })
+  for (const key of ['section-brainstorm', 'section-scopes', 'section-scopes']) await ui.press({ key })
+  await ui.press(scopeLink('a'))
+  await ui.press({ key: 'back' })
   expect(writes).toBe(0)
 })
 
@@ -313,13 +317,13 @@ test('the Scopes card lists closed scopes after active ones as dim rows with clo
   await $.command.run(runCommand)
   for (const surface of SURFACES) {
     const ui = await $.ui.mount({ plugin: 'superdev-view', surface, ...PANE })
-    expect((await buttons(ui)).filter(b => b?.startsWith('scope-'))).toEqual(['scope-a', 'scope-c'])
+    expect((await ui.findAll({ type: 'Markdown' })).map(m => m.key)).toEqual(['scope-a', 'scope-c'])
     expect((await ui.findAll({ type: 'Text', text: /^closed$/ })).map(t => t.props.color)).toEqual(['gray'])
     expect((await ui.find({ key: 'scope-c' }))?.props.dimColor).toBe(true)
     expect((await ui.find({ key: 'stage-c' }))?.text).toBe('closed')
     expect(await ui.find({ key: 'bar-c' })).toBeUndefined()
     expect(await ui.find({ type: 'Text', text: /^1\/1 slices · DoD 0\/0 · 0 running$/ })).toBeUndefined()
-    await ui.press({ key: 'scope-c' })
+    await ui.press(scopeLink('c'))
     expect(await ui.find({ key: 'back' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^ plan$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^✓$/ })).toBeDefined()
@@ -330,20 +334,38 @@ test('the Scopes card lists closed scopes after active ones as dim rows with clo
   }
 })
 
-test("with no scope page open the pane reads no closed scope's trace, and a closed scope's page reads its own alone", async ($, on) => {
+test("with no scope page open the pane reads a closed scope's trace once, for its close time, and a closed scope's page reads its own", async ($, on) => {
   const { files, lists } = overviewRepo()
   files[`${R}/scopes/c/trace.log`] = '2026-10-11T10:00:00.000Z scope main ledger init feat/c planned'
   const reads: string[] = []
   const counted = new Proxy(files, { get: (t, k: string) => (k.endsWith('/trace.log') && reads.push(k), t[k]) })
   fakeRepo(on, counted, lists)
   await $.command.run(runCommand)
+  await $.command.run(runCommand)
   const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'terminal', ...PANE })
-  expect(reads.filter(p => p.includes('/scopes/c/'))).toEqual([])
-  await ui.press({ key: 'scope-c' })
+  expect(reads.filter(p => p.includes('/scopes/c/')).length).toBe(1)
+  await ui.press(scopeLink('c'))
   await $.command.run(runCommand)
   expect(reads.filter(p => p.includes('/scopes/c/')).length).toBeGreaterThan(0)
   expect(await ui.find({ type: 'Text', text: /^ plan$/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^[✓●]$/ })).toBeDefined()
+})
+
+test('closed scopes list the most recently closed first, by the trace\'s closed stage write, and one with none last', async ($, on) => {
+  const closedTrace = (at: string) => `2026-10-01T09:00:00.000Z scope main ledger init feat/x planned\n${at} scope main ledger stage set closed\n`
+  const files: Record<string, string> = {
+    [`${R}/scopes/a/ledger.md`]: ledger('implementing', [['01', 'todo']]),
+    [`${R}/scopes/old/ledger.md`]: ledger('closed', [['01', 'merged']]),
+    [`${R}/scopes/old/trace.log`]: closedTrace('2026-10-11T10:00:00.000Z'),
+    [`${R}/scopes/new/ledger.md`]: ledger('closed', [['01', 'merged']]),
+    [`${R}/scopes/new/trace.log`]: closedTrace('2026-10-12T09:00:00.000Z'),
+    [`${R}/scopes/bare/ledger.md`]: ledger('closed', [['01', 'merged']]),
+  }
+  const lists: Record<string, Entry[]> = { [R]: [dir('scopes')], [`${R}/scopes`]: [dir('a'), dir('bare'), dir('old'), dir('new')], [`${R}/scopes/a`]: [], [`${R}/scopes/old`]: [], [`${R}/scopes/new`]: [], [`${R}/scopes/bare`]: [] }
+  fakeRepo(on, files, lists)
+  await $.command.run(runCommand)
+  const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'desktop', ...PANE })
+  expect((await ui.findAll({ type: 'Markdown' })).map(m => m.key)).toEqual(['scope-a', 'scope-new', 'scope-old', 'scope-bare'])
 })
 
 test('a closed scope whose run root is removed leaves the list, and its open page returns to the overview', async ($, on) => {
@@ -351,7 +373,7 @@ test('a closed scope whose run root is removed leaves the list, and its open pag
   fakeRepo(on, files, lists)
   await $.command.run(runCommand)
   const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'desktop', ...PANE })
-  await ui.press({ key: 'scope-c' })
+  await ui.press(scopeLink('c'))
   expect(await ui.find({ key: 'back' })).toBeDefined()
   lists[`${R}/scopes`] = [dir('a')]
   delete files[`${R}/scopes/c/ledger.md`]

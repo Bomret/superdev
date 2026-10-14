@@ -1,6 +1,6 @@
 import { test, expect } from 'claude-code/testing'
 import { register } from './register'
-import { R as ROOT, dir as d, fakeRepo, ledger, runCommand, PANE as P } from './testkit'
+import { R as ROOT, dir as d, fakeRepo, ledger, runCommand, PANE as P, scopeLink } from './testkit'
 
 const R = '/r/.superdev'
 const S = `${R}/scopes/pin`
@@ -40,7 +40,7 @@ test('clicking an active scope shows its log, back returns', async ($, on) => {
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ plugin: 'superdev-view', surface, ...PANE })
     expect(await ui.find({ key: 'back' })).toBeUndefined()
-    await ui.press({ key: 'scope-pin' })
+    await ui.press(scopeLink('pin'))
     expect(await ui.find({ type: 'Text', text: /^DoD 0\/0$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^● 1 running$/ })).toBeDefined()
     expect(await ui.find({ type: 'Box', key: 'log' })).toBeDefined()

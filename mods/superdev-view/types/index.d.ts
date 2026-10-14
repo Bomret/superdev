@@ -39,6 +39,8 @@ export type Scope = {
   dod: Progress
   slices: Slice[]
   log: EventLog
+  // When the trace records the closed stage write; null for an open scope or a trace with none.
+  closedAt: number | null
 }
 // `isDraft` from the frontmatter's `status: draft` alone (ADR 0112); `status` is the body's `**Status:**` line, if any.
 export type Intent = { name: string; title: string; status: string; isDraft: boolean }

@@ -22,6 +22,14 @@ export const slices = (ledger: string): Slice[] =>
     .filter(c => c.length >= 6)
     .map(c => ({ id: c[0] ?? '', title: c[2] ?? '', status: c[5] ?? '' }))
 
+// When the trace last records the scope's closed stage write, or null when it records none (a trace from before
+// wrap-up wrote one, or none at all).
+export const closedAt = (trace: string): number | null => {
+  const at = [...trace.matchAll(/^(\S+) \S+ \S+ ledger stage set closed$/gm)].pop()?.[1]
+  const ms = at === undefined ? NaN : Date.parse(at)
+  return Number.isNaN(ms) ? null : ms
+}
+
 // DoD checkboxes: `- [x]` done, `- [ ]` open.
 export const progress = (md: string) => ({
   done: (md.match(/^\s*- \[[xX]\]/gm) ?? []).length,

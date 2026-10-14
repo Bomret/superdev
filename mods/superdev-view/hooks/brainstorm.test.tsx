@@ -28,7 +28,7 @@ test('every surface shows a draft intent as draft and a ready one as ready, and 
     expect([(await ui.find({ key: 'intent-a' }))?.text, (await ui.find({ key: 'intent-a-value' }))?.text]).toEqual(['Alpha', 'draft'])
     expect([(await ui.find({ key: 'intent-b' }))?.text, (await ui.find({ key: 'intent-b-value' }))?.text]).toEqual(['Beta', 'ready'])
     expect(await ui.find({ type: 'Text', text: /^ready to plan$/ })).toBeDefined()
-    expect((await ui.findAll({ type: 'Button' })).map(b => b.key)).toEqual(['section-brainstorm', 'section-scopes', 'scope-s'])
+    expect((await ui.findAll({ type: 'Button' })).map(b => b.key)).toEqual(['section-brainstorm', 'section-scopes'])
     await ui.press({ key: 'section-brainstorm' })
     await ui.unmount()
   }

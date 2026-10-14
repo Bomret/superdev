@@ -392,8 +392,8 @@ This root owns every other subtree directly:
 
   The pane is a docked side tab, often narrow. On every surface, every word the pane shows is Text at the
   host's own text size. An Svg in the pane holds no text, because the surface scales a drawing to the
-  pane's width, and text inside a scaled drawing shrinks with it. An Svg draws only a bar or a legend
-  square, at a fixed height. The terminal has no Svg and draws the same bars as colored glyphs, one glyph per slice in a scope's bar.
+  pane's width, and text inside a scaled drawing shrinks with it. An Svg draws only a bar, at a fixed
+  height. A legend square is Text in its bar's fill. The terminal has no Svg and draws the same bars as colored glyphs, one glyph per slice in a scope's bar.
 
   The overview is a column of collapsible cards: Brainstorm, Scopes, Pending knowledge-base pages, Design
   sketches, and DoD drafts. Each card has a rounded, dim border. Its header shows the open mark and the
@@ -403,9 +403,11 @@ This root owns every other subtree directly:
   writes no file. The Scopes card first counts the slices of the active scopes: the share merged, a
   stacked bar that keeps a segment for every status that has a slice, and one legend row per such status. A legend row shows the status as the
   ledger records it. Then the card lists the active scopes, each row with its stage on the right, a bar segment per
-  slice, and its counts. The closed scopes follow as dim rows. The other cards draw one row per item, the
-  label on the left and its value on the right. A scope row opens the scope page, the scope run's event
-  log, oldest first. `eventLog` in `hooks/parse.ts` reads the
+  slice, and its counts. The closed scopes follow as dim rows, the most recently closed first, by the
+  trace's `ledger stage set closed` line. A closed scope whose trace has no such line comes last. The other
+  cards draw one row per item, the label on the left and its value on the right. A scope row's name is a
+  Markdown link without a button's chrome. The pane answers a press on it and opens the scope page, the
+  scope run's event log, oldest first. No surface opens the link's URL. `eventLog` in `hooks/parse.ts` reads the
   scope's ledger and `trace.log` to build it.
 
   A header line opens each chain command the trace records as started. Its mark is done, stopped, or
@@ -467,7 +469,8 @@ This root owns every other subtree directly:
   time and mark. A slice summary line is one dim part that shrinks. A wait, date, or ahead line has only
   that label part.
 
-  The scan reads a closed scope's trace only while its page is open. The scope stays in the list until
+  The scan reads a closed scope's whole trace while its page is open. Otherwise it reads that trace once, for
+  the close time, and keeps the time in memory, because a closed trace does not change. The scope stays in the list until
   `hooks/scope-prune.js` reaps its run root. The pane attributes an agent to the scope whose trace
   records it and to the slice that trace line names. Therefore `plugin/hooks/run-trace.js`'s
   `recordDispatch` is the one attribution rule. `tests/run-trace.test.js` holds its cases (INV-0136).

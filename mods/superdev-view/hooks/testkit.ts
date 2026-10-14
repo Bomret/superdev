@@ -48,3 +48,6 @@ export const fakeRepo = (on: On, files: Record<string, string>, lists: Record<st
 }
 
 export const runCommand = { command: 'superdev-view', args: '', origin: { kind: 'composer' as const }, presentation: { isFullscreen: false, columns: 120 } }
+
+// A press on a scope row's name: the row draws the name as a Markdown link, answered by the pane, never opened.
+export const scopeLink = (name: string) => ({ key: `scope-${name}`, link: { href: `https://superdev.invalid/scope/${name}` } })

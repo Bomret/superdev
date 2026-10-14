@@ -1,6 +1,6 @@
 import { test, expect } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
-import { PANE, R, dir, fakeRepo, ledger, runCommand } from './testkit'
+import { PANE, R, dir, fakeRepo, ledger, runCommand, scopeLink } from './testkit'
 
 const SURFACES = ['terminal', 'desktop', 'vscode', 'mobile'] as const
 const A = `${R}/scopes/a`
@@ -37,7 +37,7 @@ const repo = (trace: string[] = TRACE, stage = 'merged') => ({
 
 const open = async ($: Engine, surface: (typeof SURFACES)[number]) => {
   const ui = await $.ui.mount({ plugin: 'superdev-view', surface, ...PANE })
-  if (await ui.find({ key: 'scope-a' })) await ui.press({ key: 'scope-a' })
+  if (await ui.find({ key: 'scope-a' })) await ui.press(scopeLink('a'))
   return ui
 }
 type Node = { type?: string; props?: { key?: string; wrap?: string; flexDirection?: string; flexWrap?: string; flexShrink?: number }; children?: (Node | string)[] }
@@ -97,7 +97,7 @@ test('a line above the log counts the running dispatches, and is absent when non
   await ui.press({ key: 'back' })
   files[`${A}/trace.log`] = [...TRACE, `${at('10:12:00')} scope main final-verdict f1 yes 0`, `${at('10:13:00')} scope main dispatch-end superdev:final-reviewer f1 completed`].join('\n')
   await $.command.run(runCommand)
-  await ui.press({ key: 'scope-a' })
+  await ui.press(scopeLink('a'))
   expect(await ui.find({ type: 'Text', text: /running$/ })).toBeUndefined()
   expect((await logLines(ui)).at(-2)).toBe(`${hm(at('10:11:00'))} ■ final-reviewer scope · yes · 02:00`)
 })
@@ -123,7 +123,7 @@ test('a scope with no trace opens a page with no log lines; every log line is cu
   await ui.press({ key: 'back' })
   files[`${A}/trace.log`] = TRACE.join('\n')
   await $.command.run(runCommand)
-  await ui.press({ key: 'scope-a' })
+  await ui.press(scopeLink('a'))
   const rows = await logRows(ui)
   expect(rows.length).toBeGreaterThan(0)
   expect(rows.flatMap(r => r.parts).filter(t => t.props?.wrap !== 'truncate-end')).toEqual([])
@@ -137,7 +137,7 @@ test('back returns to the overview, and a scope that closes while its page is op
   const ui = await open($, 'terminal')
   await ui.press({ key: 'back' })
   expect(await ui.find({ key: 'scope-a' })).toBeDefined()
-  await ui.press({ key: 'scope-a' })
+  await ui.press(scopeLink('a'))
   expect(await ui.find({ key: 'back' })).toBeDefined()
   files[`${A}/ledger.md`] = ledger('closed', [['01', 'merged']])
   await $.command.run(runCommand)
