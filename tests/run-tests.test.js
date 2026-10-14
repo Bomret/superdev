@@ -252,6 +252,25 @@ const picked = (root, paths) =>
   assert.strictEqual(logOf(un), 'a\nb\ntail\n', 'an unplaceable code path runs every suite');
 }
 
+// A focused run whose paths reach the superdev-view mod runs the mod suite before the tail; a mod path places itself, so
+// it does not fall back to every suite. The full run and a focused run off the mod never run it.
+{
+  const files = { 'tests/a.test.js': suite('a'), 'tests/b.test.js': suite('b') + '// mods/superdev-view/hooks/x-fixtures.ts' };
+  const runMod = (related) => {
+    const root = tree(files);
+    runAll({ root, tail: [tailEntry(root, 'tail')], modSuite: tailEntry(root, 'mod'), related, out: () => {} });
+    return { log: logOf(root) };
+  };
+  assert.strictEqual(runMod(['mods/superdev-view/hooks/parse.ts']).log, 'mod\ntail\n', 'a mod path runs the mod suite, no other suite');
+  assert.strictEqual(runMod(['mods/superdev-view/hooks/x-fixtures.ts']).log, 'b\nmod\ntail\n', 'a suite naming a mod file still runs');
+  assert.strictEqual(runMod(['README.md']).log, 'tail\n', 'a path off the mod runs no mod suite');
+  assert.strictEqual(runMod(undefined).log, 'a\nb\ntail\n', 'the full run never runs the mod suite');
+  const failing = tree(files);
+  const r = runAll({ root: failing, tail: [tailEntry(failing, 'tail')], modSuite: tailEntry(failing, 'mod', 1), related: ['mods/superdev-view/hooks/parse.ts'], out: () => {} });
+  assert.strictEqual(r, 1, 'a failing mod suite fails the run');
+  assert.strictEqual(logOf(failing), 'mod\n', 'a failing mod suite stops the run before the tail');
+}
+
 // The CLI reads `--related <path>...`; no flag is the full run.
 {
   assert.strictEqual(parseArgs([]), undefined, 'no flag is the full run');

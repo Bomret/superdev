@@ -694,7 +694,10 @@ call. A call whose first argument is `__dirname` or a literal is anchored at the
 directory is computed (`path.dirname(hookPath)`) names its literal tail, which matches that tail at any depth, so
 it may select a suite for a directory the suite does not scan and never misses one it does. A directory built from
 computed expressions with no literal segment names nothing. The directory rule never applies to a code path. A `.md` path no
-suite names, directly or by directory, and a path under `scripts/drift/`, reach no suite, because the drift selftest sits in the tail. A code path no rule places runs every suite, and an empty list runs the tail alone and exits 0. The
+suite names, directly or by directory, and a path under `scripts/drift/`, reach no suite, because the drift selftest sits in the tail. A code path no rule places runs every suite, and an empty list runs the tail alone and exits 0. A path under
+`mods/superdev-view/` places itself: it adds `claude plugin test mods/superdev-view` before the tail, and runs no
+other suite unless one names it, so `scope.js fail-to-pass` can judge a range that only the mod suite tests. The full run
+never runs the mod suite. The
 `require` scan is a regex over relative `require` calls, one level deep. A focused run is never a full suite
 (INV-0017).
 

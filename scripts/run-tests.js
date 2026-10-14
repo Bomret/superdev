@@ -7,7 +7,7 @@
 // register check, the drift selftest, drift-check, and plugin manifest validation. Every step prints
 // one `run-tests: <label>: <ms> ms` line, so a test audit ranks measured cost. The first failure stops
 // the run and exits nonzero, naming what failed. `--related <path>...` runs the tail plus only the
-// suites the changed paths reach (`selectSuites`). Pure Node, no shell.
+// suites the changed paths reach (`selectSuites`), and the mod suite when a path is under `MOD_DIR`. Pure Node, no shell.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -19,6 +19,11 @@ const TAIL = [
   [process.execPath, ['scripts/drift-check.js']],
   ['claude', ['plugin', 'validate', './plugin']],
 ];
+
+// The superdev-view mod's own suites, which only `claude plugin test` runs. A focused run whose paths reach the mod
+// runs them after the selected suites; the full run never does.
+const MOD_DIR = 'mods/superdev-view/';
+const MOD_SUITE = ['claude', ['plugin', 'test', 'mods/superdev-view']];
 
 // A suite is a `*.test.js` file directly under `dir`. A shared helper (`spawn-verdict.js`) and a
 // fixtures directory carry no such name or are not files, so neither runs as a suite.
@@ -155,7 +160,7 @@ function selectSuites(root, suites, paths) {
     const base = path.posix.basename(rel);
     const stem = base.replace(/\.js$/, '');
     const named = new RegExp(`(?<![\\w-])${escapeRe(base)}(?![\\w-])|(?<=[/'"\`])${escapeRe(stem)}(?=[/'"\`])`);
-    let placed = false;
+    let placed = rel.startsWith(MOD_DIR);
     suites.forEach((file, i) => {
       if (
         path.posix.join('tests', path.basename(file)) === rel ||
@@ -193,7 +198,7 @@ function runStep(command, args, cwd, label, out) {
   return r.status || 1;
 }
 
-function runAll({ root, tail = TAIL, out = console.log, related }) {
+function runAll({ root, tail = TAIL, modSuite = MOD_SUITE, out = console.log, related }) {
   const found = discoverSuites(path.join(root, 'tests'));
   if (found.length === 0) {
     out(`run-tests: no suite found under ${path.join(root, 'tests')}`);
@@ -204,7 +209,8 @@ function runAll({ root, tail = TAIL, out = console.log, related }) {
     const code = runStep(process.execPath, [file], root, path.relative(root, file), out);
     if (code !== 0) return code;
   }
-  for (const [command, args] of tail) {
+  const mod = related && related.some((p) => path.posix.normalize(p.split(path.sep).join('/')).startsWith(MOD_DIR));
+  for (const [command, args] of mod ? [modSuite, ...tail] : tail) {
     const code = runStep(command, args, root, [path.basename(command), ...args].join(' '), out);
     if (code !== 0) return code;
   }

@@ -468,7 +468,8 @@ This root owns every other subtree directly:
   install only after that version is raised and `claude plugin update superdev-view@superdev-view` runs.
 
   Its own tests run under `claude plugin test mods/superdev-view`. `bun run test` runs none of them and
-  reads only the mod's shared fixture files. `tests/run-trace.test.js` reads `hooks/trace-fixtures.ts`,
+  reads only the mod's shared fixture files. The focused command runs them when a changed path is under
+  `mods/superdev-view/`, so a `fail-to-pass` run over a mod-only range judges the mod's tests. `tests/run-trace.test.js` reads `hooks/trace-fixtures.ts`,
   and `tests/scope.test.js` reads `hooks/ledger-fixtures.ts`. `hooks/parse.ts` reads the ledger and the
   run trace that `scope.js` writes, and two pins hold that coupling. The ledger pin in
   `tests/scope.test.js` asserts that `scope.js` writes the lines in `hooks/ledger-fixtures.ts`. The trace
