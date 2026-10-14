@@ -2,6 +2,8 @@
 
 **Status:** Superseded
 
+**Amended by:** [ADR 0055](0055-the-opencode-render-carries-prompts-as-skills-and-afk-as-a-command.md).
+
 **Superseded by:** [ADR 0102](0102-superdev-is-a-claude-code-only-plugin.md), which makes superdev a Claude Code-only plugin and removes the harness renders.
 
 **Amends:** [ADR 0050](0050-carry-the-plugin-as-skills-canonical-prose-with-install-time-adapters.md),

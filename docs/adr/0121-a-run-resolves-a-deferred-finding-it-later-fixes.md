@@ -2,7 +2,8 @@
 
 **Status:** Accepted
 
-This record amends ADR 0035.
+**Amends:** [ADR 0035](0035-a-review-fix-changes-how-not-what.md),
+[ADR 0088](0088-an-observation-is-recorded-where-it-is-met.md).
 
 **Context.** ADR 0035 gives the ledger's `**Deferred:**` record no `clear`. It argues that unplanned work
 stays unplanned until somebody plans it, so nothing in a run can discover that a deferred bullet is no

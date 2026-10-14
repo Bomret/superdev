@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amends:** [ADR 0084](0084-verifying-a-definition-of-done-criterion-observes-only.md).
+
 **Context.** An adopter takes a production feature through `/superdev:plan`, `/superdev:implement`,
 `/superdev:review`, and `/superdev:ship`, and nothing in that chain asks about the risk of releasing it.
 The reviewers catch code smells, test smells, and the vulnerability classes in `review-checklist.md`.

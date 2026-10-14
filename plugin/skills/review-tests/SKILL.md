@@ -88,7 +88,7 @@ Dispatch `superdev:test-auditor` **once, over the whole swept set**, with the du
 of them.
 
 Hand it the swept file set, the duration table or the label `unmeasured`, and the repository's own test
-command. Its lens set is its own: **the five categories are the whole set** — redundant coverage,
+command. It assesses the test files themselves; the duration table is input to check, not a verdict to adopt. Its lens set is its own: **the five categories are the whole set** — redundant coverage,
 overweight fixture, tautological test, dead test, expensive test — and this dispatch asks for all five,
 never a subset.
 

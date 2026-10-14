@@ -2,7 +2,8 @@
 
 **Status:** Accepted
 
-**Amended by:** [ADR 0118](0118-review-and-fix-model-tiers-follow-measured-evidence.md),
+**Amended by:** [ADR 0066](0066-a-measured-test-audit-is-its-own-surface.md), and
+[ADR 0118](0118-review-and-fix-model-tiers-follow-measured-evidence.md),
 which moves `simplicity-reviewer` from `haiku` to `sonnet`.
 
 **Context.** Every rule in the implement chain adds tests, and none prices them. `implementer.md` runs

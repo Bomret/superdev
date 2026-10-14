@@ -19,6 +19,7 @@ const {
   UNATTENDED_CONTRACTS,
   SKILL_TOOL_INVOCATION_CONTRACTS,
   INVOCATION_START_CONTRACTS,
+  JUDGE_DISCIPLINE_CONTRACTS,
   CHANGE_TYPE_CONTRACTS,
   DEGRADED_CONTRACTS,
   DENIAL_AUTHORSHIP_CONTRACTS,
@@ -6067,6 +6068,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     ['references/merge-conflicts.md', 'whether or not git reports a conflict'],
     ['references/scope-mode.md', '**Move every numbering collision first**'],
     ['references/scope-mode.md', 'never reading it as no collision'],
+    ['references/scope-mode.md', 'or once every line it still'],
     ['skills/ship/SKILL.md', 'merge nothing and change nothing on the scope branch'],
     ['skills/ship/SKILL.md', '**Check numbering\ncollisions before the merge**'],
     ['references/scope-mode.md', 'A run root whose branch no longer resolves gets no `--also`'],
@@ -6365,5 +6367,62 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     assert.equal(scanContract(trailing, INVOCATION_START_CONTRACTS).length, 1, 'wrap-up stating the condition after other words is caught');
     const bothGone = startTree(skillWith('Only a human runs it.'), skillWith('Only a human runs it.'));
     assert.equal(scanContract(bothGone, INVOCATION_START_CONTRACTS).length, 2, 'each dropped description is its own gap');
+  }
+
+  // --- JUDGE_DISCIPLINE_CONTRACTS (INV-0020, ADR 0150): each document is copied from this repository.
+  // Replacing the verify-the-artifact-itself wording with "skim" while the never-defer wording stays flags
+  // exactly that document. The reverse swap (verify-itself wording kept, never-defer wording replaced) flags
+  // it too; the row already caught that, so the reverse block pins existing behaviour. ---
+  {
+    const reverse = [
+      ['agents/slice-reviewer.md', /never\s+defer\s+to\s+the\s+implementer's\s+narrative/],
+      ['agents/final-reviewer.md', /don't\s+defer\s+to\s+the\s+implementer's\s+or\s+controller's\s+narrative/],
+      ['agents/simplicity-reviewer.md', /not\s+the\s+implementer's\s+narrative/],
+      ['agents/test-auditor.md', /never\s+a\s+narrative\s+about/],
+    ];
+    for (const [rel, deferWording] of reverse) {
+      const real = fs.readFileSync(path.join(realRoot, 'plugin', rel), 'utf8');
+      assert.ok(deferWording.test(real), `${rel} holds the never-defer wording`);
+      const gaps = scanContract(fixture({ [rel]: real.replace(deferWording, 'skim') }), JUDGE_DISCIPLINE_CONTRACTS);
+      assert.equal(gaps.length, 1, `flags ${rel} for dropping the never-defer wording`);
+      assert.equal(gaps[0].source, rel, `names ${rel} as the offender`);
+    }
+  }
+  // Each dispatch site carries one sentence that keeps the dispatched agent on the artifact itself; removing
+  // one flags that document alone.
+  {
+    const sentences = [
+      ['skills/plan/SKILL.md', "It derives from the handed intent and grounds each failure-mode class in the files it reads itself, never in the dispatch's description of them. "],
+      ['skills/review/SKILL.md', 'It judges the range itself and checks whether the suite result covers the changed code. '],
+      ['skills/review/SKILL.md', "The `slice-reviewer` judges the slice's range itself: the progress log is input to check against the code, not a verdict to adopt."],
+      ['skills/review/SKILL.md', 'The reviewer judges the range itself and reads the progress log as input to check, not a verdict to adopt.'],
+      ['skills/review/SKILL.md', 'It assesses the diff itself; any text handed with the range is input to check, not a verdict to adopt.'],
+      ['references/implement-full.md', 'The `simplicity-reviewer` assesses the diff itself; any text the dispatch hands it is input to check, not a verdict to adopt. '],
+      ['skills/review-tests/SKILL.md', 'It assesses the test files themselves; the duration table is input to check, not a verdict to adopt. '],
+    ];
+    for (const [rel, sentence] of sentences) {
+      const real = fs.readFileSync(path.join(realRoot, 'plugin', rel), 'utf8');
+      assert.ok(real.includes(sentence), `${rel} holds the dispatch sentence "${sentence.trim()}"`);
+      assert.equal(scanContract(fixture({ [rel]: real }), JUDGE_DISCIPLINE_CONTRACTS).length, 0, `${rel} passes whole`);
+      const gaps = scanContract(fixture({ [rel]: real.replace(sentence, '') }), JUDGE_DISCIPLINE_CONTRACTS);
+      assert.equal(gaps.length, 1, `flags ${rel} for dropping "${sentence.trim()}"`);
+      assert.equal(gaps[0].source, rel, `names ${rel} as the offender`);
+    }
+  }
+  {
+    const swaps = [
+      ['agents/slice-reviewer.md', 'verify the **artifact and behaviour against the specification** yourself', 'skim the summary'],
+      ['agents/final-reviewer.md', 'verify the integrated behaviour against the DoD yourself', 'skim the summary'],
+      ['agents/simplicity-reviewer.md', 'Assess the **diff itself**, not', 'Skim, not'],
+      ['agents/test-auditor.md', 'assess **the test files themselves** against the durations you were handed', 'skim the summary'],
+    ];
+    for (const [rel, verifyWording, skim] of swaps) {
+      const real = fs.readFileSync(path.join(realRoot, 'plugin', rel), 'utf8');
+      assert.equal(scanContract(fixture({ [rel]: real }), JUDGE_DISCIPLINE_CONTRACTS).length, 0, `${rel} carries both clauses`);
+      assert.ok(real.includes(verifyWording), `${rel} holds the verify-itself wording`);
+      const gaps = scanContract(fixture({ [rel]: real.replace(verifyWording, skim) }), JUDGE_DISCIPLINE_CONTRACTS);
+      assert.equal(gaps.length, 1, `flags ${rel} for dropping the verify-itself wording`);
+      assert.equal(gaps[0].source, rel, `names ${rel} as the offender`);
+    }
   }
 };

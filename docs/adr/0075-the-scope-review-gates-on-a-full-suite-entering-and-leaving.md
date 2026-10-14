@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amends:** [ADR 0025](0025-the-scope-review-owns-the-full-suite-run.md).
+
 **Amended by:** [ADR 0105](0105-an-affected-full-command-and-a-whole-repo-gate-before-the-pull-request.md),
 which runs the whole-repo command in place of the full one, entering and leaving the fix loop, while the
 suite record reads red of kind `whole`.

@@ -34,6 +34,7 @@ const {
   scanShellSpawn,
   scanAdrStatus,
   scanAdrNumbers,
+  scanAdrRelations,
   scanForcingBranchFlag,
   scanNoForceMerge,
   scanConflictConclusionNoCommit,
@@ -739,6 +740,167 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
 
   // an absent ADR tree is skipped, so a fixture carries only the files it exercises
   assert.equal(scanAdrStatus(fixture({ 'README.md': '# repo\n' })).length, 0, 'absent ADR tree is skipped');
+
+  // --- scanAdrRelations: a relation header pairs with the reverse header on its target (ADR 0150). ---
+
+  const relAdr = (num, status, headers, body = '## Context\n\nSomething.\n') =>
+    `# ${num}: A decision\n\n**Status:** ${status}\n\n${headers ? `${headers}\n\n` : ''}${body}`;
+  const relFix = (a, b) =>
+    fixture({ 'docs/adr/0001-a.md': a, 'docs/adr/0002-b.md': b, 'docs/adr/0003-c.md': relAdr('0003', 'Accepted', '') });
+  const relGaps = (a, b) => scanAdrRelations(relFix(a, b));
+  const a1 = (h, s = 'Accepted', body) => relAdr('0001', s, h, body);
+  const b2 = (h, s = 'Accepted', body) => relAdr('0002', s, h, body);
+  const toB = '[ADR 0002](0002-b.md)';
+  const toA = '[ADR 0001](0001-a.md)';
+
+  // negative: both directions present pass, for each pair
+  assert.deepEqual(relGaps(a1(`**Amends:** ${toB}`), b2(`**Amended by:** ${toA}`)), [], 'Amends pairs with Amended by');
+  assert.deepEqual(
+    relGaps(a1(`**Supersedes:** ${toB}`), b2(`**Superseded by:** ${toA}`, 'Superseded')),
+    [],
+    'Supersedes pairs with Superseded by',
+  );
+  assert.deepEqual(
+    relGaps(a1(`**Amended by:** ${toB}`), b2(`**Amends:** ${toA}`)),
+    [],
+    'Amended by pairs with Amends',
+  );
+
+  // positive: one side alone fails, in each direction, naming both ADRs
+  for (const [mine, theirs, label] of [
+    [`**Amends:** ${toB}`, '', 'Amends without Amended by'],
+    ['', `**Amends:** ${toA}`, 'Amends on the target without Amended by'],
+    [`**Amended by:** ${toB}`, '', 'Amended by without Amends'],
+    [`**Supersedes:** ${toB}`, '', 'Supersedes without Superseded by'],
+    ['', `**Superseded by:** ${toA}`, 'Superseded by without Supersedes'],
+  ]) {
+    const gaps = relGaps(a1(mine), b2(theirs, theirs.startsWith('**Superseded by') ? 'Superseded' : 'Accepted'));
+    assert.equal(gaps.length, 1, `${label} fails once`);
+    assert.match(gaps[0].expectation, /ADR 0001/, `${label} names ADR 0001`);
+    assert.match(gaps[0].expectation, /ADR 0002/, `${label} names ADR 0002`);
+  }
+
+  // positive: a pair that crosses labels fails (Amends does not pair with Superseded by)
+  assert.equal(
+    relGaps(a1(`**Amends:** ${toB}`), b2(`**Superseded by:** ${toA}`, 'Superseded')).length,
+    2,
+    'Amends against Superseded by is two gaps, one per side',
+  );
+
+  // two targets on one header, and a header wrapped over lines: each target is checked
+  const twoFix = (reverseOnC) =>
+    fixture({
+      'docs/adr/0001-a.md': a1(`**Amends:** ${toB}, and\n[ADR 0003](0003-c.md), whose text\nwraps over lines.`),
+      'docs/adr/0002-b.md': b2(`**Amended by:** ${toA}`),
+      'docs/adr/0003-c.md': relAdr('0003', 'Accepted', reverseOnC ? `**Amended by:** ${toA}` : ''),
+    });
+  const twoGaps = scanAdrRelations(twoFix(false));
+  assert.equal(twoGaps.length, 1, 'only the target on the continuation line fails');
+  assert.match(twoGaps[0].expectation, /ADR 0003/, 'names the unpaired target');
+  assert.deepEqual(scanAdrRelations(twoFix(true)), [], 'both targets paired pass');
+
+  // positive: a missing target file, and a link whose text and target numbers differ
+  assert.equal(
+    scanAdrRelations(
+      fixture({ 'docs/adr/0001-a.md': a1('**Amends:** [ADR 0009](0009-gone.md)') }),
+    ).length,
+    1,
+    'a link to a missing ADR file fails',
+  );
+  const mismatch = relGaps(a1('**Amends:** [ADR 0003](0002-b.md)'), b2(`**Amended by:** ${toA}`));
+  assert.ok(mismatch.some((g) => /0003/.test(g.expectation) && /0002/.test(g.expectation)), 'a text/target mismatch fails');
+
+  // positive: an unknown label in the header region, and a Status/Superseded by disagreement
+  const ext = relGaps(a1(`**Extends:** ${toB}`), b2(''));
+  assert.equal(ext.length, 1, 'an unknown relation label fails');
+  assert.match(ext[0].expectation, /Extends/, 'names the label');
+  assert.equal(relGaps(a1(''), b2('', 'Superseded')).length, 1, 'Status Superseded without a Superseded by header fails');
+  assert.equal(
+    relGaps(a1(`**Superseded by:** ${toB}`), b2(`**Supersedes:** ${toA}`)).length,
+    1,
+    'a Superseded by header on an Accepted ADR fails',
+  );
+  // a Status line with text after `Superseded` still states Superseded
+  assert.deepEqual(
+    relGaps(a1(`**Supersedes:** ${toB}`), b2(`**Superseded by:** ${toA}`, 'Superseded by ADR 0001.')),
+    [],
+    'Status Superseded with trailing text pairs with a Superseded by header',
+  );
+  const trailing = relGaps(a1(''), b2('', 'Superseded by ADR 0001.'));
+  assert.equal(trailing.length, 1, 'Status Superseded with trailing text and no Superseded by header fails');
+  assert.match(trailing[0].expectation, /carry a `\*\*Superseded by:\*\*` header/, 'the gap names the missing header');
+
+  // positive: a relation header holding no ADR link fails, naming the ADR and the label
+  for (const h of ['**Amends:** ADR 0002', '**Amends:** nothing yet']) {
+    const linkless = relGaps(a1(h), b2(''));
+    assert.equal(linkless.length, 1, `a linkless header fails: ${h}`);
+    assert.match(linkless[0].expectation, /ADR 0001/, 'names the ADR');
+    assert.match(linkless[0].expectation, /Amends/, 'names the label');
+  }
+  assert.deepEqual(relGaps(a1('**Amends:** INV-0017, a rule'), b2('')), [], 'a plain INV target is skipped');
+  // positive: a header with no `ADR NNNN` link fails unless it names only INV targets
+  for (const h of [
+    '**Amends:** [the plan](../plan.md)',
+    '**Amends:** [ADR 0002 decision](0002-b.md)',
+    '**Amends:** [adr 0002](0002-b.md)',
+    '**Amends:** ADR 0002 and INV-0017',
+  ]) {
+    const bad = relGaps(a1(h), b2(''));
+    assert.equal(bad.length, 1, `a header with no ADR NNNN link fails once: ${h}`);
+    assert.match(bad[0].expectation, /ADR 0001/, `names the ADR: ${h}`);
+  }
+  // negative: a ./-prefixed href is read the same way in both directions
+  assert.deepEqual(
+    relGaps(a1('**Amends:** [ADR 0002](./0002-b.md)'), b2('**Amended by:** [ADR 0001](./0001-a.md)')),
+    [],
+    'a ./-prefixed pair passes',
+  );
+  // positive: a reverse header naming the ADR outside a link does not pair
+  assert.equal(
+    relGaps(a1(`**Amends:** ${toB}`), b2('**Amended by:** ADR 0001 [ADR 0001] (see above)')).length,
+    2,
+    'an ADR number outside a link is no reverse header target',
+  );
+  // negative: an href with an anchor still names its file
+  assert.deepEqual(
+    relGaps(a1('**Amends:** [ADR 0002](0002-b.md#decision)'), b2(`**Amended by:** ${toA}`)),
+    [],
+    'an anchored href passes',
+  );
+  // negative: a non-relation bold label before Status is no header
+  assert.deepEqual(
+    relGaps(`# 0001: A decision\n\n**Date:** 2026-01-01\n\n**Status:** Accepted\n\n## Context\n\nx\n`, b2('')),
+    [],
+    'a bold label before Status is not a header',
+  );
+  assert.deepEqual(
+    relGaps(`# 0001: A decision\n\n**Amends:** ${toB}\n\n**Status:** Accepted\n\n## Context\n\nx\n`, b2('')),
+    [],
+    'a relation label before Status is not a header',
+  );
+
+  // negative: an INV target is skipped; body labels and fenced headers do not count
+  assert.deepEqual(
+    relGaps(a1('**Amends:** [INV-0017](../invariants.md), a rule'), b2('')),
+    [],
+    'an INV target is skipped',
+  );
+  assert.deepEqual(
+    relGaps(a1('', 'Accepted', `## Context\n\n**Amended: ${toB}**\n\n**Supersede ADR 0004.**\n\n**Extends:** ${toB}\n`), b2('')),
+    [],
+    'bold labels in the body are not headers',
+  );
+  assert.deepEqual(
+    relGaps(a1('', 'Accepted', `**Context.** Prose.\n\n**Amends:** ${toB}\n`), b2('')),
+    [],
+    'a bold Context paragraph starts the body',
+  );
+  assert.deepEqual(
+    relGaps(a1('```\n**Amends:** [ADR 0002](0002-b.md)\n```'), b2('')),
+    [],
+    'a header inside a fence is not a header',
+  );
+  assert.deepEqual(scanAdrRelations(fixture({ 'README.md': 'x\n' })), [], 'no ADR directory passes');
 
   // --- scanAnchorContract: every slice-store document must state how to identify a feature's scope
   // anchor (ADR 0017). `/superdev:plan` and `/superdev:backlog` read that contract instead of encoding one
@@ -2461,18 +2623,132 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'a member with no glossary entry is skipped rather than reported',
   );
 
-  // a citation sitting only inside a fenced code block, in the same paragraph, does not count —
-  // matching scanSpecialisingCitations()'s own fence-masking rule
-  assert.equal(
-    scanGlossarySpecialisingCitations(
+  // a citation sitting only inside a fenced code block of the entry does not count — matching
+  // scanSpecialisingCitations()'s own fence-masking rule. Blank lines around and inside the fence do not
+  // end the entry, so the entry is still the one reported.
+  {
+    const gaps = scanGlossarySpecialisingCitations(
       fixture({
         'CONTEXT.md':
-          "**Release**: prose. That store's own `## Release` section.\n```markdown\n`plan-contract.md` → *Release*.\n```\nmore prose.\n",
+          "**Release**: prose. That store's own `## Release` section.\n\n```markdown\n\n`plan-contract.md` → *Release*.\n\n```\n\nmore prose.\n",
       }),
-    ).length,
-    1,
-    'a citation shown only inside a fenced example is not a real citation',
-  );
+    );
+    assert.equal(gaps.length, 1, 'a citation shown only inside a fenced example is not a real citation');
+    assert.match(gaps[0].expectation, /\*\*Release\*\*/, 'the gap names the entry holding the fence');
+  }
+
+  // a fenced block with blank lines around and inside it never splits its entry: the citation after the
+  // fence counts, and with the citation removed the gap remains
+  {
+    const entry = (cite) =>
+      "**Release**: prose. That store's own `## Release` section.\n\n```markdown\nexample\n\nmore example\n```\n\n" +
+      (cite ? 'It specialises `plan-contract.md` → *Release*.\n' : 'No citation here.\n');
+    assert.equal(scanGlossarySpecialisingCitations(fixture({ 'CONTEXT.md': entry(true) })).length, 0, 'a citation after the fence counts');
+    assert.equal(scanGlossarySpecialisingCitations(fixture({ 'CONTEXT.md': entry(false) })).length, 1, 'no citation still reports the gap');
+  }
+
+  // a qualified entry (`**Term** (qualifier):`) is an entry boundary: a gap in it is reported under its
+  // own term, and a cited qualified entry after an uncited one does not hide the first's gap
+  {
+    const gaps = scanGlossarySpecialisingCitations(
+      fixture({
+        'CONTEXT.md':
+          "**Scope anchor**: prose. That store's own `## Scope anchor` section.\n\n" +
+          "**Anchor dependency** (of a scope): prose. That store's own `## Scope anchor` section, which specialises `plan-contract.md` → *Scope anchor*.\n",
+      }),
+    );
+    assert.equal(gaps.length, 1, 'the uncited entry before a qualified entry is still reported');
+    assert.match(gaps[0].expectation, /\*\*Scope anchor\*\*/, 'the gap names the uncited entry');
+    const own = scanGlossarySpecialisingCitations(
+      fixture({
+        'CONTEXT.md':
+          '**Example**: prose.\n\n' +
+          "**Anchor dependency** (of a scope): prose. That store's own `## Scope anchor` section.\n",
+      }),
+    );
+    assert.equal(own.length, 1, 'a gap in a qualified entry is reported');
+    assert.match(own[0].expectation, /\*\*Anchor dependency\*\*/, 'the gap names the qualified entry');
+  }
+
+  // a qualifier may hold nested parentheses: its line is still a boundary, so the uncited entry before it
+  // keeps its gap
+  {
+    const gaps = scanGlossarySpecialisingCitations(
+      fixture({
+        'CONTEXT.md':
+          "**X**: prose. That store's own `## Release` section.\n\n" +
+          "**Y** (of `a` (b)): prose. That store's own `## Release` section, which specialises `plan-contract.md` → *Release*.\n",
+      }),
+    );
+    assert.equal(gaps.length, 1, 'a nested-parenthesis qualifier still opens an entry');
+    assert.match(gaps[0].expectation, /\*\*X\*\*/, 'the gap names the uncited entry');
+  }
+
+  // a qualifier is one parenthesized group, with one level of nesting: a body line that holds a `):` later
+  // in the line opens no entry, so the citation after it still counts for the entry it sits in
+  {
+    const gaps = scanGlossarySpecialisingCitations(
+      fixture({
+        'CONTEXT.md':
+          "**X**: prose. That store's own `## Release` section.\n" +
+          '**Bold** (aside) prose (here): more, which specialises `plan-contract.md` → *Release*.\n',
+      }),
+    );
+    assert.equal(gaps.length, 0, 'a line with a later `):` is no entry boundary');
+  }
+
+  // fence pairing follows CommonMark: a fence closes at the next fence line of its kind in the document, so
+  // entry B below sits inside A's fence, as it renders, and owes nothing. Only a fence with no closing
+  // line in the document is unterminated.
+  {
+    const gaps = scanGlossarySpecialisingCitations(
+      fixture({
+        'CONTEXT.md':
+          '**A**: prose.\n\n```markdown\nunterminated\n\n' +
+          "**B**: prose. That store's own `## Release` section.\n\n```\ncode\n```\n\n**C**: prose.\n",
+      }),
+    );
+    assert.equal(gaps.length, 0, 'an entry inside a fence that a later fence line closes is masked');
+  }
+
+  // a heading or term line inside a fenced example is no boundary: the citation after the fence still
+  // counts. A heading line between two entries is a boundary.
+  {
+    for (const inner of ['## Heading in the example', '**Other**: shown in the example']) {
+      assert.equal(
+        scanGlossarySpecialisingCitations(
+          fixture({
+            'CONTEXT.md':
+              "**Release**: prose. That store's own `## Release` section.\n\n```markdown\n" +
+              inner +
+              '\n```\n\nIt specialises `plan-contract.md` → *Release*.\n',
+          }),
+        ).length,
+        0,
+        `a "${inner}" line inside a fence does not split its entry`,
+      );
+    }
+    const gaps = scanGlossarySpecialisingCitations(
+      fixture({
+        'CONTEXT.md':
+          "**Release**: prose. That store's own `## Release` section.\n\n## Relationships\n\nIt specialises `plan-contract.md` → *Release*.\n",
+      }),
+    );
+    assert.equal(gaps.length, 1, 'a heading line between entries ends the entry before it');
+  }
+
+  // an unterminated fence inside one entry does not swallow the entries after it
+  {
+    const gaps = scanGlossarySpecialisingCitations(
+      fixture({
+        'CONTEXT.md':
+          '**Example**: prose.\n```markdown\nnever closed\n\n' +
+          "**Anchor dependency**: prose. That store's own `## Scope anchor` section.\n",
+      }),
+    );
+    assert.equal(gaps.length, 1, 'a later entry missing its citation is reported past an unterminated fence');
+    assert.match(gaps[0].expectation, /\*\*Anchor dependency\*\*/, 'the gap names the later entry');
+  }
 
   // a heading reference shown only inside a fenced example does not trigger the check
   assert.equal(

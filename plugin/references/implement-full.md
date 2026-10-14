@@ -157,7 +157,7 @@ Repeat until every slice is `merged`:
      (the row stays `in-review` through the parallel simplicity pass and every fix cycle, until the merge or a block), then dispatch **`superdev:slice-reviewer`**
      (correctness + independent verification; it reads the review checklist itself via
      `${CLAUDE_PLUGIN_ROOT}`). **On the slice's first review, dispatch `superdev:simplicity-reviewer` in parallel with it**,
-     over the same tip and the slice's range, and build the fix list once both have returned (ADR 0138). **Warrant a
+     over the same tip and the slice's range, and build the fix list once both have returned (ADR 0138). The `simplicity-reviewer` assesses the diff itself; any text the dispatch hands it is input to check, not a verdict to adopt. **Warrant a
      recommended cut only when it honours the rules the repository documents for itself** — its `AGENTS.md` or
      `CLAUDE.md` files, its `docs/agents/` configuration, and its invariant register; a repository that documents
      none leaves the cut to your judgment alone. You judge this, and in the slice's report you name each cut you

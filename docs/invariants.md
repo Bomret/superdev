@@ -3,6 +3,10 @@
 Rules this repository's system may never break. `plugin/references/domain-modeling.md` owns the entry
 format; `/superdev:plan` adds an entry when one crystallises.
 
+On a `Check:` line, backtick only drift check ids after `scripts/drift-check.js`, and write other words
+there unquoted. The `invariant-register-join` drift check reads every backticked token of lowercase words
+joined by hyphens there as a check id, and fails an id that the registry does not carry.
+
 ### INV-0001
 
 Class: architecture
@@ -29,7 +33,7 @@ Statement: A containment test answers contained only on positive evidence that b
 Breaks: silently
 Check: tests/scope.test.js, tests/scope-prune.test.js — each failure path asserted to answer not contained
 Symbols: testContainment, baseHistoryHasPatch, containedInBase
-Paths: plugin/scripts/scope.js, plugin/hooks/scope-prune.js
+Paths: plugin/scripts/scope.js, plugin/hooks/scope-prune.js, plugin/references/scope-mode.md
 
 ### INV-0004
 
@@ -38,7 +42,7 @@ Concepts: Definition of Done (DoD), Append mode, Scope anchor
 Statement: A Definition of Done is a claim verified at one moment against one change. A ticked criterion is always readable against the change it was verified against, and is never pooled in one record with criteria from another run.
 Breaks: silently
 Check: scripts/drift-check.js — /superdev:plan's extend path refuses a shipped feature on any one of its shipped signals, the anchor's `## Run state` snapshot stage among them
-Paths: plugin/skills/plan/**, plugin/references/run-init.md
+Paths: plugin/skills/plan/**, plugin/references/run-init.md, plugin/skills/review/SKILL.md
 
 ### INV-0005
 
@@ -80,10 +84,10 @@ Paths: plugin/skills/plan/**, plugin/references/plan-contract.md
 
 Class: architecture
 Concepts: No verdict, Containment
-Statement: A spawn whose own bound expired, whether or not its kill succeeded, carries no verdict, on `plugin/hooks/green-gate.js` and `plugin/scripts/scope.js`. No gate reads its absence as a pass, and no assertion about behaviour stands on it. Such a spawn is reported as killed, never as a decision it never made. A spawn that never started carries a Spawn failure instead, which this rule does not govern: the gate never ran, so green-gate answers it with its own stated reason (ADR 0087).
+Statement: A spawn whose own bound expired, whether or not its kill succeeded, carries no verdict, on `plugin/hooks/green-gate.js`, `plugin/scripts/scope.js`, and the `plugin/skills/ship/SKILL.md` and `plugin/skills/submit-pr/SKILL.md` skills. No gate reads its absence as a pass, and no assertion about behaviour stands on it. Such a spawn is reported as killed, never as a decision it never made. A spawn that never started carries a Spawn failure instead, which this rule does not govern: the gate never ran, so green-gate answers it with its own stated reason (ADR 0087).
 Breaks: silently
 Check: tests/spawn-verdict.test.js — the helper's throw-or-not and message for the killed, never-started, EPIPE-but-decided, and genuinely-decided result shapes; tests/green-gate.test.js — a killed suite blocks the merge; tests/scope.test.js — the refetch asserts the kill signal rather than the clock; the never-started half is ADR 0087's, pinned by drift-check `spawn-failure-answers`
-Paths: plugin/hooks/green-gate.js, plugin/scripts/scope.js, tests/**
+Paths: plugin/hooks/green-gate.js, plugin/scripts/scope.js, plugin/skills/ship/SKILL.md, plugin/skills/submit-pr/SKILL.md, tests/**
 
 ### INV-0010
 
@@ -178,10 +182,10 @@ Paths: plugin/references/plan-contract.md, plugin/skills/plan/**
 
 Class: process
 Concepts: Judge discipline, Final-reviewer, Slice-reviewer, Simplicity-reviewer, Test-auditor
-Statement: Every review agent carries the judge-discipline text verbatim, so the four copies never diverge.
+Statement: Every review agent carries the two judge-discipline clauses, adapted to the subject it judges: it verifies the artifact itself and never defers to a narrative about it, and length or an elaborate structure is no evidence on its own.
 Breaks: silently
-Check: none — no row compares the copies
-Paths: plugin/agents/**
+Check: scripts/drift-check.js `judge-discipline` — both clauses stand in each of the four review agents
+Paths: plugin/agents/**, plugin/skills/plan/SKILL.md, plugin/skills/review/SKILL.md, plugin/skills/review-tests/SKILL.md, plugin/references/implement-full.md
 
 ### INV-0021
 
@@ -614,7 +618,7 @@ Concepts: Assignee, Operator configuration, Slice store
 Statement: The assignee lives only in the untracked `.superdev/info.json`, resolved against the main working tree from any checkout: that file, else the API token's own identity, with `"none"` opting out. No tracked store document carries an assignee bullet, and the plan-contract slice schema carries no assignee field. Tokens never enter the file.
 Breaks: silently
 Check: `scripts/drift-check.js` `assignee` (forbids the `- **Assignee:**` bullet and requires the `## Assignee` section)
-Paths: plugin/references/plan-contract.md, plugin/references/issue-tracker-*.md
+Paths: plugin/references/plan-contract.md, plugin/references/issue-tracker-*.md, plugin/skills/setup/SKILL.md
 
 ### INV-0075
 
@@ -769,7 +773,7 @@ Concepts: Staged page, Knowledge base
 Statement: `/superdev:publish-kb` never replaces a live non-aggregate page its staged `upsert` was not built from. An `upsert` whose recorded body hash differs from the live page's is refused and stays staged, with the refusal reported per page, whether or not the staged file carries a `created-by-publish` marker. A hashless `upsert` on an existing page is refused the same way, unless the staged file carries that marker, which shows the page is this publish's own create landing; the marker substitutes for a hash only where none was recorded.
 Breaks: silently
 Check: tests/publish-kb.test.js — the mismatched-hash and hashless-existing-page refusals, the hashless new-page create, and the marker retry that sends an update instead of a refusal
-Paths: plugin/scripts/publish-kb.js, plugin/references/doc-pass.md, plugin/agents/doc-writer.md
+Paths: plugin/scripts/publish-kb.js, plugin/references/doc-pass.md, plugin/agents/doc-writer.md, plugin/skills/document/SKILL.md
 
 ### INV-0092
 
@@ -822,8 +826,8 @@ Class: process
 Concepts: Deploy posture, Deploy target, Scope anchor
 Statement: Only `/superdev:ship` runs a deploy target's command. It runs one only under the repository's `auto` deploy posture, only after the pull request has merged, and only in a tree checked out at the merge commit. No other command and no unattended run deploys (ADR 0101).
 Breaks: silently
-Check: scripts/drift-check.js — ship's deploy runs only under `auto`, after the merge, at the merge commit; no other skill or agent names a deploy target's command as something it runs
-Paths: plugin/skills/ship/**, plugin/references/deployment.md
+Check: scripts/drift-check.js — ship's deploy runs only under auto, after the merge, at the merge commit; no other skill or agent names a deploy target's command as something it runs
+Paths: plugin/skills/ship/**, plugin/references/deployment.md, plugin/skills/verify-ship/**
 
 ### INV-0099
 
@@ -831,7 +835,7 @@ Class: process
 Concepts: Deploy posture, Deploy target, Scope anchor, Definition of Done (DoD), Stage
 Statement: After the merge, only `/superdev:wrap-up` closes a scope anchor. It closes one only when the pull request has merged, every Definition-of-Done criterion is ticked or `accepted:`, and every deploy target listed on the anchor is recorded `deployed`. A failed close changes neither the stage nor the run's scaffolding. A failed `auto` target keeps the anchor open, and a later ship resumes at the first target not yet deployed (ADR 0101, ADR 0106).
 Breaks: silently
-Check: scripts/drift-check.js — ship stops on a failed `auto` target, and `wrap-up-gate` guards the close; `tests/scope.test.js` for the ledger's deploy record
+Check: scripts/drift-check.js — ship stops on a failed auto target, and `wrap-up-gate` guards the close; `tests/scope.test.js` for the ledger's deploy record
 Paths: plugin/skills/ship/**, plugin/scripts/scope.js, plugin/skills/wrap-up/**
 
 ### INV-0101
@@ -867,7 +871,7 @@ Class: process
 Concepts: Deploy posture, Deploy target
 Statement: Under the `auto` deploy posture, `/superdev:ship` runs a deploy target's command only from a `docs/agents/deployment.md` whose every change the operator was shown. A change the merge commit carries against the tested head, and on a merge ship did not gate itself the pull request's own change, is printed and confirmed before the first target runs (ADR 0104).
 Breaks: silently
-Check: scripts/drift-check.js — ship's post-merge deploy step compares the merge commit's `deployment.md` with the tested head's and asks once before any `auto` target runs
+Check: scripts/drift-check.js — ship's post-merge deploy step compares the merge commit's `deployment.md` with the tested head's and asks once before any auto target runs
 Paths: plugin/skills/ship/**
 
 ### INV-0105
@@ -984,7 +988,7 @@ Class: process
 Concepts: Run trace, Slice-reviewer, Implementer
 Statement: On a `behavior` slice, a test edit followed by an implementation edit or a passing run with no failing test run recorded between them in the run trace is an Important finding: `slice-reviewer`'s on the full tier, `final-reviewer`'s on the lite tier. The finding closes only on a recorded revert of the implementation, a failing run, a restore, and a passing run, in that order. The reviewer judges the order from the run trace, never from the implementer's own account. At the 3-cycle fix cap, a remainder whose only Critical or Important findings are Missing RED, Pass-to-pass, or Missing fail-to-pass run, in any mix, proceeds. The review's report names each with its slice. Any of them beside a Critical or Important finding of another kind blocks (ADR 0117, ADR 0008, ADR 0125, ADR 0134, INV-0138).
 Breaks: silently
-Check: scripts/drift-check.js — the trace-order rows on `slice-reviewer`, `final-reviewer`, and the prose that dispatches each
+Check: scripts/drift-check.js — the trace-order rows on slice-reviewer, final-reviewer, and the prose that dispatches each
 Paths: plugin/agents/slice-reviewer.md, plugin/agents/final-reviewer.md, plugin/agents/implementer.md, plugin/references/implement-lite.md, plugin/references/implement-full.md, plugin/references/review-checklist.md, plugin/skills/review/SKILL.md
 
 ### INV-0119
@@ -993,7 +997,7 @@ Class: process
 Concepts: Run trace, Slice-reviewer, Degraded pass
 Statement: On the full tier, every slice merged into the scope branch has a `slice-reviewer` dispatch recorded in the run trace that ends after the slice's last `implementer` dispatch, or a degraded-pass entry naming that slice's denied review. `final-reviewer` reports a slice with neither as an Important finding (ADR 0117).
 Breaks: silently
-Check: scripts/drift-check.js — the review-dispatch row on `final-reviewer` and the prose that dispatches it
+Check: scripts/drift-check.js — the review-dispatch row on final-reviewer and the prose that dispatches it
 Paths: plugin/agents/final-reviewer.md, plugin/skills/review/**
 
 ### INV-0120
@@ -1066,7 +1070,7 @@ Concepts: Intent, Derived criteria
 Statement: A question the agent composes in a `/superdev:plan` or `/superdev:brainstorm` interview offers at most two options. A single surviving option is stated in one line with its reason and is not asked, and no surviving option means no question. Brainstorm offers at most two directions, never every direction it explored, and plan's derive pass states its gap settlement as one proposal the operator confirms before slicing. A question a skill requires by name keeps its fixed option set (ADR 0122).
 Breaks: silently
 Check: scripts/drift-check.js — the cap in `plugin/references/cross-exam.md`, brainstorm's offer wording, and plan's derive-pass settlement; partial: nothing checks the options an agent actually offers
-Paths: plugin/references/cross-exam.md, plugin/skills/brainstorm/SKILL.md, plugin/skills/plan/SKILL.md
+Paths: plugin/references/cross-exam.md, plugin/skills/brainstorm/SKILL.md, plugin/skills/plan/SKILL.md, plugin/agents/final-reviewer.md
 
 ### INV-0128
 
@@ -1102,7 +1106,7 @@ Concepts: Repair, Definition of Done (DoD), Scope anchor, Stage
 Statement: A repair writes nothing to the original scope's records: not its anchor, its `dod.md`, or its ledger, and merging the repair closes nothing. Recreating the original's missing local run root from its anchor's own `shipped` snapshot copies those records and changes none of them (INV-0132). The original's line observed false is settled only by `/superdev:verify-ship` on the original scope, and no repair moves the original's stage (ADR 0124).
 Breaks: silently
 Check: scripts/drift-check.js — plan's repair choice writes the Repairs line on the repair's own anchor only
-Paths: plugin/skills/plan/**, plugin/references/plan-contract.md, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**
+Paths: plugin/skills/plan/**, plugin/references/plan-contract.md, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**, plugin/references/scope-mode.md
 
 ### INV-0132
 
@@ -1127,9 +1131,9 @@ Paths: plugin/hooks/run-trace.js, plugin/hooks/hooks.json
 
 Class: process
 Concepts: Numbering collision, Scope branch, Base branch
-Statement: A scope branch never reaches the base branch carrying a numbering collision. The base step at implement start moves each colliding number of the scope to the next free one before it merges the base. `/superdev:ship` merges nothing while one stands. In this repository, the test run fails while two ADRs share a number (ADR 0126).
+Statement: A scope branch never reaches the base branch carrying a numbering collision. The base step at implement start moves each colliding number of the scope to the next free one before it merges the base. After the move, no line the scope branch added still cites the old number, except a line the attended operator kept as a legitimate citation of it. `/superdev:ship` merges nothing while one stands. In this repository, the test run fails while two ADRs share a number (ADR 0126).
 Breaks: silently
-Check: tests/scope.test.js — the collision verb reports a same-number ADR with a different slug, and an invariant id, that base holds; scripts/drift-check.js — no two ADRs in docs/adr/ share a number
+Check: tests/scope.test.js — the collision verb reports a same-number ADR with a different slug, and an invariant id, that base holds; tests/scope.test.js — the citations verb reports an added line citing an old number, and none for a longer number or an unchanged line; scripts/drift-check.js — no two ADRs in docs/adr/ share a number
 Paths: plugin/scripts/scope.js, plugin/references/scope-mode.md, plugin/references/merge-conflicts.md, plugin/skills/ship/SKILL.md
 
 ### INV-0135
@@ -1166,7 +1170,7 @@ Class: process
 Concepts: Fail-to-pass run, Run trace, Slice-reviewer
 Statement: A `behavior` slice, and a fix cycle whose commits change both a test-path file and another file, carries an outcome line of a fail-to-pass run in the run trace before the reviewer that next reads the trace. A `pass-to-pass` outcome is an Important finding, and so is such a change with no outcome line: `slice-reviewer`'s on the full tier, `final-reviewer`'s on the lite tier and in `/superdev:review`'s fix loop. Both take Missing RED's 3-cycle cap and escape path: at the cap, a remainder whose only Critical or Important findings are Missing RED, Pass-to-pass, or Missing fail-to-pass run, in any mix, proceeds and the report names each, and any of them beside a Critical or Important finding of another kind blocks. A `pass-to-pass` finding closes only on a `fail-to-pass` outcome over a range from the original change's base to the tip current when that closing run ran, and stays closed once that outcome is written (ADR 0134, ADR 0125).
 Breaks: silently
-Check: scripts/drift-check.js — the fail-to-pass rows on `slice-reviewer`, `final-reviewer`, `plugin/references/review-checklist.md`, and the prose that runs the verb and dispatches each reviewer
+Check: scripts/drift-check.js — the fail-to-pass rows on slice-reviewer, final-reviewer, `plugin/references/review-checklist.md`, and the prose that runs the verb and dispatches each reviewer
 Paths: plugin/agents/slice-reviewer.md, plugin/agents/final-reviewer.md, plugin/references/review-checklist.md, plugin/references/implement-full.md, plugin/references/implement-lite.md, plugin/references/run-handoff.md, plugin/skills/review/SKILL.md
 
 ### INV-0139
@@ -1211,7 +1215,7 @@ Class: process
 Concepts: Final-reviewer, Slice-reviewer, Review cycle
 Statement: The scope review's `final-reviewer` reads the whole scope range on every dispatch, its re-reviews after a fix cycle included, because a full-tier slice re-review reads only its fix cycle's range (ADR 0137).
 Breaks: silently
-Check: scripts/drift-check.js — the whole-range row on `final-reviewer` and the review skill's dispatch that hands it the range
+Check: scripts/drift-check.js — the whole-range row on final-reviewer and the review skill's dispatch that hands it the range
 Paths: plugin/agents/final-reviewer.md, plugin/skills/review/**
 
 ### INV-0144

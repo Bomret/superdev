@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amends:** [ADR 0025](0025-the-scope-review-owns-the-full-suite-run.md).
+
 **Amended by:** [ADR 0085](0085-the-focused-test-command-is-required-configuration.md), which makes the
 focused command required configuration and supersedes the "absent second fenced block" fallback this
 record still describes below.

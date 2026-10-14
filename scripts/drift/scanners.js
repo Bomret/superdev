@@ -574,19 +574,34 @@ function scanSpecialisingCitations(root) {
 // store side, applied to the glossary instead. Which entries owe it follows from what each one names, so
 // `SPECIALISING_SECTIONS` is the only membership source: a second entry deferring to the same member
 // (`Anchor dependency` beside `Scope anchor`) owes the citation too, and a paragraph naming only a
-// non-member heading (`## Untriaged item`) owes nothing. Paragraphs split at blank lines on the
-// fence-masked text, so a heading reference or a citation shown
-// only inside a fenced example neither triggers the check nor satisfies it.
+// non-member heading (`## Untriaged item`) owes nothing. An entry runs from its `**Term**:` line to the
+// next such line or heading (ADR 0150), so blank lines around or inside a fenced block never split it.
+// A `**Term**:` or `**Term** (qualifier):` line opens an entry. Boundary lines are found outside fenced
+// blocks only, so a heading or term line shown in a fenced example splits nothing. An unterminated fence
+// hides no boundary: its lines count as outside a fence. Each entry is then fence-masked alone, so a
+// heading reference or a citation shown only inside a fenced example neither triggers the check nor
+// satisfies it, and an unterminated fence masks only the rest of its own entry.
 function scanGlossarySpecialisingCitations(root) {
   const gaps = [];
   const text = readDoc(root, 'CONTEXT.md');
   if (text === null) return gaps; // CONTEXT.md absent (fixture / partial checkout) → nothing to scan
-  for (const paragraph of maskFences(text).split(/\n[ \t]*\n/)) {
-    const term = paragraph.match(/^\s*\*\*([^*]+)\*\*/);
-    const entry = term ? term[1] : paragraph.trim().split('\n')[0];
+  const lines = fenceLines(text);
+  // The last block's fence is unterminated when no `close` line follows its `open` line.
+  const lastOpen = lines.map((l) => l.role).lastIndexOf('open');
+  const unterminated = lastOpen !== -1 && !lines.slice(lastOpen).some((l) => l.role === 'close');
+  const entries = [[]];
+  lines.forEach(({ line, role }, i) => {
+    const outside = role === 'text' || (unterminated && i >= lastOpen);
+    if (outside && /^[ \t]*\*\*[^*\n]+\*\*(?:[ \t]*\((?:[^()\n]|\([^()\n]*\))*\))?:|^#{1,6}[ \t]/.test(line) && i > 0) entries.push([]);
+    entries[entries.length - 1].push(line);
+  });
+  for (const entryLines of entries) {
+    const masked = maskFences(entryLines.join('\n'));
+    const term = masked.match(/^\s*\*\*([^*]+)\*\*/);
+    const entry = term ? term[1] : masked.trim().split('\n')[0];
     for (const name of SPECIALISING_SECTIONS) {
-      if (!glossaryHeadingReference(name).test(paragraph)) continue;
-      if (!specialisingCitation(name).test(paragraph)) {
+      if (!glossaryHeadingReference(name).test(masked)) continue;
+      if (!specialisingCitation(name).test(masked)) {
         gaps.push({
           source: 'CONTEXT.md',
           expectation: `cite \`plan-contract.md\` → *${name}* in its **${entry}** glossary entry`,
@@ -650,6 +665,114 @@ function scanAdrNumbers(root) {
       source: ADR_DIR,
       expectation: `give each ADR its own number — ${num} is shared by ${files.join(', ')}`,
     }));
+}
+
+// ADR relation headers (ADR 0150). Each label pairs with the label its target must carry.
+const ADR_RELATION_REVERSE = {
+  Amends: 'Amended by',
+  'Amended by': 'Amends',
+  Supersedes: 'Superseded by',
+  'Superseded by': 'Supersedes',
+};
+
+// adrRelationHeaders() reads one ADR's header region from fence-masked text: the lines after the
+// `**Status:**` line up to the body, which starts at the first `## ` heading or bold `**Context`
+// paragraph. An ADR with no `**Status:**` line has no header region. A header is a bold `**Label:**`
+// line plus its continuation lines up to the next blank line. Returns the headers, each
+// `{ label, text }` with the continuation lines joined by a space.
+function adrRelationHeaders(masked) {
+  const headers = [];
+  let open = null;
+  const lines = masked.split('\n');
+  const status = lines.findIndex((l) => l.startsWith('**Status:**'));
+  if (status < 0) return headers;
+  for (const line of lines.slice(status + 1)) {
+    if (/^## |^\*\*Context/.test(line)) break;
+    const label = line.match(/^\*\*([^*]+?):\*\*/);
+    if (label) headers.push((open = { label: label[1], text: line }));
+    else if (!line.trim()) open = null;
+    else if (open) open.text += ` ${line.trim()}`;
+  }
+  return headers;
+}
+
+// Every markdown link in a relation header; `named` is the match of an `ADR NNNN` link text, `file` the href without its anchor.
+const adrHeaderLinks = (text) =>
+  [...text.matchAll(/\[([^\]]*)\]\(([^)]*)\)/g)].map(([, linkText, href]) => ({
+    linkText,
+    href,
+    file: href.split('#')[0],
+    named: linkText.match(/^ADR (\d{4})$/),
+  }));
+
+// scanAdrRelations() is pure over a root dir: every relation header in `docs/adr/*.md` pairs with the reverse
+// header on its target, the target file exists, link text and target agree on the number, and no other
+// relation label appears. `**Status:** Superseded` and a `**Superseded by:**` header go together. Every
+// `[ADR NNNN](...)` link in a header is a relation target. A header with no such link fails unless it names
+// only INV targets, and a link to an ADR file whose text is not `ADR NNNN` fails.
+function scanAdrRelations(root) {
+  let names;
+  try {
+    names = fs.readdirSync(path.join(root, ADR_DIR));
+  } catch {
+    return []; // no ADR tree (fixture / partial checkout) → nothing to scan
+  }
+  const adrs = new Map(); // number → { source, headers, superseded }
+  for (const n of names.filter((x) => /^\d{4}-.*\.md$/.test(x)).sort()) {
+    const text = fs.readFileSync(path.join(root, ADR_DIR, n), 'utf8');
+    const masked = maskFences(text);
+    adrs.set(n.slice(0, 4), {
+      source: path.join(ADR_DIR, n),
+      headers: adrRelationHeaders(masked),
+      superseded: /^\*\*Status:\*\* Superseded\b/m.test(masked),
+    });
+  }
+  const gaps = [];
+  const gap = (source, expectation) => gaps.push({ source, expectation });
+  for (const [num, adr] of adrs) {
+    const has = (label) => adr.headers.some((h) => h.label === label);
+    if (adr.superseded !== has('Superseded by')) {
+      gap(
+        adr.source,
+        adr.superseded
+          ? `carry a \`**Superseded by:**\` header, because ADR ${num} states \`**Status:** Superseded\``
+          : `state \`**Status:** Superseded\`, because ADR ${num} carries a \`**Superseded by:**\` header`,
+      );
+    }
+    for (const { label, text } of adr.headers) {
+      if (!ADR_RELATION_REVERSE[label]) {
+        gap(adr.source, `use only the relation labels ${Object.keys(ADR_RELATION_REVERSE).join(', ')} — ADR ${num} uses \`**${label}:**\``);
+        continue;
+      }
+      const links = adrHeaderLinks(text);
+      const adrLinks = links.filter((l) => l.named);
+      const misnamed = links.filter((l) => !l.named && /^\d{4}-.*\.md$/.test(path.basename(l.file)));
+      for (const { linkText, href } of misnamed) {
+        gap(adr.source, `write the link text of an ADR link as \`ADR NNNN\` — ADR ${num}'s \`**${label}:**\` header links \`[${linkText}](${href})\``);
+      }
+      // only a header naming INV targets alone (linked or plain) may hold no ADR link
+      const invOnly =
+        /\bINV-\d{4}\b/.test(text) && !/\bADR\s*\d{4}\b/i.test(text.replace(/\[INV-\d{4}\]\([^)]*\)/g, '')) && links.every((l) => /^INV-\d{4}$/.test(l.linkText));
+      if (!adrLinks.length && !misnamed.length && !invOnly) {
+        gap(adr.source, `link each target as [ADR NNNN](NNNN-<slug>.md) — ADR ${num}'s \`**${label}:**\` header holds no such link`);
+        continue;
+      }
+      for (const { named, linkText, href, file } of adrLinks) {
+        const target = path.basename(file).match(/^(\d{4})-.*\.md$/);
+        if (!target || target[1] !== named[1]) {
+          gap(adr.source, `link [${linkText}] to the ADR file with that number — ADR ${num}'s \`**${label}:**\` header points at \`${href}\``);
+        } else if (!fs.existsSync(path.join(root, ADR_DIR, path.basename(file)))) {
+          gap(adr.source, `link an ADR file that exists — ADR ${num}'s \`**${label}:**\` header points at the missing \`${href}\``);
+        } else if (!adrs.get(named[1]).headers.some((h) => h.label === ADR_RELATION_REVERSE[label] && adrHeaderLinks(h.text).some((l) => l.named?.[1] === num && path.basename(l.file).startsWith(`${num}-`)))) {
+          gap(
+            adr.source,
+            `pair with ADR ${named[1]} — ADR ${num}'s \`**${label}:**\` header names ADR ${named[1]}, which carries no \`**${ADR_RELATION_REVERSE[label]}:**\` header naming ADR ${num}`,
+          );
+        }
+      }
+    }
+  }
+  return gaps;
 }
 
 // Every document in the doc loop must still instruct itself to read the content-type lens (ADR 0014).
@@ -1666,7 +1789,68 @@ function scanModelInvocationSplit(root) {
   return gaps;
 }
 
+// The invariant register joined to the drift registry and the contract tables (ADR 0150). A register
+// `Check:` line that names `scripts/drift-check.js` lists the ids it pins as backticked tokens up to the
+// next `;`; a token shaped like a check id must be a registered one (a backticked token that is not
+// lowercase words joined by hyphens is prose). A contract row whose expectation cites `INV-NNNN` must
+// pin a document one of that entry's `Paths:` globs covers, the plugin-relative path mapped to its
+// repository path the way `docPath()` does; an entry with no `Paths:` covers every path except the
+// register itself. A row whose document is absent belongs to `scanPinnedPaths`. `checkIds` and
+// `tables` default to the real registry and tables; the selftest passes its own.
+function scanInvariantRegisterJoin(root, { checkIds, tables } = {}) {
+  const { REGISTER, REGISTER_PATH, parseEntries, globMatcher, list, unquote } = require('../invariant-check');
+  const register = path.join(root, REGISTER);
+  if (!fs.existsSync(register)) return [];
+  const { entries } = parseEntries(fs.readFileSync(register, 'utf8'));
+  const known = new Set(checkIds || require('./checks').map((c) => c.id));
+  const gaps = [];
+
+  const DRIFT = 'scripts/drift-check.js';
+  for (const e of entries) {
+    for (const segment of (e.fields.Check || '').split(';')) {
+      const at = segment.indexOf(DRIFT);
+      if (at < 0) continue;
+      for (const [, token] of segment.slice(at + DRIFT.length).replace(/^`/, '').matchAll(/`([^`]+)`/g)) {
+        if (/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(token) && !known.has(token)) {
+          gaps.push({ message: `${e.id}: Check: \`${token}\` is not a registered drift-check id` });
+        }
+      }
+    }
+  }
+
+  const byId = new Map(entries.map((e) => [e.id, e]));
+  // An entry with no `Paths:` governs every path but the register, as `invariant-check.js` reads it.
+  const covers = (e, repoPath) =>
+    e.fields.Paths
+      ? list(e.fields.Paths).map(unquote).some((g) => globMatcher(g)(repoPath))
+      : repoPath !== REGISTER_PATH;
+  const seen = new Set();
+  const allTables =
+    tables || Object.fromEntries(Object.entries(contracts).filter(([, v]) => Array.isArray(v)));
+  for (const [name, rows] of Object.entries(allTables)) {
+    for (const row of rows) {
+      if (!Array.isArray(row) || typeof row[0] !== 'string' || typeof row[2] !== 'string') continue;
+      const doc = docPath(root, row[0]);
+      if (!fs.existsSync(doc)) continue;
+      const repoPath = path.relative(root, doc).split(path.sep).join('/');
+      for (const id of new Set(row[2].match(/INV-\d{4}/g) || [])) {
+        const key = `${id}|${name}|${repoPath}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const e = byId.get(id);
+        if (!e) {
+          gaps.push({ message: `${name}: a row on ${repoPath} cites ${id}, which the register does not carry` });
+        } else if (!covers(e, repoPath)) {
+          gaps.push({ message: `${id}: Paths covers none of ${repoPath}, which a ${name} row pins as that invariant's rule` });
+        }
+      }
+    }
+  }
+  return gaps;
+}
+
 module.exports = {
+  scanInvariantRegisterJoin,
   scan,
   scanRunRootPaths,
   scanScopetreeRunRootPaths,
@@ -1687,6 +1871,7 @@ module.exports = {
   scanWritingStandardContract,
   scanAdrStatus,
   scanAdrNumbers,
+  scanAdrRelations,
   scanContentTypesContract,
   scanCommandRefs,
   scanObservationCaptureReminders,

@@ -65,6 +65,7 @@ try {
   require('./coverage.test')(context);
   require('./observation.test')(context);
   require('./drift-check.test')(context);
+  require('./register-join.test')(context);
 
   // Every table any suite above scanned, and every table the registry declares, gets checked here, once,
   // against what it actually observed — not a curated subset. All the tables at fault are in the one

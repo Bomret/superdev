@@ -189,6 +189,7 @@ superdev subagent that omits one):
     finding, **Unreviewed slice**. No trace, or no events for a slice: it names that in the report and raises neither finding.
     The remedy for an **Unreviewed slice** finding is a `superdev:slice-reviewer` dispatch that hands over the slice's
     `spec`, `acceptance`, range, and progress-log path `<run-root>/reports/<id>/progress.md`, so the run trace records the dispatch on that slice.
+    The `slice-reviewer` judges the slice's range itself: the progress log is input to check against the code, not a verdict to adopt.
   - **Also tell it the fail-to-pass rule on a `lite` scope, so it reads the outcome lines.** `final-reviewer`
     applies `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` to every `behavior`
     slice: an **Important** finding, **Pass-to-pass**, where the slice's latest
@@ -244,7 +245,7 @@ superdev subagent that omits one):
   the suite over the range rather than trust the diff alone. The dispatch tells it to run every test through `scope.js test`, and a suite
   longer than the Bash tool's time limit in the background, waiting for its end. **Scope mode** — §4 already ran a suite for
   this dispatch; hand it that result and tell it to review against that result, running no suite of its
-  own. Say which run it is: `final-reviewer` reviews against whichever result you hand it, full or
+  own. It judges the range itself and checks whether the suite result covers the changed code. Say which run it is: `final-reviewer` reviews against whichever result you hand it, full or
   focused (ADR 0075). The entry and exit dispatches hand a full-suite result — labelled whole-repo
   when the review ran the whole-repo command (§4) — and a fix cycle's
   re-review hands that cycle's focused run. Confirming a `dod.md` criterion observes; it changes no
@@ -252,7 +253,7 @@ superdev subagent that omits one):
   other outward-facing change to confirm gets reported as unverifiable on the branch, needing
   verification after merge, naming the outward-facing change it needs.
 - **`superdev:simplicity-reviewer`** (`model: sonnet`) — over-engineering only (unnecessary complexity,
-  what stdlib/native replaces, what to delete). Give it the same git range.
+  what stdlib/native replaces, what to delete). Give it the same git range. It assesses the diff itself; any text handed with the range is input to check, not a verdict to adopt.
 
 Both subagents are **read-only** (`Read`, `Grep`, `Bash` — a hook blocks `git merge`/`push`/`rebase`/`pull`/`subtree push` and
 the code-host merge calls `gh`/`tea pr merge`, `tea api`, and `gh api`, from any subagent). Scale the dispatch to the diff:
@@ -575,7 +576,7 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
     cycle: dispatch the `superdev:slice-reviewer` with an explicit `model`, handing over the slice's `spec`,
     `acceptance`, range, and progress-log path `<run-root>/reports/<id>/progress.md`, and leave it off the
     **Confirmed** list below, dispatching no implementer when no finding remains on it. The run trace records that
-    dispatch on the slice, which is what closes the finding at the re-review (§2).
+    dispatch on the slice, which is what closes the finding at the re-review (§2). The reviewer judges the range itself and reads the progress log as input to check, not a verdict to adopt.
   - **Fail-to-pass run around each fix cycle** (ADR 0134, INV-0138) → before each fix dispatch below, record the scope
     tip, `git -C <run-root>/scopetree rev-parse HEAD`, as the cycle's `<base>`. Once the cycle's report is accepted,
     after any send-back to the implementer for a report defect or a missed sibling surface, and before the

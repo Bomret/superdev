@@ -47,6 +47,7 @@ const {
   scanShellSpawn,
   scanAdrStatus,
   scanAdrNumbers,
+  scanAdrRelations,
   scanForcingBranchFlag,
   scanNoForceMerge,
   scanConflictConclusionNoCommit,
@@ -60,6 +61,7 @@ const {
   scanRunLockLivenessSilence,
   scanUnmappedPathsForms,
   scanDeployRunnerExclusivity,
+  scanInvariantRegisterJoin,
 } = require('./scanners');
 const {
   ADR_STATUSES,
@@ -111,6 +113,9 @@ const {
   SUBMIT_PR_WHOLE_REPO_CONTRACTS,
   TIER_SKIP_CONTRACTS,
   SIMPLICITY_BESIDE_FIRST_REVIEW_CONTRACTS,
+  TIMING_COMMAND_CONTRACTS,
+  JUDGE_DISCIPLINE_CONTRACTS,
+  REVIEW_VERDICT_CONTRACTS,
   CONTAINMENT_DELEGATION_CONTRACTS,
   CONTAINMENT_REFETCH_CONTRACTS,
   CONTAINMENT_PROBE_CONTRACTS,
@@ -585,6 +590,12 @@ module.exports = [
     format: contractGap,
   },
   {
+    id: 'adr-relations',
+    ok: 'every ADR relation header pairs with the reverse header on its target',
+    run: scanAdrRelations,
+    format: contractGap,
+  },
+  {
     id: 'append-mode',
     ok: 'every store document carries its append-mode rules',
     run: scanAppendContract,
@@ -863,6 +874,21 @@ module.exports = [
     'simplicity-beside-first-review',
     SIMPLICITY_BESIDE_FIRST_REVIEW_CONTRACTS,
     "the full tier dispatches simplicity-reviewer in parallel with a behavior slice's first review, each warranted cut joins the fix list as a Minor finding, a clean first review with no cut merges with no cycle, a cuts-only first review starts a cycle that counts toward the cap, a Minor-and-cuts remainder merges at the cap, no implementer runs on a slice after its last review, a denied pass runs inline, and the implement skill, plan contract, review skill, simplicity-reviewer, and lite playbook agree (ADR 0138)",
+  ),
+  table(
+    'timing-command',
+    TIMING_COMMAND_CONTRACTS,
+    'the `## Timing command` heading stands in its writer, its definition, and its reader (ADR 0150)',
+  ),
+  table(
+    'judge-discipline',
+    JUDGE_DISCIPLINE_CONTRACTS,
+    "each review agent's judge-discipline paragraph carries both shared clauses, and the dispatches of the review agents keep each on the artifact itself (INV-0020, ADR 0150)",
+  ),
+  table(
+    'review-verdict',
+    REVIEW_VERDICT_CONTRACTS,
+    'the Review verdict value sets and the Review cycle rule agree across the glossary, ADR 0136, and ADR 0140 (ADR 0150)',
   ),
   table(
     'containment-delegation',
@@ -1234,6 +1260,12 @@ module.exports = [
     ok: "no skill or agent but ship names a deploy target's command as something it runs (INV-0098)",
     run: scanDeployRunnerExclusivity,
     format: contractGap,
+  },
+  {
+    id: 'invariant-register-join',
+    ok: "every drift id a register `Check:` line names is registered, and every invariant a contract row cites covers the row's document in its `Paths:` (ADR 0150)",
+    run: (root) => scanInvariantRegisterJoin(root),
+    format: (g) => g.message,
   },
   table(
     'document-submitted-handoff',

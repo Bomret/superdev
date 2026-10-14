@@ -50,6 +50,9 @@ const COVERED_TABLES = [
   'SHIP_OFFER_CONTRACTS',
   'INVOCATION_START_CONTRACTS',
   'SIMPLICITY_BESIDE_FIRST_REVIEW_CONTRACTS',
+  'TIMING_COMMAND_CONTRACTS',
+  'JUDGE_DISCIPLINE_CONTRACTS',
+  'REVIEW_VERDICT_CONTRACTS',
 ];
 
 // Rows no edit isolates, as `TABLE row N` (the span cut and every single-character drop both report a

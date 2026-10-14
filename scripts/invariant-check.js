@@ -14,6 +14,8 @@ const path = require('node:path');
 
 const USAGE = 'usage: node scripts/invariant-check.js --root <repository-dir>';
 const REGISTER = path.join('docs', 'invariants.md');
+// The register as a forward-slash repository path, the form `walk` returns and `Paths:` globs match.
+const REGISTER_PATH = REGISTER.replace(/\\/g, '/');
 
 const FIELD_KEYS = new Set(['Class', 'Concepts', 'Statement', 'Breaks', 'Check', 'Symbols', 'Paths']);
 const KNOWN_FIELDS = [...FIELD_KEYS].join(', ');
@@ -223,7 +225,7 @@ function governedFiles(entry, files) {
 // entry's `Paths` files, or every walked file but the register itself when it names no `Paths`.
 function symbolFailures(entry, governed, files, read) {
   const failures = [];
-  const scope = entry.fields.Paths ? [...governed] : files.filter((f) => f !== REGISTER.replace(/\\/g, '/'));
+  const scope = entry.fields.Paths ? [...governed] : files.filter((f) => f !== REGISTER_PATH);
   for (const symbol of list(entry.fields.Symbols).map(unquote)) {
     const word = symbol.split('.').pop().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const re = new RegExp(`(^|[^A-Za-z0-9_$])${word}($|[^A-Za-z0-9_$])`, 'm');
@@ -252,7 +254,7 @@ function checkPathFailures(entry, root) {
 // Files whose citations are dated history rather than live text: the register itself, the
 // release-managed changelog, and ADRs, which are superseded rather than edited. A stale citation
 // there cannot be fixed by editing, so it is never reported.
-const HISTORY = (rel) => rel === REGISTER.replace(/\\/g, '/') || rel === 'CHANGELOG.md' || rel.startsWith('docs/adr/');
+const HISTORY = (rel) => rel === REGISTER_PATH || rel === 'CHANGELOG.md' || rel.startsWith('docs/adr/');
 
 // Every `INV-NNNN` cited in a walked file outside HISTORY must name an entry the register carries,
 // so retiring or renumbering an entry cannot leave its citations silently stale (#689).
@@ -320,4 +322,4 @@ function main(argv) {
 
 if (require.main === module) process.exitCode = main(process.argv.slice(2));
 
-module.exports = { parseEntries, check, walk, globMatcher };
+module.exports = { REGISTER, REGISTER_PATH, parseEntries, check, walk, globMatcher, list, unquote };

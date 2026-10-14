@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 
-This record amends ADR 0035.
+**Amends:** [ADR 0035](0035-a-review-fix-changes-how-not-what.md).
 
 **Context.** ADR 0035 sends every remedy that adds a capability the Definition of Done never named to
 `/superdev:plan`. The reviewers and the controller read "capability" widely. A new drift contract row, a

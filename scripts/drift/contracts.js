@@ -1129,6 +1129,9 @@ const BASE_MERGE_CONTRACTS = [
   [path.join('references', 'merge-conflicts.md'), /found by\s+number, whether or not git reports a conflict/, 'find a numbering collision by number, whether or not git reports a conflict (ADR 0126)'],
   [path.join('references', 'scope-mode.md'), /\*\*Move every numbering collision first\*\*[\s\S]{0,300}scope\.js"? collisions --base <tip> --branch <branch>[\s\S]{0,1200}Exit 2 → the check could not run[\s\S]{0,100}never reading it as no collision/, 'run `scope.js collisions` before the base merge, renumber what it finds, and stop when it cannot run (ADR 0126)'],
   [path.join('skills', 'ship', 'SKILL.md'), /\*\*Check numbering\s+collisions before the merge\*\*[\s\S]{0,300}scope\.js"?\s+collisions --base <base> --branch <branch>[\s\S]{0,600}merge nothing and change nothing on the scope branch[\s\S]{0,600}Exit 2 → the check could not run[\s\S]{0,100}merge nothing/, 'run `scope.js collisions` before its own base merge, and merge nothing on a collision or when the check cannot run (ADR 0126)'],
+  // ADR 0150, INV-0134: the citations verb has no way to exclude a line, so a line the attended operator
+  // kept leaves it at exit 1; the base step merges once only kept lines remain, never waiting on exit 0.
+  [path.join('references', 'scope-mode.md'), /The base is merged once the verb exits 0, or once every line it still\s+prints is one the attended operator kept\./, 'merge the base once `scope.js citations` exits 0, or once every line it still prints is one the attended operator kept (ADR 0150)'],
   // A live run whose branch no longer resolves would fail the verb with exit 2 and stop an unrelated run,
   // so both callers pass `--also` only for a branch ref that resolves (ADR 0126).
   [path.join('references', 'scope-mode.md'), /one `--also <ref>`[\s\S]{0,400}whose ref resolves:\s+`git rev-parse --verify <ref>` succeeds\. A run root whose branch no longer resolves gets no `--also`/, 'pass `--also` only for another live run whose branch ref resolves (ADR 0126)'],
@@ -9362,6 +9365,160 @@ RUN_TRACE_ORDER_CONTRACTS.push(
   ],
 );
 
+// ADR 0150: the `## Timing command` heading has a writer (the fenced example in `skills/setup/SKILL.md`), a
+// definition (`references/test-selection.md`), and a reader (`skills/review-tests/SKILL.md`). A rename in one
+// leaves every test audit `unmeasured` while the suite stays green. The rows read raw text, so the heading
+// inside setup's fenced example counts, and the setup and definition rows anchor to the heading line itself.
+const TIMING_COMMAND_CONTRACTS = [
+  [
+    path.join('skills', 'setup', 'SKILL.md'),
+    /^[ \t]*## Timing command[ \t]*$/m,
+    'write the `## Timing command` heading in its fenced example, the section `skills/review-tests/SKILL.md` reads',
+  ],
+  [
+    path.join('references', 'test-selection.md'),
+    /^## Timing command[ \t]*$/m,
+    'define the `## Timing command` section the setup skill writes and `skills/review-tests/SKILL.md` reads (ADR 0066)',
+  ],
+  [
+    path.join('skills', 'review-tests', 'SKILL.md'),
+    /`## Timing command` section/,
+    'read the `## Timing command` section `references/test-selection.md` defines and the setup skill writes (ADR 0066)',
+  ],
+];
+
+// ADR 0150, INV-0020: every review agent's judge-discipline paragraph carries the two shared clauses, each in
+// the subject's own words: it verifies the artifact itself and never defers to a narrative about it, and length
+// or an elaborate structure is no evidence on its own. Each row starts at the `**Judge discipline` line start
+// and cannot cross a blank line, so the same words elsewhere in the file satisfy no row. The line-start anchor
+// also fails `scanContract`'s whitespace-normalized second try, which has no blank line left to stop at.
+const IN_PARAGRAPH = '(?:(?!\\n[ \\t]*\\n)[\\s\\S])*?';
+const judgeRow = (agent, clause, expectation) => [
+  path.join('agents', `${agent}.md`),
+  new RegExp(`^\\*\\*Judge\\s+discipline${IN_PARAGRAPH}${clause}`, 'm'),
+  `carry, inside its judge-discipline paragraph, the clause that ${expectation} (INV-0020)`,
+];
+const JUDGE_DISCIPLINE_CONTRACTS = [
+  judgeRow(
+    'slice-reviewer',
+    "verify\\s+the\\s+\\*\\*artifact\\s+and\\s+behaviour\\s+against\\s+the\\s+specification\\*\\*\\s+yourself\\s+—\\s+never\\s+defer\\s+to\\s+the\\s+implementer's\\s+narrative",
+    "it verifies the artifact and behaviour against the specification itself and never defers to the implementer's narrative",
+  ),
+  judgeRow('slice-reviewer', 'Length\\s+≠\\s+completeness', 'length is not completeness'),
+  judgeRow(
+    'final-reviewer',
+    "verify\\s+the\\s+integrated\\s+behaviour\\s+against\\s+the\\s+DoD\\s+yourself;\\s+don't\\s+defer\\s+to\\s+the\\s+implementer's\\s+or\\s+controller's\\s+narrative",
+    "it verifies the integrated behaviour against the DoD itself and does not defer to the implementer's or controller's narrative",
+  ),
+  judgeRow('final-reviewer', 'Length\\s+≠\\s+completeness', 'length is not completeness'),
+  judgeRow(
+    'simplicity-reviewer',
+    "Assess\\s+the\\s+\\*\\*diff\\s+itself\\*\\*,\\s+not\\s+the\\s+implementer's\\s+narrative",
+    "it assesses the diff itself, not the implementer's narrative",
+  ),
+  judgeRow(
+    'simplicity-reviewer',
+    'Length\\s+or\\s+an\\s+elaborate\\s+structure\\s+is\\s+not\\s+its\\s+own\\s+justification',
+    'length or an elaborate structure is not its own justification',
+  ),
+  judgeRow(
+    'test-auditor',
+    `assess\\s+\\*\\*the\\s+test\\s+files\\s+themselves\\*\\*${IN_PARAGRAPH}never\\s+a\\s+narrative\\s+about`,
+    'it assesses the test files themselves, never a narrative about them',
+  ),
+  judgeRow(
+    'test-auditor',
+    'elaborate\\s+harness\\s+is\\s+not\\s+its\\s+own\\s+justification',
+    'an elaborate harness is not its own justification',
+  ),
+  // The dispatch side (CONTEXT.md → *Dispatch prose*, ADR 0035): the sentences that keep a dispatched
+  // reviewer verifying the artifact itself. The slice-reviewer dispatch's no-implementer-text sentence is
+  // pinned in the `blind-slice-review` table, and the derive dispatch's by-path hand-over in the plan skill's
+  // own contract tables, so no row repeats them here.
+  [
+    path.join('skills', 'plan', 'SKILL.md'),
+    /It\s+derives\s+from\s+the\s+handed\s+intent\s+and\s+grounds\s+each\s+failure-mode\s+class\s+in\s+the\s+files\s+it\s+reads\s+itself,\s+never\s+in\s+the\s+dispatch's\s+description\s+of\s+them/,
+    "tell the derive-mode final-reviewer dispatch to derive from the handed intent and ground each failure-mode class in the files it reads itself, never in the dispatch's description of them (INV-0020)",
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /It\s+judges\s+the\s+range\s+itself\s+and\s+checks\s+whether\s+the\s+suite\s+result\s+covers\s+the\s+changed\s+code/,
+    'tell a scope-mode final-reviewer dispatch to judge the range itself and check whether the suite result covers the changed code (INV-0020)',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /The\s+`slice-reviewer`\s+judges\s+the\s+slice's\s+range\s+itself:\s+the\s+progress\s+log\s+is\s+input\s+to\s+check\s+against\s+the\s+code,\s+not\s+a\s+verdict\s+to\s+adopt/,
+    "tell the scope review's Unreviewed-slice remedy dispatch to judge the slice's range itself and treat the progress log as input to check, not a verdict to adopt (INV-0020)",
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /The\s+reviewer\s+judges\s+the\s+range\s+itself\s+and\s+reads\s+the\s+progress\s+log\s+as\s+input\s+to\s+check,\s+not\s+a\s+verdict\s+to\s+adopt/,
+    "tell the fix-loop's Unreviewed-slice remedy dispatch to judge the range itself and read the progress log as input to check, not a verdict to adopt (INV-0020)",
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /It\s+assesses\s+the\s+diff\s+itself;\s+any\s+text\s+handed\s+with\s+the\s+range\s+is\s+input\s+to\s+check,\s+not\s+a\s+verdict\s+to\s+adopt/,
+    'tell the scope review\'s simplicity-reviewer dispatch to assess the diff itself and treat any text handed with the range as input to check, not a verdict to adopt (INV-0020)',
+  ],
+  [
+    path.join('references', 'implement-full.md'),
+    /The\s+`simplicity-reviewer`\s+assesses\s+the\s+diff\s+itself;\s+any\s+text\s+the\s+dispatch\s+hands\s+it\s+is\s+input\s+to\s+check,\s+not\s+a\s+verdict\s+to\s+adopt/,
+    "tell step 3's simplicity-reviewer dispatch to assess the diff itself and treat any text the dispatch hands it as input to check, not a verdict to adopt (INV-0020)",
+  ],
+  [
+    path.join('skills', 'review-tests', 'SKILL.md'),
+    /It\s+assesses\s+the\s+test\s+files\s+themselves;\s+the\s+duration\s+table\s+is\s+input\s+to\s+check,\s+not\s+a\s+verdict\s+to\s+adopt/,
+    'tell the test-auditor dispatch to assess the test files themselves and treat the duration table as input to check, not a verdict to adopt (INV-0020)',
+  ],
+  [
+    path.join('skills', 'review', 'SKILL.md'),
+    /may\s+re-run\s+the\s+suite\s+over\s+the\s+range\s+rather\s+than\s+trust\s+the\s+diff\s+alone/,
+    'tell an ad-hoc final-reviewer dispatch it may re-run the suite over the range rather than trust the diff alone (INV-0020)',
+  ],
+];
+
+// ADR 0150, ADR 0136, ADR 0140: the Review verdict value sets and the Review cycle rule stand in the glossary
+// and in the ADRs that define them. ADR 0140 states the cycle rule only, as the reader rule that counts a
+// `completed` end, and no value set. Each row anchors at its entry's line start and stops at a blank line.
+const REVIEW_VERDICT_CONTRACTS = [
+  [
+    'CONTEXT.md',
+    new RegExp(
+      `^\\*\\*Review\\s+verdict\\*\\*:${IN_PARAGRAPH}specification\\s+verdict\\s+\\(pass,\\s+fail,\\s+or\\s+unknown\\),\\s+the\\s+quality\\s+verdict\\s+\\(approved,\\s+changes-needed,\\s+or\\s+unknown\\)`,
+      'm',
+    ),
+    "list the specification verdict values pass, fail, unknown and the quality verdict values approved, changes-needed, unknown in the **Review verdict** entry, as ADR 0136's `verdict` line writes them",
+  ],
+  [
+    'CONTEXT.md',
+    new RegExp(
+      `^\\*\\*Review\\s+cycle\\*\\*:${IN_PARAGRAPH}one\\s+more\\s+for\\s+each\\s+earlier\\s+\`slice-reviewer\`\\s+dispatch\\s+on\\s+the\\s+same\\s+slice\\s+that\\s+completed\\s+before\\s+it\\s+was\\s+dispatched`,
+      'm',
+    ),
+    'count, in the **Review cycle** entry, one more for each earlier `slice-reviewer` dispatch on the same slice that completed before it was dispatched (ADR 0140)',
+  ],
+  [
+    path.join(ADR_DIR, '0136-the-run-trace-records-each-slice-review-verdict.md'),
+    /<spec\s+pass\|fail\|unknown>\s+<quality\s+approved\|changes-needed\|unknown>/,
+    'write the `verdict` line as `<spec pass|fail|unknown> <quality approved|changes-needed|unknown>`, the value sets the glossary lists',
+  ],
+  [
+    path.join(ADR_DIR, '0136-the-run-trace-records-each-slice-review-verdict.md'),
+    /The\s+cycle\s+is\s+the\s+number\s+of\s+earlier\s+`slice-reviewer`\s+dispatches\s+on\s+the\s+same\s+slice\s+that\s+have\s+a\s+`dispatch-end`\s+before\s+this\s+review's\s+`dispatch`\s+line/,
+    "define the cycle as the number of earlier `slice-reviewer` dispatches on the same slice that have a `dispatch-end` before this review's `dispatch` line",
+  ],
+  [
+    path.join(ADR_DIR, '0140-the-run-files-record-each-step-start-and-each-dispatch-end.md'),
+    /treats\s+only\s+a\s+`completed`\s+end\s+as\s+a\s+finished\s+dispatch\.\s+The\s+review\s+coverage\s+rule\s+and\s+both\s+review\s+cycle\s+counts\s+read\s+it\s+so/,
+    'count only a `completed` dispatch end in both review cycle counts',
+  ],
+  [
+    path.join(ADR_DIR, '0140-the-run-files-record-each-step-start-and-each-dispatch-end.md'),
+    /each\s+cycle\s+count\s+counts\s+distinct\s+dispatches/,
+    'count a resumed dispatch once in each review cycle count',
+  ],
+];
+
 module.exports = {
   SIMPLICITY_BESIDE_FIRST_REVIEW_CONTRACTS,
   SHIP_OFFER_CONTRACTS,
@@ -9575,4 +9732,7 @@ module.exports = {
   DEPLOY_STEP_VISIBILITY_CONTRACTS,
   REVIEWER_MODEL_TIER_CONTRACTS,
   FIX_DISPATCH_CONTRACTS,
+  TIMING_COMMAND_CONTRACTS,
+  JUDGE_DISCIPLINE_CONTRACTS,
+  REVIEW_VERDICT_CONTRACTS,
 };

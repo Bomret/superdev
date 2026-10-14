@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amends:** [ADR 0025](0025-the-scope-review-owns-the-full-suite-run.md),
+[ADR 0077](0077-invariants-live-in-one-central-register.md).
+
 **Context.** A scope's Definition of Done read 0/N on its anchor through all of `/superdev:implement` and
 `/superdev:review`, then filled at once in `/superdev:ship` §4. The operator watching a run could not see
 which criteria it had reached, and ship found an unmet criterion only after the review gate had already

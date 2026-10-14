@@ -2,6 +2,17 @@
 
 **Status:** Accepted
 
+**Supersedes:** [ADR 0050](0050-carry-the-plugin-as-skills-canonical-prose-with-install-time-adapters.md),
+[ADR 0051](0051-the-opencode-agent-render-uses-a-tools-map-not-permission.md),
+[ADR 0052](0052-opencode-gets-a-synthesized-native-upgrade-command.md),
+[ADR 0054](0054-the-opencode-agent-render-restores-the-env-read-guard.md),
+[ADR 0055](0055-the-opencode-render-carries-prompts-as-skills-and-afk-as-a-command.md),
+[ADR 0056](0056-the-codex-render-withholds-afk-and-accepts-merge-guards-authorship-gap.md),
+[ADR 0060](0060-the-render-fixture-stores-an-overlay-not-a-body.md),
+[ADR 0100](0100-the-bridge-retries-a-transient-spawn-failure-once.md).
+
+**Amends:** [ADR 0087](0087-a-spawn-that-never-started-is-not-a-spawn-that-was-killed.md).
+
 **Context.** ADR 0050 made the prompt prose skills-canonical and added `plugin/scripts/adapter.js`,
 which renders the shipped skills, agents, and hooks for other harnesses. ADRs 0051–0056 and 0060
 extended the render for OpenCode and Codex, and ADR 0100 hardened the OpenCode hook bridge. Full

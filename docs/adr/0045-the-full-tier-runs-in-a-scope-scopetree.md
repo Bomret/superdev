@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amends:** [ADR 0001](0001-lite-scope-scopetree.md).
+
 **Amended by:** [ADR 0047](0047-the-green-gate-resolves-the-tree-instead-of-capturing-a-c-argument.md),
 which corrects the green-gate mechanism this ADR describes: the hook resolves the merge's working tree
 from `-C` or `--work-tree`, read back out of the matched option region, never from a regex capture group.

@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amends:** [ADR 0072](0072-plan-commits-its-design-docs-on-the-scope-branch.md).
+
 **Amended by:** [ADR 0079](0079-a-planned-ledger-hands-the-scope-branch-from-plan-to-implement.md),
 which extends the scopetree write to append mode and pairs the cut with a `planned` ledger.
 

@@ -2,7 +2,8 @@
 
 **Status:** Accepted
 
-**Amended by:** [ADR 0149](0149-a-linear-time-pin-reads-the-main-thread-s-cpu-time.md), under which a
+**Amended by:** [ADR 0087](0087-a-spawn-that-never-started-is-not-a-spawn-that-was-killed.md), and
+[ADR 0149](0149-a-linear-time-pin-reads-the-main-thread-s-cpu-time.md), under which a
 linear-time pin's same-run baseline is measured in the main thread's CPU time.
 
 **Context.** `tests/scope.test.js` asserts that a refetch against a black-holed remote returns inside a

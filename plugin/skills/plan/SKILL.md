@@ -341,7 +341,7 @@ single-slice plan, and an append, where it covers the whole amended Definition o
   ones from the solution shape before the dispatch; with none, skip the class pass and say so in the
   dispatch), and the **path** of the drafted Definition of Done, never inlined, so the reviewer derives
   before it reads (ADR 0020). It names the failure-mode classes in the changed code, each with a cited file,
-  before it opens the Definition of Done (ADR 0146). It returns every derived criterion and failure-mode
+  before it opens the Definition of Done (ADR 0146). It derives from the handed intent and grounds each failure-mode class in the files it reads itself, never in the dispatch's description of them. It returns every derived criterion and failure-mode
   class the Definition of Done does not cover, each with a one-line reason and a lean (criterion, fold into
   a named criterion, or non-goal), plus any ambiguous line. Fix an ambiguous line in the draft.
 - **Settle the gaps, then propose.** Check each gap the reviewer returns against the repository and

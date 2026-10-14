@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0136](0136-the-run-trace-records-each-slice-review-verdict.md).
+
 **Amends:** [ADR 0117](0117-the-run-trace-is-hook-written-evidence.md).
 
 **Amended by:** [ADR 0150](0150-shipped-code-starts-a-shell-only-for-an-operator-command.md), which replaces the

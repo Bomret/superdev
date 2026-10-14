@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amends:** [ADR 0106](0106-verifying-and-closing-a-shipped-scope-are-separate-human-only-commands.md).
+
 **Supersedes:** [ADR 0048](0048-a-local-store-triage-record-needs-its-scope-to-ship.md).
 
 ## Context

@@ -3,12 +3,7 @@
 **Status:** Accepted
 
 **Amends:** [ADR 0007](0007-scope-prune-ttl.md), which gave the reap its TTL and its subject — the run
-root alone. [ADR 0053](0053-containment-not-ancestry-decides-that-a-scope-branch-reached-base.md)'s
-Context records "Nothing removes the local `<type>/<scope>` branch … and no later step returns for it."
-It treats that as an observed fact about the clone, not as a gap anybody owns.
-[ADR 0065](0065-containment-refetches-the-base-before-it-answers-not-contained.md)'s rejected
-`git fetch --prune` option reasons that "nothing deletes the local `<type>/<scope>` branch," an assumption
-this decision retires.
+root alone.
 
 **Context.** `/superdev:ship` leaves the scope branch standing, correctly: the pull request is open from
 it, and deleting it closes the request. Nothing else in superdev returns for it. The local
@@ -16,6 +11,13 @@ it, and deleting it closes the request. Nothing else in superdev returns for it.
 `origin/<type>/<scope>` remote-tracking ref outlives the host's deletion of the branch until somebody runs
 `git fetch --prune`, which superdev neither runs nor may assume. On this repository both sets grow by one
 per shipped feature and nothing ever removes either.
+
+[ADR 0053](0053-containment-not-ancestry-decides-that-a-scope-branch-reached-base.md)'s
+Context records "Nothing removes the local `<type>/<scope>` branch … and no later step returns for it."
+It treats that as an observed fact about the clone, not as a gap anybody owns.
+[ADR 0065](0065-containment-refetches-the-base-before-it-answers-not-contained.md)'s rejected
+`git fetch --prune` option reasons that "nothing deletes the local `<type>/<scope>` branch," an assumption
+this decision retires.
 
 `hooks/scope-prune.js` already establishes exactly what a delete needs, for a different purpose. Before it
 removes a run root it has proved four things: the run root has sat untouched past the seven-day TTL, its

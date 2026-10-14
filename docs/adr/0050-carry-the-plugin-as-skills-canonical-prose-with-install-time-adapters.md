@@ -2,12 +2,14 @@
 
 **Status:** Superseded
 
-**Superseded by:** [ADR 0102](0102-superdev-is-a-claude-code-only-plugin.md), which makes superdev a Claude Code-only plugin and removes the harness renders.
-
-**Amended by:** [ADR 0051](0051-the-opencode-agent-render-uses-a-tools-map-not-permission.md), which
+**Amended by:** [ADR 0055](0055-the-opencode-render-carries-prompts-as-skills-and-afk-as-a-command.md),
+[ADR 0056](0056-the-codex-render-withholds-afk-and-accepts-merge-guards-authorship-gap.md), and
+[ADR 0051](0051-the-opencode-agent-render-uses-a-tools-map-not-permission.md), which
 corrects the rendered agents' access-control mechanism named below from a `permission:` mapping to a
 `tools:` map, and [ADR 0052](0052-opencode-gets-a-synthesized-native-upgrade-command.md), which reverses
 the Consequences' call to exclude `upgrade` outright, giving it a synthesized native command instead.
+
+**Superseded by:** [ADR 0102](0102-superdev-is-a-claude-code-only-plugin.md), which makes superdev a Claude Code-only plugin and removes the harness renders.
 
 ## Context
 

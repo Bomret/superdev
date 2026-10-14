@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0140](0140-the-run-files-record-each-step-start-and-each-dispatch-end.md).
+
 **Amends:** [ADR 0117](0117-the-run-trace-is-hook-written-evidence.md), [ADR 0127](0127-a-test-run-records-its-own-outcome.md).
 
 **Context.** A full-tier slice review leaves no machine-readable record of its outcome. The verdict

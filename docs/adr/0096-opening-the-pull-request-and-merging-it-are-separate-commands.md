@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amends:** [ADR 0013](0013-implement-tail-is-a-command-chain.md).
+
 **Amended by:** [ADR 0105](0105-an-affected-full-command-and-a-whole-repo-gate-before-the-pull-request.md),
 which has `/superdev:submit-pr` run the whole-repo command before it opens the pull request, and has
 `/superdev:ship` merge only a tip a green whole-repo run covers, where a repository configures one.

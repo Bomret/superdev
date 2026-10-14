@@ -2655,6 +2655,149 @@ try {
     fs.rmSync(repo, { recursive: true, force: true });
   }
 
+  // --- citations: a citation of an old number the range added, found by number (ADR 0150, INV-0134) ---
+  {
+    const g = (args, cwd) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
+    const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-citations-')));
+    const put = (file, text) => {
+      fs.mkdirSync(path.dirname(path.join(repo, file)), { recursive: true });
+      fs.writeFileSync(path.join(repo, file), text);
+    };
+    const save = (msg) => {
+      g(['add', '-A'], repo);
+      g(['commit', '-q', '-m', msg], repo);
+    };
+    g(['init', '-q', '-b', 'main'], repo);
+    g(['config', 'user.email', 'test@example.com'], repo);
+    g(['config', 'user.name', 'test'], repo);
+    put('base.md', 'keep ADR 0131 here\nline two\n');
+    put('moved.md', 'a\nINV-0012 stays\nb\n');
+    put('old name.md', 'one\ntwo ADR 0131\nthree\n');
+    put('gone.md', 'ADR 0131 deleted\n');
+    put('bin.dat', Buffer.from([0, 1, 2, 0]));
+    const fork = (save('fork'), g(['rev-parse', 'HEAD'], repo));
+    g(['checkout', '-q', '-b', 'scope'], repo);
+    put('base.md', 'keep ADR 0131 here\nline two\nsee ADR 0131 now\n');
+    put('sub/new doc.md', 'x\nINV-0012 cited\n[a](../0131-x.md)\nINV-00134 ADR 01310 INV-0013 x\nADRs 0126 and 0131\n');
+    put('moved.md', 'a\nb\nINV-0012 stays\n');
+    put('q"uote\tná.md', '++ ADR 0131\n');
+    g(['mv', 'old name.md', 'renamed.md'], repo);
+    put('renamed.md', 'one\ntwo ADR 0131\nthree\nfour ADR 0131\n');
+    fs.rmSync(path.join(repo, 'gone.md'));
+    put('bin.dat', Buffer.from([0, 9, 9, 0x31, 0x33, 0x31]));
+    save('scope');
+    const cli = (args, cwd = repo) =>
+      require('node:child_process').spawnSync(process.execPath, [scopePath, 'citations', ...args], {
+        cwd,
+        encoding: 'utf8',
+        timeout: 30000,
+      });
+    const lines = (res) => res.stdout.split('\n').filter(Boolean).sort();
+    const want = [
+      'base.md:3 0131',
+      'renamed.md:4 0131',
+      'sub/new doc.md:2 INV-0012',
+      'sub/new doc.md:3 0131',
+      'moved.md:3 INV-0012',
+      'q"uote\tná.md:1 0131',
+    ].sort();
+    const ids = ['0131', 'INV-0012'];
+    let res = cli(['--range-base', fork, '--branch', 'scope', ...ids]);
+    assertSpawnDecided(res, 'citations CLI');
+    assert.equal(res.status, 1, 'citations reported → exit 1');
+    assert.deepEqual(lines(res), want, 'each added citing line, by path and number; base lines, deleted lines, and longer numbers are none');
+    // A short sha is a ref too; the result does not move with the git diff configuration or the cwd.
+    res = cli(['--range-base', fork.slice(0, 8), '--branch', 'scope', ...ids]);
+    assert.deepEqual(lines(res), want, 'a short sha resolves');
+    g(['config', 'diff.relative', 'true'], repo);
+    g(['config', 'diff.noprefix', 'true'], repo);
+    g(['config', 'diff.external', 'false'], repo);
+    g(['config', 'color.diff', 'always'], repo);
+    g(['config', 'color.ui', 'always'], repo);
+    res = cli(['--range-base', fork, '--branch', 'scope', ...ids], path.join(repo, 'sub'));
+    assertSpawnDecided(res, 'citations CLI, configured, from a subdirectory');
+    assert.equal(res.status, 1);
+    assert.deepEqual(lines(res), want, 'diff.relative, diff.noprefix, diff.external, color.diff, and a subdirectory change nothing');
+    // Two close citing hunks in one file and a second citing file: git joins the first two under
+    // diff.interHunkContext, and a `-diff` attribute makes git print "Binary files differ".
+    g(['config', 'diff.interHunkContext', '5'], repo);
+    g(['checkout', '-q', '-b', 'pre', 'scope'], repo);
+    put('a.md', '1\n2\n3\n4\n5\n6\n');
+    put('b.md', '1\n2\n3\n');
+    save('pre');
+    g(['checkout', '-q', '-b', 'scope2'], repo);
+    put('a.md', '1\nADR 0131\n3\n4\nADR 0131\n6\n');
+    put('b.md', '1\nADR 0131\n3\n');
+    save('scope2');
+    const close = ['a.md:2 0131', 'a.md:5 0131', 'b.md:2 0131'];
+    res = cli(['--range-base', 'pre', '--branch', 'scope2', '0131']);
+    assertSpawnDecided(res, 'citations CLI, interHunkContext');
+    assert.deepEqual(lines(res), close, 'diff.interHunkContext hides no citation and moves no line');
+    put('.gitattributes', '*.md -diff\n');
+    save('scope3');
+    res = cli(['--range-base', 'pre', '--branch', 'HEAD', '0131']);
+    assertSpawnDecided(res, 'citations CLI, -diff attribute');
+    assert.deepEqual(lines(res), close, 'a -diff attribute hides no citation');
+    // A real binary file is read as text, so a citation inside it is reported.
+    g(['checkout', '-q', '-b', 'binpre', 'HEAD'], repo);
+    put('b.bin', Buffer.from([0, 1, 2, 0]));
+    save('binpre');
+    const binBase = g(['rev-parse', 'HEAD'], repo);
+    put('b.bin', Buffer.from([0, 1, 0xff, 0, ...Buffer.from('ADR 0131'), 0]));
+    save('bin');
+    res = cli(['--range-base', binBase, '--branch', 'HEAD', '0131']);
+    assertSpawnDecided(res, 'citations CLI, binary file');
+    assert.deepEqual(lines(res), ['b.bin:1 0131'], 'a citation inside a binary file is reported');
+    // diff.submodule=diff prints a submodule's own changes inline; a citation added inside a submodule is no line of this repository.
+    const subRepo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-citations-sub-')));
+    g(['init', '-q', '-b', 'main'], subRepo);
+    g(['config', 'user.email', 'test@example.com'], subRepo);
+    g(['config', 'user.name', 'test'], subRepo);
+    fs.writeFileSync(path.join(subRepo, 's.md'), 'one\n');
+    g(['add', '-A'], subRepo);
+    g(['commit', '-q', '-m', 'sub'], subRepo);
+    g(['checkout', '-q', '-b', 'subpre', 'HEAD'], repo);
+    g(['-c', 'protocol.file.allow=always', 'submodule', 'add', '-q', subRepo, 'vendor'], repo);
+    save('subpre');
+    const subBase = g(['rev-parse', 'HEAD'], repo);
+    fs.writeFileSync(path.join(repo, 'vendor', 's.md'), 'one\nADR 0131 inside\n');
+    g(['add', '-A'], path.join(repo, 'vendor'));
+    g(['commit', '-q', '-m', 'cite'], path.join(repo, 'vendor'));
+    save('subpost');
+    g(['config', 'diff.submodule', 'diff'], repo);
+    res = cli(['--range-base', subBase, '--branch', 'HEAD', '0131']);
+    assertSpawnDecided(res, 'citations CLI, submodule');
+    assert.equal(res.status, 0, 'a citation inside a submodule is not reported');
+    assert.equal(res.stdout, '', 'diff.submodule=diff prints nothing the verb reports');
+    // INV-0013 is a whole-number match only; one id alone reports only its own lines.
+    res = cli(['--range-base', fork, '--branch', 'scope', 'INV-0013']);
+    assert.equal(res.status, 1, 'INV-0013 is cited once, whole');
+    assert.deepEqual(lines(res), ['sub/new doc.md:4 INV-0013']);
+    res = cli(['--range-base', fork, '--branch', 'scope', 'INV-0014', '0132']);
+    assert.equal(res.status, 0, 'no citation → exit 0');
+    assert.equal(res.stdout, '', 'and prints nothing');
+    res = cli(['--range-base', 'scope', '--branch', 'scope', ...ids]);
+    assert.equal(res.status, 0, 'an empty range holds none');
+    for (const [name, args] of [
+      ['an unresolvable ref', ['--range-base', 'nope', '--branch', 'scope', '0131']],
+      ['a missing id', ['--range-base', fork, '--branch', 'scope']],
+      ['a malformed id', ['--range-base', fork, '--branch', 'scope', 'ADR 0131']],
+      ['a short id', ['--range-base', fork, '--branch', 'scope', '131']],
+      ['a malformed INV id', ['--range-base', fork, '--branch', 'scope', 'INV-12']],
+      ['a missing flag', ['--branch', 'scope', '0131']],
+    ]) {
+      res = cli(args);
+      assertSpawnDecided(res, `citations CLI, ${name}`);
+      assert.equal(res.status, 2, `${name} → exit 2`);
+      assert.equal(res.stdout, '', `${name} prints nothing on stdout`);
+      assert.notEqual(res.stderr, '', `${name} says why`);
+    }
+    assert.equal(g(['status', '--porcelain'], repo), '', 'the verb leaves the working tree clean');
+    assert.match(require('node:child_process').spawnSync('node', [scopePath, '--help'], { encoding: 'utf8' }).stdout, /^ {2}citations /m, '--help lists the verb');
+    fs.rmSync(repo, { recursive: true, force: true });
+    fs.rmSync(subRepo, { recursive: true, force: true });
+  }
+
   // --- collisions: a numbering collision found by number, never by a git conflict (ADR 0126, INV-0134) ---
   {
     const g = (args, cwd) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
@@ -4618,7 +4761,7 @@ try {
     // `ledger <verb> …` line: a verb added to the usage text with no driver here, or one that stops tracing, fails.
     {
       const usageText = spawnSync('node', [scopePath, '--help'], { encoding: 'utf8' }).stdout;
-      const readOnly = new Set(['get', 'trace', 'publish', 'status', 'root', 'staging', 'dod-line', 'collisions', 'test', 'fail-to-pass']);
+      const readOnly = new Set(['get', 'trace', 'publish', 'status', 'root', 'staging', 'dod-line', 'collisions', 'citations', 'test', 'fail-to-pass']);
       const readOnlySub = /^\s+(deploy get|suite reusable|base resolve)\b/;
       const usageVerbs = new Set(usageText.split('\n').slice(1)
         .filter((l) => /^ {2}[^-\s]/.test(l) && !readOnlySub.test(l))

@@ -511,7 +511,17 @@ branch step left you on.
    that in the scopetree, and name each renumber, old and new, in the run's report. A renumber resolves
    and asks nothing, so an unattended run renumbers the same way. Exit 2 → the check could not run: name
    its message and stop, dispatching no slice, never reading it as no collision; on exit 2,
-   **`--unattended` → block**, per `## Unattended`. Then the merge: `git -C <run-root>/scopetree merge-base --is-ancestor <tip> <branch>`
+   **`--unattended` → block**, per `## Unattended`. **Then find the citations the renumber missed** (ADR 0150, INV-0134): after the
+   renumber commit and before the merge, run
+   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" citations --range-base <range-base> --branch <branch> <id>…`
+   with every old id the renumber moved, each as `collisions` printed it. It prints one `<path>:<line> <id>`
+   line per line the scope branch added that still cites an old number. Exit 0 → none. Exit 1 → fix each named
+   line to the new number, commit, and run it again, until it exits 0 or prints only kept lines. A line the controller judges a
+   legitimate citation of the old number goes to the operator when attended, who fixes or keeps it, and
+   **`--unattended` → block**, per `## Unattended`. Exit 2 → the check could not run: name its message and
+   stop, as a collision check that cannot run stops, dispatching no slice. The base is merged once the verb
+   exits 0, or once every line it still prints is one the attended operator kept. A collisions
+   check that printed nothing moved no number, so no old id exists and this verb does not run. Then the merge: `git -C <run-root>/scopetree merge-base --is-ancestor <tip> <branch>`
    succeeds → nothing to merge. Otherwise run `git -C <run-root>/scopetree merge <tip>`, `<run-root>`
    spelled out as the real absolute path in the command text, never a shell variable: `hooks/green-gate.js` reads the
    command text alone. **A conflict** — `MERGE_HEAD` still set → resolve it by intent, per

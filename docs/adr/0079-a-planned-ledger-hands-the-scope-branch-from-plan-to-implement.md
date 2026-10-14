@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0120](0120-implement-brings-the-remote-base-into-the-scope-branch-before-the-first-slice.md).
+
 **Supersedes:** [ADR 0058](0058-base-lock-guards-plans-base-branch-commit.md).
 **Amends:** [ADR 0072](0072-plan-commits-its-design-docs-on-the-scope-branch.md),
 [ADR 0076](0076-plan-writes-its-design-docs-in-the-scope-scopetree.md).
