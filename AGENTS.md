@@ -404,7 +404,9 @@ This root owns every other subtree directly:
   stacked bar that keeps a segment for every status that has a slice, and one legend row per such status. A legend row shows the status as the
   ledger records it. Then the card lists the active scopes, each row with its stage on the right, a bar segment per
   slice, and its counts. The closed scopes follow as dim rows, the most recently closed first, by the
-  trace's `ledger stage set closed` line. A closed scope whose trace has no such line comes last. The other
+  trace's `ledger stage set closed` line. A closed scope whose trace has no such line comes last. The card
+  shows the five most recently closed scopes. A fold below them shows the rest on a press and folds them
+  again, and its state lives in the `sections` atom like a card's. The other
   cards draw one row per item, the label on the left and its value on the right. A scope row's name is a
   Markdown link without a button's chrome. The pane answers a press on it and opens the scope page, the
   scope run's event log, oldest first. No surface opens the link's URL. `eventLog` in `hooks/parse.ts` reads the

@@ -368,6 +368,41 @@ test('closed scopes list the most recently closed first, by the trace\'s closed 
   expect((await ui.findAll({ type: 'Markdown' })).map(m => m.key)).toEqual(['scope-a', 'scope-new', 'scope-old', 'scope-bare'])
 })
 
+test('the Scopes card shows the five most recently closed scopes, and a press shows the rest and folds them again', async ($, on) => {
+  const names = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7']
+  const files: Record<string, string> = { [`${R}/scopes/a/ledger.md`]: ledger('implementing', [['01', 'todo']]) }
+  const lists: Record<string, Entry[]> = { [R]: [dir('scopes')], [`${R}/scopes`]: [dir('a'), ...names.map(dir)], [`${R}/scopes/a`]: [] }
+  names.forEach((n, i) => {
+    files[`${R}/scopes/${n}/ledger.md`] = ledger('closed', [['01', 'merged']])
+    files[`${R}/scopes/${n}/trace.log`] = `2026-10-0${i + 1}T10:00:00.000Z scope main ledger stage set closed\n`
+    lists[`${R}/scopes/${n}`] = []
+  })
+  fakeRepo(on, files, lists)
+  await $.command.run(runCommand)
+  const closedKeys = async (ui: { findAll: (q: { type: string }) => Promise<{ key: string | undefined }[]> }) =>
+    (await ui.findAll({ type: 'Markdown' })).map(m => m.key).filter(k => k !== 'scope-a')
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ plugin: 'superdev-view', surface, ...PANE })
+    expect(await closedKeys(ui)).toEqual(['scope-c7', 'scope-c6', 'scope-c5', 'scope-c4', 'scope-c3'])
+    expect((await ui.find({ key: 'closed-more' }))?.text).toMatch(/2 more closed$/)
+    await ui.unmount()
+  }
+  const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'desktop', ...PANE })
+  await ui.press({ key: 'closed-more' })
+  expect(await closedKeys(ui)).toEqual(['scope-c7', 'scope-c6', 'scope-c5', 'scope-c4', 'scope-c3', 'scope-c2', 'scope-c1'])
+  expect((await ui.find({ key: 'closed-more' }))?.text).toMatch(/show fewer$/)
+  await ui.press({ key: 'closed-more' })
+  expect((await closedKeys(ui)).length).toBe(5)
+})
+
+test('five or fewer closed scopes draw no fold', async ($, on) => {
+  const { files, lists } = overviewRepo()
+  fakeRepo(on, files, lists)
+  await $.command.run(runCommand)
+  const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'terminal', ...PANE })
+  expect(await ui.find({ key: 'closed-more' })).toBeUndefined()
+})
+
 test('a closed scope whose run root is removed leaves the list, and its open page returns to the overview', async ($, on) => {
   const { files, lists } = overviewRepo()
   fakeRepo(on, files, lists)

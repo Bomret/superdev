@@ -27,6 +27,8 @@ const tally = (all: { status: string }[]) => {
 // The address a scope row's link carries: never opened, only matched by the pane's own press handler. The slug charset
 // needs no escaping in a Markdown link.
 const scopeHref = (name: string) => `https://superdev.invalid/scope/${name}`
+// How many closed scopes the Scopes card shows before its fold.
+const CLOSED_SHOWN = 5
 const share = (n: number, total: number) => (total === 0 ? 0 : Math.round((n / total) * 100))
 // A status's fill where the surface draws an Svg; the terminal draws its named color from SLICE_COLOR instead.
 const SLICE_HEX: Record<string, string> = { todo: '#6b6b6b', 'in-progress': '#d4a72c', 'in-review': '#4a7fd6', merged: '#4c9a6a', blocked: '#d0573f' }
@@ -334,6 +336,7 @@ export const register: Register = on => {
 
     const opened = await read($, sections)
     const toggle = (id: string, isOpen: boolean) => () => void update($, sections, m => ({ ...m, [id]: !isOpen }))
+    const isAllClosed = opened['closed-all'] ?? false
     // A section: a card with a rounded, dim border. Its header row holds the Button with the open mark and name, which gives
     // up width in a narrow pane, and the value on the right, which stays whole; then its body while open.
     const section = (id: string, name: string, value: string, isOpenByDefault: boolean, body: () => unknown) => {
@@ -446,7 +449,15 @@ export const register: Register = on => {
                 </Box>
               )
             }),
-            ...(closed.length > 0 ? [<Box key="closed" flexDirection="column">{closed.map(s => head(s, true))}</Box>] : []),
+            // The five most recently closed scopes; a press on the fold shows the rest, kept in `sections` like a card.
+            ...(closed.length > 0 ? [
+              <Box key="closed" flexDirection="column">
+                {(isAllClosed ? closed : closed.slice(0, CLOSED_SHOWN)).map(s => head(s, true))}
+                {closed.length > CLOSED_SHOWN && (
+                  <Button key="closed-more" plain dimColor label={isAllClosed ? '▾ show fewer' : `▸ ${closed.length - CLOSED_SHOWN} more closed`} onPress={toggle('closed-all', isAllClosed)} />
+                )}
+              </Box>,
+            ] : []),
           ]
         })}
         {kb.length > 0 && section('kb', 'Pending knowledge-base pages', String(kb.length), false, () => kb.map(p => item(`kb-${p.scope}-${p.file}`, p.title, `${p.action} · scope ${p.scope}`)))}
