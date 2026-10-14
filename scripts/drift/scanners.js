@@ -575,7 +575,7 @@ function scanSpecialisingCitations(root) {
 // `SPECIALISING_SECTIONS` is the only membership source: a second entry deferring to the same member
 // (`Anchor dependency` beside `Scope anchor`) owes the citation too, and a paragraph naming only a
 // non-member heading (`## Untriaged item`) owes nothing. An entry runs from its `**Term**:` line to the
-// next such line or heading (ADR 0150), so blank lines around or inside a fenced block never split it.
+// next such line or heading (ADR 0156), so blank lines around or inside a fenced block never split it.
 // A `**Term**:` or `**Term** (qualifier):` line opens an entry. Boundary lines are found outside fenced
 // blocks only, so a heading or term line shown in a fenced example splits nothing. An unterminated fence
 // hides no boundary: its lines count as outside a fence. Each entry is then fence-masked alone, so a
@@ -667,7 +667,7 @@ function scanAdrNumbers(root) {
     }));
 }
 
-// ADR relation headers (ADR 0150). Each label pairs with the label its target must carry.
+// ADR relation headers (ADR 0156). Each label pairs with the label its target must carry.
 const ADR_RELATION_REVERSE = {
   Amends: 'Amended by',
   'Amended by': 'Amends',
@@ -1789,7 +1789,7 @@ function scanModelInvocationSplit(root) {
   return gaps;
 }
 
-// The invariant register joined to the drift registry and the contract tables (ADR 0150). A register
+// The invariant register joined to the drift registry and the contract tables (ADR 0156). A register
 // `Check:` line that names `scripts/drift-check.js` lists the ids it pins as backticked tokens up to the
 // next `;`; a token shaped like a check id must be a registered one (a backticked token that is not
 // lowercase words joined by hyphens is prose). A contract row whose expectation cites `INV-NNNN` must

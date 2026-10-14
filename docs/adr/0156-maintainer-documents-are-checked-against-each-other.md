@@ -1,4 +1,4 @@
-# 0150: Maintainer documents are checked against each other
+# 0156: Maintainer documents are checked against each other
 
 **Status:** Accepted
 

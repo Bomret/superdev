@@ -511,7 +511,7 @@ branch step left you on.
    that in the scopetree, and name each renumber, old and new, in the run's report. A renumber resolves
    and asks nothing, so an unattended run renumbers the same way. Exit 2 → the check could not run: name
    its message and stop, dispatching no slice, never reading it as no collision; on exit 2,
-   **`--unattended` → block**, per `## Unattended`. **Then find the citations the renumber missed** (ADR 0150, INV-0134): after the
+   **`--unattended` → block**, per `## Unattended`. **Then find the citations the renumber missed** (ADR 0156, INV-0134): after the
    renumber commit and before the merge, run
    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" citations --range-base <range-base> --branch <branch> <id>…`
    with every old id the renumber moved, each as `collisions` printed it. It prints one `<path>:<line> <id>`

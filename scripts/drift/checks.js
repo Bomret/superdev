@@ -878,17 +878,17 @@ module.exports = [
   table(
     'timing-command',
     TIMING_COMMAND_CONTRACTS,
-    'the `## Timing command` heading stands in its writer, its definition, and its reader (ADR 0150)',
+    'the `## Timing command` heading stands in its writer, its definition, and its reader (ADR 0156)',
   ),
   table(
     'judge-discipline',
     JUDGE_DISCIPLINE_CONTRACTS,
-    "each review agent's judge-discipline paragraph carries both shared clauses, and the dispatches of the review agents keep each on the artifact itself (INV-0020, ADR 0150)",
+    "each review agent's judge-discipline paragraph carries both shared clauses, and the dispatches of the review agents keep each on the artifact itself (INV-0020, ADR 0156)",
   ),
   table(
     'review-verdict',
     REVIEW_VERDICT_CONTRACTS,
-    'the Review verdict value sets and the Review cycle rule agree across the glossary, ADR 0136, and ADR 0140 (ADR 0150)',
+    'the Review verdict value sets and the Review cycle rule agree across the glossary, ADR 0136, and ADR 0140 (ADR 0156)',
   ),
   table(
     'containment-delegation',
@@ -1263,7 +1263,7 @@ module.exports = [
   },
   {
     id: 'invariant-register-join',
-    ok: "every drift id a register `Check:` line names is registered, and every invariant a contract row cites covers the row's document in its `Paths:` (ADR 0150)",
+    ok: "every drift id a register `Check:` line names is registered, and every invariant a contract row cites covers the row's document in its `Paths:` (ADR 0156)",
     run: (root) => scanInvariantRegisterJoin(root),
     format: (g) => g.message,
   },

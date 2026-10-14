@@ -2455,7 +2455,7 @@ function verbCollisions(cwd, args) {
   if (found.length) process.exitCode = 1;
 }
 
-// --- citations: a citation of an old number that a renumber missed (ADR 0150, INV-0134) --------
+// --- citations: a citation of an old number that a renumber missed (ADR 0156, INV-0134) --------
 //
 // After the base step renumbers a colliding number, no line the branch added since `rangeBase` may
 // still cite the old one. This reads the added lines of `rangeBase..branch` from committed history and
@@ -2805,7 +2805,7 @@ function run(argv, cwd, stdinJson) {
     case 'staging':
       verbStaging(cwd, args);
       break;
-    // No --root: citations reads git only and touches no ledger (ADR 0150).
+    // No --root: citations reads git only and touches no ledger (ADR 0156).
     case 'citations':
       verbCitations(cwd, args);
       break;

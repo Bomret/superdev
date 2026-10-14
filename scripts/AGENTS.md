@@ -120,7 +120,7 @@ A caller never reads a failed check as no collision. The base step and `/superde
 exported for `tests/scope.test.js` alone.
 
 `citations --range-base <ref> --branch <ref> <id>…` reads committed history and touches no ledger and no
-run root (ADR 0150, INV-0134). Each `<id>` is an old number as `collisions` prints it: a bare four-digit ADR
+run root (ADR 0156, INV-0134). Each `<id>` is an old number as `collisions` prints it: a bare four-digit ADR
 number or `INV-NNNN`. It prints one `<path>:<line> <id>` line for every line the range `<range-base>..<branch>`
 adds that cites an old id as `ADR NNNN`, `INV-NNNN`, or a link to `NNNN-<slug>.md`, matched on whole numbers, so
 `INV-0013` never matches `INV-00134`. A bare number in plural prose is no citation. A line the range left
@@ -1195,7 +1195,7 @@ fast-forward `git fetch . <tip>:refs/heads/<base>`, its merge of the fetched tip
 full-suite gate that re-runs until `suite reusable` accepts the tip and runs the full command itself through the Bash tool after any
 merge, clean or resolved, its `lite`-tier in-progress-slice skip, its degraded pass with the same-reason dedupe, and its resolution of a conflicting
 base merge by intent through `plugin/references/merge-conflicts.md`, whose numbering-collision rule it pins
-too. A row pins the base step's merge condition after `scope.js citations` (ADR 0150): the base merges once
+too. A row pins the base step's merge condition after `scope.js citations` (ADR 0156): the base merges once
 the verb exits 0, or once every line it still prints is one the attended operator kept. The verb cannot
 exclude a line, so a condition of exit 0 alone would block an attended keep for good. It also pins the call to that section, with its placement sentence,
 in both `plugin/references/implement-lite.md` and `plugin/references/implement-full.md`. Each half reads
@@ -1706,7 +1706,7 @@ code has none of it. The value's capitalization is pinned with the set, so one A
 grep apart from the rest. The `adr-numbers` contract (ADR 0126, INV-0134): no two
 `docs/adr/*.md` files share a four-digit number. Two files with one number and different slugs never
 conflict in git, so a duplicate would land silently. The failure names the number and every file that
-carries it. The `adr-relations` contract (ADR 0150): a relation header in a `docs/adr/*.md` pairs with the
+carries it. The `adr-relations` contract (ADR 0156): a relation header in a `docs/adr/*.md` pairs with the
 reverse header on its target. A header is a bold label line in the header region, which runs from the line after
 `**Status:**` to the first `## ` heading or bold `**Context` paragraph, and it continues to the next
 blank line. An ADR with no `**Status:**` line has no header region, and a bold label before `**Status:**`
@@ -2458,7 +2458,7 @@ member of the family like any other.
 The `glossary-specialising-citations` contract: every `CONTEXT.md` glossary entry cites the
 generic contract the member it names specialises. This is the citation the `specialising-citations`
 check already pins on the store side. `scanGlossarySpecialisingCitations` reads `CONTEXT.md` alone and
-splits it into entries (ADR 0150). An entry runs from its `**Term**:` or `**Term** (qualifier):` line
+splits it into entries (ADR 0156). An entry runs from its `**Term**:` or `**Term** (qualifier):` line
 to the next such line or heading, so blank lines around or inside a fenced block never split it. A
 heading or term line inside a fenced block is no boundary. Fences pair as CommonMark pairs them: a
 fence closes at the next fence line of its kind anywhere in the document (a bare marker of the same
@@ -2756,14 +2756,14 @@ fix cycle applied, `agents/simplicity-reviewer.md` names a per-slice dispatch's 
 `references/implement-lite.md` keeps the lite tier free of a per-slice pass. Without these rows, a cut applied after
 the last review returns as an Unreviewed slice at the scope review (INV-0119).
 
-The `timing-command` contract (ADR 0150) pins the literal `## Timing command` heading in the three documents
+The `timing-command` contract (ADR 0156) pins the literal `## Timing command` heading in the three documents
 that share it: its writer, the fenced example in `skills/setup/SKILL.md`, its definition in
 `references/test-selection.md`, and its reader, `skills/review-tests/SKILL.md`. It has a table of its own because
 the canonical-reference table's ok text speaks of canonical references. The rows read raw text, so the heading inside setup's fenced
 example counts. A rename in one document fails the row that names it, and a rename in all three passes once the
 rows follow. Without the rows, a rename leaves every test audit `unmeasured` while the suite stays green.
 
-The `judge-discipline` contract (INV-0020, ADR 0150) pins the two clauses every review agent carries inside its
+The `judge-discipline` contract (INV-0020, ADR 0156) pins the two clauses every review agent carries inside its
 judge-discipline paragraph: it verifies the artifact itself and never defers to a narrative about it, and length or
 an elaborate structure is no evidence on its own. Each agent has a row per clause, in that agent's own words,
 because each judges a different subject and the copies are adapted on purpose. A row starts at the `**Judge
@@ -2794,7 +2794,7 @@ rather than trust the diff alone, and a row pins that sentence. Other tables hol
 Definition of Done by path, never inlined, so the reviewer derives before it reads, and the `plan-derives-criteria`
 table pins that sentence.
 
-The `review-verdict` contract (ADR 0150, ADR 0136, ADR 0140) pins the Review verdict value sets (specification
+The `review-verdict` contract (ADR 0156, ADR 0136, ADR 0140) pins the Review verdict value sets (specification
 `pass`, `fail`, `unknown`, and quality `approved`, `changes-needed`, `unknown`) in `CONTEXT.md`'s **Review verdict**
 entry and in ADR 0136's `verdict` line. It pins the Review cycle rule, the count of earlier `slice-reviewer`
 dispatches on the slice that completed before this one was dispatched, in `CONTEXT.md`'s **Review cycle** entry, in
@@ -3601,7 +3601,7 @@ passes: "runs no deploy target's command" and "never runs a target's command" cl
 `skills/verify-ship/SKILL.md` states it observes and deploys nothing (ADR 0106). The denial admission is
 global, not scoped to verify-ship, because a denial claims no run in any document. The selftest pins both
 halves: a denial in a document other than verify-ship passes, and a non-denial in verify-ship fails.
-The `invariant-register-join` check, `scanInvariantRegisterJoin()` (ADR 0150): `docs/invariants.md` is
+The `invariant-register-join` check, `scanInvariantRegisterJoin()` (ADR 0156): `docs/invariants.md` is
 joined to the registry and to every contract table, and a repository with no register skips it. It lives
 here and not in `invariant-check.js` because check ids exist only in drift-check. A `Check:` segment, the
 text up to the next `;`, that names `scripts/drift-check.js` lists the ids it pins as backticked tokens after

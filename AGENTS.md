@@ -340,7 +340,7 @@ This root owns every other subtree directly:
   probe `baseHistoryHasPatch` for `plugin/scripts/publish-kb.js` and `plugin/hooks/scope-prune.js`
   (ADR 0053, ADR 0065, ADR 0082), exports `mainWorkTree`, `CHANGE_TYPES`, and `refResolves` for `publish-kb.js` (`SLUG_RE` too, and `mainWorkTree`, `CHANGE_TYPES`, and `verificationCommands` for `profile.js`), and carries verbs that touch no ledger: `root <slug>`,
   which resolves a run root's absolute path against the repository's main working tree from any cwd
-  (ADR 0080). The verb `staging <scope>` resolves a scope's staging directory the same way (ADR 0119), `collisions` finds a numbering collision between a scope branch and the base by number (ADR 0126), and `citations` finds a line the scope branch added that still cites a number a renumber moved (ADR 0150).
+  (ADR 0080). The verb `staging <scope>` resolves a scope's staging directory the same way (ADR 0119), `collisions` finds a numbering collision between a scope branch and the base by number (ADR 0126), and `citations` finds a line the scope branch added that still cites a number a renumber moved (ADR 0156).
   The verb `test` runs a test command and records its own exit status as an Observed run, requiring
   `plugin/hooks/run-trace.js` at call time (ADR 0127).
   The verb `fail-to-pass <base>..<tip>` runs a commit range's tests twice in a throwaway worktree. The first run uses

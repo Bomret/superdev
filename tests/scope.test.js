@@ -2655,7 +2655,7 @@ try {
     fs.rmSync(repo, { recursive: true, force: true });
   }
 
-  // --- citations: a citation of an old number the range added, found by number (ADR 0150, INV-0134) ---
+  // --- citations: a citation of an old number the range added, found by number (ADR 0156, INV-0134) ---
   {
     const g = (args, cwd) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
     const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-citations-')));

@@ -741,7 +741,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // an absent ADR tree is skipped, so a fixture carries only the files it exercises
   assert.equal(scanAdrStatus(fixture({ 'README.md': '# repo\n' })).length, 0, 'absent ADR tree is skipped');
 
-  // --- scanAdrRelations: a relation header pairs with the reverse header on its target (ADR 0150). ---
+  // --- scanAdrRelations: a relation header pairs with the reverse header on its target (ADR 0156). ---
 
   const relAdr = (num, status, headers, body = '## Context\n\nSomething.\n') =>
     `# ${num}: A decision\n\n**Status:** ${status}\n\n${headers ? `${headers}\n\n` : ''}${body}`;

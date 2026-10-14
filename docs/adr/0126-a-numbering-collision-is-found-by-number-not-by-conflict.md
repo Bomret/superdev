@@ -5,7 +5,7 @@
 **Amends:** [ADR 0120](0120-implement-brings-the-remote-base-into-the-scope-branch-before-the-first-slice.md)
 for what the base step does before it merges the base.
 
-**Amended by:** [ADR 0150](0150-maintainer-documents-are-checked-against-each-other.md), which checks
+**Amended by:** [ADR 0156](0156-maintainer-documents-are-checked-against-each-other.md), which checks
 that a renumber leaves no citation of the old number among the lines the scope branch added.
 
 ## Context

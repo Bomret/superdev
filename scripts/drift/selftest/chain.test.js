@@ -6369,7 +6369,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     assert.equal(scanContract(bothGone, INVOCATION_START_CONTRACTS).length, 2, 'each dropped description is its own gap');
   }
 
-  // --- JUDGE_DISCIPLINE_CONTRACTS (INV-0020, ADR 0150): each document is copied from this repository.
+  // --- JUDGE_DISCIPLINE_CONTRACTS (INV-0020, ADR 0156): each document is copied from this repository.
   // Replacing the verify-the-artifact-itself wording with "skim" while the never-defer wording stays flags
   // exactly that document. The reverse swap (verify-itself wording kept, never-defer wording replaced) flags
   // it too; the row already caught that, so the reverse block pins existing behaviour. ---

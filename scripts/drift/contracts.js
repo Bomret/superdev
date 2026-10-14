@@ -1129,9 +1129,9 @@ const BASE_MERGE_CONTRACTS = [
   [path.join('references', 'merge-conflicts.md'), /found by\s+number, whether or not git reports a conflict/, 'find a numbering collision by number, whether or not git reports a conflict (ADR 0126)'],
   [path.join('references', 'scope-mode.md'), /\*\*Move every numbering collision first\*\*[\s\S]{0,300}scope\.js"? collisions --base <tip> --branch <branch>[\s\S]{0,1200}Exit 2 → the check could not run[\s\S]{0,100}never reading it as no collision/, 'run `scope.js collisions` before the base merge, renumber what it finds, and stop when it cannot run (ADR 0126)'],
   [path.join('skills', 'ship', 'SKILL.md'), /\*\*Check numbering\s+collisions before the merge\*\*[\s\S]{0,300}scope\.js"?\s+collisions --base <base> --branch <branch>[\s\S]{0,600}merge nothing and change nothing on the scope branch[\s\S]{0,600}Exit 2 → the check could not run[\s\S]{0,100}merge nothing/, 'run `scope.js collisions` before its own base merge, and merge nothing on a collision or when the check cannot run (ADR 0126)'],
-  // ADR 0150, INV-0134: the citations verb has no way to exclude a line, so a line the attended operator
+  // ADR 0156, INV-0134: the citations verb has no way to exclude a line, so a line the attended operator
   // kept leaves it at exit 1; the base step merges once only kept lines remain, never waiting on exit 0.
-  [path.join('references', 'scope-mode.md'), /The base is merged once the verb exits 0, or once every line it still\s+prints is one the attended operator kept\./, 'merge the base once `scope.js citations` exits 0, or once every line it still prints is one the attended operator kept (ADR 0150)'],
+  [path.join('references', 'scope-mode.md'), /The base is merged once the verb exits 0, or once every line it still\s+prints is one the attended operator kept\./, 'merge the base once `scope.js citations` exits 0, or once every line it still prints is one the attended operator kept (ADR 0156)'],
   // A live run whose branch no longer resolves would fail the verb with exit 2 and stop an unrelated run,
   // so both callers pass `--also` only for a branch ref that resolves (ADR 0126).
   [path.join('references', 'scope-mode.md'), /one `--also <ref>`[\s\S]{0,400}whose ref resolves:\s+`git rev-parse --verify <ref>` succeeds\. A run root whose branch no longer resolves gets no `--also`/, 'pass `--also` only for another live run whose branch ref resolves (ADR 0126)'],
@@ -9365,7 +9365,7 @@ RUN_TRACE_ORDER_CONTRACTS.push(
   ],
 );
 
-// ADR 0150: the `## Timing command` heading has a writer (the fenced example in `skills/setup/SKILL.md`), a
+// ADR 0156: the `## Timing command` heading has a writer (the fenced example in `skills/setup/SKILL.md`), a
 // definition (`references/test-selection.md`), and a reader (`skills/review-tests/SKILL.md`). A rename in one
 // leaves every test audit `unmeasured` while the suite stays green. The rows read raw text, so the heading
 // inside setup's fenced example counts, and the setup and definition rows anchor to the heading line itself.
@@ -9387,7 +9387,7 @@ const TIMING_COMMAND_CONTRACTS = [
   ],
 ];
 
-// ADR 0150, INV-0020: every review agent's judge-discipline paragraph carries the two shared clauses, each in
+// ADR 0156, INV-0020: every review agent's judge-discipline paragraph carries the two shared clauses, each in
 // the subject's own words: it verifies the artifact itself and never defers to a narrative about it, and length
 // or an elaborate structure is no evidence on its own. Each row starts at the `**Judge discipline` line start
 // and cannot cross a blank line, so the same words elsewhere in the file satisfy no row. The line-start anchor
@@ -9477,7 +9477,7 @@ const JUDGE_DISCIPLINE_CONTRACTS = [
   ],
 ];
 
-// ADR 0150, ADR 0136, ADR 0140: the Review verdict value sets and the Review cycle rule stand in the glossary
+// ADR 0156, ADR 0136, ADR 0140: the Review verdict value sets and the Review cycle rule stand in the glossary
 // and in the ADRs that define them. ADR 0140 states the cycle rule only, as the reader rule that counts a
 // `completed` end, and no value set. Each row anchors at its entry's line start and stops at a blank line.
 const REVIEW_VERDICT_CONTRACTS = [
