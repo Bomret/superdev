@@ -272,7 +272,7 @@ function verificationCommands(tree, keepLines) {
 function verificationCommandsOf(raw, keepLines) {
   // `keepLines` keeps a fence's own newlines, for the runner that executes the command as written (ADR 0127).
   const norm = (t) => (t ? (keepLines ? t.trim() : t.replace(/\s+/g, ' ').trim()) || null : null);
-  const { blocks, outside } = fenceBlocks(raw);
+  const { blocks, outside } = fenceBlocks(raw.replace(/\r\n?/g, '\n'));
   const sec = /^##\s+Whole-repo command\s*$([\s\S]*?)(?=^#{1,6}\s|(?![\s\S]))/m.exec(outside);
   const span = sec && /`([^`\n]+)`/.exec(sec[1]);
   return { full: norm(blocks[0]), focused: norm(blocks[1]), whole: norm(span && span[1]) };
@@ -1906,11 +1906,125 @@ const shellWord = (w) => (/^[\w@%+=:,./-]+$/.test(w) ? w : `'${w.replace(/'/g, "
 // its value literally, so a path holding a `$&`-style pattern stays a path.
 const withPaths = (template, paths) => template.replace(/\{paths\}/g, () => paths.map(shellWord).join(' '));
 
-// `test full|whole`, `test focused [<path>…]`, `test -- <command>`: runs a test command in bash, streaming its output,
+// --- run supervision (ADR 0150, INV-0153) -------------------------------------------------------
+
+// Ends a run: on POSIX its process group gets `signal`; on Windows `taskkill /pid <pid> /t /f` ends the process and every
+// child it started. Platform and kill spawner are injectable so the suite runs either branch anywhere. A run that already
+// exited is no error. This function runs in the watcher process too (as its source text), so it names nothing outside itself
+// but `process` and `spawnSync`.
+// simplicity: a process whose parent already exited is outside the taskkill tree, and one that changes its own process group
+// escapes the POSIX group kill; upgrade: a Windows job object or a POSIX cgroup/subreaper if one bites.
+function endRun(pid, { platform = process.platform, spawn = spawnSync, signal = 'SIGKILL' } = {}) {
+  try {
+    if (platform === 'win32') spawn('taskkill', ['/pid', String(pid), '/t', '/f'], { stdio: 'ignore', windowsHide: true });
+    else process.kill(-pid, signal);
+  } catch { /* already gone */ }
+}
+
+// The watcher's body, run as `node -e` in a detached process with an IPC channel from the supervising verb. It starts each
+// requested command as `sh -c` in a group of its own, so the command exists only once the watcher does and a verb killed
+// first starts nothing. It reports `{code, signal}` or `{error}`, and sends nothing once the channel is closed. The closed
+// channel is the one way a run ends when its verb goes: an interrupted verb closes it and exits, and any other death of the
+// verb, SIGKILL included, closes it too. A command message the verb sent is read before the close, so the watcher knows
+// every command it started. On the close it sends the running command's group the signal the argv names (`test` sends
+// SIGTERM, so a runner that traps it finishes its cleanup; `fail-to-pass` sends SIGKILL), repeats that signal on the group
+// once the leader is gone until the group is empty (at most 5 s), and removes the worktree the argv names (fail-to-pass).
+function watchMain() {
+  const cp = require('child_process');
+  const [cwd, dir, signal] = process.argv.slice(1);
+  let run = null;
+  let last = null; // the pid (and group) of the last command started, kept after it exits while its group has members
+  let dead = false;
+  const finish = () => {
+    if (dir) {
+      const gone = cp.spawnSync('git', ['-c', 'core.hooksPath=/dev/null', '-C', cwd, 'worktree', 'remove', '--force', dir], { stdio: 'ignore' });
+      if (gone.status !== 0) {
+        require('fs').rmSync(dir, { recursive: true, force: true });
+        cp.spawnSync('git', ['-C', cwd, 'worktree', 'prune'], { stdio: 'ignore' });
+      }
+    }
+    process.exit(0);
+  };
+  // The callback takes the error of a write to a channel the verb closed before the watcher read the close, which would
+  // otherwise crash the watcher before it ends the run.
+  const send = (m) => { if (!dead) process.send(m, () => {}); };
+  process.on('disconnect', () => {
+    dead = true;
+    if (!last) return finish();
+    if (process.platform === 'win32') { if (run) endRun(last, { signal }); return finish(); }
+    // A process the command forks while the signal goes out can join the group after the signal passed it, and a leader
+    // that ends on the signal leaves it behind holding the caller's output. The leader may already be gone when the channel
+    // closes (it exited on its own just before), so the last command's group decides, not `run`. Once the leader is gone
+    // nothing is left to finish a cleanup, so the group gets the signal again until it is empty, for at most 5 s.
+    const pid = last;
+    endRun(pid, { signal });
+    const until = Date.now() + 5000;
+    const poll = setInterval(() => {
+      let alive = true;
+      try { process.kill(-pid, 0); } catch { alive = false; }
+      if (alive && !run) endRun(pid, { signal });
+      if (!alive || Date.now() > until) { clearInterval(poll); finish(); }
+    }, 50);
+  });
+  process.on('message', (m) => {
+    if (dead) return;
+    if (m.end) { if (run) endRun(run.pid); return; }
+    let child;
+    try {
+      child = cp.spawn('sh', ['-c', m.command], { cwd: m.cwd, stdio: 'inherit', detached: true, windowsHide: true });
+    } catch (e) { return send({ error: e.code || e.message }); }
+    run = child;
+    last = child.pid;
+    child.on('error', (e) => { run = null; send({ error: e.code || e.message }); });
+    child.on('exit', (code, signal) => {
+      // A sweep ends what the command left behind in its group, so nothing outlives a run whose worktree goes next.
+      if (m.sweep) endRun(child.pid);
+      run = null;
+      // An empty group takes no late fork, and its id may name an unrelated group once the pid is reused, so nothing signals it later.
+      try { process.kill(-child.pid, 0); } catch { if (last === child.pid) last = null; }
+      send({ code, signal });
+    });
+  });
+}
+
+// Starts the watcher. `stdio` is the command's own three descriptors; `cleanup` is `{cwd, dir}` for a worktree to remove;
+// `signal` is what the watcher sends the command's group when the verb dies.
+// `run(command, cwd, sweep)` resolves `{code, signal}` or `{error}`. `detach()` closes the channel, which hands the running
+// command to the watcher as a dead verb does; no run settles after it, and the promise it returns resolves once the watcher
+// has exited, which is after it removed the worktree.
+function superviseRuns(stdio, cleanup, signal) {
+  const cp = require('child_process');
+  const src = `const {spawnSync}=require('child_process');const endRun=${endRun};(${watchMain})()`;
+  const watcher = cp.spawn(process.execPath, ['-e', src, ...(cleanup ? [cleanup.cwd, cleanup.dir] : ['', '']), signal], { stdio: [...stdio, 'ipc'], detached: true, windowsHide: true });
+  watcher.on('error', () => {});
+  let detached = false;
+  const sup = {
+    end: () => { try { watcher.send({ end: true }); } catch { /* the channel is closed */ } },
+    stop: () => watcher.kill('SIGKILL'),
+    detach: () => new Promise((resolve) => {
+      detached = true;
+      if (watcher.exitCode !== null || watcher.signalCode !== null) return resolve();
+      watcher.once('exit', () => resolve());
+      if (watcher.connected) watcher.disconnect();
+    }),
+    run: (command, cwd, sweep) => new Promise((resolve) => {
+      const settle = (m) => { watcher.off('message', settle); watcher.off('exit', onExit); if (!detached) resolve(m); };
+      const onExit = () => settle({ error: 'watcher-exited' });
+      watcher.on('message', settle);
+      watcher.on('exit', onExit);
+      try { watcher.send({ command, cwd, sweep }); } catch { settle({ error: 'watcher-exited' }); }
+    }),
+  };
+  return sup;
+}
+
+// `test full|whole`, `test focused [<path>…]`, `test -- <command>`: runs a test command under `sh`, streaming its output,
 // and appends one `run` line carrying the command's own exit status (an Observed run). The run root, slice, commit, and
 // tree state are read when the run starts; the line is written when the command finishes, `dirty` when HEAD moved, the tree
 // was dirty at either end, or the trace recorded a change to the slice's files during the run. No option sets a field.
-// A command ended by a signal, or a verb killed first, writes no line, and the command's process group dies with the verb.
+// A command ended by a signal, or a verb killed first, writes no line, and a verb that is killed or interrupted
+// has its command's process group sent SIGTERM by the watcher, whatever ended the verb (`taskkill /t /f` on Windows), so a
+// runner that ignores SIGTERM can outlive the verb.
 // Outside every run tree, or for a command that cd's out of every run tree, the command runs and nothing is written. hooks/run-trace.js is required here, at call time, for the
 // classifier it shares with the hook (it requires this file at load, so a top-level require would be a cycle).
 // simplicity: a command that changes its own process group escapes the group kill; upgrade: a cgroup or subreaper if one bites.
@@ -1956,33 +2070,22 @@ function verbTest(cwd, args) {
   const traceFile = at && path.join(at.runRoot, 'trace.log');
   let traceMark = 0;
   try { if (at) traceMark = fs.statSync(traceFile).size; } catch { /* no trace yet: from its start */ }
-  // The killers exist before the command does, so no instant lacks one: the signal handlers first, then a watcher, then the
-  // command. The watcher holds a pipe from this process and reads the command's group id from it: when this process dies by
-  // any signal, even SIGKILL, the pipe closes and the watcher kills the group. Normal completion kills the watcher first.
-  // The command is held on a fourth pipe until the watcher has its group id, so no instant runs the command with the watcher blind:
-  // a verb killed before the release closes the pipe, and the command exits unrun.
-  let child;
+  // The watcher exists before the command does and starts it: when this process is interrupted or dies by any signal, even
+  // SIGKILL, the watcher's channel closes and it ends the command's group (the process tree on Windows). A verb killed before
+  // the watcher starts the command leaves nothing to end.
+  const sup = superviseRuns(['inherit', 'inherit', 'inherit'], null, 'SIGTERM');
+  // An interrupt ends the run the way a SIGKILL of the verb does: the closed channel makes the watcher end the command.
   const stop = (sig) => () => {
-    if (child) try { process.kill(-child.pid, 'SIGTERM'); } catch { /* already gone */ }
+    sup.detach();
     process.exit(128 + require('os').constants.signals[sig]);
   };
   for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, stop(sig));
-  const cp = require('child_process');
-  const watcher = cp.spawn('sh', ['-c', 'read g; cat >/dev/null; [ -n "$g" ] && kill -s TERM -- -"$g" 2>/dev/null'], { stdio: ['pipe', 'ignore', 'ignore'], detached: true });
-  watcher.on('error', () => {});
-  watcher.stdin.on('error', () => {});
-  child = cp.spawn('bash', ['-c', `read -u 3 _ || exit 125\nexec 3<&-\n${command}`], { cwd: runCwd, stdio: ['inherit', 'inherit', 'inherit', 'pipe'], detached: true });
-  if (child.pid) {
-    watcher.stdin.write(`${child.pid}\n`);
-    child.stdio[3].on('error', () => {});
-    child.stdio[3].write('go\n');
-  }
-  child.on('error', (e) => {
-    process.stderr.write(`test: cannot run bash: ${e.message}\n`);
-    process.exit(127);
-  });
-  child.on('exit', (code, signal) => {
-    watcher.kill('SIGKILL');
+  sup.run(command, runCwd, false).then(({ code, signal, error }) => {
+    sup.stop();
+    if (error) {
+      process.stderr.write(`test: cannot run sh: ${error}\n`);
+      process.exit(127);
+    }
     if (signal) {
       process.stderr.write(`test: the command ended by ${signal}; no run is recorded\n`);
       process.exit(128 + require('os').constants.signals[signal]);
@@ -2139,22 +2242,15 @@ async function verbFailToPass(cwd, args) {
   const dir = fs.mkdtempSync(path.join(home, 'fail-to-pass-'));
   // No git hook runs, whoever configured one: `core.hooksPath` names no directory for every git call below.
   const noHooks = ['-c', 'core.hooksPath=/dev/null'];
-  const cp = require('child_process');
-  // The worktree outlives no exit. A watcher process holds a pipe from this one and takes over when this process is killed
-  // past its signal handlers: it ends the command's process group, then removes the worktree. It reads the running command's
-  // group id from the pipe, an empty line while none runs.
-  // simplicity: the watcher is missing for the instants before it starts and after it is killed; upgrade: hold the command
-  // on a pipe until the watcher has its group id, as `verbTest` does, if a kill in that window bites.
-  const watcher = cp.spawn('sh', ['-c',
-    'g=; while read l; do g=$l; done; [ -n "$g" ] && kill -s KILL -- -"$g" 2>/dev/null; git -c core.hooksPath=/dev/null -C "$1" worktree remove --force "$2" 2>/dev/null || { rm -rf "$2"; git -C "$1" worktree prune; }',
-    'sh', cwd, dir], { stdio: ['pipe', 'ignore', 'ignore'], detached: true });
-  watcher.on('error', () => {});
-  watcher.stdin.on('error', () => {});
+  // The worktree outlives no exit. The watcher holds a channel from this process and takes over when it closes, on an
+  // interrupt or a kill past the signal handlers: it ends the running command's group (the process tree on Windows), then
+  // removes the worktree.
+  const sup = superviseRuns(['ignore', 2, 2], { cwd, dir }, 'SIGKILL');
   let removed = false;
   const cleanup = () => {
     if (removed) return;
     removed = true;
-    watcher.kill('SIGKILL');
+    sup.stop();
     const gone = spawnSync('git', [...noHooks, 'worktree', 'remove', '--force', dir], { cwd, stdio: 'ignore' });
     if (gone.status !== 0) {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -2163,14 +2259,10 @@ async function verbFailToPass(cwd, args) {
     // `rmdir` takes an empty directory only, so a `.superdev/` that holds anything else stays.
     if (madeHome) try { fs.rmdirSync(home); } catch { /* not empty, or already gone */ }
   };
-  let running = null;
   for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
-    process.on(sig, () => {
-      // SIGKILL, not SIGTERM: a runner that traps SIGTERM keeps running and may write into the worktree the exit handler
-      // below removes. The group is dead before the removal.
-      if (running) try { process.kill(-running.pid, 'SIGKILL'); } catch { /* already gone */ }
-      process.exit(128 + require('os').constants.signals[sig]);
-    });
+    // The watcher ends the run as it does for a SIGKILLed verb, with SIGKILL, not SIGTERM: a runner that traps SIGTERM keeps
+    // running and may write into the worktree. The verb exits once the watcher has ended the group and removed the worktree.
+    process.on(sig, () => sup.detach().then(() => process.exit(128 + require('os').constants.signals[sig])));
   }
   process.on('exit', cleanup);
   // `--literal-pathspecs`: a changed path named `*.cfg` is that file, and never a glob over the test files it would also match.
@@ -2180,37 +2272,18 @@ async function verbFailToPass(cwd, args) {
   // group is killed when the bound expires, and `expired` says so. The result carries the run's own duration in `ms`. A
   // command that cannot start (E2BIG on a long `{paths}` list, which spawn throws, or an error it emits) resolves with
   // `startError`, its error code, and no exit.
-  const exec = (limitMs) => new Promise((resolve) => {
+  const exec = async (limitMs) => {
     const started = performance.now();
-    let child;
-    try {
-      child = cp.spawn('bash', ['-c', command], { cwd: dir, stdio: ['ignore', 2, 2], detached: true });
-    } catch (e) {
-      return resolve({ startError: e.code || e.message });
-    }
-    running = child;
-    if (child.pid) watcher.stdin.write(`${child.pid}\n`);
     let expired = false;
-    const timer = limitMs === undefined ? null : setTimeout(() => {
-      expired = true;
-      try { process.kill(-child.pid, 'SIGKILL'); } catch { /* already gone */ }
-    }, limitMs);
-    child.on('error', (e) => {
-      clearTimeout(timer);
-      running = null;
-      resolve({ startError: e.code || e.message });
-    });
-    child.on('exit', (code, signal) => {
-      clearTimeout(timer);
-      running = null;
-      // The group ends with its shell on every exit: one a signal ended, and one that exited and left a background process,
-      // whose group id stays held while a member lives. Nothing the run started outlives it, so nothing writes into the
-      // worktree the next step resets or the exit handler removes.
-      try { process.kill(-child.pid, 'SIGKILL'); } catch { /* the group is empty */ }
-      watcher.stdin.write('\n');
-      resolve({ code, signal, expired, ms: performance.now() - started });
-    });
-  });
+    const timer = limitMs === undefined ? null : setTimeout(() => { expired = true; sup.end(); }, limitMs);
+    // The sweep ends the group with its shell on every exit: one a signal ended, and one that exited and left a background
+    // process. Nothing the run started outlives it, so nothing writes into the worktree the next step resets or the exit
+    // handler removes.
+    const { code, signal, error } = await sup.run(command, dir, true);
+    clearTimeout(timer);
+    if (error) return { startError: error };
+    return { code, signal, expired, ms: performance.now() - started };
+  };
   try {
     const added = spawnSync('git', [...noHooks, 'worktree', 'add', '-q', '--detach', dir, tip], { cwd, encoding: 'utf8' });
     if (added.status !== 0) fail(`fail-to-pass: git could not create the worktree: ${added.stderr.trim()}`);
@@ -2713,6 +2786,6 @@ function main() {
 // Had the caller's argv happened to start with `init`, the same path waits on stdin instead and hangs.
 // Either way the require, not the CLI, is what fails.
 // The exports come first: `verbTest` lazily requires hooks/run-trace.js, which requires this file back for them (ADR 0127).
-module.exports = { appendTrace, untraceField, readTrace, sliceType, readLedgerHeader, inProgressSlices, verificationCommands, isTestPath, run, publishText, SLUG_RE, testContainment, baseHistoryHasPatch, mainWorkTree, CHANGE_TYPES, refResolves, findCollisions };
+module.exports = { endRun, watchMain, verificationCommandsOf, appendTrace, untraceField, readTrace, sliceType, readLedgerHeader, inProgressSlices, verificationCommands, isTestPath, run, publishText, SLUG_RE, testContainment, baseHistoryHasPatch, mainWorkTree, CHANGE_TYPES, refResolves, findCollisions };
 
 if (require.main === module) main();

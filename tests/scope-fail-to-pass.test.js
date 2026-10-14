@@ -663,8 +663,10 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     // A runner that traps SIGTERM and keeps going ends with its group too: nothing it started outlives the verb.
     const hang = 'echo $$ > "$F2P_PID"; touch "$F2P_MARK"; exec sleep 60';
     const stubborn = 'trap "" TERM; echo $$ > "$F2P_PID"; touch "$F2P_MARK"; while :; do sleep 0.2; done';
+    // The SIGKILL row's pidfile names a background child of the runner, which the watcher ends with the rest of the group.
+    const withChild = 'sleep 60 & echo $! > "$F2P_PID"; touch "$F2P_MARK"; wait';
     for (const [signal, exitStatus, command, label = signal] of [
-      ['SIGINT', 130, hang], ['SIGTERM', 143, hang], ['SIGHUP', 129, hang], ['SIGKILL', null, hang], ['SIGTERM', 143, stubborn, 'SIGTERM on a runner that traps it'],
+      ['SIGINT', 130, hang], ['SIGTERM', 143, hang], ['SIGHUP', 129, hang], ['SIGKILL', null, withChild], ['SIGTERM', 143, stubborn, 'SIGTERM on a runner that traps it'],
     ]) {
       s = scenario({
         base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(command) },
@@ -790,16 +792,16 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     }
 
     // A second run that cannot start records `unknown` naming the put-back's start failure, in one line with no stack
-    // trace, and leaves no worktree. The verb starts each run as `bash -c <command>`, so a missing script only exits 127;
+    // trace, and leaves no worktree. The verb starts each run as `sh -c <command>`, so a missing script only exits 127;
     // what fails the start is the shell itself going missing. PATH holds one directory of links to the tools the verb
-    // and the command use, and the control run deletes the `bash` link, so the second spawn finds no shell (ENOENT).
+    // and the command use, and the control run deletes the `sh` link, so the second spawn finds no shell (ENOENT).
     s = scenario({
-      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif('rm -f "$F2P_DIR/bin/bash"') },
+      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif('rm -f "$F2P_DIR/bin/sh"') },
       tip: { 'src.txt': 'b\n', 'tests/t.sh': probe },
     });
     const bin = path.join(s.dir, 'bin');
     fs.mkdirSync(bin);
-    for (const tool of ['bash', 'git', 'rm']) {
+    for (const tool of ['sh', 'git', 'rm']) {
       const real = process.env.PATH.split(path.delimiter).map((d) => path.join(d, tool)).find((p) => fs.existsSync(p));
       fs.symlinkSync(real, path.join(bin, tool));
     }
@@ -812,4 +814,36 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
   } finally {
     fs.rmSync(D, { recursive: true, force: true });
   }
+}
+
+// The watcher of an interrupted `fail-to-pass` between its two runs: the first command has exited and its group is empty, so
+// a pid reused since could name an unrelated group. The watcher signals nothing then, and still removes the worktree. The
+// watcher's own `process.kill` calls are recorded by a preload, since "between the runs" is no instant a verb can be stopped at
+// deterministically.
+{
+  const { spawn } = require('node:child_process');
+  const D = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-watch-'));
+  (async () => {
+    try {
+      const log = path.join(D, 'kills');
+      const pre = path.join(D, 'pre.js');
+      fs.writeFileSync(pre, `const k=process.kill;process.kill=(p,s)=>{if(s!==0)require('fs').appendFileSync(${JSON.stringify(log)},p+' '+s+'\\n');return k(p,s)};`);
+      const dir = path.join(D, 'wt');
+      fs.mkdirSync(dir);
+      const src = `require(${JSON.stringify(scopePath)}).watchMain()`;
+      const w = spawn(process.execPath, ['-r', pre, '-e', src, D, dir, 'SIGKILL'], { stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
+      const exited = new Promise((res) => w.on('exit', res));
+      // A watcher that exits before it replies (a crash on load) fails the test instead of leaving the await unsettled.
+      const replied = new Promise((res) => { w.on('message', (m) => { if (m.code !== undefined) res(); }); w.send({ command: 'true', cwd: D, sweep: true }); });
+      await Promise.race([replied, exited.then((c) => { throw new Error('the watcher exited (' + c + ') before it replied'); })]);
+      w.disconnect();
+      await Promise.race([exited, new Promise((_, rej) => setTimeout(() => { w.kill('SIGKILL'); rej(new Error('the watcher outlasted its bound')); }, 20000))]);
+      const killed = fs.existsSync(log) ? fs.readFileSync(log, 'utf8') : '';
+      // The sweep after the command's exit signals its group once; nothing follows the disconnect.
+      assert.equal(killed.trim().split('\n').filter(Boolean).length, 1, 'only the sweep signals the empty group: ' + killed);
+      assert.equal(fs.existsSync(dir), false, 'the worktree is removed');
+    } finally {
+      fs.rmSync(D, { recursive: true, force: true });
+    }
+  })().catch((e) => { console.error(e); process.exit(1); });
 }

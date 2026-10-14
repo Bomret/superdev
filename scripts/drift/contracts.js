@@ -2242,7 +2242,7 @@ const UNRESOLVED_GLOSSARY_CONTRACTS = [
 
 // The documents that must reach no knowledge-base backend, and the markers that say one does.
 // `/superdev:publish-kb` is deliberately absent from the document list: reaching the backend is its job.
-// ADR 0069 moved that job into `plugin/scripts/publish-kb.js`, a real `/bin/sh -c` call this
+// ADR 0069 moved that job into `plugin/scripts/publish-kb.js`, a real `sh -c` call (`sh` from PATH) this
 // instruction-shape scan has no purchase on and was never asked to reach — this list stays scoped to
 // the prose surfaces that must merely *describe* the backend rather than call it, and
 // `skills/publish-kb/SKILL.md` (which dispatches the script) is exempt the same way it always was.

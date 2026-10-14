@@ -244,6 +244,11 @@ assert.equal(
   undefined,
   'a spawn that never started is not "killed" — the two RED branches stay distinct',
 );
+assert.equal(
+  runTests('exit 0', '/definitely/does/not/exist-gg-selftest').noSh,
+  undefined,
+  'a missing cwd is not a missing sh — noSh stays unset so the tree, not sh, is named',
+);
 
 // ADR 0086's headline case: a suite slower than the hook's own ceiling must be ended by the hook
 // itself, not by Claude Code killing the hook process out from under it — otherwise the hook never
@@ -254,6 +259,62 @@ assert.equal(
   const result = runTests('sleep 5', undefined, 200);
   assert.equal(result.ok, false, 'a suite the hook itself times out is not GREEN');
   assert.equal(result.killed, 'SIGKILL', 'runTests names the signal its own timeout used to end the suite');
+}
+
+// ADR 0150 / INV-0153: the configured command runs under `sh -c`, never Node's default shell.
+assert.equal(runTests('FOO=1; test "$FOO" = 1 && exit 0').ok, true, 'POSIX syntax that passes is GREEN');
+assert.equal(runTests('FOO=1 sh -c \'test "$FOO" = 2\' || exit 4').ok, false, 'POSIX syntax that fails is RED');
+{
+  // The probe exits 0 only when it received exactly one argument, the path as written.
+  const probe = `node -e "process.exit(process.argv.length === 2 && process.argv[1] === \\"a b'c.txt\\" ? 0 : 1)" {paths}`;
+  const decision = decide(
+    { tool_input: { command: 'git merge feature' } },
+    () => ({ full: 'exit 1', focused: probe }),
+    (cmd) => runTests(cmd),
+    () => ["a b'c.txt"], () => false, () => 'main', () => true,
+  );
+  assert.equal(decision.block, false, 'a path holding a space and a quote reaches the runner as one unquoted argument');
+}
+{
+  // No `sh` on PATH: the gate is blind and names `sh`; it is neither RED nor a pass.
+  const savedPath = process.env.PATH;
+  const emptyDir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'gg-nosh-'));
+  process.env.PATH = emptyDir;
+  let result;
+  let decision;
+  try {
+    result = runTests('exit 0');
+    decision = decide(
+      { tool_input: { command: 'git merge feature' } },
+      () => ({ full: 'exit 0' }),
+      (cmd) => runTests(cmd),
+      () => [], () => false, () => 'main', () => true,
+    );
+  } finally {
+    process.env.PATH = savedPath;
+    fs.rmSync(emptyDir, { recursive: true, force: true });
+  }
+  assert.equal(result.ok, false, 'a missing sh is not GREEN');
+  assert.equal(result.notStarted, true, 'a missing sh never started the suite');
+  assert.equal(decision.block, true, 'a missing sh blocks');
+  assert.match(decision.reason, /`sh`/, 'the reason names sh');
+  assert.doesNotMatch(decision.reason, /is RED/, 'a missing sh is blind, never RED');
+}
+{
+  // The production call shape: an existing cwd, no `sh` on PATH. ENOENT here is the gate's own
+  // blindness, so it reports noSh and never a RED suite.
+  const savedPath = process.env.PATH;
+  const emptyDir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'gg-nosh-cwd-'));
+  process.env.PATH = emptyDir;
+  let result;
+  try {
+    result = runTests('exit 0', require('node:os').tmpdir());
+  } finally {
+    process.env.PATH = savedPath;
+    fs.rmSync(emptyDir, { recursive: true, force: true });
+  }
+  assert.equal(result.noSh, true, 'an existing cwd with no sh on PATH reports noSh');
+  assert.equal(result.notStarted, true, 'a missing sh never started the suite');
 }
 
 // readHookTimeoutMs: the suite bound derives from hooks.json's own green-gate entry, so raising
@@ -1958,6 +2019,34 @@ fs.writeFileSync(
     assert.ok(!fs.existsSync(path.join(tree, 'trace.log')), 'no trace file appears inside the tree');
     fs.rmSync(root, { recursive: true, force: true });
   }
+}
+
+// A Git Bash drive path in `-C` or `--work-tree` resolves as the Windows path on win32 (ADR 0150).
+{
+  const realPlatform = Object.getOwnPropertyDescriptor(process, 'platform');
+  const onWin32 = (fn) => {
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    try { return fn(); } finally { Object.defineProperty(process, 'platform', realPlatform); }
+  };
+  for (const opt of ['-C', '--work-tree']) {
+    const cmd = `git ${opt} /c/repo merge x`;
+    assert.equal(onWin32(() => resolveMergeCwd(cmd, '/session')), path.resolve('/session', 'C:/repo'), cmd);
+    assert.equal(resolveMergeCwd(cmd, '/session'), '/c/repo', `${cmd} off win32`);
+  }
+  // Through the gate's entry, a merge naming the tree by a `/c/…` path reads that tree's verification doc and runs its command.
+  const session = fs.mkdtempSync(path.join(tmp, 'gg-win-'));
+  fs.mkdirSync(path.join(session, 'C:', 'repo', 'docs', 'agents'), { recursive: true });
+  fs.writeFileSync(path.join(session, 'C:', 'repo', VERIFICATION_DOC), '# Verification\n\n```sh\nwin-suite\n```\n');
+  const cmd = 'git -C /c/repo merge x';
+  const gate = () => {
+    let ran = null;
+    const spy = (c) => { ran = c; return { ok: true, output: '' }; };
+    decide(merge(cmd), (parsed) => resolveVerification(parsed, cmd, session), spy, notCalled, () => false, () => '', () => true);
+    return ran;
+  };
+  assert.equal(onWin32(gate), 'win-suite', 'win32: the verification doc under C:/repo is found');
+  assert.equal(gate(), null, 'off win32 the /c/repo tree holds no verification doc');
+  fs.rmSync(session, { recursive: true, force: true });
 }
 
 console.log('green-gate tests ok');

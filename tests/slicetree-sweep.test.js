@@ -34,6 +34,42 @@ assert.deepEqual(
   'only the merged-AND-worked slice is swept'
 );
 
+// Windows: git prints `C:/…`, Node builds `C:\…`; the compare ignores separator and drive-letter case,
+// and matches on a separator boundary only.
+{
+  const wp = (p) => `worktree ${p}\nHEAD b\nbranch refs/heads/slice/s/01`;
+  const m = new Set(['slice/s/01']);
+  const own = 'C:/repo/.superdev/scopes/s/slicetrees/01';
+  for (const sr of ['C:\\repo\\.superdev\\scopes\\s', 'c:\\repo\\.superdev\\scopes\\s', 'C:\\repo\\.superdev\\scopes\\s\\']) {
+    assert.deepEqual(selectRemovable(wp(own), m, m, sr), [{ wt: own, br: 'slice/s/01' }], `selected for ${sr}`);
+  }
+  // Git prints a lower-case drive letter; the scope root carries the upper-case one.
+  assert.deepEqual(
+    selectRemovable(wp('c:/repo/.superdev/scopes/s/slicetrees/01'), m, m, 'C:\\repo\\.superdev\\scopes\\s'),
+    [{ wt: 'c:/repo/.superdev/scopes/s/slicetrees/01', br: 'slice/s/01' }],
+    'a lower-case drive in git output still selects the slicetree'
+  );
+  for (const other of ['s2', 'other']) {
+    assert.deepEqual(
+      selectRemovable(wp(`C:/repo/.superdev/scopes/${other}/slicetrees/01`), m, m, 'C:\\repo\\.superdev\\scopes\\s'),
+      [],
+      `${other} is never selected`
+    );
+  }
+}
+
+// POSIX paths compare as written: a backslash is a legal name character there, not a separator.
+assert.deepEqual(
+  selectRemovable(
+    'worktree /repo/.superdev/scopes/s\\x/slicetrees/01\nHEAD b\nbranch refs/heads/slice/s/01',
+    new Set(['slice/s/01']),
+    new Set(['slice/s/01']),
+    '/repo/.superdev/scopes/s'
+  ),
+  [],
+  'a backslash-named POSIX sibling directory is never inside scope s'
+);
+
 // --- real-repo smoke: main() end to end, so a broken git invocation inside its try/catch can't
 // hide behind the pure selectRemovable() cases (the gap class scope-prune's smoke test closes) ---
 //

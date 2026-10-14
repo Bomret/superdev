@@ -14,8 +14,9 @@
 // A **Backend command contract** is the five named shell templates — `find`, `read`, `create`,
 // `update`, `delete` — declared under `docs/agents/knowledge-base.md`'s `## Commands` section, one
 // `### <verb>` subsection each. This script resolves a verb **by heading name, never by position**
-// (CONTEXT.md → *Backend command contract*, ADR 0069) and runs it under `/bin/sh -c`, passing every
-// value as an environment variable — never interpolated into the command string — so a title
+// (CONTEXT.md → *Backend command contract*, ADR 0069) and runs it under `sh -c` (`sh` resolved from
+// PATH: Git's `sh.exe` on Windows, ADR 0150), passing every value as an environment variable —
+// never interpolated into the command string — so a title
 // carrying a quote, a `$`, a backtick, or a newline reaches the backend unchanged and runs no shell
 // of its own.
 //
@@ -268,7 +269,7 @@ function markStagedCreate(filePath) {
 // --- running a backend template -------------------------------------------------------------
 
 // Every value crosses as an environment variable, never interpolated into the command string, so
-// no value can start a shell of its own. `/bin/sh -c <template>` is the only shell invoked.
+// no value can start a shell of its own. `sh -c <template>` is the only shell invoked.
 // ADR 0130. A host that accepts the connection and never answers blocks `spawnSync` for as long as
 // the kernel's own TCP connect timeout runs — minutes, per page. The bound lives here rather than in
 // the templates, so it covers an operator-written template that carries no `curl --max-time` of its
@@ -295,7 +296,7 @@ function timedOut(res) {
 }
 
 function runTemplate(template, env) {
-  return spawnSync('/bin/sh', ['-c', template], {
+  return spawnSync('sh', ['-c', template], {
     env: { ...process.env, ...env },
     encoding: 'utf8',
     maxBuffer: 10 * 1024 * 1024,
@@ -308,6 +309,9 @@ function runTemplate(template, env) {
 // routes through this so the two never drift apart.
 function spawnFailure(verb, res) {
   if (timedOut(res)) return { reason: `${verb} timed out after ${timeoutMs()}ms`, timedOut: true };
+  if (res.error.code === 'ENOENT') {
+    return { reason: `${verb} could not run: no \`sh\` on PATH (on Windows, install Git for Windows)` };
+  }
   return { reason: `${verb} could not run (${res.error.message})` };
 }
 

@@ -1182,10 +1182,10 @@ Paths: plugin/scripts/scope.js
 
 Class: safety
 Concepts: Guardrail, Green-gate
-Statement: A guardrail that reads a Bash command's words through the shared shell scanner fails closed when it cannot load the scanner: merge-guard and ledger-guard deny the Bash call, and green-gate reports a blind verification. Only run-trace, which records evidence and guards nothing, records nothing instead (ADR 0135).
+Statement: A guardrail that reads a Bash command's words through the shared shell scanner fails closed when it cannot load the scanner: merge-guard and ledger-guard deny the Bash call, green-gate reports a blind verification, and run-lock blocks a scopetree creation (it loads the module for the drive-path translator, ADR 0150). Only run-trace, which records evidence and guards nothing, records nothing instead (ADR 0135).
 Breaks: silently
-Check: tests/merge-guard.test.js, tests/ledger-guard.test.js, and tests/green-gate.test.js — each runs its hook with the scanner module unloadable and asserts the fail-closed verdict; tests/run-trace.test.js — with the scanner unloadable, a Bash write, a slice-reviewer hand-back, and a stop record nothing, and with its scan throwing a Bash write records nothing, against a control run that records
-Paths: plugin/hooks/merge-guard.js, plugin/hooks/ledger-guard.js, plugin/hooks/green-gate.js, plugin/hooks/run-trace.js
+Check: tests/merge-guard.test.js, tests/ledger-guard.test.js, tests/run-lock.test.js, and tests/green-gate.test.js — each runs its hook with the scanner module unloadable and asserts the fail-closed verdict; tests/run-trace.test.js — with the scanner unloadable, a Bash write, a slice-reviewer hand-back, and a stop record nothing, and with its scan throwing a Bash write records nothing, against a control run that records
+Paths: plugin/hooks/merge-guard.js, plugin/hooks/ledger-guard.js, plugin/hooks/green-gate.js, plugin/hooks/run-lock.js, plugin/hooks/run-trace.js
 
 ### INV-0141
 
@@ -1294,3 +1294,12 @@ Statement: A dispatched implementer's Edit, Write, or NotebookEdit call never la
 Breaks: silently
 Check: tests/tree-guard.test.js — an implementer write into the main checkout, into another linked working tree, into the main `.git/` (through a `.git` that is a symlink included), into a linked working tree's gitdir, and into a submodule's gitdir under `.git/modules/` is denied, one into a slicetree, a run root, a repository holding no run, or a bare repository holding no run inside the main checkout passes, and every other caller passes
 Paths: plugin/hooks/tree-guard.js, plugin/hooks/hooks.json
+
+### INV-0153
+
+Class: architecture
+Concepts: Backend command contract, Green-gate
+Statement: A shipped executable hands text to a shell only to run an operator-supplied command: the repository's test command or a knowledge-base backend command template. That shell is `sh`, resolved from PATH. No shipped executable names a shell by absolute path, starts `bash`, or runs a command through Node's default shell (`exec`, `execSync`, or `shell: true`) (ADR 0150).
+Breaks: loudly
+Check: scripts/drift-check.js — the `shell-spawn` check fails on a shell start under `plugin/hooks/` or `plugin/scripts/` that breaks the rule
+Paths: plugin/hooks/*.js, plugin/scripts/*.js

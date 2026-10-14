@@ -45,8 +45,9 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          final-reviewer, doc-writer, doc-reader, test-auditor
   hooks/               — the deterministic Node hooks + hooks.json: merge-guard, model-explicit,
                          green-gate, run-lock, ledger-guard, tree-guard, run-trace, slicetree-sweep, scope-prune, update-check,
-                         plus `shell-words.js`, the shared shell scanner the four Bash hooks (merge-guard,
-                         green-gate, ledger-guard, run-trace) read a command through (a module, not a hook, ADR 0135)
+                         plus `shell-words.js`, the shared shell scanner the Bash hooks (merge-guard,
+                         green-gate, ledger-guard, run-trace) read a command through and run-lock takes its
+                         drive-path translator from (a module, not a hook, ADR 0135, ADR 0150)
   references/          — backend seed templates + the non-seed runtime references (plan-contract,
                          documentation convention, controlled-prose, content-types, doc pass, run init,
                          run handoff, execution playbooks, test-selection, scope-mode, authoring
@@ -100,8 +101,8 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
 ## Stack
 
 - **Bun.** The repo package manager and task runner (`bun.lock`).
-- **Node.** The hooks' runtime. `hooks.json` invokes `node`, because every user's Claude Code
-  environment has `node` and not every one has Bun. Bun is maintainer-only.
+- **Node.** The hooks' runtime and a prerequisite on the user's PATH, which Claude Code does not
+  install. `hooks.json` invokes `node`, because not every environment has Bun. Bun is maintainer-only.
 - **semantic-release.** Deterministic, commit-driven releases (`release.config.cjs`), published to
   **Codeberg** (Forgejo) through `@saithodev/semantic-release-gitea`.
 - **Conventional Commits.** They drive the version bump. `feat` gives a minor bump, `fix` and `perf`
@@ -140,6 +141,9 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   (ADR 0149). It keeps its own input ratio and a multiplier ceiling between linear and quadratic growth.
   `timePair` needs `process.threadCpuUsage()`, so `package.json`'s `engines.node` requires Node 24 or later
   for the test toolchain. The hooks under `plugin/` do not use it.
+- **Normalize a path before you compare it.** A path from git output or from command text can be an MSYS
+  path on Windows (`/c/Users/…`). Hooks and scripts normalize it before comparing it with a path Node
+  builds (ADR 0150).
 - **Version lives only in `plugin/.claude-plugin/plugin.json`.** Never hand-edit it. semantic-release and
   `semantic-release-replace-plugin` bump it on release. `marketplace.json` carries no version, which
   avoids a double pin where `plugin.json` would silently win. Its source's `ref` names the release tag,
@@ -203,7 +207,7 @@ Platform behaviour superdev works around, with the mitigation each one ships:
 [`docs/known-issues.md`](docs/known-issues.md). It covers the SessionStart preamble leak
 into subagent prompts (issue #32), the delegation handoff classifier behind a denied dispatch
 (ADR 0039, ADR 0041), and the `SubagentHandback` report the run trace reads a slice review's verdict
-from (ADR 0136). Read it before you change subagent prose or the unattended block.
+from (ADR 0136). It also covers native Windows with Git Bash (ADR 0150). Read it before you change subagent prose or the unattended block.
 
 ## Common commands
 
@@ -320,10 +324,12 @@ This root owns every other subtree directly:
   default-branch content check (ADR 0089). These are the only
   places a hook depends on a script instead of standing alone. A `require` failure leaves the hook
   with no fallback reader: it sweeps, prunes, records, or denies nothing and says nothing. The probe has its own, narrower
-  fallback — `scope-prune.js` prunes by tree comparison alone, still silently. The four Bash hooks
-  (`merge-guard.js`, `green-gate.js`, `ledger-guard.js`, `run-trace.js`) each `require` the sibling module
-  `shell-words.js` and keep no shell-word reader of their own (ADR 0135, the `arg-token` drift check). When the
-  module cannot load, the three guardrails fail closed and `run-trace.js` records nothing (INV-0140).
+  fallback — `scope-prune.js` prunes by tree comparison alone, still silently. The Bash hooks
+  `merge-guard.js`, `green-gate.js`, `ledger-guard.js`, and `run-trace.js` each `require` the sibling module
+  `shell-words.js` and keep no shell-word reader of their own (ADR 0135, the `arg-token` drift check).
+  `run-lock.js` requires it too, for its drive-path translator (ADR 0150). When the module cannot load, the
+  guardrails `merge-guard.js`, `green-gate.js`, `ledger-guard.js`, and `run-lock.js` fail closed, and
+  `run-trace.js` records nothing (INV-0140).
 - `scripts/` and `plugin/scripts/`. Owned by [`scripts/AGENTS.md`](scripts/AGENTS.md):
   `plugin/scripts/scope.js` (the run-state CLI, ADR 0022: owns the ledger schema, is the only
   `ledger.md` read and write path, exports `readLedgerHeader` for `plugin/hooks/scope-prune.js` and

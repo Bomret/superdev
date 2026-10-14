@@ -16,6 +16,15 @@
 const fs = require('fs');
 const path = require('path');
 
+// The shared shell module (ADR 0135) translates a Git Bash drive path (ADR 0150). When it cannot load, the
+// guard fails closed like the other guardrails: it blocks a scopetree creation and says why (INV-0140).
+let drivePath = null;
+try {
+  ({ drivePath } = require('./shell-words.js'));
+} catch {
+  // left null: decide() blocks a scopetree creation
+}
+
 // 1 hour in ms = staleness threshold. A lock mtime older than this is considered stale/crashed.
 const STALENESS_MS = 60 * 60 * 1000;
 
@@ -53,6 +62,9 @@ function decide(input) {
 
   if (!found) return { block: false }; // not a scopetree op → allow
   const { prefix, scope } = found;
+  if (!drivePath) {
+    return { block: true, reason: 'superdev: run-lock cannot load shell-words.js, so it cannot tell whether another session runs this scope. Reinstall the superdev plugin.' };
+  }
 
   // Scopetree op detected. Check the lock. The session cwd is on the top-level payload
   // (`input.cwd`), not inside tool_input — the Bash tool_input carries only `command`.
@@ -60,7 +72,7 @@ function decide(input) {
   // Fail closed: the run root the command names, and the run root under the session's working
   // directory. A prefix the hook cannot expand (`~/`, `$HOME/`) resolves under cwd and misses the
   // real root; cwd's own lock still blocks when the session stands in the main tree.
-  const runRoots = [path.resolve(cwd, prefix, '.superdev', 'scopes', scope), path.resolve(cwd, '.superdev', 'scopes', scope)];
+  const runRoots = [path.resolve(cwd, drivePath(prefix), '.superdev', 'scopes', scope), path.resolve(cwd, '.superdev', 'scopes', scope)];
   const runRoot = runRoots.find((root) => isLockFresh(path.join(root, 'run.lock')));
 
   if (runRoot) {

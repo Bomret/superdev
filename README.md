@@ -320,7 +320,7 @@ read ([ADR 0003](docs/adr/0003-doc-reconcile-runs-serially.md)).
 
 ## Guardrails (deterministic hooks)
 
-The hooks are cross-platform Node. Claude Code provides `node` as a runtime dependency, so there are no
+The hooks are cross-platform Node. They need `node` on PATH (see [Install](#install)), so there are no
 bash or PowerShell variants.
 
 - **merge-guard.** Blocks `git merge`, `git push`, `git rebase`, `git pull`, `git subtree push`, a git
@@ -651,6 +651,14 @@ superdev ships as a single-plugin Claude Code **marketplace**
 install `superdev@superdev`. Verified on Claude Code **v2.1.237** (2026-08-20). No lower bound is
 claimed, because none has been tested.
 
+**Platforms.** superdev runs on macOS, Linux, WSL, and native Windows with Git Bash. It does not support
+Windows without Git Bash, where Claude Code uses PowerShell. Prerequisites:
+
+- Node on PATH. Claude Code does not install it for you.
+- Git for Windows, on native Windows.
+- `jq`, for the slice stores and knowledge bases whose setup uses it: Jira, Forgejo, GitHub, and
+  Confluence.
+
 **From the git host** (interactive):
 
 ```
@@ -719,7 +727,7 @@ writes `CHANGELOG.md`, tags, and publishes a Codeberg Release from the Conventio
 
 ## Requirements
 
-- Claude Code, which provides `node` for the hooks.
+- Claude Code, and `node` on PATH for the hooks. On native Windows, Git for Windows too.
 - For the chosen backends, the relevant CLI or token: `gh`, `tea` with a login for the Forgejo host, or a
   Jira token in an env var. The PR step degrades to a push plus a printed command when a host CLI is
   absent.

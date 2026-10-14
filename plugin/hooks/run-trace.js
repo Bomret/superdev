@@ -42,8 +42,9 @@ try {
 let scan = null;
 let WRAPPER = null;
 let optionWords = null;
+let drivePath = null;
 try {
-  ({ scan, WRAPPER, optionWords } = require('./shell-words.js'));
+  ({ scan, WRAPPER, optionWords, drivePath } = require('./shell-words.js'));
 } catch {
   // left null: record() records nothing
 }
@@ -105,7 +106,7 @@ function bashTargets(command, cwd) {
   const targets = [];
   const add = (base, word) => {
     const w = word === null ? null : unquote(word);
-    if (w && !w.startsWith('&') && !w.startsWith('/dev/') && !w.startsWith('~')) targets.push(path.resolve(base, w));
+    if (w && !w.startsWith('&') && !w.startsWith('/dev/') && !w.startsWith('~')) targets.push(path.resolve(base, drivePath(w)));
   };
   let scanned;
   try { scanned = scan(command); } catch { return []; }
@@ -125,11 +126,11 @@ function bashTargets(command, cwd) {
     const gi = ws.indexOf('-C');
     if (ws[0] === 'git' && gi > 0 && ws[gi + 1]) {
       const d = unquote(ws[gi + 1]);
-      if (d) segBase = path.resolve(base, d);
+      if (d) segBase = path.resolve(base, drivePath(d));
     }
     if (ws[0] === 'cd' && ws[1]) {
       const d = unquote(ws[1]);
-      if (d && !cmdLine.fn) dirs.set(cmdLine, path.resolve(base, d));
+      if (d && !cmdLine.fn) dirs.set(cmdLine, path.resolve(base, drivePath(d)));
       continue;
     }
     // A file write is `>`, `>>`, `>|`, `<>`, `&>`, `&>>`, or `>&` onto a file; `>&2` and `>&-` duplicate a descriptor.
@@ -178,7 +179,7 @@ function bashTargets(command, cwd) {
       const dest = destWord && unquote(destWord);
       if (!dest) continue;
       const srcs = tDir !== null ? operands : operands.slice(0, -1);
-      const destAbs = path.resolve(segBase, dest);
+      const destAbs = path.resolve(segBase, drivePath(dest));
       let isDir = tDir !== null;
       try { isDir = fs.statSync(destAbs).isDirectory(); } catch { /* absent: a plain file target */ }
       if (isDir) {
@@ -192,7 +193,7 @@ function bashTargets(command, cwd) {
       let text = command;
       for (const w of operands.slice(operands.indexOf('apply') + 1)) {
         const f = unquote(w);
-        try { if (f) text += '\n' + fs.readFileSync(path.resolve(segBase, f), 'utf8'); } catch { /* unreadable patch: heredoc text only */ }
+        try { if (f) text += '\n' + fs.readFileSync(path.resolve(segBase, drivePath(f)), 'utf8'); } catch { /* unreadable patch: heredoc text only */ }
       }
       for (const pm of text.matchAll(/^\+\+\+ b\/(\S+)/gm)) targets.push(path.resolve(segBase, pm[1]));
     }
@@ -413,7 +414,7 @@ function testRunsOf(segs, cwd, outside) {
     const v = at ? verificationCommands(at.tree) : {};
     const compound = at ? compoundKind(segs, i, v) : null;
     if (!compound) {
-      if (cmd === 'cd' && args[0] && plain(args[0])) { dirs.set(first, path.resolve(base, plain(args[0]))); return; }
+      if (cmd === 'cd' && args[0] && plain(args[0])) { dirs.set(first, path.resolve(base, drivePath(plain(args[0])))); return; }
       if (NOT_RUNNERS.has(path.basename(cmd))) return;
     }
     if (!at) return;
@@ -425,7 +426,7 @@ function testRunsOf(segs, cwd, outside) {
     for (const s of segs.slice(i, last)) {
       if (s.fn) continue;
       const w = segWords(s);
-      if (w.cmd === 'cd' && w.args[0] && plain(w.args[0])) dirs.set(s, path.resolve(dirs.of(s), plain(w.args[0])));
+      if (w.cmd === 'cd' && w.args[0] && plain(w.args[0])) dirs.set(s, path.resolve(dirs.of(s), drivePath(plain(w.args[0]))));
     }
     const runDir = dirs.of(seg);
     let kind = compound ? compound.kind : verificationKind(seg, v);
@@ -435,8 +436,8 @@ function testRunsOf(segs, cwd, outside) {
         const p = !w.startsWith('-') && (w !== cmd || w.includes('/')) ? plain(w) : null;
         if (!p) continue;
         // A quoted word holding whitespace is free text (a note that begins with a test path) unless it names a file.
-        if (/\s/.test(p) && !fs.existsSync(path.resolve(runDir, p))) continue;
-        let rel = path.relative(tree, path.resolve(runDir, p));
+        if (/\s/.test(p) && !fs.existsSync(path.resolve(runDir, drivePath(p)))) continue;
+        let rel = path.relative(tree, path.resolve(runDir, drivePath(p)));
         if (rel.startsWith('..') || path.isAbsolute(rel)) continue;
         if (/\/$/.test(p)) rel += '/';
         if (isTestPath(tree, rel)) files.push(rel);
@@ -487,12 +488,12 @@ function restoreEventsOf(segs, cwd) {
     if (seg.fn) continue;
     const base = dirs.of(seg);
     const { cmd, args } = segWords(seg);
-    if (cmd === 'cd' && args[0] && plain(args[0])) { dirs.set(seg, path.resolve(base, plain(args[0]))); continue; }
+    if (cmd === 'cd' && args[0] && plain(args[0])) { dirs.set(seg, path.resolve(base, drivePath(plain(args[0])))); continue; }
     if (cmd !== 'git') continue;
     let i = 0;
     let segBase = base;
     while (i < args.length && args[i].startsWith('-')) {
-      if (args[i] === '-C' && plain(args[i + 1] || '')) segBase = path.resolve(base, plain(args[i + 1]));
+      if (args[i] === '-C' && plain(args[i + 1] || '')) segBase = path.resolve(base, drivePath(plain(args[i + 1])));
       i += /^(?:-C|-c|--git-dir|--work-tree)$/.test(args[i]) ? 2 : 1;
     }
     const sub = args[i];
@@ -526,7 +527,7 @@ function restoreEventsOf(segs, cwd) {
       paths = rest.slice(dd + 1);
     }
     const rels = paths.map((p) => {
-      const rel = path.relative(tree, path.resolve(segBase, p));
+      const rel = path.relative(tree, path.resolve(segBase, drivePath(p)));
       return rel === '' ? '.' : rel;
     });
     if (!rels.length) continue;
@@ -579,7 +580,7 @@ function scopeTestCalls(segs, cwd) {
     if (seg.fn) return;
     const base = dirs.of(seg);
     const { cmd, args } = segWords(seg);
-    if (cmd === 'cd' && args[0] && plain(args[0])) { dirs.set(seg, path.resolve(base, plain(args[0]))); return; }
+    if (cmd === 'cd' && args[0] && plain(args[0])) { dirs.set(seg, path.resolve(base, drivePath(plain(args[0])))); return; }
     // The script word may be quoted and may lead with a variable (`"${CLAUDE_PLUGIN_ROOT}/scripts/scope.js"`): only its basename matters.
     if (path.basename(cmd) !== 'node') return;
     // The script is node's first word that is no option or option value; `-e`/`-p` run inline code and name no script.

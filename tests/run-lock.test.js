@@ -197,6 +197,38 @@ try {
     }
   }
 
+  // A Git Bash drive path names the run root as the Windows path on win32 (ADR 0150).
+  {
+    const realPlatform = Object.getOwnPropertyDescriptor(process, 'platform');
+    fs.rmSync(lockPath, { force: true });
+    const winRoot = path.join(testRunDir, 'C:', 'w', '.superdev', 'scopes', testScope);
+    fs.mkdirSync(winRoot, { recursive: true });
+    fs.writeFileSync(path.join(winRoot, 'run.lock'), 'locked', 'utf8');
+    const cmd = `git worktree add /c/w/.superdev/scopes/${testScope}/scopetree`;
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    try {
+      assert.strictEqual(at(cmd).block, true, 'win32: /c/w resolves as C:/w');
+    } finally {
+      Object.defineProperty(process, 'platform', realPlatform);
+    }
+    assert.strictEqual(at(cmd).block, false, 'off win32 the drive path stays');
+  }
+
+  // The scanner module cannot load: the guard blocks a scopetree creation and says why (INV-0140).
+  {
+    const dir = fs.mkdtempSync(path.join(tmpDir, 'rl-noscanner-'));
+    try {
+      const lone = path.join(dir, 'run-lock.js');
+      fs.copyFileSync(hookPath, lone);
+      const result = cp.spawnSync(process.execPath, [lone], { input: JSON.stringify({ cwd: testRunDir, tool_input: { command: add } }), encoding: 'utf8', timeout: 15000 });
+      assertSpawnDecided(result, 'run-lock.js without its scanner');
+      assert.strictEqual(result.status, 2, 'an unloadable scanner blocks');
+      assert.match(result.stderr, /shell-words/, 'and names the broken install');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
   console.log('run-lock tests ok');
 } finally {
   fs.rmSync(testRunDir, { recursive: true, force: true });

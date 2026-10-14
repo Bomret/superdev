@@ -66,14 +66,20 @@ function defaultBranch(cwd) {
 // `.superdev/` tree here would let a sibling scope's slicetree be judged by this scope's `mergedSet`,
 // sweeping it whenever its slice branch happens to be an ancestor of this scope's branch as well.
 function selectRemovable(porcelain, mergedSet, workedSet, scopeRoot) {
-  const prefix = scopeRoot.endsWith(path.sep) ? scopeRoot : scopeRoot + path.sep;
+  // Git prints `C:/…` on Windows where Node builds `C:\…`: compare with `\` as `/` and a lower-cased
+  // drive letter. `wt` itself stays as git printed it, since that is what `git worktree remove` takes.
+  // Only a drive-letter path is Windows-shaped; a POSIX path compares as written, where `\` is a name character.
+  const norm = (p) =>
+    /^[A-Za-z]:/.test(p) ? p.replace(/\\/g, '/').replace(/^[A-Za-z]:/, (d) => d.toLowerCase()) : p;
+  const prefix = norm(scopeRoot).replace(/\/?$/, '/');
   const out = [];
   for (const block of porcelain.split('\n\n')) {
     const wt = (block.match(/^worktree (.+)$/m) || [])[1];
     const br = (block.match(/^branch refs\/heads\/(.+)$/m) || [])[1];
     if (!wt || !br) continue; // detached or main worktree — skip
-    if (!wt.startsWith(prefix)) continue; // only this scope's own slicetrees
-    if (path.basename(path.dirname(wt)) !== 'slicetrees') continue; // .../<scope>/slicetrees/<id>
+    const nwt = norm(wt);
+    if (!nwt.startsWith(prefix)) continue; // only this scope's own slicetrees
+    if (path.posix.basename(path.posix.dirname(nwt)) !== 'slicetrees') continue; // .../<scope>/slicetrees/<id>
     if (!/^slice\//.test(br)) continue; // only slice/* branches
     if (!mergedSet.has(br)) continue; // (a) integrated into this scope's own branch
     if (!workedSet.has(br)) continue; // (b) has real committed work — not a fresh empty branch

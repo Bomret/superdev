@@ -127,7 +127,7 @@ git repository included. `--count` prints the number of `.md` pages in that dire
 it is missing. The staged-page scan behind `status` resolves its staging root through the same main
 working tree.
 
-`test full|whole`, `test focused [<path>…]`, and `test -- <command>` run a test command in bash and append one
+`test full|whole`, `test focused [<path>…]`, and `test -- <command>` run a test command through `sh -c`, `sh` resolved from PATH (ADR 0150), and append one
 `run` line carrying the command's own exit status, an **Observed run** (CONTEXT.md, ADR 0127, INV-0117). The verb
 streams the command's output and exits with its status. `full`, `focused`, and `whole` run the command
 `docs/agents/verification.md` configures, as written; `focused` substitutes its shell-quoted paths for `{paths}`
@@ -140,8 +140,8 @@ as no test run, or a kind with no configured command, is refused and nothing run
 slice, commit, and tree state when the command starts, and appends the line when it finishes. A run during which
 HEAD moved, the tree was dirty at either end, or the trace recorded an edit, revert, or restore for the slice
 during the run records `dirty`, so it never backs `suite reusable`. A change no hook records shows only at the two ends. A command ended by a
-signal, or a verb killed first, writes no line, and the command's process group dies with the verb (a watcher
-process covers `SIGKILL`). A failed trace write prints a note on stderr and leaves the exit status unchanged.
+signal, or a verb killed first, writes no line, and the command's run ends with the verb: a Node watcher process supervises it and ends it
+through `endRun` (a process-group kill, `taskkill /pid <pid> /t /f` on Windows), which covers `SIGKILL`. `test` ends the group with `SIGTERM`. A failed trace write prints a note on stderr and leaves the exit status unchanged.
 Outside every run tree the command runs and nothing is written. So does a command that `cd`s out of every run tree:
 `hooks/run-trace.js`'s `outsideTree` classifies the `cd` target against its repository top. The verb takes no option that sets an outcome,
 kind, slice, or tree state. It requires `hooks/run-trace.js` at call time for `locate`, `testRuns`, and
@@ -179,8 +179,8 @@ ledger row that records exactly that range, else the slice the run's directory a
 note that tells the controller to capture an observation (`references/scope-mode.md`, `## Observations`).
 
 The verb exits 0 when it read an outcome and 1 on a refusal or an error. It exits 2 when no test command is configured, so
-nothing ran, and 128 plus the signal number when interrupted. An interrupt ends the command's process group, and a watcher
-process covers `SIGKILL`, so no worktree outlives the verb. A suite that outlasts the Bash tool's time limit runs the verb
+nothing ran, and 128 plus the signal number when interrupted. An interrupt ends the command's run through `endRun` with `SIGKILL`, and the Node
+watcher process covers a killed verb, so no worktree outlives the verb. A suite that outlasts the Bash tool's time limit runs the verb
 in the background (`references/test-selection.md`).
 
 `scope.js` has three suites, split by verb so a test-first step on one verb runs only that verb's cases (ADR 0139).
@@ -390,7 +390,7 @@ publishes nothing, since a local backend keeps its pages as repository files (AD
 backend with no `## Commands` section refuses and names `/superdev:setup`. A remote backend that
 carries one parses its five `### <verb>` subsections, `find`, `read`, `create`, `update`, and
 `delete`, by heading name, never by position. A fenced block inserted or removed elsewhere therefore
-never shifts which template a later verb reads. Each template runs under `/bin/sh -c`. Every value
+never shifts which template a later verb reads. Each template runs under `sh -c`, `sh` resolved from PATH (ADR 0150). Every value
 passes to it as an environment variable, never interpolated into the command string. A title carrying
 a quote, a `$`, a backtick, or a newline therefore reaches the backend unchanged and starts no shell of
 its own.
@@ -1288,7 +1288,7 @@ publish, create, update, or upsert, in any morphology, so a passive "is publishe
 be aimed at a page, wiki, space, or backend object.
 `skills/publish-kb/SKILL.md` is exempt, because dispatching the one path to the backend is its job, and
 `plugin/scripts/publish-kb.js` — the script that job now runs as (ADR 0069) — is exempt too, for the
-opposite reason: it is real code making a real `/bin/sh -c` call, not prose this instruction-shape scan
+opposite reason: it is real code making a real `sh -c` call, not prose this instruction-shape scan
 reads at all, so the list was never asked to carry it. The check reads the
 instruction's shape rather than a backend's literal endpoint or credential name, because
 **Backends are pluggable** already forbids these documents from naming a backend at all, so a
@@ -1304,6 +1304,19 @@ ledger-header reader of its own instead of `require`ing `scope.js`'s `readLedger
 pattern's shape rather than running the hooks, because the same drift happened to `scope-prune.js`'s own
 copy. A second reader can diverge on anchoring, capture width, newline handling, or markup normalisation
 silently, and prose alone would not have caught it.
+The `shell-spawn` check (ADR 0150, INV-0153), `scanShellSpawn()`, scans every `.js` and `.mjs` file under
+`plugin/hooks/` and `plugin/scripts/` (never a `.test.js`) for a shell start. It flags `exec(` and
+`execSync(` from `child_process` (directly, through a namespace, or as a bare or aliased `require` or
+`import` binding, a dynamic `import()` destructure with or without `await`, or a `require(…).exec` member,
+a namespace `.exec` member, or a destructured binding referenced without a call, as in `promisify(exec)`; a
+`RegExp` `.exec(` is not one), any `shell:` object-literal key but `shell: undefined` (a ternary `ok ? shell : x`
+is no key), a shorthand `{ cwd, shell }` key (a shorthand after a call expression in the same literal escapes, and
+`const { shell, cwd } = x` destructuring fires), a spawn,
+`spawnSync`, `execFile`, or `execFileSync` whose program literal starts with `/`, and a program literal
+`bash`. It allows `sh` with `-c`, `git`, `taskkill`, and `process.execPath`. The scan reads text with regular
+expressions after it strips whole-line `//` comments, trailing `//` comments after whitespace that sit outside a
+quoted string, and `/* */` blocks that start a line (a `/*` or `//` inside a string deletes nothing), so a
+program held in a variable escapes it.
 The `test-selection-wiring` contract (ADR 0025): `agents/implementer.md`,
 `references/implement-lite.md`, `agents/slice-reviewer.md`, and `skills/document/SKILL.md` each still instruct
 themselves to read `references/test-selection.md` **and run the command it selects**. The row is anchored

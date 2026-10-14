@@ -262,3 +262,33 @@ Verified 2026-10-09, on rtk 0.51.0. `rtk proxy -- git --version`, `rtk run -- gi
 `rtk err -- git --version` reported that the command completed. Each subcommand runs the command after
 its `--` separator. `rtk proxy rtk git --version` printed git's version too, so an rtk behind another rtk
 runs the command behind it.
+
+## Native Windows runs superdev under Git Bash
+
+Claude Code runs on native Windows, and with Git for Windows installed it uses Git Bash as its shell.
+superdev's hooks and scripts run under native Node, which does not translate MSYS paths such as
+`/c/Users/…`. A path that git prints, or that a command carries as text, can therefore differ from a path
+Node builds. Windows without Git Bash, where Claude Code uses PowerShell, is not supported (triage #1113).
+
+**Mitigation (implemented, ADR 0150, INV-0153):** a shell runs only an operator-supplied command, and
+that shell is `sh` from PATH, which Git for Windows provides. superdev's own process supervision, worktree
+cleanup, and git calls are Node code or direct spawns with an argument array. A run's process tree ends
+with `taskkill /pid <pid> /t /f` on Windows and with a process-group kill on POSIX. A path from git output
+or from command text is normalized before it is compared with a path Node builds. A Windows process whose
+parent has already exited is outside the tree `taskkill /t` walks, so it can outlive a killed run.
+
+**Smoke checklist (manual, on a Windows machine with Git for Windows and Node on PATH):**
+
+- `/superdev:publish-kb` publishes a staged page, and a live page reads back.
+- A merge through the green gate passes on a green suite and is refused on a red one, for a test command
+  in POSIX syntax and for a focused command over quoted paths.
+- `scope.js test` records the test command's exit status.
+- `scope.js fail-to-pass` kills a run that exceeds its bound and leaves no worktree behind.
+- The Stop hook sweeps a merged slicetree, and the scope is reaped.
+- A `/c/…` path in a command locates the ledger.
+- `core.hooksPath=/dev/null` disables git hooks under Git for Windows.
+
+**Fix required at:** no platform fix is due. Removing the Node prerequisite is a later feature
+(triage #1113).
+
+Verification: pending. Date it, with the Claude Code and Git for Windows versions, when the checklist runs.

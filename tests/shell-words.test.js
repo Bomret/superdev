@@ -7,7 +7,7 @@ const cp = require('node:child_process');
 const path = require('node:path');
 const { assertSpawnDecided } = require('./spawn-verdict.js');
 const { timePair } = require('./linear-time.js');
-const { scan, gitSubcommand, rawNamesVerb, WRAPPER, optionWords, MAX_QUOTED_DEPTH, dashReading } = require(path.join(__dirname, '..', 'plugin', 'hooks', 'shell-words.js'));
+const { scan, gitSubcommand, rawNamesVerb, WRAPPER, optionWords, MAX_QUOTED_DEPTH, dashReading, drivePath } = require(path.join(__dirname, '..', 'plugin', 'hooks', 'shell-words.js'));
 
 const cmds = (s, opts) => {
   const r = scan(s, opts);
@@ -44,6 +44,10 @@ assert.equal(gitSubcommand(['echo', 'git', 'merge']), null, 'a command that is n
   for (let k = 0; k < 3; k++) assert.equal(rawNamesVerb('tea pr merge "x', /pr\s+merge/, LEAD), true, 'a global lead regex reads the same on call ' + k);
   assert.equal(rawNamesVerb('gh pr view "x', /pr\s+merge/, LEAD), false, 'the lead word without the verb');
 }
+
+// A backtick body is rescanned after its backslash-newline joins: `bash -n` accepts this fragment (it never parses the body),
+// and the scanner reads the joined `pq' a#b …` body, finds an unterminated quote, and fails closed (INV-0140).
+unreadable("\\\" `p\\\nq' a#b >/dev/null`");
 
 // --- the shared prefix-wrapper table and its option reader ---
 for (const [ws, n] of [[['-iu', 'bob'], 2], [['-uroot'], 1], [['-n', '5'], 1], [['--user=x'], 1], [['--user', 'x'], 2],
@@ -100,6 +104,8 @@ assert.deepEqual(allVals('a <(b) >(c)'), [['a', '<(b)', '>(c)'], ['b'], ['c']]);
 }
 assert.deepEqual(allVals('then git merge x'), [['git', 'merge', 'x']], 'a leading keyword is dropped');
 assert.deepEqual(allVals('if a; then git merge x; fi'), [['a'], ['git', 'merge', 'x']]);
+// INCOMPLETE_COMPOUND: no compound-grammar check, so a fragment cut after `then` or `do` reads.
+for (const s of ['if a; then', 'while a; do']) assert.equal(scan(s).readable, true, s);
 assert.deepEqual(allVals('f() { git merge x; }'), [['git', 'merge', 'x']]);
 assert.deepEqual(allVals('case x in a|b) c;; *) d;; esac; e'), [['c'], ['d'], ['e']]);
 
@@ -584,6 +590,18 @@ for (const open of ['$(', '"$(', '${a:-$(', '(', '$((']) {
 //    body at expansion time, so a damaged fragment whose body stays delimited yet malformed passes `bash -n`
 //    there. On bash 3.2 a damaged fragment that bash accepts is skipped; a damaged fragment bash rejects, and
 //    every undamaged fragment, must still match.
+//  - BACKTICK_BODY_UNPARSED: `bash -n` never parses a backtick body, on bash 3.2 and 5.3 alike (a body with an
+//    unterminated quote passes); the body fails when it runs. A damaged fragment holding a backtick that bash
+//    accepts is skipped on every bash when the scanner reads it unreadable and reads it readable with the
+//    backtick groups removed (the body is the reason); one the scanner reads as readable, or unreadable
+//    for another reason, agrees with bash and is compared.
+//  - INCOMPLETE_COMPOUND: a fragment cut inside `for ((…)); do … done` lacks its `do` or `done`; bash rejects
+//    it, and the scanner does no compound-grammar check (as with `if a; then`, `while a; do`), so it reads
+//    the words that are there. Skipped when the scanner reads such a fragment as readable.
+//  - DAMAGED_ARITHMETIC_FALLBACK: a damaged `$((…))` that lost a `)` falls back to `$( (…)`, which `bash -n` accepts
+//    without parsing the body (`bash -n -c '(1+(2))'` is a syntax error on bash 3.2 and 5.3 alike); the scanner
+//    reads the `(` after the opener as unexpected. Skipped when bash accepts, the scanner reports `unexpected (`,
+//    and a `$((` is left once every well-formed `$((…))` (one nesting level) is removed.
 //  - PAREN_IN_BRACE_IN_SUBSTITUTION: bash 3.2 counts a `(` or `)` inside a `${…}` that sits inside `$(…)`.
 //    On bash 3.2 a damaged fragment holding both `$(` and `${` is skipped.
 //  - BRACE_GROUP_IN_SUBSTITUTION: a `}` of a function body or brace group inside `$(…)` that sits inside
@@ -604,12 +622,30 @@ for (const open of ['$(', '"$(', '${a:-$(', '(', '$((']) {
     assertSpawnDecided(r, 'bash -n');
     return r.status === 0;
   };
-  const probe = cp.spawnSync('bash', ['-c', 'echo ${BASH_VERSINFO[0]}'], { encoding: 'utf8', timeout: 20000 });
+  const probe = cp.spawnSync('bash', ['-c', 'echo ${BASH_VERSINFO[0]} $BASH_VERSION'], { encoding: 'utf8', timeout: 20000 });
   assert.ok(!(probe.error && probe.error.code === 'ENOENT'), 'the differential test needs `bash` on the path, and found none');
   assertSpawnDecided(probe, 'bash version probe');
-  const major = Number((probe.stdout || '').trim());
+  const [majorText, bashVersion] = (probe.stdout || '').trim().split(' ');
+  const major = Number(majorText);
   assert.ok(major >= 1, 'the differential test needs `bash` on the path, and found none');
+  console.log(`shell-words.test.js: bash -n agreement fuzz compares against bash ${bashVersion}`);
   const newBash = major >= 4;
+
+  // The scanner reads the fragment unreadable because of a backtick body: it is unreadable, and readable once
+  // the backtick groups are removed. A fragment unreadable for another reason is not skipped.
+  const backtickOnlyUnreadable = (frag) => frag.includes('`') && !scan(frag).readable && scan(frag.replace(/`(?:\\[\s\S]|[^`\\])*`/g, '')).readable;
+  // A well-formed backtick body next to an unbalanced `$(` outside it: unreadable for the `$(`, so not a skip.
+  assert.equal(scan('echo `ls` $(x').readable, false, 'unbalanced $( outside a backtick body is unreadable');
+  assert.equal(backtickOnlyUnreadable('echo `ls` $(x'), false, 'the backtick skip does not cover an unbalanced $( outside the body');
+  assert.equal(backtickOnlyUnreadable("echo `a'b`"), true, 'the backtick skip covers an unterminated quote inside the body');
+
+  // The scanner reads `unexpected (` and a `$((` stays after the well-formed `$((…))` spans go: the damaged-arithmetic shape.
+  const damagedArithmetic = (frag) => { const r = scan(frag); return !r.readable && r.reason === 'unexpected (' && frag.replace(/\$\(\((?:[^()]|\([^()]*\))*\)\)/g, '').includes('$(('); };
+  assert.equal(scan('echo $((1+(2)) x)').reason, 'unexpected (', 'a damaged $((…) reads as unexpected (');
+  assert.equal(damagedArithmetic('echo $((1+(2)) x)'), true, 'the arithmetic skip covers the damaged $((…)');
+  assert.equal(damagedArithmetic('echo $((1+2)) ( x'), false, 'the arithmetic skip does not cover an unrelated ( beside a well-formed $((…))');
+  assert.equal(damagedArithmetic('echo $((1+(2))) ( x'), false, 'the arithmetic skip does not cover an unrelated ( beside a nested well-formed $((…))');
+  assert.equal(backtickOnlyUnreadable("echo `a\\`'b`"), true, 'an escaped backtick does not end the removed backtick span');
 
   const mulberry32 = (seed) => () => {
     seed = (seed + 0x6D2B79F5) | 0;
@@ -712,14 +748,27 @@ for (const open of ['$(', '"$(', '${a:-$(', '(', '$((']) {
     const { frag, damaged } = generate(rand);
     total++;
     const expected = bashRun(frag);
+    if (damaged && expected && backtickOnlyUnreadable(frag)) { skipped++; continue; } // BACKTICK_BODY_UNPARSED
     if (!newBash && damaged && (expected || (frag.includes('$(') && frag.includes('${')))) { skipped++; continue; }
-    if (expected) readable++; else unreadableCompared++;
     const got = scan(frag);
-    assert.equal(got.readable, expected, `scan disagrees with bash -n (bash says ${expected ? 'readable' : 'unreadable'}; seed ${SEED}, fragment ${k}): ${JSON.stringify(frag)} (${got.reason || ''})`);
+    // INCOMPLETE_COMPOUND: a fragment cut inside `for ((…)); do … done` lacks its `do` or `done`; bash rejects it, and the
+    // scanner balances brackets and quotes without checking compound grammar, so it reads the words that are there.
+    if (damaged && !expected && got.readable && frag.includes('for ((')) { skipped++; continue; }
+    // DAMAGED_ARITHMETIC_FALLBACK: a damaged `$((…))` that lost a `)` falls back to `$( (…)` on bash, which accepts it;
+    // the scanner reads the `(` after the arithmetic opener as unexpected.
+    if (damaged && expected && damagedArithmetic(frag)) { skipped++; continue; }
+    if (expected) readable++; else unreadableCompared++;
+    assert.equal(got.readable, expected, `scan disagrees with bash -n (bash ${major}; bash says ${expected ? 'readable' : 'unreadable'}; seed ${SEED}, fragment ${k}): ${JSON.stringify(frag)} (${got.reason || ''})`);
   }
   assert.ok(readable > total * 0.3 && readable < total * 0.95, `the generator mixes readable and unreadable fragments (${readable} of ${total}, ${skipped} skipped)`);
   // The skips on an old bash must leave unreadable verdicts to compare, or the test checks readable ones only.
   assert.ok(unreadableCompared >= 200, `unreadable verdicts compared: ${unreadableCompared} of ${total} (${skipped} skipped)`);
+}
+
+// drivePath: a Git Bash drive path becomes a Windows one on win32 only (ADR 0150).
+for (const [from, to] of [['/c/Users/x', 'C:/Users/x'], ['/C/x', 'C:/x'], ['/c', 'C:/'], ['/tmp/x', '/tmp/x'], ['/dev/null', '/dev/null'], ['/cc/x', '/cc/x'], ['c/x', 'c/x'], ['C:/x', 'C:/x']]) {
+  assert.equal(drivePath(from, 'win32'), to, `win32: ${from}`);
+  for (const platform of ['darwin', 'linux']) assert.equal(drivePath(from, platform), from, `${platform}: ${from}`);
 }
 
 console.log('shell-words.test.js: ok');

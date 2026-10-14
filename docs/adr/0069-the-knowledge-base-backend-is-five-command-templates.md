@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0150](0150-shipped-code-starts-a-shell-only-for-an-operator-command.md), which runs the templates under `sh` from PATH.
+
 **Context.** `/superdev:publish-kb` moved bytes by reading prose. Its skill body carried the whole
 mechanism: which staged files collide on a title, what separates a page that is absent from a read that
 failed, when a staged file may be deleted, and how to reach the backend at all. Three costs followed. The

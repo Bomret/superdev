@@ -47,7 +47,7 @@
 // as no command line is refused only when it names one and holds a write form (WRITE_FORM), so a commit message that mentions a ledger passes.
 // dash runs `((…))` as nested subshells where bash reads arithmetic, so a command is read twice, as written and as dash reads it (shell-words.js's dashReading, which spreads `\(\(` too)
 // and a ledger write in either reading is refused; the scanner reads every quoted text it re-reads both ways too: `((cp a L))`, `eval "((cp a L))"`, `echo "((cp a L))" | dash`, and `dash -c \(\(cp\ a\ L\)\)` are refused, `grep "((" L` reads.
-// The raw-text tests (the unreadable-command rule and the ledger-name gate) share one normalizer, `plainText`, that drops every backslash and quote character and also reads each path with its doubled slashes, `.` segments, and `<name>/..` segments collapsed. When the scanner cannot be loaded or
+// The raw-text tests (the unreadable-command rule and the ledger-name gate) share one normalizer, `plainText`, that drops every backslash and quote character and lower-cases the text, adds a line with each backslash read as `/`, and also reads each path with its doubled slashes, `.` segments, and `<name>/..` segments collapsed. When the scanner cannot be loaded or
 // throws, every Bash call is refused (INV-0140): the guard has no reader of its own to fall back on.
 // Ceiling: a command built at run time (a variable, an `eval` of assembled text, a wrapper script), a path produced only when the
 // command runs (`find … -exec sed -i …`, `xargs` stdin, a glob, a patch file's own header, an archive extracted without `-C` in the run root), a
@@ -69,14 +69,16 @@ try {
 
 // A word references a scopes ledger or run trace when, unquoted/unescaped, it carries
 // `.superdev/scopes/…/ledger.md` or `…/trace.log` (relative or under any absolute prefix).
-// The one normalizer for raw text: a backslash-newline joins the halves of a word, and every backslash and quote character is dropped
+// The one normalizer for raw text: a backslash-newline joins the halves of a word, every backslash and quote character is dropped, and the text is lower-cased
 // whatever the nesting depth, so a text that passes through several shells (`dash -c "…"`, `eval`), each undoing one level of quoting
 // (`led\\ger.md`), still spells the path. It over-matches, which is fail closed: it only affects a text that spells a ledger path.
 // A text holding a path spelled with a doubled slash, a `.` segment, or a `<name>/..` segment (#1030) gets a second line, each
 // such path collapsed lexically (`.superdev//scopes`, `./.superdev/./scopes`, `.superdev/kb-pending/../scopes`), so every test
 // reads both spellings and denies when either names a run-state path. A symlink `<name>` makes the collapse over-match, which denies.
 const plainText = (text) => {
-  const plain = text.replace(/\\\n/g, '').replace(/[\\"']/g, '');
+  // Lower-cased (NTFS and APFS fold letter case), with a second line that reads each backslash as `/` (a Windows separator, INV-0141).
+  const joined = text.replace(/\\\n/g, '');
+  const plain = joined.replace(/[\\"']/g, '').toLowerCase() + '\n' + joined.replace(/\\/g, '/').replace(/["']/g, '').toLowerCase();
   if (!/\/\/|(?:^|\/)\.\.?(?:\/|$)/m.test(plain)) return plain;
   return plain + '\n' + plain.replace(/\S+/g, (w) => (w.includes('/') ? collapsePath(w) : w));
 };
@@ -487,7 +489,7 @@ function decide(input) {
   if (typeof ti.file_path === 'string') {
     // Edit/Write shape. Deny only the scopes ledger and run trace themselves; dod.md, run.lock,
     // .superdev/brainstorm/* and everything else pass.
-    if (/\.superdev\/scopes\/[^/]+\/(?:ledger\.md|trace\.log)$/.test(ti.file_path.replace(/\\/g, '/'))) {
+    if (/\.superdev\/scopes\/[^/]+\/(?:ledger\.md|trace\.log)$/i.test(ti.file_path.replace(/\\/g, '/'))) {
       return { block: true, reason };
     }
     return { block: false };

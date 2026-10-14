@@ -4,6 +4,9 @@
 
 **Amends:** [ADR 0117](0117-the-run-trace-is-hook-written-evidence.md).
 
+**Amended by:** [ADR 0150](0150-shipped-code-starts-a-shell-only-for-an-operator-command.md), which replaces the
+pipe handshake below with a Node watcher that starts the command itself.
+
 **Context.** ADR 0117 infers a test run's outcome from the shape of the Bash command. The outcome is
 known only when the test command is the whole command. On 2026-10-07, 24 consumer run traces held 921
 run lines, and 657 of them (71%) read `unknown`. The causes were piped or exit-captured runs, background
@@ -25,6 +28,12 @@ no verdict (INV-0009). A
 dispatch is recorded from `PreToolUse` on the `Agent` tool, which carries the prompt. Its end is
 recorded from `PostToolUse` on the `Agent` tool for a foreground subagent, and from `SubagentStop` for a
 background one, matched through the `agentId` the launch result carries.
+
+*Update 2026-10-14:* the pipe handshake above is superseded by
+[ADR 0150](0150-shipped-code-starts-a-shell-only-for-an-operator-command.md). The verb starts a Node watcher
+process with an IPC channel, and the watcher starts the command, so a verb killed before the watcher exists
+starts no command. When the verb dies, its channel closes, and the watcher ends the command's process group
+on POSIX, or its process tree through `taskkill` on Windows.
 
 **Platform basis.** Verified 2026-10-07 against https://code.claude.com/docs/en/hooks: `SubagentStart`
 documents `agent_id`, `agent_type`, and `cwd`, and no `prompt`. `PreToolUse` on the `Agent` tool

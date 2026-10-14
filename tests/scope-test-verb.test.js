@@ -183,6 +183,54 @@ const scopePath = require.resolve('../plugin/scripts/scope.js');
       assert.equal(r.stdout.trim().split('\n').pop(), 'gone', 'SIG' + sig + ': no child is left running: ' + r.stdout + r.stderr);
       assert.deepEqual(lines(), [], 'SIG' + sig + ': no line is written');
     }
+    // An interrupted verb has the command's group sent SIGTERM only: a runner that traps it to tear down finishes its cleanup.
+    {
+      reset();
+      const k = path.join(D, 'kTrap');
+      fs.mkdirSync(k);
+      verif(`trap "sleep 1; touch ${k}/cleaned" TERM; touch ${k}/ready; sleep 30 & wait`, 'true');
+      r = bash(`node ${scopePath} test full & V=$!; while [ ! -f ${k}/ready ]; do sleep 0.05; done; kill -TERM $V; wait $V;` +
+        ` for i in $(seq 100); do [ -f ${k}/cleaned ] && { echo cleaned; exit 0; }; sleep 0.1; done; echo missing`);
+      assert.equal(r.stdout.trim().split('\n').pop(), 'cleaned', 'the TERM trap finishes its cleanup: ' + r.stdout + r.stderr);
+    }
+    // A SIGKILLed verb cannot signal: only its watcher does, and it also sends SIGTERM, so the trap still finishes.
+    {
+      reset();
+      const k = path.join(D, 'kTrapKill');
+      fs.mkdirSync(k);
+      verif(`trap "sleep 1; touch ${k}/cleaned" TERM; touch ${k}/ready; sleep 30 & wait`, 'true');
+      r = bash(`node ${scopePath} test full & V=$!; while [ ! -f ${k}/ready ]; do sleep 0.05; done; kill -KILL $V; wait $V;` +
+        ` for i in $(seq 100); do [ -f ${k}/cleaned ] && { echo cleaned; exit 0; }; sleep 0.1; done; echo missing`);
+      assert.equal(r.stdout.trim().split('\n').pop(), 'cleaned', 'after SIGKILL of the verb the TERM trap finishes its cleanup: ' + r.stdout + r.stderr);
+    }
+    // A process the command forks as its leader is dying (here from the TERM trap, after the watcher's signal went out) is
+    // still in the group and still gets ended: it neither outlives the verb nor holds the caller's output open.
+    {
+      reset();
+      const k = path.join(D, 'kLate');
+      fs.mkdirSync(k);
+      verif(`trap "sleep 30 & echo \\$! > ${k}/late; exit 0" TERM; touch ${k}/ready; sleep 30 & wait`, 'true');
+      r = bash(`node ${scopePath} test full & V=$!; while [ ! -f ${k}/ready ]; do sleep 0.05; done; kill -KILL $V; wait $V;` +
+        ` for i in $(seq 100); do [ -s ${k}/late ] && break; sleep 0.1; done;` +
+        ` for i in $(seq 100); do kill -0 $(cat ${k}/late) 2>/dev/null || { echo gone; exit 0; }; sleep 0.1; done; echo alive`);
+      assert.equal(r.stdout.trim().split('\n').pop(), 'gone', 'a process forked while the command ends is ended too: ' + r.stdout + r.stderr);
+    }
+    // The same late fork on the interrupted path: the verb itself gets SIGTERM, closes the watcher's channel and exits, and the
+    // watcher ends the group as it does for a SIGKILLed verb. The late child is still ended. Several rounds, because the order
+    // of the verb's exit, the leader's exit, and the channel's close is a race; each round is its own bash driver.
+    {
+      reset();
+      const k = path.join(D, 'kLateTerm');
+      fs.mkdirSync(k);
+      verif(`trap "sleep 30 & echo \\$! > ${k}/late; exit 0" TERM; touch ${k}/ready; sleep 30 & wait`, 'true');
+      for (let n = 1; n <= 40; n++) {
+        const out = bash(`rm -f ${k}/ready ${k}/late; node ${scopePath} test full & V=$!; while [ ! -f ${k}/ready ]; do sleep 0.01; done;` +
+          ` kill -TERM $V; wait $V; for i in $(seq 100); do [ -s ${k}/late ] && break; sleep 0.1; done;` +
+          ` [ -s ${k}/late ] || { echo nolate; exit 0; };` +
+          ` for i in $(seq 100); do kill -0 $(cat ${k}/late) 2>/dev/null || { echo gone; exit 0; }; sleep 0.1; done; echo alive`);
+        assert.equal(out.stdout.trim().split('\n').pop(), 'gone', 'interrupted verb, round ' + n + ': a process forked while the command ends is ended too: ' + out.stdout + out.stderr);
+      }
+    }
     // A signal at the first moment the command is alive leaves nothing running: the handlers and the watcher exist before the
     // command starts, so no instant lacks a killer. Several rounds, because the instant is a race. Each round is its own
     // bash driver, so the driver's bound covers one round's work, never the sum of every round's under machine load.
@@ -268,6 +316,79 @@ const scopePath = require.resolve('../plugin/scripts/scope.js');
     r = verb(['full'], { cwd: path.join(S, 'sub') });
     assert.equal(r.stdout.trim(), 'ROOTMARK', 'a root-relative command runs from a subdirectory');
     assert.equal(r.status, 0);
+  } finally {
+    fs.rmSync(D, { recursive: true, force: true });
+  }
+}
+
+// The command runs under `sh` from PATH, and a run ends through `endRun`, whose platform and kill spawner are injectable
+// (ADR 0150, INV-0153).
+{
+  const { spawnSync } = require('node:child_process');
+  const scope = require('../plugin/scripts/scope.js');
+
+  // A CRLF `verification.md` yields the command an LF one does.
+  const doc = (nl) => ['# V', '', '```sh', 'echo a', 'echo b', '```', '', '```sh', 'echo f {paths}', '```', ''].join(nl);
+  assert.deepEqual(scope.verificationCommandsOf(doc('\r\n'), true), scope.verificationCommandsOf(doc('\n'), true), 'CRLF reads as LF');
+  assert.equal(scope.verificationCommandsOf(doc('\r\n'), true).full, 'echo a\necho b', 'no carriage return stays in the command');
+
+  // On win32, ending a run is `taskkill /pid <pid> /t /f`; an exited run is no error, on either platform.
+  const calls = [];
+  scope.endRun(4242, { platform: 'win32', spawn: (cmd, args) => { calls.push([cmd, ...args]); return { status: 128 }; } });
+  assert.deepEqual(calls, [['taskkill', '/pid', '4242', '/t', '/f']], 'win32 ends the process tree through taskkill');
+  assert.doesNotThrow(() => scope.endRun(4242, { platform: 'win32', spawn: () => { throw new Error('gone'); } }), 'a failed win32 kill is no error');
+  assert.doesNotThrow(() => scope.endRun(2 ** 22 + 12345, { platform: 'linux' }), 'a POSIX kill of an exited run is no error');
+
+  // `scope.js test` starts the command as `sh -c`, found on PATH.
+  const D = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-test-sh-'));
+  try {
+    const bin = path.join(D, 'bin');
+    fs.mkdirSync(bin);
+    fs.writeFileSync(path.join(bin, 'sh'), '#!/bin/sh\necho SH-STUB\nexec /bin/sh "$@"\n', { mode: 0o755 });
+    fs.mkdirSync(path.join(D, 'docs', 'agents'), { recursive: true });
+    fs.writeFileSync(path.join(D, 'docs', 'agents', 'verification.md'), '# V\n\n```sh\necho ran\n```\n');
+    assertSpawnDecided(spawnSync('git', ['init', '-q'], { cwd: D }), 'git init');
+    const r = spawnSync(process.execPath, [scopePath, 'test', 'full'], { cwd: D, encoding: 'utf8', timeout: 20000, env: { ...process.env, PATH: bin + path.delimiter + process.env.PATH } });
+    assertSpawnDecided(r, 'scope.js test under a stub sh');
+    assert.match(r.stdout, /SH-STUB/, 'the command ran under the PATH sh: ' + r.stdout + r.stderr);
+  } finally {
+    fs.rmSync(D, { recursive: true, force: true });
+  }
+}
+
+// On win32 the watcher ends a running command through `taskkill` when its channel closes, and leaves an exited one alone.
+// The watcher runs from its own source text, as `superviseRuns` builds it, with the platform set to win32 and the kill
+// spawner replaced by one that logs its argv. A bounded driver process holds the IPC channel, sends the run, and closes it.
+{
+  const { spawnSync } = require('node:child_process');
+  const scope = require('../plugin/scripts/scope.js');
+  // Runs a command under the win32 watcher and closes the channel: while it runs (`exitFirst` false) or once it exited,
+  // leaving a background `sleep` in its group, which the POSIX branch would still signal and taskkill no longer reaches.
+  // The test ends that group itself, since the logged taskkill kills nothing.
+  const watch = (D, exitFirst) => {
+    const log = path.join(D, 'kill.log');
+    const src = `Object.defineProperty(process,'platform',{value:'win32'});const spawnSync=(c,a)=>{require('fs').appendFileSync(${JSON.stringify(log)},[c,...a].join(' ')+'\\n');return {status:0}};const endRun=${scope.endRun};(${scope.watchMain})()`;
+    const driver = `const cp=require('child_process'),fs=require('fs');
+      const [src,cwd,exitFirst]=process.argv.slice(1);
+      const w=cp.spawn(process.execPath,['-e',src,'','','SIGTERM'],{stdio:['ignore','ignore','ignore','ipc']});
+      w.on('exit',(code)=>process.stdout.write(String(code)));
+      if (exitFirst==='1') w.on('message',()=>w.disconnect());
+      else { const t=setInterval(()=>{ if (fs.existsSync(cwd+'/pid')) { clearInterval(t); w.disconnect(); } },20); }
+      w.send({command:exitFirst==='1'?'sleep 30 & echo $$ > pid.tmp && mv pid.tmp pid':'echo $$ > pid.tmp && mv pid.tmp pid && exec sleep 30',cwd});`;
+    const r = spawnSync(process.execPath, ['-e', driver, src, D, exitFirst ? '1' : '0'], { encoding: 'utf8', timeout: 20000 });
+    const pid = fs.existsSync(path.join(D, 'pid')) ? fs.readFileSync(path.join(D, 'pid'), 'utf8').trim() : null;
+    if (pid) try { process.kill(-Number(pid), 'SIGKILL'); } catch { /* already gone */ }
+    assertSpawnDecided(r, 'the win32 watcher driver');
+    return { exit: r.stdout, pid, log: fs.existsSync(log) ? fs.readFileSync(log, 'utf8') : '' };
+  };
+  const D = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-watch-win32-'));
+  try {
+    const running = watch(fs.mkdtempSync(path.join(D, 'a-')), false);
+    assert.equal(running.exit, '0', 'the watcher exits once the channel closes');
+    assert.equal(running.log, `taskkill /pid ${running.pid} /t /f\n`, 'a running command ends through taskkill');
+    const exited = watch(fs.mkdtempSync(path.join(D, 'b-')), true);
+    assert.equal(exited.exit, '0', 'the watcher exits once the channel closes after its command exited');
+    assert.equal(exited.log, '', 'an exited command gets no taskkill, even with a process it left running');
   } finally {
     fs.rmSync(D, { recursive: true, force: true });
   }

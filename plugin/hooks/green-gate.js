@@ -29,10 +29,10 @@
 // than a second, unread number.
 //
 // That 600s bound belongs to the platform, not to `runTests`: it is Claude Code's timeout on the
-// hook *process*. An unbounded `execSync` would leave a suite slower than 600s to the platform's own
+// hook *process*. An unbounded `execFileSync` would leave a suite slower than 600s to the platform's own
 // kill, which reaches the hook process from outside — never `runTests`'s `catch`, never a `{ killed }`
 // return, never a decision, the merge proceeding silently (the failure INV-0009 and ADR 0086 name).
-// SUITE_TIMEOUT_MS bounds `execSync` itself, margin below whatever hooks.json's own entry says, so
+// SUITE_TIMEOUT_MS bounds `execFileSync` itself, margin below whatever hooks.json's own entry says, so
 // the hook always ends the suite and observes the signal before the platform ceiling could.
 //
 // Each suite run the gate performs also appends one `run` line to the run trace (INV-0017, ADR 0117):
@@ -48,7 +48,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { execSync } = require('node:child_process');
+const { execFileSync } = require('node:child_process');
 
 // scope.js owns the trace writer (ADR 0022, ADR 0117), and run-trace.js owns the run-tree attribution
 // (`locate`) and the bounded commit and clean-state read (`treeState`), so the gate and the hook never
@@ -248,9 +248,9 @@ function namesShellExpansion(tokens) {
 function resolveCwdFromTokens(tokens, dirChanged, sessionCwd) {
   const cValues = optionValues(tokens, '-C');
   if (namesShellExpansion(tokens)) return null;
-  const cBase = cValues.reduce((base, v) => path.resolve(base, v), sessionCwd);
+  const cBase = cValues.reduce((base, v) => path.resolve(base, shellWords.drivePath(v)), sessionCwd);
   const workTree = optionValue(tokens, '--work-tree');
-  if (workTree) return path.resolve(cBase, workTree);
+  if (workTree) return path.resolve(cBase, shellWords.drivePath(workTree));
   if (optionValue(tokens, '--git-dir')) return null;
   if (cValues.length) return cBase;
   if (dirChanged) return null;
@@ -477,6 +477,13 @@ function decide(input, getVerification, runTests, getChangedPaths, mergeInProgre
   // ADR 0085: verification.notice (one fenced block, ADR 0085) rides along on whatever decision
   // the suite result produces — the missing focused command never blocks by itself.
   if (result.ok) return verification.notice ? { block: false, notice: verification.notice } : { block: false };
+  if (result.noSh) {
+    return {
+      block: true,
+      reason: `superdev: the green-gate is blind after this merge: ${result.output}, so it could not run \`${testCommand}\`. Put \`sh\` on PATH (Git for Windows ships one) and re-run the suite by hand before continuing.`,
+      ...(verification.notice ? { notice: verification.notice } : {}),
+    };
+  }
   if (result.killed) {
     return {
       block: true,
@@ -543,7 +550,8 @@ function runTests(testCommand, cwd, timeoutMs = SUITE_TIMEOUT_MS, maxBufferBytes
   try {
     // maxBuffer well above Node's 1 MiB default: a chatty green suite killed with ENOBUFS would
     // land in the catch and read as RED.
-    execSync(testCommand, {
+    // ADR 0150 / INV-0153: `sh -c`, never Node's default shell (cmd.exe on Windows).
+    execFileSync('sh', ['-c', testCommand], {
       cwd,
       stdio: 'pipe',
       encoding: 'utf8',
@@ -560,6 +568,8 @@ function runTests(testCommand, cwd, timeoutMs = SUITE_TIMEOUT_MS, maxBufferBytes
     // gate answers it for its own reason (ADR 0087): it fires only on a merge, so blocking costs one
     // merge and leaves every other call free to repair the tree.
     // notStarted keeps it out of the run trace: no process ran, so there is no verdict to record.
+    // A missing `sh` (ENOENT with a cwd that exists) is the gate's own blindness, not a RED suite.
+    if (e.code === 'ENOENT' && (!cwd || fs.existsSync(cwd))) return { ok: false, notStarted: true, noSh: true, output: '`sh` was not found on PATH' };
     if (e.status == null && e.signal == null) return { ok: false, notStarted: true, output: (e.message || '').trim() };
     // status == null with a signal means the suite started and was killed (SUITE_TIMEOUT_MS,
     // ENOBUFS, or another signal) — it produced no verdict. INV-0009 / ADR 0086: no gate reads
@@ -588,7 +598,7 @@ function runTests(testCommand, cwd, timeoutMs = SUITE_TIMEOUT_MS, maxBufferBytes
 // MERGE_HEAD only exists while a merge sits unresolved in the working tree.
 function mergeInProgress(cwd) {
   try {
-    execSync('git rev-parse -q --verify MERGE_HEAD', { cwd, stdio: 'pipe' });
+    execFileSync('git', ['rev-parse', '-q', '--verify', 'MERGE_HEAD'], { cwd, stdio: 'pipe' });
     return true;
   } catch {
     return false;
@@ -602,7 +612,7 @@ function mergeInProgress(cwd) {
 // conflict. A repository with its reflog off, or no repository, yields no entry: not landed.
 function mergeLanded(cwd) {
   try {
-    const subject = execSync('git reflog -1 --format=%gs HEAD', { cwd, stdio: 'pipe', encoding: 'utf8' });
+    const subject = execFileSync('git', ['reflog', '-1', '--format=%gs', 'HEAD'], { cwd, stdio: 'pipe', encoding: 'utf8' });
     return /^(merge |commit \(merge\)|pull[ :])/.test(subject);
   } catch {
     return false;
@@ -616,21 +626,21 @@ function mergeLanded(cwd) {
 // reads as no run on this HEAD.
 const RAN_HEAD_FILE = 'green-gate-ran-head';
 function git(args, cwd) {
-  return execSync(`git ${args}`, { cwd, stdio: 'pipe', encoding: 'utf8', timeout: 10000 }).trim();
+  return execFileSync('git', args, { cwd, stdio: 'pipe', encoding: 'utf8', timeout: 10000 }).trim();
 }
 function ranHeadFile(cwd) {
-  return path.resolve(cwd, git(`rev-parse --git-path ${RAN_HEAD_FILE}`, cwd));
+  return path.resolve(cwd, git(['rev-parse', '--git-path', RAN_HEAD_FILE], cwd));
 }
 function ranOnHead(cwd) {
   try {
-    return fs.readFileSync(ranHeadFile(cwd), 'utf8') === git('rev-parse HEAD', cwd);
+    return fs.readFileSync(ranHeadFile(cwd), 'utf8') === git(['rev-parse', 'HEAD'], cwd);
   } catch {
     return false;
   }
 }
 function recordRanHead(cwd) {
   try {
-    fs.writeFileSync(ranHeadFile(cwd), git('rev-parse HEAD', cwd));
+    fs.writeFileSync(ranHeadFile(cwd), git(['rev-parse', 'HEAD'], cwd));
   } catch {
     // no marker: the next quoted candidate gates the merge again, a cost of one suite run
   }
@@ -640,7 +650,7 @@ function recordRanHead(cwd) {
 // error path or the cwd is no repo — both read as "not an integration branch", so the gate still fires.
 function getCurrentBranch(cwd) {
   try {
-    return execSync('git rev-parse --abbrev-ref HEAD', { cwd, stdio: 'pipe', encoding: 'utf8' }).trim();
+    return execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd, stdio: 'pipe', encoding: 'utf8' }).trim();
   } catch {
     return '';
   }
@@ -656,7 +666,7 @@ function getChangedPaths(cwd) {
       // -z: NUL-terminated output with no path quoting. Without it git C-quotes a path holding a
       // quote, a backslash, or a non-ASCII byte (core.quotePath), and a plain `.trim()` on top would
       // also corrupt a path with a trailing space.
-      const out = execSync(`git diff --name-only -z ${ref} HEAD`, { cwd, stdio: 'pipe', encoding: 'utf8' });
+      const out = execFileSync('git', ['diff', '--name-only', '-z', ref, 'HEAD'], { cwd, stdio: 'pipe', encoding: 'utf8' });
       return out.split('\0').filter(Boolean);
     } catch {
       // ref doesn't resolve → try the next one

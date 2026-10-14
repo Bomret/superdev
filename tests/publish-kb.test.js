@@ -9,7 +9,7 @@ require('./fixture-git');
 // way tests/scope.test.js exercises scope.js's own CLI verbs.
 //
 // The backend is a real fake command (tests/fixtures/fake-kb-backend.js), never a mocked exec
-// function: the contract under test is what publish-kb.js does to a real `/bin/sh -c` child
+// function: the contract under test is what publish-kb.js does to a real `sh -c` child
 // process, so the module under test needs no seam of its own to make that observable.
 
 const assert = require('node:assert');
@@ -27,7 +27,7 @@ const FAKE_BACKEND = require.resolve('./fixtures/fake-kb-backend.js');
 // The bound every hanging-verb block below runs under, taken from this run rather than fixed (AGENTS.md,
 // ADR 0086). `hangingVerbDoc` hangs one verb and leaves every other verb a real `node` spawn of the fake
 // backend, which the same bound would kill if it ran slower than the bound — and a loaded machine starts
-// `node` slowly. So the suite times that spawn, in the shape `publish-kb.js` runs it (`/bin/sh -c`), three
+// `node` slowly. So the suite times that spawn, in the shape `publish-kb.js` runs it (`sh -c`), three
 // times before the first timeout case, and bounds every backend command at ten times the slowest, never
 // below 1000ms. A healthy verb then clears the bound however busy the machine is, and only the hung verb
 // reaches it. A sample that fails to start, hits its own 60s bound, or answers other than not-found timed
@@ -37,7 +37,7 @@ function slowestHealthySpawn() {
   let slowest = 0;
   for (let i = 0; i < HEALTHY_SAMPLES; i++) {
     const started = Date.now();
-    const sample = spawnSync('/bin/sh', ['-c', `node ${JSON.stringify(FAKE_BACKEND)} find`], { encoding: 'utf8', timeout: 60000 });
+    const sample = spawnSync('sh', ['-c', `node ${JSON.stringify(FAKE_BACKEND)} find`], { encoding: 'utf8', timeout: 60000 });
     assertSpawnDecided(sample, `healthy-spawn sample ${i + 1}`);
     // With no state file, `find` answers 3 (not found): any other status means the sample timed something else.
     if (sample.status !== 3) throw new Error(`healthy-spawn sample ${i + 1} exited ${sample.status}, not 3: ${sample.stderr}`);
@@ -575,6 +575,36 @@ withState(() => {
     fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'loud.md')),
     'a launch failure leaves the page staged',
   );
+});
+
+// --- no `sh` on PATH: the reason names the missing `sh` and Git for Windows (ADR 0150) ----------
+withState(() => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', ['find', 'read', 'create', 'update', 'delete']));
+  stagePage(repo, 'demo', 'nosh.md', 'title: No Sh Page\naction: upsert');
+  // A PATH holding `git` alone: publish-kb.js's own git calls still run, while no `sh` resolves.
+  const gitOnly = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-nosh-'));
+  const gitBin = spawnSync('/bin/sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim();
+  fs.symlinkSync(gitBin, path.join(gitOnly, 'git'));
+  const origPath = process.env.PATH;
+  process.env.PATH = gitOnly;
+  let res;
+  let readRes;
+  try {
+    res = call(['--scope', 'demo'], repo);
+    readRes = call(['--read', 'No Sh Page'], repo);
+  } finally {
+    process.env.PATH = origPath;
+    fs.rmSync(gitOnly, { recursive: true, force: true });
+  }
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  assert.match(res.out, /left staged: No Sh Page — find could not run: no `sh` on PATH \(on Windows, install Git for Windows\)/);
+  assert.ok(
+    fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'nosh.md')),
+    'a missing sh leaves the page staged',
+  );
+  assert.equal(readRes.ok, false);
+  assert.match(readRes.err, /no `sh` on PATH \(on Windows, install Git for Windows\)/);
 });
 
 // --- malformed frontmatter: no title, or an unknown action, is reported, skipped, untouched ---

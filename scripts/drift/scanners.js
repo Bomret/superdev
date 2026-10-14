@@ -1038,6 +1038,89 @@ function scanHookLedgerParsers(root) {
   return offenders;
 }
 
+// INV-0153 (ADR 0150): no shipped executable starts a shell by absolute path, starts `bash`, or runs a
+// command through Node's default shell. Allowed: `sh` with `-c`, `git`, `taskkill`, `process.execPath`.
+// simplicity: regex over comment-stripped text, not a parser; a program held in a variable escapes it, and a quote inside a regex literal can skew the per-line string scan. upgrade: a JS tokenizer if a shipped file ever hides a start in one.
+const SHELL_SPAWN_FORMS = [
+  ['execSync', /\bexecSync\s*\(/],
+  ['absolute path', /\b(?:spawn|spawnSync|execFile|execFileSync)\s*\(\s*['"`]\//],
+  ['bash', /\b(?:spawn|spawnSync|execFile|execFileSync)\s*\(\s*['"`]bash['"`]/],
+  // Any `shell:` object-literal key (after `{`, `,`, or a line start); `shell-words.js`'s parse-node field
+  // `shell: undefined` is no spawn option, and a ternary `ok ? shell : other` is no key.
+  ['shell option', /(?:^|[{,])[ \t]*shell\s*:(?!\s*undefined\b)/m],
+  // A shorthand `{ cwd, shell }` key: a brace, then only non-brace, non-paren text ending in a comma, then `shell`
+  // before a comma or a closing brace that is no destructuring target (`const { shell } = x`).
+  ['shell option', /\{(?:[^{}()]*,)?\s*shell\s*(?:,|\}(?!\s*=(?!=)))/],
+];
+const CHILD_PROCESS = String.raw`require\(\s*['"](?:node:)?child_process['"]\s*\)`;
+
+// Cuts a trailing `//` comment (at the line start or after whitespace) unless it sits inside a quoted string.
+function stripLineComment(line) {
+  let quote = null;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (quote) {
+      if (c === '\\') i++;
+      else if (c === quote) quote = null;
+    } else if (c === '"' || c === "'" || c === '`') quote = c;
+    else if (c === '/' && line[i + 1] === '/' && (i === 0 || /\s/.test(line[i - 1]))) return line.slice(0, i);
+  }
+  return line;
+}
+
+function scanShellSpawn(root) {
+  const offenders = [];
+  for (const dir of ['hooks', 'scripts']) {
+    let names = [];
+    try {
+      names = fs.readdirSync(docPath(root, dir)).filter((f) => /\.m?js$/.test(f) && !f.endsWith('.test.js'));
+    } catch {
+      continue; // no such dir (fixture) → nothing to scan
+    }
+    for (const name of names) {
+      const raw = fs.readFileSync(path.join(docPath(root, dir), name), 'utf8');
+      // Only comments that start a line or follow whitespace are stripped, so a `/*` inside a string or a
+      // `//` comment never deletes live code.
+      const text = raw
+        .replace(/^[ \t]*\/\*[\s\S]*?\*\//gm, '')
+        .split('\n')
+        .map(stripLineComment)
+        .join('\n');
+      const forms = new Set(SHELL_SPAWN_FORMS.filter(([, re]) => re.test(text)).map(([form]) => form));
+      // `exec` and `execSync` count only from child_process: referenced or called directly, through a namespace,
+      // or as a bare (maybe aliased) require, static import, or dynamic import binding.
+      const namespaces = [
+        ...text.matchAll(new RegExp(String.raw`(\w+)\s*=\s*${CHILD_PROCESS}`, 'g')),
+        ...text.matchAll(/\bimport\s+(?:\*\s+as\s+)?(\w+)\s+from\s+['"](?:node:)?child_process['"]/g),
+      ].map((m) => m[1]);
+      const imports = [
+        ...text.matchAll(new RegExp(String.raw`\{([^}]*)\}\s*=\s*${CHILD_PROCESS}`, 'g')),
+        ...text.matchAll(/\bimport\s*\{([^}]*)\}\s*from\s*['"](?:node:)?child_process['"]/g),
+        ...text.matchAll(/\{([^}]*)\}\s*=\s*await\s+import\(\s*['"](?:node:)?child_process['"]\s*\)/g),
+        ...text.matchAll(/\bimport\(\s*['"](?:node:)?child_process['"]\s*\)\s*\.then\(\s*\(?\s*\{([^}]*)\}/g),
+      ];
+      // The binding itself is cut out of the text, so only a later reference (a call or a pass-along) counts.
+      let rest = text;
+      for (const m of imports) rest = rest.replace(m[0], '');
+      for (const [, form, alias] of imports.flatMap((m) => m[1].split(',')).map((s) => s.trim().match(/^(exec(?:Sync)?)(?:\s*:\s*|\s+as\s+)?(\w+)?$/)).filter(Boolean)) {
+        if (new RegExp(String.raw`(?<![.\w])${alias || form}\b`).test(rest)) forms.add(form);
+      }
+      // A `.exec` or `.execSync` member of the require is a start whether called or only passed along.
+      for (const m of text.matchAll(new RegExp(String.raw`${CHILD_PROCESS}\s*\.(exec(?:Sync)?)\b`, 'g'))) forms.add(m[1]);
+      for (const n of namespaces) {
+        for (const m of text.matchAll(new RegExp(String.raw`\b${n}\.(exec(?:Sync)?)\b`, 'g'))) forms.add(m[1]);
+      }
+      for (const form of forms) {
+        offenders.push({
+          source: path.join(dir, name),
+          expectation: `start a shell only as \`sh\` with \`-c\` for an operator command (${form}) — INV-0153, ADR 0150`,
+        });
+      }
+    }
+  }
+  return offenders;
+}
+
 // Neither execution playbook may name a forcing branch flag (ADR 0028).
 const scanForcingBranchFlag = (root) =>
   scanDocsAvoid(root, FORCING_FLAG_DOCS, FORCING_FLAG_PATTERNS.map((pattern) =>
@@ -1623,6 +1706,7 @@ module.exports = {
   scanAgentToolAgnostic,
   scanUnmappedPathsForms,
   scanHookLedgerParsers,
+  scanShellSpawn,
   scanForcingBranchFlag,
   scanNoForceMerge,
   scanConflictConclusionNoCommit,

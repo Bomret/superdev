@@ -30,6 +30,14 @@ assert.equal(file('.superdev/brainstorm/notes.md').block, false, 'brainstorm pas
 assert.equal(file('docs/ledger.md').block, false, 'a ledger.md outside .superdev/scopes passes');
 assert.equal(file('src/index.js').block, false, 'ordinary file passes');
 
+// Letter case and the `\` separator never change which file a path names (NTFS, APFS; INV-0141).
+assert.equal(file('.Superdev/Scopes/x/Ledger.md').block, true, 'mixed-case ledger path denied');
+assert.equal(file('.superdev\\scopes\\x\\TRACE.LOG').block, true, 'backslash upper-case trace path denied');
+assert.equal(bash("echo x > 'C:\\repo\\.superdev\\scopes\\x\\ledger.md'").block, true, 'quoted backslash ledger write denied');
+assert.equal(bash('echo x > .SUPERDEV/Scopes/x/LEDGER.MD').block, true, 'upper-case Bash ledger write denied');
+assert.equal(file('.superdev/scopes/x/dod.md').block, false, 'dod.md still passes');
+assert.equal(file('.superdev/brainstorm/a.md').block, false, 'brainstorm still passes');
+
 // Bash shell writes into a scopes ledger → deny, quoted/escaped forms included.
 assert.equal(bash('echo "**Stage:** merged" > ' + L).block, true, 'redirect > denied');
 assert.equal(bash('echo bullet >> /abs/' + L).block, true, 'append >> denied');
