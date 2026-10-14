@@ -75,6 +75,7 @@ mods/superdev-view/    — maintainer-only Claude Code mod: a pane of a reposito
                          never shipped. Its own suites run under `claude plugin test`; `bun run test` runs none
                          of them, and only reads its fixture files through `tests/run-trace.test.js`
                          and `tests/scope.test.js`
+                         its `.gitignore` excludes `hooks/*.js`, because the hooks are TypeScript only
 scripts/               — the maintainer-only CLIs wired into `bun run test`: `drift-check.js` with its
                          `drift/` modules (registry, contract tables, scanners, shared helpers,
                          selftest suites), `invariant-check.js`, the invariant register validator, and
@@ -389,12 +390,22 @@ This root owns every other subtree directly:
   registers no hook on the session's subagent spawn, tool call, model step, or turn end. It writes no
   file (INV-0135, ADR 0141).
 
-  The pane is a docked side tab, often narrow, so every surface draws the same Box/Text tree at the
-  host's own text size. The overview is a column of collapsible sections: Brainstorm, Scopes, Pending
-  knowledge-base pages, Design sketches, and DoD drafts. A section's open state lives in the `sections`
-  plugin state atom for the session, and a press writes no file. The Scopes section lists the active
-  scopes, then the closed ones, each row with its stage, a bar segment per slice, and its counts. A row
-  opens the scope page, the scope run's event log, oldest first. `eventLog` in `hooks/parse.ts` reads the
+  The pane is a docked side tab, often narrow. On every surface, every word the pane shows is Text at the
+  host's own text size. An Svg in the pane holds no text, because the surface scales a drawing to the
+  pane's width, and text inside a scaled drawing shrinks with it. An Svg draws only a bar or a legend
+  square, at a fixed height. The terminal has no Svg and draws the same bars as colored glyphs, one glyph per slice in a scope's bar.
+
+  The overview is a column of collapsible cards: Brainstorm, Scopes, Pending knowledge-base pages, Design
+  sketches, and DoD drafts. Each card has a rounded, dim border. Its header shows the open mark and the
+  section name on the left, and the section's value on the right: the active and closed scope counts for
+  Scopes, the item count for the other cards. In a narrow pane the name gives up width, and the value
+  stays whole. A card's open state lives in the `sections` plugin state atom for the session, and a press
+  writes no file. The Scopes card first counts the slices of the active scopes: the share merged, a
+  stacked bar that keeps a segment for every status that has a slice, and one legend row per such status. A legend row shows the status as the
+  ledger records it. Then the card lists the active scopes, each row with its stage on the right, a bar segment per
+  slice, and its counts. The closed scopes follow as dim rows. The other cards draw one row per item, the
+  label on the left and its value on the right. A scope row opens the scope page, the scope run's event
+  log, oldest first. `eventLog` in `hooks/parse.ts` reads the
   scope's ledger and `trace.log` to build it.
 
   A header line opens each chain command the trace records as started. Its mark is done, stopped, or

@@ -1,0 +1,2 @@
+# A tsc run without the engine's types emits a .js beside every source; the hooks are TypeScript only.
+hooks/*.js

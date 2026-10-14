@@ -16,6 +16,52 @@ const STAGE_COLOR: Record<string, string> = {
   'documented-unreviewed': 'cyan', documented: 'blue', submitted: 'magenta', shipped: 'green', closed: 'gray',
 }
 const SLICE_COLOR: Record<string, string> = { todo: 'gray', 'in-progress': 'yellow', 'in-review': 'blue', merged: 'green', blocked: 'red' }
+// The legend's and the stacked bar's order: the ledger's own status values, then any other recorded value as first seen.
+const STATUS_ORDER = ['merged', 'in-progress', 'in-review', 'blocked', 'todo']
+// Each status with at least one slice and its count, in that order.
+const tally = (all: { status: string }[]) => {
+  const counts = new Map<string, number>(STATUS_ORDER.map(s => [s, 0]))
+  for (const x of all) counts.set(x.status, (counts.get(x.status) ?? 0) + 1)
+  return [...counts].filter(([, n]) => n > 0)
+}
+const share = (n: number, total: number) => (total === 0 ? 0 : Math.round((n / total) * 100))
+// A status's fill where the surface draws an Svg; the terminal draws its named color from SLICE_COLOR instead.
+const SLICE_HEX: Record<string, string> = { todo: '#6b6b6b', 'in-progress': '#d4a72c', 'in-review': '#4a7fd6', merged: '#4c9a6a', blocked: '#d0573f' }
+const hex = (status: string) => SLICE_HEX[status] ?? '#6b6b6b'
+// Splits `width` among the counts in proportion. Every count keeps at least `min`. The room the minimums take comes
+// from the parts larger than `min`, widest first, and the room rounding leaves goes to the widest part, so the parts
+// sum to `width`. When `width` is less than `min` per count, every part keeps `min` and the bar is wider than `width`.
+// `whole` rounds every part down to whole cells first.
+function split(counts: number[], width: number, min: number, whole: boolean): number[] {
+  const total = counts.reduce((a, b) => a + b, 0)
+  const parts = counts.map(n => Math.max(min, whole ? Math.floor((n / total) * width) : (n / total) * width))
+  let over = parts.reduce((a, b) => a + b, 0) - width
+  if (over < 0) {
+    const widest = parts.indexOf(Math.max(...parts))
+    parts[widest] = parts[widest]! - over
+    return parts
+  }
+  for (const i of [...parts.keys()].sort((a, b) => parts[b]! - parts[a]!)) {
+    const take = Math.min(over, parts[i]! - min)
+    parts[i] = parts[i]! - take
+    over -= take
+  }
+  return parts
+}
+// A bar as an Svg document holding no text: one rect per segment, left to right, over a dark track with round ends.
+// Its own width is wider than any pane, so the surface draws it at the pane's width and the height it is given.
+// Its clip id comes from `name` and the height, so bars a host inlines into one document each clip to their own track.
+const barSvg = (segments: [string, number][], height: number, name: string) => {
+  const id = `clip-${name}-${height}`.replace(/[^a-zA-Z0-9_-]/g, '_')
+  let x = 0
+  const rects = segments.map(([fill, w]) => {
+    const r = `<rect x="${x}" y="0" width="${w}" height="${height}" fill="${fill}"/>`
+    x += w
+    return r
+  })
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 ${height}" preserveAspectRatio="none" width="2000" height="${height}"><clipPath id="${id}"><rect width="100" height="${height}" rx="${height / 2}"/></clipPath><g clip-path="url(#${id})"><rect x="0" y="0" width="100" height="${height}" fill="#3a3a3a"/>${rects.join('')}</g></svg>`
+}
+const swatchSvg = (fill: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" width="10" height="10"><rect x="0" y="0" width="10" height="10" rx="2" fill="${fill}"/></svg>`
 const OUTCOME_COLOR: Record<string, string> = { failed: 'red', denied: 'red', stopped: 'yellow', unknown: 'yellow', 'session-end': 'yellow' }
 const READY_COLOR: Record<string, string> = { yes: 'green', no: 'red', 'with-fixes': 'yellow' }
 // A slice-review verdict: its quality part alone when the spec part is `pass` or empty, else `spec <value>` before it.
@@ -140,6 +186,8 @@ export const register: Register = on => {
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const table = $.ui.resolve(e)
     const { Box, Text, Button } = table
+    // The terminal draws no Svg; every other surface draws the bars and the legend squares as one.
+    const Svg = e.surface !== 'terminal' && 'Svg' in table ? table.Svg : undefined
 
     const snap: Snapshot | null = await read($, snapshot)
     if (!snap) return <Text dimColor>Scanning .superdev…</Text>
@@ -276,16 +324,31 @@ export const register: Register = on => {
 
     const opened = await read($, sections)
     const toggle = (id: string, isOpen: boolean) => () => void update($, sections, m => ({ ...m, [id]: !isOpen }))
-    // A section: a header Button with its open mark, name, and count, then its body while open.
-    const section = (id: string, name: string, count: string, isOpenByDefault: boolean, body: () => unknown) => {
+    // A section: a card with a rounded, dim border. Its header row holds the Button with the open mark and name, which gives
+    // up width in a narrow pane, and the value on the right, which stays whole; then its body while open.
+    const section = (id: string, name: string, value: string, isOpenByDefault: boolean, body: () => unknown) => {
       const isOpen = opened[id] ?? isOpenByDefault
       return (
-        <Box flexDirection="column">
-          <Button key={`section-${id}`} label={`${isOpen ? '▾' : '▸'} ${name} ${count}`} onPress={toggle(id, isOpen)} />
-          {isOpen && <Box flexDirection="column" paddingLeft={2} marginTop={1} gap={1}>{body()}</Box>}
+        <Box key={`card-${id}`} flexDirection="column" borderStyle="round" borderDimColor paddingX={1}>
+          <Box flexDirection="row" columnGap={1}>
+            <Box key={`name-${id}`} flexShrink={1} minWidth={0}>
+              <Button key={`section-${id}`} label={`${isOpen ? '▾' : '▸'} ${name}`} onPress={toggle(id, isOpen)} />
+            </Box>
+            <Box flexGrow={1} />
+            <Box key={`value-${id}`} flexShrink={0}><Text dimColor>{value}</Text></Box>
+          </Box>
+          {isOpen && <Box flexDirection="column" marginTop={1} gap={1}>{body()}</Box>}
         </Box>
       )
     }
+    // A card's list row: the label, which gives up width, on the left, and its value, if any, whole on the right.
+    const item = (key: string, label: string, value?: string) => (
+      <Box key={`${key}-row`} flexDirection="row" columnGap={1}>
+        <Box key={key} flexShrink={1} minWidth={0}><Text>{label}</Text></Box>
+        <Box flexGrow={1} />
+        {value !== undefined && <Box key={`${key}-value`} flexShrink={0}><Text dimColor>{value}</Text></Box>}
+      </Box>
+    )
     const intents = snap.intents ?? []
     const kb = snap.kbPending ?? []
     const designs = snap.designs ?? []
@@ -296,39 +359,88 @@ export const register: Register = on => {
           {snap.assignees && <Text dimColor>🪪 {snap.assignees.map(a => a.who).join(', ')}</Text>}
           <Text dimColor wrap="truncate-start">{tilde(snap.root)}</Text>
         </Box>
-        {intents.length > 0 && section('brainstorm', 'Brainstorm', `(${intents.length})`, false, () => intents.map(i => (
-          <Box key={`intent-${i.name}`} flexDirection="column">
-            <Text>{i.isDraft ? 'draft' : 'ready'} · {i.title}</Text>
+        {intents.length > 0 && section('brainstorm', 'Brainstorm', String(intents.length), false, () => intents.map(i => (
+          <Box key={`intent-row-${i.name}`} flexDirection="column">
+            {item(`intent-${i.name}`, i.title, i.isDraft ? 'draft' : 'ready')}
             {i.status !== '' && <Text dimColor>{i.status}</Text>}
           </Box>
         )))}
-        {section('scopes', 'Scopes', `· ${active.length} active · ${closed.length} closed`, true, () => (
-          [...(active.length === 0 ? [<Text key="no-active" dimColor>no active scope</Text>] : []), ...[...active, ...closed].map(s => {
-            const merged = s.slices.filter(x => x.status === 'merged').length
-            return (
-              <Box key={`row-${s.name}`} flexDirection="column">
-                {/* the stage sits outside the Button: desktop draws a Button's label in one color */}
-                <Box flexDirection="row" alignItems="center" columnGap={1}>
-                  <Button key={`scope-${s.name}`} label={s.name} onPress={choose(s.name)} />
-                  <Text color={STAGE_COLOR[s.stage] ?? 'white'}>{s.stage}</Text>
-                </Box>
-                <Box key={`facts-${s.name}`} flexDirection="column" paddingLeft={2}>
-                  {s.slices.length > 0 && (
-                    <Box key={`bar-${s.name}`} flexDirection="row" flexWrap="wrap" columnGap={1}>
-                      {s.slices.map(x => <Text key={`seg-${s.name}-${x.id}`} color={SLICE_COLOR[x.status] ?? 'gray'}>▬▬▬</Text>)}
-                    </Box>
-                  )}
-                  <Text dimColor>
-                    {merged}/{s.slices.length} slices · DoD {s.dod.done}/{s.dod.total} · {s.log.running} running{s.lockMtime !== null ? ` · lock ${age(now - s.lockMtime)}` : ''}
-                  </Text>
-                </Box>
+        {section('scopes', 'Scopes', `${active.length} active · ${closed.length} closed`, true, () => {
+          // A scope's head row: the name Button, which gives up width, and the stage on the right, outside the Button,
+          // because desktop draws a Button's label in one color. A closed scope's row is dim and stands alone.
+          const head = (s: Scope, isClosed: boolean) => (
+            <Box key={`head-${s.name}`} flexDirection="row" alignItems="center" columnGap={1}>
+              <Box key={`scope-name-${s.name}`} flexShrink={1} minWidth={0}>
+                <Button key={`scope-${s.name}`} label={s.name} dimColor={isClosed || undefined} onPress={choose(s.name)} />
               </Box>
-            )
-          })]
-        ))}
-        {kb.length > 0 && section('kb', 'Pending knowledge-base pages', `(${kb.length})`, false, () => kb.map(p => <Text key={`kb-${p.scope}-${p.file}`}>{p.title} · {p.action} · scope {p.scope}</Text>))}
-        {designs.length > 0 && section('design', 'Design sketches', `(${designs.length})`, false, () => designs.map(d => <Text key={`design-${d}`}>{d}</Text>))}
-        {snap.drafts.length > 0 && section('drafts', 'DoD drafts', `(${snap.drafts.length})`, false, () => snap.drafts.map(d => <Text key={`draft-${d.slug}`}>{d.slug} · {d.dod.total} criteria</Text>))}
+              <Box flexGrow={1} />
+              <Box key={`stage-${s.name}`} flexShrink={0}><Text color={STAGE_COLOR[s.stage] ?? 'white'}>{s.stage}</Text></Box>
+            </Box>
+          )
+          // The summary, the legend, and the stacked bar count the active scopes' slices only.
+          const all = active.flatMap(s => s.slices)
+          const counts = tally(all)
+          const sizes = counts.map(c => c[1])
+          const merged = all.filter(x => x.status === 'merged').length
+          const summary = active.length > 0 && (
+            <Box key="summary" flexDirection="column">
+              <Box flexDirection="row" columnGap={1}>
+                <Box key="merged-share" flexShrink={1} minWidth={0}><Text>{share(merged, all.length)}% merged</Text></Box>
+                <Box flexGrow={1} />
+                <Box key="slice-count" flexShrink={0}><Text dimColor>{merged} / {all.length} slices</Text></Box>
+              </Box>
+              {all.length > 0 && (Svg
+                ? <Box key="total-bar"><Svg source={barSvg(split(sizes, 100, 1.5, false).map((w, n) => [hex(counts[n]![0]), w]), 6, 'total')} alt={`${merged} of ${all.length} slices merged`} height={6} /></Box>
+                : (
+                  // The card's border and padding take four of the pane's columns.
+                  <Box key="total-bar" flexDirection="row">
+                    {split(sizes, Math.max(counts.length, e.props.bodyColumns - 4), 1, true).map((w, n) => (
+                      <Text key={`total-${n}`} color={SLICE_COLOR[counts[n]![0]] ?? 'gray'}>{'█'.repeat(w)}</Text>
+                    ))}
+                  </Box>
+                ))}
+              {counts.map(([status, n]) => {
+                const label = status || '—'
+                return (
+                  <Box key={`legend-${label}`} flexDirection="row" columnGap={1}>
+                    {Svg ? <Box key={`swatch-${label}`}><Svg source={swatchSvg(hex(status))} alt="" width={10} height={10} /></Box> : <Text color={SLICE_COLOR[status] ?? 'gray'}>■</Text>}
+                    <Box flexShrink={1} minWidth={0}><Text>{label}</Text></Box>
+                    <Box flexGrow={1} />
+                    <Text dimColor>{n}</Text>
+                    <Box width={4} justifyContent="flex-end"><Text dimColor>{share(n, all.length)}%</Text></Box>
+                  </Box>
+                )
+              })}
+            </Box>
+          )
+          return [
+            ...(active.length === 0 ? [<Text key="no-active" dimColor>no active scope</Text>] : [summary]),
+            ...active.map(s => {
+              const merged = s.slices.filter(x => x.status === 'merged').length
+              return (
+                <Box key={`row-${s.name}`} flexDirection="column">
+                  {head(s, false)}
+                  <Box key={`facts-${s.name}`} flexDirection="column" paddingLeft={2}>
+                    {s.slices.length > 0 && (Svg
+                      ? <Box key={`bar-${s.name}`}><Svg source={barSvg(s.slices.map(x => [hex(x.status), 100 / s.slices.length]), 4, `scope-${s.name}`)} alt={`${merged} of ${s.slices.length} slices merged`} height={4} /></Box>
+                      : (
+                        <Box key={`bar-${s.name}`} flexDirection="row" flexWrap="wrap" columnGap={1}>
+                          {s.slices.map(x => <Text key={`seg-${s.name}-${x.id}`} color={SLICE_COLOR[x.status] ?? 'gray'}>▬</Text>)}
+                        </Box>
+                      ))}
+                    <Text dimColor>
+                      {merged}/{s.slices.length} slices · DoD {s.dod.done}/{s.dod.total} · {s.log.running} running{s.lockMtime !== null ? ` · lock ${age(now - s.lockMtime)}` : ''}
+                    </Text>
+                  </Box>
+                </Box>
+              )
+            }),
+            ...(closed.length > 0 ? [<Box key="closed" flexDirection="column">{closed.map(s => head(s, true))}</Box>] : []),
+          ]
+        })}
+        {kb.length > 0 && section('kb', 'Pending knowledge-base pages', String(kb.length), false, () => kb.map(p => item(`kb-${p.scope}-${p.file}`, p.title, `${p.action} · scope ${p.scope}`)))}
+        {designs.length > 0 && section('design', 'Design sketches', String(designs.length), false, () => designs.map(d => item(`design-${d}`, d)))}
+        {snap.drafts.length > 0 && section('drafts', 'DoD drafts', String(snap.drafts.length), false, () => snap.drafts.map(d => item(`draft-${d.slug}`, d.slug, `${d.dod.total} criteria`)))}
       </Box>
     )
   })
