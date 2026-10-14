@@ -1,3 +1,15 @@
+# [0.73.0](https://codeberg.org/bomret/superdev/compare/v0.72.0...v0.73.0) (2026-10-14)
+
+
+### Bug Fixes
+
+* **run-tests:** run the superdev-view mod suite in a focused run that reaches the mod ([#1178](https://codeberg.org/bomret/superdev/issues/1178)) ([6d563a2](https://codeberg.org/bomret/superdev/commit/6d563a2fdbd7b9bb5521d8886ffd55ba51f7d530))
+
+
+### Features
+
+* **hooks:** superdev runs on Windows with Git Bash ([c7b428b](https://codeberg.org/bomret/superdev/commit/c7b428b15c662b839ceaad63011b7ab24117e936))
+
 # [0.72.0](https://codeberg.org/bomret/superdev/compare/v0.71.0...v0.72.0) (2026-10-13)
 
 
