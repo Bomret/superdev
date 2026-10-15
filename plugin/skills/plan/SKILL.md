@@ -21,7 +21,7 @@ Read `docs/agents/issue-tracker.md` (the slice store). Missing → call the Skil
 command was never recorded (ADR 0085, INV-0007) → call the Skill tool with `superdev:setup` (no argument: the
 full setup), then continue; a
 repository with no `docs/agents/verification.md` at all needs no such command, and neither does one
-carrying zero fenced blocks — `hooks/green-gate.js` reads that exactly as it reads an absent file.
+carrying zero fenced blocks, which reads exactly as an absent file.
 
 **Toolchain freshness (advisory).** As in `/superdev:implement`'s **Config + input**: an absent
 `docs/agents/toolchain.md` alongside build/package manifests gets a non-blocking **`/superdev:setup`**

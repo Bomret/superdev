@@ -118,8 +118,10 @@ A stop there dispatches no slice. A red record's pick there dispatches only the 
   duration the first run took or 10 seconds, whichever is larger (`SUPERDEV_FAIL_TO_PASS_FLOOR_MS` overrides the
   10-second floor), or ended by a signal, or a run's command could not start (`start-failed:<code>` in its
   reason). It draws no finding and starts no fix cycle. The scope run's
-  first `unknown` is an observation: the verb says so on stderr, and you write its triage record under
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations`, naming the environment gap.
+  first `unknown` is an observation: you write its triage record under
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations`, naming the environment gap. That rule
+  exempts an inherited `unknown` and counts the first one it does not exempt, whether or not the verb's stderr
+  names it the first.
 - **No per-slice review, no per-slice over-engineering pass, no per-slice progress log.** Your own context is the record of how each slice
   unfolded; the ledger is the durable trace once that context is gone.
 - **Tick from your own report, the same way the full tier's controller ticks from an implementer's**

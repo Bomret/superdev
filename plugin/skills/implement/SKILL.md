@@ -83,8 +83,8 @@ dispatches nothing — you carry the TDD discipline yourself. Narrate at most on
   the Skill tool with `superdev:setup` (no argument: the full setup), then continue. **`docs/agents/verification.md` carrying one fenced block** is
   missing configuration too — its focused command was never recorded (ADR 0085, INV-0007) → call the
   Skill tool with `superdev:setup` (no argument: the full setup), then continue; a repository with no `docs/agents/verification.md` at all needs no
-  such command, and neither does one carrying zero fenced blocks — `hooks/green-gate.js` reads that
-  exactly as it reads an absent file. **Advisory:** `docs/agents/toolchain.md` absent while the repo has
+  such command, and neither does one carrying zero fenced blocks, which reads exactly as an absent
+  file. **Advisory:** `docs/agents/toolchain.md` absent while the repo has
   build manifests (`package.json`, `*.csproj`/`*.sln`, `pom.xml`/`build.gradle*`, `pyproject.toml`,
   `Cargo.toml`, `go.mod`, …) → suggest **`/superdev:setup`**; non-blocking, continue.
 - **Resolve `$ARGUMENTS` to one feature.** Take `--unattended` out first, wherever it sits. A **feature

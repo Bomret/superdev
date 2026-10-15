@@ -160,9 +160,7 @@ Outside every run tree the command runs and nothing is written. So does a comman
 `hooks/run-trace.js`'s `outsideTree` classifies the `cd` target against its repository top. The verb takes no option that sets an outcome,
 kind, slice, or tree state. It requires `hooks/run-trace.js` at call time for `locate`, `testRuns`, and
 `treeState`, and `scope.js` assigns its exports before `main()` runs so that hook's own require finds them.
-`hooks/green-gate.js` writes its own suite-run line through `scope.js`'s `appendTrace`, taking `locate` and
-`treeState` from `hooks/run-trace.js` under that hook's bounded git probe (`GIT_BOUND_MS`), so both attribute a run
-to the same tree. `hooks/run-trace.js` records no run for a Bash command that runs `scope.js test`, and still evaluates the Missing
+`hooks/run-trace.js` records no run for a Bash command that runs `scope.js test`, and still evaluates the Missing
 RED note after a foreground call.
 
 `fail-to-pass <base>..<tip>` runs a commit range's tests twice and reports whether they discriminate
@@ -189,8 +187,11 @@ and no gate reads it as green.
 
 Inside a run root the verb appends one `fail-to-pass` trace line, `<base>..<tip> <outcome> <reason>`. Its slice is the
 ledger row that records exactly that range, else the slice the run's directory attributes to, else `scope`. The line is no
-`run` line, so it satisfies no Missing RED step and moves no suite record. The scope run's first `unknown` draws a stderr
-note that tells the controller to capture an observation (`references/scope-mode.md`, `## Observations`).
+`run` line, so it satisfies no Missing RED step and moves no suite record. The trace's first `unknown` of any kind draws a
+stderr note that tells the controller to capture an observation. The observation goes to the scope run's first non-exempt
+`unknown` (`references/scope-mode.md`, `## Observations`). An inherited `unknown` earns none. A slice cut after a break
+between two slices inherits that failing test, and its control failure also shows at the slice's base. The note can
+therefore name an exempt one.
 
 The verb exits 0 when it read an outcome and 1 on a refusal or an error. It exits 2 when no test command is configured, so
 nothing ran, and 128 plus the signal number when interrupted. An interrupt ends the command's run through `endRun` with `SIGKILL`, and the Node
@@ -867,12 +868,6 @@ a command that does not exist. The `chain-handoff` contract: `skills/implement/S
 `skills/review/SKILL.md`, and `skills/document/SKILL.md` each name their successor in the chain.
 `skills/submit-pr/SKILL.md` ends the chain and is deliberately outside that check.
 
-`spawn-failure-answers` pins green-gate's answer to a spawn that never started. Such a spawn is a **Spawn
-failure**, outside INV-0009 (ADR 0087): `plugin/hooks/green-gate.js` blocks, because it fires only on a merge
-and a tree that cannot run its suite is a defect in the thing being gated. The row pins that **reason**, not
-the behaviour alone: a behaviour with no stated reason reads as an oversight to the next editor, which is
-how a fail-open answer once survived (#606).
-
 The `verification-ceiling` contract (ADR 0084, INV-0006): verifying a Definition-of-Done
 criterion observes, and changes no system outside the repository. `references/scope-mode.md` states the
 rule once, in its own `## Verification ceiling` section, and the rows pin the clause on both
@@ -929,7 +924,7 @@ overstated what that step actually does (triage #660). Both surfaces also
 carry the verification-ceiling clause the `verification-ceiling` contract pins (ADR 0084, INV-0006).
 
 The `feature-label-argument`, `unattended-token`, `change-type`, `degraded-pass`, `derived-criteria`,
-`reachable-criterion`, `release-risk-criterion`, `label-validation`, `green-gate-timeout`, and `verb-pointer` checks
+`reachable-criterion`, `release-risk-criterion`, `label-validation`, and `verb-pointer` checks
 share one scanner, `drift/lib.js`'s `scanContract()`, run over
 a table of `[document, pattern, expectation]` rows in `drift/contracts.js` instead of one function each.
 It reads every
@@ -1125,15 +1120,9 @@ The `conflict-conclusion` contract (ADR 0123) pins the form every instruction us
 merge conflict: `git -C <run-root>/scopetree merge --continue`, in the base step of
 `references/scope-mode.md`, in `references/merge-conflicts.md`, and in the DAG loop's merge step of
 `references/implement-full.md`, which is the dispatch prose that reaches the controller. A `git commit`
-there concludes the same merge, and the green-gate reads the landed merge from the reflog either way, but
-the prose names one form. The playbook's row is anchored at the merge step's own heading, so the clause
-cannot move out of the DAG loop and still match. The gate rows pin how `references/implement-full.md` and
-`references/test-selection.md` state the gate: it runs after a landed merge, on a succeeding or failing
-call, reports a red suite for a fix or a revert, and reads its changed-path set once the merge has landed.
-The rows pin the correct statement of the gate: a document that replaces a pinned clause with a claim that
-the gate blocks a merge, or that it runs on a path the hook does not run, fails its row. The rows are
-presence rows, so such a claim added beside the pinned clause passes. That gap is the stated ceiling. The
-selftest removes each row's own clause and expects exactly that row to fail.
+there concludes the same merge, but the prose names one form. The playbook's row is anchored at the merge
+step's own heading, so the clause cannot move out of the DAG loop and still match. The selftest removes
+each row's own clause and expects exactly that row to fail.
 The `conflict-conclusion-no-commit` contract (ADR 0123), `scanConflictConclusionNoCommit()`, is the
 **negative** half: no skill, agent, or reference concludes a resolved conflict with `git commit`. A
 presence row cannot fail when a step keeps `merge --continue` and adds `git commit --no-edit` beside it,
@@ -1147,15 +1136,7 @@ points at it. The whole feature label becomes the branch name, so the type
 reaches `git switch -c` exactly as the slug does. A rule guarding the slug alone lets `-x/y` through to
 git as an option, and lets a non-canonical type make `scope-prune` reap a run root that is still live.
 A consumer
-that stops pointing at the rule validates nothing and stays valid prose. The
-`green-gate-timeout` contract: `hooks/hooks.json` sets `"timeout": 600` on both green-gate hook entries,
-PostToolUse(Bash) and PostToolUseFailure(Bash), each row anchored to its own event key so one entry's timeout never satisfies the other, and the comment beside `IS_MERGE` in `hooks/green-gate.js` names that
-same 600s ceiling and identifies it as Claude Code's own default for a `command` hook. Green-gate
-re-runs the scope suite synchronously inside the hook, so a suite slower than the configured timeout
-is killed mid-run and the gate silently does not fire. The explicit entry states the ceiling where the
-suite runs and holds it if that platform default ever moves, so the check pins both the value and the
-comment's account of it: a comment naming a wrong default sends a consumer whose suite is too slow to
-the wrong knob, and the suite stays green until a run happens to exceed the ceiling.
+that stops pointing at the rule validates nothing and stays valid prose.
 The `verb-pointer` contract (ADR 0022): every ledger touchpoint in the chain invokes its
 `scope.js` verb, as `references/run-init.md` does `init`, `references/run-handoff.md` `stage set merged`,
 `unresolved add`, and `unresolved clear`, `skills/review/SKILL.md` `stage set`, `get anchor`, `unresolved add`,
@@ -1385,8 +1366,8 @@ fails its row.
 The `whole-repo-ship` contract (ADR 0105, INV-0092): `skills/ship/SKILL.md` adds `--whole` to its
 `suite reusable` calls. Where a whole-repo command is configured and the tip carries no green whole-repo
 result, ship runs that command itself on the tip, records it with `--whole`, and merges nothing on a red,
-denied, or killed result. The same rule covers a moved base's merged tip, never counting the green-gate's
-own pass, and the whole-repo run replaces the full-command run on that merged tip. Before its own run, ship refuses when the suite record reads `none` without the `whole` kind, at
+denied, or killed result. The same rule covers a moved base's merged tip, and the whole-repo run replaces the
+full-command run on that merged tip. Before its own run, ship refuses when the suite record reads `none` without the `whole` kind, at
 any sha, and an unresolved defect stands, naming the finding and pointing at `/superdev:review`, so ship
 never overwrites review's invalidation. Ship's own killed run records `none … whole`, which carries the
 kind and does not trigger the refusal. A killed or never-started whole-repo run is recorded that way by
@@ -1442,12 +1423,11 @@ one. Losing a row leaves a repository on the wrong command while the rest keep t
 losing the fast-subset row is the expensive direction: it routes every non-mapping runner back to `none`,
 which is the full suite at every in-loop caller — the cost ADR 0025 removed.
 Further rows guard the stop half of ADR 0085 / INV-0007, the side that replaced silent inference with a
-loud one: rows on `references/test-selection.md` — its `## Stop on a missing focused command` section
+loud one: a row on `references/test-selection.md` — its `## Stop on a missing focused command` section
 naming `/superdev:setup` on one fenced block, unreachable once `/superdev:plan`/`/superdev:implement`
-have auto-invoked setup, and its naming of `hooks/green-gate.js` as the one exception that runs the full
-command and emits a notice instead of stopping — plus one row each on `skills/plan/SKILL.md` and
+have auto-invoked setup — plus one row each on `skills/plan/SKILL.md` and
 `skills/implement/SKILL.md`, pinning that their existing config steps treat `docs/agents/verification.md`
-carrying one fenced block as missing configuration too. Losing either `test-selection.md` row reopens the
+carrying one fenced block as missing configuration too. Losing the `test-selection.md` row reopens the
 silent full-command inference the fallback used to take; losing a skill row leaves that command's own
 config step never reaching `/superdev:setup` for a repository stuck on one fence.
 The `unmapped-paths-form` check (ADR 0074), `scanUnmappedPathsForms()`, is that contract's negative half,
@@ -1604,8 +1584,8 @@ does anywhere else in this file. Both sides of the comparison are whitespace-nor
 whitespace, including a line break, collapse to a single space. That matters because `CONTEXT.md` and
 `references/scope-mode.md` are hard-wrapped and a canonical clause can span a line break in the real
 document. Nothing executes the glossary, so it is the copy most likely to drift.
-The `arg-token` contract (ADR 0135): `hooks/merge-guard.js`, `hooks/green-gate.js`, `hooks/ledger-guard.js`,
-and `hooks/run-trace.js` each `require('./shell-words.js')` on a line that is no comment, and declare none of
+The `arg-token` contract (ADR 0135): `hooks/merge-guard.js`, `hooks/ledger-guard.js`, and
+`hooks/run-trace.js` each `require('./shell-words.js')` on a line that is no comment, and declare none of
 `ARG`, `RAW_ARG`, `STUCK`, `STUCK_MERGE`, or `stripHeredocs` themselves, whether after `const`, `let`, `var`,
 or `function`, or as a later declarator of one statement. Each also carries no `((` spread of its own: a regex
 literal on a line that is no comment, holding a paren (`\(` or `[(]`) followed by a second one or by a `+` quantifier or a `{` quantifier whose count starts at 2 to 9
@@ -2300,8 +2280,7 @@ and the fix implementer taking that same checkout as its working directory. The 
 `references/merge-conflicts.md`: its winner-picking-overlap abort names the scopetree with `git -C`,
 not a bare `git merge --abort` — this file is read after `implement-full.md` delegates the whole
 conflict-resolution step to it, so its own unqualified abort used to win the conflict, exiting 128 in the
-invoking checkout and leaving the scopetree sitting on `MERGE_HEAD`, which `hooks/green-gate.js`'s
-`mergeInProgress()` then reads as a deferral that gates nothing. Losing any one row independently reopens exactly the cost ADR 0045 removed: a full run parking
+invoking checkout and leaving the scopetree sitting on `MERGE_HEAD`. Losing any one row independently reopens exactly the cost ADR 0045 removed: a full run parking
 a second session's checkout on its own branch, a merge landing in a tree `/superdev:submit-pr` never expects, a
 restated lock rule drifting from the shared one, a full run that writes no lock at all, a whole-scope
 review or run-handoff full-suite pass that
@@ -3255,7 +3234,8 @@ reaches it, because a dispatch is the later, more specific instruction and wins 
   `references/review-checklist.md`, and `references/run-handoff.md`'s Report bullet.
 - An `unknown` outcome draws no finding and starts no fix cycle. Each reviewer and the review report name it with its slice
   and reason, and the output templates carry a **Fail-to-pass unknown** line. `references/scope-mode.md`, the two
-  playbooks, and the verb's own stderr note make the scope run's first `unknown` an observation, and a later one writes none.
+  playbooks, and the verb's own stderr note make the scope run's first non-exempt `unknown` an observation, and a later one
+  writes none. An inherited `unknown` is exempt, whether or not the stderr note names it the first.
 - A failing-test or passing-test step runs over the test files that hold the tests it works on, and the last run
   before the implementer reports, or before the lite tier commits a slice, covers the whole changed-path set
   (ADR 0139). A step that works on no test file covers the whole set too, and a focused command with no `{paths}`
@@ -3661,7 +3641,7 @@ clause from one skill fails its own row.
 ## Work Guidance
 
 - Scripts are CommonJS, like the hooks. `hooks/scope-prune.js`, `hooks/slicetree-sweep.js`,
-  `hooks/run-trace.js`, `hooks/green-gate.js`, and `hooks/tree-guard.js` each `require` `scope.js`, so
+  `hooks/run-trace.js`, and `hooks/tree-guard.js` each `require` `scope.js`, so
   `scope.js` must stay `require`-able under plain `node`. These are the only dependencies `hooks/` has on
   `scripts/`.
   `scope.js` in turn `require`s `kb-patch.js` for `maskFencedLines`, so `kb-patch.js` must stay

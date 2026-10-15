@@ -5,6 +5,9 @@
 **Amends:** [ADR 0120](0120-implement-brings-the-remote-base-into-the-scope-branch-before-the-first-slice.md),
 whose full-suite gate dispatched no slice until the record was green.
 
+**Amended by:** [ADR 0155](0155-a-slice-merge-runs-no-test-suite.md), under which no merge runs a suite, so
+a named slice meets no merge gate.
+
 **Context.** Every `/superdev:implement` invocation brings the base into the scope branch and gates the
 first slice on the full suite (ADR 0120). A red record dispatches no slice, and each later invocation runs
 the suite again until the record is green. When a slice of the same scope is the fix for that red, nothing

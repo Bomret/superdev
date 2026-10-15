@@ -13,6 +13,9 @@
 
 **Amends:** [ADR 0087](0087-a-spawn-that-never-started-is-not-a-spawn-that-was-killed.md).
 
+**Amended by:** [ADR 0155](0155-a-slice-merge-runs-no-test-suite.md), which deletes `plugin/hooks/green-gate.js`,
+so the rule of ADR 0087 holds on `plugin/scripts/scope.js` alone.
+
 **Context.** ADR 0050 made the prompt prose skills-canonical and added `plugin/scripts/adapter.js`,
 which renders the shipped skills, agents, and hooks for other harnesses. ADRs 0051–0056 and 0060
 extended the render for OpenCode and Codex, and ADR 0100 hardened the OpenCode hook bridge. Full

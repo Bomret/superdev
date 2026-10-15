@@ -8,6 +8,9 @@
 which corrects the green-gate mechanism this ADR describes: the hook resolves the merge's working tree
 from `-C` or `--work-tree`, read back out of the matched option region, never from a regex capture group.
 
+**Amended by:** [ADR 0155](0155-a-slice-merge-runs-no-test-suite.md), which deletes `hooks/green-gate.js`,
+so no hook reads the merge's working tree to run a suite.
+
 **Context.** ADR 0001 established the rule that superdev never switches the invoking checkout, converted
 the `lite` tier to a dedicated scopetree, and deferred the `full` tier to a follow-on — naming its
 remaining offenders as the scope switch and the merge in the invoking tree. That deferral is still open.

@@ -7,7 +7,9 @@ options reverses.
 
 **Amended by:**
 [ADR 0068](0068-a-repository-sweep-chains-the-read-only-surfaces.md), which keeps this surface and adds a
-chained posture to it.
+chained posture to it — and
+[ADR 0155](0155-a-slice-merge-runs-no-test-suite.md), which deletes `hooks/green-gate.js`, so no hook reads
+the fenced blocks and the timing command's backtick span needs no protection from it.
 
 **Context.** ADR 0063 made test cost a review lens and rejected "a dedicated test-audit skill" as "a
 fourteenth surface with its own drift rows and suite, for what ad-hoc review already has the shape to do".

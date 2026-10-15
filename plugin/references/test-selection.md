@@ -2,8 +2,6 @@
 
 The rule that picks between the full test command and the focused one (ADR 0025, ADR 0074). Every prose caller
 reads this file at runtime, the same shared-file-read-at-dispatch pattern as `references/scope-mode.md`.
-`hooks/green-gate.js` is the exception: it reimplements the same rule in code, because a hook fires
-without a dispatch to read a reference at.
 
 ## The two commands
 
@@ -63,8 +61,8 @@ the check a repository whose full command is an affected form still needs before
 repository configures one only together with an affected form.
 
 - **Its command lives in a backtick span**, per the rule above — a fenced block would land in the
-  focused slot the same way the timing command's would, and `hooks/green-gate.js` would then run it as
-  the merge gate's suite.
+  focused slot the same way the timing command's would, and every caller would then run it as the
+  focused command.
 - **`/superdev:submit-pr`, `/superdev:ship`, and a scope review read it** (ADR 0105): submit-pr runs it
   once on the scope branch's tip before opening the pull request and reuses a green `whole` record of that
   tip instead, ship runs it on a tip that carries no green `whole` record, and a review entered while the suite record reads red of kind `whole` runs it in place of the
@@ -77,10 +75,10 @@ An optional **`## Timing command`** section, holding one command that reports wh
 cost: per-test durations where the runner gives them, total wall clock otherwise.
 
 - **Its command lives in a backtick span**, per the rule above — a fenced block would land in the
-  focused slot of a repository that has not yet recorded a focused command, silencing the one-fence
-  notice, and `hooks/green-gate.js` would then run the timing command as the merge gate's suite.
+  focused slot of a repository that has not yet recorded a focused command, hiding the missing
+  configuration, and every caller would then run the timing command as the focused command.
 - **A test audit is its only reader.** `/superdev:review-tests` runs it to rank its findings by
-  measured cost (ADR 0066). Nothing in the implement loop reads it, and neither does the green-gate.
+  measured cost (ADR 0066). Nothing in the implement loop reads it.
 - **An absent section leaves the audit `unmeasured`**, ranking by judgment instead, and every other
   caller unaffected. A repository states the reason it configures none as prose beside the section's
   absence.
@@ -137,10 +135,6 @@ Each caller judges its own range and builds the set from it:
   file runs over that whole set too. A focused command with no `{paths}` token runs unchanged at every step,
   and the run trace records every step's run either way (ADR 0139).
 - **The slice-reviewer's Lens 2.** The slice branch against the scope branch.
-- **The green-gate hook.** `ORIG_HEAD` against `HEAD`, read once the merge has landed: a completed
-  `git merge`, or a conflicted one concluded by `merge --continue`. The hook runs on neither a merge still
-  waiting on its conflict nor a commit that is no merge. A set it reads empty goes to the fallback below.
-  Falls back to the first parent where `ORIG_HEAD` does not resolve.
 - **The documentation step.** On a live scope run whose suite record's commit is an ancestor of the scope
   branch's tip (`scope.js get suite` names the commit), every path changed from that commit to the tip.
   `scope.js suite reusable` carries a green record across Markdown-only commits on the strength of a
@@ -172,8 +166,8 @@ command was never configured (ADR 0085, INV-0007). A prose caller finding one fe
 missing configuration and names `/superdev:setup`, running no command. `/superdev:plan` and
 `/superdev:implement` already auto-invoke `/superdev:setup` on missing configuration, so this case is
 unreachable once a repository has been configured. A `verification.md` carrying **zero** fenced blocks —
-prose-only, or gutted by a hand edit — is not this case: `hooks/green-gate.js` reads it exactly as it
-reads an absent file, `{ full: null, focused: null }`, no gate at all.
+prose-only, or gutted by a hand edit — is not this case: every caller reads it exactly as it reads an
+absent file, with no suite to run.
 
 A caller that stops here runs no suite and records a **degraded pass** rather than a silent skip, per
 `references/scope-mode.md`'s `## Degraded passes` — the "pass that cannot complete its own work" shape.
@@ -182,6 +176,3 @@ shape's report half: say so in its own output. A standalone `/superdev:document`
 on an unmigrated repository is exactly this caller: it falls outside the auto-invoke argument — neither
 `/superdev:plan` nor `/superdev:implement` sits ahead of it in that dispatch — so it reaches this stop
 with nothing else recording that no suite ran.
-
-`hooks/green-gate.js` is the one exception: a hook fires with no operator to ask, so it runs the full
-command it found and emits a one-line notice naming `/superdev:setup`, rather than stopping.

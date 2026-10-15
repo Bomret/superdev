@@ -130,6 +130,16 @@ stage the implementation with `git add <paths>`, revert it with `git restore --w
 run it and see it pass. Never `git stash`: the stash stack is
 shared across worktrees. `<base>` is the commit the slice branch was cut from, which the dispatch names. A `run … unknown` line is not a failing run: it neither satisfies the RED step nor closes the finding, and the implementer answers it by re-running the test through `scope.js test`.
 
+## A failing test your slice did not cause
+
+A test your slice did not cause is one that also fails at your base commit, before your slice's first
+change. How you establish that is your call. Name each such test in your report, with how you established
+it. Fix none of them and block on none: the run handoff's fix loop repairs them once the full suite runs
+over the integrated scope. A named inherited failure is no Missing RED finding, no BLOCKED, and no strike.
+Every other test your slice reaches goes green as usual. A red-suite fix dispatch — of the run handoff, or of
+a scope review's fix loop, whose finding is the red suite itself — makes those failing tests your task. A slice
+fix cycle does not.
+
 ## Deep modules & domain language
 
 - Prefer **deep modules**: a small, simple interface over a substantial implementation. Push
@@ -262,7 +272,7 @@ controller sends back, never a verdict left for later.
 
 Status is one of:
 
-- **DONE** — slice complete, suite green, committed.
+- **DONE** — slice complete, suite green apart from any inherited failure you named, committed.
 - **DONE_WITH_CONCERNS** — complete, but you flagged doubts (name them).
 - **NEEDS_CONTEXT** — you're missing information the brief didn't provide; say exactly what.
 - **BLOCKED** — you cannot complete it (specification is wrong, task too large, blocker undiscovered); explain.

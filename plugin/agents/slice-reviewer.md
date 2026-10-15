@@ -155,6 +155,11 @@ which no other review agent reads.
   selects through the runner: `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths>` (or `test full`),
   and `test -- <command>` for a direct run of a test file. A suite longer than the Bash tool's time limit
   runs through the runner in the background, and you wait for its end before acting on it.
+- **A failing test the slice did not cause counts nothing against it.** A test that fails in your suite
+  run and also fails at the slice's base commit, before the slice's first change, is inherited. Name it
+  under `### Inherited failures` and leave it out of your verdict: it is no finding, no Missing RED, and no
+  strike, and you block nothing on it. The run handoff's fix loop repairs it. A failing test the slice
+  caused stays a finding.
 - **Read the actual produced artifact** — the generated file, the wire output, the rendered result —
   against intent. Tests can pass while the artifact is wrong.
 - **Adversarially name an input the existing fixtures don't cover** and reason about whether the code
@@ -177,6 +182,8 @@ For each: file:line · what's wrong · why it matters · how to fix (if not obvi
 
 ### Uncovered input I'd add a test for
 - <the specific case>
+
+### Inherited failures (only when your suite run met one) — a note, never an Issue: <the test> · <how you established it also fails at the base commit>
 
 ### Fail-to-pass unknown (only when the trace holds one) — a note, never an Issue: <its reason: control=<exit status or signal>, or bound=<ms>, or start-failed:<code> in control= or put-back=>
 

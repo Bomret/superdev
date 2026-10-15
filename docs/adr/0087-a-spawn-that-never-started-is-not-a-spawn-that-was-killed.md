@@ -8,6 +8,9 @@ one once.
 
 **Amended by:** [ADR 0102](0102-superdev-is-a-claude-code-only-plugin.md), which removes the OpenCode hook bridge, so this decision holds on `plugin/hooks/green-gate.js` and `plugin/scripts/scope.js` alone.
 
+**Amended by:** [ADR 0155](0155-a-slice-merge-runs-no-test-suite.md), which deletes `plugin/hooks/green-gate.js`,
+so its blocking answer to a spawn that never started no longer exists and the rule holds on `scope.js` alone.
+
 **Amends:** [ADR 0086](0086-a-duration-is-never-the-assertion.md), whose INV-0009 Statement reads "a
 process that did not finish carries no verdict" and therefore covers a process that never began.
 

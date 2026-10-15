@@ -15,8 +15,8 @@ Write the per-repo config docs the superdev skills read, so the workflow is back
 - `docs/agents/toolchain.md` — the detected **toolchain** profile (package manager + build/lint/format/
   release commands + style pointers), one section per workspace
 - `docs/agents/verification.md` — the optional **test commands**: a full one plus, for every repository
-  with a suite, a required focused one, which arm the merge green-gate hook, and an optional **timing
-  command**, which a test audit reads
+  with a suite, a required focused one, which the implement chain's test runs read, and an optional
+  **timing command**, which a test audit reads
 - `docs/agents/deployment.md` — the repository's **deploy posture** (`none` / `manual` / `auto`) and its
   **deploy targets**, which `/superdev:ship` reads once a feature's pull request has merged
 
@@ -357,12 +357,11 @@ no outline entry, since `action: patch` merges by matching markdown headings and
 pass reads and edits directly, so it stages nothing.
 
 **E — Verification (optional).** What single command runs the repo's test suite (e.g. `npm test`,
-`pytest -q`, `cargo test`)? Recorded, it **arms the green-gate**: after every controller merge, a hook
-re-runs it and blocks the run if the scope suite is RED — turning implement's "re-run the suite after
-merging" from a prompt into a deterministic gate. The hook reads no execution tier; the `full` tier's
-per-slice merges are simply where the implement loop meets it most. Detect a likely command (package.json
-scripts, a Makefile `test` target, `pyproject.toml`) and propose it. No suite (e.g. a docs-only repo) →
-skip; the gate stays inactive. (The **F** scan finds the same manifests — draw the proposal from it.)
+`pytest -q`, `cargo test`)? Recorded, it is the suite the implement chain runs: the run handoff's full
+run over the integrated scope, the run after every base merge, and the scope review's gate. No hook runs
+it on a merge (ADR 0155). Detect a likely command (package.json scripts, a Makefile `test` target,
+`pyproject.toml`) and propose it. No suite (e.g. a docs-only repo) → skip; nothing runs a suite. (The
+**F** scan finds the same manifests — draw the proposal from it.)
 
 **A repo with a full command settles the focused test command too**: the command every step inside the
 implement loop runs, defined by costing less than the full suite. A repo without one runs its whole suite
@@ -485,7 +484,7 @@ truth. Discipline:
   with no `format` script and prettier not a dependency) → note it "not wired / not enforced." A
   coherence check only: never grade a tool's configuration, and don't prompt the user about it.
 - **`test` defers to E.** The toolchain doc references `docs/agents/verification.md` rather than
-  restating the command — verification.md stays the single source the green-gate reads.
+  restating the command — verification.md stays the single source every test run reads.
 - **Skip only when fully empty.** No manifest, no config, no style doc at all → write no `toolchain.md`.
   Any detection (even just a package manager) → write it. Partial ≠ empty.
 
@@ -544,7 +543,7 @@ Write:
   ## `.` — TypeScript / Node
   - Package manager: pnpm (lockfile `pnpm-lock.yaml`)
   - Commands:
-    - Tests — see docs/agents/verification.md  (the green-gate command — not restated here)
+    - Tests — see docs/agents/verification.md  (not restated here)
     - Integration tests — `pnpm test:integration`
     - Lint — `pnpm lint`  (eslint · `.eslintrc.json`)
     - Format — `pnpm format`  (prettier · `.prettierrc`)
@@ -557,8 +556,8 @@ Write:
   focused command decision **E** derived, or, for the already-cheap and cannot-narrow cases, the **full**
   command again — `none` is never an outcome once a suite exists (ADR 0085, INV-0007). Either way, record
   beside the second fence, **as prose outside the fence, never fenced itself**, the reason for its
-  content — `hooks/green-gate.js` takes a fenced block by index, so a reason fenced by mistake becomes the
-  "focused" command the hook runs after every merge. Example, with a focused command configured:
+  content — every reader takes a fenced block by index, so a reason fenced by mistake becomes the
+  "focused" command every loop step runs. Example, with a focused command configured:
 
   ````markdown
   # Verification
@@ -611,7 +610,7 @@ Write:
 
   Add the **`## Timing command`** section decision **E** settled, its command in a **backtick span,
   never a fenced block** — a fence lands in the focused slot of a repository that has not yet recorded a
-  focused command, and the merge gate then runs it as its suite. **No timing command** — whether the runner reports no
+  focused command, and every caller then runs it as the focused command. **No timing command** — whether the runner reports no
   durations or the user declined — writes the one-line reason **E** recorded, as prose, in place of the
   section. Example, with one configured:
 
@@ -661,7 +660,7 @@ Write:
 [one-line summary — package manager + key commands, or "none detected"]. See `docs/agents/toolchain.md`.
 
 ### Verification
-[the test commands, or "none"]. Arms the merge green-gate. See `docs/agents/verification.md`.
+[the test commands, or "none"]. See `docs/agents/verification.md`.
 
 ### Deployment
 [the posture — none / manual / auto — and target count]. See `docs/agents/deployment.md`.

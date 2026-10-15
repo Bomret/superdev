@@ -191,9 +191,7 @@ function sliceType(content, id) {
 // backtick fence's info string holds no backtick, so an inline span such as ```x``` is no opener). It
 // closes on a line with the same indentation limit, of the same character, at least as long as the
 // opener. `blocks` holds each closed block's body, `outside` the text between blocks. An unclosed
-// fence yields no block. scope.js and hooks/green-gate.js each carry this function, because the gate's
-// decision never depends on scope.js loading (its scope.js require serves only the fail-silent trace
-// write); tests/green-gate.test.js pins them byte-identical.
+// fence yields no block.
 function fenceBlocks(raw) {
   const blocks = [];
   const outside = [];
@@ -258,7 +256,7 @@ function isTestPath(text, rel) {
 }
 
 // The test commands a tree's `docs/agents/verification.md` configures, read the way
-// `references/test-selection.md` and `hooks/green-gate.js` read it: the first fenced block (`fenceBlocks`) is the full
+// `references/test-selection.md` reads it: the first fenced block (`fenceBlocks`) is the full
 // command, the second the focused one, and the first backtick span under `## Whole-repo command` the
 // whole-repo one. Each is whitespace-collapsed, or null when absent. The run-trace hook (ADR 0117)
 // classes a Bash command against them.

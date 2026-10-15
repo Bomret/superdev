@@ -17,7 +17,10 @@ same one every scope gets, never a stand-in for it — and
 [ADR 0105](0105-an-affected-full-command-and-a-whole-repo-gate-before-the-pull-request.md), which lets
 the full command take an affected form and adds a whole-repo run before the pull request opens — and
 [ADR 0128](0128-a-green-suite-record-carries-across-markdown-only-commits.md), which lets a green
-full-suite record carry across commits that touch only Markdown.
+full-suite record carry across commits that touch only Markdown — and
+[ADR 0155](0155-a-slice-merge-runs-no-test-suite.md), under which no merge runs a suite: the green-gate
+this record describes at the merge is deleted, and the run handoff's full run is the first to catch a
+break between two slices.
 Everything else below holds.
 
 ## Context

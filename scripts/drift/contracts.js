@@ -946,53 +946,6 @@ const LABEL_VALIDATION_CONTRACTS = [
   ],
 ];
 
-// green-gate re-runs the scope suite synchronously inside a PostToolUse hook, and a suite slower than
-// the hook's timeout is killed mid-run — the gate then silently doesn't fire, exactly the failure it
-// exists to prevent. `hooks/hooks.json` sets the green-gate entry's own `timeout` to 600s, which is
-// also Claude Code's own default for a `command` hook: the entry states the ceiling where the suite
-// runs, and holds it if that default ever moves. The comments at the top of
-// `hooks/green-gate.js` and beside `readHookTimeoutMs` name the same number and the same default. A comment that names a wrong
-// default sends a consumer whose suite is too slow to the wrong knob, and a comment that no longer
-// names 600 documents a ceiling that no longer holds — either drift is silent everywhere else,
-// because the suite stays green until a run happens to exceed the ceiling.
-const GREEN_GATE_TIMEOUT_CONTRACTS = [
-  [
-    path.join('hooks', 'hooks.json'),
-    // order-tolerant: `"timeout"` can precede or follow `"command"` in the entry. Forward direction uses
-    // `[^}]*` (safe: command values contain `${CLAUDE_PLUGIN_ROOT}` braces but not a closing `}` until
-    // entry end). Backward direction uses `(?:(?!"type")[\s\S]){0,160}` — matches any byte except the
-    // start of `"type":`, which every entry has and appears before our targets in a real entry,
-    // bounding backward at entry starts. This prevents a sibling entry's timeout from falsely matching.
-    // The `"PostToolUse"\s*:` anchor, closed by its quote, runs to the next event key (an uppercase-initial key), so the
-    // `PostToolUseFailure` entry's timeout cannot satisfy this row. The PostToolUse array holds several matcher groups,
-    // so the span is bounded by the next event key and not by a closing bracket.
-    /"PostToolUse"\s*:(?:(?!"[A-Z]\w*"\s*:)[\s\S])*?(?:green-gate\.js\\"[^}]*"timeout":\s*600(?!\d)|"timeout":\s*600(?!\d)(?:(?!"type")[\s\S]){0,160}green-gate\.js\\")/,
-    'set `"timeout": 600` on the green-gate PostToolUse(Bash) hook entry',
-  ],
-  [
-    path.join('hooks', 'hooks.json'),
-    // The failure event's own entry runs the same suite, so it carries the same ceiling. `[^\]]*?` stays inside
-    // the `PostToolUseFailure` hooks array, so the PostToolUse entry's timeout cannot satisfy this row.
-    /"PostToolUseFailure"[^\]]*?(?:green-gate\.js\\"[^}]*"timeout":\s*600(?!\d)|"timeout":\s*600(?!\d)(?:(?!"type")[\s\S]){0,160}green-gate\.js\\")/,
-    'set `"timeout": 600` on the green-gate PostToolUseFailure(Bash) hook entry',
-  ],
-  [
-    path.join('hooks', 'green-gate.js'),
-    // `[\s\S]{0,20}` tolerates the comment's own line wrap (a `\n// ` between two words), the way
-    // `CHANGE_TYPE_CONTRACTS` tolerates a wrap at a comma — a prose reflow must not itself go red.
-    /600s `timeout` hooks\.json sets on this[\s\S]{0,20}hook's entry/,
-    "name the 600s timeout hooks.json sets on this hook's entry",
-  ],
-  [
-    path.join('hooks', 'green-gate.js'),
-    // The hook type is the whole point: 600s is the default for a `command` hook, and 60s is the
-    // default for an `agent` one. A comment that names the wrong type, or the wrong number, points a
-    // consumer whose suite is too slow at a knob that isn't theirs.
-    /Claude Code's own default for a `command` hook/,
-    "identify the 600s ceiling as Claude Code's own default for a `command` hook",
-  ],
-];
-
 // Run state is owned by scripts/scope.js (ADR 0022): every ledger write and read in the chain goes
 // through its verbs, and the retired stage, scope-slug, ledger-branch, and ledger-schema contract rows
 // live on as scope.js selftest assertions. What is left to drift is the wiring: a chain document that
@@ -2166,19 +2119,13 @@ const PATHS_DERIVATION_CONTRACTS = [
     'show the cannot-narrow case as a worked example, the full command duplicated in the second fence with the reason recorded as prose beside it',
   ],
   // ADR 0085 / INV-0007: a repository carrying one fenced block never falls back to the full command
-  // silently. Losing either half below reopens that silent inference in the shape it took before ADR
+  // silently. Losing the row below reopens that silent inference in the shape it took before ADR
   // 0085 — a prose caller (or `/superdev:plan`/`/superdev:implement`'s own config step) that runs a
-  // command instead of stopping, or a `hooks/green-gate.js` narrative that stops describing its one
-  // documented exception.
+  // command instead of stopping.
   [
     path.join('references', 'test-selection.md'),
     /reports\s+the\s+missing\s+configuration\s+and\s+names\s+`\/superdev:setup`,\s+running\s+no\s+command[\s\S]{0,250}?auto-invoke\s+`\/superdev:setup`\s+on\s+missing\s+configuration/i,
     'stop naming `/superdev:setup` on one fenced block, unreachable once `/superdev:plan`/`/superdev:implement` have auto-invoked setup (ADR 0085, INV-0007)',
-  ],
-  [
-    path.join('references', 'test-selection.md'),
-    /hooks\/green-gate\.js`?\s+is\s+the\s+one\s+exception[\s\S]{0,200}?emits\s+a\s+one-line\s+notice\s+naming\s+`\/superdev:setup`/i,
-    'name `hooks/green-gate.js` as the one exception that runs the full command and emits a notice instead of stopping (ADR 0085)',
   ],
   // A stop with no run root has no ledger to write `scope.js degraded add` to, so it takes only the
   // report half of `## Degraded passes`' "pass that cannot complete its own work" shape. Losing this
@@ -2366,9 +2313,8 @@ const TEST_SELECTION_CONTRACTS = [
     TEST_SELECTION_PATTERN,
     "read `references/test-selection.md` and run the command it selects for Lens 2's independent re-run",
   ],
-  // ADR 0025's corrected rationale: nothing else re-verifies a doc commit before the pull request — the
-  // green-gate hook fires only on a controller merge, and a doc commit is not one — so the documentation
-  // step judges its range with the focused command, never the full suite. `DOC_PASS_RANGE_CONTRACTS`
+  // ADR 0025's corrected rationale: nothing else re-verifies a doc commit before the pull request, so the
+  // documentation step judges its range with the focused command, never the full suite. `DOC_PASS_RANGE_CONTRACTS`
   // pins which range (ADR 0128).
   [
     path.join('skills', 'document', 'SKILL.md'),
@@ -2559,7 +2505,7 @@ const AFFECTED_FORM_CONTRACTS = [
 // ADR 0105, INV-0092: where a repository configures a whole-repo command, ship's reuse gate demands a
 // green record of kind `whole`. A tip with none gets the whole-repo command run on it by ship itself,
 // recorded with `--whole`, and a non-green result merges nothing. The same rule covers a moved base's
-// merged tip, never counting the green-gate's own pass. A rewrite that drops a clause while keeping the
+// merged tip, in place of the full command. A rewrite that drops a clause while keeping the
 // term leaves a merge landing a tip no whole-repo run covered, or a dead end no command can leave.
 const WHOLE_REPO_SHIP_CONTRACTS = [
   [
@@ -2579,12 +2525,12 @@ const WHOLE_REPO_SHIP_CONTRACTS = [
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
-    /gate's own pass never counts as the\s+whole-repo run[\s\S]{0,400}?`suite set <green\|red\|denied\|none> <new-head> --whole/,
+    /\*\*With a `## Whole-repo command` section configured \(§3\)\*\*, the whole-repo run §3 states applies to the\s+merged tip instead[\s\S]{0,400}?`suite set <green\|red\|denied\|none> <new-head> --whole/,
     "apply the same whole-repo run to a moved base's merged tip and record it with `--whole` (ADR 0105, INV-0092)",
   ],
   [
     path.join('skills', 'ship', 'SKILL.md'),
-    /shortcut above does not apply[\s\S]{0,200}?whole-repo run replaces the full-command run on the merged tip/,
+    /applies to the\s+merged tip instead[\s\S]{0,200}?whole-repo run replaces the full-command run on the merged tip/,
     "run the whole-repo command on a moved base's merged tip in place of the full command, never both (ADR 0105, INV-0092)",
   ],
   [
@@ -2648,7 +2594,7 @@ const SUBMIT_PR_WHOLE_REPO_CONTRACTS = [
   ],
 ];
 
-// The Bash hooks `merge-guard`, `green-gate`, `ledger-guard`, and `run-trace` read a command line through
+// The Bash hooks `merge-guard`, `ledger-guard`, and `run-trace` read a command line through
 // the one shared scanner `hooks/shell-words.js` (ADR 0135). A hook that grows its own shell-word reader
 // reopens the quoted-argument and command-substitution bypasses the scanner closes, so each hook must
 // require the module and declare none of the reader's names itself. The pattern holds a negative
@@ -2671,7 +2617,6 @@ const ARG_TOKEN_EXPECTATION =
 
 const ARG_TOKEN_CONTRACTS = [
   [path.join('hooks', 'merge-guard.js'), SCANNER_ONLY_PATTERN, ARG_TOKEN_EXPECTATION],
-  [path.join('hooks', 'green-gate.js'), SCANNER_ONLY_PATTERN, ARG_TOKEN_EXPECTATION],
   [path.join('hooks', 'ledger-guard.js'), SCANNER_ONLY_PATTERN, ARG_TOKEN_EXPECTATION],
   [path.join('hooks', 'run-trace.js'), SCANNER_ONLY_PATTERN, ARG_TOKEN_EXPECTATION],
 ];
@@ -3419,8 +3364,7 @@ const RUN_KIND_CONTRACTS = [
 // `merge --abort` calls are already pinned above, but this file is read *after* it — the later, more
 // specific instruction — and delegates the whole conflict-resolution step, so its own unqualified abort
 // used to win the conflict: run in the invoking checkout it exits 128 and leaves the scopetree
-// sitting on `MERGE_HEAD`, which `hooks/green-gate.js`'s `mergeInProgress()` then reads as a deferral,
-// gating nothing on the next merge in that tree.
+// sitting on `MERGE_HEAD`.
 const SCOPETREE_CONTRACTS = [
   [
     path.join('references', 'scope-mode.md'),
@@ -6399,16 +6343,13 @@ const DEPENDENCY_RECORD_CONTRACTS = [
   ],
 ];
 
-// ADR 0123: a resolved merge conflict is concluded with `git -C <tree> merge --continue`, and the
-// green-gate gates the merge that conclusion lands. Every instruction that tells an agent how to conclude
+// ADR 0123: a resolved merge conflict is concluded with `git -C <tree> merge --continue`, the one form the
+// prose names. Every instruction that tells an agent how to conclude
 // a resolved conflict carries the form: the base step in `references/scope-mode.md`, the resolution rules
 // in `references/merge-conflicts.md`, and the DAG loop's merge step in `references/implement-full.md`,
 // the dispatch prose that reaches the controller in the full tier (CONTEXT.md -> *Dispatch prose*, ADR
 // 0035). The playbook's merge-step row is anchored at the step's own heading, so the clause cannot move
-// out of the DAG loop and still match. The gate rows pin how the playbook and `references/test-selection.md`
-// state the gate: it runs after a landed merge, whether the call that landed it succeeded or failed, and a
-// red suite is reported for a fix or a revert. A claim that the gate blocks a merge, or runs on a conflicted
-// merge still waiting, describes a path the hook does not run. `CONFLICT_COMMIT_CONCLUSION_PATTERNS` is the
+// out of the DAG loop and still match. `CONFLICT_COMMIT_CONCLUSION_PATTERNS` is the
 // negative half, run by `scanConflictConclusionNoCommit()`: no shipped prose concludes a resolved conflict
 // with `git commit`, whatever else it says beside `merge --continue`.
 const CONFLICT_CONCLUSION_CONTRACTS = [
@@ -6426,16 +6367,6 @@ const CONFLICT_CONCLUSION_CONTRACTS = [
     path.join('references', 'implement-full.md'),
     /\*\*Merge\s+\(you,\s+serially\)\*\*[\s\S]{0,1200}conclude\s+a\s+resolved\s+conflict\s+with\s+`git -C <run-root>\/scopetree merge --continue`/,
     "conclude a resolved conflict in the DAG loop's merge step with `git -C <run-root>/scopetree merge --continue`, never `git commit` (ADR 0123)",
-  ],
-  [
-    path.join('references', 'implement-full.md'),
-    /runs\s+after\s+a\s+landed\s+merge,\s+on\s+a\s+succeeding\s+or\s+failing\s+call[\s\S]{0,300}reports\s+a\s+red\s+suite\s+for\s+a\s+fix\s+or\s+a\s+revert/,
-    'state that the green-gate runs after a landed merge, on a succeeding or failing call, and reports a red suite for a fix or a revert (ADR 0123)',
-  ],
-  [
-    path.join('references', 'test-selection.md'),
-    /\*\*The green-gate hook\.\*\*[\s\S]{0,200}once\s+the\s+merge\s+has\s+landed[\s\S]{0,300}`merge --continue`/,
-    "state that the green-gate's changed-path set is read once the merge has landed, a conflicted one concluded by `merge --continue` included (ADR 0123)",
   ],
 ];
 
@@ -6607,18 +6538,6 @@ const CAPTURE_CHECKS_CONCURRENT_PLANS_CONTRACTS = [
     path.join('skills', 'plan', 'SKILL.md'),
     /Check a shared-identifier capture against other live plan runs, before writing it\.[\s\S]{0,700}captures already committed on each one's scope branch/,
     'state, in §2, that a capture allocating a shared identifier is checked against the other run roots under `.superdev/scopes/*/` whose ledger stage reads `planned` or later, and the captures already committed on their scope branches, before it is written',
-  ],
-];
-
-// ADR 0087: a spawn that never started is a **Spawn failure**, outside INV-0009. `hooks/green-gate.js`
-// blocks, because it fires only on a merge and a tree that cannot run its suite is a defect in the thing
-// being gated. The row pins the **reason** rather than the behaviour alone: a behaviour with no stated
-// reason reads as an oversight to the next editor, which is how a fail-open answer once survived (#606).
-const SPAWN_FAILURE_ANSWER_CONTRACTS = [
-  [
-    path.join('hooks', 'green-gate.js'),
-    /never started[\s\S]{0,400}can't even run the suite[\s\S]{0,400}fires only on a merge/,
-    "state that a suite that never started blocks because the merge's own tree cannot run it, and name that the gate fires only on a merge",
   ],
 ];
 
@@ -8162,13 +8081,13 @@ RUN_TRACE_ORDER_CONTRACTS.push(
   ],
   [
     path.join('references', 'implement-full.md'),
-    /first\s+`unknown`\s+is\s+an\s+observation:\s+when\s+the\s+verb\s+says\s+so\s+on\s+stderr,\s+write\s+its\s+triage\s+record[\s\S]{0,100}environment\s+gap/,
-    'capture the scope run\'s first fail-to-pass unknown as an observation naming the environment gap, when the verb says it is the first',
+    /first\s+non-exempt\s+`unknown`\s+is\s+an\s+observation:\s+write\s+its\s+triage\s+record[\s\S]{0,100}environment\s+gap,\s+whether\s+or\s+not\s+the\s+verb's\s+stderr\s+names\s+it\s+the\s+first/,
+    'capture the scope run\'s first fail-to-pass unknown as an observation naming the environment gap, whether or not the verb\'s stderr names it the first',
   ],
   [
     path.join('references', 'implement-lite.md'),
-    /first\s+`unknown`\s+is\s+an\s+observation:\s+the\s+verb\s+says\s+so\s+on\s+stderr,\s+and\s+you\s+write\s+its\s+triage\s+record[\s\S]{0,200}`##\s+Observations`[\s\S]{0,80}environment\s+gap/,
-    'capture the scope run\'s first fail-to-pass unknown as an observation naming the environment gap, when the verb says it is the first',
+    /first\s+`unknown`\s+is\s+an\s+observation:\s+you\s+write\s+its\s+triage\s+record[\s\S]{0,200}`##\s+Observations`[\s\S]{0,80}environment\s+gap[\s\S]{0,200}whether\s+or\s+not\s+the\s+verb's\s+stderr\s+names\s+it\s+the\s+first/,
+    'capture the scope run\'s first non-exempt fail-to-pass unknown as an observation naming the environment gap, whether or not the verb\'s stderr names it the first',
   ],
   [
     path.join('references', 'implement-lite.md'),
@@ -8182,8 +8101,8 @@ RUN_TRACE_ORDER_CONTRACTS.push(
   ],
   [
     path.join('references', 'scope-mode.md'),
-    /\*\*A\s+fail-to-pass\s+run\s+that\s+reads\s+`unknown`\s+is\s+an\s+observation\s+when\s+it\s+is\s+the\s+scope\s+run's\s+first\*\*[\s\S]{0,1500}A\s+later\s+`unknown`\s+in\s+the\s+same\s+scope\s+run\s+writes\s+none/,
-    'make a fail-to-pass run\'s first unknown in the scope run an observation naming the environment gap, and a later unknown in the same scope run writes none',
+    /\*\*A\s+fail-to-pass\s+run\s+that\s+reads\s+`unknown`\s+is\s+an\s+observation\s+when\s+it\s+is\s+the\s+scope\s+run's\s+first\s+non-exempt\s+one\*\*[\s\S]{0,1800}first\s+`unknown`\s+that\s+the\s+exemption[\s\S]{0,100}whether\s+or\s+not\s+the\s+verb's\s+stderr\s+names\s+it\s+the\s+first[\s\S]{0,800}A\s+later\s+`unknown`\s+in\s+the\s+same\s+scope\s+run\s+writes\s+none,\s+once\s+a\s+non-exempt\s+`unknown`\s+has\s+written\s+its\s+record/,
+    'make the scope run\'s first fail-to-pass unknown the exemption does not cover an observation naming the environment gap, whether or not the verb\'s stderr names it the first, and a later unknown writes none once a non-exempt one has written its record',
   ],
   // The reviewers' Output templates and the review report's template each carry a line where an `unknown` outcome is named
   // with its reason, as a note and never under Issues, so no reviewer or controller places it ad hoc.
@@ -9633,7 +9552,6 @@ module.exports = {
   TEST_COST_LENS_HEADING,
   TEST_COST_LENS_ENTRIES,
   LABEL_VALIDATION_CONTRACTS,
-  GREEN_GATE_TIMEOUT_CONTRACTS,
   VERB_CONTRACTS,
   KB_STAGING_CONTRACTS,
   STAGED_CLOSE_CONTRACTS,
@@ -9722,7 +9640,6 @@ module.exports = {
   RUN_LOCK_LIVENESS_CONTRACTS,
   RUN_LOCK_LIVENESS_SILENCE_DOCS,
   RUN_LOCK_LIVENESS_SILENCE_MARKERS,
-  SPAWN_FAILURE_ANSWER_CONTRACTS,
   DECOMPOSITION_NAMES_WHAT_IT_CHECKED_CONTRACTS,
   CRITERION_TAG_CONTRACTS,
   DOD_TICKS_CONTRACTS,

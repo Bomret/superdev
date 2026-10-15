@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0155](0155-a-slice-merge-runs-no-test-suite.md), under which no merge runs a suite: the
+integration branch keeps the scope branch green between invocations, and the run handoff's full run
+verifies the integrate merge.
+
 **Context.** The plan contract requires every slice to be independently green, and `hooks/green-gate.js`
 enforces it on every controller merge. A wide refactor is one mechanical change whose blast radius fans
 across the codebase (rename a column, retype a shared symbol), and it cannot satisfy that. No narrow

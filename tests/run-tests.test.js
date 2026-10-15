@@ -298,7 +298,7 @@ const picked = (root, paths) =>
   const all = discoverSuites(path.join(repoRoot, 'tests')).map((f) => path.basename(f, '.test.js'));
   const fixture = of(['tests/fixture-git.js']);
   assert.strictEqual(fixture.length < all.length, true, 'helper selection is a strict subset, not every suite');
-  for (const s of ['green-gate', 'publish-kb', 'run-tests', 'run-trace', 'scope', 'scope-prune', 'slicetree-sweep', 'spawn-verdict']) {
+  for (const s of ['publish-kb', 'run-tests', 'run-trace', 'scope', 'scope-prune', 'slicetree-sweep', 'spawn-verdict']) {
     assert.ok(fixture.includes(s), `fixture-git selects ${s}`);
   }
 }

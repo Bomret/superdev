@@ -66,10 +66,10 @@ Paths: plugin/references/scope-mode.md, plugin/agents/final-reviewer.md, plugin/
 
 Class: process
 Concepts: Focused test command
-Statement: A configuration a repository cannot supply is recorded with its reason, never inferred from an absent setting. `hooks/green-gate.js` is the one named exception: firing with no operator to ask, it infers the full command from a one-fence `verification.md` and emits a notice instead of stopping.
+Statement: A configuration a repository cannot supply is recorded with its reason, never inferred from an absent setting.
 Breaks: silently
-Check: scripts/drift-check.js — setup writes both fences with the cannot-narrow reason as prose, test-selection.md stops rather than inferring the full command, plan/implement auto-invoke setup on a repository stuck on one fence, and green-gate.js runs the full command with a notice instead of stopping
-Paths: plugin/skills/setup/**, plugin/references/test-selection.md, plugin/skills/plan/**, plugin/skills/implement/**, plugin/hooks/green-gate.js
+Check: scripts/drift-check.js — setup writes both fences with the cannot-narrow reason as prose, test-selection.md stops rather than inferring the full command, and plan/implement auto-invoke setup on a repository stuck on one fence
+Paths: plugin/skills/setup/**, plugin/references/test-selection.md, plugin/skills/plan/**, plugin/skills/implement/**
 
 ### INV-0008
 
@@ -84,10 +84,10 @@ Paths: plugin/skills/plan/**, plugin/references/plan-contract.md
 
 Class: architecture
 Concepts: No verdict, Containment
-Statement: A spawn whose own bound expired, whether or not its kill succeeded, carries no verdict, on `plugin/hooks/green-gate.js`, `plugin/scripts/scope.js`, and the `plugin/skills/ship/SKILL.md` and `plugin/skills/submit-pr/SKILL.md` skills. No gate reads its absence as a pass, and no assertion about behaviour stands on it. Such a spawn is reported as killed, never as a decision it never made. A spawn that never started carries a Spawn failure instead, which this rule does not govern: the gate never ran, so green-gate answers it with its own stated reason (ADR 0087).
+Statement: A spawn whose own bound expired, whether or not its kill succeeded, carries no verdict, on `plugin/scripts/scope.js` and the `plugin/skills/ship/SKILL.md` and `plugin/skills/submit-pr/SKILL.md` skills. No gate reads its absence as a pass, and no assertion about behaviour stands on it. Such a spawn is reported as killed, never as a decision it never made. A spawn that never started carries a Spawn failure instead, which this rule does not govern (ADR 0087).
 Breaks: silently
-Check: tests/spawn-verdict.test.js — the helper's throw-or-not and message for the killed, never-started, EPIPE-but-decided, and genuinely-decided result shapes; tests/green-gate.test.js — a killed suite blocks the merge; tests/scope.test.js — the refetch asserts the kill signal rather than the clock; the never-started half is ADR 0087's, pinned by drift-check `spawn-failure-answers`
-Paths: plugin/hooks/green-gate.js, plugin/scripts/scope.js, plugin/skills/ship/SKILL.md, plugin/skills/submit-pr/SKILL.md, tests/**
+Check: tests/spawn-verdict.test.js — the helper's throw-or-not and message for the killed, never-started, EPIPE-but-decided, and genuinely-decided result shapes; tests/scope.test.js — the refetch asserts the kill signal rather than the clock
+Paths: plugin/scripts/scope.js, plugin/skills/ship/SKILL.md, plugin/skills/submit-pr/SKILL.md, tests/**
 
 ### INV-0010
 
@@ -562,17 +562,17 @@ Class: architecture
 Concepts: Guardrail
 Statement: Each shipped hook runs its dispatch when spawned and does nothing when `require`d.
 Breaks: silently
-Check: `tests/green-gate.test.js`, `tests/ledger-guard.test.js`, `tests/merge-guard.test.js`, `tests/model-explicit.test.js`, `tests/run-lock.test.js`, `tests/update-check.test.js`, `tests/slicetree-sweep.test.js`, `tests/run-trace.test.js` (each asserts that requiring the hook prints nothing)
+Check: `tests/ledger-guard.test.js`, `tests/merge-guard.test.js`, `tests/model-explicit.test.js`, `tests/run-lock.test.js`, `tests/update-check.test.js`, `tests/slicetree-sweep.test.js`, `tests/run-trace.test.js` (each asserts that requiring the hook prints nothing)
 Paths: plugin/hooks/*.js
 
 ### INV-0069
 
 Class: architecture
 Concepts: Timing command, Focused test command, Test audit
-Statement: `docs/agents/verification.md` holds the timing command in a backtick span, never a fenced block, so `hooks/green-gate.js` never runs it as the full or focused command. An absent timing command makes a test audit `unmeasured` and never fails it.
+Statement: `docs/agents/verification.md` holds the timing command in a backtick span, never a fenced block, because the full and focused readers take fences by index (`scope.js`'s `verificationCommands`), so neither runs it as the full or focused command. An absent timing command makes a test audit `unmeasured` and never fails it.
 Breaks: silently
-Check: `tests/green-gate.test.js` (the ADR 0066 case: a `## Timing command` backtick span is invisible to the gate)
-Paths: plugin/hooks/green-gate.js, plugin/skills/review-tests/SKILL.md, plugin/skills/setup/SKILL.md
+Check: none — final-reviewer's invariant compliance judges it
+Paths: plugin/scripts/scope.js, plugin/skills/review-tests/SKILL.md, plugin/skills/setup/SKILL.md
 
 ### INV-0070
 
@@ -1075,11 +1075,11 @@ Paths: plugin/references/cross-exam.md, plugin/skills/brainstorm/SKILL.md, plugi
 ### INV-0128
 
 Class: architecture
-Concepts: Green-gate, Controller, Scope branch
-Statement: Every merge the controller lands on a scope branch reaches the green-gate, whether the Bash call that landed it succeeded or failed, and whether a `git merge` or a merge-concluding commit landed it. The gate runs the suite in the tree where the merge landed. A call that lands no merge runs no suite, with one exception: a failed call whose merge never started, or a `git commit` that moves no HEAD, reruns the suite on the older merge topping the reflog. That is one spurious run, and it never passes a red tree (ADR 0123).
+Concepts: Controller, Scope branch, Suite record
+Statement: No hook runs a test suite on a merge. A slice merge into the scope branch runs no suite, and the run handoff's full run is the first verification of the integrated scope. Every merge that brings the base into the scope branch is followed by a suite run that the merging step makes itself through `scope.js test full`, or `scope.js test whole` where ship's whole-repo rule selects it, and that run's result is the suite record.
 Breaks: silently
-Check: tests/green-gate.test.js — a landed merge on the success and failure events, a merge-concluding commit, and a call that lands no merge
-Paths: plugin/hooks/green-gate.js, plugin/hooks/hooks.json
+Check: none — final-reviewer's invariant compliance judges it
+Paths: plugin/hooks/hooks.json, plugin/references/scope-mode.md, plugin/skills/ship/SKILL.md, plugin/references/implement-full.md
 
 ### INV-0129
 
@@ -1185,20 +1185,20 @@ Paths: plugin/scripts/scope.js
 ### INV-0140
 
 Class: safety
-Concepts: Guardrail, Green-gate
-Statement: A guardrail that reads a Bash command's words through the shared shell scanner fails closed when it cannot load the scanner: merge-guard and ledger-guard deny the Bash call, green-gate reports a blind verification, and run-lock blocks a scopetree creation (it loads the module for the drive-path translator, ADR 0150). Only run-trace, which records evidence and guards nothing, records nothing instead (ADR 0135).
+Concepts: Guardrail
+Statement: A guardrail that reads a Bash command's words through the shared shell scanner fails closed when it cannot load the scanner: merge-guard and ledger-guard deny the Bash call, and run-lock blocks a scopetree creation (it loads the module for the drive-path translator, ADR 0150). Only run-trace, which records evidence and guards nothing, records nothing instead (ADR 0135).
 Breaks: silently
-Check: tests/merge-guard.test.js, tests/ledger-guard.test.js, tests/run-lock.test.js, and tests/green-gate.test.js — each runs its hook with the scanner module unloadable and asserts the fail-closed verdict; tests/run-trace.test.js — with the scanner unloadable, a Bash write, a slice-reviewer hand-back, and a stop record nothing, and with its scan throwing a Bash write records nothing, against a control run that records
-Paths: plugin/hooks/merge-guard.js, plugin/hooks/ledger-guard.js, plugin/hooks/green-gate.js, plugin/hooks/run-lock.js, plugin/hooks/run-trace.js
+Check: tests/merge-guard.test.js, tests/ledger-guard.test.js, and tests/run-lock.test.js — each runs its hook with the scanner module unloadable and asserts the fail-closed verdict; tests/run-trace.test.js — with the scanner unloadable, a Bash write, a slice-reviewer hand-back, and a stop record nothing, and with its scan throwing a Bash write records nothing, against a control run that records
+Paths: plugin/hooks/merge-guard.js, plugin/hooks/ledger-guard.js, plugin/hooks/run-lock.js, plugin/hooks/run-trace.js
 
 ### INV-0141
 
 Class: safety
 Concepts: Guardrail
-Statement: merge-guard and ledger-guard read the text of every quoted or backslash-escaped word in a Bash command as a command line too, whatever program receives the word, so a guarded verb or ledger write inside `sh -c "…"`, `dash -c git\ push`, `eval cp\ a\ <ledger>`, `ssh host "…"`, or any other string-executing wrapper is caught. merge-guard, ledger-guard, and green-gate also read a command as dash reads it, where a run of two or more `(` opens nested subshells rather than arithmetic, so `((git push))` and `\(\(cp\ a\ <ledger>\)\)` read as the commands inside them. Each quoted text the scan re-reads is read both ways too, so a `((` escaped for a deeper shell level (`dash -c dash\ -c\ \\\(\\\(git\\\ push\\\)\\\)`) reads as the commands inside it. A backslash-escaped word is re-read only when a character it escapes is whitespace, an operator, a backtick, or `$`, so a run of backslashes in quoted text (`git commit -m 'escape \\\\n'`, `grep '\\\\$'`) adds no re-read level. merge-guard denies a heredoc body or here-string whose text names a guarded integration whatever command receives it, `cat <<E` and `ssh host <<E` included, as the base hooks denied heredoc text, except a body that a file sink (`cat > f`, `tee -a f > g`) or a message sink that opens no editor on it (`git commit -F -`, `gh … --body-file -`, `tea … --description-file -`) receives while standing alone on the line, unless a line of it starts with a guarded `git` verb, as the base hooks read it. ledger-guard reads a heredoc body or here-string as data unless a known shell reads it, directly or indirectly, or the line runs an interpreter that reads its script from stdin, in which case one naming a ledger is denied wherever it sits, so `scope.js … - <<E` and `git commit -F - <<E` naming a ledger pass. The stdin interpreters are `python` with optional digits and dots (`python`, `python2`, `python3.11`), `node`, `perl`, and `ruby`, matched by basename. An interpreter reads stdin when its script operand, the first word past every option and option value, is absent, is `-`, `/dev/stdin`, `/dev/fd/0`, or `/proc/self/fd/0`, or holds no `.` and no `/`; an inline script (`-c`, `-e`) also makes stdin judged. Two fail-closed false positives are accepted: a script operand held in a variable (`node "$S" … -`) holds no `.` or `/`, so a piped or heredoc body naming a ledger is judged; and the rule reads the whole command line, so text naming a ledger is denied when the same line runs a stdin-judged interpreter, even if that text goes elsewhere. The text an `echo` or `printf` writes is read as a command line when a known shell reads it on stdin (`echo … | sh`), and a heredoc body a known shell reads on stdin (`bash <<E`, `cat <<E | sh`) is read as a command line by every Bash hook, run-trace included. green-gate reads quoted text, heredoc bodies, and here-strings too, and gates a merge found only there when a readable tree's HEAD reflog shows a landed merge that the gate has not run a suite on yet, whether that run was red or green. run-trace reads quoted text as data (ADR 0135).
+Statement: merge-guard and ledger-guard read the text of every quoted or backslash-escaped word in a Bash command as a command line too, whatever program receives the word, so a guarded verb or ledger write inside `sh -c "…"`, `dash -c git\ push`, `eval cp\ a\ <ledger>`, `ssh host "…"`, or any other string-executing wrapper is caught. merge-guard and ledger-guard also read a command as dash reads it, where a run of two or more `(` opens nested subshells rather than arithmetic, so `((git push))` and `\(\(cp\ a\ <ledger>\)\)` read as the commands inside them. Each quoted text the scan re-reads is read both ways too, so a `((` escaped for a deeper shell level (`dash -c dash\ -c\ \\\(\\\(git\\\ push\\\)\\\)`) reads as the commands inside it. A backslash-escaped word is re-read only when a character it escapes is whitespace, an operator, a backtick, or `$`, so a run of backslashes in quoted text (`git commit -m 'escape \\\\n'`, `grep '\\\\$'`) adds no re-read level. merge-guard denies a heredoc body or here-string whose text names a guarded integration whatever command receives it, `cat <<E` and `ssh host <<E` included, as the base hooks denied heredoc text, except a body that a file sink (`cat > f`, `tee -a f > g`) or a message sink that opens no editor on it (`git commit -F -`, `gh … --body-file -`, `tea … --description-file -`) receives while standing alone on the line, unless a line of it starts with a guarded `git` verb, as the base hooks read it. ledger-guard reads a heredoc body or here-string as data unless a known shell reads it, directly or indirectly, or the line runs an interpreter that reads its script from stdin, in which case one naming a ledger is denied wherever it sits, so `scope.js … - <<E` and `git commit -F - <<E` naming a ledger pass. The stdin interpreters are `python` with optional digits and dots (`python`, `python2`, `python3.11`), `node`, `perl`, and `ruby`, matched by basename. An interpreter reads stdin when its script operand, the first word past every option and option value, is absent, is `-`, `/dev/stdin`, `/dev/fd/0`, or `/proc/self/fd/0`, or holds no `.` and no `/`; an inline script (`-c`, `-e`) also makes stdin judged. Two fail-closed false positives are accepted: a script operand held in a variable (`node "$S" … -`) holds no `.` or `/`, so a piped or heredoc body naming a ledger is judged; and the rule reads the whole command line, so text naming a ledger is denied when the same line runs a stdin-judged interpreter, even if that text goes elsewhere. The text an `echo` or `printf` writes is read as a command line when a known shell reads it on stdin (`echo … | sh`), and a heredoc body a known shell reads on stdin (`bash <<E`, `cat <<E | sh`) is read as a command line by every Bash hook, run-trace included. run-trace reads quoted text as data (ADR 0135).
 Breaks: silently
-Check: tests/merge-guard.test.js, tests/ledger-guard.test.js, and tests/green-gate.test.js — a guarded verb or ledger write inside a quoted or backslash-escaped word passed to an unlisted wrapper, or inside dash's `((…))` subshells, is caught, a heredoc body or here-string naming an integration is denied unless a lone file or message sink receives it, one naming a ledger is denied when a shell or an interpreter's stdin script reads it, and green-gate gates a quoted merge only on a landed reflog entry the gate has not run a suite on yet
-Paths: plugin/hooks/merge-guard.js, plugin/hooks/ledger-guard.js, plugin/hooks/green-gate.js, plugin/hooks/shell-words.js
+Check: tests/merge-guard.test.js and tests/ledger-guard.test.js — a guarded verb or ledger write inside a quoted or backslash-escaped word passed to an unlisted wrapper, or inside dash's `((…))` subshells, is caught, a heredoc body or here-string naming an integration is denied unless a lone file or message sink receives it, one naming a ledger is denied when a shell or an interpreter's stdin script reads it
+Paths: plugin/hooks/merge-guard.js, plugin/hooks/ledger-guard.js, plugin/hooks/shell-words.js
 
 ### INV-0142
 
@@ -1302,8 +1302,17 @@ Paths: plugin/hooks/tree-guard.js, plugin/hooks/hooks.json
 ### INV-0153
 
 Class: architecture
-Concepts: Backend command contract, Green-gate
+Concepts: Backend command contract
 Statement: A shipped executable hands text to a shell only to run an operator-supplied command: the repository's test command or a knowledge-base backend command template. That shell is `sh`, resolved from PATH. No shipped executable names a shell by absolute path, starts `bash`, or runs a command through Node's default shell (`exec`, `execSync`, or `shell: true`) (ADR 0150).
 Breaks: loudly
 Check: scripts/drift-check.js — the `shell-spawn` check fails on a shell start under `plugin/hooks/` or `plugin/scripts/` that breaks the rule
 Paths: plugin/hooks/*.js, plugin/scripts/*.js
+
+### INV-0157
+
+Class: process
+Concepts: Implementer, Slice-reviewer
+Statement: An implementer or slice-reviewer that meets a failing test its own slice did not cause names it in its report, neither fixes it nor blocks the slice on it, and leaves it to the run handoff's fix loop. A red-suite fix dispatch — of the run handoff, or of a scope review's fix loop, whose finding is the red suite itself — makes those failing tests the implementer's task. The rule stands in the agent body and in the dispatch prose that reaches it.
+Breaks: silently
+Check: none — final-reviewer's invariant compliance judges it
+Paths: plugin/agents/implementer.md, plugin/agents/slice-reviewer.md, plugin/references/implement-full.md

@@ -1,6 +1,8 @@
 # 0047: The green gate resolves the merge tree instead of capturing a `-C` argument
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0155](0155-a-slice-merge-runs-no-test-suite.md). No hook runs a suite on a merge.
 
 **Amends:** [ADR 0045](0045-the-full-tier-runs-in-a-scope-scopetree.md), whose Decision and Consequences
 describe `hooks/green-gate.js` as capturing the merge command's `-C` argument. That mechanism was never

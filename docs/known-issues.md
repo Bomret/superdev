@@ -196,15 +196,11 @@ through, so the run records its outcome. `hooks/run-trace.js` skips none of rtk'
 that run a command: `rtk err`, `rtk run`, `rtk summary`, or `rtk test` in front of the configured
 verification command records no configured-command run, and a named test file still records a `path`
 run (triage #941). `commandStart` and `gitSubcommand` in `hooks/shell-words.js`, which merge-guard
-and green-gate read commands through, skip all five, and so does `RTK_PREFIX` in `hooks/merge-guard.js`.
+reads commands through, skip all five, and so does `RTK_PREFIX` in `hooks/merge-guard.js`.
 `hooks/ledger-guard.js` skips all five too, because it finds the command word through the same
 `commandStart`, and `tests/ledger-guard.test.js` pins that it refuses an editor behind every
 wrapper `run-trace.js` knows and a copy behind `rtk proxy`. `hooks/run-trace.js` reads a `git restore` or `git checkout` behind `rtk`
-through the same wrapper list. `hooks/green-gate.js` reads its merge, commit, and pull candidates through
-`commandStart` and `gitSubcommand` in `hooks/shell-words.js`, which skip `rtk` with its value-less global
-options and each of its five run-anything subcommands. RTK rewrites `git commit` to
-`rtk git commit`, so without the prefix a commit that concluded a conflicted merge ran no suite (#957).
-A rewrite by another hook that puts an unknown word in front of the command still hides the run.
+through the same wrapper list. A rewrite by another hook that puts an unknown word in front of the command still hides the run.
 
 The PreToolUse hooks are out of the rewrite's reach. Claude Code runs every matching hook of one event
 in parallel, so `hooks/merge-guard.js`, `hooks/run-lock.js`, and `hooks/ledger-guard.js` receive the
@@ -220,8 +216,7 @@ rtk's run-anything subcommands, `proxy`, `err`, `run`, `summary`, and `test`, ex
 them, so the prefix also takes one of them, with its value-less options and an optional `--`
 separator, after rtk's global options. The whole prefix repeats, so an rtk behind another rtk matches
 too. Without these, `rtk proxy git push`, `rtk proxy -- git push`, and `rtk proxy rtk git push` passed
-the guard. The git checks of `hooks/green-gate.js` read it through `commandStart` and `gitSubcommand` in
-`hooks/shell-words.js`. `hooks/merge-guard.js` reads its git, `gh`, and `tea` checks past it through
+the guard. `hooks/merge-guard.js` reads its git, `gh`, and `tea` checks past it through
 `commandStart` in the same module, and `RTK_PREFIX` in `hooks/merge-guard.js` serves its raw-text
 pull-request merge and API merge tests.
 
@@ -280,9 +275,8 @@ parent has already exited is outside the tree `taskkill /t` walks, so it can out
 **Smoke checklist (manual, on a Windows machine with Git for Windows and Node on PATH):**
 
 - `/superdev:publish-kb` publishes a staged page, and a live page reads back.
-- A merge through the green gate passes on a green suite and is refused on a red one, for a test command
-  in POSIX syntax and for a focused command over quoted paths.
-- `scope.js test` records the test command's exit status.
+- `scope.js test` records the test command's exit status, for a test command in POSIX syntax and for a
+  focused command over quoted paths.
 - `scope.js fail-to-pass` kills a run that exceeds its bound and leaves no worktree behind.
 - The Stop hook sweeps a merged slicetree, and the scope is reaped.
 - A `/c/…` path in a command locates the ledger.

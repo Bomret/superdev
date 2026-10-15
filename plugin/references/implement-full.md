@@ -31,10 +31,12 @@ read `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md` as your last step.
 - **An epic carrying `## Integration branch`** (a wide refactor whose batches can't stay green alone —
   `${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md` → *Wide refactors*, ADR 0033) inserts one branch
   between the slices and the scope: cut `integration/<scope>` from `<branch>` at run start, keep it
-  checked out **in the scopetree**, and merge every slice into it instead of `<branch>` (the
-  green-gate defers there). The plan's final **integrate-and-verify** slice is where you switch that same
-  scopetree back to `<branch>` and merge `integration/<scope>` into it — the gate fires on that
-  merge, and it is the run's promise of green. Everything else in the loop is unchanged.
+  checked out **in the scopetree**, and merge every slice into it instead of `<branch>`. The branch keeps
+  the scope branch green between invocations, so a resumed run passes the base step while batches that
+  cannot stay green alone are in flight (ADR 0155). The plan's final **integrate-and-verify** slice is
+  where you switch that same scopetree back to `<branch>` and merge `integration/<scope>` into it. That
+  merge runs no suite: the run handoff's full run verifies it, and it is the run's promise of green.
+  Everything else in the loop is unchanged.
 
 ## Run lock
 
@@ -111,7 +113,10 @@ Repeat until every slice is `merged`:
    Bash tool's time limit through the runner in the background and wait for its end before acting on it, and
    tells it to edit files through the edit tools, never through a script. It also tells it that a RED or GREEN step passes the test files
    that hold the tests that step works on, and that its last run before the report passes the slice's whole changed-path set
-   (ADR 0139). The controller never edits a slice's tree to produce a failing run:
+   (ADR 0139). Every implementer dispatch also tells it that a failing test its slice did not cause, one that
+   also fails at the slice's base commit, is named in its report, neither fixed nor blocked on, and left to
+   the run handoff's fix loop: a named inherited failure is no Missing RED finding, no BLOCKED, and no strike
+   (ADR 0155, INV-0157). The controller never edits a slice's tree to produce a failing run:
    a failing run comes from the implementer's own revert and run, or from none at all.
 
    **Pilot the first wave.** On a fresh scope (nothing merged yet), dispatch a single slice first and take
@@ -155,9 +160,12 @@ Repeat until every slice is `merged`:
      not judge (ADR 0134, INV-0139). The `superdev:slice-reviewer` dispatch tells it to name every one for the slice in its
      report with its reason (the exit status or signal in `control=`, or the `bound=` the run before the change ran under, or
      `start-failed:<code>` where a run could not start), to
-     raise no finding for it, and to start no fix cycle, so you start none either. The scope run's first `unknown` is an
-     observation: when the verb says so on stderr, write its triage record under the `## Observations` rule above,
-     naming the environment gap.
+     raise no finding for it, and to start no fix cycle, so you start none either. A slice cut after a break between two slices inherits the failing test, so its
+     control run fails and the verb writes `unknown`: that outcome is expected and no finding. Such an inherited `unknown`, its control failure also showing at the
+     slice's base, earns no observation, even when the verb's stderr names it the first. For every other `unknown`, the scope run's first non-exempt `unknown` is an
+     observation: write its triage record under the `## Observations` rule above, naming the environment gap, whether
+     or not the verb's stderr names it the first. The verb names only the trace's first `unknown` of any kind, so after
+     an inherited one it says nothing.
    - **`behavior`** slice → move it → `in-review`, beside the store move, with
      `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" slice <id> in-review --root <run-root>` before the first slice review dispatch
      (the row stays `in-review` through the parallel simplicity pass and every fix cycle, until the merge or a block), then dispatch **`superdev:slice-reviewer`**
@@ -183,7 +191,9 @@ Repeat until every slice is `merged`:
      slice implementer's, not a fix implementer's, and no controller paraphrase of their status or "met"
      claims (ADR 0114, INV-0114). The dispatch also tells it to run every test through `scope.js test`, and
      a suite longer than the Bash tool's time limit through the runner in the background, waiting for its
-     end. The reviewer settles a **blind pass** before it opens the log, and
+     end. It tells the reviewer that a failing test the slice did not cause, one that also fails at the
+     slice's base commit, is named under `### Inherited failures` and counts nothing against the verdict: no
+     finding, no Missing RED, and no strike, left to the run handoff's fix loop (ADR 0155, INV-0157). The reviewer settles a **blind pass** before it opens the log, and
      the blind pass reads the slice's run-trace lines (`scope.js trace --slice <id>`): on a `behavior`
      slice, a test edit followed by an implementation edit or a passing run with no failing run between them is an Important
      finding, **Missing RED**, and no trace or no events for the slice gets no finding, only a named gap.
@@ -326,12 +336,10 @@ Repeat until every slice is `merged`:
    the abort, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section: picking a
    winner is exactly the human decision the token cannot stand in for.
 
-   **A focused suite runs on the merge, automatically** — if a test command is configured
-   (`docs/agents/verification.md`), the **green-gate hook** runs after a landed merge, on a succeeding or
-   failing call: a clean `git merge`, a merge inside a chain that fails later, or a conflicted one that
-   `merge --continue` concluded. It runs the focused command over that merge's changed paths
-   (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` owns which command that is) and reports a red suite
-   for a fix or a revert before you continue. The hook cannot undo the merge.
+   **A slice merge runs no suite**, clean or concluded with `merge --continue` (ADR 0155, INV-0128). The
+   slice's own runs already tested it, and the run handoff's full run is the
+   first verification of the integrated scope: its fix loop repairs a break between two slices that each
+   passed alone. Go straight on to the next dispatch or merge.
 
    Then clean up. First read the slice branch's tip with `git -C <run-root>/scopetree rev-parse slice/<scope>/<id>`:
    the branch is gone after the cleanup, and the `merged` write below records that full commit as its `<tip>`. Then

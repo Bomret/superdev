@@ -9,6 +9,9 @@
 **Amended by:** [ADR 0150](0150-shipped-code-starts-a-shell-only-for-an-operator-command.md), which replaces the
 pipe handshake below with a Node watcher that starts the command itself.
 
+**Amended by:** [ADR 0155](0155-a-slice-merge-runs-no-test-suite.md), which deletes `green-gate`, so no
+hook performs a suite run and `scope.js test` and the trace's classified test commands are the only run lines.
+
 **Context.** ADR 0117 infers a test run's outcome from the shape of the Bash command. The outcome is
 known only when the test command is the whole command. On 2026-10-07, 24 consumer run traces held 921
 run lines, and 657 of them (71%) read `unknown`. The causes were piped or exit-captured runs, background

@@ -525,8 +525,8 @@ branch step left you on.
    exits 0, or once every line it still prints is one the attended operator kept. A collisions
    check that printed nothing moved no number, so no old id exists and this verb does not run. Then the merge: `git -C <run-root>/scopetree merge-base --is-ancestor <tip> <branch>`
    succeeds → nothing to merge. Otherwise run `git -C <run-root>/scopetree merge <tip>`, `<run-root>`
-   spelled out as the real absolute path in the command text, never a shell variable: `hooks/green-gate.js` reads the
-   command text alone. **A conflict** — `MERGE_HEAD` still set → resolve it by intent, per
+   spelled out as the real absolute path in the command text, never a shell variable: `hooks/run-trace.js` and
+   `hooks/merge-guard.js` read the command text alone. **A conflict** — `MERGE_HEAD` still set → resolve it by intent, per
    `${CLAUDE_PLUGIN_ROOT}/references/merge-conflicts.md`, and conclude it with
    `git -C <run-root>/scopetree merge --continue`. Plan's design-docs commit
    and other scopes edit the same glossary, ADR, and invariant files, so most of these conflicts are
@@ -543,8 +543,8 @@ branch step left you on.
    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --root <run-root>` does
    not accept the scope branch's current tip — a red record an earlier invocation left is exactly what
    this catches. After any merge, clean or resolved, run the full command from `docs/agents/verification.md` through
-   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full` in the scopetree: the run trace records that run, and the trace must back the suite record
-   (ADR 0117). After a clean merge, `hooks/green-gate.js` has already run the command `references/test-selection.md` picks, and writes that run's line to the run trace itself, recorded as `full` only when the command it ran is the full one (ADR 0117). **The focused fence is textually identical to the full one** (`docs/agents/verification.md`) → the gate's own pass already is the full run: record its result with `suite set` and run nothing more. **Otherwise, or the gate could not run** (denied, or no `verification.md`) → run the full command yourself. Run it through the runner, per the `## The two commands` section of `references/test-selection.md`, because a run the trace records as `unknown` leaves a record `suite reusable` refuses. The same command runs when the merge was skipped and the record is not reusable. Record what happened with
+   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full` in the scopetree, once: the run trace records that run, and the trace must back the suite record
+   (ADR 0117, ADR 0155). Run it through the runner, per the `## The two commands` section of `references/test-selection.md`, because a run the trace records as `unknown` leaves a record `suite reusable` refuses. The same command runs when the merge was skipped and the record is not reusable. Record what happened with
    `scope.js suite set <green|red|denied|none> <head> --root <run-root>`. **Green** → go to the first
    slice. **Denied, or never finished** (`none`, INV-0009) → dispatch no slice, name the result, and
    stop; the next invocation runs the suite again. No slice can fix either.
@@ -569,7 +569,7 @@ branch step left you on.
    block** on every record that is not green, per `## Unattended`. A red record's block names
    `/superdev:implement <feature-label>`, run attended, as the command that offers the pick. No
    `docs/agents/verification.md`, or one carrying zero fenced blocks → no suite, no record, and nothing to
-   gate, exactly as `hooks/green-gate.js` reads it.
+   gate.
 
 **A base that cannot be fetched is a degraded pass.** No `<remote>` configured, a failed or killed fetch,
 or a remote that does not carry `<base>` → skip steps 2 and 3, run steps 4 and 5 with the local `<base>`
@@ -919,8 +919,7 @@ on every `deferred resolve` call.
 ## Observations
 
 An **observation** is a real defect a run meets that no slice of it covers, and that the scope did not
-cause: a flaky test in untouched code, a failure the green-gate hook reports on a merge, a defect an
-implementer reports alongside its own slice (ADR 0088, INV-0010).
+cause: a flaky test in untouched code, a defect an implementer reports alongside its own slice (ADR 0088, INV-0010).
 
 **Write its triage record the moment you meet it** — reading a subagent's report, or meeting a failure
 yourself — never at a handoff. A run that blocks or is abandoned has already written every record an
@@ -928,7 +927,7 @@ observation earned, because each was made at the meeting, not saved for the end.
 
 **The controller tests "no slice covers it" against the plan, which it alone holds.** A dispatched agent
 sees only its own slice and cannot make that call; it reports what it met, and the controller decides. The
-controller's own observations are in scope too: it runs the merges and the gate, so it is the participant
+controller's own observations are in scope too: it runs the merges and the suite run after every base merge, so it is the participant
 most likely to meet one itself.
 
 **`/superdev:plan` writes one too**, when its interview finds a defect this scope did not cause and the
@@ -936,7 +935,7 @@ user places the fix **later** (`skills/plan/SKILL.md` §1). The plan holds the s
 holds; the record carries the provenance that exists at that moment, and every capture rule below applies
 unchanged.
 
-**A fail-to-pass run that reads `unknown` is an observation when it is the scope run's first** (ADR 0134,
+**A fail-to-pass run that reads `unknown` is an observation when it is the scope run's first non-exempt one** (ADR 0134,
 INV-0139). `scope.js fail-to-pass` reads `unknown` where it cannot judge. Either the tests did not pass against the
 changed code in the verb's throwaway worktree, an environment gap that no slice of the scope covers, or the run before
 the change was killed at its bound, ten times the first run's duration or 10 seconds, whichever is larger (ADR 0142;
@@ -944,11 +943,15 @@ the change was killed at its bound, ten times the first run's duration or 10 sec
 or ended by a signal, or a run's command could
 not start (`start-failed:<code>`, an argument list too long among the causes). A run killed at the bound
 can be a timing artifact rather than an environment gap: an async test that waits out a per-test timeout can outlast
-the bound. Write its triage record when the verb says, on stderr, that this is the scope run's
-first `unknown` outcome. The record names the environment gap: the range, the reason the outcome carries (the exit
+the bound. Write its triage record for the scope run's first `unknown` that the exemption at the end of this
+paragraph does not cover, whether or not the verb's stderr names it the first. The verb says on stderr that an outcome
+is the scope run's first `unknown` only for the trace's first `unknown` of any kind, so after an exempt `unknown` it
+says nothing. The record names the environment gap: the range, the reason the outcome carries (the exit
 status or signal, or the bound, or the start failure's code), and that the fail-to-pass run cannot judge this repository's tests in a throwaway
 worktree. For a run killed at the bound, the record also says that the bound can be a timing artifact. A later
-`unknown` in the same scope run writes none, and the verb says nothing for it.
+`unknown` in the same scope run writes none, once a non-exempt `unknown` has written its record. An `unknown` from a failure the scope
+caused is no observation, even when the verb names it the first: a slice cut after a break between two slices inherits
+the failing test, and its control failure also shows at the slice's base.
 
 **The triage record is the only artifact.** No ledger line, no pull-request body. It already carries the
 finding, the conditions, the date, the feature label, the scope branch, the anchor, and a copy-pasteable

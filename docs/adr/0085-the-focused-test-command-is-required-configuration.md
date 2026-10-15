@@ -6,6 +6,9 @@
 [ADR 0074](0074-the-focused-test-command-is-the-loops-cheap-command.md), whose focused command is
 optional, and whose absence falls back to the full command in every caller.
 
+**Amended by:** [ADR 0155](0155-a-slice-merge-runs-no-test-suite.md), which deletes `hooks/green-gate.js`,
+so the green-gate's one-fence behavior below no longer exists.
+
 **Context.** `references/test-selection.md`'s *Fallback to the full command* runs the full command wherever
 no second fenced block is configured. That fallback reaches the implementer's TDD loop, the
 slice-reviewer's Lens 2, the documentation step, and `hooks/green-gate.js`. In a repository that configures

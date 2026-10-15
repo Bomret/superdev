@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0155](0155-a-slice-merge-runs-no-test-suite.md), which deletes `green-gate.js`, so
+the shared scanner serves `merge-guard.js`, `ledger-guard.js`, and `run-trace.js`, and the green-gate rules below no longer apply.
+
 **Context.** `merge-guard.js`, `green-gate.js`, `ledger-guard.js`, and `run-trace.js` read a Bash
 command's words through the `ARG` regex token, kept byte-identical in all four by the drift `arg-token`
 contract. `ledger-guard.js` adds `RAW_ARG`. `ledger-guard.js` and `run-trace.js` share a byte-pinned

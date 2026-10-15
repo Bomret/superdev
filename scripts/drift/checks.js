@@ -100,7 +100,6 @@ const {
   EMPTY_ARGUMENT_CONTRACTS,
   AGENT_LENS_LIST_CONTRACTS,
   LABEL_VALIDATION_CONTRACTS,
-  GREEN_GATE_TIMEOUT_CONTRACTS,
   VERB_CONTRACTS,
   KB_STAGING_CONTRACTS,
   STAGED_CLOSE_CONTRACTS,
@@ -171,7 +170,6 @@ const {
   UNMET_CRITERION_AT_REVIEW_CONTRACTS,
   RELEASE_ANSWER_NOT_INFERRED_CONTRACTS,
   CAPTURE_CHECKS_CONCURRENT_PLANS_CONTRACTS,
-  SPAWN_FAILURE_ANSWER_CONTRACTS,
   DECOMPOSITION_NAMES_WHAT_IT_CHECKED_CONTRACTS,
   CRITERION_TAG_CONTRACTS,
   DOD_TICKS_CONTRACTS,
@@ -322,7 +320,6 @@ module.exports = [
     format: contractGap,
   },
   table('label-validation', LABEL_VALIDATION_CONTRACTS, 'both label segments validated'),
-  table('green-gate-timeout', GREEN_GATE_TIMEOUT_CONTRACTS, "green-gate's hooks.json timeout matches its own comment"),
   table('verb-pointer', VERB_CONTRACTS, 'every chain document invokes its scope.js verb'),
   table('planned-handoff', PLANNED_HANDOFF_CONTRACTS, 'the planned handoff from /superdev:plan to /superdev:implement is carried on both sides'),
   table('base-merge', BASE_MERGE_CONTRACTS, 'every implement invocation brings the fetched remote base into the scope branch before its first slice, and both execution playbooks call the step (INV-0124)'),
@@ -411,11 +408,6 @@ module.exports = [
     'full-suite',
     FULL_SUITE_CONTRACTS,
     'the scope review reuses a green suite record on the current tip or runs and records the full suite itself, while final-reviewer reviews against the result it is handed',
-  ),
-  table(
-    'spawn-failure-answers',
-    SPAWN_FAILURE_ANSWER_CONTRACTS,
-    'green-gate states what it does with a spawn that never started, and why',
   ),
   table(
     'verification-ceiling',
@@ -1066,9 +1058,7 @@ module.exports = [
     'conflict-conclusion',
     CONFLICT_CONCLUSION_CONTRACTS,
     'every instruction that concludes a resolved merge conflict (scope-mode.md base step, merge-conflicts.md, ' +
-      "implement-full.md's DAG-loop merge step) names `git -C <run-root>/scopetree merge --continue`, and " +
-      "implement-full.md and test-selection.md state the green-gate as ADR 0123 defines it: it runs after a " +
-      'landed merge, on a succeeding or failing call, and reports a red suite for a fix or a revert',
+      "implement-full.md's DAG-loop merge step) names `git -C <run-root>/scopetree merge --continue`",
   ),
   {
     id: 'conflict-conclusion-no-commit',

@@ -44,9 +44,9 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
   agents/              — the subagents (*.md): implementer, slice-reviewer, simplicity-reviewer,
                          final-reviewer, doc-writer, doc-reader, test-auditor
   hooks/               — the deterministic Node hooks + hooks.json: merge-guard, model-explicit,
-                         green-gate, run-lock, ledger-guard, tree-guard, run-trace, slicetree-sweep, scope-prune, update-check,
+                         run-lock, ledger-guard, tree-guard, run-trace, slicetree-sweep, scope-prune, update-check,
                          plus `shell-words.js`, the shared shell scanner the Bash hooks (merge-guard,
-                         green-gate, ledger-guard, run-trace) read a command through and run-lock takes its
+                         ledger-guard, run-trace) read a command through and run-lock takes its
                          drive-path translator from (a module, not a hook, ADR 0135, ADR 0150)
   references/          — backend seed templates + the non-seed runtime references (plan-contract,
                          documentation convention, controlled-prose, content-types, doc pass, run init,
@@ -136,7 +136,7 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   command must also clear is itself taken from the same run, never fixed. Where the failure
   the assertion catches is qualitative — catastrophic backtracking is effectively unbounded — a loose
   ceiling still falsifies exactly what a tight one did, so keep the ceiling and loosen it rather than
-  drop it (`tests/green-gate.test.js` and `tests/merge-guard.test.js`'s `LONG_VALUE_OPT` guards). A
+  drop it (`tests/merge-guard.test.js`'s `LONG_VALUE_OPT` guards). A
   linear-time pin takes both readings through `tests/linear-time.js`'s `timePair`, which measures the CPU
   time of the thread running the code, so time the process spends descheduled reaches neither reading
   (ADR 0149). It keeps its own input ratio and a multiplier ceiling between linear and quadratic growth.
@@ -236,11 +236,11 @@ Codeberg (Forgejo). Push scope branch, open ready PR against `main`, squash-merg
 Codeberg repo Wiki. Adopters first, maintainers second, English. `(aggregate)` page: Concepts. See `docs/agents/knowledge-base.md`.
 
 ### Toolchain
-Bun dev toolchain, Node runtime for hooks. `bun run test` (green-gate), `bun run release`. No linter or formatter. See `docs/agents/toolchain.md`.
+Bun dev toolchain, Node runtime for hooks. `bun run test`, `bun run release`. No linter or formatter. See `docs/agents/toolchain.md`.
 
 ### Verification
-`bun run test` in the first fence (the full command, about 2 minutes), `node scripts/run-tests.js --related {paths}`
-in the second (the focused command, about 8 s for a change set whose `.md` paths no suite names). Arms the merge green-gate. See `docs/agents/verification.md`.
+`bun run test` in the first fence (the full command, about 6 minutes), `node scripts/run-tests.js --related {paths}`
+in the second (the focused command, about 20 s for a change set whose `.md` paths no suite names). See `docs/agents/verification.md`.
 
 ### Deployment
 `none`. A release (`bun run release`) is repository-wide and batches every merged feature, so it is no
@@ -309,10 +309,8 @@ This root owns every other subtree directly:
 - `plugin/hooks/`. Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working
   rules, Hooks are CommonJS** and **Every shipped executable has a suite in `tests/`, named for it**.
   This is the strongest future child-doc candidate, if its rules outgrow this root. Of the
-  hooks, `scope-prune.js`, `slicetree-sweep.js`, `run-trace.js`, `green-gate.js`, and `tree-guard.js` depend on `plugin/scripts/`
-  (`green-gate.js` requires `scope.js` for `appendTrace` and `run-trace.js` for `locate` and `treeState`, so
-  its run line attributes like the trace's own, ADR 0127), and the scripts
-  `publish-kb.js` and `profile.js` require `scope.js` as well. `scope-prune.js` and `slicetree-sweep.js` both
+  hooks, `scope-prune.js`, `slicetree-sweep.js`, `run-trace.js`, and `tree-guard.js` depend on `plugin/scripts/`,
+  and the scripts `publish-kb.js` and `profile.js` require `scope.js` as well. `scope-prune.js` and `slicetree-sweep.js` both
   `require` `../scripts/scope.js` for their ledger-header reader (ADR 0022), `run-trace.js` requires it for
   the trace writer and reader and the ledger row readers (ADR 0117), and `scope-prune.js`
   takes the containment probe `baseHistoryHasPatch` off that same call (ADR 0082). `tree-guard.js` requires
@@ -326,10 +324,10 @@ This root owns every other subtree directly:
   places a hook depends on a script instead of standing alone. A `require` failure leaves the hook
   with no fallback reader: it sweeps, prunes, records, or denies nothing and says nothing. The probe has its own, narrower
   fallback — `scope-prune.js` prunes by tree comparison alone, still silently. The Bash hooks
-  `merge-guard.js`, `green-gate.js`, `ledger-guard.js`, and `run-trace.js` each `require` the sibling module
+  `merge-guard.js`, `ledger-guard.js`, and `run-trace.js` each `require` the sibling module
   `shell-words.js` and keep no shell-word reader of their own (ADR 0135, the `arg-token` drift check).
   `run-lock.js` requires it too, for its drive-path translator (ADR 0150). When the module cannot load, the
-  guardrails `merge-guard.js`, `green-gate.js`, `ledger-guard.js`, and `run-lock.js` fail closed, and
+  guardrails `merge-guard.js`, `ledger-guard.js`, and `run-lock.js` fail closed, and
   `run-trace.js` records nothing (INV-0140).
 - `scripts/` and `plugin/scripts/`. Owned by [`scripts/AGENTS.md`](scripts/AGENTS.md):
   `plugin/scripts/scope.js` (the run-state CLI, ADR 0022: owns the ledger schema, is the only

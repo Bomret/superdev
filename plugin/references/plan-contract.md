@@ -567,9 +567,9 @@ Every slice above stays independently green, so the ordinary rules and gates all
 usually `mechanical`, so the per-slice reviews are already skipped. **When even the batches cannot stay
 green alone**, green is promised at one node instead of per slice: the epic carries an
 `## Integration branch` section naming `integration/<scope>`, the full playbook merges every slice into
-that branch — where the green-gate hook defers — and a final **integrate-and-verify** slice, depending
-on every batch, is where `integration/<scope>` merges into the scope branch and the gate fires. The
-deferral changes where the suite gates, never whether.
+that branch, which keeps the scope branch green between invocations, and a final
+**integrate-and-verify** slice, depending on every batch, is where `integration/<scope>` merges into the
+scope branch. The run handoff's full run verifies that merge (ADR 0155).
 
 ## Issue-backend mapping (general)
 

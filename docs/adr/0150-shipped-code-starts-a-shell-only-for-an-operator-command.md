@@ -8,6 +8,9 @@ under `/bin/sh -c`.
 **Amends:** [ADR 0127](0127-a-test-run-records-its-own-outcome.md), whose test verb starts the command
 through `sh -c` watcher processes and a pipe handshake.
 
+**Amended by:** [ADR 0155](0155-a-slice-merge-runs-no-test-suite.md), which deletes `hooks/green-gate.js`,
+so the shell-less `execSync` and the merge gate this decision names no longer exist.
+
 **Context.** Claude Code runs on native Windows, and with Git for Windows installed it uses Git Bash as its
 shell. superdev's hooks and scripts run under native Node, which does not translate MSYS paths. A user
 report (2026-10-13, Windows 11, Node 24) showed `/superdev:publish-kb` publishing nothing, because

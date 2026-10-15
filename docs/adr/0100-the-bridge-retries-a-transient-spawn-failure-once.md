@@ -4,6 +4,9 @@
 
 **Superseded by:** [ADR 0102](0102-superdev-is-a-claude-code-only-plugin.md), which makes superdev a Claude Code-only plugin and removes the harness renders.
 
+**Amended by:** [ADR 0155](0155-a-slice-merge-runs-no-test-suite.md), which deletes `hooks/green-gate.js`,
+the gate whose blocking on any spawn failure this decision keeps.
+
 **Amends:** [ADR 0087](0087-a-spawn-that-never-started-is-not-a-spawn-that-was-killed.md), which reads a
 spawn that never started as evidence about the installation, and has the OpenCode hook bridge let the
 call through with a notice.

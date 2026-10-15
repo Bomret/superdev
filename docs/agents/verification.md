@@ -1,6 +1,6 @@
 # Verification
 
-The repo's test command. It arms the merge green-gate, so re-run it after every controller merge:
+The repo's test command, the first fence, and the focused command, the second:
 
 ```sh
 bun run test
@@ -19,10 +19,10 @@ rule places runs every suite, and an empty path list runs the tail alone and exi
 `mods/superdev-view/` runs the mod's own suites (`claude plugin test mods/superdev-view`) before the tail (`scripts/AGENTS.md`,
 `references/test-selection.md`, ADR 0025, ADR 0074, ADR 0085).
 
-**Measured cost, 2026-10-06.** The full command takes about 2 minutes. `publish-kb` (45 s), `scope` (20 s), and
-`green-gate` (19 s) are the three costliest suites, and the tail takes about 7 s, almost all of it the drift
-selftest. A focused run for a change set whose `.md` paths no suite names takes about 8 s. One for a change to the `run-lock` hook takes
-about 28 s, because the `scope` suite names that hook.
+**Measured cost, 2026-10-15.** The full command takes about 6 minutes. `scope-fail-to-pass` (88 s),
+`scope-test-verb` (63 s), and `publish-kb` (45 s) are the three costliest suites, and the tail takes about 19 s,
+almost all of it the drift selftest. A focused run for a change set whose `.md` paths no suite names runs the tail
+alone, about 20 s. One for a change to the `run-lock` hook takes about 50 s, because the `scope` suite names that hook.
 
 ## Timing command
 

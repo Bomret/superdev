@@ -1,6 +1,8 @@
 # 0123: The green-gate gates a landed merge from the reflog
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0155](0155-a-slice-merge-runs-no-test-suite.md). No hook runs a suite on a merge.
 
 This record amends ADR 0047.
 

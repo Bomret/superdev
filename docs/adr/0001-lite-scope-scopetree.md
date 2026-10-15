@@ -4,7 +4,9 @@
 
 **Amended by:** [ADR 0045](0045-the-full-tier-runs-in-a-scope-scopetree.md), which discharges the
 follow-on this record deferred: the `full` tier cuts its scope branch into the same scopetree, so
-neither tier switches the invoking checkout.
+neither tier switches the invoking checkout — and
+[ADR 0155](0155-a-slice-merge-runs-no-test-suite.md), which deletes `hooks/green-gate.js`, so no hook runs
+the test command in the scopetree.
 
 **Context.** Both tiers cut the scope branch with `git switch -c superdev/<scope> <base>` in the
 *invoking checkout*, the repo's single shared working tree. (ADR 0021 later fixed that branch's name as

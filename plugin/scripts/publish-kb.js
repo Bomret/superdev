@@ -130,7 +130,7 @@ function extractH2Section(text, headingText) {
 
 // Resolution is BY HEADING NAME, never by position: each verb's fenced block is found inside its
 // own named `### <verb>` subsection, so a fenced block inserted or removed elsewhere never shifts
-// which template a later verb reads (the exact hazard ADR 0069 names in `hooks/green-gate.js`).
+// which template a later verb reads (the exact hazard ADR 0069 names in reading fenced blocks by index).
 function parseCommandsTemplates(sectionText) {
   const lines = sectionText.split('\n');
   const templates = {};

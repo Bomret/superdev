@@ -24,9 +24,8 @@ own messages.
   the same resolution, and name each renumber, old and new, in the report. In the base merge, base's
   number never moves: it has already landed.
 - **Conclude a resolved conflict with `git -C <run-root>/scopetree merge --continue`.** Stage the
-  resolution first, and spell `<run-root>` out as the real absolute path in the command text.
-  `hooks/green-gate.js` reads that command, finds the merge it landed, and runs the suite on
-  the result (ADR 0123).
+  resolution first, and spell `<run-root>` out as the real absolute path in the command text:
+  `hooks/run-trace.js` and `hooks/merge-guard.js` read the command text alone.
 - **Never invent new behaviour in a resolution.** The merged result does only what the two sides'
   sources already claim; a "better" third version is a drive-by change wearing a conflict as cover.
 - **A genuine winner-picking overlap escalates.** The same decision decided two incompatible ways —

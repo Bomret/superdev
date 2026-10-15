@@ -29,7 +29,6 @@ const {
   PLAN_DERIVES_CRITERIA_CONTRACTS,
   PER_CRITERION_VERDICT_CONTRACTS,
   LABEL_VALIDATION_CONTRACTS,
-  GREEN_GATE_TIMEOUT_CONTRACTS,
   VERB_CONTRACTS,
   PLANNED_HANDOFF_CONTRACTS,
   BASE_MERGE_CONTRACTS,
@@ -39,7 +38,6 @@ const {
   SUITE_CARRY_CONTRACTS,
   FULL_SUITE_CONTRACTS,
   VERIFICATION_CEILING_CONTRACTS,
-  SPAWN_FAILURE_ANSWER_CONTRACTS,
   FIX_BOUNDARY_CONTRACTS,
   TIER_SKIP_CONTRACTS,
   SIMPLICITY_BESIDE_FIRST_REVIEW_CONTRACTS,
@@ -1394,112 +1392,6 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(lvGaps3.length, 1, 'flags a consumer reverted to slug-only wording, wire intact');
   assert.equal(lvGaps3[0].source, path.join('skills', 'implement', 'SKILL.md'), 'names implement.md');
 
-  // --- GREEN_GATE_TIMEOUT_CONTRACTS: hooks.json's green-gate timeout and green-gate.js's own comment
-  // name the same number, in two files. ---
-
-  // positive from the hooks.json side: a green-gate entry that lost its `timeout` field is drift — the
-  // ceiling the suite runs under stops being stated where the suite runs
-  const ggt1 = fixture({
-    'hooks/hooks.json': '"command": "node \\"${CLAUDE_PLUGIN_ROOT}/hooks/green-gate.js\\""\n',
-  });
-  const ggtGaps1 = scanContract(ggt1, GREEN_GATE_TIMEOUT_CONTRACTS);
-  assert.equal(ggtGaps1.length, 2, 'flags a hooks.json entry that lost its `timeout`, on both events');
-  assert.deepEqual([...new Set(ggtGaps1.map((g) => g.source))], [path.join('hooks', 'hooks.json')], 'names hooks.json');
-
-  // positive from the green-gate.js side: a comment that names neither the ceiling nor the default it
-  // is — both green-gate.js rows are gaps
-  const ggt2 = fixture({
-    'hooks/green-gate.js': "// the suite runs inside the hook, under Claude Code's default hook timeout.\n",
-  });
-  const ggtGaps2 = scanContract(ggt2, GREEN_GATE_TIMEOUT_CONTRACTS);
-  assert.equal(ggtGaps2.length, 2, 'flags a comment that names neither the 600s timeout nor the default');
-  assert.deepEqual(
-    [...new Set(ggtGaps2.map((g) => g.source))],
-    [path.join('hooks', 'green-gate.js')],
-    'names green-gate.js',
-  );
-
-  // positive, the false-default regression (#268): the comment names the 600s ceiling correctly but
-  // attributes it to the wrong platform default — 60s is the `agent` default, not the `command` one. The
-  // ceiling row passes and the default row alone flags, so a consumer is not sent to the wrong knob.
-  const ggtWrongDefault = fixture({
-    'hooks/green-gate.js':
-      "// the suite runs inside the hook, under the 600s `timeout` hooks.json sets on this\n" +
-      "// hook's entry (Claude Code's own default hook timeout is 60s).\n",
-  });
-  const ggtGapsWrongDefault = scanContract(ggtWrongDefault, GREEN_GATE_TIMEOUT_CONTRACTS);
-  assert.equal(ggtGapsWrongDefault.length, 1, 'flags a comment that names a wrong platform default');
-  assert.equal(
-    ggtGapsWrongDefault[0].expectation,
-    "identify the 600s ceiling as Claude Code's own default for a `command` hook",
-    'and names the default row, not the ceiling row',
-  );
-
-  // positive from the hooks.json side, numeric near-miss: `600` as a bare token must not match inside
-  // `6000` — a hooks.json entry that drifted to 6s0000ms is still drift, not a false pass
-  const ggt3 = fixture({
-    'hooks/hooks.json':
-      '"command": "node \\"${CLAUDE_PLUGIN_ROOT}/hooks/green-gate.js\\"",\n"timeout": 6000\n',
-  });
-  const ggtGaps3 = scanContract(ggt3, GREEN_GATE_TIMEOUT_CONTRACTS);
-  assert.equal(ggtGaps3.length, 2, 'flags a hooks.json `timeout` of 6000 as drift, not a 600 near-miss');
-  assert.deepEqual([...new Set(ggtGaps3.map((g) => g.source))], [path.join('hooks', 'hooks.json')], 'names hooks.json');
-
-  // order-tolerant: `"timeout"` ahead of `"command"` in the entry is not drift
-  const ggt4 = fixture({
-    'hooks/hooks.json':
-      '"PostToolUse": [{"hooks": [{\n"timeout": 600,\n"command": "node \\"${CLAUDE_PLUGIN_ROOT}/hooks/green-gate.js\\""\n}]}],\n' +
-      '"PostToolUseFailure": [{"hooks": [{\n"timeout": 600,\n"command": "node \\"${CLAUDE_PLUGIN_ROOT}/hooks/green-gate.js\\""\n}]}]\n',
-  });
-  assert.equal(
-    scanContract(ggt4, GREEN_GATE_TIMEOUT_CONTRACTS).length,
-    0,
-    'a green-gate entry with `timeout` before `command` is not drift',
-  );
-
-  // the PostToolUseFailure entry carries its own ceiling: a failure entry that lost its `timeout` is drift
-  // even while the PostToolUse entry states one, and the gap names the failure event
-  const ggtFailure = fixture({
-    'hooks/hooks.json':
-      '"PostToolUse": [{"hooks": [{"command": "node \\"${CLAUDE_PLUGIN_ROOT}/hooks/green-gate.js\\"", "timeout": 600}]}],\n' +
-      '"PostToolUseFailure": [{"hooks": [{"command": "node \\"${CLAUDE_PLUGIN_ROOT}/hooks/green-gate.js\\""}, {"command": "node \\"x.js\\"", "timeout": 600}]}]\n',
-  });
-  const ggtGapsFailure = scanContract(ggtFailure, GREEN_GATE_TIMEOUT_CONTRACTS);
-  assert.equal(ggtGapsFailure.length, 1, 'flags a PostToolUseFailure entry that lost its `timeout`');
-  assert.ok(/PostToolUseFailure/.test(ggtGapsFailure[0].expectation), 'and names the failure event');
-
-  // the inverse: a PostToolUse entry that lost its `timeout` while the PostToolUseFailure entry keeps one is drift,
-  // and the gap names the PostToolUse event; the failure entry's timeout cannot satisfy the PostToolUse row
-  const ggtPost = fixture({
-    'hooks/hooks.json':
-      '"PostToolUse": [{"hooks": [{"command": "node \\"${CLAUDE_PLUGIN_ROOT}/hooks/green-gate.js\\""}]}],\n' +
-      '"PostToolUseFailure": [{"hooks": [{"command": "node \\"${CLAUDE_PLUGIN_ROOT}/hooks/green-gate.js\\"", "timeout": 600}]}]\n',
-  });
-  const ggtGapsPost = scanContract(ggtPost, GREEN_GATE_TIMEOUT_CONTRACTS);
-  assert.equal(ggtGapsPost.length, 1, 'flags a PostToolUse entry that lost its `timeout`');
-  assert.ok(!/PostToolUseFailure/.test(ggtGapsPost[0].expectation), 'and names the PostToolUse event');
-
-  // prev-sibling false-pass: current pattern uses [\s\S]{0,120} backward window that reaches across
-  // entry boundaries, falsely matching a PREVIOUS entry's timeout even if green-gate entry lacks one.
-  // The corrected pattern bounds the backward direction on "type": to stop at entry starts.
-  const ggtPrevSibling = fixture({
-    'hooks/hooks.json':
-      '"type": "command",\n' +
-      '"timeout": 600,\n' +
-      '"command": "node \\"some-hook.js\\""\n' +
-      '},\n' +
-      '{\n' +
-      '"type": "command",\n' +
-      '"command": "node \\"${CLAUDE_PLUGIN_ROOT}/hooks/green-gate.js\\""\n',
-  });
-  const ggtGapsPrevSibling = scanContract(ggtPrevSibling, GREEN_GATE_TIMEOUT_CONTRACTS);
-  assert.equal(
-    ggtGapsPrevSibling.length,
-    2,
-    'prev-sibling: flags when green-gate entry lacks timeout despite previous entry having one',
-  );
-  assert.equal(ggtGapsPrevSibling[0].source, path.join('hooks', 'hooks.json'), 'names hooks.json');
-
   // --- VERB_CONTRACTS: every chain document invokes its scope.js verb (ADR 0022). A document that
   // drops its verb goes back to hand-editing or hand-parsing the ledger, and the ledger-guard hook only
   // sees tool calls at runtime, not prose. ---
@@ -2722,7 +2614,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // positive: each other reader name fails the same way
   for (const name of ['RAW_ARG', 'STUCK', 'STUCK_MERGE']) {
     assert.equal(
-      scanContract(fixture({ 'hooks/green-gate.js': SCANNER_REQUIRE + `const ${name} = /x/;\n` }), ARG_TOKEN_CONTRACTS)
+      scanContract(fixture({ 'hooks/run-trace.js': SCANNER_REQUIRE + `const ${name} = /x/;\n` }), ARG_TOKEN_CONTRACTS)
         .length,
       1,
       `flags a hook that declares its own ${name}`,
@@ -2749,7 +2641,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // positive: the same spread spelled with a quantifier or a character class
   for (const spread of ['/\\({2,}/g', '/[(]{2,}/g', '/\\(+\\(/g', '/[(][(]/g']) {
     assert.equal(
-      scanContract(fixture({ 'hooks/green-gate.js': SCANNER_REQUIRE + `const dash = text.replace(${spread}, (r) => r.split('').join(' '));\n` }), ARG_TOKEN_CONTRACTS)
+      scanContract(fixture({ 'hooks/run-trace.js': SCANNER_REQUIRE + `const dash = text.replace(${spread}, (r) => r.split('').join(' '));\n` }), ARG_TOKEN_CONTRACTS)
         .length,
       1,
       `flags a hook that spreads (( written ${spread}`,
@@ -2775,9 +2667,8 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     scanContract(
       fixture({
         'hooks/merge-guard.js': '// leading comment\n' + SCANNER_REQUIRE,
-        'hooks/green-gate.js': SCANNER_REQUIRE + 'const IS_MERGE = null;\n',
         'hooks/ledger-guard.js': SCANNER_REQUIRE,
-        'hooks/run-trace.js': SCANNER_REQUIRE,
+        'hooks/run-trace.js': SCANNER_REQUIRE + 'const IS_MERGE = null;\n',
       }),
       ARG_TOKEN_CONTRACTS,
     ).length,
@@ -3326,8 +3217,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   // The four `references/test-selection.md` rows: the `{paths}` token section's self-detecting
   // sentence, the fallback bullet's own carve-out for it (a self-detecting flag needs its own
   // pass-with-no-tests flag, not the empty-set fallback), and ADR 0085 / INV-0007's stop half — the
-  // prose stop naming `/superdev:setup` on one fenced block, and the `hooks/green-gate.js` exception
-  // that runs the full command and emits a notice instead of stopping.
+  // prose stop naming `/superdev:setup` on one fenced block.
   const pdSelfDetectClause =
     "A self-detecting runner flag computes the change set on its own, exactly as a `{paths}` form " +
     "does, and collects nothing from an empty one — it carries that runner's own pass-with-no-tests " +
@@ -3339,9 +3229,6 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     'A prose caller finding one fenced block reports the missing configuration and names ' +
     '`/superdev:setup`, running no command. `/superdev:plan` and `/superdev:implement` already ' +
     'auto-invoke `/superdev:setup` on missing configuration.\n';
-  const greenGateExceptionClause =
-    '`hooks/green-gate.js` is the one exception: it runs the full command it found and emits a ' +
-    'one-line notice naming `/superdev:setup`.\n';
   const degradedPassClause =
     'A caller that stops here records a degraded pass per `## Degraded passes` — the "pass that ' +
     'cannot complete its own work" shape. A caller with no run root has no ledger to write ' +
@@ -3355,7 +3242,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
     scanContract(
       fixture({
         'references/test-selection.md':
-          pdSelfDetectClause + stopClause + greenGateExceptionClause + degradedPassClause + testPathsClause,
+          pdSelfDetectClause + stopClause + degradedPassClause + testPathsClause,
       }),
       PATHS_DERIVATION_CONTRACTS,
     ).length,
@@ -3367,13 +3254,13 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
       fixture({ 'references/test-selection.md': 'The focused command runs verbatim.\n' }),
       PATHS_DERIVATION_CONTRACTS,
     ).length,
-    6,
+    5,
     'flags a test-selection.md missing the self-detecting-flag, stop, degraded-pass, and test-paths clauses',
   );
   assert.equal(
     scanContract(
       fixture({
-        'references/test-selection.md': pdSelfDetectClause + stopClause + greenGateExceptionClause + testPathsClause,
+        'references/test-selection.md': pdSelfDetectClause + stopClause + testPathsClause,
       }),
       PATHS_DERIVATION_CONTRACTS,
     ).length,
@@ -3383,7 +3270,7 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   assert.equal(
     scanContract(
       fixture({
-        'references/test-selection.md': pdSelfDetectClause + stopClause + greenGateExceptionClause + degradedPassClause,
+        'references/test-selection.md': pdSelfDetectClause + stopClause + degradedPassClause,
       }),
       PATHS_DERIVATION_CONTRACTS,
     ).length,
@@ -4963,34 +4850,6 @@ module.exports = ({ assert, path, fixture, fs, realRoot }) => {
   const ccNoDraftOnlyGaps = scanContract(ccNoDraftOnly, COMMITMENT_CAPTURE_CONTRACTS);
   assert.equal(ccNoDraftOnlyGaps.length, 1, 'flags plan for losing the only-status-draft rule');
   assert.equal(ccNoDraftOnlyGaps[0].source, path.join('skills', 'plan', 'SKILL.md'), 'names plan');
-
-  // --- SPAWN_FAILURE_ANSWER_CONTRACTS: ADR 0087 — green-gate blocks a suite that never started, and
-  // the row pins its reason with the behaviour. A fixture that keeps the behaviour and drops the reason
-  // has to report a gap, or the row pins only what the behaviour tests already pin.
-  const sfClause =
-    "the suite never started at all: the merge's own working tree can't even run the suite, so it " +
-    'gates like a RED verdict. It fires only on a merge, so blocking costs one merge.\n';
-  assert.deepEqual(
-    scanContract(fixture({ 'hooks/green-gate.js': sfClause }), SPAWN_FAILURE_ANSWER_CONTRACTS),
-    [],
-    'a fixture carrying the behaviour and its reason reports no gap'
-  );
-  const sfDropped = scanContract(
-    fixture({ 'hooks/green-gate.js': 'Nothing about a spawn that never started here.\n' }),
-    SPAWN_FAILURE_ANSWER_CONTRACTS,
-  );
-  assert.equal(sfDropped.length, 1, 'flags hooks/green-gate.js for dropping its spawn-failure answer');
-  assert.equal(sfDropped[0].source, 'hooks/green-gate.js', 'names hooks/green-gate.js');
-  // the "fires only on a merge" reason clause is pinned too — dropping only it, keeping the
-  // behaviour, still reports a gap.
-  const sfNoMergeReason = fixture({
-    'hooks/green-gate.js':
-      "the suite never started at all: the merge's own working tree can't even run the suite, so it " +
-      'gates like a RED verdict.\n',
-  });
-  const mergeReasonGaps = scanContract(sfNoMergeReason, SPAWN_FAILURE_ANSWER_CONTRACTS);
-  assert.equal(mergeReasonGaps.length, 1, 'dropping only "fires only on a merge" still reports a gap');
-  assert.equal(mergeReasonGaps[0].source, 'hooks/green-gate.js', 'names hooks/green-gate.js');
 
   // --- VERIFICATION_CEILING_CONTRACTS: ADR 0084, INV-0006 — verifying a Definition-of-Done criterion
   // observes, and changes no system outside the repository. The owning reference

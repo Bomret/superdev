@@ -155,11 +155,7 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     assert.equal(r.stdout.trim(), 'pass-to-pass control=0,put-back=0', r.stderr);
     assert.doesNotMatch(fs.readFileSync(gitTrace, 'utf8'), /run_command: git (maintenance run|gc) --auto/, 'no git child of the verb starts automatic maintenance');
 
-    // A focused command carrying `{paths}` is the pick green-gate makes on a merge (ADR 0134). The verb and the hook each
-    // substitute it with their own quoting: green-gate's quotes every path, the verb's leaves a shell-safe path bare. Sharing one
-    // would change green-gate's command string, or put its gate behind the require it keeps fail-silent for the trace writer,
-    // so this pins the shell words both hand the command instead. (A focused command with no `{paths}` is no shared
-    // pick: green-gate runs it verbatim, the verb runs the full command.)
+    // A focused command carrying `{paths}` gets one shell word per changed path, however odd the path's name (ADR 0134).
     s = scenario({
       base: {
         'src/plain.txt': 'a\n', 'odd name.txt': 'a\n', "it's.txt": 'a\n', '$x*.txt': 'a\n',
@@ -173,20 +169,7 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     r = s.run(s.range);
     assert.equal(r.stdout.trim(), 'pass-to-pass control=0,put-back=0', r.stderr);
     const changedPaths = git(s.repo, ['diff', '--name-only', '--no-renames', '-z', s.baseSha, s.tipSha]).split('\0').filter(Boolean);
-    let picked;
-    require('../plugin/hooks/green-gate.js').decide(
-      { tool_input: { command: 'git merge --no-ff slice/s1' } },
-      () => ({ full: CMD, focused: 'sh tests/args.sh {paths}' }),
-      (command) => { picked = command; return { ok: true }; },
-      () => changedPaths,
-    );
-    const hookLog = path.join(s.dir, 'hook-log');
-    assertSpawnDecided(spawnSync('bash', ['-c', picked], { cwd: s.tree, env: { ...process.env, F2P_LOG: hookLog }, timeout: 20000 }), 'green-gate pick');
-    assert.deepEqual(
-      [s.ran().slice(0, changedPaths.length), fs.readFileSync(hookLog, 'utf8').split('\n').filter(Boolean)],
-      [changedPaths, changedPaths],
-      'the verb and green-gate hand the focused command the same words: one per changed path',
-    );
+    assert.deepEqual(s.ran().slice(0, changedPaths.length), changedPaths, 'the verb hands the focused command one word per changed path');
 
     // A file the range added is removed for the second run, so a test that needs it fails there.
     s = scenario({

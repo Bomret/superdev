@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0155](0155-a-slice-merge-runs-no-test-suite.md), which deletes `green-gate.js` and its
+suite, so that hook's suite no longer runs under `bun run test`.
+
 **Context.** Every hook and script carries its assertions inline, behind a `--selftest` argument, and the
 root working rule states it as a contract: *Every hook ships a `--selftest`*. The marketplace manifest's
 `source` is `./plugin`, so an install copies that whole subtree. Measured across the eleven shipped

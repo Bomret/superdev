@@ -13,8 +13,9 @@ it, and by the time a corner-cut surfaces, it's already merged.
 
 With superdev: `/superdev:plan` interviews you until the Definition of Done is checkable,
 `/superdev:implement` cuts the work into small slices, a separate reviewer subagent checks each one
-before it merges, and a hook — not a prompt — runs the suite after every merge and reports a red result,
-so the controller fixes or reverts before the run continues.
+before it merges, and the full suite runs once over the integrated scope, with its own fix loop, before
+the review. superdev runs no suite on a merge, inside a scope run or outside one: a slice's tests run
+where the slice is built and reviewed, and every base merge into the scope branch runs the suite itself.
 
 A self-contained Claude Code plugin for the full **brainstorm, plan, implement, review, document,
 submit-pr, ship** loop, with **no prerequisite plugins**. It gives you interview-driven vertical slicing, an execution tier
@@ -359,39 +360,6 @@ bash or PowerShell variants.
   integrates.
 - **model-explicit.** Blocks a dispatch to a superdev subagent that omits an explicit `model`, so cost
   is always warrant-scaled.
-- **green-gate.** After a controller merge lands, runs the command
-  [`references/test-selection.md`](plugin/references/test-selection.md) picks and reports a RED result to the
-  controller, which fixes or reverts before the run continues. That file owns the full-versus-focused rule
-  the gate follows. The merge has landed by then, so the gate cannot undo it. A merge counts as landed when
-  the top `HEAD` reflog entry of its tree reads `merge …`, `commit (merge)…`, or `pull …`. The gate runs whether the
-  Bash call that landed the merge succeeded or failed, after a `git commit` that concludes a conflicted
-  merge (ADR 0123), and after a `git pull` that landed a merge. It reads a merge behind a prefix wrapper
-  (`nice -n 5 git merge x`, `eval git merge x`) and through an alias defined inline (`git -c alias.m=merge m x`). The gate reads the text of a quoted or backslash-escaped word as a command line too, and a command with no
-  merge as written is read again as dash reads `((…))`. A merge it finds only there (`sh -c "git merge x"`,
-  `dash -c "((git merge x))"`, a `grep` for the words, or a commit message with an apostrophe that does
-  not read as a command line) runs the suite only for a landed merge the gate has not yet run the suite on. A heredoc body or
-  here-string naming a merge is read the same way, and a heredoc body a known shell reads on stdin is read as the command line it is. "Tests pass on scope after merging" is therefore checked by a hook, not merely
-  prompted. A killed suite is reported too, rather than passing: a
-  process the gate's own bound ended carries no verdict (INV-0009, ADR 0086). The gate spawns the
-  suite under a bound from its hook ceiling. The gate, not the platform, ends a runaway suite and
-  reports the kill. The gate is inactive until `docs/agents/verification.md`
-  records a test command, which `/superdev:setup` does. Once it is active, the gate runs the suite in the
-  tree the merge names — a `-C <path>` or a `--work-tree <path>`, whichever the command carries, with
-  `--work-tree` winning when both are there and a relative `--work-tree` resolved against `-C`, not
-  against your own checkout. A successful `git merge` whose working tree the gate cannot resolve gets a report
-  naming why instead of a suite run. A failed call or a `git commit` with such a tree gets no report, because
-  the gate has no reflog to read for it. The shapes are: a command that changes directory first (`cd <path> && git merge`) and names no tree says
-  nothing about which one it landed in, a `--git-dir` with no `--work-tree` updates files in one tree
-  while reading refs from another repository, a `-C` or `--work-tree` value holding shell syntax (`$VAR`,
-  `$(…)`, a backtick, a leading `~`) names a path the gate reads before the shell expands it, and a `-C`
-  path carrying no `docs/agents/verification.md` while your own checkout does is a path pointing somewhere
-  other than the merge. The gate also reports, without running the suite, when a git global option value holds shell syntax
-  that the gate cannot read to its end. The options are `-C`, `-c`, any `--<name>=`, and git's
-  value-taking long options in either spelling: `--git-dir`, `--work-tree`, `--namespace`,
-  `--config-env`, `--shallow-file`, and `--attr-source`. Examples are nesting past one level, nested
-  arithmetic, and a nested `${…}` such as `${X:-${Y:-a b}}`. Pass literal option values instead, such as
-  `git -C <path> merge …`. Some shapes the gate misreads still pass (triage #814). A green the gate never
-  verified is worth less than a report naming why.
 - **run-lock.** Blocks a `git worktree add` on a scopetree (`.superdev/scopes/<scope>/scopetree`)
   while a fresh `.superdev/scopes/<scope>/run.lock` exists, so two concurrent lite runs on one scope
   cannot collide. The hook looks for the lock in the run root the command names. It also checks the
@@ -546,17 +514,16 @@ again. One answer lands outside that tree: the slice store's **assignee** goes t
   rediscovering them. The `test` entry defers to Verification. The result goes to
   `docs/agents/toolchain.md`.
 - **Verification** *(optional)*. The repo's test command, the first fenced block of
-  `docs/agents/verification.md`. Recorded, it **arms the green-gate** hook. Omitted, the gate stays
-  inactive. A second fenced block holds the focused test command, the one every step inside the loop
-  runs: the implementer's TDD loop, the lite tier's inline loop, the slice-reviewer's Lens 2 re-run, the
-  green-gate hook, and the documentation step's own run over its doc commits. What defines it is that it
+  `docs/agents/verification.md`. Recorded, it is the full suite the run handoff, every base merge, and the
+  scope review run. Omitted, no step runs a suite. A second fenced block holds the focused test command,
+  the one every step inside the loop runs: the implementer's TDD loop, the lite tier's inline loop, the
+  slice-reviewer's Lens 2 re-run, and the documentation step's own run over its doc commits. What defines it is that it
   costs less than the full suite. Setup derives it from the runner it detected — a runner that maps
   source files to the tests covering them gets a `{paths}` form carrying that runner's pass-with-no-tests
   flag, and every other runner gets a fast subset instead. Where the full suite is already cheap or no
   cheaper subset exists, the second fence records the full command again, with the reason as prose beside
   it. A `verification.md` carrying only the first fence records a repository whose focused command was
-  never configured: a prose caller finding it stops and names `/superdev:setup`, running no command, and
-  `hooks/green-gate.js` runs the full command it found and emits a one-line notice instead of stopping.
+  never configured: a caller finding it stops and names `/superdev:setup`, running no command.
   [`references/test-selection.md`](plugin/references/test-selection.md) owns the full-versus-focused rule.
   The `/superdev:implement` entry above describes the **fail-to-pass run**. That run uses the focused command over the
   change's whole path set where the focused command carries `{paths}`, and the full command otherwise.

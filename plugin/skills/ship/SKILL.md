@@ -179,8 +179,8 @@ because a renumber is a change nobody has reviewed. Exit 2 → the check could n
 merge nothing, and never read it as no collision. **Merge base into the
 scope branch, in the scope checkout, by its literal absolute path** —
 `git -C <run-root>/scopetree merge <base>`, `<run-root>` spelled out as the real path in the command text
-itself, never a shell variable: `hooks/green-gate.js` reads the command text alone, and cannot resolve
-one. Base already an ancestor of the scope branch's tip → nothing moved, nothing to test: go straight to
+itself, never a shell variable: `hooks/run-trace.js` and `hooks/merge-guard.js` read the command text
+alone, and cannot resolve one. Base already an ancestor of the scope branch's tip → nothing moved, nothing to test: go straight to
 the push below.
 
 - **A conflict** — `git` leaves it unresolved (`MERGE_HEAD` still set) → list the conflicting files
@@ -188,20 +188,17 @@ the push below.
   `git -C <run-root>/scopetree merge --abort`, and stop: merge nothing. Point at `/superdev:review <scope>`
   to resolve them — a resolution is new code nobody has reviewed, so it goes back through the gate rather
   than past it.
-- **A clean merge** — `hooks/green-gate.js` fires on that `git merge` command itself and runs the command
-  `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` picks. **Its focused fence is textually identical to
-  the full one** (`docs/agents/verification.md`) → the gate's own pass already is the full run: record it
-  with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set green <new-head> --root <run-root>` and run
-  nothing more. **Otherwise, or the gate could not run** (denied, or no `verification.md`) → take the full
-  command from `docs/agents/verification.md` yourself, run it over the merged scope branch through
-  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full` (in the background when the suite outlasts the Bash
-  tool's time limit, waiting for its end before acting on it), and record
-  what happened the same way (`suite set <green|red|denied|none> <new-head> --root <run-root>`).
-  **With a `## Whole-repo command` section configured (§3)**, the gate's own pass never counts as the
-  whole-repo run, and the shortcut above does not apply: the merged tip carries no green whole-repo
-  record, so §3's whole-repo run applies to it, and that whole-repo run replaces the full-command run on the
-  merged tip, never adding a second run beside it, recorded with
-  `suite set <green|red|denied|none> <new-head> --whole --root <run-root>`.
+- **A clean merge** → take the full command from `docs/agents/verification.md`, run it once over the merged
+  scope branch through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full` (in the background when the
+  suite outlasts the Bash tool's time limit, waiting for its end before acting on it), and record what
+  happened with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set <green|red|denied|none> <new-head>
+  --root <run-root>` (ADR 0155).
+  **With a `## Whole-repo command` section configured (§3)**, the whole-repo run §3 states applies to the
+  merged tip instead: the merged tip carries no green whole-repo record, and that whole-repo run replaces
+  the full-command run on the merged tip, never adding a second run beside it, recorded with
+  `suite set <green|red|denied|none> <new-head> --whole --root <run-root>`. **No
+  `docs/agents/verification.md`, or one carrying zero fenced blocks** → nothing runs and no record is
+  written.
 - **Red, denied, or a killed or never-started run (a `none` result)** → merge nothing. Name the result and point at `/superdev:review <scope>`
   to fix it and record a new one — a review at stage `submitted` records its suite result and leaves the
   stage where it is.

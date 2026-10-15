@@ -6,7 +6,9 @@
 
 **Amended by:** [ADR 0085](0085-the-focused-test-command-is-required-configuration.md), which makes the
 focused command required configuration and supersedes the "absent second fenced block" fallback this
-record still describes below.
+record still describes below — and
+[ADR 0155](0155-a-slice-merge-runs-no-test-suite.md), which deletes `hooks/green-gate.js`, so the focused
+command's callers no longer include a merge hook.
 
 ## Context
 

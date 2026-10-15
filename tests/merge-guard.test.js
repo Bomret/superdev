@@ -563,7 +563,7 @@ assert.equal(decide(sub('grep -E "x|git merge" file')).block, true, 'the known q
 for (const cmd of [
   'grep -rn "git merge" docs/',
   "rg 'git (merge|push)' plugin/",
-  'git commit -m "fix(hooks): green-gate verifies a git merge behind rtk"',
+  'git commit -m "fix(hooks): run-trace records a git merge behind rtk"',
   'git commit -m "docs: explain why git push is the controller\'s job"',
   'git commit -m "git push fails behind rtk"',
   'gh pr create --body "Run git push after review (see #12)"',

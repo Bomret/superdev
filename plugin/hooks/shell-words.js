@@ -843,8 +843,7 @@ function run(src, cmds, queue, level, heredocBody, baseNest, hdRead, baseGroup, 
 // here-string's text of every command read, whatever command receives it, each as `{ text, cmd, alone }`: `cmd` is the receiving
 // command's `{ words, redirects }`, and `alone` is true when that command stands alone on the line: read from the command itself
 // (level 0), in the current shell (nest 0), outside a function body and any compound command or group, and piping into nothing.
-// merge-guard applies its raw-text rule to each text a sink it names does not receive, and green-gate reads each as a quoted merge
-// candidate. A here-string's text is charged to the heredoc re-read budget before it is built.
+// merge-guard applies its raw-text rule to each text a sink it names does not receive. A here-string's text is charged to the heredoc re-read budget before it is built.
 // With `quoted: true` the value of every quoted word, and of every backslash-escaped word that escapes whitespace, an operator, a
 // backtick, or a `$` (ESCAPED_LINE), not a redirect target, is read as a command line too, down to MAX_QUOTED_DEPTH, and so is that
 // value's dash reading (dashReading) when it spreads a `((`. A quoted text that does not read as a command line leaves the scan
@@ -1171,7 +1170,7 @@ const reads = (c) => (c.reads === undefined ? (c.reads = !c.drop && (c.outPsub =
 // whether they feed a shell, and `fnFed`, true once one does.
 // simplicity: a definition in a text read later (a backtick body, a quoted word, a shell-fed body) reaches only the texts read after
 // it, so a call read before it is missed, which fails open; merge-guard denies a heredoc body or here-string text by its own words
-// (`texts`), so ledger-guard, the run trace, green-gate, and `echo`/`printf` text a shell reads depend on it. An alias or function counts
+// (`texts`), so ledger-guard, the run trace, and `echo`/`printf` text a shell reads depend on it. An alias or function counts
 // wherever it sits on the line and whichever function holds the heredoc, which fails closed.
 const newIndirect = () => ({ aliases: new Set(), fns: new Set(), fnShell: false, fds: new Set(), callers: [], seen: 0, fnFed: false });
 const nameOf = (c) => (c.name === undefined ? (c.name = commandName(c.words)) : c.name);

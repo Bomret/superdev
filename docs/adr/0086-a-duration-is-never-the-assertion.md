@@ -4,7 +4,9 @@
 
 **Amended by:** [ADR 0087](0087-a-spawn-that-never-started-is-not-a-spawn-that-was-killed.md), and
 [ADR 0149](0149-a-linear-time-pin-reads-the-main-thread-s-cpu-time.md), under which a
-linear-time pin's same-run baseline is measured in the main thread's CPU time.
+linear-time pin's same-run baseline is measured in the main thread's CPU time, and
+[ADR 0155](0155-a-slice-merge-runs-no-test-suite.md), which deletes `green-gate.js` and
+`tests/green-gate.test.js`, the shipped code and test this decision names as one of its cases.
 
 **Context.** `tests/scope.test.js` asserts that a refetch against a black-holed remote returns inside a
 bounded window, by bracketing the call with `Date.now()` and requiring the elapsed value under 8000 ms.
