@@ -34,8 +34,8 @@ repository ranks by measured wall clock (`references/test-selection.md`, ADR 006
 ## Test paths
 
 - `tests/`
-- `scripts/drift/`
-- `scripts/drift-check.js`
+- `scripts/drift/selftest/`
+- `scripts/drift/contracts.js`
 - `mods/superdev-view/hooks/*.test.*`
 - `mods/superdev-view/hooks/*-fixtures.ts`
 - `mods/superdev-view/hooks/testkit.ts`
