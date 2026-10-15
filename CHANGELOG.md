@@ -1,3 +1,15 @@
+## [0.74.1](https://codeberg.org/bomret/superdev/compare/v0.74.0...v0.74.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* **verification:** class only the drift selftest and contract tables as test paths ([#1208](https://codeberg.org/bomret/superdev/issues/1208)) ([e07cc3a](https://codeberg.org/bomret/superdev/commit/e07cc3aa4de5a4179873975e74caca19195cb5b7)), closes [#1156](https://codeberg.org/bomret/superdev/issues/1156) [#1156](https://codeberg.org/bomret/superdev/issues/1156) [#1132](https://codeberg.org/bomret/superdev/issues/1132) [#1206](https://codeberg.org/bomret/superdev/issues/1206)
+
+
+### Performance Improvements
+
+* **hooks:** slice merges run no test suite ([#1209](https://codeberg.org/bomret/superdev/issues/1209)) ([ea80487](https://codeberg.org/bomret/superdev/commit/ea80487cfc019b5644c19340f484290b630be7b8))
+
 # [0.74.0](https://codeberg.org/bomret/superdev/compare/v0.73.0...v0.74.0) (2026-10-15)
 
 
