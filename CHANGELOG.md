@@ -1,3 +1,16 @@
+# [0.74.0](https://codeberg.org/bomret/superdev/compare/v0.73.0...v0.74.0) (2026-10-15)
+
+
+### Bug Fixes
+
+* **adr:** renumber the duplicate maintainer-documents ADR 0150 to 0156 ([#1207](https://codeberg.org/bomret/superdev/issues/1207)) ([95e801f](https://codeberg.org/bomret/superdev/commit/95e801f36d9cbd14166d3153ba596d4680275e24))
+* **implement:** let the operator name the slices that fix a red base gate ([ee39ad3](https://codeberg.org/bomret/superdev/commit/ee39ad35122bd20f8fbfbb28148c713ddd71c936))
+
+
+### Features
+
+* **drift:** fail the test run when two maintainer documents disagree on one fact ([#1188](https://codeberg.org/bomret/superdev/issues/1188)) ([ddcf1bd](https://codeberg.org/bomret/superdev/commit/ddcf1bdaed1f7d272143bde9d0386141de60fb3b)), closes [#1136](https://codeberg.org/bomret/superdev/issues/1136) [#1132](https://codeberg.org/bomret/superdev/issues/1132) [#1133](https://codeberg.org/bomret/superdev/issues/1133) [#1135](https://codeberg.org/bomret/superdev/issues/1135) [#489](https://codeberg.org/bomret/superdev/issues/489) [#971](https://codeberg.org/bomret/superdev/issues/971) [#489](https://codeberg.org/bomret/superdev/issues/489) [#1136](https://codeberg.org/bomret/superdev/issues/1136) [#1132](https://codeberg.org/bomret/superdev/issues/1132) [#1134](https://codeberg.org/bomret/superdev/issues/1134) [#1134](https://codeberg.org/bomret/superdev/issues/1134) [#1136](https://codeberg.org/bomret/superdev/issues/1136) [#1133](https://codeberg.org/bomret/superdev/issues/1133) [#1034](https://codeberg.org/bomret/superdev/issues/1034) [#1135](https://codeberg.org/bomret/superdev/issues/1135) [#1132](https://codeberg.org/bomret/superdev/issues/1132) [#1133](https://codeberg.org/bomret/superdev/issues/1133)
+
 # [0.73.0](https://codeberg.org/bomret/superdev/compare/v0.72.0...v0.73.0) (2026-10-14)
 
 
