@@ -48,7 +48,8 @@ is closed.
 
 Right after the run lock, before the first slice, run `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
 `## Bringing the scope branch to base`, on every invocation and at every run kind (ADR 0120, INV-0124).
-A stop there dispatches no slice.
+A stop there dispatches no slice. A red record's pick there dispatches only the slices the operator named
+(ADR 0152).
 
 ## Progress log (per slice)
 
@@ -80,7 +81,12 @@ interfaces a slice decided when you merge it (DAG step 4), pass the file's path 
 Repeat until every slice is `merged`:
 
 1. **Compute the runnable set** — slices whose `depends-on` are all `merged` and which are still `todo`.
-   (Roots have empty `depends-on`.)
+   (Roots have empty `depends-on`.) While a red record's pick stands (the base step's gate, ADR 0152),
+   the runnable set is the named slices and the unmerged slices they depend on, dependencies first, a
+   `blocked` one among them reopened and an `in-progress` one resumed per `## Resume`. The pick has
+   ended once every named slice and needed dependency is `merged` or `blocked`, or cannot start because a
+   dependency it needs is `blocked`. Then return to the base step's suite gate before you compute the set
+   again.
 2. **Dispatch implementers in parallel, capped** — one `superdev:implementer` per runnable slice, each in
    its own slicetree, each with its `model` from the controller's model table. Give each only its own
    specifics: the slice `spec` + `acceptance` + `test-applicability`, its slicetree path

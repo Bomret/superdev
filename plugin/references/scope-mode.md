@@ -488,6 +488,8 @@ branch step left you on.
    unfinished, and a slice is `in-progress`. That dirt is the slice's own work. At the full tier
    slices work in their own slicetrees, so any dirty scopetree stops. Skip the whole base step, name the skip in the
    report, and leave the work to the playbook's `## Resume`; the next invocation brings the base in.
+   When `scope.js get suite --root <run-root>` reads `red`, the skip leaves that record ungated, because
+   the pick is never stored: run step 5's gate once that slice ends, before any other slice starts.
 2. **Fetch the remote base.** Run `GIT_TERMINAL_PROMPT=0 git fetch <remote> <base>` through the Bash
    tool with its `timeout` set to 120000 ms: a missing credential fails the fetch instead of prompting,
    and a stalled remote ends it. Capture `<tip>` at once with `git rev-parse FETCH_HEAD`, because step 3
@@ -544,10 +546,30 @@ branch step left you on.
    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full` in the scopetree: the run trace records that run, and the trace must back the suite record
    (ADR 0117). After a clean merge, `hooks/green-gate.js` has already run the command `references/test-selection.md` picks, and writes that run's line to the run trace itself, recorded as `full` only when the command it ran is the full one (ADR 0117). **The focused fence is textually identical to the full one** (`docs/agents/verification.md`) → the gate's own pass already is the full run: record its result with `suite set` and run nothing more. **Otherwise, or the gate could not run** (denied, or no `verification.md`) → run the full command yourself. Run it through the runner, per the `## The two commands` section of `references/test-selection.md`, because a run the trace records as `unknown` leaves a record `suite reusable` refuses. The same command runs when the merge was skipped and the record is not reusable. Record what happened with
    `scope.js suite set <green|red|denied|none> <head> --root <run-root>`. **Green** → go to the first
-   slice. **Red, denied, or never finished** (`none`, INV-0009) → dispatch no slice, name the result, and
-   stop; the next invocation runs the suite again until the record is green. **`--unattended` → block**,
-   per `## Unattended`. No `docs/agents/verification.md`, or one carrying zero fenced blocks → no suite,
-   no record, and nothing to gate, exactly as `hooks/green-gate.js` reads it.
+   slice. **Denied, or never finished** (`none`, INV-0009) → dispatch no slice, name the result, and
+   stop; the next invocation runs the suite again. No slice can fix either.
+   **Red** → **A red record has an exit** (ADR 0152), because a slice of this scope can be its fix.
+   Attended, name the result and ask one multi-select question: which slices fix it. Offer every slice
+   not yet `merged` — `todo`, `in-progress`, or `blocked` — plus stopping. Name the slices beyond the
+   question tool's option limit in the question text, where the operator reaches them through Other.
+   - **Slices named** → the playbook runs only the named slices and the unmerged slices they depend on,
+     dependencies first. A named or needed `blocked` slice reopens, and a named `in-progress` slice resumes
+     through the playbook's own `## Resume`. No other slice starts while the record is red.
+     The pick has ended once every named slice and needed dependency is `merged` or `blocked`, or cannot
+     start because a dependency it needs is `blocked`. Then run the full command again on the scope
+     branch, through the runner as above, and record its result for the new tip. Green → the ordinary dispatch of the
+     remaining slices. Red → ask again.
+   - **Stop** → dispatch no further slice, name the result, and close with the Next block.
+     **Stop** picked together with slices, or no slice named, reads as Stop.
+     An id given through Other that names no unmerged slice is named back and the question asked again.
+   - **Every slice already `merged`** → ask nothing: go on to run handoff, whose full-suite fix loop
+     repairs the red.
+
+   The pick is never stored: every invocation that finds the record red asks again. **`--unattended` →
+   block** on every record that is not green, per `## Unattended`. A red record's block names
+   `/superdev:implement <feature-label>`, run attended, as the command that offers the pick. No
+   `docs/agents/verification.md`, or one carrying zero fenced blocks → no suite, no record, and nothing to
+   gate, exactly as `hooks/green-gate.js` reads it.
 
 **A base that cannot be fetched is a degraded pass.** No `<remote>` configured, a failed or killed fetch,
 or a remote that does not carry `<base>` → skip steps 2 and 3, run steps 4 and 5 with the local `<base>`

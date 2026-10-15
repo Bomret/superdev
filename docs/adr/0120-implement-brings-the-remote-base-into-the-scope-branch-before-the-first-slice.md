@@ -7,6 +7,9 @@
 **Amends:** [ADR 0079](0079-a-planned-ledger-hands-the-scope-branch-from-plan-to-implement.md) for when the base reaches
 the scope branch.
 
+**Amended by:** [ADR 0152](0152-a-red-base-gate-lets-the-operator-name-the-slices-that-fix-it.md), which lets
+the operator name the slices that fix a red full-suite record.
+
 ## Context
 
 `/superdev:plan` cuts the scope branch from the local base branch and writes a `planned` ledger.

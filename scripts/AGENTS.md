@@ -1190,15 +1190,23 @@ alone — `scope.js` can carry the stage and verb while `skills/plan/SKILL.md` s
 committing in the scopetree, and `scope-mode.md` can still state the rule while `skills/plan/SKILL.md`
 stops citing it — which is the one-sided-pin shape the root `AGENTS.md`'s prompt-architecture rules name.
 The `base-merge` contract (ADR 0120, INV-0124) pins `plugin/references/scope-mode.md`'s
-`## Bringing the scope branch to base` section, its fetch under the Bash tool's `timeout`, its ref-only
-fast-forward `git fetch . <tip>:refs/heads/<base>`, its merge of the fetched tip in the scopetree and the `base set` that records it, its
-full-suite gate that re-runs until `suite reusable` accepts the tip and runs the full command itself through the Bash tool after any
-merge, clean or resolved, its `lite`-tier in-progress-slice skip, its degraded pass with the same-reason dedupe, and its resolution of a conflicting
-base merge by intent through `plugin/references/merge-conflicts.md`, whose numbering-collision rule it pins
-too. A row pins the base step's merge condition after `scope.js citations` (ADR 0156): the base merges once
+`## Bringing the scope branch to base` section. It pins the fetch under the Bash tool's `timeout` and the ref-only
+fast-forward `git fetch . <tip>:refs/heads/<base>`. It pins the merge of the fetched tip in the scopetree and the `base set` that records it.
+It pins the full-suite gate. The gate re-runs until `suite reusable` accepts the tip, and runs the full command itself through the Bash tool after any
+merge, clean or resolved. It pins the exit from a red record (ADR 0152). A denied or never-finished record still stops.
+An attended run asks which unmerged slices fix a red record, in one multi-select question. It runs only those slices and the unmerged slices they depend on.
+It gates again once the pick ends. The pick ends when every named slice and needed dependency is `merged` or `blocked`,
+or unable to start because a dependency it needs is `blocked`. A scope with every slice merged goes on to run handoff.
+The pick is never stored. An unattended block names the attended command. The rows also pin two answer shapes.
+Stop together with slices, or no slice named, reads as Stop. An Other id naming no unmerged slice is named back and asked again.
+The rows also pin the red gate after a `lite` resume. There, the in-progress-slice skip leaves a red record ungated until that slice ends.
+The contract also pins the `lite`-tier in-progress-slice skip, and its degraded pass with the same-reason dedupe.
+It also pins its resolution of a conflicting base merge by intent through `plugin/references/merge-conflicts.md`, whose numbering-collision rule it pins
+too. A row pins the base step's merge condition after `scope.js citations` (ADR 0156). The base merges once
 the verb exits 0, or once every line it still prints is one the attended operator kept. The verb cannot
 exclude a line, so a condition of exit 0 alone would block an attended keep for good. It also pins the call to that section, with its placement sentence,
-in both `plugin/references/implement-lite.md` and `plugin/references/implement-full.md`. Each half reads
+in both `plugin/references/implement-lite.md` and `plugin/references/implement-full.md`, and each playbook's dispatch
+half of the red-record pick: the named slices alone while the pick stands. Each half reads
 correct alone: the section can stay intact while a playbook stops calling it, and a playbook can keep citing
 a section that has lost a clause. Rows also pin each consumer's citation of `## The scope's range base`,
 the `scope.js base resolve --branch` call in review, backlog, the implementer, and run handoff, backlog's

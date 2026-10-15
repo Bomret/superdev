@@ -36,13 +36,18 @@ closed.
 
 Right after the run lock, before the first slice, run `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
 `## Bringing the scope branch to base`, on every invocation and at every run kind (ADR 0120, INV-0124).
-A stop there dispatches no slice.
+A stop there dispatches no slice. A red record's pick there dispatches only the slices the operator named
+(ADR 0152).
 
 ## Implement
 
 - **In `depends-on` order, inline, test-first, skipping every slice the ledger already marks `merged`**
   (a slice the store already reports as merged seeds `merged`, per the `status` field run init carried into
-  `scope.js init`, and are never dispatched). For each slice: read its `spec` + `acceptance`, then carry
+  `scope.js init`, and are never dispatched). While a red record's pick stands (the base step's gate,
+  ADR 0152), implement the named slices and the unmerged slices they depend on first, in `depends-on`
+  order, a `blocked` one among them reopened and an `in-progress` one resumed per `## Resume`. The pick has
+  ended once every named slice and needed dependency is `merged` or `blocked`, or cannot start because a
+  dependency it needs is `blocked`. Then return to the base step's suite gate before any other slice. For each slice: read its `spec` + `acceptance`, then carry
   the same tracer-bullet **and surgical-edit** disciplines an implementer subagent would (one RED test,
   minimal GREEN code, repeat; every hunk traces to an acceptance criterion or the specification — remove
   only what your own edit orphaned, name pre-existing dead code instead of deleting it, and **grep for a
@@ -171,7 +176,7 @@ Read the ledger — `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --
 `get stage` — and cross-check it against `git log <range-base>..<branch>` (`<range-base>` per
 `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`; `<branch>` from the branch step
 above, never rebuilt as `<type>/<scope>`) in the scopetree. A slice the ledger marks `merged` is
-done; pick up at the next `todo` slice in `depends-on` order.
+done; pick up at the next `todo` slice in `depends-on` order — except that a `red` suite record first takes the base step's gate once the resumed `in-progress` slice ends (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Bringing the scope branch to base` step 1 lite exception, ADR 0152).
 
 **Run init's own entry step already checked the lock's liveness before this playbook ever started
 (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The run lock`), so this step reconciles state
