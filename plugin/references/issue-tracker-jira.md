@@ -33,8 +33,9 @@ Auth header: `-u "$JIRA_EMAIL:$JIRA_API_TOKEN"`, `-H "Content-Type: application/
   resolves to `none`. Capture the returned `key` (e.g. `PROJ-123`) as this slice's external id.
 - **Link a dependency** (`depends-on`):
   `POST <base>/rest/api/3/issueLink` with
-  `{ "type": {"name":"Blocks"}, "inwardIssue":{"key":"<this slice>"}, "outwardIssue":{"key":"<blocker>"} }`
-  so the slice is "blocked by" its blocker.
+  `{ "type": {"name":"Blocks"}, "inwardIssue":{"key":"<blocker>"}, "outwardIssue":{"key":"<this slice>"} }`
+  so the blocker "blocks" the slice: Jira gives `inwardIssue` the outward description "blocks" and
+  `outwardIssue` "is blocked by".
 - **Record an anchor dependency**: append a `**Blocked by feature:** <blocker-key>` line to the **anchor
   issue's own** description (a body edit through **Edit an issue's body** below) — never the "is blocked by" link above, kept distinct so the
   two relations never collide on one issue.
