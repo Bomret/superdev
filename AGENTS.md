@@ -111,6 +111,10 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   give a patch bump. **Pre-1.0 policy:** `!` or `BREAKING CHANGE` also gives a **minor** bump (a
   `releaseRules` entry in `release.config.cjs`). superdev stays below 1.0.0 until it has proven itself
   in real use, and removing that rule is what opens the first deliberate 1.0.0.
+- **No breaking changes before 1.0.0.** superdev has no official release below 1.0.0, so no change
+  counts as breaking for an adopter. A plan removes or renames a command, flag, environment variable,
+  or file format without a compatibility shim or a migration step. Its consumer-compatibility release
+  risk reads `none`, with this rule as its reason.
 
 ## Working rules (repo-specific: read before you edit hooks, the version, or the release config)
 
