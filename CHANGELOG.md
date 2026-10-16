@@ -1,3 +1,20 @@
+# [0.75.0](https://codeberg.org/bomret/superdev/compare/v0.74.1...v0.75.0) (2026-10-16)
+
+
+### Bug Fixes
+
+* **jira:** write Blocks links with the blocker as inwardIssue ([#1222](https://codeberg.org/bomret/superdev/issues/1222)) ([f97dd24](https://codeberg.org/bomret/superdev/commit/f97dd248a0cee006ba2388d83953da686d9d4d0b))
+
+
+### Features
+
+* **skills:** every chain command offers to start its successor ([#1221](https://codeberg.org/bomret/superdev/issues/1221)) ([9e47f5e](https://codeberg.org/bomret/superdev/commit/9e47f5e736f29ec749f4aabf464f5625b91c58a7))
+
+
+### Performance Improvements
+
+* **plan:** dispatch derive mode in the background with no Definition of Done ([#1220](https://codeberg.org/bomret/superdev/issues/1220)) ([d612211](https://codeberg.org/bomret/superdev/commit/d6122117b8fa0d39a8838142a6ef2be7cd07a182))
+
 ## [0.74.1](https://codeberg.org/bomret/superdev/compare/v0.74.0...v0.74.1) (2026-10-15)
 
 
