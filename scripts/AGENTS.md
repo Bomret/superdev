@@ -837,6 +837,7 @@ path, when that document is missing. A check that walks a directory reads whatev
 | `agent-tool-agnostic` | no agent under `agents/` names a concrete toolchain command | prohibition |
 | `deploy-runner-exclusivity` | no skill or agent but ship names a deploy target's command as something it runs (INV-0098) | prohibition |
 | `ship-no-opens-pr` | no shipped surface attaches opening the pull request to `/superdev:ship` (ADR 0096) | prohibition |
+| `derive-no-dod` | plan's derive dispatch bullet hands `final-reviewer` no Definition of Done, and `final-reviewer`'s `## Derive mode` reads none (INV-0158, ADR 0158) | prohibition |
 | `unmapped-paths-form` | `skills/setup/SKILL.md` and `references/test-selection.md` propose no `{paths}` form to a runner that maps no source file to its tests (ADR 0074) | prohibition |
 | `narrative-coverage` | this table carries exactly one row per registered check, and no row for an unregistered id | structural |
 

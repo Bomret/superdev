@@ -220,6 +220,30 @@ Definition of Done** — checkable acceptance criteria for the whole feature. St
 per-slice `acceptance` as **observable, user-facing behaviour**, never gameable proxy counts (coverage %,
 line count, lint score): a proxy is a reviewer signal, never an agent-facing gate (ADR 0002).
 
+**Start the derive dispatch as soon as the solution shape settles (ADR 0158).** Once the problem, the
+solution shape, and the list of files it changes are settled, start the derive pass's dispatch before the
+Definition-of-Done passes below ("in every configuration?", reachability, deploy targets, release risk),
+and keep interviewing while it runs. On an append, the dispatched intent is the extension. *Settle the
+derived criteria before slicing* below compares the result once the Definition of Done is final.
+
+- **Dispatch `superdev:final-reviewer` in derive mode** in the background (`run_in_background: true`),
+  with an explicit `model: opus` (a hook blocks any dispatch to a superdev subagent that omits one). Hand
+  it the interview's settled problem statement and solution shape as text, and the **paths** of the files
+  the solution shape changes (you list the existing ones from the solution shape before the dispatch; with
+  none, skip the class pass and say so in the dispatch). Hand it no Definition of Done, by path or by
+  text, on every plan kind, so the derivation stays blind to it (ADR 0158, INV-0158). A repair's problem
+  statement may quote the original feature's observed line, which is not this plan's Definition of Done.
+  It names the failure-mode classes in the changed code, each with a cited file (ADR 0146). It derives
+  from the handed intent and grounds each failure-mode class in the files it reads itself, never in the
+  dispatch's description of them. It returns every derived criterion and failure-mode class, each with a
+  one-line reason and a lean (criterion or non-goal).
+- **A change to the problem or the solution shape** after the dispatch started gets a new background
+  dispatch. Settle only the result of the dispatch made against the current problem and solution shape,
+  whatever order the results arrive in; a superseded dispatch's result is ignored.
+- **A changed file added after the dispatch started** gets the failure-mode class pass from you, inline,
+  for the added files only, before settlement. A class grounded only in a file the solution shape no
+  longer changes is dropped; a class grounded in a dropped file and a kept file stays.
+
 **Ask "in every configuration?" of every Definition-of-Done criterion.** A criterion that names behaviour
 holds in some configurations and not others: a fallback the repo supports, an optional config document
 nobody wrote, a unit the host has disabled, a runner that cannot do what the criterion assumes. Walk the
@@ -325,26 +349,25 @@ The capture reads the open records first and follows `${CLAUDE_PLUGIN_ROOT}/refe
 *Triage record* rule (ADR 0145). The record goes to the store at once, whether or not a scopetree exists
 yet: nothing about it waits for the scope branch.
 
-**Derive criteria from the intent before slicing (ADR 0099, INV-0096).** Once the "in every
+**Settle the derived criteria before slicing (ADR 0099, INV-0096).** Once the "in every
 configuration?", reachability, and release-risk passes above have pinned the Definition of Done, and before §3
-decomposes, check the draft against the intent. Every plan runs this pass: a new feature, a
-single-slice plan, and an append, where it covers the whole amended Definition of Done.
+decomposes, check the draft against the result of the derive dispatch the interview started early (*Start
+the derive dispatch* above). Every plan runs this pass: a new feature, a single-slice plan, an append,
+where it covers the whole amended Definition of Done, and a repair.
 
 - **Write the draft** to `.superdev/dod-draft-<slug>.md` in the invoking checkout, `<slug>` being the
   feature label's slug picked above (parallel plan runs in one checkout then never share a draft), a
   git-ignored file outside `.superdev/scopes/` (ensure `.superdev/` is in `.gitignore`; add it if absent),
   so the pass creates no run root before §2's cut. On an append, the draft is the existing epic's
   Definition of Done, as loaded in §0 through the store, folded with the amended criteria.
-- **Dispatch `superdev:final-reviewer` in derive mode** with an explicit `model: opus` (a hook blocks any
-  dispatch to a superdev subagent that omits one). Hand it the interview's settled problem statement and
-  solution shape as text, the **paths** of the files the solution shape changes (you list the existing
-  ones from the solution shape before the dispatch; with none, skip the class pass and say so in the
-  dispatch), and the **path** of the drafted Definition of Done, never inlined, so the reviewer derives
-  before it reads (ADR 0020). It names the failure-mode classes in the changed code, each with a cited file,
-  before it opens the Definition of Done (ADR 0146). It derives from the handed intent and grounds each failure-mode class in the files it reads itself, never in the dispatch's description of them. It returns every derived criterion and failure-mode
-  class the Definition of Done does not cover, each with a one-line reason and a lean (criterion, fold into
-  a named criterion, or non-goal), plus any ambiguous line. Fix an ambiguous line in the draft.
-- **Settle the gaps, then propose.** Check each gap the reviewer returns against the repository and
+- **Wait only for what is left.** A derive result that arrived before the Definition of Done was final is
+  compared now, with no further wait. A result that has not arrived is waited for until its dispatch ends.
+- **Compare the result against the Definition of Done.** Judge each returned item against the whole draft
+  — on an append, the amended Definition of Done: **covered**, citing the line that covers it; **fold**,
+  naming the criterion it folds into; **criterion**; or **non-goal**. Every item that is not covered is a
+  gap. Check every draft line for wording two careful readers would verify differently, and fix each such
+  line in the draft.
+- **Settle the gaps, then propose.** Check each gap against the repository and
   settle it yourself, the way `references/cross-exam.md`'s live-options rule vets an option: a
   Definition-of-Done criterion, which then gets the "in every configuration?" pass; a fold into a criterion
   already there; or a named non-goal in the epic — on a single-slice plan, an exclusion in the lone
@@ -356,11 +379,12 @@ single-slice plan, and an append, where it covers the whole amended Definition o
   Settle each failure-mode class the Definition of Done does not name the same way, as a criterion stated
   as the class (so a later instance of it is in scope for the fix loop, never a deferred finding), a fold
   into an existing criterion, or a named non-goal.
-  No plan reaches §3 while a gap stands unsettled. When the reviewer returns no gaps, say so in one line
+  No plan reaches §3 while a gap stands unsettled. When the comparison finds no gaps, say so in one line
   and continue.
-- **A denied dispatch** (the permission classifier refuses it): derive the criteria inline yourself,
-  say so in your output, and settle the gaps the same way. Run the same failure-mode class pass inline:
-  read the changed files and settle each class as above.
+- **A dispatch that ends without a result** — the permission classifier denied it, it failed, it was
+  stopped, or it was lost to a session end: derive the criteria inline yourself, say so in your output,
+  and settle the gaps the same way. Run the same failure-mode class pass inline: read the changed files
+  and settle each class as above.
 - **An observation is captured the moment you meet it.** Read
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations` section and follow it: a defect
   the reviewer's report surfaces, that no slice of this scope covers and the scope did not cause, gets a

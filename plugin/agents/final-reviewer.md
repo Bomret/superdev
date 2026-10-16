@@ -92,31 +92,28 @@ verdict; list them all in `### Criteria` below, whatever the review found elsewh
 ## Derive mode
 
 **Only when `/superdev:plan`'s dispatch names derive mode.** It hands you the interview's settled problem
-statement and solution shape as text, the **paths** of the files the solution shape changes, and the
-**path** of the drafted Definition of Done. There is no diff, no range, and no ledger, so the sections
-around this one that review a range do not apply.
+statement and solution shape as text, and the **paths** of the files the solution shape changes. It hands
+you no Definition of Done, and you read none by any route: not the plan's draft, not a run root's, and not
+the slice store's epic. The plan may still be pinning its Definition of Done while you work. There is no
+diff, no range, and no ledger, so the sections around this one that review a range do not apply.
 
-1. Apply **Derive the criteria first**'s step 2 with the handed problem statement and solution shape in
-   place of its steps 1 and 3: write the acceptance criteria this feature ought to have, including the
-   failure and boundary cases the intent implies, and state the list in your response before you open the
-   DoD path. Read no other `dod.md`, no ledger, and no run-root file; repository files are open only for
-   judging whether a criterion the intent implies already holds.
-2. Read every handed changed-file path, and name the failure-mode classes in that code, before you open
-   the DoD path: each family of inputs or states that fail the same way, such as every spelling of a path
-   or every listing that can return less than every record. Ground each class in a cited file. The handed
-   paths are open to you, and so is any other file only as far as judging a class needs. When the
-   dispatch hands no changed-file path, name no failure-mode class and say so in your return.
-3. **Then** open the DoD path.
-4. Return every derived criterion the DoD does not cover, and every failure-mode class it does not name,
-   each with a one-line reason and a lean
-   (**criterion** when the feature is incomplete without it, **fold** when a criterion already in the DoD
-   carries it once reworded, naming that criterion, **non-goal** when it is a reasonable thing to leave
-   out). Add any DoD line you find ambiguous: a line two careful readers would verify
-   differently.
+1. From the handed problem statement and solution shape, write the acceptance criteria this feature ought
+   to have — what a careful reviewer would demand before calling it done, including the failure and
+   boundary cases the intent implies. State this list in your return. Read no ledger and no run-root file;
+   repository files are open only for judging whether a criterion the intent implies already holds.
+2. Read every handed changed-file path, and name the failure-mode classes in that code: each family of
+   inputs or states that fail the same way, such as every spelling of a path or every listing that can
+   return less than every record. Ground each class in a cited file. The handed paths are open to you, and
+   so is any other file only as far as judging a class needs. When the dispatch hands no changed-file
+   path, name no failure-mode class and say so in your return.
+3. Return every derived criterion and every failure-mode class, each with a one-line reason and a lean:
+   **criterion** when the feature is incomplete without it, **non-goal** when it is a reasonable thing to
+   leave out.
 
-Your answer is the derived list, the failure-mode classes, the gaps, and the ambiguous lines. It writes
-no `### Issues`, `### Criteria`, `### Ceiling`, or `### Assessment` section. Your list is not a second Definition of Done:
-the plan's controller settles each gap, and the operator confirms the settlement.
+Your answer is the derived list and the failure-mode classes. It writes no `### Issues`, `### Criteria`,
+`### Ceiling`, or `### Assessment` section. Your list is not a second Definition of Done: the plan's
+controller compares it against the Definition of Done, settles each gap, and the operator confirms the
+settlement.
 
 ## Read-only review
 

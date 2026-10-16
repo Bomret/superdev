@@ -33,6 +33,7 @@ const {
   scanNoBaseBranchCommit,
   scanShipNoOpensPr,
   scanShipHumanOnly,
+  scanDeriveNoDod,
   scanInvariantRegisterJoin,
 } = require('./scanners');
 const {
@@ -202,6 +203,12 @@ module.exports = [
     id: 'ship-no-opens-pr',
     ok: 'no shipped surface pairs `/superdev:ship` with opening the pull request — submit-pr opens it, ship only merges',
     run: scanShipNoOpensPr,
+    format: contractGap,
+  },
+  {
+    id: 'derive-no-dod',
+    ok: "plan's derive dispatch hands final-reviewer no Definition of Done, and derive mode reads none (INV-0158)",
+    run: scanDeriveNoDod,
     format: contractGap,
   },
   {

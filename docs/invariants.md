@@ -815,7 +815,7 @@ Paths: plugin/skills/review/**, plugin/references/implement-full.md, plugin/agen
 
 Class: process
 Concepts: Derived criteria, Definition of Done (DoD), Intent
-Statement: `/superdev:plan` slices no plan while a criterion derived from its intent is neither in the Definition of Done nor named as a non-goal. Every plan runs the derive pass: a new feature, a single-slice plan, and an append.
+Statement: `/superdev:plan` slices no plan while a criterion derived from its intent is neither in the Definition of Done nor named as a non-goal. Every plan runs the derive pass: a new feature, a single-slice plan, an append, and a repair.
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/plan/**, plugin/agents/final-reviewer.md
@@ -1316,3 +1316,12 @@ Statement: An implementer or slice-reviewer that meets a failing test its own sl
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/agents/implementer.md, plugin/agents/slice-reviewer.md, plugin/references/implement-full.md
+
+### INV-0158
+
+Class: process
+Concepts: Derived criteria, Definition of Done (DoD), Intent
+Statement: `/superdev:plan`'s derive dispatch carries no line of the plan's Definition of Done, by path or by text, and `final-reviewer` in derive mode reads no Definition of Done by any route, on every plan kind (ADR 0158).
+Breaks: silently
+Check: scripts/drift-check.js `derive-no-dod` — plan's derive dispatch bullet hands no Definition of Done, and final-reviewer's derive mode reads none
+Paths: plugin/skills/plan/SKILL.md, plugin/agents/final-reviewer.md

@@ -62,9 +62,10 @@ plan runs test-first, inline in the scopetree.
   defect the interview finds is always fixed: the command asks only whether the fix goes into a planned
   slice, into its own slice, or into a triage record for later. Before it slices, `final-reviewer`
   derives acceptance criteria from the intent alone and the command diffs them against the drafted
-  Definition of Done. The command settles each gap itself, as a criterion, a fold into an existing
-  criterion, or a named non-goal, and shows the settlement as one proposal you confirm before slicing
-  (ADR 0099, ADR 0122).
+  Definition of Done. The derivation starts in the background as soon as the solution shape settles and
+  is handed no Definition of Done, so the interview continues while it runs (ADR 0158). The command
+  settles each gap itself, as a criterion, a fold into an existing criterion, or a named non-goal, and
+  shows the settlement as one proposal you confirm before slicing (ADR 0099, ADR 0122).
   It opens with one question: a new feature, an extension of an existing one, or a **repair**. A repair
   plans a `fix` feature for a shipped scope whose Definition of Done holds a criterion `/superdev:verify-ship`
   observed false. The repair has its own anchor, branch, and Definition of Done, and its anchor carries a

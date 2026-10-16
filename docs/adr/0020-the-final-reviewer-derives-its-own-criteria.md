@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0158](0158-the-derive-dispatch-runs-in-the-background-and-reads-no-definition-of-done.md),
+whose plan-time derive mode takes no Definition of Done at all, path or text.
+
 ## Context
 
 Every quality bar superdev applies to code is a floor. The Definition of Done is written by `/superdev:plan`'s

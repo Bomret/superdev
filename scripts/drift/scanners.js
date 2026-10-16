@@ -922,6 +922,45 @@ function scanShipHumanOnly(root) {
   return gaps;
 }
 
+// scanDeriveNoDod(): plan's derive dispatch hands `final-reviewer` no Definition of Done, and derive mode
+// reads none (INV-0158, ADR 0158). The plan side is bounded to the dispatch bullet and its indented
+// continuation lines, because plan names the draft legitimately elsewhere; the agent side to the
+// `## Derive mode` section. A missing bullet or section is a gap, so a rename cannot pass vacuously.
+// simplicity: shape-based; a paraphrase that hands the draft without these words walks past.
+const DERIVE_DISPATCH_START = /^- \*\*Dispatch `superdev:final-reviewer` in derive mode\*\*/;
+const DERIVE_DISPATCH_DOD = /dod-draft|dod\.md|drafted Definition of Done|\bDoD path\b/i;
+const DERIVE_MODE_DOD = /dod-draft|dod\.md|drafted Definition of Done|\bDoD path\b|\bopens? the (?:DoD|Definition of Done)\b/i;
+function scanDeriveNoDod(root) {
+  const gaps = [];
+  const plan = path.join('skills', 'plan', 'SKILL.md').split(path.sep).join('/');
+  const planText = readDoc(root, plan);
+  if (planText === null) gaps.push(missingDoc(plan));
+  else {
+    const lines = planText.split('\n');
+    const start = lines.findIndex((l) => DERIVE_DISPATCH_START.test(l));
+    if (start === -1) {
+      gaps.push({ source: plan, expectation: 'carry the `**Dispatch `superdev:final-reviewer` in derive mode**` bullet (INV-0158)' });
+    } else {
+      let end = start + 1;
+      while (end < lines.length && /^ {2}\S/.test(lines[end])) end++;
+      if (DERIVE_DISPATCH_DOD.test(lines.slice(start, end).join(' '))) {
+        gaps.push({ source: plan, expectation: 'hand the derive dispatch no Definition of Done, by path or by text (INV-0158, ADR 0158)' });
+      }
+    }
+  }
+  const agent = path.join('agents', 'final-reviewer.md').split(path.sep).join('/');
+  const agentText = readDoc(root, agent);
+  if (agentText === null) gaps.push(missingDoc(agent));
+  else {
+    const m = /^## Derive mode\s*$([\s\S]*?)(?=^## |(?![\s\S]))/m.exec(agentText);
+    if (!m) gaps.push({ source: agent, expectation: 'carry the `## Derive mode` section (INV-0158)' });
+    else if (DERIVE_MODE_DOD.test(m[1].replace(/\s+/g, ' '))) {
+      gaps.push({ source: agent, expectation: 'read no Definition of Done in derive mode, by any route (INV-0158, ADR 0158)' });
+    }
+  }
+  return gaps;
+}
+
 // The invariant register joined to the drift registry and the contract tables (ADR 0156). A register
 // `Check:` line that names `scripts/drift-check.js` lists the ids it pins as backticked tokens up to the
 // next `;`; a token shaped like a check id must be a registered one (a backticked token that is not
@@ -1006,5 +1045,6 @@ module.exports = {
   scanNoBaseBranchCommit,
   scanShipNoOpensPr,
   scanShipHumanOnly,
+  scanDeriveNoDod,
   scanInvariantRegisterJoin,
 };

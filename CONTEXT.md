@@ -232,7 +232,7 @@ _Avoid: "blocked by", "dependency" (too generic, where "depends-on" is the expli
 
 ## Review discipline
 
-**Final-reviewer**: the whole-scope review gate after all slices are merged. It checks the integrated diff against the global DoD. It is read-only (`Read`, `Grep`, and `Bash`, with no `Edit`), so its findings drive the dispatching command's 3-strike fix loop. It never applies a fix itself. `/superdev:plan` also dispatches it in derive mode, before slicing, to write **Derived criteria** against a drafted DoD.
+**Final-reviewer**: the whole-scope review gate after all slices are merged. It checks the integrated diff against the global DoD. It is read-only (`Read`, `Grep`, and `Bash`, with no `Edit`), so its findings drive the dispatching command's 3-strike fix loop. It never applies a fix itself. `/superdev:plan` also dispatches it in derive mode, before slicing, to write **Derived criteria** that the plan's controller compares against the drafted DoD (ADR 0158).
 _Avoid: "final review", "scope review" (the role and the agent, not just the step)_
 
 **3-strike fix loop**: the fix cycles a final review or a per-slice review drives. Each cycle dispatches one fix carrying every listed finding, Minors included, and repeats until the review lists none. A cycle dispatches no fix only when the controller answers a Missing fail-to-pass run finding with its own fail-to-pass run and no fix goes out before the next re-review. That run and that re-review then count as one cycle. When a fix goes out before the same re-review, the run, the fix, and the re-review count together as one cycle (ADR 0134). A fix for a finding that names failing behaviour opens with a RED test. The cap is 3 cycles. At the cap, a remaining Critical or Important finding means a wrong cut (hidden dependency, boundary too big), not a buggy slice: move it to blocked and escalate. A remainder of only Minor findings advances instead (INV-0094). A remainder whose only Critical or Important findings are Missing RED, Pass-to-pass, or Missing fail-to-pass run, in any mix, advances too, and the run's final report names each with its slice. Any of them beside a Critical or Important finding of another kind still blocks (ADR 0125, ADR 0134).
@@ -247,7 +247,7 @@ _Avoid: "trivial" (a one-line fix can change a rule), "small" (size is not the t
 **Judge discipline**: the verification principle every review agent carries, adapted to the subject it judges. Verify the artifact and the behaviour yourself, and never defer to the implementer's or controller's narrative of what was done. Length or an elaborate structure is not its own evidence of correctness or of warranted complexity. A reviewer that judges a completion claim also rejects one resting only on proxy counts (coverage percentage, line count, lint score), and confirms the observable behaviour instead (ADR 0002).
 _Avoid: "verification discipline" (too generic, because this means not trusting the builder's account of its own work)_
 
-**Derived criteria**: the acceptance criteria `final-reviewer` writes itself, from the feature's intent alone, before it reads the Definition of Done or the diff. Diffing them against the DoD surfaces criteria the plan never wrote. It needs a DoD written by someone else to diff against, so the dispatch hands over the DoD's **path** rather than its text, and the reviewer opens it after its own list exists (ADR 0020). Two surfaces dispatch it: `/superdev:review` in scope mode, and `/superdev:plan` before slicing, where every gap becomes a DoD criterion, a fold into an existing criterion, or a named non-goal (INV-0096).
+**Derived criteria**: the acceptance criteria `final-reviewer` writes itself, from the feature's intent alone, before it reads the Definition of Done or the diff. Diffing them against the DoD surfaces criteria the plan never wrote. It needs a DoD written by someone else to diff against. `/superdev:review` in scope mode hands over the DoD's **path** rather than its text, and the reviewer opens it after its own list exists (ADR 0020). `/superdev:plan` dispatches derive mode in the background before the DoD is final and hands over no DoD at all; its controller diffs the returned list against the final DoD, and every gap becomes a DoD criterion, a fold into an existing criterion, or a named non-goal (INV-0096, INV-0158, ADR 0158).
 _Avoid: "independent criteria", "own criteria" (the point is where they come from, not whose they are)_
 
 **Failure-mode class**: a family of inputs or states in the code a feature changes that fail the same
@@ -322,8 +322,8 @@ written `(triage <reference>)`, and one criterion may cite several records of on
 `**Absorbs:** #<n>[, #<n>]`, names every record the scope absorbed. `/superdev:backlog` shows it in its own
 `absorbed` bucket while that anchor is open, and `/superdev:wrap-up` closes it once its citing criterion is
 met, or once the operator chooses to close it when that criterion is accepted unmet (ADR 0144).
-_Avoid: "folded record" ("fold" is the derive pass's word for merging a derived criterion into an existing
-one), "planned record" (it stays a triage record, not a slice)_
+_Avoid: "folded record" ("fold" is the derive pass's word, the plan controller's judgment, for merging a derived
+criterion into an existing one), "planned record" (it stays a triage record, not a slice)_
 
 **Untriaged item**: an open record in the slice store that superdev never wrote — it carries neither a
 feature label nor the store's triage signal, so it is neither a **Scope anchor**, nor a slice, nor a

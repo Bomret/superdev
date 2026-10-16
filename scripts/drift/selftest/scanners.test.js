@@ -32,6 +32,7 @@ const {
   scanNoBaseBranchCommit,
   scanShipNoOpensPr,
   scanShipHumanOnly,
+  scanDeriveNoDod,
 } = require('../scanners');
 const {
   ADR_STATUSES,
@@ -564,6 +565,48 @@ module.exports = ({ assert, fs, path, fixture, found, realRoot }) => {
     scanShipNoOpensPr(fixture({ 'skills/ship/SKILL.md': '`/superdev:ship` merges the pull request.\n' })),
     [{ source: 'README.md', missing: true }],
     'a missing README.md is a missing-document gap',
+  );
+
+  // --- derive-no-dod: plan's derive dispatch hands no Definition of Done, and final-reviewer's derive
+  // mode reads none (INV-0158, ADR 0158) ---
+
+  const derivePlan = (bullet) =>
+    '- **Write the draft** to `.superdev/dod-draft-<slug>.md` in the invoking checkout.\n' +
+    `- **Dispatch \`superdev:final-reviewer\` in derive mode** in the background. ${bullet}\n` +
+    '  It returns every derived criterion.\n' +
+    '- **Compare** the result against `.superdev/dod-draft-<slug>.md`, the drafted Definition of Done.\n';
+  const deriveAgent = (body) =>
+    `## Derive mode\n\n${body}\n\n## Read-only review\n\nOpen \`<run-root>/dod.md\` and the DoD path.\n`;
+  const deriveFixture = (plan, agent) =>
+    fixture({ 'skills/plan/SKILL.md': plan, 'agents/final-reviewer.md': agent });
+  assert.deepEqual(
+    scanDeriveNoDod(deriveFixture(derivePlan('Hand it the problem statement and no Definition of Done.'), deriveAgent('Read no Definition of Done by any route.'))),
+    [],
+    'the draft named outside the dispatch bullet, and dod.md named outside derive mode, are clean',
+  );
+  for (const bullet of [
+    'Hand it the path `.superdev/dod-draft-<slug>.md`.',
+    'Hand it the **path** of the drafted Definition of Done, never inlined.',
+    'Hand it the DoD path.',
+  ]) {
+    const gaps = found(scanDeriveNoDod(deriveFixture(derivePlan(bullet), deriveAgent('Read no Definition of Done.'))));
+    assert.equal(gaps.length, 1, `catches a dispatch bullet that hands a Definition of Done: ${bullet}`);
+    assert.equal(gaps[0].source, 'skills/plan/SKILL.md', 'names plan');
+  }
+  for (const body of ['**Then** open the DoD path.', 'Read no other `dod.md`.', 'Then open the Definition of Done.']) {
+    const gaps = found(scanDeriveNoDod(deriveFixture(derivePlan('Hand it no Definition of Done.'), deriveAgent(body))));
+    assert.equal(gaps.length, 1, `catches derive mode reading a Definition of Done: ${body}`);
+    assert.equal(gaps[0].source, 'agents/final-reviewer.md', 'names final-reviewer');
+  }
+  assert.equal(
+    found(scanDeriveNoDod(deriveFixture('- **Write the draft** somewhere.\n', deriveAgent('Read no Definition of Done.')))).length,
+    1,
+    'a plan with no derive dispatch bullet is a gap, so a renamed bullet cannot pass vacuously',
+  );
+  assert.equal(
+    found(scanDeriveNoDod(deriveFixture(derivePlan('Hand it no Definition of Done.'), '## Read-only review\n\nx\n'))).length,
+    1,
+    'a final-reviewer with no `## Derive mode` section is a gap',
   );
 
   // --- narrative-coverage: scripts/AGENTS.md's drift-check table holds exactly one row per registered

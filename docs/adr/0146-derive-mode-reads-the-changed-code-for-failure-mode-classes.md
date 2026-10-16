@@ -5,6 +5,9 @@
 **Amends:** [ADR 0099](0099-plan-derives-criteria-from-the-intent-before-slicing.md), whose derive pass
 works from the intent alone.
 
+**Amended by:** [ADR 0158](0158-the-derive-dispatch-runs-in-the-background-and-reads-no-definition-of-done.md),
+whose reviewer names the classes without opening the Definition of Done afterwards.
+
 **Context.** ADR 0099's derive pass started on 2026-10-03. The week after was the highest-volume week
 for triage records. Of the 52 deferred records that state why no Definition-of-Done criterion covered
 them, many name a robustness property the reviewer derived from the code: a bound that cannot degenerate,

@@ -9,6 +9,10 @@ question.
 **Amended by:** [ADR 0146](0146-derive-mode-reads-the-changed-code-for-failure-mode-classes.md), which
 has the derive pass also read the code the solution shape changes and name its failure-mode classes.
 
+**Amended by:** [ADR 0158](0158-the-derive-dispatch-runs-in-the-background-and-reads-no-definition-of-done.md),
+which dispatches derive mode in the background with no Definition of Done and moves the comparison to the
+plan's controller.
+
 **Context.** `final-reviewer` derives acceptance criteria from the intent alone, before it reads the
 Definition of Done, and reports every criterion the DoD left out (ADR 0020). That derivation runs only at
 review, after the scope is built. `/superdev:review` defers every criterion missing from `dod.md` to a
