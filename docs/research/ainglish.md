@@ -170,10 +170,9 @@ Adopting Ainglish is not a small edit. A full adoption touches, at minimum:
   `plugin/references/AGENTS.md`.
 - A revision of ADR 0012, which chose `controlled` after weighing three catalogues, plus a new ADR for the
   notation layer.
-- A new `## Writing standard` value, and the `/superdev:setup` seed that offers it. `scripts/drift/checks.js`
-  asserts the seed carries the section, so the seed change is checked.
-- Drift rows in `scripts/drift/contracts.js`, which pins `controlled-prose.md`'s `Modes` and `Self-check`
-  sections today. A second standard needs the matching pins.
+- A new `## Writing standard` value, and the `/superdev:setup` seed that offers it.
+- The `source-sections` drift check, which pins the `## Modes` and `## Self-check` headings of
+  `controlled-prose.md`. An adoption that moves or renames those headings updates that check's rows.
 - `plugin/skills/prose-check/SKILL.md`, which loads `controlled-prose.md` unconditionally by ADR 0057, and
   which reports findings under that file's own section headings.
 - `plugin/agents/doc-writer.md` and `plugin/agents/doc-reader.md`, which apply and verify the standard.

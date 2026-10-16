@@ -59,8 +59,7 @@ other rule.
 - Do not count a set the repository can grow or shrink. Name the set, or name its members. A numeral
   stays where the number is the fact itself: a cap, a limit, a threshold, or a contract of fixed arity.
   Write "the hooks in `hooks/`", not "the eight shipped hooks". Keep "the two halves of the contract",
-  where two is what the contract says. A drift contract table's row count is a growing-set count, not a
-  fixed arity: name the table or the clauses its rows pin, not how many rows it has.
+  where two is what the contract says.
 - Do not use stock phrases. Remove "at the end of the day", "when it comes to", and "in order to".
 - Do not use regional words, slang, or jargon as a technical term.
 - Write a technical term of more than three words in full one time. Then give a shorter form, or join

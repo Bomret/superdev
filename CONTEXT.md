@@ -284,10 +284,10 @@ deferred section is rebuilt (ADR 0121, ADR 0145).
 _Avoid: "scope growth", "out-of-scope finding" (the point is the DoD boundary, not that the finding is
 unwelcome or off-topic)_
 
-**Guard-rail remedy**: a fix-loop remedy that extends what exists and adds no behaviour: a new test in an
-existing suite, a new row in an existing drift contract table, or a prose fix that makes shipped text
+**Guard-rail remedy**: a fix-loop remedy that extends what exists and adds no behaviour: a case in an
+existing test suite, a case or row for an existing drift check, or a prose fix that makes shipped text
 agree with a rule the repository already states. It stays in the fix loop and is never a **Deferred
-finding**. A new scanner, check family, hook, or script verb is not one (ADR 0097).
+finding**. A new scanner, check family, hook, or script verb is not one (ADR 0097, ADR 0153).
 _Avoid: "small fix", "trivial remedy" (the line is the kind of change, not its size)_
 
 **Plan-coverage gap**: a criterion `final-reviewer` derives from the intent that the code already
@@ -388,7 +388,7 @@ _Avoid: "full reader-test" (the mechanism, not the mode), "doc review" (review i
 **Audit set**: the file set an audit reads: the documentation convention's own tree (`AGENTS.md` hierarchy, `README.md`, `CONTEXT.md`, local KB pages) by default, extended per repo by an `## Audit set` section in `docs/agents/documentation.md`.
 _Avoid: "doc tree" (that is only the default, and the set may include other prose surfaces)_
 
-**Drift assertion**: a deterministic check in the repo's test chain that a fact restated outside its source (a guard regex's coverage of `agents/`, a referenced plugin path) still matches the artifact it derives from.
+**Drift assertion**: a deterministic check in the repo's test chain that a mechanical fact holds (a link or section target resolves, a number is unique, a file or command exists, a property of code or configuration holds) or that shipped prose carries no forbidden form. It never asserts how a positive clause is worded (ADR 0153).
 _Avoid: "drift test" (it is an assertion inside the existing chain, not a suite), "consistency check" (too generic, because that names a review lens)_
 
 **Bootstrap** (mode): the brownfield-seed mode of `/superdev:document` (empty args, `AGENTS.md`-hierarchy convention, root `AGENTS.md` absent). The doc-writer seeds the root and child `AGENTS.md` files from the existing code and proposes `CONTEXT.md` candidate terms, which the controller confirms or prunes with the user before committing. A range or area invocation never bootstraps.
@@ -506,5 +506,5 @@ _Avoid: "doc-reviewer" (it tests grounding and first-read clarity, not prose qua
 **Test-auditor**: read-only. Prices a whole test tree in one pass against a duration table, naming what each test costs against what it proves. Dispatched once, over the whole swept set, by `/superdev:review-tests` (ADR 0066).
 _Avoid: "test reviewer" (review is the code-review family; this prices cost, not correctness)_
 
-**Dispatch prose**: the text a command sends to a subagent, as distinct from that subagent's own body. Both reach the model in one prompt, and the dispatch is the later, more specific instruction, so it wins a conflict between them. A behaviour contract stated in an agent body therefore also has to hold in every dispatch that reaches it, which is why a drift row pins both halves rather than the body alone (ADR 0035).
+**Dispatch prose**: the text a command sends to a subagent, as distinct from that subagent's own body. Both reach the model in one prompt, and the dispatch is the later, more specific instruction, so it wins a conflict between them. A behaviour contract stated in an agent body therefore also has to hold in every dispatch that reaches it (ADR 0035).
 _Avoid: "the prompt" (ambiguous between the two halves)_

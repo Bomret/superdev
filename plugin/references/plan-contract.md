@@ -463,9 +463,9 @@ Each store's own `## Definition of Done ticks` section states, citing this secti
 ## Triage record
 
 A **deferred finding** — a fix-loop finding whose remedy adds a capability the Definition of Done never
-asked for — gets a **triage record** in the slice store. A guard-rail remedy (a test in an existing
-suite, a row in an existing drift table, or a prose fix that agrees shipped text with a stated rule) is
-never a deferred finding (ADR 0097). A later instance of a failure-mode class that a Definition-of-Done
+asked for — gets a **triage record** in the slice store. A guard-rail remedy (a case in an existing
+test suite, a case or row for an existing drift check, or a prose fix that agrees shipped text with a
+stated rule) is never a deferred finding (ADR 0097, ADR 0153). A later instance of a failure-mode class that a Definition-of-Done
 criterion names is in scope for the fix loop and never a deferred finding (ADR 0146). A finding that
 plainly states the same defect as a triage record this run's scope anchor absorbs is in scope for the fix
 loop and never a deferred finding, because a criterion already cites that record (ADR 0144). The run's ledger carries a `**Deferred:**` bullet

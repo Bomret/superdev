@@ -817,8 +817,8 @@ A **deferred finding** is a review finding whose remedy would add a capability t
 never named (ADR 0035). The scope review's fix loop and the full tier's per-slice loop change how the code meets that Definition of Done,
 so such a remedy leaves the loop and goes to `/superdev:plan`. This record is what carries it there.
 
-A **guard-rail remedy** stays in the loop and is never a deferred finding (ADR 0097): a new test in an
-existing suite, a new row in an existing drift contract table, or a prose fix that makes shipped text agree
+A **guard-rail remedy** stays in the loop and is never a deferred finding (ADR 0097, ADR 0153): a case in an
+existing test suite, a case or row for an existing drift check, or a prose fix that makes shipped text agree
 with a rule the repository already states. A remedy that builds a new scanner, check family, hook, or
 script verb, or that changes what a plugin user can observe, still defers, whatever the finding's severity.
 A later instance of a failure-mode class that a Definition-of-Done criterion names is in scope for the fix

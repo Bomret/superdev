@@ -4,6 +4,9 @@
 
 **Amends:** [ADR 0035](0035-a-review-fix-changes-how-not-what.md).
 
+**Amended by:** [ADR 0153](0153-drift-check-checks-facts-not-wording.md), which drops a new drift contract
+row from the guard-rail remedy list.
+
 **Context.** ADR 0035 sends every remedy that adds a capability the Definition of Done never named to
 `/superdev:plan`. The reviewers and the controller read "capability" widely. A new drift contract row, a
 test that proves behaviour the code already has, and a fix that makes a shipped sentence agree with a rule

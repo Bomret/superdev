@@ -186,16 +186,16 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
     instead, and so does every line written for the operator, such as the Next block.
   - **A contract in an agent body also holds in the dispatch prose that reaches it.** Both halves arrive
     in one prompt, and the dispatch is the later, more specific instruction, so it wins a conflict
-    ([`CONTEXT.md`](CONTEXT.md) → *Dispatch prose*, ADR 0035). Where a drift row pins a clause in
-    `agents/`, pin the `skills/` sentence that dispatches it too, or write down why no dispatch can
-    contradict it. A one-sided pin is a contract that reads enforced and stays green while the live path
-    drifts: `FULL_SUITE_CONTRACTS` had exactly that shape, and the leak reached production prose.
+    ([`CONTEXT.md`](CONTEXT.md) → *Dispatch prose*, ADR 0035). An edit to a contract in `agents/` also
+    edits the `skills/` sentence that dispatches it, and a review reads the two together.
   - **Prose states no count of a growing set.** "The eight shipped hooks" reads as a fact and is a
     hostage: adding a hook makes it false in every document repeating it, and nothing fails. Name the
     set, or name its members, and keep a numeral only where the number is the fact — a cap, a
-    threshold, or a fixed arity (ADR 0064). A drift contract table's row count is a growing-set count,
-    not a fixed arity: a table grows every time a slice pins another clause, so its row count is never
-    the fact itself.
+    threshold, or a fixed arity (ADR 0064).
+- **A new drift check tests a mechanical fact or forbids a form** (ADR 0153). A mechanical fact is a link
+  or section target that resolves, a number that is unique, a file or command that exists, or a property
+  of code or configuration. A forbidden form is text shipped prose must never contain. No drift check
+  asserts how a positive clause is worded, and none compares a value with a comment.
 - **Platform-dependent claims carry dated verification.** An ADR, or an entry in
   [`docs/known-issues.md`](docs/known-issues.md),
   states a claim about Claude Code behaviour. When you re-check that claim, record a dated update naming
@@ -218,8 +218,9 @@ bun run test                       # tests/ suites, drift-check, plugin manifest
 GITEA_TOKEN=<token> bun run release  # cut a release from clean main (see RELEASING.md)
 ```
 
-superdev carries no A/B harness measuring it against a no-plugin baseline (ADR 0129). `tests/` and
-`drift-check` check that the plugin does what its prose says, never that saying it helps.
+superdev carries no A/B harness measuring it against a no-plugin baseline (ADR 0129). `tests/` check that
+the plugin does what its prose says, and `drift-check` that its links, numbers, and forbidden forms hold,
+never that saying it helps.
 
 ## Agent skills
 
@@ -240,7 +241,7 @@ Bun dev toolchain, Node runtime for hooks. `bun run test`, `bun run release`. No
 
 ### Verification
 `bun run test` in the first fence (the full command, about 6 minutes), `node scripts/run-tests.js --related {paths}`
-in the second (the focused command, about 20 s for a change set whose `.md` paths no suite names). See `docs/agents/verification.md`.
+in the second (the focused command, about 2 s for a change set whose `.md` paths no suite names). See `docs/agents/verification.md`.
 
 ### Deployment
 `none`. A release (`bun run release`) is repository-wide and batches every merged feature, so it is no
@@ -266,7 +267,7 @@ feature's deploy target. See `docs/agents/deployment.md`.
 
 **The children of this root.** [`scripts/AGENTS.md`](scripts/AGENTS.md) owns what the scripts guard: the
 maintainer-only ones in `scripts/` and the shipped ones in `plugin/scripts/`. That ownership
-includes the full drift-check contract narrative.
+includes the drift-check table, one row per check.
 [`plugin/references/AGENTS.md`](plugin/references/AGENTS.md) owns the reference routing table: which
 reference owns which contract, and which runtime surface reads it. Every other subtree's rules live in
 this root doc.
@@ -358,9 +359,9 @@ This root owns every other subtree directly:
   `skills/publish-kb/SKILL.md` runs),
   `plugin/scripts/profile.js` (the run profile, ADR 0103: reads Claude Code's session and subagent
   transcripts, writes nothing to them, and is the invocation `skills/profile/SKILL.md` runs),
-  and `scripts/drift-check.js` with `drift/` (the cross-document contract checks: the
-  CLI walks the `drift/checks.js` registry, keyed by check id (ADR 0061), which orders every scanner and
-  contract table). What each guards, check by check, lives in that child doc.
+  and `scripts/drift-check.js` with `drift/` (the checks of mechanical facts and forbidden forms, ADR
+  0153: the CLI walks the `drift/checks.js` registry, keyed by check id, which orders every scanner and
+  contract table). What each guards, check by check, lives in that child doc's table.
   `scripts/invariant-check.js` is the maintainer-only register validator (ADR 0093): it checks a
   repository's `docs/invariants.md` against the register's format rules and resolves each entry's
   `Concepts`, `Paths`, `Symbols` and `Check:` paths. It also checks that every `INV-NNNN` cited outside

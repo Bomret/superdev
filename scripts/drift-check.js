@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 'use strict';
 
-// drift-check: the deterministic cross-document contract checks. Prose (skills/, agents/,
-// references/, docs/) drifts from what it restates — a renamed reference file, a dropped clause, a
-// glossary entry nobody executes — and no build step catches any of it. Every check that does is
-// registered in `drift/checks.js`, in the order `scripts/AGENTS.md` numbers them; this file walks that
-// registry and reports.
+// drift-check: the deterministic checks of mechanical facts and forbidden forms across the plugin's
+// documents and code (ADR 0153) — a link that resolves to nothing, a duplicated ADR number, a shell
+// started against INV-0153 — none of which a build step catches. Every check is registered in
+// `drift/checks.js`; this file walks that registry and reports.
 //
 // `--selftest` runs the checks' own tests (drift/selftest/). Plain invocation runs them against this
 // repository and exits nonzero on the first gap found.
@@ -26,6 +25,12 @@ function runChecks(checks, root) {
   });
 }
 
+// A gap a check marks `missing` names a document the check reads and cannot find; every other gap is
+// printed by the check's own format.
+function formatGap(check, gap) {
+  return gap.missing ? `${gap.source} is missing — the \`${check.id}\` check reads it` : check.format(gap);
+}
+
 function main() {
   const root = path.join(__dirname, '..');
   const results = runChecks(CHECKS, root);
@@ -40,12 +45,12 @@ function main() {
       console.error(`${check.id}: run() threw — ${threw.message}`);
       continue;
     }
-    for (const gap of gaps) console.error(check.format(gap));
+    for (const gap of gaps) console.error(formatGap(check, gap));
   }
   process.exit(1);
 }
 
-module.exports = { runChecks };
+module.exports = { runChecks, formatGap };
 
 if (require.main === module) {
   if (process.argv[2] === '--selftest') {

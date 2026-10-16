@@ -174,8 +174,9 @@ plan runs test-first, inline in the scopetree.
   can drive one fix loop after asking once. Several runs in progress get listed for you to pick; naming a
   scope by its slug works too (ADR 0078). That loop fixes every finding, Minor ones included, for at most
   three cycles, and only a Critical or Important finding left at the cap holds the run (ADR 0098). It
-  changes how the code meets the Definition of Done; a new test, a new row in an existing drift contract
-  table, or a prose fix that makes text agree with an existing rule stays in the loop (ADR 0097). A
+  changes how the code meets the Definition of Done; a case in an existing test suite, a case or row for
+  an existing drift check, or a prose fix that makes text agree with an existing rule stays in the loop
+  (ADR 0097). A
   finding whose remedy would add a capability nobody planned goes to `/superdev:plan` instead of growing
   the scope under review (ADR 0035). Such a finding gets a
   **triage record** in your slice store as the review defers it: an issue carrying a `triage` label.
@@ -183,7 +184,7 @@ plan runs test-first, inline in the scopetree.
   end with the run, whether or not the scope ever ships
   ([ADR 0046](docs/adr/0046-a-deferred-finding-becomes-a-triage-record.md)). Nothing ever builds
   it: no candidate listing and no slice loader selects it. A later review in the same run can name a
-  cheaper remedy for it, such as a new test or a new drift-table row. The run then fixes it after all,
+  cheaper remedy for it, such as a new test case. The run then fixes it after all,
   removes the ledger bullet, and closes the record
   ([ADR 0121](docs/adr/0121-a-run-resolves-a-deferred-finding-it-later-fixes.md)). It closes only a record
   its own run filed that no open anchor absorbs. Every writer of a triage record reads the open records

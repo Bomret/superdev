@@ -58,16 +58,15 @@ module.exports = ({ assert, fixture }) => {
     );
   }
 
-  // A check with a custom `run` declares its table the way `table()` does, so the verdict sees it.
+  // A table-driven check declares its table, so the verdict sees it.
   {
     const checks = require('../checks');
     const contracts = require('../contracts');
     const declared = {
-      'agent-lens-list': 'AGENT_LENS_LIST_CONTRACTS',
-      'denial-cap': 'DENIAL_CAP_CONTRACTS',
-      'run-lock-liveness': 'RUN_LOCK_LIVENESS_CONTRACTS',
-      scopetree: 'SCOPETREE_CONTRACTS',
-      'triage-record': 'TRIAGE_RECORD_CONTRACTS',
+      'source-sections': 'SOURCE_SECTION_CONTRACTS',
+      'change-type': 'CHANGE_TYPE_CONTRACTS',
+      'arg-token': 'ARG_TOKEN_CONTRACTS',
+      'containment-delegation': 'CONTAINMENT_DELEGATION_CONTRACTS',
     };
     for (const [id, name] of Object.entries(declared)) {
       assert.strictEqual(checks.find((c) => c.id === id).contracts, contracts[name], `check ${id} declares ${name}`);

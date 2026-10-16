@@ -54,15 +54,14 @@ doc.
 ## Work Guidance
 
 Adding a reference means adding its row above. Changing what a reference owns means changing that row
-in the same commit. A row whose `Read at runtime by` column no longer matches the live prose is the
-drift `scripts/drift-check.js` exists to catch — several of its contract tables pin exactly these
-reader relationships.
+in the same commit. A row whose `Read at runtime by` column no longer matches the live prose is a
+finding for review: no check compares the two.
 
 ## Verification
 
-`bun run test` from the repo root. `scripts/drift-check.js` asserts that every canonical reference
-still carries the sections its readers are sent to, and that every document a contract table pins
-still exists.
+`bun run test` from the repo root. `scripts/drift-check.js` asserts that every `references/*.md` path a
+skill, agent, or reference names exists, that every canonical reference still carries the sections its
+readers are sent to, and that a document a check reads is not missing.
 
 ## Child DOX Index
 

@@ -68,7 +68,7 @@ module.exports = ({ assert, fixture, realRoot }) => {
   assert.deepStrictEqual(
     join({}, rows('agents/missing.md', 'do it (INV-0001)'), 'plugin/skills/**'),
     [],
-    'a row whose document is absent belongs to the pinned-paths check',
+    "a row whose document is absent is scanContract()'s to report",
   );
   assert.deepStrictEqual(
     join({ 'plugin/agents/b.md': 'x' }, rows('agents/b.md', 'no citation here'), 'plugin/skills/**'),
@@ -86,14 +86,14 @@ module.exports = ({ assert, fixture, realRoot }) => {
     'an entry with no Paths leaves the register itself out, as the register validator reads it',
   );
 
-  // An absent register skips the check.
+  // An absent register is a missing document the check reads.
   assert.deepStrictEqual(
     scanInvariantRegisterJoin(fixture({ 'plugin/agents/b.md': 'x' }), {
       checkIds: [],
       tables: rows('agents/b.md', 'do it (INV-0001)'),
     }),
-    [],
-    'a root with no register is skipped',
+    [{ source: 'docs/invariants.md', missing: true }],
+    'a root with no register reports the register missing',
   );
 
   // The real repository passes under the real registry and tables.

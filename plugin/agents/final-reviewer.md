@@ -307,7 +307,8 @@ silence, because it trains the reader to skip the heading.
 #### Minor (nice to have)   [style, optimization, doc polish]
 
 For each: file:line · what's wrong · why it matters · how to fix (if not obvious). A plan-coverage gap's
-"how to fix" is the test or drift pin that would prove the behaviour.
+"how to fix" is the test case, or the case or row for an existing drift check, that would prove the
+behaviour.
 
 ### Criteria
 [**scope mode only**; omit this section entirely on an ad-hoc range. One line per `dod.md` line, in

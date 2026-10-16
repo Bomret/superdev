@@ -470,9 +470,9 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   often behavioural — a missing guard, an unhandled failure mode, a wrong branch. That is the line: not
   "behaviour", but whether the plan asked for it (ADR 0035). A remedy the review builds here is one the
   interview never weighed, arriving at the point in a run where scope questions get the least attention.
-  **A guard-rail remedy stays in this loop** (ADR 0097). A guard-rail remedy extends what exists: a new test
-  in an existing suite, a new row (with its fixtures) in an existing drift contract table, or a prose fix
-  that makes shipped text agree with a rule the repository already states. It adds no behaviour, so it
+  **A guard-rail remedy stays in this loop** (ADR 0097, ADR 0153). A guard-rail remedy extends what exists:
+  a case in an existing test suite, a case or row for an existing drift check, or a prose fix that makes
+  shipped text agree with a rule the repository already states. It adds no behaviour, so it
   produces no deferred finding and no triage record. A remedy that builds a new scanner, check family,
   hook, or script verb, or that changes what a plugin user can observe, is still a deferred finding.
   A later instance of a failure-mode class that a Definition-of-Done criterion names is in scope, never a
@@ -528,7 +528,7 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   rule the full-suite fail and Critical-finding rows above already apply.
 - **A criterion `final-reviewer` finds missing from `dod.md` is not a tick to add.** Review writes no new
   line into `dod.md` (INV-0004). A **plan-coverage gap** — a criterion the code already satisfies — is
-  fixed in the loop with the test or drift pin that proves the behaviour (ADR 0097); a gap an existing test
+  fixed in the loop with the guard-rail remedy that proves the behaviour (ADR 0097); a gap an existing test
   already proves is reported only. A derived criterion the code **fails** is a `### Deferred to a plan`
   finding like any other, under the fix-loop boundary above (ADR 0035).
 - **Ask once before fixing.** `final-reviewer` returned **any finding** — a Minor-only verdict included —

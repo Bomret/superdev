@@ -1,6 +1,9 @@
 # 0061: The check narrative keys on check id, not ordinal position
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0153](0153-drift-check-checks-facts-not-wording.md), which replaces the per-check
+narrative with one table row per check.
 
 **Context.** `scripts/AGENTS.md`'s drift-check section walks all seventy-one checks in one continuous prose
 run, numbering each by a spelled-out ordinal — *First*, *Second*, … *Seventy-first*. The ordinals are

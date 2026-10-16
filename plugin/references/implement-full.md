@@ -252,9 +252,9 @@ Repeat until every slice is `merged`:
      the `AGENTS.md` hierarchy or the knowledge base is named in your report instead. A hit in
      `CHANGELOG.md` is release history and needs no change. A
      finding whose remedy adds a capability the slice's `spec` and the Definition of Done never named is
-     not part of the fix list. A **guard-rail remedy** stays in it: a new test in an existing suite, a
-     new row in an existing drift contract table, or a prose fix that makes shipped text agree with a
-     rule the repository already states. A remedy that builds a new scanner, check family, hook, or
+     not part of the fix list. A **guard-rail remedy** stays in it: a case in an existing test suite,
+     a case or row for an existing drift check, or a prose fix that makes shipped text agree with a rule
+     the repository already states. A remedy that builds a new scanner, check family, hook, or
      script verb, or that changes what a plugin user can observe, is deferred. A later instance of a
      failure-mode class that a Definition-of-Done criterion names is in scope, never a deferred finding
      (ADR 0146). A finding that plainly states the same defect as a triage record this run's

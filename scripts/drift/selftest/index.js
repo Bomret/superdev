@@ -15,7 +15,8 @@ const path = require('node:path');
 const realRoot = path.join(__dirname, '..', '..', '..');
 
 // A throwaway repository carrying only the documents one assertion exercises: `{ 'skills/x/SKILL.md': '…' }`.
-// Every scanner skips a file it cannot read, so a fixture never carries a document it does not test.
+// A check that reads a named document reports it missing (`lib.js`'s `missingDoc()`) when the fixture lacks
+// it, and `found()` below filters those gaps, so a fixture never carries a document it does not test.
 // Each directory is recorded and removed below, instead of being left in os.tmpdir() per run.
 const created = [];
 const fixture = (files) => {
@@ -30,9 +31,9 @@ const fixture = (files) => {
 };
 
 // A contract table's "every clause present yields zero gaps" assertion is only worth what its suite's
-// fixtures cover: `scanContract()` skips a document it cannot read, so a row whose document no fixture
-// ever names is never exercised — the assertion passes vacuously, and the row could match nothing at
-// all. Rather than trust a hand-typed list of paths to describe what a suite's fixtures cover — a list
+// fixtures cover: `scanContract()` reports a document it cannot read as missing, and `found()` filters
+// that gap, so a row whose document no fixture ever names is never exercised — the assertion passes
+// vacuously, and the row could match nothing at all. Rather than trust a hand-typed list of paths to describe what a suite's fixtures cover — a list
 // the fixtures could silently stop matching — `scanContract` is wrapped for the run below, and every
 // document a call actually resolves (via `readDoc`, so a `realRoot` call counts too) is recorded against
 // the table it belongs to. `tableNames` maps a table back to the constant name `contracts.js` exports it
@@ -56,13 +57,14 @@ const restoreObserver = lib.observeContracts((root, contracts) => {
   }
 });
 
-const context = { assert, fs, os, path, fixture, realRoot };
+// A fixture carries only the documents one assertion exercises, so a check that reads named documents
+// reports the rest as missing. `found()` keeps the gaps the fixture's own documents produced.
+const found = (gaps) => gaps.filter((g) => !g.missing);
+
+const context = { assert, fs, os, path, fixture, found, realRoot };
 
 try {
   require('./scanners.test')(context);
-  require('./chain.test')(context);
-  require('./kb-plan.test')(context);
-  require('./coverage.test')(context);
   require('./observation.test')(context);
   require('./drift-check.test')(context);
   require('./register-join.test')(context);

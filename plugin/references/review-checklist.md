@@ -294,8 +294,7 @@ progress log` section, never in the blind pass.
   slices; two seams that should agree but don't. On standing code, with no slices to compare, this reads
   as a divergent second way to do one job living inside the code itself.
 - **Duplicated fact** — the same fact (a name-list, a described behavior) stated in two places
-  where one owns it and the other should link; flag the copy that drifted. A drift contract table's row
-  count is a growing-set count, not a fixed arity (ADR 0064); flag prose that states one.
+  where one owns it and the other should link; flag the copy that drifted.
 - **Glossary drift** — vocabulary that departs from the repository's glossary (`CONTEXT.md`). Flag a
   synonym listed in an entry's `_Avoid` line, used where that entry's term is meant, as Minor. Flag a
   glossary term used against its entry's definition as Important. Read identifiers, test names, and

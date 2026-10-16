@@ -31,8 +31,8 @@ module.exports = ({ assert, fs, path, realRoot }) => {
     assert.deepEqual(before.gaps, [], 'a clean check reports its own empty gaps unaffected');
   }
 
-  // Registry wiring: `table(id, contracts, ok, opts)` takes four parameters. A fifth or sixth argument
-  // is a second check merged into the first one's call, and it registers nothing.
+  // Registry wiring: `table(id, contracts, ok)` takes three parameters. A fourth argument is a second
+  // check merged into the first one's call, and it registers nothing.
   {
     const src = fs.readFileSync(path.join(realRoot, 'scripts', 'drift', 'checks.js'), 'utf8');
     const argCount = (from) => {
@@ -54,7 +54,7 @@ module.exports = ({ assert, fs, path, realRoot }) => {
     };
     for (const m of src.matchAll(/^ {2}table\(/gm)) {
       const n = argCount(m.index + m[0].length);
-      assert.ok(n <= 4, `checks.js: table() at offset ${m.index} carries ${n} arguments; a second check needs its own table() call`);
+      assert.ok(n <= 3, `checks.js: table() at offset ${m.index} carries ${n} arguments; a second check needs its own table() call`);
     }
     const contracts = require('../contracts');
     for (const name of Object.keys(contracts).filter((k) => k.endsWith('_CONTRACTS'))) {

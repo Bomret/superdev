@@ -13,7 +13,7 @@ Class: architecture
 Statement: No superdev command commits to the base branch, with one exception: `/superdev:ship`'s merge of the pull request through the host's merge API, pinned to the tested head (ADR 0096). Every other write a run makes lands on that run's own scope branch, in its own scopetree. No command merges or pushes to the base branch with local git. The only local-git write to the base branch is implement's ref-only fast-forward of the local base ref to the fetched remote tip, `git fetch . <tip>:refs/heads/<base>`, which git refuses when the base is checked out in any worktree or the update is not a fast-forward (ADR 0120).
 Concepts: Base branch, Scope branch, Scopetree, Run root
 Breaks: silently
-Check: scripts/drift-check.js — no shipped prose instructs a commit to the base branch
+Check: scripts/drift-check.js `no-base-branch-commit` — no shipped prose instructs a commit to the base branch
 Paths: plugin/skills/**, plugin/references/**
 
 ### INV-0002
@@ -22,7 +22,7 @@ Class: process
 Statement: A load-bearing commitment that reaches /superdev:plan leaves the run either as an invariant register entry or as a reason, named out loud, that it implies no entry. A rejected direction a seeded intent carries leaves it in an ADR's Considered options, in the epic's non-goals, or with a reason, named out loud, that it is dropped. None of either is dropped in silence.
 Concepts: Load-bearing commitment, Rejected direction, Invariant register, Intent
 Breaks: silently
-Check: scripts/drift-check.js — the commitment contract, pinned together in brainstorm's prose, plan's prose, and domain-modeling.md; partial: nothing pins the rejected-direction half
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/brainstorm/**, plugin/skills/plan/**, plugin/references/domain-modeling.md
 
 ### INV-0003
@@ -41,7 +41,7 @@ Class: architecture
 Concepts: Definition of Done (DoD), Append mode, Scope anchor
 Statement: A Definition of Done is a claim verified at one moment against one change. A ticked criterion is always readable against the change it was verified against, and is never pooled in one record with criteria from another run.
 Breaks: silently
-Check: scripts/drift-check.js — /superdev:plan's extend path refuses a shipped feature on any one of its shipped signals, the anchor's `## Run state` snapshot stage among them
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/plan/**, plugin/references/run-init.md, plugin/skills/review/SKILL.md
 
 ### INV-0005
@@ -50,7 +50,7 @@ Class: process
 Concepts: Release, Append mode, Scope anchor
 Statement: A release decision covers the work that existed when it was made. Work added to a feature after its release does not inherit that release.
 Breaks: silently
-Check: scripts/drift-check.js — plan's release question applies the operator's answer in both directions on an append
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/plan/**, plugin/references/plan-contract.md
 
 ### INV-0006
@@ -59,7 +59,7 @@ Class: architecture
 Concepts: Definition of Done (DoD), Verification ceiling, Scope branch
 Statement: Verifying a Definition-of-Done criterion observes. It changes no system outside the repository. An item that needs an outward-facing change to verify stays unticked, with a note, for the operator to verify after merge. After the merge, `/superdev:verify-ship` observes the deployed system read-only and runs no deploy target's command (ADR 0106).
 Breaks: silently
-Check: scripts/drift-check.js — VERIFICATION_CEILING_CONTRACTS pins the ceiling on scope-mode.md's own `## Verification ceiling` section, on both verifying agent bodies, and on every surface that verifies a criterion or dispatches one that does
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/scope-mode.md, plugin/agents/final-reviewer.md, plugin/agents/implementer.md, plugin/skills/review/**, plugin/skills/implement/**, plugin/skills/document/**, plugin/references/run-handoff.md, plugin/references/dod-ticks.md, plugin/skills/verify-ship/**
 
 ### INV-0007
@@ -68,7 +68,7 @@ Class: process
 Concepts: Focused test command
 Statement: A configuration a repository cannot supply is recorded with its reason, never inferred from an absent setting.
 Breaks: silently
-Check: scripts/drift-check.js — setup writes both fences with the cannot-narrow reason as prose, test-selection.md stops rather than inferring the full command, and plan/implement auto-invoke setup on a repository stuck on one fence
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/setup/**, plugin/references/test-selection.md, plugin/skills/plan/**, plugin/skills/implement/**
 
 ### INV-0008
@@ -77,7 +77,7 @@ Class: process
 Concepts: Definition of Done (DoD), Reachability criterion
 Statement: A Definition-of-Done criterion states a requirement the feature meets, never a procedure superdev executes to verify it. A Reachable: criterion names an entrance, which is not a procedure.
 Breaks: silently
-Check: scripts/drift-check.js `criterion-states-a-requirement` — the rule pinned on plan-contract.md and plan's interview
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/plan/**, plugin/references/plan-contract.md
 
 ### INV-0009
@@ -95,7 +95,7 @@ Class: process
 Concepts: Observation, Triage record
 Statement: An observation a run meets is recorded, never judged. It carries no severity, holds no stage, enters no fix loop, and blocks no run.
 Breaks: silently
-Check: scripts/drift-check.js — `observation-capture` pins the rule's own statement in scope-mode.md, and `observation-capture-reminders` pins the reminder at every document that dispatches a `superdev:` subagent
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/**, plugin/skills/**, plugin/agents/**
 
 ### INV-0011
@@ -121,7 +121,7 @@ Class: process
 Concepts: Run lock, Live implement run
 Statement: `/superdev:implement` entering a run root it did not itself create in this invocation reads the ledger's stage and the lock's freshness before its first write into that run. Any stage other than `planned`, with a lock under an hour old, is a live implement run: attended, the caller asks before writing; unattended, it blocks. A `planned` stage, or a stale or absent lock, imposes no such stop. This governs `/superdev:implement`'s own entry alone — `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`, and `/superdev:ship`'s ordinary hand-off is each the chain's own single designed entry, not a case this rule tests, and `/superdev:plan` keeps its own separate, narrower check (triage #510).
 Breaks: silently
-Check: scripts/drift-check.js — the stage-plus-freshness check is pinned on scope-mode.md's own `## The run lock` section, scoped to `/superdev:implement`'s entry, on run-init.md and both execution playbooks, which cite it, and (the absence half) `scanRunLockLivenessSilence` asserting review/document/submit-pr carry no such language of their own
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/scope-mode.md, plugin/references/run-init.md, plugin/references/implement-full.md, plugin/references/implement-lite.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/submit-pr/SKILL.md
 
 ### INV-0014
@@ -130,7 +130,7 @@ Class: process
 Concepts: Definition of Done (DoD), Tick
 Statement: Every judged Definition-of-Done line carries a note. A ticked criterion names its evidence; an unticked one names why it is not met, that only a deploy can verify it, or that an attended operator accepted it as unmet, with any partial evidence. A bare tick is invalid, and a line nobody has judged yet carries no note.
 Breaks: silently
-Check: scripts/drift-check.js — the note rule pinned on the shared tick reference and on every surface that writes or takes back a tick (implement's playbooks and run handoff, review, document)
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/**, plugin/skills/implement/**, plugin/skills/review/**, plugin/skills/document/**
 
 ### INV-0015
@@ -139,7 +139,7 @@ Class: process
 Concepts: Definition of Done (DoD), Tick, Criterion tag, Controller
 Statement: Only a controller writes a Definition-of-Done tick. It ticks a criterion from an implementer's report only where the criterion's tag names that implementer's slice, and settles every other criterion only in run handoff's own pass, in review, or in document's own untick of a criterion its commits broke. Review's controller may also tick a criterion straight from `final-reviewer`'s own `holds` verdict, with the verdict's evidence as the note. After the merge, `/superdev:verify-ship`'s controller ticks a criterion that is neither ticked nor `accepted:`, from its own read-only observation or from the operator's answer (ADR 0106). No subagent writes a tick, and neither `/superdev:submit-pr`, `/superdev:ship`, nor `/superdev:wrap-up` writes one.
 Breaks: silently
-Check: scripts/drift-check.js — the mapping gate pinned on the shared tick reference and both playbooks; no agent under plugin/agents/ and no ship step instructs a tick; document's own untick (`doc-untick-on-break`) is the controller's own direct check, never a dispatched worker's report
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/**, plugin/agents/**, plugin/skills/implement/**, plugin/skills/review/**, plugin/skills/document/**, plugin/skills/submit-pr/**, plugin/skills/ship/**, plugin/skills/verify-ship/**
 
 ### INV-0016
@@ -148,7 +148,7 @@ Class: process
 Concepts: Stage, Definition of Done (DoD), Verification ceiling
 Statement: A scope's stage never advances past review while a Definition-of-Done criterion stands unmet, except one only a deploy can verify or one an attended operator accepted as unmet (`accepted:`). Every scope passes review, whatever its slice types.
 Breaks: silently
-Check: scripts/drift-check.js — review's stage-write condition pinned beside its unmet-criterion rule; run handoff names `/superdev:review` as the next command for every scope; document's closing step (`doc-untick-on-break`) writes no stage and prints `/superdev:review` rather than `/superdev:ship` when it unticks a criterion its own commits broke, or when a standing `**Unresolved:**` entry from an earlier pass already stands
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/review/**, plugin/references/run-handoff.md, plugin/skills/document/**
 
 ### INV-0017
@@ -157,7 +157,7 @@ Class: process
 Concepts: Focused test command, Suite record, Run trace
 Statement: A slice implementer and a fix cycle run only the focused command. The full suite runs at run handoff, once more when a fix loop there first comes back clean, and after review's first clean re-review. Where the repository configures a whole-repo command, it runs once before the pull request opens, on a tip that carries no green whole-repo result at ship (which instead refuses while a review invalidation stands, INV-0092), and in place of the full suite in a review entered while the suite record reads red of kind `whole`. A green result recorded on the commit a step would run on is reused rather than run again, but only where the latest run of that command the run trace records at that commit passed on a clean working tree (ADR 0117). A green result recorded on an ancestor of that commit is reused too, but only where every path that differs between the two ends in `.md`, is no test path, and is not `docs/agents/verification.md`, the run trace backs the recorded commit with a passing full or whole run on a clean tree, the latest test-command run it records at the tip passed on a clean tree, and no full or whole run, nor any run of a test file named directly, it records at the tip failed (ADR 0128). Any git error while deciding this refuses reuse. A result recorded on any other commit is not, and neither is one the run trace does not back. A step that needs a whole-repo run reuses only a record of kind `whole`. A fail-to-pass run is no suite run: it runs the focused command where that command carries `{paths}`, and the full command otherwise, in a slice or a fix cycle alike, and records no suite result (ADR 0134).
 Breaks: silently
-Check: scripts/drift-check.js — the full-suite contract rows on run handoff and review; tests/scope.test.js — the suite record's read and write, and `suite reusable`'s tip-match cases, Markdown-only carry cases, and run-trace backing
+Check: tests/scope.test.js — the suite record's read and write, and `suite reusable`'s tip-match cases, Markdown-only carry cases, and run-trace backing
 Paths: plugin/references/run-handoff.md, plugin/skills/review/**, plugin/skills/submit-pr/**, plugin/skills/ship/**, plugin/agents/implementer.md, plugin/scripts/scope.js
 
 ### INV-0018
@@ -166,7 +166,7 @@ Class: process
 Concepts: Slice-reviewer, Implementer
 Statement: The slice-reviewer runs the suite itself, independently of the implementer's report, and never passes a slice on the reported result alone.
 Breaks: silently
-Check: `scripts/drift-check.js` `test-selection-wiring` (the `plugin/agents/slice-reviewer.md` row on Lens 2's independent re-run)
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/agents/slice-reviewer.md
 
 ### INV-0019
@@ -182,9 +182,9 @@ Paths: plugin/references/plan-contract.md, plugin/skills/plan/**
 
 Class: process
 Concepts: Judge discipline, Final-reviewer, Slice-reviewer, Simplicity-reviewer, Test-auditor
-Statement: Every review agent carries the two judge-discipline clauses, adapted to the subject it judges: it verifies the artifact itself and never defers to a narrative about it, and length or an elaborate structure is no evidence on its own.
+Statement: Every review agent verifies the artifact itself and never defers to a narrative about it, and treats length or an elaborate structure as no evidence on its own, adapted to the subject it judges.
 Breaks: silently
-Check: scripts/drift-check.js `judge-discipline` — both clauses stand in each of the four review agents
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/agents/**, plugin/skills/plan/SKILL.md, plugin/skills/review/SKILL.md, plugin/skills/review-tests/SKILL.md, plugin/references/implement-full.md
 
 ### INV-0021
@@ -274,7 +274,7 @@ Class: architecture
 Concepts: Writing standard, Seed
 Statement: The doc agents read which writing standard applies from the `## Writing standard` pointer in `docs/agents/documentation.md`. None carries a standard of its own. `/superdev:prose-check` applies `references/controlled-prose.md` whatever the pointer says, and whether or not that file exists.
 Breaks: silently
-Check: `scripts/drift-check.js` `writing-standard` (the pointer half; nothing pins prose-check's independence from the pointer)
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/documentation.md, plugin/skills/prose-check/SKILL.md
 
 ### INV-0031
@@ -319,7 +319,7 @@ Class: process
 Concepts: Content type, Doc-writer, Doc-reader, Writing standard
 Statement: Both doc agents read `references/content-types.md` at every dispatch, independent of the writing standard. The reader checks coverage in its whole-file cold pass, audit included. The lens is never configurable and never `none`.
 Breaks: silently
-Check: `scripts/drift-check.js` `content-types` (the read-at-every-dispatch half)
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/content-types.md, plugin/agents/doc-writer.md, plugin/agents/doc-reader.md
 
 ### INV-0037
@@ -337,7 +337,7 @@ Class: process
 Concepts: Unattended token, Standing answer, Unattended run, Scope anchor
 Statement: A command carrying the unattended token never asks a question and never starts an interview command. At each stop it takes the standing answer written there, or blocks the scope anchor where none is written.
 Breaks: silently
-Check: `scripts/drift-check.js` `unattended-token` (the `## Unattended` section, plus the token and a read instruction in every chain document)
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/scope-mode.md, plugin/skills/**, plugin/references/implement-full.md, plugin/references/implement-lite.md, plugin/references/run-init.md, plugin/references/run-handoff.md
 
 ### INV-0039
@@ -346,7 +346,7 @@ Class: architecture
 Concepts: Scope anchor, Slice store, Seed, Release, Published snapshot, Triage record, Untriaged item, Assignee, Anchor dependency
 Statement: No command or agent names a slice store's own mechanics. Each reads them from the matching section of the active store document, which specialises `references/plan-contract.md`.
 Breaks: silently
-Check: `scripts/drift-check.js` `anchor-contract`, `release-contract`, `run-state-contract`, `triage-record`, `untriaged-item`, `assignee`, `specialising-citations`, `glossary-specialising-citations` — partial: these pin that each store document carries its sections and that citations specialise; no content-neutrality scan exists, so a skill that hardcodes a store call trips nothing
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/**, plugin/agents/**, plugin/references/plan-contract.md, plugin/references/issue-tracker-*.md
 
 ### INV-0041
@@ -355,7 +355,7 @@ Class: architecture
 Concepts: Feature label, Slice store
 Statement: The feature label's notation is stated only by the active store document, and no command hardcodes a prefix. Every caller can still name its target.
 Breaks: silently
-Check: `scripts/drift-check.js` `feature-label-argument` (the caller-can-name-its-target half)
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/implement/SKILL.md, plugin/skills/plan/SKILL.md
 
 ### INV-0042
@@ -373,7 +373,7 @@ Class: architecture
 Concepts: Feature label, Change type, Run root, Ledger, Scope branch
 Statement: The scope branch is the feature label verbatim, `<type>/<slug>`, and the run root is keyed on the slug alone. A command reads the branch from the ledger's `**Branch:**` line and never computes it from the slug.
 Breaks: silently
-Check: `scripts/drift-check.js` `label-validation` (both label segments validated before a path or branch is built). Nothing pins the verbatim or `**Branch:**`-read halves.
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/scope-mode.md
 
 ### INV-0045
@@ -391,7 +391,7 @@ Class: architecture
 Concepts: Aggregate page, Backend command contract, Staged page, Knowledge base
 Statement: A backend declaring no `read` template carries no aggregate page. `publish-kb.js` leaves every `action: patch` page staged with that reason.
 Breaks: silently
-Check: `tests/publish-kb.test.js` ("a configuration declaring no read template leaves every patch page staged with that reason"); `scripts/drift-check.js` `read-path`
+Check: `tests/publish-kb.test.js` ("a configuration declaring no read template leaves every patch page staged with that reason")
 Paths: plugin/scripts/publish-kb.js, plugin/skills/setup/SKILL.md
 
 ### INV-0047
@@ -427,7 +427,7 @@ Class: process
 Concepts: Inline doc pass, Ledger, Tier
 Statement: A `**Docs:**` record stands only for the commits its pass saw. `/superdev:document` skips the doc-writer only while the record stands. A review fix loop that lands commits clears it, as does run handoff's red-suite fix loop. A full-tier run never writes one.
 Breaks: silently
-Check: `scripts/drift-check.js` `verb-pointer` (`docs set` in implement-lite.md, `get docs` in document, `docs clear` in review and run-handoff) and `doc-pass`
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/implement-lite.md, plugin/skills/document/SKILL.md, plugin/skills/review/SKILL.md, plugin/references/run-handoff.md, plugin/references/doc-pass.md
 
 ### INV-0051
@@ -454,7 +454,7 @@ Class: process
 Concepts: Release, Scope anchor, Unattended run
 Statement: A feature is built only once released, or on a human's explicit confirmation. `/superdev:implement` stops on an unreleased feature before its first write and blocks under `--unattended`. A confirmation leaves the release signal unapplied.
 Breaks: silently
-Check: `scripts/drift-check.js` `release-contract` (every store document carries `## Release`, and plan and implement each name it); `release-answer-not-inferred` was not opened by the batch and is not cited
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/plan-contract.md, plugin/skills/implement/SKILL.md, plugin/skills/plan/SKILL.md
 
 ### INV-0054
@@ -472,7 +472,7 @@ Class: process
 Concepts: Tier, Simplicity-reviewer, Final-reviewer, Execution playbook
 Statement: Every scope gets an over-engineering pass. A full-tier scope gets it per `behavior` slice in `implement-full.md`, so `/superdev:review` skips simplicity-reviewer there. A lite-tier scope gets it whole-scope from `/superdev:review`. Its findings gate nothing.
 Breaks: silently
-Check: `scripts/drift-check.js` `tier-skip` — partial: pins the full-tier skip/dispatch dependency alone; nothing pins that a lite-tier scope gets its pass whole-scope from `/superdev:review`, or that its findings gate nothing
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/review/SKILL.md, plugin/references/implement-full.md
 
 ### INV-0056
@@ -490,7 +490,7 @@ Class: process
 Concepts: Published snapshot, Adopt, Ledger, Scope anchor, Run kind
 Statement: The ledger drives control flow, and the anchor's snapshot only mirrors it. Every ledger write the snapshot shows is followed by a publish, and a failed publish changes nothing in the run. Run init adopts only where no local ledger exists and the snapshot's stage is not `shipped`, and reports that run as `resumed`. A store that declares itself snapshot-less publishes and adopts nothing.
 Breaks: silently
-Check: `scripts/drift-check.js` `publish-run-state`, `adopt-run-state`, `resumed-scopetree-trigger`, `run-state-contract`
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/scope-mode.md, plugin/references/run-init.md, plugin/skills/**, plugin/references/implement-full.md, plugin/references/run-handoff.md
 
 ### INV-0059
@@ -535,7 +535,7 @@ Class: process
 Concepts: Backlog survey, Slice store, Scope anchor, Triage record, Untriaged item
 Statement: A backlog survey writes nothing: no record, label, comment or file. It reads anchors, triage records and untriaged items through the store document's sections, never through a backend's own call, and reads stage through `scope.js get stage`.
 Breaks: silently
-Check: `scripts/drift-check.js` `backlog-survey` — partial: nothing pins the absence of a backend's own listing call
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/backlog/SKILL.md
 
 ### INV-0065
@@ -553,7 +553,7 @@ Class: architecture
 Concepts: Model-invocable surface, Unattended run
 Statement: `/superdev:ship` is the only skill that is never a model-invocable surface: it carries `disable-model-invocation: true` in its frontmatter. Every chain step (`/superdev:implement`, `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`) stays model-invocable, carrying no such key, and so do `/superdev:setup`, `/superdev:plan`, `/superdev:verify-ship`, and `/superdev:wrap-up`. `/superdev:plan` and `/superdev:implement` start setup and plan through the Skill tool, and `/superdev:ship` starts verify-ship and wrap-up through it (ADR 0132).
 Breaks: silently
-Check: `scripts/drift-check.js` `model-invocation-split` (every chain step, setup, plan, verify-ship, wrap-up), `ship-human-only` (ship)
+Check: scripts/drift-check.js `ship-human-only` (ship); final-reviewer's invariant compliance judges the other skills
 Paths: plugin/skills/ship/SKILL.md, plugin/skills/setup/SKILL.md, plugin/skills/plan/SKILL.md, plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/submit-pr/SKILL.md, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**
 
 ### INV-0068
@@ -589,7 +589,7 @@ Class: process
 Concepts: Test audit, Intent
 Statement: A test audit reports a dead or ignored test as a fact, straight to the intent. Every other finding is a judgment the operator can reject before it reaches the intent. Findings past the round's fixed arity reach the intent labelled `unconfirmed`.
 Breaks: silently
-Check: `scripts/drift-check.js` `chained-test-audit` (the fact and judgment split stays distinguishable on the chained path)
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/review-tests/SKILL.md
 
 ### INV-0072
@@ -617,7 +617,7 @@ Class: architecture
 Concepts: Assignee, Operator configuration, Slice store
 Statement: The assignee lives only in the untracked `.superdev/info.json`, resolved against the main working tree from any checkout: that file, else the API token's own identity, with `"none"` opting out. No tracked store document carries an assignee bullet, and the plan-contract slice schema carries no assignee field. Tokens never enter the file.
 Breaks: silently
-Check: `scripts/drift-check.js` `assignee` (forbids the `- **Assignee:**` bullet and requires the `## Assignee` section)
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/plan-contract.md, plugin/references/issue-tracker-*.md, plugin/skills/setup/SKILL.md
 
 ### INV-0075
@@ -644,7 +644,7 @@ Class: process
 Concepts: Candidate set, Run root, Stage
 Statement: One section, `scope-mode.md`'s `## Resolving an empty argument`, owns how an empty argument resolves. Each run-taking command names only its own candidate set and cites that section. A caller that cannot ask lists the candidates and stops.
 Breaks: silently
-Check: `scripts/drift-check.js` `empty-argument`; `tests/publish-kb.test.js` (more than one pending scope and no `--scope`: lists every scope with its page count)
+Check: `tests/publish-kb.test.js` (more than one pending scope and no `--scope`: lists every scope with its page count)
 Paths: plugin/references/scope-mode.md, plugin/skills/implement/SKILL.md, plugin/skills/submit-pr/SKILL.md, plugin/skills/review/SKILL.md, plugin/scripts/publish-kb.js
 
 ### INV-0078
@@ -733,7 +733,7 @@ Class: architecture
 Concepts: Scope branch, Code host
 Statement: No superdev command other than /superdev:submit-pr and /superdev:ship pushes a scope branch. Planning, implementing, reviewing, and documenting work on the local scope branch only, so nothing unreviewed reaches the code host before submit-pr opens the pull request. Ship pushes twice over its own run: once for a base merge that moved, once for a commit review's own fix loop or an operator's own conflict resolution landed at stage submitted with no base merge involved — both gated on a reusable green record for the pushed tip, and both moving the open pull request's head, never straight to base (INV-0001), since the merge onto base still runs only through the host's own merge API.
 Breaks: silently
-Check: none — no drift row pins it; it holds because the only push instructions in shipped prose are /superdev:submit-pr §5 and /superdev:ship §4, and the code-management seeds they read
+Check: none — final-reviewer's invariant compliance judges it; it holds because the only push instructions in shipped prose are /superdev:submit-pr §5 and /superdev:ship §4, and the code-management seeds they read
 Paths: plugin/skills/**, plugin/references/**
 
 ### INV-0088
@@ -742,7 +742,7 @@ Class: architecture
 Concepts: Invariant register
 Statement: No script filters or ranks register entries for /superdev:plan or final-reviewer. Both read docs/invariants.md whole, and their judgment is the only matcher, so an entry the plan passes over stays visible to final-reviewer's own read.
 Breaks: silently
-Check: scripts/drift-check.js — `invariant-compliance` pins plan's whole read of the register and final-reviewer's own read
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/plan/**, plugin/agents/final-reviewer.md
 
 
@@ -753,7 +753,7 @@ Class: process
 Concepts: Acceptance, Slice
 Statement: /superdev:plan writes a behavior slice's domain-level failure and boundary cases into its acceptance, alongside the happy path, each stated as observable behaviour. Implementation-level edges stay with the implementer and the reviewers.
 Breaks: silently
-Check: none — no drift row pins the clause in plugin/skills/plan/SKILL.md or plugin/references/plan-contract.md; a row would be cheap
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/plan/SKILL.md, plugin/references/plan-contract.md
 
 ### INV-0090
@@ -781,7 +781,7 @@ Class: process
 Concepts: Pinned merge, Suite record, Stage
 Statement: A merge superdev makes lands only a scope-branch head that a green full-suite run covers, directly or across Markdown-only commits (INV-0017), and a green whole-repo run where the repository configures a whole-repo command. That is either a head with a reusable green suite record, or `/superdev:ship`'s own conflict-free merge of base into the scope branch, tested green before it lands. The merge is pinned to that head, so a head that moved after the test is refused by the host. It never forces past the host's branch protection or required approvals. A red, denied, or conflicting result lands nothing, and neither does a head whose suite record review invalidated for a standing unresolved defect (ADR 0096, ADR 0105).
 Breaks: silently
-Check: scripts/drift-check.js — ship's pinned-merge, no-force, and not-green-lands-nothing clauses; tests for any `scope.js` verb that decides reuse
+Check: scripts/drift-check.js `code-management-no-force` — no code-management document forces a merge; tests/scope.test.js — `suite reusable`, the verb that decides reuse; final-reviewer's invariant compliance judges ship's pinned-merge and not-green-lands-nothing clauses
 Paths: plugin/skills/ship/**, plugin/references/code-management-*.md, plugin/scripts/scope.js
 
 ### INV-0093
@@ -790,7 +790,7 @@ Class: process
 Concepts: Unattended run, Stage
 Statement: Only a human moves a scope past its open pull request. Every unattended run ends at `/superdev:submit-pr`. `/superdev:ship`, `/superdev:verify-ship`, and `/superdev:wrap-up` each carry no unattended mode, and `/superdev:ship` carries `disable-model-invocation: true`. No model starts verify-ship or wrap-up unless the operator typed the command, asked for it, or agreed to the offer `/superdev:ship` makes at its final hand-off. The two skills' descriptions and their own gates carry that bound, because the platform does not (ADR 0096, ADR 0106, ADR 0132).
 Breaks: silently
-Check: scripts/drift-check.js — ship carries `disable-model-invocation: true`, none of the three names an `--unattended` branch, ship's offer clause, and the start condition each of the two descriptions states; partial: nothing stops a model that ignores a description, and nothing pins that an unattended run ends at `submit-pr`
+Check: scripts/drift-check.js `ship-human-only` — ship carries `disable-model-invocation: true`, and none of the three names an `--unattended` branch; final-reviewer's invariant compliance judges the offer and the start conditions
 Paths: plugin/skills/submit-pr/**, plugin/skills/ship/**, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**
 
 ### INV-0094
@@ -799,7 +799,7 @@ Class: process
 Concepts: 3-strike fix loop, Stage
 Statement: A Minor finding never holds a scope's stage and never blocks a run. The scope review and the full tier's per-slice review fix every listed finding, Minors included, until the review lists none or the 3-cycle cap is reached. At the cap, a remainder of only Minor findings advances the stage, or merges the slice, and leaves no record outside the review's report. A Minor finding whose remedy adds a capability the Definition of Done never named is a deferred finding, like one of any other severity (ADR 0035).
 Breaks: silently
-Check: scripts/drift-check.js — the Minor-loop rows on the review fix loop and the full-tier per-slice loop, and the deferral-boundary row on the full-tier loop
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/review/**, plugin/references/implement-full.md, plugin/agents/final-reviewer.md, plugin/agents/slice-reviewer.md
 
 ### INV-0095
@@ -808,7 +808,7 @@ Class: process
 Concepts: Guard-rail remedy, Deferred finding, Plan-coverage gap
 Statement: A guard-rail remedy stays in the fix loop and never becomes a deferred finding. A plan-coverage gap is fixed by the guard-rail remedy that proves the behaviour, and never by a new line in `dod.md`.
 Breaks: silently
-Check: scripts/drift-check.js — the guard-rail carve-out row beside the fix-loop boundary in review's prose, and the guard-rail carve-out row beside the deferral boundary in `implement-full.md` step 3
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/review/**, plugin/references/implement-full.md, plugin/agents/final-reviewer.md
 
 ### INV-0096
@@ -817,7 +817,7 @@ Class: process
 Concepts: Derived criteria, Definition of Done (DoD), Intent
 Statement: `/superdev:plan` slices no plan while a criterion derived from its intent is neither in the Definition of Done nor named as a non-goal. Every plan runs the derive pass: a new feature, a single-slice plan, and an append.
 Breaks: silently
-Check: scripts/drift-check.js — the derive-pass row on plan's prose and final-reviewer's derive mode
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/plan/**, plugin/agents/final-reviewer.md
 
 ### INV-0098
@@ -826,7 +826,7 @@ Class: process
 Concepts: Deploy posture, Deploy target, Scope anchor
 Statement: Only `/superdev:ship` runs a deploy target's command. It runs one only under the repository's `auto` deploy posture, only after the pull request has merged, and only in a tree checked out at the merge commit. No other command and no unattended run deploys (ADR 0101).
 Breaks: silently
-Check: scripts/drift-check.js — ship's deploy runs only under auto, after the merge, at the merge commit; no other skill or agent names a deploy target's command as something it runs
+Check: scripts/drift-check.js `deploy-runner-exclusivity` — no skill or agent but ship names a deploy target's command as something it runs; final-reviewer's invariant compliance judges the auto, after-merge, and merge-commit conditions
 Paths: plugin/skills/ship/**, plugin/references/deployment.md, plugin/skills/verify-ship/**
 
 ### INV-0099
@@ -835,7 +835,7 @@ Class: process
 Concepts: Deploy posture, Deploy target, Scope anchor, Definition of Done (DoD), Stage
 Statement: After the merge, only `/superdev:wrap-up` closes a scope anchor. It closes one only when the pull request has merged, every Definition-of-Done criterion is ticked or `accepted:`, and every deploy target listed on the anchor is recorded `deployed`. A failed close changes neither the stage nor the run's scaffolding. A failed `auto` target keeps the anchor open, and a later ship resumes at the first target not yet deployed (ADR 0101, ADR 0106).
 Breaks: silently
-Check: scripts/drift-check.js — ship stops on a failed auto target, and `wrap-up-gate` guards the close; `tests/scope.test.js` for the ledger's deploy record
+Check: `tests/scope.test.js` for the ledger's deploy record; final-reviewer's invariant compliance judges ship's stop and wrap-up's close gate
 Paths: plugin/skills/ship/**, plugin/scripts/scope.js, plugin/skills/wrap-up/**
 
 ### INV-0101
@@ -871,7 +871,7 @@ Class: process
 Concepts: Deploy posture, Deploy target
 Statement: Under the `auto` deploy posture, `/superdev:ship` runs a deploy target's command only from a `docs/agents/deployment.md` whose every change the operator was shown. A change the merge commit carries against the tested head, and on a merge ship did not gate itself the pull request's own change, is printed and confirmed before the first target runs (ADR 0104).
 Breaks: silently
-Check: scripts/drift-check.js — ship's post-merge deploy step compares the merge commit's `deployment.md` with the tested head's and asks once before any auto target runs
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/ship/**
 
 ### INV-0105
@@ -880,7 +880,7 @@ Class: process
 Concepts: Affected form, Whole-repo command
 Statement: An affected form never selects fewer projects than the change can break. It selects through the repository's dependency-graph tool, dependents included, so a change the graph cannot attribute to one project selects every project, and selection by path prefix does not qualify. It exits green when the change reaches no project. `/superdev:setup` writes one only after it has exited green on the base branch's own tip and has selected a project on a committed change in a throwaway worktree and, run on that change, has executed at least one task or test, and only together with a whole-repo command.
 Breaks: silently
-Check: scripts/drift-check.js — the affected-form clauses pinned together in plugin/references/test-selection.md and plugin/skills/setup/SKILL.md; partial: whether a given tool's graph is complete is that tool's claim, not superdev's
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/test-selection.md, plugin/skills/setup/**
 
 ### INV-0106
@@ -898,7 +898,7 @@ Class: process
 Concepts: Seed, Seed gap, Seed deviation
 Statement: `/superdev:setup` writes a seed section or seed rule into a configured document only on the operator's explicit choice for that seed gap. A gap the operator records as a seed deviation is never applied, and a recorded seed deviation is never reported as a gap (ADR 0107).
 Breaks: silently
-Check: scripts/drift-check.js — setup's re-run offers each seed gap with apply, record, and leave choices and writes none unasked; check lists a recorded deviation as recorded
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/setup/SKILL.md
 
 ### INV-0109
@@ -916,7 +916,7 @@ Class: process
 Concepts: Intent
 Statement: `/superdev:plan` never offers or seeds from a `.superdev/brainstorm/*.md` intent whose frontmatter is `status: draft`. Only that frontmatter marks a draft: a file with no frontmatter, or with any other status, is ready (ADR 0112).
 Breaks: silently
-Check: scripts/drift-check.js — plan's draft skip, refusal, and only-draft marker clause and brainstorm's draft write, keep-current clause, ready step, and start offer are pinned together
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/plan/SKILL.md, plugin/skills/brainstorm/SKILL.md
 
 ### INV-0111
@@ -925,7 +925,7 @@ Class: process
 Concepts: Next block, Response shape
 Statement: Every message that `/superdev:brainstorm`, `/superdev:plan`, `/superdev:implement`, `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`, `/superdev:ship`, `/superdev:verify-ship`, or `/superdev:wrap-up` ends on closes with the Next block that `references/response-shapes.md` defines, and nothing follows it. This holds for a refusal, a blocked stop, an ad-hoc run, an unattended run, and a command with no successor. A command in the chained posture prints none. Each of those skills cites the reference and restates none of the block's shape (ADR 0113).
 Breaks: silently
-Check: scripts/drift-check.js — each covered skill's citation of the Next block rule; partial: nothing checks the message an agent prints
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/response-shapes.md, plugin/references/run-handoff.md, plugin/skills/brainstorm/SKILL.md, plugin/skills/plan/SKILL.md, plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/submit-pr/SKILL.md, plugin/skills/ship/SKILL.md, plugin/skills/verify-ship/SKILL.md, plugin/skills/wrap-up/SKILL.md
 
 ### INV-0112
@@ -934,7 +934,7 @@ Class: process
 Concepts: Response shape
 Statement: A report that `references/response-shapes.md` gives a shape is made of an opening line, section headings, and one-line bullets, closes on the Next block, and carries no paragraph of prose (ADR 0113).
 Breaks: silently
-Check: scripts/drift-check.js — brainstorm's citation of its report shape; partial: nothing checks the message an agent prints
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/response-shapes.md, plugin/skills/brainstorm/SKILL.md
 
 ### INV-0113
@@ -943,7 +943,7 @@ Class: process
 Concepts: Blind pass, Progress log
 Statement: Once `slice-reviewer` opens a slice's progress log, it never withdraws a finding and never downgrades a finding's severity. Reading the log can only add a finding or raise one, so the implementer's account of its work can only make a slice review stricter (ADR 0114).
 Breaks: silently
-Check: scripts/drift-check.js — the one-way rows on `plugin/agents/slice-reviewer.md` and on the slice-reviewer dispatch in `plugin/references/implement-full.md`
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/agents/slice-reviewer.md, plugin/references/implement-full.md
 
 ### INV-0114
@@ -952,7 +952,7 @@ Class: process
 Concepts: Blind pass, Progress log, Dispatch prose
 Statement: No slice-reviewer dispatch carries the implementer's report text. The report reaches `slice-reviewer` only through the progress log, whose path the dispatch hands over, and the reviewer opens that log only after its blind pass has settled a verdict (ADR 0114).
 Breaks: silently
-Check: scripts/drift-check.js — the blind-pass rows on `plugin/agents/slice-reviewer.md` and on the slice-reviewer dispatch in `plugin/references/implement-full.md`
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/agents/slice-reviewer.md, plugin/references/implement-full.md
 
 ### INV-0115
@@ -961,7 +961,7 @@ Class: architecture
 Concepts: Scope anchor
 Statement: An edit to a scope anchor's body runs only when the read of the current body and the command that built the new body both succeeded and the new body is non-empty, and the edit reads that body from a file. A failed read, producer, or payload build leaves the anchor body as it was (ADR 0115).
 Breaks: silently
-Check: scripts/drift-check.js — every store document's edit-body rule carries the gate, no store document edits a body from anything but a file its flag reads, in prose or a shell-tagged fence, and every tick section names its body extraction; partial: nothing checks the command a controller actually runs
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/issue-tracker-*.md, docs/agents/issue-tracker.md, plugin/references/scope-mode.md
 
 ### INV-0116
@@ -970,7 +970,7 @@ Class: process
 Concepts: Stage, Scope anchor, Definition of Done (DoD), Deploy target
 Statement: `/superdev:ship`'s final hand-off, `/superdev:backlog`'s routing of a `shipped` run, `/superdev:document`'s leave-alone hand-off, run init's shipped-run stops, `/superdev:verify-ship`'s end, and `/superdev:wrap-up`'s hand-off from a closed repair to its original apply one rule, stated once in `references/scope-mode.md`, so all name the same next command for the same run state: for a run holding a `not met:` note `/superdev:verify-ship` wrote, which carries the repair citation, `/superdev:verify-ship` with `/superdev:plan`'s repair choice as the alternative once a closed anchor's `**Repairs:**` line names the run, the line's `not met:` note does not yet cite that anchor in its repair citation, and no open anchor's line names the run, and `/superdev:plan`'s repair choice or `/superdev:verify-ship` again otherwise, an open anchor's line outranking every closed one and adding a line that names each open repair; otherwise `/superdev:verify-ship` or `/superdev:wrap-up`, a `not met:` note written before merge counting as a line still to verify (ADR 0116, ADR 0124).
 Breaks: silently
-Check: scripts/drift-check.js — ship's, backlog's, document's, run-init.md's, verify-ship's, and wrap-up's citations of the scope-mode.md section, and the `repair-routing` rows; partial: nothing checks the command an agent prints
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/ship/SKILL.md, plugin/skills/backlog/SKILL.md, plugin/skills/document/SKILL.md, plugin/references/run-init.md, plugin/references/scope-mode.md, plugin/skills/verify-ship/SKILL.md, plugin/skills/wrap-up/SKILL.md
 
 ### INV-0117
@@ -988,7 +988,7 @@ Class: process
 Concepts: Run trace, Slice-reviewer, Implementer
 Statement: On a `behavior` slice, a test edit followed by an implementation edit or a passing run with no failing test run recorded between them in the run trace is an Important finding: `slice-reviewer`'s on the full tier, `final-reviewer`'s on the lite tier. The finding closes only on a recorded revert of the implementation, a failing run, a restore, and a passing run, in that order. The reviewer judges the order from the run trace, never from the implementer's own account. At the 3-cycle fix cap, a remainder whose only Critical or Important findings are Missing RED, Pass-to-pass, or Missing fail-to-pass run, in any mix, proceeds. The review's report names each with its slice. Any of them beside a Critical or Important finding of another kind blocks (ADR 0117, ADR 0008, ADR 0125, ADR 0134, INV-0138).
 Breaks: silently
-Check: scripts/drift-check.js — the trace-order rows on slice-reviewer, final-reviewer, and the prose that dispatches each
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/agents/slice-reviewer.md, plugin/agents/final-reviewer.md, plugin/agents/implementer.md, plugin/references/implement-lite.md, plugin/references/implement-full.md, plugin/references/review-checklist.md, plugin/skills/review/SKILL.md
 
 ### INV-0119
@@ -997,7 +997,7 @@ Class: process
 Concepts: Run trace, Slice-reviewer, Degraded pass
 Statement: On the full tier, every slice merged into the scope branch has a `slice-reviewer` dispatch recorded in the run trace that ends after the slice's last `implementer` dispatch, or a degraded-pass entry naming that slice's denied review. `final-reviewer` reports a slice with neither as an Important finding (ADR 0117).
 Breaks: silently
-Check: scripts/drift-check.js — the review-dispatch row on final-reviewer and the prose that dispatches it
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/agents/final-reviewer.md, plugin/skills/review/**
 
 ### INV-0120
@@ -1006,7 +1006,7 @@ Class: process
 Concepts: Implementer, Sibling surface, Dispatch prose
 Statement: Every fix dispatch to the implementer, and the implementer's own brief for a fix dispatch, require it to bring each sibling surface in its own checkout into agreement with the rule or behaviour its fix changes, to report each place it checked and each it changed, and to report rather than edit a place outside its checkout, and to report rather than edit the `AGENTS.md` hierarchy and the knowledge base, which the doc pass owns. Every dispatching site sends back a fix report that omits the checked-and-changed list before the next step. Before the next step, every dispatching site also greps the checkout for the key phrase of the rule the fix changed, in its old wording and its new, and sends the report back in the same cycle for each hit in a file its checked list does not name, outside the `AGENTS.md` hierarchy and the knowledge base. A hit in `CHANGELOG.md` is release history and needs no change (ADR 0118).
 Breaks: silently
-Check: scripts/drift-check.js `fix-dispatch-siblings` — the sibling-surface clause pinned in the implementer's brief and in every dispatch that sends a fix; partial: the controller's grep finds a missed sibling surface only where that surface repeats the key phrase, and a sibling that states the rule in other words passes the cross-check unseen
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/agents/implementer.md, plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/references/implement-full.md, plugin/references/run-handoff.md
 
 ### INV-0121
@@ -1015,7 +1015,7 @@ Class: architecture
 Concepts: Staged page, Scopetree
 Statement: A staged page is written only into the main working tree's `.superdev/kb-pending/<scope>/`, whichever checkout the staging step runs from. Every staging instruction and the staged-page scan resolve that directory through `scope.js staging`, which refuses outside a git repository rather than fall back to the cwd (ADR 0119).
 Breaks: silently
-Check: tests/scope.test.js — the verb and the staged-page scan run from a linked worktree's cwd; scripts/drift-check.js — every staging instruction cites the verb and carries no cwd-relative staging phrasing
+Check: tests/scope.test.js — the verb and the staged-page scan run from a linked worktree's cwd
 Paths: plugin/scripts/scope.js, plugin/skills/plan/SKILL.md, plugin/skills/document/SKILL.md, plugin/references/doc-pass.md, plugin/references/implement-lite.md, plugin/agents/doc-writer.md
 
 ### INV-0122
@@ -1024,7 +1024,7 @@ Class: process
 Concepts: Staged page, Scopetree, Run root
 Statement: Only `/superdev:publish-kb` removes a staged page. `/superdev:wrap-up` refuses to close a run while its scopetree or a slicetree holds any file under its own `.superdev/kb-pending/`, before it removes either checkout (ADR 0119).
 Breaks: silently
-Check: scripts/drift-check.js — the staged-file gate reason in wrap-up's gate; partial: nothing checks the other worktree-removal sites
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/wrap-up/SKILL.md
 
 ### INV-0123
@@ -1033,7 +1033,7 @@ Class: process
 Concepts: Staged page, Next block, Stage
 Statement: `/superdev:ship`'s post-merge hand-off, `/superdev:verify-ship`'s end message, and `/superdev:wrap-up`'s finish name a scope's staged pages by one rule, stated once in `references/scope-mode.md`, from a page count read in the same run. A count of zero names nothing (ADR 0119).
 Breaks: silently
-Check: scripts/drift-check.js — ship's, verify-ship's, and wrap-up's citations of the scope-mode.md section, and ship's and verify-ship's above-zero condition on the publish-kb line; partial: nothing checks the text an agent prints
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/ship/SKILL.md, plugin/skills/verify-ship/SKILL.md, plugin/skills/wrap-up/SKILL.md, plugin/references/scope-mode.md
 
 ### INV-0124
@@ -1042,7 +1042,7 @@ Class: process
 Concepts: Base branch, Scope branch, Scopetree, Run kind
 Statement: Every `/superdev:implement` invocation, at both execution tiers and every run kind, brings the base into the scope branch after the run lock is written and before the first slice starts (the one exception: at the `lite` tier a dirty scopetree with an `in-progress` slice skips the step, and the next invocation runs it). It merges the fetched remote base tip whether or not the local base could advance to it, and records that tip in the ledger's `**Base:**` header. Every range of the scope's own commits starts from the range base `scope.js base resolve` prints, the newer of `merge-base(<base>, <branch>)` and the recorded tip. A base that cannot be fetched is a degraded pass: the local base is merged and no tip is recorded (ADR 0120).
 Breaks: silently
-Check: scripts/drift-check.js — the step's call in both execution playbooks and its section in scope-mode.md
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/scope-mode.md, plugin/references/implement-lite.md, plugin/references/implement-full.md, plugin/scripts/scope.js
 
 ### INV-0125
@@ -1051,7 +1051,7 @@ Class: process
 Concepts: Deferred finding, Guard-rail remedy, Ledger
 Statement: A deferred finding leaves the ledger's `**Deferred:**` record only after a fix cycle that carried it lands a commit and a later re-review no longer lists it. It re-enters a fix loop only when a review names a guard-rail remedy for it (ADR 0121).
 Breaks: silently
-Check: scripts/drift-check.js — the `deferred-resolve` rows on review's fix loop, implement-full's step 3, and scope-mode's resolve procedure; partial: nothing checks that a controller waits for the re-review before it resolves
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/review/SKILL.md, plugin/references/implement-full.md, plugin/references/scope-mode.md
 
 ### INV-0126
@@ -1060,7 +1060,7 @@ Class: process
 Concepts: Intent
 Statement: In an attended `/superdev:plan` or `/superdev:brainstorm` interview, no question the agent composes offers an option whose load-bearing claims went unchecked. Each claim is checked against the repository or the third party's official docs before the question is asked, or is labeled as an assumption, and the evidence and every dropped option are shown in prose before the question (ADR 0122).
 Breaks: silently
-Check: scripts/drift-check.js — the vet-then-offer clause in `plugin/references/cross-exam.md`; partial: nothing checks that a cited line says what the agent claims, or that an asked question was vetted
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/cross-exam.md, plugin/skills/brainstorm/SKILL.md, plugin/skills/plan/SKILL.md
 
 ### INV-0127
@@ -1069,7 +1069,7 @@ Class: process
 Concepts: Intent, Derived criteria
 Statement: A question the agent composes in a `/superdev:plan` or `/superdev:brainstorm` interview offers at most two options. A single surviving option is stated in one line with its reason and is not asked, and no surviving option means no question. Brainstorm offers at most two directions, never every direction it explored, and plan's derive pass states its gap settlement as one proposal the operator confirms before slicing. A question a skill requires by name keeps its fixed option set (ADR 0122).
 Breaks: silently
-Check: scripts/drift-check.js — the cap in `plugin/references/cross-exam.md`, brainstorm's offer wording, and plan's derive-pass settlement; partial: nothing checks the options an agent actually offers
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/cross-exam.md, plugin/skills/brainstorm/SKILL.md, plugin/skills/plan/SKILL.md, plugin/agents/final-reviewer.md
 
 ### INV-0128
@@ -1105,7 +1105,7 @@ Class: process
 Concepts: Repair, Definition of Done (DoD), Scope anchor, Stage
 Statement: A repair writes nothing to the original scope's records: not its anchor, its `dod.md`, or its ledger, and merging the repair closes nothing. Recreating the original's missing local run root from its anchor's own `shipped` snapshot copies those records and changes none of them (INV-0132). The original's line observed false is settled only by `/superdev:verify-ship` on the original scope, and no repair moves the original's stage (ADR 0124).
 Breaks: silently
-Check: scripts/drift-check.js — plan's repair choice writes the Repairs line on the repair's own anchor only
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/plan/**, plugin/references/plan-contract.md, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**, plugin/references/scope-mode.md
 
 ### INV-0132
@@ -1114,7 +1114,7 @@ Class: architecture
 Concepts: Adopt, Repair, Run root, Scope anchor, Stage
 Statement: A `shipped` run whose run root is missing locally is recreated only from its own scope anchor's `## Run state` snapshot at stage `shipped`, through `scope.js adopt --shipped`, which refuses every other stage. Plain `adopt` and run init keep refusing a `shipped` snapshot, adoption writes nothing to the anchor, and `/superdev:backlog` adopts nothing (ADR 0124).
 Breaks: silently
-Check: tests/scope.test.js — `adopt --shipped` adopts a shipped payload and refuses a live, closed, or stage-less one while plain adopt refuses shipped; scripts/drift-check.js — the `repair-routing` rows pin the rule in scope-mode.md and each caller's citation; partial: nothing checks the command an agent runs
+Check: tests/scope.test.js — `adopt --shipped` adopts a shipped payload and refuses a live, closed, or stage-less one while plain adopt refuses shipped; final-reviewer's invariant compliance judges each caller
 Symbols: adoptLines
 Paths: plugin/scripts/scope.js, plugin/references/scope-mode.md, plugin/skills/plan/**, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**, plugin/skills/backlog/**
 
@@ -1133,7 +1133,7 @@ Class: process
 Concepts: Numbering collision, Scope branch, Base branch
 Statement: A scope branch never reaches the base branch carrying a numbering collision. The base step at implement start moves each colliding number of the scope to the next free one before it merges the base. After the move, no line the scope branch added still cites the old number, except a line the attended operator kept as a legitimate citation of it. `/superdev:ship` merges nothing while one stands. In this repository, the test run fails while two ADRs share a number (ADR 0126).
 Breaks: silently
-Check: tests/scope.test.js — the collision verb reports a same-number ADR with a different slug, and an invariant id, that base holds; tests/scope.test.js — the citations verb reports an added line citing an old number, and none for a longer number or an unchanged line; scripts/drift-check.js — no two ADRs in docs/adr/ share a number
+Check: tests/scope.test.js — the collision verb reports a same-number ADR with a different slug, and an invariant id, that base holds; tests/scope.test.js — the citations verb reports an added line citing an old number, and none for a longer number or an unchanged line; scripts/drift-check.js `adr-numbers` — no two ADRs in docs/adr/ share a number
 Paths: plugin/scripts/scope.js, plugin/references/scope-mode.md, plugin/references/merge-conflicts.md, plugin/skills/ship/SKILL.md
 
 ### INV-0135
@@ -1161,7 +1161,7 @@ Class: process
 Concepts: Definition of Done (DoD), Release-risk criterion
 Statement: Every Definition of Done `/superdev:plan` writes, on every change type and plan kind, names each release-risk category — rollback path, deploy-window data compatibility, consumer compatibility, production visibility — in exactly one `Release risk:` criterion or in one `Release risk: none` line that gives each category's reason. Whether the step runs is never plan's judgment (ADR 0133).
 Breaks: silently
-Check: scripts/drift-check.js — the `Release risk:` token, the every-plan clause, the no-recorded-posture branch, and the deferral to the verification ceiling pinned on plan-contract.md and plan's interview; partial: nothing checks that a written Definition of Done carries the lines (triage #993)
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/plan/**, plugin/references/plan-contract.md
 
 ### INV-0138
@@ -1170,7 +1170,7 @@ Class: process
 Concepts: Fail-to-pass run, Run trace, Slice-reviewer
 Statement: A `behavior` slice, and a fix cycle whose commits change both a test-path file and another file, carries an outcome line of a fail-to-pass run in the run trace before the reviewer that next reads the trace. A `pass-to-pass` outcome is an Important finding, and so is such a change with no outcome line: `slice-reviewer`'s on the full tier, `final-reviewer`'s on the lite tier and in `/superdev:review`'s fix loop. Both take Missing RED's 3-cycle cap and escape path: at the cap, a remainder whose only Critical or Important findings are Missing RED, Pass-to-pass, or Missing fail-to-pass run, in any mix, proceeds and the report names each, and any of them beside a Critical or Important finding of another kind blocks. A `pass-to-pass` finding closes only on a `fail-to-pass` outcome over a range from the original change's base to the tip current when that closing run ran, and stays closed once that outcome is written (ADR 0134, ADR 0125).
 Breaks: silently
-Check: scripts/drift-check.js — the fail-to-pass rows on slice-reviewer, final-reviewer, `plugin/references/review-checklist.md`, and the prose that runs the verb and dispatches each reviewer
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/agents/slice-reviewer.md, plugin/agents/final-reviewer.md, plugin/references/review-checklist.md, plugin/references/implement-full.md, plugin/references/implement-lite.md, plugin/references/run-handoff.md, plugin/skills/review/SKILL.md
 
 ### INV-0139
@@ -1215,7 +1215,7 @@ Class: process
 Concepts: Final-reviewer, Slice-reviewer, Review cycle
 Statement: The scope review's `final-reviewer` reads the whole scope range on every dispatch, its re-reviews after a fix cycle included, because a full-tier slice re-review reads only its fix cycle's range (ADR 0137).
 Breaks: silently
-Check: scripts/drift-check.js — the whole-range row on final-reviewer and the review skill's dispatch that hands it the range
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/agents/final-reviewer.md, plugin/skills/review/**
 
 ### INV-0144
@@ -1287,7 +1287,7 @@ Class: process
 Concepts: Absorbed triage record, Triage record, Scope anchor
 Statement: `/superdev:plan` absorbs a triage record only when the operator picks it. Only `/superdev:wrap-up` closes an absorbed record, and only once its citing criterion's verdict is met or the operator chose to close it. A run that resolves a deferred finding closes only a record whose provenance names its own scope anchor and that no open scope anchor absorbs, and a read of the record or of an Absorbs line that fails or is denied leaves the record open (ADR 0144, ADR 0145).
 Breaks: silently
-Check: scripts/drift-check.js — the `plan-absorb` check pins the plan half, and the `wrap-up-absorbed` table pins wrap-up's absorbed-record close, ask, keep, and no-citing-criterion clauses and each store document's Close it comment, and the `triage-write` table pins the resolve half
+Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/plan/SKILL.md, plugin/skills/wrap-up/SKILL.md, plugin/skills/review/SKILL.md, plugin/references/implement-full.md
 
 ### INV-0152
@@ -1305,7 +1305,7 @@ Class: architecture
 Concepts: Backend command contract
 Statement: A shipped executable hands text to a shell only to run an operator-supplied command: the repository's test command or a knowledge-base backend command template. That shell is `sh`, resolved from PATH. No shipped executable names a shell by absolute path, starts `bash`, or runs a command through Node's default shell (`exec`, `execSync`, or `shell: true`) (ADR 0150).
 Breaks: loudly
-Check: scripts/drift-check.js — the `shell-spawn` check fails on a shell start under `plugin/hooks/` or `plugin/scripts/` that breaks the rule
+Check: scripts/drift-check.js `shell-spawn` — fails on a shell start under `plugin/hooks/` or `plugin/scripts/` that breaks the rule
 Paths: plugin/hooks/*.js, plugin/scripts/*.js
 
 ### INV-0157
