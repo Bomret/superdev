@@ -1,7 +1,7 @@
 # Documentation: in-repo technical docs
 
 Durable in-repo docs live as a hierarchy of `AGENTS.md` files (this repo has a root `AGENTS.md`, plus
-`scripts/AGENTS.md` and `plugin/references/AGENTS.md`). The optional knowledge base is a separate
+`scripts/AGENTS.md`, `plugin/references/AGENTS.md`, and `mods/superdev-view/AGENTS.md`). The optional knowledge base is a separate
 concern, see `docs/agents/knowledge-base.md`.
 
 - **Hierarchy.** Root `AGENTS.md` holds project-wide instructions and the top-level index. Add a child

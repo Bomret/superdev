@@ -75,7 +75,13 @@ differently: the reader missing stops that hook's sweep outright, while the prob
 containment test back to the tree comparison alone, silently. The API guards its CLI entry with
 `require.main === module`, so a `require` for that reader alone runs no CLI code. `profile.js` takes
 `mainWorkTree`, `SLUG_RE`, and `CHANGE_TYPES` off the same `require`, so the run profile resolves the
-main working tree and reads a feature label by the same rules the ledger does. `base set` appends a `ledger`
+main working tree and reads a feature label by the same rules the ledger does. `hooks/run-trace.js` takes
+the trace writer `appendTrace`, the trace reader `readTrace`, the field decoder `untraceField`, the ledger
+row readers `inProgressSlices` and `sliceType`, the verification-command reader `verificationCommands`, the
+test-path classifier `isTestPath` (ADR 0128), the scope-slug pattern `SLUG_RE`, and `mainWorkTree` off the
+same `require` (ADR 0117). `hooks/tree-guard.js` takes `mainWorkTree` (ADR 0148). `publish-kb.js` takes the
+containment test `testContainment`, which refetches the base before it answers not contained (ADR 0053,
+ADR 0065). `base set` appends a `ledger`
 trace event like every other ledger-writing verb. Normalisation is per
 header: `Stage` and `Branch` are single tokens,
 cut to the first whitespace-delimited token and stripped of markup and trailing punctuation.
@@ -392,8 +398,8 @@ tag-balance check on every output.
 
 `publish-kb.js` is the fourth shipped CLI. `skills/publish-kb/SKILL.md` invokes it and relays its
 report, and keeps no publishing mechanics of its own. It resolves the main checkout from any current
-directory, a scopetree or a submodule included, through `scope.js`'s `mainWorkTree`. It takes `CHANGE_TYPES` and
-`refResolves` off the same `require`, and carries no copy of either.
+directory, a scopetree or a submodule included, through `scope.js`'s `mainWorkTree`. It takes `SLUG_RE`,
+`CHANGE_TYPES`, and `refResolves` off the same `require`, and carries no copy of any of them.
 This is what makes `.superdev/kb-pending/` resolve against the repository root, not one level too
 deep, from inside `.superdev/scopes/<scope>/scopetree`. `--scope <slug>` selects which pending scope to
 publish. Left out, the script publishes the one pending scope there is. It refuses when there is more

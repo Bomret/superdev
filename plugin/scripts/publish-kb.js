@@ -773,7 +773,7 @@ function branchNamesFrom(cwd) {
 
 // The shape scan `hooks/scope-prune.js` applies: a branch whose last segment is `scope` and whose
 // leading segment is a change type, the set `scope.js` owns. The scan itself stays a copy — a script
-// requires no hook, and a hook requires only the `scope.js` surface the root AGENTS.md Child DOX Index lists.
+// requires no hook, and a hook requires only the `scope.js` surface scripts/AGENTS.md lists.
 function shapeScanBranch(cwd, scope) {
   for (const branch of branchNamesFrom(cwd)) {
     const cut = branch.lastIndexOf('/');

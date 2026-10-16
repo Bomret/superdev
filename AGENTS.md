@@ -75,7 +75,8 @@ mods/superdev-view/    — maintainer-only Claude Code mod: a pane of a reposito
                          never shipped. Its own suites run under `claude plugin test`; `bun run test` runs none
                          of them, and only reads its fixture files through `tests/run-trace.test.js`
                          and `tests/scope.test.js`
-                         its `.gitignore` excludes `hooks/*.js`, because the hooks are TypeScript only
+                         its `.gitignore` excludes `hooks/*.js`, because the hooks are TypeScript only;
+                         its own AGENTS.md states the pane's behaviour contract
 scripts/               — the maintainer-only CLIs wired into `bun run test`: `drift-check.js` with its
                          `drift/` modules (registry, contract tables, scanners, shared helpers,
                          selftest suites), `invariant-check.js`, the invariant register validator, and
@@ -231,7 +232,7 @@ Codeberg Issues (`bomret/superdev`). Slices as issues, feature labels, epics as 
 Codeberg (Forgejo). Push scope branch, open ready PR against `main`, squash-merge with Conventional Commits title. See `docs/agents/code-management.md`.
 
 ### Documentation
-`AGENTS.md` hierarchy (root + `scripts/AGENTS.md` + `plugin/references/AGENTS.md`). `controlled` writing standard, American English. See `docs/agents/documentation.md`.
+`AGENTS.md` hierarchy (root + `scripts/AGENTS.md` + `plugin/references/AGENTS.md` + `mods/superdev-view/AGENTS.md`). `controlled` writing standard, American English. See `docs/agents/documentation.md`.
 
 ### Knowledge base
 Codeberg repo Wiki. Adopters first, maintainers second, English. `(aggregate)` page: Concepts. See `docs/agents/knowledge-base.md`.
@@ -269,8 +270,9 @@ feature's deploy target. See `docs/agents/deployment.md`.
 maintainer-only ones in `scripts/` and the shipped ones in `plugin/scripts/`. That ownership
 includes the drift-check table, one row per check.
 [`plugin/references/AGENTS.md`](plugin/references/AGENTS.md) owns the reference routing table: which
-reference owns which contract, and which runtime surface reads it. Every other subtree's rules live in
-this root doc.
+reference owns which contract, and which runtime surface reads it.
+[`mods/superdev-view/AGENTS.md`](mods/superdev-view/AGENTS.md) owns the superdev-view mod's behaviour
+contract, its install steps, and how its tests run. Every other subtree's rules live in this root doc.
 See `Structure` above for the current file inventory. Add a child only when a subtree becomes a
 durable boundary with rules of its own that do not fit here.
 
@@ -331,43 +333,11 @@ This root owns every other subtree directly:
   `run-lock.js` requires it too, for its drive-path translator (ADR 0150). When the module cannot load, the
   guardrails `merge-guard.js`, `ledger-guard.js`, and `run-lock.js` fail closed, and
   `run-trace.js` records nothing (INV-0140).
-- `scripts/` and `plugin/scripts/`. Owned by [`scripts/AGENTS.md`](scripts/AGENTS.md):
-  `plugin/scripts/scope.js` (the run-state CLI, ADR 0022: owns the ledger schema, is the only
-  `ledger.md` read and write path, exports `readLedgerHeader` for `plugin/hooks/scope-prune.js` and
-  `plugin/hooks/slicetree-sweep.js`, exports the trace writer `appendTrace`, the trace reader `readTrace`,
-  the field decoder `untraceField`, the ledger row readers `inProgressSlices` and `sliceType`, the verification-command reader
-  `verificationCommands`, the test-path classifier `isTestPath` (ADR 0128), the scope-slug pattern `SLUG_RE`, and the main-checkout resolver `mainWorkTree`, for `plugin/hooks/run-trace.js` (ADR 0117), exports `mainWorkTree` for `plugin/hooks/tree-guard.js` (ADR 0148), exports the containment test `testContainment` and its second-tier
-  probe `baseHistoryHasPatch` for `plugin/scripts/publish-kb.js` and `plugin/hooks/scope-prune.js`
-  (ADR 0053, ADR 0065, ADR 0082), exports `mainWorkTree`, `CHANGE_TYPES`, and `refResolves` for `publish-kb.js` (`SLUG_RE` too, and `mainWorkTree`, `CHANGE_TYPES`, and `verificationCommands` for `profile.js`), and carries verbs that touch no ledger: `root <slug>`,
-  which resolves a run root's absolute path against the repository's main working tree from any cwd
-  (ADR 0080). The verb `staging <scope>` resolves a scope's staging directory the same way (ADR 0119), `collisions` finds a numbering collision between a scope branch and the base by number (ADR 0126), and `citations` finds a line the scope branch added that still cites a number a renumber moved (ADR 0156).
-  The verb `test` runs a test command and records its own exit status as an Observed run, requiring
-  `plugin/hooks/run-trace.js` at call time (ADR 0127).
-  The verb `fail-to-pass <base>..<tip>` runs a commit range's tests twice in a throwaway worktree. The first run uses
-  the changed code. The second run puts the range's files outside the test paths back as they stood at `<base>`. The
-  verb appends the outcome as a trace line of its own kind. That line is no test run and moves no suite record
-  (ADR 0134). `scope.js` also writes the `planned` stage on `init`, which `/superdev:implement`'s run init moves
-  forward out of, ADR 0079),
-  `plugin/scripts/kb-patch.js` (the deterministic section merge behind a staged page's `action: patch`,
-  called by `/superdev:publish-kb`, ADR 0027 — the commands invoke this and `scope.js` at runtime),
-  `plugin/scripts/publish-kb.js` (the backend-independent half of publishing a scope's staged
-  knowledge-base pages, ADR 0069: resolves the five-verb backend command contract from
-  `docs/agents/knowledge-base.md` by heading name, carries `action: upsert`, `action: delete`, and
-  `action: patch` end to end — `patch` merging through `kb-patch.js`'s `merge()` — delegates the
-  containment check to `scope.js`'s `testContainment`, runs every backend command under a time bound
-  whose exhaustion stops the batch (ADR 0130), converts a `storage` backend's body through
-  `plugin/scripts/md-to-storage.js` and resolves a staged page's `parent:` (ADR 0109), and is the invocation
-  `skills/publish-kb/SKILL.md` runs),
-  `plugin/scripts/profile.js` (the run profile, ADR 0103: reads Claude Code's session and subagent
-  transcripts, writes nothing to them, and is the invocation `skills/profile/SKILL.md` runs),
-  and `scripts/drift-check.js` with `drift/` (the checks of mechanical facts and forbidden forms, ADR
-  0153: the CLI walks the `drift/checks.js` registry, keyed by check id, which orders every scanner and
-  contract table). What each guards, check by check, lives in that child doc's table.
-  `scripts/invariant-check.js` is the maintainer-only register validator (ADR 0093): it checks a
-  repository's `docs/invariants.md` against the register's format rules and resolves each entry's
-  `Concepts`, `Paths`, `Symbols` and `Check:` paths. It also checks that every `INV-NNNN` cited outside
-  the register, the changelog, and `docs/adr/` names an entry. It selects no entry (INV-0088), and
-  nothing under `plugin/` requires it (INV-0051).
+- `scripts/` and `plugin/scripts/`. Owned by [`scripts/AGENTS.md`](scripts/AGENTS.md), which states
+  each script's contract: the shipped `plugin/scripts/` CLIs `scope.js`, `kb-patch.js`, `publish-kb.js`,
+  `profile.js`, and the module `md-to-storage.js`, and the maintainer-only `scripts/drift-check.js` with
+  `drift/`, `scripts/invariant-check.js`, and `scripts/run-tests.js`. It names the `scope.js` exports
+  each hook and script takes, and every verb.
 - `plugin/references/`. Backend seed templates plus the runtime references. Owned by
   [`plugin/references/AGENTS.md`](plugin/references/AGENTS.md), which routes every reference to what it
   owns and to the runtime surface that reads it. Each reference's own opening states its full contract.
@@ -384,108 +354,15 @@ This root owns every other subtree directly:
   `claude --plugin-dir ./plugin` runs its working tree instead, so a half-edited guardrail hook fires on
   the very run editing it. Personal overrides belong in the gitignored `.claude/settings.local.json`.
 - `mods/superdev-view/`. A maintainer-only Claude Code mod, a hooks module (`hooks/register.tsx`) that
-  draws a pane of the main working tree's `.superdev/` folder. It reads only the items superdev's own
-  docs define there (`info.json`, `brainstorm/`, `scopes/`, `kb-pending/`, `design/`,
-  `dod-draft-<slug>.md`) and ignores every other entry. The pane draws from the run files alone. It
-  registers no hook on the session's subagent spawn, tool call, model step, or turn end. It writes no
-  file (INV-0135, ADR 0141).
-
-  The pane is a docked side tab, often narrow. On every surface, every word the pane shows is Text at the
-  host's own text size. An Svg in the pane holds no text, because the surface scales a drawing to the
-  pane's width, and text inside a scaled drawing shrinks with it. An Svg draws only a bar, at a fixed
-  height. A legend square is Text in its bar's fill. The terminal has no Svg and draws the same bars as colored glyphs, one glyph per slice in a scope's bar.
-
-  The overview is a column of collapsible cards: Brainstorm, Scopes, Pending knowledge-base pages, Design
-  sketches, and DoD drafts. Each card has a rounded, dim border. Its header shows the open mark and the
-  section name on the left, and the section's value on the right: the active and closed scope counts for
-  Scopes, the item count for the other cards. In a narrow pane the name gives up width, and the value
-  stays whole. A card's open state lives in the `sections` plugin state atom for the session, and a press
-  writes no file. The Scopes card first counts the slices of the active scopes: the share merged, a
-  stacked bar that keeps a segment for every status that has a slice, and one legend row per such status. A legend row shows the status as the
-  ledger records it. Then the card lists the active scopes, each row with its stage on the right, a bar segment per
-  slice, and its counts. The closed scopes follow as dim rows, the most recently closed first, by the
-  trace's `ledger stage set closed` line. A closed scope whose trace has no such line comes last. The card
-  shows the five most recently closed scopes. A fold below them shows the rest on a press and folds them
-  again, and its state lives in the `sections` atom like a card's. The other
-  cards draw one row per item, the label on the left and its value on the right. A scope row's name is a
-  Markdown link without a button's chrome. The pane answers a press on it and opens the scope page, the
-  scope run's event log, oldest first. No surface opens the link's URL. `eventLog` in `hooks/parse.ts` reads the
-  scope's ledger and `trace.log` to build it.
-
-  A header line opens each chain command the trace records as started. Its mark is done, stopped, or
-  running, and only the running header carries the elapsed time. Every command starts at its
-  `ledger step set` line. A repeated `step set` of one command is a start of its own. Until a
-  `step set plan` line has passed, the run's first `ledger init` at `planned` starts `plan`. Until a
-  `step set implement` line has passed, the first `implementing` stage write starts `implement`. A start
-  made from `ledger init` or the `implementing` stage write opens a fallback header. A later `step set` of
-  the same command takes that header over only when no log entry was drawn since. Otherwise the step line
-  ends the fallback command and opens a new one. An end line follows each command and shows its duration.
-  The header shows a stopped mark when the trace records a `step block` for it. A trace with no
-  `ledger step set` line that holds a stage write past `merged` was written before the step lines
-  existed. The pane draws each stage write after `implement` of such a trace as a plain line under no
-  command.
-
-  Between the headers the log draws these lines:
-  - one line per dispatch run, at the run's start time. An ended run shows the first `verdict` and
-    `final-verdict` line of its dispatch, its outcome, and its duration. A run with no recorded end shows
-    `running` and the time from its start to the scan's now, so each rescan advances it. A run that a
-    `dispatch-resume` line reopened is marked `resumed`. A slice-review verdict shows its quality part
-    alone when its spec part is `pass` or empty. Otherwise it shows `spec <value>` before the quality part.
-  - one group per slice that a trace line names.
-  - a wait of a minute or more between two commands.
-  - a date line on a day change.
-
-  A slice group sits where the first trace line naming the slice falls. Every later line whose slice
-  field names the slice draws inside the group, also after the slice merged or blocked, and under a later
-  command. The group holds the slice's dispatch runs, without the slice id. It holds a summary line for
-  each time the slice ran, when any count exists. The summary holds the path-test and suite run counts,
-  the review count, and the fail-to-pass outcome. A slice that ran more than once also keeps the end line
-  of each earlier run, with its status and duration. A slice that goes `blocked` and then `merged`, with no
-  `in-progress` line between, keeps the `blocked` end line too, because the header stands for the merge. A slice that only the ledger lists draws no group.
-  The group's header row shows these parts in order: the open mark, a time, the status mark, the slice id,
-  and the title. The time is the first `in-progress` time, or the first line's time when none exists. The
-  status mark comes from the latest `ledger slice` line of the run trace that names the slice. It is ✓
-  for `merged`, ✗ for `blocked`, and ▶ for `in-progress`, and absent for any other status. `review ×N`
-  counts the slice's completed slice-reviewer dispatches. A merged or blocked slice then shows the time
-  from its first start to its last end, and an `in-progress` slice shows `running` and the time from its
-  first start. A merged group starts closed, unless it holds a run with no recorded end. Every other group
-  starts open. The open mark is a Button beside the row's Text parts. A press writes the `groups` plugin
-  state atom, keyed by scope and slice id, for the session, and writes no file. The day-change rule runs
-  on the flat log and on each group's lines separately. The flat log dates a group by where it sits. A
-  group's own lines start from the day of its header time.
-
-  One dispatch can have several runs, because a `dispatch-resume` line reopens it. A dispatch can have a
-  run with no recorded end. A slice can have started and not ended. One line above the log counts those
-  dispatches and slices when any exist. One line after the log
-  names the commands still ahead, when any remain, or `closed` once the scope has closed. That ahead line
-  is absent when the trace records no command yet, when the trace predates the step lines and is past
-  `implement`, and when no command is left.
-
-  The pane cuts every log line to one row. Each line is a row Box of sibling Text parts, and no Text
-  holds a nested Text, because desktop wraps a nested Text at its child instead of cutting the line.
-  When a line is too wide, only the part that `row()` in `hooks/register.tsx` flags `shrink` gives up
-  width. Every other part keeps its width. On a dispatch run line it is the agent type and, outside a
-  group, the slice. On a header or command end line it is the command name. On a slice group
-  header it is the title, and a header with an empty title draws no title part. On an earlier run's end
-  line inside a group it is the status. On a stage, wait, date, or ahead line it is the label after the
-  time and mark. A slice summary line is one dim part that shrinks. A wait, date, or ahead line has only
-  that label part.
-
-  The scan reads a closed scope's whole trace while its page is open. Otherwise it reads that trace once, for
-  the close time, and keeps the time in memory, because a closed trace does not change. The scope stays in the list until
-  `hooks/scope-prune.js` reaps its run root. The pane attributes an agent to the scope whose trace
-  records it and to the slice that trace line names. Therefore `plugin/hooks/run-trace.js`'s
-  `recordDispatch` is the one attribution rule. `tests/run-trace.test.js` holds its cases (INV-0136).
-
+  draws a pane of the main working tree's `.superdev/` folder. Owned by
+  [`mods/superdev-view/AGENTS.md`](mods/superdev-view/AGENTS.md), which states what the pane reads and
+  draws, how to install the mod, and how its tests run.
   Nothing under `plugin/` requires it, and the root marketplace does not list it, so no adopter install
-  carries it. Install it into a session with `/plugin marketplace add <repo>/mods/superdev-view`, then
-  `/plugin install superdev-view@superdev-view` and `/reload-plugins`. Claude Code caches an install by
-  the `version` in the mod's own `.claude-plugin/plugin.json`, which is set by hand: a change reaches an
-  install only after that version is raised and `claude plugin update superdev-view@superdev-view` runs.
+  carries it.
 
-  Its own tests run under `claude plugin test mods/superdev-view`. `bun run test` runs none of them and
-  reads only the mod's shared fixture files. The focused command runs them when a changed path is under
-  `mods/superdev-view/`, so a `fail-to-pass` run over a mod-only range judges the mod's tests. `tests/run-trace.test.js` reads `hooks/trace-fixtures.ts`,
+  The mod's fixture files are `mods/superdev-view/hooks/trace-fixtures.ts` and
+  `mods/superdev-view/hooks/ledger-fixtures.ts`. A bare `hooks/` path in this paragraph is under
+  `mods/superdev-view/`. `tests/run-trace.test.js` reads `hooks/trace-fixtures.ts`,
   and `tests/scope.test.js` reads `hooks/ledger-fixtures.ts`. `hooks/parse.ts` reads the ledger and the
   run trace that `scope.js` writes, and two pins hold that coupling. The ledger pin in
   `tests/scope.test.js` asserts that `scope.js` writes the lines in `hooks/ledger-fixtures.ts`. The trace
