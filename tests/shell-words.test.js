@@ -312,6 +312,28 @@ assert.strictEqual(scan('[[ a && ! b ]] && c').negation, true);
   assert.notEqual(grp('a; (b)')[0], grp('a; (b)')[1]);
 }
 
+// `inst`: the chain of shell instances a command runs in, innermost first; null for the shell the scan starts from
+{
+  const ids = (n) => { const a = []; for (; n; n = n.up) a.push(n.id); return a; };
+  const inst = (s) => cmds(s).map((c) => ids(c.inst));
+  assert.deepEqual(inst('a; b && c'), [[], [], []], 'the current shell is no instance');
+  const [x, y] = inst('a | b');
+  assert.notDeepEqual(x, y, 'each pipeline stage is an instance of its own');
+  const [p, q, r] = inst('cat | { cd a; echo; }');
+  assert.deepEqual(q, r, 'a compound stage is one instance');
+  assert.notDeepEqual(p, q);
+  const [j, k, o] = inst('cd a && echo & echo');
+  assert.deepEqual([j.length, o.length], [1, 0], 'an `&` job is an instance, the command after it is not');
+  assert.deepEqual(j, k, 'an and-or list runs in one job');
+  const [s, t] = inst('(cd a); ( (echo) )');
+  assert.equal(t.length, 2, 'a nested subshell names its parent');
+  assert.notEqual(t[1], s[0], 'sibling subshells differ');
+  assert.deepEqual(inst('echo $(cd a | cat)').slice(1).map((c) => c.length), [2, 2], 'a stage inside a substitution sits in it');
+  const [c1, c2, c3] = inst('coproc { cd a; echo; }; echo');
+  assert.deepEqual([c1.length, c3.length], [1, 0], 'a coprocess is an instance, the command after it is not');
+  assert.deepEqual(c1, c2, 'a coprocess body is one instance');
+}
+
 // a locale string `$"…"` reads like a double-quoted string, without the `$`
 {
   const [c] = cmds('bash -c $"perl -pi -e x f"');

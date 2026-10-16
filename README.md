@@ -415,10 +415,12 @@ bash or PowerShell variants.
   test or an implementation, by the `## Test paths` section of `docs/agents/verification.md` or the default
   patterns. It also records each test run with its outcome (a run in the background, behind a pipe, or in a
   command line with a `!` negation, or inside compound structure or a substitution reads `unknown`; only a plain list of simple commands reads pass or fail). A command inside a function body, or anywhere in a line whose function takes a bare compound body, records no run. A test run counts only where the configured test command stands at command position. The hook
-  records nothing for a quoted mention. A full or whole-repo command with extra argument words records as a
+  records nothing for a quoted mention, for a command that only reads test files (`grep`, `sort`, `tr`, a `for` loop
+  header, and the like), or for a test path that names no existing file. It resolves a Bash command's paths from the
+  directory the command started in, which it stashes on `PreToolUse` (ADR 0159). A full or whole-repo command with extra argument words records as a
   focused run. The hook also records each revert or restore of files, and each subagent dispatch and its end. After an
   implementation edit or a passing run on a `behavior` slice, it adds a Missing RED note when the latest
-  test edit has no failing run since. The hook registers on `PreToolUse` for `Agent` and `SendMessage`, and on `PostToolUse` for `Edit`, `Write`,
+  test edit has no failing run since. The hook registers on `PreToolUse` for `Agent`, `SendMessage`, and `Bash`, and on `PostToolUse` for `Edit`, `Write`,
   `NotebookEdit`, `Bash`, `Agent`, `TaskStop`, and `SubagentHandback`. It registers on `PostToolUseFailure` for
   `Bash`, `Agent`, and `SendMessage`, and on `PermissionDenied` for `Agent` and `SendMessage`. With no matcher,
   it registers on `UserPromptSubmit`, `SessionEnd`, `SubagentStop`, and `Stop`. An edit outside every run root records nothing. A write inside a

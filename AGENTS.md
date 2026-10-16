@@ -213,7 +213,8 @@ Platform behaviour superdev works around, with the mitigation each one ships:
 [`docs/known-issues.md`](docs/known-issues.md). It covers the SessionStart preamble leak
 into subagent prompts (issue #32), the delegation handoff classifier behind a denied dispatch
 (ADR 0039, ADR 0041), and the `SubagentHandback` report the run trace reads a slice review's verdict
-from (ADR 0136). It also covers native Windows with Git Bash (ADR 0150). Read it before you change subagent prose or the unattended block.
+from (ADR 0136). It also covers native Windows with Git Bash (ADR 0150), and the PostToolUse `cwd` that names the
+directory a Bash command ended in, which run-trace works around with a PreToolUse stash (ADR 0159). Read it before you change subagent prose or the unattended block.
 
 ## Common commands
 

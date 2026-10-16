@@ -40,6 +40,9 @@ const scopePath = require.resolve('../plugin/scripts/scope.js');
       return r;
     };
     sh(S, ['init', '-q']);
+    // A path run needs its file to exist (triage #1210); verif's commit takes it into the tree.
+    fs.mkdirSync(path.join(S, 'services', 'x', 'tests'), { recursive: true });
+    fs.writeFileSync(path.join(S, 'services', 'x', 'tests', 'a.bats'), '');
     const verif = (full, focused, whole) => {
       fs.writeFileSync(path.join(S, 'docs', 'agents', 'verification.md'),
         `# V\n\n\`\`\`sh\n${full}\n\`\`\`\n\n\`\`\`sh\n${focused}\n\`\`\`\n` + (whole ? `\n## Whole-repo command\n\n\`${whole}\`\n` : ''));
@@ -71,6 +74,13 @@ const scopePath = require.resolve('../plugin/scripts/scope.js');
     verif('echo ok', 'echo FOCUSED {paths}');
     assert.equal(verb(['full']).status, 0);
     assert.match(lines()[0], /^03 main run full pass [0-9a-f]{40} clean -$/, 'a passing run records pass');
+    // A configured command whose last path part is a reading command's name is a test run (INV-0129).
+    reset();
+    fs.mkdirSync(path.join(S, 'script'));
+    fs.writeFileSync(path.join(S, 'script', 'test'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+    verif('script/test', 'script/test {paths}');
+    assert.equal(verb(['--', 'script/test']).status, 0, 'a configured script/test is not refused');
+    assert.match(lines()[0] || '', /^03 main run full pass [0-9a-f]{40} clean -$/, 'a configured script/test records a full run');
 
     // whole runs the configured whole-repo command; focused substitutes shell-quoted paths, and with none runs full.
     reset();
@@ -91,6 +101,9 @@ const scopePath = require.resolve('../plugin/scripts/scope.js');
     assert.notEqual(r.status, 0, 'a non-test command is refused');
     assert.ok(!r.stdout.includes('hi'), 'and nothing runs');
     assert.deepEqual(lines(), [], 'and nothing is recorded');
+    r = verb(['--', 'command', '-pv', 'bats', 'services/x/tests/a.bats']);
+    assert.notEqual(r.status, 0, 'a `command -v` lookup of a test run is refused');
+    assert.deepEqual(lines(), [], 'and records nothing');
     r = verb(['--', 'bats', 'services/x/tests/a.bats']);
     assert.equal(r.status, 0, r.stderr);
     assert.match(lines()[0], /^03 main run path pass [0-9a-f]{40} clean services\/x\/tests\/a\.bats$/, 'a path run records its file');
@@ -277,6 +290,14 @@ const scopePath = require.resolve('../plugin/scripts/scope.js');
     fs.writeFileSync(path.join(free, 'tests', 'a.test.js'), 'process.exit(5);\n');
     r = verb(['--', 'node', 'tests/a.test.js'], { cwd: free });
     assert.equal(r.status, 5, 'a classified test command runs outside a run tree, and passes the status through');
+    // A test path naming no file is no test run, as the hook reads it: the verb refuses it and runs nothing.
+    r = verb(['--', 'node', 'tests/missing.test.js'], { cwd: free });
+    assert.match(r.stderr, /not a test run/, 'a test path naming no file is refused');
+    // A runner script named `test`, given as a path, is a test run: only the bare builtin `test` reads as no run.
+    fs.writeFileSync(path.join(free, 'test'), '#!/bin/sh\nexit 6\n', { mode: 0o755 });
+    r = verb(['--', './test', 'tests/a.test.js'], { cwd: free });
+    assert.equal(r.status, 6, 'a runner script named test runs and passes its status through');
+    fs.rmSync(path.join(free, 'test'));
     // A command that cd's into a run tree is that tree's run, wherever the verb stands: it records there.
     reset();
     fs.mkdirSync(path.join(S, 'tests'), { recursive: true });

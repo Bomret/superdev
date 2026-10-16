@@ -1325,3 +1325,12 @@ Statement: `/superdev:plan`'s derive dispatch carries no line of the plan's Defi
 Breaks: silently
 Check: scripts/drift-check.js `derive-no-dod` — plan's derive dispatch bullet hands no Definition of Done, and final-reviewer's derive mode reads none
 Paths: plugin/skills/plan/SKILL.md, plugin/agents/final-reviewer.md
+
+### INV-0160
+
+Class: safety
+Concepts: Run trace
+Statement: run-trace's PreToolUse handler for a Bash call records evidence and guards nothing: whatever fails in it, such as an unwritable stash directory or a missing `tool_use_id`, it denies no call, prints nothing, and exits 0 (ADR 0159).
+Breaks: loudly
+Check: tests/run-trace.test.js — a PreToolUse Bash input whose stash cannot be written exits 0 with empty stdout
+Paths: plugin/hooks/run-trace.js, plugin/hooks/hooks.json

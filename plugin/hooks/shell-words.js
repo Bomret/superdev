@@ -24,7 +24,7 @@
 //             span are built on first read, so a deeply nested command costs memory linear in its length.
 //   Redirect  { op, fd, target, body }   `fd` is the digit prefix (or null), `target` the Word that follows; a `<<` or `<<-`
 //             heredoc also carries its `body` text (lines joined at backslash-newlines for an unquoted delimiter).
-//   Simple command  { words, redirects, level, nest, group, at, sep, negated }   `sep` is the operator that follows the
+//   Simple command  { words, redirects, level, nest, group, inst, at, sep, negated }   `sep` is the operator that follows the
 //             command in its own text or group (`&&`, `||`, `;`, `\n`, `|`, `|&`, `&`), `''` for the last
 //             command of a text or group; the last command of a `( … )` subshell takes the operator after its `)`.
 //             `negated` is true for the command a `!` leads: the command after it (`! a`, `if ! a`,
@@ -42,6 +42,10 @@
 //             `$( … )`, backtick group, `<( … )`, `>( … )`, or heredoc body a shell reads. A command read out of quoted text counts `nest`
 //             within that text, from 0. `level` 0 is the command itself, N > 0 is a command
 //             read out of the text of a quoted or backslash-escaped word (`scan(..., { quoted: true })`).
+//             `inst` is the chain of shell instances the command runs in, `{ id, up }` innermost first, null in the shell the scan
+//             starts from (instAt): each stage of a pipeline of two or more elements, simple or compound, each and-or list an `&`
+//             sends to the background, each `coproc` command, and each `( … )`, `$( … )`, backtick group, `<( … )`, `>( … )`, or heredoc body a shell reads
+//             is an instance, its `id` unique in the scan; `up` names the instance around it.
 //             `fn` is true for a command inside a function body (`f() { … }`, `function f { … }`, `f() ( … )`), nested
 //             groups, substitutions, backtick groups, and heredoc bodies included: a definition runs nothing.
 //             A body that is no `{ … }` or `( … )` group (`f() if …; fi`) is not marked; the scan result's `fnBare` reports it.
@@ -53,7 +57,8 @@
 //   scanner drops: a reserved word that opens or closes a compound command (`if then elif else fi case esac for select while
 //   until do done { }`), `[[`, a `( … )` group, a `(( … ))` command, a function header, or `coproc`, which runs its command asynchronously). A substitution or process
 //   substitution sets it only through what it holds. And `fnBare`, true when a function header is followed by a body that
-//   is no `{ … }` or `( … )` group (`f() case x in *) a;; esac`): the body's commands stay in `commands`, unmarked.
+//   is no `{ … }` or `( … )` group (`f() case x in *) a;; esac`): the body's commands stay in `commands`, unmarked. And `fns`,
+//   the Set of the function names the line defines, quoted texts included.
 //   Commands come in the order of their first word, except that the commands of a backtick group follow
 //   the commands of the text that holds the group.
 //
@@ -121,6 +126,37 @@ function decodeAnsi(text) {
 // Source of `group` ids: unique per subshell instance, 0 for the text a scan starts from.
 let groupSeq = 0;
 
+// instAt(pos) -> { id, up } | null
+// The shell instance a command at pipeline position `pos` (`{ pl, el }`) runs in, as a chain of instances, innermost first:
+// a stage of a pipeline of two or more elements, an and-or list an `&` runs in the background, a `coproc` command, a `( … )`, `$( … )`, `<( … )`,
+// or `>( … )` frame, a backtick body, and a heredoc body a shell reads each start one; null is the shell the scan starts from.
+// The walk is iterative and caches each pipeline's instance (`base`) and each element's (`at`), so the instances of every
+// command cost time linear in the command's length.
+function instAt(pos) {
+  const pend = [];
+  let node = null;
+  for (let cur = pos; cur;) {
+    const { pl, el } = cur;
+    if (pl.at && pl.at.has(el)) { node = pl.at.get(el); break; }
+    pend.push(cur);
+    if (pl.base !== undefined) break;
+    cur = pl.up ? { pl: pl.up, el: pl.upEl } : pl.root && pl.root.pos;
+  }
+  for (let k = pend.length - 1; k >= 0; k--) {
+    const { pl, el } = pend[k];
+    if (pl.base === undefined) {
+      let b = node;
+      const id = pl.sub ? pl.sub.grp : pl.up || !pl.root ? null : pl.root.frame ? pl.root.frame.grp : pl.root.id;
+      if (id !== null && id !== undefined) b = { id, up: b };
+      if (pl.job.bg) b = pl.job.node || (pl.job.node = { id: pl.job.id, up: b });
+      pl.base = b;
+    }
+    node = pl.elem > 0 || (pl.co && pl.co.has(el)) ? { id: `${pl.id}:${el}`, up: pl.base } : pl.base;
+    (pl.at || (pl.at = new Map())).set(el, node);
+  }
+  return node;
+}
+
 class Unreadable extends Error {}
 const fail = (message) => { throw new Unreadable(message); };
 // The heredoc re-read budget of the whole scan is spent: the whole command reads as unreadable, whichever text spent the last of it.
@@ -167,14 +203,16 @@ const HEREDOC_REREAD_FLOOR = 4096;
 // `cmds` and queues backtick bodies on `queue`. Throws Unreadable.
 // `hdRead` is the scan's one budget for heredoc bodies read again: `{ used, max }` in characters.
 // `baseAt` is where the text sits in the text it was read from (a backtick body, a heredoc body), or undefined for the root.
-function run(src, cmds, queue, level, heredocBody, baseNest, hdRead, baseGroup, baseAt, baseFn) {
+// `baseRoot` is the text's `{ pos, frame, id }` for instAt(): the position it runs at, and the instance it starts (`id`), or null.
+function run(src, cmds, queue, level, heredocBody, baseNest, hdRead, baseGroup, baseAt, baseFn, baseRoot) {
   const n = src.length;
   const st = [newFrame('cmd', 0)];
   st[0].nest = baseNest;
   st[0].grp = baseGroup;
   st[0].fnIn = baseFn === true;
-  // A heredoc body starts inside a double-quote frame that no `"` closes.
-  if (heredocBody) { st.push(newFrame('dq', 0)); st[1].fnIn = baseFn === true; }
+  st[0].root = baseRoot || null;
+  // A heredoc body starts inside a double-quote frame that no `"` closes; it runs where its command runs.
+  if (heredocBody) { st.push(newFrame('dq', 0)); st[1].fnIn = baseFn === true; st[1].pos = baseRoot ? baseRoot.pos : null; }
   const arithFail = new Set();
   let rescanned = 0;
   // The order heredoc openers come in this text (`seq`).
@@ -210,22 +248,37 @@ function run(src, cmds, queue, level, heredocBody, baseNest, hdRead, baseGroup, 
   // every later element of `up` (`{ cat <<E; } | sh`, `cat <<E | (bash)`). A `;`, `&`, `&&`, `||`, newline, `then`, `do`, `else`, or
   // `elif` starts the next pipeline in the same element. A pipeline lists its commands (`list`) and the pipelines inside its
   // elements (`kids`), which shellAt() reads when a command asks whether it feeds a shell.
+  // A pipeline also names the shell instance it runs in, for instAt(): `job` is its and-or list (shared across `&&` and `||`), which
+  // an `&` marks `bg`; `sub` is the `( … )` frame whose own pipelines it is one of; `root` is the frame's `{ pos, frame, id }` where a
+  // pipeline sits in no enclosing one: `pos` the position (`{ pl, el }`) the frame opened at, `frame` the `$( … )` or `<( … )` frame it
+  // starts, `id` the instance a queued text starts.
   const newPipe = (up, upEl) => {
-    const p = { elem: 0, up, upEl, list: [], kids: [], shell: undefined, fi: undefined };
+    const p = { elem: 0, up, upEl, list: [], kids: [], shell: undefined, fi: undefined, id: ++groupSeq, job: { id: ++groupSeq, bg: false }, sub: null, root: null };
     if (up) up.kids.push(p);
     return p;
   };
   const topPipe = (f) => {
-    if (!f.pls) f.pls = [newPipe(null, 0)];
+    if (!f.pls) { f.pls = [newPipe(null, 0)]; f.pls[0].root = f.root || null; }
     return f.pls[f.pls.length - 1];
   };
   const openPipe = (f) => {
     const t = topPipe(f);
     f.pls.push(newPipe(t, t.elem));
   };
-  const nextPipe = (f) => {
+  // `andOr`: the next pipeline follows `&&` or `||`, so it runs in the same and-or list.
+  const nextPipe = (f, andOr) => {
     const t = topPipe(f);
-    f.pls[f.pls.length - 1] = newPipe(t.up, t.upEl);
+    const p = newPipe(t.up, t.upEl);
+    p.sub = t.sub;
+    p.root = t.root;
+    if (andOr) p.job = t.job;
+    f.pls[f.pls.length - 1] = p;
+  };
+  // The position a frame opened now starts at: the current command's pipeline element in a command frame, else the frame's own.
+  const here = (f) => {
+    if (f.kind !== 'cmd') return f.pos || null;
+    const pl = f.cmd ? f.cmd.pl : topPipe(f);
+    return { pl, el: f.cmd ? f.cmd.el : pl.elem };
   };
   // A closer without an opener (bash rejects it) leaves the frame's outermost pipeline open.
   const closePipe = (f) => { if (f.pls && f.pls.length > 1) f.pls.pop(); };
@@ -333,6 +386,8 @@ function run(src, cmds, queue, level, heredocBody, baseNest, hdRead, baseGroup, 
         // A `!` is a negation wherever its status lands (a dropped `case` subject, a `[[ … ]]` list); `scan` reports that.
         if (w.value === '!') cmds.negation = true;
         else if (w.value !== 'time') cmds.compound = true;
+        // A coprocess runs in a subshell of its own: its pipeline element is an instance (instAt), whatever the command is.
+        if (w.value === 'coproc') (c.pl.co || (c.pl.co = new Set())).add(c.el);
         f.fnPend = false;
         if (w.value === '!' || c.negated) f.neg = true; c.drop = true; f.cmd = null; f.timeOpt = w.value === 'time'; f.coproc = w.value === 'coproc'; return; }
       if (w.value === 'case') { f.cases.push('subject'); cmds.compound = true; openPipe(f); }
@@ -445,7 +500,7 @@ function run(src, cmds, queue, level, heredocBody, baseNest, hdRead, baseGroup, 
       if (body !== '' && !hd.quoted) {
         // Every body re-read, at any nesting level, spends from the one budget of the whole scan.
         spendHeredoc(hdRead, body.length);
-        run(body, cmds, queue, level, true, hdNest, hdRead, hdGroup, hd.at, hdFn);
+        run(body, cmds, queue, level, true, hdNest, hdRead, hdGroup, hd.at, hdFn, { pos: { pl: hd.cmd.pl, el: hd.cmd.el }, frame: null, id: null });
       }
       if (body !== '') {
         (hd.cmd.fed || (hd.cmd.fed = [])).push({ text: hd.quoted ? body : body.replace(/\\([$`\\])/g, '$1'), at: hd.at, nest: hdNest + 1, fn: hdFn, fd: hd.redir.fd });
@@ -470,6 +525,8 @@ function run(src, cmds, queue, level, heredocBody, baseNest, hdRead, baseGroup, 
   const push = (f, frame, width) => {
     if (f.kind === 'cmd') beginWord(f);
     frame.fnIn = inFn(f);
+    frame.pos = here(f);
+    if (frame.kind === 'cmd') frame.root = { pos: frame.pos, frame: frame.sub === 'word' ? frame : null, id: null };
     st.push(frame);
     i += width;
   };
@@ -484,7 +541,9 @@ function run(src, cmds, queue, level, heredocBody, baseNest, hdRead, baseGroup, 
     while (j < n && src[j] !== '`') j += src[j] === '\\' ? 2 : 1;
     if (j >= n) fail('unclosed backtick');
     // In double quotes bash also strips the backslash of an escaped double quote.
-    queue.push({ text: src.slice(i + 1, j).replace(f.kind === 'dq' ? /\\([`\\$"])/g : /\\([`\\$])/g, '$1'), level, nest: frameNest() + 1, group: ++groupSeq, at: baseAt === undefined ? i : baseAt, fn: inFn(f) });
+    const group = ++groupSeq;
+    queue.push({ text: src.slice(i + 1, j).replace(f.kind === 'dq' ? /\\([`\\$"])/g : /\\([`\\$])/g, '$1'), level, nest: frameNest() + 1, group, at: baseAt === undefined ? i : baseAt, fn: inFn(f),
+      root: { pos: here(f), frame: null, id: group } });
     if (f.kind === 'cmd') { beginWord(f); addPlain(f, src.slice(i, j + 1)); }
     i = j + 1;
   };
@@ -552,6 +611,8 @@ function run(src, cmds, queue, level, heredocBody, baseNest, hdRead, baseGroup, 
     if (!a.cmdForm) {
       const s = newFrame('cmd', a.start);
       s.sub = 'word';
+      s.pos = a.pos;
+      s.root = { pos: a.pos, frame: s, id: null };
       st.push(s);
       i += 2;
     }
@@ -675,7 +736,7 @@ function run(src, cmds, queue, level, heredocBody, baseNest, hdRead, baseGroup, 
         i += src[i + 1] === ';' && src[i + 2] === '&' ? 3 : 2;
       } else i++;
     } else if (c === '&') {
-      if (pat || (f.dbl && f.dblDepth > 0)) { beginWord(f); addPlain(f, '&'); i++; } else if (src[i + 1] === '&') { setSep(f, '&&'); endCommand(f); nextPipe(f); f.need = true; i += 2; } else if (src[i + 1] === '>') {
+      if (pat || (f.dbl && f.dblDepth > 0)) { beginWord(f); addPlain(f, '&'); i++; } else if (src[i + 1] === '&') { setSep(f, '&&'); endCommand(f); nextPipe(f, true); f.need = true; i += 2; } else if (src[i + 1] === '>') {
         endWord(f);
         const op = src[i + 2] === '>' ? '&>>' : '&>';
         beginRedirect(f, op, null);
@@ -683,6 +744,7 @@ function run(src, cmds, queue, level, heredocBody, baseNest, hdRead, baseGroup, 
       } else {
         setSep(f, '&');
         endCommand(f);
+        topPipe(f).job.bg = true;
         nextPipe(f);
         if (f.need) fail('operator without a command');
         i++;
@@ -697,7 +759,7 @@ function run(src, cmds, queue, level, heredocBody, baseNest, hdRead, baseGroup, 
         const op = src[i + 1] === '|' || src[i + 1] === '&' ? src.slice(i, i + 2) : '|';
         setSep(f, op);
         endCommand(f);
-        if (op === '||') nextPipe(f); else topPipe(f).elem++;
+        if (op === '||') nextPipe(f, true); else topPipe(f).elem++;
         i += op.length;
         f.need = true;
       }
@@ -743,6 +805,7 @@ function run(src, cmds, queue, level, heredocBody, baseNest, hdRead, baseGroup, 
         a.forForm = true;
         a.nc = cmds.length;
         a.nq = queue.length;
+        a.pos = here(f);
         f.cmd.drop = true;
         st.push(a);
         i += 2;
@@ -758,6 +821,7 @@ function run(src, cmds, queue, level, heredocBody, baseNest, hdRead, baseGroup, 
           a.cmdForm = true;
           a.nc = cmds.length;
           a.nq = queue.length;
+          a.pos = here(f);
           st.push(a);
           i += 2;
         } else {
@@ -765,6 +829,7 @@ function run(src, cmds, queue, level, heredocBody, baseNest, hdRead, baseGroup, 
           g.sub = 'group';
           const t = topPipe(f);
           g.pls = [newPipe(t, t.elem)];
+          g.pls[0].sub = g;
           g.neg = f.neg === true;
           g.ng = g.neg || f.ng || f.bsNeg > 0;
           g.fnIn = inFn(f) || f.fnPend;
@@ -875,7 +940,7 @@ function scan(command, opts = {}) {
       cmds.ctx = ctx;
       const queued0 = queue.length;
       try {
-        run(item.text, cmds, queue, item.level, false, item.nest || 0, hdRead, item.group || 0, item.at, item.fn);
+        run(item.text, cmds, queue, item.level, false, item.nest || 0, hdRead, item.group || 0, item.at, item.fn, item.root);
       } catch (e) {
         // A quoted text, or a heredoc body a shell reads, that is no command line goes to the caller; the commands it held are dropped.
         if (!(e instanceof Unreadable) || e instanceof Exhausted || (item.level === 0 && !item.fed)) throw e;
@@ -904,7 +969,8 @@ function scan(command, opts = {}) {
           }
         }
         if (c.drop || (c.words.length === 0 && c.redirects.length === 0)) continue;
-        all.push({ words: c.words, redirects: c.redirects, level: c.level, nest: c.nest, group: c.group, at: c.at, sep: c.sep, negated: c.negated, fn: c.fn });
+        all.push({ words: c.words, redirects: c.redirects, level: c.level, nest: c.nest, group: c.group, at: c.at, sep: c.sep, negated: c.negated, fn: c.fn,
+          inst: instAt({ pl: c.pl, el: c.el }) });
         // A heredoc body a shell reads is a command line at the level of the command that holds it (#1016).
         // A numbered heredoc (`3<<E`, `exec 3<<E`) reaches a shell too when a shell of the line reads that descriptor (noteIndirect).
         if (c.fed) {
@@ -912,7 +978,8 @@ function scan(command, opts = {}) {
           for (const b of c.fed) {
             if (!fed && !(b.fd !== null && ctx.fds.has(b.fd))) continue;
             spendHeredoc(hdRead, b.text.length);
-            queue.push({ text: b.text, level: item.level, nest: b.nest, group: ++groupSeq, at: b.at, fn: b.fn, fed: true });
+            const group = ++groupSeq;
+            queue.push({ text: b.text, level: item.level, nest: b.nest, group, at: b.at, fn: b.fn, fed: true, root: { pos: { pl: c.pl, el: c.el }, frame: null, id: group } });
           }
         }
         if (!opts.quoted) continue;
@@ -956,7 +1023,7 @@ function scan(command, opts = {}) {
         }
       }
     }
-    return { readable: true, commands: all, failedQuoted, texts, negation, compound, fnBare };
+    return { readable: true, commands: all, failedQuoted, texts, negation, compound, fnBare, fns: ctx.fns };
   } catch (e) {
     return { readable: false, reason: e instanceof Unreadable ? e.message : `scan failed: ${e && e.message}`, commands: [] };
   }

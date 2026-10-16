@@ -152,9 +152,10 @@ working tree.
 streams the command's output and exits with its status. `full`, `focused`, and `whole` run the command
 `docs/agents/verification.md` configures, as written; `focused` substitutes its shell-quoted paths for `{paths}`
 and, given none, runs the full command and records `full`. `--` runs a command that `hooks/run-trace.js`'s
-`testRuns` classifies as exactly one test run, and records the kind and files a direct run records. A quoted word that holds
-whitespace counts as a path argument of that classification only when it names an existing file or directory. A
-quoted note that begins with a test path is therefore free text. A status the
+`testRuns` classifies as exactly one test run, and records the kind and files a direct run records. A word counts as a
+path argument of that classification only when its file part names an existing file or directory; a runner node id
+(`a.py::test_x`, `a.test.js:12`) counts by its file part, and a glob word keeps its reading. A quoted note that begins
+with a test path is therefore free text, and so is a test path that names no file. A status the
 command shape hides from the test, such as a pipe without `pipefail`, records `unknown`. A command that classifies
 as no test run, or a kind with no configured command, is refused and nothing runs. The verb reads the run root,
 slice, commit, and tree state when the command starts, and appends the line when it finishes. A run during which

@@ -192,8 +192,44 @@ assert.deepEqual(bashTargets("echo $[ ']' + $(cat a > b) + '' ]", '/r'), [path.r
 assert.deepEqual(bashTargets('echo $[ "]" + $(cat a > c) ]', '/r'), [path.resolve('/r', 'c')]);
 // bash reads quotes inside `$(( … ))` too, so a quoted `)` closes nothing and the substitution after it runs.
 assert.deepEqual(bashTargets('echo $(( ")" + $(cat a > d) ))', '/r'), [path.resolve('/r', 'd')]);
+// An unreadable `cd` inside a subshell, a substitution, or an uncalled function body leaves the outer shell's relative `cd` resolving
+// against its own directory; a subshell after an outer unreadable `cd` starts at the end directory and resolves its own `cd`.
+assert.deepEqual(bashTargets('(cd ~ && ls) ; cd sub && echo x > f.txt ; cd ..', '/s', '/s'), [path.resolve('/s', 'sub/f.txt')]);
+assert.deepEqual(bashTargets('cd "$X" && (cd sub && echo x > f.txt)', '/s', '/e'), [path.resolve('/e', 'sub/f.txt')]);
+assert.deepEqual(bashTargets('echo $(cd ~) ; cd sub && echo x > f ; cd ..', '/s', '/s'), [path.resolve('/s', 'sub/f')]);
+assert.deepEqual(bashTargets('f() { cd ~; } ; cd sub && echo x > f ; cd ..', '/s', '/s'), [path.resolve('/s', 'sub/f')]);
+// A call of a function whose body holds a `cd` runs that `cd` in the outer shell: the call resolves as an unreadable `cd` does.
+assert.deepEqual(bashTargets('f() { cd sub; } ; f ; echo x > f.txt', '/s', '/s/sub'), [path.resolve('/s/sub', 'f.txt')]);
+assert.deepEqual(bashTargets('f() { cd ~; } ; f ; cd sub && echo x > f.txt', '/s', '/h/sub'), [path.resolve('/h/sub', 'f.txt')]);
+// A quoted or escaped command word calls the function it unquotes to.
+assert.deepEqual(bashTargets('f() { cd sub; } ; "f" ; echo x > a', '/s', '/s/sub'), [path.resolve('/s/sub', 'a')]);
+assert.deepEqual(bashTargets('f() { cd sub; } ; \\f ; echo x > a', '/s', '/s/sub'), [path.resolve('/s/sub', 'a')]);
+// `command` and `builtin` run the `cd`, `pushd`, or `popd` they name; `command -v` and `-V` look the name up and move nothing.
+assert.deepEqual(bashTargets('command cd a; echo x > g', '/s', '/s/a'), [path.resolve('/s/a', 'g')], 'command cd');
+assert.deepEqual(bashTargets('builtin cd a; echo x > g', '/s', '/s/a'), [path.resolve('/s/a', 'g')], 'builtin cd');
+assert.deepEqual(bashTargets('command -p -- pushd a; echo x > g', '/s', '/s/a'), [path.resolve('/s/a', 'g')], 'command -p -- pushd');
+assert.deepEqual(bashTargets('command -v cd a; echo x > g', '/s', '/s'), [path.resolve('/s', 'g')], 'command -v cd moves nothing');
+assert.deepEqual(bashTargets('f() { builtin cd a; } ; f ; echo x > g', '/s', '/s/a'), [path.resolve('/s/a', 'g')], 'a body builtin cd makes a call move');
+// A `cd`'s own redirect opens before the `cd` runs, against the directory before it.
+assert.deepEqual(bashTargets('cd a > out; echo x > g', '/s', '/s/a'), [path.resolve('/s', 'out'), path.resolve('/s/a', 'g')], 'cd a > out');
+// A pipeline stage runs in a subshell, so its `cd` moves nothing after the pipeline.
+assert.deepEqual(bashTargets('cd sub | cat ; cd sub && echo > f', '/s', '/s/sub'), [path.resolve('/s/sub', 'f')]);
+assert.deepEqual(bashTargets('ls | cd sub ; cd sub && echo > f', '/s', '/s/sub'), [path.resolve('/s/sub', 'f')]);
+assert.deepEqual(bashTargets('cd sub |& cat ; cd sub && echo > f', '/s', '/s/sub'), [path.resolve('/s/sub', 'f')]);
+assert.deepEqual(bashTargets('f() { cd sub; } ; f | cat ; echo x > a', '/s', '/s'), [path.resolve('/s', 'a')]);
+// A compound pipeline stage and an `&` job are shell instances of their own: their `cd` moves only themselves.
+assert.deepEqual(bashTargets('{ cd sub; } | cat ; cd sub && echo x > f', '/s', '/s/sub'), [path.resolve('/s/sub', 'f')]);
+assert.deepEqual(bashTargets('if true; then cd sub; fi | cat ; cd sub && echo x > f', '/s', '/s/sub'), [path.resolve('/s/sub', 'f')]);
+assert.deepEqual(bashTargets('cat a | while read l; do cd sub; done ; cd sub && echo x > f', '/s', '/s/sub'), [path.resolve('/s/sub', 'f')]);
+assert.deepEqual(bashTargets('cd sub & cd sub && echo x > a', '/s', '/s/sub'), [path.resolve('/s/sub', 'a')]);
+assert.deepEqual(bashTargets('cat a | { cd sub; echo y > g; }', '/s', '/s'), [path.resolve('/s/sub', 'g')]);
+assert.deepEqual(bashTargets('cd sub && echo x > f & echo y > g', '/s', '/s'), [path.resolve('/s/sub', 'f'), path.resolve('/s', 'g')]);
+// A coprocess runs in a subshell of its own, so its `cd` moves nothing after it.
+assert.deepEqual(bashTargets('coproc cd a; echo x > f', '/s', '/s'), [path.resolve('/s', 'f')], 'coproc cd');
+assert.deepEqual(bashTargets('coproc { cd a; }; echo x > f', '/s', '/s'), [path.resolve('/s', 'f')], 'coproc { cd; }');
 // Sibling subshells do not share a directory: the `group` id tells them apart.
 assert.deepEqual(bashTargets('(cd a); (echo > x)', '/r'), [path.resolve('/r', 'x')]);
+assert.deepEqual(bashTargets('(cd a); ( (echo x > f) )', '/s', '/e'), [path.resolve('/s', 'f')], 'a nested subshell after a sibling cd');
 // `<>` opens its target for writing, creating it.
 assert.deepEqual(bashTargets('exec 3<>f', '/r'), [path.resolve('/r', 'f')]);
 // An unquoted heredoc body's substitutions are scanned, so a write inside one records beside the redirect.
@@ -300,8 +336,9 @@ assert.equal(require(hookPath).stripHeredocs, undefined);
 
 // Linear time (ADR 0086): four times the input takes about four times as long when linear and sixteen times when quadratic, against
 // a same-run baseline; the ceiling sits at nine, between them. A long command; one shell command holding many heredoc process
-// substitutions, whose words are read once, not once per substitution; and commands at a rising subshell depth, where each subshell
-// instance starts in the directory of the one around it, read in constant time, not by a walk over every depth.
+// substitutions, whose words are read once, not once per substitution; commands at a rising subshell depth, where each subshell
+// instance starts in the directory of the one around it, read in constant time, not by a walk over every depth; and many pipeline
+// stages that each move, flat and nested in brace groups, whose instances are each met once.
 {
   const { timePair } = require('./linear-time');
   for (const [label, make] of [
@@ -309,6 +346,8 @@ assert.equal(require(hookPath).stripHeredocs, undefined);
     ['many heredoc process substitutions', (n) => 'sh ' + '<(cat <<E\nx\nE\n) '.repeat(n / 2)],
     ['nested $(', (d) => 'echo ' + '$('.repeat(d) + 'echo x' + ')'.repeat(d)],
     ['nested "$( with a shell-fed heredoc', (d) => 'cat <<E | sh\ntrue\nE\necho ' + '"$('.repeat(d) + 'echo x' + ')"'.repeat(d)],
+    ['many moving pipeline stages', (n) => 'cd a | cat ; '.repeat(n / 4) + 'echo x > f'],
+    ['nested moving pipeline stages', (d) => '{ cd a | cat ; '.repeat(d / 4) + 'echo x > f ;' + ' }'.repeat(d / 4)],
   ]) {
     const [base, big] = timePair((c) => bashTargets(c, '/r'), make(4000), make(16000));
     assert.ok(big < base * 9, `${label}: time grows linearly: ${base} ns, four times the input ${big} ns`);
@@ -349,6 +388,9 @@ assert.deepEqual(trace(A).map((l) => l[3]), ['test', 'test', 'test', 'test', 'te
 // Test runs, reverts, restores (ADR 0117). S3 becomes a git repository so the run line carries a real sha.
 const git = (...a) => cp.execFileSync('git', ['-C', S3, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { encoding: 'utf8' }).trim();
 fs.writeFileSync(vf, '# V\n\n```sh\nbun run test\n```\n\n```sh\nbun run test\n```\n');
+// A path run needs its file to exist (triage #1210): the test files the cases below run are committed with the tree.
+fs.mkdirSync(path.join(S3, 'tests'), { recursive: true });
+fs.writeFileSync(path.join(S3, 'tests', 'x.test.js'), '');
 git('init', '-q');
 git('add', '-A');
 git('commit', '-q', '-m', 'base');
@@ -378,11 +420,10 @@ reset();
 post(`node scripts/note.js dod-line 3 "tests/x.test.js adopt block: a stage-less payload is refused"`);
 assert.deepEqual(tail(trace(A)), [], 'a note argument starting with a test path records no run');
 // A quoted test path that holds a space and names a file is still a path run.
-fs.mkdirSync(path.join(S3, 'tests'));
 fs.writeFileSync(path.join(S3, 'tests', 'x y.test.js'), '');
 reset();
 post(`node "tests/x y.test.js"`);
-fs.rmSync(path.join(S3, 'tests'), { recursive: true });
+fs.rmSync(path.join(S3, 'tests', 'x y.test.js'));
 assert.deepEqual(tail(trace(A)).map((l) => l.split(' ').slice(0, 2).join(' ')), ['run path'], 'a quoted test path with a space records');
 
 // A compound configured command matches across the segments it spans, with the outcome rules of a direct run (#928).
@@ -401,8 +442,11 @@ reset();
 fs.writeFileSync(vf, '# V\n\n```sh\ncd sub && bun test\n```\n');
 post('cd sub && bun test');
 assert.deepEqual(tail(trace(A)), [`run full pass ${sha} dirty -`], 'a compound configured command starting with cd matches');
+fs.mkdirSync(path.join(S3, 'sub', 'tests'), { recursive: true });
+fs.writeFileSync(path.join(S3, 'sub', 'tests', 'a.test.js'), '');
 post('cd sub && bun test && node tests/a.test.js');
 assert.equal(trace(A).filter((l) => l[2] === 'run').pop()[7], 'sub/tests/a.test.js', 'a cd inside a matched compound still moves the base');
+fs.rmSync(path.join(S3, 'sub'), { recursive: true });
 reset();
 fs.writeFileSync(vf, '# V\n\n```sh\nbun test | tee out.log\n```\n');
 post('bun test | tee out.log');
@@ -708,15 +752,15 @@ reset();
 for (const c of ['bun run test', 'cd sub && bun run test', 'set -o pipefail; bun run test | tail -5']) { post(c); fail(c); }
 assert.deepEqual(trace(A).map((l) => l.slice(3, 5).join(' ')), ['full pass', 'full fail', 'full pass', 'full fail', 'full pass', 'full fail'], 'a plain list of simple commands keeps pass and fail');
 
-// A function body's writes record at its definition, since a call of it later writes them; its `cd` moves nothing outside it.
+// A function body's writes record at its definition, since a call of it later writes them; its `cd` moves nothing at the definition.
 assert.deepEqual(bashTargets('f() { echo x > out; }; f', S3), [path.join(S3, 'out')], 'a function body write records');
 assert.deepEqual(bashTargets('function f { cp a out; }; f', S3), [path.join(S3, 'out')], 'a `function` body write records');
 assert.deepEqual(bashTargets('f() { cd sub; }; echo > out', S3), [path.join(S3, 'out')], 'a function body cd moves nothing at definition');
 
 // The wrappers `timeout` and `env` take `--` and their option flags before the command.
 reset();
-for (const c of ['timeout 5s -- bun run test', 'timeout -k 5 1m -- bun run test', 'env -i FOO=1 bun run test', 'env -u HOME bun run test', 'env -- bun run test']) post(c);
-assert.deepEqual(trace(A).map((l) => l[3]), ['full', 'full', 'full', 'full', 'full'], 'wrapped runs record');
+for (const c of ['timeout 5s -- bun run test', 'timeout -k 5 1m -- bun run test', 'env -i FOO=1 bun run test', 'env -u HOME bun run test', 'env -- bun run test', 'command -p bun run test']) post(c);
+assert.deepEqual(trace(A).map((l) => l[3]), ['full', 'full', 'full', 'full', 'full', 'full'], 'wrapped runs record');
 
 // `sudo` and `nice` take option words (and a value for `-u`, `-g`, `-C`, `-n`, attached or separate) before the command.
 reset();
@@ -788,6 +832,7 @@ assert.deepEqual(tail(trace(A)).map((l) => l.split(' ').slice(0, 2).join(' ')), 
   const editOut = (f, extra) => runOut(Object.assign({ hook_event_name: 'PostToolUse', tool_name: 'Edit', tool_input: { file_path: path.join(S3, f) }, cwd: tmp }, extra));
   const postOut = (command, extra) => runOut(Object.assign({ hook_event_name: 'PostToolUse', tool_name: 'Bash', tool_input: { command }, cwd: S3 }, extra));
   const T = 'tests/n.test.js';
+  fs.writeFileSync(path.join(S3, T), '');
   reset();
   assert.equal(editOut('src/first.js'), '', 'an impl edit before the first test edit gets no note');
   assert.equal(editOut(T), '', 'a test edit gets no note');
@@ -1683,6 +1728,12 @@ assert.equal(trace(A).length, 1, 'a missing verification.md still records, with 
   fs.mkdirSync(path.join(T3win, 'docs', 'agents'), { recursive: true });
   fs.mkdirSync(path.join(T3win, 'src'), { recursive: true });
   fs.writeFileSync(path.join(W, 'ledger.md'), ledger([['03', 'in-progress']]));
+  // The test files the runs below name exist: a path run needs its file (triage #1210). `/c/sub/…` from the tree
+  // resolves to `<tree>/C:/sub/…`.
+  for (const f of [path.join('tests', 'n.test.js'), path.join('C:', 'sub', 'tests', 'a.test.js')]) {
+    fs.mkdirSync(path.dirname(path.join(T3win, f)), { recursive: true });
+    fs.writeFileSync(path.join(T3win, f), '');
+  }
   const wvf = path.join(T3win, 'docs', 'agents', 'verification.md');
   const bashAt = (command, cwd, hook) => runOut({ hook_event_name: hook || 'PostToolUse', tool_name: 'Bash', tool_input: { command }, cwd: cwd || tmp });
   const lines = () => trace(W).map((l) => l.slice(2).join(' '));
@@ -1698,6 +1749,15 @@ assert.equal(trace(A).length, 1, 'a missing verification.md still records, with 
   clear();
   bashAt(`echo x > ${T3}/src/f.js`);
   assert.deepEqual(lines(), [], 'off win32 the drive path locates no run tree');
+  // A stashed starting directory (ADR 0159) and a `cd /c/…` target: the segments before the `cd` resolve against the stash,
+  // and the target normalizes. The session cwd lies in the tree, so `/c/sub` resolves to `<tree>/C:/sub`.
+  onWin32(() => {
+    clear();
+    const command = 'echo x > src/h.js && cd /c/sub && echo y > g.js';
+    runOut({ hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_use_id: 'w32-stash', tool_input: { command }, cwd: T3win });
+    runOut({ hook_event_name: 'PostToolUse', tool_name: 'Bash', tool_use_id: 'w32-stash', tool_input: { command }, cwd: tmp });
+  });
+  assert.deepEqual(lines(), ['edit impl src/h.js', 'edit impl C:/sub/g.js'], 'a stashed start and a cd /c/… target record in the run tree');
 
   // testRunsOf: a test run after `cd /c/…` records in the run tree.
   onWin32(() => { clear(); bashAt(`cd ${T3} && node tests/n.test.js`); });
@@ -1736,5 +1796,213 @@ assert.equal(trace(A).length, 1, 'a missing verification.md still records, with 
     assert.ok(note.includes('Missing RED'), 'a scope.js test call after cd /c/… notes');
   });
   assert.deepEqual(lines().filter((l) => l.startsWith('run')), [], 'the hook records no run for the scope.js test call');
+}
+
+// A Bash call resolves from the directory it started in (ADR 0159). A PostToolUse `cwd` is the directory the command
+// ended in, so the PreToolUse input's `cwd` is stashed by `tool_use_id` and read back once.
+{
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'run-trace-start-'));
+  const savedTmp = process.env.TMPDIR;
+  process.env.TMPDIR = path.join(home, 'tmp');
+  fs.mkdirSync(process.env.TMPDIR);
+  // The stash directory is per user, so a second account on a shared /tmp stashes in its own (no uid on Windows).
+  const stashDir = path.join(os.tmpdir(), process.getuid ? `superdev-run-trace-${process.getuid()}` : 'superdev-run-trace');
+  const C = path.join(home, '.superdev', 'scopes', 'c');
+  const T = path.join(C, 'scopetree');
+  for (const d of ['tests', 'sub', path.join('docs', 'agents')]) fs.mkdirSync(path.join(T, d), { recursive: true });
+  fs.writeFileSync(path.join(C, 'ledger.md'), ledger([['01', 'in-progress']]));
+  fs.writeFileSync(path.join(T, 'tests', 'a.test.js'), '');
+  fs.writeFileSync(path.join(T, 'docs', 'agents', 'verification.md'), '# V\n\n```sh\nbun run test\n```\n\n```sh\nbun run test\n```\n');
+  const lines = () => trace(C).map((l) => (l[2] === 'run' ? `run ${l[3]} ${l[4]} ${l[7]}` : l.slice(2).join(' ')));
+  const clear = () => fs.rmSync(path.join(C, 'trace.log'), { force: true });
+  let n = 0;
+  const pre = (command, start, tu) => run({ hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_use_id: tu, tool_input: { command }, cwd: start });
+  const post = (command, end, tu, event) => run({ hook_event_name: event || 'PostToolUse', tool_name: 'Bash', tool_use_id: tu, tool_input: { command }, cwd: end });
+  const call = (command, start, end, event) => { const tu = `tu${++n}`; pre(command, start, tu); post(command, end, tu, event); return tu; };
+  const tests = path.join(T, 'tests');
+
+  // hooks.json registers run-trace.js for PreToolUse on Bash, beside the guardrails.
+  const registered = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'plugin', 'hooks', 'hooks.json'), 'utf8')).hooks;
+  assert.ok(registered.PreToolUse.some((g) => g.matcher === 'Bash' && g.hooks.some((h) => h.command.includes('hooks/run-trace.js'))), 'PreToolUse on Bash runs run-trace.js');
+
+  // A literal relative `cd` resolves once, under PostToolUse and PostToolUseFailure.
+  clear();
+  call('cd tests && node a.test.js', T, tests);
+  call('cd tests && node a.test.js', T, tests, 'PostToolUseFailure');
+  assert.deepEqual(lines(), ['run path pass tests/a.test.js', 'run path fail tests/a.test.js'], 'a cd from the tree root resolves once');
+  // A redirect write after a relative `cd` (triage #978).
+  clear();
+  call('cd sub && echo x > f.txt', T, path.join(T, 'sub'));
+  assert.deepEqual(lines(), ['edit impl sub/f.txt'], 'a redirect after a cd records under the path it wrote');
+  // A `cd` in the middle of a command.
+  clear();
+  call('git status && cd tests && node a.test.js', T, tests);
+  assert.deepEqual(lines().map((l) => l.split(' ').pop()), ['tests/a.test.js'], 'a mid-command cd resolves once');
+  // A restore after a relative `cd`.
+  clear();
+  call('cd sub && git restore -- f.txt', T, path.join(T, 'sub'));
+  assert.deepEqual(lines(), ['restore sub/f.txt'], 'a restore after a cd names the path it reached');
+  // A `scope.js test` call after a relative `cd` is the verb's own run: the hook records none for it.
+  clear();
+  call('cd tests && node scripts/scope.js test -- node a.test.js', T, tests);
+  assert.deepEqual(lines(), [], 'a scope.js test call after a cd records no hook run');
+
+  // A `cd` the hook cannot read resolves the segments after it against the directory the command ended in.
+  clear();
+  for (const c of ['cd "$D" && node tests/a.test.js', 'cd ~ && node tests/a.test.js', 'cd - && node tests/a.test.js', 'cd && node tests/a.test.js']) call(c, home, T);
+  assert.deepEqual(lines().map((l) => l.split(' ').pop()), ['tests/a.test.js', 'tests/a.test.js', 'tests/a.test.js', 'tests/a.test.js'], 'an unreadable cd falls back to the end directory');
+  // A relative `cd` after an unreadable one also stays at the end directory: the end already holds its move.
+  clear();
+  call('cd "$D" && cd tests && node a.test.js', home, tests);
+  call('cd ~ && cd sub && echo x > f.txt', home, path.join(T, 'sub'));
+  call('cd "$D" && cd sub && git restore -- f.txt', home, path.join(T, 'sub'));
+  call('cd "$D" && cd tests && node scripts/scope.js test -- node a.test.js', home, tests);
+  assert.deepEqual(lines(), ['run path pass tests/a.test.js', 'edit impl sub/f.txt', 'restore sub/f.txt'], 'a relative cd after an unreadable cd doubles no prefix');
+  // An unreadable `cd` in a nested instance or an uncalled function body leaves the outer shell's relative `cd` where it moved.
+  clear();
+  call('(cd ~ && ls) ; cd sub && echo x > f.txt ; cd ..', T, T);
+  call('cd "$D" && (cd sub && echo x > f.txt)', home, T);
+  call('echo $(cd ~) ; cd sub && echo x > f.txt ; cd ..', T, T);
+  call('f() { cd ~; } ; cd sub && echo x > f.txt ; cd ..', T, T);
+  assert.deepEqual(lines(), ['edit impl sub/f.txt', 'edit impl sub/f.txt', 'edit impl sub/f.txt', 'edit impl sub/f.txt'], 'a nested or function-body unreadable cd keeps the outer relative cd');
+  // A called function's `cd` moves the outer shell: the call resolves as an unreadable `cd` does.
+  clear();
+  call('f() { cd tests; } ; f ; node a.test.js', T, tests);
+  call('f() { cd ~; } ; f ; cd tests && node a.test.js', T, tests);
+  assert.deepEqual(lines().map((l) => l.split(' ').pop()), ['tests/a.test.js', 'tests/a.test.js'], 'a called function cd resolves to the end directory');
+  // A pipeline stage's `cd` runs in a subshell and moves nothing after the pipeline.
+  clear();
+  call('cd tests | cat ; cd tests && node a.test.js', T, tests);
+  assert.deepEqual(lines().map((l) => l.split(' ').pop()), ['tests/a.test.js'], 'a pipeline stage cd doubles no prefix');
+  // `command cd` and `builtin cd` move as the `cd` they wrap, `command -p` included.
+  clear();
+  call('builtin cd tests && node a.test.js', T, tests);
+  call('command -p cd tests && node a.test.js', T, tests);
+  call('command cd tests && git restore -- a.test.js', T, tests);
+  assert.deepEqual(lines(), ['run path pass tests/a.test.js', 'run path pass tests/a.test.js', 'restore tests/a.test.js'], 'a wrapped cd moves the directory');
+  // An absolute `cd` after an unreadable one still resolves to itself.
+  clear();
+  call(`cd "$D" && cd ${T} && node tests/a.test.js`, home, T);
+  assert.deepEqual(lines(), ['run path pass tests/a.test.js'], 'an absolute cd after an unreadable cd resolves to itself');
+  // `pushd -n` and `popd -n` take `-n` as an option and leave the directory where it was.
+  clear();
+  call('pushd -n sub && node tests/a.test.js', T, T);
+  call('popd -n && node tests/a.test.js', T, T);
+  assert.deepEqual(lines().map((l) => l.split(' ').pop()), ['tests/a.test.js', 'tests/a.test.js'], 'pushd -n and popd -n move no directory');
+
+  // No usable stash resolves against the input's `cwd`: no PreToolUse, an unsafe `tool_use_id`, an unwritable stash directory.
+  clear();
+  post('node a.test.js', tests, 'never-stashed');
+  pre('node a.test.js', home, 'a/../b');
+  post('node a.test.js', tests, 'a/../b');
+  process.env.TMPDIR = path.join(home, 'not-a-dir');
+  fs.writeFileSync(process.env.TMPDIR, '');
+  pre('node a.test.js', home, 'unwritable');
+  post('node a.test.js', tests, 'unwritable');
+  // The spawned PreToolUse hook prints nothing and exits 0 when the stash cannot be written (INV-0160).
+  assert.equal(spawnOut({ hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_use_id: 'spawned', tool_input: { command: 'node a.test.js' }, cwd: home }), '', 'an unwritable stash prints nothing');
+  process.env.TMPDIR = path.join(home, 'tmp');
+  assert.deepEqual(lines(), ['run path pass tests/a.test.js', 'run path pass tests/a.test.js', 'run path pass tests/a.test.js'], 'no usable stash resolves against the input cwd');
+
+  // The stash is removed once read, and PreToolUse writes no trace line.
+  clear();
+  const tu = `tu${++n}`;
+  pre('node a.test.js', T, tu);
+  assert.ok(fs.existsSync(path.join(stashDir, tu)), 'PreToolUse stashes the starting directory');
+  assert.deepEqual(lines(), [], 'PreToolUse writes no trace line');
+  post('node a.test.js', T, tu, 'PostToolUseFailure');
+  assert.ok(!fs.existsSync(path.join(stashDir, tu)), 'PostToolUseFailure removes the stash');
+  const tu2 = call('node a.test.js', T, T);
+  assert.ok(!fs.existsSync(path.join(stashDir, tu2)), 'PostToolUse removes the stash');
+  // A PostToolUse that records nothing still removes the stash: shell-words.js cannot load.
+  const gone = path.join(home, 'gone.js');
+  fs.writeFileSync(gone, "const M = require('module'); const load = M._load; M._load = function (req, ...a) { if (/shell-words/.test(req)) throw new Error('gone'); return load.call(this, req, ...a); };");
+  const unloaded = [{ hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_use_id: 'unloaded', tool_input: { command: 'node a.test.js' }, cwd: T },
+    { hook_event_name: 'PostToolUse', tool_name: 'Bash', tool_use_id: 'unloaded', tool_input: { command: 'node a.test.js' }, cwd: T }];
+  const ur = cp.spawnSync(process.execPath, ['-r', gone, '-e', `const { record } = require(${JSON.stringify(hookPath)}); for (const e of ${JSON.stringify(unloaded)}) record(e);`], { encoding: 'utf8', timeout: 10000 });
+  assertSpawnDecided(ur, 'run-trace.js with shell-words.js unloadable');
+  assert.equal(ur.status, 0, ur.stderr);
+  assert.ok(!fs.existsSync(path.join(stashDir, 'unloaded')), 'a PostToolUse that records nothing removes the stash');
+
+  // A symlink at the stash path is never written through.
+  const victim = path.join(home, 'victim.txt');
+  fs.writeFileSync(victim, 'keep');
+  fs.symlinkSync(victim, path.join(stashDir, 'linked'));
+  pre('node a.test.js', T, 'linked');
+  assert.equal(fs.readFileSync(victim, 'utf8'), 'keep', 'a planted symlink is not written through');
+  clear();
+  post('node a.test.js', tests, 'linked');
+  assert.deepEqual(lines(), ['run path pass tests/a.test.js'], 'a symlinked stash is not read as a starting directory');
+  // A stash directory that is a symlink is not the hook's own: nothing is stashed in it, and nothing in it is read.
+  // simplicity: a directory another account owns needs a chown, so only the symlink case is pinned.
+  const elsewhere = path.join(home, 'elsewhere');
+  fs.mkdirSync(elsewhere);
+  fs.renameSync(stashDir, `${stashDir}.own`);
+  fs.symlinkSync(elsewhere, stashDir);
+  pre('node a.test.js', tests, 'viaLink');
+  assert.ok(!fs.existsSync(path.join(elsewhere, 'viaLink')), 'a symlinked stash directory receives no stash');
+  fs.writeFileSync(path.join(elsewhere, 'planted'), tests);
+  clear();
+  post('node tests/a.test.js', T, 'planted');
+  assert.deepEqual(lines(), ['run path pass tests/a.test.js'], 'a stash in a symlinked directory is not read');
+  fs.unlinkSync(stashDir);
+  fs.renameSync(`${stashDir}.own`, stashDir);
+
+  // A command that only reads test files records no run (triage #1210): a `for`/`select` header is no command, and the
+  // reading commands record nothing for a test file they name.
+  clear();
+  call('cd tests && for f in scan scanRunRootPaths; do grep -c "\\b$f\\b" $t; done', T, tests);
+  call('for f in "scan(" x; do echo "$(grep -n -F "$f" a.test.js | tr "\\n" " ")"; done', tests, tests);
+  call('for t in tests/a.test.js; do wc -l $t; done', T, T);
+  call('select t in tests/a.test.js; do cat $t; done', T, T);
+  call('cd tests && for t in a.test.js; do head $t; done', T, tests);
+  for (const r of ['tr a b tests/a.test.js', 'sort tests/a.test.js', 'cut -c1 tests/a.test.js', 'uniq tests/a.test.js', 'jq . tests/a.test.js',
+    'test -f tests/a.test.js', '[ -f tests/a.test.js ]', '[[ -f tests/a.test.js ]]', 'basename tests/a.test.js', 'dirname tests/a.test.js', 'realpath tests/a.test.js']) call(r, T, T);
+  assert.deepEqual(lines(), [], 'reading commands and loop headers record no run');
+  // The builtin `test` reads as one only as a bare command word: a runner script named `test` given as a path still runs.
+  for (const r of ['./test tests/a.test.js', 'script/test tests/a.test.js']) call(r, T, T);
+  assert.deepEqual(lines(), ['run path pass tests/a.test.js', 'run path pass tests/a.test.js'], 'a runner script named test records its path run');
+  clear();
+  // A loop body running the configured command still records it, its outcome unknown.
+  call('for i in 1; do bun run test; done', T, T);
+  assert.deepEqual(lines(), ['run full unknown -'], 'a configured run inside a loop body still records');
+
+  // A path word counts only when its file part names a file or directory that exists.
+  clear();
+  fs.writeFileSync(path.join(T, 'tests', 'a.py'), '');
+  call('node tests/a.test.js', T, T);
+  call('node tests/missing.test.js', T, T);
+  call('pytest tests/a.py::test_x', T, T);
+  call('pytest tests/gone.py::test_x', T, T);
+  call('node --test tests/a.test.js:12', T, T);
+  call(`node --test 'tests/*.test.js'`, T, T);
+  assert.deepEqual(lines(), ['run path pass tests/a.test.js', 'run path pass tests/a.py::test_x', 'run path pass tests/a.test.js:12', 'run path pass tests/*.test.js'],
+    'a missing file records no run; a node id counts by its file part; a quoted glob keeps its reading');
+  assert.equal(testRuns('node tests/missing.test.js', T).length, 0, 'the classifier scope.js test reads agrees');
+
+  // `command -v` and `-V`, also in an option cluster, look the name up and run nothing; `command` and `command -p` run it.
+  clear();
+  for (const c of ['command -v node tests/a.test.js', 'command -pv node tests/a.test.js', 'command -V node tests/a.test.js', 'command node tests/a.test.js']) call(c, T, T);
+  assert.deepEqual(lines(), ['run path pass tests/a.test.js'], 'a lookup records no path run');
+  assert.equal(testRuns('command -pv node tests/a.test.js', T).length, 0, 'the classifier scope.js test reads agrees on a lookup');
+
+  // A `-C` after git's subcommand moves no edit base; a restore of a glob records no literal glob path.
+  clear();
+  fs.writeFileSync(path.join(T, 'p.patch'), '--- a/sub/q.js\n+++ b/sub/q.js\n@@\n');
+  call('git apply -C 1 p.patch', T, T);
+  call(`git restore 'tests/*'`, T, T);
+  assert.deepEqual(lines(), ['edit impl sub/q.js'], 'git apply -C 1 keeps the edit base, and a glob restore records nothing');
+
+  // A configured command whose last path part is a reading command's name still records its run (INV-0129).
+  clear();
+  fs.writeFileSync(path.join(T, 'docs', 'agents', 'verification.md'), '# V\n\n```sh\nscript/test\n```\n\n```sh\nscript/test {paths}\n```\n');
+  call('script/test', T, T);
+  call('script/test tests/a.test.js', T, T);
+  assert.deepEqual(lines(), ['run full pass -', 'run focused pass -'], 'a configured script/test records its run');
+  fs.writeFileSync(path.join(T, 'docs', 'agents', 'verification.md'), '# V\n\n```sh\nbun run test\n```\n\n```sh\nbun run test\n```\n');
+
+  process.env.TMPDIR = savedTmp;
+  if (savedTmp === undefined) delete process.env.TMPDIR;
+  fs.rmSync(home, { recursive: true, force: true });
 }
 fs.rmSync(tmp, { recursive: true, force: true });

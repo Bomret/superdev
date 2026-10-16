@@ -9,6 +9,7 @@
 // And every subagent dispatch and its end with an outcome (ADR 0140): PreToolUse on Agent, then PostToolUse, PostToolUseFailure,
 // or PermissionDenied on Agent, SubagentStop, PostToolUse on TaskStop, or the main session's Stop, UserPromptSubmit, or SessionEnd.
 // PreToolUse on SendMessage reopens an ended dispatch (`dispatch-resume`), and the resumed run ends again the same ways.
+// PreToolUse on Bash only stashes the directory the command starts in, which its PostToolUse resolves the command from (ADR 0159).
 // Any error exits 0 silently; the hook never blocks.
 // simplicity: a write behind `bash -c` or a variable is not seen (a write inside `$( … )`, backticks, or a heredoc body a known
 // shell reads on stdin, such as `bash <<E`, is); a guardrail-grade
@@ -19,6 +20,7 @@
 // here-string or echo text a shell reads) record no edit here.
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
@@ -55,8 +57,28 @@ function unquote(word) {
   return word.replace(/'([^']*)'|"((?:[^"\\]|\\.)*)"|\\(.)/g, (_, a, b, c) => (a !== undefined ? a : b !== undefined ? b.replace(/\\(.)/g, '$1') : c));
 }
 
+// The scanned commands in the order bash runs them (`at`, stable sort), marked for how they move the directory (`cdDir`).
+// `calls` marks a call of a function that moves the directory: a command outside every function body whose command word, past
+// env assignments and unquoted (`"f"` and `\f` call `f`), names a function the line defines, after a `cd`, `pushd`, or `popd` in a
+// function body, also behind `command` or `builtin` (`unwrapBuiltin`). A function body runs in the shell that calls it, so its `cd` moves that shell.
+// simplicity: a call of any defined function counts once any function body holds a `cd`, since the scanner names no body's
+// function; a call that moves nothing then only resolves as an unreadable `cd` does. Upgrade by naming each body's function.
+function markMoves(scanned) {
+  const cmds = [...scanned.commands].sort((a, b) => a.at - b.at);
+  let moves = false;
+  for (const c of cmds) {
+    const ws = c.words.map((w) => w.raw);
+    const at = ws.findIndex((w) => !/^[A-Za-z_]\w*=/.test(w));
+    const word = at < 0 ? undefined : ws[at];
+    if (c.fn) moves = moves || /^(?:cd|pushd|popd)$/.test(at < 0 ? '' : unwrapBuiltin(word, ws.slice(at + 1))[0]);
+    else c.calls = moves && word !== undefined && scanned.fns.has(unquote(word));
+  }
+  return cmds;
+}
+
 // The raw words of a command's simple commands, one segment each, read through the shared scanner (ADR 0135):
-// [{ ws, sep, nest, group, negated, fn, compound }], in the order bash runs them (a backtick body's commands first, by `at`). `compound` is true for every segment when the line holds compound structure the
+// [{ ws, sep, nest, group, inst, negated, fn, calls, compound }], in the order bash runs them (a backtick body's commands first, by `at`;
+// `inst` the scanner's shell instance, `calls` from `markMoves`). `compound` is true for every segment when the line holds compound structure the
 // scanner drops. A function header with a bare compound body (`fnBare`) leaves no segments. `negated` is true for every segment when the command line holds an unquoted `!` negation
 // anywhere. `fn` marks a command inside a function body: it stays a segment (it still ends the commands before it) but records
 // no run, restore, or `scope.js test` call, since a definition runs nothing. `ws` holds the words after redirects (a process substitution is no word), `sep` the
@@ -68,41 +90,92 @@ function cmdSegments(command) {
   // A function header with a bare compound body: the definition runs nothing, and the body's commands are unmarked, so none records.
   if (!scanned.readable || scanned.fnBare) return [];
   // The scanner lists a backtick group's commands after the whole text; `at` (stable sort) puts them back in the order bash runs them.
-  return [...scanned.commands].sort((a, b) => a.at - b.at).filter((c) => c.level === 0).map((c) => ({
+  return markMoves(scanned).filter((c) => c.level === 0).map((c) => ({
     ws: c.words.map((w) => w.raw).filter((w) => !/^[<>]\(/.test(w)),
     sep: c.sep === '|&' ? '|' : c.sep,
     nest: c.nest,
     group: c.group,
+    inst: c.inst,
     // A `!` anywhere in the command line may negate any command of it, so it marks every segment (INV-0017).
     negated: c.negated || scanned.negation === true,
     fn: c.fn === true,
+    calls: c.calls === true,
     // Compound structure the scanner dropped (`case`, `if`, `{ }`, `( )`, `[[`, a function header) anywhere in the line.
     compound: scanned.compound === true,
   }));
 }
 
-// The directory each segment runs in. A `cd` re-bases its own subshell instance (`group`) and the segments after it in that
-// instance; the segments outside it keep their directory. An instance starts in the directory of the one around it.
-// `bases` holds no gap: a depth never reached before takes the directory of the deepest one known, so a group change costs constant time.
-function dirTracker(cwd) {
-  const bases = [cwd];
-  const groups = [];
+// The directory each segment runs in. A `cd` re-bases its own shell instance (`inst`, the scanner's chain: a subshell, a
+// substitution, a pipeline stage, an `&` job, a coprocess) and the segments after it in that instance; the segments outside it keep their
+// directory. An instance starts in the directory of the one around it, read when its first segment runs; null is the outer shell.
+// `end` is the directory the outer shell ended in: a `cd` the hook cannot read moves there. In the outer shell it also sets
+// `lost`, after which a relative `cd` of the outer shell moves to `end` too (`cdDir`). A move in a nested instance or a function
+// body leaves `lost` alone, since `end` holds none of them; an outer call of a function whose body holds a `cd` sets it, since the
+// body runs in the outer shell.
+function dirTracker(cwd, end = cwd) {
+  const dirs = new Map();
+  let outer = cwd;
   return {
-    of({ nest, group }) {
-      if (nest > 0 && groups[nest] !== group) {
-        groups[nest] = group;
-        while (bases.length < nest) bases.push(bases[bases.length - 1]);
-        bases[nest] = bases[nest - 1];
-      }
-      return bases[nest];
+    end,
+    lost: false,
+    // Each instance is set once when first met, so the walks of all segments cost time linear in the instances.
+    of({ inst }) {
+      const fresh = [];
+      let n = inst;
+      for (; n && !dirs.has(n.id); n = n.up) fresh.push(n);
+      const dir = n ? dirs.get(n.id) : outer;
+      for (const f of fresh) dirs.set(f.id, dir);
+      return dir;
     },
-    set({ nest }, dir) { bases[nest] = dir; },
+    set({ inst }, dir) {
+      if (inst) dirs.set(inst.id, dir);
+      else outer = dir;
+    },
   };
+}
+
+// The command `command` and `builtin` run, as [cmd, args]: `command cd a` and `builtin cd a` run `cd a`, past `command -p` and a
+// `--`. `command -v` and `-V` look the name up and run nothing, so they give an empty command. Any other command gives itself.
+function unwrapBuiltin(cmd, args) {
+  while (cmd === 'command' || cmd === 'builtin') {
+    let i = 0;
+    for (; cmd === 'command' && /^-[pvV]+$/.test(args[i] || ''); i++) if (/[vV]/.test(args[i])) return ['', []];
+    if (args[i] === '--') i++;
+    cmd = args[i] || '';
+    args = args.slice(i + 1);
+  }
+  return [cmd, args];
+}
+
+// The directory a `cd`, `pushd`, or `popd` in segment `seg` moves to, also behind `command` or `builtin` (`unwrapBuiltin`): a literal target resolves against `base`. A target the
+// hook cannot read (a variable, `~`, `-`, none, or a stack move) gives `dirs.end`, the directory the command ended in (ADR 0159).
+// In the outer shell (no `inst`, outside a function body) it also marks the tracker lost: every later relative move of the outer
+// shell then gives `dirs.end` too, since the end already holds that move. A nested instance (a subshell, a substitution, a
+// pipeline stage, an `&` job, a coprocess) resolves its relative moves against its own base, `dirs.end` included, because the end holds none
+// of its moves. An absolute target resolves to itself. A call of a function whose body holds a `cd` (`seg.calls`, `markMoves`)
+// moves as an unreadable `cd` does. Null for any other command. `pushd -n` and `popd -n` move no directory: they give `base`.
+function cdDir(cmd, args, base, dirs, seg) {
+  const outer = !seg.inst && !seg.fn;
+  if (seg.calls) {
+    dirs.lost = dirs.lost || outer;
+    return dirs.end;
+  }
+  [cmd, args] = unwrapBuiltin(cmd, args);
+  if (cmd !== 'cd' && cmd !== 'pushd' && cmd !== 'popd') return null;
+  let i = 0;
+  let stay = false;
+  for (; /^-[LPe@]+$/.test(args[i] || '') || (cmd !== 'cd' && args[i] === '-n'); i++) stay = stay || args[i] === '-n';
+  if (stay) return base;
+  if (args[i] === '--') i++;
+  const d = cmd === 'popd' || !args[i] ? null : unquote(args[i]);
+  if (!d || d === '-' || d.startsWith('~') || /^[+-]\d+$/.test(d)) dirs.lost = dirs.lost || outer;
+  else if (path.isAbsolute(drivePath(d)) || !(outer && dirs.lost)) return path.resolve(base, drivePath(d));
+  return dirs.end;
 }
 
 // The files a Bash command writes, as absolute paths resolved against the `cd`/`git -C` target, else cwd. The shared scanner
 // reads the command (ADR 0135): quoted text stays data, and a command it cannot read to its end records nothing.
-function bashTargets(command, cwd) {
+function bashTargets(command, cwd, end) {
   const targets = [];
   const add = (base, word) => {
     const w = word === null ? null : unquote(word);
@@ -111,34 +184,35 @@ function bashTargets(command, cwd) {
   let scanned;
   try { scanned = scan(command); } catch { return []; }
   if (!scanned.readable) return [];
-  // A `cd` inside a subshell or substitution moves nothing outside that instance.
-  const dirs = dirTracker(cwd);
+  // A `cd` inside a subshell, a substitution, a pipeline stage, an `&` job, or a coprocess moves nothing outside that instance.
+  const dirs = dirTracker(cwd, end);
   // The scanner lists a backtick group's commands after the whole text; `at` puts them back in the order bash runs them.
-  for (const cmdLine of [...scanned.commands].sort((a, b) => a.at - b.at)) {
+  for (const cmdLine of markMoves(scanned)) {
     // simplicity: a function body's writes record at its definition, whether or not a call follows (`f() { echo x > out; }; f`
-    // records `out`); a `cd` in the body moves nothing, since the definition runs nothing. Upgrade by reading the body at the call.
+    // records `out`); a `cd` in the body moves nothing at the definition, and a call moves as an unreadable `cd` does (`cdDir`).
+    // Upgrade by reading the body at the call.
     const { words, redirects } = cmdLine;
     // A process substitution (`>(cmd)`, `<(cmd)`) is a word of the scanner, and no operand.
     const ws = words.map((w) => w.raw).filter((w) => !/^[<>]\(/.test(w));
     const base = dirs.of(cmdLine);
     let segBase = base;
-    // `git -C <dir>` re-bases its own command; `cd <dir>` re-bases the commands after it.
-    const gi = ws.indexOf('-C');
-    if (ws[0] === 'git' && gi > 0 && ws[gi + 1]) {
-      const d = unquote(ws[gi + 1]);
-      if (d) segBase = path.resolve(base, drivePath(d));
+    // `git -C <dir>` among git's own leading options re-bases its own command; `cd <dir>` re-bases the commands after it.
+    if (ws[0] === 'git') {
+      for (let i = 1; i < ws.length && ws[i].startsWith('-'); i += /^(?:-C|-c|--git-dir|--work-tree)$/.test(ws[i]) ? 2 : 1) {
+        const d = ws[i] === '-C' && ws[i + 1] ? unquote(ws[i + 1]) : null;
+        if (d) segBase = path.resolve(base, drivePath(d));
+      }
     }
-    if (ws[0] === 'cd' && ws[1]) {
-      const d = unquote(ws[1]);
-      if (d && !cmdLine.fn) dirs.set(cmdLine, path.resolve(base, drivePath(d)));
-      continue;
-    }
+    const cd = cdDir(ws[0], ws.slice(1), base, dirs, cmdLine);
+    if (cd && !cmdLine.fn) dirs.set(cmdLine, cd);
     // A file write is `>`, `>>`, `>|`, `<>`, `&>`, `&>>`, or `>&` onto a file; `>&2` and `>&-` duplicate a descriptor.
+    // The redirects of a `cd` or a call still write, against the directory before it: bash opens them before the command runs.
     for (const { op, target } of redirects) {
       if (!/^(?:>>?|>\||<>|&>>?|>&)$/.test(op)) continue;
       if (op === '>&' && /^(?:\d+|-)$/.test(target.raw)) continue;
       add(segBase, target.raw);
     }
+    if (cd && !cmdLine.calls) continue;
     // The command word is the first word after leading env assignments and `sudo`/`command`/`env`/`time`.
     let cmdAt = 0;
     while (cmdAt < ws.length && (/^[A-Za-z_]\w*=/.test(ws[cmdAt]) || /^(?:sudo|command|env|time)$/.test(ws[cmdAt]))) cmdAt++;
@@ -233,7 +307,12 @@ function locate(abs) {
 // simplicity: a fixed list; a runner wrapped in a shell function or script is seen only by its own words.
 const NOT_RUNNERS = new Set(['grep', 'egrep', 'fgrep', 'rg', 'cat', 'sed', 'head', 'tail', 'wc', 'less', 'more', 'ls', 'echo', 'printf',
   'find', 'stat', 'file', 'tree', 'bat', 'awk', 'git', 'cp', 'mv', 'rm', 'mkdir', 'touch', 'tee', 'vim', 'vi', 'nano', 'code', 'open',
-  'diff', 'cmp', 'cd', 'chmod', 'ln', 'set', 'true', 'false', ':', 'exit', 'return']);
+  'diff', 'cmp', 'cd', 'chmod', 'ln', 'set', 'true', 'false', ':', 'exit', 'return', 'tr', 'sort', 'cut', 'uniq', 'jq',
+  'basename', 'dirname', 'realpath']);
+// The shell's own builtins `test` and `[` and its keywords `[[`, `for`, and `select` read nothing they run, and match only as a
+// bare command word: a word with a `/` names a file, so `./test tests/a.test.js` is a runner script. A `[[`, `for`, or `select`
+// is here because the scanner keeps it as a command word (ledger-guard reads a loop's list words), and it runs nothing.
+const SHELL_READERS = new Set(['test', '[', '[[', 'for', 'select']);
 // The wrappers a test run sits behind (`timeout` and `env` have their own option parsing below). shell-words.js's WRAPPER table,
 // which ledger-guard.js skips, is wider: it adds `xargs`, `doas`, `stdbuf`, `builtin`, `eval`, `arch`, `caffeinate`, `flock`,
 // `chronic`, `unbuffer`, `ionice`, and `taskset`, behind which no run is recorded.
@@ -243,7 +322,8 @@ const NOT_RUNNERS = new Set(['grep', 'egrep', 'fgrep', 'rg', 'cat', 'sed', 'head
 // (a named test file still records a `path` run; triage #941).
 const WRAPPERS = /^(?:sudo|command|env|time|exec|nohup|nice|rtk)$/;
 // A wrapper's leading option words are skipped, with the value of the options that take one, as shell-words.js's WRAPPER table and
-// optionWords read them. `command` skips none: its options (`-v`, `-V`) look a command up, and no run follows.
+// optionWords read them. `command` skips only `-p` and a `--` (segWords): its options `-v` and `-V`, alone or in a cluster such as
+// `-pv`, look a command up, so segWords gives an empty command and no run follows.
 const SKIPS_OPTIONS = (w) => w !== 'command' && WRAPPERS.test(w);
 
 // The bound on each `git` call a run line needs; a call past it records `unknown` for its field (INV-0009).
@@ -276,6 +356,11 @@ function segWords({ ws, negated: neg }) {
     if (w === 'rtk') {
       while (/^-/.test(ws[i + 1] || '')) i++;
       if (ws[i + 1] === 'proxy') i++;
+    }
+    if (w === 'command') {
+      while (/^-[pvV]+$/.test(ws[i + 1] || '')) if (/[vV]/.test(ws[++i])) return { cmd: '', args: [], negated };
+      if (ws[i + 1] === '--') i++;
+      continue;
     }
     if (SKIPS_OPTIONS(w)) {
       const opts = WRAPPER.get(w);
@@ -384,6 +469,8 @@ function outsideTree(dir, outside) {
 // The runs it returns then carry that tree as `at`, with no run root, so a caller records nothing for them.
 // A segment's words as one text, for the `set -o pipefail` read.
 const segText = (s) => s.ws.join(' ');
+// A segment's command word past `command` and `builtin` (`unwrapBuiltin`), for the `cd`/`set` reading below: `builtin cd a` is a `cd`.
+const sceneCmd = (s) => { const { cmd, args } = segWords(s); return unwrapBuiltin(cmd, args)[0]; };
 // The segments after index `last` that sit no deeper than `seg`: the commands of a substitution inside the segment's own
 // command run before its status exists, so they are no later stage of its list.
 const laterOf = (segs, last, seg) => segs.slice(last + 1).filter((s) => s.nest <= seg.nest);
@@ -392,9 +479,9 @@ function testRuns(command, cwd, outside) {
   return testRunsOf(cmdSegments(command), cwd, outside);
 }
 
-function testRunsOf(segs, cwd, outside) {
+function testRunsOf(segs, cwd, outside, end) {
   const runs = [];
-  const dirs = dirTracker(cwd);
+  const dirs = dirTracker(cwd, end);
   let pipefail = false;
   let spanEnd = -1;
   const outTrees = new Map();
@@ -410,12 +497,14 @@ function testRunsOf(segs, cwd, outside) {
       if (!outTrees.has(base)) outTrees.set(base, outsideTree(base, outside));
       at = { tree: outTrees.get(base) };
     }
-    // A configured compound command is tried first: it may itself start with `cd` or a NOT_RUNNERS name.
+    // A configured command is tried first: a compound one may itself start with `cd` or a NOT_RUNNERS name, and a
+    // single-segment one may end in one (`script/test`, INV-0129).
     const v = at ? verificationCommands(at.tree) : {};
     const compound = at ? compoundKind(segs, i, v) : null;
     if (!compound) {
-      if (cmd === 'cd' && args[0] && plain(args[0])) { dirs.set(first, path.resolve(base, drivePath(plain(args[0])))); return; }
-      if (NOT_RUNNERS.has(path.basename(cmd))) return;
+      const cd = cdDir(cmd, args, base, dirs, first);
+      if (cd) { dirs.set(first, cd); return; }
+      if ((NOT_RUNNERS.has(path.basename(cmd)) || SHELL_READERS.has(cmd)) && !verificationKind(first, v)) return;
     }
     if (!at) return;
     const tree = at.tree;
@@ -426,7 +515,8 @@ function testRunsOf(segs, cwd, outside) {
     for (const s of segs.slice(i, last)) {
       if (s.fn) continue;
       const w = segWords(s);
-      if (w.cmd === 'cd' && w.args[0] && plain(w.args[0])) dirs.set(s, path.resolve(dirs.of(s), drivePath(plain(w.args[0]))));
+      const cd = cdDir(w.cmd, w.args, dirs.of(s), dirs, s);
+      if (cd) dirs.set(s, cd);
     }
     const runDir = dirs.of(seg);
     let kind = compound ? compound.kind : verificationKind(seg, v);
@@ -435,8 +525,10 @@ function testRunsOf(segs, cwd, outside) {
       for (const w of [cmd, ...args]) {
         const p = !w.startsWith('-') && (w !== cmd || w.includes('/')) ? plain(w) : null;
         if (!p) continue;
-        // A quoted word holding whitespace is free text (a note that begins with a test path) unless it names a file.
-        if (/\s/.test(p) && !fs.existsSync(path.resolve(runDir, drivePath(p)))) continue;
+        // A word counts only when its file part names a file or directory that exists (a note or a loop word names none). A
+        // runner node id (`a.py::test_x`, `a.test.js:12`) counts by its file part; a glob word (`*`, `?`, `[`) keeps its reading.
+        const file = /[*?[]/.test(p) ? null : p.replace(/::.*$/, '').replace(/:\d+$/, '');
+        if (file !== null && !fs.existsSync(path.resolve(runDir, drivePath(file)))) continue;
         let rel = path.relative(tree, path.resolve(runDir, drivePath(p)));
         if (rel.startsWith('..') || path.isAbsolute(rel)) continue;
         if (/\/$/.test(p)) rel += '/';
@@ -456,7 +548,7 @@ function testRunsOf(segs, cwd, outside) {
     const inner = compound ? segs.slice(i, last + 1) : [];
     // Only a joiner at or after the segment carrying the run hides it; `cd`/`set` segments before it only set the scene, and
     // a `set -o pipefail` in any of them counts.
-    const carrier = Math.max(0, inner.findIndex((s) => !/^(?:cd|set)$/.test(segWords(s).cmd)));
+    const carrier = Math.max(0, inner.findIndex((s) => !/^(?:cd|set)$/.test(sceneCmd(s))));
     for (const s of inner.slice(1, carrier)) {
       if (/\bset\s/.test(segText(s))) for (const m of segText(s).matchAll(/([-+])[A-Za-z]*o\s+pipefail\b/g)) pipefail = m[1] === '-';
     }
@@ -468,7 +560,7 @@ function testRunsOf(segs, cwd, outside) {
     // Allow-list: pass or fail only for a plain list of simple commands. A line with dropped compound structure, a negation, or a
     // function body, or a run (or a command before it) read out of a substitution or subshell, has a status that is not the test's.
     const plainList = segs.slice(0, last + 1).every((s) => s.nest === 0 && !s.fn && !s.compound && !s.negated);
-    const sole = plainList && segs.slice(0, i).every((s) => /^(?:cd|set)$/.test(segWords(s).cmd) && /^(?:&&|;|\n)$/.test(s.sep))
+    const sole = plainList && segs.slice(0, i).every((s) => /^(?:cd|set)$/.test(sceneCmd(s)) &&/^(?:&&|;|\n)$/.test(s.sep))
       && seg.sep !== '&' && (!more || (seg.sep === '|' && pipeEnds));
     runs.push({ at, kind, files, unknown, sole });
   });
@@ -481,14 +573,15 @@ function restoreEvents(command, cwd) {
   return restoreEventsOf(cmdSegments(command), cwd);
 }
 
-function restoreEventsOf(segs, cwd) {
+function restoreEventsOf(segs, cwd, end) {
   const events = [];
-  const dirs = dirTracker(cwd);
+  const dirs = dirTracker(cwd, end);
   for (const seg of segs) {
     if (seg.fn) continue;
     const base = dirs.of(seg);
     const { cmd, args } = segWords(seg);
-    if (cmd === 'cd' && args[0] && plain(args[0])) { dirs.set(seg, path.resolve(base, drivePath(plain(args[0])))); continue; }
+    const cd = cdDir(cmd, args, base, dirs, seg);
+    if (cd) { dirs.set(seg, cd); continue; }
     if (cmd !== 'git') continue;
     let i = 0;
     let segBase = base;
@@ -526,7 +619,8 @@ function restoreEventsOf(segs, cwd) {
       source = revs[0] || null;
       paths = rest.slice(dd + 1);
     }
-    const rels = paths.map((p) => {
+    // A glob path (an unquoted `*`, `?`, or `[` once quotes are gone) names no one file.
+    const rels = paths.filter((p) => !/[*?[]/.test(p)).map((p) => {
       const rel = path.relative(tree, path.resolve(segBase, drivePath(p)));
       return rel === '' ? '.' : rel;
     });
@@ -573,14 +667,15 @@ function missingRedNote({ runRoot, tree, slice }, agent) {
 // in, or null outside every run. `scope.js test` records its own run (ADR 0127), so the hook records none for that segment and
 // lets only the Missing RED note follow; every other segment of the command is recorded as usual.
 const NODE_VALUE_OPTS = /^(?:-r|--require|--import|--loader)$/;
-function scopeTestCalls(segs, cwd) {
+function scopeTestCalls(segs, cwd, end) {
   const calls = [];
-  const dirs = dirTracker(cwd);
+  const dirs = dirTracker(cwd, end);
   segs.forEach((seg, i) => {
     if (seg.fn) return;
     const base = dirs.of(seg);
     const { cmd, args } = segWords(seg);
-    if (cmd === 'cd' && args[0] && plain(args[0])) { dirs.set(seg, path.resolve(base, drivePath(plain(args[0])))); return; }
+    const cd = cdDir(cmd, args, base, dirs, seg);
+    if (cd) { dirs.set(seg, cd); return; }
     // The script word may be quoted and may lead with a variable (`"${CLAUDE_PLUGIN_ROOT}/scripts/scope.js"`): only its basename matters.
     if (path.basename(cmd) !== 'node') return;
     // The script is node's first word that is no option or option value; `-e`/`-p` run inline code and name no script.
@@ -600,10 +695,10 @@ function scopeTestCalls(segs, cwd) {
 }
 
 // A `run_in_background` call returns before the test has run, so its success names no outcome.
-function recordBash(command, cwd, agent, failed, triggers, background) {
+function recordBash(command, cwd, agent, failed, triggers, background, end) {
   let segs = cmdSegments(command);
   if (/\bscope\.js["']?\s+test\b/.test(command)) {
-    const calls = scopeTestCalls(segs, cwd).filter((c) => c.at);
+    const calls = scopeTestCalls(segs, cwd, end).filter((c) => c.at);
     if (calls.length) {
       if (!failed && !background) for (const c of calls) triggers.push(c.at);
       // The calls leave the command (`:` stands in), so the segments around them record as a direct run does.
@@ -611,7 +706,7 @@ function recordBash(command, cwd, agent, failed, triggers, background) {
       segs = segs.map((s, i) => (skip.has(i) ? { ...s, ws: [':'], negated: false } : s));
     }
   }
-  for (const r of testRunsOf(segs, cwd)) {
+  for (const r of testRunsOf(segs, cwd, undefined, end)) {
     const [sha, clean] = treeState(r.at.tree);
     // The exit status names the test only where the command line is a plain list and the test is its sole command; any other shape reads unknown.
     const outcome = r.unknown || !r.sole || background ? 'unknown' : failed ? 'fail' : 'pass';
@@ -620,7 +715,7 @@ function recordBash(command, cwd, agent, failed, triggers, background) {
   }
   // A failed command did not (reliably) move files: only a successful one records a revert or restore.
   if (!failed) {
-    for (const e of restoreEventsOf(segs, cwd)) appendTrace(e.at.runRoot, { slice: e.at.slice, agent, kind: e.kind, fields: [e.paths] });
+    for (const e of restoreEventsOf(segs, cwd, end)) appendTrace(e.at.runRoot, { slice: e.at.slice, agent, kind: e.kind, fields: [e.paths] });
   }
 }
 
@@ -849,7 +944,54 @@ function recordVerdict(f, text) {
   }
 }
 
+// The starting-directory stash (ADR 0159): a Bash call's PostToolUse `cwd` is the directory the command ended in, so its
+// PreToolUse writes the `cwd` it started in to a file named by the call's `tool_use_id`, and the PostToolUse reads it once.
+// The directory is per user: on a shared /tmp another account's 0700 directory is unusable. Windows has no uid, and its
+// temporary directory is per user already.
+const STASH_DIR = process.getuid ? `superdev-run-trace-${process.getuid()}` : 'superdev-run-trace';
+const stashPath = (id) => (typeof id === 'string' && /^[A-Za-z0-9_-]+$/.test(id) ? path.join(os.tmpdir(), STASH_DIR, id) : null);
+// The stash directory is the hook's own only as a real directory owned by this user: `mkdirSync` accepts one already there,
+// and on a shared /tmp another account can create that predictable name first, or a symlink at it. Windows has no uid to check.
+function ownDir(dir) {
+  try {
+    const st = fs.lstatSync(dir);
+    return st.isDirectory() && (!process.getuid || st.uid === process.getuid());
+  } catch { return false; }
+}
+
+// Writes the stash and nothing else: no trace line, no ledger, git, or verification read. Every failure passes (INV-0160).
+// The exclusive create never writes through a file or symlink already at the path.
+function stashStart(input) {
+  const p = stashPath(input.tool_use_id);
+  if (!p || typeof input.cwd !== 'string' || !path.isAbsolute(input.cwd)) return;
+  try {
+    fs.mkdirSync(path.dirname(p), { recursive: true, mode: 0o700 });
+    if (!ownDir(path.dirname(p))) return;
+    fs.writeFileSync(p, input.cwd, { flag: 'wx' });
+  } catch { /* no stash: the PostToolUse resolves against its own cwd */ }
+}
+
+// The stashed starting directory, removed once read; null for none, a symlink, a directory not the hook's own, or content
+// that is no absolute path.
+function takeStart(id) {
+  const p = stashPath(id);
+  if (!p || !ownDir(path.dirname(p))) return null;
+  let dir = null;
+  try {
+    const fd = fs.openSync(p, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0));
+    try { dir = fs.readFileSync(fd, 'utf8'); } finally { fs.closeSync(fd); }
+  } catch { /* unreadable or a symlink */ }
+  try { fs.unlinkSync(p); } catch { /* none there */ }
+  return dir && path.isAbsolute(dir) ? dir : null;
+}
+
 function record(input) {
+  if (input && typeof input === 'object' && input.tool_name === 'Bash' && input.hook_event_name === 'PreToolUse') {
+    stashStart(input);
+    return null;
+  }
+  // Every other Bash event takes the stash, before any guard below can return, so no path leaves it behind.
+  const stashed = input && typeof input === 'object' && input.tool_name === 'Bash' ? takeStart(input.tool_use_id) : null;
   if (!appendTrace || !untraceField || !inProgressSlices || !readTrace || !sliceType || !verificationCommands || !SLUG_RE || !mainWorkTree || !testPathOf || !scan || !input || typeof input !== 'object') return null;
   const ti = input.tool_input || {};
   const cwd = typeof input.cwd === 'string' && input.cwd ? input.cwd : process.cwd();
@@ -897,12 +1039,14 @@ function record(input) {
   const failed = input.hook_event_name === 'PostToolUseFailure';
   const agent = typeof input.agent_id === 'string' && input.agent_id ? input.agent_id : 'main';
   const triggers = [];
-  if (typeof ti.command === 'string') recordBash(ti.command, cwd, agent, failed, triggers, ti.run_in_background === true);
+  // A Bash command resolves from where it started; `cwd` is where it ended (ADR 0159).
+  const start = stashed || cwd;
+  if (typeof ti.command === 'string') recordBash(ti.command, start, agent, failed, triggers, ti.run_in_background === true, cwd);
   if (failed) return null;
   let targets = [];
   if (typeof ti.file_path === 'string') targets = [path.resolve(cwd, ti.file_path)];
   else if (typeof ti.notebook_path === 'string') targets = [path.resolve(cwd, ti.notebook_path)];
-  else if (typeof ti.command === 'string') targets = bashTargets(ti.command, cwd);
+  else if (typeof ti.command === 'string') targets = bashTargets(ti.command, start, cwd);
   for (const abs of targets) {
     const at = locate(abs);
     if (!at) continue;
