@@ -15,7 +15,7 @@ commands in the chain, each run by the maintainer (ADR 0013) — hand off rather
 one exception is the `lite` tier's inline documentation pass, which that playbook runs in this same
 scopetree before run handoff (ADR 0031).
 
-Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). That covers the next command run handoff prints (`${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md`).
+Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). That covers the next command run handoff prints (`${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md`). An attended run first makes the offer in `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section (ADR 0157).
 
 **Core principle:** a slice's green suite proves its fixtures pass, not that it's correct. `full`
 re-verifies each slice with reviewer subagents and integrates serially; `lite` leans on the whole-scope

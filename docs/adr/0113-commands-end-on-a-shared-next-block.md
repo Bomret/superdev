@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0157](0157-every-chain-command-offers-to-start-its-successor.md), which adds
+`/superdev:sweep` and `/superdev:review-tests` to the covered commands and has each covered command offer
+to start its next command before it prints the block.
+
 ## Context
 
 Each command from `/superdev:brainstorm` to `/superdev:wrap-up` tells the operator what to run next.

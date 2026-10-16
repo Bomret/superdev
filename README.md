@@ -274,16 +274,22 @@ time-based loop, so hand review comments and CI on it to `/loop`:
 /loop 5m check my PR, address review comments, and fix failing CI
 ```
 
-Once the pull request is reviewed, `/superdev:ship` merges it, deploys the merge under the repository's
-deploy posture (`none`/`manual`/`auto`, `docs/agents/deployment.md`, ADR 0101), then offers once to start the
-next command and prints it when the operator does not take the offer. A yes starts the routed skill through the Skill tool. After a started
-`/superdev:verify-ship`, ship routes again by re-applying `## Routing a shipped run`. A route to `/superdev:wrap-up`
-with no hand-sync pending starts wrap-up with no second question. Any other route ends on a Next block. A run that routes
-to repair or re-verify, waits on a deploy, or waits on a hand-sync gets no offer. Both started skills keep every
-gate and every ask (ADR 0132). `/superdev:verify-ship` settles the criteria only a deployed system can show. `/superdev:wrap-up` closes the
-scope anchor and cleans up the run. Only `/superdev:ship` is closed to models. `/superdev:verify-ship` and
-`/superdev:wrap-up` start only when the operator typed the command, asked for it, or agreed to an offer ship
-makes (ADR 0132). Ship names `/superdev:verify-ship` next while
+Every command in the chain ends an attended run by asking whether to start its next command (ADR 0157).
+`/superdev:brainstorm`, `/superdev:sweep`, and `/superdev:review-tests` do the same. **Start** runs it in the same
+conversation, with the arguments the command would print. **Stop here** prints the command instead. Run
+`/clear` and type it for a fresh context, because a command started in place reads the whole conversation.
+A started command keeps every check and every question it has when typed. An unattended run, a blocked stop,
+and a stop that waits on an action of yours ask nothing.
+
+`/superdev:submit-pr` offers `/superdev:ship`. The pull request is not reviewed yet at that point, and a yes
+merges it now, exactly as typing `/superdev:ship` does, so review it first and answer then. The host's
+approvals and branch protection still apply. `/superdev:ship` merges the pull request and deploys the merge under
+the repository's deploy posture (`none`/`manual`/`auto`, `docs/agents/deployment.md`, ADR 0101). Ship then offers once to start the
+next command and prints it when the operator does not take the offer. Ship prints the Next block on a decline and on every route that gets no offer. A run that routes to repair or re-verify, waits on a deploy, or waits on a hand-sync gets
+no offer. `/superdev:verify-ship` settles the criteria only a deployed system can show, and offers
+`/superdev:wrap-up` once every criterion is settled. `/superdev:wrap-up` closes the scope anchor and cleans up
+the run. `/superdev:ship`, `/superdev:verify-ship`, and `/superdev:wrap-up` start only when the operator typed
+the command, asked for it, or agreed to an offer. Ship refuses `--unattended` (ADR 0157). Ship names `/superdev:verify-ship` next while
 a criterion is open or a `manual` deploy waits for an answer, and `/superdev:wrap-up` otherwise (ADR 0116).
 A criterion `/superdev:verify-ship` observes false keeps the anchor open. Verify-ship then names
 `/superdev:plan`'s repair choice, or itself again for an observation that was transient. A run whose
@@ -291,7 +297,7 @@ A criterion `/superdev:verify-ship` observes false keeps the anchor open. Verify
 defers such a line, because nothing has observed that line yet. When a repair
 closes, its `/superdev:wrap-up` names the original's next command (ADR 0124).
 When staged knowledge-base pages wait, all three name their count and directory, state that wrap-up keeps
-them, and offer `/superdev:publish-kb`. `/superdev:wrap-up` refuses to close a run while its scopetree or a
+them, and name `/superdev:publish-kb` on the Next block's `Or:` line. `/superdev:wrap-up` refuses to close a run while its scopetree or a
 slicetree still holds a staged file, because removing that checkout deletes the file (ADR 0119).
 
 Any chain command (`/superdev:implement`, `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`)
@@ -577,7 +583,8 @@ On the lite tier the controller itself works in the scopetree.
 
 ## Worked example
 
-A tiny feature end to end, with GitHub Issues as the slice store and GitHub as the code host:
+A tiny feature end to end, with GitHub Issues as the slice store and GitHub as the code host. Each command
+below also asks whether to start the one it names next, and a yes starts it in the same conversation:
 
 - **`/superdev:setup`** (once per repo). A short interview, then `docs/agents/*.md` is written. The slice
   store is GitHub Issues and the code host is GitHub (`gh`). The documentation convention is the

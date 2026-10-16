@@ -16,7 +16,7 @@ Review a change end to end. Two modes, and §1 decides which:
 
 Either way the reviewers themselves are the same read-only subagents.
 
-Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). A run under `--chained` prints no Next block. An ad-hoc review's block names `/superdev:plan` where findings stand (§3) and says no command follows otherwise.
+Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section (ADR 0157). A run under `--chained` prints no Next block. An ad-hoc review's block names `/superdev:plan` where findings stand (§3) and says no command follows otherwise.
 
 ## 0. Config (optional)
 

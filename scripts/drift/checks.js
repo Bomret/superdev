@@ -32,7 +32,7 @@ const {
   scanAuditSetGlobs,
   scanNoBaseBranchCommit,
   scanShipNoOpensPr,
-  scanShipHumanOnly,
+  scanPastPrSkills,
   scanDeriveNoDod,
   scanInvariantRegisterJoin,
 } = require('./scanners');
@@ -152,9 +152,9 @@ module.exports = [
       'reimplementing the ancestry test itself',
   ),
   {
-    id: 'ship-human-only',
-    ok: 'ship carries `disable-model-invocation: true`, and none of ship, verify-ship, and wrap-up names an `--unattended` mode of its own (INV-0093)',
-    run: scanShipHumanOnly,
+    id: 'past-pr-skills',
+    ok: 'ship, verify-ship, wrap-up, and publish-kb carry no `disable-model-invocation: true`, neither verify-ship nor wrap-up names `--unattended`, and no `--from-ship` remains (INV-0066, INV-0093)',
+    run: scanPastPrSkills,
     format: contractGap,
   },
   {

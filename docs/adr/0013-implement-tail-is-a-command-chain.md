@@ -4,7 +4,9 @@
 
 **Amended by:** [ADR 0096](0096-opening-the-pull-request-and-merging-it-are-separate-commands.md), which
 splits the last command in two: `/superdev:submit-pr` opens the pull request and ends the chain, and
-`/superdev:ship` merges it.
+`/superdev:ship` merges it. [ADR 0157](0157-every-chain-command-offers-to-start-its-successor.md) has
+each command offer to start its successor in the same conversation, the confirmation prompt rejected
+below, while the split into commands stays.
 
 **Context.** `/superdev:implement` welds five steps behind the last slice merge: the whole-scope review,
 the fix loop, the documentation pass, the Definition of Done tick, and the pull request. The maintainer

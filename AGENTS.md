@@ -281,16 +281,17 @@ This root owns every other subtree directly:
   live in the files. Claude Code merges plugin skills and commands into one `/superdev:<name>` surface.
   implement → review → document → submit-pr is the chain a scope walks, each skill printing the next
   (ADR 0013). Every command listed in `references/response-shapes.md`'s Next block section closes its last
-  message with that block (ADR 0113). `/superdev:ship` is a separate, human-only command: it merges the pull request submit-pr
+  message with that block (ADR 0113), and an attended run first offers to start the one next command it names,
+  per that file's `## The offer` (ADR 0157). A yes starts it through the Skill tool in the same conversation.
+  `/superdev:ship` is a separate command: it merges the pull request submit-pr
   opened, deploys the merge under the repository's deploy posture (`none`/`manual`/`auto`,
-  `docs/agents/deployment.md`, ADR 0101), and closes no anchor (ADR 0106). It routes to `/superdev:verify-ship`
-  while a criterion is left to verify, and to `/superdev:wrap-up` otherwise (ADR 0116), offers once to start the
-  routed skill through the Skill tool, and prints the command when the operator does not take the offer. A yes
-  starts the routed skill. After a started verify-ship, ship routes again. A route to wrap-up with no hand-sync
-  pending starts wrap-up. Any other route ends on a Next block (ADR 0132). `/superdev:verify-ship`
-  settles the criteria only a deployed system can show. `/superdev:wrap-up` closes the triage records the anchor's Absorbs line names, then the scope anchor, and takes
-  the run down. Only ship carries `disable-model-invocation: true`. The other two are model-invocable and start
-  only when the operator typed the command, asked for it, or agreed to an offer ship makes (ADR 0132, INV-0093). A criterion verify-ship observes false routes to `/superdev:plan`'s
+  `docs/agents/deployment.md`, ADR 0101), and closes no anchor (ADR 0106). submit-pr offers it, and the yes is
+  the merge consent. It routes to `/superdev:verify-ship`
+  while a criterion is left to verify, and to `/superdev:wrap-up` otherwise (ADR 0116), and offers to start the
+  routed skill under its own conditions. `/superdev:verify-ship`
+  settles the criteria only a deployed system can show, and offers wrap-up once every line is settled. `/superdev:wrap-up` closes the triage records the anchor's Absorbs line names, then the scope anchor, and takes
+  the run down. No skill carries `disable-model-invocation: true`. Ship, verify-ship, and wrap-up start
+  only when the operator typed the command, asked for it, or agreed to an offer. Ship refuses `--unattended` (ADR 0157, INV-0093). A criterion verify-ship observes false routes to `/superdev:plan`'s
   repair choice, which plans a `fix` feature on its own anchor, linked to the original by a `**Repairs:**`
   line (ADR 0124).
   Whoever invokes a chain command passes `--unattended` to run it unattended (ADR 0016, ADR 0108);

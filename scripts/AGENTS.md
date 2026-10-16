@@ -828,7 +828,7 @@ path, when that document is missing. A check that walks a directory reads whatev
 | `arg-token` | `merge-guard.js`, `ledger-guard.js`, and `run-trace.js` require `./shell-words.js` and declare no shell-word reader or `((` spread of their own (ADR 0135) | structural |
 | `shell-spawn` | no file under `plugin/hooks/` or `plugin/scripts/` starts a shell by absolute path, starts `bash`, or uses Node's default shell (INV-0153) | prohibition |
 | `containment-delegation` | `scripts/publish-kb.js` imports and calls `scope.js`'s `testContainment` (ADR 0053) | structural |
-| `ship-human-only` | `skills/ship/SKILL.md` carries `disable-model-invocation: true`, and none of ship, verify-ship, and wrap-up names `--unattended` (INV-0093) | structural |
+| `past-pr-skills` | the skills an offer starts past the open pull request (ship, verify-ship, wrap-up, publish-kb) carry no `disable-model-invocation: true`, neither verify-ship nor wrap-up names `--unattended`, and ship, verify-ship, and `references/response-shapes.md` name no `--from-ship` (INV-0066, INV-0093, ADR 0157) | structural |
 | `no-base-branch-commit` | no file under `skills/` or `references/` instructs a commit, a push, or a merge to the base branch, other than ship's host-API merge (INV-0001) | prohibition |
 | `conflict-conclusion-no-commit` | no skill, agent, or reference concludes a resolved merge conflict with `git commit` (ADR 0123) | prohibition |
 | `code-management-no-force` | no code-management document sends `force_merge: true` or `--admin` on a merge (INV-0092) | prohibition |

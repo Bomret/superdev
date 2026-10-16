@@ -9,7 +9,7 @@ argument-hint: "[BASE..HEAD | area/path | audit [--chained] | (empty = full reco
 Bring the docs and the knowledge base into agreement with reality.
 Dispatch the isolated **`superdev:doc-writer`** to do the work, then reader-test the result with the fresh-context **`superdev:doc-reader`**. You (the controller) scope, relay, and report.
 
-Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). A run under `--chained` prints no Next block.
+Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section (ADR 0157). A run under `--chained` prints no Next block.
 
 ## 1. Config
 
@@ -30,7 +30,7 @@ From `$ARGUMENTS`:
 - **Empty** → a **full reconcile**: all in-repo docs (README + the whole `AGENTS.md` tree) + the KB against current repo state. **Exception:** the convention is the `AGENTS.md` hierarchy and the root `AGENTS.md` is **absent** → there is no doc tree to reconcile: skip §3-§5 and run **bootstrap** in §7.
 - **The literal word `audit`** → skip §3-§5; run the **reader-first audit** in §6.
 
-**Scope mode.** Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md` for what makes the range a live superdev run. When it is, §8 adds its steps. Every other invocation is ad-hoc: no stage is written, and its Next block says no command follows.
+**Scope mode.** Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md` for what makes the range a live superdev run. When it is, §8 adds its steps. Every other invocation is ad-hoc: no stage is written. An ad-hoc run that staged knowledge-base pages names `/superdev:publish-kb _adhoc` as its next command, because nothing else sends those pages (triage #815). Any other ad-hoc run's Next block says no command follows.
 
 **`--unattended`** means nobody is watching: that file's **Unattended** section governs every stop this command reaches, including whatever a later change adds.
 

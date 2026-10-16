@@ -31,7 +31,7 @@ const {
   scanAuditSetGlobs,
   scanNoBaseBranchCommit,
   scanShipNoOpensPr,
-  scanShipHumanOnly,
+  scanPastPrSkills,
   scanDeriveNoDod,
 } = require('../scanners');
 const {
@@ -888,18 +888,27 @@ module.exports = ({ assert, fs, path, fixture, found, realRoot }) => {
     'a sentence about an unrelated command is not flagged',
   );
 
-  // --- ship-human-only (ADR 0132, INV-0093): the flag on ship alone, and no `--unattended` on all three ---
+  // --- past-pr-skills (ADR 0157, INV-0066, INV-0093): every skill an offer starts past the open pull
+  // request is model-invocable, verify-ship and wrap-up name no `--unattended`, and no `--from-ship` remains ---
 
   const humanSkill = (extra) => ['---', 'name: x', 'disable-model-invocation: true', '---', '', extra, ''].join('\n');
   const openSkill = (extra) => ['---', 'name: x', '---', '', extra, ''].join('\n');
-  const humanOnly = (files) => found(scanShipHumanOnly(fixture(files)));
-  assert.equal(humanOnly({ 'skills/ship/SKILL.md': openSkill('Body.') }).length, 1, 'ship without disable-model-invocation is caught');
-  assert.equal(humanOnly({ 'skills/ship/SKILL.md': humanSkill('Pass --unattended.') }).length, 1, 'ship naming --unattended is caught');
-  assert.equal(humanOnly({ 'skills/ship/SKILL.md': humanSkill('Body.') }).length, 0, 'a human-only ship is clean');
+  const pastPr = (files) => found(scanPastPrSkills(fixture(files)));
+  for (const name of ['ship', 'verify-ship', 'wrap-up', 'publish-kb']) {
+    assert.equal(pastPr({ [`skills/${name}/SKILL.md`]: openSkill('Body.') }).length, 0, `${name} on the model-invocable surface is clean`);
+    assert.equal(pastPr({ [`skills/${name}/SKILL.md`]: humanSkill('Body.') }).length, 1, `${name} off the model-invocable surface is caught`);
+    assert.equal(
+      pastPr({ [`skills/${name}/SKILL.md`]: openSkill('Body.\ndisable-model-invocation: true\n') }).length,
+      0,
+      `${name}: the key outside the frontmatter does not count`,
+    );
+  }
+  assert.equal(pastPr({ 'skills/ship/SKILL.md': openSkill('It refuses an `--unattended` argument.') }).length, 0, 'ship may name --unattended to refuse it');
   for (const name of ['verify-ship', 'wrap-up']) {
-    assert.equal(humanOnly({ [`skills/${name}/SKILL.md`]: openSkill('Body.') }).length, 0, `${name} without disable-model-invocation is clean`);
-    assert.equal(humanOnly({ [`skills/${name}/SKILL.md`]: openSkill('Pass --unattended.') }).length, 1, `${name} naming --unattended is caught`);
-    assert.equal(humanOnly({ [`skills/${name}/SKILL.md`]: humanSkill('Body.') }).length, 0, `${name} carrying the flag adds no gap to this check`);
+    assert.equal(pastPr({ [`skills/${name}/SKILL.md`]: openSkill('Pass --unattended.') }).length, 1, `${name} naming --unattended is caught`);
+  }
+  for (const rel of ['skills/ship/SKILL.md', 'skills/verify-ship/SKILL.md', 'references/response-shapes.md']) {
+    assert.equal(pastPr({ [rel]: openSkill('Add `--from-ship` to the call.') }).length, 1, `${rel} naming --from-ship is caught`);
   }
 
   // --- kb-no-backend-call (ADR 0023): no document but publish-kb reaches a knowledge-base backend ---

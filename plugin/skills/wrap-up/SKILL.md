@@ -1,6 +1,6 @@
 ---
 name: wrap-up
-description: Start only when the operator asked for it or agreed to `/superdev:ship`'s offer: wrap up a shipped superdev scope — check the pull request is merged, every Definition-of-Done line is settled, and every deploy target is deployed, then close the scope anchor and its slice records and take the run down. Run it after `/superdev:ship` and, where criteria stayed open, `/superdev:verify-ship`.
+description: Start only when the operator typed it, asked for it, or agreed to an offer: wrap up a shipped superdev scope — check the pull request is merged, every Definition-of-Done line is settled, and every deploy target is deployed, then close the scope anchor and its slice records and take the run down. Run it after `/superdev:ship` and, where criteria stayed open, `/superdev:verify-ship`.
 argument-hint: "[<scope>  (empty = the only shipped run in this repo)]"
 ---
 
@@ -8,11 +8,11 @@ argument-hint: "[<scope>  (empty = the only shipped run in this repo)]"
 
 Check that a shipped scope is fully settled, then close its anchor and take the run down (ADR 0106,
 INV-0099). It dispatches no subagents and carries no unattended mode of its own (INV-0066, INV-0093). A
-model starts it only when the operator typed the command, asked for it, or agreed to the offer
-`/superdev:ship` makes (ADR 0132). Every gate and every ask below holds on every start. It commits nothing
+model starts it only when the operator typed the command, asked for it, or agreed to an offer
+(ADR 0157). Every gate and every ask below holds on every start. It commits nothing
 to base (INV-0001).
 
-Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111).
+Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section (ADR 0157).
 
 ## 1. Scope + run root
 

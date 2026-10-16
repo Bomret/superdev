@@ -551,10 +551,10 @@ Paths: plugin/skills/backlog/SKILL.md
 
 Class: architecture
 Concepts: Model-invocable surface, Unattended run
-Statement: `/superdev:ship` is the only skill that is never a model-invocable surface: it carries `disable-model-invocation: true` in its frontmatter. Every chain step (`/superdev:implement`, `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`) stays model-invocable, carrying no such key, and so do `/superdev:setup`, `/superdev:plan`, `/superdev:verify-ship`, and `/superdev:wrap-up`. `/superdev:plan` and `/superdev:implement` start setup and plan through the Skill tool, and `/superdev:ship` starts verify-ship and wrap-up through it (ADR 0132).
+Statement: Every chain step (`/superdev:implement`, `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`, `/superdev:ship`) stays model-invocable, carrying no `disable-model-invocation: true` key, and so do `/superdev:setup`, `/superdev:plan`, `/superdev:verify-ship`, `/superdev:wrap-up`, and `/superdev:publish-kb`. `/superdev:plan` and `/superdev:implement` start setup and plan through the Skill tool, and a covered command starts its successor through it when the operator agrees to its offer (ADR 0132, ADR 0157).
 Breaks: silently
-Check: scripts/drift-check.js `ship-human-only` (ship); final-reviewer's invariant compliance judges the other skills
-Paths: plugin/skills/ship/SKILL.md, plugin/skills/setup/SKILL.md, plugin/skills/plan/SKILL.md, plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/submit-pr/SKILL.md, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**
+Check: scripts/drift-check.js `past-pr-skills` (ship, verify-ship, wrap-up, publish-kb); final-reviewer's invariant compliance judges the other skills
+Paths: plugin/skills/ship/SKILL.md, plugin/skills/setup/SKILL.md, plugin/skills/plan/SKILL.md, plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/submit-pr/SKILL.md, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**, plugin/skills/publish-kb/SKILL.md
 
 ### INV-0068
 
@@ -788,9 +788,9 @@ Paths: plugin/skills/ship/**, plugin/references/code-management-*.md, plugin/scr
 
 Class: process
 Concepts: Unattended run, Stage
-Statement: Only a human moves a scope past its open pull request. Every unattended run ends at `/superdev:submit-pr`. `/superdev:ship`, `/superdev:verify-ship`, and `/superdev:wrap-up` each carry no unattended mode, and `/superdev:ship` carries `disable-model-invocation: true`. No model starts verify-ship or wrap-up unless the operator typed the command, asked for it, or agreed to the offer `/superdev:ship` makes at its final hand-off. The two skills' descriptions and their own gates carry that bound, because the platform does not (ADR 0096, ADR 0106, ADR 0132).
+Statement: Only the operator's answer moves a scope past its open pull request: the operator types `/superdev:ship`, asks for it, or answers yes to the offer `/superdev:submit-pr` makes. Every unattended run ends at `/superdev:submit-pr`, and no unattended run makes an offer. `/superdev:ship`, `/superdev:verify-ship`, and `/superdev:wrap-up` each carry no unattended mode, and ship refuses an `--unattended` argument. No model starts any of the three unless the operator typed the command, asked for it, or agreed to an offer. A command started from an offer keeps every gate and every ask it has when typed. The three skills' descriptions and their own gates carry that bound, because the platform does not (ADR 0096, ADR 0106, ADR 0132, ADR 0157).
 Breaks: silently
-Check: scripts/drift-check.js `ship-human-only` — ship carries `disable-model-invocation: true`, and none of the three names an `--unattended` branch; final-reviewer's invariant compliance judges the offer and the start conditions
+Check: scripts/drift-check.js `past-pr-skills` — neither verify-ship nor wrap-up names `--unattended`, and none of ship, verify-ship, and `plugin/references/response-shapes.md` names `--from-ship`; final-reviewer's invariant compliance judges ship's refusal, the offers, and the start conditions; partial: nothing stops a model that ignores a description
 Paths: plugin/skills/submit-pr/**, plugin/skills/ship/**, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**
 
 ### INV-0094
@@ -922,11 +922,11 @@ Paths: plugin/skills/plan/SKILL.md, plugin/skills/brainstorm/SKILL.md
 ### INV-0111
 
 Class: process
-Concepts: Next block, Response shape
-Statement: Every message that `/superdev:brainstorm`, `/superdev:plan`, `/superdev:implement`, `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`, `/superdev:ship`, `/superdev:verify-ship`, or `/superdev:wrap-up` ends on closes with the Next block that `references/response-shapes.md` defines, and nothing follows it. This holds for a refusal, a blocked stop, an ad-hoc run, an unattended run, and a command with no successor. A command in the chained posture prints none. Each of those skills cites the reference and restates none of the block's shape (ADR 0113).
+Concepts: Next block, Offer, Response shape
+Statement: Every message that `/superdev:brainstorm`, `/superdev:plan`, `/superdev:implement`, `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`, `/superdev:ship`, `/superdev:verify-ship`, `/superdev:wrap-up`, `/superdev:sweep`, or `/superdev:review-tests` ends on closes with the Next block that `references/response-shapes.md` defines, and nothing follows it. This holds for a refusal, a blocked stop, an ad-hoc run, an unattended run, and a command with no successor. A command in the chained posture prints none. An attended run of one of those commands whose Next block names exactly one next command, of another skill, with no `Blocked:` or `First:` line, first makes the offer the same reference defines; a command another command started through its own step makes none. Each of those skills cites the reference and restates none of the block's or the offer's shape (ADR 0113, ADR 0157).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/references/response-shapes.md, plugin/references/run-handoff.md, plugin/skills/brainstorm/SKILL.md, plugin/skills/plan/SKILL.md, plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/submit-pr/SKILL.md, plugin/skills/ship/SKILL.md, plugin/skills/verify-ship/SKILL.md, plugin/skills/wrap-up/SKILL.md
+Paths: plugin/references/response-shapes.md, plugin/references/run-handoff.md, plugin/skills/brainstorm/SKILL.md, plugin/skills/plan/SKILL.md, plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/submit-pr/SKILL.md, plugin/skills/ship/SKILL.md, plugin/skills/verify-ship/SKILL.md, plugin/skills/wrap-up/SKILL.md, plugin/skills/sweep/SKILL.md, plugin/skills/review-tests/SKILL.md
 
 ### INV-0112
 

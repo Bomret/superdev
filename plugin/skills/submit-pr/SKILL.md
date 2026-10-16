@@ -11,7 +11,7 @@ docs have been reconciled — this command turns that into a pull request. It le
 the scopetree, the slicetrees, and the run lock stay, and `/superdev:wrap-up` is what takes them down, after
 the pull request merges and any `/superdev:verify-ship` pass the run needs has run. It dispatches no subagents.
 
-Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111).
+Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section (ADR 0157).
 
 ## 1. Scope + run root
 
@@ -161,8 +161,15 @@ section. The run stands: the scopetree, the slicetrees, and the run lock stay in
 anchor stays open. `/superdev:wrap-up` closes it, after the merge and any
 `/superdev:verify-ship` pass the run needs, and takes the run's scaffolding down.
 
-This is the chain's own end. `/superdev:submit-pr` hands off to `/superdev:ship`, and only a human runs
-that. Ship offers to start `/superdev:verify-ship` and `/superdev:wrap-up` after it (ADR 0132).
+This is the end of every unattended run. `/superdev:submit-pr` hands off to `/superdev:ship`, which
+starts only when the operator types it, asks for it, or agrees to this command's offer (ADR 0157,
+INV-0093). Ship offers to start `/superdev:verify-ship` or `/superdev:wrap-up` after it.
+
+**An attended run makes the offer for `/superdev:ship <scope>`**, per `## The offer`. Its start option's
+description names the pull request URL, says the pull request is not reviewed yet, and says a yes merges
+it now, exactly as typing `/superdev:ship` does, with the host's approvals and branch protection still in
+force. The operator who wants to review first answers once the review is done, or stops here. An
+unattended run makes no offer.
 
 **Print `/superdev:ship <scope>` as the next command.** One line on what it does: it merges the pull
 request once an operator has reviewed it, applies the repository's deploy posture to the merge, then

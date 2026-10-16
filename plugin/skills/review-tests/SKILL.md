@@ -11,6 +11,8 @@ Price the test suite many scopes have grown. A **test audit** (CONTEXT.md) sweep
 one pass, measures it where the repository says how, ranks what each test costs against what it proves,
 and writes the survivors as an intent for `/superdev:plan` (ADR 0066).
 
+Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section (ADR 0157).
+
 **Read-only on the code and docs it audits.** The run applies nothing and fixes nothing, exactly as an
 ad-hoc `/superdev:review` does. Its writes are the intent, under the git-ignored `.superdev/brainstorm/`,
 and the one-line `.gitignore` entry that keeps that directory ignored.
@@ -149,7 +151,7 @@ argument) uses `all`. Two sweeps the same day then write two files instead of on
 other. Carry the problem statement, the findings that survived with their locations and durations, the
 `unconfirmed` ones labelled as such, and the non-goals the operator's answers established.
 
-Then print the copy-pasteable handoff, the same bare form `/superdev:brainstorm` prints for the same
+Then print the next command in the Next block, the same bare form `/superdev:brainstorm` prints for the same
 `.superdev/brainstorm/` write target: `/superdev:plan` takes no path argument, so the intent this run
 just wrote reaches it through its own glob instead of being named on the line:
 
@@ -157,7 +159,7 @@ just wrote reaches it through its own glob instead of being named on the line:
 /superdev:plan
 ```
 
-**A run that finds nothing says so.** Unchained, it writes no file and prints no handoff. Chained, it
+**A run that finds nothing says so.** Unchained, it writes no file, and its Next block says no command follows. Chained, it
 returns an empty finding set. A suite that earns its runtime is a result, and so is a sweep that finds no
 fault.
 

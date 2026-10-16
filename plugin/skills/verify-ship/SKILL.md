@@ -1,6 +1,6 @@
 ---
 name: verify-ship
-description: Start only when the operator asked for it or agreed to `/superdev:ship`'s offer: verify a shipped superdev scope's open Definition-of-Done criteria by observing the deployed system, ticking each one that holds with its evidence. Run it after `/superdev:ship` merged and deployed. It is safe to run again.
+description: Start only when the operator typed it, asked for it, or agreed to an offer: verify a shipped superdev scope's open Definition-of-Done criteria by observing the deployed system, ticking each one that holds with its evidence. Run it after `/superdev:ship` merged and deployed. It is safe to run again.
 argument-hint: "[<scope>  (empty = the only shipped run in this repo)]"
 ---
 
@@ -9,16 +9,13 @@ argument-hint: "[<scope>  (empty = the only shipped run in this repo)]"
 Settle the Definition-of-Done criteria a scope left open at the merge, by observing what `/superdev:ship`
 deployed (ADR 0106). It dispatches no subagents, carries no unattended mode of its own (INV-0066,
 INV-0093), and never moves the stage. A model starts it only when the operator typed the command, asked for
-it, or agreed to the offer `/superdev:ship` makes (ADR 0132). Every gate and every ask below holds on every
+it, or agreed to an offer (ADR 0157). Every gate and every ask below holds on every
 start. Verifying a line observes; it changes no system outside the
 repository (ADR 0084, INV-0006). It never runs a deploy target's command (INV-0098).
 
-Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111).
+Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section (ADR 0157), on the one exit §6 names.
 
 ## 1. Scope + run root
-
-**`--from-ship`, if present, comes out first** — never part of the scope slug. `/superdev:ship`'s offer passes
-it when it starts this skill, and the operator never types it. It changes one thing, in §6.
 
 Resolve `$ARGUMENTS` to one scope — a **run root**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
 `## A live scope run` section:
@@ -108,7 +105,7 @@ Publish the snapshot when a deploy record changed, per
 `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section. Print a summary: the
 lines settled with their verdicts, and the lines still open. The stage stays `shipped`.
 
-- **Every line settled** (ticked or `accepted:`) → say in one line that all criteria are settled and the scope is ready to close, then print `/superdev:wrap-up <scope>` as the next command. When §4 reported an unpaired line, wrap-up refuses until the anchor's criterion text is in sync: say "hand-sync, then `/superdev:wrap-up <scope>`" and print the command only after that. **Under `--from-ship`, with no unpaired line**, print no Next block: `/superdev:ship` routes again, starts wrap-up when that route is wrap-up with no hand-sync pending, and prints the block itself when it starts no wrap-up, so only the last message of its chain carries the block.
+- **Every line settled** (ticked or `accepted:`) → say in one line that all criteria are settled and the scope is ready to close, then print `/superdev:wrap-up <scope>` as the next command. When §4 reported an unpaired line, wrap-up refuses until the anchor's criterion text is in sync: say "hand-sync, then `/superdev:wrap-up <scope>`" and print the command only after that. With no unpaired line, an attended run offers `/superdev:wrap-up <scope>`, per `## The offer`, before it prints the command; the hand-sync above is a `First:` wait, so it makes no offer. The message that asks also names the scope's staged pages per `## Staged pages at close`. When the count is above zero, `/superdev:publish-kb <scope>` goes on the Next block's `Or:` line when that block prints. The question keeps its two options.
 - **The run routes to re-verify** per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
   `## Routing a shipped run` → name each open line. Print `/superdev:verify-ship <scope>` as the next
   command, with one line: a repair of this scope has closed since the line was last observed. Print
@@ -126,6 +123,6 @@ On every exit, name the scope's staged pages per `${CLAUDE_PLUGIN_ROOT}/referenc
 `## Staged pages at close` (ADR 0119, INV-0123), with `/superdev:publish-kb <scope>` on an `Or:` line of
 the Next block when the count is above zero.
 
-**This command starts no wrap-up itself.** A verify-ship the operator types ends by printing the next command
-and starts nothing, because verification can take several passes and the close is permanent (ADR 0106,
-ADR 0132). Only `/superdev:ship`'s offer starts wrap-up after it.
+**Only the settled exit offers.** Verification can take several passes and the close is permanent
+(ADR 0106), so wrap-up is offered only once every line is settled and no hand-sync is pending, and every
+other exit makes no offer (ADR 0157).

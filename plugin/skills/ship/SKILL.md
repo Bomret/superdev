@@ -1,7 +1,6 @@
 ---
 name: ship
-description: Merge a superdev scope's pull request, pinned to the tested head, through the host's merge API — apply the repository's deploy posture to the merge, then offer once to start `/superdev:verify-ship`, or `/superdev:wrap-up` when nothing is left to verify, and print that command when the offer is not taken. Only a human runs it, once `/superdev:submit-pr` has opened the pull request and it has been reviewed.
-disable-model-invocation: true
+description: Start only when the operator typed it, asked for it, or agreed to an offer: merge a superdev scope's pull request, pinned to the tested head, through the host's merge API — apply the repository's deploy posture to the merge, then hand off to `/superdev:verify-ship`, to `/superdev:wrap-up` when nothing is left to verify, or to `/superdev:plan` when a criterion needs a repair, offering to start verify-ship or wrap-up. Run it once `/superdev:submit-pr` has opened the pull request and it has been reviewed.
 argument-hint: "[<scope>  (empty = the only run in this repo)]"
 ---
 
@@ -9,19 +8,24 @@ argument-hint: "[<scope>  (empty = the only run in this repo)]"
 
 Merge the pull request `/superdev:submit-pr` opened, and apply the deploy posture. It closes no anchor and
 removes nothing. `/superdev:wrap-up` follows, after `/superdev:verify-ship` when anything is left to verify
-(ADR 0106, ADR 0116, INV-0099), and §5 offers to start the next one (ADR 0132). It dispatches no subagents,
-and carries no unattended mode of its own: only a human runs this command (ADR 0096). Calling it at all is
-the consent to merge, so nothing here asks a second question once the gate below has passed, except two:
+(ADR 0106, ADR 0116, INV-0099), and §5 offers to start the next one (ADR 0157). It dispatches no subagents,
+and carries no unattended mode of its own: it starts only when the operator typed it, asked for it, or
+agreed to `/superdev:submit-pr`'s offer (ADR 0096, ADR 0157, INV-0093). Calling it at all is the consent to
+merge, so nothing here asks a second question once the gate below has passed, except two:
 under `auto`, §5 asks before it deploys a `docs/agents/deployment.md` nobody was shown (ADR 0104), and §5's
-hand-off asks once whether to start the next skill (ADR 0132).
+hand-off asks once whether to start the next skill (ADR 0157).
 
-Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111).
+Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section (ADR 0157), under the conditions §5 adds.
 
 ## 1. Scope + run root
 
 Resolve `$ARGUMENTS` to one scope — a **run root**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
 `## A live scope run` section:
 
+- **An `--unattended` argument** → this command refuses an `--unattended` argument: say that every
+  unattended run ends at `/superdev:submit-pr` (INV-0093), print `/superdev:ship <scope>` as the command an
+  operator runs, and stop before anything else in this file. `<scope>` is the scope slug the arguments
+  carry beside `--unattended`; with none, print the bare `/superdev:ship`.
 - **A scope slug given** → use it. No run root by that name → say so and stop.
 - **Empty** → this command's own **candidate set** (CONTEXT.md) is every run root whose stage is
   `submitted`, plus every run root at `shipped` carrying a `**PR:**` header whose posture at the merge
@@ -354,36 +358,17 @@ On every route above, name the scope's staged pages per
 `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Staged pages at close` (ADR 0119, INV-0123), with
 `/superdev:publish-kb <scope>` on an `Or:` line of the Next block when the count is above zero.
 
-**Offer to continue** (ADR 0132, INV-0093). Ask the operator once whether to start the routed skill now,
-before printing the next command, when the merge landed, every listed deploy target is recorded `deployed`
+**Offer to continue** (ADR 0157, INV-0093). Make the offer in `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section, with ship's own conditions added:
+the merge landed, every listed deploy target is recorded `deployed`
 or none is listed, and the route is **It routes to verify-ship**, **It routes to wrap-up** with no `dod.md`
 line unpaired on the anchor, or **The anchor cannot be read**. A target recorded `pending` or `failed`, or
 carrying no record, gives no offer.
 
 **No offer** is made for a run that routes to repair or to re-verify, a run with a hand-sync pending, a
-refused ship, or a ship stopped by a failed or declined deploy: print the route above and stop, as without an
-offer.
+refused ship, or a ship stopped by a failed or declined deploy: print the route above and stop.
 
-The offer is one message. It names the routed command with its one line from above, names the scope's staged
-pages per `## Staged pages at close` with `/superdev:publish-kb <scope>` as the alternative when the count is
-above zero, and ends on the question `Start /superdev:<skill> <scope> now?`. A message that ends on a
-question carries no Next block.
-
-- **A clear yes** → call the Skill tool with `superdev:verify-ship` or `superdev:wrap-up`, whichever the
-  route names, one skill per call, with the scope slug as its argument. Add `--from-ship` to the
-  verify-ship call.
-- **Any other answer** — empty, off-topic, or no → print the route above as the next command with the
-  staged pages named as that section states, and start nothing.
-- **After a started verify-ship returns**, apply `## Routing a shipped run` again. It routes to wrap-up with
-  no hand-sync pending → call the Skill tool with `superdev:wrap-up` and the scope slug, and ask nothing
-  more. Any other outcome → start no wrap-up. When verify-ship's message ended on its Next block, add
-  nothing. When a verify-ship started with `--from-ship` printed no Next block, print the route's command as the
-  Next block, with the staged pages named per `## Staged pages at close` and `/superdev:publish-kb <scope>` on
-  an `Or:` line when the count is above zero, and start nothing.
-- **A started skill keeps every gate and every ask.** Relay each refusal and each ask it puts to the
-  operator. A start from ship bypasses none of them.
-- **A start that is refused, errors, or finds no such skill** → print the command the route names as the Next
-  block, with the staged pages named per `## Staged pages at close` and `/superdev:publish-kb <scope>` on an
-  `Or:` line when the count is above zero, and stop.
-
-The last message of the chain carries the Next block, and no earlier message does.
+The message that asks also names the scope's staged pages per `## Staged pages at close`. When the count is above
+zero, `/superdev:publish-kb <scope>` goes on the Next block's `Or:` line when that block prints. The
+question keeps its two options. A yes starts the routed skill exactly as the operator would type it, with the scope slug as its only
+argument. Ship starts no wrap-up after a started verify-ship returns: verify-ship's own hand-off makes its
+own offer.

@@ -9,7 +9,7 @@ argument-hint: "[an intent, or nothing]"
 Turn an intent into a set of **independently-green vertical slices** with explicit dependencies, written
 to the slice store, ready for `/superdev:implement`. Interactive — this needs the user's judgment.
 
-Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111).
+Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section (ADR 0157).
 
 ## 0. Config
 

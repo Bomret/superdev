@@ -11,6 +11,8 @@ plan-ready intent (ADR 0068). Where `/superdev:review` resolves a range, a **swe
 whole tree, which is what lets it see a property of a pair — a redundant implementation, a fact stated
 twice — whose covering half no range is guaranteed to contain.
 
+Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section (ADR 0157).
+
 **Outside the chain.** implement → review → document → ship never reaches this command, the standing shape `/superdev:backlog`, `/superdev:prose-check`, and
 `/superdev:review-tests` already hold.
 
@@ -134,8 +136,8 @@ their own runs, and this one stays read-only on every tracked file, the `.gitign
 swept set, each fact with its leg and location, each surviving judgment with its leg and location, and the
 degraded/empty legs named as such.
 
-Then print the handoff with the date and the slug resolved — substituted, not literal placeholders —
-naming the exact file just written:
+Then print the next command in the Next block, with the date and the slug resolved — substituted, not
+literal placeholders — naming the exact file just written:
 
 ```
 /superdev:plan .superdev/brainstorm/sweep-<date>-<swept-slug>.md

@@ -445,7 +445,7 @@ _Avoid: "environment" (a target is one deployable unit, and one environment may 
 
 ## Plugin surface
 
-**Model-invocable surface**: a skill the model can start on its own through the Skill tool, as against one only the operator can, by typing its slash command. Every skill is one unless its frontmatter carries `disable-model-invocation: true`. An external driver invokes each step of the chain through the Skill tool, and `/superdev:plan` and `/superdev:implement` start `/superdev:setup` and `/superdev:plan` the same way, so each of them must stay one. `/superdev:ship` starts `/superdev:verify-ship` and `/superdev:wrap-up` the same way once the operator agrees, so both must stay one too. Only `/superdev:ship` must not (INV-0066, ADR 0132).
+**Model-invocable surface**: a skill the model can start on its own through the Skill tool, as against one only the operator can, by typing its slash command. Every skill is one unless its frontmatter carries `disable-model-invocation: true`. An external driver invokes each step of the chain through the Skill tool, and `/superdev:plan` and `/superdev:implement` start `/superdev:setup` and `/superdev:plan` the same way, so each of them must stay one. A covered command starts its successor the same way once the operator agrees to its **Offer**, so every superdev skill, `/superdev:ship` included, stays one (INV-0066, ADR 0157).
 _Avoid: "auto-invoked" (that names implicit activation by description match, a different property), "callable", "public"_
 
 **Shipped tree**: the `plugin/` subdirectory, which is everything a user's install copies and nothing else, because the marketplace manifest's `source` names `plugin` as its `path`, at the release tag its `ref` pins (ADR 0131). Everything outside it — `tests/`, `scripts/`, `docs/` — is maintainer-only and reaches no user.
@@ -483,6 +483,9 @@ _Avoid: "template" alone (a knowledge base's **Backend command contract** templa
 
 **Next block**: the `### Next` section that closes a covered command's last message, holding the next command and one line on what it does, defined once in `references/response-shapes.md` (ADR 0113, INV-0111).
 _Avoid: "handoff" (run handoff is the closing procedure of an execution playbook), "call to action"_
+
+**Offer**: the one `AskUserQuestion` an attended covered command asks at its end, before its Next block, whether to start the one next command that block names. A yes starts it through the Skill tool, and any other answer prints the Next block. An unattended run and a command in the chained posture make none (ADR 0157, INV-0111).
+_Avoid: "prompt" (prompt prose is the text of a skill or agent), "auto-continue" (nothing continues without the operator's yes)_
 
 ## Roles
 

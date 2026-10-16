@@ -891,32 +891,53 @@ function scanShipNoOpensPr(root) {
   return gaps;
 }
 
-// scanShipHumanOnly(): reads the SKILL.md of every skill that carries no unattended mode
-// (NO_UNATTENDED_SKILLS) and reports two gaps INV-0093 names — a literal `--unattended` token anywhere in the
-// file, which ADR 0096 says none of the three carries, and, for ship alone, a missing
-// `disable-model-invocation: true` in its frontmatter (ADR 0132 opens the other two to the model).
-const NO_UNATTENDED_SKILLS = ['ship', 'verify-ship', 'wrap-up'];
+// scanPastPrSkills(): the skills an offer starts past the open pull request (ADR 0157). Three facts and
+// forbidden forms, no wording (ADR 0153): each of OFFER_TARGETS carries no `disable-model-invocation: true` in
+// its frontmatter, since the Skill tool cannot start such a skill (INV-0066); verify-ship and wrap-up name no
+// `--unattended` token, since every unattended run ends at submit-pr (INV-0093) — ship names it only to
+// refuse it; and the removed `--from-ship` path stays out of ship, verify-ship, and response-shapes.md.
+const OFFER_TARGETS = ['ship', 'verify-ship', 'wrap-up', 'publish-kb'];
+const NO_UNATTENDED_SKILLS = ['verify-ship', 'wrap-up'];
+const NO_FROM_SHIP_DOCS = [
+  path.join('skills', 'ship', 'SKILL.md'),
+  path.join('skills', 'verify-ship', 'SKILL.md'),
+  path.join('references', 'response-shapes.md'),
+];
 
-function scanShipHumanOnly(root) {
+function scanPastPrSkills(root) {
   const gaps = [];
+  const docs = new Map();
+  const read = (source) => {
+    if (!docs.has(source)) docs.set(source, readDoc(root, source));
+    return docs.get(source);
+  };
+  const missing = new Set();
+  const present = (source) => {
+    if (read(source) !== null) return true;
+    if (!missing.has(source)) gaps.push(missingDoc(source));
+    missing.add(source);
+    return false;
+  };
+  for (const name of OFFER_TARGETS) {
+    const source = path.join('skills', name, 'SKILL.md');
+    if (!present(source)) continue;
+    const fm = read(source).match(/^---\n([\s\S]*?)\n---(?:\n|$)/);
+    if (fm !== null && /^disable-model-invocation:\s*true\s*$/m.test(fm[1])) {
+      gaps.push({
+        source,
+        expectation: 'carry no `disable-model-invocation: true`, because an offer starts it through the Skill tool (INV-0066, ADR 0157)',
+      });
+    }
+  }
   for (const name of NO_UNATTENDED_SKILLS) {
     const source = path.join('skills', name, 'SKILL.md');
-    const text = readDoc(root, source);
-    if (text === null) {
-      gaps.push(missingDoc(source));
-      continue;
+    if (present(source) && /--unattended/.test(read(source))) {
+      gaps.push({ source, expectation: 'name no `--unattended` mode of its own — it carries none (INV-0093, ADR 0096)' });
     }
-    if (name === 'ship' && !/^disable-model-invocation:\s*true\s*$/m.test(text)) {
-      gaps.push({
-        source,
-        expectation: 'carry `disable-model-invocation: true` in its frontmatter, so no model starts it on its own (INV-0093, ADR 0096, ADR 0132)',
-      });
-    }
-    if (/--unattended/.test(text)) {
-      gaps.push({
-        source,
-        expectation: 'name no `--unattended` mode of its own — it carries none (INV-0093, ADR 0096, ADR 0132)',
-      });
+  }
+  for (const source of NO_FROM_SHIP_DOCS) {
+    if (present(source) && /--from-ship/.test(read(source))) {
+      gaps.push({ source, expectation: 'name no `--from-ship` path: a started verify-ship runs exactly as a typed one (ADR 0157)' });
     }
   }
   return gaps;
@@ -1044,7 +1065,7 @@ module.exports = {
   scanAuditSetGlobs,
   scanNoBaseBranchCommit,
   scanShipNoOpensPr,
-  scanShipHumanOnly,
+  scanPastPrSkills,
   scanDeriveNoDod,
   scanInvariantRegisterJoin,
 };

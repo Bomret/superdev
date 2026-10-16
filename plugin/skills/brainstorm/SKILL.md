@@ -9,7 +9,7 @@ argument-hint: "[a rough idea, or nothing]"
 Turn a vague idea into an intent that's sharp enough to interview.
 Where `/superdev:plan` **converges** — one question at a time, pinning down a Definition of Done — this command **diverges** first: it generates options, tolerates "I don't know," and only narrows once the shape of the problem is clear.
 Near read-only — it writes its own intent file under `.superdev/brainstorm/` as the interview runs, and adds `.superdev/` to `.gitignore` when absent. The one other write is §4's prototype detour, which parks the prototype on a throwaway branch. It writes no slices, no Definition of Done, nothing to the slice store; that's `/superdev:plan`'s job.
-Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111).
+Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section (ADR 0157).
 
 Set a generative, curious mode: offer options rather than asking closed questions, explore tradeoffs out loud, and treat "I don't know yet" as useful signal, not a blocker. Ground every option in the actual repo — read documentation files, like `README.md`, `CLAUDE.md` or `AGENTS.md` and the relevant code before proposing directions, so suggestions are grounded in what exists, not invented from nothing.
 
@@ -67,5 +67,7 @@ Once the space has been explored, bring the intent file to its final form — a 
 ## 6. Hand off
 
 Once the intent has a clear problem, checkable success criteria, and a bounded scope — even if some decisions remain open — set `status: ready` in the intent file's frontmatter, then tell the user it's ready and to run **`/superdev:plan`**, which will interview those remaining decisions one at a time and decompose the work into slices.
+
+A brainstorm that ends before the intent is ready — the operator stops while the file still reads `status: draft` — names `/superdev:brainstorm` as its next command, which resumes the draft at §0 (triage #829). `/superdev:plan` skips a draft, so it is never that exit's next command.
 
 Close with the brainstorm report, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The brainstorm report` section (INV-0112).

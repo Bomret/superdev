@@ -5,6 +5,10 @@
 **Amends:** [ADR 0106](0106-verifying-and-closing-a-shipped-scope-are-separate-human-only-commands.md)
 point 4, and [ADR 0116](0116-ship-names-wrap-up-when-nothing-is-left-to-verify.md)'s final hand-off.
 
+**Amended by:** [ADR 0157](0157-every-chain-command-offers-to-start-its-successor.md), which makes ship
+model-invocable and offered by `/superdev:submit-pr` (point 1), replaces ship's one yes for verify-ship and
+wrap-up with verify-ship's own offer (point 3), and has a typed verify-ship offer wrap-up (point 5).
+
 ## Context
 
 ADR 0106 made `/superdev:ship`, `/superdev:verify-ship`, and `/superdev:wrap-up` human-only. Each
