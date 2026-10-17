@@ -226,6 +226,8 @@ const INPLACE_DENY = [
   // A wrapper's long option may take a separate value.
   'sudo --user bob ed @', 'sudo --user bob perl -pi -e x @', 'env --unset HOME perl -pi -e x @', 'nice --adjustment 5 ed @',
   'timeout --signal KILL 5 ed @', 'xargs --max-args 1 ed @', 'sudo --group staff --user bob ed @',
+  // macOS `env -P altpath` takes a separate value word, so the word after it is no command word.
+  'env -P /bin ed @', 'env -P /bin perl -pi -e x @', 'env -iP /bin ed @', 'sudo env -P /bin truncate -s 0 @',
   // exec, doas, stdbuf, and builtin run the command that follows.
   'exec ed @', 'exec perl -pi -e x @', 'exec -a name ed @', 'doas ed @', 'doas -u bob perl -pi -e x @', 'stdbuf -oL ed @', 'stdbuf -o L sed -i x @',
   'stdbuf -i0 -oL -eL perl -pi -e x @', 'builtin exec ed @', 'builtin command ed @', 'sudo exec ed @',
@@ -287,7 +289,7 @@ const wrap = (c) => {
       'rg x @', "rg --pre-glob '*.md' x @", 'sudo cat @', 'env sed -n 1p @', 'nice sort @', 'nice -n 5 sort @', 'xargs cat < @', 'sudo -u bob cat @', 'timeout 5 grep a @', "bash -c 'sudo cat @'",
       "bash -c 'env sed -n 1p @'", "bash -c $'sed -n 1p @'", "bash -c $'cat @'", 'sudo sort -o /tmp/x @', 'env FOO=1 grep ed @', 'command -v sed',
       'truncate -r @ /tmp/x', 'truncate --reference=@ /tmp/x', 'truncate --reference @ /tmp/x', 'truncate -r @ -s 0 /tmp/x', 'sudo --user bob cat @',
-      'env --unset HOME grep ed @', 'nice --adjustment 5 cat @', 'stdbuf -oL grep x @', 'stdbuf -o L cat @', 'exec cat @', 'doas cat @', 'builtin command cat @',
+      'env -P /bin cat @', 'env -P /bin grep ed @', 'env --unset HOME grep ed @', 'nice --adjustment 5 cat @', 'stdbuf -oL grep x @', 'stdbuf -o L cat @', 'exec cat @', 'doas cat @', 'builtin command cat @',
       'su -c "cat @"', "su -c 'grep sed @'", 'flock /tmp/lock -c "cat @"', 'env -S "cat @"', 'echo x >& /tmp/y', 'cat @ >& /tmp/y', 'cat @ 2>&1', 'bash -c "\\"cat\\" @"',
       'grep -c "sed -i" @', 'grep -c x @',
       'su -lc "cat @"', 'flock -xc "cat @" /tmp/l', 'flock /tmp/l -xc "cat @"', 'env -iS "cat @"', 'sudo -iu bob cat @', 'sudo -Eu bob grep ed @',

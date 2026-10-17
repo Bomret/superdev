@@ -1088,8 +1088,8 @@ function inlineAlias(options, name) {
 const WRAPPER = new Map([
   ['sudo', new Set(['-u', '-g', '-C', '-h', '-p', '-r', '-t', '-T', '-U', '-D', '-R', '--user', '--group', '--host', '--prompt', '--role', '--type',
     '--other-user', '--close-from', '--chdir', '--chroot', '--login-class'])],
-  ['env', new Set(['-u', '-C', '-S', '-a', '--unset', '--chdir', '--split-string', '--argv0'])],
-  ['xargs', new Set(['-n', '-I', '-P', '-L', '-d', '-a', '-s', '-E', '--max-args', '--max-procs', '--max-lines', '--max-chars', '--delimiter',
+  ['env', new Set(['-u', '-C', '-S', '-P', '-a', '--unset', '--chdir', '--split-string', '--argv0'])],
+  ['xargs', new Set(['-n', '-I', '-J', '-R', '-S', '-P', '-L', '-d', '-a', '-s', '-E', '--max-args', '--max-procs', '--max-lines', '--max-chars', '--delimiter',
     '--arg-file', '--process-slot-var'])],
   ['nice', new Set(['-n', '--adjustment'])],
   ['nohup', new Set()],
@@ -1384,4 +1384,4 @@ function drivePath(p, platform = process.platform) {
   return m ? `${m[1].toUpperCase()}:${m[2] || '/'}` : p;
 }
 
-module.exports = { scan, gitSubcommand, rawNamesVerb, commandStart, WRAPPER, optionWords, MAX_QUOTED_DEPTH, dashReading, drivePath };
+module.exports = { scan, gitSubcommand, inlineAlias, rawNamesVerb, commandStart, WRAPPER, optionWords, MAX_QUOTED_DEPTH, dashReading, drivePath };

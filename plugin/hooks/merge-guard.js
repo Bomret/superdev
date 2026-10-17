@@ -22,11 +22,15 @@
 // that names nothing guarded is allowed, so a body any other command receives is denied only when it names one, a known
 // false positive of the quoted-word class below. Each command is read past its `NAME=value` words and the prefix wrappers of
 // shell-words.js's WRAPPER table (`env`, `sudo`, `nohup`, `xargs`, `exec`, `eval`, `command`, `timeout`, `rtk`, …) by `commandStart`,
-// a wrapper spelled in many raw characters (`env''''…`) included. A git, gh, or tea command behind `xargs` that stops before its
+// a wrapper spelled in many raw characters (`env''''…`) included. A wrapper value option is read as the BSD and macOS tools read it
+// (`env -P altpath`, `xargs -J replstr`), so `env -P x git push` is denied under GNU env too, which has no `-P` and runs nothing
+// on that usage error: a known false positive. A git, gh, or tea command behind `xargs` that stops before its
 // subcommand or `pr` verb takes it from stdin, and is denied.
 // The guard denies a command whose git subcommand (read past git's global options by `gitSubcommand`) is a
 // guarded verb (`merge`, `push`, `rebase`, `pull`, or `subtree push`), directly or through an alias defined inline
-// (`git -c alias.p=push p`, `git -c alias.x='!git push' x`), a `gh`/`tea pr merge` (tea's `pulls`/`pull` names for `pr` included), and a `gh`/`tea api` write to a pull request's /merge endpoint. A git
+// (`git -c alias.p=push p`, `git -c alias.x='!git push' x`, `git -c alias.x='!git' x push`, a chain of them, an alias a value defines,
+// a value led by global options, a value split as git splits it: `git -c alias.x='"pu\sh"' x`), a typed guarded verb
+// whatever an inline alias of its name says (git ignores such an alias), a `gh`/`tea pr merge` (tea's `pulls`/`pull` names for `pr` included), and a `gh`/`tea api` write to a pull request's /merge endpoint. A git
 // command with any other subcommand is allowed, whatever words follow it: `git -C $(a $(b $(c))) log --grep push`,
 // and `git merge-base`/`merge-tree` (read-only helpers), are not integrations.
 // The scan also reads the text of every quoted or backslash-escaped word as a command line (INV-0141), whatever program
@@ -46,7 +50,7 @@
 //
 // simplicity: the guard catches a command the scanner reads as git, gh, or tea once the table's wrappers are
 // skipped. A wrapper the table does not name, a command built at run time (a variable, `eval "$x"`), or a
-// wrapper script slips past. This is a deterministic guardrail against the model's normal output, not a
+// wrapper script slips past, and so does an alias defined outside `-c` (`--config-env`, `GIT_CONFIG_*`, a config file). This is a deterministic guardrail against the model's normal output, not a
 // sandbox; airtight subagent isolation is the platform's job (see AGENTS.md known issues).
 
 let shellWords = null;
@@ -143,15 +147,83 @@ const BROKEN =
 // The raw-text rule: the word `git` and later a guarded verb, or `gh`/`tea` and later `pr merge`.
 const rawIntegrates = (text) => shellWords.rawNamesVerb(text, VERB_WORD) || shellWords.rawNamesVerb(text, PR_MERGE, CLI_WORD);
 
-// True when a git command integrates: its subcommand is guarded, it is `subtree` whose own subcommand is `push`, or it is defined
-// inline as an alias (`git -c alias.p=push p`) whose value, with the words after it, does either, or whose `!` shell command names
-// `git` and later a guarded verb. `args` are the words after the subcommand, as strings.
+// The inline aliases a chain is followed through: a longer chain, a loop included, is denied, failing closed.
+const ALIAS_DEPTH = 16;
+// The `!` values being read as command lines, one inside another (gitIntegrates): each nesting reads a text no longer than the one
+// around it, and ALIAS_DEPTH caps the nesting, so the reading stays bounded.
+let bangDepth = 0;
+
+// True when a git command integrates: its typed subcommand does, or it is defined inline as an alias (`git -c alias.p=push p`) whose
+// value, read as a git command line with the words after it, does, or whose `!` shell command, with the words git appends to it
+// single-quoted (`!git` with `'push'`), integrates when read as a command line (commandLineIntegrates, so shell quoting hides no verb: `!git "pu"sh`)
+// or names `git` and later a guarded verb in its raw text.
+// Git ignores an alias whose name is a git command, so the typed subcommand is read first, whatever the alias says
+// (`git -c alias.merge=log merge x` merges). That fails closed: `git -c alias.log=push log` runs `log` and is denied, and so is
+// `git -c alias.a=log -c alias.log=push a`. An alias value is split as git's split_cmdline splits it (splitCmdline), then read past
+// git's global options (`--no-pager push`). A subcommand it names that is itself an inline alias is followed
+// (`-c alias.a=b -c alias.b=push a`), looked up in the outer options and every `-c` an earlier link set (`-c alias.a='-c alias.b=push b'`),
+// and the words a link adds after its subcommand go ahead of the words after it into the next link. A `!` value is judged with the words
+// git appends to it, the words earlier links added included, joined after its text, each single-quoted as git's "$@" passes it, so a quote,
+// `)`, or `<<` in one changes nothing. The raw rule still reads that joined text, so `git -c alias.x='!git log' x --grep push` and
+// `git -c alias.x='!echo' x git push` are denied, known false positives.
+// `args` are the words after the subcommand, as strings.
 function gitIntegrates(g, args) {
-  let ws = [g.subcommand, ...args];
-  if (g.alias !== null) {
-    if (g.alias.startsWith('!')) return shellWords.rawNamesVerb(g.alias.slice(1), VERB_WORD);
-    ws = [...g.alias.trim().split(/\s+/), ...args];
+  if (wordsIntegrate([g.subcommand, ...args])) return true;
+  let alias = g.alias;
+  let options = g.options;
+  for (let depth = 0; alias !== null; depth++) {
+    if (depth === ALIAS_DEPTH) return true;
+    if (alias.startsWith('!')) {
+      // git hands the appended words to the shell through "$@", so each is single-quoted: a quote, `)`, or `<<` in one is no shell text.
+      const text = [alias.slice(1), ...args.map((w) => "'" + w.replace(/'/g, "'\\''") + "'")].join(' ');
+      if (shellWords.rawNamesVerb(text, VERB_WORD)) return true;
+      // The full reading can meet another `!` value inside this one; past ALIAS_DEPTH nested readings it is denied, failing closed.
+      if (bangDepth === ALIAS_DEPTH) return true;
+      bangDepth++;
+      try {
+        return commandLineIntegrates(text);
+      } finally {
+        bangDepth--;
+      }
+    }
+    const split = splitCmdline(alias.replace(/^[ \t\n\r]+|[ \t\n\r]+$/g, ''));
+    if (split === null) return true;
+    const a = shellWords.gitSubcommand(['git', ...split]);
+    if (a.subcommand === null) return false;
+    args = [...split.slice(a.index), ...args];
+    if (wordsIntegrate([a.subcommand, ...args])) return true;
+    options = [...options, ...a.options];
+    alias = shellWords.inlineAlias(options, a.subcommand);
   }
+  return false;
+}
+
+// splitCmdline(value) -> string[] | null
+// Splits an alias value into words the way git's split_cmdline does: a run of space, tab, newline, or carriage return (git's
+// isspace) separates words, while a vertical tab, form feed, or Unicode space stays inside one; single and double quotes group
+// and are removed, and a backslash outside single quotes escapes the next character. An unclosed quote or a trailing backslash,
+// which git refuses to run, reads as null.
+const GIT_SPACE = /[ \t\n\r]/;
+function splitCmdline(value) {
+  const words = [''];
+  let quoted = '';
+  for (let i = 0; i < value.length; i++) {
+    const c = value[i];
+    if (!quoted && GIT_SPACE.test(c)) {
+      while (i + 1 < value.length && GIT_SPACE.test(value[i + 1])) i++;
+      words.push('');
+    } else if (!quoted && (c === "'" || c === '"')) quoted = c;
+    else if (c === quoted) quoted = '';
+    else if (c === '\\' && quoted !== "'") {
+      if (++i === value.length) return null;
+      words[words.length - 1] += value[i];
+    } else words[words.length - 1] += c;
+  }
+  return quoted ? null : words;
+}
+
+// True when a subcommand and the words after it integrate: the subcommand is guarded, or it is `subtree` whose own subcommand is `push`.
+function wordsIntegrate(ws) {
   if (GUARDED.has(ws[0])) return true;
   if (ws[0] !== 'subtree') return false;
   for (let k = 1; k < ws.length; k++) {
@@ -263,19 +335,24 @@ function integrates(cmd) {
   return r.commands.some(commandIntegrates);
 }
 
+// True when a command line integrates: its scanned reading, its dash reading, the CLI line rule, or a `tea api`/`gh api` merge.
+function commandLineIntegrates(cmd) {
+  const dash = shellWords.dashReading(cmd);
+  return integrates(cmd) || (dash !== null && integrates(dash)) || BLOCK_CLI.test(cmd) || isApiMerge(cmd);
+}
+
 function decide(input) {
   if (!input || !input.agent_id) return { block: false }; // controller (or unknown) → allow
   const cmd = (input.tool_input && input.tool_input.command) || '';
   let hit;
   try {
     if (!shellWords) return { block: true, reason: BROKEN };
-    const dash = shellWords.dashReading(cmd);
-    hit = integrates(cmd) || (dash !== null && integrates(dash));
+    bangDepth = 0;
+    hit = commandLineIntegrates(cmd);
   } catch {
     return { block: true, reason: BROKEN };
   }
-  if (hit || BLOCK_CLI.test(cmd) || isApiMerge(cmd)) return { block: true, reason: INTEGRATE };
-  return { block: false };
+  return hit ? { block: true, reason: INTEGRATE } : { block: false };
 }
 
 function main() {

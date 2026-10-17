@@ -59,6 +59,10 @@ assert.equal(optionWords('-n5', WRAPPER.get('nice')), 1, 'nice -n5 carries its v
 assert.equal(optionWords('-n', WRAPPER.get('nohup')), 1, 'a wrapper with no value options takes one word');
 assert.equal(optionWords('-arm64e', WRAPPER.get('arch')), 1, "arch reads -arm64e whole, not as a cluster ending in -e's value");
 assert.equal(optionWords('-arch', WRAPPER.get('arch')), 2, 'arch -arch takes its value');
+for (const [name, w] of [['env', '-P'], ['env', '-iP'], ['xargs', '-J'], ['xargs', '-R'], ['xargs', '-S']]) {
+  assert.equal(optionWords(w, WRAPPER.get(name)), 2, `${name} ${w} takes its value as the next word`);
+}
+assert.equal(optionWords('-P/usr/bin', WRAPPER.get('env')), 1, 'env -P/usr/bin carries its value');
 assert.equal(gitSubcommand(['git', '-C']).subcommand, null);
 assert.equal(gitSubcommand(['rtk', '-v', 'proxy', '--skip-env', '--', 'git', 'push']).subcommand, 'push', 'rtk options after the runner');
 assert.equal(gitSubcommand(['rtk', 'proxy', 'rtk', 'run', '--', 'git', 'push']).subcommand, 'push', 'an rtk behind an rtk');

@@ -333,14 +333,18 @@ The hooks are cross-platform Node. They need `node` on PATH (see [Install](#inst
 bash or PowerShell variants.
 
 - **merge-guard.** Blocks `git merge`, `git push`, `git rebase`, `git pull`, `git subtree push`, a git
-  alias defined inline that runs one of them (`git -c alias.p=push p`), `gh pr merge`, `tea pr merge` (or tea's
+  alias defined inline that runs one of them (`git -c alias.p=push p`, its value split with quotes and backslashes as git
+  splits it, read past git's global options, and followed through a chain of inline aliases, an alias a value defines included;
+  a `!` value is read as a shell command line with the arguments git appends to it, each one a single quoted word as git's `"$@"` passes it), one of them typed under an inline alias of its own name, which git ignores
+  (`git -c alias.merge=log merge x`), `gh pr merge`, `tea pr merge` (or tea's
   `pulls merge` and `pull merge`, and its `m` alias), with options before `pr` and `merge` read past, and a
   `tea api` POST or `gh api` PUT or POST to a pull request's `/merge` endpoint from inside a subagent,
   scoped by `agent_id`. It blocks each of these behind an `rtk` prefix too, with or without one of rtk's run-anything
   subcommands (`proxy`, `err`, `run`, `summary`, `test`) after it, its `--` separator, or a second `rtk` (#958). A `curl` call to the
   `/merge` endpoint stays a prose contract the subagent bodies carry. The guard reads the command with one
   shared shell scanner (ADR 0135): every command it holds, at every level, past `NAME=value` words and
-  prefix wrappers such as `env`, `sudo`, `nohup`, `xargs`, `exec`, `eval`, `flock`, and `taskset`. It reads the text of every
+  prefix wrappers such as `env`, `sudo`, `nohup`, `xargs`, `exec`, `eval`, `flock`, and `taskset`, each with its options and the
+  values they take (`env -P /usr/bin git push`). It reads the text of every
   quoted or backslash-escaped word as a command line too, so `sh -c "git merge x"`, `dash -c git\ push`, and
   `ssh host "gh pr merge 1"` are blocked. The scan re-reads a backslash-escaped word as a command line only when a character it escapes is whitespace, an operator (a parenthesis included), a backtick, or a `$`. It also reads the command, and every quoted text it reads as a command line, as
   dash reads it, where `((…))` runs nested subshells, so `dash -c "((git push))"` is blocked.

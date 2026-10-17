@@ -312,6 +312,51 @@ for (const cmd of ['git pull', 'git pull --rebase origin main', 'git -C ../wt pu
 for (const cmd of ['git subtree split -P x', 'git -c alias.l=log l', 'git -c alias.p=push status', "git -c alias.X='!git log' X"]) {
   assert.equal(decide(sub(cmd)).block, false, `no integration: ${cmd}`);
 }
+// Git ignores an alias whose name is a git command, so a typed guarded subcommand integrates whatever an inline alias of that name says.
+for (const cmd of ['git -c alias.merge=log merge x', 'git -c alias.push=status push origin main', 'git -c alias.rebase=log rebase main',
+  "git -c alias.pull='!echo hi' pull", 'git -c alias.Merge=log merge x', 'git -c ALIAS.PUSH=status push', 'git -c alias.subtree=log subtree push -P d o m']) {
+  assert.equal(decide(sub(cmd)).block, true, `a typed guarded subcommand integrates over its alias: ${cmd}`);
+}
+// An inline alias value is read as a git command line: past git's global options, and through an alias it names to the end of the chain.
+// A chain that does not end (a loop) is denied.
+for (const cmd of ["git -c alias.x='--no-pager push' x", "git -c alias.x='-p merge' x y", 'git -c alias.a=b -c alias.b=push a',
+  "git -c alias.a=b -c alias.b='!git push' a", "git -c alias.a='--no-pager b' -c alias.b=rebase a main", 'git -c alias.a=b -c alias.b=a a']) {
+  assert.equal(decide(sub(cmd)).block, true, `an alias value that integrates as a git command line: ${cmd}`);
+}
+// An alias defined inside an alias value is followed, the words a middle link adds reach the next link, a value is split the way git's
+// split_cmdline splits it (quotes group and are removed, a backslash escapes the next character), an unclosed quote is denied, and a `!`
+// value is judged with the words git appends to it.
+for (const cmd of ["git -c alias.a='-c alias.b=push b' a", "git -c alias.a='b push -P d o m' -c alias.b=subtree a", `git -c alias.x='"push"' x`,
+  "git -c alias.x='pu\\sh' x", `git -c alias.x='"pu\\sh"' x`, `git -c alias.x='"push' x`, "git -c alias.x='!git' x push",
+  "git -c alias.a=b -c alias.b='!git' a push", "git -c alias.a='b push' -c alias.b='!git' a"]) {
+  assert.equal(decide(sub(cmd)).block, true, `an alias chain read the way git reads it integrates: ${cmd}`);
+}
+for (const cmd of ["git -c alias.x='--no-pager log' x", 'git -c alias.a=b -c alias.b=log a', "git -c alias.a=b -c alias.b='!git log' a",
+  "git -c alias.a='-c alias.b=status b' a", `git -c alias.x='"log"' x`, "git -c alias.a='b push -P d o m' -c alias.b=log a"]) {
+  assert.equal(decide(sub(cmd)).block, false, `an alias chain that does not integrate: ${cmd}`);
+}
+// git's split_cmdline separates words only on space, tab, newline, and carriage return, so a vertical tab, form feed, or Unicode space
+// stays inside a word (`-c a.b=x\vy` is one `-c` value) and the guarded verb after it runs. A tab separates, so `y` is the subcommand
+// and git fails with "'y' is not a git command": nothing integrates.
+for (const cmd of ['git -c alias.p=$\'-c a.b=x\\vy push\' p', 'git -c alias.p=$\'-c a.b=x\\fy push\' p', `git -c alias.p='-c a.b=x${String.fromCharCode(0xa0)}y push' p`,
+  `git -c alias.p='-c a.b=x${String.fromCharCode(0x2028)}y push' p`]) {
+  assert.equal(decide(sub(cmd)).block, true, `a word git's split_cmdline keeps whole: ${JSON.stringify(cmd)}`);
+}
+assert.equal(decide(sub('git -c alias.p=$\'-c a.b=x\\ty push\' p')).block, false, 'a tab separates words in an alias value');
+// A `!` value is a shell command line, so it is read the way merge-guard reads any command line: shell quoting hides no verb.
+for (const cmd of [`git -c alias.x='!git "pu"sh' x`, "git -c alias.x='!git pu\\sh' x", `git -c alias.x="!git p''ush" x`]) {
+  assert.equal(decide(sub(cmd)).block, true, `a \`!\` value read as a shell command line integrates: ${cmd}`);
+}
+// Git hands the appended words to the shell through "$@", so a quote, `)`, or `<<` in one is a plain character and changes nothing.
+for (const cmd of [`git -c alias.x='!git "pu"sh' x "'"`, `git -c alias.x='!git "pu"sh' x '"'`, `git -c alias.x='!git "pu"sh' x ')'`,
+  `git -c alias.x='!git "pu"sh' x '<<'`, `git -c alias.x='!git pu\\sh' x "'"`, `git -c alias.x='!git "pu"sh origin main; :' x "'"`]) {
+  assert.equal(decide(sub(cmd)).block, true, `a word git appends to a \`!\` value is no shell text: ${cmd}`);
+}
+// A wrapper value option that takes its value as a separate word (macOS `env -P altpath`, `xargs -J replstr`) is skipped with it.
+for (const cmd of ['env -P /usr/bin git merge x', 'env -P/usr/bin git merge x', 'env -iP /usr/bin git push', 'sudo env -P /usr/bin git push',
+  '/usr/bin/env -P /usr/bin git rebase main', 'xargs -J % git push origin', 'xargs -R 2 -I % git push %', 'xargs -S 255 -I % git merge %']) {
+  assert.equal(decide(sub(cmd)).block, true, `a wrapper value word is no command word: ${cmd}`);
+}
 // An ANSI-C quoted text is decoded before it is read as a command line.
 for (const cmd of ["bash -c $'git\\x20push'", "bash -c $'git\\tpush'", "bash -c $'true\\ngit push'", "bash -c $'true\\x0agit push'"]) {
   assert.equal(decide(sub(cmd)).block, true, `an ANSI-C text is decoded: ${cmd}`);
