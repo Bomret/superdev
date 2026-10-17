@@ -1,3 +1,12 @@
+## [0.75.1](https://codeberg.org/bomret/superdev/compare/v0.75.0...v0.75.1) (2026-10-17)
+
+
+### Bug Fixes
+
+* **hooks:** merge-guard denies integrations behind wrapper value options and inline aliases over guarded verbs ([#1239](https://codeberg.org/bomret/superdev/issues/1239)) ([629a305](https://codeberg.org/bomret/superdev/commit/629a3052344c73aa97379f4ace5ca2618a483813))
+* **hooks:** run-trace reads wrappers, directories, git options, and words the way bash does ([#1243](https://codeberg.org/bomret/superdev/issues/1243)) ([e8b7be4](https://codeberg.org/bomret/superdev/commit/e8b7be46cbcc7f384ae9f1d0d318b22f4e973330))
+* **hooks:** run-trace resolves Bash commands from their starting directory and records no run for reading commands ([#1231](https://codeberg.org/bomret/superdev/issues/1231)) ([6311f95](https://codeberg.org/bomret/superdev/commit/6311f95ebfa03aba3ea5d8a9febe899fd2ae883b))
+
 # [0.75.0](https://codeberg.org/bomret/superdev/compare/v0.74.1...v0.75.0) (2026-10-16)
 
 
