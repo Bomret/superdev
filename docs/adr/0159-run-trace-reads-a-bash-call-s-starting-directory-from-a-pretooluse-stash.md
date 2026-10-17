@@ -5,6 +5,10 @@
 **Amends:** [ADR 0117](0117-the-run-trace-is-hook-written-evidence.md), whose hook resolved a Bash command's
 relative paths against the hook input's `cwd`.
 
+**Amended by:** [ADR 0160](0160-run-trace-readers-share-one-command-word-and-word-reader.md), which adds the
+function-body `cd` shape and reads an `eval` whose first argument starts with the word `cd`, `pushd`, or `popd`
+as a `cd` the hook cannot read.
+
 ## Context
 
 `plugin/hooks/run-trace.js` records a Bash call on PostToolUse. It resolves the command's relative paths,

@@ -49,6 +49,12 @@
 //             `fn` is true for a command inside a function body (`f() { … }`, `function f { … }`, `f() ( … )`), nested
 //             groups, substitutions, backtick groups, and heredoc bodies included: a definition runs nothing.
 //             A body that is no `{ … }` or `( … )` group (`f() if …; fi`) is not marked; the scan result's `fnBare` reports it.
+//             `fnId` numbers the innermost function body a command sits in, so the commands of two bodies differ (ADR 0160):
+//             the bodies of one scan count from 1 in the order they open, on one counter for every text the scan reads (a backtick
+//             group and a heredoc body a shell reads included), so no two bodies share an id, and a command outside every body has none
+//             (undefined). A command in a `( … )` subshell, a `$( … )` substitution (double-quoted too), or a `<( … )` or
+//             `>( … )` process substitution of a body carries that body's id; one read out of a backtick group or a heredoc
+//             body a shell reads, of a body, has none (undefined).
 //   The scan result carries `negation`, true when the command line (backtick groups and substitutions included, quoted text
 //   not) holds a `!` reserved word anywhere, whichever command its negation reaches (`! case x in *) a;; esac` negates no
 //   command the scanner keeps). A `!` in quotes, in `$(( … ))`, or in a word reads false, and so does a `!` that leads a
@@ -58,7 +64,9 @@
 //   until do done { }`), `[[`, a `( … )` group, a `(( … ))` command, a function header, or `coproc`, which runs its command asynchronously). A substitution or process
 //   substitution sets it only through what it holds. And `fnBare`, true when a function header is followed by a body that
 //   is no `{ … }` or `( … )` group (`f() case x in *) a;; esac`): the body's commands stay in `commands`, unmarked. And `fns`,
-//   the Set of the function names the line defines, quoted texts included.
+//   the Set of the function names the line defines, quoted texts included. And `fnUp`, indexed by a body's `fnId`: the id of
+//   the function body it opens inside, undefined for a body outside every other body, and for a body opened in a backtick group
+//   or a heredoc body a shell reads, whose commands carry no enclosing body's id either.
 //   Commands come in the order of their first word, except that the commands of a backtick group follow
 //   the commands of the text that holds the group.
 //
@@ -185,8 +193,9 @@ const newFrame = (kind, start) => ({
   // `ng`: this `( … )` frame sits in a negated group. `bs`: one entry per open `{`, true for a negated one; `bsNeg` counts the true ones.
   ng: false, bs: [], bsNeg: 0,
   // Function bodies. `fnPend`: a function header was read and its body is next. `fnCount`: open `{` bodies of this frame.
-  // `fnIn`: an enclosing frame sits in a function body.
-  fnPend: false, fnCount: 0, fnIn: false,
+  // `fnIn`: an enclosing frame sits in a function body. `fnIds`: the ids of this frame's open `{` bodies; `fnId`: the id of the
+  // body an enclosing frame sits in. A body's id tells its commands apart from another body's (`fnId` on a command).
+  fnPend: false, fnCount: 0, fnIn: false, fnIds: [], fnId: undefined,
   // `pls`: the open pipelines of this frame, one per open compound command (see topPipe in run()).
   pls: null,
 });
@@ -236,6 +245,15 @@ function run(src, cmds, queue, level, heredocBody, baseNest, hdRead, baseGroup, 
   };
   // True when the frame runs inside a function body.
   const inFn = (f) => f.fnIn || f.fnCount > 0;
+  // The id of the innermost function body frame `f` sits in, or undefined; ids count the bodies of one scan in the order they open,
+  // on the scan's one counter (`cmds.ctx`), so a body in a backtick group or a shell-read heredoc never repeats an outer body's id.
+  const fnIdOf = (f) => (f.fnIds.length ? f.fnIds[f.fnIds.length - 1] : f.fnId);
+  // A new body's id, recording `up`, the id of the body it opens inside, in the scan's `fnUp`.
+  const nextFnId = (up) => {
+    const id = ++cmds.ctx.fnSeq;
+    cmds.ctx.fnUp[id] = up;
+    return id;
+  };
   const inPat = (f) => f.cases[f.cases.length - 1] === 'pattern';
   // A function header names a function the line defines (noteIndirect reads its calls), read by its capped name (nameText).
   const defineFn = (w) => {
@@ -290,7 +308,7 @@ function run(src, cmds, queue, level, heredocBody, baseNest, hdRead, baseGroup, 
     f.fnDef = false;
     if (!f.cmd) {
       const pl = topPipe(f);
-      f.cmd = { words: [], redirects: [], level, nest: frameNest(), group: frameGroup(), at: baseAt === undefined ? i : baseAt, sep: '', negated: f.neg === true || f.ng || f.bsNeg > 0, fn: inFn(f), drop: f.arr,
+      f.cmd = { words: [], redirects: [], level, nest: frameNest(), group: frameGroup(), at: baseAt === undefined ? i : baseAt, sep: '', negated: f.neg === true || f.ng || f.bsNeg > 0, fn: inFn(f), fnId: fnIdOf(f), drop: f.arr,
         pl, el: pl.elem, feeds: f.feeds === true, feedOwner: f.feedOwner || null, psubOf: f.psubOf || null, fed: null, ctx: cmds.ctx };
       pl.list.push(f.cmd);
       f.last = f.cmd; f.pend = null; f.neg = false; cmds.push(f.cmd);
@@ -374,11 +392,11 @@ function run(src, cmds, queue, level, heredocBody, baseNest, hdRead, baseGroup, 
         if (w.value === '{') {
           f.bs.push((c.negated ? 1 : 0) | (f.fnPend ? 2 : 0));
           if (c.negated) f.bsNeg++;
-          if (f.fnPend) f.fnCount++;
+          if (f.fnPend) { f.fnCount++; f.fnIds.push(nextFnId(fnIdOf(f))); }
         } else if (w.value === '}') {
           const b = f.bs.pop() || 0;
           if (b & 1) f.bsNeg--;
-          if (b & 2) f.fnCount--;
+          if (b & 2) { f.fnCount--; f.fnIds.pop(); }
         }
         if (w.value === '{' || w.value === 'if' || w.value === 'while' || w.value === 'until') openPipe(f);
         else if (w.value === '}' || w.value === 'fi' || w.value === 'done') closePipe(f);
@@ -525,6 +543,7 @@ function run(src, cmds, queue, level, heredocBody, baseNest, hdRead, baseGroup, 
   const push = (f, frame, width) => {
     if (f.kind === 'cmd') beginWord(f);
     frame.fnIn = inFn(f);
+    frame.fnId = fnIdOf(f);
     frame.pos = here(f);
     if (frame.kind === 'cmd') frame.root = { pos: frame.pos, frame: frame.sub === 'word' ? frame : null, id: null };
     st.push(frame);
@@ -801,6 +820,7 @@ function run(src, cmds, queue, level, heredocBody, baseNest, hdRead, baseGroup, 
         // An arithmetic for: `for ((…))`. Bash reads no subshell here, so a body that does not close is unreadable.
         const a = newFrame('arith', i);
         a.fnIn = inFn(f);
+        a.fnId = fnIdOf(f);
         a.cmdForm = true;
         a.forForm = true;
         a.nc = cmds.length;
@@ -818,6 +838,7 @@ function run(src, cmds, queue, level, heredocBody, baseNest, hdRead, baseGroup, 
           if (f.fnPend) { cmds.fnBare = true; f.fnPend = false; }
           const a = newFrame('arith', i);
           a.fnIn = inFn(f);
+          a.fnId = fnIdOf(f);
           a.cmdForm = true;
           a.nc = cmds.length;
           a.nq = queue.length;
@@ -833,6 +854,7 @@ function run(src, cmds, queue, level, heredocBody, baseNest, hdRead, baseGroup, 
           g.neg = f.neg === true;
           g.ng = g.neg || f.ng || f.bsNeg > 0;
           g.fnIn = inFn(f) || f.fnPend;
+          g.fnId = f.fnPend ? nextFnId(fnIdOf(f)) : fnIdOf(f);
           f.fnPend = false;
           st.push(g);
           i++;
@@ -970,7 +992,7 @@ function scan(command, opts = {}) {
         }
         if (c.drop || (c.words.length === 0 && c.redirects.length === 0)) continue;
         all.push({ words: c.words, redirects: c.redirects, level: c.level, nest: c.nest, group: c.group, at: c.at, sep: c.sep, negated: c.negated, fn: c.fn,
-          inst: instAt({ pl: c.pl, el: c.el }) });
+          fnId: c.fnId, inst: instAt({ pl: c.pl, el: c.el }) });
         // A heredoc body a shell reads is a command line at the level of the command that holds it (#1016).
         // A numbered heredoc (`3<<E`, `exec 3<<E`) reaches a shell too when a shell of the line reads that descriptor (noteIndirect).
         if (c.fed) {
@@ -1023,7 +1045,7 @@ function scan(command, opts = {}) {
         }
       }
     }
-    return { readable: true, commands: all, failedQuoted, texts, negation, compound, fnBare, fns: ctx.fns };
+    return { readable: true, commands: all, failedQuoted, texts, negation, compound, fnBare, fns: ctx.fns, fnUp: ctx.fnUp };
   } catch (e) {
     return { readable: false, reason: e instanceof Unreadable ? e.message : `scan failed: ${e && e.message}`, commands: [] };
   }
@@ -1032,10 +1054,14 @@ function scan(command, opts = {}) {
 const RTK_RUNNERS = new Set(['proxy', 'err', 'run', 'summary', 'test']);
 const GIT_VALUE_OPTS = new Set(['-C', '-c']);
 const GIT_LONG_VALUE_OPTS = new Set(['--git-dir', '--work-tree', '--namespace', '--config-env', '--shallow-file', '--attr-source']);
+// git's global options that print and exit, running no subcommand: `--exec-path` without a value, `--version`, `-v`, `--help`,
+// `-h`, and the documentation paths (ADR 0160).
+const GIT_EXITS = /^(?:--exec-path|--version|-v|--help|-h|--html-path|--man-path|--info-path)$/;
 
 // gitSubcommand(words) -> { subcommand, values, options, index, alias } | null
 // Reads past `rtk` (its options and a run-anything subcommand), `git`, and git's global options.
-// `subcommand` is the first word after them (null when none), `values` the values the options took,
+// `subcommand` is the first word after them (null when none, and when a print-and-exit option comes first: GIT_EXITS), `values`
+// the values the options took,
 // `options` those value-taking options as `{ name, value }` in order (`value` null when the word ended the command), `index`
 // the subcommand's position in `words` (-1 when none), and `alias` the value of a `-c alias.<subcommand>=…` defining the
 // subcommand inline (null when none).
@@ -1068,7 +1094,8 @@ function gitSubcommand(words) {
         take(w, i + 1 < words.length ? v(words[i + 1]) : undefined);
         i += 2;
       }
-    } else if (w.startsWith('-')) i++;
+    } else if (GIT_EXITS.test(w)) return { subcommand: null, values, options, index: -1, alias: null };
+    else if (w.startsWith('-')) i++;
     else return { subcommand: w, values, options, index: i, alias: inlineAlias(options, w) };
   }
   return { subcommand: null, values, options, index: -1, alias: null };
@@ -1234,12 +1261,13 @@ const reads = (c) => (c.reads === undefined ? (c.reads = !c.drop && (c.outPsub =
 // naming a known shell; `fns`, the names of the functions the line defines (run() adds each at its header); `fnShell`, true when a
 // function body holds a stdin-reading shell; `fds`, the descriptors a known shell, `source`, or `.` reads through `<&N`, `0<&N`,
 // `< /dev/fd/N`, or a `/dev/fd/N` word; `callers`, the commands that call a defined function, of which the first `seen` were asked
-// whether they feed a shell, and `fnFed`, true once one does.
+// whether they feed a shell, and `fnFed`, true once one does. `fnSeq` is the last function body id run() gave (`fnId`), and
+// `fnUp[id]` the id of the body that body opened inside (the scan result's `fnUp`).
 // simplicity: a definition in a text read later (a backtick body, a quoted word, a shell-fed body) reaches only the texts read after
 // it, so a call read before it is missed, which fails open; merge-guard denies a heredoc body or here-string text by its own words
 // (`texts`), so ledger-guard, the run trace, and `echo`/`printf` text a shell reads depend on it. An alias or function counts
 // wherever it sits on the line and whichever function holds the heredoc, which fails closed.
-const newIndirect = () => ({ aliases: new Set(), fns: new Set(), fnShell: false, fds: new Set(), callers: [], seen: 0, fnFed: false });
+const newIndirect = () => ({ aliases: new Set(), fns: new Set(), fnShell: false, fds: new Set(), callers: [], seen: 0, fnFed: false, fnSeq: 0, fnUp: [] });
 const nameOf = (c) => (c.name === undefined ? (c.name = commandName(c.words)) : c.name);
 // The characters of an `alias` argument read: its name, the `=`, and enough of its value for a wrapped shell (`env A=1 /bin/bash -s`).
 const ALIAS_HEAD = 512;
@@ -1384,4 +1412,4 @@ function drivePath(p, platform = process.platform) {
   return m ? `${m[1].toUpperCase()}:${m[2] || '/'}` : p;
 }
 
-module.exports = { scan, gitSubcommand, inlineAlias, rawNamesVerb, commandStart, WRAPPER, optionWords, MAX_QUOTED_DEPTH, dashReading, drivePath };
+module.exports = { scan, gitSubcommand, inlineAlias, rawNamesVerb, commandStart, WRAPPER, optionWords, MAX_QUOTED_DEPTH, dashReading, drivePath, ASSIGN_WORD };

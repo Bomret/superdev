@@ -361,6 +361,12 @@ const wrap = (c) => {
     assert.equal(bash(cmd).block, true, 'an editor behind run-trace\'s wrapper is refused: ' + cmd);
   }
 }
+// The wrapper forms run-trace's write reader reads with their options (ADR 0160): an editor behind each is refused too.
+for (const w of ['command -p', 'command --', 'sudo -E', 'sudo -u root', 'env -i', 'env -iu X', 'nice -n 5', 'exec -a x', 'nohup',
+  'timeout -k 2 5s --', 'time -p', 'rtk proxy', 'sudo env -i nice']) {
+  const cmd = w + ' perl -pi -e x ' + L;
+  assert.equal(bash(cmd).block, true, 'an editor behind a wrapper with options is refused: ' + cmd);
+}
 
 // Fail-closed, pinned: the flag search covers every word after the first sed/perl, so a trailing `-i` on a
 // grep of the word `sed` still blocks.

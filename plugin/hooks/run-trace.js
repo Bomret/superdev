@@ -13,8 +13,9 @@
 // Any error exits 0 silently; the hook never blocks.
 // simplicity: a write behind `bash -c` or a variable is not seen (a write inside `$( … )`, backticks, or a heredoc body a known
 // shell reads on stdin, such as `bash <<E`, is); a guardrail-grade
-// parse of the model's normal output, like ledger-guard's. Known limits within grade: `sudo -u root cp`
-// breaks command skip (flag after sudo); `git mv a dir/` with dir absent records dir (fs.statSync only
+// parse of the model's normal output, like ledger-guard's. Known limits within grade: a quoted option word (`command "-p"`), a
+// wrapper or a git named by path (`/usr/bin/env`), and an abbreviated long option are read as the command word; `git mv a dir/`
+// with dir absent records dir (fs.statSync only
 // checks target existence, not trailing-slash intent). Edge cases; upgrade if they appear in real runs.
 // The writers ledger-guard alone reads (a vi/vim script, `curl -o`, `wget -O`, `ditto`, `xxd`, `tar -x`, an interpreter's script, a
 // here-string or echo text a shell reads) record no edit here.
@@ -45,22 +46,45 @@ let scan = null;
 let WRAPPER = null;
 let optionWords = null;
 let drivePath = null;
+let gitSubcommand = null;
+let ASSIGN_WORD = null;
 try {
-  ({ scan, WRAPPER, optionWords, drivePath } = require('./shell-words.js'));
+  ({ scan, WRAPPER, optionWords, drivePath, gitSubcommand, ASSIGN_WORD } = require('./shell-words.js'));
 } catch {
   // left null: record() records nothing
 }
 
-// A shell word as text, or null where it holds a variable, substitution, or glob (a named limit).
-function unquote(word) {
-  if (/[$`*?]/.test(word.replace(/'[^']*'/g, '').replace(/\\./g, ''))) return null;
-  return word.replace(/'([^']*)'|"((?:[^"\\]|\\.)*)"|\\(.)/g, (_, a, b, c) => (a !== undefined ? a : b !== undefined ? b.replace(/\\(.)/g, '$1') : c));
+// One shell word as bash reads it, through the shared scanner's spans (ADR 0160): `value` its text once quotes and escapes are
+// gone; `literal` that text, or null where an unquoted or double-quoted part holds a variable or a substitution; `path` the
+// literal, or null where an unquoted part also holds a glob (`*`, `?`, `[`), a brace expansion (`{a,b}`, `{1..3}`), or a leading
+// `~`. A process substitution is no word, so all three are null. `w` is the scanner's Word, read as it is, or a raw word, scanned
+// first; a reader that holds the Word passes it, so no word is scanned twice.
+function readWord(w) {
+  const none = { value: null, literal: null, path: null };
+  let word = typeof w === 'string' ? null : w;
+  if (/^[<>]\(/.test(word ? word.raw : w)) return none;
+  if (!word) {
+    let scanned;
+    try { scanned = scan(w); } catch { return none; }
+    const c = scanned.readable && scanned.commands.length === 1 ? scanned.commands[0] : null;
+    if (!c || c.words.length !== 1 || c.redirects.length) return none;
+    word = c.words[0];
+  }
+  const { value, spans } = word;
+  const expands = spans.some((sp) => sp.quote !== 'single' && sp.quote !== 'escape' && /[$`]/.test(sp.text));
+  // A brace-free `{…}` whose text holds `,` or `..`: matched first, then tested, so an unclosed `{` costs linear time.
+  const braces = (t) => [...t.matchAll(/\{([^{}]*)\}/g)].some((m) => /,|\.\./.test(m[1]));
+  const globs = spans.some((sp) => sp.quote === null && (/[*?[]/.test(sp.text) || braces(sp.text)))
+    || (spans[0].quote === null && spans[0].text.startsWith('~'));
+  return { value, literal: expands ? null : value, path: expands || globs ? null : value };
 }
+// A word as a path, or null where bash expands it (`readWord`).
+const unquote = (word) => readWord(word).path;
 
 // The scanned commands in the order bash runs them (`at`, stable sort), marked for how they move the directory (`cdDir`).
 // `calls` marks a call of a function that moves the directory: a command outside every function body whose command word, past
 // env assignments and unquoted (`"f"` and `\f` call `f`), names a function the line defines, after a `cd`, `pushd`, or `popd` in a
-// function body, also behind `command` or `builtin` (`unwrapBuiltin`). A function body runs in the shell that calls it, so its `cd` moves that shell.
+// function body, its word read as `cdCall` reads it (`\cd`, `'cd'`, `eval cd`, `eval "cd …"`), also behind `command` or `builtin` (`unwrapBuiltin`). A function body runs in the shell that calls it, so its `cd` moves that shell.
 // simplicity: a call of any defined function counts once any function body holds a `cd`, since the scanner names no body's
 // function; a call that moves nothing then only resolves as an unreadable `cd` does. Upgrade by naming each body's function.
 function markMoves(scanned) {
@@ -68,16 +92,16 @@ function markMoves(scanned) {
   let moves = false;
   for (const c of cmds) {
     const ws = c.words.map((w) => w.raw);
-    const at = ws.findIndex((w) => !/^[A-Za-z_]\w*=/.test(w));
+    const at = ws.findIndex((w) => !ASSIGN_WORD.test(w));
     const word = at < 0 ? undefined : ws[at];
-    if (c.fn) moves = moves || /^(?:cd|pushd|popd)$/.test(at < 0 ? '' : unwrapBuiltin(word, ws.slice(at + 1))[0]);
-    else c.calls = moves && word !== undefined && scanned.fns.has(unquote(word));
+    if (c.fn) moves = moves || /^(?:cd|pushd|popd)$/.test(unwrapBuiltin(...cdCall(c.words))[0]);
+    else c.calls = moves && word !== undefined && scanned.fns.has(readWord(c.words[at]).path);
   }
   return cmds;
 }
 
 // The raw words of a command's simple commands, one segment each, read through the shared scanner (ADR 0135):
-// [{ ws, sep, nest, group, inst, negated, fn, calls, compound }], in the order bash runs them (a backtick body's commands first, by `at`;
+// [{ ws, words, sep, nest, group, inst, negated, fn, calls, compound }], in the order bash runs them (a backtick body's commands first, by `at`;
 // `inst` the scanner's shell instance, `calls` from `markMoves`). `compound` is true for every segment when the line holds compound structure the
 // scanner drops. A function header with a bare compound body (`fnBare`) leaves no segments. `negated` is true for every segment when the command line holds an unquoted `!` negation
 // anywhere. `fn` marks a command inside a function body: it stays a segment (it still ends the commands before it) but records
@@ -90,19 +114,24 @@ function cmdSegments(command) {
   // A function header with a bare compound body: the definition runs nothing, and the body's commands are unmarked, so none records.
   if (!scanned.readable || scanned.fnBare) return [];
   // The scanner lists a backtick group's commands after the whole text; `at` (stable sort) puts them back in the order bash runs them.
-  return markMoves(scanned).filter((c) => c.level === 0).map((c) => ({
-    ws: c.words.map((w) => w.raw).filter((w) => !/^[<>]\(/.test(w)),
-    sep: c.sep === '|&' ? '|' : c.sep,
-    nest: c.nest,
-    group: c.group,
-    inst: c.inst,
-    // A `!` anywhere in the command line may negate any command of it, so it marks every segment (INV-0017).
-    negated: c.negated || scanned.negation === true,
-    fn: c.fn === true,
-    calls: c.calls === true,
-    // Compound structure the scanner dropped (`case`, `if`, `{ }`, `( )`, `[[`, a function header) anywhere in the line.
-    compound: scanned.compound === true,
-  }));
+  return markMoves(scanned).filter((c) => c.level === 0).map((c) => {
+    const words = c.words.filter((w) => !/^[<>]\(/.test(w.raw));
+    return {
+      ws: words.map((w) => w.raw),
+      // The same words as the scanner's Word objects, which `cdCall` reads without scanning them again.
+      words,
+      sep: c.sep === '|&' ? '|' : c.sep,
+      nest: c.nest,
+      group: c.group,
+      inst: c.inst,
+      // A `!` anywhere in the command line may negate any command of it, so it marks every segment (INV-0017).
+      negated: c.negated || scanned.negation === true,
+      fn: c.fn === true,
+      calls: c.calls === true,
+      // Compound structure the scanner dropped (`case`, `if`, `{ }`, `( )`, `[[`, a function header) anywhere in the line.
+      compound: scanned.compound === true,
+    };
+  });
 }
 
 // The directory each segment runs in. A `cd` re-bases its own shell instance (`inst`, the scanner's chain: a subshell, a
@@ -111,8 +140,10 @@ function cmdSegments(command) {
 // `end` is the directory the outer shell ended in: a `cd` the hook cannot read moves there. In the outer shell it also sets
 // `lost`, after which a relative `cd` of the outer shell moves to `end` too (`cdDir`). A move in a nested instance or a function
 // body leaves `lost` alone, since `end` holds none of them; an outer call of a function whose body holds a `cd` sets it, since the
-// body runs in the outer shell.
-function dirTracker(cwd, end = cwd) {
+// body runs in the outer shell. A function body's tracker names the tracker of the shell it is defined in as `up`, the outer
+// tracker or its enclosing body's: an instance it has not met takes the directory of the first instance either tracker knows, its
+// own first, so a body walks no instance its `up` tracker already met.
+function dirTracker(cwd, end = cwd, up = null) {
   const dirs = new Map();
   let outer = cwd;
   return {
@@ -122,8 +153,8 @@ function dirTracker(cwd, end = cwd) {
     of({ inst }) {
       const fresh = [];
       let n = inst;
-      for (; n && !dirs.has(n.id); n = n.up) fresh.push(n);
-      const dir = n ? dirs.get(n.id) : outer;
+      for (; n && !dirs.has(n.id) && !(up && up.has(n.id)); n = n.up) fresh.push(n);
+      const dir = !n ? outer : dirs.has(n.id) ? dirs.get(n.id) : up.get(n.id);
       for (const f of fresh) dirs.set(f.id, dir);
       return dir;
     },
@@ -131,20 +162,42 @@ function dirTracker(cwd, end = cwd) {
       if (inst) dirs.set(inst.id, dir);
       else outer = dir;
     },
+    has: (id) => dirs.has(id),
+    get: (id) => dirs.get(id),
   };
 }
 
 // The command `command` and `builtin` run, as [cmd, args]: `command cd a` and `builtin cd a` run `cd a`, past `command -p` and a
 // `--`. `command -v` and `-V` look the name up and run nothing, so they give an empty command. Any other command gives itself.
+// The command word after a wrapper reads as bash reads it (`command \cd a` runs `cd a`); one longer than any command name is none.
 function unwrapBuiltin(cmd, args) {
   while (cmd === 'command' || cmd === 'builtin') {
     let i = 0;
     for (; cmd === 'command' && /^-[pvV]+$/.test(args[i] || ''); i++) if (/[vV]/.test(args[i])) return ['', []];
     if (args[i] === '--') i++;
-    cmd = args[i] || '';
+    cmd = args[i] === undefined || args[i].length > 64 ? '' : readWord(args[i]).value || '';
     args = args.slice(i + 1);
   }
   return [cmd, args];
+}
+
+// The command a segment's words run in the current shell, as [cmd, args], for the `cd` readers: past assignments, with the command
+// word read as bash reads it (`\\cd` and `'cd'` are `cd`). The scanner drops the `time` keyword. An `eval` whose first argument's
+// value, past one leading `--`, starts with the word `cd`, `pushd`, or `popd` (`eval cd …`, `eval "cd …"`, `eval -- cd …`) gives a `cd` with no target the hook reads
+// (ADR 0160); any other `eval` gives `eval`. Any other wrapper runs its command in a child, which moves no directory of the shell.
+function cdCall(words) {
+  let i = 0;
+  while (i < words.length && ASSIGN_WORD.test(words[i].raw)) i++;
+  // A word longer than any command name is no `cd`; its value is never built.
+  const word = (w) => (w === undefined || w.raw.length > 64 ? '' : readWord(w).value || '');
+  const cmd = word(words[i]);
+  if (cmd === 'eval') {
+    // The first argument's value as bash reads it, quotes gone (`eval "cd /x"`), past one leading `--`, which bash's eval skips.
+    if (word(words[i + 1]) === '--') i++;
+    const arg = words[i + 1] === undefined ? '' : readWord(words[i + 1]).value || '';
+    return /^\s*(?:cd|pushd|popd)(?:[\s;&|]|$)/.test(arg) ? ['cd', []] : ['eval', []];
+  }
+  return [cmd, words.slice(i + 1).map((w) => w.raw)];
 }
 
 // The directory a `cd`, `pushd`, or `popd` in segment `seg` moves to, also behind `command` or `builtin` (`unwrapBuiltin`): a literal target resolves against `base`. A target the
@@ -173,6 +226,60 @@ function cdDir(cmd, args, base, dirs, seg) {
   return dirs.end;
 }
 
+// The directory git runs in: `base` moved by every `-C` in order, or null where one cannot be read (ADR 0160, INV-0161).
+function gitBase(g, base) {
+  let dir = base;
+  for (const { name, value } of g.options) {
+    if (name !== '-C') continue;
+    const d = value === null ? null : unquote(value);
+    if (!d || dir === null) return null;
+    dir = path.resolve(dir, drivePath(d));
+  }
+  return dir;
+}
+
+// The files `git apply <args>` writes, run in `dir`. The patch is its own input only: its operand files, or else its heredoc,
+// here-string, or `<` file. Each `+++ <path>` names a file under the worktree top, past `-p<n>` leading components (1 by default)
+// and under `--directory`. A check, a stat, a summary, or `--cached` alone writes no file; `--build-fake-ancestor` writes its file.
+const APPLY_VALUE_OPTS = new Set(['-p', '-C', '--directory', '--exclude', '--include', '--whitespace', '--build-fake-ancestor']);
+function applyTargets(args, redirects, dir) {
+  const out = [];
+  const operands = [];
+  const flags = new Set();
+  let strip = 1;
+  let root = '';
+  for (let i = 0; i < args.length; i++) {
+    const w = args[i];
+    const eq = w.indexOf('=');
+    const name = w.startsWith('--') && eq > 0 ? w.slice(0, eq) : w;
+    const value = w.startsWith('--') && eq > 0 ? w.slice(eq + 1) : APPLY_VALUE_OPTS.has(w) ? args[++i] : /^-p\d+$/.test(w) ? w.slice(2) : null;
+    if (!w.startsWith('-')) operands.push(w);
+    else if (name === '-p' || /^-p\d+$/.test(w)) strip = Number(value);
+    else if (name === '--directory') root = value === undefined ? null : unquote(value);
+    else if (name === '--build-fake-ancestor') {
+      const f = value === undefined ? null : unquote(value);
+      if (f) out.push(path.resolve(dir, drivePath(f)));
+    } else flags.add(name);
+  }
+  const reads = ['--check', '--stat', '--numstat', '--summary'].some((f) => flags.has(f)) && !flags.has('--apply');
+  if (reads || (flags.has('--cached') && !flags.has('--index')) || root === null || !Number.isInteger(strip)) return out;
+  let text = '';
+  const files = operands.length ? operands : redirects.filter((r) => r.op === '<').map((r) => r.target.raw);
+  for (const w of files) {
+    const f = unquote(w);
+    try { if (f) text += fs.readFileSync(path.resolve(dir, drivePath(f)), 'utf8') + '\n'; } catch { /* unreadable patch: no file */ }
+  }
+  if (!operands.length) for (const r of redirects) text += (r.op === '<<<' ? r.target.value : r.body || '') + '\n';
+  const at = locate(path.join(dir, 'x'));
+  const top = at ? at.tree : dir;
+  for (const m of text.matchAll(/^\+\+\+ (\S+)/gm)) {
+    const parts = m[1].split('/');
+    if (m[1] === '/dev/null' || parts.length <= strip) continue;
+    out.push(path.resolve(top, root, parts.slice(strip).join('/')));
+  }
+  return out;
+}
+
 // The files a Bash command writes, as absolute paths resolved against the `cd`/`git -C` target, else cwd. The shared scanner
 // reads the command (ADR 0135): quoted text stays data, and a command it cannot read to its end records nothing.
 function bashTargets(command, cwd, end) {
@@ -186,50 +293,62 @@ function bashTargets(command, cwd, end) {
   if (!scanned.readable) return [];
   // A `cd` inside a subshell, a substitution, a pipeline stage, an `&` job, or a coprocess moves nothing outside that instance.
   const dirs = dirTracker(cwd, end);
+  // Each function body's own tracker, by `fnId`: the body's shell and every instance nested in it, started where the body is defined.
+  // A nested body's tracker starts from, and falls back to, its enclosing body's tracker (the scan's `fnUp`), so the enclosing
+  // body's instances stay in that body's tracker. A command read out of a backtick group or a heredoc body a shell reads, inside a
+  // function body, carries no body id: it resolves against the directory outside the body, never the body's `cd` (ADR 0160).
+  const bodyDirs = new Map();
+  const bodyTracker = (id, cmdLine) => {
+    if (!bodyDirs.has(id)) {
+      const upId = scanned.fnUp[id];
+      const up = upId === undefined ? dirs : bodyTracker(upId, cmdLine);
+      bodyDirs.set(id, dirTracker(up.of(cmdLine), dirs.end, up));
+    }
+    return bodyDirs.get(id);
+  };
   // The scanner lists a backtick group's commands after the whole text; `at` puts them back in the order bash runs them.
   for (const cmdLine of markMoves(scanned)) {
     // simplicity: a function body's writes record at its definition, whether or not a call follows (`f() { echo x > out; }; f`
-    // records `out`); a `cd` in the body moves nothing at the definition, and a call moves as an unreadable `cd` does (`cdDir`).
-    // Upgrade by reading the body at the call.
-    const { words, redirects } = cmdLine;
+    // records `out`), past the body's own `cd`; that `cd` moves nothing outside the body, and a call moves as an unreadable `cd`
+    // does (`cdDir`). Upgrade by reading the body at the call.
+    const { redirects } = cmdLine;
     // A process substitution (`>(cmd)`, `<(cmd)`) is a word of the scanner, and no operand.
-    const ws = words.map((w) => w.raw).filter((w) => !/^[<>]\(/.test(w));
-    const base = dirs.of(cmdLine);
-    let segBase = base;
-    // `git -C <dir>` among git's own leading options re-bases its own command; `cd <dir>` re-bases the commands after it.
-    if (ws[0] === 'git') {
-      for (let i = 1; i < ws.length && ws[i].startsWith('-'); i += /^(?:-C|-c|--git-dir|--work-tree)$/.test(ws[i]) ? 2 : 1) {
-        const d = ws[i] === '-C' && ws[i + 1] ? unquote(ws[i + 1]) : null;
-        if (d) segBase = path.resolve(base, drivePath(d));
-      }
-    }
-    const cd = cdDir(ws[0], ws.slice(1), base, dirs, cmdLine);
-    if (cd && !cmdLine.fn) dirs.set(cmdLine, cd);
+    const words = cmdLine.words.filter((w) => !/^[<>]\(/.test(w.raw));
+    const ws = words.map((w) => w.raw);
+    // A function body runs where it is called: its literal `cd` moves the body's later commands (`fnId`) in the instance the `cd`
+    // runs in, the way the outer tracker scopes a move by `inst`, and nothing outside the body.
+    const body = cmdLine.fn && cmdLine.fnId !== undefined ? cmdLine.fnId : null;
+    const tracker = body !== null ? bodyTracker(body, cmdLine) : dirs;
+    const base = tracker.of(cmdLine);
+    // `cd <dir>` re-bases the commands after it.
+    const cd = cdDir(...cdCall(words), base, tracker, cmdLine);
+    if (cd && (body !== null || !cmdLine.fn)) tracker.set(cmdLine, cd);
     // A file write is `>`, `>>`, `>|`, `<>`, `&>`, `&>>`, or `>&` onto a file; `>&2` and `>&-` duplicate a descriptor.
     // The redirects of a `cd` or a call still write, against the directory before it: bash opens them before the command runs.
     for (const { op, target } of redirects) {
       if (!/^(?:>>?|>\||<>|&>>?|>&)$/.test(op)) continue;
       if (op === '>&' && /^(?:\d+|-)$/.test(target.raw)) continue;
-      add(segBase, target.raw);
+      add(base, target.raw);
     }
     if (cd && !cmdLine.calls) continue;
-    // The command word is the first word after leading env assignments and `sudo`/`command`/`env`/`time`.
-    let cmdAt = 0;
-    while (cmdAt < ws.length && (/^[A-Za-z_]\w*=/.test(ws[cmdAt]) || /^(?:sudo|command|env|time)$/.test(ws[cmdAt]))) cmdAt++;
-    let cmd = ws[cmdAt];
-    if (!/^(?:tee|sed|cp|mv|install|git)$/.test(cmd || '')) continue;
-    let args = ws.slice(cmdAt + 1);
-    // `git mv` is `mv` on the words after it. Skip git global options (-C, -c, etc.) to find the subcommand.
+    // The command word and its arguments past assignments and every wrapper, as the run classifier reads them (segWords, ADR 0160).
+    let { cmd, args } = segWords({ ws });
+    if (!/^(?:tee|sudoedit|sed|cp|mv|install|git)$/.test(cmd)) continue;
+    let segBase = base;
+    // git's subcommand and global options read through gitSubcommand (ADR 0160): `git mv` is `mv` on the words after it, and
+    // `git apply` writes the files its patch names.
     if (cmd === 'git') {
-      let subcmdAt = 0;
-      while (subcmdAt < args.length && args[subcmdAt].startsWith('-')) {
-        // Options like -C, -c, --git-dir, --work-tree take an argument; skip the next word.
-        if (/^(?:-C|-c|--(?:git-dir|work-tree))(?:=|$)/.test(args[subcmdAt])) {
-          if (!args[subcmdAt].includes('=')) subcmdAt += 2;
-          else subcmdAt += 1;
-        } else subcmdAt += 1;
+      const g = gitSubcommand([cmd, ...args]);
+      if (!g || (g.subcommand !== 'mv' && g.subcommand !== 'apply')) continue;
+      segBase = gitBase(g, base);
+      // A `-C` the hook cannot read leaves the operands nowhere it knows: they record nothing (INV-0161).
+      if (segBase === null) continue;
+      cmd = g.subcommand;
+      args = args.slice(g.index);
+      if (cmd === 'apply') {
+        targets.push(...applyTargets(args, cmdLine.redirects, segBase));
+        continue;
       }
-      if (args[subcmdAt] === 'mv') { cmd = 'mv'; args = args.slice(subcmdAt + 1); }
     }
     // Operands are the non-flag words; `-t DIR` / `--target-directory=DIR` is split out for cp/mv/install,
     // and sed's script words (`-e`/`-f` values) are dropped from its operands.
@@ -242,11 +361,11 @@ function bashTargets(command, cwd, end) {
       else if (cmd === 'sed' && /^(?:-i|--in-place)/.test(w)) {
         inPlace = true;
         if (w === '-i' && /^(?:''|"")$/.test(args[i + 1])) i++;
-      } else if (cmd !== 'tee' && w === '-t' && args[i + 1]) tDir = args[++i];
-      else if (cmd !== 'tee' && /^--target-directory=/.test(w)) tDir = w.slice(w.indexOf('=') + 1);
+      } else if (cmd !== 'tee' && cmd !== 'sudoedit' && w === '-t' && args[i + 1]) tDir = args[++i];
+      else if (cmd !== 'tee' && cmd !== 'sudoedit' && /^--target-directory=/.test(w)) tDir = w.slice(w.indexOf('=') + 1);
       else if (!/^-/.test(w)) operands.push(w);
     }
-    if (cmd === 'tee') operands.forEach((w) => add(segBase, w));
+    if (cmd === 'tee' || cmd === 'sudoedit') operands.forEach((w) => add(segBase, w));
     else if (cmd === 'sed' && inPlace) (hasScript ? operands : operands.slice(1)).forEach((w) => add(segBase, w));
     else if (cmd === 'cp' || cmd === 'mv' || cmd === 'install') {
       const destWord = tDir !== null ? tDir : operands[operands.length - 1];
@@ -262,14 +381,6 @@ function bashTargets(command, cwd, end) {
           if (s) targets.push(path.join(destAbs, path.basename(s)));
         }
       } else targets.push(destAbs);
-    } else if (cmd === 'git' && args.includes('apply')) {
-      // The patch names its targets: `+++ b/<path>` lines, from the patch file or an inline heredoc.
-      let text = command;
-      for (const w of operands.slice(operands.indexOf('apply') + 1)) {
-        const f = unquote(w);
-        try { if (f) text += '\n' + fs.readFileSync(path.resolve(segBase, drivePath(f)), 'utf8'); } catch { /* unreadable patch: heredoc text only */ }
-      }
-      for (const pm of text.matchAll(/^\+\+\+ b\/(\S+)/gm)) targets.push(path.resolve(segBase, pm[1]));
     }
   }
   return [...new Set(targets)];
@@ -313,9 +424,9 @@ const NOT_RUNNERS = new Set(['grep', 'egrep', 'fgrep', 'rg', 'cat', 'sed', 'head
 // bare command word: a word with a `/` names a file, so `./test tests/a.test.js` is a runner script. A `[[`, `for`, or `select`
 // is here because the scanner keeps it as a command word (ledger-guard reads a loop's list words), and it runs nothing.
 const SHELL_READERS = new Set(['test', '[', '[[', 'for', 'select']);
-// The wrappers a test run sits behind (`timeout` and `env` have their own option parsing below). shell-words.js's WRAPPER table,
+// The wrappers a test run and a write sit behind (`timeout` has its own option parsing below). shell-words.js's WRAPPER table,
 // which ledger-guard.js skips, is wider: it adds `xargs`, `doas`, `stdbuf`, `builtin`, `eval`, `arch`, `caffeinate`, `flock`,
-// `chronic`, `unbuffer`, `ionice`, and `taskset`, behind which no run is recorded.
+// `chronic`, `unbuffer`, `ionice`, and `taskset`, behind which no run and no write is recorded.
 // `rtk` is RTK's output filter: its PreToolUse hook rewrites `bun run test` to `rtk bun run test`, PostToolUse sees the rewritten
 // command, and `rtk` passes the exit status through (docs/known-issues.md). segWords also skips rtk's `proxy` subcommand; its other
 // subcommands that run a command (`err`, `run`, `summary`, `test`) read as the command, so they record no configured-command run
@@ -336,21 +447,41 @@ function gitOut(tree, args) {
 
 const DURATION = /^\d+(?:\.\d+)?[smhd]?$/;
 
-// The command word and arguments of a segment after env assignments and wrappers (`timeout [opts] <duration> [--]` and
-// `env [opts] [--]` included): { cmd, args, negated }. `negated` marks a segment of a command line that holds a `!` negation, which may invert the exit status.
+// The wrapper options after which the hook reads no operand: `--help` and `--version` on any wrapper, `sudo`'s list, version,
+// validate, and reset modes, and `env -S`, whose string holds the command line the hook does not read, run none. `sudo -D`, `-R`, and
+// `-i` and `env -C` run it in a directory the hook cannot know (ADR 0160, INV-0161). A short cluster is read the getopt way, up to
+// its first value option: `sudo -uD` is user `D`.
+const RUNS_NONE = {
+  sudo: { short: 'lVvKDRi', long: ['--list', '--validate', '--remove-timestamp', '--chdir', '--chroot', '--login'] },
+  env: { short: 'SC', long: ['--split-string', '--chdir'] },
+};
+// Whether a short-option cluster `w` holds a letter of `letters`, read the getopt way up to the cluster's first value option (`opts`).
+function clusterHas(w, letters, opts) {
+  for (const c of w.slice(1)) {
+    if (letters.includes(c)) return true;
+    if (opts.has('-' + c)) return false;
+  }
+  return false;
+}
+// Whether a `sudo` option word asks for sudoedit (`-e`, `--edit`).
+function sudoEdits(w, opts) {
+  return w.startsWith('--') ? w === '--edit' : clusterHas(w, 'e', opts);
+}
+function runsNone(wrapper, w, opts) {
+  if (/^--(?:help|version)$/.test(w)) return true;
+  const none = RUNS_NONE[wrapper];
+  if (!none) return false;
+  return w.startsWith('--') ? none.long.includes(w.split('=')[0]) : clusterHas(w, none.short, opts);
+}
+
+// The command word and arguments of a segment after env assignments and wrappers (`timeout [opts] <duration> [--]` included),
+// the one command-word reader every Bash reader takes (ADR 0160): { cmd, args, negated }. A wrapper option that runs no operand
+// (`runsNone`) gives an empty command, and `sudo -e` gives `sudoedit` with the files it edits. `negated` marks a segment of a command line that holds a `!` negation, which may invert the exit status.
 function segWords({ ws, negated: neg }) {
   let i = 0;
   let negated = neg === true;
   for (; i < ws.length; i++) {
     const w = ws[i];
-    if (w === 'env') {
-      while (/^-/.test(ws[i + 1] || '')) {
-        i++;
-        if (/^(?:-u|--unset)$/.test(ws[i])) i++;
-        else if (ws[i] === '--') break;
-      }
-      continue;
-    }
     // Ahead of the option skip below, whose `continue` would skip it: the table's `rtk` entry then skips only the options
     // after `proxy`.
     if (w === 'rtk') {
@@ -367,14 +498,18 @@ function segWords({ ws, negated: neg }) {
       while (/^-/.test(ws[i + 1] || '')) {
         i++;
         if (ws[i] === '--') break;
+        if (runsNone(w, ws[i], opts)) return { cmd: '', args: [], negated };
+        // `sudo -e` is sudoedit: its operands are the files it edits.
+        if (w === 'sudo' && sudoEdits(ws[i], opts)) return { cmd: 'sudoedit', args: ws.slice(i + optionWords(ws[i], opts)).filter((a) => !a.startsWith('-')), negated };
         i += optionWords(ws[i], opts) - 1;
       }
       continue;
     }
-    if (w === '' || /^[A-Za-z_]\w*=/.test(w) || WRAPPERS.test(w)) continue;
+    if (w === '' || ASSIGN_WORD.test(w) || WRAPPERS.test(w)) continue;
     if (w !== 'timeout') break;
     while (/^-/.test(ws[i + 1] || '')) {
       i++;
+      if (runsNone(w, ws[i], WRAPPER.get(w))) return { cmd: '', args: [], negated };
       if (/^(?:-[ks]|--(?:kill-after|signal))$/.test(ws[i])) i++;
     }
     if (DURATION.test(ws[i + 1] || '')) i++;
@@ -383,7 +518,8 @@ function segWords({ ws, negated: neg }) {
   return { cmd: ws[i] || '', args: ws.slice(i + 1), negated };
 }
 
-const plain = (w) => (/[$`]/.test(w) ? null : w.replace(/^(['"])(.*)\1$/, '$2'));
+// A word as literal text, or null where it holds a variable or a substitution; a glob keeps its characters (`readWord`).
+const plain = (w) => readWord(w).literal;
 
 // Whether `words` begin with the template's words. A `{paths}` word stands for one or more path words (not flags), after
 // an optional `--`; a word embedding `{paths}` (`FILES={paths}`) matches one word with a path between its literal ends.
@@ -502,7 +638,7 @@ function testRunsOf(segs, cwd, outside, end) {
     const v = at ? verificationCommands(at.tree) : {};
     const compound = at ? compoundKind(segs, i, v) : null;
     if (!compound) {
-      const cd = cdDir(cmd, args, base, dirs, first);
+      const cd = cdDir(...cdCall(first.words), base, dirs, first);
       if (cd) { dirs.set(first, cd); return; }
       if ((NOT_RUNNERS.has(path.basename(cmd)) || SHELL_READERS.has(cmd)) && !verificationKind(first, v)) return;
     }
@@ -514,8 +650,7 @@ function testRunsOf(segs, cwd, outside, end) {
     // A `cd` inside a matched span still moves the base for what follows it.
     for (const s of segs.slice(i, last)) {
       if (s.fn) continue;
-      const w = segWords(s);
-      const cd = cdDir(w.cmd, w.args, dirs.of(s), dirs, s);
+      const cd = cdDir(...cdCall(s.words), dirs.of(s), dirs, s);
       if (cd) dirs.set(s, cd);
     }
     const runDir = dirs.of(seg);
@@ -580,17 +715,16 @@ function restoreEventsOf(segs, cwd, end) {
     if (seg.fn) continue;
     const base = dirs.of(seg);
     const { cmd, args } = segWords(seg);
-    const cd = cdDir(cmd, args, base, dirs, seg);
+    const cd = cdDir(...cdCall(seg.words), base, dirs, seg);
     if (cd) { dirs.set(seg, cd); continue; }
     if (cmd !== 'git') continue;
-    let i = 0;
-    let segBase = base;
-    while (i < args.length && args[i].startsWith('-')) {
-      if (args[i] === '-C' && plain(args[i + 1] || '')) segBase = path.resolve(base, drivePath(plain(args[i + 1])));
-      i += /^(?:-C|-c|--git-dir|--work-tree)$/.test(args[i]) ? 2 : 1;
-    }
-    const sub = args[i];
+    // git read through gitSubcommand (ADR 0160); a `-C` the hook cannot read leaves the restored paths nowhere it knows (INV-0161).
+    const g = gitSubcommand([cmd, ...args]);
+    const sub = g && g.subcommand;
     if (sub !== 'restore' && sub !== 'checkout') continue;
+    const segBase = gitBase(g, base);
+    if (segBase === null) continue;
+    const i = g.index - 1;
     const at = locate(path.join(segBase, 'x'));
     if (!at) continue;
     const tree = at.tree;
@@ -674,7 +808,7 @@ function scopeTestCalls(segs, cwd, end) {
     if (seg.fn) return;
     const base = dirs.of(seg);
     const { cmd, args } = segWords(seg);
-    const cd = cdDir(cmd, args, base, dirs, seg);
+    const cd = cdDir(...cdCall(seg.words), base, dirs, seg);
     if (cd) { dirs.set(seg, cd); return; }
     // The script word may be quoted and may lead with a variable (`"${CLAUDE_PLUGIN_ROOT}/scripts/scope.js"`): only its basename matters.
     if (path.basename(cmd) !== 'node') return;
@@ -685,7 +819,7 @@ function scopeTestCalls(segs, cwd, end) {
       if (NODE_VALUE_OPTS.test(args[j])) j++;
       else if (!args[j].startsWith('-')) break;
     }
-    if (j >= args.length || !/(?:^|\/)scope\.js$/.test(args[j].replace(/^(['"])(.*)\1$/, '$2')) || args[j + 1] !== 'test') return;
+    if (j >= args.length || !/(?:^|\/)scope\.js$/.test(readWord(args[j]).value || args[j]) || args[j + 1] !== 'test') return;
     // `test -- <command>` records in the tree of the run `testRuns` classifies, as the verb does (a `cd` in the command moves it).
     const free = args[j + 2] === '--' ? args.slice(j + 3) : [];
     const run = free.length ? testRuns(free.length === 1 ? plain(free[0]) || free[0] : free.join(' '), base)[0] : null;
@@ -703,7 +837,7 @@ function recordBash(command, cwd, agent, failed, triggers, background, end) {
       if (!failed && !background) for (const c of calls) triggers.push(c.at);
       // The calls leave the command (`:` stands in), so the segments around them record as a direct run does.
       const skip = new Set(calls.map((c) => c.i));
-      segs = segs.map((s, i) => (skip.has(i) ? { ...s, ws: [':'], negated: false } : s));
+      segs = segs.map((s, i) => (skip.has(i) ? { ...s, ws: [':'], words: [], negated: false } : s));
     }
   }
   for (const r of testRunsOf(segs, cwd, undefined, end)) {

@@ -210,6 +210,10 @@ assert.deepEqual(bashTargets('builtin cd a; echo x > g', '/s', '/s/a'), [path.re
 assert.deepEqual(bashTargets('command -p -- pushd a; echo x > g', '/s', '/s/a'), [path.resolve('/s/a', 'g')], 'command -p -- pushd');
 assert.deepEqual(bashTargets('command -v cd a; echo x > g', '/s', '/s'), [path.resolve('/s', 'g')], 'command -v cd moves nothing');
 assert.deepEqual(bashTargets('f() { builtin cd a; } ; f ; echo x > g', '/s', '/s/a'), [path.resolve('/s/a', 'g')], 'a body builtin cd makes a call move');
+// A body's command word reads as `cdCall` reads it: `\cd`, `'cd'`, and `eval cd` make a call move as a bare `cd` does.
+for (const c of ['\\cd /x', "'cd' /x", 'eval cd /x']) {
+  assert.deepEqual(bashTargets(`f() { ${c}; }; f; tee g`, '/r', '/end'), [path.resolve('/end', 'g')], 'a body ' + c + ' makes a call move');
+}
 // A `cd`'s own redirect opens before the `cd` runs, against the directory before it.
 assert.deepEqual(bashTargets('cd a > out; echo x > g', '/s', '/s/a'), [path.resolve('/s', 'out'), path.resolve('/s/a', 'g')], 'cd a > out');
 // A pipeline stage runs in a subshell, so its `cd` moves nothing after the pipeline.
@@ -230,6 +234,88 @@ assert.deepEqual(bashTargets('coproc { cd a; }; echo x > f', '/s', '/s'), [path.
 // Sibling subshells do not share a directory: the `group` id tells them apart.
 assert.deepEqual(bashTargets('(cd a); (echo > x)', '/r'), [path.resolve('/r', 'x')]);
 assert.deepEqual(bashTargets('(cd a); ( (echo x > f) )', '/s', '/e'), [path.resolve('/s', 'f')], 'a nested subshell after a sibling cd');
+// A write behind a wrapper records as the bare write does: bashTargets reads the command word through segWords (ADR 0160).
+assert.deepEqual(bashTargets('command -p cp a.js c.js', '/r'), [path.resolve('/r', 'c.js')], 'command -p cp (triage #1230)');
+for (const w of ['command --', 'command -p --', 'sudo -E', 'sudo -u root', 'sudo -uroot', 'env -i', 'env -u X', 'env -iu X', 'nice -n 5',
+  'nice -5', 'exec', 'exec -a x', 'nohup', 'timeout -k 2 5s --', 'time -p', 'rtk', 'rtk proxy', 'sudo env -i nice', 'nice sudo -E command -p']) {
+  assert.deepEqual(bashTargets(w + ' cp a b', '/r'), [path.resolve('/r', 'b')], w + ' cp');
+}
+assert.deepEqual(bashTargets('rtk git mv a b', '/r'), [path.resolve('/r', 'b')], 'rtk git mv');
+// A wrapper that runs no operand records no write and no run; the segment's redirect still records (ADR 0160).
+for (const w of ['command -v', 'command -V', 'command -pv', 'command -p -v', 'command -x', 'env -S x', 'env --split-string=x', 'env -Sx',
+  'sudo -l', 'sudo -V', 'sudo -h', 'sudo --help', 'env --help', 'nice --help', 'timeout --help']) {
+  assert.deepEqual(bashTargets(w + ' cp a b', '/r'), [], w + ' cp');
+  assert.deepEqual(bashTargets(w + ' cp a b > out', '/r'), [path.resolve('/r', 'out')], w + ' cp > out');
+}
+// `sudo -e` (sudoedit) writes the files it names.
+assert.deepEqual(bashTargets('sudo -e f', '/r'), [path.resolve('/r', 'f')], 'sudo -e f');
+assert.deepEqual(bashTargets('sudo -u root --edit a b', '/r'), [path.resolve('/r', 'a'), path.resolve('/r', 'b')], 'sudo --edit a b');
+assert.deepEqual(bashTargets('sudoedit f', '/r'), [path.resolve('/r', 'f')], 'sudoedit f');
+// One word reader: a word reads as bash reads it, and a word bash expands names no path (ADR 0160).
+for (const c of ['tee {a,b}.js', 'echo > a{1..3}', 'echo > [ab]', 'echo x > >(cat)', 'tee "$X"', 'tee "a$(b)"', 'tee a*']) {
+  assert.deepEqual(bashTargets(c, '/r'), [], c);
+}
+assert.deepEqual(bashTargets('tee a\\ b', '/r'), [path.resolve('/r', 'a b')], 'an escaped space');
+assert.deepEqual(bashTargets('tee "a\\b"', '/r'), [path.resolve('/r', 'a\\b')], 'a backslash bash keeps inside double quotes');
+assert.deepEqual(bashTargets('tee "a"b', '/r'), [path.resolve('/r', 'ab')], 'a quoted part joined to a bare one');
+// A wrapper option that changes directory hides where the command writes: no edit, while its redirect records (INV-0161).
+for (const c of ['sudo -D /x cp a b', 'sudo -D/x cp a b', 'sudo --chdir=/x cp a b', 'sudo -iD /x cp a b', 'sudo -i cp a b', 'sudo -R /x cp a b',
+  'env -C /x cp a b', 'env -C/x cp a b', 'env --chdir=/x cp a b', 'env -iC /x cp a b']) {
+  assert.deepEqual(bashTargets(c, '/r'), [], c);
+}
+assert.deepEqual(bashTargets('sudo -uD cp a b', '/r'), [path.resolve('/r', 'b')], 'sudo -uD is user D');
+assert.deepEqual(bashTargets('env -uC cp a b', '/r'), [path.resolve('/r', 'b')], 'env -uC unsets C');
+assert.deepEqual(bashTargets('sudo -D /x cmd > log', '/r'), [path.resolve('/r', 'log')], 'the redirect opens in the shell');
+// A `git -C` the hook cannot read hides where git writes; a value option ending the command throws nothing.
+assert.deepEqual(bashTargets('git -C "$D" mv a b', '/r'), [], 'git -C "$D"');
+assert.deepEqual(bashTargets('git -C ~ mv a b', '/r'), [], 'git -C ~');
+assert.deepEqual(bashTargets('tee f; git -C', '/r'), [path.resolve('/r', 'f')], 'a trailing git -C');
+// A segment's redirect opens in the shell's directory, never git's `-C`.
+assert.deepEqual(bashTargets('git -C sub status > out', '/r'), [path.resolve('/r', 'out')], 'git -C sub status > out');
+// Only a `cd` that runs in this shell moves the base; a quoted or escaped `cd` word is `cd`, and `eval cd` moves as an unreadable cd.
+assert.deepEqual(bashTargets('sudo cd /x; cp a b', '/r'), [path.resolve('/r', 'b')], 'sudo cd');
+assert.deepEqual(bashTargets('nice cd /x; cp a b', '/r'), [path.resolve('/r', 'b')], 'nice cd');
+for (const c of ['command cd /x', 'builtin cd /x', '\\cd /x', "'cd' /x", 'X=1 cd /x', 'time cd /x']) {
+  assert.deepEqual(bashTargets(c + '; cp a b', '/r'), [path.resolve('/x', 'b')], c);
+}
+assert.deepEqual(bashTargets('eval cd /x && tee f', '/r', '/e'), [path.resolve('/e', 'f')], 'eval cd');
+// An `eval` whose first argument's value, past one leading `--`, starts with the word `cd`, `pushd`, or `popd` moves as an unreadable cd.
+for (const c of ['eval "cd /x"', "eval 'cd /x'", 'eval -- cd /x']) assert.deepEqual(bashTargets(c + '; tee g', '/r', '/e'), [path.resolve('/e', 'g')], c);
+// `command` and `builtin` read the command word after them as bash reads it.
+assert.deepEqual(bashTargets('command \\cd /x; tee g', '/r', '/e'), [path.resolve('/x', 'g')], 'command \\cd');
+// Every reader skips an assignment by one rule, an array element and `+=` included.
+assert.deepEqual(bashTargets('a[1]=x cd /d; tee f', '/r'), [path.resolve('/d', 'f')], 'a[1]=x cd');
+assert.deepEqual(bashTargets('a[1]=x tee f', '/r'), [path.resolve('/r', 'f')], 'a[1]=x tee');
+assert.deepEqual(bashTargets('f() { cd sub; }; a[1]=x f; tee g', '/r', '/end'), [path.resolve('/end', 'g')], 'a[1]=x f calls f');
+// A function body's literal `cd` moves the body's later writes; an unreadable one moves them to the ending directory (ADR 0160).
+assert.deepEqual(bashTargets('f() { cd /etc; echo > a; }', '/r'), [path.resolve('/etc', 'a')], 'a body cd');
+assert.deepEqual(bashTargets('f() { cd /etc; }; g() { echo > b; }', '/r'), [path.resolve('/r', 'b')], 'one body\'s cd moves no other body');
+assert.deepEqual(bashTargets('f() { cd "$X"; echo > a; }', '/r', '/e'), [path.resolve('/e', 'a')], 'an unreadable body cd');
+// A `cd` in a subshell, a pipeline stage, an `&` job, or a substitution inside a body moves only that instance.
+for (const c of ['f() { (cd /a); tee z; }', 'f() { cd /a | cat; tee z; }', 'f() { cd /a & tee z; }', 'f() { x=$(cd /a); tee z; }']) {
+  assert.deepEqual(bashTargets(c, '/r', '/end'), [path.resolve('/r', 'z')], c);
+}
+assert.deepEqual(bashTargets('f() { cd /a; (tee z); }', '/r', '/end'), [path.resolve('/a', 'z')], 'a body subshell starts where the body is');
+// A nested body starts where it is defined, in its enclosing body, and its instances stay that body's own.
+for (const c of ['f() { cd /a; ( g() { true; }; tee z ); }', 'f() { cd /a; ( g() { true; }; ( tee z ) ); }']) {
+  assert.deepEqual(bashTargets(c, '/r', '/e'), [path.resolve('/a', 'z')], c);
+}
+assert.deepEqual(bashTargets('f() { cd /a; g() { tee z; }; tee y; }', '/r', '/e'), [path.resolve('/a', 'z'), path.resolve('/a', 'y')], 'a nested body starts in its enclosing body');
+// A body inside a shell-read heredoc or a backtick group is its own body: an outer body's `cd` moves none of its writes.
+for (const c of ['f() { cd /a; }; bash <<E\ng() { tee z; }\nE', 'f() { cd /a; }; echo `g() { tee z; }`']) {
+  assert.deepEqual(bashTargets(c, '/r', '/e'), [path.resolve('/r', 'z')], c);
+}
+// git is read through gitSubcommand: every -C composes, every global value option is skipped, an alias never hides a builtin,
+// and a print-and-exit option runs no subcommand (ADR 0160).
+assert.deepEqual(bashTargets('git -C a -C b mv x y', '/r'), [path.resolve('/r', 'a/b/y')], 'git -C a -C b');
+for (const g of ['git --namespace n', 'git --config-env a=B', 'git --shallow-file f', 'git --git-dir=.git', 'git -c alias.mv=log']) {
+  assert.deepEqual(bashTargets(g + ' mv a b', '/r'), [path.resolve('/r', 'b')], g + ' mv');
+}
+for (const g of ['git --exec-path', 'git --version', 'git -v', 'git --help', 'git -h', 'git --man-path', 'git --html-path', 'git --info-path']) {
+  assert.deepEqual(bashTargets(g + ' mv a b', '/r'), [], g + ' mv');
+}
+assert.deepEqual(bashTargets('git --exec-path=/x mv a b', '/r'), [path.resolve('/r', 'b')], 'git --exec-path=<dir> mv');
+assert.deepEqual(bashTargets('tee f; git -c', '/r'), [path.resolve('/r', 'f')], 'a trailing git -c');
 // `<>` opens its target for writing, creating it.
 assert.deepEqual(bashTargets('exec 3<>f', '/r'), [path.resolve('/r', 'f')]);
 // An unquoted heredoc body's substitutions are scanned, so a write inside one records beside the redirect.
@@ -338,7 +424,9 @@ assert.equal(require(hookPath).stripHeredocs, undefined);
 // a same-run baseline; the ceiling sits at nine, between them. A long command; one shell command holding many heredoc process
 // substitutions, whose words are read once, not once per substitution; commands at a rising subshell depth, where each subshell
 // instance starts in the directory of the one around it, read in constant time, not by a walk over every depth; and many pipeline
-// stages that each move, flat and nested in brace groups, whose instances are each met once.
+// stages that each move, flat and nested in brace groups, whose instances are each met once; an unclosed `{` before many
+// commas, whose brace-list test reads each span once; and many function bodies at a rising subshell depth, whose own trackers
+// stop at the first instance the outer tracker knows instead of walking every depth.
 {
   const { timePair } = require('./linear-time');
   for (const [label, make] of [
@@ -348,6 +436,8 @@ assert.equal(require(hookPath).stripHeredocs, undefined);
     ['nested "$( with a shell-fed heredoc', (d) => 'cat <<E | sh\ntrue\nE\necho ' + '"$('.repeat(d) + 'echo x' + ')"'.repeat(d)],
     ['many moving pipeline stages', (n) => 'cd a | cat ; '.repeat(n / 4) + 'echo x > f'],
     ['nested moving pipeline stages', (d) => '{ cd a | cat ; '.repeat(d / 4) + 'echo x > f ;' + ' }'.repeat(d / 4)],
+    ['an unclosed brace list', (n) => 'echo x > {' + ','.repeat(n)],
+    ['many function bodies at depth', (n) => '( '.repeat(n / 8) + Array.from({ length: n / 8 }, (_, k) => `f${k}() { ( ( cd /a ) ); tee z${k}; }; `).join('') + ' )'.repeat(n / 8)],
   ]) {
     const [base, big] = timePair((c) => bashTargets(c, '/r'), make(4000), make(16000));
     assert.ok(big < base * 9, `${label}: time grows linearly: ${base} ns, four times the input ${big} ns`);
@@ -764,11 +854,21 @@ assert.deepEqual(trace(A).map((l) => l[3]), ['full', 'full', 'full', 'full', 'fu
 
 // `sudo` and `nice` take option words (and a value for `-u`, `-g`, `-C`, `-n`, attached or separate) before the command.
 reset();
-const OPTS = ['sudo -E bun run test', 'sudo -u root bun run test', 'sudo -uroot bun run test', 'sudo -iu root bun run test', 'sudo -g wheel -u root bun run test',
+const OPTS = ['sudo -E bun run test', 'sudo -u root bun run test', 'sudo -uroot bun run test', 'sudo -g wheel -u root bun run test',
   'sudo --user root bun run test', 'sudo -- bun run test', 'nice bun run test', 'nice -n 5 bun run test', 'nice -n5 bun run test', 'nice --adjustment 5 bun run test', 'time -p bun run test',
-  'sudo -D /x bun run test', 'sudo --chdir /x bun run test', 'sudo -p pw bun run test'];
+  'sudo -p pw bun run test'];
 for (const c of OPTS) post(c);
 assert.deepEqual(trace(A).map((l) => l[3]), OPTS.map(() => 'full'), 'a wrapper\'s option words and their values do not hide the run');
+// A wrapper option that changes directory runs the command where the hook cannot follow: no run, no restore (INV-0161).
+reset();
+for (const c of ['sudo -iu root bun run test', 'sudo -i bun run test', 'sudo -D /x bun run test', 'sudo --chdir /x bun run test',
+  'env -C /x bun run test', 'env --chdir=/x bun run test', 'sudo -D /x git restore src/a.txt']) post(c);
+assert.deepEqual(trace(A), [], 'a chdir wrapper option records no run and no restore (INV-0161)');
+// Only a `cd` that runs in this shell moves the base: behind `nice` or `sudo` it runs in a child and moves nothing.
+reset();
+post('nice cd /x; bun run test');
+post('sudo cd /x; git restore src/a.txt');
+assert.deepEqual(trace(A).map((l) => l.slice(2, 4).join(' ')), ['run full', 'restore src/a.txt'], 'a wrapped cd moves no base');
 reset();
 for (const c of ['sudo -u root bash -c "bun run test"', 'sudo -E echo "bun run test"', 'nice -n 5 xargs bun run test', 'command -v bun run test']) post(c);
 assert.deepEqual(trace(A), [], 'a quoted, indirect, or lookup mention behind a wrapper records no run');
@@ -787,8 +887,8 @@ assert.deepEqual(trace(A).map((l) => l.slice(3, 5).join(' ')), ['full fail'], 'a
 reset();
 post('git restore src/a\\(1\\)');
 post('(git restore src/b.js)');
-// The trace field encodes each backslash as two.
-assert.deepEqual(trace(A).map((l) => l.slice(2).join(' ')), ['restore src/a\\\\(1\\\\)', 'restore src/b.js']);
+// The path reads as bash reads it: the escapes are gone (ADR 0160).
+assert.deepEqual(trace(A).map((l) => l.slice(2).join(' ')), ['restore src/a(1)', 'restore src/b.js']);
 
 // `{paths}` matches embedded in a word, and after an optional `--`.
 {
@@ -1992,6 +2092,26 @@ assert.equal(trace(A).length, 1, 'a missing verification.md still records, with 
   call('git apply -C 1 p.patch', T, T);
   call(`git restore 'tests/*'`, T, T);
   assert.deepEqual(lines(), ['edit impl sub/q.js'], 'git apply -C 1 keeps the edit base, and a glob restore records nothing');
+
+  // `git apply` reads only its own patch input, resolves against the worktree top, and honours -p and --directory (ADR 0160).
+  clear();
+  fs.mkdirSync(path.join(T, 'sub'), { recursive: true });
+  fs.writeFileSync(path.join(T, 'sub', 'p.patch'), '--- a/sub/x.js\n+++ b/sub/x.js\n@@\n');
+  fs.writeFileSync(path.join(T, 'p2.patch'), '--- a/a/x.js\n+++ b/a/x.js\n@@\n');
+  call('cd sub && git apply p.patch', T, T);
+  call('git apply -p2 p2.patch', T, T);
+  call('git apply --directory=d p2.patch', T, T);
+  for (const c of ['git apply --check p2.patch', 'git apply --stat p2.patch', 'git apply --numstat p2.patch', 'git apply --summary p2.patch',
+    'git apply --cached p2.patch', 'git stash apply', 'git commit -m apply p2.patch']) call(c, T, T);
+  call("git log apply; cat <<'E'\n+++ b/z.js\nE", T, T);
+  call('git apply --build-fake-ancestor=f.idx p2.patch', T, T);
+  assert.deepEqual(lines(), ['edit impl sub/x.js', 'edit impl x.js', 'edit impl d/a/x.js', 'edit impl f.idx', 'edit impl a/x.js'],
+    'git apply: the worktree top, -p2, --directory, no write for a check or a non-apply word, the fake-ancestor file');
+
+  // Every `-C` composes in order, for a restore too.
+  clear();
+  call('git -C sub -C deep restore a.js', T, T);
+  assert.deepEqual(lines(), ['restore sub/deep/a.js'], 'git -C sub -C deep restore');
 
   // A configured command whose last path part is a reading command's name still records its run (INV-0129).
   clear();

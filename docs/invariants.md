@@ -1334,3 +1334,12 @@ Statement: run-trace's PreToolUse handler for a Bash call records evidence and g
 Breaks: loudly
 Check: tests/run-trace.test.js — a PreToolUse Bash input whose stash cannot be written exits 0 with empty stdout
 Paths: plugin/hooks/run-trace.js, plugin/hooks/hooks.json
+
+### INV-0161
+
+Class: architecture
+Concepts: Run trace
+Statement: run-trace records no write, test run, or restore for a Bash segment whose directory neither the hook nor the ending directory can know: a segment behind a wrapper option that changes directory (`sudo -D`, `sudo -R`, `sudo -i`, `env -C`, in every spelling), or one whose `git -C` value the hook cannot read. The segment's redirects still record against the shell's directory (ADR 0160).
+Breaks: silently
+Check: tests/run-trace.test.js — a write, a test run, and a restore behind each chdir option spelling record nothing, while the segment's redirect records
+Paths: plugin/hooks/run-trace.js

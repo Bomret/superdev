@@ -428,7 +428,7 @@ bash or PowerShell variants.
   `NotebookEdit`, `Bash`, `Agent`, `TaskStop`, and `SubagentHandback`. It registers on `PostToolUseFailure` for
   `Bash`, `Agent`, and `SendMessage`, and on `PermissionDenied` for `Agent` and `SendMessage`. With no matcher,
   it registers on `UserPromptSubmit`, `SessionEnd`, `SubagentStop`, and `Stop`. An edit outside every run root records nothing. A write inside a
-  function body records at the definition, and a write in a heredoc body a known shell reads on stdin records too. A write behind
+  function body records at the definition, resolved against the body's own `cd`. A write in a heredoc body that a known shell reads on stdin records too. A wrapper option that changes directory (`sudo -D`, `sudo -i`, `env -C`) hides its segment. A `git -C` the hook cannot read does the same. The hook records no write, run, or restore for either. A write behind
   `bash -c` or a variable passes unseen. The hook never blocks a tool call.
 - **slicetree-sweep.** A `Stop` hook that removes each slicetree and branch once its slice is
   fully merged. Finished slicetrees therefore cannot pile up when the controller skips the prompted

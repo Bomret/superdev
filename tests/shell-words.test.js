@@ -797,4 +797,15 @@ for (const [from, to] of [['/c/Users/x', 'C:/Users/x'], ['/C/x', 'C:/x'], ['/c',
   for (const platform of ['darwin', 'linux']) assert.equal(drivePath(from, platform), from, `${platform}: ${from}`);
 }
 
+// `fnId` numbers the function body a command sits in, so two bodies' commands differ; a command outside every body has none.
+{
+  const ids = (c) => scan(c).commands.map((k) => k.fnId);
+  assert.deepEqual(ids('f() { cd /etc; echo > a; }; g() { echo > b; }; echo > c'), [1, 1, 2, undefined], 'two brace bodies');
+  assert.deepEqual(ids('f() ( cd /x; echo > a ); f'), [1, 1, undefined], 'a subshell body and its call');
+  assert.deepEqual(ids('function f { g() { echo x; }; echo y; }'), [2, 1], 'a nested body is its own');
+  // The ids count across the whole scan: a body in a backtick group or a shell-read heredoc never shares an outer body's id.
+  assert.deepEqual(ids('f() { cd /a; }; echo `g() { tee z; }`'), [1, undefined, 2], 'a body in a backtick group');
+  assert.deepEqual(ids('f() { cd /a; }; bash <<E\ng() { tee z; }\nE'), [1, undefined, 2], 'a body in a shell-read heredoc');
+}
+
 console.log('shell-words.test.js: ok');

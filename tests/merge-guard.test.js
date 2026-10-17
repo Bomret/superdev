@@ -42,7 +42,9 @@ assert.equal(decide(sub('git --git-dir /wt/.git push origin main')).block, true,
 assert.equal(decide(sub('git --git-dir /wt/.git --work-tree /wt merge x')).block, true, 'two space-form options before the verb');
 assert.equal(decide(sub('git --work-tree "a b" merge x')).block, true, 'a quoted space-form value is one shell word');
 assert.equal(decide(sub('git --no-pager merge x')).block, true, 'a valueless long option still reaches the verb');
-assert.equal(decide(sub('git --exec-path merge x')).block, true, '--exec-path (not enumerated — git itself takes no value there) still reaches the verb, read as a value-less option');
+assert.equal(decide(sub('git --exec-path merge x')).block, false, '--exec-path without a value prints git\'s exec path and exits: no verb runs');
+for (const c of ['git --version merge x', 'git -v merge x', 'git --help merge', 'git -h merge']) assert.equal(decide(sub(c)).block, false, 'a print-and-exit option runs no verb: ' + c);
+assert.equal(decide(sub('git --exec-path=/x merge x')).block, true, '--exec-path=<dir> still reaches the verb');
 assert.equal(decide(sub('git --shallow-file /dev/null merge x')).block, true, 'git --shallow-file <path> merge (space form)');
 assert.equal(decide(sub('git --attr-source main merge x')).block, true, 'git --attr-source <tree> merge (space form)');
 // `$[ … ]` is arithmetic, and bash runs the substitutions and backtick groups it holds.
