@@ -1,3 +1,10 @@
+# [0.76.0](https://codeberg.org/bomret/superdev/compare/v0.75.1...v0.76.0) (2026-10-18)
+
+
+### Features
+
+* **review:** settle docs-tagged Definition-of-Done criteria in the doc pass ([#1251](https://codeberg.org/bomret/superdev/issues/1251)) ([7666607](https://codeberg.org/bomret/superdev/commit/7666607967bc55d832e637b1cceff7e062251e3f))
+
 ## [0.75.1](https://codeberg.org/bomret/superdev/compare/v0.75.0...v0.75.1) (2026-10-17)
 
 
