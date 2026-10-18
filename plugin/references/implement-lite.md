@@ -155,6 +155,8 @@ slicetrees and would collide on shared doc files.
 - **Hand the pass the staging path as an absolute path** — the directory
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" staging <scope>` prints, `.superdev/kb-pending/<scope>/`
   in the main working tree, resolved the same from this scopetree's cwd (ADR 0119).
+- **Hand the pass its `docs` targets**: every `docs`-tagged line of `<run-root>/dod.md` neither
+  ticked nor `accepted:`, verbatim (ADR 0161). `/superdev:review`'s `holds` verdict ticks each one the pass made true.
 - **Commit the doc changes on the scope branch**, in this scopetree, as their own commit.
 - **Record the pass** with
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs set inline --root <run-root>`. That record is what

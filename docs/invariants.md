@@ -137,7 +137,7 @@ Paths: plugin/references/**, plugin/skills/implement/**, plugin/skills/review/**
 
 Class: process
 Concepts: Definition of Done (DoD), Tick, Criterion tag, Controller
-Statement: Only a controller writes a Definition-of-Done tick. It ticks a criterion from an implementer's report only where the criterion's tag names that implementer's slice, and settles every other criterion only in run handoff's own pass, in review, or in document's own untick of a criterion its commits broke. Review's controller may also tick a criterion straight from `final-reviewer`'s own `holds` verdict, with the verdict's evidence as the note. After the merge, `/superdev:verify-ship`'s controller ticks a criterion that is neither ticked nor `accepted:`, from its own read-only observation or from the operator's answer (ADR 0106). No subagent writes a tick, and neither `/superdev:submit-pr`, `/superdev:ship`, nor `/superdev:wrap-up` writes one.
+Statement: Only a controller writes a Definition-of-Done tick. It ticks a criterion from an implementer's report only where the criterion's tag names that implementer's slice, and settles every other criterion only in run handoff's own pass, in review, or in document's own untick of a criterion its commits broke. Review's controller may also tick a criterion straight from `final-reviewer`'s own `holds` verdict, with the verdict's evidence as the note. Before the merge, a criterion tagged `docs` is settled only by review's `holds` tick, by review's untick after a fix cycle that landed commits, and by document's own judgment of it after its pass, which ticks it or unticks it (ADR 0161); run handoff leaves it unjudged. After the merge, `/superdev:verify-ship`'s controller ticks a criterion that is neither ticked nor `accepted:`, from its own read-only observation or from the operator's answer (ADR 0106). No subagent writes a tick, and neither `/superdev:submit-pr`, `/superdev:ship`, nor `/superdev:wrap-up` writes one.
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/**, plugin/agents/**, plugin/skills/implement/**, plugin/skills/review/**, plugin/skills/document/**, plugin/skills/submit-pr/**, plugin/skills/ship/**, plugin/skills/verify-ship/**
@@ -146,7 +146,7 @@ Paths: plugin/references/**, plugin/agents/**, plugin/skills/implement/**, plugi
 
 Class: process
 Concepts: Stage, Definition of Done (DoD), Verification ceiling
-Statement: A scope's stage never advances past review while a Definition-of-Done criterion stands unmet, except one only a deploy can verify or one an attended operator accepted as unmet (`accepted:`). Every scope passes review, whatever its slice types.
+Statement: A scope's stage never advances past review while a Definition-of-Done criterion stands unmet, except one only a deploy can verify, one an attended operator accepted as unmet (`accepted:`), or one tagged `docs`, which the doc pass settles (ADR 0161). The stage never advances past the doc pass while a `docs` criterion stands unmet and not `accepted:`. Every scope passes review, whatever its slice types.
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/review/**, plugin/references/run-handoff.md, plugin/skills/document/**
@@ -1343,3 +1343,12 @@ Statement: run-trace records no write, test run, or restore for a Bash segment w
 Breaks: silently
 Check: tests/run-trace.test.js — a write, a test run, and a restore behind each chdir option spelling record nothing, while the segment's redirect records
 Paths: plugin/hooks/run-trace.js
+
+### INV-0162
+
+Class: process
+Concepts: Implementer, Slice, Criterion tag, Doc-writer
+Statement: An implementer edits the `AGENTS.md` hierarchy only on a `docs` slice whose `spec` names that `AGENTS.md` text as its deliverable. Every other slice's implementer, and every fix implementer, leaves the `AGENTS.md` hierarchy to the doc pass. The agent body and every dispatch that reaches it state the same boundary (ADR 0161).
+Breaks: silently
+Check: none — final-reviewer's invariant compliance judges it
+Paths: plugin/agents/implementer.md, plugin/skills/implement/**, plugin/references/**, plugin/skills/review/**

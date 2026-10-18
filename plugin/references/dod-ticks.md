@@ -16,8 +16,9 @@ cross-slice criterion.
 on Jira) once `/superdev:plan` rewrites it (`plan-contract.md`'s `## Definition of Done ticks`). A
 controller matches a tag to a slice through the ledger's `issue` column (`scope.js get slices`: `id` ↔
 `issue`) — a tag already in `id` notation names the slice by `id` directly; a tag in the store's own
-notation names the slice whose `issue` equals it. `scope` never resolves through that column — it stays
-`scope`.
+notation names the slice whose `issue` equals it. `scope` and `docs` never resolve through that column — each
+stays as written, and a `docs` line is no slice's listed line (Review's case and Document's case below
+settle it, ADR 0161).
 
 **No tags at all.** A `dod.md` carrying no tags anywhere, on a ledger listing exactly one slice, is that
 single-slice feature's own DoD (`plan-contract.md`'s `### Criterion tags`: "a single-slice feature carries
@@ -48,12 +49,29 @@ handoff's red-suite loop, lists whatever criteria that pass is judging, tied to 
 surface states its own listed set where it wires the gate.
 
 **Review's case:** `final-reviewer` judges every `dod.md` line, ticked or not, and returns its own verdict
-for each — holds, broken, or ceiling (`agents/final-reviewer.md`'s `### Criteria` section). The review's
+for each — holds, broken, ceiling, accepted, or doc pass (`agents/final-reviewer.md`'s `### Criteria`
+section). The review's
 controller unticks a line `final-reviewer` calls broken, with a note, and folds it into the fix loop's
 findings; a fix cycle's dispatch then lists exactly the lines that cycle unticked or found broken. The fix
 implementer's report on those listed lines is judged the same way as any other: `met` re-ticks the line
 with that evidence, `not met`/`ceiling` leaves it unticked with that reason, and an omitted listed line is
-sent back per the note rule below. A `ceiling` verdict is never listed — no fix cycle can close it.
+sent back per the note rule below. A `ceiling` verdict is never listed — no fix cycle can close it. An
+`accepted` verdict leaves the line exactly as it stood: only an attended operator writes `accepted:`
+(ADR 0095).
+
+**A `docs`-tagged line waits for the doc pass** (ADR 0161). `final-reviewer` gives an unmet one the `doc
+pass` verdict, and the review's controller writes nothing for it: no note, no untick of an unjudged line,
+no fix-cycle listing, and no `**Unresolved:**` entry, so it never holds the stage at review (INV-0016).
+A `holds` verdict ticks it as below. **A fix cycle that landed commits unticks every ticked `docs` line**,
+with the note `not met: a fix cycle landed after the doc pass`, on the same trigger that clears the
+inline doc-pass record: those commits may have made the `AGENTS.md` text stale, and the next doc pass
+judges the line again. At a `documented` or `submitted` stage no doc pass follows in the chain, so that
+untick also writes one `**Unresolved:**` entry per line, worded `docs criterion unmet after the doc pass:
+<criterion>`, after the clean verdict's `unresolved clear`, and routes the run to `/superdev:document`.
+At a `shipped` or `closed` stage the untick writes no entry, invalidates no suite record, and changes no
+route; the review's report names each unticked line, and a shipped run's open lines reach
+`/superdev:verify-ship` as `not met:` lines. A doc pass at that stage judges no `docs` line and routes as
+any shipped or closed run does (Document's case below).
 
 **A `holds` verdict can tick a line too.** A `holds` verdict on a line that stands unticked with `not
 met:`, or carries no note at all, ticks that line — the review's controller writes the tick, with the
@@ -67,11 +85,18 @@ deploy to verify (INV-0006); post-deploy verification of such a line is a later 
 fix implementer's report, once that cycle's re-review comes back clean.
 
 **Document's case:** the doc pass's own controller judges, never a dispatched worker's report. Its listed
-lines are exactly the ticked `dod.md` lines its own doc commits could touch — a criterion naming a file, an
-ADR, a glossary entry, or a fixture those commits changed. It re-checks each against what its own commits
-just landed: a line the branch still satisfies is left exactly as it stood, with no note added; a line its
-own change broke is unticked, with a one-line note on what broke it. No other line is a listed line for
-this pass, so an earlier tick outside that set is never touched. Verifying a line observes; it changes no
+lines are the ticked `dod.md` lines its own doc commits could touch — a criterion naming a file, an
+ADR, a glossary entry, or a fixture those commits changed — and every `docs`-tagged line neither ticked
+nor `accepted:`. It
+re-checks each ticked line against what its own commits just landed: a line the branch still satisfies is
+left exactly as it stood, with no note added; a line its own change broke is unticked, with a one-line note
+on what broke it. It judges each `docs` line neither ticked nor `accepted:` against the branch after its
+pass: a true one is ticked with its evidence; a false one is unticked with a `not met:` note naming what
+the `AGENTS.md` text still lacks (ADR 0161). An `accepted:` `docs` line is left exactly as it stands: only
+an attended operator writes or removes `accepted:` (ADR 0095). At a `shipped` or `closed` stage the pass
+judges no `docs` line: its report names each unticked one, and the shipped or closed route picks the next
+command. No other line is a listed line for this pass, so an earlier tick outside that set
+is never touched. Verifying a line observes; it changes no
 system outside the repository (ADR 0084, INV-0006).
 
 **Verify-ship's case:** `/superdev:verify-ship`'s own controller judges, never a dispatched worker's

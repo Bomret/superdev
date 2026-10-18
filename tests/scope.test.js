@@ -4522,6 +4522,36 @@ try {
     );
   }
 
+  // dod-line: `docs` is a whole tag, like `scope` (ADR 0161). It survives a tick, an untick, and a
+  // re-judge in body mode and in `--line` mode; a criterion that merely ends in "— docs" still matches
+  // by its untagged spelling; and `docs` combined with a slice id is no tag at all.
+  {
+    for (const mode of [[], ['--line']]) {
+      r = call(['dod-line', ...mode, '--match', 'AGENTS.md names the verb', '--verdict', 'met', '--note', 'e'],
+        '- [ ] AGENTS.md names the verb — docs');
+      assert.ok(r.ok, `dod-line ticks a docs-tagged line (${mode}): ` + (r.err || ''));
+      assert.strictEqual(r.out, '- [x] AGENTS.md names the verb — docs — met: e',
+        `the docs tag survives a tick (${mode}): ` + r.out);
+      r = call(['dod-line', ...mode, '--match', 'AGENTS.md names the verb', '--verdict', 'not-met', '--note', 'f'],
+        r.out);
+      assert.strictEqual(r.out, '- [ ] AGENTS.md names the verb — docs — not met: f',
+        `the docs tag survives an untick of a noted line (${mode}): ` + r.out);
+    }
+
+    r = call(['dod-line', '--match', 'Split the section — docs', '--verdict', 'met', '--note', 'e'],
+      '- [ ] Split the section — docs');
+    assert.ok(r.ok, 'an untagged criterion ending in "— docs" matches by its whole text: ' + (r.err || ''));
+    assert.strictEqual(r.out, '- [x] Split the section — docs — met: e');
+
+    r = call(['dod-line', '--match', 'the widget renders — docs, 01', '--verdict', 'met', '--note', 'e'],
+      '- [ ] the widget renders — docs, 01');
+    assert.ok(r.ok, 'docs combined with an id reads as part of the criterion: ' + (r.err || ''));
+    assert.strictEqual(r.out, '- [x] the widget renders — docs, 01 — met: e');
+    r = call(['dod-line', '--match', 'the widget renders', '--verdict', 'met', '--note', 'e'],
+      '- [ ] the widget renders — docs, 01');
+    assert.ok(!r.ok, 'docs combined with an id is no tag, so the bare criterion matches nothing');
+  }
+
   // dod-line: the same untagged-fallback offer reaches the tag-with-note shape too — an untagged
   // criterion ending in something tag-shaped is still readable once it already carries a note (Minor
   // review find #4). Tick the line, then re-judge it against the same untagged `--match`.

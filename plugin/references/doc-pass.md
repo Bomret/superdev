@@ -24,6 +24,9 @@ commits, the ledger record it writes — stays in the execution playbook.
   like Confluence, or none), plus its **audience(s)**, **language**, and agreed **outline**. May say
   "none".
 - **The staging path**, as an **absolute** path, when the knowledge-base backend is remote.
+- **The `docs` targets**, on a live scope run: every `docs`-tagged Definition-of-Done line neither
+  ticked nor `accepted:`, verbatim. Each names `AGENTS.md`-hierarchy text the scope requires, and Pass 1 makes every one of them
+  true (ADR 0161). `/superdev:document` judges them after the pass.
 
 Given a git range, start from `git diff --stat BASE..HEAD` and `git log BASE..HEAD` to see what actually
 changed; then check which docs that touches.
@@ -92,6 +95,10 @@ reconcile). For each affected `AGENTS.md`:
 - **Delete stale or contradictory text immediately** — don't narrate history ("previously…", "used
   to…"). Present-tense, state-of-the-world prose. Keep it concise and operational; broad rules in
   parent docs, concrete detail in child docs.
+
+**Write every `docs` target.** Each one the pass was handed is part of this pass's work, not an option:
+the `AGENTS.md` text it names is written where the hierarchy owns it, and the report names, per target,
+the file and section that now states it.
 
 Also update the **top-level in-repo docs** the change affects — especially `README.md` (its usage and
 examples must match real behavior), and any `CONTRIBUTING` / `docs/*.md` that drifted.

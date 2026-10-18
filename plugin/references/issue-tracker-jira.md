@@ -362,11 +362,11 @@ report the gap if the live shape differs.
   the gate stops the edit. **Best-effort:** a failed write is reported once per run and never stops the
   run; `dod.md` stays authoritative.
 - **A criterion's tag renders as the issue `key`** (`PROJ-<n>`). `/superdev:plan` §6 writes the tag in
-  `plan-contract.md`'s own notation (a slice `id`, or `scope`) when it creates the Epic, before any slice
+  `plan-contract.md`'s own notation (a slice `id`, `scope`, or `docs`) when it creates the Epic, before any slice
   issue exists. Once every slice issue is created, the controller rewrites each slice-id tag into its
   `key`, in the same parallel step **Link a dependency** above uses to write the "is blocked by" links,
   each rewrite a description edit through **Edit an issue's body** —
-  both need the same resolved keys and both wait on the same event; a `scope` tag is left as `scope`.
+  both need the same resolved keys and both wait on the same event; a `scope` tag is left as `scope`, and a `docs` tag as `docs`.
 
 **On an instance storing the description as markdown or wiki markup** (the alternate posture `## Run
 state` above names), the same **Edit an issue's body** chain runs with the whole description, taken out

@@ -117,7 +117,10 @@ Repeat until every slice is `merged`:
    also fails at the slice's base commit, is named in its report, neither fixed nor blocked on, and left to
    the run handoff's fix loop: a named inherited failure is no Missing RED finding, no BLOCKED, and no strike
    (ADR 0155, INV-0157). The controller never edits a slice's tree to produce a failing run:
-   a failing run comes from the implementer's own revert and run, or from none at all.
+   a failing run comes from the implementer's own revert and run, or from none at all. A dispatch for a
+   `docs` slice whose `spec` names `AGENTS.md`-hierarchy text as its deliverable tells the implementer it
+   edits exactly that text; every other slice dispatch leaves the `AGENTS.md` hierarchy to the doc pass,
+   as the implementer's own Documentation section states (INV-0162, ADR 0161).
 
    **Pilot the first wave.** On a fresh scope (nothing merged yet), dispatch a single slice first and take
    it through review + merge before filling the cap — a systemic problem (a mis-specified convention, a

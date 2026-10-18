@@ -339,11 +339,11 @@ not this store carries a snapshot.
   **Best-effort:** a failed write is reported once per run and never stops the run; `dod.md` stays
   authoritative.
 - **A criterion's tag renders as `#<n>`** (the slice issue's index). `/superdev:plan` §6 writes the tag
-  in `plan-contract.md`'s own notation (a slice `id`, or `scope`) when it creates the epic, before any
+  in `plan-contract.md`'s own notation (a slice `id`, `scope`, or `docs`) when it creates the epic, before any
   slice issue exists. Once every slice issue is created, the controller rewrites each slice-id tag into
   `#<n>`, in the same parallel body-patch step **Record a dependency** above uses to write
   `**Depends on:** #<n>` — both need the same resolved indexes and both wait on the same event; a `scope`
-  tag is left as `scope`.
+  tag is left as `scope`, and a `docs` tag as `docs`.
 
 ## Status workflow
 

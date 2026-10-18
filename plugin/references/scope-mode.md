@@ -775,7 +775,7 @@ unattended block.
 An **unresolved defect** is a defect the run finds in the code and leaves standing: a full suite still
 red at the three-strike cap, a finding the operator declines to fix, an unattended block reached at
 that cap, or a Definition-of-Done criterion the doc pass's own re-check unticks (`references/dod-ticks.md`'s
-Document's case, INV-0016). It answers a different question than `## Degraded passes` — that section says
+Document's case, INV-0016), or a `docs` criterion left unmet after the doc pass (ADR 0161). It answers a different question than `## Degraded passes` — that section says
 how much of the chain ran, this one says whether the branch is sound (ADR 0026).
 
 **A command writes the entry where the run gives up**, never where the defect first appears. A defect

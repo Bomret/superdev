@@ -81,7 +81,10 @@ branch already meets), **broken** (a ticked line the branch no longer satisfies,
 unmet, an `accepted:` line excepted below) with the reason, **ceiling** (needs a deploy or another
 outward-facing change to verify — INV-0006, ADR 0084), or **accepted** (an unticked line noted
 `accepted:` whose criterion the branch still does not meet — an attended operator's own decision that it
-stands accepted as unmet, ADR 0095; report it, but it is not a finding and does not hold the stage).
+stands accepted as unmet, ADR 0095; report it, but it is not a finding and does not hold the stage), or
+**doc pass** (a line tagged `docs` whose `AGENTS.md` text the branch does not yet state — the doc pass
+reconciles that text after this review and settles the line, ADR 0161; report it, but it is not a
+finding, not `broken`, and not `ceiling`). A `docs` line the branch already meets is **holds**.
 **Check an unticked line's own reason too** — a `not met:` note may already be stale if the branch now
 meets it, a claimed `ceiling:` may not really be one, if this branch can verify it without an
 outward-facing change, and an `accepted:` line whose criterion the branch has since come to meet is
@@ -287,7 +290,8 @@ Write one only when **all four** gates hold:
    robust" — the reader must be able to picture the case.
 3. There is **exactly one**. Pick the one that costs the most.
 4. The review found **nothing Critical and nothing Important**. Minor findings do **not** suppress it: a
-   doc-polish nit is not you having something substantive to say.
+   doc-polish nit is not you having something substantive to say. A `doc pass` verdict is no finding, so
+   it suppresses nothing either.
 
 Nothing clears all four → **write no `### Ceiling` section at all**. An empty heading is worse than
 silence, because it trains the reader to skip the heading.
@@ -309,7 +313,7 @@ behaviour.
 
 ### Criteria
 [**scope mode only**; omit this section entirely on an ad-hoc range. One line per `dod.md` line, in
-document order: `<criterion>` — holds | broken: <why> | ceiling: <partial evidence> | accepted: <reason>]
+document order: `<criterion>` — holds | broken: <why> | ceiling: <partial evidence> | accepted: <reason> | doc pass: <what the `AGENTS.md` text still lacks>]
 
 ### Ceiling
 [one note, per the four gates above; omit this section entirely when nothing qualifies]
@@ -324,6 +328,8 @@ Reasoning: [1–2 sentences]
 
 `Full-suite run: fail` makes the verdict `Ready to merge? No`, regardless of what the axes above
 found — a red suite is disqualifying on its own, not one more input the verdict weighs against the rest.
+A `doc pass` verdict weighs nothing against `Ready to merge?`: the doc pass still runs before the pull
+request.
 
 `### Ceiling` sits outside the severity ladder deliberately. The Issues format is
 `file:line · what's wrong · why it matters · how to fix`, and a ceiling note has no *what's wrong* to put

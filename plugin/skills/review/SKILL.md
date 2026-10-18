@@ -236,7 +236,7 @@ superdev subagent that omits one):
     commits change only test-path files, or no file, gets no finding, and the report names no gap for it. Both take
     Missing RED's 3-cycle cap and escape path (§4), and §3's report names a cycle's finding with its range.
   - **Also tell it to judge every `dod.md` line, ticked or not.** `final-reviewer` returns a verdict for
-    each — holds, broken, or ceiling — in its own `### Criteria` section (`agents/final-reviewer.md`'s
+    each — holds, broken, ceiling, accepted, or doc pass — in its own `### Criteria` section (`agents/final-reviewer.md`'s
     `## Judge every criterion`). §4 below unticks and re-ticks from that list; the axes above (Correctness,
     Consistency, whole-scope Brevity, Security, Performance) are what it judges the *code* on, and this is
     the DoD gate the same dispatch also carries.
@@ -511,6 +511,9 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   one, unless the **holds** clause just below turns it over. A line called **accepted** is likewise left
   exactly as it stood: an `accepted:` note is an attended operator's own decision (ADR 0095), never a
   Critical finding and never a reason to hold the stage, unless the **holds** clause below turns it over.
+  A line called **doc pass** — tagged `docs`, its `AGENTS.md` text not yet written — is left exactly as it
+  stood too: no note, no untick, no fix-cycle listing, no `**Unresolved:**` entry, and never a finding,
+  because `/superdev:document` settles it after this review (ADR 0161, `dod-ticks.md`).
   A **holds** verdict on an already-ticked
   line changes nothing. **A `holds` verdict on a line unticked with `not met:`, or carrying no note at
   all, ticks that line** — you, the controller, write the tick, with the verdict's own evidence as the
@@ -524,7 +527,7 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   only an attended operator does. A `holds` verdict never ticks a line that genuinely needs a deploy to
   verify (INV-0006). Re-ticking after a fix cycle still follows the fix implementer's report, once that
   cycle's re-review comes back clean. The stage does **not** advance while any `dod.md`
-  criterion stands unmet, except a `ceiling` one or an `accepted` one (INV-0016) — the same non-advance
+  criterion stands unmet, except a `ceiling` one, an `accepted` one, or a `docs` one (INV-0016) — the same non-advance
   rule the full-suite fail and Critical-finding rows above already apply.
 - **A criterion `final-reviewer` finds missing from `dod.md` is not a tick to add.** Review writes no new
   line into `dod.md` (INV-0004). A **plan-coverage gap** — a criterion the code already satisfies — is
@@ -699,12 +702,43 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   cycle, or none that committed** → leave the record alone: the docs still describe this code. The verb
   succeeds and changes nothing when there is no record, so a `full` run needs no separate branch here.
 
-  Publish the snapshot after any of the writes above — `unresolved clear`, the stage write, and `docs
-  clear` alike — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section.
+  **The same trigger unticks every ticked `docs` line** (ADR 0161): on `<run-root>/dod.md` and the anchor's
+  checklist, through the active store's own `## Definition of Done ticks` section, with the note `not met: a
+  fix cycle landed after the doc pass` (`dod-ticks.md`). Those commits may have made the `AGENTS.md` text
+  stale, and the next `/superdev:document` judges the line again. The untick runs after the `unresolved
+  clear` above, so an entry it writes stands. Whether it writes one turns on the stage you read before the
+  stage write:
+  - **A stage before `documented`** (`documented-unreviewed` included, which the row above moves to
+    `reviewed`) → no `**Unresolved:**` entry and no stage hold: a `docs` line never holds the stage at
+    review, and the next doc pass is the chain's next step.
+  - **`documented` or `submitted`** → the run has moved past the doc pass, so nothing in the chain would
+    judge the line again. Write one `**Unresolved:**` entry per `docs` line this untick unticked, worded
+    exactly `docs criterion unmet after the doc pass: <criterion>` — the wording `/superdev:document`'s settle step
+    writes and clears — through a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) piped to
+    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add - --root <run-root>`. **At `submitted`**,
+    also invalidate the tip's suite record with
+    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set none <sha> --root <run-root>` (`<sha>` = the
+    scope branch's current tip), as the Declined branch above does, so `/superdev:ship` finds no record
+    to merge on.
+  - **`shipped` or `closed`** → the run has moved past the doc pass and the pull request, so the untick
+    writes no `**Unresolved:**` entry, invalidates no suite record, and changes no route. Name each
+    unticked `docs` line in your report instead, so the operator sees it; a shipped run's open lines
+    reach `/superdev:verify-ship` as `not met:` lines through the existing routing. The
+    `/superdev:document` this block prints at that stage judges no `docs` line: it names each unticked one
+    and routes the run as any shipped or closed run.
+
+  **No fix cycle, or none that committed** → leave every `docs` line as it stands.
+
+  Publish the snapshot after any of the writes above — `unresolved clear`, the stage write, `docs clear`,
+  `unresolved add`, and `suite set` alike — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+  `## Publishing run state` section.
 
   Say first that this conversation is disposable: the ledger's stage and the scope branch carry everything
   the next command reads, so a `/clear` first costs nothing. Then print the next command, last, so the
-  Next block closes the message. **The stage reads `submitted`** — print `/superdev:ship <scope>` and say
+  Next block closes the message. **The `docs` untick above wrote an `**Unresolved:**` entry** — print
+  `/superdev:document <range>`, carrying the concrete range §1 resolved, and say in one line that it
+  re-judges the unticked `docs` lines; `/superdev:submit-pr` and `/superdev:ship` wait for it. **The stage
+  reads `submitted`** — print `/superdev:ship <scope>` and say
   in one line what it does (merge the pull request `/superdev:submit-pr` already opened; ADR 0096). This
   is the re-review ADR 0096 sends an operator to after resolving a base-merge conflict, so this is the
   command that recovery ends on. **Otherwise** — print `/superdev:document <range>`, carrying the

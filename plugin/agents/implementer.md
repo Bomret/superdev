@@ -240,7 +240,10 @@ don't leave a comment your change made false. That's your whole doc duty.
 
 **Do not** touch the `AGENTS.md` hierarchy or the knowledge base — those are reconciled **once** at the
 end of the scope by `/superdev:document` (the `doc-writer`), not per slice, to avoid churn when a later
-slice supersedes an earlier one's docs.
+slice supersedes an earlier one's docs. **One exception:** a `docs` slice whose `spec` names
+`AGENTS.md`-hierarchy text as its deliverable — a restructuring of the hierarchy, say — is that text's
+author, so you edit exactly the text the `spec` names and nothing else in the hierarchy. A fix dispatch
+never takes this exception (INV-0162, ADR 0161).
 
 ## Progress log & report
 

@@ -230,7 +230,7 @@ instead, for the Jira seed's ADF text node, which is JSON, not markdown lines. A
 single-slice feature's own DoD, a run predating tagging, or one untagged line inside an
 otherwise-tagged DoD; `--line` mode accepts the same line with no leading `- `, the shape a Jira text
 node's own string carries. The tag — slice ids (`01`, `01, 02`), store refs (`#667`, `#672, #673`), or the
-literal `scope` — and any verdict note past it are parsed off the line's *right* end, greedily handing
+literal `scope` or `docs`, each standing alone (ADR 0161) — and any verdict note past it are parsed off the line's *right* end, greedily handing
 everything before that to the criterion, which is what keeps a criterion carrying its own " — "
 (`plan-contract.md`'s own worked example, "Reachable: none — entrance unchanged; … — scope") intact
 instead of splitting at its first dash. An untagged criterion that merely ends in something shaped like a

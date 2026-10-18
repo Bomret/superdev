@@ -375,12 +375,12 @@ not this store carries a snapshot.
   exits 1, so the gate stops the edit. **Best-effort:** a failed write is reported once per run and never
   stops the run; `dod.md` stays authoritative.
 - **A criterion's tag renders as `#<number>`** (the slice issue's `number`, *Two identifiers per issue*
-  above). `/superdev:plan` §6 writes the tag in `plan-contract.md`'s own notation (a slice `id`, or
-  `scope`) when it creates the epic, before any slice issue exists. Once every slice issue is created,
+  above). `/superdev:plan` §6 writes the tag in `plan-contract.md`'s own notation (a slice `id`,
+  `scope`, or `docs`) when it creates the epic, before any slice issue exists. Once every slice issue is created,
   the controller rewrites each slice-id tag into `#<number>`, in the same parallel step **Record a
   dependency** above uses to write the native `blocked_by` links, each rewrite a body edit through
   **Edit an issue's body** — both need the same resolved
-  identifiers and both wait on the same event; a `scope` tag is left as `scope`.
+  identifiers and both wait on the same event; a `scope` tag is left as `scope`, and a `docs` tag as `docs`.
 
 ## Status workflow (GitHub has open/closed + labels — no custom states)
 

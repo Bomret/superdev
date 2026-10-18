@@ -851,7 +851,8 @@ function verbDeployGet(root) {
 // A checklist line is `- [ ] <criterion>[ — <tag>][ — <verdict>: <note>]` (`plan-contract.md`'s line
 // format). The tag is slice ids (`01`, `01, 02`), store refs (`#667`, `#672, #673`), a Jira issue key
 // (`PROJ-12`, `PROJ-12, PROJ-13` — `references/issue-tracker-jira.md`'s own rewritten notation), or the
-// literal `scope` — never free text. It is absent on a single-slice feature's own DoD (`plan-contract.md`'s
+// literal `scope` or `docs` (a criterion the doc pass settles, ADR 0161), each standing alone — never
+// free text. It is absent on a single-slice feature's own DoD (`plan-contract.md`'s
 // `### Criterion tags`: "a single-slice feature carries no tags"), on a run from before tagging existed,
 // or on one untagged line inside an otherwise tagged DoD (`references/dod-ticks.md`'s own "No tags at
 // all"). A line with no note takes its tag from the *rightmost* ` — <tag>` at the end of the line,
@@ -867,7 +868,7 @@ function verbDeployGet(root) {
 // accepted as unmet. It renders unticked, exactly like `not-met` and `ceiling` — the box never lies about
 // what got verified — with its own `accepted:` label on the note.
 const DOD_TAG_TOKEN = '(?:#?\\d+|[A-Z][A-Z0-9_]*-\\d+)';
-const DOD_TAG_PATTERN = `(?:scope|${DOD_TAG_TOKEN}(?:,\\s*${DOD_TAG_TOKEN})*)`;
+const DOD_TAG_PATTERN = `(?:scope|docs|${DOD_TAG_TOKEN}(?:,\\s*${DOD_TAG_TOKEN})*)`;
 const DOD_VERDICTS = {
   met: { marker: 'x', label: 'met' },
   'not-met': { marker: ' ', label: 'not met' },

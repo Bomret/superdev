@@ -35,16 +35,25 @@ never the id of the entry that requires it.
 
 ### Criterion tags
 
-Every epic Definition-of-Done criterion carries a **tag**: the slice `id`s that deliver it, or `scope`
+Every epic Definition-of-Done criterion carries a **tag**: the slice `id`s that deliver it, `scope`
 when no single slice does (a sweep, a preservation claim, a scope-wide check `/implement`'s run handoff
-settles). The tag decides which criteria a slice's report *can* tick; it is not itself a tick. A
-single-slice feature carries no tags — its lone slice's `acceptance` doubles as the DoD, so every
-criterion is already that slice's.
+settles), or `docs` when its deliverable is `AGENTS.md`-hierarchy text describing the scope's code. The
+tag decides which criteria a slice's report *can* tick; it is not itself a tick. A single-slice feature
+carries no tags — its lone slice's `acceptance` doubles as the DoD, so every criterion is already that
+slice's.
+
+**The `docs` tag** (ADR 0161) marks a criterion the doc pass settles: no slice's report ticks it, the
+scope review never holds the stage on it, and `/superdev:document` judges it after its pass
+(`references/dod-ticks.md`). `docs` stands alone, like `scope`: it is never combined with slice ids. A
+criterion that mixes `AGENTS.md` text with another deliverable is split into two criteria, one tagged
+`docs`. A criterion that a `docs` slice delivers as `AGENTS.md` text, such as a restructuring of the
+hierarchy, keeps that slice's tag: the doc pass reconciles docs with code, and the restructuring is the
+slice's own work (INV-0162).
 
 The line format:
 
 ```
-- [ ] <criterion> — <ids|scope>
+- [ ] <criterion> — <ids|scope|docs>
 ```
 
 A single-slice feature's own line, a line from a run predating tagging, and one untagged line left inside an

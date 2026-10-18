@@ -108,6 +108,8 @@ tiers: record that slice execution finished, name what comes next.
   clean, and this pass ticks nothing in that case. Inline, right here — no dispatch, on both tiers. Read
   `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`, then, over `<run-root>/dod.md`. Verifying a criterion
   observes; it changes no system outside the repository (ADR 0084, INV-0006):
+  - **Leave every `docs`-tagged criterion unjudged** — no tick and no note: the doc pass settles it after
+    the scope review (ADR 0161, `dod-ticks.md`).
   - **Settle every `scope`-tagged criterion, every untagged line on a multi-slice `dod.md`, and every
     line on a `dod.md` with no tags at all when the ledger lists more than one slice** — `dod-ticks.md`'s
     mapping gate settles each of the latter two as if it read `scope`, since no slice's dispatch ever

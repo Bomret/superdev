@@ -21,6 +21,9 @@ knowledge base describe **what is now true** — adding what's new, correcting w
 - **The staging path** — where a remote backend's pages are staged, handed to you as an **absolute**
   path, the one `scope.js staging <scope>` printed: `.superdev/kb-pending/<scope>/` in the main working
   tree. Write every staged page under it exactly as given.
+- **The `docs` targets**, on a live scope run — Definition-of-Done lines, neither ticked nor
+  `accepted:`, naming `AGENTS.md`-hierarchy text the scope requires. Make every one true, and report per target the file and section that now
+  states it (`references/doc-pass.md`, ADR 0161).
 
 Given a git range, start from `git diff --stat BASE..HEAD` and `git log BASE..HEAD` to see what
 actually changed; then check which docs that touches.

@@ -561,9 +561,13 @@ and schema):
   vocabulary, and never as field lists. The implementer declares them before its first failing test, and
   the fields are its own, because a `spec` is a contract of outcomes (ADR 0030). A slice needing no shape,
   or a repository whose language has none, gets none named.
-- **Tag every Definition-of-Done criterion with the slice `id`s that deliver it, or `scope` when no single
-  slice does** (`plan-contract.md` → *Criterion tags*), now that decomposition has settled which slice
-  delivers what.
+- **Tag every Definition-of-Done criterion with the slice `id`s that deliver it, `scope` when no single
+  slice does, or `docs` when its deliverable is `AGENTS.md`-hierarchy text describing the scope's code**
+  (`plan-contract.md` → *Criterion tags*), now that decomposition has settled which slice delivers what.
+  The rule holds on a new plan, an append, and a repair alike. Split every criterion that mixes such text
+  with another deliverable into two, so the `AGENTS.md` part carries `docs` on its own line. A criterion a
+  `docs` slice delivers as `AGENTS.md` text, such as a restructuring of the hierarchy, keeps that slice's
+  tag (ADR 0161).
 - **Write each register match held above into the slice it touches, and its epic criterion in the reader's
   vocabulary.** The entry's id goes into that slice's `spec` and `acceptance` — the route by which the
   invariant reaches an implementer who only ever sees its own isolated worktree — never into the epic. The
