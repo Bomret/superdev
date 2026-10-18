@@ -1,9 +1,19 @@
 'use strict';
 
-// Suite for plugin/scripts/md-to-storage.js (ADR 0109): markdown in, Confluence storage XHTML out.
+// Suite for plugin/lib/md-to-storage.js (ADR 0109): markdown in, Confluence storage XHTML out.
 
 const assert = require('node:assert');
-const { toStorage } = require('../plugin/scripts/md-to-storage.js');
+const cp = require('node:child_process');
+const path = require('node:path');
+const { assertSpawnDecided } = require('./spawn-verdict.js');
+const { toStorage } = require('../plugin/lib/md-to-storage.js');
+
+// INV-0068: requiring the module prints nothing and exits 0.
+{
+  const r = cp.spawnSync(process.execPath, ['-e', `require(${JSON.stringify(path.join(__dirname, '..', 'plugin', 'lib', 'md-to-storage.js'))})`], { encoding: 'utf8', timeout: 10000 });
+  assertSpawnDecided(r, 'requiring md-to-storage.js');
+  assert.deepStrictEqual([r.status, r.stdout, r.stderr], [0, '', ''], 'requiring md-to-storage.js prints nothing');
+}
 
 // Well-formed XML without a parser dependency: every `<` opens a tag, every tag balances, every `&`
 // starts one of the entities the converter emits. XML 1.0 forbids C0 control characters except tab, LF, CR.

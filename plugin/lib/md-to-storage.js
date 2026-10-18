@@ -1,6 +1,6 @@
 'use strict';
 
-// Converts a staged knowledge-base page's markdown body to Confluence `storage` XHTML (ADR 0109).
+// md-to-storage.js: converts a staged knowledge-base page's markdown body to Confluence `storage` XHTML (ADR 0109).
 // `publish-kb.js` calls `toStorage()` for a backend whose configuration carries
 // `- **Body format:** storage`; nothing else does (INV-0109). Dependency-free on purpose: the
 // plugin ships no node_modules.

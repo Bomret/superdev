@@ -116,7 +116,7 @@ standing tree `/superdev:sweep` asked this leg to read.
     (`git rev-parse --verify --quiet <name>` fails), and no path on disk. **Validate it against
     `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope slug` charset
     (`[a-zA-Z0-9][a-zA-Z0-9_-]*`) before addressing `.superdev/scopes/<arg>/` with it** — the same test
-    `scope.js`'s `SLUG_RE` applies to a label's slug segment. A shape that fails it (a `../`-shaped
+    `lib/ledger.js`'s `SLUG_RE` applies to a label's slug segment. A shape that fails it (a `../`-shaped
     argument among them) refuses with that charset named, rather than reading whatever path the
     argument resolves to. **It passes** — a run root exists for it
     (a `<run-root>/ledger.md` per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## A live scope

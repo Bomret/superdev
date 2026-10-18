@@ -26,7 +26,7 @@ scope but its own contributes to carries no marker.
 **A non-markdown backend marks nothing `aggregate`.** Confluence stores a page as `storage` — XHTML
 (`body.representation: storage` below), not markdown. Staged pages stay markdown, and
 `scripts/publish-kb.js` converts a whole staged page to `storage` itself before `create` and `update`
-(`scripts/md-to-storage.js`, ADR 0109). `scripts/kb-patch.js` merges a section by matching markdown ATX
+(`lib/md-to-storage.js`, ADR 0109). `scripts/kb-patch.js` merges a section by matching markdown ATX
 headings in the live page, and a live XHTML page carries none, so a patch has nothing to merge into. Mark
 no outline entry `aggregate` here.
 

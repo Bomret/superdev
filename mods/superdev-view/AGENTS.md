@@ -105,8 +105,8 @@ that label part.
 The scan reads a closed scope's whole trace while its page is open. Otherwise it reads that trace once, for
 the close time, and keeps the time in memory, because a closed trace does not change. The scope stays in the list until
 `plugin/hooks/scope-prune.js` reaps its run root. The pane attributes an agent to the scope whose trace
-records it and to the slice that trace line names. Therefore `plugin/hooks/run-trace.js`'s
-`recordDispatch` is the one attribution rule. `tests/run-trace.test.js` holds its cases (INV-0136).
+records it and to the slice that trace line names. Therefore `plugin/lib/dispatch.js`'s
+`recordDispatch`, which `plugin/hooks/run-trace.js` calls, is the one attribution rule. `tests/run-trace-dispatch.test.js` holds its cases (INV-0136).
 
 ## Work Guidance
 

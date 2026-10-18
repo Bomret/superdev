@@ -2,7 +2,7 @@
 
 // drift-check contract data: the tables and patterns every check asserts against, and nothing else.
 // A `[document, pattern, expectation]` row is read by `lib.js`’s scanContract(); the element
-// lists and lone patterns are read by the bespoke scanners in `scanners.js`.
+// lists and lone patterns are read by the bespoke scanners in `scanners/`.
 
 const path = require('node:path');
 
@@ -47,6 +47,7 @@ const SCOPETREE_RUN_ROOT_DOCS = [
   path.join('skills', 'ship', 'SKILL.md'),
   path.join('skills', 'document', 'SKILL.md'),
   path.join('scripts', 'publish-kb.js'),
+  path.join('lib', 'kb-staging.js'),
 ];
 const SCOPETREE_RUN_ROOT_PATTERN = /\.superdev\/scopes\/[^\s`/]+\/scopetree\b/g;
 
@@ -88,10 +89,10 @@ const CHANGE_TYPE_CONTRACTS = [
     /`feat`,\s*`fix`,\s*`refactor`,\s*`docs`,\s*`perf`,\s*`test`,\s*`build`,\s*`ci`,\s*`chore`,\s*`style`,\s*or\s+`revert`/,
     'list the same change types the **Change type** glossary entry names — the set `references/scope-mode.md` owns',
   ],
-  // scope.js validates every `init` label against the same set, so it is a fourth copy — executable,
-  // but still one fact that must not fork.
+  // `lib/ledger.js` holds the set `scope.js` validates every `init` label against, so it is a fourth copy —
+  // executable, but still one fact that must not fork.
   [
-    path.join('scripts', 'scope.js'),
+    path.join('lib', 'ledger.js'),
     /'feat', 'fix', 'refactor', 'docs', 'perf', 'test', 'build', 'ci', 'chore', 'style', 'revert'/,
     'keep CHANGE_TYPES equal to the set `references/scope-mode.md` lists',
   ],
@@ -179,7 +180,7 @@ const KB_BACKEND_CALL_MARKERS = [
   [new RegExp(`\\b(?:POST|PUT|DELETE)\\b[^\\n]{0,100}?\\b(?:${KB_OBJECT})\\b`), 'an HTTP call aimed at a knowledge-base object'],
 ];
 
-// ADR 0022: `scripts/scope.js` owns the ledger's schema, and since it exports `readLedgerHeader` that
+// ADR 0022: `lib/ledger.js` owns the ledger's schema, and since it exports `readLedgerHeader` that
 // ownership means one implementation rather than one per consumer. `hooks/scope-prune.js` used to carry
 // its own `**Name:**` regex, and it drifted on four axes while being hardened against defects on its
 // delete path — every difference arrived as a well-intentioned local fix, and none travelled back.
@@ -197,15 +198,15 @@ const KB_BACKEND_CALL_MARKERS = [
 // of its own is covered by neither, and needs its own orphan test.
 const HOOK_HEADER_REGEX = /\\+\*\\+\*[^\n]{0,60}:\\+\*\\+\*/;
 
-// The Bash hooks `merge-guard`, `ledger-guard`, and `run-trace` read a command line through
-// the one shared scanner `hooks/shell-words.js` (ADR 0135). A hook that grows its own shell-word reader
-// reopens the quoted-argument and command-substitution bypasses the scanner closes, so each hook must
-// require the module and declare none of the reader's names itself. The pattern holds a negative
+// The Bash hooks `merge-guard` and `ledger-guard`, ledger-guard's reader `lib/ledger-writes.js`, and the run trace's command layer `lib/bash-command.js`, read a command line through
+// the one shared scanner `lib/shell-words.js` (ADR 0135). A hook that grows its own shell-word reader
+// reopens the quoted-argument and command-substitution bypasses the scanner closes, so each must
+// require the module (`../lib/shell-words.js` from a hook, `./shell-words.js` from lib/) and declare none of the reader's names itself. The pattern holds a negative
 // lookahead at the start of the text (no `m` flag, so `^` is the text start) and then the require.
 // The require counts only on a line that is no comment, ahead of any `//` on that line, and with any spacing inside its
 // parentheses. A reader name counts after `const`, `let`, `var`, or `function`, and as a later declarator of one statement
 // (`const x = 1, ARG = …`).
-const SHELL_WORDS_REQUIRE = String.raw`(?:^|\n)(?![ \t]*(?:\/\/|\/?\*))(?:(?!\/\/)[^\n])*?\brequire\(\s*(['"])\.\/shell-words\.js\1\s*\)`;
+const SHELL_WORDS_REQUIRE = String.raw`(?:^|\n)(?![ \t]*(?:\/\/|\/?\*))(?:(?!\/\/)[^\n])*?\brequire\(\s*(['"])(?:\.\.\/lib|\.)\/shell-words\.js\1\s*\)`;
 const READER_NAME = String.raw`(?:ARG|RAW_ARG|STUCK|STUCK_MERGE|stripHeredocs)`;
 const OWN_READER_DECLARATION = String.raw`(?:\b(?:const|let|var|function)\s+${READER_NAME}\b|,\s*${READER_NAME}\s*=(?!=))`;
 // A `((` spread of a hook's own (a regex holding a paren, `\(` or `[(]`, followed by a second one, `{2`, or `+`: `\(\(`, `\({2,}`,
@@ -216,12 +217,13 @@ const OWN_DASH_SPREAD = String.raw`(?:^|\n)(?![ \t]*(?:\/\/|\/?\*))(?:(?!\/\/)[^
 const SCANNER_ONLY_PATTERN = new RegExp(`^(?![\\s\\S]*(?:${OWN_READER_DECLARATION}|${OWN_DASH_SPREAD}))[\\s\\S]*${SHELL_WORDS_REQUIRE}`);
 
 const ARG_TOKEN_EXPECTATION =
-  'require ./shell-words.js and declare no ARG, RAW_ARG, STUCK, STUCK_MERGE, stripHeredocs, or `((` spread of its own — a private shell-word reader reopens the quoted-argument, the command-substitution, or the dash `((` bypass';
+  'require lib/shell-words.js and declare no ARG, RAW_ARG, STUCK, STUCK_MERGE, stripHeredocs, or `((` spread of its own — a private shell-word reader reopens the quoted-argument, the command-substitution, or the dash `((` bypass';
 
 const ARG_TOKEN_CONTRACTS = [
   [path.join('hooks', 'merge-guard.js'), SCANNER_ONLY_PATTERN, ARG_TOKEN_EXPECTATION],
   [path.join('hooks', 'ledger-guard.js'), SCANNER_ONLY_PATTERN, ARG_TOKEN_EXPECTATION],
-  [path.join('hooks', 'run-trace.js'), SCANNER_ONLY_PATTERN, ARG_TOKEN_EXPECTATION],
+  [path.join('lib', 'bash-command.js'), SCANNER_ONLY_PATTERN, ARG_TOKEN_EXPECTATION],
+  [path.join('lib', 'ledger-writes.js'), SCANNER_ONLY_PATTERN, ARG_TOKEN_EXPECTATION],
 ];
 
 // `scripts/AGENTS.md` carries one table row per registered check, keyed by the check's backticked `id`.
@@ -335,21 +337,21 @@ const SOURCE_SECTION_CONTRACTS = [
   ],
 ];
 
-// ADR 0053, ADR 0069: `plugin/scripts/publish-kb.js`'s `checkContainment` delegates the containment test
-// to `scope.js`'s exported `testContainment`, `require`d and called directly, rather than reimplementing
+// ADR 0053, ADR 0069: `plugin/lib/kb-containment.js`'s `checkContainment` delegates the containment test
+// to `lib/containment.js`'s exported `testContainment`, `require`d and called directly, rather than reimplementing
 // its own ancestry test — the ADR's decision that the test is stated once. A raw `git merge-base
 // --is-ancestor` in its place answers "not merged" on every squash-merged scope. The pattern requires both
 // the `require` destructure and a call site, so a `testContainment` imported but never called fails too.
 // It cannot see a script that keeps the real call *and* grows a second, redundant ancestry test beside it.
 const CONTAINMENT_DELEGATION_CONTRACTS = [
   [
-    path.join('scripts', 'publish-kb.js'),
+    path.join('lib', 'kb-containment.js'),
     {
       test: (text) =>
-        /\{[^}]*\btestContainment\b[^}]*\}\s*=\s*require\(['"]\.\/scope\.js['"]\)/.test(text) &&
+        /\{[^}]*\btestContainment\b[^}]*\}\s*=\s*require\(['"]\.\/containment\.js['"]\)/.test(text) &&
         /\btestContainment\(/.test(text),
     },
-    "delegate the containment test to scope.js's exported `testContainment` — imported and called " +
+    "delegate the containment test to lib/containment.js's exported `testContainment` — imported and called " +
       'directly — rather than reimplementing the ancestry check itself (ADR 0053)',
   ],
 ];

@@ -578,8 +578,8 @@ for (const cmd of ['git commit -m fix\\ git\\ push\\ bug', 'cat a\\ \\(1\\).txt'
   // An escape nested past MAX_QUOTED_DEPTH shell levels is unreadable, and the raw-text rule denies it.
   const esc = (s) => 'sh -c ' + s.replace(/[\\ ]/g, '\\$&');
   let s = 'git push';
-  for (let k = 0; k <= require('../plugin/hooks/shell-words.js').MAX_QUOTED_DEPTH; k++) s = esc(s);
-  assert.equal(require('../plugin/hooks/shell-words.js').scan(s, { quoted: true }).readable, false, 'an escape past the depth limit is unreadable');
+  for (let k = 0; k <= require('../plugin/lib/shell-words.js').MAX_QUOTED_DEPTH; k++) s = esc(s);
+  assert.equal(require('../plugin/lib/shell-words.js').scan(s, { quoted: true }).readable, false, 'an escape past the depth limit is unreadable');
   assert.equal(decide(sub(s)).block, true, 'and the unreadable-command rule denies it');
 }
 // dash runs `((…))` as nested subshells, so the guard also reads a command as dash reads it (#1062)
@@ -637,17 +637,41 @@ assert.equal(decide(sub('echo "it\'s a push"')).block, false, 'a quoted text wit
   const path = require('node:path');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'merge-guard-noscanner-'));
   try {
-    const lone = path.join(dir, 'merge-guard.js');
-    fs.copyFileSync(hookPath, lone); // no sibling shell-words.js: the require throws
+    // The copy sits in <dir>/hooks, so its `../lib/shell-words.js` is <dir>/lib/shell-words.js.
+    fs.mkdirSync(path.join(dir, 'hooks'));
+    fs.mkdirSync(path.join(dir, 'lib'));
+    const lone = path.join(dir, 'hooks', 'merge-guard.js');
+    fs.copyFileSync(hookPath, lone); // no ../lib/shell-words.js: the require throws
     const { decide: loneDecide } = require(lone);
     const v = loneDecide(sub('echo hi'));
     assert.equal(v.block, true, 'an unloadable scanner denies the call');
     assert.match(v.reason, brokenInstall, 'and names the broken install');
     assert.equal(loneDecide(ctl('echo hi')).block, false, 'the controller is never denied');
+    // A stub scanner that marks its load and throws: the hook loaded the stub, then denied.
+    const marker = path.join(dir, 'stub-loaded');
+    fs.writeFileSync(path.join(dir, 'lib', 'shell-words.js'), `require('fs').writeFileSync(${JSON.stringify(marker)}, 'x'); throw new Error('boom');`);
+    const stubbed = path.join(dir, 'hooks', 'merge-guard-stubbed.js');
+    fs.copyFileSync(hookPath, stubbed);
+    const { decide: stubDecide } = require(stubbed);
+    assert.equal(fs.existsSync(marker), true, 'the stub scanner at ../lib/shell-words.js loaded');
+    const sv = stubDecide(sub('echo hi'));
+    assert.equal(sv.block, true, 'a scanner that throws on load denies the call');
+    assert.match(sv.reason, brokenInstall, 'and names the broken install');
+    assert.ok(sv.reason.includes('shared shell scanner (lib/shell-words.js) failed to load or to run, so it denies'), 'and reads as the whole sentence');
+    // A scanner whose core loads but whose reader module is missing denies too.
+    fs.writeFileSync(path.join(dir, 'lib', 'shell-words.js'), `require('fs').writeFileSync(${JSON.stringify(marker)}, 'y');\n` + fs.readFileSync(path.join(__dirname, '..', 'plugin', 'lib', 'shell-words.js'), 'utf8'));
+    fs.rmSync(marker, { force: true });
+    const partial = path.join(dir, 'hooks', 'merge-guard-partial.js');
+    fs.copyFileSync(hookPath, partial);
+    const { decide: partialDecide } = require(partial);
+    assert.equal(fs.existsSync(marker), true, 'the core scanner at ../lib/shell-words.js loaded, without its readers');
+    const pv = partialDecide(sub('echo hi'));
+    assert.equal(pv.block, true, 'a scanner missing its reader module denies the call');
+    assert.match(pv.reason, brokenInstall, 'and names the broken install');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
-  const words = require('../plugin/hooks/shell-words.js');
+  const words = require('../plugin/lib/shell-words.js');
   const realScan = words.scan;
   words.scan = () => { throw new Error('boom'); };
   try {

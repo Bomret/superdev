@@ -54,11 +54,10 @@
 // sandbox; airtight subagent isolation is the platform's job (see AGENTS.md known issues).
 
 let shellWords = null;
-let loadError = null;
 try {
-  shellWords = require('./shell-words.js');
-} catch (e) {
-  loadError = e;
+  shellWords = require('../lib/shell-words.js');
+} catch {
+  // left null: decide() denies every subagent Bash call
 }
 
 // The git subcommands that integrate: `pull` merges or rebases. `subtree push` and an inline alias are read in gitIntegrates().
@@ -140,7 +139,7 @@ const INTEGRATE =
   'it starting with such a command, standing ' +
   "alone on the line into `cat > file`, `tee -a file > file`, `git commit -F -`, `gh pr|issue … --body-file -`, or `tea … --description-file -`. (merge-guard)";
 const BROKEN =
-  'superdev: merge-guard could not read this command because the shared shell scanner (hooks/shell-words.js) ' +
+  'superdev: merge-guard could not read this command because the shared shell scanner (lib/shell-words.js) ' +
   'failed to load or to run, so it denies every subagent Bash call. The superdev install is broken: ' +
   'reinstall or update the plugin. (merge-guard)';
 

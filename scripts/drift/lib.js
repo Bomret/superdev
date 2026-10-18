@@ -1,7 +1,7 @@
 'use strict';
 
 // drift-check shared helpers: markdown handling, document reading, and the one table-driven
-// scanner every contract table runs through. No check lives here — `scanners.js` holds the
+// scanner every contract table runs through. No check lives here — `scanners/` holds the
 // bespoke ones and `checks.js` orders them all.
 
 const fs = require('node:fs');

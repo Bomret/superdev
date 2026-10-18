@@ -12,6 +12,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { assertSpawnDecided } = require('./spawn-verdict');
+const { verif } = require('./scope-setup');
 
 const scopePath = require.resolve('../plugin/scripts/scope.js');
 const { appendTrace } = require(scopePath);
@@ -33,9 +34,6 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
       assert.equal(r.status, 0, 'git ' + argv.join(' ') + ': ' + r.stderr);
       return r.stdout.trim();
     };
-    // `verification.md` text: the first fence is the full command, the second the focused one.
-    const verif = (full, focused, extra = '') =>
-      `# V\n\n\`\`\`sh\n${full}\n\`\`\`\n` + (focused ? `\n\`\`\`sh\n${focused}\n\`\`\`\n` : '') + extra;
     // A test script's first line records what the worktree holds when the command runs.
     const probe = 'ls -1 | tr "\\n" "|" >> "$F2P_LOG"; echo >> "$F2P_LOG"\n';
     let n = 0;

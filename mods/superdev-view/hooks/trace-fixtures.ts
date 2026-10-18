@@ -1,4 +1,4 @@
-// The trace lines plugin/hooks/run-trace.js writes through scope.js's appendTrace for four dispatches of
+// The trace lines plugin/hooks/run-trace.js writes through lib/trace-log.js's appendTrace for four dispatches of
 // session s1, with the ledger lines scope.js writes around them: the run's `init`, `step set plan`, `step clear`, `stage set implementing`,
 // and `step set implement` first, slices 04 and 05 `in-progress` before tu1, slice 04 `merged` and slice 05 `blocked` after tu1, a `step set review` line before tu2, and
 // a `step block review` line last, each without its leading timestamp (a `dispatch` line ends with the session id, a `dispatch-end`
@@ -6,7 +6,7 @@
 // by its SubagentStop, then resumed through a SendMessage (a `dispatch-resume` line: tool_use_id, agent id, session id, the SendMessage call's tool_use_id) and ended
 // again by the resumed run's own SubagentStop; tu2 a foreground scope-level final-reviewer, bound to agent ag2 when it completes, whose report records its `final-verdict` line before its end; tu3 a dispatch on
 // slice 05 still running; tu4 a background slice-reviewer on slice 04, bound to ag4, whose hand-back
-// records its verdict on tu1 before its SubagentStop ends it. tests/run-trace.test.js parses the JSON between the two markers and asserts the
+// records its verdict on tu1 before its SubagentStop ends it. tests/run-trace-dispatch.test.js parses the JSON between the two markers and asserts the
 // hook writes exactly these lines; parse.test.ts asserts `eventLog` reads them. A layout change on
 // either side fails one suite, so edit this list, not either test.
 export const TRACE_LINES: string[] = /* trace:start */ [

@@ -353,7 +353,7 @@ const wrap = (c) => {
 
 // Every wrapper run-trace reads a test run behind is skipped here too: an editor behind it is refused.
 {
-  const traceSrc = fs.readFileSync(path.join(path.dirname(hookPath), 'run-trace.js'), 'utf8');
+  const traceSrc = fs.readFileSync(path.join(path.dirname(hookPath), '..', 'lib', 'bash-command.js'), 'utf8');
   const traceNames = /^const WRAPPERS = \/\^\(\?:([^)]*)\)\$\/;$/m.exec(traceSrc)[1].split('|').concat('timeout');
   assert.ok(traceNames.length >= 7, 'run-trace\'s list is read: ' + traceNames);
   for (const name of traceNames) {
@@ -633,27 +633,93 @@ assert.equal(bash('grep sed ' + L + ' -i').block, true, 'a flag after the file b
 // INV-0140: with the shared scanner unloadable, or throwing, a Bash call is denied and an Edit or Write call still decides alone.
 {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ledger-guard-'));
-  const copy = path.join(dir, 'ledger-guard.js');
+  // The copy sits in <dir>/hooks, so its `../lib/shell-words.js` is <dir>/lib/shell-words.js.
+  fs.mkdirSync(path.join(dir, 'hooks'));
+  fs.mkdirSync(path.join(dir, 'lib'));
+  const copy = path.join(dir, 'hooks', 'ledger-guard.js');
   fs.copyFileSync(hookPath, copy);
-  const probe = (label, stub) => {
-    const scanner = path.join(dir, 'shell-words.js');
+  // The write-target reader is the real module, which requires the stubbed scanner beside it.
+  fs.copyFileSync(path.join(__dirname, '..', 'plugin', 'lib', 'ledger-writes.js'), path.join(dir, 'lib', 'ledger-writes.js'));
+  const marker = path.join(dir, 'stub-loaded');
+  const realCore = fs.readFileSync(path.join(__dirname, '..', 'plugin', 'lib', 'shell-words.js'), 'utf8');
+  const probe = (label, stub, reason) => {
+    const scanner = path.join(dir, 'lib', 'shell-words.js');
     fs.rmSync(scanner, { force: true });
-    if (stub !== null) fs.writeFileSync(scanner, stub);
+    fs.rmSync(marker, { force: true });
+    // Each stub marks its load first, so the denial below follows from the stub and not from a missing file.
+    if (stub !== null) fs.writeFileSync(scanner, `require('fs').writeFileSync(${JSON.stringify(marker)}, 'x');\n${stub}`);
     const run = (tool_input) => {
       const r = cp.spawnSync(process.execPath, [copy], { input: JSON.stringify({ tool_input }), encoding: 'utf8', timeout: 10000 });
       assertSpawnDecided(r, 'ledger-guard.js with ' + label);
       return r;
     };
     const denied = run({ command: 'echo hi' });
+    assert.equal(fs.existsSync(marker), stub !== null, 'the stub at ../lib/shell-words.js loaded with ' + label);
     assert.equal(denied.status, 2, 'a Bash call is denied with ' + label);
     assert.match(denied.stderr, /broken/, 'the denial names the broken install with ' + label);
+    for (const part of [].concat(reason || [])) assert.ok(denied.stderr.includes(part), 'the denial reads as the whole sentence with ' + label + ': ' + denied.stderr);
     assert.equal(run({ file_path: 'src/index.js' }).status, 0, 'an Edit of a non-ledger path is allowed with ' + label);
     assert.equal(run({ file_path: L }).status, 2, 'an Edit of a ledger is still denied with ' + label);
   };
-  probe('no shell-words.js', null);
-  probe('a shell-words.js that throws on load', "throw new Error('boom');");
-  probe('a scan that throws', "exports.scan = () => { throw new Error('boom'); };");
+  probe('no lib/shell-words.js', null);
+  probe('a shell-words.js that throws on load', "throw new Error('boom');", 'scanner (lib/shell-words.js) failed to load (boom). The');
+  probe('a scan that throws', "exports.scan = () => { throw new Error('boom'); };", 'scanner (lib/shell-words.js) failed while reading it (boom). The');
+  // A loaded scanner without the helpers the reader calls (dashReading here) throws inside writesLedger: still the scanner text.
+  probe('a scanner without dashReading', 'exports.scan = () => [];',
+    ['scanner (lib/shell-words.js) failed while reading it (', '). The superdev install is broken: reinstall the plugin. (ledger-guard)']);
+  // The core loads but its reader module is absent: the core's own require throws.
+  probe('a core without lib/shell-word-readers.js', realCore);
   fs.rmSync(dir, { recursive: true, force: true });
+}
+
+// INV-0068: requiring lib/ledger-writes.js prints nothing and runs nothing.
+{
+  const modPath = require.resolve('../plugin/lib/ledger-writes.js');
+  const r = cp.spawnSync(process.execPath, ['-e', `require(${JSON.stringify(modPath)})`], { encoding: 'utf8', timeout: 5000 });
+  assertSpawnDecided(r, 'requiring ledger-writes.js');
+  assert.equal(r.status, 0, 'requiring ledger-writes.js exits 0');
+  assert.equal(r.stdout + r.stderr, '', 'requiring ledger-writes.js prints nothing');
+}
+
+// INV-0140, INV-0159: the write-target reader is its own module, lib/ledger-writes.js. With it unloadable, partially loaded (no
+// writesLedger), or throwing, a Bash call is denied and an Edit or Write call still decides alone. The real scanner sits beside the
+// stub, so the denial follows from the reader module alone, and a control run with the real module shows the copy decides.
+{
+  const lib = path.join(__dirname, '..', 'plugin', 'lib');
+  const probeModule = (label, stub, reason) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ledger-guard-writes-'));
+    fs.mkdirSync(path.join(dir, 'hooks'));
+    fs.mkdirSync(path.join(dir, 'lib'));
+    const copy = path.join(dir, 'hooks', 'ledger-guard.js');
+    fs.copyFileSync(hookPath, copy);
+    for (const f of ['shell-words.js', 'shell-word-readers.js']) fs.copyFileSync(path.join(lib, f), path.join(dir, 'lib', f));
+    const marker = path.join(dir, 'stub-loaded');
+    const run = (tool_input) => {
+      const r = cp.spawnSync(process.execPath, [copy], { input: JSON.stringify({ tool_input }), encoding: 'utf8', timeout: 10000 });
+      assertSpawnDecided(r, 'ledger-guard.js with ' + label);
+      return r;
+    };
+    if (stub === null) fs.copyFileSync(path.join(lib, 'ledger-writes.js'), path.join(dir, 'lib', 'ledger-writes.js'));
+    else if (stub !== undefined) fs.writeFileSync(path.join(dir, 'lib', 'ledger-writes.js'), `require('fs').writeFileSync(${JSON.stringify(marker)}, 'x');\n${stub}`);
+    if (stub === null) {
+      assert.equal(run({ command: 'echo hi' }).status, 0, 'control: the real module lets a harmless Bash call pass');
+      assert.equal(run({ command: 'echo x > ' + L }).status, 2, 'control: the real module denies a ledger write');
+    } else {
+      const denied = run({ command: 'echo hi' });
+      assert.equal(fs.existsSync(marker), stub !== undefined, 'the stub at ../lib/ledger-writes.js loaded with ' + label);
+      assert.equal(denied.status, 2, 'a Bash call is denied with ' + label);
+      assert.match(denied.stderr, /broken/, 'the denial names the broken install with ' + label);
+      assert.ok(denied.stderr.includes(reason), 'the denial names the reader module with ' + label + ': ' + denied.stderr);
+    }
+    assert.equal(run({ file_path: 'src/index.js' }).status, 0, 'an Edit of a non-ledger path is allowed with ' + label);
+    assert.equal(run({ file_path: L }).status, 2, 'an Edit of a ledger is still denied with ' + label);
+    fs.rmSync(dir, { recursive: true, force: true });
+  };
+  probeModule('the real lib/ledger-writes.js', null);
+  probeModule('no lib/ledger-writes.js', undefined, 'write-target reader (lib/ledger-writes.js) failed to load');
+  probeModule('a ledger-writes.js that throws on load', "throw new Error('boom');", 'write-target reader (lib/ledger-writes.js) failed to load (boom)');
+  probeModule('a ledger-writes.js without writesLedger', 'exports.other = () => true;', 'write-target reader (lib/ledger-writes.js) failed to load');
+  probeModule('a writesLedger that throws', "exports.writesLedger = () => { throw new Error('boom'); };", 'scanner (lib/shell-words.js) failed while reading it (boom)');
 }
 
 // Linear time (ADR 0086): a command four times as long takes about four times as long when linear and sixteen times when quadratic,

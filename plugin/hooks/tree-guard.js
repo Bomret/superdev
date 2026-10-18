@@ -7,17 +7,17 @@
 //
 // The guard fails open, the opposite of the Bash guardrails (INV-0140): a call it cannot judge passes. That covers unreadable hook
 // input, a git call that fails or exceeds its bound, an unreadable run directory, a main working tree it cannot determine, and a
-// `scope.js` that will not load. A misdirected write into a checkout shows in `git status` and reverts easily. A write into a git
+// `lib/main-work-tree.js` that will not load. A misdirected write into a checkout shows in `git status` and reverts easily. A write into a git
 // directory never shows there, which is why the guard refuses one whenever it can judge the call. A transient git failure must
 // not stop every implementer write in a run (ADR 0148, INV-0009).
 
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-// scope.js owns the main-working-tree resolver (ADR 0080). No resolver, no verdict: every call passes.
+// `lib/main-work-tree.js` owns the main-working-tree resolver (ADR 0080). No resolver, no verdict: every call passes.
 let mainWorkTree = null;
 try {
-  ({ mainWorkTree } = require('../scripts/scope.js'));
+  ({ mainWorkTree } = require('../lib/main-work-tree.js'));
 } catch {
   /* fail open */
 }

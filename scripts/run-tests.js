@@ -41,7 +41,7 @@ function discoverSuites(dir) {
 }
 
 // Directories whose `<name>.js` a suite `<name>.test.js` pins.
-const SHIPPED_DIRS = ['plugin/hooks', 'plugin/scripts', 'scripts'];
+const SHIPPED_DIRS = ['plugin/hooks', 'plugin/scripts', 'plugin/lib', 'scripts'];
 
 // The shipped file a suite stem pins: `<stem>.js`, or for a suite split off another (`scope-test-verb`), the file of its
 // longest `-`-delimited prefix (`scope.js`). An exact pin wins.
@@ -70,6 +70,25 @@ function requiredBy(root, rel) {
     found.add(base).add(`${base}.js`).add(`${base}/index.js`);
   }
   return found;
+}
+
+// Every file `rel` reaches through relative `require` edges, as candidate paths (see `requiredBy`). The walk
+// continues through a module (a file under `plugin/lib/`) or a shared suite setup file (a non-suite file under
+// `tests/`), and stops at any other file, a hook or script having a suite of its own. A visited set ends a
+// cycle; a candidate that is no readable file has no edges, so a missing target adds only itself.
+const isModule = (rel) => rel.startsWith('plugin/lib/') || (rel.startsWith('tests/') && !rel.endsWith('.test.js'));
+function reachedBy(root, rel) {
+  const seen = new Set();
+  const todo = [rel];
+  while (todo.length) {
+    for (const next of requiredBy(root, todo.pop())) {
+      if (!seen.has(next)) {
+        seen.add(next);
+        if (isModule(next)) todo.push(next);
+      }
+    }
+  }
+  return seen;
 }
 
 // The directories a suite's text names, as { segs, anchored }: a path string that is a directory of the
@@ -140,18 +159,23 @@ function under({ segs, anchored }, rel) {
 
 // The suites a change set reaches, as a subset of `suites`, in suite order. A suite is reached when
 // its own text names a changed file (its basename, or its bare stem between path or quote
-// delimiters), when its name pins the changed file or a shipped file that directly requires it
-// (`pinnedBy`), or when the changed path is the suite itself. A `.md` path also reaches a suite whose text names a directory
+// delimiters), when the file its name pins (`pinnedBy`) is the changed file, when the changed file is reached by
+// relative `require` edges, walked transitively through modules (`plugin/lib/` files and non-suite files under
+// `tests/`), from that pinned file or from the suite file itself, or when the changed path is the suite itself. A `.md` path also reaches a suite whose text names a directory
 // holding it (`namedDirs`), because a suite may list or scan a directory; a code path never takes the
 // directory rule, so one no rule places keeps making every suite run. A `.md` path no suite names, like a
 // `scripts/drift/` path (the drift selftest sits in the tail), reaches no suite. Paths are matched by
 // name, so a deleted path maps like any other.
-// shortcut: `require` is read by regex and one level deep; a dynamic or transitive require reaches
-// no suite and, for an otherwise unplaced path, falls back to every suite.
+// shortcut: `require` is read by regex, transitively from the file a suite pins and from the suite itself, wherever the
+// call sits; a dynamic require reaches no suite and, for an otherwise unplaced path, falls back to every suite.
 function selectSuites(root, suites, paths) {
   const texts = suites.map((file) => fs.readFileSync(file, 'utf8'));
   const pinned = suites.map((file) => pinnedBy(root, path.basename(file, '.test.js')));
-  const requires = pinned.map((shipped) => (shipped ? requiredBy(root, shipped) : new Set()));
+  const requires = suites.map((file, i) => {
+    const reached = reachedBy(root, path.relative(root, file).split(path.sep).join('/'));
+    if (pinned[i]) for (const r of reachedBy(root, pinned[i])) reached.add(r);
+    return reached;
+  });
   const dirs = texts.map((text) => namedDirs(root, text));
   const chosen = new Set();
   for (const raw of paths) {

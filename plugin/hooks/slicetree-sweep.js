@@ -12,7 +12,7 @@
 // (a) is asked per scope run, not of the invoking checkout's current branch: a full run leaves the
 // invoking checkout on the base branch throughout, so `git branch --merged` with no argument would
 // never see a slicetree as merged at all. Each scope's branch is read from that scope's own
-// ledger (the `**Branch:**` line, via `scripts/scope.js`'s shared `readLedgerHeader`, ADR 0022), so two
+// ledger (the `**Branch:**` line, via `lib/ledger.js`'s shared `readLedgerHeader`, ADR 0022), so two
 // scope runs present at once are judged independently, and a scope whose ledger is unreadable or names
 // no branch sweeps nothing for itself while every other scope sweeps normally.
 // (b) is the critical guard: a freshly-created slice branch with zero commits is
@@ -31,14 +31,24 @@
 // Best-effort and silent: any git error, a dirty slicetree, an unreadable ledger, or no .superdev/ →
 // no-op for the affected scope (or the whole sweep, where the failure isn't scope-specific).
 
-const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 
-// argv-based (no shell) — a repo-derived value (branch name, slicetree path) containing a
-// quote/backtick/$() can't break out and inject.
-function git(args, cwd) {
-  return execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' }).trim();
+// `lib/git-spawn.js` owns the git calls: `gitThrow` is argv-based (no shell), so a repo-derived value (branch
+// name, slicetree path) containing a quote/backtick/$() can't break out and inject, and `parseBranchList` reads
+// the `git branch` listing. No fallback: a hook that cannot run git sweeps nothing, so a failed load, or a module
+// missing either name, leaves both null and main() sweeps nothing, silently. The names are taken only once the
+// module carries both, so a partial module reads as an unloaded one. `git` is the name this hook and its suite
+// call `gitThrow` by.
+let git = null;
+let parseBranchList = null;
+try {
+  const gitModule = require('../lib/git-spawn.js');
+  if (typeof gitModule.gitThrow === 'function' && typeof gitModule.parseBranchList === 'function') {
+    ({ gitThrow: git, parseBranchList } = gitModule);
+  }
+} catch {
+  // Left null. main() checks these before doing anything below.
 }
 
 // The repo's default branch name (main/master), used as the "base" that worked slices
@@ -88,13 +98,13 @@ function selectRemovable(porcelain, mergedSet, workedSet, scopeRoot) {
   return out;
 }
 
-// `scripts/scope.js` owns the ledger's schema, so it owns how a header value is read (ADR 0022).
+// `lib/ledger.js` owns the ledger's schema, so it owns how a header value is read (ADR 0022).
 // `hooks/scope-prune.js` already requires this export for the same reason. No fallback: a hook that
 // cannot read a scope's branch must never guess it, so a require failure below leaves this null and
 // main() sweeps nothing for any scope, silently — the same fail-closed direction a git error takes.
 let readLedgerHeader = null;
 try {
-  ({ readLedgerHeader } = require('../scripts/scope.js'));
+  ({ readLedgerHeader } = require('../lib/ledger.js'));
 } catch {
   // Left null. main() checks this before doing anything below.
 }
@@ -110,7 +120,7 @@ function scopeBranch(scopeDir) {
 }
 
 function main(cwd) {
-  if (!readLedgerHeader) return; // shared reader unavailable → sweep nothing, say nothing
+  if (!readLedgerHeader || !git || !parseBranchList) return; // shared reader or git module unavailable → sweep nothing, say nothing
   const superdevRoot = path.join(cwd, '.superdev');
   if (!fs.existsSync(superdevRoot)) return; // not a superdev run in this repo
   const def = defaultBranch(cwd);
@@ -154,12 +164,7 @@ function main(cwd) {
 
     let merged, mainline;
     try {
-      merged = new Set(
-        git(['branch', '--merged', branch], cwd)
-          .split('\n')
-          .map((s) => s.replace(/^[*+ ]+/, '').trim())
-          .filter(Boolean)
-      );
+      merged = parseBranchList(git(['branch', '--merged', branch], cwd));
       // The scope branch's own first-parent chain, past the default branch: every commit a slice can be
       // cut from without doing any work of its own. Bounded by the run's own commits, not the repo's.
       mainline = new Set(git(['rev-list', '--first-parent', branch, '--not', def], cwd).split('\n').filter(Boolean));

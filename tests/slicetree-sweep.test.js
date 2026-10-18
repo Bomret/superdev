@@ -322,8 +322,137 @@ assert.deepEqual(
       fs.existsSync(wtOrphan),
       'a slice that would otherwise be swept survives when the shared reader is unavailable'
     );
+    // The same with a stub at the hook's own `../lib/ledger.js` that marks its load and throws.
+    const stubbed = path.join(away, 'stubbed');
+    fs.mkdirSync(path.join(stubbed, 'hooks'), { recursive: true });
+    fs.mkdirSync(path.join(stubbed, 'lib'));
+    fs.copyFileSync(hookPath, path.join(stubbed, 'hooks', 'slicetree-sweep.js'));
+    const stubMarker = path.join(stubbed, 'stub-loaded');
+    const gitSpawnMarker = path.join(stubbed, 'git-spawn-loaded');
+    fs.writeFileSync(
+      path.join(stubbed, 'lib', 'git-spawn.js'),
+      `require('fs').writeFileSync(${JSON.stringify(gitSpawnMarker)}, 'x'); module.exports = require(${JSON.stringify(require.resolve('../plugin/lib/git-spawn.js'))});`
+    );
+    fs.writeFileSync(path.join(stubbed, 'lib', 'ledger.js'), `require('fs').writeFileSync(${JSON.stringify(stubMarker)}, 'x'); throw new Error('gone');`);
+    const stubRun = cp.spawnSync(process.execPath, [path.join(stubbed, 'hooks', 'slicetree-sweep.js')], {
+      input: JSON.stringify({ cwd: repo }), encoding: 'utf8', timeout: 15000,
+    });
+    assertSpawnDecided(stubRun, 'spawning slicetree-sweep.js with a throwing ledger module');
+    assert.equal(stubRun.status, 0, 'a hook whose ledger module throws on load still exits 0');
+    assert.equal(stubRun.stdout, '', 'and prints nothing');
+    assert.ok(fs.existsSync(stubMarker), 'the stub at ../lib/ledger.js loaded');
+    assert.ok(fs.existsSync(gitSpawnMarker), 'the stub at ../lib/git-spawn.js beside it loaded');
+    assert.ok(fs.existsSync(wtOrphan), 'a slice that would otherwise be swept survives when the ledger module throws on load');
+    // A ledger module that loads but whose reader throws: nothing sweeps.
+    fs.rmSync(stubMarker);
+    fs.writeFileSync(path.join(stubbed, 'lib', 'ledger.js'), `require('fs').writeFileSync(${JSON.stringify(stubMarker)}, 'x'); module.exports = { readLedgerHeader() { throw new Error('boom'); } };`);
+    const throwRun = cp.spawnSync(process.execPath, [path.join(stubbed, 'hooks', 'slicetree-sweep.js')], {
+      input: JSON.stringify({ cwd: repo }), encoding: 'utf8', timeout: 15000,
+    });
+    assertSpawnDecided(throwRun, 'spawning slicetree-sweep.js with a throwing ledger reader');
+    assert.equal(throwRun.status, 0, 'a hook whose ledger reader throws still exits 0');
+    assert.equal(throwRun.stdout, '', 'and prints nothing');
+    assert.ok(fs.existsSync(stubMarker), 'the ledger stub with a throwing reader loaded');
+    assert.ok(fs.existsSync(wtOrphan), 'a slice that would otherwise be swept survives when the ledger reader throws');
     fs.rmSync(away, { recursive: true, force: true });
     fs.rmSync(repo, { recursive: true, force: true });
+  }
+
+  // #git-spawn-posture: the hook takes `gitThrow` and `parseBranchList` from `../lib/git-spawn.js` (INV-0159).
+  // With the module unloadable, with one of the two missing, or with one of them throwing, the hook sweeps
+  // nothing, exits 0, and says nothing. Each case runs the fixture beside a pass-through control stub that does
+  // sweep it, and confirms its own stub loaded before it asserts. Each case copies the hook to its own path,
+  // because `require` caches by path.
+  {
+    const cp = require('node:child_process');
+    const realGitSpawn = JSON.stringify(require.resolve('../plugin/lib/git-spawn.js'));
+
+    // Runs the hook copied beside stubs, `gitSpawnBody` standing in for `../lib/git-spawn.js` (null: absent).
+    // `twoScopes` adds a second scope `other` with its own folded slice, so a per-scope failure shows whether
+    // the hook skips that scope or abandons the run.
+    function run(caseName, gitSpawnBody, twoScopes = false) {
+      const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ws-posture-')));
+      fs.mkdirSync(path.join(dir, 'hooks'));
+      fs.mkdirSync(path.join(dir, 'lib'));
+      fs.copyFileSync(hookPath, path.join(dir, 'hooks', 'slicetree-sweep.js'));
+      fs.writeFileSync(
+        path.join(dir, 'lib', 'ledger.js'),
+        `module.exports = require(${JSON.stringify(require.resolve('../plugin/lib/ledger.js'))});\n`
+      );
+      const loaded = path.join(dir, 'loaded');
+      const called = path.join(dir, 'called');
+      if (gitSpawnBody !== null) {
+        fs.writeFileSync(
+          path.join(dir, 'lib', 'git-spawn.js'),
+          `const fs = require('fs');\nfs.writeFileSync(${JSON.stringify(loaded)}, 'x');\nconst CALLED = ${JSON.stringify(called)};\nconst real = require(${realGitSpawn});\n${gitSpawnBody}\n`
+        );
+      }
+      const repo = makeRepo();
+      git(['branch', 'scope/posture'], repo);
+      makeScope(repo, 'posture', '**Branch:** scope/posture\n');
+      const wt = path.join(repo, '.superdev/scopes/posture/slicetrees/1');
+      git(['worktree', 'add', '-q', '-b', 'slice/posture/1', wt], repo);
+      fs.writeFileSync(path.join(wt, 'w.txt'), 'y\n');
+      git(['add', '.'], wt);
+      git(['commit', '-q', '-m', 'work'], wt);
+      fold(repo, 'scope/posture', 'slice/posture/1');
+      const wtOther = path.join(repo, '.superdev/scopes/other/slicetrees/1');
+      if (twoScopes) {
+        git(['branch', 'scope/other'], repo);
+        makeScope(repo, 'other', '**Branch:** scope/other\n');
+        git(['worktree', 'add', '-q', '-b', 'slice/other/1', wtOther], repo);
+        fs.writeFileSync(path.join(wtOther, 'w.txt'), 'y\n');
+        git(['add', '.'], wtOther);
+        git(['commit', '-q', '-m', 'work'], wtOther);
+        fold(repo, 'scope/other', 'slice/other/1');
+      }
+      const ran = cp.spawnSync(process.execPath, [path.join(dir, 'hooks', 'slicetree-sweep.js')], {
+        input: JSON.stringify({ cwd: repo }), encoding: 'utf8', timeout: 15000,
+      });
+      assertSpawnDecided(ran, `spawning slicetree-sweep.js (${caseName})`);
+      assert.equal(ran.status, 0, `the hook exits 0 (${caseName})`);
+      assert.equal(ran.stdout, '', `and prints nothing (${caseName})`);
+      const result = { loaded: fs.existsSync(loaded), called: fs.existsSync(called), stands: fs.existsSync(wt), otherStands: fs.existsSync(wtOther) };
+      fs.rmSync(repo, { recursive: true, force: true });
+      fs.rmSync(dir, { recursive: true, force: true });
+      return result;
+    }
+
+    const control = run('control', 'module.exports = real;');
+    assert.equal(control.loaded, true, 'the control stub at ../lib/git-spawn.js loaded');
+    assert.equal(control.stands, false, 'the control sweeps the fixture slice, so a surviving slice below is the posture');
+
+    // A parseBranchList that throws for the first scope read only: that scope is skipped, the other still sweeps.
+    const oneScope = run(
+      'parseBranchList throws once of two scopes',
+      "let n = 0;\nmodule.exports = { ...real, parseBranchList(...a) { if (n++ === 0) { fs.writeFileSync(CALLED, 'x'); throw new Error('boom'); } return real.parseBranchList(...a); } };",
+      true
+    );
+    assert.equal(oneScope.loaded, true, 'the stub whose parseBranchList throws once loaded');
+    assert.equal(oneScope.called, true, 'the throwing parseBranchList was called');
+    assert.equal(oneScope.stands !== oneScope.otherStands, true, 'exactly one scope is skipped and the other is swept');
+
+    const absent = run('git-spawn absent', null);
+    assert.equal(absent.loaded, false, 'no stub sits at ../lib/git-spawn.js when the module is absent');
+    assert.equal(absent.stands, true, 'a hook that cannot load git-spawn sweeps nothing');
+
+    const unloadable = run('git-spawn throws on load', "throw new Error('gone');");
+    assert.equal(unloadable.loaded, true, 'the stub at ../lib/git-spawn.js loaded before it threw');
+    assert.equal(unloadable.stands, true, 'a hook whose git-spawn throws on load sweeps nothing');
+
+    for (const fn of ['gitThrow', 'parseBranchList']) {
+      const missing = run(`${fn} missing`, `const m = { ...real };\ndelete m.${fn};\nmodule.exports = m;`);
+      assert.equal(missing.loaded, true, `the stub missing ${fn} loaded`);
+      assert.equal(missing.stands, true, `a hook whose git-spawn carries no ${fn} sweeps nothing`);
+
+      const throwing = run(
+        `${fn} throws`,
+        `module.exports = { ...real, ${fn}() { fs.writeFileSync(CALLED, 'x'); throw new Error('boom'); } };`
+      );
+      assert.equal(throwing.loaded, true, `the stub whose ${fn} throws loaded`);
+      assert.equal(throwing.called, true, `the throwing ${fn} was called`);
+      assert.equal(throwing.stands, true, `a hook whose ${fn} throws sweeps nothing`);
+    }
   }
 
   // #require-guard: requiring this file (a suite reaching its internal functions) must never

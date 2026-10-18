@@ -5,8 +5,8 @@
 Standalone deterministic code that `package.json` runs, alongside `plugin/hooks/`.
 The shipped CLIs live in `plugin/scripts/`: `scope.js` (the run-state CLI, ADR 0022), `kb-patch.js`
 (the knowledge-base section merge, ADR 0027), `publish-kb.js` (the backend-independent half of publishing a scope's staged
-knowledge-base pages, ADR 0069), `profile.js` (the run profile, ADR 0103), and `md-to-storage.js` (the markdown to Confluence `storage` conversion
-`publish-kb.js` requires, ADR 0109). The maintainer-only ones live here in `scripts/`: `drift-check.js`
+knowledge-base pages, ADR 0069), `profile.js` (the run profile, ADR 0103), and `plugin/lib/md-to-storage.js` (the markdown to Confluence `storage` conversion
+`lib/kb-apply.js` requires, ADR 0109). Every other module behind them lives in `plugin/lib/` (ADR 0151). The maintainer-only ones live here in `scripts/`: `drift-check.js`
 (the checks of mechanical facts and forbidden forms, ADR 0153), `invariant-check.js` (the invariant register validator,
 ADR 0093), and `run-tests.js` (the suite runner behind `bun run test`). This doc owns them all regardless of which dir each lives in.
 
@@ -19,7 +19,15 @@ This doc owns what each script guards and the contracts between them. Repo-wide 
 
 ### scope.js, the run-state CLI (ADR 0022)
 
-`scope.js` owns the ledger's schema and is the only `ledger.md` read and write path in the chain:
+`scope.js` owns the CLI and the verbs, and requires only modules from `plugin/lib/` (ADR 0151). Each verb's code lives in
+a module of its own: the ledger verbs in `ledger-lifecycle.js` and `ledger-records.js`, `suite` and `base` and `get` in
+`suite-base-get.js`, `test` in `test-verb.js`, `publish` with `adopt` in `run-state.js`, and `dod-line`, `fail-to-pass`,
+`citations`, `collisions`, and `status` each in the module of its name. The vocabulary beneath them is `ledger.js` (the stage rank and the readers and writers of
+a ledger's header lines, bullets, and table rows), `refusal.js` (the refusal error `fail`), `verification.js` (`verificationCommands`,
+`verificationCommandsOf`, `isTestPath`), `git-spawn.js` (`gitSpawn`, `gitThrow`, `parseBranchList`, `resolveCommit`, `refResolves`, `fileAt`),
+`containment.js` (`testContainment`, `baseHistoryHasPatch`), `main-work-tree.js` (`mainWorkTree`, `scopesDirFor`, `mainTreePath`), and
+`trace-log.js` (`appendTrace`, `readTrace`, `traceField`, `untraceField`). The root [`AGENTS.md`](../AGENTS.md) *Structure* names every module and its
+responsibility. `scope.js` keeps every export it had. No module requires an entry point. `scope.js` owns the ledger's schema through `ledger.js` and is the only `ledger.md` read and write path in the chain:
 `init`, `stage set`, `slice`, `degraded add|add-denial|reset-denials`, `unresolved add|clear`,
 `deferred add|resolve`,
 `docs set <value>|clear`, `pr set <n>|clear`,
@@ -42,7 +50,7 @@ the scope branch (ADR 0110), so a commit since the record counts. The one except
 range (ADR 0128): the recorded commit is an ancestor of the tip, every path changed since ends in `.md`
 and is no test path and not `docs/agents/verification.md`, and the run trace shows the latest test run at
 the tip passed on a clean tree with no failed full or whole run there. The test paths come from the tip
-commit's `verification.md`, through `isTestPath`, the classifier `hooks/run-trace.js` also calls. A
+commit's `verification.md`, through `isTestPath` of `lib/verification.js`, the classifier the run trace's `lib/run-tree.js` wraps. A
 refusal on a moved tip names the condition that failed after `predates tip`.
 `base set` writes the `**Base:**` header, the remote base tip the base step merged into the scope branch,
 as a full commit, refusing a sha that does not resolve. `base resolve` prints the scope's range base: the
@@ -67,21 +75,26 @@ these subcommands' own arguments keeps joining its
 positional words with spaces as it always has.
 Every verb that writes the ledger appends one `ledger` line to the run trace after its write succeeds, through
 `appendTrace(runRoot, event)`, the single writer of `trace.log` (ADR 0117); no verb takes a caller-chosen event.
-It also exports `readLedgerHeader` as a module
-API. This per-header ledger-line reader is what `hooks/scope-prune.js` and `hooks/slicetree-sweep.js`
-both use instead of carrying their own regex. `hooks/scope-prune.js` takes a second export off the same
-`require`, `baseHistoryHasPatch` — the containment probe (ADR 0082) — and the two fall back
-differently: the reader missing stops that hook's sweep outright, while the probe missing narrows its
-containment test back to the tree comparison alone, silently. The API guards its CLI entry with
-`require.main === module`, so a `require` for that reader alone runs no CLI code. `profile.js` takes
-`mainWorkTree`, `SLUG_RE`, and `CHANGE_TYPES` off the same `require`, so the run profile resolves the
+`scope.js` still exports the names it exported before the modules moved out of it, among them
+`readLedgerHeader`, but no hook and no sibling script requires `scope.js`: each requires the module that
+holds what it uses. `readLedgerHeader`, the per-header ledger-line reader, lives in `plugin/lib/ledger.js`,
+and `hooks/scope-prune.js` and `hooks/slicetree-sweep.js` both require it there instead of carrying their own
+regex. `hooks/scope-prune.js` requires `baseHistoryHasPatch` — the containment probe (ADR 0082) — from
+`plugin/lib/containment.js` through a `require` of its own, and the two fall back
+differently: the reader missing stops that hook's sweep outright, while the probe missing, because its
+module cannot load or carries no probe, narrows its containment test back to the tree comparison alone,
+silently. A module requires no entry point, so a `require` of a module runs no CLI code, and `scope.js`
+guards its own CLI entry with `require.main === module`. `profile.js` takes
+`mainWorkTree` from `main-work-tree.js` and `SLUG_RE` and `CHANGE_TYPES` from `ledger.js`, so the run profile resolves the
 main working tree and reads a feature label by the same rules the ledger does. `hooks/run-trace.js` takes
-the trace writer `appendTrace`, the trace reader `readTrace`, the field decoder `untraceField`, the ledger
-row readers `inProgressSlices` and `sliceType`, the verification-command reader `verificationCommands`, the
-test-path classifier `isTestPath` (ADR 0128), the scope-slug pattern `SLUG_RE`, and `mainWorkTree` off the
-same `require` (ADR 0117). `hooks/tree-guard.js` takes `mainWorkTree` (ADR 0148). `publish-kb.js` takes the
-containment test `testContainment`, which refetches the base before it answers not contained (ADR 0053,
-ADR 0065). `base set` appends a `ledger`
+the trace writer `appendTrace`, the trace reader `readTrace`, and the field decoder `untraceField` from `trace-log.js`, the ledger
+row reader `sliceType` from `ledger.js`, the verification-command reader `verificationCommands` from `verification.js`,
+the tree locator `locate`, the test-path classifier `isTestPath` (ADR 0128), and `treeState` from `run-tree.js`,
+the run classifiers `testRuns` and `verificationKind` from `test-runs.js`, and the dispatch, verdict, write-target, and start-stash
+readers from `dispatch.js`, `verdicts.js`, `bash-writes.js`, and `start-stash.js`. Each `require` has its own guard, and a module that fails to load
+leaves the hook recording nothing (ADR 0117, INV-0159). `hooks/tree-guard.js` takes `mainWorkTree` from `main-work-tree.js` (ADR 0148). `publish-kb.js` reaches
+the containment test `testContainment` from `containment.js`, which refetches the base before it answers not contained (ADR 0053,
+ADR 0065), `refResolves` from `git-spawn.js`, and `readLedgerHeader`, `SLUG_RE`, `CHANGE_TYPES` from `ledger.js`, through its `lib/kb-*.js` modules. `base set` appends a `ledger`
 trace event like every other ledger-writing verb. Normalisation is per
 header: `Stage` and `Branch` are single tokens,
 cut to the first whitespace-delimited token and stripped of markup and trailing punctuation.
@@ -102,8 +115,8 @@ drops the line once none remain, and refuses text that matches no bullet, leavin
 `root <slug>` is a verb that touches no ledger (ADR 0080). It resolves and prints a run root's
 absolute path — `<main-worktree>/.superdev/scopes/<slug>`, where `<main-worktree>` is the parent of
 `git rev-parse --git-common-dir`, or the checkout that directory's `core.worktree` names inside a submodule
-(never the superproject's `.git/modules`) — so it takes no `--root` of its own. `mainWorkTree` is the one
-resolver; `publish-kb.js` and `hooks/run-trace.js` call it. The result is identical whichever
+(never the superproject's `.git/modules`) — so it takes no `--root` of its own. `mainWorkTree` in `plugin/lib/main-work-tree.js` is the one
+resolver; `lib/kb-staging.js`, `profile.js`, `lib/status.js`, `lib/fail-to-pass.js`, and `hooks/tree-guard.js` call it. The result is identical whichever
 checkout it runs from: the invoking checkout, a scopetree, or a slicetree of the same repository, which is
 what lets every prose caller resolve `<run-root>` the same way regardless of its own cwd. It refuses
 outside a git repository, and refuses a slug carrying a path separator or a leading `.`, since either
@@ -123,7 +136,7 @@ other live run whose scope branch resolves. The verb renames and rewrites nothin
 the base's ADR and one of the scope's read the same. The verb exits 0 when nothing collides and 1 when something does.
 It exits 2 when a ref resolves to no commit, a flag is missing, given twice, or lacks a value (or its value starts with `--`), or git fails.
 A caller never reads a failed check as no collision. The base step and `/superdev:ship` §4 call it before they merge the base. `findCollisions` is
-exported for `tests/scope.test.js` alone.
+exported for `tests/scope-citations-collisions.test.js` alone.
 
 `citations --range-base <ref> --branch <ref> <id>…` reads committed history and touches no ledger and no
 run root (ADR 0156, INV-0134). Each `<id>` is an old number as `collisions` prints it: a bare four-digit ADR
@@ -151,8 +164,8 @@ working tree.
 `run` line carrying the command's own exit status, an **Observed run** (CONTEXT.md, ADR 0127, INV-0117). The verb
 streams the command's output and exits with its status. `full`, `focused`, and `whole` run the command
 `docs/agents/verification.md` configures, as written; `focused` substitutes its shell-quoted paths for `{paths}`
-and, given none, runs the full command and records `full`. `--` runs a command that `hooks/run-trace.js`'s
-`testRuns` classifies as exactly one test run, and records the kind and files a direct run records. A word counts as a
+and, given none, runs the full command and records `full`. `--` runs a command that `testRuns` of `lib/test-runs.js`
+classifies as exactly one test run, and records the kind and files a direct run records. A word counts as a
 path argument of that classification only when its file part names an existing file or directory; a runner node id
 (`a.py::test_x`, `a.test.js:12`) counts by its file part, and a glob word keeps its reading. A quoted note that begins
 with a test path is therefore free text, and so is a test path that names no file. A status the
@@ -164,9 +177,9 @@ during the run records `dirty`, so it never backs `suite reusable`. A change no 
 signal, or a verb killed first, writes no line, and the command's run ends with the verb: a Node watcher process supervises it and ends it
 through `endRun` (a process-group kill, `taskkill /pid <pid> /t /f` on Windows), which covers `SIGKILL`. `test` ends the group with `SIGTERM`. A failed trace write prints a note on stderr and leaves the exit status unchanged.
 Outside every run tree the command runs and nothing is written. So does a command that `cd`s out of every run tree:
-`hooks/run-trace.js`'s `outsideTree` classifies the `cd` target against its repository top. The verb takes no option that sets an outcome,
-kind, slice, or tree state. It requires `hooks/run-trace.js` at call time for `locate`, `testRuns`, and
-`treeState`, and `scope.js` assigns its exports before `main()` runs so that hook's own require finds them.
+`outsideTree` of `lib/test-runs.js` classifies the `cd` target against its repository top. The verb takes no option that sets an outcome,
+kind, slice, or tree state. `lib/test-verb.js` requires `lib/run-tree.js` (`locate`, `treeState`) and `lib/test-runs.js` (`testRuns`) at call time, the locator and classifier it shares with the
+run-trace hook. When the classifier's own module cannot be found, it classifies no command as a test run, so `test --` refuses every command and a configured kind still runs.
 `hooks/run-trace.js` records no run for a Bash command that runs `scope.js test`, and still evaluates the Missing
 RED note after a foreground call.
 
@@ -205,10 +218,13 @@ nothing ran, and 128 plus the signal number when interrupted. An interrupt ends 
 watcher process covers a killed verb, so no worktree outlives the verb. A suite that outlasts the Bash tool's time limit runs the verb
 in the background (`references/test-selection.md`).
 
-`scope.js` has three suites, split by verb so a test-first step on one verb runs only that verb's cases (ADR 0139).
-`tests/scope-test-verb.test.js` holds the `test` verb's cases, and `tests/scope-fail-to-pass.test.js` holds the
-`fail-to-pass` verb's cases. `tests/scope.test.js` holds every other verb, the run trace, and the ledger-fixtures pin.
-A focused run for `scope.js`, or for a file it requires, selects all three (`run-tests.js`, below).
+`scope.js` has one suite per topic, so a test-first step on one verb runs only that verb's cases (ADR 0139, ADR 0151). `tests/scope-setup.js`
+holds the setup they share and is no suite. `tests/scope-test-verb.test.js` holds the `test` verb's cases and `tests/scope-fail-to-pass.test.js`
+the `fail-to-pass` verb's. The rest: `scope-ledger` (init, stage, step, slice, the bullet and header records, get, status, and the ledger-fixtures pin),
+`scope-ledger-header` (`readLedgerHeader`), `scope-suite` (the suite and base records), `scope-dod-line`, `scope-publish-adopt` (`publish`, `adopt`, and the
+`maskFencedLines` pin), `scope-trace` (the run trace and `appendTrace`), `scope-root-base` (`root`, `staging`, `base` from a linked worktree),
+`scope-containment`, `scope-citations-collisions`, and `scope-help`. A focused run for `scope.js`, or for a module it requires, selects
+every suite that reaches it (`run-tests.js`, below).
 
 `dod-line` is another verb that touches no ledger, and makes no store call of its own
 (`references/dod-ticks.md`, INV-0014, triage #664): `--match <criterion text>|--match-file <path>
@@ -240,7 +256,7 @@ tagged line still parses its tag as before. The same offer reaches a line that a
 (`- [x] Retries capped — 3 — met: e`), so a re-judge against the same untagged criterion still finds it —
 a line offering two readings still counts once toward the match limit below. Matching runs after both the line's own criterion text and
 `--match` collapse internal whitespace to one space and trim, so a criterion an editor reflowed onto two
-lines is still found, and after `kb-patch.js`'s own `maskFencedLines` blanks every fenced line, so a line
+lines is still found, and after `lib/md-sections.js`'s `maskFencedLines` blanks every fenced line, so a line
 shown inside a fenced illustrative example is never a candidate. Body mode further scopes matching to the
 body's own `## Definition of Done` section — the heading whose text starts "Definition of Done," up to
 the next heading of the same or a higher level — when one exists, so an identical checkbox elsewhere in
@@ -287,7 +303,7 @@ the known set, every table row's 7 columns), and writes `<run-root>/ledger.md`.
 The payload's boundary is marked, never inferred. `adopt` disregards every heading in the body — the
 markers alone bound the payload, so a bare or fenced `#`-led line inside it, an unrelated markdown table
 in a later section, or prose reusing `**Degraded:**`/`**Unresolved:**`/`**Deferred:**` elsewhere on the
-anchor plays no part in the extraction and triggers no refusal. `kb-patch.js`'s `merge()` still finds and
+anchor plays no part in the extraction and triggers no refusal. `lib/md-sections.js`'s `merge()` still finds and
 replaces the `## Run state` section by that heading, unchanged: the markers sit inside the section that
 heading bounds, so the section merge and the payload boundary answer different questions. Two fix cycles
 on the previous, heading-inferred boundary moved the failure between a stray heading silently truncating
@@ -295,7 +311,7 @@ the payload and a false refusal on ordinary anchor content reusing ledger vocabu
 is itself a well-formed ledger, so no heuristic over the payload's shape, or over what follows it,
 separated the two cases (ADR 0042).
 
-The marker scan itself `require`s `kb-patch.js`'s `maskFencedLines` — the same function
+The marker scan itself `require`s `lib/md-sections.js`'s `maskFencedLines` — the same function
 `extractSection()` uses — rather than growing a second copy (ADR 0022's second-reader lesson). An HTML
 comment renders invisibly, so a fence is the only way to *show* the marker syntax to a human at all
 (documentation, an issue comment quoting a snapshot), and a shown marker is neither mistaken for the real
@@ -316,13 +332,13 @@ non-`.md` file staged and ignored, and a `.md` file staged directly under `.supe
 outside any scope directory. Each is a page `/superdev:publish-kb` would otherwise silently miss.
 
 The stage machine's transition rules are enforced in its code, not in prose, and
-`hooks/ledger-guard.js` denies every other write path. `tests/scope.test.js` carries the retired
+`hooks/ledger-guard.js` denies every other write path. `tests/scope-ledger.test.js` carries the retired
 drift assertions along with scope.js's own behavior: the stage machine, the ledger schema and header
 lines, a pre-CLI ledger parsing unchanged, and the scope-slug charset staying equal across `scope.js`,
 `hooks/run-lock.js`, and `references/scope-mode.md`. A further pin — the same class of assertion as
 the `arg-token` pin of the Bash hooks' scanner require, adapted for a
-shared function instead of a shared module — asserts that `scope.js`'s own source still requires
-`maskFencedLines` from `kb-patch.js` and declares no private function of that name, so a reintroduced
+shared function instead of a shared module — asserts, in `tests/scope-publish-adopt.test.js`, that `lib/run-state.js` and `lib/dod-line.js` still require
+`maskFencedLines` from `md-sections.js` and declare no private function of that name, so a reintroduced
 private copy of the masking rule fails this instead of only being caught by chance, on whichever
 fixture happens to exercise the drift.
 
@@ -332,8 +348,8 @@ fixture happens to exercise the drift.
 knowledge-base page and a staged page carrying **one section**, prints the merged markdown on
 stdout, and writes nothing. `/superdev:publish-kb` holds the backend credential and calls it.
 `agents/doc-writer.md` stages the section and reaches no backend at all (ADR 0023). The merge lives
-here rather than in the command's prose so that a reader-facing page is not edited by a model
-reading it.
+in code rather than in the command's prose so that a reader-facing page is not edited by a model
+reading it. Its rules (`maskFencedLines`, `merge`, `headingKeyOf`) live in `plugin/lib/md-sections.js`, and `kb-patch.js` is their CLI.
 
 The staged section names itself by the **first ATX heading in its body**, spanning to the next
 heading of the same or higher level, so a sub-heading belongs to the section and a sibling ends it.
@@ -379,14 +395,14 @@ merges exactly as an LF one does, the way `scope.js` reads a CRLF ledger.
 Removing a single section is out of scope: `patch` replaces or appends, and `delete` still removes a
 whole page (ADR 0027, Consequences).
 
-`kb-patch.js` also exports `headingKeyOf`, the same key function the merge uses internally.
-`scripts/publish-kb.js` `require`s it, together with `maskFencedLines`. It detects two sibling staged
+`kb-patch.js` re-exports `maskFencedLines`, `merge`, and `headingKeyOf` from `md-sections.js`. `lib/kb-apply.js`
+requires both, and detects two sibling staged
 files naming the identical section heading before either one applies, rather than growing a second
 copy of the key logic.
 
 ### md-to-storage.js, the Confluence storage conversion (ADR 0109)
 
-`md-to-storage.js` exports `toStorage(markdown)`, and has no CLI and no dependency. It is line-based, not
+`plugin/lib/md-to-storage.js` exports `toStorage(markdown)`, and has no CLI and no dependency. It is line-based, not
 CommonMark. It covers ATX headings, paragraphs, hard breaks, nested lists, GFM tables, fenced code, block
 quotes, rules, links, autolinks, images, and inline formatting, where emphasis wraps a whole link. A link or image
 destination is `http:`, `https:`, `mailto:`, or scheme-less, and any other scheme renders the link text
@@ -399,8 +415,13 @@ tag-balance check on every output.
 
 `publish-kb.js` is the fourth shipped CLI. `skills/publish-kb/SKILL.md` invokes it and relays its
 report, and keeps no publishing mechanics of its own. It resolves the main checkout from any current
-directory, a scopetree or a submodule included, through `scope.js`'s `mainWorkTree`. It takes `SLUG_RE`,
-`CHANGE_TYPES`, and `refResolves` off the same `require`, and carries no copy of any of them.
+directory, a scopetree or a submodule included, through `mainWorkTree` from `plugin/lib/main-work-tree.js`
+(`lib/kb-staging.js`). `publish-kb.js` is the CLI: it reads the arguments, wires the `lib/kb-*.js` modules together, and prints the report.
+`kb-staging.js` holds the staging root and scope selection, `kb-backend-config.js` the backend classification and command templates,
+`kb-staged-page.js` the staged-page parse and the `created-by-publish` marker, `kb-backend.js` the template runner and the
+`upsert`, `delete`, and `patch` of one page, `kb-apply.js` the per-file application by title group, `kb-containment.js` the merge check,
+`kb-read.js` the `--read` entry, and `kb-report.js` the report. They take `SLUG_RE` and `CHANGE_TYPES` from `plugin/lib/ledger.js`,
+`refResolves` from `plugin/lib/git-spawn.js`, and `fail` from `plugin/lib/refusal.js`, and carry no copy of any of them.
 This is what makes `.superdev/kb-pending/` resolve against the repository root, not one level too
 deep, from inside `.superdev/scopes/<scope>/scopetree`. `--scope <slug>` selects which pending scope to
 publish. Left out, the script publishes the one pending scope there is. It refuses when there is more
@@ -417,7 +438,7 @@ a quote, a `$`, a backtick, or a newline therefore reaches the backend unchanged
 its own.
 
 Every template runs under a **30-second bound** (ADR 0130), applied at `runTemplate`'s own `spawnSync`
-with `killSignal: 'SIGKILL'` — the same shape `scope.js`'s `testContainment` bounds its `git fetch`
+with `killSignal: 'SIGKILL'` — the same shape `testContainment` in `plugin/lib/containment.js` bounds its `git fetch`
 with. The bound sits in the script rather than in the templates, so it covers an operator-written
 template carrying no `curl --max-time` of its own. `SUPERDEV_PUBLISH_KB_TIMEOUT_MS` overrides it, and
 sits outside the `SUPERDEV_KB_` prefix on purpose: `fieldsToEnv` forwards every key a `find` result
@@ -448,7 +469,7 @@ failure, never as an empty live page. It therefore never wipes an aggregate page
 0027, 0069).
 
 **A `storage` body format converts the whole page before `create` and `update`** (ADR 0109).
-`processFile` hands the upsert's temp body file `md-to-storage.js`'s `toStorage()` output when
+`processFile` hands the upsert's temp body file `lib/md-to-storage.js`'s `toStorage()` output when
 `templates.bodyFormat` is `storage`. Every other body format receives the staged body byte-identical
 (INV-0109). A staged page's optional `parent:` names the title of the page it is created under.
 `resolveParent` looks that title up through `find` on the create path only, and passes the id as
@@ -503,7 +524,7 @@ whose branch and run root are both gone reads as contained rather than as a refu
 reaps the two together, and gates that reap on the branch already reading contained in base or gone, so
 their joint absence is the fully-reaped steady state a publish meets (ADR 0071). A run root that survives
 without a resolving branch is the real unreachable case, and still refuses. It
-delegates the ancestry test to `scope.js`'s exported `testContainment` instead of reimplementing it.
+delegates the ancestry test to `plugin/lib/containment.js`'s exported `testContainment` instead of reimplementing it.
 `--allow-unmerged` overrides the refusal once the operator confirms. `_adhoc`, the literal value
 `/superdev:document` writes for a doc pass outside a live scope, skips the check entirely. The report
 a run prints never carries a page's body, only filenames, titles, and reasons.
@@ -513,16 +534,18 @@ The module guards its CLI entry with `require.main === module`. It exports every
 `parseCommandsTemplates`, `parseStagedPage`, `runTemplate`, `runFind`, `publishUpsert`,
 `publishDelete`, `publishPatch`, `processFile`, `processStagedFiles`, `resolveScopeBranch`,
 `parseBaseBranch`, `parseRemote`, `checkContainment`, `hashBody`, `readPage`, `renderReport`, and
-`run`. `tests/publish-kb.test.js` imports `run`, `parseCommandsTemplates`, `parseStagedPage`,
-`classifyBackend`, `parseBaseBranch`, `parseRemote`, and `hashBody` by name — the last one to build a
-staged page's `live-hash` frontmatter against a known live body — and separately imports and calls
-`runFind` for one JSON-array edge case. It otherwise exercises the module through its exported
-`run()`, the way `tests/scope.test.js` exercises `scope.js`'s own CLI verbs (ADR 0059).
+`run`, and `timeoutMs`. Every export but `run` comes from the module that holds it. The suites exercise the CLI through its exported
+`run()`, the way the `tests/scope-*.test.js` suites exercise `scope.js`'s own CLI verbs (ADR 0059), and split by topic over `tests/publish-kb-setup.js`
+(ADR 0151): `publish-kb` (the pure readers and the pin that the publish code keeps no copy of what `lib/` owns), `publish-kb-scope` (backend
+configuration refusals and scope selection), `publish-kb-publish` (`upsert` and `delete` end to end), `publish-kb-patch`, `publish-kb-guard` (the live-hash
+guard, the storage body, and `parent:`), `publish-kb-containment`, `publish-kb-read`, `publish-kb-timeout`, and `publish-kb-templates` (the backend templates this repository ships).
 
 ### profile.js, the run profile (ADR 0103)
 
 `profile.js` prints where a scope run's wall-clock time went. `skills/profile/SKILL.md` runs it
-and prints the report as written, with no reading of its own (INV-0148). The script reads the transcripts Claude Code writes under
+and prints the report as written, with no reading of its own (INV-0148). `profile.js` is the CLI and the scope attribution. It requires
+`lib/transcripts.js` (finding and reading the transcripts), `lib/command-keys.js` (command keying), `lib/session-events.js` (the intervals, point
+events, and phase segments), `lib/time-sinks.js` (the sink rules), and `lib/profile-report.js` (the printed report). The script reads the transcripts Claude Code writes under
 `${CLAUDE_CONFIG_DIR:-~/.claude}/projects/` and writes nothing there (INV-0101). The repository's
 transcript directory is the main working tree's absolute path with every non-alphanumeric character
 replaced by `-`. A directory carrying that name plus `--superdev-scopes-` holds the sessions started
@@ -617,7 +640,7 @@ optionally led by `export`, `local`, `readonly` or `declare`, keys the command i
 instead of the assignment's own leftover word (`SHA=$(git rev-parse HEAD)` keys `git rev-parse`, not
 `rev-parse`). A quote opens only where an odd backslash run does not escape it, in every scan. An interpreter
 (`node`, `python3`, `python`, `bun`, `deno`, `ruby`, `bash`, `sh`) keys instead by its first non-flag
-argument when that argument looks like a script path (`node tests/profile.test.js`) or starts with `$`,
+argument when that argument looks like a script path (`node tests/profile-cli.test.js`) or starts with `$`,
 quoted or not (`node $S`, `node "$S"` both key `node $S`), or by that argument itself when it is an
 inline-source flag (`node -e`, `python3 -c`, `node -`), so each interpreter call keys by what it ran
 rather than collapsing every one under the interpreter's own name; an argument that is neither, such as
@@ -654,7 +677,7 @@ fixed rules alone (INV-0148). Machine time is the scope's summed phase wall time
 A machine-time sink holds at least 20% of it, compared unrounded. The rules are:
 
 - **Test runs.** The `scope.js test` and `scope.js fail-to-pass` keys, and every direct run of a
-  configured verification command (`verificationCommands` from `scope.js`), each call by its weighted
+  configured verification command (`verificationCommands` from `plugin/lib/verification.js`), each call by its weighted
   share, with count, total, and median per mode. A direct run takes its mode from its own statement's
   words. A statement that matches the focused command, with `{paths}` standing for one or more words, is
   `focused`. A statement equal to the full command is `full`, and one equal to the whole command is `whole`.
@@ -681,14 +704,16 @@ calls or unrecognized entries, the section says its figures exclude them.
 
 The exit codes are 0 for a report, 1 for no transcript directory, no segment for the slug, or an
 unrecognized format, and 2 for an argument that is not a slug. Each non-zero exit prints one line on
-stderr, and the first two name the slug and the path searched. Its suite is `tests/profile.test.js`, which builds synthetic
-transcript trees in a temporary directory and points `CLAUDE_CONFIG_DIR` and `HOME` at them.
+stderr, and the first two name the slug and the path searched. Its suites build synthetic
+transcript trees (`tests/profile-setup.js`) in a temporary directory and point `CLAUDE_CONFIG_DIR` and `HOME` at them. They split by topic (ADR 0151):
+`profile` (repeated commands, command keying, background Bash calls), `profile-cli` (unrecognized entries and the CLI), `profile-dispatches`,
+`profile-idle`, `profile-phases`, `profile-scopes`, and `profile-sinks`.
 
 ### run-tests.js, the suite runner
 
 `node scripts/run-tests.js` is the whole of `bun run test`. It discovers the suites under `tests/` by
 name: every `*.test.js` file directly in that directory, in name order, so a suite added to the tree runs
-with no edit to `package.json`. A helper (`spawn-verdict.js`, `fixture-git.js`) and a subdirectory
+with no edit to `package.json`. A helper (`spawn-verdict.js`, `fixture-git.js`, `linear-time.js`), a shared setup file (`tests/*-setup.js`), and a subdirectory
 (`tests/fixtures/`) are not suites. It runs each suite under `node`, then the fixed tail: `invariant-check.js
 --root .`, `drift-check.js --selftest`, `drift-check.js`, and `claude plugin validate ./plugin`. Every step,
 suite and tail alike, prints one `run-tests: <label>: <ms> ms` line carrying its wall clock, which
@@ -701,12 +726,12 @@ killed or never started counts as a failure (INV-0009). A `tests/` directory hol
 `docs/agents/verification.md`. The tail always runs. `selectSuites` picks the suites the repository-relative
 paths reach, matching by name, so a deleted path maps like any other. A suite is reached when its own text
 names the changed file (its basename, or its bare stem between path or quote delimiters), when the shipped
-file its name pins (`plugin/hooks/<name>.js`, `plugin/scripts/<name>.js`, or `scripts/<name>.js`) is the
-changed file or directly requires it, or when the path is the suite itself. A suite split off another
-(`tests/scope-fail-to-pass.test.js`, with no `scope-fail-to-pass.js` shipped) pins the file of the longest
+file its name pins (`plugin/hooks/<name>.js`, `plugin/lib/<name>.js`, `plugin/scripts/<name>.js`, or `scripts/<name>.js`) is the
+changed file or requires it, or the suite file itself requires it, or when the path is the suite itself. A suite split off another
+(`tests/scope-ledger.test.js`, with no `scope-ledger.js` entry point shipped) pins the file of the longest
 `-`-delimited prefix of its name that pins one (`plugin/scripts/scope.js`), and an exact pin wins. A test helper reaches every suite that names
 it. A `.md` path follows the same naming rule, because a suite may execute or pin a document
-(`tests/publish-kb.test.js` runs the templates of `docs/agents/knowledge-base.md`, `tests/scope.test.js` pins a
+(`tests/publish-kb-templates.test.js` runs the templates of `docs/agents/knowledge-base.md`, `tests/scope-ledger.test.js` pins a
 sentence of `plugin/references/scope-mode.md`). A `.md` path also reaches a suite whose text names a directory
 holding it, because a suite that lists or scans a directory reads every document in it
 (`tests/model-explicit.test.js` lists `plugin/agents/`, `tests/invariant-check.test.js` scans `plugin/`). A named directory
@@ -719,7 +744,9 @@ suite names, directly or by directory, and a path under `scripts/drift/`, reach 
 `mods/superdev-view/` places itself: it adds `claude plugin test mods/superdev-view` before the tail, and runs no
 other suite unless one names it, so `scope.js fail-to-pass` can judge a range that only the mod suite tests. The full run
 never runs the mod suite. The
-`require` scan is a regex over relative `require` calls, one level deep. A focused run is never a full suite
+`require` scan is a regex over relative `require` calls, wherever the call sits. It follows the edges from the
+suite file and from its pinned file, and continues through a `plugin/lib/` module or a shared setup file under
+`tests/` (a cycle ends the walk). It stops at any other file, a hook or script having a suite of its own. A focused run is never a full suite
 (INV-0017).
 
 Its suite is `tests/run-tests.test.js`, which calls `discoverSuites`, `selectSuites`, `parseArgs`, and
@@ -807,9 +834,9 @@ live beside it, in `scripts/drift/`.
 | `drift-check.js` | the CLI: `runChecks(checks, root)` (the per-check walk, catching a thrown `run()` as that check's own `threw` result instead of letting it crash the walk), `formatGap` (a missing-document gap printed by path, every other gap by its check's own format), `main()`, the ok line, the exit code, and the `--selftest` handoff. Guards its CLI dispatch with `require.main === module`, so a `require` of the file (the selftest's own import) runs neither branch |
 | `drift/checks.js` | the **registry**, one entry per check: `id`, `run`, its `ok` phrase, and how one gap prints, plus `contracts` on a table-driven check |
 | `drift/contracts.js` | the contract tables and patterns. Data only |
-| `drift/scanners.js` | the bespoke scanners, every check whose assertion is more than one pattern over one document |
+| `drift/scanners/` | the bespoke scanners, every check whose assertion is more than one pattern over one document. `index.js` is the barrel `checks.js` and the selftest require. One file per topic holds the scanners: `references.js`, `adr.js`, `prose-avoid.js`, `shell-spawn.js`, `base-branch-ship.js`, `marketplace-readme.js`, and `register-join.js`. `walkers.js` holds the document walks and the absence-check shape they share |
 | `drift/lib.js` | what they share: `maskFences`, `maskedSentences`, `normalizeWhitespace`, `docPath`, `readDoc`, `missingDoc`, `observeContracts`, and `scanContract` |
-| `drift/selftest/` | `index.js` (the `fixture` helper, `found`, `realRoot`, temp-dir cleanup, and the coverage assertion) plus the suites `scanners` (every check's own cases), `observation` (the coverage observation itself), `drift-check` (`runChecks` and the registry wiring), and `register-join`, and `coverage.js`, the coverage verdict helper |
+| `drift/selftest/` | `index.js` (the `fixture` helper, `found`, `realRoot`, temp-dir cleanup, and the coverage assertion) plus one suite per scanner topic (`references`, `adr`, `prose-avoid`, `shell-spawn`, `base-branch-ship`, `marketplace-readme`, with the narrative-coverage cases in `register-join`), `contracts` (the table-driven checks), `checks` (every registered check against an empty tree), `observation` (the coverage observation itself), `drift-check` (`runChecks` and the registry wiring), and `register-join`, and `coverage.js`, the coverage verdict helper |
 
 Every check tests a mechanical fact — a link or section target resolves, a number is unique, a file or
 command exists, a property of code or configuration holds — or forbids a form in shipped prose (ADR 0153).
@@ -830,11 +857,11 @@ path, when that document is missing. A check that walks a directory reads whatev
 | `invariant-register-join` | every drift id a `docs/invariants.md` `Check:` line names is registered, and every invariant a contract row cites covers that row's document in its `Paths:` | structural |
 | `run-root` | the execution documents address run-root artifacts by `<run-root>/…`, never by a checkout-relative `.superdev/scopes/<scope>/…` path | prohibition |
 | `scopetree-run-root` | `skills/ship/SKILL.md`, `skills/document/SKILL.md`, and `scripts/publish-kb.js` address another run's scopetree by `<run-root>/scopetree`, never by a checkout-relative path (ADR 0080) | prohibition |
-| `change-type` | `references/scope-mode.md`, `hooks/scope-prune.js`, `CONTEXT.md`, and `scripts/scope.js` carry the same change-type set | structural |
-| `no-second-reader` | no hook builds a ledger-header regex of its own (ADR 0022) | prohibition |
-| `arg-token` | `merge-guard.js`, `ledger-guard.js`, and `run-trace.js` require `./shell-words.js` and declare no shell-word reader or `((` spread of their own (ADR 0135) | structural |
-| `shell-spawn` | no file under `plugin/hooks/` or `plugin/scripts/` starts a shell by absolute path, starts `bash`, or uses Node's default shell (INV-0153) | prohibition |
-| `containment-delegation` | `scripts/publish-kb.js` imports and calls `scope.js`'s `testContainment` (ADR 0053) | structural |
+| `change-type` | `references/scope-mode.md`, `hooks/scope-prune.js`, `CONTEXT.md`, and `lib/ledger.js` carry the same change-type set | structural |
+| `no-second-reader` | no file under `plugin/hooks/` builds a ledger-header regex of its own, and no file under `plugin/lib/` other than `ledger.js` does (ADR 0022) | prohibition |
+| `arg-token` | `hooks/merge-guard.js`, `hooks/ledger-guard.js`, `lib/ledger-writes.js`, and `lib/bash-command.js` require the shell scanner `shell-words.js` (`../lib/shell-words.js` from a hook) and declare no shell-word reader or `((` spread of their own (ADR 0135) | structural |
+| `shell-spawn` | no file under `plugin/hooks/`, `plugin/scripts/`, or `plugin/lib/` starts a shell by absolute path, starts `bash`, or uses Node's default shell (INV-0153) | prohibition |
+| `containment-delegation` | `lib/kb-containment.js` imports and calls `lib/containment.js`'s `testContainment` (ADR 0053) | structural |
 | `past-pr-skills` | the skills an offer starts past the open pull request (ship, verify-ship, wrap-up, publish-kb) carry no `disable-model-invocation: true`, neither verify-ship nor wrap-up names `--unattended`, and ship, verify-ship, and `references/response-shapes.md` name no `--from-ship` (INV-0066, INV-0093, ADR 0157) | structural |
 | `no-base-branch-commit` | no file under `skills/` or `references/` instructs a commit, a push, or a merge to the base branch, other than ship's host-API merge (INV-0001) | prohibition |
 | `conflict-conclusion-no-commit` | no skill, agent, or reference concludes a resolved merge conflict with `git commit` (ADR 0123) | prohibition |
@@ -850,16 +877,15 @@ path, when that document is missing. A check that walks a directory reads whatev
 
 ## Work Guidance
 
-- Scripts are CommonJS, like the hooks. `hooks/scope-prune.js`, `hooks/slicetree-sweep.js`,
-  `hooks/run-trace.js`, and `hooks/tree-guard.js` each `require` `scope.js`, so
-  `scope.js` must stay `require`-able under plain `node`. These are the only dependencies `hooks/` has on
-  `scripts/`.
-  `scope.js` in turn `require`s `kb-patch.js` for `maskFencedLines`, so `kb-patch.js` must stay
-  `require`-able under plain `node` too. `publish-kb.js` `require`s both `scope.js` and `kb-patch.js`,
-  and `profile.js` `require`s `scope.js`. `adopt`'s
-  payload boundary is a pair of markers, not a heading, but a marker can still be shown inside a fenced
-  illustrative example, so the marker scan needs the same fence-masking `kb-patch.js`'s
-  `extractSection()` already owns.
+- Scripts and modules are CommonJS, like the hooks. `plugin/hooks/` and `plugin/scripts/` hold only entry points, and every module lives
+  in `plugin/lib/` (ADR 0151). An entry point requires only modules, and a module requires no entry point, so a hook loads only the
+  modules it uses and no module meets an incomplete `module.exports` while its entry point loads. Each module must stay `require`-able under
+  plain `node`. `adopt`'s payload boundary is a pair of markers, not a heading, but a marker can still be shown inside a fenced
+  illustrative example, so the marker scan needs the same fence-masking `md-sections.js`'s `extractSection()` already owns.
+  `publish-kb.js` and `kb-patch.js` share `md-sections.js` through `kb-apply.js`, `kb-backend.js`, and the CLI itself.
+- A module holds one responsibility and opens with its file name and a colon. A suite tests through the entry point, and a large entry point's
+  suite splits flat by topic into `tests/<entry>-<topic>.test.js` over one `tests/<entry>-setup.js` that is no suite. A copy of a helper
+  merges into `lib/git-spawn.js` or `lib/refusal.js` only when its behavior is identical (ADR 0151).
 - The shipped scripts each have a suite in `tests/`, same convention as the hooks (ADR 0059).
   `drift-check.js` is maintainer-only and keeps its inline `--selftest`. `invariant-check.js` is
   maintainer-only too, and has its suite in `tests/` like a shipped script, because it takes no part in
@@ -871,7 +897,7 @@ path, when that document is missing. A check that walks a directory reads whatev
   reviewer who finds one more evadable phrasing reads it as the stated ceiling rather than a defect.
 - A new drift check tests a mechanical fact or forbids a form in shipped prose (ADR 0153). It is one
   entry in the `drift/checks.js` registry, one row in the table above keyed on its own `id`, and its own
-  cases in `drift/selftest/scanners.test.js`: its seeded violation, a clean fixture, and, when it reads a
+  cases in the `drift/selftest/` suite of its topic: its seeded violation, a clean fixture, and, when it reads a
   named document, the missing-document case the registry-wide selftest asserts. The `narrative-coverage`
   check enforces the row. The selftest cases and the row's accuracy stay a review's job.
 

@@ -29,9 +29,7 @@
 // Best-effort and silent: any git error, or no .superdev/scopes/ → no-op.
 
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
-const { execFileSync, spawnSync } = require('node:child_process');
 
 const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days from the newest file mtime in the run root
 
@@ -102,12 +100,6 @@ function qualifyBranchRefs(refLines) {
     qualified.set(name, `${remote}/${name}`);
   }
   return qualified;
-}
-
-// execFileSync, not execSync: no shell in between, so `%(refname)` and anything else git's own
-// argument-parsing wants never crosses a shell that would treat `(` as a metacharacter.
-function git(args, cwd) {
-  return execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' }).trim();
 }
 
 // Resolves `scope`'s branch **name** within `branchSet`, or null when nothing there is its branch.
@@ -187,7 +179,7 @@ function selectPrunable(scopeNames, isContained, mtimeOf, stageOf, allBranchSet,
 // anything.
 //
 // A base that edits the branch's files after taking its work conflicts on a branch it holds in full, so
-// the conflict alone is no answer (ADR 0082). `baseHistoryHasPatch` — the probe `scripts/scope.js`
+// the conflict alone is no answer (ADR 0082). `baseHistoryHasPatch` — the probe `lib/containment.js`
 // exports, required below — asks whether base's history holds a commit whose diff is this branch's own
 // cumulative diff, and a match is what a reap needs: the work sits in base's history, so deleting the
 // branch loses nothing. The probe absent leaves the tree comparison as the whole test, and a failed
@@ -199,24 +191,18 @@ function selectPrunable(scopeNames, isContained, mtimeOf, stageOf, allBranchSet,
 // (ADR 0065): a `Stop` hook fires on every finished turn, and a stale base only defers a reap ADR 0007's
 // seven-day TTL has already delayed — the same direction every other failure here falls.
 function containedInBase(branch, cwd) {
-  const merged = gitTry(['merge-tree', '--write-tree', 'HEAD', branch], cwd);
+  const merged = gitSpawn(['merge-tree', '--write-tree', 'HEAD', branch], cwd);
   if (merged.status !== 0) return baseHistoryHasPatch ? baseHistoryHasPatch(cwd, 'HEAD', branch) : false;
-  const baseTree = gitTry(['rev-parse', 'HEAD^{tree}'], cwd);
+  const baseTree = gitSpawn(['rev-parse', 'HEAD^{tree}'], cwd);
   if (baseTree.status !== 0) return false;
   return merged.stdout.trim() === baseTree.stdout.trim();
-}
-
-// spawnSync, not the throwing `git()` above: a conflict is exit 1 and a real answer, not an error, so
-// the caller needs the status rather than an exception.
-function gitTry(args, cwd) {
-  return spawnSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' });
 }
 
 // `--write-tree` needs git 2.38 (2022-10-02). Probing costs one `merge-tree` of `HEAD` with itself,
 // whose result tree already exists, so the probe writes no object of its own. An older git's
 // `merge-tree` takes three tree-ish arguments and rejects the flag, which is the nonzero this reads.
 function supportsWriteTree(cwd) {
-  return gitTry(['merge-tree', '--write-tree', 'HEAD', 'HEAD'], cwd).status === 0;
+  return gitSpawn(['merge-tree', '--write-tree', 'HEAD', 'HEAD'], cwd).status === 0;
 }
 
 // The branch predicate `selectPrunable` calls, built lazily so nothing here runs until a scope has
@@ -229,7 +215,7 @@ function supportsWriteTree(cwd) {
 // exactly what it prunes now rather than erroring. A failed read there yields an empty set, which reads
 // as "nothing is contained" and prunes nothing — the same fail-closed direction as everywhere else. This
 // path never reaches `containedInBase`, so the second tier is unreachable on a git this old here — unlike
-// `scripts/scope.js`'s own `--is-ancestor` fallback, a different primitive that does reach the probe.
+// `lib/containment.js`'s own `--is-ancestor` fallback, a different primitive that does reach the probe.
 //
 // `qualify` (`qualifyBranchRefs` above, or the identity default) resolves a bare branch name to what
 // `git merge-tree` can actually find before the containment test ever sees it — the ancestry fallback
@@ -247,33 +233,49 @@ function makeContainmentTest(cwd, qualify = (name) => name) {
 }
 
 function readMergedSet(cwd) {
-  const listed = gitTry(['branch', '--merged'], cwd);
+  const listed = gitSpawn(['branch', '--merged'], cwd);
   if (listed.status !== 0) return new Set();
-  return new Set(
-    listed.stdout
-      .split('\n')
-      .map((s) => s.replace(/^[*+ ]+/, '').trim())
-      .filter(Boolean)
-  );
+  return parseBranchList(listed.stdout);
 }
 
-// `scripts/scope.js` owns the ledger's schema, so it owns how a header value is read (ADR 0022). This
+// `lib/ledger.js` owns the ledger's schema, so it owns how a header value is read (ADR 0022). This
 // hook carried its own regex and drifted from it on four axes while being hardened — anchoring, capture
 // width, newline crossing, normalisation — and none of those fixes travelled back. There is one reader
 // now, and no fallback: a fallback is the second reader again, and the second reader is the defect.
 //
-// `baseHistoryHasPatch` rides the same require, and the two fall back differently (ADR 0082): the
-// ledger reader missing stops the sweep outright, while the probe missing only narrows the containment
-// test back to the tree comparison. Destructuring both in one `try` covers the version-skewed install
-// as well as the failed load — an older sibling carries the reader and no probe, which leaves this
-// `null` and the hook silent, exactly as a throwing `require` would.
+// `baseHistoryHasPatch` comes from `lib/containment.js` through its own require, and the two fall back
+// differently (ADR 0082): the ledger reader missing stops the sweep outright, while the probe missing
+// only narrows the containment test back to the tree comparison. The probe's own `try` covers the
+// version-skewed install as well as the failed load: a module that carries no probe leaves it `null`,
+// exactly as a throwing `require` would, and the reader stays loaded.
 let readLedgerHeader = null;
 let baseHistoryHasPatch = null;
 try {
-  ({ readLedgerHeader, baseHistoryHasPatch } = require('../scripts/scope.js'));
+  ({ readLedgerHeader } = require('../lib/ledger.js'));
 } catch {
   // Left null. main() prunes nothing below — the same fail-closed direction a git error takes, because
   // a hook that cannot read a stage must never conclude a scope is finished with.
+}
+try {
+  ({ baseHistoryHasPatch } = require('../lib/containment.js'));
+} catch {
+  // Left null. The containment test below falls back to the tree comparison alone, silently.
+}
+
+// `lib/git-spawn.js` owns the git calls (the status-reading spawn, the throwing call, the `git branch` list
+// parse). No fallback: a hook that cannot run git must never conclude a scope is finished with, so a failed
+// load, or a module missing any of the three, leaves all three null and main() prunes nothing, silently. The
+// names are taken only once the module carries every one, so a partial module reads as an unloaded one.
+let gitSpawn = null;
+let gitThrow = null;
+let parseBranchList = null;
+try {
+  const gitModule = require('../lib/git-spawn.js');
+  if ([gitModule.gitSpawn, gitModule.gitThrow, gitModule.parseBranchList].every((f) => typeof f === 'function')) {
+    ({ gitSpawn, gitThrow, parseBranchList } = gitModule);
+  }
+} catch {
+  // Left null. main() checks these before doing anything below.
 }
 
 function readHeader(scopeDir, name) {
@@ -341,15 +343,16 @@ function reapBranch(branch, refLines, cwd) {
   if (!branch) return true;
   for (const ref of refsFor(refLines, branch)) {
     const deleted = ref.startsWith('refs/heads/')
-      ? gitTry(['branch', '-D', branch], cwd)
-      : gitTry(['update-ref', '-d', ref], cwd);
+      ? gitSpawn(['branch', '-D', branch], cwd)
+      : gitSpawn(['update-ref', '-d', ref], cwd);
     if (deleted.status !== 0) return false;
   }
   return true;
 }
 
 function main(cwd) {
-  if (!readLedgerHeader) return; // shared reader unavailable → prune nothing, say nothing
+  // shared reader or git module unavailable → prune nothing, say nothing
+  if (!readLedgerHeader || !gitSpawn || !gitThrow || !parseBranchList) return;
   const scopesRoot = path.join(cwd, '.superdev', 'scopes');
   if (!fs.existsSync(scopesRoot)) return; // no superdev runs in this repo
 
@@ -357,10 +360,10 @@ function main(cwd) {
   let branchRefs;
   let refLines;
   try {
-    // Throwing `git()`, deliberately: an empty branch set would read as "every scope's branch is gone"
+    // Throwing `gitThrow`, deliberately: an empty branch set would read as "every scope's branch is gone"
     // and prune the lot, so a failure here has to bail before absence is computed rather than yield one.
     // This call writes nothing, so it stays eager while the containment test below does not.
-    refLines = git(['for-each-ref', '--format=%(refname)', 'refs/heads', 'refs/remotes'], cwd).split('\n');
+    refLines = gitThrow(['for-each-ref', '--format=%(refname)', 'refs/heads', 'refs/remotes'], cwd).split('\n');
     allBranches = branchNamesFrom(refLines);
     branchRefs = qualifyBranchRefs(refLines);
   } catch {

@@ -108,6 +108,6 @@ Equal trees means `main` holds the branch's work and the branch is safe to delet
 --is-ancestor` and `git branch -d` both run the ancestry test instead, so they report every merged scope
 branch here as unmerged — which trains the reflex to reach for `git branch -D`, and that one destroys a
 branch that genuinely is unmerged. Delete a branch this test calls landed, and investigate any other.
-A conflicting `merge-tree` answers nothing on its own: `plugin/scripts/scope.js`'s `testContainment`
+A conflicting `merge-tree` answers nothing on its own: `plugin/lib/containment.js`'s `testContainment`
 settles that case from base's own history (ADR 0053, ADR 0082), and `references/scope-mode.md`'s
 `## Containment` states the full contract superdev's own checks follow.

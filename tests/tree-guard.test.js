@@ -246,11 +246,25 @@ const { decide } = require(path.join(pluginRoot, 'hooks', 'tree-guard.js'));
     fs.chmodSync(scopes, 0o755);
   }
 
-  // A helper module that will not load: the hook copied away from its `../scripts/scope.js`.
+  // A helper module that will not load: the hook copied away from its `../lib/main-work-tree.js`.
   const lone = path.join(fx.base, 'lone', 'hooks');
   fs.mkdirSync(lone, { recursive: true });
   fs.copyFileSync(hook, path.join(lone, 'tree-guard.js'));
   assert.equal(run(path.join(lone, 'tree-guard.js'), write), 0, 'a helper module that will not load passes');
+  // The same, with a stub at the hook's own `../lib/main-work-tree.js` that marks its load and throws.
+  const stubbed = path.join(fx.base, 'stubbed');
+  fs.mkdirSync(path.join(stubbed, 'hooks'), { recursive: true });
+  fs.mkdirSync(path.join(stubbed, 'lib'));
+  fs.copyFileSync(hook, path.join(stubbed, 'hooks', 'tree-guard.js'));
+  const stubMarker = path.join(stubbed, 'stub-loaded');
+  fs.writeFileSync(path.join(stubbed, 'lib', 'main-work-tree.js'), `require('fs').writeFileSync(${JSON.stringify(stubMarker)}, 'x'); throw new Error('gone');`);
+  assert.equal(run(path.join(stubbed, 'hooks', 'tree-guard.js'), write), 0, 'a main-work-tree module that throws on load passes');
+  assert.ok(fs.existsSync(stubMarker), 'the stub at ../lib/main-work-tree.js loaded');
+  // A module that loads but whose resolver throws: the write passes.
+  fs.rmSync(stubMarker);
+  fs.writeFileSync(path.join(stubbed, 'lib', 'main-work-tree.js'), `require('fs').writeFileSync(${JSON.stringify(stubMarker)}, 'x'); module.exports = { mainWorkTree() { throw new Error('boom'); } };`);
+  assert.equal(run(path.join(stubbed, 'hooks', 'tree-guard.js'), write), 0, 'a mainWorkTree that throws passes');
+  assert.ok(fs.existsSync(stubMarker), 'the stub with a throwing mainWorkTree loaded');
 }
 
 // A target is judged by where its bytes would land, whatever its spelling.

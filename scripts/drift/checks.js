@@ -131,14 +131,14 @@ module.exports = [
     run: scanScopetreeRunRootPaths,
     format: (o) => `checkout-relative scopetree path \`${o.match}\` in ${o.source} — use \`<run-root>/scopetree\``,
   },
-  table('change-type', CHANGE_TYPE_CONTRACTS, 'change-type set matches the scope-prune hook and scope.js'),
+  table('change-type', CHANGE_TYPE_CONTRACTS, 'change-type set matches the scope-prune hook and lib/ledger.js'),
   {
     id: 'no-second-reader',
     ok: 'no hook parses a ledger header itself',
     run: scanHookLedgerParsers,
     format: contractGap,
   },
-  table('arg-token', ARG_TOKEN_CONTRACTS, 'the Bash hooks read shell words through ./shell-words.js and carry no reader of their own'),
+  table('arg-token', ARG_TOKEN_CONTRACTS, 'the Bash hooks and the run trace\'s command layer read shell words through lib/shell-words.js and carry no reader of their own'),
   {
     id: 'shell-spawn',
     ok: 'no shipped executable starts a shell by absolute path, starts bash, or uses the default shell',
@@ -148,7 +148,7 @@ module.exports = [
   table(
     'containment-delegation',
     CONTAINMENT_DELEGATION_CONTRACTS,
-    "publish-kb.js delegates its containment check to scope.js's testContainment rather than " +
+    "lib/kb-containment.js delegates its containment check to lib/containment.js's testContainment rather than " +
       'reimplementing the ancestry test itself',
   ),
   {

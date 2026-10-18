@@ -186,20 +186,20 @@ the probe loaded it through `ToolSearch` first.
 A PreToolUse hook can return `updatedInput`, which replaces a tool's arguments before the tool runs.
 A PostToolUse or PostToolUseFailure hook then receives the rewritten `tool_input`, because that is the
 command that ran. RTK, a third-party output filter, ships such a hook: it rewrites `bun run test` to
-`rtk bun run test`. `hooks/run-trace.js` matches the configured verification command at the segment's
+`rtk bun run test`. The run trace, through `lib/bash-command.js`, matches the configured verification command at the segment's
 command word, after the wrappers it knows. Before it knew `rtk`, it read `rtk` as the command and
 recorded no run line, so `scope.js suite reusable` refused a green tip (#955).
 
-**Mitigation (implemented):** `hooks/run-trace.js` reads `rtk` as a prefix wrapper, as it reads `nice`
+**Mitigation (implemented):** `lib/bash-command.js`, the command layer of `hooks/run-trace.js`, reads `rtk` as a prefix wrapper, as it reads `nice`
 or `nohup`, and it skips rtk's `proxy` subcommand after it. RTK passes the wrapped command's exit status
-through, so the run records its outcome. `hooks/run-trace.js` skips none of rtk's other subcommands
+through, so the run records its outcome. The run trace skips none of rtk's other subcommands
 that run a command: `rtk err`, `rtk run`, `rtk summary`, or `rtk test` in front of the configured
 verification command records no configured-command run, and a named test file still records a `path`
-run (triage #941). `commandStart` and `gitSubcommand` in `hooks/shell-words.js`, which merge-guard
+run (triage #941). `commandStart` and `gitSubcommand` in `lib/shell-words.js`, which merge-guard
 reads commands through, skip all five, and so does `RTK_PREFIX` in `hooks/merge-guard.js`.
-`hooks/ledger-guard.js` skips all five too, because it finds the command word through the same
+`hooks/ledger-guard.js` skips all five too, because `lib/ledger-writes.js` finds the command word through the same
 `commandStart`, and `tests/ledger-guard.test.js` pins that it refuses an editor behind every
-wrapper `run-trace.js` knows and a copy behind `rtk proxy`. `hooks/run-trace.js` reads a `git restore` or `git checkout` behind `rtk`
+wrapper `lib/bash-command.js` knows and a copy behind `rtk proxy`. `lib/test-runs.js` reads a `git restore` or `git checkout` behind `rtk`
 through the same wrapper list. A rewrite by another hook that puts an unknown word in front of the command still hides the run.
 
 The PreToolUse hooks are out of the rewrite's reach. Claude Code runs every matching hook of one event
@@ -223,7 +223,7 @@ pull-request merge and API merge tests.
 
 **Fix required at:** no platform fix is due, because the hook sees the command that actually ran. A
 different rewriting hook needs its prefix added to the wrapper table (`WRAPPER` in
-`hooks/shell-words.js`) and run-trace's wrapper list, to `gitSubcommand`, and to the `RTK_PREFIX` of
+`lib/shell-words.js`) and run-trace's wrapper list, to `gitSubcommand`, and to the `RTK_PREFIX` of
 `hooks/merge-guard.js`.
 
 Verified 2026-10-08, on Claude Code 2.1.289 and rtk 0.51.0. Two session transcripts of that day show
@@ -268,7 +268,7 @@ one it started in. A hook that resolves the command's relative paths against tha
 `scripts/drift/selftest/scripts/drift/selftest/…` (triage #1210, triage #978).
 
 **Mitigation:** `hooks/run-trace.js` runs on PreToolUse for Bash, whose `cwd` is the directory the command
-starts in, and writes that `cwd` to a stash file named by the call's `tool_use_id`, in a per-user directory under
+starts in, and writes that `cwd`, through `lib/start-stash.js`, to a stash file named by the call's `tool_use_id`, in a per-user directory under
 the operating system's temporary directory, used only when it is a real directory the user owns. Its PostToolUse and PostToolUseFailure for Bash read the stash, remove it, and resolve the
 command from it. With no readable stash it resolves from the input's `cwd`. After a `cd` it cannot read, such
 as `cd "$D"` or `cd -`, it resolves the rest of the command against the input's `cwd`, a later relative `cd`

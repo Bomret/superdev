@@ -1,13 +1,20 @@
 'use strict';
 
-// Suite for plugin/hooks/shell-words.js, the shared Bash shell-word scanner (ADR 0135).
+// Suite for plugin/lib/shell-words.js, the shared Bash shell-word scanner (ADR 0135).
 require('./fixture-git.js');
 const assert = require('node:assert');
 const cp = require('node:child_process');
 const path = require('node:path');
 const { assertSpawnDecided } = require('./spawn-verdict.js');
 const { timePair } = require('./linear-time.js');
-const { scan, gitSubcommand, rawNamesVerb, WRAPPER, optionWords, MAX_QUOTED_DEPTH, dashReading, drivePath } = require(path.join(__dirname, '..', 'plugin', 'hooks', 'shell-words.js'));
+const { scan, gitSubcommand, rawNamesVerb, WRAPPER, optionWords, MAX_QUOTED_DEPTH, dashReading, drivePath } = require(path.join(__dirname, '..', 'plugin', 'lib', 'shell-words.js'));
+
+// INV-0068: requiring the scanner (and the reader module it requires) prints nothing and exits 0.
+for (const name of ['shell-words.js', 'shell-word-readers.js']) {
+  const r = cp.spawnSync(process.execPath, ['-e', `require(${JSON.stringify(path.join(__dirname, '..', 'plugin', 'lib', name))})`], { encoding: 'utf8', timeout: 10000 });
+  assertSpawnDecided(r, 'requiring ' + name);
+  assert.deepStrictEqual([r.status, r.stdout, r.stderr], [0, '', ''], 'requiring ' + name + ' prints nothing');
+}
 
 const cmds = (s, opts) => {
   const r = scan(s, opts);

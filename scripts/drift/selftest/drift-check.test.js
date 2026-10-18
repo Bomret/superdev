@@ -59,7 +59,12 @@ module.exports = ({ assert, fs, path, realRoot }) => {
     const contracts = require('../contracts');
     for (const name of Object.keys(contracts).filter((k) => k.endsWith('_CONTRACTS'))) {
       // A table is consumed by a check in checks.js or by a scanner; either one uses it beyond its import.
-      const scanners = fs.readFileSync(path.join(realRoot, 'scripts', 'drift', 'scanners.js'), 'utf8');
+      const scannersDir = path.join(realRoot, 'scripts', 'drift', 'scanners');
+      const scanners = fs
+        .readdirSync(scannersDir)
+        .filter((f) => f.endsWith('.js'))
+        .map((f) => fs.readFileSync(path.join(scannersDir, f), 'utf8'))
+        .join('\n');
       const uses = src.split(name).length + scanners.split(name).length - 2;
       assert.ok(uses >= 2, `${name} is exported by contracts.js but no check or scanner consumes it`);
     }

@@ -182,6 +182,44 @@ const picked = (root, paths) =>
   assert.deepStrictEqual(picked(root, ['plugin/hooks/beta-hook.js']), ['beta-hook'], 'an exact pin wins over a prefix');
 }
 
+// Requires are followed transitively, from the file a suite pins and from the suite itself, including a require made
+// inside a function. A cycle ends the walk, and a require of a path that does not exist adds nothing.
+{
+  const root = tree({
+    'plugin/hooks/top.js': "require('../lib/mid');",
+    'plugin/lib/mid.js': "function f() { return require('./leaf.js'); }\nrequire('./ghost');",
+    'plugin/lib/leaf.js': "require('./mid.js');",
+    'plugin/lib/orphan.js': '',
+    'tests/top.test.js': suite('top'),
+    'tests/leaf.test.js': suite('leaf'),
+    'tests/user.test.js': suite('user') + "\nrequire('./setup/a');\n",
+    'tests/setup/a.js': "require('./b');",
+    'tests/setup/b.js': '',
+    'tests/free.test.js': suite('free'),
+    'plugin/lib/lonely.js': "require('./ghost');",
+    'tests/viaLib.test.js': suite('viaLib') + "\nrequire('../plugin/lib/outer');\n",
+    'plugin/lib/outer.js': "require('./inner');",
+    'plugin/lib/inner.js': '',
+  });
+  assert.deepStrictEqual(picked(root, ['plugin/lib/inner.js']), ['viaLib'], 'the walk from a suite file goes through a plugin/lib module into another');
+  assert.deepStrictEqual(picked(root, ['plugin/lib/lonely.js']), discoverSuites(path.join(root, 'tests')).map((f) => path.basename(f, '.test.js')), 'a module requiring only a missing path throws nothing and stays unplaced');
+  assert.deepStrictEqual(picked(root, ['plugin/lib/leaf.js']), ['leaf', 'top'], 'a module required only by a module reaches the suite of the entry point above it');
+  assert.deepStrictEqual(picked(root, ['plugin/lib/mid.js']), ['leaf', 'top'], 'a require cycle ends the walk and selects each suite once');
+  assert.deepStrictEqual(picked(root, ['plugin/lib/orphan.js']), discoverSuites(path.join(root, 'tests')).map((f) => path.basename(f, '.test.js')), 'a module no suite reaches stays unplaced');
+  assert.deepStrictEqual(picked(root, ['plugin/lib/leaf.js', 'plugin/lib/mid.js']), ['leaf', 'top'], 'a missing require target selects nothing extra');
+  assert.deepStrictEqual(picked(root, ['tests/setup/b.js']), ['user'], 'a shared setup file reaches the suite requiring it through another setup file');
+}
+
+// A suite stem pins to `plugin/lib/<stem>.js` as it does in the hook and script directories.
+{
+  const root = tree({
+    'plugin/lib/words.js': '',
+    'tests/words.test.js': suite('words'),
+    'tests/other.test.js': suite('other'),
+  });
+  assert.deepStrictEqual(picked(root, ['plugin/lib/words.js']), ['words'], 'the suite named for a plugin/lib module is selected');
+}
+
 // A change set no suite can place runs every suite; prose and drift paths run none, an empty set runs none.
 {
   const root = focusedTree();
@@ -203,9 +241,9 @@ const picked = (root, paths) =>
   assert.deepStrictEqual(picked(root, ['docs/x.md']), ['doc'], 'a suite naming the .md path runs');
   assert.deepStrictEqual(picked(root, ['docs/unnamed.md']), [], 'a .md path no suite names selects none');
   const real = (md) => selectSuites(repoRoot, discoverSuites(path.join(repoRoot, 'tests')), [md]).map((f) => path.basename(f, '.test.js'));
-  assert.ok(real('docs/agents/knowledge-base.md').includes('publish-kb'), 'publish-kb executes the knowledge-base templates');
-  assert.ok(real('plugin/references/knowledge-base-confluence.md').includes('publish-kb'), 'publish-kb executes the confluence template');
-  assert.ok(real('plugin/references/scope-mode.md').includes('scope'), 'the scope suite pins a sentence of scope-mode.md');
+  assert.ok(real('docs/agents/knowledge-base.md').includes('publish-kb-templates'), 'publish-kb executes the knowledge-base templates');
+  assert.ok(real('plugin/references/knowledge-base-confluence.md').includes('publish-kb-templates'), 'publish-kb executes the confluence template');
+  assert.ok(real('plugin/references/scope-mode.md').includes('scope-ledger'), 'the scope suite pins a sentence of scope-mode.md');
 }
 
 // A `.md` path under a directory a suite names reaches that suite: a suite that lists or scans a directory reads
@@ -284,13 +322,14 @@ const picked = (root, paths) =>
   const suites = discoverSuites(path.join(repoRoot, 'tests'));
   const of = (paths) => selectSuites(repoRoot, suites, paths).map((f) => path.basename(f, '.test.js'));
   const lock = ['run', 'lock'].join('-');
-  assert.deepStrictEqual(of([`plugin/hooks/${lock}.js`]), [lock, 'scope'], 'run-lock selects its suite and the suite naming it');
+  assert.deepStrictEqual(of([`plugin/hooks/${lock}.js`]), ['plugin-layout', lock, 'scope-ledger'], 'run-lock selects its suite and the suites naming it');
   const scope = of([`plugin/scripts/${'scope'}.js`]);
-  const parts = ['scope', ['scope', 'test', 'verb'].join('-'), ['scope', 'fail', 'to', 'pass'].join('-')];
+  const topics = ['ledger', 'ledger-header', 'publish-adopt', 'root-base', 'citations-collisions', 'suite', 'containment', 'dod-line', 'help', 'trace'];
+  const parts = [...topics.map((t) => `scope-${t}`), ['scope', 'test', 'verb'].join('-'), ['scope', 'fail', 'to', 'pass'].join('-')];
   for (const s of [...parts, 'scope-prune', 'slicetree-sweep', 'run-trace', 'publish-kb', 'profile']) {
     assert.ok(scope.includes(s), `scope.js selects ${s}`);
   }
-  const required = of([`plugin/hooks/${['run', 'trace'].join('-')}.js`]);
+  const required = of([`plugin/lib/${['test', 'runs'].join('-')}.js`]);
   for (const s of parts) {
     assert.ok(required.includes(s), `a file scope.js requires selects ${s}`);
     assert.ok(of([`tests/${s}.test.js`]).includes(s), `${s} selects itself`);
@@ -298,7 +337,7 @@ const picked = (root, paths) =>
   const all = discoverSuites(path.join(repoRoot, 'tests')).map((f) => path.basename(f, '.test.js'));
   const fixture = of(['tests/fixture-git.js']);
   assert.strictEqual(fixture.length < all.length, true, 'helper selection is a strict subset, not every suite');
-  for (const s of ['publish-kb', 'run-tests', 'run-trace', 'scope', 'scope-prune', 'slicetree-sweep', 'spawn-verdict']) {
+  for (const s of ['publish-kb', 'run-tests', 'run-trace', ...topics.map((t) => `scope-${t}`), 'scope-prune', 'slicetree-sweep', 'spawn-verdict']) {
     assert.ok(fixture.includes(s), `fixture-git selects ${s}`);
   }
 }

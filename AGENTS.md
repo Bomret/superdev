@@ -44,23 +44,57 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
   agents/              — the subagents (*.md): implementer, slice-reviewer, simplicity-reviewer,
                          final-reviewer, doc-writer, doc-reader, test-auditor
   hooks/               — the deterministic Node hooks + hooks.json: merge-guard, model-explicit,
-                         run-lock, ledger-guard, tree-guard, run-trace, slicetree-sweep, scope-prune, update-check,
-                         plus `shell-words.js`, the shared shell scanner the Bash hooks (merge-guard,
-                         ledger-guard, run-trace) read a command through and run-lock takes its
-                         drive-path translator from (a module, not a hook, ADR 0135, ADR 0150)
+                         run-lock, ledger-guard, tree-guard, run-trace, slicetree-sweep, scope-prune, update-check
+  lib/                 — every module: code that no hook registration and no prose step runs (ADR 0151).
+                         `hooks/` and `scripts/` hold entry points only, each keeping its path and exports.
+                         A module has one responsibility and opens with its file name and a colon.
+                         Shell scanning: `shell-words.js` (the scanner the Bash hooks read a command
+                         through, ADR 0135, ADR 0150), `shell-word-readers.js` (its hook-only readers),
+                         `bash-command.js` (words, segments, wrappers, and the directory each segment runs
+                         in), `bash-writes.js` (the files a command writes), `ledger-writes.js`
+                         (ledger-guard's write-target table).
+                         Ledger and run state: `ledger.js` (vocabulary, stage rank, line primitives),
+                         `ledger-lifecycle.js` and `ledger-records.js` (the verbs that move a run and
+                         record a fact), `suite-base-get.js`, `dod-line.js`, `run-state.js` (`publish` and
+                         `adopt`), `status.js`, `usage.js`, `refusal.js` (the refusal error),
+                         `main-work-tree.js`, `verification.js` (the readers of `verification.md`).
+                         Git and containment: `git-spawn.js` (the shared git calls), `containment.js`,
+                         `collisions.js`, `citations.js`.
+                         Run trace: `trace-log.js` (writer, reader, field codec), `run-tree.js`,
+                         `test-runs.js`, `dispatch.js`, `dispatch-lines.js`, `verdicts.js`,
+                         `start-stash.js`.
+                         Test verbs: `test-verb.js`, `fail-to-pass.js`, `run-supervision.js`.
+                         Knowledge base: `md-sections.js` (the section rules `kb-patch.js` and the
+                         run-state and `dod-line` readers share), `md-to-storage.js` (markdown to
+                         Confluence storage), and `kb-staging.js`, `kb-backend-config.js`,
+                         `kb-staged-page.js`, `kb-backend.js`, `kb-apply.js`, `kb-containment.js`,
+                         `kb-read.js`, `kb-report.js` (the parts of `publish-kb.js`).
+                         Run profile: `transcripts.js`, `command-keys.js`, `session-events.js`,
+                         `time-sinks.js`, `profile-report.js`
   references/          — backend seed templates + the non-seed runtime references (plan-contract,
                          documentation convention, controlled-prose, content-types, doc pass, run init,
                          run handoff, execution playbooks, test-selection, scope-mode, authoring
                          disciplines, design sketch, diagnosis, prototype, merge-conflicts,
                          review-checklist, dod-ticks, response-shapes); its own AGENTS.md routes them
-  scripts/             — the runtime CLIs: `scope.js`, `kb-patch.js`, `publish-kb.js`, `profile.js`, and the
-                         `md-to-storage.js` module `publish-kb.js` requires
+  scripts/             — the runtime CLIs: `scope.js`, `kb-patch.js`, `publish-kb.js`, `profile.js`
   LICENSE · NOTICE     — copies of the root files, so the shipped tree carries its own attribution
 tests/                 — one suite per shipped executable (the hooks, `scope.js`, `kb-patch.js`,
-                         `publish-kb.js`, `profile.js`, `md-to-storage.js`) and one each for the maintainer-only
-                         `invariant-check.js` and `run-tests.js`, framework-free `node:assert`, run under
-                         `node` by `bun run test` (ADR 0059); `scope.js`'s suite is split by verb into
-                         `scope`, `scope-test-verb`, and `scope-fail-to-pass` (ADR 0139); `spawn-verdict.js` and `fixture-git.js`
+                         `publish-kb.js`, `profile.js`), one per module named for it
+                         (`git-spawn.js`, `shell-words.js`, `md-to-storage.js`), one for the shipped
+                         tree's layout (`plugin-layout.test.js`: entry-point export names, re-export
+                         identity, the CommonJS anchor over `plugin/lib/`), and one each for the
+                         maintainer-only `invariant-check.js` and `run-tests.js`, framework-free
+                         `node:assert`, run under `node` by `bun run test` (ADR 0059). A large entry
+                         point's suite is split flat by topic into `tests/<entry>-<topic>.test.js` over one
+                         `<entry>-setup.js` that is no suite (ADR 0139, ADR 0151): `scope-*` (ledger,
+                         ledger-header, suite, dod-line, publish-adopt, trace, root-base, containment,
+                         citations-collisions, help, test-verb, fail-to-pass, over `scope-setup.js`),
+                         `run-trace*` (dispatch, drive-paths, guards, paths, red, runs, stash, verdicts,
+                         writes, over `run-trace-setup.js`), `profile*` (cli, dispatches, idle, phases,
+                         scopes, sinks, over `profile-setup.js`), `publish-kb*` (containment, guard,
+                         patch, publish, read, scope, templates, timeout, over `publish-kb-setup.js`),
+                         and `scope-prune*` (containment, guards, main, reap, over `scope-prune-setup.js`);
+                         `spawn-verdict.js` and `fixture-git.js`
                          are the shared helpers, not suites — `assertSpawnDecided` (INV-0009), asserted by
                          `spawn-verdict.test.js` and called from every other suite's bounded-spawn sites;
                          `linear-time.js` is the shared same-run timing helper of the linear-time pins (`timePair`,
@@ -73,8 +107,8 @@ docs/known-issues.md   — Claude Code platform behaviour superdev works around,
 mods/superdev-view/    — maintainer-only Claude Code mod: a pane of a repository's `.superdev/`
                          folder, its own single-plugin marketplace (`.claude-plugin/marketplace.json`);
                          never shipped. Its own suites run under `claude plugin test`; `bun run test` runs none
-                         of them, and only reads its fixture files through `tests/run-trace.test.js`
-                         and `tests/scope.test.js`
+                         of them, and only reads its fixture files through `tests/run-trace-dispatch.test.js`
+                         and `tests/scope-ledger.test.js`
                          its `.gitignore` excludes `hooks/*.js`, because the hooks are TypeScript only;
                          its own AGENTS.md states the pane's behaviour contract
 scripts/               — the maintainer-only CLIs wired into `bun run test`: `drift-check.js` with its
@@ -92,7 +126,7 @@ README.md · RELEASING.md · NOTICE · LICENSE
 The plugin ships as markdown and JS hooks. There is **no build step**: the marketplace source's `path`,
 `plugin`, is what limits an install to the shipped tree, and its `ref` pins the install to the release
 tag (ADR 0131), so releasing stays a plain commit. `skills/`,
-`agents/`, and `references/` are prose. `hooks/` and both `scripts/` dirs are executable. Paths inside
+`agents/`, and `references/` are prose. `hooks/`, `lib/`, and both `scripts/` dirs are executable. Paths inside
 `plugin/` resolve against the plugin root at runtime, so prose there names them without the `plugin/`
 prefix; `scripts/drift/lib.js`'s `docPath()` resolves the same plugin-relative paths for the
 maintainer-side checks.
@@ -136,7 +170,7 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   with `Date.now()` and assert an absolute elapsed ceiling, because wall clock includes every
   millisecond the process spent descheduled, and a correctly bounded call under scheduler starvation
   produces the same reading as a real defect (ADR 0086). Compare against what the same run itself
-  measured instead, or against the bound the test itself configured (`tests/publish-kb.test.js`'s `HANG_MS`, ten times
+  measured instead, or against the bound the test itself configured (`tests/publish-kb-setup.js`'s `hangBound()`, ten times
   the slowest healthy backend spawn that run timed, and the checks relative to it). A bound that a healthy
   command must also clear is itself taken from the same run, never fixed. Where the failure
   the assertion catches is qualitative — catastrophic backtracking is effectively unbounded — a loose
@@ -318,31 +352,32 @@ This root owns every other subtree directly:
 - `plugin/hooks/`. Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working
   rules, Hooks are CommonJS** and **Every shipped executable has a suite in `tests/`, named for it**.
   This is the strongest future child-doc candidate, if its rules outgrow this root. Of the
-  hooks, `scope-prune.js`, `slicetree-sweep.js`, `run-trace.js`, and `tree-guard.js` depend on `plugin/scripts/`,
-  and the scripts `publish-kb.js` and `profile.js` require `scope.js` as well. `scope-prune.js` and `slicetree-sweep.js` both
-  `require` `../scripts/scope.js` for their ledger-header reader (ADR 0022), `run-trace.js` requires it for
-  the trace writer and reader and the ledger row readers (ADR 0117), and `scope-prune.js`
-  takes the containment probe `baseHistoryHasPatch` off that same call (ADR 0082). `tree-guard.js` requires
-  it for the main-working-tree resolver `mainWorkTree`. It denies a dispatched implementer's Edit, Write, or
+  hooks, `scope-prune.js`, `slicetree-sweep.js`, `run-trace.js`, `ledger-guard.js`, and `tree-guard.js` depend on modules in `plugin/lib/`,
+  and the scripts require them as well. No hook and no script requires `scope.js`. `scope-prune.js` and `slicetree-sweep.js` both
+  `require` `../lib/ledger.js` for their ledger-header reader (ADR 0022) and `../lib/git-spawn.js` for the git calls the two Stop hooks
+  share (the spawn, the throwing call, and the `git branch` list parse; a module missing any of them reads as unloaded). `run-trace.js` takes each of
+  `../lib/trace-log.js`, `ledger.js`, `verification.js`, `bash-writes.js`, `test-runs.js`, `run-tree.js`, `dispatch.js`, `verdicts.js`, and
+  `start-stash.js` through a `require` of its own (ADR 0117, INV-0159). `ledger-guard.js` requires `../lib/ledger-writes.js` for its write-target reader.
+  `scope-prune.js` takes the containment probe `baseHistoryHasPatch` off `../lib/containment.js` through a `require` of its own (ADR 0082). `tree-guard.js` requires
+  `../lib/main-work-tree.js` for the main-working-tree resolver `mainWorkTree`. It denies a dispatched implementer's Edit, Write, or
   NotebookEdit into a checkout of a repository that holds a run, outside its main working tree's `.superdev/`.
   It also denies such a write into that repository's git directory. That covers the main `.git/`, a linked
   worktree's gitdir, and a submodule's gitdir (ADR 0148, INV-0152). It is the one guardrail that fails open:
-  when `scope.js` cannot load, or git cannot place the target, the write passes. `slicetree-sweep.js`
+  when `main-work-tree.js` cannot load, or git cannot place the target, the write passes. `slicetree-sweep.js`
   tests a worked slice branch's tip against its scope branch's first-parent chain, alongside the
-  default-branch content check (ADR 0089). These are the only
-  places a hook depends on a script instead of standing alone. A `require` failure leaves the hook
+  default-branch content check (ADR 0089). A `require` failure leaves the hook
   with no fallback reader: it sweeps, prunes, records, or denies nothing and says nothing. The probe has its own, narrower
-  fallback — `scope-prune.js` prunes by tree comparison alone, still silently. The Bash hooks
-  `merge-guard.js`, `ledger-guard.js`, and `run-trace.js` each `require` the sibling module
+  fallback: when `containment.js` cannot load or carries no probe, `scope-prune.js` prunes by tree comparison alone, still silently. The Bash hooks
+  `merge-guard.js`, `ledger-guard.js` (through `lib/ledger-writes.js`), and `run-trace.js` (through `lib/bash-command.js`) each reach the module
   `shell-words.js` and keep no shell-word reader of their own (ADR 0135, the `arg-token` drift check).
   `run-lock.js` requires it too, for its drive-path translator (ADR 0150). When the module cannot load, the
   guardrails `merge-guard.js`, `ledger-guard.js`, and `run-lock.js` fail closed, and
   `run-trace.js` records nothing (INV-0140).
 - `scripts/` and `plugin/scripts/`. Owned by [`scripts/AGENTS.md`](scripts/AGENTS.md), which states
   each script's contract: the shipped `plugin/scripts/` CLIs `scope.js`, `kb-patch.js`, `publish-kb.js`,
-  `profile.js`, and the module `md-to-storage.js`, and the maintainer-only `scripts/drift-check.js` with
+  `profile.js`, the modules in `plugin/lib/` behind them, and the maintainer-only `scripts/drift-check.js` with
   `drift/`, `scripts/invariant-check.js`, and `scripts/run-tests.js`. It names the `scope.js` exports
-  each hook and script takes, and every verb.
+  and every verb, and the module each script takes from `plugin/lib/`.
 - `plugin/references/`. Backend seed templates plus the runtime references. Owned by
   [`plugin/references/AGENTS.md`](plugin/references/AGENTS.md), which routes every reference to what it
   owns and to the runtime surface that reads it. Each reference's own opening states its full contract.
@@ -367,11 +402,11 @@ This root owns every other subtree directly:
 
   The mod's fixture files are `mods/superdev-view/hooks/trace-fixtures.ts` and
   `mods/superdev-view/hooks/ledger-fixtures.ts`. A bare `hooks/` path in this paragraph is under
-  `mods/superdev-view/`. `tests/run-trace.test.js` reads `hooks/trace-fixtures.ts`,
-  and `tests/scope.test.js` reads `hooks/ledger-fixtures.ts`. `hooks/parse.ts` reads the ledger and the
+  `mods/superdev-view/`. `tests/run-trace-dispatch.test.js` reads `hooks/trace-fixtures.ts`,
+  and `tests/scope-ledger.test.js` reads `hooks/ledger-fixtures.ts`. `hooks/parse.ts` reads the ledger and the
   run trace that `scope.js` writes, and two pins hold that coupling. The ledger pin in
-  `tests/scope.test.js` asserts that `scope.js` writes the lines in `hooks/ledger-fixtures.ts`. The trace
-  pin in `tests/run-trace.test.js` asserts that `plugin/hooks/run-trace.js` writes the lines in
+  `tests/scope-ledger.test.js` asserts that `scope.js` writes the lines in `hooks/ledger-fixtures.ts`. The trace
+  pin in `tests/run-trace-dispatch.test.js` asserts that `plugin/hooks/run-trace.js` writes the lines in
   `hooks/trace-fixtures.ts`. `hooks/parse.test.ts` parses both fixture files. A change to the ledger or
   trace layout fails one of these suites, so the change must update `hooks/parse.ts` and the fixture file
   together.

@@ -1,6 +1,6 @@
 // The ledger plugin/scripts/scope.js writes for scope `view`, one line per entry: `init feat/view planned`
 // with four slices (slice 04's title holds a `|`, which scope.js writes as `\|`), `stage set implementing`, slice 01 `merged` with a range, slice 02 `in-progress`.
-// tests/scope.test.js parses the JSON between the two markers and asserts scope.js writes exactly these
+// tests/scope-ledger.test.js parses the JSON between the two markers and asserts scope.js writes exactly these
 // lines; parse.test.ts asserts `header` and `slices` read them. A layout change on either side fails one
 // suite, so edit this list, not either test.
 export const LEDGER_LINES: string[] = /* ledger:start */ [
@@ -20,7 +20,7 @@ export const LEDGER_LINES: string[] = /* ledger:start */ [
 ] /* ledger:end */
 
 // The ledger of a run that has started `/superdev:review`: scope `view`, one slice `merged`, stage `merged`, then `step set review`.
-// tests/scope.test.js asserts scope.js writes exactly these lines, the way it does for LEDGER_LINES.
+// tests/scope-ledger.test.js asserts scope.js writes exactly these lines, the way it does for LEDGER_LINES.
 export const LEDGER_STEP_LINES: string[] = /* ledger-step:start */ [
   "# Ledger — view",
   "",

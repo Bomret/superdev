@@ -218,12 +218,29 @@ try {
   {
     const dir = fs.mkdtempSync(path.join(tmpDir, 'rl-noscanner-'));
     try {
-      const lone = path.join(dir, 'run-lock.js');
+      // The copy sits in <dir>/hooks, so its `../lib/shell-words.js` is <dir>/lib/shell-words.js.
+      fs.mkdirSync(path.join(dir, 'hooks'));
+      fs.mkdirSync(path.join(dir, 'lib'));
+      const lone = path.join(dir, 'hooks', 'run-lock.js');
       fs.copyFileSync(hookPath, lone);
-      const result = cp.spawnSync(process.execPath, [lone], { input: JSON.stringify({ cwd: testRunDir, tool_input: { command: add } }), encoding: 'utf8', timeout: 15000 });
-      assertSpawnDecided(result, 'run-lock.js without its scanner');
-      assert.strictEqual(result.status, 2, 'an unloadable scanner blocks');
-      assert.match(result.stderr, /shell-words/, 'and names the broken install');
+      const marker = path.join(dir, 'stub-loaded');
+      const scanner = path.join(dir, 'lib', 'shell-words.js');
+      const probe = (label, stub) => {
+        fs.rmSync(scanner, { force: true });
+        fs.rmSync(marker, { force: true });
+        // Each stub marks its load first, so the block below follows from the stub and not from a missing file.
+        if (stub !== null) fs.writeFileSync(scanner, `require('fs').writeFileSync(${JSON.stringify(marker)}, 'x');\n${stub}`);
+        const result = cp.spawnSync(process.execPath, [lone], { input: JSON.stringify({ cwd: testRunDir, tool_input: { command: add } }), encoding: 'utf8', timeout: 15000 });
+        assertSpawnDecided(result, 'run-lock.js with ' + label);
+        assert.strictEqual(fs.existsSync(marker), stub !== null, 'the stub at ../lib/shell-words.js loaded with ' + label);
+        assert.strictEqual(result.status, 2, 'a scopetree creation is blocked with ' + label);
+        assert.match(result.stderr, /cannot load lib\/shell-words\.js.*Reinstall/, 'and names the broken install with ' + label);
+      };
+      probe('no lib/shell-words.js', null);
+      probe('a shell-words.js that throws on load', "throw new Error('boom');");
+      probe('a drivePath that throws', "exports.drivePath = () => { throw new Error('boom'); };");
+      // The core loads but its reader module is absent: the core's own require throws.
+      probe('a core without lib/shell-word-readers.js', fs.readFileSync(path.join(__dirname, '..', 'plugin', 'lib', 'shell-words.js'), 'utf8'));
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

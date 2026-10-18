@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-// A fake knowledge-base backend for tests/publish-kb.test.js. Persists "pages" as a JSON map keyed
+// A fake knowledge-base backend for the publish-kb suites, through tests/publish-kb-setup.js. Persists "pages" as a JSON map keyed
 // by title in FAKE_KB_STATE_FILE, so `find` after a `create`/`update`/`delete` sees the effect of
 // the previous call. Optionally dumps every SUPERDEV_KB_* env var it received into
 // FAKE_KB_CAPTURE_DIR, one file per call, so a test can assert exactly what crossed the process

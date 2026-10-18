@@ -64,7 +64,14 @@ const found = (gaps) => gaps.filter((g) => !g.missing);
 const context = { assert, fs, os, path, fixture, found, realRoot };
 
 try {
-  require('./scanners.test')(context);
+  require('./references.test')(context);
+  require('./adr.test')(context);
+  require('./prose-avoid.test')(context);
+  require('./shell-spawn.test')(context);
+  require('./base-branch-ship.test')(context);
+  require('./marketplace-readme.test')(context);
+  require('./contracts.test')(context);
+  require('./checks.test')(context);
   require('./observation.test')(context);
   require('./drift-check.test')(context);
   require('./register-join.test')(context);
