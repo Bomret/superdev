@@ -32,6 +32,7 @@ CLI: a subcommand where one performs the operation, `tea api` where none does.
   is silently ignored, and no release happens. Only for a `draft` **override** does Forgejo need a `WIP:`
   prefix on the title (its draft marker): `--draft` adds it, and `tea pr edit <index> --ready` strips it
   before merge so the squash message is clean. The default `ready` posture never adds it.
+- **Read the PR:** `tea pr <index> --login <login> --repo bomret/superdev -o json`.
 - **Report:** print the PR URL that `tea pr create` prints.
 
 ## Degrade when no tea login
