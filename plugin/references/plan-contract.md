@@ -607,20 +607,24 @@ The exact commands and vocabulary live in the active `docs/agents/issue-tracker.
 
 Every issue a run creates — the epic and each slice — is assigned to the account named by
 `.superdev/info.json`, the **operator configuration** file: a single store-native identifier (a login on
-Forgejo/GitHub, an `accountId` on Jira), under the `issue-tracker` role key.
+Forgejo/GitHub, an `accountId` on Jira), under the `issue-tracker` role key, beside the name the store
+holds for that account.
 
 ```json
 {
-  "issue-tracker": { "assignee": "<identifier>" }
+  "issue-tracker": { "assignee": "<identifier>", "displayName": "<the account's name>" }
 }
 ```
+
+`displayName` is display-only: `/superdev:setup` writes it for a reader of the file, and no
+issue-tracker call reads it, so a missing or wrong name never changes who is assigned (INV-0074).
 
 It deliberately gains **no row in the *Fields* table above**. Assignee names who owns work inside a
 tracker — a property of the store and the run, not of a slice (ADR 0010).
 
 **The file is untracked, and that is the decision.** `.superdev/` is git-ignored, so an identifier
 belonging to one person never reaches a repository several people maintain (ADR 0073). It holds
-identifiers and never credentials: a token stays in the environment variable the active
+identifiers and their display names, never credentials: a token stays in the environment variable the active
 `docs/agents/issue-tracker.md` names.
 
 - **Read it from the main checkout, never from a path relative to the working directory.** `scope.js

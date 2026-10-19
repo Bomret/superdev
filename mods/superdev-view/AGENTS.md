@@ -26,6 +26,11 @@ host's own text size. An Svg in the pane holds no text, because the surface scal
 pane's width, and text inside a scaled drawing shrinks with it. An Svg draws only a bar, at a fixed
 height. A legend square is Text in its bar's fill. The terminal has no Svg and draws the same bars as colored glyphs, one glyph per slice in a scope's bar.
 
+The overview opens with the assignee line, one entry per `info.json` role. An entry shows the role's
+`displayName`, trimmed, when that is a string with a non-blank value, and the role's `assignee` identifier
+otherwise, so a blank name falls back like an absent one. The line keeps to one row: a long name is cut
+at its end. The mod never asks the slice store for a name: `/superdev:setup` writes it into the file.
+
 The overview is a column of collapsible cards: Brainstorm, Scopes, Pending knowledge-base pages, Design
 sketches, and DoD drafts. Each card has a rounded, dim border. Its header shows the open mark and the
 section name on the left, and the section's value on the right: the active and closed scope counts for

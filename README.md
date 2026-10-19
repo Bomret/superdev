@@ -491,7 +491,10 @@ again. One answer lands outside that tree: the slice store's **assignee** goes t
   or an `accountId`, and it defaults to the API token's own identity, or to `none`. The answer goes to
   `.superdev/info.json`, not to a config doc: the account is yours rather than the repository's, and
   `.superdev/` is git-ignored, so a repository several people maintain records none of them. A checkout
-  without the file assigns to whoever the API token belongs to.
+  without the file assigns to whoever the API token belongs to. Beside the assignee, setup records the
+  name the store holds for that account as `displayName`, so a reader of the file sees a person rather
+  than a login or an `accountId`. Issues are assigned by the assignee alone, and a re-run adds a missing
+  name without a question.
 
   Each slice-store backend also states where it mirrors a run's ledger, the **published snapshot** it
   writes to the scope anchor as a `## Run state` section. `/superdev:implement` reads a live snapshot back

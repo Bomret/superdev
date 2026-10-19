@@ -24,7 +24,7 @@ Plus one file that is **not** a config doc, because what it holds belongs to a p
 repository:
 
 - `.superdev/info.json` — the **operator configuration** (`CONTEXT.md`), holding the slice store's
-  assignee under the `issue-tracker` role key. Git-ignored, so it stays out of a repository other people
+  assignee and its display name under the `issue-tracker` role key. Git-ignored, so it stays out of a repository other people
   maintain (ADR 0073).
 
 This is prompt-driven, not a script. **Explore, propose defaults, confirm one decision at a time, then
@@ -226,11 +226,21 @@ several people would carry one maintainer's account in its history and file ever
 
 ```json
 {
-  "issue-tracker": { "assignee": "<the answer, or \"none\">" }
+  "issue-tracker": { "assignee": "<the answer, or \"none\">", "displayName": "<the account's name>" }
 }
 ```
 
-- **Merge into an existing file**, setting `issue-tracker.assignee` alone, so another role's key survives.
+- **Look up the display name** for an answer other than `none`, by its identifier, on every backend: the
+  whoami calls above do not all return a name (the `tea` login carries none). Forgejo/Gitea: `tea api
+  -i /users/<login>` and its `full_name`, reading the HTTP status from stderr, because `tea api` exits 0
+  on a 4xx or 5xx answer; GitHub: `GET /users/<login>` and its `name`; Jira:
+  `GET /rest/api/3/user?accountId=<accountId>` and its `displayName`. A status other than 2xx is a
+  failed lookup. The name is display-only:
+  `/superdev:plan` assigns by `assignee` alone (INV-0074).
+- **Merge into an existing file**, setting `issue-tracker.assignee` and `issue-tracker.displayName`, so
+  another role's key survives. An empty or null name, a failed lookup, or `none` removes `displayName`,
+  so no earlier account's name stays beside a new assignee. Report a failed lookup in one line and
+  continue: the assignee is written either way.
 - **Ensure `.superdev/` is in `.gitignore`**, adding it when absent.
 - **Say the path you wrote and that the file is untracked**, so an operator who went looking in
   `docs/agents/` knows why it is not there, and knows a teammate inherits nothing from this answer.
@@ -706,6 +716,10 @@ at setup)` section such as `## Run state` or the status workflow. Applying a kno
 `## Commands` only after the `find` probe exits 3 (INV-0072). Applying a seed's `## Assignee` writes no
 assignee into a tracked document, and the answer goes to `.superdev/info.json` (INV-0074).
 
+A re-run also reads `.superdev/info.json`. An `issue-tracker.assignee` other than `none` with no
+`displayName` beside it gets the display name looked up and written, per decision A, and asks no
+question: the name is display-only, so there is nothing to decide.
+
 A backend switch writes the new seed fresh and carries no seed deviation over from the old backend.
 
 ## 4. Done
@@ -715,7 +729,7 @@ They can edit `docs/agents/*.md` directly later. Re-run this skill to switch bac
 a newer superdev release added: a re-run reconciles each document with its seed (§3). Say that
 `.superdev/info.json` is theirs alone and travels with no clone, so a fresh checkout configures it again
 or falls back to the API token's own identity. Record only env-var **names** for secrets — never the token
-values, and never in `.superdev/info.json` either, which holds identifiers only.
+values, and never in `.superdev/info.json` either, which holds identifiers and their display names only.
 
 If §1 found **no `AGENTS.md` hierarchy**, point the user at **`/superdev:document`** — its bootstrap mode
 seeds the initial hierarchy + glossary from the existing code, so per-feature `/superdev:plan` doesn't

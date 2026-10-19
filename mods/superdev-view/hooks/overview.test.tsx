@@ -294,6 +294,28 @@ test('the overview starts with the assignee and the root path, with the home fol
   expect(texts.slice(0, 2)).toEqual(['🪪 stefan', '~/.superdev'])
 })
 
+const assigneeLine = async ($: Parameters<Parameters<typeof test>[1]>[0], on: Parameters<Parameters<typeof test>[1]>[1], info: string) => {
+  const { files, lists } = overviewRepo()
+  fakeRepo(on, { ...files, [`${R}/info.json`]: info }, lists)
+  await $.command.run(runCommand)
+  const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'mobile', ...PANE })
+  return (await ui.findAll({ type: 'Text' }))[0]
+}
+
+test('the assignee line shows the display name when info.json carries one', async ($, on) => {
+  expect((await assigneeLine($, on, '{"issue-tracker":{"assignee":"stefan","displayName":"Stefan Reichel"}}'))?.text).toBe('🪪 Stefan Reichel')
+})
+
+test('a long display name stays on one row, cut at its end', async ($, on) => {
+  const line = await assigneeLine($, on, `{"issue-tracker":{"assignee":"stefan","displayName":"${'Stefan Reichel '.repeat(8)}"}}`)
+  expect(line?.props.wrap).toBe('truncate-end')
+})
+
+for (const name of ['""', '"  "', 'null', '42', '{"first":"Stefan"}'])
+  test(`a display name of ${name} leaves the identifier on the assignee line`, async ($, on) => {
+    expect((await assigneeLine($, on, `{"issue-tracker":{"assignee":"stefan","displayName":${name}}}`))?.text).toBe('🪪 stefan')
+  })
+
 test('a press writes no file', async ($, on) => {
   const { files, lists } = overviewRepo()
   fakeRepo(on, files, lists)

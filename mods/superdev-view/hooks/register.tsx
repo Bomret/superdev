@@ -142,8 +142,8 @@ async function scan($: EngineInterface): Promise<void> {
 
   let assignees: Snapshot['assignees'] = null
   if (top.get('info.json') === 'file') {
-    const info = await $.fs.read(`${root}/info.json`).then(t => JSON.parse(t) as Record<string, { assignee?: string }>).catch(() => ({}))
-    assignees = Object.entries(info).map(([role, v]) => ({ role, who: v?.assignee ?? '' }))
+    const info = await $.fs.read(`${root}/info.json`).then(t => JSON.parse(t) as Record<string, { assignee?: string; displayName?: unknown }>).catch(() => ({}))
+    assignees = Object.entries(info).map(([role, v]) => ({ role, who: (typeof v?.displayName === 'string' && v.displayName.trim()) || (v?.assignee ?? '') }))
   }
   const intents: Intent[] | null = top.get('brainstorm') === 'dir'
     ? await Promise.all((await files('brainstorm', '.md')).map(async f => intent(f.name.replace(/\.md$/, ''), await $.fs.read(`${root}/brainstorm/${f.name}`).catch(() => ''))))
@@ -369,7 +369,7 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column" gap={1}>
         <Box flexDirection="column">
-          {snap.assignees && <Text dimColor>🪪 {snap.assignees.map(a => a.who).join(', ')}</Text>}
+          {snap.assignees && <Text dimColor wrap="truncate-end">🪪 {snap.assignees.map(a => a.who).join(', ')}</Text>}
           <Text dimColor wrap="truncate-start">{tilde(snap.root)}</Text>
         </Box>
         {intents.length > 0 && section('brainstorm', 'Brainstorm', String(intents.length), false, () => intents.map(i => (
