@@ -12,3 +12,6 @@ plugin/.data/
 
 # types Claude Code lays into a loaded mod (regenerated on every load)
 mods/*/.claude-plugin/types/
+
+# macOS Finder metadata
+.DS_Store
