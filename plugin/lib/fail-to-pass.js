@@ -33,6 +33,10 @@ function failToPassFloorMs() {
   return FAIL_TO_PASS_FLOOR_MS;
 }
 
+// The bound on the run with the files put back: ten times the control's duration, rounded up, or the floor, whichever
+// is larger (ADR 0142). Pure, so the suite pins the factor and the floor without a clock; the caller reads the floor.
+const failToPassBoundMs = (controlMs, floorMs) => Math.max(Math.ceil(controlMs * 10), floorMs);
+
 // The domain shapes, named as CONTEXT.md names them. A **fail-to-pass run** is a performed test comparison over a
 // commit range; its **outcome** is what the two runs showed, and the run trace carries it as a line of its own kind.
 //
@@ -219,7 +223,7 @@ async function verbFailToPass(cwd, args) {
     // Code missing the feature can hang, so the second run is bounded at ten times the duration the control took in this
     // invocation, or the floor, whichever is larger: a millisecond control would otherwise give a bound shorter than the
     // delays a loaded machine adds (ADR 0142).
-    const bound = Math.max(Math.ceil(control.ms * 10), failToPassFloorMs());
+    const bound = failToPassBoundMs(control.ms, failToPassFloorMs());
     const putBack = await exec(bound);
     // A run whose bound expired, or that a signal ended, carries no verdict whether or not the kill landed (INV-0009).
     if (putBack.startError) return record('unknown', `control=0,put-back=${status(putBack)}`);
@@ -230,4 +234,4 @@ async function verbFailToPass(cwd, args) {
   }
 }
 
-module.exports = { verbFailToPass };
+module.exports = { verbFailToPass, failToPassBoundMs };

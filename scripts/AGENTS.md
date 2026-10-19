@@ -196,7 +196,10 @@ HEAD. The verb runs the command again and bounds that second run at 10 times the
 same invocation, or at a floor of 10 000 ms, whichever is larger (INV-0009, ADR 0142). `SUPERDEV_FAIL_TO_PASS_FLOOR_MS`
 overrides the floor in milliseconds; a value that is not a positive integer, or that exceeds 2147483647 (the
 longest delay Node's timer holds), reads as absent, and the verb names that value in one line on stderr. The suite's cases that hang
-the second run set the override, so none waits the floor. The verb refuses a range that changes no file and a range that changes only test files,
+the second run set the override, so none waits the floor. `lib/fail-to-pass.js` exports the bound as the pure function
+`failToPassBoundMs(controlMs, floorMs)`, and the verb calls it with the floor it reads once. The suite pins the factor and
+the floor on that function with no clock, because the first run's measured duration includes its own start-up, and load
+stretches that start-up by seconds. The verb refuses a range that changes no file and a range that changes only test files,
 because nothing is put back.
 
 The outcome is `fail-to-pass` when the second run fails, and `pass-to-pass` when it passes. It is `unknown` when the first

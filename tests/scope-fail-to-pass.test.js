@@ -16,6 +16,7 @@ const { verif } = require('./scope-setup');
 
 const scopePath = require.resolve('../plugin/scripts/scope.js');
 const { appendTrace } = require(scopePath);
+const { failToPassBoundMs } = require('../plugin/lib/fail-to-pass.js');
 
 // Every case runs at the default floor of the bound unless it sets its own (ADR 0142).
 delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
@@ -353,12 +354,10 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     // control sleeps $F2P_SLEEP seconds, so it took at least that long, and the bound is read back from the outcome's reason:
     // every assertion compares it with what that invocation itself ran, never with a fixed ceiling (root AGENTS.md, ADR 0086).
     // The run with the files put back hangs, and its whole process group dies at the bound, the shell and the `sleep` it started.
-    // Each run writes the millisecond time it started into the file it creates, so the stamps' contents give the gap between
-    // the two starts at a resolution no filesystem's mtime limits.
-    const stamp = 'node -e \'require("fs").writeFileSync(process.argv[1], String(Date.now()))\' ';
+    // The bound's factor and floor are pinned on `failToPassBoundMs` below, with no clock: the control's measured duration
+    // includes its own start-up, which load stretches by seconds, so no wall-clock reading pins the factor (#1219).
     const hangs = [
-      `if grep -q b src.txt; then ${stamp}"$F2P_DIR/control-start"; sleep "$F2P_SLEEP"; exit 0; fi`,
-      `${stamp}"$F2P_DIR/put-back-start"`,
+      'if grep -q b src.txt; then sleep "$F2P_SLEEP"; exit 0; fi',
       'if [ -n "$F2P_SLOW" ]; then sleep "$F2P_SLOW"; exit 1; fi',
       'echo $$ > "$F2P_DIR/pid"; sleep 300 & echo $! > "$F2P_DIR/child"; wait',
     ].join('\n') + '\n';
@@ -372,29 +371,23 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
       const out = b.run(b.range, { env: { F2P_SLEEP: String(sleepSeconds), SUPERDEV_FAIL_TO_PASS_FLOOR_MS: '1', ...env } });
       return { b, out, elapsedMs: Date.now() - startedAt };
     };
-    const shortRun = bounded(0.05);
     const longRun = bounded(0.4);
-    const [shortBound, longBound] = [[shortRun, 0.05], [longRun, 0.4]].map(([run, seconds]) => {
-      assert.equal(run.out.status, 0, run.out.stderr);
-      const m = /^unknown control=0,put-back=SIGKILL,bound=(\d+)ms$/.exec(run.out.stdout.trim());
-      assert.ok(m, 'a run killed at its bound records `unknown` naming the signal and the bound: ' + run.out.stdout);
-      assert.ok(Number(m[1]) >= 10 * seconds * 1000, `the bound is at least ten times the control's ${seconds}s sleep: ${m[1]}ms`);
-      assert.deepEqual(run.b.trace(), [`01 main fail-to-pass ${run.b.range} ${run.out.stdout.trim()}`], 'and the line is written');
-      assert.deepEqual(leftover(run.b), []);
-      assertGone('no process the run with the files put back started keeps running', path.join(run.b.dir, 'pid'), path.join(run.b.dir, 'child'));
-      return Number(m[1]);
-    });
-    assert.ok(longBound > shortBound, `the bound follows the control's own duration: ${shortBound}ms after a 0.05s control, ${longBound}ms after a 0.4s one`);
+    assert.equal(longRun.out.status, 0, longRun.out.stderr);
+    const m = /^unknown control=0,put-back=SIGKILL,bound=(\d+)ms$/.exec(longRun.out.stdout.trim());
+    assert.ok(m, 'a run killed at its bound records `unknown` naming the signal and the bound: ' + longRun.out.stdout);
+    const longBound = Number(m[1]);
+    assert.ok(longBound >= 10 * 0.4 * 1000, `the bound is at least ten times the control's 0.4s sleep: ${longBound}ms`);
+    assert.deepEqual(longRun.b.trace(), [`01 main fail-to-pass ${longRun.b.range} ${longRun.out.stdout.trim()}`], 'and the line is written');
+    assert.deepEqual(leftover(longRun.b), []);
+    assertGone('no process the run with the files put back started keeps running', path.join(longRun.b.dir, 'pid'), path.join(longRun.b.dir, 'child'));
     // The kill lands at the reported bound. The control took a tenth of the bound, and a kill armed several bounds late would
-    // let the whole verb run for far more than that plus three bounds. The ceiling comes from the bound the same run reported;
-    // the longer run alone carries it, because the verb's own git steps weigh most against the short run's small bound.
+    // let the whole verb run for far more than that plus three bounds. The ceiling comes from the bound the same run reported.
     assert.ok(longRun.elapsedMs <= longBound / 10 + 3 * longBound, `the verb ran ${longRun.elapsedMs}ms against a reported bound of ${longBound}ms: the second run is killed at its bound`);
-    // The factor stays near ten: this catches a factor far above it, such as twenty, and passes one up to about fifteen. The
-    // gap between the two starts is the control's duration plus the verb's own put-back step, so ten times it is the bound's
-    // ceiling. The slack is five of the control's own 0.4s sleeps (2000ms), which covers a start that lands late under
-    // scheduling pressure. Both stamps and the slack come from that one invocation, so a descheduled process only loosens it.
-    const startGapMs = Number(fs.readFileSync(path.join(longRun.b.dir, 'put-back-start'), 'utf8')) - Number(fs.readFileSync(path.join(longRun.b.dir, 'control-start'), 'utf8'));
-    assert.ok(longBound <= 10 * startGapMs + 5 * 0.4 * 1000, `the bound stays near ten times the control's duration: ${longBound}ms against a ${startGapMs}ms gap between the two starts`);
+    // The bound is ten times the control's duration, rounded up, or the floor, whichever is larger (ADR 0142). Every input is
+    // exactly representable, so no binary tail moves the round-up.
+    for (const [controlMs, floorMs, bound] of [[100, 1, 1000], [100.5, 1, 1005], [12.25, 1, 123], [5, 1500, 1500], [150, 1500, 1500], [151, 1500, 1510], [0.5, 10000, 10000]]) {
+      assert.equal(failToPassBoundMs(controlMs, floorMs), bound, `the bound for a ${controlMs}ms control at a ${floorMs}ms floor`);
+    }
     // A run that takes three times the control's duration ends inside its bound and reads a verdict.
     const slow = bounded(0.2, { F2P_SLOW: '0.6' });
     assert.equal(slow.out.stdout.trim(), 'fail-to-pass control=0,put-back=1', slow.out.stderr);
