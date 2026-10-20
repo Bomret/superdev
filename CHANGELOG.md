@@ -1,3 +1,15 @@
+# [0.77.0](https://codeberg.org/bomret/superdev/compare/v0.76.0...v0.77.0) (2026-10-20)
+
+
+### Bug Fixes
+
+* **scope:** the fail-to-pass suite's bound checks hold under load ([#1271](https://codeberg.org/bomret/superdev/issues/1271)) ([f21ac0a](https://codeberg.org/bomret/superdev/commit/f21ac0aa7ef8a3ed8ffc5f8532bbe0d3c9204a07))
+
+
+### Features
+
+* **setup:** store and show the assignee's display name ([#1269](https://codeberg.org/bomret/superdev/issues/1269)) ([c1075a9](https://codeberg.org/bomret/superdev/commit/c1075a9163fd13829226565af3d07cfded47dfae))
+
 # [0.76.0](https://codeberg.org/bomret/superdev/compare/v0.75.1...v0.76.0) (2026-10-18)
 
 
