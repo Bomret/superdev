@@ -760,7 +760,7 @@ Paths: plugin/skills/plan/SKILL.md, plugin/references/plan-contract.md
 
 Class: process
 Concepts: Invariant register
-Statement: Every register entry's mandatory fields, its Concepts, and the Paths, Symbols, and Check paths it names are checked by scripts/invariant-check.js, which bun run test runs against this repository. The check fails naming the entry and the field, so a register rule breaks loudly rather than silently.
+Statement: Every register entry's mandatory fields, its Concepts, and the Paths, Symbols, and Check paths it names are checked by scripts/invariant-check.js, which node scripts/run-tests.js runs against this repository. The check fails naming the entry and the field, so a register rule breaks loudly rather than silently.
 Breaks: silently
 Check: tests/invariant-check.test.js — each format and resolution rule fails naming the entry and the field; the test chain runs the validator against this repository
 Symbols: check, parseEntries, globMatcher

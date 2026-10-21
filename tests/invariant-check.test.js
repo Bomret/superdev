@@ -357,10 +357,10 @@ const withConcepts = (value) => GOOD.map((l) => (l.startsWith('Concepts:') ? `Co
 }
 
 
-// --- wiring: `bun run test` validates this repository's own register. ---
+// --- wiring: `node scripts/run-tests.js` validates this repository's own register. ---
 {
   const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
-  assert.strictEqual(pkg.scripts.test, 'node scripts/run-tests.js', 'bun run test is the runner');
+  assert.strictEqual(pkg.scripts.test, undefined, 'package.json carries no test script: tests run through node scripts/run-tests.js');
   assert.ok(
     require('../scripts/run-tests').TAIL.some(([cmd, args]) => cmd === process.execPath && args.join(' ') === 'scripts/invariant-check.js --root .'),
     'the runner\'s tail runs the validator against this repository',

@@ -85,7 +85,7 @@ tests/                 — one suite per shipped executable (the hooks, `scope.j
                          tree's layout (`plugin-layout.test.js`: entry-point export names, re-export
                          identity, the CommonJS anchor over `plugin/lib/`), and one each for the
                          maintainer-only `invariant-check.js` and `run-tests.js`, framework-free
-                         `node:assert`, run under `node` by `bun run test` (ADR 0059). A large entry
+                         `node:assert`, run under `node` by `node scripts/run-tests.js` (ADR 0059). A large entry
                          point's suite is split flat by topic into `tests/<entry>-<topic>.test.js` over one
                          `<entry>-setup.js` that is no suite (ADR 0139, ADR 0151): `scope-*` (ledger,
                          ledger-header, suite, dod-line, publish-adopt, trace, root-base, containment,
@@ -107,15 +107,15 @@ docs/known-issues.md   — Claude Code platform behaviour superdev works around,
                          shipped mitigation and dated verification
 mods/superdev-view/    — maintainer-only Claude Code mod: a pane of a repository's `.superdev/`
                          folder, its own single-plugin marketplace (`.claude-plugin/marketplace.json`);
-                         never shipped. Its own suites run under `claude plugin test`; `bun run test` runs none
+                         never shipped. Its own suites run under `claude plugin test`; `node scripts/run-tests.js` runs none
                          of them, and only reads its fixture files through `tests/run-trace-dispatch.test.js`
                          and `tests/scope-ledger.test.js`
                          its `.gitignore` excludes `hooks/*.js`, because the hooks are TypeScript only;
                          its own AGENTS.md states the pane's behaviour contract
-scripts/               — the maintainer-only CLIs wired into `bun run test`: `drift-check.js` with its
+scripts/               — the maintainer-only CLIs `node scripts/run-tests.js` runs: `drift-check.js` with its
                          `drift/` modules (registry, contract tables, scanners, shared helpers,
                          selftest suites), `invariant-check.js`, the invariant register validator, and
-                         `run-tests.js`, the suite runner `bun run test` invokes
+                         `run-tests.js`, the suite runner
 release.config.cjs     — semantic-release config (semantic-release-replace-plugin bumps plugin.json and
                          the marketplace source's `ref`)
 package.json           — dev-only tooling (Bun); NOT published to npm
@@ -137,7 +137,7 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
 
 ## Stack
 
-- **Bun.** The repo package manager and task runner (`bun.lock`).
+- **Bun.** The repo package manager and release runner (`bun.lock`). No test runs through it.
 - **Node.** The hooks' runtime and a prerequisite on the user's PATH, which Claude Code does not
   install. `hooks.json` invokes `node`, because not every environment has Bun. Bun is maintainer-only.
 - **semantic-release.** Deterministic, commit-driven releases (`release.config.cjs`), published to
@@ -160,7 +160,7 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   field, and do not add `"type": "module"` to the root `package.json` either. Only `.mjs` is ESM,
   because that is scoped by extension.
 - **Every shipped executable has a suite in `tests/`, named for it.** Add one for any new hook or
-  script. `bun run test` runs `scripts/run-tests.js`, which runs every `tests/*.test.js` suite under
+  script. `node scripts/run-tests.js` runs every `tests/*.test.js` suite under
   `node`, which matches the production runtime. No roster needs an edit when a suite is added. It then runs `invariant-check.js` against this repository's own register, `drift-check`'s own
   `--selftest`, `drift-check` itself, and `claude plugin validate ./plugin` as a manifest-validation
   gate. A suite that commits in a fixture repository sets `commit.gpgsign=false` for every git child
@@ -255,7 +255,9 @@ directory a Bash command ended in, which run-trace works around with a PreToolUs
 
 ```
 bun install                        # install dev deps (release toolchain)
-bun run test                       # tests/ suites, drift-check, plugin manifest validation
+node scripts/run-tests.js          # every tests/ suite, drift-check, plugin manifest validation
+node scripts/run-tests.js --related <path>...  # the tail plus the suites the paths reach
+node tests/<suite>.test.js         # one suite, no tail
 GITEA_TOKEN=<token> bun run release  # cut a release from clean main (see RELEASING.md)
 ```
 
@@ -278,10 +280,10 @@ Codeberg (Forgejo). Push scope branch, open ready PR against `main`, squash-merg
 Codeberg repo Wiki. Adopters first, maintainers second, English. `(aggregate)` page: Concepts. See `docs/agents/knowledge-base.md`.
 
 ### Toolchain
-Bun dev toolchain, Node runtime for hooks. `bun run test`, `bun run release`. No linter or formatter. See `docs/agents/toolchain.md`.
+Bun dev toolchain, Node runtime for hooks. `node scripts/run-tests.js`, `bun run release`. No linter or formatter. See `docs/agents/toolchain.md`.
 
 ### Verification
-`bun run test` in the first fence (the full command, about 6 minutes), `node scripts/run-tests.js --related {paths}`
+`node scripts/run-tests.js` in the first fence (the full command, about 6 minutes), `node scripts/run-tests.js --related {paths}`
 in the second (the focused command, about 2 s for a change set whose `.md` paths no suite names). See `docs/agents/verification.md`.
 
 ### Deployment

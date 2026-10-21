@@ -4,7 +4,6 @@
   "private": true,
   "description": "Release tooling for the superdev Claude Code plugin. Not published to npm; the plugin ships via the plugin/ subdirectory. semantic-release drives versioning off Conventional Commits.",
   "scripts": {
-    "test": "node scripts/run-tests.js",
     "release": "semantic-release --no-ci"
   },
   "engines": {

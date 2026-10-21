@@ -1,6 +1,6 @@
 'use strict';
 
-// Suite for scripts/run-tests.js, the maintainer-only runner behind `bun run test`. Every case builds a
+// Suite for scripts/run-tests.js, the maintainer-only test runner. Every case builds a
 // throwaway tree under the OS temp dir, so the runner is exercised on suites this repository does not
 // carry.
 

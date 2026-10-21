@@ -12,7 +12,7 @@ const path = require('node:path');
 const https = require('node:https');
 
 // simplicity: overridable via env so tests/update-check.test.js's "spawned still runs main()" fixture
-// can point this at a loopback port instead of the real network — `bun run test` stays fully offline.
+// can point this at a loopback port instead of the real network — the suite stays fully offline.
 const REMOTE =
   process.env.SUPERDEV_UPDATE_CHECK_REMOTE ||
   'https://codeberg.org/bomret/superdev/raw/branch/main/plugin/.claude-plugin/plugin.json';

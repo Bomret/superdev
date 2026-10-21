@@ -8,7 +8,7 @@ The shipped CLIs live in `plugin/scripts/`: `scope.js` (the run-state CLI, ADR 0
 knowledge-base pages, ADR 0069), `profile.js` (the run profile, ADR 0103), and `plugin/lib/md-to-storage.js` (the markdown to Confluence `storage` conversion
 `lib/kb-apply.js` requires, ADR 0109). Every other module behind them lives in `plugin/lib/` (ADR 0151). The maintainer-only ones live here in `scripts/`: `drift-check.js`
 (the checks of mechanical facts and forbidden forms, ADR 0153), `invariant-check.js` (the invariant register validator,
-ADR 0093), and `run-tests.js` (the suite runner behind `bun run test`). This doc owns them all regardless of which dir each lives in.
+ADR 0093), and `run-tests.js` (the suite runner). This doc owns them all regardless of which dir each lives in.
 
 ## Ownership
 
@@ -723,9 +723,9 @@ transcript trees (`tests/profile-setup.js`) in a temporary directory and point `
 
 ### run-tests.js, the suite runner
 
-`node scripts/run-tests.js` is the whole of `bun run test`. It discovers the suites under `tests/` by
+`node scripts/run-tests.js` runs every suite under `tests/` and the tail; `package.json` carries no test script. It discovers the suites under `tests/` by
 name: every `*.test.js` file directly in that directory, in name order, so a suite added to the tree runs
-with no edit to `package.json`. A helper (`spawn-verdict.js`, `fixture-git.js`, `linear-time.js`), a shared setup file (`tests/*-setup.js`), and a subdirectory
+with no roster edit. A helper (`spawn-verdict.js`, `fixture-git.js`, `linear-time.js`), a shared setup file (`tests/*-setup.js`), and a subdirectory
 (`tests/fixtures/`) are not suites. It runs each suite under `node`, then the fixed tail: `invariant-check.js
 --root .`, `drift-check.js --selftest`, `drift-check.js`, and `claude plugin validate ./plugin`. Every step,
 suite and tail alike, prints one `run-tests: <label>: <ms> ms` line carrying its wall clock, which
@@ -767,7 +767,7 @@ tail is exported as `TAIL`, so a suite reads it instead of matching the runner's
 
 ### invariant-check.js, the invariant register validator (ADR 0093)
 
-`node scripts/invariant-check.js --root <dir>` validates `<dir>/docs/invariants.md`. `bun run test` runs
+`node scripts/invariant-check.js --root <dir>` validates `<dir>/docs/invariants.md`. `node scripts/run-tests.js` runs
 it with `--root .`. The maintainer also runs it by hand against another repository's register, so it
 takes the root as an argument rather than reading its own checkout. It prints one line per
 failure, `<id>: <field>: <reason>`, then a summary, and exits 1 on any failure. A root with no register
@@ -915,7 +915,7 @@ path, when that document is missing. A check that walks a directory reads whatev
 
 ## Verification
 
-`bun run test` (repo root) runs `run-tests.js`, which runs each suite under `tests/`, then `invariant-check.js`
+`node scripts/run-tests.js` (repo root) runs each suite under `tests/`, then `invariant-check.js`
 against this repository's register, then `drift-check.js`'s own `--selftest`, all under `node`, which
 matches the production runtime. `node scripts/run-tests.js --related <path>...` is the focused run.
 

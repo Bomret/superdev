@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 
-// run-tests: the maintainer-only runner behind `bun run test`. It finds the suites under tests/ by
-// their `*.test.js` name, so a suite added to the tree runs with no edit to package.json, runs each
+// run-tests: the maintainer-only test runner; `package.json` carries no test script. It finds the suites under tests/ by
+// their `*.test.js` name, so a suite added to the tree runs with no roster edit, runs each
 // under `node` (the hooks' production runtime) in name order, and then the fixed tail: the invariant
 // register check, the drift selftest, drift-check, and plugin manifest validation. Every step prints
 // one `run-tests: <label>: <ms> ms` line, so a test audit ranks measured cost. The first failure stops

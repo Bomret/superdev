@@ -3,7 +3,7 @@
 The repo's test command, the first fence, and the focused command, the second:
 
 ```sh
-bun run test
+node scripts/run-tests.js
 ```
 
 ```sh
@@ -26,9 +26,16 @@ rule places runs every suite, and an empty path list runs the tail alone and exi
 A focused run for a change set whose `.md` paths no suite names runs the tail alone, about 2 s. One for a change
 to the `run-lock` hook takes about 45 s, because the `scope` suite names that hook.
 
+## One-suite run
+
+While working on one suite, run it alone: `node tests/<suite>.test.js` from the repo root, for example
+`node tests/merge-guard.test.js`. It runs that suite and no tail, and its exit code is the verdict. A
+one-suite run does not replace the focused command before the merge. `package.json` carries no test script,
+so every test run names exactly what it runs (ADR 0162).
+
 ## Timing command
 
-`bun run test`
+`node scripts/run-tests.js`
 
 Every step, suite and tail alike, prints one `run-tests: <label>: <ms> ms` line, so a test audit of this
 repository ranks by measured wall clock (`references/test-selection.md`, ADR 0066).

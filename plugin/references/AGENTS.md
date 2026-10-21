@@ -59,7 +59,7 @@ finding for review: no check compares the two.
 
 ## Verification
 
-`bun run test` from the repo root. `scripts/drift-check.js` asserts that every `references/*.md` path a
+`node scripts/run-tests.js` from the repo root. `scripts/drift-check.js` asserts that every `references/*.md` path a
 skill, agent, or reference names exists, that every canonical reference still carries the sections its
 readers are sent to, and that a document a check reads is not missing.
 

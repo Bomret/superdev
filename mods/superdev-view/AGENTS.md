@@ -122,7 +122,7 @@ install only after that version is raised and `claude plugin update superdev-vie
 
 ## Verification
 
-The mod's own tests run under `claude plugin test mods/superdev-view`. `bun run test` runs none of them and
+The mod's own tests run under `claude plugin test mods/superdev-view`. `node scripts/run-tests.js` runs none of them and
 reads only the mod's shared fixture files. The focused command runs them when a changed path is under
 `mods/superdev-view/`, so a `fail-to-pass` run over a mod-only range judges the mod's tests. The fixture
 pins that couple `hooks/parse.ts` to the ledger and the run trace are stated in the root

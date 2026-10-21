@@ -6,18 +6,16 @@ last release tag. Nobody bumps a version by hand.
 
 ## Repo tooling (Bun)
 
-[Bun](https://bun.sh) is the repo's package manager and task runner. Install dev deps and run tasks with
-it:
+[Bun](https://bun.sh) is the repo's package manager. Install dev deps and cut releases with it:
 
 ```
 bun install       # install dev deps (semantic-release toolchain); writes bun.lock
-bun run test      # run the tests/ suites, the register and drift checks, and plugin validation
 bun run release   # cut a release (see below)
 ```
 
 The plugin's **hooks stay on `node`** (`hooks.json` invokes `node …`). `node` is guaranteed in every
-user's Claude Code environment, and Bun is not. Bun is a maintainer-only tool. `bun run test` runs the
-`tests/` suites with `node`, so they match the production runtime. It then runs `invariant-check.js`
+user's Claude Code environment, and Bun is not. Bun is a maintainer-only tool, and no test runs through it.
+`node scripts/run-tests.js` runs the `tests/` suites with `node`, so they match the production runtime. It then runs `invariant-check.js`
 against the repository's own register, the `drift-check.js` selftest, `drift-check.js` itself, and
 `claude plugin validate ./plugin` as a manifest-validation gate.
 
