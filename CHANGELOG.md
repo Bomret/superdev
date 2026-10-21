@@ -1,3 +1,10 @@
+# [0.78.0](https://codeberg.org/bomret/superdev/compare/v0.77.0...v0.78.0) (2026-10-21)
+
+
+### Features
+
+* **review-tests:** audit test gaps beside test cost ([#1276](https://codeberg.org/bomret/superdev/issues/1276)) ([f6c0079](https://codeberg.org/bomret/superdev/commit/f6c00798ea4d5d24a4cef8a5d0fdb4454b821a4b))
+
 # [0.77.0](https://codeberg.org/bomret/superdev/compare/v0.76.0...v0.77.0) (2026-10-20)
 
 
