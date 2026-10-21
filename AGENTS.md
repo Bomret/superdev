@@ -42,7 +42,8 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          brainstorm, setup, plan, implement, review, document, submit-pr, ship, verify-ship,
                          wrap-up, upgrade, status, profile, backlog, publish-kb, prose-check, review-tests, sweep
   agents/              — the subagents (*.md): implementer, slice-reviewer, simplicity-reviewer,
-                         final-reviewer, doc-writer, doc-reader, test-auditor
+                         final-reviewer, doc-writer, doc-reader, test-auditor,
+                         test-gap-auditor
   hooks/               — the deterministic Node hooks + hooks.json: merge-guard, model-explicit,
                          run-lock, ledger-guard, tree-guard, run-trace, slicetree-sweep, scope-prune, update-check
   lib/                 — every module: code that no hook registration and no prose step runs (ADR 0151).
@@ -59,7 +60,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          `adopt`), `status.js`, `usage.js`, `refusal.js` (the refusal error),
                          `main-work-tree.js`, `verification.js` (the readers of `verification.md`).
                          Git and containment: `git-spawn.js` (the shared git calls), `containment.js`,
-                         `collisions.js`, `citations.js`.
+                         `collisions.js`, `citations.js`, `source-set.js` (the gap audit's source set).
                          Run trace: `trace-log.js` (writer, reader, field codec), `run-tree.js`,
                          `test-runs.js`, `dispatch.js`, `dispatch-lines.js`, `verdicts.js`,
                          `start-stash.js`.
@@ -88,7 +89,7 @@ tests/                 — one suite per shipped executable (the hooks, `scope.j
                          point's suite is split flat by topic into `tests/<entry>-<topic>.test.js` over one
                          `<entry>-setup.js` that is no suite (ADR 0139, ADR 0151): `scope-*` (ledger,
                          ledger-header, suite, dod-line, publish-adopt, trace, root-base, containment,
-                         citations-collisions, help, test-verb, fail-to-pass, over `scope-setup.js`),
+                         citations-collisions, source-set, help, test-verb, fail-to-pass, over `scope-setup.js`),
                          `run-trace*` (dispatch, drive-paths, guards, paths, red, runs, stash, verdicts,
                          writes, over `run-trace-setup.js`), `profile*` (cli, dispatches, idle, phases,
                          scopes, sinks, over `profile-setup.js`), `publish-kb*` (containment, guard,
@@ -342,9 +343,12 @@ This root owns every other subtree directly:
   names it, ADR 0144), stranded run root, and untriaged item by the action it needs and resolving an ambiguity toward showing the row
   (ADR 0049), prose-check applies `references/controlled-prose.md` to one piece of prose on demand,
   unconditionally rather than gated on a repo's own `## Writing standard` config (ADR 0057),
-  review-tests audits what a test suite costs, sweeping the whole test tree in one `test-auditor`
-  dispatch, measuring it through the repo's optional timing command, and handing the findings the
-  operator keeps to `/superdev:plan` as an intent (ADR 0066), profile reports where a scope run's
+  review-tests runs two audits on every run and hands the findings the operator keeps to `/superdev:plan`
+  as an intent: a cost audit, sweeping the whole test tree in one `test-auditor` dispatch and measuring it
+  through the repo's optional timing command (ADR 0066), and a gap audit, reading the source set
+  `scope.js source-set` prints in directory batches, one `test-gap-auditor` dispatch each, in parallel,
+  with the `## Test gaps` lens of `references/review-checklist.md` that only that agent reads (ADR 0162,
+  INV-0163), profile reports where a scope run's
   wall-clock time went, read from Claude Code's own session transcripts (ADR 0103), and sweep chains `/superdev:review`,
   `/superdev:document audit`, `/superdev:review-tests`, and `/superdev:setup check` over a whole
   repository into one merged, ranked report and a single plan-ready intent, every leg dispatched

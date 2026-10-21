@@ -22,7 +22,7 @@ This doc owns what each script guards and the contracts between them. Repo-wide 
 `scope.js` owns the CLI and the verbs, and requires only modules from `plugin/lib/` (ADR 0151). Each verb's code lives in
 a module of its own: the ledger verbs in `ledger-lifecycle.js` and `ledger-records.js`, `suite` and `base` and `get` in
 `suite-base-get.js`, `test` in `test-verb.js`, `publish` with `adopt` in `run-state.js`, and `dod-line`, `fail-to-pass`,
-`citations`, `collisions`, and `status` each in the module of its name. The vocabulary beneath them is `ledger.js` (the stage rank and the readers and writers of
+`citations`, `collisions`, `source-set`, and `status` each in the module of its name. The vocabulary beneath them is `ledger.js` (the stage rank and the readers and writers of
 a ledger's header lines, bullets, and table rows), `refusal.js` (the refusal error `fail`), `verification.js` (`verificationCommands`,
 `verificationCommandsOf`, `isTestPath`), `git-spawn.js` (`gitSpawn`, `gitThrow`, `parseBranchList`, `resolveCommit`, `refResolves`, `fileAt`),
 `containment.js` (`testContainment`, `baseHistoryHasPatch`), `main-work-tree.js` (`mainWorkTree`, `scopesDirFor`, `mainTreePath`), and
@@ -37,7 +37,7 @@ responsibility. `scope.js` keeps every export it had. No module requires an entr
 `base set <sha>`, `base resolve --branch <b> --base <ref>`,
 `get stage|branch|anchor|slices|unresolved|degraded|deferred|denials|docs|pr|suite`,
 `status` (which renders the whole `/superdev:status` report), `trace [--slice <id>]` (prints the run trace, read-only), `publish`, `adopt`, `root <slug>`,
-`staging <scope> [--count]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `citations --range-base <ref> --branch <ref> <id>…`, `dod-line`, `fail-to-pass <base>..<tip>`, and `test`.
+`staging <scope> [--count]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `citations --range-base <ref> --branch <ref> <id>…`, `source-set [<path>]`, `dod-line`, `fail-to-pass <base>..<tip>`, and `test`.
 `--help` or `-h`, alone or after any verb, prints the usage and exits 0, except that a flag's value, or the text after `add`, `add-denial`, `reset-denials`, or `resolve`, is data and never a help request. It is checked before any verb
 reads stdin or touches a ledger, so a stdin verb such as `dod-line` never waits on input for it.
 `suite set` writes the **suite record** (CONTEXT.md) — the last full-suite run's result and the commit
@@ -226,8 +226,17 @@ holds the setup they share and is no suite. `tests/scope-test-verb.test.js` hold
 the `fail-to-pass` verb's. The rest: `scope-ledger` (init, stage, step, slice, the bullet and header records, get, status, and the ledger-fixtures pin),
 `scope-ledger-header` (`readLedgerHeader`), `scope-suite` (the suite and base records), `scope-dod-line`, `scope-publish-adopt` (`publish`, `adopt`, and the
 `maskFencedLines` pin), `scope-trace` (the run trace and `appendTrace`), `scope-root-base` (`root`, `staging`, `base` from a linked worktree),
-`scope-containment`, `scope-citations-collisions`, and `scope-help`. A focused run for `scope.js`, or for a module it requires, selects
+`scope-containment`, `scope-citations-collisions`, `scope-source-set`, and `scope-help`. A focused run for `scope.js`, or for a module it requires, selects
 every suite that reaches it (`run-tests.js`, below).
+
+`source-set [<path>]` prints the gap audit's source set and touches no ledger and no run root (ADR 0162). It prints one
+repository-relative path per line: every file `git ls-files` lists, under `<path>` when given, that is no test path, no
+doc, configuration file (a dot-prefixed one included), or lockfile, no binary asset (image, font, archive, media, native binary,
+bytecode), and under no `vendor/` or `node_modules/` directory at any depth, nor under `dist/` or `build/` at the repository
+root. The test-path rule is `verification.js`'s `testPathPatterns`, the classifier the run trace shares, so the configured
+`## Test paths` of `docs/agents/verification.md` decide, or their defaults where it has none. An untracked file is outside the
+set, and so is an index entry that is no regular file on disk (a submodule gitlink, a file deleted from the working tree). An extensionless name counts as a doc in any case when it is `readme`, `history`, `changes`, `notice`, `changelog`, `authors`, `codeowners`, `contributors`, `license`, `licence`, or `copying` (`DOC_NAME_RE`). A `LICENSE` or `COPYING` stem also counts with a `-` suffix and no extension in any case, or with any `-` or `.` suffix in uppercase (`LICENSE-MIT`, `license-apache`, `COPYING.LESSER`). A lowercase or mixed-case stem with an extension is code (`license.js`, `license-check.js`). A `<path>` that does not exist refuses, naming it. A directory that is no git repository refuses too, and a set with no file prints nothing and exits 0.
+`/superdev:review-tests` §1 calls it. The classification lives in `plugin/lib/source-set.js`.
 
 `dod-line` is another verb that touches no ledger, and makes no store call of its own
 (`references/dod-ticks.md`, INV-0014, triage #664): `--match <criterion text>|--match-file <path>

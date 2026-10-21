@@ -3,7 +3,7 @@
 
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
 // Verbs: init, stage, step, slice, degraded, unresolved, deferred, docs, pr, deploy, suite, base, get, status,
-// publish, adopt, trace, collisions, citations, root, staging, dod-line; `main()` also runs test and fail-to-pass. Exit
+// publish, adopt, trace, collisions, citations, source-set, root, staging, dod-line; `main()` also runs test and fail-to-pass. Exit
 // nonzero with a one-line stderr reason on any refusal. hooks/ledger-guard.js makes this the only
 // ledger write path.
 // `root` and `dod-line` touch no ledger: `root` resolves a run root's absolute
@@ -38,6 +38,7 @@ const { endRun, watchMain } = require('../lib/run-supervision.js');
 const { verbTest } = require('../lib/test-verb.js');
 const { verbFailToPass } = require('../lib/fail-to-pass.js');
 const { verbCitations } = require('../lib/citations.js');
+const { verbSourceSet } = require('../lib/source-set.js');
 const { usage } = require('../lib/usage.js');
 
 // --- root: the verbs over `lib/main-work-tree.js`'s run-root resolver (ADR 0080) -----------------
@@ -279,6 +280,10 @@ function run(argv, cwd, stdinJson) {
     // No --root: citations reads git only and touches no ledger (ADR 0156).
     case 'citations':
       verbCitations(cwd, args);
+      break;
+    // No --root: source-set reads git only and touches no ledger (ADR 0162).
+    case 'source-set':
+      verbSourceSet(cwd, args);
       break;
     // No --root: dod-line touches no ledger, and makes no store call (references/dod-ticks.md).
     case 'dod-line':

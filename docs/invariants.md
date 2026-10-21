@@ -1361,3 +1361,12 @@ Statement: An implementer edits the `AGENTS.md` hierarchy only on a `docs` slice
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/agents/implementer.md, plugin/skills/implement/**, plugin/references/**, plugin/skills/review/**
+
+### INV-0163
+
+Class: architecture
+Concepts: Test audit, Gap audit, Test-auditor, Test-gap-auditor
+Statement: A test audit's cost audit dispatches one `test-auditor` over the whole swept test set, because a redundant pair has two halves and a split sweep sees one of them. Only the gap audit splits its source set across `test-gap-auditor` dispatches, because a gap belongs to one symbol (ADR 0162).
+Breaks: silently
+Check: none — final-reviewer's invariant compliance judges it
+Paths: plugin/skills/review-tests/SKILL.md, plugin/agents/test-*.md

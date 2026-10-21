@@ -22,7 +22,6 @@ a number.
 - The **swept file set** — the test files to read, and what the sweep derived them from.
 - The **duration table** — per-test durations, a total wall clock, or the label `unmeasured` where the
   repository configures no timing command (`references/test-selection.md`).
-- The repository's own test command.
 
 ## Read-only
 

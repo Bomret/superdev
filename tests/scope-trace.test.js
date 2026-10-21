@@ -81,7 +81,7 @@ const { sliceJson, scopePath, run } = require('./scope-setup');
     // `ledger <verb> …` line: a verb added to the usage text with no driver here, or one that stops tracing, fails.
     {
       const usageText = spawnSync('node', [scopePath, '--help'], { encoding: 'utf8' }).stdout;
-      const readOnly = new Set(['get', 'trace', 'publish', 'status', 'root', 'staging', 'dod-line', 'collisions', 'citations', 'test', 'fail-to-pass']);
+      const readOnly = new Set(['get', 'trace', 'publish', 'status', 'root', 'staging', 'dod-line', 'collisions', 'citations', 'source-set', 'test', 'fail-to-pass']);
       const readOnlySub = /^\s+(deploy get|suite reusable|base resolve)\b/;
       const usageVerbs = new Set(usageText.split('\n').slice(1)
         .filter((l) => /^ {2}[^-\s]/.test(l) && !readOnlySub.test(l))

@@ -30,7 +30,8 @@ write is the intent under `.superdev/brainstorm/`.
 
 **State the swept set before any dispatch**: the path (or "the whole repository"), and which legs it
 narrows. The path reaches `/superdev:review` and `/superdev:review-tests`, whose own `[path]` argument
-narrows what they read — the code leg reads that path as standing code, the whole tree at `HEAD`, only on
+narrows what they read — the test leg narrows its cost audit's test set and its gap audit's source set,
+while the gap audit still searches the repository's whole test-file list; the code leg reads that path as standing code, the whole tree at `HEAD`, only on
 a **clean** path (ADR 0068): a path carrying commits against base, or uncommitted changes on it, makes
 `/superdev:review` review that diff instead, and the swept-set statement says so when it applies. `/superdev:document audit` and
 `/superdev:setup check` take no path — each reads its own fixed set (the doc tree, `docs/agents/*.md`)
@@ -86,7 +87,7 @@ One report, one section per leg, each naming which command produced it:
 [the reader's findings, most-severe-first, or "(none)" / "(degraded — <reason>)"]
 
 ### Tests — /superdev:review-tests --chained
-[the ranked findings, fact/judgment labelled, or "(none)" / "(degraded — <reason>)"]
+[the cost findings and the gap findings, each ranked and fact/judgment labelled, or "(none)" / "(degraded — <reason>)"]
 
 ### Config — /superdev:setup check
 [the per-document verdicts and seed gaps, or "(none)" / "(degraded — <reason>)"]
@@ -98,13 +99,15 @@ each claim against the repo before it reports it), every config-leg verdict that
 **absent** document (a named command or fact either still resolves or it doesn't, and a document the repo
 never wrote is exactly as checkable as one that drifted), and the test leg's own dead-or-ignored-test
 findings. A **judgment** is a call about what's worth doing something about: every code-leg finding,
-every other test-leg finding, and every config-leg seed gap (a gap can be deliberate, and the operator
-alone knows). A gap the config leg lists as `recorded` is a recorded seed deviation and reaches neither.
+every other test-leg finding (every gap finding among them: a static read, never a coverage fact), and
+every config-leg seed gap (a gap can be deliberate, and the operator alone knows). A gap the config leg
+lists as `recorded` is a recorded seed deviation and reaches neither.
 Facts need no operator confirmation and go straight to §5's intent. Judgments are what §4 puts to the
 operator.
 
 **Rank the merged judgments**, highest-impact first across all legs — a Critical code finding outranks a
-minor test-cost one; where two are comparably severe, say so rather than forcing an arbitrary order.
+minor test-cost one, and an untested trust boundary outranks an untested internal helper; where two are
+comparably severe, say so rather than forcing an arbitrary order.
 
 ## 4. Put the judgments to the operator
 

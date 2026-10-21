@@ -22,6 +22,7 @@ assert.equal(d({ subagent_type: 'implementer', model: '   ' }).block, true, 'bla
 assert.equal(d({ subagent_type: 'superdev:doc-writer' }).block, true, 'doc-writer is ours');
 assert.equal(d({ subagent_type: 'superdev:doc-reader' }).block, true, 'doc-reader is ours, no model');
 assert.equal(d({ subagent_type: 'doc-reader', model: 'sonnet' }).block, false, 'doc-reader + model → allow');
+assert.equal(d({ subagent_type: 'superdev:test-gap-auditor' }).block, true, 'test-gap-auditor is ours, no model');
 assert.equal(d({ subagent_type: 'Explore' }).block, false, 'not ours → allow');
 assert.equal(d({ subagent_type: 'implementer' }, 'Bash').block, false, 'wrong tool → allow');
 

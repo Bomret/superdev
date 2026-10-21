@@ -67,11 +67,16 @@ function configuredTestPaths(text) {
   return res.length ? res : null;
 }
 
+// The compiled test-path patterns of a `verification.md` text ('' for no file): its configured ones, or the defaults.
+// A caller classifying many paths compiles them once (`source-set`).
+function testPathPatterns(text) {
+  return configuredTestPaths(text) || DEFAULT_TEST_PATHS.map(globToRe);
+}
+
 // Whether repo-relative `rel` is a test path under the `verification.md` text given ('' for no file).
 // The one classifier: lib/run-tree.js reads its tree's file, `suite reusable` reads a commit's (ADR 0128).
 function isTestPath(text, rel) {
-  const res = configuredTestPaths(text) || DEFAULT_TEST_PATHS.map(globToRe);
-  return res.some((re) => re.test(rel));
+  return testPathPatterns(text).some((re) => re.test(rel));
 }
 
 // The test commands a tree's `docs/agents/verification.md` configures, read the way
@@ -95,4 +100,4 @@ function verificationCommandsOf(raw, keepLines) {
   return { full: norm(blocks[0]), focused: norm(blocks[1]), whole: norm(span && span[1]) };
 }
 
-module.exports = { isTestPath, verificationCommands, verificationCommandsOf };
+module.exports = { isTestPath, testPathPatterns, verificationCommands, verificationCommandsOf };

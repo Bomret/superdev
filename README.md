@@ -39,7 +39,7 @@ plan runs test-first, inline in the scopetree.
 /superdev:wrap-up      → check a shipped scope is fully settled, then close its anchor and take the run down
 /superdev:publish-kb   → send a scope's staged knowledge-base pages to the configured backend
 /superdev:prose-check  → check one file, range, or pasted text against the controlled-prose standard
-/superdev:review-tests → read-only audit of what the test suite costs, ranked and handed to plan
+/superdev:review-tests → read-only audit of test cost and test gaps, ranked and handed to plan
 /superdev:sweep        → read-only chain over code, docs, tests, and config, merged into one plan-ready intent
 ```
 
@@ -247,11 +247,15 @@ plan runs test-first, inline in the scopetree.
   ([ADR 0057](docs/adr/0057-prose-check-applies-controlled-prose-unconditionally.md)). The default is a
   read-only report. A trailing `-- fix` rewrites the file in place, or prints the rewrite for pasted
   text.
-- **`/superdev:review-tests`**. Audits what the test suite costs. It sweeps the whole test tree in one
-  pass, runs the repo's optional **timing command** to measure it, and reports redundant coverage,
-  overweight fixtures, tautological tests, dead tests, and expensive tests, ranked by measured duration
-  — or labelled `unmeasured` and ranked by judgment where no timing command is configured
-  ([ADR 0066](docs/adr/0066-a-measured-test-audit-is-its-own-surface.md)). Every finding is a judgment
+- **`/superdev:review-tests`**. Audits what the test suite costs and what it leaves untested. The cost
+  audit sweeps the whole test tree in one pass, runs the repo's optional **timing command** to measure
+  it, and reports redundant coverage, overweight fixtures, tautological tests, dead tests, and expensive
+  tests, ranked by measured duration — or labelled `unmeasured` and ranked by judgment where no timing
+  command is configured ([ADR 0066](docs/adr/0066-a-measured-test-audit-is-its-own-surface.md)). The gap
+  audit reads every tracked code file outside the test paths, in directory batches, and reports each
+  symbol no test reaches (`untested`) and each case its tests leave out (`missing case`), ranked trust
+  boundary first, then exported, then internal. No coverage tool runs, so every gap finding is labelled
+  `static` ([ADR 0162](docs/adr/0162-a-test-audit-also-finds-test-gaps.md)). Every finding is a judgment
   you can reject before it survives. Its only writes are the intent for `/superdev:plan` and the
   one-line `.gitignore` entry that keeps its scratch directory ignored when absent.
 - **`/superdev:sweep`**. Chains `/superdev:review`, `/superdev:document audit`, `/superdev:review-tests`,
@@ -311,7 +315,7 @@ stop condition and an explicit turn ceiling (for example, "stop after N tries").
 ## Roles (subagents)
 
 The subagents are `implementer`, `slice-reviewer`, `simplicity-reviewer`, `final-reviewer`,
-`doc-writer`, `doc-reader`, and `test-auditor`. Each runs in an isolated context, and only its result
+`doc-writer`, `doc-reader`, `test-auditor`, and `test-gap-auditor`. Each runs in an isolated context, and only its result
 returns to the controller.
 
 The **full** execution tier dispatches `implementer`, `slice-reviewer`, and `simplicity-reviewer` per
