@@ -35,7 +35,7 @@ _Avoid: "duplicate ADR" (what a collision becomes once it lands), "number confli
 **Scope anchor**: a feature's root, the single record — the epic issue, or that feature's lone slice issue — that carries its scope-level status signal for a run. How a given store expresses this is stated in that store's own `## Scope anchor` section, which specialises `plan-contract.md` → *Scope anchor*, never assumed by a command (ADR 0017).
 _Avoid: "epic" (only an epic-bearing feature has one, and the anchor role also falls to a lone slice)_
 
-**Release**: the human agreement that a written plan may be built, carried as a durable signal on the scope anchor. Its consumers are `/plan`, which asks which one it is doing, `/implement`, which asks for confirmation before building an unreleased feature, and `/backlog`, which groups an anchor carrying no release signal as `unreleased`. How a given store expresses it is stated in that store's own `## Release` section, which specialises `plan-contract.md` → *Release* (ADR 0034).
+**Release**: the human agreement that a written plan may be built, carried as a durable signal on the scope anchor. Its consumers are `/plan`, which asks which one it is doing, `/implement`, which asks for confirmation before building an unreleased feature, and `/status`, whose backlog survey groups an anchor carrying no release signal as `unreleased`. How a given store expresses it is stated in that store's own `## Release` section, which specialises `plan-contract.md` → *Release* (ADR 0034).
 _Avoid: "ready" (that is the `todo` lifecycle state, consumed the moment work starts), "approved" (unused elsewhere)_
 
 **Run root**: the part of `.superdev/scopes/<scope>/` that stays in the repository's main working tree, at both tiers: `dod.md`, `ledger.md`, `run.lock`, and on the full tier `interfaces.md` (the cross-slice interface record). `scope.js root <scope>` resolves its absolute path from any cwd — the invoking checkout, a scopetree, or a slicetree of the same repository (ADR 0080). Never moves into a scopetree or slicetree, so it survives their removal as the post-mortem trail and lets `/status` enumerate runs without touching either.
@@ -156,7 +156,7 @@ _Avoid: "unattended flag" (it is an argument token, not a config setting)_
 **Standing answer**: what a command does at a stop where it would otherwise ask the maintainer, when the unattended token is present. Each is written at the stop it governs. A stop with none written blocks the scope anchor, which is the catch-all that keeps an unwritten question from stalling a run until morning.
 _Avoid: "default" (a default applies always, and a standing answer applies only unattended), "policy", "auto-answer"_
 
-**Anchor dependency**: a recorded relation between two scope anchors, saying the second feature cannot be built until the first's anchor is closed. It is satisfied once the anchor it names is closed, or no such anchor exists — no ledger stage satisfies it (ADR 0106). `/plan` records one when its interview named a prerequisite feature; `/backlog` reads it, and groups an anchor whose dependency is unsatisfied as `waiting`, naming the anchor it waits on. How a given store records it is stated in that store's own `## Scope anchor` section, which specialises `plan-contract.md` → *Scope anchor* (ADR 0040, ADR 0108).
+**Anchor dependency**: a recorded relation between two scope anchors, saying the second feature cannot be built until the first's anchor is closed. It is satisfied once the anchor it names is closed, or no such anchor exists — no ledger stage satisfies it (ADR 0106). `/plan` records one when its interview named a prerequisite feature; `/status`'s backlog survey reads it, and groups an anchor whose dependency is unsatisfied as `waiting`, naming the anchor it waits on. How a given store records it is stated in that store's own `## Scope anchor` section, which specialises `plan-contract.md` → *Scope anchor* (ADR 0040, ADR 0108).
 _Avoid: "depends-on" (that is the slice-level edge inside one plan, which `/implement` reads), "blocked anchor" (`blocked` is a label a human clears, where a waiting anchor clears itself)_
 
 **Repair**: a `fix` feature planned through `/superdev:plan`'s repair choice for a `shipped` scope whose Definition of Done holds a line `/superdev:verify-ship` observed false (a `not met:` note carrying its repair citation). It has its own scope anchor, label, branch, and run, and its own Definition of Done. Its anchor carries a **Repairs line**, `**Repairs:** #<original anchor>`, the only record linking it to the original. Only the original's `/superdev:verify-ship` settles the original's line (ADR 0124).
@@ -319,7 +319,7 @@ boards), "triage slice" (it has no spec, no acceptance, and no place in a DAG)_
 **Absorbed triage record**: an open **Triage record** that `/superdev:plan`'s prior-art audit offered
 and the operator chose to build in this scope. A Definition-of-Done criterion cites it by its reference,
 written `(triage <reference>)`, and one criterion may cite several records of one class. The scope anchor's **Absorbs line**,
-`**Absorbs:** #<n>[, #<n>]`, names every record the scope absorbed. `/superdev:backlog` shows it in its own
+`**Absorbs:** #<n>[, #<n>]`, names every record the scope absorbed. The backlog survey shows it in its own
 `absorbed` bucket while that anchor is open, and `/superdev:wrap-up` closes it once its citing criterion is
 met, or once the operator chooses to close it when that criterion is accepted unmet (ADR 0144).
 _Avoid: "folded record" ("fold" is the derive pass's word, the plan controller's judgment, for merging a derived
@@ -333,19 +333,22 @@ on it: reading one is what turns it into a plan or closes it.
 _Avoid: "unlabeled issue" (a human's own labels do not make an item triaged), "new issue" (age is not what defines it), "backlog item" (every row in a
 **Backlog survey** is one of those)_
 
-**Backlog survey**: the read-only report `/superdev:backlog` prints, grouping every open **Scope anchor**,
+**Backlog survey**: the store half of the read-only report `/superdev:status` prints, after the runs' ledger blocks, grouping every open **Scope anchor**,
 every **Triage record**, every **stranded run root**, and every **Untriaged item** in the slice store by the
-action each one needs, and ending with one recommended move. A stranded run root is a run whose stage is
-short of `shipped` and matches no open anchor. It ranks as the most expensive item in the table, where an
+action each one needs, and ending with one recommended move. A run is live in another session when its
+ledger carries a standing step and its run lock is under an hour old. Such a run takes the `running`
+bucket, whatever its stage or anchor match, and is never the recommended move. A stranded run root is a
+run whose stage is short of `shipped`, that matches no open anchor, and that is not live in another
+session. It ranks as the most expensive item in the table, where an
 untriaged item ranks last: it is the furthest from finishing, and it is the one bucket the survey caps
 rather than printing whole, since a store with real reporters holds more of them than the rest of the
-table put together. It reads the store where
-`/superdev:status` reads the runs' ledgers, and it shows an unreleased plan, an anchor nobody
+table put together. It reads the store where the ledger blocks above it
+read the runs, and it shows an unreleased plan, an anchor nobody
 decomposed, a triage record, and an untriaged item. A survey resolves an ambiguity toward showing the
 row (ADR 0049). It writes nothing and sits outside the implement
 chain.
 _Avoid: "backlog sweep" (a **Sweep** reads a whole tree; the backlog survey reads the slice store
-instead), "status" (that command reports runs from their ledgers, not the store)_
+instead), "backlog command" (the survey is part of `/superdev:status`, ADR 0163)_
 
 **Test audit**: the read-only whole-tree sweep `/superdev:review-tests` runs, made of two audits on every run: the **cost audit**, which prices a suite many scopes have grown, and the **gap audit**, which finds the code a suite does not test. The cost audit measures where a **timing command** is configured, dispatches `test-auditor` over every test file in one pass, and ranks its findings by cost. The gap audit dispatches `test-gap-auditor` over the source outside the test paths, and ranks its findings by risk. Survivors of both reach `/superdev:plan` as an intent, except under **Chained posture**. It reaches what a review cannot: a duration is invisible to reading, a redundant pair has a second half outside any range, and standing code outside any scope has no Definition of Done to judge its tests against. A dead or ignored test reports as a fact, and every remaining finding is a judgment the operator may reject before it survives. Unchained, its only writes are the intent and the one-line `.gitignore` entry that keeps `.superdev/` ignored when
 absent; chained, it writes nothing at all. It sits outside the implement chain (ADR 0066, ADR 0162).

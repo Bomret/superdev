@@ -28,9 +28,8 @@ plan runs test-first, inline in the scopetree.
 /superdev:brainstorm   → (optional) turn a vague idea into a plan-ready intent
 /superdev:plan         → interview + slice a feature into the slice store
 /superdev:implement    → drive the slices to merge onto the scope branch, then stop
-/superdev:status       → read-only DAG progress snapshot for in-flight runs
+/superdev:status       → read-only: every run's progress, the slice store by what each item needs, and what to do next
 /superdev:profile      → read-only account of where a scope run's time went, from its transcripts
-/superdev:backlog      → read-only survey of the slice store: what needs what, and what to do next
 /superdev:review       → whole-scope review against the DoD, with a fix loop
 /superdev:document     → reconcile in-repo docs + knowledge base with the code
 /superdev:submit-pr    → push the scope branch, open the PR, and leave the run standing
@@ -138,11 +137,23 @@ plan runs test-first, inline in the scopetree.
   ([ADR 0134](docs/adr/0134-a-fail-to-pass-run-shows-a-change-s-tests-discriminate.md)).
   Either tier stops here, once every slice sits on the scope branch. `/superdev:review` runs next: one
   **whole-scope review** that gates the pull request `/superdev:submit-pr` opens later.
-- **`/superdev:status`**. A read-only snapshot of every in-flight `/superdev:implement` run in the repo:
-  per scope, the slice counts by status and which slices are `blocked`. It also names each scope holding
-  **staged** knowledge-base pages, so a page nobody published yet stays visible instead of silent.
+- **`/superdev:status`**. One read-only report of where the work stands and what to do next. It prints
+  every run's ledger first: per scope, the slice counts by status, which slices are `blocked`, and each
+  scope holding **staged** knowledge-base pages, so a page nobody published yet stays visible instead of
+  silent. Then it surveys the **slice store**. It groups every open scope anchor, every triage record,
+  every stranded run root, and every **untriaged item** — an open record you filed and no `/superdev:plan`
+  interview has yet reached — by the action it needs — running in another session, blocked, stranded, in
+  flight, waiting on another feature, needing a plan, unreleased, untriaged, absorbed by an open scope, or
+  ready to build — and ends with one recommended next move. A run another session is working, whose ledger
+  names a step and whose run lock is under an hour old, shows as running and is never the recommended move
+  ([ADR 0163](docs/adr/0163-status-carries-the-backlog-survey.md)). Untriaged items are capped at 5, oldest
+  first, so a store with real reporters doesn't drown the rest of the table. A slice store that is
+  unconfigured or fails to answer gets one line after the ledger, never an empty table. The survey resolves
+  an ambiguity toward showing the row, because it reports rather than acts
+  ([ADR 0049](docs/adr/0049-an-advisory-survey-judges-the-backlog-more-loosely-than-an-actor.md)).
   `/superdev:status <scope> --trace` prints that scope's run trace as a timeline instead, and
-  `--slice <id>` narrows it to one slice. It never writes, transitions, or merges anything.
+  `--slice <id>` narrows it to one slice. It sits outside the implement chain, and never writes,
+  transitions, or merges anything.
 - **`/superdev:profile`**. A read-only account of where a scope run's time went, for a run that felt slow.
   It reads the transcripts Claude Code already keeps for every session and subagent, so it needs no setup
   and works on runs that finished long ago. It shows the time of each chain phase split into subagent, idle,
@@ -156,16 +167,6 @@ plan runs test-first, inline in the scopetree.
   profiles the scope that ran last
   ([ADR 0103](docs/adr/0103-the-run-profile-reads-claude-codes-transcripts.md)). It sits outside the
   implement chain, and writes nothing.
-- **`/superdev:backlog`**. A read-only survey of the **slice store**, where `/superdev:status` reports the
-  **runs**. It groups every open scope anchor, every triage record, every stranded run root, and every
-  **untriaged item** — an open record you filed and no `/superdev:plan` interview has yet reached — by the
-  action it needs — blocked, stranded, in flight, waiting on another feature, needing a plan, unreleased,
-  untriaged, absorbed by an open scope, or ready to build — and ends with one recommended next move. Untriaged items are capped at 5,
-  oldest first, so a store with real reporters doesn't drown the rest of the table. It shows an
-  unreleased plan, an anchor nobody decomposed, a triage record a review deferred, and an untriaged item.
-  It resolves an ambiguity toward showing the row, because it reports rather than acts
-  ([ADR 0049](docs/adr/0049-an-advisory-survey-judges-the-backlog-more-loosely-than-an-actor.md)). It sits
-  outside the implement chain, and writes nothing.
 - **`/superdev:review`**. Two modes. Given an ad-hoc diff, branch, path, or the working tree, it needs no
   plan and no slice store, and it stays read-only end to end. A path whose diff is empty — an area you
   never changed — is reviewed as **standing code**, the files under it at `HEAD`, so pointing a review at

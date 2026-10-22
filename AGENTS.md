@@ -40,7 +40,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          No `hooks` field — Claude Code auto-loads the standard hooks/hooks.json.
   skills/              — the `/superdev:<name>` surfaces, one `<name>/SKILL.md` each (ADR 0102):
                          brainstorm, setup, plan, implement, review, document, submit-pr, ship, verify-ship,
-                         wrap-up, upgrade, status, profile, backlog, publish-kb, prose-check, review-tests, sweep
+                         wrap-up, upgrade, status, profile, publish-kb, prose-check, review-tests, sweep
   agents/              — the subagents (*.md): implementer, slice-reviewer, simplicity-reviewer,
                          final-reviewer, doc-writer, doc-reader, test-auditor,
                          test-gap-auditor
@@ -340,10 +340,11 @@ This root owns every other subtree directly:
   line (ADR 0124).
   Whoever invokes a chain command passes `--unattended` to run it unattended (ADR 0016, ADR 0108);
   superdev ships no driver. Some skills sit outside the chain: publish-kb sends a scope's
-  staged knowledge-base pages to a remote backend on the operator's own clock (ADR 0023), backlog surveys
-  the slice store read-only, grouping every open scope anchor, triage record (an `absorbed` row when an open anchor's Absorbs line
-  names it, ADR 0144), stranded run root, and untriaged item by the action it needs and resolving an ambiguity toward showing the row
-  (ADR 0049), prose-check applies `references/controlled-prose.md` to one piece of prose on demand,
+  staged knowledge-base pages to a remote backend on the operator's own clock (ADR 0023), status prints
+  every run's ledger and then surveys the slice store read-only, grouping every open scope anchor, triage record (an `absorbed`
+  row when an open anchor's Absorbs line names it, ADR 0144), stranded run root, and untriaged item by the action it needs,
+  resolving an ambiguity toward showing the row (ADR 0049), and never recommending a run live in another session — a standing
+  step and a run lock under an hour old (ADR 0163), prose-check applies `references/controlled-prose.md` to one piece of prose on demand,
   unconditionally rather than gated on a repo's own `## Writing standard` config (ADR 0057),
   review-tests runs two audits on every run and hands the findings the operator keeps to `/superdev:plan`
   as an intent: a cost audit, sweeping the whole test tree in one `test-auditor` dispatch and measuring it

@@ -536,7 +536,7 @@ Concepts: Backlog survey, Slice store, Scope anchor, Triage record, Untriaged it
 Statement: A backlog survey writes nothing: no record, label, comment or file. It reads anchors, triage records and untriaged items through the store document's sections, never through a backend's own call, and reads stage through `scope.js get stage`.
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/skills/backlog/SKILL.md
+Paths: plugin/skills/status/SKILL.md
 
 ### INV-0065
 
@@ -545,7 +545,7 @@ Concepts: Untriaged item, Backlog survey
 Statement: No superdev surface acts on an untriaged item. The backlog survey lists it, and only a human turns it into a plan or closes it.
 Breaks: silently
 Check: none — no pin exists today
-Paths: plugin/skills/backlog/SKILL.md
+Paths: plugin/skills/status/SKILL.md
 
 ### INV-0066
 
@@ -968,10 +968,10 @@ Paths: plugin/references/issue-tracker-*.md, docs/agents/issue-tracker.md, plugi
 
 Class: process
 Concepts: Stage, Scope anchor, Definition of Done (DoD), Deploy target
-Statement: `/superdev:ship`'s final hand-off, `/superdev:backlog`'s routing of a `shipped` run, `/superdev:document`'s leave-alone hand-off, run init's shipped-run stops, `/superdev:verify-ship`'s end, and `/superdev:wrap-up`'s hand-off from a closed repair to its original apply one rule, stated once in `references/scope-mode.md`, so all name the same next command for the same run state: for a run holding a `not met:` note `/superdev:verify-ship` wrote, which carries the repair citation, `/superdev:verify-ship` with `/superdev:plan`'s repair choice as the alternative once a closed anchor's `**Repairs:**` line names the run, the line's `not met:` note does not yet cite that anchor in its repair citation, and no open anchor's line names the run, and `/superdev:plan`'s repair choice or `/superdev:verify-ship` again otherwise, an open anchor's line outranking every closed one and adding a line that names each open repair; otherwise `/superdev:verify-ship` or `/superdev:wrap-up`, a `not met:` note written before merge counting as a line still to verify (ADR 0116, ADR 0124).
+Statement: `/superdev:ship`'s final hand-off, `/superdev:status`'s routing of a `shipped` run, `/superdev:document`'s leave-alone hand-off, run init's shipped-run stops, `/superdev:verify-ship`'s end, and `/superdev:wrap-up`'s hand-off from a closed repair to its original apply one rule, stated once in `references/scope-mode.md`, so all name the same next command for the same run state: for a run holding a `not met:` note `/superdev:verify-ship` wrote, which carries the repair citation, `/superdev:verify-ship` with `/superdev:plan`'s repair choice as the alternative once a closed anchor's `**Repairs:**` line names the run, the line's `not met:` note does not yet cite that anchor in its repair citation, and no open anchor's line names the run, and `/superdev:plan`'s repair choice or `/superdev:verify-ship` again otherwise, an open anchor's line outranking every closed one and adding a line that names each open repair; otherwise `/superdev:verify-ship` or `/superdev:wrap-up`, a `not met:` note written before merge counting as a line still to verify (ADR 0116, ADR 0124).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/skills/ship/SKILL.md, plugin/skills/backlog/SKILL.md, plugin/skills/document/SKILL.md, plugin/references/run-init.md, plugin/references/scope-mode.md, plugin/skills/verify-ship/SKILL.md, plugin/skills/wrap-up/SKILL.md
+Paths: plugin/skills/ship/SKILL.md, plugin/skills/status/SKILL.md, plugin/skills/document/SKILL.md, plugin/references/run-init.md, plugin/references/scope-mode.md, plugin/skills/verify-ship/SKILL.md, plugin/skills/wrap-up/SKILL.md
 
 ### INV-0117
 
@@ -1112,11 +1112,11 @@ Paths: plugin/skills/plan/**, plugin/references/plan-contract.md, plugin/skills/
 
 Class: architecture
 Concepts: Adopt, Repair, Run root, Scope anchor, Stage
-Statement: A `shipped` run whose run root is missing locally is recreated only from its own scope anchor's `## Run state` snapshot at stage `shipped`, through `scope.js adopt --shipped`, which refuses every other stage. Plain `adopt` and run init keep refusing a `shipped` snapshot, adoption writes nothing to the anchor, and `/superdev:backlog` adopts nothing (ADR 0124).
+Statement: A `shipped` run whose run root is missing locally is recreated only from its own scope anchor's `## Run state` snapshot at stage `shipped`, through `scope.js adopt --shipped`, which refuses every other stage. Plain `adopt` and run init keep refusing a `shipped` snapshot, adoption writes nothing to the anchor, and `/superdev:status` adopts nothing (ADR 0124).
 Breaks: silently
 Check: tests/scope-publish-adopt.test.js — `adopt --shipped` adopts a shipped payload and refuses a live, closed, or stage-less one while plain adopt refuses shipped; final-reviewer's invariant compliance judges each caller
 Symbols: adoptLines
-Paths: plugin/scripts/scope.js, plugin/lib/run-state.js, plugin/references/scope-mode.md, plugin/skills/plan/**, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**, plugin/skills/backlog/**
+Paths: plugin/scripts/scope.js, plugin/lib/run-state.js, plugin/references/scope-mode.md, plugin/skills/plan/**, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**, plugin/skills/status/**
 
 ### INV-0133
 
@@ -1370,3 +1370,21 @@ Statement: A test audit's cost audit dispatches one `test-auditor` over the whol
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/review-tests/SKILL.md, plugin/agents/test-*.md
+
+### INV-0165
+
+Class: process
+Concepts: Backlog survey, Slice store, Ledger
+Statement: `/superdev:status` prints every run's ledger block before it reads the slice store. An unconfigured store or a failed store listing prints one line naming the gap or the failure in place of the survey table and its move, so a store problem never hides local run state and never reads as an empty backlog (ADR 0163).
+Breaks: silently
+Check: none — the survey is prose a model runs, and final-reviewer's invariant compliance judges it
+Paths: plugin/skills/status/SKILL.md
+
+### INV-0166
+
+Class: process
+Concepts: Backlog survey, Ledger, Run lock
+Statement: The backlog survey never recommends, and never offers to delete, a run live in another session: a run root whose ledger carries a standing `**Step:**` line and whose `run.lock` is under an hour old takes the `running` bucket, whatever its stage or anchor match, and is never the recommended move (ADR 0163).
+Breaks: silently
+Check: none — the survey is prose a model runs, and final-reviewer's invariant compliance judges it
+Paths: plugin/skills/status/SKILL.md

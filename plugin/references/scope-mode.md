@@ -1083,7 +1083,7 @@ passes` already states for its own entry. Report nothing, write nothing.
 
 ## Reading the posture at the merge commit
 
-`/superdev:ship`, `/superdev:verify-ship`, `/superdev:wrap-up`, and `/superdev:backlog` each need a merged
+`/superdev:ship`, `/superdev:verify-ship`, `/superdev:wrap-up`, and `/superdev:status` each need a merged
 feature's deploy posture, its listed targets, and their deploy record. This section states the read once;
 each caller states only what it does with the result (ADR 0101, ADR 0106).
 
@@ -1103,7 +1103,7 @@ each caller states only what it does with the result (ADR 0101, ADR 0106).
 
 ## Routing a shipped run
 
-`/superdev:ship`'s final hand-off, `/superdev:backlog`, `/superdev:document`, run init's shipped-run stops (`references/run-init.md`), `/superdev:verify-ship`'s end, and `/superdev:wrap-up`'s hand-off from a closed repair to its original each decide where a `shipped` run whose anchor is
+`/superdev:ship`'s final hand-off, `/superdev:status`, `/superdev:document`, run init's shipped-run stops (`references/run-init.md`), `/superdev:verify-ship`'s end, and `/superdev:wrap-up`'s hand-off from a closed repair to its original each decide where a `shipped` run whose anchor is
 still open goes next: to `/superdev:plan`'s repair choice, to `/superdev:verify-ship`, or straight to
 `/superdev:wrap-up`. This section states that rule once, so every caller names the same command for the same run (ADR 0116, ADR 0124, INV-0116). Each caller states
 only what it does with the outcome, and what it does when the anchor cannot be read.
@@ -1166,7 +1166,7 @@ from that anchor itself, and has no deploy record for step 3 to read. So the **V
 a closed repair to its original each need a `shipped` run's run root. A run done on another machine, or a
 run root already reaped, has none under the main working tree, and survives only as its scope anchor's
 `## Run state` snapshot (`## Publishing run state` above). This section states once how such a command
-recreates the run root from that snapshot (ADR 0124, INV-0132). `/superdev:backlog` writes nothing and adopts nothing: it
+recreates the run root from that snapshot (ADR 0124, INV-0132). `/superdev:status` writes nothing and adopts nothing: its backlog survey
 routes such an anchor by `## Routing a shipped run`'s **A run with no local ledger** case.
 
 1. **The anchor body.** The run root is `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" root <scope>`'s

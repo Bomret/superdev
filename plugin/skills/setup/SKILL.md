@@ -209,7 +209,7 @@ stating back to the user:
   and is the default worth proposing.
 
 Record the signal plus the calls that **apply** it (what `/superdev:plan` fires on a release) and **read**
-it (what `/superdev:implement` and `/superdev:backlog` check).
+it (what `/superdev:implement` and `/superdev:status` check).
 
 Also capture the **assignee** for any issue backend — the account every issue `/superdev:plan` creates is
 assigned to (`plan-contract.md` → *Assignee*). Propose the **API token's own identity** as the default:

@@ -67,7 +67,7 @@ module.exports = ({ assert, fixture, found }) => {
   assert.equal(
     noBase({
       'docs/agents/code-management.md': '- **Base branch:** `main`.\n',
-      'skills/backlog/SKILL.md':
+      'skills/status/SKILL.md':
         'Resolve the checkout once, not per anchor: the main checkout is the PARENT of the scopetree, and ' +
         'a run root never commits anything there.\n',
     }).length,

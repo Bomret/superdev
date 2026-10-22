@@ -436,8 +436,8 @@ branch tip. A number or term already taken there is skipped for the next free on
 slice exists yet, and a ledger carrying a header and no slice rows is a valid, documented state
 (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The ledger`), not a corrupt one — `/superdev:status`
 renders it as a run with no slices yet. This is what closes triage #509: an interview abandoned right
-after this point still leaves a `ledger.md` beside the branch and the scopetree, so `/superdev:status` and
-`/superdev:backlog` see it. An append onto a `planned` ledger finds one already there from the earlier
+after this point still leaves a `ledger.md` beside the branch and the scopetree, so `/superdev:status`
+sees it. An append onto a `planned` ledger finds one already there from the earlier
 session — nothing to write here; §6 revises it in place once the slices are known. This same call is
 also what ensures `.superdev/` is git-ignored (`init` runs `ensureSuperdevIgnored` before writing): moving
 the ledger write to right after the cut, rather than leaving it to §6, is what closes the gap where the
@@ -640,7 +640,7 @@ reference is written.
 established cannot be built until another one has landed gets that relation written on **this feature's
 scope anchor**, naming the other feature's anchor, through the mechanism
 `docs/agents/issue-tracker.md`'s `## Scope anchor` section states (`references/plan-contract.md` →
-*Scope anchor*, ADR 0040). It is what lets `/superdev:backlog` group the second feature as `waiting` until the first's anchor is closed. Ask nothing
+*Scope anchor*, ADR 0040). It is what lets `/superdev:status` group the second feature as `waiting` until the first's anchor is closed. Ask nothing
 new for it: a feature that cannot be built yet surfaces as a constraint during §1 or it does not surface
 at all, and an interview that named no prerequisite writes no dependency. The honesty rule is the one
 slice-level `depends-on` already carries — record one only where the second feature genuinely cannot be

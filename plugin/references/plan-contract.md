@@ -300,7 +300,7 @@ Append mode holds these invariants, and every backend renders all of them:
   anchor-only, and is removed from the lone slice. The **Repairs line** (*Scope anchor* below) migrates the
   same way, and is removed from the lone slice. So does the **Absorbs line** (*Scope anchor* below).
   Nothing else about the slice changes. Leaving any of them
-  behind would strand it on a record `/superdev:backlog`, `/superdev:ship`, or `/superdev:wrap-up` no
+  behind would strand it on a record `/superdev:status`, `/superdev:ship`, or `/superdev:wrap-up` no
   longer reads as this feature's anchor.
 - **Append refuses, and writes nothing, while a run is active.**
 - **A shipped or closed feature takes no append.** Amending a shipped feature's Definition of Done in place pools
@@ -330,7 +330,7 @@ stable, so append names no numbering rule of its own.
 
 A feature's **scope anchor** is its root. A multi-slice plan's root has slices beneath it; a single-slice
 plan's root is its own lone slice — one rule for both shapes (ADR 0017). A consumer that needs a feature's
-scope-level signal — `/superdev:backlog` grouping an anchor, the status map above writing the anchor's
+scope-level signal — `/superdev:status` grouping an anchor, the status map above writing the anchor's
 own status — reads the active `docs/agents/issue-tracker.md`'s own `## Scope anchor` section rather than
 assuming any one store's shape. How to recognise an anchor, list the candidates, list the slices beneath
 one, tell that an anchor is itself a slice, and read an anchor's own dependencies are backend mechanism,
@@ -355,7 +355,7 @@ lone slice to an epic (*Append mode* above). Each store's `## Scope anchor` sect
 notation it uses instead. A dependency is **satisfied** only when the anchor it names is closed, or when
 no such anchor exists; no ledger stage satisfies it (ADR 0106, amending ADR 0040). A merged feature
 whose anchor is still open has not been verified or wrapped up, so a dependent keeps waiting for the close. `/superdev:plan` records
-one when its interview named a prerequisite feature, and `/superdev:backlog` is the reader: it groups an
+one when its interview named a prerequisite feature, and `/superdev:status` is the reader: it groups an
 anchor whose dependency is unsatisfied as `waiting`.
 
 An anchor may also carry a **deploy line**: `**Deploy:** <target>[, <target>]` — a comma-separated,
@@ -374,7 +374,7 @@ notation, naming the scope anchor of the shipped feature this one repairs (ADR 0
 **anchor-only**, never on a slice beneath a multi-slice feature, and an absent line reads as no repair
 link. `/superdev:plan`'s repair choice writes it once, when it creates the repair, and nothing edits it
 afterwards. It records which feature a repair repairs and blocks nothing: the original's own
-`/superdev:wrap-up` gate never reads it. `/superdev:plan`'s repair choice and `/superdev:backlog` read it
+`/superdev:wrap-up` gate never reads it. `/superdev:plan`'s repair choice and `/superdev:status` read it
 to mark a shipped scope a repair names, the shipped-run routing rule (`references/scope-mode.md`) reads it
 off open and closed anchors, sending that scope back to `/superdev:verify-ship` once only closed ones name
 it and a `not met:` note's repair citation does not yet cite one of them, and `/superdev:wrap-up` reads it
@@ -414,7 +414,7 @@ section for the backend's signal and the calls that set and read it:
   later, and applies the signal on a release.
 - **`/superdev:implement`** builds a released feature. An unreleased one stops the run and asks the user
   to confirm it anyway, since the operator naming a label directly is a human judgment of the same kind.
-- **`/superdev:backlog`** groups an anchor carrying no release signal as `unreleased`.
+- **`/superdev:status`** groups an anchor carrying no release signal as `unreleased`.
 
 ## Run state
 
@@ -515,7 +515,7 @@ These invariants fix its shape, and every backend renders all of them:
   ledger drives control flow. **The observation trigger writes no ledger bullet at all**: its own failure
   or denial is reported once by whichever command met it, per `references/scope-mode.md`'s
   `## Observations` section, since the triage record is that trigger's only artifact.
-- **It is listable.** `/superdev:backlog` is the consumer: its survey groups every triage record the active
+- **It is listable.** `/superdev:status` is the consumer: its backlog survey groups every triage record the active
   store returns by the action it needs, so a record no listing call can reach stays invisible to it.
 - **A run that fixes it after all closes it.** A deferred finding re-enters the fix loop only when a later
   review names a guard-rail remedy for it. Once a re-review confirms the fix, the run removes the ledger
