@@ -94,8 +94,9 @@ function reachedBy(root, rel) {
 // The directories a suite's text names, as { segs, anchored }: a path string that is a directory of the
 // repository (anchored at its root; a `./` or `../` string resolves from `tests/`), and the literal segments of a
 // `path.join` / `path.resolve` call. A call whose first argument is `__dirname` or a literal is anchored; a call
-// whose leading directory is computed (`path.dirname(hookPath)`) names only its literal tail, which matches
-// that tail at any depth, so it can select a suite for a directory it does not scan but never miss one it does.
+// whose leading directory is `path.dirname(...)` names only its literal tail, which matches that tail at any depth,
+// so it can select a suite for a directory it does not scan but never miss one it does. A call whose leading
+// directory is any other computed value (a variable, `os.tmpdir()`) builds a path in a fixture tree and names nothing.
 // Ceiling: a directory built by a computed expression with no literal segment (`path.join(dir, name)`), or by a
 // variable assigned elsewhere, is unreadable here and names nothing.
 function namedDirs(root, text) {
@@ -135,6 +136,9 @@ function namedDirs(root, text) {
     args.push(arg.trim());
     let parts = [];
     let anchored = false;
+    // A leading directory that is neither `__dirname`, a literal, nor `path.dirname(...)` is a fixture tree's (a variable,
+    // `os.tmpdir()`), so the call names no directory of the repository.
+    if (!/^(__dirname$|['"`]|path\.dirname\()/.test(args[0])) continue;
     args.forEach((a, i) => {
       const lit = a.match(/^(['"`])([^'"`$]*)\1$/);
       if (i === 0 && a === '__dirname') [parts, anchored] = [['tests'], true];
@@ -149,6 +153,40 @@ function namedDirs(root, text) {
   return dirs;
 }
 
+// How many files of the tree under `root` carry each basename, skipping `.git`, `node_modules`, `.superdev`, and every
+// subdirectory that is a checkout of its own (it holds a `.git`, as a linked worktree under `.claude/worktrees/` does).
+function basenameCounts(root) {
+  const counts = new Map();
+  const walk = (dir) => {
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    if (dir !== root && entries.some((e) => e.name === '.git')) return;
+    for (const e of entries) {
+      if (e.isDirectory()) {
+        if (!['.git', 'node_modules', '.superdev'].includes(e.name)) walk(path.join(dir, e.name));
+      } else counts.set(e.name, (counts.get(e.name) || 0) + 1);
+    }
+  };
+  walk(root);
+  return counts;
+}
+
+// Whether a mention of a basename several files share names `rel`: the path text right before the mention, or the
+// literal arguments before it in a join call (`'plugin', 'hooks', 'x.json'`), with `./` and `../` segments dropped, is a
+// directory `rel`'s own directory ends with. A bare mention names a root file.
+function namesShared(before, rel) {
+  const joined = before.match(/((?:['"`][\w./-]*['"`]\s*,\s*)+)['"`]$/);
+  const text = joined ? joined[1].replace(/['"`]\s*,\s*/g, '/').replace(/['"`]/g, '') : before.match(/[\w./-]*$/)[0];
+  const dir = text.split('/').filter((seg) => seg && seg !== '.' && seg !== '..');
+  const own = path.posix.dirname(rel).split('/').filter((seg) => seg !== '.');
+  if (!dir.length) return !own.length;
+  return dir.length <= own.length && dir.every((seg, k) => own[own.length - dir.length + k] === seg);
+}
+
 // Whether a named directory holds the repository-relative path `rel`.
 function under({ segs, anchored }, rel) {
   const dir = path.posix.dirname(rel).split('/');
@@ -159,7 +197,7 @@ function under({ segs, anchored }, rel) {
 
 // The suites a change set reaches, as a subset of `suites`, in suite order. A suite is reached when
 // its own text names a changed file (its basename, or its bare stem between path or quote
-// delimiters), when the file its name pins (`pinnedBy`) is the changed file, when the changed file is reached by
+// delimiters; a basename another file of the tree shares counts only with a directory part, `namesShared`), when the file its name pins (`pinnedBy`) is the changed file, when the changed file is reached by
 // relative `require` edges, walked transitively through modules (`plugin/lib/` files and non-suite files under
 // `tests/`), from that pinned file or from the suite file itself, or when the changed path is the suite itself. A `.md` path also reaches a suite whose text names a directory
 // holding it (`namedDirs`), because a suite may list or scan a directory; a code path never takes the
@@ -169,6 +207,7 @@ function under({ segs, anchored }, rel) {
 // shortcut: `require` is read by regex, transitively from the file a suite pins and from the suite itself, wherever the
 // call sits; a dynamic require reaches no suite and, for an otherwise unplaced path, falls back to every suite.
 function selectSuites(root, suites, paths) {
+  const bases = basenameCounts(root);
   const texts = suites.map((file) => fs.readFileSync(file, 'utf8'));
   const pinned = suites.map((file) => pinnedBy(root, path.basename(file, '.test.js')));
   const requires = suites.map((file, i) => {
@@ -183,14 +222,16 @@ function selectSuites(root, suites, paths) {
     if (rel.startsWith('scripts/drift/')) continue;
     const base = path.posix.basename(rel);
     const stem = base.replace(/\.js$/, '');
-    const named = new RegExp(`(?<![\\w-])${escapeRe(base)}(?![\\w-])|(?<=[/'"\`])${escapeRe(stem)}(?=[/'"\`])`);
+    const named = new RegExp(`(?<![\\w-])${escapeRe(base)}(?![\\w-])|(?<=[/'"\`])${escapeRe(stem)}(?=[/'"\`])`, 'g');
+    const shared = (bases.get(base) || 0) > (fs.existsSync(path.join(root, rel)) ? 1 : 0);
+    const names = (text) => [...text.matchAll(named)].some((m) => !shared || namesShared(text.slice(0, m.index), rel));
     let placed = rel.startsWith(MOD_DIR);
     suites.forEach((file, i) => {
       if (
         path.posix.join('tests', path.basename(file)) === rel ||
         (path.posix.dirname(rel) !== 'tests' && path.basename(file, '.test.js') === stem) ||
         pinned[i] === rel ||
-        named.test(texts[i]) ||
+        names(texts[i]) ||
         requires[i].has(rel) ||
         (rel.endsWith('.md') && dirs[i].some((d) => under(d, rel)))
       ) {

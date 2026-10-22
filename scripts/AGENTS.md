@@ -742,15 +742,19 @@ file its name pins (`plugin/hooks/<name>.js`, `plugin/lib/<name>.js`, `plugin/sc
 changed file or requires it, or the suite file itself requires it, or when the path is the suite itself. A suite split off another
 (`tests/scope-ledger.test.js`, with no `scope-ledger.js` entry point shipped) pins the file of the longest
 `-`-delimited prefix of its name that pins one (`plugin/scripts/scope.js`), and an exact pin wins. A test helper reaches every suite that names
-it. A `.md` path follows the same naming rule, because a suite may execute or pin a document
+it. A basename more than one file of the tree carries (`AGENTS.md`, `hooks.json`; a nested checkout such as a linked
+worktree under `.claude/worktrees/` does not count) names a file only through a directory part its path ends with: the
+path text before the mention with `./` and `../` dropped, or the literal arguments before it in a `path.join` call. A
+bare mention of such a basename names the file at the repository root. A `.md` path follows the same naming rule, because a suite may execute or pin a document
 (`tests/publish-kb-templates.test.js` runs the templates of `docs/agents/knowledge-base.md`, `tests/scope-ledger.test.js` pins a
 sentence of `plugin/references/scope-mode.md`). A `.md` path also reaches a suite whose text names a directory
 holding it, because a suite that lists or scans a directory reads every document in it
 (`tests/model-explicit.test.js` lists `plugin/agents/`, `tests/invariant-check.test.js` scans `plugin/`). A named directory
 is a path string that is a directory of the repository, or the literal segments of a `path.join` or `path.resolve`
 call. A call whose first argument is `__dirname` or a literal is anchored at the repository root. A call whose leading
-directory is computed (`path.dirname(hookPath)`) names its literal tail, which matches that tail at any depth, so
-it may select a suite for a directory the suite does not scan and never misses one it does. A directory built from
+directory is `path.dirname(...)` (`path.dirname(hookPath)`) names its literal tail, which matches that tail at any depth, so
+it may select a suite for a directory the suite does not scan and never misses one it does. A call whose leading
+directory is any other computed value (a variable, `os.tmpdir()`) builds a path in a fixture tree and names nothing. A directory built from
 computed expressions with no literal segment names nothing. The directory rule never applies to a code path. A `.md` path no
 suite names, directly or by directory, and a path under `scripts/drift/`, reach no suite, because the drift selftest sits in the tail. A code path no rule places runs every suite, and an empty list runs the tail alone and exits 0. A path under
 `mods/superdev-view/` places itself: it adds `claude plugin test mods/superdev-view` before the tail, and runs no

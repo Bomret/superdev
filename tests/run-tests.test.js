@@ -273,6 +273,46 @@ const picked = (root, paths) =>
   assert.ok(real(['plugin', 'skills', 'plan', 'SKILL.md'].join('/')).includes('invariant-check'), 'invariant-check scans every file under plugin/');
 }
 
+// A join whose leading directory is a variable or another computed value other than `path.dirname(...)` builds a path
+// inside a fixture tree, so it names no directory of the repository.
+{
+  const J = `path${'.'}join`;
+  const root = tree({
+    'tests/fx.test.js': suite('fx') + `\nfs.mkdirSync(${J}(s.tree, 'docs'));\nfs.mkdirSync(${J}(os.tmpdir(), 'docs', 'adr'));\n`,
+    'tests/dn.test.js': suite('dn') + `\nfs.readdirSync(${J}(path.dirname(hookPath), '..', 'docs'));\n`,
+    'docs/adr/0001-x.md': '',
+  });
+  assert.deepStrictEqual(picked(root, ['docs/adr/0001-x.md']), ['dn'], 'a fixture join names nothing; a path.dirname join names its tail');
+  const real = (md) => selectSuites(repoRoot, discoverSuites(path.join(repoRoot, 'tests')), [md]).map((f) => path.basename(f, '.test.js'));
+  const f2p = ['scope', 'fail', 'to', 'pass'].join('-');
+  assert.ok(!real(['docs', 'invariants.md'].join('/')).includes(f2p), 'a fixture docs directory does not select its suite for the register');
+}
+
+// A basename more than one file of the repository carries names a file only with a directory part the file's path
+// ends with; a bare mention names the file at the repository root. A unique basename matches bare, as before.
+{
+  const G = ['GUIDE', 'md'].join('.');
+  const J = `path${'.'}join`;
+  const root = tree({
+    [G]: '',
+    [`sub/${G}`]: '',
+    [`other/deep/${G}`]: '',
+    'docs/manual.md': '',
+    'tests/rootcite.test.js': suite('rootcite') + `\n// (${G}, ADR 0001)\n`,
+    'tests/subcite.test.js': suite('subcite') + `\nfs.readFileSync('sub/${G}');\n`,
+    'tests/deepcite.test.js': suite('deepcite') + `\n// see ../other/deep/${G}\n`,
+    'tests/tailcite.test.js': suite('tailcite') + `\n// see deep/${G}\n`,
+    'tests/uniq.test.js': suite('uniq') + "\n// manual.md\n",
+    'tests/joincite.test.js': suite('joincite') + `\nfs.readFileSync(${J}(__dirname, '..', 'other', 'deep', '${G}'));\n`,
+  });
+  assert.deepStrictEqual(picked(root, [G]), ['rootcite'], 'a bare mention of a shared basename names the root file');
+  assert.deepStrictEqual(picked(root, [`sub/${G}`]), ['subcite'], 'a shared basename is named by its directory');
+  assert.deepStrictEqual(picked(root, [`other/deep/${G}`]), ['deepcite', 'joincite', 'tailcite'], 'a relative, partial, or joined directory the path ends with names it');
+  assert.deepStrictEqual(picked(root, ['docs/manual.md']), ['uniq'], 'a unique basename matches bare');
+  const real = (p) => selectSuites(repoRoot, discoverSuites(path.join(repoRoot, 'tests')), [p]).map((f) => path.basename(f, '.test.js'));
+  assert.ok(!real(['scripts', ['AGENTS', 'md'].join('.')].join('/')).includes('merge-guard'), 'a citation of the root AGENTS.md does not select a suite for scripts/AGENTS.md');
+}
+
 // runAll in focused mode runs only the selected suites, then the whole tail.
 {
   const root = focusedTree();
