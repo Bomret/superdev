@@ -31,7 +31,7 @@ to the `run-lock` hook takes about 45 s, because the `scope` suite names that ho
 While working on one suite, run it alone: `node tests/<suite>.test.js` from the repo root, for example
 `node tests/merge-guard.test.js`. It runs that suite and no tail, and its exit code is the verdict. A
 one-suite run does not replace the focused command before the merge. `package.json` carries no test script,
-so every test run names exactly what it runs (ADR 0162).
+so every test run names exactly what it runs (ADR 0166).
 
 ## Timing command
 

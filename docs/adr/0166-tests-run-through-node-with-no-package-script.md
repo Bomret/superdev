@@ -1,4 +1,4 @@
-# 0162: Tests run through `node` with no package script
+# 0166: Tests run through `node` with no package script
 
 **Status:** Accepted
 
