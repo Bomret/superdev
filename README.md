@@ -174,7 +174,12 @@ plan runs test-first, inline in the scopetree.
   scope branch, or a bare invocation on a clean checkout that finds one run in progress, it is the
   whole-scope review gate in the implement chain: it checks the scope against that run's `dod.md`, and it
   can drive one fix loop after asking once. Several runs in progress get listed for you to pick; naming a
-  scope by its slug works too (ADR 0078). That loop fixes every finding, Minor ones included, for at most
+  scope by its slug works too (ADR 0078). With no argument, or with `.` at the repository root, review
+  reads the first subject it finds: uncommitted changes, then the branch's commits ahead of base, then a
+  run waiting for review, then the whole repository as standing code. Before that last step it lists
+  every run with its stage, so you see a run you meant to name (ADR 0165). An argument that names
+  nothing it can resolve, a path outside the checkout, or a ref that is no commit stops with the argument
+  named. The fix loop fixes every finding, Minor ones included, for at most
   three cycles, and only a Critical or Important finding left at the cap holds the run (ADR 0098). It
   changes how the code meets the Definition of Done; a case in an existing test suite, a case or row for
   an existing drift check, or a prose fix that makes text agree with an existing rule stays in the loop

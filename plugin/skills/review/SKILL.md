@@ -1,7 +1,7 @@
 ---
 name: review
 description: Review a change — a commit range, a branch, a path, or the working tree — for correctness, architecture, security, and over-engineering. Read-only on an ad-hoc range; on a live superdev scope it reviews against the DoD and can drive the fix loop.
-argument-hint: "[BASE..HEAD | branch | path | scope-slug | (empty = working tree)]  [--unattended]  [--chained]  [-- what it should do]"
+argument-hint: "[BASE..HEAD | branch | path | scope-slug | (empty, or the top-level path = changes, else a scope run, else the whole repo)]  [--unattended]  [--chained]  [-- what it should do]"
 ---
 
 # superdev review
@@ -75,13 +75,50 @@ untracked file never appears, so staging it would write the index for no gain a 
 would retarget a path scope onto that intent-to-add entry as an "uncommitted change" instead of the
 standing tree `/superdev:sweep` asked this leg to read.
 
+**The argument is user input, never command text** (triage #451). A ref candidate — a branch name, or
+each non-empty half of a range — passes the **ref shape test** before any git call: it matches
+`[A-Za-z0-9._/~^@{}:+-]+` and does not start with `-`. The set admits git's revision syntax (`HEAD~3`,
+`main^`, `@{u}`, a branch name with `+`) and holds no whitespace and no `'`, so a single-quoted candidate
+reaches git as one literal word, and none reaches git as an option. A candidate that fails the test is never passed to git as a ref. A candidate that passes
+is single-quoted wherever it reaches git or `scope.js`. Every ref candidate resolves through the commit
+peel, `git rev-parse --verify --quiet '<name>^{commit}'`: `:` stays in the set for revision syntax, so a
+candidate such as `HEAD:README.md` passes the shape test and names a blob, and a candidate that does not
+peel to a commit does not resolve. A path
+is not shape-tested, because a real path may hold a space or a quote: quote it the same way, writing each
+`'` inside it as `'\''`, and pass it after `--` where git takes a pathspec. A scope slug reaches
+`scope.js` only after the slug charset below admits it.
+
 - **Range** — whatever remains, resolved to a concrete git range:
-  - **`BASE..HEAD`** (or `BASE...HEAD`, contains `..`) → use verbatim.
-  - **A branch** (no `..`; resolves via `git rev-parse --verify --quiet <name>`) → range is
+  - **`BASE..HEAD`** (or `BASE...HEAD`: contains `..`, and is no path on disk — an existing path such as
+    `../x` resolves through the path shapes below) → split it once at `...` or `..`. An empty half
+    stands for `HEAD`, as git reads it, and takes no shape test (`main..`, `..main`, `HEAD~3..`,
+    `main...`). **Each non-empty half passes the ref shape test** → resolve it with the quoted
+    commit-peel call (`git rev-parse --verify --quiet '<half>^{commit}'`), and use the range as given,
+    the assembled range reaching git single-quoted (`git diff '<BASE>..<HEAD>'`). **A non-empty half
+    fails it, or does not resolve** → refuse, naming the argument and the half that failed, and dispatch
+    nobody. **Both halves are empty** (`...` alone) → no range: refuse, naming the argument, and
+    dispatch nobody.
+  - **A branch** (no `..`; passes the ref shape test and resolves via
+    `git rev-parse --verify --quiet '<name>^{commit}'`) → range is
     `merge-base(base, branch)..branch`. A branch a live run root names takes its range base instead,
     per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`: `<range-base>..branch`.
-  - **A path/area** (exists on disk, isn't a ref) → the diff of the current branch vs base, scoped to
-    that path (`git diff <merge-base>..HEAD -- <path>`, or `git diff HEAD -- <path>` if there are
+  - **A path outside the checkout** (exists on disk, and `git ls-files -- '<path>'` exits non-zero, git
+    reporting the path outside the repository) → it resolves to nothing: stop, name the argument, say it
+    lies outside the checkout, and dispatch nobody. Git decides from the quoted input, so the test needs
+    no path normalization (ADR 0150). `..` or `../x` at the top level takes this shape. A path through
+    `..` that stays inside the work tree (`../plugin` from a subdirectory) passes the test and takes the
+    path shapes below.
+  - **A path naming the checkout's top level** → the **Empty** shape below, exactly as if no argument
+    were given (ADR 0165, INV-0168). A path names the top level when both git calls succeed,
+    `git -C '<path>' rev-parse --show-toplevel` prints the invoking checkout's own
+    `git rev-parse --show-toplevel`, and `git -C '<path>' rev-parse --show-prefix` prints nothing. Both
+    strings come from git, so they compare as they are, with no path normalization (ADR 0150). Any
+    non-zero exit means the path does not name the top level. `.` and `./` at the top level, the
+    absolute top-level path, and a symlink to it all take the **Empty** shape. `.` from a
+    subdirectory, any subdirectory, a submodule root, a nested repository, another linked worktree's
+    root, the git directory, and a file each keep the path shape below.
+  - **A path/area** (exists on disk inside the checkout, isn't a ref, and does not name the top level) → the diff of the current branch vs base, scoped to
+    that path (`git diff <merge-base>..HEAD -- '<path>'`, or `git diff HEAD -- '<path>'` if there are
     uncommitted changes there). When HEAD is a branch a live run root names, `<merge-base>` is the range base
     per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`; any other HEAD keeps the merge-base.
   - **Standing code** — that same path, where the scoped diff above comes back **empty** → the files
@@ -91,7 +128,7 @@ standing tree `/superdev:sweep` asked this leg to read.
     exactly as it does above, so no existing invocation changes meaning. **The path exists and holds no
     files** → say there is nothing to review and dispatch nobody. Read-only like every other ad-hoc
     range: nothing is edited, committed, or merged.
-  - **Empty** → a three-step cascade:
+  - **Empty** → a four-step cascade, which reviews the first subject it finds:
     1. **The working tree carries uncommitted changes** (`git diff HEAD` non-empty) → review those,
        exactly as before. A dirty working tree is reviewed as it always was, and the command says in one
        line which eligible scope it passed over, when one exists — the single run root step 3 below would
@@ -100,7 +137,7 @@ standing tree `/superdev:sweep` asked this leg to read.
        When HEAD is a branch a live run root names (the test the branch bullet above uses), the range base per
        `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base` replaces the
        merge-base: `<range-base>..HEAD`. Any other HEAD keeps `merge-base(base, HEAD)`.
-    3. **Otherwise** → run `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Resolving an empty
+    3. **Otherwise, and not under `--chained`** → run `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Resolving an empty
        argument` cascade over the run roots at stage `merged` or `documented-unreviewed` — the same two
        stages the chain hands to this review, so the attended and unattended paths select
        the same scopes. Its resolved candidate is a scope slug: take that scope's `**Branch:**` line
@@ -109,25 +146,38 @@ standing tree `/superdev:sweep` asked this leg to read.
        and say which route was taken. The range becomes `<range-base>..branch`, the range base per
        `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base` (`scope.js base resolve --branch <branch> --base <base> --root <run-root>`),
        which the **Scope mode wins** bullet above then recognizes as a live run.
-       **No candidate at all** — cite `## Resolving an empty argument`'s own **No candidate** wording,
-       adding a `/superdev:review <scope-slug>` line for the operator to type directly, and dispatch
-       nobody.
-  - **A scope slug** — reached only once the four shapes above all fail: no `..`, no ref
-    (`git rev-parse --verify --quiet <name>` fails), and no path on disk. **Validate it against
+       Several candidates still put the question, and block under `--unattended`, as that section states.
+       **No candidate** → go on to step 4. Review adds this step after the shared cascade, so its
+       **No candidate** stop does not apply here (ADR 0165, INV-0077).
+    4. **Otherwise** → **standing code of the whole repository**: the files at `HEAD`, the standing-code
+       shape above applied to the top level. Before any reviewer starts, the range announcement lists
+       every run root with its stage (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## A live scope
+       run` → *Run-root enumeration*) and adds a `/superdev:review <scope-slug>` line for the operator
+       who meant a run, or says the repository holds no run root. It is an ad-hoc review like any other,
+       attended or unattended: no ledger write, no run lock, and no fix loop. No files at `HEAD` → say
+       there is nothing to review and dispatch nobody. **`--chained`** skips step 3 and comes straight
+       here, which is the standing tree `/superdev:sweep` asks its code leg to read.
+  - **A scope slug** — reached only once every shape above fails: no `..`, no ref
+    (the ref shape test or the quoted `git rev-parse --verify --quiet '<name>^{commit}'` fails), and no path on
+    disk. **Validate it against
     `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope slug` charset
     (`[a-zA-Z0-9][a-zA-Z0-9_-]*`) before addressing `.superdev/scopes/<arg>/` with it** — the same test
-    `lib/ledger.js`'s `SLUG_RE` applies to a label's slug segment. A shape that fails it (a `../`-shaped
-    argument among them) refuses with that charset named, rather than reading whatever path the
-    argument resolves to. **It passes** — a run root exists for it
+    `lib/ledger.js`'s `SLUG_RE` applies to a label's slug segment. **It fails** (a `../`-shaped
+    argument among them) → stop, name the argument and each shape it failed (the ref shape test or
+    `git rev-parse`, no path on disk, the slug charset), and dispatch nobody, rather than reading
+    whatever path the argument resolves to. **It passes** — a run root exists for it
     (a `<run-root>/ledger.md` per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## A live scope
     run`). Resolve the branch with
     `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get branch --root <run-root>` and verify it
-    (`git rev-parse --verify <branch>`); the range becomes `<range-base>..branch`, the range base per
+    (`git rev-parse --verify --quiet '<branch>^{commit}'`); the range becomes `<range-base>..branch`, the range base per
     `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base` (`scope.js base resolve --branch <branch> --base <base> --root <run-root>`), which the
     **Scope mode wins** bullet above then recognizes as a live run. **No such line, or the named branch
     does not verify** → take `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope branch`
-    shape-scan fallback and say which route was taken. **No run root names the argument** → fall through
-    to the **Empty** shape above, exactly as an unresolved argument does today.
+    shape-scan fallback and say which route was taken. **No run root names the argument** → the argument
+    named something that resolves to nothing: no ref, no path on disk, and no run root. Stop, name the
+    argument and each shape it failed, and dispatch nobody. Only an argument that is absent reaches the
+    **Empty** shape above, so a mistyped branch or slug never starts a review of something it did not
+    name.
 
 **State the concrete range/target** (e.g. "Reviewing `a1b2c3..d4e5f6`" or "Reviewing working tree changes
 incl. untracked") before dispatching.
@@ -141,7 +191,8 @@ blocked stop, a refusal, a `First:` wait, and a review exit without a clean verd
 first, which closes the final review's verdict window and leaves the step standing, so `/superdev:status`
 and the published run state still show it.
 
-**Size caution (qualitative, non-blocking).** Glance at `git diff --stat`. If the change spans enough
+**Size caution (qualitative, non-blocking).** Glance at `git diff --stat`, or on a standing-code target
+at the file count under it (`git ls-files -- '<path>'`, the whole tree for the top level). If the change spans enough
 files or churn that one review pass would likely miss things — a judgment call, not a line count — say so
 alongside the range announcement (e.g. "large, multi-concern diff; consider splitting it via
 `/superdev:plan`") and proceed anyway. Never block on it.
@@ -154,7 +205,7 @@ superdev subagent that omits one):
 - **`superdev:final-reviewer`** (`model: opus`) — correctness, consistency, whole-scope brevity,
   security, performance, applied adversarially per axis. Give it: a one-line summary of what changed
   (derive it from the diff if the trailing description didn't supply one), the `acceptance` from §1, and
-  the git range — **on a standing-code target (§1's fourth shape), the path and its file set at `HEAD` in
+  the git range — **on a standing-code target (§1's standing-code shape), the path and its file set at `HEAD` in
   place of a range, with the summary derived from that file set instead of a diff** (it reads the review
   checklist itself via `${CLAUDE_PLUGIN_ROOT}`).
   **In scope mode both of those change shape**, so the reviewer can write its own criteria before it sees
@@ -272,7 +323,7 @@ the code-host merge calls `gh`/`tea pr merge`, `tea api`, and `gh api`, from any
   rather than closed with a second condition. **An ad-hoc range has no tier** — the rules below decide
   alone. This rule is evaluated first: a `full`-tier scope never reaches the tiny-diff or
   nothing-to-cut bullets below — both are about `simplicity-reviewer`, which this rule already decided.
-- **A standing-code target** (§1's fourth shape) → `final-reviewer` alone; skip `simplicity-reviewer`,
+- **A standing-code target** (§1's standing-code shape) → `final-reviewer` alone; skip `simplicity-reviewer`,
   reporting `` not dispatched — standing code, no diff to review ``. It is diff-only by its core
   contract and its tags target the production lines a change introduced, so a file set at `HEAD` gives it
   nothing to work from. The checklist's own over-engineering lenses still reach this target, through

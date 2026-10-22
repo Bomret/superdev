@@ -642,7 +642,7 @@ Paths: plugin/hooks/scope-prune.js, plugin/hooks/slicetree-sweep.js, plugin/lib/
 
 Class: process
 Concepts: Candidate set, Run root, Stage
-Statement: One section, `scope-mode.md`'s `## Resolving an empty argument`, owns how an empty argument resolves. Each run-taking command names only its own candidate set and cites that section. A caller that cannot ask lists the candidates and stops.
+Statement: One section, `scope-mode.md`'s `## Resolving an empty argument`, owns how an empty argument resolves. Each run-taking command names only its own candidate set and cites that section. A caller that cannot ask lists the candidates and stops. A command may add its own step after that cascade finds no candidate, and the step still reports every run root with its stage before it acts: `/superdev:review` reads standing code of the whole repository there (ADR 0165).
 Breaks: silently
 Check: `tests/publish-kb-scope.test.js` (more than one pending scope and no `--scope`: lists every scope with its page count)
 Paths: plugin/references/scope-mode.md, plugin/skills/implement/SKILL.md, plugin/skills/submit-pr/SKILL.md, plugin/skills/review/SKILL.md, plugin/scripts/publish-kb.js
@@ -1388,3 +1388,12 @@ Statement: The backlog survey never recommends, and never offers to delete, a ru
 Breaks: silently
 Check: none — the survey is prose a model runs, and final-reviewer's invariant compliance judges it
 Paths: plugin/skills/status/SKILL.md
+
+### INV-0168
+
+Class: process
+Concepts: Candidate set, Standing code, Chained posture
+Statement: `/superdev:review` resolves a path argument that names the invoking checkout's top level (its git top level is the checkout's own, and its git prefix is empty) exactly as it resolves no argument, in every repository state and under `--unattended` and `--chained` alike. A path into a subdirectory keeps the path shape. A named argument that resolves to nothing stops and names itself, and never falls through to the empty cascade (ADR 0165).
+Breaks: silently
+Check: none — final-reviewer's invariant compliance judges it
+Paths: plugin/skills/review/SKILL.md

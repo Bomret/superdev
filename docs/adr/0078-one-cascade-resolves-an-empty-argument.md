@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0165](0165-review-resolves-a-top-level-path-as-no-argument.md), which adds a
+review-only step after the cascade finds no candidate.
+
 ## Context
 
 Three commands take a run as their subject and accept no argument: `/superdev:implement`,

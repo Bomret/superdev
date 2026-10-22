@@ -2,9 +2,11 @@
 
 **Status:** Accepted
 
-**Amended by:** [ADR 0066](0066-a-measured-test-audit-is-its-own-surface.md), and
+**Amended by:** [ADR 0066](0066-a-measured-test-audit-is-its-own-surface.md),
 [ADR 0118](0118-review-and-fix-model-tiers-follow-measured-evidence.md),
-which moves `simplicity-reviewer` from `haiku` to `sonnet`.
+which moves `simplicity-reviewer` from `haiku` to `sonnet`, and
+[ADR 0165](0165-review-resolves-a-top-level-path-as-no-argument.md), which makes standing code of the
+whole repository the last step of an empty argument.
 
 **Context.** Every rule in the implement chain adds tests, and none prices them. `implementer.md` runs
 the TDD loop and demands an increment per acceptance criterion. `slice-reviewer.md`'s second lens

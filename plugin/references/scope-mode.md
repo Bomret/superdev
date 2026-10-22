@@ -71,6 +71,10 @@ own words:
 - **No candidate** — report that none exists, together with every run root the repository does hold and
   that run root's own stage, and stop. Never guess at a subject nothing named.
 
+A caller may add its own step after a no-candidate result, in place of the stop, and that step still
+reports every run root with its stage before it acts: `/superdev:review` reads standing code of the whole
+repository there (ADR 0165, INV-0077).
+
 **Run-root enumeration.** A run root is a `.superdev/scopes/*/` directory holding a `ledger.md`, per
 `## A live scope run` above. The calling command names the stages that qualify — `/superdev:submit-pr`
 names every stage but `shipped` and `closed`, `/superdev:review` names `merged` and `documented-unreviewed` — and this
