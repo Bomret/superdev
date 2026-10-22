@@ -228,6 +228,9 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
     in one prompt, and the dispatch is the later, more specific instruction, so it wins a conflict
     ([`CONTEXT.md`](CONTEXT.md) → *Dispatch prose*, ADR 0035). An edit to a contract in `agents/` also
     edits the `skills/` sentence that dispatches it, and a review reads the two together.
+  - **Write each agent body as prompt concepts.** The convention is in [`CONTEXT.md`](CONTEXT.md) →
+    *Prompt concept* and *Main sentence*, and in ADR 0169. An edit to `plugin/agents/` keeps every
+    concept's invariants.
   - **Prose states no count of a growing set.** "The eight shipped hooks" reads as a fact and is a
     hostage: adding a hook makes it false in every document repeating it, and nothing fails. Name the
     set, or name its members, and keep a numeral only where the number is the fact — a cap, a

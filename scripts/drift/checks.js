@@ -67,7 +67,7 @@ module.exports = [
   table(
     'source-sections',
     SOURCE_SECTION_CONTRACTS,
-    'every canonical reference still carries the sections its readers are sent to',
+    'every canonical reference and every cited agent body still carries the sections its readers are sent to',
   ),
   {
     id: 'command-resolution',

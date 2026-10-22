@@ -221,7 +221,8 @@ Repeat until every slice is `merged`:
      the log can add a finding or raise a finding's severity, and it never withdraws or downgrades one
      (INV-0113). The reviewer appends its full findings to the log, and a re-review reads the earlier
      findings there after its blind pass, closing one only from the diff and its own suite
-     run. An earlier Unverified dependency finding closes when the reviewer's own dependency check now
+     run, except a run-trace or an Unverified dependency finding. A run-trace finding closes by its closing
+     rule in `review-checklist.md`. An earlier Unverified dependency finding closes when the reviewer's own dependency check now
      passes, because its remedy lives in the log and not in the diff.
      When the review lists **any finding outside the deferred ones** — a Minor-only verdict included —
      dispatch **one** fresh `superdev:implementer` fix per cycle, carrying the **complete** fix list

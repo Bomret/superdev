@@ -8,6 +8,8 @@
 Concrete lenses for a reviewer to apply on top of its own judgment — named smells and vulnerability
 classes beat a generic "check code quality" / "check security."
 
+## Binding rules
+
 These rules bind every lens below:
 
 - **The repo overrides.** A documented repo standard wins; where it endorses something a lens would
@@ -189,7 +191,7 @@ run trace (`scope.js trace`), which hooks wrote, and no diff shows it (ADR 0117)
   re-review the finding closes only when the trace shows, after the finding, a revert (or an implementation
   edit), a failing run that covers that test (the full or focused command, or a run naming that test
   file), a restore (or an implementation edit), and a passing run. The remedy is `git add <paths>`, `git restore
-  --worktree --source=<base> -- <paths>`, a failing run, `git restore -- <paths>`, a passing run, never `git stash` (`<base>` is the commit the slice branch was cut from, which the dispatch names). A `run … unknown` line is not a failing run: it neither satisfies the RED step nor closes the finding, and the implementer answers it by re-running the test through `scope.js test`.
+  --worktree --source=<base> -- <paths>`, a failing run, `git restore -- <paths>`, a passing run, never `git stash` (`<base>` is the commit the slice branch was cut from on a `full` scope, and on a `lite` scope the base of the slice's recorded range in its ledger row, `scope.js get slices`; the dispatch names it). A `run … unknown` line is not a failing run: it neither satisfies the RED step nor closes the finding, and the implementer answers it by re-running the test through `scope.js test`.
   The finding names failing order and no failing behaviour, so its fix takes no RED test. `final-reviewer`
   applies it to every slice's trace lines on a `lite` scope, with the same closing sequence and no-trace rule.
 - **Unreviewed slice** — `final-reviewer`'s, on a `full` scope only: a merged slice with no

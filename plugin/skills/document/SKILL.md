@@ -76,7 +76,7 @@ The range scopes its **writing-standard pass** to the lines those commits added,
 If it reports findings, re-dispatch **`superdev:doc-writer`** (as in §3) with the findings to fix.
 **One fix round** — don't loop the reader; unresolved findings go in the report instead.
 
-The reader returns its findings **most-severe-first** (false claims, then incomplete ones, then style), so hand them over in that order and **tell the writer the order is a priority** — the `doc-writer` has no fix-round section of its own, so say it. With a single round, anything it can't reach is then the least costly finding rather than an arbitrary one.
+The reader returns its findings **most-severe-first** (false claims, then incomplete ones, then style), so hand them over in that order and **tell the writer the order is a priority** — the `doc-writer` takes the priority from the dispatch and from nowhere else, so say it. With a single round, anything it can't reach is then the least costly finding rather than an arbitrary one.
 
 **Read `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it selects through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <doc-commit paths>`, in the scope
 checkout over the scope branch on a live run (§8's checkout) or the invoking checkout otherwise** — the
@@ -130,7 +130,7 @@ Reached from §2 when the doc convention is the `AGENTS.md` hierarchy **and** th
 
 1. **Confirm once, never silent.** Tell the user no doc hierarchy was found and ask to seed one. Only on confirmation proceed.
 2. **Recon (large/unfamiliar repo only).** Fan out **2-4 read-only `Explore` agents** in parallel — each mapping a different aspect (structure + stack, domain vocabulary, subsystem boundaries, build + conventions) and returning a **compressed map**, not raw file dumps. A **small** repo skips this — the doc-writer explores directly.
-3. **Dispatch `superdev:doc-writer`** with an **explicit `model`** (`sonnet`) in **bootstrap** mode. Hand it: "bootstrap" (no diff, no prior tree), the recon maps (or "small repo — explore directly"), and the two config file paths. It seeds root `AGENTS.md` + child `AGENTS.md` only at genuine boundaries, mines existing README/`docs/` as input, and **proposes `CONTEXT.md` candidate terms in its report** without committing `CONTEXT.md`.
+3. **Dispatch `superdev:doc-writer`** with an **explicit `model`** (`sonnet`) in **bootstrap** mode. Hand it: "bootstrap" (no diff, no prior tree), the recon maps (or "small repo — explore directly"), the two config file paths, and the **staging path**, resolved and handed as §3 states, since the doc pass runs over what bootstrap wrote. It seeds root `AGENTS.md` + child `AGENTS.md` only at genuine boundaries, mines existing README/`docs/` as input, and **proposes `CONTEXT.md` candidate terms in its report** without committing `CONTEXT.md`.
 4. **Confirm the glossary before it lands.** Present the writer's `CONTEXT.md` candidates to the user to **confirm/prune** — never auto-commit them. Re-dispatch the writer with the confirmed set to write + commit `CONTEXT.md`. Empty confirmed set → no `CONTEXT.md`.
 5. **Reader test** the seeded files exactly as §4, then **report** per §5.
 

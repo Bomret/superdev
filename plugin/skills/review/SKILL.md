@@ -237,7 +237,7 @@ superdev subagent that omits one):
     Missing RED's 3-cycle cap and escape path (§4), and §3's report names a cycle's finding with its range.
   - **Also tell it to judge every `dod.md` line, ticked or not.** `final-reviewer` returns a verdict for
     each — holds, broken, ceiling, accepted, or doc pass — in its own `### Criteria` section (`agents/final-reviewer.md`'s
-    `## Judge every criterion`). §4 below unticks and re-ticks from that list; the axes above (Correctness,
+    `### Judge every criterion`). §4 below unticks and re-ticks from that list; the axes above (Correctness,
     Consistency, whole-scope Brevity, Security, Performance) are what it judges the *code* on, and this is
     the DoD gate the same dispatch also carries.
 
@@ -313,7 +313,7 @@ file:line · what's wrong · why it matters · how to fix (if not obvious)
 
 ### Over-engineering cuts
 [simplicity-reviewer's findings, if dispatched; omit this section if it wasn't]
-net: -<N> lines possible   (or "Lean already" if nothing to cut)
+net: -<N> lines possible   (zero included; "net: +<N> lines possible" when a clearer shrink: makes the cuts add more lines than they remove; "Lean already" if nothing to cut)
 
 ### Ceiling
 [final-reviewer's ceiling note, carried through verbatim when it wrote one; omit this section entirely
@@ -333,7 +333,7 @@ Reasoning: [1–2 sentences]
 ```
 
 The per-axis line is additive, sourced from each reviewer's own verdict — final-reviewer's `Ready to
-merge?` line for Correctness, simplicity-reviewer's `net: -N lines possible` / `Lean already` for
+merge?` line for Correctness, simplicity-reviewer's `net: -N lines possible` / `net: +N lines possible` / `Lean already` for
 Simplicity (or "not dispatched — <reason>" per §2's skip rules, naming which one applied — e.g. "not
 dispatched — full tier, covered per `behavior` slice"). It doesn't replace the combined `Ready to merge?`
 verdict: over-engineering findings stay non-blocking, never gating merge on their own. `final-reviewer`
@@ -620,7 +620,11 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
     doc pass owns them (INV-0120). A fix report that omits the checked-and-changed list is a report
     defect, sent back to the implementer before the re-review. Tell the implementer to run every test
     through `scope.js test`, to run a suite longer than the Bash tool's time limit through the runner in the
-    background and wait for its end, and to edit files through the edit tools, never through a script. Before the re-review, grep the checkout
+    background and wait for its end, and to edit files through the edit tools, never through a script. On a
+    **`lite`** scope, for each **Missing RED** finding in the list, also hand the implementer the run-trace
+    remedy (`git add <paths>`, `git restore --worktree --source=<base> -- <paths>`, a failing run,
+    `git restore -- <paths>`, a passing run, never `git stash`) and that slice's `<base>`: the base of the
+    slice's recorded range in its ledger row (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>`). Before the re-review, grep the checkout
     for the key phrase of the rule the fix changed, in its old wording and its new, and compare the hits
     with the report's checked list. A hit in a file the list does not name is a missed sibling surface:
     send the report back to the implementer, naming the hit, in the same cycle. A hit in the `AGENTS.md`

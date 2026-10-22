@@ -163,8 +163,9 @@ degraded or unreached.
 **An audit that found nothing says so in its own place**: "The suite earns its runtime." for the cost
 audit, "No test gaps found." for the gap audit. A run where both found nothing says so once.
 
-**Every finding reads as a labelled judgment**, never a violation or a required change. The operator
-disagrees with any of them at no cost, which is what §5 is for.
+**Every finding except a dead test reads as a labelled judgment**, never a violation or a required
+change. A dead-test finding states a fact. The operator disagrees with any judgment at no cost, which is
+what §5 is for.
 
 ## 5. Put the judgments to the operator
 

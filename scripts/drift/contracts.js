@@ -255,7 +255,8 @@ const specialisingGenericRows = (names) =>
     `carry the \`## ${name}\` section — the generic contract each store document specialises`,
   ]);
 
-// Every canonical reference still carries the sections its readers are sent to. Each row pins one
+// Every canonical reference, and every agent body another file cites by heading, still carries the
+// sections its readers are sent to. Each row pins one
 // section by its bare heading: a section still present may say the wrong thing, which is the reviewer's
 // job, but a section deleted outright is a link that resolves to nothing.
 const SOURCE_SECTION_CONTRACTS = [
@@ -334,6 +335,48 @@ const SOURCE_SECTION_CONTRACTS = [
     path.join('references', 'review-checklist.md'),
     /^#{2,3}\s+Consistency\s*$/m,
     'carry the `## Consistency` section, which `final-reviewer` reads',
+  ],
+  // Agent-body headings another file cites by name. A template heading counts: the review skill and
+  // `dod-ticks.md` send their reader to the section the agent's output carries under it.
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /^#{2,3}\s+Judge every criterion\s*$/m,
+    'carry the `### Judge every criterion` section, which `skills/review/SKILL.md` cites',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /^#{2,3}\s+Criteria\s*$/m,
+    'carry the `### Criteria` output section, which `skills/review/SKILL.md` and `dod-ticks.md` cite',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /^#{2,3}\s+Ceiling\s*$/m,
+    'carry the `### Ceiling` output section, which `skills/review/SKILL.md` cites',
+  ],
+  [
+    path.join('agents', 'final-reviewer.md'),
+    /^#{2,3}\s+Fail-to-pass unknown\b/m,
+    'carry the `### Fail-to-pass unknown` output section, which `skills/review/SKILL.md` carries through',
+  ],
+  [
+    path.join('agents', 'slice-reviewer.md'),
+    /^#{2,3}\s+Inherited failures\b/m,
+    'carry the `### Inherited failures` section, which `implement-full.md` cites',
+  ],
+  [
+    path.join('agents', 'implementer.md'),
+    /^#{2,3}\s+Documentation\s*$/m,
+    'carry the `## Documentation` section, which `implement-full.md` cites',
+  ],
+  [
+    path.join('agents', 'doc-reader.md'),
+    /^#{2,3}\s+Pass 1\b/m,
+    'carry the `## Pass 1` section, which `content-types.md` cites',
+  ],
+  [
+    path.join('agents', 'doc-reader.md'),
+    /^#{2,3}\s+Pass 3\b/m,
+    'carry the `## Pass 3` section, which `skills/prose-check/SKILL.md` cites',
   ],
 ];
 

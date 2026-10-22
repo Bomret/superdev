@@ -519,3 +519,19 @@ _Avoid: "test reviewer" (review is the code-review family; this prices cost, not
 
 **Dispatch prose**: the text a command sends to a subagent, as distinct from that subagent's own body. Both reach the model in one prompt, and the dispatch is the later, more specific instruction, so it wins a conflict between them. A behaviour contract stated in an agent body therefore also has to hold in every dispatch that reaches it (ADR 0035).
 _Avoid: "the prompt" (ambiguous between the two halves)_
+
+**Prompt concept**: the unit of prompt prose in an agent body. It is a rule set with a clear boundary, and no other prompt concept repeats or contains its content. Each one holds seven invariants:
+
+- **Boundary.** It has a name, and its content clearly belongs to it.
+- **Encapsulation.** It reads without any sibling. A pointer to another concept is a reference, not content.
+- **No overlap.** No sentence states what another concept states, in the body or in a reference the agent reads.
+- **Effect.** It changes what the agent does or outputs. Rationale and history are not prompt concepts.
+- **Condition at the head.** When it applies is stated once, at its head.
+- **No conflict.** No two concepts instruct differently for one situation without a stated precedence.
+- **One term per thing.** One name stands for one thing, and it is this glossary's name where one exists.
+
+A prompt concept is stated in at most three **main sentences**. Tables, lists, output templates, and code spans carry data, so the cap does not count them. The cap does not count the condition head either, the "Applies to …" sentence that states when the prompt concept applies. A heading may hold several prompt concepts.
+_Avoid: "concept" unqualified (the invariant register's `Concepts` field names glossary terms), "section" (a heading may hold several), "rule" (one prompt concept may carry several rules)_
+
+**Main sentence**: one simple main clause, with no comma, no subordinate clause, and no other inner punctuation. It is the unit a **Prompt concept**'s three-sentence cap counts. The cap counts main clauses, so a written sentence that joins main clauses counts once for each main clause it joins.
+_Avoid: "sentence" unqualified (the controlled-prose limit counts words, not clauses)_

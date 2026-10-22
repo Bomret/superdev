@@ -858,7 +858,7 @@ path, when that document is missing. A check that walks a directory reads whatev
 | Check | What it tests | Class |
 |-------|---------------|-------|
 | `reference` | every `references/*.md` path that `skills/`, `agents/`, or `references/` names exists | structural |
-| `source-sections` | `plan-contract.md`, `test-selection.md`, `content-types.md`, `controlled-prose.md`, and `review-checklist.md` still carry each section a reader is sent to, by heading | structural |
+| `source-sections` | `plan-contract.md`, `test-selection.md`, `content-types.md`, `controlled-prose.md`, and `review-checklist.md`, and each agent body another file cites by heading, still carry each section a reader is sent to, by heading | structural |
 | `command-resolution` | every `/superdev:<name>` a skill or agent names has a `skills/<name>/SKILL.md` | structural |
 | `readme-commands` | `README.md` names every shipped skill as `/superdev:<name>`, and no command without one | structural |
 | `audit-set-globs` | `docs/agents/documentation.md` carries `## Audit set`, and every pattern listed there matches a file | structural |
