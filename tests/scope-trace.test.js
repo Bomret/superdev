@@ -69,6 +69,8 @@ const { sliceJson, scopePath, run } = require('./scope-setup');
       [['degraded', 'reset-denials', 'secret-token-123'], / ledger degraded reset-denials$/],
       [['deferred', 'add', 'secret-token-123'], / ledger deferred add$/],
       [['deferred', 'resolve', 'secret-token-123'], / ledger deferred resolve$/],
+      [['minors', 'add', '01'], / ledger minors add$/],
+      [['minors', 'clear'], / ledger minors clear$/],
     ];
     for (const [argv, shape] of writers1) {
       const n = lines().length;
@@ -96,6 +98,7 @@ const { sliceJson, scopePath, run } = require('./scope-setup');
         degraded: ['degraded', 'add', 'x'],
         unresolved: ['unresolved', 'add', 'x'],
         deferred: ['deferred', 'add', 'x'],
+        minors: ['minors', 'add', '01'],
         docs: ['docs', 'set', 'inline'],
         pr: ['pr', 'set', '12'],
         deploy: ['deploy', 'set', 'prod', 'pending'],

@@ -54,7 +54,7 @@ run's stage, blocked slices, its degrade record — the ledger's `**Degraded:**`
 `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section — its unresolved-defect
 record — the ledger's `**Unresolved:**` line, per that file's `## Unresolved defects` section — and its
 deferred-finding record — the ledger's `**Deferred:**` line, per that file's `## Deferred findings`
-section), reports an unreadable ledger as `<scope>: ledger unreadable`, and prints `No superdev runs
+section — and its Minor queue, the ledger's `**Minors:**` line, per that file's `## The ledger`), reports an unreadable ledger as `<scope>: ledger unreadable`, and prints `No superdev runs
 found in this repo.` when there are none. Do not create `.superdev/` or any file. It reads the main working
 tree's run roots from any checkout, the same run roots the survey below enumerates.
 
@@ -71,7 +71,7 @@ A **shipped** or **closed** scope prints as one line, `<scope>  (shipped)` or `<
 slice tally and no blocked list. `closed` is the terminal stage: `hooks/scope-prune.js` reaps its run root
 together with its scope branch once the staleness TTL elapses and that branch is contained in base or gone
 (ADR 0007, ADR 0053, ADR 0071, ADR 0106). Neither is work in flight. Its degrade
-record, unresolved-defect record, deferred-finding record, and staged-page lines are the exceptions and
+record, unresolved-defect record, deferred-finding record, Minor queue, and staged-page lines are the exceptions and
 still print in full: a `closed` run root is about to disappear, and the pull-request body is otherwise the only
 surviving copy of a pass that ran degraded, a defect the run left standing, or a finding nobody has
 planned yet — see below.

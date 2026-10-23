@@ -11,6 +11,16 @@ export const untrace = (v: string | undefined): string =>
 export const header = (ledger: string, name: string): string =>
   new RegExp(`^\\*\\*${name}:\\*\\*\\s*(.*)$`, 'm').exec(ledger)?.[1]?.trim() ?? ''
 
+// The Minor queue (ADR 0174): the slice ids under `**Minors:**`, one bullet each; empty for a ledger with no such line.
+export const queuedMinors = (ledger: string): string[] => {
+  const lines = ledger.split('\n')
+  const at = lines.findIndex(l => l.startsWith('**Minors:**'))
+  if (at < 0) return []
+  const out: string[] = []
+  for (let i = at + 1; i < lines.length && lines[i]!.startsWith('- '); i++) out.push(lines[i]!.slice(2).trim())
+  return out
+}
+
 // Slice table rows: | id | issue | title | type | depends-on | status | range |
 // scope.js writes an in-cell `|` as `\|`, so a row splits only on an unescaped `|` and each cell
 // unescapes, as scope.js's own splitRow does.
@@ -66,7 +76,7 @@ type Stretch = {
   reviews: Set<string>; f2p: string
 }
 type Group = Extract<LogEntry, { kind: 'slice' }>
-type Dispatch = { type: string; slice: string; runs: Run[]; hasVerdict: boolean }
+type Dispatch = { type: string; slice: string; runs: Run[]; judged?: Run }
 
 // Commands: every command starts at its `ledger step set` line, each line a start of its own. Until a `step set
 // plan` line has passed, the first `ledger init … planned` starts `plan`, and until a `step set implement` line
@@ -77,7 +87,7 @@ type Dispatch = { type: string; slice: string; runs: Run[]; hasVerdict: boolean 
 // block with no open command draws nothing. A trace with no step line but a stage write past `merged` was
 // written before the step lines existed: it draws every stage write after implement as a plain line. A
 // dispatch run is one entry at its start; a dispatch's first end per run wins, and its first `verdict` or
-// `final-verdict` line goes on the run it falls in, also when it arrives after that run's end. Slices: every line
+// `final-verdict` line of a run goes on the run it falls in, also when it arrives after that run's end. Slices: every line
 // whose slice field names a slice id draws inside that slice's group, which sits where the slice's first line
 // falls; its header reads the slice's latest status, its first start, and its last end.
 export const eventLog = (ledger: string, trace: string, now: number): EventLog => {
@@ -152,9 +162,10 @@ export const eventLog = (ledger: string, trace: string, now: number): EventLog =
   }
   const verdictRun = (key: string) => {
     const d = dispatches.get(key)
-    if (!d || d.hasVerdict) return undefined
-    d.hasVerdict = true
-    return d.runs.at(-1)
+    const run = d?.runs.at(-1)
+    if (!d || !run || d.judged === run) return undefined
+    d.judged = run
+    return run
   }
 
   for (const line of trace.split('\n')) {
@@ -212,7 +223,7 @@ export const eventLog = (ledger: string, trace: string, now: number): EventLog =
       const key = untrace(f[1])
       if (!key || dispatches.has(key)) continue
       const run: Run = { kind: 'run', at, type: untrace(f[0]), slice: untrace(slice), isResumed: false, isEnded: false, ms: 0, outcome: '' }
-      dispatches.set(key, { type: run.type, slice: run.slice, runs: [run], hasVerdict: false })
+      dispatches.set(key, { type: run.type, slice: run.slice, runs: [run] })
       draw(run, run.slice)
     } else if (kind === 'dispatch-resume') {
       const d = dispatches.get(untrace(f[0]))

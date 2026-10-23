@@ -23,24 +23,26 @@ function parseFinalVerdict(text) {
 
 // A review's report (a background one's hand-back or its stop's last message, a foreground one's `handbackReport`) read into
 // its one line, as `[runRoot, entry]`: a `verdict` line for a slice-reviewer, a `final-verdict` line for a final-reviewer, each
-// once per dispatch; `undefined` when the report records none. The caller writes the line, so a throw from another module's
+// once per run (a slice-reviewer's once per dispatch); `undefined` when the report records none. The caller writes the line, so a throw from another module's
 // function (`holds`, `untraceField`) reaches it before anything is written (INV-0159). A report the parsers cannot read gives
 // `unknown` parts. The slice-reviewer's line is on its dispatch's slice. The cycle counts the slice's reviewer dispatches that
 // completed before this one was dispatched; the reviewed implementer is the slice's last one to complete before it. A
 // final-reviewer records only inside an open `review` step; its cycle counts the final-reviewer dispatches that completed inside
-// that window before it (INV-0146).
+// that window before it (INV-0146). For a resumed run, the window and the count are read before its `dispatch-resume` line.
 // `f` is the dispatch `findDispatch` found, by `agentId` or by `tool_use_id`.
 function verdictLine(f, text) {
   if (!f) return undefined;
   const tu = untraceField(f.d.fields[1]);
   if (untraceField(f.d.fields[0]) === 'superdev:final-reviewer') {
-    const before = f.events.slice(0, f.events.indexOf(f.d));
-    if (holds(f.events, 'final-verdict', 0, tu)) return undefined;
+    // One line per run: the dispatch's own, and each `dispatch-resume` a SendMessage starts. The step and the cycle are judged at the run's opening line.
+    const opened = f.events.findLastIndex((e) => (e.kind === 'dispatch' || e.kind === 'dispatch-resume') && e.fields[e.kind === 'dispatch' ? 1 : 0] !== undefined && untraceField(e.fields[e.kind === 'dispatch' ? 1 : 0]) === tu);
+    const before = f.events.slice(0, opened);
+    if (holds(f.events.slice(opened), 'final-verdict', 0, tu)) return undefined;
     // The review step is open from its `step set review` line to the first line that ends it: a `step clear`, a
     // `step block` (a stopped review), a `step set` of another step. A stage write that removes the ledger's step mirrors a `step clear` line, so
     // step lines alone carry the window.
     let open = false;
-    // A resumed reviewer ends once per run, so the cycle counts distinct dispatches (`tool_use_id`).
+    // A resumed reviewer ends once per run, so the cycle counts distinct dispatches (`tool_use_id`), this dispatch's earlier runs excluded.
     let done = new Set();
     for (const e of before) {
       if (e.kind === 'ledger' && e.fields[0] === 'step') {
@@ -48,6 +50,7 @@ function verdictLine(f, text) {
         done = new Set();
       } else if (open && completedEnd(e) && untraceField(e.fields[0]) === 'superdev:final-reviewer') done.add(untraceField(e.fields[1]));
     }
+    done.delete(tu);
     if (!open) return undefined;
     return [f.runRoot, { slice: untraceField(f.d.slice), agent: 'main', kind: 'final-verdict', fields: [tu, parseFinalVerdict(text), String(done.size)] }];
   }

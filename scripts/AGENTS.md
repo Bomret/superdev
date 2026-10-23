@@ -29,13 +29,13 @@ a ledger's header lines, bullets, and table rows), `refusal.js` (the refusal err
 `trace-log.js` (`appendTrace`, `readTrace`, `traceField`, `untraceField`). The root [`AGENTS.md`](../AGENTS.md) *Structure* names every module and its
 responsibility. `scope.js` keeps every export it had. No module requires an entry point. `scope.js` owns the ledger's schema through `ledger.js` and is the only `ledger.md` read and write path in the chain:
 `init`, `stage set`, `slice`, `degraded add|add-denial|reset-denials`, `unresolved add|clear`,
-`deferred add|resolve`,
+`deferred add|resolve`, `minors add <slice-id>|clear`,
 `docs set <value>|clear`, `pr set <n>|clear`,
 `deploy set <target> pending|deployed|failed [--exit <n>]`, `deploy get`,
 `suite set <green|red|denied|none> <sha> [--whole]`,
 `suite reusable --branch <b> [--whole]`,
 `base set <sha>`, `base resolve --branch <b> --base <ref>`,
-`get stage|branch|anchor|slices|unresolved|degraded|deferred|denials|docs|pr|suite`,
+`get stage|branch|anchor|slices|unresolved|degraded|deferred|minors|denials|docs|pr|suite`,
 `status` (which renders the whole `/superdev:status` report), `trace [--slice <id>]` (prints the run trace, read-only), `publish`, `adopt`, `root <slug>`,
 `staging <scope> [--count]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `citations --range-base <ref> --branch <ref> <id>…`, `source-set [<path>]`, `push --root <run-root> --remote <remote> --base <base-ref>`, `dod-line`, `fail-to-pass <base>..<tip>`, and `test`.
 `--help` or `-h`, alone or after any verb, prints the usage and exits 0, except that a flag's value, or the text after `add`, `add-denial`, `reset-denials`, or `resolve`, is data and never a help request. It is checked before any verb
@@ -103,12 +103,20 @@ an LF one does. A lone `\r`, the classic-Mac line ending, reads as absent, and t
 Any verb that writes the file normalises it back to LF. A scope whose ledger stage reads `shipped` or `closed`
 collapses to one line, `<scope>  (shipped)` or `<scope>  (closed)`. It drops the slice tally and the blocked list.
 `hooks/scope-prune.js` (ADR 0007) is about to reap that run root, so per-slice detail is no longer
-work in flight. Its `**Degraded:**` line, its `**Unresolved:**` line, its `**Deferred:**` line, and its
+work in flight. Its `**Degraded:**` line, its `**Unresolved:**` line, its `**Deferred:**` line, its `**Minors:**` line, and its
 staged-page lines survive the collapse, because each is otherwise recorded nowhere else. `deferred add`
 carries no `clear` counterpart: a defect stops being true once a run re-verifies the scope green, while
 unplanned work stays unplanned until somebody plans it (ADR 0035). `deferred resolve` removes one finding
 the same run fixed after all (ADR 0121). It matches the exact bullet text, removes every identical bullet,
 drops the line once none remain, and refuses text that matches no bullet, leaving the ledger unchanged.
+
+`minors add <slice-id>` and `minors clear` write the Minor queue (ADR 0174, INV-0171). They write the `**Minors:**`
+line, which holds one bullet per full-tier slice that merged with open Minor findings. Each bullet names the slice by
+id alone. `add` refuses an
+id the slice table lacks and leaves one bullet for an id queued twice. `clear` removes the line and succeeds with no
+change when it is absent. Either verb refuses an extra argument, and `adopt` refuses a `**Minors:**` bullet that
+the payload's slice table lacks. `get minors` prints the bullets. `references/implement-full.md`'s `## Minor sweep`
+reads and clears the queue.
 
 `root <slug>` is a verb that touches no ledger (ADR 0080). It resolves and prints a run root's
 absolute path — `<main-worktree>/.superdev/scopes/<slug>`, where `<main-worktree>` is the parent of

@@ -14,7 +14,8 @@ Applies to every dispatch. You build one vertical slice or one fix in an isolate
   - The **slice fix dispatch** (`/superdev:implement`, full tier) hands the slice-reviewer's findings on one slice. It works in that slice's slicetree, `<run-root>/slicetrees/<id>`.
   - The **review fix dispatch** (`/superdev:review`) hands findings. It works in the scope checkout.
   - The **run-handoff fix dispatch** hands a failing suite. It works in the scope checkout.
-- **Fix dispatch**: the slice fix dispatch, the review fix dispatch, or the run-handoff fix dispatch.
+  - The **sweep fix dispatch** (`/superdev:implement`, full tier) hands the collected Minor findings of the run's Minor queue, and a later sweep cycle hands the findings the sweep's re-review lists. It works in the scope checkout.
+- **Fix dispatch**: the slice fix dispatch, the review fix dispatch, the run-handoff fix dispatch, or the sweep fix dispatch.
 - **`spec`** and **`acceptance`**: the slice specification and its criteria.
 - **Run root**: the directory of the `dod.md` you were handed. On a slice fix dispatch the slicetree path, `<run-root>/slicetrees/<id>`, names the run root.
 - **Progress log**: the file at the progress-log path a dispatch hands. Its last entry is your **closing summary**.
@@ -30,6 +31,7 @@ Applies to every dispatch.
 - A slice dispatch hands a progress-log path. A fix dispatch may hand one.
 - The slice dispatch, the review fix dispatch, and the run-handoff fix dispatch hand the `<run-root>/dod.md` path and the listed lines: the Definition-of-Done criteria each names (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`, `## The mapping gate`). A review fix dispatch or a run-handoff fix dispatch may list none. The slice fix dispatch hands neither.
 - A slice dispatch and a slice fix dispatch name `<base>`, the commit the slice branch was cut from.
+- A sweep fix dispatch hands the sweep log path as its progress log, and the `<run-root>/dod.md` path read-only with no listed line. It names `<sweep-base>`, the scope branch's tip when the sweep began, as a full commit.
 - A `lite`-tier review fix dispatch that hands a **Missing RED** finding names that slice's `<base>`: the base of the slice's recorded range in its ledger row (`scope.js get slices`).
 
 ## Scope of the work
@@ -41,6 +43,18 @@ Applies to every dispatch.
 - **Fix dispatch.** Change only what the findings name, plus the sibling surfaces `### Sibling surfaces` brings into agreement. Every hunk traces to a finding or to such a sibling surface.
 - Where the dispatch hands the `dod.md` path, read the whole `dod.md` to inform the report. It widens nothing you build.
 
+## The sweep fix dispatch
+
+Applies to a sweep fix dispatch.
+
+The findings are Minors that full-tier slice reviews left on slices the run already merged, collected from several slices into one list. Judge each one against the current code before you change anything.
+
+- Fix each Minor the current code still shows.
+- Close a Minor a later slice already resolved with no change made for it, and name the evidence in your report: the file and line, or the commit.
+- Fix a Minor that duplicates another collected Minor once, and close the copy under the Minor you fixed.
+- A Minor whose remedy adds a capability the plan and the Definition of Done never named goes in your report unedited, and you change nothing for it.
+- Your report lists every collected Minor as fixed, closed (with its evidence), or reported unedited.
+
 ## Resume, don't restart
 
 Applies to a dispatch that lands in a checkout holding commits: a fix dispatch, or a run resumed after an interruption.
@@ -48,6 +62,7 @@ Applies to a dispatch that lands in a checkout holding commits: a fix dispatch, 
 Read the commit log and the diff of the range before you write anything. Continue from where the work left off. Never redo a committed increment.
 
 - Slice dispatch and slice fix dispatch: the range is `<base>..HEAD`.
+- Sweep fix dispatch: the range is `<sweep-base>..HEAD`.
 - Review fix dispatch and run-handoff fix dispatch: the range is `<range-base>..HEAD`. Compute `<range-base>` with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base resolve --branch HEAD --base <base-branch> --root <run-root>` (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`, `## The scope's range base`). `<base-branch>` is the scope's base branch.
 
 ## Test applicability
@@ -73,7 +88,7 @@ Before the first RED test write the shapes your `spec` names. A shape is whateve
 
 ### Defect repair
 
-Applies to a dispatch that repairs a defect: a slice of a feature whose change type is `fix`, or a reviewer finding that a slice fix dispatch or a review fix dispatch hands.
+Applies to a dispatch that repairs a defect: a slice of a feature whose change type is `fix`, or a reviewer finding that a slice fix dispatch, a review fix dispatch, or a sweep fix dispatch hands.
 
 Read `${CLAUDE_PLUGIN_ROOT}/references/diagnosis.md` and run its loop (`## The red-capable command (the gate)` to `## Redact`) before the RED test. A dispatch that hands you a proven cause goes straight to the RED test. Send the ranked hypotheses to the controller in place of the user.
 
@@ -171,7 +186,7 @@ A test your slice did not cause also fails at your base commit before your first
 - Fix none of them and block on none. The run handoff's fix loop repairs them once the full suite runs over the integrated scope.
 - A named inherited failure is no Missing RED finding, no `BLOCKED`, and no strike.
 - Every other test your work reaches goes green as usual.
-- A red-suite fix dispatch makes the failing tests your task. That covers the run-handoff fix dispatch and a review fix dispatch whose finding is the red suite itself. A slice fix dispatch does not.
+- A red-suite fix dispatch makes the failing tests your task. That covers the run-handoff fix dispatch and a review fix dispatch whose finding is the red suite itself. A slice fix dispatch and a sweep fix dispatch do not.
 
 ## Deep modules and domain language
 

@@ -34,3 +34,20 @@ export const LEDGER_STEP_LINES: string[] = /* ledger-step:start */ [
   "| 01 | #10 | Draw the tiles | behavior | — | merged | a1b2c3d..e4f5a6b |",
   ""
 ] /* ledger-step:end */
+
+// The ledger of a run with a queued slice: scope `view`, stage `implementing`, one slice `merged`, then `minors add 01`.
+// tests/scope-ledger.test.js asserts scope.js writes exactly these lines, the way it does for LEDGER_LINES.
+export const LEDGER_QUEUE_LINES: string[] = /* ledger-queue:start */ [
+  "# Ledger — view",
+  "",
+  "**Stage:** implementing",
+  "**Minors:**",
+  "- 01",
+  "**Branch:** feat/view",
+  "**Anchor:** #9 — Show the pane",
+  "",
+  "| id | issue | title | type | depends-on | status | range |",
+  "|---|---|---|---|---|---|---|",
+  "| 01 | #10 | Draw the tiles | behavior | — | merged | a1b2c3d..e4f5a6b |",
+  ""
+] /* ledger-queue:end */

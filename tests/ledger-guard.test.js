@@ -24,6 +24,10 @@ const L = '.superdev/scopes/demo/ledger.md';
 assert.equal(file(L).block, true, 'relative ledger path denied');
 assert.equal(file('/abs/repo/' + L).block, true, 'absolute ledger path denied');
 assert.ok(/scope\.js/.test(file(L).reason), 'denial names scope.js');
+// The Minor queue lives in the ledger: a direct Edit or shell write of it is denied, and the denial names the `minors` verb (ADR 0174).
+assert.ok(/\/minors\//.test(file(L).reason), 'denial names the minors verb');
+assert.equal(bash("printf '**Minors:**\\n- 01\\n' >> " + L).block, true, 'a shell append of the queue line denied');
+assert.ok(/\/minors\//.test(bash("sed -i 's/- 01//' " + L).reason), 'the shell denial names the minors verb');
 // Edit/Write elsewhere → allow.
 assert.equal(file('.superdev/scopes/demo/dod.md').block, false, 'dod.md passes');
 assert.equal(file('.superdev/brainstorm/notes.md').block, false, 'brainstorm passes');

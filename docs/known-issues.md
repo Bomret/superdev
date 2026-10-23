@@ -117,7 +117,7 @@ mode. Whether a run outside auto mode ever has the tool was not tested.
 A foreground review carries its report differently. Its `PostToolUse` payload on `Agent` has
 `tool_response.status: completed` and the report text in `tool_response.handbackReport.text`. `run-trace.js` reads
 the report there (a plain-string `handbackReport` is read too), writes a `slice-reviewer`'s `verdict` line and a `final-reviewer`'s `final-verdict` line from it,
-and writes each at most once per dispatch, whichever event reaches the hook first. A completed call with no
+and writes each at most once per run, whichever event reaches the hook first. A `slice-reviewer` has one run per dispatch. A `final-reviewer` a SendMessage resumes has one run per resume, so it can write more than one `final-verdict` line per dispatch (ADR 0174). A completed call with no
 `handbackReport` text records no line.
 
 Verified 2026-10-11, on Claude Code 2.1.295, in a session transcript dated 2026-10-10 and re-read 2026-10-11: the

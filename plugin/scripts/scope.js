@@ -2,7 +2,7 @@
 'use strict';
 
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
-// Verbs: init, stage, step, slice, degraded, unresolved, deferred, docs, pr, deploy, suite, base, get, status,
+// Verbs: init, stage, step, slice, degraded, unresolved, deferred, minors, docs, pr, deploy, suite, base, get, status,
 // publish, adopt, trace, collisions, citations, source-set, push, root, staging, dod-line; `main()` also runs test and fail-to-pass. Exit
 // nonzero with a one-line stderr reason on any refusal. hooks/ledger-guard.js makes this the only
 // ledger write path.
@@ -28,7 +28,7 @@ const { untraceField, appendTrace, readTrace } = require('../lib/trace-log.js');
 const { collisionRefusal, findCollisions } = require('../lib/collisions.js');
 const { verbInit, verbStage, verbStep, verbSlice } = require('../lib/ledger-lifecycle.js');
 const {
-  BULLET_STDIN_SUBS, resolveBulletText, verbDegraded, verbUnresolved, verbDeferred, verbDocs, verbPr, verbDeploySet, verbDeployGet,
+  BULLET_STDIN_SUBS, resolveBulletText, verbDegraded, verbUnresolved, verbDeferred, verbMinors, verbDocs, verbPr, verbDeploySet, verbDeployGet,
 } = require('../lib/ledger-records.js');
 const { verbDodLine } = require('../lib/dod-line.js');
 const { verbSuite, verbSuiteReusable, verbBaseSet, verbBaseResolve, verbGet } = require('../lib/suite-base-get.js');
@@ -151,6 +151,12 @@ function run(argv, cwd, stdinJson) {
       const sub = args[0];
       verbDeferred(root, sub, resolveBulletText(sub, args.slice(1), stdinJson));
       ledgerEvent = { root, fields: ['deferred', sub] }; // bullet text is free text and stays out of the trace
+      break;
+    }
+    case 'minors': {
+      const root = takeRoot(args);
+      const changed = verbMinors(root, args[0], args[1], args.length);
+      if (changed) ledgerEvent = { root, fields: ['minors', args[0]] }; // the slice id stays out of the trace
       break;
     }
     case 'docs': {

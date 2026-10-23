@@ -13,6 +13,7 @@ You review one completed slice before it merges. You are a separate set of eyes 
 
 - **Adversarial stance.** Hunt for reasons the slice is wrong or does not work. A ✅ verdict survived your best attempt to break it.
 - **First review**: review cycle 0. **Re-review**: review cycle n > 0. **Post-merge review**: the review of an already merged slice that has no review. It reads as a first review.
+- **Sweep review**: the review of the Minor sweep's range, a re-review whose progress log is the sweep log, `<run-root>/sweep.md` (`## Sweep review`).
 - **Test-applicability**: `behavior`, `mechanical`, or `docs`.
 - **Blind pass**: your findings from the evidence alone (`## Blind pass`).
 - **Progress log**: the file at `<run-root>/reports/<id>/progress.md`. It holds the implementer's account of its work, and your own findings.
@@ -35,6 +36,20 @@ Applies to every review.
 - The **subject**. A first review hands the slice's range, the slice branch against the scope branch. A post-merge review hands the slice's range. A re-review hands the fix cycle's range, from the tip the latest earlier review read to the current tip (ADR 0137).
 - A first review and a re-review hand the ranges for the fail-to-pass check (`## Run-trace findings`), each with both ends full commits, and the global constraints that bind the slice.
 - The progress-log path. The dispatch carries no text from an implementer's report.
+- A sweep review hands the sweep's range and the sweep log path (`## Sweep review`).
+
+## Sweep review
+
+Applies to a sweep review.
+
+The dispatch hands the sweep's range in place of a slice `spec`, with both ends full commits: from the tip the latest earlier review read, the scope branch's tip when the sweep began on the first, to the current tip. The sweep log lists the collected Minors, each under the slice that left it. The dispatch carries no text from an implementer's report (INV-0114).
+
+- Your blind pass covers the range, and you open the sweep log after it, as `## Re-review` states.
+- Judge each collected Minor against the code at the current tip: closed, or still open. A copy a later slice made is the same Minor. Collapse duplicates into one entry and name the Minors it absorbs. A Minor a later slice already resolved closes with the evidence, whether or not the range holds a change for it.
+- Report every defect the range's commits introduced, Minors included, with its severity.
+- Read the trace with `scope.js trace --slice scope --root <run-root>` and apply `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` to the range. The sweep is no slice, so `## Test order` has no **Missing RED** finding here.
+- The specification verdict reads ✅ when every collected Minor is closed or fixed at the current tip, and ❌ otherwise.
+- The controller applies the sweep's 3-cycle cap.
 
 ## Blind pass
 

@@ -213,7 +213,12 @@ superdev subagent that omits one):
   - **The git range is the whole scope range on every dispatch**, `<range-base>..<branch>`, each re-review
     after a fix cycle included (ADR 0137, INV-0143): a full-tier slice re-review reads only its fix cycle's
     range, so this review is the backstop that reads the whole branch. A fix cycle's range, below, is what the
-    fix-cycle outcome rule reads, never the review's subject.
+    fix-cycle outcome rule reads, never the review's subject. **The one exception is the re-review after a
+    warm cycle** (§4, `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Warm cycles`, ADR 0174): a
+    SendMessage to the `final-reviewer` whose verdict the cycle fixes, naming the cycle's range as full commits
+    as its subject. It closes or keeps each listed Minor, reports any defect the cycle's commits introduced, and
+    judges the criteria the cycle's changes touch; every other criterion keeps its verdict from the last
+    whole-range review. A cycle with any other finding dispatches the re-review fresh over the whole range.
   - The summary is **the scope anchor's title**, read with
     `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get anchor --root <run-root>` — the ledger's
     `**Anchor:**` line (run init writes it, per
@@ -277,10 +282,10 @@ superdev subagent that omits one):
     landed in that window change both a test-path file and another file, with no outcome line over those commits.
     A fix cycle's window runs from each run of its `implementer` dispatch of `scope` (its `dispatch`
     line, and each `dispatch-resume` line of that dispatch) to the first `dispatch` line, whatever its agent type or
-    slice, after the `dispatch-end` line that closes that run, or to the end of the trace when none follows. Whatever
+    slice, or the first reviewer `dispatch-resume` line (one whose first field is the `tool_use_id` of a `final-reviewer`, `slice-reviewer`, or `simplicity-reviewer` `dispatch` line), after the `dispatch-end` line that closes that run, or to the end of the trace when none follows. Whatever
     the end's outcome (`completed`, `failed`, `denied`, `stopped`, `unknown`, or `session-end`), the window is bounded
-    the same way. An implementer run with no `dispatch-end` line has a window that ends at the first `dispatch` line
-    after its own `dispatch` or `dispatch-resume` line, or at the end of the trace. A cycle's commits are read along
+    the same way. An implementer run with no `dispatch-end` line has a window that ends at the first such `dispatch` line
+    or reviewer `dispatch-resume` line after its own `dispatch` or `dispatch-resume` line, or at the end of the trace. A cycle's commits are read along
     the scope branch's first-parent chain, so the base commits a merge brings in are none of them, and neither is a
     merge commit that brings the base in. No trace, a run handoff cycle with no
     `edit` lines, and a repository with no test command get no finding: name the gap in the report. A cycle whose
@@ -669,7 +674,12 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
     and report each place it checked and each it changed, reporting a place outside its checkout
     unedited. Tell it to report the `AGENTS.md` hierarchy and the knowledge base unedited too, since the
     doc pass owns them (INV-0120). A fix report that omits the checked-and-changed list is a report
-    defect, sent back to the implementer before the re-review. Tell the implementer to run every test
+    defect, sent back to the implementer before the re-review. **A cycle whose list holds only Minor findings
+    is a warm cycle**, run as `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Warm cycles` states: that
+    section owns when a resume gives way to a fresh dispatch, the wait, and what each resume message carries
+    (ADR 0174). Its re-review continues, through SendMessage, the `final-reviewer` whose verdict the cycle
+    fixes, cycle 1 included, where it continues the entry review's `final-reviewer`. That re-review's subject is
+    the cycle's range as full commits, the warm re-review §2 states. Tell the implementer to run every test
     through `scope.js test`, to run a suite longer than the Bash tool's time limit through the runner in the
     background and wait for its end, and to edit files through the edit tools, never through a script. On a
     **`lite`** scope, for each **Missing RED** finding in the list, also hand the implementer the run-trace

@@ -182,7 +182,7 @@ const APPENDED_HEADERS = ['Stage', 'Step', 'Branch', 'Anchor', 'Docs', 'PR', 'Su
 // The bullet list under a header line, if any: `**Degraded:**` (scope-mode `## Degraded passes`) and
 // `**Unresolved:**` (`## Unresolved defects`) carry one each, in the same shape. Read by both status
 // branches below — an in-flight scope prints them inline with its tally, a shipped one prints them
-// alone — and by `get degraded`/`get unresolved`/`get deferred`, and by `get denials`, which counts the
+// alone — and by `get degraded`/`get unresolved`/`get deferred`/`get minors`, and by `get denials`, which counts the
 // `**Degraded:**` bullets carrying the denial prefix that follow the last reset marker.
 function readBullets(lines, name) {
   const at = lines.findIndex((l) => headerRe(name).test(l));

@@ -1,9 +1,9 @@
 'use strict';
 
-// ledger-records.js: the verbs that record one fact on a ledger header or bullet line, `degraded`, `unresolved`, `deferred`, `docs`, `pr`, and `deploy`.
+// ledger-records.js: the verbs that record one fact on a ledger header or bullet line, `degraded`, `unresolved`, `deferred`, `minors`, `docs`, `pr`, and `deploy`.
 
 const { fail } = require('./refusal.js');
-const { ledgerPath, readLines, writeLines, headerRe, getHeader, insertHeader } = require('./ledger.js');
+const { ledgerPath, readLines, writeLines, headerRe, getHeader, insertHeader, readBullets, tableRowIndexes, splitRow } = require('./ledger.js');
 
 // The write half of `readBullets`: append one bullet under `**<name>:**`, creating that line beside
 // `**Stage:**` when the ledger has none yet (scope-mode `## Degraded passes`, `## Unresolved defects`).
@@ -78,17 +78,21 @@ function verbDegraded(root, sub, text) {
   addBullet(root, 'Degraded', 'degraded add', text);
 }
 
+// Removes the `**<name>:**` line and its bullets. Returns whether the ledger changed: an absent line succeeds and
+// changes nothing.
+function clearBullets(root, name) {
+  const lines = readLines(root);
+  const at = lines.findIndex((l) => headerRe(name).test(l));
+  if (at < 0) return false;
+  let end = at + 1;
+  while (end < lines.length && lines[end].startsWith('- ')) end++;
+  lines.splice(at, end - at);
+  writeLines(root, lines);
+  return true;
+}
+
 function verbUnresolved(root, sub, text) {
-  if (sub === 'clear') {
-    const lines = readLines(root);
-    const at = lines.findIndex((l) => headerRe('Unresolved').test(l));
-    if (at < 0) return false; // no such line — succeeds, changes nothing
-    let end = at + 1;
-    while (end < lines.length && lines[end].startsWith('- ')) end++;
-    lines.splice(at, end - at);
-    writeLines(root, lines);
-    return true;
-  }
+  if (sub === 'clear') return clearBullets(root, 'Unresolved');
   if (sub !== 'add') fail(`unknown unresolved subcommand "${sub}" — use add|clear`);
   addBullet(root, 'Unresolved', 'unresolved add', text);
   return true;
@@ -117,6 +121,26 @@ function verbDeferred(root, sub, text) {
   }
   if (sub !== 'add') fail(`unknown deferred subcommand "${sub}" — use add|resolve`);
   addBullet(root, 'Deferred', 'deferred add', text);
+}
+
+// `**Minors:**` is the Minor queue (ADR 0174, INV-0171): one bullet per full-tier slice that merged with open Minor
+// findings, naming the slice by id alone. The slice's progress log is derived from the id (`reports/<id>/progress.md`),
+// so no path is written. `add` refuses an id the slice table lacks and leaves one bullet for an id queued twice;
+// `clear` removes the line once the Minor sweep settles, and succeeds with no change when it is absent. Returns
+// whether the ledger changed, so the caller traces only a write.
+function verbMinors(root, sub, id, argc) {
+  if (sub === 'clear' && argc > 1) fail('minors clear takes no argument');
+  if (sub === 'add' && argc > 2) fail('minors add takes one slice id');
+  if (sub === 'clear') return clearBullets(root, 'Minors');
+  if (sub !== 'add') fail(`unknown minors subcommand "${sub}" — use add|clear`);
+  if (!id) fail('minors add needs the slice id');
+  const lines = readLines(root);
+  if (!tableRowIndexes(lines).some((i) => splitRow(lines[i])[0] === id)) {
+    fail(`minors add: no slice "${id}" in the slice table of ${ledgerPath(root)}`);
+  }
+  if (readBullets(lines, 'Minors').includes(id)) return false;
+  addBullet(root, 'Minors', 'minors add', id);
+  return true;
 }
 
 // `**Docs:**` records that a run performed its documentation pass in the controller's own context
@@ -236,5 +260,5 @@ function verbDeployGet(root) {
 
 module.exports = {
   BULLET_STDIN_SUBS, DENIAL_PREFIX, RESET_PREFIX,
-  resolveBulletText, verbDegraded, verbUnresolved, verbDeferred, verbDocs, verbPr, verbDeploySet, verbDeployGet,
+  resolveBulletText, verbDegraded, verbUnresolved, verbDeferred, verbMinors, verbDocs, verbPr, verbDeploySet, verbDeployGet,
 };

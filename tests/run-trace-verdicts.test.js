@@ -211,6 +211,55 @@ const { tmp, ledger, A, B, trace, reset, run, spawnOut, agentPre, agentPost, cle
   run(agentPre(`Review ${A}/scopetree`, 'f10', 'superdev:final-reviewer'));
   run(agentPost('f10', { status: 'completed', handbackReport: { text: 'Ready to merge? No' } }));
   assert.deepEqual(fv()[5], ['scope', 'main', 'final-verdict', 'f10', 'no', '0'], 'a later review step reopens the window with a fresh cycle');
+  // A resumed final-reviewer (ADR 0174): each run, the dispatch's own and each a SendMessage resume starts, gets at most one line.
+  reset();
+  step('step', 'set', 'review');
+  bgFinal('r1', 'ar1');
+  handback('ar1', 'Ready to merge? With fixes');
+  stopAg('ar1');
+  run({ hook_event_name: 'PreToolUse', tool_name: 'SendMessage', tool_use_id: 'smr', tool_input: { to: 'ar1', message: 'again' }, session_id: 'S1', cwd: tmp });
+  handback('ar1', 'Ready to merge? Yes');
+  assert.deepEqual(fv(), [['scope', 'main', 'final-verdict', 'r1', 'with-fixes', '0'], ['scope', 'main', 'final-verdict', 'r1', 'yes', '0']], 'a resumed run writes its own line after the first');
+  stopAg('ar1');
+  handback('ar1', 'Ready to merge? No');
+  assert.equal(fv().length, 2, 'a run that reports twice writes one line');
+  bgFinal('r2', 'ar2');
+  handback('ar2', 'Ready to merge? Yes');
+  assert.equal(fv().pop()[5], '1', 'the cycle counts the resumed dispatch once');
+  // A resumed run's step and cycle are judged at its `dispatch-resume` line (INV-0146).
+  const resume = (ag, tu) => run({ hook_event_name: 'PreToolUse', tool_name: 'SendMessage', tool_use_id: tu, tool_input: { to: ag, message: 'again' }, session_id: 'S1', cwd: tmp });
+  reset();
+  step('step', 'set', 'review');
+  bgFinal('s1', 'as1');
+  handback('as1', 'Ready to merge? With fixes');
+  stopAg('as1');
+  step('step', 'clear');
+  resume('as1', 'sm1');
+  handback('as1', 'Ready to merge? Yes');
+  assert.equal(fv().length, 1, 'a resumed run that starts after the step closed writes no line');
+  reset();
+  step('step', 'set', 'review');
+  bgFinal('t0', 'at0');
+  handback('at0', 'Ready to merge? No');
+  stopAg('at0');
+  bgFinal('t1', 'at1');
+  handback('at1', 'Ready to merge? With fixes');
+  stopAg('at1');
+  step('step', 'block', 'review');
+  step('step', 'set', 'review');
+  resume('at1', 'sm2');
+  handback('at1', 'Ready to merge? Yes');
+  assert.deepEqual(fv().pop(), ['scope', 'main', 'final-verdict', 't1', 'yes', '0'], 'a resumed run in a reopened step counts only that step\'s completed dispatches before the resume');
+  // Two reports inside one resumed run (a hand-back, then the stop's last message) write one line.
+  reset();
+  step('step', 'set', 'review');
+  bgFinal('u1', 'au1');
+  handback('au1', 'Ready to merge? With fixes');
+  stopAg('au1');
+  resume('au1', 'sm3');
+  handback('au1', 'Ready to merge? Yes');
+  run({ hook_event_name: 'SubagentStop', agent_id: 'au1', agent_type: 'superdev:final-reviewer', last_assistant_message: 'Ready to merge? No', cwd: tmp });
+  assert.equal(fv().length, 2, 'a hand-back and a stop message inside one run give one line');
   // An `adopt` line, then the step, then a same-value stage write: the step stays open.
   reset();
   step('adopt');

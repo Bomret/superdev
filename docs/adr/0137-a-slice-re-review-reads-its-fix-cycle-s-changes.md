@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0174](0174-minor-only-verdicts-batch-their-fixes-and-continue-warm.md).
+
 **Context.** In the full tier, a slice re-review reads the whole slice again, the same subject as the
 first review. No ADR decided that. The dispatch and `slice-reviewer`'s own body both hand over the slice
 branch against the scope branch. In the fail-to-pass-run scope, 15 slice re-reviews took 6 to 11 opus

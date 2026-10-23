@@ -5,7 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const { fail } = require('./refusal.js');
-const { STAGES, ledgerPath, readLines, splitLines, writeLines, getHeader, tableRowIndexes, splitRow } = require('./ledger.js');
+const { STAGES, ledgerPath, readLines, splitLines, writeLines, getHeader, readBullets, tableRowIndexes, splitRow } = require('./ledger.js');
 const { maskFencedLines } = require('./md-sections.js');
 const { validateLabel, STEPS } = require('./ledger-lifecycle.js');
 
@@ -103,8 +103,17 @@ function adoptLines(root, body, shipped = false) {
   } else if (stage === 'shipped' || stage === 'closed') {
     fail(`run-state payload carries stage "${stage}" — a finished run has nothing to adopt`);
   }
+  const sliceIds = [];
   for (const i of tableRowIndexes(payload)) {
-    if (splitRow(payload[i]).length !== 7) fail('run-state payload carries a slice row without the 7 ledger columns');
+    const cells = splitRow(payload[i]);
+    if (cells.length !== 7) fail('run-state payload carries a slice row without the 7 ledger columns');
+    sliceIds.push(cells[0]);
+  }
+  // A `**Minors:**` bullet names a slice by id (`minors add` enforces it). The anchor body is editable by anyone
+  // with issue access and the controller derives `reports/<id>/progress.md` from the bullet, so adopt refuses
+  // any bullet the payload's slice table does not hold, the way it refuses an unknown stage.
+  for (const b of readBullets(payload, 'Minors')) {
+    if (!sliceIds.includes(b)) fail(`run-state payload's **Minors:** bullet "${b}" is no id in its slice table`);
   }
   return [`# Ledger — ${slug}`, ...payload];
 }

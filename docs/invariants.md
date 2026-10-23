@@ -795,7 +795,7 @@ Paths: plugin/skills/submit-pr/**, plugin/skills/ship/**, plugin/skills/verify-s
 
 Class: process
 Concepts: 3-strike fix loop, Stage
-Statement: A Minor finding never holds a scope's stage and never blocks a run. The scope review and the full tier's per-slice review fix every listed finding, Minors included, until the review lists none or the 3-cycle cap is reached. The scope review also ends its loop when a re-review leaves only Minor Prompt-concept overlap findings and no broken criterion, and the per-slice review has no such exit (ADR 0170). At the cap, a remainder of only Minor findings advances the stage, or merges the slice, and leaves no record outside the review's report. A Minor finding whose remedy adds a capability the Definition of Done never named is a deferred finding, like one of any other severity (ADR 0035).
+Statement: A Minor finding never holds a scope's stage and never blocks a run. The scope review and the full tier's per-slice review fix every listed finding, Minors included, until the review lists none or the 3-cycle cap is reached. A full-tier slice review that leaves only Minor findings ends the slice's loop instead: the slice merges, and its Minors go to the Minor queue, which the Minor sweep fixes before run handoff (ADR 0174, INV-0171). The scope review also ends its loop when a re-review leaves only Minor Prompt-concept overlap findings and no broken criterion, and the per-slice review has no such exit (ADR 0170). At the cap, a remainder of only Minor findings advances the stage, merges the slice into the Minor queue, or ends the Minor sweep, and the sweep's and the scope review's leftover Minors leave no record outside the report. A Minor finding whose remedy adds a capability the Definition of Done never named is a deferred finding, like one of any other severity (ADR 0035).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/review/**, plugin/references/implement-full.md, plugin/agents/final-reviewer.md, plugin/agents/slice-reviewer.md
@@ -1184,7 +1184,7 @@ Paths: plugin/lib/verdicts.js, plugin/hooks/run-trace.js, plugin/hooks/hooks.jso
 
 Class: process
 Concepts: Final-reviewer, Slice-reviewer, Review cycle
-Statement: The scope review's `final-reviewer` reads the whole scope range on every dispatch, its re-reviews after a fix cycle included, because a full-tier slice re-review reads only its fix cycle's range (ADR 0137).
+Statement: The scope review's `final-reviewer` reads the whole scope range on every dispatch, its re-reviews after a fix cycle included, because a full-tier slice re-review reads only its fix cycle's range (ADR 0137). The one exception is the re-review after a fix cycle whose fix list held only Minor findings: it reads that cycle's own range, because the verdict it follows already read the whole range and found nothing blocking (ADR 0174).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/agents/final-reviewer.md, plugin/skills/review/**
@@ -1211,10 +1211,10 @@ Paths: plugin/lib/dispatch.js, plugin/lib/dispatch-lines.js, plugin/hooks/run-tr
 
 Class: process
 Concepts: Run trace, Final-review verdict, Step, Final-reviewer
-Statement: Every completed `final-reviewer` dispatch inside an open review step gets at most one `final-verdict` line in the run trace, written only by the run-trace hook. A `step set review` line opens the step, and a `step clear` line, a `step block` line, or a `step set` line of another step closes it. A repeated `step set review` line opens a new step, whose cycle count starts again at zero. The line carries the report's ready-to-merge answer and the review's cycle, counted in distinct completed `final-reviewer` dispatches inside that open review step before it (a resumed dispatch counts once), and nothing else from the report (ADR 0140).
+Statement: Every completed run of a `final-reviewer` dispatch inside an open review step, the dispatch's own run and each run a SendMessage resume starts, gets at most one `final-verdict` line in the run trace, written only by the run-trace hook. A `step set review` line opens the step, and a `step clear` line, a `step block` line, or a `step set` line of another step closes it. A repeated `step set review` line opens a new step, whose cycle count starts again at zero. The line carries the report's ready-to-merge answer and the review's cycle, counted in distinct completed `final-reviewer` dispatches inside that open review step before it (a resumed dispatch counts once), and nothing else from the report (ADR 0140, ADR 0174).
 Breaks: silently
 Check: tests/run-trace-verdicts.test.js — the final verdict cases
-Paths: plugin/lib/verdicts.js, plugin/hooks/run-trace.js, plugin/agents/final-reviewer.md
+Paths: plugin/lib/verdicts.js, plugin/hooks/run-trace.js, plugin/agents/final-reviewer.md, plugin/skills/review/**
 
 ### INV-0147
 
@@ -1377,3 +1377,12 @@ Statement: On a knowledge base whose configuration declares `- **Hierarchy:** li
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/lib/kb-apply.js, plugin/lib/kb-parent-link.js, plugin/skills/publish-kb/**
+
+### INV-0171
+
+Class: process
+Concepts: Minor queue, Minor sweep, 3-strike fix loop
+Statement: Every Minor finding a full-tier slice review leaves is fixed and reviewed inside the run, named in the run's report when it remains at the Minor sweep's cap, or deferred like any finding whose remedy adds a capability the Definition of Done never named. A slice merged with only Minor findings keeps its Minor queue entry, naming the slice by id, in the ledger until the Minor sweep settles it, and a run that stops or blocks before the sweep settles keeps the entry (ADR 0174, ADR 0098).
+Breaks: silently
+Check: tests/scope-ledger.test.js — the Minor queue verb's add, read, and clear, and a ledger with no queue section reading as an empty queue
+Paths: plugin/references/implement-full.md, plugin/references/run-handoff.md, plugin/lib/ledger-records.js, plugin/scripts/scope.js

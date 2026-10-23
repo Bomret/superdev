@@ -46,7 +46,8 @@ again, and its state lives in the `sections` atom like a card's. The other
 cards draw one row per item, the label on the left and its value on the right. A scope row's name is a
 Markdown link without a button's chrome. The pane answers a press on it and opens the scope page, the
 scope run's event log, oldest first. No surface opens the link's URL. `eventLog` in `hooks/parse.ts` reads the
-scope's ledger and `trace.log` to build it.
+scope's ledger and `trace.log` to build it. `queuedMinors` in the same file reads the ledger's `**Minors:**`
+bullets (the Minor queue, ADR 0174). No surface draws the queue.
 
 A header line opens each chain command the trace records as started. Its mark is done, stopped, or
 running, and only the running header carries the elapsed time. Every command starts at its
@@ -62,8 +63,9 @@ existed. The pane draws each stage write after `implement` of such a trace as a 
 command.
 
 Between the headers the log draws these lines:
-- one line per dispatch run, at the run's start time. An ended run shows the first `verdict` and
-  `final-verdict` line of its dispatch, its outcome, and its duration. A run with no recorded end shows
+- one line per dispatch run, at the run's start time. An ended run shows its outcome and duration, from the first
+  `verdict` or `final-verdict` line that falls in that run. A `final-reviewer` that a SendMessage resumed writes a
+  `final-verdict` line of its own per run. The pane draws each on its own run. A run with no recorded end shows
   `running` and the time from its start to the scan's now, so each rescan advances it. A run that a
   `dispatch-resume` line reopened is marked `resumed`. A slice-review verdict shows its quality part
   alone when its spec part is `pass` or empty. Otherwise it shows `spec <value>` before the quality part.

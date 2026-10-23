@@ -68,7 +68,12 @@ const { tmp, ledger, A, B, trace, reset, run, spawnOut, hookPath, agentPre, agen
   scopeCli(['slice', '--root', A, '05', 'blocked']);
   scopeCli(['step', 'set', 'review', '--root', A]);
   run(agentPre(`Review ${A}/scopetree`, 'tu2', 'superdev:final-reviewer', 'Final review', undefined, 's1'));
-  run(agentPost('tu2', { status: 'completed', agentId: 'ag2', handbackReport: { text: 'Ready to merge? With fixes' } }));
+  run(agentPost('tu2', { status: 'async_launched', agentId: 'ag2' }));
+  run({ hook_event_name: 'PostToolUse', tool_name: 'SubagentHandback', agent_id: 'ag2', tool_input: { message: 'Ready to merge? With fixes' }, cwd: tmp });
+  run({ hook_event_name: 'SubagentStop', agent_id: 'ag2', agent_type: 'superdev:final-reviewer', cwd: tmp });
+  run({ hook_event_name: 'PreToolUse', tool_name: 'SendMessage', tool_use_id: 'sm2', tool_input: { to: 'ag2', message: 're-review' }, session_id: 's1', cwd: tmp });
+  run({ hook_event_name: 'PostToolUse', tool_name: 'SubagentHandback', agent_id: 'ag2', tool_input: { message: 'Ready to merge? Yes' }, cwd: tmp });
+  run({ hook_event_name: 'SubagentStop', agent_id: 'ag2', agent_type: 'superdev:final-reviewer', cwd: tmp });
   run(agentPre(`Work in ${A}/slicetrees/05`, 'tu3', 'superdev:implementer', 'Build slice 05', undefined, 's1'));
   run(agentPre(`Review ${A}/slicetrees/04`, 'tu4', 'superdev:slice-reviewer', 'Review slice 04', undefined, 's1'));
   run(agentPost('tu4', { status: 'async_launched', agentId: 'ag4' }));
@@ -272,6 +277,17 @@ const { tmp, ledger, A, B, trace, reset, run, spawnOut, hookPath, agentPre, agen
   boundary('SessionEnd', 'S2');
   assert.deepEqual(ends().slice(2), [['m1', 'session-end']], 'a session end with the resumed run open ends it session-end');
   assert.equal(spawnOut({ hook_event_name: 'PreToolUse', tool_name: 'SendMessage', tool_input: { to: 5 }, cwd: tmp }), '', 'a malformed SendMessage writes nothing');
+
+  // A warm cycle's edit (triage #992): an edit by the resumed implementer follows that dispatch's `dispatch-resume` line.
+  reset();
+  pre('02', 'w1', 'S1');
+  bind('w1', 'agw1');
+  stopSub('agw1');
+  send('agw1');
+  run({ hook_event_name: 'PostToolUse', tool_name: 'Edit', agent_id: 'agw1', tool_input: { file_path: path.join(A, 'slicetrees', '02', 'src', 'w.js') }, cwd: tmp });
+  const kinds = trace(A).filter((l) => l[0] === '02').map((l) => l[2]);
+  assert.ok(kinds.indexOf('edit') > kinds.indexOf('dispatch-resume') && kinds.indexOf('dispatch-resume') > 0, 'a resumed implementer edit sits after its dispatch-resume line');
+  assert.equal(trace(A).find((l) => l[2] === 'edit')[1], 'agw1', 'the edit carries the resumed agent');
 
   // A SendMessage that fails or is denied leaves no subagent behind its resume line: it ends that run `failed` or `denied`.
   // A TaskStop ends a resumed run `stopped`. A failed SendMessage to a dispatch whose last run line is no resume writes nothing.

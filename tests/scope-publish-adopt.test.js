@@ -51,6 +51,7 @@ try {
   assert.ok(call(['degraded', 'add', 'a denied pass', ...F]).ok);
   assert.ok(call(['unresolved', 'add', 'suite still red', ...F]).ok);
   assert.ok(call(['deferred', 'add', 'a deferred finding', ...F]).ok);
+  assert.ok(call(['minors', 'add', '02', ...F]).ok);
   assert.ok(call(['docs', 'set', 'inline', ...F]).ok);
   assert.ok(call(['pr', 'set', '789', ...F]).ok);
   assert.ok(call(['deploy', 'set', 'pve', 'deployed', ...F]).ok);
@@ -65,6 +66,7 @@ try {
     fullOriginal,
     'adopt reproduces a fully-populated ledger byte-for-byte'
   );
+  assert.strictEqual(call(['get', 'minors', '--root', adoptFullRoot]).out, '02', 'the adopted ledger keeps the Minor queue');
   assert.strictEqual(
     call(['get', 'pr', '--root', adoptFullRoot]).out,
     '#789',
@@ -149,6 +151,22 @@ try {
   r = call(['adopt', '--root', noBranchRoot], noBranchBody);
   assert.ok(!r.ok && /no \*\*Branch:\*\* line/.test(r.err), 'adopt with no Branch line refused: ' + (r.err || ''));
   assert.ok(!fs.existsSync(path.join(noBranchRoot, 'ledger.md')), 'adopt writes nothing on a schema failure');
+
+  // adopt: a `**Minors:**` bullet that is no id in the payload's slice table refuses, and writes nothing — the
+  // anchor body is editable by anyone with issue access, and the controller derives `reports/<id>/progress.md` from it.
+  const badMinorRoot = path.join(tmp, 'adopted-elsewhere', 'bad-minor');
+  fs.mkdirSync(path.dirname(badMinorRoot), { recursive: true });
+  const badMinorBody = (bullet) =>
+    '## Run state\n\n<!-- superdev:run-state -->\n\n**Stage:** implementing\n**Minors:**\n' + bullet + '\n**Branch:** feat/bad-minor\n**Anchor:** #1 — anchor\n\n' +
+    '| id | issue | title | type | depends-on | status | range |\n|---|---|---|---|---|---|---|\n' +
+    '| 01 | #2 | one | behavior | — | merged | a..b |\n' +
+    '<!-- /superdev:run-state -->\n';
+  r = call(['adopt', '--root', badMinorRoot], badMinorBody('- ../x'));
+  assert.ok(!r.ok && /Minors/.test(r.err) && /\.\.\/x/.test(r.err), 'adopt with a non-id Minors bullet refused: ' + (r.err || ''));
+  assert.ok(!fs.existsSync(path.join(badMinorRoot, 'ledger.md')), 'adopt writes nothing on a bad Minors bullet');
+  r = call(['adopt', '--root', badMinorRoot], badMinorBody('- 99'));
+  assert.ok(!r.ok && /99/.test(r.err), 'adopt with a Minors bullet the slice table lacks refused: ' + (r.err || ''));
+  assert.ok(call(['adopt', '--root', badMinorRoot], badMinorBody('- 01')).ok, 'adopt with a Minors bullet naming a table id succeeds');
 
   // adopt: a run root whose ledger.md already exists refuses, and leaves that ledger untouched.
   const existingRoot = path.join(tmp, 'adopted-elsewhere', 'already-there');

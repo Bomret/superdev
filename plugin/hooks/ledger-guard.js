@@ -34,7 +34,7 @@ try {
 function decide(input) {
   const ti = (input && input.tool_input) || {};
   const reason =
-    'superdev: ledger.md is written only through scripts/scope.js (init/stage/step/slice/degraded/unresolved/deferred/docs/pr/deploy/suite/base/adopt verbs) — ' +
+    'superdev: ledger.md is written only through scripts/scope.js (init/stage/step/slice/degraded/unresolved/deferred/minors/docs/pr/deploy/suite/base/adopt verbs) — ' +
     'run `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js <verb> …` instead of editing the ledger directly. ' +
     'The run trace (trace.log) is hook-written and no agent writes it. (ledger-guard)';
 

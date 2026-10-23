@@ -850,6 +850,75 @@ try {
     assert.strictEqual(d.out, '', 'and prints nothing');
   }
 
+  // minors (ADR 0174, INV-0171): the Minor queue, one bullet per queued slice naming it by id. `add` refuses an id the
+  // slice table lacks, a second add leaves one bullet, `clear` removes the line, and an absent queue reads empty.
+  {
+    const ledger = () => fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
+    const trace = () => fs.readFileSync(path.join(root, 'trace.log'), 'utf8').split('\n').filter(Boolean);
+    assert.strictEqual(call(['get', 'minors', ...R]).out, '', 'get minors prints nothing on a ledger with no queue');
+    assert.ok(call(['minors', 'clear', ...R]).ok, 'minors clear on an absent queue succeeds');
+    const t0 = trace().length;
+    assert.ok(call(['minors', 'add', '01', ...R]).ok, 'minors add 01');
+    assert.ok(call(['minors', 'add', '02', ...R]).ok, 'minors add 02');
+    assert.ok(call(['minors', 'add', '01', ...R]).ok, 'a second add of 01');
+    assert.match(ledger(), /\*\*Minors:\*\*\n- 01\n- 02\n/, 'one bullet per queued slice, one line');
+    assert.strictEqual(call(['get', 'minors', ...R]).out, '01\n02', 'get minors prints the queued ids');
+    const added = trace().slice(t0);
+    assert.ok(added.length >= 2 && added.every((l) => / ledger minors add$/.test(l)), 'each write traces `ledger minors add` with no id: ' + added.join('|'));
+    const before = ledger();
+    const bad = call(['minors', 'add', '99', ...R]);
+    assert.ok(!bad.ok && /99/.test(bad.err), 'minors add of an id the slice table lacks is refused: ' + bad.err);
+    assert.strictEqual(ledger(), before, 'the refusal writes nothing');
+    assert.ok(!call(['minors', 'add', ...R]).ok, 'minors add with no id is refused');
+    assert.ok(!call(['minors', 'bogus', ...R]).ok, 'an unknown minors subcommand is refused');
+    const beforeExtra = ledger();
+    assert.ok(!call(['minors', 'add', '01', '02', ...R]).ok, 'minors add with a second id is refused');
+    assert.ok(!call(['minors', 'clear', 'x', ...R]).ok, 'minors clear with an argument is refused');
+    assert.strictEqual(ledger(), beforeExtra, 'a refused minors call writes nothing');
+    assert.ok(call(['status']).out.includes('  minors: 01, 02'), 'status prints the queued slices: ' + call(['status']).out);
+    assert.ok(call(['minors', 'clear', ...R]).ok, 'minors clear');
+    assert.ok(!/\*\*Minors:\*\*/.test(ledger()), 'clear removes the queue line');
+    assert.strictEqual(call(['get', 'minors', ...R]).out, '', 'get minors prints nothing after clear');
+    assert.ok(!/minors:/.test(call(['status']).out), 'status prints no minors line for an empty queue');
+  }
+
+  // A ledger an earlier release wrote carries no queue section: it reads as an empty queue, resumes, and takes an add.
+  {
+    const oldRoot = path.join(tmp, '.superdev', 'scopes', 'minors-old');
+    fs.mkdirSync(oldRoot, { recursive: true });
+    fs.writeFileSync(
+      path.join(oldRoot, 'ledger.md'),
+      '# Ledger — minors-old\n\n**Stage:** implementing\n**Branch:** feat/minors-old\n\n' +
+        '| id | issue | title | type | depends-on | status | range |\n|---|---|---|---|---|---|---|\n| 01 | #1 | one | behavior | — | merged | a..b |\n',
+      'utf8'
+    );
+    assert.strictEqual(call(['get', 'minors', '--root', oldRoot]).out, '', 'an old ledger reads as an empty queue');
+    assert.ok(call(['status']).out.includes('minors-old  (1 slices'), 'status reads an old ledger');
+    assert.ok(call(['minors', 'add', '01', '--root', oldRoot]).ok, 'an old ledger takes an add');
+    assert.strictEqual(call(['get', 'minors', '--root', oldRoot]).out, '01');
+  }
+
+  // The ledger the mod's fixture holds for a run with a queued slice.
+  {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'mods', 'superdev-view', 'hooks', 'ledger-fixtures.ts'), 'utf8');
+    const queueLines = JSON.parse(src.slice(src.indexOf('/* ledger-queue:start */') + 24, src.indexOf('/* ledger-queue:end */')));
+    const qTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-viewqueue-'));
+    const qRoot = path.join(qTmp, '.superdev', 'scopes', 'view');
+    const origQ = console.log;
+    console.log = () => {};
+    try {
+      run(['init', 'feat/view', 'planned'], qTmp, JSON.stringify({ anchor: '#9 — Show the pane', slices: [{ id: '01', issue: '#10', title: 'Draw the tiles', type: 'behavior', 'depends-on': '—' }] }));
+      run(['stage', '--root', qRoot, 'set', 'implementing'], qTmp);
+      run(['slice', '--root', qRoot, '01', 'merged', '--range', 'a1b2c3d..e4f5a6b'], qTmp);
+      run(['minors', 'add', '01', '--root', qRoot], qTmp);
+      console.log = origQ;
+      assert.deepEqual(fs.readFileSync(path.join(qRoot, 'ledger.md'), 'utf8').split('\n'), queueLines, 'scope.js writes the ledger with a queue that superdev-view parses');
+    } finally {
+      console.log = origQ;
+      fs.rmSync(qTmp, { recursive: true, force: true });
+    }
+  }
+
   // get unresolved / get degraded: one bullet per line, mirroring `get slices`.
   assert.strictEqual(
     call(['get', 'degraded', ...R]).out,
@@ -1501,6 +1570,10 @@ try {
     stShippedUnresolved.includes('  unresolved: suite still red at the three-strike cap (2026-08-12)'),
     "a shipped scope's unresolved record survives the collapse: " + stShippedUnresolved
   );
+  // The Minor queue of a shipped scope prints the same way (the demo scope holds slice 01).
+  assert.ok(call(['minors', 'add', '01', ...R]).ok);
+  assert.ok(call(['status']).out.includes('  minors: 01'), "a shipped scope's Minor queue survives the collapse");
+  assert.ok(call(['minors', 'clear', ...R]).ok);
 
   // An in-flight scope still prints everything it printed before: tally, blocked slices, and its
   // degrade record. The collapse is scoped to `shipped` alone.

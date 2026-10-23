@@ -154,7 +154,7 @@ function verbGet(root, field) {
     }
     return;
   }
-  const bulletFields = { unresolved: 'Unresolved', degraded: 'Degraded', deferred: 'Deferred' };
+  const bulletFields = { unresolved: 'Unresolved', degraded: 'Degraded', deferred: 'Deferred', minors: 'Minors' };
   if (bulletFields[field]) {
     // The read half of `unresolved add`/`degraded add`/`deferred add`: every bullet, one per line, so a
     // caller (`/superdev:submit-pr`'s gate and its pull-request body step) never has to split a joined
@@ -191,7 +191,7 @@ function verbGet(root, field) {
   }
   const names = { stage: 'Stage', branch: 'Branch', anchor: 'Anchor', docs: 'Docs', pr: 'PR' };
   const name = names[field];
-  if (!name) fail(`unknown field "${field}" — use stage|step|branch|anchor|docs|pr|slices|unresolved|degraded|deferred|denials|suite`);
+  if (!name) fail(`unknown field "${field}" — use stage|step|branch|anchor|docs|pr|slices|unresolved|degraded|deferred|minors|denials|suite`);
   const v = getHeader(readLines(root), name);
   console.log(v === null ? 'absent' : v);
 }

@@ -1,6 +1,6 @@
 import { test, expect } from 'claude-code/testing'
-import { eventLog, frontmatter, header, intent, progress, slices, untrace } from './parse'
-import { LEDGER_LINES, LEDGER_STEP_LINES } from './ledger-fixtures'
+import { eventLog, frontmatter, header, intent, progress, queuedMinors, slices, untrace } from './parse'
+import { LEDGER_LINES, LEDGER_QUEUE_LINES, LEDGER_STEP_LINES } from './ledger-fixtures'
 import { TRACE_LINES } from './trace-fixtures'
 
 test('a header the ledger lacks reads empty', () => {
@@ -9,6 +9,11 @@ test('a header the ledger lacks reads empty', () => {
 
 test('reads the step of a ledger that carries one', () => {
   expect(header(LEDGER_STEP_LINES.join('\n'), 'Step')).toBe('review')
+})
+
+test('reads the Minor queue of a ledger that carries one, and an empty queue otherwise', () => {
+  expect(queuedMinors(LEDGER_QUEUE_LINES.join('\n'))).toEqual(['01'])
+  expect(queuedMinors(LEDGER_LINES.join('\n'))).toEqual([])
 })
 
 test('reads the ledger scope.js writes', () => {
@@ -500,11 +505,13 @@ test('reads the ledger and dispatch lines of the shared trace fixture', () => {
   const kinds = log.entries.map(e => (e.kind === 'command' ? e.name : e.kind === 'slice' ? `${e.id} ${e.status}` : e.kind))
   expect(kinds.filter(k => k !== 'run')).toEqual(['plan', 'commandEnd', 'implement', '04 merged', '05 blocked', 'commandEnd', 'review', 'commandEnd'])
   expect(log.entries.at(-1)).toMatchObject({ kind: 'commandEnd', name: 'review', isBlocked: true })
-  expect(log.entries.find(e => e.kind === 'run' && e.type === 'superdev:final-reviewer')).toMatchObject({ ready: 'with-fixes' })
+  expect(log.entries.filter(e => e.kind === 'run' && e.type === 'superdev:final-reviewer')).toMatchObject([
+    { isResumed: false, ready: 'with-fixes' }, { isResumed: true, ready: 'yes' },
+  ])
   const runs = log.entries.flatMap(e => (e.kind === 'slice' ? e.entries : [e])).filter(e => e.kind === 'run')
   expect(runs.map(e => e.kind === 'run' && [e.type, e.slice, e.isResumed, e.isEnded])).toEqual([
     ['superdev:implementer', '04', false, true], ['superdev:implementer', '04', true, true], ['superdev:slice-reviewer', '04', false, true],
-    ['superdev:implementer', '05', false, false], ['superdev:final-reviewer', 'scope', false, true],
+    ['superdev:implementer', '05', false, false], ['superdev:final-reviewer', 'scope', false, true], ['superdev:final-reviewer', 'scope', true, true],
   ])
   expect(log.entries.filter(e => e.kind === 'slice').map(e => e.kind === 'slice' && [e.id, e.review, e.isOpenByDefault])).toEqual([['04', 1, false], ['05', 0, true]])
   expect(log.running).toBe(1)

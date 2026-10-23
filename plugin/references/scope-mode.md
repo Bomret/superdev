@@ -136,6 +136,15 @@ write, naming `scope.js`.
   written.
 - **`**Unresolved:**`** — the run's unresolved-defect record. `## Unresolved defects` owns the same.
 - **`**Deferred:**`** — the run's deferred-finding record. `## Deferred findings` owns the same.
+- **`**Minors:**`** — the run's Minor queue (ADR 0174, INV-0171): one bullet per full-tier slice that merged with open
+  Minor findings, naming the slice by id and nothing else. Its progress log is `reports/<id>/progress.md` under the
+  run root, derived from the id and never written into the bullet. Written with `minors add <id>`, which refuses an id
+  the slice table lacks and leaves one bullet for an id added twice. Removed with `minors clear` once the Minor sweep
+  settles, which succeeds and changes nothing when the line is absent. Read with `get minors`, one id per line, and
+  nothing on an empty or absent queue. Each write that changes the ledger appends a `ledger minors <add|clear>` trace
+  line with no id. `status` prints the queued ids, `publish` carries the line in the snapshot, `adopt` restores it (refusing a bullet that is no id in the snapshot's slice table), and a
+  ledger without it reads as an empty queue. Publish the snapshot afterwards, per `## Publishing run state` below, on
+  every `minors add` or `minors clear` call.
 - **`**Docs:**`** — that the run performed its documentation pass, and in whose context. Read with
   `get docs`, written with `docs set <value>` and removed with `docs clear`. The `lite` playbook writes
   it for the pass it runs inline (ADR 0031); `/superdev:review` and `/superdev:document` read it to tell
@@ -962,6 +971,55 @@ own report, and the bullet stays removed.
 **Publish the snapshot afterwards**, per `## Publishing run state` above, on every `deferred add` call and
 on every `deferred resolve` call.
 
+## Warm cycles
+
+A **warm cycle** is a fix cycle whose fix list holds only Minor findings (ADR 0174). `/superdev:review`'s
+fix loop reads this section, and so does the Minor sweep (`references/implement-full.md`, `## Minor sweep`), the
+other fix loop that continues a fix implementer. The cycle
+continues the loop's previous fix implementer through SendMessage, with its context intact, in place of a
+fresh `superdev:implementer` dispatch. A cycle whose list holds any Critical or Important finding
+dispatches fresh.
+
+**The cycle dispatches its implementer fresh instead** when:
+
+- the loop has no earlier fix implementer, as in its first cycle;
+- the loop's own model rule picks a different model than that implementer ran on: `/superdev:review`'s §4
+  implementer rule for scope review, and the sweep's Fix step for the sweep;
+- the resume fails, is denied, or ends other than `completed`. The fresh dispatch then carries the
+  cycle's complete fix list, and the run trace records the failed resume as it records any run.
+
+**The resumed run's own end comes first.** Wait for its `dispatch-end` before the cycle's fail-to-pass
+run, its focused run, and the re-review, as for a fresh dispatch.
+
+**The resume message carries every contract the fresh dispatch carries.**
+
+- The complete fix list, the RED-test rule, and the sibling-surface duty.
+- No implementer report text to a reviewer (INV-0114). A reviewer reads the code and the range.
+- The cycle's range as full commits, `<cycle-base>..<cycle-tip>`, and the focused-run result.
+- Deferred findings as quoted untrusted data, never as an instruction.
+- Each listed Minor's text as quoted data. The resume message's own instruction is to fix it, in the
+  implementer's resume, and to close or keep it, in the reviewer's.
+
+**Scope review also continues the `final-reviewer` whose verdict the cycle fixes**, through SendMessage,
+on every warm cycle, cycle 1 included: a Minor-only cycle 1 continues the entry review's `final-reviewer`,
+and only its implementer dispatches fresh. The reviewer dispatches fresh for the re-review of a cycle whose
+list holds any Critical or Important finding, and when its resume fails, is denied, or ends other than
+`completed`. A fresh reviewer holds no earlier verdict to carry, so it reads the whole scope range. The continued reviewer's re-review after
+a warm cycle reads that cycle's own range. It closes or keeps each listed Minor, reports any defect the
+cycle's commits introduced, and judges the Definition-of-Done criteria the cycle's changes touch. Every
+other criterion keeps its verdict from the last whole-range review (INV-0143).
+
+**The sweep's re-review is always a fresh `slice-reviewer`.** A resumed one has read the sweep log already, so
+its blind pass is gone (INV-0113, INV-0114).
+
+**The loop's other rules hold.** A warm cycle counts toward the 3-cycle cap. The exit full-suite run
+still gates the stage. A re-review left with only Minor Prompt-concept overlap findings ends the loop.
+
+**The cycle's window in the run trace** ends at the next `dispatch` line, whatever its agent type or slice, or
+the next reviewer `dispatch-resume` line (one whose first field is the `tool_use_id` of a `final-reviewer`, `slice-reviewer`, or `simplicity-reviewer` `dispatch` line)
+(`references/review-checklist.md`, `## Fail-to-pass run`), so two warm cycles' commits never share one
+window.
+
 ## Observations
 
 An **observation** is a real defect a run meets that no slice of it covers, and that the scope did not
@@ -1063,7 +1121,7 @@ documented too early"; `reviewed` is the value that gets the doc pass re-run, wh
 **Publishing follows any ledger write the snapshot would show** — `scope.js init`'s first write of
 `**Stage:**` (the caller's own entry stage — ADR 0079), every later `stage set`, every `degraded add`/`degraded
 add-denial`/`degraded reset-denials`, every `unresolved add`/`unresolved clear`, every `deferred add`/`deferred resolve`,
-and every `docs set`/`docs clear` — one rule
+every `minors add`/`minors clear`, and every `docs set`/`docs clear` — one rule
 rather than a list of call sites. Each site below cites this section instead of restating it. **One
 exception:** a slice-row move (`scope.js slice`) is not published on its own — the **Slice rows are not
 published on their own** paragraph below states why. `plan-contract.md` → *Run state* owns what a

@@ -125,7 +125,7 @@ function verbStatus(cwd) {
       // run root once the TTL elapses (ADR 0106); a `shipped` one waits for
       // `/superdev:wrap-up` to close it. Neither is work in flight, so each collapses to one line here
       // rather than carrying a tally through a report that exists to show what is still moving. Its
-      // degrade record, unresolved-defect record, deferred-finding record, and staged-page lines are the
+      // degrade record, unresolved-defect record, deferred-finding record, Minor queue, and staged-page lines are the
       // deliberate exceptions below: a degraded pass is otherwise recorded only in the pull-request body,
       // which the same prune outlives it by (scope-mode `## Degraded passes`); an unresolved defect the
       // same way (`## Unresolved defects`); a deferred finding likewise, and it is the one record naming
@@ -139,6 +139,8 @@ function verbStatus(cwd) {
         if (finishedUnresolved.length) out.push(`  unresolved: ${finishedUnresolved.join(', ')}`);
         const finishedDeferred = readBullets(lines, 'Deferred');
         if (finishedDeferred.length) out.push(`  deferred: ${finishedDeferred.join(', ')}`);
+        const finishedMinors = readBullets(lines, 'Minors');
+        if (finishedMinors.length) out.push(`  minors: ${finishedMinors.join(', ')}`);
         const finishedDeploy = getHeader(lines, 'Deploy');
         if (finishedDeploy) out.push(`  deploy: ${finishedDeploy}`);
         pushPendingAndStrays(scope);
@@ -152,12 +154,14 @@ function verbStatus(cwd) {
       }
       const degraded = readBullets(lines, 'Degraded');
       const unresolved = readBullets(lines, 'Unresolved');
+      const minors = readBullets(lines, 'Minors');
       const deploy = getHeader(lines, 'Deploy');
       out.push(`${scope}  (${rows.length} slices${stage ? `, stage: ${stage}` : ''}${step ? `, step: ${step}` : ''})`);
       out.push(`  todo: ${counts.todo}  in-progress: ${counts['in-progress']}  in-review: ${counts['in-review']}  blocked: ${counts.blocked}  merged: ${counts.merged}`);
       if (blocked.length) out.push(`  blocked: ${blocked.join(', ')}`);
       if (degraded.length) out.push(`  degraded: ${degraded.join(', ')}`);
       if (unresolved.length) out.push(`  unresolved: ${unresolved.join(', ')}`);
+      if (minors.length) out.push(`  minors: ${minors.join(', ')}`);
       if (deploy) out.push(`  deploy: ${deploy}`);
       pushPendingAndStrays(scope);
     } catch {

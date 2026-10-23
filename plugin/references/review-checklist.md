@@ -241,10 +241,11 @@ cycles from the trace at every dispatch of `/superdev:review`: a `scope` range w
 window, whose commits that landed in that window change both a test-path file and another file, with no outcome
 line over those commits, is a Missing fail-to-pass run finding. A fix cycle's window runs from each run of its
 `implementer` dispatch of `scope` (its `dispatch` line, and each `dispatch-resume` line of that dispatch) to the first
-`dispatch` line, whatever its agent type or slice, after the `dispatch-end` line that closes that run, or to the end of
-the trace when none follows. Whatever the end's outcome (`completed`, `failed`, `denied`, `stopped`, `unknown`, or
+`dispatch` line, whatever its agent type or slice, or the first reviewer `dispatch-resume` line (one whose first field is the `tool_use_id` of a `final-reviewer`, `slice-reviewer`, or `simplicity-reviewer` `dispatch` line), after the
+`dispatch-end` line that closes that run, or to the end of the trace when none follows. A warm cycle's re-review
+is a reviewer `dispatch-resume` line, so two warm cycles' commits never share one window. Whatever the end's outcome (`completed`, `failed`, `denied`, `stopped`, `unknown`, or
 `session-end`), the window is bounded the same way. An implementer run with no `dispatch-end` line has a window that
-ends at the first `dispatch` line after its own `dispatch` or `dispatch-resume` line, or at the end of the trace. A cycle's commits are read along the scope branch's first-parent chain, so the base commits a merge brings
+ends at the first such `dispatch` or reviewer `dispatch-resume` line after its own `dispatch` or `dispatch-resume` line, or at the end of the trace. A cycle's commits are read along the scope branch's first-parent chain, so the base commits a merge brings
 in are none of them, and neither is a merge commit that brings the base in. An implementer that edits a file to show
 RED and restores it leaves an `edit` line that no commit carries, so the `edit` lines find a cycle and its commits
 decide it. The original change's base is the base of the range the finding's `pass-to-pass` line names: a lite
