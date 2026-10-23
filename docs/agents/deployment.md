@@ -19,6 +19,8 @@ One of `none`, `manual`, or `auto`, for the whole repository — never one per t
 other command, and no unattended run, deploys. `/superdev:setup` proposes `manual` as the default and
 never proposes `auto`: the operator picks `auto` themselves.
 
+**A repository carrying no `docs/agents/deployment.md` reads as posture `none`.**
+
 `/superdev:ship` reads the posture from this document's own `Posture:` line, in this `## Posture`
 section. **A document carrying no such line reads as posture `none`**, the same as a repository carrying
 no `docs/agents/deployment.md` at all.
