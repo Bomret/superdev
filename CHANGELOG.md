@@ -1,3 +1,10 @@
+# [0.80.0](https://codeberg.org/bomret/superdev/compare/v0.79.0...v0.80.0) (2026-10-23)
+
+
+### Features
+
+* **plan:** push the scope branch at the end of every plan run ([1b86962](https://codeberg.org/bomret/superdev/commit/1b869629adfe4254c83045dee25bd3d8739162eb))
+
 # [0.79.0](https://codeberg.org/bomret/superdev/compare/v0.78.0...v0.79.0) (2026-10-23)
 
 
