@@ -1,3 +1,10 @@
+# [0.82.0](https://codeberg.org/bomret/superdev/compare/v0.81.0...v0.82.0) (2026-10-23)
+
+
+### Features
+
+* **publish-kb:** link flat-wiki pages from their parent ([bf1aaee](https://codeberg.org/bomret/superdev/commit/bf1aaee605b61e3d042a05b9f3c2acffbac688ab))
+
 # [0.81.0](https://codeberg.org/bomret/superdev/compare/v0.80.0...v0.81.0) (2026-10-23)
 
 
