@@ -91,14 +91,15 @@ function reachedBy(root, rel) {
   return seen;
 }
 
-// The directories a suite's text names, as { segs, anchored }: a path string that is a directory of the
-// repository (anchored at its root; a `./` or `../` string resolves from `tests/`), and the literal segments of a
-// `path.join` / `path.resolve` call. A call whose first argument is `__dirname` or a literal is anchored; a call
+// The directories a suite's text names, as { segs, anchored }: a `./` or `../` path string that resolves from `tests/`
+// to a directory of the repository, and the literal segments of a `path.join` / `path.resolve` call. A call whose first
+// argument is `__dirname` or a `./` or `../` literal is anchored at `tests/`. A bare relative literal (`'docs/agents'`,
+// `path.join('docs', 'agents')`) names nothing: a suite builds its fixture trees from such paths. A call
 // whose leading directory is `path.dirname(<name>)`, with `<name>` assigned a `require.resolve` of a relative path in the
 // suite's own text, is anchored at that path's directory. Any other `path.dirname(...)` names only its literal tail, which matches that tail at any depth,
 // so it can select a suite for a directory it does not scan but never miss one it does. A call whose leading
 // directory is any other computed value (a variable, `os.tmpdir()`) builds a path in a fixture tree and names nothing.
-// Ceiling: a directory built by a computed expression with no literal segment (`path.join(dir, name)`), or by a
+// Ceiling: a suite that scans a repository directory through a bare cwd-relative literal is missed, as is a directory built by a computed expression with no literal segment (`path.join(dir, name)`), or by a
 // variable assigned elsewhere, is unreadable here and names nothing.
 function namedDirs(root, text) {
   const dirs = [];
@@ -110,8 +111,8 @@ function namedDirs(root, text) {
     }
     return out;
   };
-  for (const m of text.matchAll(/(['"`])([\w./-]+\/[\w./-]*)\1/g)) {
-    const segs = norm([m[2].startsWith('.') ? `tests/${m[2]}` : m[2]]);
+  for (const m of text.matchAll(/(['"`])(\.\.?\/[\w./-]*)\1/g)) {
+    const segs = norm([`tests/${m[2]}`]);
     try {
       if (segs.length && fs.statSync(path.join(root, ...segs)).isDirectory()) dirs.push({ segs, anchored: true });
     } catch {
@@ -137,9 +138,9 @@ function namedDirs(root, text) {
     args.push(arg.trim());
     let parts = [];
     let anchored = false;
-    // A leading directory that is neither `__dirname`, a literal, nor `path.dirname(...)` is a fixture tree's (a variable,
-    // `os.tmpdir()`), so the call names no directory of the repository.
-    if (!/^(__dirname$|['"`]|path\.dirname\()/.test(args[0])) continue;
+    // A leading directory that is neither `__dirname`, a `./` or `../` literal, nor `path.dirname(...)` is a fixture tree's
+    // (a variable, `os.tmpdir()`, a bare relative literal), so the call names no directory of the repository.
+    if (!/^(__dirname$|(['"`])\.\.?\/|path\.dirname\()/.test(args[0])) continue;
     // `path.dirname(<name>)`, where the suite assigns `<name>` a `require.resolve` of a relative path, is that path's
     // directory, so the call is anchored.
     const resolved = args[0].match(/^path\.dirname\(\s*([A-Za-z_$][\w$]*)\s*\)$/);
@@ -149,7 +150,7 @@ function namedDirs(root, text) {
       if (i === 0 && target) [parts, anchored] = [[path.posix.dirname(path.posix.join('tests', target[2]))], true];
       else if (i === 0 && a === '__dirname') [parts, anchored] = [['tests'], true];
       else if (lit) {
-        if (i === 0) anchored = true;
+        if (i === 0) [parts, anchored] = [['tests'], true];
         parts.push(lit[2]);
       } else [parts, anchored] = [[], false];
     });

@@ -654,8 +654,11 @@ is no read (
 sentence of `plugin/references/scope-mode.md`). A `.md` path also reaches a suite whose text names a directory
 holding it, because a suite that lists or scans a directory reads every document in it
 (`tests/model-explicit.test.js` lists `plugin/agents/`, `tests/invariant-check.test.js` scans `plugin/`). A named directory
-is a path string that is a directory of the repository, or the literal segments of a `path.join` or `path.resolve`
-call. A call whose first argument is `__dirname` or a literal is anchored at the repository root. A call whose leading
+is a `./` or `../` path string that resolves from `tests/` to a directory of the repository, or the literal segments of
+a `path.join` or `path.resolve` call. A call whose first argument is `__dirname` or a `./` or `../` literal is anchored at
+`tests/`. A bare relative literal (`'docs/agents'`, `path.join('docs', 'agents')`) names nothing, because suites build
+their fixture trees from such paths. A suite that scans a repository directory through a bare cwd-relative literal
+is therefore missed, so a suite names a repository directory from `__dirname` or with `../`. A call whose leading
 directory is `path.dirname(<name>)`, where the suite's own text assigns `<name>` a `require.resolve` of a relative path
 (`const hookPath = require.resolve('../plugin/hooks/model-explicit.js')`), is anchored at that path's directory. Any
 other `path.dirname(...)` names its literal tail, which matches that tail at any depth, so

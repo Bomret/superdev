@@ -248,15 +248,17 @@ const picked = (root, paths) =>
 }
 
 // A `.md` path under a directory a suite names reaches that suite: a suite that lists or scans a directory reads
-// every document in it. The directory is a path string, or the literal segments of a join call; a join whose leading
-// directory is computed (`path.dirname(x)`) names its literal tail, which matches any directory ending in it.
+// every document in it. The directory is a `./` or `../` path string, or the literal segments of a join call; a join whose
+// leading directory is computed (`path.dirname(x)`) names its literal tail, which matches any directory ending in it. A
+// bare relative literal names nothing, because a suite builds its fixture trees from such paths.
 // The fixture text builds `path.join` through `${'.'}` so this suite's own text carries no such call.
 {
   const J = `path${'.'}join`;
   const root = tree({
     'tests/scan.test.js': suite('scan') + `\nfs.readdirSync(${J}(__dirname, '..', 'plugin', 'agents'));\n`,
     'tests/tail.test.js': suite('tail') + `\nfs.readdirSync(${J}(path.dirname(hookPath), '..', 'skills'));\n`,
-    'tests/str.test.js': suite('str') + "\nfs.readdirSync('docs/adr');\n",
+    'tests/str.test.js': suite('str') + "\nfs.readdirSync('../docs/adr');\n",
+    'tests/bare.test.js': suite('bare') + `\nfs.readdirSync('docs/adr');\nfs.mkdirSync(${J}('docs', 'adr'));\n`,
     'tests/plain.test.js': suite('plain'),
     'plugin/agents/a.md': '',
     'plugin/skills/s/SKILL.md': '',
@@ -265,7 +267,7 @@ const picked = (root, paths) =>
   });
   assert.deepStrictEqual(picked(root, ['plugin/agents/a.md']), ['scan'], 'a join rooted at __dirname names its directory');
   assert.deepStrictEqual(picked(root, ['plugin/skills/s/SKILL.md']), ['tail'], 'a computed leading directory names its literal tail, at any depth under it');
-  assert.deepStrictEqual(picked(root, ['docs/adr/0001-x.md']), ['str'], 'a directory path string names the directory');
+  assert.deepStrictEqual(picked(root, ['docs/adr/0001-x.md']), ['str'], 'a ../ path string names the directory; a bare relative literal does not');
   assert.deepStrictEqual(picked(root, ['docs/other/y.md']), [], 'a document under no named directory reaches no suite');
   assert.deepStrictEqual(picked(root, ['plugin/agents/new-agent.md']), ['scan'], 'a document the directory gains later maps by its directory');
   assert.deepStrictEqual(picked(root, ['plugin/hooks/nobody.js']), discoverSuites(path.join(root, 'tests')).map((f) => path.basename(f, '.test.js')), 'a code path no rule places still runs every suite');
@@ -304,6 +306,8 @@ const picked = (root, paths) =>
   const real = (md) => selectSuites(repoRoot, discoverSuites(path.join(repoRoot, 'tests')), [md]).map((f) => path.basename(f, '.test.js'));
   const f2p = ['scope', 'fail', 'to', 'pass'].join('-');
   assert.ok(!real(['docs', 'invariants.md'].join('/')).includes(f2p), 'a fixture docs directory does not select its suite for the register');
+  const toolchain = real(['docs', 'agents', ['toolchain', 'md'].join('.')].join('/'));
+  assert.deepStrictEqual(toolchain, [], 'a fixture docs/agents directory selects no suite for a document under the real one');
 }
 
 // A basename more than one file of the repository carries names a file only with a directory part the file's path
