@@ -6,9 +6,8 @@
 
 const assert = require('node:assert');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
-const { publishKbPath, FAKE_BACKEND, makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState } = require('./publish-kb-setup');
+const { publishKbPath, FAKE_BACKEND, makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState, captures, withCapture } = require('./publish-kb-setup');
 const { hashBody } = require(publishKbPath);
 
 const PATCH_VERBS = ['find', 'read', 'create', 'update', 'delete'];
@@ -71,22 +70,6 @@ withState((stateFile) => {
 });
 
 // --- a staged `parent:` reaches create as SUPERDEV_KB_PARENT_ID (ADR 0109) -----------------------
-
-function captures(dir, verb) {
-  if (!fs.existsSync(dir)) return [];
-  return fs
-    .readdirSync(dir)
-    .map((f) => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')))
-    .filter((c) => c.verb === verb);
-}
-
-function withCapture(fn) {
-  withState((stateFile) => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-capture-'));
-    process.env.FAKE_KB_CAPTURE_DIR = dir;
-    fn(stateFile, dir);
-  });
-}
 
 // --- a parent the space already holds: create receives its id; a page with no parent gets none ---
 withCapture((stateFile, dir) => {

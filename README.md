@@ -236,7 +236,11 @@ plan runs test-first, inline in the scopetree.
   ([ADR 0119](docs/adr/0119-a-staged-page-lives-in-the-main-working-tree.md)). A page sent from unmerged or unreleased work claims a feature no reader can reach
   ([ADR 0023](docs/adr/0023-the-knowledge-base-publish-is-its-own-command.md)). You decide when to run
   it: it warns once when the base branch does not already hold the scope branch's work, but a merge is
-  not a release, so it never blocks on that check. Every backend command
+  not a release, so it never blocks on that check. On a wiki that nests no pages, a knowledge base
+  declaring `- **Hierarchy:** links` has each published page linked from a list item in its parent's
+  body: publish-kb adds that line once, and a delete removes it
+  ([ADR 0168](docs/adr/0168-a-flat-wikis-hierarchy-is-its-parents-links-edited-live-by-publish-kb.md)).
+  A page whose link did not land is reported `not linked` and stays staged. Every backend command
   runs under a 30-second bound, and a command that exhausts it **stops the run** — a host that stops
   answering one call stops answering the next, so the remaining pages are reported untried and stay
   staged for a later run

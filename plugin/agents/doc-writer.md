@@ -22,7 +22,7 @@ Applies to every dispatch.
 - The range, area path, `full`, or `bootstrap`.
 - The path to `docs/agents/documentation.md`, the in-repo doc convention.
 - The path to `docs/agents/knowledge-base.md`: the backend (local `docs/kb/`, a remote backend such as Confluence, or none), its audience, its language, and its agreed outline.
-- The staging path: an absolute path, the one `scope.js staging <scope>` printed (`.superdev/kb-pending/<scope>/` in the main working tree).
+- The staging path: an absolute path, the one `scope.js staging <scope>` printed (`.superdev/kb-pending/<scope>/` in the main working tree). Where the knowledge-base config carries `- **Hierarchy:** links`, the staged pages carry the parent-link keys `references/doc-pass.md` states (ADR 0168).
 - On a live scope run, the `docs` targets.
 
 ## The `docs` targets

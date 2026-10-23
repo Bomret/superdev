@@ -200,7 +200,7 @@ function publishUpsert(title, bodyFile, templates, recordedHash, hasCreateMarker
   const res = runTemplate(templates.update, env);
   if (res.error) return { ok: false, ...spawnFailure('update', res) };
   if (res.status !== 0) return { ok: false, reason: exited('update', res) };
-  return { ok: true, action: 'updated' };
+  return { ok: true, action: 'updated', fields: found.fields };
 }
 
 function publishDelete(title, templates) {
@@ -285,7 +285,7 @@ function publishPatch(title, stagedRaw, templates, assumeExists, parentTitle) {
     const res = runTemplate(templates.update, env);
     if (res.error) return { ok: false, ...spawnFailure('update', res) };
     if (res.status !== 0) return { ok: false, reason: exited('update', res) };
-    return { ok: true, action: 'updated' };
+    return { ok: true, action: 'updated', fields: found.fields };
   } finally {
     try {
       fs.rmSync(path.dirname(bodyFile), { recursive: true, force: true });

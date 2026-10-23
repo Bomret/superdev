@@ -1,14 +1,15 @@
 'use strict';
 
 // kb-apply.js: applies each staged file of one scope to the backend, by title group, and clears a
-// staged file once its call has landed.
+// staged file once its call has landed and, under `- **Hierarchy:** links`, its parent link holds.
 
 const fs = require('fs');
 const path = require('path');
 const { maskFencedLines, headingKeyOf } = require('./md-sections.js');
 const { toStorage } = require('./md-to-storage.js');
-const { parseStagedPage } = require('./kb-staged-page.js');
-const { publishUpsert, publishDelete, publishPatch, writeTempBody } = require('./kb-backend.js');
+const { parseStagedPage, restageLiveHash } = require('./kb-staged-page.js');
+const { hashBody, publishUpsert, publishDelete, publishPatch, writeTempBody } = require('./kb-backend.js');
+const { linksHierarchy, nestingParent, parentLinkRefusal, markdownRefusal, linkIntoParent, unlinkFromParent } = require('./kb-parent-link.js');
 
 // A best-effort identity for a staged patch body's own section heading, used only to catch two
 // sibling files in the same title-group naming the same section before either one is applied —
@@ -26,6 +27,51 @@ function firstHeadingKey(body) {
   } catch {
     return null;
   }
+}
+
+// What a page's result is once its own write is decided. `landed` carries the call's action and the
+// body sent. Under `links`, a page naming a parent is published only once the live parent links it.
+function settle(entry, templates, landed) {
+  const { filePath, filename, parsed } = entry;
+  const title = parsed.title;
+  if (!(linksHierarchy(templates) && parsed.parent)) {
+    return landed.ok
+      ? clearStagedFile(filePath, filename, title, landed.action)
+      : { filename, title, kind: 'left-staged', reason: landed.reason, timedOut: landed.timedOut };
+  }
+  if (!landed.ok) {
+    return {
+      filename,
+      title,
+      kind: 'not-linked',
+      reason: `the page itself was not published (${landed.reason}), so no link was written`,
+      fix: 'fix that cause and run publish again',
+      timedOut: landed.timedOut,
+    };
+  }
+  const linked = linkIntoParent(parsed, templates, landed.fields);
+  if (linked.ok) return clearStagedFile(filePath, filename, title, landed.action);
+  if (parsed.action === 'upsert') restageLiveHash(filePath, hashBody(landed.sent));
+  return { filename, title, kind: 'not-linked', reason: linked.reason, fix: linked.fix, timedOut: linked.timedOut };
+}
+
+// A refusal before the page is sent: a staged page under `links` whose parent fields cannot be linked
+// (a delete: cannot be unlinked), or whose backend stores no markdown to write a link line into.
+function preflight(entry, templates) {
+  const { filename, parsed } = entry;
+  if (!(linksHierarchy(templates) && parsed.parent)) return null;
+  const format = markdownRefusal(templates, parsed.action);
+  if (format) {
+    return { filename, title: parsed.title, kind: parsed.action === 'delete' ? 'not-unlinked' : 'not-linked', reason: format.reason, fix: format.fix };
+  }
+  // a delete needs only the section to find its line in; it is refused before any backend call
+  if (parsed.action === 'delete') {
+    return parsed.parentSection
+      ? null
+      : { filename, title: parsed.title, kind: 'not-unlinked', reason: `parent "${parsed.parent}" is named with no parent-section`, fix: 'add parent-section: <a heading in the parent> to the staged file' };
+  }
+  const bad = parentLinkRefusal(parsed);
+  return bad ? { filename, title: parsed.title, kind: 'not-linked', reason: bad.reason, fix: bad.fix } : null;
 }
 
 // Reads and parses one staged file without applying it.
@@ -50,23 +96,30 @@ function processFile(entry, templates) {
         : `unknown action "${parsed.action}"`;
     return { filename, kind: 'malformed', reason };
   }
+  const refused = preflight(entry, templates);
+  if (refused) return refused;
   if (parsed.action === 'patch') {
-    const result = publishPatch(parsed.title, raw, templates, false, parsed.parent);
-    if (!result.ok) return { filename, title: parsed.title, kind: 'left-staged', reason: result.reason, timedOut: result.timedOut };
-    return clearStagedFile(filePath, filename, parsed.title, result.action);
+    return settle(entry, templates, publishPatch(parsed.title, raw, templates, false, nestingParent(parsed, templates)));
   }
   if (parsed.action === 'delete') {
     const result = publishDelete(parsed.title, templates);
     if (!result.ok) return { filename, title: parsed.title, kind: 'left-staged', reason: result.reason, timedOut: result.timedOut };
-    return clearStagedFile(filePath, filename, parsed.title, result.action === 'already-absent' ? 'already-absent' : 'deleted');
+    // the page is gone, also when it already was: its link leaves the parent in either case
+    let kept;
+    if (linksHierarchy(templates) && parsed.parent) {
+      const unlinked = unlinkFromParent(parsed, templates);
+      if (!unlinked.ok) return { filename, title: parsed.title, kind: 'not-unlinked', reason: unlinked.reason, fix: unlinked.fix, timedOut: unlinked.timedOut };
+      kept = unlinked.kept;
+    }
+    return { ...clearStagedFile(filePath, filename, parsed.title, result.action === 'already-absent' ? 'already-absent' : 'deleted'), kept, parent: parsed.parent };
   }
   // upsert — a storage backend receives the body converted to XHTML, every other backend the
   // staged body byte-identical (ADR 0109, INV-0109)
-  const bodyFile = writeTempBody(templates.bodyFormat === 'storage' ? toStorage(parsed.body) : parsed.body);
+  const sent = templates.bodyFormat === 'storage' ? toStorage(parsed.body) : parsed.body;
+  const bodyFile = writeTempBody(sent);
   try {
-    const result = publishUpsert(parsed.title, bodyFile, templates, parsed.liveHash, !!parsed.createdByPublish, filePath, parsed.parent);
-    if (!result.ok) return { filename, title: parsed.title, kind: 'left-staged', reason: result.reason, timedOut: result.timedOut };
-    return clearStagedFile(filePath, filename, parsed.title, result.action);
+    const result = publishUpsert(parsed.title, bodyFile, templates, parsed.liveHash, !!parsed.createdByPublish, filePath, nestingParent(parsed, templates));
+    return settle(entry, templates, { ...result, sent });
   } finally {
     try {
       fs.rmSync(path.dirname(bodyFile), { recursive: true, force: true });
@@ -141,24 +194,26 @@ function processTitleGroup(title, group, templates) {
       });
       continue;
     }
-    const result = publishPatch(title, e.raw, templates, assumeExists, e.parsed.parent);
-    if (!result.ok) {
-      results.push({ filename: e.filename, title, kind: 'left-staged', reason: result.reason, timedOut: result.timedOut });
-      if (result.timedOut) {
-        // A host that black-holes one call black-holes the next: carrying on to the next sibling
-        // in this same group would burn another full bound per remaining page (ADR 0130). Mark
-        // them untried, exactly as the outer loop already marks a later group's pages, and stop
-        // here — the group's own result still carries `timedOut`, so the outer loop's own
-        // `some(r => r.timedOut)` check keeps carrying the stop outward.
-        for (const rest of group.slice(i + 1)) {
-          results.push({ filename: rest.filename, kind: 'untried', reason: 'the run stopped after a timeout' });
-        }
-        break;
-      }
+    const refused = preflight(e, templates);
+    if (refused) {
+      results.push(refused);
       continue;
     }
-    assumeExists = true;
-    results.push(clearStagedFile(e.filePath, e.filename, title, result.action));
+    const result = publishPatch(title, e.raw, templates, assumeExists, nestingParent(e.parsed, templates));
+    if (result.ok) assumeExists = true;
+    const settled = settle(e, templates, result);
+    results.push(settled);
+    if (settled.timedOut) {
+      // A host that black-holes one call black-holes the next: carrying on to the next sibling
+      // in this same group would burn another full bound per remaining page (ADR 0130). Mark
+      // them untried, exactly as the outer loop already marks a later group's pages, and stop
+      // here — the group's own result still carries `timedOut`, so the outer loop's own
+      // `some(r => r.timedOut)` check keeps carrying the stop outward.
+      for (const rest of group.slice(i + 1)) {
+        results.push({ filename: rest.filename, kind: 'untried', reason: 'the run stopped after a timeout' });
+      }
+      break;
+    }
   }
   return results;
 }

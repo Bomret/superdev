@@ -158,6 +158,25 @@ function withState(fn) {
   }
 }
 
+// The calls the fake backend recorded for `verb` in the capture directory `dir`.
+function captures(dir, verb) {
+  if (!fs.existsSync(dir)) return [];
+  return fs
+    .readdirSync(dir)
+    .map((f) => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')))
+    .filter((c) => c.verb === verb);
+}
+
+// `withState`, with the fake backend also recording every call's SUPERDEV_KB_* environment in a fresh
+// capture directory that `fn` receives.
+function withCapture(fn) {
+  withState((stateFile) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-capture-'));
+    process.env.FAKE_KB_CAPTURE_DIR = dir;
+    fn(stateFile, dir);
+  });
+}
+
 // A `## Commands` doc where exactly one verb hangs past the bound and every other verb is the real
 // fake backend. `sleep` is the cheapest fixture that reproduces a host which accepts the call and
 // never answers — no socket, no listener, and nothing for the harness to tear down.
@@ -181,6 +200,7 @@ module.exports = {
   publishKbPath,
   FAKE_BACKEND,
   HUNG_CEILING_MS,
+  HUNG_CMD,
   hangBound,
   git,
   makeRepo,
@@ -190,6 +210,8 @@ module.exports = {
   stagePage,
   call,
   withState,
+  captures,
+  withCapture,
   hangingVerbDoc,
   failingVerbDoc,
 };

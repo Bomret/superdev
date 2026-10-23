@@ -44,14 +44,22 @@ function parseCommandsTemplates(sectionText) {
   return templates;
 }
 
-// Reads the `- **Body format:**` configuration bullet the same way `classifyBackend` reads
-// `- **Backend:**` — first word, case-folded, trailing punctuation stripped. Absent means
-// `markdown` (ADR 0027's default: `kb-patch.js` merges markdown ATX headings), so only a backend
-// storing something else (Confluence's `storage` XHTML) needs the bullet at all.
-function parseBodyFormat(docText) {
-  const m = docText.match(/^- \*\*Body format:\*\*\s*(.+)$/m);
-  return m ? m[1].trim().split(/\s+/)[0].toLowerCase().replace(/[.,;:]+$/, '') : 'markdown';
+// Reads one `- **<label>:**` configuration bullet the same way `classifyBackend` reads
+// `- **Backend:**` — first word, case-folded, trailing punctuation stripped — or `fallback` when the
+// bullet is absent.
+function parseBullet(docText, label, fallback) {
+  const m = docText.match(new RegExp(`^- \\*\\*${label}:\\*\\*\\s*(.+)$`, 'm'));
+  return m ? m[1].trim().split(/\s+/)[0].toLowerCase().replace(/[.,;:]+$/, '') : fallback;
 }
+
+// `- **Body format:**`. Absent means `markdown` (ADR 0027's default: `kb-patch.js` merges markdown
+// ATX headings), so only a backend storing something else (Confluence's `storage` XHTML) needs the
+// bullet at all.
+const parseBodyFormat = (docText) => parseBullet(docText, 'Body format', 'markdown');
+
+// `- **Hierarchy:** links`. `links` means the backend's hierarchy is body links the published page is
+// edited into (ADR 0168); absent means `nested`, today's `SUPERDEV_KB_PARENT_ID` nesting on `create`.
+const parseHierarchy = (docText) => parseBullet(docText, 'Hierarchy', 'nested');
 
 // Classifies `docs/agents/knowledge-base.md`. `docText === null` means the file is absent, which
 // reads the same as a configured `none` backend. `local`/`none` publish nothing (a local backend's
@@ -71,7 +79,7 @@ function classifyBackend(docText) {
   // `bodyFormat` rides on the same `templates` object rather than a sibling field: every function
   // between here and `publishPatch` already threads `templates` alone, and a patch is the only
   // caller that reads it.
-  return { kind: 'remote', templates: { ...parseCommandsTemplates(commands), bodyFormat: parseBodyFormat(docText) } };
+  return { kind: 'remote', templates: { ...parseCommandsTemplates(commands), bodyFormat: parseBodyFormat(docText), hierarchy: parseHierarchy(docText) } };
 }
 
 module.exports = { parseCommandsTemplates, classifyBackend };

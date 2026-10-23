@@ -492,7 +492,13 @@ One capture is **superdev-specific**:
   instead of creating a rival: YAML frontmatter carrying the page `title` and an `action` of `upsert`,
   the body below. Where `docs/agents/knowledge-base.md` documents a staged page's `parent` key, a page
   the outline places under another page also carries `parent: <that page's title>` (ADR 0109); a
-  configuration that documents no such key gets none. `/superdev:publish-kb` sends no non-`.md` file; `/superdev:status` prints it as a stray
+  configuration that documents no such key gets none. Where that document also carries
+  `- **Hierarchy:** links`, such a page carries `parent-section` (the parent's heading the outline names)
+  and `parent-link` (one list-item line in the link form the configuration states, link text equal to
+  the page title, with a one-line description, and a `{sub_url}` placeholder the link form names kept
+  literally for `/superdev:publish-kb` to fill) beside `parent` (ADR 0168); the same holds for a `patch`
+  or `delete` page, and a `delete` page carries the keys of the placement it leaves.
+  `/superdev:publish-kb` sends no non-`.md` file; `/superdev:status` prints it as a stray
 with a rename hint, so a misnamed page is visible rather than silently dropped.
   `/superdev:publish-kb` sends it when the feature reaches its readers. A **local** `docs/kb/` backend
   seeds as before — its pages are repository files that ride the branch.

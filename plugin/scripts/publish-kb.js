@@ -9,8 +9,8 @@
 //
 // This file is the CLI: it reads the arguments, wires the `lib/kb-*.js` modules together, and prints
 // the report. The staging root, the backend configuration, the staged page, the template runner,
-// the per-file application, the containment check, the read entry, and the report each live in
-// their own module there.
+// the per-file application, the parent-link edit, the containment check, the read entry, and the
+// report each live in their own module there.
 //
 // `--read <title>` is a read-only entry point (ADR 0094, INV-0091): see `lib/kb-read.js`. A staged
 // `upsert` may carry the hash it was built from as a `live-hash` frontmatter key; before an upsert
@@ -38,6 +38,7 @@ const {
   publishPatch,
 } = require('../lib/kb-backend.js');
 const { processFile, processStagedFiles } = require('../lib/kb-apply.js');
+const { addParentLink, removeParentLink } = require('../lib/kb-parent-link.js');
 const { resolveScopeBranch, parseBaseBranch, parseRemote, checkContainment } = require('../lib/kb-containment.js');
 const { readPage, runReadEntry } = require('../lib/kb-read.js');
 const { renderReport } = require('../lib/kb-report.js');
@@ -133,6 +134,8 @@ module.exports = {
   publishPatch,
   processFile,
   processStagedFiles,
+  addParentLink,
+  removeParentLink,
   resolveScopeBranch,
   parseBaseBranch,
   parseRemote,

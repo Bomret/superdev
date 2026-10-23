@@ -139,6 +139,20 @@ agent-relevant detail second:
   under another page carries `parent: <that page's title>` in its frontmatter. A configuration that
   documents no `parent` key gets none.
 
+  **Under `- **Hierarchy:** links`, stage the parent link too** (ADR 0168). When
+  `docs/agents/knowledge-base.md` carries that bullet, every page the outline places under another page
+  — an `upsert`, a `patch`, and a `delete` alike — carries three frontmatter keys beside the title and
+  action: `parent: <that page's title>`, `parent-section: <the heading in the parent page that the
+  outline names>`, and `parent-link: <one list-item line>`. The `parent-link` line is a single list item
+  in the link form the configuration states, its link text equal to the page `title`, with a one-line
+  description after the link. Where that link form's target holds the literal placeholder `{sub_url}`,
+  write it as is: `/superdev:publish-kb` fills it with the `sub_url` the backend's `find` returns for the
+  landed page. A `delete` page carries the keys of the placement it leaves, so
+  `/superdev:publish-kb` removes that one line from the parent. Without the bullet, the `parent` rule
+  above applies unchanged. When you rewrite a page that is itself a parent, keep every child link line
+  its live body carries: reconcile against the live body you read, and drop a child link line only for a
+  child whose `delete` page you stage.
+
   **Read before an `upsert` replaces a page** (ADR 0094, INV-0091). Before staging an `upsert` for a
   non-aggregate page that already exists, read it:
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/publish-kb.js" --read <title>` prints

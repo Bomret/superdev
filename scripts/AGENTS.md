@@ -444,9 +444,10 @@ tag-balance check on every output.
 report, and keeps no publishing mechanics of its own. It resolves the main checkout from any current
 directory, a scopetree or a submodule included, through `mainWorkTree` from `plugin/lib/main-work-tree.js`
 (`lib/kb-staging.js`). `publish-kb.js` is the CLI: it reads the arguments, wires the `lib/kb-*.js` modules together, and prints the report.
-`kb-staging.js` holds the staging root and scope selection, `kb-backend-config.js` the backend classification and command templates,
-`kb-staged-page.js` the staged-page parse and the `created-by-publish` marker, `kb-backend.js` the template runner and the
-`upsert`, `delete`, and `patch` of one page, `kb-apply.js` the per-file application by title group, `kb-containment.js` the merge check,
+`kb-staging.js` holds the staging root and scope selection, `kb-backend-config.js` the backend classification and command templates (`parseBullet` reads the `Body format` and `Hierarchy` bullets),
+`kb-staged-page.js` the staged-page parse, the `created-by-publish` marker, and the `live-hash` rewrite (`restageLiveHash`), `kb-backend.js` the template runner and the
+`upsert`, `delete`, and `patch` of one page, `kb-apply.js` the per-file application by title group, `kb-parent-link.js` the parent-link
+edit under `- **Hierarchy:** links`, `kb-containment.js` the merge check,
 `kb-read.js` the `--read` entry, and `kb-report.js` the report. They take `SLUG_RE` and `CHANGE_TYPES` from `plugin/lib/ledger.js`,
 `refResolves` from `plugin/lib/git-spawn.js`, and `fail` from `plugin/lib/refusal.js`, and carry no copy of any of them.
 This is what makes `.superdev/kb-pending/` resolve against the repository root, not one level too
@@ -498,12 +499,65 @@ failure, never as an empty live page. It therefore never wipes an aggregate page
 **A `storage` body format converts the whole page before `create` and `update`** (ADR 0109).
 `processFile` hands the upsert's temp body file `lib/md-to-storage.js`'s `toStorage()` output when
 `templates.bodyFormat` is `storage`. Every other body format receives the staged body byte-identical
-(INV-0109). A staged page's optional `parent:` names the title of the page it is created under.
-`resolveParent` looks that title up through `find` on the create path only, and passes the id as
-`SUPERDEV_KB_PARENT_ID`. An `absent` or `unknown` parent leaves the page staged, with the parent named in
-the reason. A `create` template that never mentions `SUPERDEV_KB_PARENT_ID` leaves a parented page staged
-with a reason naming the fix, and resolves and creates nothing. `parentsFirst` orders the title groups by their depth in the batch's own parent chain, so a
-parent staged in the same batch is created before its children.
+(INV-0109). A staged page's optional `parent:` names the title of the page it belongs under. A backend nests
+or links, by the `- **Hierarchy:**` bullet of `docs/agents/knowledge-base.md` (ADR 0168). `classifyBackend`
+reads the bullet through `parseHierarchy`, a wrapper over `parseBullet`, and an absent bullet means nesting.
+
+**Nesting (the default).** `resolveParent` looks the parent title up through `find` on the create path
+only, and passes the id as `SUPERDEV_KB_PARENT_ID`. An `absent` or `unknown` parent leaves the page
+staged, with the parent named in the reason. A `create` template that never mentions
+`SUPERDEV_KB_PARENT_ID` leaves a parented page staged with a reason naming the fix, and resolves and
+creates nothing. `parentsFirst` orders the title groups by their depth in the batch's own parent chain,
+so a parent staged in the same batch is created before its children.
+
+**Links (`- **Hierarchy:** links`).** The wiki nests no pages, so a child is reachable only when a list
+item in its parent's body links it. `nestingParent` withholds `parent:` from `resolveParent`, and
+`SUPERDEV_KB_PARENT_ID` is never set. A staged page that names a `parent` also carries `parent-section`
+(the text of one ATX heading in the parent) and `parent-link` (one list-item line whose link text is the
+page's title). `parentLinkRefusal` refuses a page that names itself, lacks either key, carries a
+multi-line or non-list-item `parent-link`, or whose link text does not equal the title. The link text, an
+inline link's target, and a wiki link's alias are each read up to a 1000-character cap, so a line of
+unclosed brackets scans in linear time and a longer title or target never matches. A `parent-link` whose
+target holds `{sub_url}` takes the value `find` returns for the page in its optional `sub_url` key. The
+value must stay in the URL-safe character set (`fillLinkTarget`), and the fill runs only once the live
+parent lacks the link. A page that landed with no `find` fields on hand gets a fresh bounded `find`.
+
+`editParent` reads the live parent through `find` and `read`, applies a one-line edit, and writes the
+result through `update` under the parent's own title (INV-0164). Every other byte of the parent stays as
+read, line endings included. `preflight` in `kb-apply.js` refuses a parented page under `links` whose body format is not
+markdown (`markdownRefusal`) before any backend call, a delete included. A markdown link line
+cannot be written into or removed from `storage` XHTML. The page is never sent, and the report reads
+`not linked` or `not unlinked`.
+
+- **Add.** `addParentLink` inserts the `parent-link` line after the last top-level list item of the named
+  ATX section's own content, ahead of any subsection heading. A top-level item is the section's first list
+  item, or an item indented less than the content column of the top-level item above it. The line follows
+  every line that item carries: a nested item, a continuation line, a lazy continuation line directly below
+  the item's text, and fenced code to its closing fence, blank lines between them included. A tab expands to
+  the next tab stop when `carriedEnd` reads an indent. It changes nothing when a list item outside fenced code anywhere
+  in the parent already links the title, matched by link text and not by target spelling. That check reads an
+  item's indent by column too (`listItemFlags`): an item at column 4 or deeper counts only inside a list run, where
+  the nearest earlier non-blank line is an item or a continuation at column 2 or deeper, and after a paragraph it is
+  indented code. A section whose own
+  content holds no list item takes the link as its first list item, one blank line below the heading. One blank line
+  follows the link when the next line is not blank. A missing or repeated heading, or an unclosed fence,
+  refuses the edit.
+- **Delete.** `removeParentLink` removes the first list item in the named section whose single link has
+  the title as its text. An item that carries a nested item, a continuation line, a lazy continuation
+  line, or fenced code is kept and reported. Every other reference to the title, whether an inline link
+  elsewhere, a reference link, or a wiki link, stays and is reported kept. When it removes the only list
+  item of the section's own content, nested items counted, one blank line below the heading, it also
+  removes that blank line, and leaves the blank line the add wrote below the link above a following paragraph. It
+  removes the line end an add appended to a heading that was the unterminated last line too. A delete whose parent `find`
+  answers `absent`, or whose parent body is empty, writes nothing.
+
+A page is reported published only once its link holds (INV-0170). A page that landed and whose link did
+not is reported `not linked: <title> — <reason> — fix: <fix>`. A delete whose unlink did not land is
+reported `not unlinked: <title> — <reason> — fix: <fix>`. Each report keeps the staged file, so the next
+run retries the link. An `upsert` that landed but was not linked rewrites the staged file's `live-hash` to the body
+the run sent (`restageLiveHash`, called by `settle`), so the retry's guard does not refuse the page for the run's own write.
+Each other reference to a deleted page prints `link kept in parent "<parent>": <line>`. A timeout in the
+parent edit stops the batch, as every other bounded call does (ADR 0130).
 
 Two or more staged files sharing one title are the aggregate-page case, since a `patch` filename is
 `<title-slug>--<section-slug>.md` and an outline entry's sections arrive as sibling files.
@@ -559,13 +613,14 @@ a run prints never carries a page's body, only filenames, titles, and reasons.
 The module guards its CLI entry with `require.main === module`. It exports every function above,
 `resolveMainCheckout`, `listPendingScopes`, `resolveScope`, `classifyBackend`,
 `parseCommandsTemplates`, `parseStagedPage`, `runTemplate`, `runFind`, `publishUpsert`,
-`publishDelete`, `publishPatch`, `processFile`, `processStagedFiles`, `resolveScopeBranch`,
-`parseBaseBranch`, `parseRemote`, `checkContainment`, `hashBody`, `readPage`, `renderReport`, and
-`run`, and `timeoutMs`. Every export but `run` comes from the module that holds it. The suites exercise the CLI through its exported
+`publishDelete`, `publishPatch`, `processFile`, `processStagedFiles`, `addParentLink`,
+`removeParentLink`, `resolveScopeBranch`, `parseBaseBranch`, `parseRemote`, `checkContainment`,
+`hashBody`, `readPage`, `renderReport`, and `run`, and `timeoutMs`. Every export but `run` comes from the module that holds it. The suites exercise the CLI through its exported
 `run()`, the way the `tests/scope-*.test.js` suites exercise `scope.js`'s own CLI verbs (ADR 0059), and split by topic over `tests/publish-kb-setup.js`
 (ADR 0151): `publish-kb` (the pure readers and the pin that the publish code keeps no copy of what `lib/` owns), `publish-kb-scope` (backend
 configuration refusals and scope selection), `publish-kb-publish` (`upsert` and `delete` end to end), `publish-kb-patch`, `publish-kb-guard` (the live-hash
-guard, the storage body, and `parent:`), `publish-kb-containment`, `publish-kb-read`, `publish-kb-timeout`, and `publish-kb-templates` (the backend templates this repository ships).
+guard, the storage body, and `parent:`), `publish-kb-parent-link` (the parent link under `- **Hierarchy:** links`, which also calls `addParentLink` and
+`removeParentLink` directly to pin the link-line readers), `publish-kb-containment`, `publish-kb-read`, `publish-kb-timeout`, and `publish-kb-templates` (the backend templates this repository ships).
 
 ### run-tests.js, the suite runner
 
@@ -744,7 +799,7 @@ path, when that document is missing. A check that walks a directory reads whatev
   modules it uses and no module meets an incomplete `module.exports` while its entry point loads. Each module must stay `require`-able under
   plain `node`. `adopt`'s payload boundary is a pair of markers, not a heading, but a marker can still be shown inside a fenced
   illustrative example, so the marker scan needs the same fence-masking `md-sections.js`'s `extractSection()` already owns.
-  `publish-kb.js` and `kb-patch.js` share `md-sections.js` through `kb-apply.js`, `kb-backend.js`, and the CLI itself.
+  `publish-kb.js` and `kb-patch.js` share `md-sections.js` through `kb-apply.js`, `kb-backend.js`, `kb-parent-link.js`, and the CLI itself.
 - A module holds one responsibility and opens with its file name and a colon. A suite tests through the entry point, and a large entry point's
   suite splits flat by topic into `tests/<entry>-<topic>.test.js` over one `tests/<entry>-setup.js` that is no suite. A copy of a helper
   merges into `lib/git-spawn.js` or `lib/refusal.js` only when its behavior is identical (ADR 0151).

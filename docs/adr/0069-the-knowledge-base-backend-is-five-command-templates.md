@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 
-**Amended by:** [ADR 0150](0150-shipped-code-starts-a-shell-only-for-an-operator-command.md), which runs the templates under `sh` from PATH.
+**Amended by:** [ADR 0150](0150-shipped-code-starts-a-shell-only-for-an-operator-command.md), which runs the templates under `sh` from PATH, and [ADR 0168](0168-a-flat-wikis-hierarchy-is-its-parents-links-edited-live-by-publish-kb.md), which names `sub_url` as an optional `find` key.
 
 **Context.** `/superdev:publish-kb` moved bytes by reading prose. Its skill body carried the whole
 mechanism: which staged files collide on a title, what separates a page that is absent from a read that
@@ -29,6 +29,11 @@ into the command string.
 | `0`, JSON object on stdout | The page exists. Each key becomes `SUPERDEV_KB_<KEY>` for the later verbs. |
 | `3` | The page is genuinely absent. |
 | anything else | The backend could not answer. Leave the page staged. |
+
+One key of the JSON object is named (ADR 0168): a `find` template may emit `sub_url`, the page's address,
+and `publish-kb.js` fills a `{sub_url}` placeholder in a `parent-link` target from it. The key is
+optional. A backend whose `find` emits none gets the not-linked refusal for a `parent-link` that carries
+the placeholder.
 
 ```mermaid
 flowchart LR

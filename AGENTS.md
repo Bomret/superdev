@@ -69,8 +69,8 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          Knowledge base: `md-sections.js` (the section rules `kb-patch.js` and the
                          run-state and `dod-line` readers share), `md-to-storage.js` (markdown to
                          Confluence storage), and `kb-staging.js`, `kb-backend-config.js`,
-                         `kb-staged-page.js`, `kb-backend.js`, `kb-apply.js`, `kb-containment.js`,
-                         `kb-read.js`, `kb-report.js` (the parts of `publish-kb.js`).
+                         `kb-staged-page.js`, `kb-backend.js`, `kb-apply.js`, `kb-parent-link.js`,
+                         `kb-containment.js`, `kb-read.js`, `kb-report.js` (the parts of `publish-kb.js`).
   references/          — backend seed templates + the non-seed runtime references (plan-contract,
                          documentation convention, controlled-prose, content-types, doc pass, run init,
                          run handoff, execution playbooks, test-selection, scope-mode, authoring
@@ -90,7 +90,7 @@ tests/                 — one suite per shipped executable (the hooks, `scope.j
                          ledger-header, suite, dod-line, publish-adopt, trace, root-base, containment,
                          citations-collisions, source-set, push, help, test-verb, fail-to-pass, over `scope-setup.js`),
                          `run-trace*` (dispatch, drive-paths, guards, paths, red, runs, stash, verdicts,
-                         writes, over `run-trace-setup.js`), `publish-kb*` (containment, guard,
+                         writes, over `run-trace-setup.js`), `publish-kb*` (containment, guard, parent-link,
                          patch, publish, read, scope, templates, timeout, over `publish-kb-setup.js`),
                          and `scope-prune*` (containment, guards, main, reap, over `scope-prune-setup.js`);
                          `spawn-verdict.js` and `fixture-git.js`

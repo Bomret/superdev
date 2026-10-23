@@ -1,7 +1,7 @@
 'use strict';
 
 // kb-staged-page.js: parses one staged page's frontmatter and body, and writes the
-// `created-by-publish` marker into a staged file.
+// `created-by-publish` marker and a rewritten `live-hash` into a staged file.
 //
 // A **Staged page** is one `.md` file under `.superdev/kb-pending/<scope>/`, carrying YAML
 // frontmatter with a page `title` and an `action` of `upsert`, `patch`, or `delete`, the page body
@@ -47,6 +47,8 @@ function parseStagedPage(text) {
     liveHash: data['live-hash'] || null,
     createdByPublish: data['created-by-publish'] || null,
     parent: data.parent || null,
+    parentSection: data['parent-section'] || null,
+    parentLink: data['parent-link'] || null,
     body,
   };
 }
@@ -92,4 +94,25 @@ function markStagedCreate(filePath) {
   }
 }
 
-module.exports = { parseStagedPage, markStagedCreate };
+// A staged upsert's own state after it landed but its link did not (ADR 0168). A recorded `live-hash`
+// named the page as it was before this run wrote it, so the next run's guard would refuse the page for
+// this run's own write (INV-0091): the hash is rewritten to the body this run sent. A page with no
+// recorded hash gets the line added, so the next run checks the live page instead of sending blind over
+// an edit made in between (a recorded `live-hash` always wins over the `created-by-publish` marker).
+function restageLiveHash(filePath, hash) {
+  try {
+    const raw = fs.readFileSync(filePath, 'utf8');
+    const head = raw.match(/^---\r?\n[\s\S]*?\r?\n---/);
+    if (!head) return;
+    const rewritten = /^live-hash:/m.test(head[0])
+      ? head[0].replace(/^live-hash:[^\r\n]*/m, `live-hash: ${hash}`)
+      : head[0].replace(/\r?\n---$/, (close) => `${close.startsWith('\r') ? '\r\n' : '\n'}live-hash: ${hash}${close}`);
+    const tmpFile = `${filePath}.tmp-${process.pid}-${Date.now()}`;
+    fs.writeFileSync(tmpFile, rewritten + raw.slice(head[0].length), 'utf8');
+    fs.renameSync(tmpFile, filePath);
+  } catch {
+    // the file keeps its old hash: the next run refuses with the live-hash reason, naming the page
+  }
+}
+
+module.exports = { parseStagedPage, markStagedCreate, restageLiveHash };

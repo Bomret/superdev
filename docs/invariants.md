@@ -1324,6 +1324,15 @@ Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/review-tests/SKILL.md, plugin/agents/test-*.md
 
+### INV-0164
+
+Class: architecture
+Concepts: Parent link, Backend command contract
+Statement: A parent-link edit reads the live parent through the `read` command at publish time and changes exactly one list-item line of it: it adds the child's `parent-link` line, with the blank lines that set it apart in a section whose own content, ahead of any subsection, holds no list item yet, or removes the child's own link line, with the blank line above it when it is the only list item of the section's own content, nested items counted. Every other byte of the parent stays as read, line endings included. The edit never replaces a section or the whole page, and the `update` it sends carries the parent's own title (ADR 0168).
+Breaks: silently
+Check: none — final-reviewer's invariant compliance judges it
+Paths: plugin/lib/kb-parent-link.js
+
 ### INV-0165
 
 Class: process
@@ -1359,3 +1368,12 @@ Statement: A superdev push overwrites a remote scope branch only when the contai
 Breaks: silently
 Check: tests/scope-push.test.js — the lease push on a contained remote tip, the rejected lease on a remote that moved after the fetch, and the refusal of a foreign remote tip, a local namesake included, and a `**Branch:**` line naming base refused with nothing pushed
 Paths: plugin/lib/**, plugin/scripts/scope.js, plugin/skills/plan/SKILL.md, plugin/references/scope-mode.md
+
+### INV-0170
+
+Class: architecture
+Concepts: Staged page, Parent link, Knowledge base
+Statement: On a knowledge base whose configuration declares `- **Hierarchy:** links`, `/superdev:publish-kb` reports a staged page that names a `parent` as published only once the live parent body links it. A page whose link cannot be written is reported as not linked with its reason, its staged file stays, and the next run retries the link without refusing the page because of this run's own write to it. No link is written before the page itself has landed (ADR 0168).
+Breaks: silently
+Check: none — final-reviewer's invariant compliance judges it
+Paths: plugin/lib/kb-apply.js, plugin/lib/kb-parent-link.js, plugin/skills/publish-kb/**

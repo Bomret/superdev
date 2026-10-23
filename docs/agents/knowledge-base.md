@@ -21,24 +21,36 @@ Codeberg repo **Wiki** for `bomret/superdev`. Distinct from the agent-first in-r
 - **Audience:** superdev **adopters** (the people who install and use the plugin) first, then
   **maintainers**.
 - **Language:** English.
+- **Hierarchy:** links. The wiki nests no pages. Each child page links from a list item in its parent's
+  body, and `/superdev:publish-kb` writes that link (ADR 0168).
 
 ## Outline
 
 This outline is a living skeleton. `/plan` and `/document` fill and extend it.
 
-- **Home.** The only hand-written navigation: what superdev is, the plan and implement loop, one line
-  per group below, and the compatibility note.
+- **Home.** The root page, with no parent. Hand-written: what superdev is, the plan and implement loop,
+  and the compatibility note. Each group section below holds one link list that `/superdev:publish-kb`
+  maintains.
 - **`Guide: <task>`.** One page per thing an adopter does: install and configure, plan a feature,
   scope the test runs, ship and wrap up, deploy after the merge, publish to the knowledge base, audit
-  tests, sweep a repository, survey the backlog.
+  tests, sweep a repository, survey the backlog. Parent: `Home`, section `Guides`.
 - **`How it works: <mechanism>`.** One page per feature or mechanism, titled by the behavior a reader
   meets, written as what it does, where you meet it, and how to configure it. `/plan` stages this
   page, and `/document` upserts the **same title** once the feature is built, so one feature has one
-  page.
+  page. Parent: `Home`, section `How it works`.
 - **Concepts.** The terms an adopter configures or sizes: slice store, code host, documentation
   convention, knowledge base, toolchain, verification, execution tiers, unattended runs, deploy
   posture, seed gaps. `(aggregate)`: one `## <concept>` section per concept, contributed by the scope
-  that built it. A mechanism belongs on its own `How it works:` page, not here.
+  that built it. A mechanism belongs on its own `How it works:` page, not here. Parent: `Home`, section
+  `Concepts`.
+
+**Links.** A parent's link line has the form `- [<title>](https://codeberg.org/bomret/superdev/wiki/{sub_url}): <one line>`.
+`<title>` is the child's full title, prefix included. `{sub_url}` is written literally. The doc-writer writes
+the whole line, placeholder included, and `/superdev:publish-kb` replaces `{sub_url}` with the value the find
+call returns for the child once the child has landed. That value is not the title slugged by hand (see Wiki
+API conventions). `/superdev:publish-kb` then places the line after the last top-level list item of the named section's own content (ahead of any
+subsection) and every line that item carries, or below the heading as its first list item when that content
+holds none yet.
 
 Decisions stay in the repository's `docs/adr/`, which the code host renders. The knowledge base carries
 no ADR digest.
@@ -93,7 +105,8 @@ not used: it reads a disabled wiki's 404 as an empty listing.
 
 The **backend command contract** (ADR 0069) `scripts/publish-kb.js` runs. `find` lists every wiki page
 and filters by title, emitting the matching entry's `sub_url`; `read`, `update`, and `delete` take
-`$SUPERDEV_KB_SUB_URL` from it. `update` always sends `title`, even when it is unchanged — an omitted
+`$SUPERDEV_KB_SUB_URL` from it, and `/superdev:publish-kb` fills a `parent-link` target's `{sub_url}`
+from it (`sub_url` is the contract's optional named `find` key, ADR 0168). `update` always sends `title`, even when it is unchanged — an omitted
 `title` is the hazard the wiki API conventions above name: Forgejo reads it as a rename to `unnamed` and
 destroys the page. `find` maps `jq -e`'s exit 1 (a genuine no-match) to exit 3, the only outcome
 `scripts/publish-kb.js` reads as positive absence; any other `jq` exit — a parse error, a usage

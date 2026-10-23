@@ -326,7 +326,9 @@ holding a single fenced `sh` block — a verb the backend has no use for is simp
 State every placeholder name to the user, so a template reaches for the placeholder instead of shell
 interpolation: `SUPERDEV_KB_TITLE` reaches every call, `SUPERDEV_KB_BODY_FILE` (a path to the staged
 body, never the body inline) reaches `create` and `update`, and one `SUPERDEV_KB_<KEY>` per key the
-`find` template's JSON object carries — uppercased — reaches `update` and `delete`. `find` carries the
+`find` template's JSON object carries — uppercased — reaches `update` and `delete`. One key is named: an
+optional `sub_url`, the page's address, which `/superdev:publish-kb` fills a `parent-link` target's
+`{sub_url}` placeholder from (ADR 0168). `find` carries the
 contract the other four rest on: exit `0` with a JSON object on stdout means the page exists, exit `3` means
 the page is genuinely absent, anything else means the backend could not answer. **Probe the `find`
 template before writing the section**: run it with `SUPERDEV_KB_TITLE` set to a title that cannot exist

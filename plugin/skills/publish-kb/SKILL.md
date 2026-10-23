@@ -75,5 +75,25 @@ A page carrying the marker, and no recorded `live-hash`, is not refused: it is t
 retry of a create that landed after a prior run was killed, and it publishes as an update. A recorded
 `live-hash` is checked regardless of the marker.
 
+On a knowledge base whose configuration declares `- **Hierarchy:** links`, the script also links each
+published page into its parent's live body (ADR 0168). `parent-section` names an ATX heading of the
+parent, a line opened by `#`; a setext heading is not read. `sub_url` is an optional key a `find` template
+may emit (the backend command contract, ADR 0069). A `{sub_url}` in the `parent-link` target is replaced
+with the `sub_url` the backend's `find` returns for the landed page, once the live parent is found to lack
+the link; a parent that already links the page needs no fill. A backend whose `find` emits no `sub_url`
+gets the not-linked refusal for a placeholder. A `find` that returns no
+`sub_url`, or one holding a character outside the URL-safe set (letters, digits, and `-._~!$&'*+,;=%/:@?#`),
+leaves the page not linked. A
+`parent-link` with no placeholder is written as staged. A page it could not link is reported as
+`not linked: <title> — <reason> — fix: <fix>`, and its staged file stays. Relay the line, reason and fix
+included. Once the fix is made, the next publish retries the link. An upsert that landed but was not linked
+has its `live-hash` set to the body the script sent, so the retry checks the live page before it writes.
+A staged `delete` that names a parent also removes the page's own list-item link from the staged
+`parent-section` of that parent. A parent that is gone, or whose body is empty or only whitespace, holds no link, so the delete clears. A delete
+that names a parent but no `parent-section` is refused before any backend call. A delete whose
+parent could not be edited, or whose section the parent lacks or repeats, is reported as
+`not unlinked: <title> — <reason> — fix: <fix>`, and its staged file stays. A link to the page on any other
+line, or on a list item that carries a nested item, a continuation line, a lazy continuation line, or fenced code, stays in the parent and is reported as `link kept in parent "<parent>": <line>`. Relay those lines too.
+
 Nothing was staged, or the operator declined at §2 → say that in one line. Report no success that did not
 happen.

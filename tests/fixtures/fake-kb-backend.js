@@ -42,7 +42,8 @@ const state = readState();
 
 if (verb === 'find') {
   if (Object.hasOwn(state, title)) {
-    process.stdout.write(JSON.stringify({ id: state[title].id }));
+    const { id, sub_url } = state[title];
+    process.stdout.write(JSON.stringify(sub_url === undefined ? { id } : { id, sub_url }));
     process.exit(0);
   }
   process.exit(3);
@@ -53,11 +54,13 @@ if (verb === 'find') {
 } else if (verb === 'create') {
   const id = `id-${Object.keys(state).length}`;
   state[title] = { id, body: fs.readFileSync(process.env.SUPERDEV_KB_BODY_FILE, 'utf8') };
+  // a test names the sub_url `find` then emits for a page this call creates
+  if (process.env.FAKE_KB_NEW_SUB_URL) state[title].sub_url = process.env.FAKE_KB_NEW_SUB_URL;
   writeState(state);
   process.exit(0);
 } else if (verb === 'update') {
   const id = process.env.SUPERDEV_KB_ID;
-  state[title] = { id, body: fs.readFileSync(process.env.SUPERDEV_KB_BODY_FILE, 'utf8') };
+  state[title] = { ...state[title], id, body: fs.readFileSync(process.env.SUPERDEV_KB_BODY_FILE, 'utf8') };
   writeState(state);
   process.exit(0);
 } else if (verb === 'delete') {
