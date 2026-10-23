@@ -1,3 +1,18 @@
+# [0.79.0](https://codeberg.org/bomret/superdev/compare/v0.78.0...v0.79.0) (2026-10-23)
+
+
+### Bug Fixes
+
+* **adr:** renumber the tests-through-node ADR from 0162 to 0166 ([#1294](https://codeberg.org/bomret/superdev/issues/1294)) ([008f3a7](https://codeberg.org/bomret/superdev/commit/008f3a70f9e1b5ca2d3b3b5221314f9571c2c0e4)), closes [tests-throu#node](https://codeberg.org/tests-throu/issues/node)
+* **run-tests:** stop fixture joins and shared basenames from selecting suites ([#1314](https://codeberg.org/bomret/superdev/issues/1314)) ([d9fd476](https://codeberg.org/bomret/superdev/commit/d9fd4768930278b732805e16769928d75f8f159a))
+
+
+### Features
+
+* **review:** judge prompt-concept overlap by rule equivalence ([#1313](https://codeberg.org/bomret/superdev/issues/1313)) ([599f58b](https://codeberg.org/bomret/superdev/commit/599f58b7a8c3d8acfbc5f946b052bd2209588226))
+* **review:** resolve a top-level path as no argument ([#1312](https://codeberg.org/bomret/superdev/issues/1312)) ([d045b0e](https://codeberg.org/bomret/superdev/commit/d045b0ef3e6b831b0b50dc8f7bbe36a0b9a66d4b))
+* **status:** carry the backlog survey and read run liveness ([#1284](https://codeberg.org/bomret/superdev/issues/1284)) ([9d841fe](https://codeberg.org/bomret/superdev/commit/9d841fea7ca93fb615b55314229041890149e380))
+
 # [0.78.0](https://codeberg.org/bomret/superdev/compare/v0.77.0...v0.78.0) (2026-10-21)
 
 
