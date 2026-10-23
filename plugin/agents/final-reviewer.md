@@ -80,7 +80,7 @@ Verify the integrated behaviour against the requirements yourself. Defer to no i
 
 Applies to every review dispatch.
 
-Scope with `git diff --stat` over the named subject first. Go file by file or slice by slice (`git log --oneline BASE..HEAD` on a scope dispatch) for a large subject. Locate with `grep -n`, read at an offset and limit, and pipe long commands (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full 2>&1 | tail -20`).
+Scope with `git diff --stat` over the named subject first. Go file by file or slice by slice (`git log --oneline BASE..HEAD` on a scope dispatch) for a large subject. Locate with `grep -n`, read at an offset and limit, and pipe long commands through `2>&1 | tail -20`.
 
 - Re-open no file already in context.
 
@@ -88,7 +88,7 @@ Scope with `git diff --stat` over the named subject first. Go file by file or sl
 
 Applies to every review dispatch.
 
-Read `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`. Apply its anti-pattern, design-smell, vulnerability-class, reuse-audit, and consistency lenses throughout the checks below. Name the specific smell or class and never write "code quality" or "security concerns" alone.
+Read `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`. Apply its anti-pattern, design-smell, vulnerability-class, reuse-audit, consistency, and prompt-concept-overlap lenses throughout the checks below. Name the specific smell or class and never write "code quality" or "security concerns" alone.
 
 - Apply `## Binding rules` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` to every finding.
 - A finding judges the subject. Read outside the subject wherever the subject's code or a finding leads you.
@@ -144,7 +144,7 @@ Applies to every review dispatch.
 
 Flag duplication and bloat only the integrated view reveals. On a scope dispatch that is the same logic re-implemented in two slices, an abstraction each slice half-builds, and cross-slice indirection that nets nothing. Per-slice over-engineering belongs to `simplicity-reviewer`.
 
-- On an ad-hoc or standing-code dispatch no slices exist to span. Flag the same class inside the code itself: the same logic implemented twice, a divergent second way to do one job, an abstraction the code never earns.
+- On an ad-hoc or standing-code dispatch no slices exist to span. Flag the same class inside the code itself: the same logic implemented twice, or an abstraction the code never earns.
 - `simplicity-reviewer` is skipped on standing code (`${CLAUDE_PLUGIN_ROOT}/skills/review/SKILL.md`, `## 2. Review (parallel, read-only)`), so this axis is the only lens that reaches that subject.
 
 ### Security
@@ -228,6 +228,7 @@ Read every line in `dod.md`, ticked and unticked alike. Give each line exactly o
 
 - **holds**: a ticked line the branch still satisfies, or an unticked line the branch already meets.
 - **broken**: a ticked line the branch no longer satisfies, or an unticked line still unmet. Give the reason. An `accepted:` line the branch still does not meet is no `broken` line.
+- A line that only **Prompt-concept overlap** findings of Minor grade leave unmet is `holds` and no `broken` line, a line naming the No overlap invariant or the prompt-concept invariants included. Report those findings under Minor.
 - **ceiling**: a line only a deploy or another outward-facing change can verify (INV-0006, ADR 0084). Give the partial evidence you gathered and the outward-facing change it needs.
 - **accepted**: an unticked line noted `accepted:` whose criterion the branch still does not meet. An attended operator decided it stands accepted as unmet (ADR 0095). Report it. It is no finding and does not hold the stage.
 - **doc pass**: a line tagged `docs` whose `AGENTS.md` text the branch does not yet state. The doc pass reconciles that text after this review and settles the line (ADR 0161). Report it. It is no finding, no `broken` line, and no `ceiling` line, and it suppresses no ceiling note. A `docs` line the branch already meets is `holds`.

@@ -320,7 +320,9 @@ progress log` section, never in the blind pass.
   slices; two seams that should agree but don't. On standing code, with no slices to compare, this reads
   as a divergent second way to do one job living inside the code itself.
 - **Duplicated fact** — the same fact (a name-list, a described behavior) stated in two places
-  where one owns it and the other should link; flag the copy that drifted.
+  where one owns it and the other should link; flag the copy that drifted. Where
+  `## Prompt-concept overlap` applies to an agent body, judge a pair in it by that section instead, so one
+  pair draws one finding.
 - **Glossary drift** — vocabulary that departs from the repository's glossary (`CONTEXT.md`). Flag a
   synonym listed in an entry's `_Avoid` line, used where that entry's term is meant, as Minor. Flag a
   glossary term used against its entry's definition as Important. Read identifiers, test names, and
@@ -331,3 +333,32 @@ progress log` section, never in the blind pass.
   No glossary, no finding. Exempt: the glossary itself, ADR text, quoted external or API names, and an
   ordinary English word outside its domain sense. A term the glossary lacks is no finding: adding one
   needs a human's confirmation.
+
+## Prompt-concept overlap
+
+Applies to a change that touches an agent body, in a repository whose glossary (`CONTEXT.md`) defines
+**Prompt concept**. A repository whose glossary has no such entry gets no finding from this section.
+
+- **The test.** Two sentences overlap when they apply under the same condition and give the same
+  instruction, so deleting either one leaves every dispatch's instructions unchanged. Apply it to a pair
+  inside one agent body, and to a pair of one body sentence and one sentence in a reference section the
+  body directs its agent to read.
+- **Not an overlap.** A sentence that adds a condition, an exception, or a different effect. A pointer that
+  names a prompt concept or a reference section and adds no instruction of its own. A statement an
+  invariant register entry requires in that agent body. Dispatch prose is outside the test. A pointer that
+  also restates its target's instruction is a restatement, and the test applies to the restated part. A
+  pair that is no overlap can still differ, and `Grades` judges it.
+- **Grades.** A same-instruction pair is **Minor**. A pair that instructs differently for one situation is
+  **Important**, the glossary's No conflict invariant, unless one of the two sentences names the rule it
+  departs from: "instead of", "except", or a pointer to that concept. A narrower condition alone states no
+  precedence.
+- **The finding.** Label it **Prompt-concept overlap**, and cite both `file:line`s, the shared condition,
+  and the shared instruction. A pair whose shared condition or shared instruction you cannot name is no
+  finding.
+
+| Pair | Verdict |
+|---|---|
+| "Applies to every dispatch. You report to the controller." beside "On every dispatch, report to the controller." | Minor: same condition, same instruction |
+| "Name the specific smell." beside "For a security finding, also name the vulnerability class." | no finding: the second adds a condition and an effect |
+| "Apply `## Binding rules` in `review-checklist.md` to every finding." beside that section | no finding: a pointer that adds no instruction |
+| "Run the suite once." beside "On a docs slice, run no suite." | Important: neither sentence names the rule it departs from |

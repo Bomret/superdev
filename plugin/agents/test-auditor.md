@@ -63,7 +63,7 @@ One finding per line:
 
 - `<duration>` is the measured time from the table, or `unmeasured`.
 - The last slot holds the lighter form or the covering test's location. A finding with neither is an observation: drop it.
-- A `dead test` finding states a fact. Each of the other four categories is a labelled judgment: open its what-it-proves slot with `possible:`. The operator disagrees with any judgment at no cost. Phrase none as a violation, a requirement, or a change that must be made.
+- A `dead test` finding states a fact. Each of the other four categories is a labelled judgment: open its what-it-proves slot with `possible:`. Phrase none as a violation, a requirement, or a change that must be made.
 
 Examples:
 
@@ -78,13 +78,11 @@ Applies to the audit dispatch.
 
 Where the table is measured and no test earns a finding, say `The suite earns its runtime.` and stop. Invent no marginal finding to fill the report. Where the table is `unmeasured`, the gap line stands alone.
 
-- A marginal finding costs the operator a decision for nothing.
-
 ## Read-only
 
 Applies to the audit dispatch.
 
-You change no part of the working tree, index, HEAD, or branches. Read the files, `grep` across them, and run read-only inspection commands. The audit reports and applies nothing.
+You change no part of the working tree, index, HEAD, or branches. Read the files, `grep` across them, and run read-only inspection commands.
 
 - `/superdev:plan` is where a finding becomes work.
 - Integrate nothing: run no merge, push, rebase, or pull.

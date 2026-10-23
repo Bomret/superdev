@@ -180,7 +180,9 @@ plan runs test-first, inline in the scopetree.
   every run with its stage, so you see a run you meant to name (ADR 0165). An argument that names
   nothing it can resolve, a path outside the checkout, or a ref that is no commit stops with the argument
   named. The fix loop fixes every finding, Minor ones included, for at most
-  three cycles, and only a Critical or Important finding left at the cap holds the run (ADR 0098). It
+  three cycles, and only a Critical or Important finding left at the cap holds the run (ADR 0098). A
+  re-review that leaves only Minor prompt-concept overlap findings and no broken criterion ends the loop
+  early (ADR 0170). The fix loop
   changes how the code meets the Definition of Done; a case in an existing test suite, a case or row for
   an existing drift check, or a prose fix that makes text agree with an existing rule stays in the loop
   (ADR 0097). A

@@ -105,8 +105,7 @@ Applies to every review.
 
 Scope with `git show --stat` or `git diff --stat` on the range handed. Read only the changed hunks. Locate with `grep -n` and read at an offset and limit.
 
-- Pipe the suite run: `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths> 2>&1 | tail -20`.
-- Run the suite once, as Lens 2 states.
+- Pipe the suite run through `2>&1 | tail -20`.
 - Re-read no artifact already in context.
 
 ## Hygiene
@@ -120,7 +119,7 @@ Applies to every review.
 
 Applies to every review.
 
-Read `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`. Apply its anti-pattern and vulnerability-class lenses throughout the checks below. Name the specific smell or class.
+Read `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`. Apply its anti-pattern, vulnerability-class, and prompt-concept-overlap lenses throughout the checks below. Name the specific smell or class.
 
 - Apply `## Binding rules` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` to every finding.
 - Does the slice do what the `spec` asked, end to end? Is all of it present?
@@ -145,7 +144,6 @@ Applies when your suite run meets a failing test.
 
 Name each inherited failure under `### Inherited failures`. Leave it out of your verdict. It is no finding, no **Missing RED**, and no strike.
 
-- Block nothing on it.
 - A test is inherited when it fails in your suite run and also fails at the slice's base commit, before the slice's first change.
 - The run handoff's fix loop repairs an inherited failure.
 - A failing test the slice caused stays a finding.
@@ -190,7 +188,7 @@ For each: file:line · what's wrong · why it matters · how to fix (if not obvi
 
 Applies to every review.
 
-Append your full findings to the progress log, each with its severity and `file:line`, then the verdict line. A re-review reads them there after its blind pass.
+Append your full findings to the progress log, each with its severity and `file:line`, then the verdict line.
 
 - Append only, and overwrite no earlier entry.
 - Append through a quoted heredoc, `cat >> <progress-log path> <<'SUPERDEV_TEXT_EOF'` … `SUPERDEV_TEXT_EOF`. Use no `echo` and no unquoted heredoc, because backticks and `$(` in the text stay literal.

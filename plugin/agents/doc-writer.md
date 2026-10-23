@@ -52,12 +52,6 @@ The dispatch hands you compressed recon maps, or `small repo — explore directl
 - **Mine existing docs as input.** Summarize and link the repo's `README` and `docs/` from the seeded `AGENTS.md`. Duplicate none of their content.
 - **Judge each existing doc before you lean on it.** Mine an accurate one for facts. Treat a badly written one as a source of questions to verify against the code, because reworking it costs what writing fresh costs. Preserve no passage because it was already there.
 
-## Staged pages
-
-Applies to a dispatch whose `knowledge-base.md` names a remote backend.
-
-Write every staged page under the staging path exactly as given.
-
 ## Read the knowledge base, never write to it
 
 Applies to every dispatch.

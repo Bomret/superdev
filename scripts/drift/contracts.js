@@ -336,6 +336,12 @@ const SOURCE_SECTION_CONTRACTS = [
     /^#{2,3}\s+Consistency\s*$/m,
     'carry the `## Consistency` section, which `final-reviewer` reads',
   ],
+  [
+    path.join('references', 'review-checklist.md'),
+    /^#{2,3}\s+Prompt-concept overlap\s*$/m,
+    'carry the `## Prompt-concept overlap` section, which `skills/review/SKILL.md`, ' +
+      '`references/AGENTS.md`, `CONTEXT.md`, and the root `AGENTS.md` cite',
+  ],
   // Agent-body headings another file cites by name. A template heading counts: the review skill and
   // `dod-ticks.md` send their reader to the section the agent's output carries under it.
   [

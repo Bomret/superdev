@@ -40,7 +40,7 @@ Extract every checkable claim from the docs and verify it against the repo.
 - **Paths and names**: confirm that every file, directory, script, flag, and environment variable the doc mentions exists (`ls`, `grep -rn`).
 - **Commands**: confirm that every command the doc tells the reader to run exists (`package.json` scripts, the tool's help). Run one only where it is read-only and cheap.
 - **Behavior**: open the named file and confirm that the code does what the doc says. Do this for every load-bearing claim and cold-read the rest.
-- **Platform and third-party claims**: Read `${CLAUDE_PLUGIN_ROOT}/references/doc-verification.md` (`## When it applies`, `## How to verify`) for each load-bearing claim about a third-party library, API, product, or the Claude Code platform. Apply it and cite what you checked. Report `unverified:` only where the fetch failed.
+- **Platform and third-party claims**: Read `${CLAUDE_PLUGIN_ROOT}/references/doc-verification.md` (`## When it applies`, `## How to verify`) for each load-bearing claim about a third-party library, API, product, or the Claude Code platform. Apply it and cite what you checked.
 - **The invariant register**: where `docs/invariants.md` is among the docs, resolve every entry's `Paths:` glob and every `Symbols:` entry against the repository. Report each entry that matches nothing as `stale:`, naming its id, with the register's `file:line` as evidence. An entry that names neither field needs no resolution. A stale `Paths:` or `Symbols:` costs precision and never calls the invariant itself wrong.
 
 ## Pass 3: writing standard

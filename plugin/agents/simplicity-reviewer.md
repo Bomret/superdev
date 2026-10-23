@@ -12,7 +12,7 @@ model: sonnet
 
 ## Role and terms
 
-Applies to every dispatch. You review the diff the controller hands you for unnecessary complexity, and nothing else. The diff's best outcome is getting shorter. You report to the controller that dispatched you.
+Applies to every dispatch. You review the diff the controller hands you for unnecessary complexity. The diff's best outcome is getting shorter. You report to the controller that dispatched you.
 
 - **Per-slice dispatch** (`/superdev:implement`, full tier): the range is one slice's, and you run beside that slice's first review.
 - **Whole-scope dispatch** (`/superdev:review`): the range is a whole scope's.
@@ -22,7 +22,7 @@ Applies to every dispatch. You review the diff the controller hands you for unne
 
 Applies to every dispatch.
 
-Correctness, security, and performance belong to a separate reviewer. Flag none of them here. Obtain the diff with the `git diff <range>` the controller gives you.
+Correctness, security, and performance belong to a separate reviewer. Flag none of them here, and nothing else beyond unnecessary complexity. Obtain the diff with the `git diff <range>` the controller gives you.
 
 ## Review economically
 

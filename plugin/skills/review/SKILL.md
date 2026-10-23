@@ -450,7 +450,7 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   **not** advance while it stands. **Inside each fix cycle, run the focused command over the fix diff**
   — per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`, over the commits that cycle's implementer
   just landed, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths>` — and **hand that result to the re-review**, saying it is the focused run: fix cycles never
-  run the full suite. **When a fix cycle's re-review verdict first comes back clean, or the cap leaves only Minor findings, run the full suite
+  run the full suite. **When a fix cycle's re-review verdict first comes back clean, leaves only Minor Prompt-concept overlap findings and no broken criterion, or the cap leaves only Minor findings, run the full suite
   once more** in the scope checkout, and record it the same way
   (`scope.js suite set <result> <sha> --root <run-root>`, `<sha>` = the tip after the fix commits):
   that run is the gate the stage advances on. A scope whose first verdict is already clean runs none of
@@ -682,7 +682,12 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
     hierarchy or the knowledge base is named in your report instead. A hit in `CHANGELOG.md` is release
     history and needs no change. Re-review after it returns, and
     repeat until the re-review lists no finding in the chosen set or the **3-strike cap** is reached — **3
-    cycles in total, every cycle counting, whichever findings drove it**. At the cap a remainder of
+    cycles in total, every cycle counting, whichever findings drove it**. A re-review whose only findings
+    left are Minor **Prompt-concept overlap** findings (`${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`'s
+    `## Prompt-concept overlap`), with no criterion standing broken, ends the loop there, attended or
+    `--unattended`: it takes the clean-verdict
+    path below as a Minor remainder at the cap does, after the same exit full-suite run, because a
+    whole-range re-review finds fresh overlap pairs on every cycle. At the cap a remainder of
     **only Minor findings** takes the clean-verdict path below once the exit full-suite run above is
     green (a red exit run at the cap is a remaining red suite): the stage write, with the leftover Minors
     named in the report and nowhere else — no `unresolved add`, no `deferred add`, no triage record

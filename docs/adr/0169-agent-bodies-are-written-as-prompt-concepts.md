@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0170](0170-prompt-concept-overlap-is-judged-by-rule-equivalence.md), which records
+how a reviewer checks **One home per rule** and gives the test and the grades one home in
+`plugin/references/review-checklist.md`.
+
 ## Context
 
 The agent bodies in `plugin/agents/` grew by accretion. A rule often appeared in two sections of one
