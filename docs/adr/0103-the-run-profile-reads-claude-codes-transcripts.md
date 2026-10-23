@@ -1,6 +1,8 @@
 # 0103: The run profile reads Claude Code's transcripts
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0171](0171-profile-and-prose-check-are-removed.md), which removes `/superdev:profile` and `/superdev:prose-check`.
 
 **Context.** `/superdev:implement` and `/superdev:review` sometimes take a long time, and nothing in
 superdev records where the time goes. Claude Code already writes one transcript per session under

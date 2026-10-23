@@ -122,7 +122,7 @@ module.exports = ({ assert, path, fixture, found }) => {
       '### Fail-to-pass unknown [scope dispatch only]\n```\n',
     'agents/slice-reviewer.md': '## Inherited failures\n',
     'agents/implementer.md': '## Documentation\n',
-    'agents/doc-reader.md': '## Pass 1: cold read\n\n## Pass 3: writing standard\n',
+    'agents/doc-reader.md': '## Pass 1: cold read\n',
   };
   assert.equal(scanContract(fixture(sourceSectionBodies), SOURCE_SECTION_CONTRACTS).length, 0, 'every canonical reference and every cited agent body intact yields zero gaps');
 
@@ -156,8 +156,7 @@ module.exports = ({ assert, path, fixture, found }) => {
     ['agents/final-reviewer.md', '### Fail-to-pass unknown [scope dispatch only]\n'],
     ['agents/slice-reviewer.md', '## Inherited failures\n'],
     ['agents/implementer.md', '## Documentation\n'],
-    ['agents/doc-reader.md', '## Pass 1: cold read\n\n'],
-    ['agents/doc-reader.md', '## Pass 3: writing standard\n'],
+    ['agents/doc-reader.md', '## Pass 1: cold read\n'],
   ];
   assert.equal(pinnedHeadings.length, SOURCE_SECTION_CONTRACTS.length, 'every row in the table has a negative fixture');
   for (const [rel, heading] of pinnedHeadings) {

@@ -40,7 +40,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          No `hooks` field — Claude Code auto-loads the standard hooks/hooks.json.
   skills/              — the `/superdev:<name>` surfaces, one `<name>/SKILL.md` each (ADR 0102):
                          brainstorm, setup, plan, implement, review, document, submit-pr, ship, verify-ship,
-                         wrap-up, upgrade, status, profile, publish-kb, prose-check, review-tests, sweep
+                         wrap-up, upgrade, status, publish-kb, review-tests, sweep
   agents/              — the subagents (*.md): implementer, slice-reviewer, simplicity-reviewer,
                          final-reviewer, doc-writer, doc-reader, test-auditor,
                          test-gap-auditor
@@ -71,17 +71,15 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          Confluence storage), and `kb-staging.js`, `kb-backend-config.js`,
                          `kb-staged-page.js`, `kb-backend.js`, `kb-apply.js`, `kb-containment.js`,
                          `kb-read.js`, `kb-report.js` (the parts of `publish-kb.js`).
-                         Run profile: `transcripts.js`, `command-keys.js`, `session-events.js`,
-                         `time-sinks.js`, `profile-report.js`
   references/          — backend seed templates + the non-seed runtime references (plan-contract,
                          documentation convention, controlled-prose, content-types, doc pass, run init,
                          run handoff, execution playbooks, test-selection, scope-mode, authoring
                          disciplines, design sketch, diagnosis, prototype, merge-conflicts,
                          review-checklist, dod-ticks, response-shapes); its own AGENTS.md routes them
-  scripts/             — the runtime CLIs: `scope.js`, `kb-patch.js`, `publish-kb.js`, `profile.js`
+  scripts/             — the runtime CLIs: `scope.js`, `kb-patch.js`, `publish-kb.js`
   LICENSE · NOTICE     — copies of the root files, so the shipped tree carries its own attribution
 tests/                 — one suite per shipped executable (the hooks, `scope.js`, `kb-patch.js`,
-                         `publish-kb.js`, `profile.js`), one per module named for it
+                         `publish-kb.js`), one per module named for it
                          (`git-spawn.js`, `shell-words.js`, `md-to-storage.js`), one for the shipped
                          tree's layout (`plugin-layout.test.js`: entry-point export names, re-export
                          identity, the CommonJS anchor over `plugin/lib/`), and one each for the
@@ -92,8 +90,7 @@ tests/                 — one suite per shipped executable (the hooks, `scope.j
                          ledger-header, suite, dod-line, publish-adopt, trace, root-base, containment,
                          citations-collisions, source-set, push, help, test-verb, fail-to-pass, over `scope-setup.js`),
                          `run-trace*` (dispatch, drive-paths, guards, paths, red, runs, stash, verdicts,
-                         writes, over `run-trace-setup.js`), `profile*` (cli, dispatches, idle, phases,
-                         scopes, sinks, over `profile-setup.js`), `publish-kb*` (containment, guard,
+                         writes, over `run-trace-setup.js`), `publish-kb*` (containment, guard,
                          patch, publish, read, scope, templates, timeout, over `publish-kb-setup.js`),
                          and `scope-prune*` (containment, guards, main, reap, over `scope-prune-setup.js`);
                          `spawn-verdict.js` and `fixture-git.js`
@@ -349,15 +346,13 @@ This root owns every other subtree directly:
   every run's ledger and then surveys the slice store read-only, grouping every open scope anchor, triage record (an `absorbed`
   row when an open anchor's Absorbs line names it, ADR 0144), stranded run root, and untriaged item by the action it needs,
   resolving an ambiguity toward showing the row (ADR 0049), and never recommending a run live in another session — a standing
-  step and a run lock under an hour old (ADR 0163), prose-check applies `references/controlled-prose.md` to one piece of prose on demand,
-  unconditionally rather than gated on a repo's own `## Writing standard` config (ADR 0057),
+  step and a run lock under an hour old (ADR 0163),
   review-tests runs two audits on every run and hands the findings the operator keeps to `/superdev:plan`
   as an intent: a cost audit, sweeping the whole test tree in one `test-auditor` dispatch and measuring it
   through the repo's optional timing command (ADR 0066), and a gap audit, reading the source set
   `scope.js source-set` prints in directory batches, one `test-gap-auditor` dispatch each, in parallel,
   with the `## Test gaps` lens of `references/review-checklist.md` that only that agent reads (ADR 0162,
-  INV-0163), profile reports where a scope run's
-  wall-clock time went, read from Claude Code's own session transcripts (ADR 0103), and sweep chains `/superdev:review`,
+  INV-0163), and sweep chains `/superdev:review`,
   `/superdev:document audit`, `/superdev:review-tests`, and `/superdev:setup check` over a whole
   repository into one merged, ranked report and a single plan-ready intent, every leg dispatched
   read-only in the chained posture (ADR 0068).
@@ -387,7 +382,7 @@ This root owns every other subtree directly:
   `run-trace.js` records nothing (INV-0140).
 - `scripts/` and `plugin/scripts/`. Owned by [`scripts/AGENTS.md`](scripts/AGENTS.md), which states
   each script's contract: the shipped `plugin/scripts/` CLIs `scope.js`, `kb-patch.js`, `publish-kb.js`,
-  `profile.js`, the modules in `plugin/lib/` behind them, and the maintainer-only `scripts/drift-check.js` with
+  the modules in `plugin/lib/` behind them, and the maintainer-only `scripts/drift-check.js` with
   `drift/`, `scripts/invariant-check.js`, and `scripts/run-tests.js`. It names the `scope.js` exports
   and every verb, and the module each script takes from `plugin/lib/`.
 - `plugin/references/`. Backend seed templates plus the runtime references. Owned by

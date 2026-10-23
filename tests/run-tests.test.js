@@ -366,7 +366,7 @@ const picked = (root, paths) =>
   const scope = of([`plugin/scripts/${'scope'}.js`]);
   const topics = ['ledger', 'ledger-header', 'publish-adopt', 'root-base', 'citations-collisions', 'suite', 'containment', 'dod-line', 'help', 'trace'];
   const parts = [...topics.map((t) => `scope-${t}`), ['scope', 'test', 'verb'].join('-'), ['scope', 'fail', 'to', 'pass'].join('-')];
-  for (const s of [...parts, 'scope-prune', 'slicetree-sweep', 'run-trace', 'publish-kb', 'profile']) {
+  for (const s of [...parts, 'scope-prune', 'slicetree-sweep', 'run-trace', 'publish-kb']) {
     assert.ok(scope.includes(s), `scope.js selects ${s}`);
   }
   const required = of([`plugin/lib/${['test', 'runs'].join('-')}.js`]);

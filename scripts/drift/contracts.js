@@ -384,11 +384,6 @@ const SOURCE_SECTION_CONTRACTS = [
     /^#{2,3}\s+Pass 1\b/m,
     'carry the `## Pass 1` section, which `content-types.md` cites',
   ],
-  [
-    path.join('agents', 'doc-reader.md'),
-    /^#{2,3}\s+Pass 3\b/m,
-    'carry the `## Pass 3` section, which `skills/prose-check/SKILL.md` cites',
-  ],
 ];
 
 // ADR 0053, ADR 0069: `plugin/lib/kb-containment.js`'s `checkContainment` delegates the containment test

@@ -1,6 +1,8 @@
 # 0143: The run profile names time sinks by fixed rules
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0171](0171-profile-and-prose-check-are-removed.md), which removes `/superdev:profile` and `/superdev:prose-check`.
 
 **Context.** An operator runs `/superdev:profile` after a slow scope run to learn why it was slow and what
 would make the next run faster. The report showed where the time went and left the cause and the remedy to

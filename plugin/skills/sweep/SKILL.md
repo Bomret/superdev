@@ -13,7 +13,7 @@ twice — whose covering half no range is guaranteed to contain.
 
 Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section (ADR 0157).
 
-**Outside the chain.** implement → review → document → ship never reaches this command, the standing shape `/superdev:status`, `/superdev:prose-check`, and
+**Outside the chain.** implement → review → document → ship never reaches this command, the standing shape `/superdev:status` and
 `/superdev:review-tests` already hold.
 
 **Read-only end to end.** Every leg it dispatches is itself read-only, and it dispatches each in the

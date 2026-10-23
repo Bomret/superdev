@@ -272,10 +272,10 @@ Paths: plugin/references/controlled-prose.md, plugin/agents/doc-reader.md, plugi
 
 Class: architecture
 Concepts: Writing standard, Seed
-Statement: The doc agents read which writing standard applies from the `## Writing standard` pointer in `docs/agents/documentation.md`. None carries a standard of its own. `/superdev:prose-check` applies `references/controlled-prose.md` whatever the pointer says, and whether or not that file exists.
+Statement: The doc agents read which writing standard applies from the `## Writing standard` pointer in `docs/agents/documentation.md`. None carries a standard of its own.
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/references/documentation.md, plugin/skills/prose-check/SKILL.md
+Paths: plugin/references/documentation.md
 
 ### INV-0031
 
@@ -745,8 +745,6 @@ Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/plan/**, plugin/agents/final-reviewer.md
 
-
-
 ### INV-0089
 
 Class: process
@@ -837,33 +835,6 @@ Statement: After the merge, only `/superdev:wrap-up` closes a scope anchor. It c
 Breaks: silently
 Check: `tests/scope-ledger.test.js` for the ledger's deploy record; final-reviewer's invariant compliance judges ship's stop and wrap-up's close gate
 Paths: plugin/skills/ship/**, plugin/scripts/scope.js, plugin/lib/ledger-records.js, plugin/skills/wrap-up/**
-
-### INV-0101
-
-Class: architecture
-Concepts: Run profile
-Statement: The run profile reads Claude Code's transcript directory and writes nothing to it. An entry lacking a field the profile reads is reported as unrecognized, never counted as zero, and a transcript with no entry the profile recognizes produces a report that says so instead of a table of zeros (ADR 0103).
-Breaks: silently
-Check: tests/profile-cli.test.js — the transcript fixture directory is byte-identical after a run; a fixture with a field removed reports it unrecognized
-Paths: plugin/scripts/profile.js, plugin/lib/transcripts.js, plugin/lib/session-events.js, tests/profile-cli.test.js
-
-### INV-0102
-
-Class: architecture
-Concepts: Human wait, Idle, Run profile
-Statement: Human wait and idle time are each never counted as machine time. Every view of the run profile reports each in its own column, and no total the profile prints adds either to tool, hook, subagent, or model time.
-Breaks: silently
-Check: tests/profile-phases.test.js, tests/profile-idle.test.js — a fixture holding an AskUserQuestion call, a between-turn gap ending in a typed prompt, and a turn end ending in a peer wake with nothing running; every machine total excludes all three
-Paths: plugin/scripts/profile.js, plugin/lib/session-events.js, plugin/lib/time-sinks.js, plugin/lib/profile-report.js, tests/profile-phases.test.js, tests/profile-idle.test.js
-
-### INV-0103
-
-Class: architecture
-Concepts: Run profile, Phase segment
-Statement: A tool call with no matching result carries no duration. The run profile reports it as unfinished, names it, and adds nothing for it to any total. A call whose session was interrupted, killed, or ended mid-call decided nothing about how long the call takes.
-Breaks: silently
-Check: tests/profile-phases.test.js — a fixture with a tool_use and no tool_result reports one unfinished call and leaves every total unchanged
-Paths: plugin/scripts/profile.js, plugin/lib/session-events.js, tests/profile-phases.test.js
 
 ### INV-0104
 
@@ -1253,24 +1224,6 @@ Statement: Every label superdev-view draws is a value the ledger or the run trac
 Breaks: silently
 Check: none — a label can enter the mod's drawing code in any form, and no cheap test tells a recorded value from a coined one; a reviewer of a `mods/superdev-view/` change applies it.
 Paths: mods/superdev-view/hooks/**
-
-### INV-0148
-
-Class: architecture
-Concepts: Run profile, Time sink
-Statement: A fixed rule in the profile script produces every time sink the run profile prints. The profile skill prints the script's report as written and adds no reading of its own (ADR 0143).
-Breaks: silently
-Check: tests/profile-sinks.test.js — each rule has a fixture that fires it and one that does not; the skill's own prose has no automated check, and a reviewer of `plugin/skills/profile/SKILL.md` applies it.
-Paths: plugin/scripts/profile.js, plugin/lib/time-sinks.js, plugin/skills/profile/SKILL.md, tests/profile-sinks.test.js
-
-### INV-0149
-
-Class: behavior
-Concepts: Run profile, Time sink
-Statement: A cause one of the time-sink rules covers, holding at least 20% of a scope's machine time, appears as a time sink whether or not the operator can act on it. A sink's remedy names only a lever the operator controls in their own repository or session, and a sink with none says so (ADR 0143).
-Breaks: silently
-Check: tests/profile-sinks.test.js — a fixture whose largest cause is model time prints that sink with no remedy.
-Paths: plugin/scripts/profile.js, plugin/lib/time-sinks.js, tests/profile-sinks.test.js
 
 ### INV-0150
 

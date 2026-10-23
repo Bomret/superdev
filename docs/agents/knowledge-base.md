@@ -30,7 +30,7 @@ This outline is a living skeleton. `/plan` and `/document` fill and extend it.
   per group below, and the compatibility note.
 - **`Guide: <task>`.** One page per thing an adopter does: install and configure, plan a feature,
   scope the test runs, ship and wrap up, deploy after the merge, publish to the knowledge base, audit
-  tests, sweep a repository, check prose, survey the backlog, profile a run.
+  tests, sweep a repository, survey the backlog.
 - **`How it works: <mechanism>`.** One page per feature or mechanism, titled by the behavior a reader
   meets, written as what it does, where you meet it, and how to configure it. `/plan` stages this
   page, and `/document` upserts the **same title** once the feature is built, so one feature has one

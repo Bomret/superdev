@@ -29,7 +29,6 @@ plan runs test-first, inline in the scopetree.
 /superdev:plan         → interview + slice a feature into the slice store
 /superdev:implement    → drive the slices to merge onto the scope branch, then stop
 /superdev:status       → read-only: every run's progress, the slice store by what each item needs, and what to do next
-/superdev:profile      → read-only account of where a scope run's time went, from its transcripts
 /superdev:review       → whole-scope review against the DoD, with a fix loop
 /superdev:document     → reconcile in-repo docs + knowledge base with the code
 /superdev:submit-pr    → push the scope branch, open the PR, and leave the run standing
@@ -37,7 +36,6 @@ plan runs test-first, inline in the scopetree.
 /superdev:verify-ship  → observe the deployed system and settle the Definition-of-Done criteria the merge left open
 /superdev:wrap-up      → check a shipped scope is fully settled, then close its anchor and take the run down
 /superdev:publish-kb   → send a scope's staged knowledge-base pages to the configured backend
-/superdev:prose-check  → check one file, range, or pasted text against the controlled-prose standard
 /superdev:review-tests → read-only audit of test cost and test gaps, ranked and handed to plan
 /superdev:sweep        → read-only chain over code, docs, tests, and config, merged into one plan-ready intent
 ```
@@ -162,19 +160,6 @@ plan runs test-first, inline in the scopetree.
   `/superdev:status <scope> --trace` prints that scope's run trace as a timeline instead, and
   `--slice <id>` narrows it to one slice. It sits outside the implement chain, and never writes,
   transitions, or merges anything.
-- **`/superdev:profile`**. A read-only account of where a scope run's time went, for a run that felt slow.
-  It reads the transcripts Claude Code already keeps for every session and subagent, so it needs no setup
-  and works on runs that finished long ago. It shows the time of each chain phase split into subagent, idle,
-  tool, hook, and model time. It shows the commands that ran most often and cost most in total. One row
-  appears per subagent, with the slowest of each parallel batch flagged. A dispatch that never finished is
-  named by its status (rejected, denied, blocked, failed, killed, or not yet notified) instead of a duration.
-  Time spent waiting for you is always shown on its own. So is idle time: the time the run sat with
-  nothing running, for a reason other than you. It closes with the run's time sinks: each cause that held
-  at least 20% of the machine time (the wall time less the time spent waiting for you and idle), with the lever you control or the statement that your repository holds
-  none ([ADR 0143](docs/adr/0143-the-run-profile-names-time-sinks-by-fixed-rules.md)). Without a slug it
-  profiles the scope that ran last
-  ([ADR 0103](docs/adr/0103-the-run-profile-reads-claude-codes-transcripts.md)). It sits outside the
-  implement chain, and writes nothing.
 - **`/superdev:review`**. Two modes. Given an ad-hoc diff, branch, path, or the working tree, it needs no
   plan and no slice store, and it stays read-only end to end. A path whose diff is empty — an area you
   never changed — is reviewed as **standing code**, the files under it at `HEAD`, so pointing a review at
@@ -256,13 +241,6 @@ plan runs test-first, inline in the scopetree.
   answering one call stops answering the next, so the remaining pages are reported untried and stay
   staged for a later run
   ([ADR 0130](docs/adr/0130-a-backend-command-runs-under-a-time-bound.md)).
-- **`/superdev:prose-check`**. Checks one file, one commit range, or pasted text against the
-  **controlled-prose** writing standard, and reports each violation under the standard's own section
-  heading. It reads that standard by name in every repo, so it works where the repo's own docs follow a
-  different guide or none at all
-  ([ADR 0057](docs/adr/0057-prose-check-applies-controlled-prose-unconditionally.md)). The default is a
-  read-only report. A trailing `-- fix` rewrites the file in place, or prints the rewrite for pasted
-  text.
 - **`/superdev:review-tests`**. Audits what the test suite costs and what it leaves untested. The cost
   audit sweeps the whole test tree in one pass, runs the repo's optional **timing command** to measure
   it, and reports redundant coverage, overweight fixtures, tautological tests, dead tests, and expensive

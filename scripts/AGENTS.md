@@ -5,7 +5,7 @@
 Standalone deterministic code that `package.json` runs, alongside `plugin/hooks/`.
 The shipped CLIs live in `plugin/scripts/`: `scope.js` (the run-state CLI, ADR 0022), `kb-patch.js`
 (the knowledge-base section merge, ADR 0027), `publish-kb.js` (the backend-independent half of publishing a scope's staged
-knowledge-base pages, ADR 0069), `profile.js` (the run profile, ADR 0103), and `plugin/lib/md-to-storage.js` (the markdown to Confluence `storage` conversion
+knowledge-base pages, ADR 0069), and `plugin/lib/md-to-storage.js` (the markdown to Confluence `storage` conversion
 `lib/kb-apply.js` requires, ADR 0109). Every other module behind them lives in `plugin/lib/` (ADR 0151). The maintainer-only ones live here in `scripts/`: `drift-check.js`
 (the checks of mechanical facts and forbidden forms, ADR 0153), `invariant-check.js` (the invariant register validator,
 ADR 0093), and `run-tests.js` (the suite runner). This doc owns them all regardless of which dir each lives in.
@@ -84,9 +84,7 @@ regex. `hooks/scope-prune.js` requires `baseHistoryHasPatch` — the containment
 differently: the reader missing stops that hook's sweep outright, while the probe missing, because its
 module cannot load or carries no probe, narrows its containment test back to the tree comparison alone,
 silently. A module requires no entry point, so a `require` of a module runs no CLI code, and `scope.js`
-guards its own CLI entry with `require.main === module`. `profile.js` takes
-`mainWorkTree` from `main-work-tree.js` and `SLUG_RE` and `CHANGE_TYPES` from `ledger.js`, so the run profile resolves the
-main working tree and reads a feature label by the same rules the ledger does. `hooks/run-trace.js` takes
+guards its own CLI entry with `require.main === module`. `hooks/run-trace.js` takes
 the trace writer `appendTrace`, the trace reader `readTrace`, and the field decoder `untraceField` from `trace-log.js`, the ledger
 row reader `sliceType` from `ledger.js`, the verification-command reader `verificationCommands` from `verification.js`,
 the tree locator `locate`, the test-path classifier `isTestPath` (ADR 0128), and `treeState` from `run-tree.js`,
@@ -116,7 +114,7 @@ drops the line once none remain, and refuses text that matches no bullet, leavin
 absolute path — `<main-worktree>/.superdev/scopes/<slug>`, where `<main-worktree>` is the parent of
 `git rev-parse --git-common-dir`, or the checkout that directory's `core.worktree` names inside a submodule
 (never the superproject's `.git/modules`) — so it takes no `--root` of its own. `mainWorkTree` in `plugin/lib/main-work-tree.js` is the one
-resolver; `lib/kb-staging.js`, `profile.js`, `lib/status.js`, `lib/fail-to-pass.js`, and `hooks/tree-guard.js` call it. The result is identical whichever
+resolver; `lib/kb-staging.js`, `lib/status.js`, `lib/fail-to-pass.js`, and `hooks/tree-guard.js` call it. The result is identical whichever
 checkout it runs from: the invoking checkout, a scopetree, or a slicetree of the same repository, which is
 what lets every prose caller resolve `<run-root>` the same way regardless of its own cwd. It refuses
 outside a git repository, and refuses a slug carrying a path separator or a leading `.`, since either
@@ -568,175 +566,6 @@ The module guards its CLI entry with `require.main === module`. It exports every
 (ADR 0151): `publish-kb` (the pure readers and the pin that the publish code keeps no copy of what `lib/` owns), `publish-kb-scope` (backend
 configuration refusals and scope selection), `publish-kb-publish` (`upsert` and `delete` end to end), `publish-kb-patch`, `publish-kb-guard` (the live-hash
 guard, the storage body, and `parent:`), `publish-kb-containment`, `publish-kb-read`, `publish-kb-timeout`, and `publish-kb-templates` (the backend templates this repository ships).
-
-### profile.js, the run profile (ADR 0103)
-
-`profile.js` prints where a scope run's wall-clock time went. `skills/profile/SKILL.md` runs it
-and prints the report as written, with no reading of its own (INV-0148). `profile.js` is the CLI and the scope attribution. It requires
-`lib/transcripts.js` (finding and reading the transcripts), `lib/command-keys.js` (command keying), `lib/session-events.js` (the intervals, point
-events, and phase segments), `lib/time-sinks.js` (the sink rules), and `lib/profile-report.js` (the printed report). The script reads the transcripts Claude Code writes under
-`${CLAUDE_CONFIG_DIR:-~/.claude}/projects/` and writes nothing there (INV-0101). The repository's
-transcript directory is the main working tree's absolute path with every non-alphanumeric character
-replaced by `-`. A directory carrying that name plus `--superdev-scopes-` holds the sessions started
-inside one of its run roots, and is read too. A sibling repository whose path only shares the prefix is
-not. Each session's `<session>/subagents/` transcripts and `.meta.json` files are read with it. The
-format is Claude Code's own and undocumented: an entry lacking a field the script reads is reported as
-unrecognized, never counted, and a tree with no recognized entry exits non-zero with "format not
-recognized".
-
-A **phase segment** (`CONTEXT.md`) starts at every superdev command invocation, typed or through the
-`Skill` tool, and runs to the next one. Only implement, review, document, submit-pr, and ship segments
-are reported. A segment belongs to the scope a whole `<change-type>/<slug>` argument names, or the
-right-hand `<change-type>/<slug>` of a `BASE..branch` or `BASE...branch` review-range argument, or a
-lone bare slug argument some cwd read elsewhere in the transcripts evidences as a real run root — never
-a bare word with no such evidence, which would otherwise let a mode word like `audit` or `staged` pass
-for a scope. Only when the arguments name none of these does the segment fall back to the run root any
-entry of the session, or of a subagent it dispatched, ran under (`.superdev/scopes/<slug>/`); a named
-scope is never diluted by a leftover cwd from a session that has not yet cd'ed into it, and a
-`BASE..branch` argument whose right-hand side names no scope falls back the same way. With no slug
-argument, the scope whose segment ended last is profiled, ties broken alphabetically.
-
-The phases view splits each segment's wall-clock time by precedence, so the columns sum to it: human
-wait first (`AskUserQuestion`, a rejected dispatch's own window, and the gap from a turn's end to
-whatever closes it, INV-0102), then subagent time (each `Agent` call's window joined with its subagent
-transcript's own span), then the time of a background Bash call, then idle time, then tool time. The
-background call is a precedence step only: its time reports in the tool column, and the view has no
-separate background column. A turn end is `type: "system"`, an assistant
-entry with no `tool_use` block, a synthetic assistant entry (`message.model === "<synthetic>"` — a
-rate-limit or spend-limit notice, a "No response requested." filler after a cut-off), or an interrupt
-entry (`type: "user"`, not `isMeta`, its text `[Request interrupted by user]` or a variant such as
-`[Request interrupted by user for tool use]`). Consecutive turn ends, with any filler between them, form
-one block, and the gap runs from the block's last real, non-synthetic assistant entry — the model's own
-last real output — walking back only past a turn end that carries none (a thinking-only entry, a
-synthetic notice). The walk-back stops at an interrupt entry instead of walking further back to it,
-since that is where machine work stopped: a real assistant entry still streaming when the operator cuts
-it off never lends its own generation time to the gap. The walk-back likewise stops at a Stop hook
-summary (`type: "system"`, `subtype: "stop_hook_summary"`) that follows the block's last real output,
-so the gap starts at the summary rather than the output before it — the hook's own recorded duration is
-then counted once, as hook time, never also folded into human wait or idle. A block with no real
-assistant entry still starts at its earliest turn end. Harness filler — an attachment (a hook result, a
-SessionStart context block on resume) other than a
-task-notification, a compact summary (the harness's own injected recap after a context compaction), an
-isMeta note wrapped in a harness tag (a caveat ahead of a typed `/command`), or a non-meta
-harness-injected `user` entry that is not itself a task-notification (a local command's own echoed
-stdout) — sits between a turn end and whatever closes the gap, carrying no signal of its own, and is
-walked past rather than closing anything itself. The first entry after the block that is neither filler
-nor a turn end closes the gap: a `user` entry carrying no `tool_result` (a typed prompt — including one
-carrying only an image, with no text of its own — a peer-session message, a plain-text resumption note
-such as "Continue from where you left off." or "Your response above was cut off..."), or a
-task-notification attachment. A typed prompt makes the gap human wait; anything else — a cross-session
-message from a peer Claude Code session, a resumption note, or a task notification — makes it **Idle**
-(CONTEXT.md, INV-0102). There is no separate allow-list of wake shapes: whatever is not a typed prompt is
-idle. Idle only claims what human wait, subagent time, and a background Bash call left uncovered. A
-subagent interval that spans the same gap stays subagent time. A background call that spans it stays tool
-time. Recorded hook durations come out of the tool time around a
-tool hook and out of the remainder for every other hook, and model time is what is left. Several Stop
-hooks in one `stop_hook_summary` run in parallel, so only the slowest one's duration is taken out as hook
-time — the session waited for that one, not their sum — while the per-hook-name breakdown the report
-prints keeps every hook's own duration, so it can sum to more than the hook column. A tool call with
-no result is listed as unfinished and adds nothing (INV-0103). A background Bash call
-(`run_in_background`) returns its own result at launch. It runs from its launch to the first
-task-notification whose `<tool-use-id>` names it, whatever its `<status>` (ADR 0143). That holds in the
-main session and in a subagent, in the phases view and the repeated-commands view alike. A later
-notification for the same call changes nothing, and a notification that names no call adds nothing. A
-background call with no notification is listed as unfinished and adds nothing, its launch included. A dispatch rejected at the permission
-prompt counts its own window as human wait — the operator deciding, not the machine working — while a
-dispatch denied by the auto-mode classifier or blocked by a PreToolUse:Agent hook stays subagent time,
-since the classifier or a hook decided, not the operator. The repeated-commands view drops the body
-lines of a heredoc (`<<[-]?['"]?WORD['"]?` through the line that is exactly WORD, recognized inside a
-double-quoted string only where a `$(` opened earlier in that same quoted span is still open — plain
-quoted text such as `"use <<EOF here"` opens no heredoc) and of a quoted argument that spans several
-lines, so a `node -e '…multi-line…'`, a `cat <<'EOF' … EOF`, or a `git commit -m "$(cat <<'EOF' … EOF )"`
-groups only under its own opening line, never under a body line such as `const` or `Co-Authored-By:`.
-Once a quote closes — on its opening line or a later one — the real code past the closing quote is kept
-and rescanned, so a statement following a multi-line quoted argument on the same physical line
-(`"…multi-line…" && git log …`) still gets its own key. A run of backslashes escapes the character after
-it only when the run's length is odd (`\\"` is an escaped backslash followed by the real closing quote,
-not an escaped quote), except inside a single-quoted string, which has no escapes, and a `#` at a word
-start outside any quote starts a comment that drops the rest of its line. It then splits each Bash call
-into its statements on `&&`, `||`, `;` and line breaks, recognizing an operator only outside a quote — an
-operator inside quoted text (a `;` in a commit message) never splits the statement there, so a quoted
-argument keys once, as its real command, not once per fragment a naive split would cut mid-quote — drops
-a leading `time`, drops a leading shell keyword (`while`, `until`, `do`, `done`, `if`, `then`, `elif`,
-`else`, `fi`, `esac`, `{`, `}`, `(`, `)`) so the real command after it on the same statement keys
-instead (`do bun run test` keys `bun run test`) and a statement left with nothing after the drop keys
-nothing. A `for` or `select` statement keys nothing, since its words are a loop variable and a list; a
-`case … in` header keys nothing and each arm keys its command, the pattern before `)` being no command.
-A backslash-newline joins the next line into the statement, and a `(` or `{` attached to the first word
-is dropped. It keeps each pipeline's first stage past any `cd`, assignment, or redirection.
-A whole `VAR=$(cmd …)` statement, with the substitution optionally double-quoted and the assignment
-optionally led by `export`, `local`, `readonly` or `declare`, keys the command inside the substitution
-instead of the assignment's own leftover word (`SHA=$(git rev-parse HEAD)` keys `git rev-parse`, not
-`rev-parse`). A quote opens only where an odd backslash run does not escape it, in every scan. An interpreter
-(`node`, `python3`, `python`, `bun`, `deno`, `ruby`, `bash`, `sh`) keys instead by its first non-flag
-argument when that argument looks like a script path (`node tests/profile-cli.test.js`) or starts with `$`,
-quoted or not (`node $S`, `node "$S"` both key `node $S`), or by that argument itself when it is an
-inline-source flag (`node -e`, `python3 -c`, `node -`), so each interpreter call keys by what it ran
-rather than collapsing every one under the interpreter's own name; an argument that is neither, such as
-`run` in `bun run test`, falls back to the plain-word rule. An absolute script path, quoted or not, past a
-version-numbered directory — the shape a plugin cache installs a script under
-(`…/superdev/0.41.0/scripts/scope.js`) — keys past that directory (`node scripts/scope.js`), so two
-plugin versions running the same script group under one key rather than splitting one row per version.
-`scope.js` keys by its test-runner mode instead, whatever path ran it. The rows are `scope.js test full`,
-`scope.js test whole`, `scope.js test focused`, `scope.js test --`, and `scope.js fail-to-pass`. A call
-through a shell-variable script argument, such as `node $S test full`, keys the same way. The paths after `focused`, the command after `--`, and the range after `fail-to-pass` never
-enter the key. Every other `scope.js` verb keys by its script path. A call with one key credits its whole duration to that key. A call with
-several keys splits its duration by weights: a key's weight is the median duration of its single-key
-calls across every transcript session the profile reads for the repository, not only the profiled
-scope's segments. A key with no single-key call takes the mean of the other
-keys' weights in that call, or an even split when none has one, and a call whose weights are all 0 splits
-evenly. The count stays the number of calls that ran the command. A call with no command key, such as
-`cd /tmp` or `X=1`, is in no total. The report says how a compound call's time is shared, and that a
-background row counts from launch to completion and can overlap other rows. The dispatches view reads each `Agent` result's
-`totalDurationMs`, `totalToolUseCount`, and `totalTokens`; a background (`run_in_background`) dispatch's
-own result carries none of these, so its figures come from the later task-notification entry's `<usage>`
-block instead, keyed by the dispatch's tool-use id. A dispatch whose notification never arrives is
-reported as "not yet notified", never counted as zero (INV-0101) and never reported unrecognized. A
-failed or killed dispatch's notification carries `<status>` and no `<usage>` block at all. A dispatch
-refused before it ran carries no notification at all — only its own tool_result string: the fixed string
-`User rejected tool use` for a rejection at the permission prompt, a string starting "Error: Permission
-for this action was denied by the Claude Code auto mode classifier" for a classifier denial, or a string
-starting "Error: PreToolUse:Agent hook error:" for a hook block. The report names that status — "failed",
-"killed", "rejected", "denied", or "blocked" — in place of a duration, still never zero and never
-unrecognized. The view groups dispatches whose time spans overlap into numbered parallel batches,
-flagging each batch's longest.
-
-The report closes with the **Time sinks** section (`CONTEXT.md`, ADR 0143), which `timeSinks` builds from
-fixed rules alone (INV-0148). Machine time is the scope's summed phase wall time less human wait and idle.
-A machine-time sink holds at least 20% of it, compared unrounded. The rules are:
-
-- **Test runs.** The `scope.js test` and `scope.js fail-to-pass` keys, and every direct run of a
-  configured verification command (`verificationCommands` from `plugin/lib/verification.js`), each call by its weighted
-  share, with count, total, and median per mode. A direct run takes its mode from its own statement's
-  words. A statement that matches the focused command, with `{paths}` standing for one or more words, is
-  `focused`. A statement equal to the full command is `full`, and one equal to the whole command is `whole`.
-  Any other statement that shares a configured command's key is `whole` when that key belongs to the whole
-  command alone. Otherwise it is `full`. The run is labelled by that mode and joins the row of the same
-  `scope.js test <mode>`. The lever is the focused command in
-  `docs/agents/verification.md` when focused runs and full or whole runs both ran and the focused median
-  is at least 80% of the full-or-whole median. Otherwise it is `/superdev:review-tests`.
-- **Permission mode.** The tool time of the phases run in a prompting permission mode. Approval waits are
-  inside that time, and the lever is the permission mode.
-- **Model time, subagent time per agent type, and hook time per event.** Subagent time is the joined span
-  of that type's dispatches. The hook sink uses the same slowest-hook figure as the phases view, for parallel Stop hooks of one summary. These sinks carry no lever.
-- **Other commands.** Any other key's share, less the time the call overlaps another call's background
-  test run. A loop that polls a background test run therefore counts toward the test-run sink alone. No
-  lever.
-- **Wait.** Human wait plus idle, when it exceeds machine time. With no machine time, it is the only sink
-  that can appear. No lever.
-
-Each call's figure leaves out the human wait it spans. The machine-time denominator leaves out human wait
-and idle (INV-0102). Sinks are listed longest first, ties by name. Every remedy names the
-focused command, `/superdev:review-tests`, or the permission mode, or says the repository holds no lever
-(INV-0149). With no sink, the section says no dominant cause was found. When the report lists unfinished
-calls or unrecognized entries, the section says its figures exclude them.
-
-The exit codes are 0 for a report, 1 for no transcript directory, no segment for the slug, or an
-unrecognized format, and 2 for an argument that is not a slug. Each non-zero exit prints one line on
-stderr, and the first two name the slug and the path searched. Its suites build synthetic
-transcript trees (`tests/profile-setup.js`) in a temporary directory and point `CLAUDE_CONFIG_DIR` and `HOME` at them. They split by topic (ADR 0151):
-`profile` (repeated commands, command keying, background Bash calls), `profile-cli` (unrecognized entries and the CLI), `profile-dispatches`,
-`profile-idle`, `profile-phases`, `profile-scopes`, and `profile-sinks`.
 
 ### run-tests.js, the suite runner
 

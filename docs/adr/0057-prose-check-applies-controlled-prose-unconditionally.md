@@ -1,6 +1,8 @@
 # 0057: `prose-check` applies `controlled-prose.md` unconditionally
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0171](0171-profile-and-prose-check-are-removed.md), which removes `/superdev:profile` and `/superdev:prose-check`.
 
 **Context.** ADR 0012 makes the writing standard **documentation configuration**: a repo opts in with
 `## Writing standard: controlled` in `docs/agents/documentation.md`, and only `doc-writer`/`doc-reader`
