@@ -202,6 +202,27 @@ const RELEASE_TOOLING = ['release.config.cjs', 'package.json', 'bun.lock'];
 // trails code. A citation in a comment is no read.
 const uncommented = (text) => text.replace(/^\s*(?:\/\/|\/?\*).*$/gm, '').replace(/\s\/\/\s.*$/gm, '');
 
+// Whether the string holding the mention at `at` names a path of the repository, by the directory rule of `namedDirs`: the
+// string opens with `./` or `../`, or it is a literal argument of a `path.join` / `path.resolve` call whose first argument
+// is `__dirname`, a `./` or `../` literal, `path.dirname(...)`, or a variable the suite assigns one of those or a
+// `require.resolve` of a relative path. A bare relative string (`'docs/agents/verification.md'`)
+// or a join from any other value (`path.join(S3, 'docs', ...)`) is a fixture tree's path.
+function anchoredString(text, at) {
+  let open = at - 1;
+  while (open >= 0 && !`'"\``.includes(text[open])) open--;
+  if (/^\.\.?\//.test(text.slice(open + 1, at))) return true;
+  const join = text.slice(Math.max(0, open - 400), open).match(/path\.(?:join|resolve)\(\s*([^,()]+(?:\([^()]*\))?)(?:\s*,\s*(['"`])[^'"`]*\2)*\s*,\s*$/);
+  if (!join) return false;
+  const lead = join[1].trim();
+  if (ANCHORED_LEAD.test(lead)) return true;
+  // A variable the suite assigns, anywhere in its text, a `require.resolve` of a relative path or a join from an
+  // anchored leading directory (`const repo = path.join(path.dirname(scopePath), '..')`) is anchored too.
+  return /^[A-Za-z_$][\w$]*$/.test(lead) && new RegExp(
+    `(?:const|let|var)\\s+${escapeRe(lead)}\\s*=\\s*(?:require\\.resolve\\(\\s*['"]\\.|path\\.(?:join|resolve)\\(\\s*(?:__dirname\\b|['"\`]\\.\\.?\\/|path\\.dirname\\())`,
+  ).test(text);
+}
+const ANCHORED_LEAD = /^(?:__dirname|(['"`])\.\.?\/[^'"`]*\1|path\.dirname\([^()]*\))$/;
+
 // Whether a named directory holds the repository-relative path `rel`.
 function under({ segs, anchored }, rel) {
   const dir = path.posix.dirname(rel).split('/');
@@ -213,8 +234,8 @@ function under({ segs, anchored }, rel) {
 // The suites a change set reaches, as a subset of `suites`, in suite order. A suite is reached when
 // its own text names a changed file (its basename, or its bare stem between path or quote
 // delimiters; a basename another file of the tree shares counts only with a directory part, `namesShared`; a `.md`
-// basename counts only where it ends a string outside a comment, `'AGENTS.md'` or `'docs/x.md'`, the form a read
-// takes, so a citation or a sentence of fixture text that mentions it is no read), when the file its name pins (`pinnedBy`) is the changed file, when the changed file is reached by
+// basename counts only where it ends a string outside a comment, in a path anchored the way a named directory is,
+// `anchoredString`, so a citation, a sentence of fixture text, or a fixture tree's path is no read), when the file its name pins (`pinnedBy`) is the changed file, when the changed file is reached by
 // relative `require` edges, walked transitively through modules (`plugin/lib/` files and non-suite files under
 // `tests/`), from that pinned file or from the suite file itself, or when the changed path is the suite itself. A `.md` path also reaches a suite whose text names a directory
 // holding it (`namedDirs`), because a suite may list or scan a directory; a code path never takes the
@@ -245,7 +266,9 @@ function selectSuites(root, suites, paths) {
     const read = new RegExp(`(?<=['"\`/])${escapeRe(base)}(?=['"\`])`, 'g');
     const names = (text) => {
       const scanned = rel.endsWith('.md') ? uncommented(text) : text;
-      return [...scanned.matchAll(rel.endsWith('.md') ? read : named)].some((m) => !shared || namesShared(scanned.slice(0, m.index), rel));
+      return [...scanned.matchAll(rel.endsWith('.md') ? read : named)].some(
+        (m) => (!rel.endsWith('.md') || anchoredString(scanned, m.index)) && (!shared || namesShared(scanned.slice(0, m.index), rel)),
+      );
     };
     let placed = rel.startsWith(MOD_DIR) || RELEASE_TOOLING.includes(rel);
     suites.forEach((file, i) => {

@@ -647,9 +647,12 @@ it. A basename more than one file of the tree carries (`AGENTS.md`, `hooks.json`
 worktree under `.claude/worktrees/` does not count) names a file only through a directory part its path ends with: the
 path text before the mention with `./` and `../` dropped, or the literal arguments before it in a `path.join` call. A
 bare mention of such a basename names the file at the repository root. A `.md` path follows the same naming rule, because a suite may execute or pin a document,
-with one narrowing: its basename counts only where it ends a string outside a comment (`'AGENTS.md'`, `'docs/x.md'`), the
-form a read takes. A comment citation (`// (AGENTS.md, ADR 0086)`) or a sentence of fixture text that mentions the name
-is no read (
+with one narrowing: its basename counts only where it ends a string outside a comment, and only in a path anchored the
+way a named directory is (below): a `./` or `../` string (`'../docs/x.md'`), or a literal argument of a join from
+`__dirname`, a `./` or `../` literal, `path.dirname(...)`, or a variable the suite's text assigns one of those or a
+`require.resolve` of a relative path (`const repo = path.join(path.dirname(scopePath), '..')`). A comment citation
+(`// (AGENTS.md, ADR 0086)`), a sentence of fixture text, a bare relative string (`'docs/agents/verification.md'`), and a
+join from any other value (`path.join(S3, 'docs', 'agents', 'verification.md')`) build no read of the repository's file (
 `tests/publish-kb-templates.test.js` runs the templates of `docs/agents/knowledge-base.md`, `tests/scope-ledger.test.js` pins a
 sentence of `plugin/references/scope-mode.md`). A `.md` path also reaches a suite whose text names a directory
 holding it, because a suite that lists or scans a directory reads every document in it

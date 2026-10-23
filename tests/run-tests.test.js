@@ -234,17 +234,24 @@ const picked = (root, paths) =>
 }
 
 // A `.md` path reaches the suites whose text names it, the way a code path does, and never the every-suite fallback.
+// The name counts only in a path anchored the way a named directory is: a `./` or `../` string, or a join from
+// `__dirname`, a `./` or `../` literal, `path.dirname(...)`, or a variable the suite assigns one of those. A bare relative
+// string or a join from any other value builds a fixture tree's path.
 {
+  const J = `path${'.'}join`;
   const root = tree({
-    'tests/doc.test.js': suite('doc') + "\nfs.readFileSync('docs/x.md');\n",
+    'tests/doc.test.js': suite('doc') + "\nfs.readFileSync('../docs/x.md');\n",
+    'tests/repo.test.js': suite('repo') + `\nconst repo = ${J}(__dirname, '..');\nfs.readFileSync(${J}(repo, 'docs', 'x.md'));\n`,
+    'tests/fixture.test.js': suite('fixture') + `\nconst files = { 'docs/x.md': '' };\nfs.writeFileSync(${J}(tmp, 'docs', 'x.md'), '');\nfs.writeFileSync(${J}('docs', 'x.md'), '');\n`,
     'tests/plain.test.js': suite('plain'),
   });
-  assert.deepStrictEqual(picked(root, ['docs/x.md']), ['doc'], 'a suite naming the .md path runs');
+  assert.deepStrictEqual(picked(root, ['docs/x.md']), ['doc', 'repo'], 'a suite reading the .md path runs; one writing it into a fixture tree does not');
   assert.deepStrictEqual(picked(root, ['docs/unnamed.md']), [], 'a .md path no suite names selects none');
   const real = (md) => selectSuites(repoRoot, discoverSuites(path.join(repoRoot, 'tests')), [md]).map((f) => path.basename(f, '.test.js'));
   assert.ok(real('docs/agents/knowledge-base.md').includes('publish-kb-templates'), 'publish-kb executes the knowledge-base templates');
   assert.ok(real('plugin/references/knowledge-base-confluence.md').includes('publish-kb-templates'), 'publish-kb executes the confluence template');
   assert.ok(real('plugin/references/scope-mode.md').includes('scope-ledger'), 'the scope suite pins a sentence of scope-mode.md');
+  assert.deepStrictEqual(real(['docs', 'agents', ['verification', 'md'].join('.')].join('/')), [], 'a fixture verification.md selects no suite');
 }
 
 // A `.md` path under a directory a suite names reaches that suite: a suite that lists or scans a directory reads
@@ -321,11 +328,11 @@ const picked = (root, paths) =>
     [`sub/${G}`]: '',
     [`other/deep/${G}`]: '',
     'docs/manual.md': '',
-    'tests/rootcite.test.js': suite('rootcite') + `\nfs.readFileSync('${G}');\n`,
-    'tests/subcite.test.js': suite('subcite') + `\nfs.readFileSync('sub/${G}');\n`,
+    'tests/rootcite.test.js': suite('rootcite') + `\nfs.readFileSync('../${G}');\n`,
+    'tests/subcite.test.js': suite('subcite') + `\nfs.readFileSync('../sub/${G}');\n`,
     'tests/deepcite.test.js': suite('deepcite') + `\nfs.readFileSync('../other/deep/${G}');\n`,
-    'tests/tailcite.test.js': suite('tailcite') + `\nconst t = 'deep/${G}';\n`,
-    'tests/uniq.test.js': suite('uniq') + "\nfs.readFileSync('docs/manual.md');\n",
+    'tests/tailcite.test.js': suite('tailcite') + `\nfs.readFileSync(${J}(path.dirname(hookPath), 'deep', '${G}'));\n`,
+    'tests/uniq.test.js': suite('uniq') + "\nfs.readFileSync('../docs/manual.md');\n",
     'tests/comment.test.js': suite('comment') + `\n// (${G}, ADR 0001) and \`docs/manual.md\`\nx(); // see sub/${G}\n`,
     'tests/prose.test.js': suite('prose') + `\nconst line = '- [ ] ${G} names the verb';\n`,
     'tests/joincite.test.js': suite('joincite') + `\nfs.readFileSync(${J}(__dirname, '..', 'other', 'deep', '${G}'));\n`,
