@@ -380,6 +380,48 @@ whole rule.
 **Every stop above writes nothing.** No run starts and no ledger entry is written. None is a degraded
 pass either: `## Degraded passes` records work done a lesser way, and here no work happens.
 
+## Pushing the scope branch
+
+`/superdev:plan` puts the scope branch on the remote at the end of every plan run, so a `resumed` run on
+another machine finds it there (ADR 0167, INV-0087). `/superdev:submit-pr` and `/superdev:ship` push later
+in the chain, and no other command pushes a scope branch. Plan pushes before any slice runs, so the branch
+it pushes holds the design captures and nothing a slice built.
+
+Run the push in the controller's own Bash call, from the invoking checkout:
+
+```sh
+node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" push --root <run-root> --remote <remote> --base <base>
+```
+
+`<remote>` is the `Remote:` value of `docs/agents/code-management.md`, and `<base>` is that document's base
+branch. **No `Remote:` value** → skip the push, say once that the branch stays local, and name no default
+remote in its place.
+
+The verb reads the branch from the ledger's `**Branch:**` line, fetches the remote branch, and decides the
+**push mode** (`CONTEXT.md`) from the remote tip it fetched:
+
+- **No remote branch, or a remote tip that is an ancestor of the local tip** → a plain push with an upstream
+  set. It prints `pushed`.
+- **A remote tip that `## Containment` proves contained in `<base>`** → a push through
+  `--force-with-lease` naming that exact tip, so a remote that moved since the fetch rejects it (INV-0169).
+  It prints `overwritten`.
+- **Any other remote tip** → no push. It prints `refused` and the remote tip's commits that the base the
+  containment test judged does not hold, the base refetched from the remote when the refetch ran.
+
+Every case the verb cannot decide pushes nothing: `unreachable` and `credential-rejected` (a failed fetch, the
+containment test's refetch of `<base>` included, read under the C locale), `timed-out` (a git call its own bound ended, the refetch of `<base>`
+included, which carries no verdict, INV-0009), and `push-failed` (the remote rejected the push, a moved lease
+included). The verb exits 0 on `pushed` and `overwritten`, 3 on every outcome that pushed nothing, and 1 on a
+usage refusal, a `**Branch:**` line naming `<base>` included, so it never pushes base. It writes nothing to the
+ledger.
+
+**The push is best-effort**, as the snapshot publish is (`## Publishing run state`). An outcome that pushed
+nothing is reported once in the command's output: the outcome word, the `git push -u <remote> <branch>` line
+the verb printed for the operator to run by hand, and the consequence — until the branch is on the remote,
+`/superdev:implement` on another machine stops at its `resumed` fetch. On `refused`, the report also lists
+the commits the verb printed, and names no command that would overwrite them. The command then continues
+as if the push had succeeded: no ledger stage, step, or published snapshot changes because of it.
+
 ## The scope checkout
 
 **Resolve the scope branch first**, per `## The scope branch`, never from the slug alone. Then find the

@@ -733,6 +733,23 @@ assert.equal(decide(sub('echo "it\'s a push"')).block, false, 'a quoted text wit
   assert.ok(big < 50 * base, `a long run of newlines must scale linearly: 2000 took ${base} ns, 20000 took ${big} ns`);
 }
 
+// `scope.js push` puts a scope branch on the remote through a git spawn of its own (ADR 0167): a subagent's call is
+// denied like a `git push`, behind a wrapper, in a quoted text, or unreadable; the controller's (plan's) call is allowed.
+for (const c of [
+  'node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" push --root r --remote origin --base main',
+  'node /x/plugin/scripts/scope.js push --root r',
+  'cd x && env A=1 node scope.js push',
+  './scope.js push',
+  'sh -c "node scope.js push --root r"',
+  'node scope.js push $(',
+]) {
+  assert.equal(decide(sub(c)).block, true, 'a subagent scope.js push is denied: ' + c);
+}
+assert.equal(decide(ctl('node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" push --root r --remote origin --base main')).block, false, 'the controller runs scope.js push');
+for (const c of ['node scope.js trace --slice 1 --root r', 'node scope.js test focused tests/push.test.js', 'node scope.js base resolve --branch HEAD']) {
+  assert.equal(decide(sub(c)).block, false, 'another scope.js verb is allowed: ' + c);
+}
+
 // require.main guard: requiring this hook must never run main()'s stdin/decide dispatch, and
 // spawning it directly (as Claude Code's hook invocation does) must still decide exactly as before
 // the guard was added.

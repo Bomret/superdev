@@ -22,10 +22,10 @@ This doc owns what each script guards and the contracts between them. Repo-wide 
 `scope.js` owns the CLI and the verbs, and requires only modules from `plugin/lib/` (ADR 0151). Each verb's code lives in
 a module of its own: the ledger verbs in `ledger-lifecycle.js` and `ledger-records.js`, `suite` and `base` and `get` in
 `suite-base-get.js`, `test` in `test-verb.js`, `publish` with `adopt` in `run-state.js`, and `dod-line`, `fail-to-pass`,
-`citations`, `collisions`, `source-set`, and `status` each in the module of its name. The vocabulary beneath them is `ledger.js` (the stage rank and the readers and writers of
+`citations`, `collisions`, `source-set`, `push`, and `status` each in the module of its name. The vocabulary beneath them is `ledger.js` (the stage rank and the readers and writers of
 a ledger's header lines, bullets, and table rows), `refusal.js` (the refusal error `fail`), `verification.js` (`verificationCommands`,
 `verificationCommandsOf`, `isTestPath`), `git-spawn.js` (`gitSpawn`, `gitThrow`, `parseBranchList`, `resolveCommit`, `refResolves`, `fileAt`),
-`containment.js` (`testContainment`, `baseHistoryHasPatch`), `main-work-tree.js` (`mainWorkTree`, `scopesDirFor`, `mainTreePath`), and
+`containment.js` (`testContainment`, `judgeContainment`, `baseHistoryHasPatch`), `main-work-tree.js` (`mainWorkTree`, `scopesDirFor`, `mainTreePath`), and
 `trace-log.js` (`appendTrace`, `readTrace`, `traceField`, `untraceField`). The root [`AGENTS.md`](../AGENTS.md) *Structure* names every module and its
 responsibility. `scope.js` keeps every export it had. No module requires an entry point. `scope.js` owns the ledger's schema through `ledger.js` and is the only `ledger.md` read and write path in the chain:
 `init`, `stage set`, `slice`, `degraded add|add-denial|reset-denials`, `unresolved add|clear`,
@@ -37,7 +37,7 @@ responsibility. `scope.js` keeps every export it had. No module requires an entr
 `base set <sha>`, `base resolve --branch <b> --base <ref>`,
 `get stage|branch|anchor|slices|unresolved|degraded|deferred|denials|docs|pr|suite`,
 `status` (which renders the whole `/superdev:status` report), `trace [--slice <id>]` (prints the run trace, read-only), `publish`, `adopt`, `root <slug>`,
-`staging <scope> [--count]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `citations --range-base <ref> --branch <ref> <id>…`, `source-set [<path>]`, `dod-line`, `fail-to-pass <base>..<tip>`, and `test`.
+`staging <scope> [--count]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `citations --range-base <ref> --branch <ref> <id>…`, `source-set [<path>]`, `push --root <run-root> --remote <remote> --base <base-ref>`, `dod-line`, `fail-to-pass <base>..<tip>`, and `test`.
 `--help` or `-h`, alone or after any verb, prints the usage and exits 0, except that a flag's value, or the text after `add`, `add-denial`, `reset-denials`, or `resolve`, is data and never a help request. It is checked before any verb
 reads stdin or touches a ledger, so a stdin verb such as `dod-line` never waits on input for it.
 `suite set` writes the **suite record** (CONTEXT.md) — the last full-suite run's result and the commit
@@ -226,7 +226,7 @@ holds the setup they share and is no suite. `tests/scope-test-verb.test.js` hold
 the `fail-to-pass` verb's. The rest: `scope-ledger` (init, stage, step, slice, the bullet and header records, get, status, and the ledger-fixtures pin),
 `scope-ledger-header` (`readLedgerHeader`), `scope-suite` (the suite and base records), `scope-dod-line`, `scope-publish-adopt` (`publish`, `adopt`, and the
 `maskFencedLines` pin), `scope-trace` (the run trace and `appendTrace`), `scope-root-base` (`root`, `staging`, `base` from a linked worktree),
-`scope-containment`, `scope-citations-collisions`, `scope-source-set`, and `scope-help`. A focused run for `scope.js`, or for a module it requires, selects
+`scope-containment`, `scope-citations-collisions`, `scope-source-set`, `scope-push`, and `scope-help`. A focused run for `scope.js`, or for a module it requires, selects
 every suite that reaches it (`run-tests.js`, below).
 
 `source-set [<path>]` prints the gap audit's source set and touches no ledger and no run root (ADR 0162). It prints one
@@ -237,6 +237,23 @@ root. The test-path rule is `verification.js`'s `testPathPatterns`, the classifi
 `## Test paths` of `docs/agents/verification.md` decide, or their defaults where it has none. An untracked file is outside the
 set, and so is an index entry that is no regular file on disk (a submodule gitlink, a file deleted from the working tree). An extensionless name counts as a doc in any case when it is `readme`, `history`, `changes`, `notice`, `changelog`, `authors`, `codeowners`, `contributors`, `license`, `licence`, or `copying` (`DOC_NAME_RE`). A `LICENSE` or `COPYING` stem also counts with a `-` suffix and no extension in any case, or with any `-` or `.` suffix in uppercase (`LICENSE-MIT`, `license-apache`, `COPYING.LESSER`). A lowercase or mixed-case stem with an extension is code (`license.js`, `license-check.js`). A `<path>` that does not exist refuses, naming it. A directory that is no git repository refuses too, and a set with no file prints nothing and exits 0.
 `/superdev:review-tests` §1 calls it. The classification lives in `plugin/lib/source-set.js`.
+
+`push --root <run-root> --remote <remote> --base <base-ref>` puts the scope branch on the remote and writes nothing to the
+ledger (ADR 0167, INV-0169). `/superdev:plan` §6 calls it, and `plugin/references/scope-mode.md`'s
+`## Pushing the scope branch` states the rule plan follows. The verb reads the branch from the ledger's `**Branch:**` line,
+fetches the remote branch, and decides the push mode from the fetched tip's full commit id, never from the branch name,
+which resolves to the local branch first. It makes a plain push with `-u` when the remote holds no such branch or its tip is
+an ancestor of the local tip, prints `pushed`, and exits 0. It makes a push with `--force-with-lease=<ref>:<tip>` when
+`judgeContainment` proves `<base-ref>` holds that tip, prints `overwritten`, and exits 0. It pushes nothing on any other tip,
+prints `refused` and the tip's commits that the base the containment test judged against does not hold (the refetched base,
+never a stale local one), and exits 3. A failed fetch of the branch or of `<base-ref>` prints `unreachable` or
+`credential-rejected`, a git call its own bound ended prints `timed-out` (INV-0009), and a push the remote rejected prints
+`push-failed`. Each of these exits 3 and names the `git push -u <remote> <branch>` line to run by hand. A usage refusal,
+a missing ledger, a ledger with no `**Branch:**` line, or a `**Branch:**` line that names `<base-ref>` exits 1.
+`hooks/merge-guard.js` denies a subagent's run of this verb, as it denies a subagent's plain push. Every git call runs with `GIT_TERMINAL_PROMPT=0` and
+`--end-of-options` ahead of a remote or revision argument, and every network call carries a time bound of 60000 ms and a
+kill signal, the refetch of `<base-ref>` inside the containment test included. `SUPERDEV_PUSH_TIMEOUT_MS` overrides the bound. The code lives in `plugin/lib/push.js`, and
+`tests/scope-push.test.js` holds its cases.
 
 `dod-line` is another verb that touches no ledger, and makes no store call of its own
 (`references/dod-ticks.md`, INV-0014, triage #664): `--match <criterion text>|--match-file <path>
@@ -450,7 +467,7 @@ a quote, a `$`, a backtick, or a newline therefore reaches the backend unchanged
 its own.
 
 Every template runs under a **30-second bound** (ADR 0130), applied at `runTemplate`'s own `spawnSync`
-with `killSignal: 'SIGKILL'` — the same shape `testContainment` in `plugin/lib/containment.js` bounds its `git fetch`
+with `killSignal: 'SIGKILL'` — the same shape `judgeContainment` in `plugin/lib/containment.js` (the function `testContainment` delegates to) bounds its `git fetch`
 with. The bound sits in the script rather than in the templates, so it covers an operator-written
 template carrying no `curl --max-time` of its own. `SUPERDEV_PUBLISH_KB_TIMEOUT_MS` overrides it, and
 sits outside the `SUPERDEV_KB_` prefix on purpose: `fieldsToEnv` forwards every key a `find` result
@@ -862,7 +879,7 @@ path, when that document is missing. A check that walks a directory reads whatev
 | Check | What it tests | Class |
 |-------|---------------|-------|
 | `reference` | every `references/*.md` path that `skills/`, `agents/`, or `references/` names exists | structural |
-| `source-sections` | `plan-contract.md`, `test-selection.md`, `content-types.md`, `controlled-prose.md`, and `review-checklist.md`, and each agent body another file cites by heading, still carry each section a reader is sent to, by heading | structural |
+| `source-sections` | `plan-contract.md`, `test-selection.md`, `content-types.md`, `controlled-prose.md`, `review-checklist.md`, and `scope-mode.md`'s `## Pushing the scope branch`, and each agent body another file cites by heading, still carry each section a reader is sent to, by heading | structural |
 | `command-resolution` | every `/superdev:<name>` a skill or agent names has a `skills/<name>/SKILL.md` | structural |
 | `readme-commands` | `README.md` names every shipped skill as `/superdev:<name>`, and no command without one | structural |
 | `audit-set-globs` | `docs/agents/documentation.md` carries `## Audit set`, and every pattern listed there matches a file | structural |

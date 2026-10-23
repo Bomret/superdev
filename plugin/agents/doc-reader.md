@@ -64,7 +64,7 @@ Read the file the value names and apply every rule it states.
 
 Applies to every dispatch.
 
-- Use read-only git only. A hook blocks `git merge`, `push`, `rebase`, `pull`, `subtree push`, `gh` and `tea pr merge`, and a `tea api` or `gh api` write to a pull request's `/merge` endpoint.
+- Use read-only git only. A hook blocks `git merge`, `push`, `rebase`, `pull`, `subtree push`, `scope.js push`, `gh` and `tea pr merge`, and a `tea api` or `gh api` write to a pull request's `/merge` endpoint.
 - You change nothing in the repository: no edit, no commit.
 - You report, and the controller re-dispatches the doc-writer to fix.
 

@@ -32,7 +32,7 @@ Concepts: Containment, Scope branch, Base branch
 Statement: A containment test answers contained only on positive evidence that base holds the branch's work — an equal tree, or a patch id base's history carries. Every path that cannot answer, whether a failed git call, an exhausted bound, or an unresolved ref, answers not contained.
 Breaks: silently
 Check: tests/scope-containment.test.js, tests/scope-prune-containment.test.js, tests/scope-prune-guards.test.js — each failure path asserted to answer not contained
-Symbols: testContainment, baseHistoryHasPatch, containedInBase
+Symbols: testContainment, judgeContainment, baseHistoryHasPatch, containedInBase
 Paths: plugin/lib/containment.js, plugin/lib/git-spawn.js, plugin/hooks/scope-prune.js, plugin/references/scope-mode.md
 
 ### INV-0004
@@ -84,10 +84,10 @@ Paths: plugin/skills/plan/**, plugin/references/plan-contract.md
 
 Class: architecture
 Concepts: No verdict, Containment
-Statement: A spawn whose own bound expired, whether or not its kill succeeded, carries no verdict, on `plugin/scripts/scope.js`, `plugin/lib/containment.js`, and the `plugin/skills/ship/SKILL.md` and `plugin/skills/submit-pr/SKILL.md` skills. No gate reads its absence as a pass, and no assertion about behaviour stands on it. Such a spawn is reported as killed, never as a decision it never made. A spawn that never started carries a Spawn failure instead, which this rule does not govern (ADR 0087).
+Statement: A spawn whose own bound expired, whether or not its kill succeeded, carries no verdict, on `plugin/scripts/scope.js`, `plugin/lib/containment.js`, `plugin/lib/push.js`, and the `plugin/skills/ship/SKILL.md` and `plugin/skills/submit-pr/SKILL.md` skills. No gate reads its absence as a pass, and no assertion about behaviour stands on it. Such a spawn is reported as killed, never as a decision it never made. A spawn that never started carries a Spawn failure instead, which this rule does not govern (ADR 0087).
 Breaks: silently
-Check: tests/spawn-verdict.test.js — the helper's throw-or-not and message for the killed, never-started, EPIPE-but-decided, and genuinely-decided result shapes; tests/scope-containment.test.js — the refetch asserts the kill signal rather than the clock
-Paths: plugin/scripts/scope.js, plugin/lib/containment.js, plugin/skills/ship/SKILL.md, plugin/skills/submit-pr/SKILL.md, tests/**
+Check: tests/spawn-verdict.test.js — the helper's throw-or-not and message for the killed, never-started, EPIPE-but-decided, and genuinely-decided result shapes; tests/scope-containment.test.js — the refetch asserts the kill signal rather than the clock; tests/scope-push.test.js — a refetch of base its bound ended prints `timed-out`, never `refused`
+Paths: plugin/scripts/scope.js, plugin/lib/containment.js, plugin/lib/push.js, plugin/skills/ship/SKILL.md, plugin/skills/submit-pr/SKILL.md, tests/**
 
 ### INV-0010
 
@@ -731,10 +731,10 @@ Paths: plugin/skills/document/SKILL.md
 
 Class: architecture
 Concepts: Scope branch, Code host
-Statement: No superdev command other than /superdev:submit-pr and /superdev:ship pushes a scope branch. Planning, implementing, reviewing, and documenting work on the local scope branch only, so nothing unreviewed reaches the code host before submit-pr opens the pull request. Ship pushes twice over its own run: once for a base merge that moved, once for a commit review's own fix loop or an operator's own conflict resolution landed at stage submitted with no base merge involved — both gated on a reusable green record for the pushed tip, and both moving the open pull request's head, never straight to base (INV-0001), since the merge onto base still runs only through the host's own merge API.
+Statement: No superdev command other than /superdev:plan, /superdev:submit-pr, and /superdev:ship pushes a scope branch. Plan pushes once, at the end of its run and before any slice runs, so the pushed branch holds no slice work (ADR 0167). Implementing, reviewing, and documenting work on the local scope branch only, so no unreviewed code reaches the code host before submit-pr opens the pull request. Ship pushes twice over its own run: once for a base merge that moved, once for a commit review's own fix loop or an operator's own conflict resolution landed at stage submitted with no base merge involved — both gated on a reusable green record for the pushed tip, and both moving the open pull request's head, never straight to base (INV-0001), since the merge onto base still runs only through the host's own merge API.
 Breaks: silently
-Check: none — final-reviewer's invariant compliance judges it; it holds because the only push instructions in shipped prose are /superdev:submit-pr §5 and /superdev:ship §4, and the code-management seeds they read
-Paths: plugin/skills/**, plugin/references/**
+Check: none — final-reviewer's invariant compliance judges it; it holds because the only push instructions in shipped prose are /superdev:plan §6 (through `scope.js push`), /superdev:submit-pr §5, and /superdev:ship §4, and the code-management seeds they read
+Paths: plugin/skills/**, plugin/references/**, plugin/lib/**, plugin/scripts/scope.js
 
 ### INV-0088
 
@@ -1397,3 +1397,12 @@ Statement: `/superdev:review` resolves a path argument that names the invoking c
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/review/SKILL.md
+
+### INV-0169
+
+Class: architecture
+Concepts: Scope branch, Containment, Code host
+Statement: A superdev push overwrites a remote scope branch only when the containment test proves base already holds that remote tip's content, and only through a lease naming that exact tip; no superdev push uses a bare force, and a remote tip the test does not prove contained is never overwritten (ADR 0167).
+Breaks: silently
+Check: tests/scope-push.test.js — the lease push on a contained remote tip, the rejected lease on a remote that moved after the fetch, and the refusal of a foreign remote tip, a local namesake included, and a `**Branch:**` line naming base refused with nothing pushed
+Paths: plugin/lib/**, plugin/scripts/scope.js, plugin/skills/plan/SKILL.md, plugin/references/scope-mode.md

@@ -342,6 +342,11 @@ const SOURCE_SECTION_CONTRACTS = [
     'carry the `## Prompt-concept overlap` section, which `skills/review/SKILL.md`, ' +
       '`references/AGENTS.md`, `CONTEXT.md`, and the root `AGENTS.md` cite',
   ],
+  [
+    path.join('references', 'scope-mode.md'),
+    /^#{2,3}\s+Pushing the scope branch\s*$/m,
+    'carry the `## Pushing the scope branch` section, which `skills/plan/SKILL.md` §6 cites (ADR 0167)',
+  ],
   // Agent-body headings another file cites by name. A template heading counts: the review skill and
   // `dod-ticks.md` send their reader to the section the agent's output carries under it.
   [

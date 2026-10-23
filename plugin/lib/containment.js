@@ -162,22 +162,34 @@ function baseHistoryHasPatch(cwd, base, branch) {
 // as an argument to any git subcommand this function calls, and a genuinely unreachable `remote` degrades
 // to the local verdict within `FETCH_TIMEOUT_MS` rather than blocking on the network indefinitely.
 function testContainment(cwd, base, branch, remote = 'origin') {
+  return judgeContainment(cwd, base, branch, remote).verdict;
+}
+
+// The same test, returning what a caller that must tell an undecided verdict apart needs beside it (`push.js`,
+// INV-0009): `verdict`, `refetch` (the refetch's spawn result, or null when no refetch ran), and `judgedBase`
+// (the base the verdict was judged against: `base`, or the commit id the refetch brought). `fetchTimeoutMs`
+// replaces the refetch's bound.
+function judgeContainment(cwd, base, branch, remote = 'origin', { fetchTimeoutMs = FETCH_TIMEOUT_MS } = {}) {
+  const result = (verdict, refetch = null, judgedBase = base) => ({ verdict, refetch, judgedBase });
   const ref = qualifyBranch(branch, cwd);
-  if (!refResolves(ref, cwd)) return 'could-not-resolve';
+  if (!refResolves(ref, cwd)) return result('could-not-resolve');
 
   const writeTreeSupported = supportsWriteTree(cwd);
   const local = containedAgainst(ref, base, cwd, writeTreeSupported);
-  if (local === 'contained') return 'contained';
-  if (local === 'inconclusive' && baseHistoryHasPatch(cwd, base, ref)) return 'contained';
+  if (local === 'contained') return result('contained');
+  if (local === 'inconclusive' && baseHistoryHasPatch(cwd, base, ref)) return result('contained');
 
   // Not contained against the local base — refetch before answering (ADR 0065). A fetch that fails
   // (no remote configured, an unreachable host, a rejected credential) leaves the local verdict
   // standing rather than erroring. `timeout`/`killSignal` bound a black-holed host to the same short
   // wait: `spawnSync` otherwise blocks on the connect for as long as the kernel's own TCP timeout runs,
   // which is minutes, not the "leaves the first verdict standing" scope-mode.md already promises.
+  // The stderr is kept, in git's own English (the C locale), for a caller that reads why the refetch failed
+  // (`push.js` tells a rejected credential from an unreachable remote); the verdict reads the status alone.
   const fetched = gitSpawn(['fetch', '--end-of-options', remote, base], cwd, {
-    env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
-    timeout: FETCH_TIMEOUT_MS,
+    env: { ...process.env, GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' },
+    stdio: ['ignore', 'pipe', 'pipe'],
+    timeout: fetchTimeoutMs,
     killSignal: 'SIGKILL',
   });
   if (fetched.status !== 0) {
@@ -191,12 +203,15 @@ function testContainment(cwd, base, branch, remote = 'origin') {
     if (fetched.signal != null) {
       process.stderr.write(`refetch ended by its own bound (signal ${fetched.signal}) — no verdict\n`);
     }
-    return 'not-contained';
+    return result('not-contained', fetched);
   }
-  const fresh = containedAgainst(ref, 'FETCH_HEAD', cwd, writeTreeSupported);
-  if (fresh === 'contained') return 'contained';
-  if (fresh === 'inconclusive' && baseHistoryHasPatch(cwd, 'FETCH_HEAD', ref)) return 'contained';
-  return 'not-contained';
+  // The fetched base as a commit id, read before anything else can overwrite FETCH_HEAD.
+  const head = gitSpawn(['rev-parse', '--verify', '--quiet', 'FETCH_HEAD^{commit}'], cwd);
+  const fetchedBase = head.status === 0 ? head.stdout.trim() : 'FETCH_HEAD';
+  const fresh = containedAgainst(ref, fetchedBase, cwd, writeTreeSupported);
+  if (fresh === 'contained') return result('contained', fetched, fetchedBase);
+  if (fresh === 'inconclusive' && baseHistoryHasPatch(cwd, fetchedBase, ref)) return result('contained', fetched, fetchedBase);
+  return result('not-contained', fetched, fetchedBase);
 }
 
-module.exports = { testContainment, baseHistoryHasPatch, PROBE_MAX_BUFFER };
+module.exports = { testContainment, judgeContainment, baseHistoryHasPatch, PROBE_MAX_BUFFER };

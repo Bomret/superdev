@@ -93,6 +93,14 @@ plan runs test-first, inline in the scopetree.
   one. The command also tells you the execution tier `/superdev:implement` uses for the final slice count
   (see below).
 
+  At the end of every run the command pushes the scope branch to the remote that
+  `docs/agents/code-management.md` names. The plan can then be implemented on another machine or by
+  another person, because `/superdev:implement` there adopts the anchor's run state and fetches the branch.
+  The push overwrites a remote copy of the branch only when the base branch already holds that copy's
+  content, and only through a lease on its exact tip. It refuses any other remote copy and lists its
+  commits. A push that fails or is refused is reported once, with the command to run by hand, and the plan
+  still finishes (ADR 0167).
+
   Run it again against a feature that already has slices, and it **appends**. New slices land on top of
   the ones already merged, and the command never edits, renumbers, or re-litigates any of them. An
   **anchor dependency** is a recorded relation saying this feature waits on another feature. But
@@ -344,7 +352,7 @@ read ([ADR 0003](docs/adr/0003-doc-reconcile-runs-serially.md)).
 The hooks are cross-platform Node. They need `node` on PATH (see [Install](#install)), so there are no
 bash or PowerShell variants.
 
-- **merge-guard.** Blocks `git merge`, `git push`, `git rebase`, `git pull`, `git subtree push`, a git
+- **merge-guard.** Blocks `git merge`, `git push`, `git rebase`, `git pull`, `git subtree push`, `scope.js push`, a git
   alias defined inline that runs one of them (`git -c alias.p=push p`, its value split with quotes and backslashes as git
   splits it, read past git's global options, and followed through a chain of inline aliases, an alias a value defines included;
   a `!` value is read as a shell command line with the arguments git appends to it, each one a single quoted word as git's `"$@"` passes it), one of them typed under an inline alias of its own name, which git ignores
@@ -380,7 +388,7 @@ bash or PowerShell variants.
   (`git commit -m "git push fails behind rtk"`), or a pull request body passed as a quoted word. A command the scanner cannot read to its end, and a quoted text that does not read as a
   command line (a commit message with a parenthesis or an apostrophe), is blocked only when its raw text
   holds the word `git` and, later, `merge`, `push`, `rebase`, or `pull`, or the word `gh` or `tea` and, later,
-  `pr merge`, `pulls merge`, or `pull merge`. A scanner that cannot load blocks the call and names the broken install. The controller
+  `pr merge`, `pulls merge`, or `pull merge`, or the word `scope.js` and, later, `push`. A scanner that cannot load blocks the call and names the broken install. The controller
   integrates.
 - **model-explicit.** Blocks a dispatch to a superdev subagent that omits an explicit `model`, so cost
   is always warrant-scaled.
@@ -598,7 +606,7 @@ docs/kb/                  knowledge base, only if the local-file KB backend is c
 
 Everything except `.superdev/` is committed. The design docs (the glossary, the ADRs, and the invariant
 register) **must** be on the scope branch — `/superdev:plan` commits them there, in the scopetree it cut,
-never on the base branch. Both tiers work from fresh scopetree or slicetree checkouts, and a checkout sees
+never on the base branch, and pushes the branch to the remote. Both tiers work from fresh scopetree or slicetree checkouts, and a checkout sees
 only what is committed. On the full tier those checkouts belong to the per-slice `implementer` subagents.
 On the lite tier the controller itself works in the scopetree.
 

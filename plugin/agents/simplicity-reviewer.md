@@ -37,7 +37,7 @@ Scope with `git diff --stat <range>`. Scan once and report once.
 
 Applies to every dispatch.
 
-- Use read-only git only. A hook blocks `git merge`, `push`, `rebase`, `pull`, `subtree push`, `gh` and `tea pr merge`, and a `tea api` or `gh api` write to a pull request's `/merge` endpoint. Run no code-host merge or PR API call by any other route.
+- Use read-only git only. A hook blocks `git merge`, `push`, `rebase`, `pull`, `subtree push`, `scope.js push`, `gh` and `tea pr merge`, and a `tea api` or `gh api` write to a pull request's `/merge` endpoint. Run no code-host merge or PR API call by any other route.
 - You list findings and apply none. The reviewed tree stays as you found it.
 
 ## Hygiene

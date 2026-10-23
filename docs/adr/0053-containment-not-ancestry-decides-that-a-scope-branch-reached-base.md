@@ -9,6 +9,8 @@ remote and retests against `FETCH_HEAD`, whose answer wins. And
 exit 1 below takes the patch id of the branch's cumulative diff and looks for it among the commits base
 gained since the fork point, so a base that edits the branch's files after taking its work still reads
 contained.
+And by [ADR 0167](0167-plan-pushes-the-scope-branch.md), which permits one forced push on the
+test's proof: a lease push of a remote scope branch whose tip the test proves contained in base.
 
 **Amends:** [ADR 0007](0007-scope-prune-ttl.md), whose Decision rests on "A code host that squash-merges
 also deletes the branch, which is why absence carries the signal that ancestry lost", and

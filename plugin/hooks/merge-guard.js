@@ -4,7 +4,7 @@
 // merge-guard: deterministic PreToolUse(Bash) guard.
 // Subagents must never integrate — only the controller merges. A subagent's tool
 // call carries `agent_id` on the hook stdin; the controller's does not. So we block
-// `git merge`/`push`/`rebase`/`pull`/`subtree push` ONLY when agent_id is present, leaving the controller free.
+// `git merge`/`push`/`rebase`/`pull`/`subtree push` and `scope.js push` ONLY when agent_id is present, leaving the controller free.
 //
 // The command is read by the shared shell scanner (shell-words.js, ADR 0135), which returns every simple
 // command in it, the ones nested in substitutions, `$[ … ]` arithmetic, backtick groups, subshells, and heredoc
@@ -133,7 +133,7 @@ function isApiMerge(cmd) {
 // …/merge)"`): a known false positive, accepted because it fails closed with a clear message.
 
 const INTEGRATE =
-  "superdev: subagents must not integrate. `git merge`/`push`/`rebase`/`pull`/`subtree push`, `gh`/`tea pr merge`, and a `tea api` or `gh api` write to a pull request's /merge endpoint " +
+  "superdev: subagents must not integrate. `git merge`/`push`/`rebase`/`pull`/`subtree push`, `scope.js push`, `gh`/`tea pr merge`, and a `tea api` or `gh api` write to a pull request's /merge endpoint " +
   "are the controller's job — commit on your slice branch and report your status. A quoted word, heredoc body, or here-string " +
   'that names one of them (a grep pattern, a commit message, a PR body) is denied too, except a heredoc or here-string, no line of ' +
   'it starting with such a command, standing ' +
@@ -143,8 +143,15 @@ const BROKEN =
   'failed to load or to run, so it denies every subagent Bash call. The superdev install is broken: ' +
   'reinstall or update the plugin. (merge-guard)';
 
-// The raw-text rule: the word `git` and later a guarded verb, or `gh`/`tea` and later `pr merge`.
-const rawIntegrates = (text) => shellWords.rawNamesVerb(text, VERB_WORD) || shellWords.rawNamesVerb(text, PR_MERGE, CLI_WORD);
+// `scope.js push` puts a scope branch on the remote through a git spawn of its own (ADR 0167), so the guard reads it as a push:
+// a scanned word naming `scope.js` followed by the word `push`, or, in the raw text, the word `scope.js` and later `push`.
+const SCOPE_JS = /(?:^|\/)scope\.js$/;
+const SCOPE_JS_WORD = /scope\.js(?![-\w.])/;
+const PUSH_WORD = /(?<![-\w])push(?![-\w])/;
+
+// The raw-text rule: the word `git` and later a guarded verb, `gh`/`tea` and later `pr merge`, or `scope.js` and later `push`.
+const rawIntegrates = (text) => shellWords.rawNamesVerb(text, VERB_WORD) || shellWords.rawNamesVerb(text, PR_MERGE, CLI_WORD) ||
+  shellWords.rawNamesVerb(text, PUSH_WORD, SCOPE_JS_WORD);
 
 // The inline aliases a chain is followed through: a longer chain, a loop included, is denied, failing closed.
 const ALIAS_DEPTH = 16;
@@ -240,6 +247,8 @@ function commandIntegrates(c) {
   const words = c.words.slice(start);
   if (!words.length) return false;
   const open = c.words.slice(0, start).some((w) => /(?:^|\/)xargs$/.test(w.name || ''));
+  // `node …/scope.js push`, or the script run directly: its verb is the word right after the script path.
+  if (words.some((w, k) => k + 1 < words.length && SCOPE_JS.test(w.value) && words[k + 1].value === 'push')) return true;
   const g = shellWords.gitSubcommand(words);
   if (g) return g.subcommand === null ? open : gitIntegrates(g, g.subcommand === 'subtree' || g.alias !== null ? words.slice(g.index + 1).map((w) => w.value) : []);
   const tool = words[0].value.length > 64 ? null : CLI.exec(words[0].value);

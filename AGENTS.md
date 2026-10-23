@@ -60,7 +60,8 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          `adopt`), `status.js`, `usage.js`, `refusal.js` (the refusal error),
                          `main-work-tree.js`, `verification.js` (the readers of `verification.md`).
                          Git and containment: `git-spawn.js` (the shared git calls), `containment.js`,
-                         `collisions.js`, `citations.js`, `source-set.js` (the gap audit's source set).
+                         `collisions.js`, `citations.js`, `source-set.js` (the gap audit's source set), `push.js`
+                         (the `push` verb that puts a scope branch on the remote, ADR 0167).
                          Run trace: `trace-log.js` (writer, reader, field codec), `run-tree.js`,
                          `test-runs.js`, `dispatch.js`, `dispatch-lines.js`, `verdicts.js`,
                          `start-stash.js`.
@@ -89,7 +90,7 @@ tests/                 — one suite per shipped executable (the hooks, `scope.j
                          point's suite is split flat by topic into `tests/<entry>-<topic>.test.js` over one
                          `<entry>-setup.js` that is no suite (ADR 0139, ADR 0151): `scope-*` (ledger,
                          ledger-header, suite, dod-line, publish-adopt, trace, root-base, containment,
-                         citations-collisions, source-set, help, test-verb, fail-to-pass, over `scope-setup.js`),
+                         citations-collisions, source-set, push, help, test-verb, fail-to-pass, over `scope-setup.js`),
                          `run-trace*` (dispatch, drive-paths, guards, paths, red, runs, stash, verdicts,
                          writes, over `run-trace-setup.js`), `profile*` (cli, dispatches, idle, phases,
                          scopes, sinks, over `profile-setup.js`), `publish-kb*` (containment, guard,

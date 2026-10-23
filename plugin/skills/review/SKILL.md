@@ -306,7 +306,7 @@ superdev subagent that omits one):
 - **`superdev:simplicity-reviewer`** (`model: sonnet`) — over-engineering only (unnecessary complexity,
   what stdlib/native replaces, what to delete). Give it the same git range. It assesses the diff itself; any text handed with the range is input to check, not a verdict to adopt.
 
-Both subagents are **read-only** (`Read`, `Grep`, `Bash` — a hook blocks `git merge`/`push`/`rebase`/`pull`/`subtree push` and
+Both subagents are **read-only** (`Read`, `Grep`, `Bash` — a hook blocks `git merge`/`push`/`rebase`/`pull`/`subtree push`, `scope.js push`, and
 the code-host merge calls `gh`/`tea pr merge`, `tea api`, and `gh api`, from any subagent). Scale the dispatch to the diff:
 
 - **A `full`-tier scope** → `final-reviewer` alone; skip `superdev:simplicity-reviewer` (ADR 0037),

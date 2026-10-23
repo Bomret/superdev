@@ -715,6 +715,14 @@ On an append, where this run cut nothing, record the plan step right after this 
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set plan --root <run-root>`, because this `init` is the first one at `planned` this run makes.
 **Refresh `<run-root>/run.lock`** once `init` returns, per `## The run lock`.
 
+**Push the scope branch**, on every plan run — fresh and append, attended and unattended — per
+`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Pushing the scope branch` (ADR 0167): run
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" push --root <run-root> --remote <remote> --base <base>` in
+your own Bash call, with `<remote>` the `Remote:` value of `docs/agents/code-management.md` and `<base>` its
+base branch. With no `Remote:` value, print that section's one note and run no push. An outcome that pushed
+nothing gets that section's one report in this command's output, and the run goes on to the release
+question below unchanged.
+
 **Ask whether to release the plan.** `plan-contract.md`'s *Release* section owns what a release is; the
 active `docs/agents/issue-tracker.md`'s `## Release` section owns this backend's signal and the call that
 applies it. List every slice this plan wrote — key, title, type, `depends-on` — and ask the user one
