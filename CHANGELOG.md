@@ -1,3 +1,15 @@
+# [0.81.0](https://codeberg.org/bomret/superdev/compare/v0.80.0...v0.81.0) (2026-10-23)
+
+
+### Bug Fixes
+
+* **release:** take the Codeberg token from FORGEJO_TOKEN when GITEA_TOKEN is unset ([#1333](https://codeberg.org/bomret/superdev/issues/1333)) ([606f245](https://codeberg.org/bomret/superdev/commit/606f2455b73c3c12099885fc76cd4d61fcef5967))
+
+
+### Features
+
+* **skills:** remove the profile and prose-check commands ([#1332](https://codeberg.org/bomret/superdev/issues/1332)) ([ca171df](https://codeberg.org/bomret/superdev/commit/ca171df191b5ba2bb292292c9b8dd0d0f3eec12b))
+
 # [0.80.0](https://codeberg.org/bomret/superdev/compare/v0.79.0...v0.80.0) (2026-10-23)
 
 
