@@ -1,3 +1,10 @@
+# [0.83.0](https://codeberg.org/bomret/superdev/compare/v0.82.1...v0.83.0) (2026-10-23)
+
+
+### Features
+
+* **implement:** batch Minor findings into one sweep and continue fix cycles warm ([#1352](https://codeberg.org/bomret/superdev/issues/1352)) ([7749dd6](https://codeberg.org/bomret/superdev/commit/7749dd6cea4a5dc8c3edb7d70c016150845151e8))
+
 ## [0.82.1](https://codeberg.org/bomret/superdev/compare/v0.82.0...v0.82.1) (2026-10-23)
 
 
