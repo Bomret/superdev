@@ -1,5 +1,9 @@
 /* eslint-env node */
 
+// The Gitea plugin reads only GITEA_TOKEN. A machine that holds its Codeberg token as FORGEJO_TOKEN
+// releases with it when GITEA_TOKEN is unset. semantic-release passes this same process.env to its plugins.
+if (!process.env.GITEA_TOKEN && process.env.FORGEJO_TOKEN) process.env.GITEA_TOKEN = process.env.FORGEJO_TOKEN;
+
 /** @type {import('semantic-release').GlobalConfig} */
 module.exports = {
   branches: ['main'],

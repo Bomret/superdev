@@ -59,7 +59,8 @@ GITEA_TOKEN=<codeberg-token> bun run release
 ```
 
 - **`GITEA_TOKEN`**: a Codeberg token with write access to the repo (Codeberg, then Settings, then
-  Applications, then *Generate New Token*). The instance URL is pinned in `release.config.cjs`
+  Applications, then *Generate New Token*). When `GITEA_TOKEN` is unset, `release.config.cjs` takes the
+  token from `FORGEJO_TOKEN`, so `bun run release` alone works on a machine that exports that one. The instance URL is pinned in `release.config.cjs`
   (`giteaUrl: https://codeberg.org`). Override it with `GITEA_URL` if needed.
 - Pushing the release commit and tag uses your normal git auth (SSH).
 - `bun run release` passes `--no-ci`, so it runs outside a CI environment.

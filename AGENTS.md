@@ -260,7 +260,7 @@ bun install                        # install dev deps (release toolchain)
 node scripts/run-tests.js          # every tests/ suite, drift-check, plugin manifest validation
 node scripts/run-tests.js --related <path>...  # the tail plus the suites the paths reach
 node tests/<suite>.test.js         # one suite, no tail
-GITEA_TOKEN=<token> bun run release  # cut a release from clean main (see RELEASING.md)
+GITEA_TOKEN=<token> bun run release  # cut a release from clean main; FORGEJO_TOKEN also works (see RELEASING.md)
 ```
 
 superdev carries no A/B harness measuring it against a no-plugin baseline (ADR 0129). `tests/` check that
