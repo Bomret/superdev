@@ -15,9 +15,10 @@ register check, the drift selftest, drift-check, and plugin validation, and it a
 own text names a changed file, or when relative `require` edges, walked transitively through modules (`plugin/lib/`
 files and non-suite files under `tests/`), lead from the file its name pins (a hook, a `plugin/lib/` module, or a
 script) or from the suite file itself to one. A shared setup file a suite requires therefore reaches that suite. A path under
-`scripts/drift/` is covered by the drift selftest in the tail. A `.md` path reaches the suites whose text names
-it, and a suite whose text names a directory holding it. It reaches no suite when none does either. A code path no
-rule places runs every suite, and an empty path list runs the tail alone and exits 0. A path under
+`scripts/drift/` is covered by the drift selftest in the tail. A `.md` path reaches the suites whose code names
+it as a string outside a comment, and a suite whose text names a directory holding it. It reaches no suite when none
+does either. A code path no rule places runs every suite, except `release.config.cjs`, `package.json`, and `bun.lock`,
+which reach only the suites that name them. An empty path list runs the tail alone and exits 0. A path under
 `mods/superdev-view/` runs the mod's own suites (`claude plugin test mods/superdev-view`) before the tail (`scripts/AGENTS.md`,
 `references/test-selection.md`, ADR 0025, ADR 0074, ADR 0085).
 

@@ -225,7 +225,8 @@ const picked = (root, paths) =>
   const root = focusedTree();
   const all = discoverSuites(path.join(root, 'tests')).map((f) => path.basename(f, '.test.js'));
   assert.deepStrictEqual(picked(root, ['plugin/hooks/nobody.js']), all, 'an unplaceable code path runs every suite');
-  assert.deepStrictEqual(picked(root, ['plugin/hooks/alpha.js', 'package.json']), all, 'one unplaceable path among placed ones runs every suite');
+  assert.deepStrictEqual(picked(root, ['plugin/hooks/alpha.js', 'src/x.js']), all, 'one unplaceable path among placed ones runs every suite');
+  assert.deepStrictEqual(picked(root, [['release', 'config', 'cjs'].join('.'), 'package.json', ['bun', 'lock'].join('.')]), [], 'release tooling no suite names selects no suite');
   assert.deepStrictEqual(picked(root, ['README.md', 'docs/adr/0001-x.md']), [], 'a prose-only change set selects no suite');
   assert.deepStrictEqual(picked(root, ['scripts/drift/contracts.js']), [], 'a drift path selects the drift selftest, which the tail runs');
   assert.deepStrictEqual(picked(root, []), [], 'an empty list selects no suite');
@@ -273,6 +274,23 @@ const picked = (root, paths) =>
   assert.ok(real(['plugin', 'skills', 'plan', 'SKILL.md'].join('/')).includes('invariant-check'), 'invariant-check scans every file under plugin/');
 }
 
+// A `path.dirname(<name>)` join, where the suite assigns `<name>` a `require.resolve` of a relative path, is anchored at
+// that path's directory, so its tail matches no same-named directory elsewhere.
+{
+  const J = `path${'.'}join`;
+  const R = `require${'.'}resolve`;
+  const root = tree({
+    'tests/pin.test.js': suite('pin') + `\nconst hookPath = ${R}('../plugin/hooks/h.js');\nfs.readdirSync(${J}(path.dirname(hookPath), '..', 'agents'));\n`,
+    'plugin/hooks/h.js': '',
+    'plugin/agents/a.md': '',
+    'docs/agents/b.md': '',
+  });
+  assert.deepStrictEqual(picked(root, ['plugin/agents/a.md']), ['pin'], 'the resolved directory is named');
+  assert.deepStrictEqual(picked(root, ['docs/agents/b.md']), [], 'a same-named directory elsewhere is not');
+  const real = (md) => selectSuites(repoRoot, discoverSuites(path.join(repoRoot, 'tests')), [md]).map((f) => path.basename(f, '.test.js'));
+  assert.ok(!real(['docs', 'agents', ['toolchain', 'md'].join('.')].join('/')).includes(['model', 'explicit'].join('-')), 'model-explicit lists plugin/agents, not docs/agents');
+}
+
 // A join whose leading directory is a variable or another computed value other than `path.dirname(...)` builds a path
 // inside a fixture tree, so it names no directory of the repository.
 {
@@ -289,7 +307,8 @@ const picked = (root, paths) =>
 }
 
 // A basename more than one file of the repository carries names a file only with a directory part the file's path
-// ends with; a bare mention names the file at the repository root. A unique basename matches bare, as before.
+// ends with; a bare mention names the file at the repository root. A unique basename matches bare, as before. A `.md`
+// basename counts only where it ends a string outside a comment: a citation or a fixture sentence is no read.
 {
   const G = ['GUIDE', 'md'].join('.');
   const J = `path${'.'}join`;
@@ -298,11 +317,13 @@ const picked = (root, paths) =>
     [`sub/${G}`]: '',
     [`other/deep/${G}`]: '',
     'docs/manual.md': '',
-    'tests/rootcite.test.js': suite('rootcite') + `\n// (${G}, ADR 0001)\n`,
+    'tests/rootcite.test.js': suite('rootcite') + `\nfs.readFileSync('${G}');\n`,
     'tests/subcite.test.js': suite('subcite') + `\nfs.readFileSync('sub/${G}');\n`,
-    'tests/deepcite.test.js': suite('deepcite') + `\n// see ../other/deep/${G}\n`,
-    'tests/tailcite.test.js': suite('tailcite') + `\n// see deep/${G}\n`,
-    'tests/uniq.test.js': suite('uniq') + "\n// manual.md\n",
+    'tests/deepcite.test.js': suite('deepcite') + `\nfs.readFileSync('../other/deep/${G}');\n`,
+    'tests/tailcite.test.js': suite('tailcite') + `\nconst t = 'deep/${G}';\n`,
+    'tests/uniq.test.js': suite('uniq') + "\nfs.readFileSync('docs/manual.md');\n",
+    'tests/comment.test.js': suite('comment') + `\n// (${G}, ADR 0001) and \`docs/manual.md\`\nx(); // see sub/${G}\n`,
+    'tests/prose.test.js': suite('prose') + `\nconst line = '- [ ] ${G} names the verb';\n`,
     'tests/joincite.test.js': suite('joincite') + `\nfs.readFileSync(${J}(__dirname, '..', 'other', 'deep', '${G}'));\n`,
   });
   assert.deepStrictEqual(picked(root, [G]), ['rootcite'], 'a bare mention of a shared basename names the root file');
@@ -311,6 +332,8 @@ const picked = (root, paths) =>
   assert.deepStrictEqual(picked(root, ['docs/manual.md']), ['uniq'], 'a unique basename matches bare');
   const real = (p) => selectSuites(repoRoot, discoverSuites(path.join(repoRoot, 'tests')), [p]).map((f) => path.basename(f, '.test.js'));
   assert.ok(!real(['scripts', ['AGENTS', 'md'].join('.')].join('/')).includes('merge-guard'), 'a citation of the root AGENTS.md does not select a suite for scripts/AGENTS.md');
+  assert.deepStrictEqual(real(['AGENTS', 'md'].join('.')), [], 'a comment citation or a fixture sentence naming the root AGENTS.md is no read');
+  assert.deepStrictEqual(real(['release', 'config', 'cjs'].join('.')), [], 'the semantic-release config selects no suite');
 }
 
 // runAll in focused mode runs only the selected suites, then the whole tail.

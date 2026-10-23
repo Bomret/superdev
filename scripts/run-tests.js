@@ -94,7 +94,8 @@ function reachedBy(root, rel) {
 // The directories a suite's text names, as { segs, anchored }: a path string that is a directory of the
 // repository (anchored at its root; a `./` or `../` string resolves from `tests/`), and the literal segments of a
 // `path.join` / `path.resolve` call. A call whose first argument is `__dirname` or a literal is anchored; a call
-// whose leading directory is `path.dirname(...)` names only its literal tail, which matches that tail at any depth,
+// whose leading directory is `path.dirname(<name>)`, with `<name>` assigned a `require.resolve` of a relative path in the
+// suite's own text, is anchored at that path's directory. Any other `path.dirname(...)` names only its literal tail, which matches that tail at any depth,
 // so it can select a suite for a directory it does not scan but never miss one it does. A call whose leading
 // directory is any other computed value (a variable, `os.tmpdir()`) builds a path in a fixture tree and names nothing.
 // Ceiling: a directory built by a computed expression with no literal segment (`path.join(dir, name)`), or by a
@@ -139,9 +140,14 @@ function namedDirs(root, text) {
     // A leading directory that is neither `__dirname`, a literal, nor `path.dirname(...)` is a fixture tree's (a variable,
     // `os.tmpdir()`), so the call names no directory of the repository.
     if (!/^(__dirname$|['"`]|path\.dirname\()/.test(args[0])) continue;
+    // `path.dirname(<name>)`, where the suite assigns `<name>` a `require.resolve` of a relative path, is that path's
+    // directory, so the call is anchored.
+    const resolved = args[0].match(/^path\.dirname\(\s*([A-Za-z_$][\w$]*)\s*\)$/);
+    const target = resolved && text.match(new RegExp(`(?:const|let|var)\\s+${escapeRe(resolved[1])}\\s*=\\s*require\\.resolve\\(\\s*(['"])(\\.[^'"]*)\\1\\s*\\)`));
     args.forEach((a, i) => {
       const lit = a.match(/^(['"`])([^'"`$]*)\1$/);
-      if (i === 0 && a === '__dirname') [parts, anchored] = [['tests'], true];
+      if (i === 0 && target) [parts, anchored] = [[path.posix.dirname(path.posix.join('tests', target[2]))], true];
+      else if (i === 0 && a === '__dirname') [parts, anchored] = [['tests'], true];
       else if (lit) {
         if (i === 0) anchored = true;
         parts.push(lit[2]);
@@ -187,6 +193,14 @@ function namesShared(before, rel) {
   return dir.length <= own.length && dir.every((seg, k) => own[own.length - dir.length + k] === seg);
 }
 
+// The repository-root release tooling. semantic-release and Bun read these, never a suite's code under test, so a
+// change to one reaches only the suites whose text names it and never makes every suite run.
+const RELEASE_TOOLING = ['release.config.cjs', 'package.json', 'bun.lock'];
+
+// A suite's text with its comments removed: every line that opens with `//` or `*`, and every ` // ` comment that
+// trails code. A citation in a comment is no read.
+const uncommented = (text) => text.replace(/^\s*(?:\/\/|\/?\*).*$/gm, '').replace(/\s\/\/\s.*$/gm, '');
+
 // Whether a named directory holds the repository-relative path `rel`.
 function under({ segs, anchored }, rel) {
   const dir = path.posix.dirname(rel).split('/');
@@ -197,11 +211,14 @@ function under({ segs, anchored }, rel) {
 
 // The suites a change set reaches, as a subset of `suites`, in suite order. A suite is reached when
 // its own text names a changed file (its basename, or its bare stem between path or quote
-// delimiters; a basename another file of the tree shares counts only with a directory part, `namesShared`), when the file its name pins (`pinnedBy`) is the changed file, when the changed file is reached by
+// delimiters; a basename another file of the tree shares counts only with a directory part, `namesShared`; a `.md`
+// basename counts only where it ends a string outside a comment, `'AGENTS.md'` or `'docs/x.md'`, the form a read
+// takes, so a citation or a sentence of fixture text that mentions it is no read), when the file its name pins (`pinnedBy`) is the changed file, when the changed file is reached by
 // relative `require` edges, walked transitively through modules (`plugin/lib/` files and non-suite files under
 // `tests/`), from that pinned file or from the suite file itself, or when the changed path is the suite itself. A `.md` path also reaches a suite whose text names a directory
 // holding it (`namedDirs`), because a suite may list or scan a directory; a code path never takes the
-// directory rule, so one no rule places keeps making every suite run. A `.md` path no suite names, like a
+// directory rule, so one no rule places keeps making every suite run, except a `RELEASE_TOOLING` path, which no
+// suite's code under test reads. A `.md` path no suite names, like a
 // `scripts/drift/` path (the drift selftest sits in the tail), reaches no suite. Paths are matched by
 // name, so a deleted path maps like any other.
 // shortcut: `require` is read by regex, transitively from the file a suite pins and from the suite itself, wherever the
@@ -224,8 +241,12 @@ function selectSuites(root, suites, paths) {
     const stem = base.replace(/\.js$/, '');
     const named = new RegExp(`(?<![\\w-])${escapeRe(base)}(?![\\w-])|(?<=[/'"\`])${escapeRe(stem)}(?=[/'"\`])`, 'g');
     const shared = (bases.get(base) || 0) > (fs.existsSync(path.join(root, rel)) ? 1 : 0);
-    const names = (text) => [...text.matchAll(named)].some((m) => !shared || namesShared(text.slice(0, m.index), rel));
-    let placed = rel.startsWith(MOD_DIR);
+    const read = new RegExp(`(?<=['"\`/])${escapeRe(base)}(?=['"\`])`, 'g');
+    const names = (text) => {
+      const scanned = rel.endsWith('.md') ? uncommented(text) : text;
+      return [...scanned.matchAll(rel.endsWith('.md') ? read : named)].some((m) => !shared || namesShared(scanned.slice(0, m.index), rel));
+    };
+    let placed = rel.startsWith(MOD_DIR) || RELEASE_TOOLING.includes(rel);
     suites.forEach((file, i) => {
       if (
         path.posix.join('tests', path.basename(file)) === rel ||

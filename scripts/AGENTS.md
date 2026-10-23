@@ -646,18 +646,25 @@ changed file or requires it, or the suite file itself requires it, or when the p
 it. A basename more than one file of the tree carries (`AGENTS.md`, `hooks.json`; a nested checkout such as a linked
 worktree under `.claude/worktrees/` does not count) names a file only through a directory part its path ends with: the
 path text before the mention with `./` and `../` dropped, or the literal arguments before it in a `path.join` call. A
-bare mention of such a basename names the file at the repository root. A `.md` path follows the same naming rule, because a suite may execute or pin a document
-(`tests/publish-kb-templates.test.js` runs the templates of `docs/agents/knowledge-base.md`, `tests/scope-ledger.test.js` pins a
+bare mention of such a basename names the file at the repository root. A `.md` path follows the same naming rule, because a suite may execute or pin a document,
+with one narrowing: its basename counts only where it ends a string outside a comment (`'AGENTS.md'`, `'docs/x.md'`), the
+form a read takes. A comment citation (`// (AGENTS.md, ADR 0086)`) or a sentence of fixture text that mentions the name
+is no read (
+`tests/publish-kb-templates.test.js` runs the templates of `docs/agents/knowledge-base.md`, `tests/scope-ledger.test.js` pins a
 sentence of `plugin/references/scope-mode.md`). A `.md` path also reaches a suite whose text names a directory
 holding it, because a suite that lists or scans a directory reads every document in it
 (`tests/model-explicit.test.js` lists `plugin/agents/`, `tests/invariant-check.test.js` scans `plugin/`). A named directory
 is a path string that is a directory of the repository, or the literal segments of a `path.join` or `path.resolve`
 call. A call whose first argument is `__dirname` or a literal is anchored at the repository root. A call whose leading
-directory is `path.dirname(...)` (`path.dirname(hookPath)`) names its literal tail, which matches that tail at any depth, so
+directory is `path.dirname(<name>)`, where the suite's own text assigns `<name>` a `require.resolve` of a relative path
+(`const hookPath = require.resolve('../plugin/hooks/model-explicit.js')`), is anchored at that path's directory. Any
+other `path.dirname(...)` names its literal tail, which matches that tail at any depth, so
 it may select a suite for a directory the suite does not scan and never misses one it does. A call whose leading
 directory is any other computed value (a variable, `os.tmpdir()`) builds a path in a fixture tree and names nothing. A directory built from
 computed expressions with no literal segment names nothing. The directory rule never applies to a code path. A `.md` path no
-suite names, directly or by directory, and a path under `scripts/drift/`, reach no suite, because the drift selftest sits in the tail. A code path no rule places runs every suite, and an empty list runs the tail alone and exits 0. A path under
+suite names, directly or by directory, and a path under `scripts/drift/`, reach no suite, because the drift selftest sits in the tail. A code path no rule places runs every suite, except the repository-root release tooling
+(`release.config.cjs`, `package.json`, `bun.lock`, the `RELEASE_TOOLING` list), which reaches only the suites that name it,
+because semantic-release and Bun read it and no suite's code under test does. An empty list runs the tail alone and exits 0. A path under
 `mods/superdev-view/` places itself: it adds `claude plugin test mods/superdev-view` before the tail, and runs no
 other suite unless one names it, so `scope.js fail-to-pass` can judge a range that only the mod suite tests. The full run
 never runs the mod suite. The
