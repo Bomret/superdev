@@ -1,3 +1,12 @@
+## [0.82.1](https://codeberg.org/bomret/superdev/compare/v0.82.0...v0.82.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* **run-tests:** a .md name selects a suite only in an anchored path ([58038d8](https://codeberg.org/bomret/superdev/commit/58038d8f3e49e94a71bda46292b42a0684d374b9))
+* **run-tests:** a bare relative directory literal names no repo directory ([a2119a7](https://codeberg.org/bomret/superdev/commit/a2119a75eadb35eacf3ace3e3531a3dfc39dc6ff))
+* **run-tests:** narrow --related selection for release tooling and markdown citations ([4d33f99](https://codeberg.org/bomret/superdev/commit/4d33f9939f3bc0b29413b6ab6a0ea86dda5f2e86))
+
 # [0.82.0](https://codeberg.org/bomret/superdev/compare/v0.81.0...v0.82.0) (2026-10-23)
 
 
