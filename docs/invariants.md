@@ -1157,10 +1157,10 @@ Paths: plugin/scripts/scope.js, plugin/lib/fail-to-pass.js, plugin/lib/run-super
 
 Class: safety
 Concepts: Guardrail
-Statement: A guardrail that reads a Bash command's words through the shared shell scanner fails closed when it cannot load the scanner: merge-guard and ledger-guard deny the Bash call, and run-lock blocks a scopetree creation (it loads the module for the drive-path translator, ADR 0150). Only run-trace, which records evidence and guards nothing, records nothing instead (ADR 0135).
+Statement: A guardrail that reads a Bash command's words through the shared shell scanner fails closed when it cannot load the scanner: merge-guard and ledger-guard deny the Bash call, and run-lock blocks a scopetree creation (it loads the module for the drive-path translator, ADR 0150). Only run-trace, which records evidence and guards nothing, records nothing instead (ADR 0135), and test-guard, which refuses only a suite run's cost, passes the call (ADR 0181).
 Breaks: silently
 Check: tests/merge-guard.test.js, tests/ledger-guard.test.js, and tests/run-lock.test.js — each runs its hook with a stub scanner in a lib directory beside the copied hook's directory, that the test confirms was loaded, and asserts the fail-closed verdict; tests/run-trace-guards.test.js — with a stub for the scanner require of the run trace's command layer loaded that throws, a Bash write, a slice-reviewer hand-back, and a stop record nothing, and with its scan throwing a Bash write records nothing, against a control run that records; and on a command that runs a test and then writes or runs `git checkout`, a loaded scanner whose `drivePath` or `gitSubcommand` throws or is missing records no `run` line either, and so does one whose `drivePath` throws only for a patch file, or whose `scan` throws only for one word
-Paths: plugin/hooks/merge-guard.js, plugin/hooks/ledger-guard.js, plugin/hooks/run-lock.js, plugin/hooks/run-trace.js, plugin/lib/bash-command.js, plugin/lib/ledger-writes.js, plugin/lib/shell-words.js, plugin/lib/shell-word-readers.js
+Paths: plugin/hooks/merge-guard.js, plugin/hooks/ledger-guard.js, plugin/hooks/run-lock.js, plugin/hooks/run-trace.js, plugin/hooks/test-guard.js, plugin/lib/bash-command.js, plugin/lib/ledger-writes.js, plugin/lib/shell-words.js, plugin/lib/shell-word-readers.js
 
 ### INV-0141
 
@@ -1395,3 +1395,12 @@ Statement: A chain command takes its state from its own arguments and the run ro
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it; a fact only a conversation holds has no file a test could read
 Paths: plugin/references/response-shapes.md, plugin/references/run-handoff.md, plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/submit-pr/SKILL.md, plugin/skills/ship/SKILL.md, plugin/skills/verify-ship/SKILL.md, plugin/skills/wrap-up/SKILL.md
+
+### INV-0174
+
+Class: process
+Concepts: Implementer, Guardrail
+Statement: A dispatched implementer's Bash call that runs `scope.js test full`, `scope.js test whole`, a `scope.js test focused` with no path, or the configured full or whole-repo command, directly or through `scope.js test --`, is refused inside a run tree. Where the focused fence repeats the full fence, a `scope.js test focused` with paths is refused too. Every other caller passes, and a call the guard cannot judge passes (ADR 0181).
+Breaks: silently
+Check: tests/test-guard.test.js — each refused shape is denied for an implementer, its own focused and one-file runs pass, the controller and other agents pass, a call outside every run tree passes, and a hook whose library will not load exits 0
+Paths: plugin/hooks/test-guard.js, plugin/lib/test-runs.js, plugin/hooks/hooks.json

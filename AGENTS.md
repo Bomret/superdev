@@ -45,7 +45,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          final-reviewer, doc-writer, doc-reader, test-auditor,
                          test-gap-auditor
   hooks/               — the deterministic Node hooks + hooks.json: merge-guard, model-explicit,
-                         run-lock, ledger-guard, tree-guard, run-trace, slicetree-sweep, scope-prune, update-check
+                         run-lock, ledger-guard, tree-guard, test-guard, run-trace, slicetree-sweep, scope-prune, update-check
   lib/                 — every module: code that no hook registration and no prose step runs (ADR 0151).
                          `hooks/` and `scripts/` hold entry points only, each keeping its path and exports.
                          A module has one responsibility and opens with its file name and a colon.
@@ -368,7 +368,7 @@ This root owns every other subtree directly:
 - `plugin/hooks/`. Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working
   rules, Hooks are CommonJS** and **Every shipped executable has a suite in `tests/`, named for it**.
   This is the strongest future child-doc candidate, if its rules outgrow this root. Of the
-  hooks, `scope-prune.js`, `slicetree-sweep.js`, `run-trace.js`, `ledger-guard.js`, and `tree-guard.js` depend on modules in `plugin/lib/`,
+  hooks, `scope-prune.js`, `slicetree-sweep.js`, `run-trace.js`, `ledger-guard.js`, `tree-guard.js`, and `test-guard.js` depend on modules in `plugin/lib/`,
   and the scripts require them as well. No hook and no script requires `scope.js`. `scope-prune.js` and `slicetree-sweep.js` both
   `require` `../lib/ledger.js` for their ledger-header reader (ADR 0022) and `../lib/git-spawn.js` for the git calls the two Stop hooks
   share (the spawn, the throwing call, and the `git branch` list parse; a module missing any of them reads as unloaded). `run-trace.js` takes each of
@@ -378,17 +378,20 @@ This root owns every other subtree directly:
   `../lib/main-work-tree.js` for the main-working-tree resolver `mainWorkTree`. It denies a dispatched implementer's Edit, Write, or
   NotebookEdit into a checkout of a repository that holds a run, outside its main working tree's `.superdev/`.
   It also denies such a write into that repository's git directory. That covers the main `.git/`, a linked
-  worktree's gitdir, and a submodule's gitdir (ADR 0148, INV-0152). It is the one guardrail that fails open:
-  when `main-work-tree.js` cannot load, or git cannot place the target, the write passes. `slicetree-sweep.js`
+  worktree's gitdir, and a submodule's gitdir (ADR 0148, INV-0152). It fails open: when `main-work-tree.js`
+  cannot load, or git cannot place the target, the write passes. `test-guard.js` requires `../lib/bash-command.js`,
+  `test-runs.js`, and `verification.js`. It denies a dispatched implementer's Bash call that runs the full or the
+  whole-repo suite inside a run tree, and a `scope.js test focused` where the focused fence repeats the full one
+  (ADR 0181, INV-0174). It fails open too: when a module cannot load, or the call lies outside every run tree, the call passes. `slicetree-sweep.js`
   tests a worked slice branch's tip against its scope branch's first-parent chain, alongside the
   default-branch content check (ADR 0089). A `require` failure leaves the hook
   with no fallback reader: it sweeps, prunes, records, or denies nothing and says nothing. The probe has its own, narrower
   fallback: when `containment.js` cannot load or carries no probe, `scope-prune.js` prunes by tree comparison alone, still silently. The Bash hooks
-  `merge-guard.js`, `ledger-guard.js` (through `lib/ledger-writes.js`), and `run-trace.js` (through `lib/bash-command.js`) each reach the module
+  `merge-guard.js`, `ledger-guard.js` (through `lib/ledger-writes.js`), `run-trace.js`, and `test-guard.js` (both through `lib/bash-command.js`) each reach the module
   `shell-words.js` and keep no shell-word reader of their own (ADR 0135, the `arg-token` drift check).
   `run-lock.js` requires it too, for its drive-path translator (ADR 0150). When the module cannot load, the
-  guardrails `merge-guard.js`, `ledger-guard.js`, and `run-lock.js` fail closed, and
-  `run-trace.js` records nothing (INV-0140).
+  guardrails `merge-guard.js`, `ledger-guard.js`, and `run-lock.js` fail closed,
+  `run-trace.js` records nothing, and `test-guard.js` passes the call (INV-0140).
 - `scripts/` and `plugin/scripts/`. Owned by [`scripts/AGENTS.md`](scripts/AGENTS.md), which states
   each script's contract: the shipped `plugin/scripts/` CLIs `scope.js`, `kb-patch.js`, `publish-kb.js`,
   the modules in `plugin/lib/` behind them, and the maintainer-only `scripts/drift-check.js` with

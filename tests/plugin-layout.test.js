@@ -36,6 +36,7 @@ const EXPORTS = {
   'hooks/run-trace.js': ['bashTargets', 'locate', 'parseFinalVerdict', 'parseVerdict', 'record', 'testRuns', 'treeState', 'verificationKind'],
   'hooks/scope-prune.js': ['TTL_MS', 'branchNamesFrom', 'main', 'readBranch', 'readHeader', 'readStage', 'selectPrunable', 'shapeScanBranch'],
   'hooks/slicetree-sweep.js': ['git', 'main', 'selectRemovable'],
+  'hooks/test-guard.js': ['decide'],
   'hooks/tree-guard.js': ['decide'],
   'hooks/update-check.js': ['cmpVersion'],
   'scripts/kb-patch.js': ['headingKeyOf', 'maskFencedLines', 'merge'],

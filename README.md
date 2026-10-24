@@ -418,6 +418,12 @@ bash or PowerShell variants.
   letter case, passes (ADR 0148). It checks
   only the implementer and only the file tools: a Bash write such as `sed -i` passes. When it cannot place
   a path, for example because a Git call fails, it lets the write through (ADR 0148).
+- **test-guard.** Blocks a dispatched implementer's Bash call that runs the full or the whole-repo suite
+  inside a run: `scope.js test full`, `scope.js test whole`, a `scope.js test focused` with no path, and
+  the configured full or whole-repo command run directly or through `scope.js test --`. Where the focused
+  command repeats the full one, it also blocks a `scope.js test focused` with paths. The refusal names the
+  run to make instead, and the controller owns every full-suite run. It checks only the implementer. When it
+  cannot judge a call, for example because a module will not load, it lets the call through (ADR 0181).
 - **run-trace.** A hook that records every file edit of a run into the run trace
   (`<run-root>/trace.log`), through the edit tools and through a shell write (redirect, `tee`, `sed -i`,
   `cp`, `mv`, `install`, `git apply`). Each line names its slice, its agent, and whether the file is a

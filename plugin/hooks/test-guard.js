@@ -1,0 +1,94 @@
+#!/usr/bin/env node
+'use strict';
+
+// test-guard: deterministic PreToolUse(Bash) guard (ADR 0181, INV-0174).
+// A dispatched implementer runs only the tests that verify its work, and the controller owns every full-suite run (ADR 0177).
+// A dispatched implementer's Bash call is denied when it runs the full or the whole-repo command: `scope.js test full`,
+// `scope.js test whole`, a `scope.js test focused` with no path, or the configured full or whole-repo command run directly or
+// through `scope.js test --`. Where the focused fence repeats the full fence, a `scope.js test focused` with paths runs the full
+// suite too, and is denied (ADR 0180).
+//
+// The guard fails open, the opposite of the Bash guardrails (INV-0140), as tree-guard does: a call it cannot judge passes. That
+// covers unreadable hook input, a library that will not load, and a call outside every run tree. A missed refusal costs a suite
+// run, and a guard that fails closed would stop every test run an implementer makes.
+
+let lib = null;
+try {
+  const { cmdSegments, plain } = require('../lib/bash-command.js');
+  const { testRuns, verificationKind, scopeTestCalls } = require('../lib/test-runs.js');
+  const { verificationCommands } = require('../lib/verification.js');
+  if ([cmdSegments, testRuns, verificationKind, scopeTestCalls, verificationCommands, plain].every((f) => typeof f === 'function')) {
+    lib = { cmdSegments, testRuns, verificationKind, scopeTestCalls, verificationCommands, plain };
+  }
+} catch {
+  /* fail open */
+}
+
+const OWN_RUNS =
+  'An implementer runs only the tests that verify its work: `scope.js test focused <paths>` with at least one path, or ' +
+  '`scope.js test -- <command>` for one test file. The controller owns every full-suite run.';
+const ONE_FILE =
+  'The focused command repeats the full one in this repository, so `test focused` runs the whole suite. Run each test file ' +
+  'the step works on through `scope.js test -- <command>`, and leave the run before your report to the controller.';
+
+const refuse = (what, why) => ({ block: true, reason: `superdev: refused ${what}. ${why}` });
+
+function decide(input) {
+  if (!input || input.agent_type !== 'superdev:implementer' || !lib) return { block: false };
+  const command = input.tool_input && input.tool_input.command;
+  if (typeof command !== 'string' || !command) return { block: false };
+  try {
+    return judge(command, input.cwd || process.cwd());
+  } catch {
+    return { block: false };
+  }
+}
+
+function judge(command, cwd) {
+  const { cmdSegments, testRuns, verificationKind, scopeTestCalls, verificationCommands, plain } = lib;
+  for (const c of scopeTestCalls(cmdSegments(command), cwd)) {
+    if (!c.at) continue;
+    const verb = plain(c.words[0]) || c.words[0];
+    const rest = c.words.slice(1);
+    if (verb === 'full' || verb === 'whole') return refuse(`\`scope.js test ${verb}\``, OWN_RUNS);
+    if (verb === 'focused') {
+      if (!rest.length) return refuse('`scope.js test focused` with no path, which runs the full command', OWN_RUNS);
+      const v = verificationCommands(c.at.tree);
+      if (v.full && v.focused === v.full) return refuse('`scope.js test focused`', ONE_FILE);
+    }
+    if (verb === '--' && rest.length) {
+      const kind = verificationKind(rest.length === 1 ? plain(rest[0]) || rest[0] : rest.join(' '), verificationCommands(c.at.tree));
+      if (kind === 'full' || kind === 'whole') return refuse(`a ${kind}-suite run through \`scope.js test --\``, OWN_RUNS);
+    }
+  }
+  for (const r of testRuns(command, cwd)) {
+    if (r.kind === 'full' || r.kind === 'whole') return refuse(`a direct run of the ${r.kind === 'full' ? 'full' : 'whole-repo'} command`, OWN_RUNS);
+  }
+  return { block: false };
+}
+
+function main() {
+  // A hook that cannot finish lets the call through: exit 0 at the bound.
+  setTimeout(() => process.exit(0), 5000).unref();
+  let raw = '';
+  process.stdin.setEncoding('utf8');
+  process.stdin.on('data', (c) => (raw += c));
+  process.stdin.on('end', () => {
+    let input;
+    try {
+      input = JSON.parse(raw || '{}');
+    } catch {
+      process.exit(0); // not our shape: never block
+    }
+    const { block, reason } = decide(input);
+    if (block) {
+      process.stderr.write(reason + '\n');
+      process.exit(2);
+    }
+    process.exit(0);
+  });
+}
+
+if (require.main === module) main();
+
+module.exports = { decide };

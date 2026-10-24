@@ -136,6 +136,7 @@ Run only the tests that verify your work. Run each through the runner `${CLAUDE_
 - Your runs: `scope.js test focused <paths>` with at least one path, and `scope.js test -- <command>` for one test file.
 - The controller's runs: `test full`, `test whole`, and a `test focused` with no path, which runs the full command.
 - Where the focused fence of `docs/agents/verification.md` repeats the full fence, each RED or GREEN step runs each test file it works on through `scope.js test -- <command>`, and you make no run before your report.
+- The `test-guard` hook refuses a controller's run when you start one, and its refusal names the run to make instead (ADR 0181).
 
 ### Edit tools
 

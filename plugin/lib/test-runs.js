@@ -262,7 +262,8 @@ function restoreEventsOf(segs, cwd, end) {
   return events;
 }
 
-// The `scope.js test` calls in a Bash command, wrapped or piped: [{ i, at }], `i` the call's segment and `at` the tree it records
+// The `scope.js test` calls in a Bash command, wrapped or piped: [{ i, at, words }], `i` the call's segment, `words` the words after
+// `test`, and `at` the tree it records
 // in, or null outside every run. `scope.js test` records its own run (ADR 0127), so the hook records none for that segment and
 // lets only the Missing RED note follow; every other segment of the command is recorded as usual.
 const NODE_VALUE_OPTS = /^(?:-r|--require|--import|--loader)$/;
@@ -288,7 +289,7 @@ function scopeTestCalls(segs, cwd, end) {
     // `test -- <command>` records in the tree of the run `testRuns` classifies, as the verb does (a `cd` in the command moves it).
     const free = args[j + 2] === '--' ? args.slice(j + 3) : [];
     const run = free.length ? testRuns(free.length === 1 ? plain(free[0]) || free[0] : free.join(' '), base)[0] : null;
-    calls.push({ i, at: (run && run.at) || locate(path.join(base, 'x')) || null });
+    calls.push({ i, at: (run && run.at) || locate(path.join(base, 'x')) || null, words: args.slice(j + 2) });
   });
   return calls;
 }
@@ -321,4 +322,4 @@ function recordBash(command, cwd, agent, failed, triggers, background, end) {
   return lines;
 }
 
-module.exports = { testRuns, verificationKind, recordBash };
+module.exports = { testRuns, verificationKind, recordBash, scopeTestCalls };

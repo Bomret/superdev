@@ -90,7 +90,7 @@ row reader `sliceType` from `ledger.js`, the verification-command reader `verifi
 the tree locator `locate`, the test-path classifier `isTestPath` (ADR 0128), and `treeState` from `run-tree.js`,
 the run classifiers `testRuns` and `verificationKind` from `test-runs.js`, and the dispatch, verdict, write-target, and start-stash
 readers from `dispatch.js`, `verdicts.js`, `bash-writes.js`, and `start-stash.js`. Each `require` has its own guard, and a module that fails to load
-leaves the hook recording nothing (ADR 0117, INV-0159). `hooks/tree-guard.js` takes `mainWorkTree` from `main-work-tree.js` (ADR 0148). `publish-kb.js` reaches
+leaves the hook recording nothing (ADR 0117, INV-0159). `hooks/tree-guard.js` takes `mainWorkTree` from `main-work-tree.js` (ADR 0148). `hooks/test-guard.js` takes `cmdSegments` and `plain` from `bash-command.js`, `testRuns`, `verificationKind`, and the `scope.js test` call finder `scopeTestCalls` from `test-runs.js`, and `verificationCommands` from `verification.js`, and a module that fails to load lets every call pass (ADR 0181). `publish-kb.js` reaches
 the containment test `testContainment` from `containment.js`, which refetches the base before it answers not contained (ADR 0053,
 ADR 0065), `refResolves` from `git-spawn.js`, and `readLedgerHeader`, `SLUG_RE`, `CHANGE_TYPES` from `ledger.js`, through its `lib/kb-*.js` modules. `base set` appends a `ledger`
 trace event like every other ledger-writing verb. Normalisation is per
