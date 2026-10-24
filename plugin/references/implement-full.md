@@ -321,8 +321,8 @@ Repeat until every slice is `merged`:
      the command, so this write relies on its defining section's own citation
      (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section) rather than
      repeating one here.
-   - **`mechanical`** / **`docs`** slice → **skip both per-slice reviews** (the merge's focused run, plus
-     the full suite run-handoff runs once for every scope, are the net; ADR 0025, ADR 0091).
+   - **`mechanical`** / **`docs`** slice → **skip both per-slice reviews** (the implementer's own runs, plus
+     the full suite run-handoff runs once for every scope, are the net; ADR 0025, ADR 0091, ADR 0155).
 4. **Merge (you, serially)** — in the scopetree: `git -C <run-root>/scopetree merge
    --no-ff slice/<scope>/<id>`. Resolve
    conflicts yourself, per `${CLAUDE_PLUGIN_ROOT}/references/merge-conflicts.md` (you hold cross-slice

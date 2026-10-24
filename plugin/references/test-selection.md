@@ -231,9 +231,6 @@ Each caller judges its own range and builds the set from it:
 
 - **A chain gate's carry run.** Every path changed from the suite record's commit to the gate's tip, per
   `## The carry run`.
-
-Each caller judges its own range and builds the set from it:
-
 - **The implementer's TDD loop, and the lite tier's inline loop.** A failing-test or passing-test step runs
   over the test files that hold the tests the step works on, and passes those files alone to `scope.js test
   focused`. The last run before the implementer reports, and before the lite tier commits a slice, runs over
