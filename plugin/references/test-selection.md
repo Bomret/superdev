@@ -136,6 +136,11 @@ Each caller judges its own range and builds the set from it:
   and the run trace records every step's run either way (ADR 0139). Every loop run passes at least one path, or
   runs one test file through `test -- <command>`, so the loop runs only the tests that verify the work. `test full`,
   `test whole`, and a `test focused` with no path run only at the controller's gates (ADR 0177).
+  Where the focused fence repeats the full fence, `test focused` runs the whole suite whatever paths it gets. There a
+  failing-test or passing-test step runs each test file it works on through `test -- <command>`, the runner's own
+  invocation of that one file. The last run before the implementer reports, or before the lite tier commits a slice,
+  does not run, and neither does a step that works on no test file: the controller's next gate runs the suite over
+  that work (ADR 0180).
 - **The slice review's tip result.** Every path changed from the review base to the reviewed tip, the set the
   `fail-to-pass` verb runs over. The controller runs it, and the slice-reviewer runs no test (ADR 0178).
 - **The documentation step.** On a live scope run whose suite record's commit is an ancestor of the scope

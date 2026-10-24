@@ -5,6 +5,9 @@
 **Amends:** [ADR 0139](0139-a-test-first-step-runs-the-tests-it-works-on.md), which states which paths a
 test-first step passes and leaves the full command open to the loop.
 
+**Amended by:** [ADR 0180](0180-a-loop-step-runs-its-test-file-where-the-focused-command-repeats-the-full-one.md), which runs each step's test file
+through `test --` where the focused command repeats the full one.
+
 ## Context
 
 In the `fewer-suite-runs` scope, a `/superdev:review` fix cycle dispatched a `superdev:implementer` whose

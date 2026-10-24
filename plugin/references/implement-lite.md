@@ -60,7 +60,9 @@ A stop there dispatches no slice. A red record's pick there dispatches only the 
   `test -- <command>` for a direct test-file run). The loop runs only the tests that verify the slice: `test full` and
   `test whole` run at the suite gates alone. Each failing-test or passing-test step passes the test
   files that hold the tests it works on. Your last run before you commit a slice passes the slice's whole
-  changed-path set, and so does a step that works on no test file (ADR 0139). A suite longer than the Bash tool's time limit runs
+  changed-path set, and so does a step that works on no test file (ADR 0139). Where the focused fence repeats the
+  full fence, each step runs each test file it works on through `test -- <command>`, and you make neither of those
+  whole-set runs: run handoff's full-suite run covers them (ADR 0180). A suite longer than the Bash tool's time limit runs
   through the runner in the background, and you wait for its end before acting on it. The run trace records your edits and runs, and a note from the hook means a test edit with no
   failing run since: answer it with `git add <paths>`, `git restore --worktree --source=<base> -- <paths>`, a failing run,
   `git restore -- <paths>`, and a passing run, never `git stash` (`<base>` is the scope branch's tip before this slice's first commit, recorded with `git rev-parse HEAD` when the slice starts). On a `behavior` slice, a test edit followed

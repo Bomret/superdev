@@ -5,6 +5,9 @@
 **Amended by:** [ADR 0177](0177-an-implementer-runs-only-the-tests-that-verify-its-work.md), which keeps
 every loop run to the tests that verify the work and leaves the full command to the controller's gates.
 
+**Amended by:** [ADR 0180](0180-a-loop-step-runs-its-test-file-where-the-focused-command-repeats-the-full-one.md), which runs each step's test file
+through `test --` where the focused command repeats the full one, and drops the last whole-set run there.
+
 **Context.** The implementer's test-first loop, and the lite tier's inline loop, run the focused command
 over the slice base against the working tree, every path the slice changed so far. In this repository a
 change to `plugin/scripts/scope.js` selects every suite that names or requires it, and `run-tests.js` runs

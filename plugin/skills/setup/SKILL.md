@@ -599,7 +599,8 @@ Write:
 
   **No cheaper focused command, deliberately.** This suite finishes in seconds, so a distinct focused
   command saves nothing worth naming, and every caller runs the full command
-  (`references/test-selection.md`, ADR 0025, ADR 0074, ADR 0085).
+  except a test-first step, which runs its own test file (`references/test-selection.md`, ADR 0025, ADR 0074,
+  ADR 0085, ADR 0180).
   ````
 
   Example, a runner that cannot narrow, the full command duplicated the same way:
@@ -616,8 +617,8 @@ Write:
   ```
 
   **No cheaper focused command, deliberately.** This runner has no subset narrower than the full suite to
-  name, so every caller runs the full command (`references/test-selection.md`, ADR 0025, ADR 0074, ADR
-  0085).
+  name, so every caller runs the full command except a test-first step, which runs its own test file
+  (`references/test-selection.md`, ADR 0025, ADR 0074, ADR 0085, ADR 0180).
   ````
 
   Add the **`## Timing command`** section decision **E** settled, its command in a **backtick span,

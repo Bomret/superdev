@@ -114,7 +114,8 @@ Repeat until every slice is `merged`:
    Bash tool's time limit through the runner in the background and wait for its end before acting on it, and
    tells it to edit files through the edit tools, never through a script. It also tells it that a RED or GREEN step passes the test files
    that hold the tests that step works on, and that its last run before the report passes the slice's whole changed-path set
-   (ADR 0139). Every implementer dispatch also tells it that a failing test its slice did not cause, one that
+   (ADR 0139). Where the focused fence repeats the full fence, it tells it instead that each step runs each test file
+   it works on through `test -- <command>` and that it makes no run before the report: the tip result covers it (ADR 0180). Every implementer dispatch also tells it that a failing test its slice did not cause, one that
    also fails at the slice's base commit, is named in its report, neither fixed nor blocked on, and left to
    the run handoff's fix loop: a named inherited failure is no Missing RED finding, no BLOCKED, and no strike
    (ADR 0155, INV-0157). The controller never edits a slice's tree to produce a failing run:
