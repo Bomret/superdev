@@ -51,7 +51,7 @@ surface states its own listed set where it wires the gate.
 **Review's case:** `final-reviewer` judges every `dod.md` line, ticked or not, and returns its own verdict
 for each — holds, broken, ceiling, accepted, or doc pass (`agents/final-reviewer.md`'s `### Criteria`
 section). The review's
-controller unticks a line `final-reviewer` calls broken, with a note, and folds it into the fix loop's
+controller (`review-scope-mode.md`'s `### 4.5` and `### 4.9`) unticks a line `final-reviewer` calls broken, with a note, and folds it into the fix loop's
 findings; a fix cycle's dispatch then lists exactly the lines that cycle unticked or found broken. The fix
 implementer's report on those listed lines is judged the same way as any other: `met` re-ticks the line
 with that evidence, `not met`/`ceiling` leaves it unticked with that reason, and an omitted listed line is
@@ -106,7 +106,9 @@ merge (INV-0016). It observes each one
 inline against the deployed system: observed true writes `met: <evidence>`, observed false writes
 `not met: <the observation>` ending in the repair citation
 (`scope-mode.md`'s `## Routing a shipped run`), and a line it cannot observe goes to the attended
-operator, whose answer writes `met:`, `not met:`, or `accepted:` (ADR 0095), or leaves the line unchanged. Verifying a line
+operator. The answer *verified* writes `met:` with the answer as the evidence, *false* writes
+`not met: <the answer>` ending in the repair citation, *accept as unverifiable* writes
+`accepted: <the operator's reason>` (ADR 0095), and *later* leaves the line unchanged. Verifying a line
 observes; it changes no system outside the repository (ADR 0084, INV-0006, ADR 0106). A ticked or
 `accepted:` line is never a listed line and is never rewritten. A `not met:` note written before merge
 carries no repair citation, so the shipped-run routing rule sends a run whose `not met:` notes were all

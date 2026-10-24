@@ -15,7 +15,7 @@ shipped `references/issue-tracker-*.md` seeds. Nothing is written.
 ## Candidates
 
 List every run root under the main working tree (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
-`## A live scope run` → *Run-root enumeration*) whose ledger stage reads `shipped`
+`## Resolving an empty argument` → *Run-root enumeration*) whose ledger stage reads `shipped`
 (`scope.js get stage --root <run-root>`) and whose `<run-root>/dod.md` holds at least one `not met:` note
 `/superdev:verify-ship` observed. Read the note by `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
 **The repair citation**, and never by the box (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`). A ticked,

@@ -3,7 +3,7 @@
 // Selftest suite: the scanners that resolve what prose points at (`scanners/references.js`) — referenced
 // documents, run-root paths, and command names. Run by ./index.js.
 
-const { scan, scanRunRootPaths, scanScopetreeRunRootPaths, scanCommandRefs } = require('../scanners');
+const { scan, scanRunRootPaths, scanScopetreeRunRootPaths, scanCommandRefs, scanGovernedSkillFiles } = require('../scanners');
 
 module.exports = ({ assert, path, fixture, found }) => {
   // --- reference: every references/<name>.md a skill, agent, or reference names exists ---
@@ -129,4 +129,35 @@ module.exports = ({ assert, path, fixture, found }) => {
     2,
     'each source naming a missing command is reported',
   );
+
+  // --- governed-skill-files (ADR 0190): every backticked path in CONTEXT.md's **Prompt concept** entry exists ---
+
+  const entry =
+    '# Context\n\n**Prompt concept**: a governed body. The listed skill files are `plugin/skills/review/SKILL.md` and ' +
+    '`plugin/references/review-scope-mode.md`. `review-checklist.md`\'s `## Prompt-concept overlap` grades a pair.\n\n' +
+    '- **Boundary.** It has a name.\n\n**Main sentence**: one clause, see `plugin/skills/gone/SKILL.md`.\n';
+  assert.equal(
+    scanGovernedSkillFiles(
+      fixture({
+        'CONTEXT.md': entry,
+        'plugin/skills/review/SKILL.md': '# review\n',
+        'plugin/references/review-scope-mode.md': '# scope\n',
+      }),
+    ).length,
+    0,
+    'every listed path present yields zero gaps, and a path past the entry is not read',
+  );
+  const gsGaps = scanGovernedSkillFiles(fixture({ 'CONTEXT.md': entry, 'plugin/skills/review/SKILL.md': '# review\n' }));
+  assert.equal(gsGaps.length, 1, 'a listed path with no file is one gap');
+  assert.match(gsGaps[0].expectation, /`plugin\/references\/review-scope-mode\.md`/, 'the gap names the missing path');
+  const gsDir = scanGovernedSkillFiles(
+    fixture({
+      'CONTEXT.md': '**Prompt concept**: the listed skill files are `plugin/skills/review`.\n',
+      'plugin/skills/review/SKILL.md': '# review\n',
+    }),
+  );
+  assert.equal(gsDir.length, 1, 'a listed path naming a directory is a gap, because it governs no file');
+  const gsNoEntry = scanGovernedSkillFiles(fixture({ 'CONTEXT.md': '# Context\n\n**Main sentence**: one clause.\n' }));
+  assert.equal(gsNoEntry.length, 1, 'a glossary with no **Prompt concept** entry is a gap');
+  assert.match(gsNoEntry[0].expectation, /Prompt concept/, 'the gap names the entry');
 };

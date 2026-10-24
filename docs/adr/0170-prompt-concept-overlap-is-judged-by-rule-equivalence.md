@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0190](0190-listed-skill-files-are-written-as-prompt-concepts.md), which applies the
+overlap test to a standing-code review, to a reference-only change, and to a governed skill's dispatch prose.
+
 **Amends:** [ADR 0169](0169-agent-bodies-are-written-as-prompt-concepts.md), whose **One home per rule**
 the reviewer now checks with a stated test and stated grades, and
 [ADR 0098](0098-the-fix-loop-fixes-every-finding-and-only-correctness-holds-the-stage.md), whose scope

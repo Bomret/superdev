@@ -161,7 +161,7 @@ Only when §2 found a live run. Everything above still applies; this adds the ru
   bullet `get unresolved` prints is a `docs criterion unmet after the doc pass:` entry** → run
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`: those entries were
   this command's own, and the lines they named are met. Any other bullet standing → leave every entry;
-  `/superdev:review`'s clean verdict clears them, and the next doc pass re-adds a `docs` entry whose line is
+  `/superdev:review`'s clean verdict (`review-scope-mode.md`'s `### 4.10 The clean verdict and the handoff`) clears them, and the next doc pass re-adds a `docs` entry whose line is
   still false. Publish the snapshot after any `unresolved` write, per
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section.
 - **Write the stage — unless the re-check above unticked a line, a `docs` line the settle step above
@@ -195,7 +195,7 @@ Only when §2 found a live run. Everything above still applies; this adds the ru
   `accepted:` line as it stands. At `shipped` or `closed` the settle step judged no line, so this branch
   never fires there and the shipped or closed branch below picks the command. **Otherwise, this pass unticked a line above, or the standing-entry check above
   printed one** → print `/superdev:review <range>`, naming the criterion that stands unmet (this pass's
-  own untick, or the earlier one the standing entry already named) and that review's fix loop is what
+  own untick, or the earlier one the standing entry already named) and that review's fix loop (`review-scope-mode.md`'s `### 4.9 The re-tick`) is what
   re-ticks it once the branch meets it again; print no `/superdev:submit-pr` in the same breath — the
   stage still reads `reviewed` or below, and the step that opens the pull request asks once when attended
   and refuses only when unattended, on a scope with an unmet criterion — a criterion noted `ceiling:` or

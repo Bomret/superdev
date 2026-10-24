@@ -76,7 +76,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          documentation convention, controlled-prose, content-types, doc pass, run init,
                          run handoff, execution playbooks, test-selection, scope-mode, authoring
                          disciplines, prior-art audit, design sketch, diagnosis, prototype, merge-conflicts,
-                         review-checklist, dod-ticks, response-shapes); its own AGENTS.md routes them
+                         review-checklist, review-scope-mode, dod-ticks, response-shapes); its own AGENTS.md routes them
   scripts/             — the runtime CLIs: `scope.js`, `kb-patch.js`, `publish-kb.js`
   LICENSE · NOTICE     — copies of the root files, so the shipped tree carries its own attribution
 tests/                 — one suite per shipped executable (the hooks, `scope.js`, `kb-patch.js`,
@@ -227,9 +227,10 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
     in one prompt, and the dispatch is the later, more specific instruction, so it wins a conflict
     ([`CONTEXT.md`](CONTEXT.md) → *Dispatch prose*, ADR 0035). An edit to a contract in `agents/` also
     edits the `skills/` sentence that dispatches it, and a review reads the two together.
-  - **Write each agent body as prompt concepts.** The convention is in [`CONTEXT.md`](CONTEXT.md) →
-    *Prompt concept* and *Main sentence*, and in ADR 0169. An edit to `plugin/agents/` keeps every
-    concept's invariants. A review checks the **No overlap** invariant with the test and grades in
+  - **Write each agent body and each listed skill file as prompt concepts.** The convention is in
+    [`CONTEXT.md`](CONTEXT.md) → *Prompt concept* and *Main sentence*, and in ADR 0169 and ADR 0190.
+    The glossary's *Prompt concept* entry lists the governed skill files. An edit to `plugin/agents/`
+    or to a listed file keeps every concept's invariants. A review checks the **No overlap** invariant with the test and grades in
     `references/review-checklist.md`'s `## Prompt-concept overlap` (ADR 0170).
   - **Prose states no count of a growing set.** "The eight shipped hooks" reads as a fact and is a
     hostage: adding a hook makes it false in every document repeating it, and nothing fails. Name the

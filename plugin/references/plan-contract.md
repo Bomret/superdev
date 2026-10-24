@@ -484,7 +484,7 @@ regardless of whether the scope ever ships (ADR 0046, ADR 0110).
 
 These invariants fix its shape, and every backend renders all of them:
 
-- **The command that finds it writes it, at the trigger moment.** The scope review's fix loop or the full
+- **The command that finds it writes it, at the trigger moment.** The scope review's fix loop (`review-scope-mode.md`'s `### 4.4 The fix boundary`) or the full
   tier's per-slice loop writes a deferred finding's record the moment it defers; whichever chain command is
   running writes an observation's record the moment a controller meets one, and `/superdev:plan` writes one the moment its interview places a found
   defect **later** (`references/scope-mode.md`'s `## Observations` section). A run reviewed

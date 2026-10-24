@@ -7,7 +7,7 @@
 
 A defect's fix starts at its cause, never at its symptom. `/superdev:plan` applies this when the
 feature's change type is `fix`; the `implementer` applies it on a dispatch that repairs a defect;
-`/superdev:review`'s fix loop applies it to a finding whose cause is not yet established. A defect whose
+`/superdev:review`'s fix loop (`review-scope-mode.md`'s `### 4.7 Fix cycles`) applies it to a finding whose cause is not yet established. A defect whose
 cause is already proven — a RED test in hand that reproduces it — skips straight to the fix.
 
 ## The red-capable command (the gate)

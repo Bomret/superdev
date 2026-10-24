@@ -569,7 +569,7 @@ branch step left you on.
 4. **Bring `<tip>` in, and record it.** **Move every numbering collision first** (ADR 0126, INV-0134):
    run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" collisions --base <tip> --branch <branch>
    --range-base <range-base>`, with `<range-base>` per `## The scope's range base` and one `--also <ref>`
-   for each other live plan run's scope branch (`## A live scope run` → *Run-root enumeration*, stage
+   for each other live plan run's scope branch (`## Resolving an empty argument` → *Run-root enumeration*, stage
    `planned` or later, its branch read with `scope.js get branch --root <run-root>`) whose ref resolves:
    `git rev-parse --verify <ref>` succeeds. A run root whose branch no longer resolves gets no `--also`,
    so it never stops this run. It compares numbers, so it finds a collision git never reports as a conflict.
@@ -605,7 +605,7 @@ branch step left you on.
    may still lack `<tip>`, and `## The scope's range base` reads the record. Every merge goes
    through step 5.
 5. **Gate on the full suite.** When `/superdev:review` runs this step, its own entry run is this gate: run
-   no second suite here, and let the entry check's reuse, run, and record (`/superdev:review` §4) gate the
+   no second suite here, and let the entry check's reuse, run, and record (`review-scope-mode.md`'s `### 4.2 The suite gate`) gate the
    merged tip. Otherwise run it when step 4 merged, and also when it merged nothing but
    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base> --root <run-root>` does
    not accept the scope branch's current tip — a red record an earlier invocation left is exactly what
@@ -991,7 +991,7 @@ on every `deferred resolve` call.
 ## Warm cycles
 
 A **warm cycle** is a fix cycle whose fix list holds only Minor findings (ADR 0174). `/superdev:review`'s
-fix loop reads this section, and so does the Minor sweep (`references/implement-full.md`, `## Minor sweep`), the
+fix loop (`review-scope-mode.md`'s `### 4.7 Fix cycles`) reads this section, and so does the Minor sweep (`references/implement-full.md`, `## Minor sweep`), the
 other fix loop that continues a fix implementer. The cycle
 continues the loop's previous fix implementer through SendMessage, with its context intact, in place of a
 fresh `superdev:implementer` dispatch. A cycle whose list holds any Critical or Important finding
@@ -1000,15 +1000,15 @@ dispatches fresh.
 **The cycle dispatches its implementer fresh instead** when:
 
 - the loop has no earlier fix implementer, as in its first cycle;
-- the loop's own model rule picks a different model than that implementer ran on: `/superdev:review`'s §4
-  implementer rule for scope review, and the sweep's Fix step for the sweep;
+- the loop's own model rule picks a different model than that implementer ran on: `review-scope-mode.md`'s `### 4.7 Fix cycles`
+  model rule for scope review, and the sweep's Fix step for the sweep;
 - the resume fails, is denied, or ends other than `completed`. The fresh dispatch then carries the
   cycle's complete fix list, and the run trace records the failed resume as it records any run.
 
 **The resumed run's own end comes first.** Wait for its `dispatch-end` before the re-review, as for a fresh
 dispatch.
 
-**The resume message carries every contract the fresh dispatch carries.**
+**The resume message carries every contract below.**
 
 - The complete fix list, the RED-test rule, and the sibling-surface duty.
 - The test-run bound: the implementer runs only the tests that verify its fix and its fail-to-pass run over

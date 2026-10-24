@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0190](0190-listed-skill-files-are-written-as-prompt-concepts.md), which extends the
+convention to the skill files the glossary lists.
+
 **Amended by:** [ADR 0170](0170-prompt-concept-overlap-is-judged-by-rule-equivalence.md), which records
 how a reviewer checks **One home per rule** and gives the test and the grades one home in
 `plugin/references/review-checklist.md`.

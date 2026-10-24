@@ -280,7 +280,7 @@ and a `First:` wait each run `step block` first.
 ADR number, and a glossary term each take the next free slot in `docs/invariants.md`, `docs/adr/`, or
 `CONTEXT.md` (`${CLAUDE_PLUGIN_ROOT}/references/domain-modeling.md`'s numbering rule). Before committing such a
 capture, scan the other run roots under `.superdev/scopes/*/`
-(`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## A live scope run` → *Run-root enumeration*) whose
+(`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Resolving an empty argument` → *Run-root enumeration*) whose
 ledger stage (`scope.js get stage --root <run-root>`) reads `planned` or later, and read the captures
 already committed on each one's scope branch — `CONTEXT.md`, `docs/adr/`, `docs/invariants.md` at the
 branch tip. A number or term already taken there is skipped for the next free one, never reused.

@@ -24,6 +24,7 @@ const RUN_ROOT_DOCS = [
   'references/run-init.md',
   'references/run-handoff.md',
   'references/scope-mode.md',
+  'references/review-scope-mode.md',
   'agents/implementer.md',
   'agents/slice-reviewer.md',
   'agents/simplicity-reviewer.md',
@@ -340,7 +341,7 @@ const SOURCE_SECTION_CONTRACTS = [
   [
     path.join('references', 'review-checklist.md'),
     /^#{2,3}\s+Prompt-concept overlap\s*$/m,
-    'carry the `## Prompt-concept overlap` section, which `skills/review/SKILL.md`, ' +
+    'carry the `## Prompt-concept overlap` section, which `references/review-scope-mode.md`, ' +
       '`references/AGENTS.md`, `CONTEXT.md`, and the root `AGENTS.md` cite',
   ],
   [
@@ -348,27 +349,27 @@ const SOURCE_SECTION_CONTRACTS = [
     /^#{2,3}\s+Pushing the scope branch\s*$/m,
     'carry the `## Pushing the scope branch` section, which `skills/plan/SKILL.md` §6 cites (ADR 0167)',
   ],
-  // Agent-body headings another file cites by name. A template heading counts: the review skill and
-  // `dod-ticks.md` send their reader to the section the agent's output carries under it.
+  // Agent-body headings another file cites by name. A template heading counts: the review scope-mode
+  // reference and `dod-ticks.md` send their reader to the section the agent's output carries under it.
   [
     path.join('agents', 'final-reviewer.md'),
     /^#{2,3}\s+Judge every criterion\s*$/m,
-    'carry the `### Judge every criterion` section, which `skills/review/SKILL.md` cites',
+    'carry the `### Judge every criterion` section, which `references/review-scope-mode.md` cites',
   ],
   [
     path.join('agents', 'final-reviewer.md'),
     /^#{2,3}\s+Criteria\s*$/m,
-    'carry the `### Criteria` output section, which `skills/review/SKILL.md` and `dod-ticks.md` cite',
+    'carry the `### Criteria` output section, which `references/review-scope-mode.md` and `dod-ticks.md` cite',
   ],
   [
     path.join('agents', 'final-reviewer.md'),
     /^#{2,3}\s+Ceiling\s*$/m,
-    'carry the `### Ceiling` output section, which `skills/review/SKILL.md` cites',
+    'carry the `### Ceiling` output section, which `references/review-scope-mode.md` cites',
   ],
   [
     path.join('agents', 'final-reviewer.md'),
     /^#{2,3}\s+Fail-to-pass unknown\b/m,
-    'carry the `### Fail-to-pass unknown` output section, which `skills/review/SKILL.md` carries through',
+    'carry the `### Fail-to-pass unknown` output section, which `references/review-scope-mode.md` carries through',
   ],
   [
     path.join('agents', 'slice-reviewer.md'),

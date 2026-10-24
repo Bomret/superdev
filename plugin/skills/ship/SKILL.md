@@ -125,7 +125,7 @@ Either way:
   last recorded green suite result — `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable
   --branch <head.sha> --base <base> --root <run-root>` (plain, never `--whole`: an adopted hand merge is
   not a merge superdev makes, INV-0092), the same reuse `/superdev:review`'s own gate
-  uses — exits 0 → the merged head is a commit the suite record covers (INV-0017 states every way it does: an exact match, a
+  (`review-scope-mode.md`'s `### 4.2 The suite gate`) uses — exits 0 → the merged head is a commit the suite record covers (INV-0017 states every way it does: an exact match, a
   Markdown-only range, a focused-selector carry, or a recorded rerun), no `**Degraded:**` bullet. Exits 1, or no record
   at all → `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" degraded add "the merge landed on <head.sha>,
   not a commit the green suite record covers"`. Either way, set the stage to `shipped`
@@ -147,7 +147,7 @@ is what the pinned squash lands and what §5's deploy step reads fresh at the me
 
 **The tip needs a reusable green result before anything else runs.**
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base>
---root <run-root>` — the same call `/superdev:review`'s own scope-mode gate uses. Which checkout you run it from does not matter: every worktree of a repository shares the same
+--root <run-root>` — the same call `/superdev:review`'s own scope-mode gate (`review-scope-mode.md`'s `### 4.2 The suite gate`) uses. Which checkout you run it from does not matter: every worktree of a repository shares the same
 refs and objects, so `<branch>` resolves identically wherever `git` is invoked from inside it. Exit 1, or
 no record at all → refuse: name that the tip carries no green full-suite result to reuse (INV-0017), and
 merge nothing.

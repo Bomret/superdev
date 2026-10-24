@@ -17,6 +17,7 @@ const {
   scanAdrNumbers,
   scanAdrRelations,
   scanCommandRefs,
+  scanGovernedSkillFiles,
   scanKbNoBackendCall,
   scanAgentToolAgnostic,
   scanUnmappedPathsForms,
@@ -74,6 +75,12 @@ module.exports = [
     ok: 'commands resolve',
     run: scanCommandRefs,
     format: (d) => `${d.source} names \`${d.command}\`, which has no file under skills/`,
+  },
+  {
+    id: 'governed-skill-files',
+    ok: "every path CONTEXT.md's **Prompt concept** entry lists names a file (ADR 0190)",
+    run: scanGovernedSkillFiles,
+    format: contractGap,
   },
   {
     id: 'readme-commands',

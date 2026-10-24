@@ -1,10 +1,12 @@
 'use strict';
 
-// The scanners that resolve what prose points at: referenced documents, command names, and run-root paths.
+// The scanners that resolve what prose points at: referenced documents, command names, run-root paths, and
+// the governed skill files the glossary lists.
 
 const fs = require('node:fs');
+const path = require('node:path');
 
-const { docPath } = require('../lib');
+const { docPath, readDoc, missingDoc } = require('../lib');
 const {
   REFERENCE_PATTERN,
   RUN_ROOT_DOCS,
@@ -61,4 +63,31 @@ function scanCommandRefs(root) {
   return unresolved;
 }
 
-module.exports = { scan, scanRunRootPaths, scanScopetreeRunRootPaths, scanCommandRefs };
+// scanGovernedSkillFiles(): every backticked repo-relative path in `CONTEXT.md`'s **Prompt concept** entry
+// names a file (ADR 0190). The entry is the only list of the governed skill files, so a renamed file would
+// silently drop out of the convention. The entry runs to the next glossary headword. A backticked token with
+// no `/` is a bare name or a section, never a path.
+const GLOSSARY_DOC = 'CONTEXT.md';
+function scanGovernedSkillFiles(root) {
+  const doc = readDoc(root, GLOSSARY_DOC);
+  if (doc === null) return [missingDoc(GLOSSARY_DOC)];
+  const at = doc.search(/^\*\*Prompt concept\*\*:/m);
+  if (at === -1) {
+    return [{ source: GLOSSARY_DOC, expectation: 'carry the **Prompt concept** entry that lists the governed skill files' }];
+  }
+  const rest = doc.slice(at);
+  const next = rest.slice(1).search(/^\*\*[^*\n]+\*\*:/m);
+  const body = next === -1 ? rest : rest.slice(0, next + 1);
+  const gaps = [];
+  for (const m of body.matchAll(/`([^`\s]*\/[^`\s]*)`/g)) {
+    if (!fs.statSync(path.join(root, m[1]), { throwIfNoEntry: false })?.isFile()) {
+      gaps.push({
+        source: GLOSSARY_DOC,
+        expectation: `list only governed files that exist — \`${m[1]}\` names no file`,
+      });
+    }
+  }
+  return gaps;
+}
+
+module.exports = { scan, scanRunRootPaths, scanScopetreeRunRootPaths, scanCommandRefs, scanGovernedSkillFiles };
