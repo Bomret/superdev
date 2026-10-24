@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0184](0184-brainstorm-offers-its-drafts-in-one-question-without-delete.md), which
+offers the drafts in one question and drops the delete action.
+
 ## Context
 
 `/superdev:brainstorm` wrote its intent once, at the converge step, and the write was optional. Until

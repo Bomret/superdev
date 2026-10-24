@@ -42,7 +42,7 @@ Concepts: Definition of Done (DoD), Append mode, Scope anchor
 Statement: A Definition of Done is a claim verified at one moment against one change. A ticked criterion is always readable against the change it was verified against, and is never pooled in one record with criteria from another run.
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/skills/plan/**, plugin/references/run-init.md, plugin/skills/review/SKILL.md
+Paths: plugin/skills/plan/**, plugin/references/run-init.md, plugin/skills/review/SKILL.md, plugin/references/plan-extend.md
 
 ### INV-0005
 
@@ -212,7 +212,7 @@ Concepts: Load-bearing decision, Parked questions, Epic
 Statement: An unresolved load-bearing decision is parked on the epic only on a multi-slice plan. A single-slice plan has no epic to park it on.
 Breaks: silently
 Check: none — a judgment
-Paths: plugin/skills/plan/**
+Paths: plugin/skills/plan/**, plugin/references/plan-extend.md
 
 ### INV-0024
 
@@ -383,7 +383,7 @@ Concepts: Staged page, Invoking checkout, Scopetree, Run root
 Statement: A staged page is written to an absolute path under `.superdev/kb-pending/<scope>/`, never inside a run root or a scopetree, so no cleanup of either removes it.
 Breaks: silently
 Check: none — the absolute-path half is unpinned
-Paths: plugin/references/doc-pass.md, plugin/skills/document/SKILL.md, plugin/skills/plan/SKILL.md
+Paths: plugin/references/doc-pass.md, plugin/skills/document/SKILL.md, plugin/skills/plan/SKILL.md, plugin/references/plan-kb-staging.md
 
 ### INV-0046
 
@@ -978,7 +978,7 @@ Concepts: Staged page, Scopetree
 Statement: A staged page is written only into the main working tree's `.superdev/kb-pending/<scope>/`, whichever checkout the staging step runs from. Every staging instruction and the staged-page scan resolve that directory through `scope.js staging`, which refuses outside a git repository rather than fall back to the cwd (ADR 0119).
 Breaks: silently
 Check: tests/scope-root-base.test.js — the verb and the staged-page scan run from a linked worktree's cwd
-Paths: plugin/scripts/scope.js, plugin/lib/status.js, plugin/skills/plan/SKILL.md, plugin/skills/document/SKILL.md, plugin/references/doc-pass.md, plugin/references/implement-lite.md, plugin/agents/doc-writer.md
+Paths: plugin/scripts/scope.js, plugin/lib/status.js, plugin/skills/plan/SKILL.md, plugin/skills/document/SKILL.md, plugin/references/doc-pass.md, plugin/references/implement-lite.md, plugin/agents/doc-writer.md, plugin/references/plan-kb-staging.md
 
 ### INV-0122
 
@@ -1058,8 +1058,8 @@ Class: architecture
 Concepts: Run lock, Run root
 Statement: A fresh run lock blocks a second session from creating that scope's scopetree, whatever directory or linked worktree the second session started from. The lock is found in the run root the guarded command names. The run root under the session's working directory is checked as well, a fail-closed backstop for a path the hook cannot expand.
 Breaks: silently
-Check: tests/run-lock.test.js — a fresh lock blocks from the main tree, a subdirectory, and a linked worktree
-Paths: plugin/hooks/run-lock.js
+Check: tests/run-lock.test.js — a fresh lock blocks from the main tree, a subdirectory, and a linked worktree; tests/scope-open.test.js — `scope.js open` stops a second plan session on a fresh lock
+Paths: plugin/hooks/run-lock.js, plugin/lib/plan-open.js
 
 ### INV-0131
 
@@ -1068,7 +1068,7 @@ Concepts: Repair, Definition of Done (DoD), Scope anchor, Stage
 Statement: A repair writes nothing to the original scope's records: not its anchor, its `dod.md`, or its ledger, and merging the repair closes nothing. Recreating the original's missing local run root from its anchor's own `shipped` snapshot copies those records and changes none of them (INV-0132). The original's line observed false is settled only by `/superdev:verify-ship` on the original scope, and no repair moves the original's stage (ADR 0124).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/skills/plan/**, plugin/references/plan-contract.md, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**, plugin/references/scope-mode.md
+Paths: plugin/skills/plan/**, plugin/references/plan-contract.md, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**, plugin/references/scope-mode.md, plugin/references/plan-repair.md
 
 ### INV-0132
 

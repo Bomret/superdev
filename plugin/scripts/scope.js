@@ -2,7 +2,7 @@
 'use strict';
 
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
-// Verbs: init, stage, step, slice, degraded, unresolved, deferred, minors, docs, pr, deploy, suite, base, get, status,
+// Verbs: open, init, stage, step, slice, degraded, unresolved, deferred, minors, docs, pr, deploy, suite, base, get, status,
 // publish, adopt, trace, collisions, citations, source-set, push, root, staging, dod-line; `main()` also runs test and fail-to-pass. Exit
 // nonzero with a one-line stderr reason on any refusal. hooks/ledger-guard.js makes this the only
 // ledger write path.
@@ -40,6 +40,7 @@ const { verbFailToPass } = require('../lib/fail-to-pass.js');
 const { verbCitations } = require('../lib/citations.js');
 const { verbSourceSet } = require('../lib/source-set.js');
 const { verbPush } = require('../lib/push.js');
+const { verbOpen } = require('../lib/plan-open.js');
 const { usage } = require('../lib/usage.js');
 
 // --- root: the verbs over `lib/main-work-tree.js`'s run-root resolver (ADR 0080) -----------------
@@ -101,6 +102,10 @@ function run(argv, cwd, stdinJson) {
   // Set by a ledger-writing verb once its write succeeded; a refused verb throws before it is set.
   let ledgerEvent = null;
   switch (verb) {
+    // Writes the ledger and the trace itself, and traces the `init` and `step set plan` it makes (lib/plan-open.js).
+    case 'open':
+      verbOpen(cwd, args);
+      break;
     case 'init':
       if (!args[0]) fail('init needs a <type>/<slug> label');
       ledgerEvent = { root: verbInit(cwd, args[0], args[1], stdinJson), fields: ['init', args[0], args[1]] };

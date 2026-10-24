@@ -108,6 +108,13 @@ const { sliceJson, scopePath, run } = require('./scope-setup');
       };
       const traceOf = (r) => (fs.existsSync(path.join(r, 'trace.log')) ? fs.readFileSync(path.join(r, 'trace.log'), 'utf8').split('\n').filter(Boolean) : []);
       for (const v of usageVerbs) {
+        // `open` traces the `init` and the `step set plan` it makes, the lines the pane starts `plan` from.
+        if (v === 'open') {
+          const oRoot = path.join(dir, '.superdev', 'scopes', 'g-open');
+          assert.ok(quiet(['open', 'feat/g-open', '--base', 'HEAD']), 'open succeeds');
+          assert.deepEqual(traceOf(oRoot).map((l) => l.replace(/^\S+ scope main /, '')), ['ledger init feat/g-open planned', 'ledger step set plan'], 'open traces the init and the step it makes');
+          continue;
+        }
         assert.ok(drivers[v], `usage lists writing verb "${v}" with no driver in this guard`);
         const gRoot = path.join(dir, '.superdev', 'scopes', 'g-' + v);
         let target = gRoot;

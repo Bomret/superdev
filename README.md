@@ -109,7 +109,7 @@ plan runs test-first, inline in the scopetree.
   mix criteria verified against a merged pull request with criteria nobody has verified, so follow-up
   work becomes a new feature holding an anchor dependency on the old one. It surfaces any parked questions the
   feature carries before asking anything new. A parked question is a load-bearing decision an earlier
-  interview could not resolve (`skills/plan/SKILL.md` §0).
+  interview could not resolve (`references/plan-extend.md`).
 - **`/superdev:implement`**. The controller drives the slices as a **dependency-ordered DAG**, sized to
   an execution tier derived fresh from the loaded slice count. The tier is never configured and never
   persisted.

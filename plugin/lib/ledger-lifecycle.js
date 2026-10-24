@@ -46,7 +46,7 @@ const INIT_ENTRY_STAGES = ['planned', 'implementing'];
 // a ledger that cannot be moved puts the moved trace back and stops init, so both files stay in place —
 // and when the trace cannot go back either, init stops naming the stranded trace's path; a run that
 // recorded no trace rotates its ledger alone.
-function rotateFinishedLedger(root, stage) {
+function rotateFinishedLedger(root, stage, log) {
   const stamp = new Date().toISOString().slice(0, 19).replace(/:/g, '');
   let stem = `${stage}-${stamp}`;
   const taken = (s) => fs.existsSync(path.join(root, `ledger-${s}.md`)) || fs.existsSync(path.join(root, `trace-${s}.log`));
@@ -75,7 +75,7 @@ function rotateFinishedLedger(root, stage) {
     }
     fail(`cannot move the ${stage} run's ledger.md aside (${e.code}) — the ledger and its trace stay in place`);
   }
-  console.log(`rotated ${stage} ledger to ${dest}`);
+  log(`rotated ${stage} ledger to ${dest}`);
 }
 
 function validateLabel(label) {
@@ -90,7 +90,8 @@ function validateLabel(label) {
   return { type, slug };
 }
 
-function verbInit(cwd, label, stage, stdinJson) {
+// `log` takes init's own stdout lines; `open` passes one that drops them, since its stdout is its outcome.
+function verbInit(cwd, label, stage, stdinJson, log = console.log) {
   if (!INIT_ENTRY_STAGES.includes(stage)) {
     fail(`init needs an entry stage, one of ${INIT_ENTRY_STAGES.join('|')} — got "${stage || ''}"`);
   }
@@ -119,7 +120,7 @@ function verbInit(cwd, label, stage, stdinJson) {
     } else if (priorStage !== 'closed' && priorStage !== 'planned') {
       fail(`ledger already exists: ${ledgerPath(root)}`);
     } else if (priorStage === 'planned') {
-      console.log(`ledger already exists at stage "planned" (no slice has run) — overwriting`);
+      log(`ledger already exists at stage "planned" (no slice has run) — overwriting`);
     }
   }
 
@@ -156,7 +157,7 @@ function verbInit(cwd, label, stage, stdinJson) {
     // A closed run's ledger — ADR 0007's seven-day trail keeps it on disk past merge, so a new
     // feature reusing a retired label (ADR 0083) lands here. Rotate aside rather than refuse. Done only
     // after every refusal above, so a refused init leaves the finished ledger untouched.
-    rotateFinishedLedger(root, priorStage);
+    rotateFinishedLedger(root, priorStage, log);
   }
 
   // Ensure .superdev/ is git-ignored in the main working tree that holds it — but after every
@@ -181,7 +182,7 @@ function verbInit(cwd, label, stage, stdinJson) {
   if (priorStage === 'planned' && stage === 'planned' && priorStep !== null) insertHeader(doc, 'Step', priorStep);
   fs.mkdirSync(root, { recursive: true });
   writeLines(root, doc);
-  console.log(root);
+  log(root);
   return root;
 }
 

@@ -396,7 +396,7 @@ const picked = (root, paths) =>
   const suites = discoverSuites(path.join(repoRoot, 'tests'));
   const of = (paths) => selectSuites(repoRoot, suites, paths).map((f) => path.basename(f, '.test.js'));
   const lock = ['run', 'lock'].join('-');
-  assert.deepStrictEqual(of([`plugin/hooks/${lock}.js`]), ['plugin-layout', lock, 'scope-ledger'], 'run-lock selects its suite and the suites naming it');
+  assert.deepStrictEqual(of([`plugin/hooks/${lock}.js`]), ['plugin-layout', lock, 'scope-ledger', 'scope-open'], 'run-lock selects its suite and the suites naming it');
   const scope = of([`plugin/scripts/${'scope'}.js`]);
   const topics = ['ledger', 'ledger-header', 'publish-adopt', 'root-base', 'citations-collisions', 'suite', 'containment', 'dod-line', 'help', 'trace'];
   const parts = [...topics.map((t) => `scope-${t}`), ['scope', 'test', 'verb'].join('-'), ['scope', 'fail', 'to', 'pass'].join('-')];

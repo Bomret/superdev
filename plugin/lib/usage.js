@@ -6,6 +6,11 @@ function usage() {
   return [
     'usage: node scope.js <verb> …   (ledger CLI — the only ledger.md write path)',
     '  --help, -h                         this text, with any verb; reads no stdin',
+    '  open <type>/<slug> --base <base-ref> [--remote <remote>] [--lock <nonce>]',
+    '                                     sets up or rejoins a plan run: cuts or reuses the scope branch into the scopetree,',
+    '                                     writes run.lock, an empty planned ledger when none exists, and the plan step; prints',
+    '                                     cut|reused|existing, then root and lock lines, and exits 0, or prints',
+    '                                     locked|not-contained|dirty|held and exits 3 having written nothing; 1 is a refusal',
     '  init <type>/<slug> <stage>          stage is planned|implementing (ADR 0079, no default) —',
     '                                      stdin: {"anchor":"…","slices":[{id,issue,title,type,…}]}',
     '  stage set <value> --root <run-root>',

@@ -1,6 +1,7 @@
 # Interview discipline (cross-examination)
 
-`/superdev:plan` and `/superdev:brainstorm` both run their conversation by this. The interview is the
+`/superdev:plan` runs its interview by this whole discipline. `/superdev:brainstorm` runs the core moves
+its opening names and stops at its own readiness test. In `/superdev:plan` the interview is the
 **main event**, not a warm-up before slicing or brief-writing: keep going until the design tree is
 exhausted and you and the user share the same picture — **not** until you have "enough to start."
 

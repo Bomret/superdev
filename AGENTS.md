@@ -61,7 +61,8 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          `main-work-tree.js`, `verification.js` (the readers of `verification.md`).
                          Git and containment: `git-spawn.js` (the shared git calls), `containment.js`,
                          `collisions.js`, `citations.js`, `source-set.js` (the gap audit's source set), `push.js`
-                         (the `push` verb that puts a scope branch on the remote, ADR 0167).
+                         (the `push` verb that puts a scope branch on the remote, ADR 0167), `plan-open.js`
+                         (the `open` verb that sets up a plan run, ADR 0185).
                          Run trace: `trace-log.js` (writer, reader, field codec), `run-tree.js`,
                          `test-runs.js`, `dispatch.js`, `dispatch-lines.js`, `verdicts.js`,
                          `start-stash.js`.
@@ -74,7 +75,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
   references/          — backend seed templates + the non-seed runtime references (plan-contract,
                          documentation convention, controlled-prose, content-types, doc pass, run init,
                          run handoff, execution playbooks, test-selection, scope-mode, authoring
-                         disciplines, design sketch, diagnosis, prototype, merge-conflicts,
+                         disciplines, prior-art audit, design sketch, diagnosis, prototype, merge-conflicts,
                          review-checklist, dod-ticks, response-shapes); its own AGENTS.md routes them
   scripts/             — the runtime CLIs: `scope.js`, `kb-patch.js`, `publish-kb.js`
   LICENSE · NOTICE     — copies of the root files, so the shipped tree carries its own attribution
@@ -88,7 +89,7 @@ tests/                 — one suite per shipped executable (the hooks, `scope.j
                          point's suite is split flat by topic into `tests/<entry>-<topic>.test.js` over one
                          `<entry>-setup.js` that is no suite (ADR 0139, ADR 0151): `scope-*` (ledger,
                          ledger-header, suite, dod-line, publish-adopt, trace, root-base, containment,
-                         citations-collisions, source-set, push, help, test-verb, fail-to-pass, over `scope-setup.js`),
+                         citations-collisions, source-set, push, open, help, test-verb, fail-to-pass, over `scope-setup.js`),
                          `run-trace*` (dispatch, drive-paths, guards, paths, runs, stash, verdicts,
                          writes, over `run-trace-setup.js`), `publish-kb*` (containment, guard, parent-link,
                          patch, publish, read, scope, templates, timeout, over `publish-kb-setup.js`),

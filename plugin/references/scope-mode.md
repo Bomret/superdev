@@ -320,8 +320,8 @@ contained however little of its work base actually holds.
 ## Cutting the scope branch
 
 Run init computes this run's **run kind** — `CONTEXT.md`'s glossary names both
-values — and hands it to the execution playbook; `/superdev:plan` computes the same value for its
-own cut, ahead of any slice run (ADR 0079). Every caller acts on that value instead of deriving it a
+values — and hands it to the execution playbook; `/superdev:plan`'s `scope.js open` computes the same value for its
+own cut, ahead of any slice run (ADR 0079): no live ledger is `fresh`, a `planned` ledger is `resumed`. Every caller acts on that value instead of deriving it a
 second time from git state. One call cuts or reuses the branch at every run kind, into the same
 **scopetree** — `<run-root>/scopetree` — at both tiers: the invoking checkout is never switched
 (ADR 0045).
@@ -334,8 +334,8 @@ second time from git state. One call cuts or reuses the branch at every run kind
   it, which is the safe outcome, and the branch is then decided rather than stopped on unconditionally —
   contained in `<base>` and reused, or not contained and stopped, per `## Containment` above: the same
   test that decides a scope is finished with (ADR 0007), contained in `<base>`, or gone entirely.
-  `/superdev:plan` runs no containment test of its own; its own cut defers to this whole section instead
-  of restating the test.
+  `/superdev:plan`'s cut is `scope.js open`, which applies this rule in `lib/plan-open.js` and prints
+  `not-contained`, `dirty`, or `held` where the rule stops; plan acts on the printed outcome.
   - **Gone** — `<branch>` does not verify: nothing survives to reuse, so the `-b` cut above is the whole
     step.
   - **Present** — decide with `## Containment` above, which owns the test. **Contained** —
@@ -504,19 +504,20 @@ runs — both read the ordinary-hand-off branch and both proceed, since nothing 
 `/superdev:plan`-to-`/superdev:implement` hand-off the `planned` carve-out exists to admit. Only the
 stage's own advance to `implementing` closes that window, not this check.
 
-**`/superdev:plan` keeps its own, narrower check, unaffected by the rule above** (triage #510): before its
-own cut, a lock already present always means a second plan session — this checkpoint runs before `/plan`
-has written anything of its own, so no stage exists yet to distinguish a hand-off from a collision the way
-`/superdev:implement`'s check does, and none is needed: nothing but a second `/plan` session could have
-left a lock here.
+**`/superdev:plan` checks through `scope.js open`, unaffected by the rule above.** Each plan run writes a
+nonce of its own into the lock, `plan <nonce>`, and passes it back on its later calls. `open` stops with
+`locked` on a lock under an hour old that names another nonce: with no live ledger, any such lock; on a
+`planned` ledger, only while the ledger's step stands, the rule `/superdev:status` applies to a run live in
+another session (ADR 0163, ADR 0185).
 
 **Write `<run-root>/run.lock` once `## Cutting the scope branch` above has cut the scopetree, at both
 tiers** — and once `/superdev:plan` has made its own cut (ADR 0079) — never before: the `run-lock` hook
 guards `git worktree add` on the scopetree, and a lock written ahead of that call would make the run block
 on its own scopetree creation. Refresh the file if it already exists, the case a `resumed` run finds, once
 `/superdev:implement`'s own liveness check above has passed. This is the execution playbooks' own write,
-and `/superdev:plan`'s: each writes the lock into the run root right after its own cut, and refreshes it
-again at its own §6. **On a `resumed` run, the liveness check above is what tells a live second
+and `/superdev:plan`'s: each writes the lock into the run root right after its own cut. Plan's
+`scope.js open` writes it, refreshes it on plan's §6 call, and checks it itself, because the `run-lock` hook
+sees no `git worktree add` inside the verb. **On a `resumed` run, the liveness check above is what tells a live second
 `/superdev:implement` invocation from this run's own stale or absent lock** — the playbook's own Resume
 section, further down the chain, only reconciles the ledger against `git log` from here on; it performs no
 liveness check of its own.

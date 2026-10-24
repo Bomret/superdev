@@ -21,14 +21,14 @@ This doc owns what each script guards and the contracts between them. Repo-wide 
 
 `scope.js` owns the CLI and the verbs, and requires only modules from `plugin/lib/` (ADR 0151). Each verb's code lives in
 a module of its own: the ledger verbs in `ledger-lifecycle.js` and `ledger-records.js`, `suite` and `base` and `get` in
-`suite-base-get.js`, `test` in `test-verb.js`, `publish` with `adopt` in `run-state.js`, and `dod-line`, `fail-to-pass`,
+`suite-base-get.js`, `test` in `test-verb.js`, `publish` with `adopt` in `run-state.js`, `open` in `plan-open.js`, and `dod-line`, `fail-to-pass`,
 `citations`, `collisions`, `source-set`, `push`, and `status` each in the module of its name. The vocabulary beneath them is `ledger.js` (the stage rank and the readers and writers of
 a ledger's header lines, bullets, and table rows), `refusal.js` (the refusal error `fail`), `verification.js` (`verificationCommands`,
 `verificationCommandsOf`, `isTestPath`), `git-spawn.js` (`gitSpawn`, `gitThrow`, `parseBranchList`, `resolveCommit`, `refResolves`, `fileAt`),
 `containment.js` (`testContainment`, `judgeContainment`, `baseHistoryHasPatch`), `main-work-tree.js` (`mainWorkTree`, `scopesDirFor`, `mainTreePath`), and
 `trace-log.js` (`appendTrace`, `readTrace`, `traceField`, `untraceField`). The root [`AGENTS.md`](../AGENTS.md) *Structure* names every module and its
 responsibility. `scope.js` keeps every export it had. No module requires an entry point. `scope.js` owns the ledger's schema through `ledger.js` and is the only `ledger.md` read and write path in the chain:
-`init`, `stage set`, `slice`, `degraded add|add-denial|reset-denials`, `unresolved add|clear`,
+`open <type>/<slug> --base <base-ref> [--remote <remote>] [--lock <nonce>]`, `init`, `stage set`, `slice`, `degraded add|add-denial|reset-denials`, `unresolved add|clear`,
 `deferred add|resolve`, `minors add <slice-id>|clear`,
 `docs set <value>|clear`, `pr set <n>|clear`,
 `deploy set <target> pending|deployed|failed [--exit <n>]`, `deploy get`,
@@ -274,7 +274,7 @@ holds the setup they share and is no suite. `tests/scope-test-verb.test.js` hold
 the `fail-to-pass` verb's. The rest: `scope-ledger` (init, stage, step, slice, the bullet and header records, get, status, and the ledger-fixtures pin),
 `scope-ledger-header` (`readLedgerHeader`), `scope-suite` (the suite and base records), `scope-dod-line`, `scope-publish-adopt` (`publish`, `adopt`, and the
 `maskFencedLines` pin), `scope-trace` (the run trace and `appendTrace`), `scope-root-base` (`root`, `staging`, `base` from a linked worktree),
-`scope-containment`, `scope-citations-collisions`, `scope-source-set`, `scope-push`, and `scope-help`. A focused run for `scope.js`, or for a module it requires, selects
+`scope-containment`, `scope-citations-collisions`, `scope-source-set`, `scope-push`, `scope-open`, and `scope-help`. A focused run for `scope.js`, or for a module it requires, selects
 every suite that reaches it (`run-tests.js`, below).
 
 `source-set [<path>]` prints the gap audit's source set and touches no ledger and no run root (ADR 0162). It prints one
@@ -302,6 +302,21 @@ a missing ledger, a ledger with no `**Branch:**` line, or a `**Branch:**` line t
 `--end-of-options` ahead of a remote or revision argument, and every network call carries a time bound of 60000 ms and a
 kill signal, the refetch of `<base-ref>` inside the containment test included. `SUPERDEV_PUSH_TIMEOUT_MS` overrides the bound. The code lives in `plugin/lib/push.js`, and
 `tests/scope-push.test.js` holds its cases.
+
+`open <type>/<slug> --base <base-ref> [--remote <remote>] [--lock <nonce>]` sets up or rejoins a `/superdev:plan` run
+(ADR 0185). `/superdev:plan` §2 calls it at the first capture that crystallises, and §6 calls it again. With no ledger, or
+a `closed` one, it cuts the branch from `<base-ref>` into `<run-root>/scopetree` by `plugin/references/scope-mode.md`'s
+`## Cutting the scope branch` and prints `cut`. Where the name exists, `judgeContainment` decides: a contained branch is
+attached to the scopetree, checked clean, reset to the base it was judged against, and prints `reused`. A `planned`
+ledger naming the same branch prints `existing` and cuts nothing, attaching the branch where the scopetree is absent. On
+success it writes `run.lock` as `plan <nonce>`, writes an empty `planned` ledger with the anchor `pending` through
+`init` where no live ledger stood, records `step set plan` unless the same nonce's call already did, traces the `init`
+and the step as their own verbs would, prints `root <run-root>` and `lock <nonce>`, and exits 0. It writes nothing and
+exits 3 on `locked` (a lock under an hour old that names another nonce, on a `planned` ledger only while its step
+stands), `not-contained` (the commits base lacks and a `git branch -m` remedy), `dirty` (the scopetree's
+`status --porcelain`), and `held` (another worktree holds the branch). A ledger at a later stage, a `planned` ledger
+naming another branch, a missing `--base`, and a failed git call exit 1. The code lives in `plugin/lib/plan-open.js`,
+and `tests/scope-open.test.js` holds its cases.
 
 `dod-line` is another verb that touches no ledger, and makes no store call of its own
 (`references/dod-ticks.md`, INV-0014, triage #664): `--match <criterion text>|--match-file <path>
@@ -847,7 +862,7 @@ path, when that document is missing. A check that walks a directory reads whatev
 | `conflict-conclusion-no-commit` | no skill, agent, or reference concludes a resolved merge conflict with `git commit` (ADR 0123) | prohibition |
 | `code-management-no-force` | no code-management document sends `force_merge: true` or `--admin` on a merge (INV-0092) | prohibition |
 | `forgejo-tea-only` | no Forgejo backend document names a token env var, an `Authorization` header, or a curl call (ADR 0111) | prohibition |
-| `kb-no-backend-call` | plan, document, `doc-writer`, and `doc-pass.md` carry no instruction that reaches a knowledge-base backend (ADR 0023) | prohibition |
+| `kb-no-backend-call` | plan, `plan-kb-staging.md`, document, `doc-writer`, and `doc-pass.md` carry no instruction that reaches a knowledge-base backend (ADR 0023) | prohibition |
 | `agent-tool-agnostic` | no agent under `agents/` names a concrete toolchain command | prohibition |
 | `deploy-runner-exclusivity` | no skill or agent but ship names a deploy target's command as something it runs (INV-0098) | prohibition |
 | `ship-no-opens-pr` | no shipped surface attaches opening the pull request to `/superdev:ship` (ADR 0096) | prohibition |
