@@ -101,7 +101,7 @@ initS3();
   editOut(T);
   appendTrace(A, { slice: '03', kind: 'run', fields: ['full', 'fail', 'unknown', 'unknown', '-'] });
   assert.equal(postOut(`node ${SCOPE} test full`), '', 'a failing run line from the verb satisfies the RED step');
-  // A fail-to-pass run is no test run (ADR 0134): a call of its verb records no run line, and its outcome line is no failing run.
+  // A fail-to-pass run is no test run (ADR 0134): a call of its verb that refuses before its control run starts records no run line, and its outcome line is no failing run.
   reset();
   editOut(T);
   assert.equal(postOut(`node ${SCOPE} fail-to-pass abc..def`), '', 'a fail-to-pass call after a test edit notes nothing');

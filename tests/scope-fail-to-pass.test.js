@@ -38,6 +38,10 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     // A test script's first line records what the worktree holds when the command runs.
     const probe = 'ls -1 | tr "\\n" "|" >> "$F2P_LOG"; echo >> "$F2P_LOG"\n';
     let n = 0;
+    const traceLines = (root) => {
+      const file = path.join(root, 'trace.log');
+      return fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split('\n').filter(Boolean).map((l) => l.split(' ').slice(1).join(' ')) : [];
+    };
     // `base` and `tip` map a path to its text, or to null to delete it at the tip; `rename` pairs move a base file at the tip.
     const scenario = ({ base, tip, rename = [], bare = false }) => {
       const dir = path.join(D, 's' + ++n);
@@ -84,10 +88,9 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
           assertSpawnDecided(r, 'scope.js fail-to-pass ' + range);
           return r;
         },
-        trace: () => {
-          const file = path.join(root, 'trace.log');
-          return fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split('\n').filter(Boolean).map((l) => l.split(' ').slice(1).join(' ')) : [];
-        },
+        // The trace's lines without their timestamp. `trace` leaves out the control run's `run` line, which `runLines` reads.
+        trace: () => traceLines(root).filter((l) => l.split(' ')[2] !== 'run'),
+        runLines: () => traceLines(root).filter((l) => l.split(' ')[2] === 'run'),
         ran: () => (fs.existsSync(log) ? fs.readFileSync(log, 'utf8').split('\n').filter(Boolean) : []),
       };
     };
@@ -282,6 +285,73 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     assert.deepEqual(noCommand.trace(), [], 'nothing is written');
     assert.deepEqual(leftover(noCommand), [], 'and no worktree stays');
 
+    // The control run is also a test run (ADR 0175): it writes the `run` line of the kind of command it ran, with its result,
+    // the tip, a clean tree, and for a focused run the range's path set, in the shape `scope.js test` writes. The line is
+    // attributed like the outcome line and the outcome line is unchanged.
+    const FOCUSED = 'sh tests/t.sh {paths}';
+    const runFields = (line) => line.split(' ').slice(2).join(' ');
+    const testVerb = (sc, kind, ...paths) => {
+      const t = spawnSync(process.execPath, [scopePath, 'test', kind, ...paths], { cwd: sc.tree, encoding: 'utf8', timeout: 60000, env: { ...process.env, F2P_LOG: sc.log, F2P_DIR: sc.dir } });
+      assertSpawnDecided(t, 'scope.js test ' + kind);
+      return t;
+    };
+    s = scenario({
+      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, FOCUSED) },
+      tip: { 'src.txt': 'b\n', 'tests/t.sh': probe + 'grep -q b src.txt\n' },
+    });
+    r = s.run(s.range);
+    assert.equal(r.stdout.trim(), 'fail-to-pass control=0,put-back=1', r.stderr);
+    assert.deepEqual(s.trace(), [`01 main fail-to-pass ${s.range} fail-to-pass control=0,put-back=1`], 'the outcome line is unchanged');
+    assert.equal(s.runLines().length, 1, 'one run line, for the control alone');
+    assert.match(s.runLines()[0], new RegExp(`^01 main run focused pass ${s.tipSha} clean `), 'a passing focused run at the tip on a clean tree, attributed like the outcome line');
+    assert.equal(testVerb(s, 'focused', 'src.txt', 'tests/t.sh').status, 0);
+    assert.equal(runFields(s.runLines()[0]), runFields(s.runLines()[1]), 'the line has the shape `scope.js test focused` writes for the same path set, which is the range\'s');
+
+    // A failing control writes a failing run line, and the outcome line reads `unknown` as before.
+    s = scenario({
+      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, FOCUSED) },
+      tip: { 'src.txt': 'b\n', 'tests/t.sh': probe + 'exit 3\n' },
+    });
+    r = s.run(s.range);
+    assert.equal(r.stdout.trim(), 'unknown control=3');
+    assert.match(s.runLines().join('\n'), new RegExp(`^01 main run focused fail ${s.tipSha} clean `));
+    assert.equal(s.runLines().length, 1);
+
+    // A control that moves HEAD records the tip it ran on and a dirty tree, as `scope.js test` does for a moved HEAD.
+    s = scenario({
+      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, FOCUSED) },
+      tip: { 'src.txt': 'b\n', 'tests/t.sh': probe + 'git -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q --allow-empty -m moved\n' },
+    });
+    s.run(s.range);
+    assert.match(s.runLines().join('\n'), new RegExp(`^01 main run focused pass ${s.tipSha} dirty `), 'a moved HEAD reads dirty at the tip: ' + s.runLines().join('\n'));
+
+    // Under the complete-selector declaration, the control run's focused line is the run at the tip a carry needs: a green
+    // record at the base carries to the tip with no other run line there.
+    s = scenario({
+      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, FOCUSED, '\n## Complete selector\n\nThe focused command selects every test a changed path can affect.\n') },
+      tip: { 'src.txt': 'b\n', 'tests/t.sh': probe + 'grep -q b src.txt\n' },
+    });
+    appendTrace(s.root, { slice: '01', kind: 'run', fields: ['full', 'pass', s.baseSha, 'clean'] });
+    const carrySet = spawnSync(process.execPath, [scopePath, 'suite', 'set', 'green', s.baseSha, '--root', s.root], { cwd: s.repo, encoding: 'utf8', timeout: 20000 });
+    assertSpawnDecided(carrySet, 'scope.js suite set');
+    assert.equal(carrySet.status, 0, carrySet.stderr);
+    assert.equal(s.run(s.range).stdout.trim(), 'fail-to-pass control=0,put-back=1');
+    assert.deepEqual(s.runLines().filter((l) => l.includes(` ${s.tipSha} `)).length, 1, 'the control run is the one run line at the tip');
+    const carried = spawnSync(process.execPath, [scopePath, 'suite', 'reusable', '--branch', 'feat/demo', '--root', s.root], { cwd: s.repo, encoding: 'utf8', timeout: 20000 });
+    assertSpawnDecided(carried, 'scope.js suite reusable');
+    assert.equal(carried.status, 0, 'the control run\'s focused line carries the base\'s green record to the tip: ' + carried.stderr);
+
+    // A focused command with no `{paths}` runs as the full command: its line reads `full`, with no path set.
+    s = scenario({
+      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
+      tip: { 'src.txt': 'b\n', 'tests/t.sh': probe },
+    });
+    assert.equal(s.run(s.range).status, 0);
+    assert.equal(s.runLines().length, 1);
+    assert.equal(testVerb(s, 'full').status, 0);
+    assert.equal(runFields(s.runLines()[0]), runFields(s.runLines()[1]), 'a full-kind line, equal to the one `scope.js test full` writes');
+    assert.match(s.runLines()[0], /^01 main run full pass /);
+
     // A control that does not pass records `unknown` with its exit status as the reason (INV-0139): the second run never happens.
     // The scope run's first `unknown` is an observation naming the environment gap (references/scope-mode.md's `## Observations`).
     // The verb says so on stderr for that outcome alone, reading the run root's own trace, so a later `unknown` in the same
@@ -324,6 +394,7 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     assert.equal(r.status, 0, 'an `unknown` is an outcome that was read and printed, a signal-ended control included: ' + r.stderr);
     assert.equal(r.stdout.trim(), 'unknown control=SIGKILL', r.stderr);
     assert.deepEqual(s.trace(), [`01 main fail-to-pass ${s.range} unknown control=SIGKILL`]);
+    assert.deepEqual(s.runLines(), [], 'a control a signal ended writes no run line');
     assert.deepEqual(leftover(s), [], 'and no worktree stays');
     assertGone('a signal-ended control leaves no process of its group running', path.join(s.dir, 'child'));
 
@@ -455,11 +526,13 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     git(s.repo, ['worktree', 'add', '-q', '-b', 'slice/07', path.join(s.root, 'slicetrees', '07'), s.tipSha]);
     s.run(s.range, { cwd: path.join(s.root, 'slicetrees', '07') });
     assert.deepEqual(s.trace(), [`07 main fail-to-pass ${s.range} fail-to-pass control=0,put-back=1`], 'a slicetree names its slice');
+    assert.equal(s.runLines()[0].split(' ')[0], s.trace()[0].split(' ')[0], 'and the control run line names the same slice');
     const slice = spawnSync(process.execPath, [scopePath, 'slice', '01', 'merged', '--root', s.root], { cwd: s.repo, encoding: 'utf8' });
     assert.equal(slice.status, 0, slice.stderr);
     fs.rmSync(path.join(s.root, 'trace.log'));
     s.run(s.range);
     assert.deepEqual(s.trace(), [`scope main fail-to-pass ${s.range} fail-to-pass control=0,put-back=1`], 'a scopetree with no slice in progress names `scope`');
+    assert.equal(s.runLines()[0].split(' ')[0], s.trace()[0].split(' ')[0], 'and the control run line names the same slice');
     // The slice whose ledger row records exactly this range owns the line, from any directory, whatever form the row's commits
     // take: a run from the scopetree after the merge, with no slice in progress, still names it.
     const short = `${s.baseSha.slice(0, 8)}..${s.tipSha.slice(0, 8)}`;
@@ -468,9 +541,11 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     fs.rmSync(path.join(s.root, 'trace.log'));
     s.run(s.range);
     assert.deepEqual(s.trace(), [`01 main fail-to-pass ${s.range} fail-to-pass control=0,put-back=1`], 'the scopetree line names the slice that recorded the range');
+    assert.equal(s.runLines()[0].split(' ')[0], s.trace()[0].split(' ')[0], 'and the control run line names that slice too');
     fs.rmSync(path.join(s.root, 'trace.log'));
     s.run(s.range, { cwd: path.join(s.root, 'slicetrees', '07') });
     assert.deepEqual(s.trace(), [`01 main fail-to-pass ${s.range} fail-to-pass control=0,put-back=1`], 'and so does a line from another slicetree');
+    assert.equal(s.runLines()[0].split(' ')[0], s.trace()[0].split(' ')[0], 'and so does the control run line');
 
     // A fix cycle's range, and the range from a slice's base to a tip a fix cycle moved on, match no ledger row, so the line names
     // `scope` from a scopetree with no slice in progress. `/superdev:review`'s fix loop and run handoff's fix loop run the verb
@@ -621,6 +696,16 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
             throw e;
           });
           console.log(JSON.stringify({ ...ended, leftAtExit }));
+        } else if (cfg.mode === 'kill-beside') {
+          // A run whose test is running is killed (its watcher then removes the worktree) as a second run starts.
+          const first = start({ F2P_HANG: '1' });
+          await until(() => fs.existsSync(cfg.marker));
+          const second = start({});
+          first.child.kill('SIGKILL');
+          const ended = await Promise.all([first.exited, second.exited]);
+          await until(() => left().length === 0);
+          await until(() => { const l = fs.readFileSync(cfg.shimLog, 'utf8').split('\\n').filter(Boolean); return l.filter((x) => x.startsWith('start')).length === l.filter((x) => x.startsWith('end')).length; });
+          console.log(JSON.stringify({ first: ended[0], second: { ...ended[1], stdout: second.stdout, stderr: second.stderr } }));
         } else {
           const runs = [start({}), start({})];
           const ended = await Promise.all(runs.map((run) => run.exited));
@@ -678,6 +763,128 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     assert.deepEqual(leftover(s), []);
     assert.deepEqual([checkout(s.repo), checkout(s.tree)], before, 'and the checkout keeps its state through both runs');
 
+    // Two runs never edit the repository's worktree registry at the same time: git's `worktree add`, `remove`, and `prune`
+    // of one run never overlap another's (a second `add` read the first one's half-written `commondir`, and a `prune`
+    // could unregister a worktree being created, #1315). A `git` shim on the PATH holds each such call open for a moment,
+    // logs its start and end, and runs the real git, so two calls that reach git within that moment of each other overlap
+    // in the log. Over repeated rounds.
+    {
+      const shimDir = path.join(D, 'shim');
+      fs.mkdirSync(shimDir);
+      const realGit = spawnSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim();
+      fs.writeFileSync(path.join(shimDir, 'git'), `#!/bin/sh
+for a in "$@"; do
+  case "$a" in
+    worktree) echo "start $$" >> "$F2P_SHIM_LOG"; sleep 0.3; "${realGit}" "$@"; st=$?; echo "end $$" >> "$F2P_SHIM_LOG"; exit $st ;;
+  esac
+done
+exec "${realGit}" "$@"
+`, { mode: 0o755 });
+      for (let round = 0; round < 3; round++) {
+        s = scenario({
+          base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
+          tip: { 'src.txt': 'b\n', 'tests/t.sh': 'grep -q b src.txt\n' },
+        });
+        before = [checkout(s.repo), checkout(s.tree)];
+        const shimLog = path.join(path.dirname(s.repo), 'shim.log');
+        const pair = drive({ mode: 'parallel', cwd: s.tree, range: s.range, root: s.root, env: { PATH: shimDir + path.delimiter + process.env.PATH, F2P_SHIM_LOG: shimLog } });
+        assert.deepEqual(pair.map((e) => e.code), [0, 0], `round ${round}: both runs end with an outcome: ` + JSON.stringify(pair));
+        let open = 0;
+        let deepest = 0;
+        for (const line of fs.readFileSync(shimLog, 'utf8').split('\n').filter(Boolean)) {
+          open += line.startsWith('start') ? 1 : -1;
+          deepest = Math.max(deepest, open);
+        }
+        assert.equal(deepest, 1, `round ${round}: no worktree call of one run overlaps another's`);
+        assert.equal(s.trace().length, 2, `round ${round}: each run writes its own line`);
+        assert.deepEqual(leftover(s), []);
+        assert.deepEqual([checkout(s.repo), checkout(s.tree)], before, `round ${round}: and the checkout keeps its state`);
+      }
+
+      // The watcher of a killed run removes its worktree under the same lock: beside a second run creating its own, no
+      // worktree call overlaps another's.
+      s = scenario({
+        base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
+        tip: { 'src.txt': 'b\n', 'tests/t.sh': 'if [ -n "$F2P_HANG" ]; then touch "$F2P_MARK"; exec sleep 60; fi\ngrep -q b src.txt\n' },
+      });
+      before = [checkout(s.repo), checkout(s.tree)];
+      const killLog = path.join(path.dirname(s.repo), 'shim.log');
+      const killed = drive({
+        mode: 'kill-beside', cwd: s.tree, range: s.range, root: s.root, marker: path.join(path.dirname(s.repo), 'marker'), shimLog: killLog,
+        env: { PATH: shimDir + path.delimiter + process.env.PATH, F2P_SHIM_LOG: killLog, F2P_MARK: path.join(path.dirname(s.repo), 'marker') },
+      });
+      assert.equal(killed.first.signal, 'SIGKILL', 'the first run was killed');
+      assert.equal(killed.second.code, 0, 'the second run ends with an outcome: ' + killed.second.stderr);
+      let killOpen = 0;
+      let killDeepest = 0;
+      for (const line of fs.readFileSync(killLog, 'utf8').split('\n').filter(Boolean)) {
+        killOpen += line.startsWith('start') ? 1 : -1;
+        killDeepest = Math.max(killDeepest, killOpen);
+      }
+      assert.equal(killDeepest, 1, 'no worktree call of a killed run\'s watcher overlaps the second run\'s');
+      assert.deepEqual(leftover(s), []);
+      assert.deepEqual([checkout(s.repo), checkout(s.tree)], before, 'and the checkout keeps its state');
+
+      // A `worktree add` that fails for another reason refuses with git's own message, the lock released.
+      const failDir = path.join(D, 'failshim');
+      fs.mkdirSync(failDir);
+      fs.writeFileSync(path.join(failDir, 'git'), `#!/bin/sh
+case "$*" in
+  *"worktree add"*) echo "fatal: no room" >&2; exit 128 ;;
+esac
+exec "${realGit}" "$@"
+`, { mode: 0o755 });
+      s = scenario({
+        base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
+        tip: { 'src.txt': 'b\n', 'tests/t.sh': 'grep -q b src.txt\n' },
+      });
+      before = [checkout(s.repo), checkout(s.tree)];
+      r = s.run(s.range, { env: { PATH: failDir + path.delimiter + process.env.PATH } });
+      assert.equal(r.status, 1, 'a failed worktree add is an error: ' + r.stdout + r.stderr);
+      assert.match(r.stderr, /git could not create the worktree: fatal: no room/);
+      assert.deepEqual(s.trace(), [], 'and writes no trace line');
+      assert.deepEqual(leftover(s), []);
+      assert.ok(!fs.existsSync(path.join(s.repo, '.git', 'superdev-worktree.lock')), 'and leaves no lock');
+      assert.deepEqual([checkout(s.repo), checkout(s.tree)], before, 'and the checkout keeps its state');
+
+      // A lock a killed holder left (its pid is gone) is taken over, however fresh, and the run ends with an outcome.
+      s = scenario({
+        base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
+        tip: { 'src.txt': 'b\n', 'tests/t.sh': 'grep -q b src.txt\n' },
+      });
+      const dead = spawnSync(process.execPath, ['-e', 'process.stdout.write(String(process.pid))'], { encoding: 'utf8' }).stdout.trim();
+      const staleLock = path.join(s.repo, '.git', 'superdev-worktree.lock');
+      fs.mkdirSync(staleLock);
+      fs.writeFileSync(path.join(staleLock, 'pid'), dead);
+      r = s.run(s.range, { timeout: 20000 });
+      assert.equal(r.status, 0, 'a dead holder\'s lock is taken over: ' + r.stdout + r.stderr);
+      assert.equal(r.stdout.trim(), 'fail-to-pass control=0,put-back=1');
+      assert.ok(!fs.existsSync(staleLock), 'and no lock stays');
+
+      // Many waiters on a dead holder's lock: one takes it over, and no two ever hold it at once. Each holder creates a
+      // marker exclusively and removes it on release, so a second holder inside the lock fails its create.
+      const lockLib = require.resolve('../plugin/lib/run-supervision.js');
+      const overlapLog = path.join(D, 'lock-overlap.log');
+      const marker = path.join(D, 'lock-held');
+      const holder = `const fs=require('fs');const {withWorktreeLock}=require(${JSON.stringify(lockLib)});
+for (let i = 0; i < 3; i++) withWorktreeLock(${JSON.stringify(s.repo)}, () => {
+  try { fs.writeFileSync(${JSON.stringify(marker)}, '', { flag: 'wx' }); } catch { fs.appendFileSync(${JSON.stringify(overlapLog)}, 'overlap\\n'); return; }
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5);
+  fs.rmSync(${JSON.stringify(marker)});
+});`;
+      for (let round = 0; round < 5; round++) {
+        fs.mkdirSync(staleLock);
+        fs.writeFileSync(path.join(staleLock, 'pid'), dead);
+        const crowd = spawnSync('sh', ['-c', 'for i in 1 2 3 4 5 6 7 8; do node -e "$HOLDER" & done; wait'], {
+          env: { ...process.env, HOLDER: holder }, encoding: 'utf8', timeout: 120000,
+        });
+        assertSpawnDecided(crowd, 'the crowd of lock waiters');
+        assert.equal(crowd.status, 0, 'every waiter ends: ' + crowd.stderr);
+      }
+      assert.ok(!fs.existsSync(overlapLog), 'no two waiters held the lock at once: ' + (fs.existsSync(overlapLog) ? fs.readFileSync(overlapLog, 'utf8') : ''));
+      assert.ok(!fs.existsSync(staleLock), 'and no lock stays');
+    }
+
     // Run from the repository's main checkout, outside every run tree, the verb runs and records nothing.
     s = scenario({
       base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
@@ -727,15 +934,15 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     assert.equal(cli(s, ['suite', 'set', 'green', s.tipSha]).status, 0);
     const unbacked = cli(s, ['suite', 'reusable', '--branch', 'feat/demo']);
     assert.equal(unbacked.status, 1, 'a suite record no run line backs is not reusable: ' + unbacked.stdout);
-    assert.equal(s.run(s.range).status, 0);
+    appendTrace(s.root, { slice: '01', kind: 'fail-to-pass', fields: [s.range, 'fail-to-pass', 'control=0,put-back=1'] });
     const afterOutcome = cli(s, ['suite', 'reusable', '--branch', 'feat/demo']);
     assert.deepEqual([afterOutcome.status, afterOutcome.stderr], [unbacked.status, unbacked.stderr], 'the outcome line backs nothing');
-    appendTrace(s.root, { slice: '01', kind: 'run', fields: ['full', 'pass', s.tipSha, 'clean', '-'] });
-    const backed = cli(s, ['suite', 'reusable', '--branch', 'feat/demo']);
-    assert.equal(backed.status, 0, 'a passing full run at the tip backs the record: ' + backed.stderr);
     assert.equal(s.run(s.range).status, 0);
-    assert.deepEqual(cli(s, ['suite', 'reusable', '--branch', 'feat/demo']).stdout, backed.stdout, 'a second outcome line leaves the answer as it was');
-    assert.equal(s.trace().filter((l) => l.split(' ')[2] === 'run').length, 1, 'no outcome line is a run line');
+    const backed = cli(s, ['suite', 'reusable', '--branch', 'feat/demo']);
+    assert.equal(backed.status, 0, 'the control run is a passing full run at the tip and backs the record: ' + backed.stderr);
+    assert.equal(s.run(s.range).status, 0);
+    assert.deepEqual(cli(s, ['suite', 'reusable', '--branch', 'feat/demo']).stdout, backed.stdout, 'a second control run leaves the answer as it was');
+    assert.equal(s.runLines().length, 2, 'each control run writes one run line and no outcome line is a run line');
     // `trace` prints the outcome line like any other, which is what `/superdev:status --trace` shows.
     const timeline = cli(s, ['trace']).stdout.split('\n');
     assert.ok(timeline.some((l) => new RegExp(` 01 main fail-to-pass ${s.range} fail-to-pass control=0,put-back=1$`).test(l)), 'trace prints the outcome line');
@@ -762,7 +969,10 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
       const home = bare ? path.join(s.repo, '.superdev') : s.root;
       assert.deepEqual(fs.existsSync(home) ? fs.readdirSync(home).filter((f) => f.startsWith('fail-to-pass-')) : [], [], `${where}: no worktree left`);
       if (bare) assert.ok(!fs.existsSync(home), 'outside a run root nothing is written');
-      else assert.deepEqual(s.trace().map((l) => l.split(' ').slice(2, 5).join(' ')), [`fail-to-pass ${s.range} unknown`], 'the trace line reads unknown');
+      else {
+        assert.deepEqual(s.trace().map((l) => l.split(' ').slice(2, 5).join(' ')), [`fail-to-pass ${s.range} unknown`], 'the trace line reads unknown');
+        assert.deepEqual(s.runLines(), [], 'a control that could not start writes no run line');
+      }
     }
 
     // A second run that cannot start records `unknown` naming the put-back's start failure, in one line with no stack

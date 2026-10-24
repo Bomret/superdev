@@ -7,6 +7,12 @@ verifies its commits with the focused command while the merge gate demands a ful
 exact tip, and [ADR 0117](0117-the-run-trace-is-hook-written-evidence.md), under which a focused run never
 backs a reused suite record.
 
+**Amended by:** [ADR 0175](0175-a-green-suite-record-carries-across-a-delta-a-complete-focused-selector-covered.md), which
+extends the carry to a delta that a complete focused selector covered.
+
+**Amended by:** [ADR 0172](0172-a-suite-that-fails-once-passes-the-gate-on-one-recorded-rerun.md), under which a
+suite that fails once passes the gate on one recorded rerun.
+
 ## Context
 
 `/superdev:review` records the full suite green on the review tip. `/superdev:document` then lands doc

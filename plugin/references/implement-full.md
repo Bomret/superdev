@@ -379,8 +379,9 @@ Repeat until every slice is `merged`:
    winner is exactly the human decision the token cannot stand in for.
 
    **A slice merge runs no suite**, clean or concluded with `merge --continue` (ADR 0155, INV-0128). The
-   slice's own runs already tested it, and the run handoff's full run is the
-   first verification of the integrated scope: its fix loop repairs a break between two slices that each
+   slice's own runs already tested it, and the run handoff's full-suite gate (a full run, or the carry
+   or recorded rerun `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` admits) is the first verification
+   of the integrated scope: its fix loop repairs a break between two slices that each
    passed alone. Go straight on to the next dispatch or merge.
 
    Then clean up. First read the slice branch's tip with `git -C <run-root>/scopetree rev-parse slice/<scope>/<id>`:

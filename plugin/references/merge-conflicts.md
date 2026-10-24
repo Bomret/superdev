@@ -1,7 +1,7 @@
 # Merge-conflict resolution
 
 How a controller resolves a conflicted merge, in the DAG loop and in the base merge
-`scope-mode.md`'s `## Bringing the scope branch to base` runs before the first slice (ADR 0120). The rule
+`scope-mode.md`'s `## Bringing the scope branch to base` runs before the first slice and at `/superdev:review`'s entry (ADR 0120, ADR 0173). The rule
 is intent, not text: a hunk is resolved by what each side **meant**, and each side's intent has a primary
 source — its slice's `spec`, its progress log, its commit messages. In the base merge, the scope side's
 sources are its own commit messages and its slices' `spec`s, and the base side's are the base commits'

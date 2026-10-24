@@ -644,3 +644,426 @@ const { appendTrace, isTestPath } = require(scopePath);
     fs.rmSync(repo, { recursive: true, force: true });
   }
 }
+
+// --- suite reusable: the complete-selector carry (ADR 0175, INV-0017) ----------------------------
+// A green record carries across a non-Markdown delta where the tip's verification.md declares the focused
+// selector complete, the focused command takes `{paths}`, and a passing clean focused run at the tip covered
+// every changed path. Each case builds its own repository from the verification.md text it needs.
+{
+  const { encodePaths } = require('../plugin/lib/trace-log.js');
+  const g = (args, cwd) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  const callIn = (argv, cwd) => {
+    const orig = console.log;
+    const logged = [];
+    console.log = (s) => logged.push(String(s));
+    try {
+      run(argv, cwd, '');
+      return { ok: true, out: logged.join('\n') };
+    } catch (e) {
+      if (e.isRefusal) return { ok: false, err: e.message };
+      throw e;
+    } finally {
+      console.log = orig;
+    }
+  };
+  const vRel = path.join('docs', 'agents', 'verification.md');
+  const verification = (focused, extra) => `# V\n\n\`\`\`\nnode all.js\n\`\`\`\n\n\`\`\`\n${focused}\n\`\`\`\n${extra || ''}`;
+  const DECLARED = '\n## Complete selector\n\nThe focused command selects every test a changed path can affect.\n';
+  const withFiles = (files) => `${DECLARED}\nSelector files:\n\n${files.map((f) => `- \`${f}\``).join('\n')}\n`;
+
+  // fixture(text) -> helpers over a fresh repository whose first commit R holds `text` as verification.md.
+  const fixture = (text) => {
+    const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-complete-')));
+    g(['init', '-q', '-b', 'main'], repo);
+    g(['config', 'user.email', 'test@example.com'], repo);
+    g(['config', 'user.name', 'test'], repo);
+    fs.writeFileSync(path.join(repo, '.gitignore'), '.superdev/\n');
+    fs.mkdirSync(path.join(repo, 'docs', 'agents'), { recursive: true });
+    fs.writeFileSync(path.join(repo, vRel), text);
+    fs.mkdirSync(path.join(repo, 'src', 'deep'), { recursive: true });
+    fs.writeFileSync(path.join(repo, 'src', 'a.js'), 'a\n');
+    fs.writeFileSync(path.join(repo, 'src', 'deep', 'd.js'), 'd\n');
+    fs.writeFileSync(path.join(repo, 'old.js'), 'o\n');
+    g(['add', '.'], repo);
+    g(['commit', '-q', '-m', 'base'], repo);
+    const R = g(['rev-parse', 'HEAD'], repo);
+    let n = 0;
+    const root = (record, lines) => {
+      const rt = path.join(repo, '.superdev', 'scopes', `cc-${++n}`);
+      fs.mkdirSync(rt, { recursive: true });
+      fs.writeFileSync(
+        path.join(rt, 'ledger.md'),
+        `# Ledger — cc-${n}\n\n**Stage:** documented\n**Branch:** main\n**Suite:** ${record}\n**Anchor:** #1 — carry\n\n` +
+          '| id | issue | title | type | depends-on | status | range |\n|---|---|---|---|---|---|---|\n',
+        'utf8'
+      );
+      for (const l of lines) appendTrace(rt, { kind: 'run', fields: l });
+      return rt;
+    };
+    const commit = (file, content) => {
+      fs.mkdirSync(path.dirname(path.join(repo, file)), { recursive: true });
+      if (content === null) fs.rmSync(path.join(repo, file));
+      else fs.writeFileSync(path.join(repo, file), content);
+      g(['add', '-A'], repo);
+      g(['commit', '-q', '-m', file], repo);
+      return g(['rev-parse', 'HEAD'], repo);
+    };
+    const reusable = (rt, cwd, ...flags) => callIn(['suite', 'reusable', '--branch', 'main', ...flags, '--root', rt], cwd || repo);
+    return { repo, R, root, commit, reusable };
+  };
+  const base = (R) => ['full', 'pass', R, 'clean'];
+  const focused = (sha, paths, result, tree) => ['focused', result || 'pass', sha, tree || 'clean', encodePaths(paths)];
+  const cases = [];
+  const cleanup = () => cases.forEach((f) => fs.rmSync(f.repo, { recursive: true, force: true }));
+  const make = (text) => { const f = fixture(text); cases.push(f); return f; };
+  try {
+    const FOCUSED = 'node focus.js {paths}';
+    const f = make(verification(FOCUSED, DECLARED));
+    const T = f.commit('src/a.js', 'changed\n');
+    let r = f.reusable(f.root(`green @ ${f.R}`, [base(f.R), focused(T, ['src/a.js'])]));
+    assert.ok(r.ok && r.out === 'reusable', 'a covering clean focused run carries a green record: ' + (r.err || ''));
+
+    // The kind carries.
+    r = f.reusable(f.root(`green @ ${f.R} whole`, [['whole', 'pass', f.R, 'clean'], focused(T, ['src/a.js'])]), null, '--whole');
+    assert.ok(r.ok, 'a whole record carries as whole: ' + (r.err || ''));
+    r = f.reusable(f.root(`green @ ${f.R}`, [base(f.R), focused(T, ['src/a.js'])]), null, '--whole');
+    assert.ok(!r.ok && /kind/.test(r.err), 'a kindless record still fails --whole: ' + (r.err || ''));
+
+    // Paths recorded as typed: ./x, an absolute path, and a path with a comma all compare normalized.
+    r = f.reusable(f.root(`green @ ${f.R}`, [base(f.R), focused(T, ['./src/a.js'])]));
+    assert.ok(r.ok, 'a ./ path covers: ' + (r.err || ''));
+    // A selector may reach fewer tests for a directory than for a file under it, so only the path itself covers.
+    for (const dir of ['src', 'src/', '.', f.repo]) {
+      r = f.reusable(f.root(`green @ ${f.R}`, [base(f.R), focused(T, [dir])]));
+      assert.ok(!r.ok && /fewer paths/.test(r.err), `a directory (${dir}) covers no file under it: ` + (r.err || ''));
+    }
+    r = f.reusable(f.root(`green @ ${f.R}`, [base(f.R), focused(T, [path.join(f.repo, 'src', 'a.js')])]));
+    assert.ok(r.ok, 'an absolute path covers: ' + (r.err || ''));
+    r = f.reusable(f.root(`green @ ${f.R}`, [base(f.R), focused(T, ['srcx'])]));
+    assert.ok(!r.ok && /fewer|cover/.test(r.err), 'a sibling prefix is no directory cover: ' + (r.err || ''));
+
+    // Refusals at the tip.
+    for (const [lines, re, what] of [
+      [[], /no focused run recorded at the tip/, 'no focused run'],
+      [[focused(T, ['src/a.js'], 'fail')], /fail/, 'a failed focused run'],
+      [[focused(T, ['src/a.js'], 'unknown')], /unknown/, 'an unknown focused run'],
+      [[focused(T, ['src/a.js'], 'pass', 'dirty')], /dirty/, 'a dirty focused run'],
+      [[['focused', 'pass', T, 'clean', '-']], /no recorded path set/, 'a run with no path set'],
+      [[['focused', 'pass', T, 'clean']], /no recorded path set/, 'a run line with no path field'],
+      [[focused(T, ['src/other.js'])], /fewer|cover/, 'a run covering fewer paths'],
+      [[focused(T, ['src/a.js']), ['full', 'fail', T, 'clean']], /full run at the tip failed/, 'a failed full run'],
+      [[focused(T, ['src/a.js']), ['whole', 'fail', T, 'clean']], /whole run at the tip failed/, 'a failed whole run'],
+      [[focused(T, ['src/a.js']), ['path', 'fail', T, 'clean', 'tests/x.test.js']], /path run at the tip failed/, 'a failed path run'],
+    ]) {
+      r = f.reusable(f.root(`green @ ${f.R}`, [base(f.R), ...lines]));
+      assert.ok(!r.ok && /predates tip/.test(r.err) && re.test(r.err), `${what} refuses: ${r.err || ''}`);
+    }
+    // The record itself: red, or no backing run.
+    r = f.reusable(f.root(`red @ ${f.R}`, [base(f.R), focused(T, ['src/a.js'])]));
+    assert.ok(!r.ok && /not green/.test(r.err), 'a red record refuses: ' + (r.err || ''));
+    r = f.reusable(f.root(`green @ ${f.R}`, [focused(T, ['src/a.js'])]));
+    assert.ok(!r.ok && /no full or whole run recorded/.test(r.err), 'an unbacked record refuses: ' + (r.err || ''));
+
+    // Deletions and both sides of a rename count as changed paths.
+    const T2 = f.commit('old.js', null);
+    r = f.reusable(f.root(`green @ ${f.R}`, [base(f.R), focused(T2, ['src/a.js'])]));
+    assert.ok(!r.ok && /fewer|cover/.test(r.err), 'a deleted path must be covered: ' + (r.err || ''));
+    r = f.reusable(f.root(`green @ ${f.R}`, [base(f.R), focused(T2, ['src/a.js', 'old.js'])]));
+    assert.ok(r.ok, 'a deleted path covered carries: ' + (r.err || ''));
+    fs.renameSync(path.join(f.repo, 'src', 'deep', 'd.js'), path.join(f.repo, 'src', 'deep', 'e.js'));
+    g(['add', '-A'], f.repo);
+    g(['commit', '-q', '-m', 'rename'], f.repo);
+    const T3 = g(['rev-parse', 'HEAD'], f.repo);
+    r = f.reusable(f.root(`green @ ${f.R}`, [base(f.R), focused(T3, ['src/a.js', 'old.js', 'src/deep/e.js'])]));
+    assert.ok(!r.ok, 'a rename covered on its new side only refuses: ' + (r.err || ''));
+    r = f.reusable(f.root(`green @ ${f.R}`, [base(f.R), focused(T3, ['src/a.js', 'old.js', 'src/deep/e.js', 'src/deep/d.js'])]));
+    assert.ok(r.ok, 'a rename covered on both sides carries: ' + (r.err || ''));
+
+    // No carry builds on another: a focused run covering only the paths since an intermediate tip does not carry.
+    r = f.reusable(f.root(`green @ ${f.R}`, [base(f.R), focused(T3, ['src/deep/e.js', 'src/deep/d.js'])]));
+    assert.ok(!r.ok, 'a run covering only the paths since an intermediate tip does not carry: ' + (r.err || ''));
+    r = f.reusable(f.root(`green @ ${T}`, [focused(T3, ['old.js', 'src/deep/e.js', 'src/deep/d.js'])]));
+    assert.ok(!r.ok && /no full or whole run recorded/.test(r.err), 'no step wrote a carried record at T, so it has no backing run: ' + (r.err || ''));
+
+    // From a subdirectory, and under diff.relative=true, reuse decides the same (triage #1004, #1015).
+    g(['config', 'diff.relative', 'true'], f.repo);
+    for (const cwd of [f.repo, path.join(f.repo, 'src', 'deep'), path.join(f.repo, 'docs')]) {
+      r = f.reusable(f.root(`green @ ${f.R}`, [base(f.R), focused(T3, ['src/a.js', 'old.js', 'src/deep/e.js', 'src/deep/d.js'])]), cwd);
+      assert.ok(r.ok, `a covered delta carries from ${path.relative(f.repo, cwd) || 'root'} under diff.relative: ` + (r.err || ''));
+      r = f.reusable(f.root(`green @ ${f.R}`, [base(f.R), focused(T3, ['src/deep/e.js', 'src/deep/d.js'])]), cwd);
+      assert.ok(!r.ok && /fewer|cover/.test(r.err), `a delta outside the subdirectory is still seen from ${path.relative(f.repo, cwd) || 'root'}: ` + (r.err || ''));
+    }
+    g(['config', '--unset', 'diff.relative'], f.repo);
+
+    // Markdown-only rule (ADR 0128) is untouched: a Markdown delta under the declaration carries on any passing focused run.
+    const m = make(verification(FOCUSED, DECLARED));
+    const MT = m.commit('notes.md', 'n\n');
+    r = m.reusable(m.root(`green @ ${m.R}`, [base(m.R), ['focused', 'pass', MT, 'clean']]));
+    assert.ok(r.ok, 'the Markdown-only carry stands under the declaration: ' + (r.err || ''));
+
+    // Refused: no declaration; a focused command without {paths}.
+    const nd = make(verification(FOCUSED, ''));
+    const NT = nd.commit('src/a.js', 'c\n');
+    r = nd.reusable(nd.root(`green @ ${nd.R}`, [base(nd.R), focused(NT, ['src/a.js'])]));
+    assert.ok(!r.ok && /src\/a\.js changed since and is not Markdown/.test(r.err), 'no declaration: the Markdown rule alone decides: ' + (r.err || ''));
+    const np = make(verification('node focus.js', DECLARED));
+    const PT = np.commit('src/a.js', 'c\n');
+    r = np.reusable(np.root(`green @ ${np.R}`, [base(np.R), focused(PT, ['src/a.js'])]));
+    assert.ok(!r.ok && /\{paths\}/.test(r.err), 'a focused command without {paths} refuses with its own reason: ' + (r.err || ''));
+
+    // A listed selector file, or verification.md itself, in the delta refuses.
+    const sf = make(verification(FOCUSED, withFiles(['tools/select.js'])));
+    const ST = sf.commit('tools/select.js', 's\n');
+    r = sf.reusable(sf.root(`green @ ${sf.R}`, [base(sf.R), focused(ST, ['tools/select.js'])]));
+    assert.ok(!r.ok && /tools\/select\.js is a selector file/.test(r.err), 'a listed selector file refuses: ' + (r.err || ''));
+    const vc = make(verification(FOCUSED, DECLARED));
+    fs.writeFileSync(path.join(vc.repo, 'src', 'a.js'), 'changed\n');
+    const VT = vc.commit(vRel, verification(FOCUSED, DECLARED) + '\nmore\n');
+    r = vc.reusable(vc.root(`green @ ${vc.R}`, [base(vc.R), focused(VT, [vRel, 'src/a.js'])]));
+    assert.ok(!r.ok && /verification configuration/.test(r.err), 'a verification.md change next to a code path refuses: ' + (r.err || ''));
+
+    // A list item may carry text after its span, and a listed directory covers the files under it.
+    const lt = make(verification(FOCUSED, `${DECLARED}\n- \`tools/select.js\` — the runner\n- \`tools/lib/\`\n`));
+    const LT = lt.commit('tools/select.js', 's\n');
+    r = lt.reusable(lt.root(`green @ ${lt.R}`, [base(lt.R), focused(LT, ['tools/select.js'])]));
+    assert.ok(!r.ok && /tools\/select\.js is a selector file/.test(r.err), 'a listed file with trailing text refuses: ' + (r.err || ''));
+    const dl = make(verification(FOCUSED, `${DECLARED}\n- \`tools/select.js\`\n- \`tools/lib/\`\n`));
+    const LD = dl.commit('tools/lib/x.js', 'x\n');
+    r = dl.reusable(dl.root(`green @ ${dl.R}`, [base(dl.R), focused(LD, ['tools/lib/x.js'])]));
+    assert.ok(!r.ok && /tools\/lib\/x\.js is a selector file/.test(r.err), 'a file under a listed directory refuses: ' + (r.err || ''));
+    const ld = make(verification(FOCUSED, `${DECLARED}\n- \`tools/lib/\`\n`));
+    const LS = ld.commit('tools/libx.js', 'x\n');
+    r = ld.reusable(ld.root(`green @ ${ld.R}`, [base(ld.R), focused(LS, ['tools/libx.js'])]));
+    assert.ok(r.ok, 'a sibling of a listed directory is no selector file: ' + (r.err || ''));
+
+    // The section is found outside code fences, and a subheading does not end it.
+    const fc = make(verification(FOCUSED, '\n```\n## Complete selector\n```\n'));
+    const FT = fc.commit('src/a.js', 'c\n');
+    r = fc.reusable(fc.root(`green @ ${fc.R}`, [base(fc.R), focused(FT, ['src/a.js'])]));
+    assert.ok(!r.ok && /src\/a\.js changed since and is not Markdown/.test(r.err), 'a fenced heading declares nothing: ' + (r.err || ''));
+    const sh = make(verification(FOCUSED, `${DECLARED}\n### Files\n\n- \`tools/select.js\`\n`));
+    const SH = sh.commit('tools/select.js', 's\n');
+    r = sh.reusable(sh.root(`green @ ${sh.R}`, [base(sh.R), focused(SH, ['tools/select.js'])]));
+    assert.ok(!r.ok && /tools\/select\.js is a selector file/.test(r.err), 'a list under a subheading still counts: ' + (r.err || ''));
+
+    // A list item names its first backtick span wherever it sits, under any bullet or ordered marker.
+    for (const item of ['- the runner: `tools/select.js`', '+ `tools/select.js`', '1. `tools/select.js`', '* `tools/select.js`']) {
+      const mi = make(verification(FOCUSED, `${DECLARED}\n${item}\n`));
+      const MI = mi.commit('tools/select.js', 's\n');
+      r = mi.reusable(mi.root(`green @ ${mi.R}`, [base(mi.R), focused(MI, ['tools/select.js'])]));
+      assert.ok(!r.ok && /tools\/select\.js is a selector file/.test(r.err), `the item ${item} lists its span: ` + (r.err || ''));
+    }
+
+    // A four-backtick fence holding a three-backtick line stays open: the heading inside it declares nothing.
+    const f4 = make(verification(FOCUSED, '\n````\n```\n## Complete selector\n````\n'));
+    const F4 = f4.commit('src/a.js', 'c\n');
+    r = f4.reusable(f4.root(`green @ ${f4.R}`, [base(f4.R), focused(F4, ['src/a.js'])]));
+    assert.ok(!r.ok && /src\/a\.js changed since and is not Markdown/.test(r.err), 'a heading inside a longer fence declares nothing: ' + (r.err || ''));
+
+    // A failing covering focused run at the tip is not masked by an earlier pass.
+    const mk = make(verification(FOCUSED, DECLARED));
+    const MK = mk.commit('src/a.js', 'c\n');
+    r = mk.reusable(mk.root(`green @ ${mk.R}`, [base(mk.R), focused(MK, ['src/a.js']), focused(MK, ['src/a.js'], 'fail'), focused(MK, ['src/other.js'])]));
+    assert.ok(!r.ok && /fewer|cover/.test(r.err), 'pass, fail, then a narrower pass refuses: ' + (r.err || ''));
+    r = mk.reusable(mk.root(`green @ ${mk.R}`, [base(mk.R), focused(MK, ['src/a.js'], 'fail'), focused(MK, ['src/a.js'])]));
+    assert.ok(r.ok, 'a covering pass after a failure carries: ' + (r.err || ''));
+
+    // Git errors read as git errors: an unreadable tip configuration, and no work tree to resolve an absolute path.
+    const ge = make(verification(FOCUSED, DECLARED));
+    const GT = ge.commit('src/a.js', 'c\n');
+    const geRoot = ge.root(`green @ ${ge.R}`, [base(ge.R), focused(GT, ['src/a.js'])]);
+    const blob = g(['rev-parse', `${GT}:${vRel}`], ge.repo);
+    fs.rmSync(path.join(ge.repo, '.git', 'objects', blob.slice(0, 2), blob.slice(2)));
+    r = ge.reusable(geRoot);
+    assert.ok(!r.ok && /git could not read/.test(r.err) && !/not Markdown/.test(r.err), 'an unreadable declaration is a git error: ' + (r.err || ''));
+    const gb = make(verification(FOCUSED, DECLARED));
+    const GB = gb.commit('src/a.js', 'c\n');
+    const gbRoot = gb.root(`green @ ${gb.R}`, [base(gb.R), focused(GB, [path.join(gb.repo, 'src', 'a.js')])]);
+    const bare = path.join(gb.repo, '..', `${path.basename(gb.repo)}.git`);
+    g(['clone', '-q', '--bare', gb.repo, bare], gb.repo);
+    try {
+      r = gb.reusable(gbRoot, bare);
+      assert.ok(!r.ok && /git could not/.test(r.err) && !/no recorded path set/.test(r.err), 'an unresolvable work tree is a git error: ' + (r.err || ''));
+    } finally {
+      fs.rmSync(bare, { recursive: true, force: true });
+    }
+
+    // The declaration is read from the tip commit, never the working tree.
+    const wt = make(verification(FOCUSED, DECLARED));
+    const WT = wt.commit('src/a.js', 'c\n');
+    fs.writeFileSync(path.join(wt.repo, vRel), verification(FOCUSED, ''));
+    r = wt.reusable(wt.root(`green @ ${wt.R}`, [base(wt.R), focused(WT, ['src/a.js'])]));
+    assert.ok(r.ok, 'a working-tree edit of the declaration changes nothing: ' + (r.err || ''));
+
+    // A record not on an ancestor refuses.
+    g(['checkout', '-q', '-b', 'side', f.R], f.repo);
+    const SD = f.commit('side.js', 's\n');
+    g(['checkout', '-q', 'main'], f.repo);
+    r = f.reusable(f.root(`green @ ${SD}`, [base(SD), focused(T3, ['src/a.js', 'old.js', 'src/deep/e.js', 'src/deep/d.js'])]));
+    assert.ok(!r.ok && /not an ancestor/.test(r.err), 'a record off the tip line refuses: ' + (r.err || ''));
+  } finally {
+    cleanup();
+  }
+}
+
+// --- suite rerun and the recorded rerun (ADR 0172, INV-0017) ------------------------------------
+// Under the complete-selector declaration, a full run at the tip that failed counts green once the ledger records
+// a rerun of one test file for that tip, that file alone passed clean there, and a focused run passed clean there.
+{
+  const { encodePaths } = require('../plugin/lib/trace-log.js');
+  const g = (args, cwd) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  const callIn = (argv, cwd) => {
+    const orig = console.log;
+    const logged = [];
+    console.log = (s) => logged.push(String(s));
+    try {
+      run(argv, cwd, '');
+      return { ok: true, out: logged.join('\n') };
+    } catch (e) {
+      if (e.isRefusal) return { ok: false, err: e.message };
+      throw e;
+    } finally {
+      console.log = orig;
+    }
+  };
+  const DECLARED = '\n## Complete selector\n\nThe focused command selects every test a changed path can affect.\n';
+  const cases = [];
+  // A repository whose first commit holds the verification text; `T` is its tip.
+  const make = (extra) => {
+    const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-rerun-')));
+    cases.push(repo);
+    g(['init', '-q', '-b', 'main'], repo);
+    g(['config', 'user.email', 'test@example.com'], repo);
+    g(['config', 'user.name', 'test'], repo);
+    fs.writeFileSync(path.join(repo, '.gitignore'), '.superdev/\n');
+    fs.mkdirSync(path.join(repo, 'docs', 'agents'), { recursive: true });
+    fs.writeFileSync(path.join(repo, 'docs', 'agents', 'verification.md'), `# V\n\n\`\`\`\nnode all.js\n\`\`\`\n\n\`\`\`\nnode focus.js {paths}\n\`\`\`\n${extra}`);
+    fs.mkdirSync(path.join(repo, 'tests'), { recursive: true });
+    fs.writeFileSync(path.join(repo, 'tests', 'a.test.js'), 'a\n');
+    g(['add', '.'], repo);
+    g(['commit', '-q', '-m', 'base'], repo);
+    // The scope's range: one commit on `feat` changing src/x.js; `main` is the base branch.
+    g(['checkout', '-q', '-b', 'feat'], repo);
+    fs.mkdirSync(path.join(repo, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(repo, 'src', 'x.js'), 'x\n');
+    g(['add', '.'], repo);
+    g(['commit', '-q', '-m', 'range'], repo);
+    const T = g(['rev-parse', 'HEAD'], repo);
+    let n = 0;
+    const root = (record, lines) => {
+      const rt = path.join(repo, '.superdev', 'scopes', `rr-${++n}`);
+      fs.mkdirSync(rt, { recursive: true });
+      fs.writeFileSync(path.join(rt, 'ledger.md'), `# Ledger — rr-${n}\n\n**Stage:** documented\n**Branch:** main\n**Suite:** ${record}\n**Anchor:** #1 — r\n\n` +
+        '| id | issue | title | type | depends-on | status | range |\n|---|---|---|---|---|---|---|\n', 'utf8');
+      for (const l of lines) appendTrace(rt, { kind: 'run', fields: l });
+      return rt;
+    };
+    const rerun = (rt, file, ref, cwd) => callIn(['suite', 'rerun', file, ref, '--root', rt], cwd || repo);
+    const reusable = (rt, ...flags) => callIn(['suite', 'reusable', '--branch', 'feat', '--base', 'main', ...flags, '--root', rt], repo);
+    const reusableNoBase = (rt) => callIn(['suite', 'reusable', '--branch', 'feat', '--root', rt], repo);
+    return { repo, T, root, rerun, reusable, reusableNoBase };
+  };
+  const FAILED = (T) => ['full', 'fail', T, 'clean'];
+  const ALONE = (T, res, tree) => ['path', res || 'pass', T, tree || 'clean', 'tests/a.test.js'];
+  const FOCUSED = (T, res, tree, paths) => ['focused', res || 'pass', T, tree || 'clean', encodePaths(paths || ['src/x.js'])];
+  const ledgerOf = (rt) => fs.readFileSync(path.join(rt, 'ledger.md'), 'utf8');
+  try {
+    const f = make(DECLARED);
+    const good = [FAILED(f.T), ALONE(f.T), FOCUSED(f.T)];
+
+    // The verb records the file, the tip, and the triage record; a second record for the tip refuses.
+    const rt = f.root(`red @ ${f.T}`, good);
+    let r = f.reusable(rt);
+    assert.ok(!r.ok && /rerun/.test(r.err), 'a failed full run with no rerun record stays red: ' + (r.err || ''));
+    r = f.rerun(rt, 'tests/a.test.js', '#99');
+    assert.ok(r.ok, 'suite rerun records: ' + (r.err || ''));
+    assert.ok(ledgerOf(rt).includes(`**Rerun:** tests/a.test.js @ ${f.T} #99\n`), 'the ledger carries the rerun record: ' + ledgerOf(rt));
+    r = f.rerun(rt, 'tests/a.test.js', '#100');
+    assert.ok(!r.ok && /already/.test(r.err), 'a tip that carries a rerun record refuses a second: ' + (r.err || ''));
+    assert.ok(ledgerOf(rt).includes('#99') && !ledgerOf(rt).includes('#100'), 'the refused record leaves the ledger as it was');
+    r = f.reusable(rt);
+    assert.ok(r.ok && r.out === 'reusable', 'one failed full run counts green on the recorded rerun: ' + (r.err || ''));
+    assert.ok(f.reusable(rt, '--whole').ok === false, 'a failed full-kind run never serves a whole-repo gate');
+
+    // The verb refuses empty or spaced arguments and a file the tip does not hold.
+    const rv = f.root(`red @ ${f.T}`, good);
+    assert.ok(!f.rerun(rv, 'tests/missing.test.js', '#1').ok, 'a file the tip does not hold refuses');
+    assert.ok(!f.rerun(rv, 'tests/a.test.js', 'two words').ok, 'a triage record with a space refuses');
+    assert.ok(!ledgerOf(rv).includes('**Rerun:**'), 'a refused verb writes no record');
+
+    // Every shortfall stays red.
+    const red = (lines, why, tweak) => {
+      const x = f.root(`red @ ${f.T}`, lines);
+      assert.ok(f.rerun(x, 'tests/a.test.js', '#99').ok);
+      if (tweak) tweak(x);
+      const res = f.reusable(x);
+      assert.ok(!res.ok, `${why} stays red`);
+    };
+    red([FAILED(f.T), FOCUSED(f.T)], 'no passing rerun of the file');
+    red([FAILED(f.T), ALONE(f.T, 'fail'), FOCUSED(f.T)], 'a failing rerun');
+    red([FAILED(f.T), ALONE(f.T, 'pass', 'dirty'), FOCUSED(f.T)], 'a dirty rerun');
+    red([FAILED(f.T), ALONE(f.T, 'fail'), ALONE(f.T), FOCUSED(f.T)], 'a rerun that failed before it passed');
+    red([FAILED(f.T), ALONE(f.T)], 'no focused run');
+    red([FAILED(f.T), ALONE(f.T), FOCUSED(f.T, 'fail')], 'a failing focused run');
+    red([FAILED(f.T), ALONE(f.T), FOCUSED(f.T, 'pass', 'dirty')], 'a dirty focused run');
+    red([FAILED(f.T), FAILED(f.T), ALONE(f.T), FOCUSED(f.T)], 'two failed full runs at the tip');
+    red([ALONE(f.T), FOCUSED(f.T)], 'no failed full run in the trace');
+    // The file then passed: a solo or focused pass recorded before the failed full run counts for nothing.
+    red([ALONE(f.T), FAILED(f.T), FOCUSED(f.T)], 'a solo pass recorded before the failed full run');
+    red([FOCUSED(f.T), FAILED(f.T), ALONE(f.T)], 'a focused pass recorded before the failed full run');
+    // A run of the file recorded before the failed full run, such as a dirty RED run, never turns the rerun red.
+    const early = f.root(`red @ ${f.T}`, [ALONE(f.T, 'fail', 'dirty'), FAILED(f.T), ALONE(f.T), FOCUSED(f.T)]);
+    assert.ok(f.rerun(early, 'tests/a.test.js', '#99').ok);
+    r = f.reusable(early);
+    assert.ok(r.ok && r.out === 'reusable', 'a dirty run of the file before the failed full run counts for nothing: ' + (r.err || ''));
+    // A failed run of another test file at the tip is never hidden by the rerun.
+    red([FAILED(f.T), ['path', 'fail', f.T, 'clean', 'tests/b.test.js'], ALONE(f.T), FOCUSED(f.T)], 'a failed path run of another file at the tip');
+    red([FAILED(f.T), ['path', 'pass', f.T, 'clean', 'tests/b.test.js'], FOCUSED(f.T)], 'a rerun of another file');
+    red([FAILED(f.T), ALONE(f.T), ['focused', 'pass', f.T, 'clean', '-']], 'a focused run over no path');
+    // The focused run must cover every path the scope's range changed (src/x.js).
+    red([FAILED(f.T), ALONE(f.T), FOCUSED(f.T, 'pass', 'clean', ['src/y.js'])], 'a focused run missing a path the range changed');
+    red([FAILED(f.T), ALONE(f.T), FOCUSED(f.T, 'pass', 'clean', ['./src'])], 'a focused run naming only the directory');
+    // Without --base the range cannot be judged.
+    const nb = f.root(`red @ ${f.T}`, good);
+    assert.ok(f.rerun(nb, 'tests/a.test.js', '#99').ok);
+    r = f.reusableNoBase(nb);
+    assert.ok(!r.ok && /--base/.test(r.err), 'a rerun with no --base refuses and names the flag: ' + (r.err || ''));
+    // --base never changes a green record's reuse.
+    const gr = f.root(`green @ ${f.T}`, [['full', 'pass', f.T, 'clean']]);
+    assert.ok(f.reusableNoBase(gr).ok, 'a green record at the tip is reusable without --base');
+    // A multi-file path run is no run of the file alone.
+    red([FAILED(f.T), ['path', 'pass', f.T, 'clean', 'tests/a.test.js,tests/b.test.js'], FOCUSED(f.T)], 'a multi-file run holding the rerun file');
+    // The test file is a blob at the tip, named root-relative however it is typed.
+    const dv = f.root(`red @ ${f.T}`, good);
+    assert.ok(!f.rerun(dv, 'tests', '#1').ok, 'a directory is no test file');
+    assert.ok(!ledgerOf(dv).includes('**Rerun:**'), 'a refused directory writes no record');
+    const dotted = f.root(`red @ ${f.T}`, good);
+    assert.ok(f.rerun(dotted, './tests/a.test.js', '#1').ok, './ path records');
+    assert.ok(ledgerOf(dotted).includes(`**Rerun:** tests/a.test.js @ ${f.T} #1\n`), 'a ./ path records root-relative: ' + ledgerOf(dotted));
+    const sub = f.root(`red @ ${f.T}`, good);
+    assert.ok(f.rerun(sub, 'a.test.js', '#1', path.join(f.repo, 'tests')).ok, 'a subdirectory-relative path records');
+    assert.ok(ledgerOf(sub).includes(`**Rerun:** tests/a.test.js @ ${f.T} #1\n`), 'a subdirectory-relative path records root-relative: ' + ledgerOf(sub));
+    assert.ok(f.reusable(sub).ok, 'the root-relative record matches the trace');
+
+    // A rerun record for another tip does not count.
+    const other = f.root(`red @ ${f.T}`, good);
+    fs.writeFileSync(path.join(other, 'ledger.md'), ledgerOf(other).replace(`**Suite:**`, `**Rerun:** tests/a.test.js @ ${'d'.repeat(40)} #99\n**Suite:**`));
+    assert.ok(!f.reusable(other).ok, 'a rerun record for another tip stays red');
+    // A tip that moved past the failed run stays red.
+    const moved = f.root(`red @ ${f.T}`, good);
+    assert.ok(f.rerun(moved, 'tests/a.test.js', '#99').ok);
+    fs.writeFileSync(path.join(f.repo, 'later.js'), 'x\n');
+    g(['add', '-A'], f.repo);
+    g(['commit', '-q', '-m', 'later'], f.repo);
+    assert.ok(!f.reusable(moved).ok, 'a rerun recorded for an earlier tip stays red at a later tip');
+
+    // Without the declaration the rerun never counts.
+    const nd = make('');
+    const ndRt = nd.root(`red @ ${nd.T}`, [FAILED(nd.T), ALONE(nd.T), FOCUSED(nd.T)]);
+    assert.ok(nd.rerun(ndRt, 'tests/a.test.js', '#99').ok);
+    r = nd.reusable(ndRt);
+    assert.ok(!r.ok && /Complete selector|declar/.test(r.err), 'no declaration stays red: ' + (r.err || ''));
+  } finally {
+    cases.forEach((d) => fs.rmSync(d, { recursive: true, force: true }));
+  }
+}

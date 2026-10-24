@@ -33,7 +33,7 @@ responsibility. `scope.js` keeps every export it had. No module requires an entr
 `docs set <value>|clear`, `pr set <n>|clear`,
 `deploy set <target> pending|deployed|failed [--exit <n>]`, `deploy get`,
 `suite set <green|red|denied|none> <sha> [--whole]`,
-`suite reusable --branch <b> [--whole]`,
+`suite reusable --branch <b> [--whole] [--base <base-branch>]`, `suite rerun <test-file> <triage-ref>`,
 `base set <sha>`, `base resolve --branch <b> --base <ref>`,
 `get stage|branch|anchor|slices|unresolved|degraded|deferred|minors|denials|docs|pr|suite`,
 `status` (which renders the whole `/superdev:status` report), `trace [--slice <id>]` (prints the run trace, read-only), `publish`, `adopt`, `root <slug>`,
@@ -43,15 +43,46 @@ reads stdin or touches a ledger, so a stdin verb such as `dod-line` never waits 
 `suite set` writes the **suite record** (CONTEXT.md) — the last full-suite run's result and the commit
 it ran on, as `**Suite:** <result> @ <sha>` — refusing a sha that does not resolve to a commit in the
 repository; `get suite` prints `<result> <sha>` back, or nothing on a ledger with no record (INV-0017).
-`suite reusable` is the read half of that same reuse rule: it exits 0 (printing `reusable`) when the
-record is `green`, the run trace backs the recorded commit, and `<branch>`'s tip is that commit, and
-refuses (exit 1) otherwise, an unrecognized argument included. No slice store commits its own records on
-the scope branch (ADR 0110), so a commit since the record counts. The one exception is a Markdown-only
-range (ADR 0128): the recorded commit is an ancestor of the tip, every path changed since ends in `.md`
-and is no test path and not `docs/agents/verification.md`, and the run trace shows the latest test run at
-the tip passed on a clean tree with no failed full or whole run there. The test paths come from the tip
-commit's `verification.md`, through `isTestPath` of `lib/verification.js`, the classifier the run trace's `lib/run-tree.js` wraps. A
-refusal on a moved tip names the condition that failed after `predates tip`.
+`suite reusable` is the read half of that same reuse rule. It exits 0 and prints `reusable`, or it refuses with exit 1.
+An unrecognized argument is a refusal. No slice store commits its own records on the scope branch (ADR 0110), so a
+commit since the record counts. Three routes reach exit 0.
+
+The first route is the exact tip. The record is `green`, the run trace backs the recorded commit, and `<branch>`'s tip is
+that commit. The second route is a green record at an ancestor of the tip, carried over the range in one of two ways.
+A refusal on a moved tip names the failed condition after `predates tip`. The third route is a `red` record at the tip
+under the recorded rerun. The verb writes nothing on any route.
+
+The **Markdown-only carry** (ADR 0128) holds when every path changed since the record ends in `.md`. No such path is a
+test path, and none is `docs/agents/verification.md`. The run trace shows the latest test run at the tip passed on a
+clean tree, with no failed full, whole, or path run there. The test paths come from the tip commit's `verification.md`.
+`isTestPath` of `lib/verification.js` reads them. The run trace's `lib/run-tree.js` wraps that classifier.
+
+The **complete-selector carry** (ADR 0175) judges any range that changes a path not ending in `.md`. The range must
+have the record's commit as an ancestor of the tip. The tip's `docs/agents/verification.md` declares the selector in a
+`## Complete selector` section. Each list item of that section names one selector file in backticks, and a listed
+directory covers every path under it. `completeSelector` of `lib/verification.js` reads the section. Without the
+declaration, the non-Markdown path is the refusal. With it, the carry holds under these conditions:
+
+- No changed path is a selector file or `verification.md`.
+- The focused command carries `{paths}`.
+- No full, whole, or path run at the tip failed.
+- The latest focused run at the tip passed on a clean tree.
+- One passing clean focused run, after the last failed focused run, recorded a path set that names every changed path itself.
+
+A directory in that path set covers no file under it. A focused run records its path set as the fifth field of its `run`
+line. A range of Markdown paths only keeps the Markdown-only rules, with or without the declaration.
+
+`suite rerun <test-file> <triage-ref>` writes the ledger's one `**Rerun:**` header, `<file> @ <tip> <ref>`. The tip is the
+checkout's HEAD, and the file is a root-relative blob at it. The verb refuses `--whole`. A tip that already carries a
+record refuses a second one. A record for another tip is replaced.
+
+The **recorded rerun** (ADR 0172) is the third route. `suite reusable` takes a `red` record only with `--base`. Without
+`--base` the record stays red. The record must be at the tip, and the tip must carry a rerun record and the declaration.
+Exactly one full run at the tip failed, or one whole run under `--whole`. No path run of another test file failed there.
+After that failed run, a run of the recorded file alone passed on a clean tree. A focused run also passed on a clean
+tree after it. That focused run's path set covers every path changed in the range that `base resolve` prints. The
+controller reads whether one test file caused the failure and quotes that reading in the triage record. The verb
+checks the trace and the ledger.
 `base set` writes the `**Base:**` header, the remote base tip the base step merged into the scope branch,
 as a full commit, refusing a sha that does not resolve. `base resolve` prints the scope's range base: the
 newer of `merge-base(<ref>, <b>)` and the recorded tip, the tip counting only when it resolves and is an
@@ -215,7 +246,11 @@ status. No reviewer reads `unknown` as a verdict,
 and no gate reads it as green.
 
 Inside a run root the verb appends one `fail-to-pass` trace line, `<base>..<tip> <outcome> <reason>`. Its slice is the
-ledger row that records exactly that range, else the slice the run's directory attributes to, else `scope`. The line is no
+ledger row that records exactly that range, else the slice the run's directory attributes to, else `scope`. The control run also writes a `run` line for its command's kind, `focused` over the changed-path set or `full`. The line
+has the same slice as the outcome line and the form `test` writes. It names the tip. The verb reads the worktree's HEAD
+and tree at both ends. A HEAD that left the tip, or a dirty tree at either end, records `dirty`. An unreadable tree state
+records `unknown`. Otherwise the tree is `clean`. A run ended by a signal, or one that could not start, writes no line
+(ADR 0175). The outcome line itself is no
 `run` line, so it satisfies no Missing RED step and moves no suite record. The trace's first `unknown` of any kind draws a
 stderr note that tells the controller to capture an observation. The observation goes to the scope run's first non-exempt
 `unknown` (`references/scope-mode.md`, `## Observations`). An inherited `unknown` earns none. A slice cut after a break

@@ -104,7 +104,7 @@ name the repository's test files. `hooks/run-trace.js` reads it to class each re
 
 Where the focused command contains the token `{paths}`, substitute the shell-quoted changed-path set
 for it. The caller passes the paths to the runner as arguments (`scope.js test focused <changed paths>`),
-and the runner substitutes them; a `test focused` with no paths runs the full command and records `full`.
+and the runner substitutes them; a `test focused` with no paths runs the full command and records `full`, and an empty path argument is refused.
 **A `{paths}` form belongs to a runner that maps a source file to the tests covering it** — for
 example `vitest related` or `jest --findRelatedTests`. The changed-path set holds source files and prose
 alongside tests, and a runner without that mapping collects nothing from them. Such a form also carries
@@ -124,7 +124,118 @@ as a flag — check the runner's own CLI reference before relying on one: neithe
 `jest --findRelatedTests`, the two runners a `{paths}` form now targets, documents a `--` separator for its
 own argument parsing.
 
+## Complete selector
+
+An optional **`## Complete selector`** section of `docs/agents/verification.md` declares that the focused
+command, given the changed-path set, selects every test any changed path can affect (ADR 0175). It takes
+effect only where the focused command carries `{paths}`. It may list the selector's own files as list items
+(marker `-`, `*`, `+`, or an ordered `1.`), one path from the repository root in the item's first backtick span (text after the span is a comment). A listed path covers itself and every path under it, a trailing `/` being optional. The heading is read outside code fences,
+and the section runs to the next heading of level 2 or above:
+
+```markdown
+## Complete selector
+
+The focused command selects every test a changed path can affect.
+
+- `scripts/run-tests.js`
+```
+
+`scope.js suite reusable` reads the section from the tip commit, never a working tree. Under it, a green
+record at an ancestor A carries to the tip T, with its kind, when the run trace backs A as it does at an
+exact tip, and a passing focused run on a clean tree at T recorded a path set covering every path changed
+in A..T. A rename counts both its sides and a deletion counts. A changed path is covered only where the
+recorded set names that path itself: a directory, the repository root included, covers no file under it,
+because a selector may reach fewer tests for a directory than for a file under it. Recorded paths are normalized to repository-root paths before they are compared, and the
+changed paths are listed from the root whatever the working directory and `diff.relative`.
+
+The carry is refused, each time with its own reason, when:
+
+- the section is absent, or the focused command carries no `{paths}`;
+- A is not an ancestor of T, or the record is not green;
+- a path changed in A..T is `docs/agents/verification.md`, a listed path, or a path under one;
+- the latest focused run at T failed, ran on a dirty tree, or read `unknown`, covered fewer paths than changed,
+  or carries no recorded path set (a run an earlier release wrote, or one made by a direct call). Only passing
+  clean runs after the last failed focused run at T count toward coverage;
+- a full, whole, or path run at T failed;
+- git cannot answer a step of the decision.
+
+The carry is a read-time check. No verb writes a carried record, and every carry is judged from its record's
+own commit, so a focused run over only the paths since an intermediate tip carries nothing. A repository
+without the section keeps the Markdown-only carry described below.
+
+## The carry run
+
+Every gate that runs the full suite takes the carry before it runs the full command (ADR 0175): implement's
+base gate, run handoff's suite run, review's entry and exit runs, and ship's moved-base gate. Each gate cites
+this section and runs the steps in order, after its own `scope.js suite reusable` call refuses the tip:
+
+1. **Check the preconditions.** `scope.js get suite --root <run-root>` prints a green record at a commit A,
+   `git merge-base --is-ancestor A <tip>` succeeds, the tip's own `docs/agents/verification.md`
+   (`git show <tip>:docs/agents/verification.md`) carries the `## Complete selector` section, and the focused
+   command carries `{paths}`. Any precondition missing → run the full command, as the gate does without
+   this section.
+2. **Run the focused command over A..<tip>.** From the tree the gate works in, over every path
+   `git diff --name-only --no-renames A <tip>` lists, through `scope.js test focused <paths>`. The
+   changed-path set of this caller is that list, whole. A path set too large for the command to start
+   leaves no passing run: skip to step 4.
+3. **Judge the focused run.** It **fails** → that is the gate's red result: record it with
+   `scope.js suite set red <tip> --root <run-root>` (with `--whole` where the gate runs the whole-repo
+   command), and the gate takes the exit a failing full run takes. It **passes** → call `scope.js suite
+   reusable` again. Exit 0 → the tip is carried: the gate runs no full command.
+4. **No carry** (a refused second call, a killed or `unknown` focused run, or a path set too large) → run
+   the full command, and record its result as the gate states.
+
+No gate writes a suite record for a tip it reached by carry: the record stays at A, and the next gate
+judges its own tip from A.
+
+## The recorded rerun
+
+A full run at the tip T that fails in one test file, under the `## Complete selector` declaration, counts
+green once the rerun below is recorded and passed (ADR 0172). Every gate that records a failed full run
+cites this section and runs the steps in order, once per tip:
+
+1. **Attribute the failure.** Read the failed run's own output. It names exactly one test file → go on. It
+   names several, none, or a failure outside any test file → the failure is unattributable and stays red:
+   the gate takes the exit a failing full run takes.
+2. **Write the triage record.** File it through the repository's triage flow with the failing lines quoted
+   verbatim, and keep its reference (`#<n>` or the record's id, one token).
+3. **Record the failed run and the rerun.** `scope.js suite set red <tip> --root <run-root>`, then
+   `scope.js suite rerun <test-file> <triage-ref> --root <run-root>` from the checkout at the tip. The verb
+   refuses a tip that already carries a rerun record: a second failure at the tip stays red.
+4. **Run the file alone.** `scope.js test -- <command running only that file>` at the tip on a clean tree,
+   through the runner so the trace records it. A failing or dirty rerun stays red.
+5. **Run the focused command over the scope's range.** `scope.js test focused <paths>` over every path
+   `git diff --name-only --no-renames <range-base> <tip>` lists, at the tip on a clean tree. The range base
+   is what `scope.js base resolve --branch <branch> --base <base> --root <run-root>` prints, `<base>` being
+   the base branch `docs/agents/code-management.md` names.
+6. **Check reuse.** `scope.js suite reusable --branch <branch> --base <base> --root <run-root>` exits 0 →
+   the gate takes its green exit, and the suite record stays `red` at T. Exit 1 → the gate takes the
+   failing-run exit. Without `--base` the verb refuses, because it cannot judge the range.
+
+`scope.js` checks the ledger and the run trace: the rerun record for the tip, the file alone (and no other
+file in the same run) passing clean at the tip after the failed full run, every run of it alone recorded
+there after that failure passing clean (a run of it before the failure counts for nothing), a passing clean focused run there
+after the failed full run whose recorded path set covers every path `base resolve`'s range base to the tip
+changes, the declaration, exactly one failed full run at the tip, and no failed run of another test file at
+the tip. Nothing reruns on its own, and no step reruns a failed suite until it passes.
+
+## A fix cycle's focused run
+
+Review's fix loop and run handoff's fix loop run the focused command over each cycle's commits (ADR 0075).
+A cycle whose commits a `scope.js fail-to-pass` run covered **at the current tip** runs no separate
+focused run (ADR 0175): the verb's control run is that same focused run at that tip, and it writes its own
+`run` line. The cycle's re-review receives the control run's result, named as the cycle's focused run.
+A cycle takes this only when the verb ran over the cycle's commits and printed an outcome, which is any
+outcome that follows a control run. Every other cycle keeps its own focused run over its commits: a
+cycle with no fail-to-pass run, a refused one (the verb ran no control), a signal-ended or non-starting
+control, and a cycle whose commits change only test-path files, which the verb is never run over.
+
 ## The changed-path set
+
+Each caller judges its own range and builds the set from it:
+
+- **A chain gate's carry run.** Every path changed from the suite record's commit to the gate's tip, per
+  `## The carry run`.
 
 Each caller judges its own range and builds the set from it:
 

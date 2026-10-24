@@ -31,7 +31,7 @@ const {
   BULLET_STDIN_SUBS, resolveBulletText, verbDegraded, verbUnresolved, verbDeferred, verbMinors, verbDocs, verbPr, verbDeploySet, verbDeployGet,
 } = require('../lib/ledger-records.js');
 const { verbDodLine } = require('../lib/dod-line.js');
-const { verbSuite, verbSuiteReusable, verbBaseSet, verbBaseResolve, verbGet } = require('../lib/suite-base-get.js');
+const { verbSuite, verbSuiteRerun, verbSuiteReusable, verbBaseSet, verbBaseResolve, verbGet } = require('../lib/suite-base-get.js');
 const { publishText, verbPublish, verbAdopt } = require('../lib/run-state.js');
 const { verbStatus, verbStaging } = require('../lib/status.js');
 const { endRun, watchMain } = require('../lib/run-supervision.js');
@@ -207,11 +207,25 @@ function run(argv, cwd, stdinJson) {
           args.splice(bi, 2);
         }
         if (!branch) fail('suite reusable needs --branch <branch>');
+        let base;
+        const bsi = args.indexOf('--base');
+        if (bsi >= 0) {
+          base = args[bsi + 1];
+          if (!base) fail('--base needs a value');
+          args.splice(bsi, 2);
+        }
         // Everything but the leading `reusable` must already be stripped — an unrecognized flag (a
         // mistyped `--whole`) left over here would silently drop the whole-repo gate instead of
         // refusing it, and a no-kind record would then pass a `--whole` check it must fail (INV-0017).
         if (args.length > 1) fail(`suite reusable: unrecognized argument "${args[1]}"`);
-        verbSuiteReusable(cwd, root, branch, whole);
+        verbSuiteReusable(cwd, root, branch, whole, base);
+        break;
+      }
+      if (args[0] === 'rerun') {
+        if (whole) fail('suite rerun: --whole is not an option of rerun');
+        if (args.length > 3) fail(`suite rerun: unrecognized argument "${args[3]}"`);
+        verbSuiteRerun(cwd, root, args[1], args[2]);
+        ledgerEvent = { root, fields: ['suite', 'rerun', args[1], args[2]] };
         break;
       }
       // `set <result> <sha>` is the whole shape — an unrecognized fourth token (a mistyped `--whole`,

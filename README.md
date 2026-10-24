@@ -13,9 +13,10 @@ it, and by the time a corner-cut surfaces, it's already merged.
 
 With superdev: `/superdev:plan` interviews you until the Definition of Done is checkable,
 `/superdev:implement` cuts the work into small slices, a separate reviewer subagent checks each one
-before it merges, and the full suite runs once over the integrated scope, with its own fix loop, before
+before it merges, and the integrated scope passes one full-suite gate, with its own fix loop, before
 the review. superdev runs no suite on a merge, inside a scope run or outside one: a slice's tests run
-where the slice is built and reviewed, and every base merge into the scope branch runs the suite itself.
+where the slice is built and reviewed, and every base merge into the scope branch gates the merged tip on
+the suite itself. A gate runs the full suite only where no carried record or recorded rerun meets it.
 
 A self-contained Claude Code plugin for the full **brainstorm, plan, implement, review, document,
 submit-pr, ship** loop, with **no prerequisite plugins**. It gives you interview-driven vertical slicing, an execution tier
@@ -543,7 +544,7 @@ again. One answer lands outside that tree: the slice store's **assignee** goes t
   `docs/agents/toolchain.md`.
 - **Verification** *(optional)*. The repo's test command, the first fenced block of
   `docs/agents/verification.md`. Recorded, it is the full suite the run handoff, every base merge, and the
-  scope review run. Omitted, no step runs a suite. A second fenced block holds the focused test command,
+  scope review run where no carried record or recorded rerun meets their gate. Omitted, no step runs a suite. A second fenced block holds the focused test command,
   the one every step inside the loop runs: the implementer's TDD loop, the lite tier's inline loop, the
   controller's tip result for a slice review, and the documentation step's own run over its doc commits. What defines it is that it
   costs less than the full suite. Setup derives it from the runner it detected — a runner that maps

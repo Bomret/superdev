@@ -7,7 +7,7 @@ next.
 **Several sections below have a wider audience than these three.** `/superdev:implement` and both
 execution playbooks read `## Unattended`, `## Degraded passes`, `## The run lock`, `## The scope
 checkout` (ADR 0045 — both tiers now cut and work in the scopetree), and `## Bringing the scope branch to
-base` (ADR 0120) and `## The scope's range base`; `/superdev:implement`
+base` (ADR 0120; `/superdev:review` also reads it, ADR 0173) and `## The scope's range base`; `/superdev:implement`
 reads `## The scope slug`, which sends it to `## The change type`; `## The ledger` is read by
 `/superdev:implement`, `/superdev:status`, and `/superdev:submit-pr` besides `/superdev:review`; `##
 Resolving an empty argument` is read by all three of `/superdev:implement`, `/superdev:review`, and
@@ -179,6 +179,11 @@ write, naming `scope.js`.
   instead of running the suite again (INV-0017). `suite reusable --whole` additionally refuses a record with no kind, even when it is
   green and tip-matched: a step that needs a whole-repo run reuses only a record of kind `whole`; a
   step content with either kind omits `--whole` and accepts both.
+- **`**Rerun:** <test-file> @ <sha> <triage-ref>`** — the one recorded rerun of a failed full run at `<sha>`
+  (ADR 0172, `references/test-selection.md`'s `## The recorded rerun`). Written with `suite rerun <test-file>
+  <triage-ref>` at the tip, which refuses a tip that already carries a record and replaces a record for another
+  tip. `suite reusable --base <base-branch>` accepts a red record at that tip against it, under the complete-selector declaration and
+  a focused run covering every path the scope's range changed; without `--base` it refuses a red record.
 - **`**Base:** <sha>`** — the remote base tip the base step last merged into the scope branch
   (`## Bringing the scope branch to base`), as a full commit. Written with `base set <sha>`, which
   refuses a sha that does not resolve to a commit; read only through `base resolve`
@@ -529,7 +534,10 @@ than an hour as dead. Each command in the chain refreshes the mtime at its own s
 ## Bringing the scope branch to base
 
 Both execution playbooks run this step right after their own `## Run lock` write and before their first
-slice, on every `/superdev:implement` invocation and at every run kind (ADR 0120, INV-0124). It brings
+slice, on every `/superdev:implement` invocation and at every run kind (ADR 0120, INV-0124).
+`/superdev:review` runs it too, on a live scope run at a stage before `submitted`, after its scope
+checkout and run lock and before its entry suite check (ADR 0173). At `submitted` review merges nothing:
+`/superdev:ship` owns a moved base there. It brings
 the remote's `<base>` tip into the scope branch, so slices build on what the pull request targets rather
 than on whatever `<base>` the branch was cut from. `/superdev:plan`'s own cut never reads it. `<remote>`
 and `<base>` come from `docs/agents/code-management.md`; `<branch>` is the scope branch the playbook's
@@ -594,14 +602,21 @@ branch step left you on.
    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base set <tip> --root <run-root>`: the local `<base>`
    may still lack `<tip>`, and `## The scope's range base` reads the record. Every merge goes
    through step 5.
-5. **Gate on the full suite.** Run it when step 4 merged, and also when it merged nothing but
-   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --root <run-root>` does
+5. **Gate on the full suite.** When `/superdev:review` runs this step, its own entry run is this gate: run
+   no second suite here, and let the entry check's reuse, run, and record (`/superdev:review` §4) gate the
+   merged tip. Otherwise run it when step 4 merged, and also when it merged nothing but
+   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base> --root <run-root>` does
    not accept the scope branch's current tip — a red record an earlier invocation left is exactly what
-   this catches. After any merge, clean or resolved, run the full command from `docs/agents/verification.md` through
+   this catches. Before the full command, take the carry per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s
+   `## The carry run`: a carried tip runs no full command and writes no record, and a failing carry run is this
+   gate's red result, recorded for the tip. A failed full run takes `## The recorded rerun` of the same file before it
+   stands as red: the triage record quoting the failure first, then the rerun record, the file alone, and the focused
+   run; an unattributable failure stays red. Only a tip with no carry takes the full command: after any merge, clean or
+   resolved, where no carry holds, run the full command from `docs/agents/verification.md` through
    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full` in the scopetree, once: the run trace records that run, and the trace must back the suite record
-   (ADR 0117, ADR 0155). Run it through the runner, per the `## The two commands` section of `references/test-selection.md`, because a run the trace records as `unknown` leaves a record `suite reusable` refuses. The same command runs when the merge was skipped and the record is not reusable. Record what happened with
-   `scope.js suite set <green|red|denied|none> <head> --root <run-root>`. **Green** → go to the first
-   slice. **Denied, or never finished** (`none`, INV-0009) → dispatch no slice, name the result, and
+   (ADR 0117, ADR 0155). Run it through the runner, per the `## The two commands` section of `references/test-selection.md`, because a run the trace records as `unknown` leaves a record `suite reusable` refuses. The same command runs when the merge was skipped, the record is not reusable, and no carry holds. Record what the full command did with
+   `scope.js suite set <green|red|denied|none> <head> --root <run-root>`. **Green**, or a carried tip → go to
+   the first slice. **Denied, or never finished** (`none`, INV-0009) → dispatch no slice, name the result, and
    stop; the next invocation runs the suite again. No slice can fix either.
    **Red** → **A red record has an exit** (ADR 0152), because a slice of this scope can be its fix.
    Attended, name the result and ask one multi-select question: which slices fix it. Offer every slice
@@ -1033,7 +1048,7 @@ observation earned, because each was made at the meeting, not saved for the end.
 
 **The controller tests "no slice covers it" against the plan, which it alone holds.** A dispatched agent
 sees only its own slice and cannot make that call; it reports what it met, and the controller decides. The
-controller's own observations are in scope too: it runs the merges and the suite run after every base merge, so it is the participant
+controller's own observations are in scope too: it runs the merges and the suite gate after every base merge, so it is the participant
 most likely to meet one itself.
 
 **`/superdev:plan` writes one too**, when its interview finds a defect this scope did not cause and the

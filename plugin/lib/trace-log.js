@@ -9,7 +9,7 @@ const path = require('path');
 //   <ISO-8601 UTC timestamp> <slice id|scope> <agent id|main> <kind> <kind fields...>
 // `appendTrace` is its single writer. Kinds and their fields:
 //   edit <test|impl> <path>
-//   run <full|focused|whole|path> <pass|fail|unknown> <sha|unknown> <clean|dirty|unknown> [<files>]
+//   run <full|focused|whole|path> <pass|fail|unknown> <sha|unknown> <clean|dirty|unknown> [<files>]   (written by `scope.js test`, and by the control run of `fail-to-pass`, of the kind it ran; <files>: a `path` run's test files comma-joined; a `scope.js test focused` run's path set, `encodePaths`; else `-`)
 //   revert <paths> / restore <paths>
 //   note <test path>
 //   dispatch <agent_type> <tool_use_id> <description> <session_id|-> / dispatch-bind <agent_type> <tool_use_id> <agent_id> /
@@ -45,6 +45,13 @@ function untraceField(v) {
   });
 }
 
+// A changed-path set as one `run` line field (ADR 0175): each path with `%`, `,`, and a leading `-` as `%25`, `%2C`, `%2D`,
+// joined by `,`, so a comma splits paths only and no path reads as the absent-field `-`. `traceField` then escapes the rest.
+// An empty set is the absent field.
+const encodePaths = (paths) => paths.map((p) => p.replace(/%|,|^-/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase())).join(',');
+// The inverse, from a field as `readTrace` returns it (still escaped): the exact set, `[]` for the absent field.
+const decodePaths = (field) => (field === undefined || field === '-' ? [] : untraceField(field).split(',').map((p) => p.replace(/%(25|2C|2D)/g, (m, h) => String.fromCharCode(parseInt(h, 16)))));
+
 // event: { slice?, agent?, kind, fields? }. One O_APPEND write per line, so concurrent writers never
 // tear a line. A failed write is swallowed: the trace never blocks the work it records. Returns whether
 // the line was written, for the one caller that tells its user (`scope.js test`).
@@ -68,4 +75,4 @@ function readTrace(raw) {
   });
 }
 
-module.exports = { traceField, untraceField, appendTrace, readTrace };
+module.exports = { traceField, untraceField, encodePaths, decodePaths, appendTrace, readTrace };

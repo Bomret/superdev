@@ -7,8 +7,9 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) read this as
 Run after your playbook returns (every slice `merged`/committed on the scope branch). Identical across
 tiers: record that slice execution finished, name what comes next.
 
-- **Run the full suite once, in the scope checkout, and record the result.** Every scope gets exactly
-  this one full-suite run from implement, whatever its slice types (ADR 0091) — find the scope checkout
+- **Gate the scope branch on the full suite, in the scope checkout, and record the result.** Every scope
+  gets this one full-suite gate from implement, whatever its slice types (ADR 0091). A reusable record or a
+  carry (below) meets it without a full run; otherwise the full command runs once — find the scope checkout
   per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope checkout`, take the full command
   from `docs/agents/verification.md` per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`, and run it
   once **in that checkout**, over the scope branch, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full`.
@@ -17,7 +18,13 @@ tiers: record that slice execution finished, name what comes next.
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set <green|red|denied|none> <sha> --root <run-root>`
   (`<sha>` is `git rev-parse HEAD` in that checkout) — a record `/superdev:review` reuses instead of
   running the suite again when it is still `green` and `scope.js suite reusable` calls the branch's
-  current tip reusable against it (INV-0017): an exact match, or a Markdown-only range since it (ADR 0128).
+  current tip reusable against it (INV-0017): an exact match, a Markdown-only range since it (ADR 0128), a
+  focused-selector carry (ADR 0175), or a recorded rerun (ADR 0172).
+  Where the record is not reusable, take the carry before the full command, per
+  `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## The carry run`: a carried tip runs no full command and
+  writes no record, and a failing carry run is this run's **Red** result, recorded `red` at the tip. A failed full
+  run takes `## The recorded rerun` of the same file before it stands as **Red**: the triage record quoting the
+  failure first, then the rerun record, the file alone, and the focused run; an unattributable failure stays **Red**.
   - **No test command configured** → record `none` and continue to the handoff pass.
   - **Green** → record `green`, clear any standing `**Unresolved:**` entry
     (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unresolved defects`) with
@@ -79,9 +86,10 @@ tiers: record that slice execution finished, name what comes next.
   - **Inside each cycle, run only the focused command** — per
     `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`, over the commits that cycle's implementer just
     landed, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths>` — never the full suite; a full re-run inside every cycle is the cost ADR 0075's own loop shape
-    exists to avoid.
+    exists to avoid. A cycle whose commits the fail-to-pass run above covered at the current tip runs no
+    separate focused run: its control run is the cycle's focused result, per that file's `## A fix cycle's focused run`.
   - **When a cycle's focused run first comes back clean, re-run the full suite once** in the scope
-    checkout and record it the same way as above. **Green** → clear `**Unresolved:**` as above and
+    checkout and record it the same way as above, taking the carry first, per that file's `## The carry run`. **Green** → clear `**Unresolved:**` as above and
     continue to the handoff pass. **A red re-run counts toward this loop's own 3-strike cap** — this
     bullet's own cap, since a scope-wide suite has no slice to block — the same shape as a cycle exposing
     a defect elsewhere, so the loop needs no bound of its own.

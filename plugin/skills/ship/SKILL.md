@@ -123,10 +123,10 @@ Either way:
 - **Closed, and `merged` is false** → refuse: name that it was closed without merging, and merge nothing.
 - **`merged` is true** → **adopt it, then skip straight to §5.** Its `head.sha` reusable off the ledger's
   last recorded green suite result — `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable
-  --branch <head.sha> --root <run-root>` (plain, never `--whole`: an adopted hand merge is
+  --branch <head.sha> --base <base> --root <run-root>` (plain, never `--whole`: an adopted hand merge is
   not a merge superdev makes, INV-0092), the same reuse `/superdev:review`'s own gate
-  uses — exits 0 → the merged head is a commit the green suite record covers (INV-0017: an exact match, or a
-  Markdown-only range since the record, ADR 0128), no `**Degraded:**` bullet. Exits 1, or no record
+  uses — exits 0 → the merged head is a commit the suite record covers (INV-0017 states every way it does: an exact match, a
+  Markdown-only range, a focused-selector carry, or a recorded rerun), no `**Degraded:**` bullet. Exits 1, or no record
   at all → `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" degraded add "the merge landed on <head.sha>,
   not a commit the green suite record covers"`. Either way, set the stage to `shipped`
   (`scope.js stage set shipped --root <run-root>`) unless it already reads that, and publish the
@@ -146,7 +146,7 @@ this same gate at the merged tip whenever its own merge moves it** — that late
 is what the pinned squash lands and what §5's deploy step reads fresh at the merge commit.
 
 **The tip needs a reusable green result before anything else runs.**
-`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch>
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base>
 --root <run-root>` — the same call `/superdev:review`'s own scope-mode gate uses. Which checkout you run it from does not matter: every worktree of a repository shares the same
 refs and objects, so `<branch>` resolves identically wherever `git` is invoked from inside it. Exit 1, or
 no record at all → refuse: name that the tip carries no green full-suite result to reuse (INV-0017), and
@@ -200,8 +200,12 @@ the push below.
   `git -C <run-root>/scopetree merge --abort`, and stop: merge nothing. Point at `/superdev:review <scope>`
   to resolve them — a resolution is new code nobody has reviewed, so it goes back through the gate rather
   than past it.
-- **A clean merge** → take the full command from `docs/agents/verification.md`, run it once over the merged
-  scope branch through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full` (in the background when the
+- **A clean merge** → take the carry first, per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s
+  `## The carry run`: a carried merged tip runs no full command and writes no record, and a failing carry run
+  is the red result below, recorded `red` at the merged tip. A failed full run takes `## The recorded rerun` of the same
+  file before it stands as the red result: the triage record quoting the failure first, then the rerun record, the file
+  alone, and the focused run; an unattributable failure stays red. Only a tip with no carry takes the full command
+  from `docs/agents/verification.md`, run once over the merged scope branch through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full` (in the background when the
   suite outlasts the Bash tool's time limit, waiting for its end before acting on it), and record what
   happened with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set <green|red|denied|none> <new-head>
   --root <run-root>` (ADR 0155).
@@ -234,7 +238,7 @@ merge involved, and those never reach the pull request either without this same 
 
 - **Identical** → nothing to push; the remote head is already the tip.
 - **They differ** → the tip needs its own reusable green result before it goes anywhere:
-  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> [--whole]
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base> [--whole]
   --root <run-root>`, the same call §3 already ran on the pre-merge tip. **Refuses** → refuse the whole command,
   name that the tip carries no reusable green result, and point at `/superdev:review <scope>` — never push
   an untested tip. **Accepts** → print the range this push is about to add, `git -C <run-root>/scopetree

@@ -7,7 +7,7 @@ const path = require('path');
 const { fail } = require('./refusal.js');
 const { gitSpawn } = require('./git-spawn.js');
 const { verificationCommands } = require('./verification.js');
-const { appendTrace, readTrace } = require('./trace-log.js');
+const { appendTrace, readTrace, encodePaths } = require('./trace-log.js');
 const { superviseRuns } = require('./run-supervision.js');
 const { usage } = require('./usage.js');
 
@@ -65,12 +65,14 @@ function verbTest(cwd, args) {
   } else {
     if (!['full', 'focused', 'whole'].includes(kind) || (kind !== 'focused' && args.length > 1)) fail(`test: unrecognized arguments (${usage().split('\n').find((l) => /^ {2}test /.test(l)).trim()})`);
     const paths = args.slice(1);
+    if (paths.includes('')) fail('test focused: an empty path argument names no file');
     if (kind === 'focused' && !paths.length) kind = 'full';
     const tree = at ? at.tree : topOf();
     runCwd = tree; // the template is read from the tree root, so it runs there
     const template = verificationCommands(tree, true)[kind];
     if (!template) fail(`test ${kind}: no ${kind} command is configured in docs/agents/verification.md`);
     command = kind === 'focused' ? withPaths(template, paths) : template;
+    if (kind === 'focused') files = paths;
   }
   const [sha, tree0] = at ? treeState(at.tree) : [];
   // Where the trace ends now: a file change it records for this slice past this point happened during the run.
@@ -110,7 +112,7 @@ function verbTest(cwd, args) {
       // during the run is `dirty`.
       const tree = sha1 !== sha || tree0 === 'dirty' || tree1 === 'dirty' || changed ? 'dirty' : tree0 === 'unknown' || tree1 === 'unknown' ? 'unknown' : 'clean';
       const outcome = hidden ? 'unknown' : code === 0 ? 'pass' : 'fail';
-      if (!appendTrace(at.runRoot, { slice: at.slice, kind: 'run', fields: [kind, outcome, sha, tree, files.join(',')] })) {
+      if (!appendTrace(at.runRoot, { slice: at.slice, kind: 'run', fields: [kind, outcome, sha, tree, kind === 'focused' ? encodePaths(files) : files.join(',')] })) {
         process.stderr.write('test: the run line could not be written to the run trace\n');
       }
     }

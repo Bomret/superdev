@@ -60,6 +60,7 @@ post('bun test && bash scripts/test-affected.sh || true');
 assert.deepEqual(tail(trace(A)), [`run full pass ${sha} dirty -`, `run full fail ${sha} dirty -`, `run full unknown ${sha} dirty -`], 'a compound full command records one run; its prefix alone or a different joiner records none');
 post('bun test && bash scripts/test-affected.sh --x');
 assert.equal(trace(A).pop()[3], 'focused', 'a compound full run with a segment past its template narrows to focused');
+assert.equal(trace(A).pop()[7], '-', 'a focused run the hook records from a direct call holds no path set');
 reset();
 fs.writeFileSync(vf, '# V\n\n```sh\ncd sub && bun test\n```\n');
 post('cd sub && bun test');

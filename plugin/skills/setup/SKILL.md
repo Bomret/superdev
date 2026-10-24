@@ -68,6 +68,8 @@ store and code host stay unqueried:
   name the repository's own test locations. A section with no usable entry, empty or all malformed, gets
   the same line, since the hook then applies the defaults. A `verification.md` with no test command gets no
   such line.
+- `verification.md` — a `## Complete selector` section on a focused command with no `{paths}` token gets an
+  **advisory** line, never a drift verdict: state that the declaration has no effect there.
 - `deployment.md` — the same resolution check, applied to each target's command: a target naming a
   script the manifest no longer defines is drift. A `none` posture, or a `manual`/`auto` posture with an
   empty targets table, has nothing to check here, and reports consistent once confirmed present.
@@ -370,7 +372,8 @@ pass reads and edits directly, so it stages nothing.
 
 **E — Verification (optional).** What single command runs the repo's test suite (e.g. `npm test`,
 `pytest -q`, `cargo test`)? Recorded, it is the suite the implement chain runs: the run handoff's full
-run over the integrated scope, the run after every base merge, and the scope review's gate. No hook runs
+run over the integrated scope, the run after every base merge, and the scope review's gate, each where no
+reusable record, carry, or recorded rerun meets the gate (`references/test-selection.md`). No hook runs
 it on a merge (ADR 0155). Detect a likely command (package.json scripts, a Makefile `test` target,
 `pyproject.toml`) and propose it. No suite (e.g. a docs-only repo) → skip; nothing runs a suite. (The
 **F** scan finds the same manifests — draw the proposal from it.)
@@ -397,6 +400,16 @@ to derive it from. The derivation takes one of two branches:
     exactly as a `{paths}` form does, and collects nothing from an empty one. It carries that runner's own
     pass-with-no-tests flag for the same reason a `{paths}` form does: `npx vitest --changed
     --passWithNoTests`, `npx jest -o --passWithNoTests`.
+
+**A focused command that carries `{paths}` gets one more question, asked once the focused command is
+settled** (ADR 0175): does it select every test any changed path can affect? Name what a yes trusts: gates
+then skip the full suite on that strength, carrying a green suite record across a change the focused run
+covered (`references/test-selection.md`'s `## Complete selector` owns the contract). A yes writes the
+`## Complete selector` section, listing the selector's own files (a runner script, a mapping config) as list
+items for each one the operator names. A no, or no answer, writes no section. A fixed fast subset, a
+self-detecting flag, and a focused command that repeats the full one carry no `{paths}`, so setup asks
+nothing for them. A re-run on a `verification.md` that has no section asks once; one that has the section
+asks nothing.
 
 **A repo with a full command proposes its test paths too** (ADR 0117): the glob patterns that name its
 test files, which `hooks/run-trace.js` reads to class each recorded edit. Detect the repository's test
@@ -631,6 +644,18 @@ Write:
   ## Timing command
 
   `npx vitest run --reporter=verbose`
+  ````
+
+  Add the **`## Complete selector`** section only on the operator's explicit yes to decision **E**'s
+  selector question, in the format `references/test-selection.md`'s `## Complete selector` section defines
+  (an unfenced list, one backtick-spanned path per item). Example:
+
+  ````markdown
+  ## Complete selector
+
+  The focused command selects every test a changed path can affect.
+
+  - `scripts/run-tests.js`
   ````
 
   Add the **`## Test paths`** section decision **E** settled, in the format

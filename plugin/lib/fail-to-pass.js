@@ -11,8 +11,9 @@ const { isTestPath, verificationCommandsOf } = require('./verification.js');
 const { gitSpawn, resolveCommit, fileAt } = require('./git-spawn.js');
 const { PROBE_MAX_BUFFER } = require('./containment.js');
 const { mainWorkTree } = require('./main-work-tree.js');
-const { appendTrace, readTrace } = require('./trace-log.js');
-const { superviseRuns } = require('./run-supervision.js');
+const { appendTrace, readTrace, encodePaths } = require('./trace-log.js');
+const { treeState } = require('./run-tree.js');
+const { superviseRuns, withWorktreeLock } = require('./run-supervision.js');
 const { withPaths } = require('./test-verb.js');
 
 // The floor of the bound on the run with the files put back (ADR 0142): 10 000 ms, or the positive whole number of
@@ -57,7 +58,8 @@ const failToPassBoundMs = (controlMs, floorMs) => Math.max(Math.ceil(controlMs *
 //              A run whose command could not start reads `start-failed:<error code>` in place of its exit, and the second carries no bound.
 //
 // The trace line is `<ts> <slice|scope> main fail-to-pass <base>..<tip> <outcome> <reason>`. The slice is the one whose
-// ledger row records exactly this range, else the one the run's directory attributes to, else `scope`.
+// ledger row records exactly this range, else the one the run's directory attributes to, else `scope`. The control run also
+// writes a `run` line for its command's kind, attributed the same way (ADR 0175).
 
 // The id of the ledger row whose range cell names exactly `base..tip`, each side read as a commit (a row may carry
 // abbreviated ones), or null.
@@ -115,7 +117,8 @@ async function verbFailToPass(cwd, args) {
   // references/test-selection.md: the focused command over the whole changed-path set where it carries `{paths}`, and the
   // full command for a fixed-subset or self-detecting focused command or where only the full command exists.
   const commands = verificationCommandsOf(config, true);
-  const command = commands.focused && commands.focused.includes('{paths}')
+  const focused = Boolean(commands.focused && commands.focused.includes('{paths}'));
+  const command = focused
     ? withPaths(commands.focused, changed.map((c) => c.path))
     : commands.full;
   if (!command) {
@@ -123,8 +126,8 @@ async function verbFailToPass(cwd, args) {
     process.exitCode = 2;
     return;
   }
-  // The worktree sits beside `slicetrees/` in the run root, outside every tree the run trace attributes a run to, so its test
-  // runs record no `run` line. Module resolution walks up from there to the main checkout's own `node_modules`, as it does
+  // The worktree sits beside `slicetrees/` in the run root, outside every tree the run trace attributes a run to, so no hook
+  // records its test runs; the verb writes the control's `run` line itself. Module resolution walks up from there to the main checkout's own `node_modules`, as it does
   // from the scope's own worktrees (the setup probe's placement). Outside a run root it sits under `.superdev/`, and no line
   // is written, `.superdev/` is git-ignored first through the repository's `info/exclude` (no file of the checkout changes), and
   // a `.superdev/` this call created is removed at exit. `mkdtemp` makes the directory unique to this invocation, so parallel runs never share one.
@@ -146,11 +149,13 @@ async function verbFailToPass(cwd, args) {
     if (removed) return;
     removed = true;
     sup.stop();
-    const gone = spawnSync('git', [...noHooks, 'worktree', 'remove', '--force', dir], { cwd, stdio: 'ignore' });
-    if (gone.status !== 0) {
-      fs.rmSync(dir, { recursive: true, force: true });
-      spawnSync('git', ['worktree', 'prune'], { cwd, stdio: 'ignore' });
-    }
+    withWorktreeLock(cwd, () => {
+      const gone = spawnSync('git', [...noHooks, 'worktree', 'remove', '--force', dir], { cwd, stdio: 'ignore' });
+      if (gone.status !== 0) {
+        fs.rmSync(dir, { recursive: true, force: true });
+        spawnSync('git', ['worktree', 'prune'], { cwd, stdio: 'ignore' });
+      }
+    });
     // `rmdir` takes an empty directory only, so a `.superdev/` that holds anything else stays.
     if (madeHome) try { fs.rmdirSync(home); } catch { /* not empty, or already gone */ }
   };
@@ -180,12 +185,15 @@ async function verbFailToPass(cwd, args) {
     return { code, signal, expired, ms: performance.now() - started };
   };
   try {
-    const added = spawnSync('git', [...noHooks, 'worktree', 'add', '-q', '--detach', dir, tip], { cwd, encoding: 'utf8' });
+    const added = withWorktreeLock(cwd, () => spawnSync('git', [...noHooks, 'worktree', 'add', '-q', '--detach', dir, tip], { cwd, encoding: 'utf8' }));
     if (added.status !== 0) fail(`fail-to-pass: git could not create the worktree: ${added.stderr.trim()}`);
     // Only a control that passed gives the second run a meaning (INV-0139); a control that did not pass records `unknown`,
     // and the second run never starts.
+    const [sha0, tree0] = treeState(dir);
     const control = await exec();
     const status = (run) => (run.startError ? `start-failed:${run.startError}` : run.signal || run.code);
+    // One ledger read names the slice both lines carry, the outcome line and the control run's `run` line (ADR 0175).
+    const slice = at && (sliceOfRange(at.runRoot, base, tip, cwd) || at.slice);
     const record = (outcome, reason) => {
       // The scope run's first `unknown` is an observation (references/scope-mode.md's `## Observations`), and the run root's
       // own trace says whether an earlier one exists, so the caller counts nothing. simplicity: two `unknown` outcomes
@@ -195,11 +203,23 @@ async function verbFailToPass(cwd, args) {
         try { return readTrace(fs.readFileSync(path.join(at.runRoot, 'trace.log'), 'utf8')).some((e) => e.kind === 'fail-to-pass' && e.fields[1] === 'unknown'); } catch { return false; }
       };
       if (at && outcome === 'unknown' && !seenUnknown()) process.stderr.write("fail-to-pass: the scope run's first unknown outcome: capture an observation naming the environment gap (references/scope-mode.md, `## Observations`)\n");
-      if (at && !appendTrace(at.runRoot, { slice: sliceOfRange(at.runRoot, base, tip, cwd) || at.slice, kind: 'fail-to-pass', fields: [`${base}..${tip}`, outcome, reason] })) {
+      if (at && !appendTrace(at.runRoot, { slice, kind: 'fail-to-pass', fields: [`${base}..${tip}`, outcome, reason] })) {
         process.stderr.write('fail-to-pass: the outcome line could not be written to the run trace\n');
       }
       console.log(`${outcome} ${reason}`);
     };
+    // The control run is a test run too (ADR 0175): a run that finished with an exit status writes the `run` line `scope.js
+    // test` writes for its kind, attributed like the outcome line. One a signal ended or that could not start writes none.
+    // Like `scope.js test`, it names the tip and reads both ends: a HEAD that left the tip or a dirty tree at either end is `dirty`.
+    if (at && control.code !== null && control.code !== undefined && !control.signal && !control.startError) {
+      const [sha1, tree1] = treeState(dir);
+      const states = [tree0, tree1];
+      const tree = sha0 !== tip || sha1 !== tip || states.includes('dirty') ? 'dirty' : states.includes('unknown') ? 'unknown' : 'clean';
+      const files = changed.map((c) => c.path);
+      if (!appendTrace(at.runRoot, { slice, kind: 'run', fields: [focused ? 'focused' : 'full', control.code === 0 ? 'pass' : 'fail', tip, tree, focused ? encodePaths(files) : ''] })) {
+        process.stderr.write('fail-to-pass: the control run line could not be written to the run trace\n');
+      }
+    }
     if (control.code !== 0) return record('unknown', `control=${status(control)}`);
     // The second run sees the base's files outside the test paths, the tip's test files, and nothing the control run left:
     // a tracked file it changed (`reset --hard` to the tip), an untracked or ignored one it wrote (`dist/`, `target/classes`, a

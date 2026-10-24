@@ -95,6 +95,32 @@ const scopePath = require.resolve('../plugin/scripts/scope.js');
     r = verb(['focused']);
     assert.equal(r.stdout.trim(), 'FULLRAN', 'no path runs the full command');
     assert.match(lines()[3], / run full pass /, 'and records full');
+    assert.match(lines()[3], / -$/, 'a full run records no path set');
+
+    // A focused run records its path set, and the trace reader returns it whole for any path (ADR 0175).
+    {
+      const { readTrace, decodePaths } = require('../plugin/lib/trace-log.js');
+      const lastRun = () => readTrace(fs.readFileSync(traceFile, 'utf8')).filter((e) => e.kind === 'run').pop();
+      for (const set of [['a b.ts', 'c.ts'], ['x,y.ts', 'z.ts'], ['-lead.ts'], ['-'], ['café.ts', '100%.ts', 'back\\slash.ts', 'p%2Cq.ts']]) {
+        reset();
+        assert.equal(verb(['focused', ...set]).status, 0);
+        const e = lastRun();
+        assert.equal(e.fields[0], 'focused');
+        assert.deepEqual(decodePaths(e.fields[4]), set, `the set reads back whole: ${JSON.stringify(set)}`);
+      }
+      assert.deepEqual(decodePaths('-'), [], 'a line with no path set reads an empty set');
+      reset();
+      verb(['full']);
+      assert.deepEqual(decodePaths(lastRun().fields[4]), [], 'a full run holds no path set');
+      // An empty path argument is refused before anything runs, so it never reads as an absent or empty-member set.
+      for (const bad of [[''], ['a', '']]) {
+        reset();
+        const r = verb(['focused', ...bad]);
+        assert.notEqual(r.status, 0, `an empty path is refused: ${JSON.stringify(bad)}`);
+        assert.match(r.stderr, /empty path/, 'the refusal names the empty path');
+        assert.equal(lines().length, 0, 'nothing runs and no run line is written');
+      }
+    }
 
     // The free-command form runs only a classified test run.
     reset();

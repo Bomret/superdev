@@ -100,4 +100,25 @@ function verificationCommandsOf(raw, keepLines) {
   return { full: norm(blocks[0]), focused: norm(blocks[1]), whole: norm(span && span[1]) };
 }
 
-module.exports = { isTestPath, testPathPatterns, verificationCommands, verificationCommandsOf };
+// The complete-selector declaration of a `verification.md` text (ADR 0175): null where there is no
+// `## Complete selector` section, else `{ files }`, the selector's own files — the backtick spans of the
+// section's list items (marker `-`, `*`, `+`, or an ordered `1.`), as root-relative paths. A list item names its
+// first backtick span whatever text precedes or follows it, and a listed path covers itself and every path under it, a trailing `/` being optional. Fenced code is no heading and no list, and the section runs to
+// the next heading of level 2 or above.
+function completeSelector(text) {
+  const files = [];
+  let inSection = false;
+  let found = false;
+  for (const line of fenceBlocks(text).outside.split('\n')) {
+    if (/^#{1,2}\s/.test(line)) {
+      inSection = /^##\s+Complete selector\s*$/.test(line);
+      found = found || inSection;
+    } else if (inSection) {
+      const m = /^\s*(?:[-*+]|\d+[.)])\s+[^`]*`([^`]+)`/.exec(line);
+      if (m) files.push(m[1]);
+    }
+  }
+  return found ? { files } : null;
+}
+
+module.exports = { isTestPath, testPathPatterns, verificationCommands, verificationCommandsOf, completeSelector };

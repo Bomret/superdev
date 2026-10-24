@@ -177,7 +177,7 @@ function lastHeaderLineIndex(lines, names) {
 
 // The ledger's header lines. An absent one is inserted after the last present entry of this list
 // (`insertHeader`), so placement does not depend on which verb writes the header.
-const APPENDED_HEADERS = ['Stage', 'Step', 'Branch', 'Anchor', 'Docs', 'PR', 'Suite', 'Base', 'Deploy'];
+const APPENDED_HEADERS = ['Stage', 'Step', 'Branch', 'Anchor', 'Docs', 'PR', 'Suite', 'Rerun', 'Base', 'Deploy'];
 
 // The bullet list under a header line, if any: `**Degraded:**` (scope-mode `## Degraded passes`) and
 // `**Unresolved:**` (`## Unresolved defects`) carry one each, in the same shape. Read by both status

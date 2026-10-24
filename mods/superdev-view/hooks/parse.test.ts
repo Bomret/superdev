@@ -515,4 +515,6 @@ test('reads the ledger and dispatch lines of the shared trace fixture', () => {
   ])
   expect(log.entries.filter(e => e.kind === 'slice').map(e => e.kind === 'slice' && [e.id, e.review, e.isOpenByDefault])).toEqual([['04', 1, false], ['05', 0, true]])
   expect(log.running).toBe(1)
+  const sum = log.entries.flatMap(e => (e.kind === 'slice' && e.id === '04' ? e.entries : [])).find(e => e.kind === 'sliceSummary')
+  expect(sum).toMatchObject({ suite: { fail: 0, pass: 1 } })
 })

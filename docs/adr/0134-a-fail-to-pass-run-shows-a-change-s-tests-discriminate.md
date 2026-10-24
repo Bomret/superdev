@@ -12,6 +12,9 @@ under the bound of the run before the change.
 **Amended by:** [ADR 0155](0155-a-slice-merge-runs-no-test-suite.md), which deletes `green-gate`, so the
 command pick no longer mirrors a merge hook's pick.
 
+**Amended by:** [ADR 0175](0175-a-green-suite-record-carries-across-a-delta-a-complete-focused-selector-covered.md), under
+which a fail-to-pass run records a test run.
+
 **Context.** Every superdev gate reads a passing test as evidence, and a test can pass without being able
 to fail for the defect it names. Triage #576 records a fix-cycle test that passed on the exact regression
 it was written for. Triage #631 records six checks in four runs that passed without exercising what they

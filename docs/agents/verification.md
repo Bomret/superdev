@@ -34,6 +34,12 @@ While working on one suite, run it alone: `node tests/<suite>.test.js` from the 
 one-suite run does not replace the focused command before the merge. `package.json` carries no test script,
 so every test run names exactly what it runs (ADR 0166).
 
+## Complete selector
+
+The focused command selects every test a changed path can affect (`references/test-selection.md`, ADR 0175).
+
+- `scripts/run-tests.js` — the selector
+
 ## Timing command
 
 `node scripts/run-tests.js`

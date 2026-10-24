@@ -74,8 +74,9 @@ dispatches nothing — you carry the TDD discipline yourself. Narrate at most on
   the pass inline as above, up to that section's cap: read `scope.js get denials` after writing the entry
   and block once the count reaches it.
 - **Agents carry their own discipline.** Pass specifics, not lectures. `mechanical`/`docs` slices invent
-  no tests — the loop's runs plus the full suite that runs once at run handoff, for every scope, are the
-  net (ADR 0025, ADR 0075, ADR 0091).
+  no tests — the loop's runs plus the full-suite gate run handoff takes once for every scope (a full run, or
+  the carry or recorded rerun `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` admits) are the net (ADR 0025, ADR 0075,
+  ADR 0091, ADR 0172, ADR 0175).
 
 ## Config + input
 

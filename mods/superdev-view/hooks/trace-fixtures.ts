@@ -17,6 +17,7 @@ export const TRACE_LINES: string[] = /* trace:start */ [
   "scope main ledger step set implement",
   "04 main ledger slice 04 in-progress",
   "05 main ledger slice 05 in-progress",
+  "04 main run focused pass e4f5a6b clean a\\x20b.ts,x%2Cy.ts,%2Dlead.ts",
   "04 main dispatch superdev:implementer tu1 Build\\x20slice\\x2004 s1",
   "04 main dispatch-bind superdev:implementer tu1 ag1",
   "04 main dispatch-end superdev:implementer tu1 completed",

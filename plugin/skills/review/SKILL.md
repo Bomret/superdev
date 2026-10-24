@@ -428,6 +428,15 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
 - **Find the scope checkout, and refresh the run lock.** Per
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`. **The scope checkout not on `<type>/<scope>`** →
   report that and review read-only rather than writing to the wrong branch.
+- **Bring the base in at a stage before `submitted`.** Read the stage (`scope.js get stage --root
+  <run-root>`). At any stage before `submitted`, run
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Bringing the scope branch to base` here, after the
+  scope checkout and run lock and before the entry suite check below (ADR 0173). Its conflict,
+  numbering-collision, citation, unattended-block, and degraded-fetch rules apply unchanged: a stop there
+  ends the review with the scopetree clean, and an unreachable remote records a degraded pass and the
+  review continues. Its gate step defers to the entry run below, so the merged tip is gated once. The
+  merge records the range base `final-reviewer` starts from, so it reviews the scope's own commits. At
+  `submitted`, merge nothing.
 - **Read the suite record first: a red record of kind `whole` swaps in the whole-repo command.**
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get suite --root <run-root>` prints
   `<result> <sha>[ whole]`. Red with `whole`, and a `## Whole-repo command` section configured (ADR 0105,
@@ -439,9 +448,14 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   review runs the full command, as below.
 - **Reuse a green suite record the tip still earns; otherwise run the full suite yourself, before
   dispatching `final-reviewer`.**
-  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch>
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base>
   --root <run-root>` **in the scope checkout above**. Exit 0 → reused, running nothing (INV-0017: an
-  exact tip match, or a Markdown-only range since the record, ADR 0128). Exit 1, or no record at all, means: take the full command from
+  exact tip match, a Markdown-only range since the record (ADR 0128), a focused-selector carry (ADR 0175), or a
+  recorded rerun (ADR 0172)). Exit 1, or no record at all, means: first take the carry
+  per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## The carry run` (a carried tip is reused, running and recording nothing; a
+  failing carry run is the `fail` below, recorded red at the tip); only a tip with no carry runs the full command. A failed full
+  run takes `## The recorded rerun` of the same file before it stands as the `fail` below: the triage record quoting the failure
+  first, then the rerun record, the file alone, and the focused run; an unattributable failure stays the `fail`. Take the full command from
   `docs/agents/verification.md` per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run it **in
   the scope checkout above**, over the scope branch, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full`
   (`test whole` for the whole-repo command, `test focused <changed paths>` inside a fix cycle). A suite longer than the Bash
@@ -451,7 +465,8 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   succeeds, so a denied dispatch is a
   degraded review, not a missing verification (ADR 0025). **No test command configured** → say so, record
   `none`, and
-  continue; this never blocks the review. **State the outcome** — reused, pass, fail, no command
+  continue; this never blocks the review. **State the outcome** — reused, pass, `pass on rerun` (the
+  gate passed on `## The recorded rerun` while the suite record stays `red`), fail, no command
   configured, or
   denied — in your own output, the same way §1 states the range, **independent of whether the
   `final-reviewer` dispatch succeeds**. **Denied** → `## Degraded passes`'s second shape: the pass ran and
@@ -469,8 +484,10 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   **not** advance while it stands. **Inside each fix cycle, run the focused command over the fix diff**
   — per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`, over the commits that cycle's implementer
   just landed, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths>` — and **hand that result to the re-review**, saying it is the focused run: fix cycles never
-  run the full suite. **When a fix cycle's re-review verdict first comes back clean, leaves only Minor Prompt-concept overlap findings and no broken criterion, or the cap leaves only Minor findings, run the full suite
-  once more** in the scope checkout, and record it the same way
+  run the full suite. A cycle whose commits a fail-to-pass run covered at the current tip runs no such
+  focused run: hand the re-review that control run's result, saying it is the cycle's focused run, per
+  `test-selection.md`'s `## A fix cycle's focused run`. **When a fix cycle's re-review verdict first comes back clean, leaves only Minor Prompt-concept overlap findings and no broken criterion, or the cap leaves only Minor findings, run the full suite
+  once more** in the scope checkout, taking the carry first, per `## The carry run`, and record a run result the same way
   (`scope.js suite set <result> <sha> --root <run-root>`, `<sha>` = the tip after the fix commits):
   that run is the gate the stage advances on. A scope whose first verdict is already clean runs none of
   this — the entry check above already reused a green record or ran and recorded that gate, so the full

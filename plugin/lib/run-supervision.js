@@ -17,6 +17,62 @@ function endRun(pid, { platform = process.platform, spawn = spawnSync, signal = 
   } catch { /* already gone */ }
 }
 
+// Runs `fn` while holding the repository's worktree-registry lock, a directory in its common git dir that `mkdir` creates
+// atomically and that holds its owner's pid. Two runs creating, removing, or pruning worktrees at once corrupt each other's
+// view of the registry: a `worktree add` reads the other's half-written `commondir`, and a `prune` unregisters a worktree
+// still being created. A lock whose owner's pid is gone is a killed holder's. A waiter takes it over by renaming its pid file
+// to a name of its own, so only one waiter wins it; it removes the lock when the won file still names the dead pid, and
+// renames the file back when a live holder took the lock meanwhile. The lock directory stays in place throughout, so no
+// `mkdir` succeeds while another run holds it. A lock with no pid file is a holder between its `mkdir` and its pid write,
+// and is stale after 10 s: a waiter then claims it by creating the pid file, which the holder also creates exclusively. A wait past 120 s runs `fn` unlocked rather than refusing. The watcher runs this function as
+// source text, so it names nothing outside itself but `process`, `Date`, and `Atomics`.
+// simplicity: a polling lock; pids are not proof of identity (a pid reused by an unrelated process keeps a dead holder's lock
+// until the wait expires); upgrade: a lock file with a process start time.
+function withWorktreeLock(cwd, fn) {
+  const fs = require('fs');
+  const path = require('path');
+  const common = require('child_process').spawnSync('git', ['rev-parse', '--git-common-dir'], { cwd, encoding: 'utf8' });
+  if (common.status !== 0) return fn();
+  const lock = path.join(path.resolve(cwd, common.stdout.trim()), 'superdev-worktree.lock');
+  const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
+  const ownerOf = (dir) => { try { return Number(fs.readFileSync(path.join(dir, 'pid'), 'utf8')); } catch { return null; } };
+  const pidFile = path.join(lock, 'pid');
+  const writePid = () => fs.writeFileSync(pidFile, String(process.pid), { flag: 'wx' });
+  const takeOver = () => {
+    const pid = ownerOf(lock);
+    if (pid) {
+      if (alive(pid)) return false;
+      const won = `${pidFile}.taken-${process.pid}`;
+      try { fs.renameSync(pidFile, won); } catch { return false; }
+      let owner;
+      try { owner = Number(fs.readFileSync(won, 'utf8')); } catch { return false; }
+      if (owner === pid) {
+        fs.rmSync(lock, { recursive: true, force: true });
+        return false;
+      }
+      try { fs.renameSync(won, pidFile); } catch { /* the lock's owner already left */ }
+      return false;
+    }
+    try { if (Date.now() - fs.statSync(lock).mtimeMs <= 10000) return false; } catch { return false; }
+    try { writePid(); return true; } catch { return false; }
+  };
+  const until = Date.now() + 120000;
+  let held = false;
+  while (!held && Date.now() < until) {
+    try {
+      fs.mkdirSync(lock);
+    } catch (e) {
+      if (e.code !== 'EEXIST') break;
+      held = takeOver();
+      if (!held) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
+      continue;
+    }
+    // A waiter that claimed this pid-less lock first holds it, and this run waits on. Any other failed write still holds it.
+    try { writePid(); held = true; } catch (e) { held = e.code !== 'EEXIST'; }
+  }
+  try { return fn(); } finally { if (held) try { fs.rmSync(lock, { recursive: true, force: true }); } catch { /* already gone */ } }
+}
+
 // The watcher's body, run as `node -e` in a detached process with an IPC channel from the supervising verb. It starts each
 // requested command as `sh -c` in a group of its own, so the command exists only once the watcher does and a verb killed
 // first starts nothing. It reports `{code, signal}` or `{error}`, and sends nothing once the channel is closed. The closed
@@ -33,11 +89,13 @@ function watchMain() {
   let dead = false;
   const finish = () => {
     if (dir) {
-      const gone = cp.spawnSync('git', ['-c', 'core.hooksPath=/dev/null', '-C', cwd, 'worktree', 'remove', '--force', dir], { stdio: 'ignore' });
-      if (gone.status !== 0) {
-        require('fs').rmSync(dir, { recursive: true, force: true });
-        cp.spawnSync('git', ['-C', cwd, 'worktree', 'prune'], { stdio: 'ignore' });
-      }
+      withWorktreeLock(cwd, () => {
+        const gone = cp.spawnSync('git', ['-c', 'core.hooksPath=/dev/null', '-C', cwd, 'worktree', 'remove', '--force', dir], { stdio: 'ignore' });
+        if (gone.status !== 0) {
+          require('fs').rmSync(dir, { recursive: true, force: true });
+          cp.spawnSync('git', ['-C', cwd, 'worktree', 'prune'], { stdio: 'ignore' });
+        }
+      });
     }
     process.exit(0);
   };
@@ -90,7 +148,7 @@ function watchMain() {
 // has exited, which is after it removed the worktree.
 function superviseRuns(stdio, cleanup, signal) {
   const cp = require('child_process');
-  const src = `const {spawnSync}=require('child_process');const endRun=${endRun};(${watchMain})()`;
+  const src = `const {spawnSync}=require('child_process');const endRun=${endRun};const withWorktreeLock=${withWorktreeLock};(${watchMain})()`;
   const watcher = cp.spawn(process.execPath, ['-e', src, ...(cleanup ? [cleanup.cwd, cleanup.dir] : ['', '']), signal], { stdio: [...stdio, 'ipc'], detached: true, windowsHide: true });
   watcher.on('error', () => {});
   let detached = false;
@@ -114,4 +172,4 @@ function superviseRuns(stdio, cleanup, signal) {
   return sup;
 }
 
-module.exports = { endRun, watchMain, superviseRuns };
+module.exports = { endRun, watchMain, superviseRuns, withWorktreeLock };

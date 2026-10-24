@@ -10,6 +10,9 @@ the scope branch.
 **Amended by:** [ADR 0152](0152-a-red-base-gate-lets-the-operator-name-the-slices-that-fix-it.md), which lets
 the operator name the slices that fix a red full-suite record.
 
+**Amended by:** [ADR 0173](0173-the-scope-review-brings-the-base-in-at-entry.md), under which
+`/superdev:review` also brings the base into the scope branch at entry.
+
 ## Context
 
 `/superdev:plan` cuts the scope branch from the local base branch and writes a `planned` ledger.
