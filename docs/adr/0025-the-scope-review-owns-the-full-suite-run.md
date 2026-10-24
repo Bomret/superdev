@@ -26,6 +26,9 @@ Everything else below holds.
 **Amended by:** [ADR 0179](0179-an-ad-hoc-review-hands-its-reviewer-a-focused-run.md), under which
 `final-reviewer` runs no test on an ad-hoc range either, and the review skill hands it a focused run.
 
+**Amended by:** [ADR 0189](0189-no-test-runs-after-review-and-none-in-setup.md), under which the documentation step
+runs no test command.
+
 ## Context
 
 `docs/agents/verification.md` named one test command, and five places in the chain ran it: the

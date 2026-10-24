@@ -5,6 +5,9 @@
 **Amends:** [ADR 0128](0128-a-green-suite-record-carries-across-markdown-only-commits.md), under which no
 later pass hides a failed full run at the tip.
 
+**Amended by:** [ADR 0189](0189-no-test-runs-after-review-and-none-in-setup.md), under which a red record whose
+rerun passed at T also counts at a later tip reached from T by Markdown-only commits.
+
 ## Context
 
 A full run can fail in one suite for a reason the scope did not cause: a race under load, or a git race

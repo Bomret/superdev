@@ -13,6 +13,9 @@ extends the carry to a delta that a complete focused selector covered.
 **Amended by:** [ADR 0172](0172-a-suite-that-fails-once-passes-the-gate-on-one-recorded-rerun.md), under which a
 suite that fails once passes the gate on one recorded rerun.
 
+**Amended by:** [ADR 0189](0189-no-test-runs-after-review-and-none-in-setup.md), under which the carry needs no test
+run at the tip and the documentation step runs none.
+
 ## Context
 
 `/superdev:review` records the full suite green on the review tip. `/superdev:document` then lands doc

@@ -17,6 +17,8 @@ const {
   TEA_ONLY_DOCS,
   TEA_ONLY_MARKERS,
   CONFLICT_COMMIT_CONCLUSION_PATTERNS,
+  NO_TEST_RUN_DOCS,
+  NO_TEST_RUN_PATTERNS,
 } = require('../contracts');
 const { proseDocuments, scanDocsAvoid, walkFiles, NEVER_NEGATION_WINDOW } = require('./walkers');
 
@@ -31,7 +33,7 @@ const scanKbNoBackendCall = (root) =>
 function scanAgentToolAgnostic(root) {
   let names = [];
   try {
-    names = fs.readdirSync(docPath(root, 'agents')).filter((f) => f.endsWith('.md'));
+    names = fs.readdirSync(docPath(root, 'agents')).filter((f) => f.endsWith('.md') && f !== 'AGENTS.md');
   } catch {
     return []; // no agents dir → nothing to scan
   }
@@ -102,6 +104,36 @@ const scanConflictConclusionNoCommit = (root) =>
     ]),
   );
 
+// ADR 0189, INV-0175: `/superdev:document` (its skill, its doc agents, and `references/doc-pass.md`) and
+// `/superdev:setup` instruct no test run. A statement that
+// the skill runs none passes: a negation (`no`, `not`, `never`, `without`, `nor`) at most one word
+// before the hit (and an opening quote or backtick), in the same sentence, excuses it. Fenced examples are masked first. See `NO_TEST_RUN_PATTERNS`'s own comment
+// for the ceiling.
+function scanDocSetupNoTestRun(root) {
+  const gaps = [];
+  for (const rel of NO_TEST_RUN_DOCS) {
+    const text = readDoc(root, rel);
+    if (text === null) {
+      gaps.push(missingDoc(rel));
+      continue;
+    }
+    const masked = maskFences(text);
+    for (const pattern of NO_TEST_RUN_PATTERNS) {
+      for (const hit of masked.matchAll(pattern)) {
+        const sentence = masked.slice(0, hit.index).split(/[.!?]\s|\n\s*\n/).pop();
+        if (/\b(?:no|not|never|nor|without)\b(?:\s+\w+){0,1}\s*["'`]?\s*$/i.test(sentence)) continue;
+        gaps.push({
+          source: rel,
+          expectation:
+            `instruct no test run — \`${normalizeWhitespace(hit[0])}\` starts one, and ` +
+            'a doc pass and setup run no test command (ADR 0189, INV-0175)',
+        });
+      }
+    }
+  }
+  return gaps;
+}
+
 // ADR 0111, #794: the Forgejo backend documents reach the host through `tea` only. See
 // `TEA_ONLY_MARKERS`'s own comment for the ceiling this shape-based absence check carries.
 const scanTeaOnly = (root) => scanDocsAvoid(root, TEA_ONLY_DOCS, TEA_ONLY_MARKERS);
@@ -163,4 +195,5 @@ module.exports = {
   scanConflictConclusionNoCommit,
   scanTeaOnly,
   scanDeployRunnerExclusivity,
+  scanDocSetupNoTestRun,
 };

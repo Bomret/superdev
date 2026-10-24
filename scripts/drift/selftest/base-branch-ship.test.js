@@ -3,7 +3,15 @@
 // Selftest suite: the scanners over the base-branch, ship, and derive wording (`scanners/base-branch-ship.js`).
 // Run by ./index.js.
 
-const { scanNoBaseBranchCommit, scanShipNoOpensPr, scanPastPrSkills, scanDeriveNoDod } = require('../scanners');
+const {
+  scanNoBaseBranchCommit,
+  scanShipNoOpensPr,
+  scanPastPrSkills,
+  scanDeriveNoDod,
+  scanDeployRunnerExclusivity,
+  scanConflictConclusionNoCommit,
+  scanAgentToolAgnostic,
+} = require('../scanners');
 
 module.exports = ({ assert, fixture, found }) => {
   // --- no-base-branch-commit (INV-0001): no shipped file under skills/ or references/ instructs a commit,
@@ -133,7 +141,7 @@ module.exports = ({ assert, fixture, found }) => {
     0,
     'ship paired with "merges" and submit-pr paired with "opens" are both clean',
   );
-  for (const rel of ['skills/ship/SKILL.md', 'agents/doc-writer.md', 'references/scope-mode.md', 'README.md']) {
+  for (const rel of ['skills/ship/SKILL.md', 'agents/doc-writer.md', 'references/scope-mode.md']) {
     const gaps = found(scanShipNoOpensPr(fixture({ [rel]: '`/superdev:ship` opens the pull request and merges it in one step.\n' })));
     assert.equal(gaps.length, 1, `catches the pairing in ${rel}`);
     assert.equal(gaps[0].source, rel, `names ${rel}`);
@@ -154,8 +162,48 @@ module.exports = ({ assert, fixture, found }) => {
   );
   assert.deepEqual(
     scanShipNoOpensPr(fixture({ 'skills/ship/SKILL.md': '`/superdev:ship` merges the pull request.\n' })),
-    [{ source: 'README.md', missing: true }],
-    'a missing README.md is a missing-document gap',
+    [],
+    'no README.md is no gap',
+  );
+  assert.deepEqual(
+    scanShipNoOpensPr(fixture({ 'README.md': '`/superdev:ship` opens the pull request.\n' })),
+    [],
+    'a README.md is not read',
+  );
+
+  // --- no walker over shipped prose reads an AGENTS.md at any depth (ADR 0189) ---
+
+  const agentsOffender = (text) => ({
+    'skills/AGENTS.md': text,
+    'skills/ship/deep/AGENTS.md': text,
+    'agents/AGENTS.md': text,
+    'references/AGENTS.md': text,
+    'references/sub/AGENTS.md': text,
+  });
+  assert.deepEqual(
+    scanShipNoOpensPr(fixture(agentsOffender('`/superdev:ship` opens the pull request.\n'))),
+    [],
+    'ship-no-opens-pr reads no AGENTS.md',
+  );
+  assert.deepEqual(
+    noBase(agentsOffender('Merge the work straight into the base branch yourself.\n')),
+    [],
+    'no-base-branch-commit reads no AGENTS.md',
+  );
+  assert.deepEqual(
+    found(scanDeployRunnerExclusivity(fixture(agentsOffender("Run the deploy target's command.\n")))),
+    [],
+    'deploy-runner-exclusivity reads no AGENTS.md',
+  );
+  assert.deepEqual(
+    found(scanConflictConclusionNoCommit(fixture(agentsOffender('Conclude the resolved conflict with `git commit`.\n')))),
+    [],
+    'a proseDocuments walker reads no AGENTS.md',
+  );
+  assert.deepEqual(
+    found(scanAgentToolAgnostic(fixture(agentsOffender('Run `bun run test` first.\n')))),
+    [],
+    'agent-tool-agnostic reads no AGENTS.md',
   );
 
   // --- derive-no-dod: plan's derive dispatch hands no Definition of Done, and final-reviewer's derive

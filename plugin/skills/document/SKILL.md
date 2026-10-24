@@ -79,29 +79,14 @@ If it reports findings, re-dispatch **`superdev:doc-writer`** (as in §3) with t
 
 The reader returns its findings **most-severe-first** (false claims, then incomplete ones, then style), so hand them over in that order and **tell the writer the order is a priority** — the `doc-writer` takes the priority from the dispatch and from nowhere else, so say it. With a single round, anything it can't reach is then the least costly finding rather than an arbitrary one.
 
-**Read `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it selects through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <doc-commit paths>`, in the scope
-checkout over the scope branch on a live run (§8's checkout) or the invoking checkout otherwise** — the
-same tree the doc commits just landed on, the writer's initial pass and any fix round above. On a live run
-whose suite record's commit is an ancestor of the scope branch's tip, the changed-path set runs from that
-commit to the tip, per that reference's `## The changed-path set`: this run is what lets
-`/superdev:ship` reuse the review's green suite record across Markdown-only doc commits (ADR 0128), so
-run it alone with its exit status intact. Red → the doc
-commit broke a test that asserts prose; fix it before the handoff. No test command configured → continue;
-there's nothing to run. **A non-zero exit that reports no test matched the changed paths is not that
-Red** — on the ordinary path this step's changed-path set holds only docs. A runner that maps nothing collects
-none from it (`pytest {paths}` exits 5, "no tests ran"); a runner that maps source files to the tests
-covering them finds no test for a docs-only path either (`vitest related {paths}` exits 1, "No test files
-found", absent `--passWithNoTests`); read either outcome as green and continue. Only a run that exits 0
-backs the suite record's carry to `/superdev:ship` (ADR 0128), so a runner carries its pass-with-no-tests
-flag (`--passWithNoTests`) in the focused command. The same holds under
-`--unattended`: there is nothing to ask, so don't stop on it.
+**This command runs no test command** (ADR 0189, INV-0175): the pass, its fix round, an audit, a bootstrap, and the `docs`-line fix round run no test command after the doc commits land. The review's green suite record carries to `/superdev:ship` across Markdown-only doc commits with no run at the tip (ADR 0128, ADR 0189).
 
 **Two things here are degraded passes**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section — read it and follow it, on either one:
 
 - **A dispatch the permission classifier denies.** A denied `doc-writer` means you reconcile inline; a denied `doc-reader` means the docs went unread by fresh eyes. Say so in §5's report and, on a live scope run, write the `**Degraded:**` entry that section defines: `scope.js degraded add` for the denied `doc-writer`, an authoring dispatch, and `scope.js degraded add-denial -` for the denied `doc-reader`, a verification dispatch, piping the classifier's refusal through a quoted heredoc rather than a shell argument. Publish the snapshot afterwards, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section. **`--unattended`** → a denied `doc-writer` blocks, since reconciling inline is the controller writing the docs itself; a denied `doc-reader` follows that section's authorship rule, blocking where the controller authored the docs under review and otherwise reading them inline — up to the cap, so read `scope.js get denials` after writing the entry and block once the count reaches it.
 - **A knowledge-base pass the writer could not stage.** The pass writes to no backend, so what remains is a staging path it could not write, or an existing page a read (ADR 0094) could not reconcile against — the writer records that one itself, per `references/doc-pass.md`'s read step. The note ends at the writer's report. On a live scope run, write the entry too, so the pass nobody can publish later is visible when `/superdev:submit-pr` opens the pull request.
 
-**An observation is captured the moment you meet it.** Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations` section and follow it: a defect a `doc-writer` or `doc-reader` report surfaces, or one the test command above shows, that no slice of this scope covers and the scope did not cause gets a triage record from you, the controller, right here — never held until §5's report.
+**An observation is captured the moment you meet it.** Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations` section and follow it: a defect a `doc-writer` or `doc-reader` report surfaces that no slice of this scope covers and the scope did not cause gets a triage record from you, the controller, right here — never held until §5's report.
 
 ## 5. Report
 
@@ -120,7 +105,7 @@ Inverts the usual order: **reader first**, writer only to fix what it finds.
    (CONTEXT.md, ADR 0068). Dispatch no `doc-writer` and commit nothing, whatever the reader found. Return
    its findings to the caller **most-severe-first**, exactly as it ordered them — an empty list when it
    found none — and stop here: §5's report shape doesn't apply, since there is no writer work to relay.
-4. **`--chained` absent** — if it reports findings, run **one doc-writer fix round** exactly as in §4 (dispatch once with the findings, in the reader's most-severe-first order; don't re-loop the reader; unresolved findings go in the report) — including §4's test-selection run afterward, over the commits that fix round lands.
+4. **`--chained` absent** — if it reports findings, run **one doc-writer fix round** exactly as in §4 (dispatch once with the findings, in the reader's most-severe-first order; don't re-loop the reader; unresolved findings go in the report) — and run no test command afterward (§4).
 5. **Report** per §5.
 
 ## 7. Bootstrap mode (brownfield seed)
@@ -133,7 +118,7 @@ Reached from §2 when the doc convention is the `AGENTS.md` hierarchy **and** th
 2. **Recon (large/unfamiliar repo only).** Fan out **2-4 read-only `Explore` agents** in parallel — each mapping a different aspect (structure + stack, domain vocabulary, subsystem boundaries, build + conventions) and returning a **compressed map**, not raw file dumps. A **small** repo skips this — the doc-writer explores directly.
 3. **Dispatch `superdev:doc-writer`** with an **explicit `model`** (`sonnet`) in **bootstrap** mode. Hand it: "bootstrap" (no diff, no prior tree), the recon maps (or "small repo — explore directly"), the two config file paths, and the **staging path**, resolved and handed as §3 states, since the doc pass runs over what bootstrap wrote. It seeds root `AGENTS.md` + child `AGENTS.md` only at genuine boundaries, mines existing README/`docs/` as input, and **proposes `CONTEXT.md` candidate terms in its report** without committing `CONTEXT.md`.
 4. **Confirm the glossary before it lands.** Present the writer's `CONTEXT.md` candidates to the user to **confirm/prune** — never auto-commit them. Re-dispatch the writer with the confirmed set to write + commit `CONTEXT.md`. Empty confirmed set → no `CONTEXT.md`.
-5. **Reader test** the seeded files exactly as §4, then **report** per §5.
+5. **Reader test** the seeded files exactly as §4 (which runs no test command), then **report** per §5.
 
 ## 8. Scope mode — commit in the scope checkout, then hand off
 
@@ -153,7 +138,7 @@ Only when §2 found a live run. Everything above still applies; this adds the ru
   targeted fix round**: dispatch `superdev:doc-writer` (explicit `model`, `sonnet`) with exactly the false
   lines as its targets and the scope checkout as its working directory, or reconcile inline when that
   dispatch is denied (§4's degraded-pass rule), then judge those lines again, and run the tick re-check
-  above over that round's commits too. **Still false** → untick it with a `not met:` note naming what the
+  above over that round's commits too. This round runs no test command. **Still false** → untick it with a `not met:` note naming what the
   `AGENTS.md` text still lacks, and write one `**Unresolved:**` entry per such line, worded `docs criterion
   unmet after the doc pass: <criterion>`, as the re-check above writes its entry — only when
   `scope.js get unresolved` prints no bullet already naming that criterion. Apply every tick and untick to

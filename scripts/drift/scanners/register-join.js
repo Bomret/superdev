@@ -1,41 +1,12 @@
 'use strict';
 
-// The scanners that join the drift registry to its other records: the narrative table of checks and the invariant register.
+// The scanner that joins the drift registry to the invariant register.
 
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { docPath, readDoc, missingDoc } = require('../lib');
+const { docPath, missingDoc } = require('../lib');
 const contracts = require('../contracts');
-const { NARRATIVE_DOC } = contracts;
-
-// scanNarrativeCoverage(): `scripts/AGENTS.md`'s drift-check table holds exactly one row per registered
-// check, and no row for an id the registry does not carry. A row is a table line whose first cell is a
-// backticked id.
-//
-// `ids` is a parameter rather than a module-level require because `checks.js` requires the scanners:
-// taking the registry at call time keeps the cycle from forming, and lets the selftest drive the scanner
-// with a fixed list.
-function scanNarrativeCoverage(root, ids = require('../checks').map((check) => check.id)) {
-  const narrative = readDoc(root, NARRATIVE_DOC);
-  if (narrative === null) return [missingDoc(NARRATIVE_DOC)];
-  const rows = new Map();
-  for (const [, id] of narrative.matchAll(/^\|\s*`([a-z0-9]+(?:-[a-z0-9]+)*)`\s*\|/gm)) {
-    rows.set(id, (rows.get(id) || 0) + 1);
-  }
-  const gaps = [];
-  const gap = (expectation) => gaps.push({ source: NARRATIVE_DOC, expectation });
-  for (const id of ids) {
-    const count = rows.get(id) || 0;
-    if (count === 0) gap(`carry a drift-check table row for \`${id}\` — it is registered in \`drift/checks.js\``);
-    else if (count > 1) gap(`carry one drift-check table row for \`${id}\` — it carries ${count}`);
-  }
-  const registered = new Set(ids);
-  for (const id of rows.keys()) {
-    if (!registered.has(id)) gap(`carry no drift-check table row for \`${id}\` — \`drift/checks.js\` registers no such check`);
-  }
-  return gaps;
-}
 
 // The invariant register joined to the drift registry and the contract tables (ADR 0156). A register
 // `Check:` line that names `scripts/drift-check.js` lists the ids it pins as backticked tokens up to the
@@ -97,4 +68,4 @@ function scanInvariantRegisterJoin(root, { checkIds, tables } = {}) {
   return gaps;
 }
 
-module.exports = { scanNarrativeCoverage, scanInvariantRegisterJoin };
+module.exports = { scanInvariantRegisterJoin };

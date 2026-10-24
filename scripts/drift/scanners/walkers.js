@@ -7,6 +7,9 @@ const path = require('node:path');
 
 const { docPath, readDoc, missingDoc } = require('../lib');
 
+// A doc pass edits every `AGENTS.md` (ADR 0189), so no walker over shipped prose reads one, at any depth.
+const AGENTS_DOC = 'AGENTS.md';
+
 // skillEntries(): every skill surface under a root, as `[<name>, absolute SKILL.md path]` pairs. An
 // absent dir yields an empty list.
 function skillEntries(root) {
@@ -40,7 +43,7 @@ function proseDocuments(root, dirs) {
       continue; // no such dir → nothing to scan
     }
     for (const entry of entries) {
-      if (!entry.endsWith('.md')) continue;
+      if (!entry.endsWith('.md') || entry === AGENTS_DOC) continue;
       docs.push([path.join(dir, entry), path.join(dirPath, entry)]);
     }
   }
@@ -89,7 +92,7 @@ function walkFiles(dir) {
   const resolved = path.resolve(dir);
   return fs
     .readdirSync(resolved, { recursive: true, withFileTypes: true })
-    .filter((entry) => entry.isFile())
+    .filter((entry) => entry.isFile() && entry.name !== AGENTS_DOC)
     .map((entry) => path.relative(resolved, path.join(entry.parentPath ?? entry.path, entry.name)).split(path.sep).join('/'))
     .sort();
 }

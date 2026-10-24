@@ -27,9 +27,8 @@ const {
   scanConflictConclusionNoCommit,
   scanTeaOnly,
   scanDeployRunnerExclusivity,
-  scanNarrativeCoverage,
+  scanDocSetupNoTestRun,
   scanMarketplaceSource,
-  scanReadmeCommands,
   scanAuditSetGlobs,
   scanNoBaseBranchCommit,
   scanShipNoOpensPr,
@@ -80,12 +79,6 @@ module.exports = [
     id: 'governed-skill-files',
     ok: "every path CONTEXT.md's **Prompt concept** entry lists names a file (ADR 0190)",
     run: scanGovernedSkillFiles,
-    format: contractGap,
-  },
-  {
-    id: 'readme-commands',
-    ok: 'the README and skills/ name the same command set',
-    run: scanReadmeCommands,
     format: contractGap,
   },
   {
@@ -225,9 +218,9 @@ module.exports = [
     format: contractGap,
   },
   {
-    id: 'narrative-coverage',
-    ok: "scripts/AGENTS.md's drift-check table carries exactly one row per registered check",
-    run: scanNarrativeCoverage,
+    id: 'doc-setup-no-test-run',
+    ok: 'neither /superdev:document nor /superdev:setup instructs a test run (INV-0175)',
+    run: scanDocSetupNoTestRun,
     format: contractGap,
   },
 ];

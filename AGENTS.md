@@ -352,6 +352,7 @@ This root owns every other subtree directly:
   only when the operator typed the command, asked for it, or agreed to an offer. Ship refuses `--unattended` (ADR 0157, INV-0093). A criterion verify-ship observes false routes to `/superdev:plan`'s
   repair choice, which plans a `fix` feature on its own anchor, linked to the original by a `**Repairs:**`
   line (ADR 0124).
+  No test runs after review: `/superdev:document` and `/superdev:setup` run no test command, and a green suite record carries across Markdown-only commits with no run. ADR 0189 and INV-0175 state this rule, and the `doc-setup-no-test-run` drift check holds it.
   Whoever invokes a chain command passes `--unattended` to run it unattended (ADR 0016, ADR 0108);
   superdev ships no driver. Some skills sit outside the chain: publish-kb sends a scope's
   staged knowledge-base pages to a remote backend on the operator's own clock (ADR 0023), status prints

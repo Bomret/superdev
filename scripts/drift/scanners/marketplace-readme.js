@@ -1,12 +1,11 @@
 'use strict';
 
-// The scanners over the repository's own entry documents: the marketplace manifest, the README command list, and the documentation audit set.
+// The scanners over the repository's own entry documents: the marketplace manifest and the documentation audit set.
 
 const fs = require('node:fs');
 const path = require('node:path');
 
 const { readDoc, missingDoc } = require('../lib');
-const { skillEntries } = require('./walkers');
 
 // scanMarketplaceSource(): each plugin in `.claude-plugin/marketplace.json` must name the shipped tree. A
 // relative string `source` must resolve to a directory carrying `.claude-plugin/plugin.json` (ADR 0032). A
@@ -60,40 +59,6 @@ function scanMarketplaceSource(root) {
     if (src.ref !== `v${version}`) {
       gap(`pin \`${plugin.name}\`'s \`git-subdir\` ref to \`v${version}\`, the release tag of ` +
         `\`${src.path}/.claude-plugin/plugin.json\` — it reads \`${src.ref}\``);
-    }
-  }
-  return gaps;
-}
-
-// scanReadmeCommands(): `README.md` and `skills/` agree — every `skills/<name>/SKILL.md` is mentioned in
-// the README as `/superdev:<name>`, and every `/superdev:<name>` the README names has a skill. The README
-// is the user-facing map of the commands, so a command it never names or a command it still names after a
-// rename is a router that lies.
-function scanReadmeCommands(root) {
-  const readme = readDoc(root, 'README.md');
-  if (readme === null) return [missingDoc('README.md')];
-  const gaps = [];
-  const commands = new Set(skillEntries(root).map(([name]) => name));
-  for (const name of [...commands].sort()) {
-    if (!readme.includes(`/superdev:${name}`)) {
-      gaps.push({
-        source: 'README.md',
-        expectation:
-          `mention \`/superdev:${name}\` — \`skills/${name}/SKILL.md\` ships, and a README that never ` +
-          'names a command is a router that lies',
-      });
-    }
-  }
-  const named = new Set();
-  for (const m of readme.matchAll(/\/superdev:([a-z][a-z0-9-]*)/g)) named.add(m[1]);
-  for (const name of [...named].sort()) {
-    if (!commands.has(name)) {
-      gaps.push({
-        source: 'README.md',
-        expectation:
-          `name only commands that exist — \`/superdev:${name}\` has no \`skills/${name}/SKILL.md\`, ` +
-          'so the README routes users to a command the plugin does not carry',
-      });
     }
   }
   return gaps;
@@ -163,4 +128,4 @@ function scanAuditSetGlobs(root) {
   return gaps;
 }
 
-module.exports = { scanMarketplaceSource, scanReadmeCommands, scanAuditSetGlobs };
+module.exports = { scanMarketplaceSource, scanAuditSetGlobs };

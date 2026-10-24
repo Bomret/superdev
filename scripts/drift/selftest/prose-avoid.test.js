@@ -11,6 +11,7 @@ const {
   scanConflictConclusionNoCommit,
   scanTeaOnly,
   scanDeployRunnerExclusivity,
+  scanDocSetupNoTestRun,
 } = require('../scanners');
 
 module.exports = ({ assert, path, fixture, found }) => {
@@ -225,5 +226,59 @@ module.exports = ({ assert, path, fixture, found }) => {
     unmapped({ 'skills/setup/SKILL.md': 'pytest maps no source file to its tests, so it takes no `{paths}` form at all.\n' }).length,
     0,
     'prose naming a non-mapping runner and `{paths}` in one sentence stays silent',
+  );
+
+  // --- doc-setup-no-test-run (ADR 0189, INV-0175): neither skill, nor document's doc agents and doc-pass reference, instructs a test run ---
+
+  const noRun = (files) => found(scanDocSetupNoTestRun(fixture(files)));
+  const noRunDocs = [
+    'skills/document/SKILL.md',
+    'skills/setup/SKILL.md',
+    'agents/doc-writer.md',
+    'agents/doc-reader.md',
+    'references/doc-pass.md',
+  ];
+  for (const rel of noRunDocs) {
+    for (const [text, label] of [
+      ['Then run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <paths>`.\n', 'a `scope.js test` call'],
+      ['Record it with `scope.js fail-to-pass base..HEAD -- node t.js`.\n', 'a `scope.js fail-to-pass` call'],
+      ['Run the full command over the changed paths.\n', 'run the full command'],
+      ['Then it runs the focused test command once.\n', 'runs the focused test command'],
+      ['Run the whole-repo command before writing.\n', 'run the whole-repo command'],
+      ['Start by running the affected form.\n', 'running the affected form'],
+      ['Then run the test command.\n', 'run the test command'],
+      ['It runs the configured test suite.\n', 'runs the configured test suite'],
+    ]) {
+      const gaps = noRun({ [rel]: text });
+      assert.equal(gaps.length, 1, `${rel}: flags ${label}`);
+      assert.equal(gaps[0].source, rel, `${rel}: names the skill`);
+    }
+    assert.equal(noRun({ [rel]: 'This command runs no test command (ADR 0189).\n' }).length, 0, `${rel}: a statement that no test runs passes`);
+    assert.equal(noRun({ [rel]: 'It never runs the full command and does not run the affected form.\n' }).length, 0, `${rel}: a negated run passes`);
+    assert.equal(noRun({ [rel]: 'If no focused command exists, run the full command.\n' }).length, 1, `${rel}: a distant no does not excuse a run`);
+    assert.equal(noRun({ [rel]: 'Without asking, run the affected form.\n' }).length, 1, `${rel}: a distant without does not excuse a run`);
+    assert.equal(noRun({ [rel]: 'Setup never calls `scope.js test`.\n' }).length, 0, `${rel}: a negated backticked scope.js call passes`);
+    assert.equal(noRun({ [rel]: 'This skill does not run `scope.js fail-to-pass`.\n' }).length, 0, `${rel}: a negated backticked fail-to-pass call passes`);
+    assert.equal(noRun({ [rel]: 'Setup never runs the full command.\n' }).length, 0, `${rel}: a negated run of the full command passes`);
+    assert.equal(noRun({ [rel]: 'Setup never runs the test command.\n' }).length, 0, `${rel}: a negated run of the test command passes`);
+    assert.equal(noRun({ [rel]: 'Do not forget to run the full command.\n' }).length, 1, `${rel}: a negated other verb does not excuse a run`);
+    assert.equal(noRun({ [rel]: '```\nscope.js test full\n```\n' }).length, 0, `${rel}: a fenced example is masked`);
+  }
+  assert.equal(
+    noRun({ 'skills/plan/SKILL.md': 'Run the full command.\n', 'agents/implementer.md': 'Run the full command.\n' }).length,
+    0,
+    'other documents are not read',
+  );
+  assert.equal(
+    noRun({ 'agents/doc-writer.md': 'Then run the focused command over the changed paths.\n' }).length,
+    1,
+    'the doc-writer agent body is read',
+  );
+  assert.deepEqual(
+    scanDocSetupNoTestRun(
+      fixture(Object.fromEntries(noRunDocs.filter((rel) => rel !== 'skills/document/SKILL.md').map((rel) => [rel, 'Runs no test.\n']))),
+    ),
+    [{ source: path.join('skills', 'document', 'SKILL.md'), missing: true }],
+    'a missing skill is a missing-document gap',
   );
 };

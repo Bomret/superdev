@@ -198,10 +198,8 @@ const { appendTrace, isTestPath } = require(scopePath);
   assert.ok(!r.ok && /is fail/.test(r.err), 'a later fail run defeats reuse: ' + (r.err || ''));
   traceRun(suiteRoot, 'full', 'pass', newSha, 'clean');
 
-  // suite reusable: a green record on an earlier commit is not reusable when no test run at the new
-  // tip backs the Markdown-only carry, even when every path changed since lies under
-  // `docs/plans/<branch>/` — no store commits its own records on the scope branch (INV-0017, ADR 0110,
-  // ADR 0128).
+  // suite reusable: a green record on an earlier commit carries to a tip with no recorded run when every path
+  // changed since is Markdown, here under `docs/plans/<branch>/` (INV-0017, ADR 0110, ADR 0128, ADR 0189).
   const planDir = path.join('docs', 'plans', 'feat', 'suite-demo');
   fs.mkdirSync(path.join(suiteRepo, planDir), { recursive: true });
   fs.writeFileSync(path.join(suiteRepo, planDir, '01-tick.md'), 'ticked\n');
@@ -209,8 +207,8 @@ const { appendTrace, isTestPath } = require(scopePath);
   gitSuite(['commit', '-q', '-m', 'tick'], suiteRepo);
   r = callIn(['suite', 'reusable', '--branch', 'main', ...SR], suiteRepo);
   assert.ok(
-    !r.ok && /predates tip/.test(r.err),
-    'a record on an earlier commit is not reusable without a run at the tip: ' + (r.err || '')
+    r.ok && r.out === 'reusable',
+    'a record on an earlier commit carries across a Markdown-only commit with no run at the tip: ' + (r.err || '')
   );
 
   // suite reusable: `--plan-files` is not a flag, so it is refused like any unrecognized
@@ -330,7 +328,7 @@ const { appendTrace, isTestPath } = require(scopePath);
     'get suite shows the record as red and whole'
   );
 
-  // suite reusable --whole: a green whole record on an earlier commit is not reusable either.
+  // suite reusable --whole: a green whole record on an earlier commit carries across Markdown-only commits.
   assert.ok(
     callIn(['suite', 'set', 'green', wholeTip, '--whole', ...SR], suiteRepo).ok,
     'suite set green --whole for the earlier-commit case'
@@ -340,8 +338,8 @@ const { appendTrace, isTestPath } = require(scopePath);
   gitSuite(['commit', '-q', '-m', 'tick again'], suiteRepo);
   r = callIn(['suite', 'reusable', '--branch', 'main', '--whole', ...SR], suiteRepo);
   assert.ok(
-    !r.ok && /predates tip/.test(r.err),
-    'a whole record on an earlier commit is not reusable with --whole: ' + (r.err || '')
+    r.ok && r.out === 'reusable',
+    'a whole record on an earlier commit carries with --whole across Markdown-only commits: ' + (r.err || '')
   );
 
   // suite set: an unrecognized flag (a mistyped `--whole`) is refused, naming it, and writes nothing —
@@ -555,13 +553,14 @@ const { appendTrace, isTestPath } = require(scopePath);
   };
   const reusable = (rt, ...flags) => callIn(['suite', 'reusable', '--branch', 'main', ...flags, '--root', rt], repo);
 
-  // The reproduction: a green full record at R, one README.md commit to T, a focused pass at T.
-  // ADR 0128's accepted ceiling: any passing focused run at T carries the record, whatever paths it
-  // covered. The trace's run line names no covered paths, so `suite reusable` cannot check the run
-  // spanned R..T; the documentation step's own range rule is what makes it do so.
+  // The reproduction: a green full record at R, one README.md commit to T, no run recorded at T (ADR 0189).
   const T = commit('README.md', 'doc\n');
-  let r = reusable(root(`green @ ${R}`, [['full', 'pass', R, 'clean'], ['focused', 'pass', T, 'clean']]));
-  assert.ok(r.ok && r.out === 'reusable', 'a green record carries across a Markdown-only commit: ' + (r.err || ''));
+  let r = reusable(root(`green @ ${R}`, [['full', 'pass', R, 'clean']]));
+  assert.ok(r.ok && r.out === 'reusable', 'a green record carries across a Markdown-only commit with no run at T: ' + (r.err || ''));
+  r = reusable(root(`green @ ${R}`, [['full', 'pass', R, 'clean'], ['focused', 'pass', T, 'clean']]));
+  assert.ok(r.ok && r.out === 'reusable', 'a passing focused run at T changes nothing: ' + (r.err || ''));
+  r = reusable(root(`green @ ${R}`, [['full', 'pass', R, 'clean'], ['focused', 'pass', T, 'dirty']]));
+  assert.ok(r.ok && r.out === 'reusable', 'a passing run on a dirty tree refuses nothing: ' + (r.err || ''));
 
   // The kind carries: a `whole` record at R satisfies --whole at T; a record with no kind still fails it.
   r = reusable(root(`green @ ${R} whole`, [['whole', 'pass', R, 'clean'], ['focused', 'pass', T, 'clean']]), '--whole');
@@ -575,14 +574,15 @@ const { appendTrace, isTestPath } = require(scopePath);
   r = reusable(root(`green @ ${R}`, [['full', 'pass', R, 'dirty'], ['focused', 'pass', T, 'clean']]));
   assert.ok(!r.ok && /dirty/.test(r.err), 'a dirty full run at R backs nothing: ' + (r.err || ''));
 
-  // The run at T: absent, failed, unknown, or on a dirty tree refuses.
+  // The runs at T: a failed run of any kind refuses and a later pass hides none; a latest run reading unknown refuses.
   const backed = [['full', 'pass', R, 'clean']];
   for (const [lines, re, what] of [
-    [[], /no test run recorded at the tip/, 'no run at T'],
-    [[['focused', 'fail', T, 'clean']], /focused run at the tip is fail/, 'a failed run at T'],
+    [[['focused', 'fail', T, 'clean']], /focused run at the tip failed/, 'a failed focused run at T'],
+    [[['focused', 'fail', T, 'clean'], ['focused', 'pass', T, 'clean']], /focused run at the tip failed/, 'a failed focused run at T hidden by a later pass'],
+    [[['focused', 'pass', T, 'clean'], ['focused', 'fail', T, 'clean']], /focused run at the tip failed/, 'a later failed focused run at T'],
     [[['focused', 'unknown', T, 'clean']], /is unknown/, 'an unknown run at T'],
-    [[['focused', 'pass', T, 'dirty']], /dirty tree/, 'a dirty run at T'],
-    [[['focused', 'pass', T, 'clean'], ['focused', 'fail', T, 'clean']], /is fail/, 'a later failed run at T'],
+    [[['focused', 'fail', T, 'clean'], ['focused', 'unknown', T, 'clean']], /failed/, 'a failed run followed by an unknown one'],
+    [[['focused', 'pass', T, 'clean'], ['full', 'unknown', T, 'clean']], /full run at the tip is unknown/, 'a latest full run reading unknown'],
   ]) {
     r = reusable(root(`green @ ${R}`, [...backed, ...lines]));
     assert.ok(!r.ok && /predates tip/.test(r.err) && re.test(r.err), `${what} refuses: ${r.err || ''}`);
@@ -645,6 +645,19 @@ const { appendTrace, isTestPath } = require(scopePath);
   // A failed run of a test file named directly (`path`) at T is not hidden either.
   r = reusable(root(`green @ ${R}`, [...backed, ['path', 'fail', T, 'clean'], ['focused', 'pass', T, 'clean']]));
   assert.ok(!r.ok && /a path run at the tip failed/.test(r.err), `a failed path run at T refuses despite a later focused pass: ${r.err || ''}`);
+
+  // The latest run at the tip, of any kind, decides: a pass after an unknown reuses; a lone unknown path run refuses.
+  r = reusable(root(`green @ ${R}`, [...backed, ['focused', 'unknown', T, 'clean'], ['focused', 'pass', T, 'clean']]));
+  assert.ok(r.ok && r.out === 'reusable', 'a focused pass after an unknown focused run at T reuses: ' + (r.err || ''));
+  r = reusable(root(`green @ ${R}`, [...backed, ['full', 'unknown', T, 'clean'], ['focused', 'pass', T, 'clean']]));
+  assert.ok(r.ok && r.out === 'reusable', 'a focused pass after an unknown full run at T reuses: ' + (r.err || ''));
+  r = reusable(root(`green @ ${R}`, [...backed, ['path', 'unknown', T, 'clean']]));
+  assert.ok(!r.ok && /path run at the tip is unknown/.test(r.err), 'an unknown path run at T refuses: ' + (r.err || ''));
+  // A failed run at T refuses with no focused run at T at all.
+  for (const k of ['whole', 'path']) {
+    r = reusable(root(`green @ ${R}`, [...backed, [k, 'fail', T, 'clean']]));
+    assert.ok(!r.ok && new RegExp(`a ${k} run at the tip failed`).test(r.err), `a failed ${k} run at T with no focused run refuses: ${r.err || ''}`);
+  }
 
   // A --no-ff merge of a side branch that changed only Markdown still carries.
   branchAt('m-side', T);
@@ -844,11 +857,55 @@ const { appendTrace, isTestPath } = require(scopePath);
     }
     g(['config', '--unset', 'diff.relative'], f.repo);
 
-    // Markdown-only rule (ADR 0128) is untouched: a Markdown delta under the declaration carries on any passing focused run.
+    // Markdown-only rule (ADR 0128, ADR 0189): a Markdown delta under the declaration carries with or without a recorded run.
     const m = make(verification(FOCUSED, DECLARED));
     const MT = m.commit('notes.md', 'n\n');
     r = m.reusable(m.root(`green @ ${m.R}`, [base(m.R), ['focused', 'pass', MT, 'clean']]));
     assert.ok(r.ok, 'the Markdown-only carry stands under the declaration: ' + (r.err || ''));
+    r = m.reusable(m.root(`green @ ${m.R}`, [base(m.R)]));
+    assert.ok(r.ok, 'the Markdown-only carry needs no run at the tip under the declaration: ' + (r.err || ''));
+    r = m.reusable(m.root(`green @ ${m.R}`, [base(m.R), ['focused', 'fail', MT, 'clean']]));
+    assert.ok(!r.ok && /focused run at the tip failed/.test(r.err), 'a failed focused run refuses the Markdown carry under the declaration: ' + (r.err || ''));
+
+    // A covered commit M, then Markdown-only commits to the tip (ADR 0189): the record carries to the tip with no run there.
+    const cm = make(verification(FOCUSED, DECLARED));
+    const CM = cm.commit('src/a.js', 'c\n');
+    const CT = cm.commit('README.md', 'r\n');
+    r = cm.reusable(cm.root(`green @ ${cm.R}`, [base(cm.R), focused(CM, ['src/a.js'])]));
+    assert.ok(r.ok && r.out === 'reusable', 'a covered commit then a Markdown-only commit carries with no run at the tip: ' + (r.err || ''));
+    r = cm.reusable(cm.root(`green @ ${cm.R}`, [base(cm.R), focused(CM, ['src/a.js']), ['full', 'fail', CT, 'clean']]));
+    assert.ok(!r.ok && /predates tip/.test(r.err), 'a failed run at the tip refuses the carry through a covered commit: ' + (r.err || ''));
+    // The refusal names the Markdown tail's own reason where that tail is what failed.
+    r = cm.reusable(cm.root(`green @ ${cm.R}`, [base(cm.R), focused(CM, ['src/a.js']), ['full', 'unknown', CT, 'clean']]));
+    assert.ok(!r.ok && /full run at the tip is unknown/.test(r.err), 'the Markdown tail\'s reason names the blocker: ' + (r.err || ''));
+    const CX = cm.commit('src/b.js', 'b\n');
+    cm.commit('NOTES.md', 'n\n');
+    r = cm.reusable(cm.root(`green @ ${cm.R}`, [base(cm.R), focused(CM, ['src/a.js'])]));
+    assert.ok(!r.ok && /predates tip/.test(r.err), 'a non-Markdown change after the covered commit refuses: ' + (r.err || ''));
+    r = cm.reusable(cm.root(`green @ ${cm.R}`, [base(cm.R), focused(CX, ['src/a.js', 'README.md', 'src/b.js'])]));
+    assert.ok(r.ok, 'a later covered commit then Markdown carries: ' + (r.err || ''));
+    // The Markdown-only tail is case-sensitive: an uppercase `.MD` after the covered commit refuses.
+    const up = make(verification(FOCUSED, DECLARED));
+    const UM = up.commit('src/a.js', 'c\n');
+    up.commit('NOTES.MD', 'n\n');
+    r = up.reusable(up.root(`green @ ${up.R}`, [base(up.R), focused(UM, ['src/a.js'])]));
+    assert.ok(!r.ok && /predates tip/.test(r.err), 'a NOTES.MD commit after the covered commit refuses: ' + (r.err || ''));
+    // A side commit with a later committer date, merged in, is listed before the covered commit's line; the walk
+    // still reaches the covered commit.
+    const sk = make(verification(FOCUSED, DECLARED));
+    g(['checkout', '-q', '-b', 'side'], sk.repo);
+    fs.writeFileSync(path.join(sk.repo, 'side.md'), 's\n');
+    g(['add', '-A'], sk.repo);
+    execFileSync('git', ['commit', '-q', '-m', 'side'], { cwd: sk.repo, env: { ...process.env, GIT_COMMITTER_DATE: '2099-01-01T00:00:00' } });
+    const SQ = g(['rev-parse', 'HEAD'], sk.repo);
+    g(['checkout', '-q', 'main'], sk.repo);
+    const SM = sk.commit('src/a.js', 'c\n');
+    sk.commit('README.md', 'r\n');
+    g(['checkout', '-q', SQ, '--', 'side.md'], sk.repo);
+    const ST2 = g(['commit-tree', g(['write-tree'], sk.repo), '-p', 'HEAD', '-p', SQ, '-m', 'join'], sk.repo);
+    g(['reset', '-q', '--hard', ST2], sk.repo);
+    r = sk.reusable(sk.root(`green @ ${sk.R}`, [base(sk.R), focused(SM, ['src/a.js'])]));
+    assert.ok(r.ok && r.out === 'reusable', 'a covered commit reached past a later-dated side commit carries: ' + (r.err || ''));
 
     // Refused: no declaration; a focused command without {paths}.
     const nd = make(verification(FOCUSED, ''));
@@ -1098,13 +1155,13 @@ const { appendTrace, isTestPath } = require(scopePath);
     const other = f.root(`red @ ${f.T}`, good);
     fs.writeFileSync(path.join(other, 'ledger.md'), ledgerOf(other).replace(`**Suite:**`, `**Rerun:** tests/a.test.js @ ${'d'.repeat(40)} #99\n**Suite:**`));
     assert.ok(!f.reusable(other).ok, 'a rerun record for another tip stays red');
-    // A tip that moved past the failed run stays red.
+    // A tip that moved past the failed run through a non-Markdown commit stays red.
     const moved = f.root(`red @ ${f.T}`, good);
     assert.ok(f.rerun(moved, 'tests/a.test.js', '#99').ok);
     fs.writeFileSync(path.join(f.repo, 'later.js'), 'x\n');
     g(['add', '-A'], f.repo);
     g(['commit', '-q', '-m', 'later'], f.repo);
-    assert.ok(!f.reusable(moved).ok, 'a rerun recorded for an earlier tip stays red at a later tip');
+    assert.ok(!f.reusable(moved).ok, 'a rerun recorded for an earlier tip stays red at a later tip past a non-Markdown commit');
 
     // Without the declaration the rerun never counts.
     const nd = make('');
@@ -1112,6 +1169,35 @@ const { appendTrace, isTestPath } = require(scopePath);
     assert.ok(nd.rerun(ndRt, 'tests/a.test.js', '#99').ok);
     r = nd.reusable(ndRt);
     assert.ok(!r.ok && /Complete selector|declar/.test(r.err), 'no declaration stays red: ' + (r.err || ''));
+
+    // A Markdown-only commit after the failed run (ADR 0189): the rerun holds at the record's commit, and every path
+    // changed since passes the Markdown-only rule judged at the tip.
+    const dp = make(DECLARED);
+    const dpOk = dp.root(`red @ ${dp.T}`, [FAILED(dp.T), ALONE(dp.T), FOCUSED(dp.T)]);
+    const dpFail = dp.root(`red @ ${dp.T}`, [FAILED(dp.T), ALONE(dp.T), FOCUSED(dp.T)]);
+    assert.ok(dp.rerun(dpOk, 'tests/a.test.js', '#99').ok && dp.rerun(dpFail, 'tests/a.test.js', '#99').ok);
+    const dpCommit = (file) => {
+      fs.writeFileSync(path.join(dp.repo, file), 'doc\n');
+      g(['add', '-A'], dp.repo);
+      g(['commit', '-q', '-m', file], dp.repo);
+      return g(['rev-parse', 'HEAD'], dp.repo);
+    };
+    const DT = dpCommit('README.md');
+    r = dp.reusable(dpOk);
+    assert.ok(r.ok && r.out === 'reusable', 'a Markdown-only commit after a passing rerun reuses: ' + (r.err || ''));
+    appendTrace(dpFail, { kind: 'run', fields: ['full', 'fail', DT, 'clean'] });
+    r = dp.reusable(dpFail);
+    assert.ok(!r.ok && /full run at the tip failed/.test(r.err), 'a failed run at the Markdown-only tip stays red: ' + (r.err || ''));
+    dpCommit('later.js');
+    r = dp.reusable(dpOk);
+    assert.ok(!r.ok && /later\.js changed since and is not Markdown/.test(r.err), 'a non-Markdown commit after the failed run stays red: ' + (r.err || ''));
+    // A failed run's commit off the tip's history stays red, whatever changed since.
+    const offRt = dp.root(`red @ ${DT}`, [FAILED(DT), ALONE(DT), FOCUSED(DT)]);
+    fs.writeFileSync(path.join(offRt, 'ledger.md'), ledgerOf(offRt).replace('**Suite:**', `**Rerun:** tests/a.test.js @ ${DT} #99\n**Suite:**`));
+    g(['reset', '-q', '--hard', dp.T], dp.repo);
+    dpCommit('OTHER.md');
+    r = dp.reusable(offRt);
+    assert.ok(!r.ok && /neither at the tip nor an ancestor/.test(r.err), 'a failed run off the tip\'s history stays red: ' + (r.err || ''));
   } finally {
     cases.forEach((d) => fs.rmSync(d, { recursive: true, force: true }));
   }

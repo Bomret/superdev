@@ -126,7 +126,7 @@ Either way:
   --branch <head.sha> --base <base> --root <run-root>` (plain, never `--whole`: an adopted hand merge is
   not a merge superdev makes, INV-0092), the same reuse `/superdev:review`'s own gate
   (`review-scope-mode.md`'s `### 4.2 The suite gate`) uses — exits 0 → the merged head is a commit the suite record covers (INV-0017 states every way it does: an exact match, a
-  Markdown-only range, a focused-selector carry, or a recorded rerun), no `**Degraded:**` bullet. Exits 1, or no record
+  Markdown-only range that needs no test run at the tip, a focused-selector carry, alone or followed by Markdown-only commits, or a recorded rerun, alone or followed by Markdown-only commits), no `**Degraded:**` bullet. Exits 1, or no record
   at all → `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" degraded add "the merge landed on <head.sha>,
   not a commit the green suite record covers"`. Either way, set the stage to `shipped`
   (`scope.js stage set shipped --root <run-root>`) unless it already reads that, and publish the

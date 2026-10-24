@@ -228,9 +228,6 @@ const ARG_TOKEN_CONTRACTS = [
   [path.join('lib', 'ledger-writes.js'), SCANNER_ONLY_PATTERN, ARG_TOKEN_EXPECTATION],
 ];
 
-// `scripts/AGENTS.md` carries one table row per registered check, keyed by the check's backticked `id`.
-const NARRATIVE_DOC = path.join('scripts', 'AGENTS.md');
-
 // A section heading, found up to a word boundary rather than end-of-line, because a real heading can
 // carry a trailing qualifier: `plan-contract.md` writes `### Assignee — store configuration, not a slice
 // field`, at `###` under `## Issue-backend mapping (general)`.
@@ -459,7 +456,33 @@ const TEA_ONLY_MARKERS = [
   ],
 ];
 
+// ADR 0189, INV-0175: `/superdev:document` and `/superdev:setup` run no test command. These are the two
+// skills, the doc-writer and doc-reader agent bodies and `references/doc-pass.md` that carry document's pass,
+// and the shapes an instruction to run a test would take: a `scope.js test` or `scope.js
+// fail-to-pass` call, "run(s) the full / focused / whole-repo / affected command", or "run(s) the test command".
+// simplicity: shape-based, and its ceiling is those two shapes, read in unfenced prose. A paraphrase
+// ("execute the suite", "start the affected form") walks past, and so does an instruction inside a fence.
+// A negation excuses a hit only within one word before it (an opening quote or backtick may sit between):
+// "never runs the full command" and "never calls `scope.js test`" pass, "If no focused command exists, run
+// the full command" does not. A negation further back, or one the sentence states after the hit ("the full
+// command is never run"), walks past or fires as written. A negated word that is no run verb right before
+// the hit still excuses it ("Do not skip running the full command" passes); "Do not forget to run ..." fires.
+const NO_TEST_RUN_DOCS = [
+  path.join('skills', 'document', 'SKILL.md'),
+  path.join('skills', 'setup', 'SKILL.md'),
+  path.join('agents', 'doc-writer.md'),
+  path.join('agents', 'doc-reader.md'),
+  path.join('references', 'doc-pass.md'),
+];
+const NO_TEST_RUN_PATTERNS = [
+  /scope\.js["'`]?\s+(?:test|fail-to-pass)\b/gi,
+  /\brun(?:s|ning)?\s+(?:the\s+|a\s+|an\s+)?(?:configured\s+)?(?:full|focused|whole-repo|affected)\b[^.\n]{0,25}?\b(?:test\s+)?(?:command|suite|form)\b/gi,
+  /\brun(?:s|ning)?\s+(?:the\s+|a\s+|an\s+)?(?:configured\s+)?test\s+(?:command|suite)\b/gi,
+];
+
 module.exports = {
+  NO_TEST_RUN_DOCS,
+  NO_TEST_RUN_PATTERNS,
   REFERENCE_PATTERN,
   RUN_ROOT_DOCS,
   RUN_ROOT_ARTIFACT_PATTERN,
@@ -477,7 +500,6 @@ module.exports = {
   KB_BACKEND_CALL_MARKERS,
   HOOK_HEADER_REGEX,
   ARG_TOKEN_CONTRACTS,
-  NARRATIVE_DOC,
   SPECIALISING_SECTIONS,
   specialisingGenericRows,
   SOURCE_SECTION_CONTRACTS,

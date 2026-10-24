@@ -6,6 +6,9 @@
 [ADR 0075](0075-the-scope-review-gates-on-a-full-suite-entering-and-leaving.md),
 [ADR 0096](0096-opening-the-pull-request-and-merging-it-are-separate-commands.md).
 
+**Amended by:** [ADR 0189](0189-no-test-runs-after-review-and-none-in-setup.md), under which setup validates an
+affected form with read-only tool queries and runs no test command.
+
 **Context.** In a monorepo, the full command runs every project's suite. The chain runs it at run handoff,
 on entry to and exit from the scope review's fix loop (ADR 0075), and as the green-gate's fallback. Each
 run costs the whole repository's wall clock and test-machine resources, and a failure in a project the

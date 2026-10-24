@@ -46,7 +46,7 @@ The full command may take an **affected form** (ADR 0105): instead of running th
 it selects through the repository's dependency-graph tool the changed projects and every project
 depending on them, dependents included, and runs each selected project's whole suite using nx, turborepo,
 pnpm, or dotnet-affected. It never selects fewer projects than the change can break: a change the graph
-cannot attribute to one project selects every project. It exits green when the change reaches no project, and it selects at least one project on a change that touches one, and running it on that change executes at least one task or test. `/superdev:setup` probes all three before it writes the form.
+cannot attribute to one project selects every project. It exits green when the change reaches no project, it selects at least one project on a change that touches one, and its target exists on the selected projects. `/superdev:setup` checks the second and third through read-only tool queries, and the operator confirms the first from the tool's docs, before it writes the form. Setup runs no test command and never starts the form (ADR 0189).
 
 Selection by path prefix does not qualify — a change to a shared library reaches every project that
 depends on it, and a prefix match over changed paths cannot see that dependency. Only the repository's
@@ -108,8 +108,8 @@ and the runner substitutes them; a `test focused` with no paths runs the full co
 **A `{paths}` form belongs to a runner that maps a source file to the tests covering it** — for
 example `vitest related` or `jest --findRelatedTests`. The changed-path set holds source files and prose
 alongside tests, and a runner without that mapping collects nothing from them. Such a form also carries
-that runner's pass-with-no-tests flag, so a change set holding no tests reports green: the documentation
-step reaches exactly that case on every scope, since its range holds only prose on the ordinary path.
+that runner's pass-with-no-tests flag, so a change set holding no tests reports green: a change set of
+only prose or only source files reaches exactly that case.
 
 Where the focused command contains no such token, run it verbatim. Two shapes take this form: a **fixed
 fast subset** (`pytest tests/unit`, `go test ./internal/...`) always collects tests, since it names them
@@ -161,7 +161,16 @@ The carry is refused, each time with its own reason, when:
 
 The carry is a read-time check. No verb writes a carried record, and every carry is judged from its record's
 own commit, so a focused run over only the paths since an intermediate tip carries nothing. A repository
-without the section keeps the Markdown-only carry described below.
+without the section, and a Markdown-only range under it, take the Markdown-only carry: a green record at an
+ancestor A carries to T when the run trace backs A, every path changed in A..T ends in `.md`, none is a test path
+at T or `docs/agents/verification.md`, no full, whole, path, or focused run recorded at T failed, and the latest
+run recorded at T does not read `unknown`. It needs no test run at T, and a passing run on a dirty tree refuses
+nothing (ADR 0128, ADR 0189).
+
+Under the section, the two carries chain once. A green record at A carries to T when some commit M on the ancestry
+path from A to T takes the complete-selector carry from A, judged at M, and M..T takes the Markdown-only carry,
+judged at T. A gate that reached M by carry leaves the record at A, so a doc pass's Markdown commits after M carry
+with no test run at T (ADR 0189).
 
 ## The carry run
 
@@ -219,6 +228,12 @@ after the failed full run whose recorded path set covers every path `base resolv
 changes, the declaration, exactly one failed full run at the tip, and no failed run of another test file at
 the tip. Nothing reruns on its own, and no step reruns a failed suite until it passes.
 
+The `red` record at T also counts at a later tip U when T is an ancestor of U, every check above holds when
+judged at T, and T..U passes the Markdown-only rule of `## Complete selector`, judged at U: every path changed
+ends in `.md`, none is a test path at U or `docs/agents/verification.md`, no full, whole, path, or focused run
+recorded at U failed, and the latest run recorded at U does not read `unknown`. A doc pass's Markdown commits
+after a gate that passed on the rerun so need no test run at U (ADR 0189).
+
 ## A fix cycle's runs
 
 Review's fix loop and run handoff's fix loop run no test inside a cycle (ADR 0182). The cycle's implementer runs
@@ -244,13 +259,12 @@ Each caller judges its own range and builds the set from it:
   invocation of that one file. The last run before the implementer reports, or before the lite tier commits a slice,
   does not run, and neither does a step that works on no test file: the controller's next gate runs the suite over
   that work (ADR 0180). The fail-to-pass run still runs (ADR 0182).
-- **The documentation step.** On a live scope run whose suite record's commit is an ancestor of the scope
-  branch's tip (`scope.js get suite` names the commit), every path changed from that commit to the tip.
-  `scope.js suite reusable` carries a green record across Markdown-only commits on the strength of a
-  passing test run at the tip (ADR 0128, INV-0017), so that run covers the whole range, a commit another
-  author landed after the review included. With no record, or a commit that is not an ancestor, its own
-  doc commits — the ones the doc-writer just landed on the scope branch, never the wider range the chain
-  is reconciling.
+- **The documentation step.** None: the step runs no test command and builds no set. `scope.js suite reusable`
+  carries a green record across Markdown-only commits with no test run at the tip (ADR 0128, ADR 0189,
+  INV-0017), so the doc commits need none. Where the record stays at an earlier commit because review reached
+  its tip by the complete-selector carry, the record carries through that tip to the doc commits, per
+  `## Complete selector`. Where review's gate passed on `## The recorded rerun`, the `red` record at that tip
+  counts at the doc commits too, per that section.
 - **The `scope.js fail-to-pass` verb.** Its caller hands it the command, written to run every test file the range
   adds or modifies in whatever form the runner selects them: `cargo test --test foo`, `dotnet test --filter Orders`,
   or one runner per package in a monorepo (ADR 0182). The verb reads none of its words, and the outcome line records it
@@ -283,7 +297,7 @@ absent file, with no suite to run.
 A caller that stops here runs no suite and records a **degraded pass** rather than a silent skip, per
 `references/scope-mode.md`'s `## Degraded passes` — the "pass that cannot complete its own work" shape.
 A caller with no run root has no ledger to write `scope.js degraded add` to, so it takes only that
-shape's report half: say so in its own output. A standalone `/superdev:document` or `/superdev:review`
+shape's report half: say so in its own output. A standalone `/superdev:review`
 on an unmigrated repository is exactly this caller: it falls outside the auto-invoke argument — neither
 `/superdev:plan` nor `/superdev:implement` sits ahead of it in that dispatch — so it reaches this stop
 with nothing else recording that no suite ran.

@@ -18,8 +18,8 @@ tiers: record that slice execution finished, name what comes next.
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set <green|red|denied|none> <sha> --root <run-root>`
   (`<sha>` is `git rev-parse HEAD` in that checkout) — a record `/superdev:review` reuses instead of
   running the suite again when it is still `green` and `scope.js suite reusable` calls the branch's
-  current tip reusable against it (INV-0017): an exact match, a Markdown-only range since it (ADR 0128), a
-  focused-selector carry (ADR 0175), a recorded rerun (ADR 0172), or a passing full run at the tip itself (ADR 0182).
+  current tip reusable against it (INV-0017): an exact match, a Markdown-only range since it, needing no test run at the tip (ADR 0128, ADR 0189), a
+  focused-selector carry, alone or followed by Markdown-only commits (ADR 0175, ADR 0189), a recorded rerun, alone or followed by Markdown-only commits (ADR 0172, ADR 0189), or a passing full run at the tip itself (ADR 0182).
   Where the record is not reusable, take the carry before the full command, per
   `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## The carry run`: a carried tip runs no full command and
   writes no record, and a failing carry run is this run's **Red** result, recorded `red` at the tip. A failed full

@@ -388,8 +388,8 @@ to derive it from. The derivation takes one of two branches:
 - **A runner that maps source files to the tests covering them gets a `{paths}` form**, carrying that
   runner's pass-with-no-tests flag — `npx vitest related --passWithNoTests {paths}`, `npx jest
   --passWithNoTests --findRelatedTests {paths}`. The flag is what keeps a change set holding no tests
-  green: the documentation step's range holds only prose on the ordinary path, and a runner that fails on an empty
-  collection reports that as RED.
+  green: the implementer's change set and the carry run's range can hold only non-test paths, and a runner that
+  fails on an empty collection reports that as RED.
 - **A runner that maps nothing gets a `{paths}`-less form** — either a fixed fast subset, or a flag that
   detects the change set on its own. **Propose no `{paths}` form here**: such a runner is handed source
   paths it collects nothing from.
@@ -418,7 +418,9 @@ the directories and file patterns its test command and manifests name — propos
 operator's answer as that section's **unfenced** list, never a fenced block (the two fences stay the full
 and focused commands). **No test command** → propose no test paths and write no section.
 
-**On a monorepo, the full command may take an affected form too** (ADR 0105, INV-0105): identify the
+**On a monorepo, the full command may take an affected form too** (ADR 0105, INV-0105). Setup runs no
+test command in any configuration, `check` mode and sweep's chained setup leg included, and those two ask
+nothing here. Identify the
 tool that owns the repository's dependency graph — the build system or the package manager (nx,
 turborepo, pnpm, or `dotnet-affected` over an MSBuild project graph); plain Bun/npm/yarn workspaces with
 no such tool have no affected mode. Verify that tool's affected syntax against its own official docs
@@ -426,16 +428,17 @@ no such tool have no affected mode. Verify that tool's affected syntax against i
 
 - **The tool is installed.** Propose its affected form against the base branch `docs/agents/
   code-management.md` records, together with the **whole-repo command** beside it — the same tool's
-  whole-suite invocation. **Before writing either, run the affected form once on the base branch's own
-  tip**, in a throwaway worktree checked out at that tip, under the second probe's location, creation, hook-free, and always-removed rules below,
-  where the change against itself reaches no project: a green exit confirms the mapping. A non-zero exit is not written — say why (dotnet-affected exits 166
-  when nothing changed, so the proposed form has to map that exit to green, and a form that still fails
-  the probe stays unwritten).
-  **Then run a second probe: the form has to select a project when a project changed.** A form aimed at
-  the wrong base (`--base=HEAD`) exits green on the first probe and selects nothing on every scope. The
-  second probe runs in a throwaway worktree, and its steps run in this order, each step's conditions
+  whole-suite invocation. **Setup runs no test command and never starts the affected form or the
+  whole-repo command** (ADR 0189, INV-0175). **Before writing either, validate the form through
+  read-only tool queries**: the form has to select a project when a project changed, and its target has
+  to exist on the selected projects. A form aimed at the wrong base (`--base=HEAD`) selects nothing on
+  every scope, and a mistyped target (`nx affected -t tset --base=main`) names no task on any project.
+  The queries run in a throwaway worktree, and the steps run in this order, each step's conditions
   holding from that step on. The probe edits no tracked file of the checkout and pushes nothing; its
-  commit stays unreferenced and no branch exists.
+  commit stays unreferenced and no branch exists. Each query's syntax comes from the tool's own
+  official docs (`references/doc-verification.md`), and every query runs with remote caching off,
+  because a remote cache would upload artifacts for the probe commit, an outward write: `NX_NO_CLOUD=true`
+  (nx), `--cache=local:rw` (turborepo), and for any other tool its own docs' switch.
 
   1. **Location.** Put the worktree inside the repository's main checkout, under the git-ignored
      `.superdev/` directory (`.superdev/probe-<random>`), after ensuring `.superdev/` is in `.gitignore`
@@ -447,33 +450,34 @@ no such tool have no affected mode. Verify that tool's affected syntax against i
      dependents, where it can tell — and commit it there with `git -c core.hooksPath=/dev/null -c
      commit.gpgsign=false commit`, because `--no-verify` skips no post-commit hook. A probe commit that
      fails is reported and nothing is written.
-  4. **List mode.** Run the tool's own list mode there with the base the form carries: `nx show projects
-     --affected --base=<base> --head=HEAD`, `TURBO_SCM_BASE=<base> turbo ls --affected`, `pnpm ls --filter
-     "...[<base>]" --depth -1`, or `dotnet affected --from <base> --format text --dry-run` (stdout, no file
-     written; exit 166 means none). A form that selects no project on that change is not written: say that
-     it selects nothing on a real change, and why the base is the suspect. A tool that cannot list in a
-     fresh worktree (dependencies uninstalled) is not written either, with that reason named.
-  5. **Run the form.** After the list-mode check, run the affected form itself once in the same
-     worktree, under the same hook-free, no-push, always-removed rules, with remote caching off, because
-     a remote cache would upload artifacts for the probe commit, an outward write: `NX_NO_CLOUD=true`
-     (nx; `--no-cloud` is its flag form), `--cache=local:rw` (turborepo), and for any other tool its own
-     docs' switch. Run it on that same commit, with no second edit: the form runs every project the
-     change reaches, dependents included, so the run costs the suites the change selects, at setup time,
-     and setup states that cost. A form with the right base and a mistyped target (`nx affected -t tset
-     --base=main`) passes both the first probe and the list-mode check, then executes nothing on every
-     scope, so every suite run comes back vacuously green.
-  6. **Confirm it ran tests.** Judge from the run's own output whether at least one task or test
-     executed. None of nx, turborepo, pnpm, or dotnet-affected documents a summary line to parse, so
-     setup shows the operator the run's output and asks them to confirm it showed tests running. A
-     zero-exit run that executed nothing means the form is not written: say so, and name the likely
-     cause (the target name matches no project task).
-  7. **Remove the worktree.** Remove the worktree when the probes end, at whichever step they stop
-     (`git worktree remove --force <dir>`), whatever the outcome; `git worktree prune` cleans up after
-     an interrupted run.
-  8. **Write.** The affected form and its whole-repo command are written only after every probe above
-     passes.
+  4. **List query.** List the projects the form selects on that commit, with the base the form carries:
+     `nx show projects --affected --base=<base> --head=HEAD`, `TURBO_SCM_BASE=<base> turbo ls --affected`,
+     `pnpm ls --filter "...[<base>]" --depth -1`, or `dotnet affected describe --from <base>` (stdout, no
+     file written; exit 166 means nothing changed). A form that selects no project on that change is not
+     written: say that it selects nothing on a real change, and why the base is the suspect.
+  5. **Target query.** Query whether the form's target exists on the selected projects: `nx show projects
+     --affected --base=<base> --head=HEAD --with-target <target>` (the option table spells the flag
+     `--withTarget`, the examples `--with-target`), `TURBO_SCM_BASE=<base> turbo run <task> --affected
+     --dry=json --cache=local:rw` (a dry run lists the tasks and starts none), for pnpm a read of the
+     `scripts` field in each selected project's `package.json` for the script, or, for
+     `dotnet-affected`, no query, because it has no target concept. A query that shows
+     the target on no selected project means the form is not written: say so, and name the likely cause
+     (the target name matches no project task).
+  6. **Empty-change exit.** State how the form exits when the change reaches no project, taking the
+     behaviour from the tool's own docs (dotnet-affected exits 166 when nothing changed, so the form
+     has to map that exit to green). Where the docs do not document the exit, say so and ask the
+     operator to state the exit. The operator confirms the stated exit before the form is written.
+  7. **Remove the worktree.** Remove the worktree on every exit path, at whichever step setup stops and
+     whatever the outcome, an operator answer included (`git worktree remove --force <dir>`); `git
+     worktree prune` cleans up after an interrupted run.
+  8. **Write.** The affected form and its whole-repo command are written only after step 4, step 5, and
+     step 6 pass, or after the operator answers below. A query that fails, cannot run (dependencies
+     uninstalled in the fresh worktree), or cannot decide takes no guess: setup removes the worktree and asks the operator to choose one of
+     three answers: write the form as is, give a corrected form, or keep the whole-suite full command.
+     Nothing is written before the answer. A corrected form goes through steps 1 to 6 again in a new
+     probe worktree, which step 7 removes in turn. Every answer that writes a form passes step 6 first.
 - **The tool is not installed.** Name it and its official install command, and write no affected form
-  until the operator has installed it and every probe above passes.
+  until the operator has installed it and every query above passes.
 - **No tool owns an affected mode.** Keep the whole-suite full command, and record the reason as prose
   beside the second fence, the same way the already-cheap and cannot-narrow cases below do.
 
@@ -664,7 +668,7 @@ Write:
 
   Add the **`## Whole-repo command`** section for a monorepo whose full command took the affected form
   above, its command in a **backtick span, never a fenced block**, for the same reason. **No affected
-  form** — whether no tool owns an affected mode, or the base-tip probe failed — writes no section: the
+  form** — whether no tool owns an affected mode, or the operator keeps the whole-suite full command after a query failed — writes no section: the
   full command stays the whole suite, and every caller reads it unaffected. Example, with one configured:
 
   ````markdown

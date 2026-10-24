@@ -91,7 +91,7 @@ flowchart TD
 | `/superdev:plan` | `planned` | none | It calls `/superdev:setup` when configuration is missing. A repair choice plans a `fix` feature. |
 | `/superdev:implement` | `implementing`, then `merged` | The builder of each slice runs focused tests and a fail-to-pass run. A full-suite gate runs after the base merge and at run handoff. | No slices go to `/superdev:plan`. The tier picks lite or full. |
 | `/superdev:review` | `reviewed` | A full suite at entry, unless the suite record covers the tip. No run inside a fix cycle. One full run after the fixes. | The fix loop stops at 3 strikes. A deferred finding becomes a triage record. |
-| `/superdev:document` | `documented`, or `documented-unreviewed` before a review | A focused run over the doc commits | A broken `docs` criterion writes an unresolved defect. |
+| `/superdev:document` | `documented`, or `documented-unreviewed` before a review | none. Review's suite record carries to ship across Markdown-only doc commits. | A broken `docs` criterion writes an unresolved defect. |
 | `/superdev:submit-pr` | `submitted` | The whole-repo command, when one is configured | A missing step asks once, and an unattended run refuses. A red run goes to `/superdev:review`. |
 | `/superdev:ship` | `shipped` | A full run on the merged tip when the base moved. The whole-repo command on a tip without a green whole-repo record. | It refuses a tip without a reusable green suite record, and it refuses `--unattended`. It goes to `/superdev:verify-ship`, `/superdev:wrap-up`, or `/superdev:plan`. |
 | `/superdev:verify-ship` | none. It ticks `dod.md` with evidence. | none. It observes the deployed system. | Every settled line goes to `/superdev:wrap-up`. A failed criterion goes to `/superdev:plan`. |
@@ -604,8 +604,9 @@ again. One answer lands outside that tree: the slice store's **assignee** goes t
 - **Verification** *(optional)*. The repo's test command, the first fenced block of
   `docs/agents/verification.md`. Recorded, it is the full suite the run handoff, every base merge, and the
   scope review run where no carried record or recorded rerun meets their gate. Omitted, no step runs a suite. A second fenced block holds the focused test command,
-  the one every step inside the loop runs: the implementer's TDD loop, the lite tier's inline loop, and the
-  documentation step's own run over its doc commits. What defines it is that it
+  the one every step inside the loop runs: the implementer's TDD loop and the lite tier's inline loop. The
+  documentation step runs no test command, and review's suite record carries to ship across its Markdown-only
+  doc commits. What defines it is that it
   costs less than the full suite. Setup derives it from the runner it detected — a runner that maps
   source files to the tests covering them gets a `{paths}` form carrying that runner's pass-with-no-tests
   flag, and every other runner gets a fast subset instead. Where the full suite is already cheap or no

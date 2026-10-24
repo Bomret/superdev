@@ -7,7 +7,8 @@ admits only Markdown paths, and [ADR 0134](0134-a-fail-to-pass-run-shows-a-chang
 under which a fail-to-pass run records no test run.
 
 **Amended by:** [ADR 0182](0182-the-implementer-proves-its-change-and-the-controller-runs-only-suite-gates.md), under which a fail-to-pass control run writes a `path`
-line and stands in for no fix cycle's focused run.
+line and stands in for no fix cycle's focused run, and [ADR 0189](0189-no-test-runs-after-review-and-none-in-setup.md),
+under which a carry to a commit M chains once with a Markdown-only carry from M to the tip.
 
 ## Context
 

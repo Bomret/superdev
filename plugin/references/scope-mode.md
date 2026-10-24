@@ -176,7 +176,8 @@ write, naming `scope.js`.
   resolve to a commit in the repository, and by `suite reusable` when it accepts a passing run at the tip
   (ADR 0186). A later step reuses a green record `scope.js suite reusable`
   calls reusable against the scope branch's current tip — an exact match, or a record on an ancestor of
-  the tip when every commit since changed only Markdown and a test run at the tip passed (ADR 0128) —
+  the tip when every commit since changed only Markdown, with no test run needed at the tip and none recorded there failed (ADR 0128, ADR 0189),
+  or, under the complete-selector declaration, the carries `test-selection.md`'s `## Complete selector` states —
   instead of running the suite again (INV-0017). `suite reusable --whole` additionally refuses a record with no kind, even when it is
   green and tip-matched: a step that needs a whole-repo run reuses only a record of kind `whole`; a
   step content with either kind omits `--whole` and accepts both.
@@ -184,7 +185,8 @@ write, naming `scope.js`.
   (ADR 0172, `references/test-selection.md`'s `## The recorded rerun`). Written with `suite rerun <test-file>
   <triage-ref>` at the tip, which refuses a tip that already carries a record and replaces a record for another
   tip. `suite reusable --base <base-branch>` accepts a red record at that tip against it, under the complete-selector declaration and
-  a focused run covering every path the scope's range changed; without `--base` it refuses a red record.
+  a focused run covering every path the scope's range changed, and at a later tip reached from it by Markdown-only
+  commits (ADR 0189); without `--base` it refuses a red record.
 - **`**Base:** <sha>`** — the remote base tip the base step last merged into the scope branch
   (`## Bringing the scope branch to base`), as a full commit. Written with `base set <sha>`, which
   refuses a sha that does not resolve to a commit; read only through `base resolve`

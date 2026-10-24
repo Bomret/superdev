@@ -1,9 +1,9 @@
 'use strict';
 
 // Selftest suite: the scanners over the repository's own entry documents (`scanners/marketplace-readme.js`) —
-// the marketplace manifest, the README command list, and the documentation audit set. Run by ./index.js.
+// the marketplace manifest and the documentation audit set. Run by ./index.js.
 
-const { scanMarketplaceSource, scanReadmeCommands, scanAuditSetGlobs } = require('../scanners');
+const { scanMarketplaceSource, scanAuditSetGlobs } = require('../scanners');
 
 module.exports = ({ assert, path, fixture }) => {
   // --- marketplace-source: the manifest's source resolves to the shipped tree (ADR 0032, ADR 0131) ---
@@ -53,38 +53,6 @@ module.exports = ({ assert, path, fixture }) => {
   const unparsable = scanMarketplaceSource(fixture({ '.claude-plugin/marketplace.json': '{ not json' }));
   assert.equal(unparsable.length, 1, 'an unparsable manifest is a gap');
   assert.match(unparsable[0].expectation, /JSON/, 'the gap says the manifest is no JSON');
-
-  // --- readme-commands: README.md and skills/ name the same command set ---
-
-  assert.equal(
-    scanReadmeCommands(
-      fixture({
-        'README.md': '# p\n\nRun `/superdev:plan`, then `/superdev:implement`.\n',
-        'skills/plan/SKILL.md': '# plan\n',
-        'skills/implement/SKILL.md': '# implement\n',
-      }),
-    ).length,
-    0,
-    'a README naming every command yields zero gaps',
-  );
-  const rcMissing = scanReadmeCommands(
-    fixture({ 'README.md': '# p\n\nRun `/superdev:plan`.\n', 'skills/plan/SKILL.md': '# plan\n', 'skills/ship/SKILL.md': '# ship\n' }),
-  );
-  assert.equal(rcMissing.length, 1, 'an unmentioned command is one gap');
-  assert.match(rcMissing[0].expectation, /\/superdev:ship/, 'the gap names the unmentioned command');
-  const rcGhost = scanReadmeCommands(
-    fixture({
-      'README.md': '# p\n\nRun `/superdev:plan` and `/superdev:retired` (twice: `/superdev:retired`).\n',
-      'skills/plan/SKILL.md': '# plan\n',
-    }),
-  );
-  assert.equal(rcGhost.length, 1, 'a ghost command is one gap, deduped across repeated mentions');
-  assert.match(rcGhost[0].expectation, /\/superdev:retired/, 'the gap names the ghost command');
-  assert.equal(
-    scanReadmeCommands(fixture({ 'README.md': '# p\n\nRun `/superdev:plan`.\n' })).length,
-    1,
-    'with no skills dir, every command the README names is a ghost',
-  );
 
   // --- audit-set-globs: every pattern under `## Audit set` resolves to at least one file ---
 

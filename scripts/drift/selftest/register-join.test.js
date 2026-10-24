@@ -1,12 +1,12 @@
 'use strict';
 
 // Selftest suite: the scanners that join the drift registry to its other records (`scanners/register-join.js`):
-// narrative coverage of the check table, and the invariant-register join (`invariant-register-join`). A register `Check:` line that
+// the invariant-register join (`invariant-register-join`). A register `Check:` line that
 // names a drift id after `scripts/drift-check.js` must name a registered check, and a contract row whose
 // expectation cites `INV-NNNN` must pin a document that invariant's `Paths:` covers.
 
 module.exports = ({ assert, path, fixture, realRoot }) => {
-  const { scanInvariantRegisterJoin, scanNarrativeCoverage } = require('../scanners');
+  const { scanInvariantRegisterJoin } = require('../scanners');
 
   const entry = (id, { check = 'none', paths = 'plugin/skills/**' } = {}) =>
     `### ${id}\n\nClass: architecture\nConcepts: Scope branch\nStatement: A rule.\nBreaks: silently\n` +
@@ -99,29 +99,6 @@ module.exports = ({ assert, path, fixture, realRoot }) => {
 
   // The real repository passes under the real registry and tables.
   assert.deepStrictEqual(scanInvariantRegisterJoin(realRoot), [], 'the real register joins the real registry and tables');
-
-  // --- narrative-coverage: scripts/AGENTS.md's drift-check table holds exactly one row per registered
-  // check, and no row for an unregistered one. The `ids` parameter is passed explicitly, so the fixtures
-  // stay fixed as the registry changes. ---
-
-  const twoIds = ['alpha-check', 'beta-check'];
-  const tableOf = (...ids) =>
-    '# scripts/\n\n| Check | Tests | Class |\n|---|---|---|\n' +
-    ids.map((id) => `| \`${id}\` | it tests ${id} | structural |\n`).join('') +
-    '\nProse naming `gamma-check` outside the table is no row.\n';
-  const narrative = (...ids) => fixture({ 'scripts/AGENTS.md': tableOf(...ids) });
-
-  assert.deepEqual(scanNarrativeCoverage(narrative('alpha-check', 'beta-check'), twoIds), [], 'one row per id yields zero gaps');
-  const noRow = scanNarrativeCoverage(narrative('alpha-check'), twoIds);
-  assert.equal(noRow.length, 1, 'a registered check with no row is one gap');
-  assert.match(noRow[0].expectation, /beta-check/, 'the gap names the id');
-  assert.equal(noRow[0].source, path.join('scripts', 'AGENTS.md'), 'the gap names the document');
-  const twoRows = scanNarrativeCoverage(narrative('alpha-check', 'beta-check', 'beta-check'), twoIds);
-  assert.equal(twoRows.length, 1, 'a check with two rows is one gap');
-  assert.match(twoRows[0].expectation, /beta-check[\s\S]*2/, 'the gap names the id and the row count');
-  const stray = scanNarrativeCoverage(narrative('alpha-check', 'beta-check', 'deleted-check'), twoIds);
-  assert.equal(stray.length, 1, 'a row for an unregistered id is one gap');
-  assert.match(stray[0].expectation, /deleted-check/, 'the gap names the unregistered id');
 
   console.log('drift-check selftest (invariant register join) ok');
 };

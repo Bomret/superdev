@@ -20,6 +20,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'conflict-conclusion-no-commit',
     'agent-tool-agnostic',
     'deploy-runner-exclusivity',
+    'ship-no-opens-pr',
   ]);
   const empty = fixture({ '.keep': '' });
   for (const check of CHECKS) {

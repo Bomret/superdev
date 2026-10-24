@@ -48,17 +48,18 @@ An unrecognized argument is a refusal. No slice store commits its own records on
 commit since the record counts. Four routes reach exit 0.
 
 The first route is the exact tip. The record is `green`, the run trace backs the recorded commit, and `<branch>`'s tip is
-that commit. The second route is a green record at an ancestor of the tip, carried over the range in one of two ways.
+that commit. The second route is a green record at an ancestor of the tip, carried over the range by the Markdown-only carry or the complete-selector carry.
 A refusal on a moved tip names the failed condition after `predates tip`. The third route is a `red` record at the tip
-under the recorded rerun. The fourth route is a run at the tip with no record at the tip, or a green one (ADR 0182,
+under the recorded rerun. A `red` record at an ancestor of the tip also qualifies, where every path changed since passes the Markdown-only rules (ADR 0189). The fourth route is a run at the tip with no record at the tip, or a green one (ADR 0182,
 ADR 0186): the latest full or whole run the run trace records at the tip passed on a clean tree, whoever wrote it, a
 fail-to-pass control run included. `--whole` takes only a whole run there. A record at the tip that is not green decides
 by the third route alone. The fourth route writes the run it accepts as the record, `green @ <tip>`, with ` whole` where
 the latest whole run at the tip passed, and leaves a record that already reads so untouched. No other route writes.
 
 The **Markdown-only carry** (ADR 0128) holds when every path changed since the record ends in `.md`. No such path is a
-test path, and none is `docs/agents/verification.md`. The run trace shows the latest test run at the tip passed on a
-clean tree, with no failed full, whole, or path run there. The test paths come from the tip commit's `verification.md`.
+test path, and none is `docs/agents/verification.md`. The carry needs no test run at the tip (ADR 0189, INV-0175). It
+refuses when the run trace records a failed full, whole, path, or focused run there. It also refuses when the latest run
+there reads `unknown`. The test paths come from the tip commit's `verification.md`.
 `isTestPath` of `lib/verification.js` reads them. The run trace's `lib/run-tree.js` wraps that classifier.
 
 The **complete-selector carry** (ADR 0175) judges any range that changes a path not ending in `.md`. The range must
@@ -74,15 +75,19 @@ declaration, the non-Markdown path is the refusal. With it, the carry holds unde
 - One passing clean focused run, after the last failed focused run, recorded a path set that names every changed path itself.
 
 A directory in that path set covers no file under it. A focused run records its path set as the fifth field of its `run`
-line. A range of Markdown paths only keeps the Markdown-only rules, with or without the declaration.
+line. A range of Markdown paths only keeps the Markdown-only rules, with or without the declaration. Under the
+declaration the two carries chain. A commit on the ancestry path from the record must pass the complete-selector carry
+from the record. Markdown-only commits from that commit up to the tip then carry the record. The walk takes children before parents.
 
 `suite rerun <test-file> <triage-ref>` writes the ledger's one `**Rerun:**` header, `<file> @ <tip> <ref>`. The tip is the
 checkout's HEAD, and the file is a root-relative blob at it. The verb refuses `--whole`. A tip that already carries a
 record refuses a second one. A record for another tip is replaced.
 
 The **recorded rerun** (ADR 0172) is the third route. `suite reusable` takes a `red` record only with `--base`. Without
-`--base` the record stays red. The record must be at the tip, and the tip must carry a rerun record and the declaration.
-Exactly one full run at the tip failed, or one whole run under `--whole`. No path run of another test file failed there.
+`--base` the record stays red. The record must be at the tip, or at an ancestor of it where every path changed since
+passes the Markdown-only rules (ADR 0189). The rerun record must name the record's commit, and that commit's
+`verification.md` must carry the declaration. Exactly one full run at the record's commit failed, or one whole run under
+`--whole`. No path run of another test file failed there.
 After that failed run, a run of the recorded file alone passed on a clean tree. A focused run also passed on a clean
 tree after it. That focused run's path set covers every path changed in the range that `base resolve` prints. The
 controller reads whether one test file caused the failure and quotes that reading in the triage record. The verb
@@ -830,12 +835,12 @@ live beside it, in `scripts/drift/`.
 | `drift/contracts.js` | the contract tables and patterns. Data only |
 | `drift/scanners/` | the bespoke scanners, every check whose assertion is more than one pattern over one document. `index.js` is the barrel `checks.js` and the selftest require. One file per topic holds the scanners: `references.js`, `adr.js`, `prose-avoid.js`, `shell-spawn.js`, `base-branch-ship.js`, `marketplace-readme.js`, and `register-join.js`. `walkers.js` holds the document walks and the absence-check shape they share |
 | `drift/lib.js` | what they share: `maskFences`, `maskedSentences`, `normalizeWhitespace`, `docPath`, `readDoc`, `missingDoc`, `observeContracts`, and `scanContract` |
-| `drift/selftest/` | `index.js` (the `fixture` helper, `found`, `realRoot`, temp-dir cleanup, and the coverage assertion) plus one suite per scanner topic (`references`, `adr`, `prose-avoid`, `shell-spawn`, `base-branch-ship`, `marketplace-readme`, with the narrative-coverage cases in `register-join`), `contracts` (the table-driven checks), `checks` (every registered check against an empty tree), `observation` (the coverage observation itself), `drift-check` (`runChecks` and the registry wiring), and `register-join`, and `coverage.js`, the coverage verdict helper |
+| `drift/selftest/` | `index.js` (the `fixture` helper, `found`, `realRoot`, temp-dir cleanup, and the coverage assertion) plus one suite per scanner topic (`references`, `adr`, `prose-avoid`, `shell-spawn`, `base-branch-ship`, `marketplace-readme`, `register-join`), `contracts` (the table-driven checks), `checks` (every registered check against an empty tree), `observation` (the coverage observation itself), `drift-check` (`runChecks` and the registry wiring), and `coverage.js`, the coverage verdict helper |
 
 Every check tests a mechanical fact — a link or section target resolves, a number is unique, a file or
 command exists, a property of code or configuration holds — or forbids a form in shipped prose (ADR 0153).
 No check asserts how a positive clause is worded. A check that reads a named document fails, naming the
-path, when that document is missing. A check that walks a directory reads whatever the directory holds.
+path, when that document is missing. A check that walks a directory reads whatever the directory holds, except every `AGENTS.md` at any depth: `walkFiles`, `proseDocuments`, and `agent-tool-agnostic` skip it (ADR 0189). No check reads a `README.md`.
 
 | Check | What it tests | Class |
 |-------|---------------|-------|
@@ -843,7 +848,6 @@ path, when that document is missing. A check that walks a directory reads whatev
 | `source-sections` | `plan-contract.md`, `test-selection.md`, `content-types.md`, `controlled-prose.md`, `review-checklist.md`, and `scope-mode.md`'s `## Pushing the scope branch`, and each agent body another file cites by heading, still carry each section a reader is sent to, by heading | structural |
 | `command-resolution` | every `/superdev:<name>` a skill or agent names has a `skills/<name>/SKILL.md` | structural |
 | `governed-skill-files` | every backticked path in `CONTEXT.md`'s **Prompt concept** entry, the list of governed skill files, names a file (ADR 0190) | structural |
-| `readme-commands` | `README.md` names every shipped skill as `/superdev:<name>`, and no command without one | structural |
 | `audit-set-globs` | `docs/agents/documentation.md` carries `## Audit set`, and every pattern listed there matches a file | structural |
 | `marketplace-source` | each `.claude-plugin/marketplace.json` source resolves to a tree carrying `.claude-plugin/plugin.json`; a `git-subdir` source names this repository's clone URL and pins `ref` to `v` plus that tree's version | structural |
 | `adr-numbers` | no two ADRs in `docs/adr/` share a number | structural |
@@ -868,7 +872,7 @@ path, when that document is missing. A check that walks a directory reads whatev
 | `ship-no-opens-pr` | no shipped surface attaches opening the pull request to `/superdev:ship` (ADR 0096) | prohibition |
 | `derive-no-dod` | plan's derive dispatch bullet hands `final-reviewer` no Definition of Done, and `final-reviewer`'s `## Derive mode` reads none (INV-0158, ADR 0158) | prohibition |
 | `unmapped-paths-form` | `skills/setup/SKILL.md` and `references/test-selection.md` propose no `{paths}` form to a runner that maps no source file to its tests (ADR 0074) | prohibition |
-| `narrative-coverage` | this table carries exactly one row per registered check, and no row for an unregistered id | structural |
+| `doc-setup-no-test-run` | `skills/document/SKILL.md`, `skills/setup/SKILL.md`, `agents/doc-writer.md`, `agents/doc-reader.md`, and `references/doc-pass.md` instruct no test run: no `scope.js test` or `scope.js fail-to-pass` call, and no run of the full, focused, whole-repo, or affected command; a sentence stating that no test runs passes, its negation (`no`, `not`, `never`, `without`, `nor`) at most one word before the hit, past an opening quote or backtick (ADR 0189, INV-0175) | prohibition |
 
 ## Work Guidance
 
@@ -893,8 +897,7 @@ path, when that document is missing. A check that walks a directory reads whatev
 - A new drift check tests a mechanical fact or forbids a form in shipped prose (ADR 0153). It is one
   entry in the `drift/checks.js` registry, one row in the table above keyed on its own `id`, and its own
   cases in the `drift/selftest/` suite of its topic: its seeded violation, a clean fixture, and, when it reads a
-  named document, the missing-document case the registry-wide selftest asserts. The `narrative-coverage`
-  check enforces the row. The selftest cases and the row's accuracy stay a review's job.
+  named document, the missing-document case the registry-wide selftest asserts. No check enforces the row. A review judges the row and the selftest cases.
 
 ## Verification
 

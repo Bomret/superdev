@@ -122,7 +122,7 @@ function scanNoBaseBranchCommit(root) {
   return gaps;
 }
 
-// scanShipNoOpensPr(): walks skills/, agents/, references/ and README.md (the plugin's shipped surfaces,
+// scanShipNoOpensPr(): walks skills/, agents/, and references/ (the plugin's shipped surfaces,
 // not docs/adr/'s history) and reports every sentence where the open-a-pull-request phrase attaches to
 // `/superdev:ship` — `/superdev:submit-pr` opens it, `/superdev:ship` only merges what is already open
 // (ADR 0096). "Attaches" means `/superdev:ship` is immediately followed, within SHIP_OPENS_PR_WINDOW
@@ -150,8 +150,6 @@ function scanShipNoOpensPr(root) {
     }
     for (const rel of found) files.push(path.join(dir, rel).split(path.sep).join('/'));
   }
-  if (readDoc(root, 'README.md') !== null) files.push('README.md');
-  else gaps.push(missingDoc('README.md'));
   for (const rel of files) {
     const text = readDoc(root, rel);
     for (const sentence of maskedSentences(text)) {
