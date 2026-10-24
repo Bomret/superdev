@@ -8,6 +8,9 @@
 which runs the whole-repo command in place of the full one, entering and leaving the fix loop, while the
 suite record reads red of kind `whole`.
 
+**Amended by:** [ADR 0179](0179-an-ad-hoc-review-hands-its-reviewer-a-focused-run.md), under which
+`final-reviewer` runs no test on an ad-hoc range either, and the review skill hands it a focused run.
+
 ## Context
 
 ADR 0025 gave `/superdev:review` in scope mode the chain's one full-suite run, taken before the

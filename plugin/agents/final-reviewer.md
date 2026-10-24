@@ -60,12 +60,12 @@ The dispatch names the subject. Assume no range exists beyond it. `${CLAUDE_PLUG
 
 Applies to every review dispatch.
 
-On a scope dispatch the controller already ran a suite and hands you the result. Review against that result and run no suite of your own (ADR 0025, ADR 0075).
+Run no test. Review against the suite result the controller hands you, and judge whether it covers the changed code (ADR 0025, ADR 0075, ADR 0179). The controller says which run it is.
 
-- The controller says which result it is: the full suite entering or leaving its fix loop (labelled whole-repo when it is), or the focused run inside a fix cycle.
-- On an ad-hoc or standing-code dispatch the controller hands the command from `docs/agents/verification.md` when it found one. You may run the suite once over the range to confirm green rather than trust the diff alone.
-- Run it through the runner: `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full`, or `test focused <changed paths>`, or `test -- <command>` for a direct run of a test file.
-- A suite longer than the Bash tool's time limit runs through the runner in the background. Wait for its end before you act on it.
+- On a scope dispatch: the full suite entering or leaving its fix loop (labelled whole-repo when it is), or the focused run inside a fix cycle.
+- On an ad-hoc dispatch: the focused run over the range's changed paths, the full suite where the operator asked for it, or no run with its reason.
+- On a standing-code dispatch: no run.
+- The Assessment's `Full-suite run` line reports the handed run, and names it focused where it is. A dispatch that hands no run reads `not run`.
 
 ### Judge discipline
 

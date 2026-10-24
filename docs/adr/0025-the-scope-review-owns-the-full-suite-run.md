@@ -23,6 +23,9 @@ this record describes at the merge is deleted, and the run handoff's full run is
 break between two slices.
 Everything else below holds.
 
+**Amended by:** [ADR 0179](0179-an-ad-hoc-review-hands-its-reviewer-a-focused-run.md), under which
+`final-reviewer` runs no test on an ad-hoc range either, and the review skill hands it a focused run.
+
 ## Context
 
 `docs/agents/verification.md` named one test command, and five places in the chain ran it: the

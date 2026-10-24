@@ -1396,6 +1396,15 @@ Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it; a fact only a conversation holds has no file a test could read
 Paths: plugin/references/response-shapes.md, plugin/references/run-handoff.md, plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/skills/document/SKILL.md, plugin/skills/submit-pr/SKILL.md, plugin/skills/ship/SKILL.md, plugin/skills/verify-ship/SKILL.md, plugin/skills/wrap-up/SKILL.md
 
+### INV-0173
+
+Class: process
+Concepts: Final-reviewer, Focused test command
+Statement: `final-reviewer` runs no test, in scope mode and in ad-hoc mode, and reviews against the result `/superdev:review` hands it. In ad-hoc mode the review skill runs one focused run over the subject's changed paths, and only where the subject's tip is the checked-out tree: the working tree's uncommitted changes, or a range ending at `HEAD` on a clean working tree. Every other subject runs no test, and the report names the reason. The full suite runs in ad-hoc mode only when the operator asks for it, and never under `--chained` (ADR 0179).
+Breaks: silently
+Check: none — final-reviewer's invariant compliance judges it
+Paths: plugin/agents/final-reviewer.md, plugin/skills/review/SKILL.md
+
 ### INV-0174
 
 Class: process

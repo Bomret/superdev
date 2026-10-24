@@ -22,10 +22,9 @@ Every message this command ends on closes with the Next block, per `${CLAUDE_PLU
 
 - Read `docs/agents/code-management.md`, if present, for the **base branch** to diff against (default
   `main`).
-- Read `docs/agents/verification.md`, if present, for the **test command** — pass it to the
-  final-reviewer so it can re-run the suite over the range and confirm green, not just read the diff.
-  **In scope mode, §4 instead runs the full command itself before dispatch and hands the result, not
-  just the command, to `final-reviewer`** (ADR 0025).
+- Read `docs/agents/verification.md`, if present, for the **test command**. You run it and hand
+  `final-reviewer` the result, never the command: in ad-hoc mode the focused run §2 states (ADR 0179),
+  and in scope mode the full run §4 states (ADR 0025).
 - Read `docs/agents/issue-tracker.md`, if present, for its `## Triage record` section — §4's deferral
   branch creates a triage record there when a finding is deferred, and needs to know whether that section
   exists before it reaches that branch.
@@ -299,9 +298,22 @@ superdev subagent that omits one):
     Consistency, whole-scope Brevity, Security, Performance) are what it judges the *code* on, and this is
     the DoD gate the same dispatch also carries.
 
-  **Ad-hoc mode**, if a test command is configured (`docs/agents/verification.md`), tell it it may re-run
-  the suite over the range rather than trust the diff alone. The dispatch tells it to run every test through `scope.js test`, and a suite
-  longer than the Bash tool's time limit in the background, waiting for its end. **Scope mode** — §4 already ran a suite for
+  **`final-reviewer` runs no test in either mode** (ADR 0179). **Ad-hoc mode** — where a test command is
+  configured (`docs/agents/verification.md`) and the subject's tip is the checked-out tree, run
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths>` once from the invoking checkout
+  before the dispatch, in the background when the suite outlasts the Bash tool's time limit, waiting for its end.
+  Hand it that result, labelled focused. The changed paths are the paths the subject's diff changes that exist in
+  the tree, and a subject left with none runs no test.
+  - **The subject's tip is the checked-out tree** when the subject is the working tree's uncommitted changes, or
+    when its range ends at the commit `git rev-parse HEAD` names and `git status --porcelain` prints nothing.
+  - **Any other subject runs no test**: a range that ends elsewhere, another branch, and a standing-code target.
+    Tell the reviewer `not run: <reason>` (the tip is not checked out, the working tree is dirty, standing code has
+    no change, or no test command), and name the reason in your report.
+  - **The full suite runs only when the operator asks for it** in this invocation's arguments or in the
+    conversation. Then run `test full` in place of the focused run, under the same tip condition, and hand it
+    labelled full. `--chained` never runs it, because the sweep that chains this review is read-only end to end.
+
+  **Scope mode** — §4 already ran a suite for
   this dispatch; hand it that result and tell it to review against that result, running no suite of its
   own. It judges the range itself and checks whether the suite result covers the changed code. Say which run it is: `final-reviewer` reviews against whichever result you hand it, full or
   focused (ADR 0075). The entry and exit dispatches hand a full-suite result — labelled whole-repo
