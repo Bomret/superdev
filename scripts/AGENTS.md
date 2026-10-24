@@ -43,17 +43,18 @@ reads stdin or touches a ledger, so a stdin verb such as `dod-line` never waits 
 `suite set` writes the **suite record** (CONTEXT.md) — the last full-suite run's result and the commit
 it ran on, as `**Suite:** <result> @ <sha>` — refusing a sha that does not resolve to a commit in the
 repository; `get suite` prints `<result> <sha>` back, or nothing on a ledger with no record (INV-0017).
-`suite reusable` is the read half of that same reuse rule. It exits 0 and prints `reusable`, or it refuses with exit 1.
+`suite reusable` is the reuse half of that same rule. It exits 0 and prints `reusable`, or it refuses with exit 1.
 An unrecognized argument is a refusal. No slice store commits its own records on the scope branch (ADR 0110), so a
 commit since the record counts. Four routes reach exit 0.
 
 The first route is the exact tip. The record is `green`, the run trace backs the recorded commit, and `<branch>`'s tip is
 that commit. The second route is a green record at an ancestor of the tip, carried over the range in one of two ways.
 A refusal on a moved tip names the failed condition after `predates tip`. The third route is a `red` record at the tip
-under the recorded rerun. The fourth route is a run at the tip with no record at the tip (ADR 0182): the latest full or
-whole run the run trace records at the tip passed on a clean tree, whoever wrote it, a fail-to-pass control run included.
-`--whole` takes only a whole run there. A record at the tip decides by the first and third routes alone. The verb writes
-nothing on any route.
+under the recorded rerun. The fourth route is a run at the tip with no record at the tip, or a green one (ADR 0182,
+ADR 0186): the latest full or whole run the run trace records at the tip passed on a clean tree, whoever wrote it, a
+fail-to-pass control run included. `--whole` takes only a whole run there. A record at the tip that is not green decides
+by the third route alone. The fourth route writes the run it accepts as the record, `green @ <tip>`, with ` whole` where
+the latest whole run at the tip passed, and leaves a record that already reads so untouched. No other route writes.
 
 The **Markdown-only carry** (ADR 0128) holds when every path changed since the record ends in `.md`. No such path is a
 test path, and none is `docs/agents/verification.md`. The run trace shows the latest test run at the tip passed on a
@@ -228,7 +229,8 @@ verb writes its own run line.
 discriminate (CONTEXT.md **Fail-to-pass run**, ADR 0134, ADR 0182, INV-0139). The command runs at the tree root. It must
 name every test file the range adds or modifies, in a word of a segment that runs something: a word of `:`, `echo`, `cat`,
 or another command that runs nothing (`NOT_RUNNERS` and `SHELL_READERS` of `lib/test-runs.js`) names nothing, and a
-directory word names every file under it. A deleted test file needs no name. The verb refuses a command that leaves one
+directory word names every file under it. A slash-free word also names the test file whose stem it is, the file name less
+its last extension, for a runner that selects test files by name (ADR 0187). A deleted test file needs no name. The verb refuses a command that leaves one
 out, naming it, and refuses a missing or empty command. The test paths come from `<tip>`'s own
 `docs/agents/verification.md`. It creates a throwaway worktree detached at `<tip>`. In a run root the worktree sits beside
 `slicetrees/`, outside every tree the run trace attributes a run to. Outside a run root it sits under `.superdev/`, which

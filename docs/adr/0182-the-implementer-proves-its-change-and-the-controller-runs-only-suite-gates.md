@@ -11,6 +11,12 @@ the fail-to-pass run over the focused or the full command.
 fail-to-pass control run stands in for a fix cycle's focused run.
 [ADR 0117](0117-the-run-trace-is-hook-written-evidence.md), whose run-trace hook writes the Missing RED note.
 
+**Amended by:** [ADR 0186](0186-an-accepted-run-at-the-tip-becomes-the-suite-record.md), under which the exact-tip
+route writes the run it accepts as the suite record, and a green record at the tip takes the route too.
+
+**Amended by:** [ADR 0187](0187-a-test-file-s-stem-names-it-to-the-fail-to-pass-verb.md), under which a slash-free
+word also names the test file whose stem it is.
+
 ## Context
 
 The `fewer-suite-runs` scope had eight slices on the full tier. Its run trace records 19 implementer

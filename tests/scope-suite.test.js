@@ -243,13 +243,16 @@ const { appendTrace, isTestPath } = require(scopePath);
     callIn(['suite', 'reusable', '--branch', 'main', '--root', noSuiteRoot], suiteRepo).ok,
     'a passing full run on a clean tree at the tip is reusable with no suite record'
   );
+  // The accepted run becomes the suite record (ADR 0186).
+  assert.strictEqual(callIn(['get', 'suite', '--root', noSuiteRoot], suiteRepo).out, `green ${exactTip}`, 'the exact-tip route records the run it accepted');
   r = callIn(['suite', 'reusable', '--branch', 'main', '--whole', '--root', noSuiteRoot], suiteRepo);
   assert.ok(!r.ok, 'a full run at the tip does not satisfy --whole');
   traceRun(noSuiteRoot, 'whole', 'pass', exactTip, 'clean');
   assert.ok(
     callIn(['suite', 'reusable', '--branch', 'main', '--whole', '--root', noSuiteRoot], suiteRepo).ok,
-    'a passing whole run at the tip satisfies --whole with no suite record'
+    'a passing whole run at the tip satisfies --whole over a record without the kind'
   );
+  assert.strictEqual(callIn(['get', 'suite', '--root', noSuiteRoot], suiteRepo).out, `green ${exactTip} whole`, 'an accepted whole run records the kind');
   traceRun(noSuiteRoot, 'full', 'fail', exactTip, 'clean');
   r = callIn(['suite', 'reusable', '--branch', 'main', '--root', noSuiteRoot], suiteRepo);
   assert.ok(!r.ok, 'a later failing full run at the tip refuses reuse');
@@ -260,6 +263,7 @@ const { appendTrace, isTestPath } = require(scopePath);
     callIn(['suite', 'reusable', '--branch', 'main', '--root', noSuiteRoot], suiteRepo).ok,
     'a red record at an earlier commit leaves a passing full run at the tip reusable'
   );
+  assert.strictEqual(callIn(['get', 'suite', '--root', noSuiteRoot], suiteRepo).out, `green ${exactTip} whole`, 'the record at the earlier commit is replaced by the tip, keeping the passing whole run\'s kind');
   // A red record at the tip itself is the rerun's (ADR 0172): a passing run after it does not override it.
   assert.ok(callIn(['suite', 'set', 'red', exactTip, '--root', noSuiteRoot], suiteRepo).ok, 'suite set red at the tip');
   traceRun(noSuiteRoot, 'full', 'pass', exactTip, 'clean');
@@ -294,15 +298,24 @@ const { appendTrace, isTestPath } = require(scopePath);
     'a whole run line backs a plain reusable check'
   );
 
-  // suite set (no --whole): a green record with no kind fails a --whole check, naming the missing
-  // kind, but still satisfies a plain check.
+  // A green record with no kind at the tip gives way to a passing whole run there: --whole accepts it and records the kind
+  // (ADR 0186).
   assert.ok(callIn(['suite', 'set', 'green', wholeTip, ...SR], suiteRepo).ok, 'suite set green, no kind');
+  assert.ok(callIn(['suite', 'reusable', '--branch', 'main', '--whole', ...SR], suiteRepo).ok, 'a passing whole run at the tip meets --whole over a no-kind record');
+  assert.strictEqual(callIn(['get', 'suite', ...SR], suiteRepo).out, `green ${wholeTip} whole`, 'the accepted whole run records the kind');
+
+  // suite set (no --whole): a green record with no kind fails a --whole check, naming the missing
+  // kind, once no whole run passes at the tip, but still satisfies a plain check.
+  assert.ok(callIn(['suite', 'set', 'green', wholeTip, ...SR], suiteRepo).ok, 'suite set green, no kind');
+  traceRun(suiteRoot, 'whole', 'fail', wholeTip, 'clean');
+  traceRun(suiteRoot, 'full', 'pass', wholeTip, 'clean');
   r = callIn(['suite', 'reusable', '--branch', 'main', '--whole', ...SR], suiteRepo);
   assert.ok(!r.ok && /kind/.test(r.err), 'a record with no kind fails a --whole check, naming the kind: ' + (r.err || ''));
   assert.ok(
     callIn(['suite', 'reusable', '--branch', 'main', ...SR], suiteRepo).ok,
     'the same record still satisfies a plain reusable check'
   );
+  traceRun(suiteRoot, 'whole', 'pass', wholeTip, 'clean');
 
   // suite reusable --whole: a red whole record is never reusable, with or without --whole, and
   // get suite shows it as red and whole.

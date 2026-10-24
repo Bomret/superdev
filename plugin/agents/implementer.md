@@ -168,7 +168,7 @@ Applies to a `behavior` slice dispatch.
 
 Applies to a `behavior` slice dispatch and to every fix dispatch.
 
-Your tests must fail without your change. Prove it before you report (ADR 0182). Once your last GREEN increment is committed, where your range changes a test-path file and another file, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <range-start>..HEAD -- <command>` from your checkout. The test paths are `docs/agents/verification.md`'s `## Test paths`, or the defaults where it has none. The command names every test file your range adds or modifies and runs at the tree root. The verb refuses a command that leaves one out, and names it.
+Your tests must fail without your change. Prove it before you report (ADR 0182). Once your last GREEN increment is committed, where your range changes a test-path file and another file, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <range-start>..HEAD -- <command>` from your checkout. The test paths are `docs/agents/verification.md`'s `## Test paths`, or the defaults where it has none. The command names every test file your range adds or modifies, by its path, a directory above it, or its stem where the runner selects test files by name, and runs at the tree root. The verb refuses a command that leaves one out, and names it.
 
 - `<range-start>`: `<base>` on a slice dispatch and a slice fix dispatch, `<sweep-base>` on a sweep fix dispatch, and `<cycle-base>` on a review fix dispatch and a run-handoff fix dispatch.
 - A fix dispatch that hands a **Pass-to-pass** finding names that finding's original base. Run the verb from that base as well, once your fix is committed: its `fail-to-pass` outcome closes the finding.

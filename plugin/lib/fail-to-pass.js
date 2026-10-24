@@ -105,8 +105,10 @@ function namedPaths(command, { cmdSegments, segWords, plain }, notRunners) {
   return named;
 }
 
-// Whether `rel` is a named path or lies under one.
-const covered = (named, rel) => named.has(rel) || [...named].some((n) => rel.startsWith(n + '/'));
+// Whether `rel` is a named path, lies under one, or has a slash-free word for its stem: its file name less the last
+// extension, the name a runner that selects test files by name takes (`cargo test --test foo` for `tests/foo.rs`, ADR 0187).
+const stem = (rel) => path.posix.basename(rel).replace(/\.[^.]*$/, '');
+const covered = (named, rel) => named.has(rel) || [...named].some((n) => rel.startsWith(n + '/')) || named.has(stem(rel));
 
 // `fail-to-pass <base>..<tip> -- <command>`: the command runs in a throwaway worktree at the tip, then again with the files
 // the range changed outside its test files put back as they stood at the base (ADR 0182). The command names every test file

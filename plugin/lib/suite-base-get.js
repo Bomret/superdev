@@ -71,8 +71,12 @@ function verbSuite(cwd, root, sub, result, sha, whole) {
   if (!sha) fail('suite set needs a <sha>');
   const commit = resolveCommit(sha, cwd);
   if (!commit) fail(`sha "${sha}" does not resolve to a commit in this repository`);
+  writeSuite(root, `${result} @ ${commit}${whole ? ' whole' : ''}`);
+}
+
+// Writes `value` as the ledger's `**Suite:**` record, in place or as a new header line.
+function writeSuite(root, value) {
   const lines = readLines(root);
-  const value = `${result} @ ${commit}${whole ? ' whole' : ''}`;
   const at = lines.findIndex((l) => headerRe('Suite').test(l));
   if (at >= 0) {
     lines[at] = `**Suite:** ${value}`;
@@ -95,12 +99,18 @@ function verbSuiteReusable(cwd, root, branch, whole, base) {
   const raw = getHeader(readLines(root), 'Suite');
   const m = raw && raw.match(/^(\S+)\s+@\s+(\S+)(?:\s+(whole))?$/);
   if (raw && !m) fail(`unreadable suite record: ${raw}`);
-  // ADR 0182: a passing full-suite run at the exact tip meets the gate, whoever wrote it. A record at the tip itself decides
-  // on its own below, so a red record there stays the rerun's (ADR 0172).
+  // ADR 0182: a passing full-suite run at the exact tip meets the gate, whoever wrote it. A record at the tip that is not
+  // green decides on its own below, so a red record there stays the rerun's (ADR 0172). An accepted run becomes the record,
+  // `whole` where a whole run passed at the tip, so `get suite` names the commit the gate passed on (ADR 0186).
   const exactTip = resolveCommit(branch, cwd);
-  if (exactTip && (!m || m[2] !== exactTip) && passedAtTip(runEvents(root), exactTip, whole)) {
-    console.log('reusable');
-    return;
+  if (exactTip && (!m || m[2] !== exactTip || m[1] === 'green')) {
+    const events = runEvents(root);
+    if (passedAtTip(events, exactTip, whole)) {
+      const value = `green @ ${exactTip}${passedAtTip(events, exactTip, true) ? ' whole' : ''}`;
+      if (raw !== value) writeSuite(root, value);
+      console.log('reusable');
+      return;
+    }
   }
   if (!raw) fail('no suite record to reuse');
   const [, result, recordedSha, kind] = m;

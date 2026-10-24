@@ -252,7 +252,9 @@ Each caller judges its own range and builds the set from it:
   doc commits — the ones the doc-writer just landed on the scope branch, never the wider range the chain
   is reconciling.
 - **The `scope.js fail-to-pass` verb.** Its caller hands it the command, which names every test file the range
-  adds or modifies (ADR 0182). Every path changed in `<base>..<tip>`, with a rename split into its old and its new
+  adds or modifies (ADR 0182): by its path, by a directory above it, or by its stem, the file name less its last
+  extension, the form a runner that selects test files by name takes (`cargo test --test foo` for `tests/foo.rs`,
+  ADR 0187). Every path changed in `<base>..<tip>`, with a rename split into its old and its new
   path (`--no-renames`), decides what the second run puts back. The test paths come from the tip's own
   `docs/agents/verification.md`, never a working tree's. The verb refuses an empty range, so the fallback
   below never applies to it.

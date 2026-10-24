@@ -290,8 +290,13 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     refuses(twoTests, twoTests.range, /names no tests\/old\.sh/);
     refuses(twoTests, twoTests.range, /names no tests\/old\.sh/, { cmd: ': tests/old.sh; sh tests/t.sh' });
     refuses(twoTests, twoTests.range, /names no tests\/old\.sh/, { cmd: 'echo tests/old.sh && sh tests/t.sh' });
-    // A deleted test file needs no name, and a directory names every file under it.
-    for (const cmd of ['sh tests/t.sh tests/old.sh', 'sh tests/t.sh ./tests/old.sh', 'sh tests/t.sh tests/', 'sh tests/t.sh tests']) {
+    // A stem names the file only as a slash-free word of a runner: a file name with its extension, or a stem under a directory, names none.
+    refuses(twoTests, twoTests.range, /names no tests\/old\.sh/, { cmd: 'sh tests/t.sh old.sh' });
+    refuses(twoTests, twoTests.range, /names no tests\/old\.sh/, { cmd: 'sh tests/t.sh tests/old' });
+    refuses(twoTests, twoTests.range, /names no tests\/old\.sh/, { cmd: 'echo old && sh tests/t.sh' });
+    // A deleted test file needs no name, a directory names every file under it, and a slash-free word names the file whose
+    // stem it is, the name a runner that selects test files by name takes (ADR 0187).
+    for (const cmd of ['sh tests/t.sh tests/old.sh', 'sh tests/t.sh ./tests/old.sh', 'sh tests/t.sh tests/', 'sh tests/t.sh tests', 'sh tests/t.sh --test old']) {
       fs.rmSync(twoTests.log, { force: true });
       r = twoTests.run(twoTests.range, { cmd });
       assert.equal(r.stdout.trim(), 'pass-to-pass control=0,put-back=0', `${cmd} names every test file the range adds or modifies: ${r.stderr}`);
