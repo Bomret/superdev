@@ -98,7 +98,7 @@ test('a session started inside a scopetree shows the main working tree', async (
   await $.command.run(runCommand)
   const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'terminal', ...P })
   expect(await ui.find({ key: 'scope-a' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /^~\/\.superdev$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^~$/ })).toBeDefined()
 })
 
 test('a scan whose scopes read fails keeps the scopes the last scan stored', async ($, on) => {

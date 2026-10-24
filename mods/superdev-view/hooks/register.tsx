@@ -370,7 +370,7 @@ export const register: Register = on => {
       <Box flexDirection="column" gap={1}>
         <Box flexDirection="column">
           {snap.assignees && <Text dimColor wrap="truncate-end">🪪 {snap.assignees.map(a => a.who).join(', ')}</Text>}
-          <Text dimColor wrap="truncate-start">{tilde(snap.root)}</Text>
+          <Text dimColor wrap="truncate-start">{tilde(snap.root.replace(/\/\.superdev$/, ''))}</Text>
         </Box>
         {intents.length > 0 && section('brainstorm', 'Brainstorm', String(intents.length), false, () => intents.map(i => (
           <Box key={`intent-row-${i.name}`} flexDirection="column">

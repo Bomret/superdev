@@ -30,6 +30,8 @@ The overview opens with the assignee line, one entry per `info.json` role. An en
 `displayName`, trimmed, when that is a string with a non-blank value, and the role's `assignee` identifier
 otherwise, so a blank name falls back like an absent one. The line keeps to one row: a long name is cut
 at its end. The mod never asks the slice store for a name: `/superdev:setup` writes it into the file.
+Below it, the path line names the main working tree, without the trailing `/.superdev`, and with the home
+directory as `~`. A long path is cut at its start.
 
 The overview is a column of collapsible cards: Brainstorm, Scopes, Pending knowledge-base pages, Design
 sketches, and DoD drafts. Each card has a rounded, dim border. Its header shows the open mark and the

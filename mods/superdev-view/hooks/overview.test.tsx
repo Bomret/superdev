@@ -291,7 +291,7 @@ test('the overview starts with the assignee and the root path, with the home fol
   await $.command.run(runCommand)
   const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'mobile', ...PANE })
   const texts = (await ui.findAll({ type: 'Text' })).map(t => t.text)
-  expect(texts.slice(0, 2)).toEqual(['🪪 stefan', '~/.superdev'])
+  expect(texts.slice(0, 2)).toEqual(['🪪 stefan', '~'])
 })
 
 const assigneeLine = async ($: Parameters<Parameters<typeof test>[1]>[0], on: Parameters<Parameters<typeof test>[1]>[1], info: string) => {
