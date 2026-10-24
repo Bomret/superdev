@@ -1,3 +1,10 @@
+# [0.85.0](https://codeberg.org/bomret/superdev/compare/v0.84.0...v0.85.0) (2026-10-24)
+
+
+### Features
+
+* **test-evidence:** implementers prove their change, the controller runs only suite gates ([#1363](https://codeberg.org/bomret/superdev/issues/1363)) ([244383c](https://codeberg.org/bomret/superdev/commit/244383c2b80221133fcd855f3dee2475bdc614cd))
+
 # [0.84.0](https://codeberg.org/bomret/superdev/compare/v0.83.0...v0.84.0) (2026-10-24)
 
 
