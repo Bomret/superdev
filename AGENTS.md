@@ -355,7 +355,9 @@ This root owns every other subtree directly:
   superdev ships no driver. Some skills sit outside the chain: publish-kb sends a scope's
   staged knowledge-base pages to a remote backend on the operator's own clock (ADR 0023), status prints
   every run's ledger and then surveys the slice store read-only, grouping every open scope anchor, triage record (an `absorbed`
-  row when an open anchor's Absorbs line names it, ADR 0144), stranded run root, and untriaged item by the action it needs,
+  row when an open anchor's Absorbs line names it, ADR 0144, and a `likely resolved` row when only a closed anchor's body names it,
+  ADR 0164), stranded run root, and untriaged item by the action it needs (an open anchor whose run only its
+  run-state snapshot shows takes an `elsewhere` row),
   resolving an ambiguity toward showing the row (ADR 0049), and never recommending a run live in another session — a standing
   step and a run lock under an hour old (ADR 0163),
   review-tests runs two audits on every run and hands the findings the operator keeps to `/superdev:plan`

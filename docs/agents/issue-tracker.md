@@ -141,8 +141,11 @@ label, and on a single-slice feature it is the lone issue carrying that label (A
 - **Recognise one.** Apply the rule to the **open** issues carrying a feature label first: the anchor is
   the one labelled `epic`; if none is, and exactly one open issue carries the label, that issue is the
   anchor. A closed candidate never wins over an open one this way (`plan-contract.md` → *Scope anchor*).
-  Where no open issue carries the label and exactly one closed issue does, that closed issue is the
-  anchor — the shape the shipped-anchor refusal reads as its own done signal (ADR 0083).
+  Where no open issue carries the label, apply the same rule to the closed ones: every closed issue
+  labelled `epic` is a closed root, the root a fully closed multi-slice feature leaves, and a label reused
+  after retirement leaves one per feature it carried; if none is labelled `epic`, and exactly one
+  closed issue carries the label, that issue is the anchor — the shape the shipped-anchor refusal reads as
+  its own done signal (ADR 0083, ADR 0164).
 - **List the candidates.** The feature labels themselves: `tea labels list -o json --page <p> --limit 50`
   (paged), keeping the names whose first segment is a change type (`references/scope-mode.md` lists
   them). Per feature label: `tea issues list -o json --fields index,state,title,body,labels --labels

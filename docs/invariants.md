@@ -533,7 +533,7 @@ Paths: plugin/skills/review/SKILL.md
 
 Class: process
 Concepts: Backlog survey, Slice store, Scope anchor, Triage record, Untriaged item
-Statement: A backlog survey writes nothing: no record, label, comment or file. It reads anchors, triage records and untriaged items through the store document's sections, never through a backend's own call, and reads stage through `scope.js get stage`.
+Statement: A backlog survey writes nothing: no record, label, comment or file. It reads anchors, triage records and untriaged items through the store document's sections, never through a backend's own call. It reads a stage through the ledger (`scope.js get stage`) for an anchor with a local run root, and from the anchor's published snapshot for an anchor without one.
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/status/SKILL.md
@@ -1338,6 +1338,15 @@ Paths: plugin/skills/status/SKILL.md
 Class: process
 Concepts: Backlog survey, Ledger, Run lock
 Statement: The backlog survey never recommends, and never offers to delete, a run live in another session: a run root whose ledger carries a standing `**Step:**` line and whose `run.lock` is under an hour old takes the `running` bucket, whatever its stage or anchor match, and is never the recommended move (ADR 0163).
+Breaks: silently
+Check: none — the survey is prose a model runs, and final-reviewer's invariant compliance judges it
+Paths: plugin/skills/status/SKILL.md
+
+### INV-0167
+
+Class: process
+Concepts: Backlog survey, Scope anchor, Published snapshot
+Statement: The backlog survey never recommends taking over a run it cannot see live: an open scope anchor with no local run root whose `## Run state` snapshot stage is past `planned` and short of `shipped` takes the `elsewhere` bucket, and an `elsewhere` row is never the recommended move (ADR 0164).
 Breaks: silently
 Check: none — the survey is prose a model runs, and final-reviewer's invariant compliance judges it
 Paths: plugin/skills/status/SKILL.md

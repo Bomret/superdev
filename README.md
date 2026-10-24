@@ -210,8 +210,8 @@ flowchart TD
   silent. Then it surveys the **slice store**. It groups every open scope anchor, every triage record,
   every stranded run root, and every **untriaged item** — an open record you filed and no `/superdev:plan`
   interview has yet reached — by the action it needs — running in another session, blocked, stranded, in
-  flight, waiting on another feature, needing a plan, unreleased, untriaged, absorbed by an open scope, or
-  ready to build — and ends with one recommended next move. A run another session is working, whose ledger
+  flight, running on another machine, waiting on another feature, needing a plan, unreleased, untriaged,
+  absorbed by an open scope, likely resolved by a closed one, or ready to build — and ends with one recommended next move. A run another session is working, whose ledger
   names a step and whose run lock is under an hour old, shows as running and is never the recommended move
   ([ADR 0163](docs/adr/0163-status-carries-the-backlog-survey.md)). Untriaged items are capped at 5, oldest
   first, so a store with real reporters doesn't drown the rest of the table. A slice store that is
