@@ -1,3 +1,17 @@
+# [0.86.0](https://codeberg.org/bomret/superdev/compare/v0.85.1...v0.86.0) (2026-10-24)
+
+
+### Bug Fixes
+
+* **status:** survey closed anchors and every snapshot stage ([b337c73](https://codeberg.org/bomret/superdev/commit/b337c73832dc1d8b1175b37fa9c2e7eeb9f4327b))
+* **test-evidence:** record the exact-tip run, and name a test file by its stem ([2e1470b](https://codeberg.org/bomret/superdev/commit/2e1470bd4c667ded104e3a9d9a6a6c2495d6b1cc))
+
+
+### Features
+
+* **plan:** slim plan and brainstorm, and open a plan run through one verb ([#1365](https://codeberg.org/bomret/superdev/issues/1365)) ([34871d5](https://codeberg.org/bomret/superdev/commit/34871d5d2a7e091d6bf746b8e99b6248df8c7d31))
+* **test-evidence:** run any fail-to-pass command, and record it for the reviewer ([#1367](https://codeberg.org/bomret/superdev/issues/1367)) ([36b3e0b](https://codeberg.org/bomret/superdev/commit/36b3e0b801b57c22bcce76343a43fd495482ca0b))
+
 ## [0.85.1](https://codeberg.org/bomret/superdev/compare/v0.85.0...v0.85.1) (2026-10-24)
 
 
