@@ -164,10 +164,10 @@ Paths: plugin/references/run-handoff.md, plugin/skills/review/**, plugin/skills/
 
 Class: process
 Concepts: Slice-reviewer, Implementer
-Statement: The slice-reviewer runs the suite itself, independently of the implementer's report, and never passes a slice on the reported result alone.
+Statement: The slice-reviewer runs no test and never passes a slice on the implementer's reported result. It reviews against a tip result the controller hands it and verifies that result in the run trace: the passing control run of a fail-to-pass run whose range starts at the review base, or the controller's own focused run at the reviewed tip, over every path changed from the review base. A tip result that holds a failing test comes with the controller's run of that test at the review base (ADR 0178).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/agents/slice-reviewer.md
+Paths: plugin/agents/slice-reviewer.md, plugin/references/implement-full.md, plugin/skills/review/**
 
 ### INV-0019
 

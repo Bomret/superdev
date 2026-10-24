@@ -131,7 +131,10 @@ GREEN: write the minimal code to pass it → watch it pass
 
 Applies to every test run in any dispatch.
 
-Run every test through the runner `${CLAUDE_PLUGIN_ROOT}/scripts/scope.js test`, as `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` states in `## The two commands` and `## The changed-path set`.
+Run only the tests that verify your work. Run each through the runner `${CLAUDE_PLUGIN_ROOT}/scripts/scope.js test`, as `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` states in `## The two commands` and `## The changed-path set`. The controller owns every full-suite run.
+
+- Your runs: `scope.js test focused <paths>` with at least one path, and `scope.js test -- <command>` for one test file.
+- The controller's runs: `test full`, `test whole`, and a `test focused` with no path, which runs the full command.
 
 ### Edit tools
 
@@ -248,7 +251,7 @@ Keep each edit inside the bound `## Scope of the work` states.
 
 Applies to every dispatch.
 
-Rely on what is already in context. The red-green loop re-runs the suite by design.
+Rely on what is already in context. The red-green loop re-runs its tests by design.
 
 - Scope with `git diff --stat` and `git log --oneline -N`.
 - Locate a spot with `grep -n` and read it at an offset and limit.

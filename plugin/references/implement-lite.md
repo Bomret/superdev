@@ -56,8 +56,9 @@ A stop there dispatches no slice. A red record's pick there dispatches only the 
   All file edits, test runs, `git` commands, and commits happen **in the scopetree as the cwd** —
   never in the invoking checkout. `mechanical` / `docs` slices need no new test — the existing suite is
   the net. Read `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it selects for
-  each run, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths>` (or `test full`, or
-  `test -- <command>` for a direct test-file run). Each failing-test or passing-test step passes the test
+  each run, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths>` with at least one path (or
+  `test -- <command>` for a direct test-file run). The loop runs only the tests that verify the slice: `test full` and
+  `test whole` run at the suite gates alone. Each failing-test or passing-test step passes the test
   files that hold the tests it works on. Your last run before you commit a slice passes the slice's whole
   changed-path set, and so does a step that works on no test file (ADR 0139). A suite longer than the Bash tool's time limit runs
   through the runner in the background, and you wait for its end before acting on it. The run trace records your edits and runs, and a note from the hook means a test edit with no

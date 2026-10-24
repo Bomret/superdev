@@ -5,6 +5,9 @@
 **Amended by:** [ADR 0155](0155-a-slice-merge-runs-no-test-suite.md), which deletes the green-gate, so the
 test command is a proxy in the implementer's and the slice-reviewer's runs and the run handoff's full run.
 
+**Amended by:** [ADR 0178](0178-a-slice-review-runs-no-test.md), under which the slice-reviewer runs no
+test and verifies a tip result the controller hands it against the run trace.
+
 **Context.** superdev gates work on measures that each stand in for a goal they do not fully capture:
 the green-gate's test command for "code correct", a DoD line for "user-observable behaviour delivered",
 slice count for "complexity", the 3-strike fix loop's cap for "converged". The implementer subagent is an optimizer

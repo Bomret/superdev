@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0178](0178-a-slice-review-runs-no-test.md), under which the controller runs a
+failing test at the slice's base and the slice-reviewer names the inherited failure from that run.
+
 **Supersedes:** [ADR 0123](0123-the-green-gate-gates-a-landed-merge-from-the-reflog.md),
 [ADR 0047](0047-the-green-gate-resolves-the-tree-instead-of-capturing-a-c-argument.md).
 

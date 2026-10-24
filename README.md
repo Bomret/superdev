@@ -539,7 +539,7 @@ again. One answer lands outside that tree: the slice store's **assignee** goes t
   `docs/agents/verification.md`. Recorded, it is the full suite the run handoff, every base merge, and the
   scope review run. Omitted, no step runs a suite. A second fenced block holds the focused test command,
   the one every step inside the loop runs: the implementer's TDD loop, the lite tier's inline loop, the
-  slice-reviewer's Lens 2 re-run, and the documentation step's own run over its doc commits. What defines it is that it
+  controller's tip result for a slice review, and the documentation step's own run over its doc commits. What defines it is that it
   costs less than the full suite. Setup derives it from the runner it detected — a runner that maps
   source files to the tests covering them gets a `{paths}` form carrying that runner's pass-with-no-tests
   flag, and every other runner gets a fast subset instead. Where the full suite is already cheap or no

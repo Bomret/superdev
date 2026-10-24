@@ -245,6 +245,8 @@ superdev subagent that omits one):
     finding, **Unreviewed slice**. No trace, or no events for a slice: it names that in the report and raises neither finding.
     The remedy for an **Unreviewed slice** finding is a `superdev:slice-reviewer` dispatch that hands over the slice's
     `spec`, `acceptance`, range, and progress-log path `<run-root>/reports/<id>/progress.md`, so the run trace records the dispatch on that slice.
+    It also hands the tip result, which you produce in the scope checkout as `${CLAUDE_PLUGIN_ROOT}/references/implement-full.md`'s
+    tip-result bullet states, with the slice's base as the review base: the reviewer runs no test (ADR 0178).
     The `slice-reviewer` judges the slice's range itself: the progress log is input to check against the code, not a verdict to adopt.
   - **Also tell it the fail-to-pass rule on a `lite` scope, so it reads the outcome lines.** `final-reviewer`
     applies `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` to every `behavior`
@@ -679,9 +681,11 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
     section owns when a resume gives way to a fresh dispatch, the wait, and what each resume message carries
     (ADR 0174). Its re-review continues, through SendMessage, the `final-reviewer` whose verdict the cycle
     fixes, cycle 1 included, where it continues the entry review's `final-reviewer`. That re-review's subject is
-    the cycle's range as full commits, the warm re-review §2 states. Tell the implementer to run every test
-    through `scope.js test`, to run a suite longer than the Bash tool's time limit through the runner in the
-    background and wait for its end, and to edit files through the edit tools, never through a script. On a
+    the cycle's range as full commits, the warm re-review §2 states. Tell the implementer to run only the tests
+    that verify its fix, each through `scope.js test` (`test focused <changed paths>` with at least one path, or
+    `test -- <command>` for one test file), and never `test full`, `test whole`, or a `test focused` with no path,
+    since you own every full-suite run. Tell it to run a suite longer than the Bash tool's time limit through the
+    runner in the background and wait for its end, and to edit files through the edit tools, never through a script. On a
     **`lite`** scope, for each **Missing RED** finding in the list, also hand the implementer the run-trace
     remedy (`git add <paths>`, `git restore --worktree --source=<base> -- <paths>`, a failing run,
     `git restore -- <paths>`, a passing run, never `git stash`) and that slice's `<base>`: the base of the

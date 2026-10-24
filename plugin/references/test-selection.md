@@ -133,8 +133,11 @@ Each caller judges its own range and builds the set from it:
   focused`. The last run before the implementer reports, and before the lite tier commits a slice, runs over
   the slice's whole changed-path set: the slice base against the working tree. A step that works on no test
   file runs over that whole set too. A focused command with no `{paths}` token runs unchanged at every step,
-  and the run trace records every step's run either way (ADR 0139).
-- **The slice-reviewer's Lens 2.** The slice branch against the scope branch.
+  and the run trace records every step's run either way (ADR 0139). Every loop run passes at least one path, or
+  runs one test file through `test -- <command>`, so the loop runs only the tests that verify the work. `test full`,
+  `test whole`, and a `test focused` with no path run only at the controller's gates (ADR 0177).
+- **The slice review's tip result.** Every path changed from the review base to the reviewed tip, the set the
+  `fail-to-pass` verb runs over. The controller runs it, and the slice-reviewer runs no test (ADR 0178).
 - **The documentation step.** On a live scope run whose suite record's commit is an ancestor of the scope
   branch's tip (`scope.js get suite` names the commit), every path changed from that commit to the tip.
   `scope.js suite reusable` carries a green record across Markdown-only commits on the strength of a

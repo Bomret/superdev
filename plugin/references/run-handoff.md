@@ -46,9 +46,11 @@ tiers: record that slice execution finished, name what comes next.
     changed, reporting a place outside its checkout unedited. Tell it to report the `AGENTS.md` hierarchy
     and the knowledge base unedited too, since the doc pass owns them (INV-0120). A fix report that omits
     the checked-and-changed list is a report defect, sent back to the implementer before the focused run.
-    Tell the implementer to run every test through `scope.js test`, to run a suite longer than the Bash tool's
-    time limit through the runner in the background and wait for its end, and to edit files through the edit
-    tools, never through a script.
+    Tell the implementer to run only the tests that verify its fix, each through `scope.js test`
+    (`test focused <changed paths>` with at least one path, or `test -- <command>` for one test file), and never
+    `test full`, `test whole`, or a `test focused` with no path, since you own every full-suite run. Tell it to run a
+    suite longer than the Bash tool's time limit through the runner in the background and wait for its end, and to
+    edit files through the edit tools, never through a script.
     Before the focused run, grep the checkout for the key phrase of the rule the fix changed, in its old
     wording and its new, and compare the hits with the report's checked list. A hit in a file the list
     does not name is a missed sibling surface: send the report back to the implementer, naming the hit,

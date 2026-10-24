@@ -496,7 +496,7 @@ The subagents the controller dispatches. Each runs in isolated context and only 
 **Implementer**: builds **one** slice test-first (TDD), the laziest version that works. Never merges (a hook enforces it).
 _Avoid: "developer", "coder"_
 
-**Slice-reviewer**: per-slice correctness gate (full tier, `behavior` slices). It verifies against the slice's acceptance, independently re-runs the suite, and reads the produced artifact, hunting uncovered input.
+**Slice-reviewer**: per-slice correctness gate (full tier, `behavior` slices). It verifies against the slice's acceptance, checks the tip result the controller hands it against the run trace, and reads the produced artifact, hunting uncovered input. It runs no test.
 _Avoid: "reviewer" (unqualified, so say which)_
 
 **Simplicity-reviewer**: the over-engineering reviewer. It names what to delete and what a standard-library or native feature replaces; its findings are advisory and gate nothing. Read-only. Two dispatch sites, one per tier: `full` runs it per `behavior` slice, beside the slice's first review, and the warranted cuts join that review's fix list (ADR 0138), and `/superdev:review` then skips it on that tier, leaving the cross-slice case to `final-reviewer`'s Brevity axis. `lite` has no per-slice review, so `/superdev:review`'s whole-scope dispatch is the only pass it gets (ADR 0037).
