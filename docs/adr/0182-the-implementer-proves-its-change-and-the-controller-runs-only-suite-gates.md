@@ -17,6 +17,9 @@ route writes the run it accepts as the suite record, and a green record at the t
 **Amended by:** [ADR 0187](0187-a-test-file-s-stem-names-it-to-the-fail-to-pass-verb.md), under which a slash-free
 word also names the test file whose stem it is.
 
+**Amended by:** [ADR 0188](0188-the-fail-to-pass-verb-reads-no-word-of-its-command.md), under which the verb reads
+no word of its command, and the reviewer judges which test files the recorded command runs.
+
 ## Context
 
 The `fewer-suite-runs` scope had eight slices on the full tier. Its run trace records 19 implementer

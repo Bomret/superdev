@@ -17,12 +17,13 @@ const { verif } = require('./scope-setup');
 const scopePath = require.resolve('../plugin/scripts/scope.js');
 const { appendTrace } = require(scopePath);
 const { failToPassBoundMs } = require('../plugin/lib/fail-to-pass.js');
+const { readTrace, traceField } = require('../plugin/lib/trace-log.js');
 
 // Every case runs at the default floor of the bound unless it sets its own (ADR 0142).
 delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
 
 // `scope.js fail-to-pass <base>..<tip> -- <command>` (ADR 0134, ADR 0182, INV-0138, INV-0139): runs the caller's command,
-// which names the range's test files, twice in a throwaway worktree, the second time with every file the range touched
+// whose words it never reads (ADR 0188), twice in a throwaway worktree, the second time with every file the range touched
 // outside its test files put back as it stood at the range's base, and records the outcome as a trace line of its own kind. Each scenario is a real repository: a base commit, a tip commit, a run
 // root under `.superdev/scopes/`, and a scopetree at the tip, the cwd the verb runs from.
 {
@@ -90,8 +91,10 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
           assertSpawnDecided(r, 'scope.js fail-to-pass ' + range);
           return r;
         },
-        // The trace's lines without their timestamp. `trace` leaves out the control run's `run` line, which `runLines` reads.
-        trace: () => traceLines(root).filter((l) => l.split(' ')[2] !== 'run'),
+        // The trace's lines without their timestamp. `trace` leaves out the control run's `run` line, which `runLines` reads,
+        // and the command an outcome line ends with, which `rawTrace` keeps.
+        trace: () => traceLines(root).filter((l) => l.split(' ')[2] !== 'run').map((l) => l.replace(/ \S+$/, '')),
+        rawTrace: () => traceLines(root).filter((l) => l.split(' ')[2] !== 'run'),
         // The control run's `run` lines, without the duration a `run` line ends with (asserted once below).
         runLines: () => traceLines(root).filter((l) => l.split(' ')[2] === 'run').map((l) => l.replace(/ \d+$/, '')),
         rawRunLines: () => traceLines(root).filter((l) => l.split(' ')[2] === 'run'),
@@ -110,6 +113,7 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     assert.equal(r.stdout.trim(), 'fail-to-pass control=0,put-back=1', 'the outcome prints on stdout');
     assert.doesNotMatch(r.stderr, /observation/, 'an outcome that reads a verdict says nothing');
     assert.deepEqual(s.trace(), [`01 main fail-to-pass ${s.range} fail-to-pass control=0,put-back=1`], 'one trace line of its own kind, on the slice, naming the range, the outcome, and the reason');
+    assert.deepEqual(s.rawTrace(), [`01 main fail-to-pass ${s.range} fail-to-pass control=0,put-back=1 sh\\x20tests/t.sh`], 'and the command last, escaped as a trace field');
 
     // Tests that pass with the other files put back as well read pass-to-pass.
     s = scenario({
@@ -281,29 +285,21 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     // A range that changes no test file has no test of its own to fail.
     const noTests = scenario({ base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) }, tip: { 'src.txt': 'b\n' } });
     refuses(noTests, noTests.range, /changes no test file/);
-    // The command names every test file the range adds or modifies, in a word of a command that runs something: one it leaves
-    // out, or names only to a command that runs nothing (`:`, `echo`), is refused, naming the file.
+    // The verb reads no word of the command (ADR 0188): a command that names no test file of the range, or names one only to a
+    // command that runs nothing, runs and records its outcome with the command, and the reviewer judges what it ran.
     const twoTests = scenario({
-      base: { 'src.txt': 'a\n', 'tests/old.sh': 'x\n', 'tests/gone.sh': 'x\n', 'docs/agents/verification.md': verif(CMD, CMD) },
-      tip: { 'src.txt': 'b\n', 'tests/t.sh': probe, 'tests/old.sh': 'y\n', 'tests/gone.sh': null },
+      base: { 'src.txt': 'a\n', 'tests/old.sh': 'x\n', 'docs/agents/verification.md': verif(CMD, CMD) },
+      tip: { 'src.txt': 'b\n', 'tests/t.sh': probe, 'tests/old.sh': 'y\n' },
     });
-    refuses(twoTests, twoTests.range, /names no tests\/old\.sh/);
-    refuses(twoTests, twoTests.range, /names no tests\/old\.sh/, { cmd: ': tests/old.sh; sh tests/t.sh' });
-    refuses(twoTests, twoTests.range, /names no tests\/old\.sh/, { cmd: 'echo tests/old.sh && sh tests/t.sh' });
-    // A stem names the file only as a slash-free word of a runner: a file name with its extension, or a stem under a directory, names none.
-    refuses(twoTests, twoTests.range, /names no tests\/old\.sh/, { cmd: 'sh tests/t.sh old.sh' });
-    refuses(twoTests, twoTests.range, /names no tests\/old\.sh/, { cmd: 'sh tests/t.sh tests/old' });
-    refuses(twoTests, twoTests.range, /names no tests\/old\.sh/, { cmd: 'echo old && sh tests/t.sh' });
-    // A deleted test file needs no name, a directory names every file under it, and a slash-free word names the file whose
-    // stem it is, the name a runner that selects test files by name takes (ADR 0187).
-    for (const cmd of ['sh tests/t.sh tests/old.sh', 'sh tests/t.sh ./tests/old.sh', 'sh tests/t.sh tests/', 'sh tests/t.sh tests', 'sh tests/t.sh --test old']) {
-      fs.rmSync(twoTests.log, { force: true });
+    for (const cmd of ['sh tests/t.sh', ': tests/old.sh; sh tests/t.sh', 'sh tests/t.sh old']) {
+      fs.rmSync(path.join(twoTests.root, 'trace.log'), { force: true });
       r = twoTests.run(twoTests.range, { cmd });
-      assert.equal(r.stdout.trim(), 'pass-to-pass control=0,put-back=0', `${cmd} names every test file the range adds or modifies: ${r.stderr}`);
+      assert.equal(r.stdout.trim(), 'pass-to-pass control=0,put-back=0', `${cmd} runs: ${r.stderr}`);
+      assert.equal(readTrace(fs.readFileSync(path.join(twoTests.root, 'trace.log'), 'utf8')).find((e) => e.kind === 'fail-to-pass').fields[3], traceField(cmd), `${cmd} is recorded on the outcome line`);
     }
 
     // The control run is also a test run (ADR 0175, ADR 0182): it writes a `path` run line with its result, the tip, a clean
-    // tree, and the range's test files, the files the command was checked to name. The line is attributed like the outcome
+    // tree, and the range's test files, the files the command was handed to cover. The line is attributed like the outcome
     // line, and the outcome line is unchanged.
     s = scenario({
       base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
@@ -909,7 +905,7 @@ for (let i = 0; i < 3; i++) withWorktreeLock(${JSON.stringify(s.repo)}, () => {
     assert.equal(s.runLines().length, 2, 'each control run writes one run line and no outcome line is a run line');
     // `trace` prints the outcome line like any other, which is what `/superdev:status --trace` shows.
     const timeline = cli(s, ['trace']).stdout.split('\n');
-    assert.ok(timeline.some((l) => new RegExp(` 01 main fail-to-pass ${s.range} fail-to-pass control=0,put-back=1$`).test(l)), 'trace prints the outcome line');
+    assert.ok(timeline.some((l) => new RegExp(` 01 main fail-to-pass ${s.range} fail-to-pass control=0,put-back=1 sh\\\\x20tests/t\\.sh$`).test(l)), 'trace prints the outcome line, the command last');
     assert.ok(cli(s, ['trace', '--slice', '01']).stdout.includes(' fail-to-pass '), 'and the slice filter keeps it');
 
     // A control that cannot start (here no shell on the PATH, so `sh -c <command>` cannot spawn) records `unknown` naming the

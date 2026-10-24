@@ -37,7 +37,7 @@ function usage() {
     '  test full|whole                    runs the configured command, records the run line the command\'s own exit status makes',
     '  test focused [<path>…]             {paths} takes the paths; none runs the full command, recorded full; an empty path is refused',
     '  test -- <command>                  runs a command the run trace classes as a test run, recorded as a direct run is',
-    '  fail-to-pass <base>..<tip> -- <command>   runs the command, which names every test file the range adds or modifies,',
+    '  fail-to-pass <base>..<tip> -- <command>   runs the command, meant to run every test file the range adds or modifies,',
     '                                     twice in a throwaway worktree at <tip>, the second time with the files the range changed',
     '                                     outside its test files put back as at <base>; prints the outcome',
     '                                     (fail-to-pass|pass-to-pass|unknown) on stdout and the command output on stderr, and inside',

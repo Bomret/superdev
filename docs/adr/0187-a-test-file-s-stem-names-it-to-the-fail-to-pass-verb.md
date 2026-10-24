@@ -1,6 +1,9 @@
 # 0187: A test file's stem names it to the fail-to-pass verb
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0188](0188-the-fail-to-pass-verb-reads-no-word-of-its-command.md). The verb reads no word of its
+command, and the reviewer judges which test files it runs.
 
 **Amends:** [ADR 0182](0182-the-implementer-proves-its-change-and-the-controller-runs-only-suite-gates.md) point 2,
 whose verb takes a test file as named only by its path or a directory above it.

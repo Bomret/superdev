@@ -251,10 +251,10 @@ Each caller judges its own range and builds the set from it:
   author landed after the review included. With no record, or a commit that is not an ancestor, its own
   doc commits — the ones the doc-writer just landed on the scope branch, never the wider range the chain
   is reconciling.
-- **The `scope.js fail-to-pass` verb.** Its caller hands it the command, which names every test file the range
-  adds or modifies (ADR 0182): by its path, by a directory above it, or by its stem, the file name less its last
-  extension, the form a runner that selects test files by name takes (`cargo test --test foo` for `tests/foo.rs`,
-  ADR 0187). Every path changed in `<base>..<tip>`, with a rename split into its old and its new
+- **The `scope.js fail-to-pass` verb.** Its caller hands it the command, written to run every test file the range
+  adds or modifies in whatever form the runner selects them: `cargo test --test foo`, `dotnet test --filter Orders`,
+  or one runner per package in a monorepo (ADR 0182). The verb reads none of its words, and the outcome line records it
+  for the reviewer (ADR 0188). Every path changed in `<base>..<tip>`, with a rename split into its old and its new
   path (`--no-renames`), decides what the second run puts back. The test paths come from the tip's own
   `docs/agents/verification.md`, never a working tree's. The verb refuses an empty range, so the fallback
   below never applies to it.

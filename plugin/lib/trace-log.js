@@ -16,7 +16,7 @@ const path = require('path');
 //   dispatch-resume <tool_use_id> <agent_id> <session_id|-> <sendmessage_tool_use_id|->   (a SendMessage resumed the dispatch's subagent: a new run, with its own dispatch-end)
 //   verdict <reviewer tool_use_id> <pass|fail|unknown> <approved|changes-needed|unknown> <cycle> <implementer tool_use_id|->   (ADR 0136; at most one per review in sequential delivery, and a reader takes the first per dispatch)
 //   ledger <verb> <args>     (written only by the ledger-writing verbs of this CLI, after they succeed)
-//   fail-to-pass <base>..<tip> <fail-to-pass|pass-to-pass|unknown> <reason>     (written only by `fail-to-pass`, which derives all three fields; no test run)
+//   fail-to-pass <base>..<tip> <fail-to-pass|pass-to-pass|unknown> <reason> <command>     (written only by `fail-to-pass`, which derives the first three fields and records its caller's command, ADR 0188; no test run)
 // Every field is escaped so none holds a control character or a line separator: no field can start
 // a new line. No CLI verb takes a caller-chosen event; `trace` only reads.
 function traceField(v) {

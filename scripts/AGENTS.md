@@ -226,12 +226,9 @@ run-trace hook. When the classifier's own module cannot be found, it classifies 
 verb writes its own run line.
 
 `fail-to-pass <base>..<tip> -- <command>` runs the caller's command twice and reports whether the range's tests
-discriminate (CONTEXT.md **Fail-to-pass run**, ADR 0134, ADR 0182, INV-0139). The command runs at the tree root. It must
-name every test file the range adds or modifies, in a word of a segment that runs something: a word of `:`, `echo`, `cat`,
-or another command that runs nothing (`NOT_RUNNERS` and `SHELL_READERS` of `lib/test-runs.js`) names nothing, and a
-directory word names every file under it. A slash-free word also names the test file whose stem it is, the file name less
-its last extension, for a runner that selects test files by name (ADR 0187). A deleted test file needs no name. The verb refuses a command that leaves one
-out, naming it, and refuses a missing or empty command. The test paths come from `<tip>`'s own
+discriminate (CONTEXT.md **Fail-to-pass run**, ADR 0134, ADR 0182, INV-0139). The command runs at the tree root. The caller
+writes it to run every test file the range adds or modifies, and the verb reads none of its words: which files it runs is
+the reviewer's judgment, so the outcome line records it (ADR 0188). The verb refuses a missing or empty command. The test paths come from `<tip>`'s own
 `docs/agents/verification.md`. It creates a throwaway worktree detached at `<tip>`. In a run root the worktree sits beside
 `slicetrees/`, outside every tree the run trace attributes a run to. Outside a run root it sits under `.superdev/`, which
 the verb git-ignores first through the repository's `info/exclude`.
@@ -254,8 +251,8 @@ run fails, when the second run is killed at its bound or ended by a signal, and 
 status. No reviewer reads `unknown` as a verdict,
 and no gate reads it as green.
 
-Inside a run root the verb appends one `fail-to-pass` trace line, `<base>..<tip> <outcome> <reason>`. Its slice is the
-ledger row that records exactly that range, else the slice the run's directory attributes to, else `scope`. The control run also writes a `path` run line naming the range's test files and ending with its duration. The line
+Inside a run root the verb appends one `fail-to-pass` trace line, `<base>..<tip> <outcome> <reason> <command>`. Its slice is the
+ledger row that records exactly that range, else the slice the run's directory attributes to, else `scope`. The control run also writes a `path` run line naming the range's test files, the files the command was handed to cover, and ending with its duration. The line
 has the same slice as the outcome line and the form `test --` writes. It backs no suite record. It names the tip. The verb reads the worktree's HEAD
 and tree at both ends. A HEAD that left the tip, or a dirty tree at either end, records `dirty`. An unreadable tree state
 records `unknown`. Otherwise the tree is `clean`. A run ended by a signal, or one that could not start, writes no line

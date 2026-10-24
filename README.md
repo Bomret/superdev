@@ -194,7 +194,7 @@ flowchart TD
   entry below describes what that changes downstream.
   On either tier, a `behavior` slice whose commits change a test file and another file also gets a
   **fail-to-pass run**, which its implementer runs before it reports, and so does every fix cycle. The
-  `scope.js fail-to-pass` verb runs a command naming the slice's test files against the changed code, then again
+  `scope.js fail-to-pass` verb runs the implementer's own command for the slice's test files against the changed code, then again
   with the slice's other files put back as they stood before it. The verb writes the result as an **outcome line**, a
   `fail-to-pass` line in the run trace. Tests that still pass without the change draw an
   Important **Pass-to-pass** finding, and a slice with no outcome line draws **Missing fail-to-pass run**. A run that
@@ -614,7 +614,8 @@ again. One answer lands outside that tree: the slice store's **assignee** goes t
   never configured: a caller finding it stops and names `/superdev:setup`, running no command.
   [`references/test-selection.md`](plugin/references/test-selection.md) owns the full-versus-focused rule.
   The `/superdev:implement` entry above describes the **fail-to-pass run**. That run takes the command its caller
-  hands it, which names the change's test files.
+  hands it for the change's test files, reads none of its words, and records it on the outcome line
+  ([ADR 0188](docs/adr/0188-the-fail-to-pass-verb-reads-no-word-of-its-command.md)).
   In a monorepo the full command may take an **affected form**: it runs every project the change reaches,
   dependents included, as the repository's own dependency-graph tool (nx, turborepo, pnpm, or
   `dotnet-affected`) computes them. Such a repository also records an optional `## Whole-repo command`

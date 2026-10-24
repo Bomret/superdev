@@ -50,14 +50,15 @@ const failToPassBoundMs = (controlMs, floorMs) => Math.max(Math.ceil(controlMs *
 //
 // @typedef {object} FailToPassRun
 //   base, tip: the range's two full commits; `tip` is the commit the test paths are read from.
-//   command:   the one command string both runs use, the caller's own, which names every test file the range adds or modifies.
+//   command:   the one command string both runs use, the caller's own. The verb reads none of its words (ADR 0188): which test
+//              files it runs is the reviewer's judgment, so the outcome line records it.
 //   outcome:   FailToPassOutcome. reason: `control=<exit>,put-back=<exit>`, the two exit statuses and nothing else; for
 //              `unknown`, `control=<exit or signal>` where the control did not pass, else
 //              `control=0,put-back=<exit or signal>,bound=<ms>ms`, the bound ten times the control's duration or the floor,
 //              whichever is larger (`failToPassFloorMs`; `SUPERDEV_FAIL_TO_PASS_FLOOR_MS` overrides the floor, ADR 0142).
 //              A run whose command could not start reads `start-failed:<error code>` in place of its exit, and the second carries no bound.
 //
-// The trace line is `<ts> <slice|scope> main fail-to-pass <base>..<tip> <outcome> <reason>`. The slice is the one whose
+// The trace line is `<ts> <slice|scope> main fail-to-pass <base>..<tip> <outcome> <reason> <command>`. The slice is the one whose
 // ledger row records exactly this range, else the one the run's directory attributes to, else `scope`. The control run also
 // writes a `path` run line naming the range's test files, attributed the same way (ADR 0175, ADR 0182).
 
@@ -88,36 +89,14 @@ function ignoreSuperdevLocally(main) {
   fs.appendFileSync(file, (text && !text.endsWith('\n') ? '\n' : '') + '.superdev/\n');
 }
 
-// The paths a command names, read from the tree root: every word of a segment that runs something, its option words and a
-// runner node id's test part (`a.py::t`, `a.test.js:12`) left out. A segment whose command reads, lists, or edits files and
-// runs none (`:`, `echo`, `cat`) names nothing, so naming a file in such a word runs no test of it.
-function namedPaths(command, { cmdSegments, segWords, plain }, notRunners) {
-  const named = new Set();
-  for (const seg of cmdSegments(command)) {
-    const { cmd, args } = segWords(seg);
-    if (!cmd || notRunners.has(path.basename(cmd))) continue;
-    for (const w of [cmd, ...args]) {
-      const p = plain(w);
-      if (!p || p.startsWith('-')) continue;
-      named.add(path.posix.normalize(p.replace(/::.*$/, '').replace(/:\d+$/, '')).replace(/\/$/, ''));
-    }
-  }
-  return named;
-}
-
-// Whether `rel` is a named path, lies under one, or has a slash-free word for its stem: its file name less the last
-// extension, the name a runner that selects test files by name takes (`cargo test --test foo` for `tests/foo.rs`, ADR 0187).
-const stem = (rel) => path.posix.basename(rel).replace(/\.[^.]*$/, '');
-const covered = (named, rel) => named.has(rel) || [...named].some((n) => rel.startsWith(n + '/')) || named.has(stem(rel));
-
 // `fail-to-pass <base>..<tip> -- <command>`: the command runs in a throwaway worktree at the tip, then again with the files
-// the range changed outside its test files put back as they stood at the base (ADR 0182). The command names every test file
-// the range adds or modifies, and runs at the tree root. Exit 0: an outcome was read and printed (`unknown` included);
+// the range changed outside its test files put back as they stood at the base (ADR 0182). The command is meant to run every
+// test file the range adds or modifies, and runs at the tree root; the verb reads none of its words (ADR 0188). Exit 0: an outcome was read and printed (`unknown` included);
 // inside a run root its line is appended (a failed append is reported on stderr, the status stays 0), outside one no line
 // exists. Exit 1: a refusal or an error (git could not create the worktree, clear what the first run left, or put the
 // files back), message on stderr. An interrupt exits 128 plus the signal number.
 async function verbFailToPass(cwd, args) {
-  if (args[1] !== '--') fail('fail-to-pass needs <base>..<tip> -- <command>, the command naming the test files the range adds or modifies');
+  if (args[1] !== '--') fail('fail-to-pass needs <base>..<tip> -- <command>, the command running the test files the range adds or modifies');
   const words = args.slice(2);
   if (!words.length || (words.length === 1 && !words[0].trim())) fail('fail-to-pass: `--` needs a command');
   const command = words.length === 1 ? words[0] : words.map(shellWord).join(' ');
@@ -142,19 +121,6 @@ async function verbFailToPass(cwd, args) {
   // The range's own tests: every test-path file it adds or modifies. A deleted one runs nowhere.
   const testFiles = changed.filter((c) => c.status !== 'D' && isTestPath(config, c.path)).map((c) => c.path);
   if (!testFiles.length) fail('fail-to-pass: the range changes no test file, so no test of its own can fail without its change');
-  let readers;
-  let notRunners;
-  try {
-    readers = require('./bash-command.js');
-    const runs = require('./test-runs.js');
-    notRunners = new Set([...runs.NOT_RUNNERS, ...runs.SHELL_READERS]);
-  } catch (e) {
-    if (e.code !== 'MODULE_NOT_FOUND') throw e;
-    fail("fail-to-pass: the shell-word reader cannot load, so the command's test files cannot be read");
-  }
-  const named = namedPaths(command, readers, notRunners);
-  const missing = testFiles.filter((f) => !covered(named, f));
-  if (missing.length) fail(`fail-to-pass: the command names no ${missing.join(', ')}: name every test file the range adds or modifies`);
   // The worktree sits beside `slicetrees/` in the run root, outside every tree the run trace attributes a run to, so no hook
   // records its test runs; the verb writes the control's `run` line itself. Module resolution walks up from there to the main checkout's own `node_modules`, as it does
   // from the scope's own worktrees (the setup probe's placement). Outside a run root it sits under `.superdev/`, and no line
@@ -232,13 +198,13 @@ async function verbFailToPass(cwd, args) {
         try { return readTrace(fs.readFileSync(path.join(at.runRoot, 'trace.log'), 'utf8')).some((e) => e.kind === 'fail-to-pass' && e.fields[1] === 'unknown'); } catch { return false; }
       };
       if (at && outcome === 'unknown' && !seenUnknown()) process.stderr.write("fail-to-pass: the scope run's first unknown outcome: capture an observation naming the environment gap (references/scope-mode.md, `## Observations`)\n");
-      if (at && !appendTrace(at.runRoot, { slice, kind: 'fail-to-pass', fields: [`${base}..${tip}`, outcome, reason] })) {
+      if (at && !appendTrace(at.runRoot, { slice, kind: 'fail-to-pass', fields: [`${base}..${tip}`, outcome, reason, command] })) {
         process.stderr.write('fail-to-pass: the outcome line could not be written to the run trace\n');
       }
       console.log(`${outcome} ${reason}`);
     };
     // The control run is a test run too (ADR 0175): a run that finished with an exit status writes a `path` run line naming the
-    // range's test files, attributed like the outcome line (ADR 0182). One a signal ended or that could not start writes none.
+    // range's test files, the files the command was handed to cover (ADR 0188), attributed like the outcome line (ADR 0182). One a signal ended or that could not start writes none.
     // Like `scope.js test`, it names the tip and reads both ends: a HEAD that left the tip or a dirty tree at either end is `dirty`.
     if (at && control.code !== null && control.code !== undefined && !control.signal && !control.startError) {
       const [sha1, tree1] = treeState(dir);
