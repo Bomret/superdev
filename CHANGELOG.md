@@ -1,3 +1,11 @@
+# [0.87.0](https://codeberg.org/bomret/superdev/compare/v0.86.0...v0.87.0) (2026-10-24)
+
+
+### Features
+
+* **chain:** run no tests after review, and none in setup ([#1378](https://codeberg.org/bomret/superdev/issues/1378)) ([0cd7f6f](https://codeberg.org/bomret/superdev/commit/0cd7f6f82f135d37b486d1e5862d4fad26a4a397))
+* **skills:** write listed skill files as prompt concepts, piloting review and verify-ship ([e21bab3](https://codeberg.org/bomret/superdev/commit/e21bab385bd0a98ecd86f6b47f990c1e95f30d45))
+
 # [0.86.0](https://codeberg.org/bomret/superdev/compare/v0.85.1...v0.86.0) (2026-10-24)
 
 
