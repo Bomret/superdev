@@ -1,3 +1,10 @@
+## [0.85.1](https://codeberg.org/bomret/superdev/compare/v0.85.0...v0.85.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* **offer:** propose the new session as a card ([#1364](https://codeberg.org/bomret/superdev/issues/1364)) ([c50b8d0](https://codeberg.org/bomret/superdev/commit/c50b8d03c4335af563120f844f692d010a39d9fb))
+
 # [0.85.0](https://codeberg.org/bomret/superdev/compare/v0.84.0...v0.85.0) (2026-10-24)
 
 
