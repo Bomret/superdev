@@ -41,6 +41,63 @@ plan runs test-first, inline in the scopetree.
 /superdev:sweep        → read-only chain over code, docs, tests, and config, merged into one plan-ready intent
 ```
 
+## How the commands connect
+
+Every chain command ends its last message by naming the next command. An attended run first offers to
+start that command. Each command records its progress as a stage in the run's ledger.
+
+```mermaid
+flowchart TD
+  brainstorm["/superdev:brainstorm (optional)"] --> plan["/superdev:plan"]
+  plan --> implement["/superdev:implement"]
+  implement --> review["/superdev:review"]
+  review --> document["/superdev:document"]
+  document --> submit["/superdev:submit-pr"]
+  submit -- "whole-repo run red" --> review
+  submit --> ship["/superdev:ship"]
+  ship -- "criterion to verify" --> verify["/superdev:verify-ship"]
+  ship -- "nothing to verify" --> wrapup["/superdev:wrap-up"]
+  ship -- "criterion not met" --> plan
+  verify -- "line still open" --> verify
+  verify -- "every line settled" --> wrapup
+  verify -- "criterion not met" --> plan
+  wrapup -. "staged pages" .-> publish["/superdev:publish-kb"]
+```
+
+`/superdev:ship`, `/superdev:verify-ship`, and `/superdev:wrap-up` start only when you type the command,
+ask for it, or agree to an offer. A criterion observed as not met routes to `/superdev:plan`, which plans
+a `fix` feature on its own anchor. `/superdev:plan` and `/superdev:document` stage knowledge-base pages.
+`/superdev:publish-kb` sends them when you decide the feature has reached its readers.
+
+`/superdev:implement` derives its tier from the slice count:
+
+```mermaid
+flowchart TD
+  init["Run init: scopetree, ledger, run lock"] -- "3 slices or fewer" --> lite["lite: the controller builds each slice inline, test-first"]
+  init -- "more than 3 slices" --> pilot["full: one pilot slice, reviewed and merged first"]
+  lite --> doc["Inline doc pass in the scopetree"]
+  pilot --> parallel["Parallel implementers, one slicetree each"]
+  parallel --> slicereview["Slice review and simplicity review, 3-strike fix loop"]
+  slicereview --> merge["The controller merges each slice serially"]
+  merge -- "runnable slices remain" --> parallel
+  merge --> sweep["Minor sweep over the queued Minor findings"]
+  doc --> handoff["Run handoff: stage merged, next command /superdev:review"]
+  sweep --> handoff
+```
+
+| Command | Stage it writes | Tests it runs | Exits |
+|---|---|---|---|
+| `/superdev:brainstorm` | none. It sets the intent file to `status: ready`. | none | A draft resumes in `/superdev:brainstorm`. A ready intent goes to `/superdev:plan`. |
+| `/superdev:plan` | `planned` | none | It calls `/superdev:setup` when configuration is missing. A repair choice plans a `fix` feature. |
+| `/superdev:implement` | `implementing`, then `merged` | The builder of each slice runs focused tests and a fail-to-pass run. A full-suite gate runs after the base merge and at run handoff. | No slices go to `/superdev:plan`. The tier picks lite or full. |
+| `/superdev:review` | `reviewed` | A full suite at entry, unless the suite record covers the tip. No run inside a fix cycle. One full run after the fixes. | The fix loop stops at 3 strikes. A deferred finding becomes a triage record. |
+| `/superdev:document` | `documented`, or `documented-unreviewed` before a review | A focused run over the doc commits | A broken `docs` criterion writes an unresolved defect. |
+| `/superdev:submit-pr` | `submitted` | The whole-repo command, when one is configured | A missing step asks once, and an unattended run refuses. A red run goes to `/superdev:review`. |
+| `/superdev:ship` | `shipped` | A full run on the merged tip when the base moved. The whole-repo command on a tip without a green whole-repo record. | It refuses a tip without a reusable green suite record, and it refuses `--unattended`. It goes to `/superdev:verify-ship`, `/superdev:wrap-up`, or `/superdev:plan`. |
+| `/superdev:verify-ship` | none. It ticks `dod.md` with evidence. | none. It observes the deployed system. | Every settled line goes to `/superdev:wrap-up`. A failed criterion goes to `/superdev:plan`. |
+| `/superdev:wrap-up` | `closed` | none | It closes the absorbed triage records and the anchor, then removes the run. |
+| `/superdev:publish-kb` | none | none | It stops twice for your answer and has no unattended mode. |
+
 ## What it does
 
 - **`/superdev:brainstorm`** *(optional)*. A divergent discovery conversation that shapes a vague idea
