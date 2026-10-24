@@ -277,14 +277,17 @@ time-based loop, so hand review comments and CI on it to `/loop`:
 ```
 
 Every command in the chain ends an attended run by asking whether to start its next command (ADR 0157).
-`/superdev:brainstorm`, `/superdev:sweep`, and `/superdev:review-tests` do the same. **Start** runs it in the same
-conversation, with the arguments the command would print. **Stop here** prints the command instead. Run
-`/clear` and type it for a fresh context, because a command started in place reads the whole conversation.
+`/superdev:brainstorm`, `/superdev:sweep`, and `/superdev:review-tests` do the same. In the Claude desktop app,
+the recommended answer is **Start in a new session**: it starts the next command in a new session with a fresh
+context, in the same checkout, with the arguments the command would print (ADR 0176). **Start** runs it in the same
+conversation, with the same arguments. **Stop here** prints the command instead, and it is the recommended answer
+in the CLI. Run `/clear` and type it for a fresh context, because a command started in place reads the whole conversation.
 A started command keeps every check and every question it has when typed. An unattended run, a blocked stop,
 and a stop that waits on an action of yours ask nothing.
 
-`/superdev:submit-pr` offers `/superdev:ship`. The pull request is not reviewed yet at that point, and a yes
-merges it now, exactly as typing `/superdev:ship` does, so review it first and answer then. The host's
+`/superdev:submit-pr` offers `/superdev:ship`. The pull request is not reviewed yet at that point, and **Start**
+merges it now, exactly as typing `/superdev:ship` does, so review it first and answer then. Ship, verify-ship,
+and wrap-up started in a new session by the offer ask once more before they act. The host's
 approvals and branch protection still apply. `/superdev:ship` merges the pull request and deploys the merge under
 the repository's deploy posture (`none`/`manual`/`auto`, `docs/agents/deployment.md`, ADR 0101). Ship then offers once to start the
 next command and prints it when the operator does not take the offer. Ship prints the Next block on a decline and on every route that gets no offer. A run that routes to repair or re-verify, waits on a deploy, or waits on a hand-sync gets

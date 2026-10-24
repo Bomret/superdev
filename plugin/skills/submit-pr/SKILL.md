@@ -165,10 +165,11 @@ This is the end of every unattended run. `/superdev:submit-pr` hands off to `/su
 starts only when the operator types it, asks for it, or agrees to this command's offer (ADR 0157,
 INV-0093). Ship offers to start `/superdev:verify-ship` or `/superdev:wrap-up` after it.
 
-**An attended run makes the offer for `/superdev:ship <scope>`**, per `## The offer`. Its start option's
-description names the pull request URL, says the pull request is not reviewed yet, and says a yes merges
-it now, exactly as typing `/superdev:ship` does, with the host's approvals and branch protection still in
-force. The operator who wants to review first answers once the review is done, or stops here. An
+**An attended run makes the offer for `/superdev:ship <scope>`**, per `## The offer`. Each start option's
+description names the pull request URL and says the pull request is not reviewed yet. Start's description
+says it merges the pull request now, exactly as typing `/superdev:ship` does, with the host's approvals and
+branch protection still in force. The new-session option's description says it starts ship in a new
+session, which asks once more before it merges. The operator who wants to review first answers once the review is done, or stops here. An
 unattended run makes no offer.
 
 **Print `/superdev:ship <scope>` as the next command.** One line on what it does: it merges the pull

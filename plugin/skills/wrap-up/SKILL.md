@@ -14,6 +14,14 @@ to base (INV-0001).
 
 Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section (ADR 0157).
 
+**A new session an offer started asks first** (ADR 0176, INV-0093). When the message that started this command
+is an offer's new-session prompt, this command's text followed by the marker line
+`${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section defines, this command's first act is one `AskUserQuestion` that asks the operator to confirm `/superdev:wrap-up`
+with its arguments, before any `step set`, ledger write, store write, or host call. A yes runs the command
+as typed. Any other answer writes nothing and ends on the Next block, with the same command in its fence.
+A command the operator typed, or one an offer's Start option started in the conversation that offered it,
+asks no extra question.
+
 ## 1. Scope + run root
 
 Resolve `$ARGUMENTS` to one scope — a **run root**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s

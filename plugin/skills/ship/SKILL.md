@@ -11,11 +11,19 @@ removes nothing. `/superdev:wrap-up` follows, after `/superdev:verify-ship` when
 (ADR 0106, ADR 0116, INV-0099), and §5 offers to start the next one (ADR 0157). It dispatches no subagents,
 and carries no unattended mode of its own: it starts only when the operator typed it, asked for it, or
 agreed to `/superdev:submit-pr`'s offer (ADR 0096, ADR 0157, INV-0093). Calling it at all is the consent to
-merge, so nothing here asks a second question once the gate below has passed, except two:
-under `auto`, §5 asks before it deploys a `docs/agents/deployment.md` nobody was shown (ADR 0104), and §5's
-hand-off asks once whether to start the next skill (ADR 0157).
+merge, so nothing here asks a second question once the gate below has passed, except these: a new session
+an offer started asks first (below), under `auto`, §5 asks before it deploys a `docs/agents/deployment.md`
+nobody was shown (ADR 0104), and §5's hand-off asks once whether to start the next skill (ADR 0157).
 
 Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section (ADR 0157), under the conditions §5 adds.
+
+**A new session an offer started asks first** (ADR 0176, INV-0093). When the message that started this command
+is an offer's new-session prompt, this command's text followed by the marker line
+`${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section defines, this command's first act is one `AskUserQuestion` that asks the operator to confirm `/superdev:ship`
+with its arguments, before any `step set`, ledger write, store write, or host call. A yes runs the command
+as typed. Any other answer writes nothing and ends on the Next block, with the same command in its fence.
+A command the operator typed, or one an offer's Start option started in the conversation that offered it,
+asks no extra question.
 
 ## 1. Scope + run root
 
@@ -368,7 +376,7 @@ carrying no record, gives no offer.
 refused ship, or a ship stopped by a failed or declined deploy: print the route above and stop.
 
 The message that asks also names the scope's staged pages per `## Staged pages at close`. When the count is above
-zero, `/superdev:publish-kb <scope>` goes on the Next block's `Or:` line when that block prints. The
-question keeps its two options. A yes starts the routed skill exactly as the operator would type it, with the scope slug as its only
+zero, `/superdev:publish-kb <scope>` goes on the Next block's `Or:` line when that block prints. A yes
+starts the routed skill exactly as the operator would type it, with the scope slug as its only
 argument. Ship starts no wrap-up after a started verify-ship returns: verify-ship's own hand-off makes its
 own offer.

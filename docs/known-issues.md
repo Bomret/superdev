@@ -317,3 +317,47 @@ parent has already exited is outside the tree `taskkill /t` walks, so it can out
 (triage #1113).
 
 Verification: pending. Date it, with the Claude Code and Git for Windows versions, when the checklist runs.
+
+## The session tool exists only in the Claude desktop app
+
+The offer's *Start in a new session* option (ADR 0176) calls `mcp__ccd_session__start_session`. The Claude
+desktop app's Code tab provides that tool through its own session server. A Claude Code CLI session has
+no such server, so the tool is absent there. A desktop session can list the tool as deferred. A deferred
+tool has no schema until `ToolSearch` loads it with the query `select:mcp__ccd_session__start_session`,
+and only then can the offer call it.
+
+What a start with `context: "fresh"` and `use_worktree: false` does:
+
+- **The prompt arrives as text.** A prompt that begins with `/superdev:<name>` does not run as a slash
+  command. The new session's model reads the text and starts the skill through the Skill tool. A model
+  can therefore treat the line as text and not start the command at all.
+- **The checkout is the session's own folder.** From a plain checkout, the new session opens in that
+  same folder, on the branch checked out there. It does not open in a scopetree that the offering session
+  worked in through `cd`.
+- **The new session inherits model, effort, and permission mode** when the call omits `model`, `effort`,
+  and `permission_mode`. The tool accepts each one only at or below the offering session's own level.
+- **The call returns a session id** of the form `local_<uuid>`. A link in the transcript reads
+  `[<title>](#local_<uuid>)`.
+- **The new session sees the offering session's run as live.** Both sessions work on one run root, and
+  the run lock is under an hour old, so `/superdev:status` in the new session reports the run as live in
+  another session (ADR 0176, Consequences).
+
+**Mitigation (implemented, ADR 0176):** the offer detects the tool, loaded or deferred, before it asks.
+Without the tool, the offer keeps two options, *Stop here* first with its `/clear`-then-type path, then
+*Start*. The prompt carries the printed command and a fixed marker line, so a consent-gated command can
+recognize a new-session start.
+
+**Fix required at:** no platform fix is due. A start that runs the prompt as a slash command would remove
+the dependence on the model reading the text.
+
+Verified 2026-10-24, on Claude desktop app 3.6556.2 with Claude Code 2.1.302, with one start from a plain
+checkout of this repository: the prompt `/superdev:status` and one marker line, `context: "fresh"`,
+`use_worktree: false`, and no `model`, `effort`, or `permission_mode`. The new session reported that the
+command arrived as plain text in its first message, and that it started `superdev:status` through the
+Skill tool. Its metadata showed the working directory of the offering session's checkout, branch `main`,
+model `claude-opus-5-5`, effort `medium`, and permission mode `auto`, all equal to the offering
+session's own. The call returned `local_47e436f3-6ba3-4e6e-b671-da5d5b007ac0`. In the offering session
+the tool was listed as deferred and was loaded through `ToolSearch` before the call. Unverified: which
+checkout `use_worktree: false` opens from a session that runs in an app-made worktree (the tool's own
+description states that it is that worktree), and the tool's absence from a CLI session (the CLI on this
+machine was not logged in, so no CLI session ran).

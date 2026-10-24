@@ -35,7 +35,8 @@ exhausted and you and the user share the same picture — **not** until you have
   name each failed option with its reason, and put the decision to the user as an open question. A fact
   that could not have been checked before the question still reopens an answer; name the fact when it
   does. A question a skill requires by name — a release, new, extend, or repair, the feature to extend, the deploy
-  target, where a found defect goes, a brainstorm draft choice, a setup choice — keeps its fixed option
+  target, where a found defect goes, a brainstorm draft choice, a setup choice, the offer `references/response-shapes.md`'s
+  `## The offer` section defines — keeps its fixed option
   set, outside the two-option cap, and is asked every time regardless: an option in that set that can
   name no saving states why instead of being dropped.
 - **Walk the design tree, branch by branch.** Resolve dependencies between decisions one by one: a

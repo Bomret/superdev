@@ -15,6 +15,14 @@ repository (ADR 0084, INV-0006). It never runs a deploy target's command (INV-00
 
 Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section (ADR 0157), on the one exit §6 names.
 
+**A new session an offer started asks first** (ADR 0176, INV-0093). When the message that started this command
+is an offer's new-session prompt, this command's text followed by the marker line
+`${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section defines, this command's first act is one `AskUserQuestion` that asks the operator to confirm `/superdev:verify-ship`
+with its arguments, before any `step set`, ledger write, store write, or host call. A yes runs the command
+as typed. Any other answer writes nothing and ends on the Next block, with the same command in its fence.
+A command the operator typed, or one an offer's Start option started in the conversation that offered it,
+asks no extra question.
+
 ## 1. Scope + run root
 
 Resolve `$ARGUMENTS` to one scope — a **run root**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
@@ -105,7 +113,7 @@ Publish the snapshot when a deploy record changed, per
 `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section. Print a summary: the
 lines settled with their verdicts, and the lines still open. The stage stays `shipped`.
 
-- **Every line settled** (ticked or `accepted:`) → say in one line that all criteria are settled and the scope is ready to close, then print `/superdev:wrap-up <scope>` as the next command. When §4 reported an unpaired line, wrap-up refuses until the anchor's criterion text is in sync: say "hand-sync, then `/superdev:wrap-up <scope>`" and print the command only after that. With no unpaired line, an attended run offers `/superdev:wrap-up <scope>`, per `## The offer`, before it prints the command; the hand-sync above is a `First:` wait, so it makes no offer. The message that asks also names the scope's staged pages per `## Staged pages at close`. When the count is above zero, `/superdev:publish-kb <scope>` goes on the Next block's `Or:` line when that block prints. The question keeps its two options.
+- **Every line settled** (ticked or `accepted:`) → say in one line that all criteria are settled and the scope is ready to close, then print `/superdev:wrap-up <scope>` as the next command. When §4 reported an unpaired line, wrap-up refuses until the anchor's criterion text is in sync: say "hand-sync, then `/superdev:wrap-up <scope>`" and print the command only after that. With no unpaired line, an attended run offers `/superdev:wrap-up <scope>`, per `## The offer`, before it prints the command; the hand-sync above is a `First:` wait, so it makes no offer. The message that asks also names the scope's staged pages per `## Staged pages at close`. When the count is above zero, `/superdev:publish-kb <scope>` goes on the Next block's `Or:` line when that block prints.
 - **The run routes to re-verify** per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
   `## Routing a shipped run` → name each open line. Print `/superdev:verify-ship <scope>` as the next
   command, with one line: a repair of this scope has closed since the line was last observed. Print
