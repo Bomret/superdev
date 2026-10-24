@@ -43,8 +43,9 @@ carries that answer.
 ## The offer
 
 Each command `## The Next block` covers offers to start its next command before it prints the block
-(ADR 0157, ADR 0176, INV-0111). The operator answers one question. Where the session carries the desktop
-app's session tool, the offer recommends starting the next command in a new session with a fresh context.
+(ADR 0157, ADR 0176, ADR 0183, INV-0111). The operator answers one question. Where the session carries the
+desktop app's session tool, the offer recommends starting the next command in a new session with a fresh
+context, through a New task card the operator starts.
 
 **When it offers.** Offer when every condition below holds, at every exit, a refusal and an ad-hoc run
 included:
@@ -63,14 +64,14 @@ A skill that states conditions of its own for the offer adds them to these.
 **Detection.** The session carries the session tool when `mcp__ccd_session__start_session` is loaded, or
 listed as a deferred tool. Only the Claude desktop app provides it (`docs/known-issues.md`, *The session
 tool exists only in the Claude desktop app*). A deferred tool is loaded with `ToolSearch`, query
-`select:mcp__ccd_session__start_session`, before the call that starts the session.
+`select:mcp__ccd_session__start_session`, before the call that proposes the session.
 
 **The question.** Ask one `AskUserQuestion` with one question. With the session tool, offer these options,
 in this order:
 
 1. **Start in a new session.** The label is `Start /superdev:<name> in a new session (Recommended)`. The
    description carries the whole command with its arguments exactly as the fence prints them, and says it
-   runs in a fresh context in this checkout.
+   puts up a New task card whose one click starts the command in a fresh context in this checkout.
 2. **Start.** The label names the command, `Start /superdev:<name>`. The description carries the whole
    command with its arguments exactly as the fence prints them, and one line on what it does.
 3. **Stop here.** The description says the command is printed instead.
@@ -89,7 +90,7 @@ findings, and summaries. It carries no Next block, because a turn that asks has 
 **The answer.**
 
 - **Start in a new session** → load the tool if it is deferred, then make one `start_session` call:
-  `initiation: "user_asked"`, `context: "fresh"`, `use_worktree: false`, and no `model`, `effort`, or
+  `initiation: "own_initiative"`, `context: "fresh"`, `use_worktree: false`, and no `model`, `effort`, or
   `permission_mode`, so the new session inherits this session's own. The `title` names the command. The
   `prompt` is the command exactly as the fence prints it, then this marker line, verbatim:
 
@@ -98,23 +99,28 @@ findings, and summaries. It carries no Next block, because a turn that asks has 
   The `background` names what the new session starts from. A command with a scope names the scope's
   feature label and its run root's absolute path. A command with no scope names only what exists, such as
   the intent file a bare `/superdev:plan` reads, and never a placeholder for a scope it lacks.
-  The call starts the session → end on the Next block, exactly as without this section. One line right
-  before `### Next` links the started session, `[<title>](#<session id>)`, and says this conversation can
-  be closed. The block prints the same command, so the operator can still type it here.
+  The call proposes the session and starts nothing: the app shows a New task card in the transcript, and
+  the session starts when the operator clicks it. The app refuses a `user_asked` start in a turn that
+  another session's prompt began, which is every turn of a session an offer started, so the card is the
+  one path that holds on every edge (`docs/known-issues.md`, *The session tool exists only in the Claude
+  desktop app*). The call returns the card → end on the Next block, exactly as without this section. One
+  line right before `### Next` says the card above starts the command in a new session, and that this
+  conversation can be closed once it runs. The block prints the same command, so the operator can still
+  type it here.
 - **Start** → call the Skill tool with the next command's skill and exactly the arguments the fence would
   print, one skill per call. The started command keeps every gate and every ask it has when the operator
   types it, and its own last message follows this section again. The offering command prints nothing after
   the started command returns, so the last message of the chain carries the one Next block.
-- **A session start the tool refuses, that errors, or that returns no session** → say in one line that
-  the new session did not start, print the Next block exactly as without this section, and start nothing
-  in this conversation.
+- **A proposal the tool refuses, that errors, or that returns no card** → say in one line that no card
+  was put up, print the Next block exactly as without this section, and start nothing in this
+  conversation.
 - **Stop here, any other answer, a question the platform cannot ask, and a start the Skill tool refused,
   errors, or finds no such skill** → print the Next block exactly as without this section, and start
   nothing.
 
 **The started command offers again.** A command an offer's new-session prompt started, its text followed
 by the marker line, was started through an offer, so its own end follows this section by the same rule. An unattended run and a command in the
-chained posture make no offer, so they start no session either.
+chained posture make no offer, so they propose no session either.
 
 ## The brainstorm report
 

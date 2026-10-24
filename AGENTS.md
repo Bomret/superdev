@@ -252,7 +252,7 @@ into subagent prompts (issue #32), the delegation handoff classifier behind a de
 (ADR 0039, ADR 0041), and the `SubagentHandback` report the run trace reads a slice review's verdict
 from (ADR 0136). It also covers native Windows with Git Bash (ADR 0150), and the PostToolUse `cwd` that names the
 directory a Bash command ended in, which run-trace works around with a PreToolUse stash (ADR 0159), and the
-desktop app's session tool behind the offer's new-session start (ADR 0176). Read it before you change subagent prose or the unattended block.
+desktop app's session tool behind the offer's new-session card (ADR 0176, ADR 0183). Read it before you change subagent prose or the unattended block.
 
 ## Common commands
 
@@ -334,7 +334,8 @@ This root owns every other subtree directly:
   `## Warm cycles` (ADR 0174). Every command listed in `references/response-shapes.md`'s Next block section closes its last
   message with that block (ADR 0113), and an attended run first offers to start the one next command it names,
   per that file's `## The offer` (ADR 0157). Where the Claude desktop app's session tool is present, the offer
-  recommends starting that command in a new session with a fresh context in the same checkout. Without the
+  recommends starting that command in a new session with a fresh context in the same checkout, through a
+  New task card the operator clicks (ADR 0183). Without the
   tool, as in the CLI, it recommends Stop here, with its `/clear`-then-type path. Start runs the command
   through the Skill tool in the same conversation on every edge (ADR 0176). A new session's prompt carries
   the offer's marker line, and ship, verify-ship, and wrap-up started from it ask the operator one yes first.

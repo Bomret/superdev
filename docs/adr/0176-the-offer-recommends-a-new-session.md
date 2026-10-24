@@ -5,6 +5,9 @@
 **Amends:** [ADR 0157](0157-every-chain-command-offers-to-start-its-successor.md) point 2, and its
 considered option *Start the successor in a fresh session*.
 
+**Amended by:** [ADR 0183](0183-the-offer-proposes-the-new-session-as-a-card.md), under which the new-session
+answer proposes the session as a New task card instead of starting it (point 1).
+
 ## Context
 
 A command started through the offer's Start option runs in the conversation that offered it, and every

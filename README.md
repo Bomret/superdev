@@ -282,8 +282,9 @@ time-based loop, so hand review comments and CI on it to `/loop`:
 
 Every command in the chain ends an attended run by asking whether to start its next command (ADR 0157).
 `/superdev:brainstorm`, `/superdev:sweep`, and `/superdev:review-tests` do the same. In the Claude desktop app,
-the recommended answer is **Start in a new session**: it starts the next command in a new session with a fresh
-context, in the same checkout, with the arguments the command would print (ADR 0176). **Start** runs it in the same
+the recommended answer is **Start in a new session**: it puts up a New task card, and a click on it starts the next
+command in a new session with a fresh context, in the same checkout, with the arguments the command would print
+(ADR 0176, ADR 0183). **Start** runs it in the same
 conversation, with the same arguments. **Stop here** prints the command instead, and it is the recommended answer
 in the CLI. Run `/clear` and type it for a fresh context, because a command started in place reads the whole conversation.
 A started command keeps every check and every question it has when typed. An unattended run, a blocked stop,
