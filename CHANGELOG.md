@@ -1,3 +1,20 @@
+# [0.84.0](https://codeberg.org/bomret/superdev/compare/v0.83.0...v0.84.0) (2026-10-24)
+
+
+### Bug Fixes
+
+* **implementer:** run a step's test file where the focused command repeats the full one ([#1359](https://codeberg.org/bomret/superdev/issues/1359)) ([9446ccb](https://codeberg.org/bomret/superdev/commit/9446ccbd9827a0ea47fa76067def6dd4a55c4ed0)), closes [#1358](https://codeberg.org/bomret/superdev/issues/1358) [#1358](https://codeberg.org/bomret/superdev/issues/1358)
+* **implement:** implementers run only their own tests, slice reviews run none ([#1358](https://codeberg.org/bomret/superdev/issues/1358)) ([5538b0d](https://codeberg.org/bomret/superdev/commit/5538b0dc30c36ff7e7a9a09f251c1ce29fb1f538))
+* **review:** hand final-reviewer a focused run on an ad-hoc range ([#1361](https://codeberg.org/bomret/superdev/issues/1361)) ([c35fb47](https://codeberg.org/bomret/superdev/commit/c35fb472f09a8fb096cbefc49d6584dd07219e8d)), closes [#1358](https://codeberg.org/bomret/superdev/issues/1358) [#1359](https://codeberg.org/bomret/superdev/issues/1359) [#1360](https://codeberg.org/bomret/superdev/issues/1360)
+
+
+### Features
+
+* **hooks:** refuse a dispatched implementer's full-suite run ([#1360](https://codeberg.org/bomret/superdev/issues/1360)) ([2d20327](https://codeberg.org/bomret/superdev/commit/2d203278f8a45a896714df48274665be7136ffd7))
+* **offer:** recommend a new session where the desktop app can start one ([#1357](https://codeberg.org/bomret/superdev/issues/1357)) ([71a5a40](https://codeberg.org/bomret/superdev/commit/71a5a404d83a5f990daedca6d5017360ef4bbc25)), closes [#1347](https://codeberg.org/bomret/superdev/issues/1347) [#1350](https://codeberg.org/bomret/superdev/issues/1350) [#1349](https://codeberg.org/bomret/superdev/issues/1349) [#1351](https://codeberg.org/bomret/superdev/issues/1351) [#1349](https://codeberg.org/bomret/superdev/issues/1349) [#1349](https://codeberg.org/bomret/superdev/issues/1349) [#1349](https://codeberg.org/bomret/superdev/issues/1349) [#1349](https://codeberg.org/bomret/superdev/issues/1349) [#1349](https://codeberg.org/bomret/superdev/issues/1349) [#1349](https://codeberg.org/bomret/superdev/issues/1349) [#1349](https://codeberg.org/bomret/superdev/issues/1349) [#1349](https://codeberg.org/bomret/superdev/issues/1349) [#1351](https://codeberg.org/bomret/superdev/issues/1351) [#1351](https://codeberg.org/bomret/superdev/issues/1351) [#1349](https://codeberg.org/bomret/superdev/issues/1349) [#1350](https://codeberg.org/bomret/superdev/issues/1350) [#1349](https://codeberg.org/bomret/superdev/issues/1349)
+* **suite:** a scope pays fewer test-suite runs ([#1362](https://codeberg.org/bomret/superdev/issues/1362)) ([746f976](https://codeberg.org/bomret/superdev/commit/746f97673021e0ab6af13e0d94f7eb7a66f8cc28))
+* **superdev-view:** show the repo path without .superdev ([#1279](https://codeberg.org/bomret/superdev/issues/1279)) ([a746440](https://codeberg.org/bomret/superdev/commit/a7464403e4ce5751dec3edf6709cabaa5635c12d))
+
 # [0.83.0](https://codeberg.org/bomret/superdev/compare/v0.82.1...v0.83.0) (2026-10-23)
 
 
