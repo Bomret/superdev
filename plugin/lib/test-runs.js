@@ -264,28 +264,36 @@ function restoreEventsOf(segs, cwd, end) {
 
 // The `scope.js test` calls in a Bash command, wrapped or piped: [{ i, at, words }], `i` the call's segment, `words` the words after
 // `test`, and `at` the tree it records
-// in, or null outside every run. `scope.js test` records its own run (ADR 0127), so the hook records none for that segment and
-// lets only the Missing RED note follow; every other segment of the command is recorded as usual.
+// in, or null outside every run. `scope.js test` records its own run (ADR 0127), so the hook records none for that segment;
+// every other segment of the command is recorded as usual.
 const NODE_VALUE_OPTS = /^(?:-r|--require|--import|--loader)$/;
+// A segment that runs `scope.js` under node: { args, j }, `j` the script word's index in node's args, or null.
+function scopeCall(seg) {
+  const { cmd, args } = segWords(seg);
+  if (path.basename(cmd) !== 'node') return null;
+  // The script is node's first word that is no option or option value; `-e`/`-p` run inline code and name no script.
+  let j = 0;
+  for (; j < args.length; j++) {
+    if (/^(?:-e|-p|--eval|--print)$/.test(args[j])) return null;
+    if (NODE_VALUE_OPTS.test(args[j])) j++;
+    else if (!args[j].startsWith('-')) break;
+  }
+  // The script word may be quoted and may lead with a variable (`"${CLAUDE_PLUGIN_ROOT}/scripts/scope.js"`): only its basename matters.
+  if (j >= args.length || !/(?:^|\/)scope\.js$/.test(readWord(args[j]).value || args[j])) return null;
+  return { args, j };
+}
+
 function scopeTestCalls(segs, cwd, end) {
   const calls = [];
   const dirs = dirTracker(cwd, end);
   segs.forEach((seg, i) => {
     if (seg.fn) return;
     const base = dirs.of(seg);
-    const { cmd, args } = segWords(seg);
     const cd = cdDir(...cdCall(seg.words), base, dirs, seg);
     if (cd) { dirs.set(seg, cd); return; }
-    // The script word may be quoted and may lead with a variable (`"${CLAUDE_PLUGIN_ROOT}/scripts/scope.js"`): only its basename matters.
-    if (path.basename(cmd) !== 'node') return;
-    // The script is node's first word that is no option or option value; `-e`/`-p` run inline code and name no script.
-    let j = 0;
-    for (; j < args.length; j++) {
-      if (/^(?:-e|-p|--eval|--print)$/.test(args[j])) return;
-      if (NODE_VALUE_OPTS.test(args[j])) j++;
-      else if (!args[j].startsWith('-')) break;
-    }
-    if (j >= args.length || !/(?:^|\/)scope\.js$/.test(readWord(args[j]).value || args[j]) || args[j + 1] !== 'test') return;
+    const call = scopeCall(seg);
+    if (!call || call.args[call.j + 1] !== 'test') return;
+    const { args, j } = call;
     // `test -- <command>` records in the tree of the run `testRuns` classifies, as the verb does (a `cd` in the command moves it).
     const free = args[j + 2] === '--' ? args.slice(j + 3) : [];
     const run = free.length ? testRuns(free.length === 1 ? plain(free[0]) || free[0] : free.join(' '), base)[0] : null;
@@ -296,13 +304,16 @@ function scopeTestCalls(segs, cwd, end) {
 
 // A `run_in_background` call returns before the test has run, so its success names no outcome. Returns the trace lines the command
 // produces as [runRoot, entry] pairs, written by the caller once every scanner call of the event has returned (INV-0159).
-function recordBash(command, cwd, agent, failed, triggers, background, end) {
+function recordBash(command, cwd, agent, failed, background, end) {
   const lines = [];
-  let segs = cmdSegments(command);
+  // A `scope.js fail-to-pass` call writes its own control run line (ADR 0182): its segment records nothing here.
+  let segs = cmdSegments(command).map((s) => {
+    const call = !s.fn && scopeCall(s);
+    return call && call.args[call.j + 1] === 'fail-to-pass' ? { ...s, ws: [':'], words: [], negated: false } : s;
+  });
   if (/\bscope\.js["']?\s+test\b/.test(command)) {
     const calls = scopeTestCalls(segs, cwd, end).filter((c) => c.at);
     if (calls.length) {
-      if (!failed && !background) for (const c of calls) triggers.push(c.at);
       // The calls leave the command (`:` stands in), so the segments around them record as a direct run does.
       const skip = new Set(calls.map((c) => c.i));
       segs = segs.map((s, i) => (skip.has(i) ? { ...s, ws: [':'], words: [], negated: false } : s));
@@ -313,7 +324,6 @@ function recordBash(command, cwd, agent, failed, triggers, background, end) {
     // The exit status names the test only where the command line is a plain list and the test is its sole command; any other shape reads unknown.
     const outcome = r.unknown || !r.sole || background ? 'unknown' : failed ? 'fail' : 'pass';
     lines.push([r.at.runRoot, { slice: r.at.slice, agent, kind: 'run', fields: [r.kind, outcome, sha, clean, r.files.join(',')] }]);
-    if (outcome === 'pass') triggers.push(r.at);
   }
   // A failed command did not (reliably) move files: only a successful one records a revert or restore.
   if (!failed) {
@@ -322,4 +332,4 @@ function recordBash(command, cwd, agent, failed, triggers, background, end) {
   return lines;
 }
 
-module.exports = { testRuns, verificationKind, recordBash, scopeTestCalls };
+module.exports = { testRuns, verificationKind, recordBash, scopeTestCalls, NOT_RUNNERS, SHELL_READERS };

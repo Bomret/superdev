@@ -158,27 +158,6 @@ const { tmp, ledger, A, S3, trace, reset, run, edit, bash, hookPath, agentPre, c
     ['holds throwing for verdict only on a hand-back', 'dispatch-lines', only('holds', 'a[1]', 'verdict'), { evs: handback, setup: bound, real: ['verdict'] }],
     ['holds throwing for verdict only on a bound foreground slice-reviewer', 'dispatch-lines', only('holds', 'a[1]', 'verdict'), { evs: foreground, setup: bound, real: ['verdict', 'dispatch-end'] }],
   );
-  // An implementation edit on a behavior slice whose latest test edit has no failing run: the edit line and the Missing RED note are
-  // one event, so a function that throws while a note is built drops the edit line too. Two triggers are two slices (03 and 02), each
-  // with its own test edit; the throw reaches only the second trigger's note.
-  const S2 = path.join(A, 'slicetrees', '02');
-  const verifyFile2 = path.join(S2, 'docs', 'agents', 'verification.md');
-  const setupRed = () => {
-    setupVerify();
-    fs.mkdirSync(path.dirname(verifyFile2), { recursive: true });
-    fs.copyFileSync(verifyFile, verifyFile2);
-    edit(path.join(S3, 'tests', 'n.test.js'));
-    edit(path.join(S2, 'tests', 'm.test.js'));
-  };
-  const implEdit = [{ tool_name: 'Edit', tool_input: { file_path: path.join(S3, 'src', 'n.js') }, cwd: tmp }];
-  const twoImpl = [{ tool_name: 'Bash', tool_input: { command: `echo x > ${path.join(S3, 'src', 'n.js')}; echo y > ${path.join(S2, 'src', 'm.js')}` }, cwd: tmp }];
-  matrix.push(
-    ['verificationCommands throwing on an impl edit', 'verification', boom('verificationCommands'), { evs: implEdit, setup: setupRed, real: ['edit', 'note'] }],
-    ['sliceType throwing on an impl edit', 'ledger', boom('sliceType'), { evs: implEdit, setup: setupRed, real: ['edit', 'note'] }],
-    ['untraceField throwing on an impl edit', 'trace-log', boom('untraceField'), { evs: implEdit, setup: setupRed, real: ['edit', 'note'] }],
-    ['untraceField throwing for the second trigger only', 'trace-log', only('untraceField', 'a[0]', 'tests/m.test.js'), { evs: twoImpl, setup: setupRed, real: ['edit', 'edit', 'note', 'note'] }],
-    ['sliceType throwing for the second trigger only', 'ledger', only('sliceType', 'a[1]', '02'), { evs: twoImpl, setup: setupRed, real: ['edit', 'edit', 'note', 'note'] }],
-  );
   // Stop closes every unbound dispatch of the session together: a function that throws while the second one's end is built drops the first's.
   const twoDispatches = () => {
     run(agentPre(`${S3}`, 't1', 'superdev:implementer', 'one', tmp, 'S'));
@@ -196,7 +175,6 @@ const { tmp, ledger, A, S3, trace, reset, run, edit, bash, hookPath, agentPre, c
     assert.deepEqual(hookRuns(withLib(mod, override), evs, setup), [], `${what} records nothing`);
     loaded(what);
     fs.rmSync(verifyFile, { force: true });
-    fs.rmSync(verifyFile2, { force: true });
   }
   reset();
 }

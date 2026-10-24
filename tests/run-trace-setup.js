@@ -37,7 +37,7 @@ const trace = (root) => {
 };
 const reset = () => [A, B].forEach((r) => fs.rmSync(path.join(r, 'trace.log'), { force: true }));
 
-// Records one hook input in-process; returns the Missing RED note text, or '' (a test that expects none asserts '').
+// Records one hook input in-process; returns the hook's output text, or '' (a test that expects none asserts '').
 function runOut(input) {
   return record(input) || '';
 }

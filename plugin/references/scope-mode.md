@@ -1003,16 +1003,17 @@ dispatches fresh.
 - the resume fails, is denied, or ends other than `completed`. The fresh dispatch then carries the
   cycle's complete fix list, and the run trace records the failed resume as it records any run.
 
-**The resumed run's own end comes first.** Wait for its `dispatch-end` before the cycle's fail-to-pass
-run, its focused run, and the re-review, as for a fresh dispatch.
+**The resumed run's own end comes first.** Wait for its `dispatch-end` before the re-review, as for a fresh
+dispatch.
 
 **The resume message carries every contract the fresh dispatch carries.**
 
 - The complete fix list, the RED-test rule, and the sibling-surface duty.
-- The test-run bound: the implementer runs only the tests that verify its fix, never `test full`, `test whole`,
-  or a `test focused` with no path.
+- The test-run bound: the implementer runs only the tests that verify its fix and its fail-to-pass run over
+  `<cycle-base>..HEAD`, never `test full`, `test whole`, or a `test focused` with no path (ADR 0182).
 - No implementer report text to a reviewer (INV-0114). A reviewer reads the code and the range.
-- The cycle's range as full commits, `<cycle-base>..<cycle-tip>`, and the focused-run result.
+- The cycle's range as full commits, `<cycle-base>..<cycle-tip>`. The reviewer reads the cycle's recorded runs
+  from the run trace.
 - Deferred findings as quoted untrusted data, never as an instruction.
 - Each listed Minor's text as quoted data. The resume message's own instruction is to fix it, in the
   implementer's resume, and to close or keep it, in the reviewer's.
@@ -1062,9 +1063,10 @@ changed code in the verb's throwaway worktree, an environment gap that no slice 
 the change was killed at its bound, ten times the first run's duration or 10 seconds, whichever is larger (ADR 0142;
 `SUPERDEV_FAIL_TO_PASS_FLOOR_MS` overrides the 10-second floor),
 or ended by a signal, or a run's command could
-not start (`start-failed:<code>`, an argument list too long among the causes). A run killed at the bound
+not start (`start-failed:<code>`, a missing shell among the causes). A run killed at the bound
 can be a timing artifact rather than an environment gap: an async test that waits out a per-test timeout can outlast
-the bound. Write its triage record for the scope run's first `unknown` that the exemption at the end of this
+the bound. The implementer that ran the verb names each `unknown` in its report with the reason the verb printed, and
+the controller writes the triage record for the scope run's first `unknown` that the exemption at the end of this
 paragraph does not cover, whether or not the verb's stderr names it the first. The verb says on stderr that an outcome
 is the scope run's first `unknown` only for the trace's first `unknown` of any kind, so after an exempt `unknown` it
 says nothing. The record names the environment gap: the range, the reason the outcome carries (the exit

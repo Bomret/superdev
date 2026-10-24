@@ -231,9 +231,7 @@ superdev subagent that omits one):
     `dod.md`'s own directory, so no separate path needs passing.
   - **Also tell it the tier and the run root, so it reads the run trace.** The tier is derived per
     `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section (three or fewer slices is
-    `lite`). On a **`lite`** scope, `final-reviewer` applies **Missing RED** to every slice's trace lines
-    exactly as `slice-reviewer` does (Important, the checklist's closing sequence, no finding without a
-    trace); at the fix cap it takes the escape path the fail-to-pass bullet below states. A trace line's second field is its slice (the slice id, or `scope`), and a `dispatch` line
+    `lite`). A trace line's second field is its slice (the slice id, or `scope`), and a `dispatch` line
     carries the plugin-scoped agent type, so it matches on the name part (`slice-reviewer`,
     `implementer`). On the lite tier a slice is `behavior` when its ledger row's type says so
     (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>`). On a **`full`** scope, every merged slice needs a `dispatch superdev:slice-reviewer` whose
@@ -244,8 +242,7 @@ superdev subagent that omits one):
     finding, **Unreviewed slice**. No trace, or no events for a slice: it names that in the report and raises neither finding.
     The remedy for an **Unreviewed slice** finding is a `superdev:slice-reviewer` dispatch that hands over the slice's
     `spec`, `acceptance`, range, and progress-log path `<run-root>/reports/<id>/progress.md`, so the run trace records the dispatch on that slice.
-    It also hands the tip result, which you produce in the scope checkout as `${CLAUDE_PLUGIN_ROOT}/references/implement-full.md`'s
-    tip-result bullet states, with the slice's base as the review base: the reviewer runs no test (ADR 0178).
+    It tells the reviewer to run no test and to read the slice's recorded runs from the run trace (ADR 0178, ADR 0182).
     The `slice-reviewer` judges the slice's range itself: the progress log is input to check against the code, not a verdict to adopt.
   - **Also tell it the fail-to-pass rule on a `lite` scope, so it reads the outcome lines.** `final-reviewer`
     applies `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` to every `behavior`
@@ -256,9 +253,8 @@ superdev subagent that omits one):
     `edit test` and `edit impl` trace lines show both. With no trace, no `edit` line for the slice, or no test
     command it raises neither and names the gap in the report. Only `edit` lines count as a slice's or a cycle's
     change events, so a `run` or `ledger` line is none, even one written after the trace began for a slice whose
-    edits came before it. Both take Missing RED's 3-cycle cap and
-    escape path: a scope whose only remaining Critical or Important findings are **Missing RED**,
-    **Pass-to-pass**, or **Missing fail-to-pass run** proceeds, and §3's report names each with its slice; any of
+    edits came before it. Both take the 3-cycle cap and the escape path of ADR 0125: a scope whose only remaining
+    Critical or Important findings are **Pass-to-pass** or **Missing fail-to-pass run** proceeds, and §3's report names each with its slice; any of
     them beside a Critical or Important finding of another kind blocks.
   - **Also tell it that a fail-to-pass `unknown` is no finding.** A `fail-to-pass` trace line reading `unknown`
     records a run that could not judge. `final-reviewer` names every one in its report with its slice and its reason
@@ -291,7 +287,7 @@ superdev subagent that omits one):
     merge commit that brings the base in. No trace, a run handoff cycle with no
     `edit` lines, and a repository with no test command get no finding: name the gap in the report. A cycle whose
     commits change only test-path files, or no file, gets no finding, and the report names no gap for it. Both take
-    Missing RED's 3-cycle cap and escape path (§4), and §3's report names a cycle's finding with its range.
+    the 3-cycle cap and escape path (§4), and §3's report names a cycle's finding with its range.
   - **Also tell it to judge every `dod.md` line, ticked or not.** `final-reviewer` returns a verdict for
     each — holds, broken, ceiling, accepted, or doc pass — in its own `### Criteria` section (`agents/final-reviewer.md`'s
     `### Judge every criterion`). §4 below unticks and re-ticks from that list; the axes above (Correctness,
@@ -314,11 +310,11 @@ superdev subagent that omits one):
     labelled full. `--chained` never runs it, because the sweep that chains this review is read-only end to end.
 
   **Scope mode** — §4 already ran a suite for
-  this dispatch; hand it that result and tell it to review against that result, running no suite of its
-  own. It judges the range itself and checks whether the suite result covers the changed code. Say which run it is: `final-reviewer` reviews against whichever result you hand it, full or
-  focused (ADR 0075). The entry and exit dispatches hand a full-suite result — labelled whole-repo
-  when the review ran the whole-repo command (§4) — and a fix cycle's
-  re-review hands that cycle's focused run. Confirming a `dod.md` criterion observes; it changes no
+  the entry and exit dispatches; hand it that result and tell it to review against that result, running no suite of its
+  own. It judges the range itself and checks whether the suite result covers the changed code (ADR 0075). The entry
+  and exit dispatches hand a full-suite result — labelled whole-repo when the review ran the whole-repo command (§4) —
+  and a fix cycle's re-review hands no run: tell it to read the cycle implementer's recorded runs and its
+  fail-to-pass outcome in the run trace (ADR 0182). Confirming a `dod.md` criterion observes; it changes no
   system outside the repository (ADR 0084, INV-0006). A criterion needing a deploy, a migration, or any
   other outward-facing change to confirm gets reported as unverifiable on the branch, needing
   verification after merge, naming the outward-facing change it needs.
@@ -411,8 +407,8 @@ has no notion of deferral and lands its own line at the finding's actual severit
 remaining findings are `### Deferred to a plan` entries — §4's exit clause already treats that verdict as
 clean — lands the combined `Ready to merge?` as `Yes`, naming the deferrals in the Reasoning line, rather
 than carrying `final-reviewer`'s raw `No` into a report for a scope the run went on to advance. At the fix
-cap the same holds for a verdict whose only remaining Critical or Important findings are **Missing RED**,
-**Pass-to-pass**, or **Missing fail-to-pass run** (§4): the combined line lands `Yes`, and the Reasoning line names
+cap the same holds for a verdict whose only remaining Critical or Important findings are **Pass-to-pass** or
+**Missing fail-to-pass run** (§4): the combined line lands `Yes`, and the Reasoning line names
 each such finding with its slice, or a cycle's finding with its range.
 
 **Apply nothing — on an ad-hoc range.** Never edit, commit, or merge, however small the fix looks. To act
@@ -450,15 +446,15 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   dispatching `final-reviewer`.**
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base>
   --root <run-root>` **in the scope checkout above**. Exit 0 → reused, running nothing (INV-0017: an
-  exact tip match, a Markdown-only range since the record (ADR 0128), a focused-selector carry (ADR 0175), or a
-  recorded rerun (ADR 0172)). Exit 1, or no record at all, means: first take the carry
+  exact tip match, a Markdown-only range since the record (ADR 0128), a focused-selector carry (ADR 0175), a
+  recorded rerun (ADR 0172), or a passing full run at the tip itself (ADR 0182)). Exit 1, or no record at all, means: first take the carry
   per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## The carry run` (a carried tip is reused, running and recording nothing; a
   failing carry run is the `fail` below, recorded red at the tip); only a tip with no carry runs the full command. A failed full
   run takes `## The recorded rerun` of the same file before it stands as the `fail` below: the triage record quoting the failure
   first, then the rerun record, the file alone, and the focused run; an unattributable failure stays the `fail`. Take the full command from
   `docs/agents/verification.md` per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run it **in
   the scope checkout above**, over the scope branch, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full`
-  (`test whole` for the whole-repo command, `test focused <changed paths>` inside a fix cycle). A suite longer than the Bash
+  (`test whole` for the whole-repo command). A suite longer than the Bash
   tool's time limit runs through the runner in the background, and you wait for its end before acting on it. Then record what happened with
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set <green|red|denied|none> <sha> --root <run-root>`
   (`<sha>` = the scope branch's own current tip). This happens whether or not the dispatch below
@@ -481,12 +477,9 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
   continue.
   **A `fail` here is itself a Critical finding** — fold it into the fix loop exactly like a
   `final-reviewer` finding, whether or not that dispatch returned findings of its own. The stage does
-  **not** advance while it stands. **Inside each fix cycle, run the focused command over the fix diff**
-  — per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`, over the commits that cycle's implementer
-  just landed, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths>` — and **hand that result to the re-review**, saying it is the focused run: fix cycles never
-  run the full suite. A cycle whose commits a fail-to-pass run covered at the current tip runs no such
-  focused run: hand the re-review that control run's result, saying it is the cycle's focused run, per
-  `test-selection.md`'s `## A fix cycle's focused run`. **When a fix cycle's re-review verdict first comes back clean, leaves only Minor Prompt-concept overlap findings and no broken criterion, or the cap leaves only Minor findings, run the full suite
+  **not** advance while it stands. **Inside each fix cycle, run no test**: the re-review reads the cycle
+  implementer's recorded runs and its fail-to-pass outcome in the run trace, and fix cycles never run the full
+  suite (ADR 0182). **When a fix cycle's re-review verdict first comes back clean, leaves only Minor Prompt-concept overlap findings and no broken criterion, or the cap leaves only Minor findings, run the full suite
   once more** in the scope checkout, taking the carry first, per `## The carry run`, and record a run result the same way
   (`scope.js suite set <result> <sha> --root <run-root>`, `<sha>` = the tip after the fix commits):
   that run is the gate the stage advances on. A scope whose first verdict is already clean runs none of
@@ -655,40 +648,26 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
     three-option choice above.
   - **`--unattended` → fix every finding**, Minors included, without asking: the fix loop is the point of
     this gate, and a review that found real defects and left them is worth less than no review.
-  - **Missing fail-to-pass run** (a finding of that name in the chosen set) → answer it yourself, with no
-    implementer cycle: run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <base>..<tip>` from the
-    scope checkout over the slice's range, and leave it off the **Confirmed** list below, dispatching
-    none when no finding remains on it. Every run of the verb goes in the background when the suite outlasts the
-    Bash tool's time limit, and you wait for its end before you read its outcome
-    (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`). A slice whose ledger row records no range first has its range recorded:
-    read the slice's commits from the scope branch's log, then run `scope.js slice <id> merged --range <base>..<tip> --root <run-root>`.
+  - **Missing fail-to-pass run** (a finding of that name in the chosen set) → it joins the **Confirmed** fix below,
+    whose implementer runs the verb over the finding's range (ADR 0182). A slice whose ledger row records no range
+    first has its range recorded: read the slice's commits from the scope branch's log, run
+    `scope.js slice <id> merged --range <base>..<tip> --root <run-root>`, and name that range in the fix dispatch.
   - **Unreviewed slice** (a finding of that name in the chosen set) → answer it yourself, with no implementer
     cycle: dispatch the `superdev:slice-reviewer` with an explicit `model`, handing over the slice's `spec`,
     `acceptance`, range, and progress-log path `<run-root>/reports/<id>/progress.md`, and leave it off the
     **Confirmed** list below, dispatching no implementer when no finding remains on it. The run trace records that
     dispatch on the slice, which is what closes the finding at the re-review (§2). The reviewer judges the range itself and reads the progress log as input to check, not a verdict to adopt.
-  - **Fail-to-pass run around each fix cycle** (ADR 0134, INV-0138) → before each fix dispatch below, record the scope
-    tip, `git -C <run-root>/scopetree rev-parse HEAD`, as the cycle's `<base>`. Once the cycle's report is accepted,
-    after any send-back to the implementer for a report defect or a missed sibling surface, and before the
-    re-review, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <base>..<tip>` from the
-    scopetree over the cycle's commits (`<tip>` is `git rev-parse HEAD` after them), where they change both a
-    test-path file (`docs/agents/verification.md`'s `## Test paths`, the defaults where it has none) and another
-    file. The trace line names `scope`, because the range matches no ledger row and no slice is in progress. A
-    cycle whose commits change only test-path files, or no file, needs no outcome line and draws no finding. Where
-    the chosen set holds a **Pass-to-pass** finding, also run the verb over a range from that finding's original
-    base to the current tip: the base of the range the finding's `pass-to-pass` line names, a lite slice's recorded
-    range base or a fix cycle's own base. That finding closes on the `fail-to-pass` outcome of this run, so a fix
-    that only strengthens the test closes it, and it stays closed once that line is written. Neither run is a test
-    run or a cycle of its own: neither satisfies a Missing RED step, moves a suite record, or counts as a cycle
-    beside the implementer cycle it follows, and a refusal or a missing outcome line blocks no loop (INV-0017). A
-    **Missing fail-to-pass run** finding on a cycle takes the answer of the bullet above over the cycle's range,
-    which for a run handoff cycle you read from the scope branch's first-parent log over the cycle's window (§2). A
-    run of either bullet that prints `pass-to-pass` reaches a re-review over that run's range, dispatched as §2
-    states, even where no implementer cycle preceded it, so the **Pass-to-pass** finding is raised. Where a run
-    answering a **Missing fail-to-pass run** finding prints `pass-to-pass` and no **Confirmed** implementer below is
-    dispatched before the re-review after it, that run and that re-review count as one of the 3 cycles. Where a
-    **Confirmed** implementer is dispatched before that same re-review, the run, the implementer, and the re-review
-    they share count together as one cycle.
+  - **The cycle's base** (ADR 0134, ADR 0182, INV-0138) → before each fix dispatch below, record the scope tip,
+    `git -C <run-root>/scopetree rev-parse HEAD`, as the cycle's `<cycle-base>`, and name it in the dispatch. The
+    implementer runs its fail-to-pass run over `<cycle-base>..HEAD` before its report, where its commits change both
+    a test-path file (`docs/agents/verification.md`'s `## Test paths`, the defaults where it has none) and another
+    file. The trace line names `scope`, because the range matches no ledger row and no slice is in progress. A cycle
+    report whose range needs an outcome line and has none is a report defect, sent back in the same cycle. Where the
+    chosen set holds a **Pass-to-pass** finding, also name that finding's original base: the base of the range the
+    finding's `pass-to-pass` line names, a lite slice's recorded range base or a fix cycle's own base. The implementer
+    strengthens the tests and runs the verb from that base, and the finding closes on its `fail-to-pass` outcome. A
+    **Missing fail-to-pass run** finding on a cycle names the cycle's range, which for a run handoff cycle you read
+    from the scope branch's first-parent log over the cycle's window (§2).
   - **Confirmed** (fix every finding, or fix only Critical and Important) → dispatch **one**
     `superdev:implementer` (`model: opus`; `haiku` only when every finding in the list is a mechanical
     finding, one whose fix changes no stated rule or behaviour, and any other finding keeps the whole
@@ -712,13 +691,9 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
     fixes, cycle 1 included, where it continues the entry review's `final-reviewer`. That re-review's subject is
     the cycle's range as full commits, the warm re-review §2 states. Tell the implementer to run only the tests
     that verify its fix, each through `scope.js test` (`test focused <changed paths>` with at least one path, or
-    `test -- <command>` for one test file), and never `test full`, `test whole`, or a `test focused` with no path,
+    `test -- <command>` for one test file), and its fail-to-pass run, and never `test full`, `test whole`, or a `test focused` with no path,
     since you own every full-suite run. Tell it to run a suite longer than the Bash tool's time limit through the
-    runner in the background and wait for its end, and to edit files through the edit tools, never through a script. On a
-    **`lite`** scope, for each **Missing RED** finding in the list, also hand the implementer the run-trace
-    remedy (`git add <paths>`, `git restore --worktree --source=<base> -- <paths>`, a failing run,
-    `git restore -- <paths>`, a passing run, never `git stash`) and that slice's `<base>`: the base of the
-    slice's recorded range in its ledger row (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>`). Before the re-review, grep the checkout
+    runner in the background and wait for its end, and to edit files through the edit tools, never through a script. Before the re-review, grep the checkout
     for the key phrase of the rule the fix changed, in its old wording and its new, and compare the hits
     with the report's checked list. A hit in a file the list does not name is a missed sibling surface:
     send the report back to the implementer, naming the hit, in the same cycle. A hit in the `AGENTS.md`
@@ -734,10 +709,9 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
     **only Minor findings** takes the clean-verdict path below once the exit full-suite run above is
     green (a red exit run at the cap is a remaining red suite): the stage write, with the leftover Minors
     named in the report and nowhere else — no `unresolved add`, no `deferred add`, no triage record
-    (INV-0094). A scope whose only remaining Critical or Important findings are **Missing RED**,
-    **Pass-to-pass**, or **Missing fail-to-pass run** proceeds so, §3's report naming each with its slice; any
-    of them beside a Critical or Important finding of another kind blocks (ADR 0125, ADR 0134, INV-0118,
-    INV-0138). At the cap a remaining
+    (INV-0094). A scope whose only remaining Critical or Important findings are **Pass-to-pass** or
+    **Missing fail-to-pass run** proceeds so, §3's report naming each with its slice; any
+    of them beside a Critical or Important finding of another kind blocks (ADR 0125, ADR 0134, INV-0138). At the cap a remaining
     **Critical or Important finding, a broken criterion, or a red suite** means a wrong cut, not a
     bug: stop, say so, write the `**Unresolved:**` entry — at a `submitted` stage, also invalidate the tip's suite record the same way the Declined branch above does
     — leave the stage where it is, and publish the snapshot before stopping — per
@@ -746,7 +720,7 @@ Only when §1 found a live run. Everything above still applies; this adds the ru
     Important finding, a broken criterion, or a red suite remains, per
     that file's **Unattended** section, writing the same entry (and, at a `submitted` stage, invalidating the
     suite record the same way), publishing the same way, and leaving the stage where it is. A remainder whose only
-    Critical or Important findings are **Missing RED**, **Pass-to-pass**, or **Missing fail-to-pass run** proceeds
+    Critical or Important findings are **Pass-to-pass** or **Missing fail-to-pass run** proceeds
     unattended too, exactly as above. **A clean verdict ends the loop
     here too, attended or unattended** — a finding it leaves standing outside the chosen set is a
     follow-up, never a fourth cycle. **An observation never joins the fix list**: a defect the scope did

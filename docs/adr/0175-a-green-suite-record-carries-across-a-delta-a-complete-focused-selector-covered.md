@@ -6,6 +6,9 @@
 admits only Markdown paths, and [ADR 0134](0134-a-fail-to-pass-run-shows-a-change-s-tests-discriminate.md),
 under which a fail-to-pass run records no test run.
 
+**Amended by:** [ADR 0182](0182-the-implementer-proves-its-change-and-the-controller-runs-only-suite-gates.md), under which a fail-to-pass control run writes a `path`
+line and stands in for no fix cycle's focused run.
+
 ## Context
 
 A scope pays the full suite at implement's base gate, at run handoff, at review's entry and at its fix

@@ -230,6 +230,42 @@ const { appendTrace, isTestPath } = require(scopePath);
   r = callIn(['suite', 'reusable', '--branch', 'main', '--root', noSuiteRoot], suiteRepo);
   assert.ok(!r.ok && /no suite record/.test(r.err), 'no suite record is not reusable: ' + (r.err || ''));
 
+  // suite reusable: a passing full or whole run on a clean tree at the exact tip is reusable, whoever wrote it, with no
+  // suite record or a record at another commit (ADR 0182). The latest such line at the tip decides.
+  const exactTip = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: suiteRepo, encoding: 'utf8' }).trim();
+  traceRun(noSuiteRoot, 'focused', 'pass', exactTip, 'clean');
+  r = callIn(['suite', 'reusable', '--branch', 'main', '--root', noSuiteRoot], suiteRepo);
+  assert.ok(!r.ok && /no suite record/.test(r.err), 'a focused run at the tip backs no reuse: ' + (r.err || ''));
+  traceRun(noSuiteRoot, 'full', 'pass', exactTip, 'dirty');
+  assert.ok(!callIn(['suite', 'reusable', '--branch', 'main', '--root', noSuiteRoot], suiteRepo).ok, 'a full run on a dirty tree at the tip is not reusable');
+  traceRun(noSuiteRoot, 'full', 'pass', exactTip, 'clean');
+  assert.ok(
+    callIn(['suite', 'reusable', '--branch', 'main', '--root', noSuiteRoot], suiteRepo).ok,
+    'a passing full run on a clean tree at the tip is reusable with no suite record'
+  );
+  r = callIn(['suite', 'reusable', '--branch', 'main', '--whole', '--root', noSuiteRoot], suiteRepo);
+  assert.ok(!r.ok, 'a full run at the tip does not satisfy --whole');
+  traceRun(noSuiteRoot, 'whole', 'pass', exactTip, 'clean');
+  assert.ok(
+    callIn(['suite', 'reusable', '--branch', 'main', '--whole', '--root', noSuiteRoot], suiteRepo).ok,
+    'a passing whole run at the tip satisfies --whole with no suite record'
+  );
+  traceRun(noSuiteRoot, 'full', 'fail', exactTip, 'clean');
+  r = callIn(['suite', 'reusable', '--branch', 'main', '--root', noSuiteRoot], suiteRepo);
+  assert.ok(!r.ok, 'a later failing full run at the tip refuses reuse');
+  traceRun(noSuiteRoot, 'full', 'pass', exactTip, 'clean');
+  // A record at another commit, green or red, does not hide the tip's own passing run.
+  assert.ok(callIn(['suite', 'set', 'red', newSha, '--root', noSuiteRoot], suiteRepo).ok, 'suite set red at an earlier commit');
+  assert.ok(
+    callIn(['suite', 'reusable', '--branch', 'main', '--root', noSuiteRoot], suiteRepo).ok,
+    'a red record at an earlier commit leaves a passing full run at the tip reusable'
+  );
+  // A red record at the tip itself is the rerun's (ADR 0172): a passing run after it does not override it.
+  assert.ok(callIn(['suite', 'set', 'red', exactTip, '--root', noSuiteRoot], suiteRepo).ok, 'suite set red at the tip');
+  traceRun(noSuiteRoot, 'full', 'pass', exactTip, 'clean');
+  r = callIn(['suite', 'reusable', '--branch', 'main', '--root', noSuiteRoot], suiteRepo);
+  assert.ok(!r.ok && /red/.test(r.err), 'a red record at the tip is not overridden by a later passing run: ' + (r.err || ''));
+
   // --- suite record kind: `whole` marks a run of the whole-repo command (ADR 0105, INV-0017) -----
   const wholeTip = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: suiteRepo, encoding: 'utf8' }).trim();
 

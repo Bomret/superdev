@@ -32,7 +32,7 @@ Applies to every dispatch.
 - The slice dispatch, the review fix dispatch, and the run-handoff fix dispatch hand the `<run-root>/dod.md` path and the listed lines: the Definition-of-Done criteria each names (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`, `## The mapping gate`). A review fix dispatch or a run-handoff fix dispatch may list none. The slice fix dispatch hands neither.
 - A slice dispatch and a slice fix dispatch name `<base>`, the commit the slice branch was cut from.
 - A sweep fix dispatch hands the sweep log path as its progress log, and the `<run-root>/dod.md` path read-only with no listed line. It names `<sweep-base>`, the scope branch's tip when the sweep began, as a full commit.
-- A `lite`-tier review fix dispatch that hands a **Missing RED** finding names that slice's `<base>`: the base of the slice's recorded range in its ledger row (`scope.js get slices`).
+- A review fix dispatch and a run-handoff fix dispatch name `<cycle-base>`, the scope branch's tip before the dispatch, as a full commit.
 
 ## Scope of the work
 
@@ -133,9 +133,9 @@ Applies to every test run in any dispatch.
 
 Run only the tests that verify your work. Run each through the runner `${CLAUDE_PLUGIN_ROOT}/scripts/scope.js test`, as `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` states in `## The two commands` and `## The changed-path set`. The controller owns every full-suite run.
 
-- Your runs: `scope.js test focused <paths>` with at least one path, and `scope.js test -- <command>` for one test file.
+- Your runs: `scope.js test focused <paths>` with at least one path, `scope.js test -- <command>` for one test file, and the fail-to-pass run `### Fail-to-pass run` states.
 - The controller's runs: `test full`, `test whole`, and a `test focused` with no path, which runs the full command.
-- Where the focused fence of `docs/agents/verification.md` repeats the full fence, each RED or GREEN step runs each test file it works on through `scope.js test -- <command>`, and you make no run before your report.
+- Where the focused fence of `docs/agents/verification.md` repeats the full fence, each RED or GREEN step runs each test file it works on through `scope.js test -- <command>`, and the fail-to-pass run is the one run you make before your report.
 - The `test-guard` hook refuses a controller's run when you start one, and its refusal names the run to make instead (ADR 0181).
 
 ### Edit tools
@@ -164,22 +164,20 @@ Applies to a `behavior` slice dispatch.
 - **Survey before your first RED test.** Grep the test tree once, one targeted search on the interface your `spec` names. Record what it returned in your progress log. Record it also when it returned nothing.
 - **Replace, don't layer.** What the survey found is what you delete or extend. Tests made redundant by your slice's own deepened interface go: the change orphaned them. Delete the old unit tests on the shallow internals it absorbed.
 
-### Run-trace remedy
+### Fail-to-pass run
 
-Applies to a `behavior` slice dispatch, to a slice fix dispatch on a `behavior` slice, a **Missing RED** finding's fix included, and to a `lite`-tier review fix dispatch that answers a **Missing RED** finding.
+Applies to a `behavior` slice dispatch and to every fix dispatch.
 
-Hooks write a **run trace** of your edits and test runs. The `run-trace` hook adds a note when a test edit has no failing run since. Answer the note with the remedy:
+Your tests must fail without your change. Prove it before you report (ADR 0182). Once your last GREEN increment is committed, where your range changes a test-path file and another file, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <range-start>..HEAD -- <command>` from your checkout. The test paths are `docs/agents/verification.md`'s `## Test paths`, or the defaults where it has none. The command names every test file your range adds or modifies and runs at the tree root. The verb refuses a command that leaves one out, and names it.
 
-1. Stage the implementation with `git add <paths>`.
-2. Revert it with `git restore --worktree --source=<base> -- <paths>`. A path absent at `<base>` is deleted.
-3. Run the test and see it fail.
-4. Restore with `git restore -- <paths>`.
-5. Run the test and see it pass.
-
-- The slice review judges the RED-then-GREEN order from the run trace.
-- `${CLAUDE_PLUGIN_ROOT}/scripts/scope.js trace --slice <id> --root <run-root>` prints the run trace.
-- Never use `git stash`. The stash stack is shared across worktrees.
-- A `run … unknown` line is not a failing run. It satisfies neither the RED step nor a finding. Answer it by re-running the test through `scope.js test`.
+- `<range-start>`: `<base>` on a slice dispatch and a slice fix dispatch, `<sweep-base>` on a sweep fix dispatch, and `<cycle-base>` on a review fix dispatch and a run-handoff fix dispatch.
+- A fix dispatch that hands a **Pass-to-pass** finding names that finding's original base. Run the verb from that base as well, once your fix is committed: its `fail-to-pass` outcome closes the finding.
+- The verb runs the command at your tip, then again with every file your range changed outside its test files put back as it stood at `<range-start>`. It prints one outcome and writes it to the run trace.
+- `fail-to-pass`: your tests detect your change.
+- `pass-to-pass`: your tests pass without your change, so they do not check it. Strengthen them, commit, and run the verb again over the same range.
+- `unknown`: the verb could not judge. A failing first run means a test of yours fails at your tip: fix it and run the verb again. Name any other `unknown` in your report with the reason the verb printed.
+- Run the verb in the background when the suite outlasts the Bash tool's time limit, and wait for its end.
+- Your report carries the outcome line, or the reason your range needs none.
 
 ## A failing test your slice did not cause
 
@@ -189,7 +187,7 @@ A test your slice did not cause also fails at your base commit before your first
 
 - Name each such test in your report with how you established it.
 - Fix none of them and block on none. The run handoff's fix loop repairs them once the full suite runs over the integrated scope.
-- A named inherited failure is no Missing RED finding, no `BLOCKED`, and no strike.
+- A named inherited failure is no `BLOCKED` and no strike.
 - Every other test your work reaches goes green as usual.
 - A red-suite fix dispatch makes the failing tests your task. That covers the run-handoff fix dispatch and a review fix dispatch whose finding is the red suite itself. A slice fix dispatch and a sweep fix dispatch do not.
 
@@ -307,6 +305,7 @@ Return the report only to the controller that dispatched you. You never talk to 
 - A status (`### Status`).
 - The commit range.
 - A one-line test summary.
+- The fail-to-pass outcome (`### Fail-to-pass run`).
 - Your concerns.
 - One line per listed line (`### Listed lines`).
 

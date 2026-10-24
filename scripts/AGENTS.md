@@ -37,7 +37,7 @@ responsibility. `scope.js` keeps every export it had. No module requires an entr
 `base set <sha>`, `base resolve --branch <b> --base <ref>`,
 `get stage|branch|anchor|slices|unresolved|degraded|deferred|minors|denials|docs|pr|suite`,
 `status` (which renders the whole `/superdev:status` report), `trace [--slice <id>]` (prints the run trace, read-only), `publish`, `adopt`, `root <slug>`,
-`staging <scope> [--count]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `citations --range-base <ref> --branch <ref> <id>…`, `source-set [<path>]`, `push --root <run-root> --remote <remote> --base <base-ref>`, `dod-line`, `fail-to-pass <base>..<tip>`, and `test`.
+`staging <scope> [--count]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `citations --range-base <ref> --branch <ref> <id>…`, `source-set [<path>]`, `push --root <run-root> --remote <remote> --base <base-ref>`, `dod-line`, `fail-to-pass <base>..<tip> -- <command>`, and `test`.
 `--help` or `-h`, alone or after any verb, prints the usage and exits 0, except that a flag's value, or the text after `add`, `add-denial`, `reset-denials`, or `resolve`, is data and never a help request. It is checked before any verb
 reads stdin or touches a ledger, so a stdin verb such as `dod-line` never waits on input for it.
 `suite set` writes the **suite record** (CONTEXT.md) — the last full-suite run's result and the commit
@@ -45,12 +45,15 @@ it ran on, as `**Suite:** <result> @ <sha>` — refusing a sha that does not res
 repository; `get suite` prints `<result> <sha>` back, or nothing on a ledger with no record (INV-0017).
 `suite reusable` is the read half of that same reuse rule. It exits 0 and prints `reusable`, or it refuses with exit 1.
 An unrecognized argument is a refusal. No slice store commits its own records on the scope branch (ADR 0110), so a
-commit since the record counts. Three routes reach exit 0.
+commit since the record counts. Four routes reach exit 0.
 
 The first route is the exact tip. The record is `green`, the run trace backs the recorded commit, and `<branch>`'s tip is
 that commit. The second route is a green record at an ancestor of the tip, carried over the range in one of two ways.
 A refusal on a moved tip names the failed condition after `predates tip`. The third route is a `red` record at the tip
-under the recorded rerun. The verb writes nothing on any route.
+under the recorded rerun. The fourth route is a run at the tip with no record at the tip (ADR 0182): the latest full or
+whole run the run trace records at the tip passed on a clean tree, whoever wrote it, a fail-to-pass control run included.
+`--whole` takes only a whole run there. A record at the tip decides by the first and third routes alone. The verb writes
+nothing on any route.
 
 The **Markdown-only carry** (ADR 0128) holds when every path changed since the record ends in `.md`. No such path is a
 test path, and none is `docs/agents/verification.md`. The run trace shows the latest test run at the tip passed on a
@@ -198,7 +201,8 @@ it is missing. The staged-page scan behind `status` resolves its staging root th
 working tree.
 
 `test full|whole`, `test focused [<path>…]`, and `test -- <command>` run a test command through `sh -c`, `sh` resolved from PATH (ADR 0150), and append one
-`run` line carrying the command's own exit status, an **Observed run** (CONTEXT.md, ADR 0127, INV-0117). The verb
+`run` line carrying the command's own exit status, an **Observed run** (CONTEXT.md, ADR 0127, INV-0117). The line ends with
+the run's duration in whole milliseconds (ADR 0182). The verb
 streams the command's output and exits with its status. `full`, `focused`, and `whole` run the command
 `docs/agents/verification.md` configures, as written; `focused` substitutes its shell-quoted paths for `{paths}`
 and, given none, runs the full command and records `full`. `--` runs a command that `testRuns` of `lib/test-runs.js`
@@ -217,15 +221,18 @@ Outside every run tree the command runs and nothing is written. So does a comman
 `outsideTree` of `lib/test-runs.js` classifies the `cd` target against its repository top. The verb takes no option that sets an outcome,
 kind, slice, or tree state. `lib/test-verb.js` requires `lib/run-tree.js` (`locate`, `treeState`) and `lib/test-runs.js` (`testRuns`) at call time, the locator and classifier it shares with the
 run-trace hook. When the classifier's own module cannot be found, it classifies no command as a test run, so `test --` refuses every command and a configured kind still runs.
-`hooks/run-trace.js` records no run for a Bash command that runs `scope.js test`, and still evaluates the Missing
-RED note after a foreground call.
+`hooks/run-trace.js` records no run for a Bash command that runs `scope.js test` or `scope.js fail-to-pass`, since each
+verb writes its own run line.
 
-`fail-to-pass <base>..<tip>` runs a commit range's tests twice and reports whether they discriminate
-(CONTEXT.md **Fail-to-pass run**, ADR 0134, INV-0139). It creates a throwaway worktree detached at `<tip>`. In a run
-root the worktree sits beside `slicetrees/`, outside every tree the run trace attributes a run to. Outside a run root it
-sits under `.superdev/`, which the verb git-ignores first through the repository's `info/exclude`. The command and the
-test paths come from `<tip>`'s own `docs/agents/verification.md`. The verb runs the focused command over the range's whole
-changed-path set where the focused command carries `{paths}`, and the full command otherwise.
+`fail-to-pass <base>..<tip> -- <command>` runs the caller's command twice and reports whether the range's tests
+discriminate (CONTEXT.md **Fail-to-pass run**, ADR 0134, ADR 0182, INV-0139). The command runs at the tree root. It must
+name every test file the range adds or modifies, in a word of a segment that runs something: a word of `:`, `echo`, `cat`,
+or another command that runs nothing (`NOT_RUNNERS` and `SHELL_READERS` of `lib/test-runs.js`) names nothing, and a
+directory word names every file under it. A deleted test file needs no name. The verb refuses a command that leaves one
+out, naming it, and refuses a missing or empty command. The test paths come from `<tip>`'s own
+`docs/agents/verification.md`. It creates a throwaway worktree detached at `<tip>`. In a run root the worktree sits beside
+`slicetrees/`, outside every tree the run trace attributes a run to. Outside a run root it sits under `.superdev/`, which
+the verb git-ignores first through the repository's `info/exclude`.
 
 The first run is against the changed code and must pass. The verb then resets and cleans the worktree. The verb puts
 every changed file outside the test paths back as that file stood at `<base>`, and commits the put-back on the detached
@@ -237,22 +244,22 @@ the second run set the override, so none waits the floor. `lib/fail-to-pass.js` 
 `failToPassBoundMs(controlMs, floorMs)`, and the verb calls it with the floor it reads once. The suite pins the factor and
 the floor on that function with no clock, because the first run's measured duration includes its own start-up, and load
 stretches that start-up by seconds. The verb refuses a range that changes no file and a range that changes only test files,
-because nothing is put back.
+because nothing is put back, and a range that changes no test file, because no test of its own can fail.
 
 The outcome is `fail-to-pass` when the second run fails, and `pass-to-pass` when it passes. It is `unknown` when the first
 run fails, when the second run is killed at its bound or ended by a signal, and when either run's command cannot start
-(E2BIG on a long `{paths}` list among the causes), its reason then reading `start-failed:<code>` in place of the exit
+(no shell on the PATH among the causes), its reason then reading `start-failed:<code>` in place of the exit
 status. No reviewer reads `unknown` as a verdict,
 and no gate reads it as green.
 
 Inside a run root the verb appends one `fail-to-pass` trace line, `<base>..<tip> <outcome> <reason>`. Its slice is the
-ledger row that records exactly that range, else the slice the run's directory attributes to, else `scope`. The control run also writes a `run` line for its command's kind, `focused` over the changed-path set or `full`. The line
-has the same slice as the outcome line and the form `test` writes. It names the tip. The verb reads the worktree's HEAD
+ledger row that records exactly that range, else the slice the run's directory attributes to, else `scope`. The control run also writes a `path` run line naming the range's test files and ending with its duration. The line
+has the same slice as the outcome line and the form `test --` writes. It backs no suite record. It names the tip. The verb reads the worktree's HEAD
 and tree at both ends. A HEAD that left the tip, or a dirty tree at either end, records `dirty`. An unreadable tree state
 records `unknown`. Otherwise the tree is `clean`. A run ended by a signal, or one that could not start, writes no line
 (ADR 0175). The outcome line itself is no
-`run` line, so it satisfies no Missing RED step and moves no suite record. The trace's first `unknown` of any kind draws a
-stderr note that tells the controller to capture an observation. The observation goes to the scope run's first non-exempt
+`run` line, so it moves no suite record. The trace's first `unknown` of any kind draws a
+stderr note that tells the caller to report it, so the controller captures an observation. The observation goes to the scope run's first non-exempt
 `unknown` (`references/scope-mode.md`, `## Observations`). An inherited `unknown` earns none. A slice cut after a break
 between two slices inherits that failing test, and its control failure also shows at the slice's base. The note can
 therefore name an exempt one.
@@ -715,7 +722,7 @@ suite names, directly or by directory, and a path under `scripts/drift/`, reach 
 (`release.config.cjs`, `package.json`, `bun.lock`, the `RELEASE_TOOLING` list), which reaches only the suites that name it,
 because semantic-release and Bun read it and no suite's code under test does. An empty list runs the tail alone and exits 0. A path under
 `mods/superdev-view/` places itself: it adds `claude plugin test mods/superdev-view` before the tail, and runs no
-other suite unless one names it, so `scope.js fail-to-pass` can judge a range that only the mod suite tests. The full run
+other suite unless one names it. The full run
 never runs the mod suite. The
 `require` scan is a regex over relative `require` calls, wherever the call sits. It follows the edges from the
 suite file and from its pinned file, and continues through a `plugin/lib/` module or a shared setup file under

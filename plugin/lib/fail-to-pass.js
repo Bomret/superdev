@@ -7,14 +7,14 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 const { fail } = require('./refusal.js');
 const { ledgerPath, splitLines, tableRowIndexes, splitRow } = require('./ledger.js');
-const { isTestPath, verificationCommandsOf } = require('./verification.js');
+const { isTestPath } = require('./verification.js');
 const { gitSpawn, resolveCommit, fileAt } = require('./git-spawn.js');
 const { PROBE_MAX_BUFFER } = require('./containment.js');
 const { mainWorkTree } = require('./main-work-tree.js');
-const { appendTrace, readTrace, encodePaths } = require('./trace-log.js');
+const { appendTrace, readTrace } = require('./trace-log.js');
 const { treeState } = require('./run-tree.js');
 const { superviseRuns, withWorktreeLock } = require('./run-supervision.js');
-const { withPaths } = require('./test-verb.js');
+const { shellWord } = require('./test-verb.js');
 
 // The floor of the bound on the run with the files put back (ADR 0142): 10 000 ms, or the positive whole number of
 // milliseconds `SUPERDEV_FAIL_TO_PASS_FLOOR_MS` names. A value that is not a positive integer — empty, a word, zero,
@@ -49,8 +49,8 @@ const failToPassBoundMs = (controlMs, floorMs) => Math.max(Math.ceil(controlMs *
 //                 reviewer reads it as a verdict.
 //
 // @typedef {object} FailToPassRun
-//   base, tip: the range's two full commits; `tip` is the commit the command and the test paths are read from.
-//   command:   the one command string both runs use.
+//   base, tip: the range's two full commits; `tip` is the commit the test paths are read from.
+//   command:   the one command string both runs use, the caller's own, which names every test file the range adds or modifies.
 //   outcome:   FailToPassOutcome. reason: `control=<exit>,put-back=<exit>`, the two exit statuses and nothing else; for
 //              `unknown`, `control=<exit or signal>` where the control did not pass, else
 //              `control=0,put-back=<exit or signal>,bound=<ms>ms`, the bound ten times the control's duration or the floor,
@@ -59,7 +59,7 @@ const failToPassBoundMs = (controlMs, floorMs) => Math.max(Math.ceil(controlMs *
 //
 // The trace line is `<ts> <slice|scope> main fail-to-pass <base>..<tip> <outcome> <reason>`. The slice is the one whose
 // ledger row records exactly this range, else the one the run's directory attributes to, else `scope`. The control run also
-// writes a `run` line for its command's kind, attributed the same way (ADR 0175).
+// writes a `path` run line naming the range's test files, attributed the same way (ADR 0175, ADR 0182).
 
 // The id of the ledger row whose range cell names exactly `base..tip`, each side read as a commit (a row may carry
 // abbreviated ones), or null.
@@ -88,14 +88,37 @@ function ignoreSuperdevLocally(main) {
   fs.appendFileSync(file, (text && !text.endsWith('\n') ? '\n' : '') + '.superdev/\n');
 }
 
-// `fail-to-pass <base>..<tip>`: the tests the range selects run in a throwaway worktree at the tip, then again with the
-// files the range changed outside its test files put back as they stood at the base. Exit 0: an outcome was read and
-// printed (`unknown` included); inside a run root its line is appended (a failed append is reported on stderr, the status
-// stays 0), outside one no line exists. Exit 1: a refusal or an error (git could not create the worktree, clear what the
-// first run left, or put the files back), message on stderr. Exit 2: no outcome and no line, because no test command is
-// configured (nothing ran). An interrupt exits 128 plus the signal number.
+// The paths a command names, read from the tree root: every word of a segment that runs something, its option words and a
+// runner node id's test part (`a.py::t`, `a.test.js:12`) left out. A segment whose command reads, lists, or edits files and
+// runs none (`:`, `echo`, `cat`) names nothing, so naming a file in such a word runs no test of it.
+function namedPaths(command, { cmdSegments, segWords, plain }, notRunners) {
+  const named = new Set();
+  for (const seg of cmdSegments(command)) {
+    const { cmd, args } = segWords(seg);
+    if (!cmd || notRunners.has(path.basename(cmd))) continue;
+    for (const w of [cmd, ...args]) {
+      const p = plain(w);
+      if (!p || p.startsWith('-')) continue;
+      named.add(path.posix.normalize(p.replace(/::.*$/, '').replace(/:\d+$/, '')).replace(/\/$/, ''));
+    }
+  }
+  return named;
+}
+
+// Whether `rel` is a named path or lies under one.
+const covered = (named, rel) => named.has(rel) || [...named].some((n) => rel.startsWith(n + '/'));
+
+// `fail-to-pass <base>..<tip> -- <command>`: the command runs in a throwaway worktree at the tip, then again with the files
+// the range changed outside its test files put back as they stood at the base (ADR 0182). The command names every test file
+// the range adds or modifies, and runs at the tree root. Exit 0: an outcome was read and printed (`unknown` included);
+// inside a run root its line is appended (a failed append is reported on stderr, the status stays 0), outside one no line
+// exists. Exit 1: a refusal or an error (git could not create the worktree, clear what the first run left, or put the
+// files back), message on stderr. An interrupt exits 128 plus the signal number.
 async function verbFailToPass(cwd, args) {
-  if (args.length !== 1) fail('fail-to-pass needs one <base>..<tip> range');
+  if (args[1] !== '--') fail('fail-to-pass needs <base>..<tip> -- <command>, the command naming the test files the range adds or modifies');
+  const words = args.slice(2);
+  if (!words.length || (words.length === 1 && !words[0].trim())) fail('fail-to-pass: `--` needs a command');
+  const command = words.length === 1 ? words[0] : words.map(shellWord).join(' ');
   const [baseRef, tipRef, ...extra] = args[0].split('..');
   if (!baseRef || !tipRef || extra.length) fail(`fail-to-pass: "${args[0]}" is not a <base>..<tip> range`);
   const base = resolveCommit(baseRef, cwd);
@@ -114,18 +137,22 @@ async function verbFailToPass(cwd, args) {
   if (config === null) fail("fail-to-pass: git could not read the tip's verification configuration");
   const putBackChanges = changed.filter((c) => !isTestPath(config, c.path));
   if (!putBackChanges.length) fail('fail-to-pass: the range changes only test files, so nothing is put back');
-  // references/test-selection.md: the focused command over the whole changed-path set where it carries `{paths}`, and the
-  // full command for a fixed-subset or self-detecting focused command or where only the full command exists.
-  const commands = verificationCommandsOf(config, true);
-  const focused = Boolean(commands.focused && commands.focused.includes('{paths}'));
-  const command = focused
-    ? withPaths(commands.focused, changed.map((c) => c.path))
-    : commands.full;
-  if (!command) {
-    process.stderr.write(`fail-to-pass: no test command is configured in docs/agents/verification.md at ${tipRef}; nothing ran\n`);
-    process.exitCode = 2;
-    return;
+  // The range's own tests: every test-path file it adds or modifies. A deleted one runs nowhere.
+  const testFiles = changed.filter((c) => c.status !== 'D' && isTestPath(config, c.path)).map((c) => c.path);
+  if (!testFiles.length) fail('fail-to-pass: the range changes no test file, so no test of its own can fail without its change');
+  let readers;
+  let notRunners;
+  try {
+    readers = require('./bash-command.js');
+    const runs = require('./test-runs.js');
+    notRunners = new Set([...runs.NOT_RUNNERS, ...runs.SHELL_READERS]);
+  } catch (e) {
+    if (e.code !== 'MODULE_NOT_FOUND') throw e;
+    fail("fail-to-pass: the shell-word reader cannot load, so the command's test files cannot be read");
   }
+  const named = namedPaths(command, readers, notRunners);
+  const missing = testFiles.filter((f) => !covered(named, f));
+  if (missing.length) fail(`fail-to-pass: the command names no ${missing.join(', ')}: name every test file the range adds or modifies`);
   // The worktree sits beside `slicetrees/` in the run root, outside every tree the run trace attributes a run to, so no hook
   // records its test runs; the verb writes the control's `run` line itself. Module resolution walks up from there to the main checkout's own `node_modules`, as it does
   // from the scope's own worktrees (the setup probe's placement). Outside a run root it sits under `.superdev/`, and no line
@@ -208,15 +235,14 @@ async function verbFailToPass(cwd, args) {
       }
       console.log(`${outcome} ${reason}`);
     };
-    // The control run is a test run too (ADR 0175): a run that finished with an exit status writes the `run` line `scope.js
-    // test` writes for its kind, attributed like the outcome line. One a signal ended or that could not start writes none.
+    // The control run is a test run too (ADR 0175): a run that finished with an exit status writes a `path` run line naming the
+    // range's test files, attributed like the outcome line (ADR 0182). One a signal ended or that could not start writes none.
     // Like `scope.js test`, it names the tip and reads both ends: a HEAD that left the tip or a dirty tree at either end is `dirty`.
     if (at && control.code !== null && control.code !== undefined && !control.signal && !control.startError) {
       const [sha1, tree1] = treeState(dir);
       const states = [tree0, tree1];
       const tree = sha0 !== tip || sha1 !== tip || states.includes('dirty') ? 'dirty' : states.includes('unknown') ? 'unknown' : 'clean';
-      const files = changed.map((c) => c.path);
-      if (!appendTrace(at.runRoot, { slice, kind: 'run', fields: [focused ? 'focused' : 'full', control.code === 0 ? 'pass' : 'fail', tip, tree, focused ? encodePaths(files) : ''] })) {
+      if (!appendTrace(at.runRoot, { slice, kind: 'run', fields: ['path', control.code === 0 ? 'pass' : 'fail', tip, tree, testFiles.join(','), String(Math.round(control.ms))] })) {
         process.stderr.write('fail-to-pass: the control run line could not be written to the run trace\n');
       }
     }

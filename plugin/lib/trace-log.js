@@ -9,9 +9,8 @@ const path = require('path');
 //   <ISO-8601 UTC timestamp> <slice id|scope> <agent id|main> <kind> <kind fields...>
 // `appendTrace` is its single writer. Kinds and their fields:
 //   edit <test|impl> <path>
-//   run <full|focused|whole|path> <pass|fail|unknown> <sha|unknown> <clean|dirty|unknown> [<files>]   (written by `scope.js test`, and by the control run of `fail-to-pass`, of the kind it ran; <files>: a `path` run's test files comma-joined; a `scope.js test focused` run's path set, `encodePaths`; else `-`)
+//   run <full|focused|whole|path> <pass|fail|unknown> <sha|unknown> <clean|dirty|unknown> [<files>] [<ms>]   (written by `scope.js test`, and by the control run of `fail-to-pass` as a `path` run; <files>: a `path` run's test files comma-joined; a `scope.js test focused` run's path set, `encodePaths`; else `-`; <ms>: the run's duration in whole milliseconds, which those two writers record and the run-trace hook does not)
 //   revert <paths> / restore <paths>
-//   note <test path>
 //   dispatch <agent_type> <tool_use_id> <description> <session_id|-> / dispatch-bind <agent_type> <tool_use_id> <agent_id> /
 //   dispatch-end <agent_type> <tool_use_id> <completed|failed|denied|stopped|unknown|session-end>   (an end with no outcome reads completed, ADR 0140)
 //   dispatch-resume <tool_use_id> <agent_id> <session_id|-> <sendmessage_tool_use_id|->   (a SendMessage resumed the dispatch's subagent: a new run, with its own dispatch-end)

@@ -51,7 +51,11 @@ const scopePath = require.resolve('../plugin/scripts/scope.js');
       sh(S, ['commit', '-q', '--allow-empty', '-m', 'v']);
     };
     const traceFile = path.join(root, 'trace.log');
-    const lines = () => (fs.existsSync(traceFile) ? fs.readFileSync(traceFile, 'utf8').split('\n').filter(Boolean).map((l) => l.split(' ').slice(1).join(' ')) : []);
+    // The trace's lines without their timestamp, and a `run` line without its duration, which the duration case reads itself.
+    const lines = () => (fs.existsSync(traceFile) ? fs.readFileSync(traceFile, 'utf8').split('\n').filter(Boolean).map((l) => {
+      const w = l.split(' ').slice(1);
+      return (w[2] === 'run' && w.length === 9 ? w.slice(0, 8) : w).join(' ');
+    }) : []);
     const verb = (argv, o) => {
       const r = spawnSync(process.execPath, [scopePath, 'test', ...argv], Object.assign({ cwd: S, encoding: 'utf8', timeout: 20000, env }, o));
       assertSpawnDecided(r, 'scope.js test ' + argv.join(' '));
@@ -96,6 +100,19 @@ const scopePath = require.resolve('../plugin/scripts/scope.js');
     assert.equal(r.stdout.trim(), 'FULLRAN', 'no path runs the full command');
     assert.match(lines()[3], / run full pass /, 'and records full');
     assert.match(lines()[3], / -$/, 'a full run records no path set');
+
+    // A run line records its duration in whole milliseconds as its last field (ADR 0182). The command sleeps, so the
+    // duration is at least the sleep it ran; no ceiling is asserted (root AGENTS.md, ADR 0086).
+    {
+      const { readTrace } = require('../plugin/lib/trace-log.js');
+      reset();
+      verif('sleep 0.3');
+      assert.equal(verb(['full']).status, 0);
+      const e = readTrace(fs.readFileSync(traceFile, 'utf8')).filter((x) => x.kind === 'run').pop();
+      assert.match(e.fields[5], /^\d+$/, 'the duration is a whole number of milliseconds');
+      assert.ok(Number(e.fields[5]) >= 300, `the duration covers the command's own sleep: ${e.fields[5]} ms`);
+      verif('echo FULLRAN', 'echo FOCUSED {paths}', 'echo WHOLERAN');
+    }
 
     // A focused run records its path set, and the trace reader returns it whole for any path (ADR 0175).
     {

@@ -12,6 +12,9 @@ under the bound of the run before the change.
 **Amended by:** [ADR 0155](0155-a-slice-merge-runs-no-test-suite.md), which deletes `green-gate`, so the
 command pick no longer mirrors a merge hook's pick.
 
+**Amended by:** [ADR 0182](0182-the-implementer-proves-its-change-and-the-controller-runs-only-suite-gates.md), under which the implementer runs the verb over its own range, with a
+command naming the range's test files, and the controller runs it no more.
+
 **Amended by:** [ADR 0175](0175-a-green-suite-record-carries-across-a-delta-a-complete-focused-selector-covered.md), under
 which a fail-to-pass run records a test run.
 

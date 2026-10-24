@@ -18,7 +18,7 @@ const shellWord = (w) => (/^[\w@%+=:,./-]+$/.test(w) ? w : `'${w.replace(/'/g, "
 const withPaths = (template, paths) => template.replace(/\{paths\}/g, () => paths.map(shellWord).join(' '));
 
 // `test full|whole`, `test focused [<path>…]`, `test -- <command>`: runs a test command under `sh`, streaming its output,
-// and appends one `run` line carrying the command's own exit status (an Observed run). The run root, slice, commit, and
+// and appends one `run` line carrying the command's own exit status (an Observed run) and its duration in milliseconds. The run root, slice, commit, and
 // tree state are read when the run starts; the line is written when the command finishes, `dirty` when HEAD moved, the tree
 // was dirty at either end, or the trace recorded a change to the slice's files during the run. No option sets a field.
 // A command ended by a signal, or a verb killed first, writes no line, and a verb that is killed or interrupted
@@ -89,7 +89,9 @@ function verbTest(cwd, args) {
     process.exit(128 + require('os').constants.signals[sig]);
   };
   for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, stop(sig));
+  const started = performance.now();
   sup.run(command, runCwd, false).then(({ code, signal, error }) => {
+    const ms = String(Math.round(performance.now() - started));
     sup.stop();
     if (error) {
       process.stderr.write(`test: cannot run sh: ${error}\n`);
@@ -112,7 +114,7 @@ function verbTest(cwd, args) {
       // during the run is `dirty`.
       const tree = sha1 !== sha || tree0 === 'dirty' || tree1 === 'dirty' || changed ? 'dirty' : tree0 === 'unknown' || tree1 === 'unknown' ? 'unknown' : 'clean';
       const outcome = hidden ? 'unknown' : code === 0 ? 'pass' : 'fail';
-      if (!appendTrace(at.runRoot, { slice: at.slice, kind: 'run', fields: [kind, outcome, sha, tree, kind === 'focused' ? encodePaths(files) : files.join(',')] })) {
+      if (!appendTrace(at.runRoot, { slice: at.slice, kind: 'run', fields: [kind, outcome, sha, tree, kind === 'focused' ? encodePaths(files) : files.join(','), ms] })) {
         process.stderr.write('test: the run line could not be written to the run trace\n');
       }
     }
@@ -120,4 +122,4 @@ function verbTest(cwd, args) {
   });
 }
 
-module.exports = { verbTest, withPaths };
+module.exports = { verbTest, withPaths, shellWord };

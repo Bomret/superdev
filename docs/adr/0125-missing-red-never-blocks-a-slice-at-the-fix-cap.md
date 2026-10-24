@@ -5,6 +5,9 @@
 **Amends:** [ADR 0098](0098-the-fix-loop-fixes-every-finding-and-only-correctness-holds-the-stage.md),
 [ADR 0117](0117-the-run-trace-is-hook-written-evidence.md).
 
+**Amended by:** [ADR 0182](0182-the-implementer-proves-its-change-and-the-controller-runs-only-suite-gates.md), which removes Missing RED, so the escape path keeps
+Pass-to-pass and Missing fail-to-pass run.
+
 **Context.** ADR 0117 makes Missing RED an Important finding, and ADR 0098 blocks a slice whose
 Important finding survives the 3-cycle fix cap. In a consumer run audited on 2026-10-07, two slices
 reached the cap with Missing RED as their only remaining finding, after their code had passed review.

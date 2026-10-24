@@ -136,12 +136,15 @@ plan runs test-first, inline in the scopetree.
   ([ADR 0031](docs/adr/0031-the-lite-tier-writes-its-own-documentation.md)). The `/superdev:document`
   entry below describes what that changes downstream.
   On either tier, a `behavior` slice whose commits change a test file and another file also gets a
-  **fail-to-pass run**. The `scope.js fail-to-pass` verb runs the slice's tests against the changed code, then again
+  **fail-to-pass run**, which its implementer runs before it reports, and so does every fix cycle. The
+  `scope.js fail-to-pass` verb runs a command naming the slice's test files against the changed code, then again
   with the slice's other files put back as they stood before it. The verb writes the result as an **outcome line**, a
   `fail-to-pass` line in the run trace. Tests that still pass without the change draw an
   Important **Pass-to-pass** finding, and a slice with no outcome line draws **Missing fail-to-pass run**. A run that
   cannot judge records `unknown`, which draws no finding
-  ([ADR 0134](docs/adr/0134-a-fail-to-pass-run-shows-a-change-s-tests-discriminate.md)).
+  ([ADR 0134](docs/adr/0134-a-fail-to-pass-run-shows-a-change-s-tests-discriminate.md),
+  [ADR 0182](docs/adr/0182-the-implementer-proves-its-change-and-the-controller-runs-only-suite-gates.md)).
+  The controller runs only the full-suite gates, and no reviewer runs a test.
   Either tier stops here, once every slice sits on the scope branch. `/superdev:review` runs next: one
   **whole-scope review** that gates the pull request `/superdev:submit-pr` opens later.
 - **`/superdev:status`**. One read-only report of where the work stands and what to do next. It prints
@@ -434,9 +437,7 @@ bash or PowerShell variants.
   records nothing for a quoted mention, for a command that only reads test files (`grep`, `sort`, `tr`, a `for` loop
   header, and the like), or for a test path that names no existing file. It resolves a Bash command's paths from the
   directory the command started in, which it stashes on `PreToolUse` (ADR 0159). A full or whole-repo command with extra argument words records as a
-  focused run. The hook also records each revert or restore of files, and each subagent dispatch and its end. After an
-  implementation edit or a passing run on a `behavior` slice, it adds a Missing RED note when the latest
-  test edit has no failing run since. The hook registers on `PreToolUse` for `Agent`, `SendMessage`, and `Bash`, and on `PostToolUse` for `Edit`, `Write`,
+  focused run. The hook also records each revert or restore of files, and each subagent dispatch and its end. The hook registers on `PreToolUse` for `Agent`, `SendMessage`, and `Bash`, and on `PostToolUse` for `Edit`, `Write`,
   `NotebookEdit`, `Bash`, `Agent`, `TaskStop`, and `SubagentHandback`. It registers on `PostToolUseFailure` for
   `Bash`, `Agent`, and `SendMessage`, and on `PermissionDenied` for `Agent` and `SendMessage`. With no matcher,
   it registers on `UserPromptSubmit`, `SessionEnd`, `SubagentStop`, and `Stop`. An edit outside every run root records nothing. A write inside a
@@ -545,8 +546,8 @@ again. One answer lands outside that tree: the slice store's **assignee** goes t
 - **Verification** *(optional)*. The repo's test command, the first fenced block of
   `docs/agents/verification.md`. Recorded, it is the full suite the run handoff, every base merge, and the
   scope review run where no carried record or recorded rerun meets their gate. Omitted, no step runs a suite. A second fenced block holds the focused test command,
-  the one every step inside the loop runs: the implementer's TDD loop, the lite tier's inline loop, the
-  controller's tip result for a slice review, and the documentation step's own run over its doc commits. What defines it is that it
+  the one every step inside the loop runs: the implementer's TDD loop, the lite tier's inline loop, and the
+  documentation step's own run over its doc commits. What defines it is that it
   costs less than the full suite. Setup derives it from the runner it detected — a runner that maps
   source files to the tests covering them gets a `{paths}` form carrying that runner's pass-with-no-tests
   flag, and every other runner gets a fast subset instead. Where the full suite is already cheap or no
@@ -554,8 +555,8 @@ again. One answer lands outside that tree: the slice store's **assignee** goes t
   it. A `verification.md` carrying only the first fence records a repository whose focused command was
   never configured: a caller finding it stops and names `/superdev:setup`, running no command.
   [`references/test-selection.md`](plugin/references/test-selection.md) owns the full-versus-focused rule.
-  The `/superdev:implement` entry above describes the **fail-to-pass run**. That run uses the focused command over the
-  change's whole path set where the focused command carries `{paths}`, and the full command otherwise.
+  The `/superdev:implement` entry above describes the **fail-to-pass run**. That run takes the command its caller
+  hands it, which names the change's test files.
   In a monorepo the full command may take an **affected form**: it runs every project the change reaches,
   dependents included, as the repository's own dependency-graph tool (nx, turborepo, pnpm, or
   `dotnet-affected`) computes them. Such a repository also records an optional `## Whole-repo command`

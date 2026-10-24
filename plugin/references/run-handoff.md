@@ -19,7 +19,7 @@ tiers: record that slice execution finished, name what comes next.
   (`<sha>` is `git rev-parse HEAD` in that checkout) — a record `/superdev:review` reuses instead of
   running the suite again when it is still `green` and `scope.js suite reusable` calls the branch's
   current tip reusable against it (INV-0017): an exact match, a Markdown-only range since it (ADR 0128), a
-  focused-selector carry (ADR 0175), or a recorded rerun (ADR 0172).
+  focused-selector carry (ADR 0175), a recorded rerun (ADR 0172), or a passing full run at the tip itself (ADR 0182).
   Where the record is not reusable, take the carry before the full command, per
   `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## The carry run`: a carried tip runs no full command and
   writes no record, and a failing carry run is this run's **Red** result, recorded `red` at the tip. A failed full
@@ -52,13 +52,13 @@ tiers: record that slice execution finished, name what comes next.
     the failing test pins — bring each one into agreement, and report each place it checked and each it
     changed, reporting a place outside its checkout unedited. Tell it to report the `AGENTS.md` hierarchy
     and the knowledge base unedited too, since the doc pass owns them (INV-0120). A fix report that omits
-    the checked-and-changed list is a report defect, sent back to the implementer before the focused run.
+    the checked-and-changed list is a report defect, sent back to the implementer before the full re-run.
     Tell the implementer to run only the tests that verify its fix, each through `scope.js test`
-    (`test focused <changed paths>` with at least one path, or `test -- <command>` for one test file), and never
-    `test full`, `test whole`, or a `test focused` with no path, since you own every full-suite run. Tell it to run a
-    suite longer than the Bash tool's time limit through the runner in the background and wait for its end, and to
-    edit files through the edit tools, never through a script.
-    Before the focused run, grep the checkout for the key phrase of the rule the fix changed, in its old
+    (`test focused <changed paths>` with at least one path, or `test -- <command>` for one test file), and its
+    fail-to-pass run, and never `test full`, `test whole`, or a `test focused` with no path, since you own every
+    full-suite run. Tell it to run a suite longer than the Bash tool's time limit through the runner in the
+    background and wait for its end, and to edit files through the edit tools, never through a script.
+    Before the full re-run, grep the checkout for the key phrase of the rule the fix changed, in its old
     wording and its new, and compare the hits with the report's checked list. A hit in a file the list
     does not name is a missed sibling surface: send the report back to the implementer, naming the hit,
     in the same cycle. A hit in the `AGENTS.md` hierarchy or the knowledge base is named in your report
@@ -68,27 +68,19 @@ tiers: record that slice execution finished, name what comes next.
     hand it the `dod.md` **path** plus the `scope`-tagged Definition-of-Done lines this red suite blocks
     — there may be none — and it reports back one line per listed line, the same three shapes an
     implementer's report always takes.
-  - **Run the fail-to-pass run around each cycle** (ADR 0134, INV-0138). Before each fix dispatch, record the scope
-    tip, `git -C <run-root>/scopetree rev-parse HEAD`, as the cycle's `<base>`. Once the cycle's report is accepted,
-    after any send-back to the implementer for a report defect or a missed sibling surface, run
-    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <base>..<tip>` from the scopetree over the cycle's
-    commits (`<tip>` is `git rev-parse HEAD` after them), where they change both a test-path file
-    (`docs/agents/verification.md`'s `## Test paths`, the defaults where it has none) and another file. The trace
-    line names `scope`, because the range matches no ledger row and no slice is in progress. A cycle whose commits
-    change only test-path files, or no file, needs no run. Every run of the verb goes in the background when the
-    suite outlasts the Bash tool's time limit, and you wait for its end before you read its outcome
-    (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`). The fix dispatch names no `slicetrees/<id>` path and no
-    `reports/<id>/` path, so the run trace attributes the dispatch to `scope`, and `final-reviewer` finds the cycle
-    by that `implementer` `dispatch` of `scope`. The run is no test run and no cycle: it satisfies no Missing RED step,
-    moves no suite record, and adds nothing to the cycle count, and neither a refusal nor a missing outcome
-    blocks the loop. This loop has no re-review of its own, so `final-reviewer` reads the
-    outcome lines at `/superdev:review` and raises **Pass-to-pass** and **Missing fail-to-pass run** from them.
-  - **Inside each cycle, run only the focused command** — per
-    `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`, over the commits that cycle's implementer just
-    landed, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths>` — never the full suite; a full re-run inside every cycle is the cost ADR 0075's own loop shape
-    exists to avoid. A cycle whose commits the fail-to-pass run above covered at the current tip runs no
-    separate focused run: its control run is the cycle's focused result, per that file's `## A fix cycle's focused run`.
-  - **When a cycle's focused run first comes back clean, re-run the full suite once** in the scope
+  - **The cycle's fail-to-pass run comes from its implementer** (ADR 0134, ADR 0182, INV-0138). Before each fix
+    dispatch, record the scope tip, `git -C <run-root>/scopetree rev-parse HEAD`, as the cycle's `<cycle-base>`, and
+    name it in the dispatch. The implementer runs its fail-to-pass run over `<cycle-base>..HEAD` before its report,
+    where its commits change both a test-path file (`docs/agents/verification.md`'s `## Test paths`, the defaults where
+    it has none) and another file. The trace line names `scope`, because the range matches no ledger row and no slice is
+    in progress. A report whose range needs an outcome line and has none is a report defect, sent back in the same
+    cycle. The fix dispatch names no `slicetrees/<id>` path and no `reports/<id>/` path, so the run trace attributes the
+    dispatch to `scope`, and `final-reviewer` finds the cycle by that `implementer` `dispatch` of `scope`. This loop has
+    no re-review of its own, so `final-reviewer` reads the outcome lines at `/superdev:review` and raises
+    **Pass-to-pass** and **Missing fail-to-pass run** from them.
+  - **Inside each cycle, run no test.** The implementer's own runs and its fail-to-pass run cover its fix; a full
+    re-run inside every cycle is the cost ADR 0075's own loop shape exists to avoid.
+  - **When a cycle's report says the failing tests pass, re-run the full suite once** in the scope
     checkout and record it the same way as above, taking the carry first, per that file's `## The carry run`. **Green** → clear `**Unresolved:**` as above and
     continue to the handoff pass. **A red re-run counts toward this loop's own 3-strike cap** — this
     bullet's own cap, since a scope-wide suite has no slice to block — the same shape as a cycle exposing
@@ -152,8 +144,8 @@ tiers: record that slice execution finished, name what comes next.
   down.
 - **Report** the scope branch, the slice count, the commit range, and the suite record above left behind
   (**Green.**, **No test command configured.**, **A denied test command, recorded and continued
-  attended.**, or **Green after the fix loop.**), and each slice merged at the fix cap with only **Missing RED**,
-  **Pass-to-pass**, or **Missing fail-to-pass run** left, named with each finding (ADR 0125, ADR 0134). Then **say the conversation is
+  attended.**, or **Green after the fix loop.**), and each slice merged at the fix cap with only
+  **Pass-to-pass** or **Missing fail-to-pass run** left, named with each finding (ADR 0125, ADR 0134). Then **say the conversation is
   disposable**: the ledger, `dod.md`, `interfaces.md`, and the per-slice progress logs now hold
   everything `/superdev:review` needs, so a `/clear` before it costs nothing — a fresh-context review
   reads the run state cold, which is the least anchored shape a reviewer can start in.

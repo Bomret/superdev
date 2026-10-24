@@ -6,6 +6,9 @@
 and [ADR 0155](0155-a-slice-merge-runs-no-test-suite.md), whose inherited failure the slice-reviewer
 establishes itself.
 
+**Amended by:** [ADR 0182](0182-the-implementer-proves-its-change-and-the-controller-runs-only-suite-gates.md), under which the controller hands a slice review no tip
+result, and the reviewer reads the implementer's recorded runs.
+
 ## Context
 
 The slice-reviewer's Lens 2 re-ran the focused command over the slice once per review, so it did not trust

@@ -470,4 +470,16 @@ assert.deepEqual(tail(trace(A)).map((l) => l.split(' ').slice(0, 2).join(' ')), 
   fs.rmSync(vf2);
 }
 
+// A `scope.js fail-to-pass … -- <command>` call records its own control run (ADR 0182), so the hook records no run for the test
+// file its command names, quoted script word or not; the rest of the command line records as usual.
+{
+  reset();
+  for (const scope of ['node plugin/scripts/scope.js', 'node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js"']) {
+    post(`${scope} fail-to-pass abc..def -- node tests/x.test.js`);
+  }
+  assert.deepEqual(trace(A), [], 'a fail-to-pass call records no run for the test file it names');
+  post('node plugin/scripts/scope.js fail-to-pass abc..def -- node tests/x.test.js && node tests/x.test.js');
+  assert.deepEqual(trace(A).map((l) => l.slice(2, 4).join(' ')), ['run path'], 'a run after the call still records');
+}
+
 cleanup();

@@ -20,6 +20,15 @@ function failedRunAt(events, to) {
   return events.find((e) => ['full', 'whole', 'path'].includes(e.fields[0]) && e.fields[2] === to && e.fields[1] === 'fail');
 }
 
+// Whether the latest full or whole run at commit `tip` (whole only, for a `whole` gate) passed on a clean tree.
+function passedAtTip(events, tip, whole) {
+  const kinds = whole ? ['whole'] : ['full', 'whole'];
+  const runs = events.filter((e) => kinds.includes(e.fields[0]) && e.fields[2] === tip);
+  if (!runs.length) return false;
+  const [, result, , tree] = runs[runs.length - 1].fields;
+  return result === 'pass' && tree === 'clean';
+}
+
 // The run root's `run` trace events in trace order; none where no trace file exists yet.
 function runEvents(root) {
   let raw = '';
@@ -84,9 +93,16 @@ function verbSuite(cwd, root, sub, result, sha, whole) {
 // a record with no kind even when it is green and tip-matched; a step content with either kind omits it.
 function verbSuiteReusable(cwd, root, branch, whole, base) {
   const raw = getHeader(readLines(root), 'Suite');
+  const m = raw && raw.match(/^(\S+)\s+@\s+(\S+)(?:\s+(whole))?$/);
+  if (raw && !m) fail(`unreadable suite record: ${raw}`);
+  // ADR 0182: a passing full-suite run at the exact tip meets the gate, whoever wrote it. A record at the tip itself decides
+  // on its own below, so a red record there stays the rerun's (ADR 0172).
+  const exactTip = resolveCommit(branch, cwd);
+  if (exactTip && (!m || m[2] !== exactTip) && passedAtTip(runEvents(root), exactTip, whole)) {
+    console.log('reusable');
+    return;
+  }
   if (!raw) fail('no suite record to reuse');
-  const m = raw.match(/^(\S+)\s+@\s+(\S+)(?:\s+(whole))?$/);
-  if (!m) fail(`unreadable suite record: ${raw}`);
   const [, result, recordedSha, kind] = m;
   if (result === 'red') return reusableOnRerun(cwd, root, branch, recordedSha, kind, whole, base);
   if (result !== 'green') fail(`suite record is ${result}, not green — not reusable`);

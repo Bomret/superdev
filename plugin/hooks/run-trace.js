@@ -21,22 +21,15 @@
 // here-string or echo text a shell reads) record no edit here.
 
 const path = require('path');
-const fs = require('fs');
 
-// The modules in `lib/` own everything the hook records from: the trace writer and reader, the ledger row readers, the verification
-// readers (ADR 0022, ADR 0117), the Bash write and test-run readers over the shared command layer, the run locator, the dispatch
-// lifecycle, the review verdicts, and the stash. The same fail-silent require as scope-prune: no module, no recording. One `try`
+// The modules in `lib/` own everything the hook records from: the trace writer, the Bash write and test-run readers over the
+// shared command layer, the run locator, the dispatch lifecycle, the review verdicts, and the stash. The same fail-silent require as scope-prune: no module, no recording. One `try`
 // covers all of them, so a module that will not load leaves its names null, and record() records nothing for any of them. The stash
 // loads under its own `try`: the PreToolUse stash and its removal in the PostToolUse hold whichever of the others loads.
 // The hook re-exports the readers it exported before they moved to `lib/` (ADR 0151): `bashTargets`, `locate`, `treeState`,
 // `parseVerdict`, `parseFinalVerdict`, `testRuns`, and `verificationKind`. A re-export whose module did not load is null, like
 // the names the hook uses itself, so requiring the hook stays silent.
 let appendTrace = null;
-let untraceField = null;
-let traceField = null;
-let readTrace = null;
-let sliceType = null;
-let verificationCommands = null;
 let bashTargets = null;
 let recordBash = null;
 let locate = null;
@@ -57,9 +50,7 @@ let parseFinalVerdict = null;
 let testRuns = null;
 let verificationKind = null;
 try {
-  ({ appendTrace, untraceField, traceField, readTrace } = require('../lib/trace-log.js'));
-  ({ sliceType } = require('../lib/ledger.js'));
-  ({ verificationCommands } = require('../lib/verification.js'));
+  ({ appendTrace } = require('../lib/trace-log.js'));
   ({ bashTargets } = require('../lib/bash-writes.js'));
   ({ recordBash, testRuns, verificationKind } = require('../lib/test-runs.js'));
   ({ locate, isTestPath, treeState } = require('../lib/run-tree.js'));
@@ -76,37 +67,6 @@ try {
   // left null: record() records nothing
 }
 
-// The Missing RED note (ADR 0117): after an implementation edit or a passing run of a `behavior` slice, a
-// note when its latest test edit has no failing run since and no note yet. The trace is the only state.
-// Writes nothing. Returns `{ text, line }` (the note text and the note line as `[runRoot, entry]`), or null. An implementation
-// edit before the first test edit gets none (ADR 0030). `pending` holds the `[runRoot, entry]` lines the event builds before it
-// writes any (INV-0159): they count as already in the trace, so the note reads the state the event leaves.
-// simplicity: the trace read and the note append take no lock, so two parallel tool calls can both send the
-// note; upgrade: an exclusive-create lock file around the read and append, if a duplicate note bites.
-function missingRedNote({ runRoot, tree, slice }, agent, pending) {
-  if (slice === 'scope') return null;
-  const v = verificationCommands(tree);
-  if (!v.full && !v.focused && !v.whole) return null;
-  let ledger;
-  let events = [];
-  try { ledger = fs.readFileSync(path.join(runRoot, 'ledger.md'), 'utf8'); } catch { return null; }
-  try { events = readTrace(fs.readFileSync(path.join(runRoot, 'trace.log'), 'utf8')); } catch { /* no trace yet: the pending lines are all of it */ }
-  for (const [root, e] of pending) {
-    if (root === runRoot) events.push({ slice: e.slice || 'scope', agent: e.agent || 'main', kind: e.kind, fields: (e.fields || []).map(traceField) });
-  }
-  if (sliceType(ledger, slice) !== 'behavior') return null;
-  const mine = events.filter((e) => e.slice === slice);
-  const at = mine.map((e) => e.kind === 'edit' && e.fields[0] === 'test').lastIndexOf(true);
-  if (at < 0) return null;
-  const since = mine.slice(at + 1);
-  if (since.some((e) => (e.kind === 'run' && e.fields[1] === 'fail') || e.kind === 'note')) return null;
-  const file = untraceField(mine[at].fields[1]);
-  return {
-    text: `Missing RED: ${file} was edited, and no failing test run has followed it. Run the test and watch it fail before the implementation goes on.`,
-    line: [runRoot, { slice, agent, kind: 'note', fields: [file] }],
-  };
-}
-
 // Writes the lines an event built, skipping a line that is `undefined`: the caller builds every line first (INV-0159).
 function writeLines(lines) {
   for (const line of lines) if (line) appendTrace(line[0], line[1]);
@@ -119,7 +79,7 @@ function record(input) {
   }
   // Every other Bash event takes the stash, before any guard below can return, so no path leaves it behind.
   const stashed = input && typeof input === 'object' && input.tool_name === 'Bash' && takeStart ? takeStart(input.tool_use_id) : null;
-  const loaded = [appendTrace, untraceField, traceField, readTrace, sliceType, verificationCommands, bashTargets, recordBash, locate, isTestPath, recordDispatch, findDispatch,
+  const loaded = [appendTrace, bashTargets, recordBash, locate, isTestPath, recordDispatch, findDispatch,
     endLine, bindAgentResult, recordAgentEnd, recordTaskStop, recordSendMessage, recordSendMessageEnd, closeSession, verdictLine, stashStart, takeStart];
   if (!loaded.every(Boolean) || !input || typeof input !== 'object') return null;
   const ti = input.tool_input || {};
@@ -169,11 +129,10 @@ function record(input) {
   }
   const failed = input.hook_event_name === 'PostToolUseFailure';
   const agent = typeof input.agent_id === 'string' && input.agent_id ? input.agent_id : 'main';
-  const triggers = [];
   // A Bash command resolves from where it started; `cwd` is where it ended (ADR 0159).
   const start = stashed || cwd;
   // Every line this event produces is computed before any is written: a scanner function that throws leaves no partial trace (INV-0159).
-  const lines = typeof ti.command === 'string' ? recordBash(ti.command, start, agent, failed, triggers, ti.run_in_background === true, cwd) : [];
+  const lines = typeof ti.command === 'string' ? recordBash(ti.command, start, agent, failed, ti.run_in_background === true, cwd) : [];
   if (failed) {
     writeLines(lines);
     return null;
@@ -187,22 +146,10 @@ function record(input) {
     if (!at) continue;
     const kind = isTestPath(at.tree, at.rel) ? 'test' : 'impl';
     lines.push([at.runRoot, { slice: at.slice, agent, kind: 'edit', fields: [kind, at.rel] }]);
-    if (kind === 'impl') triggers.push(at);
   }
-  // The notes are built against the lines built so far, and the edit lines and the notes are written together (INV-0159).
-  const notes = [];
-  const pending = lines.slice();
-  for (const t of triggers) {
-    const n = missingRedNote(t, agent, pending);
-    if (n) {
-      pending.push(n.line);
-      notes.push(n);
-    }
-  }
-  writeLines(pending);
-  // A note reaches the output only when its run's trace.log reads back after the write: a trace that cannot be read gives none.
-  const landed = (runRoot) => { try { fs.readFileSync(path.join(runRoot, 'trace.log')); return true; } catch { return false; } };
-  return notes.filter((n) => landed(n.line[0])).map((n) => n.text).join('\n') || null;
+  // Every line the event built is written together (INV-0159).
+  writeLines(lines);
+  return null;
 }
 
 function main() {
@@ -213,8 +160,7 @@ function main() {
   process.stdin.on('data', (c) => (raw += c));
   process.stdin.on('end', () => {
     try {
-      const note = record(JSON.parse(raw || '{}'));
-      if (note) process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: note } }));
+      record(JSON.parse(raw || '{}'));
     } catch {
       // never block the tool call
     }

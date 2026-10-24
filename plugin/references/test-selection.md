@@ -24,7 +24,7 @@ redirects, backgrounds, or wraps the call. To trim the output, pipe the runner i
 file outside the working tree, such as one from `mktemp` under `$TMPDIR`, and read the file afterwards.
 A redirect into the working tree leaves an untracked file, and on a passing run also records an implementation edit.
 **A suite longer than the Bash tool's time limit runs through the runner in the background, and you wait for
-its end before acting on it.** **`scope.js fail-to-pass` follows the same rule:** it runs the test command up to
+its end before acting on it.** **`scope.js fail-to-pass` follows the same rule:** it runs its command up to
 twice, so run it in the background when the suite outlasts the Bash tool's time limit, and wait for its end before
 you read its outcome. A verb the tool's limit kills writes no outcome line. The run trace records a run made outside the runner as `unknown` whenever its
 exit status does not reflect the test. An `unknown` run is no passing run, so `scope.js suite reusable` never
@@ -219,16 +219,11 @@ after the failed full run whose recorded path set covers every path `base resolv
 changes, the declaration, exactly one failed full run at the tip, and no failed run of another test file at
 the tip. Nothing reruns on its own, and no step reruns a failed suite until it passes.
 
-## A fix cycle's focused run
+## A fix cycle's runs
 
-Review's fix loop and run handoff's fix loop run the focused command over each cycle's commits (ADR 0075).
-A cycle whose commits a `scope.js fail-to-pass` run covered **at the current tip** runs no separate
-focused run (ADR 0175): the verb's control run is that same focused run at that tip, and it writes its own
-`run` line. The cycle's re-review receives the control run's result, named as the cycle's focused run.
-A cycle takes this only when the verb ran over the cycle's commits and printed an outcome, which is any
-outcome that follows a control run. Every other cycle keeps its own focused run over its commits: a
-cycle with no fail-to-pass run, a refused one (the verb ran no control), a signal-ended or non-starting
-control, and a cycle whose commits change only test-path files, which the verb is never run over.
+Review's fix loop and run handoff's fix loop run no test inside a cycle (ADR 0182). The cycle's implementer runs
+the tests that verify its fix and its fail-to-pass run over the cycle's commits, and the re-review reads those runs
+from the run trace. Each loop's exit full-suite run is the gate the stage advances on.
 
 ## The changed-path set
 
@@ -251,9 +246,7 @@ Each caller judges its own range and builds the set from it:
   failing-test or passing-test step runs each test file it works on through `test -- <command>`, the runner's own
   invocation of that one file. The last run before the implementer reports, or before the lite tier commits a slice,
   does not run, and neither does a step that works on no test file: the controller's next gate runs the suite over
-  that work (ADR 0180).
-- **The slice review's tip result.** Every path changed from the review base to the reviewed tip, the set the
-  `fail-to-pass` verb runs over. The controller runs it, and the slice-reviewer runs no test (ADR 0178).
+  that work (ADR 0180). The fail-to-pass run still runs (ADR 0182).
 - **The documentation step.** On a live scope run whose suite record's commit is an ancestor of the scope
   branch's tip (`scope.js get suite` names the commit), every path changed from that commit to the tip.
   `scope.js suite reusable` carries a green record across Markdown-only commits on the strength of a
@@ -261,9 +254,9 @@ Each caller judges its own range and builds the set from it:
   author landed after the review included. With no record, or a commit that is not an ancestor, its own
   doc commits — the ones the doc-writer just landed on the scope branch, never the wider range the chain
   is reconciling.
-- **Run handoff's own fix loop.** The commits that cycle's implementer just landed, on the scope checkout.
-- **The `scope.js fail-to-pass` verb.** Every path changed in `<base>..<tip>`, with a rename split into its
-  old and its new path (`--no-renames`). The command and the test paths come from the tip's own
+- **The `scope.js fail-to-pass` verb.** Its caller hands it the command, which names every test file the range
+  adds or modifies (ADR 0182). Every path changed in `<base>..<tip>`, with a rename split into its old and its new
+  path (`--no-renames`), decides what the second run puts back. The test paths come from the tip's own
   `docs/agents/verification.md`, never a working tree's. The verb refuses an empty range, so the fallback
   below never applies to it.
 

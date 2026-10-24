@@ -21,9 +21,9 @@ const { failToPassBoundMs } = require('../plugin/lib/fail-to-pass.js');
 // Every case runs at the default floor of the bound unless it sets its own (ADR 0142).
 delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
 
-// `scope.js fail-to-pass` (ADR 0134, INV-0138, INV-0139): runs a range's tests twice in a throwaway worktree, the second
-// time with every file the range touched outside its test files put back as it stood at the range's base, and records
-// the outcome as a trace line of its own kind. Each scenario is a real repository: a base commit, a tip commit, a run
+// `scope.js fail-to-pass <base>..<tip> -- <command>` (ADR 0134, ADR 0182, INV-0138, INV-0139): runs the caller's command,
+// which names the range's test files, twice in a throwaway worktree, the second time with every file the range touched
+// outside its test files put back as it stood at the range's base, and records the outcome as a trace line of its own kind. Each scenario is a real repository: a base commit, a tip commit, a run
 // root under `.superdev/scopes/`, and a scopetree at the tip, the cwd the verb runs from.
 {
   const { spawnSync } = require('node:child_process');
@@ -43,7 +43,8 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
       return fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split('\n').filter(Boolean).map((l) => l.split(' ').slice(1).join(' ')) : [];
     };
     // `base` and `tip` map a path to its text, or to null to delete it at the tip; `rename` pairs move a base file at the tip.
-    const scenario = ({ base, tip, rename = [], bare = false }) => {
+    // `cmd` is the command the verb is handed after `--`; a run may hand another (`o.cmd`), or none (`o.noCommand`).
+    const scenario = ({ base, tip, rename = [], bare = false, cmd = CMD }) => {
       const dir = path.join(D, 's' + ++n);
       const repo = path.join(dir, 'repo');
       fs.mkdirSync(repo, { recursive: true });
@@ -82,15 +83,18 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
       }
       const log = path.join(dir, 'log');
       return {
-        dir, repo, root, tree, baseSha, tipSha, log, range: `${baseSha}..${tipSha}`,
+        dir, repo, root, tree, baseSha, tipSha, log, cmd, range: `${baseSha}..${tipSha}`,
         run: (range, o = {}) => {
-          const r = spawnSync(process.execPath, [scopePath, 'fail-to-pass', range], { cwd: tree, encoding: 'utf8', timeout: 60000, ...o, env: { ...process.env, F2P_LOG: log, F2P_DIR: dir, ...o.env } });
+          const tail = o.noCommand ? [] : ['--', ...(o.argv || [o.cmd === undefined ? cmd : o.cmd])];
+          const r = spawnSync(process.execPath, [scopePath, 'fail-to-pass', range, ...tail], { cwd: tree, encoding: 'utf8', timeout: 60000, ...o, env: { ...process.env, F2P_LOG: log, F2P_DIR: dir, ...o.env } });
           assertSpawnDecided(r, 'scope.js fail-to-pass ' + range);
           return r;
         },
         // The trace's lines without their timestamp. `trace` leaves out the control run's `run` line, which `runLines` reads.
         trace: () => traceLines(root).filter((l) => l.split(' ')[2] !== 'run'),
-        runLines: () => traceLines(root).filter((l) => l.split(' ')[2] === 'run'),
+        // The control run's `run` lines, without the duration a `run` line ends with (asserted once below).
+        runLines: () => traceLines(root).filter((l) => l.split(' ')[2] === 'run').map((l) => l.replace(/ \d+$/, '')),
+        rawRunLines: () => traceLines(root).filter((l) => l.split(' ')[2] === 'run'),
         ran: () => (fs.existsSync(log) ? fs.readFileSync(log, 'utf8').split('\n').filter(Boolean) : []),
       };
     };
@@ -157,21 +161,15 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     assert.equal(r.stdout.trim(), 'pass-to-pass control=0,put-back=0', r.stderr);
     assert.doesNotMatch(fs.readFileSync(gitTrace, 'utf8'), /run_command: git (maintenance run|gc) --auto/, 'no git child of the verb starts automatic maintenance');
 
-    // A focused command carrying `{paths}` gets one shell word per changed path, however odd the path's name (ADR 0134).
+    // Both runs run the caller's command, and a command handed as several words keeps each word as given, however odd.
     s = scenario({
-      base: {
-        'src/plain.txt': 'a\n', 'odd name.txt': 'a\n', "it's.txt": 'a\n', '$x*.txt': 'a\n',
-        'docs/agents/verification.md': verif(CMD, 'sh tests/args.sh {paths}'),
-      },
-      tip: {
-        'src/plain.txt': 'b\n', 'odd name.txt': 'b\n', "it's.txt": 'b\n', '$x*.txt': 'b\n',
-        'tests/args.sh': 'for a in "$@"; do printf "%s\\n" "$a" >> "$F2P_LOG"; done\n',
-      },
+      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
+      tip: { 'src.txt': 'b\n', 'tests/args.sh': 'for a in "$@"; do printf "%s\\n" "$a" >> "$F2P_LOG"; done\n' },
     });
-    r = s.run(s.range);
+    const odd = ['odd name.txt', "it's.txt", '$x*.txt'];
+    r = s.run(s.range, { argv: ['sh', 'tests/args.sh', ...odd] });
     assert.equal(r.stdout.trim(), 'pass-to-pass control=0,put-back=0', r.stderr);
-    const changedPaths = git(s.repo, ['diff', '--name-only', '--no-renames', '-z', s.baseSha, s.tipSha]).split('\0').filter(Boolean);
-    assert.deepEqual(s.ran().slice(0, changedPaths.length), changedPaths, 'the verb hands the focused command one word per changed path');
+    assert.deepEqual(s.ran(), [...odd, ...odd], 'each run gets the command\'s words as given');
 
     // A file the range added is removed for the second run, so a test that needs it fails there.
     s = scenario({
@@ -213,6 +211,7 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
       },
       tip: { 'old.txt': null, '*.cfg': 'two\n', 'tests/x.cfg': 'two\n', 'tests/t.sh': probe + 'cat tests/x.cfg >> "$F2P_LOG"\ntest ! -e old.txt\n' },
       rename: [['mv.txt', 'moved.txt']],
+      cmd: 'sh tests/t.sh tests/x.cfg',
     });
     r = s.run(s.range);
     assert.equal(r.stdout.trim(), 'fail-to-pass control=0,put-back=1', r.stderr);
@@ -248,9 +247,9 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     ];
     const leftover = (sc) => fs.readdirSync(sc.root).filter((e) => e.startsWith('fail-to-pass-'));
     // A refusal: exit 1 with the message on stderr, no trace line, no worktree, nothing run, the checkout as it was.
-    const refuses = (sc, range, message) => {
+    const refuses = (sc, range, message, o = {}) => {
       const before = [checkout(sc.repo), checkout(sc.tree)];
-      const out = sc.run(range);
+      const out = sc.run(range, o);
       assert.equal(out.status, 1, `${range} is refused: ${out.stdout}${out.stderr}`);
       assert.match(out.stderr, message, `${range} names its reason`);
       assert.equal(out.stdout, '', 'a refusal prints no outcome');
@@ -276,81 +275,57 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     const testsOnly = scenario({ base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) }, tip: { 'tests/t.sh': probe } });
     refuses(testsOnly, testsOnly.range, /only test files/);
 
-    // A repository with no configured test command runs nothing and writes nothing.
-    const noCommand = scenario({ base: { 'src.txt': 'a\n' }, tip: { 'src.txt': 'b\n', 'tests/t.sh': probe } });
-    r = noCommand.run(noCommand.range);
-    assert.equal(r.status, 2, 'no outcome line is written, so the verb does not exit 0: ' + r.stdout);
-    assert.match(r.stderr, /no test command is configured/);
-    assert.deepEqual(noCommand.ran(), [], 'nothing runs');
-    assert.deepEqual(noCommand.trace(), [], 'nothing is written');
-    assert.deepEqual(leftover(noCommand), [], 'and no worktree stays');
+    // The verb runs only the command it is handed (ADR 0182): a range with no `--` command, or an empty one, is refused.
+    refuses(s, s.range, /-- <command>/, { noCommand: true });
+    refuses(s, s.range, /needs a command/, { cmd: ' ' });
+    // A range that changes no test file has no test of its own to fail.
+    const noTests = scenario({ base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) }, tip: { 'src.txt': 'b\n' } });
+    refuses(noTests, noTests.range, /changes no test file/);
+    // The command names every test file the range adds or modifies, in a word of a command that runs something: one it leaves
+    // out, or names only to a command that runs nothing (`:`, `echo`), is refused, naming the file.
+    const twoTests = scenario({
+      base: { 'src.txt': 'a\n', 'tests/old.sh': 'x\n', 'tests/gone.sh': 'x\n', 'docs/agents/verification.md': verif(CMD, CMD) },
+      tip: { 'src.txt': 'b\n', 'tests/t.sh': probe, 'tests/old.sh': 'y\n', 'tests/gone.sh': null },
+    });
+    refuses(twoTests, twoTests.range, /names no tests\/old\.sh/);
+    refuses(twoTests, twoTests.range, /names no tests\/old\.sh/, { cmd: ': tests/old.sh; sh tests/t.sh' });
+    refuses(twoTests, twoTests.range, /names no tests\/old\.sh/, { cmd: 'echo tests/old.sh && sh tests/t.sh' });
+    // A deleted test file needs no name, and a directory names every file under it.
+    for (const cmd of ['sh tests/t.sh tests/old.sh', 'sh tests/t.sh ./tests/old.sh', 'sh tests/t.sh tests/', 'sh tests/t.sh tests']) {
+      fs.rmSync(twoTests.log, { force: true });
+      r = twoTests.run(twoTests.range, { cmd });
+      assert.equal(r.stdout.trim(), 'pass-to-pass control=0,put-back=0', `${cmd} names every test file the range adds or modifies: ${r.stderr}`);
+    }
 
-    // The control run is also a test run (ADR 0175): it writes the `run` line of the kind of command it ran, with its result,
-    // the tip, a clean tree, and for a focused run the range's path set, in the shape `scope.js test` writes. The line is
-    // attributed like the outcome line and the outcome line is unchanged.
-    const FOCUSED = 'sh tests/t.sh {paths}';
-    const runFields = (line) => line.split(' ').slice(2).join(' ');
-    const testVerb = (sc, kind, ...paths) => {
-      const t = spawnSync(process.execPath, [scopePath, 'test', kind, ...paths], { cwd: sc.tree, encoding: 'utf8', timeout: 60000, env: { ...process.env, F2P_LOG: sc.log, F2P_DIR: sc.dir } });
-      assertSpawnDecided(t, 'scope.js test ' + kind);
-      return t;
-    };
+    // The control run is also a test run (ADR 0175, ADR 0182): it writes a `path` run line with its result, the tip, a clean
+    // tree, and the range's test files, the files the command was checked to name. The line is attributed like the outcome
+    // line, and the outcome line is unchanged.
     s = scenario({
-      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, FOCUSED) },
+      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
       tip: { 'src.txt': 'b\n', 'tests/t.sh': probe + 'grep -q b src.txt\n' },
     });
     r = s.run(s.range);
     assert.equal(r.stdout.trim(), 'fail-to-pass control=0,put-back=1', r.stderr);
     assert.deepEqual(s.trace(), [`01 main fail-to-pass ${s.range} fail-to-pass control=0,put-back=1`], 'the outcome line is unchanged');
-    assert.equal(s.runLines().length, 1, 'one run line, for the control alone');
-    assert.match(s.runLines()[0], new RegExp(`^01 main run focused pass ${s.tipSha} clean `), 'a passing focused run at the tip on a clean tree, attributed like the outcome line');
-    assert.equal(testVerb(s, 'focused', 'src.txt', 'tests/t.sh').status, 0);
-    assert.equal(runFields(s.runLines()[0]), runFields(s.runLines()[1]), 'the line has the shape `scope.js test focused` writes for the same path set, which is the range\'s');
+    assert.deepEqual(s.runLines(), [`01 main run path pass ${s.tipSha} clean tests/t.sh`], 'one passing path run line at the tip on a clean tree, naming the test files');
+    assert.match(s.rawRunLines()[0], / tests\/t\.sh \d+$/, 'and its duration in whole milliseconds last');
 
     // A failing control writes a failing run line, and the outcome line reads `unknown` as before.
     s = scenario({
-      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, FOCUSED) },
+      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
       tip: { 'src.txt': 'b\n', 'tests/t.sh': probe + 'exit 3\n' },
     });
     r = s.run(s.range);
     assert.equal(r.stdout.trim(), 'unknown control=3');
-    assert.match(s.runLines().join('\n'), new RegExp(`^01 main run focused fail ${s.tipSha} clean `));
-    assert.equal(s.runLines().length, 1);
+    assert.deepEqual(s.runLines(), [`01 main run path fail ${s.tipSha} clean tests/t.sh`]);
 
     // A control that moves HEAD records the tip it ran on and a dirty tree, as `scope.js test` does for a moved HEAD.
     s = scenario({
-      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, FOCUSED) },
+      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
       tip: { 'src.txt': 'b\n', 'tests/t.sh': probe + 'git -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q --allow-empty -m moved\n' },
     });
     s.run(s.range);
-    assert.match(s.runLines().join('\n'), new RegExp(`^01 main run focused pass ${s.tipSha} dirty `), 'a moved HEAD reads dirty at the tip: ' + s.runLines().join('\n'));
-
-    // Under the complete-selector declaration, the control run's focused line is the run at the tip a carry needs: a green
-    // record at the base carries to the tip with no other run line there.
-    s = scenario({
-      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, FOCUSED, '\n## Complete selector\n\nThe focused command selects every test a changed path can affect.\n') },
-      tip: { 'src.txt': 'b\n', 'tests/t.sh': probe + 'grep -q b src.txt\n' },
-    });
-    appendTrace(s.root, { slice: '01', kind: 'run', fields: ['full', 'pass', s.baseSha, 'clean'] });
-    const carrySet = spawnSync(process.execPath, [scopePath, 'suite', 'set', 'green', s.baseSha, '--root', s.root], { cwd: s.repo, encoding: 'utf8', timeout: 20000 });
-    assertSpawnDecided(carrySet, 'scope.js suite set');
-    assert.equal(carrySet.status, 0, carrySet.stderr);
-    assert.equal(s.run(s.range).stdout.trim(), 'fail-to-pass control=0,put-back=1');
-    assert.deepEqual(s.runLines().filter((l) => l.includes(` ${s.tipSha} `)).length, 1, 'the control run is the one run line at the tip');
-    const carried = spawnSync(process.execPath, [scopePath, 'suite', 'reusable', '--branch', 'feat/demo', '--root', s.root], { cwd: s.repo, encoding: 'utf8', timeout: 20000 });
-    assertSpawnDecided(carried, 'scope.js suite reusable');
-    assert.equal(carried.status, 0, 'the control run\'s focused line carries the base\'s green record to the tip: ' + carried.stderr);
-
-    // A focused command with no `{paths}` runs as the full command: its line reads `full`, with no path set.
-    s = scenario({
-      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
-      tip: { 'src.txt': 'b\n', 'tests/t.sh': probe },
-    });
-    assert.equal(s.run(s.range).status, 0);
-    assert.equal(s.runLines().length, 1);
-    assert.equal(testVerb(s, 'full').status, 0);
-    assert.equal(runFields(s.runLines()[0]), runFields(s.runLines()[1]), 'a full-kind line, equal to the one `scope.js test full` writes');
-    assert.match(s.runLines()[0], /^01 main run full pass /);
+    assert.deepEqual(s.runLines(), [`01 main run path pass ${s.tipSha} dirty tests/t.sh`], 'a moved HEAD reads dirty at the tip');
 
     // A control that does not pass records `unknown` with its exit status as the reason (INV-0139): the second run never happens.
     // The scope run's first `unknown` is an observation naming the environment gap (references/scope-mode.md's `## Observations`).
@@ -387,8 +362,9 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     // A control ended by a signal carries no exit status: it records `unknown` naming the signal. The process group it ran in
     // dies with it, a background process included.
     s = scenario({
-      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(`${background}; kill -KILL $$`) },
+      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
       tip: { 'src.txt': 'b\n', 'tests/t.sh': probe },
+      cmd: `${CMD}; ${background}; kill -KILL $$`,
     });
     r = s.run(s.range);
     assert.equal(r.status, 0, 'an `unknown` is an outcome that was read and printed, a signal-ended control included: ' + r.stderr);
@@ -401,8 +377,9 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     // A run ended by a signal has no exit status: no verdict (INV-0009), so it records `unknown` naming the signal and the
     // bound it ran under. Its whole process group dies with it, a background process included.
     s = scenario({
-      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(`grep -q b src.txt || { ${background}; kill -KILL $$; }`) },
+      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
       tip: { 'src.txt': 'b\n', 'tests/t.sh': probe },
+      cmd: `${CMD}; grep -q b src.txt || { ${background}; kill -KILL $$; }`,
     });
     r = s.run(s.range);
     assert.equal(r.status, 0, r.stdout + r.stderr);
@@ -414,8 +391,9 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     // A run that exits on its own and leaves a background process behind leaves none running once the run is over, so
     // nothing writes into a worktree the verb removes, or into the files the second run puts back.
     s = scenario({
-      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(background) },
+      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
       tip: { 'src.txt': 'b\n', 'tests/t.sh': probe },
+      cmd: `${CMD}; ${background}`,
     });
     r = s.run(s.range);
     assert.equal(r.stdout.trim(), 'pass-to-pass control=0,put-back=0', r.stderr);
@@ -562,33 +540,10 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
       assert.deepEqual(s.trace(), [`scope main fail-to-pass ${range} fail-to-pass control=0,put-back=1`], `${label} names \`scope\``);
     }
 
-    // The command: the focused one over the range's whole changed-path set where it carries `{paths}`, the full one
-    // otherwise. Both runs use the same command string.
     const argsProbe = 'printf "%s|" "$@" >> "$F2P_LOG"; echo >> "$F2P_LOG"\n';
-    const picks = (full, focused) => scenario({
-      base: { 'src.txt': 'a\n', 'old.txt': 'o\n', 'docs/agents/verification.md': verif(full, focused) },
-      tip: { 'src.txt': 'b\n', 'old.txt': null, 'my file.txt': 'x\n', 'tests/t.sh': argsProbe + 'grep -q b src.txt\n' },
-    });
-    s = picks('sh tests/t.sh full', 'sh tests/t.sh focused {paths}');
-    r = s.run(s.range);
-    assert.equal(r.stdout.trim(), 'fail-to-pass control=0,put-back=1', r.stderr);
-    assert.deepEqual(s.ran(), Array(2).fill('focused|my file.txt|old.txt|src.txt|tests/t.sh|'), 'the focused command gets every changed path, quoted, on both runs');
-    for (const [label, focused] of [
-      ['a fixed-subset focused command', 'sh tests/t.sh subset'],
-      ['a self-detecting focused command', 'sh tests/t.sh --changed'],
-    ]) {
-      s = picks('sh tests/t.sh full', focused);
-      s.run(s.range);
-      assert.deepEqual(s.ran(), Array(2).fill('full|'), `${label} runs the full command, twice`);
-    }
-    s = scenario({
-      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif('sh tests/t.sh full') },
-      tip: { 'src.txt': 'b\n', 'tests/t.sh': argsProbe + 'grep -q b src.txt\n' },
-    });
-    s.run(s.range);
-    assert.deepEqual(s.ran(), Array(2).fill('full|'), 'a repository with the full command alone runs it, twice');
 
-    // The command and the test paths come from the tip, even where the range changed the verification file itself.
+    // The test paths come from the tip, even where the range changed the verification file itself: a file only the tip's test
+    // paths name stays as it is, and the command names it.
     s = scenario({
       base: { 'src.txt': 'a\n', 'spec-files/x': 'one\n', 'docs/agents/verification.md': verif('sh tests/t.sh base') },
       tip: {
@@ -597,22 +552,24 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
         'docs/agents/verification.md': verif('sh tests/t.sh tip', null, '\n## Test paths\n\n- `spec-files/`\n- `tests/`\n'),
         'tests/t.sh': argsProbe + 'cat spec-files/x >> "$F2P_LOG"\ngrep -q b src.txt\n',
       },
+      cmd: 'sh tests/t.sh spec-files/x',
     });
     r = s.run(s.range);
     assert.equal(r.stdout.trim(), 'fail-to-pass control=0,put-back=1', r.stderr);
-    assert.deepEqual(s.ran(), ['tip|', 'two', 'tip|', 'two'], 'the tip\'s command runs twice, and a file the tip\'s test paths name stays as it is');
+    assert.deepEqual(s.ran(), ['spec-files/x|', 'two', 'spec-files/x|', 'two'], 'the command runs twice, and a file the tip\'s test paths name stays as it is');
 
     // The configuration is read from the tree root, whatever directory the verb runs from: a subdirectory of the scopetree
-    // finds the tip's command and its `## Test paths`, where a cwd-relative read finds neither and nothing runs.
+    // finds the tip's `## Test paths`, where a cwd-relative read finds none. The command runs at the tree root.
     s = scenario({
       base: { 'src.txt': 'a\n', 'spec-files/x': 'one\n', 'docs/agents/verification.md': verif('sh tests/t.sh tip', null, '\n## Test paths\n\n- `spec-files/`\n- `tests/`\n') },
       tip: { 'src.txt': 'b\n', 'spec-files/x': 'two\n', 'tests/t.sh': argsProbe + 'cat spec-files/x >> "$F2P_LOG"\ngrep -q b src.txt\n' },
+      cmd: 'sh tests/t.sh spec-files/x',
     });
     for (const sub of ['docs', 'docs/agents']) {
       fs.rmSync(s.log, { force: true });
       r = s.run(s.range, { cwd: path.join(s.tree, sub) });
-      assert.equal(r.stdout.trim(), 'fail-to-pass control=0,put-back=1', `a run from ${sub} reads the configured command: ${r.stderr}`);
-      assert.deepEqual(s.ran(), ['tip|', 'two', 'tip|', 'two'], `a run from ${sub} reads the configured test paths`);
+      assert.equal(r.stdout.trim(), 'fail-to-pass control=0,put-back=1', `a run from ${sub} runs at the tree root: ${r.stderr}`);
+      assert.deepEqual(s.ran(), ['spec-files/x|', 'two', 'spec-files/x|', 'two'], `a run from ${sub} reads the configured test paths`);
     }
     // The changed-path listing is the range's whole change set as well, where the operator's git config limits `git diff` to
     // the cwd (`diff.relative`).
@@ -674,7 +631,7 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
       const until = async (done) => { for (let i = 0; i < 600 && !done(); i++) await wait(50); if (!done()) throw new Error('timed out waiting'); };
       const left = () => fs.readdirSync(cfg.root).filter((e) => e.startsWith('fail-to-pass-'));
       const start = (env) => {
-        const child = spawn(process.execPath, [cfg.scope, 'fail-to-pass', cfg.range], { cwd: cfg.cwd, env: { ...process.env, ...cfg.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+        const child = spawn(process.execPath, [cfg.scope, 'fail-to-pass', cfg.range, '--', cfg.cmd], { cwd: cfg.cwd, env: { ...process.env, ...cfg.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
         const out = { stdout: '', stderr: '' };
         child.stdout.on('data', (d) => (out.stdout += d));
         child.stderr.on('data', (d) => (out.stderr += d));
@@ -728,14 +685,15 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
       ['SIGINT', 130, hang], ['SIGTERM', 143, hang], ['SIGHUP', 129, hang], ['SIGKILL', null, withChild], ['SIGTERM', 143, stubborn, 'SIGTERM on a runner that traps it'],
     ]) {
       s = scenario({
-        base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(command) },
+        base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
         tip: { 'src.txt': 'b\n', 'tests/t.sh': probe },
+        cmd: `${CMD}; ${command}`,
       });
       // The snapshot comes first: `git status` itself fires the fixture's post-index-change hook.
       before = [checkout(s.repo), checkout(s.tree)];
       const sentinelHere = hooked(s);
       const ended = drive({
-        mode: 'signal', signal, cwd: s.tree, range: s.range, root: s.root,
+        mode: 'signal', signal, cwd: s.tree, range: s.range, cmd: s.cmd, root: s.root,
         marker: path.join(path.dirname(s.repo), 'marker'), pidfile: path.join(path.dirname(s.repo), 'pid'),
         env: { F2P_MARK: path.join(path.dirname(s.repo), 'marker'), F2P_PID: path.join(path.dirname(s.repo), 'pid') },
       });
@@ -755,7 +713,7 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
       tip: { 'src.txt': 'b\n', 'tests/t.sh': 'mkdir -p "$F2P_BARRIER"; touch "$F2P_BARRIER/$$"; for i in $(seq 200); do [ "$(ls "$F2P_BARRIER" | wc -l)" -ge 2 ] && break; sleep 0.1; done\npwd >> "$F2P_LOG"\ngrep -q b src.txt\n' },
     });
     before = [checkout(s.repo), checkout(s.tree)];
-    const both = drive({ mode: 'parallel', cwd: s.tree, range: s.range, root: s.root, env: { F2P_LOG: s.log, F2P_BARRIER: path.join(path.dirname(s.repo), 'barrier') } });
+    const both = drive({ mode: 'parallel', cwd: s.tree, range: s.range, cmd: s.cmd, root: s.root, env: { F2P_LOG: s.log, F2P_BARRIER: path.join(path.dirname(s.repo), 'barrier') } });
     assert.deepEqual(both.map((e) => e.code), [0, 0], 'both runs end with an outcome: ' + JSON.stringify(both));
     assert.deepEqual(both.map((e) => e.stdout.trim()), Array(2).fill('fail-to-pass control=0,put-back=1'));
     assert.equal(s.trace().length, 2, 'each run writes its own line');
@@ -787,7 +745,7 @@ exec "${realGit}" "$@"
         });
         before = [checkout(s.repo), checkout(s.tree)];
         const shimLog = path.join(path.dirname(s.repo), 'shim.log');
-        const pair = drive({ mode: 'parallel', cwd: s.tree, range: s.range, root: s.root, env: { PATH: shimDir + path.delimiter + process.env.PATH, F2P_SHIM_LOG: shimLog } });
+        const pair = drive({ mode: 'parallel', cwd: s.tree, range: s.range, cmd: s.cmd, root: s.root, env: { PATH: shimDir + path.delimiter + process.env.PATH, F2P_SHIM_LOG: shimLog } });
         assert.deepEqual(pair.map((e) => e.code), [0, 0], `round ${round}: both runs end with an outcome: ` + JSON.stringify(pair));
         let open = 0;
         let deepest = 0;
@@ -810,7 +768,7 @@ exec "${realGit}" "$@"
       before = [checkout(s.repo), checkout(s.tree)];
       const killLog = path.join(path.dirname(s.repo), 'shim.log');
       const killed = drive({
-        mode: 'kill-beside', cwd: s.tree, range: s.range, root: s.root, marker: path.join(path.dirname(s.repo), 'marker'), shimLog: killLog,
+        mode: 'kill-beside', cwd: s.tree, range: s.range, cmd: s.cmd, root: s.root, marker: path.join(path.dirname(s.repo), 'marker'), shimLog: killLog,
         env: { PATH: shimDir + path.delimiter + process.env.PATH, F2P_SHIM_LOG: killLog, F2P_MARK: path.join(path.dirname(s.repo), 'marker') },
       });
       assert.equal(killed.first.signal, 'SIGKILL', 'the first run was killed');
@@ -915,6 +873,7 @@ for (let i = 0; i < 3; i++) withWorktreeLock(${JSON.stringify(s.repo)}, () => {
     s = scenario({
       base: { '.gitignore': '.superdev/\nnode_modules/\n', 'src.txt': 'a\n', 'docs/agents/verification.md': verif('node tests/check.js', 'node tests/check.js') },
       tip: { 'src.txt': 'b\n', 'tests/check.js': "require('dep'); process.exit(require('fs').readFileSync('src.txt', 'utf8').includes('b') ? 0 : 1);\n" },
+      cmd: 'node tests/check.js',
     });
     fs.mkdirSync(path.join(s.repo, 'node_modules', 'dep'), { recursive: true });
     fs.writeFileSync(path.join(s.repo, 'node_modules', 'dep', 'index.js'), 'module.exports = 1;\n');
@@ -922,6 +881,7 @@ for (let i = 0; i < 3; i++) withWorktreeLock(${JSON.stringify(s.repo)}, () => {
     assert.equal(r.stdout.trim(), 'fail-to-pass control=0,put-back=1', 'a module installed in the main checkout resolves from the worktree: ' + r.stderr);
 
     // An outcome line is no test run: it is no `run` line, never backs a suite record, and `suite reusable` answers as before.
+    // The control's `path` run line backs no suite record either: it ran the range's test files, not the suite (ADR 0182).
     s = scenario({
       base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
       tip: { 'src.txt': 'b\n', 'tests/t.sh': probe + 'grep -q b src.txt\n' },
@@ -938,33 +898,31 @@ for (let i = 0; i < 3; i++) withWorktreeLock(${JSON.stringify(s.repo)}, () => {
     const afterOutcome = cli(s, ['suite', 'reusable', '--branch', 'feat/demo']);
     assert.deepEqual([afterOutcome.status, afterOutcome.stderr], [unbacked.status, unbacked.stderr], 'the outcome line backs nothing');
     assert.equal(s.run(s.range).status, 0);
-    const backed = cli(s, ['suite', 'reusable', '--branch', 'feat/demo']);
-    assert.equal(backed.status, 0, 'the control run is a passing full run at the tip and backs the record: ' + backed.stderr);
+    const afterControl = cli(s, ['suite', 'reusable', '--branch', 'feat/demo']);
+    assert.equal(afterControl.status, 1, 'the control run\'s path line backs no suite record: ' + afterControl.stdout);
     assert.equal(s.run(s.range).status, 0);
-    assert.deepEqual(cli(s, ['suite', 'reusable', '--branch', 'feat/demo']).stdout, backed.stdout, 'a second control run leaves the answer as it was');
     assert.equal(s.runLines().length, 2, 'each control run writes one run line and no outcome line is a run line');
     // `trace` prints the outcome line like any other, which is what `/superdev:status --trace` shows.
     const timeline = cli(s, ['trace']).stdout.split('\n');
     assert.ok(timeline.some((l) => new RegExp(` 01 main fail-to-pass ${s.range} fail-to-pass control=0,put-back=1$`).test(l)), 'trace prints the outcome line');
     assert.ok(cli(s, ['trace', '--slice', '01']).stdout.includes(' fail-to-pass '), 'and the slice filter keeps it');
 
-    // A test command that cannot start (here one past the argument size limit, E2BIG) records `unknown` naming the start
-    // failure, in one line with no stack trace, and leaves no worktree. Inside a run root the line reaches the trace;
-    // outside one nothing is written.
-    // A 600 KB command passes one argument past Linux's per-argument limit; six 100 KB variables bring the total past
-    // macOS's whole-exec limit too, while every git child, which carries no such argument, still starts.
-    const HUGE = `: ${'x'.repeat(600 * 1024)}; ${CMD}`;
-    const padding = Object.fromEntries([1, 2, 3, 4, 5, 6].map((i) => [`F2P_PAD_${i}`, 'p'.repeat(100 * 1024)]));
+    // A control that cannot start (here no shell on the PATH, so `sh -c <command>` cannot spawn) records `unknown` naming the
+    // start failure, in one line with no stack trace, and leaves no worktree. Inside a run root the line reaches the trace;
+    // outside one nothing is written. PATH holds one directory with a link to git alone.
     for (const bare of [false, true]) {
       s = scenario({
         bare,
-        base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(HUGE) },
+        base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
         tip: { 'src.txt': 'b\n', 'tests/t.sh': probe },
       });
-      r = s.run(s.range, bare ? { cwd: s.repo, env: padding } : { env: padding });
+      const gitOnly = path.join(s.dir, 'git-only');
+      fs.mkdirSync(gitOnly);
+      fs.symlinkSync(process.env.PATH.split(path.delimiter).map((d) => path.join(d, 'git')).find((p) => fs.existsSync(p)), path.join(gitOnly, 'git'));
+      r = s.run(s.range, bare ? { cwd: s.repo, env: { PATH: gitOnly } } : { env: { PATH: gitOnly } });
       const where = bare ? 'outside a run root' : 'inside a run root';
       assert.equal(r.status, 0, `${where}: a start failure is an unknown outcome: ` + r.stderr.slice(0, 2000));
-      assert.match(r.stdout.trim(), /^unknown control=\S*E2BIG\S*$/, `${where}: one unknown line naming the start failure`);
+      assert.equal(r.stdout.trim(), 'unknown control=start-failed:ENOENT', `${where}: one unknown line naming the start failure`);
       assert.doesNotMatch(r.stderr, /\n\s+at /, `${where}: no stack trace`);
       const home = bare ? path.join(s.repo, '.superdev') : s.root;
       assert.deepEqual(fs.existsSync(home) ? fs.readdirSync(home).filter((f) => f.startsWith('fail-to-pass-')) : [], [], `${where}: no worktree left`);
@@ -980,8 +938,9 @@ for (let i = 0; i < 3; i++) withWorktreeLock(${JSON.stringify(s.repo)}, () => {
     // what fails the start is the shell itself going missing. PATH holds one directory of links to the tools the verb
     // and the command use, and the control run deletes the `sh` link, so the second spawn finds no shell (ENOENT).
     s = scenario({
-      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif('rm -f "$F2P_DIR/bin/sh"') },
+      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
       tip: { 'src.txt': 'b\n', 'tests/t.sh': probe },
+      cmd: `${CMD}; rm -f "$F2P_DIR/bin/sh"`,
     });
     const bin = path.join(s.dir, 'bin');
     fs.mkdirSync(bin);

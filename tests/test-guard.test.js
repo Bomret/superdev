@@ -59,6 +59,9 @@ const denied = (command, cwd, agentType) => decide(call(command, cwd, agentType)
   assert.strictEqual(denied('cd . && npm test 2>&1 | tail -5', slicetree), true, 'a wrapped direct full run is refused');
   assert.strictEqual(denied('npm run test:all', slicetree), true, 'the whole-repo command run directly is refused');
   assert.strictEqual(denied(`${SCOPE} test -- npm test`, slicetree), true, 'the full command through test -- is refused');
+  assert.strictEqual(denied(`${SCOPE} fail-to-pass abc..def -- npm test`, slicetree), true, 'the full command through fail-to-pass is refused');
+  assert.strictEqual(denied(`${SCOPE} fail-to-pass abc..def -- 'npm test' 2>&1 | tail -5`, slicetree), true, 'a quoted, piped full command through fail-to-pass is refused');
+  assert.strictEqual(denied(`${SCOPE} fail-to-pass abc..def -- npm run test:all`, slicetree), true, 'the whole-repo command through fail-to-pass is refused');
   const { reason } = decide(call(`${SCOPE} test full`, slicetree));
   assert.match(reason, /test focused <paths>/, 'the refusal names the run to make instead');
   assert.match(reason, /controller/, 'the refusal names who owns the full-suite run');
@@ -81,6 +84,7 @@ const denied = (command, cwd, agentType) => decide(call(command, cwd, agentType)
   assert.strictEqual(denied(`${SCOPE} test focused $(git diff --name-only HEAD)`, slicetree), false, 'test focused with a substituted path list passes');
   assert.strictEqual(denied('npm test -- --related tests/a.test.js', slicetree), false, 'a direct focused run passes');
   assert.strictEqual(denied(`${SCOPE} test -- node tests/a.test.js`, slicetree), false, 'a one-file run through test -- passes');
+  assert.strictEqual(denied(`${SCOPE} fail-to-pass abc..def -- node tests/a.test.js`, slicetree), false, 'a fail-to-pass run over a test file passes');
   assert.strictEqual(denied('git status && ls', slicetree), false, 'a command that runs no test passes');
   assert.strictEqual(denied('grep -n "npm test" README.md', slicetree), false, 'a command naming the full command as text passes');
 }

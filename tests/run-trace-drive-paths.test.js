@@ -98,15 +98,12 @@ const S3src = path.join(S3, 'src');
   onWin32(() => { clear(); bashAt('git restore -- /c/sub/src/x.js', T3win); });
   assert.deepEqual(lines(), ['restore C:/sub/src/x.js'], 'a restore operand named by a drive path records');
 
-  // scopeTestCalls: a `scope.js test` call after `cd /c/…` records its own run, so the hook writes none and notes.
+  // scopeTestCalls: a `scope.js test` call after `cd /c/…` records its own run, so the hook writes none.
   const SCOPE = require.resolve('../plugin/scripts/scope.js');
-  const testEdit = path.join(T3win, 'tests', 'n.test.js');
   fs.writeFileSync(wvf, '# V\n\n```sh\nbun test\n```\n');
   onWin32(() => {
     clear();
-    edit(testEdit);
-    const note = bashAt(`cd ${T3} && node ${SCOPE} test full`);
-    assert.ok(note.includes('Missing RED'), 'a scope.js test call after cd /c/… notes');
+    bashAt(`cd ${T3} && node ${SCOPE} test full`);
   });
   assert.deepEqual(lines().filter((l) => l.startsWith('run')), [], 'the hook records no run for the scope.js test call');
 }

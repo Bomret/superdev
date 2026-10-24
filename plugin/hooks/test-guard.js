@@ -5,8 +5,8 @@
 // A dispatched implementer runs only the tests that verify its work, and the controller owns every full-suite run (ADR 0177).
 // A dispatched implementer's Bash call is denied when it runs the full or the whole-repo command: `scope.js test full`,
 // `scope.js test whole`, a `scope.js test focused` with no path, or the configured full or whole-repo command run directly or
-// through `scope.js test --`. Where the focused fence repeats the full fence, a `scope.js test focused` with paths runs the full
-// suite too, and is denied (ADR 0180).
+// through `scope.js test --` or `scope.js fail-to-pass … --`. Where the focused fence repeats the full fence, a `scope.js test
+// focused` with paths runs the full suite too, and is denied (ADR 0180, ADR 0182).
 //
 // The guard fails open, the opposite of the Bash guardrails (INV-0140), as tree-guard does: a call it cannot judge passes. That
 // covers unreadable hook input, a library that will not load, and a call outside every run tree. A missed refusal costs a suite
@@ -14,19 +14,21 @@
 
 let lib = null;
 try {
-  const { cmdSegments, plain } = require('../lib/bash-command.js');
+  const { cmdSegments, plain, readWord } = require('../lib/bash-command.js');
   const { testRuns, verificationKind, scopeTestCalls } = require('../lib/test-runs.js');
   const { verificationCommands } = require('../lib/verification.js');
-  if ([cmdSegments, testRuns, verificationKind, scopeTestCalls, verificationCommands, plain].every((f) => typeof f === 'function')) {
-    lib = { cmdSegments, testRuns, verificationKind, scopeTestCalls, verificationCommands, plain };
+  const { locate } = require('../lib/run-tree.js');
+  if ([cmdSegments, testRuns, verificationKind, scopeTestCalls, verificationCommands, plain, readWord, locate].every((f) => typeof f === 'function')) {
+    lib = { cmdSegments, testRuns, verificationKind, scopeTestCalls, verificationCommands, plain, readWord, locate };
   }
 } catch {
   /* fail open */
 }
 
 const OWN_RUNS =
-  'An implementer runs only the tests that verify its work: `scope.js test focused <paths>` with at least one path, or ' +
-  '`scope.js test -- <command>` for one test file. The controller owns every full-suite run.';
+  'An implementer runs only the tests that verify its work: `scope.js test focused <paths>` with at least one path, ' +
+  '`scope.js test -- <command>` for one test file, or `scope.js fail-to-pass <base>..HEAD -- <command>` naming its own test ' +
+  'files. The controller owns every full-suite run.';
 const ONE_FILE =
   'The focused command repeats the full one in this repository, so `test focused` runs the whole suite. Run each test file ' +
   'the step works on through `scope.js test -- <command>`, and leave the run before your report to the controller.';
@@ -59,6 +61,21 @@ function judge(command, cwd) {
     if (verb === '--' && rest.length) {
       const kind = verificationKind(rest.length === 1 ? plain(rest[0]) || rest[0] : rest.join(' '), verificationCommands(c.at.tree));
       if (kind === 'full' || kind === 'whole') return refuse(`a ${kind}-suite run through \`scope.js test --\``, OWN_RUNS);
+    }
+  }
+  // A fail-to-pass run's command, after its `--`, is judged as a `test --` command is. simplicity: it is read in the call's cwd,
+  // so a `cd` before it is not followed; a command the guard cannot place passes.
+  const at = lib.locate(require('path').join(cwd, 'x'));
+  if (at) {
+    for (const seg of cmdSegments(command)) {
+      // The script word may be quoted and may lead with a variable: only its basename matters, as `scopeTestCalls` reads it.
+      const ws = seg.ws.map((w) => lib.readWord(w).value || w);
+      const i = ws.findIndex((w, j) => /(?:^|\/)scope\.js$/.test(w) && ws[j + 1] === 'fail-to-pass');
+      const d = i < 0 ? -1 : ws.indexOf('--', i + 2);
+      if (d < 0 || d === ws.length - 1) continue;
+      const rest = seg.ws.slice(d + 1);
+      const kind = verificationKind(rest.length === 1 ? plain(rest[0]) || rest[0] : rest.join(' '), verificationCommands(at.tree));
+      if (kind === 'full' || kind === 'whole') return refuse(`a ${kind}-suite run through \`scope.js fail-to-pass\``, OWN_RUNS);
     }
   }
   for (const r of testRuns(command, cwd)) {

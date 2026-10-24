@@ -63,11 +63,7 @@ A stop there dispatches no slice. A red record's pick there dispatches only the 
   changed-path set, and so does a step that works on no test file (ADR 0139). Where the focused fence repeats the
   full fence, each step runs each test file it works on through `test -- <command>`, and you make neither of those
   whole-set runs: run handoff's full-suite run covers them (ADR 0180). A suite longer than the Bash tool's time limit runs
-  through the runner in the background, and you wait for its end before acting on it. The run trace records your edits and runs, and a note from the hook means a test edit with no
-  failing run since: answer it with `git add <paths>`, `git restore --worktree --source=<base> -- <paths>`, a failing run,
-  `git restore -- <paths>`, and a passing run, never `git stash` (`<base>` is the scope branch's tip before this slice's first commit, recorded with `git rev-parse HEAD` when the slice starts). On a `behavior` slice, a test edit followed
-  by an implementation edit or a passing run with no failing run between them is a Missing RED finding (the review
-  checklist's `## Test order`). A `run … unknown` line is not a failing run: it neither satisfies the RED step nor closes the finding, and the implementer answers it by re-running the test through `scope.js test`.
+  through the runner in the background, and you wait for its end before acting on it. The run trace records your edits and runs.
 - **Declare the domain shapes a slice's `spec` names before its first RED test** — the same step
   `agents/implementer.md` carries, for the tier that dispatches nobody. A `spec` naming none leaves
   nothing to declare, the fields are yours, and a shape whose term `CONTEXT.md` lacks is reported rather
@@ -106,17 +102,20 @@ A stop there dispatches no slice. A red record's pick there dispatches only the 
   tip before the slice's first commit, the `git rev-parse HEAD` you recorded when the slice started, and
   `<tip>` is `git rev-parse HEAD` once the slice's last commit is in. Where the range changes both a test-path
   file (`docs/agents/verification.md`'s `## Test paths`, the defaults where it has none) and another file, run
-  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <base>..<tip>` from the scopetree first, while the
-  slice is still `in-progress`, so the trace line names the slice. Every run of the verb goes in the background when
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <base>..<tip> -- <command>` from the scopetree first, the
+  command naming every test file the range adds or modifies, while the slice is still `in-progress`, so the trace line
+  names the slice (ADR 0182). Every run of the verb goes in the background when
   the suite outlasts the Bash tool's time limit, and you wait for its end before you read its outcome
-  (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`). The verb runs the slice's tests twice in a
+  (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`). The verb runs the command twice in a
   throwaway worktree, the second time with the files the slice changed outside its test files put back as they
   stood at `<base>`, prints `fail-to-pass`, `pass-to-pass`, or `unknown`, and appends a `fail-to-pass` line to the run
-  trace. It is no test run: it satisfies no Missing RED step and moves no suite record. Exit status 0 means
+  trace. The outcome line is no test run and moves no suite record. A `pass-to-pass` outcome means the slice's tests
+  pass without its change: strengthen them, commit, and run the verb again from the same `<base>` before the
+  `merged` write. Exit status 0 means
   the verb read and printed an outcome; inside a run root it appends the line, and a failed append is reported
-  on stderr with the status still 0. Status 1 means the verb refused the range or hit an error, and status 2
-  means no outcome was read because no test command is configured (nothing ran). Neither status blocks the
-  slice, and `final-reviewer` reads the trace at the scope review. An `unknown` (status 0) means the verb could
+  on stderr with the status still 0. Status 1 means the verb refused the range, naming the reason, or hit an error.
+  Name a test file the command left out and run it again; an error blocks nothing, and `final-reviewer`
+  reads the trace at the scope review. An `unknown` (status 0) means the verb could
   not judge: the tests did not pass against the changed code, or the run before the change outlasted ten times the
   duration the first run took or 10 seconds, whichever is larger (`SUPERDEV_FAIL_TO_PASS_FLOOR_MS` overrides the
   10-second floor), or ended by a signal, or a run's command could not start (`start-failed:<code>` in its

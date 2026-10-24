@@ -62,7 +62,7 @@ Applies to every review dispatch.
 
 Run no test. Review against the suite result the controller hands you, and judge whether it covers the changed code (ADR 0025, ADR 0075, ADR 0179). The controller says which run it is.
 
-- On a scope dispatch: the full suite entering or leaving its fix loop (labelled whole-repo when it is), or the focused run inside a fix cycle.
+- On a scope dispatch: the full suite entering or leaving its fix loop (labelled whole-repo when it is). A re-review inside a fix cycle gets no run: read the cycle implementer's recorded runs and its fail-to-pass outcome in the run trace (ADR 0182).
 - On an ad-hoc dispatch: the focused run over the range's changed paths, the full suite where the operator asked for it, or no run with its reason.
 - On a standing-code dispatch: no run.
 - The Assessment's `Full-suite run` line reports the handed run, and names it focused where it is. A dispatch that hands no run reads `not run`.
@@ -257,14 +257,14 @@ Read the trace with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --root 
 - A trace line's second field is its slice: the slice id, or `scope`.
 - A `dispatch` line carries the plugin-scoped agent type Claude Code reports. Match on its name part (`slice-reviewer`, `implementer`).
 - On the lite tier a slice is `behavior` when its ledger row's type says so (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>`).
-- **Missing RED** and **Unreviewed slice**: apply `## Test order`.
+- **Unreviewed slice**: apply `## Review coverage`.
 - **Pass-to-pass** and **Missing fail-to-pass run**: apply `## Fail-to-pass run`.
 - Each section owns its findings' definition, severity, tier, closing rule, and no-trace rule, and which ranges and cycles you read.
 - Each `unknown` outcome `## Fail-to-pass run` has you name goes under `### Fail-to-pass unknown`.
 
 ### The 3-cycle cap
 
-Applies to a scope dispatch whose remaining Critical or Important findings include **Missing RED**, **Pass-to-pass**, or **Missing fail-to-pass run**.
+Applies to a scope dispatch whose remaining Critical or Important findings include **Pass-to-pass** or **Missing fail-to-pass run**.
 
 The cap and its escape path live in `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` (ADR 0125). The controller applies the cap and overrides the verdict where the cap holds.
 

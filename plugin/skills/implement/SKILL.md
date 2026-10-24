@@ -33,7 +33,7 @@ dispatches nothing — you carry the TDD discipline yourself. Narrate at most on
   full tier a review whose remaining findings are only Minor, warranted cuts included, ends the slice's loop at
   once: the slice merges and its Minors join the Minor queue, which one sweep fixes before run handoff (ADR 0174,
   INV-0171); lite runs no queue, and its remainder of only Minor findings proceeds, named in the report and nowhere else. A slice whose only
-  remaining Critical or Important findings are **Missing RED**, **Pass-to-pass**, or **Missing fail-to-pass
+  remaining Critical or Important findings are **Pass-to-pass** or **Missing fail-to-pass
   run** proceeds too (ADR 0125, ADR 0134), and the run's final report names each finding with its slice; any of
   them beside a Critical or Important finding of another kind blocks. Never a
   fourth cycle. **A clean verdict ends the loop the same way, attended or unattended** — a finding the

@@ -89,7 +89,7 @@ tests/                 — one suite per shipped executable (the hooks, `scope.j
                          `<entry>-setup.js` that is no suite (ADR 0139, ADR 0151): `scope-*` (ledger,
                          ledger-header, suite, dod-line, publish-adopt, trace, root-base, containment,
                          citations-collisions, source-set, push, help, test-verb, fail-to-pass, over `scope-setup.js`),
-                         `run-trace*` (dispatch, drive-paths, guards, paths, red, runs, stash, verdicts,
+                         `run-trace*` (dispatch, drive-paths, guards, paths, runs, stash, verdicts,
                          writes, over `run-trace-setup.js`), `publish-kb*` (containment, guard, parent-link,
                          patch, publish, read, scope, templates, timeout, over `publish-kb-setup.js`),
                          and `scope-prune*` (containment, guards, main, reap, over `scope-prune-setup.js`);
@@ -372,7 +372,7 @@ This root owns every other subtree directly:
   and the scripts require them as well. No hook and no script requires `scope.js`. `scope-prune.js` and `slicetree-sweep.js` both
   `require` `../lib/ledger.js` for their ledger-header reader (ADR 0022) and `../lib/git-spawn.js` for the git calls the two Stop hooks
   share (the spawn, the throwing call, and the `git branch` list parse; a module missing any of them reads as unloaded). `run-trace.js` takes each of
-  `../lib/trace-log.js`, `ledger.js`, `verification.js`, `bash-writes.js`, `test-runs.js`, `run-tree.js`, `dispatch.js`, `verdicts.js`, and
+  `../lib/trace-log.js`, `bash-writes.js`, `test-runs.js`, `run-tree.js`, `dispatch.js`, `verdicts.js`, and
   `start-stash.js` through a `require` of its own (ADR 0117, INV-0159). `ledger-guard.js` requires `../lib/ledger-writes.js` for its write-target reader.
   `scope-prune.js` takes the containment probe `baseHistoryHasPatch` off `../lib/containment.js` through a `require` of its own (ADR 0082). `tree-guard.js` requires
   `../lib/main-work-tree.js` for the main-working-tree resolver `mainWorkTree`. It denies a dispatched implementer's Edit, Write, or
@@ -380,9 +380,9 @@ This root owns every other subtree directly:
   It also denies such a write into that repository's git directory. That covers the main `.git/`, a linked
   worktree's gitdir, and a submodule's gitdir (ADR 0148, INV-0152). It fails open: when `main-work-tree.js`
   cannot load, or git cannot place the target, the write passes. `test-guard.js` requires `../lib/bash-command.js`,
-  `test-runs.js`, and `verification.js`. It denies a dispatched implementer's Bash call that runs the full or the
-  whole-repo suite inside a run tree, and a `scope.js test focused` where the focused fence repeats the full one
-  (ADR 0181, INV-0174). It fails open too: when a module cannot load, or the call lies outside every run tree, the call passes. `slicetree-sweep.js`
+  `test-runs.js`, `verification.js`, and `run-tree.js`. It denies a dispatched implementer's Bash call that runs the full or the
+  whole-repo suite inside a run tree, through `scope.js test`, through `scope.js fail-to-pass … --`, or directly, and a
+  `scope.js test focused` where the focused fence repeats the full one (ADR 0181, ADR 0182, INV-0174). It fails open too: when a module cannot load, or the call lies outside every run tree, the call passes. `slicetree-sweep.js`
   tests a worked slice branch's tip against its scope branch's first-parent chain, alongside the
   default-branch content check (ADR 0089). A `require` failure leaves the hook
   with no fallback reader: it sweeps, prunes, records, or denies nothing and says nothing. The probe has its own, narrower

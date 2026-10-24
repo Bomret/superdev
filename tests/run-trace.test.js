@@ -1,11 +1,10 @@
 'use strict';
 
 // Suite for plugin/hooks/run-trace.js (ADR 0117): the stdin-to-line contract of the hook. Edit attribution and Bash writes call the exported
-// `record` in-process; the spawned hook covers exit 0, empty stderr, and the Missing RED output.
+// `record` in-process; the spawned hook covers exit 0, empty stderr, and empty stdout.
 
 const assert = require('node:assert');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const cp = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
@@ -74,16 +73,14 @@ fs.writeFileSync(path.join(tmp, 'p.patch'), '--- a/src/p.js\n+++ b/src/p.js\n@@\
 bash(`git -C ${S3} apply ${tmp}/p.patch`);
 assert.deepEqual(trace(A), [['03', 'main', 'edit', 'impl', 'src/p.js']]);
 
-// The stdin-to-line contract through the spawned hook: an edit line, a run line, and the Missing RED output.
+// The stdin-to-line contract through the spawned hook: an edit line and a run line, and no output.
 {
   reset();
   const ver = path.join(S3, 'docs', 'agents', 'verification.md');
   fs.writeFileSync(ver, '# V\n\n```sh\nbun run test\n```\n\n```sh\nbun run test\n```\n');
   assert.equal(spawnOut({ hook_event_name: 'PostToolUse', tool_name: 'Edit', tool_input: { file_path: path.join(S3, 'tests', 'sp.test.js') }, cwd: tmp }), '');
-  const out = JSON.parse(spawnOut({ hook_event_name: 'PostToolUse', tool_name: 'Bash', tool_input: { command: 'bun run test' }, cwd: S3 }));
-  assert.equal(out.hookSpecificOutput.hookEventName, 'PostToolUse');
-  assert.ok(out.hookSpecificOutput.additionalContext.includes('Missing RED'), 'a passing run after a test edit prints the note as hook output');
-  assert.deepEqual(trace(A).map((l) => l[2] + ' ' + l[3]), ['edit test', 'run full', 'note tests/sp.test.js']);
+  assert.equal(spawnOut({ hook_event_name: 'PostToolUse', tool_name: 'Bash', tool_input: { command: 'bun run test' }, cwd: S3 }), '', 'a passing run after a test edit prints nothing');
+  assert.deepEqual(trace(A).map((l) => l[2] + ' ' + l[3]), ['edit test', 'run full']);
   fs.rmSync(ver);
 }
 
@@ -99,27 +96,6 @@ assert.equal(trace(A).length, 0, 'an unreadable ledger records nothing');
 fs.writeFileSync(path.join(A, 'ledger.md'), ledger([['03', 'in-progress']]));
 edit(path.join(S3, 'x.js'));
 assert.equal(trace(A).length, 1, 'a missing verification.md still records, with defaults');
-
-// The Missing RED remedy (agents/implementer.md): stage, revert to <base>, restore from the index. The
-// uncommitted implementation survives, and a file absent at <base> goes away and comes back.
-{
-  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'run-trace-remedy-'));
-  const g = (...a) => cp.execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { encoding: 'utf8' });
-  g('init', '-q');
-  fs.writeFileSync(path.join(repo, 'impl.js'), 'old');
-  g('add', '-A');
-  g('commit', '-q', '-m', 'base');
-  fs.writeFileSync(path.join(repo, 'impl.js'), 'new work');
-  fs.writeFileSync(path.join(repo, 'added.js'), 'brand new');
-  g('add', 'impl.js', 'added.js');
-  g('restore', '--worktree', '--source=HEAD', '--', 'impl.js', 'added.js');
-  assert.equal(fs.readFileSync(path.join(repo, 'impl.js'), 'utf8'), 'old', 'the revert shows the base');
-  assert.equal(fs.existsSync(path.join(repo, 'added.js')), false, 'a path absent at base is deleted');
-  g('restore', '--', 'impl.js', 'added.js');
-  assert.equal(fs.readFileSync(path.join(repo, 'impl.js'), 'utf8'), 'new work', 'the restore returns the uncommitted implementation');
-  assert.equal(fs.readFileSync(path.join(repo, 'added.js'), 'utf8'), 'brand new', 'the restore returns the new file');
-  fs.rmSync(repo, { recursive: true, force: true });
-}
 
 // Requiring the hook prints nothing and dispatches nothing (INV-0068).
 {
