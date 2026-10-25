@@ -1,3 +1,10 @@
+## [0.87.1](https://codeberg.org/bomret/superdev/compare/v0.87.0...v0.87.1) (2026-10-25)
+
+
+### Bug Fixes
+
+* **scope-prune:** reap a closed run root whose slicetrees dir is empty ([#1379](https://codeberg.org/bomret/superdev/issues/1379)) ([9ee3637](https://codeberg.org/bomret/superdev/commit/9ee3637d145cd81058885f066c5e6cd8b2d6f1c6))
+
 # [0.87.0](https://codeberg.org/bomret/superdev/compare/v0.86.0...v0.87.0) (2026-10-24)
 
 
