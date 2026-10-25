@@ -522,7 +522,7 @@ bash or PowerShell variants.
   hook fires on every finished turn. Absence stands beside containment for the hosts that delete the
   branch on merge, read only from refs the repository already holds: a remote-tracking ref it has not
   fetched still counts as present, so it never prunes on stale information. It never touches a scope
-  branch carrying content base does not hold, one whose scopetree or slicetrees are still present, or one whose ledger is
+  branch carrying content base does not hold, one whose scopetree or a slicetree is still present, or one whose ledger is
   unreadable or silent on the stage. On a git older than 2.38, which has no `--write-tree`, it falls back
   to ancestry and prunes what that finds. The branch goes with the run root — the local ref and every
   remote-tracking copy of it — so a clone stops collecting one dead branch per shipped feature

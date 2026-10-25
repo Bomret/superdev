@@ -17,8 +17,9 @@
 // hooks/slicetree-sweep.js keeps ancestry alone one level down, correctly: a slice branch merges into the
 // scope branch normally, so its ancestry survives.
 // Same "safe by default" shape throughout: never touches a run whose branch is still there carrying
-// content base does not hold (still active), never touches one whose scopetree or slicetrees are still
-// present (an interrupted cleanup, not a finished run — leave it for a human to look at), and never
+// content base does not hold (still active), never touches one whose scopetree or a slicetree is still
+// present (an interrupted cleanup, not a finished run — leave it for a human to look at; an empty
+// `slicetrees/` dir is a finished cleanup), and never
 // touches one that isn't recorded as `closed` — a run mid-chain, at either tier, has its scopetree or
 // slicetrees standing until `/superdev:wrap-up` removes it, so that guard alone already protects it;
 // the stage gate is the second, independent signal (ADR 0013, ADR 0045, ADR 0106). A run root an older
@@ -31,7 +32,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days from the newest file mtime in the run root
+const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days from the newest file mtime in the run root, `.DS_Store` aside
 
 // A scope branch is `<type>/<scope>`, where `<type>` is the change type — the Conventional Commits type
 // of the work (`references/scope-mode.md`, `## The change type`). The run-root directory name carries the
@@ -299,9 +300,22 @@ function readBranch(scopeDir) {
   return readHeader(scopeDir, 'Branch');
 }
 
+// Whether `dir` holds anything besides a Finder `.DS_Store`. `/superdev:wrap-up` removes every slicetree
+// from `slicetrees/`, so an empty one is a finished cleanup, not an interrupted one (triage #916). An
+// unreadable dir counts as holding an entry: a dir this hook cannot read is never evidence of a clean finish.
+function holdsEntry(dir) {
+  if (!fs.existsSync(dir)) return false;
+  try {
+    return fs.readdirSync(dir).some((name) => name !== '.DS_Store');
+  } catch {
+    return true;
+  }
+}
+
 function newestMtimeMs(dir) {
   let newest = null;
   for (const name of fs.readdirSync(dir)) {
+    if (name === '.DS_Store') continue; // Finder writes it on a browse, which is no activity of the run (triage #916)
     const stat = fs.statSync(path.join(dir, name));
     if (!stat.isFile()) continue; // a scopetree/ or slicetrees/ dir here means an interrupted run — skip below
     if (newest === null || stat.mtimeMs > newest) newest = stat.mtimeMs;
@@ -392,8 +406,8 @@ function main(cwd) {
 
   for (const scope of prunable) {
     const dir = path.join(scopesRoot, scope);
-    // Never prune while a scopetree or slicetrees are still present — that's an interrupted cleanup, not a finished run.
-    if (fs.existsSync(path.join(dir, 'scopetree')) || fs.existsSync(path.join(dir, 'slicetrees'))) continue;
+    // Never prune while a scopetree or a slicetree is still present — that's an interrupted cleanup, not a finished run.
+    if (fs.existsSync(path.join(dir, 'scopetree')) || holdsEntry(path.join(dir, 'slicetrees'))) continue;
     // The branch is contained by proof here, so it goes before the ledger that names it (ADR 0071). A
     // failed delete leaves the run root standing: the ledger is the only record of the name, so pruning
     // it now strands the branch with nothing left to find it by. The next Stop retries both.

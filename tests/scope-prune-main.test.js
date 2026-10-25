@@ -206,14 +206,39 @@ const { main } = hook;
   // worktrees, and so is the more consequential half of the guard to lose.
   const cleanupFullRepo = makeRepo();
   const cleanupFullScopeDir = makeScope(cleanupFullRepo, 'mid-cleanup-full');
-  fs.mkdirSync(path.join(cleanupFullScopeDir, 'slicetrees'));
+  fs.mkdirSync(path.join(cleanupFullScopeDir, 'slicetrees', '01'), { recursive: true });
   main(cleanupFullRepo);
   assert.equal(
     fs.existsSync(cleanupFullScopeDir),
     true,
-    'a run root with a slicetrees/ dir survives main() end to end'
+    'a run root with a slicetrees/ dir holding a slicetree survives main() end to end'
   );
   fs.rmSync(cleanupFullRepo, { recursive: true, force: true });
+
+  // #gone-closed-with-empty-slicetrees: the shape `/superdev:wrap-up` left behind on the full tier — it
+  // removed every slicetree but not the `slicetrees/` dir itself (triage #916). An empty dir, or one
+  // holding only a Finder `.DS_Store`, is no interrupted cleanup, so main() prunes the run root.
+  for (const [scope, entries] of [
+    ['empty-slicetrees', []],
+    ['ds-store-slicetrees', ['.DS_Store']],
+  ]) {
+    const repo = makeRepo();
+    const scopeDir = makeScope(repo, scope);
+    fs.mkdirSync(path.join(scopeDir, 'slicetrees'));
+    for (const name of entries) fs.writeFileSync(path.join(scopeDir, 'slicetrees', name), '');
+    main(repo);
+    assert.equal(fs.existsSync(scopeDir), false, `a closed, stale run root with ${scope} is pruned end to end`);
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+
+  // #fresh-ds-store-keeps-ttl: a Finder `.DS_Store` written into a stale run root today is no activity of
+  // the run, so it does not restart the TTL clock (triage #916).
+  const dsStoreRepo = makeRepo();
+  const dsStoreScopeDir = makeScope(dsStoreRepo, 'browsed-in-finder');
+  fs.writeFileSync(path.join(dsStoreScopeDir, '.DS_Store'), '');
+  main(dsStoreRepo);
+  assert.equal(fs.existsSync(dsStoreScopeDir), false, 'a fresh .DS_Store does not restart the TTL end to end');
+  fs.rmSync(dsStoreRepo, { recursive: true, force: true });
 
   // #for-each-ref-failure-prunes-nothing: pins "read the branch set eagerly, before absence or
   // containment is ever computed" (see the comment above the try in main()). A shimmed `git` on PATH

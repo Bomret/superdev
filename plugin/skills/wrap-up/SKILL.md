@@ -131,7 +131,7 @@ remove` refuses to remove the tree you are standing in. Each removal tolerates a
 gone (a legacy run may hold no scope checkout):
 
 - Remove this run's scopetree: `<run-root>/scopetree`, plus any slicetrees at `<run-root>/slicetrees/*`,
-  then `git worktree prune`. `git worktree remove` refuses a tree holding untracked, non-ignored files (build
+  then the emptied `<run-root>/slicetrees/` directory itself, then `git worktree prune`. `git worktree remove` refuses a tree holding untracked, non-ignored files (build
   output from an `auto` deploy, say). The anchor is already closed by then: report the refusal, name the
   path, leave the stage at `shipped`, so a rerun retries the cleanup (the close is idempotent), and stop.
   Never force-remove.
