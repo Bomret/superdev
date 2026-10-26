@@ -35,9 +35,8 @@ This outline is a living skeleton. `/plan` and `/document` fill and extend it.
   scope the test runs, ship and wrap up, deploy after the merge, publish to the knowledge base, audit
   tests, sweep a repository, survey the backlog. Parent: `Home`, section `Guides`.
 - **`How it works: <mechanism>`.** One page per feature or mechanism, titled by the behavior a reader
-  meets, written as what it does, where you meet it, and how to configure it. `/plan` stages this
-  page, and `/document` upserts the **same title** once the feature is built, so one feature has one
-  page. Parent: `Home`, section `How it works`.
+  meets, written as what it does, where you meet it, and how to configure it. `/document` stages
+  this page once the feature is built, under one title per feature, so one feature has one page. Parent: `Home`, section `How it works`.
 - **Concepts.** The terms an adopter configures or sizes: slice store, code host, documentation
   convention, knowledge base, toolchain, verification, execution tiers, unattended runs, deploy
   posture, seed gaps. `(aggregate)`: one `## <concept>` section per concept, contributed by the scope

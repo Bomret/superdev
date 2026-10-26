@@ -10,8 +10,8 @@ The KB is **human-consumption first**. Recorded at setup:
 
 - **Audience(s):** `<end-users | internal developers | ops/support | stakeholders | …>`
 - **Language:** `<e.g. English | German>` — all KB prose is written in this language.
-- **Outline** (living skeleton; a top-level section per audience — `/superdev:plan` and
-  `/superdev:document` fill and extend it):
+- **Outline** (living skeleton; a top-level section per audience — `/superdev:document`
+  fills and extends it):
 
   - `<Audience A — e.g. User Guide>` → `<topic>`, `<topic>`
   - `<Audience B — e.g. Developer Docs>` → `Architecture`, `Setup`, `ADR summaries`
@@ -36,8 +36,6 @@ Staging exists for a **remote** backend, whose pages go live the instant they ar
 
 ## superdev usage
 
-- `/superdev:plan` — seed the feature specification / ADR summaries into the outline under `docs/kb/` and
-  update the index.
 - `/superdev:document` — reconcile and extend the affected `docs/kb/` docs (via its doc-writer) after a
   scope lands, and on demand.
 

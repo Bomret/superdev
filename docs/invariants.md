@@ -383,7 +383,7 @@ Concepts: Staged page, Invoking checkout, Scopetree, Run root
 Statement: A staged page is written to an absolute path under `.superdev/kb-pending/<scope>/`, never inside a run root or a scopetree, so no cleanup of either removes it.
 Breaks: silently
 Check: none — the absolute-path half is unpinned
-Paths: plugin/references/doc-pass.md, plugin/skills/document/SKILL.md, plugin/skills/plan/SKILL.md, plugin/references/plan-kb-staging.md
+Paths: plugin/references/doc-pass.md, plugin/skills/document/SKILL.md
 
 ### INV-0046
 
@@ -978,7 +978,7 @@ Concepts: Staged page, Scopetree
 Statement: A staged page is written only into the main working tree's `.superdev/kb-pending/<scope>/`, whichever checkout the staging step runs from. Every staging instruction and the staged-page scan resolve that directory through `scope.js staging`, which refuses outside a git repository rather than fall back to the cwd (ADR 0119).
 Breaks: silently
 Check: tests/scope-root-base.test.js — the verb and the staged-page scan run from a linked worktree's cwd
-Paths: plugin/scripts/scope.js, plugin/lib/status.js, plugin/skills/plan/SKILL.md, plugin/skills/document/SKILL.md, plugin/references/doc-pass.md, plugin/references/implement-lite.md, plugin/agents/doc-writer.md, plugin/references/plan-kb-staging.md
+Paths: plugin/scripts/scope.js, plugin/lib/status.js, plugin/skills/document/SKILL.md, plugin/references/doc-pass.md, plugin/references/implement-lite.md, plugin/agents/doc-writer.md
 
 ### INV-0122
 

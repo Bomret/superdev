@@ -161,8 +161,7 @@ first.
 on a claim about how a third-party library, product, or service behaves.** Verify against official docs
 before it's baked into the DoD, a slice's `spec`, or an ADR.
 
-**Pick the feature label once the interview settles the solution shape**, before §2 stages a
-knowledge-base page — that step paths on the label's slug. The label is the feature's **change type**
+**Pick the feature label once the interview settles the solution shape.** The label is the feature's **change type**
 plus its slug, in the notation `docs/agents/issue-tracker.md` states
 (`${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md` → *Feature label*). The type is what the feature
 does to the codebase, not what it feels like: a defect repaired is `fix`, a behaviour-preserving
@@ -308,12 +307,6 @@ receives (ADR 0081).
 **Record an invariant the interview settles**, in the register `references/domain-modeling.md` (above)
 describes — reserve it for a rule the system may never break; a slice-specific requirement still goes to
 that slice's `spec` instead.
-
-One capture is **superdev-specific**:
-
-- **Knowledge base** — if `docs/agents/knowledge-base.md` defines one, read
-  `${CLAUDE_PLUGIN_ROOT}/references/plan-kb-staging.md` and seed by it. A repository with no knowledge base
-  loads none of it.
 
 Create these durable files **lazily** — only when the first term, decision, or rule crystallises, never
 as empty scaffolding. Follow `docs/agents/documentation.md` for where they live (update the relevant

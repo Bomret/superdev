@@ -154,7 +154,6 @@ const UNMAPPED_PATHS_DOCS = [
 // host…", "create pages only for genuinely new outline entries") is the reference case this is built to catch.
 const KB_NO_CALL_DOCS = [
   path.join('skills', 'plan', 'SKILL.md'),
-  path.join('references', 'plan-kb-staging.md'),
   path.join('skills', 'document', 'SKILL.md'),
   path.join('agents', 'doc-writer.md'),
   path.join('references', 'doc-pass.md'),

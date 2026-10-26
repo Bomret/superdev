@@ -6,8 +6,8 @@ argument-hint: "[<scope>  (empty = the only scope with staged pages)]"
 
 # superdev publish-kb
 
-`/superdev:plan` and `/superdev:document` write knowledge-base pages as **staged pages** instead of
-sending them (ADR 0023). This command sends them, by invoking `plugin/scripts/publish-kb.js` (ADR 0069) —
+`/superdev:document` writes knowledge-base pages as **staged pages** instead of sending them (ADR 0023,
+ADR 0191). This command sends them, by invoking `plugin/scripts/publish-kb.js` (ADR 0069) —
 the only path from superdev to a remote knowledge-base backend, and nothing else in the plugin may reach
 one. Every mechanical rule for what "publish" means lives in that script: resolving the staging root,
 grouping titles, telling absence from a read failure, deciding which staged file to delete, and making the

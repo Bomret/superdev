@@ -10,8 +10,8 @@ The KB is **human-consumption first**. Recorded at setup:
 
 - **Audience(s):** `<end-users | internal developers | ops/support | stakeholders | …>`
 - **Language:** `<e.g. English | German>` — all KB prose is written in this language.
-- **Outline** (living skeleton; a top-level page per audience — `/superdev:plan` and
-  `/superdev:document` fill and extend it):
+- **Outline** (living skeleton; a top-level page per audience — `/superdev:document`
+  fills and extends it):
 
   - `<Audience A — e.g. User Guide>` → `<topic>`, `<topic>`
   - `<Audience B — e.g. Developer Docs>` → `Architecture`, `Setup`, `ADR summaries`
@@ -48,7 +48,7 @@ no outline entry `aggregate` here.
 ## Staging
 
 Confluence is a **remote** backend, so nothing but `/superdev:publish-kb` calls it (ADR 0023).
-`/superdev:plan` and `/superdev:document` write each page as a **staged page** under
+`/superdev:document` writes each page as a **staged page** under
 `.superdev/kb-pending/<scope>/` in the main working tree, resolved by `scope.js staging <scope>` (ADR 0119) — YAML frontmatter carrying the page `title` and an `action` of `upsert`,
 `patch`, or `delete`, the page body below. A page the outline places under another page also carries
 `parent: <that page's title>`. `scripts/publish-kb.js` resolves that title through `find`, publishes a
@@ -161,7 +161,6 @@ curl -sf -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" \
 
 ## superdev usage
 
-- `/superdev:plan` — seeds the in-repo feature specification/ADRs into the outline and stages their pages.
 - `/superdev:document` — reconciles and extends the KB (via its doc-writer) and stages the pages it
   changed, after a scope lands and on demand.
 - `/superdev:publish-kb` — sends the staged pages to the space. The only command that calls Confluence.

@@ -66,7 +66,7 @@ flowchart TD
 
 `/superdev:ship`, `/superdev:verify-ship`, and `/superdev:wrap-up` start only when you type the command,
 ask for it, or agree to an offer. A criterion observed as not met routes to `/superdev:plan`, which plans
-a `fix` feature on its own anchor. `/superdev:plan` and `/superdev:document` stage knowledge-base pages.
+a `fix` feature on its own anchor. `/superdev:document` stages knowledge-base pages.
 `/superdev:publish-kb` sends them when you decide the feature has reached its readers.
 
 `/superdev:implement` derives its tier from the slice count:
