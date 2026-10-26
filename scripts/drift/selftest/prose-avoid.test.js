@@ -284,7 +284,7 @@ module.exports = ({ assert, path, fixture, found }) => {
     'a missing skill is a missing-document gap',
   );
 
-  // --- implement-no-full-run (ADR 0191, INV-0128): implement's base step, run handoff, and both playbooks instruct no full or whole-repo run ---
+  // --- implement-no-full-run (ADR 0192, INV-0128): implement's base step, run handoff, and both playbooks instruct no full or whole-repo run ---
 
   const noFull = (files) => found(scanImplementNoFullRun(fixture(files)));
   const baseStep = (body) => '# Scope mode\n\n## Bringing the scope branch to base\n\n' + body + '\n## The scope\'s range base\n\nDone.\n';
@@ -298,6 +298,14 @@ module.exports = ({ assert, path, fixture, found }) => {
     ['Then run the full suite in the scope checkout.\n', 'run the full suite'],
     ['Then execute the full suite in the scope checkout.\n', 'execute the full suite'],
     ['It invokes the whole-repo command once.\n', 'invokes the whole-repo command'],
+    ['Then rerun the full suite in the scope checkout.\n', 'rerun the full suite'],
+    ['It re-runs the whole-repo command once.\n', 're-runs the whole-repo command'],
+    ['Gate on the full suite before review.\n', 'gate on the full suite'],
+    ['The step gates on the whole-repo command.\n', 'gates on the whole-repo command'],
+    ['Then the full suite run-handoff runs once.\n', 'a subject-first full suite run'],
+    ['The whole-repo command runs here.\n', 'a subject-first whole-repo run'],
+    ['With no delay, run the full suite.\n', 'a run after a comma-separated no'],
+    ['With no delay run the full suite.\n', 'a run a word past a no'],
   ];
   for (const rel of fullDocs) {
     for (const [text, label] of hits) {
@@ -306,8 +314,10 @@ module.exports = ({ assert, path, fixture, found }) => {
       assert.equal(gaps[0].source, rel, `${rel}: names the document`);
     }
     assert.equal(noFull({ [rel]: 'Run `scope.js test focused <changed paths>` with at least one path.\n' }).length, 0, `${rel}: a focused run with a path passes`);
-    assert.equal(noFull({ [rel]: 'Run no test suite here (ADR 0191).\n' }).length, 0, `${rel}: a statement that no suite runs passes`);
+    assert.equal(noFull({ [rel]: 'Run no test suite here (ADR 0192).\n' }).length, 0, `${rel}: a statement that no suite runs passes`);
     assert.equal(noFull({ [rel]: 'It never runs the full command.\n' }).length, 0, `${rel}: a negated run passes`);
+    assert.equal(noFull({ [rel]: 'The step runs no full suite.\n' }).length, 0, `${rel}: a run of no full suite passes`);
+    assert.equal(noFull({ [rel]: 'Here no full suite runs.\n' }).length, 0, `${rel}: a negated subject-first run passes`);
     assert.equal(noFull({ [rel]: 'The loop never calls `scope.js test full`.\n' }).length, 0, `${rel}: a negated scope.js call passes`);
     assert.equal(
       noFull({ [rel]: 'Tell it to run only its own tests, and never `test full`, `test whole`, or a `test focused` with no path.\n' }).length,

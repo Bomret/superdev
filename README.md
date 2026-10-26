@@ -205,7 +205,7 @@ flowchart TD
   [ADR 0182](docs/adr/0182-the-implementer-proves-its-change-and-the-controller-runs-only-suite-gates.md)).
   Implement runs no full suite, and no reviewer runs a test. A failing test a slice did not cause is
   named in the report and goes to the scope review's fix loop
-  ([ADR 0191](docs/adr/0191-the-full-suite-runs-once-after-review-comes-back-clean.md)).
+  ([ADR 0192](docs/adr/0192-the-full-suite-runs-once-after-review-comes-back-clean.md)).
   Either tier stops here, once every slice sits on the scope branch. `/superdev:review` runs next: one
   **whole-scope review** that gates the pull request `/superdev:submit-pr` opens later.
 - **`/superdev:status`**. One read-only report of where the work stands and what to do next. It prints

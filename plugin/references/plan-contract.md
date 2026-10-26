@@ -245,7 +245,7 @@ unrendered; the touch map is plain text and unaffected.
   verification); **simplicity-reviewer runs** beside the first slice review (over-engineering), its warranted
   cuts joining that review's fix list.
 - `mechanical` — pure move/rename/format: no new test — the runs already in the loop, plus the scope's
-  full-suite run at `/superdev:review`'s exit (ADR 0025, ADR 0075, ADR 0191), are the net; **both per-slice reviews skipped**; correctness is caught
+  full-suite run at `/superdev:review`'s exit (ADR 0025, ADR 0075, ADR 0192), are the net; **both per-slice reviews skipped**; correctness is caught
   there, not by a dedicated per-slice review.
 - `docs` — documentation only: no test, **reviews skipped**.
 
@@ -578,7 +578,7 @@ green alone**, green is promised at one node instead of per slice: the epic carr
 `## Integration branch` section naming `integration/<scope>`, the full playbook merges every slice into
 that branch, which keeps the scope branch green between invocations, and a final
 **integrate-and-verify** slice, depending on every batch, is where `integration/<scope>` merges into the
-scope branch. The scope review's exit run verifies that merge (ADR 0155, ADR 0191).
+scope branch. The scope review's exit run verifies that merge (ADR 0155, ADR 0192).
 
 ## Issue-backend mapping (general)
 

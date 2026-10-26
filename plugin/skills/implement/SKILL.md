@@ -76,7 +76,7 @@ dispatches nothing — you carry the TDD discipline yourself. Narrate at most on
 - **Agents carry their own discipline.** Pass specifics, not lectures. `mechanical`/`docs` slices invent
   no tests — the loop's runs plus the scope review's exit run, the scope's one full-suite run (a full run, or
   the carry or recorded rerun `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` admits), are the net (ADR 0025, ADR 0075,
-  ADR 0091, ADR 0172, ADR 0175, ADR 0191).
+  ADR 0091, ADR 0172, ADR 0175, ADR 0192).
 
 ## Config + input
 

@@ -10,7 +10,7 @@ Each step below applies beside the skill's step of the same number. A departure 
 
 ## 0. Config
 
-**The test command.** Applies to the entry run and the exit run of §4.2. The entry run is the skill's focused run over the scope's range. The exit run runs the full command, the scope's one full-suite run (ADR 0025, ADR 0191).
+**The test command.** Applies to the entry run and the exit run of §4.2. The entry run is the skill's focused run over the scope's range. The exit run runs the full command, the scope's one full-suite run (ADR 0025, ADR 0192).
 
 **The triage section.** Applies when you read this reference and `docs/agents/issue-tracker.md` exists. Read its `## Triage record` section. §4.4's deferral branch needs the section's presence.
 
@@ -50,7 +50,7 @@ Each step below applies beside the skill's step of the same number. A departure 
 
 **The suite result.** Applies to every dispatch of `final-reviewer` in a scope review. `final-reviewer`'s `### Suite run` owns the result's handling.
 
-- The first dispatch hands §4.2's entry run labelled focused, or `not run: <reason>` (ADR 0191).
+- The first dispatch hands §4.2's entry run labelled focused, or `not run: <reason>` (ADR 0192).
 - A fix cycle's re-review hands no run, a cycle a red exit run opened included. `### Suite run` names what it reads in place of one (ADR 0182).
 
 **The `simplicity-reviewer` dispatch.** Applies to the `simplicity-reviewer` dispatch of a scope review.
@@ -102,7 +102,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - The unchanged rules: conflict, numbering-collision, citation, unattended-block, and degraded-fetch.
 - A stop there ends the review with the scopetree clean.
 - An unreachable remote records a degraded pass, and the review continues.
-- It runs no suite. §4.2's exit run verifies its merge together with implement's (ADR 0191).
+- It runs no suite. §4.2's exit run verifies its merge together with implement's (ADR 0192).
 - The base step records the range base `final-reviewer` starts from. Resolve `<range-base>` with `scope.js base resolve --branch <branch> --base <base> --root <run-root>` after it, and hand every dispatch the range from that value.
 
 ### 4.2 The suite gate
@@ -113,12 +113,13 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - **Any other record** → the exit run runs the full command.
 - **The exit run follows this choice**, not a re-read of the record at the exit.
 
-**The entry run.** Applies once per invocation, in the scope checkout, after §4.1 and before the first `final-reviewer` dispatch (ADR 0179, ADR 0191). Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <paths>` once, `<paths>` being every path `git diff --name-only --no-renames <range-base> <branch>` lists that exists in the tree. Write no suite record. Hand the result and any failure output to §2's dispatch, labelled focused.
+**The entry run.** Applies once per invocation, in the scope checkout, after §4.1 and before the first `final-reviewer` dispatch (ADR 0179, ADR 0192). Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <paths>` once, `<paths>` being every path `git diff --name-only --no-renames <range-base> <branch>` lists that exists in the tree. Write no suite record. Hand the result and any failure output to §2's dispatch, labelled focused.
 
 - A suite longer than the Bash tool's time limit runs through the runner in the background, and you wait for its end before acting on it.
 - **The path set is empty** → run no test, and hand `not run: the scope changes no path`.
 - **The focused fence of `docs/agents/verification.md` repeats the full fence** → run no test, and hand `not run: the focused command repeats the full command, so the exit run covers the scope`. A scope never pays the full suite twice.
 - **No test command configured** → run no test, hand `not run: no test command`, and continue. This never blocks the review.
+- **One fenced block, so no focused command** → record the degraded pass of `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## Stop on a missing focused command`, hand `not run: no focused command`, and continue to the dispatch. The exit run still runs the full command.
 - **The run never finished** (killed, or `unknown` in the run trace) → it carries no verdict (INV-0009). Hand `not run: never finished`, and continue. The exit run still gates the stage.
 - State the outcome in your own output: pass, fail, not run with its reason, or denied.
 
@@ -137,7 +138,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 
 **Inside a fix cycle.** Applies to every fix cycle. Run no test. The re-review reads the cycle implementer's recorded runs and its fail-to-pass outcome in the run trace (ADR 0182).
 
-**The exit run.** Applies on every route that advances the stage, before §4.10's stage write (ADR 0191). The routes: a clean first verdict, a clean re-review, a re-review left with only Minor **Prompt-concept overlap** findings and no broken criterion, only Minor findings left at the cap, a declined ask-once with only Minor findings standing, and a ready combined verdict of §3 whose remaining findings are only deferred or, at the cap, **Pass-to-pass** or **Missing fail-to-pass run**. Run it once in the scope checkout at the scope branch's tip, in this order.
+**The exit run.** Applies on every route that advances the stage, before §4.10's stage write (ADR 0192). The routes: a clean first verdict, a clean re-review, a re-review left with only Minor **Prompt-concept overlap** findings and no broken criterion, only Minor findings left at the cap, a declined ask-once with only Minor findings standing, and a ready combined verdict of §3 whose remaining findings are only deferred or, at the cap, **Pass-to-pass** or **Missing fail-to-pass run**. Run it once in the scope checkout at the scope branch's tip, in this order.
 
 1. **Reuse.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base> --root <run-root>`. Exit 0 → reused, running nothing (INV-0017): an exact tip match, a Markdown-only range since the record, needing no test run at the tip (ADR 0128, ADR 0189), a focused-selector carry, alone or followed by Markdown-only commits (ADR 0175, ADR 0189), a recorded rerun, alone or followed by Markdown-only commits (ADR 0172, ADR 0189), or a passing full run at the tip itself (ADR 0182).
 2. **The carry.** Exit 1, or no record → take the carry per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## The carry run`. A carried tip is reused, running and recording nothing. A failing carry run is a `fail`, recorded red at the tip.

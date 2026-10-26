@@ -175,7 +175,7 @@ with no test run at T (ADR 0189).
 ## The carry run
 
 Every gate that runs the full suite takes the carry before it runs the full command (ADR 0175): review's exit
-run and ship's moved-base gate. Implement runs no full suite (ADR 0191). Each gate cites
+run and ship's moved-base gate. Implement runs no full suite (ADR 0192). Each gate cites
 this section and runs the steps in order, after its own `scope.js suite reusable` call refuses the tip:
 
 1. **Check the preconditions.** `scope.js get suite --root <run-root>` prints a green record at a commit A,
@@ -253,12 +253,12 @@ Each caller judges its own range and builds the set from it:
   file runs over that whole set too. A focused command with no `{paths}` token runs unchanged at every step,
   and the run trace records every step's run either way (ADR 0139). Every loop run passes at least one path, or
   runs one test file through `test -- <command>`, so the loop runs only the tests that verify the work. `test full`,
-  `test whole`, and a `test focused` with no path run only at the scope review's and ship's gates (ADR 0177, ADR 0191).
+  `test whole`, and a `test focused` with no path run only at the scope review's and ship's gates (ADR 0177, ADR 0192).
   Where the focused fence repeats the full fence, `test focused` runs the whole suite whatever paths it gets. There a
   failing-test or passing-test step runs each test file it works on through `test -- <command>`, the runner's own
   invocation of that one file. The last run before the implementer reports, or before the lite tier commits a slice,
   does not run, and neither does a step that works on no test file: the scope review's exit run covers that work
-  (ADR 0180, ADR 0191). The fail-to-pass run still runs (ADR 0182).
+  (ADR 0180, ADR 0192). The fail-to-pass run still runs (ADR 0182).
 - **The documentation step.** None: the step runs no test command and builds no set. `scope.js suite reusable`
   carries a green record across Markdown-only commits with no test run at the tip (ADR 0128, ADR 0189,
   INV-0017), so the doc commits need none. Where the record stays at an earlier commit because review reached

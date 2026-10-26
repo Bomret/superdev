@@ -62,7 +62,7 @@ Applies to every review dispatch.
 
 Run no test. Review against the suite result the controller hands you, and judge whether it covers the changed code (ADR 0025, ADR 0075, ADR 0179). The controller says which run it is.
 
-- On a scope dispatch: the focused run the review ran at its entry over the scope range's changed paths, or no run with its reason (ADR 0191). The scope's full-suite run comes after your verdict. A re-review inside a fix cycle gets no run: read the cycle implementer's recorded runs and its fail-to-pass outcome in the run trace (ADR 0182).
+- On a scope dispatch: the focused run the review ran at its entry over the scope range's changed paths, or no run with its reason (ADR 0192). The scope's full-suite run comes after your verdict. A re-review inside a fix cycle gets no run: read the cycle implementer's recorded runs and its fail-to-pass outcome in the run trace (ADR 0182).
 - On an ad-hoc dispatch: the focused run over the range's changed paths, the full suite where the operator asked for it, or no run with its reason.
 - On a standing-code dispatch: no run.
 - The Assessment's `Full-suite run` line reports the handed run, and names it focused where it is. A dispatch that hands no run reads `not run`.

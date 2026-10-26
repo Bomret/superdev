@@ -151,7 +151,7 @@ Applies to every review.
 
 Run no test. Read the slice's recorded runs with `scope.js trace --slice <id>` and judge whether they cover the changed code. Trust no green result or met criterion the implementer reports.
 
-- The recorded runs are the implementer's focused and test-file runs and the `path` line of its fail-to-pass control run (ADR 0182). The scope review's runs cover what they leave out (ADR 0191).
+- The recorded runs are the implementer's focused and test-file runs and the `path` line of its fail-to-pass control run (ADR 0182). The scope review's runs cover what they leave out (ADR 0192).
 - A `run` line backs a passing result for its tests when it reads `pass`, its commit is the reviewed tip, and its tree reads `clean`.
 - Name a reviewed tip with no passing recorded run as a gap in your report.
 - A changed behaviour that no test reaches is a test hole.
@@ -167,7 +167,7 @@ Name each inherited failure under `### Inherited failures`. Leave it out of your
 
 - A test is inherited when it fails at the reviewed tip and also fails at the review base. How you establish that is your call.
 - A failing test absent at the review base is the slice's own.
-- The scope review's fix loop repairs an inherited failure (ADR 0191).
+- The scope review's fix loop repairs an inherited failure (ADR 0192).
 - A failing test the slice caused stays a finding.
 
 ## Output

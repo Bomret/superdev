@@ -37,7 +37,7 @@ closed.
 Right after the run lock, before the first slice, run `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
 `## Bringing the scope branch to base`, on every invocation and at every run kind (ADR 0120, INV-0124).
 A stop there dispatches no slice. The step runs no test suite, so the suite record never holds a slice back
-(ADR 0191).
+(ADR 0192).
 
 ## Implement
 
@@ -54,15 +54,15 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
   the net. Read `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it selects for
   each run, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths>` with at least one path (or
   `test -- <command>` for a direct test-file run). The loop runs only the tests that verify the slice, never `test full`, `test whole`, or a `test focused`
-  with no path: the scope review's exit run is the scope's one full-suite run (ADR 0191). Each failing-test or passing-test step passes the test
+  with no path: the scope review's exit run is the scope's one full-suite run (ADR 0192). Each failing-test or passing-test step passes the test
   files that hold the tests it works on. Your last run before you commit a slice passes the slice's whole
   changed-path set, and so does a step that works on no test file (ADR 0139). Where the focused fence repeats the
   full fence, each step runs each test file it works on through `test -- <command>`, and you make neither of those
-  whole-set runs: the scope review's exit run covers them (ADR 0180, ADR 0191). A suite longer than the Bash tool's time limit runs
+  whole-set runs: the scope review's exit run covers them (ADR 0180, ADR 0192). A suite longer than the Bash tool's time limit runs
   through the runner in the background, and you wait for its end before acting on it. The run trace records your edits and runs.
 - **A failing test the slice did not cause is named, never fixed.** A test that also fails at the slice's
   base commit is inherited: name it in your report, fix none, block on none, and count no strike for it.
-  The scope review's fix loop repairs it (ADR 0191, INV-0157).
+  The scope review's fix loop repairs it (ADR 0192, INV-0157).
 - **Declare the domain shapes a slice's `spec` names before its first RED test** — the same step
   `agents/implementer.md` carries, for the tier that dispatches nobody. A `spec` naming none leaves
   nothing to declare, the fields are yours, and a shape whose term `CONTEXT.md` lacks is reported rather

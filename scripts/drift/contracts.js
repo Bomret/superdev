@@ -479,7 +479,7 @@ const NO_TEST_RUN_PATTERNS = [
   /\brun(?:s|ning)?\s+(?:the\s+|a\s+|an\s+)?(?:configured\s+)?test\s+(?:command|suite)\b/gi,
 ];
 
-// ADR 0191, INV-0128: implement's base step, run handoff, and both execution playbooks instruct no full or whole-repo
+// ADR 0192, INV-0128: implement's base step, run handoff, and both execution playbooks instruct no full or whole-repo
 // run. Each entry is a document and the one section of it the check reads, or null for the whole document: scope-mode.md
 // also holds the review's and ship's rules, so only its base step is read.
 const IMPLEMENT_NO_FULL_RUN_DOCS = [
@@ -489,13 +489,16 @@ const IMPLEMENT_NO_FULL_RUN_DOCS = [
   [path.join('references', 'implement-lite.md'), null],
 ];
 // A `scope.js test full|whole` call, the bare `test full|whole` verb in a code span, a `test focused` call with no path
-// after it, and a run, execution, or invocation of the full or whole-repo command or suite.
+// after it, a run, rerun, execution, or invocation of the full or whole-repo command or suite, a gate on one, and the full
+// or whole-repo command or suite as the subject of `runs` up to two words later ("the full suite run-handoff runs").
 const IMPLEMENT_NO_FULL_RUN_PATTERNS = [
   /scope\.js["'`]?\s+test\s+(?:full|whole)\b/gi,
   /`test\s+(?:full|whole)`/gi,
   /scope\.js["'`]?\s+test\s+focused(?=\s*(?:`|$|[.,;:)]))/gim,
   /`test\s+focused`/gi,
-  /\b(?:run(?:s|ning)?|execut(?:e|es|ing)|invok(?:e|es|ing))\s+(?:the\s+|a\s+|an\s+)?(?:configured\s+)?(?:full|whole-repo)\b[^.\n]{0,25}?\b(?:test\s+)?(?:command|suite)\b/gi,
+  /\b(?:(?:re-?)?run(?:s|ning)?|execut(?:e|es|ing)|invok(?:e|es|ing))\s+(?:the\s+|a\s+|an\s+)?(?:configured\s+)?(?:full|whole-repo)\b[^.\n]{0,25}?\b(?:test\s+)?(?:command|suite)\b/gi,
+  /\bgat(?:e|es|ing)\s+on\s+(?:the\s+|a\s+|an\s+)?(?:configured\s+)?(?:full|whole-repo)\b[^.\n]{0,25}?\b(?:test\s+)?(?:command|suite)\b/gi,
+  /\b(?:full|whole-repo)\s+(?:test\s+)?(?:command|suite)(?:\s+[\w-]+){0,2}?\s+(?:re-?)?runs\b/gi,
 ];
 
 // INV-0157: a failing test in a scope review's suite run is the failing-run concept's Critical finding and joins the fix

@@ -373,7 +373,7 @@ pass reads and edits directly, so it stages nothing.
 **E — Verification (optional).** What single command runs the repo's test suite (e.g. `npm test`,
 `pytest -q`, `cargo test`)? Recorded, it is the suite the implement chain runs: the scope review's exit run
 over the integrated scope, the scope's one full-suite run, where no reusable record, carry, or recorded rerun
-meets the gate (ADR 0191) (`references/test-selection.md`). No hook runs
+meets the gate (ADR 0192) (`references/test-selection.md`). No hook runs
 it on a merge (ADR 0155). Detect a likely command (package.json scripts, a Makefile `test` target,
 `pyproject.toml`) and propose it. No suite (e.g. a docs-only repo) → skip; nothing runs a suite. (The
 **F** scan finds the same manifests — draw the proposal from it.)

@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 
-**Amended by:** [ADR 0191](0191-the-full-suite-runs-once-after-review-comes-back-clean.md), under which the review's base merge at entry is verified by its exit run, not its entry.
+**Amended by:** [ADR 0192](0192-the-full-suite-runs-once-after-review-comes-back-clean.md), under which the review's base merge at entry is verified by its exit run, not its entry.
 
 **Amends:** [ADR 0120](0120-implement-brings-the-remote-base-into-the-scope-branch-before-the-first-slice.md), under which only
 `/superdev:implement` brings the base into the scope branch before ship.

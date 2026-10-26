@@ -191,12 +191,13 @@ function scanDeployRunnerExclusivity(root) {
   return gaps;
 }
 
-// ADR 0191, INV-0128: implement runs no full or whole-repo suite, so its base step (`scope-mode.md`'s section alone), run
-// handoff, and both execution playbooks instruct none. A negation (`no`, `not`, `never`, `without`, `nor`) at most one
-// word before the hit, in the same sentence or clause, excuses it, and so does one heading a list of code spans
-// ("never `test full`, `test whole`, or a `test focused` with no path"). Fenced examples are masked first.
+// ADR 0192, INV-0128: implement runs no full or whole-repo suite, so its base step (`scope-mode.md`'s section alone), run
+// handoff, and both execution playbooks instruct none. A negation in the same sentence or clause excuses the hit: `no`
+// directly before it, or `not`, `never`, `nor`, or `without` at most one word (the negated verb) before it. One heading a
+// list of code spans excuses it too ("never `test full`, `test whole`, or a `test focused` with no path"). A `no` a word
+// away negates that word, as in "with no delay run the full suite", and excuses nothing. Fenced examples are masked first.
 const FULL_RUN_NEGATION =
-  /\b(?:no|not|never|nor|without)\b(?:\s+\w+){0,1}\s*(?:(?:a\s+|an\s+|the\s+)?`[^`]*`(?:\s+with\s+no\s+path)?\s*,\s*(?:(?:or|and|nor)\s+)?)*(?:a\s+|an\s+|the\s+)?["'`]?\s*$/i;
+  /(?:\bno\b|\b(?:not|never|nor|without)\b(?:\s+\w+){0,1})\s*(?:(?:a\s+|an\s+|the\s+)?`[^`]*`(?:\s+with\s+no\s+path)?\s*,\s*(?:(?:or|and|nor)\s+)?)*(?:a\s+|an\s+|the\s+)?["'`]?\s*$/i;
 // A section runs from its heading to the next heading of its own level or a higher one, `#` excepted: a fenced shell
 // comment reads like a level-one heading.
 function sectionText(text, heading) {
@@ -230,7 +231,7 @@ function scanImplementNoFullRun(root) {
           source: rel,
           expectation:
             `instruct no full or whole-repo run — \`${normalizeWhitespace(hit[0])}\` starts one, and ` +
-            "the scope review's exit run is the scope's one full-suite run (ADR 0191, INV-0128)",
+            "the scope review's exit run is the scope's one full-suite run (ADR 0192, INV-0128)",
         });
       }
     }

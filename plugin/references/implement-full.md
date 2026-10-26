@@ -32,8 +32,7 @@ run `## Minor sweep` below, then read `${CLAUDE_PLUGIN_ROOT}/references/run-hand
   `${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md` → *Wide refactors*, ADR 0033) inserts one branch
   between the slices and the scope: cut `integration/<scope>` from `<branch>` at run start, keep it
   checked out **in the scopetree**, and merge every slice into it instead of `<branch>`. The branch keeps
-  the scope branch green between invocations, so a resumed run passes the base step while batches that
-  cannot stay green alone are in flight (ADR 0155). The plan's final **integrate-and-verify** slice is
+  the scope branch green while batches that cannot stay green alone are in flight (ADR 0155). The plan's final **integrate-and-verify** slice is
   where you switch that same scopetree back to `<branch>` and merge `integration/<scope>` into it. That
   merge runs no suite: the scope review's exit run verifies it, and it is the run's promise of green.
   Everything else in the loop is unchanged.
@@ -51,7 +50,7 @@ is closed.
 Right after the run lock, before the first slice, run `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
 `## Bringing the scope branch to base`, on every invocation and at every run kind (ADR 0120, INV-0124).
 A stop there dispatches no slice. The step runs no test suite, so the suite record never holds a slice back
-(ADR 0191).
+(ADR 0192).
 
 ## Progress log (per slice)
 
@@ -107,7 +106,7 @@ Repeat until every slice is `merged`:
    file, and to fix a `pass-to-pass` outcome in the same dispatch (ADR 0182). Every implementer dispatch also
    tells it to run only the tests that verify its work, each through `scope.js test` (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test
    focused <changed paths>` with at least one path, or `test -- <command>` for a direct test-file run), and its fail-to-pass run, and never `test full`,
-   `test whole`, or a `test focused` with no path: the scope review's exit run is the scope's one full-suite run (ADR 0191). It tells it to run a suite longer than the
+   `test whole`, or a `test focused` with no path: the scope review's exit run is the scope's one full-suite run (ADR 0192). It tells it to run a suite longer than the
    Bash tool's time limit through the runner in the background and wait for its end before acting on it, and
    tells it to edit files through the edit tools, never through a script. It also tells it that a RED or GREEN step passes the test files
    that hold the tests that step works on, and that its last run before the fail-to-pass run passes the slice's whole
@@ -115,7 +114,7 @@ Repeat until every slice is `merged`:
    it works on through `test -- <command>` and that the fail-to-pass run is its one run before the report (ADR 0180). Every implementer dispatch also tells it that a failing test its slice did not cause, one that
    also fails at the slice's base commit, is named in its report, neither fixed nor blocked on, and left to
    the scope review's fix loop: a named inherited failure is no BLOCKED and no strike
-   (ADR 0155, ADR 0191, INV-0157). A dispatch for a
+   (ADR 0155, ADR 0192, INV-0157). A dispatch for a
    `docs` slice whose `spec` names `AGENTS.md`-hierarchy text as its deliverable tells the implementer it
    edits exactly that text; every other slice dispatch leaves the `AGENTS.md` hierarchy to the doc pass,
    as the implementer's own Documentation section states (INV-0162, ADR 0161).
@@ -161,7 +160,7 @@ Repeat until every slice is `merged`:
      observation: write its triage record under the `## Observations` rule above, naming the environment gap.
    - **A slice review reads the run trace, and runs no test** (ADR 0178, ADR 0182). You hand it no tip result. The
      implementer's recorded runs and its fail-to-pass control run are the slice's evidence, and the scope review's
-     exit run covers what they leave out (ADR 0191).
+     exit run covers what they leave out (ADR 0192).
    - **`behavior`** slice → move it → `in-review`, beside the store move, with
      `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" slice <id> in-review --root <run-root>` before the first slice review dispatch
      (the row stays `in-review` through the parallel simplicity pass and every fix cycle, until the merge or a block), then dispatch **`superdev:slice-reviewer`**
@@ -191,7 +190,7 @@ Repeat until every slice is `merged`:
      from the run trace.
      It tells the reviewer that a failing test the slice did not cause, one that also fails at the slice's
      base, is named under `### Inherited failures` and counts nothing against the verdict: no
-     finding and no strike, left to the scope review's fix loop (ADR 0155, ADR 0191, INV-0157). The reviewer settles a **blind pass** before it opens the log, and
+     finding and no strike, left to the scope review's fix loop (ADR 0155, ADR 0192, INV-0157). The reviewer settles a **blind pass** before it opens the log, and
      the blind pass reads the slice's run-trace lines (`scope.js trace --slice <id>`).
      The dispatch also names the slice's range, from the commit its branch was cut from to the tip the first review
      read (the same range on every review), and on a re-review the fix cycle's range, from the tip the earlier review
@@ -317,7 +316,7 @@ Repeat until every slice is `merged`:
      (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section) rather than
      repeating one here.
    - **`mechanical`** / **`docs`** slice → **skip both per-slice reviews** (the implementer's own runs, plus
-     the full suite run-handoff runs once for every scope, are the net; ADR 0025, ADR 0091, ADR 0155).
+     the scope review's exit run, the scope's one full-suite run, are the net; ADR 0025, ADR 0091, ADR 0155, ADR 0192).
 4. **Merge (you, serially)** — in the scopetree: `git -C <run-root>/scopetree merge
    --no-ff slice/<scope>/<id>`. Resolve
    conflicts yourself, per `${CLAUDE_PLUGIN_ROOT}/references/merge-conflicts.md` (you hold cross-slice
@@ -334,7 +333,7 @@ Repeat until every slice is `merged`:
    **A slice merge runs no suite**, clean or concluded with `merge --continue` (ADR 0155, INV-0128). The
    slice's own runs already tested it, and the scope review's entry focused run and exit run (a full run, or
    the carry or recorded rerun `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` admits) verify the
-   integrated scope: its fix loop repairs a break between two slices that each passed alone (ADR 0191). Go straight on to the next dispatch or merge.
+   integrated scope: its fix loop repairs a break between two slices that each passed alone (ADR 0192). Go straight on to the next dispatch or merge.
 
    Then clean up. First read the slice branch's tip with `git -C <run-root>/scopetree rev-parse slice/<scope>/<id>`:
    the branch is gone after the cleanup, and the `merged` write below records that full commit as its `<tip>`. Then

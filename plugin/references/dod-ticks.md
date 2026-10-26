@@ -44,8 +44,7 @@ met:`** — a `not met: <evidence>; remaining: <unmerged ids>` note this same ru
 sibling stood unmerged names no defect in the work itself, so it is not a real not-met. A genuine `not
 met:`/`ceiling:` note from an earlier tagged slice leaves the line unticked even after the last slice
 reports `met`, carrying both notes' gist, for run handoff's handoff pass to settle. Other dispatches list
-differently — a review fix loop's dispatch, or run
-handoff's red-suite loop, lists whatever criteria that pass is judging, tied to no slice id; each such
+differently — a review fix loop's dispatch lists whatever criteria that pass is judging, tied to no slice id; each such
 surface states its own listed set where it wires the gate.
 
 **Review's case:** `final-reviewer` judges every `dod.md` line, ticked or not, and returns its own verdict

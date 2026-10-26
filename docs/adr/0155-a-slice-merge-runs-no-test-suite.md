@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 
-**Amended by:** [ADR 0191](0191-the-full-suite-runs-once-after-review-comes-back-clean.md), under which the scope review's exit run, not run handoff, is the first full-suite verification of the integrated scope.
+**Amended by:** [ADR 0192](0192-the-full-suite-runs-once-after-review-comes-back-clean.md), under which the scope review's exit run, not run handoff, is the first full-suite verification of the integrated scope.
 
 **Amended by:** [ADR 0178](0178-a-slice-review-runs-no-test.md), under which the controller runs a
 failing test at the slice's base and the slice-reviewer names the inherited failure from that run.

@@ -7,7 +7,7 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) read this as
 Run after your playbook returns (every slice `merged`/committed on the scope branch). Identical across
 tiers: record that slice execution finished, name what comes next.
 
-- **Run no test suite here** (ADR 0191). The scope review's exit run is the scope's one full-suite run, and it
+- **Run no test suite here** (ADR 0192). The scope review's exit run is the scope's one full-suite run, and it
   verifies the integrated scope branch, implement's base merge included. A failing test a slice did not cause,
   named in an implementer's report or met in your own loop, goes to the scope review's fix loop (INV-0157).
 - **An observation is captured the moment you meet it.** Read
@@ -62,7 +62,7 @@ tiers: record that slice execution finished, name what comes next.
   `docs/agents/code-management.md`, default `main`) and print `/superdev:review <BASE-sha>..<branch>` with
   the real commit substituted, plus one line on what it does (review the integrated scope against the
   DoD and run the scope's one full-suite run) — **every scope**, whatever its slice types (ADR 0091,
-  ADR 0191). An attended run first makes the offer in
+  ADR 0192). An attended run first makes the offer in
   `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section for that command, and a
   started review leaves this command nothing to print. This line fills the Next block that closes the message,
   so it comes last. Then stop: no review, no doc pass, no pull request, no cleanup.

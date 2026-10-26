@@ -185,7 +185,7 @@ Applies to every dispatch.
 A test your slice did not cause also fails at your base commit before your first change. How you establish that is your call.
 
 - Name each such test in your report with how you established it.
-- Fix none of them and block on none. The scope review's fix loop repairs them once its runs reach the integrated scope (ADR 0191).
+- Fix none of them and block on none. The scope review's fix loop repairs them once its runs reach the integrated scope (ADR 0192).
 - A named inherited failure is no `BLOCKED` and no strike.
 - Every other test your work reaches goes green as usual.
 - A red-suite fix dispatch makes the failing tests your task: a review fix dispatch whose finding is a failing suite run. A slice fix dispatch and a sweep fix dispatch do not.

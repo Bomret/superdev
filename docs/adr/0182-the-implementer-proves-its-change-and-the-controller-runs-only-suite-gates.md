@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 
-**Amended by:** [ADR 0191](0191-the-full-suite-runs-once-after-review-comes-back-clean.md), under which the only controller suite gates are the scope review's exit run, submit-pr's whole-repo run, and ship's moved-base gate.
+**Amended by:** [ADR 0192](0192-the-full-suite-runs-once-after-review-comes-back-clean.md), under which the only controller suite gates are the scope review's exit run, submit-pr's whole-repo run, and ship's moved-base gate.
 
 **Amends:** [ADR 0125](0125-missing-red-never-blocks-a-slice-at-the-fix-cap.md), whose escape path keeps
 Pass-to-pass and Missing fail-to-pass run and loses Missing RED.

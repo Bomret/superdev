@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 
-**Amended by:** [ADR 0191](0191-the-full-suite-runs-once-after-review-comes-back-clean.md), under which the whole-set runs a loop step skips are covered by the scope review's exit run.
+**Amended by:** [ADR 0192](0192-the-full-suite-runs-once-after-review-comes-back-clean.md), under which the whole-set runs a loop step skips are covered by the scope review's exit run.
 
 **Amends:** [ADR 0139](0139-a-test-first-step-runs-the-tests-it-works-on.md), which states which paths a
 test-first step passes, and [ADR 0177](0177-an-implementer-runs-only-the-tests-that-verify-its-work.md), which

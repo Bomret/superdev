@@ -542,7 +542,7 @@ slice, on every `/superdev:implement` invocation and at every run kind (ADR 0120
 `/superdev:review` runs it too, on a live scope run at a stage before `submitted`, after its scope
 checkout and run lock and before its entry focused run (ADR 0173). At `submitted` review merges nothing:
 `/superdev:ship` owns a moved base there. The step runs no test suite: the scope review's exit run
-verifies every merge it makes, implement's and the review's own alike (ADR 0191). It brings
+verifies every merge it makes, implement's and the review's own alike (ADR 0192). It brings
 the remote's `<base>` tip into the scope branch, so slices build on what the pull request targets rather
 than on whatever `<base>` the branch was cut from. `/superdev:plan`'s own cut never reads it. `<remote>`
 and `<base>` come from `docs/agents/code-management.md`; `<branch>` is the scope branch the playbook's
@@ -605,7 +605,7 @@ branch step left you on.
    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base set <tip> --root <run-root>`: the local `<base>`
    may still lack `<tip>`, and `## The scope's range base` reads the record. Then go to the first
    slice, or, for `/superdev:review`, to its entry focused run, whatever the suite record reads: a red,
-   denied, or absent record asks nothing, stops nothing, and blocks no unattended run (ADR 0191).
+   denied, or absent record asks nothing, stops nothing, and blocks no unattended run (ADR 0192).
 
 **A base that cannot be fetched is a degraded pass.** No `<remote>` configured, a failed or killed fetch,
 or a remote that does not carry `<base>` → skip steps 2 and 3, run step 4 with the local `<base>`
