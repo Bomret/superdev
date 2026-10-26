@@ -50,7 +50,7 @@ work this section would dispatch is done:
 - **Those commits touched no doc file** → skip §4 as well, and say in §5 that the pass was already done and
   left nothing for a reader. This invocation dispatches nobody at all.
 - The record reads `absent` on every `full` run, on a `lite` run that ended before its doc step, and after
-  `/superdev:review` or run handoff's red-suite fix loop cleared it because that loop landed commits. Each
+  `/superdev:review`'s fix loop cleared it because that loop landed commits. Each
   takes the dispatch below, unchanged.
 
 An ad-hoc range has no run root and so no record: dispatch below.

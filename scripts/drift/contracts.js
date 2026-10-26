@@ -479,7 +479,37 @@ const NO_TEST_RUN_PATTERNS = [
   /\brun(?:s|ning)?\s+(?:the\s+|a\s+|an\s+)?(?:configured\s+)?test\s+(?:command|suite)\b/gi,
 ];
 
+// ADR 0191, INV-0128: implement's base step, run handoff, and both execution playbooks instruct no full or whole-repo
+// run. Each entry is a document and the one section of it the check reads, or null for the whole document: scope-mode.md
+// also holds the review's and ship's rules, so only its base step is read.
+const IMPLEMENT_NO_FULL_RUN_DOCS = [
+  [path.join('references', 'scope-mode.md'), '## Bringing the scope branch to base'],
+  [path.join('references', 'run-handoff.md'), null],
+  [path.join('references', 'implement-full.md'), null],
+  [path.join('references', 'implement-lite.md'), null],
+];
+// A `scope.js test full|whole` call, the bare `test full|whole` verb in a code span, a `test focused` call with no path
+// after it, and a run, execution, or invocation of the full or whole-repo command or suite.
+const IMPLEMENT_NO_FULL_RUN_PATTERNS = [
+  /scope\.js["'`]?\s+test\s+(?:full|whole)\b/gi,
+  /`test\s+(?:full|whole)`/gi,
+  /scope\.js["'`]?\s+test\s+focused(?=\s*(?:`|$|[.,;:)]))/gim,
+  /`test\s+focused`/gi,
+  /\b(?:run(?:s|ning)?|execut(?:e|es|ing)|invok(?:e|es|ing))\s+(?:the\s+|a\s+|an\s+)?(?:configured\s+)?(?:full|whole-repo)\b[^.\n]{0,25}?\b(?:test\s+)?(?:command|suite)\b/gi,
+];
+
+// INV-0157: a failing test in a scope review's suite run is the failing-run concept's Critical finding and joins the fix
+// list, so the review's observation concept, whose defects never join it, names no suite run as a source. The entry is the
+// document and the one section of it the check reads.
+const OBSERVATION_NO_SUITE_RUN_DOC = [path.join('references', 'review-scope-mode.md'), '### 4.3 Observations'];
+// A suite, test, entry, exit, focused, or full run, a §4.2 citation, and a failing test or run.
+const OBSERVATION_NO_SUITE_RUN_PATTERN = /\b(?:suite|test|entry|exit|focused|full)\s+runs?\b|§\s*4\.2\b|\bfailing\s+(?:tests?|runs?)\b/gi;
+
 module.exports = {
+  OBSERVATION_NO_SUITE_RUN_DOC,
+  OBSERVATION_NO_SUITE_RUN_PATTERN,
+  IMPLEMENT_NO_FULL_RUN_DOCS,
+  IMPLEMENT_NO_FULL_RUN_PATTERNS,
   NO_TEST_RUN_DOCS,
   NO_TEST_RUN_PATTERNS,
   REFERENCE_PATTERN,

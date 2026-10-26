@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0191](0191-the-full-suite-runs-once-after-review-comes-back-clean.md), under which implement's base merge runs no suite and the scope review's exit run verifies it.
+
 **Amended by:** [ADR 0126](0126-a-numbering-collision-is-found-by-number-not-by-conflict.md).
 
 **Amends:** [ADR 0079](0079-a-planned-ledger-hands-the-scope-branch-from-plan-to-implement.md) for when the base reaches

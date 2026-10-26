@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0191](0191-the-full-suite-runs-once-after-review-comes-back-clean.md), under which run handoff runs no full suite and has no fix loop; the scope review's exit run is the scope's one full run.
+
 **Amends:** [ADR 0025](0025-the-scope-review-owns-the-full-suite-run.md),
 [ADR 0077](0077-invariants-live-in-one-central-register.md).
 

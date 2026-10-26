@@ -65,8 +65,8 @@ repository configures one only together with an affected form.
   focused command.
 - **`/superdev:submit-pr`, `/superdev:ship`, and a scope review read it** (ADR 0105): submit-pr runs it
   once on the scope branch's tip before opening the pull request and reuses a green `whole` record of that
-  tip instead, ship runs it on a tip that carries no green `whole` record, and a review entered while the suite record reads red of kind `whole` runs it in place of the
-  full command.
+  tip instead, ship runs it on a tip that carries no green `whole` record, and a review entered while the suite record reads red of kind `whole` runs it at its exit run in place
+  of the full command.
 - **An absent section leaves the full command as the whole suite**, and every caller unaffected.
 
 ## Timing command
@@ -174,8 +174,8 @@ with no test run at T (ADR 0189).
 
 ## The carry run
 
-Every gate that runs the full suite takes the carry before it runs the full command (ADR 0175): implement's
-base gate, run handoff's suite run, review's entry and exit runs, and ship's moved-base gate. Each gate cites
+Every gate that runs the full suite takes the carry before it runs the full command (ADR 0175): review's exit
+run and ship's moved-base gate. Implement runs no full suite (ADR 0191). Each gate cites
 this section and runs the steps in order, after its own `scope.js suite reusable` call refuses the tip:
 
 1. **Check the preconditions.** `scope.js get suite --root <run-root>` prints a green record at a commit A,
@@ -236,9 +236,9 @@ after a gate that passed on the rerun so need no test run at U (ADR 0189).
 
 ## A fix cycle's runs
 
-Review's fix loop and run handoff's fix loop run no test inside a cycle (ADR 0182). The cycle's implementer runs
+Review's fix loop runs no test inside a cycle (ADR 0182). The cycle's implementer runs
 the tests that verify its fix and its fail-to-pass run over the cycle's commits, and the re-review reads those runs
-from the run trace. Each loop's exit full-suite run is the gate the stage advances on.
+from the run trace. The loop's exit full-suite run is the gate the stage advances on.
 
 ## The changed-path set
 
@@ -253,12 +253,12 @@ Each caller judges its own range and builds the set from it:
   file runs over that whole set too. A focused command with no `{paths}` token runs unchanged at every step,
   and the run trace records every step's run either way (ADR 0139). Every loop run passes at least one path, or
   runs one test file through `test -- <command>`, so the loop runs only the tests that verify the work. `test full`,
-  `test whole`, and a `test focused` with no path run only at the controller's gates (ADR 0177).
+  `test whole`, and a `test focused` with no path run only at the scope review's and ship's gates (ADR 0177, ADR 0191).
   Where the focused fence repeats the full fence, `test focused` runs the whole suite whatever paths it gets. There a
   failing-test or passing-test step runs each test file it works on through `test -- <command>`, the runner's own
   invocation of that one file. The last run before the implementer reports, or before the lite tier commits a slice,
-  does not run, and neither does a step that works on no test file: the controller's next gate runs the suite over
-  that work (ADR 0180). The fail-to-pass run still runs (ADR 0182).
+  does not run, and neither does a step that works on no test file: the scope review's exit run covers that work
+  (ADR 0180, ADR 0191). The fail-to-pass run still runs (ADR 0182).
 - **The documentation step.** None: the step runs no test command and builds no set. `scope.js suite reusable`
   carries a green record across Markdown-only commits with no test run at the tip (ADR 0128, ADR 0189,
   INV-0017), so the doc commits need none. Where the record stays at an earlier commit because review reached

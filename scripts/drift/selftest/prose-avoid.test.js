@@ -12,6 +12,8 @@ const {
   scanTeaOnly,
   scanDeployRunnerExclusivity,
   scanDocSetupNoTestRun,
+  scanImplementNoFullRun,
+  scanObservationNoSuiteRun,
 } = require('../scanners');
 
 module.exports = ({ assert, path, fixture, found }) => {
@@ -280,5 +282,102 @@ module.exports = ({ assert, path, fixture, found }) => {
     ),
     [{ source: path.join('skills', 'document', 'SKILL.md'), missing: true }],
     'a missing skill is a missing-document gap',
+  );
+
+  // --- implement-no-full-run (ADR 0191, INV-0128): implement's base step, run handoff, and both playbooks instruct no full or whole-repo run ---
+
+  const noFull = (files) => found(scanImplementNoFullRun(fixture(files)));
+  const baseStep = (body) => '# Scope mode\n\n## Bringing the scope branch to base\n\n' + body + '\n## The scope\'s range base\n\nDone.\n';
+  const fullDocs = ['references/run-handoff.md', 'references/implement-full.md', 'references/implement-lite.md'];
+  const hits = [
+    ['Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full` in the scopetree.\n', 'a `scope.js test full` call'],
+    ['Then run `scope.js test whole` once.\n', 'a `scope.js test whole` call'],
+    ['Then run `scope.js test focused` once.\n', 'a pathless `scope.js test focused` call'],
+    ['Gate the branch: run the full command from `docs/agents/verification.md`.\n', 'run the full command'],
+    ['It runs the configured whole-repo command once.\n', 'runs the whole-repo command'],
+    ['Then run the full suite in the scope checkout.\n', 'run the full suite'],
+    ['Then execute the full suite in the scope checkout.\n', 'execute the full suite'],
+    ['It invokes the whole-repo command once.\n', 'invokes the whole-repo command'],
+  ];
+  for (const rel of fullDocs) {
+    for (const [text, label] of hits) {
+      const gaps = noFull({ [rel]: text });
+      assert.equal(gaps.length, 1, `${rel}: flags ${label}`);
+      assert.equal(gaps[0].source, rel, `${rel}: names the document`);
+    }
+    assert.equal(noFull({ [rel]: 'Run `scope.js test focused <changed paths>` with at least one path.\n' }).length, 0, `${rel}: a focused run with a path passes`);
+    assert.equal(noFull({ [rel]: 'Run no test suite here (ADR 0191).\n' }).length, 0, `${rel}: a statement that no suite runs passes`);
+    assert.equal(noFull({ [rel]: 'It never runs the full command.\n' }).length, 0, `${rel}: a negated run passes`);
+    assert.equal(noFull({ [rel]: 'The loop never calls `scope.js test full`.\n' }).length, 0, `${rel}: a negated scope.js call passes`);
+    assert.equal(
+      noFull({ [rel]: 'Tell it to run only its own tests, and never `test full`, `test whole`, or a `test focused` with no path.\n' }).length,
+      0,
+      `${rel}: a list-form negation passes`,
+    );
+    assert.equal(
+      noFull({ [rel]: 'It runs never `scope.js test full`, nor `scope.js test whole`, nor a `scope.js test focused` with no path.\n' }).length,
+      0,
+      `${rel}: a nor-list negation passes`,
+    );
+    assert.equal(noFull({ [rel]: 'If no record is green, run the full command.\n' }).length, 1, `${rel}: a distant no does not excuse a run`);
+    assert.equal(noFull({ [rel]: 'Never mind the record: run `test full` now.\n' }).length, 1, `${rel}: a negation before a colon break does not excuse a run`);
+    assert.equal(noFull({ [rel]: '```\nscope.js test full\n```\n' }).length, 0, `${rel}: a fenced example is masked`);
+  }
+  for (const [text, label] of hits) {
+    assert.equal(noFull({ 'references/scope-mode.md': baseStep(text) }).length, 1, `scope-mode base step: flags ${label}`);
+  }
+  assert.equal(
+    noFull({ 'references/scope-mode.md': baseStep('The step runs no test suite.\n') + '## Review\n\nThe review runs `scope.js test full` at its exit.\n' }).length,
+    0,
+    'scope-mode text outside the base-step section stays unscanned',
+  );
+  assert.equal(
+    noFull({ 'references/review-scope-mode.md': 'Run `scope.js test full`.\n', 'skills/ship/SKILL.md': 'Run the full command.\n' }).length,
+    0,
+    'other documents are not read',
+  );
+  assert.deepEqual(
+    scanImplementNoFullRun(fixture({ 'references/scope-mode.md': '# Scope mode\n\n## Other\n\nText.\n' })).filter((g) => g.source === path.join('references', 'scope-mode.md')),
+    [{ source: path.join('references', 'scope-mode.md'), expectation: 'carry a `## Bringing the scope branch to base` section for implement-no-full-run to scan' }],
+    'a scope-mode.md without the base-step section is a gap',
+  );
+  assert.deepEqual(
+    scanImplementNoFullRun(fixture({ 'references/scope-mode.md': baseStep('No run.\n'), 'references/implement-full.md': 'x\n', 'references/implement-lite.md': 'x\n' })),
+    [{ source: path.join('references', 'run-handoff.md'), missing: true }],
+    'a missing document is a missing-document gap',
+  );
+
+  // --- observation-no-suite-run (INV-0157): the scope review's observation concept names no suite run as a source ---
+
+  const reviewScope = path.join('references', 'review-scope-mode.md');
+  const observations = (body) =>
+    '# Review in scope mode\n\n### 4.2 The suite gate\n\nA failing run is a Critical finding.\n\n' +
+    '### 4.3 Observations\n\n' + body + '\n### 4.4 The fix boundary\n\nA failing test is a finding.\n';
+  const noSuiteRun = (body) => scanObservationNoSuiteRun(fixture({ 'references/review-scope-mode.md': observations(body) }));
+  for (const [text, label] of [
+    ['Applies to a defect a suite run of §4.2 surfaces. It never joins the fix list.\n', 'a suite run'],
+    ['Applies to a defect the exit run surfaces.\n', 'the exit run'],
+    ['Applies to a defect the entry run or a focused run surfaces.\n', 'the entry run'],
+    ['Applies to a defect §4.2 surfaces.\n', 'a §4.2 citation'],
+    ['Applies to a failing test the scope did not cause.\n', 'a failing test'],
+  ]) {
+    const gaps = noSuiteRun(text);
+    assert.ok(gaps.length >= 1, `observation-no-suite-run: flags ${label}`);
+    assert.equal(gaps[0].source, reviewScope, `observation-no-suite-run: names the document for ${label}`);
+  }
+  assert.deepEqual(
+    noSuiteRun("Applies to a defect `final-reviewer`'s report surfaces, or a fix cycle meets. It never joins the fix list.\n"),
+    [],
+    'observation-no-suite-run: a concept naming only the report and a fix cycle passes, and the sections around it stay unscanned',
+  );
+  assert.deepEqual(
+    scanObservationNoSuiteRun(fixture({ 'references/review-scope-mode.md': '# Review in scope mode\n\n### 4.2 The suite gate\n\nText.\n' })),
+    [{ source: reviewScope, expectation: 'carry a `### 4.3 Observations` section for observation-no-suite-run to scan' }],
+    'observation-no-suite-run: a missing section is a gap',
+  );
+  assert.deepEqual(
+    scanObservationNoSuiteRun(fixture({ '.keep': '' })),
+    [{ source: reviewScope, missing: true }],
+    'observation-no-suite-run: a missing document is a missing-document gap',
   );
 };

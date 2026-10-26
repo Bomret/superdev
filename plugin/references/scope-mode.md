@@ -540,8 +540,9 @@ than an hour as dead. Each command in the chain refreshes the mtime at its own s
 Both execution playbooks run this step right after their own `## Run lock` write and before their first
 slice, on every `/superdev:implement` invocation and at every run kind (ADR 0120, INV-0124).
 `/superdev:review` runs it too, on a live scope run at a stage before `submitted`, after its scope
-checkout and run lock and before its entry suite check (ADR 0173). At `submitted` review merges nothing:
-`/superdev:ship` owns a moved base there. It brings
+checkout and run lock and before its entry focused run (ADR 0173). At `submitted` review merges nothing:
+`/superdev:ship` owns a moved base there. The step runs no test suite: the scope review's exit run
+verifies every merge it makes, implement's and the review's own alike (ADR 0191). It brings
 the remote's `<base>` tip into the scope branch, so slices build on what the pull request targets rather
 than on whatever `<base>` the branch was cut from. `/superdev:plan`'s own cut never reads it. `<remote>`
 and `<base>` come from `docs/agents/code-management.md`; `<branch>` is the scope branch the playbook's
@@ -555,8 +556,6 @@ branch step left you on.
    unfinished, and a slice is `in-progress`. That dirt is the slice's own work. At the full tier
    slices work in their own slicetrees, so any dirty scopetree stops. Skip the whole base step, name the skip in the
    report, and leave the work to the playbook's `## Resume`; the next invocation brings the base in.
-   When `scope.js get suite --root <run-root>` reads `red`, the skip leaves that record ungated, because
-   the pick is never stored: run step 5's gate once that slice ends, before any other slice starts.
 2. **Fetch the remote base.** Run `GIT_TERMINAL_PROMPT=0 git fetch <remote> <base>` through the Bash
    tool with its `timeout` set to 120000 ms: a missing credential fails the fetch instead of prompting,
    and a stalled remote ends it. Capture `<tip>` at once with `git rev-parse FETCH_HEAD`, because step 3
@@ -604,49 +603,12 @@ branch step left you on.
    dispatched, and the operator resolves the conflict. **`--unattended` → block**, per `## Unattended`.
    Once `<tip>` is in the scope branch, whether merged now or already there, record it with
    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base set <tip> --root <run-root>`: the local `<base>`
-   may still lack `<tip>`, and `## The scope's range base` reads the record. Every merge goes
-   through step 5.
-5. **Gate on the full suite.** When `/superdev:review` runs this step, its own entry run is this gate: run
-   no second suite here, and let the entry check's reuse, run, and record (`review-scope-mode.md`'s `### 4.2 The suite gate`) gate the
-   merged tip. Otherwise run it when step 4 merged, and also when it merged nothing but
-   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base> --root <run-root>` does
-   not accept the scope branch's current tip — a red record an earlier invocation left is exactly what
-   this catches. Before the full command, take the carry per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s
-   `## The carry run`: a carried tip runs no full command and writes no record, and a failing carry run is this
-   gate's red result, recorded for the tip. A failed full run takes `## The recorded rerun` of the same file before it
-   stands as red: the triage record quoting the failure first, then the rerun record, the file alone, and the focused
-   run; an unattributable failure stays red. Only a tip with no carry takes the full command: after any merge, clean or
-   resolved, where no carry holds, run the full command from `docs/agents/verification.md` through
-   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full` in the scopetree, once: the run trace records that run, and the trace must back the suite record
-   (ADR 0117, ADR 0155). Run it through the runner, per the `## The two commands` section of `references/test-selection.md`, because a run the trace records as `unknown` leaves a record `suite reusable` refuses. The same command runs when the merge was skipped, the record is not reusable, and no carry holds. Record what the full command did with
-   `scope.js suite set <green|red|denied|none> <head> --root <run-root>`. **Green**, or a carried tip → go to
-   the first slice. **Denied, or never finished** (`none`, INV-0009) → dispatch no slice, name the result, and
-   stop; the next invocation runs the suite again. No slice can fix either.
-   **Red** → **A red record has an exit** (ADR 0152), because a slice of this scope can be its fix.
-   Attended, name the result and ask one multi-select question: which slices fix it. Offer every slice
-   not yet `merged` — `todo`, `in-progress`, or `blocked` — plus stopping. Name the slices beyond the
-   question tool's option limit in the question text, where the operator reaches them through Other.
-   - **Slices named** → the playbook runs only the named slices and the unmerged slices they depend on,
-     dependencies first. A named or needed `blocked` slice reopens, and a named `in-progress` slice resumes
-     through the playbook's own `## Resume`. No other slice starts while the record is red.
-     The pick has ended once every named slice and needed dependency is `merged` or `blocked`, or cannot
-     start because a dependency it needs is `blocked`. Then run the full command again on the scope
-     branch, through the runner as above, and record its result for the new tip. Green → the ordinary dispatch of the
-     remaining slices. Red → ask again.
-   - **Stop** → dispatch no further slice, name the result, and close with the Next block.
-     **Stop** picked together with slices, or no slice named, reads as Stop.
-     An id given through Other that names no unmerged slice is named back and the question asked again.
-   - **Every slice already `merged`** → ask nothing: go on to run handoff, whose full-suite fix loop
-     repairs the red.
-
-   The pick is never stored: every invocation that finds the record red asks again. **`--unattended` →
-   block** on every record that is not green, per `## Unattended`. A red record's block names
-   `/superdev:implement <feature-label>`, run attended, as the command that offers the pick. No
-   `docs/agents/verification.md`, or one carrying zero fenced blocks → no suite, no record, and nothing to
-   gate.
+   may still lack `<tip>`, and `## The scope's range base` reads the record. Then go to the first
+   slice, or, for `/superdev:review`, to its entry focused run, whatever the suite record reads: a red,
+   denied, or absent record asks nothing, stops nothing, and blocks no unattended run (ADR 0191).
 
 **A base that cannot be fetched is a degraded pass.** No `<remote>` configured, a failed or killed fetch,
-or a remote that does not carry `<base>` → skip steps 2 and 3, run steps 4 and 5 with the local `<base>`
+or a remote that does not carry `<base>` → skip steps 2 and 3, run step 4 with the local `<base>`
 in place of `<tip>`, record no `**Base:**` line, and record the reason with `scope.js degraded add`, after
 `scope.js get degraded --root <run-root>` shows no entry for the
 same reason: repeated offline invocations add one entry. It is the second shape in
@@ -868,7 +830,7 @@ the line when absent and appends when present. Each bullet names the defect, whe
 date:
 
 ```markdown
-**Stage:** reviewed
+**Stage:** merged
 **Unresolved:**
 - full suite red at the three-strike cap — two tests in payment/checkout still fail (2026-08-12)
 ```
@@ -1053,8 +1015,9 @@ observation earned, because each was made at the meeting, not saved for the end.
 
 **The controller tests "no slice covers it" against the plan, which it alone holds.** A dispatched agent
 sees only its own slice and cannot make that call; it reports what it met, and the controller decides. The
-controller's own observations are in scope too: it runs the merges and the suite gate after every base merge, so it is the participant
-most likely to meet one itself.
+controller's own observations are in scope too: it runs the merges and the scope review's suite runs, so it is the participant
+most likely to meet one itself. A failing test that keeps a scope review's suite run red is that review's Critical
+finding and joins its fix list, even when the scope did not cause it (INV-0157).
 
 **`/superdev:plan` writes one too**, when its interview finds a defect this scope did not cause and the
 user places the fix **later** (`skills/plan/SKILL.md` §1). The plan holds the scope, so the same test

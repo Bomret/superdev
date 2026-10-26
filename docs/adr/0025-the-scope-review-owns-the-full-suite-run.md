@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0191](0191-the-full-suite-runs-once-after-review-comes-back-clean.md), under which the scope review's one full-suite run is its exit run alone, and run handoff runs no suite.
+
 **Amended by:** [ADR 0074](0074-the-focused-test-command-is-the-loops-cheap-command.md), which redefines
 the focused command below by what it costs rather than by narrowing, requires a source-to-test mapping
 for `{paths}`, and narrows the empty-changed-path-set fallback to a command consuming that token —

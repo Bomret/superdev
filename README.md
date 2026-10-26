@@ -13,10 +13,11 @@ it, and by the time a corner-cut surfaces, it's already merged.
 
 With superdev: `/superdev:plan` interviews you until the Definition of Done is checkable,
 `/superdev:implement` cuts the work into small slices, a separate reviewer subagent checks each one
-before it merges, and the integrated scope passes one full-suite gate, with its own fix loop, before
-the review. superdev runs no suite on a merge, inside a scope run or outside one: a slice's tests run
-where the slice is built and reviewed, and every base merge into the scope branch gates the merged tip on
-the suite itself. A gate runs the full suite only where no carried record or recorded rerun meets it.
+before it merges, and the scope review runs the full suite once, after its verdict comes back clean.
+superdev runs no suite on a merge, inside a scope run or outside one. A slice's tests run where the slice
+is built and reviewed. The review's exit run verifies every slice and every base merge into the scope
+branch together, and a red result opens a fix cycle. A gate runs the full suite only where no carried
+record or recorded rerun meets it.
 
 A self-contained Claude Code plugin for the full **brainstorm, plan, implement, review, document,
 submit-pr, ship** loop, with **no prerequisite plugins**. It gives you interview-driven vertical slicing, an execution tier
@@ -89,8 +90,8 @@ flowchart TD
 |---|---|---|---|
 | `/superdev:brainstorm` | none. It sets the intent file to `status: ready`. | none | A draft resumes in `/superdev:brainstorm`. A ready intent goes to `/superdev:plan`. |
 | `/superdev:plan` | `planned` | none | It calls `/superdev:setup` when configuration is missing. A repair choice plans a `fix` feature. |
-| `/superdev:implement` | `implementing`, then `merged` | The builder of each slice runs focused tests and a fail-to-pass run. A full-suite gate runs after the base merge and at run handoff. | No slices go to `/superdev:plan`. The tier picks lite or full. |
-| `/superdev:review` | `reviewed` | A full suite at entry, unless the suite record covers the tip. No run inside a fix cycle. One full run after the fixes. | The fix loop stops at 3 strikes. A deferred finding becomes a triage record. |
+| `/superdev:implement` | `implementing`, then `merged` | The builder of each slice runs focused tests and a fail-to-pass run. No full suite runs. | No slices go to `/superdev:plan`. The tier picks lite or full. |
+| `/superdev:review` | `reviewed` | A focused run over the scope's changed paths at entry. No run inside a fix cycle. One full run after the verdict comes back clean, the scope's only full-suite run. | The fix loop stops at 3 strikes. A deferred finding becomes a triage record. |
 | `/superdev:document` | `documented`, or `documented-unreviewed` before a review | none. Review's suite record carries to ship across Markdown-only doc commits. | A broken `docs` criterion writes an unresolved defect. |
 | `/superdev:submit-pr` | `submitted` | The whole-repo command, when one is configured | A missing step asks once, and an unattended run refuses. A red run goes to `/superdev:review`. |
 | `/superdev:ship` | `shipped` | A full run on the merged tip when the base moved. The whole-repo command on a tip without a green whole-repo record. | It refuses a tip without a reusable green suite record, and it refuses `--unattended`. It goes to `/superdev:verify-ship`, `/superdev:wrap-up`, or `/superdev:plan`. |
@@ -173,8 +174,9 @@ flowchart TD
   Before the first slice, every run brings the remote base into the scope branch. It fetches the base
   branch, fast-forwards your local base branch when no worktree has it checked out, merges the fetched
   tip into the scope branch whether or not the local base could advance, records that tip so review
-  ranges stay limited to this scope's commits, and runs the full suite on the result. Drift since `/superdev:plan` then
-  shows before any slice is built, not at `/superdev:ship`. A conflict is resolved by intent. An ADR or
+  ranges stay limited to this scope's commits. It runs no suite. The scope review's exit run tests the merge
+  with the slices. Conflicting drift since `/superdev:plan` then shows before any slice is built, not at
+  `/superdev:ship`. A conflict is resolved by intent. An ADR or
   invariant number this scope added that the base already holds moves to the next free one, found by
   comparing numbers, because two ADR files with one number and different names merge without a conflict.
   `/superdev:ship` runs the same check before it merges, and stops on a collision. A base that cannot be
@@ -201,7 +203,9 @@ flowchart TD
   cannot judge records `unknown`, which draws no finding
   ([ADR 0134](docs/adr/0134-a-fail-to-pass-run-shows-a-change-s-tests-discriminate.md),
   [ADR 0182](docs/adr/0182-the-implementer-proves-its-change-and-the-controller-runs-only-suite-gates.md)).
-  The controller runs only the full-suite gates, and no reviewer runs a test.
+  Implement runs no full suite, and no reviewer runs a test. A failing test a slice did not cause is
+  named in the report and goes to the scope review's fix loop
+  ([ADR 0191](docs/adr/0191-the-full-suite-runs-once-after-review-comes-back-clean.md)).
   Either tier stops here, once every slice sits on the scope branch. `/superdev:review` runs next: one
   **whole-scope review** that gates the pull request `/superdev:submit-pr` opens later.
 - **`/superdev:status`**. One read-only report of where the work stands and what to do next. It prints
@@ -272,8 +276,7 @@ flowchart TD
   the `doc-writer` for one fix round. **On a `lite` scope that already documented itself inline**
   ([ADR 0031](docs/adr/0031-the-lite-tier-writes-its-own-documentation.md)), it dispatches no `doc-writer`.
   It dispatches only the `doc-reader`, over the doc files that run's own commits touched, and nothing
-  when those commits touched none. A fix loop that lands commits clears that record. The loop is the
-  review fix loop or the run handoff's red-suite fix loop. The next run of this command then
+  when those commits touched none. A review fix loop that lands commits clears that record. The next run of this command then
   dispatches the writer again. Both agents also apply a **content-type lens**
   ([`references/content-types.md`](plugin/references/content-types.md)): does a reader learn *why* a thing
   exists and *when* to use it, not only what it is called and how to run it. That check is always on,
@@ -484,7 +487,7 @@ bash or PowerShell variants.
   inside a run: `scope.js test full`, `scope.js test whole`, a `scope.js test focused` with no path, and
   the configured full or whole-repo command run directly or through `scope.js test --`. Where the focused
   command repeats the full one, it also blocks a `scope.js test focused` with paths. The refusal names the
-  run to make instead, and the controller owns every full-suite run. It checks only the implementer. When it
+  run to make instead. The scope review's exit run is the scope's one full-suite run. It checks only the implementer. When it
   cannot judge a call, for example because a module will not load, it lets the call through (ADR 0181).
 - **run-trace.** A hook that records every file edit of a run into the run trace
   (`<run-root>/trace.log`), through the edit tools and through a shell write (redirect, `tee`, `sed -i`,
@@ -602,8 +605,8 @@ again. One answer lands outside that tree: the slice store's **assignee** goes t
   rediscovering them. The `test` entry defers to Verification. The result goes to
   `docs/agents/toolchain.md`.
 - **Verification** *(optional)*. The repo's test command, the first fenced block of
-  `docs/agents/verification.md`. Recorded, it is the full suite the run handoff, every base merge, and the
-  scope review run where no carried record or recorded rerun meets their gate. Omitted, no step runs a suite. A second fenced block holds the focused test command,
+  `docs/agents/verification.md`. Recorded, it is the full suite the scope review's exit run and ship's
+  moved-base gate run where no carried record or recorded rerun meets their gate. Omitted, no step runs a suite. A second fenced block holds the focused test command,
   the one every step inside the loop runs: the implementer's TDD loop and the lite tier's inline loop. The
   documentation step runs no test command, and review's suite record carries to ship across its Markdown-only
   doc commits. What defines it is that it

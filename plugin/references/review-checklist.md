@@ -224,15 +224,14 @@ A line whose coverage you cannot judge, one with no command among them, counts, 
   reads the slice's commits from the scope branch's log, records the range with
   `scope.js slice <id> merged --range <base>..<tip> --root <run-root>`, and names it in the fix dispatch.
 
-A fix cycle is a change too, on either tier, in `/superdev:review`'s fix loop (`review-scope-mode.md`'s `### 4.7 Fix cycles`) and in run handoff's fix loop
+A fix cycle is a change too, on either tier, in `/superdev:review`'s fix loop (`review-scope-mode.md`'s `### 4.7 Fix cycles`)
 (ADR 0134). Its range runs from the scope tip the controller recorded before the fix dispatch to the tip once the
 cycle's report is accepted, after any send-back to the implementer, and both findings apply to it. Where the cycle's commits change both a test-path file and another file, the
 cycle's implementer runs `scope.js fail-to-pass <base>..HEAD -- <command>` over that range from the scope checkout
 before its report (ADR 0182), and the trace line names `scope`, because no ledger row records the range and no
 slice is in progress. `final-reviewer` reads a
-review cycle's range from the re-review's dispatch. Run handoff has no re-review of its own, and a re-review hands
-`final-reviewer` only the current cycle's range, so it reads run handoff's cycles and the scope's earlier review
-cycles from the trace at every dispatch of `/superdev:review`: a `scope` range whose latest outcome line reads
+review cycle's range from the re-review's dispatch. A re-review hands `final-reviewer` only the current cycle's
+range, so it reads the scope's earlier review cycles from the trace at every dispatch of `/superdev:review`: a `scope` range whose latest outcome line reads
 `pass-to-pass` is a Pass-to-pass finding, and an `implementer` `dispatch` of `scope` with `edit` lines in its
 window, whose commits that landed in that window change both a test-path file and another file, with no outcome
 line over those commits, is a Missing fail-to-pass run finding. A fix cycle's window runs from each run of its
@@ -248,9 +247,8 @@ decide it. The original change's base is the base of the range the finding's `pa
 slice's recorded range base, or the fix cycle's own base. A `scope` line that follows a finding's own `pass-to-pass`
 line and starts its range at that line's base is the finding's closing run, not a cycle: it closes the finding or
 keeps it open, and raises no second finding. A cycle's Missing finding goes into the fix list the same way a slice's
-does, over the cycle's range, which for a run handoff cycle the controller reads from the scope branch's first-parent
-log over that window and names in the fix dispatch.
-The report names a cycle's finding with its range. No trace, a run handoff cycle with no `edit` lines, and a
+does, over the cycle's range, which the controller names in the fix dispatch.
+The report names a cycle's finding with its range. No trace, a cycle with no `edit` lines, and a
 repository with no test command get no finding: the report names the gap. A cycle whose commits change only
 test-path files, or no file, has nothing to put back: it needs no outcome line and gets no finding, and the report
 names no gap for it.

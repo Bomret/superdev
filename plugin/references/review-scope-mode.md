@@ -1,6 +1,6 @@
 # Review in scope mode
 
-Applies to a `/superdev:review` run whose `${CLAUDE_PLUGIN_ROOT}/skills/review/SKILL.md` §1 found a live scope run. The skill reads this file at that point. It reads it before its first scope write (`step set review`) and before the entry suite run. No other review reads it (ADR 0190).
+Applies to a `/superdev:review` run whose `${CLAUDE_PLUGIN_ROOT}/skills/review/SKILL.md` §1 found a live scope run. The skill reads this file at that point. It reads it before its first scope write (`step set review`) and before the entry run. No other review reads it (ADR 0190).
 
 Each step below applies beside the skill's step of the same number. A departure from the skill names the departed skill rule.
 
@@ -10,7 +10,7 @@ Each step below applies beside the skill's step of the same number. A departure 
 
 ## 0. Config
 
-**The test command.** Applies to the entry run and the exit run of §4.2. Each runs the full command in place of the skill's focused run (ADR 0025).
+**The test command.** Applies to the entry run and the exit run of §4.2. The entry run is the skill's focused run over the scope's range. The exit run runs the full command, the scope's one full-suite run (ADR 0025, ADR 0191).
 
 **The triage section.** Applies when you read this reference and `docs/agents/issue-tracker.md` exists. Read its `## Triage record` section. §4.4's deferral branch needs the section's presence.
 
@@ -48,10 +48,10 @@ Each step below applies beside the skill's step of the same number. A departure 
 
 - `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Warm cycles` owns when the reviewer resumes and when it dispatches fresh.
 
-**The suite result.** Applies to every dispatch of `final-reviewer` in a scope review. §4.2 ran a suite for the entry and exit dispatches (ADR 0075). `final-reviewer`'s `### Suite run` owns the result's handling.
+**The suite result.** Applies to every dispatch of `final-reviewer` in a scope review. `final-reviewer`'s `### Suite run` owns the result's handling.
 
-- Entry and exit dispatches hand the full-suite result, labelled whole-repo when the review ran the whole-repo command (§4.2).
-- A fix cycle's re-review hands no run. `### Suite run` names what it reads in place of one (ADR 0182).
+- The first dispatch hands §4.2's entry run labelled focused, or `not run: <reason>` (ADR 0191).
+- A fix cycle's re-review hands no run, a cycle a red exit run opened included. `### Suite run` names what it reads in place of one (ADR 0182).
 
 **The `simplicity-reviewer` dispatch.** Applies to the `simplicity-reviewer` dispatch of a scope review.
 
@@ -93,41 +93,37 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 
 ### 4.1 The scope checkout and the base
 
-**The scope checkout.** Applies first, before any suite run. Find the scope checkout per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope checkout`. Refresh the run lock per that file's `## The run lock`.
+**The scope checkout.** Applies first, before any test run. Find the scope checkout per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope checkout`. Refresh the run lock per that file's `## The run lock`.
 
 - **The scope checkout is not on `<type>/<scope>`** → report that and review read-only, writing nothing to the wrong branch.
 
-**The base.** Applies at a stage before `submitted`, read with `scope.js get stage --root <run-root>`. Run `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Bringing the scope branch to base` after the scope checkout and the run lock. It runs before the entry suite check of §4.2 (ADR 0173). Its own rules apply unchanged.
+**The base.** Applies at a stage before `submitted`, read with `scope.js get stage --root <run-root>`. Run `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Bringing the scope branch to base` after the scope checkout and the run lock. It runs before the entry run of §4.2 (ADR 0173). Its own rules apply unchanged.
 
 - The unchanged rules: conflict, numbering-collision, citation, unattended-block, and degraded-fetch.
 - A stop there ends the review with the scopetree clean.
 - An unreachable remote records a degraded pass, and the review continues.
-- Its gate step defers to the entry run of §4.2.
+- It runs no suite. §4.2's exit run verifies its merge together with implement's (ADR 0191).
 - The base step records the range base `final-reviewer` starts from. Resolve `<range-base>` with `scope.js base resolve --branch <branch> --base <base> --root <run-root>` after it, and hand every dispatch the range from that value.
 
 ### 4.2 The suite gate
 
-**The suite record.** Applies before the entry run. Read `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get suite --root <run-root>`. It prints `<result> <sha>[ whole]`.
+**The suite record.** Applies before the entry run. Read `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get suite --root <run-root>`. It prints `<result> <sha>[ whole]`. It decides the exit run's command.
 
-- **Red with `whole`, and a `## Whole-repo command` section configured** (ADR 0105, `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## Whole-repo command`) → the entry run and the exit run run the whole-repo command in place of the full command, through `scope.js test whole`. Skip the reuse check, record with `scope.js suite set <result> <sha> --whole --root <run-root>`, and tell `final-reviewer` the result is the whole-repo run.
-- **Any other record** → the review runs the full command.
+- **Red with `whole`, and a `## Whole-repo command` section configured** (ADR 0105, `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## Whole-repo command`) → the exit run runs the whole-repo command in place of the full command, through `scope.js test whole`. It skips the reuse check, records with `scope.js suite set <result> <sha> --whole --root <run-root>`, and the report names it the whole-repo run.
+- **Any other record** → the exit run runs the full command.
+- **The exit run follows this choice**, not a re-read of the record at the exit.
 
-**Reuse or run.** Applies to the entry check, in the scope checkout, before the `final-reviewer` dispatch. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base> --root <run-root>`.
+**The entry run.** Applies once per invocation, in the scope checkout, after §4.1 and before the first `final-reviewer` dispatch (ADR 0179, ADR 0191). Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <paths>` once, `<paths>` being every path `git diff --name-only --no-renames <range-base> <branch>` lists that exists in the tree. Write no suite record. Hand the result and any failure output to §2's dispatch, labelled focused.
 
-- **Exit 0** → reused, running nothing (INV-0017): an exact tip match, a Markdown-only range since the record, needing no test run at the tip (ADR 0128, ADR 0189), a focused-selector carry, alone or followed by Markdown-only commits (ADR 0175, ADR 0189), a recorded rerun, alone or followed by Markdown-only commits (ADR 0172, ADR 0189), or a passing full run at the tip itself (ADR 0182).
-- **Exit 1, or no record** → take the carry per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## The carry run`. A carried tip is reused, running and recording nothing. A failing carry run is the `fail` below, recorded red at the tip.
-- **A tip with no carry** → run the full command from `docs/agents/verification.md` per `test-selection.md`, in the scope checkout over the scope branch, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full`. A suite longer than the Bash tool's time limit runs through the runner in the background, and you wait for its end before acting on it.
-- **A failed full run** → take `test-selection.md`'s `## The recorded rerun` before it stands as the `fail`: the triage record quoting the failure first, then the rerun record, the file alone, and the focused run. An unattributable failure stays the `fail`.
-- **No test command configured** → say so, record `none`, and continue. This never blocks the review.
+- A suite longer than the Bash tool's time limit runs through the runner in the background, and you wait for its end before acting on it.
+- **The path set is empty** → run no test, and hand `not run: the scope changes no path`.
+- **The focused fence of `docs/agents/verification.md` repeats the full fence** → run no test, and hand `not run: the focused command repeats the full command, so the exit run covers the scope`. A scope never pays the full suite twice.
+- **No test command configured** → run no test, hand `not run: no test command`, and continue. This never blocks the review.
+- **The run never finished** (killed, or `unknown` in the run trace) → it carries no verdict (INV-0009). Hand `not run: never finished`, and continue. The exit run still gates the stage.
+- State the outcome in your own output: pass, fail, not run with its reason, or denied.
 
-**The record and the outcome.** Applies to every entry run. Record it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set <green|red|denied|none> <sha> --root <run-root>` (ADR 0025). State the outcome in your own output. Carry the result and any failure output into §2's dispatch.
+**A denied entry run.** Applies to an entry run the permission classifier denies. It takes `## Degraded passes`'s second shape. Write the `**Degraded:**` entry, hand `denied`, and publish the snapshot before deciding the branch per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state`.
 
-- `<sha>` is the scope branch's current tip, whether or not the `final-reviewer` dispatch succeeds.
-- The outcome is one of: reused, pass, `pass on rerun` (the gate passed on `## The recorded rerun` while the record stays `red`), fail, no command configured, or denied.
-
-**A denied run.** Applies to a suite run the permission classifier denies. It takes `## Degraded passes`'s second shape. Write the `**Degraded:**` entry either way. Publish the snapshot before deciding the branch per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state`.
-
-- The record reads `denied`.
 - The branches below deviate locally from that section's record-and-continue default.
 - **Attended** → continue.
 - **Unattended** → **block**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unattended`.
@@ -135,21 +131,32 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 **A failing run.** Applies to a `fail` at the entry or the exit. It is a Critical finding. Fold it into the fix loop like a `final-reviewer` finding. The stage does not advance while it stands.
 
 - The fold holds whether or not that dispatch returned findings of its own.
+- **A failing test the scope did not cause** is this Critical finding too, and joins the fix list (INV-0157). A triage record for it may sit beside its fix, never in its place.
+- **A red exit run opens a fix cycle**, after a clean first verdict included. It goes through the ask-once of §4.6 when attended, and its cycle counts toward the 3-cycle cap of §4.7 (ADR 0075). The cap bounds the exit runs a scope pays.
+- **Its re-review re-judges every criterion ticked before the red run**: §2's whole-range dispatch hands the whole `dod.md`, and a line it calls broken is unticked per §4.5 before the stage advances.
 
 **Inside a fix cycle.** Applies to every fix cycle. Run no test. The re-review reads the cycle implementer's recorded runs and its fail-to-pass outcome in the run trace (ADR 0182).
 
-**The exit run.** Applies when a fix cycle's re-review verdict first comes back clean, leaves only Minor **Prompt-concept overlap** findings and no broken criterion, or the cap leaves only Minor findings. Run the full suite once more in the scope checkout. Take the carry first per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## The carry run`. Record the result with `scope.js suite set <result> <sha> --root <run-root>`.
+**The exit run.** Applies on every route that advances the stage, before §4.10's stage write (ADR 0191). The routes: a clean first verdict, a clean re-review, a re-review left with only Minor **Prompt-concept overlap** findings and no broken criterion, only Minor findings left at the cap, a declined ask-once with only Minor findings standing, and a ready combined verdict of §3 whose remaining findings are only deferred or, at the cap, **Pass-to-pass** or **Missing fail-to-pass run**. Run it once in the scope checkout at the scope branch's tip, in this order.
 
-- `<sha>` is the tip after the fix commits.
-- That run is the gate the stage advances on.
-- **A first verdict that is clean** → none of this runs.
-- **A red result** → the failing-run concept above takes it, and its cycle counts toward the 3-cycle cap (ADR 0075).
-- **The exit run follows the choice made at entry**, not a re-read of the record: after a whole-repo entry it is the whole-repo command, recorded with `--whole`.
-- **A denied exit run** takes the entry run's local deviation: write the `**Degraded:**` entry, publish the snapshot, then continue when attended and **block** when unattended.
+1. **Reuse.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base> --root <run-root>`. Exit 0 → reused, running nothing (INV-0017): an exact tip match, a Markdown-only range since the record, needing no test run at the tip (ADR 0128, ADR 0189), a focused-selector carry, alone or followed by Markdown-only commits (ADR 0175, ADR 0189), a recorded rerun, alone or followed by Markdown-only commits (ADR 0172, ADR 0189), or a passing full run at the tip itself (ADR 0182).
+2. **The carry.** Exit 1, or no record → take the carry per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## The carry run`. A carried tip is reused, running and recording nothing. A failing carry run is a `fail`, recorded red at the tip.
+3. **The full command.** A tip with no carry → run the full command from `docs/agents/verification.md` per `test-selection.md`, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full`, or `test whole` per the suite-record concept above. A suite longer than the Bash tool's time limit runs through the runner in the background, and you wait for its end before acting on it.
+4. **The recorded rerun.** A failed full run takes `test-selection.md`'s `## The recorded rerun` before it stands as the `fail`: the triage record quoting the failure first, then the rerun record, the file alone, and the focused run. An unattributable failure stays the `fail`.
+
+**The exit record and outcome.** Applies to every exit run. A reused tip records nothing. Record every other outcome with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set <green|red|denied|none> <tip> --root <run-root>` (ADR 0025), with `--whole` after the whole-repo choice: `green` for a pass, `red` for a fail or `pass on rerun`, and the bullets below name the rest. The run verifies the slices, implement's base merge, and this review's own base merge together.
+
+- `<tip>` is the scope branch's tip after the last fix commit.
+- The outcome is one of: reused, pass, `pass on rerun` (the gate passed on `## The recorded rerun` while the record stays `red`), fail, never finished, no command configured, or denied.
+- **Reused, pass, or `pass on rerun`** → go to §4.10's stage write. That run is the gate the stage advances on.
+- **Fail** → the failing-run concept above takes it.
+- **Never finished** (killed, or `unknown` in the run trace) → it carries no verdict (INV-0009). Record `none` at the tip, leave the stage where it is, run `step block`, and say the next `/superdev:review` runs it again.
+- **Denied** → record `denied`, write the `**Degraded:**` entry, and publish the snapshot per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state`. The stage stays where it is. **Attended** → continue to the report, which names the denied exit run. **Unattended** → **block**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unattended`.
+- **No test command configured** → record `none` and go to §4.10's stage write. This never blocks the review.
 
 ### 4.3 Observations
 
-**An observation.** Applies to a defect the full suite or `final-reviewer`'s report surfaces, or a fix cycle meets, that no slice of this scope covers and the scope did not cause. Write its triage record at once per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations` (INV-0010). It never joins the fix list. The loop carries on without it.
+**An observation.** Applies to a defect `final-reviewer`'s report surfaces, or a fix cycle meets, that no slice of this scope covers and the scope did not cause. Write its triage record at once per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations` (INV-0010). It never joins the fix list. The loop carries on without it.
 
 ### 4.4 The fix boundary
 
@@ -213,7 +220,7 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 
 ### 4.6 The ask-once
 
-**The ask.** Applies when `final-reviewer` returned any finding, a Minor-only verdict included, a criterion is broken, or the suite came back `fail`. Report them per §3 first. Ask once with the three options below. §4.7 runs over the chosen option's set.
+**The ask.** Applies when `final-reviewer` returned any finding, a Minor-only verdict included, a criterion is broken, or a suite run of §4.2 came back `fail`, the exit run included. Report them per §3 first. Ask once with the three options below. §4.7 runs over the chosen option's set.
 
 - **Fix every finding** (recommended), **fix only the Critical and Important findings**, or **fix none**.
 - **The findings include an unmet criterion** (a broken line, or one this cycle leaves unticked) → the same question also offers to accept it as unmet, with the operator's own reason. This is the one decision point where a fresh `accepted:` note gets written (ADR 0095).
@@ -221,7 +228,7 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 
 **The branches.** Applies to the answer, or to `--unattended`.
 
-- **Declined, with only Minor findings standing** → take the clean-verdict path of §4.10, naming the standing Minors in the report and nowhere else: no `unresolved add`, no `deferred add`, no triage record (INV-0094).
+- **Declined, with only Minor findings standing** → take the clean-verdict path of §4.10 once the exit run of §4.2 is green, naming the standing Minors in the report and nowhere else: no `unresolved add`, no `deferred add`, no triage record (INV-0094).
 - **Declined, with a Critical or Important finding, a broken criterion, or a red suite standing** → stop and write the `**Unresolved:**` entry, per the standing-defect writes below. The findings stand and the stage does not advance.
 - **Accepted** (the criterion's own reason, attended only) → write `accepted: <reason> (operator, <date>)` as that line's note, through `scope.js dod-line --match-file <path> --verdict accepted --note-file <path>` on `<run-root>/dod.md` and the anchor's checklist, through the store's `## Definition of Done ticks` section (controller-only, INV-0015, ADR 0095). That criterion drops out of the findings this cycle fixes, and any other finding still goes through the three options.
 - **`--unattended`** → fix every finding, Minors included, without asking.
@@ -241,7 +248,7 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 - The scope tip is `git -C <run-root>/scopetree rev-parse HEAD`.
 - The outcome's trace line names `scope`.
 - **A Pass-to-pass finding in the chosen set** → also name that finding's original base: the base of the range the finding's `pass-to-pass` line names, a lite slice's recorded range base or a fix cycle's own base. The finding closes on the implementer's `fail-to-pass` outcome from that base.
-- **A Missing fail-to-pass run finding on a cycle** → name the cycle's range, which for a run handoff cycle you read from the scope branch's first-parent log over the cycle's window.
+- **A Missing fail-to-pass run finding on a cycle** → name the cycle's range, `<cycle-base>..<cycle-tip>`.
 
 **The fix dispatch.** Applies to the **Confirmed** branch: fix every finding, or fix only Critical and Important. Dispatch **one** `superdev:implementer` with the **complete** list of the chosen option's findings. The dispatch is the review fix dispatch of the implementer's own contract. It restates none of that contract beyond the sibling-surfaces bullet below (INV-0120, INV-0162).
 
@@ -269,10 +276,10 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 - The cap is **3 cycles in total, every cycle counting**, whichever findings drove it.
 - **A re-review whose only findings left are Minor Prompt-concept overlap findings** (`${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`'s `## Prompt-concept overlap`), with no criterion standing broken → the loop ends there, attended or `--unattended`. It takes the clean-verdict path of §4.10 as a Minor remainder at the cap does, after the same exit run.
 - **At the cap, only Minor findings remain** → take the clean-verdict path of §4.10 once the exit run of §4.2 is green, naming the leftover Minors in the report and nowhere else (INV-0094). A red exit run at the cap is a remaining red suite.
-- **At the cap, the only remaining Critical or Important findings are Pass-to-pass or Missing fail-to-pass run** → the scope proceeds under §3's combined verdict (ADR 0125, ADR 0134, INV-0138). This holds attended and unattended. Any of them beside a Critical or Important finding of another kind blocks.
+- **At the cap, the only remaining Critical or Important findings are Pass-to-pass or Missing fail-to-pass run** → the scope proceeds under §3's combined verdict once the exit run of §4.2 is green (ADR 0125, ADR 0134, INV-0138). This holds attended and unattended. Any of them beside a Critical or Important finding of another kind blocks.
 - **At the cap, a Critical or Important finding, a broken criterion, or a red suite remains** → stop and say it is a wrong cut and no bug, and make the standing-defect writes of §4.6.
 - **`--unattended`, at that cap** → **block** per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unattended`, after the same writes.
-- **A clean verdict** ends the loop, attended or unattended. A finding it leaves standing outside the chosen set is a follow-up, never a fourth cycle.
+- **A clean verdict** ends the loop, attended or unattended, and takes the exit run of §4.2. A finding it leaves standing outside the chosen set is a follow-up, never a fourth cycle.
 
 ### 4.8 Degraded fix dispatch and advisory notes
 
@@ -299,7 +306,7 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 
 ### 4.10 The clean verdict and the handoff
 
-**The stage write.** Applies on a clean verdict, and only then. Clear any standing `**Unresolved:**` entry with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. Read the stage with `scope.js get stage`. Write `**Stage:**` with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set <value> --root <run-root>` per the cases below.
+**The stage write.** Applies on a clean verdict whose exit run's outcome goes to this stage write under §4.2's exit record and outcome concept, and only then. Clear any standing `**Unresolved:**` entry with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. Read the stage with `scope.js get stage`. Write `**Stage:**` with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set <value> --root <run-root>` per the cases below.
 
 - The clear changes nothing when no entry stands.
 - A stage write never undoes completed work, and the verb refuses a write that breaks that.

@@ -36,18 +36,14 @@ closed.
 
 Right after the run lock, before the first slice, run `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
 `## Bringing the scope branch to base`, on every invocation and at every run kind (ADR 0120, INV-0124).
-A stop there dispatches no slice. A red record's pick there dispatches only the slices the operator named
-(ADR 0152).
+A stop there dispatches no slice. The step runs no test suite, so the suite record never holds a slice back
+(ADR 0191).
 
 ## Implement
 
 - **In `depends-on` order, inline, test-first, skipping every slice the ledger already marks `merged`**
   (a slice the store already reports as merged seeds `merged`, per the `status` field run init carried into
-  `scope.js init`, and are never dispatched). While a red record's pick stands (the base step's gate,
-  ADR 0152), implement the named slices and the unmerged slices they depend on first, in `depends-on`
-  order, a `blocked` one among them reopened and an `in-progress` one resumed per `## Resume`. The pick has
-  ended once every named slice and needed dependency is `merged` or `blocked`, or cannot start because a
-  dependency it needs is `blocked`. Then return to the base step's suite gate before any other slice. For each slice: read its `spec` + `acceptance`, then carry
+  `scope.js init`, and are never dispatched). For each slice: read its `spec` + `acceptance`, then carry
   the same tracer-bullet **and surgical-edit** disciplines an implementer subagent would (one RED test,
   minimal GREEN code, repeat; every hunk traces to an acceptance criterion or the specification — remove
   only what your own edit orphaned, name pre-existing dead code instead of deleting it, and **grep for a
@@ -57,13 +53,16 @@ A stop there dispatches no slice. A red record's pick there dispatches only the 
   never in the invoking checkout. `mechanical` / `docs` slices need no new test — the existing suite is
   the net. Read `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it selects for
   each run, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths>` with at least one path (or
-  `test -- <command>` for a direct test-file run). The loop runs only the tests that verify the slice: `test full` and
-  `test whole` run at the suite gates alone. Each failing-test or passing-test step passes the test
+  `test -- <command>` for a direct test-file run). The loop runs only the tests that verify the slice, never `test full`, `test whole`, or a `test focused`
+  with no path: the scope review's exit run is the scope's one full-suite run (ADR 0191). Each failing-test or passing-test step passes the test
   files that hold the tests it works on. Your last run before you commit a slice passes the slice's whole
   changed-path set, and so does a step that works on no test file (ADR 0139). Where the focused fence repeats the
   full fence, each step runs each test file it works on through `test -- <command>`, and you make neither of those
-  whole-set runs: run handoff's full-suite run covers them (ADR 0180). A suite longer than the Bash tool's time limit runs
+  whole-set runs: the scope review's exit run covers them (ADR 0180, ADR 0191). A suite longer than the Bash tool's time limit runs
   through the runner in the background, and you wait for its end before acting on it. The run trace records your edits and runs.
+- **A failing test the slice did not cause is named, never fixed.** A test that also fails at the slice's
+  base commit is inherited: name it in your report, fix none, block on none, and count no strike for it.
+  The scope review's fix loop repairs it (ADR 0191, INV-0157).
 - **Declare the domain shapes a slice's `spec` names before its first RED test** — the same step
   `agents/implementer.md` carries, for the tier that dispatches nobody. A `spec` naming none leaves
   nothing to declare, the fields are yours, and a shape whose term `CONTEXT.md` lacks is reported rather
@@ -182,7 +181,7 @@ Read the ledger — `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --
 `get stage` — and cross-check it against `git log <range-base>..<branch>` (`<range-base>` per
 `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`; `<branch>` from the branch step
 above, never rebuilt as `<type>/<scope>`) in the scopetree. A slice the ledger marks `merged` is
-done; pick up at the next `todo` slice in `depends-on` order — except that a `red` suite record first takes the base step's gate once the resumed `in-progress` slice ends (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Bringing the scope branch to base` step 1 lite exception, ADR 0152).
+done; pick up at the next `todo` slice in `depends-on` order.
 
 **Run init's own entry step already checked the lock's liveness before this playbook ever started
 (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The run lock`), so this step reconciles state

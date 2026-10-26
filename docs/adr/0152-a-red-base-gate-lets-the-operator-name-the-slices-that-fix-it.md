@@ -1,6 +1,8 @@
 # 0152: A red base gate lets the operator name the slices that fix it
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0191](0191-the-full-suite-runs-once-after-review-comes-back-clean.md). Implement runs no suite, so no red-record pick remains.
 
 **Amends:** [ADR 0120](0120-implement-brings-the-remote-base-into-the-scope-branch-before-the-first-slice.md),
 whose full-suite gate dispatched no slice until the record was green.

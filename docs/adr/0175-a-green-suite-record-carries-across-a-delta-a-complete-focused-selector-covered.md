@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0191](0191-the-full-suite-runs-once-after-review-comes-back-clean.md), under which implement's base gate and run handoff's suite run are gone; the carry serves the scope review's exit run and ship's moved-base gate.
+
 **Amends:** [ADR 0128](0128-a-green-suite-record-carries-across-markdown-only-commits.md), whose carry
 admits only Markdown paths, and [ADR 0134](0134-a-fail-to-pass-run-shows-a-change-s-tests-discriminate.md),
 under which a fail-to-pass run records no test run.

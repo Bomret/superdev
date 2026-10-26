@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0191](0191-the-full-suite-runs-once-after-review-comes-back-clean.md), under which the scope review runs the focused command at entry, and the full suite only on leaving its fix loop, including after a first clean verdict.
+
 **Amends:** [ADR 0025](0025-the-scope-review-owns-the-full-suite-run.md).
 
 **Amended by:** [ADR 0105](0105-an-affected-full-command-and-a-whole-repo-gate-before-the-pull-request.md),

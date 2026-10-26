@@ -34,7 +34,7 @@ Review a change end to end. §1 decides the mode.
 
 - **Trailing description** → everything after a ` -- ` separator, or with no `--` a clear trailing natural-language sentence. It is `final-reviewer`'s `acceptance`.
 - **`--chained` wins over scope mode** → skip the next bullet and resolve the range ad-hoc, whatever the invoking checkout's `HEAD` is.
-- **Scope mode wins over both, otherwise.** Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md` for what makes the resolved range a live superdev run. When it is, capture `<run-root>` and read `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md` now, before the first scope write (`step set review`) and before the entry suite run. Follow its steps beside §0 to §3.
+- **Scope mode wins over both, otherwise.** Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md` for what makes the resolved range a live superdev run. When it is, capture `<run-root>` and read `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md` now, before the first scope write (`step set review`) and before the entry run. Follow its steps beside §0 to §3.
 - **No trailing description** → run issue-ref discovery, as the next concept states.
 
 **Issue-ref discovery.** Applies when no trailing description is given and `docs/agents/issue-tracker.md` is configured. An explicit description always wins.
@@ -129,7 +129,7 @@ Review a change end to end. §1 decides the mode.
 - **Subject**: the git range. On a standing-code target (§1's standing-code shape) hand the path and its file set at `HEAD` in place of a range, and derive the summary from that file set.
 - **Suite result**: the focused-run concept below hands it.
 
-**The focused run** (ADR 0179). Applies to every ad-hoc dispatch of `final-reviewer`. The bullets below decide which run it gets.
+**The focused run** (ADR 0179). Applies to every ad-hoc dispatch of `final-reviewer`, and to a scope review's entry run, which `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md`'s `### 4.2 The suite gate` adapts to the scope range (ADR 0191). The bullets below decide which run an ad-hoc dispatch gets.
 
 - **A test command is configured in `docs/agents/verification.md` and the subject's tip is the checked-out tree** → run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths>` once from the invoking checkout before the dispatch, and hand the reviewer that result labelled focused.
 - **A suite that outlasts the Bash tool's time limit** runs in the background, and you wait for its end.

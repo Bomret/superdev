@@ -28,6 +28,8 @@ const {
   scanTeaOnly,
   scanDeployRunnerExclusivity,
   scanDocSetupNoTestRun,
+  scanImplementNoFullRun,
+  scanObservationNoSuiteRun,
   scanMarketplaceSource,
   scanAuditSetGlobs,
   scanNoBaseBranchCommit,
@@ -221,6 +223,18 @@ module.exports = [
     id: 'doc-setup-no-test-run',
     ok: 'neither /superdev:document nor /superdev:setup instructs a test run (INV-0175)',
     run: scanDocSetupNoTestRun,
+    format: contractGap,
+  },
+  {
+    id: 'implement-no-full-run',
+    ok: "neither implement's base step, run handoff, nor either execution playbook instructs a full or whole-repo run (INV-0128)",
+    run: scanImplementNoFullRun,
+    format: contractGap,
+  },
+  {
+    id: 'observation-no-suite-run',
+    ok: "the scope review's observation concept names no suite run as a source, so a failing test in one joins the fix list (INV-0157)",
+    run: scanObservationNoSuiteRun,
     format: contractGap,
   },
 ];

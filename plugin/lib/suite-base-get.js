@@ -420,7 +420,7 @@ function verbGet(root, field) {
   if (field === 'suite') {
     // The read half of `suite set`: `<result> <sha>`, with a trailing ` whole` when the record carries
     // that kind, or nothing on a ledger with no record — never the "absent" token the other header
-    // fields print, because a caller (`references/run-handoff.md`) tests for output at all rather than
+    // fields print, because a caller (`references/test-selection.md`'s carry run) tests for output at all rather than
     // parsing a sentinel value.
     const v = getHeader(readLines(root), 'Suite');
     if (v === null) return;

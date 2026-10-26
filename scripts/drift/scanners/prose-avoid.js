@@ -19,6 +19,10 @@ const {
   CONFLICT_COMMIT_CONCLUSION_PATTERNS,
   NO_TEST_RUN_DOCS,
   NO_TEST_RUN_PATTERNS,
+  IMPLEMENT_NO_FULL_RUN_DOCS,
+  IMPLEMENT_NO_FULL_RUN_PATTERNS,
+  OBSERVATION_NO_SUITE_RUN_DOC,
+  OBSERVATION_NO_SUITE_RUN_PATTERN,
 } = require('../contracts');
 const { proseDocuments, scanDocsAvoid, walkFiles, NEVER_NEGATION_WINDOW } = require('./walkers');
 
@@ -187,6 +191,69 @@ function scanDeployRunnerExclusivity(root) {
   return gaps;
 }
 
+// ADR 0191, INV-0128: implement runs no full or whole-repo suite, so its base step (`scope-mode.md`'s section alone), run
+// handoff, and both execution playbooks instruct none. A negation (`no`, `not`, `never`, `without`, `nor`) at most one
+// word before the hit, in the same sentence or clause, excuses it, and so does one heading a list of code spans
+// ("never `test full`, `test whole`, or a `test focused` with no path"). Fenced examples are masked first.
+const FULL_RUN_NEGATION =
+  /\b(?:no|not|never|nor|without)\b(?:\s+\w+){0,1}\s*(?:(?:a\s+|an\s+|the\s+)?`[^`]*`(?:\s+with\s+no\s+path)?\s*,\s*(?:(?:or|and|nor)\s+)?)*(?:a\s+|an\s+|the\s+)?["'`]?\s*$/i;
+// A section runs from its heading to the next heading of its own level or a higher one, `#` excepted: a fenced shell
+// comment reads like a level-one heading.
+function sectionText(text, heading) {
+  const lines = text.split('\n');
+  const start = lines.findIndex((line) => line.trim() === heading);
+  if (start === -1) return null;
+  const level = heading.match(/^#+/)[0].length;
+  const next = new RegExp(`^#{2,${level}} `);
+  const end = lines.findIndex((line, i) => i > start && next.test(line));
+  return lines.slice(start, end === -1 ? lines.length : end).join('\n');
+}
+function scanImplementNoFullRun(root) {
+  const gaps = [];
+  for (const [rel, heading] of IMPLEMENT_NO_FULL_RUN_DOCS) {
+    const text = readDoc(root, rel);
+    if (text === null) {
+      gaps.push(missingDoc(rel));
+      continue;
+    }
+    const scoped = heading === null ? text : sectionText(text, heading);
+    if (scoped === null) {
+      gaps.push({ source: rel, expectation: `carry a \`${heading}\` section for implement-no-full-run to scan` });
+      continue;
+    }
+    const masked = maskFences(scoped);
+    for (const pattern of IMPLEMENT_NO_FULL_RUN_PATTERNS) {
+      for (const hit of masked.matchAll(pattern)) {
+        const clause = masked.slice(0, hit.index).split(/[.!?:]\s|\n\s*\n/).pop();
+        if (FULL_RUN_NEGATION.test(clause)) continue;
+        gaps.push({
+          source: rel,
+          expectation:
+            `instruct no full or whole-repo run — \`${normalizeWhitespace(hit[0])}\` starts one, and ` +
+            "the scope review's exit run is the scope's one full-suite run (ADR 0191, INV-0128)",
+        });
+      }
+    }
+  }
+  return gaps;
+}
+
+// INV-0157: a failing test in a scope review's suite run joins the fix list as the failing-run concept's Critical finding,
+// so `review-scope-mode.md`'s observation concept, whose defects never join it, names no suite run as a source.
+function scanObservationNoSuiteRun(root) {
+  const [rel, heading] = OBSERVATION_NO_SUITE_RUN_DOC;
+  const text = readDoc(root, rel);
+  if (text === null) return [missingDoc(rel)];
+  const scoped = sectionText(text, heading);
+  if (scoped === null) return [{ source: rel, expectation: `carry a \`${heading}\` section for observation-no-suite-run to scan` }];
+  return [...maskFences(scoped).matchAll(OBSERVATION_NO_SUITE_RUN_PATTERN)].map((hit) => ({
+    source: rel,
+    expectation:
+      `name no suite run as an observation's source — \`${normalizeWhitespace(hit[0])}\` does, and a failing test in a ` +
+      "scope review's suite run is the failing-run concept's Critical finding, which joins the fix list (INV-0157)",
+  }));
+}
+
 module.exports = {
   scanKbNoBackendCall,
   scanAgentToolAgnostic,
@@ -196,4 +263,6 @@ module.exports = {
   scanTeaOnly,
   scanDeployRunnerExclusivity,
   scanDocSetupNoTestRun,
+  scanImplementNoFullRun,
+  scanObservationNoSuiteRun,
 };
