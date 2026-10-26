@@ -10,6 +10,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync, execFileSync } = require('node:child_process');
 const { scopePath } = require('./scope-setup');
+const { copyFixture, templateOnce } = require('./fixture-git');
 const { assertSpawnDecided } = require('./spawn-verdict');
 
 const BRANCH = 'feat/push-me';
@@ -34,9 +35,12 @@ function commit(repo, file, body, msg) {
 
 // A repository with `main` pushed to a bare `origin`, the scope branch cut from `main` carrying one commit, and a
 // run root whose ledger names the branch.
-function fixture({ ledger = `# Ledger — push-me\n\n**Stage:** planned\n**Branch:** ${BRANCH}\n` } = {}) {
-  const repo = tmp('scope-push-');
-  const origin = tmp('scope-push-origin-');
+// The repository and its remote are built once into a template and copied for each case.
+const template = templateOnce((dir) => {
+  const repo = path.join(dir, 'repo');
+  const origin = path.join(dir, 'origin');
+  fs.mkdirSync(repo);
+  fs.mkdirSync(origin);
   git(['init', '-q', '--bare', '-b', 'main'], origin);
   git(['init', '-q', '-b', 'main'], repo);
   git(['config', 'user.email', 'test@example.com'], repo);
@@ -47,6 +51,14 @@ function fixture({ ledger = `# Ledger — push-me\n\n**Stage:** planned\n**Branc
   git(['checkout', '-q', '-b', BRANCH], repo);
   commit(repo, 'design.md', 'plan\n', 'docs: plan');
   git(['checkout', '-q', 'main'], repo);
+}, 'scope-push-template-');
+
+function fixture({ ledger = `# Ledger — push-me\n\n**Stage:** planned\n**Branch:** ${BRANCH}\n` } = {}) {
+  const copy = copyFixture(template(), 'scope-push-');
+  made.push(copy);
+  const repo = path.join(copy, 'repo');
+  const origin = path.join(copy, 'origin');
+  git(['remote', 'set-url', 'origin', origin], repo);
   const root = tmp('scope-push-root-');
   if (ledger !== null) fs.writeFileSync(path.join(root, 'ledger.md'), ledger);
   return { repo, origin, root };

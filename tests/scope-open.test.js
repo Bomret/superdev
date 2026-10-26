@@ -10,6 +10,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync, execFileSync } = require('node:child_process');
 const { scopePath } = require('./scope-setup');
+const { copyFixture, templateOnce } = require('./fixture-git');
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { STALENESS_MS } = require('../plugin/lib/plan-open.js');
 const hook = require('../plugin/hooks/run-lock.js');
@@ -35,9 +36,12 @@ function commit(repo, file, body, msg) {
 }
 
 // A repository with `main` pushed to a bare `origin`.
-function fixture() {
-  const repo = tmp('scope-open-');
-  const origin = tmp('scope-open-origin-');
+// It is built once into a template and copied for each case.
+const template = templateOnce((dir) => {
+  const repo = path.join(dir, 'repo');
+  const origin = path.join(dir, 'origin');
+  fs.mkdirSync(repo);
+  fs.mkdirSync(origin);
   git(['init', '-q', '--bare', '-b', 'main'], origin);
   git(['init', '-q', '-b', 'main'], repo);
   git(['config', 'user.email', 'test@example.com'], repo);
@@ -45,6 +49,14 @@ function fixture() {
   commit(repo, 'README.md', 'x\n', 'init');
   git(['remote', 'add', 'origin', origin], repo);
   git(['push', '-q', 'origin', 'main'], repo);
+}, 'scope-open-template-');
+
+function fixture() {
+  const copy = copyFixture(template(), 'scope-open-');
+  made.push(copy);
+  const repo = path.join(copy, 'repo');
+  const origin = path.join(copy, 'origin');
+  git(['remote', 'set-url', 'origin', origin], repo);
   const root = path.join(repo, '.superdev', 'scopes', 'open-me');
   return { repo, origin, root, scopetree: path.join(root, 'scopetree'), lock: path.join(root, 'run.lock') };
 }

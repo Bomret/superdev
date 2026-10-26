@@ -89,17 +89,19 @@ tests/                 — one suite per shipped executable (the hooks, `scope.j
                          point's suite is split flat by topic into `tests/<entry>-<topic>.test.js` over one
                          `<entry>-setup.js` that is no suite (ADR 0139, ADR 0151): `scope-*` (ledger,
                          ledger-header, suite, dod-line, publish-adopt, trace, root-base, containment,
-                         citations-collisions, source-set, push, open, help, test-verb, fail-to-pass, over `scope-setup.js`),
+                         citations-collisions, source-set, push, open, help, `test-verb-*`, `fail-to-pass-*`, over `scope-setup.js`),
                          `run-trace*` (dispatch, drive-paths, guards, paths, runs, stash, verdicts,
-                         writes, over `run-trace-setup.js`), `publish-kb*` (containment, guard, parent-link,
+                         writes, over `run-trace-setup.js`), `publish-kb*` (containment, guard, `parent-link-*`,
                          patch, publish, read, scope, templates, timeout, over `publish-kb-setup.js`),
                          and `scope-prune*` (containment, guards, main, reap, over `scope-prune-setup.js`);
                          `spawn-verdict.js` and `fixture-git.js`
-                         are the shared helpers, not suites — `assertSpawnDecided` (INV-0009), asserted by
+                         are shared helpers, not suites — `assertSpawnDecided` (INV-0009), asserted by
                          `spawn-verdict.test.js` and called from every other suite's bounded-spawn sites;
                          `linear-time.js` is the shared same-run timing helper of the linear-time pins (`timePair`,
                          and `cpuNs`, the thread CPU clock a pin reads to size its input), asserted by `linear-time.test.js`;
-                         `fixture-git.js` appends `commit.gpgsign=false` to the `GIT_CONFIG_*` environment
+                         `fixture-git.js` appends `commit.gpgsign=false` to the `GIT_CONFIG_*` environment and
+                         exports `templateOnce` (a fixture template built once per process) and `copyFixture`
+                         (one copy per case); `fixture-git.test.js` asserts it
 docs/adr/              — architecture decision records (why the plugin is built this way)
 docs/agents/           — superdev's own backend config (dogfooded: this repo's slice store, code host, documentation, KB, toolchain, verification, deployment)
 docs/known-issues.md   — Claude Code platform behaviour superdev works around, each entry with its
@@ -161,7 +163,10 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   because that is scoped by extension.
 - **Every shipped executable has a suite in `tests/`, named for it.** Add one for any new hook or
   script. `node scripts/run-tests.js` runs every `tests/*.test.js` suite under
-  `node`, which matches the production runtime. No roster needs an edit when a suite is added. It then runs `invariant-check.js` against this repository's own register, `drift-check`'s own
+  `node`, which matches the production runtime. The suites and the tail run concurrently, as many at once as
+  `os.availableParallelism()` reports, so a suite must share no mutable state with another. A suite builds each fixture
+  repository once per process and copies it per case. Each `run-tests: <label>: <ms> ms` line is wall clock including the wait for a CPU,
+  so time one suite alone with `time node tests/<suite>.test.js` (`scripts/AGENTS.md` → run-tests.js; measured on Node v26.12.1, about 89 s for the full run, in `docs/agents/verification.md`). No roster needs an edit when a suite is added. The runner then runs `invariant-check.js` against this repository's own register, `drift-check`'s own
   `--selftest`, `drift-check` itself, and `claude plugin validate ./plugin` as a manifest-validation
   gate. A suite that commits in a fixture repository sets `commit.gpgsign=false` for every git child
   by requiring `tests/fixture-git.js` at its top (it appends to `GIT_CONFIG_COUNT`), so a maintainer's global signing setup never fails a fixture
@@ -289,7 +294,7 @@ Codeberg repo Wiki. Adopters first, maintainers second, English. `(aggregate)` p
 Bun dev toolchain, Node runtime for hooks. `node scripts/run-tests.js`, `bun run release`. No linter or formatter. See `docs/agents/toolchain.md`.
 
 ### Verification
-`node scripts/run-tests.js` in the first fence (the full command, about 6 minutes), `node scripts/run-tests.js --related {paths}`
+`node scripts/run-tests.js` in the first fence (the full command, about 90 s on the maintainer's 8-core machine), `node scripts/run-tests.js --related {paths}`
 in the second (the focused command, about 2 s for a change set whose `.md` paths no suite names). See `docs/agents/verification.md`.
 
 ### Deployment

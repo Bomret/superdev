@@ -274,8 +274,9 @@ watcher process covers a killed verb, so no worktree outlives the verb. A suite 
 in the background (`references/test-selection.md`).
 
 `scope.js` has one suite per topic, so a test-first step on one verb runs only that verb's cases (ADR 0139, ADR 0151). `tests/scope-setup.js`
-holds the setup they share and is no suite. `tests/scope-test-verb.test.js` holds the `test` verb's cases and `tests/scope-fail-to-pass.test.js`
-the `fail-to-pass` verb's. The rest: `scope-ledger` (init, stage, step, slice, the bullet and header records, get, status, and the ledger-fixtures pin),
+holds the setup they share and is no suite. The `test` verb's cases split over `scope-test-verb-<topic>` (dirty, first-moment-kill,
+first-moment-term, install, kill, late-fork, record, refusals, tree) and the `fail-to-pass` verb's over `scope-fail-to-pass-<topic>` (bound,
+concurrency, environment, interrupt, signals, trace, verdict, watcher). The rest: `scope-ledger` (init, stage, step, slice, the bullet and header records, get, status, and the ledger-fixtures pin),
 `scope-ledger-header` (`readLedgerHeader`), `scope-suite` (the suite and base records), `scope-dod-line`, `scope-publish-adopt` (`publish`, `adopt`, and the
 `maskFencedLines` pin), `scope-trace` (the run trace and `appendTrace`), `scope-root-base` (`root`, `staging`, `base` from a linked worktree),
 `scope-containment`, `scope-citations-collisions`, `scope-source-set`, `scope-push`, `scope-open`, and `scope-help`. A focused run for `scope.js`, or for a module it requires, selects
@@ -688,20 +689,39 @@ The module guards its CLI entry with `require.main === module`. It exports every
 `run()`, the way the `tests/scope-*.test.js` suites exercise `scope.js`'s own CLI verbs (ADR 0059), and split by topic over `tests/publish-kb-setup.js`
 (ADR 0151): `publish-kb` (the pure readers and the pin that the publish code keeps no copy of what `lib/` owns), `publish-kb-scope` (backend
 configuration refusals and scope selection), `publish-kb-publish` (`upsert` and `delete` end to end), `publish-kb-patch`, `publish-kb-guard` (the live-hash
-guard, the storage body, and `parent:`), `publish-kb-parent-link` (the parent link under `- **Hierarchy:** links`, which also calls `addParentLink` and
-`removeParentLink` directly to pin the link-line readers), `publish-kb-containment`, `publish-kb-read`, `publish-kb-timeout`, and `publish-kb-templates` (the backend templates this repository ships).
+guard, the storage body, and `parent:`), `publish-kb-parent-link-<topic>` (the parent link under `- **Hierarchy:** links`: add, delete, hang-add, hang-delete, placeholder, pure, and refused;
+`pure` calls `addParentLink` and `removeParentLink` directly to pin the link-line readers), `publish-kb-containment`, `publish-kb-read`, `publish-kb-timeout`, and `publish-kb-templates` (the backend templates this repository ships).
 
 ### run-tests.js, the suite runner
 
 `node scripts/run-tests.js` runs every suite under `tests/` and the tail; `package.json` carries no test script. It discovers the suites under `tests/` by
 name: every `*.test.js` file directly in that directory, in name order, so a suite added to the tree runs
-with no roster edit. A helper (`spawn-verdict.js`, `fixture-git.js`, `linear-time.js`), a shared setup file (`tests/*-setup.js`), and a subdirectory
+with no roster edit. The fixed order is the start order only. A helper (`spawn-verdict.js`, `linear-time.js`), a shared setup file (`tests/*-setup.js`), and a subdirectory
 (`tests/fixtures/`) are not suites. It runs each suite under `node`, then the fixed tail: `invariant-check.js
---root .`, `drift-check.js --selftest`, `drift-check.js`, and `claude plugin validate ./plugin`. Every step,
-suite and tail alike, prints one `run-tests: <label>: <ms> ms` line carrying its wall clock, which
-`docs/agents/verification.md` names as the repository's timing command. The first
-failure stops the run, prints which suite or tail command failed, and exits nonzero; a child that was
-killed or never started counts as a failure (INV-0009). A `tests/` directory holding no suite prints
+--root .`, `drift-check.js --selftest`, `drift-check.js`, and `claude plugin validate ./plugin`. The steps, suites and tail alike, run
+concurrently. The runner keeps as many going as `os.availableParallelism()` reports, each in its own process group.
+It prints a step's output whole when that step ends, so the output of two steps never interleaves.
+
+Every step that finishes prints one `run-tests: <label>: <ms> ms` line. `docs/agents/verification.md` names it as the
+repository's timing command. The line measures the wall clock from the step's start to its end. Under concurrency that
+span includes the time the step waited for a CPU that other steps held. A step's line in a full run is longer than its
+time alone, and the lines add up to more than the run's wall clock. To rank suites by their own cost, time each alone:
+`time node tests/<suite>.test.js`.
+
+The first failing step ends every running step with its processes. The runner starts no further step, prints which
+suite or tail command failed, and exits nonzero. Each step the runner ended prints one `run-tests: <label>: cancelled`
+line, with no output and no timing line. A step that had already exited on its own prints its output and result as
+usual. A SIGINT, SIGTERM, or SIGHUP, and a write error on stdout, end the running steps the same way. A child that was
+killed, never started, or whose spawn threw counts as a failure (INV-0009).
+
+The kill reaches each step's process group, so a descendant that starts a group of its own escapes it. On Windows a
+negative pid names no process group, so no failure or signal ends a running step there. The run still exits nonzero
+once every step ends (ADR 0150).
+
+The suites carry a requirement the runner relies on: a suite builds each fixture repository once per process
+(`templateOnce` in `tests/fixture-git.js`) and copies it per case (`copyFixture`), so no case rebuilds it. Measured
+cost, including the machine and the Node build, is in `docs/agents/verification.md`: about 89 s for the full run on
+Node v26.12.1, against about 375 s for the suites run one after another. A `tests/` directory holding no suite prints
 `no suite found` and exits nonzero.
 
 `node scripts/run-tests.js --related <path>...` is the focused mode, the second fence of
@@ -901,9 +921,9 @@ path, when that document is missing. A check that walks a directory reads whatev
 
 ## Verification
 
-`node scripts/run-tests.js` (repo root) runs each suite under `tests/`, then `invariant-check.js`
-against this repository's register, then `drift-check.js`'s own `--selftest`, all under `node`, which
-matches the production runtime. `node scripts/run-tests.js --related <path>...` is the focused run.
+`node scripts/run-tests.js` (repo root) runs each suite under `tests/` and the tail (`invariant-check.js`
+against this repository's register, `drift-check.js`'s own `--selftest`, `drift-check.js`, and `claude plugin validate ./plugin`)
+concurrently, all under `node`, which matches the production runtime. The first failing step ends the rest. `node scripts/run-tests.js --related <path>...` is the focused run.
 
 ## Child DOX Index
 

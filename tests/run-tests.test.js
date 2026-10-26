@@ -40,11 +40,48 @@ const tailEntry = (root, name, code = 0) => [
   ],
 ];
 
-function go(root, tail, related) {
+async function go(root, tail, related, extra = {}) {
   const lines = [];
-  const status = runAll({ root, tail, related, out: (line) => lines.push(line) });
+  const status = await runAll({ root, tail, related, out: (line) => lines.push(line), ...extra });
   return { status, out: lines.join('\n') };
 }
+
+// The runner's cases run in order after the synchronous ones.
+const cases = [];
+
+// Fixture steps coordinate through files, never through sleeps: `waitFor` polls for a file and gives up with exit 3
+// only when the contract under test is already broken.
+const PRELUDE =
+  `const fs = require('node:fs'), path = require('node:path'), R = path.join(__dirname, '..');\n` +
+  `const mark = (n) => fs.writeFileSync(path.join(R, n), String(process.pid));\n` +
+  `const has = (n) => fs.existsSync(path.join(R, n));\n` +
+  `const waitFor = (n, then) => { let t = 0; const i = setInterval(() => { if (has(n)) { clearInterval(i); then(); } else if (++t > 3000) process.exit(3); }, 10); };\n` +
+  `const note = (s) => fs.appendFileSync(path.join(R, 'log'), s + '\\n');\n`;
+const step = (body) => PRELUDE + body;
+
+// A step that starts a grandchild which outlives it unless ended, records both pids, then blocks.
+const BLOCKER = (name) =>
+  step(
+    `const gc = require('node:child_process').spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });\n` +
+      `mark('${name}.pid'); fs.writeFileSync(path.join(R, '${name}.gc'), String(gc.pid)); console.log('${name}-secret'); mark('${name}.started'); setInterval(() => {}, 1000);`,
+  );
+
+const alive = (file) => {
+  try {
+    process.kill(Number(fs.readFileSync(file, 'utf8')), 0);
+    return true;
+  } catch {
+    return false;
+  }
+};
+const waitFile = async (file) => {
+  for (let i = 0; i < 3000 && !fs.existsSync(file); i++) await new Promise((r) => setTimeout(r, 10));
+  assert.ok(fs.existsSync(file), `${file} appears`);
+};
+const waitDead = async (file) => {
+  for (let i = 0; i < 3000 && alive(file); i++) await new Promise((r) => setTimeout(r, 10));
+  return !alive(file);
+};
 
 // A suite added at tests/<name>.test.js is found, a helper and a fixtures directory are not.
 {
@@ -66,61 +103,231 @@ function go(root, tail, related) {
 }
 
 // An absent or empty tests/ directory finds no suite, and the runner says so and exits nonzero.
-{
+cases.push(async () => {
   const absent = tree({});
   assert.deepStrictEqual(discoverSuites(path.join(absent, 'tests')), []);
-  const r = go(absent, []);
+  const r = await go(absent, []);
   assert.notStrictEqual(r.status, 0, 'no suite is a failure, never a silent pass');
   assert.match(r.out, /no suite/i);
   const empty = tree({ 'tests/helper.js': '' });
-  assert.notStrictEqual(go(empty, []).status, 0);
-}
+  assert.notStrictEqual((await go(empty, [])).status, 0);
+});
 
-// Suites run in order, then the tail. Every step, suite and tail alike, prints one wall-clock line.
-{
+// Every discovered suite and every tail step runs, each prints one wall-clock line, and a step passes through the
+// whole run (INV-0155).
+cases.push(async () => {
   const root = tree({ 'tests/b.test.js': suite('b'), 'tests/a.test.js': suite('a') });
-  const first = go(root, [tailEntry(root, 'tail1'), tailEntry(root, 'tail2')]);
+  const first = await go(root, [tailEntry(root, 'tail1'), tailEntry(root, 'tail2')]);
   assert.strictEqual(first.status, 0);
-  assert.strictEqual(logOf(root), 'a\nb\ntail1\ntail2\n', 'suites first, then the tail, in order');
+  assert.deepStrictEqual(logOf(root).split('\n').filter(Boolean).sort(), ['a', 'b', 'tail1', 'tail2'], 'every step runs');
   const timed = first.out.split('\n').filter((l) => /^run-tests: .+: \d+ ms$/.test(l));
   assert.strictEqual(timed.length, 4, 'one wall-clock line per step');
-  assert.match(timed[0], /^run-tests: tests\/a\.test\.js: \d+ ms$/, 'the line carries the step label');
-}
+  assert.ok(timed.some((l) => /^run-tests: tests\/a\.test\.js: \d+ ms$/.test(l)), 'the line carries the step label');
+});
 
-// A failing step still reports its wall clock.
-{
+// A failing step still reports its wall clock and names itself on the FAILED line.
+cases.push(async () => {
   const root = tree({ 'tests/a.test.js': suite('a', 2) });
-  assert.match(go(root, []).out, /^run-tests: tests\/a\.test\.js: \d+ ms$/m);
-}
+  const r = await go(root, []);
+  assert.match(r.out, /^run-tests: tests\/a\.test\.js: \d+ ms$/m);
+  assert.match(r.out, /^run-tests: FAILED tests\/a\.test\.js \(exit 2\)$/m);
+});
 
-// A failing suite stops the run, names itself, exits nonzero, and runs nothing after it.
-{
+// Steps start at the same time: each of two suites waits for the other's start mark, so a serial runner never ends them.
+cases.push(async () => {
+  const body = (me, other) => step(`mark('${me}.up'); waitFor('${other}.up', () => { note('${me}'); process.exit(0); });`);
+  const root = tree({ 'tests/a.test.js': body('a', 'b'), 'tests/b.test.js': body('b', 'a') });
+  const r = await go(root, [], undefined, { parallelism: 2 });
+  assert.strictEqual(r.status, 0, 'both steps were running at once');
+  const mixed = tree({ 'tests/a.test.js': body('a', 'tail'), 'tests/b.test.js': '' });
+  const tail = [[process.execPath, ['-e', PRELUDE.replace(/__dirname/g, JSON.stringify(path.join(mixed, 'tests'))) + `mark('tail.up'); waitFor('a.up', () => process.exit(0));`]]];
+  assert.strictEqual((await go(mixed, tail, undefined, { parallelism: 3 })).status, 0, 'a suite and a tail step overlap');
+  if (os.availableParallelism() > 1) {
+    const dflt = tree({ 'tests/a.test.js': body('a', 'b'), 'tests/b.test.js': body('b', 'a') });
+    assert.strictEqual((await go(dflt, [])).status, 0, 'the default limit is the available parallelism');
+  }
+});
+
+// One available CPU: the steps run one at a time and reach the same result.
+cases.push(async () => {
+  const body = (n) => step(`note('start ${n}'); setTimeout(() => { note('end ${n}'); process.exit(0); }, 20);`);
+  const root = tree({ 'tests/a.test.js': body('a'), 'tests/b.test.js': body('b'), 'tests/c.test.js': body('c') });
+  const r = await go(root, [], undefined, { parallelism: 1 });
+  assert.strictEqual(r.status, 0);
+  const lines = logOf(root).split('\n').filter(Boolean);
+  assert.strictEqual(lines.length, 6);
+  lines.forEach((l, i) => assert.strictEqual(l.split(' ')[0], i % 2 ? 'end' : 'start', 'a step ends before the next starts'));
+  const failing = tree({ 'tests/a.test.js': suite('a', 1), 'tests/b.test.js': suite('b') });
+  const f = await go(failing, [], undefined, { parallelism: 1 });
+  assert.notStrictEqual(f.status, 0);
+  assert.strictEqual(logOf(failing), 'a\n', 'a failure on one CPU starts nothing after it');
+});
+
+// Each step's output prints as one unbroken block between its label and its timing line, though the steps overlap.
+cases.push(async () => {
+  const body = (me, other) =>
+    step(`console.log('${me}-1'); mark('${me}.up'); waitFor('${other}.up', () => { console.log('${me}-2'); console.error('${me}-3'); });`);
+  const root = tree({ 'tests/a.test.js': body('a', 'b'), 'tests/b.test.js': body('b', 'a') });
+  const r = await go(root, [], undefined, { parallelism: 2 });
+  assert.strictEqual(r.status, 0);
+  for (const n of ['a', 'b']) {
+    assert.match(
+      r.out,
+      new RegExp(`run-tests: tests/${n}\\.test\\.js\\n${n}-1\\n${n}-2\\n${n}-3\\nrun-tests: tests/${n}\\.test\\.js: \\d+ ms`),
+      `${n}'s output is one block with its label and timing`,
+    );
+  }
+});
+
+// The first failing step ends the steps still running with every process they started, starts nothing further, exits
+// nonzero, names the failing step, and a cancelled step prints one cancelled line and none of its output.
+cases.push(async () => {
   const root = tree({
-    'tests/a.test.js': suite('a'),
-    'tests/b.test.js': suite('b', 3),
+    'tests/a.test.js': step(`waitFor('b.started', () => { console.log('a-output'); process.exit(1); });`),
+    'tests/b.test.js': BLOCKER('b'),
     'tests/c.test.js': suite('c'),
   });
-  const r = go(root, [tailEntry(root, 'tail')]);
+  const r = await go(root, [tailEntry(root, 'tail')], undefined, { parallelism: 2 });
   assert.notStrictEqual(r.status, 0);
-  assert.match(r.out, /b\.test\.js/, 'the failure names the suite');
-  assert.strictEqual(logOf(root), 'a\nb\n', 'nothing runs after the failing suite, the tail included');
-}
+  assert.match(r.out, /^run-tests: FAILED tests\/a\.test\.js/m, 'the FAILED line names the failing step');
+  assert.match(r.out, /a-output/, 'the failing step prints its output');
+  assert.strictEqual(r.out.match(/^run-tests: .*tests\/b\.test\.js.*cancel/gim).length, 1, 'one cancelled line names the ended step');
+  assert.ok(!r.out.includes('b-secret'), 'a cancelled step prints none of its output');
+  assert.ok(!/tests\/b\.test\.js: \d+ ms/.test(r.out), 'a cancelled step prints no timing line');
+  assert.strictEqual(logOf(root), '', 'no further step started');
+  assert.ok(await waitDead(path.join(root, 'b.pid')), 'the cancelled step is gone');
+  assert.ok(await waitDead(path.join(root, 'b.gc')), 'the process the cancelled step started is gone');
+});
 
-// A failing tail command stops the run, names itself, exits nonzero, and runs nothing after it.
-{
-  const root = tree({ 'tests/a.test.js': suite('a') });
-  const r = go(root, [tailEntry(root, 'tail1', 1), tailEntry(root, 'tail2')]);
+// A tail step that fails ends the suites still running too.
+cases.push(async () => {
+  const root = tree({ 'tests/a.test.js': BLOCKER('a') });
+  const tail = [[process.execPath, ['-e', PRELUDE.replace(/__dirname/g, JSON.stringify(path.join(root, 'tests'))) + `waitFor('a.started', () => process.exit(4));`]]];
+  const r = await go(root, tail, undefined, { parallelism: 2 });
   assert.notStrictEqual(r.status, 0);
-  assert.strictEqual(logOf(root), 'a\ntail1\n');
-  assert.match(r.out, /tail/i);
-}
+  assert.ok(await waitDead(path.join(root, 'a.gc')), 'the suite process tree ended');
+});
 
-// A command that never started reads as a failure, not a pass (INV-0009).
-{
-  const root = tree({ 'tests/a.test.js': suite('a') });
-  const r = go(root, [['/nonexistent/binary-for-run-tests', []]]);
+// A step that is killed fails the run and a command that does not exist fails it, neither waits forever (INV-0009).
+cases.push(async () => {
+  const killed = tree({ 'tests/a.test.js': step(`process.kill(process.pid, 'SIGKILL');`) });
+  const k = await go(killed, []);
+  assert.notStrictEqual(k.status, 0, 'a killed step fails the run');
+  assert.match(k.out, /FAILED tests\/a\.test\.js \(killed by SIGKILL\)/);
+  const root = tree({ 'tests/a.test.js': BLOCKER('a') });
+  const r = await go(root, [['/nonexistent/binary-for-run-tests', []]], undefined, { parallelism: 2 });
   assert.notStrictEqual(r.status, 0, 'a tail command that cannot start fails the run');
+  assert.match(r.out, /FAILED .*binary-for-run-tests \(did not start/);
+  assert.ok(await waitDead(path.join(root, 'a.gc')), 'the running step ended with the run');
+});
+
+// Runs the runner over `root` in a child process of its own (no tail), so a test can signal it or hold its stdout.
+const driveRunner = (root, { stdio, parallelism }) => {
+  const driver = path.join(root, 'driver.js');
+  const extra = parallelism ? `, parallelism: ${parallelism}` : '';
+  fs.writeFileSync(driver, `require(${JSON.stringify(path.join(repoRoot, 'scripts/run-tests.js'))}).runAll({ root: ${JSON.stringify(root)}, tail: []${extra} }).then((c) => { process.exitCode = c; });`);
+  return require('node:child_process').spawn(process.execPath, [driver], { stdio });
+};
+
+// A SIGINT, SIGTERM, or SIGHUP to the runner ends every running step and its processes before the runner exits.
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+  cases.push(async () => {
+    const root = tree({ 'tests/a.test.js': BLOCKER('a'), 'tests/b.test.js': BLOCKER('b') });
+    const child = driveRunner(root, { stdio: 'ignore', parallelism: 2 });
+    const exited = new Promise((resolve) => child.on('exit', (code, sig) => resolve({ code, sig })));
+    for (const f of ['a.started', 'b.started']) await waitFile(path.join(root, f));
+    child.kill(signal);
+    const end = await exited;
+    assert.ok(end.code !== 0 || end.sig, `${signal} ends the runner nonzero`);
+    for (const f of ['a.pid', 'a.gc', 'b.pid', 'b.gc']) assert.ok(await waitDead(path.join(root, f)), `${signal} left ${f} running`);
+  });
 }
+
+// A write error on the runner's stdout (the reader closed the pipe) ends every running step, as a signal does.
+cases.push(async () => {
+  const root = tree({
+    'tests/a.test.js': step(`waitFor('closed', () => process.exit(0));`),
+    'tests/b.test.js': BLOCKER('b'),
+  });
+  const child = driveRunner(root, { stdio: ['ignore', 'pipe', 'ignore'], parallelism: 2 });
+  const exited = new Promise((resolve) => child.on('exit', (code, sig) => resolve({ code, sig })));
+  await waitFile(path.join(root, 'b.started'));
+  child.stdout.destroy();
+  fs.writeFileSync(path.join(root, 'closed'), '');
+  // Bounded: without the stdout handler the steps never end and the runner never exits, so check the steps first.
+  const dead = await waitDead(path.join(root, 'b.pid'));
+  if (!dead) {
+    child.kill('SIGKILL');
+    for (const f of ['b.pid', 'b.gc']) {
+      try {
+        process.kill(-Number(fs.readFileSync(path.join(root, f), 'utf8')), 'SIGKILL');
+      } catch {
+        // already gone
+      }
+      try {
+        process.kill(Number(fs.readFileSync(path.join(root, f), 'utf8')), 'SIGKILL');
+      } catch {
+        // already gone
+      }
+    }
+  }
+  assert.ok(dead, 'a stdout write error ends the running step');
+  assert.ok(await waitDead(path.join(root, 'b.gc')), 'a stdout write error ends the process the step started');
+  const end = await exited;
+  assert.ok(end.code !== 0 || end.sig, 'a stdout write error ends the runner nonzero');
+});
+
+// A step whose spawn throws synchronously (a command with a NUL byte is refused by Node) fails the run as
+// "did not start" and ends the step still running, though the throw happens inside a close handler.
+cases.push(async () => {
+  const root = tree({
+    'tests/a.test.js': BLOCKER('a'),
+    'tests/b.test.js': step(`waitFor('a.started', () => process.exit(0));`),
+  });
+  const r = await go(root, [['bad\0command', []]], undefined, { parallelism: 2 });
+  assert.notStrictEqual(r.status, 0, 'a step that never started fails the run');
+  assert.match(r.out, /^run-tests: FAILED .*\(did not start: .+\)$/m);
+  assert.ok(await waitDead(path.join(root, 'a.pid')), 'the running step ended with the run');
+  assert.ok(await waitDead(path.join(root, 'a.gc')), 'the process the running step started ended too');
+});
+
+// A step that ended on its own before another step's failure stopped the run is no cancelled step: it prints its own
+// output and result. Step b exits 1 at once, but a grandchild in a process group of its own holds b's pipes open until
+// the runner has printed a's FAILED line, so b's end reaches the runner while it is stopping.
+cases.push(async () => {
+  const holder = `const g = require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(
+    `const fs = require('node:fs'); const i = setInterval(() => { if (fs.existsSync(process.argv[1])) process.exit(0); }, 10); setTimeout(() => process.exit(3), 30000);`,
+  )}, path.join(R, 'release')], { detached: true, stdio: ['ignore', 'inherit', 'inherit'] }); g.unref();`;
+  const root = tree({
+    'tests/a.test.js': step(`waitFor('b.done', () => setTimeout(() => process.exit(1), 100));`),
+    'tests/b.test.js': step(`${holder} console.log('b-output'); mark('b.done'); process.exit(1);`),
+  });
+  const lines = [];
+  const out = (line) => {
+    lines.push(line);
+    if (line.startsWith('run-tests: FAILED tests/a.test.js')) fs.writeFileSync(path.join(root, 'release'), '');
+  };
+  const status = await runAll({ root, tail: [], out, parallelism: 2 });
+  const text = lines.join('\n');
+  assert.notStrictEqual(status, 0);
+  assert.ok(!/tests\/b\.test\.js: cancelled/.test(text), `a step that ended on its own is not labelled cancelled:\n${text}`);
+  assert.match(text, /b-output/, 'a step that ended on its own prints its output');
+  assert.match(text, /^run-tests: FAILED tests\/b\.test\.js \(exit 1\)$/m, 'a step that failed on its own names its own failure');
+});
+
+// The failing step's output reaches the reader in full when the runner's stdout is a pipe.
+cases.push(async () => {
+  const root = tree({ 'tests/a.test.js': `process.stdout.write('x'.repeat(2000000) + '\\nEND-MARK\\n'); process.exitCode = 1;` });
+  const child = driveRunner(root, { stdio: ['ignore', 'pipe', 'inherit'] });
+  const chunks = [];
+  child.stdout.on('data', (d) => chunks.push(d));
+  const code = await new Promise((resolve) => child.on('close', resolve));
+  const text = Buffer.concat(chunks).toString();
+  assert.notStrictEqual(code, 0);
+  assert.ok(text.includes('END-MARK'), 'the last line of the output arrives');
+  assert.ok(text.includes('x'.repeat(2000000)), 'the whole output arrives');
+  assert.match(text, /FAILED tests\/a\.test\.js/);
+});
 
 // Focused mode: a repository-relative path list selects the suites the change set reaches.
 const focusedTree = () =>
@@ -348,40 +555,40 @@ const picked = (root, paths) =>
 }
 
 // runAll in focused mode runs only the selected suites, then the whole tail.
-{
+const logSet = (root) => logOf(root).split('\n').filter(Boolean).sort().join(',');
+cases.push(async () => {
   const root = focusedTree();
-  const r = go(root, [tailEntry(root, 'tail')], ['plugin/hooks/alpha.js']);
+  const r = await go(root, [tailEntry(root, 'tail')], ['plugin/hooks/alpha.js']);
   assert.strictEqual(r.status, 0);
-  assert.strictEqual(logOf(root), 'alpha\nbeta\ntail\n');
+  assert.strictEqual(logSet(root), 'alpha,beta,tail');
   const md = tree({ 'tests/a.test.js': suite('a') });
-  assert.strictEqual(go(md, [tailEntry(md, 'tail')], ['README.md']).status, 0);
-  assert.strictEqual(logOf(md), 'tail\n', 'a prose-only change set runs the tail alone');
+  assert.strictEqual((await go(md, [tailEntry(md, 'tail')], ['README.md'])).status, 0);
+  assert.strictEqual(logSet(md), 'tail', 'a prose-only change set runs the tail alone');
   const empty = tree({ 'tests/a.test.js': suite('a') });
-  assert.strictEqual(go(empty, [tailEntry(empty, 'tail')], []).status, 0, 'an empty list exits 0');
-  assert.strictEqual(logOf(empty), 'tail\n', 'an empty list runs the tail alone');
+  assert.strictEqual((await go(empty, [tailEntry(empty, 'tail')], [])).status, 0, 'an empty list exits 0');
+  assert.strictEqual(logSet(empty), 'tail', 'an empty list runs the tail alone');
   const un = tree({ 'tests/a.test.js': suite('a'), 'tests/b.test.js': suite('b') });
-  go(un, [tailEntry(un, 'tail')], ['src/x.js']);
-  assert.strictEqual(logOf(un), 'a\nb\ntail\n', 'an unplaceable code path runs every suite');
-}
+  await go(un, [tailEntry(un, 'tail')], ['src/x.js']);
+  assert.strictEqual(logSet(un), 'a,b,tail', 'an unplaceable code path runs every suite');
+});
 
 // A focused run whose paths reach the superdev-view mod runs the mod suite before the tail; a mod path places itself, so
 // it does not fall back to every suite. The full run and a focused run off the mod never run it.
-{
+cases.push(async () => {
   const files = { 'tests/a.test.js': suite('a'), 'tests/b.test.js': suite('b') + '// mods/superdev-view/hooks/x-fixtures.ts' };
-  const runMod = (related) => {
+  const runMod = async (related) => {
     const root = tree(files);
-    runAll({ root, tail: [tailEntry(root, 'tail')], modSuite: tailEntry(root, 'mod'), related, out: () => {} });
-    return { log: logOf(root) };
+    await runAll({ root, tail: [tailEntry(root, 'tail')], modSuite: tailEntry(root, 'mod'), related, out: () => {} });
+    return { log: logSet(root) };
   };
-  assert.strictEqual(runMod(['mods/superdev-view/hooks/parse.ts']).log, 'mod\ntail\n', 'a mod path runs the mod suite, no other suite');
-  assert.strictEqual(runMod(['mods/superdev-view/hooks/x-fixtures.ts']).log, 'b\nmod\ntail\n', 'a suite naming a mod file still runs');
-  assert.strictEqual(runMod(['README.md']).log, 'tail\n', 'a path off the mod runs no mod suite');
-  assert.strictEqual(runMod(undefined).log, 'a\nb\ntail\n', 'the full run never runs the mod suite');
+  assert.strictEqual((await runMod(['mods/superdev-view/hooks/parse.ts'])).log, 'mod,tail', 'a mod path runs the mod suite, no other suite');
+  assert.strictEqual((await runMod(['mods/superdev-view/hooks/x-fixtures.ts'])).log, 'b,mod,tail', 'a suite naming a mod file still runs');
+  assert.strictEqual((await runMod(['README.md'])).log, 'tail', 'a path off the mod runs no mod suite');
+  assert.strictEqual((await runMod(undefined)).log, 'a,b,tail', 'the full run never runs the mod suite');
   const failing = tree(files);
-  const r = runAll({ root: failing, tail: [tailEntry(failing, 'tail')], modSuite: tailEntry(failing, 'mod', 1), related: ['mods/superdev-view/hooks/parse.ts'], out: () => {} });
-  assert.strictEqual(r, 1, 'a failing mod suite fails the run');
-  assert.strictEqual(logOf(failing), 'mod\n', 'a failing mod suite stops the run before the tail');
-}
+  const r = await runAll({ root: failing, tail: [tailEntry(failing, 'tail')], modSuite: tailEntry(failing, 'mod', 1), related: ['mods/superdev-view/hooks/parse.ts'], out: () => {} });
+  assert.notStrictEqual(r, 0, 'a failing mod suite fails the run');
+});
 
 // The CLI reads `--related <path>...`; no flag is the full run.
 {
@@ -399,7 +606,9 @@ const picked = (root, paths) =>
   assert.deepStrictEqual(of([`plugin/hooks/${lock}.js`]), ['plugin-layout', lock, 'scope-ledger', 'scope-open'], 'run-lock selects its suite and the suites naming it');
   const scope = of([`plugin/scripts/${'scope'}.js`]);
   const topics = ['ledger', 'ledger-header', 'publish-adopt', 'root-base', 'citations-collisions', 'suite', 'containment', 'dod-line', 'help', 'trace'];
-  const parts = [...topics.map((t) => `scope-${t}`), ['scope', 'test', 'verb'].join('-'), ['scope', 'fail', 'to', 'pass'].join('-')];
+  const verbTopics = ['record', 'refusals', 'dirty', 'kill', 'late-fork', 'first-moment-term', 'first-moment-kill', 'tree', 'install'];
+  const f2p = ['verdict', 'signals', 'bound', 'trace', 'environment', 'interrupt', 'concurrency', 'watcher'].map((t) => ['scope', 'fail', 'to', 'pass', t].join('-'));
+  const parts = [...topics.map((t) => `scope-${t}`), ...verbTopics.map((t) => ['scope', 'test', 'verb', t].join('-')), ...f2p];
   for (const s of [...parts, 'scope-prune', 'slicetree-sweep', 'run-trace', 'publish-kb']) {
     assert.ok(scope.includes(s), `scope.js selects ${s}`);
   }
@@ -416,6 +625,14 @@ const picked = (root, paths) =>
   }
 }
 
-for (const dir of made) fs.rmSync(dir, { recursive: true, force: true });
-
-console.log('run-tests.test.js ok');
+(async () => {
+  try {
+    for (const run of cases) await run();
+    console.log('run-tests.test.js ok');
+  } finally {
+    for (const dir of made) fs.rmSync(dir, { recursive: true, force: true });
+  }
+})().catch((e) => {
+  console.error(e);
+  process.exitCode = 1;
+});

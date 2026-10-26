@@ -5,7 +5,7 @@
 
 // Fixture repositories commit regardless of the maintainer's global git config: a global
 // `commit.gpgsign` whose signer is unavailable would fail every fixture commit with status 128 (#780).
-require('./fixture-git');
+const { copyFixture, templateOnce } = require('./fixture-git');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -19,15 +19,17 @@ function gitTest(args, cwd) {
   execFileSync('git', args, { cwd, stdio: 'ignore' });
 }
 
-function makeRepo() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-smoke-'));
+// The repository is built once into a template and copied for each call.
+const repoTemplate = templateOnce((dir) => {
   gitTest(['init', '-q', '-b', 'main'], dir);
   gitTest(['config', 'user.email', 'test@example.com'], dir);
   gitTest(['config', 'user.name', 'test'], dir);
   fs.writeFileSync(path.join(dir, 'README.md'), 'x\n');
   gitTest(['add', '.'], dir);
   gitTest(['commit', '-q', '-m', 'init'], dir);
-  return dir;
+}, 'scope-prune-template-');
+function makeRepo() {
+  return copyFixture(repoTemplate(), 'scope-prune-smoke-');
 }
 
 function makeScope(repoDir, scope, ledgerBody = '**Stage:** closed\n') {

@@ -5,7 +5,7 @@
 // it, so each suite runs on its own. It is no suite. `tmp` is created on first read, so a suite that needs only
 // `verif` creates no directory.
 
-require('./fixture-git');
+const { copyFixture } = require('./fixture-git');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -51,17 +51,285 @@ const sliceJson = JSON.stringify({
 const verif = (full, focused, extra = '') =>
   `# V\n\n\`\`\`sh\n${full}\n\`\`\`\n` + (focused ? `\n\`\`\`sh\n${focused}\n\`\`\`\n` : '') + extra;
 
+// The fixture of the `fail-to-pass` suites (`tests/scope-fail-to-pass-*.test.js`): every scenario is a real repository (a base
+// commit, a tip commit, a run root under `.superdev/scopes/`, and a scopetree at the tip, the cwd the verb runs from) inside
+// one temporary directory of its own, `D`, which `done()` removes. `drive` runs a driver process that starts and signals
+// verbs, created on first use.
+const f2pFixture = () => {
+  const assert = require('node:assert');
+  const { spawnSync } = require('node:child_process');
+  const { assertSpawnDecided } = require('./spawn-verdict');
+  const D = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-f2p-'));
+  const git = (cwd, argv) => {
+    const r = spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...argv], { cwd, encoding: 'utf8', timeout: 20000 });
+    assertSpawnDecided(r, 'git ' + argv[0]);
+    assert.equal(r.status, 0, 'git ' + argv.join(' ') + ': ' + r.stderr);
+    return r.stdout.trim();
+  };
+  // A test script's first line records what the worktree holds when the command runs.
+  const probe = 'ls -1 | tr "\\n" "|" >> "$F2P_LOG"; echo >> "$F2P_LOG"\n';
+  let n = 0;
+  const templates = new Map();
+  const traceLines = (root) => {
+    const file = path.join(root, 'trace.log');
+    return fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split('\n').filter(Boolean).map((l) => l.split(' ').slice(1).join(' ')) : [];
+  };
+  const CMD = 'sh tests/t.sh';
+  // `base` and `tip` map a path to its text, or to null to delete it at the tip; `rename` pairs move a base file at the tip.
+  // `cmd` is the command the verb is handed after `--`; a run may hand another (`o.cmd`), or none (`o.noCommand`).
+  const scenario = ({ base, tip, rename = [], bare = false, cmd = CMD }) => {
+    const dir = path.join(D, 's' + ++n);
+    const repo = path.join(dir, 'repo');
+    // The repository of one (base, tip, rename) is built once, without a run root or worktree, and each scenario gets a copy.
+    const key = JSON.stringify({ base, tip, rename });
+    if (!templates.has(key)) {
+      const tdir = path.join(D, 't' + templates.size);
+      const trepo = path.join(tdir, 'repo');
+      fs.mkdirSync(trepo, { recursive: true });
+      const put = (files) => {
+        for (const [rel, text] of Object.entries(files)) {
+          const abs = path.join(trepo, rel);
+          if (text === null) {
+            fs.rmSync(abs, { recursive: true, force: true });
+            continue;
+          }
+          fs.mkdirSync(path.dirname(abs), { recursive: true });
+          fs.writeFileSync(abs, text);
+        }
+      };
+      git(trepo, ['init', '-q', '-b', 'main']);
+      put({ '.gitignore': '.superdev/\n', ...base });
+      git(trepo, ['add', '-A']);
+      git(trepo, ['commit', '-q', '-m', 'base']);
+      const baseSha = git(trepo, ['rev-parse', 'HEAD']);
+      for (const [from, to] of rename) {
+        fs.mkdirSync(path.dirname(path.join(trepo, to)), { recursive: true });
+        fs.renameSync(path.join(trepo, from), path.join(trepo, to));
+      }
+      put(tip);
+      git(trepo, ['add', '-A']);
+      git(trepo, ['commit', '-q', '--allow-empty', '-m', 'tip']);
+      templates.set(key, { tdir, baseSha, tipSha: git(trepo, ['rev-parse', 'HEAD']) });
+    }
+    const { tdir, baseSha, tipSha } = templates.get(key);
+    fs.renameSync(copyFixture(tdir, 'scope-f2p-copy-'), dir);
+    const root = path.join(repo, '.superdev', 'scopes', 'demo');
+    const tree = path.join(root, 'scopetree');
+    // `bare`: a repository with no run root and no `.superdev/` directory.
+    if (!bare) {
+      fs.mkdirSync(root, { recursive: true });
+      fs.writeFileSync(path.join(root, 'ledger.md'),
+        '# Ledger — demo\n\n**Stage:** implementing\n\n| id | issue | title | type | depends-on | status | range |\n|---|---|---|---|---|---|---|\n| 01 | #1 | t | behavior | — | in-progress | — |\n');
+      git(repo, ['worktree', 'add', '-q', '-b', 'feat/demo', tree, tipSha]);
+    }
+    const log = path.join(dir, 'log');
+    return {
+      dir, repo, root, tree, baseSha, tipSha, log, cmd, range: `${baseSha}..${tipSha}`,
+      run: (range, o = {}) => {
+        const tail = o.noCommand ? [] : ['--', ...(o.argv || [o.cmd === undefined ? cmd : o.cmd])];
+        const r = spawnSync(process.execPath, [scopePath, 'fail-to-pass', range, ...tail], { cwd: tree, encoding: 'utf8', timeout: 60000, ...o, env: { ...process.env, F2P_LOG: log, F2P_DIR: dir, ...o.env } });
+        assertSpawnDecided(r, 'scope.js fail-to-pass ' + range);
+        return r;
+      },
+      // The trace's lines without their timestamp. `trace` leaves out the control run's `run` line, which `runLines` reads,
+      // and the command an outcome line ends with, which `rawTrace` keeps.
+      trace: () => traceLines(root).filter((l) => l.split(' ')[2] !== 'run').map((l) => l.replace(/ \S+$/, '')),
+      rawTrace: () => traceLines(root).filter((l) => l.split(' ')[2] !== 'run'),
+      // The control run's `run` lines, without the duration a `run` line ends with.
+      runLines: () => traceLines(root).filter((l) => l.split(' ')[2] === 'run').map((l) => l.replace(/ \d+$/, '')),
+      rawRunLines: () => traceLines(root).filter((l) => l.split(' ')[2] === 'run'),
+      ran: () => (fs.existsSync(log) ? fs.readFileSync(log, 'utf8').split('\n').filter(Boolean) : []),
+    };
+  };
+  // What the checkout that ran the verb holds: its HEAD, branches, worktrees, index, and working tree.
+  const checkout = (cwd) => [
+    git(cwd, ['rev-parse', 'HEAD']),
+    git(cwd, ['for-each-ref']),
+    git(cwd, ['worktree', 'list', '--porcelain']).replace(/^worktree .*\/fail-to-pass-.*$/gm, 'LEFTOVER'),
+    git(cwd, ['status', '--porcelain=v1', '-uall']),
+    git(cwd, ['diff', '--cached', '--name-only']),
+  ];
+  const leftover = (sc) => fs.readdirSync(sc.root).filter((e) => e.startsWith('fail-to-pass-'));
+  // Polls until no process named in the pid files is alive (a file holds one pid per line), and fails on the last poll.
+  const assertGone = (message, ...files) => {
+    assert.ok(files.every((f) => fs.existsSync(f)), `${message}: the run started its processes`);
+    const gone = spawnSync('bash', ['-c', 'for i in $(seq 100); do alive=; for f in "$@"; do kill -0 $(cat "$f") 2>/dev/null && alive=1; done; [ -z "$alive" ] && { echo gone; exit 0; }; sleep 0.1; done; echo alive', 'bash', ...files], { encoding: 'utf8', timeout: 30000 });
+    assertSpawnDecided(gone, 'the liveness poll');
+    assert.equal(gone.stdout.trim(), 'gone', message);
+  };
+  // No git hook runs. The control proves the fixture's hooks are live: a plain `git worktree add` fires them.
+  const hooked = (sc) => {
+    const sentinel = path.join(path.dirname(sc.repo), 'hook-fired');
+    for (const hook of ['post-checkout', 'reference-transaction', 'post-index-change']) {
+      fs.writeFileSync(path.join(sc.repo, '.git', 'hooks', hook), `#!/bin/sh\necho ${hook} >> "${sentinel}"\n`, { mode: 0o755 });
+    }
+    const probeDir = path.join(path.dirname(sc.repo), 'hook-probe');
+    git(sc.repo, ['worktree', 'add', '-q', '--detach', probeDir, sc.tipSha]);
+    assert.ok(fs.existsSync(sentinel), 'a plain git worktree add fires the fixture hooks');
+    git(sc.repo, ['worktree', 'remove', '--force', probeDir]);
+    fs.rmSync(sentinel);
+    return sentinel;
+  };
+  // The driver starts verbs and signals them: `signal` (one run, killed once its marker exists), `kill-beside` (a run
+  // killed as a second one starts), and any other mode (two runs at once).
+  let driver;
+  const drive = (cfg) => {
+    if (!driver) {
+      driver = path.join(D, 'driver.js');
+      fs.writeFileSync(driver, `
+      const { spawn } = require('node:child_process');
+      const fs = require('node:fs');
+      const cfg = JSON.parse(process.argv[2]);
+      const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const until = async (done) => { for (let i = 0; i < 600 && !done(); i++) await wait(50); if (!done()) throw new Error('timed out waiting'); };
+      const left = () => fs.readdirSync(cfg.root).filter((e) => e.startsWith('fail-to-pass-'));
+      const start = (env) => {
+        const child = spawn(process.execPath, [cfg.scope, 'fail-to-pass', cfg.range, '--', cfg.cmd], { cwd: cfg.cwd, env: { ...process.env, ...cfg.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+        const out = { stdout: '', stderr: '' };
+        child.stdout.on('data', (d) => (out.stdout += d));
+        child.stderr.on('data', (d) => (out.stderr += d));
+        out.exited = new Promise((resolve) => child.on('exit', (code, signal) => resolve({ code, signal })));
+        out.child = child;
+        return out;
+      };
+      (async () => {
+        if (cfg.mode === 'signal') {
+          const run = start({});
+          await until(() => fs.existsSync(cfg.marker));
+          run.child.kill(cfg.signal);
+          const ended = await run.exited;
+          const leftAtExit = left();
+          await until(() => left().length === 0);
+          const pid = Number(fs.readFileSync(cfg.pidfile, 'utf8'));
+          await until(() => { try { process.kill(pid, 0); return false; } catch { return true; } }).catch((e) => {
+            try { process.kill(-pid, 'SIGKILL'); } catch { /* already gone */ }
+            throw e;
+          });
+          console.log(JSON.stringify({ ...ended, leftAtExit }));
+        } else if (cfg.mode === 'kill-beside') {
+          // A run whose test is running is killed (its watcher then removes the worktree) as a second run starts.
+          const first = start({ F2P_HANG: '1' });
+          await until(() => fs.existsSync(cfg.marker));
+          const second = start({});
+          first.child.kill('SIGKILL');
+          const ended = await Promise.all([first.exited, second.exited]);
+          await until(() => left().length === 0);
+          await until(() => { const l = fs.readFileSync(cfg.shimLog, 'utf8').split('\\n').filter(Boolean); return l.filter((x) => x.startsWith('start')).length === l.filter((x) => x.startsWith('end')).length; });
+          console.log(JSON.stringify({ first: ended[0], second: { ...ended[1], stdout: second.stdout, stderr: second.stderr } }));
+        } else {
+          const runs = [start({}), start({})];
+          const ended = await Promise.all(runs.map((run) => run.exited));
+          console.log(JSON.stringify(ended.map((e, i) => ({ ...e, stdout: runs[i].stdout, stderr: runs[i].stderr }))));
+        }
+      })().catch((e) => { console.error(e.stack); process.exit(1); });
+    `);
+    }
+    const d = spawnSync(process.execPath, [driver, JSON.stringify({ scope: scopePath, ...cfg })], { encoding: 'utf8', timeout: 120000 });
+    assertSpawnDecided(d, 'the interrupt driver');
+    assert.equal(d.status, 0, d.stderr);
+    return JSON.parse(d.stdout);
+  };
+  const done = () => fs.rmSync(D, { recursive: true, force: true });
+  return { D, git, probe, CMD, scenario, checkout, leftover, assertGone, hooked, drive, done };
+};
+
 const cleanup = () => {
   if (dir) fs.rmSync(dir, { recursive: true, force: true });
 };
 
+// The fixture of the `scope.js test` verb's suites (`tests/scope-test-verb-*.test.js`): a run root `demo` with slice 03's
+// tree `S` (a git repository holding a stub `bats` on PATH), its own temporary directory `D`, and the helpers that
+// run the verb, a bash driver, and read the run trace. `verif` writes `verification.md` and commits it. `end` removes `D`.
+const verifText = verif;
+const testVerbFixture = () => {
+  const { spawnSync } = require('node:child_process');
+  const { assertSpawnDecided } = require('./spawn-verdict');
+  const D = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-test-verb-'));
+  const root = path.join(D, '.superdev', 'scopes', 'demo');
+  const S = path.join(root, 'slicetrees', '03');
+  fs.mkdirSync(path.join(S, 'docs', 'agents'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'ledger.md'),
+    '# Ledger — demo\n\n**Stage:** implementing\n\n| id | issue | title | type | depends-on | status | range |\n|---|---|---|---|---|---|---|\n| 03 | #3 | t | behavior | — | in-progress | — |\n');
+  const bin = path.join(D, 'bin');
+  fs.mkdirSync(bin);
+  fs.writeFileSync(path.join(bin, 'bats'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+  const env = Object.assign({}, process.env, { PATH: bin + path.delimiter + process.env.PATH });
+  const sh = (cwd, argv) => {
+    const r = spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...argv], { cwd, encoding: 'utf8', timeout: 20000 });
+    assertSpawnDecided(r, 'git ' + argv[0]);
+    return r.stdout.trim();
+  };
+  const cli = (argv) => {
+    const r = spawnSync(process.execPath, [scopePath, ...argv], { cwd: S, encoding: 'utf8', timeout: 20000 });
+    assertSpawnDecided(r, 'scope.js ' + argv.join(' '));
+    return r;
+  };
+  sh(S, ['init', '-q']);
+  // A path run needs its file to exist (triage #1210); verif's commit takes it into the tree.
+  fs.mkdirSync(path.join(S, 'services', 'x', 'tests'), { recursive: true });
+  fs.writeFileSync(path.join(S, 'services', 'x', 'tests', 'a.bats'), '');
+  const verif = (full, focused, whole) => {
+    fs.writeFileSync(path.join(S, 'docs', 'agents', 'verification.md'),
+      verifText(full, focused, whole ? `\n## Whole-repo command\n\n\`${whole}\`\n` : ''));
+    sh(S, ['add', '-A']);
+    sh(S, ['commit', '-q', '--allow-empty', '-m', 'v']);
+  };
+  const traceFile = path.join(root, 'trace.log');
+  // The trace's lines without their timestamp, and a `run` line without its duration, which the duration case reads itself.
+  const lines = () => (fs.existsSync(traceFile) ? fs.readFileSync(traceFile, 'utf8').split('\n').filter(Boolean).map((l) => {
+    const w = l.split(' ').slice(1);
+    return (w[2] === 'run' && w.length === 9 ? w.slice(0, 8) : w).join(' ');
+  }) : []);
+  const verb = (argv, o) => {
+    const r = spawnSync(process.execPath, [scopePath, 'test', ...argv], Object.assign({ cwd: S, encoding: 'utf8', timeout: 20000, env }, o));
+    assertSpawnDecided(r, 'scope.js test ' + argv.join(' '));
+    return r;
+  };
+  const bash = (script, o) => {
+    const r = spawnSync('bash', ['-c', script], Object.assign({ cwd: S, encoding: 'utf8', timeout: 30000, env }, o));
+    assertSpawnDecided(r, 'bash driver');
+    return r;
+  };
+  const reset = () => fs.rmSync(traceFile, { force: true });
+  const end = () => fs.rmSync(D, { recursive: true, force: true });
+  return { D, root, S, bin, env, sh, cli, verif, traceFile, lines, verb, bash, reset, end };
+};
+
+// The first-moment cases of the `test` verb (`tests/scope-test-verb-first-moment-*.test.js`), one signal per suite: a
+// signal at the first moment the command is alive leaves nothing running, because the handlers and the watcher exist
+// before the command starts, so no instant lacks a killer. Several rounds, because the instant is a race. Each round is
+// its own bash driver, so the driver's bound covers one round's work, never the sum of every round's under machine load.
+const firstMoment = (sig) => {
+  const assert = require('node:assert');
+  const { D, verif, bash, lines, reset, end } = testVerbFixture();
+  try {
+    reset();
+    const k = path.join(D, 'q' + sig);
+    fs.mkdirSync(k);
+    verif(`echo $$ > ${k}/pid.$$.tmp; mv ${k}/pid.$$.tmp ${k}/pid; sleep 30 & echo $! > ${k}/spid; wait`, 'true');
+    for (let n = 1; n <= 25; n++) {
+      const out = bash(`alive() { kill -0 $(cat ${k}/pid) 2>/dev/null || { [ -s ${k}/spid ] && kill -0 $(cat ${k}/spid) 2>/dev/null; }; };` +
+        ` rm -f ${k}/pid ${k}/spid; node ${scopePath} test full & V=$!;` +
+        ` while [ ! -s ${k}/pid ]; do sleep 0.01; done; kill -${sig} $V; wait $V;` +
+        ` for i in $(seq 100); do alive || break; sleep 0.1; done; sleep 0.3; alive && { echo alive; exit 0; }; echo gone`);
+      assert.equal(out.stdout.trim().split('\n').pop(), 'gone', 'SIG' + sig + ' right after the start, round ' + n + ': no child is left running: ' + out.stdout + out.stderr);
+    }
+    assert.deepEqual(lines(), [], 'SIG' + sig + ' right after the start: no line is written');
+  } finally {
+    end();
+  }
+};
+
 module.exports = {
+  testVerbFixture,
+  firstMoment,
   get tmp() {
     return tmpDir();
   },
   call,
   sliceJson,
   verif,
+  f2pFixture,
   scopePath,
   run,
   cleanup,

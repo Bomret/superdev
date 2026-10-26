@@ -1141,7 +1141,7 @@ Class: process
 Concepts: Fail-to-pass run, Run trace
 Statement: A fail-to-pass run records `fail-to-pass` or `pass-to-pass` only after the tests passed against the changed code in the same worktree. A run against the changed code that does not pass, a run killed at its bound or ended by a signal, and a run whose command could not start record `unknown`, which no reviewer reads as a failing or a passing run and no gate reads as green (ADR 0134, INV-0009).
 Breaks: silently
-Check: tests/scope-fail-to-pass.test.js — the fail-to-pass cases
+Check: tests/scope-fail-to-pass-verdict.test.js, tests/scope-fail-to-pass-signals.test.js, tests/scope-fail-to-pass-bound.test.js, tests/scope-fail-to-pass-trace.test.js, tests/scope-fail-to-pass-environment.test.js, tests/scope-fail-to-pass-interrupt.test.js, tests/scope-fail-to-pass-concurrency.test.js, tests/scope-fail-to-pass-watcher.test.js — the fail-to-pass cases
 Paths: plugin/scripts/scope.js, plugin/lib/fail-to-pass.js, plugin/lib/run-supervision.js
 
 ### INV-0140
@@ -1251,6 +1251,24 @@ Statement: A shipped executable hands text to a shell only to run an operator-su
 Breaks: loudly
 Check: scripts/drift-check.js `shell-spawn` — fails on a shell start under `plugin/hooks/`, `plugin/scripts/`, or `plugin/lib/` that breaks the rule
 Paths: plugin/hooks/*.js, plugin/scripts/*.js, plugin/lib/*.js
+
+### INV-0154
+
+Class: process
+Concepts: Timing command, Focused test command
+Statement: Test suites run at the same time, so a suite writes only inside a temporary directory it created itself. It reads the repository's files and never writes them, and it uses no fixed path that another suite could also use.
+Breaks: silently
+Check: none — a general rule with no single test. A breach shows as a suite that fails only when another suite runs beside it.
+Paths: tests/**
+
+### INV-0155
+
+Class: process
+Concepts: Timing command, Focused test command
+Statement: The full test command runs every suite and every fixed tail step on every call. It gets faster by running steps at the same time and by cheaper setup, never by running fewer of them.
+Breaks: silently
+Check: tests/run-tests.test.js — a full run starts every suite it discovers and every tail step
+Paths: scripts/run-tests.js
 
 ### INV-0157
 

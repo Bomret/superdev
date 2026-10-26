@@ -11,7 +11,7 @@
 
 // Fixture repositories commit regardless of the maintainer's global git config: a global
 // `commit.gpgsign` whose signer is unavailable would fail every fixture commit with status 128 (#780).
-require('./fixture-git');
+const { copyFixture, templateOnce } = require('./fixture-git');
 
 const fs = require('node:fs');
 const os = require('node:os');
@@ -73,8 +73,8 @@ function git(args, cwd) {
   return execFileSync('git', args, { cwd, encoding: 'utf8' });
 }
 
-function makeRepo() {
-  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'kb-repo-')));
+// The fixture repository is built once per process, on first use, and every case gets a copy of it.
+const repoTemplate = templateOnce((dir) => {
   git(['init', '-q', '-b', 'main'], dir);
   git(['config', 'user.email', 'test@example.com'], dir);
   git(['config', 'user.name', 'test'], dir);
@@ -86,7 +86,9 @@ function makeRepo() {
     path.join(dir, 'docs', 'agents', 'code-management.md'),
     '# Code host\n\n- **Base branch:** `main`.\n',
   );
-  return dir;
+}, 'kb-repo-template-');
+function makeRepo() {
+  return copyFixture(repoTemplate(), 'kb-repo-');
 }
 
 // Every staged scope other than `_adhoc` gets a `feat/<scope>` branch at the current tip, so it
@@ -196,7 +198,61 @@ function failingVerbDoc(backendLine, failingVerb, verbs) {
   return hangingVerbDoc(backendLine, failingVerb, verbs).replace(HUNG_CMD, 'exit 1');
 }
 
+// --- The parent link under `- **Hierarchy:** links` (ADR 0168): fixtures the publish-kb-parent-link-* suites share.
+const PATCH_VERBS = ['find', 'read', 'create', 'update', 'delete'];
+const LINKS_LINE = '- **Backend:** Some Wiki.\n- **Hierarchy:** links';
+const linksDoc = (verbs = PATCH_VERBS) => commandsDoc(LINKS_LINE, verbs).replace(': "$SUPERDEV_KB_PARENT_ID"\n', '');
+const HOME = 'Intro.\n\n## How it works\n\n- [A](A)\n- [B](B)\n\n## Other\n\n- [Z](Z)\n';
+const HOME_ID = 'id-home';
+function stageLinked(repo, file, title, link = `- [${title}](${title}) — desc`, extra = '') {
+  stagePage(repo, 'demo', file, `title: ${title}\naction: upsert\nparent: Home\nparent-section: How it works\nparent-link: ${link}${extra}`);
+}
+const readState = (f) => JSON.parse(fs.readFileSync(f, 'utf8'));
+const isStaged = (repo, f) => fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', f));
+const putHome = (stateFile, body = HOME, more = {}) => fs.writeFileSync(stateFile, JSON.stringify({ Home: { id: HOME_ID, body }, ...more }));
+
+// a `{sub_url}` placeholder in the parent-link target is filled with the sub_url the child's own find returns
+const SUB_LINK = '- [Child](https://x/wiki/{sub_url}): d';
+function withNewSubUrl(value, fn) {
+  process.env.FAKE_KB_NEW_SUB_URL = value;
+  try {
+    fn();
+  } finally {
+    delete process.env.FAKE_KB_NEW_SUB_URL;
+  }
+}
+
+// the fresh find after a create: `then` answers every find for Child after the first, which routes the create
+function freshFindDoc(then) {
+  const seen = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'kb-find-')), 'seen');
+  const fake = `node ${JSON.stringify(FAKE_BACKEND)} find`;
+  return linksDoc().replace(fake, `if [ "$SUPERDEV_KB_TITLE" = Child ]; then [ -e ${JSON.stringify(seen)} ] && { ${then}; }; : > ${JSON.stringify(seen)}; fi\n${fake}`);
+}
+
+// an `action: patch` page that names the parent
+const stagePatchLinked = (repo, file, title, section, extra = '') =>
+  stagePage(repo, 'demo', file, `title: ${title}\naction: patch\nparent: Home\nparent-section: How it works\nparent-link: - [${title}](${title}) — desc${extra}`, `## ${section}\n\nnew ${section}.\n`);
+
+const stageDelete = (repo, title = 'Child') =>
+  stagePage(repo, 'demo', 'child.md', `title: ${title}\naction: delete\nparent: Home\nparent-section: How it works\nparent-link: - [${title}](${title}) — desc`);
+const HOME_WITH_CHILD = HOME.replace('- [B](B)\n', '- [B](B)\n- [Child](Child) — desc\n');
+
 module.exports = {
+  PATCH_VERBS,
+  LINKS_LINE,
+  linksDoc,
+  HOME,
+  HOME_ID,
+  stageLinked,
+  readState,
+  isStaged,
+  putHome,
+  SUB_LINK,
+  withNewSubUrl,
+  freshFindDoc,
+  stagePatchLinked,
+  stageDelete,
+  HOME_WITH_CHILD,
   publishKbPath,
   FAKE_BACKEND,
   HUNG_CEILING_MS,

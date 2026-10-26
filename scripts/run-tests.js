@@ -3,15 +3,17 @@
 
 // run-tests: the maintainer-only test runner; `package.json` carries no test script. It finds the suites under tests/ by
 // their `*.test.js` name, so a suite added to the tree runs with no roster edit, runs each
-// under `node` (the hooks' production runtime) in name order, and then the fixed tail: the invariant
-// register check, the drift selftest, drift-check, and plugin manifest validation. Every step prints
-// one `run-tests: <label>: <ms> ms` line, so a test audit ranks measured cost. The first failure stops
-// the run and exits nonzero, naming what failed. `--related <path>...` runs the tail plus only the
+// under `node` (the hooks' production runtime), and then the fixed tail: the invariant
+// register check, the drift selftest, drift-check, and plugin manifest validation. The steps run as many at once as
+// `os.availableParallelism()` reports, each in its own process group, and each prints its output whole with one
+// `run-tests: <label>: <ms> ms` line, so a test audit ranks measured cost. The first failure ends the steps still
+// running with their processes, starts no further step, and exits nonzero, naming what failed. `--related <path>...` runs the tail plus only the
 // suites the changed paths reach (`selectSuites`), and the mod suite when a path is under `MOD_DIR`. Pure Node, no shell.
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+const os = require('node:os');
+const { spawn } = require('node:child_process');
 
 const TAIL = [
   [process.execPath, ['scripts/invariant-check.js', '--root', '.']],
@@ -295,40 +297,132 @@ function parseArgs(argv) {
   return at < 0 ? undefined : argv.slice(at + 1);
 }
 
-// Returns the exit code. A child that was killed or never started carries no status, and that is a
-// failure, never a pass (INV-0009).
-function runStep(command, args, cwd, label, out) {
-  out(`run-tests: ${label}`);
-  const started = performance.now();
-  const r = spawnSync(command, args, { cwd, stdio: 'inherit' });
-  out(`run-tests: ${label}: ${Math.round(performance.now() - started)} ms`);
-  if (r.status === 0) return 0;
-  const why = r.signal ? `killed by ${r.signal}` : r.error ? `did not start: ${r.error.message}` : `exit ${r.status}`;
-  out(`run-tests: FAILED ${label} (${why})`);
-  return r.status || 1;
+// Ends a step's whole process group (each step is spawned as a group leader), so no process the step started outlives it.
+function killGroup(child) {
+  if (!child.pid) return;
+  try {
+    process.kill(-child.pid, 'SIGKILL');
+  } catch {
+    // the group is already gone
+  }
 }
 
-function runAll({ root, tail = TAIL, modSuite = MOD_SUITE, out = console.log, related }) {
+// Runs `steps` ([command, args, label]) at most `limit` at a time, in order, and resolves the exit code. A step's output is
+// collected and printed whole, between its label line and its timing line, when the step ends. The first failing step
+// ends every running step with its processes, starts no further step, and prints `FAILED`; a step this runner ended
+// prints one cancelled line and none of its output. A step whose process had already exited on its own when the run
+// stopped prints its output and result as usual. The runner learns of an exit from the child's `exit` event, so a step
+// whose process exited in the event-loop turn before the stop, with that event not yet delivered, is still signalled
+// and labelled cancelled. A child that was killed, never started, or reported an error carries no
+// status, and that is a failure, never a pass (INV-0009). A SIGINT, SIGTERM, or SIGHUP, and a write error on stdout (the
+// reader went away), end every running step the same way. The kill reaches each step's own process group: a descendant
+// that starts a group of its own escapes it, and one that holds the step's pipe open and never exits hangs the run.
+// SIGKILL of the runner cannot be handled, so it leaves the steps running.
+// Ceiling: on Windows a negative pid names no process group, so `process.kill(-pid)` throws, `killGroup` swallows the
+// throw, and neither a failure nor a signal ends a running step or its processes there; the run still exits nonzero
+// once every running step ends on its own (ADR 0150). The runner is maintainer-only, so no adopter meets this ceiling.
+function runSteps(steps, cwd, out, limit) {
+  return new Promise((resolve) => {
+    const running = new Set();
+    // The running children whose process has exited (their pipes may still be open), and those `stop` ended.
+    const exited = new Set();
+    const cancelled = new Set();
+    let next = 0;
+    let code = 0;
+    let stopping = false;
+    const handlers = ['SIGINT', 'SIGTERM', 'SIGHUP'].map((signal) => [signal, () => stop(128 + os.constants.signals[signal])]);
+    const onStdoutError = () => stop(1);
+    const settle = () => {
+      if (running.size || (!stopping && next < steps.length)) return;
+      for (const [signal, handler] of handlers) process.removeListener(signal, handler);
+      process.stdout.removeListener('error', onStdoutError);
+      resolve(code);
+    };
+    function stop(status) {
+      if (!stopping) code = status;
+      stopping = true;
+      for (const child of running) {
+        if (!exited.has(child)) cancelled.add(child);
+        killGroup(child);
+      }
+      settle();
+    }
+    for (const [signal, handler] of handlers) process.on(signal, handler);
+    process.stdout.on('error', onStdoutError);
+
+    function start() {
+      while (!stopping && running.size < limit && next < steps.length) {
+        const [command, args, label] = steps[next++];
+        const started = performance.now();
+        const chunks = [];
+        let failure;
+        let done = false;
+        let child;
+        try {
+          child = spawn(command, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
+        } catch (err) {
+          // spawn throws synchronously for an argument Node refuses and for a libuv error such as E2BIG
+          out(`run-tests: FAILED ${label} (did not start: ${err.message})`);
+          stop(1);
+          return;
+        }
+        running.add(child);
+        const finish = (status, signal) => {
+          if (done) return;
+          done = true;
+          running.delete(child);
+          exited.delete(child);
+          if (cancelled.delete(child)) out(`run-tests: ${label}: cancelled`);
+          else {
+            const text = Buffer.concat(chunks).toString().replace(/\n$/, '');
+            out([`run-tests: ${label}`, ...(text ? [text] : []), `run-tests: ${label}: ${Math.round(performance.now() - started)} ms`].join('\n'));
+            if (status !== 0) {
+              const why = signal ? `killed by ${signal}` : failure ? `did not start: ${failure.message}` : `exit ${status}`;
+              out(`run-tests: FAILED ${label} (${why})`);
+              stop(status || 1);
+              return;
+            }
+          }
+          start();
+          settle();
+        };
+        for (const stream of [child.stdout, child.stderr]) stream.on('data', (chunk) => chunks.push(chunk));
+        child.on('error', (err) => {
+          failure = err;
+          if (!child.pid) finish(1, null);
+        });
+        child.on('exit', () => {
+          exited.add(child);
+          killGroup(child);
+        });
+        child.on('close', (status, signal) => finish(status, signal));
+      }
+    }
+    start();
+    settle();
+  });
+}
+
+// `parallelism` is how many steps run at once; it defaults to the logical CPUs available to the process.
+function runAll({ root, tail = TAIL, modSuite = MOD_SUITE, out = console.log, related, parallelism = os.availableParallelism() }) {
   const found = discoverSuites(path.join(root, 'tests'));
   if (found.length === 0) {
     out(`run-tests: no suite found under ${path.join(root, 'tests')}`);
-    return 1;
+    return Promise.resolve(1);
   }
   const suites = related ? selectSuites(root, found, related) : found;
-  for (const file of suites) {
-    const code = runStep(process.execPath, [file], root, path.relative(root, file), out);
-    if (code !== 0) return code;
-  }
   const mod = related && related.some((p) => path.posix.normalize(p.split(path.sep).join('/')).startsWith(MOD_DIR));
-  for (const [command, args] of mod ? [modSuite, ...tail] : tail) {
-    const code = runStep(command, args, root, [path.basename(command), ...args].join(' '), out);
-    if (code !== 0) return code;
-  }
-  return 0;
+  const steps = [
+    ...suites.map((file) => [process.execPath, [file], path.relative(root, file)]),
+    ...(mod ? [modSuite, ...tail] : tail).map(([command, args]) => [command, args, [path.basename(command), ...args].join(' ')]),
+  ];
+  return runSteps(steps, root, out, Math.max(1, parallelism));
 }
 
 module.exports = { discoverSuites, selectSuites, parseArgs, runAll, TAIL };
 
 if (require.main === module) {
-  process.exitCode = runAll({ root: path.join(__dirname, '..'), related: parseArgs(process.argv.slice(2)) });
+  runAll({ root: path.join(__dirname, '..'), related: parseArgs(process.argv.slice(2)) }).then((code) => {
+    process.exitCode = code;
+  });
 }
