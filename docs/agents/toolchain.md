@@ -10,5 +10,6 @@
   - `package.json` carries no test script (ADR 0166). Bun runs installs and releases only.
   - Release: `bun run release` runs semantic-release from clean `main`. It needs `GITEA_TOKEN`, or `FORGEJO_TOKEN` when `GITEA_TOKEN` is unset (see RELEASING.md).
 - Runtime: **Node** runs the hooks in production (`hooks.json` invokes `node`, guaranteed in every Claude Code environment). Bun is maintainer-only.
+- Maintainer Node version: `.node-version` pins the major, `26`, for a version manager such as fnm (`fnm install` in the repository root).
 - No linter or formatter configs. There is no `.editorconfig`, `.prettierrc`, or `.eslintrc`. The plugin ships as prose plus CommonJS hooks, with no build step.
 - Style prose: `AGENTS.md` "Working rules". Hooks are CommonJS, every shipped executable has a suite in `tests/` named for it, the version lives only in `plugin.json`, and backends stay pluggable.

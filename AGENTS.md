@@ -118,6 +118,7 @@ scripts/               — the maintainer-only CLIs `node scripts/run-tests.js` 
 release.config.cjs     — semantic-release config (semantic-release-replace-plugin bumps plugin.json and
                          the marketplace source's `ref`)
 package.json           — dev-only tooling (Bun); NOT published to npm
+.node-version          — the maintainer Node major (`26`) a version manager such as fnm installs; not shipped
 CHANGELOG.md           — release-managed by semantic-release; do not hand-edit
 CONTEXT.md             — the domain-language glossary (ubiquitous terms); maintained by /plan
 README.md · RELEASING.md · NOTICE · LICENSE
