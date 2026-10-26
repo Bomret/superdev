@@ -1,3 +1,16 @@
+# [0.88.0](https://codeberg.org/bomret/superdev/compare/v0.87.1...v0.88.0) (2026-10-26)
+
+
+### Bug Fixes
+
+* **plan:** stage no knowledge-base page at plan time ([#1406](https://codeberg.org/bomret/superdev/issues/1406)) ([6efa372](https://codeberg.org/bomret/superdev/commit/6efa372e011954197523d9b4c6b5314ce7ae94e5))
+* **review:** land the suite-after-review commits [#1407](https://codeberg.org/bomret/superdev/issues/1407) merged without ([#1408](https://codeberg.org/bomret/superdev/issues/1408)) ([e7e9951](https://codeberg.org/bomret/superdev/commit/e7e9951588fe7f4d1b6c048816fc2db434c4cbc0))
+
+
+### Features
+
+* **review:** run the full suite once per scope, after review comes back clean ([#1407](https://codeberg.org/bomret/superdev/issues/1407)) ([347d246](https://codeberg.org/bomret/superdev/commit/347d246e2b7e441071747e10d346751bfa0426f9)), closes [#1401](https://codeberg.org/bomret/superdev/issues/1401) [#1404](https://codeberg.org/bomret/superdev/issues/1404) [#1402](https://codeberg.org/bomret/superdev/issues/1402) [#1403](https://codeberg.org/bomret/superdev/issues/1403) [#1404](https://codeberg.org/bomret/superdev/issues/1404) [#1404](https://codeberg.org/bomret/superdev/issues/1404) [#1404](https://codeberg.org/bomret/superdev/issues/1404) [#1404](https://codeberg.org/bomret/superdev/issues/1404) [#1404](https://codeberg.org/bomret/superdev/issues/1404) [#1402](https://codeberg.org/bomret/superdev/issues/1402) [#1402](https://codeberg.org/bomret/superdev/issues/1402) [#1402](https://codeberg.org/bomret/superdev/issues/1402) [#1402](https://codeberg.org/bomret/superdev/issues/1402) [#1402](https://codeberg.org/bomret/superdev/issues/1402) [#1402](https://codeberg.org/bomret/superdev/issues/1402) [#1402](https://codeberg.org/bomret/superdev/issues/1402) [#1403](https://codeberg.org/bomret/superdev/issues/1403) [#1404](https://codeberg.org/bomret/superdev/issues/1404) [#1402](https://codeberg.org/bomret/superdev/issues/1402)
+
 ## [0.87.1](https://codeberg.org/bomret/superdev/compare/v0.87.0...v0.87.1) (2026-10-25)
 
 
