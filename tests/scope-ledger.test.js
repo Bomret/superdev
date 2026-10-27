@@ -11,19 +11,8 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const { assertSpawnDecided } = require('./spawn-verdict');
 const { tmp, call, sliceJson, scopePath, run, cleanup } = require('./scope-setup');
 const { publishText, SLUG_RE, readLedgerHeader } = require(scopePath);
-
-// INV-0068, INV-0159: each module `scope.js` takes its leaf sections from prints nothing and exits 0 when required, and requires no
-// entry point of the hooks or scripts directories.
-for (const name of ['ledger', 'refusal', 'verification', 'git-spawn', 'containment', 'main-work-tree', 'trace-log', 'collisions']) {
-  const file = path.join(__dirname, '..', 'plugin', 'lib', `${name}.js`);
-  const r = require('node:child_process').spawnSync(process.execPath, ['-e', `require(${JSON.stringify(file)})`], { encoding: 'utf8', timeout: 10000 });
-  assertSpawnDecided(r, `requiring ${name}.js`);
-  assert.deepStrictEqual([r.status, r.stdout, r.stderr], [0, '', ''], `requiring ${name}.js prints nothing`);
-  assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /require\(['"]\.\.\/(?:scripts|hooks)\//, `${name}.js requires no entry point`);
-}
 
 try {
   // init: valid label creates root + schema-shaped ledger.

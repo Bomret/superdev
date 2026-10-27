@@ -7,7 +7,7 @@
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
-const { publishKbPath, FAKE_BACKEND, makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState, captures, withCapture } = require('./publish-kb-setup');
+const { publishKbPath, shq, FAKE_BACKEND, makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState, captures, withCapture } = require('./publish-kb-setup');
 const { hashBody } = require(publishKbPath);
 
 const PATCH_VERBS = ['find', 'read', 'create', 'update', 'delete'];
@@ -124,8 +124,8 @@ withCapture((stateFile, dir) => {
 withCapture((stateFile, dir) => {
   const repo = makeRepo();
   const doc = commandsDoc('- **Backend:** Some Wiki.').replace(
-    `node ${JSON.stringify(FAKE_BACKEND)} find`,
-    `[ "$SUPERDEV_KB_TITLE" = "Broken" ] && exit 2; node ${JSON.stringify(FAKE_BACKEND)} find`,
+    `node ${shq(FAKE_BACKEND)} find`,
+    `[ "$SUPERDEV_KB_TITLE" = "Broken" ] && exit 2; node ${shq(FAKE_BACKEND)} find`,
   );
   writeKbDoc(repo, doc);
   stagePage(repo, 'demo', 'kid.md', 'title: Kid\naction: upsert\nparent: Broken');

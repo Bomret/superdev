@@ -562,7 +562,7 @@ Class: architecture
 Concepts: Guardrail
 Statement: Each shipped hook runs its dispatch when spawned and does nothing when `require`d. Each module in `plugin/lib/` prints nothing, spawns nothing, and runs nothing when `require`d.
 Breaks: silently
-Check: `tests/ledger-guard.test.js`, `tests/merge-guard.test.js`, `tests/model-explicit.test.js`, `tests/run-lock.test.js`, `tests/update-check.test.js`, `tests/slicetree-sweep.test.js`, `tests/run-trace.test.js` (each asserts that requiring the hook prints nothing); `tests/shell-words.test.js`, `tests/md-to-storage.test.js`, and `tests/ledger-guard.test.js` (for `ledger-writes.js`; each asserts that requiring the module prints nothing); `tests/scope-ledger.test.js` (asserts that requiring each of the ledger, refusal, verification, git-spawn, containment, main-work-tree, trace-log, and collisions modules prints nothing and that none requires an entry point)
+Check: `tests/plugin-layout.test.js` — one child process requires every file of `plugin/lib/` and `plugin/hooks/` and asserts that none prints, spawns, or exits, and that no lib module requires an entry point; its DIRECT table runs each hook as a process and asserts it decides on its payload
 Paths: plugin/hooks/*.js, plugin/lib/*.js
 
 ### INV-0069

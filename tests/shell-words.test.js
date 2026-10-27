@@ -9,13 +9,6 @@ const { assertSpawnDecided } = require('./spawn-verdict.js');
 const { timePair } = require('./linear-time.js');
 const { scan, gitSubcommand, rawNamesVerb, WRAPPER, optionWords, MAX_QUOTED_DEPTH, dashReading, drivePath } = require(path.join(__dirname, '..', 'plugin', 'lib', 'shell-words.js'));
 
-// INV-0068: requiring the scanner (and the reader module it requires) prints nothing and exits 0.
-for (const name of ['shell-words.js', 'shell-word-readers.js']) {
-  const r = cp.spawnSync(process.execPath, ['-e', `require(${JSON.stringify(path.join(__dirname, '..', 'plugin', 'lib', name))})`], { encoding: 'utf8', timeout: 10000 });
-  assertSpawnDecided(r, 'requiring ' + name);
-  assert.deepStrictEqual([r.status, r.stdout, r.stderr], [0, '', ''], 'requiring ' + name + ' prints nothing');
-}
-
 const cmds = (s, opts) => {
   const r = scan(s, opts);
   assert.equal(r.readable, true, `readable: ${s} (${r.reason})`);
@@ -507,13 +500,21 @@ assert.equal(scan(null).readable, false, 'a non-string never throws');
   quadruples('ANSI-C escapes', (d) => "bash -c $'" + 'g\\x20\\101\\n\\u00e9\\cA'.repeat(d / 4) + "'", { quoted: true }, true);
   // `$((` and `((` that do not close as arithmetic read again as subshells; every rewind spends from a
   // budget in proportion to the input, so a nest of them stays linear (unreadable once the budget is gone).
-  const rewinds = (label, make) => {
-    const [base, big] = timePair(scan, make(500), make(2000));
+  const rewinds = (label, make, opts) => {
+    const [base, big] = timePair((s) => scan(s, opts), make(500), make(2000));
     assert.ok(big < base * 9, `${label}: time grows linearly: ${base} ns, four times the input ${big} ns`);
   };
   rewinds('nested $(( that fall back', (d) => '$(('.repeat(d) + 'a' + ') )'.repeat(d));
   rewinds('nested $(( that fall back, after a command', (d) => 'git merge x; ' + '$(('.repeat(d) + 'a' + ') )'.repeat(d));
   rewinds('nested (( that fall back', (d) => '(('.repeat(d) + 'a' + ') )'.repeat(d));
+  // Scanner shapes the guard suites leave to this suite; the scanner is where they cost time.
+  const Q = { quoted: true };
+  rewinds('an unclosed (( run', (d) => 'cat x ' + '(('.repeat(d), Q);
+  rewinds('repeated (( between statements', (d) => 'cat x ; ' + 'echo ((;'.repeat(d), Q);
+  rewinds('many (( runs, quoted and not', (d) => 'echo "((x))" ((y)) \\(\\(z\\)\\);'.repeat(d), Q);
+  rewinds('many (( runs escaped for a second level', (d) => 'dash -c dash\\ -c\\ \\\\\\(\\\\\\(x\\\\\\ y\\\\\\)\\\\\\); eval "eval \\\\(\\\\(z\\\\)\\\\)";'.repeat(d), Q);
+  rewinds('many backslash-escaped words', (d) => 'echo ' + 'a\\ git\\ push\\ b '.repeat(d), Q);
+  rewinds('many backslash-escaped words in a command list', (d) => 'cat x ; ' + 'echo a\\ cp\\ b ; '.repeat(d), Q);
   assert.equal(scan('$(('.repeat(3) + 'a' + ') )'.repeat(3)).readable, true, 'a shallow nest of fallbacks still reads');
   // Quoted-text reading requeues every quoted word; nested double-quoted substitutions made that explode.
   for (const d of [100, 400]) {

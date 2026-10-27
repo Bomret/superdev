@@ -21,10 +21,11 @@ export const ledger = (stage: string, rows: ([string, string] | [string, string,
 // `files` and `lists` stay live: a test that edits them sees the next scan read the change.
 // `cwd` is the session's: git answers the main working tree's `.git` only when asked from there.
 // HOME is `/r`, so the pane shows the root as `~/.superdev`.
+// `mtimes` answers `fs.stat` for the paths it names (a held `run.lock`); `hasRoot` false is a repository with no `.superdev`.
 // `hold` runs before an existence check answers, so a test can keep one waiting.
 // Hands back a held clock: the pane's hooks leave their bookkeeping running, and `settle()` lets it finish
 // before a test looks.
-export const fakeRepo = (on: On, files: Record<string, string>, lists: Record<string, Entry[]>, cwd = '/r', hold?: (path: string) => Promise<void>) => {
+export const fakeRepo = (on: On, files: Record<string, string>, lists: Record<string, Entry[]>, cwd = '/r', hold?: (path: string) => Promise<void>, mtimes: Record<string, number> = {}, hasRoot = true) => {
   on('session.cwd', async () => ({ value: cwd }))
   on('env.get', async () => ({ value: '/r' }))
   on('process.run', async (_$, e) => ({
@@ -32,7 +33,7 @@ export const fakeRepo = (on: On, files: Record<string, string>, lists: Record<st
   }))
   on('fs.exists', async (_$, e) => {
     await hold?.(e.path)
-    return { value: e.path === R || e.path in files }
+    return { value: (hasRoot && e.path === R) || e.path in files }
   })
   on('fs.list', async (_$, e) => {
     const l = lists[e.path]
@@ -42,7 +43,7 @@ export const fakeRepo = (on: On, files: Record<string, string>, lists: Record<st
     const f = files[e.path]
     return f === undefined ? { deny: 'ENOENT' } : { value: f }
   })
-  on('fs.stat', async () => ({ deny: 'ENOENT' }))
+  on('fs.stat', async (_$, e) => (e.path in mtimes ? { value: { mtimeMs: mtimes[e.path] } as never } : { deny: 'ENOENT' }))
   on('ui.open', async () => ({ value: { isPlaced: true as const } }))
   return mock.clock(on)
 }

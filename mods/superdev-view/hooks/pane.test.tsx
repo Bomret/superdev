@@ -115,3 +115,54 @@ test('a scan whose scopes read fails keeps the scopes the last scan stored', asy
   await clock.settle()
   expect(stored!.scopes?.map(s => s.name)).toEqual(['a', 'b'])
 })
+
+test('a held run lock draws its age on the overview row and on the scope page', async ($, on) => {
+  const { files, lists } = repo()
+  fakeRepo(on, files, lists, '/r', undefined, { [`${A}/run.lock`]: Date.now() - 5 * 60e3 })
+  await $.command.run(runCommand)
+  const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'terminal', ...P })
+  expect(await ui.find({ type: 'Text', text: /1 slices · DoD 0\/0 · 0 running · lock 5m/ })).toBeDefined()
+  await ui.press(scopeLink('b'))
+  expect(await ui.find({ type: 'Text', text: /· lock / })).toBeUndefined()
+  await ui.press({ key: 'back' })
+  await ui.press(scopeLink('a'))
+  expect(await ui.find({ type: 'Text', text: /^DoD 0\/0 · lock 5m$/ })).toBeDefined()
+})
+
+for (const [what, ms, drawn] of [['under a minute draws in seconds', 30e3, '(30|31)s'], ['over an hour draws in hours', 2 * 3600e3, '2h']] as const) {
+  test(`a lock age ${what}`, async ($, on) => {
+    const { files, lists } = repo()
+    fakeRepo(on, files, lists, '/r', undefined, { [`${A}/run.lock`]: Date.now() - ms })
+    await $.command.run(runCommand)
+    const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'terminal', ...P })
+    await ui.press(scopeLink('a'))
+    expect(await ui.find({ type: 'Text', text: new RegExp(`^DoD 0/0 · lock ${drawn}$`) })).toBeDefined()
+  })
+}
+
+test('no .superdev folder draws the error with the root', async ($, on) => {
+  fakeRepo(on, {}, {}, '/r', undefined, {}, false)
+  await $.command.run(runCommand)
+  const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'terminal', ...P })
+  expect(await ui.find({ type: 'Text', text: /^no \.superdev folder \(~\/\.superdev\)$/ })).toBeDefined()
+})
+
+test('a session start scans, so the pane then draws the scopes', async ($, on) => {
+  const { files, lists } = repo()
+  const clock = fakeRepo(on, files, lists)
+  const registered: string[] = []
+  on('command.register', async (_$, e) => { registered.push(e.name); return { value: undefined as never } })
+  on('session.start', async () => ({ cwd: '/r' }) as never)
+  await $.session.start({ cwd: '/r' } as never)
+  await clock.settle()
+  expect(registered).toEqual(['superdev-view'])
+  const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'terminal', ...P })
+  expect(await ui.find({ key: 'scope-a' })).toBeDefined()
+})
+
+test('a render before the first scan draws the scanning note', async ($, on) => {
+  const { files, lists } = repo()
+  fakeRepo(on, files, lists)
+  const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'terminal', ...P })
+  expect(await ui.find({ type: 'Text', text: /^Scanning \.superdev…$/ })).toBeDefined()
+})

@@ -134,24 +134,9 @@ try {
   // Claude Code; this suite covers the decide() logic. The main() function properly translates
   // decide() results to the hook protocol (stderr + exit code), validated below.
 
-  // require.main guard: requiring this hook must never run main()'s stdin/decide dispatch, and
-  // spawning it directly (as Claude Code's hook invocation does) must still decide exactly as before
-  // the guard was added.
+  // The hook run directly blocks on a fresh lock (tests/plugin-layout.test.js); an absolute path is the case this suite adds.
   {
     fs.writeFileSync(lockPath, 'locked', 'utf8');
-    const payload = JSON.stringify({ tool_input: { command: add }, cwd: testRunDir });
-    const required = cp.spawnSync(process.execPath, ['-e', `require(${JSON.stringify(hookPath)})`], {
-      input: payload, encoding: 'utf8', timeout: 5000,
-    });
-    assertSpawnDecided(required, 'requiring run-lock.js');
-    assert.equal(required.status, 0, 'requiring run-lock.js never blocks');
-    assert.equal(required.stdout, '', 'requiring run-lock.js prints nothing');
-    assert.equal(required.stderr, '', 'requiring run-lock.js runs no decision');
-
-    const spawned = cp.spawnSync(process.execPath, [hookPath], { input: payload, encoding: 'utf8', timeout: 5000 });
-    assertSpawnDecided(spawned, 'spawning run-lock.js directly');
-    assert.equal(spawned.status, 2, 'spawning run-lock.js directly still blocks on a fresh lock');
-    assert.match(spawned.stderr, /another session is running this scope/, 'and still reports the run-lock reason');
 
     // An absolute path over stdin from a cwd that is no run root: the spawned hook names the run root.
     const away = fs.mkdtempSync(path.join(tmpDir, 'run-lock-away-'));

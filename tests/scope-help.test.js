@@ -31,6 +31,10 @@ try {
         assertSpawnDecided(res, argv.join(' '));
         assert.strictEqual(res.status, 0, argv.join(' ') + ' exits 0: ' + res.stderr);
         assert.ok(res.stdout.includes('usage: node scope.js'), argv.join(' ') + ' prints the usage');
+        if (argv.join(' ') === '--help') {
+          assert.match(res.stdout, /push --root <run-root> --remote <remote> --base <base-ref>/, 'the usage lists push');
+          assert.match(res.stdout, /^ {2}citations /m, 'the usage lists citations');
+        }
       }
     } finally {
       fs.closeSync(endless);

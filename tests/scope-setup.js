@@ -18,7 +18,9 @@ const tmpDir = () => (dir = dir || fs.mkdtempSync(path.join(os.tmpdir(), 'scope-
 
 // Capture console.log output per call, plus a direct process.stdout.write (dod-line's body mode
 // writes its exact bytes that way, rather than through console.log's own added trailing newline).
-const call = (argv, stdinJson) => {
+// A refusal comes back as `{ ok: false, err, exitCode, out }`: the message, the exit status (undefined means 1), and what printed.
+// `cwd` defaults to the suite's temporary directory.
+const call = (argv, stdinJson, cwd) => {
   const logged = [];
   const orig = console.log;
   const origWrite = process.stdout.write;
@@ -28,10 +30,10 @@ const call = (argv, stdinJson) => {
     return true;
   };
   try {
-    run(argv, tmpDir(), stdinJson || '');
+    run(argv, cwd || tmpDir(), stdinJson || '');
     return { ok: true, out: logged.join('\n') };
   } catch (e) {
-    if (e.isRefusal) return { ok: false, err: e.message, out: logged.join('\n') };
+    if (e.isRefusal) return { ok: false, err: e.message, exitCode: e.exitCode, out: logged.join('\n') };
     throw e;
   } finally {
     console.log = orig;
@@ -306,21 +308,61 @@ const firstMoment = (sig) => {
     reset();
     const k = path.join(D, 'q' + sig);
     fs.mkdirSync(k);
-    verif(`echo $$ > ${k}/pid.$$.tmp; mv ${k}/pid.$$.tmp ${k}/pid; sleep 30 & echo $! > ${k}/spid; wait`, 'true');
-    for (let n = 1; n <= 25; n++) {
-      const out = bash(`alive() { kill -0 $(cat ${k}/pid) 2>/dev/null || { [ -s ${k}/spid ] && kill -0 $(cat ${k}/spid) 2>/dev/null; }; };` +
-        ` rm -f ${k}/pid ${k}/spid; node ${scopePath} test full & V=$!;` +
-        ` while [ ! -s ${k}/pid ]; do sleep 0.01; done; kill -${sig} $V; wait $V;` +
-        ` for i in $(seq 100); do alive || break; sleep 0.1; done; sleep 0.3; alive && { echo alive; exit 0; }; echo gone`);
+    // The whole command's output goes to /dev/null, so neither the leader nor a leaked child holds the driver open: a round ends
+    // on its `alive` verdict. On the group's SIGTERM the leader forks a late child (`late`) and exits, so the child appears
+    // after the group's signal and outlives the leader, and only the watcher's repeated signal on the group ends it.
+    verif(`exec >/dev/null 2>&1; trap "sleep 30 & echo \\$! > ${k}/late; exit 0" TERM; echo $$ > ${k}/pid.$$.tmp; mv ${k}/pid.$$.tmp ${k}/pid; sleep 30 & echo $! > ${k}/spid; wait`, 'true');
+    // The last round waits for the child before it signals, so at least one round has the child running whatever the race does.
+    let withChild = 0;
+    for (let n = 1; n <= 26; n++) {
+      const waitFor = n === 26 ? 'spid' : 'pid';
+      const out = bash(`alive() { for f in pid spid late; do [ -s ${k}/$f ] && kill -0 $(<${k}/$f) 2>/dev/null && return 0; done; return 1; };` +
+        ` rm -f ${k}/pid ${k}/spid ${k}/late; node ${scopePath} test full & V=$!;` +
+        ` while [ ! -s ${k}/${waitFor} ]; do sleep 0.01; done; [ -s ${k}/spid ] && echo running; kill -${sig} $V; wait $V;` +
+        ` for i in $(seq 500); do alive || break; sleep 0.02; done; sleep 0.1; alive && { echo alive; exit 0; }; echo gone`);
       assert.equal(out.stdout.trim().split('\n').pop(), 'gone', 'SIG' + sig + ' right after the start, round ' + n + ': no child is left running: ' + out.stdout + out.stderr);
+      assert.deepEqual(lines(), [], 'SIG' + sig + ' right after the start, round ' + n + ': no line is written');
+      if (out.stdout.includes('running')) withChild++;
     }
-    assert.deepEqual(lines(), [], 'SIG' + sig + ' right after the start: no line is written');
+    assert.ok(withChild >= 1, 'SIG' + sig + ': at least one round had the command\'s child running when the signal arrived');
   } finally {
     end();
   }
 };
 
+// The bound a network-bound case runs a git call under, taken from this run rather than fixed (AGENTS.md, ADR 0086,
+// INV-0009), the way tests/publish-kb-setup.js's `hangBound()` does. A healthy git call under the same bound must
+// clear it however busy the machine is, so this samples a healthy local fetch through tests/spawn-verdict.js's
+// `boundFromSamples`. Measured once per process.
+let fetchBoundMs;
+const fetchBound = () => {
+  if (fetchBoundMs) return fetchBoundMs;
+  const { spawnSync } = require('node:child_process');
+  const { assertSpawnDecided, boundFromSamples } = require('./spawn-verdict');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-fetch-bound-'));
+  try {
+    const git = (args, cwd) => {
+      const r = spawnSync('git', args, { cwd, encoding: 'utf8', timeout: 60000, killSignal: 'SIGKILL' });
+      assertSpawnDecided(r, `git ${args[0]}`);
+      if (r.status !== 0) throw new Error(`git ${args.join(' ')} exited ${r.status}: ${r.stderr}`);
+    };
+    const origin = path.join(root, 'origin');
+    const repo = path.join(root, 'repo');
+    fs.mkdirSync(origin);
+    fs.mkdirSync(repo);
+    git(['init', '-q', '--bare', '-b', 'main'], origin);
+    git(['init', '-q', '-b', 'main'], repo);
+    git(['-c', 'user.email=t@example.com', '-c', 'user.name=t', 'commit', '-q', '--allow-empty', '-m', 'x'], repo);
+    git(['remote', 'add', 'origin', origin], repo);
+    git(['push', '-q', 'origin', 'main'], repo);
+    return (fetchBoundMs = boundFromSamples(() => git(['fetch', '--no-tags', 'origin', 'main'], repo)));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+};
+
 module.exports = {
+  fetchBound,
   testVerbFixture,
   firstMoment,
   get tmp() {

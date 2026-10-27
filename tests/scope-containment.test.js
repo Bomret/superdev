@@ -10,8 +10,11 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const { scopePath } = require('./scope-setup');
+const { scopePath, fetchBound } = require('./scope-setup');
 const { testContainment, baseHistoryHasPatch } = require(scopePath);
+const { judgeContainment } = require('../plugin/lib/containment.js');
+// A `$`, a backtick, a quote, or a space in TMPDIR reaches every shell script this suite writes as written (triage #1380).
+const { shq } = require('./spawn-verdict');
 
 // --- testContainment: the exported containment test (ADR 0053, ADR 0065) ---------------------
 //
@@ -120,7 +123,7 @@ const { testContainment, baseHistoryHasPatch } = require(scopePath);
     path.join(fakeGitDir, 'git'),
     '#!/bin/sh\n' +
       'if [ "$1" = "merge-tree" ] && [ "$2" = "--write-tree" ]; then exit 129; fi\n' +
-      `exec "${realGit}" "$@"\n`,
+      `exec ${shq(realGit)} "$@"\n`,
     { mode: 0o755 }
   );
   const oldGitRepo = makeRepo();
@@ -182,45 +185,64 @@ const { testContainment, baseHistoryHasPatch } = require(scopePath);
   );
   fs.rmSync(noRemoteRepo, { recursive: true, force: true });
 
-  // #unreachable-host: a dropped VPN or a firewalled host is ordinary, not exotic, and the refetch
-  // must still degrade to the local verdict rather than leaving `git fetch` blocked on a connect that
-  // never resolves. 192.0.2.1 is TEST-NET-1 (RFC 5737): reserved and never routed anywhere, so the
-  // connect attempt stalls the way a genuinely black-holed remote would, unlike `#no-remote` above,
-  // which fails fast because there is no remote to dial at all.
+  // #hung-remote: a dropped VPN or a firewalled host is ordinary, not exotic, and the refetch must still
+  // degrade to the local verdict rather than leaving `git fetch` blocked on a remote that never answers. The
+  // remote is local and its upload-pack never answers, so the case reaches no network. The upload-pack
+  // records its pid and waits while its parent, the fetch, lives, so it ends with the killed fetch; the case
+  // asserts that it is gone.
   //
-  // The assertion is on the seam ADR 0086 names, not a clock: a duration only ever reports the
-  // scheduler, which is what flaked this same case at 118965ms under load with the bound intact
-  // (ADR 0086). `spawnSync`'s `signal` is the discriminator — set exactly when the refetch's own
-  // `timeout`/`killSignal` ended it, absent when `git` exited on its own — so the refetch's outcome is
-  // read off stderr, the only surface `testContainment` exposes it on, instead of off elapsed time. A
-  // recurrence of #591 would show up here as no diagnostic line at all — the write only fires when
-  // `fetched.signal` is set, so a bound that silently stopped catching the kill leaves this assertion
-  // failing on a missing line, which is what makes it self-diagnosing rather than a duration to eyeball.
-  const unreachableRepo = makeRepo();
-  makeWorkBranch(unreachableRepo, 'fix/unreachable', 'app.txt', 'v2\n');
-  gitTest(['remote', 'add', 'origin', 'http://192.0.2.1/nowhere.git'], unreachableRepo);
+  // The assertion is on the seam ADR 0086 names, not a clock: `spawnSync`'s `signal` is set exactly when the
+  // refetch's own `timeout`/`killSignal` ended it, so the refetch's outcome is read off stderr, the only
+  // surface the exported test exposes it on. The bound is the same run's `fetchBound()`, which a healthy
+  // fetch clears; a bound that silently stopped catching the kill leaves the diagnostic line missing.
+  const hungRepo = makeRepo();
+  makeWorkBranch(hungRepo, 'fix/hung', 'app.txt', 'v2\n');
+  const hungOrigin = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-origin-'));
+  gitTest(['init', '-q', '--bare', '-b', 'main'], hungOrigin);
+  gitTest(['remote', 'add', 'origin', hungOrigin], hungRepo);
+  const hungPidFile = path.join(hungOrigin, 'uploadpack.pid');
+  const hungScript = path.join(hungOrigin, 'hang.sh');
+  // git runs the upload-pack setting through the shell, so the setting is one `shq` word too.
+  fs.writeFileSync(
+    hungScript,
+    `#!/bin/sh\necho $$ > ${shq(hungPidFile)}\nP=$PPID; i=0; while [ "$(ps -o ppid= -p $$ | tr -d ' ')" = "$P" ] && [ $i -lt ${Math.ceil(fetchBound() / 100) * 4 + 100} ]; do sleep 0.1; i=$((i+1)); done\n`,
+    { mode: 0o755 }
+  );
+  gitTest(['config', 'remote.origin.uploadpack', shq(hungScript)], hungRepo);
+  const hungBound = fetchBound();
   const origStderrWrite = process.stderr.write;
   const capturedStderr = [];
   process.stderr.write = (chunk) => {
     capturedStderr.push(String(chunk));
     return true;
   };
-  let unreachableVerdict;
+  let hungVerdict;
   try {
-    unreachableVerdict = testContainment(unreachableRepo, 'main', 'fix/unreachable');
+    hungVerdict = judgeContainment(hungRepo, 'main', 'fix/hung', 'origin', { fetchTimeoutMs: hungBound });
   } finally {
     process.stderr.write = origStderrWrite;
   }
-  assert.strictEqual(
-    unreachableVerdict,
-    'not-contained',
-    'an unreachable host still degrades to the local verdict'
-  );
+  assert.strictEqual(hungVerdict.verdict, 'not-contained', 'a remote that never answers still degrades to the local verdict');
+  assert.ok(hungVerdict.refetch && hungVerdict.refetch.signal != null, 'the refetch was ended by its own bound');
   assert.ok(
     capturedStderr.some((line) => line.includes('ended by its own bound')),
     `expected the refetch outcome on stderr, got: ${capturedStderr.join('')}`
   );
-  fs.rmSync(unreachableRepo, { recursive: true, force: true });
+  const hungPid = Number(fs.readFileSync(hungPidFile, 'utf8'));
+  const alive = () => {
+    try {
+      process.kill(hungPid, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  for (let i = 0; i < 50 && alive(); i++) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+  const hungLeft = alive();
+  if (hungLeft) process.kill(hungPid, 'SIGKILL');
+  assert.strictEqual(hungLeft, false, 'no hung upload-pack outlives the case');
+  fs.rmSync(hungRepo, { recursive: true, force: true });
+  fs.rmSync(hungOrigin, { recursive: true, force: true });
 
   // #argument-injection-base: `base` shaped like a git option must never reach `spawnSync` as one —
   // `git fetch <remote> <base>` carries no separator, so `base = '--upload-pack=<script>'` runs that
@@ -235,7 +257,7 @@ const { testContainment, baseHistoryHasPatch } = require(scopePath);
   const payloadDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-payload-'));
   const markerFile = path.join(payloadDir, 'marker');
   const payloadScript = path.join(payloadDir, 'evil.sh');
-  fs.writeFileSync(payloadScript, `#!/bin/sh\ntouch "${markerFile}"\n`, { mode: 0o755 });
+  fs.writeFileSync(payloadScript, `#!/bin/sh\ntouch ${shq(markerFile)}\n`, { mode: 0o755 });
   const injectionVerdict = testContainment(
     injectionRepo,
     `--upload-pack=${payloadScript}`,
@@ -279,6 +301,31 @@ const { testContainment, baseHistoryHasPatch } = require(scopePath);
   );
   fs.rmSync(conflictRepo, { recursive: true, force: true });
 
+  // #merge-commit, #fast-forward, #contained-after-base-moves-on: the other verdicts of the tree comparison.
+  // A merge commit and a fast-forward both read contained; the tree comparison is against base's *current*
+  // tree, so an unrelated commit landing on base after the merge must not flip a contained branch.
+  const verdictRows = [
+    ['merge-commit', (r) => gitTest(['merge', '-q', '--no-ff', '-m', 'merge', 'fix/row'], r)],
+    ['fast-forward', (r) => gitTest(['merge', '-q', '--ff-only', 'fix/row'], r)],
+    [
+      'base-moves-on',
+      (r) => {
+        gitTest(['merge', '--squash', 'fix/row'], r);
+        gitTest(['commit', '-q', '-m', 'fix: row (#1)'], r);
+        fs.writeFileSync(path.join(r, 'unrelated.txt'), 'later\n');
+        gitTest(['add', '.'], r);
+        gitTest(['commit', '-q', '-m', 'unrelated work on base'], r);
+      },
+    ],
+  ];
+  for (const [label, landOnBase] of verdictRows) {
+    const rowRepo = makeRepo();
+    makeWorkBranch(rowRepo, 'fix/row', 'app.txt', 'v2\n');
+    landOnBase(rowRepo);
+    assert.strictEqual(testContainment(rowRepo, 'main', 'fix/row'), 'contained', `${label} reads contained`);
+    fs.rmSync(rowRepo, { recursive: true, force: true });
+  }
+
   // The second tier (ADR 0082): where the tree comparison conflicts, ask whether base's history
   // already took the branch's patch. Fixtures below share one shape — a branch squash-merged onto
   // main, after which main edits the same line again, so `merge-tree` conflicts on a branch base
@@ -296,11 +343,14 @@ const { testContainment, baseHistoryHasPatch } = require(scopePath);
     return dir;
   }
 
+  // Built once: every case below that reads it (fake git or not) only reads, and writes no ref or file in it.
+  const squashShared = makeConflictingSquashRepo();
+
   // A fake git on PATH, standing in for a condition a real fixture cannot cheaply build — the same
   // wrapper shape `#no-write-tree` above already uses. `body` is shell, run before the real git.
   function withFakeGit(body, fn) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-fakegit-'));
-    fs.writeFileSync(path.join(dir, 'git'), `#!/bin/sh\n${body}\nexec "${realGit}" "$@"\n`, {
+    fs.writeFileSync(path.join(dir, 'git'), `#!/bin/sh\n${body}\nexec ${shq(realGit)} "$@"\n`, {
       mode: 0o755,
     });
     const saved = process.env.PATH;
@@ -315,13 +365,11 @@ const { testContainment, baseHistoryHasPatch } = require(scopePath);
 
   // #conflicting-squash: the case ADR 0082 measured. The tree comparison exits 1, and base's history
   // carries a commit whose diff is the branch's own cumulative diff, so the probe answers contained.
-  const tookItRepo = makeConflictingSquashRepo();
   assert.strictEqual(
-    testContainment(tookItRepo, 'main', 'fix/took-it'),
+    testContainment(squashShared, 'main', 'fix/took-it'),
     'contained',
     'a squash-merged branch whose files base edited afterward reads contained'
   );
-  fs.rmSync(tookItRepo, { recursive: true, force: true });
 
   // #probe-large-diff: the probe's `git diff` call carries no `maxBuffer`, so it inherits
   // `spawnSync`'s 1 MiB default — a cumulative diff past that reports `ENOBUFS`, which the probe
@@ -346,13 +394,11 @@ const { testContainment, baseHistoryHasPatch } = require(scopePath);
 
   // #probe-exports: slice 2 (`hooks/scope-prune.js`) calls the probe directly, so it is exported
   // beside `testContainment`, takes the checkout plus two refs, and answers a boolean.
-  const probeRepo = makeConflictingSquashRepo();
   assert.strictEqual(
-    baseHistoryHasPatch(probeRepo, 'main', 'fix/took-it'),
+    baseHistoryHasPatch(squashShared, 'main', 'fix/took-it'),
     true,
     'the exported probe answers true for work base history took'
   );
-  fs.rmSync(probeRepo, { recursive: true, force: true });
 
   // #probe-rejects-unheld-work: a conflicting branch base never took. No patch id matches, so the
   // first tier's not-contained verdict stands.
@@ -378,59 +424,54 @@ const { testContainment, baseHistoryHasPatch } = require(scopePath);
   // #commit-cap: past the cap the scan is skipped entirely. A real fixture would need the cap's worth
   // of commits, so the fake git reports the count instead and marks any `git log` that runs — the
   // assertion is that none does.
-  const cappedRepo = makeConflictingSquashRepo();
-  const capMarker = path.join(cappedRepo, 'log-ran');
+  const capDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-cap-'));
+  const capMarker = path.join(capDir, 'log-ran');
   const capVerdict = withFakeGit(
     'if [ "$1" = "rev-list" ]; then echo 999999; exit 0; fi\n' +
-      `if [ "$1" = "log" ]; then touch "${capMarker}"; fi`,
-    () => testContainment(cappedRepo, 'main', 'fix/took-it')
+      `if [ "$1" = "log" ]; then touch ${shq(capMarker)}; fi`,
+    () => testContainment(squashShared, 'main', 'fix/took-it')
   );
   assert.strictEqual(capVerdict, 'not-contained', 'a range past the commit cap reads not-contained');
   assert.strictEqual(fs.existsSync(capMarker), false, 'a range past the cap walks no patches');
-  fs.rmSync(cappedRepo, { recursive: true, force: true });
+  fs.rmSync(capDir, { recursive: true, force: true });
 
   // #probe-on-the-ancestry-path: a git without `--write-tree` answers no on `--is-ancestor` for a
   // squash-merged branch, and reaches the probe from there.
-  const oldGitProbeRepo = makeConflictingSquashRepo();
   assert.strictEqual(
     withFakeGit(
       'if [ "$1" = "merge-tree" ] && [ "$2" = "--write-tree" ]; then exit 129; fi',
-      () => testContainment(oldGitProbeRepo, 'main', 'fix/took-it')
+      () => testContainment(squashShared, 'main', 'fix/took-it')
     ),
     'contained',
     'a git without --write-tree reaches the probe and reads contained for a squash-merged branch'
   );
-  fs.rmSync(oldGitProbeRepo, { recursive: true, force: true });
 
   // #probe-fails-closed: INV-0003. Every git call the probe makes is a step that can fail, and each
   // failure answers not-contained rather than throwing.
   for (const failing of ['merge-base', 'diff', 'patch-id', 'rev-list', 'log']) {
-    const failRepo = makeConflictingSquashRepo();
     const verdict = withFakeGit(`if [ "$1" = "${failing}" ]; then exit 3; fi`, () =>
-      testContainment(failRepo, 'main', 'fix/took-it')
+      testContainment(squashShared, 'main', 'fix/took-it')
     );
     assert.strictEqual(
       verdict,
       'not-contained',
       `a failing git ${failing} on a probe step reads not-contained rather than throwing`
     );
-    fs.rmSync(failRepo, { recursive: true, force: true });
   }
 
   // #probe-argument-injection: an option-shaped `base` reaches the probe, because the tree comparison
   // it follows cannot resolve one either. No probe call may run it as a git option.
-  const probeInjectionRepo = makeConflictingSquashRepo();
   const probePayloadDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-payload-'));
   const probeMarker = path.join(probePayloadDir, 'marker');
   const probePayload = path.join(probePayloadDir, 'evil.sh');
-  fs.writeFileSync(probePayload, `#!/bin/sh\ntouch "${probeMarker}"\n`, { mode: 0o755 });
+  fs.writeFileSync(probePayload, `#!/bin/sh\ntouch ${shq(probeMarker)}\n`, { mode: 0o755 });
   assert.strictEqual(
-    baseHistoryHasPatch(probeInjectionRepo, `--upload-pack=${probePayload}`, 'fix/took-it'),
+    baseHistoryHasPatch(squashShared, `--upload-pack=${probePayload}`, 'fix/took-it'),
     false,
     'an option-shaped base never reads as a probe match'
   );
   assert.strictEqual(
-    baseHistoryHasPatch(probeInjectionRepo, 'main', `--upload-pack=${probePayload}`),
+    baseHistoryHasPatch(squashShared, 'main', `--upload-pack=${probePayload}`),
     false,
     'an option-shaped branch never reads as a probe match'
   );
@@ -439,6 +480,6 @@ const { testContainment, baseHistoryHasPatch } = require(scopePath);
     false,
     'no probe call runs an option-shaped ref as a git option'
   );
-  fs.rmSync(probeInjectionRepo, { recursive: true, force: true });
+  fs.rmSync(squashShared, { recursive: true, force: true });
   fs.rmSync(probePayloadDir, { recursive: true, force: true });
 }

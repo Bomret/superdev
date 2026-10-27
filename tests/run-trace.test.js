@@ -6,10 +6,8 @@
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
-const cp = require('node:child_process');
-const { assertSpawnDecided } = require('./spawn-verdict');
 const { inProgressSlices } = require('../plugin/scripts/scope.js');
-const { tmp, ledger, A, B, S3, trace, reset, run, spawnOut, edit, bash, hookPath, cleanup } = require('./run-trace-setup');
+const { tmp, ledger, A, B, S3, trace, reset, run, spawnOut, edit, bash, cleanup } = require('./run-trace-setup');
 
 // inProgressSlices: ids at in-progress, table order.
 assert.deepEqual(inProgressSlices(ledger([['01', 'merged'], ['02', 'in-progress'], ['03', 'in-progress']])), ['02', '03']);
@@ -96,23 +94,6 @@ assert.equal(trace(A).length, 0, 'an unreadable ledger records nothing');
 fs.writeFileSync(path.join(A, 'ledger.md'), ledger([['03', 'in-progress']]));
 edit(path.join(S3, 'x.js'));
 assert.equal(trace(A).length, 1, 'a missing verification.md still records, with defaults');
-
-// Requiring the hook prints nothing and dispatches nothing (INV-0068).
-{
-  const r = cp.spawnSync(process.execPath, ['-e', `require(${JSON.stringify(hookPath)})`], { input: JSON.stringify({ tool_input: { file_path: path.join(S3, 'q.js') } }), encoding: 'utf8', timeout: 5000 });
-  assertSpawnDecided(r, 'requiring run-trace.js');
-  assert.equal(r.status, 0);
-  assert.equal(r.stdout + r.stderr, '', 'requiring run-trace.js prints nothing');
-  assert.equal(trace(A).length, 1, 'requiring run-trace.js records nothing');
-}
-
-// Requiring a module of lib/ the hook loads prints nothing, and records nothing (INV-0068).
-for (const name of ['bash-command', 'bash-writes', 'dispatch', 'dispatch-lines', 'run-tree', 'start-stash', 'test-runs', 'verdicts']) {
-  const r = cp.spawnSync(process.execPath, ['-e', `require(${JSON.stringify(path.join(__dirname, '..', 'plugin', 'lib', name + '.js'))})`], { input: JSON.stringify({ tool_input: { file_path: path.join(S3, 'q.js') } }), encoding: 'utf8', timeout: 5000 });
-  assertSpawnDecided(r, `requiring ${name}.js`);
-  assert.deepStrictEqual([r.status, r.stdout, r.stderr], [0, '', ''], `requiring ${name}.js prints nothing`);
-  assert.equal(trace(A).length, 1, `requiring ${name}.js records nothing`);
-}
 
 // Reading a large trace stays linear: the trace has no cap and every event re-reads it. The ceiling is
 // relative to the same run's own baseline through timePair (ADR 0086, ADR 0149): 100 times the lines cost

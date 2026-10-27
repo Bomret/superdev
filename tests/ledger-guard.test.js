@@ -129,24 +129,6 @@ assert.equal(bash('sed -n "1,5p" ' + L).block, false, 'sed without -i passes');
 assert.equal(bash('echo hi > /tmp/out.txt').block, false, 'redirect elsewhere passes');
 assert.equal(bash('bun run test').block, false, 'unrelated bash passes');
 
-// require.main guard: requiring this hook never runs main()'s stdin/decide dispatch, and
-// spawning it directly (as Claude Code's hook invocation does) decides.
-{
-  const payload = JSON.stringify({ tool_input: { file_path: L } });
-  const required = cp.spawnSync(process.execPath, ['-e', `require(${JSON.stringify(hookPath)})`], {
-    input: payload, encoding: 'utf8', timeout: 5000,
-  });
-  assertSpawnDecided(required, 'requiring ledger-guard.js');
-  assert.equal(required.status, 0, 'requiring ledger-guard.js never blocks');
-  assert.equal(required.stdout, '', 'requiring ledger-guard.js prints nothing');
-  assert.equal(required.stderr, '', 'requiring ledger-guard.js runs no decision');
-
-  const spawned = cp.spawnSync(process.execPath, [hookPath], { input: payload, encoding: 'utf8', timeout: 5000 });
-  assertSpawnDecided(spawned, 'spawning ledger-guard.js directly');
-  assert.equal(spawned.status, 2, 'spawning ledger-guard.js directly still blocks a ledger edit');
-  assert.match(spawned.stderr, /scope\.js/, 'and still reports the ledger-guard reason');
-}
-
 // The run trace (ADR 0117) is hook-written: every write shape refused for the ledger is refused for it.
 {
   const T = '.superdev/scopes/demo/trace.log';
@@ -379,10 +361,9 @@ assert.equal(bash('grep sed ' + L + ' -i').block, true, 'a flag after the file b
 // The refusal names every ledger-writing verb in scope.js's usage text: every top-level verb there except the read-only ones.
 {
   const READ_ONLY = new Set(['get', 'trace', 'status', 'publish', 'root', 'staging', 'dod-line', 'collisions', 'citations', 'source-set', 'push', 'test', 'fail-to-pass']);
-  const scopeJs = path.join(path.dirname(hookPath), '..', 'scripts', 'scope.js');
-  const help = cp.spawnSync(process.execPath, [scopeJs, '--help'], { encoding: 'utf8', timeout: 5000 });
-  assertSpawnDecided(help, 'scope.js --help');
-  const verbs = [...new Set(help.stdout.split('\n').map((l) => /^  ([a-z][a-z-]*)\b/.exec(l)).filter(Boolean).map((m) => m[1]))].filter((v) => !READ_ONLY.has(v));
+  // The usage text `scope.js --help` prints (tests/scope-help.test.js spawns it), read in-process.
+  const { usage } = require(path.join(path.dirname(hookPath), '..', 'lib', 'usage.js'));
+  const verbs = [...new Set(usage().split('\n').map((l) => /^  ([a-z][a-z-]*)\b/.exec(l)).filter(Boolean).map((m) => m[1]))].filter((v) => !READ_ONLY.has(v));
   assert.ok(verbs.length >= 10, 'the usage text yields the ledger-writing verbs: ' + verbs);
   const { reason } = file(L);
   const named = /\(([^)]*) verbs\)/.exec(reason)[1].split('/');
@@ -676,15 +657,6 @@ assert.equal(bash('grep sed ' + L + ' -i').block, true, 'a flag after the file b
   fs.rmSync(dir, { recursive: true, force: true });
 }
 
-// INV-0068: requiring lib/ledger-writes.js prints nothing and runs nothing.
-{
-  const modPath = require.resolve('../plugin/lib/ledger-writes.js');
-  const r = cp.spawnSync(process.execPath, ['-e', `require(${JSON.stringify(modPath)})`], { encoding: 'utf8', timeout: 5000 });
-  assertSpawnDecided(r, 'requiring ledger-writes.js');
-  assert.equal(r.status, 0, 'requiring ledger-writes.js exits 0');
-  assert.equal(r.stdout + r.stderr, '', 'requiring ledger-writes.js prints nothing');
-}
-
 // INV-0140, INV-0159: the write-target reader is its own module, lib/ledger-writes.js. With it unloadable, partially loaded (no
 // writesLedger), or throwing, a Bash call is denied and an Edit or Write call still decides alone. The real scanner sits beside the
 // stub, so the denial follows from the reader module alone, and a control run with the real module shows the copy decides.
@@ -728,7 +700,8 @@ assert.equal(bash('grep sed ' + L + ' -i').block, true, 'a flag after the file b
 
 // Linear time (ADR 0086): a command four times as long takes about four times as long when linear and sixteen times when quadratic,
 // against a baseline measured in the same run; the ceiling sits at nine, between them, so a memory knee or load noise in one reading
-// stays below it. The size grows until one run takes about 25 ms, and timePair repeats each sample to that length too.
+// stays below it. The size grows until one run takes about 10 ms, and timePair repeats each sample to that length too.
+// The shapes only the scanner reaches are pinned in shell-words.test.js.
 {
   const { timePair, cpuNs } = require('./linear-time');
   const once = (c) => {
@@ -738,21 +711,14 @@ assert.equal(bash('grep sed ' + L + ' -i').block, true, 'a flag after the file b
   };
   const quadruples = (label, make, cap) => {
     let n = 1500;
-    while (n < cap && once(make(n)) < 25e6) n *= 2;
+    while (n < cap && once(make(n)) < 10e6) n *= 2;
     const [base, big] = timePair(bash, make(n), make(n * 4));
     assert.ok(big < 9 * base, label + ' stays about linear: ' + base + 'ns at ' + n + ', four times the input ' + big + 'ns');
   };
-  for (const unit of ['$(a ', '$(tee ', 'x=$(echo ']) {
+  // Nested substitutions whose command is a writer (tee) or an assignment reach the hook's own readers at every level.
+  for (const unit of ['$(tee ', 'x=$(echo ']) {
     quadruples(unit, (n) => 'echo x > ' + unit.repeat(n) + ')'.repeat(n) + '/.superdev/scopes/x/ledger.md', 200000);
   }
-  // An unclosed `((` run names a ledger once, and repeated `((` between statements, unquoted or in a quoted word, are rewritten and read once each.
-  for (const make of [(n) => 'cat .superdev/scopes/x/ledger.md ' + '(('.repeat(n), (n) => 'cat .superdev/scopes/x/ledger.md ; ' + 'echo ((;'.repeat(n),
-    (n) => 'cat .superdev/scopes/x/ledger.md ; ' + 'echo "((x))" ((y));'.repeat(n),
-    // Many process substitutions of one shell command: its words are read once, not once per substitution.
-    (n) => 'cat .superdev/scopes/x/ledger.md ; sh ' + '<(echo a) '.repeat(n), (n) => 'cat .superdev/scopes/x/ledger.md ; sh ' + '<(cat <<E\nx\nE\n) '.repeat(n)]) {
-    quadruples(JSON.stringify(make(2)), make, 1e7);
-  }
-  quadruples('many backslash-escaped words', (n) => 'cat .superdev/scopes/x/ledger.md ; ' + 'echo a\\ cp\\ b ; '.repeat(n), 1e6);
   // A path of many `<name>/..` segments, and a long word beside a doubled slash, are collapsed in one pass each.
   quadruples('many dot-dot segments', (n) => 'cp a ' + 'x/'.repeat(n) + '../'.repeat(n) + '.superdev//scopes/x/ledger.md', 200000);
   quadruples('a long word beside a doubled slash', (n) => 'echo // ' + 'a'.repeat(n) + ' .superdev/scopes/', 1e7);

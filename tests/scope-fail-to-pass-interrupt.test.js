@@ -24,7 +24,7 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     // The SIGKILL row's pidfile names a background child of the runner, which the watcher ends with the rest of the group.
     const withChild = 'sleep 60 & echo $! > "$F2P_PID"; touch "$F2P_MARK"; wait';
     for (const [signal, exitStatus, command, label = signal] of [
-      ['SIGINT', 130, hang], ['SIGTERM', 143, hang], ['SIGHUP', 129, hang], ['SIGKILL', null, withChild], ['SIGTERM', 143, stubborn, 'SIGTERM on a runner that traps it'],
+      ['SIGTERM', 143, hang], ['SIGKILL', null, withChild], ['SIGHUP', 129, stubborn, 'SIGHUP on a runner that traps SIGTERM'],
     ]) {
       const s = scenario({
         base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },

@@ -7,6 +7,9 @@
 // spawn. Shared fixtures live in tests/publish-kb-setup.js.
 
 const assert = require('node:assert');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const {
   publishKbPath,
   makeRepo,
@@ -65,15 +68,11 @@ withCapture((stateFile) => {
   assert.ok(!isStaged(repo, 'child.md'));
 });
 
-// a placeholder whose find returned no sub_url, or one no link target can carry, is not linked and stays staged
+// a placeholder whose find returned no sub_url, or one no link target can carry, is not linked and stays staged;
+// `fillLinkTarget` in tests/publish-kb-parent-link-pure.test.js proves each rejected character in-process
 for (const [what, subUrl, reason] of [
   ['no sub_url', undefined, /find returned no sub_url for "Child"/],
   ['a space', 'a b', /a sub_url .*"Child".* no link target can carry/],
-  ['a parenthesis', 'a)b', /a sub_url .*"Child".* no link target can carry/],
-  ['a control character', 'a\u0007b', /a sub_url .*"Child".* no link target can carry/],
-  ['an open parenthesis', 'a(b', /a sub_url .*"Child".* no link target can carry/],
-  ['a trailing backslash', 'a\\', /a sub_url .*"Child".* no link target can carry/],
-  ['a leading angle bracket', '<a', /a sub_url .*"Child".* no link target can carry/],
 ]) {
   withCapture((stateFile, dir) => {
     const repo = makeRepo();
@@ -139,6 +138,36 @@ for (const [what, child, extra] of [
     assert.equal(captures(dir, 'update').filter((c) => c.env.SUPERDEV_KB_TITLE === 'Home').length, 0, `${what}: no parent update`);
     assert.ok(!isStaged(repo, 'child.md'), `${what}: clears`);
   });
+}
+
+// a TMPDIR holding `$` and a backtick reaches the intended path through every helper that puts a temporary path into
+// a `sh -c` command (triage #1380): `freshFindDoc` marks its first find in the hostile directory, so the fresh find
+// after the create still answers what the doc says (tests/spawn-verdict.test.js pins `shq` itself)
+{
+  const prev = process.env.TMPDIR;
+  const hostile = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-$HOME-`true`-'));
+  process.env.TMPDIR = hostile;
+  let doc;
+  try {
+    doc = freshFindDoc('exit 3');
+  } finally {
+    if (prev === undefined) delete process.env.TMPDIR;
+    else process.env.TMPDIR = prev;
+  }
+  withCapture((stateFile) => {
+    withNewSubUrl('Child-new', () => {
+      const repo = makeRepo();
+      writeKbDoc(repo, doc);
+      putHome(stateFile);
+      stageLinked(repo, 'child.md', 'Child', SUB_LINK);
+
+      const res = call(['--scope', 'demo'], repo);
+      assert.match(res.out, /find reports "Child" absent right after it landed/, res.out);
+      const marks = fs.readdirSync(hostile).filter((d) => fs.existsSync(path.join(hostile, d, 'seen')));
+      assert.equal(marks.length, 1, 'the first find marked the directory under the hostile TMPDIR');
+    });
+  });
+  fs.rmSync(hostile, { recursive: true, force: true });
 }
 
 console.log('publish-kb-parent-link-placeholder.test.js: all assertions passed');

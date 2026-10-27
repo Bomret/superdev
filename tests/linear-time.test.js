@@ -33,11 +33,11 @@ const lock = new Int32Array(new SharedArrayBuffer(4));
 }
 
 // Quadratic work still reads above the ceiling, so the thread clock cannot make a pin pass vacuously. The readings are
-// nanoseconds: a sample of the small input lasts about 25 ms, tens of millions of them.
+// nanoseconds: a sample of the small input lasts about 10 ms, millions of them.
 {
   const [small, big] = timePair((n) => work(n * n * 5), 1, 4);
   assert.ok(big > small * 9, `quadratic work read within the linear ceiling: ${small} ns, four times the input ${big} ns`);
-  assert.ok(small > 1e7, `a reading is not in nanoseconds: ${small}`);
+  assert.ok(small > 1e6, `a reading is not in nanoseconds: ${small}`);
 }
 
 // Work handed to a child process reaches no reading: the big input runs four times the small input's work in a child,
@@ -55,10 +55,10 @@ const lock = new Int32Array(new SharedArrayBuffer(4));
 }
 
 // A run too short for the thread clock to see reads as zero when the repeat count is calibrated; the count stays bounded
-// by the clock's microsecond resolution (25 ms / 1 µs), never one repeat per nanosecond of a reading that was zero. The
+// by the clock's microsecond resolution (10 ms / 1 µs), never one repeat per nanosecond of a reading that was zero. The
 // thread clock is held still for this case, so the calibration reads zero on every run.
 {
-  const bound = 3 + 6 * 25000;
+  const bound = 3 + 6 * 10000;
   const real = process.threadCpuUsage;
   process.threadCpuUsage = () => ({ user: 0, system: 0 });
   let calls = 0;

@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { eventLog, frontmatter, header, intent, progress, queuedMinors, slices, untrace } from './parse'
+import { closedAt, eventLog, frontmatter, header, intent, progress, queuedMinors, slices, untrace } from './parse'
 import { LEDGER_LINES, LEDGER_QUEUE_LINES, LEDGER_STEP_LINES } from './ledger-fixtures'
 import { TRACE_LINES } from './trace-fixtures'
 
@@ -29,6 +29,22 @@ test('reads the ledger scope.js writes', () => {
 
 test('a trace field reads back unescaped', () => {
   expect(untrace('a\\x20b')).toBe('a b')
+})
+
+test('a trace field decodes every escape, and `-` and undefined decode to the empty string', () => {
+  expect(untrace('a\\nb\\rc\\td\\\\e\\u00e9f')).toBe('a\nb\rc\td\\eéf')
+  expect(untrace('\\\\n')).toBe('\\n')
+  expect(untrace('-')).toBe('')
+  expect(untrace(undefined)).toBe('')
+})
+
+test('frontmatter of a page with none gives an empty title and the upsert action, and CRLF line ends read like LF', () => {
+  expect(frontmatter('# just a body\n')).toEqual({ title: '', action: 'upsert' })
+  expect(frontmatter('---\r\ntitle: Page\r\naction: patch\r\n---\r\nbody')).toEqual({ title: 'Page', action: 'patch' })
+})
+
+test('a closed stage write with an unparseable time gives no close time', () => {
+  expect(closedAt('not-a-time scope main ledger stage set closed\n')).toBeNull()
 })
 
 test('parses dod progress, intents, and staged page frontmatter', () => {

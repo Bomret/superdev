@@ -551,7 +551,7 @@ const picked = (root, paths) =>
   const real = (p) => selectSuites(repoRoot, discoverSuites(path.join(repoRoot, 'tests')), [p]).map((f) => path.basename(f, '.test.js'));
   assert.ok(!real(['scripts', ['AGENTS', 'md'].join('.')].join('/')).includes('merge-guard'), 'a citation of the root AGENTS.md does not select a suite for scripts/AGENTS.md');
   assert.deepStrictEqual(real(['AGENTS', 'md'].join('.')), [], 'a comment citation or a fixture sentence naming the root AGENTS.md is no read');
-  assert.deepStrictEqual(real(['release', 'config', 'cjs'].join('.')), [], 'the semantic-release config selects no suite');
+  assert.deepStrictEqual(real(['release', 'config', 'cjs'].join('.')), ['release-config'], 'the semantic-release config selects only its own suite');
 }
 
 // runAll in focused mode runs only the selected suites, then the whole tail.

@@ -136,22 +136,13 @@ const { findCollisions } = require(scopePath);
   assert.equal(res.stdout, '', 'and prints nothing');
   res = cli(['--range-base', 'scope', '--branch', 'scope', ...ids]);
   assert.equal(res.status, 0, 'an empty range holds none');
-  for (const [name, args] of [
-    ['an unresolvable ref', ['--range-base', 'nope', '--branch', 'scope', '0131']],
-    ['a missing id', ['--range-base', fork, '--branch', 'scope']],
-    ['a malformed id', ['--range-base', fork, '--branch', 'scope', 'ADR 0131']],
-    ['a short id', ['--range-base', fork, '--branch', 'scope', '131']],
-    ['a malformed INV id', ['--range-base', fork, '--branch', 'scope', 'INV-12']],
-    ['a missing flag', ['--branch', 'scope', '0131']],
-  ]) {
-    res = cli(args);
-    assertSpawnDecided(res, `citations CLI, ${name}`);
-    assert.equal(res.status, 2, `${name} → exit 2`);
-    assert.equal(res.stdout, '', `${name} prints nothing on stdout`);
-    assert.notEqual(res.stderr, '', `${name} says why`);
-  }
+  // One spawned refusal keeps the exit status 2 and the stderr line; the argv refusals run in-process in scope-refusals.test.js.
+  res = cli(['--range-base', 'nope', '--branch', 'scope', '0131']);
+  assertSpawnDecided(res, 'citations CLI, an unresolvable ref');
+  assert.equal(res.status, 2, 'an unresolvable ref → exit 2');
+  assert.equal(res.stdout, '', 'an unresolvable ref prints nothing on stdout');
+  assert.notEqual(res.stderr, '', 'an unresolvable ref says why');
   assert.equal(g(['status', '--porcelain'], repo), '', 'the verb leaves the working tree clean');
-  assert.match(require('node:child_process').spawnSync('node', [scopePath, '--help'], { encoding: 'utf8' }).stdout, /^ {2}citations /m, '--help lists the verb');
   fs.rmSync(repo, { recursive: true, force: true });
   fs.rmSync(subRepo, { recursive: true, force: true });
 }

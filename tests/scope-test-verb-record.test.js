@@ -64,14 +64,13 @@ try {
   {
     const { readTrace, decodePaths } = require('../plugin/lib/trace-log.js');
     const lastRun = () => readTrace(fs.readFileSync(traceFile, 'utf8')).filter((e) => e.kind === 'run').pop();
-    for (const set of [['a b.ts', 'c.ts'], ['x,y.ts', 'z.ts'], ['-lead.ts'], ['-'], ['café.ts', '100%.ts', 'back\\slash.ts', 'p%2Cq.ts']]) {
-      reset();
-      assert.equal(verb(['focused', ...set]).status, 0);
-      const e = lastRun();
-      assert.equal(e.fields[0], 'focused');
-      assert.deepEqual(decodePaths(e.fields[4]), set, `the set reads back whole: ${JSON.stringify(set)}`);
-    }
-    assert.deepEqual(decodePaths('-'), [], 'a line with no path set reads an empty set');
+    // The encoding's round trips for every kind of path are in-process, in scope-trace.test.js; one spawn shows the verb writes it.
+    const set = ['x,y.ts', '-lead.ts', '100%.ts'];
+    reset();
+    assert.equal(verb(['focused', ...set]).status, 0);
+    const e = lastRun();
+    assert.equal(e.fields[0], 'focused');
+    assert.deepEqual(decodePaths(e.fields[4]), set, 'the set reads back whole');
     reset();
     verb(['full']);
     assert.deepEqual(decodePaths(lastRun().fields[4]), [], 'a full run holds no path set');

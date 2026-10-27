@@ -17,7 +17,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
-const { assertSpawnDecided } = require('./spawn-verdict');
+const { assertSpawnDecided, boundFromSamples, shq } = require('./spawn-verdict');
 
 const publishKbPath = require.resolve('../plugin/scripts/publish-kb.js');
 const { run } = require(publishKbPath);
@@ -27,23 +27,16 @@ const FAKE_BACKEND = require.resolve('./fixtures/fake-kb-backend.js');
 // The bound every hanging-verb block runs under, taken from this run rather than fixed (AGENTS.md,
 // ADR 0086). `hangingVerbDoc` hangs one verb and leaves every other verb a real `node` spawn of the fake
 // backend, which the same bound would kill if it ran slower than the bound — and a loaded machine starts
-// `node` slowly. So `hangBound()` times that spawn, in the shape `publish-kb.js` runs it (`sh -c`), three
-// times, and bounds every backend command at ten times the slowest, never
-// below 1000ms. A healthy verb then clears the bound however busy the machine is, and only the hung verb
+// `node` slowly. So `hangBound()` times that spawn, in the shape `publish-kb.js` runs it (`sh -c`), through
+// tests/spawn-verdict.js's `boundFromSamples`: three times, bounding every backend command at ten times the
+// slowest, never below 1000ms. A healthy verb then clears the bound however busy the machine is, and only the hung verb
 // reaches it. A sample that fails to start, hits its own 60s bound, or answers other than not-found timed
 // nothing healthy, so it stops the suite with its reason (INV-0009).
-const HEALTHY_SAMPLES = 3;
-function slowestHealthySpawn() {
-  let slowest = 0;
-  for (let i = 0; i < HEALTHY_SAMPLES; i++) {
-    const started = Date.now();
-    const sample = spawnSync('sh', ['-c', `node ${JSON.stringify(FAKE_BACKEND)} find`], { encoding: 'utf8', timeout: 60000 });
-    assertSpawnDecided(sample, `healthy-spawn sample ${i + 1}`);
-    // With no state file, `find` answers 3 (not found): any other status means the sample timed something else.
-    if (sample.status !== 3) throw new Error(`healthy-spawn sample ${i + 1} exited ${sample.status}, not 3: ${sample.stderr}`);
-    slowest = Math.max(slowest, Date.now() - started);
-  }
-  return slowest;
+function healthySpawn(i) {
+  const sample = spawnSync('sh', ['-c', `node ${shq(FAKE_BACKEND)} find`], { encoding: 'utf8', timeout: 60000 });
+  assertSpawnDecided(sample, `healthy-spawn sample ${i + 1}`);
+  // With no state file, `find` answers 3 (not found): any other status means the sample timed something else.
+  if (sample.status !== 3) throw new Error(`healthy-spawn sample ${i + 1} exited ${sample.status}, not 3: ${sample.stderr}`);
 }
 
 // The elapsed ceiling of a hanging-verb block. Everything else the block does — git, the containment check,
@@ -59,7 +52,7 @@ const HUNG_CEILING_MS = 600000;
 const HUNG_CMD = 'exec sleep 900';
 
 function hangBound() {
-  const hangMs = Math.max(1000, 10 * slowestHealthySpawn());
+  const hangMs = boundFromSamples(healthySpawn);
   if (hangMs * 8 >= HUNG_CEILING_MS) {
     throw new Error(
       `measured bound ${hangMs}ms leaves no room for a batch under the ${HUNG_CEILING_MS}ms ceiling: ` +
@@ -104,7 +97,7 @@ function ensureContainedBranch(repo, scope) {
 
 function commandsDoc(backendLine, verbs = ['find', 'create', 'update', 'delete']) {
   const sections = verbs
-    .map((v) => `### ${v}\n\n\`\`\`sh\n${v === 'create' ? ': "$SUPERDEV_KB_PARENT_ID"\n' : ''}node ${JSON.stringify(FAKE_BACKEND)} ${v}\n\`\`\``)
+    .map((v) => `### ${v}\n\n\`\`\`sh\n${v === 'create' ? ': "$SUPERDEV_KB_PARENT_ID"\n' : ''}node ${shq(FAKE_BACKEND)} ${v}\n\`\`\``)
     .join('\n\n');
   return `# Knowledge base\n\n## Configuration\n\n${backendLine}\n\n## Commands\n\n${sections}\n`;
 }
@@ -185,7 +178,7 @@ function withCapture(fn) {
 function hangingVerbDoc(backendLine, hangingVerb, verbs = ['find', 'read', 'create', 'update', 'delete']) {
   const sections = verbs
     .map((v) => {
-      const cmd = v === hangingVerb ? HUNG_CMD : `node ${JSON.stringify(FAKE_BACKEND)} ${v}`;
+      const cmd = v === hangingVerb ? HUNG_CMD : `node ${shq(FAKE_BACKEND)} ${v}`;
       return `### ${v}\n\n\`\`\`sh\n${cmd}\n\`\`\``;
     })
     .join('\n\n');
@@ -225,8 +218,8 @@ function withNewSubUrl(value, fn) {
 // the fresh find after a create: `then` answers every find for Child after the first, which routes the create
 function freshFindDoc(then) {
   const seen = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'kb-find-')), 'seen');
-  const fake = `node ${JSON.stringify(FAKE_BACKEND)} find`;
-  return linksDoc().replace(fake, `if [ "$SUPERDEV_KB_TITLE" = Child ]; then [ -e ${JSON.stringify(seen)} ] && { ${then}; }; : > ${JSON.stringify(seen)}; fi\n${fake}`);
+  const fake = `node ${shq(FAKE_BACKEND)} find`;
+  return linksDoc().replace(fake, `if [ "$SUPERDEV_KB_TITLE" = Child ]; then [ -e ${shq(seen)} ] && { ${then}; }; : > ${shq(seen)}; fi\n${fake}`);
 }
 
 // an `action: patch` page that names the parent
@@ -238,6 +231,7 @@ const stageDelete = (repo, title = 'Child') =>
 const HOME_WITH_CHILD = HOME.replace('- [B](B)\n', '- [B](B)\n- [Child](Child) — desc\n');
 
 module.exports = {
+  shq,
   PATCH_VERBS,
   LINKS_LINE,
   linksDoc,

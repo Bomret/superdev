@@ -120,6 +120,11 @@ module.exports = ({ assert, path, fixture, found }) => {
   const deployRunnerGaps = scanDeployRunnerExclusivity(fixture({ 'skills/document/SKILL.md': 'This command runs each target\'s deploy command itself.\n' }));
   assert.equal(deployRunnerGaps.length, 1, 'flags a non-ship document claiming to run a target\'s command');
   assert.equal(deployRunnerGaps[0].source, 'skills/document/SKILL.md', 'names the offending document');
+  const claim = "This command runs each target's deploy command itself.\n";
+  assert.equal(scanDeployRunnerExclusivity(fixture({ 'skills/ship/SKILL.md': claim })).length, 0, 'skills/ship/SKILL.md is exempt');
+  assert.equal(scanDeployRunnerExclusivity(fixture({ 'references/deployment.md': claim })).length, 0, 'references/deployment.md is exempt');
+  assert.equal(scanDeployRunnerExclusivity(fixture({ 'references/other.md': claim })).length, 1, 'the same text in another reference is flagged');
+  assert.equal(scanDeployRunnerExclusivity(fixture({ 'agents/ship/SKILL.md': claim })).length, 1, 'the ship exemption is bound to skills/');
   assert.equal(
     scanDeployRunnerExclusivity(fixture({ 'skills/verify-ship/SKILL.md': "It runs no deploy target's command, and never runs a target's command.\n" })).length,
     0,

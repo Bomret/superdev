@@ -116,4 +116,41 @@ withState((stateFile) => {
   assert.ok(!res.out.includes('STAGED BODY CONTENT'));
 });
 
+// --- the CLI refuses a --read or --scope with no value, and a knowledge-base.md it cannot read ------
+// A spawned `node publish-kb.js` is the only place the exit status and the stderr line show.
+{
+  const { spawnSync } = require('node:child_process');
+  const { assertSpawnDecided } = require('./spawn-verdict');
+  const { publishKbPath } = require('./publish-kb-setup');
+  const cli = (repo, ...args) => {
+    const r = spawnSync('node', [publishKbPath, ...args], { cwd: repo, encoding: 'utf8', timeout: 60000 });
+    assertSpawnDecided(r, `publish-kb ${args.join(' ')}`);
+    return r;
+  };
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  stagePage(repo, 'demo', 'p.md', 'title: P\naction: upsert');
+  const staged = path.join(repo, '.superdev', 'kb-pending', 'demo', 'p.md');
+
+  for (const [args, message] of [
+    [['--read'], 'publish-kb: --read needs a title\n'],
+    [['--scope'], 'publish-kb: --scope needs a value\n'],
+  ]) {
+    const r = cli(repo, ...args);
+    assert.equal(r.status, 1, `${args} exits 1`);
+    assert.equal(r.stderr, message);
+    assert.equal(r.stdout, '', `${args} prints nothing`);
+    assert.ok(fs.existsSync(staged), `${args} leaves the page staged`);
+  }
+
+  // a knowledge-base.md that is not readable for a reason other than ENOENT is no refusal: it throws
+  fs.rmSync(path.join(repo, 'docs', 'agents', 'knowledge-base.md'));
+  fs.mkdirSync(path.join(repo, 'docs', 'agents', 'knowledge-base.md'));
+  const r = cli(repo, '--scope', 'demo');
+  assert.notEqual(r.status, 0);
+  assert.match(r.stderr, /EISDIR/);
+  assert.equal(r.stdout, '');
+  assert.ok(fs.existsSync(staged), 'the page stays staged');
+}
+
 console.log('publish-kb-scope.test.js: all assertions passed');

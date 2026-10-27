@@ -9,7 +9,8 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync, execFileSync } = require('node:child_process');
-const { scopePath } = require('./scope-setup');
+const { scopePath, fetchBound } = require('./scope-setup');
+const { verbPush } = require('../plugin/lib/push.js');
 const { copyFixture, templateOnce } = require('./fixture-git');
 const { assertSpawnDecided } = require('./spawn-verdict');
 
@@ -262,7 +263,8 @@ try {
   // never a refusal the verb did not make.
   {
     const { f } = foreignRemote();
-    const r = undecided('a refetch its bound ended', f, 'timed-out', { ...baseFetchGit('exec sleep 8'), SUPERDEV_PUSH_TIMEOUT_MS: '1500' });
+    // The bound is this run's, which the healthy branch fetch also clears; `exec` lets the kill land on the sleep.
+    const r = undecided('a refetch its bound ended', f, 'timed-out', { ...baseFetchGit('exec sleep 900'), SUPERDEV_PUSH_TIMEOUT_MS: String(fetchBound()) });
     // The branch fetch's bound names the branch; only the refetch of base names main, so a branch fetch
     // ended under load fails here instead of passing on timed-out alone.
     assert.match(r.out, /the fetch of origin main was ended by its own bound/, `names the refetch of base as the call its bound ended: ${r.out}`);
@@ -274,14 +276,9 @@ try {
     undecided('a refetch that failed', f, 'unreachable', baseFetchGit("echo 'fatal: unable to access base' >&2; exit 128"));
   }
 
-  // #refetch-credential: a refetch of base the host rejects the credential of reads as credential-rejected, never unreachable.
-  {
-    const { f } = foreignRemote();
-    undecided('a refetch with a rejected credential', f, 'credential-rejected', baseFetchGit("echo \"fatal: Authentication failed for 'https://example.invalid/r.git/'\" >&2; exit 128"));
-  }
-
-  // #refetch-locale: the refetch of base runs under the C locale, so its stderr is git's own English text: a git that
-  // words the rejection in another language under any other locale still reads as credential-rejected.
+  // #refetch-locale: a refetch of base the host rejects the credential of reads as credential-rejected, never
+  // unreachable, and runs under the C locale, so its stderr is git's own English text: a git that words the
+  // rejection in another language under any other locale still reads as credential-rejected.
   {
     const { f } = foreignRemote();
     const action = "if [ \"$LC_ALL\" != C ]; then echo 'fatal: Authentifizierung fehlgeschlagen' >&2; exit 128; fi; echo 'fatal: Authentication failed' >&2; exit 128";
@@ -292,9 +289,11 @@ try {
   {
     const f = fixture();
     const hook = path.join(f.repo, '.git', 'hooks', 'pre-push');
-    fs.writeFileSync(hook, '#!/bin/sh\nsleep 5\n');
+    // The bound is this run's, which the healthy branch fetch also clears. The hook sleeps well past it.
+    const bound = fetchBound();
+    fs.writeFileSync(hook, `#!/bin/sh\nexec sleep ${Math.ceil(bound / 1000) + 4}\n`);
     fs.chmodSync(hook, 0o755);
-    const r = push(f, [], { SUPERDEV_PUSH_TIMEOUT_MS: '1500' });
+    const r = push(f, [], { SUPERDEV_PUSH_TIMEOUT_MS: String(bound) });
     assert.strictEqual(r.word, 'timed-out', `a push its bound ended prints timed-out: ${r.out}`);
     assert.match(r.out, /push/, 'names the push as the call its bound ended');
     assert.strictEqual(r.status, 3, 'exits 3');
@@ -345,11 +344,56 @@ try {
     assert.strictEqual(git(['rev-parse', 'main'], f.origin), before, 'the remote base is unchanged');
   }
 
-  // #help: `scope.js --help` lists the verb.
+  // #argument-refusals: each malformed argument list refuses with its message before the ledger is read, so
+  // nothing is fetched or pushed. In process: the refusal is the error `scope.js` prints with exit 1 (#no-ledger
+  // above spawns the verb for that status).
   {
-    const r = spawnSync(process.execPath, [scopePath, '--help'], { encoding: 'utf8', timeout: 120000, killSignal: 'SIGKILL' });
-    assertSpawnDecided(r, 'scope.js --help');
-    assert.match(r.stdout, /push --root <run-root> --remote <remote> --base <base-ref>/, 'the usage lists push');
+    const f = fixture();
+    const refuses = (args, message) =>
+      assert.throws(() => verbPush(f.repo, args), (e) => e.isRefusal === true && e.message === message, `refuses ${args.join(' ')}`);
+    const ok = ['--root', f.root, '--remote', 'origin', '--base', 'main'];
+    refuses(['--bogus', 'x', ...ok], 'push: unrecognized argument "--bogus"');
+    refuses(['--root', f.root, '--remote', '', '--base', 'main'], 'push: --remote needs a value');
+    refuses(['--root', f.root, '--remote', 'origin', '--base'], 'push: --base needs a value');
+    refuses([...ok, '--root', f.root], 'push: --root given twice');
+    refuses(['--root', f.root, '--remote', 'origin'], 'push needs --base <value>');
+    assert.strictEqual(remoteTip(f), null, 'nothing pushed');
+  }
+
+  // #branch-unresolved: a ledger whose Branch line names no branch of the repository refuses and pushes nothing.
+  {
+    const f = fixture({ ledger: '# Ledger\n\n**Stage:** planned\n**Branch:** feat/not-here\n' });
+    assert.throws(
+      () => verbPush(f.repo, ['--root', f.root, '--remote', 'origin', '--base', 'main']),
+      (e) => e.isRefusal === true && e.message === 'push: the branch feat/not-here does not resolve to a commit'
+    );
+    assert.strictEqual(git(['branch', '--list', 'feat/not-here'], f.repo), '', 'no branch made');
+  }
+
+  // A git on PATH that runs `action` before it forwards the call, for each call named by `name`.
+  const fakeGit = (name, action) => {
+    const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
+    const bin = tmp('scope-push-bin-');
+    fs.writeFileSync(path.join(bin, 'git'), `#!/bin/sh\nif [ "$1" = ${name} ]; then ${action}; fi\nexec '${realGit}' "$@"\n`);
+    fs.chmodSync(path.join(bin, 'git'), 0o755);
+    return { PATH: `${bin}${path.delimiter}${process.env.PATH}` };
+  };
+
+  // #fetch-left-nothing: a fetch that exits 0 and leaves no FETCH_HEAD leaves no remote tip to judge.
+  {
+    const f = fixture();
+    const r = undecided('a fetch that left no commit', f, 'unreachable', fakeGit('fetch', 'exit 0'));
+    assert.match(r.out, /left no commit to judge/, `names why: ${r.out}`);
+  }
+
+  // #log-failed: a refusal whose commit list git cannot print still refuses, naming the range it could not list.
+  {
+    const { f, foreign } = foreignRemote();
+    const r = push(f, [], fakeGit('log', 'exit 128'));
+    assert.strictEqual(r.status, 3, `a refusal exits 3: ${r.out} ${r.err}`);
+    assert.strictEqual(r.word, 'refused', `prints refused: ${r.out}`);
+    assert.match(r.out, /\(could not list main\.\.[0-9a-f]{40}\)/, `names the range it could not list: ${r.out}`);
+    assert.strictEqual(remoteTip(f), foreign, 'the remote keeps its tip');
   }
 } finally {
   for (const dir of made) fs.rmSync(dir, { recursive: true, force: true });

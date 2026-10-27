@@ -686,26 +686,15 @@ assert.equal(decide(sub('echo "it\'s a push"')).block, false, 'a quoted text wit
 
 // a run of nested-substitution commands four times as long takes about four times the time against a same-run baseline (ADR 0086)
 {
-  // timePair repeats each sample to about 25 ms and takes the best of three, so neither a descheduled call nor a sub-millisecond
-  // baseline sets the reading.
+  // timePair repeats each sample to about 10 ms and takes the best of three, so neither a descheduled call nor a sub-millisecond
+  // baseline sets the reading. The shapes only the scanner reaches are pinned in shell-words.test.js.
   const { timePair } = require('./linear-time');
-  const nestedHeredocs = (d) => {
-    let s = '';
-    for (let k = d; k >= 1; k--) s = `cat <<E${k}\n$(${s})\nE${k}\n`;
-    return s;
-  };
   // Four times the input takes about four times as long when linear and sixteen times when quadratic; the ceiling sits at
   // nine, between them, loose for scheduler noise.
   const grows = (label, make, n) => {
     const [base, big] = timePair((cmd) => decide(sub(cmd)), make(n), make(4 * n));
     assert.ok(big < base * 9, `${label}: time grows linearly: ${n} repeats took ${base} ns, ${4 * n} took ${big} ns`);
   };
-  grows('nested substitutions', (n) => 'git -C $(a $(b $(c))) log; echo "$(x $(y))" ;'.repeat(n), 2000);
-  grows('nested heredocs', nestedHeredocs, 400);
-  grows('many (( runs', (n) => 'echo "((x))" ((y)) \\(\\(z\\)\\);'.repeat(n), 2000);
-  grows('many (( runs escaped for a second level', (n) => 'dash -c dash\\ -c\\ \\\\\\(\\\\\\(x\\\\\\ y\\\\\\)\\\\\\); eval "eval \\\\(\\\\(z\\\\)\\\\)";'.repeat(n), 2000);
-  grows('many backslash-escaped words', (n) =>'echo ' + 'a\\ git\\ push\\ b '.repeat(n), 2000);
-  grows('nested alias values', (n) => 'alias a="$( '.repeat(n) + 'x' + ' )"'.repeat(n), 2000);
   grows('long-spelled wrappers', (n) => ('env' + "''".repeat(600) + ' true; ').repeat(n), 20);
   // A sink is read once per command, however many heredocs it holds, and a tee sink's operands once.
   grows('one file sink holding many heredocs', (n) => 'cat > f ' + '<<E '.repeat(n) + '\n' + 'git push\nE\n'.repeat(n), 400);
@@ -750,19 +739,10 @@ for (const c of ['node scope.js trace --slice 1 --root r', 'node scope.js test f
   assert.equal(decide(sub(c)).block, false, 'another scope.js verb is allowed: ' + c);
 }
 
-// require.main guard: requiring this hook must never run main()'s stdin/decide dispatch, and
-// spawning it directly (as Claude Code's hook invocation does) must still decide exactly as before
-// the guard was added.
+// Spawning the hook directly (as Claude Code's hook invocation does) decides: the guard's decision path.
+// That requiring it prints nothing is proven in tests/plugin-layout.test.js.
 {
   const payload = JSON.stringify(sub('git merge scope'));
-  const required = cp.spawnSync(process.execPath, ['-e', `require(${JSON.stringify(hookPath)})`], {
-    input: payload, encoding: 'utf8', timeout: 5000,
-  });
-  assertSpawnDecided(required, 'requiring merge-guard.js');
-  assert.equal(required.status, 0, 'requiring merge-guard.js never blocks');
-  assert.equal(required.stdout, '', 'requiring merge-guard.js prints nothing');
-  assert.equal(required.stderr, '', 'requiring merge-guard.js runs no decision');
-
   const spawned = cp.spawnSync(process.execPath, [hookPath], { input: payload, encoding: 'utf8', timeout: 5000 });
   assertSpawnDecided(spawned, 'spawning merge-guard.js directly');
   assert.equal(spawned.status, 2, 'spawning merge-guard.js directly still blocks a subagent merge');

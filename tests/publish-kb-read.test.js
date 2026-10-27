@@ -101,6 +101,39 @@ withState(() => {
   assert.match(res.err, /read exited 7/);
 });
 
+// --- an empty read body refuses the read entry, never reading as an empty page ---------------------
+withState(() => {
+  const repo = makeRepo();
+  writeKbDoc(repo, `# KB\n\n## Configuration\n\n- **Backend:** Quiet Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\necho '{"id": "id-1"}'\n\`\`\`\n\n### read\n\n\`\`\`sh\n:\n\`\`\`\n`);
+
+  const res = call(['--read', 'Quiet Page'], repo);
+  assert.equal(res.ok, false);
+  assert.equal(res.err, 'read returned an empty body');
+  assert.equal(res.out, '', 'nothing is printed');
+});
+
+// --- a read call that cannot run (output past maxBuffer kills it) refuses, naming the failure -------
+withState(() => {
+  const repo = makeRepo();
+  writeKbDoc(repo, `# KB\n\n## Configuration\n\n- **Backend:** Loud Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\necho '{"id": "id-1"}'\n\`\`\`\n\n### read\n\n\`\`\`sh\nhead -c 11000000 /dev/zero\n\`\`\`\n`);
+
+  const res = call(['--read', 'Loud Page'], repo);
+  assert.equal(res.ok, false);
+  assert.match(res.err, /^read could not run \(/);
+  assert.equal(res.out, '', 'nothing is printed');
+});
+
+// --- an unconfigured backend (no ## Commands) refuses the read entry, naming /superdev:setup --------
+withState(() => {
+  const repo = makeRepo();
+  writeKbDoc(repo, '# Knowledge base\n\n## Configuration\n\n- **Backend:** Some Wiki, old style.\n');
+
+  const res = call(['--read', 'Any Page'], repo);
+  assert.equal(res.ok, false);
+  assert.match(res.err, /carries no "## Commands" section — run \/superdev:setup/);
+  assert.equal(res.out, '');
+});
+
 // --- an exhausted bound refuses the read entry, naming the timeout --------------------------------
 withState((stateFile) => {
   const repo = makeRepo();

@@ -82,7 +82,7 @@ const { sliceJson, scopePath, run } = require('./scope-setup');
     // Every ledger-writing verb the usage text lists is driven against a fresh run root and appends one
     // `ledger <verb> …` line: a verb added to the usage text with no driver here, or one that stops tracing, fails.
     {
-      const usageText = spawnSync('node', [scopePath, '--help'], { encoding: 'utf8' }).stdout;
+      const usageText = require('../plugin/lib/usage.js').usage();
       const readOnly = new Set(['get', 'trace', 'publish', 'status', 'root', 'staging', 'dod-line', 'collisions', 'citations', 'source-set', 'push', 'test', 'fail-to-pass']);
       const readOnlySub = /^\s+(deploy get|suite reusable|base resolve)\b/;
       const usageVerbs = new Set(usageText.split('\n').slice(1)
@@ -216,5 +216,22 @@ const { sliceJson, scopePath, run } = require('./scope-setup');
   } catch (e) {
     fs.rmSync(dir, { recursive: true, force: true });
     throw e;
+  }
+}
+
+// A focused run's path set reads back whole through the trace's own writer and reader, for any path (ADR 0175). The one
+// spawned `scope.js test focused` case in scope-test-verb-record.test.js shows the verb writes this field.
+{
+  const { encodePaths, decodePaths, appendTrace, readTrace } = require('../plugin/lib/trace-log.js');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-trace-paths-'));
+  try {
+    const last = () => readTrace(fs.readFileSync(path.join(dir, 'trace.log'), 'utf8')).filter((e) => e.kind === 'run').pop();
+    for (const set of [['a b.ts', 'c.ts'], ['x,y.ts', 'z.ts'], ['-lead.ts'], ['-'], ['café.ts', '100%.ts', 'back\\slash.ts', 'p%2Cq.ts']]) {
+      assert.ok(appendTrace(dir, { slice: '01', kind: 'run', fields: ['focused', 'pass', 'abc', 'clean', encodePaths(set)] }));
+      assert.deepEqual(decodePaths(last().fields[4]), set, `the set reads back whole: ${JSON.stringify(set)}`);
+    }
+    assert.deepEqual(decodePaths('-'), [], 'a line with no path set reads an empty set');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
   }
 }

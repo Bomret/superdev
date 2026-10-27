@@ -455,37 +455,64 @@ assert.deepEqual(
     }
   }
 
-  // #require-guard: requiring this file (a suite reaching its internal functions) must never
-  // sweep — only running it directly, as Claude Code's Stop hook does, may. Both directions use
-  // the same merged-and-worked fixture the first scenario above sweeps.
+  // The default branch (the base a slice must have commits beyond) resolves from origin/HEAD, then
+  // `main`, then `master`; with none the sweep removes nothing. Each scenario folds one worked slice
+  // into its scope branch, so only the resolved default branch decides whether it is swept.
+  function sweepScenario(initialBranch, prepare, afterSweep) {
+    const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ws-def-')));
+    git(['init', '-q', '-b', initialBranch], repo);
+    git(['config', 'user.email', 'test@example.com'], repo);
+    git(['config', 'user.name', 'test'], repo);
+    fs.writeFileSync(path.join(repo, 'base.txt'), 'x\n');
+    git(['add', '.'], repo);
+    git(['commit', '-q', '-m', 'base'], repo);
+    git(['branch', 'scope/d'], repo);
+    makeScope(repo, 'd', '**Branch:** scope/d\n');
+    const wt = path.join(repo, '.superdev/scopes/d/slicetrees/1');
+    git(['worktree', 'add', '-q', '-b', 'slice/d/1', wt], repo);
+    fs.writeFileSync(path.join(wt, 's1.txt'), 'y\n');
+    git(['add', '.'], wt);
+    git(['commit', '-q', '-m', 's1'], wt);
+    fold(repo, 'scope/d', 'slice/d/1');
+    if (prepare) prepare(repo);
+    main(repo);
+    const gone = !fs.existsSync(wt);
+    if (afterSweep) afterSweep(repo);
+    fs.rmSync(repo, { recursive: true, force: true });
+    return { wt, gone };
+  }
+
+  assert.ok(sweepScenario('main').gone, 'with no origin/HEAD, the main fallback is the default branch and the slice is swept');
+  assert.ok(sweepScenario('master').gone, 'with no main, the master fallback is the default branch and the slice is swept');
+  assert.ok(!sweepScenario('trunk', null, (repo) => {
+    git(['show-ref', '--verify', '--quiet', 'refs/heads/slice/d/1'], repo);
+  }).gone, 'with neither origin/HEAD, main, nor master, the sweep removes nothing');
+  // origin/HEAD names origin/trunk, which lacks the slice's commit, while local `trunk` holds it: only
+  // the name stripped of `origin/` resolves to the holder, so the slice is not swept. Unstripped, it
+  // would be swept, as the `main` fallback would also have swept it.
+  assert.ok(!sweepScenario('main', (repo) => {
+    git(['branch', 'trunk', 'scope/d'], repo);
+    git(['update-ref', 'refs/remotes/origin/trunk', 'refs/heads/main'], repo);
+    git(['symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/trunk'], repo);
+  }).gone, 'origin/HEAD (stripped of origin/) wins over the main fallback');
+
+  // A dirty slicetree: `git worktree remove` refuses, so no `branch -D` runs and the branch survives. Git itself also refuses
+  // `branch -D` on a branch checked out in a worktree, so the case cannot isolate the hook's own guard.
   {
-    const cp = require('node:child_process');
     const repo = makeRepo();
-    const g = (args, cwd) => git(args, cwd);
-    g(['branch', 'scope/guard'], repo);
-    makeScope(repo, 'guard', '**Branch:** scope/guard\n');
-    const wt = path.join(repo, '.superdev/scopes/guard/slicetrees/1');
-    g(['worktree', 'add', '-q', '-b', 'slice/guard/1', wt], repo);
-    fs.writeFileSync(path.join(wt, 'w.txt'), 'y\n');
-    g(['add', '.'], wt);
-    g(['commit', '-q', '-m', 'work'], wt);
-    fold(repo, 'scope/guard', 'slice/guard/1');
-
-    const required = cp.spawnSync(process.execPath, ['-e', `require(${JSON.stringify(hookPath)})`], {
-      input: JSON.stringify({ cwd: repo }), encoding: 'utf8', timeout: 15000,
-    });
-    assertSpawnDecided(required, 'requiring slicetree-sweep.js');
-    assert.equal(required.status, 0, 'requiring slicetree-sweep.js exits cleanly');
-    assert.equal(required.stdout, '', 'requiring slicetree-sweep.js prints nothing');
-    assert.ok(fs.existsSync(wt), 'requiring slicetree-sweep.js sweeps nothing');
-
-    const spawned = cp.spawnSync(process.execPath, [hookPath], {
-      input: JSON.stringify({ cwd: repo }), encoding: 'utf8', timeout: 15000,
-    });
-    assertSpawnDecided(spawned, 'spawning slicetree-sweep.js directly');
-    assert.equal(spawned.status, 0, 'spawning slicetree-sweep.js directly still exits 0');
-    assert.ok(!fs.existsSync(wt), 'spawning slicetree-sweep.js directly still sweeps the merged-and-worked slice');
-
+    git(['branch', 'scope/dirty'], repo);
+    makeScope(repo, 'dirty', '**Branch:** scope/dirty\n');
+    const wt = path.join(repo, '.superdev/scopes/dirty/slicetrees/1');
+    git(['worktree', 'add', '-q', '-b', 'slice/dirty/1', wt], repo);
+    fs.writeFileSync(path.join(wt, 's1.txt'), 'y\n');
+    git(['add', '.'], wt);
+    git(['commit', '-q', '-m', 's1'], wt);
+    fold(repo, 'scope/dirty', 'slice/dirty/1');
+    fs.writeFileSync(path.join(wt, 's1.txt'), 'uncommitted\n');
+    main(repo);
+    assert.ok(fs.existsSync(wt), 'a dirty slicetree survives the sweep');
+    git(['show-ref', '--verify', '--quiet', 'refs/heads/slice/dirty/1'], repo); // throws if the branch went
+    assert.equal(fs.readFileSync(path.join(wt, 's1.txt'), 'utf8'), 'uncommitted\n', 'its uncommitted work is intact');
     fs.rmSync(repo, { recursive: true, force: true });
   }
 

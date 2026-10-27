@@ -10,6 +10,7 @@ const os = require('node:os');
 const path = require('node:path');
 const {
   publishKbPath,
+  shq,
   FAKE_BACKEND,
   HUNG_CEILING_MS,
   hangBound,
@@ -31,28 +32,7 @@ const PATCH_VERBS = ['find', 'read', 'create', 'update', 'delete'];
 
 // --- the time bound (ADR 0130) ------------------------------------------------------------------
 
-// --- a find that never answers is killed at the bound, and its page stays staged -----------------
-withState(() => {
-  const repo = makeRepo();
-  writeKbDoc(repo, hangingVerbDoc('- **Backend:** Some Wiki.', 'find'));
-  stagePage(repo, 'hang', 'p.md', 'title: Hung Page\naction: upsert');
-  process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = String(HANG_MS);
-
-  const started = Date.now();
-  const res = call(['--scope', 'hang'], repo);
-  const elapsed = Date.now() - started;
-
-  assert.ok(res.ok, `expected a report, got: ${res.err}`);
-  assert.match(res.out, new RegExp(`left staged: Hung Page — find timed out after ${HANG_MS}ms`));
-  // relative to the configured bound (AGENTS.md, ADR 0086), not an absolute ceiling
-  assert.ok(elapsed < HUNG_CEILING_MS, `expected the bound to end it, took ${elapsed}ms`);
-  assert.ok(
-    fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'hang', 'p.md')),
-    'a timed-out page stays staged',
-  );
-});
-
-// --- every verb is bounded, not just find (find has its own case above) --------------------------
+// --- every verb is bounded: find is bounded in the batch case below, the rest here -------------
 for (const verb of ['create', 'update', 'delete']) {
   withState((stateFile) => {
     const repo = makeRepo();
@@ -81,21 +61,6 @@ for (const verb of ['create', 'update', 'delete']) {
     );
   });
 }
-
-// --- the read inside an action: patch is bounded on the same terms --------------------------------
-withState((stateFile) => {
-  const repo = makeRepo();
-  writeKbDoc(repo, hangingVerbDoc('- **Backend:** Some Wiki.', 'read'));
-  fs.writeFileSync(stateFile, JSON.stringify({ Aggregate: { id: 'id-0', body: '## A\n\nold.\n' } }));
-  stagePage(repo, 'patchhang', 'aggregate--b.md', 'title: Aggregate\naction: patch', '## B\n\nnew.\n');
-  process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = String(HANG_MS);
-
-  const res = call(['--scope', 'patchhang'], repo);
-  assert.ok(res.ok, `expected a report, got: ${res.err}`);
-  assert.match(res.out, new RegExp(`left staged: Aggregate — read timed out after ${HANG_MS}ms`));
-  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
-  assert.equal(state.Aggregate.body, '## A\n\nold.\n', 'a timed-out read overwrites nothing');
-});
 
 // --- the override parses: unset, empty, and unparseable all fall back to the 30s default ----------
 {
@@ -130,7 +95,7 @@ withState((stateFile) => {
   const elapsed = Date.now() - started;
 
   assert.ok(res.ok, `expected a report, got: ${res.err}`);
-  assert.match(res.out, new RegExp(`timed out after ${HANG_MS}ms`));
+  assert.match(res.out, new RegExp(`left staged: Alpha — find timed out after ${HANG_MS}ms`), 'the hung find is killed at the bound');
   assert.match(res.out, /stopped after a timeout: 2 page\(s\) left untried/);
   assert.ok(elapsed < HUNG_CEILING_MS, `expected the bound to end the batch; took ${elapsed}ms`);
   for (const f of ['alpha.md', 'bravo.md', 'charlie.md']) {
@@ -166,6 +131,11 @@ withState((stateFile) => {
   assert.match(res.out, /left staged, never tried: combo--section-b\.md — the run stopped after a timeout/);
   assert.match(res.out, /left staged, never tried: combo--section-c\.md — the run stopped after a timeout/);
   assert.match(res.out, /stopped after a timeout: 2 page\(s\) left untried/);
+  assert.equal(
+    JSON.parse(fs.readFileSync(stateFile, 'utf8'))['Combo Page'].body,
+    '# Combo Page\n',
+    'a timed-out read overwrites nothing',
+  );
   const findCalls = fs.readdirSync(captureDir).filter((f) => f.startsWith('find-'));
   assert.equal(
     findCalls.length,
@@ -186,7 +156,7 @@ withState((stateFile) => {
   // A `find` whose command cannot start at all: the shell exits nonzero, which is a per-page
   // failure and says nothing about the host, so the batch carries on to the next title.
   const doc = commandsDoc('- **Backend:** Some Wiki.').replace(
-    `### find\n\n\`\`\`sh\nnode ${JSON.stringify(FAKE_BACKEND)} find\n\`\`\``,
+    `### find\n\n\`\`\`sh\nnode ${shq(FAKE_BACKEND)} find\n\`\`\``,
     '### find\n\n```sh\nif [ "$SUPERDEV_KB_TITLE" = "Doomed" ]; then exit 9; fi\nexit 3\n```',
   );
   writeKbDoc(repo, doc);

@@ -400,6 +400,7 @@ module.exports = {
   markdownRefusal,
   addParentLink,
   removeParentLink,
+  fillLinkTarget,
   linkIntoParent,
   unlinkFromParent,
 };

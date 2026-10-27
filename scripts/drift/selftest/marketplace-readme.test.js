@@ -19,6 +19,9 @@ module.exports = ({ assert, path, fixture }) => {
     0,
     'a resolving source yields zero gaps',
   );
+  for (const [label, body] of [['no plugins key', '{"name":"m"}'], ['an empty plugins list', '{"name":"m","plugins":[]}']]) {
+    assert.equal(scanMarketplaceSource(fixture({ '.claude-plugin/marketplace.json': body })).length, 0, `${label} holds no source to check`);
+  }
   const msGaps = scanMarketplaceSource(
     fixture({
       '.claude-plugin/marketplace.json': mkManifest('./shippd'),

@@ -11,8 +11,54 @@
 // started" until a real spawn exposed the gap.
 
 const assert = require('node:assert');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { assertSpawnDecided } = require('./spawn-verdict');
+const { assertSpawnDecided, boundFromSamples, shq } = require('./spawn-verdict');
+
+// boundFromSamples: a fast sample floors the bound at 1000 ms, and each sample runs once per index 0..2.
+{
+  const seen = [];
+  assert.equal(boundFromSamples((i) => seen.push(i)), 1000, 'a fast sample gives the 1000 ms floor');
+  assert.deepStrictEqual(seen, [0, 1, 2], 'the sample runs three times');
+}
+
+// boundFromSamples: a slower sample lifts the bound to ten times the slowest run, measured in this same run (INV-0009).
+{
+  let slowest = 0;
+  const bound = boundFromSamples(() => {
+    const started = Date.now();
+    const r = spawnSync('sleep', ['0.2']);
+    assertSpawnDecided(r, 'boundFromSamples slow sample');
+    slowest = Math.max(slowest, Date.now() - started);
+  });
+  assert.ok(bound >= 10 * slowest, `bound ${bound} ms is at least ten times the slowest sample, ${slowest} ms`);
+}
+
+// shq: a `$`, a backtick, a quote, a backslash, and a space reach `sh -c` as written (triage #1380).
+{
+  const weird = "a$HOME`true`'\"b c\\d";
+  const echoed = spawnSync('sh', ['-c', `printf %s ${shq(weird)}`], { encoding: 'utf8', timeout: 15000 });
+  assertSpawnDecided(echoed, 'shq round trip');
+  assert.equal(echoed.stdout, weird, 'shq passes the string through the shell as written');
+}
+
+// shq: a shell script written under a hostile TMPDIR, the shape tests/scope-containment.test.js writes its git
+// wrappers and payloads in, touches the marker it names (triage #1380).
+{
+  const hostile = fs.mkdtempSync(path.join(os.tmpdir(), 'sv-$HOME `true` \'q-'));
+  try {
+    const marker = path.join(hostile, 'marker');
+    const script = path.join(hostile, 'payload.sh');
+    fs.writeFileSync(script, `#!/bin/sh\ntouch ${shq(marker)}\n`, { mode: 0o755 });
+    const r = spawnSync(script, [], { timeout: 15000 });
+    assertSpawnDecided(r, 'hostile TMPDIR script');
+    assert.ok(fs.existsSync(marker), 'the script touched the marker inside the hostile directory');
+  } finally {
+    fs.rmSync(hostile, { recursive: true, force: true });
+  }
+}
 
 // timeout kill: a real child outliving a short timeout. Node sets both signal (killSignal) and
 // error (ETIMEDOUT). The helper must check signal first, so it names the kill, not "never started".

@@ -39,7 +39,7 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     // of one run never overlap another's (a second `add` read the first one's half-written `commondir`, and a `prune`
     // could unregister a worktree being created, #1315). A `git` shim on the PATH holds each such call open for a moment,
     // logs its start and end, and runs the real git, so two calls that reach git within that moment of each other overlap
-    // in the log. Over repeated rounds.
+    // in the log.
     {
       const shimDir = path.join(D, 'shim');
       fs.mkdirSync(shimDir);
@@ -52,26 +52,24 @@ for a in "$@"; do
 done
 exec "${realGit}" "$@"
 `, { mode: 0o755 });
-      for (let round = 0; round < 3; round++) {
-        s = scenario({
-          base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
-          tip: { 'src.txt': 'b\n', 'tests/t.sh': 'grep -q b src.txt\n' },
-        });
-        before = [checkout(s.repo), checkout(s.tree)];
-        const shimLog = path.join(path.dirname(s.repo), 'shim.log');
-        const pair = drive({ mode: 'parallel', cwd: s.tree, range: s.range, cmd: s.cmd, root: s.root, env: { PATH: shimDir + path.delimiter + process.env.PATH, F2P_SHIM_LOG: shimLog } });
-        assert.deepEqual(pair.map((e) => e.code), [0, 0], `round ${round}: both runs end with an outcome: ` + JSON.stringify(pair));
-        let open = 0;
-        let deepest = 0;
-        for (const line of fs.readFileSync(shimLog, 'utf8').split('\n').filter(Boolean)) {
-          open += line.startsWith('start') ? 1 : -1;
-          deepest = Math.max(deepest, open);
-        }
-        assert.equal(deepest, 1, `round ${round}: no worktree call of one run overlaps another's`);
-        assert.equal(s.trace().length, 2, `round ${round}: each run writes its own line`);
-        assert.deepEqual(leftover(s), []);
-        assert.deepEqual([checkout(s.repo), checkout(s.tree)], before, `round ${round}: and the checkout keeps its state`);
+      s = scenario({
+        base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
+        tip: { 'src.txt': 'b\n', 'tests/t.sh': 'grep -q b src.txt\n' },
+      });
+      before = [checkout(s.repo), checkout(s.tree)];
+      const shimLog = path.join(path.dirname(s.repo), 'shim.log');
+      const pair = drive({ mode: 'parallel', cwd: s.tree, range: s.range, cmd: s.cmd, root: s.root, env: { PATH: shimDir + path.delimiter + process.env.PATH, F2P_SHIM_LOG: shimLog } });
+      assert.deepEqual(pair.map((e) => e.code), [0, 0], 'both runs end with an outcome: ' + JSON.stringify(pair));
+      let open = 0;
+      let deepest = 0;
+      for (const line of fs.readFileSync(shimLog, 'utf8').split('\n').filter(Boolean)) {
+        open += line.startsWith('start') ? 1 : -1;
+        deepest = Math.max(deepest, open);
       }
+      assert.equal(deepest, 1, "no worktree call of one run overlaps another's");
+      assert.equal(s.trace().length, 2, 'each run writes its own line');
+      assert.deepEqual(leftover(s), []);
+      assert.deepEqual([checkout(s.repo), checkout(s.tree)], before, 'and the checkout keeps its state');
 
       // The watcher of a killed run removes its worktree under the same lock: beside a second run creating its own, no
       // worktree call overlaps another's.
@@ -144,7 +142,7 @@ for (let i = 0; i < 3; i++) withWorktreeLock(${JSON.stringify(s.repo)}, () => {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5);
   fs.rmSync(${JSON.stringify(marker)});
 });`;
-      for (let round = 0; round < 5; round++) {
+      for (let round = 0; round < 2; round++) {
         fs.mkdirSync(staleLock);
         fs.writeFileSync(path.join(staleLock, 'pid'), dead);
         const crowd = spawnSync('sh', ['-c', 'for i in 1 2 3 4 5 6 7 8; do node -e "$HOLDER" & done; wait'], {

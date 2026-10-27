@@ -9,7 +9,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { publishKbPath, FAKE_BACKEND, makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState } = require('./publish-kb-setup');
+const { publishKbPath, FAKE_BACKEND, shq, makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState } = require('./publish-kb-setup');
 const { classifyBackend, hashBody } = require(publishKbPath);
 
 // --- end-to-end: upsert creates when find reports absent (exit 3) ----------------------------
@@ -89,10 +89,10 @@ withState((stateFile) => {
   const repo = makeRepo();
   // The find command here returns a title field; our implementation must NOT use it
   const findCmd = `echo '{"id": "id-1", "title": "Found Title"}'`;
-  const readCmd = `node ${JSON.stringify(FAKE_BACKEND)} read`;
-  const createCmd = `node ${JSON.stringify(FAKE_BACKEND)} create`;
-  const updateCmd = `node ${JSON.stringify(FAKE_BACKEND)} update`;
-  const deleteCmd = `node ${JSON.stringify(FAKE_BACKEND)} delete`;
+  const readCmd = `node ${shq(FAKE_BACKEND)} read`;
+  const createCmd = `node ${shq(FAKE_BACKEND)} create`;
+  const updateCmd = `node ${shq(FAKE_BACKEND)} update`;
+  const deleteCmd = `node ${shq(FAKE_BACKEND)} delete`;
   const doc = `# KB\n\n## Configuration\n\n- **Backend:** Override Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\n${findCmd}\n\`\`\`\n\n### read\n\n\`\`\`sh\n${readCmd}\n\`\`\`\n\n### create\n\n\`\`\`sh\n${createCmd}\n\`\`\`\n\n### update\n\n\`\`\`sh\n${updateCmd}\n\`\`\`\n\n### delete\n\n\`\`\`sh\n${deleteCmd}\n\`\`\`\n`;
   writeKbDoc(repo, doc);
   fs.writeFileSync(stateFile, JSON.stringify({ 'Staged Title': { id: 'id-1', body: 'old.\n' } }));
@@ -118,10 +118,10 @@ withState((stateFile) => {
   const repo = makeRepo();
   // The find command here returns a body_file field; our implementation must NOT use it
   const findCmd = `echo '{"id": "id-1", "body_file": "/wrong/path"}'`;
-  const readCmd = `node ${JSON.stringify(FAKE_BACKEND)} read`;
-  const createCmd = `node ${JSON.stringify(FAKE_BACKEND)} create`;
-  const updateCmd = `node ${JSON.stringify(FAKE_BACKEND)} update`;
-  const deleteCmd = `node ${JSON.stringify(FAKE_BACKEND)} delete`;
+  const readCmd = `node ${shq(FAKE_BACKEND)} read`;
+  const createCmd = `node ${shq(FAKE_BACKEND)} create`;
+  const updateCmd = `node ${shq(FAKE_BACKEND)} update`;
+  const deleteCmd = `node ${shq(FAKE_BACKEND)} delete`;
   const doc = `# KB\n\n## Configuration\n\n- **Backend:** Override Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\n${findCmd}\n\`\`\`\n\n### read\n\n\`\`\`sh\n${readCmd}\n\`\`\`\n\n### create\n\n\`\`\`sh\n${createCmd}\n\`\`\`\n\n### update\n\n\`\`\`sh\n${updateCmd}\n\`\`\`\n\n### delete\n\n\`\`\`sh\n${deleteCmd}\n\`\`\`\n`;
   writeKbDoc(repo, doc);
   fs.writeFileSync(stateFile, JSON.stringify({ 'Staged': { id: 'id-1', body: 'old.\n' } }));

@@ -23,10 +23,11 @@ try {
     fs.mkdirSync(k);
     verif(`trap "sleep 30 & echo \\$! > ${k}/late; exit 0" TERM; touch ${k}/ready; sleep 30 & wait`, 'true');
     for (let n = 1; n <= 40; n++) {
+      // Polls step 0.02 s over the same 10 s bounds (500 steps).
       const out = bash(`rm -f ${k}/ready ${k}/late; node ${scopePath} test full & V=$!; while [ ! -f ${k}/ready ]; do sleep 0.01; done;` +
-        ` kill -TERM $V; wait $V; for i in $(seq 100); do [ -s ${k}/late ] && break; sleep 0.1; done;` +
+        ` kill -TERM $V; wait $V; for i in $(seq 500); do [ -s ${k}/late ] && break; sleep 0.02; done;` +
         ` [ -s ${k}/late ] || { echo nolate; exit 0; };` +
-        ` for i in $(seq 100); do kill -0 $(cat ${k}/late) 2>/dev/null || { echo gone; exit 0; }; sleep 0.1; done; echo alive`);
+        ` for i in $(seq 500); do kill -0 $(cat ${k}/late) 2>/dev/null || { echo gone; exit 0; }; sleep 0.02; done; echo alive`);
       assert.equal(out.stdout.trim().split('\n').pop(), 'gone', 'interrupted verb, round ' + n + ': a process forked while the command ends is ended too: ' + out.stdout + out.stderr);
     }
   }

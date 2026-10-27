@@ -68,21 +68,19 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     assert.deepEqual(leftover(s), [], 'an outcome leaves no worktree directory');
     assert.deepEqual([checkout(s.repo), checkout(s.tree)], before, 'and the checkout keeps its HEAD, branches, index, working tree, and worktrees');
 
-    // An error after the worktree exists (the put-back fails) removes it too, and the checkout keeps its state.
+    // An error after the worktree exists (the put-back fails) removes it too, and the checkout keeps its state. The scenario
+    // above has the same base and tip, so it runs again with the shim; its earlier run left one trace line and two log lines.
     const realGit = spawnSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim();
     const shim = path.join(D, 'bin');
     fs.mkdirSync(shim, { recursive: true });
     fs.writeFileSync(path.join(shim, 'git'), `#!/bin/sh\nfor a in "$@"; do [ "$a" = restore ] && { echo 'shim: restore refused' >&2; exit 1; }; done\nexec ${realGit} "$@"\n`, { mode: 0o755 });
-    s = scenario({
-      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
-      tip: { 'src.txt': 'b\n', 'tests/t.sh': probe + 'grep -q b src.txt\n' },
-    });
-    before = [checkout(s.repo), checkout(s.tree)];
+    const tracedBefore = s.trace();
+    fs.rmSync(s.log, { force: true });
     r = s.run(s.range, { env: { PATH: shim + path.delimiter + process.env.PATH } });
     assert.equal(r.status, 1, r.stdout + r.stderr);
     assert.match(r.stderr, /could not put the files back/);
     assert.deepEqual(s.ran(), ['docs|src.txt|tests|'], 'the control ran and the second run did not');
-    assert.deepEqual(s.trace(), [], 'an error writes no outcome line');
+    assert.deepEqual(s.trace(), tracedBefore, 'an error writes no outcome line');
     assert.deepEqual(leftover(s), [], 'an error leaves no worktree directory');
     assert.deepEqual([checkout(s.repo), checkout(s.tree)], before, 'and the checkout as it was');
 

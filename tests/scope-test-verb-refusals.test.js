@@ -32,13 +32,43 @@ try {
   r = verb(['--', 'bats services/x/tests/a.bats | cat']);
   assert.match(lines()[0], / run path unknown /, 'a status the command shape hides records unknown');
 
+  // `test --` with no command is refused, and a command holding several test runs is refused with nothing recorded.
+  reset();
+  r = verb(['--']);
+  assert.notEqual(r.status, 0, 'no command is refused');
+  assert.match(r.stderr, /test --: needs a command/, 'the refusal says a command is needed');
+  r = verb(['--', 'bats services/x/tests/a.bats; bats services/x/tests/a.bats']);
+  assert.notEqual(r.status, 0, 'a command with two test runs is refused');
+  assert.match(r.stderr, /more than one test run, run one per call/, 'the refusal names the count');
+  assert.deepEqual(lines(), [], 'and nothing is recorded');
+
+  // A command `sh` cannot start exits 127, naming the failure, and records nothing.
+  reset();
+  r = verb(['full'], { env: { PATH: '' } });
+  assert.equal(r.status, 127, 'a missing sh exits 127');
+  assert.match(r.stderr, /test: cannot run sh: /, 'and says so');
+  assert.deepEqual(lines(), [], 'and records nothing');
+
+  // A run line that cannot be written says so and leaves the command's own exit status.
+  reset();
+  const traceDir = path.join(root, 'trace.log');
+  fs.mkdirSync(traceDir);
+  try {
+    r = verb(['full']);
+    assert.equal(r.status, 0, 'the command passed, so the verb exits 0');
+    assert.match(r.stderr, /the run line could not be written to the run trace/, 'the failed write is named');
+    assert.match(r.stdout, /FULLRAN/, 'and the command ran');
+  } finally {
+    fs.rmdirSync(traceDir);
+  }
+
   // No option sets outcome, kind, slice, or tree state.
   reset();
   for (const argv of [['--outcome', 'pass', 'full'], ['full', '--kind', 'whole'], ['--slice', '01', 'full'], ['bogus']]) {
     assert.notEqual(verb(argv).status, 0, argv.join(' ') + ' is refused');
   }
   assert.deepEqual(lines(), []);
-  const usage = verb(['--help']).stdout.split('\n').filter((l) => /^ {2}test\b/.test(l)).join('\n');
+  const usage = require('../plugin/lib/usage.js').usage().split('\n').filter((l) => /^ {2}test\b/.test(l)).join('\n');
   assert.ok(usage, 'usage lists the verb');
   assert.ok(!/--(outcome|kind|slice|tree|status|root)/.test(usage), 'its usage names no option that sets a run field');
 

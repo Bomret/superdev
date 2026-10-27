@@ -9,7 +9,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync, execFileSync } = require('node:child_process');
-const { scopePath } = require('./scope-setup');
+const { scopePath, call } = require('./scope-setup');
 const { copyFixture, templateOnce } = require('./fixture-git');
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { STALENESS_MS } = require('../plugin/lib/plan-open.js');
@@ -227,6 +227,31 @@ try {
     assertSpawnDecided(noBase, 'scope.js open without --base');
     assert.strictEqual(noBase.status, 1, 'a missing --base refuses');
     assert.match(noBase.stderr, /--base/);
+  }
+
+  // #in-process refusals: an unresolvable base and a scopetree git cannot read refuse with exit 1 and write nothing.
+  {
+    const refused = (f, argv) => {
+      const r = call(argv, '', f.repo);
+      assert.strictEqual(r.ok, false, `${argv.join(' ')} refuses`);
+      assert.strictEqual(r.out, '', `${argv.join(' ')} prints nothing`);
+      return r;
+    };
+    const f = fixture();
+    const err = refused(f, ['open', BRANCH, '--base', 'nope']);
+    assert.match(err.err, /open: the base nope does not resolve to a commit/);
+    assert.strictEqual(err.exitCode, undefined, 'a refusal exits 1');
+    assert.ok(!fs.existsSync(f.root), 'an unresolvable base writes no run root');
+    assert.strictEqual(git(['branch', '--list', BRANCH], f.repo), '', 'and cuts no branch');
+
+    const g = fixture();
+    assert.strictEqual(open(g).status, 0, 'a first open cuts the branch');
+    fs.rmSync(path.join(g.root, 'ledger.md'));
+    fs.rmSync(g.lock);
+    fs.writeFileSync(path.join(g.scopetree, '.git'), 'gitdir: /nonexistent/gitdir\n');
+    const broken = refused(g, ['open', BRANCH, '--base', 'main']);
+    assert.match(broken.err, /open: git status in .* failed/);
+    assert.ok(!fs.existsSync(path.join(g.root, 'ledger.md')) && !fs.existsSync(g.lock), 'an unreadable scopetree writes no ledger and no lock');
   }
 
   // #lock-bound: the lock ages out at the same bound the run-lock hook applies.

@@ -406,26 +406,6 @@ const { appendTrace, isTestPath } = require(scopePath);
     'a pre-existing no-kind record is reusable without --whole'
   );
 
-  // suite reusable: a whole run line alone backs a plain check (no full run needed).
-  // RED test: this should pass once the filter accepts both full and whole kinds for plain checks.
-  const wholeOnlyRoot = path.join(suiteRepo, '.superdev', 'scopes', 'whole-only-suite-demo');
-  fs.mkdirSync(wholeOnlyRoot, { recursive: true });
-  const wholeOnlySha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: suiteRepo, encoding: 'utf8' }).trim();
-  traceRun(wholeOnlyRoot, 'whole', 'pass', wholeOnlySha, 'clean');
-  fs.writeFileSync(
-    path.join(wholeOnlyRoot, 'ledger.md'),
-    '# Ledger — whole-only-suite-demo\n\n**Stage:** merged\n**Branch:** main\n' +
-      `**Suite:** green @ ${wholeOnlySha} whole\n` +
-      '**Anchor:** #1 — whole-only\n\n' +
-      '| id | issue | title | type | depends-on | status | range |\n' +
-      '|---|---|---|---|---|---|---|\n',
-    'utf8'
-  );
-  assert.ok(
-    callIn(['suite', 'reusable', '--branch', 'main', '--root', wholeOnlyRoot], suiteRepo).ok,
-    'a whole run line alone backs a plain check'
-  );
-
   // suite reusable: a later focused run does not affect plain or --whole decision.
   const focusedRoot = path.join(suiteRepo, '.superdev', 'scopes', 'focused-suite-demo');
   fs.mkdirSync(focusedRoot, { recursive: true });

@@ -89,6 +89,14 @@ const denied = (command, cwd, agentType) => decide(call(command, cwd, agentType)
   assert.strictEqual(denied('grep -n "npm test" README.md', slicetree), false, 'a command naming the full command as text passes');
 }
 
+// --- a run verb with no command to judge fails open ---
+{
+  const { slicetree } = fixture();
+  assert.strictEqual(denied(`${SCOPE} test --`, slicetree), false, 'test -- with nothing after the -- passes');
+  assert.strictEqual(denied(`${SCOPE} fail-to-pass abc..def --`, slicetree), false, 'fail-to-pass with nothing after the -- passes');
+  assert.strictEqual(denied(`${SCOPE} fail-to-pass abc..def`, slicetree), false, 'fail-to-pass with no -- passes');
+}
+
 // --- every other caller, and every call the guard cannot judge, passes ---
 {
   const { slicetree, base } = fixture();

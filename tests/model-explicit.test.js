@@ -7,9 +7,7 @@
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
-const cp = require('node:child_process');
 
-const { assertSpawnDecided } = require('./spawn-verdict');
 
 const hookPath = require.resolve('../plugin/hooks/model-explicit.js');
 const { decide, OURS } = require(hookPath);
@@ -36,24 +34,6 @@ const basenames = fs
 const uncovered = basenames.filter((name) => !OURS.test(name));
 assert.deepEqual(uncovered, [], `agents/ uncovered by OURS: ${uncovered.join(', ')}`);
 
-// require.main guard: requiring this hook must never run main()'s stdin/decide dispatch, and
-// spawning it directly (as Claude Code's hook invocation does) must still decide exactly as before
-// the guard was added.
-{
-  const payload = JSON.stringify({ tool_name: 'Agent', tool_input: { subagent_type: 'implementer' } });
-  const required = cp.spawnSync(process.execPath, ['-e', `require(${JSON.stringify(hookPath)})`], {
-    input: payload, encoding: 'utf8', timeout: 5000,
-  });
-  assertSpawnDecided(required, 'requiring model-explicit.js');
-  assert.equal(required.status, 0, 'requiring model-explicit.js never blocks');
-  assert.equal(required.stdout, '', 'requiring model-explicit.js prints nothing');
-  assert.equal(required.stderr, '', 'requiring model-explicit.js runs no decision');
-
-  const spawned = cp.spawnSync(process.execPath, [hookPath], { input: payload, encoding: 'utf8', timeout: 5000 });
-  assertSpawnDecided(spawned, 'spawning model-explicit.js directly');
-  assert.equal(spawned.status, 2, 'spawning model-explicit.js directly still blocks a modelless dispatch');
-  assert.match(spawned.stderr, /must set an explicit model/, 'and still reports the model-explicit reason');
-}
 
 
 console.log('model-explicit tests ok');

@@ -7,7 +7,7 @@
 // `drift/checks.js`; this file walks that registry and reports.
 //
 // `--selftest` runs the checks' own tests (drift/selftest/). Plain invocation runs them against this
-// repository and exits nonzero on the first gap found.
+// repository, reports every failed check (a check that throws included), then exits nonzero.
 
 const path = require('node:path');
 

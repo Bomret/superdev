@@ -36,6 +36,9 @@ module.exports = ({ assert, path, fixture }) => {
   assert.equal(libGaps.length, 1, 'flags a module under lib parsing a header');
   assert.equal(libGaps[0].source, path.join('lib', 'rogue.js'), 'names the module');
   assert.equal(scanHookLedgerParsers(fixture({ 'README.md': '# repo\n' })).length, 0, 'no hooks dir holds nothing to scan');
+  const headerRegex = 'const re = new RegExp(`\\\\*\\\\*${name}:\\\\*\\\\*`);';
+  assert.equal(scanHookLedgerParsers(fixture({ 'lib/kb-backend-config.js': headerRegex })).length, 0, 'lib/kb-backend-config.js is exempt');
+  assert.equal(scanHookLedgerParsers(fixture({ 'hooks/kb-backend-config.js': headerRegex })).length, 1, 'the exemption is bound to lib/');
 
   // --- shell-spawn: no shipped executable starts a shell against INV-0153 (ADR 0150) ---
 
@@ -75,6 +78,10 @@ module.exports = ({ assert, path, fixture }) => {
     assert.equal(gaps[0].source, path.join('scripts', 'rogue.js'), `names the file for ${form}`);
     assert.ok(gaps[0].expectation.includes(`(${form})`), `names the form ${form}`);
   }
+  const star = "import * as cp from 'node:child_process';\ncp.exec('x');";
+  assert.equal(scanShellSpawn(fixture({ 'scripts/rogue.js': star })).length, 1, 'flags an `import * as` namespace start');
+  assert.equal(scanShellSpawn(fixture({ 'scripts/rogue.test.js': star + "\nexecSync('y');" })).length, 0, 'a *.test.js file is skipped');
+  assert.equal(scanShellSpawn(fixture({ 'scripts/rogue.js': "import * as cp from 'node:child_process';\ncp.spawnSync('git', []);" })).length, 0, 'an `import * as` namespace used for spawnSync is clean');
   assert.equal(scanShellSpawn(fixture({ 'hooks/rogue.mjs': "execSync('x');" })).length, 1, 'scans .mjs under hooks');
   const libSpawn = scanShellSpawn(fixture({ 'lib/rogue.js': "execSync('x');" }));
   assert.equal(libSpawn.length, 1, 'scans the modules under lib');

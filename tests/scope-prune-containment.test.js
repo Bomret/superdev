@@ -37,6 +37,10 @@ const { main } = hook;
   makeWorkBranch(squashRepo, 'fix/squashed', 'app.txt', 'v2\n');
   gitTest(['merge', '--squash', 'fix/squashed'], squashRepo);
   gitTest(['commit', '-q', '-m', 'fix: squashed (#1)'], squashRepo);
+  // Base moves on after the squash, so a copy comparing against the branch's own tree reads not-contained.
+  fs.writeFileSync(path.join(squashRepo, 'unrelated.txt'), 'later\n');
+  gitTest(['add', '.'], squashRepo);
+  gitTest(['commit', '-q', '-m', 'unrelated work on base'], squashRepo);
   const squashScopeDir = makeScope(squashRepo, 'squashed', '**Stage:** closed\n**Branch:** fix/squashed\n');
   main(squashRepo);
   assert.equal(
@@ -46,42 +50,8 @@ const { main } = hook;
   );
   fs.rmSync(squashRepo, { recursive: true, force: true });
 
-  // #merge-commit: ancestry would have caught this one, and containment still must.
-  const mergeRepo = makeRepo();
-  makeWorkBranch(mergeRepo, 'fix/mergecommit', 'app.txt', 'v2\n');
-  gitTest(['merge', '-q', '--no-ff', '-m', 'merge', 'fix/mergecommit'], mergeRepo);
-  const mergeScopeDir = makeScope(mergeRepo, 'mergecommit', '**Stage:** closed\n**Branch:** fix/mergecommit\n');
-  main(mergeRepo);
-  assert.equal(fs.existsSync(mergeScopeDir), false, 'a merge-commit-merged scope is pruned');
-  fs.rmSync(mergeRepo, { recursive: true, force: true });
-
-  // #fast-forward: base and branch end at the same commit, so the merge tree is trivially base's.
-  const ffRepo = makeRepo();
-  makeWorkBranch(ffRepo, 'fix/fastforward', 'app.txt', 'v2\n');
-  gitTest(['merge', '-q', '--ff-only', 'fix/fastforward'], ffRepo);
-  const ffScopeDir = makeScope(ffRepo, 'fastforward', '**Stage:** closed\n**Branch:** fix/fastforward\n');
-  main(ffRepo);
-  assert.equal(fs.existsSync(ffScopeDir), false, 'a fast-forward-merged scope is pruned');
-  fs.rmSync(ffRepo, { recursive: true, force: true });
-
-  // #contained-after-base-moves-on: the tree comparison is against base's *current* tree, so an
-  // unrelated commit landing on base after the merge changes that tree. Containment must survive it,
-  // or every scope stops being prunable the moment anyone else pushes.
-  const movedRepo = makeRepo();
-  makeWorkBranch(movedRepo, 'fix/moved', 'app.txt', 'v2\n');
-  gitTest(['merge', '--squash', 'fix/moved'], movedRepo);
-  gitTest(['commit', '-q', '-m', 'fix: moved (#1)'], movedRepo);
-  fs.writeFileSync(path.join(movedRepo, 'unrelated.txt'), 'later\n');
-  gitTest(['add', '.'], movedRepo);
-  gitTest(['commit', '-q', '-m', 'unrelated work on base'], movedRepo);
-  const movedScopeDir = makeScope(movedRepo, 'moved', '**Stage:** closed\n**Branch:** fix/moved\n');
-  main(movedRepo);
-  assert.equal(
-    fs.existsSync(movedScopeDir),
-    false,
-    'a contained scope stays prunable after base moves on with unrelated commits'
-  );
-  fs.rmSync(movedRepo, { recursive: true, force: true });
+  // The merge-commit and fast-forward verdicts are proven in tests/scope-containment.test.js's table; the
+  // squash row above carries the base-moves-on shape on the hook's own `containedInBase`.
 
   // #present-and-carries-unlanded-content: a clean merge that would still change base. `merge-tree`
   // exits 0 here, so the exit status alone would read this as landed — the tree comparison is what
@@ -162,8 +132,10 @@ const { main } = hook;
   }
 
   // #probe-fails-closed: INV-0003 on this surface. Every git call the probe makes can fail, and each
-  // failure leaves the scope standing rather than crashing the turn.
-  for (const failing of ['merge-base', 'diff', 'patch-id', 'rev-list', 'log']) {
+  // failure leaves the scope standing rather than crashing the turn. The other steps are pinned in
+  // tests/scope-containment.test.js's `#probe-fails-closed`; one row proves the hook leaves the scope standing.
+  {
+    const failing = 'merge-base';
     const failRepo = makeConflictingSquashRepo('fix/failing');
     const failScopeDir = makeScope(failRepo, 'failing', '**Stage:** closed\n**Branch:** fix/failing\n');
     withFakeGit(`if [ "$1" = "${failing}" ]; then exit 3; fi`, () => main(failRepo));

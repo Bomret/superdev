@@ -12,6 +12,7 @@ require('./fixture-git');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 const { f2pFixture, verif } = require('./scope-setup');
 
 const { readTrace, traceField } = require('../plugin/lib/trace-log.js');
@@ -33,6 +34,11 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     assert.doesNotMatch(r.stderr, /observation/, 'an outcome that reads a verdict says nothing');
     assert.deepEqual(s.trace(), [`01 main fail-to-pass ${s.range} fail-to-pass control=0,put-back=1`], 'one trace line of its own kind, on the slice, naming the range, the outcome, and the reason');
     assert.deepEqual(s.rawTrace(), [`01 main fail-to-pass ${s.range} fail-to-pass control=0,put-back=1 sh\\x20tests/t.sh`], 'and the command last, escaped as a trace field');
+    // The control run is also a test run (ADR 0175, ADR 0182): it writes a `path` run line with its result, the tip, a clean
+    // tree, and the range's test files, the files the command was handed to cover. The line is attributed like the outcome
+    // line, and the outcome line is unchanged.
+    assert.deepEqual(s.runLines(), [`01 main run path pass ${s.tipSha} clean tests/t.sh`], 'one passing path run line at the tip on a clean tree, naming the test files');
+    assert.match(s.rawRunLines()[0], / tests\/t\.sh \d+$/, 'and its duration in whole milliseconds last');
 
     // Tests that pass with the other files put back as well read pass-to-pass.
     s = scenario({
@@ -53,35 +59,25 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
       tip: { 'src.txt': 'b\n', 'tests/t.sh': probe },
     });
     const at = Number(process.env.GIT_CONFIG_COUNT || 0);
-    r = s.run(s.range, {
-      env: {
-        GIT_CONFIG_GLOBAL: '/dev/null',
-        GIT_CONFIG_NOSYSTEM: '1',
-        GIT_CONFIG_COUNT: String(at + 2),
-        [`GIT_CONFIG_KEY_${at}`]: 'commit.gpgsign',
-        [`GIT_CONFIG_VALUE_${at}`]: 'true',
-        [`GIT_CONFIG_KEY_${at + 1}`]: 'user.useConfigOnly',
-        [`GIT_CONFIG_VALUE_${at + 1}`]: 'true',
-      },
-    });
-    assert.equal(r.stdout.trim(), 'pass-to-pass control=0,put-back=0', `the put-back worktree is clean against its HEAD: ${r.stderr}`);
-
-    // The put-back commit starts no automatic maintenance, which could detach and outlive the verb, even where the
-    // environment turns it on. GIT_TRACE records every command a git child of the verb starts.
-    s = scenario({
-      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
-      tip: { 'src.txt': 'b\n', 'tests/t.sh': probe },
-    });
     const gitTrace = path.join(s.dir, 'git-trace');
     r = s.run(s.range, {
       env: {
         GIT_TRACE: gitTrace,
-        GIT_CONFIG_COUNT: String(at + 1),
-        [`GIT_CONFIG_KEY_${at}`]: 'maintenance.auto',
+        GIT_CONFIG_GLOBAL: '/dev/null',
+        GIT_CONFIG_NOSYSTEM: '1',
+        GIT_CONFIG_COUNT: String(at + 3),
+        [`GIT_CONFIG_KEY_${at}`]: 'commit.gpgsign',
         [`GIT_CONFIG_VALUE_${at}`]: 'true',
+        [`GIT_CONFIG_KEY_${at + 1}`]: 'user.useConfigOnly',
+        [`GIT_CONFIG_VALUE_${at + 1}`]: 'true',
+        [`GIT_CONFIG_KEY_${at + 2}`]: 'maintenance.auto',
+        [`GIT_CONFIG_VALUE_${at + 2}`]: 'true',
       },
     });
-    assert.equal(r.stdout.trim(), 'pass-to-pass control=0,put-back=0', r.stderr);
+    assert.equal(r.stdout.trim(), 'pass-to-pass control=0,put-back=0', `the put-back worktree is clean against its HEAD: ${r.stderr}`);
+    // The put-back commit starts no automatic maintenance, which could detach and outlive the verb, even where the
+    // environment turns it on (the same run, with `maintenance.auto` on). GIT_TRACE records every command a git child of
+    // the verb starts.
     assert.doesNotMatch(fs.readFileSync(gitTrace, 'utf8'), /run_command: git (maintenance run|gc) --auto/, 'no git child of the verb starts automatic maintenance');
 
     // Both runs run the caller's command, and a command handed as several words keeps each word as given, however odd.
@@ -189,6 +185,18 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     const testsOnly = scenario({ base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) }, tip: { 'tests/t.sh': probe } });
     refuses(testsOnly, testsOnly.range, /only test files/);
 
+    // A git that fails to list the range's changed paths, or to read the tip's `verification.md`, is refused with its own
+    // message. A `git` shim on the PATH fails the one subcommand and runs the real git for every other.
+    const realGit = spawnSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim();
+    const failing = (sub) => {
+      const dir = path.join(s.dir, `shim-${sub}`);
+      fs.mkdirSync(dir);
+      fs.writeFileSync(path.join(dir, 'git'), `#!/bin/sh\nfor a in "$@"; do [ "$a" = ${sub} ] && exit 1; done\nexec "${realGit}" "$@"\n`, { mode: 0o755 });
+      return { env: { PATH: dir + path.delimiter + process.env.PATH } };
+    };
+    refuses(s, s.range, /git could not list the paths the range changes/, failing('diff'));
+    refuses(s, s.range, /git could not read the tip's verification configuration/, failing('ls-tree'));
+
     // The verb runs only the command it is handed (ADR 0182): a range with no `--` command, or an empty one, is refused.
     refuses(s, s.range, /-- <command>/, { noCommand: true });
     refuses(s, s.range, /needs a command/, { cmd: ' ' });
@@ -207,28 +215,6 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
       assert.equal(r.stdout.trim(), 'pass-to-pass control=0,put-back=0', `${cmd} runs: ${r.stderr}`);
       assert.equal(readTrace(fs.readFileSync(path.join(twoTests.root, 'trace.log'), 'utf8')).find((e) => e.kind === 'fail-to-pass').fields[3], traceField(cmd), `${cmd} is recorded on the outcome line`);
     }
-
-    // The control run is also a test run (ADR 0175, ADR 0182): it writes a `path` run line with its result, the tip, a clean
-    // tree, and the range's test files, the files the command was handed to cover. The line is attributed like the outcome
-    // line, and the outcome line is unchanged.
-    s = scenario({
-      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
-      tip: { 'src.txt': 'b\n', 'tests/t.sh': probe + 'grep -q b src.txt\n' },
-    });
-    r = s.run(s.range);
-    assert.equal(r.stdout.trim(), 'fail-to-pass control=0,put-back=1', r.stderr);
-    assert.deepEqual(s.trace(), [`01 main fail-to-pass ${s.range} fail-to-pass control=0,put-back=1`], 'the outcome line is unchanged');
-    assert.deepEqual(s.runLines(), [`01 main run path pass ${s.tipSha} clean tests/t.sh`], 'one passing path run line at the tip on a clean tree, naming the test files');
-    assert.match(s.rawRunLines()[0], / tests\/t\.sh \d+$/, 'and its duration in whole milliseconds last');
-
-    // A failing control writes a failing run line, and the outcome line reads `unknown` as before.
-    s = scenario({
-      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
-      tip: { 'src.txt': 'b\n', 'tests/t.sh': probe + 'exit 3\n' },
-    });
-    r = s.run(s.range);
-    assert.equal(r.stdout.trim(), 'unknown control=3');
-    assert.deepEqual(s.runLines(), [`01 main run path fail ${s.tipSha} clean tests/t.sh`]);
 
     // A control that moves HEAD records the tip it ran on and a dirty tree, as `scope.js test` does for a moved HEAD.
     s = scenario({
@@ -251,6 +237,7 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     assert.equal(r.status, 0, 'an `unknown` is an outcome that was read and printed: ' + r.stderr);
     assert.equal(r.stdout.trim(), 'unknown control=3', 'the outcome names the control\'s exit status');
     assert.match(r.stderr, firstUnknown, 'the first `unknown` of the scope run says to capture an observation');
+    assert.deepEqual(s.runLines(), [`01 main run path fail ${s.tipSha} clean tests/t.sh`], 'a failing control writes a failing run line');
     assert.deepEqual(s.ran(), ['docs|src.txt|tests|'], 'only the control ran');
     assert.deepEqual(s.trace(), [`01 main fail-to-pass ${s.range} unknown control=3`], 'and its line is written');
     assert.deepEqual(leftover(s), []);
@@ -260,11 +247,8 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     assert.equal(s.trace().length, 2, 'and both lines are written');
 
     // A real run's trace holds lines already: its ledger lines and an earlier outcome that read a verdict, which is no
-    // `unknown`, so the first `unknown` after them still says so.
-    s = scenario({
-      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
-      tip: { 'src.txt': 'b\n', 'tests/t.sh': probe + 'exit 3\n' },
-    });
+    // `unknown`, so the first `unknown` after them still says so. The scenario above has the same base and tip: its trace is
+    // overwritten with the seed.
     fs.writeFileSync(path.join(s.root, 'trace.log'),
       '2026-10-10T00:00:00.000Z scope main ledger init demo\n' +
       `2026-10-10T00:00:01.000Z 01 main fail-to-pass ${s.range} fail-to-pass control=0,put-back=1\n`);

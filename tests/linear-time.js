@@ -7,7 +7,7 @@
 // descheduled or blocked reaches no reading, so machine load cannot skew the pair. Work `run` hands to another thread or a
 // child process reaches no reading either, so a pin times work done in this thread.
 // Runs `run(small)` and `run(big)` once each to warm them, then picks a repeat count that makes one sample of the small input
-// take about 25 ms, so a sub-millisecond baseline is no reading of timer noise. It returns the best of three samples of each
+// take about 10 ms, so a sub-millisecond baseline is no reading of timer noise. It returns the best of three samples of each
 // input, taken alternately.
 //
 // cpuNs() -> the calling thread's CPU time in nanoseconds, the clock timePair reads, for a pin that sizes its input.
@@ -22,7 +22,7 @@ function timePair(run, small, big) {
   const t0 = cpuNs();
   run(small);
   // A calibration below the clock's 1 µs resolution reads zero; it counts as 1 µs, so the repeat count stays bounded.
-  const reps = Math.max(1, Math.ceil(25e6 / Math.max(1000, cpuNs() - t0)));
+  const reps = Math.max(1, Math.ceil(10e6 / Math.max(1000, cpuNs() - t0)));
   const sample = (input) => {
     const t = cpuNs();
     for (let k = 0; k < reps; k++) run(input);

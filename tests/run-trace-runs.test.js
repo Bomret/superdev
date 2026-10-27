@@ -149,6 +149,16 @@ post('git checkout feature');
 fail('git restore --source=main -- src/y.js');
 assert.deepEqual(trace(A).map((l) => l.slice(2).join(' ')), ['revert src/x.js', 'restore src/x.js', 'restore src/x.js', 'revert src/x.js']);
 
+// `--source <rev>` and `-s <rev>` as separate words name the source like `--source=<rev>`: a revert, and `HEAD` a restore.
+reset();
+post('git restore --source main -- src/x.js');
+post('git restore -s main -- src/y.js');
+post('git restore --source HEAD -- src/z.js');
+post('git restore -s HEAD -- src/w.js');
+post('git restore --source main src/v.js');
+post('git restore -s main src/u.js');
+assert.deepEqual(trace(A).map((l) => l.slice(2).join(' ')), ['revert src/x.js', 'revert src/y.js', 'restore src/z.js', 'restore src/w.js', 'revert src/v.js', 'revert src/u.js']);
+
 // The tree comes from the effective directory at each segment, the input cwd only as the fallback.
 {
   const S2 = path.join(A, 'slicetrees', '02');

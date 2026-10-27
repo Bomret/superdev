@@ -245,8 +245,8 @@ same invocation, or at a floor of 10 000 ms, whichever is larger (INV-0009, ADR 
 overrides the floor in milliseconds; a value that is not a positive integer, or that exceeds 2147483647 (the
 longest delay Node's timer holds), reads as absent, and the verb names that value in one line on stderr. The suite's cases that hang
 the second run set the override, so none waits the floor. `lib/fail-to-pass.js` exports the bound as the pure function
-`failToPassBoundMs(controlMs, floorMs)`, and the verb calls it with the floor it reads once. The suite pins the factor and
-the floor on that function with no clock, because the first run's measured duration includes its own start-up, and load
+`failToPassBoundMs(controlMs, floorMs)` and the floor reader `failToPassFloorMs()`, and the verb calls the first with the floor the second reads once. The suite pins the factor and
+the floor on the bound function with no clock, and the override on the floor reader, because the first run's measured duration includes its own start-up, and load
 stretches that start-up by seconds. The verb refuses a range that changes no file and a range that changes only test files,
 because nothing is put back, and a range that changes no test file, because no test of its own can fail.
 
@@ -589,7 +589,8 @@ multi-line or non-list-item `parent-link`, or whose link text does not equal the
 inline link's target, and a wiki link's alias are each read up to a 1000-character cap, so a line of
 unclosed brackets scans in linear time and a longer title or target never matches. A `parent-link` whose
 target holds `{sub_url}` takes the value `find` returns for the page in its optional `sub_url` key. The
-value must stay in the URL-safe character set (`fillLinkTarget`), and the fill runs only once the live
+value must stay in the URL-safe character set (`fillLinkTarget(parsed, templates, fields)`, an export of
+`kb-parent-link.js`), and the fill runs only once the live
 parent lacks the link. A page that landed with no `find` fields on hand gets a fresh bounded `find`.
 
 `editParent` reads the live parent through `find` and `read`, applies a one-line edit, and writes the

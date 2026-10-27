@@ -66,6 +66,16 @@ const register = (...entries) => `# Invariant register\n\n${entries.join('\n')}`
   assert.notEqual(r2.status, 0, 'a --root naming no directory exits non-zero');
   assert.match(r2.stderr, /usage/i, 'a --root naming no directory prints usage');
 
+  const noValue = run(['--root'], '--root without a value');
+  assert.strictEqual(noValue.status, 2, 'a --root with no value exits 2');
+  assert.match(noValue.stderr, /usage/i, 'a --root with no value prints usage');
+
+  const aFile = path.join(repo({ 'file.txt': 'x' }), 'file.txt');
+  const fileRoot = run(['--root', aFile], '--root naming a file');
+  assert.strictEqual(fileRoot.status, 2, 'a --root naming a file exits 2');
+  assert.match(fileRoot.stderr, /usage/i, 'a --root naming a file prints usage');
+  assert.strictEqual(fileRoot.stdout, '', 'a refused --root checks nothing');
+
   const empty = repo({ 'CONTEXT.md': GLOSSARY });
   const r3 = run(['--root', empty], 'no register');
   assert.equal(r3.status, 0, 'a repository with no register passes');

@@ -263,5 +263,39 @@ assert.throws(
   'a live page with an unterminated fence refuses',
 );
 
+// --- the CLI: each refusal prints its one-line message, exits 1, and writes nothing to stdout ---
+// A spawned `node kb-patch.js` is the only place the exit status and stderr show.
+{
+  const { spawnSync } = require('node:child_process');
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const { assertSpawnDecided } = require('./spawn-verdict');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-patch-cli-'));
+  const livePage = path.join(dir, 'live.md');
+  const stagedPage = path.join(dir, 'staged.md');
+  fs.writeFileSync(livePage, '# T\n\n## A\n\nold.\n');
+  fs.writeFileSync(stagedPage, staged('## A', 'new.'));
+  const cli = (...args) => {
+    const r = spawnSync('node', [kbPatchPath, ...args], { encoding: 'utf8', timeout: 60000 });
+    assertSpawnDecided(r, `kb-patch ${args.length} args`);
+    return r;
+  };
+  const refused = (r, message) => {
+    assert.equal(r.status, 1);
+    assert.equal(r.stderr, `kb-patch: ${message}\n`);
+    assert.equal(r.stdout, '');
+  };
+
+  refused(cli(), 'usage: kb-patch.js <live-page.md> <staged-page.md>');
+  refused(cli(livePage), 'usage: kb-patch.js <live-page.md> <staged-page.md>');
+  const missing = path.join(dir, 'missing.md');
+  refused(cli(missing, stagedPage), `cannot read the live page at ${missing}`);
+  refused(cli(livePage, missing), `cannot read the staged page at ${missing}`);
+  fs.writeFileSync(stagedPage, '---\ntitle: T\naction: patch\n---\n\nno heading here.\n');
+  refused(cli(livePage, stagedPage), 'staged page has no heading — a patch names its section by the heading in its body');
+
+  fs.rmSync(dir, { recursive: true, force: true });
+}
 
 console.log('kb-patch tests ok');

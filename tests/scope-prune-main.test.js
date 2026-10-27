@@ -1,7 +1,7 @@
 'use strict';
 
 // Suite for plugin/hooks/scope-prune.js, `main()` end to end against real repositories: which run roots the hook
-// prunes and which it leaves standing, and the entry guard that keeps a plain `require` from pruning.
+// prunes and which it leaves standing. The entry guard that keeps a plain `require` from pruning is held in tests/plugin-layout.test.js.
 
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -9,8 +9,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
-const { assertSpawnDecided } = require('./spawn-verdict');
-const { hookPath, hook, TTL_MS, gitTest, makeRepo, makeScope } = require('./scope-prune-setup');
+const { hook, gitTest, makeRepo, makeScope } = require('./scope-prune-setup');
 const { main } = hook;
 
 // --- smoke test: main() end to end, against a real repository ---
@@ -269,44 +268,6 @@ const { main } = hook;
   );
   fs.rmSync(failRepo, { recursive: true, force: true });
   fs.rmSync(fakeBinDir, { recursive: true, force: true });
-}
-
-// #require-guard: requiring this file (a suite reaching its internal functions) must never
-// prune — only running it directly, as Claude Code's Stop hook does, may. Both directions use
-// the same gone-and-closed fixture #gone-and-closed prunes above.
-{
-  const cp = require('node:child_process');
-  const g = (args, cwd) => cp.execFileSync('git', args, { cwd, stdio: 'ignore' });
-  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-guard-'));
-  g(['init', '-q', '-b', 'main'], repo);
-  g(['config', 'user.email', 'test@example.com'], repo);
-  g(['config', 'user.name', 'test'], repo);
-  fs.writeFileSync(path.join(repo, 'README.md'), 'x\n');
-  g(['add', '.'], repo);
-  g(['commit', '-q', '-m', 'init'], repo);
-  const scopeDir = path.join(repo, '.superdev', 'scopes', 'guard');
-  fs.mkdirSync(scopeDir, { recursive: true });
-  const ledger = path.join(scopeDir, 'ledger.md');
-  fs.writeFileSync(ledger, '# ledger\n\n**Stage:** closed\n');
-  const past = new Date(Date.now() - TTL_MS - 1000);
-  fs.utimesSync(ledger, past, past);
-
-  const required = cp.spawnSync(process.execPath, ['-e', `require(${JSON.stringify(hookPath)})`], {
-    input: JSON.stringify({ cwd: repo }), encoding: 'utf8', timeout: 15000,
-  });
-  assertSpawnDecided(required, 'requiring scope-prune.js');
-  assert.equal(required.status, 0, 'requiring scope-prune.js exits cleanly');
-  assert.equal(required.stdout, '', 'requiring scope-prune.js prints nothing');
-  assert.equal(fs.existsSync(scopeDir), true, 'requiring scope-prune.js prunes nothing');
-
-  const spawned = cp.spawnSync(process.execPath, [hookPath], {
-    input: JSON.stringify({ cwd: repo }), encoding: 'utf8', timeout: 15000,
-  });
-  assertSpawnDecided(spawned, 'spawning scope-prune.js directly');
-  assert.equal(spawned.status, 0, 'spawning scope-prune.js directly still exits 0');
-  assert.equal(fs.existsSync(scopeDir), false, 'spawning scope-prune.js directly still prunes the gone, closed, stale scope');
-
-  fs.rmSync(repo, { recursive: true, force: true });
 }
 
 console.log('scope-prune-main tests ok');

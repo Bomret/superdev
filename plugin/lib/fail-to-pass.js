@@ -248,4 +248,4 @@ async function verbFailToPass(cwd, args) {
   }
 }
 
-module.exports = { verbFailToPass, failToPassBoundMs };
+module.exports = { verbFailToPass, failToPassBoundMs, failToPassFloorMs };

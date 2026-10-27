@@ -68,10 +68,9 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
 
     // An outcome line is no test run: it is no `run` line, never backs a suite record, and `suite reusable` answers as before.
     // The control's `path` run line backs no suite record either: it ran the range's test files, not the suite (ADR 0182).
-    s = scenario({
-      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
-      tip: { 'src.txt': 'b\n', 'tests/t.sh': probe + 'grep -q b src.txt\n' },
-    });
+    // The scenario above has the same base and tip, so it runs here from an empty trace, its branch back at the tip.
+    git(s.tree, ['reset', '-q', '--hard', s.tipSha]);
+    fs.rmSync(path.join(s.root, 'trace.log'));
     const cli = (sc, argv) => {
       const out = spawnSync(process.execPath, [scopePath, ...argv, '--root', sc.root], { cwd: sc.repo, encoding: 'utf8', timeout: 20000 });
       assertSpawnDecided(out, 'scope.js ' + argv.join(' '));
