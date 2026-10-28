@@ -35,6 +35,9 @@ and `publish-kb.js` fills a `{sub_url}` placeholder in a `parent-link` target fr
 optional. A backend whose `find` emits none gets the not-linked refusal for a `parent-link` that carries
 the placeholder.
 
+A second key is named: `type`. A `find` result whose `type` is `folder` marks a container, and
+`publish-kb.js` refuses an upsert or delete for it, naming the folder. The key is optional.
+
 ```mermaid
 flowchart LR
   skill["skills/publish-kb<br/>the two human stops"] --> script["scripts/publish-kb.js<br/>every mechanical rule"]

@@ -392,7 +392,8 @@ Before you present the decomposition, state, for each file you opened while grou
 about the proposal itself — not about the question you opened it for.
 
 Present the breakdown as a numbered list: per slice, title, `depends-on`, and which DoD criteria it
-covers — the same tags §3 wrote. Ask: is the granularity right? are the dependencies correct? should any
+covers — the same tags §3 wrote. Where the store's configuration allows more than one slice type, also
+each slice's type, picked by the configured "use for" lines and falling back to the default. Ask: is the granularity right? are the dependencies correct? should any
 slice split or merge? Iterate until they approve.
 
 **Extending a feature:** present only the **new** slices.

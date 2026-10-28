@@ -42,8 +42,10 @@ const state = readState();
 
 if (verb === 'find') {
   if (Object.hasOwn(state, title)) {
-    const { id, sub_url } = state[title];
-    process.stdout.write(JSON.stringify(sub_url === undefined ? { id } : { id, sub_url }));
+    const { id, sub_url, type } = state[title];
+    const out = sub_url === undefined ? { id } : { id, sub_url };
+    if (type !== undefined) out.type = type;
+    process.stdout.write(JSON.stringify(out));
     process.exit(0);
   }
   process.exit(3);

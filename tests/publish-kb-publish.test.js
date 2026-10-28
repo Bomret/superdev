@@ -418,4 +418,21 @@ withState(() => {
   assert.ok(fs.existsSync(path.join(dir, 'bad-action.md')));
 });
 
+// --- a staged page whose title is a folder's (find answers type: folder) is refused by name, untouched ---
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  fs.writeFileSync(stateFile, JSON.stringify({ 'Docs Folder': { id: 'f-1', type: 'folder', body: '' }, 'Old Folder': { id: 'f-2', type: 'folder', body: '' } }));
+  stagePage(repo, 'demo', 'up.md', 'title: Docs Folder\naction: upsert', 'body.\n');
+  stagePage(repo, 'demo', 'del.md', 'title: Old Folder\naction: delete');
+
+  const res = call(['--scope', 'demo'], repo);
+  assert.ok(res.ok, `expected a report, got: ${res.err}`);
+  const lines = res.out.split('\n').filter((l) => /left staged: (Docs|Old) Folder/.test(l));
+  assert.equal(lines.length, 2, 'both the upsert and the delete are left staged');
+  for (const l of lines) assert.match(l, /"(Docs|Old) Folder" is a folder, not a page/, 'the reason names the folder');
+  assert.doesNotMatch(res.out, /live-hash/, 'the folder is refused before the hash guard');
+  assert.ok(JSON.parse(fs.readFileSync(stateFile, 'utf8'))['Docs Folder'], 'the folder is untouched');
+});
+
 console.log('publish-kb-publish.test.js: all assertions passed');

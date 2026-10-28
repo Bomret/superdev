@@ -175,9 +175,13 @@ function resolveParent(parentTitle, templates) {
   return { ok: true, env: { SUPERDEV_KB_PARENT_ID: String(found.fields.id) } };
 }
 
+// A `find` result that names `type: folder` is a container, never a page (the Confluence seed).
+const folderRefusal = (title) => ({ ok: false, reason: `"${title}" is a folder, not a page: rename the page or the folder` });
+
 function publishUpsert(title, bodyFile, templates, recordedHash, hasCreateMarker, filePath, parentTitle) {
   const found = runFind(title, templates);
   if (found.verdict === 'unknown') return { ok: false, reason: found.reason, timedOut: found.timedOut };
+  if (found.verdict !== 'absent' && found.fields.type === 'folder') return folderRefusal(title);
   if (found.verdict === 'absent') {
     if (!templates.create) return { ok: false, reason: 'no create command configured' };
     const parent = resolveParent(parentTitle, templates);
@@ -207,6 +211,7 @@ function publishDelete(title, templates) {
   const found = runFind(title, templates);
   if (found.verdict === 'unknown') return { ok: false, reason: found.reason, timedOut: found.timedOut };
   if (found.verdict === 'absent') return { ok: true, action: 'already-absent' };
+  if (found.fields.type === 'folder') return folderRefusal(title);
   if (!templates.delete) return { ok: false, reason: 'no delete command configured' };
   const env = { ...fieldsToEnv(found.fields), SUPERDEV_KB_TITLE: title };
   const res = runTemplate(templates.delete, env);

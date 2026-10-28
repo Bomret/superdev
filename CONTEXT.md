@@ -441,6 +441,12 @@ _Avoid: "orphaned deviation", "dead deviation"_
 **Slice store**: the backend where a feature's plan and slices live: an issue tracker. Configured in `docs/agents/issue-tracker.md`.
 _Avoid: "issue tracker" as the concept name (that is one backend), "database"_
 
+**Repository component**: the slice-store value that marks an issue as this repository's, for a store several repositories share — a Jira component, set on every issue superdev creates and required by every query it runs. Optional: a store one repository owns names none. Recorded in `docs/agents/issue-tracker.md`.
+_Avoid: "component" alone (that names a unit of code, **Component** above), "project" (the shared store itself)_
+
+**Issue-type role**: what an issue does for superdev in a slice store with typed issues — scope anchor, slice, or triage record. Each role names the issue types it allows, each with a one-line "use for", the first being the role's default; superdev creates an issue only in a type its role allows and counts an issue of any other type as none of its own (ADR 0195).
+_Avoid: "issue type" for the role (one role allows several types), "kind"_
+
 **Assignee**: the slice-store account every issue a run creates is assigned to. It is a single store-native identifier (a login for Forgejo or GitHub, an `accountId` for Jira), read from **Operator configuration**, resolving to the API token's own identity when unconfigured and disabled by `none`. Configuration rather than a slice field, applied at creation to the epic and every slice. How a given store applies it is stated in that store's own `## Assignee` section, which specialises `plan-contract.md` → *Assignee* (ADR 0010, ADR 0073).
 _Avoid: "owner" (too generic), "creator" or "reporter" (the store already records who filed the issue, and assignee is who owns it), "reviewer" (a pull-request role, owned by the code host)_
 

@@ -588,7 +588,8 @@ page's title). `parentLinkRefusal` refuses a page that names itself, lacks eithe
 multi-line or non-list-item `parent-link`, or whose link text does not equal the title. The link text, an
 inline link's target, and a wiki link's alias are each read up to a 1000-character cap, so a line of
 unclosed brackets scans in linear time and a longer title or target never matches. A `parent-link` whose
-target holds `{sub_url}` takes the value `find` returns for the page in its optional `sub_url` key. The
+target holds `{sub_url}` takes the value `find` returns for the page in its optional `sub_url` key. A `find` result whose optional `type` key reads
+`folder` marks a container: `kb-backend.js` refuses an upsert or delete for it, naming the folder (ADR 0069). The
 value must stay in the URL-safe character set (`fillLinkTarget(parsed, templates, fields)`, an export of
 `kb-parent-link.js`), and the fill runs only once the live
 parent lacks the link. A page that landed with no `find` fields on hand gets a fresh bounded `find`.

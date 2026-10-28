@@ -13,8 +13,11 @@ The KB is **human-consumption first**. Recorded at setup:
 - **Outline** (living skeleton; a top-level page per audience — `/superdev:document`
   fills and extends it):
 
-  - `<Audience A — e.g. User Guide>` → `<topic>`, `<topic>`
-  - `<Audience B — e.g. Developer Docs>` → `Architecture`, `Setup`, `ADR summaries`
+  - `<Audience A — e.g. User Guide>` → `<topic>` → `<subtopic>`, `<subtopic>`
+  - `<Audience B — e.g. Developer Docs>` → `Architecture` → `Decisions` → `ADR summaries`
+  - `<Audience B — e.g. Developer Docs>` → `Setup`
+
+  Each `→` nests one level deeper. `/superdev:publish-kb` creates a parent before its child.
 
 **`(aggregate)` marks a page many scopes contribute to** — an index, a changelog, an ADR-summaries
 digest. `/superdev:document` stages one **section** for such a page (`action: patch`) rather than the
@@ -38,20 +41,21 @@ no outline entry `aggregate` here.
   headings into XHTML (ADR 0027). Absent means markdown, which is why every markdown-backed seed
   carries no such bullet.
 - **Base URL**: `<https://your-domain.atlassian.net/wiki>`
-- **Space key**: `<SPACE>`
+- **Space key**: `<SPACE>` (the CQL folder search takes it)
+- **Space id**: `<space-id>` (the v2 API takes it)
 - **Auth**: API token in env var `<CONFLUENCE_API_TOKEN>`, user email in `<CONFLUENCE_EMAIL>`. Record
   the env-var NAMES only, never the secrets.
 - **What to publish**: `<feature specifications + ADR summaries>` — durable, reader-facing docs only, not every `AGENTS.md`.
-- **Parent page** (optional): `<page id under which superdev pages are created>` — the `<parent-id>`
+- **Parent page or folder** (optional): `<id of the page or folder under which superdev pages are created>` — the `<parent-id>`
   the `### create` template below falls back to for a page that names no parent of its own.
 
 ## Staging
 
 Confluence is a **remote** backend, so nothing but `/superdev:publish-kb` calls it (ADR 0023).
 `/superdev:document` writes each page as a **staged page** under
-`.superdev/kb-pending/<scope>/` in the main working tree, resolved by `scope.js staging <scope>` (ADR 0119) — YAML frontmatter carrying the page `title` and an `action` of `upsert`,
-`patch`, or `delete`, the page body below. A page the outline places under another page also carries
-`parent: <that page's title>`. `scripts/publish-kb.js` resolves that title through `find`, publishes a
+`.superdev/kb-pending/<scope>/` in the main working tree, resolved by `scope.js staging <scope>` (ADR 0119) — YAML frontmatter carrying the page `title` and an `action` of `upsert`
+or `delete`, the page body below. A page the outline places under another page also carries
+`parent: <that page's title>`. `scripts/publish-kb.js` resolves that title through `find` (a page, else a folder), publishes a
 parent staged in the same batch first, and leaves the page staged when the parent cannot be found
 (ADR 0109). A page reaches the space when a human runs `/superdev:publish-kb`,
 after the feature has reached the readers this space is written for.
@@ -59,13 +63,17 @@ after the feature has reached the readers this space is written for.
 ## REST conventions (curl, Confluence Cloud v2)
 
 What `/superdev:publish-kb` applies. Auth: `-u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN"`,
-`-H "Content-Type: application/json"`.
+`-H "Content-Type: application/json"`. curl 7.76 or later is the minimum (`--fail-with-body`). Titles, CQL, and
+bodies reach curl on stdin (`--data-urlencode title@-`, `cql@-`, `--data-binary @-`) and jq through its
+environment or stdin, so no non-ASCII text or temp-file path travels as an argument.
 
 - **Create a page**: `POST <base>/api/v2/pages` with
   `{ "spaceId": "<id>", "title": "<title>", "parentId": "<optional>",
      "body": { "representation": "storage", "value": "<HTML storage format>" } }`.
-- **Find a page** (update, don't duplicate): `GET <base>/api/v2/pages?title=<title>&space-id=<id>`,
-  with `<title>` URL-encoded. The title is the sole page-identity key, so an unencoded `&` or space in it
+- **Find a page** (update, don't duplicate): `GET <base>/api/v2/pages?title=<title>&space-id=<id>&status=current`,
+  with `<title>` URL-encoded. The query also returns archived pages, which `status=current` drops, and matches the
+  title case-insensitively, so `find` compares the title exactly itself. When no page answers, `find` searches
+  folders: `GET <base>/rest/api/search?cql=<cql>` with `space="<SPACE>" and type=folder and title="<title>"`. The title is the sole page-identity key, so an unencoded `&` or space in it
   breaks the query and this step finds nothing — the exact condition that leads §4 to create a duplicate.
 - **Read a page's live body**: `GET <base>/api/v2/pages/<id>?body-format=storage`. By default v2 returns
   no body at all; `body-format=storage` is what asks for it. The storage-format text sits at
@@ -73,6 +81,16 @@ What `/superdev:publish-kb` applies. Auth: `-u "$CONFLUENCE_EMAIL:$CONFLUENCE_AP
 - **Update a page**: `PUT <base>/api/v2/pages/<id>` with the new body and incremented `version.number`.
 - **Delete a page** (an `action: delete` staged page): `DELETE <base>/api/v2/pages/<id>`. Already absent
   is the intended end state, not a failure.
+- **Verified against Atlassian's published API docs, checked 2026-10-28; no live instance was
+  checked.** The v2 OpenAPI document (`dac-static.atlassian.com/cloud/confluence/openapi-v2.v3.json`)
+  describes `parentId` of `POST /pages` as "the parent content ID of the page", which the space homepage's
+  ID replaces when it is absent and `root-level` is `false`. The v1 document
+  (`dac-static.atlassian.com/cloud/confluence/swagger.v3.json`) lists `page` among a folder's descendant
+  types, so a folder id is a parent content ID, and gives a `/rest/api/search` result a `content` object
+  that carries the `title` and `id` `find` reads. The CQL field reference
+  (`developer.atlassian.com/cloud/confluence/cql-fields/`) lists `folder` as a supported `type`. The folder
+  parent, the `type=folder` search, and the `.content.title` shape are otherwise proven only against the
+  test stub: verify them against your own space before relying on them.
 
 ## Commands
 
@@ -80,20 +98,17 @@ The **backend command contract** (ADR 0069) `scripts/publish-kb.js` runs. `find`
 `read`, `update`, and `delete` as `SUPERDEV_KB_ID`/`SUPERDEV_KB_VERSION`; `create`/`update` also receive
 `SUPERDEV_KB_BODY_FILE`, a path to the staged body already converted to `storage` XHTML (the
 `Body format` bullet above), so the commands send it unchanged. `create` also receives
-`SUPERDEV_KB_PARENT_ID` when the staged page names a parent; a `create` template that never reads it leaves such a page staged. Fill in `<base>`, `<space-id>`, and `<parent-id>` at setup; an empty `<parent-id>` creates a page that
-names no parent at the space root. `read`
+`SUPERDEV_KB_PARENT_ID` when the staged page names a parent; a `create` template that never reads it leaves such a page staged. Fill in `<base>`, `<SPACE>`, `<space-id>`, and `<parent-id>` at setup; an empty `<parent-id>` creates a page that
+names no parent, which Confluence files under the space homepage (the `parentId` default of `POST
+/api/v2/pages` while its `root-level` parameter is `false`). `read`
 prints the live page's storage-format body on stdout, nothing else — the text `/superdev:document`
-reconciles its prose against and hashes (ADR 0094), never JSON. Confluence stores a page as XHTML
-`storage`, not markdown, so no outline entry here may carry `(aggregate)` regardless (above). `find`
-first checks that the response actually carries a `results` array — a
-malformed 200 body with no such key (an error object, say) leaves `.results` reading `null` rather than
-erroring, which would otherwise read exactly like a genuine empty match list — and answers exit 2 when it
-does not. It then maps `jq -e`'s exit 1 (a genuine no-match) to exit 3, the only outcome
-`scripts/publish-kb.js` reads as positive absence; any other `jq` exit — a parse error, a usage error —
-maps to exit 2, "could not answer," so a page never gets created from a listing `jq` failed to read. The
-listing is also capped at `limit=2`: a title is meant to be unique within a space, so two or more matches
-mean the result cannot be trusted to hold the one canonical page, and `find` answers exit 2 rather than
-picking `.results[0]` at random.
+reconciles its prose against and hashes (ADR 0094), never JSON. `find` answers
+exit 0 with a JSON object for a page (`id`, `version`) or a folder (`id`, `type: folder`, which reaches the later verbs as
+`SUPERDEV_KB_TYPE`, so `read`, `update`, and `delete` refuse a folder and name it). It answers exit 3 only for an empty page
+answer followed by an empty folder search, the only outcome `scripts/publish-kb.js` reads as positive absence. Every other
+outcome answers exit 2, "could not answer": a failed request, a response with no `results` array, a response with a further
+page, a title that matches only in another case, or two or more exact matches. A page is never created from an answer `find`
+could not read. `create` and `update` write Confluence's error body to stderr, which the publish report carries.
 
 Every command below runs under a **30-second bound** (ADR 0130), or whatever
 `SUPERDEV_PUBLISH_KB_TIMEOUT_MS` names. `scripts/publish-kb.js` applies it at the spawn, so a command
@@ -103,25 +118,41 @@ pages are reported untried and stay staged for the next one.
 
 ### find
 
+The page query runs first and sends the title on stdin. Only an empty page answer reaches the folder
+search, which sends its CQL on stdin as well.
+
 ```sh
-resp=$(curl -sf -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" \
+resp=$(printf '%s' "$SUPERDEV_KB_TITLE" | curl -sf -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" \
   --get "<base>/api/v2/pages" \
-  --data-urlencode "title=$SUPERDEV_KB_TITLE" \
+  --data-urlencode title@- \
   --data-urlencode "space-id=<space-id>" \
-  --data-urlencode "limit=2") || exit 2
-printf '%s' "$resp" | jq -e '.results | type == "array"' >/dev/null 2>&1 || exit 2
+  --data-urlencode "status=current" \
+  --data-urlencode "limit=250") || exit 2
+printf '%s' "$resp" | jq -e '(.results | type == "array") and ((._links.next // null) == null)' >/dev/null 2>&1 || exit 2
 count=$(printf '%s' "$resp" | jq '.results | length') || exit 2
-[ "$count" -ge 2 ] && exit 2
-page=$(printf '%s' "$resp" | jq -e '.results[0]')
-status=$?
-[ "$status" -eq 1 ] && exit 3
-[ "$status" -ne 0 ] && exit 2
-printf '%s' "$page" | jq -c '{id, version: (.version.number | tostring)}'
+if [ "$count" -gt 0 ]; then
+  page=$(printf '%s' "$resp" | jq -ce 'env.SUPERDEV_KB_TITLE as $t | [.results[] | select(.title == $t)]
+    | if length == 1 then .[0] | {id, version: (.version.number | tostring)} else empty end') || exit 2
+  printf '%s\n' "$page"
+  exit 0
+fi
+cql=$(jq -rn '"space=\"<SPACE>\" and type=folder and title=" + (env.SUPERDEV_KB_TITLE | @json)') || exit 2
+resp=$(printf '%s' "$cql" | curl -sf -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" \
+  --get "<base>/rest/api/search" \
+  --data-urlencode cql@- \
+  --data-urlencode "limit=200") || exit 2
+printf '%s' "$resp" | jq -e '(.results | type == "array") and ((._links.next // null) == null)' >/dev/null 2>&1 || exit 2
+count=$(printf '%s' "$resp" | jq '.results | length') || exit 2
+[ "$count" -eq 0 ] && exit 3
+hit=$(printf '%s' "$resp" | jq -ce 'env.SUPERDEV_KB_TITLE as $t | [.results[] | select(.content.title == $t)]
+  | if length == 1 then .[0].content | {id, type: "folder"} else empty end') || exit 2
+printf '%s\n' "$hit"
 ```
 
 ### read
 
 ```sh
+[ "${SUPERDEV_KB_TYPE:-}" = folder ] && { printf '%s\n' "\"$SUPERDEV_KB_TITLE\" is a Confluence folder, not a page: rename the page or the folder" >&2; exit 1; }
 resp=$(curl -sf -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" \
   --get "<base>/api/v2/pages/$SUPERDEV_KB_ID" --data-urlencode "body-format=storage") || exit 2
 printf '%s' "$resp" | jq -er '.body.storage.value'
@@ -134,27 +165,30 @@ live-hash guard (ADR 0094) never refuses an upsert Confluence itself reformatted
 
 ```sh
 parent="${SUPERDEV_KB_PARENT_ID:-<parent-id>}"
-body=$(jq -n --arg title "$SUPERDEV_KB_TITLE" --arg parent "$parent" --rawfile content "$SUPERDEV_KB_BODY_FILE" \
-  '{spaceId: "<space-id>", title: $title, body: {representation: "storage", value: $content}}
-   + (if $parent == "" then {} else {parentId: $parent} end)')
-curl -sf -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" -H "Content-Type: application/json" \
-  -X POST "<base>/api/v2/pages" -d "$body" >/dev/null
+body=$(SUPERDEV_PARENT="$parent" jq -Rs '{spaceId: "<space-id>", title: env.SUPERDEV_KB_TITLE,
+    body: {representation: "storage", value: .}}
+  + (if (env.SUPERDEV_PARENT // "") == "" then {} else {parentId: env.SUPERDEV_PARENT} end)' < "$SUPERDEV_KB_BODY_FILE") || exit 1
+out=$(printf '%s' "$body" | curl -sS --fail-with-body -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" \
+  -H "Content-Type: application/json" -X POST "<base>/api/v2/pages" --data-binary @-) \
+  || { printf '%s\n' "$out" >&2; exit 1; }
 ```
 
 ### update
 
 ```sh
-next_version=$((SUPERDEV_KB_VERSION + 1))
-body=$(jq -n --arg title "$SUPERDEV_KB_TITLE" --arg id "$SUPERDEV_KB_ID" --argjson version "$next_version" \
-  --rawfile content "$SUPERDEV_KB_BODY_FILE" \
-  '{id: $id, status: "current", title: $title, version: {number: $version}, body: {representation: "storage", value: $content}}')
-curl -sf -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" -H "Content-Type: application/json" \
-  -X PUT "<base>/api/v2/pages/$SUPERDEV_KB_ID" -d "$body" >/dev/null
+[ "${SUPERDEV_KB_TYPE:-}" = folder ] && { printf '%s\n' "\"$SUPERDEV_KB_TITLE\" is a Confluence folder, not a page: rename the page or the folder" >&2; exit 1; }
+body=$(SUPERDEV_NEXT=$((SUPERDEV_KB_VERSION + 1)) jq -Rs '{id: env.SUPERDEV_KB_ID, status: "current",
+    title: env.SUPERDEV_KB_TITLE, version: {number: (env.SUPERDEV_NEXT | tonumber)},
+    body: {representation: "storage", value: .}}' < "$SUPERDEV_KB_BODY_FILE") || exit 1
+out=$(printf '%s' "$body" | curl -sS --fail-with-body -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" \
+  -H "Content-Type: application/json" -X PUT "<base>/api/v2/pages/$SUPERDEV_KB_ID" --data-binary @-) \
+  || { printf '%s\n' "$out" >&2; exit 1; }
 ```
 
 ### delete
 
 ```sh
+[ "${SUPERDEV_KB_TYPE:-}" = folder ] && { printf '%s\n' "\"$SUPERDEV_KB_TITLE\" is a Confluence folder, not a page: rename the page or the folder" >&2; exit 1; }
 curl -sf -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" \
   -X DELETE "<base>/api/v2/pages/$SUPERDEV_KB_ID" >/dev/null
 ```

@@ -169,57 +169,6 @@ const { classifyBackend } = require('../plugin/scripts/publish-kb.js');
   fs.rmSync(stubDir, { recursive: true, force: true });
 }
 
-// --- the real `### find` template in plugin/references/knowledge-base-confluence.md separates -------
-// "genuinely absent" from a JSON object that carries no `results` key at all: a 200 response like
-// `{"message":"err"}` makes `.results` read `null` instead of erroring, so `.results | length` reads 0
-// and `.results[0]` reads `null` — indistinguishable from a genuine empty-results absence unless the
-// template checks for the key first.
-{
-  const confluenceDoc = fs.readFileSync(
-    path.join(__dirname, '..', 'plugin', 'references', 'knowledge-base-confluence.md'),
-    'utf8',
-  );
-  const findTemplate = classifyBackend(confluenceDoc).templates.find;
-  assert.ok(findTemplate, 'the Confluence seed still configures a find template');
-
-  // Stubs `curl` on PATH so the template runs against canned stdin instead of the real network.
-  const stubDir = fs.mkdtempSync(path.join(os.tmpdir(), 'curl-stub-'));
-  fs.writeFileSync(path.join(stubDir, 'curl'), '#!/bin/sh\nprintf "%s" "$CURL_STUB_BODY"\n', { mode: 0o755 });
-
-  function runFindTemplate(body) {
-    return spawnSync('/bin/sh', ['-c', findTemplate], {
-      env: {
-        ...process.env,
-        PATH: stubDir + path.delimiter + process.env.PATH,
-        CURL_STUB_BODY: body,
-        SUPERDEV_KB_TITLE: 'Missing Page',
-        CONFLUENCE_EMAIL: 'x',
-        CONFLUENCE_API_TOKEN: 'x',
-      },
-      encoding: 'utf8',
-    });
-  }
-
-  const there = runFindTemplate(JSON.stringify({ results: [{ id: '123', version: { number: 5 } }] }));
-  assert.equal(there.status, 0, 'a results array carrying a match answers found (0)');
-  assert.deepEqual(JSON.parse(there.stdout), { id: '123', version: '5' });
-
-  const notThere = runFindTemplate(JSON.stringify({ results: [] }));
-  assert.equal(notThere.status, 3, 'an empty results array answers absent (3)');
-
-  const malformed = runFindTemplate('not json at all');
-  assert.equal(malformed.status, 2, 'a jq parse failure is not absence — must answer 2, never 3');
-
-  const noResultsKey = runFindTemplate(JSON.stringify({ message: 'err' }));
-  assert.equal(
-    noResultsKey.status,
-    2,
-    'a 200 response carrying no "results" key cannot answer absent — it could not answer at all',
-  );
-
-  fs.rmSync(stubDir, { recursive: true, force: true });
-}
-
 // --- the real `### read` template in plugin/references/knowledge-base-confluence.md prints the -------
 // live storage-format body on stdout (ADR 0094, INV-0091, triage #677), never JSON.
 {

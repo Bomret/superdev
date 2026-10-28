@@ -178,7 +178,7 @@ fit this repo. Using `AskUserQuestion`? Mark the default `(Recommended)`.
   `tea`, or no such entry, stops the step with the `tea login add --url <host>` command for the operator
   to run. Two or more such entries are named, and the operator picks.
 - **Jira** — slices as Jira issues. Seed: `references/issue-tracker-jira.md`. Ask for base URL, project
-  key, issue type, the "is blocked by" link type, the ready status/label, and the **env-var names** for
+  key, the issue types per role (below), the "is blocked by" link type, the ready status/label, and the **env-var names** for
   the API token + email (never the secrets).
 - **Other** (GitLab Issues, Linear, …) — ask the user to describe create/read/list/update + the
   dependency-link mechanism in a paragraph; write `issue-tracker.md` from that prose.
@@ -191,12 +191,33 @@ fit this repo. Using `AskUserQuestion`? Mark the default `(Recommended)`.
 
 For an **issue backend whose statuses the seed doesn't already fix** (Jira / other — not GitHub Issues
 or Forgejo, whose seeds each map the lifecycle onto open/closed + labels), also capture the
-tracker's **status workflow**: probe or ask for the available statuses, the transitions, and the issue
-types for the scope anchor vs a slice. Agree a **status map** — superdev's canonical lifecycle (`todo` →
+tracker's **status workflow**: probe or ask for the available statuses and the transitions. Agree a **status map** — superdev's canonical lifecycle (`todo` →
 `in-progress` → `in-review` → `merged`/done, plus `blocked`) → the tracker's real statuses, with how to
 perform each move (transition name/id or CLI verb). Record it in `issue-tracker.md`;
 `/superdev:implement` walks each issue along it. If the tracker lacks a state (no separate `in-review` or
 `blocked`), map it to the nearest sensible status and note the collapse.
+
+On **Jira**, also record the **issue types per role** (scope anchor, slice, triage record). Probe
+`GET <base>/rest/api/3/issue/createmeta/<PROJ>/issuetypes`, paging on `startAt`/`maxResults`/`total` until
+every type is read. Offer the anchor role only the types with `hierarchyLevel` 1, and the slice and triage
+roles only the types with `hierarchyLevel` 0 and `subtask: false`. Ask which types the operator allows per
+role, the first being the role's default, and a one-line "use for" for each in the operator's words. Finish
+no role without a type. Record each as `<name> (id <id>): <use for>` in the seed's per-role bullets. A
+failed or denied probe is reported with its HTTP status, and setup asks for the types by name and id. A
+re-run offers the per-role bullets as a seed gap to a configuration that still carries the single issue-type
+bullet, and writes them only on the operator's choice (ADR 0107).
+
+On **Jira**, also ask for the optional **repository component** (CONTEXT.md → *Repository component*), which a
+project several repositories share needs. List `GET <base>/rest/api/3/project/<PROJ>/components` and offer each
+component plus `none`. `none` writes no bullet and changes nothing. A failed or denied listing is reported with
+its HTTP status, and setup asks for the component by name or `none`. Before it writes the `Repository component`
+bullet, list the repository's open superdev issues that lack the component: the open issues with
+`component is EMPTY` (the seed's JQL transport) whose feature label matches `<type>/<slug>`, whose triage label or
+`[triage] ` summary prefix marks a triage record, and whose type a role allows. Show them and offer to add the
+component to each (`{"update": {"components": [{"add": {"name": "<component>"}}]}}`, sent through the seed's
+transport rules). The operator chooses which ones. A re-run offers the `Repository component` bullet and the
+seed's transport rules as seed gaps to a configuration that lacks them, and writes them only on the operator's
+choice (ADR 0107).
 
 Also capture **how a ticket is released** for any issue backend, recorded as a `## Release` section in
 `issue-tracker.md` (`plan-contract.md` → *Release*). A tracker usually holds a backlog of tickets written
@@ -293,10 +314,12 @@ default tree** → write no section: audit mode already states what it does when
 specifications, design overviews, ADR summaries)? Ask the user which of:
 
 - **Knowledge base software available** — e.g. **Confluence**. Seed:
-  `references/knowledge-base-confluence.md`. Ask base URL, space key, what to publish, optional parent
-  page id (it fills the seed's `<parent-id>`, empty when none), and the **env-var names** for the API token + email (never the secrets); the seed's own
+  `references/knowledge-base-confluence.md`. Ask base URL, space key (it fills the seed's `<SPACE>`), what to publish, optional parent
+  page or folder id (it fills the seed's `<parent-id>`, empty when none), and the **env-var names** for the API token + email (never the secrets); the seed's own
   `- **Body format:** storage` bullet needs no question — Confluence's page body is always XHTML
-  storage format. For a different wiki
+  storage format. Read the space id (v2 API) from the space key with `GET <base>/api/v2/spaces?keys=<key>`
+  and record both. Check a parent id read-only before writing it: `GET <base>/api/v2/pages/<id>`, then
+  `GET <base>/api/v2/folders/<id>` when that finds no page; an id neither finds is asked for again. For a different wiki
   ("other"), capture the same **backend command contract** (below) that every remote backend declares —
   a backend declaring no `delete` template leaves every `action: delete` staged page unpublishable, and
   one declaring no `read` template, or a non-markdown page body, blocks the aggregate question below.
@@ -328,15 +351,20 @@ holding a single fenced `sh` block — a verb the backend has no use for is simp
 State every placeholder name to the user, so a template reaches for the placeholder instead of shell
 interpolation: `SUPERDEV_KB_TITLE` reaches every call, `SUPERDEV_KB_BODY_FILE` (a path to the staged
 body, never the body inline) reaches `create` and `update`, and one `SUPERDEV_KB_<KEY>` per key the
-`find` template's JSON object carries — uppercased — reaches `update` and `delete`. One key is named: an
+`find` template's JSON object carries — uppercased — reaches `update` and `delete`. Two keys are named: an
 optional `sub_url`, the page's address, which `/superdev:publish-kb` fills a `parent-link` target's
-`{sub_url}` placeholder from (ADR 0168). `find` carries the
+`{sub_url}` placeholder from (ADR 0168), and an optional `type`, where the value `folder` marks the
+result a container, so `/superdev:publish-kb` refuses an upsert or delete and names the folder. `find` carries the
 contract the other four rest on: exit `0` with a JSON object on stdout means the page exists, exit `3` means
 the page is genuinely absent, anything else means the backend could not answer. **Probe the `find`
 template before writing the section**: run it with `SUPERDEV_KB_TITLE` set to a title that cannot exist
 (a random UUID works) and require exit `3` — this is what stands between the template and a duplicated or
 overwritten page. Any other outcome — report it to the user, fix the template, probe again — leaves the
-`## Commands` section unwritten. A **local** or **none** knowledge base is asked for no commands at all.
+`## Commands` section unwritten. For a remote backend whose auth is an environment variable, **probe `find` a
+second time** with that token variable set to a value that cannot authenticate, and require an exit other than `0`
+and `3`: a template that maps a refused login onto "page absent" would duplicate or overwrite pages, so it leaves
+`## Commands` unwritten as well. A backend whose auth is no environment variable (a CLI login) skips this second
+probe, and setup tells the operator so. A **local** or **none** knowledge base is asked for no commands at all.
 
 **Run that probe under the same bound every backend command runs under** (ADR 0130): pass the Bash tool's
 own `timeout` parameter, set to 30000, or to `SUPERDEV_PUBLISH_KB_TIMEOUT_MS`'s own value when the
@@ -745,7 +773,7 @@ A gap whose seed text carries a repository-specific value asks the question the 
 it, and writes the answer, never the seed's placeholder. Where §2 asks none, the seed section names the
 fill-in itself: the triage label, a repository filter for a store shared across repositories, a `(fill in
 at setup)` section such as `## Run state` or the status workflow. Applying a knowledge-base gap writes
-`## Commands` only after the `find` probe exits 3 (INV-0072). Applying a seed's `## Assignee` writes no
+`## Commands` only after the same probe pair the fresh path runs (§2, decision D): the `find` probe exits 3 (INV-0072), and the bad-token probe exits other than `0` and `3`, or the notice that a backend with no token variable skips it. Applying a seed's `## Assignee` writes no
 assignee into a tracked document, and the answer goes to `.superdev/info.json` (INV-0074).
 
 A re-run also reads `.superdev/info.json`. An `issue-tracker.assignee` other than `none` with no
