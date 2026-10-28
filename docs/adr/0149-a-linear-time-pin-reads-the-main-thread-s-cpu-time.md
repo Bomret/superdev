@@ -44,3 +44,12 @@ allows. A suite in `tests/` proves that `timePair` does not count time the threa
 loading the machine. The CPU clock has microsecond resolution, so `timePair`'s repeat count, which already
 stretches one sample to about 25 ms, keeps the readings far above it. A calibration run shorter than that
 resolution reads zero, and `timePair` counts it as 1 µs, so the repeat count stays bounded.
+
+Corrected 2026-10-28, on Node v26.12.1 on the maintainer's 8-core Apple M1. Thread CPU time is not
+immune to machine load. Under a concurrent full-suite run, one measurement of a pin in
+`tests/shell-words.test.js` read 10.8 and 10.6 times against its ceiling of nine, and repeated loaded runs
+read 3.5 to 6.9 times (issue #1415, triage #1311). The cause is not measured: a shared cache or a slower
+core can make one CPU nanosecond do less of the code's work. The spike is brief, so `timePair` measures a
+pair again when it reads at or over the pin's ceiling, up to three attempts in all, and the pin judges the
+last pair. Load that lasts through all three attempts still fails a pin, and so does code whose cost grows
+faster than the ceiling allows.

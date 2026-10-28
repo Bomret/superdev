@@ -692,7 +692,7 @@ assert.equal(decide(sub('echo "it\'s a push"')).block, false, 'a quoted text wit
   // Four times the input takes about four times as long when linear and sixteen times when quadratic; the ceiling sits at
   // nine, between them, loose for scheduler noise.
   const grows = (label, make, n) => {
-    const [base, big] = timePair((cmd) => decide(sub(cmd)), make(n), make(4 * n));
+    const [base, big] = timePair((cmd) => decide(sub(cmd)), make(n), make(4 * n), 9);
     assert.ok(big < base * 9, `${label}: time grows linearly: ${n} repeats took ${base} ns, ${4 * n} took ${big} ns`);
   };
   grows('long-spelled wrappers', (n) => ('env' + "''".repeat(600) + ' true; ').repeat(n), 20);
@@ -718,7 +718,7 @@ assert.equal(decide(sub('echo "it\'s a push"')).block, false, 'a quoted text wit
     decide(sub('\n'.repeat(n) + 'gh pr merge 5'));
     decide(sub('\n'.repeat(n) + 'git status'));
   };
-  const [base, big] = timePair(run, 2000, 20000);
+  const [base, big] = timePair(run, 2000, 20000, 50);
   assert.ok(big < 50 * base, `a long run of newlines must scale linearly: 2000 took ${base} ns, 20000 took ${big} ns`);
 }
 

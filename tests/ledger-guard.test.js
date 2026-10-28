@@ -712,7 +712,7 @@ assert.equal(bash('grep sed ' + L + ' -i').block, true, 'a flag after the file b
   const quadruples = (label, make, cap) => {
     let n = 1500;
     while (n < cap && once(make(n)) < 10e6) n *= 2;
-    const [base, big] = timePair(bash, make(n), make(n * 4));
+    const [base, big] = timePair(bash, make(n), make(n * 4), 9);
     assert.ok(big < 9 * base, label + ' stays about linear: ' + base + 'ns at ' + n + ', four times the input ' + big + 'ns');
   };
   // Nested substitutions whose command is a writer (tee) or an assignment reach the hook's own readers at every level.

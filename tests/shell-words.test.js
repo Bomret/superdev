@@ -473,7 +473,7 @@ assert.equal(scan(null).readable, false, 'a non-string never throws');
 {
   const unit = 'git -C $(a $(b $(c))) x;';
   for (const reps of [5000, 20000]) assert.equal(scan(unit.repeat(reps)).readable, true);
-  const [base, big] = timePair(scan, unit.repeat(5000), unit.repeat(20000));
+  const [base, big] = timePair(scan, unit.repeat(5000), unit.repeat(20000), 9);
   // Four times the input takes about four times as long when linear and sixteen times as long when quadratic;
   // the ceiling sits between them, loose for scheduler noise.
   assert.ok(big < base * 9, `scan time grows linearly: ${base} ns, four times the input ${big} ns`);
@@ -485,7 +485,7 @@ assert.equal(scan(null).readable, false, 'a non-string never throws');
   // the ceiling sits between them, loose for scheduler noise. A quadratic memory cost aborts the run instead.
   const quadruples = (label, make, opts, verdict) => {
     if (verdict !== undefined) assert.equal(scan(make(20000), opts).readable, verdict, `${label}: verdict`);
-    const [base, big] = timePair((s) => scan(s, opts), make(5000), make(20000));
+    const [base, big] = timePair((s) => scan(s, opts), make(5000), make(20000), 9);
     assert.ok(big < base * 9, `${label}: time grows linearly: ${base} ns, four times the input ${big} ns`);
   };
   quadruples('nested $(', (d) => '$('.repeat(d) + 'a' + ')'.repeat(d), undefined, true);
@@ -501,7 +501,7 @@ assert.equal(scan(null).readable, false, 'a non-string never throws');
   // `$((` and `((` that do not close as arithmetic read again as subshells; every rewind spends from a
   // budget in proportion to the input, so a nest of them stays linear (unreadable once the budget is gone).
   const rewinds = (label, make, opts) => {
-    const [base, big] = timePair((s) => scan(s, opts), make(500), make(2000));
+    const [base, big] = timePair((s) => scan(s, opts), make(500), make(2000), 9);
     assert.ok(big < base * 9, `${label}: time grows linearly: ${base} ns, four times the input ${big} ns`);
   };
   rewinds('nested $(( that fall back', (d) => '$(('.repeat(d) + 'a' + ') )'.repeat(d));
@@ -535,7 +535,7 @@ assert.equal(scan(null).readable, false, 'a non-string never throws');
   };
   assert.equal(scan(nestedHeredocs(3)).commands.length, 3, 'a shallow nest of heredocs reads');
   // Four times the input takes about four times as long when linear and sixteen times as long when quadratic.
-  const [base, big] = timePair(scan, nestedHeredocs(500), nestedHeredocs(2000));
+  const [base, big] = timePair(scan, nestedHeredocs(500), nestedHeredocs(2000), 9);
   assert.ok(big < base * 9, `nested heredocs: time grows linearly: ${base} ns, four times the input ${big} ns`);
   assert.equal(scan(nestedHeredocs(3200)).readable, false, 'a deep nest of heredocs reads as unreadable, without throwing');
 }
@@ -575,7 +575,7 @@ assert.equal(scan(null).readable, false, 'a non-string never throws');
     ['heredocs handed out of nested subshells', (d) => 'cat <<E; ' + '( cat <<E; '.repeat(d) + ')'.repeat(d) + ' | sh\n' + 'x\nE\n'.repeat(d + 1)],
     ['many closed subshells holding a heredoc', (d) => '(cat <<E) ; '.repeat(d) + 'sh\n' + 'x\nE\n'.repeat(d)],
   ]) {
-    const [base, big] = timePair((s) => scan(s, { quoted: true }), make(500), make(2000));
+    const [base, big] = timePair((s) => scan(s, { quoted: true }), make(500), make(2000), 9);
     assert.ok(big < base * 9, `${label}: time grows linearly: ${base} ns, four times the input ${big} ns`);
   }
   assert.equal(scan(nestedFed(3000)).readable, false, 'a deep nest of shell-fed bodies reads as unreadable, without throwing');

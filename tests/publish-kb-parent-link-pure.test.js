@@ -151,7 +151,7 @@ const { publishKbPath } = require('./publish-kb-setup');
       scan(make(n));
       if (cpuNs() - t0 >= 10e6) break;
     }
-    const [base, big] = timePair(scan, make(n), make(n * 4));
+    const [base, big] = timePair(scan, make(n), make(n * 4), 9);
     assert.ok(big < 9 * base, `${unit} run stays about linear: ${base}ns at ${n}, four times the input ${big}ns`);
   }
   const body = '## How it works\n\n- [A](A)\n- [**Child**](x) — d\n- See [Child][c] and [[Child|c]] and [Child](y)\n';
@@ -179,7 +179,7 @@ const { publishKbPath } = require('./publish-kb-setup');
         scan(make(n));
         if (cpuNs() - t0 >= 10e6) break;
       }
-      const [base, big] = timePair(scan, make(n), make(n * 4));
+      const [base, big] = timePair(scan, make(n), make(n * 4), 9);
       assert.ok(big < 9 * base, `${path} over a heading of ${JSON.stringify(unit)} runs stays about linear: ${base}ns at ${n}, four times the input ${big}ns`);
     }
   }

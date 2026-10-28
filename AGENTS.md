@@ -184,7 +184,10 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   drop it (`tests/merge-guard.test.js`'s `LONG_VALUE_OPT` guards). A
   linear-time pin takes both readings through `tests/linear-time.js`'s `timePair`, which measures the CPU
   time of the thread running the code, so time the process spends descheduled reaches neither reading
-  (ADR 0149). It keeps its own input ratio and a multiplier ceiling between linear and quadratic growth.
+  (ADR 0149). It keeps its own input ratio and a multiplier ceiling between linear and quadratic growth,
+  and passes that ceiling to `timePair` as its fourth argument. Machine load can still move a CPU-time
+  reading, so `timePair` measures a pair again when it reads at or over the ceiling, up to three attempts
+  in all, and the pin judges the last pair. A one-off load spike then decides no pin.
   `timePair` needs `process.threadCpuUsage()`, so `package.json`'s `engines.node` requires Node 24 or later
   for the test toolchain. The hooks under `plugin/` do not use it.
 - **Normalize a path before you compare it.** A path from git output or from command text can be an MSYS

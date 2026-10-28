@@ -102,7 +102,7 @@ assert.equal(trace(A).length, 1, 'a missing verification.md still records, with 
   const { timePair } = require('./linear-time');
   const { readTrace } = require('../plugin/scripts/scope.js');
   const line = '2026-01-01T00:00:00Z 02 implementer run test abc123 pass\n';
-  const [base, big] = timePair(readTrace, line.repeat(500), line.repeat(50000));
+  const [base, big] = timePair(readTrace, line.repeat(500), line.repeat(50000), 2000);
   assert.ok(big < base * 2000, `reading a trace of 50000 lines stays linear: 500 lines took ${base} ns, 50000 took ${big} ns`);
 }
 

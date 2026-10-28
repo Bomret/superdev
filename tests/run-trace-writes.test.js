@@ -293,7 +293,7 @@ assert.equal(require(hookPath).stripHeredocs, undefined);
     ['an unclosed brace list', (n) => 'echo x > {' + ','.repeat(n)],
     ['many function bodies at depth', (n) => '( '.repeat(n / 8) + Array.from({ length: n / 8 }, (_, k) => `f${k}() { ( ( cd /a ) ); tee z${k}; }; `).join('') + ' )'.repeat(n / 8)],
   ]) {
-    const [base, big] = timePair((c) => bashTargets(c, '/r'), make(4000), make(16000));
+    const [base, big] = timePair((c) => bashTargets(c, '/r'), make(4000), make(16000), 9);
     assert.ok(big < base * 9, `${label}: time grows linearly: ${base} ns, four times the input ${big} ns`);
   }
 }

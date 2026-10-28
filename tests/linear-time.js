@@ -2,13 +2,15 @@
 
 // Shared by the linear-time pins: a same-run baseline (AGENTS.md, ADR 0086), never an absolute bound.
 //
-// timePair(run, small, big) -> [smallNs, bigNs]
+// timePair(run, small, big, ceiling) -> [smallNs, bigNs]
 // Every reading is the CPU time of the thread that calls `run`, in nanoseconds (ADR 0149): time the thread spends
-// descheduled or blocked reaches no reading, so machine load cannot skew the pair. Work `run` hands to another thread or a
-// child process reaches no reading either, so a pin times work done in this thread.
+// descheduled or blocked reaches no reading. Machine load can still move a reading, which the re-measurement below absorbs.
+// Work `run` hands to another thread or a child process reaches no reading either, so a pin times work done in this thread.
 // Runs `run(small)` and `run(big)` once each to warm them, then picks a repeat count that makes one sample of the small input
 // take about 10 ms, so a sub-millisecond baseline is no reading of timer noise. It returns the best of three samples of each
-// input, taken alternately.
+// input, taken alternately. A pair that reads at or over `ceiling` (`bigNs >= smallNs * ceiling`) is measured again, up to
+// three attempts in all, and the last pair is returned: a one-off load spike decides no pin, while load that lasts through all
+// three attempts, or code whose cost grows faster than the ceiling allows, still fails it. `ceiling` is required.
 //
 // cpuNs() -> the calling thread's CPU time in nanoseconds, the clock timePair reads, for a pin that sizes its input.
 const cpuNs = () => {
@@ -16,7 +18,7 @@ const cpuNs = () => {
   return (user + system) * 1000;
 };
 
-function timePair(run, small, big) {
+function measure(run, small, big) {
   run(small);
   run(big);
   const t0 = cpuNs();
@@ -35,6 +37,16 @@ function timePair(run, small, big) {
     b = Math.min(b, sample(big));
   }
   return [a, b];
+}
+
+function timePair(run, small, big, ceiling) {
+  if (!Number.isFinite(ceiling)) throw new TypeError(`timePair needs the pin's finite ceiling, got ${ceiling}`);
+  let pair;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    pair = measure(run, small, big);
+    if (pair[1] < pair[0] * ceiling) break;
+  }
+  return pair;
 }
 
 module.exports = { timePair, cpuNs };
