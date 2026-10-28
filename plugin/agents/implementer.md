@@ -174,6 +174,7 @@ Your tests must fail without your change. Prove it before you report (ADR 0182).
 - The verb runs the command at your tip, then again with every file your range changed outside its test files put back as it stood at `<range-start>`. It prints one outcome and writes it to the run trace.
 - `fail-to-pass`: your tests detect your change.
 - `pass-to-pass`: your tests pass without your change, so they do not check it. Strengthen them, commit, and run the verb again over the same range.
+- `pass-to-pass` in an unclosable case: your range's behaviour change lies wholly in test-path files, or your test pins existing behaviour on purpose (`review-checklist.md`'s `## Fail-to-pass run`, ADR 0193). Stop strengthening, keep the outcome line, and report the case with its reason. The reviewer judges the case.
 - `unknown`: the verb could not judge. A failing first run means a test of yours fails at your tip: fix it and run the verb again. Name any other `unknown` in your report with the reason the verb printed.
 - Run the verb in the background when the suite outlasts the Bash tool's time limit, and wait for its end.
 - Your report carries the outcome line, or the reason your range needs none.

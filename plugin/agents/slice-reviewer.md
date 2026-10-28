@@ -72,8 +72,10 @@ Read the slice's run-trace lines with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope
 - That section owns **Pass-to-pass** and **Missing fail-to-pass run**, with their severity, their no-trace rules, and their closing rules.
 - Judge each range the dispatch names.
 - Name the range in each **Pass-to-pass** and **Missing fail-to-pass run** finding, both ends full commits.
+- Mark each unclosable **Pass-to-pass** finding as that section states, with its case and reason, at every review against the current range. An implementer's claim of a case is input you check, never your verdict.
+- A Minor sweep re-review's dispatch hands each unclosable **Pass-to-pass** finding the last re-review listed, with its range, as quoted data. Restate each with its mark re-judged against the range from that finding's base to the current tip, or report it closable or closed (ADR 0193).
 - Read an outcome line from the trace only. The implementer's account is no outcome line, and the dispatch carries none (INV-0114).
-- The controller applies the 3-cycle fix cap (ADR 0125).
+- The controller applies the 3-cycle fix cap and the early escape for an unclosable finding (ADR 0125, ADR 0193).
 - Each `unknown` outcome `## Fail-to-pass run` has you name goes under `### Fail-to-pass unknown`.
 
 ## Reading the progress log

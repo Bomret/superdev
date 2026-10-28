@@ -5,6 +5,9 @@
 **Amends:** [ADR 0098](0098-the-fix-loop-fixes-every-finding-and-only-correctness-holds-the-stage.md),
 [ADR 0137](0137-a-slice-re-review-reads-its-fix-cycle-s-changes.md).
 
+**Amended by:** [ADR 0193](0193-an-unclosable-pass-to-pass-finding-takes-the-escape-at-once.md), under which a warm
+re-review restates each unclosable Pass-to-pass finding of the verdict it follows.
+
 **Context.** ADR 0098 made both fix loops fix every finding, Minors included, and repeat until the review
 lists none. Transcripts of runs in this repository, open-armada, and open-settlers, read on 2026-10-23,
 show the cost. Fix cycles take 43% of implement's subagent time and 81% to 85% of scope review's. A

@@ -103,7 +103,8 @@ Repeat until every slice is `merged`:
    own range, `<base>` (the commit the slice branch was cut from) or `<sweep-base>` on a sweep fix dispatch, and tells it
    to run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <range-start>..HEAD -- <command>` before its report,
    the command naming every test file its range adds or modifies, wherever its range changes a test-path file and another
-   file, and to fix a `pass-to-pass` outcome in the same dispatch (ADR 0182). Every implementer dispatch also
+   file, and to fix a `pass-to-pass` outcome in the same dispatch, unless its range is in one of the two unclosable cases
+   of `review-checklist.md`'s `## Fail-to-pass run`, which it then reports with its reason (ADR 0182, ADR 0193). Every implementer dispatch also
    tells it to run only the tests that verify its work, each through `scope.js test` (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test
    focused <changed paths>` with at least one path, or `test -- <command>` for a direct test-file run), and its fail-to-pass run, and never `test full`,
    `test whole`, or a `test focused` with no path: the scope review's exit run is the scope's one full-suite run (ADR 0192). It tells it to run a suite longer than the
@@ -202,7 +203,8 @@ Repeat until every slice is `merged`:
      every dispatch (ADR 0182), so an outcome line over a range from the slice's base to a range's tip covers that range:
      the latest one decides **Pass-to-pass**, and one satisfies **Missing fail-to-pass run**, on the slice's own range and
      on a fix cycle's range alike. Each **Pass-to-pass** and **Missing fail-to-pass run** finding names its range,
-     both ends full commits. A re-review closes a **Pass-to-pass** finding only when the trace records, after the finding, an outcome line that
+     both ends full commits. It tells the reviewer to mark an unclosable **Pass-to-pass** finding as that section
+     states, at every review against the current range, and to check an implementer's claimed case rather than adopt it (ADR 0193). A re-review closes a **Pass-to-pass** finding only when the trace records, after the finding, an outcome line that
      reads `fail-to-pass` over a range from the base of the range that drew the finding to the current tip. It closes
      a **Missing fail-to-pass run** finding on the outcome line the fix implementer's run writes, and a `pass-to-pass` line there
      is a **Pass-to-pass** finding on that range. The reviewer reads the outcome line from the trace and never from the
@@ -215,18 +217,23 @@ Repeat until every slice is `merged`:
      trace, except a run-trace or an Unverified dependency finding. A run-trace finding closes by its closing
      rule in `review-checklist.md`. An earlier Unverified dependency finding closes when the reviewer's own dependency check now
      passes, because its remedy lives in the log and not in the diff.
-     When the review lists **any Critical or Important finding outside the deferred ones**, dispatch **one** fresh
+     When the review lists **any Critical or Important finding outside the deferred and unclosable ones**, dispatch **one** fresh
      `superdev:implementer` fix per cycle, carrying the **complete** fix list
-     (every finding except a deferred one, below, the Minor findings included), never one dispatch per finding. The fix takes `haiku` only when
+     (every finding except a deferred or an unclosable one, the Minor findings included), never one dispatch per finding. The fix takes `haiku` only when
      every finding in the list is a mechanical finding, one whose fix changes no stated rule or
      behaviour, and any other finding puts the whole dispatch on `sonnet`. The list carries every finding added or raised after reading the progress log and every
      earlier finding a re-review reports
      still open, the same as a blind-pass finding. The fix dispatch names the slice's `<base>`, and the fix implementer
      runs its fail-to-pass run over `<base>..HEAD` before its report, a **Pass-to-pass** or **Missing fail-to-pass run**
      finding's answer included (ADR 0182). Re-review after each cycle until the review lists no
-     Critical or Important finding outside the deferred ones, capped at 3 cycles in total, every cycle counting (the **3-strike
-     fix loop**, controller's Invariants). At the cap a remaining **Critical or Important finding**, a
-     deferred one excluded, is a wrong cut: move the slice → `blocked` and escalate (`--unattended` →
+     Critical or Important finding outside the deferred and unclosable ones, capped at 3 cycles in total, every cycle counting (the **3-strike
+     fix loop**, controller's Invariants). **A review whose only remaining Critical or Important findings are unclosable
+     Pass-to-pass findings**, beside any deferred ones, ends the slice's loop at once, before the cap, with no fix cycle
+     (ADR 0193): the slice merges, its Minors join the Minor queue as the bullet below states, and the run's final report
+     names each unclosable finding with its slice, its case, and its reason. Beside a Critical or Important finding of
+     another kind, an unclosable finding stays out of the fix list while cycles fix the others, and at the cap the others
+     alone decide. At the cap a remaining **Critical or Important finding**, a
+     deferred or unclosable one excluded, is a wrong cut: move the slice → `blocked` and escalate (`--unattended` →
      block). A slice whose only remaining Critical or Important findings are **Pass-to-pass** or
      **Missing fail-to-pass run** proceeds (ADR 0125, ADR 0134, INV-0138): the slice merges, its Minors join the Minor queue as the bullet below states, and the run's final
      report names each of those findings with its slice; any of them beside a Critical or
@@ -277,7 +284,7 @@ Repeat until every slice is `merged`:
      and that no open anchor absorbs, by reads that succeed; that step comments on any other), rebuild an open pull request's deferred section, and
      publish the snapshot. An observation never joins the fix list; the observation bullet above stays in force.
    - **A Minor-only verdict merges the slice into the Minor queue** (ADR 0174, INV-0171). A review, first or re-review,
-     whose remaining findings outside the deferred ones are only Minor, warranted cuts included, ends the slice's loop
+     whose remaining findings outside the deferred and unclosable ones are only Minor, warranted cuts included, ends the slice's loop
      with no further fix cycle. The same holds at the cap for a remainder of Minors beside only **Pass-to-pass** or
      **Missing fail-to-pass run** findings. Before the slice merges with open Minors:
      1. **Write every open finding into the slice's progress log.** Append one entry headed `Open Minors` that lists
@@ -394,12 +401,16 @@ scope tip the cycle began from, appended when the cycle starts:
 3. **Re-review.** Always a fresh `superdev:slice-reviewer`, never a resumed one, so its blind pass stays blind
    (INV-0113, INV-0114). Its subject is the sweep's range, from the tip the latest earlier review read (`<sweep-base>`
    on the first) to the current tip. Hand it the range with both ends full commits, the sweep log path, the
-   global constraints, and no text from an implementer's report, and tell it to run no test. It closes or keeps each collected Minor against
+   global constraints, and no text from an implementer's report, and tell it to run no test. Hand it, as quoted data,
+   each unclosable **Pass-to-pass** finding the last re-review listed, with its range, its case, and its reason: it
+   restates each with its mark re-judged against the range from that finding's base to the current tip (ADR 0193),
+   so the outcomes below read the findings it restates. It closes or keeps each collected Minor against
    the current code, a copy a later slice made included, and collapses duplicates. After it returns, append your own
    outcome line to the log, and its findings only when it appended none, as `## Progress log (per slice)` states. Carry the deferred findings and the dedup rule of step 3 into this dispatch, and defer a
    Minor whose remedy adds a capability the plan never named, as step 3 does.
 
-**The cycle ends the sweep** when the re-review lists no finding outside the deferred ones, or after cycle 3. A
+**The cycle ends the sweep** when the re-review lists no finding outside the deferred and unclosable ones, or after cycle 3.
+No sweep cycle dispatches an implementer when its list would hold only unclosable or deferred findings (ADR 0193). A
 Minor the sweep's own fix introduced is a finding like any other: it stays in the fix list until a re-review lists
 none or the cap arrives.
 
@@ -409,8 +420,11 @@ none or the cap arrives.
   `minors clear` runs and the snapshot publishes. The queue loses them with no record outside the report (INV-0094).
   Remaining **Pass-to-pass** or **Missing fail-to-pass run** findings are named in the report the way a merged slice's
   are, and the queue clears.
-- **At the cap, a Critical or Important finding left** (a deferred one excluded, and the findings the previous item
-  names excluded) blocks the run the way a blocked slice does: block per `scope-mode.md`'s **Unattended** section,
+- **Only unclosable findings left, at any cycle.** A re-review whose only remaining findings are unclosable
+  Pass-to-pass findings, beside any deferred ones, ends the sweep as the clean verdict does. The run's final
+  report names each with its range, its case, and its reason.
+- **At the cap, a Critical or Important finding left** (a deferred or unclosable one excluded, and the Pass-to-pass and
+  Missing fail-to-pass run findings that the item **At the cap, Minors left** names excluded) blocks the run the way a blocked slice does: block per `scope-mode.md`'s **Unattended** section,
   attended or unattended, asking no question. The anchor comment names each remaining finding and the way back:
   an attended `/superdev:implement` run on the scope reopens the sweep, as the resume rule below states. The Next
   block's `Blocked:` line names the sweep's cap, and its fence holds that command without `--unattended`. The queue

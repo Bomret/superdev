@@ -1130,10 +1130,10 @@ Paths: plugin/skills/plan/**, plugin/references/plan-contract.md
 
 Class: process
 Concepts: Fail-to-pass run, Run trace, Slice-reviewer
-Statement: A `behavior` slice, and a fix cycle whose commits change both a test-path file and another file, carries an outcome line of a fail-to-pass run in the run trace before the reviewer that next reads the trace. The implementer of the change runs it over its own range before its report; the controller runs none (ADR 0182). A `pass-to-pass` outcome is an Important finding, and so is such a change with no outcome line: `slice-reviewer`'s on the full tier, `final-reviewer`'s on the lite tier and in `/superdev:review`'s fix loop. Both take the 3-cycle cap and the escape path of ADR 0125: at the cap, a remainder whose only Critical or Important findings are Pass-to-pass or Missing fail-to-pass run, in any mix, proceeds and the report names each, and any of them beside a Critical or Important finding of another kind blocks. A `pass-to-pass` finding closes only on a `fail-to-pass` outcome over a range from the original change's base to the tip current when that closing run ran, and stays closed once that outcome is written (ADR 0134, ADR 0125).
+Statement: A `behavior` slice, and a fix cycle whose commits change both a test-path file and another file, carries an outcome line of a fail-to-pass run in the run trace before the reviewer that next reads the trace. The implementer of the change runs it over its own range before its report; the controller runs none (ADR 0182). A `pass-to-pass` outcome is an Important finding, and so is such a change with no outcome line: `slice-reviewer`'s on the full tier, `final-reviewer`'s on the lite tier and in `/superdev:review`'s fix loop. Both take the 3-cycle cap and the escape path of ADR 0125: at the cap, a remainder whose only Critical or Important findings are Pass-to-pass or Missing fail-to-pass run, in any mix, proceeds and the report names each, and any of them beside a Critical or Important finding of another kind blocks. A Pass-to-pass finding the reviewer marks unclosable, in one of the two closed cases of `review-checklist.md`'s `## Fail-to-pass run`, takes that escape at once, before the cap: it never enters a fix list or review's ask-once, and no fix cycle runs when no other finding is left to fix (ADR 0193). A `pass-to-pass` finding closes only on a `fail-to-pass` outcome over a range from the original change's base to the tip current when that closing run ran, and stays closed once that outcome is written (ADR 0134, ADR 0125, ADR 0193).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/agents/slice-reviewer.md, plugin/agents/final-reviewer.md, plugin/agents/implementer.md, plugin/references/review-checklist.md, plugin/references/implement-full.md, plugin/references/implement-lite.md, plugin/references/run-handoff.md, plugin/skills/review/SKILL.md, plugin/references/review-scope-mode.md
+Paths: plugin/agents/slice-reviewer.md, plugin/agents/final-reviewer.md, plugin/agents/implementer.md, plugin/references/review-checklist.md, plugin/references/implement-full.md, plugin/references/implement-lite.md, plugin/references/run-handoff.md, plugin/skills/review/SKILL.md, plugin/references/review-scope-mode.md, plugin/skills/implement/SKILL.md
 
 ### INV-0139
 
@@ -1175,10 +1175,10 @@ Paths: plugin/lib/verdicts.js, plugin/hooks/run-trace.js, plugin/hooks/hooks.jso
 
 Class: process
 Concepts: Final-reviewer, Slice-reviewer, Review cycle
-Statement: The scope review's `final-reviewer` reads the whole scope range on every dispatch, its re-reviews after a fix cycle included, because a full-tier slice re-review reads only its fix cycle's range (ADR 0137). The one exception is the re-review after a fix cycle whose fix list held only Minor findings: it reads that cycle's own range, because the verdict it follows already read the whole range and found nothing blocking (ADR 0174).
+Statement: The scope review's `final-reviewer` reads the whole scope range on every dispatch, its re-reviews after a fix cycle included, because a full-tier slice re-review reads only its fix cycle's range (ADR 0137). The one exception is the re-review after a fix cycle whose fix list held only Minor findings: it reads that cycle's own range, because the verdict it follows already read the whole range and found nothing blocking outside unclosable Pass-to-pass findings (ADR 0174). It restates each such finding of that verdict with its slice or range, its case, and its reason, its mark re-judged against the cycle's range, and the combined verdict reads the restated findings (ADR 0193).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/agents/final-reviewer.md, plugin/skills/review/**, plugin/references/review-scope-mode.md
+Paths: plugin/agents/final-reviewer.md, plugin/skills/review/**, plugin/references/review-scope-mode.md, plugin/references/scope-mode.md
 
 ### INV-0144
 

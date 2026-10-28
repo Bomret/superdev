@@ -211,8 +211,7 @@ A line whose coverage you cannot judge, one with no command among them, counts, 
   included, the finding closes only when the trace records, after its `pass-to-pass` line, an outcome line that
   reads `fail-to-pass` over a range from the original change's base to the tip current when that closing run
   ran, so a fix that only strengthens the test closes it, and the finding stays closed once that line is
-  written. A test that pins existing behavior on purpose passes before the change by design and still draws
-  the finding: the escape path below carries it.
+  written. A finding no fix can close carries the unclosable mark, defined below.
 - **Missing fail-to-pass run** — on a `behavior` slice, a range that changes both a test-path file and another
   file, with no outcome line over that range. Severity Important. A slice whose ledger row records no range is
   read from its own trace: its `edit test` and `edit impl` lines name both a test-path file and another file.
@@ -253,10 +252,30 @@ repository with no test command get no finding: the report names the gap. A cycl
 test-path files, or no file, has nothing to put back: it needs no outcome line and gets no finding, and the report
 names no gap for it.
 
-Both findings take the 3-cycle fix cap and the escape path of ADR 0125: a scope whose only remaining
-Critical or Important findings are Pass-to-pass or Missing fail-to-pass run proceeds, and the
-report names each finding with its slice. Any of them beside a Critical or Important finding of another kind
-blocks.
+**An unclosable Pass-to-pass finding is one no fix can close** (ADR 0193). It is unclosable in exactly two cases,
+and the list is closed:
+
+- **(a)** The range's behaviour change lies wholly in test-path files, so the put-back carries none of it. Read
+  every file the range changed outside its test-path files: one that carries behaviour rules the case out.
+- **(b)** A test pins existing behaviour on purpose, so it passes before the change by design. The reason names
+  the existing behaviour the test pins and why the range leaves it unchanged. New behaviour that no test detects
+  is not case (b).
+
+The reviewer that raises the finding marks it in one fixed form, `unclosable (a): <reason>` or
+`unclosable (b): <reason>`, and the finding stays Important. A slice's range and a fix cycle's range are judged
+alike. The reviewer re-judges the mark at every dispatch against the current range, the scope's earlier review
+cycles read from the trace included, so a re-raised finding carries its mark. A re-review that reads only the
+latest cycle's range, the warm re-review and the Minor sweep's, restates each unclosable finding the last verdict
+listed with its mark re-judged (`scope-mode.md`'s `## Warm cycles`). A later change that adds
+behaviour to a file outside the test paths makes the finding closable again. An implementer's or the lite
+controller's claim of a case is input the reviewer checks against the range, never a verdict it adopts. Any
+other Pass-to-pass finding is closable, and a Missing fail-to-pass run finding never carries the mark.
+
+Both findings take the 3-cycle fix cap and the escape path of ADR 0125: a scope or slice whose only remaining
+Critical or Important findings are Pass-to-pass or Missing fail-to-pass run proceeds at the cap, and the
+report names each finding with its slice. An unclosable finding takes the escape at once, before the cap, and
+never enters a fix list (ADR 0193). Any of them beside a Critical or Important finding of another kind
+blocks at the cap.
 
 **On the full tier, `slice-reviewer` applies both entries** (ADR 0134) to each range its dispatch names: the slice's
 range, from the commit its slice branch was cut from to the tip the first review read (the same range on every

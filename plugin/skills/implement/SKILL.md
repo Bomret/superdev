@@ -35,7 +35,10 @@ dispatches nothing — you carry the TDD discipline yourself. Narrate at most on
   INV-0171); lite runs no queue, and its remainder of only Minor findings proceeds, named in the report and nowhere else. A slice whose only
   remaining Critical or Important findings are **Pass-to-pass** or **Missing fail-to-pass
   run** proceeds too (ADR 0125, ADR 0134), and the run's final report names each finding with its slice; any of
-  them beside a Critical or Important finding of another kind blocks. Never a
+  them beside a Critical or Important finding of another kind blocks. An **unclosable** Pass-to-pass finding
+  (`review-checklist.md`'s `## Fail-to-pass run`) takes that escape at once, before the cap, attended and unattended:
+  it never enters a fix list, no fix cycle runs when no other finding is left to fix, and the final report names it
+  with its slice or range, its case, and its reason (ADR 0193). Never a
   fourth cycle. **A clean verdict ends the loop the same way, attended or unattended** — a finding the
   loop leaves outside its fix list is a follow-up, never a fourth cycle.
 - **The RED-test rule is conditional.** A fix for a finding that names failing behaviour opens with a RED

@@ -8,6 +8,9 @@
 **Amended by:** [ADR 0182](0182-the-implementer-proves-its-change-and-the-controller-runs-only-suite-gates.md), which removes Missing RED, so the escape path keeps
 Pass-to-pass and Missing fail-to-pass run.
 
+**Amended by:** [ADR 0193](0193-an-unclosable-pass-to-pass-finding-takes-the-escape-at-once.md), under which an unclosable
+Pass-to-pass finding takes the escape at once, before the cap.
+
 **Context.** ADR 0117 makes Missing RED an Important finding, and ADR 0098 blocks a slice whose
 Important finding survives the 3-cycle fix cap. In a consumer run audited on 2026-10-07, two slices
 reached the cap with Missing RED as their only remaining finding, after their code had passed review.

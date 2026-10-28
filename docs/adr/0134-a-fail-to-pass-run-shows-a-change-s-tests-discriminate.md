@@ -18,6 +18,9 @@ command naming the range's test files, and the controller runs it no more.
 **Amended by:** [ADR 0175](0175-a-green-suite-record-carries-across-a-delta-a-complete-focused-selector-covered.md), under
 which a fail-to-pass run records a test run.
 
+**Amended by:** [ADR 0193](0193-an-unclosable-pass-to-pass-finding-takes-the-escape-at-once.md), under which a Pass-to-pass
+finding no fix can close is marked unclosable and takes the escape at once.
+
 **Context.** Every superdev gate reads a passing test as evidence, and a test can pass without being able
 to fail for the defect it names. Triage #576 records a fix-cycle test that passed on the exact regression
 it was written for. Triage #631 records six checks in four runs that passed without exercising what they

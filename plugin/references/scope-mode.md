@@ -959,7 +959,8 @@ fix loop (`review-scope-mode.md`'s `### 4.7 Fix cycles`) reads this section, and
 other fix loop that continues a fix implementer. The cycle
 continues the loop's previous fix implementer through SendMessage, with its context intact, in place of a
 fresh `superdev:implementer` dispatch. A cycle whose list holds any Critical or Important finding
-dispatches fresh.
+dispatches fresh. An unclosable **Pass-to-pass** finding never enters a fix list (ADR 0193), so a list of
+Minors beside one is a warm cycle.
 
 **The cycle dispatches its implementer fresh instead** when:
 
@@ -993,8 +994,17 @@ a warm cycle reads that cycle's own range. It closes or keeps each listed Minor,
 cycle's commits introduced, and judges the Definition-of-Done criteria the cycle's changes touch. Every
 other criterion keeps its verdict from the last whole-range review (INV-0143).
 
+**Each unclosable Pass-to-pass finding stands through a warm cycle** (ADR 0193). The continued reviewer restates
+each unclosable **Pass-to-pass** finding of its last verdict with its slice or range, its case, and its reason,
+its mark re-judged against the cycle's range as `references/review-checklist.md`'s `## Fail-to-pass run` states:
+a cycle commit that adds behaviour to a file outside the test paths makes the finding closable again, and a
+closing `fail-to-pass` outcome closes it. The controller carries each restated finding into `review-scope-mode.md`'s
+§3 combined verdict and §4.7's early escape, so a re-review that restates one is no clean re-review.
+
 **The sweep's re-review is always a fresh `slice-reviewer`.** A resumed one has read the sweep log already, so
-its blind pass is gone (INV-0113, INV-0114).
+its blind pass is gone (INV-0113, INV-0114). Its dispatch hands each unclosable finding the last re-review listed,
+with its range, its case, and its reason, as quoted data, and the reviewer restates each with its mark re-judged
+against the current range (`references/implement-full.md`, `## Minor sweep`).
 
 **The loop's other rules hold.** A warm cycle counts toward the 3-cycle cap. The exit full-suite run
 still gates the stage. A re-review left with only Minor Prompt-concept overlap findings ends the loop.

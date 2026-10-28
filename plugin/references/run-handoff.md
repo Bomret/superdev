@@ -52,7 +52,9 @@ tiers: record that slice execution finished, name what comes next.
   down.
 - **Report** the scope branch, the slice count, the commit range, each failing test a slice named as
   inherited, and each slice merged at the fix cap with only
-  **Pass-to-pass** or **Missing fail-to-pass run** left, named with each finding (ADR 0125, ADR 0134). Then **say the conversation is
+  **Pass-to-pass** or **Missing fail-to-pass run** left, named with each finding (ADR 0125, ADR 0134), and each
+  unclosable **Pass-to-pass** finding a slice or the Minor sweep took the early escape with, or a lite slice merged
+  on, named with its slice or range, its case, and its reason (ADR 0193). Then **say the conversation is
   disposable**: the ledger, `dod.md`, `interfaces.md`, and the per-slice progress logs now hold
   everything `/superdev:review` needs, so a `/clear` before it costs nothing — a fresh-context review
   reads the run state cold, which is the least anchored shape a reviewer can start in.

@@ -110,7 +110,9 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
   stood at `<base>`, prints `fail-to-pass`, `pass-to-pass`, or `unknown`, and appends a `fail-to-pass` line to the run
   trace. The outcome line is no test run and moves no suite record. A `pass-to-pass` outcome means the slice's tests
   pass without its change: strengthen them, commit, and run the verb again from the same `<base>` before the
-  `merged` write. Exit status 0 means
+  `merged` write. A `pass-to-pass` outcome in one of the two unclosable cases of `review-checklist.md`'s
+  `## Fail-to-pass run` is the exit from that loop: stop strengthening, keep the outcome line, write the `merged` row,
+  and name the case with its reason in your report. The scope review's `final-reviewer` judges the case (ADR 0193). Exit status 0 means
   the verb read and printed an outcome; inside a run root it appends the line, and a failed append is reported
   on stderr with the status still 0. Status 1 means the verb refused the range, naming the reason, or hit an error.
   Name a test file the command left out and run it again; an error blocks nothing, and `final-reviewer`

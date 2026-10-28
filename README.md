@@ -203,6 +203,10 @@ flowchart TD
   cannot judge records `unknown`, which draws no finding
   ([ADR 0134](docs/adr/0134-a-fail-to-pass-run-shows-a-change-s-tests-discriminate.md),
   [ADR 0182](docs/adr/0182-the-implementer-proves-its-change-and-the-controller-runs-only-suite-gates.md)).
+  The reviewer marks a Pass-to-pass finding **unclosable** when no fix can close it: the change's behaviour lies
+  wholly in test files, or its test pins existing behaviour on purpose. An unclosable finding gets no fix cycle.
+  The slice or scope proceeds with it at once, and the report names it with its case and reason
+  ([ADR 0193](docs/adr/0193-an-unclosable-pass-to-pass-finding-takes-the-escape-at-once.md)).
   Implement runs no full suite, and no reviewer runs a test. A failing test a slice did not cause is
   named in the report and goes to the scope review's fix loop
   ([ADR 0192](docs/adr/0192-the-full-suite-runs-once-after-review-comes-back-clean.md)).

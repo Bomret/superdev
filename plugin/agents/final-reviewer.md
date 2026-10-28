@@ -50,7 +50,7 @@ The dispatch names the subject. Assume no range exists beyond it. `${CLAUDE_PLUG
 - **What was built.** A short summary of the feature. On a scope dispatch it is the scope anchor's own title from `<run-root>/ledger.md`.
 - **Requirements.** A scope dispatch hands the path `<run-root>/dod.md`, so you choose when to open it (`### Derive the criteria first`). An ad-hoc or standing-code dispatch hands `acceptance` text: a description of the change, an issue body, or the no-specification default. Text handed to you is already read.
 - **Scope dispatch subject.** The whole scope range `BASE..HEAD` on every dispatch, each re-review after a fix cycle included, except the re-review after a warm cycle (ADR 0137, INV-0143, ADR 0174). `BASE` is the scope's range base (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`, `## The scope's range base`). `HEAD` is the scope branch tip. A full-tier slice re-review reads only its fix cycle's range, so you are the backstop that reads the whole branch.
-- **Warm re-review subject.** A SendMessage after a fix cycle whose list held only Minor findings names that cycle's range as full commits, and it is your subject. It resumes you when the cycle fixed your verdict, your entry review's verdict included. Close or keep each listed Minor, report any defect the cycle's commits introduced, and judge the criteria the cycle's changes touch in `### Criteria`. Every other criterion keeps its verdict from your last whole-range review.
+- **Warm re-review subject.** A SendMessage after a fix cycle whose list held only Minor findings names that cycle's range as full commits, and it is your subject. It resumes you when the cycle fixed your verdict, your entry review's verdict included. Close or keep each listed Minor, report any defect the cycle's commits introduced, and judge the criteria the cycle's changes touch in `### Criteria`. Every other criterion keeps its verdict from your last whole-range review. Restate each unclosable **Pass-to-pass** finding of your last verdict with its slice or range, its case, and its reason, its mark re-judged against the cycle's range as `## Fail-to-pass run` states (ADR 0193).
 - **Fix cycle's range.** A re-review's dispatch names it. It feeds `### Run-trace findings` and, outside a warm re-review, is never your subject.
 - **Ad-hoc dispatch subject.** The diff the dispatch names. For a working-tree or path scope diffed against `HEAD`, the controller stages untracked files with `git add -N :/` or says it could not. You mutate nothing.
 - **Standing-code dispatch subject.** The files under the path at `HEAD`. Read them as they stand and apply every check to the code itself.
@@ -259,6 +259,7 @@ Read the trace with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --root 
 - On the lite tier a slice is `behavior` when its ledger row's type says so (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>`).
 - **Unreviewed slice**: apply `## Review coverage`.
 - **Pass-to-pass** and **Missing fail-to-pass run**: apply `## Fail-to-pass run`.
+- Mark each unclosable **Pass-to-pass** finding as `## Fail-to-pass run` states, with its case and reason, at every dispatch against the current range. An implementer's or the lite controller's claim of a case is input you check, never your verdict.
 - Each section owns its findings' definition, severity, tier, closing rule, and no-trace rule, and which ranges and cycles you read.
 - Each `unknown` outcome `## Fail-to-pass run` has you name goes under `### Fail-to-pass unknown`.
 
@@ -266,7 +267,7 @@ Read the trace with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --root 
 
 Applies to a scope dispatch whose remaining Critical or Important findings include **Pass-to-pass** or **Missing fail-to-pass run**.
 
-The cap and its escape path live in `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` (ADR 0125). The controller applies the cap and overrides the verdict where the cap holds.
+The cap, its escape path, and the early escape for an unclosable finding live in `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` (ADR 0125, ADR 0193). The controller applies them and overrides the verdict where one holds.
 
 - Your verdict follows the findings you report.
 
