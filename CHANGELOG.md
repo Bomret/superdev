@@ -1,3 +1,10 @@
+# [0.89.0](https://codeberg.org/bomret/superdev/compare/v0.88.1...v0.89.0) (2026-10-28)
+
+
+### Features
+
+* **review:** an unclosable Pass-to-pass finding takes the escape at once ([#1422](https://codeberg.org/bomret/superdev/issues/1422)) ([50710a3](https://codeberg.org/bomret/superdev/commit/50710a380af27d14d721a588495422835e0b83ab))
+
 ## [0.88.1](https://codeberg.org/bomret/superdev/compare/v0.88.0...v0.88.1) (2026-10-28)
 
 
