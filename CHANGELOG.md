@@ -1,3 +1,12 @@
+# [0.90.0](https://codeberg.org/bomret/superdev/compare/v0.89.0...v0.90.0) (2026-10-28)
+
+
+### Features
+
+* **review:** mark a behaviour-preserving change unclosable, and record no review verdict in the run trace ([#1437](https://codeberg.org/bomret/superdev/issues/1437)) ([55a8608](https://codeberg.org/bomret/superdev/commit/55a8608cccb0d548e261e46fdcf4a4063984bfbc))
+* **seeds:** fit the Jira and Confluence seeds to real projects ([#1436](https://codeberg.org/bomret/superdev/issues/1436)) ([1abe3ed](https://codeberg.org/bomret/superdev/commit/1abe3edb4f6cfb3530fc1719e02ee6c1b4724643))
+* **ship:** take the focused carry before refusing a post-review delta ([#1424](https://codeberg.org/bomret/superdev/issues/1424)) ([2fad75e](https://codeberg.org/bomret/superdev/commit/2fad75e04ce908d9106e7051303794a7bf65b167))
+
 # [0.89.0](https://codeberg.org/bomret/superdev/compare/v0.88.1...v0.89.0) (2026-10-28)
 
 
