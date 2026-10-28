@@ -1,3 +1,10 @@
+## [0.88.1](https://codeberg.org/bomret/superdev/compare/v0.88.0...v0.88.1) (2026-10-28)
+
+
+### Bug Fixes
+
+* **tests:** re-measure a linear-time pair that reads over its ceiling ([#1417](https://codeberg.org/bomret/superdev/issues/1417)) ([0370838](https://codeberg.org/bomret/superdev/commit/03708388beda19f70ace7aa17a257d4cb7a46022))
+
 # [0.88.0](https://codeberg.org/bomret/superdev/compare/v0.87.1...v0.88.0) (2026-10-26)
 
 
