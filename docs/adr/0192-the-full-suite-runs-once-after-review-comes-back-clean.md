@@ -16,6 +16,8 @@ red-record pick has no gate left to answer.
 [ADR 0180](0180-a-loop-step-runs-its-test-file-where-the-focused-command-repeats-the-full-one.md),
 [ADR 0182](0182-the-implementer-proves-its-change-and-the-controller-runs-only-suite-gates.md).
 
+**Amended by:** [ADR 0194](0194-ship-carries-a-post-review-delta-before-it-refuses.md), under which every ship gate whose `suite reusable` call refuses takes the carry before it refuses.
+
 **Context.** A scope paid the full suite at implement's base step before the first slice, at run handoff
 after every slice merged, at the scope review's entry when the record did not cover the tip, and at the
 review's exit after its fix cycles. In 34 of 35 scopes that reached review across four repositories

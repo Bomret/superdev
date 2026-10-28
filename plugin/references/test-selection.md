@@ -174,25 +174,30 @@ with no test run at T (ADR 0189).
 
 ## The carry run
 
-Every gate that runs the full suite takes the carry before it runs the full command (ADR 0175): review's exit
-run and ship's moved-base gate. Implement runs no full suite (ADR 0192). Each gate cites
+Every gate whose `scope.js suite reusable` call refuses the tip takes the carry before it runs the full command
+or refuses (ADR 0175, ADR 0194): review's exit run, ship's plain gate and whole-repo gate (§3), and ship's
+moved-base gate and push gate (§4). Implement runs no full suite (ADR 0192). Each gate cites
 this section and runs the steps in order, after its own `scope.js suite reusable` call refuses the tip:
 
 1. **Check the preconditions.** `scope.js get suite --root <run-root>` prints a green record at a commit A,
+   A differs from the tip, the record carries the kind `whole` where the gate calls `suite reusable --whole`,
    `git merge-base --is-ancestor A <tip>` succeeds, the tip's own `docs/agents/verification.md`
    (`git show <tip>:docs/agents/verification.md`) carries the `## Complete selector` section, and the focused
-   command carries `{paths}`. Any precondition missing → run the full command, as the gate does without
-   this section.
+   command carries `{paths}`. Any precondition missing → skip to step 4.
 2. **Run the focused command over A..<tip>.** From the tree the gate works in, over every path
    `git diff --name-only --no-renames A <tip>` lists, through `scope.js test focused <paths>`. The
    changed-path set of this caller is that list, whole. A path set too large for the command to start
    leaves no passing run: skip to step 4.
 3. **Judge the focused run.** It **fails** → that is the gate's red result: record it with
    `scope.js suite set red <tip> --root <run-root>` (with `--whole` where the gate runs the whole-repo
-   command), and the gate takes the exit a failing full run takes. It **passes** → call `scope.js suite
+   command), and the gate takes the exit a failing full run takes. A failing carry run takes no `## The recorded rerun`. It **passes** → call `scope.js suite
    reusable` again. Exit 0 → the tip is carried: the gate runs no full command.
-4. **No carry** (a refused second call, a killed or `unknown` focused run, or a path set too large) → run
-   the full command, and record its result as the gate states.
+4. **No carry** (a missing precondition, such as a record at the tip itself or a record with no `whole` kind
+   at a `--whole` gate, a refused second call, a killed or `unknown` focused run, or a path
+   set too large) → the gate takes its own no-carry exit. Review's exit run and ship's moved-base gate run
+   the full command, or the whole-repo command where one is configured, and record its result as the gate
+   states. Ship's plain gate and push gate refuse and run no full command. Ship's whole-repo gate runs the
+   whole-repo command, after its standing-finding check.
 
 No gate writes a suite record for a tip it reached by carry: the record stays at A, and the next gate
 judges its own tip from A.

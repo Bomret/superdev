@@ -148,15 +148,20 @@ is what the pinned squash lands and what §5's deploy step reads fresh at the me
 **The tip needs a reusable green result before anything else runs.**
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base>
 --root <run-root>` — the same call `/superdev:review`'s own scope-mode gate (`review-scope-mode.md`'s `### 4.2 The suite gate`) uses. Which checkout you run it from does not matter: every worktree of a repository shares the same
-refs and objects, so `<branch>` resolves identically wherever `git` is invoked from inside it. Exit 1, or
-no record at all → refuse: name that the tip carries no green full-suite result to reuse (INV-0017), and
-merge nothing.
+refs and objects, so `<branch>` resolves identically wherever `git` is invoked from inside it. Exit 1 →
+take the carry, per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## The carry run` (ADR 0194),
+in `<run-root>/scopetree`, with no ask: the ship call is the consent. A carried tip proceeds, and ship
+writes no suite record for it. A failing carry run takes this gate's red exit: it records `suite set red <tip> --root <run-root>`, takes no
+`test-selection.md`'s `## The recorded rerun`, merges nothing, and points at `/superdev:review <scope>`. No carry, or no record at all → refuse: name that the
+tip carries no green full-suite result to reuse (INV-0017), run no full command, and merge nothing.
 
 **A whole-repo command extends that gate** (ADR 0105, INV-0092). Read `docs/agents/verification.md` from
 the scope branch's own tip (`git -C <run-root>/scopetree show <branch>:docs/agents/verification.md`) for a
 `## Whole-repo command` section, per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s section of that
 name. **The section is present** → add `--whole` to the `suite reusable` call above and to every later
-`suite reusable` call in §4. **Exit 1, or no record at all** → the tip carries no green whole-repo result.
+`suite reusable` call in §4. **Exit 1** → take the carry first, as the gate above does: a failing carry run
+takes that gate's red exit, with `--whole` on its `suite set red` record, and a carried tip proceeds with no whole-repo run. **No carry, or no record at
+all** → the tip carries no green whole-repo result.
 **Check first for a standing finding:** `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get suite --root
 <run-root>` prints `none <sha>` with no trailing `whole`, whatever `<sha>` is (the record
 `/superdev:review` left when it invalidated a tip) and `scope.js get unresolved` prints any bullet →
@@ -202,9 +207,9 @@ the push below.
   than past it.
 - **A clean merge** → take the carry first, per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s
   `## The carry run`: a carried merged tip runs no full command and writes no record, and a failing carry run
-  is the red result below, recorded `red` at the merged tip. A failed full run takes `## The recorded rerun` of the same
-  file before it stands as the red result: the triage record quoting the failure first, then the rerun record, the file
-  alone, and the focused run; an unattributable failure stays red. Only a tip with no carry takes the full command
+  is the red result below, recorded `red` at the merged tip. A failed full run takes `test-selection.md`'s `## The recorded rerun`
+  before it stands as the red result: the triage record quoting the failure first, then the rerun record, the failing
+  test file alone, and the focused run; an unattributable failure stays red. Only a tip with no carry takes the full command
   from `docs/agents/verification.md`, run once over the merged scope branch through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full` (in the background when the
   suite outlasts the Bash tool's time limit, waiting for its end before acting on it), and record what
   happened with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set <green|red|denied|none> <new-head>
@@ -239,9 +244,12 @@ merge involved, and those never reach the pull request either without this same 
 - **Identical** → nothing to push; the remote head is already the tip.
 - **They differ** → the tip needs its own reusable green result before it goes anywhere:
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base> [--whole]
-  --root <run-root>`, the same call §3 already ran on the pre-merge tip. **Refuses** → refuse the whole command,
-  name that the tip carries no reusable green result, and point at `/superdev:review <scope>` — never push
-  an untested tip. **Accepts** → print the range this push is about to add, `git -C <run-root>/scopetree
+  --root <run-root>`, the same call §3 already ran on the pre-merge tip. **Refuses** → take the carry first,
+  per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## The carry run`, as §3's gate does: a
+  carried tip is pushed as an accepted one, and a failing carry run takes §3's red exit (`--whole`
+  where §3 added it) and pushes nothing. No carry → refuse the whole
+  command, name that the tip carries no reusable green result, and point at `/superdev:review <scope>` —
+  never push an untested tip. **Accepts, or carried** → print the range this push is about to add, `git -C <run-root>/scopetree
   log <head-sha-just-compared>..<branch> --oneline` — a `head-sha-just-compared` this checkout never
   fetched (someone pushed to the pull request from elsewhere since §3's read) fails that log with
   "unknown revision"; the push itself is the real gate either way, so move straight to it regardless —
@@ -260,17 +268,17 @@ merge involved, and those never reach the pull request either without this same 
 
 **One equality check, before anything merges.** The freshest `head.sha` — the re-read above when a push
 ran, the one §3 already read when it did not — must equal the local scope-branch tip (`git -C
-<run-root>/scopetree rev-parse <branch>`), the one `suite reusable` just accepted. **They differ** →
+<run-root>/scopetree rev-parse <branch>`), the one `suite reusable` just accepted or the carry covered. **They differ** →
 refuse: name both shas, and merge nothing. The push rejection above catches most of the ways a foreign
 commit could still sit on the pull request's head; this check is what catches the rest — a push landing on
 it from elsewhere between that comparison and this line — and is what actually guarantees the merge below
 lands the commit a reusable green suite record covers, not the push rule alone.
 
 **The merge, pinned.** Print what you are about to merge: the pull request, its head (the scope branch's
-own tip, moved or not), the base, and the suite result. Then squash-merge it into the base branch through
+own tip, moved or not), the base, and the suite result, or the carry outcome where a gate carried the tip. Then squash-merge it into the base branch through
 the host's merge API, pinned to that tip, per `docs/agents/code-management.md`'s `## Merge` section — the
 one write this plugin makes straight onto it (INV-0001), and the only merge this contract admits. **The
-sha the merge call pins is the local scope-branch tip `suite reusable` just accepted, never a value read
+sha the merge call pins is the local scope-branch tip `suite reusable` just accepted or the carry covered, never a value read
 from the host** — the equality check above is what makes sending it safe. Never send a force or bypass
 option. **A host refusal** (an unmet approval, branch protection, or a head that moved since) → relay its
 own message and merge nothing.
