@@ -23,11 +23,11 @@
 const path = require('path');
 
 // The modules in `lib/` own everything the hook records from: the trace writer, the Bash write and test-run readers over the
-// shared command layer, the run locator, the dispatch lifecycle, the review verdicts, and the stash. The same fail-silent require as scope-prune: no module, no recording. One `try`
+// shared command layer, the run locator, the dispatch lifecycle, and the stash. The same fail-silent require as scope-prune: no module, no recording. One `try`
 // covers all of them, so a module that will not load leaves its names null, and record() records nothing for any of them. The stash
 // loads under its own `try`: the PreToolUse stash and its removal in the PostToolUse hold whichever of the others loads.
 // The hook re-exports the readers it exported before they moved to `lib/` (ADR 0151): `bashTargets`, `locate`, `treeState`,
-// `parseVerdict`, `parseFinalVerdict`, `testRuns`, and `verificationKind`. A re-export whose module did not load is null, like
+// `testRuns`, and `verificationKind`. A re-export whose module did not load is null, like
 // the names the hook uses itself, so requiring the hook stays silent.
 let appendTrace = null;
 let bashTargets = null;
@@ -43,10 +43,7 @@ let recordTaskStop = null;
 let recordSendMessage = null;
 let recordSendMessageEnd = null;
 let closeSession = null;
-let verdictLine = null;
 let treeState = null;
-let parseVerdict = null;
-let parseFinalVerdict = null;
 let testRuns = null;
 let verificationKind = null;
 try {
@@ -55,7 +52,6 @@ try {
   ({ recordBash, testRuns, verificationKind } = require('../lib/test-runs.js'));
   ({ locate, isTestPath, treeState } = require('../lib/run-tree.js'));
   ({ recordDispatch, findDispatch, endLine, bindAgentResult, recordAgentEnd, recordTaskStop, recordSendMessage, recordSendMessageEnd, closeSession } = require('../lib/dispatch.js'));
-  ({ verdictLine, parseVerdict, parseFinalVerdict } = require('../lib/verdicts.js'));
 } catch {
   // left null: record() records nothing
 }
@@ -80,7 +76,7 @@ function record(input) {
   // Every other Bash event takes the stash, before any guard below can return, so no path leaves it behind.
   const stashed = input && typeof input === 'object' && input.tool_name === 'Bash' && takeStart ? takeStart(input.tool_use_id) : null;
   const loaded = [appendTrace, bashTargets, recordBash, locate, isTestPath, recordDispatch, findDispatch,
-    endLine, bindAgentResult, recordAgentEnd, recordTaskStop, recordSendMessage, recordSendMessageEnd, closeSession, verdictLine, stashStart, takeStart];
+    endLine, bindAgentResult, recordAgentEnd, recordTaskStop, recordSendMessage, recordSendMessageEnd, closeSession, stashStart, takeStart];
   if (!loaded.every(Boolean) || !input || typeof input !== 'object') return null;
   const ti = input.tool_input || {};
   const cwd = typeof input.cwd === 'string' && input.cwd ? input.cwd : process.cwd();
@@ -88,7 +84,7 @@ function record(input) {
     if (input.hook_event_name === 'PreToolUse') writeLines([recordDispatch(input)]);
     else if (input.hook_event_name === 'PostToolUse') {
       const done = bindAgentResult(input, cwd);
-      if (done) writeLines([done.bind, ...(done.completed ? [typeof done.report === 'string' ? verdictLine(done.f, done.report) : undefined, endLine(done.f.runRoot, done.f.events, done.f.d, 'completed')] : [])]);
+      if (done) writeLines([done.bind, ...(done.completed ? [endLine(done.f.runRoot, done.f.events, done.f.d, 'completed')] : [])]);
     }
     else if (input.hook_event_name === 'PostToolUseFailure') writeLines([recordAgentEnd(input, cwd, 'failed')]);
     else if (input.hook_event_name === 'PermissionDenied') writeLines([recordAgentEnd(input, cwd, 'denied')]);
@@ -110,20 +106,11 @@ function record(input) {
     try { writeLines(closeSession(input, cwd)); } catch { /* no scopes dir or an unreadable run: nothing to end */ }
     return null;
   }
-  if (input.tool_name === 'SubagentHandback') {
-    if (input.hook_event_name === 'PostToolUse' && typeof input.agent_id === 'string' && input.agent_id && typeof ti.message === 'string') {
-      let f;
-      try { f = findDispatch(cwd, input.agent_id, true); } catch { return null; }
-      writeLines([verdictLine(f, ti.message)]);
-    }
-    return null;
-  }
   if (input.hook_event_name === 'SubagentStop') {
     if (typeof input.agent_id === 'string' && input.agent_id) {
-      // One lookup serves both, and both lines are built before either is written: the verdict line lands before the dispatch-end.
       // A stop another hook blocks fires again: endLine gives nothing for a dispatch already ended.
       const f = findDispatch(cwd, input.agent_id, true);
-      if (f) writeLines([verdictLine(f, input.last_assistant_message), endLine(f.runRoot, f.events, f.d, 'completed')]);
+      if (f) writeLines([endLine(f.runRoot, f.events, f.d, 'completed')]);
     }
     return null;
   }
@@ -170,4 +157,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { record, parseVerdict, parseFinalVerdict, bashTargets, verificationKind, locate, testRuns, treeState };
+module.exports = { record, bashTargets, verificationKind, locate, testRuns, treeState };

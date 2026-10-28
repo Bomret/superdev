@@ -1,6 +1,8 @@
 # 0136: The run trace records each slice review's verdict
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0197](0197-the-run-trace-records-no-review-verdict.md).
 
 **Amended by:** [ADR 0140](0140-the-run-files-record-each-step-start-and-each-dispatch-end.md).
 

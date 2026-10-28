@@ -1,5 +1,5 @@
-import { test, expect } from 'claude-code/testing'
-import { PANE, R, dir, fakeRepo, file, ledger, runCommand, scopeLink } from './testkit'
+import { expect } from 'claude-code/testing'
+import { PANE, R, dir, fakeRepo, file, ledger, runCommand, scopeLink, test } from './testkit'
 import type { Entry } from './testkit'
 // --- the overview: collapsible cards on every surface ---
 

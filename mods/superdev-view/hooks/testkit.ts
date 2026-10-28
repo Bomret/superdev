@@ -1,7 +1,13 @@
 // A fake repository under /r for the mod's tests: the engine's file, process, and pane calls answered
 // from memory, beneath the plugin. Not a suite: the suites import it.
 import type { On } from 'claude-code'
-import { mock } from 'claude-code/testing'
+import { mock, test as kitTest } from 'claude-code/testing'
+
+// The kit's `test` with a loose per-case bound. The kit's default bound, 5 s of wall clock, counts the time a case
+// spends descheduled: beside the repository's suites, a case that takes 0.6 s alone has read over 5 s. The bound
+// only catches a case that hangs, which no bound shortens, so 60 s falsifies the same failure the default did.
+type Body = Parameters<typeof kitTest>[1]
+export const test = (name: string, body: Body) => kitTest(name, { timeoutMs: 60_000 }, body)
 
 export type Entry = { name: string; kind: 'file' | 'dir'; size: number; mtimeMs: number; isLink: boolean }
 export const dir = (name: string): Entry => ({ name, kind: 'dir', size: 0, mtimeMs: 0, isLink: false })

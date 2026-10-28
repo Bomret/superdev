@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0196](0196-a-behaviour-preserving-change-is-a-third-unclosable-case.md).
+
 **Amends:** [ADR 0125](0125-missing-red-never-blocks-a-slice-at-the-fix-cap.md),
 [ADR 0134](0134-a-fail-to-pass-run-shows-a-change-s-tests-discriminate.md),
 [ADR 0174](0174-minor-only-verdicts-batch-their-fixes-and-continue-warm.md).

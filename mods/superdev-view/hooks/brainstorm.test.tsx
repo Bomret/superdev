@@ -1,6 +1,6 @@
-import { test, expect } from 'claude-code/testing'
+import { expect } from 'claude-code/testing'
 import { intent } from './parse'
-import { PANE, R, dir, fakeRepo, file, runCommand } from './testkit'
+import { PANE, R, dir, fakeRepo, file, runCommand, test } from './testkit'
 
 test('an intent is a draft only when its frontmatter says status: draft', () => {
   expect(intent('a', '---\nstatus: draft\n---\n# Intent: A\n').isDraft).toBe(true)

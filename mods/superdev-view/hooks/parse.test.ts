@@ -223,7 +223,7 @@ test('a trace parked at merged before its first step line draws no stage line an
   expect(log.ahead).toEqual(['review', 'document', 'submit', 'ship', 'wrap-up'])
 })
 
-test('each dispatch run is one entry at its start time, carrying type, slice, resumed, duration, verdict, ready-to-merge answer, and an outcome', () => {
+test('each dispatch run is one entry at its start time, carrying type, slice, resumed, duration, and an outcome; an older trace\'s verdict lines draw nothing', () => {
   const trace = [
     `${at('10:00:00')} 02 main dispatch superdev:implementer i1 Build s1`,
     `${at('10:02:00')} 02 main dispatch-end superdev:implementer i1 completed`,
@@ -252,10 +252,10 @@ test('each dispatch run is one entry at its start time, carrying type, slice, re
   expect(entries).toEqual([
     { kind: 'run', at: t('10:00:00'), type: 'superdev:implementer', slice: '02', isResumed: false, isEnded: true, ms: 120e3, outcome: 'completed' },
     { kind: 'run', at: t('10:03:00'), type: 'superdev:implementer', slice: '02', isResumed: true, isEnded: true, ms: 60e3, outcome: 'failed' },
-    { kind: 'run', at: t('10:05:00'), type: 'superdev:slice-reviewer', slice: '02', isResumed: false, isEnded: true, ms: 120e3, outcome: 'completed', review: { spec: 'fail', quality: 'changes-needed' } },
-    { kind: 'run', at: t('10:08:00'), type: 'superdev:final-reviewer', slice: 'scope', isResumed: false, isEnded: true, ms: 120e3, outcome: '', ready: 'with-fixes' },
+    { kind: 'run', at: t('10:05:00'), type: 'superdev:slice-reviewer', slice: '02', isResumed: false, isEnded: true, ms: 120e3, outcome: 'completed' },
+    { kind: 'run', at: t('10:08:00'), type: 'superdev:final-reviewer', slice: 'scope', isResumed: false, isEnded: true, ms: 120e3, outcome: '' },
     { kind: 'run', at: t('10:11:00'), type: 'superdev:slice-reviewer', slice: 'scope', isResumed: false, isEnded: true, ms: 60e3, outcome: 'completed' },
-    { kind: 'run', at: t('10:13:00'), type: 'superdev:slice-reviewer', slice: '03', isResumed: false, isEnded: true, ms: 60e3, outcome: 'completed', review: { spec: 'pass', quality: 'changes-needed' } },
+    { kind: 'run', at: t('10:13:00'), type: 'superdev:slice-reviewer', slice: '03', isResumed: false, isEnded: true, ms: 60e3, outcome: 'completed' },
     { kind: 'run', at: t('10:16:00'), type: 'superdev:implementer', slice: '03', isResumed: false, isEnded: false, ms: t('11:00:00') - t('10:16:00'), outcome: '' },
   ])
   expect(running).toBe(1)
@@ -504,7 +504,7 @@ test('a slice in progress with no end counts as running, and in-review leaves th
   expect(logOf([...reviewed, `${at('10:02:00')} 02 main ledger slice 02 merged a..b`], t('11:00:00')).running).toBe(1)
 })
 
-test('run and verdict lines before any start count into the stretch the merge ends', () => {
+test('a run line before any start counts into the stretch the merge ends, and a verdict line counts for nothing', () => {
   const [g] = groups([
     `${at('10:00:00')} 01 main run path pass 6e9 dirty a.js`,
     `${at('10:00:10')} 01 main dispatch superdev:slice-reviewer r1 Review s1`,
@@ -521,9 +521,7 @@ test('reads the ledger and dispatch lines of the shared trace fixture', () => {
   const kinds = log.entries.map(e => (e.kind === 'command' ? e.name : e.kind === 'slice' ? `${e.id} ${e.status}` : e.kind))
   expect(kinds.filter(k => k !== 'run')).toEqual(['plan', 'commandEnd', 'implement', '04 merged', '05 blocked', 'commandEnd', 'review', 'commandEnd'])
   expect(log.entries.at(-1)).toMatchObject({ kind: 'commandEnd', name: 'review', isBlocked: true })
-  expect(log.entries.filter(e => e.kind === 'run' && e.type === 'superdev:final-reviewer')).toMatchObject([
-    { isResumed: false, ready: 'with-fixes' }, { isResumed: true, ready: 'yes' },
-  ])
+  expect(log.entries.filter(e => e.kind === 'run' && e.type === 'superdev:final-reviewer').map(e => e.kind === 'run' && e.isResumed)).toEqual([false, true])
   const runs = log.entries.flatMap(e => (e.kind === 'slice' ? e.entries : [e])).filter(e => e.kind === 'run')
   expect(runs.map(e => e.kind === 'run' && [e.type, e.slice, e.isResumed, e.isEnded])).toEqual([
     ['superdev:implementer', '04', false, true], ['superdev:implementer', '04', true, true], ['superdev:slice-reviewer', '04', false, true],

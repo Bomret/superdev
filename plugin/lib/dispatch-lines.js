@@ -1,6 +1,6 @@
 'use strict';
 
-// dispatch-lines.js: the dispatch lines of a run trace: whether a trace holds a line for a dispatch, which line last opened or closed its run, and whether a line completed it.
+// dispatch-lines.js: the dispatch lines of a run trace: whether a trace holds a line for a dispatch, and which line last opened or closed its run.
 
 const { untraceField } = require('./trace-log.js');
 
@@ -18,8 +18,4 @@ function lastRunLine(events, tu) {
   return last;
 }
 
-// A `dispatch-end` line finishes its dispatch only when it reads `completed`; an end with no outcome field, written before
-// outcomes, reads `completed`.
-const completedEnd = (e) => e.kind === 'dispatch-end' && (e.fields[2] === undefined || untraceField(e.fields[2]) === 'completed');
-
-module.exports = { holds, lastRunLine, completedEnd };
+module.exports = { holds, lastRunLine };

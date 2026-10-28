@@ -1,6 +1,6 @@
-import { test, expect } from 'claude-code/testing'
+import { expect } from 'claude-code/testing'
 import { register } from './register'
-import { R as ROOT, dir as d, fakeRepo, ledger, runCommand, PANE as P, scopeLink } from './testkit'
+import { R as ROOT, dir as d, fakeRepo, ledger, runCommand, PANE as P, scopeLink, test } from './testkit'
 
 const R = '/r/.superdev'
 const S = `${R}/scopes/pin`

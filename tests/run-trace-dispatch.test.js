@@ -462,4 +462,39 @@ const { tmp, ledger, A, B, trace, reset, run, spawnOut, hookPath, agentPre, agen
 }
 
 
+// No review writes a verdict line (ADR 0197): a background review's hand-back and stop, a foreground review's report, and a
+// resumed review write only their dispatch lines, and hooks.json runs no hook on a hand-back. A trace an older release
+// wrote, carrying `verdict` and `final-verdict` lines, still prints through `scope.js trace`.
+{
+  reset();
+  const PASS = '### Verdict: specification ✅ | quality: approved';
+  const bg = (slice, tu, type, ag) => { run(agentPre(`${A}/${slice}`, tu, type)); run(agentPost(tu, { status: 'async_launched', agentId: ag })); };
+  const stop = (ag, type, last) => run({ hook_event_name: 'SubagentStop', agent_id: ag, agent_type: type, last_assistant_message: last, cwd: tmp });
+  appendTrace(A, { slice: 'scope', agent: 'main', kind: 'ledger', fields: ['step', 'set', 'review'] });
+  bg('slicetrees/04', 'v1', 'superdev:slice-reviewer', 'av1');
+  run({ hook_event_name: 'PostToolUse', tool_name: 'SubagentHandback', agent_id: 'av1', tool_input: { message: PASS }, cwd: tmp });
+  stop('av1', 'superdev:slice-reviewer', PASS);
+  bg('scopetree', 'v2', 'superdev:final-reviewer', 'av2');
+  stop('av2', 'superdev:final-reviewer', 'Ready to merge? Yes');
+  run({ hook_event_name: 'PreToolUse', tool_name: 'SendMessage', tool_use_id: 'smv', tool_input: { to: 'av2', message: 'again' }, session_id: 'S1', cwd: tmp });
+  stop('av2', 'superdev:final-reviewer', 'Ready to merge? No');
+  run(agentPre(`Review ${A}/slicetrees/05`, 'v3', 'superdev:slice-reviewer'));
+  run(agentPost('v3', { status: 'completed', agentId: 'av3', handbackReport: { text: PASS } }));
+  run(agentPre(`Review ${A}/scopetree`, 'v4', 'superdev:final-reviewer'));
+  run(agentPost('v4', { status: 'completed', handbackReport: 'Ready to merge? With fixes' }));
+  const kinds = trace(A).map((l) => l[2]);
+  assert.ok(!kinds.includes('verdict') && !kinds.includes('final-verdict'), 'no review writes a verdict line');
+  assert.deepEqual(trace(A).filter((l) => l[2] !== 'ledger').map((l) => `${l[2]} ${l[l[2] === 'dispatch-resume' ? 3 : 4]}`),
+    ['dispatch v1', 'dispatch-bind v1', 'dispatch-end v1', 'dispatch v2', 'dispatch-bind v2', 'dispatch-end v2', 'dispatch-resume v2', 'dispatch-end v2',
+      'dispatch v3', 'dispatch-bind v3', 'dispatch-end v3', 'dispatch v4', 'dispatch-end v4'], 'every dispatch line is written');
+  const registered = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'plugin', 'hooks', 'hooks.json'), 'utf8')).hooks;
+  assert.ok(!Object.values(registered).flat().some((g) => (g.matcher || '').split('|').includes('SubagentHandback')), 'no hook runs on a hand-back');
+  appendTrace(A, { slice: '04', agent: 'main', kind: 'verdict', fields: ['v1', 'pass', 'approved', '0', '-'] });
+  appendTrace(A, { slice: 'scope', agent: 'main', kind: 'final-verdict', fields: ['v2', 'yes', '0'] });
+  const shown = cp.spawnSync(process.execPath, [require.resolve('../plugin/scripts/scope.js'), 'trace', '--root', A], { encoding: 'utf8', timeout: 10000 });
+  assertSpawnDecided(shown, 'scope.js trace');
+  assert.equal(shown.status, 0, shown.stderr);
+  assert.ok(/\bverdict v1 pass approved\b/.test(shown.stdout) && /\bfinal-verdict v2 yes\b/.test(shown.stdout), 'an old trace\'s verdict lines still print');
+}
+
 cleanup();

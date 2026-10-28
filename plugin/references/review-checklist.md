@@ -216,7 +216,10 @@ A line whose coverage you cannot judge, one with no command among them, counts, 
   file, with no outcome line over that range. Severity Important. A slice whose ledger row records no range is
   read from its own trace: its `edit test` and `edit impl` lines name both a test-path file and another file.
   A slice with no `edit` line, a run with no trace, and a repository with no test command get no finding: the report
-  names the gap. Only `edit` lines count as a slice's or a cycle's change events, so a `run` or `ledger` line is none,
+  names the gap. A range whose test-path changes are all deletions has no test of its own to run, so the verb refuses
+  it: where its changes outside the test paths add no behaviour, it needs no outcome line and gets no finding (ADR 0196).
+  Read every file such a range changed outside its test paths: one that adds behaviour leaves that behaviour with no
+  test, so the range draws the finding, and its fix adds a test for that behaviour and runs the verb. Only `edit` lines count as a slice's or a cycle's change events, so a `run` or `ledger` line is none,
   even one written after the trace began for a slice whose edits came before it. The finding goes into the fix
   list: the fix implementer runs `scope.js fail-to-pass <base>..HEAD -- <command>` over the range the finding names,
   and the finding closes on the outcome line that run writes. Where the row records no range, the controller first
@@ -249,20 +252,28 @@ keeps it open, and raises no second finding. A cycle's Missing finding goes into
 does, over the cycle's range, which the controller names in the fix dispatch.
 The report names a cycle's finding with its range. No trace, a cycle with no `edit` lines, and a
 repository with no test command get no finding: the report names the gap. A cycle whose commits change only
-test-path files, or no file, has nothing to put back: it needs no outcome line and gets no finding, and the report
-names no gap for it.
+test-path files, or no file, has nothing to put back, and a cycle whose test-path changes are all deletions and whose
+changes outside the test paths add no behaviour has no test of its own to run: either needs no outcome line and gets
+no finding, and the report names no gap for it. A cycle whose test-path changes are all deletions and that adds
+behaviour outside the test paths draws the Missing fail-to-pass run finding, as a slice's range does.
 
-**An unclosable Pass-to-pass finding is one no fix can close** (ADR 0193). It is unclosable in exactly two cases,
-and the list is closed:
+**An unclosable Pass-to-pass finding is one no fix can close** (ADR 0193, ADR 0196). It is unclosable in exactly three
+cases, and the list is closed:
 
 - **(a)** The range's behaviour change lies wholly in test-path files, so the put-back carries none of it. Read
-  every file the range changed outside its test-path files: one that carries behaviour rules the case out.
+  every file the range changed outside its test-path files: one that carries behaviour rules the case out. A file the
+  outcome line's command does not read, such as prompt prose or a doc, carries no behaviour for the put-back. A file
+  that command reads carries behaviour, as prose does in a repository whose tests read it (ADR 0193).
 - **(b)** A test pins existing behaviour on purpose, so it passes before the change by design. The reason names
   the existing behaviour the test pins and why the range leaves it unchanged. New behaviour that no test detects
   is not case (b).
+- **(c)** The range's changes outside its test-path files preserve behaviour: they restructure or remove code and
+  add none, as a refactor does, or a cut that removes code together with its tests. The reason names, for each such
+  file, what was restructured or removed and why no behaviour changed. A file that adds behaviour rules the case out.
 
-The reviewer that raises the finding marks it in one fixed form, `unclosable (a): <reason>` or
-`unclosable (b): <reason>`, and the finding stays Important. A slice's range and a fix cycle's range are judged
+A mark names exactly one case. A range whose changes outside the test paths only restructure or remove code is
+case (c), whatever its test's intent. The reviewer that raises the finding marks it in one fixed form,
+`unclosable (a): <reason>`, `unclosable (b): <reason>`, or `unclosable (c): <reason>`, and the finding stays Important. A slice's range and a fix cycle's range are judged
 alike. The reviewer re-judges the mark at every dispatch against the current range, the scope's earlier review
 cycles read from the trace included, so a re-raised finding carries its mark. A re-review that reads only the
 latest cycle's range, the warm re-review and the Minor sweep's, restates each unclosable finding the last verdict
@@ -280,8 +291,11 @@ blocks at the cap.
 **On the full tier, `slice-reviewer` applies both entries** (ADR 0134) to each range its dispatch names: the slice's
 range, from the commit its slice branch was cut from to the tip the first review read (the same range on every
 review), and on a re-review the fix cycle's range as well, from the tip the earlier review read to the current tip.
-A fix cycle whose range is empty, or whose commits change only test-path files, has nothing to put back: it needs no
-outcome line and draws neither finding. The implementer runs the verb from the slice's base on the slice dispatch and
+A fix cycle whose range is empty, or whose commits change only test-path files, has nothing to put back, and one whose
+test-path changes are all deletions and whose changes outside the test paths add no behaviour has no test of its own
+to run: it needs no outcome line and draws neither finding. A slice's range or a fix cycle's range whose test-path
+changes are all deletions and that adds behaviour outside the test paths draws Missing fail-to-pass run.
+The implementer runs the verb from the slice's base on the slice dispatch and
 on every slice fix dispatch (ADR 0182), so an outcome line over a range from the slice's base to a range's tip covers
 that range: the latest one decides Pass-to-pass, and one satisfies Missing fail-to-pass run, on the slice's own range
 and on a fix cycle's range alike. A Pass-to-pass finding closes on a `fail-to-pass` outcome over a range from the

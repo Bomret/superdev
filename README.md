@@ -204,9 +204,11 @@ flowchart TD
   ([ADR 0134](docs/adr/0134-a-fail-to-pass-run-shows-a-change-s-tests-discriminate.md),
   [ADR 0182](docs/adr/0182-the-implementer-proves-its-change-and-the-controller-runs-only-suite-gates.md)).
   The reviewer marks a Pass-to-pass finding **unclosable** when no fix can close it: the change's behaviour lies
-  wholly in test files, or its test pins existing behaviour on purpose. An unclosable finding gets no fix cycle.
+  wholly in test files, its test pins existing behaviour on purpose, or its non-test changes only restructure or
+  remove code, as a refactor or a cut does. An unclosable finding gets no fix cycle.
   The slice or scope proceeds with it at once, and the report names it with its case and reason
-  ([ADR 0193](docs/adr/0193-an-unclosable-pass-to-pass-finding-takes-the-escape-at-once.md)).
+  ([ADR 0193](docs/adr/0193-an-unclosable-pass-to-pass-finding-takes-the-escape-at-once.md),
+  [ADR 0196](docs/adr/0196-a-behaviour-preserving-change-is-a-third-unclosable-case.md)).
   Implement runs no full suite, and no reviewer runs a test. A failing test a slice did not cause is
   named in the report and goes to the scope review's fix loop
   ([ADR 0192](docs/adr/0192-the-full-suite-runs-once-after-review-comes-back-clean.md)).
@@ -503,7 +505,7 @@ bash or PowerShell variants.
   header, and the like), or for a test path that names no existing file. It resolves a Bash command's paths from the
   directory the command started in, which it stashes on `PreToolUse` (ADR 0159). A full or whole-repo command with extra argument words records as a
   focused run. The hook also records each revert or restore of files, and each subagent dispatch and its end. The hook registers on `PreToolUse` for `Agent`, `SendMessage`, and `Bash`, and on `PostToolUse` for `Edit`, `Write`,
-  `NotebookEdit`, `Bash`, `Agent`, `TaskStop`, and `SubagentHandback`. It registers on `PostToolUseFailure` for
+  `NotebookEdit`, `Bash`, `Agent`, and `TaskStop`. It registers on `PostToolUseFailure` for
   `Bash`, `Agent`, and `SendMessage`, and on `PermissionDenied` for `Agent` and `SendMessage`. With no matcher,
   it registers on `UserPromptSubmit`, `SessionEnd`, `SubagentStop`, and `Stop`. An edit outside every run root records nothing. A write inside a
   function body records at the definition, resolved against the body's own `cd`. A write in a heredoc body that a known shell reads on stdin records too. A wrapper option that changes directory (`sudo -D`, `sudo -i`, `env -C`) hides its segment. A `git -C` the hook cannot read does the same. The hook records no write, run, or restore for either. A write behind

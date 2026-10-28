@@ -64,8 +64,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          (the `push` verb that puts a scope branch on the remote, ADR 0167), `plan-open.js`
                          (the `open` verb that sets up a plan run, ADR 0185).
                          Run trace: `trace-log.js` (writer, reader, field codec), `run-tree.js`,
-                         `test-runs.js`, `dispatch.js`, `dispatch-lines.js`, `verdicts.js`,
-                         `start-stash.js`.
+                         `test-runs.js`, `dispatch.js`, `dispatch-lines.js`, `start-stash.js`.
                          Test verbs: `test-verb.js`, `fail-to-pass.js`, `run-supervision.js`.
                          Knowledge base: `md-sections.js` (the section rules `kb-patch.js` and the
                          run-state and `dod-line` readers share), `md-to-storage.js` (markdown to
@@ -90,7 +89,7 @@ tests/                 — one suite per shipped executable (the hooks, `scope.j
                          `<entry>-setup.js` that is no suite (ADR 0139, ADR 0151): `scope-*` (ledger,
                          ledger-header, suite, dod-line, publish-adopt, trace, root-base, containment,
                          citations-collisions, source-set, push, open, help, `test-verb-*`, `fail-to-pass-*`, over `scope-setup.js`),
-                         `run-trace*` (dispatch, drive-paths, guards, paths, runs, stash, verdicts,
+                         `run-trace*` (dispatch, drive-paths, guards, paths, runs, stash,
                          writes, over `run-trace-setup.js`), `publish-kb*` (containment, guard, `parent-link-*`,
                          patch, publish, read, scope, templates, timeout, over `publish-kb-setup.js`),
                          and `scope-prune*` (containment, guards, main, reap, over `scope-prune-setup.js`);
@@ -260,8 +259,8 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
 Platform behaviour superdev works around, with the mitigation each one ships:
 [`docs/known-issues.md`](docs/known-issues.md). It covers the SessionStart preamble leak
 into subagent prompts (issue #32), the delegation handoff classifier behind a denied dispatch
-(ADR 0039, ADR 0041), and the `SubagentHandback` report the run trace reads a slice review's verdict
-from (ADR 0136). It also covers native Windows with Git Bash (ADR 0150), and the PostToolUse `cwd` that names the
+(ADR 0039, ADR 0041), and the `SubagentHandback` tool that carries a subagent's report, which the run trace
+does not read (ADR 0197). It also covers native Windows with Git Bash (ADR 0150), and the PostToolUse `cwd` that names the
 directory a Bash command ended in, which run-trace works around with a PreToolUse stash (ADR 0159), and the
 desktop app's session tool behind the offer's new-session card (ADR 0176, ADR 0183). Read it before you change subagent prose or the unattended block.
 
@@ -390,7 +389,7 @@ This root owns every other subtree directly:
   and the scripts require them as well. No hook and no script requires `scope.js`. `scope-prune.js` and `slicetree-sweep.js` both
   `require` `../lib/ledger.js` for their ledger-header reader (ADR 0022) and `../lib/git-spawn.js` for the git calls the two Stop hooks
   share (the spawn, the throwing call, and the `git branch` list parse; a module missing any of them reads as unloaded). `run-trace.js` takes each of
-  `../lib/trace-log.js`, `bash-writes.js`, `test-runs.js`, `run-tree.js`, `dispatch.js`, `verdicts.js`, and
+  `../lib/trace-log.js`, `bash-writes.js`, `test-runs.js`, `run-tree.js`, `dispatch.js`, and
   `start-stash.js` through a `require` of its own (ADR 0117, INV-0159). `ledger-guard.js` requires `../lib/ledger-writes.js` for its write-target reader.
   `scope-prune.js` takes the containment probe `baseHistoryHasPatch` off `../lib/containment.js` through a `require` of its own (ADR 0082). `tree-guard.js` requires
   `../lib/main-work-tree.js` for the main-working-tree resolver `mainWorkTree`. It denies a dispatched implementer's Edit, Write, or

@@ -67,10 +67,6 @@ const barSvg = (segments: [string, number][], height: number, name: string) => {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 ${height}" preserveAspectRatio="none" width="2000" height="${height}"><clipPath id="${id}"><rect width="100" height="${height}" rx="${height / 2}"/></clipPath><g clip-path="url(#${id})"><rect x="0" y="0" width="100" height="${height}" fill="#3a3a3a"/>${rects.join('')}</g></svg>`
 }
 const OUTCOME_COLOR: Record<string, string> = { failed: 'red', denied: 'red', stopped: 'yellow', unknown: 'yellow', 'session-end': 'yellow' }
-const READY_COLOR: Record<string, string> = { yes: 'green', no: 'red', 'with-fixes': 'yellow' }
-// A slice-review verdict: its quality part alone when the spec part is `pass` or empty, else `spec <value>` before it.
-const verdictText = (r: { spec: string; quality: string }) => (r.spec === 'pass' || r.spec === '' ? r.quality : `spec ${r.spec} ${r.quality}`)
-const reviewColor = (r: { spec: string; quality: string }) => r.spec === 'pass' && r.quality === 'approved' ? 'green' : r.spec === 'fail' || r.quality === 'changes-needed' ? 'red' : 'yellow'
 // A duration as mm:ss under an hour, else h:mm:ss; a time of day as local HH:MM.
 const clock = (ms: number) => {
   const sec = Math.max(0, Math.floor(ms / 1000))
@@ -267,7 +263,7 @@ export const register: Register = on => {
           return row(key, [{ text: `      ${text}`, dim: true, shrink: true }], isInGroup)
         }
         case 'run': {
-          // One line per dispatch run, at its start: an ended run carries its verdict parts and duration, a running one its elapsed
+          // One line per dispatch run, at its start: an ended run carries its outcome and duration, a running one its elapsed
           // time. Inside a slice group the slice id goes unsaid.
           const agent = isInGroup ? ` ${type(e.type)}` : ` ${type(e.type)} ${e.slice}`
           if (!e.isEnded) return row(key, [
@@ -282,8 +278,6 @@ export const register: Register = on => {
             { text: `${hm(e.at)} ■` },
             { text: agent, shrink: true },
             e.isResumed && { text: ' · resumed' },
-            !!e.review && { text: ` · ${verdictText(e.review)}`, color: reviewColor(e.review) },
-            !!e.ready && { text: ` · ${e.ready}`, color: READY_COLOR[e.ready] ?? 'yellow' },
             !!outcome && { text: ` · ${outcome}`, color: OUTCOME_COLOR[outcome] ?? 'yellow' },
             { text: ` · ${clock(e.ms)}` },
           ], isInGroup)

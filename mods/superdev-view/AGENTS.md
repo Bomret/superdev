@@ -65,12 +65,11 @@ existed. The pane draws each stage write after `implement` of such a trace as a 
 command.
 
 Between the headers the log draws these lines:
-- one line per dispatch run, at the run's start time. An ended run shows its outcome and duration, from the first
-  `verdict` or `final-verdict` line that falls in that run. A `final-reviewer` that a SendMessage resumed writes a
-  `final-verdict` line of its own per run. The pane draws each on its own run. A run with no recorded end shows
+- one line per dispatch run, at the run's start time. An ended run shows its outcome and duration, from its
+  `dispatch-end` line. The pane draws no review verdict: the run trace records none (ADR 0197), and a `verdict` or
+  `final-verdict` line in a trace an older release wrote draws nothing. A run with no recorded end shows
   `running` and the time from its start to the scan's now, so each rescan advances it. A run that a
-  `dispatch-resume` line reopened is marked `resumed`. A slice-review verdict shows its quality part
-  alone when its spec part is `pass` or empty. Otherwise it shows `spec <value>` before the quality part.
+  `dispatch-resume` line reopened is marked `resumed`.
 - one group per slice that a trace line names.
 - a wait of a minute or more between two commands.
 - a date line on a day change.
@@ -128,7 +127,8 @@ install only after that version is raised and `claude plugin update superdev-vie
 
 The mod's own tests run under `claude plugin test mods/superdev-view`. `node scripts/run-tests.js` runs none of them and
 reads only the mod's shared fixture files. The focused command runs them when a changed path is under
-`mods/superdev-view/`. The fixture
+`mods/superdev-view/`. Each pane test case imports `test` from `hooks/testkit.ts`, which bounds a case at 60 s of wall
+clock instead of the kit's 5 s default: the bound counts time a case spends descheduled and only catches a hang. The fixture
 pins that couple `hooks/parse.ts` to the ledger and the run trace are stated in the root
 [`AGENTS.md`](../../AGENTS.md), in the `mods/superdev-view/` entry of its Child DOX Index.
 

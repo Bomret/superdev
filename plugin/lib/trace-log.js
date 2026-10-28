@@ -14,9 +14,10 @@ const path = require('path');
 //   dispatch <agent_type> <tool_use_id> <description> <session_id|-> / dispatch-bind <agent_type> <tool_use_id> <agent_id> /
 //   dispatch-end <agent_type> <tool_use_id> <completed|failed|denied|stopped|unknown|session-end>   (an end with no outcome reads completed, ADR 0140)
 //   dispatch-resume <tool_use_id> <agent_id> <session_id|-> <sendmessage_tool_use_id|->   (a SendMessage resumed the dispatch's subagent: a new run, with its own dispatch-end)
-//   verdict <reviewer tool_use_id> <pass|fail|unknown> <approved|changes-needed|unknown> <cycle> <implementer tool_use_id|->   (ADR 0136; at most one per review in sequential delivery, and a reader takes the first per dispatch)
 //   ledger <verb> <args>     (written only by the ledger-writing verbs of this CLI, after they succeed)
 //   fail-to-pass <base>..<tip> <fail-to-pass|pass-to-pass|unknown> <reason> <command>     (written only by `fail-to-pass`, which derives the first three fields and records its caller's command, ADR 0188; no test run)
+// A trace an older release wrote can also hold `verdict` and `final-verdict` lines: no writer appends them, and every
+// reader tolerates them (ADR 0197).
 // Every field is escaped so none holds a control character or a line separator: no field can start
 // a new line. No CLI verb takes a caller-chosen event; `trace` only reads.
 function traceField(v) {

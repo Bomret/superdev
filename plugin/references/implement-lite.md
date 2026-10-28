@@ -100,17 +100,19 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
   slice's `merged` write carries `--range <base>..<tip>`, both full commits: `<base>` is the scope branch's
   tip before the slice's first commit, the `git rev-parse HEAD` you recorded when the slice started, and
   `<tip>` is `git rev-parse HEAD` once the slice's last commit is in. Where the range changes both a test-path
-  file (`docs/agents/verification.md`'s `## Test paths`, the defaults where it has none) and another file, run
+  file (`docs/agents/verification.md`'s `## Test paths`, the defaults where it has none) and another file, and its
+  test-path changes are not all deletions (ADR 0196), run
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <base>..<tip> -- <command>` from the scopetree first, the
   command naming every test file the range adds or modifies, while the slice is still `in-progress`, so the trace line
-  names the slice (ADR 0182). Every run of the verb goes in the background when
+  names the slice (ADR 0182). A range whose test-path changes are all deletions and that adds behaviour outside the
+  test paths leaves that behaviour with no test: write one for it, then run the verb. Every run of the verb goes in the background when
   the suite outlasts the Bash tool's time limit, and you wait for its end before you read its outcome
   (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`). The verb runs the command twice in a
   throwaway worktree, the second time with the files the slice changed outside its test files put back as they
   stood at `<base>`, prints `fail-to-pass`, `pass-to-pass`, or `unknown`, and appends a `fail-to-pass` line to the run
   trace. The outcome line is no test run and moves no suite record. A `pass-to-pass` outcome means the slice's tests
   pass without its change: strengthen them, commit, and run the verb again from the same `<base>` before the
-  `merged` write. A `pass-to-pass` outcome in one of the two unclosable cases of `review-checklist.md`'s
+  `merged` write. A `pass-to-pass` outcome in one of the three unclosable cases of `review-checklist.md`'s
   `## Fail-to-pass run` is the exit from that loop: stop strengthening, keep the outcome line, write the `merged` row,
   and name the case with its reason in your report. The scope review's `final-reviewer` judges the case (ADR 0193). Exit status 0 means
   the verb read and printed an outcome; inside a run root it appends the line, and a failed append is reported

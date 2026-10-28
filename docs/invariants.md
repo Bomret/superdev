@@ -951,7 +951,7 @@ Concepts: Run trace
 Statement: Only superdev's hooks and `scope.js` write a run trace. An agent's Edit or Write of a `trace.log` under a run root, and a shell write into one, are refused, and no `scope.js` verb appends an event its caller chooses: `scope.js test` appends only the exit status of a command it ran itself. A ledger write's mirror line, such as a stage or **Step** write, records state the controller declares and is no evidence event: no reviewer judges a slice on it. Every evidence event a reviewer reads there is one the agent under review did not author (ADR 0117, ADR 0127, ADR 0140).
 Breaks: silently
 Check: tests/ledger-guard.test.js — the trace-file refusal cases
-Paths: plugin/hooks/**, plugin/scripts/scope.js, plugin/lib/trace-log.js, plugin/lib/dispatch.js, plugin/lib/verdicts.js
+Paths: plugin/hooks/**, plugin/scripts/scope.js, plugin/lib/trace-log.js, plugin/lib/dispatch.js
 
 ### INV-0119
 
@@ -1130,7 +1130,7 @@ Paths: plugin/skills/plan/**, plugin/references/plan-contract.md
 
 Class: process
 Concepts: Fail-to-pass run, Run trace, Slice-reviewer
-Statement: A `behavior` slice, and a fix cycle whose commits change both a test-path file and another file, carries an outcome line of a fail-to-pass run in the run trace before the reviewer that next reads the trace. The implementer of the change runs it over its own range before its report; the controller runs none (ADR 0182). A `pass-to-pass` outcome is an Important finding, and so is such a change with no outcome line: `slice-reviewer`'s on the full tier, `final-reviewer`'s on the lite tier and in `/superdev:review`'s fix loop. Both take the 3-cycle cap and the escape path of ADR 0125: at the cap, a remainder whose only Critical or Important findings are Pass-to-pass or Missing fail-to-pass run, in any mix, proceeds and the report names each, and any of them beside a Critical or Important finding of another kind blocks. A Pass-to-pass finding the reviewer marks unclosable, in one of the two closed cases of `review-checklist.md`'s `## Fail-to-pass run`, takes that escape at once, before the cap: it never enters a fix list or review's ask-once, and no fix cycle runs when no other finding is left to fix (ADR 0193). A `pass-to-pass` finding closes only on a `fail-to-pass` outcome over a range from the original change's base to the tip current when that closing run ran, and stays closed once that outcome is written (ADR 0134, ADR 0125, ADR 0193).
+Statement: A `behavior` slice, and a fix cycle whose commits change both a test-path file and another file, carries an outcome line of a fail-to-pass run in the run trace before the reviewer that next reads the trace, unless every test-path file it changes is deleted, so no test of its own can run, and its changes outside the test paths add no behaviour (ADR 0196). Such a change that adds behaviour outside the test paths is a Missing fail-to-pass run finding. The implementer of the change runs it over its own range before its report; the controller runs none (ADR 0182). A `pass-to-pass` outcome is an Important finding, and so is such a change with no outcome line: `slice-reviewer`'s on the full tier, `final-reviewer`'s on the lite tier and in `/superdev:review`'s fix loop. Both take the 3-cycle cap and the escape path of ADR 0125: at the cap, a remainder whose only Critical or Important findings are Pass-to-pass or Missing fail-to-pass run, in any mix, proceeds and the report names each, and any of them beside a Critical or Important finding of another kind blocks. A Pass-to-pass finding the reviewer marks unclosable, in one of the closed cases of `review-checklist.md`'s `## Fail-to-pass run`, takes that escape at once, before the cap: it never enters a fix list or review's ask-once, and no fix cycle runs when no other finding is left to fix (ADR 0193). A `pass-to-pass` finding closes only on a `fail-to-pass` outcome over a range from the original change's base to the tip current when that closing run ran, and stays closed once that outcome is written (ADR 0134, ADR 0125, ADR 0193, ADR 0196).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/agents/slice-reviewer.md, plugin/agents/final-reviewer.md, plugin/agents/implementer.md, plugin/references/review-checklist.md, plugin/references/implement-full.md, plugin/references/implement-lite.md, plugin/references/run-handoff.md, plugin/skills/review/SKILL.md, plugin/references/review-scope-mode.md, plugin/skills/implement/SKILL.md
@@ -1162,15 +1162,6 @@ Breaks: silently
 Check: tests/merge-guard.test.js and tests/ledger-guard.test.js — a guarded verb or ledger write inside a quoted or backslash-escaped word passed to an unlisted wrapper, or inside dash's `((…))` subshells, is caught, a heredoc body or here-string naming an integration is denied unless a lone file or message sink receives it, one naming a ledger is denied when a shell or an interpreter's stdin script reads it
 Paths: plugin/hooks/merge-guard.js, plugin/hooks/ledger-guard.js, plugin/lib/ledger-writes.js, plugin/lib/shell-words.js, plugin/lib/shell-word-readers.js
 
-### INV-0142
-
-Class: process
-Concepts: Run trace, Review verdict, Review cycle, Slice-reviewer
-Statement: In sequential delivery, every completed background `slice-reviewer` dispatch on a full-tier run gets at most one `verdict` line in the run trace, and a reader takes the first `verdict` line per dispatch. The line is written only by the run-trace hook, on the slice of the reviewer's own `dispatch` line. The line carries the review's specification and quality verdicts, its review cycle, and the implementer dispatch it reviewed, and nothing else from the report (ADR 0136).
-Breaks: silently
-Check: tests/run-trace-verdicts.test.js — the verdict cases
-Paths: plugin/lib/verdicts.js, plugin/hooks/run-trace.js, plugin/hooks/hooks.json, plugin/agents/slice-reviewer.md
-
 ### INV-0143
 
 Class: process
@@ -1184,7 +1175,7 @@ Paths: plugin/agents/final-reviewer.md, plugin/skills/review/**, plugin/referenc
 
 Class: architecture
 Concepts: Run trace, Ledger
-Statement: superdev-view draws only facts the ledger and the run trace state. A fact the view needs and the run files lack is recorded by the plugin, never derived by the mod from order, timing, or a dispatch description (ADR 0140).
+Statement: superdev-view draws only facts the ledger and the run trace state. A fact the run files lack is not drawn, never derived by the mod from order, timing, or a dispatch description (ADR 0140, ADR 0197).
 Breaks: silently
 Check: none — a heuristic can enter the mod's parser in any form, and no cheap test tells a reading from a derivation; a reviewer of a `mods/superdev-view/` change applies it.
 Paths: mods/superdev-view/hooks/**
@@ -1197,15 +1188,6 @@ Statement: Every `dispatch` line in a run trace, and every `dispatch-resume` lin
 Breaks: silently
 Check: tests/run-trace-dispatch.test.js — the dispatch outcome cases
 Paths: plugin/lib/dispatch.js, plugin/lib/dispatch-lines.js, plugin/hooks/run-trace.js, plugin/hooks/hooks.json
-
-### INV-0146
-
-Class: process
-Concepts: Run trace, Final-review verdict, Step, Final-reviewer
-Statement: Every completed run of a `final-reviewer` dispatch inside an open review step, the dispatch's own run and each run a SendMessage resume starts, gets at most one `final-verdict` line in the run trace, written only by the run-trace hook. A `step set review` line opens the step, and a `step clear` line, a `step block` line, or a `step set` line of another step closes it. A repeated `step set review` line opens a new step, whose cycle count starts again at zero. The line carries the report's ready-to-merge answer and the review's cycle, counted in distinct completed `final-reviewer` dispatches inside that open review step before it (a resumed dispatch counts once), and nothing else from the report (ADR 0140, ADR 0174).
-Breaks: silently
-Check: tests/run-trace-verdicts.test.js — the final verdict cases
-Paths: plugin/lib/verdicts.js, plugin/hooks/run-trace.js, plugin/agents/final-reviewer.md, plugin/skills/review/**, plugin/references/review-scope-mode.md
 
 ### INV-0147
 
@@ -1294,7 +1276,7 @@ Class: safety
 Concepts: Guardrail
 Statement: Each guardrail reads its own hook input and writes its own decision with code in its own file. A guardrail loads every plugin module it uses through a guarded require, and it keeps the failure posture it documents for each module on its own: when one module cannot load, when only some of its modules load, and when a function of a loaded module throws. merge-guard, ledger-guard, and run-lock deny a Bash call without the shell scanner (INV-0140). tree-guard allows (ADR 0148). run-trace records nothing. scope-prune and slicetree-sweep remove nothing (ADR 0151).
 Breaks: silently
-Check: tests/ledger-guard.test.js, tests/merge-guard.test.js, tests/run-lock.test.js, tests/scope-prune-guards.test.js, tests/slicetree-sweep.test.js, tests/tree-guard.test.js — each runs its hook copied away from the modules it loads, with a stub module in each module's place that the test confirms was loaded, and asserts that hook's documented verdict; tests/run-trace-guards.test.js runs its hook in place under a `-r` preload that intercepts `Module._load`, stubs each module at the request its requiring module makes, confirms each stub loaded through a marker file, and asserts that hook's documented verdict; tests/run-trace-guards.test.js also runs a loaded scanner whose `drivePath` or `gitSubcommand` throws or is missing, or throws only for one patch file or one word, and asserts that the event records no line, none of a test run, a restore, or an edit; tests/run-trace-guards.test.js also runs each module the run-trace hook loads, directly or through another module, unloadable, with the stub loaded at its requiring module's request; tests/run-trace-guards.test.js also runs each function the run-trace hook takes from a new module of `plugin/lib/` missing and throwing, on the event that calls it, a review's stop and a foreground review's result included, and asserts that the event records no verdict line and no dispatch-end; tests/run-trace-guards.test.js also runs a function that throws only for the second of two dispatches a Stop closes, and asserts that the event records no dispatch-end; tests/ledger-guard.test.js also runs `plugin/lib/ledger-writes.js` absent, throwing on load, carrying no `writesLedger`, and with a `writesLedger` that throws, beside the real scanner, with the stub confirmed loaded, and asserts a Bash call is denied and an Edit or Write still decides; tests/scope-prune-guards.test.js also runs with its containment module throwing on load or carrying no probe, and asserts it prunes by tree comparison alone; tests/scope-prune-guards.test.js and tests/slicetree-sweep.test.js also run each hook with `plugin/lib/git-spawn.js` unloadable, missing a function the hook takes, or with one of those functions throwing, each beside a control stub that does prune or sweep, and assert that the hook prunes or sweeps nothing; tests/slicetree-sweep.test.js also runs a `parseBranchList` that throws for only one of two scopes, and asserts that the hook skips that scope and sweeps the other
+Check: tests/ledger-guard.test.js, tests/merge-guard.test.js, tests/run-lock.test.js, tests/scope-prune-guards.test.js, tests/slicetree-sweep.test.js, tests/tree-guard.test.js — each runs its hook copied away from the modules it loads, with a stub module in each module's place that the test confirms was loaded, and asserts that hook's documented verdict; tests/run-trace-guards.test.js runs its hook in place under a `-r` preload that intercepts `Module._load`, stubs each module at the request its requiring module makes, confirms each stub loaded through a marker file, and asserts that hook's documented verdict; tests/run-trace-guards.test.js also runs a loaded scanner whose `drivePath` or `gitSubcommand` throws or is missing, or throws only for one patch file or one word, and asserts that the event records no line, none of a test run, a restore, or an edit; tests/run-trace-guards.test.js also runs each module the run-trace hook loads, directly or through another module, unloadable, with the stub loaded at its requiring module's request; tests/run-trace-guards.test.js also runs each function the run-trace hook takes from a new module of `plugin/lib/` missing and throwing, on the event that calls it, a review's stop and a foreground review's result included, and asserts that the event records no dispatch-end; tests/run-trace-guards.test.js also runs a function that throws only for the second of two dispatches a Stop closes, and asserts that the event records no dispatch-end; tests/ledger-guard.test.js also runs `plugin/lib/ledger-writes.js` absent, throwing on load, carrying no `writesLedger`, and with a `writesLedger` that throws, beside the real scanner, with the stub confirmed loaded, and asserts a Bash call is denied and an Edit or Write still decides; tests/scope-prune-guards.test.js also runs with its containment module throwing on load or carrying no probe, and asserts it prunes by tree comparison alone; tests/scope-prune-guards.test.js and tests/slicetree-sweep.test.js also run each hook with `plugin/lib/git-spawn.js` unloadable, missing a function the hook takes, or with one of those functions throwing, each beside a control stub that does prune or sweep, and assert that the hook prunes or sweeps nothing; tests/slicetree-sweep.test.js also runs a `parseBranchList` that throws for only one of two scopes, and asserts that the hook skips that scope and sweeps the other
 Paths: plugin/hooks/*.js, plugin/lib/*.js
 
 ### INV-0160
@@ -1440,3 +1422,21 @@ Statement: `/superdev:document` runs no test command, in any mode or fix round, 
 Breaks: silently
 Check: scripts/drift-check.js `doc-setup-no-test-run`
 Paths: plugin/skills/document/**, plugin/skills/setup/**, plugin/agents/doc-writer.md, plugin/agents/doc-reader.md, plugin/references/doc-pass.md
+
+### INV-0176
+
+Class: process
+Concepts: Fail-to-pass run, 3-strike fix loop, Slice-reviewer, Final-reviewer
+Statement: A Pass-to-pass finding carries the unclosable mark only when the reviewer that raised it sets it, in one of the closed cases: the range's behaviour change lies wholly in test-path files, a file the outcome line's command does not read carrying none, its test pins existing behaviour on purpose, or its changes outside the test paths preserve behaviour. An implementer's or the lite controller's claim of a case is input the reviewer checks. A marked finding enters no fix list, and a Missing fail-to-pass run finding never carries the mark (ADR 0193, ADR 0196).
+Breaks: silently
+Check: none — the mark is a reviewer's reading of a diff, and no cheap test tells a sound case from a waved-off weak test; final-reviewer's invariant compliance judges it.
+Paths: plugin/references/review-checklist.md, plugin/agents/slice-reviewer.md, plugin/agents/final-reviewer.md, plugin/agents/implementer.md, plugin/references/implement-full.md, plugin/references/implement-lite.md, plugin/references/review-scope-mode.md
+
+### INV-0177
+
+Class: architecture
+Concepts: Run trace
+Statement: The run trace carries a line kind only while a shipped superdev decision or a reviewer rule reads it. A kind that only superdev-view reads is not written (ADR 0197).
+Breaks: silently
+Check: none — whether a reader acts on a kind is a reading of prose and code together; a reviewer of a change that adds a trace kind applies it.
+Paths: plugin/hooks/run-trace.js, plugin/lib/trace-log.js

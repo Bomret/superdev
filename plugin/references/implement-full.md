@@ -103,8 +103,9 @@ Repeat until every slice is `merged`:
    own range, `<base>` (the commit the slice branch was cut from) or `<sweep-base>` on a sweep fix dispatch, and tells it
    to run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <range-start>..HEAD -- <command>` before its report,
    the command naming every test file its range adds or modifies, wherever its range changes a test-path file and another
-   file, and to fix a `pass-to-pass` outcome in the same dispatch, unless its range is in one of the two unclosable cases
-   of `review-checklist.md`'s `## Fail-to-pass run`, which it then reports with its reason (ADR 0182, ADR 0193). Every implementer dispatch also
+   file and its test-path changes are not all deletions (ADR 0196), to write a test first where its test-path changes are
+   all deletions and it adds behaviour outside the test paths, and to fix a `pass-to-pass` outcome in the same dispatch, unless its range is in one of the three unclosable cases
+   of `review-checklist.md`'s `## Fail-to-pass run`, which it then reports with its reason (ADR 0182, ADR 0193, ADR 0196). Every implementer dispatch also
    tells it to run only the tests that verify its work, each through `scope.js test` (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test
    focused <changed paths>` with at least one path, or `test -- <command>` for a direct test-file run), and its fail-to-pass run, and never `test full`,
    `test whole`, or a `test focused` with no path: the scope review's exit run is the scope's one full-suite run (ADR 0192). It tells it to run a suite longer than the
@@ -146,8 +147,8 @@ Repeat until every slice is `merged`:
      held until the handoff at the end of the chain.
    - **A `behavior` slice's fail-to-pass outcome comes from its implementer** (ADR 0134, ADR 0182, INV-0138). Where
      the slice's range, from the commit its slice branch was cut from to the slice branch's tip, changes both a test-path
-     file (`docs/agents/verification.md`'s `## Test paths`, the defaults where it has none) and another file, the
-     implementer's run writes a `fail-to-pass` line over a range from that base to that tip. Read it with
+     file (`docs/agents/verification.md`'s `## Test paths`, the defaults where it has none) and another file, and its
+     test-path changes are not all deletions (ADR 0196), the implementer's run writes a `fail-to-pass` line over a range from that base to that tip. Read it with
      `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --slice <id> --root <run-root>` before you dispatch
      `superdev:slice-reviewer`. A range with no such line is a report defect: send the report back to the implementer
      in the same cycle. You run no fail-to-pass run and no test run for a slice review.
@@ -198,8 +199,11 @@ Repeat until every slice is `merged`:
      read to the current tip, each range with both ends full commits. It tells the reviewer to apply `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` to each: on a
      `behavior` slice, a latest outcome line over a range that reads `pass-to-pass` is an Important finding,
      **Pass-to-pass**, and a range that changes both a test-path file and another file, with no outcome line over it,
-     is an Important finding, **Missing fail-to-pass run**. A fix cycle whose range is empty, or whose commits change
-     only test files, needs no outcome line and draws no finding. The implementer runs the verb from the slice's base on
+     is an Important finding, **Missing fail-to-pass run**. A slice's range or a fix cycle's range whose test-path
+     changes are all deletions, and whose changes outside the test paths add no behaviour, needs no outcome line and
+     draws no finding, and neither does a fix cycle whose range is empty or whose commits change only test files
+     (ADR 0196). A range whose test-path changes are all deletions and that adds behaviour outside the test paths
+     draws **Missing fail-to-pass run**. The implementer runs the verb from the slice's base on
      every dispatch (ADR 0182), so an outcome line over a range from the slice's base to a range's tip covers that range:
      the latest one decides **Pass-to-pass**, and one satisfies **Missing fail-to-pass run**, on the slice's own range and
      on a fix cycle's range alike. Each **Pass-to-pass** and **Missing fail-to-pass run** finding names its range,
@@ -396,7 +400,8 @@ scope tip the cycle began from, appended when the cycle starts:
    scopetree for the key phrase of each rule the fix changed, and send a missed sibling surface back in the same
    cycle.
 2. **The implementer's fail-to-pass run.** The sweep implementer runs its fail-to-pass run over `<sweep-base>..HEAD`
-   before its report, where its range changes both a test-path file and another file (ADR 0182). The trace line names
+   before its report, where its range changes both a test-path file and another file and its test-path changes are not
+   all deletions (ADR 0182, ADR 0196). The trace line names
    `scope`. A range with no such line is a report defect, sent back to the implementer in the same cycle.
 3. **Re-review.** Always a fresh `superdev:slice-reviewer`, never a resumed one, so its blind pass stays blind
    (INV-0113, INV-0114). Its subject is the sweep's range, from the tip the latest earlier review read (`<sweep-base>`

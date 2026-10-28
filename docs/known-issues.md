@@ -88,42 +88,22 @@ unconfirmed.
 
 ## A subagent's report arrives through the SubagentHandback tool
 
-The run trace records a slice review's verdict from the reviewer's own report (ADR 0136). On Claude Code
-2.1.271 and later, a subagent that runs with the `SubagentHandback` tool delivers its report through it, and
-Claude Code provides that tool in auto mode. The `Agent` tool's `content` then carries only a short hand-back
-note. The report is that tool's `tool_input.message`,
-and the last assistant message of the subagent is the hand-back call, not the report. `run-trace.js` therefore
-reads the verdict from `PostToolUse` on `SubagentHandback`, matched in `hooks.json`, and falls back to
-`SubagentStop`'s `last_assistant_message` for a reviewer that answers in plain text. Both events carry the
-reviewer's `agent_id`, which the `dispatch-bind` line ties to its dispatch. A foreground reviewer has no
-`dispatch-bind` when its hand-back fires, so its report is read at `PostToolUse` on `Agent` instead (below).
+On Claude Code 2.1.271 and later, a subagent that runs with the `SubagentHandback` tool delivers its report
+through it, and Claude Code provides that tool in auto mode. The `Agent` tool's `content` then carries only a
+short hand-back note, and the last assistant message of the subagent is the hand-back call, not the report. A
+foreground subagent's `PostToolUse` payload on `Agent` carries the report in `tool_response.handbackReport.text`.
 
-**Mitigation:** the hook never blocks on either event. A report it cannot read records `unknown`, and a
-review whose events never arrive records no `verdict` line, which a reader treats as a verdict not
-recorded.
+**Mitigation:** superdev reads no report from the run trace's hook events. The run trace records no review
+verdict (ADR 0197), so `hooks.json` registers no hook on `SubagentHandback`, and `run-trace.js` reads neither
+`tool_input.message`, `last_assistant_message`, nor `handbackReport`. The controller reads a reviewer's report from
+the dispatch's own result, and the run trace records only the dispatch lines: `run-trace.js` ends a background
+dispatch on `SubagentStop`, matched by its `agent_id`, and a foreground one on `PostToolUse` on `Agent`.
 
 Verified 2026-10-10, on Claude Code 2.1.296, against the hooks reference
-(`https://code.claude.com/docs/en/hooks`): its `SubagentStop` input lists `agent_id`, `agent_type`,
-`agent_transcript_path`, and `last_assistant_message`, and its `PostToolUse` section for the `Agent` tool says
-that a hook reads a hand-back report by matching `SubagentHandback` and reading `tool_input.message`. Observed
-in a session transcript written by Claude Code 2.1.295: slice reviewer `a2376f9e567dfb4a5` ended with a
-`SubagentHandback` call whose message ends in `### Verdict: specification ✅ | quality: approved`, and no
-assistant text followed it. The `PostToolUse` payload for `SubagentHandback` was not captured from a live
-hook.
-
-Verified 2026-10-10, on the same hooks reference: it states that Claude Code provides `SubagentHandback` in auto
-mode. Whether a run outside auto mode ever has the tool was not tested.
-
-A foreground review carries its report differently. Its `PostToolUse` payload on `Agent` has
-`tool_response.status: completed` and the report text in `tool_response.handbackReport.text`. `run-trace.js` reads
-the report there (a plain-string `handbackReport` is read too), writes a `slice-reviewer`'s `verdict` line and a `final-reviewer`'s `final-verdict` line from it,
-and writes each at most once per run, whichever event reaches the hook first. A `slice-reviewer` has one run per dispatch. A `final-reviewer` a SendMessage resumes has one run per resume, so it can write more than one `final-verdict` line per dispatch (ADR 0174). A completed call with no
-`handbackReport` text records no line.
-
-Verified 2026-10-11, on Claude Code 2.1.295, in a session transcript dated 2026-10-10 and re-read 2026-10-11: the
-`Agent` tool result of a foreground review has `status: completed` and `handbackReport` as an object,
-`{"text": "<report>"}`, with the review's report in `text`. Recorded transcripts from Claude Code 2.1.284 to
-2.1.295 hold the same shape; none holds a plain string.
+(`https://code.claude.com/docs/en/hooks`): it states that Claude Code provides `SubagentHandback` in auto mode,
+and that a hook reads a hand-back report by matching `SubagentHandback` and reading `tool_input.message`.
+Verified 2026-10-11, on Claude Code 2.1.295, in a session transcript dated 2026-10-10: the `Agent` tool result
+of a foreground review has `status: completed` and `handbackReport` as an object, `{"text": "<report>"}`.
 
 ## A subagent dispatch can end with no SubagentStop
 

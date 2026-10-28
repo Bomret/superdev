@@ -39,7 +39,7 @@ const EXPORTS = {
   'hooks/merge-guard.js': ['decide'],
   'hooks/model-explicit.js': ['OURS', 'decide'],
   'hooks/run-lock.js': ['STALENESS_MS', 'decide'],
-  'hooks/run-trace.js': ['bashTargets', 'locate', 'parseFinalVerdict', 'parseVerdict', 'record', 'testRuns', 'treeState', 'verificationKind'],
+  'hooks/run-trace.js': ['bashTargets', 'locate', 'record', 'testRuns', 'treeState', 'verificationKind'],
   'hooks/scope-prune.js': ['TTL_MS', 'branchNamesFrom', 'main', 'readBranch', 'readHeader', 'readStage', 'selectPrunable', 'shapeScanBranch'],
   'hooks/slicetree-sweep.js': ['git', 'main', 'selectRemovable'],
   'hooks/test-guard.js': ['decide'],
@@ -61,8 +61,7 @@ for (const [rel, names] of Object.entries(EXPORTS)) {
 // Each entry point re-exports names from the modules that hold them: each name is the module's own value, so a
 // divergent local copy fails here.
 const RE_EXPORTS = {
-  'hooks/run-trace.js': { 'bash-writes': ['bashTargets'], 'run-tree': ['locate', 'treeState'], verdicts: ['parseVerdict', 'parseFinalVerdict'],
-    'test-runs': ['testRuns', 'verificationKind'] },
+  'hooks/run-trace.js': { 'bash-writes': ['bashTargets'], 'run-tree': ['locate', 'treeState'], 'test-runs': ['testRuns', 'verificationKind'] },
   'scripts/kb-patch.js': { 'md-sections': ['maskFencedLines', 'merge', 'headingKeyOf'] },
   'scripts/publish-kb.js': { 'kb-staging': ['resolveMainCheckout', 'listPendingScopes', 'resolveScope'],
     'kb-backend-config': ['classifyBackend', 'parseCommandsTemplates'], 'kb-staged-page': ['parseStagedPage'],

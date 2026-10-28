@@ -4,7 +4,7 @@ export type Slice = { id: string; title: string; status: string }
 // the next command's start, a minute or more. `stage` is a stage write after implement, in a trace with no step
 // lines and a stage write past merged. `run` is one run of a dispatch, placed at its start (a resumed run at its resume): `ms` is its
 // duration once it ended (`isEnded`), else the time from its start to now; `outcome` is its dispatch outcome ('' when none is
-// recorded), and `review` and `ready` are the first `verdict` or `final-verdict` line of its dispatch. `date` opens a new day: the
+// recorded). `date` opens a new day: the
 // flat log reads a group on the day where it sits, and a group's own lines start from the day of its header's `at`.
 export type LogEntry =
   | { kind: 'date'; at: number }
@@ -12,7 +12,7 @@ export type LogEntry =
   | { kind: 'commandEnd'; at: number; name: string; ms: number; isBlocked: boolean }
   | { kind: 'wait'; at: number; ms: number }
   | { kind: 'stage'; at: number; stage: string }
-  | { kind: 'run'; at: number; type: string; slice: string; isResumed: boolean; isEnded: boolean; ms: number; outcome: string; review?: { spec: string; quality: string }; ready?: string }
+  | { kind: 'run'; at: number; type: string; slice: string; isResumed: boolean; isEnded: boolean; ms: number; outcome: string }
   | { kind: 'slice'; at: number; id: string; title: string; status: string; ms?: number; isRunning: boolean; review: number; isOpenByDefault: boolean; entries: LogEntry[] }
   | { kind: 'sliceEnd'; at: number; status: string; ms?: number }
   | ({ kind: 'sliceSummary'; at: number; id: string } & SliceSummary)

@@ -80,11 +80,10 @@ function endLine(runRoot, events, d, outcome) {
 // ends the dispatch; an `async_launched` one ends on its SubagentStop. A foreground run's own SubagentStop fires before
 // this event, while no bind names it yet, so its one end is this one.
 // A failed (PostToolUseFailure) or denied (PermissionDenied) call ends it through `recordAgentEnd`.
-// Writes nothing. It gives `{ f, bind, completed, report }` for a dispatch it found, or `undefined`: `f` is the dispatch
+// Writes nothing. It gives `{ f, bind, completed }` for a dispatch it found, or `undefined`: `f` is the dispatch
 // `findDispatch` found, `bind` the `dispatch-bind` line as `[runRoot, entry]` (`undefined` when the result carries no `agentId` or
-// the dispatch is bound already), `completed` whether the result is a `completed` one, and `report` the foreground review's
-// hand-back text, if any. The caller builds a review's verdict line and the end (`endLine`) too, then writes every line of the
-// event together (INV-0159).
+// the dispatch is bound already), and `completed` whether the result is a `completed` one. The caller builds the end (`endLine`)
+// too, then writes every line of the event together (INV-0159).
 function bindAgentResult(input, cwd) {
   const r = input.tool_response;
   if (!r || typeof r !== 'object' || typeof input.tool_use_id !== 'string') return undefined;
@@ -93,10 +92,7 @@ function bindAgentResult(input, cwd) {
   const bind = typeof r.agentId === 'string' && r.agentId && !holds(f.events, 'dispatch-bind', 1, input.tool_use_id)
     ? [f.runRoot, { slice: untraceField(f.d.slice), agent: 'main', kind: 'dispatch-bind', fields: [untraceField(f.d.fields[0]), input.tool_use_id, r.agentId] }]
     : undefined;
-  // A foreground review's report rides on `tool_response.handbackReport`: the verdict line lands before the end.
-  // Claude Code carries it as `{ text }`; a plain string is read too.
-  const report = r.handbackReport && typeof r.handbackReport === 'object' ? r.handbackReport.text : r.handbackReport;
-  return { f, bind, completed: r.status === 'completed', report };
+  return { f, bind, completed: r.status === 'completed' };
 }
 
 // PostToolUseFailure and PermissionDenied on Agent: the call's `tool_use_id` names the dispatch it ends.

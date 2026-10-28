@@ -87,7 +87,7 @@ const { tmp, ledger, A, S3, trace, reset, run, edit, bash, hookPath, agentPre, c
   // Each module the hook loads, directly or through another module of lib/, each unloadable on its own: nothing records, and the
   // stub at its requiring module's request loaded.
   const MODULES = ['ledger', 'trace-log', 'verification', 'main-work-tree', 'bash-command', 'bash-writes', 'test-runs', 'run-tree', 'dispatch',
-    'dispatch-lines', 'verdicts', 'start-stash'];
+    'dispatch-lines', 'start-stash'];
   for (const mod of MODULES) {
     const stub = `const M = require('module'); const load = M._load; M._load = function (req, ...a) { if (${requests(mod)}) { require('fs').writeFileSync(${JSON.stringify(marker)}, 'x'); throw new Error('gone'); } return load.call(this, req, ...a); };`;
     assert.deepEqual(hookRuns(stub), [], `${mod}.js unloadable records nothing`);
@@ -133,17 +133,16 @@ const { tmp, ledger, A, S3, trace, reset, run, edit, bash, hookPath, agentPre, c
   const readersGone = `const M = require('module'); const load = M._load; M._load = function (req, ...a) { if (req === './shell-word-readers.js') { require('fs').writeFileSync(${JSON.stringify(marker)}, 'x'); throw new Error('gone'); } return load.call(this, req, ...a); };`;
   assert.deepEqual(hookRuns(readersGone), [], 'a core without its reader module records nothing');
   loaded('missing reader module');
-  // A non-Bash event records nothing either (INV-0140): a bound slice-reviewer's hand-back and stop write no verdict and no end.
+  // A non-Bash event records nothing either (INV-0140): a bound slice-reviewer's stop writes no end.
   const bound = () => {
     run({ hook_event_name: 'PreToolUse', tool_name: 'Agent', tool_use_id: 'ur1', tool_input: { prompt: `${S3}`, subagent_type: 'superdev:slice-reviewer', description: 'review' }, cwd: tmp });
     run({ hook_event_name: 'PostToolUse', tool_name: 'Agent', tool_use_id: 'ur1', tool_response: { status: 'async_launched', agentId: 'aur1' }, cwd: tmp });
   };
   const review = [
-    { hook_event_name: 'PostToolUse', tool_name: 'SubagentHandback', agent_id: 'aur1', agent_type: 'superdev:slice-reviewer', tool_input: { message: '### Verdict: specification ✅ | quality: approved' }, cwd: tmp },
     { hook_event_name: 'SubagentStop', agent_id: 'aur1', agent_type: 'superdev:slice-reviewer', cwd: tmp },
   ];
-  control('the review records its verdict and end', review, bound, ['verdict', 'dispatch-end']);
-  assert.deepEqual(hookRuns(unloadable, review, bound), [], 'shell-words.js unloadable records no verdict and no dispatch-end');
+  control('the review records its end', review, bound, ['dispatch-end']);
+  assert.deepEqual(hookRuns(unloadable, review, bound), [], 'shell-words.js unloadable records no dispatch-end');
   loaded('unloadable scanner on a review');
   // A state module that loads but whose function throws: the event records nothing, and the stub at its requiring module's request loaded.
   const withLib = (mod, override) => `const M = require('module'); const load = M._load; M._load = function (req, ...a) { if (${requests(mod)}) { require('fs').writeFileSync(${JSON.stringify(marker)}, 'x'); const r = load.call(this, req, ...a); return Object.assign({}, r, ${override}); } return load.call(this, req, ...a); };`;
@@ -152,16 +151,15 @@ const { tmp, ledger, A, S3, trace, reset, run, edit, bash, hookPath, agentPre, c
   assert.deepEqual(hookRuns(withLib('verification', boom('verificationCommands')), verifyEvs, setupVerify), [], 'verificationCommands throwing records nothing');
   loaded('verificationCommands throwing');
   fs.rmSync(verifyFile, { force: true });
-  assert.deepEqual(hookRuns(withLib('trace-log', boom('readTrace')), review, bound), [], 'readTrace throwing records no verdict and no dispatch-end');
+  assert.deepEqual(hookRuns(withLib('trace-log', boom('readTrace')), review, bound), [], 'readTrace throwing records no dispatch-end');
   loaded('readTrace throwing on a review');
-  assert.deepEqual(hookRuns(withLib('main-work-tree', boom('mainWorkTree')), review, bound), [], 'mainWorkTree throwing records no verdict and no dispatch-end');
+  assert.deepEqual(hookRuns(withLib('main-work-tree', boom('mainWorkTree')), review, bound), [], 'mainWorkTree throwing records no dispatch-end');
   loaded('mainWorkTree throwing on a review');
   // Every function a lib module hands the hook, absent or throwing, on the event that calls it: nothing records, and the stub at its
-  // requiring module's request loaded. A review's verdict and its dispatch-end are one event, so a failure on either side drops both.
+  // requiring module's request loaded. A review's report carries a verdict line, which records nothing (ADR 0197).
   const verdictText = '### Verdict: specification ✅ | quality: approved';
   const stopOnly = [{ hook_event_name: 'SubagentStop', agent_id: 'aur1', agent_type: 'superdev:slice-reviewer', last_assistant_message: verdictText, cwd: tmp }];
   const foreground = [{ hook_event_name: 'PostToolUse', tool_name: 'Agent', tool_use_id: 'ur1', tool_response: { status: 'completed', agentId: 'aur1', handbackReport: { text: verdictText } }, cwd: tmp }];
-  const handback = [review[0]];
   const missing = (name) => `{ ${name}: undefined }`;
   const WRITE = { evs: verifyEvs, setup: setupVerify, real: ['run', 'edit'] };
   const matrix = [
@@ -169,15 +167,14 @@ const { tmp, ledger, A, S3, trace, reset, run, edit, bash, hookPath, agentPre, c
       ['test-runs', 'recordBash'], ['run-tree', 'locate'], ['run-tree', 'isTestPath'], ['run-tree', 'treeState'], ['start-stash', 'takeStart']]
       .flatMap(([mod, fn]) => [[`${mod} ${fn} throwing`, mod, boom(fn), WRITE], [`${mod} ${fn} missing`, mod, missing(fn), WRITE]]),
     // `findDispatch` reaches the stop through the hook, and the foreground review through `bindAgentResult`, which calls its module's own copy.
-    ...[[stopOnly, 'a review stop', 'findDispatch'], [foreground, 'a foreground review', 'bindAgentResult']]
-      .flatMap(([evs, on, find]) => [['dispatch', find], ['dispatch', 'endLine'], ['dispatch-lines', 'holds'], ['dispatch-lines', 'lastRunLine'], ['verdicts', 'verdictLine']]
+    // `holds` reaches only the foreground review, through the bind check.
+    ...[[stopOnly, 'a review stop', ['findDispatch']], [foreground, 'a foreground review', ['bindAgentResult', 'holds']]]
+      .flatMap(([evs, on, [find, more]]) => [['dispatch', find], ['dispatch', 'endLine'], ['dispatch-lines', 'lastRunLine'], ...(more ? [['dispatch-lines', more]] : [])]
         .flatMap(([mod, fn]) => [[`${mod} ${fn} throwing on ${on}`, mod, boom(fn)], [`${mod} ${fn} missing on ${on}`, mod, missing(fn)]]
-          .map((c) => [...c, { evs, setup: bound, real: ['verdict', 'dispatch-end'] }]))),
-    ...[['dispatch-lines', 'holds'], ['verdicts', 'verdictLine']].flatMap(([mod, fn]) => [[`${mod} ${fn} throwing on a hand-back`, mod, boom(fn)], [`${mod} ${fn} missing on a hand-back`, mod, missing(fn)]]
-      .map((c) => [...c, { evs: handback, setup: bound, real: ['verdict'] }])),
+          .map((c) => [...c, { evs, setup: bound, real: ['dispatch-end'] }]))),
   ];
-  // A foreground review whose first PostToolUse carries the agentId and the report has no earlier bind: the bind, the verdict and the
-  // end are one event, so a failure while building any of them drops all three (INV-0159).
+  // A foreground review whose first PostToolUse carries the agentId and the report has no earlier bind: the bind and the
+  // end are one event, so a failure while building either drops both (INV-0159).
   const unboundSlice = () => run({ hook_event_name: 'PreToolUse', tool_name: 'Agent', tool_use_id: 'ur1', tool_input: { prompt: `${S3}`, subagent_type: 'superdev:slice-reviewer', description: 'review' }, cwd: tmp });
   const unboundFinal = () => {
     appendTrace(A, { slice: 'scope', agent: 'main', kind: 'ledger', fields: ['step', 'set', 'review'] });
@@ -185,20 +182,16 @@ const { tmp, ledger, A, S3, trace, reset, run, edit, bash, hookPath, agentPre, c
   };
   const finalReport = { hook_event_name: 'PostToolUse', tool_name: 'Agent', tool_use_id: 'ur1', tool_response: { status: 'completed', agentId: 'aur1', handbackReport: { text: 'Ready to merge? Yes' } }, cwd: tmp };
   const unbound = [
-    ['slice-reviewer', unboundSlice, foreground, ['dispatch-bind', 'verdict', 'dispatch-end'], 'verdict'],
-    ['final-reviewer', unboundFinal, [finalReport], ['dispatch-bind', 'final-verdict', 'dispatch-end'], 'final-verdict'],
+    ['slice-reviewer', unboundSlice, foreground, ['dispatch-bind', 'dispatch-end']],
+    ['final-reviewer', unboundFinal, [finalReport], ['dispatch-bind', 'dispatch-end']],
   ];
-  for (const [who, setup, evs, real, kind] of unbound) {
-    for (const [mod, fn] of [['verdicts', 'verdictLine'], ['dispatch', 'endLine'], ['dispatch-lines', 'lastRunLine'], ['dispatch-lines', 'holds']]) {
+  for (const [who, setup, evs, real] of unbound) {
+    for (const [mod, fn] of [['dispatch', 'endLine'], ['dispatch-lines', 'lastRunLine'], ['dispatch-lines', 'holds']]) {
       matrix.push([`${mod} ${fn} throwing on an unbound foreground ${who}`, mod, boom(fn), { evs, setup, real }]);
     }
-    matrix.push([`holds throwing for ${kind} only on an unbound foreground ${who}`, 'dispatch-lines', only('holds', 'a[1]', kind), { evs, setup, real }]);
   }
   matrix.push(
     ['holds throwing for dispatch-bind only on an unbound foreground slice-reviewer', 'dispatch-lines', only('holds', 'a[1]', 'dispatch-bind'), { evs: foreground, setup: unboundSlice, real: unbound[0][3] }],
-    ['holds throwing for verdict only on a review stop', 'dispatch-lines', only('holds', 'a[1]', 'verdict'), { evs: stopOnly, setup: bound, real: ['verdict', 'dispatch-end'] }],
-    ['holds throwing for verdict only on a hand-back', 'dispatch-lines', only('holds', 'a[1]', 'verdict'), { evs: handback, setup: bound, real: ['verdict'] }],
-    ['holds throwing for verdict only on a bound foreground slice-reviewer', 'dispatch-lines', only('holds', 'a[1]', 'verdict'), { evs: foreground, setup: bound, real: ['verdict', 'dispatch-end'] }],
   );
   // Stop closes every unbound dispatch of the session together: a function that throws while the second one's end is built drops the first's.
   const twoDispatches = () => {

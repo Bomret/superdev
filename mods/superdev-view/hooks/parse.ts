@@ -76,7 +76,7 @@ type Stretch = {
   reviews: Set<string>; f2p: string
 }
 type Group = Extract<LogEntry, { kind: 'slice' }>
-type Dispatch = { type: string; slice: string; runs: Run[]; judged?: Run }
+type Dispatch = { type: string; slice: string; runs: Run[] }
 
 // Commands: every command starts at its `ledger step set` line, each line a start of its own. Until a `step set
 // plan` line has passed, the first `ledger init … planned` starts `plan`, and until a `step set implement` line
@@ -86,8 +86,8 @@ type Dispatch = { type: string; slice: string; runs: Run[]; judged?: Run }
 // stopped command), a stage write, or the next `step set`; each end draws a `commandEnd` entry, and a clear or
 // block with no open command draws nothing. A trace with no step line but a stage write past `merged` was
 // written before the step lines existed: it draws every stage write after implement as a plain line. A
-// dispatch run is one entry at its start; a dispatch's first end per run wins, and its first `verdict` or
-// `final-verdict` line of a run goes on the run it falls in, also when it arrives after that run's end. Slices: every line
+// dispatch run is one entry at its start; a dispatch's first end per run wins. A `verdict` or `final-verdict`
+// line, which an older release wrote, draws nothing (ADR 0197). Slices: every line
 // whose slice field names a slice id draws inside that slice's group, which sits where the slice's first line
 // falls; its header reads the slice's latest status, its first start, and its last end.
 export const eventLog = (ledger: string, trace: string, now: number): EventLog => {
@@ -150,7 +150,7 @@ export const eventLog = (ledger: string, trace: string, now: number): EventLog =
     open = { entry }
   }
   // One slice's stretch since its latest start (`start` is undefined for lines seen before any start): its counts
-  // and last review verdict. Only a line whose slice field names the slice counts, and only until the stretch ends.
+  // and its fail-to-pass outcome. Only a line whose slice field names the slice counts, and only until the stretch ends.
   const titles = new Map(slices(ledger).map(s => [s.id, s.title]))
   const titleOf = (id: string) => titles.get(id) ?? ''
   const stretches = new Map<string, Stretch>()
@@ -159,13 +159,6 @@ export const eventLog = (ledger: string, trace: string, now: number): EventLog =
     let s = stretches.get(id)
     if (!s && id !== 'scope') stretches.set(id, (s = newStretch()))
     return s?.isEnded ? undefined : s
-  }
-  const verdictRun = (key: string) => {
-    const d = dispatches.get(key)
-    const run = d?.runs.at(-1)
-    if (!d || !run || d.judged === run) return undefined
-    d.judged = run
-    return run
   }
 
   for (const line of trace.split('\n')) {
@@ -243,14 +236,6 @@ export const eventLog = (ledger: string, trace: string, now: number): EventLog =
         counting(d.slice)?.reviews.add(untrace(f[1]))
         if (isSliceId(d.slice)) groupOf(d.slice, at).reviews.add(untrace(f[1]))
       }
-    } else if (kind === 'verdict') {
-      const run = verdictRun(untrace(f[0]))
-      if (!run) continue
-      run.review = { spec: untrace(f[1]), quality: untrace(f[2]) }
-    } else if (kind === 'final-verdict') {
-      const run = verdictRun(untrace(f[0]))
-      if (!run) continue
-      run.ready = untrace(f[1])
     }
   }
   for (const c of commands) if (!c.isDone) c.ms = now - c.at
