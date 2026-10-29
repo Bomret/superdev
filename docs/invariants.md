@@ -578,7 +578,7 @@ Paths: plugin/lib/verification.js, plugin/skills/review-tests/SKILL.md, plugin/s
 
 Class: process
 Concepts: Test audit, Unattended run
-Statement: A test audit runs only on operator invocation. Unchained, its only writes are its intent and the `.gitignore` entry.
+Statement: A test audit runs only on operator invocation. Unchained, its only writes are its intent — an intent record in the slice store, or the local intent file when that write fails (ADR 0199) — and the `.gitignore` entry. Chained, it writes nothing.
 Breaks: silently
 Check: none — no absence scan exists
 Paths: plugin/skills/review-tests/**
@@ -1440,3 +1440,12 @@ Statement: The run trace carries a line kind only while a shipped superdev decis
 Breaks: silently
 Check: none — whether a reader acts on a kind is a reading of prose and code together; a reviewer of a change that adds a trace kind applies it.
 Paths: plugin/hooks/run-trace.js, plugin/lib/trace-log.js
+
+### INV-0178
+
+Class: process
+Concepts: Intent, Intent record
+Statement: A handoff of a ready intent (`/superdev:brainstorm`, `/superdev:sweep`, `/superdev:review-tests`) reports the intent handed off only once its intent record exists in the slice store, and then leaves no local intent file. A write that loses the record's intent signal counts as failed. A draft intent never reaches the store. When the record could not be written, the local file stays ready and the report says the intent exists only in this checkout. `/superdev:plan` offers every open intent record and never requires the local file (ADR 0199).
+Breaks: silently
+Check: none — the handoff is skill prose against a live store; final-reviewer's invariant compliance judges it
+Paths: plugin/skills/brainstorm/SKILL.md, plugin/skills/sweep/SKILL.md, plugin/skills/review-tests/SKILL.md, plugin/skills/plan/SKILL.md, plugin/references/intent-handoff.md

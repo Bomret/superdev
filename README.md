@@ -39,7 +39,7 @@ plan runs test-first, inline in the scopetree.
 /superdev:wrap-up      → check a shipped scope is fully settled, then close its anchor and take the run down
 /superdev:publish-kb   → send a scope's staged knowledge-base pages to the configured backend
 /superdev:review-tests → read-only audit of test cost and test gaps, ranked and handed to plan
-/superdev:sweep        → read-only chain over code, docs, tests, and config, merged into one plan-ready intent
+/superdev:sweep        → read-only chain over code, docs, tests, and config, merged into one plan-ready intent record
 ```
 
 ## How the commands connect
@@ -88,7 +88,7 @@ flowchart TD
 
 | Command | Stage it writes | Tests it runs | Exits |
 |---|---|---|---|
-| `/superdev:brainstorm` | none. It sets the intent file to `status: ready`. | none | A draft resumes in `/superdev:brainstorm`. A ready intent goes to `/superdev:plan`. |
+| `/superdev:brainstorm` | none. It sets the intent file to `status: ready` and hands it to the slice store as an intent record. | none | A draft resumes in `/superdev:brainstorm`. A ready intent goes to `/superdev:plan`. |
 | `/superdev:plan` | `planned` | none | It calls `/superdev:setup` when configuration is missing. A repair choice plans a `fix` feature. |
 | `/superdev:implement` | `implementing`, then `merged` | The builder of each slice runs focused tests and a fail-to-pass run. No full suite runs. | No slices go to `/superdev:plan`. The tier picks lite or full. |
 | `/superdev:review` | `reviewed` | A focused run over the scope's changed paths at entry. No run inside a fix cycle. One full run after the verdict comes back clean, the scope's only full-suite run. | The fix loop stops at 3 strikes. A deferred finding becomes a triage record. |
@@ -106,9 +106,15 @@ flowchart TD
   survive a check against the repository. It finds the smallest end-to-end slice worth building, and
   surfaces open questions and rejected directions. It writes its intent as the interview runs, as a draft
   until the handoff, so a closed session loses nothing and a later session can resume or delete the
-  draft. The handoff marks the intent ready, and `/superdev:plan` then offers it and routes each rejected
-  direction to a durable home. `/superdev:plan` never offers a draft. Near read-only: it writes nothing
-  to the slice store.
+  draft. The handoff marks the intent ready and writes it to the slice store as an **intent record**, an
+  unassigned issue carrying the store's `intent` label, then deletes the local file. The record survives
+  `git clean`, a lost disk, and a fresh clone, and a colleague can plan from it. When the record cannot
+  be written whole, the file stays and the report says the intent exists only in this checkout
+  ([ADR 0199](docs/adr/0199-a-ready-intent-lives-in-the-slice-store-as-an-intent-record.md)).
+  `/superdev:plan` offers every open intent record together with every local ready intent, routes each
+  rejected direction to a durable home, and then asks whether the intent is fully planned: it closes the
+  record, or keeps it open with a comment naming what it planned. `/superdev:plan` never offers a draft,
+  and a draft never reaches the slice store.
 - **`/superdev:plan`**. A relentless interview pins the intent and a Definition of Done, and captures
   ADRs and a glossary as decisions surface. Before it asks, it checks every option against the repository
   or the official docs, shows that evidence, drops an option that fails, and offers at most two. Every
@@ -217,10 +223,11 @@ flowchart TD
 - **`/superdev:status`**. One read-only report of where the work stands and what to do next. It prints
   every run's ledger first: per scope, the slice counts by status, which slices are `blocked`, and each
   scope holding **staged** knowledge-base pages, so a page nobody published yet stays visible instead of
-  silent. Then it surveys the **slice store**. It groups every open scope anchor, every triage record,
-  every stranded run root, and every **untriaged item** — an open record you filed and no `/superdev:plan`
+  silent. Then it surveys the **slice store**. It groups every open scope anchor, every intent record, every
+  triage record, every stranded run root, and every **untriaged item** — an open record you filed and no `/superdev:plan`
   interview has yet reached — by the action it needs — running in another session, blocked, stranded, in
-  flight, running on another machine, waiting on another feature, needing a plan, unreleased, untriaged,
+  flight, running on another machine, waiting on another feature, needing a plan, an intent waiting for a
+  plan, unreleased, untriaged,
   absorbed by an open scope, or ready to build — and ends with one recommended next move. A run another session is working, whose ledger
   names a step and whose run lock is under an hour old, shows as running and is never the recommended move
   ([ADR 0163](docs/adr/0163-status-carries-the-backlog-survey.md)). Untriaged items are capped at 5, oldest
@@ -324,8 +331,9 @@ flowchart TD
   symbol no test reaches (`untested`) and each case its tests leave out (`missing case`), ranked trust
   boundary first, then exported, then internal. No coverage tool runs, so every gap finding is labelled
   `static` ([ADR 0162](docs/adr/0162-a-test-audit-also-finds-test-gaps.md)). Every finding is a judgment
-  you can reject before it survives. Its only writes are the intent for `/superdev:plan` and the
-  one-line `.gitignore` entry that keeps its scratch directory ignored when absent.
+  you can reject before it survives. Its only writes are the intent record for `/superdev:plan` (a local
+  intent file where the record cannot be written) and the one-line `.gitignore` entry that keeps its
+  scratch directory ignored when absent.
 - **`/superdev:sweep`**. Chains `/superdev:review`, `/superdev:document audit`, `/superdev:review-tests`,
   and `/superdev:setup check` over a whole repository (or the path you give it) into one merged, ranked
   report, each finding attributed to the leg that found it. Every leg runs read-only, in a **chained
@@ -333,7 +341,7 @@ flowchart TD
   ([ADR 0068](docs/adr/0068-a-repository-sweep-chains-the-read-only-surfaces.md)). A checkable fact — a
   grounded doc claim, a config drift verdict, a dead or ignored test — reaches the intent directly; every
   other finding is a judgment you confirm or reject in one `AskUserQuestion` round. Its only write is the
-  intent for `/superdev:plan`.
+  intent record for `/superdev:plan`, or a local intent file where the record cannot be written.
 
 ## After the PR
 
@@ -651,7 +659,8 @@ docs/kb/                  knowledge base, only if the local-file KB backend is c
                           slicetrees (full tier only, >3 slices), or a single scopetree +
                           run.lock (lite tier only, ≤3 slices) — never committed, never in the PR
 .superdev/brainstorm/<intent-slug>.md   git-ignored scratch intent notes, written by /brainstorm as the
-                          interview runs, a draft until the handoff marks it ready — sibling to
+                          interview runs, a draft until the handoff turns it into an intent record
+                          (kept, ready, only where the record cannot be written) — sibling to
                           .superdev/scopes/, not inside it, so /status (which
                           only scans .superdev/scopes/*/) never mistakes it for a run root; never
                           committed

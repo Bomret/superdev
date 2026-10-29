@@ -119,8 +119,15 @@ _Avoid: "replay" (ADR 0118 uses it for re-running reviewers on earlier slices), 
 **Warrant**: the justification a piece of work carries. It scales both cost (which model a dispatch uses) and rigor (which review gates run). Derived from a slice's test-applicability and complexity, never a plan field. A `behavior` slice warrants more than a `mechanical` one. A hook blocks any dispatch that omits an explicit model, so cost stays warrant-scaled.
 _Avoid: "priority", "estimate", "weight"_
 
-**Intent**: a rough idea sharpened into something plan-ready: the problem, a few candidate directions, the MLP, the open questions, the rejected directions, and the load-bearing commitments. Output of `/brainstorm`, input to `/plan`. A brainstorm intent is a draft (`status: draft`) while its interview runs and ready (`status: ready`) after the handoff; `/plan` never seeds from a draft (ADR 0112).
+**Intent**: a rough idea sharpened into something plan-ready: the problem, a few candidate directions, the MLP, the open questions, the rejected directions, and the load-bearing commitments. Output of `/brainstorm`, input to `/plan`. A brainstorm intent is a draft (`status: draft`) while its interview runs and ready (`status: ready`) after the handoff; `/plan` never seeds from a draft (ADR 0112). A ready intent lives in the slice store as an **Intent record**, and stays a local file only when the store write fails (ADR 0199).
 _Avoid: "idea", "requirements", "specification"_
+
+**Intent record**: the slice-store record a ready **Intent** becomes at the handoff of `/brainstorm`,
+`/sweep`, or `/review-tests` — an ordinary issue carrying the store's `intent` label, created unassigned.
+It is neither a slice, a scope anchor, nor a **Triage record**: `/plan` seeds from it and closes it, or
+keeps it open while part of the intent is still unplanned. How a given store expresses it is stated in that
+store's own `## Intent record` section (ADR 0199).
+_Avoid: "intent issue", "brainstorm issue" (sweep and review-tests write them too)_
 
 **Minimal Lovable Product (MLP)**: the smallest end-to-end version of the chosen direction that delivers real value. A complete, if narrow, path through the system a user could use, not a fragment of the final thing. Found in `/brainstorm` step 3, carried into `Intent`'s rough scope.
 _Avoid: "skateboard" (Kniberg's MVP-evolution analogy, unclear without the backstory), "MVP" (implies bare-minimum and incomplete, not "usable and complete but narrow")_
@@ -336,15 +343,15 @@ _Avoid: "folded record" ("fold" is the derive pass's word, the plan controller's
 criterion into an existing one), "planned record" (it stays a triage record, not a slice)_
 
 **Untriaged item**: an open record in the slice store that superdev never wrote — it carries neither a
-feature label nor the store's triage signal, so it is neither a **Scope anchor**, nor a slice, nor a
-**Triage record**. It is work a human filed and no `/superdev:plan` interview has yet reached. How a given
+feature label, nor the store's triage signal, nor its intent signal, so it is neither a **Scope anchor**,
+nor a slice, nor a **Triage record**, nor an **Intent record**. It is work a human filed and no `/superdev:plan` interview has yet reached. How a given
 store recognises and lists one is stated in that store's own `## Untriaged item` section. Only a human acts
 on it: reading one is what turns it into a plan or closes it.
 _Avoid: "unlabeled issue" (a human's own labels do not make an item triaged), "new issue" (age is not what defines it), "backlog item" (every row in a
 **Backlog survey** is one of those)_
 
 **Backlog survey**: the store half of the read-only report `/superdev:status` prints, after the runs' ledger blocks, grouping every open **Scope anchor**,
-every **Triage record**, every **stranded run root**, and every **Untriaged item** in the slice store by the
+every open **Intent record**, every **Triage record**, every **stranded run root**, and every **Untriaged item** in the slice store by the
 action each one needs, and ending with one recommended move. A run is live in another session when its
 ledger carries a standing step and its run lock is under an hour old. Such a run takes the `running`
 bucket, whatever its stage or anchor match, and is never the recommended move. An open anchor with no local

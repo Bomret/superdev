@@ -127,8 +127,10 @@ chained posture make no offer, so they propose no session either.
 `/superdev:brainstorm` closes with this report (INV-0112), made of an opening line, section headings, and
 one-line bullets. It carries no paragraph of prose.
 
-1. **One opening line.** The verdict, then the path of the intent file. A discovery that wrote no intent
-   file gives the verdict alone, with no path.
+1. **One opening line.** The verdict, then the intent record's store reference after a store handoff
+   (`references/intent-handoff.md`), or the path of the intent file for a draft or the handoff's fallback,
+   where the line also says the intent exists only in this checkout and names the cause. A discovery that
+   wrote no intent file gives the verdict alone, with no path.
 2. **`### Settled`.** One bullet per settled decision, as `- **<decision>:** <one line>`.
 3. **`### Rejected`.** One bullet per rejected direction, as `- **<direction>:** <one line on why it lost>`.
 4. **`### Still open`.** One one-line bullet per decision left open.

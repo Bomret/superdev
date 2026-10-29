@@ -74,7 +74,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
   references/          — backend seed templates + the non-seed runtime references (plan-contract,
                          documentation convention, controlled-prose, content-types, doc pass, run init,
                          run handoff, execution playbooks, test-selection, scope-mode, authoring
-                         disciplines, prior-art audit, design sketch, diagnosis, prototype, merge-conflicts,
+                         disciplines, intent handoff, prior-art audit, design sketch, diagnosis, prototype, merge-conflicts,
                          review-checklist, review-scope-mode, dod-ticks, response-shapes); its own AGENTS.md routes them
   scripts/             — the runtime CLIs: `scope.js`, `kb-patch.js`, `publish-kb.js`
   LICENSE · NOTICE     — copies of the root files, so the shipped tree carries its own attribution
@@ -367,21 +367,25 @@ This root owns every other subtree directly:
   Whoever invokes a chain command passes `--unattended` to run it unattended (ADR 0016, ADR 0108);
   superdev ships no driver. Some skills sit outside the chain: publish-kb sends a scope's
   staged knowledge-base pages to a remote backend on the operator's own clock (ADR 0023), status prints
-  every run's ledger and then surveys the slice store read-only, grouping every open scope anchor, triage record (an `absorbed`
+  every run's ledger and then surveys the slice store read-only, grouping every open scope anchor, intent record (an `intent` row, ADR 0199), triage record (an `absorbed`
   row when an open anchor's Absorbs line names it, ADR 0144, and a `needs planning` row otherwise, ADR 0198),
   stranded run root, and untriaged item by the action it needs (an open anchor whose run only its
   run-state snapshot shows takes an `elsewhere` row, ADR 0164),
   resolving an ambiguity toward showing the row (ADR 0049), and never recommending a run live in another session — a standing
   step and a run lock under an hour old (ADR 0163),
   review-tests runs two audits on every run and hands the findings the operator keeps to `/superdev:plan`
-  as an intent: a cost audit, sweeping the whole test tree in one `test-auditor` dispatch and measuring it
+  as an intent record: a cost audit, sweeping the whole test tree in one `test-auditor` dispatch and measuring it
   through the repo's optional timing command (ADR 0066), and a gap audit, reading the source set
   `scope.js source-set` prints in directory batches, one `test-gap-auditor` dispatch each, in parallel,
   with the `## Test gaps` lens of `references/review-checklist.md` that only that agent reads (ADR 0162,
   INV-0163), and sweep chains `/superdev:review`,
   `/superdev:document audit`, `/superdev:review-tests`, and `/superdev:setup check` over a whole
-  repository into one merged, ranked report and a single plan-ready intent, every leg dispatched
-  read-only in the chained posture (ADR 0068).
+  repository into one merged, ranked report and a single plan-ready intent record, every leg dispatched
+  read-only in the chained posture (ADR 0068). brainstorm, sweep, and review-tests hand a ready intent to
+  the slice store as an **intent record** by `references/intent-handoff.md`, and keep a local
+  `.superdev/brainstorm/` file only where the record cannot be written whole. `/superdev:plan` offers the
+  open records on any checkout and closes the one it planned from, or keeps it open with a comment naming
+  what it planned (ADR 0199, INV-0178).
 - `plugin/hooks/`. Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working
   rules, Hooks are CommonJS** and **Every shipped executable has a suite in `tests/`, named for it**.
   This is the strongest future child-doc candidate, if its rules outgrow this root. Of the

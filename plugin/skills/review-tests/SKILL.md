@@ -1,6 +1,6 @@
 ---
 name: review-tests
-description: Audit test cost and test gaps — sweep the test tree and the source, measure the suite, rank the findings, and hand the survivors to /superdev:plan. Read-only.
+description: Audit test cost and test gaps — sweep the test tree and the source, measure the suite, rank the findings, and hand the survivors to /superdev:plan as an intent record. Read-only.
 argument-hint: "[path] [--chained]"
 model: sonnet
 ---
@@ -16,9 +16,9 @@ and each case its tests leave out. The survivors of both become an intent for `/
 Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section (ADR 0157).
 
 **Read-only on the code and docs it audits.** The run applies nothing and fixes nothing, exactly as an
-ad-hoc `/superdev:review` does. It writes no test and runs no coverage tool. Its writes are the intent,
-under the git-ignored `.superdev/brainstorm/`, and the one-line `.gitignore` entry that keeps that
-directory ignored.
+ad-hoc `/superdev:review` does. It writes no test and runs no coverage tool. Its writes are the intent
+record in the slice store, the intent file under the git-ignored `.superdev/brainstorm/` that the record
+replaces, and the one-line `.gitignore` entry that keeps that directory ignored.
 
 **Outside the chain.** implement → review → document → ship never reaches this command. You run it when a suite has started to feel expensive, or when you want to know what standing code no test proves.
 
@@ -204,18 +204,21 @@ the return, and `/superdev:plan` sits past `/superdev:sweep`'s own intent, not p
 the git-ignored scratch location `/superdev:brainstorm` already uses (append `.superdev/` to `.gitignore`
 when absent). `<swept-slug>` is §1's path argument with each `/` turned into `-`, charset-safe per
 `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope slug`; a whole-tree sweep (no path
-argument) uses `all`. Two sweeps the same day then write two files instead of one silently overwriting the
-other. Carry the problem statement, the surviving findings of both audits with their locations and labels
+argument) uses `all`. A name already taken gets a `-2` or `-3` suffix, so no run overwrites another's
+file. The file opens with YAML frontmatter, `status: ready`. Carry the problem statement, the surviving findings of both audits with their locations and labels
 (durations for cost findings, the missing case and `static` for gap findings), the `unconfirmed` and
-`disputed` ones labelled as such, and the non-goals the operator's answers established.
+`disputed` ones labelled as such, and the non-goals the operator's answers established. Then hand it off
+as an intent record by `${CLAUDE_PLUGIN_ROOT}/references/intent-handoff.md`.
 
-Then print the next command in the Next block, the same bare form `/superdev:brainstorm` prints for the same
-`.superdev/brainstorm/` write target: `/superdev:plan` takes no path argument, so the intent this run
-just wrote reaches it through its own glob instead of being named on the line:
+Then print the next command in the Next block, naming the intent record just written by its store
+reference:
 
 ```
-/superdev:plan
+/superdev:plan <record reference>
 ```
+
+On the handoff's fallback, the Next block prints the bare `/superdev:plan`, which offers the local file
+through its own glob, and the report names the file and says the intent exists only in this checkout.
 
 **A run where neither audit finds anything says so.** Unchained, it writes no file, and its Next block says no command follows. Chained, it
 returns an empty finding set. A suite that earns its runtime is a result, and so is code with no gap.
@@ -229,5 +232,6 @@ returns an empty finding set. A suite that earns its runtime is a result, and so
 - **Estimating a duration the timing command never gave.** `unmeasured` is the honest label.
 - **Ranking an unmeasured run as though it were measured.** Say which one this is.
 - **Reporting a gap as a fact.** No coverage tool ran; every gap finding is a `static` judgment.
-- **Editing a tracked file the audit did not intend.** The intent under `.superdev/brainstorm/` and
-  the one-line `.gitignore` entry that keeps that directory ignored are the run's only writes.
+- **Editing a tracked file the audit did not intend.** The intent record, the intent file under
+  `.superdev/brainstorm/` it replaces, and the one-line `.gitignore` entry that keeps that directory
+  ignored are the run's only writes.

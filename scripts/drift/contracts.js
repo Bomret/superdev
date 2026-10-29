@@ -240,6 +240,7 @@ const SPECIALISING_SECTIONS = [
   'Run state',
   'Append mode',
   'Triage record',
+  'Intent record',
   'Assignee',
   'Definition of Done ticks',
 ];

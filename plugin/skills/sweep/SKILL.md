@@ -1,6 +1,6 @@
 ---
 name: sweep
-description: Sweep a repository across code, docs, tests, and config into one merged, ranked report and a single plan-ready intent. Read-only end to end.
+description: Sweep a repository across code, docs, tests, and config into one merged, ranked report and a single plan-ready intent record. Read-only on the repository.
 argument-hint: "[path]"
 ---
 
@@ -16,9 +16,10 @@ Every message this command ends on closes with the Next block, per `${CLAUDE_PLU
 **Outside the chain.** implement → review → document → ship never reaches this command, the standing shape `/superdev:status` and
 `/superdev:review-tests` already hold.
 
-**Read-only end to end.** Every leg it dispatches is itself read-only, and it dispatches each in the
+**Read-only on the repository.** Every leg it dispatches is itself read-only, and it dispatches each in the
 **chained posture** (CONTEXT.md, ADR 0068): a leg returns its findings and writes nothing. Its own only
-write is the intent under `.superdev/brainstorm/`.
+write is the intent record in the slice store, or, where that cannot be written whole, the intent file
+under `.superdev/brainstorm/`.
 
 ## 1. Derive the swept set
 
@@ -131,16 +132,26 @@ Otherwise, write the survivors as a plan-ready intent under
 `/superdev:brainstorm` and `/superdev:review-tests` already use. `<swept-slug>` is §1's path argument with
 each `/` turned into `-`; a whole-repository sweep (no path argument) uses `all`. Two sweeps of different
 paths the same day then write to different files instead of colliding on one; two sweeps of the same
-swept set the same day still resolve to the same filename, and the second overwrites the first, including
-the operator's own agreement-round answers.
+swept set the same day take the next free name, a `-2` or `-3` suffix, so neither overwrites the other.
+The file opens with YAML frontmatter, `status: ready`. Then hand it off as an intent record by
+`${CLAUDE_PLUGIN_ROOT}/references/intent-handoff.md`: two sweeps of the same set on one day leave two
+records.
 **This intent is the run's only write, and it changes no tracked file** — `.superdev/` not yet in
 `.gitignore` is named in the report, non-blocking, rather than fixed: those two commands own that fix on
 their own runs, and this one stays read-only on every tracked file, the `.gitignore` included. Carry the
 swept set, each fact with its leg and location, each surviving judgment with its leg and location, and the
 degraded/empty legs named as such.
 
-Then print the next command in the Next block, with the date and the slug resolved — substituted, not
-literal placeholders — naming the exact file just written:
+Then print the next command in the Next block, naming the intent record just written by its store
+reference:
+
+```
+/superdev:plan <record reference>
+```
+
+On the handoff's fallback, the Next block names the exact file instead, with the date, the slug, and any
+suffix resolved — substituted, not literal placeholders — and the report says the intent exists only in
+this checkout:
 
 ```
 /superdev:plan .superdev/brainstorm/sweep-<date>-<swept-slug>.md
@@ -152,5 +163,5 @@ literal placeholders — naming the exact file just written:
 - **Aborting the whole sweep on one denied or degraded leg.** Name it, and merge the rest.
 - **Asking about a fact.** A grounded doc claim, a config drift verdict, and a dead-or-ignored test are
   checkable, not a matter of taste — they reach the intent directly.
-- **Editing a tracked file, the `.gitignore` included.** The intent under `.superdev/brainstorm/` is the
-  run's only write.
+- **Editing a tracked file, the `.gitignore` included.** The intent record, or on the fallback the intent
+  file under `.superdev/brainstorm/`, is the run's only write.

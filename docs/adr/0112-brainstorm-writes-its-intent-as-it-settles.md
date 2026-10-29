@@ -5,6 +5,9 @@
 **Amended by:** [ADR 0184](0184-brainstorm-offers-its-drafts-in-one-question-without-delete.md), which
 offers the drafts in one question and drops the delete action.
 
+**Amended by:** [ADR 0199](0199-a-ready-intent-lives-in-the-slice-store-as-an-intent-record.md), which
+moves the ready intent to the slice store as an intent record.
+
 ## Context
 
 `/superdev:brainstorm` wrote its intent once, at the converge step, and the write was optional. Until
