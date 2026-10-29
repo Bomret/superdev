@@ -75,6 +75,9 @@ environment or stdin, so no non-ASCII text or temp-file path travels as an argum
   title case-insensitively, so `find` compares the title exactly itself. When no page answers, `find` searches
   folders: `GET <base>/rest/api/search?cql=<cql>` with `space="<SPACE>" and type=folder and title="<title>"`. The title is the sole page-identity key, so an unencoded `&` or space in it
   breaks the query and this step finds nothing — the exact condition that leads §4 to create a duplicate.
+- **Check the identity** (before `find` answers absent): `GET <base>/rest/api/user/current`. Confluence
+  reads a wrong token as the anonymous user and answers a query with `200` and empty `results`, not `401`.
+  Only a response with `type` `known` makes an empty answer mean absence.
 - **Read a page's live body**: `GET <base>/api/v2/pages/<id>?body-format=storage`. By default v2 returns
   no body at all; `body-format=storage` is what asks for it. The storage-format text sits at
   `body.storage.value` in the response.
@@ -90,7 +93,9 @@ environment or stdin, so no non-ASCII text or temp-file path travels as an argum
   that carries the `title` and `id` `find` reads. The CQL field reference
   (`developer.atlassian.com/cloud/confluence/cql-fields/`) lists `folder` as a supported `type`. The folder
   parent, the `type=folder` search, and the `.content.title` shape are otherwise proven only against the
-  test stub: verify them against your own space before relying on them.
+  test stub: verify them against your own space before relying on them. The anonymous answer to a wrong
+  token, and `type` `known` from `/rest/api/user/current` for a valid one, were observed on a live
+  Confluence Cloud instance on 2026-10-29.
 
 ## Commands
 
@@ -105,9 +110,10 @@ prints the live page's storage-format body on stdout, nothing else — the text 
 reconciles its prose against and hashes (ADR 0094), never JSON. `find` answers
 exit 0 with a JSON object for a page (`id`, `version`) or a folder (`id`, `type: folder`, which reaches the later verbs as
 `SUPERDEV_KB_TYPE`, so `read`, `update`, and `delete` refuse a folder and name it). It answers exit 3 only for an empty page
-answer followed by an empty folder search, the only outcome `scripts/publish-kb.js` reads as positive absence. Every other
+answer followed by an empty folder search, read by a signed-in user, the only outcome `scripts/publish-kb.js` reads as positive absence. Every other
 outcome answers exit 2, "could not answer": a failed request, a response with no `results` array, a response with a further
-page, a title that matches only in another case, or two or more exact matches. A page is never created from an answer `find`
+page, a title that matches only in another case, two or more exact matches, or an empty answer
+read by anyone but a signed-in user. A page is never created from an answer `find`
 could not read. `create` and `update` write Confluence's error body to stderr, which the publish report carries.
 
 Every command below runs under a **30-second bound** (ADR 0130), or whatever
@@ -119,7 +125,8 @@ pages are reported untried and stay staged for the next one.
 ### find
 
 The page query runs first and sends the title on stdin. Only an empty page answer reaches the folder
-search, which sends its CQL on stdin as well.
+search, which sends its CQL on stdin as well. Only an empty folder answer reaches the identity check,
+which answers absence only for a signed-in user.
 
 ```sh
 resp=$(printf '%s' "$SUPERDEV_KB_TITLE" | curl -sf -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" \
@@ -143,7 +150,11 @@ resp=$(printf '%s' "$cql" | curl -sf -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN
   --data-urlencode "limit=200") || exit 2
 printf '%s' "$resp" | jq -e '(.results | type == "array") and ((._links.next // null) == null)' >/dev/null 2>&1 || exit 2
 count=$(printf '%s' "$resp" | jq '.results | length') || exit 2
-[ "$count" -eq 0 ] && exit 3
+if [ "$count" -eq 0 ]; then
+  user=$(curl -sf -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" "<base>/rest/api/user/current") || exit 2
+  printf '%s' "$user" | jq -e '.type == "known"' >/dev/null 2>&1 || exit 2
+  exit 3
+fi
 hit=$(printf '%s' "$resp" | jq -ce 'env.SUPERDEV_KB_TITLE as $t | [.results[] | select(.content.title == $t)]
   | if length == 1 then .[0].content | {id, type: "folder"} else empty end') || exit 2
 printf '%s\n' "$hit"

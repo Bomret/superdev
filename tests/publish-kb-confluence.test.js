@@ -28,6 +28,7 @@ fs.writeFileSync(path.join(stubDir, 'curl'),
   '{ echo "--call"; for a; do printf "%s\\n" "$a"; done; } >> "$CURL_LOG"\n' +
   '{ echo "--call"; cat; echo; } >> "$CURL_STDIN"\n' +
   'case "$*" in\n' +
+  '  *user/current*) printf "%s" "$CURL_USER_BODY";;\n' +
   '  *rest/api/search*) [ -n "$CURL_SEARCH_FAIL" ] && exit 22; printf "%s" "$CURL_SEARCH_BODY";;\n' +
   '  *"-X POST"*|*"-X PUT"*) printf "%s" "$CURL_WRITE_BODY"; [ -n "$CURL_WRITE_FAIL" ] && exit 22; exit 0;;\n' +
   '  *) [ -n "$CURL_PAGES_FAIL" ] && exit 22; printf "%s" "$CURL_PAGES_BODY";;\n' +
@@ -50,6 +51,7 @@ function run(verb, env = {}, files = {}) {
       SUPERDEV_KB_TITLE: 'Missing Page', SUPERDEV_KB_ID: '123', SUPERDEV_KB_VERSION: '4',
       SUPERDEV_KB_BODY_FILE: bodyFile,
       CURL_LOG: log, CURL_STDIN: stdin,
+      CURL_USER_BODY: JSON.stringify({ type: 'known' }),
       ...env,
     },
     encoding: 'utf8',
@@ -80,6 +82,15 @@ const noPage = pages();
   assert.equal(run('find', { CURL_PAGES_BODY: noPage, CURL_SEARCH_FAIL: '1' }).status, 2, 'a failed search is no absence');
   assert.equal(run('find', { CURL_PAGES_BODY: noPage, CURL_SEARCH_BODY: JSON.stringify({ message: 'e' }) }).status, 2, 'a search with no results array is no absence');
   assert.equal(run('find', { CURL_PAGES_BODY: noPage, CURL_SEARCH_BODY: 'not json' }).status, 2);
+}
+
+// --- find: a wrong token reads as the anonymous user, so an empty answer is no absence ---
+{
+  const anon = run('find', { CURL_PAGES_BODY: noPage, CURL_SEARCH_BODY: pages(), CURL_USER_BODY: JSON.stringify({ type: 'anonymous' }) });
+  assert.equal(anon.status, 2, 'an anonymous reader never answers absent');
+  assert.match(anon.args, /rest\/api\/user\/current/);
+  assert.equal(run('find', { CURL_PAGES_BODY: noPage, CURL_SEARCH_BODY: pages(), CURL_USER_BODY: 'not json' }).status, 2);
+  assert.doesNotMatch(run('find', { CURL_PAGES_BODY: pages(page('Missing Page')) }).args, /user\/current/, 'a page hit makes no identity request');
 }
 
 // --- find: folders ---
