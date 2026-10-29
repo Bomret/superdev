@@ -1,3 +1,10 @@
+# [0.91.0](https://codeberg.org/bomret/superdev/compare/v0.90.2...v0.91.0) (2026-10-29)
+
+
+### Features
+
+* **seeds:** a Forgejo wiki knowledge-base seed ([#1443](https://codeberg.org/bomret/superdev/issues/1443)) ([76bb26b](https://codeberg.org/bomret/superdev/commit/76bb26bb260fb00ead2f8cbf079deaa9d19acf4f))
+
 ## [0.90.2](https://codeberg.org/bomret/superdev/compare/v0.90.1...v0.90.2) (2026-10-29)
 
 
