@@ -1,3 +1,10 @@
+## [0.90.2](https://codeberg.org/bomret/superdev/compare/v0.90.1...v0.90.2) (2026-10-29)
+
+
+### Bug Fixes
+
+* **seeds:** strip status labels before a store closes an issue ([#1439](https://codeberg.org/bomret/superdev/issues/1439)) ([25546e8](https://codeberg.org/bomret/superdev/commit/25546e8e6627edbb03ec1c9c26d33515474f5b59))
+
 ## [0.90.1](https://codeberg.org/bomret/superdev/compare/v0.90.0...v0.90.1) (2026-10-29)
 
 
