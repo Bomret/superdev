@@ -1,3 +1,15 @@
+# [0.92.0](https://codeberg.org/bomret/superdev/compare/v0.91.0...v0.92.0) (2026-10-29)
+
+
+### Bug Fixes
+
+* **status:** drop the likely resolved bucket from the backlog survey ([#1449](https://codeberg.org/bomret/superdev/issues/1449)) ([8c00a8b](https://codeberg.org/bomret/superdev/commit/8c00a8b58f994e292462b9f0f7e181029f3c13c4))
+
+
+### Features
+
+* **intent-records:** a ready intent lives in the slice store as an intent record ([#1450](https://codeberg.org/bomret/superdev/issues/1450)) ([3f18722](https://codeberg.org/bomret/superdev/commit/3f1872209a73af76900d240603bf2c8a302a4b97)), closes [#1445](https://codeberg.org/bomret/superdev/issues/1445) [#1446](https://codeberg.org/bomret/superdev/issues/1446) [#1447](https://codeberg.org/bomret/superdev/issues/1447) [#1445](https://codeberg.org/bomret/superdev/issues/1445) [#1445](https://codeberg.org/bomret/superdev/issues/1445) [#1445](https://codeberg.org/bomret/superdev/issues/1445) [#1447](https://codeberg.org/bomret/superdev/issues/1447) [#1447](https://codeberg.org/bomret/superdev/issues/1447) [#920](https://codeberg.org/bomret/superdev/issues/920) [#1447](https://codeberg.org/bomret/superdev/issues/1447) [#1446](https://codeberg.org/bomret/superdev/issues/1446) [#1446](https://codeberg.org/bomret/superdev/issues/1446) [#1446](https://codeberg.org/bomret/superdev/issues/1446)
+
 # [0.91.0](https://codeberg.org/bomret/superdev/compare/v0.90.2...v0.91.0) (2026-10-29)
 
 
