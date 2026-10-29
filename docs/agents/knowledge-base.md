@@ -2,6 +2,7 @@
 
 Durable, **human-first** reader-facing docs (guides, mechanism pages, concepts) live in the
 Codeberg repo **Wiki** for `bomret/superdev`. Distinct from the agent-first in-repo `AGENTS.md` docs.
+In-repo docs (`docs/agents/documentation.md`) remain the source of truth; the wiki is a published view.
 
 ## Configuration
 
@@ -107,6 +108,7 @@ not used: it reads a disabled wiki's 404 as an empty listing.
 - If `tea` is missing, its login for the host is missing or ambiguous, or the Wiki unit is disabled,
   `/superdev:publish-kb` **leaves every page staged**, reports why, and deletes nothing. A later run
   retries exactly the pages that did not land. The in-repo docs are the record meanwhile. Do not fail.
+  To move to a different knowledge base later, re-run `/superdev:setup` and pick a different one.
 
 ## Commands
 
