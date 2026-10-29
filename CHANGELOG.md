@@ -1,3 +1,10 @@
+## [0.90.1](https://codeberg.org/bomret/superdev/compare/v0.90.0...v0.90.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* **seeds:** Confluence find refuses absence read by an anonymous user ([#1438](https://codeberg.org/bomret/superdev/issues/1438)) ([69aa4a3](https://codeberg.org/bomret/superdev/commit/69aa4a3d14cf3c75d8909cef6cce113548e8392d))
+
 # [0.90.0](https://codeberg.org/bomret/superdev/compare/v0.89.0...v0.90.0) (2026-10-28)
 
 
