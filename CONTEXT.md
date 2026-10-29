@@ -350,9 +350,7 @@ ledger carries a standing step and its run lock is under an hour old. Such a run
 bucket, whatever its stage or anchor match, and is never the recommended move. An open anchor with no local
 run root whose published snapshot stage is past `planned` and short of `shipped` takes the `elsewhere`
 bucket: a run on another machine, never the recommended move, because the survey cannot tell whether it is
-live. An open triage record that a closed scope anchor's body names, outside its run-state section and
-outside its own Absorbs line, takes the `likely resolved` bucket, unless an open anchor's Absorbs line
-names it: the closed anchor is evidence of a fix, and the act is to check it. A stranded run root is a
+live. A stranded run root is a
 run whose stage is short of `shipped`, that matches no open anchor, and that is not live in another
 session. It ranks as the most expensive item in the table, where an
 untriaged item ranks last: it is the furthest from finishing, and it is the one bucket the survey caps

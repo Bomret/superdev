@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0198](0198-the-backlog-survey-drops-the-likely-resolved-bucket.md), which removes the
+`likely resolved` bucket and the survey's read of closed anchors' bodies.
+
 ## Context
 
 The backlog survey matches a triage record only against the Absorbs lines of open scope anchors
