@@ -442,6 +442,7 @@ const NO_FORCE_MERGE_PATTERNS = [
 const TEA_ONLY_DOCS = [
   path.join('references', 'issue-tracker-forgejo.md'),
   path.join('references', 'code-management-forgejo.md'),
+  path.join('references', 'knowledge-base-forgejo.md'),
   path.join('docs', 'agents', 'issue-tracker.md'),
   path.join('docs', 'agents', 'code-management.md'),
   path.join('docs', 'agents', 'knowledge-base.md'),

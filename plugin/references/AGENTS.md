@@ -52,6 +52,12 @@ compare a configured document with it, listing and offering its seed gaps (ADR 0
 A slice-store seed's `## Triage record` **List the records**, **Comment on it**, and **Close it** calls, its **Read an anchor's Absorbs line** read, and a code-host seed's `## Edit the pull request body`
 section become the configured document's calls that `scope-mode.md`'s `## Deferred findings` resolve
 procedure runs (ADR 0121).
+The knowledge-base seeds are `knowledge-base-confluence.md`, `knowledge-base-forgejo.md` (a Forgejo or
+Gitea repository wiki, reached through `tea` only, with body-link hierarchy and the empty-wiki rule in its
+`find`), and `knowledge-base-local.md`. `/superdev:setup` question D writes `docs/agents/knowledge-base.md`
+from the chosen one, and its seed-gap pass compares a configured document with it. `/superdev:publish-kb`
+runs the configured templates, and `tests/publish-kb-templates.test.js` runs the Confluence and Forgejo
+seeds' templates. The `forgejo-tea-only` drift check reads the Forgejo seed.
 Adding a slice-store, code-host, or knowledge-base seed is the **Backends are pluggable** rule in the root
 doc.
 

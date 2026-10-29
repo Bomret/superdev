@@ -15,10 +15,11 @@ const { classifyBackend } = require('../plugin/scripts/publish-kb.js');
 // from a jq failure that is not absence, and reads every listing page before it answers 3. The runFind-level mapping (exit 3 -> absent, anything else -> unknown) is
 // already pinned above (`find exited 5` and the JSON-array case) — this pins the template text
 // itself, the thing that decides which of those exit codes a real find call actually produces.
-{
-  const realDoc = fs.readFileSync(path.join(__dirname, '..', 'docs', 'agents', 'knowledge-base.md'), 'utf8');
+// The Forgejo wiki seed carries the same templates once its placeholders are filled, so both documents
+// run through the same pins.
+function pinForgejoTemplates(realDoc, HOST) {
   const findTemplate = classifyBackend(realDoc).templates.find;
-  assert.ok(findTemplate, 'docs/agents/knowledge-base.md still configures a find template');
+  assert.ok(findTemplate, 'the Forgejo knowledge-base document configures a find template');
 
   // Stubs `tea` on PATH so the template runs against a canned response instead of the real network:
   // `tea login list -o json` answers TEA_STUB_LOGINS, and `tea api` writes the status line `-i` gives to
@@ -28,6 +29,10 @@ const { classifyBackend } = require('../plugin/scripts/publish-kb.js');
   fs.writeFileSync(path.join(stubDir, 'tea'),
     '#!/bin/sh\n' +
     'if [ "$1" = login ]; then printf "%s" "$TEA_STUB_LOGINS"; exit 0; fi\n' +
+    'for a; do last=$a; done\n' +
+    'case "$last" in /repos/*/wiki/*) ;; /repos/*) [ -n "$TEA_STUB_REPO_LOG" ] && echo repo >> "$TEA_STUB_REPO_LOG"\n' +
+    '  [ -n "$TEA_STUB_REPO_STATUS" ] && printf "%s\\n" "$TEA_STUB_REPO_STATUS" >&2\n' +
+    '  printf "%s" "$TEA_STUB_REPO_BODY"; exit 0 ;; esac\n' +
     'if [ -n "$TEA_STUB_PAGE_DIR" ]; then for a; do url=$a; done\n' +
     '  p=$(printf "%s" "$url" | sed -n "s/.*[?&]page=\\([0-9]*\\).*/\\1/p")\n' +
     '  printf "HTTP/2.0 %s\\n" "$(cat "$TEA_STUB_PAGE_DIR/$p.status" 2>/dev/null || echo 200 OK)" >&2\n' +
@@ -37,7 +42,6 @@ const { classifyBackend } = require('../plugin/scripts/publish-kb.js');
   const noTeaDir = fs.mkdtempSync(path.join(os.tmpdir(), 'no-tea-'));
   fs.symlinkSync(spawnSync('/bin/sh', ['-c', 'command -v jq'], { encoding: 'utf8' }).stdout.trim(), path.join(noTeaDir, 'jq'));
 
-  const HOST = 'https://codeberg.org';
   const oneLogin = JSON.stringify([
     { name: 'other', url: 'https://example.org', user: 'x' },
     { name: 'cb', url: HOST, user: 'bomret' },
@@ -66,11 +70,41 @@ const { classifyBackend } = require('../plugin/scripts/publish-kb.js');
   assert.deepEqual(JSON.parse(there.stdout), { sub_url: 'missing-page' });
 
   // `tea api` exits 0 on an HTTP error, so the status line is the only failure signal: a non-200
-  // listing is "could not answer", never absence. A disabled wiki answers 404 here.
-  const unauthorized = runFindTemplate(JSON.stringify({ message: 'token is invalid' }), '401 Unauthorized');
-  assert.equal(unauthorized.status, 2, 'a non-200 listing must answer 2, never 3');
-  const disabled = runFindTemplate(JSON.stringify({ message: 'wiki disabled' }), '404 Not Found');
-  assert.equal(disabled.status, 2, 'a disabled wiki (404 listing) must answer 2, never 3');
+  // listing is "could not answer", never absence, and reads no repository.
+  const repoLog = path.join(stubDir, 'repo.log');
+  const repoReads = () => (fs.existsSync(repoLog) ? fs.readFileSync(repoLog, 'utf8').trim().split('\n').length : 0);
+  for (const status of ['401 Unauthorized', '403 Forbidden', '500 Internal Server Error']) {
+    fs.rmSync(repoLog, { force: true });
+    const failed = runFindTemplate(JSON.stringify({ message: 'no' }), status, oneLogin,
+      { TEA_STUB_REPO_LOG: repoLog, TEA_STUB_REPO_STATUS: 'HTTP/2.0 200 OK', TEA_STUB_REPO_BODY: JSON.stringify({ has_wiki: true, external_wiki: null }) });
+    assert.equal(failed.status, 2, `a ${status} first listing page must answer 2, never 3`);
+    assert.equal(repoReads(), 0, `a ${status} first listing page reads no repository`);
+  }
+
+  // A 404 first listing page is an enabled empty wiki only when the repository read confirms an
+  // enabled internal wiki (observed 2026-10-22, Codeberg, bomret/open-settlers).
+  const notFound = JSON.stringify({ message: 'no such file or directory' });
+  function runEmptyWiki(repoStatus, repoBody) {
+    return runFindTemplate(notFound, '404 Not Found', oneLogin,
+      { TEA_STUB_REPO_STATUS: repoStatus, TEA_STUB_REPO_BODY: repoBody });
+  }
+  const emptyWiki = runEmptyWiki('HTTP/2.0 200 OK', JSON.stringify({ has_wiki: true, external_wiki: null }));
+  assert.equal(emptyWiki.status, 3, 'an enabled empty internal wiki answers absent (3)');
+  const disabled = runEmptyWiki('HTTP/2.0 200 OK', JSON.stringify({ has_wiki: false, external_wiki: null }));
+  assert.equal(disabled.status, 2, 'a disabled wiki must answer 2, never 3');
+  assert.match(disabled.stderr, /wiki is disabled/, 'a disabled wiki is named on stderr');
+  const external = runEmptyWiki('HTTP/2.0 200 OK', JSON.stringify({ has_wiki: true, external_wiki: { external_wiki_url: 'https://x' } }));
+  assert.equal(external.status, 2, 'an external wiki must answer 2, never 3');
+  assert.match(external.stderr, /external wiki/, 'an external wiki is named on stderr');
+  for (const [repoStatus, repoBody, what] of [
+    ['HTTP/2.0 404 Not Found', JSON.stringify({ message: 'nope' }), 'a non-200 repository read'],
+    ['HTTP/2.0 200 OK', 'not json', 'an unparseable repository body'],
+    ['', JSON.stringify({ has_wiki: true, external_wiki: null }), 'no readable status line'],
+  ]) {
+    const failed = runEmptyWiki(repoStatus, repoBody);
+    assert.equal(failed.status, 2, `${what} must answer 2, never 3`);
+    assert.match(failed.stderr, /repository read failed/, `${what} is named as a failed repository read`);
+  }
 
   const malformed = runFindTemplate('not json at all');
   assert.equal(malformed.status, 2, 'a jq parse failure is not absence — must answer 2, never 3');
@@ -95,6 +129,16 @@ const { classifyBackend } = require('../plugin/scripts/publish-kb.js');
   assert.equal(emptyPageTwo.status, 3, 'an empty page after a full one ends the listing as absent (3)');
   const pageTwoFails = runPagedFind([[fullPage], [JSON.stringify({ message: 'boom' }), '500 Internal Server Error']]);
   assert.equal(pageTwoFails.status, 2, 'a failed later page must answer 2, never 3');
+  fs.rmSync(repoLog, { force: true });
+  const pageTwoNotFound = runFindTemplate('', '200 OK', oneLogin, {
+    TEA_STUB_PAGE_DIR: (() => { const d = fs.mkdtempSync(path.join(stubDir, 'pages-'));
+      fs.writeFileSync(path.join(d, '1.body'), fullPage);
+      fs.writeFileSync(path.join(d, '2.body'), notFound); fs.writeFileSync(path.join(d, '2.status'), '404 Not Found'); return d; })(),
+    TEA_STUB_REPO_LOG: repoLog, TEA_STUB_REPO_STATUS: 'HTTP/2.0 200 OK',
+    TEA_STUB_REPO_BODY: JSON.stringify({ has_wiki: true, external_wiki: null }),
+  });
+  assert.equal(pageTwoNotFound.status, 2, 'a 404 on a later listing page must answer 2, never 3');
+  assert.equal(repoReads(), 0, 'a 404 on a later listing page reads no repository');
 
   // The login is resolved from the host URL inside the template: none, or several, could not answer.
   const missPage = JSON.stringify([{ title: 'Other Page', sub_url: 'x' }]);
@@ -110,9 +154,9 @@ const { classifyBackend } = require('../plugin/scripts/publish-kb.js');
   assert.equal(noTea.status, 2, 'no tea on the path must answer 2, never 3');
 
   // Each failure names its cause and the exact login command on stderr, which publish-kb reports.
-  const ADD = 'tea login add --url https://codeberg.org';
+  const ADD = `tea login add --url ${HOST}`;
   const noLogin = runFindTemplate(missPage, '200 OK', JSON.stringify([{ name: 'o', url: 'https://example.org' }]));
-  assert.match(noLogin.stderr, /no tea login for https:\/\/codeberg\.org/, 'no login is named');
+  assert.ok(noLogin.stderr.includes(`no tea login for ${HOST}`), 'no login is named');
   assert.ok(noLogin.stderr.includes(ADD), 'no login prints the tea login add command');
   const several = runFindTemplate(missPage, '200 OK', JSON.stringify([{ name: 'a', url: HOST }, { name: 'b', url: HOST }]));
   assert.match(several.stderr, /several tea logins match/, 'several logins are named as several');
@@ -167,6 +211,17 @@ const { classifyBackend } = require('../plugin/scripts/publish-kb.js');
 
   fs.rmSync(noTeaDir, { recursive: true, force: true });
   fs.rmSync(stubDir, { recursive: true, force: true });
+}
+pinForgejoTemplates(fs.readFileSync(path.join(__dirname, '..', 'docs', 'agents', 'knowledge-base.md'), 'utf8'), 'https://codeberg.org');
+{
+  const seed = fs.readFileSync(path.join(__dirname, '..', 'plugin', 'references', 'knowledge-base-forgejo.md'), 'utf8');
+  const filled = seed.replaceAll('<host>', 'https://forgejo.example.org').replaceAll('<owner>/<repo>', 'acme/widgets');
+  assert.doesNotMatch(filled, /<host>|<owner>|<repo>|bomret\/superdev/, 'the seed names its host and repository only through the placeholders');
+  pinForgejoTemplates(filled, 'https://forgejo.example.org');
+  assert.match(seed, /^- \*\*Hierarchy:\*\* links/m, 'the seed declares body-link hierarchy');
+  assert.ok(seed.includes('- [<title>](<host>/<owner>/<repo>/wiki/{sub_url}): <one line>'), 'the seed carries the link line form under the wiki URL');
+  assert.ok(seed.includes('-X PATCH -F has_wiki=true /repos/<owner>/<repo>'), 'the seed gives the re-enable command');
+  assert.match(seed, /Gitea/, 'the seed names Gitea');
 }
 
 // --- the real `### read` template in plugin/references/knowledge-base-confluence.md prints the -------

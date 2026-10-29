@@ -457,6 +457,7 @@ const picked = (root, paths) =>
   const real = (md) => selectSuites(repoRoot, discoverSuites(path.join(repoRoot, 'tests')), [md]).map((f) => path.basename(f, '.test.js'));
   assert.ok(real('docs/agents/knowledge-base.md').includes('publish-kb-templates'), 'publish-kb executes the knowledge-base templates');
   assert.ok(real('plugin/references/knowledge-base-confluence.md').includes('publish-kb-templates'), 'publish-kb executes the confluence template');
+  assert.ok(real('plugin/references/knowledge-base-forgejo.md').includes('publish-kb-templates'), 'publish-kb executes the Forgejo wiki seed templates');
   assert.ok(real('plugin/references/scope-mode.md').includes('scope-ledger'), 'the scope suite pins a sentence of scope-mode.md');
   assert.deepStrictEqual(real(['docs', 'agents', ['verification', 'md'].join('.')].join('/')), [], 'a fixture verification.md selects no suite');
 }

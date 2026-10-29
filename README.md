@@ -598,8 +598,8 @@ again. One answer lands outside that tree: the slice store's **assignee** goes t
   `none`. The answers go to `docs/agents/documentation.md`.
 - **Knowledge base** *(optional)*. A **separate, human-first** record for *readers* rather than agents:
   feature specifications, design overviews, and ADR summaries. It is distinct from the agent-first
-  `AGENTS.md` docs. You pick the backend (Confluence, a local `docs/kb/`, other, or none), its
-  **audiences**, its **language**, and an agreed **outline** that `/plan` and `/document` fill rather than
+  `AGENTS.md` docs. You pick the backend (Confluence, a Forgejo / Gitea repository wiki, a local
+  `docs/kb/`, other, or none), its **audiences**, its **language**, and an agreed **outline** that `/plan` and `/document` fill rather than
   reinvent. The answers go to `docs/agents/knowledge-base.md`. For a **remote** backend, `/plan` and
   `/document` stage each page under `.superdev/kb-pending/<scope>/` instead of sending it. `/superdev:publish-kb`
   is the only command that reaches the backend

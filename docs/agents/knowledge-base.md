@@ -87,6 +87,14 @@ not used: it reads a disabled wiki's 404 as an empty listing.
 - **Find an existing page:** `tea api '/repos/bomret/superdev/wiki/pages?page=<p>&limit=50'`, paged until
   a page returns fewer than 50 entries. It returns metadata only (`title`, `html_url`, `sub_url`,
   `last_commit`), and **no body**.
+- **An enabled empty wiki answers the listing with 404.** Forgejo answers the first listing page 404 also
+  when the wiki is enabled and holds no pages yet (observed 2026-10-22 on Codeberg, `bomret/open-settlers`:
+  listing 404 "no such file or directory", repository `has_wiki: true`, `external_wiki: null`). A 404 first
+  page is therefore followed by a repository read, `tea api -i /repos/bomret/superdev`. The title is absent
+  only when that read answers 200 with `has_wiki: true` and `external_wiki: null`. `has_wiki: false` is a
+  disabled wiki. A non-null `external_wiki` is an external wiki: Forgejo sets `has_wiki: true` for an
+  external-only wiki too, so `has_wiki` alone does not confirm an internal one. Either one, or a failed
+  repository read, could not answer.
 - **Read a page's body:** `tea api /repos/bomret/superdev/wiki/page/<sub_url>` returns
   `content_base64`, which decodes to the page markdown. `<sub_url>` is not the title slugged by hand. A
   title's `sub_url` diverges in ways a slugger cannot guess: `ADR 0023: The knowledge-base publish is
@@ -112,9 +120,13 @@ destroys the page. `find` maps `jq -e`'s exit 1 (a genuine no-match) to exit 3, 
 error — maps to exit 2, "could not answer," so a page never gets created from a listing `jq` failed to
 read. Each listing page holds at most `limit=50` entries, Forgejo's own `max_response_items` ceiling
 (`https://forgejo.org/docs/latest/user/api/usage/`). `find` reads page after page until one holds the
-title, or until a page returns fewer than 50 entries, which ends the listing. A non-200 page, a disabled
-wiki's 404 included, answers exit 2: only a full listing, every page answering 200, that lacks the title
-reads as absent.
+title, or until a page returns fewer than 50 entries, which ends the listing. A full listing, every page
+answering 200, that lacks the title reads as absent. The empty-wiki rule in the wiki API conventions above
+is the one other absent outcome: a 404 first page, then a repository read that answers 200 with
+`has_wiki: true` and `external_wiki: null`. A disabled wiki, an external wiki, or a failed repository read
+answers exit 2 with its cause on stderr. Any other non-200 page answers exit 2, and so does a 404 on a page
+after the first, with no repository read. Each call reads its status line, and a line it cannot read
+answers exit 2.
 
 Every template opens with the same login line, so it stands alone under the bound below:
 `tea login list -o json` narrowed to the one entry whose `url` is `https://codeberg.org`, exit 2 on none, no
@@ -138,6 +150,18 @@ while :; do
   pages=$(tea api --login "$login" --repo bomret/superdev -i \
     "/repos/bomret/superdev/wiki/pages?page=$p&limit=50" 2>"$hdr") || { rm -f "$hdr"; exit 2; }
   code=$(head -1 "$hdr" | cut -d' ' -f2); rm -f "$hdr"
+  if [ "$code" = 404 ] && [ "$p" = 1 ]; then
+    hdr=$(mktemp) || exit 2
+    repo=$(tea api --login "$login" --repo bomret/superdev -i /repos/bomret/superdev 2>"$hdr") || { rm -f "$hdr"; echo "superdev: wiki listing answered 404 and the repository read failed" >&2; exit 2; }
+    code=$(head -1 "$hdr" | cut -d' ' -f2); rm -f "$hdr"
+    [ "$code" = 200 ] || { echo "superdev: wiki listing answered 404 and the repository read failed (status: ${code:-unreadable})" >&2; exit 2; }
+    wiki=$(printf '%s' "$repo" | jq -er 'if .has_wiki == false then "disabled" elif .has_wiki == true and .external_wiki == null then "internal" elif .has_wiki == true then "external" else error("no has_wiki") end' 2>/dev/null) || { echo "superdev: wiki listing answered 404 and the repository read failed (unparseable body)" >&2; exit 2; }
+    case "$wiki" in
+      internal) exit 3 ;;
+      disabled) echo "superdev: the wiki is disabled on bomret/superdev; re-enable it: tea api --login $login --repo bomret/superdev -X PATCH -F has_wiki=true /repos/bomret/superdev" >&2; exit 2 ;;
+      *) echo "superdev: bomret/superdev uses an external wiki, which the wiki API cannot reach" >&2; exit 2 ;;
+    esac
+  fi
   [ "$code" = 200 ] || exit 2
   count=$(printf '%s' "$pages" | jq 'length') || exit 2
   page=$(printf '%s' "$pages" | jq -e --arg title "$SUPERDEV_KB_TITLE" '[.[] | select(.title == $title)][0]')

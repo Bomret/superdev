@@ -104,6 +104,11 @@ keeps the read-only posture above and the verdicts stay about repository facts.
 - **The seed is the one for the backend the document records**, read from
   `${CLAUDE_PLUGIN_ROOT}/references/`: `issue-tracker-<backend>.md`, `code-management-<host>.md`,
   `documentation.md`, `knowledge-base-<backend>.md`, `deployment.md`.
+- **A knowledge-base document recording a Forgejo, Codeberg, or Gitea wiki** maps to
+  `knowledge-base-forgejo.md`, whether setup wrote it from that seed or someone wrote it by hand. A `find`
+  template that lacks the seed's empty-wiki rule (a 404 first listing page followed by the repository read)
+  is a seed gap under that rule, and so is a document lacking `- **Hierarchy:** links` or the link line form.
+  Each is offered like any other gap, and written only on the operator's choice (INV-0107).
 - **A document with no matching seed** — an "Other" prose backend, a `None` knowledge base, a
   `documentation.md` recording the user's own convention — reports `no seed to compare`. So do `toolchain.md` and `verification.md`, which keep the resolution checks above and
   have no seed.
@@ -331,6 +336,18 @@ specifications, design overviews, ADR summaries)? Ask the user which of:
   they are not — absent means markdown. Also record that
   `/superdev:publish-kb` is the only caller of this backend and that `/superdev:plan`/`/superdev:document`
   stage its pages instead of sending them (ADR 0023) — the `## Staging` section the seeded templates carry.
+- **Forgejo / Gitea repo wiki** (`tea`) — the wiki of a Forgejo or Gitea repository (Codeberg included).
+  Seed: `references/knowledge-base-forgejo.md`. Ask two things only: the base URL and owner/repo.
+  Normalize the base URL to the form `tea login list` reports (scheme included, no trailing slash), and
+  fill every `<host>` and `<owner>/<repo>` placeholder in the seed with that one value pair. Check that
+  `tea` is installed, that `tea login list -o json` has an entry whose `url` equals the base URL, and that
+  `jq` is installed, as the Forgejo code host does above: a missing one stops the step with its fix (install
+  `tea` or `jq`, or run `tea login add --url <base URL>`). When more than one entry matches, tell the
+  operator to set `SUPERDEV_KB_TEA_LOGIN=<name>` to the login the templates use, both for this probe and
+  wherever `/superdev:publish-kb` runs. Unset, every template exits `2` with "several tea logins". The seed already carries all five templates, so
+  ask no per-verb template question. The `find` probe below still runs and must exit `3` before `## Commands`
+  is written (INV-0072). On a disabled or external wiki the probe exits `2`: report the cause the template
+  wrote to stderr, and leave `## Commands` unwritten.
 - **Local file storage** — markdown under `docs/kb/`. Seed: `references/knowledge-base-local.md`.
 - **None** — no separate KB; the in-repo docs are the only record.
 
@@ -346,7 +363,10 @@ Then **do a quick repo scan** (README, top-level structure) and **propose an aud
 a top-level section per audience with a few candidate topic headings under each (e.g. *User Guide →
 Getting started, FAQ*; *Developer Docs → Architecture, Setup, ADR summaries*). Present it, **discuss and
 adjust with the user**, and record the agreed outline in `knowledge-base.md`. It's a living skeleton —
-`/superdev:plan` and `/superdev:document` fill and extend it, not reinvent it.
+`/superdev:plan` and `/superdev:document` fill and extend it, not reinvent it. For a Forgejo / Gitea repo
+wiki, which nests no pages, the proposed outline names a root page with no parent and gives each group its
+parent page and the section in that parent, and records the seed's `**Links.**` line form under the wiki's
+own URL.
 
 For a **remote** backend, also capture its **backend command contract** (ADR 0069): the shell command
 each of `find`, `read`, `create`, `update`, and `delete` runs against it. Ask for each verb's command in
@@ -584,7 +604,7 @@ Write:
   when the answer is `none`. It carries the **`## Audit set`** section only when decision **C** named
   documentation outside the default tree.
 - `docs/agents/knowledge-base.md` — from the chosen KB seed (`knowledge-base-confluence.md` /
-  `knowledge-base-local.md`) filled in, or the "other" prose. For **None**, write a one-line
+  `knowledge-base-forgejo.md` / `knowledge-base-local.md`) filled in, or the "other" prose. For **None**, write a one-line
   `knowledge-base.md` stating there is no separate KB (or skip the file). A **remote** backend also
   carries the `## Commands` section decision **D** captured, written only once the `find` probe passed.
   **On re-run**, when that section already exists, show the delta against the newly captured templates
