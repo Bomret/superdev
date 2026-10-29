@@ -222,8 +222,20 @@ like a typo.
   producer's exit status, and GitHub takes an empty `body` as a new, empty body (ADR 0115). A create keeps
   its inline payload, because nothing upstream of it can fail.
 - **Set labels / status:** `POST .../issues/<number>/labels` (add), `PUT .../issues/<number>/labels`
-  (replace), and `PATCH .../issues/<number>` with `{ "state": "closed", "state_reason": "completed" }` to
-  close a finished slice. Use `"not_planned"` instead when a slice is abandoned rather than delivered.
+  (replace), and **Close an issue** (below) to close.
+- **Close an issue** (a slice at its merge, a scope anchor at wrap-up, an abandoned slice): strip its
+  status labels, then close it. Read it with `GET /repos/<owner>/<repo>/issues/<number>`. Remove each of
+  `ready`, `in-progress`, `in-review`, and `blocked` its `labels` carry, by name, with
+  `DELETE /repos/<owner>/<repo>/issues/<number>/labels/<name>`; a `404` there means the label is already
+  gone. When it removed one or more, read the labels back with the same `GET`: they carry no status label,
+  and every other label the first read showed (the feature label, `epic`, the test-applicability label,
+  `released`). Then close it with `PATCH /repos/<owner>/<repo>/issues/<number>` and `{ "state": "closed",
+  "state_reason": "completed" }` for a finished slice or anchor, or `"state_reason": "not_planned"` for a
+  slice abandoned rather than delivered. An issue carrying no status label closes with nothing removed and
+  nothing reported, so a rerun after a failed close converges. A first read that fails, a removal that
+  fails, or a read-back that still shows a status label or lacks another label, is reported once, naming
+  the issue, and the issue still closes. A close that itself fails stays a failed store call for its caller. A bare close `PATCH`
+  leaves the status label on the closed issue, and contradicts this rule.
 
 ## Assignee
 
@@ -392,7 +404,7 @@ not this store carries a snapshot.
 | `in-progress` | open + label `in-progress` | swap `ready`→`in-progress` on dispatch |
 | `in-review` | open + label `in-review` | swap label when per-slice review starts (behavior only) |
 | `blocked` | open + label `blocked` | swap label while stuck |
-| `merged` (done) | **closed** | `PATCH { "state": "closed", "state_reason": "completed" }` after merge |
+| `merged` (done) | **closed**, no status label | **Close an issue** after merge: strip the status labels, then `PATCH { "state": "closed", "state_reason": "completed" }` |
 
 The **epic** issue: label `in-progress` when the run starts, **closed** once every slice issue is closed.
 A **single-slice feature has no epic**: its lone issue is the scope anchor, so the anchor rule wins. It

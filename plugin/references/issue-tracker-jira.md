@@ -490,6 +490,20 @@ transition leads from the issue's current status, so a status the issue already 
 
 - **Perform a transition**: `POST <base>/rest/api/3/issue/<key>/transitions` with
   `{ "transition": {"id":"<id>"} }` (plus the **Done** resolution caveat of *REST conventions* for `merged`).
+  The `merged` transition runs through **Close an issue** below, which leaves no ready label on the done
+  issue.
+- **Close an issue** (a slice at its merge, a scope anchor at wrap-up): where the *Ready status/label* is a
+  label, strip it, then perform the `merged` transition. Remove it with `PUT <base>/rest/api/3/issue/<key>`
+  and `{ "update": { "labels": [{ "remove": "<ready>" }] } }`, sent through the **Transport** rule: an
+  update that leaves every other label in place, and changes nothing on an issue that lacks the label.
+  Read the labels back with `GET <base>/rest/api/3/issue/<key>?fields=labels`: they lack `<ready>`, and
+  carry every other label the issue held (the feature label, the test-applicability label, `<released>`).
+  Then perform the transition. A *Ready status/label* configured as a status needs no removal: the
+  transition itself leaves it. An issue already lacking the label closes with nothing reported, so a rerun
+  after a failed transition converges. A removal that fails, or a read-back that still shows `<ready>` or
+  lacks another label, is reported once, naming the issue, and the transition still runs. A transition
+  that itself fails stays a failed store call for its caller. A bare `merged` transition leaves a ready
+  label on the done issue, and contradicts this rule.
 - A slice reaches `merged` at its merge. The **anchor** (the Epic) moves to *In Progress* when the run
   starts and to *Done* only through `/superdev:wrap-up`, after verification — never at a merge
   (`plan-contract.md` → *Slice lifecycle & status*). **No anchor-type issue** (single-slice feature) — the

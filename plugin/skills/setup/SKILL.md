@@ -119,7 +119,11 @@ keeps the read-only posture above and the verdicts stay about repository facts.
   `## REST conventions (curl)` section, and a `## Degrade when no CLI / token`
   section. Each contradicts the seed's `Login` bullet, `tea conventions` section, or `Degrade when no tea
   login` section, so each is a seed gap listed under the seed rule it contradicts, never a stale deviation
-  and never a section only the document carries.
+  and never a section only the document carries. A slice-store document whose close strips no status
+  label contradicts the seed's **Close an issue** rule the same way: a bare `tea issues close <index>`
+  (Forgejo), a bare close `PATCH` (GitHub), or a bare `merged` transition where the ready marker is a
+  label (Jira), in its status map's `merged` row (Forgejo, GitHub), its labels-and-status rule (Forgejo,
+  GitHub), its **Perform a transition** rule (Jira), or GitHub's abandoned (`not_planned`) close. The triage record's **Close it** call is no such close.
 - **A renamed heading, a filled-in value where the seed carries a placeholder, setup-facing instruction
   text, and a section only the document carries are no gap.** Setup-facing text tells this interview what
   to ask; a consumer skill never reads it.
