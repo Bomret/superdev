@@ -1,3 +1,11 @@
+# [0.93.0](https://codeberg.org/bomret/superdev/compare/v0.92.0...v0.93.0) (2026-10-30)
+
+
+### Features
+
+* **offer:** put up the New task card first, and offer from a session-started command ([#1463](https://codeberg.org/bomret/superdev/issues/1463)) ([fdebf3d](https://codeberg.org/bomret/superdev/commit/fdebf3dea46cf206cc1e1e6145949c0fc9763313))
+* **plan:** name the seeding intent record on the scope anchor ([#1461](https://codeberg.org/bomret/superdev/issues/1461)) ([1fc89b1](https://codeberg.org/bomret/superdev/commit/1fc89b16f749d866e61f28eda7ee3652ccd56a29))
+
 # [0.92.0](https://codeberg.org/bomret/superdev/compare/v0.91.0...v0.92.0) (2026-10-29)
 
 
