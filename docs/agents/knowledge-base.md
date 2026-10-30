@@ -44,6 +44,9 @@ This outline is a living skeleton. `/plan` and `/document` fill and extend it.
   that built it. A mechanism belongs on its own `How it works:` page, not here. Parent: `Home`, section
   `Concepts`.
 
+**Create the root page first.** A child published before its root lands, but stays staged as not linked,
+because its parent has no page to carry the link yet.
+
 **Links.** A parent's link line has the form `- [<title>](https://codeberg.org/bomret/superdev/wiki/{sub_url}): <one line>`.
 `<title>` is the child's full title, prefix included. `{sub_url}` is written literally. The doc-writer writes
 the whole line, placeholder included, and `/superdev:publish-kb` replaces `{sub_url}` with the value the find
