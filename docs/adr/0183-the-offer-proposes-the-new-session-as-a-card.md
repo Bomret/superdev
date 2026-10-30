@@ -5,6 +5,9 @@
 **Amends:** [ADR 0176](0176-the-offer-recommends-a-new-session.md) point 1, whose new-session answer
 starts the session.
 
+**Amended by:** [ADR 0201](0201-the-offer-puts-up-the-card-first.md), under which the card is put up at
+once with no question before it (points 1 and 3).
+
 ## Context
 
 ADR 0176 starts the new session with one `start_session` call, `initiation: "user_asked"`. The Claude

@@ -300,7 +300,7 @@ Verification: pending. Date it, with the Claude Code and Git for Windows version
 
 ## The session tool exists only in the Claude desktop app
 
-The offer's *Start in a new session* option (ADR 0176, ADR 0183) calls `mcp__ccd_session__start_session`. The Claude
+The offer's New task card (ADR 0176, ADR 0183, ADR 0201) comes from `mcp__ccd_session__start_session`. The Claude
 desktop app's Code tab provides that tool through its own session server. A Claude Code CLI session has
 no such server, so the tool is absent there. A desktop session can list the tool as deferred. A deferred
 tool has no schema until `ToolSearch` loads it with the query `select:mcp__ccd_session__start_session`,
@@ -315,6 +315,8 @@ What a call with `context: "fresh"` and `use_worktree: false` does:
 - **`own_initiative` proposes a card and starts nothing.** The call returns a task id, `task_<hex>`, and
   the app shows a New task card in the transcript. The session starts when the operator clicks the card.
   An unclicked card expires after 7 days.
+- **The card carries its own answers.** Its buttons are *Do it here*, which runs the work in the
+  conversation that proposed it, *Start*, which starts the new session, *Options*, and a close button.
 
 - **The prompt arrives as text.** A prompt that begins with `/superdev:<name>` does not run as a slash
   command. The new session's model reads the text and starts the skill through the Skill tool. A model
@@ -330,9 +332,10 @@ What a call with `context: "fresh"` and `use_worktree: false` does:
   the run lock is under an hour old, so `/superdev:status` in the new session reports the run as live in
   another session (ADR 0176, Consequences).
 
-**Mitigation (implemented, ADR 0176, ADR 0183):** the offer detects the tool, loaded or deferred, before it asks.
-Its new-session answer proposes the session as an `own_initiative` card on every step of a chain.
-Without the tool, the offer keeps two options, *Stop here* first with its `/clear`-then-type path, then
+**Mitigation (implemented, ADR 0176, ADR 0183, ADR 0201):** the offer detects the tool, loaded or deferred.
+With the tool it asks no question and proposes the session as an `own_initiative` card on every step of a
+chain; the card's *Do it here* button runs the command in place. Without the tool, or when it fails to
+load, the offer asks one question with two options, *Stop here* first with its `/clear`-then-type path, then
 *Start*. The prompt carries the printed command and a fixed marker line, so a consent-gated command can
 recognize a new-session start.
 
@@ -359,3 +362,6 @@ in a chained session returned the refusal ADR 0183 quotes. In a turn the operato
 prompt began, then made both calls: `user_asked` returned the refusal ADR 0183 quotes, and
 `own_initiative` returned the card `task_b7857f84`. The operator clicked the card, and it started a
 session whose first message carried the card's prompt under the `background` text.
+
+Verified 2026-10-30, on the Claude desktop app: an operator observation of a New task card a superdev
+offer put up. The card showed the buttons *Do it here*, *Start*, *Options*, and a close button.

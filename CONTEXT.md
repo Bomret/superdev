@@ -505,7 +505,7 @@ _Avoid: "template" alone (a knowledge base's **Backend command contract** templa
 **Next block**: the `### Next` section that closes a covered command's last message, holding the next command and one line on what it does, defined once in `references/response-shapes.md` (ADR 0113, INV-0111).
 _Avoid: "handoff" (run handoff is the closing procedure of an execution playbook), "call to action"_
 
-**Offer**: the one `AskUserQuestion` an attended covered command asks at its end, before its Next block, whether to start the one next command that block names. Where the desktop app's session tool is present, its recommended answer puts up a New task card that starts that command in a new session with a fresh context; Start runs it through the Skill tool in this conversation, and any other answer prints the Next block. An unattended run and a command in the chained posture make none (ADR 0157, ADR 0176, ADR 0183, INV-0111).
+**Offer**: what an attended covered command makes at its end, before its Next block, to start the one next command that block names. Where the desktop app's session tool is present, it is a New task card put up at once with no question: the card starts the command in a new session with a fresh context, or here through its Do it here button. Without the tool, it is one `AskUserQuestion`: Stop here (recommended) or Start. A command another session's brief asked for offers too. An unattended run and a command in the chained posture make none (ADR 0157, ADR 0176, ADR 0183, ADR 0201, INV-0111).
 _Avoid: "prompt" (prompt prose is the text of a skill or agent), "auto-continue" (nothing continues without the operator's yes)_
 
 ## Roles

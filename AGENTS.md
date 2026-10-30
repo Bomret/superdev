@@ -262,7 +262,7 @@ into subagent prompts (issue #32), the delegation handoff classifier behind a de
 (ADR 0039, ADR 0041), and the `SubagentHandback` tool that carries a subagent's report, which the run trace
 does not read (ADR 0197). It also covers native Windows with Git Bash (ADR 0150), and the PostToolUse `cwd` that names the
 directory a Bash command ended in, which run-trace works around with a PreToolUse stash (ADR 0159), and the
-desktop app's session tool behind the offer's new-session card (ADR 0176, ADR 0183). Read it before you change subagent prose or the unattended block.
+desktop app's session tool behind the offer's New task card (ADR 0176, ADR 0183, ADR 0201). Read it before you change subagent prose or the unattended block.
 
 ## Common commands
 
@@ -344,11 +344,13 @@ This root owns every other subtree directly:
   `## Warm cycles` (ADR 0174). Every command listed in `references/response-shapes.md`'s Next block section closes its last
   message with that block (ADR 0113), and an attended run first offers to start the one next command it names,
   per that file's `## The offer` (ADR 0157). Where the Claude desktop app's session tool is present, the offer
-  recommends starting that command in a new session with a fresh context in the same checkout, through a
-  New task card the operator clicks (ADR 0183). Without the
-  tool, as in the CLI, it recommends Stop here, with its `/clear`-then-type path. Start runs the command
-  through the Skill tool in the same conversation on every edge (ADR 0176). A new session's prompt carries
-  the offer's marker line, and ship, verify-ship, and wrap-up started from it ask the operator one yes first.
+  asks no question: it puts up a New task card at once, which starts that command in a new session with a
+  fresh context in the same checkout, or in the same conversation through its Do it here button (ADR 0183,
+  ADR 0201). Without the tool, as in the CLI, it asks one question and recommends Stop here, with its
+  `/clear`-then-type path; Start runs the command through the Skill tool in the same conversation (ADR 0176).
+  A command another session's brief asked for offers too. A new session's prompt carries the offer's marker
+  line, and ship, verify-ship, and wrap-up started from it or from another session's brief ask the operator
+  one yes first.
   `/superdev:ship` is a separate command: it merges the pull request submit-pr
   opened, deploys the merge under the repository's deploy posture (`none`/`manual`/`auto`,
   `docs/agents/deployment.md`, ADR 0101), and closes no anchor (ADR 0106). submit-pr offers it, and the yes is

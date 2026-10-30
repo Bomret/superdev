@@ -356,26 +356,28 @@ time-based loop, so hand review comments and CI on it to `/loop`:
 /loop 5m check my PR, address review comments, and fix failing CI
 ```
 
-Every command in the chain ends an attended run by asking whether to start its next command (ADR 0157).
+Every command in the chain ends an attended run by offering to start its next command (ADR 0157).
 `/superdev:brainstorm`, `/superdev:sweep`, and `/superdev:review-tests` do the same. In the Claude desktop app,
-the recommended answer is **Start in a new session**: it puts up a New task card, and a click on it starts the next
-command in a new session with a fresh context, in the same checkout, with the arguments the command would print
-(ADR 0176, ADR 0183). **Start** runs it in the same
-conversation, with the same arguments. **Stop here** prints the command instead, and it is the recommended answer
-in the CLI. Run `/clear` and type it for a fresh context, because a command started in place reads the whole conversation.
+the command asks nothing: it puts up a New task card at once. Its **Start** button starts the next command in a
+new session with a fresh context, in the same checkout, with the arguments the command would print. Its **Do it
+here** button runs it in the same conversation (ADR 0176, ADR 0183, ADR 0201). In the CLI, the command asks one
+question: **Stop here** prints the command instead, and it is the recommended answer. **Start** runs it in the
+same conversation, with the same arguments. Run `/clear` and type it for a fresh context, because a command started in place reads the whole conversation.
 A started command keeps every check and every question it has when typed. An unattended run, a blocked stop,
-and a stop that waits on an action of yours ask nothing.
+and a stop that waits on an action of yours offer nothing. A command another session's brief asked for offers
+like one you typed.
 
-`/superdev:submit-pr` offers `/superdev:ship`. The pull request is not reviewed yet at that point, and **Start**
-merges it now, exactly as typing `/superdev:ship` does, so review it first and answer then. Ship, verify-ship,
-and wrap-up started in a new session by the offer ask once more before they act. The host's
+`/superdev:submit-pr` offers `/superdev:ship`. The pull request is not reviewed yet at that point, and **Start** or **Do it
+here** merges it now, exactly as typing `/superdev:ship` does, so review it first and answer then. Ship, verify-ship,
+and wrap-up started in a new session by the offer, or by another session's brief, ask once more before they act. The host's
 approvals and branch protection still apply. `/superdev:ship` merges the pull request and deploys the merge under
 the repository's deploy posture (`none`/`manual`/`auto`, `docs/agents/deployment.md`, ADR 0101). Ship then offers once to start the
 next command and prints it when the operator does not take the offer. Ship prints the Next block on a decline and on every route that gets no offer. A run that routes to repair or re-verify, waits on a deploy, or waits on a hand-sync gets
 no offer. `/superdev:verify-ship` settles the criteria only a deployed system can show, and offers
 `/superdev:wrap-up` once every criterion is settled. `/superdev:wrap-up` closes the scope anchor and cleans up
 the run. `/superdev:ship`, `/superdev:verify-ship`, and `/superdev:wrap-up` start only when the operator typed
-the command, asked for it, or agreed to an offer. Ship refuses `--unattended` (ADR 0157). Ship names `/superdev:verify-ship` next while
+the command, asked for it, or agreed to an offer, or when another session's brief asked for it and the
+operator confirmed it with one yes. Ship refuses `--unattended` (ADR 0157). Ship names `/superdev:verify-ship` next while
 a criterion is open or a `manual` deploy waits for an answer, and `/superdev:wrap-up` otherwise (ADR 0116).
 A criterion `/superdev:verify-ship` observes false keeps the anchor open. Verify-ship then names
 `/superdev:plan`'s repair choice, or itself again for an observation that was transient. A run whose

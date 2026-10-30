@@ -7,6 +7,8 @@ considered option *Start the successor in a fresh session*.
 
 **Amended by:** [ADR 0183](0183-the-offer-proposes-the-new-session-as-a-card.md), under which the new-session
 answer proposes the session as a New task card instead of starting it (point 1).
+[ADR 0201](0201-the-offer-puts-up-the-card-first.md), under which the offer asks no question where the
+session tool is present, and a brief-started consent-gated command asks first too (points 1 and 5).
 
 ## Context
 
