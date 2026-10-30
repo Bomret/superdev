@@ -1,3 +1,10 @@
+# [0.96.0](https://codeberg.org/bomret/superdev/compare/v0.95.0...v0.96.0) (2026-10-30)
+
+
+### Features
+
+* **dod-ticks:** tick the scope anchor from the review on ([#1479](https://codeberg.org/bomret/superdev/issues/1479)) ([09f13b7](https://codeberg.org/bomret/superdev/commit/09f13b7c0f2060559e782fb62e6427c9f8bf1878))
+
 # [0.95.0](https://codeberg.org/bomret/superdev/compare/v0.94.0...v0.95.0) (2026-10-30)
 
 
