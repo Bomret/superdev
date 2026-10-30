@@ -99,7 +99,7 @@ try {
     'utf8'
   );
   assert.ok(
-    call(['status']).out.includes('markupstage  (shipped)'),
+    call(['status']).out.includes('| markupstage | shipped |'),
     'a backticked stage still collapses: ' + call(['status']).out
   );
 
@@ -117,7 +117,7 @@ try {
   fs.writeFileSync(path.join(preSubmittedRoot, 'ledger.md'), preSubmittedText, 'utf8');
   assert.strictEqual(call(['get', 'stage', '--root', preSubmittedRoot]).out, 'shipped', 'get stage still reads shipped');
   assert.ok(
-    call(['status']).out.includes('pre-submitted-shipped  (shipped)'),
+    call(['status']).out.includes('| pre-submitted-shipped | shipped |'),
     'status still collapses the pre-existing shipped scope'
   );
   assert.ok(call(['stage', 'set', 'shipped', '--root', preSubmittedRoot]).ok, 'same-value shipped write is still a no-op');
@@ -193,15 +193,15 @@ try {
     'the slice table parses under CRLF, with no stray carriage return in the last cell'
   );
   const crlfStatus = call(['status']).out;
-  assert.ok(crlfStatus.includes('crlfscope  (shipped)'), 'status reads the stage of a CRLF ledger: ' + crlfStatus);
+  assert.ok(crlfStatus.includes('| crlfscope | shipped |'), 'status reads the stage of a CRLF ledger: ' + crlfStatus);
   // `includes` cannot see a trailing `\r`, so assert on the whole line: a stray carriage return in the
   // degrade bullet would leave the line unequal while still "including" the text.
   assert.ok(
-    crlfStatus.split('\n').includes('  degraded: a denied pass'),
+    crlfStatus.split('\n').includes('- **crlfscope** — degraded: a denied pass'),
     'its degrade record renders as an exact line, with no stray carriage return: ' + JSON.stringify(crlfStatus)
   );
   assert.ok(
-    crlfStatus.split('\n').includes('  unresolved: suite still red at the cap'),
+    crlfStatus.split('\n').includes('- **crlfscope** — unresolved: suite still red at the cap'),
     'its unresolved record renders as an exact line too, with no stray carriage return: ' + JSON.stringify(crlfStatus)
   );
 
@@ -211,10 +211,9 @@ try {
   fs.mkdirSync(crlfLive, { recursive: true });
   fs.writeFileSync(path.join(crlfLive, 'ledger.md'), ledgerBody('\r\n').replace('**Stage:** shipped', '**Stage:** merged'), 'utf8');
   const liveStatus = call(['status']).out.split('\n');
-  assert.ok(liveStatus.includes('crlflive  (1 slices, stage: merged)'), 'an in-flight CRLF scope keeps its header: ' + liveStatus.join(' | '));
   assert.ok(
-    liveStatus.includes('  todo: 0  in-progress: 0  in-review: 0  blocked: 0  merged: 1'),
-    'and its tally, byte-identical to the LF rendering'
+    liveStatus.includes('| crlflive | merged | 1 | 0 | 0 | 0 | 0 | 1 |'),
+    'an in-flight CRLF scope keeps its row and its tally, byte-identical to the LF rendering: ' + liveStatus.join(' / ')
   );
 
   // A write leaves the file readable, and normalises it to LF.

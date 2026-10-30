@@ -7,7 +7,7 @@ allowed-tools: Read, Bash
 
 # superdev status
 
-Answer "where does the work stand, and what do I do next" in one read-only report: the ledger blocks of
+Answer "where does the work stand, and what do I do next" in one read-only report: the ledger report of
 every run already started, then the **backlog survey** of the slice store — the planned, the unplanned,
 the released, the waiting, the stuck, and the live — grouped by **the action each item needs**, ending with
 one recommended move.
@@ -23,10 +23,10 @@ command's own checks.
 ## Arguments
 
 - **`<scope> --trace`**, with or without `--slice <id>` → print that run's trace (below) and nothing else:
-  no ledger blocks, no store document read, no store call.
+  no ledger report, no store document read, no store call.
 - **`<scope>` without `--trace`** → print one line, `A scope argument is read only with --trace; printing
   the full report.`, then the full report.
-- **No argument** → the full report: the ledger blocks, then the survey (§1 to §5).
+- **No argument** → the full report: the ledger report, then the survey (§1 to §5).
 
 ## Print a run's trace
 
@@ -39,7 +39,7 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --root "$(node "${CLAUDE_PLU
 
 Print its output **verbatim**. A run with no trace, or an empty one, prints one line saying so.
 
-## The ledger blocks
+## The ledger report
 
 Print these first, before you read any store document or call the slice store (INV-0165). Run, from
 the repo root or any checkout of it:
@@ -48,15 +48,17 @@ the repo root or any checkout of it:
 node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" status
 ```
 
-Print its output **verbatim** — `scripts/scope.js` owns the ledger's schema and renders the whole report
-(ADR 0022). It scans `.superdev/scopes/*/` for run roots, prints one block per scope (slice tallies, the
-run's stage, blocked slices, its degrade record — the ledger's `**Degraded:**` line, per
+Print its output **verbatim**, as markdown and outside a code fence — `scripts/scope.js` owns the ledger's
+schema and renders the whole report (ADR 0022). It scans `.superdev/scopes/*/` for run roots and prints a
+markdown table, one row per scope (the run's stage, its slice count, and its tally per slice status), then
+one bullet per note a scope carries (blocked slices, its degrade record — the ledger's `**Degraded:**` line, per
 `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section — its unresolved-defect
 record — the ledger's `**Unresolved:**` line, per `scope-findings.md`'s `## Unresolved defects` section — and its
 deferred-finding record — the ledger's `**Deferred:**` line, per `scope-findings.md`'s `## Deferred findings`
 section — and its Minor queue, the ledger's `**Minors:**` line, per
-`${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## The ledger`), reports an unreadable ledger as `<scope>: ledger unreadable`, and prints `No superdev runs
-found in this repo.` when there are none. Do not create `.superdev/` or any file. It reads the main working
+`${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## The ledger`), reports an unreadable ledger as a row whose stage reads `ledger unreadable`, prints `No superdev runs
+found in this repo.` when there are none, and `No open superdev runs in this repo.` when every run is closed
+and carries no note. Do not create `.superdev/` or any file. It reads the main working
 tree's run roots from any checkout, the same run roots the survey below enumerates.
 
 **The ledger report failing as a whole** — `scope.js status` exits non-zero and prints no report → print one
@@ -65,33 +67,33 @@ store item, as a broken store hides no run.
 
 Every slice `merged` does not mean the run is done: the scope still has to be reviewed, documented, and
 shipped. The stage says which of those already happened, so add nothing of your own — no `complete` note.
-A run at stage `planned` prints the same way, its slice tally at zero and `stage: planned` named — a plan
+A run at stage `planned` prints the same way, its slice tally at zero and its stage reading `planned` — a plan
 cut the branch and scopetree, but no slice has run yet (ADR 0079).
 
-A **shipped** or **closed** scope prints as one line, `<scope>  (shipped)` or `<scope>  (closed)` (`<scope>  (shipped, step: verify-ship)` while a step is open), with no
-slice tally and no blocked list. `closed` is the terminal stage: `hooks/scope-prune.js` reaps its run root
+A **shipped** scope prints as a row whose stage reads `shipped` (`shipped, step: verify-ship` while a step is open), with no
+slice tally and no blocked note. A **closed** scope gets no row. `closed` is the terminal stage: `hooks/scope-prune.js` reaps its run root
 together with its scope branch once the staleness TTL elapses and that branch is contained in base or gone
 (ADR 0007, ADR 0053, ADR 0071, ADR 0106). Neither is work in flight. Its degrade
-record, unresolved-defect record, deferred-finding record, Minor queue, and staged-page lines are the exceptions and
+record, unresolved-defect record, deferred-finding record, Minor queue, and staged-page notes are the exceptions and
 still print in full: a `closed` run root is about to disappear, and the pull-request body is otherwise the only
 surviving copy of a pass that ran degraded, a defect the run left standing, or a finding nobody has
 planned yet — see below.
 
-A `pending publish:` line means that scope holds **staged pages** — knowledge-base pages
+A `pending publish:` note means that scope holds **staged pages** — knowledge-base pages
 `/superdev:document` wrote but did not send, waiting for `/superdev:publish-kb` (ADR 0023). A shipped
 scope can still carry one: the pages go live when a human decides the feature reached its readers, which
-is later than the pull request and later than the merge. A block headed `(no ledger)` is staged pages
+is later than the pull request and later than the merge. A row whose stage reads `no ledger` is staged pages
 with no run root — an `_adhoc` doc pass, or a run whose root was pruned.
 
 ## The backlog survey
 
-The ledger blocks above report the runs already started; the survey reports the **store**, and gives each
+The ledger report above reports the runs already started; the survey reports the **store**, and gives each
 run-root scope one row carrying its next act.
 
 ### 1. Config
 
-Read `docs/agents/issue-tracker.md`, only after the ledger blocks are printed. **Absent** → print one
-line, after the ledger blocks, saying the slice store is unconfigured and naming **`/superdev:setup`**, and
+Read `docs/agents/issue-tracker.md`, only after the ledger report is printed. **Absent** → print one
+line, after the ledger report, saying the slice store is unconfigured and naming **`/superdev:setup`**, and
 stop: no table, no move, and no empty-backlog line. List nothing and run `/superdev:setup` yourself for
 nobody: it is an interview.
 
@@ -130,7 +132,7 @@ The listings below, and the store document owns each one.
 
 **A listing that fails is not an empty backlog.** The store being unreachable, a token rejected, a
 timeout, no CLI login for the host — say which listing failed and what it returned, in one line after the
-ledger blocks, and stop: no table and no move. One failed listing among several stops the survey the same
+ledger report, and stop: no table and no move. One failed listing among several stops the survey the same
 way, because a table built from the listings that did answer reads as a short backlog. Reporting an empty
 table there tells the maintainer the backlog is clear, which is the one wrong answer this command can
 give.
@@ -145,7 +147,7 @@ the survey read.
 List every run root **once**, up front: `<main-checkout>/.superdev/scopes/*/` — a run root is a
 directory there holding a `ledger.md` (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## A live
 scope run`). For each, read its stage: `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root
-<run-root>`. This is the same ledger the ledger blocks above print from, so the two agree about a scope
+<run-root>`. This is the same ledger the ledger report above prints from, so the two agree about a scope
 by construction; deriving one from git state instead would stop agreeing with nothing to catch it.
 
 **Read each run root's liveness alongside its stage** (ADR 0163, INV-0166). A stage stays at its entry
@@ -311,7 +313,7 @@ scope's range base, computed by `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" b
 per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`. A row with no run root
 takes `<BASE>` from `git merge-base <base> <feature-label>`.
 
-A scope with a run root is **one row**, carrying its stage. Its individual slices are its ledger block's,
+A scope with a run root is **one row**, carrying its stage. Its slice tally is its row in the ledger report,
 printed above the table.
 
 ### 4. Report
@@ -378,7 +380,7 @@ Recommend one move, not a ranked list. The table is already the ranked list.
   it.
 - **Reporting an empty backlog on a failed listing.** Say what failed.
 - **Expanding a row into slice detail.** A scope with a run root is one row. Per-slice detail is its
-  ledger block's, above the table.
+  row in the ledger report, above the table.
 - **Deferring on doubt.** A skipped row hides unreleased anchors, undecomposed anchors, and triage
   records. Those are the rows this survey exists to show.
 - **Inventing a backend query to fill an absent `## Untriaged item` section.** Say so above the table

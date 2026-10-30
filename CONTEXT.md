@@ -360,7 +360,7 @@ on it: reading one is what turns it into a plan or closes it.
 _Avoid: "unlabeled issue" (a human's own labels do not make an item triaged), "new issue" (age is not what defines it), "backlog item" (every row in a
 **Backlog survey** is one of those)_
 
-**Backlog survey**: the store half of the read-only report `/superdev:status` prints, after the runs' ledger blocks, grouping every open **Scope anchor**,
+**Backlog survey**: the store half of the read-only report `/superdev:status` prints, after the runs' ledger report, grouping every open **Scope anchor**,
 every open **Intent record**, every **Triage record**, every **stranded run root**, and every **Untriaged item** in the slice store by the
 action each one needs, and ending with one recommended move. A run is live in another session when its
 ledger carries a standing step and its run lock is under an hour old. Such a run takes the `running`
@@ -372,8 +372,8 @@ run whose stage is short of `shipped`, that matches no open anchor, and that is 
 session. It ranks as the most expensive item in the table, where an
 untriaged item ranks last: it is the furthest from finishing, and it is the one bucket the survey caps
 rather than printing whole, since a store with real reporters holds more of them than the rest of the
-table put together. It reads the store where the ledger blocks above it
-read the runs, and it shows an unreleased plan, an anchor nobody
+table put together. It reads the store where the ledger report above it
+reads the runs, and it shows an unreleased plan, an anchor nobody
 decomposed, a triage record, and an untriaged item. A survey resolves an ambiguity toward showing the
 row (ADR 0049). It writes nothing and sits outside the implement
 chain.

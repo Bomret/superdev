@@ -91,14 +91,14 @@ try {
     assert.ok(call(['init', 'feat/stepper', 'implementing'], sliceJson).ok, 'step fixture init');
     assert.ok(call(['stage', '--root', stepRoot, 'set', 'merged']).ok, 'step fixture at merged');
     assert.equal(call(['get', '--root', stepRoot, 'step']).out, 'none', 'a ledger with no step line reads none');
-    assert.ok(call(['status']).out.includes('stepper  (2 slices, stage: merged)'), 'a step-less run prints as before');
+    assert.ok(call(['status']).out.includes('| stepper | merged | 2 |'), 'a step-less run prints as before');
     const t0 = stepTrace().length;
     assert.ok(call(['step', '--root', stepRoot, 'set', 'review']).ok, 'step set review');
     assert.ok(stepLedger().split('\n').includes('**Step:** review'), 'step set writes the line');
     assert.equal(call(['get', '--root', stepRoot, 'step']).out, 'review', 'get step prints the step');
     assert.equal(stepTrace().length, t0 + 1, 'step set appends one trace line');
     assert.match(stepTrace()[t0], / ledger step set review$/, 'step set mirrors its fields');
-    assert.ok(call(['status']).out.includes('stepper  (2 slices, stage: merged, step: review)'), 'status prints the step beside the stage');
+    assert.ok(call(['status']).out.includes('| stepper | merged, step: review | 2 |'), 'status prints the step beside the stage');
     assert.ok(publishText(stepRoot).includes('**Step:** review'), 'publish carries the step');
     {
       const adoptStep = path.join(tmp, 'elsewhere', 'stepper');
@@ -205,9 +205,9 @@ try {
     }
     // A shipped run prints its step too: verify-ship and wrap-up start at `shipped`.
     assert.ok(call(['stage', '--root', stepRoot, 'set', 'shipped']).ok, 'stage set shipped');
-    assert.ok(call(['status']).out.includes('stepper  (shipped)'), 'a step-less shipped run prints as before');
+    assert.ok(call(['status']).out.includes('| stepper | shipped |'), 'a step-less shipped run prints as before');
     call(['step', '--root', stepRoot, 'set', 'verify-ship']);
-    assert.ok(call(['status']).out.includes('stepper  (shipped, step: verify-ship)'), 'status prints the step of a shipped run');
+    assert.ok(call(['status']).out.includes('| stepper | shipped, step: verify-ship |'), 'status prints the step of a shipped run');
     // The ledger the mod's fixture holds for a run with a step.
     const src = fs.readFileSync(path.join(__dirname, '..', 'mods', 'superdev-view', 'hooks', 'ledger-fixtures.ts'), 'utf8');
     const stepLines = JSON.parse(src.slice(src.indexOf('/* ledger-step:start */') + 23, src.indexOf('/* ledger-step:end */')));
@@ -340,7 +340,7 @@ try {
       const refused = call(['stage', 'set', back, '--root', cRoot]);
       assert.ok(!refused.ok && /terminal/.test(refused.err), `closed → ${back} refused as terminal: ${refused.err}`);
     }
-    assert.ok(call(['status']).out.includes(slug + '  (closed)'), 'status prints a closed scope as one line');
+    assert.ok(!call(['status']).out.includes('| ' + slug + ' |'), 'status prints no row for a closed scope');
     const closedText = fs.readFileSync(path.join(cRoot, 'ledger.md'), 'utf8');
     assert.ok(call(['init', 'feat/' + slug, 'implementing'], sliceJson).ok, 'init over a closed ledger rotates');
     const first = fs.readdirSync(cRoot).filter((f) => /^ledger-closed-.*\.md$/.test(f));
@@ -598,7 +598,7 @@ try {
   const headerOnlyRoot = path.join(tmp, '.superdev', 'scopes', 'header-only');
   assert.deepStrictEqual(call(['get', 'slices', '--root', headerOnlyRoot]).out, '', 'no slice rows yet');
   assert.ok(
-    call(['status']).out.includes('header-only  (0 slices, stage: planned)'),
+    call(['status']).out.includes('| header-only | planned | 0 |'),
     'status renders a header-only ledger as a run with no slices yet',
   );
   // §6 fills in the table later, overwriting the same `planned` ledger init already allows overwriting.
@@ -864,7 +864,7 @@ try {
     assert.ok(!call(['minors', 'add', '01', '02', ...R]).ok, 'minors add with a second id is refused');
     assert.ok(!call(['minors', 'clear', 'x', ...R]).ok, 'minors clear with an argument is refused');
     assert.strictEqual(ledger(), beforeExtra, 'a refused minors call writes nothing');
-    assert.ok(call(['status']).out.includes('  minors: 01, 02'), 'status prints the queued slices: ' + call(['status']).out);
+    assert.ok(call(['status']).out.includes('- **demo** — minors: 01, 02'), 'status prints the queued slices: ' + call(['status']).out);
     assert.ok(call(['minors', 'clear', ...R]).ok, 'minors clear');
     assert.ok(!/\*\*Minors:\*\*/.test(ledger()), 'clear removes the queue line');
     assert.strictEqual(call(['get', 'minors', ...R]).out, '', 'get minors prints nothing after clear');
@@ -882,7 +882,7 @@ try {
       'utf8'
     );
     assert.strictEqual(call(['get', 'minors', '--root', oldRoot]).out, '', 'an old ledger reads as an empty queue');
-    assert.ok(call(['status']).out.includes('minors-old  (1 slices'), 'status reads an old ledger');
+    assert.ok(call(['status']).out.includes('| minors-old | implementing | 1 |'), 'status reads an old ledger');
     assert.ok(call(['minors', 'add', '01', '--root', oldRoot]).ok, 'an old ledger takes an add');
     assert.strictEqual(call(['get', 'minors', '--root', oldRoot]).out, '01');
   }
@@ -1468,7 +1468,7 @@ try {
   pipeSlices = call(['get', 'slices', ...P2]).out.split('\n');
   assert.strictEqual(pipeSlices[0], '01\t#1\tadd a|b parser\tbehavior\t—\tmerged\t—', 'title with | intact after row-rebuild');
   let ps = call(['status']);
-  assert.ok(ps.ok && !/ledger unreadable/.test(ps.out.split('\n').find((l) => l.startsWith('pipe-title')) || ''), 'status reads the pipe-title ledger fine');
+  assert.ok(ps.ok && !/ledger unreadable/.test(ps.out.split('\n').find((l) => l.startsWith('| pipe-title |')) || ''), 'status reads the pipe-title ledger fine');
 
   const newlineJson = JSON.stringify({
     anchor: '#2 — anchor',
@@ -1483,7 +1483,7 @@ try {
   assert.strictEqual(nlSlices[0], '01\t#2\tline one line two\tbehavior\t—\ttodo\t—', 'newline runs collapse to one space');
   assert.ok(call(['slice', '01', 'merged', ...N2]).ok, 'slice row-rebuild survives a collapsed newline');
   ps = call(['status']);
-  assert.ok(ps.ok && !/ledger unreadable/.test(ps.out.split('\n').find((l) => l.startsWith('newline-title')) || ''), 'status reads the newline-title ledger fine');
+  assert.ok(ps.ok && !/ledger unreadable/.test(ps.out.split('\n').find((l) => l.startsWith('| newline-title |')) || ''), 'status reads the newline-title ledger fine');
 
   // The scope-slug and change-type rules live here as code (SLUG_RE, CHANGE_TYPES) but
   // hooks/run-lock.js extracts with the same charset and references/scope-mode.md states it
@@ -1525,28 +1525,27 @@ try {
   // collapse: `scope-prune` reaps the run root seven days later, and the pull-request body is
   // otherwise the only surviving copy of a pass that ran degraded. Its staged-page lines survive too,
   // and are asserted with the rest of the kb cases below.
-  assert.ok(st.out.includes('demo  (shipped)'), 'a shipped scope collapses to one line: ' + st.out);
-  assert.ok(!st.out.includes('demo  (2 slices'), 'a shipped scope carries no slice count');
+  assert.ok(st.out.includes('| demo | shipped |'), 'a shipped scope collapses to one line: ' + st.out);
   assert.ok(
-    !st.out.includes('todo: 0  in-progress: 0  in-review: 0  blocked: 0  merged: 2'),
+    !st.out.includes('| demo | shipped | 2 |'),
     "a shipped scope's tally is not printed"
   );
   assert.ok(
-    st.out.includes('  degraded: first pass degraded (2026-08-06), second pass degraded (2026-08-06)'),
+    st.out.includes('- **demo** — degraded: first pass degraded (2026-08-06), second pass degraded (2026-08-06)'),
     "a shipped scope's degrade record survives the collapse: " + st.out
   );
   // Its deferred-finding record survives for the same reason, and one reason more: it is the only
   // record naming work nobody has planned yet (ADR 0035), so the reap takes the last copy with it.
   assert.ok(
-    st.out.includes('  deferred: carry deferrals into the pull-request body (2026-08-23), second deferred finding (2026-08-23)'),
+    st.out.includes('- **demo** — deferred: carry deferrals into the pull-request body (2026-08-23), second deferred finding (2026-08-23)'),
     "a shipped scope's deferred record survives the collapse: " + st.out
   );
   assert.ok(
-    st.out.includes('  deploy: pve deployed, proxy deployed'),
+    st.out.includes('- **demo** — deploy: pve deployed, proxy deployed'),
     "a shipped scope's deploy record survives the collapse: " + st.out
   );
-  assert.ok(st.out.includes('precli  (1 slices, stage: reviewed)'), 'status shows pre-CLI scope');
-  assert.ok(st.out.includes('broken: ledger unreadable'), 'unreadable ledger reported');
+  assert.ok(st.out.includes('| precli | reviewed | 1 |'), 'status shows pre-CLI scope');
+  assert.ok(st.out.includes('| broken | ledger unreadable |'), 'unreadable ledger reported');
 
   // status: an `unresolved:` line for a scope that has one, and none for a scope that does not.
   // No scope carries one yet — the demo scope's line was cleared above.
@@ -1556,12 +1555,12 @@ try {
   assert.ok(call(['unresolved', 'add', 'suite still red at the three-strike cap (2026-08-12)', ...R]).ok);
   const stShippedUnresolved = call(['status']).out;
   assert.ok(
-    stShippedUnresolved.includes('  unresolved: suite still red at the three-strike cap (2026-08-12)'),
+    stShippedUnresolved.includes('- **demo** — unresolved: suite still red at the three-strike cap (2026-08-12)'),
     "a shipped scope's unresolved record survives the collapse: " + stShippedUnresolved
   );
   // The Minor queue of a shipped scope prints the same way (the demo scope holds slice 01).
   assert.ok(call(['minors', 'add', '01', ...R]).ok);
-  assert.ok(call(['status']).out.includes('  minors: 01'), "a shipped scope's Minor queue survives the collapse");
+  assert.ok(call(['status']).out.includes('- **demo** — minors: 01'), "a shipped scope's Minor queue survives the collapse");
   assert.ok(call(['minors', 'clear', ...R]).ok);
 
   // An in-flight scope still prints everything it printed before: tally, blocked slices, and its
@@ -1572,6 +1571,7 @@ try {
     path.join(flightRoot, 'ledger.md'),
     '# Ledger — inflight\n\n**Stage:** merged\n**Degraded:**\n- doc pass denied (2026-08-11)\n' +
       '**Unresolved:**\n- fix declined by the operator (2026-08-12)\n' +
+      '**Deferred:**\n- plan the export retry (2026-08-12)\n' +
       '**Deploy:** pve deployed, proxy failed exit 2\n\n' +
       '| id | issue | title | type | depends-on | status | range |\n' +
       '|---|---|---|---|---|---|---|\n' +
@@ -1580,12 +1580,13 @@ try {
     'utf8'
   );
   const stFlight = call(['status']);
-  assert.ok(stFlight.out.includes('inflight  (2 slices, stage: merged)'), 'an in-flight scope keeps its header');
-  assert.ok(stFlight.out.includes('todo: 0  in-progress: 0  in-review: 0  blocked: 1  merged: 1'), 'and its tally');
-  assert.ok(stFlight.out.includes('  blocked: 02 two'), 'and its blocked slices');
-  assert.ok(stFlight.out.includes('  degraded: doc pass denied (2026-08-11)'), 'and its degrade record');
-  assert.ok(stFlight.out.includes('  unresolved: fix declined by the operator (2026-08-12)'), 'and its unresolved record');
-  assert.ok(stFlight.out.includes('  deploy: pve deployed, proxy failed exit 2'), 'and its deploy record');
+  assert.ok(stFlight.out.includes('| inflight | merged | 2 |'), 'an in-flight scope keeps its header');
+  assert.ok(stFlight.out.includes('| inflight | merged | 2 | 0 | 0 | 0 | 1 | 1 |'), 'and its tally');
+  assert.ok(stFlight.out.includes('- **inflight** — blocked: 02 two'), 'and its blocked slices');
+  assert.ok(stFlight.out.includes('- **inflight** — degraded: doc pass denied (2026-08-11)'), 'and its degrade record');
+  assert.ok(stFlight.out.includes('- **inflight** — unresolved: fix declined by the operator (2026-08-12)'), 'and its unresolved record');
+  assert.ok(stFlight.out.includes('- **inflight** — deploy: pve deployed, proxy failed exit 2'), 'and its deploy record');
+  assert.ok(stFlight.out.includes('- **inflight** — deferred: plan the export retry (2026-08-12)'), 'and its deferred record');
 
   // A `planned` run — a plan cut the branch and scopetree but no slice has run — prints with its
   // stage named, not as an unknown or in-flight run (ADR 0079).
@@ -1599,7 +1600,7 @@ try {
     'utf8'
   );
   const stPlanned = call(['status']);
-  assert.ok(stPlanned.out.includes('planned-status  (0 slices, stage: planned)'), 'a planned run names its stage: ' + stPlanned.out);
+  assert.ok(stPlanned.out.includes('| planned-status | planned | 0 |'), 'a planned run names its stage: ' + stPlanned.out);
 
   // A `submitted` run (issue #682) — the pull request is open and the chain has ended — is still
   // standing (its scopetree and lock exist), so it renders as an ordinary in-flight run, not the
@@ -1616,7 +1617,7 @@ try {
   );
   const stSubmitted = call(['status']);
   assert.ok(
-    stSubmitted.out.includes('submitted-status  (1 slices, stage: submitted)'),
+    stSubmitted.out.includes('| submitted-status | submitted | 1 |'),
     'a submitted run names its stage rather than collapsing: ' + stSubmitted.out
   );
 
@@ -1665,26 +1666,25 @@ try {
   const stKb = call(['status']);
   assert.ok(stKb.ok, 'status runs with staged pages');
   assert.ok(
-    stKb.out.includes('  pending publish: 2 staged pages — /superdev:publish-kb demo'),
+    stKb.out.includes('- **demo** — pending publish: 2 staged pages — `/superdev:publish-kb demo`'),
     'a scope with a run root carries its pending line: ' + stKb.out,
   );
-  assert.ok(stKb.out.includes('_adhoc  (no ledger)'), 'a pending scope with no run root is reported');
+  assert.ok(stKb.out.includes('| \\_adhoc | no ledger |'), 'a pending scope with no run root is reported');
   assert.ok(
-    stKb.out.includes('  pending publish: 1 staged page — /superdev:publish-kb _adhoc'),
+    stKb.out.includes('- **\\_adhoc** — pending publish: 1 staged page — `/superdev:publish-kb _adhoc`'),
     'one page is singular',
   );
   assert.ok(!/nothing-here/.test(stKb.out), 'an empty staging directory is not pending');
-  assert.ok(stKb.out.includes('broken: ledger unreadable'), 'the rest of the report is unchanged');
+  assert.ok(stKb.out.includes('| broken | ledger unreadable |'), 'the rest of the report is unchanged');
 
   // `demo` is shipped, so it collapses — but its staged-page lines are the exception that survives.
   // A page nobody publishes is invisible everywhere else (ADR 0023), and a shipped scope is exactly
   // where one waits, so collapsing these away would reintroduce the silent loss reporting prevents.
   // Asserted on the collapsed header specifically, not merely on the lines being present somewhere.
   const demoBlock = stKb.out.split('\n');
-  const demoAt = demoBlock.findIndex((l) => l === 'demo  (shipped)');
-  assert.ok(demoAt >= 0, 'the shipped scope still collapses with pages staged: ' + stKb.out);
-  const demoLines = [];
-  for (let i = demoAt + 1; i < demoBlock.length && demoBlock[i].startsWith('  '); i++) demoLines.push(demoBlock[i]);
+  const demoAt = demoBlock.findIndex((l) => l === '| demo | shipped |  |  |  |  |  |  |');
+  assert.ok(demoAt >= 0, 'the shipped scope still collapses to a row with no tally, with pages staged: ' + stKb.out);
+  const demoLines = demoBlock.filter((l) => l.startsWith('- **demo** — '));
   assert.ok(
     demoLines.some((l) => l.includes('pending publish: 2 staged pages')),
     "a shipped scope's pending line survives the collapse: " + demoLines.join(' | '),
@@ -1692,10 +1692,6 @@ try {
   assert.ok(
     demoLines.some((l) => l.includes('draft.markdown')),
     "a shipped scope's stray line survives the collapse: " + demoLines.join(' | '),
-  );
-  assert.ok(
-    !demoLines.some((l) => l.startsWith('  todo:')),
-    'and its tally still does not print',
   );
   assert.ok(
     stKb.out.includes('draft.markdown') && /ignored/.test(stKb.out),
@@ -1710,10 +1706,10 @@ try {
     'a .md file staged directly under kb-pending (no scope directory) is surfaced, not silently dropped: ' + stKb.out,
   );
   assert.ok(
-    stKb.out.includes('  pending publish: 1 staged page — /superdev:publish-kb broken'),
-    'a malformed ledger still reports its own pending pages: ' + stKb.out,
+    stKb.out.split('\n').filter((l) => l === '- **broken** — pending publish: 1 staged page — `/superdev:publish-kb broken`').length === 1,
+    'a malformed ledger reports its own pending pages exactly once: ' + stKb.out,
   );
-  assert.ok(!stKb.out.includes('broken  (no ledger)'), 'not reported a second time — its ledger file exists');
+  assert.ok(!stKb.out.includes('| broken | no ledger |'), 'not reported a second time — its ledger file exists');
 
   // pages staged with no run root anywhere: the report is the pending blocks, not the zero-scope line.
   const only = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-kbonly-'));
@@ -1728,7 +1724,7 @@ try {
     console.log = origOnly;
   }
   assert.ok(
-    onlyLog.join('\n').includes('pending publish: 1 staged page — /superdev:publish-kb _adhoc'),
+    onlyLog.join('\n').includes('pending publish: 1 staged page — `/superdev:publish-kb _adhoc`'),
     'staged pages alone still produce a report',
   );
   assert.ok(
@@ -1736,6 +1732,46 @@ try {
     'the zero-scope message never hides pending pages',
   );
   fs.rmSync(only, { recursive: true, force: true });
+
+  // The report is markdown: a name read off disk is escaped, so a `|` keeps the table row whole and a `_`
+  // prints as itself, and a file name prints as code.
+  const odd = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-kbodd-'));
+  fs.mkdirSync(path.join(odd, '.superdev', 'kb-pending', 'a|b_c'), { recursive: true });
+  fs.writeFileSync(path.join(odd, '.superdev', 'kb-pending', 'a|b_c', 'my_notes.txt'), 'x\n', 'utf8');
+  const oddLog = [];
+  console.log = (s) => oddLog.push(String(s));
+  try {
+    run(['status'], odd, '');
+  } finally {
+    console.log = origOnly;
+  }
+  const oddOut = oddLog.join('\n');
+  assert.ok(oddOut.includes('| a\\|b\\_c | no ledger |'), 'a `|` and a `_` in a scope name are escaped in its row: ' + oddOut);
+  assert.ok(oddOut.includes('- **a\\|b\\_c** — 1 non-`.md` file staged, ignored: `my_notes.txt`'), 'and a file name prints as code: ' + oddOut);
+  fs.rmSync(odd, { recursive: true, force: true });
+
+  // A closed scope gets no row, but its notes still print: they are the last copy before the reap. A repo
+  // whose every run is closed with no note left prints one line saying no run is open.
+  const done = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-selftest-closed-'));
+  const doneRoot = path.join(done, '.superdev', 'scopes', 'gone');
+  fs.mkdirSync(doneRoot, { recursive: true });
+  const closedLedger = (extra) =>
+    '# Ledger — gone\n\n**Stage:** closed\n' + extra + '\n| id | issue | title | type | depends-on | status | range |\n|---|---|---|---|---|---|---|\n';
+  const statusIn = (dir) => {
+    const log = [];
+    console.log = (s) => log.push(String(s));
+    try {
+      run(['status'], dir, '');
+    } finally {
+      console.log = origOnly;
+    }
+    return log.join('\n');
+  };
+  fs.writeFileSync(path.join(doneRoot, 'ledger.md'), closedLedger('**Deferred:**\n- plan it later (2026-10-30)\n'), 'utf8');
+  assert.strictEqual(statusIn(done), '- **gone** — deferred: plan it later (2026-10-30)', 'a closed scope prints its notes and no table');
+  fs.writeFileSync(path.join(doneRoot, 'ledger.md'), closedLedger(''), 'utf8');
+  assert.strictEqual(statusIn(done), 'No open superdev runs in this repo.', 'only closed scopes with no notes print one line');
+  fs.rmSync(done, { recursive: true, force: true });
 
   // main()'s success path lets the process exit naturally instead of forcing process.exit(0),
   // so stdout flushes before exit. `call()` above bypasses main() entirely, so this needs a

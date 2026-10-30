@@ -139,11 +139,15 @@ cut to the first whitespace-delimited token and stripped of markup and trailing 
 header line reads as absent, not as an empty string. Both `readLines` and `readLedgerHeader` split
 on `\r?\n`. A `ledger.md` an editor or `core.autocrlf` wrote with CRLF line endings reads exactly as
 an LF one does. A lone `\r`, the classic-Mac line ending, reads as absent, and that is deliberate.
-Any verb that writes the file normalises it back to LF. A scope whose ledger stage reads `shipped` or `closed`
-collapses to one line, `<scope>  (shipped)` or `<scope>  (closed)`. It drops the slice tally and the blocked list.
+Any verb that writes the file normalises it back to LF. `status` prints markdown: a table with one row per
+scope (stage, slice count, tally per slice status), then one `- **<scope>** — …` bullet per note. A scope name or slice title is escaped for
+markdown, and a file name prints as code. A scope whose
+ledger stage reads `shipped` prints a row with no slice count and no tally, and no blocked note. A scope whose
+ledger stage reads `closed` prints no row. When every run root is closed and carries no note, `status` prints
+`No open superdev runs in this repo.`
 `hooks/scope-prune.js` (ADR 0007) is about to reap that run root, so per-slice detail is no longer
 work in flight. Its `**Degraded:**` line, its `**Unresolved:**` line, its `**Deferred:**` line, its `**Minors:**` line, and its
-staged-page lines survive the collapse, because each is otherwise recorded nowhere else. `deferred add`
+staged-page notes still print, because each is otherwise recorded nowhere else. `deferred add`
 carries no `clear` counterpart: a defect stops being true once a run re-verifies the scope green, while
 unplanned work stays unplanned until somebody plans it (ADR 0035). `deferred resolve` removes one finding
 the same run fixed after all (ADR 0121). It matches the exact bullet text, removes every identical bullet,
@@ -421,7 +425,7 @@ adopted ledger could never move its stage), when the run root's directory name
 does not match the Branch line's slug, or when a ledger already exists at that root.
 
 `status` also reports every scope's **staged knowledge-base pages** under `.superdev/kb-pending/`
-(ADR 0023): a `pending publish:` line per scope, a scope with no run root under `(no ledger)`, a
+(ADR 0023): a `pending publish:` note per scope, a scope with no run root as a row whose stage reads `no ledger`, a
 non-`.md` file staged and ignored, and a `.md` file staged directly under `.superdev/kb-pending`
 outside any scope directory. Each is a page `/superdev:publish-kb` would otherwise silently miss.
 

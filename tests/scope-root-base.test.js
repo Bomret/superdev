@@ -138,7 +138,7 @@ const { run } = require('./scope-setup');
   fs.mkdirSync(expectedStaging, { recursive: true });
   fs.writeFileSync(path.join(expectedStaging, 'page.md'), '---\ntitle: Page\naction: upsert\n---\nbody\n');
   assert.ok(
-    callIn(['status'], stagingWt).out.includes('pending publish: 1 staged page — /superdev:publish-kb demo'),
+    callIn(['status'], stagingWt).out.includes('pending publish: 1 staged page — `/superdev:publish-kb demo`'),
     'status from a linked worktree reports the pages the main working tree holds',
   );
   const subDir = path.join(stagingWt, 'sub');
