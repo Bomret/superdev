@@ -116,7 +116,8 @@ function run(argv, cwd, stdinJson) {
     case 'stage': {
       const root = takeRoot(args);
       // A stage write that closes the standing step is a step end, so it sends the run-state ref (ADR 0206).
-      if (verbStage(root, args[0], args[1])) handoffRoot = root;
+      // `closed` sends nothing: wrap-up deleted the ref before it, and a closed run hands nothing off.
+      if (verbStage(root, args[0], args[1]) && args[1] !== 'closed') handoffRoot = root;
       ledgerEvent = { root, fields: ['stage', args[0], args[1]] };
       break;
     }

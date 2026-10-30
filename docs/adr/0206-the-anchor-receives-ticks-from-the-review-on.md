@@ -35,7 +35,7 @@ A noted anchor line wins.
   machine keeps them too.
 - **A `stage set` that closes the standing step sends the ref**, as `step clear` and `step block` do.
   Implement ends with `stage set merged` and review with a stage write, so without this the ref would
-  carry the copy from plan time.
+  carry the copy from plan time. `stage set closed` sends nothing: `/superdev:wrap-up` deletes the ref before that write.
 
 ## Considered options
 

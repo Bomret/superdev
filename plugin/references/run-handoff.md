@@ -8,7 +8,7 @@ Run after your playbook returns (every slice `merged`/committed on the scope bra
 tiers: record that slice execution finished, name what comes next.
 
 - **The run-state ref.** A step end that changes state (`scope.js step clear`, `scope.js step block`, or a
-  `scope.js stage set` that closes the standing step) sends the run root's
+  `scope.js stage set` that closes the standing step, except `stage set closed`) sends the run root's
   `trace.log`, `reports/`, `interfaces.md`, and `dod.md` to `refs/superdev/<scope>` of the remote that the `**Remote:**` line of
   `docs/agents/code-management.md` names. A clear that changes nothing sends nothing. A send prints one `run-state:` line (ADR 0202, INV-0179). The send is
   best-effort: no remote, an unreachable remote, or a remote ref this machine has not seen refuses it

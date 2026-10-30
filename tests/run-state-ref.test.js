@@ -125,6 +125,24 @@ try {
     assert.strictEqual(remoteTip(f), tip);
   }
 
+  // #closed-sends-nothing: wrap-up deletes the ref before its `stage set closed`, which closes the standing step;
+  // that write sends nothing, so a closed run leaves no ref on the remote.
+  {
+    const f = fixture();
+    fs.writeFileSync(path.join(f.root, 'ledger.md'), '# Ledger — x\n\n**Stage:** shipped\n**Step:** wrap-up\n');
+    pushRunState(f.root, f.repo);
+    assert.ok(remoteTip(f), 'ref sent');
+    const del = spawnSync(process.execPath, [scopePath, 'run-state', 'delete', '--root', f.root], { cwd: f.repo, encoding: 'utf8', timeout: 120000, killSignal: 'SIGKILL' });
+    assertSpawnDecided(del, 'scope.js run-state delete');
+    assert.strictEqual(remoteTip(f), null, 'ref deleted');
+    const r = spawnSync(process.execPath, [scopePath, 'stage', 'set', 'closed', '--root', f.root], { cwd: f.repo, encoding: 'utf8', timeout: 120000, killSignal: 'SIGKILL' });
+    assertSpawnDecided(r, 'scope.js stage set');
+    assert.strictEqual(r.status, 0, r.stderr);
+    assert.doesNotMatch(ledgerOf(f), /\*\*Step:\*\*/, 'the step closed');
+    assert.doesNotMatch(r.stdout, /run-state:/, r.stdout);
+    assert.strictEqual(remoteTip(f), null, 'no ref after close');
+  }
+
   // #lease: another clone moved the ref; the push refuses, the remote stays, the ledger write is done.
   {
     const f = fixture();
