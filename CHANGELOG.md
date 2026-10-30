@@ -1,3 +1,10 @@
+# [0.95.0](https://codeberg.org/bomret/superdev/compare/v0.94.0...v0.95.0) (2026-10-30)
+
+
+### Features
+
+* **scope-mode:** split scope-mode by job, shorten reports, add an implementer self-check ([#1473](https://codeberg.org/bomret/superdev/issues/1473)) ([8f96ed8](https://codeberg.org/bomret/superdev/commit/8f96ed804acc55cbbbfa8d2c6d2cfa0b3c869df4))
+
 # [0.94.0](https://codeberg.org/bomret/superdev/compare/v0.93.0...v0.94.0) (2026-10-30)
 
 
