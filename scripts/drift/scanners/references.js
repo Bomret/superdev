@@ -6,7 +6,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { docPath, readDoc, missingDoc } = require('../lib');
+const { docPath, readDoc, missingDoc, normalizeWhitespace } = require('../lib');
 const {
   REFERENCE_PATTERN,
   RUN_ROOT_DOCS,
@@ -14,6 +14,9 @@ const {
   SCOPETREE_RUN_ROOT_DOCS,
   SCOPETREE_RUN_ROOT_PATTERN,
   COMMAND_REFERENCE_PATTERN,
+  HEADING_CITATION_PATTERN,
+  SECTION_MAP_PATTERN,
+  HEADING_SPAN_PATTERN,
 } = require('../contracts');
 const { proseDocuments, scanPatternHits } = require('./walkers');
 
@@ -90,4 +93,54 @@ function scanGovernedSkillFiles(root) {
   return gaps;
 }
 
-module.exports = { scan, scanRunRootPaths, scanScopetreeRunRootPaths, scanCommandRefs, scanGovernedSkillFiles };
+// scanHeadingCitations(): every "`<file>.md`'s `## Heading`" citation (a heading of level two to four) in
+// shipped prose names a heading the cited file carries, at that level. Whitespace collapses on both sides,
+// so a heading wrapped across a line break matches. A bare file name resolves the way the other checks
+// resolve one: `references/<name>`, then `agents/<name>`, then the repository root; a name with a `/` resolves
+// from the plugin root, then the repository root. A file that resolves nowhere is a finding here, except a
+// `references/<name>.md` path, which the `reference` check already reports. A section map entry,
+// "- **`<file>.md`** — `## A`, `## B`.", is a citation of each heading it lists. A heading in a fenced template counts: a file's output template carries headings a citation may name.
+function scanHeadingCitations(root) {
+  const gaps = [];
+  const headingsOf = new Map();
+  const headings = (file) => {
+    if (!headingsOf.has(file)) {
+      const text = fs.readFileSync(file, 'utf8');
+      headingsOf.set(file, new Set([...text.matchAll(/^(#{2,4})[ \t]+(.+?)[ \t]*$/gm)].map((h) => `${h[1]} ${normalizeWhitespace(h[2])}`)));
+    }
+    return headingsOf.get(file);
+  };
+  const resolve = (name) => {
+    const candidates = name.includes('/') ? [docPath(root, name)] : ['references', 'agents'].map((d) => docPath(root, d, name));
+    candidates.push(path.join(root, name));
+    return candidates.find((c) => fs.statSync(c, { throwIfNoEntry: false })?.isFile());
+  };
+  const check = (source, name, spans) => {
+    const cited = resolve(name);
+    if (cited === undefined) {
+      if (!/^references\/[a-zA-Z0-9_-]+\.md$/.test(name)) gaps.push({ source, cited: name, missing: true });
+      return;
+    }
+    for (const [level, text] of spans) {
+      const heading = `${level} ${normalizeWhitespace(text).trim()}`;
+      if (!headings(cited).has(heading)) gaps.push({ source, cited: name, heading });
+    }
+  };
+  for (const [source, filePath] of proseDocuments(root, ['skills', 'agents', 'references'])) {
+    const text = fs.readFileSync(filePath, 'utf8');
+    for (const m of text.matchAll(HEADING_CITATION_PATTERN)) check(source, m[1], [[m[2], m[3]]]);
+    for (const m of text.matchAll(SECTION_MAP_PATTERN)) {
+      check(source, m[1], [...m[2].matchAll(HEADING_SPAN_PATTERN)].map((s) => [s[1], s[2]]));
+    }
+  }
+  return gaps;
+}
+
+module.exports = {
+  scan,
+  scanRunRootPaths,
+  scanScopetreeRunRootPaths,
+  scanCommandRefs,
+  scanGovernedSkillFiles,
+  scanHeadingCitations,
+};

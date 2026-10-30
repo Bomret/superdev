@@ -56,7 +56,7 @@ holds.
 - **The pull request is not merged.** `scope.js get pr` prints a number → read that pull request by
   index, per `docs/agents/code-management.md`'s `## Merge` section, and take its `merged` field. `absent`
   (a legacy run) → test the scope branch's containment in base with `scope.js`'s exported
-  `testContainment` (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Containment`; it has no CLI
+  `testContainment` (`${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Containment`; it has no CLI
   verb): `node -e "console.log(require(process.argv[1]).testContainment(process.cwd(), process.argv[2], process.argv[3]))" "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" <base> <scope-branch>`, the scope branch read with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get branch --root <run-root>` and `<base>` the base branch `docs/agents/code-management.md` names.
   Only `contained` counts as merged. Unknown counts as not merged: a failed host read, or any other
   containment verdict.
@@ -66,7 +66,7 @@ holds.
   `accepted:` holds this reason. The note's verdict (`met:`, `accepted:`) decides whether a line is settled,
   never the box: a `[x]` whose note is `ceiling:` or `not met:` counts as unsettled. Name each such line and
   `/superdev:verify-ship <scope>`. Wrap-up never offers acceptance itself: verify-ship settles the line. When
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Routing a shipped run` routes this run to repair,
+  `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` routes this run to repair,
   a `not met:` line also names `/superdev:plan`'s repair choice.
 - **The anchor disagrees with a settled `dod.md`.** With `dod.md` present, also read the anchor's lines.
   Pair the lines per `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## Pairing dod.md with the anchor`.
@@ -76,7 +76,7 @@ holds.
   since it cannot reconcile that line. An anchor is never closed with its criterion text out of sync.
 - **A deploy target is not `deployed`.** The pull request must be merged to have a merge commit; without one
   the first reason stands alone and this read is skipped. Read the posture, the anchor's `**Deploy:**`
-  line, and the deploy record per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Reading the
+  line, and the deploy record per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Reading the
   posture at the merge commit`. Posture `none`, a `**Deploy:** none` or missing line, a ledger with no
   `**PR:**` header (a legacy run older than the posture), or an anchor an older version already closed →
   no such reason. Otherwise count every listed target not recorded `deployed` as a reason. Name each
@@ -116,7 +116,7 @@ instructions. A record that no criterion cites stays open: report it naming the 
 nothing on it (INV-0151).
 
 - **`met:`** → close the record through the `## Triage record` **Close it** call, handing it a comment that
-  names the merge commit (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Reading the posture at the
+  names the merge commit (`${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Reading the posture at the
   merge commit`) and the scope anchor.
 - **`accepted:`** → ask once per record: close it, or keep it open. Close → the **Close it** call with the
   same comment. Keep → the **Comment on it** call, with a comment naming the scope anchor, and the record
@@ -149,9 +149,9 @@ holds its content (ADR 0071).
 ## 7. Finish
 
 Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set closed --root <run-root>`, then publish the
-snapshot per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section.
+snapshot per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section.
 
-Name the scope's staged pages per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+Name the scope's staged pages per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s
 `## Staged pages at close` (ADR 0119, INV-0123). A count above zero → print `/superdev:publish-kb <scope>`
 as the next command. A count of zero, or a failed read → the Next block says no command follows.
 
@@ -160,9 +160,9 @@ as the next command. A count of zero, or a failed read → the Next block says n
 A line naming an anchor → resolve that anchor's feature label, take its slug, and read the original's
 stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <original-run-root>`
 (`scope.js root <slug>` names that path). No ledger at that path → adopt the original first, from the
-anchor the Repairs line names, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+anchor the Repairs line names, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s
 `## Adopting a shipped original`, then read the stage. At `shipped`, pick the original's next command by
-`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Routing a shipped run`, with `<scope>` the
+`${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run`, with `<scope>` the
 original's slug, and print it as the next command and, when it routes to repair, the Repair route's
 open-repair line for each open repair; `/superdev:publish-kb <scope>` moves to an `Or:` line. A closed or missing original, or a
 Repairs line that resolves to no run root once that adoption recreated none, names nothing for the

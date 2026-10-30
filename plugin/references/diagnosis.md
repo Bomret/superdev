@@ -43,7 +43,7 @@ instrumentation dies before the fix commits.
 The proven cause becomes a RED test at the correct seam, and the fix makes it green — the ordinary TDD
 loop from there. **No correct seam exists for the test → that itself is the finding**: the architecture
 is preventing the defect from being locked down. Report it rather than force a test at a wrong seam; on
-a live scope run it is an unresolved defect (`scope-mode.md` → `## Unresolved defects`).
+a live scope run it is an unresolved defect (`scope-findings.md` → `## Unresolved defects`).
 
 ## Redact
 

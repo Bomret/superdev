@@ -37,7 +37,7 @@ Applies to every review.
 - The slice `spec` and its `acceptance` criteria.
 - The **subject**. A first review hands the slice's range, the slice branch against the scope branch. A post-merge review hands the slice's range. A re-review hands the fix cycle's range, from the tip the latest earlier review read to the current tip (ADR 0137).
 - A first review and a re-review hand the ranges for the fail-to-pass check (`## Run-trace findings`), each with both ends full commits, and the global constraints that bind the slice.
-- The progress-log path. The dispatch carries no text from an implementer's report.
+- The progress-log path and the heading of your entry in it (`## Progress-log append`). The dispatch carries no text from an implementer's report.
 - A sweep review hands the sweep's range and the sweep log path (`## Sweep review`).
 
 ## Sweep review
@@ -86,6 +86,7 @@ Reading the progress log can add a finding or raise a finding's severity. It nev
 
 - A deviation from the specification that the log explains stays a finding.
 - Weigh a green suite or a met criterion the log reports as `## Lens 2 — Independent verification` states.
+- The log may hold the implementer's self-check entry, its walk of the spec's acceptance items, edge cases, and invariants. Read it only here, after the blind pass, as a claim to verify against the diff and the run trace. It closes no finding and softens none, whatever it marks `covered`.
 - Apply `## Dependency verification` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` here.
 - Name a missing log in the after-reading section. It voids nothing from the blind pass, and the dependency findings it causes still move the verdict.
 
@@ -176,7 +177,11 @@ Name each inherited failure under `### Inherited failures`. Leave it out of your
 
 Applies to every review.
 
+This is the shape of your entry in the progress log (`## Progress-log append`). Your report is the summary `## Report` states.
+
 ```
+<the heading your dispatch names: Review — cycle <n>, Review — sweep cycle <n>, or Review — post-merge>
+
 ### Strengths
 - <specific, if any>
 
@@ -214,5 +219,22 @@ Applies to every review.
 
 Append your full findings to the progress log, each with its severity and `file:line`, then the verdict line.
 
+- Append before you report, on every review: a first review, a re-review, a post-merge review, and a sweep review. The entry holds the whole output shape above: its heading, blind pass, after-reading section, every finding's remedy, and the verdict line.
+- Head the entry with the line your dispatch names for it, even where an earlier entry carries the same heading. The controller reads only an entry below the `dispatch:` line it wrote before your dispatch, so an earlier review's entry never stands in for yours.
+- The progress log is the one place your remedies live, because your report carries none. The controller builds the fix list and the Minor queue from your entry.
 - Append only, and overwrite no earlier entry.
 - Append through a quoted heredoc, `cat >> <progress-log path> <<'SUPERDEV_TEXT_EOF'` … `SUPERDEV_TEXT_EOF`. Use no `echo` and no unquoted heredoc, because backticks and `$(` in the text stay literal.
+
+## Report
+
+Applies to every review.
+
+Return a summary. Your full findings stay in the progress-log entry (`## Progress-log append`), and your report repeats none of the entry's prose.
+
+- The first line is the verdict line.
+- One line per finding, Minors included: the severity, the `file:line` (a range-level finding, such as **Pass-to-pass**, **Missing fail-to-pass run**, or **Unreviewed slice**, names its slice or range, both ends full commits), and what is wrong. Leave the remedy to the log.
+- An unclosable **Pass-to-pass** finding carries its mark, the case, and the reason (`## Run-trace findings`).
+- A finding the after-reading section added or raised carries an after-reading mark: `added`, or `raised` with the original severity.
+- A re-review adds one line per earlier finding: closed, or still open (`## Re-review`).
+- One line each for the notes that are no finding: each inherited failure (`## Inherited failures`), each fail-to-pass `unknown` (`## Run-trace findings`), each "cannot verify from diff" item, and a reviewed tip with no passing recorded run (`## Lens 2 — Independent verification`).
+- Name a missing progress log on one line.

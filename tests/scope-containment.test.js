@@ -113,7 +113,7 @@ const { shq } = require('./spawn-verdict');
   fs.rmSync(remoteOnlyOrigin, { recursive: true, force: true });
 
   // #no-write-tree: a git that rejects `merge-tree --write-tree` falls back to `git merge-base
-  // --is-ancestor` (scope-mode `## Containment`) rather than erroring. A shell wrapper on PATH stands
+  // --is-ancestor` (scope-branch `## Containment`) rather than erroring. A shell wrapper on PATH stands
   // in for git 2.37 and earlier — it rejects only that one flag combination and forwards every other
   // call to the real git, exactly what an old git's own `merge-tree` does (three tree-ish arguments,
   // nonzero on `--write-tree`).
@@ -287,7 +287,7 @@ const { shq } = require('./spawn-verdict');
   fs.rmSync(injectionBranchRepo, { recursive: true, force: true });
 
   // #real-conflict: the branch and base edit the same line differently — `git merge-tree` exits 1 on
-  // a genuine conflict, the other cause besides an unresolved ref (scope-mode `## Containment`). Must
+  // a genuine conflict, the other cause besides an unresolved ref (scope-branch `## Containment`). Must
   // read not-contained, never crash and never contained — the wrong-direction failure this slice's
   // brief names explicitly.
   const conflictRepo = makeRepo();

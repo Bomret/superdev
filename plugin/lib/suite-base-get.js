@@ -57,7 +57,7 @@ function lazyToplevel(cwd) {
 }
 
 // `**Suite:**` records the last full-suite run: its result, the commit it ran on, and its kind
-// (`references/scope-mode.md` `## The ledger`, INV-0017, ADR 0105 — a later step reuses a green record
+// (`references/run-state.md` `## The ledger`, INV-0017, ADR 0105 — a later step reuses a green record
 // whose commit is the scope branch's current tip instead of running the suite again). Set-only: the
 // read half is `get suite`. `sha` must resolve to a commit in the caller's repository — a refusal here
 // is what keeps a typo or a stale sha from being trusted as a real record later. The record carries the
@@ -347,7 +347,7 @@ function markdownRefusal(cwd, to, events, paths, config) {
 }
 
 // `**Base:**` records the remote base tip the base step merged into the scope branch
-// (`references/scope-mode.md` `## Bringing the scope branch to base`). `base resolve` prints the scope's
+// (`references/scope-branch.md` `## Bringing the scope branch to base`). `base resolve` prints the scope's
 // range base (`## The scope's range base`): the newer of `merge-base(base, branch)` and the recorded tip,
 // where the recorded tip counts only when it resolves and is an ancestor of the branch. Two candidates
 // where neither holds the other, or no usable record, print the merge-base. Like `suite set`, `base set`

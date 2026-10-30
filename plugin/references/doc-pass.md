@@ -165,7 +165,7 @@ agent-relevant detail second:
   new: stage it as today, with no `live-hash`. The call exiting non-zero — no credential, no `read` verb
   in the configured backend (a `## Commands` section with no `### read` subsection), or no reach — stages
   nothing for that page: record it as a degraded pass
-  (`references/scope-mode.md`'s `## Degraded passes`, "a pass that cannot complete its own work") —
+  (`references/scope-findings.md`'s `## Degraded passes`, "a pass that cannot complete its own work") —
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" degraded add '<title> not reconciled — the backend read
   was unavailable: <reason>' --root <run-root>` on a live scope run, the same line in your report instead
   on an ad-hoc pass with no run root. A **local file** backend reads its page straight off disk, per the

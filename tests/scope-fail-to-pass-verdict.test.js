@@ -225,7 +225,7 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     assert.deepEqual(s.runLines(), [`01 main run path pass ${s.tipSha} dirty tests/t.sh`], 'a moved HEAD reads dirty at the tip');
 
     // A control that does not pass records `unknown` with its exit status as the reason (INV-0139): the second run never happens.
-    // The scope run's first `unknown` is an observation naming the environment gap (references/scope-mode.md's `## Observations`).
+    // The scope run's first `unknown` is an observation naming the environment gap (references/scope-findings.md's `## Observations`).
     // The verb says so on stderr for that outcome alone, reading the run root's own trace, so a later `unknown` in the same
     // scope run, an outcome that reads a verdict, and a run outside every run root each say nothing.
     const firstUnknown = /the scope run's first unknown outcome[\s\S]*capture an observation naming the environment gap/;

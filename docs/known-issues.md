@@ -35,13 +35,13 @@ delegation that can deny, plus one at return that only warns. A SessionStart pre
 is informational, and its contribution is to the user-message stream the classifier reads, which is the
 leak above. A denial returns as a tool result carrying its reason, and three consecutive denials — or
 twenty in a session — stop the model and escalate to the human, while headless `claude -p` terminates
-instead. An unattended run stops itself before that, at the cap `references/scope-mode.md`'s
+instead. An unattended run stops itself before that, at the cap `references/scope-findings.md`'s
 `## Degraded passes` section states, so the stop happens through superdev's own block procedure and
 leaves a tracker record rather than a terminated session and a stranded run root (ADR 0041). The
 documented stage-2 false-positive rate is 0.4%, so a denial is not by itself evidence of a real hazard.
 Plugin subagents ignore the `permissionMode`, `hooks`, and `mcpServers` frontmatter fields, so superdev's
 own agents cannot change any of this; the levers are the consumer's `permissions.allow` and a copy of the
-agent under `.claude/agents/`. What the chain does about a denial is `references/scope-mode.md`'s
+agent under `.claude/agents/`. What the chain does about a denial is `references/scope-findings.md`'s
 `## Degraded passes`, and ADR 0039 records the decision.
 
 Verified 2026-08-23, against Anthropic's *How we built Claude Code auto mode* engineering post

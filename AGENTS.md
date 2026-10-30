@@ -75,7 +75,8 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          `kb-containment.js`, `kb-read.js`, `kb-report.js` (the parts of `publish-kb.js`).
   references/          — backend seed templates + the non-seed runtime references (plan-contract,
                          documentation convention, controlled-prose, content-types, doc pass, run init,
-                         run handoff, execution playbooks, test-selection, scope-mode, authoring
+                         run handoff, execution playbooks, test-selection, scope-mode with its split files scope-branch,
+                         run-state, scope-findings, and shipped-run, authoring
                          disciplines, intent handoff, prior-art audit, design sketch, diagnosis, prototype, merge-conflicts,
                          review-checklist, review-scope-mode, dod-ticks, response-shapes); its own AGENTS.md routes them
   scripts/             — the runtime CLIs: `scope.js`, `kb-patch.js`, `publish-kb.js`
@@ -342,7 +343,7 @@ This root owns every other subtree directly:
   (ADR 0013). A full-tier run queues the Minors of each Minor-only slice review. The queue is settled in one
   **Minor sweep** after the last slice merges. `scope.js minors add` writes the queue. A fix
   cycle whose list holds only Minors is a **Warm cycle**: it continues the previous fix implementer. The
-  sweep is `references/implement-full.md`'s `## Minor sweep`, the warm cycle `references/scope-mode.md`'s
+  sweep is `references/implement-full.md`'s `## Minor sweep`, the warm cycle `references/scope-findings.md`'s
   `## Warm cycles` (ADR 0174). Every command listed in `references/response-shapes.md`'s Next block section closes its last
   message with that block (ADR 0113), and an attended run first offers to start the one next command it names,
   per that file's `## The offer` (ADR 0157). Where the Claude desktop app's session tool is present, the offer

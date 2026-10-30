@@ -306,7 +306,7 @@ and the ready status/label marks a slice rather than the feature.
 `plan-contract.md` → *Triage record*. The scope review's fix loop, or the full tier's per-slice loop,
 creates one the moment it defers a finding; the controller creates one the same way the moment it meets an
 observation, and `/superdev:plan` the moment its interview places a found defect later
-(`references/scope-mode.md`'s `## Observations` section).
+(`references/scope-findings.md`'s `## Observations` section).
 On this store it is an ordinary issue in the configured project carrying the **Triage label** from
 *Configuration* and nothing else.
 
@@ -323,7 +323,7 @@ On this store it is an ordinary issue in the configured project carrying the **T
   Capture the
   returned `key` as the record's reference: **the deferred trigger** is what the deferring command puts in
   the ledger bullet; **an observation** instead reports that reference to the operator and writes no
-  ledger bullet of its own, since the record is its own identity (`references/scope-mode.md`'s
+  ledger bullet of its own, since the record is its own identity (`references/scope-findings.md`'s
   `## Observations` section). No issue link and no parent: a triage record belongs to no feature.
 - **List the records:**
   `GET <base>/rest/api/3/search/jql` with the JQL `project = <PROJ> AND (labels = "<triage>" OR
@@ -448,7 +448,7 @@ strike the other, so `docs/agents/issue-tracker.md` states one posture, not both
 reads this section for a single yes-or-no answer to "does this store carry a snapshot":
 
 - **Write** (after any ledger write the snapshot would show): the anchor description, folded per
-  `## Publishing run state`, through **Edit an issue's body** (*REST conventions*), the fold as its
+  `run-state.md`'s `## Publishing run state`, through **Edit an issue's body** (*REST conventions*), the fold as its
   producer — the same rule the Epic amendment under *Append mode* below uses. **Best-effort:** a failed
   write is reported once per run and the run continues; the ledger stays authoritative.
 - **Read** (every publish, including run init and adopting a run): `GET <base>/rest/api/3/issue/<key>?fields=description` — the same

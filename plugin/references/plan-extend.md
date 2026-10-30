@@ -38,7 +38,7 @@ or `closed` snapshot takes a **new feature** carrying `**Blocked by feature:** #
 (`plan-contract.md` → *Scope anchor*, ADR 0040), opened now. A shipped feature whose run root's `dod.md`
 holds a `not met:` line takes the **repair** choice instead (ADR 0124). A feature only its snapshot shows
 shipped reads those lines off the Definition-of-Done lines in the same body file, in place of `dod.md`.
-When none of those `not met:` notes carries `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **The
+When none of those `not met:` notes carries `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s **The
 repair citation**, the repair choice does not list the feature yet: name `/superdev:verify-ship <scope>`
 first, and the repair choice once verify-ship observes the line false.
 

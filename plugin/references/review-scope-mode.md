@@ -37,16 +37,16 @@ Each step below applies beside the skill's step of the same number. A departure 
 
 **The dispatch of `final-reviewer`.** Applies to every dispatch of `final-reviewer` in a scope review. `final-reviewer`'s `### What the dispatch hands you` and `### Run-trace findings` own each input's handling below. The dispatch hands these inputs. It restates none of those rules.
 
-- **Summary**: the scope anchor's title, from `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get anchor --root <run-root>` (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The ledger`). The verb prints `absent` → say so in one line and hand a diff-derived summary.
+- **Summary**: the scope anchor's title, from `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get anchor --root <run-root>` (`${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## The ledger`). The verb prints `absent` → say so in one line and hand a diff-derived summary.
 - **Acceptance**: the path `<run-root>/dod.md`, as §1 states.
 - **Range**: the whole scope range `<range-base>..<branch>` on every dispatch, a re-review after a fix cycle included (ADR 0137, INV-0143).
-- **Tier and run root**: the tier per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` (three or fewer slices is `lite`), and `<run-root>`.
+- **Tier and run root**: the tier per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` (three or fewer slices is `lite`), and `<run-root>`.
 - **Fix-cycle range**: a re-review hands the cycle's range `<cycle-base>..<cycle-tip>` as full commits.
 - **Suite result**: as the next concept states.
 
 **The re-review after a warm cycle.** Applies to the re-review of a fix cycle whose list held only Minor findings (ADR 0174). Message the reviewer of the fixed verdict with SendMessage. Name the cycle's range as full commits. That range is its subject in place of the whole range.
 
-- `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Warm cycles` owns when the reviewer resumes and when it dispatches fresh.
+- `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Warm cycles` owns when the reviewer resumes and when it dispatches fresh.
 - The continued reviewer restates each unclosable **Pass-to-pass** finding of its last verdict, its mark re-judged against the cycle's range (ADR 0193). §3's combined verdict and §4.7's early escape read the restated findings.
 
 **The suite result.** Applies to every dispatch of `final-reviewer` in a scope review. `final-reviewer`'s `### Suite run` owns the result's handling.
@@ -59,11 +59,11 @@ Each step below applies beside the skill's step of the same number. A departure 
 - **A `full`-tier scope** → dispatch `final-reviewer` alone and skip `superdev:simplicity-reviewer`, reporting `` not dispatched — full tier, covered per `behavior` slice `` (ADR 0037, ADR 0138). The skip holds on a re-review after a fix cycle too.
 - **A `lite` scope** takes no skip from this concept.
 - **A ledger with no slice rows** leaves the tier unknown → dispatch.
-- A denied `simplicity-reviewer` dispatch records no `**Degraded:**` entry (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes`).
+- A denied `simplicity-reviewer` dispatch records no `**Degraded:**` entry (`${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes`).
 
 **The slice reviewer for an Unreviewed slice.** Applies to §4.6's **Unreviewed slice** branch. Its `superdev:slice-reviewer` dispatch departs from the skill's exclusion of `slice-reviewer`.
 
-**A denied `final-reviewer` dispatch.** Applies beside the skill's degraded-pass step, on a live run. Write the `**Degraded:**` entry per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` with `scope.js degraded add-denial -`. Pipe the classifier's refusal through a quoted heredoc and never a shell argument. Publish the snapshot per that file's `## Publishing run state`.
+**A denied `final-reviewer` dispatch.** Applies beside the skill's degraded-pass step, on a live run. Write the `**Degraded:**` entry per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` with `scope.js degraded add-denial -`. Pipe the classifier's refusal through a quoted heredoc and never a shell argument. Publish the snapshot per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state`.
 
 - **`--unattended`** → read `scope.js get denials` after writing the entry, and **block** once the count reaches the cap in that section, instead of reviewing inline again.
 
@@ -99,7 +99,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 
 - **The scope checkout is not on `<type>/<scope>`** → report that and review read-only, writing nothing to the wrong branch.
 
-**The base.** Applies at a stage before `submitted`, read with `scope.js get stage --root <run-root>`. Run `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Bringing the scope branch to base` after the scope checkout and the run lock. It runs before the entry run of §4.2 (ADR 0173). Its own rules apply unchanged.
+**The base.** Applies at a stage before `submitted`, read with `scope.js get stage --root <run-root>`. Run `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Bringing the scope branch to base` after the scope checkout and the run lock. It runs before the entry run of §4.2 (ADR 0173). Its own rules apply unchanged.
 
 - The unchanged rules: conflict, numbering-collision, citation, unattended-block, and degraded-fetch.
 - A stop there ends the review with the scopetree clean.
@@ -125,7 +125,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - **The run never finished** (killed, or `unknown` in the run trace) → it carries no verdict (INV-0009). Hand `not run: never finished`, and continue. The exit run still gates the stage.
 - State the outcome in your own output: pass, fail, not run with its reason, or denied.
 
-**A denied entry run.** Applies to an entry run the permission classifier denies. It takes `## Degraded passes`'s second shape. Write the `**Degraded:**` entry, hand `denied`, and publish the snapshot before deciding the branch per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state`.
+**A denied entry run.** Applies to an entry run the permission classifier denies. It takes the second shape of `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes`. Write the `**Degraded:**` entry, hand `denied`, and publish the snapshot before deciding the branch per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state`.
 
 - The branches below deviate locally from that section's record-and-continue default.
 - **Attended** → continue.
@@ -154,18 +154,18 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - **Reused, pass, or `pass on rerun`** → go to §4.10's stage write. That run is the gate the stage advances on.
 - **Fail** → the failing-run concept above takes it.
 - **Never finished** (killed, or `unknown` in the run trace) → it carries no verdict (INV-0009). Record `none` at the tip, leave the stage where it is, run `step block`, and say the next `/superdev:review` runs it again.
-- **Denied** → record `denied`, write the `**Degraded:**` entry, and publish the snapshot per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state`. The stage stays where it is. **Attended** → continue to the report, which names the denied exit run. **Unattended** → **block**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unattended`.
+- **Denied** → record `denied`, write the `**Degraded:**` entry, and publish the snapshot per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state`. The stage stays where it is. **Attended** → continue to the report, which names the denied exit run. **Unattended** → **block**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unattended`.
 - **No test command configured** → record `none` and go to §4.10's stage write. This never blocks the review.
 
 ### 4.3 Observations
 
-**An observation.** Applies to a defect `final-reviewer`'s report surfaces, or a fix cycle meets, that no slice of this scope covers and the scope did not cause. Write its triage record at once per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations` (INV-0010). It never joins the fix list. The loop carries on without it.
+**An observation.** Applies to a defect `final-reviewer`'s report surfaces, or a fix cycle meets, that no slice of this scope covers and the scope did not cause. Write its triage record at once per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Observations` (INV-0010). It never joins the fix list. The loop carries on without it.
 
 ### 4.4 The fix boundary
 
-**The boundary.** Applies to a finding whose remedy adds a capability the Definition of Done never named. `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Deferred findings` owns the boundary and the record. Report the finding under `### Deferred to a plan` with the follow-up command. Give it a durable home before any ledger write.
+**The boundary.** Applies to a finding whose remedy adds a capability the Definition of Done never named. `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Deferred findings` owns the boundary and the record. Report the finding under `### Deferred to a plan` with the follow-up command. Give it a durable home before any ledger write.
 
-- `## Deferred findings` states the guard-rail remedy, the failure-mode class, the absorbed record, and the severity rule.
+- `scope-findings.md`'s `## Deferred findings` states the guard-rail remedy, the failure-mode class, the absorbed record, and the severity rule.
 
 **The deferral writes.** Applies to each deferred finding, in this order.
 
@@ -185,7 +185,7 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 
 **Re-entry.** Applies to a deferred finding that a later review names a guard-rail remedy for (ADR 0121, INV-0125), attended or unattended alike.
 
-- **The remedy adds no capability** → the finding joins the next cycle's fix list. The dispatch asks the fix implementer for the fixing commit. Resolve the finding by `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Deferred findings` procedure, in its order, once that report names the commit and a later re-review no longer lists the finding.
+- **The remedy adds no capability** → the finding joins the next cycle's fix list. The dispatch asks the fix implementer for the fixing commit. Resolve the finding by `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Deferred findings` procedure, in its order, once that report names the commit and a later re-review no longer lists the finding.
 - **The remedy still adds a capability** → the finding stays deferred.
 
 ### 4.5 The Definition-of-Done criteria
@@ -238,13 +238,13 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 - **`--unattended`** → fix every finding, Minors included, without asking. Every finding here leaves out unclosable ones.
 - **Fix only Critical and Important, with only unclosable or deferred ones among them** → the loop ends with no cycle and takes §4.7's early escape.
 - **A Missing fail-to-pass run finding in the chosen set** → it joins the **Confirmed** fix of §4.7, whose implementer runs the verb over the finding's range (ADR 0182). A slice whose ledger row records no range first has its range recorded: read the slice's commits from the scope branch's log, run `scope.js slice <id> merged --range <base>..<tip> --root <run-root>`, and name that range in the fix dispatch.
-- **An Unreviewed slice finding in the chosen set** → answer it yourself, with no implementer cycle. Dispatch `superdev:slice-reviewer` with an explicit `model`, handing it the slice's `spec`, `acceptance`, range, and progress-log path `<run-root>/reports/<id>/progress.md`, and tell it to run no test and read the slice's recorded runs from the run trace (ADR 0178, ADR 0182). The progress log is input for it to check against the code, not a verdict to adopt (INV-0020). Leave the finding off the **Confirmed** list, dispatching no implementer when no finding remains on it. The run trace records that dispatch on the slice, which closes the finding at the re-review.
+- **An Unreviewed slice finding in the chosen set** → answer it yourself, with no implementer cycle. Dispatch `superdev:slice-reviewer` with an explicit `model`, handing it the slice's `spec`, `acceptance`, range, and progress-log path `<run-root>/reports/<id>/progress.md`, and tell it to run no test and read the slice's recorded runs from the run trace (ADR 0178, ADR 0182). Before the dispatch, append the line `dispatch: slice-reviewer` to that progress log. Tell it the report contract of `slice-reviewer.md`'s `## Report`: it appends its full findings, with their remedies, to that progress log under the heading `Review — post-merge` and returns the summary that section lists, every item of it and no remedy. Read its entry under that heading below that line for any step that needs more than the summary. A review whose entry there is missing goes back to that same reviewer through SendMessage to append it before you act on the verdict. The progress log is input for it to check against the code, not a verdict to adopt (INV-0020). Leave the finding off the **Confirmed** list, dispatching no implementer when no finding remains on it. The run trace records that dispatch on the slice, which closes the finding at the re-review.
 
 **The standing-defect writes.** Applies to a stop with a finding standing: the Declined branch above, and the cap of §4.7.
 
 - Write the `**Unresolved:**` entry with a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) piped to `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add - --root <run-root>` (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`, triage #680).
 - **At a `submitted` stage**, also invalidate the tip's suite record with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set none <sha> --root <run-root>`, `<sha>` being the scope branch's current tip.
-- Publish the snapshot before stopping, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state`, and leave the stage where it is.
+- Publish the snapshot before stopping, per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state`, and leave the stage where it is.
 
 ### 4.7 Fix cycles
 
@@ -265,9 +265,9 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 - **Definition of Done**: the `<run-root>/dod.md` path plus exactly the lines this cycle unticked or found broken, a listed-lines case of `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s mapping gate.
 - **Sibling surfaces**: require the implementer to bring each sibling surface in its own checkout into agreement with the rule or behaviour its fix changes, and to report each place it checked and each it changed (INV-0120). It reports a place outside its checkout, the `AGENTS.md` hierarchy, and the knowledge base unedited (INV-0162).
 
-**A warm cycle.** Applies to a cycle whose list holds only Minor findings. Run it per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Warm cycles` (ADR 0174). The re-review's subject is §2's warm re-review range.
+**A warm cycle.** Applies to a cycle whose list holds only Minor findings. Run it per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Warm cycles` (ADR 0174). The re-review's subject is §2's warm re-review range.
 
-- `## Warm cycles` owns when a resume gives way to a fresh dispatch, the wait, what each resume message carries, and the continued `final-reviewer`.
+- `scope-findings.md`'s `## Warm cycles` owns when a resume gives way to a fresh dispatch, the wait, what each resume message carries, and the continued `final-reviewer`.
 
 **The report check.** Applies to each fix implementer's report, before the re-review.
 
@@ -289,7 +289,7 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 
 ### 4.8 Degraded fix dispatch and advisory notes
 
-**A denied fix implementer.** Applies when the permission classifier denies the fix implementer's dispatch. Follow `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes`. Write the `**Degraded:**` entry either way with `scope.js degraded add`. Publish the snapshot per `## Publishing run state`.
+**A denied fix implementer.** Applies when the permission classifier denies the fix implementer's dispatch. Follow `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes`. Write the `**Degraded:**` entry either way with `scope.js degraded add`. Publish the snapshot per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state`.
 
 - The fix implementer is an authoring dispatch and none of the three the cap counts.
 - **Attended** → apply the fix inline yourself and say so in §3's report.
@@ -334,7 +334,7 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 - **`documented` or `submitted`** → write one `**Unresolved:**` entry per unticked `docs` line, worded exactly `docs criterion unmet after the doc pass: <criterion>`, through a quoted heredoc piped to `scope.js unresolved add - --root <run-root>`. At `submitted`, also invalidate the tip's suite record as §4.6's standing-defect writes state.
 - **`shipped` or `closed`** → write no `**Unresolved:**` entry, invalidate no suite record, and change no route. Name each unticked `docs` line in your report instead. The `/superdev:document` this block prints at that stage judges no `docs` line.
 
-**The snapshot.** Applies after any write above: `unresolved clear`, the stage write, `docs clear`, `unresolved add`, and `suite set` alike. Publish it per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state`.
+**The snapshot.** Applies after any write above: `unresolved clear`, the stage write, `docs clear`, `unresolved add`, and `suite set` alike. Publish it per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state`.
 
 **The closing message.** Applies to the message this review ends on. The skill's closing-message concept requires the Next block. Call this conversation disposable first. The block names the command by the cases below.
 

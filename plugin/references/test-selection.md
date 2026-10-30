@@ -300,7 +300,7 @@ prose-only, or gutted by a hand edit — is not this case: every caller reads it
 absent file, with no suite to run.
 
 A caller that stops here runs no suite and records a **degraded pass** rather than a silent skip, per
-`references/scope-mode.md`'s `## Degraded passes` — the "pass that cannot complete its own work" shape.
+`references/scope-findings.md`'s `## Degraded passes` — the "pass that cannot complete its own work" shape.
 A caller with no run root has no ledger to write `scope.js degraded add` to, so it takes only that
 shape's report half: say so in its own output. A standalone `/superdev:review`
 on an unmigrated repository is exactly this caller: it falls outside the auto-invoke argument — neither

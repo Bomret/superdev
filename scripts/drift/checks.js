@@ -17,6 +17,7 @@ const {
   scanAdrNumbers,
   scanAdrRelations,
   scanCommandRefs,
+  scanHeadingCitations,
   scanGovernedSkillFiles,
   scanKbNoBackendCall,
   scanAgentToolAgnostic,
@@ -65,6 +66,15 @@ module.exports = [
     ok: 'references resolve',
     run: scan,
     format: (m) => `missing ${m.reference} — referenced by ${m.source}`,
+  },
+  {
+    id: 'heading-citation',
+    ok: "every \"`<file>.md`'s `## Heading`\" citation and every section map entry names a heading the file carries",
+    run: scanHeadingCitations,
+    format: (c) =>
+      c.missing
+        ? `${c.source} cites ${c.cited}, which resolves to no file`
+        : `${c.source} cites ${c.cited}'s \`${c.heading}\`, which ${c.cited} does not carry at that level`,
   },
   table(
     'source-sections',

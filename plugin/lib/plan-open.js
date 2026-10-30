@@ -1,7 +1,7 @@
 'use strict';
 
 // plan-open.js: the `open` verb, which sets up or rejoins a `/superdev:plan` run in one idempotent call — the lock
-// check, the cut or reuse of the scope branch (references/scope-mode.md `## Cutting the scope branch`), the run
+// check, the cut or reuse of the scope branch (references/scope-branch.md `## Cutting the scope branch`), the run
 // lock, the empty `planned` ledger, and the plan step.
 
 const crypto = require('crypto');
@@ -125,7 +125,7 @@ function cut(cwd, branch, base, remote, scopetree) {
   const dirty = git(['status', '--porcelain'], scopetree);
   if (dirty.status !== 0) fail(`open: git status in ${scopetree} failed`);
   if (dirty.stdout.trim()) return stop('dirty', [`the scopetree ${scopetree} holds uncommitted changes:`, ...dirty.stdout.trimEnd().split('\n').map((l) => `  ${l}`)]);
-  // The one reset `## Cutting the scope branch` permits: on a branch containment has just proved contained.
+  // The one reset scope-branch.md's `## Cutting the scope branch` permits: on a branch containment has just proved contained.
   gitOrFail(['reset', '-q', '--hard', judged.judgedBase], scopetree, `git reset --hard ${base}`);
   return { word: 'reused' };
 }

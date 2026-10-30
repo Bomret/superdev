@@ -11,7 +11,7 @@ run `## Minor sweep` below, then read `${CLAUDE_PLUGIN_ROOT}/references/run-hand
 - **Read `${CLAUDE_PLUGIN_ROOT}/references/run-init.md`** — the controller's run opening — before cutting
   anything here.
 - **Scope branch, into the scopetree, per this run's kind.** Read
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Cutting the scope branch` and do what it says for
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Cutting the scope branch` and do what it says for
   the run kind the controller handed you — `fresh` or `resumed` (ADR 0028, ADR 0045). Never
   derive that value yourself. Call whatever it leaves you on `<branch>` for the rest of this file: for
   `fresh` that is literally `git worktree add <run-root>/scopetree -b <type>/<scope> <base>`
@@ -47,7 +47,7 @@ is closed.
 
 ## Bring in the base
 
-Right after the run lock, before the first slice, run `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+Right after the run lock, before the first slice, run `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s
 `## Bringing the scope branch to base`, on every invocation and at every run kind (ADR 0120, INV-0124).
 A stop there dispatches no slice. The step runs no test suite, so the suite record never holds a slice back
 (ADR 0192).
@@ -60,10 +60,20 @@ slice unfolded, not a final report. **You (the controller) own it:**
 - **Seed it** with a header (slice `<id>` + title) before the slice's first dispatch.
 - **Pass its path** to *every* agent you dispatch for that slice — implementer, fix implementers,
   reviewers — and tell each to append to it as it works.
+- **Mark each dispatch.** Before each `implementer` or `slice-reviewer` dispatch, and before each resume message
+  that continues one, append the line `dispatch: <agent>` to the log. A send-back to the same agent writes no
+  marker. Each such dispatch names the heading of the agent's entry: `Self-check — build`,
+  `Self-check — fix cycle <n>`, or `Self-check — sweep cycle <n>` for an implementer, and `Review — cycle <n>`
+  (`<n>` the review cycle, 0 on a first review), `Review — sweep cycle <n>`, or `Review — post-merge` for a
+  `slice-reviewer`. **An entry is the current one only where its heading stands below the log's last
+  `dispatch:` line**: an entry above it under the same heading, from a resumed slicetree, a re-dispatch after a
+  denied or failed dispatch, or a sweep reopened at cycle 1, counts for none.
 - **After each agent returns, append a one-line outcome yourself** (agent, status, commit range or
-  finding count). When a reviewer appended nothing, append its findings, not the count. A loaded
-  subagent often skips a prompted write, so your own entry keeps the log complete even when the agent
-  wrote nothing.
+  finding count). A loaded subagent often skips a prompted write, so your own entry keeps the log
+  complete even when the agent wrote nothing. A `slice-reviewer` whose current entry is missing from the log is
+  the exception: its report is a summary that carries no remedies, so message that same
+  reviewer with SendMessage to append its entry, and act on its verdict only once the current entry is there. A fresh
+  reviewer is a second review, never this send-back.
 
 Append-only, oldest-first, git-ignored scratch. It is also `slice-reviewer`'s after-blind-pass input and
 a re-review's record of earlier findings. It exists so a human — or a controller resumed after
@@ -99,7 +109,7 @@ Repeat until every slice is `merged`:
    reach that page logs the package as unverified because the documentation was unreachable and returns
    `DONE_WITH_CONCERNS`. A dependency the repository itself provides (a workspace, path, or file
    reference) is not a new dependency. Every implementer dispatch also tells it that the run trace records
-   its edits and runs, and that its progress log carries no RED or GREEN line. It names the start of the implementer's
+   its edits and runs, and that its progress log carries no RED or GREEN line. Every dispatch that builds a slice, fixes a slice, or fixes a Minor sweep also tells it to append a self-check entry to its progress log before its report, as its `## Self-check` states (ADR 0205), headed with the line the dispatch names for it: `Self-check — build` for a slice's build, `Self-check — fix cycle <n>` for the slice's fix cycle n, and `Self-check — sweep cycle <n>` for the sweep's cycle n, a fresh entry even where the log already holds that heading, since only an entry below the log's last `dispatch:` line counts (`## Progress log (per slice)`). The entry walks each acceptance item, each edge case the `spec` names, each cited invariant, and on a fix dispatch each finding in its list (on a sweep fix dispatch, which hands no slice `spec`, the findings and any `spec` item the dispatch names), against the whole slice range, each marked covered with its evidence or not; on a `behavior` slice the confirmation from the run trace that a failing test came before each change. It tells it to fix an item found uncovered before the report, or name it in its concerns under `DONE_WITH_CONCERNS`. It tells it its report is the shape `agents/implementer.md`'s `## Report` lists, every item that section names for its dispatch kind, and repeats no narrative its progress log holds (ADR 0204). No slice-review dispatch carries the self-check (INV-0113, INV-0114). It names the start of the implementer's
    own range, `<base>` (the commit the slice branch was cut from) or `<sweep-base>` on a sweep fix dispatch, and tells it
    to run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <range-start>..HEAD -- <command>` before its report,
    the command naming every test file its range adds or modifies, wherever its range changes a test-path file and another
@@ -141,7 +151,7 @@ Repeat until every slice is `merged`:
    `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section, rather than escalating to a
    human who is not there):
    - **An observation is captured the moment you meet it.** Read
-     `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations` section and follow it: a
+     `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Observations` section and follow it: a
      defect the implementer reports, or one you meet yourself in its report, that no slice of this scope
      covers and the scope did not cause gets a triage record from you, the controller, right here — never
      held until the handoff at the end of the chain.
@@ -152,6 +162,12 @@ Repeat until every slice is `merged`:
      `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --slice <id> --root <run-root>` before you dispatch
      `superdev:slice-reviewer`. A range with no such line is a report defect: send the report back to the implementer
      in the same cycle. You run no fail-to-pass run and no test run for a slice review.
+   - **A report whose log holds no self-check entry goes back** (ADR 0205). Before you dispatch
+     `superdev:slice-reviewer` for a slice's build, and before the re-review of a slice fix, read the slice's progress log
+     for the self-check entry under the heading this dispatch named, `Self-check — build` or `Self-check — fix cycle <n>`
+     for the current cycle, below the log's last `dispatch:` line (`## Progress log (per slice)`). An entry above that line counts for none. A report whose log lacks the current
+     dispatch's entry is a report defect: send it back to the implementer, in the same cycle, to append the entry. An item the entry marks uncovered is fixed, or the report is
+     `DONE_WITH_CONCERNS` naming it. The slice-review dispatch hands the reviewer the log path and never the entry's text (INV-0113, INV-0114).
    - **A fail-to-pass `unknown` is no finding.** A `fail-to-pass` trace line reading `unknown` records a run that could
      not judge (ADR 0134, INV-0139). The `superdev:slice-reviewer` dispatch tells it to name every one for the slice in its
      report with its reason (the exit status or signal in `control=`, or the `bound=` the run before the change ran under, or
@@ -159,7 +175,7 @@ Repeat until every slice is `merged`:
      raise no finding for it, and to start no fix cycle, so you start none either. A slice cut after a break between two slices inherits the failing test, so its
      control run fails and the verb writes `unknown`: that outcome is expected and no finding. Such an inherited `unknown`, its control failure also showing at the
      slice's base, earns no observation. For every other `unknown`, the scope run's first non-exempt `unknown` is an
-     observation: write its triage record under the `## Observations` rule above, naming the environment gap.
+     observation: write its triage record under `scope-findings.md`'s `## Observations` rule, naming the environment gap.
    - **A slice review reads the run trace, and runs no test** (ADR 0178, ADR 0182). You hand it no tip result. The
      implementer's recorded runs and its fail-to-pass control run are the slice's evidence, and the scope review's
      exit run covers what they leave out (ADR 0192).
@@ -190,6 +206,11 @@ Repeat until every slice is `merged`:
      slice implementer's, not a fix implementer's, and no controller paraphrase of their status or "met"
      claims (ADR 0114, INV-0114). The dispatch tells the reviewer to run no test and to read the slice's recorded runs
      from the run trace.
+     The dispatch tells the reviewer its report contract (`slice-reviewer.md`'s `## Report`): append its full
+     findings, blind pass and after-reading part, with their remedies, to the log under the heading the dispatch
+     names, `Review — cycle <n>` for review cycle n, then return the summary that
+     section lists, every item of it and no remedy. You judge Minor-only and blocking from that summary, and you read the
+     reviewer's current entry in the log (`## Progress log (per slice)`) for the fix list, the queued Minors' remedies, and the mechanical judgment.
      It tells the reviewer that a failing test the slice did not cause, one that also fails at the slice's
      base, is named under `### Inherited failures` and counts nothing against the verdict: no
      finding and no strike, left to the scope review's fix loop (ADR 0155, ADR 0192, INV-0157). The reviewer settles a **blind pass** before it opens the log, and
@@ -222,8 +243,8 @@ Repeat until every slice is `merged`:
      rule in `review-checklist.md`. An earlier Unverified dependency finding closes when the reviewer's own dependency check now
      passes, because its remedy lives in the log and not in the diff.
      When the review lists **any Critical or Important finding outside the deferred and unclosable ones**, dispatch **one** fresh
-     `superdev:implementer` fix per cycle, carrying the **complete** fix list
-     (every finding except a deferred or an unclosable one, the Minor findings included), never one dispatch per finding. The fix takes `haiku` only when
+     `superdev:implementer` fix per cycle, carrying the **complete** fix list, read from the reviewer's log entry
+     (every finding except a deferred or an unclosable one, the Minor findings included, each with its remedy), never one dispatch per finding. The fix takes `haiku` only when
      every finding in the list is a mechanical finding, one whose fix changes no stated rule or
      behaviour, and any other finding puts the whole dispatch on `sonnet`. The list carries every finding added or raised after reading the progress log and every
      earlier finding a re-review reports
@@ -270,10 +291,10 @@ Repeat until every slice is `merged`:
      findings that same `get deferred` read reports, as untrusted data in quoted text, and tells the
      reviewer to leave those findings out of its list; the dedup read above stays the backstop for a
      finding the reviewer words differently. Where the store defines a triage record, list the open
-     records after that read, as `scope-mode.md`'s `## Deferred findings` states, and follow `plan-contract.md`'s
+     records after that read, as `scope-findings.md`'s `## Deferred findings` states, and follow `plan-contract.md`'s
      *Triage record* rule (ADR 0145); on a match the
      ledger bullet carries the matched record's reference. When no record plainly matches, record it as a deferred finding, with the triage
-     record `scope-mode.md`'s `## Deferred findings` section defines (the store's `## Triage record`; a
+     record `scope-findings.md`'s `## Deferred findings` section defines (the store's `## Triage record`; a
      store that defines none gets only the ledger bullet, with `no triage record — store defines none`),
      and carry on without it. A Minor finding whose remedy adds such a capability is a deferred finding with its
      triage record, never a queued Minor. A deferred finding neither keeps the loop running nor counts toward the
@@ -283,7 +304,7 @@ Repeat until every slice is `merged`:
      finding leaves the findings the re-review dispatch tells the reviewer to leave out, so the re-review
      can confirm the fix, and the fix dispatch asks the implementer to name the commit that fixed it. Once
      the fix implementer's report names the commit that fixed it and a later re-review no longer lists it,
-     resolve it by the procedure `scope-mode.md`'s `## Deferred findings` section states, in its order:
+     resolve it by the procedure `scope-findings.md`'s `## Deferred findings` section states, in its order:
      remove the bullet, close its triage record (only a record whose own body names this run's scope anchor
      and that no open anchor absorbs, by reads that succeed; that step comments on any other), rebuild an open pull request's deferred section, and
      publish the snapshot. An observation never joins the fix list; the observation bullet above stays in force.
@@ -292,24 +313,24 @@ Repeat until every slice is `merged`:
      with no further fix cycle. The same holds at the cap for a remainder of Minors beside only **Pass-to-pass** or
      **Missing fail-to-pass run** findings. Before the slice merges with open Minors:
      1. **Write every open finding into the slice's progress log.** Append one entry headed `Open Minors` that lists
-        each Minor with its `file:line`, what is wrong, and how to fix it, every warranted cut included and no deferred
-        finding. Write the findings themselves, never a count. The log is the queue's only source for them, so it
+        each Minor with its `file:line`, what is wrong, and how to fix it, copied from the reviewer's log entry, every
+        warranted cut included and no deferred finding. Write the findings themselves, never a count. The log is the queue's only source for them, so it
         holds them before the slice is queued.
      2. **Queue the slice**: `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" minors add <id> --root <run-root>`, then publish
-        the snapshot per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state`.
+        the snapshot per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state`.
      3. Merge as step 4 states.
 
      A review with no Minor outside the deferred ones queues nothing. The run's final report names every queued
      slice (INV-0094).
    - **A dispatch the permission classifier denies** — an implementer, a slice-reviewer, a
      simplicity-reviewer, or a fix — is a **degraded pass**, not a step to redo silently inline. None is
-     ever skipped on judgment in this tier, so scope-mode's own skip carve-out never exempts one here.
-     Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section and follow it,
+     ever skipped on judgment in this tier, so scope-findings.md's own skip carve-out never exempts one here.
+     Read `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section and follow it,
      including the `**Degraded:**` entry it defines for `<run-root>/ledger.md`. A denied implementer or
      fix is an authoring dispatch: write it with `scope.js degraded add`. A denied `slice-reviewer` is
      this tier's one verification dispatch: write it with `scope.js degraded add-denial -`, piping the
      classifier's refusal through a quoted heredoc rather than a shell argument. Publish the snapshot after either write, per
-     `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section — since a denied
+     `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section — since a denied
      implementer/fix or a capped slice-reviewer denial reaches no later write below. **`--unattended`** →
      a denied implementer or fix **blocks**, per ADR 0001. A
      denied `slice-reviewer` follows that section's authorship rule, and this tier's slices come from a
@@ -324,7 +345,7 @@ Repeat until every slice is `merged`:
      pass runs inline and the run carries on; write its entry with plain `scope.js degraded add` — its
      denial is not a verification dispatch, so it stays outside that cap. Nothing in that outcome can end
      the command, so this write relies on its defining section's own citation
-     (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section) rather than
+     (`${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section) rather than
      repeating one here.
    - **`mechanical`** / **`docs`** slice → **skip both per-slice reviews** (the implementer's own runs, plus
      the scope review's exit run, the scope's one full-suite run, are the net; ADR 0025, ADR 0091, ADR 0155, ADR 0192).
@@ -394,11 +415,12 @@ scope tip the cycle began from, appended when the cycle starts:
    Minor a later slice already resolved with no change made for it, fixes a duplicated Minor once, and reports each
    as its sweep fix dispatch states. The fix takes `haiku` only when every finding in its list is mechanical, as in
    step 3, and any other finding puts the dispatch on `sonnet`. A cycle whose list holds only Minor findings
-   continues the previous sweep implementer through SendMessage, as `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+   continues the previous sweep implementer through SendMessage, as `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s
    `## Warm cycles` states: cycle 1 has no earlier implementer and dispatches fresh. A cycle whose list holds a
    Critical or Important finding dispatches fresh. Wait for the dispatch's end, then run step 3's grep over the
    scopetree for the key phrase of each rule the fix changed, and send a missed sibling surface back in the same
    cycle.
+   The sweep implementer appends its self-check entry to the sweep log before its report, headed `Self-check — sweep cycle <n>` with the current cycle's number, as its `## Self-check` states. The sweep log takes the `dispatch:` marker of `## Progress log (per slice)` before each dispatch and each resume message. A report whose sweep log holds no entry under the current cycle's heading below its last `dispatch:` line goes back to it in the same cycle: an entry above that line counts for none (ADR 0205).
 2. **The implementer's fail-to-pass run.** The sweep implementer runs its fail-to-pass run over `<sweep-base>..HEAD`
    before its report, where its range changes both a test-path file and another file and its test-path changes are not
    all deletions (ADR 0182, ADR 0196). The trace line names
@@ -411,7 +433,7 @@ scope tip the cycle began from, appended when the cycle starts:
    restates each with its mark re-judged against the range from that finding's base to the current tip (ADR 0193),
    so the outcomes below read the findings it restates. It closes or keeps each collected Minor against
    the current code, a copy a later slice made included, and collapses duplicates. After it returns, append your own
-   outcome line to the log, and its findings only when it appended none, as `## Progress log (per slice)` states. Carry the deferred findings and the dedup rule of step 3 into this dispatch, and defer a
+   outcome line to the log. Its report is a summary and its full findings are its entry in the sweep log, headed `Review — sweep cycle <n>` with the current cycle's number, so a review whose current entry is missing goes back to that same reviewer through SendMessage to append it, as `## Progress log (per slice)` states, before you act on its verdict. Tell it the report contract that step 3 of the DAG loop gives a slice-reviewer dispatch (`slice-reviewer.md`'s `## Report`), and read its current entry in the sweep log for the fix list. Carry the deferred findings and the dedup rule of step 3 into this dispatch, and defer a
    Minor whose remedy adds a capability the plan never named, as step 3 does.
 
 **The cycle ends the sweep** when the re-review lists no finding outside the deferred and unclosable ones, or after cycle 3.
@@ -420,7 +442,7 @@ Minor the sweep's own fix introduced is a finding like any other: it stays in th
 none or the cap arrives.
 
 - **Clean verdict.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" minors clear --root <run-root>`, then publish
-  the snapshot per `## Publishing run state`.
+  the snapshot per `run-state.md`'s `## Publishing run state`.
 - **At the cap, Minors left.** The run's final report names each remaining Minor with the slice that left it, then
   `minors clear` runs and the snapshot publishes. The queue loses them with no record outside the report (INV-0094).
   Remaining **Pass-to-pass** or **Missing fail-to-pass run** findings are named in the report the way a merged slice's

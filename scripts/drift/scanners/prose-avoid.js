@@ -191,7 +191,7 @@ function scanDeployRunnerExclusivity(root) {
   return gaps;
 }
 
-// ADR 0192, INV-0128: implement runs no full or whole-repo suite, so its base step (`scope-mode.md`'s section alone), run
+// ADR 0192, INV-0128: implement runs no full or whole-repo suite, so its base step (`scope-branch.md`'s section alone), run
 // handoff, and both execution playbooks instruct none. A negation in the same sentence or clause excuses the hit: `no`
 // directly before it, or `not`, `never`, `nor`, or `without` at most one word (the negated verb) before it. One heading a
 // list of code spans excuses it too ("never `test full`, `test whole`, or a `test focused` with no path"). A `no` a word

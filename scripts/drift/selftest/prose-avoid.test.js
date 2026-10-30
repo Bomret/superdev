@@ -292,7 +292,7 @@ module.exports = ({ assert, path, fixture, found }) => {
   // --- implement-no-full-run (ADR 0192, INV-0128): implement's base step, run handoff, and both playbooks instruct no full or whole-repo run ---
 
   const noFull = (files) => found(scanImplementNoFullRun(fixture(files)));
-  const baseStep = (body) => '# Scope mode\n\n## Bringing the scope branch to base\n\n' + body + '\n## The scope\'s range base\n\nDone.\n';
+  const baseStep = (body) => '# Scope branch work\n\n## Bringing the scope branch to base\n\n' + body + '\n## The scope\'s range base\n\nDone.\n';
   const fullDocs = ['references/run-handoff.md', 'references/implement-full.md', 'references/implement-lite.md'];
   const hits = [
     ['Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full` in the scopetree.\n', 'a `scope.js test full` call'],
@@ -339,12 +339,12 @@ module.exports = ({ assert, path, fixture, found }) => {
     assert.equal(noFull({ [rel]: '```\nscope.js test full\n```\n' }).length, 0, `${rel}: a fenced example is masked`);
   }
   for (const [text, label] of hits) {
-    assert.equal(noFull({ 'references/scope-mode.md': baseStep(text) }).length, 1, `scope-mode base step: flags ${label}`);
+    assert.equal(noFull({ 'references/scope-branch.md': baseStep(text) }).length, 1, `scope-branch base step: flags ${label}`);
   }
   assert.equal(
-    noFull({ 'references/scope-mode.md': baseStep('The step runs no test suite.\n') + '## Review\n\nThe review runs `scope.js test full` at its exit.\n' }).length,
+    noFull({ 'references/scope-branch.md': baseStep('The step runs no test suite.\n') + '## Review\n\nThe review runs `scope.js test full` at its exit.\n' }).length,
     0,
-    'scope-mode text outside the base-step section stays unscanned',
+    'scope-branch text outside the base-step section stays unscanned',
   );
   assert.equal(
     noFull({ 'references/review-scope-mode.md': 'Run `scope.js test full`.\n', 'skills/ship/SKILL.md': 'Run the full command.\n' }).length,
@@ -352,12 +352,12 @@ module.exports = ({ assert, path, fixture, found }) => {
     'other documents are not read',
   );
   assert.deepEqual(
-    scanImplementNoFullRun(fixture({ 'references/scope-mode.md': '# Scope mode\n\n## Other\n\nText.\n' })).filter((g) => g.source === path.join('references', 'scope-mode.md')),
-    [{ source: path.join('references', 'scope-mode.md'), expectation: 'carry a `## Bringing the scope branch to base` section for implement-no-full-run to scan' }],
-    'a scope-mode.md without the base-step section is a gap',
+    scanImplementNoFullRun(fixture({ 'references/scope-branch.md': '# Scope branch work\n\n## Other\n\nText.\n' })).filter((g) => g.source === path.join('references', 'scope-branch.md')),
+    [{ source: path.join('references', 'scope-branch.md'), expectation: 'carry a `## Bringing the scope branch to base` section for implement-no-full-run to scan' }],
+    'a scope-branch.md without the base-step section is a gap',
   );
   assert.deepEqual(
-    scanImplementNoFullRun(fixture({ 'references/scope-mode.md': baseStep('No run.\n'), 'references/implement-full.md': 'x\n', 'references/implement-lite.md': 'x\n' })),
+    scanImplementNoFullRun(fixture({ 'references/scope-branch.md': baseStep('No run.\n'), 'references/implement-full.md': 'x\n', 'references/implement-lite.md': 'x\n' })),
     [{ source: path.join('references', 'run-handoff.md'), missing: true }],
     'a missing document is a missing-document gap',
   );

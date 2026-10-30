@@ -132,7 +132,7 @@ Hand each dispatch its batch of source paths and the repository's whole test-fil
 argument never narrows. Its two categories are its
 whole set — `untested` and `missing case` — and this dispatch asks for both.
 
-**A denied dispatch is a degraded pass.** Follow `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+**A denied dispatch is a degraded pass.** Follow `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s
 `## Degraded passes` section: do that audit, or that batch, inline yourself, and say so in the report.
 This command has no run root, so that section's own rule applies — report the degraded pass in this
 output and write no ledger entry.
@@ -145,7 +145,7 @@ output and write no ledger entry.
   unreached, with its directories, so the operator can re-run on that path.
 
 **An observation is captured the moment you meet it.** Read
-`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations` section and follow it: a defect an
+`${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Observations` section and follow it: a defect an
 auditor's report surfaces, or one you meet yourself sweeping inline, that is no finding of this audit
 gets a triage record from you, the controller, right here — never held until §4's report.
 

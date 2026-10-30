@@ -264,7 +264,7 @@ records `unknown`. Otherwise the tree is `clean`. A run ended by a signal, or on
 (ADR 0175). The outcome line itself is no
 `run` line, so it moves no suite record. The trace's first `unknown` of any kind draws a
 stderr note that tells the caller to report it, so the controller captures an observation. The observation goes to the scope run's first non-exempt
-`unknown` (`references/scope-mode.md`, `## Observations`). An inherited `unknown` earns none. A slice cut after a break
+`unknown` (`references/scope-findings.md`, `## Observations`). An inherited `unknown` earns none. A slice cut after a break
 between two slices inherits that failing test, and its control failure also shows at the slice's base. The note can
 therefore name an exempt one.
 
@@ -292,7 +292,7 @@ set, and so is an index entry that is no regular file on disk (a submodule gitli
 `/superdev:review-tests` §1 calls it. The classification lives in `plugin/lib/source-set.js`.
 
 `push --root <run-root> --remote <remote> --base <base-ref>` puts the scope branch on the remote and writes nothing to the
-ledger (ADR 0167, INV-0169). `/superdev:plan` §6 calls it, and `plugin/references/scope-mode.md`'s
+ledger (ADR 0167, INV-0169). `/superdev:plan` §6 calls it, and `plugin/references/scope-branch.md`'s
 `## Pushing the scope branch` states the rule plan follows. The verb reads the branch from the ledger's `**Branch:**` line,
 fetches the remote branch, and decides the push mode from the fetched tip's full commit id, never from the branch name,
 which resolves to the local branch first. It makes a plain push with `-u` when the remote holds no such branch or its tip is
@@ -310,7 +310,7 @@ kill signal, the refetch of `<base-ref>` inside the containment test included. `
 
 `open <type>/<slug> --base <base-ref> [--remote <remote>] [--lock <nonce>]` sets up or rejoins a `/superdev:plan` run
 (ADR 0185). `/superdev:plan` §2 calls it at the first capture that crystallises, and §6 calls it again. With no ledger, or
-a `closed` one, it cuts the branch from `<base-ref>` into `<run-root>/scopetree` by `plugin/references/scope-mode.md`'s
+a `closed` one, it cuts the branch from `<base-ref>` into `<run-root>/scopetree` by `plugin/references/scope-branch.md`'s
 `## Cutting the scope branch` and prints `cut`. Where the name exists, `judgeContainment` decides: a contained branch is
 attached to the scopetree, checked clean, reset to the base it was judged against, and prints `reused`. A `planned`
 ledger naming the same branch prints `existing` and cuts nothing, attaching the branch where the scopetree is absent. On
@@ -867,7 +867,8 @@ path, when that document is missing. A check that walks a directory reads whatev
 | Check | What it tests | Class |
 |-------|---------------|-------|
 | `reference` | every `references/*.md` path that `skills/`, `agents/`, or `references/` names exists | structural |
-| `source-sections` | `plan-contract.md`, `test-selection.md`, `content-types.md`, `controlled-prose.md`, `review-checklist.md`, and `scope-mode.md`'s `## Pushing the scope branch`, and each agent body another file cites by heading, still carry each section a reader is sent to, by heading | structural |
+| `heading-citation` | every "`<file>.md`'s `## Heading`" citation (heading level two to four) in `skills/`, `agents/`, or `references/` prose names a heading the cited file carries at that level, whitespace collapsed so a wrapped heading matches; a bare file name resolves in `references/`, then `agents/`, then the repository root, and a file that resolves nowhere is a finding too, except a `references/<name>.md` path, which the `reference` check reports. A section-map entry (a list item of a file name and its headings) counts as a citation of each heading it lists | structural |
+| `source-sections` | `plan-contract.md`, `test-selection.md`, `content-types.md`, `controlled-prose.md`, `review-checklist.md`, and `scope-branch.md`'s `## Pushing the scope branch`, and each agent body another file cites by heading, still carry each section a reader is sent to, by heading | structural |
 | `command-resolution` | every `/superdev:<name>` a skill or agent names has a `skills/<name>/SKILL.md` | structural |
 | `governed-skill-files` | every backticked path in `CONTEXT.md`'s **Prompt concept** entry, the list of governed skill files, names a file (ADR 0190) | structural |
 | `audit-set-globs` | `docs/agents/documentation.md` carries `## Audit set`, and every pattern listed there matches a file | structural |
@@ -895,7 +896,7 @@ path, when that document is missing. A check that walks a directory reads whatev
 | `derive-no-dod` | plan's derive dispatch bullet hands `final-reviewer` no Definition of Done, and `final-reviewer`'s `## Derive mode` reads none (INV-0158, ADR 0158) | prohibition |
 | `unmapped-paths-form` | `skills/setup/SKILL.md` and `references/test-selection.md` propose no `{paths}` form to a runner that maps no source file to its tests (ADR 0074) | prohibition |
 | `doc-setup-no-test-run` | `skills/document/SKILL.md`, `skills/setup/SKILL.md`, `agents/doc-writer.md`, `agents/doc-reader.md`, and `references/doc-pass.md` instruct no test run: no `scope.js test` or `scope.js fail-to-pass` call, and no run of the full, focused, whole-repo, or affected command; a sentence stating that no test runs passes, its negation (`no`, `not`, `never`, `without`, `nor`) at most one word before the hit, past an opening quote or backtick (ADR 0189, INV-0175) | prohibition |
-| `implement-no-full-run` | implement's base step (`references/scope-mode.md`'s `## Bringing the scope branch to base` section alone), `references/run-handoff.md`, `references/implement-full.md`, and `references/implement-lite.md` instruct no full or whole-repo run: no `scope.js test full` or `scope.js test whole` call, no `test focused` with no path, no run, rerun, execution, or invocation of the full or whole-repo command or suite, no gate on one, and no such command or suite as the subject of `runs` up to two words later; a `no` directly before the hit or its article, a `not`, `never`, `nor`, or `without` at most one word before it, or a negation heading a list of code spans excuses it, and the rest of `scope-mode.md` stays unscanned (ADR 0192, INV-0128) | prohibition |
+| `implement-no-full-run` | implement's base step (`references/scope-branch.md`'s `## Bringing the scope branch to base` section alone), `references/run-handoff.md`, `references/implement-full.md`, and `references/implement-lite.md` instruct no full or whole-repo run: no `scope.js test full` or `scope.js test whole` call, no `test focused` with no path, no run, rerun, execution, or invocation of the full or whole-repo command or suite, no gate on one, and no such command or suite as the subject of `runs` up to two words later; a `no` directly before the hit or its article, a `not`, `never`, `nor`, or `without` at most one word before it, or a negation heading a list of code spans excuses it, and the rest of `scope-branch.md` stays unscanned (ADR 0192, INV-0128) | prohibition |
 | `observation-no-suite-run` | `references/review-scope-mode.md`'s `### 4.3 Observations` section names no suite run as an observation's source: no suite, test, entry, exit, focused, or full run, no `§4.2` citation, and no failing test or failing run, so a failing test in a scope review's suite run joins the fix list; a missing section or document is a gap (INV-0157) | prohibition |
 
 ## Work Guidance

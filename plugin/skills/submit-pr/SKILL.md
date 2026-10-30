@@ -59,7 +59,7 @@ all):
 
 **Entries standing.** Read every bullet with
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get unresolved --root <run-root>` — one bullet per line,
-never through cwd-dependent `status` — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+never through cwd-dependent `status` — per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s
 `## Unresolved defects` section. **No output** → proceed silently. **Output present** → name every bullet
 and **ask once** whether to submit with it standing. Declined → stop, open no pull request, write nothing further.
 Confirmed → proceed and record in the report that the scope was submitted with the defect standing.
@@ -86,16 +86,16 @@ from the scope checkout per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`
   - **Green** → outcome `green`. Continue to §5.
   - **Red** → outcome `red`. Open no pull request. Record the result as above, then add an unresolved
     defect naming the failing output's decisive lines, per
-    `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unresolved defects` section, and publish the
-    snapshot afterwards per its `## Publishing run state` section. Leave the stage where it was, print
+    `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Unresolved defects` section, and publish the
+    snapshot afterwards per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section. Leave the stage where it was, print
     `/superdev:review <scope>` as the next command, and stop. `--unattended` stops the same way, and that
     stop is a block under `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section.
   - **Denied** → outcome `denied`. The permission classifier refused the run: open no pull request,
     record `suite set denied <sha> --whole --root <run-root>` (the record `/superdev:ship` writes for the
     same outcome), write a `**Degraded:**` entry naming the denied whole-repo run per
-    `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section (plain `degraded add`,
+    `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section (plain `degraded add`,
     the shape a denied command takes), publish the snapshot afterwards per
-    `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section, and stop with the
+    `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section, and stop with the
     same report. `--unattended` stops the same way, and that stop is a block under the same **Unattended**
     section, as on the red branch.
   - **Killed, or never started** → outcome `killed` or `not started`, saying which. No verdict exists
@@ -127,20 +127,20 @@ heading. **`not configured`** → say so under the heading; the pull request bod
 
 **Carry the run's degrade record into that body.** The ledger's `**Degraded:**` line lists every pass this
 run did not get — a denied dispatch, a knowledge-base pass the writer could not stage — per
-`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section;
+`${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section;
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get degraded --root <run-root>` reports it, one bullet per
 line. Copy every bullet into the body under one fixed `## Degraded passes` heading, so the reviewer reads
 what the run is short of before merging. **No output** → add no empty heading.
 
 **Carry a standing defect into that body too, under its own heading.** The ledger's `**Unresolved:**` line
-lists every defect the run left standing, per that file's `## Unresolved defects` section;
+lists every defect the run left standing, per `scope-findings.md`'s `## Unresolved defects` section;
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get unresolved --root <run-root>` reports it, one bullet
 per line, and §3 already asked about it. Copy every bullet under its own `## Unresolved defects` heading,
 distinct from `## Degraded passes` — the two answer different questions. **No output** → add no empty
 heading.
 
 **Carry a deferred finding into that body as well, under a third heading.** The ledger's `**Deferred:**`
-line lists every finding `/superdev:review` handed to `/superdev:plan` rather than fixing, per that file's
+line lists every finding `/superdev:review` handed to `/superdev:plan` rather than fixing, per `scope-findings.md`'s
 `## Deferred findings` section; `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get deferred --root
 <run-root>` reports it, one bullet per line. Copy every bullet under its own `## Deferred to a plan`
 heading, distinct from both headings above — the three answer different questions: what the run did not
@@ -156,7 +156,7 @@ heading.
 
 Set the ledger's `**Stage:**` line to `submitted` with
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set submitted --root <run-root>`. Publish the
-snapshot afterwards, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state`
+snapshot afterwards, per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state`
 section. The run stands: the scopetree, the slicetrees, and the run lock stay in place, and the scope
 anchor stays open. `/superdev:wrap-up` closes it, after the merge and any
 `/superdev:verify-ship` pass the run needs, and takes the run's scaffolding down.

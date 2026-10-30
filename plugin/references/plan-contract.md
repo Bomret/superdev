@@ -375,7 +375,7 @@ notation, naming the scope anchor of the shipped feature this one repairs (ADR 0
 link. `/superdev:plan`'s repair choice writes it once, when it creates the repair, and nothing edits it
 afterwards. It records which feature a repair repairs and blocks nothing: the original's own
 `/superdev:wrap-up` gate never reads it. `/superdev:plan`'s repair choice and `/superdev:status` read it
-to mark a shipped scope a repair names, the shipped-run routing rule (`references/scope-mode.md`) reads it
+to mark a shipped scope a repair names, the shipped-run routing rule (`references/shipped-run.md`) reads it
 off open and closed anchors, sending that scope back to `/superdev:verify-ship` once only closed ones name
 it and a `not met:` note's repair citation does not yet cite one of them, and `/superdev:wrap-up` reads it
 off a repair's own anchor once that repair closes. Nothing is
@@ -498,7 +498,7 @@ These invariants fix its shape, and every backend renders all of them:
 - **The command that finds it writes it, at the trigger moment.** The scope review's fix loop (`review-scope-mode.md`'s `### 4.4 The fix boundary`) or the full
   tier's per-slice loop writes a deferred finding's record the moment it defers; whichever chain command is
   running writes an observation's record the moment a controller meets one, and `/superdev:plan` writes one the moment its interview places a found
-  defect **later** (`references/scope-mode.md`'s `## Observations` section). A run reviewed
+  defect **later** (`references/scope-findings.md`'s `## Observations` section). A run reviewed
   and then abandoned never reaches `/superdev:submit-pr`, and its run root is pruned with the findings still
   inside, so the command that finds the work is the one that records it.
 - **It is neither a slice nor a scope anchor.** No candidate listing and no slice loader ever selects it.
@@ -524,7 +524,7 @@ These invariants fix its shape, and every backend renders all of them:
 - **The write is best-effort**, exactly as a status label is. **The deferred trigger's** failure or
   denial leaves the ledger bullet written and the review unblocked, reported once per run, because the
   ledger drives control flow. **The observation trigger writes no ledger bullet at all**: its own failure
-  or denial is reported once by whichever command met it, per `references/scope-mode.md`'s
+  or denial is reported once by whichever command met it, per `references/scope-findings.md`'s
   `## Observations` section, since the triage record is that trigger's only artifact.
 - **It is listable.** `/superdev:status` is the consumer: its backlog survey groups every triage record the active
   store returns by the action it needs, so a record no listing call can reach stays invisible to it.
@@ -535,7 +535,7 @@ These invariants fix its shape, and every backend renders all of them:
   and no open scope anchor absorbs it, because only `/superdev:wrap-up` closes an absorbed record
   (INV-0151). A comment never counts, this run's own comment on an earlier record included. On any other
   record, one an earlier scope filed or an open anchor absorbs, the run comments with the fixing commit and leaves
-  it open (`references/scope-mode.md`'s `## Deferred findings`, ADR 0121, ADR 0145). A read of the record or
+  it open (`references/scope-findings.md`'s `## Deferred findings`, ADR 0121, ADR 0145). A read of the record or
   of an open anchor's Absorbs line that fails or is denied leaves the record open, with the same comment,
   and the failure is reported once per run.
 
@@ -544,7 +544,7 @@ creates it and the call that lists them — belongs to the active `docs/agents/i
 `## Triage record` section, when that document carries one. A store document that states none leaves
 the **deferred trigger** — the scope review's fix loop, or the full tier's per-slice loop — writing only the ledger bullet, `no
 triage record — store defines none` in the reference's place. **The observation trigger** meets the same
-gap by reporting it to the operator and dropping the capture, per `references/scope-mode.md`'s
+gap by reporting it to the operator and dropping the capture, per `references/scope-findings.md`'s
 `## Observations` section, rather than falling back to a ledger bullet of its own.
 
 ## Intent record

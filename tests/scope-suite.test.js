@@ -1,7 +1,7 @@
 'use strict';
 
 // Suite for plugin/scripts/scope.js's suite record: `suite set`, `get suite`, `suite reusable` (the last full-suite
-// run's result and the commit it ran on, `references/scope-mode.md` `## The ledger`, INV-0017), the Markdown-only
+// run's result and the commit it ran on, `references/run-state.md` `## The ledger`, INV-0017), the Markdown-only
 // carry (ADR 0128), and `isTestPath`, the one test-path classifier. Each case builds its own git repository, so the
 // suite needs only `run` and the exports from tests/scope-setup.js.
 
@@ -14,7 +14,7 @@ const { scopePath, run } = require('./scope-setup');
 const { appendTrace, isTestPath } = require(scopePath);
 
 // --- suite: the suite record, the last full-suite run's result and the commit it ran on
-// (`references/scope-mode.md` `## The ledger`, INV-0017) ---------------------------------------
+// (`references/run-state.md` `## The ledger`, INV-0017) ---------------------------------------
 {
   function gitSuite(args, cwd) {
     execFileSync('git', args, { cwd, stdio: 'ignore' });

@@ -3,7 +3,7 @@
 // Selftest suite: the scanners that resolve what prose points at (`scanners/references.js`) — referenced
 // documents, run-root paths, and command names. Run by ./index.js.
 
-const { scan, scanRunRootPaths, scanScopetreeRunRootPaths, scanCommandRefs, scanGovernedSkillFiles } = require('../scanners');
+const { scan, scanRunRootPaths, scanScopetreeRunRootPaths, scanCommandRefs, scanGovernedSkillFiles, scanHeadingCitations } = require('../scanners');
 
 module.exports = ({ assert, path, fixture, found }) => {
   // --- reference: every references/<name>.md a skill, agent, or reference names exists ---
@@ -160,4 +160,62 @@ module.exports = ({ assert, path, fixture, found }) => {
   const gsNoEntry = scanGovernedSkillFiles(fixture({ 'CONTEXT.md': '# Context\n\n**Main sentence**: one clause.\n' }));
   assert.equal(gsNoEntry.length, 1, 'a glossary with no **Prompt concept** entry is a gap');
   assert.match(gsNoEntry[0].expectation, /Prompt concept/, 'the gap names the entry');
+
+  // --- heading-citation: every "`<file>.md`'s `## Heading`" citation names a heading the file carries,
+  // at that level, with whitespace collapsed ---
+
+  const cited = (body) =>
+    scanHeadingCitations(
+      fixture({
+        'references/target.md': '# Target\n\n## Plain heading\n\n### 4.5 A numbered one\n\n## A heading that is long\nbody\n',
+        'skills/foo/SKILL.md': body,
+      }),
+    );
+  assert.deepEqual(cited("See `target.md`'s `## Plain heading` here.\n"), [], 'a resolving citation passes');
+  assert.deepEqual(
+    cited("See `target.md`'s `## A heading\nthat is long` here.\n"),
+    [],
+    'a heading wrapped across a line break in the citing file passes',
+  );
+  assert.deepEqual(
+    cited("See `${CLAUDE_PLUGIN_ROOT}/references/target.md`'s `### 4.5 A numbered one`.\n"),
+    [],
+    'a macro-prefixed path resolves',
+  );
+  const broken = cited("See `target.md`'s `## Gone heading` here.\n");
+  assert.equal(broken.length, 1, 'a heading the file lacks fails');
+  assert.equal(broken[0].source, path.join('skills', 'foo', 'SKILL.md'), 'names the citing file');
+  assert.equal(broken[0].cited, 'target.md', 'names the cited file');
+  assert.equal(broken[0].heading, '## Gone heading', 'names the heading');
+  assert.equal(cited("See `target.md`'s `## 4.5 A numbered one`.\n").length, 1, 'a heading cited at another level fails');
+  assert.equal(cited("See `target.md`'s `### 4.5`.\n").length, 1, 'a heading prefix is no heading');
+  const missing = cited("See `nowhere.md`'s `## X`.\n");
+  assert.equal(missing.length, 1, 'a bare file name that resolves nowhere fails');
+  assert.equal(missing[0].source, path.join('skills', 'foo', 'SKILL.md'), 'names the citing file');
+  assert.equal(missing[0].cited, 'nowhere.md', 'names the cited file');
+  assert.equal(missing[0].missing, true, 'marks the file as missing');
+  assert.deepEqual(
+    cited("See `references/nowhere.md`'s `## X`.\n"),
+    [],
+    'a references/<name>.md path that resolves nowhere is the reference check\'s report',
+  );
+  const prefixed = cited("See `other/references/target.md`'s `## Plain heading`.\n");
+  assert.equal(prefixed.length, 1, 'a prefixed .../references/<name>.md path that resolves nowhere fails, though references/target.md exists');
+  assert.equal(prefixed[0].missing, true, 'marks the prefixed file as missing');
+
+  // A section map lists a file's headings after its bold file name: "- **`<file>.md`** — `## A`, `## B`."
+  assert.deepEqual(
+    cited('- **`target.md`** — `## Plain heading`, `### 4.5 A numbered one`,\n  `## A heading that is long`.\n'),
+    [],
+    'a section map whose every entry resolves passes, an entry wrapped to the next line included',
+  );
+  const staleMap = cited('- **`target.md`** — `## Plain heading`, `## Renamed heading`.\n');
+  assert.equal(staleMap.length, 1, 'a section map entry naming a heading the file lacks fails');
+  assert.equal(staleMap[0].heading, '## Renamed heading', 'names the stale map entry');
+  assert.equal(staleMap[0].cited, 'target.md', 'names the mapped file');
+  for (const joiner of ['and', 'or']) {
+    const joined = cited(`- **\`target.md\`** — \`## Plain heading\`, ${joiner} \`## Renamed heading\`.\n`);
+    assert.deepEqual(joined.map((g) => g.heading), ['## Renamed heading'], `a section map span after "${joiner}" is checked too`);
+  }
+  assert.equal(cited('- **`nowhere.md`** — `## X`.\n')[0].missing, true, 'a section map naming no file fails');
 };

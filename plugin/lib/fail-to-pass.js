@@ -190,14 +190,14 @@ async function verbFailToPass(cwd, args) {
     // One ledger read names the slice both lines carry, the outcome line and the control run's `run` line (ADR 0175).
     const slice = at && (sliceOfRange(at.runRoot, base, tip, cwd) || at.slice);
     const record = (outcome, reason) => {
-      // The scope run's first `unknown` is an observation (references/scope-mode.md's `## Observations`), and the run root's
+      // The scope run's first `unknown` is an observation (references/scope-findings.md's `## Observations`), and the run root's
       // own trace says whether an earlier one exists, so the caller counts nothing. simplicity: two `unknown` outcomes
       // written in the same instant both read no earlier one and both say so; capture reads before it writes, so a
       // duplicate record is the worst case.
       const seenUnknown = () => {
         try { return readTrace(fs.readFileSync(path.join(at.runRoot, 'trace.log'), 'utf8')).some((e) => e.kind === 'fail-to-pass' && e.fields[1] === 'unknown'); } catch { return false; }
       };
-      if (at && outcome === 'unknown' && !seenUnknown()) process.stderr.write("fail-to-pass: the scope run's first unknown outcome: capture an observation naming the environment gap (references/scope-mode.md, `## Observations`)\n");
+      if (at && outcome === 'unknown' && !seenUnknown()) process.stderr.write("fail-to-pass: the scope run's first unknown outcome: capture an observation naming the environment gap (references/scope-findings.md, `## Observations`)\n");
       if (at && !appendTrace(at.runRoot, { slice, kind: 'fail-to-pass', fields: [`${base}..${tip}`, outcome, reason, command] })) {
         process.stderr.write('fail-to-pass: the outcome line could not be written to the run trace\n');
       }

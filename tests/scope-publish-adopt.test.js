@@ -219,7 +219,7 @@ try {
   assert.ok(!fs.existsSync(path.join(stagelessRoot, 'ledger.md')), 'adopt writes nothing on a stage-less payload');
 
   // adopt --shipped: the explicit opt-in recreates a shipped original's run root from its anchor's
-  // snapshot (scope-mode.md's `## Adopting a shipped original`, ADR 0124), where plain adopt refuses.
+  // snapshot (shipped-run.md's `## Adopting a shipped original`, ADR 0124), where plain adopt refuses.
   const shippedOptRoot = path.join(tmp, 'adopted-elsewhere', 'shipped-opt-in');
   r = call(['adopt', '--shipped', '--root', shippedOptRoot], shippedBody.replace('shipped-snapshot', 'shipped-opt-in'));
   assert.ok(r.ok, 'adopt --shipped adopts a shipped snapshot: ' + (r.err || ''));
@@ -388,7 +388,7 @@ try {
   // --- the real fold: publish → kb-patch.js <anchor-body> <publish-output> → adopt ---
   //
   // Every fixture above builds its anchor body by hand, splicing scope.js's own publish output
-  // straight into a string. Production never does that: `## Publishing run state`'s mechanism hands
+  // straight into a string. Production never does that: run-state.md's `## Publishing run state` mechanism hands
   // both the fetched anchor body and publish's stdout to kb-patch.js's merge, and adopts *its* stdout.
   // "Hand-built fixtures are exactly what let both the truncation and the false-refusal through the
   // last two review cycles" (above) stopped one step short of exercising that fold — this closes it,
@@ -410,7 +410,7 @@ try {
   assert.ok(merged1.includes('## Non-goals'), 'the section after it survives untouched');
 
   // Replace: a further ledger write, then a second publish folded into the body the first fold just
-  // produced — the real per-write shape `## Publishing run state` runs under.
+  // produced — the real per-write shape run-state.md's `## Publishing run state` runs under.
   assert.ok(call(['degraded', 'add', 'a denied pass', '--root', foldRoot]).ok);
   const merged1File = path.join(foldDir, 'anchor-2.md');
   fs.writeFileSync(merged1File, merged1, 'utf8');

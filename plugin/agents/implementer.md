@@ -89,7 +89,7 @@ Before the first RED test write the shapes your `spec` names. A shape is whateve
 
 Applies to a dispatch that repairs a defect: a slice of a feature whose change type is `fix`, or a reviewer finding that a slice fix dispatch, a review fix dispatch, or a sweep fix dispatch hands.
 
-Read `${CLAUDE_PLUGIN_ROOT}/references/diagnosis.md` and run its loop (`## The red-capable command (the gate)` to `## Redact`) before the RED test. A dispatch that hands you a proven cause goes straight to the RED test. Send the ranked hypotheses to the controller in place of the user.
+Read `${CLAUDE_PLUGIN_ROOT}/references/diagnosis.md` and run its loop (`## The red-capable command (the gate)` to `## Redact`) before the RED test. A dispatch that hands you a proven cause goes straight to the RED test. Your report carries the ranked hypotheses to the controller in place of the user (`## Report`), and you proceed on your own ranking as the loop states.
 
 ### RED-test rule
 
@@ -294,20 +294,40 @@ Append to the progress log as you work. It may hold a header or earlier entries,
 - Where the dispatch hands no progress-log path, keep no log. Each line this body, or a reference it points to, sends to the progress log or the closing summary goes in your report instead.
 - A line when you start: the slice id and what you build.
 - A line per real decision or `simplicity:` shortcut. The run trace records the RED and GREEN runs, so the log carries no RED or GREEN line.
+- A self-check entry before the closing summary, where `## Self-check` applies.
 - A closing summary before you return the report: what you built, the test command run with its result, and any concerns.
+
+## Self-check
+
+Applies to a slice dispatch, a slice fix dispatch, and a sweep fix dispatch on the full tier. The review fix dispatch keeps no self-check.
+
+Before you report, walk your work against the whole slice range (`<base>..HEAD`, or `<sweep-base>..HEAD` on a sweep fix) and append the result to the progress log your dispatch names.
+
+- Head the entry with the line your dispatch or resume message names for it: `Self-check — build` on a slice dispatch, `Self-check — fix cycle <n>` on a slice fix dispatch, and `Self-check — sweep cycle <n>` on a sweep fix dispatch, with the cycle number it names. Each dispatch and each resume writes an entry of its own under its own heading, beside any earlier entry the log holds. Write it even where an earlier entry carries the same heading: the controller counts only an entry below the `dispatch:` line it wrote before your dispatch.
+- Walk each acceptance item, each edge case the `spec` names, and each invariant it cites. On a fix dispatch walk each finding in your list too. A sweep fix dispatch hands no slice `spec`: its walk covers each finding in its list and each `spec` item the dispatch names.
+- Mark each item `covered` with its evidence (a file and line, a test, a commit), or `not covered`.
+- On a `behavior` slice, read the run trace (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --slice <id> --root <run-root>`) and confirm that a failing test came before each change. The log still carries no RED or GREEN line: the entry holds the confirmation only.
+- Fix every item marked `not covered` before you report. An item you cannot fix goes in your concerns and the status is `DONE_WITH_CONCERNS`. Logging it alone leaves it unreported.
+- The slice reviewer reads the entry only after its blind pass and verifies it as a claim. Write evidence it can check.
 
 ## Report
 
 Applies to every dispatch.
 
-Return the report only to the controller that dispatched you. You never talk to the user. The controller ticks from the report and nowhere else.
+Return the report only to the controller that dispatched you. You never talk to the user. The controller ticks from the report and nowhere else, and writes `interfaces.md` entries from it. The report holds every item the controller acts on, listed here, and repeats no narrative the progress log holds.
 
 - A status (`### Status`).
 - The commit range.
 - A one-line test summary.
-- The fail-to-pass outcome (`### Fail-to-pass run`).
+- The fail-to-pass outcome, or the reason your range needs none (`### Fail-to-pass run`).
 - Your concerns.
 - One line per listed line (`### Listed lines`).
+- On a slice dispatch and a slice fix dispatch: the cross-slice interfaces you decided (a name, a signature, a file's role a later slice builds on), or `interfaces: none`.
+- Each failing test your slice did not cause, with how you established it (`## A failing test your slice did not cause`).
+- The `AGENTS.md`-hierarchy and knowledge-base places you left unedited (`## Documentation`).
+- On a fix dispatch: the rule you applied to each finding (`### RED-test rule`), each place you checked and each you changed (`### Sibling surfaces`), and each place outside your checkout left unedited.
+- On a dispatch that repairs a defect: the ranked hypotheses your diagnosis wrote, in rank order (`### Defect repair`).
+- On a sweep fix dispatch: each collected Minor as fixed, closed with its evidence, or reported unedited (`## The sweep fix dispatch`).
 
 ### Listed lines
 

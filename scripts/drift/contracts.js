@@ -24,6 +24,10 @@ const RUN_ROOT_DOCS = [
   'references/run-init.md',
   'references/run-handoff.md',
   'references/scope-mode.md',
+  'references/scope-branch.md',
+  'references/run-state.md',
+  'references/scope-findings.md',
+  'references/shipped-run.md',
   'references/review-scope-mode.md',
   'agents/implementer.md',
   'agents/slice-reviewer.md',
@@ -65,6 +69,16 @@ const ADR_STATUS_PATTERN = new RegExp(`^\\*\\*Status:\\*\\* (?:${ADR_STATUSES.jo
 // one command to the next by printing its name (ADR 0013), so a reference to a command that does not
 // exist is a dead end.
 const COMMAND_REFERENCE_PATTERN = /\/superdev:([a-z][a-z-]*)/g;
+
+// A heading citation: "`<file>.md`'s `## Heading`", the heading at level two to four. Whitespace, a line
+// break included, may sit between the possessive and the heading span and inside it.
+const HEADING_CITATION_PATTERN = /`(?:\$\{CLAUDE_PLUGIN_ROOT\}\/)?([A-Za-z0-9_./-]+\.md)`['\u2019]s\s+`(#{2,4})\s+([^`]+)`/g;
+
+// A section map entry: a list item "- **`<file>.md`** \u2014 `## A`, `## B`, and `## C`." that names the headings a
+// file holds, its heading spans free to wrap to the next line and the last one free to follow `and` or `or`.
+// HEADING_SPAN_PATTERN reads each span out of the entry.
+const SECTION_MAP_PATTERN = /^- \*\*`([A-Za-z0-9_./-]+\.md)`\*\* \u2014((?:\s*(?:(?:and|or)\s+)?`#{2,4}\s+[^`]+`[,.]?)+)/gm;
+const HEADING_SPAN_PATTERN = /`(#{2,4})\s+([^`]+)`/g;
 
 // A scope branch is `<type>/<scope>`, and `hooks/scope-prune.js` reads that type back off a merged branch
 // to decide whether a run root may be deleted. The type set the prose lists and the set the hook matches
@@ -342,7 +356,7 @@ const SOURCE_SECTION_CONTRACTS = [
       '`references/AGENTS.md`, `CONTEXT.md`, and the root `AGENTS.md` cite',
   ],
   [
-    path.join('references', 'scope-mode.md'),
+    path.join('references', 'scope-branch.md'),
     /^#{2,3}\s+Pushing the scope branch\s*$/m,
     'carry the `## Pushing the scope branch` section, which `skills/plan/SKILL.md` §6 cites (ADR 0167)',
   ],
@@ -482,10 +496,10 @@ const NO_TEST_RUN_PATTERNS = [
 ];
 
 // ADR 0192, INV-0128: implement's base step, run handoff, and both execution playbooks instruct no full or whole-repo
-// run. Each entry is a document and the one section of it the check reads, or null for the whole document: scope-mode.md
+// run. Each entry is a document and the one section of it the check reads, or null for the whole document: scope-branch.md
 // also holds the review's and ship's rules, so only its base step is read.
 const IMPLEMENT_NO_FULL_RUN_DOCS = [
-  [path.join('references', 'scope-mode.md'), '## Bringing the scope branch to base'],
+  [path.join('references', 'scope-branch.md'), '## Bringing the scope branch to base'],
   [path.join('references', 'run-handoff.md'), null],
   [path.join('references', 'implement-full.md'), null],
   [path.join('references', 'implement-lite.md'), null],
@@ -526,6 +540,9 @@ module.exports = {
   ADR_STATUSES,
   ADR_STATUS_PATTERN,
   COMMAND_REFERENCE_PATTERN,
+  HEADING_CITATION_PATTERN,
+  SECTION_MAP_PATTERN,
+  HEADING_SPAN_PATTERN,
   CHANGE_TYPE_CONTRACTS,
   AGENT_TOOLCHAIN_PATTERNS,
   UNMAPPED_PATHS_RUNNERS,

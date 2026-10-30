@@ -94,7 +94,7 @@ function adoptLines(root, body, shipped = false) {
   // the same posture every other schema invariant here takes, rather than trust that its caller
   // always checks first. The `shipped` parameter is the `--shipped` opt-in: it adopts a `shipped`
   // payload and no other, for a command recreating a shipped original's missing run root
-  // (scope-mode.md's `## Adopting a shipped original`, ADR 0124).
+  // (shipped-run.md's `## Adopting a shipped original`, ADR 0124).
   if (shipped) {
     if (stage === null) fail('--shipped adopts only a run-state payload at stage "shipped", and this one carries no **Stage:** line');
     if (stage !== 'shipped') fail(`--shipped adopts only a run-state payload at stage "shipped", not "${stage}"`);

@@ -51,10 +51,11 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" status
 Print its output **verbatim** — `scripts/scope.js` owns the ledger's schema and renders the whole report
 (ADR 0022). It scans `.superdev/scopes/*/` for run roots, prints one block per scope (slice tallies, the
 run's stage, blocked slices, its degrade record — the ledger's `**Degraded:**` line, per
-`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section — its unresolved-defect
-record — the ledger's `**Unresolved:**` line, per that file's `## Unresolved defects` section — and its
-deferred-finding record — the ledger's `**Deferred:**` line, per that file's `## Deferred findings`
-section — and its Minor queue, the ledger's `**Minors:**` line, per that file's `## The ledger`), reports an unreadable ledger as `<scope>: ledger unreadable`, and prints `No superdev runs
+`${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section — its unresolved-defect
+record — the ledger's `**Unresolved:**` line, per `scope-findings.md`'s `## Unresolved defects` section — and its
+deferred-finding record — the ledger's `**Deferred:**` line, per `scope-findings.md`'s `## Deferred findings`
+section — and its Minor queue, the ledger's `**Minors:**` line, per
+`${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## The ledger`), reports an unreadable ledger as `<scope>: ledger unreadable`, and prints `No superdev runs
 found in this repo.` when there are none. Do not create `.superdev/` or any file. It reads the main working
 tree's run roots from any checkout, the same run roots the survey below enumerates.
 
@@ -194,18 +195,18 @@ Otherwise:
 
 - **The snapshot cannot be read** — a `## Run state` heading with no marker, a marker pair holding no
   `**Stage:**` line, a marker missing from its pair, a marker repeated, or a stage or step outside the
-  ledger vocabulary (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The ledger`) → a `blocked` row
+  ledger vocabulary (`${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## The ledger`) → a `blocked` row
   naming what could not be read.
 - **`implementing`, `merged`, `reviewed`, `documented-unreviewed`, `documented`, or `submitted`** — a run
   on another machine → an `elsewhere` row naming the snapshot's stage and step (`none` when no step
   stands). The survey cannot tell whether that run is live (ADR 0164, INV-0167).
 - **`shipped`** — a run done on another machine, or a run root already reaped → a row the same way a
-  `shipped` run root is. §3 routes it by `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+  `shipped` run root is. §3 routes it by `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s
   `## Routing a shipped run`, under its **A run with no local ledger** case.
 - **`closed`** → a `blocked` row whose act is to close the anchor, as for a matched run root reading
   `closed`.
 
-The survey adopts nothing (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Adopting a shipped
+The survey adopts nothing (`${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Adopting a shipped
 original`): `/superdev:implement`, `/superdev:verify-ship`, and `/superdev:plan` adopt a snapshot when they
 run.
 
@@ -250,7 +251,7 @@ issue query, say. A record already returned by the anchor, triage, or intent lis
 | `ready` | every remaining **anchor**: released, dependencies satisfied, and no run root or a matched run root at stage `planned` — `/superdev:plan` already cut the branch and scopetree, but no slice has run (triage #509) | `/superdev:implement <feature-label>` |
 | `untriaged` | an open store record carrying no feature label, no triage signal, and no intent signal | read it — a human decides what to do next |
 
-Route an open anchor over a `shipped` run root per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+Route an open anchor over a `shipped` run root per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s
 `## Routing a shipped run`: verify-ship there is `awaiting verification`, and wrap-up is `awaiting wrap-up`.
 A run the rule sends to re-verify there is `awaiting verification` too, with `/superdev:plan`'s repair
 choice as the alternative to its act.
@@ -266,7 +267,7 @@ listing: while the run holds an observed `not met:` note, `/superdev:plan` can o
 route.
 An unreadable anchor → the item is a `blocked` row naming what could not be read. A `shipped` run root
 whose anchor is already closed is `awaiting wrap-up` without that rule's reads. The `deploy resume` test reads the posture,
-the listed targets, and their record per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Reading the
+the listed targets, and their record per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Reading the
 posture at the merge commit`. A `closed` run root gets a row only over an open anchor (§2).
 
 **Absorbed records.** Read every open anchor's Absorbs line through the store document's **Read an anchor's

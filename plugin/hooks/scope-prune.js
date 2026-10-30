@@ -169,7 +169,7 @@ function selectPrunable(scopeNames, isContained, mtimeOf, stageOf, allBranchSet,
 }
 
 // Whether `<base>` — the current branch, exactly as `git branch --merged` with no argument already
-// means — already holds every byte of `branch`'s work. Mirrors `references/scope-mode.md`'s
+// means — already holds every byte of `branch`'s work. Mirrors `references/scope-branch.md`'s
 // `## Containment` section in JavaScript, and reads the same three outcomes off one call:
 //
 //   exit 0, tree equal to base's own tree → contained

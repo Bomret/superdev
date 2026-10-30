@@ -75,7 +75,7 @@ nothing.
 ## Edit the pull request body
 
 A run that resolves a deferred finding after `/superdev:submit-pr` opened the pull request rebuilds that
-pull request's `## Deferred to a plan` section (`references/scope-mode.md`'s `## Deferred findings`,
+pull request's `## Deferred to a plan` section (`references/scope-findings.md`'s `## Deferred findings`,
 ADR 0121). Only an open pull request is edited.
 
 - **Read it**: `tea api '/repos/{owner}/{repo}/pulls/<index>'` with `--login <login> --repo bomret/superdev`,
@@ -110,5 +110,5 @@ Equal trees means `main` holds the branch's work and the branch is safe to delet
 branch here as unmerged — which trains the reflex to reach for `git branch -D`, and that one destroys a
 branch that genuinely is unmerged. Delete a branch this test calls landed, and investigate any other.
 A conflicting `merge-tree` answers nothing on its own: `plugin/lib/containment.js`'s `testContainment`
-settles that case from base's own history (ADR 0053, ADR 0082), and `references/scope-mode.md`'s
+settles that case from base's own history (ADR 0053, ADR 0082), and `references/scope-branch.md`'s
 `## Containment` states the full contract superdev's own checks follow.

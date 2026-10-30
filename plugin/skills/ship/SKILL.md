@@ -72,7 +72,7 @@ Read the ledger's `**Stage:**` line with
   `deployed`, or no target is listed** → this run finished, merge and deploy alike: report "already
   shipped", run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root <run-root>`, print the next command §5's **Hand off** picks, and stop, whether or not the scope checkout is present. An
   "already shipped" report needs no scope checkout, so recreate none. **Otherwise** read the posture at
-  the merge commit, with no scope checkout, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+  the merge commit, with no scope checkout, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s
   `## Reading the posture at the merge commit`: from the invoking checkout, reading the pull request by the
   ledger's `**PR:**` number first (per **Find the pull request** below). **The posture is `auto`, and a listed target reads
   `pending`, `failed`, or carries no record** (a declined unshown config left it `pending`, ADR 0104; a
@@ -91,7 +91,7 @@ Read the ledger's `**Stage:**` line with
 
 **Find the pull request.** Read the ledger's `**PR:**` line with
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get pr --root <run-root>` — `/superdev:submit-pr` records it
-the moment it opens the pull request (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The ledger`).
+the moment it opens the pull request (`${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## The ledger`).
 
 - **A number** → read that pull request directly, by index, per `docs/agents/code-management.md`'s
   `## Merge` section: its `state`, `merged`, `merge_commit_sha`, `head.sha`, and `mergeable`. That read
@@ -132,7 +132,7 @@ Either way:
   at all → `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" degraded add "the merge landed on <head.sha>,
   not a commit the green suite record covers"`. Either way, set the stage to `shipped`
   (`scope.js stage set shipped --root <run-root>`) unless it already reads that, and publish the
-  snapshot, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section.
+  snapshot, per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section.
 - **Open** → continue below.
 
 **Deploy gate, before anything merges.** Read `docs/agents/deployment.md` from the scope branch's own tip
@@ -189,8 +189,8 @@ the report that the scope merged with the defect standing.
 collisions before the merge** (ADR 0126, INV-0134): run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js"
 collisions --base <base> --branch <branch> --range-base <range-base>`, `<range-base>` per
 `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`, and one `--also <ref>`
-for each other live plan run's scope branch whose ref resolves, as that file's base step chooses them
-(`## Bringing the scope branch to base`, step 4). Exit 0 → continue. Exit 1
+for each other live plan run's scope branch whose ref resolves, as the base step chooses them
+(`${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Bringing the scope branch to base`, step 4). Exit 0 → continue. Exit 1
 → merge nothing and change nothing on the scope branch: print each line, which names the colliding ADR
 number or invariant id and the number it should take, and point at renumbering it on the scope branch,
 then `/superdev:review <scope>`, then `/superdev:ship <scope>` — the recovery a conflict below takes too,
@@ -295,14 +295,14 @@ nothing — the stage write below never runs. **Otherwise** → take `merge_comm
 Set the ledger's `**Stage:**` line to `shipped` with
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set shipped --root <run-root>`, unless it already
 reads `shipped` (§3's adopt branch, or a resumed run reached straight from §3's `shipped`-with-open-deploy
-branch). Publish the snapshot afterwards, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+branch). Publish the snapshot afterwards, per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s
 `## Publishing run state` section.
 
 **Deploy** (ADR 0101; INV-0098 — only ship ever runs a target's command, only under `auto`, only after the
 merge, only in a tree detached at the merge commit). Read the posture and the anchor's `**Deploy:**` line
 fresh here, for ship's own merge, an adopted hand merge, or a resumed run alike — never reused from §3's
 or §4's earlier, pre-merge read — at the merge commit just found, never the working tree or the invoking
-checkout, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Reading the posture at the merge commit`.
+checkout, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Reading the posture at the merge commit`.
 This step holds the scope checkout, so it reads through it: `git -C <run-root>/scopetree fetch origin <base>`
 when the commit is missing, then
 `git -C <run-root>/scopetree show <merge-commit-sha>:docs/agents/deployment.md`.
@@ -356,7 +356,7 @@ when the commit is missing, then
 
 **Hand off.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root <run-root>` first: every target is deployed or none applies, and a run that wrote no stage has no other clear. A failed or declined deploy stopped above and runs no clear here; on a resumed run its step stays standing. Ship writes no tick anywhere, closes no anchor, and removes no checkout, slice checkout, or
 lock: the anchor stays open and the run stays standing until `/superdev:wrap-up` (ADR 0106, INV-0099). Pick
-the next command by `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+the next command by `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s
 `## Routing a shipped run` (ADR 0116, INV-0116). Its reads only choose the command: ship writes no verdict
 and rewrites no anchor line from them.
 
@@ -377,7 +377,7 @@ and rewrites no anchor line from them.
   the anchor again.
 
 On every route above, name the scope's staged pages per
-`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Staged pages at close` (ADR 0119, INV-0123), with
+`${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close` (ADR 0119, INV-0123), with
 `/superdev:publish-kb <scope>` on an `Or:` line of the Next block when the count is above zero.
 
 **Offer to continue** (ADR 0157, INV-0093). Make the offer in `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section, with ship's own conditions added:
@@ -389,7 +389,7 @@ carrying no record, gives no offer.
 **No offer** is made for a run that routes to repair or to re-verify, a run with a hand-sync pending, a
 refused ship, or a ship stopped by a failed or declined deploy: print the route above and stop.
 
-The message that asks also names the scope's staged pages per `## Staged pages at close`. When the count is above
+The message that asks also names the scope's staged pages per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close`. When the count is above
 zero, `/superdev:publish-kb <scope>` goes on the Next block's `Or:` line when that block prints. A yes
 starts the routed skill exactly as the operator would type it, with the scope slug as its only
 argument. Ship starts no wrap-up after a started verify-ship returns: verify-ship's own hand-off makes its

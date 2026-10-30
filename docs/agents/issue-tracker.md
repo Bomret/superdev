@@ -279,7 +279,7 @@ swaps that one to `in-progress`.
 `plan-contract.md` → *Triage record*. The scope review's fix loop, or the full tier's per-slice loop,
 creates one the moment it defers a finding; the controller creates one the same way the moment it meets an
 observation, and `/superdev:plan` the moment its interview places a found defect later
-(`references/scope-mode.md`'s `## Observations` section).
+(`references/scope-findings.md`'s `## Observations` section).
 Here it is an ordinary Codeberg issue carrying the label **`triage`** and nothing else.
 
 - **Create it:** `tea issues create -t "$title" --description-file -`, with `title` (the finding, one line) set
@@ -292,7 +292,7 @@ Here it is an ordinary Codeberg issue carrying the label **`triage`** and nothin
   configuration names, because nobody has picked the work up. Capture the created `<n>` as the record's
   reference: **the deferred trigger** is what the deferring command puts in the ledger bullet; **an
   observation** instead reports that reference to the operator and writes no ledger bullet of its own,
-  since the record is its own identity (`references/scope-mode.md`'s `## Observations` section).
+  since the record is its own identity (`references/scope-findings.md`'s `## Observations` section).
 - **List the records:** `tea issues list -o json --fields index,title,body --labels triage --state open --page <p> --limit 50`,
   paged until a page returns fewer than 50 entries. It returns every open triage record across pages with its `index`, `title`, and `body`, which is the whole
   record — a triage record carries no other state. No label of that name resolving means no record has

@@ -17,7 +17,7 @@ tiers: record that slice execution finished, name what comes next.
   verifies the integrated scope branch, implement's base merge included. A failing test a slice did not cause,
   named in an implementer's report or met in your own loop, goes to the scope review's fix loop (INV-0157).
 - **An observation is captured the moment you meet it.** Read
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations` section and follow it: a defect an
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Observations` section and follow it: a defect an
   implementer's report surfaces, or one you meet yourself, that no slice of this scope covers and the scope did
   not cause gets a triage record from you, the controller, right here — never held until the handoff at the end
   of the chain.
@@ -49,7 +49,7 @@ tiers: record that slice execution finished, name what comes next.
 - **Set the stage to `merged`:**
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set merged --root <run-root>`. The `**Stage:**`
   line is what tells the next command, or a resumed run, that every slice is on the scope branch. Publish
-  the snapshot afterwards, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state`
+  the snapshot afterwards, per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state`
   section.
 - **Leave the run standing.** Keep the scopetree and `<run-root>/run.lock`, leave
   the anchor at `in-progress` — `dod.md` now carries whatever the handoff pass above settled, never a

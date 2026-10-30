@@ -6,7 +6,7 @@ const { fail } = require('./refusal.js');
 const { checkSliceId, ledgerPath, readLines, writeLines, headerRe, getHeader, insertHeader, readBullets, tableRowIndexes, splitRow } = require('./ledger.js');
 
 // The write half of `readBullets`: append one bullet under `**<name>:**`, creating that line beside
-// `**Stage:**` when the ledger has none yet (scope-mode `## Degraded passes`, `## Unresolved defects`).
+// `**Stage:**` when the ledger has none yet (scope-findings `## Degraded passes`, `## Unresolved defects`).
 // A newline in the text would break the one bullet = one line assumption the reader depends on. `verb`
 // names the invoked subcommand verbatim (`degraded add`, `degraded reset-denials`, …), so a refusal
 // names what the caller actually typed rather than a sibling subcommand's shape; `noun` names what the
@@ -43,7 +43,7 @@ function addBullet(root, name, verb, text, noun = 'bullet text') {
 }
 
 // A denied verification dispatch and a pass that could not reach what it needed share the `**Degraded:**`
-// line and answer different questions, so the denial carries a prefix (scope-mode `## Degraded passes`,
+// line and answer different questions, so the denial carries a prefix (scope-findings `## Degraded passes`,
 // ADR 0041). `get denials` counts by that prefix, which is why it is structural rather than a convention
 // each of the three recording callers would have to word identically. A reset marker carries a prefix of
 // its own: the count runs from the last one, which returns the budget while every recorded denial stays
@@ -64,7 +64,7 @@ function verbDegraded(root, sub, text) {
   if (sub !== 'add') fail(`unknown degraded subcommand "${sub}" — use add|add-denial|reset-denials`);
   // `get denials` reads meaning from both prefixes, so a plain bullet able to carry one is a bullet able
   // to move the count. `add-denial` is only for the denied *verification* dispatches the cap counts
-  // (scope-mode `## Degraded passes`); a denied Bash command or a denied *authoring* dispatch still
+  // (scope-findings `## Degraded passes`); a denied Bash command or a denied *authoring* dispatch still
   // takes plain `add` (`skills/implement/SKILL.md`, `references/implement-full.md`) — so a text that quotes
   // such a denial verbatim, rather than getting routed to `add-denial`, reworks its wording instead.
   if (text.startsWith(DENIAL_PREFIX)) {
@@ -174,10 +174,10 @@ function verbDocs(root, sub, value) {
 
 // pr set: `**PR:**` records the pull request number `/superdev:submit-pr` opened, the moment it opens
 // it, so `/superdev:ship` reads it back instead of a code-host lookup by head branch — a reused branch
-// name (scope-mode.md's `## Cutting the scope branch` treats reuse as ordinary) leaves old, merged pull
+// name (scope-branch.md's `## Cutting the scope branch` treats reuse as ordinary) leaves old, merged pull
 // requests on the host under the same head, and a lookup by branch alone could adopt one of those
 // instead (INV-0092). A ledger from before this header existed carries no line, and parses unchanged —
-// `get pr` reports `absent`, the same as any other missing optional header (`## The ledger`).
+// `get pr` reports `absent`, the same as any other missing optional header (run-state.md's `## The ledger`).
 function verbPr(root, sub, value) {
   const lines = readLines(root);
   const at = lines.findIndex((l) => headerRe('PR').test(l));
@@ -206,7 +206,7 @@ function verbPr(root, sub, value) {
 // the record it reads rather than re-running or re-deriving a target's state from scratch. A target
 // name is one word, the same as `docs/agents/deployment.md`'s targets table names it. The value is a
 // comma-joined list of `<target> <state>[ exit <n>]` entries, in the order each target was first
-// recorded — the same first-recorded ordering `## The ledger` gives the slice table.
+// recorded — the same first-recorded ordering run-state.md's `## The ledger` gives the slice table.
 const DEPLOY_STATES = ['pending', 'deployed', 'failed'];
 const DEPLOY_ENTRY_RE = new RegExp(`^(\\S+) (${DEPLOY_STATES.join('|')})(?: exit (\\d+))?$`);
 

@@ -12,7 +12,7 @@ const CHANGE_TYPES = ['feat', 'fix', 'refactor', 'docs', 'perf', 'test', 'build'
 const SLUG_RE = /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/;
 // references/plan-contract.md status vocabulary.
 const SLICE_STATUSES = ['todo', 'in-progress', 'in-review', 'blocked', 'merged'];
-// references/scope-mode.md `## The ledger` — the suite record's result vocabulary (INV-0017). `none`
+// references/run-state.md `## The ledger` — the suite record's result vocabulary (INV-0017). `none`
 // records a repository with no test command configured; `denied` a run the permission classifier
 // denied a verification dispatch for.
 const SUITE_RESULTS = ['green', 'red', 'denied', 'none'];
@@ -123,7 +123,7 @@ function normalizeHeaderValue(name, raw) {
 }
 
 // A pre-CLI ledger may miss any header line; absence is the missing-optional-field
-// case (scope-mode `## The ledger`), never a parse error.
+// case (run-state `## The ledger`), never a parse error.
 function getHeader(lines, name) {
   const re = headerRe(name);
   for (const line of lines) {
@@ -179,8 +179,8 @@ function lastHeaderLineIndex(lines, names) {
 // (`insertHeader`), so placement does not depend on which verb writes the header.
 const APPENDED_HEADERS = ['Stage', 'Step', 'Branch', 'Anchor', 'Docs', 'PR', 'Suite', 'Rerun', 'Base', 'Deploy'];
 
-// The bullet list under a header line, if any: `**Degraded:**` (scope-mode `## Degraded passes`) and
-// `**Unresolved:**` (`## Unresolved defects`) carry one each, in the same shape. Read by both status
+// The bullet list under a header line, if any: `**Degraded:**` (scope-findings `## Degraded passes`) and
+// `**Unresolved:**` (scope-findings `## Unresolved defects`) carry one each, in the same shape. Read by both status
 // branches below — an in-flight scope prints them inline with its tally, a shipped one prints them
 // alone — and by `get degraded`/`get unresolved`/`get deferred`/`get minors`, and by `get denials`, which counts the
 // `**Degraded:**` bullets carrying the denial prefix that follow the last reset marker.

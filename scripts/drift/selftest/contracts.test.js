@@ -115,7 +115,7 @@ module.exports = ({ assert, path, fixture, found }) => {
     'references/review-checklist.md':
       '# Review checklist\n\n## Anti-patterns\n\n## Vulnerability classes\n\n## Reuse audit\n\n## Consistency\n\n' +
       '## Prompt-concept overlap\n',
-    'references/scope-mode.md': '# Scope mode\n\n## Pushing the scope branch\n',
+    'references/scope-branch.md': '# Scope branch work\n\n## Pushing the scope branch\n',
     // the real body carries the output sections inside its fenced template
     'agents/final-reviewer.md':
       '## Scope dispatch\n\n### Judge every criterion\n\n```\n### Criteria\n\n### Ceiling\n\n' +
@@ -150,7 +150,7 @@ module.exports = ({ assert, path, fixture, found }) => {
     ['references/review-checklist.md', '## Reuse audit\n\n'],
     ['references/review-checklist.md', '## Consistency\n\n'],
     ['references/review-checklist.md', '## Prompt-concept overlap\n'],
-    ['references/scope-mode.md', '## Pushing the scope branch\n'],
+    ['references/scope-branch.md', '## Pushing the scope branch\n'],
     ['agents/final-reviewer.md', '### Judge every criterion\n\n'],
     ['agents/final-reviewer.md', '### Criteria\n\n'],
     ['agents/final-reviewer.md', '### Ceiling\n\n'],

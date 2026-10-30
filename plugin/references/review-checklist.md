@@ -277,7 +277,7 @@ case (c), whatever its test's intent. The reviewer that raises the finding marks
 alike. The reviewer re-judges the mark at every dispatch against the current range, the scope's earlier review
 cycles read from the trace included, so a re-raised finding carries its mark. A re-review that reads only the
 latest cycle's range, the warm re-review and the Minor sweep's, restates each unclosable finding the last verdict
-listed with its mark re-judged (`scope-mode.md`'s `## Warm cycles`). A later change that adds
+listed with its mark re-judged (`scope-findings.md`'s `## Warm cycles`). A later change that adds
 behaviour to a file outside the test paths makes the finding closable again. An implementer's or the lite
 controller's claim of a case is input the reviewer checks against the range, never a verdict it adopts. Any
 other Pass-to-pass finding is closable, and a Missing fail-to-pass run finding never carries the mark.
@@ -313,7 +313,7 @@ that reads the trace (`slice-reviewer`, `final-reviewer`) names every `unknown` 
 with its slice and its reason, raises no finding for it, and starts no fix cycle. The line counts as an outcome line
 for **Missing fail-to-pass run**, and the latest line reading `fail-to-pass` or `pass-to-pass` decides
 **Pass-to-pass**, so an `unknown` neither raises nor closes it. The controller, not the reviewer, captures the scope
-run's first `unknown` that `references/scope-mode.md`'s `## Observations` does not exempt, as an observation.
+run's first `unknown` that `references/scope-findings.md`'s `## Observations` does not exempt, as an observation.
 
 ## Dependency verification
 

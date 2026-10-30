@@ -33,7 +33,7 @@ Statement: A containment test answers contained only on positive evidence that b
 Breaks: silently
 Check: tests/scope-containment.test.js, tests/scope-prune-containment.test.js, tests/scope-prune-guards.test.js — each failure path asserted to answer not contained
 Symbols: testContainment, judgeContainment, baseHistoryHasPatch, containedInBase
-Paths: plugin/lib/containment.js, plugin/lib/git-spawn.js, plugin/hooks/scope-prune.js, plugin/references/scope-mode.md
+Paths: plugin/lib/containment.js, plugin/lib/git-spawn.js, plugin/hooks/scope-prune.js, plugin/references/scope-mode.md, plugin/references/scope-branch.md
 
 ### INV-0004
 
@@ -158,7 +158,7 @@ Concepts: Focused test command, Suite record, Run trace
 Statement: A slice implementer and a fix cycle run only the tests of their own work: the focused command over their own paths, a direct run of a test file, and the fail-to-pass run over their own range. The full suite runs once per scope, in the scope review, on whichever route of the exit run that `plugin/references/review-scope-mode.md` §4.2 lists the review takes first, and again after a fix cycle that a red result there opened (ADR 0192). The scope review's entry runs the focused command over the scope's range, never the full suite. Where the repository configures a whole-repo command, it runs once before the pull request opens, on a tip that carries no green whole-repo result at ship (which instead refuses while a review invalidation stands, INV-0092), and in place of the full suite in a review entered while the suite record reads red of kind `whole`. A green result recorded on the commit a step would run on is reused rather than run again, but only where the latest run of that command the run trace records at that commit passed on a clean working tree (ADR 0117). With no record, or a record on another commit, the step reuses the latest full or whole run the run trace records at that commit, whoever wrote it, where it passed on a clean tree; a step that needs a whole-repo run reuses only a whole one (ADR 0182). A green result recorded on an ancestor of that commit is reused too, but only where every path that differs between the two ends in `.md`, is no test path, and is not `docs/agents/verification.md`, the run trace backs the recorded commit with a passing full or whole run on a clean tree, and no full, whole, path, or focused run it records at the tip failed and its latest run there does not read `unknown`. The carry needs no test run at the tip, and a passing run on a dirty tree refuses nothing (ADR 0128, ADR 0189). Where `docs/agents/verification.md` at the tip carries the complete-selector declaration and the focused command carries `{paths}`, a green record on an ancestor is reused too when the run trace backs the recorded commit with a passing full or whole run on a clean tree, the run trace records at the tip a passing focused run on a clean tree, written by `scope.js` with the path set it ran over, that covers every path changed since the record, no changed path is `docs/agents/verification.md` or a file the declaration lists, and no full or whole run, nor any run of a test file named directly, at the tip failed (ADR 0175). A focused run the hook recorded from a direct call carries no path set and backs no carry. No verb writes a carried record, so every carry is judged from the recorded commit. Every ship gate whose reuse check refuses takes the focused carry before it refuses: a carried tip merges, a failing carry run is the gate's red result, and a tip with no carry refuses or runs the whole-repo command as before (ADR 0194). Under the same declaration the two carries chain once: a green record on an ancestor is reused too when some commit on the ancestry path to the tip takes the focused carry from the recorded commit, judged at that commit, and the range from that commit to the tip passes the Markdown-only rule, judged at the tip (ADR 0189). Under the same declaration, a full run at the tip that failed in one test file counts green once, when the ledger records a rerun naming that file, the tip, and a triage record, that file alone then passed at the tip on a clean tree, with every run of it alone the run trace records there after the failed full run passing on a clean tree and the runs recorded before that failure counting for nothing, a focused run over the scope's range then passed there, and no other full run, nor any run of another test file, at the tip failed (ADR 0172). That red record counts at a later tip too, when its commit is an ancestor of that tip, every rerun condition holds when judged at its commit, and the range from its commit to the tip passes the Markdown-only rule, judged at the tip (ADR 0189). Nothing reruns a failed run on its own. Any git error while deciding this refuses reuse. A result recorded on any other commit is not, and neither is one the run trace does not back. A step that needs a whole-repo run reuses only a record of kind `whole`. A fail-to-pass run is no suite run: it runs the command its caller hands it, which names the range's test files, records no suite result, and its control run writes a `path` run line that backs no suite record (ADR 0134, ADR 0182).
 Breaks: silently
 Check: tests/scope-suite.test.js — the suite record's read and write, and `suite reusable`'s tip-match cases, Markdown-only carry cases, focused-run carry cases, rerun cases, and run-trace backing
-Paths: plugin/references/run-handoff.md, plugin/references/scope-mode.md, plugin/references/test-selection.md, plugin/lib/suite-base-get.js, plugin/lib/test-verb.js, plugin/lib/fail-to-pass.js, plugin/skills/review/**, plugin/references/review-scope-mode.md, plugin/skills/submit-pr/**, plugin/skills/ship/**, plugin/agents/implementer.md, plugin/scripts/scope.js
+Paths: plugin/references/run-handoff.md, plugin/references/scope-mode.md, plugin/references/run-state.md, plugin/references/test-selection.md, plugin/lib/suite-base-get.js, plugin/lib/test-verb.js, plugin/lib/fail-to-pass.js, plugin/skills/review/**, plugin/references/review-scope-mode.md, plugin/skills/submit-pr/**, plugin/skills/ship/**, plugin/agents/implementer.md, plugin/scripts/scope.js
 
 ### INV-0018
 
@@ -374,7 +374,7 @@ Concepts: Feature label, Change type, Run root, Ledger, Scope branch
 Statement: The scope branch is the feature label verbatim, `<type>/<slug>`, and the run root is keyed on the slug alone. A command reads the branch from the ledger's `**Branch:**` line and never computes it from the slug.
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/references/scope-mode.md
+Paths: plugin/references/scope-mode.md, plugin/references/run-state.md
 
 ### INV-0045
 
@@ -401,7 +401,7 @@ Concepts: Run kind, Execution playbook, Ledger, Stage
 Statement: Run init computes a run's kind once, from its ledger alone, as `fresh` or `resumed`. Both execution playbooks read that value and derive none of their own.
 Breaks: silently
 Check: none — no single-site pin
-Paths: plugin/references/run-init.md, plugin/references/implement-full.md, plugin/references/implement-lite.md, plugin/references/scope-mode.md
+Paths: plugin/references/run-init.md, plugin/references/implement-full.md, plugin/references/implement-lite.md, plugin/references/scope-mode.md, plugin/references/scope-branch.md
 
 ### INV-0048
 
@@ -410,7 +410,7 @@ Concepts: Run kind, Degraded pass, Ledger
 Statement: A stop at the scope-branch step writes nothing: no run starts, no ledger entry is written, and no degraded pass is recorded.
 Breaks: silently
 Check: none — no pin exists today
-Paths: plugin/references/scope-mode.md
+Paths: plugin/references/scope-mode.md, plugin/references/scope-branch.md
 
 ### INV-0049
 
@@ -482,7 +482,7 @@ Concepts: Tier, Ledger, Execution playbook
 Statement: The tier is never stored. Every reader derives it from the loaded slice set by one threshold: three or fewer slices is lite, more is full. An underivable tier resolves to the blocking answer.
 Breaks: silently
 Check: none — no agreement pin across the derivation sites
-Paths: plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/references/review-scope-mode.md, plugin/references/scope-mode.md, plugin/scripts/scope.js, plugin/lib/suite-base-get.js
+Paths: plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/references/review-scope-mode.md, plugin/references/scope-mode.md, plugin/references/scope-findings.md, plugin/scripts/scope.js, plugin/lib/suite-base-get.js
 
 ### INV-0058
 
@@ -491,7 +491,7 @@ Concepts: Published snapshot, Adopt, Ledger, Scope anchor, Run kind
 Statement: The ledger drives control flow, and the anchor's snapshot only mirrors it. Every ledger write the snapshot shows is followed by a publish, and a failed publish changes nothing in the run. Run init adopts only where no local ledger exists and the snapshot's stage is not `shipped`, and reports that run as `resumed`. A store that declares itself snapshot-less publishes and adopts nothing.
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/references/scope-mode.md, plugin/references/run-init.md, plugin/skills/**, plugin/references/implement-full.md, plugin/references/run-handoff.md
+Paths: plugin/references/scope-mode.md, plugin/references/run-state.md, plugin/references/run-init.md, plugin/skills/**, plugin/references/implement-full.md, plugin/references/run-handoff.md
 
 ### INV-0059
 
@@ -518,7 +518,7 @@ Concepts: Triage record, Deferred finding, Ledger
 Statement: Within one run, a finding the ledger already carries as deferred creates no second triage record and no second ledger bullet. Across runs, a finding that an open triage record plainly states gets a comment on that record and no second record; the ledger bullet carries that record's reference (ADR 0145).
 Breaks: silently
 Check: none — no pin exists today
-Paths: plugin/skills/review/SKILL.md, plugin/references/review-scope-mode.md, plugin/references/implement-full.md, plugin/references/scope-mode.md
+Paths: plugin/skills/review/SKILL.md, plugin/references/review-scope-mode.md, plugin/references/implement-full.md, plugin/references/scope-mode.md, plugin/references/scope-findings.md
 
 ### INV-0062
 
@@ -933,16 +933,16 @@ Concepts: Scope anchor
 Statement: An edit to a scope anchor's body runs only when the read of the current body and the command that built the new body both succeeded and the new body is non-empty, and the edit reads that body from a file. A failed read, producer, or payload build leaves the anchor body as it was (ADR 0115).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/references/issue-tracker-*.md, docs/agents/issue-tracker.md, plugin/references/scope-mode.md
+Paths: plugin/references/issue-tracker-*.md, docs/agents/issue-tracker.md, plugin/references/scope-mode.md, plugin/references/run-state.md
 
 ### INV-0116
 
 Class: process
 Concepts: Stage, Scope anchor, Definition of Done (DoD), Deploy target
-Statement: `/superdev:ship`'s final hand-off, `/superdev:status`'s routing of a `shipped` run, `/superdev:document`'s leave-alone hand-off, run init's shipped-run stops, `/superdev:verify-ship`'s end, and `/superdev:wrap-up`'s hand-off from a closed repair to its original apply one rule, stated once in `references/scope-mode.md`, so all name the same next command for the same run state: for a run holding a `not met:` note `/superdev:verify-ship` wrote, which carries the repair citation, `/superdev:verify-ship` with `/superdev:plan`'s repair choice as the alternative once a closed anchor's `**Repairs:**` line names the run, the line's `not met:` note does not yet cite that anchor in its repair citation, and no open anchor's line names the run, and `/superdev:plan`'s repair choice or `/superdev:verify-ship` again otherwise, an open anchor's line outranking every closed one and adding a line that names each open repair; otherwise `/superdev:verify-ship` or `/superdev:wrap-up`, a `not met:` note written before merge counting as a line still to verify (ADR 0116, ADR 0124).
+Statement: `/superdev:ship`'s final hand-off, `/superdev:status`'s routing of a `shipped` run, `/superdev:document`'s leave-alone hand-off, run init's shipped-run stops, `/superdev:verify-ship`'s end, and `/superdev:wrap-up`'s hand-off from a closed repair to its original apply one rule, stated once in `references/shipped-run.md`, so all name the same next command for the same run state: for a run holding a `not met:` note `/superdev:verify-ship` wrote, which carries the repair citation, `/superdev:verify-ship` with `/superdev:plan`'s repair choice as the alternative once a closed anchor's `**Repairs:**` line names the run, the line's `not met:` note does not yet cite that anchor in its repair citation, and no open anchor's line names the run, and `/superdev:plan`'s repair choice or `/superdev:verify-ship` again otherwise, an open anchor's line outranking every closed one and adding a line that names each open repair; otherwise `/superdev:verify-ship` or `/superdev:wrap-up`, a `not met:` note written before merge counting as a line still to verify (ADR 0116, ADR 0124).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/skills/ship/SKILL.md, plugin/skills/status/SKILL.md, plugin/skills/document/SKILL.md, plugin/references/run-init.md, plugin/references/scope-mode.md, plugin/skills/verify-ship/SKILL.md, plugin/skills/wrap-up/SKILL.md
+Paths: plugin/skills/ship/SKILL.md, plugin/skills/status/SKILL.md, plugin/skills/document/SKILL.md, plugin/references/run-init.md, plugin/references/scope-mode.md, plugin/references/shipped-run.md, plugin/skills/verify-ship/SKILL.md, plugin/skills/wrap-up/SKILL.md
 
 ### INV-0117
 
@@ -993,10 +993,10 @@ Paths: plugin/skills/wrap-up/SKILL.md
 
 Class: process
 Concepts: Staged page, Next block, Stage
-Statement: `/superdev:ship`'s post-merge hand-off, `/superdev:verify-ship`'s end message, and `/superdev:wrap-up`'s finish name a scope's staged pages by one rule, stated once in `references/scope-mode.md`, from a page count read in the same run. A count of zero names nothing (ADR 0119).
+Statement: `/superdev:ship`'s post-merge hand-off, `/superdev:verify-ship`'s end message, and `/superdev:wrap-up`'s finish name a scope's staged pages by one rule, stated once in `references/shipped-run.md`, from a page count read in the same run. A count of zero names nothing (ADR 0119).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/skills/ship/SKILL.md, plugin/skills/verify-ship/SKILL.md, plugin/skills/wrap-up/SKILL.md, plugin/references/scope-mode.md
+Paths: plugin/skills/ship/SKILL.md, plugin/skills/verify-ship/SKILL.md, plugin/skills/wrap-up/SKILL.md, plugin/references/scope-mode.md, plugin/references/shipped-run.md
 
 ### INV-0124
 
@@ -1005,7 +1005,7 @@ Concepts: Base branch, Scope branch, Scopetree, Run kind
 Statement: Every `/superdev:implement` invocation, at both execution tiers and every run kind, brings the base into the scope branch after the run lock is written and before the first slice starts (the one exception: at the `lite` tier a dirty scopetree with an `in-progress` slice skips the step, and the next invocation runs it). `/superdev:review` on a live scope run at a stage before `submitted` brings the base in the same way before its entry focused run, and merges nothing at `submitted` (ADR 0173). It merges the fetched remote base tip whether or not the local base could advance to it, and records that tip in the ledger's `**Base:**` header. Every range of the scope's own commits starts from the range base `scope.js base resolve` prints, the newer of `merge-base(<base>, <branch>)` and the recorded tip. A base that cannot be fetched is a degraded pass: the local base is merged and no tip is recorded (ADR 0120).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/references/scope-mode.md, plugin/references/implement-lite.md, plugin/references/implement-full.md, plugin/skills/review/**, plugin/references/review-scope-mode.md, plugin/scripts/scope.js, plugin/lib/suite-base-get.js
+Paths: plugin/references/scope-mode.md, plugin/references/scope-branch.md, plugin/references/implement-lite.md, plugin/references/implement-full.md, plugin/skills/review/**, plugin/references/review-scope-mode.md, plugin/scripts/scope.js, plugin/lib/suite-base-get.js
 
 ### INV-0125
 
@@ -1014,7 +1014,7 @@ Concepts: Deferred finding, Guard-rail remedy, Ledger
 Statement: A deferred finding leaves the ledger's `**Deferred:**` record only after a fix cycle that carried it lands a commit and a later re-review no longer lists it. It re-enters a fix loop only when a review names a guard-rail remedy for it (ADR 0121).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/skills/review/SKILL.md, plugin/references/review-scope-mode.md, plugin/references/implement-full.md, plugin/references/scope-mode.md
+Paths: plugin/skills/review/SKILL.md, plugin/references/review-scope-mode.md, plugin/references/implement-full.md, plugin/references/scope-mode.md, plugin/references/scope-findings.md
 
 ### INV-0126
 
@@ -1041,7 +1041,7 @@ Concepts: Controller, Scope branch, Suite record
 Statement: No hook runs a test suite on a merge. A slice merge into the scope branch runs no suite, and the scope review's exit run is the first full-suite verification of the integrated scope. Implement's base merge runs no suite: the scope review's exit run verifies it together with the slices, and the review's own base merge at entry the same way (ADR 0192). Ship's merge of the base is followed by a full-suite gate that ship takes itself. The gate is met by a suite record `scope.js suite reusable` accepts at the merged tip, by the carry (ADR 0175), or by the recorded rerun (ADR 0172), each without a green full run at the merged tip: a carried tip writes no suite record, and a rerun's record stays `red`. Otherwise the merging step runs `scope.js test full`, or `scope.js test whole` where ship's whole-repo rule selects it, and that run's result is the suite record. INV-0017 states which records, carries, and reruns count.
 Breaks: silently
 Check: scripts/drift-check.js `implement-no-full-run`
-Paths: plugin/hooks/hooks.json, plugin/references/scope-mode.md, plugin/skills/ship/SKILL.md, plugin/references/implement-full.md, plugin/references/implement-lite.md, plugin/references/run-handoff.md, plugin/references/review-scope-mode.md
+Paths: plugin/hooks/hooks.json, plugin/references/scope-mode.md, plugin/references/scope-branch.md, plugin/skills/ship/SKILL.md, plugin/references/implement-full.md, plugin/references/implement-lite.md, plugin/references/run-handoff.md, plugin/references/review-scope-mode.md
 
 ### INV-0129
 
@@ -1068,7 +1068,7 @@ Concepts: Repair, Definition of Done (DoD), Scope anchor, Stage
 Statement: A repair writes nothing to the original scope's records: not its anchor, its `dod.md`, or its ledger, and merging the repair closes nothing. Recreating the original's missing local run root from its anchor's own `shipped` snapshot copies those records and changes none of them (INV-0132). The original's line observed false is settled only by `/superdev:verify-ship` on the original scope, and no repair moves the original's stage (ADR 0124).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/skills/plan/**, plugin/references/plan-contract.md, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**, plugin/references/scope-mode.md, plugin/references/plan-repair.md
+Paths: plugin/skills/plan/**, plugin/references/plan-contract.md, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**, plugin/references/scope-mode.md, plugin/references/shipped-run.md, plugin/references/plan-repair.md
 
 ### INV-0132
 
@@ -1078,7 +1078,7 @@ Statement: A `shipped` run whose run root is missing locally is recreated only f
 Breaks: silently
 Check: tests/scope-publish-adopt.test.js — `adopt --shipped` adopts a shipped payload and refuses a live, closed, or stage-less one while plain adopt refuses shipped; final-reviewer's invariant compliance judges each caller
 Symbols: adoptLines
-Paths: plugin/scripts/scope.js, plugin/lib/run-state.js, plugin/references/scope-mode.md, plugin/skills/plan/**, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**, plugin/skills/status/**
+Paths: plugin/scripts/scope.js, plugin/lib/run-state.js, plugin/references/scope-mode.md, plugin/references/shipped-run.md, plugin/skills/plan/**, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**, plugin/skills/status/**
 
 ### INV-0133
 
@@ -1096,7 +1096,7 @@ Concepts: Numbering collision, Scope branch, Base branch
 Statement: A scope branch never reaches the base branch carrying a numbering collision. The base step at implement start moves each colliding number of the scope to the next free one before it merges the base. After the move, no line the scope branch added still cites the old number, except a line the attended operator kept as a legitimate citation of it. `/superdev:ship` merges nothing while one stands. In this repository, the test run fails while two ADRs share a number (ADR 0126).
 Breaks: silently
 Check: tests/scope-citations-collisions.test.js — the collision verb reports a same-number ADR with a different slug, and an invariant id, that base holds; tests/scope-citations-collisions.test.js — the citations verb reports an added line citing an old number, and none for a longer number or an unchanged line; scripts/drift-check.js `adr-numbers` — no two ADRs in docs/adr/ share a number
-Paths: plugin/scripts/scope.js, plugin/lib/citations.js, plugin/lib/collisions.js, plugin/references/scope-mode.md, plugin/references/merge-conflicts.md, plugin/skills/ship/SKILL.md
+Paths: plugin/scripts/scope.js, plugin/lib/citations.js, plugin/lib/collisions.js, plugin/references/scope-mode.md, plugin/references/scope-branch.md, plugin/references/merge-conflicts.md, plugin/skills/ship/SKILL.md
 
 ### INV-0135
 
@@ -1169,7 +1169,7 @@ Concepts: Final-reviewer, Slice-reviewer, Review cycle
 Statement: The scope review's `final-reviewer` reads the whole scope range on every dispatch, its re-reviews after a fix cycle included, because a full-tier slice re-review reads only its fix cycle's range (ADR 0137). The one exception is the re-review after a fix cycle whose fix list held only Minor findings: it reads that cycle's own range, because the verdict it follows already read the whole range and found nothing blocking outside unclosable Pass-to-pass findings (ADR 0174). It restates each such finding of that verdict with its slice or range, its case, and its reason, its mark re-judged against the cycle's range, and the combined verdict reads the restated findings (ADR 0193).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/agents/final-reviewer.md, plugin/skills/review/**, plugin/references/review-scope-mode.md, plugin/references/scope-mode.md
+Paths: plugin/agents/final-reviewer.md, plugin/skills/review/**, plugin/references/review-scope-mode.md, plugin/references/scope-mode.md, plugin/references/scope-findings.md
 
 ### INV-0144
 
@@ -1205,7 +1205,7 @@ Concepts: Triage record, Deferred finding, Observation
 Statement: Every finding or observation a trigger meets reaches a triage record, as a new record or as a comment on an open record that plainly states the same defect. An uncertain match, a comment that fails or is denied, and a store document that defines no comment call create a new record. The one exception is a store document that defines no triage record (ADR 0145).
 Breaks: silently
 Check: none — whether two findings state the same defect is a judgment no test can check; a reviewer of a change to a triage-record writer applies it.
-Paths: plugin/references/plan-contract.md, plugin/references/scope-mode.md, plugin/skills/review/SKILL.md, plugin/references/review-scope-mode.md, plugin/references/implement-full.md, plugin/skills/plan/SKILL.md
+Paths: plugin/references/plan-contract.md, plugin/references/scope-mode.md, plugin/references/scope-findings.md, plugin/skills/review/SKILL.md, plugin/references/review-scope-mode.md, plugin/references/implement-full.md, plugin/skills/plan/SKILL.md
 
 ### INV-0151
 
@@ -1259,7 +1259,7 @@ Concepts: Implementer, Slice-reviewer, Controller
 Statement: An implementer, a slice-reviewer, or the lite tier's inline controller that meets a failing test its own slice did not cause names it in its report, neither fixes it nor blocks the slice on it, and leaves it to the scope review's fix loop. A scope review fix dispatch whose finding is a red focused run at entry or a red exit run makes those failing tests the implementer's task. A failing test in the scope review's entry or exit run is that review's Critical finding and joins its fix list, even when the scope did not cause it; a triage record may sit beside its fix, never in its place. The rule stands in the agent body and in the dispatch prose that reaches it.
 Breaks: silently
 Check: scripts/drift-check.js `observation-no-suite-run` — the scope review's observation concept names no suite run as a source; final-reviewer's invariant compliance judges the rest
-Paths: plugin/agents/implementer.md, plugin/agents/slice-reviewer.md, plugin/references/implement-full.md, plugin/references/implement-lite.md, plugin/references/review-scope-mode.md, plugin/references/scope-mode.md
+Paths: plugin/agents/implementer.md, plugin/agents/slice-reviewer.md, plugin/references/implement-full.md, plugin/references/implement-lite.md, plugin/references/review-scope-mode.md, plugin/references/scope-mode.md, plugin/references/scope-findings.md
 
 ### INV-0158
 
@@ -1367,7 +1367,7 @@ Concepts: Scope branch, Containment, Code host
 Statement: A superdev push overwrites a remote scope branch only when the containment test proves base already holds that remote tip's content, and only through a lease naming that exact tip; no superdev push uses a bare force, and a remote tip the test does not prove contained is never overwritten (ADR 0167).
 Breaks: silently
 Check: tests/scope-push.test.js — the lease push on a contained remote tip, the rejected lease on a remote that moved after the fetch, and the refusal of a foreign remote tip, a local namesake included, and a `**Branch:**` line naming base refused with nothing pushed
-Paths: plugin/lib/**, plugin/scripts/scope.js, plugin/skills/plan/SKILL.md, plugin/references/scope-mode.md
+Paths: plugin/lib/**, plugin/scripts/scope.js, plugin/skills/plan/SKILL.md, plugin/references/scope-mode.md, plugin/references/scope-branch.md
 
 ### INV-0170
 

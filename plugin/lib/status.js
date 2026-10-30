@@ -127,8 +127,8 @@ function verbStatus(cwd) {
       // rather than carrying a tally through a report that exists to show what is still moving. Its
       // degrade record, unresolved-defect record, deferred-finding record, Minor queue, and staged-page lines are the
       // deliberate exceptions below: a degraded pass is otherwise recorded only in the pull-request body,
-      // which the same prune outlives it by (scope-mode `## Degraded passes`); an unresolved defect the
-      // same way (`## Unresolved defects`); a deferred finding likewise, and it is the one record naming
+      // which the same prune outlives it by (scope-findings `## Degraded passes`); an unresolved defect the
+      // same way (scope-findings `## Unresolved defects`); a deferred finding likewise, and it is the one record naming
       // work nobody has planned yet (ADR 0035); and a page nobody publishes is invisible everywhere else
       // (ADR 0023) — a finished scope is exactly where any of them waits.
       if (stage === 'shipped' || stage === 'closed') {

@@ -11,6 +11,7 @@ const { formatGap } = require('../../drift-check');
 module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   const DIRECTORY_WALKERS = new Set([
     'reference',
+    'heading-citation',
     'command-resolution',
     'adr-numbers',
     'adr-status',

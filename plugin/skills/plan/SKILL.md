@@ -252,7 +252,7 @@ contract. Ask its placement, with cross-exam.md's live-options test on each answ
 (the one already touching that code), **its own slice in this scope**, or **later**. A defect the derive
 report surfaces that no planned slice covers is **later** without asking. **Later** makes it an
 **observation**: write its triage record the moment it is placed, per
-`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations`, with the provenance that exists at
+`${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Observations`, with the provenance that exists at
 that moment — the date, and the feature label, scope branch, and anchor once each exists. The record goes
 to the store at once, whether or not a scopetree exists yet.
 
@@ -270,8 +270,8 @@ seeded intent's **Rejected directions**, and revise-in-place.
 invariant first crystallises — never earlier — run
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" open <type>/<scope> --base <base> --remote <remote>`, with
 `<base>` the base branch and `<remote>` the `Remote:` value of `docs/agents/code-management.md` (no
-`Remote:` value → leave out `--remote`). It applies `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
-`## Cutting the scope branch` and `## The run lock` for `/superdev:plan` (ADR 0079, ADR 0185): it cuts or reuses
+`Remote:` value → leave out `--remote`). It applies `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s
+`## Cutting the scope branch` and `scope-mode.md`'s `## The run lock` for `/superdev:plan` (ADR 0079, ADR 0185): it cuts or reuses
 `<type>/<scope>` into `<run-root>/scopetree` (an append onto a `planned` ledger finds both there and cuts
 nothing), writes `<run-root>/run.lock`, writes an empty `planned` ledger when none exists, so an interview
 abandoned after this point still leaves one `/superdev:status` sees, and records the plan step
@@ -505,14 +505,14 @@ where no capture ever crystallised. This commit lands only inside the scopetree,
 checkout, which is never staged, committed, or switched (ADR 0045).
 
 **Write the ledger with `scope.js init`, from the invoking checkout** — the JSON envelope
-`${CLAUDE_PLUGIN_ROOT}/references/run-init.md`'s `## Run init — definition of done + ledger` section
+`${CLAUDE_PLUGIN_ROOT}/references/run-init.md`'s `## Run init — definition of done + ledger (always first)` section
 pipes to it, `{"anchor": "<key> — <title>", "slices": [...]}`, passed as
 `scope.js init <type>/<scope> planned` (ADR 0079): carry the anchor this plan created or amended, and every
 slice this plan wrote, each row's `status` field `todo`. It overwrites the `planned` ledger `open` wrote,
 and keeps the plan step.
 
 **Push the scope branch**, on every plan run — fresh and append, attended and unattended — per
-`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Pushing the scope branch` (ADR 0167): run
+`${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Pushing the scope branch` (ADR 0167): run
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" push --root <run-root> --remote <remote> --base <base>` in
 your own Bash call, with `<remote>` the `Remote:` value of `docs/agents/code-management.md` and `<base>` its
 base branch. With no `Remote:` value, print that section's one note and run no push. An outcome that pushed

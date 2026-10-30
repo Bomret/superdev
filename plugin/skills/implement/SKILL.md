@@ -23,7 +23,7 @@ review `/superdev:review` runs next.
 
 `full` dispatches `superdev:implementer`, `superdev:slice-reviewer`, and `superdev:simplicity-reviewer`
 with per-slice specifics, not the whole plan; their discipline lives in their own bodies. `lite`
-dispatches nothing — you carry the TDD discipline yourself. Narrate at most one line between dispatches.
+dispatches nothing — you carry the TDD discipline yourself. Before each of their dispatches you mark the log with a `dispatch:` line, and only an entry below the last such line is current (`${CLAUDE_PLUGIN_ROOT}/references/implement-full.md`'s `## Progress log (per slice)`). A `superdev:slice-reviewer` appends its full findings, with their remedies, to the log its dispatch names, under the heading the dispatch names, and returns a summary (`${CLAUDE_PLUGIN_ROOT}/agents/slice-reviewer.md`'s `## Report`): you read its current entry in that log for any step that needs more than the summary, and a review whose current entry is missing goes back to that same reviewer through SendMessage first. A `superdev:implementer` that builds a slice, fixes a slice, or fixes a Minor sweep appends a self-check entry to its log before it reports, headed with its dispatch kind and cycle, and returns its required report (`${CLAUDE_PLUGIN_ROOT}/agents/implementer.md`'s `## Self-check` and `## Report`): a report whose log holds no current entry under the dispatch's heading goes back to it before the review, and no slice-review dispatch carries the entry. Narrate at most one line between dispatches.
 
 ## Invariants (both playbooks)
 
@@ -57,7 +57,7 @@ dispatches nothing — you carry the TDD discipline yourself. Narrate at most on
   `AGENTS.md` hierarchy or the knowledge base is named in the controller's report instead. A hit in
   `CHANGELOG.md` is release history and needs no change.
 - **An observation is captured the moment you meet it.** Read
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations` section and follow it: a defect a
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Observations` section and follow it: a defect a
   dispatched agent's report surfaces, or one you meet yourself, that no slice of this scope covers and the
   scope did not cause gets a triage record from you, the controller, right here — never held until the
   handoff at the end of the chain.
@@ -66,11 +66,11 @@ dispatches nothing — you carry the TDD discipline yourself. Narrate at most on
 - **Hook-enforced, don't restate:** only the controller merges/pushes (`merge-guard`); every dispatch sets
   an explicit `model` (`model-explicit`).
 - **A denied dispatch is a degraded pass, not a silent inline step.** Follow
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section: work inline, say so,
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section: work inline, say so,
   and write the `**Degraded:**` entry — `scope.js degraded add` for an authoring dispatch (implementer,
   fix), `scope.js degraded add-denial -` for a denied verification dispatch, piping the classifier's
-  refusal through a quoted heredoc rather than a shell argument — then publish the snapshot, per that
-  file's `## Publishing run state` section. **`--unattended`**
+  refusal through a quoted heredoc rather than a shell argument — then publish the snapshot, per
+  `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section. **`--unattended`**
   → a denied implementer
   or fix blocks at every tier, per ADR 0001; a denied verification dispatch follows that section's
   authorship rule instead — block where the controller authored what the pass verifies, and otherwise do

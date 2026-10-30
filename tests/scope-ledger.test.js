@@ -1111,7 +1111,7 @@ try {
 
     // A plain `add` cannot write a bullet `get denials` reads as either shape: the refusal names
     // `add-denial` as the verification-dispatch verb, and tells any other denial (an authoring
-    // dispatch, a denied Bash command — both still take plain `add`, per scope-mode `## Degraded
+    // dispatch, a denied Bash command — both still take plain `add`, per scope-findings `## Degraded
     // passes`) to rework its wording instead of misrouting it to `add-denial` (ADR 0044).
     const beforePrefixRefusal = fs.readFileSync(path.join(dRoot, 'ledger.md'), 'utf8');
     d = call(['degraded', 'add', 'denied: something', ...D]);

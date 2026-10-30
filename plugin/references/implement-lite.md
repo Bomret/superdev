@@ -12,7 +12,7 @@ read `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md` as your last step.
 - **Read `${CLAUDE_PLUGIN_ROOT}/references/run-init.md`** — the controller's run opening — before cutting
   the scopetree.
 - **Scope branch into a dedicated scopetree, per this run's kind.** Read
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Cutting the scope branch` and do what it says for
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Cutting the scope branch` and do what it says for
   the run kind the controller handed you — `fresh` or `resumed` (ADR 0028). Never derive that
   value yourself. Call whatever it leaves you on `<branch>` for the rest of this file: for `fresh` that is
   literally `git worktree add <run-root>/scopetree -b <type>/<scope> <base>` (`<path>` there
@@ -34,7 +34,7 @@ closed.
 
 ## Bring in the base
 
-Right after the run lock, before the first slice, run `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
+Right after the run lock, before the first slice, run `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s
 `## Bringing the scope branch to base`, on every invocation and at every run kind (ADR 0120, INV-0124).
 A stop there dispatches no slice. The step runs no test suite, so the suite record never holds a slice back
 (ADR 0192).
@@ -79,7 +79,7 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
   acceptance coverage, not on the specification's happy path — each criterion, including the failure and
   boundary cases the criteria name, is the RED test of its own increment.
 - **An observation is captured the moment you meet it.** Read
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations` section and follow it: a defect
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Observations` section and follow it: a defect
   you meet while implementing inline, that no slice of this scope covers and the scope did not cause,
   gets a triage record from you, the controller, right here — never held until the handoff at the end of
   the chain.
@@ -124,7 +124,7 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
   10-second floor), or ended by a signal, or a run's command could not start (`start-failed:<code>` in its
   reason). It draws no finding and starts no fix cycle. The scope run's
   first `unknown` is an observation: you write its triage record under
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Observations`, naming the environment gap. That rule
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Observations`, naming the environment gap. That rule
   exempts an inherited `unknown` and counts the first one it does not exempt, whether or not the verb's stderr
   names it the first.
 - **No per-slice review, no per-slice over-engineering pass, no per-slice progress log.** Your own context is the record of how each slice
@@ -139,7 +139,7 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
   `dod.md` with no tags at all when the ledger lists more than one slice (a run begun before tagging
   existed); leave it for run handoff's own handoff pass, read next, which settles it as if it read `scope`.
 - **No dispatch degrades here.** This tier dispatches nobody, so a denied dispatch cannot happen and the
-  `**Degraded:**` line that `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes`
+  `**Degraded:**` line that `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes`
   section defines stays absent through slice execution. The doc step below can still write one, for that
   section's second shape. `/superdev:review` and `/superdev:document` dispatch too, so the line can
   appear later in the chain — leave any entry you find alone.
@@ -171,12 +171,12 @@ slicetrees and would collide on shared doc files.
 - **A pass that changed nothing still records.** The docs already agreed with the code, which is a
   finished pass, not a skipped one.
 - **A knowledge-base pass you cannot stage is a degraded pass**, the second shape in
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section: record it with
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section: record it with
   `scope.js degraded add` and continue, attended or unattended alike. Record the doc pass as well — what
   ran, ran.
 - **Nothing here asks a question**, so `--unattended` changes nothing about this step — nothing in this
   section can end the command, so both writes above rely on their defining section's own citation
-  (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Publishing run state` section) rather than
+  (`${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section) rather than
   repeating one here.
 
 ## Resume

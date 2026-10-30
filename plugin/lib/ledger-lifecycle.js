@@ -213,7 +213,7 @@ function verbStage(root, sub, value) {
   writeLines(root, setHeader(lines, 'Stage', value));
 }
 
-// The chain step a command has started and not yet completed (ADR 0140, scope-mode `## The ledger`).
+// The chain step a command has started and not yet completed (ADR 0140, run-state `## The ledger`).
 // Returns whether the caller traces the call: `set` always (a repeated step is a new start), `clear` only when a step stood.
 const STEPS = ['plan', 'implement', 'review', 'document', 'submit', 'ship', 'verify-ship', 'wrap-up'];
 function verbStep(root, sub, value) {

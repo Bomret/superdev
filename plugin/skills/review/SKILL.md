@@ -155,9 +155,9 @@ Review a change end to end. §1 decides the mode.
 - `gh pr merge` or `tea pr merge` (tea's `pulls` and `pull` names for `pr` included);
 - a `gh api` or `tea api` write to a pull request's `/merge` endpoint.
 
-**The slice reviewer.** Applies to every review. Dispatch no `superdev:slice-reviewer`. `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md`'s `## 2. Review` states the one exception, an Unreviewed slice finding.
+**The slice reviewer.** Applies to every review. Dispatch no `superdev:slice-reviewer`. `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md`'s `## 2. Review` states the one exception, an Unreviewed slice finding, and the report contract of that dispatch: the reviewer appends its full findings to the slice's progress log and returns a summary.
 
-**A denied `final-reviewer` dispatch.** Applies when the permission classifier denies the dispatch. The denial is a degraded pass. Follow `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section.
+**A denied `final-reviewer` dispatch.** Applies when the permission classifier denies the dispatch. The denial is a degraded pass. Follow `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section.
 
 - **Attended** → review inline yourself and say so in §3's report.
 - **A live scope run** → also take the writes of `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md`'s `## 2. Review`.

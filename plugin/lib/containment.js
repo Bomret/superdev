@@ -4,7 +4,7 @@
 
 const { gitSpawn, refResolves } = require('./git-spawn.js');
 
-// `references/scope-mode.md` `## Containment`. Exported for `publish-kb.js` and `hooks/scope-prune.js` to
+// `references/scope-branch.md` `## Containment`. Exported for `publish-kb.js` and `hooks/scope-prune.js` to
 // `require`, and no CLI verb, because this touches no ledger.
 //
 // A Containment verdict is one of three strings:
@@ -183,7 +183,7 @@ function judgeContainment(cwd, base, branch, remote = 'origin', { fetchTimeoutMs
   // (no remote configured, an unreachable host, a rejected credential) leaves the local verdict
   // standing rather than erroring. `timeout`/`killSignal` bound a black-holed host to the same short
   // wait: `spawnSync` otherwise blocks on the connect for as long as the kernel's own TCP timeout runs,
-  // which is minutes, not the "leaves the first verdict standing" scope-mode.md already promises.
+  // which is minutes, not the "leaves the first verdict standing" scope-branch.md already promises.
   // The stderr is kept, in git's own English (the C locale), for a caller that reads why the refetch failed
   // (`push.js` tells a rejected credential from an unreachable remote); the verdict reads the status alone.
   const fetched = gitSpawn(['fetch', '--end-of-options', remote, base], cwd, {

@@ -67,7 +67,7 @@ foreclosed by construction rather than by a guard on this command.
 name that leg **degraded** in §3's report, carrying whatever reason it gives (the classifier's refusal, or
 the leg's own stated cause), and **continue with the remaining legs**. This command holds no run root of
 its own — it sits outside the implement chain (ADR 0068) — so
-`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Degraded passes` section applies the way
+`${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section applies the way
 `/superdev:review-tests` already applies it to its own no-run-root case, borrowing only that section's
 report-and-no-ledger-entry half: report the degraded pass in this output, and write no ledger entry —
 there is no ledger. Never let one leg's denial stop the sweep; a merged report over three legs is worth
