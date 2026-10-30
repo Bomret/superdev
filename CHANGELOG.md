@@ -1,3 +1,10 @@
+# [0.94.0](https://codeberg.org/bomret/superdev/compare/v0.93.0...v0.94.0) (2026-10-30)
+
+
+### Features
+
+* **run-state:** keep run state on the git ref refs/superdev/<scope> ([#1464](https://codeberg.org/bomret/superdev/issues/1464)) ([fe4f188](https://codeberg.org/bomret/superdev/commit/fe4f18842e87bded2e4115d9a1177d90272b48b7))
+
 # [0.93.0](https://codeberg.org/bomret/superdev/compare/v0.92.0...v0.93.0) (2026-10-30)
 
 
