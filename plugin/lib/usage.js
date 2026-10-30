@@ -76,6 +76,8 @@ function usage() {
     '            --note <text>|--note-file <path> [--line]',
     '                                     stdin: a body (default) or one checklist line (--line);',
     '                                     stdout: the same, with the matching line judged',
+    '  dod-merge --root <run-root>        stdin: the anchor\'s Definition of Done; writes <run-root>/dod.md from it, keeping',
+    '                                     each verdict the existing dod.md carries on a line the anchor leaves without a note',
   ].join('\n');
 }
 

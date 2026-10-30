@@ -190,6 +190,11 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 
 ### 4.5 The Definition-of-Done criteria
 
+**The anchor sync.** Applies to the first verdict of this review, `final-reviewer`'s or the inline review's after a denied dispatch, before any tick or untick below. Implement and run handoff tick `dod.md` alone, so the anchor's checklist still lacks their ticks (ADR 0206). Read the anchor's Definition-of-Done lines per `docs/agents/issue-tracker.md`. Run the anchor sync of `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## Pairing dod.md with the anchor`.
+
+- A failed anchor read or line write is reported once per run and never stops the review. `dod.md` stays authoritative.
+- Every tick and untick after the sync writes `dod.md` and the anchor's checklist, as the concepts below state.
+
 **A broken line.** Applies to a line `final-reviewer`'s `### Criteria` calls broken, ticked or not (`### Judge every criterion` owns the verdicts). It is a Critical finding. Untick it first. Fold it into the findings list beside `final-reviewer`'s `### Issues` after the untick.
 
 - The untick carries a one-line note naming why (INV-0014).

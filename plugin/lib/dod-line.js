@@ -236,4 +236,10 @@ function verbDodLine(args, stdinRaw) {
   process.stdout.write(out.join('\n'));
 }
 
-module.exports = { verbDodLine };
+// True when a checklist line carries a verdict note (`met:`, `not met:`, `ceiling:`, `accepted:`).
+function dodLineHasNote(line) {
+  const m = line.match(DOD_LINE_RE);
+  return !!m && (DOD_WITH_NOTE_TAG_RE.test(m[2]) || DOD_WITH_NOTE_NO_TAG_RE.test(m[2]));
+}
+
+module.exports = { verbDodLine, parseDodLineReadings, dodLineHasNote, collapseWhitespace };

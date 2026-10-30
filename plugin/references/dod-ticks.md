@@ -155,27 +155,36 @@ Writing a tick is the controller's own act, never a subagent's, and never `/supe
 holds for an untick — document's case above writes one from its own direct check against the branch,
 never from a dispatched report. One criterion is judged at a time, from one report or, on a pass with no
 dispatched worker, that same direct check — never batched from an assumption about what several reports
-together must have covered. Each write lands in two places:
+together must have covered. Each write lands in `<run-root>/dod.md`, the run's own working copy:
 
-- **`<run-root>/dod.md`**, the run's own working copy.
-- **The scope anchor**, through the active slice store's own `## Definition of Done ticks` section
+- **Implement's case and run handoff's pass write `dod.md` alone.** They are the only writers that skip
+  the anchor, so its checklist lacks their ticks until the anchor sync copies them (ADR 0206).
+- **Every other write also lands on the scope anchor**: review's, the doc pass's, and verify-ship's. The
+  review opens with the anchor sync (`## Pairing dod.md with the anchor` below).
+- **The anchor write** goes through the active slice store's own `## Definition of Done ticks` section
   (every store document carries one), which runs `scope.js dod-line` (`plan-contract.md` → *Definition of
   Done ticks*) for the line edit itself through that store's gated **Edit an issue's body** rule (ADR
   0115) — best-effort, the same posture every other anchor write in the chain takes.
 
 ## Pairing dod.md with the anchor
 
-`dod.md` is authoritative (INV-0016), and a store's tick write is best-effort, so the anchor can lag it.
-An anchor line **pairs** with a `dod.md` line by criterion text, the match `scope.js dod-line` uses.
-Every command that compares the two reads them this way:
+`dod.md` is authoritative (INV-0016). Implement and run handoff write no anchor line, and a store's tick
+write is best-effort, so the anchor can lag it. An anchor line **pairs** with a `dod.md` line by
+criterion text, the match `scope.js dod-line` uses. A line's **verdict** is its note's verdict — `met:`,
+`not met:`, `ceiling:`, `accepted:`, or no note — never the box alone: an unticked anchor line with no
+note differs from an unticked `dod.md` line noted `not met:`. Every command that compares the two reads
+them this way:
 
-- **A paired line whose verdict on the anchor differs from `dod.md`** is a failed tick write.
-  `/superdev:verify-ship` reconciles it by rewriting the anchor line from `dod.md` through the store's
-  `## Definition of Done ticks` section (`scope.js dod-line`), before it observes anything.
+- **A paired line whose verdict on the anchor differs from `dod.md`** is a tick the anchor has not
+  received yet. The **anchor sync** rewrites each such anchor line from `dod.md` through the store's
+  `## Definition of Done ticks` section (`scope.js dod-line`), one line at a time, and leaves a paired line
+  whose verdict agrees untouched. The scope review runs it before it applies any verdict
+  (`review-scope-mode.md`'s `### 4.5 The Definition-of-Done criteria`), and `/superdev:verify-ship` runs it
+  before it observes anything.
 - **A `dod.md` line with no text-matching line on the anchor** is unpaired. It is never counted as a
-  verdict disagreement and is never retried by the reconcile, because `dod-line` cannot rewrite a line
-  the anchor lacks. It needs a hand-sync of the anchor's criterion text to `dod.md`'s; verify-ship cannot
-  reconcile it.
+  verdict disagreement and is never retried by the anchor sync, because `dod-line` cannot rewrite a line
+  the anchor lacks. It needs a hand-sync of the anchor's criterion text to `dod.md`'s; the anchor sync
+  cannot reach it.
 
 ## Reading the report
 

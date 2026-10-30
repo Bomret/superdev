@@ -64,11 +64,11 @@ only what it does with the outcome, and what it does when the anchor cannot be r
   `repair <key> is open; finish its chain first`, the key in the store's own notation. `/superdev:plan`
   stays the named command, because a second repair of the same scope is its own feature.
 - **Verify-ship** — otherwise, while a Definition-of-Done line is neither ticked nor `accepted:`, a paired
-  line's verdict on the anchor differs from `dod.md` (verify-ship reconciles it), or a listed `manual` target is
+  line's verdict on the anchor differs from `dod.md` (verify-ship's anchor sync rewrites it), or a listed `manual` target is
   not recorded `deployed`.
 - **Wrap-up** — otherwise: every line ticked or noted `accepted:`, every paired anchor line agreeing with `dod.md`, and every listed `manual` target recorded `deployed`. A
-  `dod.md` line with no text-matching line on the anchor still routes here, because verify-ship cannot
-  reconcile it: the hand-sync of the anchor's criterion text comes first, then `/superdev:wrap-up <scope>`.
+  `dod.md` line with no text-matching line on the anchor still routes here, because verify-ship's anchor
+  sync cannot reach it: the hand-sync of the anchor's criterion text comes first, then `/superdev:wrap-up <scope>`.
 
 **The repair citation.** `/superdev:verify-ship` ends every `not met:` note it writes or rewrites with
 ` (observed)`, or with ` (observed; after <key>, <key>)` naming every closed anchor whose
@@ -112,8 +112,9 @@ routes such an anchor by `## Routing a shipped run`'s **A run with no local ledg
    `adopt`, and run init's own adopt path, keep refusing `shipped`: `/superdev:implement` never resumes a
    shipped run.
 3. **The Definition of Done.** After a successful adopt, write `<run-root>/dod.md` from the anchor's Definition-of-Done lines,
-   exactly as run init's **Write the DoD** writes it for an adopted run, each verdict note carried as the
-   anchor states it. The ledger and `dod.md` are a local copy only: adoption writes nothing to the anchor,
+   exactly as run init's **Write the DoD** writes it for an adopted run, through `scope.js dod-merge`: each verdict
+   note carried as the anchor states it, and a line the anchor leaves without a note keeps the verdict the ref's
+   `dod.md`, unpacked by the adopt above, carries (ADR 0206). The ledger and `dod.md` are a local copy only: adoption writes nothing to the anchor,
    moves no stage, and publishes nothing.
 
 The adopted run root holds no scopetree and no slicetrees. Nothing adopted → the caller goes on as it does with no run root.

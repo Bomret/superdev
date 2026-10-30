@@ -187,7 +187,7 @@ function verbInit(cwd, label, stage, stdinJson, log = console.log) {
   return root;
 }
 
-// Set-only: the read path is `get stage`.
+// Set-only: the read path is `get stage`. Returns true when the write closed a standing step.
 function verbStage(root, sub, value) {
   const lines = readLines(root);
   if (sub !== 'set') fail(`unknown stage subcommand "${sub}" — use set`);
@@ -202,15 +202,18 @@ function verbStage(root, sub, value) {
     }
   }
   // A new stage completes whatever step was open (ADR 0140); a same-stage write leaves it.
+  let closed = false;
   if (cur !== value) {
     const at = lines.findIndex((l) => headerRe('Step').test(l));
     if (at >= 0) {
       lines.splice(at, 1);
+      closed = true;
       // The trace records the clear as a `step clear` line, so the review-step window reads step lines alone.
       appendTrace(root, { kind: 'ledger', fields: ['step', 'clear'] });
     }
   }
   writeLines(root, setHeader(lines, 'Stage', value));
+  return closed;
 }
 
 // The chain step a command has started and not yet completed (ADR 0140, run-state `## The ledger`).

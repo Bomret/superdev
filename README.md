@@ -595,7 +595,9 @@ again. One answer lands outside that tree: the slice store's **assignee** goes t
   this: the run publishes nothing and adopts nothing there.
 
   Independent of that snapshot, a controller ticks the anchor's own Definition of Done checklist through
-  the store's own `## Definition of Done ticks` section as the run works. No backend is exempt: Jira
+  the store's own `## Definition of Done ticks` section. Implement and run handoff tick `dod.md` alone; the
+  scope review's anchor sync copies their ticks onto the anchor, and the run-state ref carries `dod.md` to
+  another machine (ADR 0206). No backend is exempt: Jira
   ticks its anchor's checklist too, the same as every other store.
 - **Code host.** Where the scope branch is pushed and the PR or MR opens, plus the default posture
   (`draft`, `ready`, or `push-only`) and the base branch. The choices are GitHub (`gh`), Forgejo or

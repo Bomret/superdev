@@ -1,6 +1,6 @@
 'use strict';
 
-// run-state-ref.js: the run-state push, which puts a run root's trace, reports, and interface file on
+// run-state-ref.js: the run-state push, which puts a run root's trace, reports, interface file, and dod.md on
 // `refs/superdev/<scope>` of the remote when a step ends (ADR 0202, INV-0179).
 
 const crypto = require('crypto');
@@ -9,8 +9,11 @@ const path = require('path');
 const { gitSpawn } = require('./git-spawn.js');
 const { gitCall, lastLine } = require('./push.js');
 const { parseRemote } = require('./kb-containment.js');
+const { mergeDod } = require('./dod-merge.js');
 
-const HANDOFF_ITEMS = ['trace.log', 'reports', 'interfaces.md'];
+// dod.md rides the ref because implement's ticks never reach the anchor, the copy adopt reads first. The unpack
+// merges it into a local dod.md rather than replacing it (ADR 0206).
+const HANDOFF_ITEMS = ['trace.log', 'reports', 'interfaces.md', 'dod.md'];
 
 // The remote ref of a scope, or null where git cannot use the scope as a ref name.
 function refName(scope) {
@@ -141,7 +144,7 @@ function fetchRunState(root, cwd) {
     const { remote, note } = resolveRemote(repo);
     if (!remote) return `run-state: not fetched, ${note}`;
     const local = ['trace.log', 'reports'].filter((n) => lstatOrNull(path.join(root, n)));
-    if (local.length) return `run-state: kept the local ${local.join(' and ')}, unpack skipped; the next send refuses until the remote ref is read`;
+    if (local.length) return `run-state: kept the local ${local.join(' and ')}, unpack skipped, dod.md stays the local copy; the next send refuses until the remote ref is read`;
     const got = gitCall(['fetch', '--end-of-options', remote, ref], repo, true);
     if (got.signal != null) return `run-state: not fetched, the call was ended by its own bound (signal ${got.signal})`;
     if (got.status !== 0) {
@@ -163,10 +166,20 @@ function fetchRunState(root, cwd) {
     const wanted = listed
       .filter((e) => !(keptInterfaces && e.name === 'interfaces.md'))
       .filter((e) => HANDOFF_ITEMS.some((n) => e.name === n || e.name.startsWith(n + '/')));
+    let dodNote = '';
     const blobs = wanted.map((e) => {
       const r = gitSpawn(['cat-file', 'blob', e.sha], repo, { encoding: 'buffer', stdio: ['ignore', 'pipe', 'pipe'] });
       if (r.status !== 0) throw new Error(`cannot read ${e.name}`);
-      return { name: e.name, data: r.stdout };
+      if (e.name !== 'dod.md') return { name: e.name, data: r.stdout };
+      // The local dod.md, written from the anchor, decides the criteria; the ref's copy fills its noteless lines.
+      const localDod = lstatOrNull(path.join(root, 'dod.md')) ? fs.readFileSync(path.join(root, 'dod.md'), 'utf8') : null;
+      if (localDod === null) {
+        dodNote = '; dod.md taken from the ref';
+        return { name: e.name, data: r.stdout };
+      }
+      const { text, kept } = mergeDod(localDod, r.stdout.toString('utf8'));
+      dodNote = `; dod.md merged into the local copy, ${kept} verdict${kept === 1 ? '' : 's'} from the ref`;
+      return { name: e.name, data: Buffer.from(text, 'utf8') };
     });
     // Unpack into a staging directory, then rename each top-level item into place, so a write error leaves no partial unpack.
     fs.mkdirSync(root, { recursive: true });
@@ -188,7 +201,7 @@ function fetchRunState(root, cwd) {
     }
     const recorded = recordSeenTip(repo, remote, scope, tip);
     const kept = keptInterfaces && listed.some((e) => e.name === 'interfaces.md') ? '; kept the local interfaces.md, the next send overwrites the remote copy' : '';
-    return `run-state: fetched ${blobs.length} files from ${remote} ${ref}${kept}${recorded ? '' : ' (recording the seen tip failed, the next send will refuse)'}`;
+    return `run-state: fetched ${blobs.length} files from ${remote} ${ref}${dodNote}${kept}${recorded ? '' : ' (recording the seen tip failed, the next send will refuse)'}`;
   } catch (e) {
     return `run-state: not fetched: ${e.message}`;
   }

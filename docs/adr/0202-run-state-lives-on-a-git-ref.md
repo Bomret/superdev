@@ -5,6 +5,9 @@
 **Amends:** [ADR 0042](0042-run-state-is-mirrored-to-the-scope-anchor.md), whose snapshot carries the
 ledger only. This record puts the rest of a run's machine state on a git ref.
 
+**Amended by:** [ADR 0206](0206-the-anchor-receives-ticks-from-the-review-on.md), which adds `dod.md` to the
+ref's items.
+
 **Context.** A run's trace (`trace.log`), its per-slice reports (`reports/`), and its cross-slice interface
 file (`interfaces.md`) exist only in one checkout's git-ignored run root. `git clean -fdX`, a lost disk, or
 a fresh clone deletes them without a message. A run cannot move to another machine in the middle of
@@ -26,7 +29,8 @@ up to 131 KB in past runs, and reports up to 1.6 MB, so neither fits an issue bo
   fetched tip is recorded, so a later push refuses rather than overwrite the remote.
 - **`/superdev:wrap-up` deletes the ref**, with no lease. An absent ref is no error.
 
-The ledger and `dod.md` stay off the ref: the anchor is their one remote home.
+The ledger and `dod.md` stay off the ref: the anchor is their one remote home. (ADR 0206 puts `dod.md` on the
+ref.)
 
 ## Considered options
 

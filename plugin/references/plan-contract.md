@@ -452,7 +452,9 @@ A controller ticks the anchor's own Definition of Done checklist **independent o
 above** (ADR 0091, INV-0001, INV-0015): a store with no snapshot still ticks its anchor's own checklist,
 exactly as a store that mirrors one does. `<run-root>/dod.md` stays authoritative regardless of whether
 an anchor tick lands — the anchor edit is a second, best-effort mirror of a judgment `dod.md` already
-holds, never a second source of truth for it.
+holds, never a second source of truth for it. Implement and run handoff write `dod.md` alone; every other
+writer also writes the anchor, and the scope review opens with the anchor sync that copies their ticks (`dod-ticks.md` → *Only a
+controller ticks*, ADR 0206).
 
 Recording a judgment on a criterion (*Criterion tags* above) sets its line's marker to the **target
 state** the judgment reached — `- [x]` when met, `- [ ]` otherwise — and carries the line's own note —

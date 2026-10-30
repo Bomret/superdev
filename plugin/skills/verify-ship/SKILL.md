@@ -79,12 +79,12 @@ Read the stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --r
 
 ## 4. Observe
 
-**The reconcile.** Applies to every run that reaches §4. Read the anchor's Definition-of-Done lines per `docs/agents/issue-tracker.md`. Reconcile them with `dod.md` per `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## Pairing dod.md with the anchor` before any observation.
+**The anchor sync.** Applies to every run that reaches §4. Read the anchor's Definition-of-Done lines per `docs/agents/issue-tracker.md`. Run the anchor sync of `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## Pairing dod.md with the anchor` before any observation.
 
 - **A failed anchor write** → report it once.
 - **A `dod.md` line unpaired on the anchor** → report it by name as needing a hand-sync of the anchor's criterion text.
 
-**The open lines.** Applies after the reconcile. Read `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s *Verify-ship's case*. Take the open lines from `<run-root>/dod.md` as that case states. With no open line go to §6 before the repairs read.
+**The open lines.** Applies after the anchor sync. Read `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s *Verify-ship's case*. Take the open lines from `<run-root>/dod.md` as that case states. With no open line go to §6 before the repairs read.
 
 **The repairs read.** Applies when an open line exists. Read this scope's repairs once before the first observation. Read them through `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run`, step 4.
 

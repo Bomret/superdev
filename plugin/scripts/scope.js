@@ -41,6 +41,7 @@ const { verbCitations } = require('../lib/citations.js');
 const { verbSourceSet } = require('../lib/source-set.js');
 const { verbPush } = require('../lib/push.js');
 const { pushRunState, fetchRunState, deleteRunState } = require('../lib/run-state-ref.js');
+const { verbDodMerge } = require('../lib/dod-merge.js');
 const { verbOpen } = require('../lib/plan-open.js');
 const { usage } = require('../lib/usage.js');
 
@@ -115,7 +116,8 @@ function run(argv, cwd, stdinJson) {
       break;
     case 'stage': {
       const root = takeRoot(args);
-      verbStage(root, args[0], args[1]);
+      // A stage write that closes the standing step is a step end, so it sends the run-state ref (ADR 0206).
+      if (verbStage(root, args[0], args[1])) handoffRoot = root;
       ledgerEvent = { root, fields: ['stage', args[0], args[1]] };
       break;
     }
@@ -324,6 +326,10 @@ function run(argv, cwd, stdinJson) {
     case 'run-state':
       if (args[0] !== 'delete') fail('run-state: expected "delete"\n' + usage());
       console.log(deleteRunState(takeRoot(args), cwd));
+      break;
+    // dod-merge writes dod.md alone: no ledger, no store call (references/dod-ticks.md, ADR 0206).
+    case 'dod-merge':
+      verbDodMerge(takeRoot(args), stdinJson);
       break;
     // No --root: dod-line touches no ledger, and makes no store call (references/dod-ticks.md).
     case 'dod-line':

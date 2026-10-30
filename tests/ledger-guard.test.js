@@ -360,7 +360,7 @@ assert.equal(bash('grep sed ' + L + ' -i').block, true, 'a flag after the file b
 
 // The refusal names every ledger-writing verb in scope.js's usage text: every top-level verb there except the read-only ones.
 {
-  const READ_ONLY = new Set(['get', 'trace', 'status', 'publish', 'root', 'staging', 'dod-line', 'collisions', 'citations', 'source-set', 'push', 'run-state', 'test', 'fail-to-pass']);
+  const READ_ONLY = new Set(['get', 'trace', 'status', 'publish', 'root', 'staging', 'dod-line', 'dod-merge', 'collisions', 'citations', 'source-set', 'push', 'run-state', 'test', 'fail-to-pass']);
   // The usage text `scope.js --help` prints (tests/scope-help.test.js spawns it), read in-process.
   const { usage } = require(path.join(path.dirname(hookPath), '..', 'lib', 'usage.js'));
   const verbs = [...new Set(usage().split('\n').map((l) => /^  ([a-z][a-z-]*)\b/.exec(l)).filter(Boolean).map((m) => m[1]))].filter((v) => !READ_ONLY.has(v));

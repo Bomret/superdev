@@ -56,7 +56,8 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          (ledger-guard's write-target table).
                          Ledger and run state: `ledger.js` (vocabulary, stage rank, line primitives),
                          `ledger-lifecycle.js` and `ledger-records.js` (the verbs that move a run and
-                         record a fact), `suite-base-get.js`, `dod-line.js`, `run-state.js` (`publish` and
+                         record a fact), `suite-base-get.js`, `dod-line.js`, `dod-merge.js` (the `dod-merge` verb and the
+                         per-line merge adopt uses, ADR 0206), `run-state.js` (`publish` and
                          `adopt`), `status.js`, `usage.js`, `refusal.js` (the refusal error),
                          `main-work-tree.js`, `verification.js` (the readers of `verification.md`).
                          Git and containment: `git-spawn.js` (the shared git calls), `containment.js`,
@@ -90,7 +91,7 @@ tests/                 — one suite per shipped executable (the hooks, `scope.j
                          `node:assert`, run under `node` by `node scripts/run-tests.js` (ADR 0059). A large entry
                          point's suite is split flat by topic into `tests/<entry>-<topic>.test.js` over one
                          `<entry>-setup.js` that is no suite (ADR 0139, ADR 0151): `scope-*` (ledger,
-                         ledger-header, suite, dod-line, publish-adopt, trace, root-base, containment,
+                         ledger-header, suite, dod-line, dod-merge, publish-adopt, trace, root-base, containment,
                          citations-collisions, source-set, push, open, help, `test-verb-*`, `fail-to-pass-*`, over `scope-setup.js`),
                          `run-trace*` (dispatch, drive-paths, guards, paths, runs, stash,
                          writes, over `run-trace-setup.js`), `publish-kb*` (containment, guard, `parent-link-*`,

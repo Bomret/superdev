@@ -47,8 +47,8 @@ function fixture({ scope = SCOPE, files = true, doc = true } = {}) {
   const root = path.join(repo, '.superdev', 'scopes', scope);
   fs.mkdirSync(path.join(root, 'reports', 'S1'), { recursive: true });
   fs.writeFileSync(path.join(root, 'ledger.md'), '# Ledger — x\n\n**Stage:** planned\n**Step:** implement\n');
-  fs.writeFileSync(path.join(root, 'dod.md'), 'dod\n');
   if (files) {
+    fs.writeFileSync(path.join(root, 'dod.md'), 'dod\n');
     fs.writeFileSync(path.join(root, 'trace.log'), '2026-01-01T00:00:00Z a b\n');
     fs.writeFileSync(path.join(root, 'interfaces.md'), 'iface\n');
     fs.writeFileSync(path.join(root, 'reports', 'S1', 'progress.md'), 'p\n');
@@ -79,13 +79,13 @@ const remoteFiles = (f) => git(['ls-tree', '-r', '--name-only', refName], f.orig
 const ledgerOf = (f) => fs.readFileSync(path.join(f.root, 'ledger.md'), 'utf8');
 
 try {
-  // #first-push: the ref is absent; the tree holds exactly the three items, byte for byte.
+  // #first-push: the ref is absent; the tree holds exactly the handoff items, byte for byte.
   {
     const f = fixture();
     const r = step(f);
     assert.strictEqual(r.status, 0, r.stderr);
     assert.match(r.stdout, /run-state: sent/);
-    assert.deepStrictEqual(remoteFiles(f), ['interfaces.md', 'reports/S1/progress.md', 'trace.log']);
+    assert.deepStrictEqual(remoteFiles(f), ['dod.md', 'interfaces.md', 'reports/S1/progress.md', 'trace.log']);
     assert.strictEqual(git(['show', `${refName}:interfaces.md`], f.origin), 'iface');
     assert.strictEqual(git(['show', `${refName}:reports/S1/progress.md`], f.origin), 'p');
   }
@@ -102,6 +102,27 @@ try {
     assert.notStrictEqual(remoteTip(f), first);
     assert.strictEqual(git(['rev-list', '--count', refName], f.origin), '1', 'no history');
     assert.strictEqual(git(['rev-list', '--parents', '-n1', refName], f.origin), remoteTip(f), 'no parent');
+  }
+
+  // #stage-ends-step: a stage write that closes the standing step sends the ref, so implement's ticks in dod.md
+  // reach it (ADR 0206); a stage write with no standing step sends nothing.
+  {
+    const f = fixture();
+    fs.writeFileSync(path.join(f.root, 'dod.md'), '- [x] works — S1 — met: green\n');
+    const set = (stage) => {
+      const r = spawnSync(process.execPath, [scopePath, 'stage', 'set', stage, '--root', f.root], { cwd: f.repo, encoding: 'utf8', timeout: 120000, killSignal: 'SIGKILL' });
+      assertSpawnDecided(r, 'scope.js stage set');
+      return r;
+    };
+    const r = set('merged');
+    assert.strictEqual(r.status, 0, r.stderr);
+    assert.match(r.stdout, /run-state: sent/, r.stdout);
+    assert.strictEqual(git(['show', `${refName}:dod.md`], f.origin), '- [x] works — S1 — met: green');
+    const tip = remoteTip(f);
+    const again = set('reviewed');
+    assert.strictEqual(again.status, 0, again.stderr);
+    assert.doesNotMatch(again.stdout, /run-state:/, 'no standing step, nothing sent');
+    assert.strictEqual(remoteTip(f), tip);
   }
 
   // #lease: another clone moved the ref; the push refuses, the remote stays, the ledger write is done.
@@ -225,7 +246,7 @@ try {
     assert.match(r.stdout, /run-state: sent .*\(recording the seen tip failed, the next send will refuse\)/, r.stdout);
   }
 
-  // #empty-tree: a root with none of the three items pushes an empty tree.
+  // #empty-tree: a root with none of the handoff items pushes an empty tree.
   {
     const f = fixture({ files: false });
     fs.rmSync(path.join(f.root, 'trace.log'), { force: true });

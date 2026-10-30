@@ -7,8 +7,9 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) read this as
 Run after your playbook returns (every slice `merged`/committed on the scope branch). Identical across
 tiers: record that slice execution finished, name what comes next.
 
-- **The run-state ref.** A step end that changes state (`scope.js step clear`, `scope.js step block`) sends the run root's
-  `trace.log`, `reports/`, and `interfaces.md` to `refs/superdev/<scope>` of the remote that the `**Remote:**` line of
+- **The run-state ref.** A step end that changes state (`scope.js step clear`, `scope.js step block`, or a
+  `scope.js stage set` that closes the standing step) sends the run root's
+  `trace.log`, `reports/`, `interfaces.md`, and `dod.md` to `refs/superdev/<scope>` of the remote that the `**Remote:**` line of
   `docs/agents/code-management.md` names. A clear that changes nothing sends nothing. A send prints one `run-state:` line (ADR 0202, INV-0179). The send is
   best-effort: no remote, an unreachable remote, or a remote ref this machine has not seen refuses it
   with that line as the note, and the step end stands. Read the line and continue. `/superdev:wrap-up`
@@ -22,7 +23,8 @@ tiers: record that slice execution finished, name what comes next.
   not cause gets a triage record from you, the controller, right here — never held until the handoff at the end
   of the chain.
 - **The handoff pass.** Inline, right here — no dispatch, on both tiers, and no wait on a suite record. Read
-  `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`, then, over `<run-root>/dod.md`. Verifying a criterion
+  `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`, then, over `<run-root>/dod.md` alone: this pass writes
+  no anchor line, and the scope review copies `dod.md` onto the anchor (ADR 0206). Verifying a criterion
   observes; it changes no system outside the repository (ADR 0084, INV-0006):
   - **Leave every `docs`-tagged criterion unjudged** — no tick and no note: the doc pass settles it after
     the scope review (ADR 0161, `dod-ticks.md`).

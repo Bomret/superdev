@@ -134,8 +134,8 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
   yourself: as each slice goes green, judge the listed lines the mapping gate matches to that slice — every
   `dod.md` line whose tag names it, by `id` or by its `issue` (or, on a `dod.md` with no tags at all **and
   a ledger listing exactly one slice**, every line) — met with evidence, not met with a reason, or ceiling
-  with partial evidence — and tick what earns it, on `<run-root>/dod.md` and on the anchor, once the slice
-  is committed. An untagged line on a multi-slice `dod.md` is no slice's listed line — nor is any line on a
+  with partial evidence — and tick what earns it on `<run-root>/dod.md` alone, once the slice is
+  committed. The scope review copies it onto the anchor (`dod-ticks.md`, ADR 0206). An untagged line on a multi-slice `dod.md` is no slice's listed line — nor is any line on a
   `dod.md` with no tags at all when the ledger lists more than one slice (a run begun before tagging
   existed); leave it for run handoff's own handoff pass, read next, which settles it as if it read `scope`.
 - **No dispatch degrades here.** This tier dispatches nobody, so a denied dispatch cannot happen and the

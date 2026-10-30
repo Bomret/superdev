@@ -379,8 +379,8 @@ Repeat until every slice is `merged`:
 
    **Now tick from the implementer's report** (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`) — after
    the merge lands, never before: a tick claims the scope branch holds the work, and before this point it
-   does not yet. Apply the mapping gate to each line the report carried and write every tick it earns,
-   on `<run-root>/dod.md` and on the anchor.
+   does not yet. Apply the mapping gate to each line the report carried and write every tick it earns
+   on `<run-root>/dod.md` alone. The scope review copies it onto the anchor (`dod-ticks.md`, ADR 0206).
 5. Recompute the runnable set and continue.
 
 ## Minor sweep

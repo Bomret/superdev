@@ -75,8 +75,11 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
   concurrent `/superdev:plan` sessions revise the same unstaged `CONTEXT.md`, so "the paths this run
   wrote" and "the paths another run wrote" name the same file, and no ownership test can tell them apart
   (ADR 0076). A content match can.
-- **Write the DoD** — the global verification plan, made concrete and checkable — to `<run-root>/dod.md`.
-  `/superdev:review` reviews against it, and a controller ticks it while the run works, from an
+- **Write the DoD** — the global verification plan, made concrete and checkable — to `<run-root>/dod.md`,
+  through a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) piped to
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-merge --root <run-root>`. On a resumed run the verb keeps
+  each verdict the existing `dod.md` carries on a line the epic leaves without a note, because implement's ticks
+  live in `dod.md` alone (ADR 0206). `/superdev:review` reviews against it, and a controller ticks it while the run works, from an
   implementer's report (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`, ADR 0091). No DoD → don't proceed. **No epic**
   → write the lone slice's `acceptance` verbatim.
 - **Create the ledger.** **No `<run-root>/ledger.md` yet** → before running `init`, check the scope
@@ -106,8 +109,11 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
     ```
 
     After it writes the ledger, `adopt` fetches `refs/superdev/<scope>` from the `Remote:` remote of
-    `docs/agents/code-management.md` and unpacks its `trace.log`, `reports/`, and `interfaces.md` into the run
-    root, then records the fetched tip so this machine's next run-state push succeeds. It prints one
+    `docs/agents/code-management.md` and unpacks its `trace.log`, `reports/`, `interfaces.md`, and `dod.md` into the run
+    root. The ref's `dod.md` merges into the copy written from the anchor body by the same rule `dod-merge` applies:
+    the anchor's lines decide the criteria, and a line the anchor leaves without a note takes the ref's verdict, which
+    carries the ticks implement and run handoff wrote to `dod.md` alone (ADR 0206). The `run-state:` line names how
+    `dod.md` was settled. It then records the fetched tip so this machine's next run-state push succeeds. It prints one
     `run-state:` line. A missing ref, or no remote, adopts as before with that line as the note. A local
     `trace.log` or `reports/` is kept, the unpack is skipped, and no tip is recorded, so the next push refuses
     rather than overwrite the remote ref. A ref entry that is a symlink, a submodule, an absolute path, or a

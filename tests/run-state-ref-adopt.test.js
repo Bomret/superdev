@@ -115,6 +115,22 @@ try {
     assert.match(cleared.stdout, /run-state: sent/, cleared.stdout);
   }
 
+  // #dod-from-ref: the ref's dod.md merges into the copy the adopt step wrote from the anchor body. A noteless
+  // anchor line takes the ref's verdict, so implement's ticks, which never reach the anchor, survive a resume on
+  // another machine; a noted anchor line, a review verdict, wins over the ref's older one (ADR 0206).
+  {
+    const f = fixture();
+    const body = seed(f);
+    fs.writeFileSync(path.join(f.rootA, 'dod.md'), '- [x] works — S1 — met: the test passes\n- [ ] fast — S1 — not met: 3 s\n');
+    assert.match(pushRunState(f.rootA, f.a), /run-state: sent/);
+    fs.mkdirSync(f.rootB, { recursive: true });
+    fs.writeFileSync(path.join(f.rootB, 'dod.md'), '- [ ] works — S1\n- [x] fast — S1 — met: 80 ms\n');
+    const r = run(['adopt', '--root', f.rootB], f.b, body);
+    assert.strictEqual(r.status, 0, r.stderr);
+    assert.match(r.stdout, /dod\.md merged into the local copy, 1 verdict from the ref/, r.stdout);
+    assert.strictEqual(fs.readFileSync(path.join(f.rootB, 'dod.md'), 'utf8'), '- [x] works — S1 — met: the test passes\n- [x] fast — S1 — met: 80 ms\n');
+  }
+
   // #stale-stage: a .run-state-* staging directory a killed adopt left in the root is removed.
   {
     const f = fixture();

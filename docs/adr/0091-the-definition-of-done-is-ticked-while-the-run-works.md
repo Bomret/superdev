@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 
-**Amended by:** [ADR 0192](0192-the-full-suite-runs-once-after-review-comes-back-clean.md), under which run handoff runs no full suite and has no fix loop; the scope review's exit run is the scope's one full run.
+**Amended by:** [ADR 0192](0192-the-full-suite-runs-once-after-review-comes-back-clean.md), under which run handoff runs no full suite and has no fix loop; the scope review's exit run is the scope's one full run. [ADR 0206](0206-the-anchor-receives-ticks-from-the-review-on.md), under which implement and run handoff tick `dod.md` alone and the scope review copies it onto the anchor.
 
 **Amends:** [ADR 0025](0025-the-scope-review-owns-the-full-suite-run.md),
 [ADR 0077](0077-invariants-live-in-one-central-register.md).

@@ -70,10 +70,10 @@ holds.
   a `not met:` line also names `/superdev:plan`'s repair choice.
 - **The anchor disagrees with a settled `dod.md`.** With `dod.md` present, also read the anchor's lines.
   Pair the lines per `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## Pairing dod.md with the anchor`.
-  A paired line whose verdict differs from `dod.md` (a failed tick write) holds this reason too: name the
-  line and `/superdev:verify-ship <scope>` as the reconciler. A `dod.md` line with no text-matching line on
+  A paired line whose verdict differs from `dod.md` (a tick the anchor has not received) holds this reason too: name the
+  line and `/superdev:verify-ship <scope>`, whose anchor sync rewrites it. A `dod.md` line with no text-matching line on
   the anchor holds this reason too: name the line, and say to hand-sync the anchor's criterion text to `dod.md`'s, then rerun `/superdev:wrap-up`. Name no verify-ship,
-  since it cannot reconcile that line. An anchor is never closed with its criterion text out of sync.
+  since its anchor sync cannot reach that line. An anchor is never closed with its criterion text out of sync.
 - **A deploy target is not `deployed`.** The pull request must be merged to have a merge commit; without one
   the first reason stands alone and this read is skipped. Read the posture, the anchor's `**Deploy:**`
   line, and the deploy record per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Reading the
