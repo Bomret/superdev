@@ -62,7 +62,9 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          Git and containment: `git-spawn.js` (the shared git calls), `containment.js`,
                          `collisions.js`, `citations.js`, `source-set.js` (the gap audit's source set), `push.js`
                          (the `push` verb that puts a scope branch on the remote, ADR 0167), `plan-open.js`
-                         (the `open` verb that sets up a plan run, ADR 0185).
+                         (the `open` verb that sets up a plan run, ADR 0185),
+                         `run-state-ref.js` (the run-state ref `refs/superdev/<scope>`: sent at a step end,
+                         fetched in `adopt`, deleted at wrap-up, ADR 0202).
                          Run trace: `trace-log.js` (writer, reader, field codec), `run-tree.js`,
                          `test-runs.js`, `dispatch.js`, `dispatch-lines.js`, `start-stash.js`.
                          Test verbs: `test-verb.js`, `fail-to-pass.js`, `run-supervision.js`.

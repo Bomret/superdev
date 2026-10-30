@@ -244,8 +244,17 @@ function splitRow(line) {
   return parts.slice(1, parts.length - 1).map((c) => c.trim().replace(/\\\|/g, '|'));
 }
 
+// One rule for every slice id before it becomes part of a `reports/<id>/` path: an id that is empty, absolute,
+// or holds a path separator or a `..` segment is refused, naming the id (triage #1342).
+function checkSliceId(id) {
+  if (typeof id !== 'string' || id.trim() === '' || /[\\/]/.test(id) || id === '..') {
+    fail(`slice id "${id}" is refused: a slice id is non-empty and holds no path separator and no ".." segment`);
+  }
+  return id;
+}
+
 module.exports = {
-  CHANGE_TYPES, SLUG_RE, SLICE_STATUSES, SUITE_RESULTS, STAGES, stageMoveAllowed,
+  checkSliceId, CHANGE_TYPES, SLUG_RE, SLICE_STATUSES, SUITE_RESULTS, STAGES, stageMoveAllowed,
   ledgerPath, readLines, splitLines, writeLines, headerRe, getHeader, readLedgerHeader, inProgressSlices, sliceType,
   readBullets, insertHeader, setHeader, tableRowIndexes, sanitizeCell, splitRow,
 };

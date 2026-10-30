@@ -40,6 +40,7 @@ const { verbFailToPass } = require('../lib/fail-to-pass.js');
 const { verbCitations } = require('../lib/citations.js');
 const { verbSourceSet } = require('../lib/source-set.js');
 const { verbPush } = require('../lib/push.js');
+const { pushRunState, fetchRunState, deleteRunState } = require('../lib/run-state-ref.js');
 const { verbOpen } = require('../lib/plan-open.js');
 const { usage } = require('../lib/usage.js');
 
@@ -101,6 +102,8 @@ function run(argv, cwd, stdinJson) {
   const verb = args.shift();
   // Set by a ledger-writing verb once its write succeeded; a refused verb throws before it is set.
   let ledgerEvent = null;
+  // Set by a step end (`step clear`, `step block`) once its ledger write succeeded: the run root to send (ADR 0202).
+  let handoffRoot = null;
   switch (verb) {
     // Writes the ledger and the trace itself, and traces the `init` and `step set plan` it makes (lib/plan-open.js).
     case 'open':
@@ -121,6 +124,7 @@ function run(argv, cwd, stdinJson) {
       const changed = verbStep(root, args[0], args[1]);
       // `block` names the standing step, which the ledger holds.
       if (changed) ledgerEvent = { root, fields: ['step', args[0], ...(args[0] === 'block' ? [getHeader(readLines(root), 'Step')] : args[1] ? [args[1]] : [])] };
+      if (changed && (args[0] === 'clear' || args[0] === 'block')) handoffRoot = root;
       break;
     }
     case 'slice': {
@@ -281,6 +285,7 @@ function run(argv, cwd, stdinJson) {
     case 'adopt': {
       const root = takeRoot(args);
       verbAdopt(root, stdinJson, args.includes('--shipped'));
+      console.log(fetchRunState(root, cwd));
       ledgerEvent = { root, fields: ['adopt'] };
       break;
     }
@@ -315,6 +320,11 @@ function run(argv, cwd, stdinJson) {
     case 'push':
       verbPush(cwd, args);
       break;
+    // Deletes the run-state ref of a run root from the remote (ADR 0202); best-effort, always exits 0.
+    case 'run-state':
+      if (args[0] !== 'delete') fail('run-state: expected "delete"\n' + usage());
+      console.log(deleteRunState(takeRoot(args), cwd));
+      break;
     // No --root: dod-line touches no ledger, and makes no store call (references/dod-ticks.md).
     case 'dod-line':
       verbDodLine(args, stdinJson);
@@ -323,6 +333,7 @@ function run(argv, cwd, stdinJson) {
       fail('unknown verb "' + (verb || '') + '"\n' + usage());
   }
   if (ledgerEvent) appendTrace(ledgerEvent.root, { slice: ledgerEvent.slice, kind: 'ledger', fields: ledgerEvent.fields });
+  if (handoffRoot) console.log(pushRunState(handoffRoot, cwd));
 }
 
 // True for `unresolved add -`, `deferred add -`, and `degraded add -` (any `--root <path>` position

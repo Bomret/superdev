@@ -68,6 +68,8 @@ function usage() {
     '                                     holds its content, no push otherwise; prints the outcome (pushed|overwritten|refused|',
     '                                     unreachable|credential-rejected|timed-out|push-failed) on stdout; exits 0 (pushed or',
     '                                     overwritten), 3 (nothing pushed), or 1 (a usage refusal); writes nothing to the ledger',
+    '  run-state delete --root <run-root>  deletes refs/superdev/<scope> from the Remote: remote, no lease, and the local seen ref;',
+    '                                     prints one run-state: line on stdout; a ref already gone, no Remote:, or an unreachable remote exits 0',
     '  root <slug>                        prints <main-worktree>/.superdev/scopes/<slug>, resolved via git',
     '  staging <scope> [--count]          prints <main-worktree>/.superdev/kb-pending/<scope>, or its .md count',
     '  dod-line --match <text>|--match-file <path> --verdict met|not-met|ceiling|accepted',

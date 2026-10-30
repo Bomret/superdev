@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { fail } = require('./refusal.js');
 const {
-  CHANGE_TYPES, SLUG_RE, SLICE_STATUSES, STAGES, stageMoveAllowed,
+  checkSliceId, CHANGE_TYPES, SLUG_RE, SLICE_STATUSES, STAGES, stageMoveAllowed,
   ledgerPath, readLines, writeLines, headerRe, getHeader, insertHeader, setHeader, tableRowIndexes, sanitizeCell, splitRow,
 } = require('./ledger.js');
 const { mainWorkTree } = require('./main-work-tree.js');
@@ -141,6 +141,7 @@ function verbInit(cwd, label, stage, stdinJson, log = console.log) {
     }
     // tableRowIndexes drops any row whose first cell is `id` (the header row) — a slice actually
     // named that would be written but invisible to every reader, so refuse it here.
+    checkSliceId(s.id);
     if (/^id$/i.test(s.id)) fail(`slice id "${s.id}" is reserved (it reads as the table header row)`);
     if (seenIds.has(s.id)) fail(`duplicate slice id "${s.id}"`);
     seenIds.add(s.id);
@@ -243,6 +244,7 @@ function verbStep(root, sub, value) {
 }
 
 function verbSlice(root, id, status, range) {
+  checkSliceId(id);
   if (!SLICE_STATUSES.includes(status)) fail(`unknown slice status "${status}" (${SLICE_STATUSES.join(', ')})`);
   const lines = readLines(root);
   const rows = tableRowIndexes(lines);

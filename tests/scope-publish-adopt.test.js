@@ -470,6 +470,46 @@ try {
       `${name}.js defines no private maskFencedLines of its own`
     );
   }
+
+  // A slice id that would lead outside reports/<id>/ is refused everywhere a reports path is built (triage #1342).
+  const badIds = ['../x', 'a/b', '/abs', 'a\\b', '..', ''];
+  const row01 = /^\| 01 \|/m;
+  assert.ok(row01.test(minimalPublished), 'fixture snapshot holds an `01` row');
+  let n = 0;
+  for (const bad of badIds) {
+    const body = minimalPublished.replace(row01, `| ${bad} |`);
+    const ghost = path.join(tmp, `bad-${n++}`, 'publish-minimal');
+    fs.mkdirSync(path.dirname(ghost), { recursive: true });
+    r = call(['adopt', '--root', ghost], body);
+    assert.ok(!r.ok && r.err.includes(`"${bad}"`) && /slice id/.test(r.err), `adopt refuses table id ${JSON.stringify(bad)}: ${r.err}`);
+    assert.ok(!fs.existsSync(path.join(ghost, 'ledger.md')), 'no ledger written');
+  }
+  for (const good of ['S1', 'api-auth']) {
+    const ghost = path.join(tmp, `good-${n++}`, 'publish-minimal');
+    fs.mkdirSync(path.dirname(ghost), { recursive: true });
+    r = call(['adopt', '--root', ghost], minimalPublished.replace(row01, `| ${good} |`));
+    assert.ok(r.ok, `adopt accepts table id ${good}: ${r.err}`);
+  }
+  for (const bad of badIds.filter(Boolean)) {
+    const ghost = path.join(tmp, `badm-${n++}`, 'publish-minimal');
+    fs.mkdirSync(path.dirname(ghost), { recursive: true });
+    const body = minimalPublished.replace('**Branch:**', `**Minors:**\n- ${bad}\n\n**Branch:**`);
+    r = call(['adopt', '--root', ghost], body);
+    assert.ok(!r.ok && r.err.includes(`"${bad}"`), `adopt refuses Minors id ${JSON.stringify(bad)}: ${r.err}`);
+    assert.ok(!fs.existsSync(path.join(ghost, 'ledger.md')), 'no ledger written for Minors');
+  }
+  for (const bad of badIds) {
+    r = call(['init', 'feat/badid', 'planned'], JSON.stringify({ anchor: '#1', slices: [{ id: bad || ' ', issue: '#1', title: 't', type: 'behavior' }] }));
+    assert.ok(!r.ok, `init refuses id ${JSON.stringify(bad)}`);
+  }
+  assert.ok(call(['init', 'feat/okid', 'planned'], JSON.stringify({ anchor: '#1', slices: [{ id: 'api-auth', issue: '#1', title: 't', type: 'behavior' }] })).ok, 'api-auth inits');
+  const okRoot = path.join(tmp, '.superdev', 'scopes', 'okid');
+  for (const bad of badIds.filter(Boolean)) {
+    r = call(['slice', bad, 'done', '--root', okRoot]);
+    assert.ok(!r.ok && /slice id/.test(r.err), `slice verb refuses ${JSON.stringify(bad)}: ${r.err}`);
+    r = call(['minors', 'add', bad, '--root', okRoot]);
+    assert.ok(!r.ok && /slice id/.test(r.err), `minors add refuses ${JSON.stringify(bad)}: ${r.err}`);
+  }
 } finally {
   cleanup();
 }

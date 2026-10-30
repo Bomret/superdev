@@ -137,6 +137,7 @@ gone (a legacy run may hold no scope checkout):
   path, leave the stage at `shipped`, so a rerun retries the cleanup (the close is idempotent), and stop.
   Never force-remove.
 - Delete any leftover `slice/<scope>/*` branch.
+- Delete the run-state ref from the remote with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" run-state delete --root <run-root>` (ADR 0202). It takes no lease and exits 0 for a ref already gone, no `Remote:` value, or an unreachable remote. Print its `run-state:` line and continue.
 - Remove `<run-root>/run.lock`, if it exists.
 - Keep the rest of `<run-root>` — the ledger and the ticked DoD are the git-ignored paper trail.
 - **Keep `.superdev/kb-pending/<scope>/`.** It holds this scope's staged knowledge-base pages, which

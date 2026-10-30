@@ -7,6 +7,12 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) read this as
 Run after your playbook returns (every slice `merged`/committed on the scope branch). Identical across
 tiers: record that slice execution finished, name what comes next.
 
+- **The run-state ref.** A step end that changes state (`scope.js step clear`, `scope.js step block`) sends the run root's
+  `trace.log`, `reports/`, and `interfaces.md` to `refs/superdev/<scope>` of the remote that the `**Remote:**` line of
+  `docs/agents/code-management.md` names. A clear that changes nothing sends nothing. A send prints one `run-state:` line (ADR 0202, INV-0179). The send is
+  best-effort: no remote, an unreachable remote, or a remote ref this machine has not seen refuses it
+  with that line as the note, and the step end stands. Read the line and continue. `/superdev:wrap-up`
+  deletes the ref.
 - **Run no test suite here** (ADR 0192). The scope review's exit run is the scope's one full-suite run, and it
   verifies the integrated scope branch, implement's base merge included. A failing test a slice did not cause,
   named in an implementer's report or met in your own loop, goes to the scope review's fix loop (INV-0157).

@@ -1449,3 +1449,12 @@ Statement: A handoff of a ready intent (`/superdev:brainstorm`, `/superdev:sweep
 Breaks: silently
 Check: none — the handoff is skill prose against a live store; final-reviewer's invariant compliance judges it
 Paths: plugin/skills/brainstorm/SKILL.md, plugin/skills/sweep/SKILL.md, plugin/skills/review-tests/SKILL.md, plugin/skills/plan/SKILL.md, plugin/references/intent-handoff.md
+
+### INV-0179
+
+Class: safety
+Concepts: Run-state ref, Run root
+Statement: A run-state push to `refs/superdev/<scope>` never changes the files, the index, or the checked-out branch of any checkout. It builds its commit without touching them (ADR 0202).
+Breaks: silently
+Check: the scope.js suite asserts a checkout's status, index, and HEAD unchanged across a push
+Paths: plugin/lib/ledger-lifecycle.js, plugin/scripts/scope.js

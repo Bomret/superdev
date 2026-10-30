@@ -5,7 +5,9 @@
 **Amended by:** [ADR 0124](0124-a-failed-verification-is-repaired-by-its-own-fix-feature.md), which adds
 `scope.js adopt --shipped`: a command that needs a `shipped` original's missing run root adopts its
 `shipped` snapshot, while run init and plain `adopt` keep refusing it as **Run init adopts** below states. And by [ADR 0167](0167-plan-pushes-the-scope-branch.md), which has `/superdev:plan` push the scope branch, so the
-`resumed` fetch below finds a branch planned on another machine.
+`resumed` fetch below finds a branch planned on another machine. And by [ADR 0202](0202-run-state-lives-on-a-git-ref.md), which puts
+a run's trace, reports, and interface file on a git ref, so the rest of the run's machine state moves with
+the snapshot's ledger.
 
 ## Context
 

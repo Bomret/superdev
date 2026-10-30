@@ -3,7 +3,7 @@
 // ledger-records.js: the verbs that record one fact on a ledger header or bullet line, `degraded`, `unresolved`, `deferred`, `minors`, `docs`, `pr`, and `deploy`.
 
 const { fail } = require('./refusal.js');
-const { ledgerPath, readLines, writeLines, headerRe, getHeader, insertHeader, readBullets, tableRowIndexes, splitRow } = require('./ledger.js');
+const { checkSliceId, ledgerPath, readLines, writeLines, headerRe, getHeader, insertHeader, readBullets, tableRowIndexes, splitRow } = require('./ledger.js');
 
 // The write half of `readBullets`: append one bullet under `**<name>:**`, creating that line beside
 // `**Stage:**` when the ledger has none yet (scope-mode `## Degraded passes`, `## Unresolved defects`).
@@ -134,6 +134,7 @@ function verbMinors(root, sub, id, argc) {
   if (sub === 'clear') return clearBullets(root, 'Minors');
   if (sub !== 'add') fail(`unknown minors subcommand "${sub}" — use add|clear`);
   if (!id) fail('minors add needs the slice id');
+  checkSliceId(id);
   const lines = readLines(root);
   if (!tableRowIndexes(lines).some((i) => splitRow(lines[i])[0] === id)) {
     fail(`minors add: no slice "${id}" in the slice table of ${ledgerPath(root)}`);

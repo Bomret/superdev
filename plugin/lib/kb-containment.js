@@ -86,7 +86,7 @@ function parseBaseBranch(docText) {
 
 // `docs/agents/code-management.md`'s `- **Remote:** <value>` bullet, parsed with the same `**Remote**:`
 // spelling and backtick/punctuation tolerance as `parseBaseBranch` above, but NOT its whitespace
-// rejection: every shipped Remote bullet ("- **Remote:** `origin`. Confirm with `git remote -v`.")
+// rejection: every shipped Remote bullet ("- **Remote**: `origin` (GitHub). Confirm with `git remote -v`.")
 // carries a trailing sentence, so rejecting on whitespace would make the bullet unparseable on every
 // repo that ships it. `readLedgerHeader`'s own `normalizeHeaderValue` (lib/ledger.js) already cuts a
 // single-token header value to its first whitespace-delimited token before stripping markup this way;
