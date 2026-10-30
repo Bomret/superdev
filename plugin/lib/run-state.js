@@ -28,8 +28,8 @@ const RUN_STATE_CLOSE = '<!-- /superdev:run-state -->';
 
 // The ledger rendered as a `## Run state` section: its `# Ledger — <slug>` title line dropped,
 // every other byte — including the blank line that followed the title and the trailing blank line
-// writeLines leaves — wrapped unchanged between the two markers. Pure, so tests/scope-publish-adopt.test.js's round
-// trip can feed this straight into adoptLines below with no filesystem or process I/O in between.
+// writeLines leaves — wrapped unchanged between the two markers. Pure: its text feeds
+// adoptLines below with no filesystem or process I/O in between.
 function publishText(root) {
   const lines = readLines(root);
   return ['## Run state', RUN_STATE_OPEN, ...lines.slice(1), RUN_STATE_CLOSE].join('\n');
@@ -74,7 +74,7 @@ function extractRunState(body) {
 }
 
 // The payload validated against the schema this file already owns, and turned back into ledger
-// lines. Pure — no filesystem access — so tests/scope-publish-adopt.test.js exercises every refusal without a
+// lines. Pure — no filesystem access — so every refusal is reachable without a
 // ledger on disk. `**Branch:**` is what the ledger heading is reconstructed from, so its absence is
 // the one schema failure that matters (ADR 0042); `Stage` and the slice table get the same checks
 // `stage set` and `slice` already apply.
@@ -126,4 +126,4 @@ function verbAdopt(root, body, shipped) {
   writeLines(root, lines);
 }
 
-module.exports = { publishText, verbPublish, verbAdopt, adoptLines };
+module.exports = { publishText, verbPublish, verbAdopt };

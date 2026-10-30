@@ -5,14 +5,13 @@
 const { spawnSync } = require('child_process');
 
 // Ends a run: on POSIX its process group gets `signal`; on Windows `taskkill /pid <pid> /t /f` ends the process and every
-// child it started. Platform and kill spawner are injectable so the suite runs either branch anywhere. A run that already
-// exited is no error. This function runs in the watcher process too (as its source text), so it names nothing outside itself
+// child it started. A run that already exited is no error. This function runs in the watcher process too (as its source text), so it names nothing outside itself
 // but `process` and `spawnSync`.
 // simplicity: a process whose parent already exited is outside the taskkill tree, and one that changes its own process group
 // escapes the POSIX group kill; upgrade: a Windows job object or a POSIX cgroup/subreaper if one bites.
-function endRun(pid, { platform = process.platform, spawn = spawnSync, signal = 'SIGKILL' } = {}) {
+function endRun(pid, { signal = 'SIGKILL' } = {}) {
   try {
-    if (platform === 'win32') spawn('taskkill', ['/pid', String(pid), '/t', '/f'], { stdio: 'ignore', windowsHide: true });
+    if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(pid), '/t', '/f'], { stdio: 'ignore', windowsHide: true });
     else process.kill(-pid, signal);
   } catch { /* already gone */ }
 }

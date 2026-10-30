@@ -26,9 +26,7 @@ const path = require('path');
 // shared command layer, the run locator, the dispatch lifecycle, and the stash. The same fail-silent require as scope-prune: no module, no recording. One `try`
 // covers all of them, so a module that will not load leaves its names null, and record() records nothing for any of them. The stash
 // loads under its own `try`: the PreToolUse stash and its removal in the PostToolUse hold whichever of the others loads.
-// The hook re-exports the readers it exported before they moved to `lib/` (ADR 0151): `bashTargets`, `locate`, `treeState`,
-// `testRuns`, and `verificationKind`. A re-export whose module did not load is null, like
-// the names the hook uses itself, so requiring the hook stays silent.
+// A name whose module did not load is null, so requiring the hook stays silent.
 let appendTrace = null;
 let bashTargets = null;
 let recordBash = null;
@@ -43,14 +41,11 @@ let recordTaskStop = null;
 let recordSendMessage = null;
 let recordSendMessageEnd = null;
 let closeSession = null;
-let treeState = null;
-let testRuns = null;
-let verificationKind = null;
 try {
   ({ appendTrace } = require('../lib/trace-log.js'));
   ({ bashTargets } = require('../lib/bash-writes.js'));
-  ({ recordBash, testRuns, verificationKind } = require('../lib/test-runs.js'));
-  ({ locate, isTestPath, treeState } = require('../lib/run-tree.js'));
+  ({ recordBash } = require('../lib/test-runs.js'));
+  ({ locate, isTestPath } = require('../lib/run-tree.js'));
   ({ recordDispatch, findDispatch, endLine, bindAgentResult, recordAgentEnd, recordTaskStop, recordSendMessage, recordSendMessageEnd, closeSession } = require('../lib/dispatch.js'));
 } catch {
   // left null: record() records nothing
@@ -157,4 +152,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { record, bashTargets, verificationKind, locate, testRuns, treeState };
+module.exports = { record };

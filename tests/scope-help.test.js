@@ -34,6 +34,8 @@ try {
         if (argv.join(' ') === '--help') {
           assert.match(res.stdout, /push --root <run-root> --remote <remote> --base <base-ref>/, 'the usage lists push');
           assert.match(res.stdout, /^ {2}citations /m, 'the usage lists citations');
+          assert.doesNotMatch(res.stdout, /--match </, 'the usage lists no inline --match form');
+          assert.doesNotMatch(res.stdout, /--note </, 'the usage lists no inline --note form');
         }
       }
     } finally {
@@ -47,9 +49,12 @@ try {
   {
     const spawnScope = (argv, input) =>
       cp.spawnSync(process.execPath, [scopePath, ...argv], { cwd: tmp, input, encoding: 'utf8', timeout: 30000 });
-    let res = spawnScope(['dod-line', '--match', 'x', '--verdict', 'met', '--note', '-h'], '- [ ] x — 01\n');
-    assertSpawnDecided(res, 'dod-line --note -h');
-    assert.strictEqual(res.status, 0, 'dod-line --note -h exits 0: ' + res.stderr);
+    // The note file is named `-h` and holds `-h`, so the flag's value and the note text are both the word.
+    fs.writeFileSync(path.join(tmp, '-h'), '-h', 'utf8');
+    fs.writeFileSync(path.join(tmp, 'match-x.txt'), 'x', 'utf8');
+    let res = spawnScope(['dod-line', '--match-file', 'match-x.txt', '--verdict', 'met', '--note-file', '-h'], '- [ ] x — 01\n');
+    assertSpawnDecided(res, 'dod-line --note-file -h');
+    assert.strictEqual(res.status, 0, 'dod-line --note-file -h exits 0: ' + res.stderr);
     assert.ok(res.stdout.includes('- [x] x — 01 — met: -h'), '-h is written as the note: ' + res.stdout);
     assert.ok(!res.stdout.includes('usage:'), 'no usage text replaces the body');
 

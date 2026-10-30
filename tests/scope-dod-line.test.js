@@ -11,7 +11,22 @@ const path = require('node:path');
 const cp = require('node:child_process');
 const { execFileSync } = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
-const { call, scopePath, cleanup } = require('./scope-setup');
+const { call: rawCall, scopePath, cleanup } = require('./scope-setup');
+
+// The tick command reads its criterion and note from files only. `fileArgs` writes each criterion and
+// note a case gives as `--match <text>` or `--note <text>` to a file and swaps in the file option;
+// `call` and `spawnDod` run the verb through it.
+const fileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dod-line-args-'));
+let fileCount = 0;
+const fileArgs = (argv) =>
+  argv.map((a, i) => {
+    const flag = argv[i - 1];
+    if (flag !== '--match' && flag !== '--note') return a;
+    const p = path.join(fileDir, `arg-${fileCount++}.txt`);
+    fs.writeFileSync(p, a, 'utf8');
+    return p;
+  }).map((a) => (a === '--match' || a === '--note' ? a + '-file' : a));
+const call = (argv, stdin) => rawCall(fileArgs(argv), stdin);
 
 try {
   let r;
@@ -255,7 +270,7 @@ try {
   // it gains no second one.
   {
     const body = ['- [ ] the widget renders — 01', '- [ ] the gadget spins — 02', ''].join('\n');
-    const out = execFileSync(process.execPath, [scopePath, 'dod-line', '--match', 'the widget renders', '--verdict', 'met', '--note', 'ok'], {
+    const out = execFileSync(process.execPath, [scopePath, ...fileArgs(['dod-line', '--match', 'the widget renders', '--verdict', 'met', '--note', 'ok'])], {
       input: body,
       encoding: 'utf8',
     });
@@ -266,7 +281,7 @@ try {
     );
 
     const noTrailing = ['- [ ] the widget renders — 01', '- [ ] the gadget spins — 02'].join('\n');
-    const out2 = execFileSync(process.execPath, [scopePath, 'dod-line', '--match', 'the widget renders', '--verdict', 'met', '--note', 'ok'], {
+    const out2 = execFileSync(process.execPath, [scopePath, ...fileArgs(['dod-line', '--match', 'the widget renders', '--verdict', 'met', '--note', 'ok'])], {
       input: noTrailing,
       encoding: 'utf8',
     });
@@ -376,8 +391,8 @@ try {
     );
   }
 
-  // dod-line: --note-file and --match-file (triage #680) — an alternative to --note/--match that reads
-  // the text from a file, one trailing newline stripped, verbatim otherwise: a quote, a backtick, a
+  // dod-line: --note-file and --match-file (triage #680) — the verb reads the text from a file,
+  // one trailing newline stripped, verbatim otherwise: a quote, a backtick, a
   // `$(`, all survive.
   {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dod-line-files-'));
@@ -398,26 +413,42 @@ try {
       'dod-line renders the file-supplied note verbatim, trailing newline stripped: ' + r.out
     );
 
-    // Giving both forms of the same argument refuses.
-    r = call(
-      ['dod-line', '--match', 'the widget renders', '--match-file', matchPath, '--verdict', 'met', '--note', 'x'],
-      '- [ ] the widget renders — 01'
-    );
-    assert.ok(!r.ok, 'dod-line refuses --match and --match-file together');
-    r = call(
-      ['dod-line', '--match', 'the widget renders', '--verdict', 'met', '--note', 'x', '--note-file', notePath],
-      '- [ ] the widget renders — 01'
-    );
-    assert.ok(!r.ok, 'dod-line refuses --note and --note-file together');
-
     // A note-file whose content carries an internal newline (past the one trailing newline stripped)
-    // is still refused — the same refusal --note already makes.
+    // is refused.
     fs.writeFileSync(notePath, 'line one\nline two\n', 'utf8');
     r = call(
-      ['dod-line', '--match', 'the widget renders', '--verdict', 'met', '--note-file', notePath],
+      ['dod-line', '--match-file', matchPath, '--verdict', 'met', '--note-file', notePath],
       '- [ ] the widget renders — 01'
     );
     assert.ok(!r.ok && /newline/.test(r.err), 'dod-line refuses a --note-file with an embedded newline: ' + r.err);
+
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+
+  // dod-line: an inline --match or --note refuses, names its file form, and prints nothing.
+  {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dod-line-inline-'));
+    const notePath = path.join(dir, 'note.txt');
+    const matchPath = path.join(dir, 'match.txt');
+    fs.writeFileSync(notePath, 'ok\n', 'utf8');
+    fs.writeFileSync(matchPath, 'the widget renders\n', 'utf8');
+    const body = '- [ ] the widget renders — 01';
+
+    r = rawCall(['dod-line', '--match', 'the widget renders', '--verdict', 'met', '--note-file', notePath], body);
+    assert.ok(!r.ok, 'an inline --match refuses');
+    assert.ok(/--match-file/.test(r.err), 'the refusal names --match-file: ' + r.err);
+    assert.strictEqual(r.out, '', 'an inline --match prints nothing');
+
+    r = rawCall(['dod-line', '--match-file', matchPath, '--verdict', 'met', '--note', 'ok'], body);
+    assert.ok(!r.ok, 'an inline --note refuses');
+    assert.ok(/--note-file/.test(r.err), 'the refusal names --note-file: ' + r.err);
+    assert.strictEqual(r.out, '', 'an inline --note prints nothing');
+
+    // `--match` takes `-h` as its value, so the refusal fires and no usage text replaces the body.
+    r = rawCall(['dod-line', '--match', '-h', '--verdict', 'met', '--note-file', notePath], body);
+    assert.ok(!r.ok, 'dod-line --match -h refuses with a non-zero exit');
+    assert.ok(/--match-file/.test(r.err), 'the refusal names --match-file: ' + r.err);
+    assert.strictEqual(r.out, '', 'dod-line --match -h prints no usage');
 
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -565,7 +596,7 @@ try {
   for (const mode of [[], ['--line']]) {
     const res = cp.spawnSync(
       process.execPath,
-      [scopePath, 'dod-line', ...mode, '--match', 'absent criterion', '--verdict', 'met', '--note', 'ok'],
+      [scopePath, ...fileArgs(['dod-line', ...mode, '--match', 'absent criterion', '--verdict', 'met', '--note', 'ok'])],
       { input: '- [ ] the widget renders — 01', encoding: 'utf8', timeout: 30000 }
     );
     assertSpawnDecided(res, 'dod-line no-match ' + mode.join(''));
@@ -574,5 +605,6 @@ try {
     assert.ok(res.stderr.includes('absent criterion'), 'no match names the criterion on stderr: ' + res.stderr);
   }
 } finally {
+  fs.rmSync(fileDir, { recursive: true, force: true });
   cleanup();
 }

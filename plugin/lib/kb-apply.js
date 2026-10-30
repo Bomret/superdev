@@ -275,4 +275,4 @@ function processStagedFiles(files, templates) {
   return results;
 }
 
-module.exports = { processFile, processStagedFiles };
+module.exports = { processStagedFiles };

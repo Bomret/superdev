@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0154](0154-shipped-code-carries-no-test-seams.md), which has an entry point keep only
+the exports a requirer uses.
+
 **Context.** The plugin's JavaScript is hard for a human to read and costly for an agent to edit.
 `plugin/scripts/scope.js` has 2895 lines. It holds the ledger CLI, the run trace, git probes, the
 containment test, and the fail-to-pass run, and five hooks `require` it as a library. The maintainer-only

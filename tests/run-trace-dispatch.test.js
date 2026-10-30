@@ -11,7 +11,7 @@ const cp = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { appendTrace } = require('../plugin/scripts/scope.js');
 const { encodePaths } = require('../plugin/lib/trace-log.js');
-const { tmp, ledger, A, B, trace, reset, run, spawnOut, hookPath, agentPre, agentPost, cleanup } = require('./run-trace-setup');
+const { tmp, ledger, A, B, trace, reset, run, spawnOut, hookPath, agentPre, agentPost, cleanup, GIT_SPAWN_BOUND_MS } = require('./run-trace-setup');
 
 // Subagent dispatches: PreToolUse on Agent records `dispatch`, PostToolUse `completed` (or async_launched then SubagentStop) the `dispatch-end`.
 // Dispatch prompts and the scope and slice each one attributes to (INV-0136). `{A}` and `{B}` stand for two run
@@ -436,9 +436,11 @@ const { tmp, ledger, A, B, trace, reset, run, spawnOut, hookPath, agentPre, agen
   const bin = path.join(tmp, 'stall-bin');
   fs.mkdirSync(bin, { recursive: true });
   // exec leaves no grandchild holding the stdout pipe once the bound kills the stub.
-  fs.writeFileSync(path.join(bin, 'git'), '#!/bin/sh\nexec sleep 20\n', { mode: 0o755 });
-  const r = cp.spawnSync(process.execPath, [hookPath], { input: JSON.stringify(ev('SubagentStop', path.join(R, 'sub'))), encoding: 'utf8', timeout: 15000, env: { ...process.env, PATH: bin + path.delimiter + process.env.PATH, RUN_TRACE_GIT_BOUND_MS: '200' } });
+  const marker = path.join(bin, 'called');
+  fs.writeFileSync(path.join(bin, 'git'), `#!/bin/sh\necho git >> '${marker}'\nexec sleep 20\n`, { mode: 0o755 });
+  const r = cp.spawnSync(process.execPath, [hookPath], { input: JSON.stringify(ev('SubagentStop', path.join(R, 'sub'))), encoding: 'utf8', timeout: GIT_SPAWN_BOUND_MS, env: { ...process.env, PATH: bin + path.delimiter + process.env.PATH } });
   assertSpawnDecided(r, 'run-trace.js SubagentStop with a stalled git');
+  assert.ok(fs.existsSync(marker), 'the hook reached the stalled git stub');
   assert.deepEqual(trace(C).filter((l) => l[2] === 'dispatch-end'), [], 'a killed git call records no dispatch-end');
 }
 

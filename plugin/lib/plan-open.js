@@ -189,4 +189,4 @@ function report({ word, lines, exitCode }) {
   if (exitCode) process.exitCode = exitCode;
 }
 
-module.exports = { verbOpen, STALENESS_MS, STOPPED_EXIT };
+module.exports = { verbOpen, STALENESS_MS };

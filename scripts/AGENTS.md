@@ -27,7 +27,7 @@ a ledger's header lines, bullets, and table rows), `refusal.js` (the refusal err
 `verificationCommandsOf`, `isTestPath`), `git-spawn.js` (`gitSpawn`, `gitThrow`, `parseBranchList`, `resolveCommit`, `refResolves`, `fileAt`),
 `containment.js` (`testContainment`, `judgeContainment`, `baseHistoryHasPatch`), `main-work-tree.js` (`mainWorkTree`, `scopesDirFor`, `mainTreePath`), and
 `trace-log.js` (`appendTrace`, `readTrace`, `traceField`, `untraceField`). The root [`AGENTS.md`](../AGENTS.md) *Structure* names every module and its
-responsibility. `scope.js` keeps every export it had. No module requires an entry point. `scope.js` owns the ledger's schema through `ledger.js` and is the only `ledger.md` read and write path in the chain:
+responsibility. `scope.js` exports only the names a requirer uses. No module requires an entry point. `scope.js` owns the ledger's schema through `ledger.js` and is the only `ledger.md` read and write path in the chain:
 `open <type>/<slug> --base <base-ref> [--remote <remote>] [--lock <nonce>]`, `init`, `stage set`, `slice`, `degraded add|add-denial|reset-denials`, `unresolved add|clear`,
 `deferred add|resolve`, `minors add <slice-id>|clear`,
 `docs set <value>|clear`, `pr set <n>|clear`,
@@ -115,8 +115,8 @@ these subcommands' own arguments keeps joining its
 positional words with spaces as it always has.
 Every verb that writes the ledger appends one `ledger` line to the run trace after its write succeeds, through
 `appendTrace(runRoot, event)`, the single writer of `trace.log` (ADR 0117); no verb takes a caller-chosen event.
-`scope.js` still exports the names it exported before the modules moved out of it, among them
-`readLedgerHeader`, but no hook and no sibling script requires `scope.js`: each requires the module that
+`scope.js` exports only the names a requirer uses, among them
+`readLedgerHeader`, and no hook and no sibling script requires `scope.js`: each requires the module that
 holds what it uses. `readLedgerHeader`, the per-header ledger-line reader, lives in `plugin/lib/ledger.js`,
 and `hooks/scope-prune.js` and `hooks/slicetree-sweep.js` both require it there instead of carrying their own
 regex. `hooks/scope-prune.js` requires `baseHistoryHasPatch` — the containment probe (ADR 0082) — from
@@ -125,10 +125,9 @@ differently: the reader missing stops that hook's sweep outright, while the prob
 module cannot load or carries no probe, narrows its containment test back to the tree comparison alone,
 silently. A module requires no entry point, so a `require` of a module runs no CLI code, and `scope.js`
 guards its own CLI entry with `require.main === module`. `hooks/run-trace.js` takes
-the trace writer `appendTrace`, the trace reader `readTrace`, and the field decoder `untraceField` from `trace-log.js`, the ledger
-row reader `sliceType` from `ledger.js`, the verification-command reader `verificationCommands` from `verification.js`,
-the tree locator `locate`, the test-path classifier `isTestPath` (ADR 0128), and `treeState` from `run-tree.js`,
-the run classifiers `testRuns` and `verificationKind` from `test-runs.js`, and the dispatch, write-target, and start-stash
+the trace writer `appendTrace` from `trace-log.js`,
+the tree locator `locate` and the test-path classifier `isTestPath` (ADR 0128) from `run-tree.js`,
+the Bash recorder `recordBash` from `test-runs.js`, and the dispatch, write-target, and start-stash
 readers from `dispatch.js`, `bash-writes.js`, and `start-stash.js`. Each `require` has its own guard, and a module that fails to load
 leaves the hook recording nothing (ADR 0117, INV-0159). `hooks/tree-guard.js` takes `mainWorkTree` from `main-work-tree.js` (ADR 0148). `hooks/test-guard.js` takes `cmdSegments` and `plain` from `bash-command.js`, `testRuns`, `verificationKind`, and the `scope.js test` call finder `scopeTestCalls` from `test-runs.js`, and `verificationCommands` from `verification.js`, and a module that fails to load lets every call pass (ADR 0181). `publish-kb.js` reaches
 the containment test `testContainment` from `containment.js`, which refetches the base before it answers not contained (ADR 0053,
@@ -305,7 +304,7 @@ never a stale local one), and exits 3. A failed fetch of the branch or of `<base
 a missing ledger, a ledger with no `**Branch:**` line, or a `**Branch:**` line that names `<base-ref>` exits 1.
 `hooks/merge-guard.js` denies a subagent's run of this verb, as it denies a subagent's plain push. Every git call runs with `GIT_TERMINAL_PROMPT=0` and
 `--end-of-options` ahead of a remote or revision argument, and every network call carries a time bound of 60000 ms and a
-kill signal, the refetch of `<base-ref>` inside the containment test included. `SUPERDEV_PUSH_TIMEOUT_MS` overrides the bound. The code lives in `plugin/lib/push.js`, and
+kill signal, the refetch of `<base-ref>` inside the containment test included. The code lives in `plugin/lib/push.js`, and
 `tests/scope-push.test.js` holds its cases.
 
 `open <type>/<slug> --base <base-ref> [--remote <remote>] [--lock <nonce>]` sets up or rejoins a `/superdev:plan` run
@@ -324,17 +323,16 @@ naming another branch, a missing `--base`, and a failed git call exit 1. The cod
 and `tests/scope-open.test.js` holds its cases.
 
 `dod-line` is another verb that touches no ledger, and makes no store call of its own
-(`references/dod-ticks.md`, INV-0014, triage #664): `--match <criterion text>|--match-file <path>
---verdict met|not-met|ceiling|accepted --note <text>|--note-file <path> [--line]`. It is the one
+(`references/dod-ticks.md`, INV-0014, triage #664): `--match-file <path>
+--verdict met|not-met|ceiling|accepted --note-file <path> [--line]`. It is the one
 Definition-of-Done checklist-line edit every store's own `## Definition of Done ticks` section cites
 instead of restating by hand — a store seed fetches the checklist text through its own call, runs
 `dod-line` on it as the producer in its gated **Edit an issue's body** rule, and writes back what comes
 out on stdout only when `dod-line` exited 0 with non-empty output (ADR 0115), the same shape `kb-patch.js`
-already gives a staged knowledge-base patch (ADR 0027). `--match-file`/`--note-file` are each an
-alternative to `--match`/`--note` that reads the same text from a file instead of a shell-interpolated
-argument, one trailing newline stripped verbatim otherwise — the text a controller pipes in this way is
+already gives a staged knowledge-base patch (ADR 0027). `--match-file` and `--note-file` are the only forms: each
+reads its text from a file instead of a shell-interpolated argument, one trailing newline stripped verbatim otherwise — the text a controller pipes in this way is
 typically report-derived, and may carry a quote, a backtick, a `$(`, or worse (`references/dod-ticks.md`,
-triage #680); giving both forms of the same argument refuses. The verb writes the verdict's own label, so a note that
+triage #680); an inline `--match` or `--note` refuses and names the file option. The verb writes the verdict's own label, so a note that
 already opens with that label (`met: …` under `--verdict met`) loses that one prefix and carries the label
 once. A note opening with any other verdict's label is note text and stays as given. The default mode takes a whole markdown
 body on stdin and prints the transformed body; `--line` takes and prints exactly one checklist line
@@ -348,11 +346,11 @@ everything before that to the criterion, which is what keeps a criterion carryin
 (`plan-contract.md`'s own worked example, "Reachable: none — entrance unchanged; … — scope") intact
 instead of splitting at its first dash. An untagged criterion that merely ends in something shaped like a
 tag (`- [ ] Retries capped — 3`) offers a second reading alongside the rightmost-tag one — the whole line,
-untagged — and a line matches when either reading's criterion equals `--match` (triage #679); a genuinely
+untagged — and a line matches when either reading's criterion equals the `--match-file` text (triage #679); a genuinely
 tagged line still parses its tag as before. The same offer reaches a line that already carries a note
 (`- [x] Retries capped — 3 — met: e`), so a re-judge against the same untagged criterion still finds it —
 a line offering two readings still counts once toward the match limit below. Matching runs after both the line's own criterion text and
-`--match` collapse internal whitespace to one space and trim, so a criterion an editor reflowed onto two
+the `--match-file` text collapse internal whitespace to one space and trim, so a criterion an editor reflowed onto two
 lines is still found, and after `lib/md-sections.js`'s `maskFencedLines` blanks every fenced line, so a line
 shown inside a fenced illustrative example is never a candidate. Body mode further scopes matching to the
 body's own `## Definition of Done` section — the heading whose text starts "Definition of Done," up to
@@ -366,8 +364,7 @@ re-write always leaves it unchanged, and the new note always replaces whatever n
 unmet criterion stands accepted as unmet (ADR 0095) — the box stays unticked, since the criterion is
 honestly unmet. Refuses, printing nothing, on zero matching lines, on two or more (which one to edit
 cannot be resolved — a line offering two readings counts once), on a `--verdict` outside the four named
-values, on a missing `--match`/`--match-file` or `--note`/`--note-file`, or on both forms of the same
-argument given together.
+values, on a missing `--match-file` or `--note-file`, or on an inline `--match` or `--note`.
 
 `init` writes a fresh ledger at stage `planned` (ADR 0079) — the one stage that precedes the four-command
 chain rather than naming a step within it, ranked below `implementing` so `stage set implementing` (or any
@@ -492,8 +489,8 @@ merges exactly as an LF one does, the way `scope.js` reads a CRLF ledger.
 Removing a single section is out of scope: `patch` replaces or appends, and `delete` still removes a
 whole page (ADR 0027, Consequences).
 
-`kb-patch.js` re-exports `maskFencedLines`, `merge`, and `headingKeyOf` from `md-sections.js`. `lib/kb-apply.js`
-requires both, and detects two sibling staged
+`kb-patch.js` re-exports `merge` from `md-sections.js`. `lib/kb-apply.js`
+requires `maskFencedLines` and `headingKeyOf` from `md-sections.js`, and detects two sibling staged
 files naming the identical section heading before either one applies, rather than growing a second
 copy of the key logic.
 
@@ -682,12 +679,10 @@ delegates the ancestry test to `plugin/lib/containment.js`'s exported `testConta
 `/superdev:document` writes for a doc pass outside a live scope, skips the check entirely. The report
 a run prints never carries a page's body, only filenames, titles, and reasons.
 
-The module guards its CLI entry with `require.main === module`. It exports every function above,
-`resolveMainCheckout`, `listPendingScopes`, `resolveScope`, `classifyBackend`,
-`parseCommandsTemplates`, `parseStagedPage`, `runTemplate`, `runFind`, `publishUpsert`,
-`publishDelete`, `publishPatch`, `processFile`, `processStagedFiles`, `addParentLink`,
-`removeParentLink`, `resolveScopeBranch`, `parseBaseBranch`, `parseRemote`, `checkContainment`,
-`hashBody`, `readPage`, `renderReport`, and `run`, and `timeoutMs`. Every export but `run` comes from the module that holds it. The suites exercise the CLI through its exported
+The module guards its CLI entry with `require.main === module`. It exports `resolveMainCheckout`, `classifyBackend`,
+`parseCommandsTemplates`, `parseStagedPage`, `runFind`, `addParentLink`,
+`removeParentLink`, `parseBaseBranch`, `parseRemote`,
+`hashBody`, and `run`, and `timeoutMs`. Every export but `run` comes from the module that holds it. The suites exercise the CLI through its exported
 `run()`, the way the `tests/scope-*.test.js` suites exercise `scope.js`'s own CLI verbs (ADR 0059), and split by topic over `tests/publish-kb-setup.js`
 (ADR 0151): `publish-kb` (the pure readers and the pin that the publish code keeps no copy of what `lib/` owns), `publish-kb-scope` (backend
 configuration refusals and scope selection), `publish-kb-publish` (`upsert` and `delete` end to end), `publish-kb-patch`, `publish-kb-guard` (the live-hash
@@ -855,9 +850,9 @@ live beside it, in `scripts/drift/`.
 | `drift-check.js` | the CLI: `runChecks(checks, root)` (the per-check walk, catching a thrown `run()` as that check's own `threw` result instead of letting it crash the walk), `formatGap` (a missing-document gap printed by path, every other gap by its check's own format), `main()`, the ok line, the exit code, and the `--selftest` handoff. Guards its CLI dispatch with `require.main === module`, so a `require` of the file (the selftest's own import) runs neither branch |
 | `drift/checks.js` | the **registry**, one entry per check: `id`, `run`, its `ok` phrase, and how one gap prints, plus `contracts` on a table-driven check |
 | `drift/contracts.js` | the contract tables and patterns. Data only |
-| `drift/scanners/` | the bespoke scanners, every check whose assertion is more than one pattern over one document. `index.js` is the barrel `checks.js` and the selftest require. One file per topic holds the scanners: `references.js`, `adr.js`, `prose-avoid.js`, `shell-spawn.js`, `base-branch-ship.js`, `marketplace-readme.js`, and `register-join.js`. `walkers.js` holds the document walks and the absence-check shape they share |
-| `drift/lib.js` | what they share: `maskFences`, `maskedSentences`, `normalizeWhitespace`, `docPath`, `readDoc`, `missingDoc`, `observeContracts`, and `scanContract` |
-| `drift/selftest/` | `index.js` (the `fixture` helper, `found`, `realRoot`, temp-dir cleanup, and the coverage assertion) plus one suite per scanner topic (`references`, `adr`, `prose-avoid`, `shell-spawn`, `base-branch-ship`, `marketplace-readme`, `register-join`), `contracts` (the table-driven checks), `checks` (every registered check against an empty tree), `observation` (the coverage observation itself), `drift-check` (`runChecks` and the registry wiring), and `coverage.js`, the coverage verdict helper |
+| `drift/scanners/` | the bespoke scanners, every check whose assertion is more than one pattern over one document. `index.js` is the barrel `checks.js` and the selftest require. One file per topic holds the scanners: `references.js`, `adr.js`, `prose-avoid.js`, `shell-spawn.js`, `base-branch-ship.js`, `marketplace-readme.js`, `register-join.js`, and `test-seams.js`. `walkers.js` holds the document walks and the absence-check shape they share |
+| `drift/lib.js` | what they share: `maskFences`, `maskedSentences`, `normalizeWhitespace`, `docPath`, `readDoc`, `missingDoc`, `observeContracts`, `scanContract`, and `stripComments` |
+| `drift/selftest/` | `index.js` (the `fixture` helper, `found`, `realRoot`, temp-dir cleanup, and the coverage assertion) plus one suite per scanner topic (`references`, `adr`, `prose-avoid`, `shell-spawn`, `base-branch-ship`, `marketplace-readme`, `register-join`, `test-seams`), `contracts` (the table-driven checks), `checks` (every registered check against an empty tree), `observation` (the coverage observation itself), `drift-check` (`runChecks` and the registry wiring), and `coverage.js`, the coverage verdict helper |
 
 Every check tests a mechanical fact — a link or section target resolves, a number is unique, a file or
 command exists, a property of code or configuration holds — or forbids a form in shipped prose (ADR 0153).
@@ -883,6 +878,7 @@ path, when that document is missing. A check that walks a directory reads whatev
 | `no-second-reader` | no file under `plugin/hooks/` builds a ledger-header regex of its own, and no file under `plugin/lib/` other than `ledger.js` does (ADR 0022) | prohibition |
 | `arg-token` | `hooks/merge-guard.js`, `hooks/ledger-guard.js`, `lib/ledger-writes.js`, and `lib/bash-command.js` require the shell scanner `shell-words.js` (`../lib/shell-words.js` from a hook) and declare no shell-word reader or `((` spread of their own (ADR 0135) | structural |
 | `shell-spawn` | no file under `plugin/hooks/`, `plugin/scripts/`, or `plugin/lib/` starts a shell by absolute path, starts `bash`, or uses Node's default shell (INV-0153) | prohibition |
+| `test-seams` | no JavaScript file at any depth of `plugin/` names a file of the repository's `tests/` directory by base name or by a `tests/` path that carries a glob (`tests/scope-*.test.js`), and none reads `process.env.NAME`, `process.env['NAME']`, or a destructured `NAME` that no Markdown document under `plugin/` names, unless `NAME` starts with `CLAUDE_`; a classifier glob such as `**/tests/` or `**/tests/**` names no file (INV-0156, ADR 0154) | prohibition |
 | `containment-delegation` | `lib/kb-containment.js` imports and calls `lib/containment.js`'s `testContainment` (ADR 0053) | structural |
 | `past-pr-skills` | the skills an offer starts past the open pull request (ship, verify-ship, wrap-up, publish-kb) carry no `disable-model-invocation: true`, neither verify-ship nor wrap-up names `--unattended`, and ship, verify-ship, and `references/response-shapes.md` name no `--from-ship` (INV-0066, INV-0093, ADR 0157) | structural |
 | `no-base-branch-commit` | no file under `skills/` or `references/` instructs a commit, a push, or a merge to the base branch, other than ship's host-API merge (INV-0001) | prohibition |

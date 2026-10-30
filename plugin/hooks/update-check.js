@@ -11,11 +11,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const https = require('node:https');
 
-// simplicity: overridable via env so tests/update-check.test.js's "spawned still runs main()" fixture
-// can point this at a loopback port instead of the real network — the suite stays fully offline.
-const REMOTE =
-  process.env.SUPERDEV_UPDATE_CHECK_REMOTE ||
-  'https://codeberg.org/bomret/superdev/raw/branch/main/plugin/.claude-plugin/plugin.json';
+const REMOTE = 'https://codeberg.org/bomret/superdev/raw/branch/main/plugin/.claude-plugin/plugin.json';
 const CHECK_TTL_MS = 24 * 60 * 60 * 1000;
 
 // Positive if a>b, negative if a<b, 0 equal — numeric collation compares each dotted segment as a

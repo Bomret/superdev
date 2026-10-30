@@ -13,6 +13,7 @@ module.exports = {
   ...require('./adr'),
   ...require('./prose-avoid'),
   ...require('./shell-spawn'),
+  ...require('./test-seams'),
   ...require('./marketplace-readme'),
   ...require('./base-branch-ship'),
   ...require('./register-join'),

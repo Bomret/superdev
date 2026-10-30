@@ -5,7 +5,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { docPath } = require('../lib');
+const { docPath, stripComments } = require('../lib');
 const { HOOK_HEADER_REGEX } = require('../contracts');
 
 // ADR 0022: no hook parses a ledger header itself; see HOOK_HEADER_REGEX's note for what it catches.
@@ -55,20 +55,6 @@ const SHELL_SPAWN_FORMS = [
 ];
 const CHILD_PROCESS = String.raw`require\(\s*['"](?:node:)?child_process['"]\s*\)`;
 
-// Cuts a trailing `//` comment (at the line start or after whitespace) unless it sits inside a quoted string.
-function stripLineComment(line) {
-  let quote = null;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (quote) {
-      if (c === '\\') i++;
-      else if (c === quote) quote = null;
-    } else if (c === '"' || c === "'" || c === '`') quote = c;
-    else if (c === '/' && line[i + 1] === '/' && (i === 0 || /\s/.test(line[i - 1]))) return line.slice(0, i);
-  }
-  return line;
-}
-
 function scanShellSpawn(root) {
   const offenders = [];
   for (const dir of ['hooks', 'scripts', 'lib']) {
@@ -82,11 +68,7 @@ function scanShellSpawn(root) {
       const raw = fs.readFileSync(path.join(docPath(root, dir), name), 'utf8');
       // Only comments that start a line or follow whitespace are stripped, so a `/*` inside a string or a
       // `//` comment never deletes live code.
-      const text = raw
-        .replace(/^[ \t]*\/\*[\s\S]*?\*\//gm, '')
-        .split('\n')
-        .map(stripLineComment)
-        .join('\n');
+      const text = stripComments(raw);
       const forms = new Set(SHELL_SPAWN_FORMS.filter(([, re]) => re.test(text)).map(([form]) => form));
       // `exec` and `execSync` count only from child_process: referenced or called directly, through a namespace,
       // or as a bare (maybe aliased) require, static import, or dynamic import binding.

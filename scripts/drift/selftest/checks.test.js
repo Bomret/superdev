@@ -18,6 +18,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'adr-relations',
     'no-second-reader',
     'shell-spawn',
+    'test-seams',
     'conflict-conclusion-no-commit',
     'agent-tool-agnostic',
     'deploy-runner-exclusivity',
@@ -44,6 +45,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   const walkedDirs = [
     ...['skills', 'agents', 'references', 'hooks', 'scripts', 'lib'].map((dir) => docPath(realRoot, dir)),
     path.join(realRoot, 'docs', 'adr'),
+    path.join(realRoot, 'tests'),
   ];
   for (const dir of walkedDirs) {
     assert.ok(fs.statSync(dir, { throwIfNoEntry: false })?.isDirectory(), `the directory walkers read ${dir}`);

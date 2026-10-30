@@ -74,4 +74,7 @@ function initS3() {
 
 const cleanup = () => fs.rmSync(tmp, { recursive: true, force: true });
 
-module.exports = { tmp, ledger, runRoot, A, B, S3, trace, reset, runOut, run, spawnOut, edit, bash, hookPath, record, agentPre, agentPost, initS3, cleanup };
+// The bound of a spawn that waits out the hook's git bound (`lib/run-tree.js`, 1500 ms per call): above the hook's own 5 s exit
+// and the sum of the four calls a run line can make, so a stalled git ends in the hook's verdict and never in this kill (INV-0009).
+const GIT_SPAWN_BOUND_MS = 5000 + 4 * 1500;
+module.exports = { tmp, ledger, runRoot, A, B, S3, trace, reset, runOut, run, spawnOut, edit, bash, hookPath, record, agentPre, agentPost, initS3, cleanup, GIT_SPAWN_BOUND_MS };

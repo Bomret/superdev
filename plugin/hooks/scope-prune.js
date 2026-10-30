@@ -116,7 +116,7 @@ function resolveBranch(branchSet, scope, exactBranch) {
 }
 
 // Pure: from the list of scope directory names, a predicate answering whether one branch's work is
-// already in base (`makeContainmentTest` below, or a stub in tests/scope-prune.test.js), a function returning each
+// already in base (`makeContainmentTest` below), a function returning each
 // scope's newest-file mtime (ms, or null if unreadable), a function returning each scope's ledger stage
 // (or null if the ledger is unreadable or carries no `**Stage:**` line), the set of every branch this
 // repository knows (local and remote-tracking, `branchNamesFrom` above), and a function returning each

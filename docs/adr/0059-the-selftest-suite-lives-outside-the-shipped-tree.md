@@ -8,6 +8,9 @@ suite, so that hook's suite no longer runs under `bun run test`.
 **Amended by:** [ADR 0166](0166-tests-run-through-node-with-no-package-script.md), which removes the
 `test` script from `package.json`, so `node scripts/run-tests.js` runs the suites in place of `bun run test`.
 
+**Amended by:** [ADR 0154](0154-shipped-code-carries-no-test-seams.md), which removes the code paths that
+exist only so a suite can drive them, and has each test substitute on its own side.
+
 **Context.** Every hook and script carries its assertions inline, behind a `--selftest` argument, and the
 root working rule states it as a contract: *Every hook ships a `--selftest`*. The marketplace manifest's
 `source` is `./plugin`, so an install copies that whole subtree. Measured across the eleven shipped

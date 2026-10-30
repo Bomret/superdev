@@ -1,7 +1,7 @@
 'use strict';
 
 // Suite for the shipped tree's layout (ADR 0151): the CommonJS anchor covers plugin/lib/, every entry point under
-// plugin/hooks/ and plugin/scripts/ keeps the export names it had before its code moved to plugin/lib/, and a name it
+// plugin/hooks/ and plugin/scripts/ exports exactly the names a requirer uses, and a name it
 // re-exports from a module is that module's own.
 
 require('./fixture-git');
@@ -39,39 +39,35 @@ const EXPORTS = {
   'hooks/merge-guard.js': ['decide'],
   'hooks/model-explicit.js': ['OURS', 'decide'],
   'hooks/run-lock.js': ['STALENESS_MS', 'decide'],
-  'hooks/run-trace.js': ['bashTargets', 'locate', 'record', 'testRuns', 'treeState', 'verificationKind'],
+  'hooks/run-trace.js': ['record'],
   'hooks/scope-prune.js': ['TTL_MS', 'branchNamesFrom', 'main', 'readBranch', 'readHeader', 'readStage', 'selectPrunable', 'shapeScanBranch'],
   'hooks/slicetree-sweep.js': ['git', 'main', 'selectRemovable'],
   'hooks/test-guard.js': ['decide'],
   'hooks/tree-guard.js': ['decide'],
   'hooks/update-check.js': ['cmpVersion'],
-  'scripts/kb-patch.js': ['headingKeyOf', 'maskFencedLines', 'merge'],
-  'scripts/publish-kb.js': ['addParentLink', 'checkContainment', 'classifyBackend', 'hashBody', 'listPendingScopes', 'parseBaseBranch',
-    'parseCommandsTemplates', 'parseRemote', 'parseStagedPage', 'processFile', 'processStagedFiles', 'publishDelete', 'publishPatch', 'publishUpsert',
-    'readPage', 'removeParentLink', 'renderReport', 'resolveMainCheckout', 'resolveScope', 'resolveScopeBranch', 'run', 'runFind', 'runTemplate',
+  'scripts/kb-patch.js': ['merge'],
+  'scripts/publish-kb.js': ['addParentLink', 'classifyBackend', 'hashBody', 'parseBaseBranch',
+    'parseCommandsTemplates', 'parseRemote', 'parseStagedPage', 'removeParentLink', 'resolveMainCheckout', 'run', 'runFind',
     'timeoutMs'],
-  'scripts/scope.js': ['CHANGE_TYPES', 'SLUG_RE', 'appendTrace', 'baseHistoryHasPatch', 'endRun', 'findCollisions', 'inProgressSlices',
-    'isTestPath', 'mainWorkTree', 'publishText', 'readLedgerHeader', 'readTrace', 'refResolves', 'run', 'sliceType', 'testContainment',
-    'untraceField', 'verificationCommands', 'verificationCommandsOf', 'watchMain'],
+  'scripts/scope.js': ['SLUG_RE', 'appendTrace', 'baseHistoryHasPatch', 'endRun', 'findCollisions', 'inProgressSlices',
+    'isTestPath', 'publishText', 'readLedgerHeader', 'readTrace', 'run', 'testContainment',
+    'verificationCommandsOf', 'watchMain'],
 };
 for (const [rel, names] of Object.entries(EXPORTS)) {
-  assert.deepStrictEqual(Object.keys(require(path.join(plugin, rel))).sort(), names, `${rel} exports the names it exported before`);
+  assert.deepStrictEqual(Object.keys(require(path.join(plugin, rel))).sort(), names, `${rel} exports exactly the names a requirer uses`);
 }
 
 // Each entry point re-exports names from the modules that hold them: each name is the module's own value, so a
 // divergent local copy fails here.
 const RE_EXPORTS = {
-  'hooks/run-trace.js': { 'bash-writes': ['bashTargets'], 'run-tree': ['locate', 'treeState'], 'test-runs': ['testRuns', 'verificationKind'] },
-  'scripts/kb-patch.js': { 'md-sections': ['maskFencedLines', 'merge', 'headingKeyOf'] },
-  'scripts/publish-kb.js': { 'kb-staging': ['resolveMainCheckout', 'listPendingScopes', 'resolveScope'],
+  'scripts/kb-patch.js': { 'md-sections': ['merge'] },
+  'scripts/publish-kb.js': { 'kb-staging': ['resolveMainCheckout'],
     'kb-backend-config': ['classifyBackend', 'parseCommandsTemplates'], 'kb-staged-page': ['parseStagedPage'],
-    'kb-backend': ['runTemplate', 'runFind', 'publishUpsert', 'publishDelete', 'publishPatch', 'timeoutMs', 'hashBody'],
-    'kb-apply': ['processFile', 'processStagedFiles'], 'kb-parent-link': ['addParentLink', 'removeParentLink'], 'kb-containment': ['resolveScopeBranch', 'parseBaseBranch', 'parseRemote', 'checkContainment'],
-    'kb-read': ['readPage'], 'kb-report': ['renderReport'] },
-  'scripts/scope.js': { 'run-supervision': ['endRun', 'watchMain'], verification: ['verificationCommandsOf', 'verificationCommands', 'isTestPath'],
-    'trace-log': ['appendTrace', 'untraceField', 'readTrace'], ledger: ['sliceType', 'readLedgerHeader', 'inProgressSlices', 'SLUG_RE', 'CHANGE_TYPES'],
-    'run-state': ['publishText'], containment: ['testContainment', 'baseHistoryHasPatch'], 'main-work-tree': ['mainWorkTree'],
-    'git-spawn': ['refResolves'], collisions: ['findCollisions'] },
+    'kb-backend': ['runFind', 'timeoutMs', 'hashBody'],
+    'kb-parent-link': ['addParentLink', 'removeParentLink'], 'kb-containment': ['parseBaseBranch', 'parseRemote'] },
+  'scripts/scope.js': { 'run-supervision': ['endRun', 'watchMain'], verification: ['verificationCommandsOf', 'isTestPath'],
+    'trace-log': ['appendTrace', 'readTrace'], ledger: ['readLedgerHeader', 'inProgressSlices', 'SLUG_RE'],
+    'run-state': ['publishText'], containment: ['testContainment', 'baseHistoryHasPatch'], collisions: ['findCollisions'] },
 };
 for (const [rel, mods] of Object.entries(RE_EXPORTS)) {
   const entry = require(path.join(plugin, rel));
@@ -101,11 +97,11 @@ for (const [rel, mods] of Object.entries(RE_EXPORTS)) {
       try { require(require('node:path').join(${JSON.stringify(plugin)}, f)); } catch (e) { bad.push(f + ' throws ' + e.message); }
     }
     process.on('exit', () => out(JSON.stringify(bad)));`;
-  // The child's environment names no real plugin root or data directory and no real update remote, so a hook that runs anyway
+  // The child's environment names no real plugin root or data directory, so a hook that runs anyway
   // reaches nothing outside the test.
   const childData = fs.mkdtempSync(path.join(os.tmpdir(), 'plugin-layout-require-'));
   process.on('exit', () => fs.rmSync(childData, { recursive: true, force: true }));
-  const childEnv = { ...process.env, CLAUDE_PLUGIN_ROOT: '', CLAUDE_PLUGIN_DATA: childData, SUPERDEV_UPDATE_CHECK_REMOTE: 'https://127.0.0.1:1/plugin.json' };
+  const childEnv = { ...process.env, CLAUDE_PLUGIN_ROOT: '', CLAUDE_PLUGIN_DATA: childData };
   const r = cp.spawnSync(process.execPath, ['-e', child], { input: '', encoding: 'utf8', timeout: 60000, env: childEnv });
   assertSpawnDecided(r, 'requiring every lib module and hook');
   assert.deepStrictEqual([r.status, r.stderr, r.stdout], [0, '', '[]'], `requiring prints, spawns, and exits nothing: ${r.stdout} ${r.stderr}`);
@@ -151,6 +147,7 @@ for (const [rel, mods] of Object.entries(RE_EXPORTS)) {
   fs.mkdirSync(path.join(pluginRoot, '.claude-plugin'));
   fs.writeFileSync(path.join(pluginRoot, '.claude-plugin', 'plugin.json'), JSON.stringify({ version: '0.0.1' }));
   const updateData = dir('update-data');
+  const updateMarker = path.join(updateData, 'https-get-calls');
 
   const pruneRepo = repoIn('prune-repo');
   const pruneScope = path.join(pruneRepo, '.superdev', 'scopes', 'gone');
@@ -193,13 +190,13 @@ for (const [rel, mods] of Object.entries(RE_EXPORTS)) {
       check: (r) => { assert.strictEqual(r.status, 2, 'refuses a full run'); assert.match(r.stderr, /^superdev: refused/); } },
     'tree-guard.js': { input: implementer({ tool_name: 'Write', cwd: runRepo, tool_input: { file_path: path.join(runRepo, 'a.txt'), content: 'x' } }),
       check: (r) => { assert.strictEqual(r.status, 2, 'refuses a write into the main checkout'); } },
-    'update-check.js': { input: {}, env: { CLAUDE_PLUGIN_ROOT: pluginRoot, CLAUDE_PLUGIN_DATA: updateData, SUPERDEV_UPDATE_CHECK_REMOTE: 'https://127.0.0.1:1/plugin.json' },
-      check: (r) => { assert.strictEqual(r.status, 0); assert.ok(fs.existsSync(path.join(updateData, '.update-check')), 'stamps the check'); } },
+    'update-check.js': { input: {}, nodeArgs: ['--require', path.join(__dirname, 'fixtures', 'stub-https-get.js')], env: { CLAUDE_PLUGIN_ROOT: pluginRoot, CLAUDE_PLUGIN_DATA: updateData, STUB_HTTPS_MARKER: updateMarker },
+      check: (r) => { assert.strictEqual(r.status, 0); assert.ok(fs.existsSync(path.join(updateData, '.update-check')), 'stamps the check'); assert.ok(fs.readFileSync(updateMarker, 'utf8').length > 0, 'the https.get stub ran'); } },
   };
   assert.deepStrictEqual(Object.keys(DIRECT).sort(), [...hookFiles].sort(), 'DIRECT names every hook under plugin/hooks/');
   for (const name of hookFiles) {
-    const { input, env, check } = DIRECT[name];
-    const r = cp.spawnSync(process.execPath, [path.join(plugin, 'hooks', name)], { input: JSON.stringify(input), encoding: 'utf8', timeout: 30000, env: { ...process.env, ...env } });
+    const { input, env, check, nodeArgs = [] } = DIRECT[name];
+    const r = cp.spawnSync(process.execPath, [...nodeArgs, path.join(plugin, 'hooks', name)], { input: JSON.stringify(input), encoding: 'utf8', timeout: 30000, env: { ...process.env, ...env } });
     assertSpawnDecided(r, `spawning ${name} directly`);
     try { check(r); } catch (e) { e.message = `${name} run directly: ${e.message}\nstderr: ${r.stderr}`; throw e; }
   }

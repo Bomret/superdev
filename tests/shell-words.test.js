@@ -801,8 +801,16 @@ for (const open of ['$(', '"$(', '${a:-$(', '(', '$((']) {
 
 // drivePath: a Git Bash drive path becomes a Windows one on win32 only (ADR 0150).
 for (const [from, to] of [['/c/Users/x', 'C:/Users/x'], ['/C/x', 'C:/x'], ['/c', 'C:/'], ['/tmp/x', '/tmp/x'], ['/dev/null', '/dev/null'], ['/cc/x', '/cc/x'], ['c/x', 'c/x'], ['C:/x', 'C:/x']]) {
-  assert.equal(drivePath(from, 'win32'), to, `win32: ${from}`);
-  for (const platform of ['darwin', 'linux']) assert.equal(drivePath(from, platform), from, `${platform}: ${from}`);
+  const platformDesc = Object.getOwnPropertyDescriptor(process, 'platform');
+  const translate = (platform) => {
+    Object.defineProperty(process, 'platform', { ...platformDesc, value: platform });
+    try {
+      assert.equal(process.platform, platform, 'the platform override took effect');
+      return drivePath(from);
+    } finally { Object.defineProperty(process, 'platform', platformDesc); }
+  };
+  assert.equal(translate('win32'), to, `win32: ${from}`);
+  for (const platform of ['darwin', 'linux']) assert.equal(translate(platform), from, `${platform}: ${from}`);
 }
 
 // `fnId` numbers the function body a command sits in, so two bodies' commands differ; a command outside every body has none.

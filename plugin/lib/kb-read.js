@@ -58,4 +58,4 @@ function runReadEntry(cwd, title) {
   console.log(JSON.stringify(out));
 }
 
-module.exports = { readPage, runReadEntry };
+module.exports = { runReadEntry };

@@ -193,6 +193,11 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   in all, and the pin judges the last pair. A one-off load spike then decides no pin.
   `timePair` needs `process.threadCpuUsage()`, so `package.json`'s `engines.node` requires Node 24 or later
   for the test toolchain. The hooks under `plugin/` do not use it.
+- **Shipped code carries no test seam** (ADR 0154). Under `plugin/`, no environment variable, parameter,
+  default, export, or comment exists for a test's sake. A suite reaches behaviour through the shipped
+  entry points and the real inputs they take, and a suite that needs a different bound or remote builds
+  its fixture around the unchanged code. The `test-seams` drift check holds the forms it can scan
+  (`scripts/AGENTS.md`).
 - **Normalize a path before you compare it.** A path from git output or from command text can be an MSYS
   path on Windows (`/c/Users/…`). Hooks and scripts normalize it before comparing it with a path Node
   builds (ADR 0150).

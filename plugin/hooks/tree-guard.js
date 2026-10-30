@@ -24,7 +24,7 @@ try {
 
 // The bound on each git call; a call past it carries no verdict and the write passes (INV-0009). The at most three calls a
 // decision makes (one here, two in `mainWorkTree` for a target in a working tree) stay inside the hook's own 5 s exit below.
-const GIT_BOUND_MS = Number(process.env.TREE_GUARD_GIT_BOUND_MS) || 1500;
+const GIT_BOUND_MS = 1500;
 
 const git = (args, cwd) => spawnSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8', timeout: GIT_BOUND_MS });
 

@@ -9,7 +9,7 @@ const { inProgressSlices } = require('./ledger.js');
 const { isTestPath: testPathOf } = require('./verification.js');
 
 // The bound on each `git` call a run line needs; a call past it records `unknown` for its field (INV-0009).
-const GIT_BOUND_MS = Number(process.env.RUN_TRACE_GIT_BOUND_MS) || 1500;
+const GIT_BOUND_MS = 1500;
 
 function gitOut(tree, args) {
   const r = spawnSync('git', args, { cwd: tree, encoding: 'utf8', timeout: GIT_BOUND_MS, stdio: ['ignore', 'pipe', 'ignore'] });

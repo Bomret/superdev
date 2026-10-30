@@ -60,8 +60,8 @@ const DOD_NO_NOTE_TAG_RE = new RegExp(`^(.+) — (${DOD_TAG_PATTERN})\\s*$`);
 const DOD_SECTION_HEADING_RE = /^\s{0,3}(#{1,6})\s+Definition of Done\b/;
 const HEADING_RE = /^\s{0,3}(#{1,6})\s+/;
 
-// Whitespace-insensitive equality (`--match`'s own contract), collapsed within one physical line only:
-// a `--match` argument itself carrying an embedded newline, or a run of spaces a web UI's autoformat
+// Whitespace-insensitive equality (`--match-file`'s own contract), collapsed within one physical line only:
+// a criterion text itself carrying an embedded newline, or a run of spaces a web UI's autoformat
 // left behind, still matches the same single-line criterion. A checklist line an editor reflowed onto
 // two physical lines is a different, unmatched line — matching never joins lines.
 function collapseWhitespace(s) {
@@ -74,7 +74,7 @@ function collapseWhitespace(s) {
 // Returns every plausible reading, not just one: an untagged criterion that merely ends in something
 // shaped like a tag (`- [ ] Retries capped — 3`) reads as tagged `3` under the rightmost-tag rule above,
 // so the whole-line-untagged reading is offered alongside it (triage #679's C.1) — a line matches when
-// either reading's criterion equals `--match`, and rendering keeps whichever one matched. The same offer
+// either reading's criterion equals the criterion text, and rendering keeps whichever one matched. The same offer
 // reaches the tag-with-note shape too: `<criterion> — <tag> — <verdict>: <note>` could also be
 // `<criterion — tag> — <verdict>: <note>` with an empty tag, once the line already carries a note (Minor
 // review find #4) — a tagged criterion that already carries a note is otherwise unreadable by its
@@ -197,27 +197,25 @@ function readOptionFile(flag, filePath) {
 }
 
 function verbDodLine(args, stdinRaw) {
-  const match = takeOption(args, '--match');
   const matchFile = takeOption(args, '--match-file');
   const verdict = takeOption(args, '--verdict');
-  const note = takeOption(args, '--note');
   const noteFile = takeOption(args, '--note-file');
   const lineIdx = args.indexOf('--line');
   const lineMode = lineIdx >= 0;
   if (lineMode) args.splice(lineIdx, 1);
 
-  if (match !== undefined && matchFile !== undefined) fail('dod-line takes --match or --match-file, not both');
-  if (note !== undefined && noteFile !== undefined) fail('dod-line takes --note or --note-file, not both');
+  if (args.includes('--match')) fail('dod-line reads the criterion text from a file: give --match-file <path>');
+  if (args.includes('--note')) fail('dod-line reads the note from a file: give --note-file <path>');
 
-  const resolvedMatch = matchFile !== undefined ? readOptionFile('--match-file', matchFile) : match;
-  const resolvedNote = noteFile !== undefined ? readOptionFile('--note-file', noteFile) : note;
-
-  if (!resolvedMatch) fail('dod-line needs --match <criterion text> or --match-file <path>');
+  if (matchFile === undefined) fail('dod-line needs --match-file <path>');
+  const resolvedMatch = readOptionFile('--match-file', matchFile);
+  if (!resolvedMatch) fail('dod-line needs --match-file <path> to hold the criterion text');
   if (!DOD_VERDICTS[verdict]) {
     fail(`dod-line needs --verdict one of ${Object.keys(DOD_VERDICTS).join('|')} — got "${verdict || ''}"`);
   }
-  if (resolvedNote === undefined) fail('dod-line needs --note <text> or --note-file <path>');
-  if (/[\n\r]/.test(resolvedNote)) fail('dod-line --note must not contain a newline — it would inject a free-text line into the body');
+  if (noteFile === undefined) fail('dod-line needs --note-file <path>');
+  const resolvedNote = readOptionFile('--note-file', noteFile);
+  if (/[\n\r]/.test(resolvedNote)) fail('dod-line --note-file must not hold a newline — it would inject a free-text line into the body');
   // The verb writes the verdict's own label itself, so a note already opening with it would carry it twice.
   const ownLabel = `${DOD_VERDICTS[verdict].label}:`;
   const noteText = resolvedNote.toLowerCase().startsWith(ownLabel)

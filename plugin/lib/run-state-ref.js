@@ -230,4 +230,4 @@ function deleteRunState(root, cwd) {
   }
 }
 
-module.exports = { pushRunState, fetchRunState, deleteRunState, refName, resolveRemote, lastSeenTip, recordSeenTip };
+module.exports = { pushRunState, fetchRunState, deleteRunState };

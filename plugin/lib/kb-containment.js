@@ -140,4 +140,4 @@ function checkContainment(mainCheckout, scope) {
   return { performed: true, ok: false, message: `scope branch "${branch}" ${what}` };
 }
 
-module.exports = { resolveScopeBranch, parseBaseBranch, parseRemote, checkContainment };
+module.exports = { parseBaseBranch, parseRemote, checkContainment };

@@ -68,6 +68,7 @@ try {
   require('./adr.test')(context);
   require('./prose-avoid.test')(context);
   require('./shell-spawn.test')(context);
+  require('./test-seams.test')(context);
   require('./base-branch-ship.test')(context);
   require('./marketplace-readme.test')(context);
   require('./contracts.test')(context);

@@ -9,7 +9,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync, execFileSync } = require('node:child_process');
-const { scopePath, fetchBound } = require('./scope-setup');
+const { scopePath, fetchBound, shortPushBound } = require('./scope-setup');
 const { verbPush } = require('../plugin/lib/push.js');
 const { copyFixture, templateOnce } = require('./fixture-git');
 const { assertSpawnDecided } = require('./spawn-verdict');
@@ -243,7 +243,9 @@ try {
   {
     const f = fixture();
     git(['config', 'remote.origin.uploadpack', 'sleep 3;'], f.repo);
-    undecided('a fetch its bound ended', f, 'timed-out', { SUPERDEV_PUSH_TIMEOUT_MS: '500' });
+    const short = shortPushBound(500);
+    undecided('a fetch its bound ended', f, 'timed-out', short.env);
+    assert.ok(short.shortened().some((c) => / fetch /.test(c)), 'the preload shortened the fetch bound');
   }
 
   // A git on PATH whose fetch of base runs `action` and forwards every other call, the branch fetch included, to
@@ -264,7 +266,9 @@ try {
   {
     const { f } = foreignRemote();
     // The bound is this run's, which the healthy branch fetch also clears; `exec` lets the kill land on the sleep.
-    const r = undecided('a refetch its bound ended', f, 'timed-out', { ...baseFetchGit('exec sleep 900'), SUPERDEV_PUSH_TIMEOUT_MS: String(fetchBound()) });
+    const short = shortPushBound(fetchBound());
+    const r = undecided('a refetch its bound ended', f, 'timed-out', { ...baseFetchGit('exec sleep 900'), ...short.env });
+    assert.ok(short.shortened().some((c) => / fetch .* main$/.test(c)), 'the preload shortened the refetch bound');
     // The branch fetch's bound names the branch; only the refetch of base names main, so a branch fetch
     // ended under load fails here instead of passing on timed-out alone.
     assert.match(r.out, /the fetch of origin main was ended by its own bound/, `names the refetch of base as the call its bound ended: ${r.out}`);
@@ -293,7 +297,9 @@ try {
     const bound = fetchBound();
     fs.writeFileSync(hook, `#!/bin/sh\nexec sleep ${Math.ceil(bound / 1000) + 4}\n`);
     fs.chmodSync(hook, 0o755);
-    const r = push(f, [], { SUPERDEV_PUSH_TIMEOUT_MS: String(bound) });
+    const short = shortPushBound(bound);
+    const r = push(f, [], short.env);
+    assert.ok(short.shortened().some((c) => / push /.test(c)), 'the preload shortened the push bound');
     assert.strictEqual(r.word, 'timed-out', `a push its bound ended prints timed-out: ${r.out}`);
     assert.match(r.out, /push/, 'names the push as the call its bound ended');
     assert.strictEqual(r.status, 3, 'exits 3');

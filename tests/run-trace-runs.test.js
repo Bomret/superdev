@@ -11,7 +11,7 @@ const cp = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { verificationKind, testRuns } = require('../plugin/lib/test-runs.js');
 const { bashTargets } = require('../plugin/lib/bash-writes.js');
-const { tmp, ledger, A, S3, trace, reset, run, edit, bash, hookPath, initS3, cleanup } = require('./run-trace-setup');
+const { tmp, ledger, A, S3, trace, reset, run, edit, bash, hookPath, initS3, cleanup, GIT_SPAWN_BOUND_MS } = require('./run-trace-setup');
 const vf = path.join(S3, 'docs', 'agents', 'verification.md');
 // A path run needs its file to exist (triage #1210): the test files the cases below run are committed with the tree.
 fs.writeFileSync(vf, '# V\n\n```sh\nbun run test\n```\n\n```sh\nbun run test\n```\n');
@@ -132,11 +132,13 @@ fs.rmSync(path.join(S3, 'src', 'dirty.js'));
 {
   const bin = path.join(tmp, 'bin');
   fs.mkdirSync(bin, { recursive: true });
-  fs.writeFileSync(path.join(bin, 'git'), '#!/bin/sh\nsleep 5\n', { mode: 0o755 });
+  const marker = path.join(bin, 'called');
+  fs.writeFileSync(path.join(bin, 'git'), `#!/bin/sh\necho git >> '${marker}'\nexec sleep 5\n`, { mode: 0o755 });
   reset();
   const input = { hook_event_name: 'PostToolUse', tool_name: 'Bash', tool_input: { command: 'bun run test' }, cwd: S3 };
-  const r = cp.spawnSync(process.execPath, [hookPath], { input: JSON.stringify(input), encoding: 'utf8', timeout: 10000, env: { ...process.env, PATH: bin + path.delimiter + process.env.PATH, RUN_TRACE_GIT_BOUND_MS: '200' } });
+  const r = cp.spawnSync(process.execPath, [hookPath], { input: JSON.stringify(input), encoding: 'utf8', timeout: GIT_SPAWN_BOUND_MS, env: { ...process.env, PATH: bin + path.delimiter + process.env.PATH } });
   assertSpawnDecided(r, 'run-trace.js with a stalled git');
+  assert.ok(fs.existsSync(marker), 'the hook reached the stalled git stub');
   assert.deepEqual(tail(trace(A)), ['run full pass unknown unknown -'], 'a killed git call records unknown');
 }
 

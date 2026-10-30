@@ -38,8 +38,8 @@ const path = require('node:path');
 // name, slicetree path) containing a quote/backtick/$() can't break out and inject, and `parseBranchList` reads
 // the `git branch` listing. No fallback: a hook that cannot run git sweeps nothing, so a failed load, or a module
 // missing either name, leaves both null and main() sweeps nothing, silently. The names are taken only once the
-// module carries both, so a partial module reads as an unloaded one. `git` is the name this hook and its suite
-// call `gitThrow` by.
+// module carries both, so a partial module reads as an unloaded one. `git` is the name this hook
+// calls `gitThrow` by.
 let git = null;
 let parseBranchList = null;
 try {

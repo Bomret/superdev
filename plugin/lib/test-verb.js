@@ -122,4 +122,4 @@ function verbTest(cwd, args) {
   });
 }
 
-module.exports = { verbTest, withPaths, shellWord };
+module.exports = { verbTest, shellWord };

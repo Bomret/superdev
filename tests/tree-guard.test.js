@@ -234,8 +234,10 @@ const { decide } = require(path.join(pluginRoot, 'hooks', 'tree-guard.js'));
   // A git call past its bound carries no verdict (INV-0009).
   const slow = path.join(fx.base, 'slow-git');
   fs.mkdirSync(slow);
-  fs.writeFileSync(path.join(slow, 'git'), '#!/bin/sh\nsleep 5\n', { mode: 0o755 });
-  assert.equal(run(hook, write, { PATH: `${slow}${path.delimiter}${process.env.PATH}`, TREE_GUARD_GIT_BOUND_MS: '200' }), 0, 'a git call past its bound passes');
+  const marker = path.join(slow, 'called');
+  fs.writeFileSync(path.join(slow, 'git'), `#!/bin/sh\necho git >> '${marker}'\nexec sleep 5\n`, { mode: 0o755 });
+  assert.equal(run(hook, write, { PATH: `${slow}${path.delimiter}${process.env.PATH}` }), 0, 'a git call past its bound passes');
+  assert.ok(fs.existsSync(marker), 'the hook reached the slow git stub');
 
   // An unreadable run directory.
   const scopes = path.join(fx.main, '.superdev', 'scopes');

@@ -361,8 +361,22 @@ const fetchBound = () => {
   }
 };
 
+// The environment of a spawned scope.js whose push.js bound is `ms` instead of its 60 s production value, through
+// tests/fixtures/shorten-push-bound.js. `shortened()` reads the calls the preload shortened: a case asserts it is
+// non-empty, so the substitute is proven to have taken effect.
+const shortPushBound = (ms) => {
+  const marker = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'short-bound-')), 'marker');
+  fs.writeFileSync(marker, '');
+  const preload = path.join(__dirname, 'fixtures', 'shorten-push-bound.js');
+  return {
+    env: { NODE_OPTIONS: `--require "${preload}"`, SHORT_BOUND_MS: String(ms), SHORT_BOUND_MARKER: marker },
+    shortened: () => fs.readFileSync(marker, 'utf8').split('\n').filter(Boolean),
+  };
+};
+
 module.exports = {
   fetchBound,
+  shortPushBound,
   testVerbFixture,
   firstMoment,
   get tmp() {

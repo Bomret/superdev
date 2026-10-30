@@ -478,6 +478,9 @@ _Avoid: "auto-invoked" (that names implicit activation by description match, a d
 **Shipped tree**: the `plugin/` subdirectory, which is everything a user's install copies and nothing else, because the marketplace manifest's `source` names `plugin` as its `path`, at the release tag its `ref` pins (ADR 0131). Everything outside it — `tests/`, `scripts/`, `docs/` — is maintainer-only and reaches no user.
 _Avoid: "the plugin" (that names the product, not the tree), "dist", "build output" (there is no build step)_
 
+**Test seam**: code in the **Shipped tree** that exists only so superdev's own suites in `tests/` can drive it: an environment variable only a test sets, a parameter or default value only a test passes or relies on, an option only a test uses, an export nothing requires, or a comment that names a suite. The shipped tree carries none (ADR 0154). The exports a suite requires and the `require.main` guards are the module interface ADR 0059 chose, not test seams. A test reaches a branch a seam used to expose by substituting on its own side.
+_Avoid: "test hook" (a hook is a Claude Code event handler), "test mode", "debug flag"_
+
 **Guardrail**: one of the deterministic Node hooks in `plugin/hooks/`, wired by `hooks/hooks.json`, that decides a tool call or a session event with no model judgment involved.
 _Avoid: "hook" alone (Claude Code's word for the wiring point, which also covers hooks superdev does not ship), "check" (that names a `Check:` proof or a drift assertion)_
 

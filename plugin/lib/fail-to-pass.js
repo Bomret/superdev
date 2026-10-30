@@ -35,7 +35,7 @@ function failToPassFloorMs() {
 }
 
 // The bound on the run with the files put back: ten times the control's duration, rounded up, or the floor, whichever
-// is larger (ADR 0142). Pure, so the suite pins the factor and the floor without a clock; the caller reads the floor.
+// is larger (ADR 0142). Pure: it reads no clock, and the caller reads the floor.
 const failToPassBoundMs = (controlMs, floorMs) => Math.max(Math.ceil(controlMs * 10), floorMs);
 
 // The domain shapes, named as CONTEXT.md names them. A **fail-to-pass run** is a performed test comparison over a

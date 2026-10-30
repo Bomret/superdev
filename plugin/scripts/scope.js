@@ -19,12 +19,11 @@ const path = require('path');
 // trace reader and writer, the collision finder, the verbs themselves, and the usage text. This file keeps the
 // CLI switch, the verbs `root`, `trace`, and `collisions`, and the exports.
 const { fail } = require('../lib/refusal.js');
-const { CHANGE_TYPES, SLUG_RE, readLines, getHeader, readLedgerHeader, inProgressSlices, sliceType } = require('../lib/ledger.js');
-const { isTestPath, verificationCommands, verificationCommandsOf } = require('../lib/verification.js');
-const { refResolves } = require('../lib/git-spawn.js');
+const { SLUG_RE, readLines, getHeader, readLedgerHeader, inProgressSlices } = require('../lib/ledger.js');
+const { isTestPath, verificationCommandsOf } = require('../lib/verification.js');
 const { testContainment, baseHistoryHasPatch } = require('../lib/containment.js');
-const { mainWorkTree, mainTreePath } = require('../lib/main-work-tree.js');
-const { untraceField, appendTrace, readTrace } = require('../lib/trace-log.js');
+const { mainTreePath } = require('../lib/main-work-tree.js');
+const { appendTrace, readTrace } = require('../lib/trace-log.js');
 const { collisionRefusal, findCollisions } = require('../lib/collisions.js');
 const { verbInit, verbStage, verbStep, verbSlice } = require('../lib/ledger-lifecycle.js');
 const {
@@ -407,12 +406,11 @@ function main() {
   }
 }
 
-// The CLI runs only when this file is executed directly. the `tests/scope-*.test.js` suites require it for `run`,
-// `publishText`, and `SLUG_RE` (ADR 0059), and the hooks and sibling scripts require the modules in
+// The CLI runs only when this file is executed directly. The hooks and sibling scripts require the modules in
 // `../lib/` instead (ADR 0151). An unguarded `main()` parses the *caller's* argv: measured, a requiring
 // process dies with `unknown verb ""` and exit 1 before its own first statement, because a refusal calls
 // process.exit. Had the caller's argv happened to start with `init`, the same path waits on stdin
 // instead and hangs. Either way the require, not the CLI, is what fails.
-module.exports = { endRun, watchMain, verificationCommandsOf, appendTrace, untraceField, readTrace, sliceType, readLedgerHeader, inProgressSlices, verificationCommands, isTestPath, run, publishText, SLUG_RE, testContainment, baseHistoryHasPatch, mainWorkTree, CHANGE_TYPES, refResolves, findCollisions };
+module.exports = { endRun, watchMain, verificationCommandsOf, appendTrace, readTrace, readLedgerHeader, inProgressSlices, isTestPath, run, publishText, SLUG_RE, testContainment, baseHistoryHasPatch, findCollisions };
 
 if (require.main === module) main();

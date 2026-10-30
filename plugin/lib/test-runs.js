@@ -15,7 +15,7 @@ const NOT_RUNNERS = new Set(['grep', 'egrep', 'fgrep', 'rg', 'cat', 'sed', 'head
   'diff', 'cmp', 'cd', 'chmod', 'ln', 'set', 'true', 'false', ':', 'exit', 'return', 'tr', 'sort', 'cut', 'uniq', 'jq',
   'basename', 'dirname', 'realpath']);
 // The shell's own builtins `test` and `[` and its keywords `[[`, `for`, and `select` read nothing they run, and match only as a
-// bare command word: a word with a `/` names a file, so `./test tests/a.test.js` is a runner script. A `[[`, `for`, or `select`
+// bare command word: a word with a `/` names a file, so `./test spec/a_spec.rb` is a runner script. A `[[`, `for`, or `select`
 // is here because the scanner keeps it as a command word (ledger-guard reads a loop's list words), and it runs nothing.
 const SHELL_READERS = new Set(['test', '[', '[[', 'for', 'select']);
 
@@ -332,4 +332,4 @@ function recordBash(command, cwd, agent, failed, background, end) {
   return lines;
 }
 
-module.exports = { testRuns, verificationKind, recordBash, scopeTestCalls, NOT_RUNNERS, SHELL_READERS };
+module.exports = { testRuns, verificationKind, recordBash, scopeTestCalls };

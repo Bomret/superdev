@@ -152,17 +152,6 @@ function inProgressSlices(content) {
     .map((cells) => cells[0]);
 }
 
-// The type cell of the ledger row `id`, or null. The run-trace hook (ADR 0117) reads it through
-// `splitRow`, so an escaped `\|` in a title never shifts the cells.
-function sliceType(content, id) {
-  const lines = splitLines(content);
-  for (const i of tableRowIndexes(lines)) {
-    const cells = splitRow(lines[i]);
-    if (cells[0] === id) return cells[3];
-  }
-  return null;
-}
-
 // Where `insertHeader` inserts a header line that was absent: after the *whole* header block,
 // never spliced between one of `names`' header lines and any bullets that immediately follow it — a
 // hand-edited ledger can carry a bullet glued directly to a header line.
@@ -255,6 +244,6 @@ function checkSliceId(id) {
 
 module.exports = {
   checkSliceId, CHANGE_TYPES, SLUG_RE, SLICE_STATUSES, SUITE_RESULTS, STAGES, stageMoveAllowed,
-  ledgerPath, readLines, splitLines, writeLines, headerRe, getHeader, readLedgerHeader, inProgressSlices, sliceType,
+  ledgerPath, readLines, splitLines, writeLines, headerRe, getHeader, readLedgerHeader, inProgressSlices,
   readBullets, insertHeader, setHeader, tableRowIndexes, sanitizeCell, splitRow,
 };

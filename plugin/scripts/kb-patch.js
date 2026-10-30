@@ -14,7 +14,7 @@
 
 const fs = require('fs');
 const { fail } = require('../lib/refusal.js');
-const { maskFencedLines, merge, headingKeyOf } = require('../lib/md-sections.js');
+const { merge } = require('../lib/md-sections.js');
 
 function readFileOrFail(p, what) {
   try {
@@ -36,8 +36,6 @@ function main() {
   }
 }
 
-// `tests/kb-patch.test.js` requires this for `merge` (ADR 0059), and `publish-kb.js` takes the same
-// three names from `../lib/md-sections.js`.
-module.exports = { maskFencedLines, merge, headingKeyOf };
+module.exports = { merge };
 
 if (require.main === module) main();

@@ -117,8 +117,32 @@ function scanContract(root, contracts) {
   return gaps;
 }
 
+// Cuts a trailing `//` comment (at the line start or after whitespace) unless it sits inside a quoted string.
+function stripLineComment(line) {
+  let quote = null;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (quote) {
+      if (c === '\\') i++;
+      else if (c === quote) quote = null;
+    } else if (c === '"' || c === "'" || c === '`') quote = c;
+    else if (c === '/' && line[i + 1] === '/' && (i === 0 || /\s/.test(line[i - 1]))) return line.slice(0, i);
+  }
+  return line;
+}
+
+// The text without its block comments and trailing line comments (see `stripLineComment`).
+function stripComments(raw) {
+  return raw
+    .replace(/^[ \t]*\/\*[\s\S]*?\*\//gm, '')
+    .split('\n')
+    .map(stripLineComment)
+    .join('\n');
+}
+
 module.exports = {
   docPath,
+  stripComments,
   readDoc,
   missingDoc,
   maskFences,

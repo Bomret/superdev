@@ -15,8 +15,7 @@ const { assertSpawnDecided } = require('./spawn-verdict');
 
 const scopePath = require.resolve('../plugin/scripts/scope.js');
 
-// The command runs under `sh` from PATH, and a run ends through `endRun`, whose platform and kill spawner are injectable
-// (ADR 0150, INV-0153).
+// The command runs under `sh` from PATH, and a run ends through `endRun` (ADR 0150, INV-0153).
 {
   const { spawnSync } = require('node:child_process');
   const scope = require('../plugin/scripts/scope.js');
@@ -27,11 +26,38 @@ const scopePath = require.resolve('../plugin/scripts/scope.js');
   assert.equal(scope.verificationCommandsOf(doc('\r\n'), true).full, 'echo a\necho b', 'no carriage return stays in the command');
 
   // On win32, ending a run is `taskkill /pid <pid> /t /f`; an exited run is no error, on either platform.
+  // Each case overrides `process.platform` and replaces `child_process.spawnSync` before a fresh require of run-supervision.js,
+  // which binds the stub at load; both are restored afterwards.
+  const cp = require('node:child_process');
+  const supervisionPath = require.resolve('../plugin/lib/run-supervision.js');
+  const platformDesc = Object.getOwnPropertyDescriptor(process, 'platform');
+  const realSpawnSync = cp.spawnSync;
+  const killDesc = Object.getOwnPropertyDescriptor(process, 'kill');
+  const withEndRun = (platform, stubSpawn, fn) => {
+    Object.defineProperty(process, 'platform', { ...platformDesc, value: platform });
+    cp.spawnSync = stubSpawn;
+    delete require.cache[supervisionPath];
+    try { fn(require(supervisionPath).endRun); } finally {
+      Object.defineProperty(process, 'platform', platformDesc);
+      cp.spawnSync = realSpawnSync;
+      delete require.cache[supervisionPath];
+    }
+  };
   const calls = [];
-  scope.endRun(4242, { platform: 'win32', spawn: (cmd, args) => { calls.push([cmd, ...args]); return { status: 128 }; } });
+  withEndRun('win32', (cmd, args) => { calls.push([cmd, ...args]); return { status: 128 }; }, (endRun) => endRun(4242));
   assert.deepEqual(calls, [['taskkill', '/pid', '4242', '/t', '/f']], 'win32 ends the process tree through taskkill');
-  assert.doesNotThrow(() => scope.endRun(4242, { platform: 'win32', spawn: () => { throw new Error('gone'); } }), 'a failed win32 kill is no error');
-  assert.doesNotThrow(() => scope.endRun(2 ** 22 + 12345, { platform: 'linux' }), 'a POSIX kill of an exited run is no error');
+  const gone = [];
+  withEndRun('win32', () => { gone.push('called'); throw new Error('gone'); }, (endRun) => assert.doesNotThrow(() => endRun(4242), 'a failed win32 kill is no error'));
+  assert.deepEqual(gone, ['called'], 'the throwing spawner was the one called');
+  const killed = [];
+  withEndRun('linux', () => { throw new Error('POSIX never spawns'); }, (endRun) => {
+    assert.doesNotThrow(() => endRun(2 ** 22 + 12345), 'a POSIX kill of an exited run is no error');
+    const realKill = process.kill;
+    process.kill = (pid, sig) => { killed.push([pid, sig]); };
+    try { endRun(77); } finally { process.kill = realKill; }
+  });
+  assert.deepEqual(killed, [[-77, 'SIGKILL']], 'POSIX ends the process group');
+  assert.equal(Object.getOwnPropertyDescriptor(process, 'kill')?.value, killDesc?.value, 'process.kill restored');
 
   // `scope.js test` starts the command as `sh -c`, found on PATH.
   const D = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-test-sh-'));

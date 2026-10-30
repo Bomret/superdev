@@ -24,6 +24,7 @@ const {
   scanUnmappedPathsForms,
   scanHookLedgerParsers,
   scanShellSpawn,
+  scanTestSeams,
   scanNoForceMerge,
   scanConflictConclusionNoCommit,
   scanTeaOnly,
@@ -155,6 +156,12 @@ module.exports = [
     id: 'shell-spawn',
     ok: 'no shipped executable starts a shell by absolute path, starts bash, or uses the default shell',
     run: scanShellSpawn,
+    format: contractGap,
+  },
+  {
+    id: 'test-seams',
+    ok: 'no shipped JavaScript names a superdev test file or reads an environment variable no shipped document names (outside CLAUDE_)',
+    run: scanTestSeams,
     format: contractGap,
   },
   table(

@@ -12,7 +12,7 @@ const { judgeContainment } = require('./containment.js');
 const NOT_PUSHED_EXIT = 3;
 
 // Every network call carries this bound and a kill signal (INV-0009), the containment test's refetch of base
-// included. A healthy fetch or push of a scope branch takes seconds; `SUPERDEV_PUSH_TIMEOUT_MS` overrides it.
+// included. A healthy fetch or push of a scope branch takes seconds.
 const DEFAULT_TIMEOUT_MS = 60000;
 
 // Git's own wording when the host rejects or never receives a credential: HTTP authentication, a prompt the
@@ -20,16 +20,11 @@ const DEFAULT_TIMEOUT_MS = 60000;
 // reads as an unreachable remote.
 const CREDENTIAL_RE = /Authentication failed|could not read (Username|Password)|terminal prompts disabled|returned error: 40[13]|Permission denied \(|Access denied/i;
 
-function timeoutMs() {
-  const n = Number(process.env.SUPERDEV_PUSH_TIMEOUT_MS);
-  return Number.isInteger(n) && n > 0 ? n : DEFAULT_TIMEOUT_MS;
-}
-
 // Every git call: no credential prompt, and the C locale, so the stderr the outcome is read from is git's own
 // English text.
 function gitCall(args, cwd, network) {
   const opts = { env: { ...process.env, GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' }, stdio: ['ignore', 'pipe', 'pipe'] };
-  if (network) Object.assign(opts, { timeout: timeoutMs(), killSignal: 'SIGKILL' });
+  if (network) Object.assign(opts, { timeout: DEFAULT_TIMEOUT_MS, killSignal: 'SIGKILL' });
   return gitSpawn(args, cwd, opts);
 }
 
@@ -82,7 +77,7 @@ function verbPush(cwd, args) {
   }
   // The containment test receives the resolved id, never the branch name (ADR 0167), and its refetch of base
   // carries this verb's own bound.
-  const judged = judgeContainment(cwd, base, tip, remote, { fetchTimeoutMs: timeoutMs() });
+  const judged = judgeContainment(cwd, base, tip, remote, { fetchTimeoutMs: DEFAULT_TIMEOUT_MS });
   if (judged.verdict === 'contained') {
     // The lease names the exact tip judged: a remote that moved since rejects the push (INV-0169).
     return push(cwd, remote, ref, [`--force-with-lease=${ref}:${tip}`], 'overwritten', byHand);
@@ -122,4 +117,4 @@ function lastLine(result) {
   return lines.length ? lines[lines.length - 1] : `git exited ${result.status}`;
 }
 
-module.exports = { verbPush, NOT_PUSHED_EXIT, gitCall, lastLine };
+module.exports = { verbPush, gitCall, lastLine };

@@ -28,19 +28,11 @@ const { fail } = require('../lib/refusal.js');
 const { resolveMainCheckout, listPendingScopes, resolveScope } = require('../lib/kb-staging.js');
 const { parseCommandsTemplates, classifyBackend } = require('../lib/kb-backend-config.js');
 const { parseStagedPage } = require('../lib/kb-staged-page.js');
-const {
-  hashBody,
-  timeoutMs,
-  runTemplate,
-  runFind,
-  publishUpsert,
-  publishDelete,
-  publishPatch,
-} = require('../lib/kb-backend.js');
-const { processFile, processStagedFiles } = require('../lib/kb-apply.js');
+const { hashBody, timeoutMs, runFind } = require('../lib/kb-backend.js');
+const { processStagedFiles } = require('../lib/kb-apply.js');
 const { addParentLink, removeParentLink } = require('../lib/kb-parent-link.js');
-const { resolveScopeBranch, parseBaseBranch, parseRemote, checkContainment } = require('../lib/kb-containment.js');
-const { readPage, runReadEntry } = require('../lib/kb-read.js');
+const { parseBaseBranch, parseRemote, checkContainment } = require('../lib/kb-containment.js');
+const { runReadEntry } = require('../lib/kb-read.js');
 const { renderReport } = require('../lib/kb-report.js');
 
 // --- CLI ---------------------------------------------------------------------------------------
@@ -119,31 +111,18 @@ function main() {
   }
 }
 
-// The `tests/publish-kb*.test.js` suites require every function below directly (ADR 0059).
 module.exports = {
   resolveMainCheckout,
-  listPendingScopes,
-  resolveScope,
   classifyBackend,
   parseCommandsTemplates,
   parseStagedPage,
-  runTemplate,
   runFind,
-  publishUpsert,
-  publishDelete,
-  publishPatch,
-  processFile,
-  processStagedFiles,
   addParentLink,
   removeParentLink,
-  resolveScopeBranch,
   parseBaseBranch,
   parseRemote,
-  checkContainment,
   timeoutMs,
   hashBody,
-  readPage,
-  renderReport,
   run,
 };
 
