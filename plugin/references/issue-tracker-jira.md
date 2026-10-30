@@ -120,7 +120,7 @@ text as an argument:
   `POST <base>/rest/api/3/issueLink` with
   `{ "type": {"name":"<link type name>"}, "inwardIssue":{"key":"<blocker>"}, "outwardIssue":{"key":"<this slice>"} }`
   so the blocker blocks the slice (**Link direction** above).
-- **Record an anchor dependency**, and each anchor line (the four lines of *Anchor lines* in the field
+- **Record an anchor dependency**, and each anchor line (every line of *Anchor lines* in the field
   mapping): append the line to the **anchor issue's own** description through **Edit an issue's body**
   below, as an ADF line.
 - **Record the deploy line**: an *Anchor lines* write, revising the line in place on an append that
@@ -129,6 +129,8 @@ text as an argument:
   never edited afterwards and nothing is written to the original anchor (ADR 0124).
 - **Record the Absorbs line**: an *Anchor lines* write when `/superdev:plan` absorbs records, revising the
   line in place on an append that absorbs more (ADR 0144).
+- **Record the Intent line**: an *Anchor lines* write when `/superdev:plan` was seeded from an intent
+  record, revising the line in place on an append seeded from another one (ADR 0200).
 - **List feature slices**: `GET <base>/rest/api/3/search/jql` with the JQL
   `project = <PROJ> AND labels = "<feature-label>"` (plus the component clause of *Configuration*) and
   `fields=summary,description,status,labels,issuetype,parent`, sent as **Transport** states and paged as
@@ -174,9 +176,9 @@ text as an argument:
 
 ### Anchor lines
 
-Four optional lines live in the **anchor's own** description — the Epic on a multi-slice feature, the lone
+Optional lines live in the **anchor's own** description — the Epic on a multi-slice feature, the lone
 slice issue on a single-slice one — each an ADF line (**ADF lines**, *REST conventions*), written through
-**Edit an issue's body**. **The four lines are never mixed with each other or with the "is blocked by"
+**Edit an issue's body**. **These lines are never mixed with each other or with the "is blocked by"
 issue link**, which carries slice-level `depends-on` alone: a feature-level relation on that link would be
 indistinguishable from it on read.
 
@@ -186,6 +188,7 @@ indistinguishable from it on read.
 | `**Deploy:**` | `<target>[, <target>]` in the operator's answer order, or `none` | `docs/agents/deployment.md`'s targets | ADR 0101 |
 | `**Repairs:**` | `<original-key>` | the scope anchor of the feature this one repairs; blocks nothing | ADR 0124 |
 | `**Absorbs:**` | `<key>[, <key>]` | every open triage record the scope absorbed; blocks nothing | ADR 0144 |
+| `**Intent:**` | `<key>[, <key>]` | every intent record a plan of this feature was seeded from; blocks nothing | ADR 0200 |
 
 Append promoting a single-slice feature to an Epic migrates each line that exists to the new Epic.
 
@@ -576,7 +579,7 @@ ADR 0004).
   *Repository component* where one is configured — its
   description holding the lone slice's `acceptance` checklist as the global DoD — then sets every new
   slice issue's parent to it. The lone existing issue itself is never edited: no DoD copies onto its own
-  description, and its `fields.parent` stays unset. **The four *Anchor lines* are the exceptions:** each
+  description, and its `fields.parent` stays unset. **The *Anchor lines* are the exceptions:** each
   one the lone issue carries **migrates to the new Epic issue's own description** and is removed from the
   lone issue — the Epic is the anchor now. Nothing else about the lone issue changes.
 - **Amend the Epic's own description — the one sanctioned edit.** An edit of the Epic's description

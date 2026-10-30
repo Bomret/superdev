@@ -129,6 +129,10 @@ keeps it open while part of the intent is still unplanned. How a given store exp
 store's own `## Intent record` section (ADR 0199).
 _Avoid: "intent issue", "brainstorm issue" (sweep and review-tests write them too)_
 
+**Intent line**: the scope-anchor line `**Intent:** #<n>[, #<n>]` naming the **Intent record**s a plan
+seeded the feature from, so a reader reaches the intent from the anchor (ADR 0200).
+_Avoid: "source line", "origin link"_
+
 **Minimal Lovable Product (MLP)**: the smallest end-to-end version of the chosen direction that delivers real value. A complete, if narrow, path through the system a user could use, not a fragment of the final thing. Found in `/brainstorm` step 3, carried into `Intent`'s rough scope.
 _Avoid: "skateboard" (Kniberg's MVP-evolution analogy, unclear without the backstory), "MVP" (implies bare-minimum and incomplete, not "usable and complete but narrow")_
 

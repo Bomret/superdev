@@ -463,6 +463,12 @@ in place rather than adding a second one.
 - **`**Absorbs:** #<n>[, #<n>]`** (ADR 0144), naming every record the operator picked to absorb, through
   the **Record the Absorbs line** call. An append that absorbs more records keeps the records the line
   already names.
+- **`**Intent:** #<n>[, #<n>]`** (ADR 0200), naming the intent record §1 seeded this plan from, through
+  the **Record the Intent line** call, whether or not the intent turns out fully planned. A plan seeded
+  from a local intent file or from nothing writes none. An append seeded from another intent record keeps
+  the records the line already names. A store document that states no **Record the Intent line** call
+  writes no line: name `/superdev:setup`, whose re-run offers the call. A failed write is reported once,
+  and the filed scope stands.
 
 **Delete the drafted Definition of Done.** Delete `.superdev/dod-draft-<slug>.md` once the Definition of
 Done is durably in the slice store.

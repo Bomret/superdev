@@ -293,12 +293,12 @@ Append mode holds these invariants, and every backend renders all of them:
   anchor. Append copies that `acceptance` into the new epic as the global DoD, amends it with the new
   criteria, and leaves the lone slice byte-identical. Skipping this step would leave two slices under one
   feature label with no epic — the shape a store's `## Scope anchor` section calls **Ambiguous**, which
-  cannot resolve into a root. **The anchor-dependency, deploy, Repairs, and Absorbs lines are the exceptions to
+  cannot resolve into a root. **The anchor-dependency, deploy, Repairs, Absorbs, and Intent lines are the exceptions to
   byte-identical:** when the lone slice carries an anchor dependency (*Scope anchor* below), that line **migrates to the new epic** — the epic is the anchor now,
   and the dependency is a property of the anchor, not of the slice — and is removed from the lone slice.
   The **deploy line** (*Scope anchor* below) migrates the same way, for the same reason — it too is
   anchor-only, and is removed from the lone slice. The **Repairs line** (*Scope anchor* below) migrates the
-  same way, and is removed from the lone slice. So does the **Absorbs line** (*Scope anchor* below).
+  same way, and is removed from the lone slice. So does the **Absorbs line** (*Scope anchor* below), and so does the **Intent line**.
   Nothing else about the slice changes. Leaving any of them
   behind would strand it on a record `/superdev:status`, `/superdev:ship`, or `/superdev:wrap-up` no
   longer reads as this feature's anchor.
@@ -394,6 +394,17 @@ once. Append mode's single-slice promotion moves the line to the new epic
 (*Append mode* above). Each store's own `## Scope anchor` section states the mechanism it writes and
 reads the line with, and never confuses it with the anchor dependency, the deploy line, the Repairs line,
 or a slice's `depends-on`.
+
+An anchor may also carry an **Intent line**: `**Intent:** #<n>[, #<n>]`, in each store's own reference
+notation, naming every intent record a plan of this feature was seeded from (ADR 0200). It is optional and
+**anchor-only**, never on a slice beneath a multi-slice feature, and an absent line reads as no seeding
+intent record. `/superdev:plan` writes it whenever it was seeded from an intent record, whether the intent
+was fully planned or not, and writes none when seeded from a local intent file or from nothing. An append
+seeded from another intent record revises the line in place, keeping the records it already names. Append
+mode's single-slice promotion moves the line to the new epic (*Append mode* above). It records where the
+feature came from and blocks nothing; no command reads it. Each store's own `## Scope anchor` section
+states the mechanism it writes the line with, and never confuses it with the other anchor lines or a
+slice's `depends-on`.
 
 ## Release
 

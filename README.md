@@ -113,7 +113,9 @@ flowchart TD
   ([ADR 0199](docs/adr/0199-a-ready-intent-lives-in-the-slice-store-as-an-intent-record.md)).
   `/superdev:plan` offers every open intent record together with every local ready intent, routes each
   rejected direction to a durable home, and then asks whether the intent is fully planned: it closes the
-  record, or keeps it open with a comment naming what it planned. `/superdev:plan` never offers a draft,
+  record, or keeps it open with a comment naming what it planned. The scope anchor names the record on an
+  `**Intent:**` line, so each one links the other
+  ([ADR 0200](docs/adr/0200-a-scope-anchor-names-its-seeding-intent-record.md)). `/superdev:plan` never offers a draft,
   and a draft never reaches the slice store.
 - **`/superdev:plan`**. A relentless interview pins the intent and a Definition of Done, and captures
   ADRs and a glossary as decisions surface. Before it asks, it checks every option against the repository

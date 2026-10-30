@@ -6,6 +6,9 @@
 file under `.superdev/brainstorm/`. This record moves the ready intent to the slice store. The draft rule
 of ADR 0112 stands.
 
+**Amended by:** [ADR 0200](0200-a-scope-anchor-names-its-seeding-intent-record.md), which adds the Intent
+line, so the scope anchor also links the intent record.
+
 **Context.** `/superdev:brainstorm`, `/superdev:sweep`, and `/superdev:review-tests` hand their intents to
 `/superdev:plan` as git-ignored files under `.superdev/brainstorm/`. `git clean -fdX`, a lost disk, or a
 fresh clone deletes them without a message, and another machine or a colleague cannot plan from them.

@@ -57,6 +57,11 @@ Slices live as GitHub issues — one slice = one issue. Use the GitHub REST API 
   with the deploy line, the Repairs line, the native `blocked_by` relation, or sub-issue parenting: it
   records which triage records the scope builds and blocks nothing (`plan-contract.md` → *Scope anchor*,
   ADR 0144).
+- **Intent** (optional) ↔ a `**Intent:** #<n>[, #<n>]` line in the **anchor's own** body — the epic on a
+  multi-slice feature, the lone slice on a single-slice one — naming every intent record a plan of this
+  feature was seeded from. The same body-append mechanism as the Absorbs line above, and never confused
+  with the other anchor lines or with the native `blocked_by` relation, or sub-issue parenting: it records where the feature came from and blocks
+  nothing (`plan-contract.md` → *Scope anchor*, ADR 0200).
 - global DoD ↔ an **epic** issue (label `epic`) whose body holds the DoD checklist; slices carry the
   feature label, reference the epic (`#<epic>`), and are linked to it as **sub-issues**. A single-slice
   feature has **no epic** — the lone slice's `acceptance` checklist is the DoD, and there is no
@@ -194,6 +199,10 @@ like a typo.
   the **anchor issue's own** body when `/superdev:plan` absorbs records, revising the line in place on an
   append that absorbs more. A body edit through **Edit an issue's body** below, like the anchor dependency
   above, never the native relations (ADR 0144).
+- **Record the Intent line:** append `**Intent:** #<n>[, #<n>]` (every seeding intent record's reference)
+  to the **anchor issue's own** body when `/superdev:plan` was seeded from an intent record, revising the
+  line in place on an append seeded from another one. A body edit through **Edit an issue's body** below,
+  like the Absorbs line above (ADR 0200).
 - **Parallel-safe creation order:** create the epic first (slices reference `#<epic>`), then fire **all
   slice creates in parallel**, then the sub-issue links **and** the dependency writes in parallel once
   every slice's `number` and `id` are known. Only the epic→slices→relations ordering is required; within
@@ -476,11 +485,11 @@ ADR 0004).
   no sub-issue parent has no epic yet (the single-slice shape, `## Scope anchor` above). Append creates
   the epic issue first — its body holding the lone slice's `acceptance` checklist as the global DoD —
   then links every new slice as its sub-issue. The lone existing issue itself is never edited: no epic
-  body copies onto it, no sub-issue link is written for it, and it stays nobody's child. **The anchor-dependency, deploy, Repairs, and Absorbs lines are the
+  body copies onto it, no sub-issue link is written for it, and it stays nobody's child. **The anchor-dependency, deploy, Repairs, Absorbs, and Intent lines are the
   exceptions:** when the lone issue carries an anchor dependency (a `**Blocked by feature:** #<n>` line), it
   **migrates to the new epic issue's own body** and is removed from the lone issue — the epic is the
   anchor now. The `**Deploy:**` line migrates the same way, for the same reason, and is removed from the
-  lone issue. The `**Repairs:**` line migrates the same way too, and is removed from the lone issue. The `**Absorbs:**` line migrates the same way, and is removed from the lone issue. Nothing else about the lone issue changes.
+  lone issue. The `**Repairs:**` line migrates the same way too, and is removed from the lone issue. The `**Absorbs:**` line migrates the same way, and is removed from the lone issue. So does the `**Intent:**` line. Nothing else about the lone issue changes.
 - **Amend the epic's own body — the one sanctioned edit.** An edit of the epic's body through **Edit an
   issue's body** (*REST conventions*), the amended body as its result, folds the interview's new criteria into the epic's
   Definition of Done in place, and, the same call, deletes a resolved parked question's line from the
