@@ -33,7 +33,10 @@ const FAKE_BACKEND = require.resolve('./fixtures/fake-kb-backend.js');
 // reaches it. A sample that fails to start, hits its own 60s bound, or answers other than not-found timed
 // nothing healthy, so it stops the suite with its reason (INV-0009).
 function healthySpawn(i) {
-  const sample = spawnSync('sh', ['-c', `node ${shq(FAKE_BACKEND)} find`], { encoding: 'utf8', timeout: 60000 });
+  const valuesFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'kb-sample-')), 'values.json');
+  fs.writeFileSync(valuesFile, JSON.stringify({ title: 'sample' }));
+  const sample = spawnSync('sh', ['-c', `node ${shq(FAKE_BACKEND)} find "$1"`, 'sh', valuesFile], { encoding: 'utf8', timeout: 60000 });
+  fs.rmSync(path.dirname(valuesFile), { recursive: true, force: true });
   assertSpawnDecided(sample, `healthy-spawn sample ${i + 1}`);
   // With no state file, `find` answers 3 (not found): any other status means the sample timed something else.
   if (sample.status !== 3) throw new Error(`healthy-spawn sample ${i + 1} exited ${sample.status}, not 3: ${sample.stderr}`);
@@ -80,8 +83,12 @@ const repoTemplate = templateOnce((dir) => {
     '# Code host\n\n- **Base branch:** `main`.\n',
   );
 }, 'kb-repo-template-');
+// A case that expects every command to succeed runs under the ceiling no healthy command reaches, however loaded the machine;
+// a timeout case overwrites it with its own bound (`setKbTimeout`).
 function makeRepo() {
-  return copyFixture(repoTemplate(), 'kb-repo-');
+  const repo = copyFixture(repoTemplate(), 'kb-repo-');
+  setKbTimeout(repo, HUNG_CEILING_MS);
+  return repo;
 }
 
 // Every staged scope other than `_adhoc` gets a `feat/<scope>` branch at the current tip, so it
@@ -97,7 +104,7 @@ function ensureContainedBranch(repo, scope) {
 
 function commandsDoc(backendLine, verbs = ['find', 'create', 'update', 'delete']) {
   const sections = verbs
-    .map((v) => `### ${v}\n\n\`\`\`sh\n${v === 'create' ? ': "$SUPERDEV_KB_PARENT_ID"\n' : ''}node ${shq(FAKE_BACKEND)} ${v}\n\`\`\``)
+    .map((v) => `### ${v}\n\n\`\`\`sh\n${v === 'create' ? ': parentId\n' : ''}node ${shq(FAKE_BACKEND)} ${v} "$1"\n\`\`\``)
     .join('\n\n');
   return `# Knowledge base\n\n## Configuration\n\n${backendLine}\n\n## Commands\n\n${sections}\n`;
 }
@@ -114,6 +121,17 @@ function stagePage(repo, scope, filename, frontmatter, body = 'body text.\n') {
   fs.writeFileSync(path.join(dir, filename), `---\n${frontmatter}\n---\n${body}`);
 }
 
+// The knowledge-base time bound of `repo`, written where the operator configuration holds it (ADR 0207).
+function setKbTimeout(repo, ms) {
+  writeOperatorConfig(repo, { 'knowledge-base': { timeoutMs: ms } });
+}
+
+function writeOperatorConfig(repo, content) {
+  fs.mkdirSync(path.join(repo, '.superdev'), { recursive: true });
+  fs.writeFileSync(path.join(repo, '.superdev', 'info.json'), typeof content === 'string' ? content : JSON.stringify(content));
+}
+
+// Runs the CLI entry in-process from `cwd`.
 function call(argv, cwd) {
   const logged = [];
   const orig = console.log;
@@ -135,12 +153,10 @@ function withState(fn) {
   const stateFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'kb-state-')), 'state.json');
   const prevState = process.env.FAKE_KB_STATE_FILE;
   const prevCapture = process.env.FAKE_KB_CAPTURE_DIR;
-  const prevTimeout = process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS;
   process.env.FAKE_KB_STATE_FILE = stateFile;
   delete process.env.FAKE_KB_CAPTURE_DIR;
-  // A case that expects every command to succeed runs under a bound no healthy command reaches, however
-  // loaded the machine; a timeout case sets its own bound inside `fn`.
-  process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = String(HUNG_CEILING_MS);
+  // A set environment variable of the removed name changes nothing.
+  process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = '1';
   try {
     fn(stateFile);
   } finally {
@@ -148,8 +164,7 @@ function withState(fn) {
     else process.env.FAKE_KB_STATE_FILE = prevState;
     if (prevCapture === undefined) delete process.env.FAKE_KB_CAPTURE_DIR;
     else process.env.FAKE_KB_CAPTURE_DIR = prevCapture;
-    if (prevTimeout === undefined) delete process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS;
-    else process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = prevTimeout;
+    delete process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS;
   }
 }
 
@@ -162,7 +177,7 @@ function captures(dir, verb) {
     .filter((c) => c.verb === verb);
 }
 
-// `withState`, with the fake backend also recording every call's SUPERDEV_KB_* environment in a fresh
+// `withState`, with the fake backend also recording every call's values file in a fresh
 // capture directory that `fn` receives.
 function withCapture(fn) {
   withState((stateFile) => {
@@ -178,7 +193,7 @@ function withCapture(fn) {
 function hangingVerbDoc(backendLine, hangingVerb, verbs = ['find', 'read', 'create', 'update', 'delete']) {
   const sections = verbs
     .map((v) => {
-      const cmd = v === hangingVerb ? HUNG_CMD : `node ${shq(FAKE_BACKEND)} ${v}`;
+      const cmd = v === hangingVerb ? HUNG_CMD : `node ${shq(FAKE_BACKEND)} ${v} "$1"`;
       return `### ${v}\n\n\`\`\`sh\n${cmd}\n\`\`\``;
     })
     .join('\n\n');
@@ -194,7 +209,7 @@ function failingVerbDoc(backendLine, failingVerb, verbs) {
 // --- The parent link under `- **Hierarchy:** links` (ADR 0168): fixtures the publish-kb-parent-link-* suites share.
 const PATCH_VERBS = ['find', 'read', 'create', 'update', 'delete'];
 const LINKS_LINE = '- **Backend:** Some Wiki.\n- **Hierarchy:** links';
-const linksDoc = (verbs = PATCH_VERBS) => commandsDoc(LINKS_LINE, verbs).replace(': "$SUPERDEV_KB_PARENT_ID"\n', '');
+const linksDoc = (verbs = PATCH_VERBS) => commandsDoc(LINKS_LINE, verbs).replace(': parentId\n', '');
 const HOME = 'Intro.\n\n## How it works\n\n- [A](A)\n- [B](B)\n\n## Other\n\n- [Z](Z)\n';
 const HOME_ID = 'id-home';
 function stageLinked(repo, file, title, link = `- [${title}](${title}) — desc`, extra = '') {
@@ -218,8 +233,8 @@ function withNewSubUrl(value, fn) {
 // the fresh find after a create: `then` answers every find for Child after the first, which routes the create
 function freshFindDoc(then) {
   const seen = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'kb-find-')), 'seen');
-  const fake = `node ${shq(FAKE_BACKEND)} find`;
-  return linksDoc().replace(fake, `if [ "$SUPERDEV_KB_TITLE" = Child ]; then [ -e ${shq(seen)} ] && { ${then}; }; : > ${shq(seen)}; fi\n${fake}`);
+  const fake = `node ${shq(FAKE_BACKEND)} find "$1"`;
+  return linksDoc().replace(fake, `if grep -q '"title":"Child"' "$1"; then [ -e ${shq(seen)} ] && { ${then}; }; : > ${shq(seen)}; fi\n${fake}`);
 }
 
 // an `action: patch` page that names the parent
@@ -259,6 +274,8 @@ module.exports = {
   writeKbDoc,
   stagePage,
   call,
+  setKbTimeout,
+  writeOperatorConfig,
   withState,
   captures,
   withCapture,

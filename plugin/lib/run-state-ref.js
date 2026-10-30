@@ -7,7 +7,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { gitSpawn } = require('./git-spawn.js');
-const { gitCall, lastLine } = require('./push.js');
+const { gitCall, lastLine, boundEnded } = require('./push.js');
 const { parseRemote } = require('./kb-containment.js');
 const { mergeDod } = require('./dod-merge.js');
 
@@ -99,7 +99,7 @@ function pushRunState(root, cwd) {
     const tip = buildCommit(root, repo, scope);
     const seen = lastSeenTip(repo, remote, scope);
     const sent = gitCall(['push', `--force-with-lease=${ref}:${seen || ''}`, '--end-of-options', remote, `${tip}:${ref}`], repo, true);
-    if (sent.signal != null) return `run-state: not sent, the call was ended by its own bound (signal ${sent.signal})`;
+    if (sent.signal != null) return `run-state: not sent, the call was ${boundEnded(repo, sent.signal)}`;
     if (sent.status !== 0) {
       const stale = /stale info|rejected|fetch first/i.test(sent.stderr || '');
       return `run-state: ${stale ? 'refused, the remote ref moved since this machine last saw it' : 'not sent'}: ${lastLine(sent)}`;
@@ -146,7 +146,7 @@ function fetchRunState(root, cwd) {
     const local = ['trace.log', 'reports'].filter((n) => lstatOrNull(path.join(root, n)));
     if (local.length) return `run-state: kept the local ${local.join(' and ')}, unpack skipped, dod.md stays the local copy; the next send refuses until the remote ref is read`;
     const got = gitCall(['fetch', '--end-of-options', remote, ref], repo, true);
-    if (got.signal != null) return `run-state: not fetched, the call was ended by its own bound (signal ${got.signal})`;
+    if (got.signal != null) return `run-state: not fetched, the call was ${boundEnded(repo, got.signal)}`;
     if (got.status !== 0) {
       return /couldn't find remote ref/i.test(got.stderr || '')
         ? `run-state: not fetched, no ${ref} on ${remote}`
@@ -220,7 +220,7 @@ function deleteRunState(root, cwd) {
     const { remote, note } = resolveRemote(repo);
     if (!remote) return `run-state: not deleted, ${note}`;
     const sent = gitCall(['push', '--delete', '--end-of-options', remote, ref], repo, true);
-    if (sent.signal != null) return `run-state: not deleted, the call was ended by its own bound (signal ${sent.signal})`;
+    if (sent.signal != null) return `run-state: not deleted, the call was ${boundEnded(repo, sent.signal)}`;
     const absent = sent.status !== 0 && /remote ref does not exist/i.test(sent.stderr || '');
     if (sent.status !== 0 && !absent) return `run-state: not deleted: ${lastLine(sent)}`;
     gitCall(['update-ref', '-d', seenRef(remote, scope)], repo);

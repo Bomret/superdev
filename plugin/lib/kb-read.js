@@ -12,8 +12,8 @@ const fs = require('fs');
 const path = require('path');
 const { fail } = require('./refusal.js');
 const { resolveMainCheckout } = require('./kb-staging.js');
-const { classifyBackend } = require('./kb-backend-config.js');
-const { runFind, runTemplate, fieldsToEnv, spawnFailure, exited, hashBody } = require('./kb-backend.js');
+const { classifyBackend, liveTemplates } = require('./kb-backend-config.js');
+const { runFind, runVerb, spawnFailure, exited, hashBody } = require('./kb-backend.js');
 
 // A read-only invocation for one page title: `find` then `read`, under the same bound as every
 // other backend call. Writes nothing to the backend and moves no staged file. A page `find` does
@@ -23,8 +23,7 @@ function readPage(title, templates) {
   const found = runFind(title, templates);
   if (found.verdict === 'unknown') return { ok: false, reason: found.reason, timedOut: found.timedOut };
   if (found.verdict === 'absent') return { ok: true, exists: false };
-  const env = { ...fieldsToEnv(found.fields), SUPERDEV_KB_TITLE: title };
-  const res = runTemplate(templates.read, env);
+  const res = runVerb(templates, 'read', { title, found: found.fields });
   if (res.error) return { ok: false, ...spawnFailure('read', res) };
   if (res.status !== 0) return { ok: false, reason: exited('read', res) };
   if (!res.stdout) return { ok: false, reason: 'read returned an empty body' };
@@ -50,7 +49,7 @@ function runReadEntry(cwd, title) {
       `docs/agents/knowledge-base.md carries no "## Commands" section — run /superdev:setup to configure the backend`,
     );
   }
-  const result = readPage(title, backend.templates);
+  const result = readPage(title, liveTemplates(backend.templates, cwd));
   if (!result.ok) fail(result.reason);
   const out = result.exists
     ? { title, exists: true, body: result.body, hash: result.hash }

@@ -43,7 +43,7 @@ function usage() {
     '                                     (fail-to-pass|pass-to-pass|unknown) on stdout and the command output on stderr, and inside',
     '                                     a run root appends the outcome as its own trace line (no test run) and the control run as a',
     '                                     path run line; the second run is bounded at ten times the first run\'s duration or a floor of',
-    '                                     10000 ms (SUPERDEV_FAIL_TO_PASS_FLOOR_MS overrides the floor), and `unknown` (the first run did',
+    '                                     10000 ms (`verification.failToPassFloorMs` of .superdev/info.json sets it), and `unknown` (the first run did',
     '                                     not pass, or the second outlasted its bound or was ended by a signal, or a run could not start)',
     '                                     names its reason;',
     '                                     exits 0 (an outcome was read and printed; a failed trace append is reported on stderr),',

@@ -16,7 +16,6 @@ const { f2pFixture, verif, scopePath } = require('./scope-setup');
 
 const { appendTrace } = require(scopePath);
 
-delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
 
 {
   const { git, probe, CMD, scenario, done } = f2pFixture();

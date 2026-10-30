@@ -8,7 +8,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync, execFileSync } = require('node:child_process');
-const { scopePath, shortPushBound } = require('./scope-setup');
+const { scopePath, writeOperatorConfig } = require('./scope-setup');
 const { copyFixture, templateOnce } = require('./fixture-git');
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { pushRunState } = require('../plugin/lib/run-state-ref.js');
@@ -167,13 +167,29 @@ try {
     const hook = path.join(f.repo, '.git', 'hooks', 'pre-push');
     fs.writeFileSync(hook, '#!/bin/sh\nexec sleep 8\n');
     fs.chmodSync(hook, 0o755);
-    const short = shortPushBound(1500);
-    const r = step(f, 'clear', short.env);
-    assert.ok(short.shortened().length > 0, 'the preload shortened the push bound');
+    writeOperatorConfig(f.repo, { 'code-host': { pushTimeoutMs: 1500 } });
+    const r = step(f, 'clear');
+    assert.strictEqual(r.status, 0);
+    assert.match(r.stdout, /bound of 1500 ms \(code-host\.pushTimeoutMs in \.superdev\/info\.json/);
+    assert.strictEqual(remoteTip(f), null);
+    assert.doesNotMatch(ledgerOf(f), /\*\*Step:\*\*/);
+  }
+
+  // #hung-worktree: the same bound, with `info.json` only in the main checkout, read by a step run from a linked worktree.
+  {
+    const f = fixture();
+    const hook = path.join(f.repo, '.git', 'hooks', 'pre-push');
+    fs.writeFileSync(hook, '#!/bin/sh\nexec sleep 8\n');
+    fs.chmodSync(hook, 0o755);
+    writeOperatorConfig(f.repo, { 'code-host': { pushTimeoutMs: 1500 } });
+    const wtDir = fs.mkdtempSync(path.join(os.tmpdir(), 'run-state-ref-wt-'));
+    made.push(wtDir);
+    const wt = path.join(wtDir, 'tree');
+    git(['worktree', 'add', '-q', '--detach', wt], f.repo);
+    const r = step({ ...f, repo: wt });
     assert.strictEqual(r.status, 0);
     assert.match(r.stdout, /bound/);
     assert.strictEqual(remoteTip(f), null);
-    assert.doesNotMatch(ledgerOf(f), /\*\*Step:\*\*/);
   }
 
   // #no-doc and #no-remote-value: nothing pushed, one note.

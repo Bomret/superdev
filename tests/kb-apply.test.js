@@ -18,9 +18,10 @@ const touch = `: > ${shq(marker)}`;
 const templates = {
   find: 'exit 3',
   read: ':',
-  create: `: "$SUPERDEV_KB_PARENT_ID"; ${touch}`,
+  create: `: parentId; ${touch}`,
   update: touch,
   delete: touch,
+  timeoutMs: 600000,
 };
 const stage = (name, text) => {
   const f = path.join(dir, name);

@@ -45,7 +45,7 @@ for (const [what, live, eols] of [['a live page', { Child: { id: 'id-child', bod
       assert.equal(readState(stateFile).Home.body, HOME.replace(/\n/g, eol), `${what}: only the link line is gone`);
       const updates = captures(dir, 'update');
       assert.equal(updates.length, 1);
-      assert.equal(updates[0].env.SUPERDEV_KB_TITLE, 'Home', "the update carries the parent's own title");
+      assert.equal(updates[0].values.title, 'Home', "the update carries the parent's own title");
       assert.ok(!isStaged(repo, 'child.md'), `${what}: the delete is cleared`);
     });
   }

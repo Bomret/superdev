@@ -661,12 +661,27 @@ holds for that account.
 `displayName` is display-only: `/superdev:setup` writes it for a reader of the file, and no
 issue-tracker call reads it, so a missing or wrong name never changes who is assigned (INV-0074).
 
+The file holds one object per role. Every key is optional, and a missing file, role, or key takes its
+default. `/superdev:setup` writes a key by merging it into the file, so every key already there stays.
+
+| Role | Key | Holds | Default | Valid range |
+|------|-----|-------|---------|-------------|
+| `issue-tracker` | `assignee` | the store-native identifier, or `none` | the token's own identity | a non-empty string |
+| `issue-tracker` | `displayName` | the assignee's name, display-only | absent | a string |
+| `code-host` | `pushTimeoutMs` | the bound of each network git call: the `scope.js push` fetch and push, and the run-state ref's send, fetch, and delete, in milliseconds | `60000` | a whole number, 1 to 2147483647 |
+| `verification` | `failToPassFloorMs` | the floor of the `fail-to-pass` run bound, in milliseconds | `10000` | a whole number, 1 to 2147483647 |
+| `knowledge-base` | `timeoutMs` | the bound of each knowledge-base backend command, in milliseconds | `30000` | a whole number, 1 to 2147483647 |
+| `knowledge-base` | `teaLogin` | the `tea` login a Forgejo wiki's commands use | absent: one matching login is used, several stop the command | a login name `tea login list` reports |
+
+A time bound outside its range reads as absent and is named once on stderr. A backend command reads the
+whole `knowledge-base` section as `operator` in its `$1` values file.
+
 It deliberately gains **no row in the *Fields* table above**. Assignee names who owns work inside a
 tracker — a property of the store and the run, not of a slice (ADR 0010).
 
 **The file is untracked, and that is the decision.** `.superdev/` is git-ignored, so an identifier
 belonging to one person never reaches a repository several people maintain (ADR 0073). It holds
-identifiers and their display names, never credentials: a token stays in the environment variable the active
+identifiers, display names, and time bounds, never credentials: a token stays in the environment variable the active
 `docs/agents/issue-tracker.md` names.
 
 - **Read it from the main checkout, never from a path relative to the working directory.** `scope.js

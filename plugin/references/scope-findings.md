@@ -376,7 +376,7 @@ unchanged.
 INV-0139). `scope.js fail-to-pass` reads `unknown` where it cannot judge. Either the tests did not pass against the
 changed code in the verb's throwaway worktree, an environment gap that no slice of the scope covers, or the run before
 the change was killed at its bound, ten times the first run's duration or 10 seconds, whichever is larger (ADR 0142;
-`SUPERDEV_FAIL_TO_PASS_FLOOR_MS` overrides the 10-second floor),
+`verification.failToPassFloorMs` in `.superdev/info.json` overrides the 10-second floor),
 or ended by a signal, or a run's command could
 not start (`start-failed:<code>`, a missing shell among the causes). A run killed at the bound
 can be a timing artifact rather than an environment gap: an async test that waits out a per-test timeout can outlast

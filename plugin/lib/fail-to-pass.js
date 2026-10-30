@@ -15,24 +15,13 @@ const { appendTrace, readTrace } = require('./trace-log.js');
 const { treeState } = require('./run-tree.js');
 const { superviseRuns, withWorktreeLock } = require('./run-supervision.js');
 const { shellWord } = require('./test-verb.js');
+const { operatorBoundMs } = require('./operator-config.js');
 
-// The floor of the bound on the run with the files put back (ADR 0142): 10 000 ms, or the positive whole number of
-// milliseconds `SUPERDEV_FAIL_TO_PASS_FLOOR_MS` names. A value that is not a positive integer — empty, a word, zero,
-// negative — reads as absent rather than as "kill immediately". That positive-integer rule is the one
-// `SUPERDEV_PUBLISH_KB_TIMEOUT_MS` applies; the cap below is this override's own.
-// A value above 2147483647 reads as absent too: Node's setTimeout fires a longer delay after 1 ms, which would kill
-// the run at once under a bound it never ran under. A set value it rejects is named in one line on stderr, so the
-// operator sees why the override took no effect; an unset or empty one says nothing. The verb reads the floor once.
+// The floor of the bound on the run with the files put back (ADR 0142): 10 000 ms, or the operator configuration's
+// `verification.failToPassFloorMs` (ADR 0207), read from the main working tree of `cwd`, whichever checkout that is.
 const FAIL_TO_PASS_FLOOR_MS = 10000;
-const MAX_TIMER_MS = 2147483647;
 
-function failToPassFloorMs() {
-  const raw = (process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS || '').trim();
-  const n = /^\d+$/.test(raw) ? Number(raw) : 0;
-  if (n > 0 && n <= MAX_TIMER_MS) return n;
-  if (raw) process.stderr.write(`fail-to-pass: SUPERDEV_FAIL_TO_PASS_FLOOR_MS=${JSON.stringify(raw)} is not a whole number of milliseconds from 1 to ${MAX_TIMER_MS}; the floor stays ${FAIL_TO_PASS_FLOOR_MS} ms\n`);
-  return FAIL_TO_PASS_FLOOR_MS;
-}
+const failToPassFloorMs = (cwd) => operatorBoundMs(cwd, 'verification', 'failToPassFloorMs', FAIL_TO_PASS_FLOOR_MS);
 
 // The bound on the run with the files put back: ten times the control's duration, rounded up, or the floor, whichever
 // is larger (ADR 0142). Pure: it reads no clock, and the caller reads the floor.
@@ -55,7 +44,7 @@ const failToPassBoundMs = (controlMs, floorMs) => Math.max(Math.ceil(controlMs *
 //   outcome:   FailToPassOutcome. reason: `control=<exit>,put-back=<exit>`, the two exit statuses and nothing else; for
 //              `unknown`, `control=<exit or signal>` where the control did not pass, else
 //              `control=0,put-back=<exit or signal>,bound=<ms>ms`, the bound ten times the control's duration or the floor,
-//              whichever is larger (`failToPassFloorMs`; `SUPERDEV_FAIL_TO_PASS_FLOOR_MS` overrides the floor, ADR 0142).
+//              whichever is larger (`failToPassFloorMs`; `verification.failToPassFloorMs` of the operator configuration overrides the floor, ADR 0142, ADR 0207).
 //              A run whose command could not start reads `start-failed:<error code>` in place of its exit, and the second carries no bound.
 //
 // The trace line is `<ts> <slice|scope> main fail-to-pass <base>..<tip> <outcome> <reason> <command>`. The slice is the one whose
@@ -237,7 +226,7 @@ async function verbFailToPass(cwd, args) {
     // Code missing the feature can hang, so the second run is bounded at ten times the duration the control took in this
     // invocation, or the floor, whichever is larger: a millisecond control would otherwise give a bound shorter than the
     // delays a loaded machine adds (ADR 0142).
-    const bound = failToPassBoundMs(control.ms, failToPassFloorMs());
+    const bound = failToPassBoundMs(control.ms, failToPassFloorMs(cwd));
     const putBack = await exec(bound);
     // A run whose bound expired, or that a signal ended, carries no verdict whether or not the kill landed (INV-0009).
     if (putBack.startError) return record('unknown', `control=0,put-back=${status(putBack)}`);

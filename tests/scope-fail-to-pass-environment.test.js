@@ -14,7 +14,6 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { f2pFixture, verif } = require('./scope-setup');
 
-delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
 
 {
   const { D, git, probe, CMD, scenario, checkout, leftover, hooked, done } = f2pFixture();

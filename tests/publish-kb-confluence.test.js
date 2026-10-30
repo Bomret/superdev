@@ -20,6 +20,13 @@ for (const verb of ['find', 'read', 'create', 'update', 'delete']) {
   assert.ok(templates[verb], `the seed configures a ${verb} template`);
 }
 
+// A page with a parent is created under it: the nested seed's create reads `parentId`, or publish-kb refuses it.
+assert.equal(classifyBackend(seed).templates.hierarchy, 'nested');
+assert.ok(templates.create.includes('parentId'), 'the create template reads parentId');
+for (const verb of ['find', 'read', 'create', 'update', 'delete']) {
+  assert.ok(!templates[verb].includes('SUPERDEV_'), `the ${verb} template names no SUPERDEV_ variable, shell temporaries included`);
+}
+
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'confluence-'));
 const stubDir = path.join(work, 'bin');
 fs.mkdirSync(stubDir);
@@ -35,21 +42,22 @@ fs.writeFileSync(path.join(stubDir, 'curl'),
   'esac\n', { mode: 0o755 });
 
 let n = 0;
-function run(verb, env = {}, files = {}) {
+// `env` is the stub's environment; `values` overrides what the values file (`$1`) holds.
+function run(verb, env = {}, values = {}) {
   const dir = path.join(work, `case-${n++}`);
   fs.mkdirSync(dir);
   const log = path.join(dir, 'args');
   const stdin = path.join(dir, 'stdin');
   const bodyFile = path.join(dir, 'ünï body.html');
-  fs.writeFileSync(bodyFile, files.body || '<p>Grüße — ok</p>');
+  fs.writeFileSync(bodyFile, '<p>Grüße — ok</p>');
+  const valuesFile = path.join(dir, 'values.json');
+  fs.writeFileSync(valuesFile, JSON.stringify({ title: 'Missing Page', bodyFile, found: { id: '123', version: 4 }, operator: {}, ...values }));
   const res = spawnSync('/bin/sh', ['-c', templates[verb].replace(/<base>/g, 'https://x.test/wiki')
-    .replace(/<space-id>/g, '99').replace(/<SPACE>/g, 'KEY').replace(/<parent-id>/g, '')], {
+    .replace(/<space-id>/g, '99').replace(/<SPACE>/g, 'KEY').replace(/<parent-id>/g, ''), 'sh', valuesFile], {
     env: {
       ...process.env,
       PATH: stubDir + path.delimiter + process.env.PATH,
       CONFLUENCE_EMAIL: 'x', CONFLUENCE_API_TOKEN: 'x',
-      SUPERDEV_KB_TITLE: 'Missing Page', SUPERDEV_KB_ID: '123', SUPERDEV_KB_VERSION: '4',
-      SUPERDEV_KB_BODY_FILE: bodyFile,
       CURL_LOG: log, CURL_STDIN: stdin,
       CURL_USER_BODY: JSON.stringify({ type: 'known' }),
       ...env,
@@ -69,7 +77,7 @@ const noPage = pages();
 {
   const r = run('find', { CURL_PAGES_BODY: pages(page('Missing Page')) });
   assert.equal(r.status, 0);
-  assert.deepEqual(JSON.parse(r.stdout), { id: '123', version: '5' });
+  assert.deepEqual(JSON.parse(r.stdout), { id: '123', version: 5 }, 'the version stays a number');
   assert.doesNotMatch(r.args, /rest\/api\/search/, 'a page hit makes no folder request');
   assert.match(r.args, /status=current/, 'the page query asks for current pages only');
 }
@@ -113,7 +121,7 @@ const noPage = pages();
 // --- find: quotes and backslashes cannot break or widen the CQL ---
 {
   const title = 'A "quoted" \\ ünï';
-  const r = run('find', { SUPERDEV_KB_TITLE: title, CURL_PAGES_BODY: noPage, CURL_SEARCH_BODY: pages() });
+  const r = run('find', { CURL_PAGES_BODY: noPage, CURL_SEARCH_BODY: pages() }, { title });
   assert.equal(r.status, 3);
   const cql = r.stdin.split('--call').filter(Boolean)[1].trim();
   assert.equal(cql, 'space="KEY" and type=folder and title="A \\"quoted\\" \\\\ ünï"');
@@ -122,12 +130,12 @@ const noPage = pages();
 // --- transport: title, cql and body reach curl on stdin, never in its arguments ---
 {
   const title = 'Grüße — Ünï';
-  const f = run('find', { SUPERDEV_KB_TITLE: title, CURL_PAGES_BODY: noPage, CURL_SEARCH_BODY: pages() });
+  const f = run('find', { CURL_PAGES_BODY: noPage, CURL_SEARCH_BODY: pages() }, { title });
   assert.match(f.args, /title@-/);
   assert.match(f.args, /cql@-/);
   assert.ok(f.stdin.includes(title), 'the title is on stdin');
-  const c = run('create', { SUPERDEV_KB_TITLE: title, SUPERDEV_KB_PARENT_ID: '55' });
-  const u = run('update', { SUPERDEV_KB_TITLE: title });
+  const c = run('create', {}, { title, parentId: '55' });
+  const u = run('update', {}, { title });
   for (const r of [f, c, u]) {
     assert.equal(r.status, r === f ? 3 : 0, r.stderr);
     assert.ok(!r.args.includes(title), 'no title in the curl arguments');
@@ -146,6 +154,18 @@ const noPage = pages();
   assert.equal(JSON.parse(run('create').stdin.split('--call').filter(Boolean)[0]).parentId, undefined, 'no parent, no parentId');
 }
 
+// --- a title holding shell syntax, quotes, or a newline reaches Confluence byte for byte ---
+{
+  const title = 'A $(touch x) `y` \'q\' "d"\nsecond line';
+  const sent = (r) => JSON.parse(r.stdin.split('--call').filter(Boolean)[0]);
+  assert.equal(sent(run('create', {}, { title })).title, title);
+  assert.equal(sent(run('update', {}, { title })).title, title);
+  const f = run('find', { CURL_PAGES_BODY: noPage, CURL_SEARCH_BODY: pages() }, { title });
+  assert.ok(f.stdin.split('--call')[1].replace(/^\n/, '').startsWith(title), 'find sends the whole title, newline included');
+  const hit = run('find', { CURL_PAGES_BODY: pages(page(title)) }, { title });
+  assert.deepEqual(JSON.parse(hit.stdout), { id: '123', version: 5 }, 'find matches the title exactly');
+}
+
 // --- create/update: Confluence's error body reaches stderr, exit non-zero ---
 for (const verb of ['create', 'update']) {
   const r = run(verb, { CURL_WRITE_FAIL: '1', CURL_WRITE_BODY: '{"message":"Title already exists"}' });
@@ -156,7 +176,7 @@ for (const verb of ['create', 'update']) {
 
 // --- folder guard ---
 for (const verb of ['read', 'update', 'delete']) {
-  const r = run(verb, { SUPERDEV_KB_TYPE: 'folder' });
+  const r = run(verb, {}, { found: { id: '777', type: 'folder' } });
   assert.notEqual(r.status, 0, `${verb} refuses a folder`);
   assert.match(r.stderr, /folder/);
   assert.match(r.stderr, /Missing Page/, 'the message names the folder');

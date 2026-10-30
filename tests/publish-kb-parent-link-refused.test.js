@@ -127,7 +127,7 @@ withCapture((stateFile, dir) => {
 
   const res = call(['--scope', 'demo'], repo);
   assert.match(res.out, /published \(created\): Child/);
-  assert.equal(captures(dir, 'create')[0].env.SUPERDEV_KB_PARENT_ID, HOME_ID);
+  assert.equal(captures(dir, 'create')[0].values.parentId, HOME_ID);
   assert.equal(captures(dir, 'read').length, 0);
   assert.equal(captures(dir, 'update').length, 0);
 });

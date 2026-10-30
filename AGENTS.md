@@ -60,6 +60,8 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          per-line merge adopt uses, ADR 0206), `run-state.js` (`publish` and
                          `adopt`), `status.js`, `usage.js`, `refusal.js` (the refusal error),
                          `main-work-tree.js`, `verification.js` (the readers of `verification.md`).
+                         Operator configuration: `operator-config.js` (the reader of `.superdev/info.json`,
+                         used by push, fail-to-pass, and the KB backend runner, ADR 0207).
                          Git and containment: `git-spawn.js` (the shared git calls), `containment.js`,
                          `collisions.js`, `citations.js`, `source-set.js` (the gap audit's source set), `push.js`
                          (the `push` verb that puts a scope branch on the remote, ADR 0167), `plan-open.js`

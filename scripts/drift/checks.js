@@ -160,7 +160,7 @@ module.exports = [
   },
   {
     id: 'test-seams',
-    ok: 'no shipped JavaScript names a superdev test file or reads an environment variable no shipped document names (outside CLAUDE_)',
+    ok: 'no shipped JavaScript names a superdev test file, reads an environment variable no shipped document names (outside CLAUDE_), or reads or sets a SUPERDEV_ one, and no shipped Markdown names one (ADR 0207)',
     run: scanTestSeams,
     format: contractGap,
   },

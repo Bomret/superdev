@@ -134,8 +134,8 @@ for (const [what, child, extra] of [
 
     const res = call(['--scope', 'demo'], repo);
     assert.match(res.out, /published \((created|updated)\): Child/, `${what}: ${res.out}`);
-    assert.equal(captures(dir, 'find').filter((c) => c.env.SUPERDEV_KB_TITLE === 'Child').length, 1, `${what}: the page's own find only`);
-    assert.equal(captures(dir, 'update').filter((c) => c.env.SUPERDEV_KB_TITLE === 'Home').length, 0, `${what}: no parent update`);
+    assert.equal(captures(dir, 'find').filter((c) => c.values.title === 'Child').length, 1, `${what}: the page's own find only`);
+    assert.equal(captures(dir, 'update').filter((c) => c.values.title === 'Home').length, 0, `${what}: no parent update`);
     assert.ok(!isStaged(repo, 'child.md'), `${what}: clears`);
   });
 }

@@ -7,7 +7,7 @@
 
 const assert = require('node:assert');
 const fs = require('node:fs');
-const { publishKbPath, hangBound, makeRepo, commandsDoc, writeKbDoc, call, withState, hangingVerbDoc } = require('./publish-kb-setup');
+const { publishKbPath, hangBound, makeRepo, commandsDoc, writeKbDoc, call, withState, setKbTimeout, hangingVerbDoc } = require('./publish-kb-setup');
 const { hashBody } = require(publishKbPath);
 
 // The bound the read-timeout case below runs under, taken from this run's own healthy spawns.
@@ -139,7 +139,7 @@ withState((stateFile) => {
   const repo = makeRepo();
   writeKbDoc(repo, hangingVerbDoc('- **Backend:** Some Wiki.', 'read', ['find', 'read']));
   fs.writeFileSync(stateFile, JSON.stringify({ 'Hung Page': { id: 'id-1', body: 'x.\n' } }));
-  process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = String(HANG_MS);
+  setKbTimeout(repo, HANG_MS);
 
   const res = call(['--read', 'Hung Page'], repo);
   assert.equal(res.ok, false);

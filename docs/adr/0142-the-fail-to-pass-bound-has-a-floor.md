@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0207](0207-superdev-defines-no-environment-variable.md), which moves the override into the operator configuration.
+
 **Amends:** [ADR 0134](0134-a-fail-to-pass-run-shows-a-change-s-tests-discriminate.md), which bounds the
 run before the change at ten times the duration the run against the changed code took.
 

@@ -24,8 +24,11 @@ Plus one file that is **not** a config doc, because what it holds belongs to a p
 repository:
 
 - `.superdev/info.json` — the **operator configuration** (`CONTEXT.md`), holding the slice store's
-  assignee and its display name under the `issue-tracker` role key. Git-ignored, so it stays out of a repository other people
-  maintain (ADR 0073).
+  assignee and its display name under the `issue-tracker` role key, a Forgejo knowledge base's tea login
+  under `knowledge-base`, and the time bounds an operator sets (`plan-contract.md` → *Assignee — operator
+  configuration*, which lists every key). Git-ignored, so it stays out of a repository other people
+  maintain (ADR 0073). Every write merges into the file and keeps each key already there, and first
+  ensures `.superdev/` is in `.gitignore`, adding it when absent, whichever decision writes.
 
 This is prompt-driven, not a script. **Explore, propose defaults, confirm one decision at a time, then
 write.** Seed templates live in `${CLAUDE_PLUGIN_ROOT}/references/`.
@@ -82,11 +85,13 @@ store and code host stay unqueried:
 - `documentation.md` — a `## Writing standard` naming a repo-relative path still resolves to a file,
   and each `## Audit set` glob still matches at least one file.
 - `knowledge-base.md` — a local `docs/kb/` path still exists. A configuration carrying
-  `- **Body format:** storage` whose `### create` template never reads `SUPERDEV_KB_PARENT_ID` is
+  `- **Body format:** storage` whose `### create` template never reads `parentId` is
   drift: a staged page naming a parent lands where no parent was asked for. Name the Confluence seed's
   `### create` template (`references/knowledge-base-confluence.md`) as its replacement. A software
   backend records no other local fact this check can reach, and reports consistent once confirmed
-  present.
+  present. A `## Commands` section whose command names an environment variable that starts with `SUPERDEV` and `_KB_` joined (the retired placeholders) is a seed gap of the old command
+  contract (ADR 0207): superdev passes no such variable, so `/superdev:publish-kb` refuses that command.
+  Name it as a seed gap and offer the seed's current command for that verb.
 
 Beyond the six config documents, check for a leftover `.claude/rules/` directory holding at least one
 `.md` file — superdev's retired rule-compliance home (ADR 0077). Report its path and how many `.md`
@@ -273,7 +278,7 @@ several people would carry one maintainer's account in its history and file ever
   another role's key survives. An empty or null name, a failed lookup, or `none` removes `displayName`,
   so no earlier account's name stays beside a new assignee. Report a failed lookup in one line and
   continue: the assignee is written either way.
-- **Ensure `.superdev/` is in `.gitignore`**, adding it when absent.
+- **Ensure `.superdev/` is in `.gitignore`**, as every write to the file does (above).
 - **Say the path you wrote and that the file is untracked**, so an operator who went looking in
   `docs/agents/` knows why it is not there, and knows a teammate inherits nothing from this answer.
 - **Declining leaves no file.** An absent file resolves to the token's own identity anyway, so every
@@ -285,12 +290,17 @@ while slices live in Jira.)
 - **GitHub** (`gh`). Seed: `references/code-management-github.md`.
 - **Forgejo / self-hosted** (`tea`). Seed: `references/code-management-forgejo.md`. Ask base URL and
   owner/repo, and ask for no token env var: check for a `tea` login for the base URL, as the slice store does
-  above. Check that `jq` is installed too: the pinned merge and a Forgejo wiki's templates build their JSON
-  with it. No `jq` stops the step the way no `tea` does.
+  above. Check that `jq` is installed too: the pinned merge builds its JSON with it. No `jq` stops the
+  step the way no `tea` does.
 - **Other** (GitLab, …) — describe push + open-MR + base computation in a paragraph.
 
 For both hosts, confirm the **default PR posture** (`draft` recommended | `ready` | `push-only`) and the
 **base branch** (default `main`).
+
+**Record the push bound when the operator asks for one other than 60000** milliseconds: write
+`code-host.pushTimeoutMs` into `.superdev/info.json`, merged as decision A states. It bounds each network
+git call `scope.js push` and the run-state ref make (`plan-contract.md` → *Assignee — operator
+configuration*). An operator who names no bound gets no key.
 
 **C — Documentation (in-repo).** How does the project keep durable in-repo technical docs? The default
 convention is an **`AGENTS.md` hierarchy** (walk before editing; update the affected `AGENTS.md` after
@@ -342,9 +352,11 @@ specifications, design overviews, ADR summaries)? Ask the user which of:
   fill every `<host>` and `<owner>/<repo>` placeholder in the seed with that one value pair. Check that
   `tea` is installed, that `tea login list -o json` has an entry whose `url` equals the base URL, and that
   `jq` is installed, as the Forgejo code host does above: a missing one stops the step with its fix (install
-  `tea` or `jq`, or run `tea login add --url <base URL>`). When more than one entry matches, tell the
-  operator to set `SUPERDEV_KB_TEA_LOGIN=<name>` to the login the templates use, both for this probe and
-  wherever `/superdev:publish-kb` runs. Unset, every template exits `2` with "several tea logins". The seed already carries all five templates, so
+  `tea` or `jq`, or run `tea login add --url <base URL>`). Ask for the **tea login** the templates use
+  and write it to `knowledge-base.teaLogin` in `.superdev/info.json`, merged into the file as decision A
+  states: propose the one matching entry's name, and when more than one entry matches, ask which. Unset
+  with several matches, every template exits `2` with "several tea logins". The probe below reads the
+  key from the file as `/superdev:publish-kb` does, so write the key before probing. The seed already carries all five templates, so
   ask no per-verb template question. The `find` probe below still runs and must exit `3` before `## Commands`
   is written (INV-0072). On a disabled or external wiki the probe exits `2`: report the cause the template
   wrote to stderr, and leave `## Commands` unwritten.
@@ -372,16 +384,20 @@ For a **remote** backend, also capture its **backend command contract** (ADR 006
 each of `find`, `read`, `create`, `update`, and `delete` runs against it. Ask for each verb's command in
 turn and write it under a `## Commands` section of `knowledge-base.md`, one `### <verb>` subsection each
 holding a single fenced `sh` block — a verb the backend has no use for is simply an absent subsection.
-State every placeholder name to the user, so a template reaches for the placeholder instead of shell
-interpolation: `SUPERDEV_KB_TITLE` reaches every call, `SUPERDEV_KB_BODY_FILE` (a path to the staged
-body, never the body inline) reaches `create` and `update`, and one `SUPERDEV_KB_<KEY>` per key the
-`find` template's JSON object carries — uppercased — reaches `update` and `delete`. Two keys are named: an
+Every command runs as `sh -c <template> sh <path>`, where `$1` names a JSON values file the template reads
+with `jq`, so a template reaches for a value instead of shell interpolation. Check that `jq` is installed
+for every remote backend, whatever the backend: a missing `jq` stops the step with its fix (install `jq`)
+and leaves `## Commands` unwritten. State every value to the
+user: `title` reaches every call, `bodyFile` (a path to the staged body, never the body inline) reaches
+`create` and `update`, `parentId` reaches `create` when the page names a parent, `found` (the `find`
+template's JSON object, its types kept) reaches `read`, `update`, and `delete`, and `operator` (the
+`knowledge-base` section of `.superdev/info.json`, `{}` when absent) reaches every call. Two `found` keys are named: an
 optional `sub_url`, the page's address, which `/superdev:publish-kb` fills a `parent-link` target's
 `{sub_url}` placeholder from (ADR 0168), and an optional `type`, where the value `folder` marks the
 result a container, so `/superdev:publish-kb` refuses an upsert or delete and names the folder. `find` carries the
 contract the other four rest on: exit `0` with a JSON object on stdout means the page exists, exit `3` means
 the page is genuinely absent, anything else means the backend could not answer. **Probe the `find`
-template before writing the section**: run it with `SUPERDEV_KB_TITLE` set to a title that cannot exist
+template before writing the section**: run it with a values file whose `title` is a title that cannot exist
 (a random UUID works) and require exit `3` — this is what stands between the template and a duplicated or
 overwritten page. Any other outcome — report it to the user, fix the template, probe again — leaves the
 `## Commands` section unwritten. For a remote backend whose auth is an environment variable, **probe `find` a
@@ -391,9 +407,10 @@ and `3`: a template that maps a refused login onto "page absent" would duplicate
 probe, and setup tells the operator so. A **local** or **none** knowledge base is asked for no commands at all.
 
 **Run that probe under the same bound every backend command runs under** (ADR 0130): pass the Bash tool's
-own `timeout` parameter, set to 30000, or to `SUPERDEV_PUBLISH_KB_TIMEOUT_MS`'s own value when the
+own `timeout` parameter, set to 30000, or to `knowledge-base.timeoutMs` of `.superdev/info.json` when the
 operator has set it — both are already milliseconds, the unit the Bash tool's `timeout` parameter takes,
-so no conversion is needed. The probe reaches the same host `/superdev:publish-kb` does, so an unbounded
+so no conversion is needed. Record the key in the file, merged as decision A states, when the operator
+asks for a bound other than 30000. The probe reaches the same host `/superdev:publish-kb` does, so an unbounded
 one hangs this interview for as long as the kernel's own TCP timeout runs. A probe that exhausts the bound
 is a probe failure like any other: report it, leave `## Commands` unwritten, and probe again once the
 template or the host is fixed. **State the bound to the operator while capturing the templates**, so a
@@ -429,6 +446,11 @@ meets the gate (ADR 0192) (`references/test-selection.md`). No hook runs
 it on a merge (ADR 0155). Detect a likely command (package.json scripts, a Makefile `test` target,
 `pyproject.toml`) and propose it. No suite (e.g. a docs-only repo) → skip; nothing runs a suite. (The
 **F** scan finds the same manifests — draw the proposal from it.)
+
+**Record the fail-to-pass floor when the operator asks for one other than 10000** milliseconds: write
+`verification.failToPassFloorMs` into `.superdev/info.json`, merged as decision A states. It is the floor
+of the fail-to-pass run's bound (`plan-contract.md` → *Assignee — operator configuration*). An
+operator who names no floor gets no key.
 
 **A repo with a full command settles the focused test command too**: the command every step inside the
 implement loop runs, defined by costing less than the full suite. A repo without one runs its whole suite
@@ -813,7 +835,7 @@ They can edit `docs/agents/*.md` directly later. Re-run this skill to switch bac
 a newer superdev release added: a re-run reconciles each document with its seed (§3). Say that
 `.superdev/info.json` is theirs alone and travels with no clone, so a fresh checkout configures it again
 or falls back to the API token's own identity. Record only env-var **names** for secrets — never the token
-values, and never in `.superdev/info.json` either, which holds identifiers and their display names only.
+values, and never in `.superdev/info.json` either, which holds identifiers, display names, and time bounds only.
 
 If §1 found **no `AGENTS.md` hierarchy**, point the user at **`/superdev:document`** — its bootstrap mode
 seeds the initial hierarchy + glossary from the existing code, so per-feature `/superdev:plan` doesn't

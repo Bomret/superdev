@@ -5,9 +5,10 @@
 
 const assert = require('node:assert');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { spawnSync, execFileSync } = require('node:child_process');
-const { scopePath, sliceJson, shortPushBound } = require('./scope-setup');
+const { scopePath, sliceJson, writeOperatorConfig } = require('./scope-setup');
 const { copyFixture, templateOnce } = require('./fixture-git');
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { pushRunState } = require('../plugin/lib/run-state-ref.js');
@@ -236,9 +237,26 @@ try {
     fs.writeFileSync(hang, '#!/bin/sh\nexec sleep 8\n');
     fs.chmodSync(hang, 0o755);
     git(['config', 'remote.origin.uploadpack', hang], f.b);
-    const short = shortPushBound(1500);
-    const r = run(['adopt', '--root', f.rootB], f.b, body, short.env);
-    assert.ok(short.shortened().length > 0, 'the preload shortened the fetch bound');
+    writeOperatorConfig(f.b, { 'code-host': { pushTimeoutMs: 1500 } });
+    const r = run(['adopt', '--root', f.rootB], f.b, body);
+    assert.strictEqual(r.status, 0, r.stderr);
+    assert.match(r.stdout, /bound/, r.stdout);
+    assert.deepStrictEqual(listing(f.rootB), ['ledger.md']);
+  }
+
+  // #hung-worktree: the same bound, with `info.json` only in the main checkout, read by an adopt run from a linked worktree.
+  {
+    const f = fixture();
+    const body = seed(f);
+    const hang = path.join(f.b, 'hang.sh');
+    fs.writeFileSync(hang, '#!/bin/sh\nexec sleep 8\n');
+    fs.chmodSync(hang, 0o755);
+    git(['config', 'remote.origin.uploadpack', hang], f.b);
+    writeOperatorConfig(f.b, { 'code-host': { pushTimeoutMs: 1500 } });
+    const wt = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'run-state-adopt-wt-')), 'tree');
+    made.push(path.dirname(wt));
+    git(['worktree', 'add', '-q', '--detach', wt], f.b);
+    const r = run(['adopt', '--root', f.rootB], wt, body);
     assert.strictEqual(r.status, 0, r.stderr);
     assert.match(r.stdout, /bound/, r.stdout);
     assert.deepStrictEqual(listing(f.rootB), ['ledger.md']);

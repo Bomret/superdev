@@ -120,7 +120,7 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
   Name a test file the command left out and run it again; an error blocks nothing, and `final-reviewer`
   reads the trace at the scope review. An `unknown` (status 0) means the verb could
   not judge: the tests did not pass against the changed code, or the run before the change outlasted ten times the
-  duration the first run took or 10 seconds, whichever is larger (`SUPERDEV_FAIL_TO_PASS_FLOOR_MS` overrides the
+  duration the first run took or 10 seconds, whichever is larger (`verification.failToPassFloorMs` in `.superdev/info.json` overrides the
   10-second floor), or ended by a signal, or a run's command could not start (`start-failed:<code>` in its
   reason). It draws no finding and starts no fix cycle. The scope run's
   first `unknown` is an observation: you write its triage record under

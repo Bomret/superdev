@@ -69,7 +69,7 @@ withState((stateFile) => {
   assert.equal(state['Old Page'].body, md, 'update receives the staged body unchanged');
 });
 
-// --- a staged `parent:` reaches create as SUPERDEV_KB_PARENT_ID (ADR 0109) -----------------------
+// --- a staged `parent:` reaches create as parentId (ADR 0109) -----------------------
 
 // --- a parent the space already holds: create receives its id; a page with no parent gets none ---
 withCapture((stateFile, dir) => {
@@ -82,10 +82,10 @@ withCapture((stateFile, dir) => {
   const res = call(['--scope', 'demo'], repo);
   assert.ok(res.ok, `expected success, got: ${res.err}`);
   const creates = captures(dir, 'create');
-  const child = creates.find((c) => c.env.SUPERDEV_KB_TITLE === 'Child');
-  const orphan = creates.find((c) => c.env.SUPERDEV_KB_TITLE === 'Orphan');
-  assert.equal(child.env.SUPERDEV_KB_PARENT_ID, 'id-guide', 'create receives the parent page id');
-  assert.ok(!('SUPERDEV_KB_PARENT_ID' in orphan.env), 'a page with no parent: gets no parent id');
+  const child = creates.find((c) => c.values.title === 'Child');
+  const orphan = creates.find((c) => c.values.title === 'Orphan');
+  assert.equal(child.values.parentId, 'id-guide', 'create receives the parent page id');
+  assert.ok(!('parentId' in orphan.values), 'a page with no parent: gets no parent id');
 });
 
 // --- a parent staged in the same batch is created before its child, whatever the filename order --
@@ -100,9 +100,9 @@ withCapture((stateFile, dir) => {
   assert.ok(res.ok, `expected success, got: ${res.err}`);
   assert.match(res.out, /published \(created\): Grandchild/);
   const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
-  const byTitle = Object.fromEntries(captures(dir, 'create').map((c) => [c.env.SUPERDEV_KB_TITLE, c.env]));
-  assert.equal(byTitle.Child.SUPERDEV_KB_PARENT_ID, state['Root Page'].id);
-  assert.equal(byTitle.Grandchild.SUPERDEV_KB_PARENT_ID, state.Child.id);
+  const byTitle = Object.fromEntries(captures(dir, 'create').map((c) => [c.values.title, c.values]));
+  assert.equal(byTitle.Child.parentId, state['Root Page'].id);
+  assert.equal(byTitle.Grandchild.parentId, state.Child.id);
 });
 
 // --- a parent that cannot be found leaves the child staged, naming it; the batch goes on ---------
@@ -117,15 +117,15 @@ withCapture((stateFile, dir) => {
   assert.match(res.out, /left staged: Lost Child — parent page "Nowhere" not found/);
   assert.match(res.out, /published \(created\): Fine Page/);
   assert.ok(fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'lost.md')));
-  assert.ok(!captures(dir, 'create').some((c) => c.env.SUPERDEV_KB_TITLE === 'Lost Child'), 'nothing created');
+  assert.ok(!captures(dir, 'create').some((c) => c.values.title === 'Lost Child'), 'nothing created');
 });
 
 // --- a parent lookup find cannot answer leaves the child staged ------------------------------------
 withCapture((stateFile, dir) => {
   const repo = makeRepo();
   const doc = commandsDoc('- **Backend:** Some Wiki.').replace(
-    `node ${shq(FAKE_BACKEND)} find`,
-    `[ "$SUPERDEV_KB_TITLE" = "Broken" ] && exit 2; node ${shq(FAKE_BACKEND)} find`,
+    `node ${shq(FAKE_BACKEND)} find "$1"`,
+    `grep -q '"title":"Broken"' "$1" && exit 2; node ${shq(FAKE_BACKEND)} find "$1"`,
   );
   writeKbDoc(repo, doc);
   stagePage(repo, 'demo', 'kid.md', 'title: Kid\naction: upsert\nparent: Broken');
@@ -147,23 +147,23 @@ withCapture((stateFile, dir) => {
   const res = call(['--scope', 'demo'], repo);
   assert.ok(res.ok, `expected success, got: ${res.err}`);
   const creates = captures(dir, 'create');
-  const kid = creates.find((c) => c.env.SUPERDEV_KB_TITLE === 'Kid');
-  assert.equal(kid.env.SUPERDEV_KB_PARENT_ID, 'id-guide', 'a patch-created page receives the parent id');
+  const kid = creates.find((c) => c.values.title === 'Kid');
+  assert.equal(kid.values.parentId, 'id-guide', 'a patch-created page receives the parent id');
   assert.match(res.out, /left staged: Lost — parent page "Nowhere" not found/);
-  assert.ok(!creates.some((c) => c.env.SUPERDEV_KB_TITLE === 'Lost'), 'an unknown parent creates nothing');
+  assert.ok(!creates.some((c) => c.values.title === 'Lost'), 'an unknown parent creates nothing');
 });
 
-// --- a create template that never reads SUPERDEV_KB_PARENT_ID leaves a parented page staged -------
+// --- a create template that never reads parentId leaves a parented page staged -------
 withCapture((stateFile, dir) => {
   const repo = makeRepo();
-  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', PATCH_VERBS).replace(': "$SUPERDEV_KB_PARENT_ID"\n', ''));
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', PATCH_VERBS).replace(': parentId\n', ''));
   fs.writeFileSync(stateFile, JSON.stringify({ Guide: { id: 'id-guide', body: 'g.\n' } }));
   stagePage(repo, 'demo', 'child.md', 'title: Child\naction: upsert\nparent: Guide');
   stagePage(repo, 'demo', 'kid--a.md', 'title: Kid\naction: patch\nparent: Guide', '## A\n\nnew A.\n');
 
   const res = call(['--scope', 'demo'], repo);
-  assert.match(res.out, /left staged: Child — the create command never reads SUPERDEV_KB_PARENT_ID, so parent "Guide" would be ignored — update it from the seed \(\/superdev:setup check\)/);
-  assert.match(res.out, /left staged: Kid — the create command never reads SUPERDEV_KB_PARENT_ID/);
+  assert.match(res.out, /left staged: Child — the create command never reads parentId, so parent "Guide" would be ignored — update it from the seed \(\/superdev:setup check\)/);
+  assert.match(res.out, /left staged: Kid — the create command never reads parentId/);
   assert.equal(captures(dir, 'create').length, 0, 'nothing is created');
 });
 

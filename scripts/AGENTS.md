@@ -17,6 +17,16 @@ This doc owns what each script guards and the contracts between them. Repo-wide 
 
 ## Local Contracts
 
+### The operator configuration (ADR 0207)
+
+The operator configuration is `.superdev/info.json` of the main working tree. A setting lives there and in no environment variable, because a file shows what is set, belongs to one repository, and is documented by the plugin, where a process environment is invisible and can change behavior from outside (ADR 0207). `plugin/lib/operator-config.js` reads it
+(`operatorSection(cwd, section)` and `operatorBoundMs(cwd, section, key, fallback)`), and a missing file, section, or key gives the
+fallback silently. The time-bound keys are `code-host.pushTimeoutMs` (`lib/push.js`, 60000 ms), `verification.failToPassFloorMs`
+(`lib/fail-to-pass.js`, 10000 ms), and `knowledge-base.timeoutMs` (`lib/kb-backend.js`, 30000 ms). `knowledge-base.teaLogin` and the
+other `knowledge-base` keys reach a backend template under `operator` in its values file. No superdev-owned environment variable
+carries a setting or a value (ADR 0207). `lib/push.js` exports `boundEnded(cwd, signal)`, the phrase every bound-ended git call
+reports, which names the bound and `code-host.pushTimeoutMs`; `lib/run-state-ref.js` reports through it too.
+
 ### scope.js, the run-state CLI (ADR 0022)
 
 `scope.js` owns the CLI and the verbs, and requires only modules from `plugin/lib/` (ADR 0151). Each verb's code lives in
@@ -244,11 +254,11 @@ the verb git-ignores first through the repository's `info/exclude`.
 The first run is against the changed code and must pass. The verb then resets and cleans the worktree. The verb puts
 every changed file outside the test paths back as that file stood at `<base>`, and commits the put-back on the detached
 HEAD. The verb runs the command again and bounds that second run at 10 times the first run's duration, measured in the
-same invocation, or at a floor of 10 000 ms, whichever is larger (INV-0009, ADR 0142). `SUPERDEV_FAIL_TO_PASS_FLOOR_MS`
-overrides the floor in milliseconds; a value that is not a positive integer, or that exceeds 2147483647 (the
-longest delay Node's timer holds), reads as absent, and the verb names that value in one line on stderr. The suite's cases that hang
-the second run set the override, so none waits the floor. `lib/fail-to-pass.js` exports the bound as the pure function
-`failToPassBoundMs(controlMs, floorMs)` and the floor reader `failToPassFloorMs()`, and the verb calls the first with the floor the second reads once. The suite pins the factor and
+same invocation, or at a floor of 10 000 ms, whichever is larger (INV-0009, ADR 0142). `verification.failToPassFloorMs` of the
+operator configuration (`### The operator configuration`) overrides the floor in milliseconds; a value that is not a
+whole number from 1 to 2147483647 (the longest delay Node's timer holds) reads as absent, and the verb names that key once per process in one line on stderr. The suite's cases that hang
+the second run write the key, so none waits the floor. `lib/fail-to-pass.js` exports the bound as the pure function
+`failToPassBoundMs(controlMs, floorMs)` and the floor reader `failToPassFloorMs(cwd)`, and the verb calls the first with the floor the second reads once. The suite pins the factor and
 the floor on the bound function with no clock, and the override on the floor reader, because the first run's measured duration includes its own start-up, and load
 stretches that start-up by seconds. The verb refuses a range that changes no file and a range that changes only test files,
 because nothing is put back, and a range that changes no test file, because no test of its own can fail.
@@ -304,10 +314,10 @@ an ancestor of the local tip, prints `pushed`, and exits 0. It makes a push with
 prints `refused` and the tip's commits that the base the containment test judged against does not hold (the refetched base,
 never a stale local one), and exits 3. A failed fetch of the branch or of `<base-ref>` prints `unreachable` or
 `credential-rejected`, a git call its own bound ended prints `timed-out` (INV-0009), and a push the remote rejected prints
-`push-failed`. Each of these exits 3 and names the `git push -u <remote> <branch>` line to run by hand. A usage refusal,
+`push-failed`. The `timed-out` line names the bound and its key, `code-host.pushTimeoutMs`. Each of these exits 3 and names the `git push -u <remote> <branch>` line to run by hand. A usage refusal,
 a missing ledger, a ledger with no `**Branch:**` line, or a `**Branch:**` line that names `<base-ref>` exits 1.
 `hooks/merge-guard.js` denies a subagent's run of this verb, as it denies a subagent's plain push. Every git call runs with `GIT_TERMINAL_PROMPT=0` and
-`--end-of-options` ahead of a remote or revision argument, and every network call carries a time bound of 60000 ms and a
+`--end-of-options` ahead of a remote or revision argument, and every network call carries a time bound of 60000 ms, or whatever `code-host.pushTimeoutMs` of the operator configuration (`### The operator configuration`) names, and a
 kill signal, the refetch of `<base-ref>` inside the containment test included. The code lives in `plugin/lib/push.js`, and
 `tests/scope-push.test.js` holds its cases.
 
@@ -532,17 +542,18 @@ backend with no `## Commands` section refuses and names `/superdev:setup`. A rem
 carries one parses its five `### <verb>` subsections, `find`, `read`, `create`, `update`, and
 `delete`, by heading name, never by position. A fenced block inserted or removed elsewhere therefore
 never shifts which template a later verb reads. Each template runs under `sh -c`, `sh` resolved from PATH (ADR 0150). Every value
-passes to it as an environment variable, never interpolated into the command string. A title carrying
+passes to it as one JSON file named by `$1`, never interpolated into the command string. The file holds the call's values, the
+`find` result's fields under `found`, and the `knowledge-base` section of the operator configuration under `operator`. A title carrying
 a quote, a `$`, a backtick, or a newline therefore reaches the backend unchanged and starts no shell of
 its own.
 
 Every template runs under a **30-second bound** (ADR 0130), applied at `runTemplate`'s own `spawnSync`
 with `killSignal: 'SIGKILL'` — the same shape `judgeContainment` in `plugin/lib/containment.js` (the function `testContainment` delegates to) bounds its `git fetch`
 with. The bound sits in the script rather than in the templates, so it covers an operator-written
-template carrying no `curl --max-time` of its own. `SUPERDEV_PUBLISH_KB_TIMEOUT_MS` overrides it, and
-sits outside the `SUPERDEV_KB_` prefix on purpose: `fieldsToEnv` forwards every key a `find` result
-carries under that prefix, so a backend returning `timeout_ms` would otherwise rewrite the bound from
-the wire. A value that is not a positive integer reads as absent, never as "no bound" or "kill at once".
+template carrying no `curl --max-time` of its own. `knowledge-base.timeoutMs` of the operator configuration overrides it. `liveTemplates` in
+`lib/kb-backend-config.js` reads the section and the bound once per publish and carries them on the `templates` object, so a
+backend returning `timeout_ms` cannot rewrite the bound from the wire. A value that is not a whole number from 1 to 2147483647
+reads as absent, never as "no bound" or "kill at once".
 
 **A timeout stops the batch, and nothing else does.** `processStagedFiles` walks the title groups and
 breaks on the first result carrying `timedOut`, reporting every remaining file as `untried` and leaving
@@ -552,8 +563,7 @@ that tells a timeout from any other `res.error`: a `maxBuffer` overflow and a sh
 say nothing about the host, so each still fails only its own page.
 
 `find`'s exit code is the contract the other four verbs rest on (ADR 0069's table). Exit `0` with a
-JSON object on stdout means `found`, and each key in that object becomes a `SUPERDEV_KB_<KEY>`
-variable for the later verbs. Exit `3` means `absent`, the only verdict that may create a page. Any
+JSON object on stdout means `found`, and each key in that object reaches the later verbs under `found` in their values file. Exit `3` means `absent`, the only verdict that may create a page. Any
 other exit means `unknown`, which leaves the page staged instead of guessing. `action: upsert` finds,
 then creates or updates. `action: delete` finds, then deletes, or reports `already-absent` when `find`
 already answers `absent`. `action: patch` requires a `read` template, since a backend declaring none
@@ -575,15 +585,15 @@ or links, by the `- **Hierarchy:**` bullet of `docs/agents/knowledge-base.md` (A
 reads the bullet through `parseHierarchy`, a wrapper over `parseBullet`, and an absent bullet means nesting.
 
 **Nesting (the default).** `resolveParent` looks the parent title up through `find` on the create path
-only, and passes the id as `SUPERDEV_KB_PARENT_ID`. An `absent` or `unknown` parent leaves the page
+only, and passes the id as `parentId`. An `absent` or `unknown` parent leaves the page
 staged, with the parent named in the reason. A `create` template that never mentions
-`SUPERDEV_KB_PARENT_ID` leaves a parented page staged with a reason naming the fix, and resolves and
+`parentId` leaves a parented page staged with a reason naming the fix, and resolves and
 creates nothing. `parentsFirst` orders the title groups by their depth in the batch's own parent chain,
 so a parent staged in the same batch is created before its children.
 
 **Links (`- **Hierarchy:** links`).** The wiki nests no pages, so a child is reachable only when a list
 item in its parent's body links it. `nestingParent` withholds `parent:` from `resolveParent`, and
-`SUPERDEV_KB_PARENT_ID` is never set. A staged page that names a `parent` also carries `parent-section`
+`parentId` is never set. A staged page that names a `parent` also carries `parent-section`
 (the text of one ATX heading in the parent) and `parent-link` (one list-item line whose link text is the
 page's title). `parentLinkRefusal` refuses a page that names itself, lacks either key, carries a
 multi-line or non-list-item `parent-link`, or whose link text does not equal the title. The link text, an
@@ -882,7 +892,7 @@ path, when that document is missing. A check that walks a directory reads whatev
 | `no-second-reader` | no file under `plugin/hooks/` builds a ledger-header regex of its own, and no file under `plugin/lib/` other than `ledger.js` does (ADR 0022) | prohibition |
 | `arg-token` | `hooks/merge-guard.js`, `hooks/ledger-guard.js`, `lib/ledger-writes.js`, and `lib/bash-command.js` require the shell scanner `shell-words.js` (`../lib/shell-words.js` from a hook) and declare no shell-word reader or `((` spread of their own (ADR 0135) | structural |
 | `shell-spawn` | no file under `plugin/hooks/`, `plugin/scripts/`, or `plugin/lib/` starts a shell by absolute path, starts `bash`, or uses Node's default shell (INV-0153) | prohibition |
-| `test-seams` | no JavaScript file at any depth of `plugin/` names a file of the repository's `tests/` directory by base name or by a `tests/` path that carries a glob (`tests/scope-*.test.js`), and none reads `process.env.NAME`, `process.env['NAME']`, or a destructured `NAME` that no Markdown document under `plugin/` names, unless `NAME` starts with `CLAUDE_`; a classifier glob such as `**/tests/` or `**/tests/**` names no file (INV-0156, ADR 0154) | prohibition |
+| `test-seams` | no JavaScript file at any depth of `plugin/` names a file of the repository's `tests/` directory by base name or by a `tests/` path that carries a glob (`tests/scope-*.test.js`), and none reads `process.env.NAME`, `process.env['NAME']`, or a destructured `NAME` that no Markdown document under `plugin/` names, unless `NAME` starts with `CLAUDE_`; none uses a `SUPERDEV_` name on any object, `process.env` or an alias or passed-in one (a property, a bracket, a destructuring, an object key plain, quoted, computed by a literal, or shorthand, a `const`, `let`, or `var` binding, or a `NAME=` prefix; a key built by concatenation or held in a variable matches no form), and no Markdown file under `plugin/` names a `SUPERDEV_` identifier, with `SUPERDEV_TEXT_EOF` allowed by name and a document naming a `SUPERDEV_` variable allowing none (ADR 0207, INV-0180); a classifier glob such as `**/tests/` or `**/tests/**` names no file (INV-0156, ADR 0154) | prohibition |
 | `containment-delegation` | `lib/kb-containment.js` imports and calls `lib/containment.js`'s `testContainment` (ADR 0053) | structural |
 | `past-pr-skills` | the skills an offer starts past the open pull request (ship, verify-ship, wrap-up, publish-kb) carry no `disable-model-invocation: true`, neither verify-ship nor wrap-up names `--unattended`, and ship, verify-ship, and `references/response-shapes.md` name no `--from-ship` (INV-0066, INV-0093, ADR 0157) | structural |
 | `no-base-branch-commit` | no file under `skills/` or `references/` instructs a commit, a push, or a merge to the base branch, other than ship's host-API merge (INV-0001) | prohibition |

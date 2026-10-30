@@ -17,8 +17,6 @@ const { f2pFixture, verif } = require('./scope-setup');
 
 const { readTrace, traceField } = require('../plugin/lib/trace-log.js');
 
-// Every case runs at the default floor of the bound unless it sets its own (ADR 0142).
-delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
 
 {
   const { probe, CMD, scenario, leftover, checkout, done } = f2pFixture();

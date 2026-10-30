@@ -11,7 +11,7 @@
 const fs = require('fs');
 const path = require('path');
 const { maskFencedLines } = require('./md-sections.js');
-const { runTemplate, spawnFailure, exited, fieldsToEnv, runFind, writeTempBody } = require('./kb-backend.js');
+const { runVerb, spawnFailure, exited, runFind, writeTempBody } = require('./kb-backend.js');
 
 // A list item opens with at most three spaces of indent (four or more is indented code) and is not a
 // thematic break (`* * *`, `- - -`, `***`).
@@ -311,8 +311,7 @@ function editParent(parentTitle, templates, edit, absentOk = false) {
   if (found.verdict === 'absent' && absentOk) return { ok: true, kept: [] };
   if (found.verdict === 'absent') return refuse(`parent page "${parentTitle}" not found`, 'publish the parent page first, or correct parent: in the staged file');
   if (found.verdict === 'unknown') return refuse(why(found.reason), retry, found.timedOut);
-  const env = { ...fieldsToEnv(found.fields), SUPERDEV_KB_TITLE: parentTitle };
-  const read = runTemplate(templates.read, env);
+  const read = runVerb(templates, 'read', { title: parentTitle, found: found.fields });
   if (read.error) {
     const f = spawnFailure('read', read);
     return refuse(why(f.reason), retry, f.timedOut);
@@ -327,7 +326,7 @@ function editParent(parentTitle, templates, edit, absentOk = false) {
   if (!templates.update) return refuse(why('no update command configured'), 'add an update command to docs/agents/knowledge-base.md');
   const bodyFile = writeTempBody(edited.body);
   try {
-    const res = runTemplate(templates.update, { ...env, SUPERDEV_KB_BODY_FILE: bodyFile });
+    const res = runVerb(templates, 'update', { title: parentTitle, bodyFile, found: found.fields });
     if (res.error) {
       const f = spawnFailure('update', res);
       return refuse(why(f.reason), retry, f.timedOut);

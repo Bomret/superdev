@@ -605,10 +605,10 @@ Paths: plugin/skills/setup/SKILL.md
 
 Class: architecture
 Concepts: Backend command contract, Staged page, Knowledge base
-Statement: Every backend command a publish runs is bounded at its spawn. The override lives outside the `SUPERDEV_KB_` prefix, so no `find` result can rewrite the bound. A timeout stops the batch and leaves every untried page staged.
+Statement: Every backend command a publish runs is bounded at its spawn. The bound comes from the operator configuration, and a `find` result reaches later commands only under `found` in the values file, so no `find` field can rewrite it. A timeout stops the batch and leaves every untried page staged.
 Breaks: silently
 Check: `tests/publish-kb-timeout.test.js` (per-verb timeout cases; "a timeout stops the batch: the rest are named untried, staged, and never spawned")
-Symbols: DEFAULT_TIMEOUT_MS, timeoutMs, timedOut, fieldsToEnv
+Symbols: DEFAULT_TIMEOUT_MS, timeoutMs, timedOut, runVerb
 Paths: plugin/lib/kb-backend.js, plugin/skills/setup/SKILL.md
 
 ### INV-0074
@@ -1467,3 +1467,12 @@ Statement: A run-state push to `refs/superdev/<scope>` never changes the files, 
 Breaks: silently
 Check: the scope.js suite asserts a checkout's status, index, and HEAD unchanged across a push
 Paths: plugin/lib/ledger-lifecycle.js, plugin/scripts/scope.js
+
+### INV-0180
+
+Class: architecture
+Concepts: Operator configuration, Backend command contract, Knowledge base
+Statement: The shipped plugin reads no environment variable that superdev defines, and passes none to a child process. Every knob comes from the operator configuration, and a knowledge-base backend command takes its values only from the JSON file named by `$1`, never from its command text (ADR 0207).
+Breaks: silently
+Check: the drift check that forbids a `SUPERDEV_` environment variable in shipped code and prose; the publish-kb suites that run a template against the values file
+Paths: plugin/lib/push.js, plugin/lib/fail-to-pass.js, plugin/lib/kb-backend.js, plugin/lib/kb-backend-config.js, plugin/lib/operator-config.js, plugin/references/knowledge-base-forgejo.md, plugin/references/knowledge-base-confluence.md

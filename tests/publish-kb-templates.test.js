@@ -17,6 +17,17 @@ const { classifyBackend } = require('../plugin/scripts/publish-kb.js');
 // itself, the thing that decides which of those exit codes a real find call actually produces.
 // The Forgejo wiki seed carries the same templates once its placeholders are filled, so both documents
 // run through the same pins.
+// The values file a backend command takes as `$1`, written under a directory this suite removes at its end.
+const valuesDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-values-templates-'));
+let valuesCount = 0;
+function valuesFile(values) {
+  const file = path.join(valuesDir, `values-${valuesCount++}.json`);
+  fs.writeFileSync(file, JSON.stringify(values));
+  return file;
+}
+
+const hostileTitle = 'A $(touch x) `y` \'q\' "d"\nsecond line';
+
 function pinForgejoTemplates(realDoc, HOST) {
   const findTemplate = classifyBackend(realDoc).templates.find;
   assert.ok(findTemplate, 'the Forgejo knowledge-base document configures a find template');
@@ -29,7 +40,9 @@ function pinForgejoTemplates(realDoc, HOST) {
   fs.writeFileSync(path.join(stubDir, 'tea'),
     '#!/bin/sh\n' +
     'if [ "$1" = login ]; then printf "%s" "$TEA_STUB_LOGINS"; exit 0; fi\n' +
+    '[ -n "$TEA_STUB_STDIN" ] && cat > "$TEA_STUB_STDIN"\n' +
     'for a; do last=$a; done\n' +
+    '[ -n "$TEA_STUB_PATH_LOG" ] && echo "$last" >> "$TEA_STUB_PATH_LOG"\n' +
     'case "$last" in /repos/*/wiki/*) ;; /repos/*) [ -n "$TEA_STUB_REPO_LOG" ] && echo repo >> "$TEA_STUB_REPO_LOG"\n' +
     '  [ -n "$TEA_STUB_REPO_STATUS" ] && printf "%s\\n" "$TEA_STUB_REPO_STATUS" >&2\n' +
     '  printf "%s" "$TEA_STUB_REPO_BODY"; exit 0 ;; esac\n' +
@@ -47,15 +60,14 @@ function pinForgejoTemplates(realDoc, HOST) {
     { name: 'cb', url: HOST, user: 'bomret' },
   ]);
 
-  function runFindTemplate(body, status = '200 OK', logins = oneLogin, extraEnv = {}) {
-    return spawnSync('/bin/sh', ['-c', findTemplate], {
+  function runFindTemplate(body, status = '200 OK', logins = oneLogin, extraEnv = {}, operator = {}, title = 'Missing Page') {
+    return spawnSync('/bin/sh', ['-c', findTemplate, 'sh', valuesFile({ title, operator })], {
       env: {
         ...process.env,
         PATH: stubDir + path.delimiter + process.env.PATH,
         TEA_STUB_BODY: body,
         TEA_STUB_STATUS: status,
         TEA_STUB_LOGINS: logins,
-        SUPERDEV_KB_TITLE: 'Missing Page',
         ...extraEnv,
       },
       encoding: 'utf8',
@@ -68,6 +80,12 @@ function pinForgejoTemplates(realDoc, HOST) {
   const there = runFindTemplate(JSON.stringify([{ title: 'Missing Page', sub_url: 'missing-page' }]));
   assert.equal(there.status, 0, 'a listing that carries the title answers found (0)');
   assert.deepEqual(JSON.parse(there.stdout), { sub_url: 'missing-page' });
+
+  // A title holding shell syntax, quotes, or a newline is matched byte for byte against the listing.
+  const hostile = hostileTitle;
+  const hostileHit = runFindTemplate(JSON.stringify([{ title: 'A', sub_url: 'a' }, { title: hostile, sub_url: 'hostile' }]), '200 OK', oneLogin, {}, {}, hostile);
+  assert.equal(hostileHit.status, 0, hostileHit.stderr);
+  assert.deepEqual(JSON.parse(hostileHit.stdout), { sub_url: 'hostile' }, 'find matches the title exactly as staged');
 
   // `tea api` exits 0 on an HTTP error, so the status line is the only failure signal: a non-200
   // listing is "could not answer", never absence, and reads no repository.
@@ -147,8 +165,8 @@ function pinForgejoTemplates(realDoc, HOST) {
   assert.equal(runFindTemplate(missPage, '200 OK', JSON.stringify([{ name: 'a', url: HOST }, { name: 'b', url: HOST }])).status, 2,
     'several logins for the host must answer 2, never 3');
   assert.equal(runFindTemplate(missPage, '200 OK', '').status, 2, 'an unreadable login list must answer 2');
-  const noTea = spawnSync('/bin/sh', ['-c', findTemplate], {
-    env: { ...process.env, PATH: noTeaDir + path.delimiter + '/usr/bin' + path.delimiter + '/bin', SUPERDEV_KB_TITLE: 'Missing Page' },
+  const noTea = spawnSync('/bin/sh', ['-c', findTemplate, 'sh', valuesFile({ title: 'Missing Page', operator: {} })], {
+    env: { ...process.env, PATH: noTeaDir + path.delimiter + '/usr/bin' + path.delimiter + '/bin' },
     encoding: 'utf8',
   });
   assert.equal(noTea.status, 2, 'no tea on the path must answer 2, never 3');
@@ -162,51 +180,68 @@ function pinForgejoTemplates(realDoc, HOST) {
   assert.match(several.stderr, /several tea logins match/, 'several logins are named as several');
   assert.ok(several.stderr.includes(ADD), 'several logins print the tea login add command');
   assert.match(several.stderr, /a, b/, 'several logins are named, comma-joined, so the operator can pick');
-  assert.match(several.stderr, /SUPERDEV_KB_TEA_LOGIN=<name>/, 'several logins name the override variable');
+  assert.match(several.stderr, /knowledge-base\.teaLogin/, 'several logins name the operator configuration key');
 
-  // SUPERDEV_KB_TEA_LOGIN picks one of the several matching logins; a name matching none answers 2.
+  // `knowledge-base.teaLogin` picks one of the several matching logins; a name matching none answers 2.
   const twoLogins = JSON.stringify([{ name: 'a', url: HOST }, { name: 'b', url: HOST }, { name: 'z', url: 'https://example.org' }]);
-  const picked = runFindTemplate(missPage, '200 OK', twoLogins, { SUPERDEV_KB_TEA_LOGIN: 'b' });
+  const picked = runFindTemplate(missPage, '200 OK', twoLogins, {}, { teaLogin: 'b' });
   assert.equal(picked.status, 3, 'a named login among several matches resolves, so the listing answers absent (3)');
-  const unknown = runFindTemplate(missPage, '200 OK', twoLogins, { SUPERDEV_KB_TEA_LOGIN: 'nope' });
+  const unknown = runFindTemplate(missPage, '200 OK', twoLogins, {}, { teaLogin: 'nope' });
   assert.equal(unknown.status, 2, 'a named login matching none answers 2');
-  assert.match(unknown.stderr, /SUPERDEV_KB_TEA_LOGIN/, 'an unknown name is reported against the variable');
+  assert.match(unknown.stderr, /knowledge-base\.teaLogin/, 'an unknown name is reported against the key');
   assert.match(unknown.stderr, /a, b/, 'an unknown name lists the matching logins');
-  const offHost = runFindTemplate(missPage, '200 OK', twoLogins, { SUPERDEV_KB_TEA_LOGIN: 'z' });
+  const offHost = runFindTemplate(missPage, '200 OK', twoLogins, {}, { teaLogin: 'z' });
   assert.equal(offHost.status, 2, 'a login for another host is not a match');
   assert.match(noTea.stderr, /tea is missing/, 'a missing tea is named');
   assert.ok(noTea.stderr.includes(ADD), 'a missing tea prints the tea login add command');
 
   // read, create, update, and delete: a non-2xx answer fails, and `read` never prints an error body.
   const templates = classifyBackend(realDoc).templates;
+  // `found.sub_url` differs from the title, so the request path shows which of the two a template addresses.
+  const SUB_URL = 'sub-of-t';
+  const pathLog = path.join(stubDir, 'paths.log');
   function runVerb(verb, body, status, bodyFile) {
-    return spawnSync('/bin/sh', ['-c', templates[verb]], {
+    fs.rmSync(pathLog, { force: true });
+    return spawnSync('/bin/sh', ['-c', templates[verb], 'sh', valuesFile({ title: 'T', bodyFile, found: { sub_url: SUB_URL }, operator: {} })], {
       env: {
         ...process.env,
         PATH: stubDir + path.delimiter + process.env.PATH,
         TEA_STUB_BODY: body,
         TEA_STUB_STATUS: status,
         TEA_STUB_LOGINS: oneLogin,
-        SUPERDEV_KB_TITLE: 'T',
-        SUPERDEV_KB_SUB_URL: 'T',
-        SUPERDEV_KB_BODY_FILE: bodyFile,
+        TEA_STUB_PATH_LOG: pathLog,
       },
       encoding: 'utf8',
     });
   }
+  const requested = () => fs.readFileSync(pathLog, 'utf8').trim().split('\n');
   const bodyFile = path.join(stubDir, 'body.md');
   fs.writeFileSync(bodyFile, '# hi\n');
   const okRead = runVerb('read', JSON.stringify({ content_base64: Buffer.from('# page\n').toString('base64') }), '200 OK', bodyFile);
   assert.equal(okRead.status, 0);
   assert.equal(okRead.stdout, '# page\n', 'read prints the decoded page markdown');
+  // The parent-link edit runs `read` then `update` on the parent with the parent's find result as `found`.
+  assert.match(requested().join('\n'), new RegExp(`/wiki/page/${SUB_URL}$`), 'read addresses .found.sub_url');
   const badRead = runVerb('read', JSON.stringify({ message: 'nope' }), '404 Not Found', bodyFile);
   assert.notEqual(badRead.status, 0, 'read fails on a non-200 answer');
   assert.equal(badRead.stdout, '', 'read prints no error body as page content');
   for (const verb of ['create', 'update', 'delete']) {
     assert.equal(runVerb(verb, '', '200 OK', bodyFile).status, 0, `${verb} succeeds on a 2xx answer`);
+    if (verb !== 'create') assert.deepEqual(requested().map((p) => p.split('/wiki/page/')[1]), [SUB_URL], `${verb} addresses .found.sub_url`);
     assert.notEqual(runVerb(verb, '', '409 Conflict', bodyFile).status, 0, `${verb} fails on a non-2xx answer`);
   }
-  assert.match(templates.update, /title: \$title/, 'update always sends the title');
+  // create and update send the staged title, from the values file, byte for byte, with the body base64-encoded.
+  for (const verb of ['create', 'update']) {
+    const stdin = path.join(stubDir, `${verb}.stdin`);
+    const sent = spawnSync('/bin/sh', ['-c', templates[verb], 'sh', valuesFile({ title: hostileTitle, bodyFile, found: { sub_url: SUB_URL }, operator: {} })], {
+      env: { ...process.env, PATH: stubDir + path.delimiter + process.env.PATH, TEA_STUB_STATUS: '200 OK', TEA_STUB_LOGINS: oneLogin, TEA_STUB_STDIN: stdin },
+      encoding: 'utf8',
+    });
+    assert.equal(sent.status, 0, sent.stderr);
+    const payload = JSON.parse(fs.readFileSync(stdin, 'utf8'));
+    assert.equal(payload.title, hostileTitle, `${verb} always sends the staged title, byte for byte`);
+    assert.equal(Buffer.from(payload.content_base64, 'base64').toString(), '# hi\n', `${verb} sends the body file's content`);
+  }
   assert.doesNotMatch(realDoc, /GITEA_TOKEN|Authorization|curl/, 'the knowledge-base config names no token env var, header, or curl');
 
   fs.rmSync(noTeaDir, { recursive: true, force: true });
@@ -238,12 +273,11 @@ pinForgejoTemplates(fs.readFileSync(path.join(__dirname, '..', 'docs', 'agents',
   fs.writeFileSync(path.join(stubDir, 'curl'), '#!/bin/sh\nprintf "%s" "$CURL_STUB_BODY"\n', { mode: 0o755 });
 
   function runReadTemplate(body) {
-    return spawnSync('/bin/sh', ['-c', readTemplate], {
+    return spawnSync('/bin/sh', ['-c', readTemplate, 'sh', valuesFile({ title: 'T', found: { id: '123', version: 4 }, operator: {} })], {
       env: {
         ...process.env,
         PATH: stubDir + path.delimiter + process.env.PATH,
         CURL_STUB_BODY: body,
-        SUPERDEV_KB_ID: '123',
         CONFLUENCE_EMAIL: 'x',
         CONFLUENCE_API_TOKEN: 'x',
       },

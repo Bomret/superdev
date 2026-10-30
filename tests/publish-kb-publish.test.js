@@ -51,7 +51,7 @@ withState((stateFile) => {
   assert.equal(state['Existing Page'].body, 'new body.\n');
 });
 
-// --- every key find emitted reaches the later verb as SUPERDEV_KB_<KEY> ----------------------
+// --- every key find emitted reaches the later verb under `found` ----------------------
 withState((stateFile) => {
   const repo = makeRepo();
   writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', ['find', 'read', 'create', 'update', 'delete']));
@@ -79,8 +79,8 @@ withState((stateFile) => {
     .readdirSync(captureDir)
     .filter((f) => f.startsWith('update-'))
     .map((f) => JSON.parse(fs.readFileSync(path.join(captureDir, f), 'utf8')))[0];
-  assert.equal(updateCall.env.SUPERDEV_KB_ID, 'id-42', 'the id key find emitted reaches update as SUPERDEV_KB_ID');
-  assert.equal(updateCall.env.SUPERDEV_KB_TITLE, 'Keyed Page');
+  assert.equal(updateCall.values.found.id, 'id-42', 'the id key find emitted reaches update under found');
+  assert.equal(updateCall.values.title, 'Keyed Page');
   assert.equal(capturedStderr.join(''), '', 'a safe key produces no stderr warning');
 });
 
@@ -89,10 +89,10 @@ withState((stateFile) => {
   const repo = makeRepo();
   // The find command here returns a title field; our implementation must NOT use it
   const findCmd = `echo '{"id": "id-1", "title": "Found Title"}'`;
-  const readCmd = `node ${shq(FAKE_BACKEND)} read`;
-  const createCmd = `node ${shq(FAKE_BACKEND)} create`;
-  const updateCmd = `node ${shq(FAKE_BACKEND)} update`;
-  const deleteCmd = `node ${shq(FAKE_BACKEND)} delete`;
+  const readCmd = `node ${shq(FAKE_BACKEND)} read "$1"`;
+  const createCmd = `node ${shq(FAKE_BACKEND)} create "$1"`;
+  const updateCmd = `node ${shq(FAKE_BACKEND)} update "$1"`;
+  const deleteCmd = `node ${shq(FAKE_BACKEND)} delete "$1"`;
   const doc = `# KB\n\n## Configuration\n\n- **Backend:** Override Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\n${findCmd}\n\`\`\`\n\n### read\n\n\`\`\`sh\n${readCmd}\n\`\`\`\n\n### create\n\n\`\`\`sh\n${createCmd}\n\`\`\`\n\n### update\n\n\`\`\`sh\n${updateCmd}\n\`\`\`\n\n### delete\n\n\`\`\`sh\n${deleteCmd}\n\`\`\`\n`;
   writeKbDoc(repo, doc);
   fs.writeFileSync(stateFile, JSON.stringify({ 'Staged Title': { id: 'id-1', body: 'old.\n' } }));
@@ -110,7 +110,8 @@ withState((stateFile) => {
     .readdirSync(captureDir)
     .filter((f) => f.startsWith('update-'))
     .map((f) => JSON.parse(fs.readFileSync(path.join(captureDir, f), 'utf8')))[0];
-  assert.equal(updateCall.env.SUPERDEV_KB_TITLE, 'Staged Title', 'the staged title wins, not the find-returned one');
+  assert.equal(updateCall.values.title, 'Staged Title', 'the staged title wins, not the find-returned one');
+  assert.equal(updateCall.values.found.title, 'Found Title', 'the find-returned title stays under found');
 });
 
 // --- a find-returned body_file field must never shadow the staged body_file; controller wins ---
@@ -118,10 +119,10 @@ withState((stateFile) => {
   const repo = makeRepo();
   // The find command here returns a body_file field; our implementation must NOT use it
   const findCmd = `echo '{"id": "id-1", "body_file": "/wrong/path"}'`;
-  const readCmd = `node ${shq(FAKE_BACKEND)} read`;
-  const createCmd = `node ${shq(FAKE_BACKEND)} create`;
-  const updateCmd = `node ${shq(FAKE_BACKEND)} update`;
-  const deleteCmd = `node ${shq(FAKE_BACKEND)} delete`;
+  const readCmd = `node ${shq(FAKE_BACKEND)} read "$1"`;
+  const createCmd = `node ${shq(FAKE_BACKEND)} create "$1"`;
+  const updateCmd = `node ${shq(FAKE_BACKEND)} update "$1"`;
+  const deleteCmd = `node ${shq(FAKE_BACKEND)} delete "$1"`;
   const doc = `# KB\n\n## Configuration\n\n- **Backend:** Override Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\n${findCmd}\n\`\`\`\n\n### read\n\n\`\`\`sh\n${readCmd}\n\`\`\`\n\n### create\n\n\`\`\`sh\n${createCmd}\n\`\`\`\n\n### update\n\n\`\`\`sh\n${updateCmd}\n\`\`\`\n\n### delete\n\n\`\`\`sh\n${deleteCmd}\n\`\`\`\n`;
   writeKbDoc(repo, doc);
   fs.writeFileSync(stateFile, JSON.stringify({ 'Staged': { id: 'id-1', body: 'old.\n' } }));
@@ -139,14 +140,15 @@ withState((stateFile) => {
     .readdirSync(captureDir)
     .filter((f) => f.startsWith('update-'))
     .map((f) => JSON.parse(fs.readFileSync(path.join(captureDir, f), 'utf8')))[0];
-  assert.ok(updateCall.env.SUPERDEV_KB_BODY_FILE && !updateCall.env.SUPERDEV_KB_BODY_FILE.includes('/wrong/path'), 'the staged body_file path wins, not the find-returned one');
+  assert.ok(updateCall.values.bodyFile && !updateCall.values.bodyFile.includes('/wrong/path'), 'the staged body file path wins, not the find-returned one');
+  assert.equal(updateCall.values.found.body_file, '/wrong/path', 'the find-returned field stays under found');
 });
 
-// --- a find key that a POSIX shell cannot address as a variable is still forwarded, but warned ---
+// --- a find key that is no shell variable name reaches the later verb under found, with no warning ---
 withState(() => {
   const repo = makeRepo();
   const liveBody = 'live body content';
-  const doc = `# KB\n\n## Configuration\n\n- **Backend:** Hyphen Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\necho '{"sub-url": "https://example.com/x", "id": "id-1"}'\n\`\`\`\n\n### read\n\n\`\`\`sh\nprintf '${liveBody}'\n\`\`\`\n\n### create\n\n\`\`\`sh\nexit 0\n\`\`\`\n\n### update\n\n\`\`\`sh\nexit 0\n\`\`\`\n\n### delete\n\n\`\`\`sh\nexit 0\n\`\`\`\n`;
+  const doc = `# KB\n\n## Configuration\n\n- **Backend:** Hyphen Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\necho '{"sub-url": "https://example.com/x", "id": "id-1"}'\n\`\`\`\n\n### read\n\n\`\`\`sh\nprintf '${liveBody}'\n\`\`\`\n\n### create\n\n\`\`\`sh\nexit 0\n\`\`\`\n\n### update\n\n\`\`\`sh\ngrep -q '"sub-url":"https://example.com/x"' "$1"\n\`\`\`\n\n### delete\n\n\`\`\`sh\nexit 0\n\`\`\`\n`;
   writeKbDoc(repo, doc);
   stagePage(repo, 'demo', 'p.md', `title: Hyphen Page\naction: upsert\nlive-hash: ${hashBody(liveBody)}`);
 
@@ -165,9 +167,7 @@ withState(() => {
 
   assert.ok(res.ok, `expected success, got: ${res.err}`);
   assert.match(res.out, /published \(updated\): Hyphen Page/, 'the hyphenated key does not block the update call');
-  const warnings = captured.join('');
-  assert.match(warnings, /sub-url/, 'the warning names the offending key');
-  assert.match(warnings, /SUPERDEV_KB_SUB-URL/, 'the warning names the variable the key would have to be addressed as');
+  assert.equal(captured.join(''), '', 'a key no shell can name as a variable warns of nothing');
 });
 
 // --- a failing template's stderr tail rides in the reported reason ---
@@ -224,7 +224,7 @@ withState(() => {
   const doc = `# KB\n\n## Configuration\n\n- **Backend:** Odd Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\necho '[1,2]'\n\`\`\`\n`;
   const backend = classifyBackend(doc);
   const { runFind } = require(publishKbPath);
-  const r = runFind('X', backend.templates);
+  const r = runFind('X', { ...backend.templates, timeoutMs: 600000 });
   assert.equal(r.verdict, 'unknown');
 }
 
@@ -281,7 +281,7 @@ withState((stateFile) => {
     .readdirSync(captureDir)
     .filter((f) => f.startsWith('delete-'))
     .map((f) => JSON.parse(fs.readFileSync(path.join(captureDir, f), 'utf8')))[0];
-  assert.equal(deleteCall.env.SUPERDEV_KB_ID, 'id-1', 'the id key find emitted reaches delete as SUPERDEV_KB_ID too');
+  assert.equal(deleteCall.values.found.id, 'id-1', 'the id key find emitted reaches delete under found too');
 });
 
 // --- partial run: exactly the failures stay staged, the directory is never wiped wholesale ---

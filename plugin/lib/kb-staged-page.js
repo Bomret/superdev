@@ -13,7 +13,7 @@ const fs = require('fs');
 // escapes — \", \\, \n — coincide with JSON's), so a title carrying a quote or a real newline
 // survives the round trip; a single-quoted value unescapes YAML's `''`; anything else is taken
 // verbatim, which already covers a bare `$` or a backtick (neither needs escaping in YAML flow
-// scalars, and neither is ever handed to a shell of its own — see runTemplate in kb-backend.js).
+// scalars, and neither is ever handed to a shell of its own — see runVerb in kb-backend.js).
 function parseScalar(raw) {
   const v = raw.trim();
   if (v.startsWith('"') && v.endsWith('"')) {

@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0207](0207-superdev-defines-no-environment-variable.md), which moves the override into the operator configuration.
+
 **Context.** ADR 0069 made the knowledge-base backend five shell command templates that
 `plugin/scripts/publish-kb.js` runs under `/bin/sh -c`. It bounded none of them. The `find` contract
 enumerates three ways a call fails to answer — a transport error, a rejected credential, output that is

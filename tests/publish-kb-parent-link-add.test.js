@@ -44,9 +44,9 @@ for (const eol of ['\n', '\r\n']) {
     assert.equal(state.Home.id, HOME_ID, 'the parent is updated in place');
     const updates = captures(dir, 'update');
     assert.equal(updates.length, 1);
-    assert.equal(updates[0].env.SUPERDEV_KB_TITLE, 'Home', "the update carries the parent's own title");
+    assert.equal(updates[0].values.title, 'Home', "the update carries the parent's own title");
     assert.ok(!isStaged(repo, 'child.md'), 'a linked page is cleared');
-    assert.equal(captures(dir, 'create')[0].env.SUPERDEV_KB_PARENT_ID, undefined, 'links does not nest');
+    assert.equal(captures(dir, 'create')[0].values.parentId, undefined, 'links does not nest');
   });
 }
 
@@ -130,7 +130,7 @@ withCapture((stateFile, dir) => {
   const res = call(['--scope', 'demo'], repo);
   assert.match(res.out, /published \(created\): Kid/);
   assert.match(readState(stateFile).Home.body, /- \[B\]\(B\)\n- \[Kid\]\(Kid\) — desc\n/);
-  assert.equal(captures(dir, 'create')[0].env.SUPERDEV_KB_PARENT_ID, undefined, 'links does not nest');
+  assert.equal(captures(dir, 'create')[0].values.parentId, undefined, 'links does not nest');
   assert.ok(!isStaged(repo, 'kid--a.md'));
 });
 

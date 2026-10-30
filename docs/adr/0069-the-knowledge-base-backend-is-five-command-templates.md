@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 
-**Amended by:** [ADR 0150](0150-shipped-code-starts-a-shell-only-for-an-operator-command.md), which runs the templates under `sh` from PATH, and [ADR 0168](0168-a-flat-wikis-hierarchy-is-its-parents-links-edited-live-by-publish-kb.md), which names `sub_url` as an optional `find` key.
+**Amended by:** [ADR 0150](0150-shipped-code-starts-a-shell-only-for-an-operator-command.md), which runs the templates under `sh` from PATH, and [ADR 0168](0168-a-flat-wikis-hierarchy-is-its-parents-links-edited-live-by-publish-kb.md), which names `sub_url` as an optional `find` key, and [ADR 0207](0207-superdev-defines-no-environment-variable.md), which passes the placeholders as one JSON file named by `$1` instead of environment variables.
 
 **Context.** `/superdev:publish-kb` moved bytes by reading prose. Its skill body carried the whole
 mechanism: which staged files collide on a title, what separates a page that is absent from a read that

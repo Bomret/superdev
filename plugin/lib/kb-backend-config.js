@@ -3,6 +3,10 @@
 // kb-backend-config.js: reads `docs/agents/knowledge-base.md` into a backend classification and its
 // command templates, resolving each verb by heading name.
 
+const { fail } = require('./refusal.js');
+const { timeoutMs } = require('./kb-backend.js');
+const { operatorSection } = require('./operator-config.js');
+
 const VERBS = ['find', 'read', 'create', 'update', 'delete'];
 
 // Extracts one `## <headingText>` section's body: everything up to the next `## ` heading (or
@@ -58,7 +62,7 @@ function parseBullet(docText, label, fallback) {
 const parseBodyFormat = (docText) => parseBullet(docText, 'Body format', 'markdown');
 
 // `- **Hierarchy:** links`. `links` means the backend's hierarchy is body links the published page is
-// edited into (ADR 0168); absent means `nested`, today's `SUPERDEV_KB_PARENT_ID` nesting on `create`.
+// edited into (ADR 0168); absent means `nested`, today's `parentId` nesting on `create`.
 const parseHierarchy = (docText) => parseBullet(docText, 'Hierarchy', 'nested');
 
 // Classifies `docs/agents/knowledge-base.md`. `docText === null` means the file is absent, which
@@ -82,4 +86,23 @@ function classifyBackend(docText) {
   return { kind: 'remote', templates: { ...parseCommandsTemplates(commands), bodyFormat: parseBodyFormat(docText), hierarchy: parseHierarchy(docText) } };
 }
 
-module.exports = { parseCommandsTemplates, classifyBackend };
+// A backend command that still names `SUPERDEV_KB_` reads the environment variables superdev no longer passes (ADR 0207).
+// Publishing, `--read`, and the parent-link edit (which runs inside a publish) reach this through `liveTemplates` before any backend call, so a stale
+// command publishes nothing, leaves every staged page where it is, and tells the operator what to run.
+function assertCurrentContract(templates) {
+  const stale = VERBS.filter((verb) => templates[verb] && templates[verb].includes('SUPERDEV_KB_'));
+  if (stale.length === 0) return;
+  fail(
+    `the ${stale.join(', ')} command(s) in docs/agents/knowledge-base.md still name SUPERDEV_KB_ ` +
+      'variables, which superdev no longer passes — nothing published, every staged page kept; run /superdev:setup to rewrite the commands from the seed',
+  );
+}
+
+// The templates every backend call runs with: refused when stale, then carrying the time bound and the
+// operator configuration's `knowledge-base` section, both read from the checkout `cwd` (ADR 0207).
+function liveTemplates(templates, cwd) {
+  assertCurrentContract(templates);
+  return { ...templates, timeoutMs: timeoutMs(cwd), operator: operatorSection(cwd, 'knowledge-base') };
+}
+
+module.exports = { parseCommandsTemplates, classifyBackend, liveTemplates };

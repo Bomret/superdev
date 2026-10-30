@@ -1,31 +1,29 @@
 #!/usr/bin/env node
 'use strict';
 
-// A fake knowledge-base backend for the publish-kb suites, through tests/publish-kb-setup.js. Persists "pages" as a JSON map keyed
+// A fake knowledge-base backend for the publish-kb suites, through tests/publish-kb-setup.js. Run as `node <this> <verb> "$1"`:
+// `$1` is the values file publish-kb.js hands every command. Persists "pages" as a JSON map keyed
 // by title in FAKE_KB_STATE_FILE, so `find` after a `create`/`update`/`delete` sees the effect of
-// the previous call. Optionally dumps every SUPERDEV_KB_* env var it received into
-// FAKE_KB_CAPTURE_DIR, one file per call, so a test can assert exactly what crossed the process
-// boundary (title, keys `find` emitted) without trusting this script's own behaviour for that.
+// the previous call. Optionally dumps the values file it received (and the body it names, and the file's mode)
+// into FAKE_KB_CAPTURE_DIR, one file per call, so a test can assert exactly what crossed the process
+// boundary without trusting this script's own behaviour for that.
 
 const fs = require('fs');
 const path = require('path');
 
 const verb = process.argv[2];
-const title = process.env.SUPERDEV_KB_TITLE;
+const valuesFile = process.argv[3];
+const values = JSON.parse(fs.readFileSync(valuesFile, 'utf8'));
+const title = values.title;
 const stateFile = process.env.FAKE_KB_STATE_FILE;
 const captureDir = process.env.FAKE_KB_CAPTURE_DIR;
 
 if (captureDir) {
   fs.mkdirSync(captureDir, { recursive: true });
-  const env = {};
-  for (const k of Object.keys(process.env)) {
-    if (k.startsWith('SUPERDEV_KB_')) env[k] = process.env[k];
-  }
-  const bodyFile = process.env.SUPERDEV_KB_BODY_FILE;
-  const body = bodyFile && fs.existsSync(bodyFile) ? fs.readFileSync(bodyFile, 'utf8') : null;
+  const body = values.bodyFile && fs.existsSync(values.bodyFile) ? fs.readFileSync(values.bodyFile, 'utf8') : null;
   fs.writeFileSync(
     path.join(captureDir, `${verb}-${process.hrtime.bigint()}.json`),
-    JSON.stringify({ verb, env, body }),
+    JSON.stringify({ verb, values, valuesFile, mode: fs.statSync(valuesFile).mode & 0o777, body }),
   );
 }
 
@@ -55,14 +53,14 @@ if (verb === 'find') {
   process.exit(0);
 } else if (verb === 'create') {
   const id = `id-${Object.keys(state).length}`;
-  state[title] = { id, body: fs.readFileSync(process.env.SUPERDEV_KB_BODY_FILE, 'utf8') };
+  state[title] = { id, body: fs.readFileSync(values.bodyFile, 'utf8') };
   // a test names the sub_url `find` then emits for a page this call creates
   if (process.env.FAKE_KB_NEW_SUB_URL) state[title].sub_url = process.env.FAKE_KB_NEW_SUB_URL;
   writeState(state);
   process.exit(0);
 } else if (verb === 'update') {
-  const id = process.env.SUPERDEV_KB_ID;
-  state[title] = { ...state[title], id, body: fs.readFileSync(process.env.SUPERDEV_KB_BODY_FILE, 'utf8') };
+  const id = values.found.id;
+  state[title] = { ...state[title], id, body: fs.readFileSync(values.bodyFile, 'utf8') };
   writeState(state);
   process.exit(0);
 } else if (verb === 'delete') {

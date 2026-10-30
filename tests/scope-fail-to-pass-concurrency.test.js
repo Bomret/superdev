@@ -15,7 +15,6 @@ const { spawnSync } = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { f2pFixture, verif } = require('./scope-setup');
 
-delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
 
 {
   const { D, CMD, scenario, checkout, leftover, drive, done } = f2pFixture();

@@ -14,6 +14,7 @@ const {
   writeKbDoc,
   call,
   withState,
+  setKbTimeout,
   withCapture,
   hangingVerbDoc,
   PATCH_VERBS,
@@ -40,7 +41,7 @@ withCapture((stateFile) => {
     putHome(stateFile);
     stageLinked(repo, 'a-child.md', 'Child', SUB_LINK);
     stageLinked(repo, 'b.md', 'Bravo');
-    process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = String(HANG_MS);
+    setKbTimeout(repo, HANG_MS);
 
     const res = call(['--scope', 'demo'], repo);
     assert.match(res.out, new RegExp(`not linked: Child — find for "Child": find timed out after ${HANG_MS}ms`), res.out);
@@ -59,7 +60,7 @@ for (const verb of ['read', 'update']) {
     putHome(stateFile);
     stageLinked(repo, 'a.md', 'Alpha');
     stageLinked(repo, 'b.md', 'Bravo');
-    process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = String(HANG_MS);
+    setKbTimeout(repo, HANG_MS);
 
     const res = call(['--scope', 'demo'], repo);
     assert.match(res.out, new RegExp(`not linked: Alpha — .*${verb} timed out after ${HANG_MS}ms`));
@@ -77,7 +78,7 @@ withState((stateFile) => {
   putHome(stateFile);
   stagePatchLinked(repo, 'kid--a.md', 'Kid', 'A');
   stagePatchLinked(repo, 'kid--b.md', 'Kid', 'B');
-  process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = String(HANG_MS);
+  setKbTimeout(repo, HANG_MS);
 
   const res = call(['--scope', 'demo'], repo);
   assert.match(res.out, new RegExp(`not linked: Kid — .*update timed out after ${HANG_MS}ms`));

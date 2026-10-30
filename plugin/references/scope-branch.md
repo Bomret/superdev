@@ -220,7 +220,7 @@ The verb reads the branch from the ledger's `**Branch:**` line, fetches the remo
 
 Every case the verb cannot decide pushes nothing: `unreachable` and `credential-rejected` (a failed fetch, the
 containment test's refetch of `<base>` included, read under the C locale), `timed-out` (a git call its own bound ended, the refetch of `<base>`
-included, which carries no verdict, INV-0009), and `push-failed` (the remote rejected the push, a moved lease
+included, which carries no verdict, INV-0009; the line names the bound in milliseconds and its key, `code-host.pushTimeoutMs`), and `push-failed` (the remote rejected the push, a moved lease
 included). The verb exits 0 on `pushed` and `overwritten`, 3 on every outcome that pushed nothing, and 1 on a
 usage refusal, a `**Branch:**` line naming `<base>` included, so it never pushes base. It writes nothing to the
 ledger.

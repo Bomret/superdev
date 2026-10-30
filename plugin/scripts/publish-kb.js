@@ -26,7 +26,7 @@ const fs = require('fs');
 const path = require('path');
 const { fail } = require('../lib/refusal.js');
 const { resolveMainCheckout, listPendingScopes, resolveScope } = require('../lib/kb-staging.js');
-const { parseCommandsTemplates, classifyBackend } = require('../lib/kb-backend-config.js');
+const { parseCommandsTemplates, classifyBackend, liveTemplates } = require('../lib/kb-backend-config.js');
 const { parseStagedPage } = require('../lib/kb-staged-page.js');
 const { hashBody, timeoutMs, runFind } = require('../lib/kb-backend.js');
 const { processStagedFiles } = require('../lib/kb-apply.js');
@@ -73,6 +73,8 @@ function run(argv, cwd) {
     );
   }
 
+  const templates = liveTemplates(backend.templates, cwd);
+
   let unmerged = false;
   const containment = checkContainment(mainCheckout, resolvedScope);
   if (containment.performed && !containment.ok) {
@@ -89,7 +91,7 @@ function run(argv, cwd) {
     .sort();
   const results = processStagedFiles(
     files.map((f) => path.join(scopeDir, f)),
-    backend.templates,
+    templates,
   );
 
   try {

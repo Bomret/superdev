@@ -8,6 +8,8 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+const { assertSpawnDecided } = require('./spawn-verdict');
 const {
   publishKbPath,
   shq,
@@ -20,6 +22,9 @@ const {
   stagePage,
   call,
   withState,
+  setKbTimeout,
+  writeOperatorConfig,
+  git,
   hangingVerbDoc,
   failingVerbDoc,
 } = require('./publish-kb-setup');
@@ -46,7 +51,7 @@ for (const verb of ['create', 'update', 'delete']) {
       ? `title: Verb Page\naction: ${action}\nlive-hash: ${hashBody('old.\n')}`
       : `title: Verb Page\naction: ${action}`;
     stagePage(repo, `verb-${verb}`, 'p.md', frontmatter);
-    process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = String(HANG_MS);
+    setKbTimeout(repo, HANG_MS);
 
     const started = Date.now();
     const res = call(['--scope', `verb-${verb}`], repo);
@@ -62,22 +67,35 @@ for (const verb of ['create', 'update', 'delete']) {
   });
 }
 
-// --- the override parses: unset, empty, and unparseable all fall back to the 30s default ----------
+// --- the operator configuration's `knowledge-base.timeoutMs` parses (ADR 0207) -------------------
+// Each reading is a process run from a linked worktree of the repository, so the main working tree's file is what it reads.
 {
-  const { timeoutMs } = require(publishKbPath);
-  const prev = process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS;
-  try {
-    delete process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS;
-    assert.equal(timeoutMs(), 30000, 'unset uses the default');
-    for (const bad of ['', '   ', 'soon', '0', '-5', '1.5e9x', 'NaN']) {
-      process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = bad;
-      assert.equal(timeoutMs(), 30000, `"${bad}" falls back to the default rather than to no bound or a zero-length one`);
-    }
-    process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = '250';
-    assert.equal(timeoutMs(), 250, 'a positive integer overrides');
-  } finally {
-    if (prev === undefined) delete process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS;
-    else process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = prev;
+  const readBound = (config) => {
+    const repo = makeRepo();
+    if (config !== undefined) writeOperatorConfig(repo, config);
+    else fs.rmSync(path.join(repo, '.superdev', 'info.json'));
+    const tree = path.join(repo, 'wt');
+    git(['worktree', 'add', '-q', '--detach', tree], repo);
+    const r = spawnSync(process.execPath, ['-e', 'console.log(require(process.argv[1]).timeoutMs(process.cwd()))', publishKbPath], {
+      cwd: tree, encoding: 'utf8', timeout: 20000, killSignal: 'SIGKILL', env: { ...process.env, SUPERDEV_PUBLISH_KB_TIMEOUT_MS: '1' },
+    });
+    assertSpawnDecided(r, 'timeoutMs reader');
+    return { ms: Number(r.stdout.trim()), err: r.stderr };
+  };
+  for (const [label, config] of [['no file', undefined], ['invalid JSON', '{nope'], ['no section', {}], ['no key', { 'knowledge-base': {} }]]) {
+    const got = readBound(config);
+    assert.equal(got.ms, 30000, `${label} keeps the default`);
+    assert.equal(got.err, '', `${label} says nothing on stderr`);
+  }
+  for (const ms of [250, 2147483647]) {
+    const got = readBound({ 'knowledge-base': { timeoutMs: ms } });
+    assert.equal(got.ms, ms, 'a whole number from 1 to 2147483647 sets the bound');
+    assert.equal(got.err, '');
+  }
+  for (const bad of ['250', 1.5, 0, -5, null, {}, 2147483648]) {
+    const got = readBound({ 'knowledge-base': { timeoutMs: bad } });
+    assert.equal(got.ms, 30000, `${JSON.stringify(bad)} reads as absent`);
+    assert.equal((got.err.match(/knowledge-base\.timeoutMs/g) || []).length, 1, `${JSON.stringify(bad)} is named once on stderr: ${got.err}`);
   }
 }
 
@@ -88,7 +106,7 @@ withState((stateFile) => {
   for (const t of ['Alpha', 'Bravo', 'Charlie']) {
     stagePage(repo, 'batch', `${t.toLowerCase()}.md`, `title: ${t}\naction: upsert`);
   }
-  process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = String(HANG_MS);
+  setKbTimeout(repo, HANG_MS);
 
   const started = Date.now();
   const res = call(['--scope', 'batch'], repo);
@@ -115,7 +133,7 @@ withState((stateFile) => {
   stagePage(repo, 'demo', 'combo--section-a.md', 'title: Combo Page\naction: patch', '## Section A\n\nfrom A.\n');
   stagePage(repo, 'demo', 'combo--section-b.md', 'title: Combo Page\naction: patch', '## Section B\n\nfrom B.\n');
   stagePage(repo, 'demo', 'combo--section-c.md', 'title: Combo Page\naction: patch', '## Section C\n\nfrom C.\n');
-  process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = String(HANG_MS);
+  setKbTimeout(repo, HANG_MS);
 
   const captureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-capture-'));
   process.env.FAKE_KB_CAPTURE_DIR = captureDir;
@@ -156,8 +174,8 @@ withState((stateFile) => {
   // A `find` whose command cannot start at all: the shell exits nonzero, which is a per-page
   // failure and says nothing about the host, so the batch carries on to the next title.
   const doc = commandsDoc('- **Backend:** Some Wiki.').replace(
-    `### find\n\n\`\`\`sh\nnode ${shq(FAKE_BACKEND)} find\n\`\`\``,
-    '### find\n\n```sh\nif [ "$SUPERDEV_KB_TITLE" = "Doomed" ]; then exit 9; fi\nexit 3\n```',
+    `### find\n\n\`\`\`sh\nnode ${shq(FAKE_BACKEND)} find "$1"\n\`\`\``,
+    '### find\n\n```sh\nif grep -q \'"title":"Doomed"\' "$1"; then exit 9; fi\nexit 3\n```',
   );
   writeKbDoc(repo, doc);
   stagePage(repo, 'mixed', 'a-doomed.md', 'title: Doomed\naction: upsert');

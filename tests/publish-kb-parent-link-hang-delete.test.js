@@ -14,6 +14,7 @@ const {
   stagePage,
   call,
   withState,
+  setKbTimeout,
   hangingVerbDoc,
   PATCH_VERBS,
   LINKS_LINE,
@@ -34,7 +35,7 @@ for (const verb of ['read', 'update']) {
     putHome(stateFile, HOME_WITH_CHILD, { Child: { id: 'id-child', body: 'c\n' } });
     stageDelete(repo);
     stagePage(repo, 'demo', 'z.md', 'title: Zed\naction: delete');
-    process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = String(HANG_MS);
+    setKbTimeout(repo, HANG_MS);
 
     const res = call(['--scope', 'demo'], repo);
     assert.match(res.out, new RegExp(`not unlinked: Child — .*${verb} timed out after ${HANG_MS}ms`));

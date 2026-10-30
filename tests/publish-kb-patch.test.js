@@ -165,7 +165,7 @@ withState((stateFile) => {
 // stale "absent" answer never triggers a second create
 withState(() => {
   const repo = makeRepo();
-  const doc = `# KB\n\n## Configuration\n\n- **Backend:** Stale Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\nexit 3\n\`\`\`\n\n### read\n\n\`\`\`sh\nexit 1\n\`\`\`\n\n### create\n\n\`\`\`sh\nnode ${shq(FAKE_BACKEND)} create\n\`\`\`\n\n### update\n\n\`\`\`sh\nnode ${shq(FAKE_BACKEND)} update\n\`\`\`\n\n### delete\n\n\`\`\`sh\nexit 0\n\`\`\`\n`;
+  const doc = `# KB\n\n## Configuration\n\n- **Backend:** Stale Wiki.\n\n## Commands\n\n### find\n\n\`\`\`sh\nexit 3\n\`\`\`\n\n### read\n\n\`\`\`sh\nexit 1\n\`\`\`\n\n### create\n\n\`\`\`sh\nnode ${shq(FAKE_BACKEND)} create "$1"\n\`\`\`\n\n### update\n\n\`\`\`sh\nnode ${shq(FAKE_BACKEND)} update "$1"\n\`\`\`\n\n### delete\n\n\`\`\`sh\nexit 0\n\`\`\`\n`;
   writeKbDoc(repo, doc);
   stagePage(repo, 'demo', 'stale--section-a.md', 'title: Stale Page\naction: patch', '## Section A\n\nfrom A.\n');
   stagePage(repo, 'demo', 'stale--section-b.md', 'title: Stale Page\naction: patch', '## Section B\n\nfrom B.\n');

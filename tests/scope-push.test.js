@@ -9,7 +9,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync, execFileSync } = require('node:child_process');
-const { scopePath, fetchBound, shortPushBound } = require('./scope-setup');
+const { scopePath, fetchBound, writeOperatorConfig } = require('./scope-setup');
 const { verbPush } = require('../plugin/lib/push.js');
 const { copyFixture, templateOnce } = require('./fixture-git');
 const { assertSpawnDecided } = require('./spawn-verdict');
@@ -69,7 +69,8 @@ function push(f, extra = [], env = {}) {
   const result = spawnSync(
     process.execPath,
     [scopePath, 'push', '--root', f.root, '--remote', 'origin', '--base', 'main', ...extra],
-    { cwd: f.repo, encoding: 'utf8', timeout: 120000, killSignal: 'SIGKILL', env: { ...process.env, ...env } }
+    // A set `SUPERDEV_PUSH_TIMEOUT_MS` changes nothing: one millisecond would end every healthy call.
+    { cwd: f.cwd || f.repo, encoding: 'utf8', timeout: 120000, killSignal: 'SIGKILL', env: { ...process.env, SUPERDEV_PUSH_TIMEOUT_MS: '1', ...env } }
   );
   assertSpawnDecided(result, 'scope.js push');
   return { status: result.status, out: result.stdout, err: result.stderr, word: result.stdout.split(/\s/)[0] };
@@ -243,9 +244,19 @@ try {
   {
     const f = fixture();
     git(['config', 'remote.origin.uploadpack', 'sleep 3;'], f.repo);
-    const short = shortPushBound(500);
-    undecided('a fetch its bound ended', f, 'timed-out', short.env);
-    assert.ok(short.shortened().some((c) => / fetch /.test(c)), 'the preload shortened the fetch bound');
+    writeOperatorConfig(f.repo, { 'code-host': { pushTimeoutMs: 500 } });
+    const r = undecided('a fetch its bound ended', f, 'timed-out');
+    assert.match(r.out, /bound of 500 ms \(code-host\.pushTimeoutMs in \.superdev\/info\.json/, `names the bound and the key that sets it: ${r.out}`);
+  }
+
+  // #fetch-bound-worktree: the same bound, with `info.json` only in the main checkout, read by a verb run from a linked worktree.
+  {
+    const f = fixture();
+    git(['config', 'remote.origin.uploadpack', 'sleep 3;'], f.repo);
+    writeOperatorConfig(f.repo, { 'code-host': { pushTimeoutMs: 500 } });
+    const wt = path.join(tmp('scope-push-wt-'), 'tree');
+    git(['worktree', 'add', '-q', '--detach', wt], f.repo);
+    undecided('a fetch its bound ended, run from a linked worktree', { ...f, cwd: wt }, 'timed-out');
   }
 
   // A git on PATH whose fetch of base runs `action` and forwards every other call, the branch fetch included, to
@@ -266,9 +277,8 @@ try {
   {
     const { f } = foreignRemote();
     // The bound is this run's, which the healthy branch fetch also clears; `exec` lets the kill land on the sleep.
-    const short = shortPushBound(fetchBound());
-    const r = undecided('a refetch its bound ended', f, 'timed-out', { ...baseFetchGit('exec sleep 900'), ...short.env });
-    assert.ok(short.shortened().some((c) => / fetch .* main$/.test(c)), 'the preload shortened the refetch bound');
+    writeOperatorConfig(f.repo, { 'code-host': { pushTimeoutMs: fetchBound() } });
+    const r = undecided('a refetch its bound ended', f, 'timed-out', baseFetchGit('exec sleep 900'));
     // The branch fetch's bound names the branch; only the refetch of base names main, so a branch fetch
     // ended under load fails here instead of passing on timed-out alone.
     assert.match(r.out, /the fetch of origin main was ended by its own bound/, `names the refetch of base as the call its bound ended: ${r.out}`);
@@ -297,11 +307,11 @@ try {
     const bound = fetchBound();
     fs.writeFileSync(hook, `#!/bin/sh\nexec sleep ${Math.ceil(bound / 1000) + 4}\n`);
     fs.chmodSync(hook, 0o755);
-    const short = shortPushBound(bound);
-    const r = push(f, [], short.env);
-    assert.ok(short.shortened().some((c) => / push /.test(c)), 'the preload shortened the push bound');
+    writeOperatorConfig(f.repo, { 'code-host': { pushTimeoutMs: bound } });
+    const r = push(f);
     assert.strictEqual(r.word, 'timed-out', `a push its bound ended prints timed-out: ${r.out}`);
     assert.match(r.out, /push/, 'names the push as the call its bound ended');
+    assert.match(r.out, new RegExp(`bound of ${bound} ms \\(code-host\\.pushTimeoutMs`), `names the bound and its key: ${r.out}`);
     assert.strictEqual(r.status, 3, 'exits 3');
   }
 

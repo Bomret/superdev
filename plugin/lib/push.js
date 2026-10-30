@@ -6,14 +6,19 @@ const { gitSpawn, resolveCommit } = require('./git-spawn.js');
 const { fail } = require('./refusal.js');
 const { readLines, getHeader } = require('./ledger.js');
 const { judgeContainment } = require('./containment.js');
+const { operatorBoundMs } = require('./operator-config.js');
 
 // A pushed outcome exits 0. Every outcome that pushed nothing exits with this status, apart from the 1 a usage
 // refusal (`fail`) exits with, so a caller tells "the push did not happen" from "the call was wrong".
 const NOT_PUSHED_EXIT = 3;
 
 // Every network call carries this bound and a kill signal (INV-0009), the containment test's refetch of base
-// included. A healthy fetch or push of a scope branch takes seconds.
+// included. A healthy fetch or push of a scope branch takes seconds. The operator configuration's `code-host.pushTimeoutMs`
+// sets it (ADR 0207); `cwd` is any checkout of the repository.
 const DEFAULT_TIMEOUT_MS = 60000;
+const pushTimeoutMs = (cwd) => operatorBoundMs(cwd, 'code-host', 'pushTimeoutMs', DEFAULT_TIMEOUT_MS);
+// How a network call its bound ended reads: the bound in milliseconds and the key that sets it, so the operator knows where to raise it.
+const boundEnded = (cwd, signal) => `ended by its own bound of ${pushTimeoutMs(cwd)} ms (code-host.pushTimeoutMs in .superdev/info.json; signal ${signal})`;
 
 // Git's own wording when the host rejects or never receives a credential: HTTP authentication, a prompt the
 // disabled terminal could not show, an HTTP 401 or 403, and an SSH key the host refused. Every other failed fetch
@@ -24,7 +29,7 @@ const CREDENTIAL_RE = /Authentication failed|could not read (Username|Password)|
 // English text.
 function gitCall(args, cwd, network) {
   const opts = { env: { ...process.env, GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' }, stdio: ['ignore', 'pipe', 'pipe'] };
-  if (network) Object.assign(opts, { timeout: DEFAULT_TIMEOUT_MS, killSignal: 'SIGKILL' });
+  if (network) Object.assign(opts, { timeout: pushTimeoutMs(cwd), killSignal: 'SIGKILL' });
   return gitSpawn(args, cwd, opts);
 }
 
@@ -62,7 +67,7 @@ function verbPush(cwd, args) {
 
   const fetched = gitCall(['fetch', '--no-tags', '--end-of-options', remote, ref], cwd, true);
   // A fetch its own bound ended carries no verdict (INV-0009), whatever stderr it left.
-  if (fetched.signal != null) return report('timed-out', [`the fetch of ${remote} ${branch} was ended by its own bound (signal ${fetched.signal})`, byHand]);
+  if (fetched.signal != null) return report('timed-out', [`the fetch of ${remote} ${branch} was ${boundEnded(cwd, fetched.signal)}`, byHand]);
   if (fetched.status !== 0) {
     const stderr = fetched.stderr || '';
     if (/couldn't find remote ref/.test(stderr)) return push(cwd, remote, ref, [], 'pushed', byHand);
@@ -77,7 +82,7 @@ function verbPush(cwd, args) {
   }
   // The containment test receives the resolved id, never the branch name (ADR 0167), and its refetch of base
   // carries this verb's own bound.
-  const judged = judgeContainment(cwd, base, tip, remote, { fetchTimeoutMs: DEFAULT_TIMEOUT_MS });
+  const judged = judgeContainment(cwd, base, tip, remote, { fetchTimeoutMs: pushTimeoutMs(cwd) });
   if (judged.verdict === 'contained') {
     // The lease names the exact tip judged: a remote that moved since rejects the push (INV-0169).
     return push(cwd, remote, ref, [`--force-with-lease=${ref}:${tip}`], 'overwritten', byHand);
@@ -85,7 +90,7 @@ function verbPush(cwd, args) {
   // A refetch of base that its bound ended or that failed leaves the local verdict standing, which is no
   // refusal this verb made (INV-0009).
   const refetch = judged.refetch;
-  if (refetch && refetch.signal != null) return report('timed-out', [`the fetch of ${remote} ${base} was ended by its own bound (signal ${refetch.signal})`, byHand]);
+  if (refetch && refetch.signal != null) return report('timed-out', [`the fetch of ${remote} ${base} was ${boundEnded(cwd, refetch.signal)}`, byHand]);
   if (refetch && refetch.status !== 0) return report(failedFetchWord(refetch), [lastLine(refetch), byHand]);
   // The commits listed are those the base containment judged against does not hold: the refetched base, never a
   // stale local one.
@@ -100,7 +105,7 @@ function verbPush(cwd, args) {
 
 function push(cwd, remote, ref, flags, word, byHand) {
   const pushed = gitCall(['push', '-u', ...flags, '--end-of-options', remote, `${ref}:${ref}`], cwd, true);
-  if (pushed.signal != null) return report('timed-out', [`the push was ended by its own bound (signal ${pushed.signal})`, byHand]);
+  if (pushed.signal != null) return report('timed-out', [`the push was ${boundEnded(cwd, pushed.signal)}`, byHand]);
   if (pushed.status === 0) return report(word, [`${remote} ${ref.slice('refs/heads/'.length)}`]);
   return report('push-failed', [lastLine(pushed), byHand]);
 }
@@ -117,4 +122,4 @@ function lastLine(result) {
   return lines.length ? lines[lines.length - 1] : `git exited ${result.status}`;
 }
 
-module.exports = { verbPush, gitCall, lastLine };
+module.exports = { verbPush, gitCall, lastLine, boundEnded };

@@ -7,7 +7,7 @@ const { scanTestSeams } = require('../scanners');
 
 module.exports = ({ assert, path, fixture }) => {
   const tests = { 'tests/widget.test.js': '', 'tests/widget-setup.js': '' };
-  const docs = { 'plugin/references/a.md': 'Set `SUPERDEV_DOCUMENTED_MS` to change the bound.\n' };
+  const docs = { 'plugin/references/a.md': 'Set `DOCUMENTED_MS` to change the bound.\n' };
   const scan = (files) => scanTestSeams(fixture({ ...tests, ...docs, ...files }));
 
   // --- a reference to one of superdev's own test files ---
@@ -41,9 +41,48 @@ module.exports = ({ assert, path, fixture }) => {
     assert.ok(gaps.some((g) => g.expectation.includes('SECRET_KNOB')), `names the variable for ${label}`);
   }
 
+  // --- a SUPERDEV_ variable (ADR 0207, INV-0180) ---
+  for (const [label, src] of [
+    ['direct property access', 'const v = process.env.SUPERDEV_X_MS;'],
+    ['bracket access', "const v = process.env['SUPERDEV_X_MS'];"],
+    ['destructuring', 'const { SUPERDEV_X_MS } = process.env;'],
+    ['a key of the environment handed to a child', "spawnSync('git', [], { env: { ...process.env, SUPERDEV_X_MS: '1' } });"],
+    ['a quoted key of the environment handed to a child', "spawnSync('git', [], { env: { 'SUPERDEV_X_MS': '1' } });"],
+    ['a KEY=value prefix in a spawned command', "spawnSync('sh', ['-c', 'SUPERDEV_X_MS=1 git status']);"],
+    ['a write to the process environment', "process.env.SUPERDEV_X_MS = '1';"],
+    ['a bracket write to an environment object', "env['SUPERDEV_X_MS'] = '1';"],
+    ['a property read through an aliased environment object', 'const v = env.SUPERDEV_X_MS;'],
+    ['a bracket read through an aliased environment object', "const v = opts.env['SUPERDEV_X_MS'];"],
+    ['a destructuring of an aliased environment object', 'const { SUPERDEV_X_MS } = env;'],
+    ['a computed key of the environment handed to a child', "spawnSync('git', [], { env: { ['SUPERDEV_X_MS']: '1' } });"],
+    ['a shorthand key of the environment handed to a child', "spawnSync('git', [], { env: { ...process.env, SUPERDEV_X_MS } });"],
+    ['a binding declaration', "const SUPERDEV_X_MS = '1';"],
+    ['a nested destructuring', 'const { a: { SUPERDEV_X_MS } } = o;'],
+    ['a destructuring default holding braces', 'const { SUPERDEV_X_MS = {} } = env;'],
+  ]) {
+    const gaps = scan({ 'plugin/hooks/rogue.js': src });
+    assert.equal(gaps.length, 1, `flags a SUPERDEV_ variable by ${label}`);
+    assert.ok(gaps[0].expectation.includes('SUPERDEV_X_MS'), `names the variable for ${label}`);
+  }
+  assert.equal(
+    scan({ 'plugin/references/b.md': 'Set `SUPERDEV_X_MS` to change the bound.\n' }).length,
+    1,
+    'flags a SUPERDEV_ name in shipped Markdown',
+  );
+  assert.equal(
+    scan({ 'plugin/references/b.md': 'Set `SUPERDEV_X_MS`, then `SUPERDEV_X_MS` again.\n' }).length,
+    1,
+    'reports a SUPERDEV_ name once per shipped Markdown file however often it is named',
+  );
+  assert.equal(
+    scan({ 'plugin/references/b.md': 'Set `SUPERDEV_X_MS`.\n', 'plugin/hooks/rogue.js': 'const v = process.env.SUPERDEV_X_MS;' }).length,
+    2,
+    'a document naming the variable does not allow its read',
+  );
+
   // --- what passes ---
   const clean = {
-    'a documented setting': 'const v = process.env.SUPERDEV_DOCUMENTED_MS;',
+    'a documented setting': 'const v = process.env.DOCUMENTED_MS;',
     'a CLAUDE_ variable': 'const v = process.env.CLAUDE_PLUGIN_ROOT; const { CLAUDE_X } = process.env;',
     "the classifier's default test-directory glob": "const D = ['**/tests/', '**/test/', '*.test.*'];",
     'a glob over the whole tests/ tree': "const D = ['**/tests/**', '**/__tests__/*.js'];",
@@ -52,9 +91,16 @@ module.exports = ({ assert, path, fixture }) => {
     'a write': "process.env.SECRET_KNOB = '1';",
     'a destructuring of a property of the env': 'const { length } = process.env.CLAUDE_PLUGIN_ROOT;',
     'a read in a comment': '// reads process.env.SECRET_KNOB once\nconst a = 1;',
+    'the heredoc delimiter in shipped Markdown': null,
+    'the heredoc delimiter in shipped code': "const t = 'cat <<\\'SUPERDEV_TEXT_EOF\\'\\nx\\nSUPERDEV_TEXT_EOF';",
+    'a string that only names the text': "const stale = t.includes('SUPERDEV_KB_'); const m = `still name SUPERDEV_KB_ variables`;",
     'a read through a passed-in object': 'const v = env.SECRET_KNOB;',
   };
   for (const [label, src] of Object.entries(clean)) {
+    if (src === null) {
+      assert.deepEqual(scan({ 'plugin/agents/c.md': "cat <<'SUPERDEV_TEXT_EOF'\nx\nSUPERDEV_TEXT_EOF\n" }), [], `${label} is clean`);
+      continue;
+    }
     assert.deepEqual(scan({ 'plugin/lib/ok.js': src }), [], `${label} is clean`);
   }
 

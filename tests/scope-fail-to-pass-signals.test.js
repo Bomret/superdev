@@ -12,7 +12,6 @@ const assert = require('node:assert');
 const path = require('node:path');
 const { f2pFixture, verif } = require('./scope-setup');
 
-delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
 
 {
   const { probe, CMD, scenario, leftover, assertGone, done } = f2pFixture();

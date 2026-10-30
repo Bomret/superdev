@@ -16,10 +16,11 @@ untested against Gitea.
   `tea login list -o json` entry whose `url` is `<host>`, and every call passes its `name` as `--login`,
   because outside the repository's checkout `tea` otherwise falls back to another stored login. No `tea` on
   the path, no matching login, or two or more matching logins stops the step: each template below answers
-  exit 2, "could not answer", and `/superdev:publish-kb` leaves the page staged. The optional environment
-  variable `SUPERDEV_KB_TEA_LOGIN` names one of several matching logins: set and naming exactly one entry
-  whose `url` is `<host>`, that login is used; set and naming none, the step stops with exit 2 and lists
-  the matching names. No token environment variable is read.
+  exit 2, "could not answer", and `/superdev:publish-kb` leaves the page staged. The optional key
+  `knowledge-base.teaLogin` of the operator configuration (`.superdev/info.json`, which each command reads
+  as `.operator.teaLogin` from its values file) names one of several matching logins: set and naming
+  exactly one entry whose `url` is `<host>`, that login is used; set and naming none, the step stops with
+  exit 2 and lists the matching names. No token environment variable is read.
 - **Hierarchy:** links. A Forgejo wiki nests no pages. Each child page links from a list item in its
   parent's body, and `/superdev:publish-kb` writes that link (ADR 0168).
 
@@ -98,9 +99,12 @@ not used: it reads a disabled wiki's 404 as an empty listing.
 
 ## Commands
 
-The **backend command contract** (ADR 0069) `scripts/publish-kb.js` runs. `find` lists every wiki page and
-filters by title, emitting the matching entry's `sub_url`; `read`, `update`, and `delete` take
-`$SUPERDEV_KB_SUB_URL` from it, and `/superdev:publish-kb` fills a parent link's `{sub_url}` from it (ADR
+The **backend command contract** (ADR 0069) `scripts/publish-kb.js` runs. Each command runs as
+`sh -c <template> sh <path>`: `$1` names a JSON file holding `title`, `bodyFile` (`create` and `update`),
+the `find` result's fields under `found` (`read`, `update`, and `delete`), and the `knowledge-base`
+section of `.superdev/info.json` under `operator` (ADR 0207). Every command reads its values from that
+file with `jq`. `find` lists every wiki page and filters by title, emitting the matching entry's
+`sub_url`; `read`, `update`, and `delete` take `.found.sub_url` from it, and `/superdev:publish-kb` fills a parent link's `{sub_url}` from it (ADR
 0168). `update` always sends `title`, for the reason the wiki API conventions above state. `find` maps
 `jq -e`'s exit 1 (a genuine no-match) to exit 3, the only outcome `scripts/publish-kb.js` reads as positive
 absence; any other `jq` exit maps to exit 2, "could not answer". `find` reads page after page until one
@@ -112,20 +116,21 @@ its cause on stderr. Any other non-200 page answers exit 2, and so does a 404 on
 with no repository read. Each call reads its status line, and a line it cannot read answers exit 2.
 
 Every template opens with the same login line: `tea login list -o json` narrowed to the one entry whose
-`url` is `<host>`, exit 2 on none, no `tea`, several, or a `SUPERDEV_KB_TEA_LOGIN` naming none of them,
+`url` is `<host>`, exit 2 on none, no `tea`, several, or a `knowledge-base.teaLogin` naming none of them,
 after writing the cause and the `tea login add --url <host>` command to stderr, which `publish-kb.js`
 appends to the failure reason it reports. `create` and `update` map a non-2xx answer to exit 1.
 
 Every command below runs under a **30-second bound** (ADR 0130), or whatever
-`SUPERDEV_PUBLISH_KB_TIMEOUT_MS` names. `scripts/publish-kb.js` applies it at the spawn. A command killed at
+`knowledge-base.timeoutMs` of `.superdev/info.json` names. `scripts/publish-kb.js` applies it at the spawn. A command killed at
 the bound leaves its page staged and **stops the run**: the remaining pages are reported untried and stay
 staged for the next one.
 
 ### find
 
 ```sh
+want=$(jq -r '.operator.teaLogin // ""' "$1") || exit 2
 logins=$(tea login list -o json 2>/dev/null) || { echo "superdev: tea is missing or cannot list logins; install it, then run: tea login add --url <host>" >&2; exit 2; }
-login=$(printf '%s' "$logins" | jq -er --arg want "${SUPERDEV_KB_TEA_LOGIN:-}" '[.[] | select(.url == "<host>")] | if $want != "" then map(select(.name == $want)) else . end | if length == 1 then .[0].name else empty end' 2>/dev/null) || { names=$(printf '%s' "$logins" | jq -r '[.[] | select(.url == "<host>") | .name] | join(", ")' 2>/dev/null); n=$(printf '%s' "$logins" | jq '[.[] | select(.url == "<host>")] | length' 2>/dev/null); if [ -n "${SUPERDEV_KB_TEA_LOGIN:-}" ] && [ "$n" -ge 1 ] 2>/dev/null; then echo "superdev: SUPERDEV_KB_TEA_LOGIN=$SUPERDEV_KB_TEA_LOGIN names none of the tea logins for <host> ($names)" >&2; elif [ "$n" -gt 1 ] 2>/dev/null; then echo "superdev: several tea logins match <host> ($names); set SUPERDEV_KB_TEA_LOGIN=<name> to pick one, or add the right one: tea login add --url <host>" >&2; else echo "superdev: no tea login for <host>; run: tea login add --url <host>" >&2; fi; exit 2; }
+login=$(printf '%s' "$logins" | jq -er --arg want "$want" '[.[] | select(.url == "<host>")] | if $want != "" then map(select(.name == $want)) else . end | if length == 1 then .[0].name else empty end' 2>/dev/null) || { names=$(printf '%s' "$logins" | jq -r '[.[] | select(.url == "<host>") | .name] | join(", ")' 2>/dev/null); n=$(printf '%s' "$logins" | jq '[.[] | select(.url == "<host>")] | length' 2>/dev/null); if [ -n "$want" ] && [ "$n" -ge 1 ] 2>/dev/null; then echo "superdev: knowledge-base.teaLogin=$want names none of the tea logins for <host> ($names)" >&2; elif [ "$n" -gt 1 ] 2>/dev/null; then echo "superdev: several tea logins match <host> ($names); set knowledge-base.teaLogin in .superdev/info.json to pick one, or add the right one: tea login add --url <host>" >&2; else echo "superdev: no tea login for <host>; run: tea login add --url <host>" >&2; fi; exit 2; }
 p=1
 while :; do
   hdr=$(mktemp) || exit 2
@@ -146,7 +151,7 @@ while :; do
   fi
   [ "$code" = 200 ] || exit 2
   count=$(printf '%s' "$pages" | jq 'length') || exit 2
-  page=$(printf '%s' "$pages" | jq -e --arg title "$SUPERDEV_KB_TITLE" '[.[] | select(.title == $title)][0]')
+  page=$(printf '%s' "$pages" | jq -e --slurpfile in "$1" '[.[] | select(.title == $in[0].title)][0]')
   status=$?
   [ "$status" -eq 0 ] && { printf '%s' "$page" | jq -c '{sub_url}'; exit 0; }
   [ "$status" -eq 1 ] || exit 2
@@ -158,11 +163,13 @@ done
 ### read
 
 ```sh
+want=$(jq -r '.operator.teaLogin // ""' "$1") || exit 2
 logins=$(tea login list -o json 2>/dev/null) || { echo "superdev: tea is missing or cannot list logins; install it, then run: tea login add --url <host>" >&2; exit 2; }
-login=$(printf '%s' "$logins" | jq -er --arg want "${SUPERDEV_KB_TEA_LOGIN:-}" '[.[] | select(.url == "<host>")] | if $want != "" then map(select(.name == $want)) else . end | if length == 1 then .[0].name else empty end' 2>/dev/null) || { names=$(printf '%s' "$logins" | jq -r '[.[] | select(.url == "<host>") | .name] | join(", ")' 2>/dev/null); n=$(printf '%s' "$logins" | jq '[.[] | select(.url == "<host>")] | length' 2>/dev/null); if [ -n "${SUPERDEV_KB_TEA_LOGIN:-}" ] && [ "$n" -ge 1 ] 2>/dev/null; then echo "superdev: SUPERDEV_KB_TEA_LOGIN=$SUPERDEV_KB_TEA_LOGIN names none of the tea logins for <host> ($names)" >&2; elif [ "$n" -gt 1 ] 2>/dev/null; then echo "superdev: several tea logins match <host> ($names); set SUPERDEV_KB_TEA_LOGIN=<name> to pick one, or add the right one: tea login add --url <host>" >&2; else echo "superdev: no tea login for <host>; run: tea login add --url <host>" >&2; fi; exit 2; }
+login=$(printf '%s' "$logins" | jq -er --arg want "$want" '[.[] | select(.url == "<host>")] | if $want != "" then map(select(.name == $want)) else . end | if length == 1 then .[0].name else empty end' 2>/dev/null) || { names=$(printf '%s' "$logins" | jq -r '[.[] | select(.url == "<host>") | .name] | join(", ")' 2>/dev/null); n=$(printf '%s' "$logins" | jq '[.[] | select(.url == "<host>")] | length' 2>/dev/null); if [ -n "$want" ] && [ "$n" -ge 1 ] 2>/dev/null; then echo "superdev: knowledge-base.teaLogin=$want names none of the tea logins for <host> ($names)" >&2; elif [ "$n" -gt 1 ] 2>/dev/null; then echo "superdev: several tea logins match <host> ($names); set knowledge-base.teaLogin in .superdev/info.json to pick one, or add the right one: tea login add --url <host>" >&2; else echo "superdev: no tea login for <host>; run: tea login add --url <host>" >&2; fi; exit 2; }
+sub_url=$(jq -er '.found.sub_url' "$1") || exit 1
 hdr=$(mktemp) || exit 1
 page=$(tea api --login "$login" --repo <owner>/<repo> -i \
-  "/repos/<owner>/<repo>/wiki/page/$SUPERDEV_KB_SUB_URL" 2>"$hdr") || { rm -f "$hdr"; exit 1; }
+  "/repos/<owner>/<repo>/wiki/page/$sub_url" 2>"$hdr") || { rm -f "$hdr"; exit 1; }
 code=$(head -1 "$hdr" | cut -d' ' -f2); rm -f "$hdr"
 [ "$code" = 200 ] || exit 1
 printf '%s' "$page" | jq -r '.content_base64' | base64 -d
@@ -171,11 +178,12 @@ printf '%s' "$page" | jq -r '.content_base64' | base64 -d
 ### create
 
 ```sh
+want=$(jq -r '.operator.teaLogin // ""' "$1") || exit 2
 logins=$(tea login list -o json 2>/dev/null) || { echo "superdev: tea is missing or cannot list logins; install it, then run: tea login add --url <host>" >&2; exit 2; }
-login=$(printf '%s' "$logins" | jq -er --arg want "${SUPERDEV_KB_TEA_LOGIN:-}" '[.[] | select(.url == "<host>")] | if $want != "" then map(select(.name == $want)) else . end | if length == 1 then .[0].name else empty end' 2>/dev/null) || { names=$(printf '%s' "$logins" | jq -r '[.[] | select(.url == "<host>") | .name] | join(", ")' 2>/dev/null); n=$(printf '%s' "$logins" | jq '[.[] | select(.url == "<host>")] | length' 2>/dev/null); if [ -n "${SUPERDEV_KB_TEA_LOGIN:-}" ] && [ "$n" -ge 1 ] 2>/dev/null; then echo "superdev: SUPERDEV_KB_TEA_LOGIN=$SUPERDEV_KB_TEA_LOGIN names none of the tea logins for <host> ($names)" >&2; elif [ "$n" -gt 1 ] 2>/dev/null; then echo "superdev: several tea logins match <host> ($names); set SUPERDEV_KB_TEA_LOGIN=<name> to pick one, or add the right one: tea login add --url <host>" >&2; else echo "superdev: no tea login for <host>; run: tea login add --url <host>" >&2; fi; exit 2; }
-content_base64=$(base64 < "$SUPERDEV_KB_BODY_FILE" | tr -d '\n')
-body=$(jq -n --arg title "$SUPERDEV_KB_TITLE" --arg content "$content_base64" \
-  '{title: $title, content_base64: $content, message: "superdev: publish"}')
+login=$(printf '%s' "$logins" | jq -er --arg want "$want" '[.[] | select(.url == "<host>")] | if $want != "" then map(select(.name == $want)) else . end | if length == 1 then .[0].name else empty end' 2>/dev/null) || { names=$(printf '%s' "$logins" | jq -r '[.[] | select(.url == "<host>") | .name] | join(", ")' 2>/dev/null); n=$(printf '%s' "$logins" | jq '[.[] | select(.url == "<host>")] | length' 2>/dev/null); if [ -n "$want" ] && [ "$n" -ge 1 ] 2>/dev/null; then echo "superdev: knowledge-base.teaLogin=$want names none of the tea logins for <host> ($names)" >&2; elif [ "$n" -gt 1 ] 2>/dev/null; then echo "superdev: several tea logins match <host> ($names); set knowledge-base.teaLogin in .superdev/info.json to pick one, or add the right one: tea login add --url <host>" >&2; else echo "superdev: no tea login for <host>; run: tea login add --url <host>" >&2; fi; exit 2; }
+content_base64=$(base64 < "$(jq -er '.bodyFile' "$1")" | tr -d '\n')
+body=$(jq --arg content "$content_base64" \
+  '{title, content_base64: $content, message: "superdev: publish"}' "$1")
 hdr=$(mktemp) || exit 1
 printf '%s' "$body" | tea api --login "$login" --repo <owner>/<repo> -i -X POST -d @- \
   /repos/<owner>/<repo>/wiki/new >/dev/null 2>"$hdr" || { rm -f "$hdr"; exit 1; }
@@ -186,14 +194,16 @@ case "$code" in 2??) ;; *) exit 1 ;; esac
 ### update
 
 ```sh
+want=$(jq -r '.operator.teaLogin // ""' "$1") || exit 2
 logins=$(tea login list -o json 2>/dev/null) || { echo "superdev: tea is missing or cannot list logins; install it, then run: tea login add --url <host>" >&2; exit 2; }
-login=$(printf '%s' "$logins" | jq -er --arg want "${SUPERDEV_KB_TEA_LOGIN:-}" '[.[] | select(.url == "<host>")] | if $want != "" then map(select(.name == $want)) else . end | if length == 1 then .[0].name else empty end' 2>/dev/null) || { names=$(printf '%s' "$logins" | jq -r '[.[] | select(.url == "<host>") | .name] | join(", ")' 2>/dev/null); n=$(printf '%s' "$logins" | jq '[.[] | select(.url == "<host>")] | length' 2>/dev/null); if [ -n "${SUPERDEV_KB_TEA_LOGIN:-}" ] && [ "$n" -ge 1 ] 2>/dev/null; then echo "superdev: SUPERDEV_KB_TEA_LOGIN=$SUPERDEV_KB_TEA_LOGIN names none of the tea logins for <host> ($names)" >&2; elif [ "$n" -gt 1 ] 2>/dev/null; then echo "superdev: several tea logins match <host> ($names); set SUPERDEV_KB_TEA_LOGIN=<name> to pick one, or add the right one: tea login add --url <host>" >&2; else echo "superdev: no tea login for <host>; run: tea login add --url <host>" >&2; fi; exit 2; }
-content_base64=$(base64 < "$SUPERDEV_KB_BODY_FILE" | tr -d '\n')
-body=$(jq -n --arg title "$SUPERDEV_KB_TITLE" --arg content "$content_base64" \
-  '{title: $title, content_base64: $content, message: "superdev: publish"}')
+login=$(printf '%s' "$logins" | jq -er --arg want "$want" '[.[] | select(.url == "<host>")] | if $want != "" then map(select(.name == $want)) else . end | if length == 1 then .[0].name else empty end' 2>/dev/null) || { names=$(printf '%s' "$logins" | jq -r '[.[] | select(.url == "<host>") | .name] | join(", ")' 2>/dev/null); n=$(printf '%s' "$logins" | jq '[.[] | select(.url == "<host>")] | length' 2>/dev/null); if [ -n "$want" ] && [ "$n" -ge 1 ] 2>/dev/null; then echo "superdev: knowledge-base.teaLogin=$want names none of the tea logins for <host> ($names)" >&2; elif [ "$n" -gt 1 ] 2>/dev/null; then echo "superdev: several tea logins match <host> ($names); set knowledge-base.teaLogin in .superdev/info.json to pick one, or add the right one: tea login add --url <host>" >&2; else echo "superdev: no tea login for <host>; run: tea login add --url <host>" >&2; fi; exit 2; }
+sub_url=$(jq -er '.found.sub_url' "$1") || exit 1
+content_base64=$(base64 < "$(jq -er '.bodyFile' "$1")" | tr -d '\n')
+body=$(jq --arg content "$content_base64" \
+  '{title, content_base64: $content, message: "superdev: publish"}' "$1")
 hdr=$(mktemp) || exit 1
 printf '%s' "$body" | tea api --login "$login" --repo <owner>/<repo> -i -X PATCH -d @- \
-  "/repos/<owner>/<repo>/wiki/page/$SUPERDEV_KB_SUB_URL" >/dev/null 2>"$hdr" || { rm -f "$hdr"; exit 1; }
+  "/repos/<owner>/<repo>/wiki/page/$sub_url" >/dev/null 2>"$hdr" || { rm -f "$hdr"; exit 1; }
 code=$(head -1 "$hdr" | cut -d' ' -f2); rm -f "$hdr"
 case "$code" in 2??) ;; *) exit 1 ;; esac
 ```
@@ -201,11 +211,13 @@ case "$code" in 2??) ;; *) exit 1 ;; esac
 ### delete
 
 ```sh
+want=$(jq -r '.operator.teaLogin // ""' "$1") || exit 2
 logins=$(tea login list -o json 2>/dev/null) || { echo "superdev: tea is missing or cannot list logins; install it, then run: tea login add --url <host>" >&2; exit 2; }
-login=$(printf '%s' "$logins" | jq -er --arg want "${SUPERDEV_KB_TEA_LOGIN:-}" '[.[] | select(.url == "<host>")] | if $want != "" then map(select(.name == $want)) else . end | if length == 1 then .[0].name else empty end' 2>/dev/null) || { names=$(printf '%s' "$logins" | jq -r '[.[] | select(.url == "<host>") | .name] | join(", ")' 2>/dev/null); n=$(printf '%s' "$logins" | jq '[.[] | select(.url == "<host>")] | length' 2>/dev/null); if [ -n "${SUPERDEV_KB_TEA_LOGIN:-}" ] && [ "$n" -ge 1 ] 2>/dev/null; then echo "superdev: SUPERDEV_KB_TEA_LOGIN=$SUPERDEV_KB_TEA_LOGIN names none of the tea logins for <host> ($names)" >&2; elif [ "$n" -gt 1 ] 2>/dev/null; then echo "superdev: several tea logins match <host> ($names); set SUPERDEV_KB_TEA_LOGIN=<name> to pick one, or add the right one: tea login add --url <host>" >&2; else echo "superdev: no tea login for <host>; run: tea login add --url <host>" >&2; fi; exit 2; }
+login=$(printf '%s' "$logins" | jq -er --arg want "$want" '[.[] | select(.url == "<host>")] | if $want != "" then map(select(.name == $want)) else . end | if length == 1 then .[0].name else empty end' 2>/dev/null) || { names=$(printf '%s' "$logins" | jq -r '[.[] | select(.url == "<host>") | .name] | join(", ")' 2>/dev/null); n=$(printf '%s' "$logins" | jq '[.[] | select(.url == "<host>")] | length' 2>/dev/null); if [ -n "$want" ] && [ "$n" -ge 1 ] 2>/dev/null; then echo "superdev: knowledge-base.teaLogin=$want names none of the tea logins for <host> ($names)" >&2; elif [ "$n" -gt 1 ] 2>/dev/null; then echo "superdev: several tea logins match <host> ($names); set knowledge-base.teaLogin in .superdev/info.json to pick one, or add the right one: tea login add --url <host>" >&2; else echo "superdev: no tea login for <host>; run: tea login add --url <host>" >&2; fi; exit 2; }
+sub_url=$(jq -er '.found.sub_url' "$1") || exit 1
 hdr=$(mktemp) || exit 1
 tea api --login "$login" --repo <owner>/<repo> -i -X DELETE \
-  "/repos/<owner>/<repo>/wiki/page/$SUPERDEV_KB_SUB_URL" >/dev/null 2>"$hdr" || { rm -f "$hdr"; exit 1; }
+  "/repos/<owner>/<repo>/wiki/page/$sub_url" >/dev/null 2>"$hdr" || { rm -f "$hdr"; exit 1; }
 code=$(head -1 "$hdr" | cut -d' ' -f2); rm -f "$hdr"
 case "$code" in 2??) ;; *) exit 1 ;; esac
 ```

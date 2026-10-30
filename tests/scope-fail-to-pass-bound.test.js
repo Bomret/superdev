@@ -10,12 +10,15 @@ require('./fixture-git');
 
 const assert = require('node:assert');
 const path = require('node:path');
-const { f2pFixture, verif } = require('./scope-setup');
+const { spawnSync } = require('node:child_process');
+const { assertSpawnDecided } = require('./spawn-verdict');
+const { f2pFixture, verif, writeOperatorConfig } = require('./scope-setup');
 
-const { failToPassBoundMs, failToPassFloorMs } = require('../plugin/lib/fail-to-pass.js');
+const { failToPassBoundMs } = require('../plugin/lib/fail-to-pass.js');
 
-// Every case runs at the default floor of the bound unless it sets its own (ADR 0142).
-delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
+// Every case runs at the default floor of the bound unless its fixture's `.superdev/info.json` sets its own (ADR 0142, ADR 0207).
+// A set environment variable of the removed name changes nothing.
+process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS = '1';
 
 {
   const { CMD, scenario, leftover, assertGone, done } = f2pFixture();
@@ -31,14 +34,15 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
       'if [ -n "$F2P_SLOW" ]; then sleep "$F2P_SLOW"; exit 1; fi',
       'echo $$ > "$F2P_DIR/pid"; sleep 300 & echo $! > "$F2P_DIR/child"; wait',
     ].join('\n') + '\n';
-    const bounded = (sleepSeconds, env = {}) => {
+    const bounded = (sleepSeconds, floorMs = 1, env = {}) => {
       const b = scenario({
         base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
         tip: { 'src.txt': 'b\n', 'tests/t.sh': hangs },
       });
+      writeOperatorConfig(b.repo, { verification: { failToPassFloorMs: floorMs } });
       const startedAt = Date.now();
       // A floor of 1 ms lets the factor alone set the bound, so a hanging run is killed without waiting the 10 000 ms floor.
-      const out = b.run(b.range, { env: { F2P_SLEEP: String(sleepSeconds), SUPERDEV_FAIL_TO_PASS_FLOOR_MS: '1', ...env } });
+      const out = b.run(b.range, { env: { F2P_SLEEP: String(sleepSeconds), ...env } });
       return { b, out, elapsedMs: Date.now() - startedAt };
     };
     const longRun = bounded(0.2);
@@ -61,7 +65,7 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
       assert.equal(failToPassBoundMs(controlMs, floorMs), bound, `the bound for a ${controlMs}ms control at a ${floorMs}ms floor`);
     }
     // A run that takes three times the control's duration ends inside its bound and reads a verdict.
-    const slow = bounded(0.2, { F2P_SLOW: '0.6' });
+    const slow = bounded(0.2, 1, { F2P_SLOW: '0.6' });
     assert.equal(slow.out.stdout.trim(), 'fail-to-pass control=0,put-back=1', slow.out.stderr);
 
     // The bound has a floor (ADR 0142, #1059). A control that finishes in milliseconds would give a bound shorter than the
@@ -69,31 +73,38 @@ delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
     // empty value says nothing, a rejected one (not a number, zero, negative, above 2147483647, the longest
     // delay Node's timer holds) falls back to 10 000 ms and is named once on stderr. An unset, empty, or whitespace-only value
     // (trimmed to empty) falls back silently. `5s` is the non-numeric one, because a leading-digit parse would read it as 5 ms.
-    const savedFloor = process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS;
-    const savedWrite = process.stderr.write;
-    try {
-      for (const [value, floor, notes] of [
-        [undefined, 10000, 0], ['', 10000, 0], ['1500', 1500, 0], [' 1500 ', 1500, 0], ['2147483647', 2147483647, 0],
-        ['5s', 10000, 1], ['0', 10000, 1], ['-5', 10000, 1], ['   ', 10000, 0], ['2147483648', 10000, 1],
-      ]) {
-        if (value === undefined) delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS; else process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS = value;
-        let err = '';
-        process.stderr.write = (chunk) => { err += chunk; return true; };
-        let got;
-        try { got = failToPassFloorMs(); } finally { process.stderr.write = savedWrite; }
-        assert.equal(got, floor, `the floor for ${JSON.stringify(value)}`);
-        assert.equal((err.match(/SUPERDEV_FAIL_TO_PASS_FLOOR_MS/g) || []).length, notes, `a rejected override is named once on stderr, an unset, blank, or valid one never (${JSON.stringify(value)}): ${err}`);
-        if (notes) assert.match(err, /SUPERDEV_FAIL_TO_PASS_FLOOR_MS=.*10000 ms/, 'the note names the value fallen back to');
-      }
-    } finally {
-      if (savedFloor === undefined) delete process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS; else process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS = savedFloor;
+    const floorOf = (config, from = 'tree') => {
+      const b = scenario({ base: { 'src.txt': 'a\n' }, tip: { 'src.txt': 'b\n' } });
+      if (config !== undefined) writeOperatorConfig(b.repo, config);
+      const r = spawnSync(process.execPath, ['-e', "console.log(require(process.argv[1]).failToPassFloorMs(process.cwd()))", path.resolve(__dirname, '../plugin/lib/fail-to-pass.js')], { cwd: from === 'repo' ? b.repo : b.tree, encoding: 'utf8', timeout: 20000, killSignal: 'SIGKILL', env: { ...process.env, SUPERDEV_FAIL_TO_PASS_FLOOR_MS: '1' } });
+      assertSpawnDecided(r, 'floor reader');
+      return { floor: Number(r.stdout.trim()), err: r.stderr };
+    };
+    const info = (value) => ({ verification: { failToPassFloorMs: value } });
+    for (const [label, config] of [['no file', undefined], ['invalid JSON', '{nope'], ['no section', {}], ['no key', { verification: {} }]]) {
+      const got = floorOf(config);
+      assert.equal(got.floor, 10000, `the floor for ${label}`);
+      assert.equal(got.err, '', `${label} says nothing on stderr`);
     }
-    // One verb row: the environment setting reaches the verb. A hanging run after a fast control is killed at the floor it names, never earlier.
-    const atFloor = bounded(0.01, { SUPERDEV_FAIL_TO_PASS_FLOOR_MS: '1500' });
+    for (const value of [1500, 2147483647]) {
+      const got = floorOf(info(value));
+      assert.equal(got.floor, value, `the floor for ${value}`);
+      assert.equal(got.err, '');
+    }
+    // The same file read from the main checkout and from the linked worktree gives the same floor.
+    assert.equal(floorOf(info(1500), 'repo').floor, 1500, 'the floor read from the main checkout');
+    assert.equal(floorOf(info(1500), 'tree').floor, 1500, 'the floor read from the linked worktree');
+    for (const value of ['1500', 1500.5, 0, -5, null, {}, 2147483648]) {
+      const got = floorOf(info(value));
+      assert.equal(got.floor, 10000, `the floor for ${JSON.stringify(value)} reads as absent`);
+      assert.equal((got.err.match(/verification\.failToPassFloorMs/g) || []).length, 1, `a rejected value is named once on stderr (${JSON.stringify(value)}): ${got.err}`);
+    }
+    // One verb row: the setting reaches the verb run from a linked worktree. A hanging run after a fast control is killed at the floor it names, never earlier.
+    const atFloor = bounded(0.01, 1500);
     const floorBound = /^unknown control=0,put-back=SIGKILL,bound=(\d+)ms$/.exec(atFloor.out.stdout.trim());
     assert.ok(floorBound, 'a run killed at the floor records `unknown` naming the bound: ' + atFloor.out.stdout);
     assert.ok(Number(floorBound[1]) >= 1500, `the bound is at least the floor: ${floorBound[1]}ms`);
-    assert.doesNotMatch(atFloor.out.stderr, /SUPERDEV_FAIL_TO_PASS_FLOOR_MS/, 'a valid override says nothing on stderr');
+    assert.doesNotMatch(atFloor.out.stderr, /failToPassFloorMs/, 'a valid value says nothing on stderr');
     assertGone('no process the run killed at the floor started keeps running', path.join(atFloor.b.dir, 'pid'), path.join(atFloor.b.dir, 'child'));
   } finally {
     done();
