@@ -1,3 +1,16 @@
+# [0.97.0](https://codeberg.org/bomret/superdev/compare/v0.96.0...v0.97.0) (2026-10-31)
+
+
+### Bug Fixes
+
+* **scope:** stage set closed sends no run-state ref ([#1484](https://codeberg.org/bomret/superdev/issues/1484)) ([6de579d](https://codeberg.org/bomret/superdev/commit/6de579da05a3ca7ee9844fe4a4bb30f9e0f6b022))
+
+
+### Features
+
+* **plugin:** read operator settings from info.json, not SUPERDEV_ environment variables ([#1483](https://codeberg.org/bomret/superdev/issues/1483)) ([b89ad87](https://codeberg.org/bomret/superdev/commit/b89ad87e9e9767dfe384b788642b9e491be5ab4e))
+* **status:** print the run ledger as a markdown table ([#1482](https://codeberg.org/bomret/superdev/issues/1482)) ([762ef5d](https://codeberg.org/bomret/superdev/commit/762ef5d1189fae08133d25920f288d1ff939fc18))
+
 # [0.96.0](https://codeberg.org/bomret/superdev/compare/v0.95.0...v0.96.0) (2026-10-30)
 
 
