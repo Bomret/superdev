@@ -103,3 +103,8 @@ rewrite adds a term list, a condition head on each concept, and a split of the c
 removes rationale and restated rules, so the word count stays near the original. Its gain is that each
 concept holds three main sentences or fewer, and that the exit table in the rule inventory shows the same
 store, host, and ledger calls, next command, and offer on every exit.
+
+The 0.98.1 `plugin/skills/wrap-up/SKILL.md` held 1,898 words. The rewritten skill holds 1,817. The
+rewrite adds the same term list and start concepts as verify-ship, a condition head on each concept, and a
+numbered cleanup order, and removes rationale and restated rules. Its before/after exit table shows the same
+gates, asks, refusals, store, host, and ledger calls, next commands, and offers on every exit.
