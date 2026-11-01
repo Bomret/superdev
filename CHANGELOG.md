@@ -1,3 +1,16 @@
+# [0.98.0](https://codeberg.org/bomret/superdev/compare/v0.97.2...v0.98.0) (2026-11-01)
+
+
+### Bug Fixes
+
+* **ledger-guard:** refuse a shell delete of a run's ledger or run trace ([#1499](https://codeberg.org/bomret/superdev/issues/1499)) ([43a32ad](https://codeberg.org/bomret/superdev/commit/43a32ade2a36fc8b4502e09761c13cb89a88539f))
+* **scope:** hand piped input to every verb that reads it ([#1492](https://codeberg.org/bomret/superdev/issues/1492)) ([bbb9218](https://codeberg.org/bomret/superdev/commit/bbb92180bfd98560bc885144e482ee199d90b359))
+
+
+### Features
+
+* **intent:** give intent findings durable ids that follow-up scopes cite ([#1500](https://codeberg.org/bomret/superdev/issues/1500)) ([ee27179](https://codeberg.org/bomret/superdev/commit/ee27179e958a38d8bef1a7f63c3b1769055fb23c))
+
 ## [0.97.2](https://codeberg.org/bomret/superdev/compare/v0.97.1...v0.97.2) (2026-11-01)
 
 
