@@ -341,7 +341,7 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 
 **The snapshot.** Applies after any write above: `unresolved clear`, the stage write, `docs clear`, `unresolved add`, and `suite set` alike. Publish it per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state`.
 
-**The closing message.** Applies to the message this review ends on. The skill's closing-message concept requires the Next block. Call this conversation disposable first. The block names the command by the cases below.
+**The closing message.** Applies to the message this review ends on. The skill's closing-message concept requires the Next block. Call this conversation disposable first. Then an attended run reads `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section at this step, a read made earlier in the run included, and makes the offer for the command the cases below name when that section's conditions hold. The Next block, when this message prints one, comes last; a command the offer started leaves this review nothing to print. The block names the command by the cases below.
 
 - **The `docs` untick wrote an `**Unresolved:**` entry** → print `/superdev:document <range>`, carrying the concrete range §1 resolved, and say in one line that it re-judges the unticked `docs` lines. `/superdev:submit-pr` and `/superdev:ship` wait for it.
 - **The stage reads `submitted`** → print `/superdev:ship <scope>`, and say in one line that it merges the pull request `/superdev:submit-pr` opened (ADR 0096).

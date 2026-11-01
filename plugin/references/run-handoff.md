@@ -72,7 +72,8 @@ tiers: record that slice execution finished, name what comes next.
   `docs/agents/code-management.md`, default `main`) and print `/superdev:review <BASE-sha>..<branch>` with
   the real commit substituted, plus one line on what it does (review the integrated scope against the
   DoD and run the scope's one full-suite run) — **every scope**, whatever its slice types (ADR 0091,
-  ADR 0192). An attended run first makes the offer in
-  `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section for that command, and a
+  ADR 0192). An attended run first reads
+  `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section at this step, a read made
+  earlier in the run included, and makes the offer there for that command, and a
   started review leaves this command nothing to print. This line fills the Next block that closes the message,
   so it comes last. Then stop: no review, no doc pass, no pull request, no cleanup.
