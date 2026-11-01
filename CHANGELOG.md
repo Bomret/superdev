@@ -1,3 +1,11 @@
+## [0.97.1](https://codeberg.org/bomret/superdev/compare/v0.97.0...v0.97.1) (2026-11-01)
+
+
+### Bug Fixes
+
+* **bash-command:** read a command/builtin chain in linear time ([#1487](https://codeberg.org/bomret/superdev/issues/1487)) ([5ce9697](https://codeberg.org/bomret/superdev/commit/5ce969745430c7585bde61571304340013a7ee52))
+* **merge-guard:** deny quoting nested past the scan depth and eval-removed quote runs ([#1485](https://codeberg.org/bomret/superdev/issues/1485)) ([632c579](https://codeberg.org/bomret/superdev/commit/632c579ec0d9dd35261a8a0c6671e6b2f1ff90df))
+
 # [0.97.0](https://codeberg.org/bomret/superdev/compare/v0.96.0...v0.97.0) (2026-10-31)
 
 
