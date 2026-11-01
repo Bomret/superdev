@@ -1,3 +1,10 @@
+## [0.98.1](https://codeberg.org/bomret/superdev/compare/v0.98.0...v0.98.1) (2026-11-01)
+
+
+### Bug Fixes
+
+* **plan:** rewrite criterion tags through a scope.js dod-tags verb ([b8fd87b](https://codeberg.org/bomret/superdev/commit/b8fd87b606335b733e58c56cfe2f32e4577d0cdc))
+
 # [0.98.0](https://codeberg.org/bomret/superdev/compare/v0.97.2...v0.98.0) (2026-11-01)
 
 
