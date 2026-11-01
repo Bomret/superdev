@@ -94,7 +94,7 @@ tests/                 — one suite per shipped executable (the hooks, `scope.j
                          point's suite is split flat by topic into `tests/<entry>-<topic>.test.js` over one
                          `<entry>-setup.js` that is no suite (ADR 0139, ADR 0151): `scope-*` (ledger,
                          ledger-header, suite, dod-line, dod-merge, publish-adopt, trace, root-base, containment,
-                         citations-collisions, source-set, push, open, help, `test-verb-*`, `fail-to-pass-*`, over `scope-setup.js`),
+                         citations-collisions, source-set, push, open, help, stdin, `test-verb-*`, `fail-to-pass-*`, over `scope-setup.js`),
                          `run-trace*` (dispatch, drive-paths, guards, paths, runs, stash,
                          writes, over `run-trace-setup.js`), `publish-kb*` (containment, guard, `parent-link-*`,
                          patch, publish, read, scope, templates, timeout, over `publish-kb-setup.js`),

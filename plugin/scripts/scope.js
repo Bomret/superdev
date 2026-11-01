@@ -369,6 +369,9 @@ function asksForHelp(argv) {
   return rest.includes('--help') || rest.includes('-h');
 }
 
+// The verbs `run()` hands the whole stdin text to; `main()` reads stdin for these alone, plus a bullet verb given `-`.
+const STDIN_VERBS = ['init', 'adopt', 'dod-line', 'dod-merge'];
+
 function main() {
   const argv = process.argv.slice(2);
   // Checked before any verb reads stdin, so `dod-line --help` and its stdin siblings never wait on input.
@@ -376,8 +379,7 @@ function main() {
     console.log(usage());
     return;
   }
-  const needsStdin =
-    argv[0] === 'init' || argv[0] === 'adopt' || argv[0] === 'dod-line' || isBulletStdinInvocation(argv);
+  const needsStdin = STDIN_VERBS.includes(argv[0]) || isBulletStdinInvocation(argv);
   const go = (stdinJson) => {
     // A refusal prints its message and exits nonzero; any other error is a bug and propagates.
     const settle = (e) => {

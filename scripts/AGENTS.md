@@ -292,7 +292,7 @@ first-moment-term, install, kill, late-fork, record, refusals, tree) and the `fa
 concurrency, environment, interrupt, signals, trace, verdict, watcher). The rest: `scope-ledger` (init, stage, step, slice, the bullet and header records, get, status, and the ledger-fixtures pin),
 `scope-ledger-header` (`readLedgerHeader`), `scope-suite` (the suite and base records), `scope-dod-line`, `scope-dod-merge` (the `dod-merge` verb), `scope-publish-adopt` (`publish`, `adopt`, and the
 `maskFencedLines` pin), `scope-trace` (the run trace and `appendTrace`), `scope-root-base` (`root`, `staging`, `base` from a linked worktree),
-`scope-containment`, `scope-citations-collisions`, `scope-source-set`, `scope-push`, `scope-open`, and `scope-help`. A focused run for `scope.js`, or for a module it requires, selects
+`scope-containment`, `scope-citations-collisions`, `scope-source-set`, `scope-push`, `scope-open`, `scope-help`, and `scope-stdin` (every verb that reads piped input receives it through the CLI). A focused run for `scope.js`, or for a module it requires, selects
 every suite that reaches it (`run-tests.js`, below).
 
 `source-set [<path>]` prints the gap audit's source set and touches no ledger and no run root (ADR 0162). It prints one
