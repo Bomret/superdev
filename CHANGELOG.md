@@ -1,3 +1,10 @@
+## [0.98.2](https://codeberg.org/bomret/superdev/compare/v0.98.1...v0.98.2) (2026-11-01)
+
+
+### Bug Fixes
+
+* **review:** close the full tier's per-slice review gaps ([121fb52](https://codeberg.org/bomret/superdev/commit/121fb526ab2d731c21df4dd32307334d48eb6250))
+
 ## [0.98.1](https://codeberg.org/bomret/superdev/compare/v0.98.0...v0.98.1) (2026-11-01)
 
 
