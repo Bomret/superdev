@@ -246,3 +246,16 @@ case "$code" in 2??) ;; *) exit 1 ;; esac
 ```
 
 Human-consumption first: shape pages around the audience, write in English, follow the outline above.
+
+## superdev usage
+
+- `/superdev:plan` and `/superdev:document` stage pages; `/superdev:document` reconciles and extends the
+  wiki through its doc-writer.
+- `/superdev:publish-kb` sends the staged pages to the wiki. The only command that calls it.
+
+## Degrade / switching
+
+No `tea`, no login for `https://codeberg.org`, or a disabled or external wiki → `/superdev:publish-kb` leaves every page
+staged, reports why, and deletes nothing; a later run retries exactly the pages that did not land. The
+in-repo docs are the record meanwhile. To move to a different knowledge base later, re-run
+`/superdev:setup` and pick a different one.
