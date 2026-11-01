@@ -207,7 +207,8 @@ when absent). `<swept-slug>` is §1's path argument with each `/` turned into `-
 argument) uses `all`. A name already taken gets a `-2` or `-3` suffix, so no run overwrites another's
 file. The file opens with YAML frontmatter, `status: ready`. Carry the problem statement, the surviving findings of both audits with their locations and labels
 (durations for cost findings, the missing case and `static` for gap findings), the `unconfirmed` and
-`disputed` ones labelled as such, and the non-goals the operator's answers established. Then hand it off
+`disputed` ones labelled as such, and the non-goals the operator's answers established. Give every finding
+its finding id by `${CLAUDE_PLUGIN_ROOT}/references/intent-handoff.md`'s `## Finding ids`. Then hand it off
 as an intent record by `${CLAUDE_PLUGIN_ROOT}/references/intent-handoff.md`.
 
 Then print the next command in the Next block, naming the intent record just written by its store

@@ -140,7 +140,8 @@ records.
 `.gitignore` is named in the report, non-blocking, rather than fixed: those two commands own that fix on
 their own runs, and this one stays read-only on every tracked file, the `.gitignore` included. Carry the
 swept set, each fact with its leg and location, each surviving judgment with its leg and location, and the
-degraded/empty legs named as such.
+degraded/empty legs named as such. Give every finding the intent carries, the tests leg's included, its
+finding id by `${CLAUDE_PLUGIN_ROOT}/references/intent-handoff.md`'s `## Finding ids`.
 
 Then print the next command in the Next block, naming the intent record just written by its store
 reference:

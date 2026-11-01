@@ -14,6 +14,23 @@ cannot.
   `status: draft` writes no record. A `--chained` review-tests run and every sweep leg write no intent
   anywhere, so they never reach this step (INV-0070).
 
+## Finding ids
+
+Every finding `/superdev:sweep` or an unchained `/superdev:review-tests` writes into its intent file carries
+a **Finding id** (`CONTEXT.md`): `F1`, `F2`, … in one sequence per intent, with no gap and no repeat. Every
+fact, every surviving judgment, every `unconfirmed` finding, and every `disputed` finding takes the next
+number, written at the start of that finding's line in the intent file.
+
+- **The ids are set when the intent file is written and never renumbered.** The record body is the intent
+  file, so the record carries the same ids, and so does a file the fallback below keeps.
+- **A sweep numbers its findings in its own one sequence.** A `--chained` review-tests leg numbers nothing;
+  sweep numbers that leg's findings with every other leg's.
+- **A scope cites a finding as `#<record> F<n>`**: the intent record's reference, then the finding id.
+- **A plan comment names an id** when it carries it as `#<this record> F<n>`, or as a bare `F<n>` with no
+  record reference before it. An id cited against another record, such as `#<other record> F<n>`, marks
+  nothing on this record.
+- A brainstorm intent carries no ids: it has no findings list.
+
 ## Write, confirm, then delete
 
 1. **Read the store document.** `docs/agents/issue-tracker.md`'s `## Intent record` section names the

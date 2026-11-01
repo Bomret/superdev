@@ -135,6 +135,13 @@ keeps it open while part of the intent is still unplanned. How a given store exp
 store's own `## Intent record` section (ADR 0199).
 _Avoid: "intent issue", "brainstorm issue" (sweep and review-tests write them too)_
 
+**Finding id**: the stable label `F1`, `F2`, … that `/sweep` and `/review-tests` give each finding they
+write into an **Intent**, one sequence per intent, set when the intent is written and never renumbered.
+A scope cites it with the **Intent record**'s reference, as `#<record> F<n>`. The comment `/plan` writes
+when it settles a record, whether it closes the record or keeps it open, names the finding ids that
+scope planned.
+_Avoid: "sweep #28", a finding's list position_
+
 **Intent line**: the scope-anchor line `**Intent:** #<n>[, #<n>]` naming the **Intent record**s a plan
 seeded the feature from, so a reader reaches the intent from the anchor (ADR 0200).
 _Avoid: "source line", "origin link"_
