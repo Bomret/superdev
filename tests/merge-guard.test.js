@@ -575,12 +575,39 @@ for (const cmd of ['git commit -m fix\\ git\\ push\\ bug', 'cat a\\ \\(1\\).txt'
   assert.equal(decide(sub(cmd)).block, false, `an escaped word reads as its quoted spelling: ${cmd}`);
 }
 {
-  // An escape nested past MAX_QUOTED_DEPTH shell levels is unreadable, and the raw-text rule denies it.
+  // An escape nested past MAX_QUOTED_DEPTH shell levels is unreadable, and the depth rule denies it.
   const esc = (s) => 'sh -c ' + s.replace(/[\\ ]/g, '\\$&');
   let s = 'git push';
   for (let k = 0; k <= require('../plugin/lib/shell-words.js').MAX_QUOTED_DEPTH; k++) s = esc(s);
   assert.equal(require('../plugin/lib/shell-words.js').scan(s, { quoted: true }).readable, false, 'an escape past the depth limit is unreadable');
   assert.equal(decide(sub(s)).block, true, 'and the unreadable-command rule denies it');
+}
+{
+  // Quoted text nested past MAX_QUOTED_DEPTH is denied whatever it spells, with a reason naming the nesting (#1238).
+  const shq = (s) => "'" + s.replace(/'/g, "'\\''") + "'";
+  const sw = require('../plugin/lib/shell-words.js');
+  for (const depth of [1, 2, 3, 4, 6, 10]) {
+    let s = 'git pu""sh';
+    for (let k = 0; k < depth; k++) s = 'bash -c ' + shq(s);
+    const r = decide(sub(s));
+    assert.equal(r.block, true, `a split-quote verb nested ${depth} deep is denied`);
+    const deep = sw.scan(s, { quoted: true }).reason === `quoted text nested deeper than ${sw.MAX_QUOTED_DEPTH}`;
+    assert.equal(/deeper than the guard reads/.test(r.reason), deep, `the reason names the nesting exactly when the scan reports it, at ${depth}`);
+    assert.equal(decide(ctl(s)).block, false, `the controller is not, at ${depth}`);
+  }
+  // Every other unreadable reason keeps the raw-text rule.
+  assert.equal(decide(sub('echo "unterminated')).block, false, 'an unreadable text naming no verb stays allowed');
+  assert.equal(decide(sub('echo "git push')).block, true, 'an unreadable text naming a verb stays denied');
+  assert.match(decide(sub('echo "git push')).reason, /subagents must not integrate/, 'by the integration reason');
+}
+// `eval` joins its words and reads them again, so a quote run it removes spells the command word (#1070)
+for (const cmd of ["eval git\\'\\' push", 'eval "git\'\'" push', 'eval git\\"\\" push', 'eval env git\\\'\\\' push', 'x; eval git\\\'\\\' rebase main']) {
+  assert.equal(decide(sub(cmd)).block, true, `an eval-removed quote run is denied: ${cmd}`);
+  assert.equal(decide(ctl(cmd)).block, false, `the controller is not: ${cmd}`);
+}
+for (const cmd of ["eval echo git\\'\\' push", 'eval "echo push"', 'eval git\\\'\\\' status', 'bash -c "git log"', 'git log --grep push', 'echo push',
+  'git commit -m "do not push this"', 'git status']) {
+  assert.equal(decide(sub(cmd)).block, false, `a subagent may run: ${cmd}`);
 }
 // dash runs `((…))` as nested subshells, so the guard also reads a command as dash reads it (#1062)
 for (const cmd of ['dash -c "((git push))"', 'dash -c \\(\\(git\\ push\\)\\)', '((git push))']) {

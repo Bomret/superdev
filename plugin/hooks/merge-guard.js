@@ -41,7 +41,11 @@
 // re-reads: `dash -c "((git push))"` and `dash -c "dash -c \\(\\(git\\ push\\)\\)"` are denied. The guard fails closed instead of guessing which program runs the text, so any quoted word whose
 // text names a guarded integration is denied too: a grep or rg pattern (`grep -rn "git merge" docs/`), a commit
 // message (`git commit -m "git push fails behind rtk"`), or a PR body. That is a known false positive class.
-// A command the scanner cannot read to its end is denied only when its raw text holds the word `git` and,
+// `eval` joins the words after it and reads them again, so that text is read as a command line too: `eval git\'\' push` and
+// `eval "git''" push`, whose quote runs that reading removes, are denied.
+// A command whose quoted text nests deeper than the scanner reads (shell-words.js's MAX_QUOTED_DEPTH) is denied whatever it spells,
+// with a reason naming the nesting: no raw-text rule sees through quoting that deep (`bash -c` three levels around `git pu""sh`).
+// Any other command the scanner cannot read to its end is denied only when its raw text holds the word `git` and,
 // later, the word `merge`, `push`, `rebase`, or `pull`, or the word `gh` or `tea` and, later, `pr merge`, `pulls merge`, or
 // `pull merge`. A quoted text
 // that does not read as a command line (an apostrophe or a parenthesis in a commit message is enough) is judged
@@ -138,6 +142,11 @@ const INTEGRATE =
   'that names one of them (a grep pattern, a commit message, a PR body) is denied too, except a heredoc or here-string, no line of ' +
   'it starting with such a command, standing ' +
   "alone on the line into `cat > file`, `tee -a file > file`, `git commit -F -`, `gh pr|issue … --body-file -`, or `tea … --description-file -`. (merge-guard)";
+const DEEP =
+  'superdev: subagents must not integrate, and this command nests quoted text deeper than the guard reads, which hides what it ' +
+  'runs. Run the command at a shallower nesting. (merge-guard)';
+// The verdict `integrates()` returns for a command nested past the scanner's depth bound. `decide` compares against this same constant.
+const VERDICT_DEEP = 'deep';
 const BROKEN =
   'superdev: merge-guard could not read this command because the shared shell scanner (lib/shell-words.js) ' +
   'failed to load or to run, so it denies every subagent Bash call. The superdev install is broken: ' +
@@ -247,6 +256,18 @@ function commandIntegrates(c) {
   const words = c.words.slice(start);
   if (!words.length) return false;
   const open = c.words.slice(0, start).some((w) => /(?:^|\/)xargs$/.test(w.name || ''));
+  // `eval` joins the words after it and reads them as a command line again, so a quote run that reading removes spells the command
+  // word (`eval git\'\' push` runs `git'' push`). Past ALIAS_DEPTH nested readings it is denied, failing closed.
+  const ev = c.words.slice(0, start).findIndex((w) => w.name === 'eval');
+  if (ev >= 0) {
+    if (bangDepth === ALIAS_DEPTH) return true;
+    bangDepth++;
+    try {
+      if (commandLineIntegrates(c.words.slice(ev + 1).map((w) => w.value).join(' '))) return true;
+    } finally {
+      bangDepth--;
+    }
+  }
   // `node …/scope.js push`, or the script run directly: its verb is the word right after the script path.
   if (words.some((w, k) => k + 1 < words.length && SCOPE_JS.test(w.value) && words[k + 1].value === 'push')) return true;
   const g = shellWords.gitSubcommand(words);
@@ -331,10 +352,11 @@ const lineIntegrates = (text) => text.split(/[;&|\n]/).some((s) => {
   return m !== null && VERB_WORD.test(s.slice(m[0].length));
 });
 
-// True when the scanned command integrates, or cannot be read and names an integration in its raw text.
+// True when the scanned command integrates, or cannot be read and names an integration in its raw text. Quoted text nested past
+// the scanner's depth bound returns VERDICT_DEEP, a denial whatever it spells: the raw text cannot see through that nesting's quoting.
 function integrates(cmd) {
   const r = shellWords.scan(cmd, { quoted: true });
-  if (!r.readable) return rawIntegrates(cmd);
+  if (!r.readable) return r.reason === `quoted text nested deeper than ${shellWords.MAX_QUOTED_DEPTH}` ? VERDICT_DEEP : rawIntegrates(cmd);
   if (r.failedQuoted.some(rawIntegrates)) return true;
   // A heredoc body or here-string text naming an integration is denied unless a sink receives it (the base rule). A line running
   // `exec` may point a sink's file at a shell (`exec > >(sh); cat > /dev/stdout`), so it exempts none.
@@ -360,7 +382,7 @@ function decide(input) {
   } catch {
     return { block: true, reason: BROKEN };
   }
-  return hit ? { block: true, reason: INTEGRATE } : { block: false };
+  return hit ? { block: true, reason: hit === VERDICT_DEEP ? DEEP : INTEGRATE } : { block: false };
 }
 
 function main() {

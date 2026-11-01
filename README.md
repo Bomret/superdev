@@ -453,7 +453,11 @@ bash or PowerShell variants.
   `xargs` that stops before its verb is blocked, because `xargs` takes the verb from stdin.
   Any quoted word, and any heredoc body or here-string no sink receives, whose text names one of these is blocked as well,
   a known false positive: a grep pattern (`grep -rn "git merge" docs/`), a commit message
-  (`git commit -m "git push fails behind rtk"`), or a pull request body passed as a quoted word. A command the scanner cannot read to its end, and a quoted text that does not read as a
+  (`git commit -m "git push fails behind rtk"`), or a pull request body passed as a quoted word. The words after an
+  `eval` are joined and read again as a command line, as `eval` reads them, so a quote run that reading removes
+  (`eval git\'\' push`) still names the command. A command whose quoted text nests deeper than the scanner reads
+  (`bash -c` three levels deep) is blocked whatever it spells, and the reason names the nesting. Any other command
+  the scanner cannot read to its end, and a quoted text that does not read as a
   command line (a commit message with a parenthesis or an apostrophe), is blocked only when its raw text
   holds the word `git` and, later, `merge`, `push`, `rebase`, or `pull`, or the word `gh` or `tea` and, later,
   `pr merge`, `pulls merge`, or `pull merge`, or the word `scope.js` and, later, `push`. A scanner that cannot load blocks the call and names the broken install. The controller
