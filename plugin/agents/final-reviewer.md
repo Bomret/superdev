@@ -256,7 +256,7 @@ Read the trace with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --root 
 - The dispatch names the tier and the run root.
 - A trace line's second field is its slice: the slice id, or `scope`.
 - A `dispatch` line carries the plugin-scoped agent type Claude Code reports. Match on its name part (`slice-reviewer`, `implementer`).
-- On the lite tier a slice is `behavior` when its ledger row's type says so (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>`).
+- On either tier a slice is `behavior` when its ledger row's type says so (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>`).
 - **Unreviewed slice**: apply `## Review coverage`.
 - **Pass-to-pass** and **Missing fail-to-pass run**: apply `## Fail-to-pass run`.
 - Mark each unclosable **Pass-to-pass** finding as `## Fail-to-pass run` states, with its case and reason, at every dispatch against the current range. An implementer's or the lite controller's claim of a case is input you check, never your verdict.

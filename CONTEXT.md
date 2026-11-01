@@ -309,8 +309,8 @@ which records it as a **Triage record** and a ledger bullet without a report hea
 It reaches several homes at once: a **Triage record** in the slice store, a `**Deferred:**` bullet in the
 run's ledger carrying that record's reference, and the pull-request body `/superdev:submit-pr` copies the
 bullet into. The triage record outlives the run root and the closed scope anchor regardless of whether
-the scope ever ships (ADR 0035, 0046, 0110). A deferred finding re-enters the fix loop only when a later
-review names a **Guard-rail remedy** for it. Once a re-review confirms that fix, the run resolves it: the
+the scope ever ships (ADR 0035, 0046, 0110). A deferred finding re-enters the fix loop only at the scope
+review, when `final-reviewer` names a **Guard-rail remedy** for it (ADR 0211). Once a re-review confirms that fix, the run resolves it: the
 ledger bullet goes, the triage record closes only when its own body names this run's scope anchor and no
 open scope anchor absorbs it (on any other record, and when a read of the record or of an Absorbs line fails or
 is denied, the run comments with the fixing commit and leaves it open), and an open pull request's
@@ -534,7 +534,7 @@ _Avoid: "developer", "coder"_
 **Slice-reviewer**: per-slice correctness gate (full tier, `behavior` slices). It verifies against the slice's acceptance, reads the slice's recorded runs in the run trace, and reads the produced artifact, hunting uncovered input. It runs no test.
 _Avoid: "reviewer" (unqualified, so say which)_
 
-**Simplicity-reviewer**: the over-engineering reviewer. It names what to delete and what a standard-library or native feature replaces; its findings are advisory and gate nothing. Read-only. Two dispatch sites, one per tier: `full` runs it per `behavior` slice, beside the slice's first review, and the warranted cuts join that review's fix list (ADR 0138), and `/superdev:review` then skips it on that tier, leaving the cross-slice case to `final-reviewer`'s Brevity axis. `lite` has no per-slice review, so `/superdev:review`'s whole-scope dispatch is the only pass it gets (ADR 0037).
+**Simplicity-reviewer**: the over-engineering reviewer. It names what to delete and what a standard-library or native feature replaces; its findings are advisory and gate nothing. Read-only. Two dispatch sites, one per tier: `full` runs it per `behavior` slice, beside the slice's first review, and the warranted cuts join that review's fix list (ADR 0138), and `/superdev:review` then skips it on a full-tier scope whose every slice is `behavior`, leaving the cross-slice case to `final-reviewer`'s Brevity axis; a full-tier scope with a `mechanical` or `docs` slice gets the whole-scope dispatch a `lite` scope gets (ADR 0210). `lite` has no per-slice review, so `/superdev:review`'s whole-scope dispatch is the only pass it gets (ADR 0037).
 _Avoid: "the simplicity review" unqualified (name the tier, because which site runs is what differs); "linter", "critic"_
 
 **Doc-writer**: reconciles the in-repo docs (the AGENTS.md tree) and the knowledge base with the merged code, removing stale text. Run by `/document`.

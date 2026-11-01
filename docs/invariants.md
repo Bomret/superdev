@@ -470,7 +470,7 @@ Paths: plugin/skills/plan/SKILL.md, plugin/references/design-sketch.md
 
 Class: process
 Concepts: Tier, Simplicity-reviewer, Final-reviewer, Execution playbook
-Statement: Every scope gets an over-engineering pass. A full-tier scope gets it per `behavior` slice in `implement-full.md`, so `/superdev:review` skips simplicity-reviewer there. A lite-tier scope gets it whole-scope from `/superdev:review`. Its findings gate nothing.
+Statement: Every scope gets an over-engineering pass. A full-tier scope whose every slice is `behavior` gets it per slice in `implement-full.md`, so `/superdev:review` skips simplicity-reviewer there. Every other scope gets it whole-scope from `/superdev:review`, under the skip rules a lite scope takes. Its findings gate nothing.
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/review/SKILL.md, plugin/references/review-scope-mode.md, plugin/references/implement-full.md
@@ -957,7 +957,7 @@ Paths: plugin/hooks/**, plugin/scripts/scope.js, plugin/lib/trace-log.js, plugin
 
 Class: process
 Concepts: Run trace, Slice-reviewer, Degraded pass
-Statement: On the full tier, every slice merged into the scope branch has a `slice-reviewer` dispatch recorded in the run trace that ends after the slice's last `implementer` dispatch, or a degraded-pass entry naming that slice's denied review. `final-reviewer` reports a slice with neither as an Important finding (ADR 0117).
+Statement: On the full tier, every `behavior` slice merged into the scope branch has a `slice-reviewer` dispatch recorded in the run trace that ends after the slice's last `implementer` dispatch, or a degraded-pass entry naming that slice's denied review. `final-reviewer` reports a slice with neither as an Important finding (ADR 0117).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/agents/final-reviewer.md, plugin/skills/review/**, plugin/references/review-scope-mode.md
@@ -1011,7 +1011,7 @@ Paths: plugin/references/scope-mode.md, plugin/references/scope-branch.md, plugi
 
 Class: process
 Concepts: Deferred finding, Guard-rail remedy, Ledger
-Statement: A deferred finding leaves the ledger's `**Deferred:**` record only after a fix cycle that carried it lands a commit and a later re-review no longer lists it. It re-enters a fix loop only when a review names a guard-rail remedy for it (ADR 0121).
+Statement: A deferred finding leaves the ledger's `**Deferred:**` record only after a fix cycle that carried it lands a commit and a later re-review no longer lists it. It re-enters a fix loop only at the scope review, when `final-reviewer` names a guard-rail remedy for it (ADR 0121, ADR 0211).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/review/SKILL.md, plugin/references/review-scope-mode.md, plugin/references/implement-full.md, plugin/references/scope-mode.md, plugin/references/scope-findings.md

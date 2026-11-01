@@ -56,12 +56,14 @@ Each step below applies beside the skill's step of the same number. A departure 
 
 **The `simplicity-reviewer` dispatch.** Applies to the `simplicity-reviewer` dispatch of a scope review.
 
-- **A `full`-tier scope** → dispatch `final-reviewer` alone and skip `superdev:simplicity-reviewer`, reporting `` not dispatched — full tier, covered per `behavior` slice `` (ADR 0037, ADR 0138). The skip holds on a re-review after a fix cycle too.
+- **A `full`-tier scope whose every slice row in `scope.js get slices` reads `behavior`** → dispatch `final-reviewer` alone and skip `superdev:simplicity-reviewer`, reporting `` not dispatched — full tier, every slice `behavior` `` (ADR 0037, ADR 0138, ADR 0210).
+- **A `full`-tier scope with a `mechanical` or `docs` row, or a row whose type cannot be read** → takes no skip from this concept. The skill's skip rules decide it, as they decide a `lite` scope, and the pass's findings go through the existing fix loop (ADR 0210).
 - **A `lite` scope** takes no skip from this concept.
+- The decision is the same on the entry review, on a fix cycle's re-review, on a warm re-review, and on a second `/superdev:review` invocation.
 - **A ledger with no slice rows** leaves the tier unknown → dispatch.
 - A denied `simplicity-reviewer` dispatch records no `**Degraded:**` entry (`${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes`).
 
-**The slice reviewer for an Unreviewed slice.** Applies to §4.6's **Unreviewed slice** branch. Its `superdev:slice-reviewer` dispatch departs from the skill's exclusion of `slice-reviewer`.
+**The slice reviewer for an Unreviewed slice.** Applies to §4.6's **Unreviewed slice** branch, which only a merged `behavior` slice reaches: a merged `mechanical` or `docs` slice, or one whose type cannot be read, draws no such finding and no `slice-reviewer` dispatch (`review-checklist.md`'s `## Review coverage`). Its `superdev:slice-reviewer` dispatch departs from the skill's exclusion of `slice-reviewer`.
 
 **A denied `final-reviewer` dispatch.** Applies beside the skill's degraded-pass step, on a live run. Write the `**Degraded:**` entry per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` with `scope.js degraded add-denial -`. Pipe the classifier's refusal through a quoted heredoc and never a shell argument. Publish the snapshot per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state`.
 
@@ -183,7 +185,7 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 - It enters no fix loop, holds no stage, and is no unresolved defect.
 - A verdict whose only remaining findings are deferred counts as clean for the ask-once of §4.6, the 3-cycle cap of §4.7, and the stage advance of §4.10.
 
-**Re-entry.** Applies to a deferred finding that a later review names a guard-rail remedy for (ADR 0121, INV-0125), attended or unattended alike.
+**Re-entry.** Applies to a deferred finding that `final-reviewer` names a guard-rail remedy for at the scope review (ADR 0121, ADR 0211, INV-0125), attended or unattended alike.
 
 - **The remedy adds no capability** → the finding joins the next cycle's fix list. The dispatch asks the fix implementer for the fixing commit. Resolve the finding by `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Deferred findings` procedure, in its order, once that report names the commit and a later re-review no longer lists the finding.
 - **The remedy still adds a capability** → the finding stays deferred.
@@ -243,7 +245,7 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 - **`--unattended`** → fix every finding, Minors included, without asking. Every finding here leaves out unclosable ones.
 - **Fix only Critical and Important, with only unclosable or deferred ones among them** → the loop ends with no cycle and takes §4.7's early escape.
 - **A Missing fail-to-pass run finding in the chosen set** → it joins the **Confirmed** fix of §4.7, whose implementer runs the verb over the finding's range (ADR 0182). A slice whose ledger row records no range first has its range recorded: read the slice's commits from the scope branch's log, run `scope.js slice <id> merged --range <base>..<tip> --root <run-root>`, and name that range in the fix dispatch.
-- **An Unreviewed slice finding in the chosen set** → answer it yourself, with no implementer cycle. Dispatch `superdev:slice-reviewer` with an explicit `model`, handing it the slice's `spec`, `acceptance`, range, and progress-log path `<run-root>/reports/<id>/progress.md`, and tell it to run no test and read the slice's recorded runs from the run trace (ADR 0178, ADR 0182). Before the dispatch, append the line `dispatch: slice-reviewer` to that progress log. Tell it the report contract of `slice-reviewer.md`'s `## Report`: it appends its full findings, with their remedies, to that progress log under the heading `Review — post-merge` and returns the summary that section lists, every item of it and no remedy. Read its entry under that heading below that line for any step that needs more than the summary. A review whose entry there is missing goes back to that same reviewer through SendMessage to append it before you act on the verdict. The progress log is input for it to check against the code, not a verdict to adopt (INV-0020). Leave the finding off the **Confirmed** list, dispatching no implementer when no finding remains on it. The run trace records that dispatch on the slice, which closes the finding at the re-review.
+- **An Unreviewed slice finding in the chosen set**, which names a merged `behavior` slice → answer it yourself, with no implementer cycle. Dispatch `superdev:slice-reviewer` with an explicit `model`, handing it the slice's `spec`, `acceptance`, range, and progress-log path `<run-root>/reports/<id>/progress.md`, and tell it to run no test and read the slice's recorded runs from the run trace (ADR 0178, ADR 0182). Before the dispatch, append the line `dispatch: slice-reviewer` to that progress log. Tell it the report contract of `slice-reviewer.md`'s `## Report`: it appends its full findings, with their remedies, to that progress log under the heading `Review — post-merge` and returns the summary that section lists, every item of it and no remedy. Read its entry under that heading below that line for any step that needs more than the summary. A review whose entry there is missing goes back to that same reviewer through SendMessage to append it before you act on the verdict. The progress log is input for it to check against the code, not a verdict to adopt (INV-0020). Leave the finding off the **Confirmed** list, dispatching no implementer when no finding remains on it. The run trace records that dispatch on the slice, which closes the finding at the re-review.
 
 **The standing-defect writes.** Applies to a stop with a finding standing: the Declined branch above, and the cap of §4.7.
 

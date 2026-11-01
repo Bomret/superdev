@@ -278,9 +278,11 @@ flowchart TD
   it writes the record then, never at a handoff, and `/superdev:plan` writes one when you place a found
   defect for later
   ([ADR 0088](docs/adr/0088-an-observation-is-recorded-where-it-is-met.md)). Either way the command
-  dispatches `final-reviewer`, plus `simplicity-reviewer` on the `lite` tier. The `full` tier already
-  ran that reviewer per slice, so the whole-scope pass skips it rather than re-reading cut-down code
-  ([ADR 0037](docs/adr/0037-the-full-tier-skips-the-whole-scope-over-engineering-pass.md)). It reports
+  dispatches `final-reviewer`, plus `simplicity-reviewer` on the `lite` tier, and on a `full` scope with a
+  `mechanical` or `docs` slice under the skip rules a `lite` scope takes. A `full` scope whose every slice is `behavior` already ran that reviewer per
+  slice, so the whole-scope pass skips it rather than re-reading cut-down code
+  ([ADR 0037](docs/adr/0037-the-full-tier-skips-the-whole-scope-over-engineering-pass.md),
+  [ADR 0210](docs/adr/0210-the-full-tier-skips-the-whole-scope-simplicity-pass-only-for-an-all-behavior-scope.md)). It reports
   one consolidated verdict.
 - **`/superdev:document`**. Dispatches the `doc-writer` to reconcile the in-repo docs (the `AGENTS.md`
   hierarchy) and the optional knowledge base with the current code. It adds what is new and **removes
@@ -407,9 +409,11 @@ The **full** execution tier dispatches `implementer`, `slice-reviewer`, and `sim
 slice. The **lite** tier (3 slices or fewer) has the controller implement inline instead, and also
 performs the documentation pass itself, as the last step before hand-off (ADR 0031). Both tiers hand
 off to the same chain once every slice sits on the scope branch: `/superdev:review` dispatches
-`final-reviewer` over the whole scope, plus `simplicity-reviewer` too on the `lite` tier. The `full`
-tier already ran that reviewer per slice, so the whole-scope pass skips it
-([ADR 0037](docs/adr/0037-the-full-tier-skips-the-whole-scope-over-engineering-pass.md)). Then
+`final-reviewer` over the whole scope, plus `simplicity-reviewer` too on the `lite` tier, and on a `full` scope with a
+`mechanical` or `docs` slice under the skip rules a `lite` scope takes. A `full` scope whose every slice is `behavior` already ran that reviewer per
+slice, so the whole-scope pass skips it
+([ADR 0037](docs/adr/0037-the-full-tier-skips-the-whole-scope-over-engineering-pass.md),
+  [ADR 0210](docs/adr/0210-the-full-tier-skips-the-whole-scope-simplicity-pass-only-for-an-all-behavior-scope.md)). Then
 `/superdev:document` dispatches
 `doc-writer` to reconcile the docs, reader-tested by `doc-reader`. On a `lite` scope that already
 documented itself, it dispatches `doc-reader` alone instead. The doc reconcile always runs **after**

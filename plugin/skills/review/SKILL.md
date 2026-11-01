@@ -142,7 +142,7 @@ Review a change end to end. §1 decides the mode.
 
 **The skip rules.** Applies to every review. Evaluate them in this order.
 
-- **A scope review** → `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md`'s `## 2. Review` decides a `full`-tier scope first, and the rules below decide every other subject.
+- **A scope review** → `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md`'s `## 2. Review` decides a `full`-tier scope whose every slice is `behavior` first, and the rules below decide every other subject (ADR 0210).
 - **A standing-code target** (§1's standing-code shape) → `final-reviewer` alone, reporting `` not dispatched — standing code, no diff to review ``.
 - **A tiny diff** (a handful of lines) → `final-reviewer` alone.
 - **Nothing plausible to cut** (docs-only, or already lean) → skip `simplicity-reviewer`.

@@ -226,7 +226,7 @@ A run with nothing deferred carries **no such line at all** — absent, never pr
 true the moment a run re-verifies the scope green, which is what earns that record its `clear`. Unplanned
 work stays unplanned until somebody plans it, so the bullet stands until `/superdev:submit-pr` copies it
 into the pull-request body, where a reader meets it. The one exception is a finding the same run fixes
-after all, because a later review named a guard-rail remedy for it (ADR 0121). `scope.js deferred resolve -`
+after all, because `final-reviewer` named a guard-rail remedy for it at the scope review (ADR 0121, ADR 0211). `scope.js deferred resolve -`
 removes that finding's bullet: pipe it the exact text `get deferred` printed, through a quoted heredoc as
 for `add -`. It removes every identical bullet, removes the `**Deferred:**` line once no bullet remains,
 and refuses text that matches no bullet, leaving the ledger unchanged.
@@ -246,7 +246,7 @@ a new one. A store document that defines no triage record skips the read, and on
 listing call or no comment call falls back as that rule states.
 
 **A deferred finding the run fixes after all is resolved** (ADR 0121, INV-0125). It re-enters a fix loop
-only when a later review names a guard-rail remedy for it, attended or unattended alike; a remedy that
+only at the scope review, when `final-reviewer` names a guard-rail remedy for it (ADR 0211), attended or unattended alike; a remedy that
 still adds a capability keeps it deferred. Once the fix implementer's report names the commit that fixed
 it and a later re-review no longer lists it, resolve it, in this order:
 

@@ -540,8 +540,8 @@ These invariants fix its shape, and every backend renders all of them:
   `## Observations` section, since the triage record is that trigger's only artifact.
 - **It is listable.** `/superdev:status` is the consumer: its backlog survey groups every triage record the active
   store returns by the action it needs, so a record no listing call can reach stays invisible to it.
-- **A run that fixes it after all closes it.** A deferred finding re-enters the fix loop only when a later
-  review names a guard-rail remedy for it. Once a re-review confirms the fix, the run removes the ledger
+- **A run that fixes it after all closes it.** A deferred finding re-enters a fix loop only at the scope
+  review, when `final-reviewer` names a guard-rail remedy for it (ADR 0211). Once a re-review confirms the fix, the run removes the ledger
   bullet and closes the record through the store's own close call, with a comment naming the fixing
   commit, but closes it only when the record's own body names this run's scope anchor in its provenance
   and no open scope anchor absorbs it, because only `/superdev:wrap-up` closes an absorbed record

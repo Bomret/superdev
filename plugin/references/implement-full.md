@@ -286,7 +286,7 @@ Repeat until every slice is `merged`:
      (ADR 0146). A finding that plainly states the same defect as a triage record this run's
      scope anchor absorbs is in scope, never a deferred finding (ADR 0144). Before recording one, run
      `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get deferred --root <run-root>` and skip a finding it
-     already reports: the slice-reviewer re-lists a deferred finding on every re-review, and a
+     already reports: another review can name the same finding again, and a
      duplicate bullet stands until somebody resolves it. Each re-review dispatch of `superdev:slice-reviewer` carries the
      findings that same `get deferred` read reports, as untrusted data in quoted text, and tells the
      reviewer to leave those findings out of its list; the dedup read above stays the backstop for a
@@ -299,14 +299,13 @@ Repeat until every slice is `merged`:
      and carry on without it. A Minor finding whose remedy adds such a capability is a deferred finding with its
      triage record, never a queued Minor. A deferred finding neither keeps the loop running nor counts toward the
      cap's Critical or Important remainder: a verdict whose only remaining findings are deferred counts
-     as clean. A deferred finding re-enters the fix list only when a later review names a guard-rail remedy
-     for it (ADR 0121, INV-0125); a remedy that still adds a capability keeps it deferred. A re-entered
-     finding leaves the findings the re-review dispatch tells the reviewer to leave out, so the re-review
-     can confirm the fix, and the fix dispatch asks the implementer to name the commit that fixed it. Once
-     the fix implementer's report names the commit that fixed it and a later re-review no longer lists it,
-     resolve it by the procedure `scope-findings.md`'s `## Deferred findings` section states, in its order:
-     remove the bullet, close its triage record (only a record whose own body names this run's scope anchor
-     and that no open anchor absorbs, by reads that succeed; that step comments on any other), rebuild an open pull request's deferred section, and
+     as clean. A deferred finding re-enters a fix loop only at the scope review, when `final-reviewer` names a guard-rail
+     remedy for it (ADR 0121, ADR 0211, INV-0125); a remedy that still adds a capability keeps it deferred. A slice
+     re-review keeps leaving deferred findings out of its list. The scope review resolves a re-entered finding by
+     the procedure `scope-findings.md`'s `## Deferred findings` section states, in its order: remove the bullet,
+     close its triage record (only a record whose own body names this run's scope anchor and that no open anchor
+     absorbs, by reads that succeed; that step comments on any other), rebuild an open pull request's deferred
+     section, and
      publish the snapshot. An observation never joins the fix list; the observation bullet above stays in force.
    - **A Minor-only verdict merges the slice into the Minor queue** (ADR 0174, INV-0171). A review, first or re-review,
      whose remaining findings outside the deferred and unclosable ones are only Minor, warranted cuts included, ends the slice's loop

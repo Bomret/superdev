@@ -8,6 +8,9 @@ which moves `simplicity-reviewer` from `haiku` to `sonnet`.
 **Amended by:** [ADR 0138](0138-the-per-slice-simplicity-pass-runs-beside-the-first-slice-review.md),
 which runs the per-slice pass beside the slice's first review.
 
+**Amended by:** [ADR 0210](0210-the-full-tier-skips-the-whole-scope-simplicity-pass-only-for-an-all-behavior-scope.md),
+which limits the skip to a scope whose every slice is `behavior`.
+
 ## Context
 
 `superdev:simplicity-reviewer` is dispatched from two places. `references/implement-full.md` dispatches it

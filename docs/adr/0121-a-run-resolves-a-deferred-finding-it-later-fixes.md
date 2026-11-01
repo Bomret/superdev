@@ -5,6 +5,9 @@
 **Amends:** [ADR 0035](0035-a-review-fix-changes-how-not-what.md),
 [ADR 0088](0088-an-observation-is-recorded-where-it-is-met.md).
 
+**Amended by:** [ADR 0211](0211-a-deferred-finding-re-enters-at-the-scope-review.md),
+which places re-entry at the scope review.
+
 **Context.** ADR 0035 gives the ledger's `**Deferred:**` record no `clear`. It argues that unplanned work
 stays unplanned until somebody plans it, so nothing in a run can discover that a deferred bullet is no
 longer true. That argument does not cover a finding that the same run goes on to fix. In the scope
