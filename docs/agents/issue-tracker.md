@@ -402,7 +402,7 @@ not this store carries a snapshot.
   `#<n>`, in the same parallel body-patch step **Record a dependency** above uses to write
   `**Depends on:** #<n>` — both need the same resolved indexes and both wait on the same event; a `scope`
   tag is left as `scope`, and a `docs` tag as `docs`. The rewrite is a body edit through **Edit an issue's
-  body**, and its producer is `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js dod-tags --map-file <path>`,
+  body**, and its producer is `node plugin/scripts/scope.js dod-tags --map-file <path>`,
   the map file holding one `<id> #<n>` pair per slice (ADR 0209). A tag naming several slices becomes
   `#<n>, #<m>`, never bracketed. The controller types no store tag itself. `dod-tags` refuses, printing
   nothing, on any unjudged line whose tag `dod-line` cannot read or whose slice id the map lacks, so the
@@ -481,4 +481,4 @@ lone slice issue's own `acceptance`.
 ## Seed deviations
 
 - Seed deviation: the native issue-dependencies unit (the `depends-on` mapping, "Record a dependency", and the `## Scope anchor` framing) — this repository leaves Forgejo's native dependencies unit unused, so the `**Depends on:**` body line is the one parse path for every blocker relation (2026-09-29)
-- Seed deviation: the `scope.js` path in "Tick a criterion" (`node plugin/scripts/scope.js`, not `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js`) — this repository dogfoods its own checkout's `scope.js` (2026-09-30)
+- Seed deviation: the `scope.js` path in "Tick a criterion" and in the `dod-tags` producer (`node plugin/scripts/scope.js`, not `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js`) — this repository dogfoods its own checkout's `scope.js` (2026-09-30)

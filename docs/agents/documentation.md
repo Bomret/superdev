@@ -20,7 +20,7 @@ concern, see `docs/agents/knowledge-base.md`.
 
 superdev usage: `/superdev:plan` records ADRs (`docs/adr/`), the glossary (`CONTEXT.md`), and the
 invariant register (`docs/invariants.md`) in their conventional locations, and the `AGENTS.md` tree indexes and points to them. `/superdev:document`
-reconciles the `AGENTS.md` tree and `README.md` with the code. It is the third command of the implement
+reconciles the `AGENTS.md` tree and `README.md` with the code and removes stale text. It is the third command of the implement
 chain (`/superdev:implement`, then `/superdev:review`, then `/superdev:document`, then
 `/superdev:submit-pr`), and it also runs on demand at any time.
 
