@@ -108,3 +108,9 @@ The 0.98.1 `plugin/skills/wrap-up/SKILL.md` held 1,898 words. The rewritten skil
 rewrite adds the same term list and start concepts as verify-ship, a condition head on each concept, and a
 numbered cleanup order, and removes rationale and restated rules. Its before/after exit table shows the same
 gates, asks, refusals, store, host, and ledger calls, next commands, and offers on every exit.
+
+The 0.98.2 `plugin/skills/ship/SKILL.md` held 5,177 words. The rewritten skill holds 4,061. The rewrite
+adds the same term list and start concepts as wrap-up, a condition head on each concept, and named
+concepts for the suite gate, the whole-repo run, the push, and the deploy, and removes rationale and
+restated rules. Its exits keep the same gates, asks, refusals, ledger and host calls, next commands, and
+offers.
