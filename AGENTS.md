@@ -65,7 +65,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          Git and containment: `git-spawn.js` (the shared git calls), `containment.js`,
                          `collisions.js`, `citations.js`, `source-set.js` (the gap audit's source set), `push.js`
                          (the `push` verb that puts a scope branch on the remote, ADR 0167), `plan-open.js`
-                         (the `open` verb that sets up a plan run, ADR 0185),
+                         (the `open` verb that sets up a plan run, ADR 0185), `discard.js` (the `discard` verb that removes a planned run's state, ADR 0208),
                          `run-state-ref.js` (the run-state ref `refs/superdev/<scope>`: sent at a step end,
                          fetched in `adopt`, deleted at wrap-up, ADR 0202).
                          Run trace: `trace-log.js` (writer, reader, field codec), `run-tree.js`,
@@ -94,7 +94,7 @@ tests/                 — one suite per shipped executable (the hooks, `scope.j
                          point's suite is split flat by topic into `tests/<entry>-<topic>.test.js` over one
                          `<entry>-setup.js` that is no suite (ADR 0139, ADR 0151): `scope-*` (ledger,
                          ledger-header, suite, dod-line, dod-merge, publish-adopt, trace, root-base, containment,
-                         citations-collisions, source-set, push, open, help, stdin, `test-verb-*`, `fail-to-pass-*`, over `scope-setup.js`),
+                         citations-collisions, source-set, push, open, help, stdin, discard, `test-verb-*`, `fail-to-pass-*`, over `scope-setup.js`),
                          `run-trace*` (dispatch, drive-paths, guards, paths, runs, stash,
                          writes, over `run-trace-setup.js`), `publish-kb*` (containment, guard, `parent-link-*`,
                          patch, publish, read, scope, templates, timeout, over `publish-kb-setup.js`),

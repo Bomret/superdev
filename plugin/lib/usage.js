@@ -32,6 +32,7 @@ function usage() {
     '  suite rerun <test-file> <triage-ref>   --root <run-root>   records the one rerun for HEAD (ADR 0172)',
     '  base set <sha>   --root <run-root>   records the merged base tip',
     '  base resolve --branch <b> --base <base-ref>   --root <run-root>   prints the scope\'s range base',
+    '  discard   --root <run-root>   removes a planned run\'s ledger, run trace, and lock, and the emptied run root (ADR 0208)',
     '  get stage|step|branch|anchor|docs|pr|slices|unresolved|degraded|deferred|minors|denials|suite --root <run-root>',
     '  trace [--slice <id>] --root <run-root>   prints the run trace, oldest first (read-only)',
     '  test full|whole                    runs the configured command, records the run line the command\'s own exit status makes',

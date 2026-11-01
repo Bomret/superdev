@@ -6,7 +6,8 @@
 // hooks and lib/trace-log.js's appendTrace the only writers of .superdev/scopes/*/trace.log, so a
 // Bash shell write into one (redirect, tee, an in-place
 // sed, gsed, perl, ruby, ed, ex, awk -i inplace, sort -o, truncate -s or -r, dd of=, cp/mv/install, ln, patch, rsync, a vi/vim/nvim script,
-// curl -o, wget -O, ditto, xxd's output operand, tar extraction, a recursive copy or extraction into a run root, or an interpreter's inline or
+// curl -o, wget -O, ditto, xxd's output operand, tar extraction, a recursive copy or extraction into a run root, an rm, unlink, or find -delete of
+// one or of a directory at or above a run root (ADR 0208), or an interpreter's inline or
 // stdin script that names a ledger), is a write. Reads pass, except an interpreter script naming a ledger (fail closed); scope.js invocations pass
 // (they never name ledger.md — the CLI takes --root, the run-root directory).
 //
@@ -99,7 +100,13 @@ function refsLedger(word) {
 // name in its words, in either order (`cp /tmp/ledger.md .superdev/scopes/x/` copies into the run root). A text that fails it needs no further reading.
 // A recursive copy or an archive extracted into a run root writes its ledger without naming it (`cp -r d/. .superdev/scopes/x/`), so the
 // run-state directory alone is enough to read on.
-const textMentionsLedger = (text) => plainText(text).includes('.superdev/scopes/');
+// A delete or move at or above a run root removes its ledger without naming it (`rm -rf .superdev`, `mv .superdev x`), so a text holding a delete word reads on
+// `.superdev` or a glob character alone; every other text still needs the run-state directory.
+const DELETE_WORD = /(?:^|[^\w.-])(?:rm|unlink|find|mv)(?![\w.-])/;
+const textMentionsLedger = (text) => {
+  const plain = plainText(text);
+  return plain.includes('.superdev/scopes/') || ((plain.includes('.superdev') || /[*?[{]/.test(plain)) && DELETE_WORD.test(plain));
+};
 
 // The in-place flag of each editor, read from the words after the tool's own name: sed and gsed `-i`, a short
 // cluster holding `i` (`-Ei`, `-i.bak`) or `--in-place[=SUFFIX]`; perl and ruby `-i[EXT]` after flags that
@@ -250,16 +257,72 @@ const intoRunRoot = (targets, recursive) => (args) => {
   return recursive(args) && into !== undefined && isRunRoot(into) ? [...out, ledgerIn(into)] : out;
 };
 const rsyncTargets = copyTargets(false, true);
+// A delete removes run state (ADR 0208, INV-0181) when an operand's last path segments match the ledger or run trace, or, under a
+// recursive delete, a run root, `.superdev/scopes`, or `.superdev`. Each operand is read in every spelling plainText gives, as glob
+// segments (`*`, `?`, `[…]` match text within a segment, after brace expansion), so a glob that could match run state counts too (fail closed).
+// The scope segment matches any name. A matching operand is returned as a ledger path, the word refsLedger denies.
+const FILE_PROBES = [['.superdev', 'scopes', null, 'ledger.md'], ['.superdev', 'scopes', null, 'trace.log']];
+const TREE_PROBES = [...FILE_PROBES, ['.superdev'], ['.superdev', 'scopes'], ['.superdev', 'scopes', null]];
+const globSegment = (seg) =>
+  new RegExp('^' + seg.replace(/\{[^}]*\}|\[[^\]]*\]|[*?]|[^*?[{]+|./g, (t) => (t === '*' || t[0] === '{' ? '[^/]*' : t === '?' || t[0] === '[' ? '[^/]' : t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))) + '$');
+// A segment's brace expansion (`{.superdev,x}` gives `.superdev` and `x`), innermost group first. The command reader strips a word's
+// leading `{`, so a segment holding a `}` before any `{` gets it back. Past 64 alternatives the segment stays unexpanded, and its
+// brace then matches any text, a leading `.` included (fail closed).
+function expandBraces(seg) {
+  if (/^[^{]*\}/.test(seg)) seg = '{' + seg;
+  let out = [seg];
+  for (let m; out.length <= 64 && (m = /\{([^{}]*)\}/.exec(out[0])); ) {
+    out = out.flatMap((s) => {
+      const g = /\{([^{}]*)\}/.exec(s);
+      return g ? g[1].split(',').map((alt) => s.slice(0, g.index) + alt + s.slice(g.index + g[0].length)) : [s];
+    });
+  }
+  return out.length > 64 ? [seg] : out;
+}
+// A shell glob matches a leading `.` only literally (no dotglob), so `dist/*` matches no `.superdev`; an alternative opening with `.`
+// may, and so may an unexpanded brace.
+const matchesSegment = (seg, want) => expandBraces(seg).some((alt) => (want[0] !== '.' || alt[0] === '.' || alt[0] === '{') && globSegment(alt).test(want));
+function removesRunState(operand, recursive) {
+  return plainText(operand).split('\n').some((line) => {
+    const segs = line.split('/').filter((x) => x !== '' && x !== '.');
+    return (recursive ? TREE_PROBES : FILE_PROBES).some((probe) => {
+      if (segs.length < probe.length) return false;
+      const tail = segs.slice(segs.length - probe.length);
+      return probe.every((want, k) => want === null || matchesSegment(tail[k], want));
+    });
+  });
+}
+const RUN_STATE_WORD = RUN_STATE + 'x/ledger.md';
+const deleteTargets = (ops, recursive) => (ops.some((w) => removesRunState(w, recursive)) ? [RUN_STATE_WORD] : []);
+// rm: its operands, recursive under `-r`, `-R`, a cluster holding either, or `--recursive`; unlink: its one operand.
+const rmTargets = (args) => deleteTargets(operandsOf(args, true).ops, args.some((w) => /^(?:-[a-zA-Z]*[rR]|--recursive$)/.test(w)));
+const unlinkTargets = (args) => deleteTargets(operandsOf(args, true).ops, false);
+// mv removes each source from where it stood, so a source at or above a run root removes run state as a recursive delete does.
+function mvTargets(args) {
+  const { ops, dir } = operandsOf(args);
+  return [...copyTargets(true)(args), ...deleteTargets(dir === null ? ops.slice(0, -1) : ops, true)];
+}
+// find deletes under its start paths (the words before the first expression word) with `-delete`, or with `-exec`, `-execdir`,
+// `-ok`, or `-okdir` running rm or unlink.
+function findTargets(args) {
+  let i = 0;
+  while (i < args.length && /^-[HLP]+$/.test(args[i])) i++;
+  const starts = [];
+  while (i < args.length && !/^[-(!]/.test(args[i])) starts.push(args[i++]);
+  const deletes = args.slice(i).some((w, k, rest) => w === '-delete' || (/^-(?:exec|execdir|ok|okdir)$/.test(w) && /^(?:rm|unlink)$/.test((rest[k + 1] || '').replace(/^.*\//, ''))));
+  return deletes ? deleteTargets(starts, true) : [];
+}
 // Per tool: whether the words after its name edit a file in place. `true` means the edited file is any word of
 // the command, an array the words it writes.
 const INPLACE = { sed: sedLike, gsed: sedLike, perl: perlLike, ruby: perlLike, ed: anyArg, ex: anyArg, awk: awkLike, gawk: awkLike, truncate: truncateTargets, sort: sortTargets, dd: ddTargets,
-  tee: teeTargets, cp: intoRunRoot(cpTargets, anyWord(RECURSIVE)), install: copyTargets(false), mv: copyTargets(true), ln: copyTargets(true),
+  tee: teeTargets, cp: intoRunRoot(cpTargets, anyWord(RECURSIVE)), install: copyTargets(false), mv: mvTargets, ln: copyTargets(true),
   rsync: intoRunRoot(rsyncTargets, anyWord(/^(?:-[a-zA-Z]*[ra]|--recursive$|--archive$)/)), patch: patchTargets,
-  vi: vimLike, vim: vimLike, nvim: vimLike, curl: sortTargets, wget: wgetTargets, ditto: intoRunRoot(copyTargets(false), () => true), xxd: xxdTargets, tar: tarTargets };
-const TOOL = /^(?:sed|gsed|perl|ruby|ed|ex|awk|gawk|sort|truncate|dd|tee|cp|mv|install|ln|rsync|patch|vi|vim|nvim|curl|wget|ditto|xxd|tar)$/;
+  vi: vimLike, vim: vimLike, nvim: vimLike, curl: sortTargets, wget: wgetTargets, ditto: intoRunRoot(copyTargets(false), () => true), xxd: xxdTargets, tar: tarTargets,
+  rm: rmTargets, unlink: unlinkTargets, find: findTargets };
+const TOOL = /^(?:sed|gsed|perl|ruby|ed|ex|awk|gawk|sort|truncate|dd|tee|cp|mv|install|ln|rsync|patch|vi|vim|nvim|curl|wget|ditto|xxd|tar|rm|unlink|find)$/;
 const SHELL = /^(?:sh|bash|zsh|dash|ksh|eval)$/;
 // `ed`/`ex` and the write verbs are real words in read-only commands (`grep ed file`), so they count only in command position.
-const COMMAND_ONLY = new Set(['ed', 'ex', 'tee', 'cp', 'mv', 'install', 'ln', 'rsync', 'patch', 'vi', 'vim', 'nvim', 'curl', 'wget', 'ditto', 'xxd', 'tar']);
+const COMMAND_ONLY = new Set(['ed', 'ex', 'tee', 'cp', 'mv', 'install', 'ln', 'rsync', 'patch', 'vi', 'vim', 'nvim', 'curl', 'wget', 'ditto', 'xxd', 'tar', 'rm', 'unlink', 'find']);
 // An interpreter whose inline script (`python3 -c`, `node -e`/`-p`/`--eval`/`--print`, `perl -e`/`-E`, `ruby -e`) or stdin script (a heredoc or
 // here-string) names a ledger in its text is refused, a read included: telling its writes from its reads would need the language's own
 // parser. A ledger named only as an operand (`perl -ne 'print' L`) is no script text. Per interpreter: the short flags that carry the script,
@@ -437,6 +500,25 @@ const quotedEditorNamesLedger = (cmd) => cmd.words.some((w) => w.quoted && refsL
 // in-place-editor word of the INPLACE table (`ed` and `ex` only at the start of a statement, where they are no English words).
 const WRITE_FORM = />|\b(?:tee|cp|mv|install|ln|rsync|patch|truncate|gsed|awk|gawk|dd|sort)\b|\bsed\b[^]*\s-(?:[a-zA-Z]*i|-in-place)|\b(?:perl|ruby)\b[^]*\s-[0-9a-zA-Z]*i|(?:^|[;&|\n({`])\s*(?:ed|ex)\s/;
 
+// A delete after a `cd` resolves its relative operands against the `cd` target (`cd .superdev && rm -rf scopes`). The targets of the
+// `cd` and `pushd` commands met so far are joined in text order, whatever shell instance runs them, which over-reads (fail closed).
+// cdRebase(cmd, dir) -> the directory the next command reads against, or true when cmd deletes run state read against `dir`.
+const DELETER = /^(?:rm|unlink|find|mv)$/;
+function cdRebase(cmd, dir) {
+  const values = cmd.words.map((w) => w.value).filter((w) => w.length <= NAME_MAX).map(bare).filter(Boolean);
+  const argv = values.slice(commandIndex(values));
+  const name = (argv[0] || '').replace(/^.*\//, '');
+  if (name === 'cd' || name === 'pushd') {
+    const to = argv.slice(1).find((w) => !w.startsWith('-'));
+    if (to === undefined) return null;
+    return to.startsWith('/') || dir === null ? to : dir + '/' + to;
+  }
+  if (dir === null || !DELETER.test(name)) return dir;
+  const rebased = argv.slice(1).map((w) => (w.startsWith('-') || w.startsWith('/') || w === ';' || w === '+' || w === '{}' ? w : dir + '/' + w));
+  const hit = INPLACE[name](rebased);
+  return Array.isArray(hit) && hit.some(refsLedger) ? true : dir;
+}
+
 // Whether a command line, read as the scanner reads it, writes a ledger. `depth` counts the command lines carried as one word (`su -c`, `env -S`, `rg --pre`).
 function readsAsWriting(command, depth) {
   const scanned = scan(command, { quoted: true });
@@ -445,8 +527,11 @@ function readsAsWriting(command, depth) {
   if (!textMentionsLedger(command)) return false;
   if (scanned.failedQuoted.some((t) => refsLedger(t) && WRITE_FORM.test(t))) return true;
   if (feedsInterpreterLedger(scanned)) return true;
+  let cdTo = null;
   for (const cmd of scanned.commands) {
     if (commandWritesLedger(cmd) || quotedEditorNamesLedger(cmd)) return true;
+    cdTo = cdRebase(cmd, cdTo);
+    if (cdTo === true) return true;
     if (depth >= 8 || cmd.words.every((w) => w.raw.length > NAME_MAX)) continue;
     const values = cmd.words.map((w) => w.value);
     for (const line of [...stringCommands(values), ...preCommands(values)]) {

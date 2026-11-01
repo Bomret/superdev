@@ -302,8 +302,9 @@ A capture that crystallises before §1 has settled the feature label has nowhere
 the conversation until the label exists, then open the run and write it the moment it does. **A label revised
 before §6 writes to the store** undoes it under the old label (an append never revises a picked label) —
 remove the scopetree (`git worktree remove <run-root>/scopetree`), delete the branch
-(`git branch -D <old-type>/<old-slug>`), delete the old run root's `ledger.md`, `run.lock`, and
-`trace.log`, and `rmdir` the run root when that leaves it empty, so no stranded `planned` run stays behind,
+(`git branch -D <old-type>/<old-slug>`), discard the old run root with
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" discard --root <old-run-root>`, which removes its ledger, run trace, and lock
+and the run root when that leaves it empty, so no stranded `planned` run stays behind,
 and, if the derive pass already wrote one, delete the draft
 `.superdev/dod-draft-<old-slug>.md`, then runs `open` under the revised label and re-writes every
 capture already held. A triage record already written is amended instead, so its provenance names the

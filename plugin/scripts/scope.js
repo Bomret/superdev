@@ -42,6 +42,7 @@ const { verbPush } = require('../lib/push.js');
 const { pushRunState, fetchRunState, deleteRunState } = require('../lib/run-state-ref.js');
 const { verbDodMerge } = require('../lib/dod-merge.js');
 const { verbOpen } = require('../lib/plan-open.js');
+const { verbDiscard } = require('../lib/discard.js');
 const { usage } = require('../lib/usage.js');
 
 // --- root: the verbs over `lib/main-work-tree.js`'s run-root resolver (ADR 0080) -----------------
@@ -269,6 +270,12 @@ function run(argv, cwd, stdinJson) {
       if (args.length > 2) fail(`base set: unrecognized argument "${args[2]}"`);
       verbBaseSet(cwd, root, args[1]);
       ledgerEvent = { root, fields: ['base', 'set', args[1]] };
+      break;
+    }
+    case 'discard': {
+      const root = takeRoot(args);
+      if (args.length) fail(`discard: unrecognized argument "${args[0]}"`);
+      verbDiscard(cwd, root);
       break;
     }
     case 'get': {

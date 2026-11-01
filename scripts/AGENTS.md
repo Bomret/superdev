@@ -32,7 +32,7 @@ reports, which names the bound and `code-host.pushTimeoutMs`; `lib/run-state-ref
 `scope.js` owns the CLI and the verbs, and requires only modules from `plugin/lib/` (ADR 0151). Each verb's code lives in
 a module of its own: the ledger verbs in `ledger-lifecycle.js` and `ledger-records.js`, `suite` and `base` and `get` in
 `suite-base-get.js`, `test` in `test-verb.js`, `publish` with `adopt` in `run-state.js`, `open` in `plan-open.js`, `dod-merge` in `dod-merge.js` (with `mergeDod`, the per-line merge `fetchRunState` also uses, ADR 0206), and `dod-line`, `fail-to-pass`,
-`citations`, `collisions`, `source-set`, `push`, and `status` each in the module of its name. The run-state ref (`refs/superdev/<scope>`, ADR 0202) is `run-state-ref.js`: `pushRunState` at a step end (`step clear`, `step block`, or a `stage set` that closes the standing step, except `stage set closed`), `fetchRunState` inside `adopt`, and `deleteRunState` behind `run-state delete`. It takes `gitCall` from `push.js` and `parseRemote` from `kb-containment.js`. The vocabulary beneath them is `ledger.js` (the stage rank and the readers and writers of
+`citations`, `collisions`, `source-set`, `push`, `discard`, and `status` each in the module of its name. The run-state ref (`refs/superdev/<scope>`, ADR 0202) is `run-state-ref.js`: `pushRunState` at a step end (`step clear`, `step block`, or a `stage set` that closes the standing step, except `stage set closed`), `fetchRunState` inside `adopt`, and `deleteRunState` behind `run-state delete`. It takes `gitCall` from `push.js` and `parseRemote` from `kb-containment.js`. The vocabulary beneath them is `ledger.js` (the stage rank and the readers and writers of
 a ledger's header lines, bullets, and table rows), `refusal.js` (the refusal error `fail`), `verification.js` (`verificationCommands`,
 `verificationCommandsOf`, `isTestPath`), `git-spawn.js` (`gitSpawn`, `gitThrow`, `parseBranchList`, `resolveCommit`, `refResolves`, `fileAt`),
 `containment.js` (`testContainment`, `judgeContainment`, `baseHistoryHasPatch`), `main-work-tree.js` (`mainWorkTree`, `scopesDirFor`, `mainTreePath`), and
@@ -335,6 +335,12 @@ stands), `not-contained` (the commits base lacks and a `git branch -m` remedy), 
 `status --porcelain`), and `held` (another worktree holds the branch). A ledger at a later stage, a `planned` ledger
 naming another branch, a missing `--base`, and a failed git call exit 1. The code lives in `plugin/lib/plan-open.js`,
 and `tests/scope-open.test.js` holds its cases.
+
+`discard --root <run-root>` is the one sanctioned removal of a run's ledger and run trace (ADR 0208, INV-0181). It removes
+`ledger.md`, `trace.log`, and `run.lock`, then removes the run root when that leaves it empty. It refuses, removing nothing, a
+missing `--root`, a root that does not resolve (after `..`, symlinks, and a drive path) to `<main working tree>/.superdev/scopes/<scope>`,
+and a run whose stage is later than `planned`. An absent file or an absent root exits 0. `/superdev:plan`'s label revision calls
+it. The code lives in `plugin/lib/discard.js`, and `tests/scope-discard.test.js` holds its cases.
 
 `dod-line` is another verb that touches no ledger, and makes no store call of its own
 (`references/dod-ticks.md`, INV-0014, triage #664): `--match-file <path>

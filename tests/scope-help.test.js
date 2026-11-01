@@ -34,6 +34,7 @@ try {
         if (argv.join(' ') === '--help') {
           assert.match(res.stdout, /push --root <run-root> --remote <remote> --base <base-ref>/, 'the usage lists push');
           assert.match(res.stdout, /^ {2}citations /m, 'the usage lists citations');
+          assert.match(res.stdout, /^ {2}discard +--root <run-root>/m, 'the usage lists discard');
           assert.doesNotMatch(res.stdout, /--match </, 'the usage lists no inline --match form');
           assert.doesNotMatch(res.stdout, /--note </, 'the usage lists no inline --note form');
         }

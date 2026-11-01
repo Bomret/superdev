@@ -1476,3 +1476,12 @@ Statement: The shipped plugin reads no environment variable that superdev define
 Breaks: silently
 Check: the drift check that forbids a `SUPERDEV_` environment variable in shipped code and prose; the publish-kb suites that run a template against the values file
 Paths: plugin/lib/push.js, plugin/lib/fail-to-pass.js, plugin/lib/kb-backend.js, plugin/lib/kb-backend-config.js, plugin/lib/operator-config.js, plugin/references/knowledge-base-forgejo.md, plugin/references/knowledge-base-confluence.md
+
+### INV-0181
+
+Class: architecture
+Concepts: Ledger, Run trace, Run root
+Statement: A shell delete of a run's `ledger.md` or `trace.log` is refused like any other write into it: `rm` or `unlink` naming the file, a recursive `rm` of a directory that holds one, `find` with `-delete` or `-exec rm` over such a directory, and an `mv` whose source is such a file or directory. A relative operand after a `cd` in the same command is read against the `cd` target, and a glob wildcard matches a leading `.` only when its segment opens with `.`. A delete of any other path in a run root passes. Only `scope.js discard` removes a run's ledger and run trace from an agent's call (ADR 0208).
+Breaks: silently
+Check: tests/ledger-guard.test.js — the delete refusal and pass cases; the `scope.js discard` suite
+Paths: plugin/hooks/ledger-guard.js, plugin/lib/ledger-writes.js, plugin/scripts/scope.js, plugin/skills/plan/SKILL.md

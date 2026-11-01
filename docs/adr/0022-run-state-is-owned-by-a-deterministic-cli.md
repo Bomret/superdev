@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0208](0208-deleting-run-state-is-a-write.md), which counts a shell delete of a
+run's ledger or run trace as a write ledger-guard refuses.
+
 ## Context
 
 The ledger and the status report are deterministic state work, but the agent executed them by following

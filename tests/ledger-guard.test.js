@@ -26,6 +26,7 @@ assert.equal(file('/abs/repo/' + L).block, true, 'absolute ledger path denied');
 assert.ok(/scope\.js/.test(file(L).reason), 'denial names scope.js');
 // The Minor queue lives in the ledger: a direct Edit or shell write of it is denied, and the denial names the `minors` verb (ADR 0174).
 assert.ok(/\/minors\//.test(file(L).reason), 'denial names the minors verb');
+assert.ok(/\/discard verbs/.test(file(L).reason), 'denial names the discard verb (ADR 0208)');
 assert.equal(bash("printf '**Minors:**\\n- 01\\n' >> " + L).block, true, 'a shell append of the queue line denied');
 assert.ok(/\/minors\//.test(bash("sed -i 's/- 01//' " + L).reason), 'the shell denial names the minors verb');
 // Edit/Write elsewhere → allow.
@@ -729,6 +730,32 @@ assert.equal(bash('grep sed ' + L + ' -i').block, true, 'a flag after the file b
   for (const make of [(n) => 'python3 - ; ' + 'cat <<E\nx .superdev/scopes/x\nE\n'.repeat(n), (n) => 'python3 - ; ' + 'echo .superdev/scopes/x ; '.repeat(n),
     (n) => 'python3 -X a.b ; '.repeat(n) + 'cat <<E\n.superdev/scopes/x\nE', (n) => 'python3 ' + '-W x '.repeat(n) + '<<E\n.superdev/scopes/x\nE']) {
     quadruples(JSON.stringify(make(2)), make, 1e6);
+  }
+}
+
+// A delete of run state is a write (ADR 0208, INV-0181): rm, unlink, a recursive rm at or above a run root, find -delete or
+// -exec rm over one, and a glob that could match one are denied; every other delete, read, and scope.js call passes.
+{
+  for (const c of ['rm .superdev/scopes/x/ledger.md', 'rm -f .superdev/scopes/x/ledger.md', 'unlink .superdev/scopes/x/trace.log', 'rm -- .superdev/scopes/x/trace.log',
+    'rm -rf .superdev', 'rm -rf .superdev/', 'rm -r -f .superdev/scopes', 'rm --recursive .superdev/scopes/x', 'rm -R ./.superdev/scopes/x/',
+    'rm -rf /Users/me/repo/.superdev/scopes/x', 'rm -rf /c/Users/me/repo/.superdev', 'rm -rf .SUPERDEV/Scopes/x', "rm -rf '.superdev\\scopes\\x'",
+    'rm -rf .superdev/kb-pending/../scopes/x', 'rm -fr .superdev//scopes', 'sudo rm -rf .superdev',
+    'find .superdev -delete', 'find .superdev/scopes/x -name ledger.md -delete', 'find .superdev -exec rm {} +', 'find -L .superdev/scopes -execdir /bin/rm -f {} \\;',
+    'rm .superdev/scopes/*/ledger.md', 'rm -rf .superdev/*', 'rm .superdev/scopes/x/*.log', 'rm -rf .super*/scopes',
+    'sh -c "rm .superdev/scopes/x/trace.log"', 'rm -rf .[s]uperdev', 'rm -rf {.superdev,x}', 'rm -rf {x,.superdev}', 'rm -rf {.superdev,x}/scopes', 'rm -rf {a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}', 'xargs rm .superdev/scopes/x/trace.log', 'eval rm -rf .superdev/scopes/x', 'env rm .superdev/scopes/x/ledger.md',
+    'mv .superdev/scopes/x /tmp/y', 'mv .superdev /tmp/y', 'cd .superdev && rm -rf scopes', 'cd .superdev/scopes/x && rm ledger.md',
+    'cd .superdev/scopes/x/scopetree && rm -rf ..', 'cd /repo/.superdev; find scopes -delete']) {
+    const v = bash(c);
+    assert.equal(v.block, true, 'a delete of run state denied: ' + c);
+    assert.ok(/ledger-guard/.test(v.reason), 'the delete denial is ledger-guard\'s: ' + c);
+  }
+  for (const c of ['rm .superdev/scopes/x/run.lock', 'rm .superdev/scopes/x/dod.md', 'rm -rf .superdev/scopes/x/slicetrees/a', 'rm -rf .superdev/scopes/x/scopetree',
+    'rm .superdev/dod-draft-x.md', 'rm .superdev/dod-draft-*.md', 'rm -rf .superdev/kb-pending/x', 'rm docs/ledger.md', 'rm -rf docs/scopes/x',
+    'cat .superdev/scopes/x/ledger.md', 'ls .superdev/scopes/x', 'grep -r Stage .superdev', 'node scope.js discard --root .superdev/scopes/x',
+    'find .superdev -name ledger.md', 'find .superdev/scopes/x/scopetree -delete', 'git rm -r --cached .superdev', 'echo rm -rf .superdev',
+    'rm -rf dist/*', 'rm -rf /tmp/x/*', 'rm -rf node_modules/.cache/*', 'rm -rf ?superdev', 'find /tmp/b/* -delete', 'rm -rf {dist,build}', 'rm -rf x{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}',
+    'mv dist /tmp/y', 'mv .superdev/scopes/x/scopetree/a /tmp/y', 'cd .superdev/scopes/x && rm run.lock', 'cd .superdev && rm -rf kb-pending']) {
+    assert.equal(bash(c).block, false, 'not a delete of run state, passes: ' + c);
   }
 }
 
