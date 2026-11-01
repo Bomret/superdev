@@ -1,3 +1,11 @@
+## [0.97.2](https://codeberg.org/bomret/superdev/compare/v0.97.1...v0.97.2) (2026-11-01)
+
+
+### Bug Fixes
+
+* **references:** re-read the offer section at the review and implement exits ([#1490](https://codeberg.org/bomret/superdev/issues/1490)) ([7387446](https://codeberg.org/bomret/superdev/commit/7387446b2e65595dcea22dbd7c862e3ede783591))
+* **tests:** survive an absent or empty uploadpack.pid in the hung-remote case ([#1489](https://codeberg.org/bomret/superdev/issues/1489)) ([72efab1](https://codeberg.org/bomret/superdev/commit/72efab167514f87404f461f42a859185b45b8f1d))
+
 ## [0.97.1](https://codeberg.org/bomret/superdev/compare/v0.97.0...v0.97.1) (2026-11-01)
 
 
