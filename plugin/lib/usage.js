@@ -77,6 +77,11 @@ function usage() {
     '            --note-file <path> [--line]',
     '                                     stdin: a body (default) or one checklist line (--line);',
     '                                     stdout: the same, with the matching line judged',
+    '  dod-tags [--map-file <path>] [--line]',
+    '                                     stdin: an anchor body (default) or one checklist line (--line); stdout: the same,',
+    '                                     every slice-id tag rewritten into the map\'s store reference (several joined by ", ");',
+    '                                     without --map-file it only checks; refuses, printing nothing, on any line whose tag',
+    '                                     dod-line cannot read or whose slice id the map lacks',
     '  dod-merge --root <run-root>        stdin: the anchor\'s Definition of Done; writes <run-root>/dod.md from it, keeping',
     '                                     each verdict the existing dod.md carries on a line the anchor leaves without a note',
   ].join('\n');

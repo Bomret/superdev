@@ -240,4 +240,7 @@ function dodLineHasNote(line) {
   return !!m && (DOD_WITH_NOTE_TAG_RE.test(m[2]) || DOD_WITH_NOTE_NO_TAG_RE.test(m[2]));
 }
 
-module.exports = { verbDodLine, parseDodLineReadings, dodLineHasNote, collapseWhitespace };
+module.exports = {
+  verbDodLine, parseDodLineReadings, dodLineHasNote, collapseWhitespace, dodSectionRange, takeOption, readOptionFile,
+  DOD_LINE_RE, DOD_NO_NOTE_TAG_RE,
+};

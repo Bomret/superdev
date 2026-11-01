@@ -1485,3 +1485,12 @@ Statement: A shell delete of a run's `ledger.md` or `trace.log` is refused like 
 Breaks: silently
 Check: tests/ledger-guard.test.js — the delete refusal and pass cases; the `scope.js discard` suite
 Paths: plugin/hooks/ledger-guard.js, plugin/lib/ledger-writes.js, plugin/scripts/scope.js, plugin/skills/plan/SKILL.md
+
+### INV-0182
+
+Class: architecture
+Concepts: Definition of Done (DoD), Criterion tag, Scope anchor
+Statement: Every unjudged checklist line of a multi-slice epic's Definition of Done reaches the store with a tag `dod-line` reads: slice ids, store references joined by `, ` with no brackets, `scope`, or `docs`. `/superdev:plan` writes store-notation tags only through `scope.js dod-tags`, which refuses a body holding an untagged unjudged line or a slice id its map lacks (ADR 0209).
+Breaks: silently
+Check: the `scope.js dod-tags` suite
+Paths: plugin/scripts/scope.js, plugin/lib/dod-line.js, plugin/skills/plan/SKILL.md, plugin/references/plan-contract.md, plugin/references/issue-tracker-forgejo.md, plugin/references/issue-tracker-github.md, plugin/references/issue-tracker-jira.md

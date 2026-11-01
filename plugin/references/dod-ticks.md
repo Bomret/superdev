@@ -13,7 +13,8 @@ cross-slice criterion.
 
 **Matching a tag to a slice.** A criterion's tag (`plan-contract.md`'s `### Criterion tags`) reads a slice
 `id` before any issue exists, and the active store's own notation (`#<n>` on Forgejo/GitHub, `PROJ-<n>`
-on Jira) once `/superdev:plan` rewrites it (`plan-contract.md`'s `## Definition of Done ticks`). A
+on Jira) once `/superdev:plan` rewrites it through `scope.js dod-tags` (`plan-contract.md`'s `## Definition of Done ticks`),
+a tag naming several slices as bare references joined by `, ` (`#1388, #1396`, `PROJ-1, PROJ-2`). A
 controller matches a tag to a slice through the ledger's `issue` column (`scope.js get slices`: `id` ↔
 `issue`) — a tag already in `id` notation names the slice by `id` directly; a tag in the store's own
 notation names the slice whose `issue` equals it. `scope` and `docs` never resolve through that column — each

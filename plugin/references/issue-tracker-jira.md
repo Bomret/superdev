@@ -513,6 +513,16 @@ report the gap if the live shape differs.
   `key`, in the same parallel step **Link a dependency** above uses to write the "is blocked by" links,
   each rewrite a description edit through **Edit an issue's body** —
   both need the same resolved keys and both wait on the same event; a `scope` tag is left as `scope`, and a `docs` tag as `docs`.
+  That edit's producer is `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js dod-tags --map-file <path>`, the
+  map file holding one `<id> <PROJ>-<n>` pair per slice (ADR 0209). A tag naming several slices becomes
+  `<PROJ>-<n>, <PROJ>-<m>`, never bracketed. The controller types no store tag itself. On an ADF
+  description the verb runs per checklist paragraph, as `dod-line` does above: each `paragraph` whose
+  joined text begins `[ ]` or `[x]` goes through `dod-tags --line --map-file <path>` on its own file, and
+  the output replaces that paragraph's content through the same `nodes` filter, so every node stays a
+  `text` node with its `code` marks and the description stays valid ADF. Any one refusal — an unjudged
+  line whose tag `dod-line` cannot read, or a slice id the map lacks — prints nothing and stops the whole
+  edit at the gate, so the description stays as it was. On a markdown or wiki-markup description the verb
+  runs once in its default body mode.
 
 **On an instance storing the description as markdown or wiki markup** (the alternate posture `## Run
 state` above names), the same **Edit an issue's body** chain runs with the whole description, taken out

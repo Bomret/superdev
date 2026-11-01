@@ -3,7 +3,7 @@
 
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
 // Verbs: open, init, stage, step, slice, degraded, unresolved, deferred, minors, docs, pr, deploy, suite, base, get, status,
-// publish, adopt, trace, collisions, citations, source-set, push, root, staging, dod-line; `main()` also runs test and fail-to-pass. Exit
+// publish, adopt, trace, collisions, citations, source-set, push, root, staging, dod-line, dod-tags; `main()` also runs test and fail-to-pass. Exit
 // nonzero with a one-line stderr reason on any refusal. hooks/ledger-guard.js makes this the only
 // ledger write path.
 // `root` and `dod-line` touch no ledger: `root` resolves a run root's absolute
@@ -30,6 +30,7 @@ const {
   BULLET_STDIN_SUBS, resolveBulletText, verbDegraded, verbUnresolved, verbDeferred, verbMinors, verbDocs, verbPr, verbDeploySet, verbDeployGet,
 } = require('../lib/ledger-records.js');
 const { verbDodLine } = require('../lib/dod-line.js');
+const { verbDodTags } = require('../lib/dod-tags.js');
 const { verbSuite, verbSuiteRerun, verbSuiteReusable, verbBaseSet, verbBaseResolve, verbGet } = require('../lib/suite-base-get.js');
 const { publishText, verbPublish, verbAdopt } = require('../lib/run-state.js');
 const { verbStatus, verbStaging } = require('../lib/status.js');
@@ -342,6 +343,10 @@ function run(argv, cwd, stdinJson) {
     case 'dod-line':
       verbDodLine(args, stdinJson);
       break;
+    // No --root: dod-tags rewrites and checks criterion tags on stdin, no ledger, no store call (ADR 0209).
+    case 'dod-tags':
+      verbDodTags(args, stdinJson);
+      break;
     default:
       fail('unknown verb "' + (verb || '') + '"\n' + usage());
   }
@@ -363,7 +368,7 @@ function isBulletStdinInvocation(argv) {
 
 // `--help` / `-h` asks for usage unless it is the value of a flag that takes one or the text of a bullet
 // verb (`unresolved add -h`): those are data, and usage text standing in for them would be written on.
-const VALUE_FLAGS = ['--root', '--range', '--exit', '--branch', '--slice', '--match', '--match-file', '--note', '--note-file', '--verdict'];
+const VALUE_FLAGS = ['--root', '--range', '--exit', '--branch', '--slice', '--match', '--match-file', '--note', '--note-file', '--verdict', '--map-file'];
 function asksForHelp(argv) {
   // After `test --` every word belongs to the command.
   if (argv[0] === 'test' && argv.includes('--')) argv = argv.slice(0, argv.indexOf('--'));
@@ -377,7 +382,7 @@ function asksForHelp(argv) {
 }
 
 // The verbs `run()` hands the whole stdin text to; `main()` reads stdin for these alone, plus a bullet verb given `-`.
-const STDIN_VERBS = ['init', 'adopt', 'dod-line', 'dod-merge'];
+const STDIN_VERBS = ['init', 'adopt', 'dod-line', 'dod-tags', 'dod-merge'];
 
 function main() {
   const argv = process.argv.slice(2);

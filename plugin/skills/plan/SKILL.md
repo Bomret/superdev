@@ -384,7 +384,7 @@ and schema):
   The rule holds on a new plan, an append, and a repair alike. Split every criterion that mixes such text
   with another deliverable into two, so the `AGENTS.md` part carries `docs` on its own line. A criterion a
   `docs` slice delivers as `AGENTS.md` text, such as a restructuring of the hierarchy, keeps that slice's
-  tag (ADR 0161).
+  tag (ADR 0161), and §6 checks every tag with `scope.js dod-tags` before the epic exists.
 - **Write each register match held above into the slice it touches, and its epic criterion in the reader's
   vocabulary.** The entry's id goes into that slice's `spec` and `acceptance` — the route by which the
   invariant reaches an implementer who only ever sees its own isolated worktree — never into the epic. The
@@ -431,7 +431,12 @@ Per `docs/agents/issue-tracker.md`, write the approved slice(s) — the
 - **Exactly one slice** — the epic is optional (plan-contract.md): fold the global DoD into that slice's
   `acceptance` and write only the slice. No epic issue.
 - **Two or more slices** — write the global DoD (epic), each criterion tagged in `plan-contract.md`'s line
-  format (*Criterion tags*), plus each slice.
+  format (*Criterion tags*), plus each slice. Before the epic is created, pipe the drafted body through
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-tags` with no map: it checks every unjudged line
+  carries a tag `dod-line` reads, and a refusal names each line to fix before anything is written. Once
+  every slice issue exists, the store's tag rewrite runs `dod-tags --map-file <path>` as the producer of its
+  body edit, the map holding one `<id> <reference>` pair per slice, so every store tag comes from the verb
+  (`docs/agents/issue-tracker.md`, ADR 0209). A single-slice plan carries no tags and runs neither.
 - **Extending a feature** — create only the **new** slice records; never edit, close, renumber, or delete
   a merged one. Amend the epic's Definition of Done **in place** (never replace it) with the new criteria,
   tagged the same way. `docs/agents/issue-tracker.md` → *Append mode* owns the per-backend mechanics.

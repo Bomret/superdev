@@ -438,6 +438,11 @@ not this store carries a snapshot.
   dependency** above uses to write the native `blocked_by` links, each rewrite a body edit through
   **Edit an issue's body** — both need the same resolved
   identifiers and both wait on the same event; a `scope` tag is left as `scope`, and a `docs` tag as `docs`.
+  That edit's producer is `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js dod-tags --map-file <path>`, the
+  map file holding one `<id> #<number>` pair per slice (ADR 0209). A tag naming several slices becomes
+  `#<number>, #<number>`, never bracketed. The controller types no store tag itself. `dod-tags` refuses,
+  printing nothing, on any unjudged line whose tag `dod-line` cannot read or whose slice id the map lacks,
+  so the gate stops the edit and the anchor body stays as it was.
 
 ## Status workflow (GitHub has open/closed + labels — no custom states)
 

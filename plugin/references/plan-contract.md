@@ -56,6 +56,16 @@ The line format:
 - [ ] <criterion> — <ids|scope|docs>
 ```
 
+Once every slice issue exists, `/superdev:plan` rewrites each slice id into the store's own reference
+through `scope.js dod-tags` (ADR 0209). A tag naming several slices joins bare references with `, ` and
+carries no brackets:
+
+```
+- [ ] <criterion> — 01, 02          (as planned)
+- [ ] <criterion> — #1388, #1396    (Forgejo, GitHub)
+- [ ] <criterion> — PROJ-1, PROJ-2  (Jira)
+```
+
 A single-slice feature's own line, a line from a run predating tagging, and one untagged line left inside an
 otherwise-tagged DoD (`dod-ticks.md`'s own "No tags at all") all carry no tag segment at all: `- [ ]
 <criterion>`, judged as `- [x] <criterion> — met: <evidence>` — the tag segment simply absent, never an
