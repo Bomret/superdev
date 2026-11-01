@@ -114,3 +114,9 @@ adds the same term list and start concepts as wrap-up, a condition head on each 
 concepts for the suite gate, the whole-repo run, the push, and the deploy, and removes rationale and
 restated rules. Its exits keep the same gates, asks, refusals, ledger and host calls, next commands, and
 offers.
+
+The 0.98.2 `plugin/skills/submit-pr/SKILL.md` held 2,000 words. The rewritten skill holds 1,613. The
+rewrite adds a term list, a condition head on each concept, named concepts for the unattended stage, the
+missing step, the reuse, and the stopped run, and a table of the pull request body's headings, and removes
+rationale and restated rules. Its exits keep the same gates, asks, refusals, ledger and host calls, next
+command, and offer.

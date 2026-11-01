@@ -554,7 +554,7 @@ _Avoid: "test reviewer" (review is the code-review family; this prices cost, not
 **Dispatch prose**: the text a command sends to a subagent, as distinct from that subagent's own body. Both reach the model in one prompt, and the dispatch is the later, more specific instruction, so it wins a conflict between them. A behaviour contract stated in an agent body therefore also has to hold in every dispatch that reaches it (ADR 0035).
 _Avoid: "the prompt" (ambiguous between the two halves)_
 
-**Prompt concept**: the unit of prompt prose in a **governed body**: an agent body, or a skill file this entry lists. The listed skill files are `plugin/skills/review/SKILL.md`, `plugin/references/review-scope-mode.md`, `plugin/skills/ship/SKILL.md`, `plugin/skills/verify-ship/SKILL.md`, and `plugin/skills/wrap-up/SKILL.md` (ADR 0190). It is a rule set with a clear boundary. Each one holds seven invariants:
+**Prompt concept**: the unit of prompt prose in a **governed body**: an agent body, or a skill file this entry lists. The listed skill files are `plugin/skills/review/SKILL.md`, `plugin/references/review-scope-mode.md`, `plugin/skills/ship/SKILL.md`, `plugin/skills/submit-pr/SKILL.md`, `plugin/skills/verify-ship/SKILL.md`, and `plugin/skills/wrap-up/SKILL.md` (ADR 0190). It is a rule set with a clear boundary. Each one holds seven invariants:
 
 - **Boundary.** It has a name, and its content clearly belongs to it.
 - **Encapsulation.** It reads without any sibling. A pointer to another concept is a reference, not content.
