@@ -195,54 +195,68 @@ const { shq } = require('./spawn-verdict');
   // refetch's own `timeout`/`killSignal` ended it, so the refetch's outcome is read off stderr, the only
   // surface the exported test exposes it on. The bound is the same run's `fetchBound()`, which a healthy
   // fetch clears; a bound that silently stopped catching the kill leaves the diagnostic line missing.
-  const hungRepo = makeRepo();
-  makeWorkBranch(hungRepo, 'fix/hung', 'app.txt', 'v2\n');
-  const hungOrigin = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-origin-'));
-  gitTest(['init', '-q', '--bare', '-b', 'main'], hungOrigin);
-  gitTest(['remote', 'add', 'origin', hungOrigin], hungRepo);
-  const hungPidFile = path.join(hungOrigin, 'uploadpack.pid');
-  const hungScript = path.join(hungOrigin, 'hang.sh');
-  // git runs the upload-pack setting through the shell, so the setting is one `shq` word too.
-  fs.writeFileSync(
-    hungScript,
-    `#!/bin/sh\necho $$ > ${shq(hungPidFile)}\nP=$PPID; i=0; while [ "$(ps -o ppid= -p $$ | tr -d ' ')" = "$P" ] && [ $i -lt ${Math.ceil(fetchBound() / 100) * 4 + 100} ]; do sleep 0.1; i=$((i+1)); done\n`,
-    { mode: 0o755 }
-  );
-  gitTest(['config', 'remote.origin.uploadpack', shq(hungScript)], hungRepo);
-  const hungBound = fetchBound();
-  const origStderrWrite = process.stderr.write;
-  const capturedStderr = [];
-  process.stderr.write = (chunk) => {
-    capturedStderr.push(String(chunk));
-    return true;
-  };
-  let hungVerdict;
-  try {
-    hungVerdict = judgeContainment(hungRepo, 'main', 'fix/hung', 'origin', { fetchTimeoutMs: hungBound });
-  } finally {
-    process.stderr.write = origStderrWrite;
-  }
-  assert.strictEqual(hungVerdict.verdict, 'not-contained', 'a remote that never answers still degrades to the local verdict');
-  assert.ok(hungVerdict.refetch && hungVerdict.refetch.signal != null, 'the refetch was ended by its own bound');
-  assert.ok(
-    capturedStderr.some((line) => line.includes('ended by its own bound')),
-    `expected the refetch outcome on stderr, got: ${capturedStderr.join('')}`
-  );
-  const hungPid = Number(fs.readFileSync(hungPidFile, 'utf8'));
-  const alive = () => {
-    try {
-      process.kill(hungPid, 0);
+  // The pid line varies so the guard below meets a written, an absent, and an empty pid file every run,
+  // whichever way the race between the bound and the upload-pack's write falls.
+  const hungCase = (pidLine) => {
+    const hungRepo = makeRepo();
+    makeWorkBranch(hungRepo, 'fix/hung', 'app.txt', 'v2\n');
+    const hungOrigin = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-origin-'));
+    gitTest(['init', '-q', '--bare', '-b', 'main'], hungOrigin);
+    gitTest(['remote', 'add', 'origin', hungOrigin], hungRepo);
+    const hungPidFile = path.join(hungOrigin, 'uploadpack.pid');
+    const hungScript = path.join(hungOrigin, 'hang.sh');
+    // git runs the upload-pack setting through the shell, so the setting is one `shq` word too.
+    fs.writeFileSync(
+      hungScript,
+      `#!/bin/sh\n${pidLine(shq(hungPidFile))}\nP=$PPID; i=0; while [ "$(ps -o ppid= -p $$ | tr -d ' ')" = "$P" ] && [ $i -lt ${Math.ceil(fetchBound() / 100) * 4 + 100} ]; do sleep 0.1; i=$((i+1)); done\n`,
+      { mode: 0o755 }
+    );
+    gitTest(['config', 'remote.origin.uploadpack', shq(hungScript)], hungRepo);
+    const hungBound = fetchBound();
+    const origStderrWrite = process.stderr.write;
+    const capturedStderr = [];
+    process.stderr.write = (chunk) => {
+      capturedStderr.push(String(chunk));
       return true;
-    } catch {
-      return false;
+    };
+    let hungVerdict;
+    try {
+      hungVerdict = judgeContainment(hungRepo, 'main', 'fix/hung', 'origin', { fetchTimeoutMs: hungBound });
+    } finally {
+      process.stderr.write = origStderrWrite;
     }
+    assert.strictEqual(hungVerdict.verdict, 'not-contained', 'a remote that never answers still degrades to the local verdict');
+    assert.ok(hungVerdict.refetch && hungVerdict.refetch.signal != null, 'the refetch was ended by its own bound');
+    assert.ok(
+      capturedStderr.some((line) => line.includes('ended by its own bound')),
+      `expected the refetch outcome on stderr, got: ${capturedStderr.join('')}`
+    );
+    // The bound can end the fetch before the upload-pack writes its pid, leaving the file absent or empty.
+    // Then no upload-pack ran to outlive the case, and a pid of 0 would signal this process group.
+    let hungPid = 0;
+    try {
+      hungPid = Number(fs.readFileSync(hungPidFile, 'utf8').trim());
+    } catch {}
+    if (Number.isInteger(hungPid) && hungPid > 0) {
+      const alive = () => {
+        try {
+          process.kill(hungPid, 0);
+          return true;
+        } catch {
+          return false;
+        }
+      };
+      for (let i = 0; i < 50 && alive(); i++) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+      const hungLeft = alive();
+      if (hungLeft) process.kill(hungPid, 'SIGKILL');
+      assert.strictEqual(hungLeft, false, 'no hung upload-pack outlives the case');
+    }
+    fs.rmSync(hungRepo, { recursive: true, force: true });
+    fs.rmSync(hungOrigin, { recursive: true, force: true });
   };
-  for (let i = 0; i < 50 && alive(); i++) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
-  const hungLeft = alive();
-  if (hungLeft) process.kill(hungPid, 'SIGKILL');
-  assert.strictEqual(hungLeft, false, 'no hung upload-pack outlives the case');
-  fs.rmSync(hungRepo, { recursive: true, force: true });
-  fs.rmSync(hungOrigin, { recursive: true, force: true });
+  hungCase((file) => `echo $$ > ${file}`);
+  hungCase(() => ':');
+  hungCase((file) => `: > ${file}`);
 
   // #argument-injection-base: `base` shaped like a git option must never reach `spawnSync` as one —
   // `git fetch <remote> <base>` carries no separator, so `base = '--upload-pack=<script>'` runs that
