@@ -125,14 +125,17 @@ function dirTracker(cwd, end = cwd, up = null) {
 // `--`. `command -v` and `-V` look the name up and run nothing, so they give an empty command. Any other command gives itself.
 // The command word after a wrapper reads as bash reads it (`command \cd a` runs `cd a`); one longer than any command name is none.
 function unwrapBuiltin(cmd, args) {
+  // One index walks the whole chain, and the arguments are copied once at the end, so a chain reads in linear time.
+  let i = 0;
+  let wrapped = false;
   while (cmd === 'command' || cmd === 'builtin') {
-    let i = 0;
     for (; cmd === 'command' && /^-[pvV]+$/.test(args[i] || ''); i++) if (/[vV]/.test(args[i])) return ['', []];
     if (args[i] === '--') i++;
     cmd = args[i] === undefined || args[i].length > 64 ? '' : readWord(args[i]).value || '';
-    args = args.slice(i + 1);
+    i++;
+    wrapped = true;
   }
-  return [cmd, args];
+  return [cmd, wrapped ? args.slice(i) : args];
 }
 
 // The command a segment's words run in the current shell, as [cmd, args], for the `cd` readers: past assignments, with the command
