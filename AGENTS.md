@@ -128,7 +128,7 @@ package.json           — dev-only tooling (Bun); NOT published to npm
 .node-version          — the maintainer Node major (`26`) a version manager such as fnm installs; not shipped
 CHANGELOG.md           — release-managed by semantic-release; do not hand-edit
 CONTEXT.md             — the domain-language glossary (ubiquitous terms); maintained by /plan
-README.md · RELEASING.md · NOTICE · LICENSE
+README.md · RELEASING.md · CONTRIBUTING.md · SECURITY.md · CODE_OF_CONDUCT.md · NOTICE · LICENSE
 ```
 
 The plugin ships as markdown and JS hooks. There is **no build step**: the marketplace source's `path`,
