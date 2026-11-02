@@ -78,7 +78,7 @@ where none does.
 - **A deciding `tea api` call passes `-i`** and reads the HTTP status from stderr, because `tea api` exits
   0 on a 4xx or 5xx answer.
 - **Label ids.** Resolve each id from `tea labels list -o json --page <p> --limit 50`, paging until a
-  page returns fewer than 50 entries. Never pass `-L` to `tea issues create` or `tea issues edit`: `tea`
+  page returns fewer than 50 entries. Each entry carries the id in its `index` field, as a string (`"index": "1944212"`), and has no `id` field; pass it as a number. `tea api '/repos/{owner}/{repo}/labels'` returns the same value as a numeric `id`. Never pass `-L` to `tea issues create` or `tea issues edit`: `tea`
   0.16.0 resolves a `-L` name only against the first 50-entry page of the repository's labels, and drops
   every other name without an error.
 - **Add or remove a label by id:** `tea api -i -X POST '/repos/{owner}/{repo}/issues/<index>/labels' -d
