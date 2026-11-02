@@ -231,14 +231,15 @@ Applies to the full interview. Scan these before any decision:
 - A backend declaring no `delete` template leaves every `action: delete` staged page unpublishable.
 - One declaring no `read` template, or a non-markdown body, blocks the aggregate question.
 
-**Forgejo wiki.** Applies to a Forgejo or Gitea repo wiki, seed `references/knowledge-base-forgejo.md`. Ask the base URL and owner/repo, and no per-verb template question. Fill every `<host>` and `<owner>/<repo>` placeholder with the base URL in the form `tea login list` reports (scheme included, no trailing slash) and owner/repo. Check `tea`, a `tea login list -o json` entry whose `url` equals the base URL, and `jq`, as the Forgejo code host does.
+**Wiki templates.** Applies to a Forgejo, Gitea, or GitHub repo wiki (**Forgejo wiki**, **GitHub wiki**). The seed carries all five templates, so ask no per-verb template question. **The probes** still run (INV-0072). A probe exit `2` (on Forgejo a disabled or external wiki, on GitHub a wiki with no page yet): report the cause the template wrote to stderr, and leave `## Commands` unwritten.
+
+**Forgejo wiki.** Applies to a Forgejo or Gitea repo wiki, seed `references/knowledge-base-forgejo.md`. Ask the base URL and owner/repo. Fill every `<host>` and `<owner>/<repo>` placeholder with the base URL in the form `tea login list` reports (scheme included, no trailing slash) and owner/repo. Check `tea`, a `tea login list -o json` entry whose `url` equals the base URL, and `jq`, as the Forgejo code host does.
 
 - A missing one stops the step with its fix: install `tea` or `jq`, or run `tea login add --url <base URL>`.
 
 - **The tea login.** Write it to `knowledge-base.teaLogin` by an operator-file write before the probe, which reads it from the file as `/superdev:publish-kb` does. Propose the one matching entry's name, and ask which when several match. Unset with several matches, every template exits `2` with "several tea logins".
-- **The templates** (both wiki choices). The seed carries all five, so ask no per-verb template question. **The probes** still run (INV-0072). A probe exit `2` (on Forgejo a disabled or external wiki, on GitHub a wiki with no page yet): report the cause the template wrote to stderr, and leave `## Commands` unwritten.
 
-**GitHub wiki.** Applies to a GitHub repo wiki, seed `references/knowledge-base-github-wiki.md`. Ask the host and owner/repo; **The templates** above apply. Propose both from the git remote (`git@<host>:o/r.git`, `https://<host>/o/r(.git)`, `ssh://git@<host>/o/r`) with `.git` stripped and `github.com` as the default host. With several remotes, ask which. Fill every `<host>` (bare host, no scheme) and `<owner>/<repo>` placeholder with the answers. Check `gh`, `gh auth status --hostname <host>`, and `jq`.
+**GitHub wiki.** Applies to a GitHub repo wiki, seed `references/knowledge-base-github-wiki.md`. Ask the host and owner/repo. Propose both from the git remote (`git@<host>:o/r.git`, `https://<host>/o/r(.git)`, `ssh://git@<host>/o/r`) with `.git` stripped and `github.com` as the default host. With several remotes, ask which. Fill every `<host>` (bare host, no scheme) and `<owner>/<repo>` placeholder with the answers. Check `gh`, `gh auth status --hostname <host>`, and `jq`.
 
 - A missing one stops the step with its fix: install `gh` or `jq`, or run `gh auth login --hostname <host>`.
 - **The probes.** Run the find probe and skip the second auth probe, since the `gh` login is the credential.
