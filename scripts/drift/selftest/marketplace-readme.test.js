@@ -33,7 +33,7 @@ module.exports = ({ assert, path, fixture }) => {
   assert.match(msGaps[0].expectation, /\.\/shippd/, 'names the dead path');
 
   const pinned = (over = {}) =>
-    ({ source: 'git-subdir', url: 'https://codeberg.org/bomret/superdev.git', path: 'shipped', ref: 'v1.2.3', ...over });
+    ({ source: 'git-subdir', url: 'https://github.com/Bomret/superdev.git', path: 'shipped', ref: 'v1.2.3', ...over });
   const shippedTree = { 'shipped/.claude-plugin/plugin.json': '{"name":"p","version":"1.2.3"}' };
   const pinnedGaps = (over) =>
     scanMarketplaceSource(fixture({ '.claude-plugin/marketplace.json': mkManifest(pinned(over)), ...shippedTree }));

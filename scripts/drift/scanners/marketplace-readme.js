@@ -16,7 +16,7 @@ const { readDoc, missingDoc } = require('../lib');
 // directory at all, so a renamed tree or a mistyped path breaks every install while the suite stays green.
 // The manifest is a repo-root file, never under `plugin/`, so it is read directly rather than through
 // docPath().
-const MARKETPLACE_URL = 'https://codeberg.org/bomret/superdev.git';
+const MARKETPLACE_URL = 'https://github.com/Bomret/superdev.git';
 const MARKETPLACE_MANIFEST = path.join('.claude-plugin', 'marketplace.json');
 function scanMarketplaceSource(root) {
   let raw;

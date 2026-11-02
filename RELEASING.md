@@ -34,14 +34,14 @@ against the repository's own register, the `drift-check.js` selftest, `drift-che
    carries no version. The same step rewrites the `ref` of `marketplace.json`'s source to `vX.Y.Z`, so the
    release commit names its own tag (ADR 0131). A rewrite that matches nothing fails the release.
 3. Commit `chore(release): X.Y.Z [skip ci]` with the release notes, tag `vX.Y.Z`, and push.
-4. Publish a **Codeberg Release** (Gitea API) with the generated notes.
+4. Publish a **GitHub Release** with the generated notes.
 
 ## Merging PRs (keep the Conventional Commit type)
 
 semantic-release reads the commit **type** to decide the bump. A merged PR must therefore land at least
 one `feat:` or `fix:` commit on `main`:
 
-- **Squash merge.** Codeberg uses the **PR title** as the squash message, so give the PR a conventional
+- **Squash merge.** GitHub uses the **PR title** as the squash message, so give the PR a conventional
   title (`feat: …`, `fix: …`). A non-conventional title (for example `My feature (#8)`) squashes to a
   commit that triggers **no release**. The change lands on `main` unreleased.
 - **Merge commit.** This preserves each slice's own `feat:` and `fix:` commits, so the type survives
@@ -55,20 +55,19 @@ If a squash already landed with a non-conventional message, add one `git commit 
 Local, off `main`, working tree clean:
 
 ```
-GITEA_TOKEN=<codeberg-token> bun run release
+GH_TOKEN=$(gh auth token) bun run release
 ```
 
-- **`GITEA_TOKEN`**: a Codeberg token with write access to the repo (Codeberg, then Settings, then
-  Applications, then *Generate New Token*). When `GITEA_TOKEN` is unset, `release.config.cjs` takes the
-  token from `FORGEJO_TOKEN`, so `bun run release` alone works on a machine that exports that one. The instance URL is pinned in `release.config.cjs`
-  (`giteaUrl: https://codeberg.org`). Override it with `GITEA_URL` if needed.
+- **`GH_TOKEN`** or **`GITHUB_TOKEN`**: a GitHub token with write access to the repo.
+  `gh auth token` prints the one `gh` is logged in with. The release posts no comment and no label on
+  the issues and pull requests it ships.
 - Pushing the release commit and tag uses your normal git auth (SSH).
 - `bun run release` passes `--no-ci`, so it runs outside a CI environment.
 
 Dry run (computes the next version and notes, changes nothing):
 
 ```
-GITEA_TOKEN=<token> bunx semantic-release --no-ci --dry-run
+GH_TOKEN=$(gh auth token) bunx semantic-release --no-ci --dry-run
 ```
 
 ## Baseline

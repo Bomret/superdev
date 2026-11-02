@@ -3,7 +3,7 @@
 
 // update-check: SessionStart notice when a newer superdev is published upstream.
 // Compares the installed plugin.json version against the version on the marketplace's
-// main branch (Codeberg raw). Best-effort and quiet: any error (offline, parse, non-200)
+// main branch (GitHub raw). Best-effort and quiet: any error (offline, parse, non-200)
 // exits 0 with no output. Throttled to one network check per 24h via a stamp file under
 // CLAUDE_PLUGIN_DATA, so it never adds latency to a routine session start.
 
@@ -11,7 +11,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const https = require('node:https');
 
-const REMOTE = 'https://codeberg.org/bomret/superdev/raw/branch/main/plugin/.claude-plugin/plugin.json';
+const REMOTE = 'https://raw.githubusercontent.com/Bomret/superdev/main/plugin/.claude-plugin/plugin.json';
 const CHECK_TTL_MS = 24 * 60 * 60 * 1000;
 
 // Positive if a>b, negative if a<b, 0 equal — numeric collation compares each dotted segment as a
