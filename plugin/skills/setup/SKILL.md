@@ -65,8 +65,7 @@ Applies to every start. You write the per-repo config documents the superdev ski
 **The comparison.** Applies to each present document, beside its verdict. Compare it with its **seed** (CONTEXT.md) and list its **seed gaps** (ADR 0107). The comparison reads the installed plugin's files and the document only.
 
 - **The seed** is the one for the backend the document records, read from `${CLAUDE_PLUGIN_ROOT}/references/`: `issue-tracker-<backend>.md`, `code-management-<host>.md`, `documentation.md`, `knowledge-base-<backend>.md`, `deployment.md`.
-- **A knowledge-base document recording a GitHub wiki** maps to `knowledge-base-github-wiki.md`, never the Forgejo seed. A document lacking `- **Hierarchy:** links` or the link line form is a seed gap there.
-- **A knowledge-base document recording a Forgejo, Codeberg, or Gitea wiki** maps to `knowledge-base-forgejo.md`, whoever wrote it. A `find` template lacking the seed's empty-wiki rule (a 404 first listing page followed by the repository read) is a seed gap under that rule. So is a document lacking `- **Hierarchy:** links` or the link line form. Each is offered like any other gap, and written only on the operator's choice (INV-0107).
+- **A knowledge-base document recording a Forgejo, Codeberg, Gitea, or GitHub wiki** maps to its own seed, whoever wrote it: `knowledge-base-forgejo.md` for the first three, `knowledge-base-github-wiki.md` for GitHub, never the other's. A document lacking `- **Hierarchy:** links` or the seed's link line form is a seed gap. So is a Forgejo `find` template lacking the seed's empty-wiki rule (a 404 first listing page followed by the repository read). Each is offered like any other gap, and written only on the operator's choice (INV-0107).
 - **No matching seed** reports `no seed to compare`: an "Other" prose backend, a `None` knowledge base, a `documentation.md` recording the user's own convention, `toolchain.md`, and `verification.md`. The last two keep the fact checks.
 
 **Matching.** Applies to a document with a seed. Pair each seed section with the document section that does the same job, whatever its heading. A seed gap is a seed section with no matching document section, or a seed rule that a matched section lacks or contradicts. List each by the seed's name for it, with the document section it belongs under.
@@ -237,19 +236,19 @@ Applies to the full interview. Scan these before any decision:
 - A missing one stops the step with its fix: install `tea` or `jq`, or run `tea login add --url <base URL>`.
 
 - **The tea login.** Write it to `knowledge-base.teaLogin` by an operator-file write before the probe, which reads it from the file as `/superdev:publish-kb` does. Propose the one matching entry's name, and ask which when several match. Unset with several matches, every template exits `2` with "several tea logins".
-- **The templates.** The seed carries all five, so ask no per-verb template question. **The probes** still run (INV-0072). On a disabled or external wiki the probe exits `2`: report the cause the template wrote to stderr, and leave `## Commands` unwritten.
+- **The templates** (both wiki choices). The seed carries all five, so ask no per-verb template question. **The probes** still run (INV-0072). A probe exit `2` (on Forgejo a disabled or external wiki, on GitHub a wiki with no page yet): report the cause the template wrote to stderr, and leave `## Commands` unwritten.
 
-**GitHub wiki.** Applies to a GitHub repo wiki, seed `references/knowledge-base-github-wiki.md`. Ask the host and owner/repo, and no per-verb template question. Propose both from the git remote (`git@<host>:o/r.git`, `https://<host>/o/r(.git)`, `ssh://git@<host>/o/r`) with `.git` stripped and `github.com` as the default host. With several remotes, ask which. Fill every `<host>` (bare host, no scheme) and `<owner>/<repo>` placeholder with the answers. Check `gh`, `gh auth status --hostname <host>`, and `jq`.
+**GitHub wiki.** Applies to a GitHub repo wiki, seed `references/knowledge-base-github-wiki.md`. Ask the host and owner/repo; **The templates** above apply. Propose both from the git remote (`git@<host>:o/r.git`, `https://<host>/o/r(.git)`, `ssh://git@<host>/o/r`) with `.git` stripped and `github.com` as the default host. With several remotes, ask which. Fill every `<host>` (bare host, no scheme) and `<owner>/<repo>` placeholder with the answers. Check `gh`, `gh auth status --hostname <host>`, and `jq`.
 
 - A missing one stops the step with its fix: install `gh` or `jq`, or run `gh auth login --hostname <host>`.
-- **The templates.** The seed carries all five, so ask no per-verb template question. **The probes** still run (INV-0072): run the find probe and skip the second auth probe, since the `gh` login is the credential. A probe exit `2` means the wiki has no page yet: report the cause the template wrote to stderr, and leave `## Commands` unwritten.
+- **The probes.** Run the find probe and skip the second auth probe, since the `gh` login is the credential.
 
 **Audience and outline.** Applies to a software or local knowledge base. Shape it for human readers first and agents second.
 
 1. **Audience** (multi-select): end-users, internal developers, ops/support, stakeholders. Record the list.
 2. **Language**: the single natural language KB prose is written in. Code and in-repo docs keep theirs.
 3. **Outline**: scan the README and top-level structure, and propose a top-level section per audience with a few candidate topics under each (*User Guide → Getting started, FAQ*; *Developer Docs → Architecture, Setup, ADR summaries*). Discuss and adjust with the user, and record the agreed outline in `knowledge-base.md` as the skeleton `/superdev:plan` and `/superdev:document` fill and extend.
-4. **A Forgejo or GitHub wiki outline** names a root page with no parent, gives each group its parent page and the section in that parent, and records the seed's link line form (the `**Links.**` line of the Forgejo seed) under the wiki's own URL.
+4. **A Forgejo or GitHub wiki outline** names a root page with no parent, gives each group its parent page and the section in that parent, and records the seed's link line form (the `**Links.**` line of the wiki's own seed) under the wiki's own URL.
 
 **The command contract.** Applies to a remote backend (ADR 0069), except that a Forgejo or GitHub wiki's seed carries all five templates, so it gets no per-verb question (**Forgejo wiki**, **GitHub wiki**). Ask, verb by verb, for the shell command each of `find`, `read`, `create`, `update`, and `delete` runs. Write each under a `## Commands` section of `knowledge-base.md` as a `### <verb>` subsection holding one fenced `sh` block.
 

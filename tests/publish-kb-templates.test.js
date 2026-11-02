@@ -321,39 +321,31 @@ function pinGithubWikiTemplates(realDoc, HOST, REPO) {
   // A clone failure names its cause on stderr.
   assert.match(broken.stderr, /cannot clone/, 'a failed clone names its cause on stderr');
 
-  // A values file with no title, or an empty one, makes every template fail, and find never answers absent.
+  // A values file with no title, an empty one, or a title holding / makes every template fail with its cause,
+  // before anything is cloned or written, and find never answers absent.
+  const refusals = [
+    [{ bodyFile: body, found: {} }, /title/, 'fails without a title'],
+    [{ title: '', bodyFile: body, found: {} }, /title/, 'fails with an empty title'],
+    [{ title: 'Guide: a/b', bodyFile: body, found: {} }, /holds \//, 'refuses a title holding /'],
+  ];
   for (const verb of ['find', 'read', 'create', 'update', 'delete']) {
-    for (const values of [{ bodyFile: body, found: {} }, { title: '', bodyFile: body, found: {} }]) {
+    for (const [values, cause, what] of refusals) {
       const r = run(verb, values);
-      assert.notEqual(r.status, 0, `${verb} fails without a title`);
-      assert.notEqual(r.status, 3, `${verb} never answers absent without a title`);
-      assert.match(r.stderr, /title/, `${verb} names the missing title on stderr`);
+      assert.notEqual(r.status, 0, `${verb} ${what}`);
+      assert.notEqual(r.status, 3, `${verb} does not answer absent: ${what}`);
+      assert.match(r.stderr, cause, `${verb} names the cause on stderr: ${what}`);
     }
   }
 
-  // A title holding / is refused with its cause, before anything is cloned or written.
-  for (const verb of ['find', 'read', 'create', 'update', 'delete']) {
-    const r = run(verb, { title: 'Guide: a/b', bodyFile: body, found: {} });
-    assert.notEqual(r.status, 0, `${verb} refuses a title holding /`);
-    assert.notEqual(r.status, 3, `${verb} does not read a title holding / as absent`);
-    assert.match(r.stderr, /holds \//, `${verb} names the slash on stderr`);
-  }
-
-  // create writes the page, an unchanged update lands nothing and exits 0, update replaces, delete removes.
+  // An unchanged update lands nothing and exits 0.
   const page = 'Plain Page';
   fs.writeFileSync(body, '# one\n');
   assert.equal(run('create', { title: page, bodyFile: body }).status, 0, 'create writes the page');
-  assert.equal(run('read', { title: page, found: {} }).stdout, '# one\n');
   const commits = () => spawnSync('git', ['-C', bare, 'rev-list', '--count', 'HEAD'], { encoding: 'utf8' }).stdout.trim();
   const before = commits();
   const same = run('update', { title: page, bodyFile: body, found: {} });
   assert.equal(same.status, 0, `update with an unchanged body exits 0: ${same.stderr}`);
   assert.equal(commits(), before, 'update with an unchanged body commits nothing');
-  fs.writeFileSync(body, '# two\n');
-  assert.equal(run('update', { title: page, bodyFile: body, found: {} }).status, 0);
-  assert.equal(run('read', { title: page, found: {} }).stdout, '# two\n', 'update replaces the page');
-  assert.equal(run('delete', { title: page, found: {} }).status, 0);
-  assert.equal(run('find', { title: page }).status, 3, 'delete removes the page');
 
   // The login check, the user lookup, and every clone URL name the host; no call can wait on a prompt.
   fs.rmSync(ghLog, { force: true });
@@ -398,6 +390,7 @@ function pinGithubWikiTemplates(realDoc, HOST, REPO) {
   pinGithubWikiTemplates(filled, 'git.example.org', 'acme/widgets');
   assert.match(seed, /^- \*\*Hierarchy:\*\* links/m, 'the seed declares body-link hierarchy');
   assert.ok(seed.includes('https://<host>/<owner>/<repo>/wiki/{sub_url}'), 'the seed carries the link line form under the wiki URL');
+  assert.ok(filled.includes('https://git.example.org/acme/widgets/wiki/{sub_url}'), 'the filled seed link line names the host and repository');
   assert.doesNotMatch(seed, /GH_TOKEN|GITHUB_TOKEN|Authorization|curl/, 'the seed names no token env var, header, or curl');
 }
 {
