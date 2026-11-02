@@ -36,6 +36,8 @@ No prerequisite plugins.
   marketplace.json     — single-plugin marketplace manifest (deliberately NO version field); its
                          `source` is a `git-subdir` entry with `path` `plugin` and `ref` `v<version>`, so
                          an install copies only the shipped tree below, as the release tag holds it
+.github/workflows/     — `template-tests.yml`: runs `tests/publish-kb-templates.test.js` on Linux, macOS,
+                         and Windows (Git Bash) for every pull request to `main` (ADR 0212)
 plugin/                — the SHIPPED tree: everything a user's install copies, nothing else
   .claude-plugin/
     plugin.json        — plugin manifest (name, version, author); version is the SINGLE source of truth.

@@ -1,0 +1,29 @@
+name: template-tests
+
+# Runs the knowledge-base template suite on each operating system (ADR 0212).
+# The full suite stays a local run.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  template-tests:
+    name: template-tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+      - run: node tests/publish-kb-templates.test.js
