@@ -9,10 +9,16 @@ const { toStorage } = require('../plugin/lib/md-to-storage.js');
 // starts one of the entities the converter emits. XML 1.0 forbids C0 control characters except tab, LF, CR.
 function assertWellFormed(xml, label) {
   const stack = [];
-  const tag = /<(\/?)([\w:]+)((?:\s+[\w:]+="[^"<]*")*)\s*(\/?)>/y;
+  const tag = /<(\/?)([\w:-]+)((?:\s+[\w:-]+="[^"<]*")*)\s*(\/?)>/y;
   for (let i = 0; i < xml.length; i++) {
     const ch = xml.charCodeAt(i);
     assert.ok(!(ch >= 0x0000 && ch <= 0x0008 || ch === 0x000B || ch === 0x000C || ch >= 0x000E && ch <= 0x001F || ch === 0xFFFE || ch === 0xFFFF), `${label}: XML-invalid control character U+${ch.toString(16).toUpperCase().padStart(4, '0')} at ${i}`);
+    if (xml.startsWith('<![CDATA[', i)) {
+      const end = xml.indexOf(']]>', i);
+      assert.ok(end > i, `${label}: unterminated CDATA at ${i}`);
+      i = end + 2;
+      continue;
+    }
     if (xml[i] === '&') assert.match(xml.slice(i, i + 6), /^&(amp|lt|gt|quot);/, `${label}: bare & at ${i}`);
     if (xml[i] !== '<') continue;
     tag.lastIndex = i;
@@ -108,13 +114,19 @@ check(
 
 check(
   '```js\nif (a < b && c > d) {\n  return "<x>";\n}\n```\n',
-  '<pre><code>if (a &lt; b &amp;&amp; c &gt; d) {\n  return &quot;&lt;x&gt;&quot;;\n}</code></pre>\n',
-  'fenced code escapes < & > and keeps indentation',
+  '<ac:structured-macro ac:name="code"><ac:parameter ac:name="language">js</ac:parameter><ac:plain-text-body><![CDATA[if (a < b && c > d) {\n  return "<x>";\n}]]></ac:plain-text-body></ac:structured-macro>\n',
+  'fenced code becomes a code macro: language from the info string, text verbatim in CDATA, indentation kept',
 );
 
-check('~~~~\n```\ninner\n```\n~~~~\n', '<pre><code>```\ninner\n```</code></pre>\n', 'a tilde fence holds a backtick fence');
+check('```csharp title="x"\nvar a = 1;\n```\n', '<ac:structured-macro ac:name="code"><ac:parameter ac:name="language">csharp</ac:parameter><ac:plain-text-body><![CDATA[var a = 1;]]></ac:plain-text-body></ac:structured-macro>\n', 'the language is the info string\'s first word');
 
-check('```\nunterminated <x>\n', '<pre><code>unterminated &lt;x&gt;</code></pre>\n', 'an unterminated fence runs to the end');
+check('```c<x>\nb\n```\n', '<ac:structured-macro ac:name="code"><ac:plain-text-body><![CDATA[b]]></ac:plain-text-body></ac:structured-macro>\n', 'an info string that is no plain language name sets no language');
+
+check('```\na ]]> b\n```\n', '<ac:structured-macro ac:name="code"><ac:plain-text-body><![CDATA[a ]]]]><![CDATA[> b]]></ac:plain-text-body></ac:structured-macro>\n', 'a CDATA terminator in code is split across two sections');
+
+check('~~~~\n```\ninner\n```\n~~~~\n', '<ac:structured-macro ac:name="code"><ac:plain-text-body><![CDATA[```\ninner\n```]]></ac:plain-text-body></ac:structured-macro>\n', 'a tilde fence holds a backtick fence');
+
+check('```\nunterminated <x>\n', '<ac:structured-macro ac:name="code"><ac:plain-text-body><![CDATA[unterminated <x>]]></ac:plain-text-body></ac:structured-macro>\n', 'an unterminated fence runs to the end');
 
 check(
   '> quoted **text**\n> more\n\n---\n',
@@ -160,7 +172,7 @@ check(
 
 check(
   '```\nfoo\u0000bar\u001b[31m\n```\n',
-  '<pre><code>foobar[31m</code></pre>\n',
+  '<ac:structured-macro ac:name="code"><ac:plain-text-body><![CDATA[foobar[31m]]></ac:plain-text-body></ac:structured-macro>\n',
   'a code block with NUL and ESC is stripped',
 );
 

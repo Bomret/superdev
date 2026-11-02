@@ -7,7 +7,8 @@
 //
 // Covers what a staged page is written in: ATX headings, paragraphs, hard breaks, nested ordered and
 // unordered lists, GFM tables, fenced code, block quotes, horizontal rules, links, autolinks,
-// images, bold, italics, strikethrough, and inline code; emphasis wraps a whole link. A link or image
+// images, bold, italics, strikethrough, and inline code; emphasis wraps a whole link. Fenced code becomes a
+// Confluence `code` macro, its info string's first word the language and its text verbatim in CDATA. A link or image
 // destination is http, https, mailto or scheme-less; any other scheme leaves the link text alone. Raw HTML is escaped, never passed through,
 // so the output stays well-formed XML whatever the markdown holds. Void elements are self-closed.
 // simplicity: line-based subset, not CommonMark — setext headings, indented code blocks, reference
@@ -171,11 +172,14 @@ function blocks(lines) {
     let m;
     if ((m = l.match(FENCE))) {
       const close = new RegExp(`^ {0,3}${m[1][0]}{${m[1].length},}[ \\t]*$`);
+      const info = l.slice(m[0].length).trim().split(/\s+/)[0];
       const code = [];
       i++;
       while (i < lines.length && !close.test(lines[i])) code.push(lines[i++]);
       if (i++ >= lines.length) while (code.length && code[code.length - 1] === '') code.pop();
-      out.push(`<pre><code>${escape(code.join('\n'))}</code></pre>`);
+      const language = /^[\w+#.-]+$/.test(info) ? `<ac:parameter ac:name="language">${info}</ac:parameter>` : '';
+      const text = code.join('\n').replace(/]]>/g, ']]]]><![CDATA[>');
+      out.push(`<ac:structured-macro ac:name="code">${language}<ac:plain-text-body><![CDATA[${text}]]></ac:plain-text-body></ac:structured-macro>`);
     } else if ((m = l.match(HEADING))) {
       out.push(`<h${m[1].length}>${inline(m[2] || '')}</h${m[1].length}>`);
       i++;
