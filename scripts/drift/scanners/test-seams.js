@@ -78,7 +78,8 @@ function ownUses(text) {
 
 function scanTestSeams(root) {
   const base = path.join(root, 'plugin');
-  const testNames = walk(path.join(root, 'tests'), () => true).map((f) => path.basename(f));
+  // A test file is JavaScript; anything else under tests/ (a Finder `.DS_Store`) names no suite.
+  const testNames = walk(path.join(root, 'tests'), (n) => /\.[cm]?js$/.test(n)).map((f) => path.basename(f));
   const documented = walk(base, (n) => n.endsWith('.md')).map((f) => fs.readFileSync(f, 'utf8')).join('\n');
   const offenders = [];
   for (const file of walk(base, (n) => /\.[cm]?js$/.test(n))) {

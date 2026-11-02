@@ -25,6 +25,13 @@ module.exports = ({ assert, path, fixture }) => {
     assert.ok(gaps[0].expectation.includes('INV-0156'), 'cites the invariant');
   }
 
+  // --- a non-JavaScript file under tests/ is no test file ---
+  assert.deepEqual(
+    scanTestSeams(fixture({ ...tests, ...docs, 'tests/.DS_Store': '', 'plugin/lib/finder.js': "const skip = '.DS_Store';" })),
+    [],
+    'a stray .DS_Store under tests/ names no test file',
+  );
+
   // --- an environment read no shipped document names ---
   for (const [label, src] of [
     ['direct property access', 'const v = process.env.SECRET_KNOB;'],
