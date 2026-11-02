@@ -922,6 +922,7 @@ path, when that document is missing. A check that walks a directory reads whatev
 | `conflict-conclusion-no-commit` | no skill, agent, or reference concludes a resolved merge conflict with `git commit` (ADR 0123) | prohibition |
 | `code-management-no-force` | no code-management document sends `force_merge: true` or `--admin` on a merge (INV-0092) | prohibition |
 | `forgejo-tea-only` | no Forgejo backend document names a token env var, an `Authorization` header, or a curl call (ADR 0111) | prohibition |
+| `github-wiki-gh-only` | neither the GitHub wiki seed nor `docs/agents/knowledge-base.md` names a token env var (`GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`) or an `Authorization` header | prohibition |
 | `kb-no-backend-call` | plan, document, `doc-writer`, and `doc-pass.md` carry no instruction that reaches a knowledge-base backend (ADR 0023) | prohibition |
 | `agent-tool-agnostic` | no agent under `agents/` names a concrete toolchain command | prohibition |
 | `deploy-runner-exclusivity` | no skill or agent but ship names a deploy target's command as something it runs (INV-0098) | prohibition |

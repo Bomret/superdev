@@ -16,6 +16,8 @@ const {
   NO_FORCE_MERGE_PATTERNS,
   TEA_ONLY_DOCS,
   TEA_ONLY_MARKERS,
+  GITHUB_WIKI_GH_ONLY_DOCS,
+  GITHUB_WIKI_GH_ONLY_MARKERS,
   CONFLICT_COMMIT_CONCLUSION_PATTERNS,
   NO_TEST_RUN_DOCS,
   NO_TEST_RUN_PATTERNS,
@@ -142,6 +144,9 @@ function scanDocSetupNoTestRun(root) {
 // `TEA_ONLY_MARKERS`'s own comment for the ceiling this shape-based absence check carries.
 const scanTeaOnly = (root) => scanDocsAvoid(root, TEA_ONLY_DOCS, TEA_ONLY_MARKERS);
 
+// The GitHub wiki seed and this repository's knowledge-base document authenticate through `gh` and git only.
+const scanGithubWikiGhOnly = (root) => scanDocsAvoid(root, GITHUB_WIKI_GH_ONLY_DOCS, GITHUB_WIKI_GH_ONLY_MARKERS);
+
 // ADR 0101, INV-0098: only `/superdev:ship` ever runs a deploy target's command. `references/
 // deployment.md` states the rule itself, so it is exempt here the way a caution naming the forbidden thing
 // always is; `skills/ship/SKILL.md` is the one surface entitled to claim the run. Every other skill and
@@ -262,6 +267,7 @@ module.exports = {
   scanNoForceMerge,
   scanConflictConclusionNoCommit,
   scanTeaOnly,
+  scanGithubWikiGhOnly,
   scanDeployRunnerExclusivity,
   scanDocSetupNoTestRun,
   scanImplementNoFullRun,
