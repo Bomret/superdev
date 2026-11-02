@@ -1,3 +1,10 @@
+## [0.99.1](https://codeberg.org/bomret/superdev/compare/v0.99.0...v0.99.1) (2026-11-02)
+
+
+### Bug Fixes
+
+* **references:** read the Forgejo label id from tea's index field ([2eed7b8](https://codeberg.org/bomret/superdev/commit/2eed7b855ccd4092eb2c71402cd717dc11a34093))
+
 # [0.99.0](https://codeberg.org/bomret/superdev/compare/v0.98.2...v0.99.0) (2026-11-02)
 
 
