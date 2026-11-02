@@ -1,6 +1,8 @@
 # superdev
 
-A self-contained **Claude Code plugin** for the plan and implement loop. It gives you interview-driven
+A self-contained **Claude Code plugin** that takes a feature from a rough idea to a verified deploy:
+brainstorm, plan, implement, review, document, pull request, ship, verify, and wrap-up. Beside that chain
+it audits tests, sweeps a repository, reports run status, and publishes a knowledge base. It gives you interview-driven
 vertical slicing, an execution tier sized to the plan, deterministic hook guardrails, and a pluggable
 slice store plus code host. A plan of more than 3 slices runs in parallel slicetrees with isolated
 implementer and reviewer subagents. A plan of 3 or fewer runs test-first, inline in the scopetree.
