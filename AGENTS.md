@@ -148,7 +148,7 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
 - **Node.** The hooks' runtime and a prerequisite on the user's PATH, which Claude Code does not
   install. `hooks.json` invokes `node`, because not every environment has Bun. Bun is maintainer-only.
 - **semantic-release.** Deterministic, commit-driven releases (`release.config.cjs`), published to
-  **Codeberg** (Forgejo) through `@saithodev/semantic-release-gitea`.
+  **GitHub** through `@semantic-release/github`.
 - **Conventional Commits.** They drive the version bump. `feat` gives a minor bump, `fix` and `perf`
   give a patch bump. **Pre-1.0 policy:** `!` or `BREAKING CHANGE` also gives a **minor** bump (a
   `releaseRules` entry in `release.config.cjs`). superdev stays below 1.0.0 until it has proven itself
@@ -282,7 +282,7 @@ bun install                        # install dev deps (release toolchain)
 node scripts/run-tests.js          # every tests/ suite, drift-check, plugin manifest validation
 node scripts/run-tests.js --related <path>...  # the tail plus the suites the paths reach
 node tests/<suite>.test.js         # one suite, no tail
-GITEA_TOKEN=<token> bun run release  # cut a release from clean main; FORGEJO_TOKEN also works (see RELEASING.md)
+GH_TOKEN=$(gh auth token) bun run release  # cut a release from clean main (see RELEASING.md)
 ```
 
 superdev carries no A/B harness measuring it against a no-plugin baseline (ADR 0129). `tests/` check that
@@ -292,16 +292,16 @@ never that saying it helps.
 ## Agent skills
 
 ### Slice store
-Codeberg Issues (`bomret/superdev`). Slices as issues, feature labels, epics as scope anchors. See `docs/agents/issue-tracker.md`.
+GitHub Issues (`Bomret/superdev`). Slices as issues, feature labels, epics as scope anchors. See `docs/agents/issue-tracker.md`.
 
 ### Code host
-Codeberg (Forgejo). Push scope branch, open ready PR against `main`, squash-merge with Conventional Commits title. See `docs/agents/code-management.md`.
+GitHub. Push scope branch, open ready PR against `main`, squash-merge with Conventional Commits title. See `docs/agents/code-management.md`.
 
 ### Documentation
 `AGENTS.md` hierarchy (root + `scripts/AGENTS.md` + `plugin/references/AGENTS.md` + `mods/superdev-view/AGENTS.md`). `controlled` writing standard, American English. See `docs/agents/documentation.md`.
 
 ### Knowledge base
-Codeberg repo Wiki. Adopters first, maintainers second, English. `(aggregate)` page: Concepts. See `docs/agents/knowledge-base.md`.
+GitHub repo Wiki, published by git push. Adopters first, maintainers second, English. `(aggregate)` page: Concepts. See `docs/agents/knowledge-base.md`.
 
 ### Toolchain
 Bun dev toolchain, Node runtime for hooks. `node scripts/run-tests.js`, `bun run release`. No linter or formatter. See `docs/agents/toolchain.md`.

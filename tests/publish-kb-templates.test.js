@@ -1,8 +1,9 @@
 'use strict';
 
 // Suite for plugin/scripts/publish-kb.js: the real backend templates this repository ships —
-// `docs/agents/knowledge-base.md` and the Confluence seed — run through `classifyBackend` against
-// stubbed `tea` and `curl` commands, pinning which exit code each template produces.
+// `docs/agents/knowledge-base.md`, the Forgejo wiki seed, and the Confluence seed — run through
+// `classifyBackend` against stubbed `gh`, `tea`, and `curl` commands and a local wiki repository,
+// pinning which exit code each template produces.
 
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -247,7 +248,66 @@ function pinForgejoTemplates(realDoc, HOST) {
   fs.rmSync(noTeaDir, { recursive: true, force: true });
   fs.rmSync(stubDir, { recursive: true, force: true });
 }
-pinForgejoTemplates(fs.readFileSync(path.join(__dirname, '..', 'docs', 'agents', 'knowledge-base.md'), 'utf8'), 'https://codeberg.org');
+
+// --- this repository's own GitHub wiki templates clone, change, and push the wiki repository. A
+// `url.<local>.insteadOf` entry in the git environment points the clone at a local bare repository,
+// and a stub `gh` answers the login check and the user lookup.
+{
+  const realDoc = fs.readFileSync(path.join(__dirname, '..', 'docs', 'agents', 'knowledge-base.md'), 'utf8');
+  const { templates } = classifyBackend(realDoc);
+  for (const verb of ['find', 'read', 'create', 'update', 'delete']) assert.ok(templates[verb], `the GitHub wiki document configures a ${verb} template`);
+  assert.doesNotMatch(realDoc, /GITEA_TOKEN|GH_TOKEN|GITHUB_TOKEN|Authorization|curl/, 'the knowledge-base config names no token env var, header, or curl');
+
+  const work = fs.mkdtempSync(path.join(os.tmpdir(), 'gh-wiki-'));
+  const bare = path.join(work, 'wiki.git');
+  const git = (args, cwd = work) => {
+    const r = spawnSync('git', args, { cwd, encoding: 'utf8' });
+    assert.equal(r.status, 0, `git ${args.join(' ')}: ${r.stderr}`);
+  };
+  git(['init', '-q', '--bare', '-b', 'master', bare]);
+  const seedTree = path.join(work, 'seed');
+  git(['clone', '-q', bare, seedTree]);
+  fs.writeFileSync(path.join(seedTree, 'Home.md'), '# home\n');
+  git(['-c', 'user.name=t', '-c', 'user.email=t@t', 'add', 'Home.md'], seedTree);
+  git(['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'seed'], seedTree);
+  git(['push', '-q', 'origin', 'HEAD'], seedTree);
+
+  const ghDir = path.join(work, 'bin');
+  fs.mkdirSync(ghDir);
+  fs.writeFileSync(path.join(ghDir, 'gh'), '#!/bin/sh\n[ -n "$GH_STUB_FAIL" ] && exit 1\n[ "$1" = api ] && echo tester\nexit 0\n', { mode: 0o755 });
+  const n = Number(process.env.GIT_CONFIG_COUNT || 0);
+  const env = (extra = {}) => ({
+    ...process.env,
+    PATH: ghDir + path.delimiter + process.env.PATH,
+    GIT_CONFIG_COUNT: String(n + 1),
+    [`GIT_CONFIG_KEY_${n}`]: `url.file://${bare}.insteadOf`,
+    [`GIT_CONFIG_VALUE_${n}`]: 'https://github.com/Bomret/superdev.wiki.git',
+    ...extra,
+  });
+  const run = (verb, values, extra) => spawnSync('/bin/sh', ['-c', templates[verb], 'sh', valuesFile(values)], { env: env(extra), encoding: 'utf8' });
+  const body = path.join(work, 'body.md');
+  fs.writeFileSync(body, '# hi\n');
+  const title = 'Guide: Plan a feature';
+
+  assert.equal(run('find', { title }).status, 3, 'a clone without the page file answers absent (3)');
+  assert.equal(run('find', { title }, { GH_STUB_FAIL: '1' }).status, 2, 'a gh with no login could not answer (2)');
+  const broken = spawnSync('/bin/sh', ['-c', templates.find, 'sh', valuesFile({ title })], { env: env({ [`GIT_CONFIG_KEY_${n}`]: `url.file://${work}/missing.git.insteadOf` }), encoding: 'utf8' });
+  assert.equal(broken.status, 2, 'a failed clone could not answer (2), never absent');
+  assert.equal(run('update', { title, bodyFile: body }).status, 1, 'update of an absent page fails');
+  const created = run('create', { title, bodyFile: body });
+  assert.equal(created.status, 0, created.stderr);
+  const found = run('find', { title });
+  assert.equal(found.status, 0, found.stderr);
+  assert.deepEqual(JSON.parse(found.stdout), { sub_url: 'Guide:-Plan-a-feature' }, 'find emits the file name without .md');
+  const read = run('read', { title, found: { sub_url: 'Guide:-Plan-a-feature' } });
+  assert.equal(read.stdout, '# hi\n', 'read returns the page body');
+  fs.writeFileSync(body, '# changed\n');
+  assert.equal(run('update', { title, bodyFile: body, found: {} }).status, 0, 'update of a present page lands');
+  assert.equal(run('read', { title, found: {} }).stdout, '# changed\n', 'update replaced the body');
+  assert.equal(run('delete', { title, found: {} }).status, 0, 'delete lands');
+  assert.equal(run('find', { title }).status, 3, 'a deleted page is absent');
+  fs.rmSync(work, { recursive: true, force: true });
+}
 {
   const seed = fs.readFileSync(path.join(__dirname, '..', 'plugin', 'references', 'knowledge-base-forgejo.md'), 'utf8');
   const filled = seed.replaceAll('<host>', 'https://forgejo.example.org').replaceAll('<owner>/<repo>', 'acme/widgets');

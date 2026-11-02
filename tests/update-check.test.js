@@ -27,7 +27,7 @@ assert.ok(cmpVersion('0.10.0', '0.9.0') > 0, 'numeric, not lexical');
 // spawned hook, so no request leaves the machine. The stub appends each requested URL to a marker file: its lines
 // count the requests and prove the stub ran. The hook calls process.exit, so each case is a spawned child, run
 // asynchronously.
-const PUBLISHED = 'https://codeberg.org/bomret/superdev/raw/branch/main/plugin/.claude-plugin/plugin.json';
+const PUBLISHED = 'https://raw.githubusercontent.com/Bomret/superdev/main/plugin/.claude-plugin/plugin.json';
 
 async function outcomes() {
   const stub = path.join(__dirname, 'fixtures', 'stub-https-get.js');

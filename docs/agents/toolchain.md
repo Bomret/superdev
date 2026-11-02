@@ -8,7 +8,7 @@
   - Focused tests: `node scripts/run-tests.js --related <path>...` runs the tail plus only the suites the changed paths reach. An empty list runs the tail alone, and a code path no rule places runs every suite, except the repository-root release tooling (`release.config.cjs`, `package.json`, `bun.lock`).
   - One suite: `node tests/<suite>.test.js` runs that suite alone, with no tail.
   - `package.json` carries no test script (ADR 0166). Bun runs installs and releases only.
-  - Release: `bun run release` runs semantic-release from clean `main`. It needs `GITEA_TOKEN`, or `FORGEJO_TOKEN` when `GITEA_TOKEN` is unset (see RELEASING.md).
+  - Release: `bun run release` runs semantic-release from clean `main`. It needs `GH_TOKEN` or `GITHUB_TOKEN` (see RELEASING.md).
 - Runtime: **Node** runs the hooks in production (`hooks.json` invokes `node`, guaranteed in every Claude Code environment). Bun is maintainer-only.
 - Maintainer Node version: `.node-version` pins the major, `26`, for a version manager such as fnm (`fnm install` in the repository root).
 - No linter or formatter configs. There is no `.editorconfig`, `.prettierrc`, or `.eslintrc`. The plugin ships as prose plus CommonJS hooks, with no build step.

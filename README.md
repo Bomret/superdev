@@ -753,7 +753,7 @@ Windows without Git Bash, where Claude Code uses PowerShell. Prerequisites:
 **From the git host** (interactive):
 
 ```
-/plugin marketplace add https://codeberg.org/bomret/superdev.git
+/plugin marketplace add https://github.com/Bomret/superdev.git
 /plugin install superdev@superdev
 ```
 
@@ -764,7 +764,7 @@ work on `main` (ADR 0131).
 so load the clone's own `plugin/` directory for the session instead:
 
 ```
-git clone https://codeberg.org/bomret/superdev.git
+git clone https://github.com/Bomret/superdev.git
 cd superdev
 claude --plugin-dir ./plugin
 ```
@@ -813,7 +813,7 @@ at most once a day and stays silent when offline. "Newer" means the `version` in
 an unchanged version.
 
 **Maintainers:** releases are deterministic and commit-driven. semantic-release bumps the version,
-writes `CHANGELOG.md`, tags, and publishes a Codeberg Release from the Conventional Commits. See
+writes `CHANGELOG.md`, tags, and publishes a GitHub Release from the Conventional Commits. See
 [`RELEASING.md`](RELEASING.md).
 
 ## Requirements
