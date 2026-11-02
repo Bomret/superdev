@@ -1,32 +1,27 @@
 ---
 name: upgrade
-description: Check for a newer superdev release and upgrade the plugin in place from the marketplace. Run /reload-plugins afterward to load it.
+description: Upgrade the superdev plugin in place to the latest release from the marketplace. Run /reload-plugins afterward to load it.
 model: haiku
 allowed-tools: Bash(claude plugin marketplace update:*), Bash(claude plugin update:*)
 ---
 
 # superdev upgrade
 
-Upgrade the installed **superdev** plugin to the latest published version, hands-off. You (the model)
-run the two commands below with the Bash tool; the user just reloads at the end.
+## Role and terms
+
+Applies to every start. You upgrade the installed **superdev** plugin to the latest published version. You run the commands with the Bash tool.
 
 ## 1. Upgrade
 
-Run both — `claude plugin update` is idempotent (no-op if already current), so no version compare is
-needed:
+Applies when `claude plugin` is available. Run both commands below in this order, with no version compare first. Report each command's output verbatim.
 
 ```
 claude plugin marketplace update superdev
 claude plugin update superdev@superdev
 ```
 
-The first git-pulls the marketplace source so the latest version is visible; the second installs it.
-Report each command's output verbatim — it states whether an update happened or the plugin was already
-current. If `claude plugin` isn't available in this environment, fall back to telling the user to run
-`/plugin marketplace update superdev` → `/plugin update superdev@superdev` in an interactive Claude Code
-CLI.
+**No `claude plugin`.** Applies when `claude plugin` is not available in this environment. Tell the operator to run `/plugin marketplace update superdev` and then `/plugin update superdev@superdev` in an interactive Claude Code CLI.
 
 ## 2. Done
 
-Report the result from the command output, then tell the user to run **`/reload-plugins`** to load it. If the
-new version does not load after the reload, tell the user to restart Claude Code.
+Applies after step 1. Report the outcome of step 1: the command output, or the fallback you gave. Tell the operator to run **`/reload-plugins`** to load the new version. Tell the operator to restart Claude Code if the new version does not load after the reload.

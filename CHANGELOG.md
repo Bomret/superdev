@@ -1,3 +1,10 @@
+# [0.99.0](https://codeberg.org/bomret/superdev/compare/v0.98.2...v0.99.0) (2026-11-02)
+
+
+### Features
+
+* **publish-kb:** convert fenced code to a Confluence code macro ([#1514](https://codeberg.org/bomret/superdev/issues/1514)) ([9bec43a](https://codeberg.org/bomret/superdev/commit/9bec43a067be3ae41dce8e82800d296970387c84))
+
 ## [0.98.2](https://codeberg.org/bomret/superdev/compare/v0.98.1...v0.98.2) (2026-11-01)
 
 

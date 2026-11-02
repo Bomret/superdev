@@ -18,7 +18,7 @@ cannot.
 
 Every finding `/superdev:sweep` or an unchained `/superdev:review-tests` writes into its intent file carries
 a **Finding id** (`CONTEXT.md`): `F1`, `F2`, … in one sequence per intent, with no gap and no repeat. Every
-fact, every surviving judgment, every `unconfirmed` finding, and every `disputed` finding takes the next
+fact, every surviving judgment, every `unconfirmed` finding, every `disputed` finding, and every observation a sweep carries takes the next
 number, written at the start of that finding's line in the intent file.
 
 - **The ids are set when the intent file is written and never renumbered.** The record body is the intent
