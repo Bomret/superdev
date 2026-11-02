@@ -254,6 +254,86 @@ try {
     assert.ok(!fs.existsSync(path.join(g.root, 'ledger.md')) && !fs.existsSync(g.lock), 'an unreadable scopetree writes no ledger and no lock');
   }
 
+  // #unreadable: a run lock or a ledger open cannot read refuses with one `open:` line and no stack trace.
+  const refusal = (r, ...names) => {
+    assert.strictEqual(r.status, 1, `exits 1: ${r.out}${r.err}`);
+    const lines = r.err.trimEnd().split('\n');
+    assert.strictEqual(lines.length, 1, `one stderr line: ${r.err}`);
+    assert.match(lines[0], /^open: /, `the line starts open: ${r.err}`);
+    for (const n of names) assert.ok(lines[0].includes(n), `the line names ${n}: ${r.err}`);
+  };
+  const noCut = (f) => {
+    assert.ok(!fs.existsSync(f.scopetree), 'no scopetree is cut');
+    assert.strictEqual(git(['branch', '--list', BRANCH], f.repo), '', 'no branch is cut');
+  };
+
+  // #lock-dir: a directory at the lock path.
+  {
+    const f = fixture();
+    fs.mkdirSync(f.lock, { recursive: true });
+    refusal(open(f), f.lock, 'EISDIR');
+    noCut(f);
+    assert.ok(!fs.existsSync(path.join(f.root, 'ledger.md')), 'no ledger is written');
+    assert.ok(fs.statSync(f.lock).isDirectory(), 'the directory stays in place');
+  }
+
+  // #lock-symlink: a dangling symlink at the lock path; nothing is written through it.
+  {
+    const f = fixture();
+    fs.mkdirSync(f.root, { recursive: true });
+    const target = path.join(f.repo, 'elsewhere.lock');
+    fs.symlinkSync(target, f.lock);
+    refusal(open(f), f.lock, 'symbolic link');
+    noCut(f);
+    assert.ok(!fs.existsSync(target), 'the link target still does not exist');
+    assert.ok(fs.lstatSync(f.lock).isSymbolicLink(), 'the link stays in place');
+  }
+
+  // #ledger-unreadable: a directory at the ledger path.
+  {
+    const f = fixture();
+    const ledgerAt = path.join(f.root, 'ledger.md');
+    fs.mkdirSync(ledgerAt, { recursive: true });
+    refusal(open(f), ledgerAt, 'EISDIR');
+    noCut(f);
+  }
+
+  // #lock-write-fails: the lock write after the branch is set up fails; a second open once the cause is gone reuses it.
+  if (process.platform !== 'win32' && process.getuid() !== 0) {
+    const f = fixture();
+    assert.strictEqual(open(f).status, 0, 'a first open cuts the branch');
+    scope(f, 'step', 'clear');
+    fs.rmSync(f.lock);
+    fs.chmodSync(f.root, 0o555);
+    let r;
+    try {
+      r = open(f);
+    } finally {
+      fs.chmodSync(f.root, 0o755);
+    }
+    refusal(r, f.lock, 'EACCES', BRANCH, f.scopetree);
+    const again = open(f);
+    assert.strictEqual(again.status, 0, `a second open succeeds: ${again.err}`);
+    assert.strictEqual(again.word, 'existing', `reuses the branch: ${again.out}`);
+  }
+
+  // #lock-write-fails, fresh run: the lock write after cut() fails before any ledger exists; a second open reuses the cut.
+  if (process.platform !== 'win32' && process.getuid() !== 0) {
+    const f = fixture();
+    fs.mkdirSync(f.scopetree, { recursive: true });
+    fs.chmodSync(f.root, 0o555);
+    let r;
+    try {
+      r = open(f);
+    } finally {
+      fs.chmodSync(f.root, 0o755);
+    }
+    refusal(r, f.lock, 'EACCES', BRANCH, f.scopetree);
+    const again = open(f);
+    assert.strictEqual(again.status, 0, `a second open of a fresh run succeeds: ${again.err}`);
+    assert.strictEqual(again.word, 'reused', `reuses the branch and scopetree: ${again.out}`);
+  }
+
   // #lock-bound: the lock ages out at the same bound the run-lock hook applies.
   assert.strictEqual(STALENESS_MS, hook.STALENESS_MS, 'open and hooks/run-lock.js share one staleness bound');
 

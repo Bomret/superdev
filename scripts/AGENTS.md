@@ -333,7 +333,10 @@ and the step as their own verbs would, prints `root <run-root>` and `lock <nonce
 exits 3 on `locked` (a lock under an hour old that names another nonce, on a `planned` ledger only while its step
 stands), `not-contained` (the commits base lacks and a `git branch -m` remedy), `dirty` (the scopetree's
 `status --porcelain`), and `held` (another worktree holds the branch). A ledger at a later stage, a `planned` ledger
-naming another branch, a missing `--base`, and a failed git call exit 1. The code lives in `plugin/lib/plan-open.js`,
+naming another branch, a missing `--base`, and a failed git call exit 1. A run lock that is no regular file (a
+directory, a symlink, or another kind) or that cannot be read, and a ledger that cannot be read, exit 1 before the cut
+and write nothing. A lock write that fails after the cut exits 1 and names the branch and scopetree already set up, and
+a second `open` reuses them. Each refusal is one `open:` line on stderr. The code lives in `plugin/lib/plan-open.js`,
 and `tests/scope-open.test.js` holds its cases.
 
 `discard --root <run-root>` is the one sanctioned removal of a run's ledger and run trace (ADR 0208, INV-0181). It removes

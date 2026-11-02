@@ -42,16 +42,24 @@ function parseArgs(args) {
   return opts;
 }
 
-// The lock's nonce and its age in ms, or null when there is no lock.
+// The lock's nonce and its age in ms, or null when there is no lock. Anything but a regular file or no file refuses.
 function readLock(lockPath) {
   let stat;
   let text;
   try {
-    stat = fs.statSync(lockPath);
-    text = fs.readFileSync(lockPath, 'utf8');
+    stat = fs.lstatSync(lockPath);
   } catch (e) {
     if (e.code === 'ENOENT') return null;
-    throw e;
+    fail(`open: cannot read the run lock ${lockPath}: ${e.code || e.message}`);
+  }
+  if (!stat.isFile()) {
+    const kind = stat.isDirectory() ? 'a directory (EISDIR)' : stat.isSymbolicLink() ? 'a symbolic link' : 'another file type';
+    fail(`open: the run lock ${lockPath} is ${kind}, not a regular file`);
+  }
+  try {
+    text = fs.readFileSync(lockPath, 'utf8');
+  } catch (e) {
+    fail(`open: cannot read the run lock ${lockPath}: ${e.code || e.message}`);
   }
   const m = text.match(/^plan ([0-9a-f]+)\s*$/m);
   return { nonce: m ? m[1] : null, age: Date.now() - stat.mtimeMs, text: text.trim() };
@@ -141,7 +149,12 @@ function verbOpen(cwd, args) {
   let stage = null;
   let step = null;
   if (fs.existsSync(ledgerPath(root))) {
-    const lines = readLines(root);
+    let lines;
+    try {
+      lines = readLines(root);
+    } catch (e) {
+      fail(`open: cannot read the ledger ${ledgerPath(root)}: ${e.code || e.message}`);
+    }
     stage = getHeader(lines, 'Stage');
     step = getHeader(lines, 'Step');
     if (stage === 'planned') {
@@ -169,8 +182,12 @@ function verbOpen(cwd, args) {
   if (outcome.exitCode) return report(outcome);
 
   const nonce = lock || crypto.randomBytes(6).toString('hex');
-  fs.mkdirSync(root, { recursive: true });
-  fs.writeFileSync(lockPath, `plan ${nonce}\n`);
+  try {
+    fs.mkdirSync(root, { recursive: true });
+    fs.writeFileSync(lockPath, `plan ${nonce}\n`);
+  } catch (e) {
+    fail(`open: cannot write the run lock ${lockPath}: ${e.code || e.message}; a second open reuses the branch ${label} and the scopetree ${scopetree}`);
+  }
 
   if (!existing) {
     verbInit(cwd, label, 'planned', JSON.stringify({ anchor: PENDING_ANCHOR, slices: [] }), () => {});
