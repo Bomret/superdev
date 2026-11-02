@@ -6,68 +6,114 @@ argument-hint: "[a rough idea, or nothing]"
 
 # superdev brainstorm
 
-Turn a vague idea into an intent that's sharp enough to interview.
-Where `/superdev:plan` **converges** — one question at a time, pinning down a Definition of Done — this command **diverges** first: it generates options, tolerates "I don't know," and only narrows once the shape of the problem is clear.
-Near read-only — it writes its own intent file under `.superdev/brainstorm/` as the interview runs, and adds `.superdev/` to `.gitignore` when absent. Once the intent is ready, §6 hands it to the slice store as an intent record and deletes the file. The one other write is §4's prototype detour, which parks the prototype on a throwaway branch. It writes no slices and no Definition of Done; that's `/superdev:plan`'s job.
-Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section (ADR 0157).
+## Role and terms
 
-Set a generative, curious mode: offer options rather than asking closed questions, explore tradeoffs out loud, and treat "I don't know yet" as useful signal, not a blocker. Ground every option and claim in the actual repo: read documentation files, like `README.md`, `CLAUDE.md` or `AGENTS.md`, and the relevant code before proposing directions, and say so the moment the code already does, or cannot support, something the idea assumes.
+Applies to every start. You turn a vague idea into an intent sharp enough for `/superdev:plan` to interview. Plan converges on a Definition of Done, and you diverge first: generate options, take "I don't know yet" as signal, and narrow once the problem's shape is clear.
 
-**Run the conversation with these core moves of `${CLAUDE_PLUGIN_ROOT}/references/cross-exam.md`:** **One question at a time**, **Explore the code instead of asking**, **A recommended answer every time**, **Offer only live options** (vetted, at most two), **Surface, never smuggle**, and **Hunt contradictions**. The divergence stays inside the exploration: let the tree branch wide before it narrows, then offer only what survives the vetting. The conversation stops at §6's readiness test, which leaves open decisions for `/superdev:plan` to interview; cross-exam.md's `## Termination` is plan's stopping point. Apply the **active moves** in
-`${CLAUDE_PLUGIN_ROOT}/references/domain-modeling.md` too — challenge vague terms, sharpen fuzzy language — to think precisely. Apply
-`${CLAUDE_PLUGIN_ROOT}/references/doc-verification.md` as well — verify a claim about how a third-party library, product, or service behaves against its official docs before it's carried into the intent as fact. But **write nothing durable** here: no glossary entries, no ADRs, no slices. Durable capture is `/superdev:plan`'s job.
+- **The intent file**: `.superdev/brainstorm/<intent-slug>.md`. It opens with YAML frontmatter carrying `status: draft` or `status: ready`, then carries §5's headings.
+- **A draft**: an intent file whose frontmatter `status` is `draft` (ADR 0112, INV-0110). A file with no frontmatter or any other status is not a draft.
+- **cross-exam.md**: `${CLAUDE_PLUGIN_ROOT}/references/cross-exam.md`.
+- **domain-modeling.md**: `${CLAUDE_PLUGIN_ROOT}/references/domain-modeling.md`.
+
+## What you write
+
+Applies to every start. Write only these: the intent file as the interview runs, `.superdev/` in `.gitignore` when absent, §6's intent record with the deletion of the file it replaces, and §4's prototype on a throwaway branch. Write no slice, no Definition of Done, no glossary entry, and no ADR. Durable capture is `/superdev:plan`'s job.
+
+## The closing message
+
+Applies to every message this command ends on. Close it with the Next block per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in that file's `## The offer` section (ADR 0157).
+
+## The mode
+
+Applies to the whole conversation. Offer options rather than closed questions, and explore tradeoffs out loud. Ground every option and claim in the actual repo.
+
+- Read the documentation files, such as `README.md`, `CLAUDE.md`, or `AGENTS.md`, and the relevant code before you propose a direction.
+- Say so the moment the code already does something the idea assumes, or cannot support it.
+
+## The moves
+
+Applies to the whole conversation. Run it with these core moves of cross-exam.md: **One question at a time**, **Explore the code instead of asking**, **A recommended answer every time**, **Offer only live options** (vetted, at most two), **Surface, never smuggle**, and **Hunt contradictions**. Let the exploration branch wide before it narrows. Stop at §6's readiness test, not at cross-exam.md's `## Termination`.
+
+- Apply the **active moves** of domain-modeling.md: challenge vague terms and sharpen fuzzy language.
+- Apply `${CLAUDE_PLUGIN_ROOT}/references/doc-verification.md`: verify a claim about how a third-party library, product, or service behaves against its official docs before the intent carries it as fact.
 
 ## 0. Offer the drafts
 
-Glob `.superdev/brainstorm/*.md` and read each file's YAML frontmatter. A file whose `status` is `draft` is an unfinished brainstorm (ADR 0112, INV-0110); only that frontmatter marks one, so a file with no frontmatter or any other status is not a draft. No draft, a directory holding only ready intents, or no directory → start at §1.
+**The scan.** Applies to every start. Glob `.superdev/brainstorm/*.md` and read each file's YAML frontmatter. No draft, or no directory → start at §1.
 
-Any draft exists → ask one `AskUserQuestion` (ADR 0184): a **resume** option per draft, its description carrying the draft's problem-statement line, then **start fresh**. `AskUserQuestion` holds 2–4 options; where drafts exceed the options, name the remaining ones in the question text so none goes unseen, and the operator reaches them through the tool's free-text "Other". Never select one yourself, `$ARGUMENTS` matching a draft included.
+**The ask.** Applies when any draft exists. Ask one `AskUserQuestion` (ADR 0184): a **resume** option per draft, its description carrying the draft's problem-statement line, then **start fresh**. Select none yourself, `$ARGUMENTS` matching a draft included.
 
-- **Resume** re-reads the file, summarizes where it stands, skips §1, and continues at the first still-open decision. A point the file records as settled is not asked again.
-- **Start fresh** continues at §1 and leaves every existing draft in place.
+- `AskUserQuestion` holds 2–4 options. Drafts beyond the options → name them in the question text, and the operator reaches them through the tool's free-text "Other".
+- **Resume** → re-read the file, summarize where it stands, skip §1, and continue at the first still-open decision. Ask no point the file records as settled.
+- **Start fresh** → continue at §1, and leave every existing draft in place.
 
-**Keep the file current.** Each point that settles — the problem, a direction, a success criterion, a scope line, a commitment, a rejected direction — is edited into its section in the same turn it settles. A direction still under discussion sits under the still-open decisions, and the file gets no section beyond §5's. Brainstorm owns the file during the interview; the operator steers through the conversation, not by editing it.
+**Keep the file current.** Applies once the intent file exists. Edit each point into its section in the turn it settles: the problem, a direction, a success criterion, a scope line, a commitment, or a rejected direction. You own the file during the interview, and the operator steers through the conversation.
+
+- A direction still under discussion sits under the still-open decisions.
+- The file gets no section beyond §5's.
+- A first commitment, or a first rejected direction worth keeping → add its heading then.
 
 ## 1. Start from the problem, not the solution
 
-If `$ARGUMENTS` names a solution ("add a cache", "build a dashboard"), pull the conversation back one level before going further.
-Ask: who feels this pain, what's frustrating about today, why does it matter now, and what happens if nothing changes. A brainstorm that starts from the solution locks in the first idea instead of finding the best one.
+**The problem.** Applies when `$ARGUMENTS` names a solution ("add a cache", "build a dashboard"). Pull the conversation back one level before going further. Ask who feels this pain, what frustrates them today, why it matters now, and what happens if nothing changes.
 
-**Write the intent file once the operator confirms the problem, before any direction is explored.** The write is mandatory. Name it `.superdev/brainstorm/<intent-slug>.md`, the slug taken from the confirmed problem, not from `$ARGUMENTS`: §1 often turns a solution-shaped argument into a problem, and a slug taken too early names the first idea. A slug that names an existing file in `.superdev/brainstorm/` gets a distinct name, a `-2` or `-3` suffix, and the write never overwrites a file brainstorm did not create in this session. The file opens with YAML frontmatter, `status: draft`, then carries §5's headings as its skeleton with the problem statement filled in. Ensure `.superdev/` is in the repo's `.gitignore`; add it if absent. The file sits alongside `.superdev/scopes/`, never inside it, and never loose in the tracked working tree of whatever branch is checked out.
+**Write the intent file.** Applies once the operator confirms the problem, before any direction is explored. The write is mandatory, with the slug taken from the confirmed problem and not from `$ARGUMENTS`. Write `status: draft` frontmatter, then §5's headings as a skeleton with the problem statement filled in. The skeleton leaves out **Load-bearing commitments** and **Rejected directions**.
 
-**Audit for prior art once the problem is confirmed, before §2 explores any direction.** Run the redundancy and prior-rejection checks in `${CLAUDE_PLUGIN_ROOT}/references/prior-art.md`, and carry what they find into §2: a redundancy hit makes extending the existing implementation §2's recommended direction.
+- A slug naming an existing file in `.superdev/brainstorm/` → a distinct name with a `-2` or `-3` suffix. Never overwrite a file this session did not create.
+- `.superdev/` absent from the repo's `.gitignore` → add it.
+- The file sits beside `.superdev/scopes/`, never inside it, and never loose in the tracked working tree of the checked-out branch.
+
+**Audit for prior art.** Applies once the problem is confirmed, before §2 explores any direction. Run the redundancy and prior-rejection checks in `${CLAUDE_PLUGIN_ROOT}/references/prior-art.md`, and carry their findings into §2. A redundancy hit makes extending the existing implementation §2's recommended direction.
 
 ## 2. Explore the space
 
-Explore **2–4 candidate directions or shapes** for solving the problem — different enough to reveal real tradeoffs, not variations on one idea — and vet each against the repo, per cross-exam.md's live-options rule, before you show any. For each, name the rough shape and its cost/benefit. Offer at most the two strongest survivors, marking a recommendation; two equally strong survivors are a toss-up, and you say so. Name each dropped direction in one line with why it lost. Diverge before you converge — resist collapsing to a single direction before the exploration has run.
+Applies once the problem is confirmed and audited for prior art, in this session or in the session that wrote a resumed draft. Explore **2–4 candidate directions or shapes**, different enough to show real tradeoffs, and vet each against the repo before you show any. Offer the two strongest survivors per **Offer only live options**, each with its rough shape and cost/benefit.
+
+- Name each dropped direction in one line.
+- Two equally strong survivors → say they are a toss-up.
+- Keep diverging until the exploration has run. Then converge.
 
 ## 3. Find the Minimal Lovable Product (MLP)
 
-For the direction the user leans toward, find the **smallest end-to-end version that delivers real value** — not a fragment of the final thing, but a complete (if narrow) slice through it a user could actually use.
-Push back on gold-plating; push back on scope so thin it delivers nothing real either.
+Applies to the direction the user leans toward. Find the **smallest end-to-end version that delivers real value**: a complete, narrow slice a user could actually use. Push back on gold-plating, and push back on scope too thin to deliver anything real.
 
 ## 4. Surface unknowns
 
-Name the assumptions being made, the risks, and any constraints (technical, organizational, timeline).
+**The unknowns.** Applies to the chosen direction. Name the assumptions, the risks, and the constraints (technical, organizational, timeline).
 
-**An unknown conversation cannot settle earns a prototype.** "Does this state model feel right", "which of these two shapes survives real data" — offer the detour and run it by `${CLAUDE_PLUGIN_ROOT}/references/prototype.md`: state the question in the artifact, keep the logic liftable, fold the validated decision into the intent, and park the prototype itself on a throwaway branch. The intent carries the decision; the codebase carries nothing.
+**The prototype.** Applies to an unknown the conversation cannot settle, such as "does this state model feel right" or "which of these two shapes survives real data". Offer the detour, and run it by `${CLAUDE_PLUGIN_ROOT}/references/prototype.md`. The intent carries the decision.
+
+- The codebase carries nothing.
+- State the question in the artifact.
+- Keep the logic liftable.
+- Fold the validated decision into the intent.
+- Park the prototype on a throwaway branch.
 
 ## 5. Converge to a "ready to plan" intent
 
-Once the space has been explored, bring the intent file to its final form — a short intent with these headings, which the file has carried since §1:
+Applies once the space has been explored. Bring the intent file to its final form under these headings.
 
-- **Problem statement** — the pain, from the user's perspective.
-- **Target user** — who this is for.
-- **Success criteria** — checkable, not vibes.
-- **Rough scope + non-goals** — the MLP, and what's deliberately excluded.
-- **Still-open decisions** — what remains genuinely undecided.
-- **Load-bearing commitments** — a commitment the discovery settled that will constrain later decisions, written as a pair: the principle, then the rule it implies. The pairing is the test — a principle alone is cheap to invent, a principle carrying its implied rule is not — so naming the rule is what separates a commitment from a mood. `/superdev:plan` converts each one into an invariant register entry, or names out loud the reason it implies none (`domain-modeling.md`, ADR 0081). A discovery that settled none writes no section and says so.
-- **Rejected directions** — a direction explored and dropped, and why it lost. Include only what a future reader would plausibly re-propose; a divergent conversation generates dead ends nobody needs recorded. Nothing worth keeping → omit the bullet entirely rather than write an empty one. `/superdev:plan` makes these durable (`domain-modeling.md`).
+| Heading | Content |
+|---|---|
+| **Problem statement** | The pain, from the user's perspective. |
+| **Target user** | Who this is for. |
+| **Success criteria** | Checkable criteria. |
+| **Rough scope + non-goals** | The MLP, and what is deliberately excluded. |
+| **Still-open decisions** | What remains genuinely undecided. |
+| **Load-bearing commitments** | Each commitment the discovery settled that constrains later decisions, written as a pair: the principle, then the rule it implies. A principle with no rule is no commitment. `/superdev:plan` turns each into an invariant register entry, or names why it implies none (domain-modeling.md, ADR 0081). None settled → write no section, and say so. |
+| **Rejected directions** | Each direction explored and dropped, and why it lost, kept only where a future reader would plausibly re-propose it. Nothing worth keeping → omit the heading. `/superdev:plan` makes these durable (domain-modeling.md). |
 
 ## 6. Hand off
 
-Once the intent has a clear problem, checkable success criteria, and a bounded scope — even if some decisions remain open — set `status: ready` in the intent file's frontmatter, then hand the intent off as an intent record by `${CLAUDE_PLUGIN_ROOT}/references/intent-handoff.md`: the record replaces the file, and where the record cannot be written whole the file stays `ready` and the report says why. Tell the user it's ready and to run **`/superdev:plan`**, which will interview those remaining decisions one at a time and decompose the work into slices.
+**A ready intent.** Applies once the intent has a clear problem, checkable success criteria, and a bounded scope, even with decisions still open. Set `status: ready` in the frontmatter, then hand the intent off as an intent record by `${CLAUDE_PLUGIN_ROOT}/references/intent-handoff.md`. The record replaces the file.
 
-A brainstorm that ends before the intent is ready — the operator stops while the file still reads `status: draft` — names `/superdev:brainstorm` as its next command, which resumes the draft at §0 (triage #829). A draft writes nothing to the slice store. `/superdev:plan` skips a draft, so it is never that exit's next command.
+- The record confirmed → delete the file.
+- A record that cannot be written whole → the file stays `ready`, and the report says why.
+- Tell the user the intent is ready, and name **`/superdev:plan`** as the next command. Plan interviews the open decisions one at a time and slices the work.
 
-Close with the brainstorm report, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The brainstorm report` section (INV-0112).
+**A stop before ready.** Applies when the operator stops while the file reads `status: draft` (triage #829). Write nothing to the slice store, and name `/superdev:brainstorm` as the next command.
+
+- It resumes the draft at §0.
+- `/superdev:plan` skips a draft, so it is never this exit's next command.
+
+**The report.** Applies to every exit. Close with the brainstorm report per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The brainstorm report` section (INV-0112).

@@ -11,8 +11,7 @@ argument-hint: "[<scope>  (empty = the only run in this repo)]  [--unattended]"
 Applies to every start. You open a pull request for a run whose slices are on the scope branch. You dispatch no subagent. You leave the run standing: the scopetree, the slicetrees, the run lock, and the scope anchor stay, and `/superdev:wrap-up` takes them down.
 
 - **The scope checkout**: the checkout `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md` finds. §4's suite run and §5's git commands run in it.
-- **`<branch>`**: the scope branch, the ledger's `**Branch:**` line.
-- **`<branch>`**: the scope branch, `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get branch --root <run-root>`.
+- **`<branch>`**: the scope branch, the ledger's `**Branch:**` line, read with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get branch --root <run-root>`.
 - **`<sha>`**: `git rev-parse <branch>`, run in the scope checkout.
 - **The publish**: publish the snapshot per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section.
 - **An unattended block**: a stop that counts as a block under `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section.

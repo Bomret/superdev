@@ -65,11 +65,8 @@ the agents it reaches. The rule inventory and the ad-hoc comparison of this scop
 rewrite kept the skill's behaviour. A single comparison run per version is one sample, not a measurement
 (ADR 0129). The rollout to other skills is a later decision.
 
-The governed review files hold fewer words than the skill alone held before the rewrite. The 0.83.0
-`plugin/skills/review/SKILL.md` held 11,277 words, and the skill at the pilot's base commit held 11,403.
-The rewritten `plugin/skills/review/SKILL.md` holds 3,010 words and
-`plugin/references/review-scope-mode.md` holds 5,173, 8,183 together. An ad-hoc review loads
-the 3,010-word skill and not the scope reference.
+The governed review files hold fewer words than the skill alone held before the rewrite. An ad-hoc review loads
+the skill and not the scope reference.
 
 **Comparison.** One headless review of the 0.83.0 skill and one of the rewrite as commit `e42e0db7` holds
 it each read the fixed range `4d33f993^..4d33f993` from a checkout at `6dd42b91`. The standing-code review's
@@ -98,25 +95,82 @@ overlap lens to a governed skill file. It reported No-overlap, Effect, condition
 findings, all Minor, and two gaps in `review-scope-mode.md`: the moment its Config concepts fire, and the
 timing of the range base. The slice fixed all of them.
 
-The 0.86.0 `plugin/skills/verify-ship/SKILL.md` held 1,509 words. The rewritten skill holds 1,485. The
-rewrite adds a term list, a condition head on each concept, and a split of the closing paragraph, and
+The
+rewrite of `plugin/skills/verify-ship/SKILL.md` adds a term list, a condition head on each concept, and a split of the closing paragraph, and
 removes rationale and restated rules, so the word count stays near the original. Its gain is that each
 concept holds three main sentences or fewer, and that the exit table in the rule inventory shows the same
 store, host, and ledger calls, next command, and offer on every exit.
 
-The 0.98.1 `plugin/skills/wrap-up/SKILL.md` held 1,898 words. The rewritten skill holds 1,817. The
-rewrite adds the same term list and start concepts as verify-ship, a condition head on each concept, and a
+The
+rewrite of `plugin/skills/wrap-up/SKILL.md` adds the same term list and start concepts as verify-ship, a condition head on each concept, and a
 numbered cleanup order, and removes rationale and restated rules. Its before/after exit table shows the same
 gates, asks, refusals, store, host, and ledger calls, next commands, and offers on every exit.
 
-The 0.98.2 `plugin/skills/ship/SKILL.md` held 5,177 words. The rewritten skill holds 4,061. The rewrite
+The rewrite of `plugin/skills/ship/SKILL.md`
 adds the same term list and start concepts as wrap-up, a condition head on each concept, and named
 concepts for the suite gate, the whole-repo run, the push, and the deploy, and removes rationale and
 restated rules. Its exits keep the same gates, asks, refusals, ledger and host calls, next commands, and
 offers.
 
-The 0.98.2 `plugin/skills/submit-pr/SKILL.md` held 2,000 words. The rewritten skill holds 1,613. The
-rewrite adds a term list, a condition head on each concept, named concepts for the unattended stage, the
+The
+rewrite of `plugin/skills/submit-pr/SKILL.md` adds a term list, a condition head on each concept, named concepts for the unattended stage, the
 missing step, the reuse, and the stopped run, and a table of the pull request body's headings, and removes
 rationale and restated rules. Its exits keep the same gates, asks, refusals, ledger and host calls, next
 command, and offer.
+
+The
+rewrite of `plugin/skills/document/SKILL.md` adds a term list, a condition head on each concept, a stage-write table, and a next-command table
+read in the old text's order, and removes rationale and restated rules. Its exits keep the same gates,
+asks, refusals, dispatches, ledger and store calls, next commands, and offer. The operator settled two conflicts the old text
+held: the run root is captured and the run lock refreshed in §2, before the first `step set`, and a stop on
+an open `docs` line runs `step block`, as every other blocked stop does.
+
+The
+rewrite of `plugin/skills/implement/SKILL.md` adds a term list, a condition head on each concept, named concepts for the closing message, the
+inline doc pass, the log entries, the fix loop's exits, the sibling check, and the release, and tables of
+the issue statuses, and removes rationale and restated rules. Its exits keep the same gates, asks,
+refusals, ledger and store calls, dispatches, next command, and offer.
+
+The rewrite of `plugin/skills/plan/SKILL.md`
+adds a term list, a condition head on each concept, named concepts for the triage check, the derive
+dispatch, the label revision, and the anchor-only lines, and tables for the intent offer, the release-risk
+deploy states, the `open` outcomes, and the intent settlement, and removes rationale and restated rules.
+Its exits keep the same gates, asks, refusals, store, host, and ledger calls, next command, and offer.
+
+The rewrite of `plugin/skills/setup/SKILL.md`
+adds a term list, a condition head on each concept, a subsection per decision, and tables for the
+check mode's fact checks, the slice-store and code-host choices, and the verification sections, and removes
+rationale and restated rules. Its paths keep the same asks, checks, probes, writes, and refusals.
+
+The rewrite of `plugin/skills/status/SKILL.md`
+adds a term list, a condition head on each concept, and tables of the store listings and the anchor
+routing cases, and removes rationale and restated rules. Its exits keep the same reads, stops, buckets,
+acts, and recommended move. It still writes nothing.
+
+The
+rewrite of `plugin/skills/brainstorm/SKILL.md` adds a term list, a condition head on each concept, named concepts for the writes, the mode, and
+the moves, and a table of the intent's headings, and removes rationale and restated rules. Its exits keep
+the same ask, store write, next commands, and offer.
+
+The rewrite of `plugin/skills/upgrade/SKILL.md`
+adds a role concept and a condition head on each concept, and removes rationale. It keeps the same two
+commands, the fallback for a missing `claude plugin`, and the reload and restart instructions.
+
+The
+rewrite of `plugin/skills/publish-kb/SKILL.md` adds a term list, a condition head on each concept, a named concept for the flag order, and a table
+of the parent-link cases, and removes rationale and restated rules. Its exits keep the same script calls,
+the same two asks, the same refusals, and the same report.
+
+The
+rewrite of `plugin/skills/review-tests/SKILL.md` adds a term list, a condition head on each concept, and tables for the argument cases, the empty
+sets, and the timing outcomes, and removes rationale, restated rules, and the red-flags list. Apart from
+the five gaps below, its exits keep the same asks, refusals, dispatches, writes, next command, and offer. The rewrite settles five gaps the old text left open.
+A chained run skips the timing ask and is `unmeasured`. A run whose every finding the operator dropped is an empty result. The gap
+dispatch hands each batch's directories, as `test-gap-auditor` expects. The role names the sweep's test
+leg beside operator invocation. A chained run files no observation's triage record, returns the
+observation with its findings, and prints no Next block.
+
+The rewrite of `plugin/skills/sweep/SKILL.md`
+adds a term list, a condition head on each concept, and tables for how each leg reads the swept path and
+for which findings are facts and which are judgments, and removes rationale, restated rules, and the red
+flags. Its exits keep the same stops, dispatches, ask, intent write, and next command.

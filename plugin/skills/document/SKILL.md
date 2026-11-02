@@ -6,191 +6,179 @@ argument-hint: "[BASE..HEAD | area/path | audit [--chained] | (empty = full reco
 
 # superdev document
 
-Bring the docs and the knowledge base into agreement with reality.
-Dispatch the isolated **`superdev:doc-writer`** to do the work, then reader-test the result with the fresh-context **`superdev:doc-reader`**. You (the controller) scope, relay, and report.
+## Role and terms
 
-Every message this command ends on closes with the Next block, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section (ADR 0157). A run under `--chained` prints no Next block.
+Applies to every start. You bring the docs and the knowledge base into agreement with the code. The **`superdev:doc-writer`** does the work, and the fresh-context **`superdev:doc-reader`** reader-tests it. You scope, relay, and report, and you redo none of the writer's work.
+
+- **A live run**: a range `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md` finds to be a live superdev run. Every other start is **ad-hoc**, and an ad-hoc start writes no stage.
+- **`<run-root>`**: the **absolute** path to the live run's scope directory. The run's artifacts are `<run-root>/ledger.md`, `<run-root>/run.lock`, and `<run-root>/dod.md`.
+- **The scope's own commits**: `<range-base>..<branch>`, per `scope-mode.md`'s `## The scope's range base`.
+- **The staging path**: the **absolute** path `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" staging <scope>` prints, or `staging _adhoc` on an ad-hoc start, resolved before the dispatch. It names `.superdev/kb-pending/<scope>/` in the main working tree from any cwd (ADR 0119).
+- **An open `docs` line**: a `docs`-tagged line of `<run-root>/dod.md` neither ticked nor `accepted:`.
+- **The publish**: publish the snapshot per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section.
+- **A writer dispatch**: dispatch `superdev:doc-writer` with an **explicit `model`** (`sonnet`).
+- **A reader dispatch**: dispatch `superdev:doc-reader` with an **explicit `model`** (`sonnet`).
+
+## The closing message
+
+Applies to every message this command ends on, except under `--chained`, which prints no Next block. Close it with the Next block per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in that file's `## The offer` section (ADR 0157).
+
+## No test command
+
+Applies to every path of this command: the pass, its fix round, an audit, a bootstrap, the tick re-check, and the `docs`-line fix round (ADR 0189, INV-0175). Run no test command. The review's green suite record carries to `/superdev:ship` across Markdown-only doc commits (ADR 0128).
 
 ## 1. Config
 
-- Read `docs/agents/documentation.md` (in-repo documentation convention) and `docs/agents/knowledge-base.md` (KB backend, audience, language, outline — may be "none").
-- Neither present → this repo hasn't been set up for superdev docs; suggest `/superdev:setup` and stop.
+Applies to every start. Read `docs/agents/documentation.md` (the in-repo documentation convention) and `docs/agents/knowledge-base.md` (KB backend, audience, language, outline; it may read "none"). Neither present → suggest `/superdev:setup` and stop.
 
 ## 2. Range
 
-**`--unattended`, if present, comes out first** — per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section, it is never part of the range or the area path.
+**`--unattended`.** Applies before anything else in this section. Take it out of `$ARGUMENTS` first, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section. That section governs every stop this command reaches.
 
-**`--chained`, if present, comes out the same way** — never part of the range or the area path either. It
-signals that `/superdev:sweep` dispatched this run as its doc leg, in the **chained posture** CONTEXT.md
-and ADR 0068 define. Only `audit` (§6) reads it; every other mode ignores it.
+**`--chained`.** Applies to an argument carrying it. Take it out the same way. It marks this run as `/superdev:sweep`'s doc leg in the **chained posture** (CONTEXT.md, ADR 0068), and only `audit` (§6) reads it.
 
-From `$ARGUMENTS`:
+**The mode.** Applies to the remaining `$ARGUMENTS`. Neither flag is part of the range or the area path.
 
-- **A git range** (`BASE..HEAD`) or an **area path** → a focused reconcile of what changed there. (`/superdev:review` hands on `<range-base>..<type>/<scope>`, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`.) A range or area **never** bootstraps (§7), so the chain's doc pass, which always passes a range, can't.
-- **Empty** → a **full reconcile**: all in-repo docs (README + the whole `AGENTS.md` tree) + the KB against current repo state. **Exception:** the convention is the `AGENTS.md` hierarchy and the root `AGENTS.md` is **absent** → there is no doc tree to reconcile: skip §3-§5 and run **bootstrap** in §7.
-- **The literal word `audit`** → skip §3-§5; run the **reader-first audit** in §6.
+- **A git range** (`BASE..HEAD`) or an **area path** → a focused reconcile of what changed there. `/superdev:review` hands on `<range-base>..<type>/<scope>`. A range or area never bootstraps.
+- **Empty**, except the case below → a **full reconcile** of every in-repo doc (README and the whole `AGENTS.md` tree) and the KB against the current repository.
+- **Empty, the convention is the `AGENTS.md` hierarchy, and the root `AGENTS.md` is absent** → skip §3–§5 and run **bootstrap** in §7.
+- **The literal word `audit`** → skip §3–§5 and run the **reader-first audit** in §6.
 
-**Scope mode.** Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md` for what makes the range a live superdev run. When it is, §8 adds its steps. Every other invocation is ad-hoc: no stage is written. An ad-hoc run that staged knowledge-base pages names `/superdev:publish-kb _adhoc` as its next command, because nothing else sends those pages (triage #815). Any other ad-hoc run's Next block says no command follows.
-
-**`--unattended`** means nobody is watching: that file's **Unattended** section governs every stop this command reaches, including whatever a later change adds.
+**Scope mode.** Applies to every start. Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md` to tell whether the range is a live run. A live run adds §8's steps. On a live run, capture `<run-root>` and refresh `<run-root>/run.lock` here, per that file, before §3's `step set`.
 
 ## 3. Dispatch
 
-**Record the step first**, whenever §2 found a live scope run, before any other ledger or store write: run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set document --root <run-root>`. Every exit this command reaches after that call ends in a `step clear`, a stage write, or `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step block --root <run-root>`: a blocked stop, a refusal, and a `First:` wait each run `step block` first.
+**The step.** Applies to a live run, before any other ledger or store write. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set document --root <run-root>`. Every exit after it ends in one call from the list below, and a blocked stop, a refusal, and a `First:` wait each run `step block` first.
 
-**Read the run's inline-doc-pass record next**, whenever §2 found a live scope run:
-`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get docs --root <run-root>`. Anything but `absent` means
-that run already performed the pass in its own context, while it still held the scope (ADR 0031), so the
-work this section would dispatch is done:
+- `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root <run-root>`
+- a stage write
+- `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step block --root <run-root>`
 
-- **Dispatch no `doc-writer`.** Go straight to §4 with the scope's own commits (`<range-base>..<branch>`, per
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`) as the
-  range, and the doc files those commits touched as the file list — the two things §4 would otherwise take
-  from a writer's report.
-- **Those commits touched no doc file** → skip §4 as well, and say in §5 that the pass was already done and
-  left nothing for a reader. This invocation dispatches nobody at all.
-- The record reads `absent` on every `full` run, on a `lite` run that ended before its doc step, and after
-  `/superdev:review`'s fix loop cleared it because that loop landed commits. Each
-  takes the dispatch below, unchanged.
+**The inline-doc-pass record.** Applies to a live run, next. Read `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get docs --root <run-root>` (ADR 0031). `absent` → take **The writer dispatch**.
 
-An ad-hoc range has no run root and so no record: dispatch below.
+- **Anything but `absent`** → dispatch no `doc-writer`. Go to §4 with the scope's own commits as the range and the doc files they touched as the file list.
+- **Anything but `absent`, and those commits touched no doc file** → skip §4 too. Say in §5 that the pass was already done and left nothing for a reader.
 
-Dispatch **`superdev:doc-writer`** with an **explicit `model`** (`sonnet`; `haiku` for a tiny focused range).
-Hand it: the range (git range/area/"full"), the two config file paths, the **staging path** below, and — for a range — a reminder to start from `git diff --stat`/`git log` over that range. On a live scope run, also hand it every `docs`-tagged line of `<run-root>/dod.md` neither ticked nor `accepted:`, verbatim, as targets its pass must make true: each names `AGENTS.md`-hierarchy text the scope's Definition of Done requires (ADR 0161). A denied `doc-writer`'s inline reconcile below takes the same targets.
-It performs the pass `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md` states, and commits its doc changes on the current branch. **Name that reference in the dispatch**: it owns the pass, and a dispatch that describes the pass in its own words is the one the writer acts on (ADR 0031, ADR 0035).
+**The writer dispatch.** Applies to an ad-hoc start and to a live run whose record reads `absent`. Make a writer dispatch, `haiku` for a tiny focused range. Name `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md` in it as the pass the writer performs, and describe the pass in no words of your own (ADR 0031, ADR 0035).
 
-**The knowledge-base pass reads a remote backend, and never writes to it** (ADR 0094, INV-0091). For a remote backend the doc-writer writes each page as a **staged page**, reading an existing non-aggregate page first to reconcile against and record its `live-hash`, and `/superdev:publish-kb` writes it later, once a human decides the feature has reached its readers (ADR 0023). A local `docs/kb/` backend is unaffected: its pages are repository files that ride the branch.
+- the range: the git range, the area, or "full"; for a range, a reminder to start from `git diff --stat` and `git log` over it
+- the two config file paths
+- the staging path
+- on a live run, every open `docs` line, verbatim, as targets the pass must make true (ADR 0161)
+- on a live run, the scope checkout as its working directory
+- where the KB config carries `- **Hierarchy:** links`, that it stages each page's parent link as `references/doc-pass.md`'s knowledge-base pass states (ADR 0168)
 
-Hand the doc-writer the staging path as an **absolute** path — the one `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" staging <scope>` prints, or `staging _adhoc` when §2 found no live scope run — resolved before you dispatch. The verb names `.superdev/kb-pending/<scope>/` in the main working tree from any cwd (ADR 0119), so every page lands where `/superdev:publish-kb` reads it, and outside the scope checkout.
-Tell the doc-writer that, where the KB config carries `- **Hierarchy:** links`, it stages each page's parent link as the knowledge-base pass of `references/doc-pass.md` states (ADR 0168).
-Ensure `.superdev/` is in the repo's `.gitignore` before you dispatch; add it if absent — an ad-hoc run may reach this command before either ran the check.
+The writer commits its doc changes on the current branch. A denied writer's inline reconcile takes the same targets.
+
+**The knowledge-base pass.** Applies to a remote KB backend. The writer stages every page, and nothing in this command writes to the backend (ADR 0094, INV-0091). `/superdev:publish-kb` sends the staged pages later (ADR 0023).
+
+**`.gitignore`.** Applies before this section's writer dispatch. Add `.superdev/` to the repository's `.gitignore` when it is absent.
 
 ## 4. Reader test
 
-Skip if the doc-writer changed nothing, or if §3 found the pass already done and no doc file changed.
+**Skip.** Applies when the writer changed nothing, or when §3 found the pass done and no doc file changed. Skip this section.
 
-From the doc-writer's report, collect the changed doc files — in-repo docs and **local** KB pages (software-KB pages are out of scope). §3's no-writer path supplies both from the scope's own commits instead; everything else in this section is the same either way, including the fix round, which does dispatch a `doc-writer`.
-Dispatch **`superdev:doc-reader`** with an **explicit `model`** (`sonnet`), that file list, the `docs/agents/documentation.md` path, and the doc-writer's **commit range** (`<first>^..<last>`, covering both passes) — no narrative, no summary of the work: it reads the docs cold and verifies their claims against the repo, read-only.
+**The reader dispatch.** Applies to every other run. Make a reader dispatch: it reads the docs cold and read-only. Hand no narrative and no summary of the work.
 
-The range scopes its **writing-standard pass** to the lines those commits added, so the configured standard binds new prose without flagging text nobody touched. Its claim-verification passes stay cold.
+- the changed doc files: in-repo docs and **local** KB pages, from the writer's report or from §3's no-writer path; software-KB pages are out of scope
+- the `docs/agents/documentation.md` path
+- the writer's commit range, `<first>^..<last>`, covering both passes, or the scope's own commits on §3's no-writer path
 
-If it reports findings, re-dispatch **`superdev:doc-writer`** (as in §3) with the findings to fix.
-**One fix round** — don't loop the reader; unresolved findings go in the report instead.
+**The fix round.** Applies when the reader reports findings. Make one writer dispatch as in §3 with the findings, in the reader's most-severe-first order, and tell the writer that order is its priority. Run one round only, and re-dispatch no reader. Findings left unresolved go in §5's report.
 
-The reader returns its findings **most-severe-first** (false claims, then incomplete ones, then style), so hand them over in that order and **tell the writer the order is a priority** — the `doc-writer` takes the priority from the dispatch and from nowhere else, so say it. With a single round, anything it can't reach is then the least costly finding rather than an arbitrary one.
+**A denied dispatch.** Applies when the permission classifier denies a `doc-writer` or a `doc-reader`. It is a degraded pass: read and follow `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section. Say so in §5's report.
 
-**This command runs no test command** (ADR 0189, INV-0175): the pass, its fix round, an audit, a bootstrap, and the `docs`-line fix round run no test command after the doc commits land. The review's green suite record carries to `/superdev:ship` across Markdown-only doc commits with no run at the tip (ADR 0128, ADR 0189).
+- **A denied `doc-writer`** → reconcile inline. On a live run, write the entry with `scope.js degraded add`, then run the publish. Under `--unattended`, block instead.
+- **A denied `doc-reader`** → the docs went unread by fresh eyes. On a live run, write the entry with `scope.js degraded add-denial -`, the refusal piped through a quoted heredoc, then run the publish. Under `--unattended`, follow that section's authorship rule up to the cap: read `scope.js get denials` after the entry and block once the count reaches it.
 
-**Two things here are degraded passes**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section — read it and follow it, on either one:
+**A pass the writer could not stage.** Applies to a staging path the writer could not write, or an existing page a read could not reconcile against (ADR 0094). It is a degraded pass, and the writer's report carries the note. On a live run, write the entry too.
 
-- **A dispatch the permission classifier denies.** A denied `doc-writer` means you reconcile inline; a denied `doc-reader` means the docs went unread by fresh eyes. Say so in §5's report and, on a live scope run, write the `**Degraded:**` entry that section defines: `scope.js degraded add` for the denied `doc-writer`, an authoring dispatch, and `scope.js degraded add-denial -` for the denied `doc-reader`, a verification dispatch, piping the classifier's refusal through a quoted heredoc rather than a shell argument. Publish the snapshot afterwards, per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section. **`--unattended`** → a denied `doc-writer` blocks, since reconciling inline is the controller writing the docs itself; a denied `doc-reader` follows that section's authorship rule, blocking where the controller authored the docs under review and otherwise reading them inline — up to the cap, so read `scope.js get denials` after writing the entry and block once the count reaches it.
-- **A knowledge-base pass the writer could not stage.** The pass writes to no backend, so what remains is a staging path it could not write, or an existing page a read (ADR 0094) could not reconcile against — the writer records that one itself, per `references/doc-pass.md`'s read step. The note ends at the writer's report. On a live scope run, write the entry too, so the pass nobody can publish later is visible when `/superdev:submit-pr` opens the pull request.
-
-**An observation is captured the moment you meet it.** Read `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Observations` section and follow it: a defect a `doc-writer` or `doc-reader` report surfaces that no slice of this scope covers and the scope did not cause gets a triage record from you, the controller, right here — never held until §5's report.
+**An observation.** Applies to a defect a writer or reader report surfaces that no slice of this scope covers and the scope did not cause. Follow `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Observations` section. File the triage record yourself, at once.
 
 ## 5. Report
 
-Relay what the doc-writer changed: which `AGENTS.md`/docs were updated, what was removed as stale, which KB pages were written to `docs/kb/` or **staged** and under which action (or that the KB pass was none/skipped), the reader-test tally (including findings left unresolved after the fix round), the **writing standard** that applied (or that none did), and any concerns. Do not re-do its work. On a live run whose stage reads `shipped` or `closed`, also name
-every unticked `docs` line, which §8's settle step left unjudged.
+**The relay.** Applies to every report except a chained audit. Relay what the writer changed and any concerns.
 
-**Staged pages are named, with `/superdev:publish-kb`.** They are not on the knowledge base yet, and nothing later in the chain sends them. Say how many pages wait and under which scope.
+- the `AGENTS.md` files and docs updated, and the stale text removed
+- the KB pages written to `docs/kb/` or **staged**, and under which action, or that the KB pass was none or skipped
+- the reader-test tally, with findings left unresolved after the fix round
+- the **writing standard** that applied, or that none did
+- on a live run whose stage reads `shipped` or `closed`, every unticked `docs` line
+
+**Staged pages.** Applies when pages were staged. Name `/superdev:publish-kb`, and say how many pages wait and under which scope.
+
+**The ad-hoc next command.** Applies to an ad-hoc run. A run that staged knowledge-base pages names `/superdev:publish-kb _adhoc` as its next command (triage #815). Any other ad-hoc run's Next block says no command follows.
 
 ## 6. Audit mode (`audit`)
 
-Inverts the usual order: **reader first**, writer only to fix what it finds.
+Applies to an `audit` start. The reader runs first, and a writer only fixes what it finds.
 
-1. **Build the audit set:** the default doc tree (`AGENTS.md` hierarchy + `README.md` + `CONTEXT.md` + `docs/invariants.md` (when present) + local KB pages, when the KB backend is local `docs/kb/`) plus any globs listed under a `## Audit set` section in `docs/agents/documentation.md`. That section is optional — absent, use the default tree alone and say so in the report.
-2. Dispatch **`superdev:doc-reader`** with an **explicit `model`** (`sonnet`), the full audit set, and the `docs/agents/documentation.md` path — cold, and with **no writer commit range**, which is what tells it to skip the writing-standard pass: an audit has no writer, so no prose is newly-written. Tell it explicitly: hook/guardrail-enforcement claims ("a hook blocks X", "the gate re-runs Y") are **always load-bearing** and must be verified against the hooks' actual source (`hooks/*.js`), not assumed from prose.
-3. **`--chained` present** — this run is `/superdev:sweep`'s doc leg, in the **chained posture**
-   (CONTEXT.md, ADR 0068). Dispatch no `doc-writer` and commit nothing, whatever the reader found. Return
-   its findings to the caller **most-severe-first**, exactly as it ordered them — an empty list when it
-   found none — and stop here: §5's report shape doesn't apply, since there is no writer work to relay.
-4. **`--chained` absent** — if it reports findings, run **one doc-writer fix round** exactly as in §4 (dispatch once with the findings, in the reader's most-severe-first order; don't re-loop the reader; unresolved findings go in the report) — and run no test command afterward (§4).
+1. **The audit set.** The default doc tree: the `AGENTS.md` hierarchy, `README.md`, `CONTEXT.md`, `docs/invariants.md` when present, and the local KB pages when the KB backend is local `docs/kb/`. Add the globs listed under a `## Audit set` section in `docs/agents/documentation.md`. That section absent → use the default tree alone and say so in the report.
+2. **The reader.** Make a reader dispatch with the full audit set and the `docs/agents/documentation.md` path, cold, and with no writer commit range. Tell it that hook and guardrail enforcement claims ("a hook blocks X", "the gate re-runs Y") are always load-bearing and are verified against the hooks' source (`hooks/*.js`).
+3. **`--chained` present.** Dispatch no `doc-writer` and commit nothing. Return the findings to the caller most-severe-first, in the reader's order, or an empty list. Stop here.
+4. **`--chained` absent.** On findings, run §4's fix round.
 5. **Report** per §5.
 
 ## 7. Bootstrap mode (brownfield seed)
 
-Reached from §2 when the doc convention is the `AGENTS.md` hierarchy **and** the root `AGENTS.md` is absent: there's no doc tree to reconcile, so **seed** one from the existing code.
+**Precondition.** Applies to a §2 bootstrap start whose `docs/agents/documentation.md` records a custom, non-`AGENTS.md` convention. Say in one line that bootstrap does not apply, and run the full reconcile (§3–§5).
 
-**Precondition — AGENTS.md convention only.** `docs/agents/documentation.md` records a **custom** (non-`AGENTS.md`) convention → bootstrap doesn't apply: say so in one line and fall through to the normal full reconcile (§3-§5).
+**The seed.** Applies to every other bootstrap start.
 
-1. **Confirm once, never silent.** Tell the user no doc hierarchy was found and ask to seed one. Only on confirmation proceed.
-2. **Recon (large/unfamiliar repo only).** Fan out **2-4 read-only `Explore` agents** in parallel — each mapping a different aspect (structure + stack, domain vocabulary, subsystem boundaries, build + conventions) and returning a **compressed map**, not raw file dumps. A **small** repo skips this — the doc-writer explores directly.
-3. **Dispatch `superdev:doc-writer`** with an **explicit `model`** (`sonnet`) in **bootstrap** mode. Hand it: "bootstrap" (no diff, no prior tree), the recon maps (or "small repo — explore directly"), the two config file paths, and the **staging path**, resolved and handed as §3 states, since the doc pass runs over what bootstrap wrote. It seeds root `AGENTS.md` + child `AGENTS.md` only at genuine boundaries, mines existing README/`docs/` as input, and **proposes `CONTEXT.md` candidate terms in its report** without committing `CONTEXT.md`.
-4. **Confirm the glossary before it lands.** Present the writer's `CONTEXT.md` candidates to the user to **confirm/prune** — never auto-commit them. Re-dispatch the writer with the confirmed set to write + commit `CONTEXT.md`. Empty confirmed set → no `CONTEXT.md`.
-5. **Reader test** the seeded files exactly as §4 (which runs no test command), then **report** per §5.
+1. **Confirm once.** Tell the user no doc hierarchy was found and ask to seed one. Proceed only on confirmation.
+2. **Recon.** A large or unfamiliar repository → fan out 2–4 read-only `Explore` agents in parallel. Each maps one aspect (structure and stack, domain vocabulary, subsystem boundaries, build and conventions) and returns a compressed map. A small repository skips this.
+3. **The writer.** Make a writer dispatch in **bootstrap** mode. Hand it "bootstrap" (no diff, no prior tree), the recon maps or "small repo — explore directly", the two config file paths, and the staging path. It seeds the root `AGENTS.md` and a child `AGENTS.md` only at a real boundary, mines the existing README and `docs/`, and proposes `CONTEXT.md` candidate terms in its report without committing `CONTEXT.md`.
+4. **The glossary.** Present the candidates to the user to confirm or prune, and commit none on your own. Make a writer dispatch with the confirmed set to write and commit `CONTEXT.md`. An empty confirmed set → no `CONTEXT.md`.
+5. **Reader test** the seeded files as §4 does, then **report** per §5.
 
-## 8. Scope mode — commit in the scope checkout, then hand off
+## 8. Scope mode
 
-Only when §2 found a live run. Everything above still applies; this adds the run's own steps. Capture `<run-root>` — the **absolute** path to that scope's directory — before anything else, and address the run's artifacts as `<run-root>/ledger.md` and `<run-root>/run.lock`.
+Applies to a live run. Everything above still applies.
 
-- **Find the scope checkout, and refresh the run lock.** Per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`. Hand the doc-writer the scope checkout path as its working directory: this is where its commits must land.
-- **Re-check the ticks this pass's own commits could touch,** per `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s Document's case: read `<run-root>/dod.md` for every ticked line naming a file, an ADR, a glossary entry, or a fixture the doc commits landed in this run touched — the `doc-writer`'s commits when §3 dispatched one, or the inline pass's own commits when §3's no-writer path applied instead. A line the branch still satisfies stays exactly as it stood, with no note added; a line your own change broke gets unticked, with a one-line note on what broke it (INV-0014). Apply the same verdict to the anchor's own Definition of Done checklist, through the active store's own `## Definition of Done ticks` section (`docs/agents/issue-tracker.md`) — best-effort, a failed write reported once and never stopping the pass. **An untick here also writes the ledger's `**Unresolved:**` entry, naming the criterion it broke** — a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) piped to `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add - --root <run-root>` (the sole word `-` reads the bullet text from stdin rather than a shell-interpolated argument, `references/dod-ticks.md`, triage #680) — and publishes the snapshot, per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section (INV-0016: the stage never advances past review while a criterion stands unmet, except a ceiling one or an accepted one, and this untick is what keeps submit-pr's own gate from opening a pull request over it). The entry is cleared the next time `/superdev:review` returns a clean verdict, the same as any other `**Unresolved:**` entry. Verifying a tick observes; it changes no system outside the repository (ADR 0084, INV-0006). This step runs no test command of its own.
-- **Settle every `docs` line neither ticked nor `accepted:`** (ADR 0161), per
-  `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s Document's case, on every path this pass took — a
-  dispatched `doc-writer`, §3's no-writer path, and a denied writer's inline reconcile alike. Read the
-  stage first (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>`). **`shipped` or
-  `closed`** → skip this step: judge no `docs` line, write no tick, untick, or entry, and name every
-  unticked `docs` line in §5's report; the shipped or closed routing below picks the Next block. An
-  `accepted:` `docs` line is left exactly as it stands: only an attended operator writes or removes
-  `accepted:` (ADR 0095). Otherwise, judge each `docs`-tagged line of `<run-root>/dod.md` neither ticked
-  nor `accepted:` against the scope branch after the pass. **True** → tick it with its evidence. **False** → run **one
-  targeted fix round**: dispatch `superdev:doc-writer` (explicit `model`, `sonnet`) with exactly the false
-  lines as its targets and the scope checkout as its working directory, or reconcile inline when that
-  dispatch is denied (§4's degraded-pass rule), then judge those lines again, and run the tick re-check
-  above over that round's commits too. This round runs no test command. **Still false** → untick it with a `not met:` note naming what the
-  `AGENTS.md` text still lacks, and write one `**Unresolved:**` entry per such line, worded `docs criterion
-  unmet after the doc pass: <criterion>`, as the re-check above writes its entry — only when
-  `scope.js get unresolved` prints no bullet already naming that criterion. Apply every tick and untick to
-  the anchor's checklist as the re-check above does. **Every `docs` line now ticked or `accepted:`, and every
-  bullet `get unresolved` prints is a `docs criterion unmet after the doc pass:` entry** → run
-  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`: those entries were
-  this command's own, and the lines they named are met. Any other bullet standing → leave every entry;
-  `/superdev:review`'s clean verdict (`review-scope-mode.md`'s `### 4.10 The clean verdict and the handoff`) clears them, and the next doc pass re-adds a `docs` entry whose line is
-  still false. Publish the snapshot after any `unresolved` write, per
-  `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section.
-- **Write the stage — unless the re-check above unticked a line, a `docs` line the settle step above
-  judged stands neither ticked nor `accepted:`, or a standing `**Unresolved:**` entry already stands.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get unresolved --root <run-root>`
-  first: printing anything means an earlier pass's untick still stands unresolved, and this pass writing
-  `documented` over it would advance the stage past review while a criterion stands unmet (INV-0016), the
-  same violation an untick of this pass's own would cause. Each of these cases leaves the ledger's `**Stage:**`
-  line exactly as it stands: write no stage, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root <run-root>`, and skip straight to the next-command bullet below. **None of
-  them** → write the line with
-  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set <value> --root <run-root>`, per that file's
-  rule that a stage write never undoes completed work — the verb enforces it and refuses a write that
-  breaks it. Read the current stage first (`scope.js get stage`). `shipped`, `submitted`, or `closed` → leave the
-  line alone, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root <run-root>`, and say so in one line; a shipped scope never regains an earlier stage, a submitted one
-  already has an open pull request the next command merges rather than re-opens, and a closed one is terminal. `reviewed` → write
-  `documented`. `documented` → leave it, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root <run-root>`; the docs are already recorded as reconciled. Anything else,
-  including no line at all → write `documented-unreviewed`, then run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root <run-root>`, because a write of the value the stage already holds keeps the step; the value records that the review step never ran
-  before this doc pass. A pass in which the doc-writer changed nothing still counts: the docs already
-  agreed with the code, which is the state this stage records. **Wrote `documented` or
-  `documented-unreviewed` above** →
-  publish the snapshot, per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state`
-  section. The two leave-alone branches, and the untick branch above, wrote no stage, so there is nothing
-  to publish there.
-- **Close with the Next block.** Where a command is printed, say first that the conversation is
-  disposable: the ledger's stage and `dod.md` carry everything the next command reads, so a `/clear`
-  first costs nothing. Then print the command, last, so the Next block closes the message. **A `docs` line
-  the settle step above judged stands neither ticked nor `accepted:`** → print `Blocked:` naming each such
-  criterion, and
-  `/superdev:document <range>` in the fence: review cannot edit the `AGENTS.md` hierarchy (INV-0120), so
-  the next doc pass, or the operator's own edit, is what makes the line true (ADR 0161). An attended
-  operator may instead accept the line as unmet (`accepted:`, ADR 0095), and the next pass leaves an
-  `accepted:` line as it stands. At `shipped` or `closed` the settle step judged no line, so this branch
-  never fires there and the shipped or closed branch below picks the command. **Otherwise, this pass unticked a line above, or the standing-entry check above
-  printed one** → print `/superdev:review <range>`, naming the criterion that stands unmet (this pass's
-  own untick, or the earlier one the standing entry already named) and that review's fix loop (`review-scope-mode.md`'s `### 4.9 The re-tick`) is what
-  re-ticks it once the branch meets it again; print no `/superdev:submit-pr` in the same breath — the
-  stage still reads `reviewed` or below, and the step that opens the pull request asks once when attended
-  and refuses only when unattended, on a scope with an unmet criterion — a criterion noted `ceiling:` or
-  `accepted:` is settled, never this kind of unmet, and reaches neither this bullet nor that gate.
-  **The stage read `shipped`, `submitted`, or `closed` above** — the leave-alone branch — → when it read
-  `submitted`, print `/superdev:ship <scope>`; when it read `shipped`, pick the
-  command by `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` (ADR 0116, INV-0116)
-  and print `/superdev:plan` (its repair choice, with the route's open-repair line for each open repair
-  and `/superdev:verify-ship <scope>` again on the `Or:` line), `/superdev:verify-ship <scope>`, or `/superdev:wrap-up <scope>` as it routes (re-verify adds
-  `/superdev:plan`'s repair choice on the `Or:` line), and print `/superdev:verify-ship <scope>` when the anchor cannot be read, as ship does; when it read `closed`, the Next block says no command follows, and the note is left out.
-  **Neither case** → print
-  `/superdev:submit-pr <scope>`, with one line on what it does (open the pull request against the scope's
-  current Definition of Done).
+**The checkout.** Applies to every live run. Find the scope checkout, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`. The writer's commits land there.
+
+**The tick re-check.** Applies to every ticked `dod.md` line naming a file, an ADR, a glossary entry, or a fixture that a doc commit landed in this run touched: the writer's, §4's fix round's, the `docs` fix round's, or the inline pass's. Follow `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s Document's case. A line the branch still satisfies stays as it stood, with no note, and a line your change broke is unticked with a one-line note on what broke it (INV-0014). The re-check observes and changes no system outside the repository (ADR 0084, INV-0006).
+
+**The anchor checklist.** Applies to every tick and untick this section writes. Apply the same verdict to the anchor's Definition of Done checklist, through the active store's `## Definition of Done ticks` section (`docs/agents/issue-tracker.md`). It is best-effort: report a failed write once and continue.
+
+**An untick's entry.** Applies to every untick of the tick re-check. Write a `**Unresolved:**` entry naming the criterion it broke: a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) piped to `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add - --root <run-root>` (INV-0016). Then run the publish.
+
+**The `docs` settle.** Applies to every live run, on every path the pass took. Follow `dod-ticks.md`'s Document's case (ADR 0161). Read the stage first with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>`.
+
+- **`shipped` or `closed`** → judge no `docs` line and write no tick, untick, or entry. §5 names the unticked lines.
+- **Any other stage** → judge each open `docs` line against the scope branch after the pass. True → tick it with its evidence. False → take **The `docs` fix round**.
+
+An `accepted:` `docs` line stays exactly as it stands (ADR 0095).
+
+**The `docs` fix round.** Applies to the lines the settle judged false. Make one writer dispatch with exactly those lines as its targets and the scope checkout as its working directory, or reconcile inline when it is denied (§4's **A denied dispatch**). Judge those lines again, and run the tick re-check over this round's commits too.
+
+- **Now true** → tick it with its evidence.
+- **Still false** → untick it with a `not met:` note naming what the `AGENTS.md` text still lacks. Write one `**Unresolved:**` entry worded `docs criterion unmet after the doc pass: <criterion>`, as **An untick's entry** does, unless `scope.js get unresolved` already prints a bullet naming that criterion.
+
+**The settle's clear.** Applies after the settle, when every `docs` line is ticked or `accepted:` and every bullet `get unresolved` prints is a `docs criterion unmet after the doc pass:` entry. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. Any other bullet standing → leave every entry. Run the publish after any `unresolved` write.
+
+**The stage write.** Applies after the settle. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get unresolved --root <run-root>` first.
+
+- **An open `docs` line still stands after the settle** → write no stage. Run `step block` and go to **The next command**.
+- **Otherwise, the re-check unticked a line or `get unresolved` prints anything** → write no stage. Run `step clear` and go to **The next command**.
+- **None of them** → read the current stage with `scope.js get stage`, and write with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set <value> --root <run-root>` per the table below. The verb refuses a write that undoes completed work.
+
+| Current stage | Action |
+|---|---|
+| `shipped`, `submitted`, or `closed` | leave the line, run `step clear`, and say so in one line |
+| `reviewed` | write `documented` |
+| `documented` | leave the line and run `step clear` |
+| anything else, or no line | write `documented-unreviewed`, then run `step clear` |
+
+A pass in which the writer changed nothing still counts. After a write of `documented` or `documented-unreviewed`, run the publish.
+
+**The next command.** Applies to every live run. Where a command prints, first say that the conversation is disposable: the ledger's stage and `dod.md` carry everything the next command reads, so a `/clear` first costs nothing. Print the command last, from the first row that matches.
+
+| Case | Next block |
+|---|---|
+| An open `docs` line the settle judged stands (never at `shipped` or `closed`) | `Blocked:` naming each such criterion, and `/superdev:document <range>` in the fence (INV-0120, ADR 0161); an attended operator may instead accept the line (`accepted:`, ADR 0095) |
+| This pass unticked a line, or `get unresolved` printed one | `/superdev:review <range>`, naming the unmet criterion and that review's fix loop (`review-scope-mode.md`'s `### 4.9 The re-tick`) re-ticks it; no `/superdev:submit-pr` |
+| The stage read `submitted` | `/superdev:ship <scope>` |
+| The stage read `shipped` | the command `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` picks (ADR 0116, INV-0116): `/superdev:plan` (its repair choice, with the route's open-repair line for each open repair and `/superdev:verify-ship <scope>` on the `Or:` line), `/superdev:verify-ship <scope>`, or `/superdev:wrap-up <scope>` (re-verify adds `/superdev:plan`'s repair choice on the `Or:` line); `/superdev:verify-ship <scope>` when the anchor cannot be read |
+| The stage read `closed` | no command follows, and the disposable note is left out |
+| Any other | `/superdev:submit-pr <scope>`, with one line: it opens the pull request against the scope's current Definition of Done |
