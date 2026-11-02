@@ -5,7 +5,10 @@ or not its own tests prove anything, whether or not the diff ever got a second l
 
 superdev makes it stop and check first.
 
-superdev is a self-contained Claude Code plugin for the plan and implement loop. It needs no other plugin.
+superdev is a Claude Code plugin that takes a feature from a rough idea to a verified deploy: brainstorm,
+plan, implement, review, document, pull request, ship, verify, and wrap-up. Alongside that chain it
+audits your tests, sweeps a whole repository for problems, reports the state of every run, and publishes
+docs to a knowledge base. It needs no other plugin.
 
 - `/superdev:plan` interviews you until the **Definition of Done** is checkable. Then it cuts the work into
   small **vertical slices**, each one green on its own.
