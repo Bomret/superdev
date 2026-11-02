@@ -1,3 +1,10 @@
+## [0.99.3](https://github.com/Bomret/superdev/compare/v0.99.2...v0.99.3) (2026-11-02)
+
+
+### Bug Fixes
+
+* **drift:** count only JavaScript under tests/ as superdev test files ([#64](https://github.com/Bomret/superdev/issues/64)) ([5f2b80a](https://github.com/Bomret/superdev/commit/5f2b80a587a16e369214d2d1aadaa02d2fe7b5d1))
+
 ## [0.99.2](https://github.com/Bomret/superdev/compare/v0.99.1...v0.99.2) (2026-11-02)
 
 
