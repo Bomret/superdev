@@ -63,7 +63,7 @@ Gitea repository wiki, reached through `tea` only, with body-link hierarchy and 
 body-link hierarchy and `<host>` and `<owner>/<repo>` placeholders), and `knowledge-base-local.md`. `/superdev:setup` question D writes `docs/agents/knowledge-base.md`
 from the chosen one, and its seed-gap pass compares a configured document with it. `/superdev:publish-kb`
 runs the configured templates, and `tests/publish-kb-templates.test.js` runs the Confluence and Forgejo
-seeds' templates. The `forgejo-tea-only` drift check reads the Forgejo seed.
+seeds' templates. The `forgejo-tea-only` drift check reads the Forgejo seed, and the `github-wiki-gh-only` drift check reads the GitHub wiki seed.
 Adding a slice-store, code-host, or knowledge-base seed is the **Backends are pluggable** rule in the root
 doc.
 

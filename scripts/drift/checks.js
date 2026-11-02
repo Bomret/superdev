@@ -28,6 +28,7 @@ const {
   scanNoForceMerge,
   scanConflictConclusionNoCommit,
   scanTeaOnly,
+  scanGithubWikiGhOnly,
   scanDeployRunnerExclusivity,
   scanDocSetupNoTestRun,
   scanImplementNoFullRun,
@@ -198,6 +199,12 @@ module.exports = [
     id: 'forgejo-tea-only',
     ok: 'no Forgejo backend document names a token env var, an `Authorization` header, or a curl call (ADR 0111)',
     run: scanTeaOnly,
+    format: contractGap,
+  },
+  {
+    id: 'github-wiki-gh-only',
+    ok: 'neither the GitHub wiki seed nor the knowledge-base document names a token env var or an `Authorization` header',
+    run: scanGithubWikiGhOnly,
     format: contractGap,
   },
   {

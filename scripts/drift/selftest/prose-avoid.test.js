@@ -10,6 +10,7 @@ const {
   scanNoForceMerge,
   scanConflictConclusionNoCommit,
   scanTeaOnly,
+  scanGithubWikiGhOnly,
   scanDeployRunnerExclusivity,
   scanDocSetupNoTestRun,
   scanImplementNoFullRun,
@@ -113,6 +114,29 @@ module.exports = ({ assert, path, fixture, found }) => {
     }).length,
     0,
     'prohibition prose naming curl and a token is not an invocation',
+  );
+
+  // --- github-wiki-gh-only ---
+
+  const ghOnly = (files) => found(scanGithubWikiGhOnly(fixture(files)));
+  for (const [name, body] of [
+    ['GH_TOKEN', 'export GH_TOKEN=abc\n'],
+    ['GITHUB_TOKEN', 'use $GITHUB_TOKEN here\n'],
+    ['GH_ENTERPRISE_TOKEN', 'set GH_ENTERPRISE_TOKEN first\n'],
+    ['an Authorization header', '-H "Authorization: Bearer x"\n'],
+    ['a lowercase authorization header', 'authorization : x\n'],
+  ]) {
+    for (const doc of ['references/knowledge-base-github-wiki.md', 'docs/agents/knowledge-base.md']) {
+      assert.equal(ghOnly({ [doc]: body }).length, 1, `catches ${name} in ${doc}`);
+    }
+  }
+  assert.equal(
+    ghOnly({
+      'references/knowledge-base-github-wiki.md': 'No token environment variable is read, and no header carries credentials.\n',
+      'docs/agents/knowledge-base.md': 'Never send an authorization header.\n',
+    }).length,
+    0,
+    'prohibition prose passes',
   );
 
   // --- deploy-runner-exclusivity (ADR 0101, INV-0098) ---
