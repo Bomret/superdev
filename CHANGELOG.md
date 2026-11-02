@@ -1,3 +1,10 @@
+## [0.99.2](https://github.com/Bomret/superdev/compare/v0.99.1...v0.99.2) (2026-11-02)
+
+
+### Bug Fixes
+
+* **scope:** open refuses cleanly on an unreadable run lock or ledger ([ba6fb5a](https://github.com/Bomret/superdev/commit/ba6fb5a99ff155b00c5600437378da8cd97ec337))
+
 ## [0.99.1](https://codeberg.org/bomret/superdev/compare/v0.99.0...v0.99.1) (2026-11-02)
 
 
