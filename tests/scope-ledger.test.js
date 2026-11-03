@@ -1706,6 +1706,12 @@ try {
     'a .md file staged directly under kb-pending (no scope directory) is surfaced, not silently dropped: ' + stKb.out,
   );
   assert.ok(
+    stKb.out.split('\n').includes(
+      '|  | loose files | 1 file staged directly under `.superdev/kb-pending`, not in a scope directory: `orphan.md` — move each under a `<scope>/` subdirectory, named `<title-slug>.md` (or `<title-slug>--<section-slug>.md` for a patch), so `/superdev:publish-kb` finds it |',
+    ),
+    'the loose files print as one whole note-table row with an empty Run cell: ' + stKb.out,
+  );
+  assert.ok(
     stKb.out.split('\n').filter((l) => l === '| broken | pending publish | 1 staged page — `/superdev:publish-kb broken` |').length === 1,
     'a malformed ledger reports its own pending pages exactly once: ' + stKb.out,
   );
