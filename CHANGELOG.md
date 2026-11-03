@@ -1,3 +1,15 @@
+# [0.101.0](https://github.com/Bomret/superdev/compare/v0.100.0...v0.101.0) (2026-11-03)
+
+
+### Bug Fixes
+
+* **skills:** ask the extra confirmation in ship only ([#78](https://github.com/Bomret/superdev/issues/78)) ([8c8dc5e](https://github.com/Bomret/superdev/commit/8c8dc5e6ce0d9827172a32fb6a4acfee52b39abd))
+
+
+### Features
+
+* **kb:** add a GitHub repo wiki knowledge-base seed ([#76](https://github.com/Bomret/superdev/issues/76)) ([1b21f95](https://github.com/Bomret/superdev/commit/1b21f955a6930351dd346b26d2aea5cc4d197dcb)), closes [github-wiki-#only](https://github.com/github-wiki-/issues/only)
+
 # [0.100.0](https://github.com/Bomret/superdev/compare/v0.99.3...v0.100.0) (2026-11-03)
 
 
