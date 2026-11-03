@@ -337,7 +337,7 @@ With the tool it asks no question and proposes the session as an `own_initiative
 chain; the card's *Do it here* button runs the command in place. Without the tool, or when it fails to
 load, the offer asks one question with two options, *Stop here* first with its `/clear`-then-type path, then
 *Start*. The prompt carries the printed command and a fixed marker line, so `/superdev:ship` can recognize a
-new-session start (ADR 0212).
+new-session start (ADR 0214).
 
 **Fix required at:** no platform fix is due. A start that runs the prompt as a slash command would remove
 the dependence on the model reading the text.
