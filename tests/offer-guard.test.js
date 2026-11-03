@@ -107,6 +107,25 @@ function passed(r, label) {
   blocked(run(tmp, stop(next('/superdev:review a', '', '\nOr: `/superdev:document a` — docs first.\n'))));
 }
 
+// An unattended run's Next block is held once: the Stop input carries no posture, so the hook cannot tell it apart.
+{
+  const tmp = freshTmp();
+  blocked(run(tmp, stop(next('/superdev:review a --unattended'))));
+  passed(run(tmp, stop(next('/superdev:review a --unattended'), { stop_hook_active: true })), 'unattended second stop');
+}
+
+// A Stop removes markers older than one day, whichever turn wrote them; a fresh marker of another turn stays.
+{
+  const tmp = freshTmp();
+  run(tmp, card(`/superdev:review a\n${MARK}`));
+  run(tmp, { ...card(`/superdev:review a\n${MARK}`), prompt_id: 'prompt-fresh' });
+  const dir = path.join(tmp, MARKER_DIR);
+  const old = (Date.now() - 25 * 60 * 60 * 1000) / 1000;
+  fs.utimesSync(path.join(dir, 'sess-1.prompt-1.review'), old, old);
+  run(tmp, stop(next('/superdev:review a'), { prompt_id: 'prompt-other' }));
+  assert.deepEqual(fs.readdirSync(dir), ['sess-1.prompt-fresh.review'], 'stale marker removed');
+}
+
 // A held turn that stops again ends.
 passed(run(freshTmp(), stop(next('/superdev:review a'), { stop_hook_active: true })), 'stop_hook_active');
 

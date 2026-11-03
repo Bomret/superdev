@@ -11,7 +11,8 @@ const path = require('path');
 // its temporary directory is per user already.
 const MARKER_DIR = process.getuid ? `superdev-offer-guard-${process.getuid()}` : 'superdev-offer-guard';
 const ID = /^[A-Za-z0-9_-]+$/;
-const COMMAND = /^\/superdev:([a-z][a-z-]*)$/;
+const NAME = /^[a-z][a-z-]*$/;
+const STALE_MS = 24 * 60 * 60 * 1000;
 
 // A marker file is `<session>.<prompt>.<command name>`; the ids are checked before any path is built.
 function turnPrefix(sessionId, promptId) {
@@ -30,34 +31,37 @@ function ownDir(dir) {
   } catch { return false; }
 }
 
-// Records that this turn offered `command` (`/superdev:<name>`). Every failure passes; the exclusive create never writes
-// through a file or symlink already at the path.
-function writeMarker(sessionId, promptId, command) {
+// Records that this turn offered the command `name` (`/superdev:<name>`). Every failure passes; the exclusive create never
+// writes through a file or symlink already at the path.
+function writeMarker(sessionId, promptId, name) {
   const prefix = turnPrefix(sessionId, promptId);
-  const m = typeof command === 'string' && COMMAND.exec(command);
-  if (!prefix || !m) return;
+  if (!prefix || typeof name !== 'string' || !NAME.test(name)) return;
   const dir = markerDir();
   try {
     fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
     if (!ownDir(dir)) return;
-    fs.writeFileSync(path.join(dir, prefix + m[1]), '', { flag: 'wx' });
+    fs.writeFileSync(path.join(dir, prefix + name), '', { flag: 'wx' });
   } catch { /* no marker: the Stop holds once */ }
 }
 
-// The commands this turn offered, as `/superdev:<name>`, with the turn's markers removed; an empty set on any failure.
+// The command names this turn offered, with the turn's markers and every marker older than one day removed (a turn that
+// never reaches Stop leaves its markers behind). Null when an id is unusable; an empty set on any other failure.
 function takeMarkers(sessionId, promptId) {
   const offered = new Set();
   const prefix = turnPrefix(sessionId, promptId);
+  if (!prefix) return null;
   const dir = markerDir();
-  if (!prefix || !ownDir(dir)) return offered;
+  if (!ownDir(dir)) return offered;
   let names = [];
   try { names = fs.readdirSync(dir); } catch { return offered; }
   for (const name of names) {
-    if (!name.startsWith(prefix)) continue;
-    try {
-      if (fs.lstatSync(path.join(dir, name)).isFile()) offered.add(`/superdev:${name.slice(prefix.length)}`);
-    } catch { /* gone */ }
-    try { fs.unlinkSync(path.join(dir, name)); } catch { /* gone */ }
+    const file = path.join(dir, name);
+    let st;
+    try { st = fs.lstatSync(file); } catch { continue; }
+    if (name.startsWith(prefix)) {
+      if (st.isFile()) offered.add(name.slice(prefix.length));
+    } else if (Date.now() - st.mtimeMs <= STALE_MS) continue;
+    try { fs.unlinkSync(file); } catch { /* gone */ }
   }
   return offered;
 }

@@ -6,7 +6,7 @@
 // Fails open: any malformed input or filesystem error exits 0 with no output.
 
 const OFFER_LINE = 'A superdev offer started this session.';
-const COMMAND = /^\/superdev:[a-z][a-z-]*/;
+const COMMAND = /^\/superdev:([a-z][a-z-]*)/;
 
 const REASON =
   'superdev: this message ends on a Next block, but no offer for its command was made this turn. ' +
@@ -15,7 +15,7 @@ const REASON =
   'in one line instead: an unattended run, the chained posture, the same skill as the one ending, a step-started command, ' +
   'or a refused card. (offer-guard)';
 
-// The commands an offer call offers, each as `/superdev:<name>`; none when the call is no offer.
+// The command names an offer call offers; none when the call is no offer.
 function offeredCommands(input) {
   const ti = input.tool_input;
   if (!ti || typeof ti !== 'object') return [];
@@ -24,7 +24,7 @@ function offeredCommands(input) {
     const lines = ti.prompt.split('\n').map((l) => l.trim());
     if (!lines.includes(OFFER_LINE)) return [];
     const m = COMMAND.exec(lines[0]);
-    return m ? [m[0]] : [];
+    return m ? [m[1]] : [];
   }
   if (input.tool_name === 'AskUserQuestion' && Array.isArray(ti.questions)) {
     const out = [];
@@ -32,7 +32,7 @@ function offeredCommands(input) {
       for (const o of (q && Array.isArray(q.options) ? q.options : [])) {
         const label = o && typeof o.label === 'string' ? o.label : '';
         const m = label.startsWith('Start ') && COMMAND.exec(label.slice('Start '.length));
-        if (m) out.push(m[0]);
+        if (m) out.push(m[1]);
       }
     }
     return out;
@@ -40,7 +40,7 @@ function offeredCommands(input) {
   return [];
 }
 
-// The one command a message's last Next block names, or null when it names none, two, or carries `Blocked:`/`First:`.
+// The one command name a message's last Next block names, or null when it names none, two, or carries `Blocked:`/`First:`.
 function nextCommand(message) {
   const lines = message.split('\n');
   let fence = null;
@@ -66,7 +66,7 @@ function nextCommand(message) {
   for (i++; i < lines.length && lines[i].trim() !== open; i++) if (lines[i].trim()) body.push(lines[i].trim());
   if (body.length !== 1) return null;
   const m = COMMAND.exec(body[0]);
-  return m ? m[0] : null;
+  return m ? m[1] : null;
 }
 
 function decide(input, markers) {
@@ -76,8 +76,7 @@ function decide(input, markers) {
   }
   if (input.hook_event_name !== 'Stop') return null;
   const offered = markers.takeMarkers(input.session_id, input.prompt_id);
-  if (input.stop_hook_active === true || typeof input.last_assistant_message !== 'string') return null;
-  if (![input.session_id, input.prompt_id].every((id) => typeof id === 'string' && /^[A-Za-z0-9_-]+$/.test(id))) return null;
+  if (!offered || input.stop_hook_active === true || typeof input.last_assistant_message !== 'string') return null;
   const cmd = nextCommand(input.last_assistant_message);
   if (!cmd || offered.has(cmd)) return null;
   return { decision: 'block', reason: REASON };
