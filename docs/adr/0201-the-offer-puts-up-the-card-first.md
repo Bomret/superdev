@@ -5,6 +5,9 @@
 **Amends:** [ADR 0183](0183-the-offer-proposes-the-new-session-as-a-card.md) points 1 and 3, and
 [ADR 0176](0176-the-offer-recommends-a-new-session.md) points 1 and 5.
 
+**Amended by:** [ADR 0212](0212-only-ship-asks-a-started-session-for-consent.md), under which only
+`/superdev:ship` asks the one yes (point 5).
+
 ## Context
 
 Under ADR 0176 and ADR 0183, an offer with the desktop app's session tool asks one `AskUserQuestion` with
