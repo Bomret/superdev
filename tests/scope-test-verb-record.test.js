@@ -38,6 +38,7 @@ try {
   verif('echo FULLRAN', 'echo FOCUSED {paths}', 'echo WHOLERAN');
   assert.equal(verb(['whole']).stdout.trim(), 'WHOLERAN');
   assert.match(lines()[0], / run whole pass /);
+  fs.writeFileSync(path.join(S, 'a b.ts'), ''); // a path holding a space names an existing file (ADR 0215)
   r = verb(['focused', 'a b.ts', 'c.ts']);
   assert.equal(r.stdout.trim(), 'FOCUSED a b.ts c.ts', 'both paths substitute for {paths}');
   assert.match(lines()[1], / run focused pass /);

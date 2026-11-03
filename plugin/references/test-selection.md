@@ -104,7 +104,8 @@ name the repository's test files. `hooks/run-trace.js` reads it to class each re
 
 Where the focused command contains the token `{paths}`, substitute the shell-quoted changed-path set
 for it. The caller passes the paths to the runner as arguments (`scope.js test focused <changed paths>`),
-and the runner substitutes them; a `test focused` with no paths runs the full command and records `full`, and an empty path argument is refused.
+and the runner substitutes them; a `test focused` with no paths runs the full command and records `full`, and an empty path argument is refused. Pass each path as its own argument: an argument that holds whitespace and names no
+file is a joined path list, and is refused (ADR 0215).
 **A `{paths}` form belongs to a runner that maps a source file to the tests covering it** — for
 example `vitest related` or `jest --findRelatedTests`. The changed-path set holds source files and prose
 alongside tests, and a runner without that mapping collects nothing from them. Such a form also carries

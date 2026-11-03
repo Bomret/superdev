@@ -68,6 +68,10 @@ function verbTest(cwd, args) {
     if (paths.includes('')) fail('test focused: an empty path argument names no file');
     if (kind === 'focused' && !paths.length) kind = 'full';
     const tree = at ? at.tree : topOf();
+    // An argument holding whitespace that names no file is a path list joined into one word (an unsplit `$P`): the
+    // command would read it as one path, select nothing, and pass.
+    const joined = paths.find((p) => /\s/.test(p) && !fs.existsSync(path.resolve(tree, p)));
+    if (joined !== undefined) fail(`test focused: the argument ${JSON.stringify(joined)} holds whitespace and names no file; pass each path as its own argument`);
     runCwd = tree; // the template is read from the tree root, so it runs there
     const template = verificationCommands(tree, true)[kind];
     if (!template) fail(`test ${kind}: no ${kind} command is configured in docs/agents/verification.md`);
