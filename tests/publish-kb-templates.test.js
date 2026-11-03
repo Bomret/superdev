@@ -321,11 +321,27 @@ function pinGithubWikiTemplates(realDoc, HOST, REPO) {
   // A clone failure names its cause on stderr.
   assert.match(broken.stderr, /cannot clone/, 'a failed clone names its cause on stderr');
 
+  // A title holding a character NTFS forbids in a file name is written and read through git objects,
+  // so no work-tree file ever carries the name (the Windows CI job runs this case).
+  const colonTitle = 'Guide: Install';
+  fs.writeFileSync(body, '# install\n');
+  const colonCreated = run('create', { title: colonTitle, bodyFile: body });
+  assert.equal(colonCreated.status, 0, colonCreated.stderr);
+  const colonFound = run('find', { title: colonTitle });
+  assert.equal(colonFound.status, 0, colonFound.stderr);
+  assert.deepEqual(JSON.parse(colonFound.stdout), { sub_url: 'Guide:-Install' });
+  assert.equal(run('read', { title: colonTitle, found: {} }).stdout, '# install\n', 'read returns the colon-titled page body');
+
+  // The page file name matches exactly: `home` is not the seeded `Home.md`, on any file system.
+  assert.equal(run('find', { title: 'home' }).status, 3, 'a title differing only in case answers absent (3)');
+
   // A values file with no title, an empty one, or a title holding / makes every template fail with its cause,
   // before anything is cloned or written, and find never answers absent.
   const refusals = [
     [{ bodyFile: body, found: {} }, /title/, 'fails without a title'],
     [{ title: '', bodyFile: body, found: {} }, /title/, 'fails with an empty title'],
+    [{ title: 5, bodyFile: body, found: {} }, /title/, 'fails with a non-string title'],
+    [{ title: ['a'], bodyFile: body, found: {} }, /title/, 'fails with an array title'],
     [{ title: 'Guide: a/b', bodyFile: body, found: {} }, /holds \//, 'refuses a title holding /'],
   ];
   for (const verb of ['find', 'read', 'create', 'update', 'delete']) {
@@ -369,6 +385,18 @@ function pinGithubWikiTemplates(realDoc, HOST, REPO) {
   assert.notEqual(noId.status, 0, 'a failed identity lookup fails');
   assert.match(noId.stderr, /bad credentials/, 'the lookup failure names its cause');
   assert.equal(commits(), lookupBefore, 'a failed identity lookup pushes nothing');
+
+  // A GH_TOKEN in the environment reaches no logged git or gh argv and no failed clone's stderr.
+  const token = 'ghp_superdevTokenCanary0123456789';
+  fs.rmSync(ghLog, { force: true });
+  fs.rmSync(gitLog, { force: true });
+  assert.equal(run('create', { title: 'Token Page', bodyFile: body }, { GH_TOKEN: token }).status, 0);
+  const tokenBroken = spawnSync('/bin/sh', ['-c', templates.find, 'sh', valuesFile({ title })],
+    { env: env({ GH_TOKEN: token, [`GIT_CONFIG_KEY_${n}`]: `url.file://${work}/missing.git.insteadOf` }), encoding: 'utf8' });
+  assert.equal(tokenBroken.status, 2);
+  for (const [what, text] of [['gh argv', fs.readFileSync(ghLog, 'utf8')], ['git argv', fs.readFileSync(gitLog, 'utf8')], ['clone stderr', tokenBroken.stderr]]) {
+    assert.ok(!text.includes(token), `the ${what} carries no GH_TOKEN value`);
+  }
 
   // The login check failing answers 2 and names the host.
   const noLogin = run('find', { title }, { GH_STUB_FAIL: '1' });

@@ -60,14 +60,19 @@ written for.
   title. That file name without `.md` is the page's `sub_url`, and its URL is
   `https://<host>/<owner>/<repo>/wiki/<sub_url>`.
 - **A title holds no `/`.** A `/` cannot be part of a file name at the wiki root. Each template reads the
-  title with `jq -er` on its own, checks that status, and refuses a missing, empty, or `/`-holding title
+  title with `jq -er` on its own, checks that status, and refuses a missing, non-string, empty, or `/`-holding title
   with exit 2 and its cause on stderr, before it clones anything.
+- **A page never touches the file system.** Each template clones without a checkout and reads and writes
+  the page through git objects, so a title holding `:` or another character a Windows file name cannot
+  hold still works. The page file name matches exactly, case included, on every file system.
+- **Only `.md` pages count.** A page GitHub renders from another extension, such as `.markdown`,
+  `.asciidoc`, or `.rst`, reads as absent, and `create` adds a `.md` page beside it.
 - **The page is absent** only when a clone succeeds and holds no file for the title. That is the only
   outcome `/superdev:publish-kb` §4 treats as positive absence (ADR 0027). A failed clone could not answer.
 - **The wiki repository exists only once the wiki holds a page.** GitHub creates it when the first page is
   saved in the web editor. Until then every clone fails and every command answers exit 2.
 - **A write that changes nothing lands nothing.** `create` and `update` answer exit 0 without a commit when
-  nothing is staged after `git add`.
+  the new tree equals the cloned one.
 - If `gh` is missing or not logged in, or the wiki cannot be cloned, `/superdev:publish-kb` **leaves every
   page staged**, reports why, and deletes nothing. A later run retries exactly the pages that did not land.
 
@@ -84,7 +89,7 @@ exit 2, "could not answer," so a page never gets created from a clone that faile
 writes its cause to stderr.
 
 Every template opens with the same lines: check the `gh` login for `<host>`, read the title, shallow-clone
-the wiki into a temporary directory that is removed on exit, and derive the page file from the title. So
+the wiki without a checkout into a temporary directory that is removed on exit, and derive the page file from the title. So
 each one stands alone under the bound below. The templates use POSIX `sh` and options every platform's
 tools accept.
 
@@ -98,11 +103,11 @@ reported untried and stay staged for the next one.
 ```sh
 gh auth status --hostname <host> >/dev/null 2>&1 || { echo "superdev: gh is missing or not logged in to <host>; run: gh auth login --hostname <host>" >&2; exit 2; }
 dir=$(mktemp -d) || { echo "superdev: cannot create a temporary directory" >&2; exit 2; }; trap 'rm -rf "$dir"' EXIT
-title=$(jq -er '.title | select(length > 0)' "$1") || { echo "superdev: the values file holds no title" >&2; exit 2; }
+title=$(jq -er '.title | select(type == "string" and length > 0)' "$1") || { echo "superdev: the values file holds no title" >&2; exit 2; }
 case "$title" in */*) echo "superdev: the title holds /, which a wiki file name cannot: $title" >&2; exit 2 ;; esac
 file="$(printf '%s' "$title" | tr ' ' '-').md"
-GIT_TERMINAL_PROMPT=0 git -c credential.helper= -c credential.helper='!gh auth git-credential' clone -q --depth 1 https://<host>/<owner>/<repo>.wiki.git "$dir/w" 2>"$dir/err" || { echo "superdev: cannot clone https://<host>/<owner>/<repo>.wiki.git: $(cat "$dir/err"); check the wiki is enabled and holds a page" >&2; exit 2; }
-[ -f "$dir/w/$file" ] || exit 3
+GIT_TERMINAL_PROMPT=0 git -c credential.helper= -c credential.helper='!gh auth git-credential' clone -q --depth 1 --no-checkout https://<host>/<owner>/<repo>.wiki.git "$dir/w" 2>"$dir/err" || { echo "superdev: cannot clone https://<host>/<owner>/<repo>.wiki.git: $(cat "$dir/err"); check the wiki is enabled and holds a page" >&2; exit 2; }
+git -C "$dir/w" cat-file -e "HEAD:$file" 2>/dev/null || exit 3
 jq -cn --arg s "${file%.md}" '{sub_url: $s}'
 ```
 
@@ -111,11 +116,11 @@ jq -cn --arg s "${file%.md}" '{sub_url: $s}'
 ```sh
 gh auth status --hostname <host> >/dev/null 2>&1 || { echo "superdev: gh is missing or not logged in to <host>; run: gh auth login --hostname <host>" >&2; exit 2; }
 dir=$(mktemp -d) || { echo "superdev: cannot create a temporary directory" >&2; exit 2; }; trap 'rm -rf "$dir"' EXIT
-title=$(jq -er '.title | select(length > 0)' "$1") || { echo "superdev: the values file holds no title" >&2; exit 2; }
+title=$(jq -er '.title | select(type == "string" and length > 0)' "$1") || { echo "superdev: the values file holds no title" >&2; exit 2; }
 case "$title" in */*) echo "superdev: the title holds /, which a wiki file name cannot: $title" >&2; exit 2 ;; esac
 file="$(printf '%s' "$title" | tr ' ' '-').md"
-GIT_TERMINAL_PROMPT=0 git -c credential.helper= -c credential.helper='!gh auth git-credential' clone -q --depth 1 https://<host>/<owner>/<repo>.wiki.git "$dir/w" 2>"$dir/err" || { echo "superdev: cannot clone https://<host>/<owner>/<repo>.wiki.git: $(cat "$dir/err"); check the wiki is enabled and holds a page" >&2; exit 2; }
-cat "$dir/w/$file" || { echo "superdev: cannot read the wiki file $file" >&2; exit 1; }
+GIT_TERMINAL_PROMPT=0 git -c credential.helper= -c credential.helper='!gh auth git-credential' clone -q --depth 1 --no-checkout https://<host>/<owner>/<repo>.wiki.git "$dir/w" 2>"$dir/err" || { echo "superdev: cannot clone https://<host>/<owner>/<repo>.wiki.git: $(cat "$dir/err"); check the wiki is enabled and holds a page" >&2; exit 2; }
+git -C "$dir/w" cat-file blob "HEAD:$file" 2>"$dir/err" || { echo "superdev: cannot read the wiki file $file: $(cat "$dir/err")" >&2; exit 1; }
 ```
 
 ### create
@@ -123,16 +128,17 @@ cat "$dir/w/$file" || { echo "superdev: cannot read the wiki file $file" >&2; ex
 ```sh
 gh auth status --hostname <host> >/dev/null 2>&1 || { echo "superdev: gh is missing or not logged in to <host>; run: gh auth login --hostname <host>" >&2; exit 2; }
 dir=$(mktemp -d) || { echo "superdev: cannot create a temporary directory" >&2; exit 2; }; trap 'rm -rf "$dir"' EXIT
-title=$(jq -er '.title | select(length > 0)' "$1") || { echo "superdev: the values file holds no title" >&2; exit 2; }
+title=$(jq -er '.title | select(type == "string" and length > 0)' "$1") || { echo "superdev: the values file holds no title" >&2; exit 2; }
 case "$title" in */*) echo "superdev: the title holds /, which a wiki file name cannot: $title" >&2; exit 2 ;; esac
 file="$(printf '%s' "$title" | tr ' ' '-').md"
-GIT_TERMINAL_PROMPT=0 git -c credential.helper= -c credential.helper='!gh auth git-credential' clone -q --depth 1 https://<host>/<owner>/<repo>.wiki.git "$dir/w" 2>"$dir/err" || { echo "superdev: cannot clone https://<host>/<owner>/<repo>.wiki.git: $(cat "$dir/err"); check the wiki is enabled and holds a page" >&2; exit 2; }
+GIT_TERMINAL_PROMPT=0 git -c credential.helper= -c credential.helper='!gh auth git-credential' clone -q --depth 1 --no-checkout https://<host>/<owner>/<repo>.wiki.git "$dir/w" 2>"$dir/err" || { echo "superdev: cannot clone https://<host>/<owner>/<repo>.wiki.git: $(cat "$dir/err"); check the wiki is enabled and holds a page" >&2; exit 2; }
 body=$(jq -er '.bodyFile' "$1") || { echo "superdev: the values file holds no bodyFile" >&2; exit 1; }
-cp "$body" "$dir/w/$file" || { echo "superdev: cannot copy $body to $file" >&2; exit 1; }
-git -C "$dir/w" add -- "$file" || { echo "superdev: git add failed for $file" >&2; exit 1; }
-git -C "$dir/w" diff --cached --quiet && exit 0
+blob=$(git -C "$dir/w" hash-object -w -- "$body" 2>"$dir/err") || { echo "superdev: cannot store $body: $(cat "$dir/err")" >&2; exit 1; }
+git -C "$dir/w" ls-tree -z HEAD >"$dir/tree" || { echo "superdev: cannot list the wiki tree" >&2; exit 1; }
+tree=$({ tr '\000' '\n' <"$dir/tree" | f="$file" awk '{ n = $0; sub(/^[^\t]*\t/, "", n); if (n != ENVIRON["f"]) print }'; printf '100644 blob %s\t%s\n' "$blob" "$file"; } | tr '\n' '\000' | git -C "$dir/w" mktree -z) || { echo "superdev: cannot build the wiki tree for $file" >&2; exit 1; }
+[ "$tree" = "$(git -C "$dir/w" rev-parse 'HEAD^{tree}')" ] && exit 0
 login=$(gh api --hostname <host> user --jq .login 2>"$dir/err") && [ -n "$login" ] || { echo "superdev: cannot look up the gh user on <host>: $(cat "$dir/err")" >&2; exit 1; }
-git -C "$dir/w" -c user.name="$login" -c user.email="$login@users.noreply.<host>" commit -q -m "superdev: publish" 2>"$dir/err" || { echo "superdev: git commit failed: $(cat "$dir/err")" >&2; exit 1; }
+commit=$(git -C "$dir/w" -c user.name="$login" -c user.email="$login@users.noreply.<host>" commit-tree "$tree" -p HEAD -m "superdev: publish" 2>"$dir/err") && git -C "$dir/w" update-ref HEAD "$commit" || { echo "superdev: git commit failed: $(cat "$dir/err")" >&2; exit 1; }
 GIT_TERMINAL_PROMPT=0 git -C "$dir/w" -c credential.helper= -c credential.helper='!gh auth git-credential' push -q origin HEAD 2>"$dir/err" || { echo "superdev: git push failed: $(cat "$dir/err")" >&2; exit 1; }
 ```
 
@@ -141,17 +147,18 @@ GIT_TERMINAL_PROMPT=0 git -C "$dir/w" -c credential.helper= -c credential.helper
 ```sh
 gh auth status --hostname <host> >/dev/null 2>&1 || { echo "superdev: gh is missing or not logged in to <host>; run: gh auth login --hostname <host>" >&2; exit 2; }
 dir=$(mktemp -d) || { echo "superdev: cannot create a temporary directory" >&2; exit 2; }; trap 'rm -rf "$dir"' EXIT
-title=$(jq -er '.title | select(length > 0)' "$1") || { echo "superdev: the values file holds no title" >&2; exit 2; }
+title=$(jq -er '.title | select(type == "string" and length > 0)' "$1") || { echo "superdev: the values file holds no title" >&2; exit 2; }
 case "$title" in */*) echo "superdev: the title holds /, which a wiki file name cannot: $title" >&2; exit 2 ;; esac
 file="$(printf '%s' "$title" | tr ' ' '-').md"
-GIT_TERMINAL_PROMPT=0 git -c credential.helper= -c credential.helper='!gh auth git-credential' clone -q --depth 1 https://<host>/<owner>/<repo>.wiki.git "$dir/w" 2>"$dir/err" || { echo "superdev: cannot clone https://<host>/<owner>/<repo>.wiki.git: $(cat "$dir/err"); check the wiki is enabled and holds a page" >&2; exit 2; }
-[ -f "$dir/w/$file" ] || { echo "superdev: the wiki holds no file $file to update" >&2; exit 1; }
+GIT_TERMINAL_PROMPT=0 git -c credential.helper= -c credential.helper='!gh auth git-credential' clone -q --depth 1 --no-checkout https://<host>/<owner>/<repo>.wiki.git "$dir/w" 2>"$dir/err" || { echo "superdev: cannot clone https://<host>/<owner>/<repo>.wiki.git: $(cat "$dir/err"); check the wiki is enabled and holds a page" >&2; exit 2; }
+git -C "$dir/w" cat-file -e "HEAD:$file" 2>/dev/null || { echo "superdev: the wiki holds no file $file to update" >&2; exit 1; }
 body=$(jq -er '.bodyFile' "$1") || { echo "superdev: the values file holds no bodyFile" >&2; exit 1; }
-cp "$body" "$dir/w/$file" || { echo "superdev: cannot copy $body to $file" >&2; exit 1; }
-git -C "$dir/w" add -- "$file" || { echo "superdev: git add failed for $file" >&2; exit 1; }
-git -C "$dir/w" diff --cached --quiet && exit 0
+blob=$(git -C "$dir/w" hash-object -w -- "$body" 2>"$dir/err") || { echo "superdev: cannot store $body: $(cat "$dir/err")" >&2; exit 1; }
+git -C "$dir/w" ls-tree -z HEAD >"$dir/tree" || { echo "superdev: cannot list the wiki tree" >&2; exit 1; }
+tree=$({ tr '\000' '\n' <"$dir/tree" | f="$file" awk '{ n = $0; sub(/^[^\t]*\t/, "", n); if (n != ENVIRON["f"]) print }'; printf '100644 blob %s\t%s\n' "$blob" "$file"; } | tr '\n' '\000' | git -C "$dir/w" mktree -z) || { echo "superdev: cannot build the wiki tree for $file" >&2; exit 1; }
+[ "$tree" = "$(git -C "$dir/w" rev-parse 'HEAD^{tree}')" ] && exit 0
 login=$(gh api --hostname <host> user --jq .login 2>"$dir/err") && [ -n "$login" ] || { echo "superdev: cannot look up the gh user on <host>: $(cat "$dir/err")" >&2; exit 1; }
-git -C "$dir/w" -c user.name="$login" -c user.email="$login@users.noreply.<host>" commit -q -m "superdev: publish" 2>"$dir/err" || { echo "superdev: git commit failed: $(cat "$dir/err")" >&2; exit 1; }
+commit=$(git -C "$dir/w" -c user.name="$login" -c user.email="$login@users.noreply.<host>" commit-tree "$tree" -p HEAD -m "superdev: publish" 2>"$dir/err") && git -C "$dir/w" update-ref HEAD "$commit" || { echo "superdev: git commit failed: $(cat "$dir/err")" >&2; exit 1; }
 GIT_TERMINAL_PROMPT=0 git -C "$dir/w" -c credential.helper= -c credential.helper='!gh auth git-credential' push -q origin HEAD 2>"$dir/err" || { echo "superdev: git push failed: $(cat "$dir/err")" >&2; exit 1; }
 ```
 
@@ -160,13 +167,15 @@ GIT_TERMINAL_PROMPT=0 git -C "$dir/w" -c credential.helper= -c credential.helper
 ```sh
 gh auth status --hostname <host> >/dev/null 2>&1 || { echo "superdev: gh is missing or not logged in to <host>; run: gh auth login --hostname <host>" >&2; exit 2; }
 dir=$(mktemp -d) || { echo "superdev: cannot create a temporary directory" >&2; exit 2; }; trap 'rm -rf "$dir"' EXIT
-title=$(jq -er '.title | select(length > 0)' "$1") || { echo "superdev: the values file holds no title" >&2; exit 2; }
+title=$(jq -er '.title | select(type == "string" and length > 0)' "$1") || { echo "superdev: the values file holds no title" >&2; exit 2; }
 case "$title" in */*) echo "superdev: the title holds /, which a wiki file name cannot: $title" >&2; exit 2 ;; esac
 file="$(printf '%s' "$title" | tr ' ' '-').md"
-GIT_TERMINAL_PROMPT=0 git -c credential.helper= -c credential.helper='!gh auth git-credential' clone -q --depth 1 https://<host>/<owner>/<repo>.wiki.git "$dir/w" 2>"$dir/err" || { echo "superdev: cannot clone https://<host>/<owner>/<repo>.wiki.git: $(cat "$dir/err"); check the wiki is enabled and holds a page" >&2; exit 2; }
-git -C "$dir/w" rm -q -- "$file" 2>"$dir/err" || { echo "superdev: cannot remove $file: $(cat "$dir/err")" >&2; exit 1; }
+GIT_TERMINAL_PROMPT=0 git -c credential.helper= -c credential.helper='!gh auth git-credential' clone -q --depth 1 --no-checkout https://<host>/<owner>/<repo>.wiki.git "$dir/w" 2>"$dir/err" || { echo "superdev: cannot clone https://<host>/<owner>/<repo>.wiki.git: $(cat "$dir/err"); check the wiki is enabled and holds a page" >&2; exit 2; }
+git -C "$dir/w" cat-file -e "HEAD:$file" 2>/dev/null || { echo "superdev: the wiki holds no file $file to delete" >&2; exit 1; }
+git -C "$dir/w" ls-tree -z HEAD >"$dir/tree" || { echo "superdev: cannot list the wiki tree" >&2; exit 1; }
+tree=$(tr '\000' '\n' <"$dir/tree" | f="$file" awk '{ n = $0; sub(/^[^\t]*\t/, "", n); if (n != ENVIRON["f"]) print }' | tr '\n' '\000' | git -C "$dir/w" mktree -z) || { echo "superdev: cannot remove $file from the wiki tree" >&2; exit 1; }
 login=$(gh api --hostname <host> user --jq .login 2>"$dir/err") && [ -n "$login" ] || { echo "superdev: cannot look up the gh user on <host>: $(cat "$dir/err")" >&2; exit 1; }
-git -C "$dir/w" -c user.name="$login" -c user.email="$login@users.noreply.<host>" commit -q -m "superdev: publish" 2>"$dir/err" || { echo "superdev: git commit failed: $(cat "$dir/err")" >&2; exit 1; }
+commit=$(git -C "$dir/w" -c user.name="$login" -c user.email="$login@users.noreply.<host>" commit-tree "$tree" -p HEAD -m "superdev: publish" 2>"$dir/err") && git -C "$dir/w" update-ref HEAD "$commit" || { echo "superdev: git commit failed: $(cat "$dir/err")" >&2; exit 1; }
 GIT_TERMINAL_PROMPT=0 git -C "$dir/w" -c credential.helper= -c credential.helper='!gh auth git-credential' push -q origin HEAD 2>"$dir/err" || { echo "superdev: git push failed: $(cat "$dir/err")" >&2; exit 1; }
 ```
 
