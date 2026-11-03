@@ -76,7 +76,8 @@ once the feature has reached the adopters this wiki is written for.
   with exit 2 and its cause on stderr, before it clones anything.
 - **A page never touches the file system.** Each template clones without a checkout and reads and writes
   the page through git objects, so a title holding `:` or another character a Windows file name cannot
-  hold still works. The page file name matches exactly, case included, on every file system.
+  hold still works. The page file name matches exactly, case included, on every file system. A title that differs only in case from an existing page (`home`
+  beside `Home.md`) therefore reads absent, and `create` adds a second page.
 - **Only `.md` pages count.** A page GitHub renders from another extension, such as `.markdown`,
   `.asciidoc`, or `.rst`, reads as absent, and `create` adds a `.md` page beside it.
 - **The page is absent** only when a clone succeeds and holds no file for the title. That is the only
@@ -150,7 +151,7 @@ git -C "$dir/w" ls-tree -z HEAD >"$dir/tree" || { echo "superdev: cannot list th
 tree=$({ tr '\000' '\n' <"$dir/tree" | f="$file" awk '{ n = $0; sub(/^[^\t]*\t/, "", n); if (n != ENVIRON["f"]) print }'; printf '100644 blob %s\t%s\n' "$blob" "$file"; } | tr '\n' '\000' | git -C "$dir/w" mktree -z) || { echo "superdev: cannot build the wiki tree for $file" >&2; exit 1; }
 [ "$tree" = "$(git -C "$dir/w" rev-parse 'HEAD^{tree}')" ] && exit 0
 login=$(gh api --hostname github.com user --jq .login 2>"$dir/err") && [ -n "$login" ] || { echo "superdev: cannot look up the gh user on github.com: $(cat "$dir/err")" >&2; exit 1; }
-commit=$(git -C "$dir/w" -c user.name="$login" -c user.email="$login@users.noreply.github.com" commit-tree "$tree" -p HEAD -m "superdev: publish" 2>"$dir/err") && git -C "$dir/w" update-ref HEAD "$commit" || { echo "superdev: git commit failed: $(cat "$dir/err")" >&2; exit 1; }
+commit=$(git -C "$dir/w" -c user.name="$login" -c user.email="$login@users.noreply.github.com" commit-tree "$tree" -p HEAD -m "superdev: publish" 2>"$dir/err") && git -C "$dir/w" update-ref HEAD "$commit" 2>"$dir/err" || { echo "superdev: git commit failed: $(cat "$dir/err")" >&2; exit 1; }
 GIT_TERMINAL_PROMPT=0 git -C "$dir/w" -c credential.helper= -c credential.helper='!gh auth git-credential' push -q origin HEAD 2>"$dir/err" || { echo "superdev: git push failed: $(cat "$dir/err")" >&2; exit 1; }
 ```
 
@@ -170,7 +171,7 @@ git -C "$dir/w" ls-tree -z HEAD >"$dir/tree" || { echo "superdev: cannot list th
 tree=$({ tr '\000' '\n' <"$dir/tree" | f="$file" awk '{ n = $0; sub(/^[^\t]*\t/, "", n); if (n != ENVIRON["f"]) print }'; printf '100644 blob %s\t%s\n' "$blob" "$file"; } | tr '\n' '\000' | git -C "$dir/w" mktree -z) || { echo "superdev: cannot build the wiki tree for $file" >&2; exit 1; }
 [ "$tree" = "$(git -C "$dir/w" rev-parse 'HEAD^{tree}')" ] && exit 0
 login=$(gh api --hostname github.com user --jq .login 2>"$dir/err") && [ -n "$login" ] || { echo "superdev: cannot look up the gh user on github.com: $(cat "$dir/err")" >&2; exit 1; }
-commit=$(git -C "$dir/w" -c user.name="$login" -c user.email="$login@users.noreply.github.com" commit-tree "$tree" -p HEAD -m "superdev: publish" 2>"$dir/err") && git -C "$dir/w" update-ref HEAD "$commit" || { echo "superdev: git commit failed: $(cat "$dir/err")" >&2; exit 1; }
+commit=$(git -C "$dir/w" -c user.name="$login" -c user.email="$login@users.noreply.github.com" commit-tree "$tree" -p HEAD -m "superdev: publish" 2>"$dir/err") && git -C "$dir/w" update-ref HEAD "$commit" 2>"$dir/err" || { echo "superdev: git commit failed: $(cat "$dir/err")" >&2; exit 1; }
 GIT_TERMINAL_PROMPT=0 git -C "$dir/w" -c credential.helper= -c credential.helper='!gh auth git-credential' push -q origin HEAD 2>"$dir/err" || { echo "superdev: git push failed: $(cat "$dir/err")" >&2; exit 1; }
 ```
 
@@ -187,7 +188,7 @@ git -C "$dir/w" cat-file -e "HEAD:$file" 2>/dev/null || { echo "superdev: the wi
 git -C "$dir/w" ls-tree -z HEAD >"$dir/tree" || { echo "superdev: cannot list the wiki tree" >&2; exit 1; }
 tree=$(tr '\000' '\n' <"$dir/tree" | f="$file" awk '{ n = $0; sub(/^[^\t]*\t/, "", n); if (n != ENVIRON["f"]) print }' | tr '\n' '\000' | git -C "$dir/w" mktree -z) || { echo "superdev: cannot remove $file from the wiki tree" >&2; exit 1; }
 login=$(gh api --hostname github.com user --jq .login 2>"$dir/err") && [ -n "$login" ] || { echo "superdev: cannot look up the gh user on github.com: $(cat "$dir/err")" >&2; exit 1; }
-commit=$(git -C "$dir/w" -c user.name="$login" -c user.email="$login@users.noreply.github.com" commit-tree "$tree" -p HEAD -m "superdev: publish" 2>"$dir/err") && git -C "$dir/w" update-ref HEAD "$commit" || { echo "superdev: git commit failed: $(cat "$dir/err")" >&2; exit 1; }
+commit=$(git -C "$dir/w" -c user.name="$login" -c user.email="$login@users.noreply.github.com" commit-tree "$tree" -p HEAD -m "superdev: publish" 2>"$dir/err") && git -C "$dir/w" update-ref HEAD "$commit" 2>"$dir/err" || { echo "superdev: git commit failed: $(cat "$dir/err")" >&2; exit 1; }
 GIT_TERMINAL_PROMPT=0 git -C "$dir/w" -c credential.helper= -c credential.helper='!gh auth git-credential' push -q origin HEAD 2>"$dir/err" || { echo "superdev: git push failed: $(cat "$dir/err")" >&2; exit 1; }
 ```
 

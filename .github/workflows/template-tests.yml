@@ -26,4 +26,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
+      # Puts Git Bash's sh first on PATH, so the suite's spawn of `sh` reaches it from native Node.
+      - if: runner.os == 'Windows'
+        run: cygpath -w /usr/bin >> "$GITHUB_PATH"
       - run: node tests/publish-kb-templates.test.js
