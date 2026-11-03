@@ -1503,3 +1503,12 @@ Statement: A main-session turn that ends on a Next block naming one command, wit
 Breaks: silently
 Check: the `offer-guard.js` suite
 Paths: plugin/hooks/offer-guard.js, plugin/hooks/hooks.json, plugin/references/response-shapes.md
+
+### INV-0184
+
+Class: process
+Concepts: Offer, Next block
+Statement: An offer's `start_session` call carries in its `prompt` only the command as the fence prints it and the offer's marker line, and in its `background` only what the new session starts from. No rule, bar, or limit of the command that is ending reaches the started command, which takes its limits from its own skill. A step-scoped bar, such as `/superdev:review`'s integration bar, ends with its step.
+Breaks: silently
+Check: none — final-reviewer's invariant compliance judges it
+Paths: plugin/references/response-shapes.md, plugin/references/review-scope-mode.md
