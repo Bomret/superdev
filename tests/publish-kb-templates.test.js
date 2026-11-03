@@ -55,7 +55,7 @@ function pinForgejoTemplates(realDoc, HOST) {
   // A PATH holding `jq` and the system tools but no `tea`: the "no tea installed" case.
   const noTeaDir = fs.mkdtempSync(path.join(os.tmpdir(), 'no-tea-'));
   // A copy, not a symlink: a Windows runner may lack the symlink privilege.
-  fs.copyFileSync(spawnSync('sh',['-c', 'p=$(command -v jq); if command -v cygpath >/dev/null; then cygpath -w "$p"; else echo "$p"; fi'],{ encoding: 'utf8' }).stdout.trim(), path.join(noTeaDir, 'jq'));
+  fs.copyFileSync(spawnSync('sh',['-c', 'p=$(command -v jq); if command -v cygpath >/dev/null; then cygpath -w "$p"; else echo "$p"; fi'],{ encoding: 'utf8' }).stdout.trim(), path.join(noTeaDir, process.platform === 'win32' ? 'jq.exe' : 'jq'));
 
   const oneLogin = JSON.stringify([
     { name: 'other', url: 'https://example.org', user: 'x' },
