@@ -170,7 +170,7 @@ printf '%s\n' "$hit"
 id=$(jq -er '.found.id' "$1") || exit 2
 resp=$(curl -sf -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" \
   --get "<base>/api/v2/pages/$id" --data-urlencode "body-format=storage") || exit 2
-printf '%s' "$resp" | jq -er '.body.storage.value'
+printf '%s' "$resp" | jq -ej '.body.storage.value' && echo
 ```
 
 The storage XHTML `read` returns is stable across reads of an unchanged page, so `/superdev:publish-kb`'s
