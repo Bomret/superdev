@@ -54,12 +54,17 @@ function esc(text) {
   return String(text).replace(/[\\`*_[\]<>|]/g, '\\$&');
 }
 
+// A note's detail keeps its markdown, so only a `|` is escaped, to keep the row whole.
+function cell(text) {
+  return String(text).replace(/\|/g, '\\|');
+}
+
 function code(names) {
   return names.map((n) => `\`${n}\``).join(', ');
 }
 
 function pendingLine(scope, pages) {
-  return `pending publish: ${pages} staged page${pages === 1 ? '' : 's'} — \`/superdev:publish-kb ${scope}\``;
+  return `${pages} staged page${pages === 1 ? '' : 's'} — \`/superdev:publish-kb ${scope}\``;
 }
 
 function strayLine(files) {
@@ -96,34 +101,34 @@ function verbStatus(cwd) {
     return (sa.birthtimeMs || sa.mtimeMs) - (sb.birthtimeMs || sb.mtimeMs);
   });
 
-  // The report is markdown, printed as-is by /superdev:status: one table row per scope, then one bullet per
-  // note a scope carries. A scope's ledger and its staged pages are independent: a malformed or unreadable
+  // The report is markdown, printed as-is by /superdev:status: one table row per scope, then one row per
+  // note a scope carries, in a second table. A scope's ledger and its staged pages are independent: a malformed or unreadable
   // ledger still leaves any staged pages waiting. Shared by every `ledger unreadable` exit below, so that
   // scope is marked shown and the fallback loop past this one never reports it a second time under
   // `no ledger` — which would be wrong anyway, since the ledger file exists; only its contents are unreadable.
   const rows = [];
   const notes = [];
   const row = (scope, stage, tally) => rows.push(`| ${[scope, stage, ...(tally || ['', '', '', '', '', ''])].map(esc).join(' | ')} |`);
-  const note = (scope, text) => notes.push(`- **${esc(scope)}** — ${text}`);
+  const note = (scope, kind, detail) => notes.push(`| ${esc(scope)} | ${kind} | ${cell(detail)} |`);
   function pushPendingAndStrays(scope) {
     const pages = pending.get(scope);
     if (pages) {
-      note(scope, pendingLine(scope, pages));
+      note(scope, 'pending publish', pendingLine(scope, pages));
       pendingShown.add(scope);
     }
     const strayFiles = strays.get(scope);
     if (strayFiles) {
-      note(scope, strayLine(strayFiles));
+      note(scope, 'stray files', strayLine(strayFiles));
       straysShown.add(scope);
     }
   }
   function pushRecords(scope, lines) {
     for (const [label, header] of [['degraded', 'Degraded'], ['unresolved', 'Unresolved'], ['deferred', 'Deferred'], ['minors', 'Minors']]) {
       const bullets = readBullets(lines, header);
-      if (bullets.length) note(scope, `${label}: ${bullets.join(', ')}`);
+      if (bullets.length) note(scope, label, bullets.join(', '));
     }
     const deploy = getHeader(lines, 'Deploy');
-    if (deploy) note(scope, `deploy: ${deploy}`);
+    if (deploy) note(scope, 'deploy', deploy);
   }
   for (const scope of entries) {
     let lines;
@@ -166,7 +171,7 @@ function verbStatus(cwd) {
         if (c[5] === 'blocked') blocked.push(`${esc(c[0])} ${esc(c[2])}`);
       }
       row(scope, stageCell, [slices.length, counts.todo, counts['in-progress'], counts['in-review'], counts.blocked, counts.merged]);
-      if (blocked.length) note(scope, `blocked: ${blocked.join(', ')}`);
+      if (blocked.length) note(scope, 'blocked', blocked.join(', '));
       pushRecords(scope, lines);
       pushPendingAndStrays(scope);
     } catch {
@@ -181,15 +186,15 @@ function verbStatus(cwd) {
   for (const scope of [...unreported].sort()) {
     row(scope, 'no ledger');
     const pages = pending.get(scope);
-    if (pages) note(scope, pendingLine(scope, pages));
+    if (pages) note(scope, 'pending publish', pendingLine(scope, pages));
     const strayFiles = strays.get(scope);
-    if (strayFiles) note(scope, strayLine(strayFiles));
+    if (strayFiles) note(scope, 'stray files', strayLine(strayFiles));
   }
-  if (loose.length > 0) notes.push(`- ${looseLine(loose)}`);
+  if (loose.length > 0) notes.push(`|  | loose files | ${looseLine(loose)} |`);
   const out = [];
   if (rows.length) out.push('| Run | Stage | Slices | todo | in-progress | in-review | blocked | merged |', '|---|---|---|---|---|---|---|---|', ...rows);
   if (rows.length && notes.length) out.push('');
-  out.push(...notes);
+  if (notes.length) out.push('| Run | Note | Detail |', '|---|---|---|', ...notes);
   // Every run root is closed and carries no note: nothing is left to show.
   if (out.length === 0) out.push('No open superdev runs in this repo.');
   console.log(out.join('\n'));
