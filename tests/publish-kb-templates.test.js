@@ -52,10 +52,6 @@ function pinForgejoTemplates(realDoc, HOST) {
     '  printf "HTTP/2.0 %s\\n" "$(cat "$TEA_STUB_PAGE_DIR/$p.status" 2>/dev/null || echo 200 OK)" >&2\n' +
     '  cat "$TEA_STUB_PAGE_DIR/$p.body"; exit 0; fi\n' +
     'printf "HTTP/2.0 %s\\n" "$TEA_STUB_STATUS" >&2\nprintf "%s" "$TEA_STUB_BODY"\n', { mode: 0o755 });
-  // A PATH holding `jq` and the system tools but no `tea`: the "no tea installed" case.
-  const noTeaDir = fs.mkdtempSync(path.join(os.tmpdir(), 'no-tea-'));
-  // A copy, not a symlink: a Windows runner may lack the symlink privilege.
-  fs.copyFileSync(spawnSync('sh',['-c', 'p=$(command -v jq); if command -v cygpath >/dev/null; then cygpath -w "$p"; else echo "$p"; fi'],{ encoding: 'utf8' }).stdout.trim(), path.join(noTeaDir, process.platform === 'win32' ? 'jq.exe' : 'jq'));
 
   const oneLogin = JSON.stringify([
     { name: 'other', url: 'https://example.org', user: 'x' },
@@ -167,15 +163,14 @@ function pinForgejoTemplates(realDoc, HOST) {
   assert.equal(runFindTemplate(missPage, '200 OK', JSON.stringify([{ name: 'a', url: HOST }, { name: 'b', url: HOST }])).status, 2,
     'several logins for the host must answer 2, never 3');
   assert.equal(runFindTemplate(missPage, '200 OK', '').status, 2, 'an unreadable login list must answer 2');
-  // The directories of the real `sh` and `jq` stay on the path, so the case runs where they live outside `/usr/bin` and `/bin`.
-  const toolDirs = ['sh', 'jq'].map((tool) => process.env.PATH.split(path.delimiter)
-    .find((d) => d && [tool, `${tool}.exe`].some((n) => fs.existsSync(path.join(d, n)))));
+  // The path keeps every directory of the real one except those holding a `tea`, so `sh` and `jq` resolve on every OS.
+  const pathWithoutTea = process.env.PATH.split(path.delimiter)
+    .filter((d) => d && !['tea', 'tea.exe'].some((n) => fs.existsSync(path.join(d, n))));
   const noTea = spawnSync('sh',['-c', findTemplate, 'sh', valuesFile({ title: 'Missing Page', operator: {} })], {
-    env: { ...process.env, PATH: [noTeaDir, ...toolDirs, '/usr/bin', '/bin'].filter(Boolean).join(path.delimiter) },
+    env: { ...process.env, PATH: pathWithoutTea.join(path.delimiter) },
     encoding: 'utf8',
   });
   assert.equal(noTea.status, 2, 'no tea on the path must answer 2, never 3');
-  console.error('DEBUG', JSON.stringify({ toolDirs, stderr: noTea.stderr, stdout: noTea.stdout, error: String(noTea.error) }));
 
   // Each failure names its cause and the exact login command on stderr, which publish-kb reports.
   const ADD = `tea login add --url ${HOST}`;
@@ -250,7 +245,6 @@ function pinForgejoTemplates(realDoc, HOST) {
   }
   assert.doesNotMatch(realDoc, /GITEA_TOKEN|Authorization|curl/, 'the knowledge-base config names no token env var, header, or curl');
 
-  fs.rmSync(noTeaDir, { recursive: true, force: true });
   fs.rmSync(stubDir, { recursive: true, force: true });
 }
 
