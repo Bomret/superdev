@@ -175,6 +175,7 @@ function pinForgejoTemplates(realDoc, HOST) {
     encoding: 'utf8',
   });
   assert.equal(noTea.status, 2, 'no tea on the path must answer 2, never 3');
+  console.error('DEBUG', JSON.stringify({ toolDirs, stderr: noTea.stderr, stdout: noTea.stdout, error: String(noTea.error) }));
 
   // Each failure names its cause and the exact login command on stderr, which publish-kb reports.
   const ADD = `tea login add --url ${HOST}`;
