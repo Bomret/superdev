@@ -167,11 +167,11 @@ function pinForgejoTemplates(realDoc, HOST) {
   assert.equal(runFindTemplate(missPage, '200 OK', JSON.stringify([{ name: 'a', url: HOST }, { name: 'b', url: HOST }])).status, 2,
     'several logins for the host must answer 2, never 3');
   assert.equal(runFindTemplate(missPage, '200 OK', '').status, 2, 'an unreadable login list must answer 2');
-  // The directory of the real `sh` stays on the path, so the case runs where `sh` lives outside `/usr/bin` and `/bin`.
-  const shDir = process.env.PATH.split(path.delimiter)
-    .find((d) => d && ['sh', 'sh.exe'].some((n) => fs.existsSync(path.join(d, n))));
+  // The directories of the real `sh` and `jq` stay on the path, so the case runs where they live outside `/usr/bin` and `/bin`.
+  const toolDirs = ['sh', 'jq'].map((tool) => process.env.PATH.split(path.delimiter)
+    .find((d) => d && [tool, `${tool}.exe`].some((n) => fs.existsSync(path.join(d, n)))));
   const noTea = spawnSync('sh',['-c', findTemplate, 'sh', valuesFile({ title: 'Missing Page', operator: {} })], {
-    env: { ...process.env, PATH: [noTeaDir, shDir, '/usr/bin', '/bin'].join(path.delimiter) },
+    env: { ...process.env, PATH: [noTeaDir, ...toolDirs, '/usr/bin', '/bin'].filter(Boolean).join(path.delimiter) },
     encoding: 'utf8',
   });
   assert.equal(noTea.status, 2, 'no tea on the path must answer 2, never 3');
