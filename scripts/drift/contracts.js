@@ -460,7 +460,6 @@ const TEA_ONLY_DOCS = [
   path.join('references', 'knowledge-base-forgejo.md'),
   path.join('docs', 'agents', 'issue-tracker.md'),
   path.join('docs', 'agents', 'code-management.md'),
-  path.join('docs', 'agents', 'knowledge-base.md'),
 ];
 const TEA_ONLY_MARKERS = [
   [/\b(?:GITEA|FORGEJO)_TOKEN\b/, (hit) => `name no token env var — \`${hit[0]}\` belongs to a raw HTTP call, and the host is reached through \`tea\` only (ADR 0111)`],
@@ -469,6 +468,19 @@ const TEA_ONLY_MARKERS = [
     /(?:^|[;&|(`]|\$\()[ \t]*curl\s+\S|\bcurl\s+(?:-|https?:|["'$])/m,
     () => 'carry no curl invocation — the host is reached through `tea` only (ADR 0111)',
   ],
+];
+
+// The GitHub wiki seed and this repository's knowledge-base document reach the host through `gh` and git
+// credentials only: no token env var, no `Authorization` header. Prohibition prose passes because the
+// patterns match a variable's name and a header's `Authorization:` shape.
+// simplicity: shape-based. A token held in another variable name walks past.
+const GITHUB_WIKI_GH_ONLY_DOCS = [
+  path.join('references', 'knowledge-base-github-wiki.md'),
+  path.join('docs', 'agents', 'knowledge-base.md'),
+];
+const GITHUB_WIKI_GH_ONLY_MARKERS = [
+  [/\b(?:GH_TOKEN|GITHUB_TOKEN|GH_ENTERPRISE_TOKEN)\b/, (hit) => `name no token env var — \`${hit[0]}\`; the wiki is reached through \`gh\` and git credentials only`],
+  [/\bAuthorization\s*:/i, () => 'carry no `Authorization` header — the wiki is reached through `gh` and git credentials only'],
 ];
 
 // ADR 0189, INV-0175: `/superdev:document` and `/superdev:setup` run no test command. These are the two
@@ -560,4 +572,6 @@ module.exports = {
   NO_FORCE_MERGE_PATTERNS,
   TEA_ONLY_DOCS,
   TEA_ONLY_MARKERS,
+  GITHUB_WIKI_GH_ONLY_DOCS,
+  GITHUB_WIKI_GH_ONLY_MARKERS,
 };

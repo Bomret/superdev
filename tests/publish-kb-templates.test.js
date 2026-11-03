@@ -54,7 +54,8 @@ function pinForgejoTemplates(realDoc, HOST) {
     'printf "HTTP/2.0 %s\\n" "$TEA_STUB_STATUS" >&2\nprintf "%s" "$TEA_STUB_BODY"\n', { mode: 0o755 });
   // A PATH holding `jq` and the system tools but no `tea`: the "no tea installed" case.
   const noTeaDir = fs.mkdtempSync(path.join(os.tmpdir(), 'no-tea-'));
-  fs.symlinkSync(spawnSync('/bin/sh', ['-c', 'command -v jq'], { encoding: 'utf8' }).stdout.trim(), path.join(noTeaDir, 'jq'));
+  // A copy, not a symlink: a Windows runner may lack the symlink privilege.
+  fs.copyFileSync(spawnSync('sh',['-c', 'p=$(command -v jq); if command -v cygpath >/dev/null; then cygpath -w "$p"; else echo "$p"; fi'],{ encoding: 'utf8' }).stdout.trim(), path.join(noTeaDir, process.platform === 'win32' ? 'jq.exe' : 'jq'));
 
   const oneLogin = JSON.stringify([
     { name: 'other', url: 'https://example.org', user: 'x' },
@@ -62,7 +63,7 @@ function pinForgejoTemplates(realDoc, HOST) {
   ]);
 
   function runFindTemplate(body, status = '200 OK', logins = oneLogin, extraEnv = {}, operator = {}, title = 'Missing Page') {
-    return spawnSync('/bin/sh', ['-c', findTemplate, 'sh', valuesFile({ title, operator })], {
+    return spawnSync('sh',['-c', findTemplate, 'sh', valuesFile({ title, operator })], {
       env: {
         ...process.env,
         PATH: stubDir + path.delimiter + process.env.PATH,
@@ -166,7 +167,7 @@ function pinForgejoTemplates(realDoc, HOST) {
   assert.equal(runFindTemplate(missPage, '200 OK', JSON.stringify([{ name: 'a', url: HOST }, { name: 'b', url: HOST }])).status, 2,
     'several logins for the host must answer 2, never 3');
   assert.equal(runFindTemplate(missPage, '200 OK', '').status, 2, 'an unreadable login list must answer 2');
-  const noTea = spawnSync('/bin/sh', ['-c', findTemplate, 'sh', valuesFile({ title: 'Missing Page', operator: {} })], {
+  const noTea = spawnSync('sh',['-c', findTemplate, 'sh', valuesFile({ title: 'Missing Page', operator: {} })], {
     env: { ...process.env, PATH: noTeaDir + path.delimiter + '/usr/bin' + path.delimiter + '/bin' },
     encoding: 'utf8',
   });
@@ -203,7 +204,7 @@ function pinForgejoTemplates(realDoc, HOST) {
   const pathLog = path.join(stubDir, 'paths.log');
   function runVerb(verb, body, status, bodyFile) {
     fs.rmSync(pathLog, { force: true });
-    return spawnSync('/bin/sh', ['-c', templates[verb], 'sh', valuesFile({ title: 'T', bodyFile, found: { sub_url: SUB_URL }, operator: {} })], {
+    return spawnSync('sh',['-c', templates[verb], 'sh', valuesFile({ title: 'T', bodyFile, found: { sub_url: SUB_URL }, operator: {} })], {
       env: {
         ...process.env,
         PATH: stubDir + path.delimiter + process.env.PATH,
@@ -234,7 +235,7 @@ function pinForgejoTemplates(realDoc, HOST) {
   // create and update send the staged title, from the values file, byte for byte, with the body base64-encoded.
   for (const verb of ['create', 'update']) {
     const stdin = path.join(stubDir, `${verb}.stdin`);
-    const sent = spawnSync('/bin/sh', ['-c', templates[verb], 'sh', valuesFile({ title: hostileTitle, bodyFile, found: { sub_url: SUB_URL }, operator: {} })], {
+    const sent = spawnSync('sh',['-c', templates[verb], 'sh', valuesFile({ title: hostileTitle, bodyFile, found: { sub_url: SUB_URL }, operator: {} })], {
       env: { ...process.env, PATH: stubDir + path.delimiter + process.env.PATH, TEA_STUB_STATUS: '200 OK', TEA_STUB_LOGINS: oneLogin, TEA_STUB_STDIN: stdin },
       encoding: 'utf8',
     });
@@ -252,9 +253,9 @@ function pinForgejoTemplates(realDoc, HOST) {
 // --- this repository's own GitHub wiki templates clone, change, and push the wiki repository. A
 // `url.<local>.insteadOf` entry in the git environment points the clone at a local bare repository,
 // and a stub `gh` answers the login check and the user lookup.
-{
-  const realDoc = fs.readFileSync(path.join(__dirname, '..', 'docs', 'agents', 'knowledge-base.md'), 'utf8');
+function pinGithubWikiTemplates(realDoc, HOST, REPO) {
   const { templates } = classifyBackend(realDoc);
+  const wikiUrl = `https://${HOST}/${REPO}.wiki.git`;
   for (const verb of ['find', 'read', 'create', 'update', 'delete']) assert.ok(templates[verb], `the GitHub wiki document configures a ${verb} template`);
   assert.doesNotMatch(realDoc, /GITEA_TOKEN|GH_TOKEN|GITHUB_TOKEN|Authorization|curl/, 'the knowledge-base config names no token env var, header, or curl');
 
@@ -274,24 +275,35 @@ function pinForgejoTemplates(realDoc, HOST) {
 
   const ghDir = path.join(work, 'bin');
   fs.mkdirSync(ghDir);
-  fs.writeFileSync(path.join(ghDir, 'gh'), '#!/bin/sh\n[ -n "$GH_STUB_FAIL" ] && exit 1\n[ "$1" = api ] && echo tester\nexit 0\n', { mode: 0o755 });
+  // The stub `gh` logs every call; GH_STUB_FAIL fails every call, GH_STUB_API_FAIL fails only `gh api`.
+  const ghLog = path.join(work, 'gh.log');
+  const gitLog = path.join(work, 'git.log');
+  fs.writeFileSync(path.join(ghDir, 'gh'),
+    '#!/bin/sh\necho "$*" >> "$GH_STUB_LOG"\n[ -n "$GH_STUB_FAIL" ] && exit 1\n' +
+    '[ "$1" = api ] && { [ -n "$GH_STUB_API_FAIL" ] && { echo "HTTP 401: bad credentials" >&2; exit 1; }; echo tester; }\nexit 0\n', { mode: 0o755 });
+  // A `git` wrapper logs the prompt setting and the arguments of each call, then runs the real git.
+  const realGit = spawnSync('sh',['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim();
+  fs.writeFileSync(path.join(ghDir, 'git'),
+    `#!/bin/sh\necho "prompt=$GIT_TERMINAL_PROMPT $*" >> "$GIT_STUB_LOG"\nexec ${realGit} "$@"\n`, { mode: 0o755 });
   const n = Number(process.env.GIT_CONFIG_COUNT || 0);
   const env = (extra = {}) => ({
     ...process.env,
     PATH: ghDir + path.delimiter + process.env.PATH,
+    GH_STUB_LOG: ghLog,
+    GIT_STUB_LOG: gitLog,
     GIT_CONFIG_COUNT: String(n + 1),
     [`GIT_CONFIG_KEY_${n}`]: `url.file://${bare}.insteadOf`,
-    [`GIT_CONFIG_VALUE_${n}`]: 'https://github.com/Bomret/superdev.wiki.git',
+    [`GIT_CONFIG_VALUE_${n}`]: wikiUrl,
     ...extra,
   });
-  const run = (verb, values, extra) => spawnSync('/bin/sh', ['-c', templates[verb], 'sh', valuesFile(values)], { env: env(extra), encoding: 'utf8' });
+  const run = (verb, values, extra) => spawnSync('sh',['-c', templates[verb], 'sh', valuesFile(values)], { env: env(extra), encoding: 'utf8' });
   const body = path.join(work, 'body.md');
   fs.writeFileSync(body, '# hi\n');
   const title = 'Guide: Plan a feature';
 
   assert.equal(run('find', { title }).status, 3, 'a clone without the page file answers absent (3)');
   assert.equal(run('find', { title }, { GH_STUB_FAIL: '1' }).status, 2, 'a gh with no login could not answer (2)');
-  const broken = spawnSync('/bin/sh', ['-c', templates.find, 'sh', valuesFile({ title })], { env: env({ [`GIT_CONFIG_KEY_${n}`]: `url.file://${work}/missing.git.insteadOf` }), encoding: 'utf8' });
+  const broken = spawnSync('sh',['-c', templates.find, 'sh', valuesFile({ title })], { env: env({ [`GIT_CONFIG_KEY_${n}`]: `url.file://${work}/missing.git.insteadOf` }), encoding: 'utf8' });
   assert.equal(broken.status, 2, 'a failed clone could not answer (2), never absent');
   assert.equal(run('update', { title, bodyFile: body }).status, 1, 'update of an absent page fails');
   const created = run('create', { title, bodyFile: body });
@@ -306,7 +318,109 @@ function pinForgejoTemplates(realDoc, HOST) {
   assert.equal(run('read', { title, found: {} }).stdout, '# changed\n', 'update replaced the body');
   assert.equal(run('delete', { title, found: {} }).status, 0, 'delete lands');
   assert.equal(run('find', { title }).status, 3, 'a deleted page is absent');
+
+  // A clone failure names its cause on stderr.
+  assert.match(broken.stderr, /cannot clone/, 'a failed clone names its cause on stderr');
+
+  // A title holding a character NTFS forbids in a file name is written and read through git objects,
+  // so no work-tree file ever carries the name (the Windows CI job runs this case).
+  const colonTitle = 'Guide: Install';
+  fs.writeFileSync(body, '# install\n');
+  const colonCreated = run('create', { title: colonTitle, bodyFile: body });
+  assert.equal(colonCreated.status, 0, colonCreated.stderr);
+  const colonFound = run('find', { title: colonTitle });
+  assert.equal(colonFound.status, 0, colonFound.stderr);
+  assert.deepEqual(JSON.parse(colonFound.stdout), { sub_url: 'Guide:-Install' });
+  assert.equal(run('read', { title: colonTitle, found: {} }).stdout, '# install\n', 'read returns the colon-titled page body');
+
+  // The page file name matches exactly: `home` is not the seeded `Home.md`, on any file system.
+  assert.equal(run('find', { title: 'home' }).status, 3, 'a title differing only in case answers absent (3)');
+
+  // A values file with no title, an empty one, or a title holding / makes every template fail with its cause,
+  // before anything is cloned or written, and find never answers absent.
+  const refusals = [
+    [{ bodyFile: body, found: {} }, /title/, 'fails without a title'],
+    [{ title: '', bodyFile: body, found: {} }, /title/, 'fails with an empty title'],
+    [{ title: 5, bodyFile: body, found: {} }, /title/, 'fails with a non-string title'],
+    [{ title: ['a'], bodyFile: body, found: {} }, /title/, 'fails with an array title'],
+    [{ title: 'Guide: a/b', bodyFile: body, found: {} }, /holds \//, 'refuses a title holding /'],
+  ];
+  for (const verb of ['find', 'read', 'create', 'update', 'delete']) {
+    for (const [values, cause, what] of refusals) {
+      const r = run(verb, values);
+      assert.notEqual(r.status, 0, `${verb} ${what}`);
+      assert.notEqual(r.status, 3, `${verb} does not answer absent: ${what}`);
+      assert.match(r.stderr, cause, `${verb} names the cause on stderr: ${what}`);
+    }
+  }
+
+  // An unchanged update lands nothing and exits 0.
+  const page = 'Plain Page';
+  fs.writeFileSync(body, '# one\n');
+  assert.equal(run('create', { title: page, bodyFile: body }).status, 0, 'create writes the page');
+  const commits = () => spawnSync('git', ['-C', bare, 'rev-list', '--count', 'HEAD'], { encoding: 'utf8' }).stdout.trim();
+  const before = commits();
+  const same = run('update', { title: page, bodyFile: body, found: {} });
+  assert.equal(same.status, 0, `update with an unchanged body exits 0: ${same.stderr}`);
+  assert.equal(commits(), before, 'update with an unchanged body commits nothing');
+
+  // The login check, the user lookup, and every clone URL name the host; no call can wait on a prompt.
+  fs.rmSync(ghLog, { force: true });
+  fs.rmSync(gitLog, { force: true });
+  assert.equal(run('create', { title: 'Logged Page', bodyFile: body }).status, 0);
+  const ghCalls = fs.readFileSync(ghLog, 'utf8');
+  assert.ok(ghCalls.includes(`auth status --hostname ${HOST}`), 'the login check names the host');
+  assert.ok(ghCalls.includes(`api --hostname ${HOST} user`), 'the identity lookup names the host');
+  assert.equal(ghCalls.split('\n').filter((l) => l.startsWith('api ')).length, 1, 'the identity lookup runs once');
+  const gitCalls = fs.readFileSync(gitLog, 'utf8').split('\n').filter((l) => / (clone|push) /.test(l));
+  assert.equal(gitCalls.length, 2, 'one clone and one push');
+  for (const call of gitCalls) {
+    assert.match(call, /^prompt=0 /, 'git never prompts for a password');
+    assert.ok(call.includes("credential.helper=!gh auth git-credential"), 'the gh helper serves git');
+  }
+  assert.ok(gitCalls[0].includes(wikiUrl), 'the clone URL names the host and repository');
+
+  // A failed identity lookup fails with its cause and pushes nothing.
+  const lookupBefore = commits();
+  const noId = run('create', { title: 'Orphan Page', bodyFile: body }, { GH_STUB_API_FAIL: '1' });
+  assert.notEqual(noId.status, 0, 'a failed identity lookup fails');
+  assert.match(noId.stderr, /bad credentials/, 'the lookup failure names its cause');
+  assert.equal(commits(), lookupBefore, 'a failed identity lookup pushes nothing');
+
+  // A GH_TOKEN in the environment reaches no logged git or gh argv and no failed clone's stderr.
+  const token = 'ghp_superdevTokenCanary0123456789';
+  fs.rmSync(ghLog, { force: true });
+  fs.rmSync(gitLog, { force: true });
+  assert.equal(run('create', { title: 'Token Page', bodyFile: body }, { GH_TOKEN: token }).status, 0);
+  const tokenBroken = spawnSync('sh',['-c', templates.find, 'sh', valuesFile({ title })],
+    { env: env({ GH_TOKEN: token, [`GIT_CONFIG_KEY_${n}`]: `url.file://${work}/missing.git.insteadOf` }), encoding: 'utf8' });
+  assert.equal(tokenBroken.status, 2);
+  for (const [what, text] of [['gh argv', fs.readFileSync(ghLog, 'utf8')], ['git argv', fs.readFileSync(gitLog, 'utf8')], ['clone stderr', tokenBroken.stderr]]) {
+    assert.ok(!text.includes(token), `the ${what} carries no GH_TOKEN value`);
+  }
+
+  // The login check failing answers 2 and names the host.
+  const noLogin = run('find', { title }, { GH_STUB_FAIL: '1' });
+  assert.equal(noLogin.status, 2);
+  assert.ok(noLogin.stderr.includes(HOST), 'the missing login names the host');
+
+  // Portable shell only: no GNU-only or BSD-only option in a template.
+  for (const t of Object.values(templates).filter((x) => typeof x === 'string')) {
+    assert.doesNotMatch(t, /sed -i|readlink -f|mktemp -[tp]|mktemp [^-]|date -d|stat -c|xargs -r/, 'templates use portable flags only');
+  }
   fs.rmSync(work, { recursive: true, force: true });
+}
+{
+  pinGithubWikiTemplates(fs.readFileSync(path.join(__dirname, '..', 'docs', 'agents', 'knowledge-base.md'), 'utf8'), 'github.com', 'Bomret/superdev');
+  const seedPath = path.join(__dirname, '..', 'plugin', 'references', 'knowledge-base-github-wiki.md');
+  const seed = fs.readFileSync(seedPath, 'utf8');
+  const filled = seed.replaceAll('<host>', 'git.example.org').replaceAll('<owner>/<repo>', 'acme/widgets');
+  assert.doesNotMatch(filled, /<host>|<owner>|<repo>|bomret\/superdev|github\.com/i, 'the seed names its host and repository only through the placeholders');
+  pinGithubWikiTemplates(filled, 'git.example.org', 'acme/widgets');
+  assert.match(seed, /^- \*\*Hierarchy:\*\* links/m, 'the seed declares body-link hierarchy');
+  assert.ok(seed.includes('https://<host>/<owner>/<repo>/wiki/{sub_url}'), 'the seed carries the link line form under the wiki URL');
+  assert.ok(filled.includes('https://git.example.org/acme/widgets/wiki/{sub_url}'), 'the filled seed link line names the host and repository');
+  assert.doesNotMatch(seed, /GH_TOKEN|GITHUB_TOKEN|Authorization|curl/, 'the seed names no token env var, header, or curl');
 }
 {
   const seed = fs.readFileSync(path.join(__dirname, '..', 'plugin', 'references', 'knowledge-base-forgejo.md'), 'utf8');
@@ -333,7 +447,7 @@ function pinForgejoTemplates(realDoc, HOST) {
   fs.writeFileSync(path.join(stubDir, 'curl'), '#!/bin/sh\nprintf "%s" "$CURL_STUB_BODY"\n', { mode: 0o755 });
 
   function runReadTemplate(body) {
-    return spawnSync('/bin/sh', ['-c', readTemplate, 'sh', valuesFile({ title: 'T', found: { id: '123', version: 4 }, operator: {} })], {
+    return spawnSync('sh',['-c', readTemplate, 'sh', valuesFile({ title: 'T', found: { id: '123', version: 4 }, operator: {} })], {
       env: {
         ...process.env,
         PATH: stubDir + path.delimiter + process.env.PATH,

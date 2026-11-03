@@ -1,0 +1,32 @@
+name: template-tests
+
+# Runs the knowledge-base template suite on each operating system (ADR 0212).
+# The full suite stays a local run.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  template-tests:
+    name: template-tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+      # Puts Git Bash's sh first on PATH, so the suite's spawn of `sh` reaches it from native Node.
+      - if: runner.os == 'Windows'
+        run: cygpath -w /usr/bin >> "$GITHUB_PATH"
+      - run: node tests/publish-kb-templates.test.js
