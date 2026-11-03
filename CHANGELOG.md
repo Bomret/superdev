@@ -1,3 +1,10 @@
+## [0.102.1](https://github.com/Bomret/superdev/compare/v0.102.0...v0.102.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **adr:** renumber the fail-to-pass control ADR to 0215 ([#84](https://github.com/Bomret/superdev/issues/84)) ([f5db6ae](https://github.com/Bomret/superdev/commit/f5db6aee84194e53b6a76d437c2bd228b33fd877)), closes [#79](https://github.com/Bomret/superdev/issues/79) [#81](https://github.com/Bomret/superdev/issues/81) [#81](https://github.com/Bomret/superdev/issues/81)
+
 # [0.102.0](https://github.com/Bomret/superdev/compare/v0.101.1...v0.102.0) (2026-11-03)
 
 
