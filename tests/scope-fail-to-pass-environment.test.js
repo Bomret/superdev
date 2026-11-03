@@ -45,7 +45,7 @@ const { f2pFixture, verif } = require('./scope-setup');
     });
     for (const sub of ['docs', 'docs/agents']) {
       fs.rmSync(s.log, { force: true });
-      // An empty trace holds no control to reuse (ADR 0214), so each run runs both.
+      // An empty trace holds no control to reuse (ADR 0215), so each run runs both.
       fs.rmSync(path.join(s.root, 'trace.log'), { force: true });
       r = s.run(s.range, { cwd: path.join(s.tree, sub) });
       assert.equal(r.stdout.trim(), 'fail-to-pass control=0,put-back=1', `a run from ${sub} runs at the tree root: ${r.stderr}`);
@@ -75,7 +75,7 @@ const { f2pFixture, verif } = require('./scope-setup');
     const shim = path.join(D, 'bin');
     fs.mkdirSync(shim, { recursive: true });
     fs.writeFileSync(path.join(shim, 'git'), `#!/bin/sh\nfor a in "$@"; do [ "$a" = restore ] && { echo 'shim: restore refused' >&2; exit 1; }; done\nexec ${realGit} "$@"\n`, { mode: 0o755 });
-    // An empty trace holds no control to reuse (ADR 0214), so the control runs.
+    // An empty trace holds no control to reuse (ADR 0215), so the control runs.
     fs.rmSync(path.join(s.root, 'trace.log'), { force: true });
     const tracedBefore = s.trace();
     fs.rmSync(s.log, { force: true });
