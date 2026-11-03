@@ -224,7 +224,8 @@ working tree.
 the run's duration in whole milliseconds (ADR 0182). The verb
 streams the command's output and exits with its status. `full`, `focused`, and `whole` run the command
 `docs/agents/verification.md` configures, as written; `focused` substitutes its shell-quoted paths for `{paths}`
-and, given none, runs the full command and records `full`. `--` runs a command that `testRuns` of `lib/test-runs.js`
+and, given none, runs the full command and records `full`. It refuses an empty path argument, and an argument that holds
+whitespace and names no file relative to the tree root, a path list joined into one word (ADR 0215). `--` runs a command that `testRuns` of `lib/test-runs.js`
 classifies as exactly one test run, and records the kind and files a direct run records. A word counts as a
 path argument of that classification only when its file part names an existing file or directory; a runner node id
 (`a.py::test_x`, `a.test.js:12`) counts by its file part, and a glob word keeps its reading. A quoted note that begins

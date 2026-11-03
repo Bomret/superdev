@@ -72,6 +72,22 @@ try {
   assert.ok(usage, 'usage lists the verb');
   assert.ok(!/--(outcome|kind|slice|tree|status|root)/.test(usage), 'its usage names no option that sets a run field');
 
+  // A focused argument holding several whitespace-joined paths is refused before anything runs: the command would read it
+  // as one path, select nothing, and pass. An argument with whitespace that names an existing file is one path.
+  reset();
+  r = verb(['focused', 'AGENTS.md services/x/tests/a.bats ']);
+  assert.notEqual(r.status, 0, 'a whitespace-joined path list is refused');
+  assert.match(r.stderr, /test focused: the argument .* holds whitespace and names no file/, 'the refusal names the cause');
+  assert.ok(!r.stdout.includes('FOCUSED'), 'and nothing runs');
+  r = verb(['focused', 'a.bats\nb.bats']);
+  assert.notEqual(r.status, 0, 'a newline-joined path list is refused');
+  assert.deepEqual(lines(), [], 'and nothing is recorded');
+  fs.writeFileSync(path.join(S, 'has space.md'), 'x');
+  r = verb(['focused', 'has space.md']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /FOCUSED has space\.md/, 'an existing file with a space in its name runs');
+  fs.rmSync(path.join(S, 'has space.md'));
+
   // An unconfigured kind is refused, naming the missing command.
   const root2 = path.join(D, '.superdev', 'scopes', 'bare');
   const S2 = path.join(root2, 'slicetrees', '01');
