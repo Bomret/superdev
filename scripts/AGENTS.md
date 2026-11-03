@@ -251,7 +251,10 @@ the reviewer's judgment, so the outcome line records it (ADR 0188). The verb ref
 `slicetrees/`, outside every tree the run trace attributes a run to. Outside a run root it sits under `.superdev/`, which
 the verb git-ignores first through the repository's `info/exclude`.
 
-The first run is against the changed code and must pass. The verb then resets and cleans the worktree. The verb puts
+The first run is against the changed code and must pass. Inside a run root, the trace can supply it (ADR 0214): the last
+`path` run line at `<tip>` on a clean tree that names every test file the range adds or modifies and ends with a duration
+is the first run when it passed and no failing `path` run line at `<tip>` follows it. The verb then runs the command once,
+bounds that run with the line's duration, writes no control run line, and names the reused line on stderr. The verb then resets and cleans the worktree. The verb puts
 every changed file outside the test paths back as that file stood at `<base>`, and commits the put-back on the detached
 HEAD. The verb runs the command again and bounds that second run at 10 times the first run's duration, measured in the
 same invocation, or at a floor of 10 000 ms, whichever is larger (INV-0009, ADR 0142). `verification.failToPassFloorMs` of the

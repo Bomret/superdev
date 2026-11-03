@@ -64,6 +64,23 @@ function sliceOfRange(root, base, tip, cwd) {
   return null;
 }
 
+// The control a run root's trace already holds for `tip` (ADR 0214): { code: 0, ms, ts } from the last `path` run line at `tip`
+// on a clean tree that names every one of `testFiles` and a duration, or null. A failing `path` run at `tip` after it, over any
+// files, voids it.
+function reusableControl(runRoot, tip, testFiles) {
+  let events;
+  try { events = readTrace(fs.readFileSync(path.join(runRoot, 'trace.log'), 'utf8')); } catch { return null; }
+  let found = null;
+  for (const e of events) {
+    const [kind, outcome, sha, tree, files, ms] = e.fields;
+    if (e.kind !== 'run' || kind !== 'path' || sha !== tip || tree !== 'clean') continue;
+    if (outcome !== 'pass') { found = null; continue; }
+    const named = new Set((files || '').split(','));
+    if (/^\d+$/.test(ms || '') && testFiles.every((f) => named.has(f))) found = { code: 0, ms: Number(ms), ts: e.ts };
+  }
+  return found;
+}
+
 // Makes `.superdev/` ignored for the repository whose main working tree is `main`, through the `info/exclude` of its common git
 // dir, so no file of the checkout changes (`ensureSuperdevIgnored` writes the checkout's own `.gitignore`, which this verb never
 // does). A repository that ignores it already, by any rule, is left alone.
@@ -174,7 +191,11 @@ async function verbFailToPass(cwd, args) {
     // Only a control that passed gives the second run a meaning (INV-0139); a control that did not pass records `unknown`,
     // and the second run never starts.
     const [sha0, tree0] = treeState(dir);
-    const control = await exec();
+    // A passing run the trace already holds is the control (ADR 0214): the last `path` run line at the tip on a clean tree that
+    // names every test file of the range and its duration, which the bound needs, when no later run there failed.
+    const reused = at && reusableControl(at.runRoot, tip, testFiles);
+    if (reused) process.stderr.write(`fail-to-pass: control reused from the run trace line of ${reused.ts}\n`);
+    const control = reused || await exec();
     const status = (run) => (run.startError ? `start-failed:${run.startError}` : run.signal || run.code);
     // One ledger read names the slice both lines carry, the outcome line and the control run's `run` line (ADR 0175).
     const slice = at && (sliceOfRange(at.runRoot, base, tip, cwd) || at.slice);
@@ -195,7 +216,7 @@ async function verbFailToPass(cwd, args) {
     // The control run is a test run too (ADR 0175): a run that finished with an exit status writes a `path` run line naming the
     // range's test files, the files the command was handed to cover (ADR 0188), attributed like the outcome line (ADR 0182). One a signal ended or that could not start writes none.
     // Like `scope.js test`, it names the tip and reads both ends: a HEAD that left the tip or a dirty tree at either end is `dirty`.
-    if (at && control.code !== null && control.code !== undefined && !control.signal && !control.startError) {
+    if (at && !reused && control.code !== null && control.code !== undefined && !control.signal && !control.startError) {
       const [sha1, tree1] = treeState(dir);
       const states = [tree0, tree1];
       const tree = sha0 !== tip || sha1 !== tip || states.includes('dirty') ? 'dirty' : states.includes('unknown') ? 'unknown' : 'clean';

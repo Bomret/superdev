@@ -85,7 +85,7 @@ const { appendTrace } = require(scopePath);
     const afterControl = cli(s, ['suite', 'reusable', '--branch', 'feat/demo']);
     assert.equal(afterControl.status, 1, 'the control run\'s path line backs no suite record: ' + afterControl.stdout);
     assert.equal(s.run(s.range).status, 0);
-    assert.equal(s.runLines().length, 2, 'each control run writes one run line and no outcome line is a run line');
+    assert.equal(s.runLines().length, 1, 'the first control run writes one run line, the second call reuses it (ADR 0214), and no outcome line is a run line');
     // `trace` prints the outcome line like any other, which is what `/superdev:status --trace` shows.
     const timeline = cli(s, ['trace']).stdout.split('\n');
     assert.ok(timeline.some((l) => new RegExp(` 01 main fail-to-pass ${s.range} fail-to-pass control=0,put-back=1 sh\\\\x20tests/t\\.sh$`).test(l)), 'trace prints the outcome line, the command last');

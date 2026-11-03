@@ -200,6 +200,8 @@ run trace (`scope.js trace`), which `scope.js` wrote (ADR 0134, ADR 0117). A fai
 file a `behavior` slice's range changed outside its test-path files and runs the range's test files again. The
 implementer of the change runs it over its own range before its report (ADR 0182). Its outcome line is a
 `fail-to-pass` line carrying the range, the outcome, a reason, and the command both runs used, and it is no test run.
+Where the trace already holds a passing `path` run of those test files at the tip on a clean tree, that run is the first
+run, and the verb runs only the second (ADR 0214).
 
 **An outcome line counts only where its command runs the range's test files** (ADR 0188). The verb reads no word of
 the command, so read it against the repository's runner and the test files the range adds or modifies. A line whose
