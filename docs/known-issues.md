@@ -376,8 +376,8 @@ call, with no New task card.
 
 **Mitigation (implemented):** `## The offer` states that the offer takes precedence over the app's
 follow-up and wrap-up guidance and comes before the wrap-up call. The Stop hook `hooks/offer-guard.js`
-holds a main-session turn once when its Next block names one command that no offer call of the turn named
-(ADR 0213, INV-0183).
+holds a main-session turn once when its Next block names one command that no offer call of the turn named.
+A message that names one next command without the `### Next` heading is held too (ADR 0213, ADR 0216, INV-0183).
 
 **Fix required at:** none in superdev. The app's guidance is the app's own; the hook holds the offer
 whatever the prompt says.

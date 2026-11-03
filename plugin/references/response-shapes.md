@@ -50,7 +50,8 @@ answers one question.
 **Precedence.** The offer takes precedence over the Claude desktop app's own guidance that a follow-up acting
 on the session's findings stays in the session and is asked through its wrap-up box. Make the offer call
 before the wrap-up call. `hooks/offer-guard.js` holds a turn once when its Next block names one command that
-no offer call of the turn named (ADR 0213, INV-0183).
+no offer call of the turn named, and when a message without the Next heading names one next command in a fence
+or beside the word "next" (ADR 0213, ADR 0216, INV-0183).
 
 **When it offers.** Offer when every condition below holds, at every exit, a refusal and an ad-hoc run
 included:

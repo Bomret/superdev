@@ -5,6 +5,9 @@
 **Amends:** [ADR 0157](0157-every-chain-command-offers-to-start-its-successor.md): the offer is enforced, not
 only stated.
 
+**Amended by:** [ADR 0216](0216-the-offer-guard-reads-a-next-step-without-its-heading.md): a next step
+without its heading is held too.
+
 ## Context
 
 `references/response-shapes.md`'s `## The offer` states when a command offers its next command. Sessions in
