@@ -1,3 +1,11 @@
+## [0.101.1](https://github.com/Bomret/superdev/compare/v0.101.0...v0.101.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **references:** a GitHub create rejects an unassignable login ([#79](https://github.com/Bomret/superdev/issues/79)) ([0b311d5](https://github.com/Bomret/superdev/commit/0b311d570a1a4d4ad10a2e2f33979485dfef3af7))
+* **references:** make the Forgejo and Confluence read templates work with Windows jq ([#80](https://github.com/Bomret/superdev/issues/80)) ([e2dfffa](https://github.com/Bomret/superdev/commit/e2dfffa066242026aa595af33fed915da91c62fd))
+
 # [0.101.0](https://github.com/Bomret/superdev/compare/v0.100.0...v0.101.0) (2026-11-03)
 
 
