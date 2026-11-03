@@ -107,6 +107,19 @@ function passed(r, label) {
   blocked(run(tmp, stop(next('/superdev:review a', '', '\nOr: `/superdev:document a` — docs first.\n'))));
 }
 
+// A message with no Next heading that still names one next command is held: a lone command fence, or a `/superdev:` code
+// span on a line that says "next". Commands in prose without "next", and two different commands, are not held.
+{
+  const tmp = freshTmp();
+  blocked(run(tmp, stop('Reviewed.\n\nTo open the PR, run this:\n```\n/superdev:submit-pr a\n```\n')));
+  blocked(run(tmp, stop('Done.\n\nNext would be `/superdev:submit-pr` to open the PR. I start it only if you ask.')));
+  passed(run(tmp, stop('The hook reads `/superdev:review` output.')), 'prose span');
+  passed(run(tmp, stop('Run in order:\n```\n/superdev:ship a\n```\n```\n/superdev:publish-kb a\n```\n')), 'two fences');
+  passed(run(tmp, stop('Example:\n```\n/superdev:review a\n/superdev:document a\n```\n')), 'two-line fence');
+  run(tmp, card(`/superdev:submit-pr a\n${MARK}`));
+  passed(run(tmp, stop('Next would be `/superdev:submit-pr a`.')), 'headless offered');
+}
+
 // An unattended run's Next block is held once: the Stop input carries no posture, so the hook cannot tell it apart.
 {
   const tmp = freshTmp();

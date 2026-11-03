@@ -54,7 +54,7 @@ function nextCommand(message) {
     }
     if (!fence && /^###\s+Next\s*$/.test(lines[i])) heading = i;
   }
-  if (heading < 0) return null;
+  if (heading < 0) return headlessCommand(lines);
   let i = heading + 1;
   for (; i < lines.length; i++) {
     if (/^\s*(Blocked|First):/.test(lines[i])) return null;
@@ -67,6 +67,29 @@ function nextCommand(message) {
   if (body.length !== 1) return null;
   const m = COMMAND.exec(body[0]);
   return m ? m[1] : null;
+}
+
+// A message with no Next heading names a next command through a fence holding one `/superdev:` line, or a `/superdev:`
+// code span on a line that says "next". The one command name all of them name, or null when they name none or two.
+function headlessCommand(lines) {
+  const names = new Set();
+  let fence = null;
+  let body = [];
+  for (const line of lines) {
+    const f = /^\s*(`{3,}|~{3,})/.exec(line);
+    if (fence) {
+      if (f && f[1][0] === fence[0] && f[1].length >= fence.length && line.trim() === f[1]) {
+        const m = body.length === 1 && COMMAND.exec(body[0]);
+        if (m) names.add(m[1]);
+        fence = null;
+      } else if (line.trim()) body.push(line.trim());
+      continue;
+    }
+    if (f) { fence = f[1]; body = []; continue; }
+    if (!/\bnext\b/i.test(line)) continue;
+    for (const s of line.matchAll(/`(\/superdev:[a-z][a-z-]*)[^`]*`/g)) names.add(COMMAND.exec(s[1])[1]);
+  }
+  return names.size === 1 ? [...names][0] : null;
 }
 
 function decide(input, markers) {
