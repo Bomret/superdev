@@ -86,6 +86,8 @@ load counts as absent.
 The `background` names what the new session starts from. A command with a scope names the scope's feature
 label and its run root's absolute path. A command with no scope names only what exists, such as the intent
 file a bare `/superdev:plan` reads, and never a placeholder for a scope it lacks.
+The `prompt` and the `background` carry nothing else: no rule, bar, or limit of the command that is
+ending. The started command takes its limits from its own skill (INV-0184).
 
 The call proposes the session and starts nothing: the app shows a New task card in the transcript. The
 app refuses a `user_asked` start in a turn that another session's prompt began, so the card is the one
