@@ -172,7 +172,7 @@ page=$(tea api --login "$login" --repo <owner>/<repo> -i \
   "/repos/<owner>/<repo>/wiki/page/$sub_url" 2>"$hdr") || { rm -f "$hdr"; exit 1; }
 code=$(head -1 "$hdr" | cut -d' ' -f2); rm -f "$hdr"
 [ "$code" = 200 ] || exit 1
-printf '%s' "$page" | jq -r '.content_base64' | base64 -d
+printf '%s' "$page" | jq -j '.content_base64' | base64 -d
 ```
 
 ### create

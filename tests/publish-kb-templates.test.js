@@ -219,7 +219,6 @@ function pinForgejoTemplates(realDoc, HOST) {
   const bodyFile = path.join(stubDir, 'body.md');
   fs.writeFileSync(bodyFile, '# hi\n');
   const okRead = runVerb('read', JSON.stringify({ content_base64: Buffer.from('# page\n').toString('base64') }), '200 OK', bodyFile);
-  console.error('DEBUG', JSON.stringify({ stderr: okRead.stderr, stdout: okRead.stdout, log: fs.existsSync(pathLog) && fs.readFileSync(pathLog, 'utf8') }));
   assert.equal(okRead.status, 0);
   assert.equal(okRead.stdout, '# page\n', 'read prints the decoded page markdown');
   // The parent-link edit runs `read` then `update` on the parent with the parent's find result as `found`.
