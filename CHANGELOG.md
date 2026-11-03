@@ -1,3 +1,15 @@
+# [0.102.0](https://github.com/Bomret/superdev/compare/v0.101.1...v0.102.0) (2026-11-03)
+
+
+### Bug Fixes
+
+* **references:** keep the review's integration bar out of the next step's brief ([#83](https://github.com/Bomret/superdev/issues/83)) ([c38cdbb](https://github.com/Bomret/superdev/commit/c38cdbb2818ec1b5f9505603ec45cb61f99b5cb3))
+
+
+### Features
+
+* **scope:** reuse a traced passing run as the fail-to-pass control ([#81](https://github.com/Bomret/superdev/issues/81)) ([cc3f6bc](https://github.com/Bomret/superdev/commit/cc3f6bcfdf05da7e58c45b67f9e0542031e6e9da))
+
 ## [0.101.1](https://github.com/Bomret/superdev/compare/v0.101.0...v0.101.1) (2026-11-03)
 
 
