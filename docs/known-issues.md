@@ -365,3 +365,24 @@ session whose first message carried the card's prompt under the `background` tex
 
 Verified 2026-10-30, on the Claude desktop app: an operator observation of a New task card a superdev
 offer put up. The card showed the buttons *Do it here*, *Start*, *Options*, and a close button.
+
+## The desktop app's wrap-up guidance competes with the offer
+
+The Claude desktop app's system prompt tells the model that a follow-up acting on the session's own
+findings stays in the session and is asked through its wrap-up box (`mcp__ccd_turn__wrap_up`). The next
+command a superdev Next block names is such a follow-up. Late in a long run, that guidance wins over
+`references/response-shapes.md`'s `## The offer`, and the session ends on the Next block after a wrap-up
+call, with no New task card.
+
+**Mitigation (implemented):** `## The offer` states that the offer takes precedence over the app's
+follow-up and wrap-up guidance and comes before the wrap-up call. The Stop hook `hooks/offer-guard.js`
+holds a main-session turn once when its Next block names one command that no offer call of the turn named
+(ADR 0213, INV-0183).
+
+**Fix required at:** none in superdev. The app's guidance is the app's own; the hook holds the offer
+whatever the prompt says.
+
+Verified 2026-11-03, on Claude Code 2.1.310 in the Claude desktop app: the system prompt of a session
+started by a superdev offer carried the guidance that one piece of work acting on what the session just
+found stays in the session and is asked through `wrap_up`. Operator reports of attended sessions ending on a
+Next block with no card after a `wrap_up` call are the evidence ADR 0213 records.

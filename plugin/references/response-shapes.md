@@ -47,6 +47,11 @@ Each command `## The Next block` covers offers to start its next command before 
 tool, the offer is a New task card, put up at once, and asks no question. Without the tool, the operator
 answers one question.
 
+**Precedence.** The offer takes precedence over the Claude desktop app's own guidance that a follow-up acting
+on the session's findings stays in the session and is asked through its wrap-up box. Make the offer call
+before the wrap-up call. `hooks/offer-guard.js` holds a turn once when its Next block names one command that
+no offer call of the turn named (ADR 0213, INV-0183).
+
 **When it offers.** Offer when every condition below holds, at every exit, a refusal and an ad-hoc run
 included:
 
