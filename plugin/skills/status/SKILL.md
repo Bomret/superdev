@@ -152,21 +152,21 @@ Applies to an `in flight` row's act. Name the chain command its stage has not re
 
 ## The table
 
-Applies to the report after the ledger report. Print one line naming the local time and offset the listings ran at, and the checkout, for example `Read bomret/superdev at 2026-09-21 23:40 +02:00, from /Users/me/src/app.` (triage #573). Then print one table: store reference, title, bucket, and act (a copy-pasteable superdev command, or the human act in a few words).
+Applies to the report after the ledger report. Print one line naming the local time and offset the listings ran at, and the checkout, for example `Read bomret/superdev at 2026-09-21 23:40 +02:00, from /Users/me/src/app.` (triage #573). Then print one markdown table, outside a code fence, with the columns store reference, title, bucket, and act (a copy-pasteable superdev command, or the human act in a few words).
 
-```
-#1131 doc checks           running         live: review, lock under an hour old — leave it unless that run is this session's own or its session has stopped
-#368 backlog survey        in flight       reviewed → /superdev:document main..feat/backlog
-#430 webhook retries       elsewhere       elsewhere: reviewed, step none — finish it where it runs, or /superdev:implement feat/webhook-retries
-#412 export formats        ready           /superdev:implement feat/export-formats
-#377 rate limiting         waiting         waits on #412
-#390 audit trail           unreleased      release it: the `released` label on #390
-#398 slow exports          absorbed        absorbed by #412 → /superdev:implement feat/export-formats
-#402 retry storms          needs planning  triage record → /superdev:plan "retry storms"
-#440 offline sync          intent          intent record → /superdev:plan
-#355 search indexer        blocked         label `Search_Indexer!` fails the scope-slug rule — rename it
-#421 flaky login on mobile untriaged       3d old — read it
-```
+| Item | Title | Bucket | Act |
+|------|-------|--------|-----|
+| #1131 | doc checks | running | live: review, lock under an hour old — leave it unless that run is this session's own or its session has stopped |
+| #368 | backlog survey | in flight | reviewed → `/superdev:document main..feat/backlog` |
+| #430 | webhook retries | elsewhere | elsewhere: reviewed, step none — finish it where it runs, or `/superdev:implement feat/webhook-retries` |
+| #412 | export formats | ready | `/superdev:implement feat/export-formats` |
+| #377 | rate limiting | waiting | waits on #412 |
+| #390 | audit trail | unreleased | release it: the `released` label on #390 |
+| #398 | slow exports | absorbed | absorbed by #412 → `/superdev:implement feat/export-formats` |
+| #402 | retry storms | needs planning | triage record → `/superdev:plan "retry storms"` |
+| #440 | offline sync | intent | intent record → `/superdev:plan` |
+| #355 | search indexer | blocked | label `Search_Indexer!` fails the scope-slug rule — rename it |
+| #421 | flaky login on mobile | untriaged | 3d old — read it |
 
 - **Every item.** Every item `## Buckets` names appears as a row.
 - **One row per scope.** A scope with a run root is one row carrying its stage, and its slice detail stays in the ledger report.

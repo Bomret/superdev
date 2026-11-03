@@ -150,7 +150,8 @@ header line reads as absent, not as an empty string. Both `readLines` and `readL
 on `\r?\n`. A `ledger.md` an editor or `core.autocrlf` wrote with CRLF line endings reads exactly as
 an LF one does. A lone `\r`, the classic-Mac line ending, reads as absent, and that is deliberate.
 Any verb that writes the file normalises it back to LF. `status` prints markdown: a table with one row per
-scope (stage, slice count, tally per slice status), then one `- **<scope>** — …` bullet per note. A scope name or slice title is escaped for
+scope (stage, slice count, tally per slice status), then a second table, `| Run | Note | Detail |`, with one
+row per note. A `|` in a note's detail is escaped. A scope name or slice title is escaped for
 markdown, and a file name prints as code. A scope whose
 ledger stage reads `shipped` prints a row with no slice count and no tally, and no blocked note. A scope whose
 ledger stage reads `closed` prints no row. When every run root is closed and carries no note, `status` prints

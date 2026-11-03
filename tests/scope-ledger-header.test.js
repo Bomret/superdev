@@ -197,11 +197,11 @@ try {
   // `includes` cannot see a trailing `\r`, so assert on the whole line: a stray carriage return in the
   // degrade bullet would leave the line unequal while still "including" the text.
   assert.ok(
-    crlfStatus.split('\n').includes('- **crlfscope** — degraded: a denied pass'),
+    crlfStatus.split('\n').includes('| crlfscope | degraded | a denied pass |'),
     'its degrade record renders as an exact line, with no stray carriage return: ' + JSON.stringify(crlfStatus)
   );
   assert.ok(
-    crlfStatus.split('\n').includes('- **crlfscope** — unresolved: suite still red at the cap'),
+    crlfStatus.split('\n').includes('| crlfscope | unresolved | suite still red at the cap |'),
     'its unresolved record renders as an exact line too, with no stray carriage return: ' + JSON.stringify(crlfStatus)
   );
 
