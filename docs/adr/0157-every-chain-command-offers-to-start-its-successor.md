@@ -6,6 +6,8 @@
 [ADR 0013](0013-implement-tail-is-a-command-chain.md)'s rejection of confirmation prompts, and
 [ADR 0113](0113-commands-end-on-a-shared-next-block.md)'s set of covered commands.
 
+**Amended by:** [ADR 0213](0213-a-stop-hook-holds-the-offer.md), which enforces the offer with a Stop hook.
+
 **Amended by:** [ADR 0176](0176-the-offer-recommends-a-new-session.md), which makes the offer recommend a
 new session where the desktop app's session tool is present, and Stop here where it is absent (point 2).
 

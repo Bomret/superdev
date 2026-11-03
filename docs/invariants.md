@@ -1494,3 +1494,12 @@ Statement: Every unjudged checklist line of a multi-slice epic's Definition of D
 Breaks: silently
 Check: the `scope.js dod-tags` suite
 Paths: plugin/scripts/scope.js, plugin/lib/dod-line.js, plugin/skills/plan/SKILL.md, plugin/references/plan-contract.md, plugin/references/issue-tracker-forgejo.md, plugin/references/issue-tracker-github.md, plugin/references/issue-tracker-jira.md
+
+### INV-0183
+
+Class: architecture
+Concepts: Next block, Offer
+Statement: A main-session turn that ends on a Next block naming one command, with no `Blocked:` or `First:` line, ends only after an offer call of that turn named that command, or after one block by `hooks/offer-guard.js`. The hook fails open on every malformed input and never blocks twice in a row (ADR 0213).
+Breaks: silently
+Check: the `offer-guard.js` suite
+Paths: plugin/hooks/offer-guard.js, plugin/hooks/hooks.json, plugin/references/response-shapes.md
