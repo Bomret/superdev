@@ -1,3 +1,10 @@
+# [0.100.0](https://github.com/Bomret/superdev/compare/v0.99.3...v0.100.0) (2026-11-03)
+
+
+### Features
+
+* **hooks:** hold a Next block that skipped the offer ([836e9a4](https://github.com/Bomret/superdev/commit/836e9a4e89ee7eb00ed80d4507b89be2f21a7e25))
+
 ## [0.99.3](https://github.com/Bomret/superdev/compare/v0.99.2...v0.99.3) (2026-11-02)
 
 
