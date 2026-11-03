@@ -22,6 +22,9 @@ word also names the test file whose stem it is.
 **Amended by:** [ADR 0188](0188-the-fail-to-pass-verb-reads-no-word-of-its-command.md), under which the verb reads
 no word of its command, and the reviewer judges which test files the recorded command runs.
 
+**Amended by:** [ADR 0214](0214-fail-to-pass-reuses-a-traced-control.md), under which a passing run of the range's
+test files that the trace holds at the tip on a clean tree is the verb's control run.
+
 ## Context
 
 The `fewer-suite-runs` scope had eight slices on the full tier. Its run trace records 19 implementer
