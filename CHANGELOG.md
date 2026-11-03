@@ -1,3 +1,12 @@
+## [0.102.2](https://github.com/Bomret/superdev/compare/v0.102.1...v0.102.2) (2026-11-03)
+
+
+### Bug Fixes
+
+* **hooks:** hold a next step named without its Next heading ([#86](https://github.com/Bomret/superdev/issues/86)) ([9107cdc](https://github.com/Bomret/superdev/commit/9107cdce8c17aed2d7712ecf0dc2044860b8e2e6))
+* **scope:** refuse a whitespace-joined path list in test focused ([#82](https://github.com/Bomret/superdev/issues/82)) ([b21ea82](https://github.com/Bomret/superdev/commit/b21ea82ac68af79cd97719501e212bc8d3a6e2ec))
+* **status:** print the report's notes and backlog as markdown tables ([#85](https://github.com/Bomret/superdev/issues/85)) ([717d1fe](https://github.com/Bomret/superdev/commit/717d1fef579645ba1b19c7db0e3a567ec8683598))
+
 ## [0.102.1](https://github.com/Bomret/superdev/compare/v0.102.0...v0.102.1) (2026-11-03)
 
 
