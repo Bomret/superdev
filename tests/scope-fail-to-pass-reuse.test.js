@@ -5,7 +5,7 @@
 require('./fixture-git');
 
 // Suite for plugin/scripts/scope.js's `fail-to-pass` verb: the control run it takes from the run trace in place of running
-// one (ADR 0214). Every scenario writes only inside the fixture's own temporary directory (INV-0154).
+// one (ADR 0215). Every scenario writes only inside the fixture's own temporary directory (INV-0154).
 
 const assert = require('node:assert');
 const fs = require('node:fs');

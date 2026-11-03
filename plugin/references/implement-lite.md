@@ -106,7 +106,7 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
   command naming every test file the range adds or modifies, while the slice is still `in-progress`, so the trace line
   names the slice (ADR 0182). The verb's first run is the slice's last GREEN run of those test files: commit the GREEN code
   and run the verb in place of another run of them, and a first run that does not pass is a RED step. A passing run of
-  them through `scope.js test --` at the committed tip is the first run, and the verb runs only the second (ADR 0214). A range whose test-path changes are all deletions and that adds behaviour outside the
+  them through `scope.js test --` at the committed tip is the first run, and the verb runs only the second (ADR 0215). A range whose test-path changes are all deletions and that adds behaviour outside the
   test paths leaves that behaviour with no test: write one for it, then run the verb. Every run of the verb goes in the background when
   the suite outlasts the Bash tool's time limit, and you wait for its end before you read its outcome
   (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`). The verb runs the command twice in a

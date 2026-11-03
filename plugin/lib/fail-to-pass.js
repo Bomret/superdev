@@ -64,7 +64,7 @@ function sliceOfRange(root, base, tip, cwd) {
   return null;
 }
 
-// The control a run root's trace already holds for `tip` (ADR 0214): { code: 0, ms, ts } from the last `path` run line at `tip`
+// The control a run root's trace already holds for `tip` (ADR 0215): { code: 0, ms, ts } from the last `path` run line at `tip`
 // on a clean tree that names every one of `testFiles` and a duration, or null. A failing `path` run at `tip` after it, over any
 // files, voids it.
 function reusableControl(runRoot, tip, testFiles) {
@@ -191,7 +191,7 @@ async function verbFailToPass(cwd, args) {
     // Only a control that passed gives the second run a meaning (INV-0139); a control that did not pass records `unknown`,
     // and the second run never starts.
     const [sha0, tree0] = treeState(dir);
-    // A passing run the trace already holds is the control (ADR 0214): the last `path` run line at the tip on a clean tree that
+    // A passing run the trace already holds is the control (ADR 0215): the last `path` run line at the tip on a clean tree that
     // names every test file of the range and its duration, which the bound needs, when no later run there failed.
     const reused = at && reusableControl(at.runRoot, tip, testFiles);
     if (reused) process.stderr.write(`fail-to-pass: control reused from the run trace line of ${reused.ts}\n`);
