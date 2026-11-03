@@ -17,7 +17,7 @@ Applies to every start. You settle the open Definition-of-Done criteria of a shi
 
 ## Start conditions
 
-Applies to every start. Start this command only on one of the starts below (ADR 0157). The command carries no unattended mode of its own (INV-0066, INV-0093, ADR 0212). Every gate and every ask below holds on every start.
+Applies to every start. Start this command only on one of the starts below (ADR 0157). The command carries no unattended mode of its own (INV-0066, INV-0093, ADR 0214). Every gate and every ask below holds on every start.
 
 - The operator typed the command.
 - The operator asked for it.
