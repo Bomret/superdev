@@ -362,8 +362,7 @@ This root owns every other subtree directly:
   ADR 0201). Without the tool, as in the CLI, it asks one question and recommends Stop here, with its
   `/clear`-then-type path; Start runs the command through the Skill tool in the same conversation (ADR 0176).
   A command another session's brief asked for offers too. A new session's prompt carries the offer's marker
-  line, and ship, verify-ship, and wrap-up started from it or from another session's brief ask the operator
-  one yes first.
+  line, and ship started from it or from another session's brief asks the operator one yes first.
   `/superdev:ship` is a separate command: it merges the pull request submit-pr
   opened, deploys the merge under the repository's deploy posture (`none`/`manual`/`auto`,
   `docs/agents/deployment.md`, ADR 0101), and closes no anchor (ADR 0106). submit-pr offers it, and the yes is

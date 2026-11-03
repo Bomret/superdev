@@ -22,18 +22,11 @@ Applies to every start. Start this command only on one of the starts below (ADR 
 - The operator typed the command.
 - The operator asked for it.
 - The operator agreed to an offer.
-- Another session's brief asked for it, confirmed by the one yes `## A new session an offer or a brief started` asks first.
+- Another session's brief asked for it.
 
 ## No extra question
 
-Applies to a typed start and to a start an offer's Start option or the card's Do it here button made in the conversation that offered it. Ask no extra question.
-
-## A new session an offer or a brief started
-
-Applies when the message that started this command is an offer's new-session prompt, this command's text followed by the marker line `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section defines, or another session's brief (ADR 0176, ADR 0201, INV-0093). Your first act is one `AskUserQuestion` confirming `/superdev:verify-ship` with its arguments. It comes before every write to the ledger or the store and every host call.
-
-- **A yes** → run the command as typed.
-- **Any other answer** → write nothing and end on the Next block with the same command in its fence.
+Applies to every start. Ask no extra question.
 
 ## Observe only
 
