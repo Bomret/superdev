@@ -1,4 +1,4 @@
-# 0215: `test focused` refuses a joined path list
+# 0217: `test focused` refuses a joined path list
 
 **Status:** Accepted
 
