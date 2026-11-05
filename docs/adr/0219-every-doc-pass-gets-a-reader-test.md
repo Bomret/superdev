@@ -23,7 +23,8 @@ claim checkable in general.
 
 ## Decision
 
-The reader test runs on every doc pass.
+The reader test runs on every doc pass whose file list holds a doc or a staged page. A pass whose writer
+judged no doc relevant and that staged nothing has an empty file list and dispatches no reader.
 
 - A doc-writer that changed nothing names, in its report, each doc it judged current. The reader tests
   those docs.
@@ -67,7 +68,7 @@ the fail-to-pass run (ADR 0134) or this reader test.
 
 ## Consequences
 
-A doc pass that changed nothing costs one reader dispatch. A full reconcile that changed nothing has the
+A doc pass that changed nothing but judged a doc current costs one reader dispatch. A pass with an empty file list costs none. A full reconcile that changed nothing has the
 reader test every doc the writer judged current. Every lite-tier run costs one writer dispatch after its
 inline pass, which gives back part of the saving ADR 0031 made. The ledger's `**Docs:**` record does not
 decide whether `/superdev:document` dispatches the writer, and it does not decide the reader's commit
