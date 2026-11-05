@@ -306,8 +306,9 @@ working tree that `git worktree list` names for the invoking repository; any oth
 With `none` it exits 0 silently. A command runs through `runPrepare` of `lib/prepare.js` in a process group of its own, its
 output on stderr and nothing on stdout. A command that exits nonzero, is ended by a signal, or cannot start exits 3, naming the
 command and its exit, signal, or start error. A command that succeeds but changes a tracked file exits 3 too, naming the
-command and the change. The verb compares the tracked files' difference from `HEAD`, staged and unstaged, before and after the
-command, so a tracked edit the tree already held is no such change. An untracked file it writes is no such change either, the
+command and each changed path. The verb compares each tracked path's difference from `HEAD`, staged and unstaged, before and
+after the command, read with `--no-ext-diff --no-textconv` so no diff program of the user's runs, and a tracked edit the
+tree already held is no such change. An untracked file it writes is no such change either, the
 rule `fail-to-pass` applies. An interrupt ends the command's group with `SIGKILL` and exits 128 plus the signal
 number. A `scope.js prepare` call is no test run: `hooks/run-trace.js` records no run for it, as it records none for any
 `node` script outside the test paths.

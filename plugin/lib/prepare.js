@@ -27,9 +27,9 @@ async function runPrepare(sup, command, tree) {
 // `prepare <tree>`: runs the prepare command that `<tree>`'s own `docs/agents/verification.md` states, at that tree's root, its
 // output on stderr. `<tree>` must be the root of a working tree of the invoking repository. No section prints one note and exits
 // 0, `none` exits 0, and a command that does not succeed exits 3, naming the command and its exit, signal, or start error. A
-// command that succeeds but changes a tracked file exits 3 too: the tracked files' difference from HEAD, staged and unstaged,
-// differs after the command from before it, so a tracked edit the tree already held is no such change, and an untracked file
-// the command writes is none either. An interrupt ends the command's group and exits 128 plus the signal number.
+// command that succeeds but changes a tracked file exits 3 too, naming each such path: a path whose difference from HEAD,
+// staged and unstaged, differs after the command from before it. A tracked edit the tree already held is no such change, and
+// an untracked file the command writes is none either. An interrupt ends the command's group and exits 128 plus the signal number.
 async function verbPrepare(cwd, args) {
   if (args.length !== 1 || !args[0]) fail('prepare needs <tree>, the root of a working tree of this repository');
   const tree = path.resolve(cwd, drivePath(args[0]));
@@ -54,16 +54,28 @@ async function verbPrepare(cwd, args) {
   for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
     process.on(sig, () => sup.detach().then(() => process.exit(128 + os.constants.signals[sig])));
   }
-  const tracked = () => gitSpawn(['--no-optional-locks', 'diff', 'HEAD', '--binary'], real, { maxBuffer: Infinity }).stdout;
+  // Each tracked path's diff against HEAD, staged and unstaged, read with none of the user's external diff or textconv programs.
+  // Both listings run in path order with renames off, so the n-th name owns the n-th `diff --git` chunk; no content line of a
+  // patch starts with that header.
+  const tracked = () => {
+    const diff = (extra) => gitSpawn(['--no-optional-locks', 'diff', 'HEAD', '--no-ext-diff', '--no-textconv', '--no-renames', '--binary', ...extra], real, { maxBuffer: Infinity }).stdout || '';
+    const names = diff(['--name-only', '-z']).split('\0').filter(Boolean);
+    const chunks = diff([]).split(/^(?=diff --git )/m).filter(Boolean);
+    return new Map(names.map((name, i) => [name, chunks[i]]));
+  };
   const before = tracked();
   let result;
   try { result = await runPrepare(sup, prep.command, real); } finally { sup.stop(); }
   if (!result.ok) {
     process.stderr.write(`prepare: \`${prep.command}\` did not succeed: ${result.reason}\n`);
     process.exitCode = PREPARE_FAILED_EXIT;
-  } else if (tracked() !== before) {
-    process.stderr.write(`prepare: \`${prep.command}\` changed a tracked file\n`);
-    process.exitCode = PREPARE_FAILED_EXIT;
+  } else {
+    const after = tracked();
+    const changed = [...new Set([...before.keys(), ...after.keys()])].filter((name) => before.get(name) !== after.get(name)).sort();
+    if (changed.length) {
+      process.stderr.write(`prepare: \`${prep.command}\` changed a tracked file: ${changed.join(', ')}\n`);
+      process.exitCode = PREPARE_FAILED_EXIT;
+    }
   }
 }
 

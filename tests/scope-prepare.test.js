@@ -106,9 +106,19 @@ try {
   assert.equal(r.status, 0, `a tracked edit the tree already held fails no preparation: ${r.stderr}`);
   r = prepare(edited('pre-edited-other', '`echo x >> b.txt`'), { env });
   assert.equal(r.status, 3, `a preparation that changes another tracked file exits 3: ${r.stderr}`);
-  assert.match(r.stderr, /changed a tracked file/);
+  assert.match(r.stderr, /changed a tracked file: b\.txt$/m, 'the message names the changed path, and only it');
   r = prepare(edited('pre-edited-same', '`echo x >> a.txt`'), { env });
   assert.equal(r.status, 3, `a preparation that changes an already-edited tracked file exits 3: ${r.stderr}`);
+  assert.match(r.stderr, /changed a tracked file: a\.txt$/m, 'a further edit to an already-edited file is named');
+
+  // The readings run none of the user's own diff programs: an external diff configured for the tree never starts.
+  const n = Number(process.env.GIT_CONFIG_COUNT || 0);
+  const ext = path.join(D, 'ext-diff.sh');
+  fs.writeFileSync(ext, '#!/bin/sh\necho ext-diff >> "$P_LOG"\n', { mode: 0o755 });
+  const extEnv = { ...env, GIT_CONFIG_COUNT: String(n + 1), [`GIT_CONFIG_KEY_${n}`]: 'diff.external', [`GIT_CONFIG_VALUE_${n}`]: ext };
+  r = prepare(edited('pre-edited-ext', '`true`'), { env: extEnv });
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(logged(), [], 'no external diff program ran');
 
   // Refused with exit 1: a path that does not exist, a directory that is no worktree, a subdirectory of a worktree, and a
   // worktree of another repository.
