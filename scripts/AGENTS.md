@@ -253,7 +253,15 @@ the reviewer's judgment, so the outcome line records it (ADR 0188). The verb ref
 `slicetrees/`, outside every tree the run trace attributes a run to. Outside a run root it sits under `.superdev/`, which
 the verb git-ignores first through the repository's `info/exclude`.
 
-The first run is against the changed code and must pass. Inside a run root, the trace can supply it (ADR 0215): the last
+Where the tip's `## Prepare command` section states a command, the verb runs it at the worktree's root before each run, the
+second time after the put-back, through `runPrepare` of `lib/prepare.js` (ADR 0218). It reads the section once, from the tip,
+because the put-back can restore the base's `verification.md`. A preparation's time counts in neither run's duration nor
+the bound. A preparation that fails, is ended by a signal, cannot start, or leaves a tracked file changed gives no verdict:
+the outcome is `unknown` with `prepare=<exit|signal|start-failed:<code>|dirty>`, or `control=0,prepare=…` before the second
+run, and one before the first run writes no control run line.
+
+The first run is against the changed code and must pass. Inside a run root, where the tip states a prepare command or
+`none`, the trace can supply it (ADR 0215, ADR 0218): the last
 `path` run line at `<tip>` on a clean tree that names every test file the range adds or modifies and ends with a duration
 is the first run when it passed and no failing `path` run line at `<tip>` follows it. The verb then runs the command once,
 bounds that run with the line's duration, writes no control run line, and names the reused line on stderr. The verb then resets and cleans the worktree. The verb puts
@@ -271,7 +279,7 @@ because nothing is put back, and a range that changes no test file, because no t
 The outcome is `fail-to-pass` when the second run fails, and `pass-to-pass` when it passes. It is `unknown` when the first
 run fails, when the second run is killed at its bound or ended by a signal, and when either run's command cannot start
 (no shell on the PATH among the causes), its reason then reading `start-failed:<code>` in place of the exit
-status. No reviewer reads `unknown` as a verdict,
+status, and when a preparation gives no verdict. No reviewer reads `unknown` as a verdict,
 and no gate reads it as green.
 
 Inside a run root the verb appends one `fail-to-pass` trace line, `<base>..<tip> <outcome> <reason> <command>`. Its slice is the

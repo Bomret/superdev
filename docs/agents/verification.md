@@ -36,6 +36,13 @@ another, the suites take about 375 s of wall clock and about 330 s of CPU time t
 suite names runs the tail alone, about 2 s. One for a change to the `run-lock` hook runs four suites beside the
 tail and takes about 3 s.
 
+## Prepare command
+
+`none`
+
+A new worktree of this repository runs every suite as it stands: the suites need Node alone, and the Bun dev
+dependencies serve the release toolchain only (`docs/agents/toolchain.md`).
+
 ## One-suite run
 
 While working on one suite, run it alone: `node tests/<suite>.test.js` from the repo root, for example
