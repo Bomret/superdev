@@ -1139,10 +1139,10 @@ Paths: plugin/agents/slice-reviewer.md, plugin/agents/final-reviewer.md, plugin/
 
 Class: process
 Concepts: Fail-to-pass run, Run trace
-Statement: A fail-to-pass run records `fail-to-pass` or `pass-to-pass` only after the tests passed against the changed code in the same worktree. A run against the changed code that does not pass, a run killed at its bound or ended by a signal, and a run whose command could not start record `unknown`, which no reviewer reads as a failing or a passing run and no gate reads as green (ADR 0134, INV-0009).
+Statement: A fail-to-pass run records `fail-to-pass` or `pass-to-pass` only after the tests passed against the changed code in the same worktree, or in a run the run trace holds at the change's tip where `docs/agents/verification.md` states a `## Prepare command` (ADR 0215, ADR 0218). A run against the changed code that does not pass, a run killed at its bound or ended by a signal, a run whose command could not start, and a prepare command that fails before a run record `unknown`, which no reviewer reads as a failing or a passing run and no gate reads as green (ADR 0134, INV-0009).
 Breaks: silently
 Check: tests/scope-fail-to-pass-verdict.test.js, tests/scope-fail-to-pass-signals.test.js, tests/scope-fail-to-pass-bound.test.js, tests/scope-fail-to-pass-trace.test.js, tests/scope-fail-to-pass-environment.test.js, tests/scope-fail-to-pass-interrupt.test.js, tests/scope-fail-to-pass-concurrency.test.js, tests/scope-fail-to-pass-watcher.test.js — the fail-to-pass cases
-Paths: plugin/scripts/scope.js, plugin/lib/fail-to-pass.js, plugin/lib/run-supervision.js
+Paths: plugin/scripts/scope.js, plugin/lib/fail-to-pass.js, plugin/lib/run-supervision.js, plugin/lib/verification.js
 
 ### INV-0140
 
