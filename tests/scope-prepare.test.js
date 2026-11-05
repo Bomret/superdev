@@ -84,13 +84,31 @@ try {
   assert.equal(r.status, 3, r.stderr);
   assert.match(r.stderr, /SIGTERM/);
 
-  // A command that succeeds but leaves a tracked file changed exits 3, naming the command and the change; an untracked file
-  // it writes is no tracked change.
+  // A command that succeeds but changes a tracked file exits 3, naming the command and the change; an untracked file it
+  // writes is no tracked change.
   r = prepare(worktree(repo, 'dirtying', section('`echo x >> docs/agents/verification.md`')), { env });
   assert.equal(r.status, 3, r.stderr);
   assert.match(r.stderr, /`echo x >> docs\/agents\/verification.md`.*tracked file/);
   r = prepare(worktree(repo, 'untracked', section('`echo x > made.txt`')), { env });
   assert.equal(r.status, 0, r.stderr);
+
+  // The rule reads what the preparation changed, not the tree's state after it: a tracked edit the tree already held is no
+  // change of the preparation, and a change the preparation makes on top of one still is.
+  const edited = (name, command) => {
+    const t = worktree(repo, name, section(command));
+    for (const f of ['a.txt', 'b.txt']) fs.writeFileSync(path.join(t, f), f + '\n');
+    git(t, ['add', 'a.txt', 'b.txt']);
+    git(t, ['commit', '-q', '-m', 'files']);
+    fs.writeFileSync(path.join(t, 'a.txt'), 'edited before\n');
+    return t;
+  };
+  r = prepare(edited('pre-edited-noop', '`true`'), { env });
+  assert.equal(r.status, 0, `a tracked edit the tree already held fails no preparation: ${r.stderr}`);
+  r = prepare(edited('pre-edited-other', '`echo x >> b.txt`'), { env });
+  assert.equal(r.status, 3, `a preparation that changes another tracked file exits 3: ${r.stderr}`);
+  assert.match(r.stderr, /changed a tracked file/);
+  r = prepare(edited('pre-edited-same', '`echo x >> a.txt`'), { env });
+  assert.equal(r.status, 3, `a preparation that changes an already-edited tracked file exits 3: ${r.stderr}`);
 
   // Refused with exit 1: a path that does not exist, a directory that is no worktree, a subdirectory of a worktree, and a
   // worktree of another repository.

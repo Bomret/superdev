@@ -256,7 +256,7 @@ the verb git-ignores first through the repository's `info/exclude`.
 Where the tip's `## Prepare command` section states a command, the verb runs it at the worktree's root before each run, the
 second time after the put-back, through `runPrepare` of `lib/prepare.js` (ADR 0218). It reads the section once, from the tip,
 because the put-back can restore the base's `verification.md`. A preparation's time counts in neither run's duration nor
-the bound. A preparation that fails, is ended by a signal, cannot start, or leaves a tracked file changed gives no verdict:
+the bound. A preparation that fails, is ended by a signal, cannot start, or changes a tracked file gives no verdict:
 the outcome is `unknown` with `prepare=<exit|signal|start-failed:<code>|dirty>`, or `control=0,prepare=…` before the second
 run, and one before the first run writes no control run line.
 
@@ -305,8 +305,10 @@ working tree that `git worktree list` names for the invoking repository; any oth
 `## Prepare command` section it prints one note on stderr naming the section and `/superdev:setup`, runs nothing, and exits 0.
 With `none` it exits 0 silently. A command runs through `runPrepare` of `lib/prepare.js` in a process group of its own, its
 output on stderr and nothing on stdout. A command that exits nonzero, is ended by a signal, or cannot start exits 3, naming the
-command and its exit, signal, or start error. A command that succeeds but leaves a tracked file changed exits 3 too, naming the
-command and the change; an untracked file it writes is no such change, the rule `fail-to-pass` applies. An interrupt ends the command's group with `SIGKILL` and exits 128 plus the signal
+command and its exit, signal, or start error. A command that succeeds but changes a tracked file exits 3 too, naming the
+command and the change. The verb compares the tracked files' difference from `HEAD`, staged and unstaged, before and after the
+command, so a tracked edit the tree already held is no such change. An untracked file it writes is no such change either, the
+rule `fail-to-pass` applies. An interrupt ends the command's group with `SIGKILL` and exits 128 plus the signal
 number. A `scope.js prepare` call is no test run: `hooks/run-trace.js` records no run for it, as it records none for any
 `node` script outside the test paths.
 

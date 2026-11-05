@@ -27,8 +27,9 @@ async function runPrepare(sup, command, tree) {
 // `prepare <tree>`: runs the prepare command that `<tree>`'s own `docs/agents/verification.md` states, at that tree's root, its
 // output on stderr. `<tree>` must be the root of a working tree of the invoking repository. No section prints one note and exits
 // 0, `none` exits 0, and a command that does not succeed exits 3, naming the command and its exit, signal, or start error. A
-// command that succeeds but leaves a tracked file changed exits 3 too; an untracked file it writes is no such change. An
-// interrupt ends the command's group and exits 128 plus the signal number.
+// command that succeeds but changes a tracked file exits 3 too: the tracked files' difference from HEAD, staged and unstaged,
+// differs after the command from before it, so a tracked edit the tree already held is no such change, and an untracked file
+// the command writes is none either. An interrupt ends the command's group and exits 128 plus the signal number.
 async function verbPrepare(cwd, args) {
   if (args.length !== 1 || !args[0]) fail('prepare needs <tree>, the root of a working tree of this repository');
   const tree = path.resolve(cwd, drivePath(args[0]));
@@ -53,13 +54,15 @@ async function verbPrepare(cwd, args) {
   for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
     process.on(sig, () => sup.detach().then(() => process.exit(128 + os.constants.signals[sig])));
   }
+  const tracked = () => gitSpawn(['--no-optional-locks', 'diff', 'HEAD', '--binary'], real, { maxBuffer: Infinity }).stdout;
+  const before = tracked();
   let result;
   try { result = await runPrepare(sup, prep.command, real); } finally { sup.stop(); }
   if (!result.ok) {
     process.stderr.write(`prepare: \`${prep.command}\` did not succeed: ${result.reason}\n`);
     process.exitCode = PREPARE_FAILED_EXIT;
-  } else if (gitSpawn(['--no-optional-locks', 'status', '--porcelain', '--untracked-files=no'], real).stdout.trim()) {
-    process.stderr.write(`prepare: \`${prep.command}\` left a tracked file changed\n`);
+  } else if (tracked() !== before) {
+    process.stderr.write(`prepare: \`${prep.command}\` changed a tracked file\n`);
     process.exitCode = PREPARE_FAILED_EXIT;
   }
 }

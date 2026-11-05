@@ -56,7 +56,7 @@ function usage() {
     '  prepare <tree>                     runs the `## Prepare command` that <tree>\'s own docs/agents/verification.md states, at',
     '                                     <tree>\'s root, a working tree of this repository; the command output on stderr, no test',
     '                                     run; no section prints one note, `none` runs nothing; exits 0, 1 (a refusal), 3 (the',
-    '                                     command failed, was ended by a signal, could not start, or left a tracked file changed),',
+    '                                     command failed, was ended by a signal, could not start, or changed a tracked file),',
     '                                     or 128 plus the signal number',
     '  status                             scans <cwd>/.superdev/scopes/*/',
     '  publish --root <run-root>          prints the ledger as one "## Run state" section on stdout',

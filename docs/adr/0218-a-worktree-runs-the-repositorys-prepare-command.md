@@ -30,8 +30,9 @@ slicetree, a recreated scopetree, and the scopetree again at review start, becau
 dependency. `/superdev:setup` runs a proposed command once in a probe worktree before it writes it. `fail-to-pass` runs the command in its throwaway
 worktree before each of its two runs, because the clean before the second run removes the installed files and the
 put-back can restore the base's lockfile. A prepare command that fails gives no verdict: `fail-to-pass` prints
-`unknown prepare=<exit>`. A prepare command that leaves a tracked file changed fails too, in both the verb and
-`fail-to-pass`. An untracked file it writes is no such change.
+`unknown prepare=<exit>`. A prepare command that changes a tracked file fails too, in both the verb and
+`fail-to-pass`. The verb compares the tracked files' difference from `HEAD` before and after the command, because a
+resumed scopetree or a reused slicetree can already hold tracked edits. An untracked file it writes is no such change.
 
 A preparation has no time bound, on purpose. The control run has none either: an install takes as long as the
 repository needs, and no fixed bound fits every repository. The caller's Bash tool timeout caps it.
