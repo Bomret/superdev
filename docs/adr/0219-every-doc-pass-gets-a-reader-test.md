@@ -1,6 +1,8 @@
 # 0219: Every doc pass gets a reader test
 
-**Status:** Accepted. Amends ADR 0031: an inline doc pass that touched no doc file no longer spares the doc-writer.
+**Status:** Accepted
+
+**Amends:** [ADR 0031](0031-the-lite-tier-writes-its-own-documentation.md): an inline doc pass that touched no doc file no longer spares the doc-writer.
 
 ## Context
 

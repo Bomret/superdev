@@ -109,6 +109,11 @@ nothing, naming the entry's id. `Concepts` already carries the invariant's own m
 `Paths:` or `Symbols:` costs precision, not correctness. An entry naming neither field needs no
 resolution, and a repository with no `docs/invariants.md` needs no check at all.
 
+**Name every doc you judged current.** The report of every pass that follows this file names, by path,
+each doc and `AGENTS.md` file the pass read and left unchanged because it agrees with the code, beside the
+docs it changed. When the pass judged no doc relevant to the range, the report states that reason in one
+line instead. The doc-reader tests the judged-current docs as it tests the changed ones (ADR 0219).
+
 Do not touch code or tests — docs only.
 
 ## Pass 2 — knowledge base

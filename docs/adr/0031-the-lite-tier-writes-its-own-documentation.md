@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0219](0219-every-doc-pass-gets-a-reader-test.md), which removes the spared writer
+below: an inline doc pass that touched no doc file sends `/superdev:document` to the doc-writer, and every
+doc pass ends with a reader test.
+
 **Context.** The implement chain ends with `/superdev:implement`, then `/superdev:review`, then `/superdev:document`, then
 `/superdev:ship` (ADR 0013). On the `lite` tier the controller implements every slice itself, inline, in
 one scopetree, the deliberate exception ADR 0001 records, so it reaches the end of the run holding
