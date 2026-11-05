@@ -3,7 +3,7 @@
 
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
 // Verbs: open, init, stage, step, slice, degraded, unresolved, deferred, minors, docs, pr, deploy, suite, base, get, status,
-// publish, adopt, trace, collisions, citations, source-set, push, root, staging, dod-line, dod-tags; `main()` also runs test and fail-to-pass. Exit
+// publish, adopt, trace, collisions, citations, source-set, push, root, staging, dod-line, dod-tags; `main()` also runs test, fail-to-pass, and prepare. Exit
 // nonzero with a one-line stderr reason on any refusal. hooks/ledger-guard.js makes this the only
 // ledger write path.
 // `root` and `dod-line` touch no ledger: `root` resolves a run root's absolute
@@ -37,6 +37,7 @@ const { verbStatus, verbStaging } = require('../lib/status.js');
 const { endRun, watchMain } = require('../lib/run-supervision.js');
 const { verbTest } = require('../lib/test-verb.js');
 const { verbFailToPass } = require('../lib/fail-to-pass.js');
+const { verbPrepare } = require('../lib/prepare.js');
 const { verbCitations } = require('../lib/citations.js');
 const { verbSourceSet } = require('../lib/source-set.js');
 const { verbPush } = require('../lib/push.js');
@@ -404,6 +405,7 @@ function main() {
     try {
       if (argv[0] === 'test') verbTest(process.cwd(), argv.slice(1));
       else if (argv[0] === 'fail-to-pass') verbFailToPass(process.cwd(), argv.slice(1)).catch(settle);
+      else if (argv[0] === 'prepare') verbPrepare(process.cwd(), argv.slice(1)).catch(settle);
       else run(argv, process.cwd(), stdinJson);
       // Let the process exit naturally on success, so stdout is guaranteed to flush first;
       // a refusal still exits nonzero below.
