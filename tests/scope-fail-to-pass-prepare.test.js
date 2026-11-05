@@ -134,6 +134,14 @@ const prepared = (s) => {
     assert.equal(s.ran().length, 1, 'the control ran, the put-back run did not');
     assert.equal(s.runLines().length, 1, 'the control wrote its run line');
 
+    // The dirty rule reads tracked files only: a preparation that writes an untracked, unignored file still prepares both runs.
+    s = scenario({
+      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD, section('`echo x > made.txt`')) },
+      tip: { 'src.txt': 'b\n', 'tests/t.sh': probe + 'grep -q b src.txt\n' },
+    });
+    r = s.run(s.range);
+    assert.equal(r.stdout.trim(), 'fail-to-pass control=0,put-back=1', r.stderr);
+
     // Preparation time counts in neither the control's recorded duration nor the put-back bound: a two-second preparation,
     // counted, would make the control's duration at least 2000 ms and the bound at least ten times that. The put-back run
     // hangs, so the bound shows in the outcome.

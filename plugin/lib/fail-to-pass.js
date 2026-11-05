@@ -13,7 +13,7 @@ const { gitSpawn, resolveCommit, fileAt } = require('./git-spawn.js');
 const { PROBE_MAX_BUFFER } = require('./containment.js');
 const { mainWorkTree } = require('./main-work-tree.js');
 const { appendTrace, readTrace } = require('./trace-log.js');
-const { treeState } = require('./run-tree.js');
+const { treeState, gitOut } = require('./run-tree.js');
 const { superviseRuns, withWorktreeLock } = require('./run-supervision.js');
 const { shellWord } = require('./test-verb.js');
 const { operatorBoundMs } = require('./operator-config.js');
@@ -210,12 +210,13 @@ async function verbFailToPass(cwd, args) {
       console.log(`${outcome} ${reason}`);
     };
     // Runs the tip's prepare command in the worktree, outside every run's duration (ADR 0218). Null when it succeeded, or when
-    // there is no command; else the reason it gives no verdict, a changed tracked file (`dirty`) included.
+    // there is no command; else the reason it gives no verdict, a changed tracked file (`dirty`) included. An untracked file the
+    // command wrote is no change to a tracked file.
     const prepare = async () => {
       if (prep.state !== 'command') return null;
       const p = await runPrepare(sup, prep.command, dir);
       if (!p.ok) return p.reason;
-      return treeState(dir)[1] === 'dirty' ? 'dirty' : null;
+      return (gitOut(dir, ['--no-optional-locks', 'status', '--porcelain', '--untracked-files=no']) || '').trim() ? 'dirty' : null;
     };
     // A passing run the trace already holds is the control (ADR 0215): the last `path` run line at the tip on a clean tree that
     // names every test file of the range and its duration, which the bound needs, when no later run there failed. Only a tip
