@@ -207,8 +207,8 @@ set to 600000, the Bash tool's maximum. The verb runs the **Prepare command** (C
 
 - **Exit 0** → continue. With no `## Prepare command` section the verb prints one note naming `/superdev:setup`;
   repeat it once in the run's report.
-- **Exit 3** → the command failed, was ended by a signal, or could not start. Stop the step, naming the command and
-  the exit the verb printed, and dispatch nothing into that tree. **`--unattended` → block**, per `scope-mode.md`'s
+- **Exit 3** → the command failed, was ended by a signal, could not start, or left a tracked file changed. Stop the
+  step, naming the command and the reason the verb printed, and dispatch nothing into that tree. **`--unattended` → block**, per `scope-mode.md`'s
   `## Unattended`.
 - **Exit 1** → the verb refused the path. Stop the same way, naming its message.
 

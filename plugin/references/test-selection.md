@@ -82,7 +82,8 @@ tracked files only, so a repository whose tests need installed dependencies stat
   never shifts which fence is the full or the focused command.
 - **`scope.js prepare <tree>` runs it** at the root of a worktree, reading `<tree>`'s own `verification.md`. Every
   worktree superdev creates or reuses for a test run calls the verb before its first test run
-  (`scope-branch.md`'s `## Preparing a worktree`). The call is no test run.
+  (`scope-branch.md`'s `## Preparing a worktree`). The call is no test run. A command that fails, is ended by a
+  signal, cannot start, or changes a tracked file exits 3.
 - **`scope.js fail-to-pass` runs it** in its own worktree before each of its two runs, reading the tip's
   `verification.md` once. A preparation that fails, is ended by a signal, cannot start, or changes a tracked file
   makes the outcome `unknown`, with a `prepare=` reason.

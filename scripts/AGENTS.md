@@ -305,7 +305,8 @@ working tree that `git worktree list` names for the invoking repository; any oth
 `## Prepare command` section it prints one note on stderr naming the section and `/superdev:setup`, runs nothing, and exits 0.
 With `none` it exits 0 silently. A command runs through `runPrepare` of `lib/prepare.js` in a process group of its own, its
 output on stderr and nothing on stdout. A command that exits nonzero, is ended by a signal, or cannot start exits 3, naming the
-command and its exit, signal, or start error. An interrupt ends the command's group with `SIGKILL` and exits 128 plus the signal
+command and its exit, signal, or start error. A command that succeeds but leaves a tracked file changed exits 3 too, naming the
+command and the change; an untracked file it writes is no such change, the rule `fail-to-pass` applies. An interrupt ends the command's group with `SIGKILL` and exits 128 plus the signal
 number. A `scope.js prepare` call is no test run: `hooks/run-trace.js` records no run for it, as it records none for any
 `node` script outside the test paths.
 
