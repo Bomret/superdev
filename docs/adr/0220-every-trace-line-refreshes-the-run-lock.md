@@ -36,5 +36,10 @@ leaves the append's result unchanged. The readers of the lock's age and the one-
   session within the hour meets the live-run branch of its entry check: attended it asks, unattended it blocks.
 - A run that writes no trace line for over an hour still reads as crashed: a read-only reviewer dispatch, or an
   implementer that reads without editing, longer than an hour.
+- A `resumed` run whose scopetree is absent blocks its own `git worktree add`: implement's entry check reads the old
+  lock, and the ledger writes that follow (`stage set implementing`, `step set implement`) refresh it through their
+  trace lines. `scope-branch.md`'s `resumed` bullet applies `scope-mode.md`'s `## The scope checkout` Absent
+  recovery: it removes the lock and retries, because the passed entry check makes the lock this run's own.
+  `tests/run-lock.test.js` pins the block and the recovery.
 - The lock carries no identity, so a second session that edits or runs tests in another run's tree keeps that run's
   lock fresh too.

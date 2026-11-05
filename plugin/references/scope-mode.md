@@ -173,6 +173,7 @@ The check does not cover these (ADR 0090):
 - A run that writes no trace line for over an hour, such as a read-only reviewer dispatch that long: its lock goes stale while it works (ADR 0220).
 - A session end: its closing trace lines leave the lock fresh for an hour after the session stopped.
 - Another session's work in the run's trees: its trace lines keep the run's lock fresh too.
+- A `resumed` run whose scopetree is absent: the ledger writes after the entry check refresh the lock, so `run-lock` refuses the run's own `git worktree add`. `scope-branch.md`'s `resumed` bullet applies `## The scope checkout`'s Absent recovery.
 - An identity scheme in the lock's content: it stays freeform text a human reads, where the check asks, to judge self from another session.
 - The `planned`-stage window: two `/superdev:implement` invocations that both enter while the stage reads `planned` both proceed. Only the stage's advance to `implementing` in `run-init.md` closes it.
 
