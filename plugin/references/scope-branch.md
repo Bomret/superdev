@@ -177,6 +177,10 @@ second time from git state. One call cuts or reuses the branch at every run kind
   because this checkout never held it (a resumed run adopted from the anchor on a fresh clone) — and
   otherwise work in the one already there.
 
+**Prepare the scopetree** once this step leaves it in place, at every run kind and tier: run
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <run-root>/scopetree` before its first test run, per
+`## Preparing a worktree` below. A failing preparation stops the step, and `--unattended` blocks.
+
 **No forcing flag, at any run kind.** `git switch -C` and `git worktree add -B` reset the branch to
 `<base>` and leave every slice already merged into it unreachable from any ref, while the ledger still
 records those slices as `merged` — nothing in the run rebuilds what it lost (ADR 0028). Two re-pointings
@@ -189,6 +193,24 @@ whole rule.
 
 **Every stop above writes nothing.** No run starts and no ledger entry is written. None is a degraded
 pass either: `scope-findings.md`'s `## Degraded passes` records work done a lesser way, and here no work happens.
+
+## Preparing a worktree
+
+Every worktree superdev creates or reuses for a test run is prepared before its first test run (ADR 0218): the
+scopetree at implement start, fresh or resumed, at both tiers; each slicetree, a reused one included; a scopetree
+`scope-mode.md`'s `## The scope checkout` recreates; and the scopetree again at review start, because a merged slice
+can add a dependency. Reviewer worktrees under `/tmp` and ship's deploy tree run no test and are not prepared.
+
+Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <tree>` in the controller's own Bash call, its `timeout`
+set to 600000, the Bash tool's maximum. The verb runs the **Prepare command** (CONTEXT.md) that `<tree>`'s own
+`docs/agents/verification.md` states, at `<tree>`'s root, and is no test run.
+
+- **Exit 0** → continue. With no `## Prepare command` section the verb prints one note naming `/superdev:setup`;
+  repeat it once in the run's report.
+- **Exit 3** → the command failed, was ended by a signal, or could not start. Stop the step, naming the command and
+  the exit the verb printed, and dispatch nothing into that tree. **`--unattended` → block**, per `scope-mode.md`'s
+  `## Unattended`.
+- **Exit 1** → the verb refused the path. Stop the same way, naming its message.
 
 ## Pushing the scope branch
 

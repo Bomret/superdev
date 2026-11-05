@@ -197,7 +197,7 @@ For each: file:line · what's wrong · why it matters · how to fix (if not obvi
 
 ### Inherited failures (only when a recorded run holds one) — a note, never an Issue: <the test> · <how you established it fails at the review base>
 
-### Fail-to-pass unknown (only when the trace holds one) — a note, never an Issue: <its reason: control=<exit status or signal>, or bound=<ms>, or start-failed:<code> in control= or put-back=>
+### Fail-to-pass unknown (only when the trace holds one) — a note, never an Issue: <its reason: control=<exit status or signal>, or bound=<ms>, or start-failed:<code> in control= or put-back=, or prepare=<exit, signal, start-failed:<code>, or dirty>>
 
 ### After reading the progress log
 - Added: <finding, severity, file:line · what's wrong · how to fix>

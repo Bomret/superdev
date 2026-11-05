@@ -312,7 +312,10 @@ slice's base.
 names the exit status or the signal they ended with. Or the run before the change outlasted ten times the duration
 the run against the changed code took or 10 seconds, whichever is larger (ADR 0142;
 `verification.failToPassFloorMs` in `.superdev/info.json` overrides the 10-second floor), or ended by a signal, and `bound=` names the bound the run ran under. A run
-whose command could not start reads `start-failed:<code>` in place of its exit status. A reviewer
+whose command could not start reads `start-failed:<code>` in place of its exit status. A prepare command that did not
+succeed before a run reads `prepare=` with its exit, its signal, `start-failed:<code>`, or `dirty` (it changed a tracked
+file), as `prepare=…` before the run against the changed code or `control=0,prepare=…` before the run before the
+change (ADR 0218): no run of the tests carries a verdict there either. A reviewer
 that reads the trace (`slice-reviewer`, `final-reviewer`) names every `unknown` in its report
 with its slice and its reason, raises no finding for it, and starts no fix cycle. The line counts as an outcome line
 for **Missing fail-to-pass run**, and the latest line reading `fail-to-pass` or `pass-to-pass` decides

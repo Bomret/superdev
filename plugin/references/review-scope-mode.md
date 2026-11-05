@@ -109,6 +109,8 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - It runs no suite. §4.2's exit run verifies its merge together with implement's (ADR 0192).
 - The base step records the range base `final-reviewer` starts from. Resolve `<range-base>` with `scope.js base resolve --branch <branch> --base <base> --root <run-root>` after it, and hand every dispatch the range from that value.
 
+**The preparation.** Applies at a stage before `submitted`, after the base step and before the entry run. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <run-root>/scopetree` in the controller's own Bash call, per `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Preparing a worktree`: a merged slice or the base step can add a dependency (ADR 0218). A failing preparation stops the review, naming the command and its exit. **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`.
+
 ### 4.2 The suite gate
 
 **The suite record.** Applies before the entry run. Read `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get suite --root <run-root>`. It prints `<result> <sha>[ whole]`. It decides the exit run's command.

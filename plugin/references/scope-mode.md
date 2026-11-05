@@ -144,7 +144,9 @@ the invoking checkout, which stays wherever it was.
   can be working inside a tree that does not exist. Remove `<run-root>/run.lock` and retry
   the `git worktree add` call, then let `## The run lock` below rewrite it once the scopetree is back. `##
   The run lock`'s ordering caveat covers only the very first cut; this is the same self-block, met later
-  in the same run.
+  in the same run. **Prepare the recreated scopetree** before its first test run:
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <run-root>/scopetree`, per `scope-branch.md`'s
+  `## Preparing a worktree`; a failing preparation stops the command, and `--unattended` blocks.
 - **A different working tree already holds `<branch>`** → git's own refusal on that `worktree add` call
   names the tree holding it. Say so and stop, writing nothing, rather than switching a checkout superdev
   does not own.

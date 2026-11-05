@@ -21,7 +21,7 @@ Applies to every start. You write the per-repo config documents the superdev ski
   | `documentation.md` | the in-repo **documentation** convention |
   | `knowledge-base.md` | the optional **knowledge base**: software, local file, or none |
   | `toolchain.md` | the detected **toolchain** profile (package manager, build, lint, format, and release commands, style pointers), one section per workspace |
-  | `verification.md` | the optional **test commands**: a full one and, for every repository with a suite, a required focused one, which the implement chain's test runs read, and an optional **timing command**, which a test audit reads |
+  | `verification.md` | the optional **test commands**: a full one and, for every repository with a suite, a required focused one, which the implement chain's test runs read, an optional **timing command**, which a test audit reads, and the **prepare command**, which every test worktree runs first |
   | `deployment.md` | the repository's **deploy posture** (`none` / `manual` / `auto`) and its **deploy targets**, which `/superdev:ship` reads once a feature's pull request has merged |
 
 - **The operator file**: `.superdev/info.json`, the **operator configuration** (`CONTEXT.md`). It is no config document. It holds the slice store's assignee and display name under `issue-tracker`, a Forgejo knowledge base's tea login under `knowledge-base`, and the time bounds an operator sets (`plan-contract.md` → *Assignee — operator configuration* lists every key). It is git-ignored (ADR 0073).
@@ -50,6 +50,7 @@ Applies to every start. You write the per-repo config documents the superdev ski
 | `verification.md`, `toolchain.md` | Every command named (the full, focused, timing, and whole-repo commands, each toolchain entry) still resolves: a package-manager script is still declared in its manifest (`package.json`, `pyproject.toml`, a `Makefile` target, …), and a bare executable is still reachable. A command the manifest no longer defines is drift. A full command that looks affected (`nx affected`, `turbo --affected`, `pnpm` with a `--filter "...[<base>]"` selector, `dotnet-affected`, or another dependency-graph tool's affected mode, per decision E) in a `verification.md` with no `## Whole-repo command` section is drift: state that the section is missing, since `references/test-selection.md`'s `## Affected form` has such a repository configure one. |
 | `verification.md` | Test commands and no `## Test paths` section get an **advisory** line, never a drift verdict: state that the default patterns of `references/test-selection.md`'s `## Test paths` section apply (`tests/`, `test/`, `__tests__/`, and `spec/` directories at any depth by whole segment, `*.Tests` and `*.Test` directories, and the file names `*.test.*`, `*.spec.*`, `*_test.*`, `test_*.py`), and that the operator may add the section to name the repository's own test locations. A section with no usable entry, empty or all malformed, gets the same line. A `verification.md` with no test command gets no such line. |
 | `verification.md` | A `## Complete selector` section on a focused command with no `{paths}` token gets an **advisory** line, never a drift verdict: state that the declaration has no effect there. |
+| `verification.md` | Test commands and no `## Prepare command` section, or a section holding neither a command nor `none`, is reported: state that no test worktree is prepared and that a **Fail-to-pass run** reuses no traced control (`references/test-selection.md`'s `## Prepare command`, ADR 0218), and that a re-run of `/superdev:setup` proposes the section. A command the section names gets the resolution check of the first row. |
 | `deployment.md` | The same resolution check on each target's command: a target naming a script the manifest no longer defines is drift. A `none` posture, or a `manual`/`auto` posture with an empty targets table, reports consistent once confirmed present. |
 | `issue-tracker.md`, `code-management.md` | A recorded host/owner/repo (or base URL) still matches `git remote -v`. Compare the host/owner/repo path alone, ignoring userinfo such as `https://user:TOKEN@host/owner/repo.git`. Report the remote with any userinfo stripped, never verbatim. A document naming no such fact (an "Other" backend written as prose) reports consistent once confirmed present. |
 | `documentation.md` | A `## Writing standard` naming a repo-relative path still resolves to a file, and each `## Audit set` glob still matches at least one file. |
@@ -317,6 +318,13 @@ Applies to the full interview. Scan these before any decision:
 
 - No test command proposes no test paths and writes no section.
 
+**The prepare command.** Applies to a repository with a full command (ADR 0218). Read `references/test-selection.md`'s `## Prepare command`, which owns the contract. Propose the one command that makes a new worktree ready to run the tests, derived from the manifests and lockfiles the §1 scan found (a `bun.lock` with workspaces, a `pnpm-lock.yaml`, a `*.sln` to restore), each tool's form verified against its official docs (`references/doc-verification.md`), or `none` where a fresh checkout runs the tests as it stands. Settle it before **The affected form**.
+
+- **Try a proposed command first.** Create a probe worktree as **The probe worktree**'s steps 1 and 2 place it, run the command once at its root, and remove the worktree as its step 7 does, on every exit path. Running it is no test run.
+- **A run that fails** → show the command, its exit, and the tail of its output. Write it only on the operator's confirmation. A corrected command goes through the same run in a new probe worktree.
+- **`none`** runs nothing and is written on the operator's confirmation.
+- A re-run on a `verification.md` without the section asks once. One with the section asks nothing.
+
 **The affected form.** Applies to a monorepo's full command (ADR 0105, INV-0105). Identify the tool that owns the dependency graph (nx, turborepo, pnpm, or `dotnet-affected` over an MSBuild project graph). Verify its affected syntax against its official docs (`references/doc-verification.md`) before proposing it. Write no unverified form.
 
 - `check` mode and sweep's chained setup leg ask nothing here.
@@ -326,14 +334,14 @@ Applies to the full interview. Scan these before any decision:
 - **The tool is not installed** → name it and its official install command, and write no affected form until it is installed and every query passes.
 - **No tool owns an affected mode** → keep the whole-suite full command and record the reason as prose beside the second fence.
 
-**No test run.** Applies to every configuration of this skill (ADR 0189, INV-0175). Setup runs no test command and never starts the affected form or the whole-repo command.
+**No test run.** Applies to every configuration of this skill (ADR 0189, INV-0175). Setup runs no test command and never starts the affected form or the whole-repo command. Running the prepare command in a probe worktree is no test run (ADR 0218).
 
 **The probe worktree.** Applies to an installed affected-mode tool, before the affected form or whole-repo command is written. Run read-only tool queries in a throwaway worktree, in the order below, each step's conditions holding from that step on. Take each query's syntax from the tool's official docs (`references/doc-verification.md`). Turn remote caching off: `NX_NO_CLOUD=true` (nx), `--cache=local:rw` (turborepo), and for any other tool its own docs' switch.
 
 - The probe edits no tracked file of the checkout and pushes nothing. Its commit stays unreferenced and no branch exists.
 
 1. **Location.** `.superdev/probe-<random>` inside the repository's main checkout, after ensuring `.superdev/` is in `.gitignore`, so module resolution reaches the checkout's own `node_modules`.
-2. **Create it.** `git worktree add --detach <dir> <base-tip>`.
+2. **Create it.** `git worktree add --detach <dir> <base-tip>`. Then run the settled prepare command at its root, directly, since the base tip's `verification.md` has no section yet. A failing run is **A failed query**.
 3. **Edit and commit.** Edit one tracked source file of a leaf project the tool lists (one with no dependents, where it can tell) and commit it with `git -c core.hooksPath=/dev/null -c commit.gpgsign=false commit`. A probe commit that fails is reported and nothing is written.
 4. **List query.** List the projects the form selects on that commit, with the form's base: `nx show projects --affected --base=<base> --head=HEAD`, `TURBO_SCM_BASE=<base> turbo ls --affected`, `pnpm ls --filter "...[<base>]" --depth -1`, or `dotnet affected describe --from <base>` (stdout, no file written; exit 166 means nothing changed). A form selecting no project is not written: say that it selects nothing on a real change, and that the base is the suspect.
 5. **Target query.** Query whether the form's target exists on the selected projects: `nx show projects --affected --base=<base> --head=HEAD --with-target <target>` (the option table spells it `--withTarget`, the examples `--with-target`), `TURBO_SCM_BASE=<base> turbo run <task> --affected --dry=json --cache=local:rw`, for pnpm a read of each selected project's `package.json` `scripts` field, and for `dotnet-affected` no query, since it has no target concept. A target on no selected project means the form is not written: say so, and name the likely cause (the target name matches no project task).
@@ -467,6 +475,7 @@ name, so every caller runs the full command except a test-first step, which runs
 | `## Timing command` | decision E settled one | its command in a backtick span. No timing command writes E's one-line reason as prose in its place. |
 | `## Complete selector` | the operator's explicit yes to E's selector question | `references/test-selection.md`'s format: an unfenced list, one backtick-spanned path per item |
 | `## Test paths` | decision E settled them | `references/test-selection.md`'s format: an unfenced list, one pattern per item. No test command writes no section. |
+| `## Prepare command` | decision E settled a command or `none` | the command, or `none`, in a backtick span |
 | `## Whole-repo command` | a monorepo whose full command took the affected form | its command in a backtick span. No affected form (no tool owns one, or the operator kept the whole-suite command after a failed query) writes no section. |
 
 ````markdown
@@ -487,6 +496,12 @@ The focused command selects every test a changed path can affect.
 ## Whole-repo command
 
 `nx run-many --target=test --all`
+````
+
+````markdown
+## Prepare command
+
+`bun install --frozen-lockfile`
 ````
 
 **The Agent skills block.** Applies to the root instruction file. Add the block to whichever of `CLAUDE.md` / `AGENTS.md` already exists, and create no other. Duplicate no existing block. If neither exists, ask the user which to create.

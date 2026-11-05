@@ -190,7 +190,7 @@ document order: `<criterion>` — holds | broken: <why> | ceiling: <partial evid
 ### Ceiling
 [scope dispatch only; one note, per the four gates in `### The ceiling note`; omit this section entirely when nothing qualifies]
 
-### Fail-to-pass unknown [scope dispatch only; omit this section entirely when the trace holds none] — one note per outcome, never an Issue: <slice> · <its reason: control=<exit status or signal>, or bound=<ms>, or start-failed:<code> in control= or put-back=>
+### Fail-to-pass unknown [scope dispatch only; omit this section entirely when the trace holds none] — one note per outcome, never an Issue: <slice> · <its reason: control=<exit status or signal>, or bound=<ms>, or start-failed:<code> in control= or put-back=, or prepare=<exit, signal, start-failed:<code>, or dirty>>
 
 ### Assessment
 Full-suite run: [pass | fail | not run | denied — degraded pass]

@@ -1427,7 +1427,7 @@ Paths: plugin/hooks/test-guard.js, plugin/lib/test-runs.js, plugin/hooks/hooks.j
 
 Class: process
 Concepts: Doc-writer, Affected form, Suite record
-Statement: `/superdev:document` runs no test command, in any mode or fix round, and `/superdev:setup` runs no test command in any configuration. Setup validates an affected form only through read-only tool queries, and asks the operator where a query fails or cannot decide (ADR 0189).
+Statement: `/superdev:document` runs no test command, in any mode or fix round, and `/superdev:setup` runs no test command in any configuration. Setup validates an affected form only through read-only tool queries, and asks the operator where a query fails or cannot decide (ADR 0189). Running the prepare command in a probe worktree is no test run (ADR 0218).
 Breaks: silently
 Check: scripts/drift-check.js `doc-setup-no-test-run`
 Paths: plugin/skills/document/**, plugin/skills/setup/**, plugin/agents/doc-writer.md, plugin/agents/doc-reader.md, plugin/references/doc-pass.md
