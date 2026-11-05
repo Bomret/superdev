@@ -32,6 +32,9 @@ worktree before each of its two runs, because the clean before the second run re
 put-back can restore the base's lockfile. A prepare command that fails gives no verdict: `fail-to-pass` prints
 `unknown prepare=<exit>`.
 
+A preparation has no time bound, on purpose. The control run has none either: an install takes as long as the
+repository needs, and no fixed bound fits every repository. The caller's Bash tool timeout caps it.
+
 The verb reuses a traced control only when the section is present, as a command or as `none`. Then the throwaway
 worktree has the same dependencies as the tree that recorded the control. With the section absent, the control
 runs in the throwaway worktree.
@@ -53,3 +56,6 @@ runs in the throwaway worktree.
 A repository with no `## Prepare command` section loses ADR 0215's saving until the section is written.
 `/superdev:setup` proposes the section, and `setup check` reports a missing one. Reviewer worktrees under `/tmp` run
 no test and are not prepared.
+
+A preparation that hangs in `fail-to-pass` holds the verb until the caller's Bash tool timeout ends it. The verb then
+writes no outcome line, so a reviewer reads a Missing fail-to-pass run.
