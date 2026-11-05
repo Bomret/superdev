@@ -56,8 +56,8 @@ Applies to every start. Read `docs/agents/documentation.md` (the in-repo documen
 
 **The inline-doc-pass record.** Applies to a live run, next. Read `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get docs --root <run-root>` (ADR 0031). `absent` → take **The writer dispatch**.
 
-- **Anything but `absent`** → dispatch no `doc-writer`. Go to §4 with the scope's own commits as the range and the doc files they touched as the file list.
-- **Anything but `absent`, and those commits touched no doc file** → skip §4 too. Say in §5 that the pass was already done and left nothing for a reader.
+- **Anything but `absent`, and the scope's own commits changed a doc file** → dispatch no `doc-writer`. Go to §4 with the scope's own commits as the range and the doc files they changed as the file list.
+- **Anything but `absent`, and the scope's own commits changed no doc file** → take **The writer dispatch**, as on a record that reads `absent` (ADR 0219). The writer names the docs it judged current, and §4 tests them.
 
 **The writer dispatch.** Applies to an ad-hoc start and to a live run whose record reads `absent`. Make a writer dispatch, `haiku` for a tiny focused range. Name `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md` in it as the pass the writer performs, and describe the pass in no words of your own (ADR 0031, ADR 0035).
 
@@ -76,13 +76,13 @@ The writer commits its doc changes on the current branch. A denied writer's inli
 
 ## 4. Reader test
 
-**Skip.** Applies when the writer changed nothing, or when §3 found the pass done and no doc file changed. Skip this section.
+**The reader dispatch.** Applies to every doc pass, also one whose writer changed nothing (ADR 0219, INV-0185). Make a reader dispatch: it reads the docs cold and read-only. Hand no narrative and no summary of the work.
 
-**The reader dispatch.** Applies to every other run. Make a reader dispatch: it reads the docs cold and read-only. Hand no narrative and no summary of the work.
-
-- the changed doc files: in-repo docs and **local** KB pages, from the writer's report or from §3's no-writer path; software-KB pages are out of scope
+- the file list: in-repo docs and **local** KB pages the writer changed, and every doc its report names as judged current; or the doc files the scope's own commits changed, on §3's no-writer path; software-KB pages are out of scope
 - the `docs/agents/documentation.md` path
-- the writer's commit range, `<first>^..<last>`, covering both passes, or the scope's own commits on §3's no-writer path
+- the commit range: the writer's `<first>^..<last>`, covering both passes, or the scope's own commits on §3's no-writer path. A writer that committed nothing has no range: say in the dispatch that it carries none.
+
+**An empty file list.** Applies when the writer judged no doc relevant and the file list holds nothing. Make no reader dispatch. §5 relays the writer's reason and says the reader had no in-repo doc to test.
 
 **The fix round.** Applies when the reader reports findings. Make one writer dispatch as in §3 with the findings, in the reader's most-severe-first order, and tell the writer that order is its priority. Run one round only, and re-dispatch no reader. Findings left unresolved go in §5's report.
 
@@ -101,7 +101,7 @@ The writer commits its doc changes on the current branch. A denied writer's inli
 
 - the `AGENTS.md` files and docs updated, and the stale text removed
 - the KB pages written to `docs/kb/` or **staged**, and under which action, or that the KB pass was none or skipped
-- the reader-test tally, with findings left unresolved after the fix round
+- the reader test's result, on every doc pass: the reader's tally with the findings left unresolved after the fix round; or, on an empty file list, the writer's reason and that the reader had no in-repo doc to test; or a denied reader's degraded entry
 - the **writing standard** that applied, or that none did
 - on a live run whose stage reads `shipped` or `closed`, every unticked `docs` line
 
