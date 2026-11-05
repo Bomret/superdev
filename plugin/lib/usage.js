@@ -57,7 +57,7 @@ function usage() {
     '                                     <tree>\'s root, a working tree of this repository; the command output on stderr, no test',
     '                                     run; no section prints one note, `none` runs nothing; exits 0, 1 (a refusal), 3 (the',
     '                                     command failed, was ended by a signal, or could not start), or 128 plus the signal number',
-    '  status                          scans <cwd>/.superdev/scopes/*/',
+    '  status                             scans <cwd>/.superdev/scopes/*/',
     '  publish --root <run-root>          prints the ledger as one "## Run state" section on stdout',
     '  adopt [--shipped] --root <run-root>   stdin: a whole anchor body; extracts and writes the section;',
     '                                     --shipped adopts a "shipped" payload, and refuses every other stage',
