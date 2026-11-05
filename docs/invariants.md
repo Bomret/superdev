@@ -1512,3 +1512,12 @@ Statement: An offer's `start_session` call carries in its `prompt` only the comm
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/response-shapes.md, plugin/references/review-scope-mode.md
+
+### INV-0185
+
+Class: process
+Concepts: Doc-reader, Doc-writer, Staged page
+Statement: Every doc pass `/superdev:document` runs, ad hoc or on a live run, ends with a reader test, or with the degraded entry a denied reader writes. The reader's file list holds every doc the pass changed, every doc the writer judged current, and every page staged under the run's staging path whose action is not `delete`. A pass whose writer judged no doc relevant and that staged nothing ends with the writer's stated reason in the report. No doc pass ends on the writer's claim alone (ADR 0219).
+Breaks: silently
+Check: none — final-reviewer's invariant compliance judges it
+Paths: plugin/skills/document/SKILL.md, plugin/agents/doc-reader.md, plugin/agents/doc-writer.md, plugin/references/implement-lite.md
