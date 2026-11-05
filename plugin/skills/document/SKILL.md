@@ -78,13 +78,15 @@ The writer commits its doc changes on the current branch. A denied writer's inli
 
 **The reader dispatch.** Applies to every doc pass, also one whose writer changed nothing (ADR 0219, INV-0185). Make a reader dispatch: it reads the docs cold and read-only. Hand no narrative and no summary of the work.
 
-- the file list: in-repo docs and **local** KB pages the writer changed, and every doc its report names as judged current; or the doc files the scope's own commits changed, on §3's no-writer path; software-KB pages are out of scope
+- the file list: in-repo docs and **local** KB pages the writer changed, and every doc its report names as judged current; or the doc files the scope's own commits changed, on §3's no-writer path
+- the staged pages, on every path through §3 (the writer, the inline-doc-pass record, a denied writer's inline reconcile): every `.md` file under the staging path whose frontmatter `action` is not `delete` (ADR 0219). A KB config with no remote backend, or a staging directory that is absent or empty, adds no page and reports no gap
+- the tree to ground against: the scope checkout on a live run, the current checkout on an ad-hoc run. The staging path lies in the main working tree, which may not hold the scope's code
 - the `docs/agents/documentation.md` path
 - the commit range: the writer's `<first>^..<last>`, covering both passes, or the scope's own commits on §3's no-writer path. A writer that committed nothing has no range: say in the dispatch that it carries none.
 
-**An empty file list.** Applies when the writer judged no doc relevant and the file list holds nothing. Make no reader dispatch. §5 relays the writer's reason and says the reader had no in-repo doc to test.
+**An empty file list.** Applies when the writer judged no doc relevant and the file list holds no doc and no staged page. Make no reader dispatch. §5 relays the writer's reason and says the reader had no in-repo doc to test.
 
-**The fix round.** Applies when the reader reports findings. Make one writer dispatch as in §3 with the findings, in the reader's most-severe-first order, and tell the writer that order is its priority. Run one round only, and re-dispatch no reader. Findings left unresolved go in §5's report.
+**The fix round.** Applies when the reader reports findings. Make one writer dispatch as in §3 with the findings, in the reader's most-severe-first order, and tell the writer that order is its priority. Run one round only, and re-dispatch no reader. A finding on a staged page goes to the same round: the dispatch carries the staging path, and the writer corrects the staged file, never the backend. Findings left unresolved go in §5's report.
 
 **A denied dispatch.** Applies when the permission classifier denies a `doc-writer` or a `doc-reader`. It is a degraded pass: read and follow `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section. Say so in §5's report.
 
