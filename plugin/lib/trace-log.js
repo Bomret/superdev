@@ -54,15 +54,30 @@ const decodePaths = (field) => (field === undefined || field === '-' ? [] : untr
 
 // event: { slice?, agent?, kind, fields? }. One O_APPEND write per line, so concurrent writers never
 // tear a line. A failed write is swallowed: the trace never blocks the work it records. Returns whether
-// the line was written, for the one caller that tells its user (`scope.js test`).
+// the line was written, for the one caller that tells its user (`scope.js test`). A written line also
+// refreshes the run lock (ADR 0220, INV-0186), so a run that keeps writing trace lines reads as live.
 function appendTrace(runRoot, event) {
   try {
     const parts = [new Date().toISOString(), event.slice || 'scope', event.agent || 'main', event.kind, ...(event.fields || [])];
     fs.appendFileSync(path.join(runRoot, 'trace.log'), parts.map(traceField).join(' ') + '\n', 'utf8');
-    return true;
   } catch {
     // simplicity: silent by design (a recording failure must not fail a ledger verb); ceiling: a failed write loses that event; upgrade: add a stderr diagnostic if silent loss bites
     return false;
+  }
+  refreshLock(runRoot);
+  return true;
+}
+
+// Sets `<runRoot>/run.lock`'s atime and mtime to now when it is a regular file. `lstat` and `lutimes` follow no
+// symlink; nothing is created and the content is untouched. A failure is silent: the line already counts as written.
+function refreshLock(runRoot) {
+  try {
+    const lock = path.join(runRoot, 'run.lock');
+    if (!fs.lstatSync(lock).isFile()) return;
+    const now = new Date();
+    fs.lutimesSync(lock, now, now);
+  } catch {
+    // simplicity: silent by design (ADR 0220); ceiling: a failed refresh leaves the lock's age as it was
   }
 }
 
