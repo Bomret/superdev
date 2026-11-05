@@ -32,10 +32,11 @@ The reader test runs on every doc pass.
   reader had no in-repo doc to test.
 - On a live run, `/superdev:document` dispatches the writer whatever the inline-doc-pass record reads.
   On a lite-tier run the writer runs after the inline pass and names the docs it judged current.
-- While the inline-doc-pass record stands, the reader's commit range is the scope's own commits
-  `<range-base>..<branch>`. That range holds the writer's commits too, so the reader's writing-standard
-  pass judges every doc line the inline pass, the slices, and the writer added. Every other pass hands
-  the writer's `<first>^..<last>`, or no range when the writer committed nothing.
+- On a live run, the reader's commit range is the scope's own commits `<range-base>..<branch>`. That
+  range holds the writer's commits too, so the reader's writing-standard pass judges every doc line the
+  inline pass, the slices, the fix cycles, and the writer added. A fix cycle that clears the
+  inline-doc-pass record takes no line out of that range. An ad-hoc pass hands the writer's
+  `<first>^..<last>`, or no range when the writer committed nothing.
 - Every page staged under the run's staging path whose action is not `delete` is on the reader's file
   list, on every path through `/superdev:document`. The reader grounds it against the scope's code: the
   scope checkout on a live run, the current checkout on an ad-hoc run. A page's frontmatter and its links
@@ -69,5 +70,5 @@ the fail-to-pass run (ADR 0134) or this reader test.
 A doc pass that changed nothing costs one reader dispatch. A full reconcile that changed nothing has the
 reader test every doc the writer judged current. Every lite-tier run costs one writer dispatch after its
 inline pass, which gives back part of the saving ADR 0031 made. The ledger's `**Docs:**` record does not
-decide whether `/superdev:document` dispatches the writer. It decides the reader's commit range, so the
-doc lines the inline pass wrote stay under the writing-standard check.
+decide whether `/superdev:document` dispatches the writer, and it does not decide the reader's commit
+range. `/superdev:document` takes no decision from the record.

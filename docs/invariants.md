@@ -425,7 +425,7 @@ Paths: plugin/agents/implementer.md, plugin/references/plan-contract.md
 
 Class: process
 Concepts: Inline doc pass, Ledger, Tier
-Statement: A `**Docs:**` record stands only for the commits its pass saw. `/superdev:document` dispatches the doc-writer whatever the record reads, and hands the doc-reader the scope's own commits as its commit range only while the record stands (ADR 0219). A review fix loop that lands commits clears it. A full-tier run never writes one.
+Statement: A `**Docs:**` record stands only for the commits its pass saw. `/superdev:document` takes no decision from the record: on every live run it dispatches the doc-writer and hands the doc-reader the scope's own commits as its commit range (ADR 0219). A review fix loop that lands commits clears it. A full-tier run never writes one.
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/implement-lite.md, plugin/skills/document/SKILL.md, plugin/skills/review/SKILL.md, plugin/references/review-scope-mode.md, plugin/references/run-handoff.md, plugin/references/doc-pass.md

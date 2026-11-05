@@ -54,11 +54,6 @@ Applies to every start. Read `docs/agents/documentation.md` (the in-repo documen
 - a stage write
 - `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step block --root <run-root>`
 
-**The inline-doc-pass record.** Applies to a live run, before the writer dispatch. Read `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get docs --root <run-root>` (ADR 0031). The record decides the reader's commit range in §4 and nothing else (ADR 0219):
-
-- **Anything but `absent`** → the reader's range is the scope's own commits, so its writing-standard pass judges every doc line the inline pass and the slices added.
-- **`absent`** → the reader's range is the writer's own commits.
-
 **The writer dispatch.** Applies to an ad-hoc start and to every live run. Make a writer dispatch, `haiku` for a tiny focused range. Name `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md` in it as the pass the writer performs, and describe the pass in no words of your own (ADR 0031, ADR 0035).
 
 - the range: the git range, the area, or "full"; for a range, a reminder to start from `git diff --stat` and `git log` over it
@@ -82,7 +77,7 @@ The writer commits its doc changes on the current branch. A denied writer's inli
 - the staged pages, after the writer and after a denied writer's inline reconcile alike: every `.md` file under the staging path whose frontmatter `action` is not `delete` (ADR 0219). A KB config with no remote backend, or a staging directory that is absent or empty, adds no page and reports no gap
 - the tree to ground against: the scope checkout on a live run, the current checkout on an ad-hoc run. The staging path lies in the main working tree, which may not hold the scope's code
 - the `docs/agents/documentation.md` path
-- the commit range: on a live run whose inline-doc-pass record reads anything but `absent`, the scope's own commits, which hold the writer's commits too. On every other pass, `<first>^..<last>` of the writer's commits, or of your inline reconcile's after a denied writer, covering both passes. Such a pass that committed nothing has no range: say in the dispatch that it carries none.
+- the commit range: on a live run, the scope's own commits, which hold the writer's commits too, so the reader's writing-standard pass judges every doc line the scope added (ADR 0219). On an ad-hoc run, `<first>^..<last>` of the writer's commits, or of your inline reconcile's after a denied writer, covering both passes. An ad-hoc pass that committed nothing has no range: say in the dispatch that it carries none.
 
 **An empty file list.** Applies when the writer judged no doc relevant and the file list holds no doc and no staged page. Make no reader dispatch. §5 relays the writer's reason and says the reader had no in-repo doc to test.
 

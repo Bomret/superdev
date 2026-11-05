@@ -168,10 +168,10 @@ slicetrees and would collide on shared doc files.
 - **Commit the doc changes on the scope branch**, in this scopetree, as their own commit.
 - **Record the pass** with
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs set inline --root <run-root>`. Write it **after** the
-  pass, never before, so the record stands only for a pass that ran. `/superdev:document` dispatches the
-  `doc-writer` whatever the record reads. The record is what tells it to hand the `doc-reader` this
-  scope's own commits as the commit range, so the reader judges this pass's doc lines against the
-  writing standard (ADR 0219).
+  pass, never before, so the record stands only for a pass that ran. `/superdev:document` takes no
+  decision from the record: it dispatches the `doc-writer` and hands the `doc-reader` this scope's own
+  commits as the commit range, so the reader judges this pass's doc lines against the writing standard
+  (ADR 0219).
 - **A pass that changed nothing still records.** The docs already agreed with the code, which is a
   finished pass.
 - **A knowledge-base pass you cannot stage is a degraded pass**, the second shape in
