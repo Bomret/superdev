@@ -54,12 +54,7 @@ Applies to every start. Read `docs/agents/documentation.md` (the in-repo documen
 - a stage write
 - `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step block --root <run-root>`
 
-**The inline-doc-pass record.** Applies to a live run, next. Read `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get docs --root <run-root>` (ADR 0031). `absent` → take **The writer dispatch**.
-
-- **Anything but `absent`** → dispatch no `doc-writer`. Go to §4 with the scope's own commits as the range and the doc files they touched as the file list.
-- **Anything but `absent`, and those commits touched no doc file** → skip §4 too. Say in §5 that the pass was already done and left nothing for a reader.
-
-**The writer dispatch.** Applies to an ad-hoc start and to a live run whose record reads `absent`. Make a writer dispatch, `haiku` for a tiny focused range. Name `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md` in it as the pass the writer performs, and describe the pass in no words of your own (ADR 0031, ADR 0035).
+**The writer dispatch.** Applies to an ad-hoc start and to every live run. Make a writer dispatch, `haiku` for a tiny focused range. Name `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md` in it as the pass the writer performs, and describe the pass in no words of your own (ADR 0031, ADR 0035).
 
 - the range: the git range, the area, or "full"; for a range, a reminder to start from `git diff --stat` and `git log` over it
 - the two config file paths
@@ -76,19 +71,21 @@ The writer commits its doc changes on the current branch. A denied writer's inli
 
 ## 4. Reader test
 
-**Skip.** Applies when the writer changed nothing, or when §3 found the pass done and no doc file changed. Skip this section.
+**The reader dispatch.** Applies to every doc pass, also one whose writer changed nothing (ADR 0219, INV-0185). Make a reader dispatch: it reads the docs cold and read-only. Hand no narrative and no summary of the work.
 
-**The reader dispatch.** Applies to every other run. Make a reader dispatch: it reads the docs cold and read-only. Hand no narrative and no summary of the work.
-
-- the changed doc files: in-repo docs and **local** KB pages, from the writer's report or from §3's no-writer path; software-KB pages are out of scope
+- the file list: in-repo docs and **local** KB pages the writer changed, and every doc its report names as judged current; after a denied writer, the docs your inline reconcile changed and every doc it judged current, named the same way
+- the staged pages, after the writer and after a denied writer's inline reconcile alike: every `.md` file under the staging path whose frontmatter `action` is not `delete` (ADR 0219). A KB config with no remote backend, or a staging directory that is absent or empty, adds no page and reports no gap
+- the tree to ground against: the scope checkout on a live run, the current checkout on an ad-hoc run. The staging path lies in the main working tree, which may not hold the scope's code
 - the `docs/agents/documentation.md` path
-- the writer's commit range, `<first>^..<last>`, covering both passes, or the scope's own commits on §3's no-writer path
+- the commit range: on a live run, the scope's own commits, which hold the writer's commits too, so the reader's writing-standard pass judges every doc line the scope added (ADR 0219). On an ad-hoc run, `<first>^..<last>` of the writer's commits, or of your inline reconcile's after a denied writer, covering both passes. An ad-hoc pass that committed nothing has no range: say in the dispatch that it carries none.
 
-**The fix round.** Applies when the reader reports findings. Make one writer dispatch as in §3 with the findings, in the reader's most-severe-first order, and tell the writer that order is its priority. Run one round only, and re-dispatch no reader. Findings left unresolved go in §5's report.
+**An empty file list.** Applies when the writer judged no doc relevant and the file list holds no doc and no staged page. Make no reader dispatch. §5 relays the writer's reason and says the reader had no in-repo doc to test.
+
+**The fix round.** Applies when the reader reports findings. Make one writer dispatch as in §3 with the findings, in the reader's most-severe-first order, and tell the writer that order is its priority. Run one round only, and re-dispatch no reader. A finding on a staged page goes to the same round: the dispatch carries the staging path, and the writer corrects the staged file, never the backend. Findings left unresolved go in §5's report.
 
 **A denied dispatch.** Applies when the permission classifier denies a `doc-writer` or a `doc-reader`. It is a degraded pass: read and follow `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section. Say so in §5's report.
 
-- **A denied `doc-writer`** → reconcile inline. On a live run, write the entry with `scope.js degraded add`, then run the publish. Under `--unattended`, block instead.
+- **A denied `doc-writer`** → reconcile inline, and name the docs you changed and every doc you judged current, or your reason when you judged no doc relevant, as `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md`'s `## Pass 1 — in-repo docs` directs. On a live run, write the entry with `scope.js degraded add`, then run the publish. Under `--unattended`, block instead.
 - **A denied `doc-reader`** → the docs went unread by fresh eyes. On a live run, write the entry with `scope.js degraded add-denial -`, the refusal piped through a quoted heredoc, then run the publish. Under `--unattended`, follow that section's authorship rule up to the cap: read `scope.js get denials` after the entry and block once the count reaches it.
 
 **A pass the writer could not stage.** Applies to a staging path the writer could not write, or an existing page a read could not reconcile against (ADR 0094). It is a degraded pass, and the writer's report carries the note. On a live run, write the entry too.
@@ -101,7 +98,7 @@ The writer commits its doc changes on the current branch. A denied writer's inli
 
 - the `AGENTS.md` files and docs updated, and the stale text removed
 - the KB pages written to `docs/kb/` or **staged**, and under which action, or that the KB pass was none or skipped
-- the reader-test tally, with findings left unresolved after the fix round
+- the reader test's result, on every doc pass: the reader's tally with the findings left unresolved after the fix round; or, on an empty file list, the writer's reason and that the reader had no in-repo doc to test; or a denied reader's degraded entry
 - the **writing standard** that applied, or that none did
 - on a live run whose stage reads `shipped` or `closed`, every unticked `docs` line
 

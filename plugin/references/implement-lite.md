@@ -150,8 +150,9 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
 
 Once every slice is committed, **you** perform the documentation pass, in this same scopetree, while the
 scope is still in your context. That is the point of doing it here: a `doc-writer` dispatched later would
-rebuild the same picture from a diff, and `/superdev:document` keeps only the cold `doc-reader` that hot
-context cannot replace (ADR 0031). The `full` tier does not do this — its slices are built in parallel
+rebuild the same picture from a diff (ADR 0031). `/superdev:document` still dispatches the `doc-writer`
+after this pass, whatever it changed, so the writer names the docs it judges current and the cold
+`doc-reader` tests them (ADR 0219). The `full` tier does not do this — its slices are built in parallel
 slicetrees and would collide on shared doc files.
 
 - **Read `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md` and perform the pass it states**, both passes,
@@ -166,12 +167,13 @@ slicetrees and would collide on shared doc files.
   ticked nor `accepted:`, verbatim (ADR 0161). `/superdev:review`'s `holds` verdict ticks each one the pass made true (`review-scope-mode.md`'s `### 4.5 The Definition-of-Done criteria`).
 - **Commit the doc changes on the scope branch**, in this scopetree, as their own commit.
 - **Record the pass** with
-  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs set inline --root <run-root>`. That record is what
-  tells `/superdev:document` to dispatch the `doc-reader` alone. Write it **after** the pass, never before:
-  a run that ends between the two is exactly the case the absent record covers, and the next
-  `/superdev:document` then runs the full writer.
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs set inline --root <run-root>`. Write it **after** the
+  pass, never before, so the record stands only for a pass that ran. `/superdev:document` takes no
+  decision from the record: it dispatches the `doc-writer` and hands the `doc-reader` this scope's own
+  commits as the commit range, so the reader judges this pass's doc lines against the writing standard
+  (ADR 0219).
 - **A pass that changed nothing still records.** The docs already agreed with the code, which is a
-  finished pass, not a skipped one.
+  finished pass.
 - **A knowledge-base pass you cannot stage is a degraded pass**, the second shape in
   `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section: record it with
   `scope.js degraded add` and continue, attended or unattended alike. Record the doc pass as well — what

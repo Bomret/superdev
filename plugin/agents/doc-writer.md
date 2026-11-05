@@ -79,6 +79,7 @@ Applies to every dispatch.
 Return:
 
 - the docs and `AGENTS.md` files you changed, and what you deleted as stale;
+- every doc and `AGENTS.md` file you read and left unchanged because you judged it current, by path, or, when you judged no doc relevant to the range, your reason in one line;
 - the knowledge-base pages you wrote to `docs/kb/` or staged, and under which action, or that the knowledge-base pass was skipped or none;
 - per `docs` target, the file and section that now states it;
 - the commit range, and any concerns;

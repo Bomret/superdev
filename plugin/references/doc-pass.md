@@ -4,10 +4,9 @@ The procedure that brings documentation into agreement with reality: adding what
 changed, and **deleting what is obsolete**. Two callers perform it, and both `Read` this file at the point
 they run it (ADR 0031):
 
-- **`agents/doc-writer.md`**, dispatched by `/superdev:document` whenever the run's inline-doc-pass record
-  reads `absent` — every `full` run, a `lite` run that ended before its doc step, and a record
-  `/superdev:review`'s fix loop cleared — plus audit mode, bootstrap mode, any fix
-  round, and every ad-hoc invocation.
+- **`agents/doc-writer.md`**, dispatched by `/superdev:document` on every live run of either tier, also a
+  `lite` run whose inline pass already ran (ADR 0219), plus audit mode, bootstrap mode, any fix round, and
+  every ad-hoc invocation.
 - **`references/implement-lite.md`**, where the `lite` controller performs the pass in its own context as
   the last step of the run.
 
@@ -108,6 +107,13 @@ glob and every `Symbols:` entry against the repository, and report — never gat
 nothing, naming the entry's id. `Concepts` already carries the invariant's own matching, so a stale
 `Paths:` or `Symbols:` costs precision, not correctness. An entry naming neither field needs no
 resolution, and a repository with no `docs/invariants.md` needs no check at all.
+
+**Name every doc you judged current.** The report of every pass that follows this file names, by path,
+each doc and `AGENTS.md` file the pass read and left unchanged because it agrees with the code, beside the
+docs it changed. When the pass judged no doc relevant to the range, the report states that reason in one
+line instead. `/superdev:document`'s doc-reader tests the judged-current docs of the doc-writer and of its
+own inline reconcile as it tests the changed ones (ADR 0219). The `lite` inline pass records no such list:
+the doc-writer `/superdev:document` dispatches after it names them.
 
 Do not touch code or tests — docs only.
 
