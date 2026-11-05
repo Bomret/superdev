@@ -3,6 +3,7 @@
 // prepare.js: runs a repository's prepare command at a worktree's root, in a process group of its own, and the `prepare` verb (ADR 0218).
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { fail } = require('./refusal.js');
 const { gitSpawn } = require('./git-spawn.js');
@@ -25,7 +26,8 @@ async function runPrepare(sup, command, tree) {
 
 // `prepare <tree>`: runs the prepare command that `<tree>`'s own `docs/agents/verification.md` states, at that tree's root, its
 // output on stderr. `<tree>` must be the root of a working tree of the invoking repository. No section prints one note and exits
-// 0, `none` exits 0, and a command that does not succeed exits 3, naming the command and its exit, signal, or start error. An
+// 0, `none` exits 0, and a command that does not succeed exits 3, naming the command and its exit, signal, or start error. A
+// command that succeeds but leaves a tracked file changed exits 3 too; an untracked file it writes is no such change. An
 // interrupt ends the command's group and exits 128 plus the signal number.
 async function verbPrepare(cwd, args) {
   if (args.length !== 1 || !args[0]) fail('prepare needs <tree>, the root of a working tree of this repository');
@@ -49,12 +51,15 @@ async function verbPrepare(cwd, args) {
   if (prep.state === 'none') return;
   const sup = superviseRuns(['ignore', 2, 2], null, 'SIGKILL');
   for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
-    process.on(sig, () => sup.detach().then(() => process.exit(128 + require('os').constants.signals[sig])));
+    process.on(sig, () => sup.detach().then(() => process.exit(128 + os.constants.signals[sig])));
   }
   let result;
   try { result = await runPrepare(sup, prep.command, real); } finally { sup.stop(); }
   if (!result.ok) {
     process.stderr.write(`prepare: \`${prep.command}\` did not succeed: ${result.reason}\n`);
+    process.exitCode = PREPARE_FAILED_EXIT;
+  } else if (gitSpawn(['--no-optional-locks', 'status', '--porcelain', '--untracked-files=no'], real).stdout.trim()) {
+    process.stderr.write(`prepare: \`${prep.command}\` left a tracked file changed\n`);
     process.exitCode = PREPARE_FAILED_EXIT;
   }
 }

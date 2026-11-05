@@ -84,6 +84,14 @@ try {
   assert.equal(r.status, 3, r.stderr);
   assert.match(r.stderr, /SIGTERM/);
 
+  // A command that succeeds but leaves a tracked file changed exits 3, naming the command and the change; an untracked file
+  // it writes is no tracked change.
+  r = prepare(worktree(repo, 'dirtying', section('`echo x >> docs/agents/verification.md`')), { env });
+  assert.equal(r.status, 3, r.stderr);
+  assert.match(r.stderr, /`echo x >> docs\/agents\/verification.md`.*tracked file/);
+  r = prepare(worktree(repo, 'untracked', section('`echo x > made.txt`')), { env });
+  assert.equal(r.status, 0, r.stderr);
+
   // Refused with exit 1: a path that does not exist, a directory that is no worktree, a subdirectory of a worktree, and a
   // worktree of another repository.
   const plain = path.join(D, 'plain');
