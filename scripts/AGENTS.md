@@ -125,6 +125,9 @@ these subcommands' own arguments keeps joining its
 positional words with spaces as it always has.
 Every verb that writes the ledger appends one `ledger` line to the run trace after its write succeeds, through
 `appendTrace(runRoot, event)`, the single writer of `trace.log` (ADR 0117); no verb takes a caller-chosen event.
+Each line `appendTrace` writes also sets the run root's `run.lock` mtime to now when the lock is a regular file, so a
+working run stays live (ADR 0220, INV-0186). It creates no lock, changes no content, follows no symlink, and a failed
+refresh leaves the append's result as it was.
 `scope.js` exports only the names a requirer uses, among them
 `readLedgerHeader`, and no hook and no sibling script requires `scope.js`: each requires the module that
 holds what it uses. `readLedgerHeader`, the per-header ledger-line reader, lives in `plugin/lib/ledger.js`,
@@ -296,7 +299,7 @@ holds the setup they share and is no suite. The `test` verb's cases split over `
 first-moment-term, install, kill, late-fork, record, refusals, tree) and the `fail-to-pass` verb's over `scope-fail-to-pass-<topic>` (bound,
 concurrency, environment, interrupt, signals, trace, verdict, watcher). The rest: `scope-ledger` (init, stage, step, slice, the bullet and header records, get, status, and the ledger-fixtures pin),
 `scope-ledger-header` (`readLedgerHeader`), `scope-suite` (the suite and base records), `scope-dod-line`, `scope-dod-tags` (the `dod-tags` verb), `scope-dod-merge` (the `dod-merge` verb), `scope-publish-adopt` (`publish`, `adopt`, and the
-`maskFencedLines` pin), `scope-trace` (the run trace and `appendTrace`), `scope-root-base` (`root`, `staging`, `base` from a linked worktree),
+`maskFencedLines` pin), `scope-trace` (the run trace, `appendTrace`, and its run-lock refresh), `scope-root-base` (`root`, `staging`, `base` from a linked worktree),
 `scope-containment`, `scope-citations-collisions`, `scope-source-set`, `scope-push`, `scope-open`, `scope-help`, and `scope-stdin` (every verb that reads piped input receives it through the CLI). A focused run for `scope.js`, or for a module it requires, selects
 every suite that reaches it (`run-tests.js`, below).
 
