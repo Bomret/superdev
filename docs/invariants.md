@@ -1521,3 +1521,12 @@ Statement: Every doc pass `/superdev:document` runs, ad hoc or on a live run, en
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/document/SKILL.md, plugin/agents/doc-reader.md, plugin/agents/doc-writer.md, plugin/references/implement-lite.md, plugin/references/doc-pass.md
+
+### INV-0186
+
+Class: architecture
+Concepts: Run lock, Run trace
+Statement: Each line written to a run root's `trace.log` sets that run root's `run.lock` mtime to the current time when the lock exists as a regular file. The refresh never creates a lock, never changes its content, never follows a symlink, and never changes whether the trace line counts as written (ADR 0220).
+Breaks: silently
+Check: none — no pin exists today
+Paths: plugin/lib/trace-log.js
