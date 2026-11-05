@@ -63,7 +63,7 @@ write, naming `scope.js`.
 - **`**Docs:**`** — that the run performed its documentation pass, and in whose context. Read with
   `get docs`, written with `docs set <value>` and removed with `docs clear`. The `lite` playbook writes
   it for the pass it runs inline (ADR 0031), and `/superdev:review` clears it when a fix cycle lands
-  commits. `/superdev:document` dispatches its doc-writer whatever the record reads (ADR 0219). A single whitespace-free token, which `docs set` enforces.
+  commits. `/superdev:document` dispatches its doc-writer whatever the record reads, and while the record stands it hands its doc-reader the scope's own commits as the commit range (ADR 0219). A single whitespace-free token, which `docs set` enforces.
   Publish the snapshot afterwards, per `## Publishing run state` below, on every `docs set` or `docs clear`
   call.
 - **`**PR:** #<n>`** — the pull request `/superdev:submit-pr` opened for the scope branch. Read with
