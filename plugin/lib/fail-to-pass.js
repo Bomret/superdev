@@ -7,7 +7,8 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 const { fail } = require('./refusal.js');
 const { ledgerPath, splitLines, tableRowIndexes, splitRow } = require('./ledger.js');
-const { isTestPath } = require('./verification.js');
+const { isTestPath, prepareCommandOf } = require('./verification.js');
+const { runPrepare } = require('./prepare.js');
 const { gitSpawn, resolveCommit, fileAt } = require('./git-spawn.js');
 const { PROBE_MAX_BUFFER } = require('./containment.js');
 const { mainWorkTree } = require('./main-work-tree.js');
@@ -34,8 +35,8 @@ const failToPassBoundMs = (controlMs, floorMs) => Math.max(Math.ceil(controlMs *
 //   fail-to-pass: the tests passed against the changed code and failed with the range's other files put back.
 //   pass-to-pass: they passed both times, so they do not discriminate what the range changed.
 //   unknown:      the run could not judge (INV-0139): the tests did not pass against the changed code, or the run with the
-//                 files put back outlasted its bound or ended by a signal (INV-0009), or a run's command could not start. No
-//                 reviewer reads it as a verdict.
+//                 files put back outlasted its bound or ended by a signal (INV-0009), or a run's command could not start, or the
+//                 prepare command failed before a run (ADR 0218). No reviewer reads it as a verdict.
 //
 // @typedef {object} FailToPassRun
 //   base, tip: the range's two full commits; `tip` is the commit the test paths are read from.
@@ -46,6 +47,8 @@ const failToPassBoundMs = (controlMs, floorMs) => Math.max(Math.ceil(controlMs *
 //              `control=0,put-back=<exit or signal>,bound=<ms>ms`, the bound ten times the control's duration or the floor,
 //              whichever is larger (`failToPassFloorMs`; `verification.failToPassFloorMs` of the operator configuration overrides the floor, ADR 0142, ADR 0207).
 //              A run whose command could not start reads `start-failed:<error code>` in place of its exit, and the second carries no bound.
+//              A preparation that did not succeed reads `prepare=<exit, signal, start-failed:<error code>, or dirty>` in place of
+//              the run it preceded: `prepare=…` before the control, `control=0,prepare=…` before the put-back run.
 //
 // The trace line is `<ts> <slice|scope> main fail-to-pass <base>..<tip> <outcome> <reason> <command>`. The slice is the one whose
 // ledger row records exactly this range, else the one the run's directory attributes to, else `scope`. The control run also
@@ -122,14 +125,16 @@ async function verbFailToPass(cwd, args) {
   if (!changed.length) fail(`fail-to-pass: the range is empty: ${baseRef}..${tipRef} changes no file`);
   const config = fileAt(tip, 'docs/agents/verification.md', cwd);
   if (config === null) fail("fail-to-pass: git could not read the tip's verification configuration");
+  // The tip's prepare command prepares both runs: the put-back can restore a base `verification.md`, which is never read.
+  const prep = prepareCommandOf(config);
   const putBackChanges = changed.filter((c) => !isTestPath(config, c.path));
   if (!putBackChanges.length) fail('fail-to-pass: the range changes only test files, so nothing is put back');
   // The range's own tests: every test-path file it adds or modifies. A deleted one runs nowhere.
   const testFiles = changed.filter((c) => c.status !== 'D' && isTestPath(config, c.path)).map((c) => c.path);
   if (!testFiles.length) fail('fail-to-pass: the range changes no test file, so no test of its own can fail without its change');
   // The worktree sits beside `slicetrees/` in the run root, outside every tree the run trace attributes a run to, so no hook
-  // records its test runs; the verb writes the control's `run` line itself. Module resolution walks up from there to the main checkout's own `node_modules`, as it does
-  // from the scope's own worktrees (the setup probe's placement). Outside a run root it sits under `.superdev/`, and no line
+  // records its test runs; the verb writes the control's `run` line itself. The tip's prepare command installs what the runs
+  // need in the worktree itself (ADR 0218). Outside a run root it sits under `.superdev/`, and no line
   // is written, `.superdev/` is git-ignored first through the repository's `info/exclude` (no file of the checkout changes), and
   // a `.superdev/` this call created is removed at exit. `mkdtemp` makes the directory unique to this invocation, so parallel runs never share one.
   const at = require('./run-tree.js').locate(path.join(cwd, 'x'));
@@ -188,15 +193,6 @@ async function verbFailToPass(cwd, args) {
   try {
     const added = withWorktreeLock(cwd, () => spawnSync('git', [...noHooks, 'worktree', 'add', '-q', '--detach', dir, tip], { cwd, encoding: 'utf8' }));
     if (added.status !== 0) fail(`fail-to-pass: git could not create the worktree: ${added.stderr.trim()}`);
-    // Only a control that passed gives the second run a meaning (INV-0139); a control that did not pass records `unknown`,
-    // and the second run never starts.
-    const [sha0, tree0] = treeState(dir);
-    // A passing run the trace already holds is the control (ADR 0215): the last `path` run line at the tip on a clean tree that
-    // names every test file of the range and its duration, which the bound needs, when no later run there failed.
-    const reused = at && reusableControl(at.runRoot, tip, testFiles);
-    if (reused) process.stderr.write(`fail-to-pass: control reused from the run trace line of ${reused.ts}\n`);
-    const control = reused || await exec();
-    const status = (run) => (run.startError ? `start-failed:${run.startError}` : run.signal || run.code);
     // One ledger read names the slice both lines carry, the outcome line and the control run's `run` line (ADR 0175).
     const slice = at && (sliceOfRange(at.runRoot, base, tip, cwd) || at.slice);
     const record = (outcome, reason) => {
@@ -213,6 +209,26 @@ async function verbFailToPass(cwd, args) {
       }
       console.log(`${outcome} ${reason}`);
     };
+    // Runs the tip's prepare command in the worktree, outside every run's duration (ADR 0218). Null when it succeeded, or when
+    // there is no command; else the reason it gives no verdict, a changed tracked file (`dirty`) included.
+    const prepare = async () => {
+      if (prep.state !== 'command') return null;
+      const p = await runPrepare(sup, prep.command, dir);
+      if (!p.ok) return p.reason;
+      return treeState(dir)[1] === 'dirty' ? 'dirty' : null;
+    };
+    // A passing run the trace already holds is the control (ADR 0215): the last `path` run line at the tip on a clean tree that
+    // names every test file of the range and its duration, which the bound needs, when no later run there failed. Only a tip
+    // that states its prepare command, or `none`, gives this worktree the dependencies that run had (ADR 0218).
+    const reused = at && prep.state !== 'absent' && reusableControl(at.runRoot, tip, testFiles);
+    if (reused) process.stderr.write(`fail-to-pass: control reused from the run trace line of ${reused.ts}\n`);
+    const unprepared = reused ? null : await prepare();
+    if (unprepared) return record('unknown', `prepare=${unprepared}`);
+    // Only a control that passed gives the second run a meaning (INV-0139); a control that did not pass records `unknown`,
+    // and the second run never starts.
+    const [sha0, tree0] = treeState(dir);
+    const control = reused || await exec();
+    const status = (run) => (run.startError ? `start-failed:${run.startError}` : run.signal || run.code);
     // The control run is a test run too (ADR 0175): a run that finished with an exit status writes a `path` run line naming the
     // range's test files, the files the command was handed to cover (ADR 0188), attributed like the outcome line (ADR 0182). One a signal ended or that could not start writes none.
     // Like `scope.js test`, it names the tip and reads both ends: a HEAD that left the tip or a dirty tree at either end is `dirty`.
@@ -227,8 +243,8 @@ async function verbFailToPass(cwd, args) {
     if (control.code !== 0) return record('unknown', `control=${status(control)}`);
     // The second run sees the base's files outside the test paths, the tip's test files, and nothing the control run left:
     // a tracked file it changed (`reset --hard` to the tip), an untracked or ignored one it wrote (`dist/`, `target/classes`, a
-    // copy under an ignored `build/`; `clean -ffdx` takes every such path, a nested repository included). Dependencies resolve
-    // from outside this worktree, so the clean leaves them alone.
+    // copy under an ignored `build/`; `clean -ffdx` takes every such path, a nested repository included). The clean takes the
+    // installed dependencies too, so the prepare command runs again after the put-back, with the files the second run sees.
     step('clear what the first run left', ['reset', '-q', '--hard', tip]);
     step('clear what the first run left', ['clean', '-ffdxq']);
     // The range's added paths are removed first, and the rest come back from the base. Restoring a path the base held as a file
@@ -247,6 +263,8 @@ async function verbFailToPass(cwd, args) {
     // Code missing the feature can hang, so the second run is bounded at ten times the duration the control took in this
     // invocation, or the floor, whichever is larger: a millisecond control would otherwise give a bound shorter than the
     // delays a loaded machine adds (ADR 0142).
+    const unpreparedPutBack = await prepare();
+    if (unpreparedPutBack) return record('unknown', `control=0,prepare=${unpreparedPutBack}`);
     const bound = failToPassBoundMs(control.ms, failToPassFloorMs(cwd));
     const putBack = await exec(bound);
     // A run whose bound expired, or that a signal ended, carries no verdict whether or not the kill landed (INV-0009).

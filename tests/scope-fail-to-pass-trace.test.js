@@ -23,7 +23,7 @@ const { appendTrace } = require(scopePath);
     // The line names the slice the verb runs for: the slice a slicetree holds, the one in-progress slice a scopetree has,
     // and `scope` where none or several are in progress.
     let s = scenario({
-      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
+      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD, '\n## Prepare command\n\n`none`\n') },
       tip: { 'src.txt': 'b\n', 'tests/t.sh': probe + 'grep -q b src.txt\n' },
     });
     git(s.repo, ['worktree', 'add', '-q', '-b', 'slice/07', path.join(s.root, 'slicetrees', '07'), s.tipSha]);

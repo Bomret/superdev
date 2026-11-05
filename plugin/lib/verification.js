@@ -1,6 +1,6 @@
 'use strict';
 
-// verification.js: the readers of a tree's `docs/agents/verification.md`: its configured test commands and its test-path patterns.
+// verification.js: the readers of a tree's `docs/agents/verification.md`: its configured test commands, its prepare command, and its test-path patterns.
 
 const fs = require('fs');
 const path = require('path');
@@ -18,14 +18,65 @@ function fenceBlocks(raw) {
   let body = [];
   for (const line of raw.split(/\r?\n/)) {
     if (!open) {
-      const m = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
-      if (m && !(m[1][0] === '`' && m[2].includes('`'))) { open = m[1]; body = []; } else outside.push(line);
-    } else if (/^ {0,3}(`+|~+)\s*$/.test(line) && line.trim()[0] === open[0] && line.trim().length >= open.length) {
+      open = fenceOpener(line);
+      if (open) body = []; else outside.push(line);
+    } else if (fenceCloses(line, open)) {
       blocks.push(body.join('\n'));
       open = null;
     } else body.push(line);
   }
   return { blocks, outside: outside.join('\n') };
+}
+
+// The fence a line opens (its run of backticks or tildes), or null: at most three spaces of indentation, three or more
+// backticks or tildes, and any info string, which for a backtick fence holds no backtick.
+function fenceOpener(line) {
+  const m = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+  return m && !(m[1][0] === '`' && m[2].includes('`')) ? m[1] : null;
+}
+
+// Whether a line closes the fence `open` opened: the same indentation limit, the same character, at least as long.
+function fenceCloses(line, open) {
+  return /^ {0,3}(`+|~+)\s*$/.test(line) && line.trim()[0] === open[0] && line.trim().length >= open.length;
+}
+
+// A `verification.md` text split at its `## Prepare command` section (ADR 0218): `section` holds the section's lines after
+// its heading, or is null where the text has no such section, and `rest` every other line. The section runs to the next
+// heading. A heading inside a fenced block opens and ends no section.
+function prepareSection(raw) {
+  const section = [];
+  const rest = [];
+  let open = null;
+  let inSection = false;
+  let found = false;
+  for (const line of raw.replace(/\r\n?/g, '\n').split('\n')) {
+    let heading = false;
+    if (!open) {
+      if (/^#{1,6}\s/.test(line)) {
+        heading = true;
+        inSection = /^##\s+Prepare command\s*$/.test(line);
+        found = found || inSection;
+      }
+      open = fenceOpener(line);
+    } else if (fenceCloses(line, open)) open = null;
+    if (!inSection) rest.push(line);
+    else if (!heading) section.push(line);
+  }
+  return { section: found ? section : null, rest: rest.join('\n') };
+}
+
+// The **Prepare command** of a `verification.md` text (ADR 0218), in one of three states: `{ state: 'absent' }`,
+// `{ state: 'none' }`, or `{ state: 'command', command }`. The command is the section's first backtick span outside a fence,
+// read the way the `## Whole-repo command` section is read; `none` is that span reading `none`, or, with no span, a line
+// holding the bare word, lowercase. A section holding neither reads as absent.
+function prepareCommandOf(raw) {
+  const { section } = prepareSection(raw);
+  if (!section) return { state: 'absent' };
+  const text = fenceBlocks(section.join('\n')).outside;
+  const span = /`([^`\n]+)`/.exec(text);
+  const word = span ? span[1].trim() : null;
+  if (word === 'none' || (!span && /^\s*none\s*$/m.test(text))) return { state: 'none' };
+  return word ? { state: 'command', command: word } : { state: 'absent' };
 }
 
 // The default test patterns, used where `docs/agents/verification.md` has no usable `## Test paths`.
@@ -94,7 +145,8 @@ function verificationCommands(tree, keepLines) {
 function verificationCommandsOf(raw, keepLines) {
   // `keepLines` keeps a fence's own newlines, for the runner that executes the command as written (ADR 0127).
   const norm = (t) => (t ? (keepLines ? t.trim() : t.replace(/\s+/g, ' ').trim()) || null : null);
-  const { blocks, outside } = fenceBlocks(raw.replace(/\r\n?/g, '\n'));
+  // The `## Prepare command` section's fences are no test command, wherever the section sits.
+  const { blocks, outside } = fenceBlocks(prepareSection(raw).rest);
   const sec = /^##\s+Whole-repo command\s*$([\s\S]*?)(?=^#{1,6}\s|(?![\s\S]))/m.exec(outside);
   const span = sec && /`([^`\n]+)`/.exec(sec[1]);
   return { full: norm(blocks[0]), focused: norm(blocks[1]), whole: norm(span && span[1]) };
@@ -121,4 +173,4 @@ function completeSelector(text) {
   return found ? { files } : null;
 }
 
-module.exports = { isTestPath, testPathPatterns, verificationCommands, verificationCommandsOf, completeSelector };
+module.exports = { prepareCommandOf, isTestPath, testPathPatterns, verificationCommands, verificationCommandsOf, completeSelector };
