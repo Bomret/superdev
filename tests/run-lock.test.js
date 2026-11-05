@@ -259,6 +259,37 @@ try {
     }
   }
 
+  // A resumed run with an absent scopetree (ADR 0220, scope-branch.md's `resumed` bullet): implement's entry check
+  // passed on an old lock, then its ledger verbs' trace lines refreshed that lock, so the run-lock hook blocks the
+  // run's own `git worktree add`. The documented recovery, removing the lock and retrying, lets the call through.
+  {
+    const repo = fs.mkdtempSync(path.join(tmpDir, 'rl-resumed-'));
+    try {
+      const scopePath = require.resolve('../plugin/scripts/scope.js');
+      const root = path.join(repo, '.superdev', 'scopes', 'resumed');
+      fs.mkdirSync(root, { recursive: true });
+      fs.writeFileSync(path.join(root, 'ledger.md'), '# Ledger — resumed\n\n**Stage:** implementing\n\n| id | issue | title | type | depends-on | status | range |\n|---|---|---|---|---|---|---|\n| 01 | #1 | t | behavior | — | in-progress | — |\n');
+      const lock = path.join(root, 'run.lock');
+      const recreate = () => {
+        const r = cp.spawnSync(process.execPath, [hookPath], { input: JSON.stringify({ tool_input: { command: 'git worktree add .superdev/scopes/resumed/scopetree fix/resumed' }, cwd: repo }), encoding: 'utf8', timeout: 15000 });
+        assertSpawnDecided(r, 'run-lock.js on the absent scopetree');
+        return r.status;
+      };
+      const twoHoursAgo = (Date.now() - 2 * STALENESS_MS) / 1000;
+      fs.writeFileSync(lock, 'implement', 'utf8');
+      fs.utimesSync(lock, twoHoursAgo, twoHoursAgo);
+      assert.strictEqual(recreate(), 0, 'Resumed FAIL: an old lock lets the recreate through');
+      const verb = cp.spawnSync(process.execPath, [scopePath, 'step', 'set', 'implement', '--root', root], { cwd: repo, encoding: 'utf8', timeout: 20000 });
+      assertSpawnDecided(verb, 'scope.js step set');
+      assert.strictEqual(verb.status, 0, `Resumed FAIL: step set ran: ${verb.stderr}`);
+      assert.strictEqual(recreate(), 2, 'Resumed FAIL: the ledger verb\'s trace line refreshed the lock, so the recreate is blocked');
+      fs.rmSync(lock);
+      assert.strictEqual(recreate(), 0, 'Resumed FAIL: the Absent recovery (remove the lock, retry) lets the recreate through');
+    } finally {
+      fs.rmSync(repo, { recursive: true, force: true });
+    }
+  }
+
   console.log('run-lock tests ok');
 } finally {
   fs.rmSync(testRunDir, { recursive: true, force: true });
