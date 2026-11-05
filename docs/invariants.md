@@ -425,7 +425,7 @@ Paths: plugin/agents/implementer.md, plugin/references/plan-contract.md
 
 Class: process
 Concepts: Inline doc pass, Ledger, Tier
-Statement: A `**Docs:**` record stands only for the commits its pass saw. `/superdev:document` skips the doc-writer only while the record stands. A review fix loop that lands commits clears it. A full-tier run never writes one.
+Statement: A `**Docs:**` record stands only for the commits its pass saw. `/superdev:document` dispatches the doc-writer whatever the record reads (ADR 0219). A review fix loop that lands commits clears it. A full-tier run never writes one.
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/implement-lite.md, plugin/skills/document/SKILL.md, plugin/skills/review/SKILL.md, plugin/references/review-scope-mode.md, plugin/references/run-handoff.md, plugin/references/doc-pass.md
@@ -1520,4 +1520,4 @@ Concepts: Doc-reader, Doc-writer, Staged page
 Statement: Every doc pass `/superdev:document` runs, ad hoc or on a live run, ends with a reader test, or with the degraded entry a denied reader writes. The reader's file list holds every doc the pass changed, every doc the writer judged current, and every page staged under the run's staging path whose action is not `delete`. A pass whose writer judged no doc relevant and that staged nothing ends with the writer's stated reason in the report. No doc pass ends on the writer's claim alone (ADR 0219).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/skills/document/SKILL.md, plugin/agents/doc-reader.md, plugin/agents/doc-writer.md, plugin/references/implement-lite.md
+Paths: plugin/skills/document/SKILL.md, plugin/agents/doc-reader.md, plugin/agents/doc-writer.md, plugin/references/implement-lite.md, plugin/references/doc-pass.md

@@ -2,13 +2,15 @@
 
 **Status:** Accepted
 
-**Amends:** [ADR 0031](0031-the-lite-tier-writes-its-own-documentation.md): an inline doc pass that touched no doc file no longer spares the doc-writer.
+**Amends:** [ADR 0031](0031-the-lite-tier-writes-its-own-documentation.md): an inline doc pass no longer spares the doc-writer.
 
 ## Context
 
 `/superdev:document` skipped the reader test when the doc-writer changed nothing, and on a lite-tier run
 whose inline doc pass touched no doc file. In both cases the only artifact of the pass was the writer's
-claim that the docs agree with the code, and nothing checked it.
+claim that the docs agree with the code, and nothing checked it. On a lite-tier run whose inline pass did
+change docs, the reader tested only the doc files the scope's commits changed. The docs the inline pass
+read and judged current never reached it.
 
 The reader test also kept software knowledge-base pages out of its scope. A page staged for a remote
 backend under `.superdev/kb-pending/<scope>/` was read by no gate between staging and
@@ -28,8 +30,8 @@ The reader test runs on every doc pass.
 - A doc-writer that changed some docs also names the docs it judged current, and the reader tests both.
 - A doc-writer that judged no doc relevant states its reason. The report relays the reason and says the
   reader had no in-repo doc to test.
-- On a lite-tier run whose inline pass touched no doc file, `/superdev:document` dispatches the writer as
-  it does when no inline pass ran, so the writer names the docs it judged current.
+- On a live run, `/superdev:document` dispatches the writer whatever the inline-doc-pass record reads.
+  On a lite-tier run the writer runs after the inline pass and names the docs it judged current.
 - Every page staged under the run's staging path whose action is not `delete` is on the reader's file
   list, on every path through `/superdev:document`. The reader grounds it against the scope's code: the
   scope checkout on a live run, the current checkout on an ad-hoc run. A page's frontmatter and its links
@@ -48,10 +50,12 @@ the fail-to-pass run (ADR 0134) or this reader test.
   own word, checked by nobody.
 - **The lite pass records the docs it judged current in the ledger.** Rejected: the `docs` record holds
   one token, and a file list needs a new record format and reader. Dispatching the writer reuses the
-  existing path, and the case is rare.
-- **The doc pass re-reads and corrects the pages already staged.** Rejected: on the lite tier
-  `/superdev:document` dispatches no writer after review, so pages the inline pass staged before review
-  would still go unread.
+  existing path.
+- **Dispatch the writer only when the scope's commits changed no doc file.** Rejected: on a lite-tier run
+  whose slices changed a doc, the reader would test only that doc, and the docs the inline pass judged
+  current would still go untested.
+- **The doc pass re-reads and corrects the pages already staged.** Rejected: a re-read by the writer is
+  still the writer's own word, which is the gap the reader test closes.
 - **A Stop hook that holds a `/superdev:document` turn with no reader dispatch.** Rejected: the gap was one
   prose rule, and removing that rule removes its cause. A hook adds a guard with its own failure modes.
   The run trace records every dispatch, so a missing reader stays visible after the fact.
@@ -59,5 +63,6 @@ the fail-to-pass run (ADR 0134) or this reader test.
 ## Consequences
 
 A doc pass that changed nothing costs one reader dispatch. A full reconcile that changed nothing has the
-reader test every doc the writer judged current. A lite-tier run whose inline pass touched no doc file
-costs one writer dispatch as well.
+reader test every doc the writer judged current. Every lite-tier run costs one writer dispatch after its
+inline pass, which gives back part of the saving ADR 0031 made. The ledger's `**Docs:**` record does not
+decide whether `/superdev:document` dispatches the writer.

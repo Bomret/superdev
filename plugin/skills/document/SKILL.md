@@ -54,12 +54,9 @@ Applies to every start. Read `docs/agents/documentation.md` (the in-repo documen
 - a stage write
 - `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step block --root <run-root>`
 
-**The inline-doc-pass record.** Applies to a live run, next. Read `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get docs --root <run-root>` (ADR 0031). `absent` → take **The writer dispatch**.
+**The inline-doc-pass record.** Applies to a live run whose `lite` playbook ran its inline doc pass (ADR 0031). Take **The writer dispatch** whatever the ledger's `**Docs:**` record reads (ADR 0219). The writer names the docs the inline pass left current, and §4 tests them.
 
-- **Anything but `absent`, and the scope's own commits changed a doc file** → dispatch no `doc-writer`. Go to §4 with the scope's own commits as the range and the doc files they changed as the file list.
-- **Anything but `absent`, and the scope's own commits changed no doc file** → take **The writer dispatch**, as on a record that reads `absent` (ADR 0219). The writer names the docs it judged current, and §4 tests them.
-
-**The writer dispatch.** Applies to an ad-hoc start and to a live run whose record reads `absent`. Make a writer dispatch, `haiku` for a tiny focused range. Name `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md` in it as the pass the writer performs, and describe the pass in no words of your own (ADR 0031, ADR 0035).
+**The writer dispatch.** Applies to an ad-hoc start and to every live run. Make a writer dispatch, `haiku` for a tiny focused range. Name `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md` in it as the pass the writer performs, and describe the pass in no words of your own (ADR 0031, ADR 0035).
 
 - the range: the git range, the area, or "full"; for a range, a reminder to start from `git diff --stat` and `git log` over it
 - the two config file paths
@@ -78,11 +75,11 @@ The writer commits its doc changes on the current branch. A denied writer's inli
 
 **The reader dispatch.** Applies to every doc pass, also one whose writer changed nothing (ADR 0219, INV-0185). Make a reader dispatch: it reads the docs cold and read-only. Hand no narrative and no summary of the work.
 
-- the file list: in-repo docs and **local** KB pages the writer changed, and every doc its report names as judged current; or the doc files the scope's own commits changed, on §3's no-writer path
-- the staged pages, on every path through §3 (the writer, the inline-doc-pass record, a denied writer's inline reconcile): every `.md` file under the staging path whose frontmatter `action` is not `delete` (ADR 0219). A KB config with no remote backend, or a staging directory that is absent or empty, adds no page and reports no gap
+- the file list: in-repo docs and **local** KB pages the writer changed, and every doc its report names as judged current; after a denied writer, the docs your inline reconcile changed and every doc it judged current, named the same way
+- the staged pages, after the writer and after a denied writer's inline reconcile alike: every `.md` file under the staging path whose frontmatter `action` is not `delete` (ADR 0219). A KB config with no remote backend, or a staging directory that is absent or empty, adds no page and reports no gap
 - the tree to ground against: the scope checkout on a live run, the current checkout on an ad-hoc run. The staging path lies in the main working tree, which may not hold the scope's code
 - the `docs/agents/documentation.md` path
-- the commit range: the writer's `<first>^..<last>`, covering both passes, or the scope's own commits on §3's no-writer path. A writer that committed nothing has no range: say in the dispatch that it carries none.
+- the commit range: `<first>^..<last>` of the writer's commits, or of your inline reconcile's after a denied writer, covering both passes. A pass that committed nothing has no range: say in the dispatch that it carries none.
 
 **An empty file list.** Applies when the writer judged no doc relevant and the file list holds no doc and no staged page. Make no reader dispatch. §5 relays the writer's reason and says the reader had no in-repo doc to test.
 

@@ -9,16 +9,16 @@ model: sonnet
 
 Applies to every dispatch. You are the reader test. Read docs the way a newcomer would, then verify what they claim against the repo. You arrive with no context of the work that produced the docs and ask for none.
 
-- **Post-writer dispatch**: the doc-writer, or the run's inline doc pass, just reconciled the docs. It hands you the docs it changed and the docs it judged current, and a commit range when it committed.
+- **Post-writer dispatch**: the doc-writer, or `/superdev:document`'s inline reconcile after a denied doc-writer, just reconciled the docs. It hands you the docs it changed and the docs it judged current, and a commit range when it committed.
 - **Audit dispatch**: `/superdev:document audit` hands you a doc set and no commit range.
-- **Staged page**: a knowledge-base page staged for a remote backend, a `.md` file under the staging path in the main working tree. Its frontmatter (`title`, `action`, the `parent` keys, `live-hash`, publish markers) and its links into the backend, a `{sub_url}` placeholder included, are no repository claims.
+- **Staged page**: a knowledge-base page staged for a remote backend, a `.md` file under `.superdev/kb-pending/<scope>/` in the main working tree.
 
 ## What the dispatch hands you
 
 Applies to every dispatch.
 
 - A list of doc files to test and the path to `docs/agents/documentation.md`.
-- A post-writer dispatch adds the commit range: `<first>^..<last>` from a writer, or `<range-base>..<branch>` from an inline pass. A writer that committed nothing hands no range.
+- A post-writer dispatch adds the commit range: `<first>^..<last>` of the commits the writer or the inline reconcile made. A pass that committed nothing hands no range.
 - The range scopes Pass 3 only. It is no narrative of the work.
 - A post-writer dispatch also hands the tree to ground against: the scope checkout on a live run, the current checkout on an ad-hoc run. Its file list can hold staged pages.
 
@@ -37,7 +37,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/references/content-types.md` first (`## The conceptu
 
 Applies to every dispatch.
 
-Extract every checkable claim from the docs and verify it against the repo, in the tree the dispatch hands you. A staged page's claims are the claims of its body: ground them against that tree, and report no frontmatter key and no link into the backend as unfounded.
+Extract every checkable claim from the docs and verify it against the repo, in the tree the dispatch hands you. A staged page's claims are the claims of its body: ground them against that tree. Its frontmatter (`title`, `action`, the `parent` keys, `live-hash`, publish markers) and its links into the backend, a `{sub_url}` placeholder included, are no repository claims: report none of them as unfounded.
 
 - **Paths and names**: confirm that every file, directory, script, flag, and environment variable the doc mentions exists (`ls`, `grep -rn`).
 - **Commands**: confirm that every command the doc tells the reader to run exists (`package.json` scripts, the tool's help). Run one only where it is read-only and cheap.
