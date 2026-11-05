@@ -111,6 +111,19 @@ try {
   assert.equal(r.status, 3, `a preparation that changes an already-edited tracked file exits 3: ${r.stderr}`);
   assert.match(r.stderr, /changed a tracked file: a\.txt$/m, 'a further edit to an already-edited file is named');
 
+  // A type change the tree already held, a file turned into a symlink, prints two chunks under one path; the change the
+  // preparation makes to a later path is still detected and named.
+  const typed = worktree(repo, 'pre-typechange', section('`echo x >> z`'));
+  for (const f of ['link', 'z']) fs.writeFileSync(path.join(typed, f), f + '\n');
+  git(typed, ['add', 'link', 'z']);
+  git(typed, ['commit', '-q', '-m', 'files']);
+  fs.rmSync(path.join(typed, 'link'));
+  fs.symlinkSync('z', path.join(typed, 'link'));
+  fs.appendFileSync(path.join(typed, 'z'), 'pre\n');
+  r = prepare(typed, { env });
+  assert.equal(r.status, 3, `a change after a type-changed path exits 3: ${r.stderr}`);
+  assert.match(r.stderr, /changed a tracked file: z$/m, 'the message names the changed path, and not the type-changed one');
+
   // The readings run none of the user's own diff programs: an external diff configured for the tree never starts.
   const n = Number(process.env.GIT_CONFIG_COUNT || 0);
   const ext = path.join(D, 'ext-diff.sh');

@@ -54,14 +54,23 @@ async function verbPrepare(cwd, args) {
   for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
     process.on(sig, () => sup.detach().then(() => process.exit(128 + os.constants.signals[sig])));
   }
-  // Each tracked path's diff against HEAD, staged and unstaged, read with none of the user's external diff or textconv programs.
-  // Both listings run in path order with renames off, so the n-th name owns the n-th `diff --git` chunk; no content line of a
-  // patch starts with that header.
+  // The tracked diff against HEAD, staged and unstaged, read with none of the user's external diff or textconv programs: its
+  // whole text, which decides the exit, and each path's part of it, which names the paths. Both listings run in path order with
+  // renames off, and no content line of a patch starts with a `diff --git ` header. A path owns every consecutive chunk under
+  // one header, as a type change prints two, so the n-th name owns the n-th run of equal headers. Where the runs and the names
+  // do not pair up, `parts` is null.
   const tracked = () => {
     const diff = (extra) => gitSpawn(['--no-optional-locks', 'diff', 'HEAD', '--no-ext-diff', '--no-textconv', '--no-renames', '--binary', ...extra], real, { maxBuffer: Infinity }).stdout || '';
     const names = diff(['--name-only', '-z']).split('\0').filter(Boolean);
-    const chunks = diff([]).split(/^(?=diff --git )/m).filter(Boolean);
-    return new Map(names.map((name, i) => [name, chunks[i]]));
+    const text = diff([]);
+    const runs = [];
+    for (const chunk of text.split(/^(?=diff --git )/m).filter(Boolean)) {
+      const head = chunk.slice(0, chunk.indexOf('\n'));
+      if (runs.length && runs[runs.length - 1].head === head) runs[runs.length - 1].body += chunk;
+      else runs.push({ head, body: chunk });
+    }
+    const parts = runs.length === names.length ? new Map(names.map((name, i) => [name, runs[i].body])) : null;
+    return { text, names, parts };
   };
   const before = tracked();
   let result;
@@ -71,9 +80,11 @@ async function verbPrepare(cwd, args) {
     process.exitCode = PREPARE_FAILED_EXIT;
   } else {
     const after = tracked();
-    const changed = [...new Set([...before.keys(), ...after.keys()])].filter((name) => before.get(name) !== after.get(name)).sort();
-    if (changed.length) {
-      process.stderr.write(`prepare: \`${prep.command}\` changed a tracked file: ${changed.join(', ')}\n`);
+    if (before.text !== after.text) {
+      // Without a pairing on either side, every path either listing names is named.
+      const union = [...new Set([...before.names, ...after.names])];
+      const changed = before.parts && after.parts ? union.filter((name) => before.parts.get(name) !== after.parts.get(name)) : union;
+      process.stderr.write(`prepare: \`${prep.command}\` changed a tracked file: ${changed.sort().join(', ')}\n`);
       process.exitCode = PREPARE_FAILED_EXIT;
     }
   }
