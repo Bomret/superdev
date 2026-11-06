@@ -1,3 +1,12 @@
+## [0.102.3](https://github.com/Bomret/superdev/compare/v0.102.2...v0.102.3) (2026-11-06)
+
+
+### Bug Fixes
+
+* **adr:** renumber the test-focused ADR to 0217 ([#87](https://github.com/Bomret/superdev/issues/87)) ([853c2a9](https://github.com/Bomret/superdev/commit/853c2a9ae413e3a50c3e93ac51fa898610506977))
+* **document:** run the reader test on every doc pass, staged pages included ([9b7674e](https://github.com/Bomret/superdev/commit/9b7674e5cbca3c541ac5f6465efc899553cc6a7a))
+* **trace:** every trace line refreshes the run lock ([b838345](https://github.com/Bomret/superdev/commit/b83834574430a7332d6a0e30998adf385f857b46)), closes [#97](https://github.com/Bomret/superdev/issues/97)
+
 ## [0.102.2](https://github.com/Bomret/superdev/compare/v0.102.1...v0.102.2) (2026-11-03)
 
 
