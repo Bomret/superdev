@@ -31,6 +31,9 @@ The wiki is **human-consumption first**. Recorded at setup:
 - **Audience(s):** `<end-users | internal developers | ops/support | stakeholders | …>`
 - **Language:** `<e.g. English | German>`. All wiki prose is written in this language.
 
+- **Decisions:** stay in the repository's ADRs. The knowledge base carries no ADR digest and no ADR
+  summaries.
+
 ## Outline
 
 A living skeleton. `/superdev:plan` and `/superdev:document` fill and extend it.

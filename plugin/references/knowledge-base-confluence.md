@@ -1,6 +1,6 @@
 # Knowledge base: Confluence
 
-An external knowledge base for durable, human-facing docs (feature specifications, design overviews, ADR summaries),
+An external knowledge base for durable, human-facing docs (feature specifications, design overviews),
 published to a Confluence space. In-repo docs (`docs/agents/documentation.md`) remain the source of
 truth; the KB is a published view.
 
@@ -14,13 +14,13 @@ The KB is **human-consumption first**. Recorded at setup:
   fills and extends it):
 
   - `<Audience A — e.g. User Guide>` → `<topic>` → `<subtopic>`, `<subtopic>`
-  - `<Audience B — e.g. Developer Docs>` → `Architecture` → `Decisions` → `ADR summaries`
+  - `<Audience B — e.g. Developer Docs>` → `Architecture` → `<subtopic>`
   - `<Audience B — e.g. Developer Docs>` → `Setup`
 
   Each `→` nests one level deeper. `/superdev:publish-kb` creates a parent before its child.
 
-**`(aggregate)` marks a page many scopes contribute to** — an index, a changelog, an ADR-summaries
-digest. `/superdev:document` stages one **section** for such a page (`action: patch`) rather than the
+**`(aggregate)` marks a page many scopes contribute to** — an index, a changelog, a
+glossary. `/superdev:document` stages one **section** for such a page (`action: patch`) rather than the
 whole page, and `/superdev:publish-kb` merges that section into the live page by its heading. Without the
 marker the doc pass stages an `upsert`, which replaces the page wholesale and drops every section written
 by a scope it cannot see (ADR 0027). `/superdev:setup` asks which outline pages aggregate; a page no
@@ -45,7 +45,8 @@ no outline entry `aggregate` here.
 - **Space id**: `<space-id>` (the v2 API takes it)
 - **Auth**: API token in env var `<CONFLUENCE_API_TOKEN>`, user email in `<CONFLUENCE_EMAIL>`. Record
   the env-var NAMES only, never the secrets.
-- **What to publish**: `<feature specifications + ADR summaries>` — durable, reader-facing docs only, not every `AGENTS.md`.
+- **What to publish**: `<feature specifications + design overviews>` — durable, reader-facing docs only, not every `AGENTS.md`.
+  Decisions stay in the repository's ADRs: the knowledge base carries no ADR digest and no ADR summaries.
 - **Parent page or folder** (optional): `<id of the page or folder under which superdev pages are created>` — the `<parent-id>`
   the `### create` template below falls back to for a page that names no parent of its own.
 

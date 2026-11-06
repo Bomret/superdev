@@ -19,6 +19,9 @@ remain the source of truth; the wiki is a published view.
 - **Hierarchy:** links. The wiki nests no pages. Each child page links from a list item in its parent's
   body, and `/superdev:publish-kb` writes that link (ADR 0168).
 
+- **Decisions:** stay in the repository's ADRs. The knowledge base carries no ADR digest and no ADR
+  summaries.
+
 ## Outline
 
 A living skeleton. `/superdev:plan` and `/superdev:document` fill and extend it.
