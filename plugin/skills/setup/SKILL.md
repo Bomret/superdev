@@ -211,7 +211,7 @@ Applies to the full interview. Scan these before any decision:
 
 ### D — Knowledge base (optional)
 
-**The choice.** Applies to decision D: is there a knowledge base for durable, reader-facing docs (feature specifications, design overviews, ADR summaries)?
+**The choice.** Applies to decision D: is there a knowledge base for durable, reader-facing docs (feature specifications, design overviews)?
 
 - **Knowledge base software**, such as **Confluence** → **Confluence**, or **Other wiki** for a different one.
 - **Forgejo / Gitea repo wiki** (`tea`, Codeberg included) → **Forgejo wiki**.
@@ -249,7 +249,7 @@ Applies to the full interview. Scan these before any decision:
 
 1. **Audience** (multi-select): end-users, internal developers, ops/support, stakeholders. Record the list.
 2. **Language**: the single natural language KB prose is written in. Code and in-repo docs keep theirs.
-3. **Outline**: scan the README and top-level structure, and propose a top-level section per audience with a few candidate topics under each (*User Guide → Getting started, FAQ*; *Developer Docs → Architecture, Setup, ADR summaries*). Discuss and adjust with the user, and record the agreed outline in `knowledge-base.md` as the skeleton `/superdev:plan` and `/superdev:document` fill and extend.
+3. **Outline**: scan the README and top-level structure, and propose a top-level section per audience with a few candidate topics under each (*User Guide → Getting started, FAQ*; *Developer Docs → Architecture, Setup*). Discuss and adjust with the user, and record the agreed outline in `knowledge-base.md` as the skeleton `/superdev:plan` and `/superdev:document` fill and extend.
 4. **A Forgejo or GitHub wiki outline** names a root page with no parent, gives each group its parent page and the section in that parent, and records the seed's link line form (the `**Links.**` line of the wiki's own seed) under the wiki's own URL.
 
 **The command contract.** Applies to a remote backend (ADR 0069), except that a Forgejo or GitHub wiki's seed carries all five templates, so it gets no per-verb question (**Forgejo wiki**, **GitHub wiki**). Ask, verb by verb, for the shell command each of `find`, `read`, `create`, `update`, and `delete` runs. Write each under a `## Commands` section of `knowledge-base.md` as a `### <verb>` subsection holding one fenced `sh` block.
@@ -277,7 +277,7 @@ Applies to the full interview. Scan these before any decision:
 
 **A re-run's templates.** Applies when `knowledge-base.md` already carries `## Commands`. Show the delta between the newly captured templates and the existing ones. Keep the operator's template for a verb unless they choose to replace it.
 
-**The aggregate question.** Applies to a remote backend whose page bodies are markdown and whose `## Commands` holds a `### read` subsection (ADR 0027). Ask which pages **aggregate**: a page many scopes each contribute one section to (an index, a changelog, an ADR-summaries digest), naming any digest or index page in the outline. Mark each answer in the outline with `(aggregate)` and pin the heading level its sections take (e.g. `## <concept>`).
+**The aggregate question.** Applies to a remote backend whose page bodies are markdown and whose `## Commands` holds a `### read` subsection (ADR 0027). Ask which pages **aggregate**: a page many scopes each contribute one section to (an index, a changelog, a glossary), naming any digest or index page in the outline. Mark each answer in the outline with `(aggregate)` and pin the heading level its sections take (e.g. `## <concept>`).
 
 - A marked page is staged one section at a time (`action: patch`) and merged into the live page. An unmarked one is replaced wholesale.
 - **None aggregate** marks nothing.

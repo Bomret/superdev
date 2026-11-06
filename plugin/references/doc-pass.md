@@ -126,7 +126,8 @@ Otherwise update the knowledge base to match reality, following that file's back
 agent-relevant detail second:
 
 - Fill/refresh the durable, reader-facing docs the change affects (feature specification, design
-  overview, ADR summaries) under the agreed outline. Don't mirror every `AGENTS.md`.
+  overview) under the agreed outline. Don't mirror every `AGENTS.md`, and leave decisions in the ADRs:
+  the knowledge base carries no ADR digest and no ADR summaries.
 - Correct and **remove obsolete** content — a knowledge base that contradicts the code is worse than none.
 - **Local file** backend: edit the markdown under `docs/kb/` and keep its index current. Its pages are
   repository files, so they ride the branch with the code and you stage nothing.
@@ -178,7 +179,7 @@ agent-relevant detail second:
   bullet above, and needs none of this: it stages nothing either way.
 
   **An outline entry marked `(aggregate)` takes `action: patch` instead** (ADR 0027). Such a page collects
-  one section from each of many scopes — an index, a changelog, an ADR-summaries digest — so the sections
+  one section from each of many scopes — an index, a changelog, a glossary — so the sections
   already on it were written by scopes you cannot see. Name the file `<title-slug>--<section-slug>.md`
   (`<section-slug>` is the section heading's text, kebab-cased the same way `<title-slug>` is), never the
   plain `<title-slug>.md` above: that filename is one file per *page*, and a second section staged under

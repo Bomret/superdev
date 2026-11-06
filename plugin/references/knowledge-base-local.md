@@ -1,6 +1,6 @@
 # Knowledge base: Local file storage
 
-An in-repo knowledge base — durable, human-facing docs (feature specifications, design overviews, ADR summaries) kept as
+An in-repo knowledge base — durable, human-facing docs (feature specifications, design overviews) kept as
 markdown files in the repo. No external service. (This is distinct from the in-repo `AGENTS.md` docs in
 `docs/agents/documentation.md`: those are the agent-facing contract; this KB is the reader-facing library.)
 
@@ -14,14 +14,14 @@ The KB is **human-consumption first**. Recorded at setup:
   fills and extends it):
 
   - `<Audience A — e.g. User Guide>` → `<topic>`, `<topic>`
-  - `<Audience B — e.g. Developer Docs>` → `Architecture`, `Setup`, `ADR summaries`
+  - `<Audience B — e.g. Developer Docs>` → `Architecture`, `Setup`
 
 ## Location
 
 - **Backend:** local file storage.
 
-`docs/kb/` — one markdown file per document, e.g. `docs/kb/<feature>-spec.md`,
-`docs/kb/adr-summary.md`. A `docs/kb/README.md` index lists them.
+`docs/kb/` — one markdown file per document, e.g. `docs/kb/<feature>-spec.md`. A `docs/kb/README.md` index lists them.
+Decisions stay in the repository's ADRs: the knowledge base carries no ADR digest and no ADR summaries.
 
 ## Conventions
 
