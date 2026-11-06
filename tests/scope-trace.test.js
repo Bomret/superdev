@@ -237,3 +237,85 @@ const { sliceJson, scopePath, run } = require('./scope-setup');
     fs.rmSync(dir, { recursive: true, force: true });
   }
 }
+
+// Each trace line refreshes its run's lock (ADR 0220, INV-0186): the lock's timestamp moves to now, its bytes stay, and
+// the refresh creates nothing, follows no symlink, touches no other run root, and never changes the append's result.
+// Every mtime is set into the past with `utimes` and read back through `stat`; no wall-clock ceiling (ADR 0086).
+{
+  const { appendTrace } = require('../plugin/lib/trace-log.js');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-trace-lock-'));
+  const past = (Date.now() - 2 * 60 * 60 * 1000) / 1000;
+  const mtime = (p) => fs.lstatSync(p).mtimeMs;
+  const aged = (p) => { fs.utimesSync(p, past, past); return mtime(p); };
+  const root = (name) => { const r = path.join(dir, '.superdev', 'scopes', name); fs.mkdirSync(r, { recursive: true }); return r; };
+  const event = { slice: '01', kind: 'edit', fields: ['impl', 'a.js'] };
+  try {
+    // A regular lock: its timestamp moves to now and its bytes stay. Another run root's lock stays as it was.
+    const a = root('a');
+    const b = root('b');
+    const lockA = path.join(a, 'run.lock');
+    const lockB = path.join(b, 'run.lock');
+    const bytes = Buffer.from('plan 081fc1cfad64\né\x00tail');
+    fs.writeFileSync(lockA, bytes);
+    fs.writeFileSync(lockB, 'other');
+    const beforeA = aged(lockA);
+    const beforeB = aged(lockB);
+    assert.strictEqual(appendTrace(a, event), true, 'the line is written');
+    assert.ok(mtime(lockA) > beforeA + 60 * 60 * 1000, 'the trace line refreshes the lock');
+    assert.ok(fs.statSync(lockA).atimeMs > beforeA + 60 * 60 * 1000, 'the atime moves too');
+    assert.ok(fs.readFileSync(lockA).equals(bytes), 'the lock bytes are identical after a refresh');
+    assert.strictEqual(mtime(lockB), beforeB, 'a line for one run root refreshes no other run root\'s lock');
+
+    // No lock: none is created.
+    const c = root('c');
+    assert.strictEqual(appendTrace(c, event), true, 'the line is written without a lock');
+    assert.ok(!fs.existsSync(path.join(c, 'run.lock')), 'a trace write never creates a lock');
+
+    // A symlinked lock: the link's target keeps its timestamp.
+    const d = root('d');
+    const target = path.join(dir, 'target.lock');
+    fs.writeFileSync(target, 'target');
+    const beforeTarget = aged(target);
+    fs.symlinkSync(target, path.join(d, 'run.lock'));
+    assert.strictEqual(appendTrace(d, event), true, 'the line is written beside a symlinked lock');
+    assert.strictEqual(mtime(target), beforeTarget, 'a symlinked lock\'s target stays as it was');
+    assert.strictEqual(fs.readFileSync(target, 'utf8'), 'target', 'and its content too');
+
+    // A lock that is a directory: left as it is, and the line still counts as written.
+    const e = root('e');
+    const lockDir = path.join(e, 'run.lock');
+    fs.mkdirSync(lockDir);
+    const beforeDir = aged(lockDir);
+    assert.strictEqual(appendTrace(e, event), true, 'the line is written beside a directory lock');
+    assert.strictEqual(mtime(lockDir), beforeDir, 'a directory lock is left as it is');
+
+    // A trace append that fails refreshes nothing: the trace file is a directory here.
+    const f = root('f');
+    const lockF = path.join(f, 'run.lock');
+    fs.writeFileSync(lockF, 'x');
+    fs.mkdirSync(path.join(f, 'trace.log'));
+    const beforeF = aged(lockF);
+    assert.strictEqual(appendTrace(f, event), false, 'the failed append reports itself');
+    assert.strictEqual(mtime(lockF), beforeF, 'a failed append refreshes no lock');
+
+    // A run root a discard or wrap-up emptied away: the write leaves no file behind.
+    const gone = path.join(dir, '.superdev', 'scopes', 'gone');
+    assert.strictEqual(appendTrace(gone, event), false, 'no line lands in a removed run root');
+    assert.ok(!fs.existsSync(gone), 'and no file or directory is left behind');
+
+    // A scope.js verb that appends a trace line refreshes the lock through the same writer.
+    const g = path.join(dir, '.superdev', 'scopes', 'demo');
+    const out = require('node:child_process').spawnSync(process.execPath, [scopePath, 'init', 'feat/demo', 'implementing'], { cwd: dir, input: sliceJson, encoding: 'utf8', timeout: 20000 });
+    assertSpawnDecided(out, 'scope.js init');
+    assert.strictEqual(out.status, 0, out.stderr);
+    const lockG = path.join(g, 'run.lock');
+    fs.writeFileSync(lockG, 'implement');
+    const beforeG = aged(lockG);
+    const verb = require('node:child_process').spawnSync(process.execPath, [scopePath, 'step', 'set', 'implement', '--root', g], { cwd: dir, encoding: 'utf8', timeout: 20000 });
+    assertSpawnDecided(verb, 'scope.js step set');
+    assert.strictEqual(verb.status, 0, verb.stderr);
+    assert.ok(mtime(lockG) > beforeG + 60 * 60 * 1000, 'a ledger verb\'s trace line refreshes the lock');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}

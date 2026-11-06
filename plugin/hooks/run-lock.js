@@ -9,9 +9,8 @@
 // (ADR 0080), a relative one resolves against the session cwd. The run root under the session's
 // working directory is checked too, so a path the hook cannot expand (`~/`, `$HOME/`) still meets
 // the lock (triage #910).
-// simplicity: mtime staleness threshold is 1 hour; if long-running runs exceed this,
-// add a heartbeat refresh loop inside the controller's run (or parameterize the
-// threshold), but YAGNI for now.
+// The staleness threshold is 1 hour. Every run-trace line refreshes the lock's mtime (ADR 0220), so a run that keeps
+// working stays live, and one that stops reads as crashed an hour after its last trace line.
 
 const fs = require('fs');
 const path = require('path');

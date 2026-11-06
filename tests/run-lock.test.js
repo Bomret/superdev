@@ -231,6 +231,65 @@ try {
     }
   }
 
+  // A busy run stays live (ADR 0220, INV-0186): a trace line written into a run whose lock is two hours old refreshes the
+  // lock, so a second session's `git worktree add` on its scopetree is blocked. With no trace line the lock stays stale.
+  {
+    const repo = fs.mkdtempSync(path.join(tmpDir, 'rl-heartbeat-'));
+    try {
+      const traceHook = require.resolve('../plugin/hooks/run-trace.js');
+      const root = path.join(repo, '.superdev', 'scopes', 'busy');
+      fs.mkdirSync(path.join(root, 'scopetree'), { recursive: true });
+      fs.writeFileSync(path.join(root, 'ledger.md'), '# Ledger — busy\n\n**Stage:** implementing\n\n| id | issue | title | type | depends-on | status | range |\n|---|---|---|---|---|---|---|\n| 01 | #1 | t | behavior | — | in-progress | — |\n');
+      const lock = path.join(root, 'run.lock');
+      const takeOver = () => {
+        const r = cp.spawnSync(process.execPath, [hookPath], { input: JSON.stringify({ tool_input: { command: 'git worktree add .superdev/scopes/busy/scopetree fix/busy' }, cwd: repo }), encoding: 'utf8', timeout: 15000 });
+        assertSpawnDecided(r, 'run-lock.js on the busy scopetree');
+        return r.status;
+      };
+      const twoHoursAgo = (Date.now() - 2 * STALENESS_MS) / 1000;
+      fs.writeFileSync(lock, 'implement', 'utf8');
+      fs.utimesSync(lock, twoHoursAgo, twoHoursAgo);
+      assert.strictEqual(takeOver(), 0, 'Heartbeat FAIL: with no trace line, a two-hour-old lock stays stale');
+      const edit = cp.spawnSync(process.execPath, [traceHook], { input: JSON.stringify({ hook_event_name: 'PostToolUse', tool_name: 'Edit', tool_input: { file_path: path.join(root, 'scopetree', 'src', 'x.js') }, cwd: repo }), encoding: 'utf8', timeout: 15000 });
+      assertSpawnDecided(edit, 'run-trace.js on an edit into the scopetree');
+      assert.ok(fs.readFileSync(path.join(root, 'trace.log'), 'utf8').includes(' edit '), 'Heartbeat FAIL: the edit is traced');
+      assert.strictEqual(takeOver(), 2, 'Heartbeat FAIL: a trace line keeps the run live, so the takeover is blocked');
+    } finally {
+      fs.rmSync(repo, { recursive: true, force: true });
+    }
+  }
+
+  // A resumed run with an absent scopetree (ADR 0220, scope-branch.md's `resumed` bullet): implement's entry check
+  // passed on an old lock, then its ledger verbs' trace lines refreshed that lock, so the run-lock hook blocks the
+  // run's own `git worktree add`. The documented recovery, removing the lock and retrying, lets the call through.
+  {
+    const repo = fs.mkdtempSync(path.join(tmpDir, 'rl-resumed-'));
+    try {
+      const scopePath = require.resolve('../plugin/scripts/scope.js');
+      const root = path.join(repo, '.superdev', 'scopes', 'resumed');
+      fs.mkdirSync(root, { recursive: true });
+      fs.writeFileSync(path.join(root, 'ledger.md'), '# Ledger — resumed\n\n**Stage:** implementing\n\n| id | issue | title | type | depends-on | status | range |\n|---|---|---|---|---|---|---|\n| 01 | #1 | t | behavior | — | in-progress | — |\n');
+      const lock = path.join(root, 'run.lock');
+      const recreate = () => {
+        const r = cp.spawnSync(process.execPath, [hookPath], { input: JSON.stringify({ tool_input: { command: 'git worktree add .superdev/scopes/resumed/scopetree fix/resumed' }, cwd: repo }), encoding: 'utf8', timeout: 15000 });
+        assertSpawnDecided(r, 'run-lock.js on the absent scopetree');
+        return r.status;
+      };
+      const twoHoursAgo = (Date.now() - 2 * STALENESS_MS) / 1000;
+      fs.writeFileSync(lock, 'implement', 'utf8');
+      fs.utimesSync(lock, twoHoursAgo, twoHoursAgo);
+      assert.strictEqual(recreate(), 0, 'Resumed FAIL: an old lock lets the recreate through');
+      const verb = cp.spawnSync(process.execPath, [scopePath, 'step', 'set', 'implement', '--root', root], { cwd: repo, encoding: 'utf8', timeout: 20000 });
+      assertSpawnDecided(verb, 'scope.js step set');
+      assert.strictEqual(verb.status, 0, `Resumed FAIL: step set ran: ${verb.stderr}`);
+      assert.strictEqual(recreate(), 2, 'Resumed FAIL: the ledger verb\'s trace line refreshed the lock, so the recreate is blocked');
+      fs.rmSync(lock);
+      assert.strictEqual(recreate(), 0, 'Resumed FAIL: the Absent recovery (remove the lock, retry) lets the recreate through');
+    } finally {
+      fs.rmSync(repo, { recursive: true, force: true });
+    }
+  }
+
   console.log('run-lock tests ok');
 } finally {
   fs.rmSync(testRunDir, { recursive: true, force: true });
