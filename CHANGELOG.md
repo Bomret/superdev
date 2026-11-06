@@ -1,3 +1,10 @@
+## [0.102.4](https://github.com/Bomret/superdev/compare/v0.102.3...v0.102.4) (2026-11-06)
+
+
+### Bug Fixes
+
+* **scope:** prepare every test worktree with the repository's prepare command ([#99](https://github.com/Bomret/superdev/issues/99)) ([f6aff4c](https://github.com/Bomret/superdev/commit/f6aff4c8ef3672bd51b1ddf65011651956defbf2))
+
 ## [0.102.3](https://github.com/Bomret/superdev/compare/v0.102.2...v0.102.3) (2026-11-06)
 
 
