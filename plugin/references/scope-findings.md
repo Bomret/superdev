@@ -378,7 +378,8 @@ changed code in the verb's throwaway worktree, an environment gap that no slice 
 the change was killed at its bound, ten times the first run's duration or 10 seconds, whichever is larger (ADR 0142;
 `verification.failToPassFloorMs` in `.superdev/info.json` overrides the 10-second floor),
 or ended by a signal, or a run's command could
-not start (`start-failed:<code>`, a missing shell among the causes). A run killed at the bound
+not start (`start-failed:<code>`, a missing shell among the causes), or the prepare command did not succeed before a
+run (`prepare=`, ADR 0218). A run killed at the bound
 can be a timing artifact rather than an environment gap: an async test that waits out a per-test timeout can outlast
 the bound. The implementer that ran the verb names each `unknown` in its report with the reason the verb printed, and
 the controller writes the triage record for the scope run's first `unknown` that the exemption at the end of this

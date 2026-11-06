@@ -69,6 +69,30 @@ repository configures one only together with an affected form.
   of the full command.
 - **An absent section leaves the full command as the whole suite**, and every caller unaffected.
 
+## Prepare command
+
+An optional **`## Prepare command`** section, holding the one shell command that makes a new worktree of the
+repository ready to run its tests, such as an install of its dependencies (ADR 0218). A new worktree holds the
+tracked files only, so a repository whose tests need installed dependencies states this command.
+
+- **Three states.** The section's first backtick span is the command. The span `` `none` ``, or with no span a line
+  holding the bare word `none`, lowercase, states that a new worktree needs no preparation. No section, or a
+  section holding neither, is absent.
+- **Its command lives in a backtick span**, per the rule above: a fence inside the section is no command, and it
+  never shifts which fence is the full or the focused command.
+- **`scope.js prepare <tree>` runs it** at the root of a worktree, reading `<tree>`'s own `verification.md`. Every
+  worktree superdev creates or reuses for a test run calls the verb before its first test run
+  (`scope-branch.md`'s `## Preparing a worktree`). The call is no test run. A command that fails, is ended by a
+  signal, cannot start, or changes a tracked file exits 3.
+- **`scope.js fail-to-pass` runs it** in its own worktree before each of its two runs, reading the tip's
+  `verification.md` once. A preparation that fails, is ended by a signal, cannot start, or changes a tracked file
+  makes the outcome `unknown`, with a `prepare=` reason.
+- **The reuse gate.** `scope.js fail-to-pass` takes a passing control from the run trace only where the tip states
+  a command or `none`, because only then does its worktree hold what the tree that recorded the control held. With
+  the section absent, the control runs in the verb's worktree.
+- **No preparation is a test command.** It never changes which command runs as the full, the focused, or the
+  whole-repo command.
+
 ## Timing command
 
 An optional **`## Timing command`** section, holding one command that reports what the suite's tests

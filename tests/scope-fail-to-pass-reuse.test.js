@@ -19,7 +19,7 @@ const { appendTrace } = require(scopePath);
   const { probe, CMD, scenario, done } = f2pFixture();
   try {
     const files = {
-      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
+      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD, '\n## Prepare command\n\n`none`\n') },
       tip: { 'src.txt': 'b\n', 'tests/t.sh': probe + 'grep -q b src.txt\n' },
     };
     const runs = (s) => (fs.existsSync(s.log) ? fs.readFileSync(s.log, 'utf8').split('\n').filter(Boolean).length : 0);

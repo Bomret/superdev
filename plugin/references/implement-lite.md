@@ -21,6 +21,8 @@ read `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md` as your last step.
   The invoking checkout is **never switched** — it stays where it was, so a second session can run in the
   same repo. **On `fresh`, do `references/run-init.md`'s deferred copy/commit/revert now**
   — it names this exact point; on `resumed` it already ran in run init, so there is nothing to do here.
+  **Prepare the scopetree**, fresh or resumed: `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <run-root>/scopetree`, per `scope-branch.md`'s
+  `## Preparing a worktree`; a failing preparation stops the run, and `--unattended` blocks.
   All inline implementation happens **in this scopetree**. Then move the **scope anchor** →
   `in-progress` (per `issue-tracker.md`; best-effort).
 
@@ -124,7 +126,7 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
   not judge: the tests did not pass against the changed code, or the run before the change outlasted ten times the
   duration the first run took or 10 seconds, whichever is larger (`verification.failToPassFloorMs` in `.superdev/info.json` overrides the
   10-second floor), or ended by a signal, or a run's command could not start (`start-failed:<code>` in its
-  reason). It draws no finding and starts no fix cycle. The scope run's
+  reason), or the prepare command did not succeed before a run (`prepare=` in its reason, ADR 0218). It draws no finding and starts no fix cycle. The scope run's
   first `unknown` is an observation: you write its triage record under
   `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Observations`, naming the environment gap. That rule
   exempts an inherited `unknown` and counts the first one it does not exempt, whether or not the verb's stderr

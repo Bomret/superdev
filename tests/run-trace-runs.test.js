@@ -494,4 +494,15 @@ assert.deepEqual(tail(trace(A)).map((l) => l.split(' ').slice(0, 2).join(' ')), 
   assert.deepEqual(trace(A).map((l) => l.slice(2, 4).join(' ')), ['run path'], 'a run after the call still records');
 }
 
+// A `scope.js prepare <tree>` call runs the repository's prepare command, no test (ADR 0218): a tree path that matches a test
+// pattern records no run.
+{
+  reset();
+  for (const scope of ['node plugin/scripts/scope.js', 'node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js"']) {
+    post(`${scope} prepare .superdev/scopes/demo/slicetrees/tests`);
+    post(`${scope} prepare tests/fixture.test.js`);
+  }
+  assert.deepEqual(trace(A), [], 'a prepare call records no run');
+}
+
 cleanup();

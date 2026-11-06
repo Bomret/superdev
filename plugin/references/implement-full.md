@@ -21,10 +21,14 @@ run `## Minor sweep` below, then read `${CLAUDE_PLUGIN_ROOT}/references/run-hand
   later command in this file — every merge — addresses the scopetree, `<run-root>/scopetree`,
   with `git -C`, and the invoking checkout is never switched onto the branch. **On `fresh`,
   do `references/run-init.md`'s deferred copy/commit/revert now** — it names this exact
-  point; on `resumed` it already ran in run init, so there is nothing to do here. Then move the **scope
+  point; on `resumed` it already ran in run init, so there is nothing to do here. **Prepare the scopetree**,
+  fresh or resumed: `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <run-root>/scopetree`, per `scope-branch.md`'s `## Preparing a worktree`; a failing
+  preparation stops the run, and `--unattended` blocks. Then move the **scope
   anchor** → `in-progress` (per `issue-tracker.md`; best-effort).
 - **Per slice**, a branch off scope in its own **slicetree** under this run's root:
-  `git worktree add <run-root>/slicetrees/<id> -b slice/<scope>/<id> <branch>`. The slice
+  `git worktree add <run-root>/slicetrees/<id> -b slice/<scope>/<id> <branch>`. **Prepare it** before the
+  slice's dispatch: `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <run-root>/slicetrees/<id>`, per `scope-branch.md`'s `## Preparing a worktree`; a failing
+  preparation stops that slice's dispatch, and `--unattended` blocks. The slice
   branch is **scoped** (`slice/<scope>/<id>`) so parallel runs never collide even when slice ids repeat.
   Filesystem isolation lets independent slices run in parallel; `.superdev/` being git-ignored keeps the
   nested slicetrees out of the parent's status.
@@ -171,7 +175,8 @@ Repeat until every slice is `merged`:
    - **A fail-to-pass `unknown` is no finding.** A `fail-to-pass` trace line reading `unknown` records a run that could
      not judge (ADR 0134, INV-0139). The `superdev:slice-reviewer` dispatch tells it to name every one for the slice in its
      report with its reason (the exit status or signal in `control=`, or the `bound=` the run before the change ran under, or
-     `start-failed:<code>` where a run could not start), to
+     `start-failed:<code>` where a run could not start, or `prepare=` where the prepare command did not succeed before a
+     run, ADR 0218), to
      raise no finding for it, and to start no fix cycle, so you start none either. A slice cut after a break between two slices inherits the failing test, so its
      control run fails and the verb writes `unknown`: that outcome is expected and no finding. Such an inherited `unknown`, its control failure also showing at the
      slice's base, earns no observation. For every other `unknown`, the scope run's first non-exempt `unknown` is an
@@ -495,7 +500,9 @@ the DAG loop at step 1.
 - **Reconcile leftover slicetrees.** For each `<run-root>/slicetrees/<id>` still present,
   check its branch against the ledger: already merged → clean it up (`git worktree remove` +
   `git branch -D slice/<scope>/<id>`); not yet merged → resume it in place (dispatch there with its
-  existing commits intact, per the implementer's own resume discipline) rather than recreating it.
+  existing commits intact, per the implementer's own resume discipline) rather than recreating it, preparing it
+  first: `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <run-root>/slicetrees/<id>`, per `scope-branch.md`'s `## Preparing a worktree`; a failing
+  preparation stops that slice's dispatch, and `--unattended` blocks.
 - **Rebuild the runnable set from reconciled state** (DAG loop step 1) and continue. Where every slice is
   `merged` and `get minors` names a slice, run or continue `## Minor sweep`, taking its cycle count from the
   sweep log, before run handoff.

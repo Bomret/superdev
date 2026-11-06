@@ -76,7 +76,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          Run trace: `trace-log.js` (writer, reader, field codec), `run-tree.js`,
                          `test-runs.js`, `dispatch.js`, `dispatch-lines.js`, `start-stash.js`.
                          Offer guard: `offer-marker.js` (the per-turn offer markers `offer-guard.js` writes and reads, ADR 0213).
-                         Test verbs: `test-verb.js`, `fail-to-pass.js`, `run-supervision.js`.
+                         Test verbs: `test-verb.js`, `fail-to-pass.js`, `run-supervision.js`, `prepare.js` (the prepare command's runner and the `prepare` verb, ADR 0218).
                          Knowledge base: `md-sections.js` (the section rules `kb-patch.js` and the
                          run-state and `dod-line` readers share), `md-to-storage.js` (markdown to
                          Confluence storage), and `kb-staging.js`, `kb-backend-config.js`,
@@ -100,7 +100,7 @@ tests/                 — one suite per shipped executable (the hooks, `scope.j
                          point's suite is split flat by topic into `tests/<entry>-<topic>.test.js` over one
                          `<entry>-setup.js` that is no suite (ADR 0139, ADR 0151): `scope-*` (ledger,
                          ledger-header, suite, dod-line, dod-tags, dod-merge, publish-adopt, trace, root-base, containment,
-                         citations-collisions, source-set, push, open, help, stdin, discard, `test-verb-*`, `fail-to-pass-*`, over `scope-setup.js`),
+                         citations-collisions, source-set, push, open, help, stdin, discard, prepare, `test-verb-*`, `fail-to-pass-*`, over `scope-setup.js`),
                          `run-trace*` (dispatch, drive-paths, guards, paths, runs, stash,
                          writes, over `run-trace-setup.js`), `publish-kb*` (containment, guard, `parent-link-*`,
                          patch, publish, read, scope, templates, timeout, over `publish-kb-setup.js`),
@@ -380,6 +380,11 @@ This root owns every other subtree directly:
   repair choice, which plans a `fix` feature on its own anchor, linked to the original by a `**Repairs:**`
   line (ADR 0124).
   No test runs after review: `/superdev:document` and `/superdev:setup` run no test command, and a green suite record carries across Markdown-only commits with no run. ADR 0189 and INV-0175 state this rule, and the `doc-setup-no-test-run` drift check holds it.
+  Every worktree superdev creates or reuses for a test run runs the repository's **Prepare command** through
+  `scope.js prepare` before its first test run: the scopetree at implement and review start, each slicetree, and a
+  recreated scopetree (`references/scope-branch.md`'s `## Preparing a worktree`). `scope.js fail-to-pass` prepares its
+  own worktree before each run. `docs/agents/verification.md`'s `## Prepare command` section states the command, `none`,
+  or nothing (`references/test-selection.md`'s `## Prepare command`, ADR 0218).
   The scope review's exit run is the scope's one full-suite run: implement and run handoff run no suite, and the
   review runs a focused run at entry. ADR 0192 and INV-0128 state this rule, and the `implement-no-full-run` drift
   check holds it.

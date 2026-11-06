@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0218](0218-a-worktree-runs-the-repositorys-prepare-command.md), which reuses a traced control only
+where `docs/agents/verification.md` states a `## Prepare command`.
+
 **Amends:** [ADR 0182](0182-the-implementer-proves-its-change-and-the-controller-runs-only-suite-gates.md): the verb's control run can come from
 the run trace, and the implementer's last GREEN run of the range's test files is the verb's control.
 

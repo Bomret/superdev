@@ -31,10 +31,10 @@ reports, which names the bound and `code-host.pushTimeoutMs`; `lib/run-state-ref
 
 `scope.js` owns the CLI and the verbs, and requires only modules from `plugin/lib/` (ADR 0151). Each verb's code lives in
 a module of its own: the ledger verbs in `ledger-lifecycle.js` and `ledger-records.js`, `suite` and `base` and `get` in
-`suite-base-get.js`, `test` in `test-verb.js`, `publish` with `adopt` in `run-state.js`, `open` in `plan-open.js`, `dod-merge` in `dod-merge.js` (with `mergeDod`, the per-line merge `fetchRunState` also uses, ADR 0206), and `dod-line`, `dod-tags`, `fail-to-pass`,
+`suite-base-get.js`, `test` in `test-verb.js`, `publish` with `adopt` in `run-state.js`, `open` in `plan-open.js`, `dod-merge` in `dod-merge.js` (with `mergeDod`, the per-line merge `fetchRunState` also uses, ADR 0206), and `dod-line`, `dod-tags`, `fail-to-pass`, `prepare`,
 `citations`, `collisions`, `source-set`, `push`, `discard`, and `status` each in the module of its name. The run-state ref (`refs/superdev/<scope>`, ADR 0202) is `run-state-ref.js`: `pushRunState` at a step end (`step clear`, `step block`, or a `stage set` that closes the standing step, except `stage set closed`), `fetchRunState` inside `adopt`, and `deleteRunState` behind `run-state delete`. It takes `gitCall` from `push.js` and `parseRemote` from `kb-containment.js`. The vocabulary beneath them is `ledger.js` (the stage rank and the readers and writers of
 a ledger's header lines, bullets, and table rows), `refusal.js` (the refusal error `fail`), `verification.js` (`verificationCommands`,
-`verificationCommandsOf`, `isTestPath`), `git-spawn.js` (`gitSpawn`, `gitThrow`, `parseBranchList`, `resolveCommit`, `refResolves`, `fileAt`),
+`verificationCommandsOf`, `prepareCommandOf`, `isTestPath`), `git-spawn.js` (`gitSpawn`, `gitThrow`, `parseBranchList`, `resolveCommit`, `refResolves`, `fileAt`),
 `containment.js` (`testContainment`, `judgeContainment`, `baseHistoryHasPatch`), `main-work-tree.js` (`mainWorkTree`, `scopesDirFor`, `mainTreePath`), and
 `trace-log.js` (`appendTrace`, `readTrace`, `traceField`, `untraceField`). The root [`AGENTS.md`](../AGENTS.md) *Structure* names every module and its
 responsibility. `scope.js` exports only the names a requirer uses. No module requires an entry point. `scope.js` owns the ledger's schema through `ledger.js` and is the only `ledger.md` read and write path in the chain:
@@ -47,7 +47,7 @@ responsibility. `scope.js` exports only the names a requirer uses. No module req
 `base set <sha>`, `base resolve --branch <b> --base <ref>`,
 `get stage|branch|anchor|slices|unresolved|degraded|deferred|minors|denials|docs|pr|suite`,
 `status` (which renders the whole `/superdev:status` report), `trace [--slice <id>]` (prints the run trace, read-only), `publish`, `adopt`, `root <slug>`,
-`staging <scope> [--count]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `citations --range-base <ref> --branch <ref> <id>…`, `source-set [<path>]`, `push --root <run-root> --remote <remote> --base <base-ref>`, `dod-merge --root <run-root>`, `dod-line`, `dod-tags [--map-file <path>] [--line]`, `fail-to-pass <base>..<tip> -- <command>`, and `test`.
+`staging <scope> [--count]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `citations --range-base <ref> --branch <ref> <id>…`, `source-set [<path>]`, `push --root <run-root> --remote <remote> --base <base-ref>`, `dod-merge --root <run-root>`, `dod-line`, `dod-tags [--map-file <path>] [--line]`, `fail-to-pass <base>..<tip> -- <command>`, `prepare <tree>`, and `test`.
 `--help` or `-h`, alone or after any verb, prints the usage and exits 0, except that a flag's value, or the text after `add`, `add-denial`, `reset-denials`, or `resolve`, is data and never a help request. It is checked before any verb
 reads stdin or touches a ledger, so a stdin verb such as `dod-line` never waits on input for it.
 `suite set` writes the **suite record** (CONTEXT.md) — the last full-suite run's result and the commit
@@ -256,7 +256,15 @@ the reviewer's judgment, so the outcome line records it (ADR 0188). The verb ref
 `slicetrees/`, outside every tree the run trace attributes a run to. Outside a run root it sits under `.superdev/`, which
 the verb git-ignores first through the repository's `info/exclude`.
 
-The first run is against the changed code and must pass. Inside a run root, the trace can supply it (ADR 0215): the last
+Where the tip's `## Prepare command` section states a command, the verb runs it at the worktree's root before each run, the
+second time after the put-back, through `runPrepare` of `lib/prepare.js` (ADR 0218). It reads the section once, from the tip,
+because the put-back can restore the base's `verification.md`. A preparation's time counts in neither run's duration nor
+the bound. A preparation that fails, is ended by a signal, cannot start, or changes a tracked file gives no verdict:
+the outcome is `unknown` with `prepare=<exit|signal|start-failed:<code>|dirty>`, or `control=0,prepare=…` before the second
+run, and one before the first run writes no control run line.
+
+The first run is against the changed code and must pass. Inside a run root, where the tip states a prepare command or
+`none`, the trace can supply it (ADR 0215, ADR 0218): the last
 `path` run line at `<tip>` on a clean tree that names every test file the range adds or modifies and ends with a duration
 is the first run when it passed and no failing `path` run line at `<tip>` follows it. The verb then runs the command once,
 bounds that run with the line's duration, writes no control run line, and names the reused line on stderr. The verb then resets and cleans the worktree. The verb puts
@@ -274,7 +282,7 @@ because nothing is put back, and a range that changes no test file, because no t
 The outcome is `fail-to-pass` when the second run fails, and `pass-to-pass` when it passes. It is `unknown` when the first
 run fails, when the second run is killed at its bound or ended by a signal, and when either run's command cannot start
 (no shell on the PATH among the causes), its reason then reading `start-failed:<code>` in place of the exit
-status. No reviewer reads `unknown` as a verdict,
+status, and when a preparation gives no verdict. No reviewer reads `unknown` as a verdict,
 and no gate reads it as green.
 
 Inside a run root the verb appends one `fail-to-pass` trace line, `<base>..<tip> <outcome> <reason> <command>`. Its slice is the
@@ -294,10 +302,24 @@ nothing ran, and 128 plus the signal number when interrupted. An interrupt ends 
 watcher process covers a killed verb, so no worktree outlives the verb. A suite that outlasts the Bash tool's time limit runs the verb
 in the background (`references/test-selection.md`).
 
+`prepare <tree>` runs the **Prepare command** (CONTEXT.md, ADR 0218) at the root of `<tree>`, which must be the root of a
+working tree that `git worktree list` names for the invoking repository; any other path is refused with exit 1. It reads
+`docs/agents/verification.md` from `<tree>` itself, through `prepareCommandOf` of `lib/verification.js`. With no
+`## Prepare command` section it prints one note on stderr naming the section and `/superdev:setup`, runs nothing, and exits 0.
+With `none` it exits 0 silently. A command runs through `runPrepare` of `lib/prepare.js` in a process group of its own, its
+output on stderr and nothing on stdout. A command that exits nonzero, is ended by a signal, or cannot start exits 3, naming the
+command and its exit, signal, or start error. A command that succeeds but changes a tracked file exits 3 too, naming the
+command and each changed path. The verb compares each tracked path's difference from `HEAD`, staged and unstaged, before and
+after the command, read with `--no-ext-diff --no-textconv` so no diff program of the user's runs, and a tracked edit the
+tree already held is no such change. An untracked file it writes is no such change either, the
+rule `fail-to-pass` applies. An interrupt ends the command's group with `SIGKILL` and exits 128 plus the signal
+number. A `scope.js prepare` call is no test run: `hooks/run-trace.js` records no run for it, as it records none for any
+`node` script outside the test paths.
+
 `scope.js` has one suite per topic, so a test-first step on one verb runs only that verb's cases (ADR 0139, ADR 0151). `tests/scope-setup.js`
 holds the setup they share and is no suite. The `test` verb's cases split over `scope-test-verb-<topic>` (dirty, first-moment-kill,
 first-moment-term, install, kill, late-fork, record, refusals, tree) and the `fail-to-pass` verb's over `scope-fail-to-pass-<topic>` (bound,
-concurrency, environment, interrupt, signals, trace, verdict, watcher). The rest: `scope-ledger` (init, stage, step, slice, the bullet and header records, get, status, and the ledger-fixtures pin),
+concurrency, environment, interrupt, prepare, reuse, signals, trace, verdict, watcher), and the `prepare` verb's is `scope-prepare`. The rest: `scope-ledger` (init, stage, step, slice, the bullet and header records, get, status, and the ledger-fixtures pin),
 `scope-ledger-header` (`readLedgerHeader`), `scope-suite` (the suite and base records), `scope-dod-line`, `scope-dod-tags` (the `dod-tags` verb), `scope-dod-merge` (the `dod-merge` verb), `scope-publish-adopt` (`publish`, `adopt`, and the
 `maskFencedLines` pin), `scope-trace` (the run trace, `appendTrace`, and its run-lock refresh), `scope-root-base` (`root`, `staging`, `base` from a linked worktree),
 `scope-containment`, `scope-citations-collisions`, `scope-source-set`, `scope-push`, `scope-open`, `scope-help`, and `scope-stdin` (every verb that reads piped input receives it through the CLI). A focused run for `scope.js`, or for a module it requires, selects
