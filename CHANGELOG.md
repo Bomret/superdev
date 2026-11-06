@@ -1,3 +1,10 @@
+## [0.102.5](https://github.com/Bomret/superdev/compare/v0.102.4...v0.102.5) (2026-11-06)
+
+
+### Bug Fixes
+
+* **kb:** stop suggesting ADR summaries in knowledge-base seeds ([#100](https://github.com/Bomret/superdev/issues/100)) ([a2fd92b](https://github.com/Bomret/superdev/commit/a2fd92b6c2ff5b6a156ce430bd174cc0ac19184b))
+
 ## [0.102.4](https://github.com/Bomret/superdev/compare/v0.102.3...v0.102.4) (2026-11-06)
 
 
