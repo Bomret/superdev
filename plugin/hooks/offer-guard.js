@@ -2,7 +2,8 @@
 'use strict';
 
 // offer-guard: holds a main-session turn once when its last message ends on a Next block naming one command that no offer
-// call of the same turn named (ADR 0213, INV-0183). PostToolUse on an offer call writes a marker; Stop reads them.
+// call of the same turn named (ADR 0213, INV-0183). PostToolUse on an offer call writes a marker; Stop reads them. A next
+// command that is the superdev skill the transcript last started passes: that skill is still running (ADR 0222).
 // Fails open: any malformed input or filesystem error exits 0 with no output.
 
 const OFFER_LINE = 'A superdev offer started this session.';
@@ -92,7 +93,7 @@ function headlessCommand(lines) {
   return names.size === 1 ? [...names][0] : null;
 }
 
-function decide(input, markers) {
+function decide(input, markers, skills) {
   if (input.hook_event_name === 'PostToolUse') {
     for (const cmd of offeredCommands(input)) markers.writeMarker(input.session_id, input.prompt_id, cmd);
     return null;
@@ -102,6 +103,7 @@ function decide(input, markers) {
   if (!offered || input.stop_hook_active === true || typeof input.last_assistant_message !== 'string') return null;
   const cmd = nextCommand(input.last_assistant_message);
   if (!cmd || offered.has(cmd)) return null;
+  if (cmd === skills.runningSkill(input.transcript_path)) return null;
   return { decision: 'block', reason: REASON };
 }
 
@@ -113,7 +115,7 @@ function main() {
     try {
       const input = JSON.parse(raw);
       if (!input || typeof input !== 'object') return;
-      const out = decide(input, require('../lib/offer-marker.js'));
+      const out = decide(input, require('../lib/offer-marker.js'), require('../lib/running-skill.js'));
       if (out) process.stdout.write(JSON.stringify(out));
     } catch { /* fail open */ }
   });

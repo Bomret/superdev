@@ -75,7 +75,8 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          fetched in `adopt`, deleted at wrap-up, ADR 0202).
                          Run trace: `trace-log.js` (writer, reader, field codec), `run-tree.js`,
                          `test-runs.js`, `dispatch.js`, `dispatch-lines.js`, `start-stash.js`.
-                         Offer guard: `offer-marker.js` (the per-turn offer markers `offer-guard.js` writes and reads, ADR 0213).
+                         Offer guard: `offer-marker.js` (the per-turn offer markers `offer-guard.js` writes and reads, ADR 0213),
+                         `running-skill.js` (the superdev skill a session transcript last started, ADR 0222).
                          Test verbs: `test-verb.js`, `fail-to-pass.js`, `run-supervision.js`, `prepare.js` (the prepare command's runner and the `prepare` verb, ADR 0218).
                          Knowledge base: `md-sections.js` (the section rules `kb-patch.js` and the
                          run-state and `dod-line` readers share), `md-to-storage.js` (markdown to
@@ -437,12 +438,13 @@ This root owns every other subtree directly:
   `run-lock.js` requires it too, for its drive-path translator (ADR 0150). When the module cannot load, the
   guardrails `merge-guard.js`, `ledger-guard.js`, and `run-lock.js` fail closed,
   `run-trace.js` records nothing, and `test-guard.js` passes the call (INV-0140).
-  `offer-guard.js` requires `../lib/offer-marker.js`. Its PostToolUse half records each offer call
+  `offer-guard.js` requires `../lib/offer-marker.js` and `../lib/running-skill.js`. Its PostToolUse half records each offer call
   (`start_session` with the offer's marker line, or an `AskUserQuestion` with a `Start /superdev:` option) by
   session, turn, and command. Its Stop half, last in the Stop array, holds a main-session turn once when the last
   message's Next block names one command no offer call of the turn named. A message with no `### Next` heading counts
   as one when its lone-command fences and its `/superdev:` code spans on a line saying "next" name one command
-  (ADR 0213, ADR 0216, INV-0183). It fails open on
+  (ADR 0213, ADR 0216, INV-0183). It passes a turn whose command is the superdev skill the session transcript
+  last started, by `<command-name>` or `Skill` call (ADR 0222). It fails open on
   any malformed input or filesystem error, and passes a Stop with `stop_hook_active` set.
 - `scripts/` and `plugin/scripts/`. Owned by [`scripts/AGENTS.md`](scripts/AGENTS.md), which states
   each script's contract: the shipped `plugin/scripts/` CLIs `scope.js`, `kb-patch.js`, `publish-kb.js`,

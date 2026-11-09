@@ -5,6 +5,9 @@
 **Amends:** [ADR 0213](0213-a-stop-hook-holds-the-offer.md): the hook also holds a message that names its next
 command without a `### Next` heading.
 
+**Amended by:** [ADR 0222](0222-the-offer-guard-passes-the-running-skill.md): a next command that is the
+skill still running passes.
+
 ## Context
 
 `hooks/offer-guard.js` held a turn only when its last message carried a `### Next` heading. Transcripts of
