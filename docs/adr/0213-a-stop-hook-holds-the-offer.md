@@ -6,7 +6,8 @@
 only stated.
 
 **Amended by:** [ADR 0216](0216-the-offer-guard-reads-a-next-step-without-its-heading.md): a next step
-without its heading is held too.
+without its heading is held too. [ADR 0222](0222-the-offer-guard-passes-the-running-skill.md): a next
+command that is the skill still running passes.
 
 ## Context
 

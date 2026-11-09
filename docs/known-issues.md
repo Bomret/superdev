@@ -398,7 +398,7 @@ call, with no New task card.
 follow-up and wrap-up guidance and makes the offer call the first action of the closing, before the
 wrap-up call. The Stop hook `hooks/offer-guard.js` holds a main-session turn once when its Next block names
 one command that no offer call of the turn named.
-A message that names one next command without the `### Next` heading is held too (ADR 0213, ADR 0216, INV-0183).
+A message that names one next command without the `### Next` heading is held too (ADR 0213, ADR 0216, INV-0183). A next command that is the superdev skill the transcript last started is not held (ADR 0222).
 
 **Fix required at:** none in superdev. The app's guidance is the app's own; the hook holds the offer
 whatever the prompt says.

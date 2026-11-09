@@ -21,7 +21,7 @@ Applies to every start. Write only these: the intent file as the interview runs,
 
 ## The closing message
 
-Applies to every message this command ends on. Close it with the Next block per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in that file's `## The offer` section (ADR 0157).
+Applies to the message of each exit of §6: the intent is ready, or the operator stops before it is. Close it with the Next block per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in that file's `## The offer` section (ADR 0157). An interview turn that ends on a question to the operator is no exit: end it on the question, with no Next block and no next command.
 
 ## The mode
 

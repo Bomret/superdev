@@ -122,6 +122,36 @@ function passed(r, label) {
   passed(run(tmp, stop('Next would be `/superdev:submit-pr a`.')), 'headless offered');
 }
 
+// A next command that is the superdev skill the transcript last started passes: a typed command or a Skill call starts
+// it, a later start replaces it, tool results start none, and an unreadable transcript passes nothing.
+{
+  const tmp = freshTmp();
+  const transcript = (entries) => {
+    const f = path.join(tmp, `t-${Math.random().toString(36).slice(2)}.jsonl`);
+    fs.writeFileSync(f, entries.map((e) => JSON.stringify(e)).join('\n') + '\nnot json superdev:\n');
+    return f;
+  };
+  const typed = (n) => ({ type: 'user', message: { role: 'user', content: `<command-message>superdev:${n}</command-message>\n<command-name>/superdev:${n}</command-name>\n<command-args>x</command-args>` } });
+  const called = (n) => ({ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Skill', input: { skill: `superdev:${n}` } }] } });
+  const result = (n) => ({ type: 'user', message: { content: [{ type: 'tool_result', content: `<command-name>/superdev:${n}</command-name>` }] } });
+  const headless = 'Question?\n\n**Next:** answer it. To start over, run `/superdev:brainstorm`.';
+  passed(run(tmp, stop(headless, { transcript_path: transcript([typed('brainstorm')]) })), 'typed running skill');
+  passed(run(tmp, stop(next('/superdev:brainstorm'), { transcript_path: transcript([typed('brainstorm')]) })), 'headed running skill');
+  passed(run(tmp, stop(headless, { transcript_path: transcript([typed('plan'), called('brainstorm')]) })), 'called running skill');
+  blocked(run(tmp, stop(headless, { transcript_path: transcript([typed('brainstorm'), called('plan')]) })));
+  blocked(run(tmp, stop(headless, { transcript_path: transcript([typed('plan'), result('brainstorm')]) })));
+  blocked(run(tmp, stop(next('/superdev:plan'), { transcript_path: transcript([typed('brainstorm')]) })));
+  blocked(run(tmp, stop(headless, { transcript_path: path.join(tmp, 'missing.jsonl') })));
+  const pasted = { type: 'user', message: { content: 'Look at this:\n<command-name>/superdev:brainstorm</command-name>' } };
+  blocked(run(tmp, stop(headless, { transcript_path: transcript([typed('plan'), pasted]) })));
+  // A start far behind the tail, and a start on a line longer than one read chunk, are both found.
+  const filler = { type: 'user', message: { content: 'x'.repeat(300000) } };
+  passed(run(tmp, stop(headless, { transcript_path: transcript([typed('plan'), typed('brainstorm'), ...Array(8).fill(filler)]) })), 'start behind the tail');
+  const long = typed('brainstorm');
+  long.message.content += 'y'.repeat(3 << 20);
+  passed(run(tmp, stop(headless, { transcript_path: transcript([typed('plan'), long, filler]) })), 'start on a long line');
+}
+
 // An unattended run's Next block is held once: the Stop input carries no posture, so the hook cannot tell it apart.
 {
   const tmp = freshTmp();
