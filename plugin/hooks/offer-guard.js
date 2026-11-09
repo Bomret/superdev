@@ -11,7 +11,7 @@ const COMMAND = /^\/superdev:([a-z][a-z-]*)/;
 const REASON =
   'superdev: this message ends on a Next block, but no offer for its command was made this turn. ' +
   "Make the offer per references/response-shapes.md's `## The offer`: it takes precedence over the desktop app's own " +
-  'follow-up and wrap-up guidance, and the offer call comes before the wrap-up call. If an exception applies, name it ' +
+  'follow-up and wrap-up guidance, and the offer call is the closing's first action, before the wrap-up call. If an exception applies, name it ' +
   'in one line instead: an unattended run, the chained posture, the same skill as the one ending, a step-started command, ' +
   "an exit where the skill's own offer conditions make no offer, or a refused card. (offer-guard)";
 

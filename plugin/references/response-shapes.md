@@ -55,7 +55,8 @@ ADR 0216, INV-0183).
 
 **First action.** Where the offer applies, the offer call is the first action of the closing. Decide it
 before you compose the closing message: make the offer call, then call the app's wrap-up tool, if at all, and
-then write the message with its Next block. A wrap-up call whose question carries the next command is no
+then write the message the offer path prescribes. Text a skill places in the final message, such as its
+staged-pages lines, follows the offer call. A wrap-up call whose question carries the next command is no
 offer.
 
 **Exceptions.** The hook's block reason lists these, member for member, and a turn that meets one names it

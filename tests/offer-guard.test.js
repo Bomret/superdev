@@ -57,6 +57,7 @@ function passed(r, label) {
   const reason = blocked(run(tmp, stop(next('/superdev:review offer-guard'))));
   assert.match(reason, /## The offer/);
   assert.match(reason, /precedence/);
+  assert.match(reason, /offer call is the closing's first action, before the wrap-up call/);
   for (const w of ['unattended', 'chained', 'same skill', 'step', 'refused', "an exit where the skill's own offer conditions make no offer"])
     assert.match(reason, new RegExp(w), w);
 }
