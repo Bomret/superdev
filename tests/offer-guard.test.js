@@ -57,7 +57,8 @@ function passed(r, label) {
   const reason = blocked(run(tmp, stop(next('/superdev:review offer-guard'))));
   assert.match(reason, /## The offer/);
   assert.match(reason, /precedence/);
-  for (const w of ['unattended', 'chained', 'same skill', 'step', 'refused']) assert.match(reason, new RegExp(w), w);
+  for (const w of ['unattended', 'chained', 'same skill', 'step', 'refused', "an exit where the skill's own offer conditions make no offer"])
+    assert.match(reason, new RegExp(w), w);
 }
 
 // An offer card with the marker line, or a Start option, lets the Next block stop; markers end at Stop.
