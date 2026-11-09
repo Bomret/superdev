@@ -1,3 +1,11 @@
+## [0.102.7](https://github.com/Bomret/superdev/compare/v0.102.6...v0.102.7) (2026-11-09)
+
+
+### Bug Fixes
+
+* **offer-guard:** pass a next command that is the running skill ([#109](https://github.com/Bomret/superdev/issues/109)) ([38a3a5c](https://github.com/Bomret/superdev/commit/38a3a5c52d007364d95c90b3cf84141f732ad2f5))
+* **scope:** bound the fail-to-pass control run ([#108](https://github.com/Bomret/superdev/issues/108)) ([712b951](https://github.com/Bomret/superdev/commit/712b951ffdd9f982c4bd3ad8bd9c86ab55cbc40e)), closes [#26](https://github.com/Bomret/superdev/issues/26)
+
 ## [0.102.6](https://github.com/Bomret/superdev/compare/v0.102.5...v0.102.6) (2026-11-09)
 
 
