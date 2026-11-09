@@ -278,7 +278,7 @@ same invocation, or at a floor of 10 000 ms, whichever is larger (INV-0009, ADR 
 operator configuration (`### The operator configuration`) overrides the floor in milliseconds; a value that is not a
 whole number from 1 to 2147483647 (the longest delay Node's timer holds) reads as absent, and the verb names that key once per process in one line on stderr. The suite's cases that hang
 the second run write the key, so none waits the floor. `lib/fail-to-pass.js` exports the bound as the pure function
-`failToPassBoundMs(controlMs, floorMs)` the floor reader `failToPassFloorMs(cwd)`, and the control bound reader `failToPassControlMs(cwd)`, and the verb calls the first with the floor the second reads once. The suite pins the factor and
+`failToPassBoundMs(controlMs, floorMs)`, the floor reader `failToPassFloorMs(cwd)`, and the control bound reader `failToPassControlMs(cwd)`, and the verb calls the first with the floor the second reads once. The suite pins the factor and
 the floor on the bound function with no clock, and the override on the floor reader, because the first run's measured duration includes its own start-up, and load
 stretches that start-up by seconds. The verb refuses a range that changes no file and a range that changes only test files,
 because nothing is put back, and a range that changes no test file, because no test of its own can fail.
