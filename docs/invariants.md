@@ -1499,7 +1499,7 @@ Paths: plugin/scripts/scope.js, plugin/lib/dod-line.js, plugin/skills/plan/SKILL
 
 Class: architecture
 Concepts: Next block, Offer
-Statement: A main-session turn that ends on a Next block naming one command, with no `Blocked:` or `First:` line, or with no Next heading names one command in a lone-command fence or in a `/superdev:` code span on a line saying "next", ends only after an offer call of that turn named that command, or after one block by `hooks/offer-guard.js`. The hook fails open on every malformed input and never blocks twice in a row (ADR 0213, ADR 0216).
+Statement: A main-session turn that ends on a Next block naming one command, with no `Blocked:` or `First:` line, or with no Next heading names one command in a lone-command fence or in a `/superdev:` code span on a line saying "next", ends only after an offer call of that turn named that command, or after one block by `hooks/offer-guard.js`. The block reason names the exceptions, among them an exit where the skill's own offer conditions make no offer. The hook fails open on every malformed input and never blocks twice in a row (ADR 0213, ADR 0216).
 Breaks: silently
 Check: the `offer-guard.js` suite
 Paths: plugin/hooks/offer-guard.js, plugin/hooks/hooks.json, plugin/references/response-shapes.md
