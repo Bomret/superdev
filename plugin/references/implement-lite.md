@@ -123,7 +123,8 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
   on stderr with the status still 0. Status 1 means the verb refused the range, naming the reason, or hit an error.
   Name a test file the command left out and run it again; an error blocks nothing, and `final-reviewer`
   reads the trace at the scope review. An `unknown` (status 0) means the verb could
-  not judge: the tests did not pass against the changed code, or the run before the change outlasted ten times the
+  not judge: the tests did not pass against the changed code or outlasted their bound, 300000 ms
+  (`verification.failToPassControlMs` in `.superdev/info.json` overrides it), or the run before the change outlasted ten times the
   duration the first run took or 10 seconds, whichever is larger (`verification.failToPassFloorMs` in `.superdev/info.json` overrides the
   10-second floor), or ended by a signal, or a run's command could not start (`start-failed:<code>` in its
   reason), or the prepare command did not succeed before a run (`prepare=` in its reason, ADR 0218). It draws no finding and starts no fix cycle. The scope run's

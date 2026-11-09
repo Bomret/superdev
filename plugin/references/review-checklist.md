@@ -309,7 +309,9 @@ slice's base.
 
 **An `unknown` outcome is no finding.** A `fail-to-pass` line reading `unknown` records a run that could not judge
 (ADR 0134, INV-0139). Either the tests did not pass against the changed code, and `control=`
-names the exit status or the signal they ended with. Or the run before the change outlasted ten times the duration
+names the exit status or the signal they ended with. Or the run against the changed code outlasted its bound, 300000 ms
+(`verification.failToPassControlMs` in `.superdev/info.json` overrides it), and `control=` with `bound=` names how it ended and
+the bound. Or the run before the change outlasted ten times the duration
 the run against the changed code took or 10 seconds, whichever is larger (ADR 0142;
 `verification.failToPassFloorMs` in `.superdev/info.json` overrides the 10-second floor), or ended by a signal, and `bound=` names the bound the run ran under. A run
 whose command could not start reads `start-failed:<code>` in place of its exit status. A prepare command that did not

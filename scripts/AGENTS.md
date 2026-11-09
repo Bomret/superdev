@@ -22,7 +22,7 @@ This doc owns what each script guards and the contracts between them. Repo-wide 
 The operator configuration is `.superdev/info.json` of the main working tree. A setting lives there and in no environment variable, because a file shows what is set, belongs to one repository, and is documented by the plugin, where a process environment is invisible and can change behavior from outside (ADR 0207). `plugin/lib/operator-config.js` reads it
 (`operatorSection(cwd, section)` and `operatorBoundMs(cwd, section, key, fallback)`), and a missing file, section, or key gives the
 fallback silently. The time-bound keys are `code-host.pushTimeoutMs` (`lib/push.js`, 60000 ms), `verification.failToPassFloorMs`
-(`lib/fail-to-pass.js`, 10000 ms), and `knowledge-base.timeoutMs` (`lib/kb-backend.js`, 30000 ms). `knowledge-base.teaLogin` and the
+(`lib/fail-to-pass.js`, 10000 ms), `verification.failToPassControlMs` (`lib/fail-to-pass.js`, 300000 ms), and `knowledge-base.timeoutMs` (`lib/kb-backend.js`, 30000 ms). `knowledge-base.teaLogin` and the
 other `knowledge-base` keys reach a backend template under `operator` in its values file. No superdev-owned environment variable
 carries a setting or a value (ADR 0207). `lib/push.js` exports `boundEnded(cwd, signal)`, the phrase every bound-ended git call
 reports, which names the bound and `code-host.pushTimeoutMs`; `lib/run-state-ref.js` reports through it too.
@@ -267,14 +267,18 @@ The first run is against the changed code and must pass. Inside a run root, wher
 `none`, the trace can supply it (ADR 0215, ADR 0218): the last
 `path` run line at `<tip>` on a clean tree that names every test file the range adds or modifies and ends with a duration
 is the first run when it passed and no failing `path` run line at `<tip>` follows it. The verb then runs the command once,
-bounds that run with the line's duration, writes no control run line, and names the reused line on stderr. The verb then resets and cleans the worktree. The verb puts
+bounds that run with the line's duration, writes no control run line, and names the reused line on stderr. A first run the verb
+runs itself is bounded at 300 000 ms, or `verification.failToPassControlMs` of the operator configuration, read the same way as the
+floor; the prepare command's time falls outside it. A first run that outlasts its bound is killed with its process group, records
+`unknown` with the reason `control=<exit or signal>,bound=<ms>ms` whatever exit status it reports, writes no run line, and the second
+run never starts. The verb then resets and cleans the worktree. The verb puts
 every changed file outside the test paths back as that file stood at `<base>`, and commits the put-back on the detached
 HEAD. The verb runs the command again and bounds that second run at 10 times the first run's duration, measured in the
 same invocation, or at a floor of 10 000 ms, whichever is larger (INV-0009, ADR 0142). `verification.failToPassFloorMs` of the
 operator configuration (`### The operator configuration`) overrides the floor in milliseconds; a value that is not a
 whole number from 1 to 2147483647 (the longest delay Node's timer holds) reads as absent, and the verb names that key once per process in one line on stderr. The suite's cases that hang
 the second run write the key, so none waits the floor. `lib/fail-to-pass.js` exports the bound as the pure function
-`failToPassBoundMs(controlMs, floorMs)` and the floor reader `failToPassFloorMs(cwd)`, and the verb calls the first with the floor the second reads once. The suite pins the factor and
+`failToPassBoundMs(controlMs, floorMs)` the floor reader `failToPassFloorMs(cwd)`, and the control bound reader `failToPassControlMs(cwd)`, and the verb calls the first with the floor the second reads once. The suite pins the factor and
 the floor on the bound function with no clock, and the override on the floor reader, because the first run's measured duration includes its own start-up, and load
 stretches that start-up by seconds. The verb refuses a range that changes no file and a range that changes only test files,
 because nothing is put back, and a range that changes no test file, because no test of its own can fail.
