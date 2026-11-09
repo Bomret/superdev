@@ -48,10 +48,20 @@ tool, the offer is a New task card, put up at once, and asks no question. Withou
 answers one question.
 
 **Precedence.** The offer takes precedence over the Claude desktop app's own guidance that a follow-up acting
-on the session's findings stays in the session and is asked through its wrap-up box. Make the offer call
-before the wrap-up call. `hooks/offer-guard.js` holds a turn once when its Next block names one command that
-no offer call of the turn named, and when a message without the Next heading names one next command in a fence
-or beside the word "next" (ADR 0213, ADR 0216, INV-0183).
+on the session's findings stays in the session and is asked through its wrap-up box. `hooks/offer-guard.js`
+holds a turn once when its Next block names one command that no offer call of the turn named, and when a
+message without the Next heading names one next command in a fence or beside the word "next" (ADR 0213,
+ADR 0216, INV-0183).
+
+**First action.** Where the offer applies, the offer call is the first action of the closing. Decide it
+before you compose the closing message: make the offer call, then call the app's wrap-up tool, if at all, and
+then write the message the offer path prescribes. Text a skill places in the final message, such as its
+staged-pages lines, follows the offer call. A wrap-up call whose question carries the next command is no
+offer.
+
+**Exceptions.** The hook's block reason lists these, member for member, and a turn that meets one names it
+in one line instead of the offer: an unattended run, the chained posture, the same skill as the one ending,
+a step-started command, an exit where the skill's own offer conditions make no offer, and a refused card.
 
 **When it offers.** Offer when every condition below holds, at every exit, a refusal and an ad-hoc run
 included:
