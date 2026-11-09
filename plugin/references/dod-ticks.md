@@ -161,7 +161,8 @@ together must have covered. Each write lands in `<run-root>/dod.md`, the run's o
 - **Implement's case and run handoff's pass write `dod.md` alone.** They are the only writers that skip
   the anchor, so its checklist lacks their ticks until the anchor sync copies them (ADR 0206).
 - **Every other write also lands on the scope anchor**: review's, the doc pass's, and verify-ship's. The
-  review opens with the anchor sync (`## Pairing dod.md with the anchor` below).
+  review runs the anchor sync at entry and again before each stage write (`## Pairing dod.md with the anchor`
+  below).
 - **The anchor write** goes through the active slice store's own `## Definition of Done ticks` section
   (every store document carries one), which runs `scope.js dod-line` (`plan-contract.md` → *Definition of
   Done ticks*) for the line edit itself through that store's gated **Edit an issue's body** rule (ADR
@@ -179,13 +180,15 @@ them this way:
 - **A paired line whose verdict on the anchor differs from `dod.md`** is a tick the anchor has not
   received yet. The **anchor sync** rewrites each such anchor line from `dod.md` through the store's
   `## Definition of Done ticks` section (`scope.js dod-line`), one line at a time, and leaves a paired line
-  whose verdict agrees untouched. The scope review runs it before it applies any verdict
-  (`review-scope-mode.md`'s `### 4.5 The Definition-of-Done criteria`), and `/superdev:verify-ship` runs it
-  before it observes anything.
+  whose verdict agrees untouched. The scope review runs it at entry, before its first dispatch of
+  `final-reviewer`, at every stage it accepts, whatever its verdict
+  (`review-scope-mode.md`'s `### 4.1 The scope checkout and the base`), and again before each stage write
+  (`### 4.10 The clean verdict and the handoff`). `/superdev:verify-ship` runs it before it observes anything.
+  A failed anchor call is reported once and stops nothing.
 - **A `dod.md` line with no text-matching line on the anchor** is unpaired. It is never counted as a
   verdict disagreement and is never retried by the anchor sync, because `dod-line` cannot rewrite a line
   the anchor lacks. It needs a hand-sync of the anchor's criterion text to `dod.md`'s; the anchor sync
-  cannot reach it.
+  cannot reach it, and the scope review's report names it.
 
 ## Reading the report
 

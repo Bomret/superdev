@@ -101,6 +101,12 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 
 - **The scope checkout is not on `<type>/<scope>`** → report that and review read-only, writing nothing to the wrong branch.
 
+**The anchor sync.** Applies on every route of the review (a clean verdict, the inline review after a denied dispatch, a second invocation) and at every stage it accepts, `submitted` included, after the scope checkout and the run lock and before the first dispatch of `final-reviewer`. §4.1's stage gates leave it unchanged, and no verdict gates it. Implement and run handoff tick `dod.md` alone, so the anchor's checklist can lack their ticks (ADR 0206). Read the anchor's Definition-of-Done lines per `docs/agents/issue-tracker.md`. Run the anchor sync of `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## Pairing dod.md with the anchor`.
+
+- A failed anchor read or line write is reported once per run and never stops the review. `dod.md` stays authoritative.
+- A `dod.md` line the sync cannot pair is named in the review's report with the instruction to hand-sync the anchor's criterion text to `dod.md`'s.
+- §4.10's anchor re-sync runs the same operation again before each stage write.
+
 **The base.** Applies at a stage before `submitted`, read with `scope.js get stage --root <run-root>`. Run `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Bringing the scope branch to base` after the scope checkout and the run lock. It runs before the entry run of §4.2 (ADR 0173). Its own rules apply unchanged.
 
 - The unchanged rules: conflict, numbering-collision, citation, unattended-block, and degraded-fetch.
@@ -194,10 +200,9 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 
 ### 4.5 The Definition-of-Done criteria
 
-**The anchor sync.** Applies to the first verdict of this review, `final-reviewer`'s or the inline review's after a denied dispatch, before any tick or untick below. Implement and run handoff tick `dod.md` alone, so the anchor's checklist still lacks their ticks (ADR 0206). Read the anchor's Definition-of-Done lines per `docs/agents/issue-tracker.md`. Run the anchor sync of `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## Pairing dod.md with the anchor`.
+**The anchor sync.** Applies before any tick or untick below. §4.1's `**The anchor sync.**` ran at review entry, so the anchor's checklist already agrees with `dod.md`.
 
-- A failed anchor read or line write is reported once per run and never stops the review. `dod.md` stays authoritative.
-- Every tick and untick after the sync writes `dod.md` and the anchor's checklist, as the concepts below state.
+- Every tick and untick here writes `dod.md` and the anchor's checklist, as the concepts below state.
 
 **A broken line.** Applies to a line `final-reviewer`'s `### Criteria` calls broken, ticked or not (`### Judge every criterion` owns the verdicts). It is a Critical finding. Untick it first. Fold it into the findings list beside `final-reviewer`'s `### Issues` after the untick.
 
@@ -320,6 +325,11 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 - Every other `dod.md` line keeps whatever state and note it already carried.
 
 ### 4.10 The clean verdict and the handoff
+
+**The anchor re-sync.** Applies before each stage write of this review and on each leave-alone branch of the stage write below, and runs ahead of the `docs` untick's own writes. Read the anchor's Definition-of-Done lines again, per §4.1's `**The anchor sync.**`. Rewrite each paired line whose verdict, its note, differs from `dod.md`, by the note and never the box (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## Pairing dod.md with the anchor`).
+
+- A line whose verdict already agrees stays unchanged, so a second review with nothing new to copy writes nothing.
+- A failed read or write follows §4.1's rule: reported once per run, never a stop. A line already reported as unpaired stays in the report's one hand-sync list.
 
 **The stage write.** Applies on a clean verdict whose exit run's outcome goes to this stage write under §4.2's exit record and outcome concept, and only then. Clear any standing `**Unresolved:**` entry with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. Read the stage with `scope.js get stage`. Write `**Stage:**` with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set <value> --root <run-root>` per the cases below.
 
