@@ -1,3 +1,10 @@
+## [0.102.6](https://github.com/Bomret/superdev/compare/v0.102.5...v0.102.6) (2026-11-09)
+
+
+### Bug Fixes
+
+* **review:** sync the anchor, merge a moved base, and offer before wrap-up ([f084c5b](https://github.com/Bomret/superdev/commit/f084c5bea798e01ca4e43f56e585458bd6572c49))
+
 ## [0.102.5](https://github.com/Bomret/superdev/compare/v0.102.4...v0.102.5) (2026-11-06)
 
 
