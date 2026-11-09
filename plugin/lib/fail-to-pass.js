@@ -24,6 +24,12 @@ const FAIL_TO_PASS_FLOOR_MS = 10000;
 
 const failToPassFloorMs = (cwd) => operatorBoundMs(cwd, 'verification', 'failToPassFloorMs', FAIL_TO_PASS_FLOOR_MS);
 
+// The bound on the control run, the first run against the changed code: 300 000 ms, or the operator configuration's
+// `verification.failToPassControlMs` (ADR 0207). A control reused from the run trace runs nothing and takes no bound.
+const FAIL_TO_PASS_CONTROL_MS = 300000;
+
+const failToPassControlMs = (cwd) => operatorBoundMs(cwd, 'verification', 'failToPassControlMs', FAIL_TO_PASS_CONTROL_MS);
+
 // The bound on the run with the files put back: ten times the control's duration, rounded up, or the floor, whichever
 // is larger (ADR 0142). Pure: it reads no clock, and the caller reads the floor.
 const failToPassBoundMs = (controlMs, floorMs) => Math.max(Math.ceil(controlMs * 10), floorMs);
@@ -34,7 +40,8 @@ const failToPassBoundMs = (controlMs, floorMs) => Math.max(Math.ceil(controlMs *
 // @typedef {'fail-to-pass' | 'pass-to-pass' | 'unknown'} FailToPassOutcome
 //   fail-to-pass: the tests passed against the changed code and failed with the range's other files put back.
 //   pass-to-pass: they passed both times, so they do not discriminate what the range changed.
-//   unknown:      the run could not judge (INV-0139): the tests did not pass against the changed code, or the run with the
+//   unknown:      the run could not judge (INV-0139): the tests did not pass against the changed code, or the control outlasted
+//                 its bound, or the run with the
 //                 files put back outlasted its bound or ended by a signal (INV-0009), or a run's command could not start, or the
 //                 prepare command failed before a run (ADR 0218). No reviewer reads it as a verdict.
 //
@@ -43,7 +50,8 @@ const failToPassBoundMs = (controlMs, floorMs) => Math.max(Math.ceil(controlMs *
 //   command:   the one command string both runs use, the caller's own. The verb reads none of its words (ADR 0188): which test
 //              files it runs is the reviewer's judgment, so the outcome line records it.
 //   outcome:   FailToPassOutcome. reason: `control=<exit>,put-back=<exit>`, the two exit statuses and nothing else; for
-//              `unknown`, `control=<exit or signal>` where the control did not pass, else
+//              `unknown`, `control=<exit or signal>` where the control did not pass, `control=<exit or signal>,bound=<ms>ms` where
+//              the control outlasted its bound (`failToPassControlMs`, whatever exit status it reports), else
 //              `control=0,put-back=<exit or signal>,bound=<ms>ms`, the bound ten times the control's duration or the floor,
 //              whichever is larger (`failToPassFloorMs`; `verification.failToPassFloorMs` of the operator configuration overrides the floor, ADR 0142, ADR 0207).
 //              A run whose command could not start reads `start-failed:<error code>` in place of its exit, and the second carries no bound.
@@ -184,11 +192,14 @@ async function verbFailToPass(cwd, args) {
     const timer = limitMs === undefined ? null : setTimeout(() => { expired = true; sup.end(); }, limitMs);
     // The sweep ends the group with its shell on every exit: one a signal ended, and one that exited and left a background
     // process. Nothing the run started outlives it, so nothing writes into the worktree the next step resets or the exit
-    // handler removes.
-    const { code, signal, error } = await sup.run(command, dir, true);
-    clearTimeout(timer);
-    if (error) return { startError: error };
-    return { code, signal, expired, ms: performance.now() - started };
+    // handler removes. The timer is cleared however the run ends, a rejection included.
+    try {
+      const { code, signal, error } = await sup.run(command, dir, true);
+      if (error) return { startError: error };
+      return { code, signal, expired, ms: performance.now() - started };
+    } finally {
+      clearTimeout(timer);
+    }
   };
   try {
     const added = withWorktreeLock(cwd, () => spawnSync('git', [...noHooks, 'worktree', 'add', '-q', '--detach', dir, tip], { cwd, encoding: 'utf8' }));
@@ -228,12 +239,13 @@ async function verbFailToPass(cwd, args) {
     // Only a control that passed gives the second run a meaning (INV-0139); a control that did not pass records `unknown`,
     // and the second run never starts.
     const [sha0, tree0] = treeState(dir);
-    const control = reused || await exec();
+    const controlBound = reused ? null : failToPassControlMs(cwd);
+    const control = reused || await exec(controlBound);
     const status = (run) => (run.startError ? `start-failed:${run.startError}` : run.signal || run.code);
     // The control run is a test run too (ADR 0175): a run that finished with an exit status writes a `path` run line naming the
     // range's test files, the files the command was handed to cover (ADR 0188), attributed like the outcome line (ADR 0182). One a signal ended or that could not start writes none.
     // Like `scope.js test`, it names the tip and reads both ends: a HEAD that left the tip or a dirty tree at either end is `dirty`.
-    if (at && !reused && control.code !== null && control.code !== undefined && !control.signal && !control.startError) {
+    if (at && !reused && !control.expired && control.code !== null && control.code !== undefined && !control.signal && !control.startError) {
       const [sha1, tree1] = treeState(dir);
       const states = [tree0, tree1];
       const tree = sha0 !== tip || sha1 !== tip || states.includes('dirty') ? 'dirty' : states.includes('unknown') ? 'unknown' : 'clean';
@@ -241,6 +253,8 @@ async function verbFailToPass(cwd, args) {
         process.stderr.write('fail-to-pass: the control run line could not be written to the run trace\n');
       }
     }
+    // A control the bound ended carries no verdict whatever exit status it reports (INV-0009), and the second run never starts.
+    if (control.expired) return record('unknown', `control=${status(control)},bound=${controlBound}ms`);
     if (control.code !== 0) return record('unknown', `control=${status(control)}`);
     // The second run sees the base's files outside the test paths, the tip's test files, and nothing the control run left:
     // a tracked file it changed (`reset --hard` to the tip), an untracked or ignored one it wrote (`dist/`, `target/classes`, a
@@ -277,4 +291,4 @@ async function verbFailToPass(cwd, args) {
   }
 }
 
-module.exports = { verbFailToPass, failToPassBoundMs, failToPassFloorMs };
+module.exports = { verbFailToPass, failToPassBoundMs, failToPassFloorMs, failToPassControlMs };

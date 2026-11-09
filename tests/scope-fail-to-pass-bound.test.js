@@ -106,6 +106,42 @@ process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS = '1';
     assert.ok(Number(floorBound[1]) >= 1500, `the bound is at least the floor: ${floorBound[1]}ms`);
     assert.doesNotMatch(atFloor.out.stderr, /failToPassFloorMs/, 'a valid value says nothing on stderr');
     assertGone('no process the run killed at the floor started keeps running', path.join(atFloor.b.dir, 'pid'), path.join(atFloor.b.dir, 'child'));
+
+    // The control run is bounded too (#26): 300 000 ms, or `verification.failToPassControlMs` (ADR 0207). A control that hangs
+    // against the changed code is killed at its bound and records `unknown`, the put-back run never starts, and no run line is
+    // written, so no later run reuses it. The expiry decides the outcome, whatever exit status the killed control reports.
+    // Elapsed time is judged against the configured bound, never a fixed ceiling (ADR 0086). The help names the bound and key.
+    const hangsAlways = 'echo started >> "$F2P_DIR/runs"; echo $$ > "$F2P_DIR/pid"; sleep 300 & echo $! > "$F2P_DIR/child"; wait; exit 0\n';
+    const ctl = scenario({ base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) }, tip: { 'src.txt': 'b\n', 'tests/t.sh': hangsAlways } });
+    writeOperatorConfig(ctl.repo, { verification: { failToPassControlMs: 1500 } });
+    const ctlStart = Date.now();
+    const hung = ctl.run(ctl.range);
+    const ctlElapsed = Date.now() - ctlStart;
+    assert.equal(hung.status, 0, hung.stderr);
+    assert.equal(hung.stdout.trim(), 'unknown control=SIGKILL,bound=1500ms', 'a control killed at its bound records `unknown` naming how it ended and the bound');
+    assert.deepEqual(ctl.trace(), [`01 main fail-to-pass ${ctl.range} unknown control=SIGKILL,bound=1500ms`]);
+    assert.deepEqual(ctl.runLines(), [], 'an expired control writes no run line');
+    assert.equal(require('node:fs').readFileSync(path.join(ctl.dir, 'runs'), 'utf8'), 'started\n', 'the put-back run never starts');
+    assert.deepEqual(leftover(ctl), []);
+    assertGone('no process the expired control started keeps running', path.join(ctl.dir, 'pid'), path.join(ctl.dir, 'child'));
+    assert.ok(ctlElapsed < 1500 * 10, `the verb ran ${ctlElapsed}ms against a configured control bound of 1500ms`);
+
+    // The control bound's reader: 300 000 ms with no configuration, the configured value, and a rejected one named once.
+    const controlOf = (config) => {
+      const b = scenario({ base: { 'src.txt': 'a\n' }, tip: { 'src.txt': 'b\n' } });
+      if (config !== undefined) writeOperatorConfig(b.repo, config);
+      const r = spawnSync(process.execPath, ['-e', "console.log(require(process.argv[1]).failToPassControlMs(process.cwd()))", path.resolve(__dirname, '../plugin/lib/fail-to-pass.js')], { cwd: b.tree, encoding: 'utf8', timeout: 20000, killSignal: 'SIGKILL' });
+      assertSpawnDecided(r, 'control bound reader');
+      return { ms: Number(r.stdout.trim()), err: r.stderr };
+    };
+    assert.deepEqual(controlOf(undefined), { ms: 300000, err: '' }, 'the default control bound is 5 minutes');
+    assert.deepEqual(controlOf({ verification: { failToPassControlMs: 2000 } }), { ms: 2000, err: '' });
+    const rejected = controlOf({ verification: { failToPassControlMs: 0 } });
+    assert.equal(rejected.ms, 300000);
+    assert.equal((rejected.err.match(/verification\.failToPassControlMs/g) || []).length, 1, rejected.err);
+    const help = spawnSync(process.execPath, [path.resolve(__dirname, '../plugin/scripts/scope.js'), 'help'], { encoding: 'utf8', timeout: 20000, killSignal: 'SIGKILL' });
+    assertSpawnDecided(help, 'scope.js help');
+    assert.match(help.stdout + help.stderr, /first run is bounded\s+at 300000 ms \(`verification\.failToPassControlMs` sets it/, 'the help names the control bound, its default, and the key');
   } finally {
     done();
   }
