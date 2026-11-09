@@ -67,6 +67,7 @@ Verified 2026-11-09, on Claude Code 2.1.317, in a session transcript of a ship r
 (`open-settlers`, scope `head-on-pass`). Observed: the merge call's tool result read "Permission for this
 action was denied by the Claude Code auto mode classifier. Reason: [Merge Without Review]." and went on
 to say the model may attempt the action through other tools.
+
 ## SubagentStart carries no prompt, so the Agent tool's own events record a dispatch
 
 The run trace maps a subagent dispatch to its run root and slice through the dispatch prompt (ADR 0117,
