@@ -142,6 +142,14 @@ function passed(r, label) {
   blocked(run(tmp, stop(headless, { transcript_path: transcript([typed('plan'), result('brainstorm')]) })));
   blocked(run(tmp, stop(next('/superdev:plan'), { transcript_path: transcript([typed('brainstorm')]) })));
   blocked(run(tmp, stop(headless, { transcript_path: path.join(tmp, 'missing.jsonl') })));
+  const pasted = { type: 'user', message: { content: 'Look at this:\n<command-name>/superdev:brainstorm</command-name>' } };
+  blocked(run(tmp, stop(headless, { transcript_path: transcript([typed('plan'), pasted]) })));
+  // A start far behind the tail, and a start on a line longer than one read chunk, are both found.
+  const filler = { type: 'user', message: { content: 'x'.repeat(300000) } };
+  passed(run(tmp, stop(headless, { transcript_path: transcript([typed('plan'), typed('brainstorm'), ...Array(8).fill(filler)]) })), 'start behind the tail');
+  const long = typed('brainstorm');
+  long.message.content += 'y'.repeat(3 << 20);
+  passed(run(tmp, stop(headless, { transcript_path: transcript([typed('plan'), long, filler]) })), 'start on a long line');
 }
 
 // An unattended run's Next block is held once: the Stop input carries no posture, so the hook cannot tell it apart.

@@ -18,8 +18,8 @@ transcript records every skill start.
 ## Decision
 
 At Stop, before it holds a turn, the hook reads the transcript through `lib/running-skill.js`. The running skill
-is the last superdev skill the transcript started: a user message carrying
-`<command-name>/superdev:<name></command-name>`, or a `Skill` tool call whose `skill` is `superdev:<name>`. Tool
+is the last superdev skill the transcript started: a user message whose text opens with the
+`<command-message>` and `<command-name>/superdev:<name></command-name>` envelope, or a `Skill` tool call whose `skill` is `superdev:<name>`. Tool
 results start no skill. When the next command equals the running skill, the turn passes. An unreadable
 transcript names no running skill, so the turn is held as before.
 
@@ -36,7 +36,9 @@ ends on its question, with no Next block.
 ## Consequences
 
 The "same skill as the one ending" exception is checked by the hook, not left to the model. A Stop reads the
-whole transcript once when a Next block would otherwise be held. A skill that names itself as the next command
+transcript backward from its end, and only when a Next block would otherwise be held. It stops at the last
+skill start, so the cost is the tail since that start. Command text a user pastes into a message does not open
+the message with the envelope, so it starts no skill. A skill that names itself as the next command
 at its real exit, such as brainstorm stopped before ready, also passes, which that exception already allowed.
 
 Verified 2026-11-10, on Claude Code 2.1.311 in the Claude desktop app: the transcript of the session above holds
