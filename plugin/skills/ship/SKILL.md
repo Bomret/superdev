@@ -181,6 +181,7 @@ Applies to every start past §1. Read the stage with `node "${CLAUDE_PLUGIN_ROOT
 
 - The pinned sha is the local tip, never a value read from the host. Never send a force or bypass option.
 - **A host refusal** (an unmet approval, branch protection, or a head that moved since) → relay its message and merge nothing.
+- **A merge call the permission classifier denies** (the tool result names a denial by Claude Code's permission classifier, auto mode's included) → merge nothing further, and try no other route to merge: no switch between `gh` and the host's API, no retry in another form. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step block --root <run-root>`, then publish the snapshot per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section. Name the denial, and name the operator's mitigation: an allow rule for the merge command in the permission settings, or `/superdev:ship <scope>` run in a mode that prompts for it.
 
 ## 5. After the merge
 

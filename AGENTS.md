@@ -277,7 +277,7 @@ Platform behaviour superdev works around, with the mitigation each one ships:
 [`docs/known-issues.md`](docs/known-issues.md). It covers the SessionStart preamble leak
 into subagent prompts (issue #32), the delegation handoff classifier behind a denied dispatch
 (ADR 0039, ADR 0041), and the `SubagentHandback` tool that carries a subagent's report, which the run trace
-does not read (ADR 0197). It also covers native Windows with Git Bash (ADR 0150), and the PostToolUse `cwd` that names the
+does not read (ADR 0197). It also covers the classifier's denial of ship's own merge call. Ship stops on that denial and names it, per `plugin/skills/ship/SKILL.md`. It also covers native Windows with Git Bash (ADR 0150), and the PostToolUse `cwd` that names the
 directory a Bash command ended in, which run-trace works around with a PreToolUse stash (ADR 0159), and the
 desktop app's session tool behind the offer's New task card (ADR 0176, ADR 0183, ADR 0201), and the app's wrap-up
 guidance that competes with the offer, which `offer-guard.js` holds (ADR 0213). Read it before you change subagent prose or the unattended block.

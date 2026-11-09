@@ -22,9 +22,11 @@ fence names one command that no offer call of the same turn named. An offer call
 `mcp__ccd_session__start_session` call whose prompt carries the offer's marker line, or an
 `AskUserQuestion` call with a `Start /superdev:` option. Its PostToolUse half records each such call by
 session, turn (`prompt_id`), and command. The block reason names the offer and its exceptions, so the
-model either makes the offer or states the exception. A Stop with `stop_hook_active` set passes.
-`## The offer` states that it takes precedence over the app's own follow-up guidance and comes before the
-wrap-up call.
+model either makes the offer or states the exception. The exceptions are an unattended run, the chained
+posture, the same skill as the one ending, a step-started command, an exit where the skill's own offer
+conditions make no offer, and a refused card. A Stop with `stop_hook_active` set passes.
+`## The offer` states that it takes precedence over the app's own follow-up guidance and makes the offer
+call the first action of the closing, before the wrap-up call.
 
 ## Considered options
 
