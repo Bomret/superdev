@@ -5,6 +5,10 @@
 **Amends:** [ADR 0091](0091-the-definition-of-done-is-ticked-while-the-run-works.md),
 [ADR 0202](0202-run-state-lives-on-a-git-ref.md).
 
+**Amended by:** [ADR 0221](0221-the-scope-review-re-checks-the-base-and-the-anchor-before-it-advances-the-stage.md),
+under which the review runs the anchor sync at entry, before its first `final-reviewer` dispatch, and again
+before each stage write.
+
 ## Context
 
 Under ADR 0091, every tick a controller writes lands in `dod.md` and on the scope anchor. In implement,

@@ -41,10 +41,10 @@ Each step below applies beside the skill's step of the same number. A departure 
 - **Acceptance**: the path `<run-root>/dod.md`, as §1 states.
 - **Range**: the whole scope range `<range-base>..<branch>` on every dispatch, a re-review after a fix cycle included (ADR 0137, INV-0143).
 - **Tier and run root**: the tier per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` (three or fewer slices is `lite`), and `<run-root>`.
-- **Fix-cycle range**: a re-review hands the cycle's range `<cycle-base>..<cycle-tip>` as full commits.
+- **Fix-cycle range**: a re-review hands the cycle's range `<cycle-base>..<cycle-tip>` as full commits. `<cycle-tip>` is the scope tip once you accept the cycle's report, before any merge of §4.1's **The moved base**.
 - **Suite result**: as the next concept states.
 
-**The re-review after a warm cycle.** Applies to the re-review of a fix cycle whose list held only Minor findings (ADR 0174). Message the reviewer of the fixed verdict with SendMessage. Name the cycle's range as full commits. That range is its subject in place of the whole range.
+**The re-review after a warm cycle.** Applies to the re-review of a fix cycle whose list held only Minor findings (ADR 0174). Message the reviewer of the fixed verdict with SendMessage. Name the cycle's range as full commits, per the **Fix-cycle range** above. That range is its subject in place of the whole range.
 
 - `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Warm cycles` owns when the reviewer resumes and when it dispatches fresh.
 - The continued reviewer restates each unclosable **Pass-to-pass** finding of its last verdict, its mark re-judged against the cycle's range (ADR 0193). §3's combined verdict and §4.7's early escape read the restated findings.
@@ -117,13 +117,15 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 
 **The preparation.** Applies at a stage before `submitted`, after the base step and before the entry run. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <run-root>/scopetree` in the controller's own Bash call, per `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Preparing a worktree`: a merged slice or the base step can add a dependency (ADR 0218). A failing preparation stops the review, naming the command and its exit. **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`.
 
-**The moved base.** Applies before every exit run of §4.2 and when each fix cycle ends, at a stage before `submitted`. The base may move while the review runs. Fetch `<base>` per `scope-branch.md`'s `## Bringing the scope branch to base` (its fetch step) and read from git whether the scope branch holds the base tip: `git -C <run-root>/scopetree merge-base --is-ancestor <tip> <branch>`, `<tip>` being the fetched base tip as a full commit.
+**The moved base.** Applies before every exit run of §4.2 and when each fix cycle ends, at every stage the review accepts, `submitted` included (ADR 0221). The base may move while the review runs. Fetch `<base>` per `scope-branch.md`'s `## Bringing the scope branch to base` (its fetch step) and read from git whether the scope branch holds the base tip: `git -C <run-root>/scopetree merge-base --is-ancestor <tip> <branch>`, `<tip>` being the fetched base tip as a full commit.
 
 - **The branch holds the tip** → continue.
-- **The branch lacks the tip** → you run the base step of **The base** yourself, with every rule it names, resolving a conflict per `${CLAUDE_PLUGIN_ROOT}/references/merge-conflicts.md`. Then run **The preparation** again, resolve `<range-base>` again with `scope.js base resolve`, and hand every later dispatch the range from that value. The exit run tests the merged tip, and no suite record from before the merge carries over.
+- **At `submitted`, the branch lacks the tip** → merge nothing and name the moved base in the report for `/superdev:ship`, which owns it there (ADR 0173).
+- **At a stage before `submitted`, the branch lacks the tip** → you run the base step of **The base** yourself, with every rule it names, resolving a conflict per `${CLAUDE_PLUGIN_ROOT}/references/merge-conflicts.md`. Then run **The preparation** again, resolve `<range-base>` again with `scope.js base resolve`, and hand every later dispatch the range from that value. The exit run tests the merged tip, and no suite record from before the merge carries over.
+- **A merge that resolved a conflict** → `final-reviewer` reviews the resolution before the exit run. The next re-review is a fresh whole-range dispatch per §2, never a warm resume. Before an exit run with no re-review due, dispatch one, handing the merge's range `<pre-merge-tip>..<merge-tip>` as full commits as its fix-cycle range. Its findings go through §4.6 and §4.7 as any re-review's do.
+- **A merge with no conflict** → no re-review. The exit run verifies it.
 - **A finding whose remedy is merging the base** is a finding the base step answers, whatever its wording. Remove it from the list of every fix dispatch, and name it in the report as answered by the base step.
-- **A base merge in the fix loop counts as no fix cycle** toward §4.7's cap.
-- **At `submitted`** → merge nothing and name the moved base in the report for `/superdev:ship`, which owns it there.
+- **Neither a base merge nor its re-review counts as a fix cycle** toward §4.7's cap.
 - **A fetch that failed** → record the degraded pass **The base** names and continue.
 
 ### 4.2 The suite gate
@@ -302,7 +304,7 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 
 - The loop ends when the re-review lists no finding in the chosen set, when its only remaining Critical or Important findings are unclosable or deferred, or when the **3-strike cap** is reached.
 - **The early escape: only unclosable Pass-to-pass findings remain among the Critical or Important ones, beside any deferred ones**, at any cycle the first verdict included → the scope proceeds under §3's combined verdict once the exit run of §4.2 is green, with no further cycle (ADR 0193). This holds attended and unattended, and neither blocks nor asks. Minors beside them still go through §4.6's ask-once first.
-- The cap is **3 cycles in total, every cycle counting**, whichever findings drove it. **The moved base** of §4.1 is no cycle: its base merge counts toward no cap, and no fix dispatch carries a finding whose remedy is that merge.
+- The cap is **3 cycles in total, every cycle counting**, whichever findings drove it. §4.1's **The moved base** states what its merge counts.
 - **A re-review whose only findings left are Minor Prompt-concept overlap findings** (`${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`'s `## Prompt-concept overlap`), with no criterion standing broken → the loop ends there, attended or `--unattended`. It takes the clean-verdict path of §4.10 as a Minor remainder at the cap does, after the same exit run.
 - **At the cap, only Minor findings remain** → take the clean-verdict path of §4.10 once the exit run of §4.2 is green, naming the leftover Minors in the report and nowhere else (INV-0094). A red exit run at the cap is a remaining red suite.
 - **At the cap, the only remaining Critical or Important findings are Pass-to-pass or Missing fail-to-pass run** → the scope proceeds under §3's combined verdict once the exit run of §4.2 is green (ADR 0125, ADR 0134, INV-0138). This holds attended and unattended. Any of them beside a Critical or Important finding of another kind blocks. An unclosable finding is never that other kind: beside it, cycles fix the others only, and at the cap the others alone decide.
@@ -338,7 +340,8 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 **The anchor re-sync.** Applies before each stage write of this review and on each leave-alone branch of the stage write below, and runs ahead of the `docs` untick's own writes. Read the anchor's Definition-of-Done lines again, per §4.1's `**The anchor sync.**`. Rewrite each paired line whose verdict, its note, differs from `dod.md`, by the note and never the box (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## Pairing dod.md with the anchor`).
 
 - A line whose verdict already agrees stays unchanged, so a second review with nothing new to copy writes nothing.
-- A failed read or write follows §4.1's rule: reported once per run, never a stop. A line already reported as unpaired stays in the report's one hand-sync list.
+- A failed read or write → §4.1's `**The anchor sync.**`.
+- A line already reported as unpaired stays in the report's one hand-sync list.
 
 **The stage write.** Applies on a clean verdict whose exit run's outcome goes to this stage write under §4.2's exit record and outcome concept, and only then. Clear any standing `**Unresolved:**` entry with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. Read the stage with `scope.js get stage`. Write `**Stage:**` with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set <value> --root <run-root>` per the cases below.
 
