@@ -40,10 +40,10 @@ const failToPassBoundMs = (controlMs, floorMs) => Math.max(Math.ceil(controlMs *
 // @typedef {'fail-to-pass' | 'pass-to-pass' | 'unknown'} FailToPassOutcome
 //   fail-to-pass: the tests passed against the changed code and failed with the range's other files put back.
 //   pass-to-pass: they passed both times, so they do not discriminate what the range changed.
-//   unknown:      the run could not judge (INV-0139): the tests did not pass against the changed code, or the control outlasted
-//                 its bound, or the run with the
-//                 files put back outlasted its bound or ended by a signal (INV-0009), or a run's command could not start, or the
-//                 prepare command failed before a run (ADR 0218). No reviewer reads it as a verdict.
+//   unknown:      the run could not judge (INV-0139): the tests did not pass against the changed code, or the control
+//                 outlasted its bound, or the run with the files put back outlasted its bound or ended by a signal
+//                 (INV-0009), or a run's command could not start, or the prepare command failed before a run (ADR
+//                 0218). No reviewer reads it as a verdict.
 //
 // @typedef {object} FailToPassRun
 //   base, tip: the range's two full commits; `tip` is the commit the test paths are read from.
