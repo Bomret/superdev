@@ -48,6 +48,25 @@ Verified 2026-08-23, against Anthropic's *How we built Claude Code auto mode* en
 (`https://www.anthropic.com/engineering/claude-code-auto-mode`) and the *Create custom subagents*
 documentation (`https://code.claude.com/docs/en/sub-agents`), both read that day.
 
+## The permission classifier can deny ship's merge call
+
+Auto mode's classifier reads the main session's own tool calls, not only a subagent handoff. It can deny
+`/superdev:ship`'s squash-merge call, with a reason such as `Merge Without Review`, even though the
+operator typed the command. The denial returns as a tool result, and its text invites the model to reach
+the same goal through another tool, such as the host's API in place of `gh`. `/superdev:ship` merges
+nothing further on a denial, tries no other route, runs `step block`, publishes the run-state snapshot,
+and names the denial and the mitigation (`plugin/skills/ship/SKILL.md`, section 4, the merge). Ship
+refuses `--unattended`, so the denial always reaches an operator. The mitigation is the operator's: an
+allow rule for the merge command in the permission settings, or running ship in a mode that prompts for
+it. Plugin hooks and skills cannot change the classifier's verdict.
+
+Fix required at: Claude Code. A classifier that treated the operator's own typed ship command as
+consent to its merge would remove the denial.
+
+Verified 2026-11-09, on Claude Code 2.1.317, in a session transcript of a ship run in another repository
+(`open-settlers`, scope `head-on-pass`). Observed: the merge call's tool result read "Permission for this
+action was denied by the Claude Code auto mode classifier. Reason: [Merge Without Review]." and went on
+to say the model may attempt the action through other tools.
 ## SubagentStart carries no prompt, so the Agent tool's own events record a dispatch
 
 The run trace maps a subagent dispatch to its run root and slice through the dispatch prompt (ADR 0117,
