@@ -117,6 +117,15 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 
 **The preparation.** Applies at a stage before `submitted`, after the base step and before the entry run. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <run-root>/scopetree` in the controller's own Bash call, per `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Preparing a worktree`: a merged slice or the base step can add a dependency (ADR 0218). A failing preparation stops the review, naming the command and its exit. **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`.
 
+**The moved base.** Applies before every exit run of §4.2 and when each fix cycle ends, at a stage before `submitted`. The base may move while the review runs. Fetch `<base>` per `scope-branch.md`'s `## Bringing the scope branch to base` (its fetch step) and read from git whether the scope branch holds the base tip: `git -C <run-root>/scopetree merge-base --is-ancestor <tip> <branch>`, `<tip>` being the fetched base tip as a full commit.
+
+- **The branch holds the tip** → continue.
+- **The branch lacks the tip** → you run the base step of **The base** yourself, with every rule it names, resolving a conflict per `${CLAUDE_PLUGIN_ROOT}/references/merge-conflicts.md`. Then run **The preparation** again, resolve `<range-base>` again with `scope.js base resolve`, and hand every later dispatch the range from that value. The exit run tests the merged tip, and no suite record from before the merge carries over.
+- **A finding whose remedy is merging the base** is a finding the base step answers, whatever its wording. Remove it from the list of every fix dispatch, and name it in the report as answered by the base step.
+- **A base merge in the fix loop counts as no fix cycle** toward §4.7's cap.
+- **At `submitted`** → merge nothing and name the moved base in the report for `/superdev:ship`, which owns it there.
+- **A fetch that failed** → record the degraded pass **The base** names and continue.
+
 ### 4.2 The suite gate
 
 **The suite record.** Applies before the entry run. Read `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get suite --root <run-root>`. It prints `<result> <sha>[ whole]`. It decides the exit run's command.
@@ -293,7 +302,7 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 
 - The loop ends when the re-review lists no finding in the chosen set, when its only remaining Critical or Important findings are unclosable or deferred, or when the **3-strike cap** is reached.
 - **The early escape: only unclosable Pass-to-pass findings remain among the Critical or Important ones, beside any deferred ones**, at any cycle the first verdict included → the scope proceeds under §3's combined verdict once the exit run of §4.2 is green, with no further cycle (ADR 0193). This holds attended and unattended, and neither blocks nor asks. Minors beside them still go through §4.6's ask-once first.
-- The cap is **3 cycles in total, every cycle counting**, whichever findings drove it.
+- The cap is **3 cycles in total, every cycle counting**, whichever findings drove it. **The moved base** of §4.1 is no cycle: its base merge counts toward no cap, and no fix dispatch carries a finding whose remedy is that merge.
 - **A re-review whose only findings left are Minor Prompt-concept overlap findings** (`${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`'s `## Prompt-concept overlap`), with no criterion standing broken → the loop ends there, attended or `--unattended`. It takes the clean-verdict path of §4.10 as a Minor remainder at the cap does, after the same exit run.
 - **At the cap, only Minor findings remain** → take the clean-verdict path of §4.10 once the exit run of §4.2 is green, naming the leftover Minors in the report and nowhere else (INV-0094). A red exit run at the cap is a remaining red suite.
 - **At the cap, the only remaining Critical or Important findings are Pass-to-pass or Missing fail-to-pass run** → the scope proceeds under §3's combined verdict once the exit run of §4.2 is green (ADR 0125, ADR 0134, INV-0138). This holds attended and unattended. Any of them beside a Critical or Important finding of another kind blocks. An unclosable finding is never that other kind: beside it, cycles fix the others only, and at the cap the others alone decide.
