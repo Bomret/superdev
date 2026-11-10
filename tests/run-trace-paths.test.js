@@ -93,13 +93,31 @@ assert.deepEqual(trace(A).map((l) => l[3]), ['test', 'test', 'test', 'test', 'te
     ["sed -Ei '' 's/a/b/' parse.test.ts", 'parse.test.ts'],
     ['git rm parse.test.ts', 'parse.test.ts'],
     ['git rm -f -- parse.test.ts', 'parse.test.ts'],
-    ['git rm -r --cached parse.test.ts', 'parse.test.ts'],
+    ['git rm -r parse.test.ts', 'parse.test.ts'],
     ['git -C .. rm hooks/parse.test.ts', 'parse.test.ts'],
   ]) {
     reset();
     run({ tool_name: 'Bash', tool_input: { command }, cwd: sub });
     assert.deepEqual(lines(), [['edit', 'test', 'mods/superdev-view/hooks/' + rel]], 'a Bash writer from a subdirectory: ' + command);
   }
+  for (const command of ['git rm --cached parse.test.ts', 'git rm -r --cached parse.test.ts', 'git rm -n parse.test.ts']) {
+    reset();
+    run({ tool_name: 'Bash', tool_input: { command }, cwd: sub });
+    assert.deepEqual(lines(), [], 'a git rm that leaves the working-tree file records nothing: ' + command);
+  }
+  // Triage #34's mismatch for a Bash write: the command started in the subdirectory (PreToolUse) and ended in the tree root
+  // (PostToolUse cwd), so the relative redirect resolves from where it started.
+  reset();
+  run({ hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_use_id: 'p34', tool_input: { command: 'echo x > parse.test.ts; cd /' }, cwd: sub });
+  run({ hook_event_name: 'PostToolUse', tool_name: 'Bash', tool_use_id: 'p34', tool_input: { command: 'echo x > parse.test.ts; cd /' }, cwd: S3 });
+  assert.deepEqual(lines(), want, 'a Bash write whose start directory is the subdirectory and whose end directory is the tree root');
+  // The tool's resolution base is the tree root and the hook's cwd is the subdirectory: both tie-breaking readings name a file.
+  reset();
+  touch(treeRegister);
+  touch(path.join(sub, 'register.tsx'));
+  edit('register.tsx', { cwd: sub });
+  assert.deepEqual(lines(), [['edit', 'impl', 'mods/superdev-view/hooks/register.tsx']], 'a bare name that exists at both readings records at the working directory');
+  gone(treeRegister, path.join(sub, 'register.tsx'));
   reset();
   run({ tool_name: 'Bash', tool_input: { command: 'cd mods/superdev-view/hooks && git rm parse.test.ts' }, cwd: S3 });
   assert.deepEqual(lines(), want, 'git rm after a cd into a subdirectory');

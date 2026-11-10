@@ -136,8 +136,9 @@ function bashTargets(command, cwd, end) {
       else if (cmd !== 'tee' && cmd !== 'sudoedit' && /^--target-directory=/.test(w)) tDir = w.slice(w.indexOf('=') + 1);
       else if (!/^-/.test(w)) operands.push(w);
     }
-    // `git rm` removes its operands: each is an edit, unless `-n`/`--dry-run` makes it a check.
-    if (cmd === 'rm' && args.some((w) => w === '-n' || w === '--dry-run')) continue;
+    // `git rm` removes its operands: each is an edit, unless `-n`/`--dry-run` makes it a check or `--cached` leaves the
+    // working-tree file as it was and changes the index only.
+    if (cmd === 'rm' && args.some((w) => w === '-n' || w === '--dry-run' || w === '--cached')) continue;
     if (cmd === 'tee' || cmd === 'sudoedit' || cmd === 'rm') operands.forEach((w) => add(segBase, w));
     else if (cmd === 'sed' && inPlace) (hasScript ? operands : operands.slice(1)).forEach((w) => add(segBase, w));
     else if (cmd === 'cp' || cmd === 'mv' || cmd === 'install') {

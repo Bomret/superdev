@@ -45,7 +45,7 @@ function locate(abs) {
 // The absolute path an Edit, Write, or NotebookEdit tool path names, resolved once and normalized. The hook runs after the tool,
 // and the tool resolved a relative path against its own working directory, which the hook's `cwd` may not be (triage #34): the
 // reading against `cwd` stands, and the reading against the tree root of `cwd` replaces it only when the tool's file exists at
-// that one and not at the first. An absolute path, a `cwd` outside a run tree, and a path neither reading names a file for
+// that one and not at the first. A file at both readings is a tie the hook cannot break: the `cwd` reading wins. An absolute path, a `cwd` outside a run tree, and a path neither reading names a file for
 // resolve against `cwd`.
 function toolTarget(cwd, p) {
   const abs = path.resolve(cwd, p);
