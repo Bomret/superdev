@@ -7,6 +7,7 @@ const path = require('path');
 const { cmdSegments, dirTracker, cdDir, cdCall, unwrapBuiltin, segWords, plain, readWord, gitBase, drivePath, gitSubcommand } = require('./bash-command.js');
 const { locate, isTestPath, treeState, gitOut } = require('./run-tree.js');
 const { verificationCommands } = require('./verification.js');
+const { encodeArgs } = require('./trace-log.js');
 
 // Commands that read, list, or edit files and never run them: a test path among their words is no run.
 // simplicity: a fixed list; a runner wrapped in a shell function or script is seen only by its own words.
@@ -109,6 +110,15 @@ const sceneCmd = (s) => { const { cmd, args } = segWords(s); return unwrapBuilti
 // command run before its status exists, so they are no later stage of its list.
 const laterOf = (segs, last, seg) => segs.slice(last + 1).filter((s) => s.nest <= seg.nest);
 
+// The `run` line's arguments field for a segment: the words after its command word, as the shell reads them (a word the scanner cannot
+// read keeps its text), in the `encodeArgs` encoding.
+const argsField = (seg) => encodeArgs(segWords(seg).args.map((w) => plain(w) ?? w));
+// The same field for the last segment of a command's text, the segment that carries a compound command's test.
+const commandArgs = (command) => {
+  const segs = cmdSegments(command);
+  return segs.length ? argsField(segs[segs.length - 1]) : '-';
+};
+
 function testRuns(command, cwd, outside) {
   return testRunsOf(cmdSegments(command), cwd, outside);
 }
@@ -195,7 +205,7 @@ function testRunsOf(segs, cwd, outside, end) {
     const plainList = segs.slice(0, last + 1).every((s) => s.nest === 0 && !s.fn && !s.compound && !s.negated);
     const sole = plainList && segs.slice(0, i).every((s) => /^(?:cd|set)$/.test(sceneCmd(s)) &&/^(?:&&|;|\n)$/.test(s.sep))
       && seg.sep !== '&' && (!more || (seg.sep === '|' && pipeEnds));
-    runs.push({ at, kind, files, unknown, sole });
+    runs.push({ at, kind, files, unknown, sole, args: argsField(seg) });
   });
   return runs;
 }
@@ -323,7 +333,7 @@ function recordBash(command, cwd, agent, failed, background, end) {
     const [sha, clean] = treeState(r.at.tree);
     // The exit status names the test only where the command line is a plain list and the test is its sole command; any other shape reads unknown.
     const outcome = r.unknown || !r.sole || background ? 'unknown' : failed ? 'fail' : 'pass';
-    lines.push([r.at.runRoot, { slice: r.at.slice, agent, kind: 'run', fields: [r.kind, outcome, sha, clean, r.files.join(',')] }]);
+    lines.push([r.at.runRoot, { slice: r.at.slice, agent, kind: 'run', fields: [r.kind, outcome, sha, clean, r.files.join(','), '-', r.args] }]);
   }
   // A failed command did not (reliably) move files: only a successful one records a revert or restore.
   if (!failed) {
@@ -332,4 +342,4 @@ function recordBash(command, cwd, agent, failed, background, end) {
   return lines;
 }
 
-module.exports = { testRuns, verificationKind, recordBash, scopeTestCalls };
+module.exports = { testRuns, verificationKind, recordBash, scopeTestCalls, commandArgs };

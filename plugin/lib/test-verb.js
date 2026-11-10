@@ -18,7 +18,7 @@ const shellWord = (w) => (/^[\w@%+=:,./-]+$/.test(w) ? w : `'${w.replace(/'/g, "
 const withPaths = (template, paths) => template.replace(/\{paths\}/g, () => paths.map(shellWord).join(' '));
 
 // `test full|whole`, `test focused [<path>…]`, `test -- <command>`: runs a test command under `sh`, streaming its output,
-// and appends one `run` line carrying the command's own exit status (an Observed run) and its duration in milliseconds. The run root, slice, commit, and
+// and appends one `run` line carrying the command's own exit status (an Observed run), its duration in milliseconds, and its command's arguments. The run root, slice, commit, and
 // tree state are read when the run starts; the line is written when the command finishes, `dirty` when HEAD moved, the tree
 // was dirty at either end, or the trace recorded a change to the slice's files during the run. No option sets a field.
 // A command ended by a signal, or a verb killed first, writes no line, and a verb that is killed or interrupted
@@ -32,8 +32,9 @@ const withPaths = (template, paths) => template.replace(/\{paths\}/g, () => path
 function verbTest(cwd, args) {
   const { locate, treeState } = require('./run-tree.js');
   let testRuns = () => [];
+  let commandArgs = () => '-';
   try {
-    ({ testRuns } = require('./test-runs.js'));
+    ({ testRuns, commandArgs } = require('./test-runs.js'));
   } catch (e) {
     if (e.code !== 'MODULE_NOT_FOUND') throw e; // a syntax error or a throwing module stays visible
   }
@@ -42,6 +43,7 @@ function verbTest(cwd, args) {
   let command;
   let files = [];
   let at = locate(path.join(cwd, 'x'));
+  let runArgs = '-'; // the arguments field of the command's test segment
   let hidden = false; // the command's shape hides its status from the test
   let runCwd = cwd;
   // The tree a command classifies against outside every run tree: the repository's, else the cwd.
@@ -61,6 +63,7 @@ function verbTest(cwd, args) {
     if (runs[0].at.runRoot) {
       ({ kind, files, at } = runs[0]);
       hidden = runs[0].unknown || !runs[0].sole;
+      runArgs = runs[0].args;
     } else at = null;
   } else {
     if (!['full', 'focused', 'whole'].includes(kind) || (kind !== 'focused' && args.length > 1)) fail(`test: unrecognized arguments (${usage().split('\n').find((l) => /^ {2}test /.test(l)).trim()})`);
@@ -77,6 +80,7 @@ function verbTest(cwd, args) {
     if (!template) fail(`test ${kind}: no ${kind} command is configured in docs/agents/verification.md`);
     command = kind === 'focused' ? withPaths(template, paths) : template;
     if (kind === 'focused') files = paths;
+    runArgs = commandArgs(command);
   }
   const [sha, tree0] = at ? treeState(at.tree) : [];
   // Where the trace ends now: a file change it records for this slice past this point happened during the run.
@@ -118,7 +122,7 @@ function verbTest(cwd, args) {
       // during the run is `dirty`.
       const tree = sha1 !== sha || tree0 === 'dirty' || tree1 === 'dirty' || changed ? 'dirty' : tree0 === 'unknown' || tree1 === 'unknown' ? 'unknown' : 'clean';
       const outcome = hidden ? 'unknown' : code === 0 ? 'pass' : 'fail';
-      if (!appendTrace(at.runRoot, { slice: at.slice, kind: 'run', fields: [kind, outcome, sha, tree, kind === 'focused' ? encodePaths(files) : files.join(','), ms] })) {
+      if (!appendTrace(at.runRoot, { slice: at.slice, kind: 'run', fields: [kind, outcome, sha, tree, kind === 'focused' ? encodePaths(files) : files.join(','), ms, runArgs] })) {
         process.stderr.write('test: the run line could not be written to the run trace\n');
       }
     }

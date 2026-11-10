@@ -9,7 +9,7 @@ const path = require('path');
 //   <ISO-8601 UTC timestamp> <slice id|scope> <agent id|main> <kind> <kind fields...>
 // `appendTrace` is its single writer. Kinds and their fields:
 //   edit <test|impl> <path>
-//   run <full|focused|whole|path> <pass|fail|unknown> <sha|unknown> <clean|dirty|unknown> [<files>] [<ms>]   (written by `scope.js test`, and by the control run of `fail-to-pass` as a `path` run; <files>: a `path` run's test files comma-joined; a `scope.js test focused` run's path set, `encodePaths`; else `-`; <ms>: the run's duration in whole milliseconds, which those two writers record and the run-trace hook does not)
+//   run <full|focused|whole|path> <pass|fail|unknown> <sha|unknown> <clean|dirty|unknown> [<files>] [<ms>] [<args>]   (written by `scope.js test`, and by the control run of `fail-to-pass` as a `path` run; <files>: a `path` run's test files comma-joined; a `scope.js test focused` run's path set, `encodePaths`; else `-`; <ms>: the run's duration in whole milliseconds, which those two writers record and the run-trace hook does not, and which the hook leaves `-`; <args>: the arguments of the command's test segment, `encodeArgs`, `-` for none, and absent from a line an earlier release wrote, which reads as none)
 //   revert <paths> / restore <paths>
 //   dispatch <agent_type> <tool_use_id> <description> <session_id|-> / dispatch-bind <agent_type> <tool_use_id> <agent_id> /
 //   dispatch-end <agent_type> <tool_use_id> <completed|failed|denied|stopped|unknown|session-end>   (an end with no outcome reads completed, ADR 0140)
@@ -52,6 +52,12 @@ const encodePaths = (paths) => paths.map((p) => p.replace(/%|,|^-/g, (c) => '%' 
 // The inverse, from a field as `readTrace` returns it (still escaped): the exact set, `[]` for the absent field.
 const decodePaths = (field) => (field === undefined || field === '-' ? [] : untraceField(field).split(',').map((p) => p.replace(/%(25|2C|2D)/g, (m, h) => String.fromCharCode(parseInt(h, 16)))));
 
+// A test command's arguments as the `run` line's last field: the same encoding as a path set, so a space, a comma, a `%`, and a leading
+// `-` read back unchanged and an empty list is the absent field `-`. `decodeArgs` takes the field as `readTrace` returns it, and reads
+// a line written without the field (`undefined`) as no arguments.
+const encodeArgs = encodePaths;
+const decodeArgs = decodePaths;
+
 // event: { slice?, agent?, kind, fields? }. One O_APPEND write per line, so concurrent writers never
 // tear a line. A failed write is swallowed: the trace never blocks the work it records. Returns whether
 // the line was written, for the one caller that tells its user (`scope.js test`). A written line also
@@ -90,4 +96,4 @@ function readTrace(raw) {
   });
 }
 
-module.exports = { traceField, untraceField, encodePaths, decodePaths, appendTrace, readTrace };
+module.exports = { traceField, untraceField, encodePaths, decodePaths, encodeArgs, decodeArgs, appendTrace, readTrace };

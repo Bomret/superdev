@@ -692,7 +692,7 @@ const { appendTrace, isTestPath } = require(scopePath);
 // selector complete, the focused command takes `{paths}`, and a passing clean focused run at the tip covered
 // every changed path. Each case builds its own repository from the verification.md text it needs.
 {
-  const { encodePaths } = require('../plugin/lib/trace-log.js');
+  const { encodePaths, encodeArgs } = require('../plugin/lib/trace-log.js');
   const g = (args, cwd) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
   const callIn = (argv, cwd) => {
     const orig = console.log;
@@ -764,6 +764,10 @@ const { appendTrace, isTestPath } = require(scopePath);
     const T = f.commit('src/a.js', 'changed\n');
     let r = f.reusable(f.root(`green @ ${f.R}`, [base(f.R), focused(T, ['src/a.js'])]));
     assert.ok(r.ok && r.out === 'reusable', 'a covering clean focused run carries a green record: ' + (r.err || ''));
+
+    // A run line in the layout with the duration and the arguments field reads as one without them (the lines above): same verdict.
+    r = f.reusable(f.root(`green @ ${f.R}`, [base(f.R), [...focused(T, ['src/a.js']), '120', encodeArgs(['focus.js', 'src/a.js'])]]));
+    assert.ok(r.ok && r.out === 'reusable', 'a covering focused run with the arguments field carries a green record: ' + (r.err || ''));
 
     // The kind carries.
     r = f.reusable(f.root(`green @ ${f.R} whole`, [['whole', 'pass', f.R, 'clean'], focused(T, ['src/a.js'])]), null, '--whole');

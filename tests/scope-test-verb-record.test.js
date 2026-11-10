@@ -19,19 +19,19 @@ try {
   let sha = sh(S, ['rev-parse', 'HEAD']);
   let r = bash(`node ${scopePath} test full | tail -1`);
   assert.equal(r.stdout.trim(), 'hello', 'the command output streams through');
-  assert.deepEqual(lines(), [`03 main run full fail ${sha} clean -`], 'one run line with the real outcome, whatever the pipe');
+  assert.deepEqual(lines(), [`03 main run full fail ${sha} clean - 3`], 'one run line with the real outcome, whatever the pipe');
   assert.equal(verb(['full']).status, 3, 'the verb exits with the command status');
   reset();
   verif('echo ok', 'echo FOCUSED {paths}');
   assert.equal(verb(['full']).status, 0);
-  assert.match(lines()[0], /^03 main run full pass [0-9a-f]{40} clean -$/, 'a passing run records pass');
+  assert.match(lines()[0], /^03 main run full pass [0-9a-f]{40} clean - ok$/, 'a passing run records pass');
   // A configured command whose last path part is a reading command's name is a test run (INV-0129).
   reset();
   fs.mkdirSync(path.join(S, 'script'));
   fs.writeFileSync(path.join(S, 'script', 'test'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
   verif('script/test', 'script/test {paths}');
   assert.equal(verb(['--', 'script/test']).status, 0, 'a configured script/test is not refused');
-  assert.match(lines()[0] || '', /^03 main run full pass [0-9a-f]{40} clean -$/, 'a configured script/test records a full run');
+  assert.match(lines()[0] || '', /^03 main run full pass [0-9a-f]{40} clean - -$/, 'a configured script/test records a full run');
 
   // whole runs the configured whole-repo command; focused substitutes shell-quoted paths, and with none runs full.
   reset();
@@ -42,11 +42,14 @@ try {
   r = verb(['focused', 'a b.ts', 'c.ts']);
   assert.equal(r.stdout.trim(), 'FOCUSED a b.ts c.ts', 'both paths substitute for {paths}');
   assert.match(lines()[1], / run focused pass /);
+  // The run line ends with the command's arguments after the duration: the words the shell ran, one encoded set.
+  assert.match(lines()[1], / FOCUSED,a\\x20b\.ts,c\.ts$/, 'a focused run records the arguments it ran with, a path holding a space escaped');
+  assert.notEqual(lines()[0].split(' ').pop(), lines()[1].split(' ').pop(), 'runs that differ only in arguments read differently');
   assert.equal(verb(['focused', "it's.ts"]).stdout.trim(), "FOCUSED it's.ts", 'a path is shell-quoted');
   r = verb(['focused']);
   assert.equal(r.stdout.trim(), 'FULLRAN', 'no path runs the full command');
   assert.match(lines()[3], / run full pass /, 'and records full');
-  assert.match(lines()[3], / -$/, 'a full run records no path set');
+  assert.match(lines()[3], / - FULLRAN$/, 'a full run records no path set');
 
   // A run line records its duration in whole milliseconds as its last field (ADR 0182). The command sleeps, so the
   // duration is at least the sleep it ran; no ceiling is asserted (root AGENTS.md, ADR 0086).
