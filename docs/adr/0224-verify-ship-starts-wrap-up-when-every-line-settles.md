@@ -17,8 +17,8 @@ operator about each standing unresolved defect and each `accepted:` absorbed rec
 
 ## Decision
 
-1. **Verify-ship starts wrap-up at its settled exit.** When every line is settled and no line waits for a
-   hand-sync of the anchor's criterion text, verify-ship clears its step, prints its summary, and starts
+1. **Verify-ship starts wrap-up at its settled exit.** When every line is settled, no line waits for a
+   hand-sync of the anchor's criterion text, and the anchor's lines were read, verify-ship clears its step, prints its summary, and starts
    `/superdev:wrap-up <scope>` through the Skill tool in the same turn. It asks no question first, and it makes
    no offer of wrap-up.
 2. **Every other exit is unchanged.** The hand-sync `First:` wait, re-verify, repair, the Otherwise exit, a
@@ -31,7 +31,9 @@ operator about each standing unresolved defect and each `accepted:` absorbed rec
 5. **Wrap-up owns the hand-off.** Its last message is the last message of the chain. It offers the command its
    Next block names, as a typed wrap-up does, and verify-ship prints nothing after it returns.
    `references/response-shapes.md`'s step-started condition keeps the hand-off with the starting command only
-   when that command goes on after the started one returns.
+   when that command goes on after the started one returns. Verify-ship names no staged pages on this exit.
+   Wrap-up names them in its last message, whether it finishes, refuses, or stops, so the operator reads them
+   once on every outcome of the chain.
 6. **A failed start falls back.** When the Skill tool refuses or fails the start, verify-ship prints
    `/superdev:wrap-up <scope>` as its next command and makes its usual offer.
 

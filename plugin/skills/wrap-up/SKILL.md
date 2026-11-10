@@ -32,6 +32,8 @@ Applies to every start. Ask no extra question.
 
 Applies to every message this command ends on. Close it with the Next block per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in that file's `## The offer` section (ADR 0157).
 
+**The chained staged pages.** Applies to a start `/superdev:verify-ship`'s settled exit made, on every message it ends on before §7, a refusal and a stop included (ADR 0224, INV-0123). Verify-ship named no staged pages, so name them here per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close`. A count above zero puts `/superdev:publish-kb <scope>` on an `Or:` line of the Next block. §7's finish names them on its own exit.
+
 ## 1. Scope + run root
 
 Resolve `$ARGUMENTS` to one scope, a **run root**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## A live scope run` section:
