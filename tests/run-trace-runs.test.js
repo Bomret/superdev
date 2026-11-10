@@ -11,7 +11,7 @@ const cp = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { verificationKind, testRuns, commandArgs } = require('../plugin/lib/test-runs.js');
 const { bashTargets } = require('../plugin/lib/bash-writes.js');
-const { decodeArgs } = require('../plugin/lib/trace-log.js');
+const { decodeArgs, appendTrace, encodePaths } = require('../plugin/lib/trace-log.js');
 const { tmp, ledger, A, S3, trace, reset, run, edit, bash, hookPath, initS3, cleanup, GIT_SPAWN_BOUND_MS } = require('./run-trace-setup');
 const vf = path.join(S3, 'docs', 'agents', 'verification.md');
 // A path run needs its file to exist (triage #1210): the test files the cases below run are committed with the tree.
@@ -525,6 +525,66 @@ assert.deepEqual(tail(trace(A)).map((l) => l.split(' ').slice(0, 2).join(' ')), 
   run({ hook_event_name: 'PostToolUse', tool_name: 'Bash', tool_input: { command: 'bun run test' }, cwd: S3 });
   assert.deepEqual(trace(A).map((l) => l[4]), ['unknown', 'pass'], 'only the foreground run records pass');
   fs.rmSync(vf2);
+}
+
+// A backgrounded `scope.js test -- <command>` call writes no hook run line (the verb writes its own, ADR 0127), so the recorded
+// rerun is the only run at the tip (triage #55); a backgrounded direct test run still records unknown.
+{
+  const bg = (command, cwd) => run({ hook_event_name: 'PostToolUse', tool_name: 'Bash', tool_input: { command, run_in_background: true }, cwd });
+  const wrapped = (cd) => `${cd} && node "\${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test -- node tests/x.test.js > "$TMPDIR/rerun.log" 2>&1; echo "exit=$?" >> "$TMPDIR/rerun.log"; tail -4 "$TMPDIR/rerun.log"`;
+  reset();
+  bg(wrapped(`cd ${S3}`), S3);
+  bg(wrapped('cd "$TREE"'), S3);
+  assert.deepEqual(trace(A), [], 'a backgrounded scope.js test call records no hook run line');
+  // The script path held in a variable an earlier segment assigned (a subagent's `S=…/scope.js; node $S test …`), foreground or background.
+  const viaVar = (use) => `S=/home/u/.claude/plugins/cache/superdev/superdev/1.0.0/scripts/scope.js; for t in x; do ${use} test -- node tests/$t.test.js 2>&1 | tail -3; done`;
+  for (const command of [viaVar('node $S'), viaVar('node "$S"'), viaVar('node ${S}'), 'S=/p/scripts/scope.js; node $S test focused tests/x.test.js']) {
+    bg(command, S3);
+    post(command);
+  }
+  assert.deepEqual(trace(A), [], 'a scope.js test call through a variable script path records no hook run line');
+  bg('S=/p/other.js; node $S test -- node tests/x.test.js', S3);
+  assert.deepEqual(trace(A).map((l) => l.slice(2, 5).join(' ')), ['run path unknown'], 'a variable that names no scope.js leaves the run a direct one');
+  // Only an assignment in an earlier segment, not later overwritten with another script, names the script.
+  for (const command of ['node $S test -- node tests/x.test.js; S=/p/scripts/scope.js', 'S=/p/scripts/scope.js; S=/p/other.js; node $S test -- node tests/x.test.js']) {
+    reset();
+    bg(command, S3);
+    assert.deepEqual(trace(A).map((l) => l.slice(2, 5).join(' ')), ['run path unknown'], `a variable not naming scope.js at its use is a direct run: ${command}`);
+  }
+  reset();
+  bg('S=/p/other.js; S=/p/scripts/scope.js; node $S test -- node tests/x.test.js', S3);
+  assert.deepEqual(trace(A), [], 'the last assignment names the script');
+  reset();
+  bg('node tests/x.test.js', S3);
+  assert.deepEqual(trace(A).map((l) => l.slice(2, 5).join(' ')), ['run path unknown'], 'a backgrounded direct run records unknown');
+}
+
+// The shape this run's trace showed: a backgrounded rerun whose script path sits in a variable. The verb records the rerun, the
+// hook adds no unknown line for it, so `scope.js suite reusable` accepts the recorded rerun (ADR 0172).
+{
+  const verification = '# V\n\n```sh\nbun run test\n```\n\n```sh\nbun run test --related {paths}\n```\n';
+  const bgRun = (command) => run({ hook_event_name: 'PostToolUse', tool_name: 'Bash', tool_input: { command, run_in_background: true }, cwd: S3 });
+  fs.writeFileSync(vf, `${verification}\n## Complete selector\n\n- \`tests/x.test.js\`\n`);
+  git('add', '-A');
+  git('commit', '-q', '-m', 'selector');
+  const tip = git('rev-parse', 'HEAD');
+  git('branch', 'base0', sha);
+  reset();
+  fail('bun run test');
+  // The lines the verb writes for the rerun's file and for the focused run over the range's paths; the hook's part is to add none.
+  appendTrace(A, { slice: '03', agent: 'implementer', kind: 'run', fields: ['path', 'pass', tip, 'clean', 'tests/x.test.js', '-', 'node'] });
+  bgRun(`cd ${S3} && S=/p/superdev/scripts/scope.js; node $S test -- node tests/x.test.js > "$TMPDIR/rerun.log" 2>&1; echo "exit=$?" >> "$TMPDIR/rerun.log"`);
+  appendTrace(A, { slice: '03', agent: 'implementer', kind: 'run', fields: ['focused', 'pass', tip, 'clean', encodePaths(['docs/agents/verification.md']), '-', 'bun'] });
+  const root = fs.mkdtempSync(path.join(tmp, 'rerun-'));
+  fs.writeFileSync(path.join(root, 'ledger.md'), ledger([['03', 'in-progress']]).replace('**Stage:** implementing', `**Stage:** implementing\n**Suite:** red @ ${tip}\n**Rerun:** tests/x.test.js @ ${tip} #1`));
+  fs.copyFileSync(path.join(A, 'trace.log'), path.join(root, 'trace.log'));
+  const r = cp.spawnSync(process.execPath, [require.resolve('../plugin/scripts/scope.js'), 'suite', 'reusable', '--branch', 'HEAD', '--root', root, '--base', 'base0'], { cwd: S3, encoding: 'utf8', timeout: 10000 });
+  assertSpawnDecided(r, 'scope.js suite reusable');
+  assert.equal(r.status, 0, `the recorded rerun is accepted: ${r.stderr}`);
+  fs.rmSync(root, { recursive: true, force: true });
+  git('reset', '-q', '--hard', sha);
+  git('branch', '-q', '-D', 'base0');
+  fs.rmSync(vf, { force: true });
 }
 
 // A `scope.js fail-to-pass … -- <command>` call records its own control run (ADR 0182), so the hook records no run for the test

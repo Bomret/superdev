@@ -67,6 +67,28 @@ const denied = (command, cwd, agentType) => decide(call(command, cwd, agentType)
   assert.match(reason, /controller/, 'the refusal names who owns the full-suite run');
 }
 
+// --- a scope.js path held in a variable is the script, for `scope.js test` and `scope.js fail-to-pass` alike ---
+{
+  const { slicetree } = fixture({ whole: 'npm run test:all' });
+  const S = 'S=/p/superdev/scripts/scope.js';
+  for (const use of ['node $S', 'node "$S"', 'node ${S}']) {
+    assert.strictEqual(denied(`${S}; ${use} test full`, slicetree), true, `${use} test full is refused`);
+    assert.strictEqual(denied(`${S}; ${use} test whole`, slicetree), true, `${use} test whole is refused`);
+    assert.strictEqual(denied(`${S}; ${use} test focused`, slicetree), true, `${use} test focused with no path is refused`);
+    assert.strictEqual(denied(`${S}; ${use} test -- npm test`, slicetree), true, `${use} test -- with the full command is refused`);
+    assert.strictEqual(denied(`${S}; ${use} fail-to-pass abc..def -- npm test`, slicetree), true, `${use} fail-to-pass over the full command is refused`);
+    assert.strictEqual(denied(`${S}; ${use} test -- node tests/a.test.js`, slicetree), false, `${use} test -- over a test file passes`);
+    assert.strictEqual(denied(`${S}; ${use} fail-to-pass abc..def -- node tests/a.test.js`, slicetree), false, `${use} fail-to-pass over a test file passes`);
+  }
+  assert.strictEqual(denied(`export ${S} && node "$S" test full`, slicetree), true, 'an exported variable names the script');
+  assert.strictEqual(denied('S=/p/other.js; node $S test full', slicetree), false, 'a variable naming another script is no scope.js call');
+  assert.strictEqual(denied('S=/p/other.js; node $S fail-to-pass abc..def -- npm test', slicetree), false, 'a variable naming another script is no fail-to-pass call');
+  assert.strictEqual(denied('node $S test full', slicetree), false, 'a variable no segment assigned is no scope.js call');
+  assert.strictEqual(denied(`node $S test full; ${S}`, slicetree), false, 'an assignment after the use does not name the script');
+  assert.strictEqual(denied(`${S}; S=/p/other.js; node $S test full`, slicetree), false, 'a variable reassigned to another script is no scope.js call');
+  assert.strictEqual(denied(`S=/p/other.js; ${S}; node $S test full`, slicetree), true, 'the last assignment decides');
+}
+
 // --- a focused command that repeats the full one ---
 {
   const { slicetree } = fixture({ full: 'go test ./...', focused: 'go test ./...' });

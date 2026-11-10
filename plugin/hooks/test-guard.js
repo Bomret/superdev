@@ -14,12 +14,12 @@
 
 let lib = null;
 try {
-  const { cmdSegments, plain, readWord } = require('../lib/bash-command.js');
-  const { testRuns, verificationKind, scopeTestCalls } = require('../lib/test-runs.js');
+  const { cmdSegments, plain } =require('../lib/bash-command.js');
+  const { testRuns, verificationKind, scopeTestCalls, scopeCall, scopeVars } = require('../lib/test-runs.js');
   const { verificationCommands } = require('../lib/verification.js');
   const { locate } = require('../lib/run-tree.js');
-  if ([cmdSegments, testRuns, verificationKind, scopeTestCalls, verificationCommands, plain, readWord, locate].every((f) => typeof f === 'function')) {
-    lib = { cmdSegments, testRuns, verificationKind, scopeTestCalls, verificationCommands, plain, readWord, locate };
+  if ([cmdSegments, testRuns, verificationKind, scopeTestCalls, scopeCall, scopeVars, verificationCommands, plain, locate].every((f) => typeof f === 'function')) {
+    lib = { cmdSegments, testRuns, verificationKind, scopeTestCalls, scopeCall, scopeVars, verificationCommands, plain, locate };
   }
 } catch {
   /* fail open */
@@ -47,8 +47,10 @@ function decide(input) {
 }
 
 function judge(command, cwd) {
-  const { cmdSegments, testRuns, verificationKind, scopeTestCalls, verificationCommands, plain } = lib;
-  for (const c of scopeTestCalls(cmdSegments(command), cwd)) {
+  const { cmdSegments, testRuns, verificationKind, scopeTestCalls, scopeCall, scopeVars, verificationCommands, plain } = lib;
+  const segs = cmdSegments(command);
+  const vars = scopeVars(segs);
+  for (const c of scopeTestCalls(segs, vars, cwd)) {
     if (!c.at) continue;
     const verb = plain(c.words[0]) || c.words[0];
     const rest = c.words.slice(1);
@@ -67,13 +69,13 @@ function judge(command, cwd) {
   // so a `cd` before it is not followed; a command the guard cannot place passes.
   const at = lib.locate(require('path').join(cwd, 'x'));
   if (at) {
-    for (const seg of cmdSegments(command)) {
-      // The script word may be quoted and may lead with a variable: only its basename matters, as `scopeTestCalls` reads it.
-      const ws = seg.ws.map((w) => lib.readWord(w).value || w);
-      const i = ws.findIndex((w, j) => /(?:^|\/)scope\.js$/.test(w) && ws[j + 1] === 'fail-to-pass');
-      const d = i < 0 ? -1 : ws.indexOf('--', i + 2);
-      if (d < 0 || d === ws.length - 1) continue;
-      const rest = seg.ws.slice(d + 1);
+    for (const [n, seg] of segs.entries()) {
+      // The script word is read as `scopeTestCalls` reads it: quoted, or a variable that names `scope.js`.
+      const c = !seg.fn && scopeCall(seg, vars[n]);
+      if (!c || c.args[c.j + 1] !== 'fail-to-pass') continue;
+      const d = c.args.indexOf('--', c.j + 2);
+      if (d < 0 || d === c.args.length - 1) continue;
+      const rest = c.args.slice(d + 1);
       const kind = verificationKind(rest.length === 1 ? plain(rest[0]) || rest[0] : rest.join(' '), verificationCommands(at.tree));
       if (kind === 'full' || kind === 'whole') return refuse(`a ${kind}-suite run through \`scope.js fail-to-pass\``, OWN_RUNS);
     }
