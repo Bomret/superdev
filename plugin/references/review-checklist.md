@@ -207,8 +207,6 @@ run, and the verb runs only the second (ADR 0215).
 the command, so read it against the repository's runner and the test files the range adds or modifies. A line whose
 command leaves one of them out counts as no outcome line for either entry below, and the finding names the file.
 A line whose coverage you cannot judge, one with no command among them, counts, and the report names the doubt.
-The run trace records a revert or restore whatever its Bash call's exit status, and none for a segment that never ran.
-The implementer runs the revert, each test run, and the restore as separate Bash calls, so each line stands in its own order.
 
 - **Pass-to-pass** — on a `behavior` slice, a latest outcome line over the slice's range that reads
   `pass-to-pass`: the slice's tests passed with the slice's other files put back as they stood before it, so

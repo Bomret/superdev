@@ -185,7 +185,7 @@ function cdDir(cmd, args, base, dirs, seg) {
   return dirs.end;
 }
 
-// The directory git runs in: `base` moved by every `-C` in order, or null where one cannot be read (ADR 0160, INV-0161).
+// The directory git runs in: `base` moved by every `-C` in order, or null where one cannot be read (ADR 0160).
 function gitBase(g, base) {
   let dir = base;
   for (const { name, value } of g.options) {
@@ -214,7 +214,7 @@ const DURATION = /^\d+(?:\.\d+)?[smhd]?$/;
 
 // The wrapper options after which the hook reads no operand: `--help` and `--version` on any wrapper, `sudo`'s list, version,
 // validate, and reset modes, and `env -S`, whose string holds the command line the hook does not read, run none. `sudo -D`, `-R`, and
-// `-i` and `env -C` run it in a directory the hook cannot know (ADR 0160, INV-0161). A short cluster is read the getopt way, up to
+// `-i` and `env -C` run it in a directory the hook cannot know (ADR 0160). A short cluster is read the getopt way, up to
 // its first value option: `sudo -uD` is user `D`.
 const RUNS_NONE = {
   sudo: { short: 'lVvKDRi', long: ['--list', '--validate', '--remove-timestamp', '--chdir', '--chroot', '--login'] },

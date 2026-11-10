@@ -1047,10 +1047,10 @@ Paths: plugin/hooks/hooks.json, plugin/references/scope-mode.md, plugin/referenc
 
 Class: architecture
 Concepts: Run trace, Focused test command, Suite record
-Statement: The run trace records a test run only for a command that executes a configured test command, and records it under that command's own kind. A command that only quotes a test command, or sits in a function body (or in a line whose function header takes a bare compound body), records no run, a run records pass or fail only in a plain list of simple commands, so a run in a command line with a `!` negation, inside compound structure, or inside a substitution reads `unknown`, and a focused run is never recorded as a full run, whatever its spelling (a full or whole-repo command with extra argument words included), so it backs a reused suite record only, written by `scope.js` with its path set, as the focused run at the tip of a complete-selector carry. A Markdown-only carry needs no run at the tip, and a focused run there only refuses it by failing (INV-0017, ADR 0128, ADR 0175, ADR 0189).
+Statement: The run trace holds a test run only from `scope.js test` and `scope.js fail-to-pass`, each writing the run line itself, and an edit only from an Edit, Write, or NotebookEdit tool call. A Bash command adds no trace line, so a test command run directly, a redirect, `sed -i`, `cp`, or `git apply` leaves no trace (ADR 0225, INV-0017, ADR 0175).
 Breaks: silently
-Check: tests/run-trace-runs.test.js — quoted mentions record nothing, compound runs record, a substituted focused run records as focused, a full- or whole-template match with extra argument words records as focused
-Paths: plugin/lib/test-runs.js, plugin/lib/bash-command.js
+Check: tests/run-trace.test.js — a Bash call adds no trace line on any hook event, and hooks.json registers run-trace.js on no Bash matcher
+Paths: plugin/hooks/run-trace.js, plugin/hooks/hooks.json
 
 ### INV-0130
 
@@ -1292,19 +1292,10 @@ Paths: plugin/hooks/*.js, plugin/lib/*.js
 
 Class: safety
 Concepts: Run trace
-Statement: run-trace's PreToolUse handler for a Bash call records evidence and guards nothing: whatever fails in it, such as an unwritable stash directory or a missing `tool_use_id`, it denies no call, prints nothing, and exits 0 (ADR 0159).
+Statement: run-trace guards nothing: whatever fails in it, such as an unloadable module or a throwing function, it denies no call, prints nothing, records no partial event, and exits 0 (ADR 0159, ADR 0225).
 Breaks: loudly
-Check: tests/run-trace-stash.test.js — a PreToolUse Bash input whose stash cannot be written exits 0 with empty stdout
-Paths: plugin/lib/start-stash.js, plugin/hooks/run-trace.js, plugin/hooks/hooks.json
-
-### INV-0161
-
-Class: architecture
-Concepts: Run trace
-Statement: run-trace records no write, test run, or restore for a Bash segment whose directory neither the hook nor the ending directory can know: a segment behind a wrapper option that changes directory (`sudo -D`, `sudo -R`, `sudo -i`, `env -C`, in every spelling), or one whose `git -C` value the hook cannot read. The segment's redirects still record against the shell's directory (ADR 0160).
-Breaks: silently
-Check: tests/run-trace-writes.test.js and tests/run-trace-runs.test.js — a write, a test run, and a restore behind each chdir option spelling record nothing, while the segment's redirect records
-Paths: plugin/lib/bash-command.js, plugin/lib/bash-writes.js, plugin/lib/test-runs.js
+Check: tests/run-trace-guards.test.js — with any module it loads unloadable, or a function of one throwing, the hook records nothing
+Paths: plugin/hooks/run-trace.js, plugin/hooks/hooks.json
 
 ### INV-0162
 

@@ -95,12 +95,12 @@ function verbTest(cwd, args) {
     }
     if (at) {
       const [sha1, tree1] = treeState(at.tree);
-      // An edit, revert, or restore the trace recorded for this slice during the run changed the tree, even one undone
+      // An edit the trace recorded for this slice during the run changed the tree, even one undone
       // before the end. simplicity: a change no hook records (another process writing the tree) shows only at the two ends.
       let changed = false;
       try {
         changed = readTrace(fs.readFileSync(traceFile).subarray(traceMark).toString('utf8'))
-          .some((e) => e.slice === at.slice && ['edit', 'revert', 'restore'].includes(e.kind));
+          .some((e) => e.slice === at.slice && e.kind === 'edit');
       } catch { /* no trace: nothing recorded */ }
       // The commit and tree state the command ran against: a moved HEAD, a dirty tree at either end, or a recorded change
       // during the run is `dirty`.
