@@ -98,6 +98,7 @@ function bashTargets(command, cwd, end) {
     for (const { op, target } of redirects) {
       if (!/^(?:>>?|>\||<>|&>>?|>&)$/.test(op)) continue;
       if (op === '>&' && /^(?:\d+|-)$/.test(target.raw)) continue;
+      if (/^[<>]\(/.test(target.raw)) continue; // a process substitution is a command, no file
       add(base, target.raw);
     }
     if (cd && !cmdLine.calls) continue;

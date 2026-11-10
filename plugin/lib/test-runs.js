@@ -102,8 +102,61 @@ function outsideTree(dir, outside) {
 // non-test command there too): `outside` itself while the directory lies in it, and the `cd` target's repository top (else the
 // target itself, resolved once per target) after a `cd` out of it.
 // The runs it returns then carry that tree as `at`, with no run root, so a caller records nothing for them.
-// A segment's words as one text, for the `set -o pipefail` read.
-const segText = (s) => s.ws.join(' ');
+// The shell options a `set` segment turns on or off, into `state` ({ pipefail, noexec }): option words (`-e`, `-eo pipefail`, `+o noexec`, `-n`)
+// up to the first operand or `--`, which start the positional parameters (`set -- -o pipefail`, `set x -o pipefail` set no option).
+function applySet(seg, state) {
+  const { cmd, args } = segWords(seg);
+  const [name, rest] = unwrapBuiltin(cmd, args);
+  if (name !== 'set') return;
+  const words = rest.map((w) => plain(w) ?? w);
+  for (let k = 0; k < words.length && /^[-+]/.test(words[k]) && words[k] !== '--' && words[k] !== '-' && words[k] !== '+'; k++) {
+    const on = words[k][0] === '-';
+    for (const letter of words[k].slice(1)) {
+      if (letter === 'n') state.noexec = on;
+      if (letter !== 'o') continue;
+      const opt = words[++k];
+      if (opt === 'pipefail') state.pipefail = on;
+      else if (opt === 'noexec') state.noexec = on;
+    }
+  }
+}
+// Whether a redirect can fail before its command runs: a file target that holds an expansion the hook cannot read, an input file that is
+// absent, or an output whose directory is absent or whose path is a directory. A descriptor duplication (`2>&1`, `>&-`), a heredoc, a here-string,
+// and a process substitution open no file.
+const FILE_REDIRECT = /^(?:<|>>?|>\||<>|&>>?|>&)$/;
+function redirectMayFail(seg, dir) {
+  return seg.redirects.some(({ op, target }) => {
+    if (!FILE_REDIRECT.test(op) || /^[<>]\(/.test(target.raw) || (op === '>&' && /^(?:\d+|-)$/.test(target.raw))) return false;
+    const t = plain(target);
+    if (t === null) return true;
+    if (t.startsWith('/dev/')) return false;
+    const file = path.resolve(dir, drivePath(t));
+    try {
+      if (op === '<') return !fs.statSync(file).isFile();
+      return fs.existsSync(file) ? fs.statSync(file).isDirectory() : !fs.statSync(path.dirname(file)).isDirectory();
+    } catch { return true; }
+  });
+}
+// Whether a `cd`/`pushd`/`popd` segment can fail: its target names no directory the hook can see.
+function cdMayFail(seg, dir) {
+  const [cmd, args] = unwrapBuiltin(...cdCall(seg.words));
+  if (!/^(?:cd|pushd|popd)$/.test(cmd)) return false;
+  const operands = args.filter((w) => !/^-[LPe@]+$/.test(w) && w !== '--');
+  if (!operands.length) return false;
+  const t = plain(operands[operands.length - 1]);
+  try { return t === null || !fs.statSync(path.resolve(dir, drivePath(t))).isDirectory(); } catch { return true; }
+}
+// A pass-through stage that has an operand (`cat missing`, `tail f`) can fail on its own; its flags and a flag's number (`tail -n 5`) cannot.
+function stageHasOperand(seg) {
+  const { cmd, args } = segWords(seg);
+  const tailLike = path.basename(cmd) === 'tail';
+  for (let k = 0; k < args.length; k++) {
+    if (args[k] === '--') return k + 1 < args.length;
+    if (tailLike && /^-[nc]$/.test(args[k])) k++;
+    else if (!args[k].startsWith('-')) return true;
+  }
+  return false;
+}
 // A segment's command word past `command` and `builtin` (`unwrapBuiltin`), for the `cd`/`set` reading below: `builtin cd a` is a `cd`.
 const sceneCmd = (s) => { const { cmd, args } = segWords(s); return unwrapBuiltin(cmd, args)[0]; };
 // The segments after index `last` that sit no deeper than `seg`: the commands of a substitution inside the segment's own
@@ -127,7 +180,8 @@ function testRuns(command, cwd, outside) {
 function testRunsOf(segs, cwd, outside, end) {
   const runs = [];
   const dirs = dirTracker(cwd, end);
-  let pipefail = false;
+  const opts = { pipefail: false, noexec: false };
+  let cdFails = false;
   let spanEnd = -1;
   const outTrees = new Map();
   segs.forEach((first, i) => {
@@ -136,7 +190,7 @@ function testRunsOf(segs, cwd, outside, end) {
     const base = dirs.of(first);
     const { cmd, args, negated } = segWords(first);
     // The last `set -o pipefail` / `set +o pipefail` before the test wins; an option group (`-euo`) counts.
-    if (/\bset\s/.test(segText(first))) for (const m of segText(first).matchAll(/([-+])[A-Za-z]*o\s+pipefail\b/g)) pipefail = m[1] === '-';
+    applySet(first, opts);
     let at = locate(path.join(base, 'x'));
     if (!at && outside) {
       if (!outTrees.has(base)) outTrees.set(base, outsideTree(base, outside));
@@ -148,7 +202,7 @@ function testRunsOf(segs, cwd, outside, end) {
     const compound = at ? compoundKind(segs, i, v) : null;
     if (!compound) {
       const cd = cdDir(...cdCall(first.words), base, dirs, first);
-      if (cd) { dirs.set(first, cd); return; }
+      if (cd) { cdFails = cdFails || cdMayFail(first, base); dirs.set(first, cd); return; }
       if ((NOT_RUNNERS.has(path.basename(cmd)) || SHELL_READERS.has(cmd)) && !verificationKind(first, v)) return;
     }
     if (!at) return;
@@ -160,7 +214,7 @@ function testRunsOf(segs, cwd, outside, end) {
     for (const s of segs.slice(i, last)) {
       if (s.fn) continue;
       const cd = cdDir(...cdCall(s.words), dirs.of(s), dirs, s);
-      if (cd) dirs.set(s, cd);
+      if (cd) { cdFails = cdFails || cdMayFail(s, dirs.of(s)); dirs.set(s, cd); }
     }
     const runDir = dirs.of(seg);
     let kind = compound ? compound.kind : verificationKind(seg, v);
@@ -185,7 +239,7 @@ function testRunsOf(segs, cwd, outside, end) {
     const more = stages.length > 0;
     // A pipe's status is the pipeline's last segment, so a test piped into a tail stands only when the pipeline ends the command.
     // Under pipefail a later stage keeps the test's status only as a pass-through (`tail`, `cat`; `head` can SIGPIPE).
-    const pipeEnds = seg.sep !== '|' || stages.every((s, j) => PASS_THROUGH.has(path.basename(segWords(s).cmd))
+    const pipeEnds = seg.sep !== '|' || stages.every((s, j) => PASS_THROUGH.has(path.basename(segWords(s).cmd)) && !stageHasOperand(s) && !redirectMayFail(s, dirs.of(s))
       && (j < stages.length - 1 ? s.sep === '|' : /^(?:|;|\n)$/.test(s.sep)));
     // Inside a compound configured command every joiner reads as it does in a direct run: a `;`, newline, or `||` hides the
     // status, a pipe keeps it only under pipefail into a pass-through stage, and a `!` on a later segment negates it.
@@ -194,13 +248,13 @@ function testRunsOf(segs, cwd, outside, end) {
     // a `set -o pipefail` in any of them counts.
     const carrier = Math.max(0, inner.findIndex((s) => !/^(?:cd|set)$/.test(sceneCmd(s))));
     for (const s of inner.slice(1, carrier)) {
-      if (/\bset\s/.test(segText(s))) for (const m of segText(s).matchAll(/([-+])[A-Za-z]*o\s+pipefail\b/g)) pipefail = m[1] === '-';
+      applySet(s, opts);
     }
     const innerHides = inner.some((s, j) => j >= carrier && j < inner.length - 1 && (/^(?:;|\n|\|\|)$/.test(s.sep)
-      || (s.sep === '|' && !(pipefail && PASS_THROUGH.has(path.basename(segWords(inner[j + 1]).cmd))))))
+      || (s.sep === '|' && !(opts.pipefail && PASS_THROUGH.has(path.basename(segWords(inner[j + 1]).cmd))))))
       || inner.slice(1).some((s) => segWords(s).negated);
     // Every segment of a command line with a `!` negation reads negated (`cmdSegments`), so the run's status is unknown.
-    const unknown = negated || segs.slice(0, i).some((s) => segWords(s).negated) || innerHides || (seg.sep === '|' && !pipefail) || !pipeEnds || seg.sep === '||' || ((seg.sep === ';' || seg.sep === '\n') && more);
+    const unknown = negated || segs.slice(0, i).some((s) => segWords(s).negated) || innerHides || (seg.sep === '|' && !opts.pipefail) || cdFails || opts.noexec || segs.slice(i, last + 1).some((s) => redirectMayFail(s, dirs.of(s))) || !pipeEnds || seg.sep === '||' || ((seg.sep === ';' || seg.sep === '\n') && more);
     // Allow-list: pass or fail only for a plain list of simple commands. A line with dropped compound structure, a negation, or a
     // function body, or a run (or a command before it) read out of a substitution or subshell, has a status that is not the test's.
     const plainList = segs.slice(0, last + 1).every((s) => s.nest === 0 && !s.fn && !s.compound && !s.negated);
