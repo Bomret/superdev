@@ -38,6 +38,16 @@ const { readTrace, traceField } = require('../plugin/lib/trace-log.js');
     assert.deepEqual(s.runLines(), [`01 main run path pass ${s.tipSha} clean tests/t.sh`], 'one passing path run line at the tip on a clean tree, naming the test files');
     assert.match(s.rawRunLines()[0], / tests\/t\.sh \d+ tests\/t\.sh$/, 'and its duration in whole milliseconds, then the command\'s arguments, last');
 
+    // A command with no segment (a comment) has no arguments to record: the verb still prints an outcome and writes the control run's line.
+    s = scenario({
+      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
+      tip: { 'src.txt': 'b\n', 'tests/t.sh': probe },
+    });
+    r = s.run(s.range, { cmd: '# note' });
+    assert.equal(r.status, 0, 'a segmentless command ends with an outcome, not a crash: ' + r.stderr);
+    assert.match(r.stdout.trim(), /^(fail-to-pass|pass-to-pass|unknown)\b/, 'an outcome prints');
+    assert.match(s.rawRunLines()[0] || '', / -$/, 'the control run line ends with the absent arguments field');
+
     // Tests that pass with the other files put back as well read pass-to-pass.
     s = scenario({
       base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },

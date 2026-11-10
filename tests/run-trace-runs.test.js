@@ -9,7 +9,7 @@ const os = require('node:os');
 const path = require('node:path');
 const cp = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
-const { verificationKind, testRuns } = require('../plugin/lib/test-runs.js');
+const { verificationKind, testRuns, commandArgs } = require('../plugin/lib/test-runs.js');
 const { bashTargets } = require('../plugin/lib/bash-writes.js');
 const { decodeArgs } = require('../plugin/lib/trace-log.js');
 const { tmp, ledger, A, S3, trace, reset, run, edit, bash, hookPath, initS3, cleanup, GIT_SPAWN_BOUND_MS } = require('./run-trace-setup');
@@ -29,6 +29,9 @@ fail('bun run test');
 post('GITEA_TOKEN=zz-secret-zz bun run test');
 assert.deepEqual(tail(trace(A)), [`run full pass ${sha} clean - - run,test`, `run full fail ${sha} clean - - run,test`, `run full pass ${sha} clean - - run,test`], 'full command, both events; the command word and an env assignment are never recorded, its arguments are');
 assert.ok(!fs.readFileSync(path.join(A, 'trace.log'), 'utf8').includes('zz-secret-zz'));
+
+// A command with no segment (blank, a comment, a bare separator) has no arguments: the field is the absent field `-`, and the call does not throw.
+for (const none of ['', ' ', '# x', ';']) assert.strictEqual(commandArgs(none), '-', `a segmentless command ${JSON.stringify(none)} reads as no arguments`);
 
 reset();
 post('node tests/x.test.js');

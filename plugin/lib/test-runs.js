@@ -113,10 +113,11 @@ const laterOf = (segs, last, seg) => segs.slice(last + 1).filter((s) => s.nest <
 // The `run` line's arguments field for a segment: the words after its command word, as the shell reads them (a word the scanner cannot
 // read keeps its text), in the `encodeArgs` encoding.
 const argsField = (seg) => encodeArgs(segWords(seg).args.map((w) => plain(w) ?? w));
-// The same field for the last segment of a command's text, the segment that carries a compound command's test.
+// The same field for the last segment of a command's text, the segment that carries a compound command's test. A command with
+// no segment (blank, a comment, a bare separator) has no arguments: the absent field `-`.
 const commandArgs = (command) => {
   const segs = cmdSegments(command);
-  return argsField(segs[segs.length - 1]);
+  return segs.length ? argsField(segs[segs.length - 1]) : '-';
 };
 
 function testRuns(command, cwd, outside) {
