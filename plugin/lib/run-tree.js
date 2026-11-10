@@ -42,6 +42,20 @@ function locate(abs) {
   return { runRoot, tree, rel, slice };
 }
 
+// The absolute path an Edit, Write, or NotebookEdit tool path names, resolved once and normalized. The hook runs after the tool,
+// and the tool resolved a relative path against its own working directory, which the hook's `cwd` may not be (triage #34): the
+// reading against `cwd` stands, and the reading against the tree root of `cwd` replaces it only when the tool's file exists at
+// that one and not at the first. A file at both readings is a tie the hook cannot break: the `cwd` reading wins. An absolute path, a `cwd` outside a run tree, and a path neither reading names a file for
+// resolve against `cwd`.
+function toolTarget(cwd, p) {
+  const abs = path.resolve(cwd, p);
+  const here = path.isAbsolute(p) ? null : locate(path.join(cwd, 'x'));
+  if (!here) return abs;
+  const fromTree = path.resolve(here.tree, p);
+  const isFile = (f) => { try { return fs.statSync(f).isFile(); } catch { return false; } };
+  return fromTree !== abs && !isFile(abs) && isFile(fromTree) ? fromTree : abs;
+}
+
 // The `<sha> <clean|dirty|unknown>` of a tree, each under a time bound.
 function treeState(tree) {
   const sha = (gitOut(tree, ['rev-parse', 'HEAD']) || '').trim();
@@ -49,4 +63,4 @@ function treeState(tree) {
   return [/^[0-9a-f]{40,64}$/.test(sha) ? sha : 'unknown', st === null ? 'unknown' : st.trim() ? 'dirty' : 'clean'];
 }
 
-module.exports = { locate, isTestPath, treeState, gitOut, GIT_BOUND_MS };
+module.exports = { locate, toolTarget, isTestPath, treeState, gitOut, GIT_BOUND_MS };

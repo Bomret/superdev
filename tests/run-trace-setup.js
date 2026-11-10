@@ -30,7 +30,7 @@ function runRoot(name, rows) {
   fs.writeFileSync(path.join(root, 'ledger.md'), ledger(rows));
   return root;
 }
-const A = runRoot('a', [['02', 'todo'], ['03', 'in-progress']]);
+const A = runRoot('a', [['01', 'todo'], ['02', 'todo'], ['03', 'in-progress'], ['04', 'todo'], ['05', 'todo']]);
 const B = runRoot('b', [['01', 'in-progress'], ['02', 'in-progress']]);
 const trace = (root) => {
   try { return fs.readFileSync(path.join(root, 'trace.log'), 'utf8').split('\n').filter(Boolean).map((l) => l.split(' ').slice(1)); } catch { return []; }

@@ -27,7 +27,7 @@ try {
   assert.deepEqual(lines(), [], 'and records nothing');
   r = verb(['--', 'bats', 'services/x/tests/a.bats']);
   assert.equal(r.status, 0, r.stderr);
-  assert.match(lines()[0], /^03 main run path pass [0-9a-f]{40} clean services\/x\/tests\/a\.bats$/, 'a path run records its file');
+  assert.match(lines()[0], /^03 main run path pass [0-9a-f]{40} clean services\/x\/tests\/a\.bats services\/x\/tests\/a\.bats$/, 'a path run records its file');
   reset();
   r = verb(['--', 'bats services/x/tests/a.bats | cat']);
   assert.match(lines()[0], / run path unknown /, 'a status the command shape hides records unknown');

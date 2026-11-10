@@ -4,7 +4,7 @@
 // run-trace: deterministic PostToolUse hook that records every file edit of a superdev run into the
 // run trace (ADR 0117), attributed to its run and slice and classified as test or implementation.
 // Events: Edit/Write/NotebookEdit, and a Bash command writing a file through a redirect, `tee`,
-// `sed -i`, `cp`/`mv`/`install`, `git mv`, or `git apply`; and a Bash command that runs tests (with
+// `sed -i`, `cp`/`mv`/`install`, `git mv`, `git rm`, or `git apply`; and a Bash command that runs tests (with
 // outcome, commit, and tree state, on PostToolUse and PostToolUseFailure) or reverts or restores files.
 // And every subagent dispatch and its end with an outcome (ADR 0140): PreToolUse on Agent, then PostToolUse, PostToolUseFailure,
 // or PermissionDenied on Agent, SubagentStop, PostToolUse on TaskStop, or the main session's Stop, UserPromptSubmit, or SessionEnd.
@@ -20,8 +20,6 @@
 // The writers ledger-guard alone reads (a vi/vim script, `curl -o`, `wget -O`, `ditto`, `xxd`, `tar -x`, an interpreter's script, a
 // here-string or echo text a shell reads) record no edit here.
 
-const path = require('path');
-
 // The modules in `lib/` own everything the hook records from: the trace writer, the Bash write and test-run readers over the
 // shared command layer, the run locator, the dispatch lifecycle, and the stash. The same fail-silent require as scope-prune: no module, no recording. One `try`
 // covers all of them, so a module that will not load leaves its names null, and record() records nothing for any of them. The stash
@@ -31,6 +29,7 @@ let appendTrace = null;
 let bashTargets = null;
 let recordBash = null;
 let locate = null;
+let toolTarget = null;
 let isTestPath = null;
 let recordDispatch = null;
 let findDispatch = null;
@@ -45,7 +44,7 @@ try {
   ({ appendTrace } = require('../lib/trace-log.js'));
   ({ bashTargets } = require('../lib/bash-writes.js'));
   ({ recordBash } = require('../lib/test-runs.js'));
-  ({ locate, isTestPath } = require('../lib/run-tree.js'));
+  ({ locate, toolTarget, isTestPath } = require('../lib/run-tree.js'));
   ({ recordDispatch, findDispatch, endLine, bindAgentResult, recordAgentEnd, recordTaskStop, recordSendMessage, recordSendMessageEnd, closeSession } = require('../lib/dispatch.js'));
 } catch {
   // left null: record() records nothing
@@ -70,7 +69,7 @@ function record(input) {
   }
   // Every other Bash event takes the stash, before any guard below can return, so no path leaves it behind.
   const stashed = input && typeof input === 'object' && input.tool_name === 'Bash' && takeStart ? takeStart(input.tool_use_id) : null;
-  const loaded = [appendTrace, bashTargets, recordBash, locate, isTestPath, recordDispatch, findDispatch,
+  const loaded = [appendTrace, bashTargets, recordBash, locate, toolTarget, isTestPath, recordDispatch, findDispatch,
     endLine, bindAgentResult, recordAgentEnd, recordTaskStop, recordSendMessage, recordSendMessageEnd, closeSession, stashStart, takeStart];
   if (!loaded.every(Boolean) || !input || typeof input !== 'object') return null;
   const ti = input.tool_input || {};
@@ -120,8 +119,8 @@ function record(input) {
     return null;
   }
   let targets = [];
-  if (typeof ti.file_path === 'string') targets = [path.resolve(cwd, ti.file_path)];
-  else if (typeof ti.notebook_path === 'string') targets = [path.resolve(cwd, ti.notebook_path)];
+  if (typeof ti.file_path === 'string') targets = [toolTarget(cwd, ti.file_path)];
+  else if (typeof ti.notebook_path === 'string') targets = [toolTarget(cwd, ti.notebook_path)];
   else if (typeof ti.command === 'string') targets = bashTargets(ti.command, start, cwd);
   for (const abs of targets) {
     const at = locate(abs);

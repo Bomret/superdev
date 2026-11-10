@@ -10,7 +10,7 @@ const path = require('node:path');
 const cp = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { appendTrace } = require('../plugin/scripts/scope.js');
-const { encodePaths } = require('../plugin/lib/trace-log.js');
+const { encodePaths, encodeArgs } = require('../plugin/lib/trace-log.js');
 const { tmp, ledger, A, B, trace, reset, run, spawnOut, hookPath, agentPre, agentPost, cleanup, GIT_SPAWN_BOUND_MS } = require('./run-trace-setup');
 
 // Subagent dispatches: PreToolUse on Agent records `dispatch`, PostToolUse `completed` (or async_launched then SubagentStop) the `dispatch-end`.
@@ -62,6 +62,8 @@ const { tmp, ledger, A, B, trace, reset, run, spawnOut, hookPath, agentPre, agen
   scopeCli(['slice', '--root', A, '05', 'in-progress']);
   // `scope.js test focused` writes its run line through this writer, with the path set in `encodePaths`' field encoding (ADR 0175).
   appendTrace(A, { slice: '04', kind: 'run', fields: ['focused', 'pass', 'e4f5a6b', 'clean', encodePaths(['a b.ts', 'x,y.ts', '-lead.ts'])] });
+  // The layout with the duration and the arguments field (`encodeArgs`), beside the one above without them.
+  appendTrace(A, { slice: '04', kind: 'run', fields: ['path', 'fail', 'e4f5a6b', 'clean', 'tests/a.test.js', '120', encodeArgs(['tests/a.test.js', '--grep', 'a b'])] });
   run(agentPre(`Work in ${A}/slicetrees/04`, 'tu1', 'superdev:implementer', 'Build slice 04', undefined, 's1'));
   run(agentPost('tu1', { status: 'async_launched', agentId: 'ag1' }));
   run({ hook_event_name: 'SubagentStop', agent_id: 'ag1', agent_type: 'superdev:implementer', cwd: tmp });
@@ -84,7 +86,23 @@ const { tmp, ledger, A, B, trace, reset, run, spawnOut, hookPath, agentPre, agen
   run({ hook_event_name: 'SubagentStop', agent_id: 'ag4', agent_type: 'superdev:slice-reviewer', cwd: tmp });
   scopeCli(['step', 'block', '--root', A]);
   assert.deepEqual(trace(A).map((l) => l.join(' ')), lines, 'the hook writes the trace lines superdev-view parses');
-  fs.writeFileSync(path.join(A, 'ledger.md'), ledger([['02', 'todo'], ['03', 'in-progress']]));
+  fs.writeFileSync(path.join(A, 'ledger.md'), ledger([['01', 'todo'], ['02', 'todo'], ['03', 'in-progress'], ['04', 'todo'], ['05', 'todo']]));
+}
+// A report directory that names no slice of the run (a review fix cycle's `reports/review/`) reads `scope`, on the dispatch,
+// dispatch-bind, and resume lines alike; a real slice's `reports/<id>/` and `slicetrees/<id>` still read that id.
+{
+  reset();
+  run(agentPre(`Fix. Progress log: ${A}/reports/review/progress.md`, 'rv1', 'superdev:implementer', 'Review fix', undefined, 's1'));
+  run(agentPost('rv1', { status: 'async_launched', agentId: 'agr' }));
+  run({ hook_event_name: 'SubagentStop', agent_id: 'agr', agent_type: 'superdev:implementer', cwd: tmp });
+  run({ hook_event_name: 'PreToolUse', tool_name: 'SendMessage', tool_use_id: 'smr', tool_input: { to: 'agr', message: 'again' }, session_id: 's1', cwd: tmp });
+  assert.deepEqual(trace(A).map((l) => [l[0], l[2]]), [['scope', 'dispatch'], ['scope', 'dispatch-bind'], ['scope', 'dispatch-end'], ['scope', 'dispatch-resume']], 'a report directory naming no slice reads scope');
+  run(agentPre(`${A}/reports/review/ and ${A}/slicetrees/04`, 'rv2'));
+  assert.equal(trace(A).find((l) => l[4] === 'rv2')[0], '04', 'a non-slice report directory beside one slice names that slice');
+  run(agentPre(`${A}/slicetrees/nope`, 'rv3'));
+  assert.equal(trace(A).find((l) => l[4] === 'rv3')[0], 'scope', 'a slicetree id the ledger lacks reads scope');
+  run(agentPre(`${A}/reports/05/progress.md`, 'rv4'));
+  assert.equal(trace(A).find((l) => l[4] === 'rv4')[0], '05', 'a real slice report directory records that id');
 }
 {
   reset();

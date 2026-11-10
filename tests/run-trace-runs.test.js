@@ -9,8 +9,9 @@ const os = require('node:os');
 const path = require('node:path');
 const cp = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
-const { verificationKind, testRuns } = require('../plugin/lib/test-runs.js');
+const { verificationKind, testRuns, commandArgs } = require('../plugin/lib/test-runs.js');
 const { bashTargets } = require('../plugin/lib/bash-writes.js');
+const { decodeArgs, appendTrace, encodePaths } = require('../plugin/lib/trace-log.js');
 const { tmp, ledger, A, S3, trace, reset, run, edit, bash, hookPath, initS3, cleanup, GIT_SPAWN_BOUND_MS } = require('./run-trace-setup');
 const vf = path.join(S3, 'docs', 'agents', 'verification.md');
 // A path run needs its file to exist (triage #1210): the test files the cases below run are committed with the tree.
@@ -26,8 +27,11 @@ post('bun run test');
 fail('bun run test');
 // The sentinel holds a character no hex sha contains, so a commit sha never matches it by chance.
 post('GITEA_TOKEN=zz-secret-zz bun run test');
-assert.deepEqual(tail(trace(A)), [`run full pass ${sha} clean -`, `run full fail ${sha} clean -`, `run full pass ${sha} clean -`], 'full command, both events; env value and command text never recorded');
+assert.deepEqual(tail(trace(A)), [`run full pass ${sha} clean - - run,test`, `run full fail ${sha} clean - - run,test`, `run full pass ${sha} clean - - run,test`], 'full command, both events; the command word and an env assignment are never recorded, its arguments are');
 assert.ok(!fs.readFileSync(path.join(A, 'trace.log'), 'utf8').includes('zz-secret-zz'));
+
+// A command with no segment (blank, a comment, a bare separator) has no arguments: the field is the absent field `-`, and the call does not throw.
+for (const none of ['', ' ', '# x', ';']) assert.strictEqual(commandArgs(none), '-', `a segmentless command ${JSON.stringify(none)} reads as no arguments`);
 
 reset();
 post('node tests/x.test.js');
@@ -35,7 +39,19 @@ post('grep foo tests/x.test.js');
 post('cat tests/x.test.js');
 post('git diff tests/x.test.js');
 post('bun run test:unit');
-assert.deepEqual(tail(trace(A)), [`run path pass ${sha} clean tests/x.test.js`], 'a path run records; reads and a sibling command record nothing');
+assert.deepEqual(tail(trace(A)), [`run path pass ${sha} clean tests/x.test.js - tests/x.test.js`], 'a path run records; reads and a sibling command record nothing');
+
+// A run line ends with the command's arguments (`encodeArgs`), after the duration field the hook leaves `-`: two commands that differ
+// only in arguments read differently, and an argument holding a space, a comma, a percent sign, or a leading `-` reads back unchanged.
+reset();
+post('node tests/x.test.js');
+post('node tests/x.test.js --grep "a b,c" 100%');
+assert.deepEqual(tail(trace(A)), [
+  `run path pass ${sha} clean tests/x.test.js - tests/x.test.js`,
+  `run path pass ${sha} clean tests/x.test.js - tests/x.test.js,%2D-grep,a\\x20b%2Cc,100%25`,
+], 'the arguments are the last field');
+post('bun run test --related a.js');
+assert.deepEqual(decodeArgs(trace(A).pop()[9]), ['run', 'test', '--related', 'a.js'], 'a configured command records its arguments too');
 
 // A quoted note that begins with a test path is free text, never a path: a command writing it records no run.
 reset();
@@ -57,14 +73,15 @@ fail('bun test && bash scripts/test-affected.sh');
 post('bun test');
 post('bun test; bash scripts/test-affected.sh');
 post('bun test && bash scripts/test-affected.sh || true');
-assert.deepEqual(tail(trace(A)), [`run full pass ${sha} dirty -`, `run full fail ${sha} dirty -`, `run full unknown ${sha} dirty -`], 'a compound full command records one run; its prefix alone or a different joiner records none');
+assert.deepEqual(tail(trace(A)), [`run full pass ${sha} dirty - - scripts/test-affected.sh`, `run full fail ${sha} dirty - - scripts/test-affected.sh`, `run full unknown ${sha} dirty - - scripts/test-affected.sh`], 'a compound full command records one run; its prefix alone or a different joiner records none');
 post('bun test && bash scripts/test-affected.sh --x');
 assert.equal(trace(A).pop()[3], 'focused', 'a compound full run with a segment past its template narrows to focused');
 assert.equal(trace(A).pop()[7], '-', 'a focused run the hook records from a direct call holds no path set');
 reset();
 fs.writeFileSync(vf, '# V\n\n```sh\ncd sub && bun test\n```\n');
+fs.mkdirSync(path.join(S3, 'sub'), { recursive: true }); // a cd to a directory that exists cannot fail
 post('cd sub && bun test');
-assert.deepEqual(tail(trace(A)), [`run full pass ${sha} dirty -`], 'a compound configured command starting with cd matches');
+assert.deepEqual(tail(trace(A)), [`run full pass ${sha} dirty - - test`], 'a compound configured command starting with cd matches');
 fs.mkdirSync(path.join(S3, 'sub', 'tests'), { recursive: true });
 fs.writeFileSync(path.join(S3, 'sub', 'tests', 'a.test.js'), '');
 post('cd sub && bun test && node tests/a.test.js');
@@ -90,8 +107,10 @@ post('rtk proxy bun test | tee out.log');
 assert.equal(trace(A).filter((l) => l[2] === 'run').length, 1, 'rtk proxy <command> is <command>');
 fs.writeFileSync(vf, '# V\n\n```sh\ncd sub; bun test\n```\n\n```sh\ncd sub && set -o pipefail && bun test | tail -5\n```\n');
 reset();
+fs.mkdirSync(path.join(S3, 'sub'), { recursive: true });
 post('cd sub; bun test');
 fail('cd sub && set -o pipefail && bun test | tail -5');
+fs.rmSync(path.join(S3, 'sub'), { recursive: true });
 assert.deepEqual(trace(A).filter((l) => l[2] === 'run').map((l) => l[4]), ['pass', 'fail'], 'a joiner before the test and a pipefail past the first segment do not hide the outcome');
 fs.writeFileSync(vf, vfSaved);
 
@@ -100,7 +119,7 @@ reset();
 post('rtk grep foo tests/x.test.js');
 post('rtk -v bun run test');
 post('rtk bun run test');
-assert.deepEqual(tail(trace(A)), [`run full pass ${sha} clean -`, `run full pass ${sha} clean -`], 'rtk <test command>, with or without option words, is that run; rtk <search> is none');
+assert.deepEqual(tail(trace(A)), [`run full pass ${sha} clean - - run,test`, `run full pass ${sha} clean - - run,test`], 'rtk <test command>, with or without option words, is that run; rtk <search> is none');
 
 reset();
 for (const c of ['node tests/x.test.js | tail -5', 'node tests/x.test.js || true', 'node tests/x.test.js; true']) post(c);
@@ -139,7 +158,7 @@ fs.rmSync(path.join(S3, 'src', 'dirty.js'));
   const r = cp.spawnSync(process.execPath, [hookPath], { input: JSON.stringify(input), encoding: 'utf8', timeout: GIT_SPAWN_BOUND_MS, env: { ...process.env, PATH: bin + path.delimiter + process.env.PATH } });
   assertSpawnDecided(r, 'run-trace.js with a stalled git');
   assert.ok(fs.existsSync(marker), 'the hook reached the stalled git stub');
-  assert.deepEqual(tail(trace(A)), ['run full pass unknown unknown -'], 'a killed git call records unknown');
+  assert.deepEqual(tail(trace(A)), ['run full pass unknown unknown - - run,test'], 'a killed git call records unknown');
 }
 
 reset();
@@ -148,8 +167,35 @@ post('git restore -- src/x.js');
 post('git checkout HEAD -- src/x.js');
 post('git checkout main -- src/x.js');
 post('git checkout feature');
-fail('git restore --source=main -- src/y.js');
 assert.deepEqual(trace(A).map((l) => l.slice(2).join(' ')), ['revert src/x.js', 'restore src/x.js', 'restore src/x.js', 'revert src/x.js']);
+
+// A revert or restore is recorded whatever the Bash call's exit status: a failed test after the revert in one chain (#111).
+reset();
+fail('git restore --worktree --source=main src/x.js && bun run test');
+assert.deepEqual(trace(A).map((l) => l.slice(2, 5).join(' ')), ['run full unknown', 'revert src/x.js'], 'a failed test after the revert records both lines');
+reset();
+fail('git restore --source=main -- src/y.js');
+fail('git restore --worktree src/z.js');
+assert.deepEqual(trace(A).map((l) => l.slice(2).join(' ')), ['revert src/y.js', 'restore src/z.js'], 'a failed call still records its revert and restore');
+
+// A failed call records no restore that follows an `&&` whose earlier command may have failed.
+reset();
+fail('bun run test && git restore --source=main -- src/x.js');
+fail('false && cd sub && git restore --source=main -- src/y.js');
+assert.deepEqual(trace(A).map((l) => l.slice(2, 5).join(' ')), ['run full unknown'], 'a restore behind a failed `&&` predecessor never ran');
+reset();
+fail('cd sub && git restore --source=main -- src/x.js');
+assert.deepEqual(trace(A), [], 'a failed call drops a revert behind a `cd &&`, even one that may have run');
+reset();
+post('bun run test && git restore --source=main -- src/x.js');
+fail('git restore src/y.js; git restore --source=main -- src/z.js');
+assert.deepEqual(trace(A).map((l) => l.slice(2).join(' ')).filter((l) => l.startsWith('re')), ['revert src/x.js', 'restore src/y.js', 'revert src/z.js'], 'a succeeded call, and a `;` after a failure, record their restores');
+
+// A segment that never ran records nothing, whatever the exit status.
+reset();
+fail('false && git restore --worktree --source=main src/x.js');
+post('true || git restore --source=main -- src/y.js');
+assert.deepEqual(trace(A), [], 'a revert behind a failed `&&` or a succeeded `||` never ran');
 
 // `--source <rev>` and `-s <rev>` as separate words name the source like `--source=<rev>`: a revert, and `HEAD` a restore.
 reset();
@@ -177,10 +223,10 @@ assert.deepEqual(trace(A).map((l) => l.slice(2).join(' ')), ['revert src/x.js', 
   reset();
   bash(`cd ${S3} && bun run test`, outside);
   bash(`git -C ${S3} restore --source=main -- f`, outside);
-  assert.deepEqual(trace(A).map((l) => l.join(' ')), [`03 main run full pass ${sha} clean -`, '03 main revert f']);
+  assert.deepEqual(trace(A).map((l) => l.join(' ')), [`03 main run full pass ${sha} clean - - run,test`, '03 main revert f']);
   reset();
   bash(`cd ${S2} && bun run test`, S3);
-  assert.deepEqual(trace(A).map((l) => l.join(' ')), [`02 main run full pass ${sha2} clean -`], 'a cd into another tree records in that tree');
+  assert.deepEqual(trace(A).map((l) => l.join(' ')), [`02 main run full pass ${sha2} clean - - run,test`], 'a cd into another tree records in that tree');
   fs.rmSync(outside, { recursive: true, force: true });
 }
 
@@ -384,7 +430,9 @@ fail('cd tests <<EOF && bun run test\n$(exit 1)\nEOF');
 assert.deepEqual(trace(A).map((l) => l.slice(3, 5).join(' ')), ['full unknown'], 'a heredoc body adds no run line');
 // A plain list keeps its outcome.
 reset();
+fs.mkdirSync(path.join(S3, 'sub'), { recursive: true });
 for (const c of ['bun run test', 'cd sub && bun run test', 'set -o pipefail; bun run test | tail -5']) { post(c); fail(c); }
+fs.rmSync(path.join(S3, 'sub'), { recursive: true });
 assert.deepEqual(trace(A).map((l) => l.slice(3, 5).join(' ')), ['full pass', 'full fail', 'full pass', 'full fail', 'full pass', 'full fail'], 'a plain list of simple commands keeps pass and fail');
 
 // A function body's writes record at its definition, since a call of it later writes them; its `cd` moves nothing at the definition.
@@ -482,6 +530,66 @@ assert.deepEqual(tail(trace(A)).map((l) => l.split(' ').slice(0, 2).join(' ')), 
   fs.rmSync(vf2);
 }
 
+// A backgrounded `scope.js test -- <command>` call writes no hook run line (the verb writes its own, ADR 0127), so the recorded
+// rerun is the only run at the tip (triage #55); a backgrounded direct test run still records unknown.
+{
+  const bg = (command, cwd) => run({ hook_event_name: 'PostToolUse', tool_name: 'Bash', tool_input: { command, run_in_background: true }, cwd });
+  const wrapped = (cd) => `${cd} && node "\${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test -- node tests/x.test.js > "$TMPDIR/rerun.log" 2>&1; echo "exit=$?" >> "$TMPDIR/rerun.log"; tail -4 "$TMPDIR/rerun.log"`;
+  reset();
+  bg(wrapped(`cd ${S3}`), S3);
+  bg(wrapped('cd "$TREE"'), S3);
+  assert.deepEqual(trace(A), [], 'a backgrounded scope.js test call records no hook run line');
+  // The script path held in a variable an earlier segment assigned (a subagent's `S=…/scope.js; node $S test …`), foreground or background.
+  const viaVar = (use) => `S=/home/u/.claude/plugins/cache/superdev/superdev/1.0.0/scripts/scope.js; for t in x; do ${use} test -- node tests/$t.test.js 2>&1 | tail -3; done`;
+  for (const command of [viaVar('node $S'), viaVar('node "$S"'), viaVar('node ${S}'), 'S=/p/scripts/scope.js; node $S test focused tests/x.test.js']) {
+    bg(command, S3);
+    post(command);
+  }
+  assert.deepEqual(trace(A), [], 'a scope.js test call through a variable script path records no hook run line');
+  bg('S=/p/other.js; node $S test -- node tests/x.test.js', S3);
+  assert.deepEqual(trace(A).map((l) => l.slice(2, 5).join(' ')), ['run path unknown'], 'a variable that names no scope.js leaves the run a direct one');
+  // Only an assignment in an earlier segment, not later overwritten with another script, names the script.
+  for (const command of ['node $S test -- node tests/x.test.js; S=/p/scripts/scope.js', 'S=/p/scripts/scope.js; S=/p/other.js; node $S test -- node tests/x.test.js']) {
+    reset();
+    bg(command, S3);
+    assert.deepEqual(trace(A).map((l) => l.slice(2, 5).join(' ')), ['run path unknown'], `a variable not naming scope.js at its use is a direct run: ${command}`);
+  }
+  reset();
+  bg('S=/p/other.js; S=/p/scripts/scope.js; node $S test -- node tests/x.test.js', S3);
+  assert.deepEqual(trace(A), [], 'the last assignment names the script');
+  reset();
+  bg('node tests/x.test.js', S3);
+  assert.deepEqual(trace(A).map((l) => l.slice(2, 5).join(' ')), ['run path unknown'], 'a backgrounded direct run records unknown');
+}
+
+// The shape this run's trace showed: a backgrounded rerun whose script path sits in a variable. The verb records the rerun, the
+// hook adds no unknown line for it, so `scope.js suite reusable` accepts the recorded rerun (ADR 0172).
+{
+  const verification = '# V\n\n```sh\nbun run test\n```\n\n```sh\nbun run test --related {paths}\n```\n';
+  const bgRun = (command) => run({ hook_event_name: 'PostToolUse', tool_name: 'Bash', tool_input: { command, run_in_background: true }, cwd: S3 });
+  fs.writeFileSync(vf, `${verification}\n## Complete selector\n\n- \`tests/x.test.js\`\n`);
+  git('add', '-A');
+  git('commit', '-q', '-m', 'selector');
+  const tip = git('rev-parse', 'HEAD');
+  git('branch', 'base0', sha);
+  reset();
+  fail('bun run test');
+  // The lines the verb writes for the rerun's file and for the focused run over the range's paths; the hook's part is to add none.
+  appendTrace(A, { slice: '03', agent: 'implementer', kind: 'run', fields: ['path', 'pass', tip, 'clean', 'tests/x.test.js', '-', 'node'] });
+  bgRun(`cd ${S3} && S=/p/superdev/scripts/scope.js; node $S test -- node tests/x.test.js > "$TMPDIR/rerun.log" 2>&1; echo "exit=$?" >> "$TMPDIR/rerun.log"`);
+  appendTrace(A, { slice: '03', agent: 'implementer', kind: 'run', fields: ['focused', 'pass', tip, 'clean', encodePaths(['docs/agents/verification.md']), '-', 'bun'] });
+  const root = fs.mkdtempSync(path.join(tmp, 'rerun-'));
+  fs.writeFileSync(path.join(root, 'ledger.md'), ledger([['03', 'in-progress']]).replace('**Stage:** implementing', `**Stage:** implementing\n**Suite:** red @ ${tip}\n**Rerun:** tests/x.test.js @ ${tip} #1`));
+  fs.copyFileSync(path.join(A, 'trace.log'), path.join(root, 'trace.log'));
+  const r = cp.spawnSync(process.execPath, [require.resolve('../plugin/scripts/scope.js'), 'suite', 'reusable', '--branch', 'HEAD', '--root', root, '--base', 'base0'], { cwd: S3, encoding: 'utf8', timeout: 10000 });
+  assertSpawnDecided(r, 'scope.js suite reusable');
+  assert.equal(r.status, 0, `the recorded rerun is accepted: ${r.stderr}`);
+  fs.rmSync(root, { recursive: true, force: true });
+  git('reset', '-q', '--hard', sha);
+  git('branch', '-q', '-D', 'base0');
+  fs.rmSync(vf, { force: true });
+}
+
 // A `scope.js fail-to-pass … -- <command>` call records its own control run (ADR 0182), so the hook records no run for the test
 // file its command names, quoted script word or not; the rest of the command line records as usual.
 {
@@ -504,5 +612,28 @@ assert.deepEqual(tail(trace(A)).map((l) => l.split(' ').slice(0, 2).join(' ')), 
   }
   assert.deepEqual(trace(A), [], 'a prepare call records no run');
 }
+
+// An exit status that may not be the test's reads unknown (#115): a `cd` that can fail before it, `set -n`, a redirect that can fail before the
+// run, and a pass-through stage with arguments. A bare pass-through stage and an option-turned pipefail keep the test's status.
+{
+  fs.writeFileSync(vf, '# V\n\n```sh\nbun run test\n```\n\n```sh\nbun run test\n```\n');
+  const outcomes = (cmds) => { reset(); for (const c of cmds) fail(c); return trace(A).filter((l) => l[2] === 'run').map((l) => l[4]); };
+  const unknowns = ['cd nowhere && bun run test', 'set -n; bun run test', 'set -o noexec; bun run test', 'set -en; bun run test', 'bun run test > /no/such/dir/x',
+    'bun run test < /no/such/file', 'bun run test >"$(exit 3)"', 'set -o pipefail; bun run test | cat missingfile',
+    'pushd nowhere && bun run test', 'popd nowhere && bun run test', 'set -eo noexec; bun run test'];
+  assert.deepEqual(outcomes(unknowns), unknowns.map(() => 'unknown'), 'a cd, set -n, a redirect, or a pass-through stage with arguments that can fail first reads unknown');
+  const keeps = ['set -o pipefail; bun run test | tail', 'set -o pipefail; bun run test | tail -n 5', 'set -eo pipefail; bun run test | cat', 'bun run test 2>&1', 'bun run test > /dev/null', 'cd sub && bun run test'];
+  fs.mkdirSync(path.join(S3, 'sub'), { recursive: true });
+  assert.deepEqual(outcomes(keeps), keeps.map(() => 'fail'), 'a bare pass-through stage, an option group, an fd duplication, and a cd to a directory keep the test status');
+  fs.rmSync(path.join(S3, 'sub'), { recursive: true });
+  const off = ['set -- -o pipefail; bun run test | tail', 'set x -o pipefail; bun run test | tail'];
+  assert.deepEqual(outcomes(off), ['unknown', 'unknown'], 'positional parameters named like an option turn pipefail on no more than a pipe without it');
+  assert.strictEqual(commandArgs('bun run test'), 'run,test');
+}
+
+// An `exit`/`return` operand, an fd duplication, and a process substitution are no written path.
+assert.deepEqual(bashTargets('cd tests && exit 0', S3), [], 'an exit operand records no path');
+assert.deepEqual(bashTargets('f() { return 0; }; echo x >&2; echo y 2>&1; echo x > >(cat); cat < <(echo a)', S3), [], 'fd duplications and process substitutions record no path');
+assert.deepEqual(bashTargets('echo x > >(cat) > out', S3), [path.join(S3, 'out')], 'a process substitution beside a file redirect leaves the file');
 
 cleanup();

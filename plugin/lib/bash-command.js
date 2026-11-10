@@ -37,7 +37,7 @@ function readWord(w) {
 const unquote = (word) => readWord(word).path;
 
 // The scanned commands in the order bash runs them (`at`, stable sort), marked for how they move the directory (`cdDir`).
-// `calls` marks a call of a function that moves the directory: a command outside every function body whose command word, past
+// `calls` marks a call of a function that moves the directory: a command, in a function body at any depth or outside every one, whose command word, past
 // env assignments and unquoted (`"f"` and `\f` call `f`), names a function the line defines, after a `cd`, `pushd`, or `popd` in a
 // function body, its word read as `cdCall` reads it (`\cd`, `'cd'`, `eval cd`, `eval "cd …"`), also behind `command` or `builtin` (`unwrapBuiltin`). A function body runs in the shell that calls it, so its `cd` moves that shell.
 // simplicity: a call of any defined function counts once any function body holds a `cd`, since the scanner names no body's
@@ -49,8 +49,8 @@ function markMoves(scanned) {
     const ws = c.words.map((w) => w.raw);
     const at = ws.findIndex((w) => !ASSIGN_WORD.test(w));
     const word = at < 0 ? undefined : ws[at];
+    c.calls = moves && word !== undefined && scanned.fns.has(readWord(c.words[at]).path);
     if (c.fn) moves = moves || /^(?:cd|pushd|popd)$/.test(unwrapBuiltin(...cdCall(c.words))[0]);
-    else c.calls = moves && word !== undefined && scanned.fns.has(readWord(c.words[at]).path);
   }
   return cmds;
 }
@@ -75,6 +75,8 @@ function cmdSegments(command) {
       // The same words as the scanner's Word objects, which `cdCall` reads without scanning them again.
       words,
       sep: c.sep === '|&' ? '|' : c.sep,
+      // The segment's redirects as the scanner reads them ({ op, fd, target }); a process substitution target is no file.
+      redirects: c.redirects || [],
       nest: c.nest,
       group: c.group,
       inst: c.inst,
@@ -285,4 +287,9 @@ function segWords({ ws, negated: neg }) {
 const plain = (w) => readWord(w).literal;
 
 // `scan`, `drivePath`, and `gitSubcommand` are the scanner's own, re-exported so every reader takes the scanner through this layer's check.
-module.exports = { scan, drivePath, gitSubcommand, readWord, unquote, plain, markMoves, cmdSegments, dirTracker, unwrapBuiltin, cdCall, cdDir, gitBase, segWords };
+// Whether a redirect opens a file: `<`, `>`, `>>`, `>|`, `<>`, `&>`, `&>>`, or `>&` onto a file. A descriptor duplication (`>&2`, `>&-`), a heredoc,
+// a here-string, and a process substitution (`>(cmd)`, `<(cmd)`) open none.
+function isFileRedirect(op, target) {
+  return /^(?:<|>>?|>\||<>|&>>?|>&)$/.test(op) && !/^[<>]\(/.test(target.raw) && !(op === '>&' && /^(?:\d+|-)$/.test(target.raw));
+}
+module.exports = { isFileRedirect, scan, drivePath, gitSubcommand, readWord, unquote, plain, markMoves, cmdSegments, dirTracker, unwrapBuiltin, cdCall, cdDir, gitBase, segWords };

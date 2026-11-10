@@ -4,9 +4,10 @@
 
 const fs = require('fs');
 const path = require('path');
-const { cmdSegments, dirTracker, cdDir, cdCall, unwrapBuiltin, segWords, plain, readWord, gitBase, drivePath, gitSubcommand } = require('./bash-command.js');
+const { isFileRedirect, cmdSegments, dirTracker, cdDir, cdCall, unwrapBuiltin, segWords, plain, readWord, gitBase, drivePath, gitSubcommand } = require('./bash-command.js');
 const { locate, isTestPath, treeState, gitOut } = require('./run-tree.js');
 const { verificationCommands } = require('./verification.js');
+const { encodeArgs } = require('./trace-log.js');
 
 // Commands that read, list, or edit files and never run them: a test path among their words is no run.
 // simplicity: a fixed list; a runner wrapped in a shell function or script is seen only by its own words.
@@ -101,13 +102,78 @@ function outsideTree(dir, outside) {
 // non-test command there too): `outside` itself while the directory lies in it, and the `cd` target's repository top (else the
 // target itself, resolved once per target) after a `cd` out of it.
 // The runs it returns then carry that tree as `at`, with no run root, so a caller records nothing for them.
-// A segment's words as one text, for the `set -o pipefail` read.
-const segText = (s) => s.ws.join(' ');
+// The shell options a `set` segment turns on or off, into `state` ({ pipefail, noexec }): option words (`-e`, `-eo pipefail`, `+o noexec`, `-n`)
+// up to the first operand or `--`, which start the positional parameters (`set -- -o pipefail`, `set x -o pipefail` set no option).
+function applySet(seg, state) {
+  const { cmd, args } = segWords(seg);
+  const [name, rest] = unwrapBuiltin(cmd, args);
+  if (name !== 'set') return;
+  const words = rest.map((w) => plain(w) ?? w);
+  for (let k = 0; k < words.length && /^[-+]/.test(words[k]) && words[k] !== '--' && words[k] !== '-' && words[k] !== '+'; k++) {
+    const on = words[k][0] === '-';
+    for (const letter of words[k].slice(1)) {
+      if (letter === 'n') state.noexec = on;
+      if (letter !== 'o') continue;
+      const opt = words[++k];
+      if (opt === 'pipefail') state.pipefail = on;
+      else if (opt === 'noexec') state.noexec = on;
+    }
+  }
+}
+// Whether a redirect can fail before its command runs: a file target that holds an expansion the hook cannot read, an input file that is
+// absent, or an output whose directory is absent or whose path is a directory. A descriptor duplication (`2>&1`, `>&-`), a heredoc, a here-string,
+// and a process substitution open no file.
+// It reads the filesystem after the command ran, so a target the command removed reads as may-fail: the check yields a cautious `unknown`.
+function redirectMayFail(seg, dir) {
+  return seg.redirects.some(({ op, target }) => {
+    if (!isFileRedirect(op, target)) return false;
+    const t = plain(target);
+    if (t === null) return true;
+    if (t.startsWith('/dev/')) return false;
+    const file = path.resolve(dir, drivePath(t));
+    try {
+      if (op === '<') return !fs.statSync(file).isFile();
+      return fs.existsSync(file) ? fs.statSync(file).isDirectory() : !fs.statSync(path.dirname(file)).isDirectory();
+    } catch { return true; }
+  });
+}
+// Whether a `cd`/`pushd`/`popd` segment can fail: the directory its literal target moves to (`moved`) is absent. A target the hook cannot read (`$D`, `~`, `-`) moves
+// as `cdDir` reads it and adds no doubt. Like `redirectMayFail` it reads the post-run state, so a directory the command removed reads as may-fail (a cautious `unknown`).
+function cdMayFail(seg, moved) {
+  const [cmd, args] = unwrapBuiltin(...cdCall(seg.words));
+  if (!/^(?:cd|pushd|popd)$/.test(cmd)) return false;
+  const operands = args.filter((w) => !/^-[LPe@]+$/.test(w) && w !== '--');
+  if (!operands.length) return false;
+  const t = plain(operands[operands.length - 1]);
+  if (t === null || t === '-') return false;
+  try { return !fs.statSync(moved).isDirectory(); } catch { return true; }
+}
+// A pass-through stage that has an operand (`cat missing`, `tail f`) can fail on its own; its flags and a flag's number (`tail -n 5`) cannot.
+function stageHasOperand(seg) {
+  const { cmd, args } = segWords(seg);
+  const tailLike = path.basename(cmd) === 'tail';
+  for (let k = 0; k < args.length; k++) {
+    if (args[k] === '--') return k + 1 < args.length;
+    if (tailLike && /^-[nc]$/.test(args[k])) k++;
+    else if (!args[k].startsWith('-')) return true;
+  }
+  return false;
+}
 // A segment's command word past `command` and `builtin` (`unwrapBuiltin`), for the `cd`/`set` reading below: `builtin cd a` is a `cd`.
 const sceneCmd = (s) => { const { cmd, args } = segWords(s); return unwrapBuiltin(cmd, args)[0]; };
 // The segments after index `last` that sit no deeper than `seg`: the commands of a substitution inside the segment's own
 // command run before its status exists, so they are no later stage of its list.
 const laterOf = (segs, last, seg) => segs.slice(last + 1).filter((s) => s.nest <= seg.nest);
+
+// The `run` line's arguments field for a segment: the words after its command word, as the shell reads them (a word the scanner cannot
+// read keeps its text), in the `encodeArgs` encoding.
+const argsField = (seg) => encodeArgs(segWords(seg).args.map((w) => plain(w) ?? w));
+// The same field for the last segment of a command's text, the segment that carries a compound command's test. A command with
+// no segment (blank, a comment, a bare separator) has no arguments: the absent field `-`.
+const commandArgs = (command) => {
+  const segs = cmdSegments(command);
+  return segs.length ? argsField(segs[segs.length - 1]) : '-';
+};
 
 function testRuns(command, cwd, outside) {
   return testRunsOf(cmdSegments(command), cwd, outside);
@@ -116,7 +182,8 @@ function testRuns(command, cwd, outside) {
 function testRunsOf(segs, cwd, outside, end) {
   const runs = [];
   const dirs = dirTracker(cwd, end);
-  let pipefail = false;
+  const opts = { pipefail: false, noexec: false };
+  let cdFails = false;
   let spanEnd = -1;
   const outTrees = new Map();
   segs.forEach((first, i) => {
@@ -125,7 +192,7 @@ function testRunsOf(segs, cwd, outside, end) {
     const base = dirs.of(first);
     const { cmd, args, negated } = segWords(first);
     // The last `set -o pipefail` / `set +o pipefail` before the test wins; an option group (`-euo`) counts.
-    if (/\bset\s/.test(segText(first))) for (const m of segText(first).matchAll(/([-+])[A-Za-z]*o\s+pipefail\b/g)) pipefail = m[1] === '-';
+    applySet(first, opts);
     let at = locate(path.join(base, 'x'));
     if (!at && outside) {
       if (!outTrees.has(base)) outTrees.set(base, outsideTree(base, outside));
@@ -137,7 +204,7 @@ function testRunsOf(segs, cwd, outside, end) {
     const compound = at ? compoundKind(segs, i, v) : null;
     if (!compound) {
       const cd = cdDir(...cdCall(first.words), base, dirs, first);
-      if (cd) { dirs.set(first, cd); return; }
+      if (cd) { cdFails = cdFails || cdMayFail(first, cd); dirs.set(first, cd); return; }
       if ((NOT_RUNNERS.has(path.basename(cmd)) || SHELL_READERS.has(cmd)) && !verificationKind(first, v)) return;
     }
     if (!at) return;
@@ -149,7 +216,7 @@ function testRunsOf(segs, cwd, outside, end) {
     for (const s of segs.slice(i, last)) {
       if (s.fn) continue;
       const cd = cdDir(...cdCall(s.words), dirs.of(s), dirs, s);
-      if (cd) dirs.set(s, cd);
+      if (cd) { cdFails = cdFails || cdMayFail(s, cd); dirs.set(s, cd); }
     }
     const runDir = dirs.of(seg);
     let kind = compound ? compound.kind : verificationKind(seg, v);
@@ -174,7 +241,7 @@ function testRunsOf(segs, cwd, outside, end) {
     const more = stages.length > 0;
     // A pipe's status is the pipeline's last segment, so a test piped into a tail stands only when the pipeline ends the command.
     // Under pipefail a later stage keeps the test's status only as a pass-through (`tail`, `cat`; `head` can SIGPIPE).
-    const pipeEnds = seg.sep !== '|' || stages.every((s, j) => PASS_THROUGH.has(path.basename(segWords(s).cmd))
+    const pipeEnds = seg.sep !== '|' || stages.every((s, j) => PASS_THROUGH.has(path.basename(segWords(s).cmd)) && !stageHasOperand(s) && !redirectMayFail(s, dirs.of(s))
       && (j < stages.length - 1 ? s.sep === '|' : /^(?:|;|\n)$/.test(s.sep)));
     // Inside a compound configured command every joiner reads as it does in a direct run: a `;`, newline, or `||` hides the
     // status, a pipe keeps it only under pipefail into a pass-through stage, and a `!` on a later segment negates it.
@@ -183,19 +250,19 @@ function testRunsOf(segs, cwd, outside, end) {
     // a `set -o pipefail` in any of them counts.
     const carrier = Math.max(0, inner.findIndex((s) => !/^(?:cd|set)$/.test(sceneCmd(s))));
     for (const s of inner.slice(1, carrier)) {
-      if (/\bset\s/.test(segText(s))) for (const m of segText(s).matchAll(/([-+])[A-Za-z]*o\s+pipefail\b/g)) pipefail = m[1] === '-';
+      applySet(s, opts);
     }
     const innerHides = inner.some((s, j) => j >= carrier && j < inner.length - 1 && (/^(?:;|\n|\|\|)$/.test(s.sep)
-      || (s.sep === '|' && !(pipefail && PASS_THROUGH.has(path.basename(segWords(inner[j + 1]).cmd))))))
+      || (s.sep === '|' && !(opts.pipefail && PASS_THROUGH.has(path.basename(segWords(inner[j + 1]).cmd))))))
       || inner.slice(1).some((s) => segWords(s).negated);
     // Every segment of a command line with a `!` negation reads negated (`cmdSegments`), so the run's status is unknown.
-    const unknown = negated || segs.slice(0, i).some((s) => segWords(s).negated) || innerHides || (seg.sep === '|' && !pipefail) || !pipeEnds || seg.sep === '||' || ((seg.sep === ';' || seg.sep === '\n') && more);
+    const unknown = negated || segs.slice(0, i).some((s) => segWords(s).negated) || innerHides || (seg.sep === '|' && !opts.pipefail) || cdFails || opts.noexec || segs.slice(i, last + 1).some((s) => redirectMayFail(s, dirs.of(s))) || !pipeEnds || seg.sep === '||' || ((seg.sep === ';' || seg.sep === '\n') && more);
     // Allow-list: pass or fail only for a plain list of simple commands. A line with dropped compound structure, a negation, or a
     // function body, or a run (or a command before it) read out of a substitution or subshell, has a status that is not the test's.
     const plainList = segs.slice(0, last + 1).every((s) => s.nest === 0 && !s.fn && !s.compound && !s.negated);
     const sole = plainList && segs.slice(0, i).every((s) => /^(?:cd|set)$/.test(sceneCmd(s)) &&/^(?:&&|;|\n)$/.test(s.sep))
       && seg.sep !== '&' && (!more || (seg.sep === '|' && pipeEnds));
-    runs.push({ at, kind, files, unknown, sole });
+    runs.push({ at, kind, files, unknown, sole, args: argsField(seg) });
   });
   return runs;
 }
@@ -206,16 +273,23 @@ function restoreEvents(command, cwd) {
   return restoreEventsOf(cmdSegments(command), cwd);
 }
 
-function restoreEventsOf(segs, cwd, end) {
+function restoreEventsOf(segs, cwd, end, failed) {
   const events = [];
   const dirs = dirTracker(cwd, end);
-  for (const seg of segs) {
+  for (let n = 0; n < segs.length; n++) {
+    const seg = segs[n];
     if (seg.fn) continue;
     const base = dirs.of(seg);
     const { cmd, args } = segWords(seg);
     const cd = cdDir(...cdCall(seg.words), base, dirs, seg);
     if (cd) { dirs.set(seg, cd); continue; }
     if (cmd !== 'git') continue;
+    // A segment that never ran records none. A literal `false &&` or `true ||` before it at the same nesting proves that; on a failed call, any `&&` before it may have been what failed.
+    // The rule is conservative: a predecessor that succeeded (`cd sub && git restore …`) drops the segment too, so a revert that ran after it goes unrecorded.
+    // simplicity: no evaluation of the list's status; upgrade by tracking each segment's exit status.
+    const prev = n > 0 ? segs[n - 1] : null;
+    const pw = prev && segWords(prev);
+    if (prev && ((failed && prev.sep === '&&') || (prev.nest === seg.nest && !pw.negated && ((pw.cmd === 'false' && prev.sep === '&&') || (pw.cmd === 'true' && prev.sep === '||'))))) continue;
     // git read through gitSubcommand (ADR 0160); a `-C` the hook cannot read leaves the restored paths nowhere it knows (INV-0161).
     const g = gitSubcommand([cmd, ...args]);
     const sub = g && g.subcommand;
@@ -267,8 +341,24 @@ function restoreEventsOf(segs, cwd, end) {
 // in, or null outside every run. `scope.js test` records its own run (ADR 0127), so the hook records none for that segment;
 // every other segment of the command is recorded as usual.
 const NODE_VALUE_OPTS = /^(?:-r|--require|--import|--loader)$/;
-// A segment that runs `scope.js` under node: { args, j }, `j` the script word's index in node's args, or null.
-function scopeCall(seg) {
+// The variables that name a `scope.js` path (`S=…/scope.js;`, an implementer keeps the plugin path in one), per segment: entry `i` is
+// the set of names an earlier segment assigned a `scope.js` path and no later one before segment `i` assigned anything else.
+function scopeVars(segs) {
+  const vars = new Set();
+  return segs.map(({ ws }) => {
+    const before = new Set(vars);
+    for (const w of ws) {
+      const m = /^([A-Za-z_]\w*)=(.*)$/s.exec(w);
+      if (!m) continue;
+      if (/(?:^|\/)scope\.js$/.test(readWord(m[2]).value || m[2])) vars.add(m[1]);
+      else vars.delete(m[1]);
+    }
+    return before;
+  });
+}
+// A segment that runs `scope.js` under node: { args, j }, `j` the script word's index in node's args, or null. `vars` is the
+// segment's entry of `scopeVars`.
+function scopeCall(seg, vars) {
   const { cmd, args } = segWords(seg);
   if (path.basename(cmd) !== 'node') return null;
   // The script is node's first word that is no option or option value; `-e`/`-p` run inline code and name no script.
@@ -278,12 +368,16 @@ function scopeCall(seg) {
     if (NODE_VALUE_OPTS.test(args[j])) j++;
     else if (!args[j].startsWith('-')) break;
   }
-  // The script word may be quoted and may lead with a variable (`"${CLAUDE_PLUGIN_ROOT}/scripts/scope.js"`): only its basename matters.
-  if (j >= args.length || !/(?:^|\/)scope\.js$/.test(readWord(args[j]).value || args[j])) return null;
-  return { args, j };
+  if (j >= args.length) return null;
+  // The script word may be quoted and may lead with a variable (`"${CLAUDE_PLUGIN_ROOT}/scripts/scope.js"`): only its basename
+  // matters. A word that is a variable (`$S`, `${S}`, `"$S"`) is the script when `vars` holds it.
+  const word = readWord(args[j]).value || args[j];
+  const v = /^\$(?:\{(\w+)\}|(\w+))$/.exec(word);
+  return (v ? vars.has(v[1] || v[2]) : /(?:^|\/)scope\.js$/.test(word)) ? { args, j } : null;
 }
 
-function scopeTestCalls(segs, cwd, end) {
+// `vars` is `scopeVars` of `segs`, which the caller computes once.
+function scopeTestCalls(segs, vars, cwd, end) {
   const calls = [];
   const dirs = dirTracker(cwd, end);
   segs.forEach((seg, i) => {
@@ -291,7 +385,7 @@ function scopeTestCalls(segs, cwd, end) {
     const base = dirs.of(seg);
     const cd = cdDir(...cdCall(seg.words), base, dirs, seg);
     if (cd) { dirs.set(seg, cd); return; }
-    const call = scopeCall(seg);
+    const call = scopeCall(seg, vars[i]);
     if (!call || call.args[call.j + 1] !== 'test') return;
     const { args, j } = call;
     // `test -- <command>` records in the tree of the run `testRuns` classifies, as the verb does (a `cd` in the command moves it).
@@ -307,12 +401,16 @@ function scopeTestCalls(segs, cwd, end) {
 function recordBash(command, cwd, agent, failed, background, end) {
   const lines = [];
   // A `scope.js fail-to-pass` call writes its own control run line (ADR 0182): its segment records nothing here.
-  let segs = cmdSegments(command).map((s) => {
-    const call = !s.fn && scopeCall(s);
+  const all = cmdSegments(command);
+  const vars = scopeVars(all);
+  let segs = all.map((s, i) => {
+    const call = !s.fn && scopeCall(s, vars[i]);
     return call && call.args[call.j + 1] === 'fail-to-pass' ? { ...s, ws: [':'], words: [], negated: false } : s;
   });
-  if (/\bscope\.js["']?\s+test\b/.test(command)) {
-    const calls = scopeTestCalls(segs, cwd, end).filter((c) => c.at);
+  // The prefilter keeps commands that cannot hold a `scope.js test` call off the parse: they name `test` and `scope.js`, the script
+  // itself or the path a variable holds (`S=…/scope.js; node $S test`).
+  if (/\btest\b/.test(command) && /scope\.js/.test(command)) {
+    const calls = scopeTestCalls(segs, vars, cwd, end).filter((c) => c.at);
     if (calls.length) {
       // The calls leave the command (`:` stands in), so the segments around them record as a direct run does.
       const skip = new Set(calls.map((c) => c.i));
@@ -323,13 +421,11 @@ function recordBash(command, cwd, agent, failed, background, end) {
     const [sha, clean] = treeState(r.at.tree);
     // The exit status names the test only where the command line is a plain list and the test is its sole command; any other shape reads unknown.
     const outcome = r.unknown || !r.sole || background ? 'unknown' : failed ? 'fail' : 'pass';
-    lines.push([r.at.runRoot, { slice: r.at.slice, agent, kind: 'run', fields: [r.kind, outcome, sha, clean, r.files.join(',')] }]);
+    lines.push([r.at.runRoot, { slice: r.at.slice, agent, kind: 'run', fields: [r.kind, outcome, sha, clean, r.files.join(','), '-', r.args] }]);
   }
-  // A failed command did not (reliably) move files: only a successful one records a revert or restore.
-  if (!failed) {
-    for (const e of restoreEventsOf(segs, cwd, end)) lines.push([e.at.runRoot, { slice: e.at.slice, agent, kind: e.kind, fields: [e.paths] }]);
-  }
+  // A revert or restore that ran moved files whatever the call's exit status (a test after it may be what failed); `restoreEventsOf` drops the segments that never ran, and on a failed call a segment behind an `&&`.
+  for (const e of restoreEventsOf(segs, cwd, end, failed)) lines.push([e.at.runRoot, { slice: e.at.slice, agent, kind: e.kind, fields: [e.paths] }]);
   return lines;
 }
 
-module.exports = { testRuns, verificationKind, recordBash, scopeTestCalls };
+module.exports = { testRuns, verificationKind, recordBash, scopeTestCalls, scopeCall, scopeVars, commandArgs };
