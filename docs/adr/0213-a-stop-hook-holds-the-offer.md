@@ -7,7 +7,8 @@ only stated.
 
 **Amended by:** [ADR 0216](0216-the-offer-guard-reads-a-next-step-without-its-heading.md): a next step
 without its heading is held too. [ADR 0222](0222-the-offer-guard-passes-the-running-skill.md): a next
-command that is the skill still running passes.
+command that is the skill still running passes. [ADR 0223](0223-a-skill-adds-no-offer-condition-of-its-own.md):
+the exceptions drop "an exit where the skill's own offer conditions make no offer".
 
 ## Context
 

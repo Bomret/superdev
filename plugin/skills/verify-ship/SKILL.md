@@ -34,7 +34,7 @@ Applies to every observation. Observe within the observe-only bound of `${CLAUDE
 
 ## The closing message
 
-Applies to every message this command ends on. Close it with the Next block per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111).
+Applies to every message this command ends on. Close it with the Next block per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in that file's `## The offer` section at every exit, a refusal included (ADR 0157).
 
 ## 1. Scope + run root
 
@@ -105,7 +105,7 @@ Applies to each verdict. Write it at once, before the next line, into `<run-root
 - **The run routes to repair** per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` → name each observed `not met:` line with its observation. Print `/superdev:plan` as the next command, with one line: its repair choice plans a `fix` feature for this scope (ADR 0124). For each open anchor among the repairs §4 read whose `**Repairs:**` line names this scope's anchor, print that section's open-repair line too. Print `/superdev:verify-ship <scope>` on an `Or:` line, for an observation that was transient.
 - **Otherwise** → name each open line, an unobserved `not met:` line among them, and say running `/superdev:verify-ship <scope>` again is safe.
 
-**The offer.** Applies to every exit, a refusal included (ADR 0157). An attended run offers the next command its Next block prints per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` ahead of the Next block, whose conditions alone decide it. The hand-sync exit carries a `First:` wait, and the re-verify and Otherwise exits print this skill, so each says in one line which of that section's exceptions it meets.
+**The offer.** Applies to every exit, a refusal included, ahead of the Next block. The conditions of `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` alone decide it. The hand-sync exit's `First:` wait fails a condition and makes no offer. The re-verify and Otherwise exits print this skill, so each names the same-skill exception in one line.
 
 **The staged pages.** Applies to every §6 exit. Name the scope's staged pages in the final message, which follows the offer call, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close` (ADR 0119, INV-0123). Add the publish command to the Next block as the list states.
 

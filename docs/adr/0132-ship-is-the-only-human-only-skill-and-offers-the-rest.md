@@ -9,6 +9,10 @@ point 4, and [ADR 0116](0116-ship-names-wrap-up-when-nothing-is-left-to-verify.m
 model-invocable and offered by `/superdev:submit-pr` (point 1), replaces ship's one yes for verify-ship and
 wrap-up with verify-ship's own offer (point 3), and has a typed verify-ship offer wrap-up (point 5).
 
+**Amended by:** [ADR 0223](0223-a-skill-adds-no-offer-condition-of-its-own.md), which drops point 2's
+conditions: ship offers the next command it prints at every exit, a refusal included, under
+`references/response-shapes.md`'s `## The offer` alone.
+
 ## Context
 
 ADR 0106 made `/superdev:ship`, `/superdev:verify-ship`, and `/superdev:wrap-up` human-only. Each

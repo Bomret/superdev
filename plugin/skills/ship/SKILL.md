@@ -171,7 +171,7 @@ Applies to every start past §1. Read the stage with `node "${CLAUDE_PLUGIN_ROOT
 
 **The push result.** Applies to a push that ran.
 
-- **Rejected, non-fast-forward** → the pull request's head carries commits this scope branch lacks. Refuse: name that gap, merge nothing, and point at fetching those commits into the scope branch, running `/superdev:review <scope>`, then `/superdev:ship <scope>` again.
+- **Rejected, non-fast-forward** → the pull request's head carries commits this scope branch lacks. Refuse: name that gap and merge nothing. Put fetching those commits into the scope branch on a `First:` line, and print `/superdev:review <scope>` as the next command, then `/superdev:ship <scope>` again.
 - **Rejected for any other reason** (authentication, a pre-receive hook, the network) → relay git's error and merge nothing. Stop.
 - **Accepted** → repeat the PR read until its `head.sha` equals the tip just pushed, at most 3 times with a short pause, the bound `plugin/references/code-management-github.md` uses for a `null` `mergeable`. Still different → the equality check refuses.
 
@@ -226,4 +226,4 @@ Applies to every start past §1. Read the stage with `node "${CLAUDE_PLUGIN_ROOT
 
 **The staged pages.** Applies to every route. Name the scope's staged pages per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close` (ADR 0119, INV-0123). A count above zero puts `/superdev:publish-kb <scope>` on an `Or:` line of the Next block when that block prints.
 
-**Offer to continue.** Applies to every route and every refusal (ADR 0157, INV-0093). Make the offer per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section, whose conditions alone decide it: a route with a `First:` wait, and a resume that prints `/superdev:ship <scope>`, meet that section's exceptions. A yes starts the next command as the operator would type it, with the arguments its fence prints, and ship starts no wrap-up after a started verify-ship returns.
+**Offer to continue.** Applies to every route and every refusal (ADR 0157, INV-0093). Make the offer per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section, whose conditions alone decide it. A route or refusal with a `First:` wait fails that section's conditions and makes no offer; a resume that prints `/superdev:ship <scope>` meets its same-skill exception. A yes starts the next command as the operator would type it, with the arguments its fence prints, and ship starts no wrap-up after a started verify-ship returns.
