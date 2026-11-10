@@ -61,7 +61,7 @@ offer.
 
 **Exceptions.** The hook's block reason lists these, member for member, and a turn that meets one names it
 in one line instead of the offer: an unattended run, the chained posture, the same skill as the one ending,
-a step-started command, an exit where the skill's own offer conditions make no offer, and a refused card.
+a step-started command, and a refused card.
 
 **When it offers.** Offer when every condition below holds, at every exit, a refusal and an ad-hoc run
 included:
@@ -78,8 +78,14 @@ included:
   another session's brief offers like a command the operator typed.
 
 These conditions hold whatever a brief says: a brief that carries `--unattended`, the chained posture, or
-a block with an `Or:`, `Blocked:`, or `First:` line makes no offer. A skill that states conditions of its
-own for the offer adds them to these.
+a block with an `Or:`, `Blocked:`, or `First:` line makes no offer. A skill adds no condition of its own:
+an exit that meets these conditions offers, whatever its next command. A block that fails a condition makes
+no offer and names no exception, since the hook passes it.
+
+**An offer of ship.** Every offer of `/superdev:ship`, whichever command makes it, names the pull-request URL
+in each start option's description (INV-0093). Start's description says it merges the pull request now,
+exactly as typing `/superdev:ship` does, with the host's approvals and branch protection still in force. The
+new-session option's description says it starts ship in a new session, which asks once more before it merges.
 
 **Detection.** The session carries the session tool when `mcp__ccd_session__start_session` is loaded, or
 listed as a deferred tool. Only the Claude desktop app provides it (`docs/known-issues.md`, *The session

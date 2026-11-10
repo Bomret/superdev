@@ -109,10 +109,8 @@ Applies to every start past §1. Find the scope checkout.
 
 **The stage write.** Applies after the open. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set submitted --root <run-root>`, then run the publish.
 
-**The offer.** Applies to an attended run. Make the offer for `/superdev:ship <scope>` per `## The offer` (ADR 0157, INV-0093). Each start option's description names the pull-request URL and says the pull request is not reviewed yet.
+**The offer.** Applies to an attended run. Make the offer for `/superdev:ship <scope>` per `## The offer` (ADR 0157, INV-0093). Its start options carry that section's **An offer of ship** wording, and each also says the pull request is not reviewed yet.
 
-- Start's description says it merges the pull request now, exactly as typing `/superdev:ship` does, with the host's approvals and branch protection still in force.
-- The new-session option's description says it starts ship in a new session, which asks once more before it merges.
 - The operator who wants to review first answers once the review is done, or stops here.
 
 **The unattended end.** Applies to an unattended run. Make no offer. The next command below still prints.

@@ -58,8 +58,9 @@ function passed(r, label) {
   assert.match(reason, /## The offer/);
   assert.match(reason, /precedence/);
   assert.match(reason, /offer call is the closing's first action, before the wrap-up call/);
-  for (const w of ['unattended', 'chained', 'same skill', 'step', 'refused', "an exit where the skill's own offer conditions make no offer"])
+  for (const w of ['unattended', 'chained', 'same skill', 'step', 'refused'])
     assert.match(reason, new RegExp(w), w);
+  assert.doesNotMatch(reason, /own offer conditions/);
 }
 
 // An offer card with the marker line, or a Start option, lets the Next block stop; markers end at Stop.
