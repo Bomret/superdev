@@ -292,4 +292,4 @@ const plain = (w) => readWord(w).literal;
 function isFileRedirect(op, target) {
   return /^(?:<|>>?|>\||<>|&>>?|>&)$/.test(op) && !/^[<>]\(/.test(target.raw) && !(op === '>&' && /^(?:\d+|-)$/.test(target.raw));
 }
-module.exports = { isFileRedirect, scan,drivePath, gitSubcommand, readWord, unquote, plain, markMoves, cmdSegments, dirTracker, unwrapBuiltin, cdCall, cdDir, gitBase, segWords };
+module.exports = { isFileRedirect, scan, drivePath, gitSubcommand, readWord, unquote, plain, markMoves, cmdSegments, dirTracker, unwrapBuiltin, cdCall, cdDir, gitBase, segWords };
