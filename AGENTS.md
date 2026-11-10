@@ -374,8 +374,9 @@ This root owns every other subtree directly:
   `docs/agents/deployment.md`, ADR 0101), and closes no anchor (ADR 0106). submit-pr offers it, and the yes is
   the merge consent. It routes to `/superdev:verify-ship`
   while a criterion is left to verify, and to `/superdev:wrap-up` otherwise (ADR 0116), and offers to start the
-  routed skill under its own conditions. `/superdev:verify-ship`
-  settles the criteria only a deployed system can show, and offers wrap-up once every line is settled. `/superdev:wrap-up` closes the triage records the anchor's Absorbs line names, then the scope anchor, and takes
+  next command it prints, a refusal included. `/superdev:verify-ship`
+  settles the criteria only a deployed system can show, and offers the next command it prints. A skill adds no
+  offer condition of its own: `references/response-shapes.md`'s `## The offer` alone decides it (ADR 0223). `/superdev:wrap-up` closes the triage records the anchor's Absorbs line names, then the scope anchor, and takes
   the run down. No skill carries `disable-model-invocation: true`. Ship, verify-ship, and wrap-up start
   only when the operator typed the command, asked for it, or agreed to an offer. Ship refuses `--unattended` (ADR 0157, INV-0093). A criterion verify-ship observes false routes to `/superdev:plan`'s
   repair choice, which plans a `fix` feature on its own anchor, linked to the original by a `**Repairs:**`
