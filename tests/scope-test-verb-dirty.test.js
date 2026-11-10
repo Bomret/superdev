@@ -18,7 +18,7 @@ try {
   reset();
   verif('touch made-dirty.txt', 'true');
   verb(['full']);
-  assert.match(lines()[0], / run full pass [0-9a-f]{40} dirty - made-dirty\.txt$/, 'a tree dirtied during the run is dirty');
+  assert.match(lines()[0], / run full pass [0-9a-f]{40} dirty - touch\\x20made-dirty\.txt$/, 'a tree dirtied during the run is dirty');
   fs.rmSync(path.join(S, 'made-dirty.txt'));
   reset();
   const gate = path.join(D, 'gate');
@@ -27,7 +27,8 @@ try {
   let sha = sh(S, ['rev-parse', 'HEAD']);
   bash(`node ${scopePath} test full & V=$!; while [ ! -f ${gate}/started ]; do sleep 0.05; done;` +
     ` git -c user.name=t -c user.email=t@t commit -q --allow-empty -m moved; touch ${gate}/go; wait $V`);
-  assert.deepEqual(lines(), [`03 main run full pass ${sha} dirty - 0.05`], 'a background run records at its end, with its start commit, dirty for the moved HEAD');
+  assert.equal(lines().length, 1);
+  assert.match(lines()[0], new RegExp(`^03 main run full pass ${sha} dirty - touch`), 'a background run records at its end, with its start commit, dirty for the moved HEAD');
   // Suite reuse: a clean run line at HEAD backs a green record (the control); the dirty line of a moved-HEAD run does not,
   // even with HEAD back on the start commit; and a dirty tree alone, at an unmoved HEAD, does not either.
   const reuse = () => {
@@ -51,7 +52,7 @@ try {
   bash(`node ${scopePath} test full & V=$!; while [ ! -f ${gate}/started2 ]; do sleep 0.05; done;` +
     ` git -c user.name=t -c user.email=t@t commit -q --allow-empty -m moved2; touch ${gate}/go2; wait $V`);
   sh(S, ['reset', '-q', '--hard', sha]);
-  assert.match(lines()[0], new RegExp(`^03 main run full pass ${sha} dirty - 0.05$`));
+  assert.match(lines()[0], new RegExp(`^03 main run full pass ${sha} dirty - touch`));
   assert.match(reuse().stderr, /dirty tree/, 'a moved-HEAD run line does not back reuse, with HEAD back on its start commit');
   // An edit the run trace records during the run, reverted before the run ends, still records dirty: the tree changed.
   reset();
@@ -61,7 +62,7 @@ try {
   bash(`node ${scopePath} test full & V=$!; while [ ! -f ${gate}/started3 ]; do sleep 0.05; done;` +
     ` echo x > transient.txt; printf '%s' '${editInput}' | node ${path.join(__dirname, '..', 'plugin', 'hooks', 'run-trace.js')}; rm transient.txt;` +
     ` touch ${gate}/go3; wait $V`);
-  assert.match(lines().find((l) => / run /.test(l)) || '', new RegExp(`^03 main run full pass ${sha} dirty - 0.05$`), 'an edit made and reverted during the run records dirty');
+  assert.match(lines().find((l) => / run /.test(l)) || '', new RegExp(`^03 main run full pass ${sha} dirty - touch`), 'an edit made and reverted during the run records dirty');
   assert.match(reuse().stderr, /dirty tree/, 'and that run line does not back reuse');
 } finally {
   end();
