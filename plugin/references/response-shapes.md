@@ -39,6 +39,8 @@ carries that answer.
 - **A turn that stops on an `AskUserQuestion` call** has not ended the command. The block closes the
   message the command ends on, never a turn that asks.
 - **A chain started by an offer** ends on the block once, at its last message, per `## The offer` below.
+- **A chain started by a step that ends the starting command** ends on the block once, at the started
+  command's last message. The starting command prints no block of its own on that exit (ADR 0224).
 
 ## The offer
 
@@ -74,7 +76,10 @@ included:
 - The operator typed the command, asked for it, started it through an offer, or another session's brief
   asked for it. A command another command starts through its own step, such as `/superdev:implement`
   starting `/superdev:plan` or either starting `/superdev:setup`, makes no offer: the command that started
-  it owns the hand-off. A parent session's brief is not such a step. A command whose first message is
+  it owns the hand-off, because it goes on after the started command returns. A step that ends the starting
+  command hands the hand-off to the started command, which offers as if the operator had typed it, such as
+  `/superdev:verify-ship` starting `/superdev:wrap-up` at its settled exit (ADR 0224). A parent session's
+  brief is not such a step. A command whose first message is
   another session's brief offers like a command the operator typed.
 
 These conditions hold whatever a brief says: a brief that carries `--unattended`, the chained posture, or

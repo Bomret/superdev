@@ -1,6 +1,6 @@
 ---
 name: wrap-up
-description: Start only when the operator typed it, asked for it, or agreed to an offer: wrap up a shipped superdev scope — check the pull request is merged, every Definition-of-Done line is settled, and every deploy target is deployed, then close the scope anchor and its slice records and take the run down. Run it after `/superdev:ship` and, where criteria stayed open, `/superdev:verify-ship`.
+description: Start only when the operator typed it, asked for it, or agreed to an offer, or verify-ship's settled exit started it: wrap up a shipped superdev scope — check the pull request is merged, every Definition-of-Done line is settled, and every deploy target is deployed, then close the scope anchor and its slice records and take the run down. Run it after `/superdev:ship` and, where criteria stayed open, `/superdev:verify-ship`.
 argument-hint: "[<scope>  (empty = the only shipped run in this repo)]"
 ---
 
@@ -22,6 +22,7 @@ Applies to every start. Start this command only on one of the starts below (ADR 
 - The operator asked for it.
 - The operator agreed to an offer.
 - Another session's brief asked for it.
+- `/superdev:verify-ship`'s settled exit started it (ADR 0224).
 
 ## No extra question
 
