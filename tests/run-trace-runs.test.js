@@ -27,7 +27,7 @@ post('bun run test');
 fail('bun run test');
 // The sentinel holds a character no hex sha contains, so a commit sha never matches it by chance.
 post('GITEA_TOKEN=zz-secret-zz bun run test');
-assert.deepEqual(tail(trace(A)), [`run full pass ${sha} clean - - run,test`, `run full fail ${sha} clean - - run,test`, `run full pass ${sha} clean - - run,test`], 'full command, both events; env value and command text never recorded');
+assert.deepEqual(tail(trace(A)), [`run full pass ${sha} clean - - run,test`, `run full fail ${sha} clean - - run,test`, `run full pass ${sha} clean - - run,test`], 'full command, both events; the command word and an env assignment are never recorded, its arguments are');
 assert.ok(!fs.readFileSync(path.join(A, 'trace.log'), 'utf8').includes('zz-secret-zz'));
 
 reset();

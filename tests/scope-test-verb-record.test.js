@@ -51,6 +51,19 @@ try {
   assert.match(lines()[3], / run full pass /, 'and records full');
   assert.match(lines()[3], / - FULLRAN$/, 'a full run records no path set');
 
+  // The drift-check command with and without `--selftest` are recorded as test runs whose lines differ in the arguments field.
+  reset();
+  verif('node scripts/drift-check.js', 'echo FOCUSED {paths}');
+  fs.mkdirSync(path.join(S, 'scripts'), { recursive: true });
+  fs.writeFileSync(path.join(S, 'scripts', 'drift-check.js'), '');
+  assert.equal(verb(['--', 'node', 'scripts/drift-check.js']).status, 0, 'drift-check is a configured test run');
+  assert.equal(verb(['--', 'node', 'scripts/drift-check.js', '--selftest']).status, 0, 'drift-check --selftest is a test run');
+  {
+    const [plain, selftest] = lines().map((l) => l.split(' '));
+    assert.equal(plain[2] + selftest[2], 'runrun', 'both are run lines');
+    assert.deepEqual([plain.pop(), selftest.pop()], ['scripts/drift-check.js', 'scripts/drift-check.js,%2D-selftest'], 'and differ in the arguments field');
+  }
+
   // A run line records its duration in whole milliseconds as its last field (ADR 0182). The command sleeps, so the
   // duration is at least the sleep it ran; no ceiling is asserted (root AGENTS.md, ADR 0086).
   {

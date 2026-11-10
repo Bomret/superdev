@@ -245,7 +245,7 @@ const { sliceJson, scopePath, run } = require('./scope-setup');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-trace-args-'));
   try {
     const last = () => readTrace(fs.readFileSync(path.join(dir, 'trace.log'), 'utf8')).filter((e) => e.kind === 'run').pop();
-    for (const args of [['a b', 'c'], ['x,y', 'z'], ['--grep', 'a'], ['-'], ['100%', 'p%2Cq'], ['back\\slash', 'café'], []]) {
+    for (const args of [['a b', 'c'], ['x,y', 'z'], ['--grep', 'a'], ['-'], ['100%', 'p%2Cq'], ['back\\slash', 'café'], [], [''], ['', ''], ['a', '']]) {
       assert.ok(appendTrace(dir, { slice: '01', kind: 'run', fields: ['path', 'pass', 'abc', 'clean', 'a.test.js', '-', encodeArgs(args)] }));
       assert.deepEqual(decodeArgs(last().fields[6]), args, `the arguments read back whole: ${JSON.stringify(args)}`);
     }
@@ -254,6 +254,7 @@ const { sliceJson, scopePath, run } = require('./scope-setup');
     assert.ok(appendTrace(dir, { slice: '01', kind: 'run', fields: ['path', 'pass', 'abc', 'clean', 'a.test.js', '12'] }));
     assert.deepEqual(decodeArgs(last().fields[6]), [], 'a line that ends at its duration reads no arguments');
     assert.notEqual(encodeArgs(['--a']), encodeArgs(['--b']), 'arguments that differ encode differently');
+    assert.notEqual(encodeArgs(['']), encodeArgs([]), 'one empty argument encodes apart from no arguments');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

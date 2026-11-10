@@ -765,7 +765,7 @@ const { appendTrace, isTestPath } = require(scopePath);
     let r = f.reusable(f.root(`green @ ${f.R}`, [base(f.R), focused(T, ['src/a.js'])]));
     assert.ok(r.ok && r.out === 'reusable', 'a covering clean focused run carries a green record: ' + (r.err || ''));
 
-    // A run line in the layout with the duration and the arguments field reads as one without them (the lines above): same verdict.
+    // A run line in the layout with the duration and the arguments field reads as one without them (the lines above): same verdict. The old reader ignores trailing fields, so this pins that the reader keeps ignoring them.
     r = f.reusable(f.root(`green @ ${f.R}`, [base(f.R), [...focused(T, ['src/a.js']), '120', encodeArgs(['focus.js', 'src/a.js'])]]));
     assert.ok(r.ok && r.out === 'reusable', 'a covering focused run with the arguments field carries a green record: ' + (r.err || ''));
 

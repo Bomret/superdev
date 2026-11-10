@@ -137,8 +137,8 @@ const f2pFixture = () => {
       // and the command an outcome line ends with, which `rawTrace` keeps.
       trace: () => traceLines(root).filter((l) => l.split(' ')[2] !== 'run').map((l) => l.replace(/ \S+$/, '')),
       rawTrace: () => traceLines(root).filter((l) => l.split(' ')[2] !== 'run'),
-      // The control run's `run` lines, without the duration a `run` line ends with.
-      runLines: () => traceLines(root).filter((l) => l.split(' ')[2] === 'run').map((l) => l.replace(/ \d+$/, '')),
+      // The control run's `run` lines, without the duration and the arguments a `run` line ends with.
+      runLines: () => traceLines(root).filter((l) => l.split(' ')[2] === 'run').map((l) => l.split(' ').slice(0, 8).join(' ')),
       rawRunLines: () => traceLines(root).filter((l) => l.split(' ')[2] === 'run'),
       ran: () => (fs.existsSync(log) ? fs.readFileSync(log, 'utf8').split('\n').filter(Boolean) : []),
     };

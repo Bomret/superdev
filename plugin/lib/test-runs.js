@@ -116,7 +116,7 @@ const argsField = (seg) => encodeArgs(segWords(seg).args.map((w) => plain(w) ?? 
 // The same field for the last segment of a command's text, the segment that carries a compound command's test.
 const commandArgs = (command) => {
   const segs = cmdSegments(command);
-  return segs.length ? argsField(segs[segs.length - 1]) : '-';
+  return argsField(segs[segs.length - 1]);
 };
 
 function testRuns(command, cwd, outside) {

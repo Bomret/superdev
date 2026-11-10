@@ -36,7 +36,7 @@ const { readTrace, traceField } = require('../plugin/lib/trace-log.js');
     // tree, and the range's test files, the files the command was handed to cover. The line is attributed like the outcome
     // line, and the outcome line is unchanged.
     assert.deepEqual(s.runLines(), [`01 main run path pass ${s.tipSha} clean tests/t.sh`], 'one passing path run line at the tip on a clean tree, naming the test files');
-    assert.match(s.rawRunLines()[0], / tests\/t\.sh \d+$/, 'and its duration in whole milliseconds last');
+    assert.match(s.rawRunLines()[0], / tests\/t\.sh \d+ tests\/t\.sh$/, 'and its duration in whole milliseconds, then the command\'s arguments, last');
 
     // Tests that pass with the other files put back as well read pass-to-pass.
     s = scenario({
