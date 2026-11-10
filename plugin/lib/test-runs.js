@@ -276,13 +276,16 @@ function restoreEvents(command, cwd) {
 function restoreEventsOf(segs, cwd, end) {
   const events = [];
   const dirs = dirTracker(cwd, end);
-  for (const seg of segs) {
+  for (let n = 0; n < segs.length; n++) {
+    const seg = segs[n];
     if (seg.fn) continue;
     const base = dirs.of(seg);
     const { cmd, args } = segWords(seg);
     const cd = cdDir(...cdCall(seg.words), base, dirs, seg);
     if (cd) { dirs.set(seg, cd); continue; }
     if (cmd !== 'git') continue;
+    // simplicity: only a literal `false &&` or `true ||` before it at the same nesting proves the segment never ran; upgrade by evaluating the list's status.
+    if (n > 0 && segs[n - 1].nest === seg.nest && [[ 'false', '&&' ], [ 'true', '||' ]].some(([c, sep]) => segs[n - 1].sep === sep && segWords(segs[n - 1]).cmd === c && !segWords(segs[n - 1]).negated)) continue;
     // git read through gitSubcommand (ADR 0160); a `-C` the hook cannot read leaves the restored paths nowhere it knows (INV-0161).
     const g = gitSubcommand([cmd, ...args]);
     const sub = g && g.subcommand;
@@ -392,10 +395,8 @@ function recordBash(command, cwd, agent, failed, background, end) {
     const outcome = r.unknown || !r.sole || background ? 'unknown' : failed ? 'fail' : 'pass';
     lines.push([r.at.runRoot, { slice: r.at.slice, agent, kind: 'run', fields: [r.kind, outcome, sha, clean, r.files.join(','), '-', r.args] }]);
   }
-  // A failed command did not (reliably) move files: only a successful one records a revert or restore.
-  if (!failed) {
-    for (const e of restoreEventsOf(segs, cwd, end)) lines.push([e.at.runRoot, { slice: e.at.slice, agent, kind: e.kind, fields: [e.paths] }]);
-  }
+  // A revert or restore that ran moved files whatever the call's exit status (a test after it may be what failed); `restoreEventsOf` drops the segments that never ran.
+  for (const e of restoreEventsOf(segs, cwd, end)) lines.push([e.at.runRoot, { slice: e.at.slice, agent, kind: e.kind, fields: [e.paths] }]);
   return lines;
 }
 
