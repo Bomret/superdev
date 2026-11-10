@@ -341,7 +341,23 @@ function restoreEventsOf(segs, cwd, end, failed) {
 // every other segment of the command is recorded as usual.
 const NODE_VALUE_OPTS = /^(?:-r|--require|--import|--loader)$/;
 // A segment that runs `scope.js` under node: { args, j }, `j` the script word's index in node's args, or null.
-function scopeCall(seg) {
+// The variables a command line assigns a `scope.js` path (`S=…/scope.js;`), by name: an implementer keeps the plugin path in one.
+function scopeVars(segs) {
+  const vars = new Set();
+  for (const { ws } of segs) {
+    for (const w of ws) {
+      const m = /^([A-Za-z_]\w*)=(.*)$/s.exec(w);
+      if (m && /(?:^|\/)scope\.js$/.test(readWord(m[2]).value || m[2])) vars.add(m[1]);
+    }
+  }
+  return vars;
+}
+// The script word, with a variable that names `scope.js` read as that script: `$S`, `${S}`, `"$S"`.
+function scriptWord(word, vars) {
+  const v = /^\$(?:\{(\w+)\}|(\w+))$/.exec(readWord(word).value || word);
+  return v && vars.has(v[1] || v[2]) ? 'scope.js' : readWord(word).value || word;
+}
+function scopeCall(seg, vars) {
   const { cmd, args } = segWords(seg);
   if (path.basename(cmd) !== 'node') return null;
   // The script is node's first word that is no option or option value; `-e`/`-p` run inline code and name no script.
@@ -352,19 +368,20 @@ function scopeCall(seg) {
     else if (!args[j].startsWith('-')) break;
   }
   // The script word may be quoted and may lead with a variable (`"${CLAUDE_PLUGIN_ROOT}/scripts/scope.js"`): only its basename matters.
-  if (j >= args.length || !/(?:^|\/)scope\.js$/.test(readWord(args[j]).value || args[j])) return null;
+  if (j >= args.length || !/(?:^|\/)scope\.js$/.test(scriptWord(args[j], vars))) return null;
   return { args, j };
 }
 
 function scopeTestCalls(segs, cwd, end) {
   const calls = [];
   const dirs = dirTracker(cwd, end);
+  const vars = scopeVars(segs);
   segs.forEach((seg, i) => {
     if (seg.fn) return;
     const base = dirs.of(seg);
     const cd = cdDir(...cdCall(seg.words), base, dirs, seg);
     if (cd) { dirs.set(seg, cd); return; }
-    const call = scopeCall(seg);
+    const call = scopeCall(seg, vars);
     if (!call || call.args[call.j + 1] !== 'test') return;
     const { args, j } = call;
     // `test -- <command>` records in the tree of the run `testRuns` classifies, as the verb does (a `cd` in the command moves it).
@@ -380,11 +397,13 @@ function scopeTestCalls(segs, cwd, end) {
 function recordBash(command, cwd, agent, failed, background, end) {
   const lines = [];
   // A `scope.js fail-to-pass` call writes its own control run line (ADR 0182): its segment records nothing here.
-  let segs = cmdSegments(command).map((s) => {
-    const call = !s.fn && scopeCall(s);
+  const all = cmdSegments(command);
+  const vars = scopeVars(all);
+  let segs = all.map((s) => {
+    const call = !s.fn && scopeCall(s, vars);
     return call && call.args[call.j + 1] === 'fail-to-pass' ? { ...s, ws: [':'], words: [], negated: false } : s;
   });
-  if (/\bscope\.js["']?\s+test\b/.test(command)) {
+  if (/\btest\b/.test(command) && /scope\.js/.test(command)) {
     const calls = scopeTestCalls(segs, cwd, end).filter((c) => c.at);
     if (calls.length) {
       // The calls leave the command (`:` stands in), so the segments around them record as a direct run does.

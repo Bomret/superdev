@@ -536,6 +536,16 @@ assert.deepEqual(tail(trace(A)).map((l) => l.split(' ').slice(0, 2).join(' ')), 
   bg(wrapped(`cd ${S3}`), S3);
   bg(wrapped('cd "$TREE"'), S3);
   assert.deepEqual(trace(A), [], 'a backgrounded scope.js test call records no hook run line');
+  // The script path held in a variable an earlier segment assigned (a subagent's `S=…/scope.js; node $S test …`), foreground or background.
+  const viaVar = (use) => `S=/home/u/.claude/plugins/cache/superdev/superdev/1.0.0/scripts/scope.js; for t in x; do ${use} test -- node tests/$t.test.js 2>&1 | tail -3; done`;
+  for (const command of [viaVar('node $S'), viaVar('node "$S"'), viaVar('node ${S}'), 'S=/p/scripts/scope.js; node $S test focused tests/x.test.js']) {
+    bg(command, S3);
+    post(command);
+  }
+  assert.deepEqual(trace(A), [], 'a scope.js test call through a variable script path records no hook run line');
+  bg('S=/p/other.js; node $S test -- node tests/x.test.js', S3);
+  assert.deepEqual(trace(A).map((l) => l.slice(2, 5).join(' ')), ['run path unknown'], 'a variable that names no scope.js leaves the run a direct one');
+  reset();
   bg('node tests/x.test.js', S3);
   assert.deepEqual(trace(A).map((l) => l.slice(2, 5).join(' ')), ['run path unknown'], 'a backgrounded direct run records unknown');
 }
