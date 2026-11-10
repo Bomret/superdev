@@ -42,6 +42,21 @@ function locate(abs) {
   return { runRoot, tree, rel, slice };
 }
 
+// The absolute path an Edit, Write, or NotebookEdit tool path names, resolved against `cwd` once. A relative path that repeats
+// the working directory's own tree-relative prefix (a path given from the tree root while cwd is a subdirectory) names the
+// tree-relative file when only that reading has an existing parent directory.
+function toolTarget(cwd, p) {
+  const abs = path.resolve(cwd, p);
+  const here = locate(path.join(cwd, 'x'));
+  if (path.isAbsolute(p) || !here) return abs;
+  const dir = path.dirname(here.rel).replace(/\\/g, '/');
+  const norm = p.replace(/\\/g, '/');
+  if (dir === '.' || !norm.startsWith(dir + '/')) return abs;
+  const fromTree = path.resolve(here.tree, p);
+  const exists = (f) => { try { return fs.statSync(path.dirname(f)).isDirectory(); } catch { return false; } };
+  return !exists(abs) && exists(fromTree) ? fromTree : abs;
+}
+
 // The `<sha> <clean|dirty|unknown>` of a tree, each under a time bound.
 function treeState(tree) {
   const sha = (gitOut(tree, ['rev-parse', 'HEAD']) || '').trim();
@@ -49,4 +64,4 @@ function treeState(tree) {
   return [/^[0-9a-f]{40,64}$/.test(sha) ? sha : 'unknown', st === null ? 'unknown' : st.trim() ? 'dirty' : 'clean'];
 }
 
-module.exports = { locate, isTestPath, treeState, gitOut, GIT_BOUND_MS };
+module.exports = { locate, toolTarget, isTestPath, treeState, gitOut, GIT_BOUND_MS };

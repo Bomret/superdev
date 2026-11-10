@@ -39,4 +39,34 @@ assert.deepEqual(trace(A).map((l) => l[3]), ['test', 'test', 'test', 'test', 'te
   fs.rmSync(vf);
 }
 
+// A write made from a subdirectory of a run tree records its one tree-relative path: no doubled prefix, no bare file name.
+{
+  const sub = path.join(S3, 'mods', 'superdev-view', 'hooks');
+  fs.mkdirSync(sub, { recursive: true });
+  const want = [['edit', 'test', 'mods/superdev-view/hooks/parse.test.ts']];
+  const lines = () => trace(A).map((l) => l.slice(2));
+  reset();
+  edit('parse.test.ts', { cwd: sub });
+  assert.deepEqual(lines().map((l) => l.slice(0, 1).concat(l.slice(1))), want, 'a relative Edit path from a subdirectory');
+  reset();
+  edit(path.join(sub, 'parse.test.ts'), { cwd: sub });
+  assert.deepEqual(lines(), want, 'an absolute Edit path from a subdirectory');
+  reset();
+  edit('mods/superdev-view/hooks/parse.test.ts', { cwd: sub });
+  assert.deepEqual(lines(), want, 'a tree-relative Edit path from a subdirectory is not doubled');
+  reset();
+  edit('mods/superdev-view/hooks/new/parse.test.ts', { cwd: sub });
+  assert.deepEqual(lines(), [['edit', 'test', 'mods/superdev-view/hooks/mods/superdev-view/hooks/new/parse.test.ts']], 'a path whose tree-relative parent is absent resolves against the working directory');
+  reset();
+  run({ tool_name: 'Bash', tool_input: { command: 'echo x > parse.test.ts' }, cwd: sub });
+  assert.deepEqual(lines(), want, 'a Bash redirect from a subdirectory');
+  reset();
+  run({ tool_name: 'Bash', tool_input: { command: 'echo x > ../hooks/parse.test.ts' }, cwd: sub });
+  assert.deepEqual(lines(), want, 'a Bash redirect through .. from a subdirectory');
+  reset();
+  run({ hook_event_name: 'PostToolUse', tool_name: 'Bash', tool_input: { command: 'echo x > parse.test.ts' }, cwd: S3 });
+  run({ tool_name: 'Bash', tool_input: { command: 'cd mods/superdev-view/hooks && echo x > parse.test.ts' }, cwd: S3 });
+  assert.deepEqual(lines().slice(-1), want, 'a Bash write after a cd into a subdirectory');
+}
+
 cleanup();
