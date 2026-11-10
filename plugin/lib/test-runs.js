@@ -137,14 +137,16 @@ function redirectMayFail(seg, dir) {
     } catch { return true; }
   });
 }
-// Whether a `cd`/`pushd`/`popd` segment can fail: its target names no directory the hook can see.
+// Whether a `cd`/`pushd`/`popd` segment can fail: its literal target names no directory. A target the hook cannot read (`$D`, `~`, `-`) moves
+// as `cdDir` reads it and adds no doubt.
 function cdMayFail(seg, dir) {
   const [cmd, args] = unwrapBuiltin(...cdCall(seg.words));
   if (!/^(?:cd|pushd|popd)$/.test(cmd)) return false;
   const operands = args.filter((w) => !/^-[LPe@]+$/.test(w) && w !== '--');
   if (!operands.length) return false;
   const t = plain(operands[operands.length - 1]);
-  try { return t === null || !fs.statSync(path.resolve(dir, drivePath(t))).isDirectory(); } catch { return true; }
+  if (t === null || t === '-') return false;
+  try { return !fs.statSync(path.resolve(dir, drivePath(t))).isDirectory(); } catch { return true; }
 }
 // A pass-through stage that has an operand (`cat missing`, `tail f`) can fail on its own; its flags and a flag's number (`tail -n 5`) cannot.
 function stageHasOperand(seg) {
