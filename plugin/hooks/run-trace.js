@@ -4,7 +4,7 @@
 // run-trace: deterministic PostToolUse hook that records every file edit of a superdev run into the
 // run trace (ADR 0117), attributed to its run and slice and classified as test or implementation.
 // Events: Edit/Write/NotebookEdit, and a Bash command writing a file through a redirect, `tee`,
-// `sed -i`, `cp`/`mv`/`install`, `git mv`, or `git apply`; and a Bash command that runs tests (with
+// `sed -i`, `cp`/`mv`/`install`, `git mv`, `git rm`, or `git apply`; and a Bash command that runs tests (with
 // outcome, commit, and tree state, on PostToolUse and PostToolUseFailure) or reverts or restores files.
 // And every subagent dispatch and its end with an outcome (ADR 0140): PreToolUse on Agent, then PostToolUse, PostToolUseFailure,
 // or PermissionDenied on Agent, SubagentStop, PostToolUse on TaskStop, or the main session's Stop, UserPromptSubmit, or SessionEnd.
@@ -44,7 +44,7 @@ try {
   ({ appendTrace } = require('../lib/trace-log.js'));
   ({ bashTargets } = require('../lib/bash-writes.js'));
   ({ recordBash } = require('../lib/test-runs.js'));
-  ({ locate, toolTarget, isTestPath } =require('../lib/run-tree.js'));
+  ({ locate, toolTarget, isTestPath } = require('../lib/run-tree.js'));
   ({ recordDispatch, findDispatch, endLine, bindAgentResult, recordAgentEnd, recordTaskStop, recordSendMessage, recordSendMessageEnd, closeSession } = require('../lib/dispatch.js'));
 } catch {
   // left null: record() records nothing

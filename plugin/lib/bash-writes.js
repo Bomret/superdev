@@ -1,6 +1,6 @@
 'use strict';
 
-// bash-writes.js: the files a Bash command writes (a redirect, `tee`, `sed -i`, `cp`/`mv`/`install`, `git mv`, `git apply`), resolved against the directory each runs in.
+// bash-writes.js: the files a Bash command writes (a redirect, `tee`, `sed -i`, `cp`/`mv`/`install`, `git mv`, `git rm`, `git apply`), resolved against the directory each runs in.
 
 const fs = require('fs');
 const path = require('path');
@@ -110,7 +110,7 @@ function bashTargets(command, cwd, end) {
     // `git apply` writes the files its patch names.
     if (cmd === 'git') {
       const g = gitSubcommand([cmd, ...args]);
-      if (!g || (g.subcommand !== 'mv' && g.subcommand !== 'apply')) continue;
+      if (!g || !['mv', 'apply', 'rm'].includes(g.subcommand)) continue;
       segBase = gitBase(g, base);
       // A `-C` the hook cannot read leaves the operands nowhere it knows: they record nothing (INV-0161).
       if (segBase === null) continue;
@@ -129,14 +129,16 @@ function bashTargets(command, cwd, end) {
       const w = args[i];
       if (cmd === 'sed' && /^-[ef]$/.test(w)) { hasScript = true; i++; }
       else if (cmd === 'sed' && /^--(?:expression|file)=/.test(w)) hasScript = true;
-      else if (cmd === 'sed' && /^(?:-i|--in-place)/.test(w)) {
+      else if (cmd === 'sed' && /^(?:-[nErsuz]*i|--in-place)/.test(w)) {
         inPlace = true;
-        if (w === '-i' && /^(?:''|"")$/.test(args[i + 1])) i++;
+        if (/^-[nErsuz]*i$/.test(w) && /^(?:''|"")$/.test(args[i + 1])) i++;
       } else if (cmd !== 'tee' && cmd !== 'sudoedit' && w === '-t' && args[i + 1]) tDir = args[++i];
       else if (cmd !== 'tee' && cmd !== 'sudoedit' && /^--target-directory=/.test(w)) tDir = w.slice(w.indexOf('=') + 1);
       else if (!/^-/.test(w)) operands.push(w);
     }
-    if (cmd === 'tee' || cmd === 'sudoedit') operands.forEach((w) => add(segBase, w));
+    // `git rm` removes its operands: each is an edit, unless `-n`/`--dry-run` makes it a check.
+    if (cmd === 'rm' && args.some((w) => w === '-n' || w === '--dry-run')) continue;
+    if (cmd === 'tee' || cmd === 'sudoedit' || cmd === 'rm') operands.forEach((w) => add(segBase, w));
     else if (cmd === 'sed' && inPlace) (hasScript ? operands : operands.slice(1)).forEach((w) => add(segBase, w));
     else if (cmd === 'cp' || cmd === 'mv' || cmd === 'install') {
       const destWord = tDir !== null ? tDir : operands[operands.length - 1];

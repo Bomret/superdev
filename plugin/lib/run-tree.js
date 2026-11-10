@@ -42,19 +42,18 @@ function locate(abs) {
   return { runRoot, tree, rel, slice };
 }
 
-// The absolute path an Edit, Write, or NotebookEdit tool path names, resolved against `cwd` once. A relative path that repeats
-// the working directory's own tree-relative prefix (a path given from the tree root while cwd is a subdirectory) names the
-// tree-relative file when only that reading has an existing parent directory.
+// The absolute path an Edit, Write, or NotebookEdit tool path names, resolved once and normalized. The hook runs after the tool,
+// and the tool resolved a relative path against its own working directory, which the hook's `cwd` may not be (triage #34): the
+// reading against `cwd` stands, and the reading against the tree root of `cwd` replaces it only when the tool's file exists at
+// that one and not at the first. An absolute path, a `cwd` outside a run tree, and a path neither reading names a file for
+// resolve against `cwd`.
 function toolTarget(cwd, p) {
   const abs = path.resolve(cwd, p);
-  const here = locate(path.join(cwd, 'x'));
-  if (path.isAbsolute(p) || !here) return abs;
-  const dir = path.dirname(here.rel).replace(/\\/g, '/');
-  const norm = p.replace(/\\/g, '/');
-  if (dir === '.' || !norm.startsWith(dir + '/')) return abs;
+  const here = path.isAbsolute(p) ? null : locate(path.join(cwd, 'x'));
+  if (!here) return abs;
   const fromTree = path.resolve(here.tree, p);
-  const exists = (f) => { try { return fs.statSync(path.dirname(f)).isDirectory(); } catch { return false; } };
-  return !exists(abs) && exists(fromTree) ? fromTree : abs;
+  const isFile = (f) => { try { return fs.statSync(f).isFile(); } catch { return false; } };
+  return fromTree !== abs && !isFile(abs) && isFile(fromTree) ? fromTree : abs;
 }
 
 // The `<sha> <clean|dirty|unknown>` of a tree, each under a time bound.

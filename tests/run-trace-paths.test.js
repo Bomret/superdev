@@ -45,18 +45,64 @@ assert.deepEqual(trace(A).map((l) => l[3]), ['test', 'test', 'test', 'test', 'te
   fs.mkdirSync(sub, { recursive: true });
   const want = [['edit', 'test', 'mods/superdev-view/hooks/parse.test.ts']];
   const lines = () => trace(A).map((l) => l.slice(2));
+  // The hook runs after the tool: the file the tool wrote exists where the tool resolved the path. A relative path resolves
+  // against the hook's cwd, or against the tree root when only that reading names a file (triage #34).
+  const touch = (f) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, ''); };
+  const gone = (...fs_) => fs_.forEach((f) => fs.rmSync(f, { force: true }));
+  const inSub = path.join(sub, 'parse.test.ts');
+  const treeRegister = path.join(S3, 'register.tsx');
+  const doubled = path.join(sub, 'mods', 'superdev-view', 'hooks', 'new', 'parse.test.ts');
+  const treeNew = path.join(sub, 'new', 'parse.test.ts');
+  touch(inSub);
   reset();
   edit('parse.test.ts', { cwd: sub });
-  assert.deepEqual(lines().map((l) => l.slice(0, 1).concat(l.slice(1))), want, 'a relative Edit path from a subdirectory');
+  assert.deepEqual(lines(), want, 'a relative Edit path from a subdirectory');
   reset();
-  edit(path.join(sub, 'parse.test.ts'), { cwd: sub });
+  edit(inSub, { cwd: sub });
   assert.deepEqual(lines(), want, 'an absolute Edit path from a subdirectory');
   reset();
   edit('mods/superdev-view/hooks/parse.test.ts', { cwd: sub });
   assert.deepEqual(lines(), want, 'a tree-relative Edit path from a subdirectory is not doubled');
   reset();
+  edit('./mods/superdev-view/hooks/parse.test.ts', { cwd: sub });
+  assert.deepEqual(lines(), want, 'a ./ tree-relative Edit path from a subdirectory is normalized and not doubled');
+  reset();
+  edit('../hooks/parse.test.ts', { cwd: sub });
+  assert.deepEqual(lines(), want, 'a .. Edit path from a subdirectory is normalized');
+  reset();
+  touch(treeRegister);
+  edit('register.tsx', { cwd: sub });
+  assert.deepEqual(lines(), [['edit', 'impl', 'register.tsx']], 'a bare name the tool resolved against the tree root records at the tree root');
+  gone(treeRegister);
+  reset();
+  touch(treeNew);
   edit('mods/superdev-view/hooks/new/parse.test.ts', { cwd: sub });
-  assert.deepEqual(lines(), [['edit', 'test', 'mods/superdev-view/hooks/mods/superdev-view/hooks/new/parse.test.ts']], 'a path whose tree-relative parent is absent resolves against the working directory');
+  assert.deepEqual(lines(), [['edit', 'test', 'mods/superdev-view/hooks/new/parse.test.ts']], 'a tree-relative path into a directory the tool created is not doubled');
+  gone(treeNew);
+  reset();
+  touch(doubled);
+  edit('mods/superdev-view/hooks/new/parse.test.ts', { cwd: sub });
+  assert.deepEqual(lines(), [['edit', 'test', 'mods/superdev-view/hooks/mods/superdev-view/hooks/new/parse.test.ts']], 'a file the tool wrote under the working directory records there');
+  gone(doubled);
+  reset();
+  edit('mods/superdev-view/hooks/absent.test.ts', { cwd: sub });
+  assert.deepEqual(lines(), [['edit', 'test', 'mods/superdev-view/hooks/mods/superdev-view/hooks/absent.test.ts']], 'a path no reading names a file for resolves against the working directory');
+  for (const [command, rel] of [
+    ["sed -Ei 's/a/b/' parse.test.ts", 'parse.test.ts'],
+    ["sed -ni 's/a/b/p' parse.test.ts", 'parse.test.ts'],
+    ["sed -Ei '' 's/a/b/' parse.test.ts", 'parse.test.ts'],
+    ['git rm parse.test.ts', 'parse.test.ts'],
+    ['git rm -f -- parse.test.ts', 'parse.test.ts'],
+    ['git rm -r --cached parse.test.ts', 'parse.test.ts'],
+    ['git -C .. rm hooks/parse.test.ts', 'parse.test.ts'],
+  ]) {
+    reset();
+    run({ tool_name: 'Bash', tool_input: { command }, cwd: sub });
+    assert.deepEqual(lines(), [['edit', 'test', 'mods/superdev-view/hooks/' + rel]], 'a Bash writer from a subdirectory: ' + command);
+  }
+  reset();
+  run({ tool_name: 'Bash', tool_input: { command: 'cd mods/superdev-view/hooks && git rm parse.test.ts' }, cwd: S3 });
+  assert.deepEqual(lines(), want, 'git rm after a cd into a subdirectory');
   reset();
   run({ tool_name: 'Bash', tool_input: { command: 'echo x > parse.test.ts' }, cwd: sub });
   assert.deepEqual(lines(), want, 'a Bash redirect from a subdirectory');
