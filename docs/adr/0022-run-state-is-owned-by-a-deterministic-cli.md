@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0225](0225-guardrails-read-no-shell-words.md), under which scope.js detects an outside write to the ledger or the run trace after the fact, and no hook refuses one.
+
 **Amended by:** [ADR 0208](0208-deleting-run-state-is-a-write.md), which counts a shell delete of a
 run's ledger or run trace as a write ledger-guard refuses.
 
