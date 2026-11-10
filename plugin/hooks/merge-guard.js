@@ -11,7 +11,7 @@
 // letter case) and, later on that line, a verb word: `push`, `merge`, `rebase`, `pull`, or, after `tea`, its `m` merge
 // alias. A lead word starts at the line's start, after whitespace, `/`, a quote, or a shell operator character; a verb
 // word is bounded on both sides by the line's ends, whitespace, `/`, a quote, `;`, `&`, `|`, or `)`. So `-merge`
-// (`dod-merge`), `push.ts`, and `merge-guard.test.js` hold no verb. `gh api -X PUT repos/o/r/pulls/1/merge` is denied
+// (`dod-merge`), `push.ts`, and `merge-guard.js` hold no verb. `gh api -X PUT repos/o/r/pulls/1/merge` is denied
 // through its trailing `/merge`.
 //
 // simplicity: a command built at run time (`G=git; $G push`) slips past. This is a deterministic guardrail against the
