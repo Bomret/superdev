@@ -1,3 +1,11 @@
+## [0.102.8](https://github.com/Bomret/superdev/compare/v0.102.7...v0.102.8) (2026-11-10)
+
+
+### Bug Fixes
+
+* **offer:** offer the next command at every exit of ship and verify-ship ([#119](https://github.com/Bomret/superdev/issues/119)) ([8670760](https://github.com/Bomret/superdev/commit/8670760b70eb43991d011b1d4e69012465f5ab35))
+* **run-trace:** record run lines, exit status, paths, and reverts faithfully ([8345b94](https://github.com/Bomret/superdev/commit/8345b944ea4eaa3f338163fda03a263f83a1b10c)), closes [#113](https://github.com/Bomret/superdev/issues/113)
+
 ## [0.102.7](https://github.com/Bomret/superdev/compare/v0.102.6...v0.102.7) (2026-11-09)
 
 
