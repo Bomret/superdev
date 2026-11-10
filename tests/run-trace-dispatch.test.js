@@ -10,7 +10,7 @@ const path = require('node:path');
 const cp = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { appendTrace } = require('../plugin/scripts/scope.js');
-const { encodePaths } = require('../plugin/lib/trace-log.js');
+const { encodePaths, encodeArgs } = require('../plugin/lib/trace-log.js');
 const { tmp, ledger, A, B, trace, reset, run, spawnOut, hookPath, agentPre, agentPost, cleanup, GIT_SPAWN_BOUND_MS } = require('./run-trace-setup');
 
 // Subagent dispatches: PreToolUse on Agent records `dispatch`, PostToolUse `completed` (or async_launched then SubagentStop) the `dispatch-end`.
@@ -62,6 +62,8 @@ const { tmp, ledger, A, B, trace, reset, run, spawnOut, hookPath, agentPre, agen
   scopeCli(['slice', '--root', A, '05', 'in-progress']);
   // `scope.js test focused` writes its run line through this writer, with the path set in `encodePaths`' field encoding (ADR 0175).
   appendTrace(A, { slice: '04', kind: 'run', fields: ['focused', 'pass', 'e4f5a6b', 'clean', encodePaths(['a b.ts', 'x,y.ts', '-lead.ts'])] });
+  // The layout with the duration and the arguments field (`encodeArgs`), beside the one above without them.
+  appendTrace(A, { slice: '04', kind: 'run', fields: ['path', 'fail', 'e4f5a6b', 'clean', 'tests/a.test.js', '120', encodeArgs(['tests/a.test.js', '--grep', 'a b'])] });
   run(agentPre(`Work in ${A}/slicetrees/04`, 'tu1', 'superdev:implementer', 'Build slice 04', undefined, 's1'));
   run(agentPost('tu1', { status: 'async_launched', agentId: 'ag1' }));
   run({ hook_event_name: 'SubagentStop', agent_id: 'ag1', agent_type: 'superdev:implementer', cwd: tmp });

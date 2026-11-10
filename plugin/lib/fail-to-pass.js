@@ -16,6 +16,13 @@ const { appendTrace, readTrace } = require('./trace-log.js');
 const { treeState, gitOut } = require('./run-tree.js');
 const { superviseRuns, withWorktreeLock } = require('./run-supervision.js');
 const { shellWord } = require('./test-verb.js');
+// A missing scanner module leaves the control run's line without arguments, as `test-verb.js` does.
+let commandArgs = () => '-';
+try {
+  ({ commandArgs } = require('./test-runs.js'));
+} catch (e) {
+  if (e.code !== 'MODULE_NOT_FOUND') throw e; // a syntax error or a throwing module stays visible
+}
 const { operatorBoundMs } = require('./operator-config.js');
 
 // The floor of the bound on the run with the files put back (ADR 0142): 10 000 ms, or the operator configuration's
@@ -249,7 +256,7 @@ async function verbFailToPass(cwd, args) {
       const [sha1, tree1] = treeState(dir);
       const states = [tree0, tree1];
       const tree = sha0 !== tip || sha1 !== tip || states.includes('dirty') ? 'dirty' : states.includes('unknown') ? 'unknown' : 'clean';
-      if (!appendTrace(at.runRoot, { slice, kind: 'run', fields: ['path', control.code === 0 ? 'pass' : 'fail', tip, tree, testFiles.join(','), String(Math.round(control.ms))] })) {
+      if (!appendTrace(at.runRoot, { slice, kind: 'run', fields: ['path', control.code === 0 ? 'pass' : 'fail', tip, tree, testFiles.join(','), String(Math.round(control.ms)), commandArgs(command)] })) {
         process.stderr.write('fail-to-pass: the control run line could not be written to the run trace\n');
       }
     }

@@ -137,8 +137,8 @@ const f2pFixture = () => {
       // and the command an outcome line ends with, which `rawTrace` keeps.
       trace: () => traceLines(root).filter((l) => l.split(' ')[2] !== 'run').map((l) => l.replace(/ \S+$/, '')),
       rawTrace: () => traceLines(root).filter((l) => l.split(' ')[2] !== 'run'),
-      // The control run's `run` lines, without the duration a `run` line ends with.
-      runLines: () => traceLines(root).filter((l) => l.split(' ')[2] === 'run').map((l) => l.replace(/ \d+$/, '')),
+      // The control run's `run` lines, without the duration and the arguments a `run` line ends with.
+      runLines: () => traceLines(root).filter((l) => l.split(' ')[2] === 'run').map((l) => l.split(' ').slice(0, 8).join(' ')),
       rawRunLines: () => traceLines(root).filter((l) => l.split(' ')[2] === 'run'),
       ran: () => (fs.existsSync(log) ? fs.readFileSync(log, 'utf8').split('\n').filter(Boolean) : []),
     };
@@ -280,7 +280,7 @@ const testVerbFixture = () => {
   // The trace's lines without their timestamp, and a `run` line without its duration, which the duration case reads itself.
   const lines = () => (fs.existsSync(traceFile) ? fs.readFileSync(traceFile, 'utf8').split('\n').filter(Boolean).map((l) => {
     const w = l.split(' ').slice(1);
-    return (w[2] === 'run' && w.length === 9 ? w.slice(0, 8) : w).join(' ');
+    return (w[2] === 'run' && w.length >= 9 ? [...w.slice(0, 8), ...w.slice(9)] : w).join(' ');
   }) : []);
   const verb = (argv, o) => {
     const r = spawnSync(process.execPath, [scopePath, 'test', ...argv], Object.assign({ cwd: S, encoding: 'utf8', timeout: 20000, env }, o));

@@ -57,7 +57,7 @@ try {
   fs.writeFileSync(path.join(S, 'tests', 'cd.test.js'), 'process.exit(0);\n');
   r = verb(['--', `cd ${S} && node tests/cd.test.js`], { cwd: free });
   assert.equal(r.status, 0);
-  assert.match(lines()[0] || '', / run path pass [0-9a-f]{40} \w+ tests\/cd\.test\.js$/, 'a cd into a run tree records its run');
+  assert.match(lines()[0] || '', / run path pass [0-9a-f]{40} \w+ tests\/cd\.test\.js tests\/cd\.test\.js$/, 'a cd into a run tree records its run');
   fs.rmSync(path.join(S, 'tests', 'cd.test.js'));
   // A command that cd's out of every run tree is an out-of-tree run, wherever the verb stands: it runs and records nothing.
   reset();

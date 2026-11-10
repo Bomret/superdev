@@ -238,6 +238,28 @@ const { sliceJson, scopePath, run } = require('./scope-setup');
   }
 }
 
+// A run line's trailing arguments field reads back whole through the trace's own writer and reader, for any argument list, and a
+// line written without the field reads no arguments (`decodeArgs` of the absent field and of `-`).
+{
+  const { encodeArgs, decodeArgs, appendTrace, readTrace } = require('../plugin/lib/trace-log.js');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-trace-args-'));
+  try {
+    const last = () => readTrace(fs.readFileSync(path.join(dir, 'trace.log'), 'utf8')).filter((e) => e.kind === 'run').pop();
+    for (const args of [['a b', 'c'], ['x,y', 'z'], ['--grep', 'a'], ['-'], ['100%', 'p%2Cq'], ['back\\slash', 'café'], [], [''], ['', ''], ['a', '']]) {
+      assert.ok(appendTrace(dir, { slice: '01', kind: 'run', fields: ['path', 'pass', 'abc', 'clean', 'a.test.js', '-', encodeArgs(args)] }));
+      assert.deepEqual(decodeArgs(last().fields[6]), args, `the arguments read back whole: ${JSON.stringify(args)}`);
+    }
+    assert.ok(appendTrace(dir, { slice: '01', kind: 'run', fields: ['path', 'pass', 'abc', 'clean', 'a.test.js'] }));
+    assert.deepEqual(decodeArgs(last().fields[6]), [], 'a line in the layout without the field reads no arguments');
+    assert.ok(appendTrace(dir, { slice: '01', kind: 'run', fields: ['path', 'pass', 'abc', 'clean', 'a.test.js', '12'] }));
+    assert.deepEqual(decodeArgs(last().fields[6]), [], 'a line that ends at its duration reads no arguments');
+    assert.notEqual(encodeArgs(['--a']), encodeArgs(['--b']), 'arguments that differ encode differently');
+    assert.notEqual(encodeArgs(['']), encodeArgs([]), 'one empty argument encodes apart from no arguments');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 // Each trace line refreshes its run's lock (ADR 0220, INV-0186): the lock's timestamp moves to now, its bytes stay, and
 // the refresh creates nothing, follows no symlink, touches no other run root, and never changes the append's result.
 // Every mtime is set into the past with `utimes` and read back through `stat`; no wall-clock ceiling (ADR 0086).

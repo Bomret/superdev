@@ -154,7 +154,7 @@ const prepared = (s) => {
     const m = /^unknown control=0,put-back=\S+,bound=(\d+)ms$/.exec(r.stdout.trim());
     assert.ok(m, 'the put-back run is killed at its bound: ' + r.stdout + r.stderr);
     assert.ok(Number(m[1]) < 20000, `the bound ${m[1]} ms leaves the preparation out`);
-    const controlMs = Number(s.rawRunLines()[0].split(' ').pop());
+    const controlMs = Number(s.rawRunLines()[0].split(' ')[8]); // the duration, ahead of the arguments field
     assert.ok(controlMs < 2000, `the control's duration ${controlMs} ms leaves the preparation out`);
 
     // An interrupt during a preparation ends every process it started and removes the worktree; no control runs.
