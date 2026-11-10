@@ -114,47 +114,19 @@ const scopePath = require.resolve('../plugin/scripts/scope.js');
   }
 }
 
-// An install missing lib/shell-words.js, which the command classifier needs, refuses `test -- <command>` as no test run with its usual
-// one-line refusal, never a stack trace (INV-0159).
+// The test verbs read no shell words: no module `test-verb.js` or `fail-to-pass.js` requires, directly or through
+// another, is the command classifier `test-runs.js` (ADR 0225).
 {
-  const { spawnSync } = require('node:child_process');
-  const D = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-test-no-scanner-'));
-  try {
-    const plugin = path.dirname(path.dirname(scopePath));
-    const install = path.join(D, 'install');
-    for (const dir of ['scripts', 'lib']) fs.cpSync(path.join(plugin, dir), path.join(install, dir), { recursive: true, filter: (src) => path.basename(src) !== 'shell-words.js' });
-    assert.ok(!fs.existsSync(path.join(install, 'lib', 'shell-words.js')), 'the install lacks the scanner');
-    const verb = (argv) => {
-      const r = spawnSync(process.execPath, [path.join(install, 'scripts', 'scope.js'), 'test', ...argv], { cwd: D, encoding: 'utf8', timeout: 20000 });
-      assertSpawnDecided(r, 'scope.js test ' + argv.join(' ') + ' without the scanner');
-      return r;
-    };
-    const r = verb(['--', 'echo', 'hi']);
-    assert.notEqual(r.status, 0, 'a command no classifier can read is refused');
-    assert.match(r.stderr, /not a test run, so nothing runs/, 'the refusal names the command as no test run');
-    assert.ok(!/\n\s+at /.test(r.stderr), 'the refusal carries no stack trace');
-    assert.ok(!r.stdout.includes('hi'), 'and nothing runs');
-  } finally {
-    fs.rmSync(D, { recursive: true, force: true });
-  }
-}
-
-// An install whose lib/test-runs.js fails to load for any reason but a missing module stays visible: `test -- <command>` exits nonzero
-// with that error, and the one-line "not a test run" refusal does not cover it up.
-{
-  const { spawnSync } = require('node:child_process');
-  const D = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-test-broken-classifier-'));
-  try {
-    const plugin = path.dirname(path.dirname(scopePath));
-    const install = path.join(D, 'install');
-    for (const dir of ['scripts', 'lib']) fs.cpSync(path.join(plugin, dir), path.join(install, dir), { recursive: true });
-    fs.writeFileSync(path.join(install, 'lib', 'test-runs.js'), "'use strict';\nthrow new Error('classifier-load-boom');\n");
-    const r = spawnSync(process.execPath, [path.join(install, 'scripts', 'scope.js'), 'test', '--', 'echo', 'hi'], { cwd: D, encoding: 'utf8', timeout: 20000 });
-    assertSpawnDecided(r, 'scope.js test -- with a classifier that throws on load');
-    assert.notEqual(r.status, 0, 'a classifier that throws on load fails the verb');
-    assert.match(r.stderr, /classifier-load-boom/, 'the load error is visible');
-    assert.ok(!/not a test run/.test(r.stderr), 'the refusal does not hide it');
-  } finally {
-    fs.rmSync(D, { recursive: true, force: true });
-  }
+  const lib = path.join(path.dirname(scopePath), '..', 'lib');
+  const seen = new Set();
+  const walk = (file) => {
+    if (seen.has(file)) return;
+    seen.add(file);
+    for (const m of fs.readFileSync(file, 'utf8').matchAll(/require\('(\.\/[^']+)'\)/g)) walk(path.join(lib, m[1].replace(/^\.\//, '')));
+  };
+  walk(path.join(lib, 'test-verb.js'));
+  walk(path.join(lib, 'fail-to-pass.js'));
+  assert.ok(seen.has(path.join(lib, 'run-supervision.js')), 'the walk reaches the modules the verbs require');
+  assert.ok(!seen.has(path.join(lib, 'test-runs.js')), 'neither verb reaches test-runs.js');
+  assert.ok(![...seen].some((f) => /shell-words|bash-command/.test(f)), 'and neither reaches a shell scanner');
 }

@@ -16,30 +16,26 @@ const { D, root, S, verif, sh, verb, lines, reset, end } = testVerbFixture();
 try {
   verif('echo FULLRAN', 'echo FOCUSED {paths}', 'echo WHOLERAN');
 
-  // The free-command form runs only a classified test run.
+  // `test path <file>... -- <command>` runs the command as given and records one path run (ADR 0225).
   reset();
-  let r = verb(['--', 'echo', 'hi']);
-  assert.notEqual(r.status, 0, 'a non-test command is refused');
-  assert.ok(!r.stdout.includes('hi'), 'and nothing runs');
-  assert.deepEqual(lines(), [], 'and nothing is recorded');
-  r = verb(['--', 'command', '-pv', 'bats', 'services/x/tests/a.bats']);
-  assert.notEqual(r.status, 0, 'a `command -v` lookup of a test run is refused');
-  assert.deepEqual(lines(), [], 'and records nothing');
-  r = verb(['--', 'bats', 'services/x/tests/a.bats']);
+  let r = verb(['path', 'services/x/tests/a.bats', '--', 'bats', 'services/x/tests/a.bats']);
   assert.equal(r.status, 0, r.stderr);
-  assert.match(lines()[0], /^03 main run path pass [0-9a-f]{40} clean services\/x\/tests\/a\.bats services\/x\/tests\/a\.bats$/, 'a path run records its file');
+  assert.match(lines()[0], /^03 main run path pass [0-9a-f]{40} clean services\/x\/tests\/a\.bats bats\\x20services\/x\/tests\/a\.bats$/, 'a path run records its file and its command');
   reset();
-  r = verb(['--', 'bats services/x/tests/a.bats | cat']);
-  assert.match(lines()[0], / run path unknown /, 'a status the command shape hides records unknown');
+  r = verb(['path', 'services/x/tests/a.bats', '--', 'echo hi; exit 3']);
+  assert.equal(r.status, 3, 'a failing command exits with its own status');
+  assert.match(lines()[0], / run path fail /, 'and records fail');
 
-  // `test --` with no command is refused, and a command holding several test runs is refused with nothing recorded.
+  // No file, no `--`, or no command is refused and runs nothing; the old form names `test path`.
   reset();
-  r = verb(['--']);
-  assert.notEqual(r.status, 0, 'no command is refused');
-  assert.match(r.stderr, /test --: needs a command/, 'the refusal says a command is needed');
-  r = verb(['--', 'bats services/x/tests/a.bats; bats services/x/tests/a.bats']);
-  assert.notEqual(r.status, 0, 'a command with two test runs is refused');
-  assert.match(r.stderr, /more than one test run, run one per call/, 'the refusal names the count');
+  for (const argv of [['path', '--', 'echo', 'RAN'], ['path', 'a.bats', 'echo', 'RAN'], ['path', 'a.bats', '--'], ['path'], ['path', '--']]) {
+    r = verb(argv);
+    assert.notEqual(r.status, 0, argv.join(' ') + ' is refused');
+    assert.ok(!r.stdout.includes('RAN'), 'and nothing runs');
+  }
+  r = verb(['--', 'node', 'x.js']);
+  assert.notEqual(r.status, 0, 'files-less `test --` is refused');
+  assert.match(r.stderr, /test path <file>… -- <command>/, 'the refusal names the new form');
   assert.deepEqual(lines(), [], 'and nothing is recorded');
 
   // A command `sh` cannot start exits 127, naming the failure, and records nothing.

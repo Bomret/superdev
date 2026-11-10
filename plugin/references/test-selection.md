@@ -18,9 +18,9 @@ A repository with no suite at all carries no such file.
 
 **Run the full, focused, or whole-repo command through `scope.js test`** (ADR 0127). From the tree the
 work lives in, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full`, `test focused [<path>…]`, or
-`test whole`, and `test -- <command>` for a direct run of a test file. The runner runs the configured command
-as configured and records one run line with the command's own exit status, however the caller pipes,
-redirects, backgrounds, or wraps the call. To trim the output, pipe the runner into `tail`, or redirect it to a
+`test whole`, and `test path <file>... -- <command>` for a direct run of the test files it names. The runner runs the configured command
+as configured, and `test path` runs its command as given from the current directory, and records one run line with the command's own exit status, however the caller pipes,
+redirects, backgrounds, or wraps the call. A test command is recorded as typed and pushed with the run state, so a secret belongs in the environment, never on the command line. To trim the output, pipe the runner into `tail`, or redirect it to a
 file outside the working tree, such as one from `mktemp` under `$TMPDIR`, and read the file afterwards.
 A redirect into the working tree leaves an untracked file, and on a passing run also records an implementation edit.
 **A suite longer than the Bash tool's time limit runs through the runner in the background, and you wait for
@@ -241,7 +241,7 @@ cites this section and runs the steps in order, once per tip:
 3. **Record the failed run and the rerun.** `scope.js suite set red <tip> --root <run-root>`, then
    `scope.js suite rerun <test-file> <triage-ref> --root <run-root>` from the checkout at the tip. The verb
    refuses a tip that already carries a rerun record: a second failure at the tip stays red.
-4. **Run the file alone.** `scope.js test -- <command running only that file>` at the tip on a clean tree,
+4. **Run the file alone.** `scope.js test path <file> -- <command running only that file>` at the tip on a clean tree,
    through the runner so the trace records it. A failing or dirty rerun stays red.
 5. **Run the focused command over the scope's range.** `scope.js test focused <paths>` over every path
    `git diff --name-only --no-renames <range-base> <tip>` lists, at the tip on a clean tree. The range base
@@ -282,10 +282,10 @@ Each caller judges its own range and builds the set from it:
   the slice's whole changed-path set: the slice base against the working tree. A step that works on no test
   file runs over that whole set too. A focused command with no `{paths}` token runs unchanged at every step,
   and the run trace records every step's run either way (ADR 0139). Every loop run passes at least one path, or
-  runs one test file through `test -- <command>`, so the loop runs only the tests that verify the work. `test full`,
+  runs one test file through `test path <file>... -- <command>`, so the loop runs only the tests that verify the work. `test full`,
   `test whole`, and a `test focused` with no path run only at the scope review's and ship's gates (ADR 0177, ADR 0192).
   Where the focused fence repeats the full fence, `test focused` runs the whole suite whatever paths it gets. There a
-  failing-test or passing-test step runs each test file it works on through `test -- <command>`, the runner's own
+  failing-test or passing-test step runs each test file it works on through `test path <file>... -- <command>`, the runner's own
   invocation of that one file. The last run before the implementer reports, or before the lite tier commits a slice,
   does not run, and neither does a step that works on no test file: the scope review's exit run covers that work
   (ADR 0180, ADR 0192). The fail-to-pass run still runs (ADR 0182).

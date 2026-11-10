@@ -12,7 +12,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { testVerbFixture } = require('./scope-setup');
 
-const { D, S, bin, sh, verif, verb, lines, reset, traceFile, end } = testVerbFixture();
+const { D, S, verif, verb, lines, reset, traceFile, end } = testVerbFixture();
 try {
   // A command ended by a signal writes no line.
   reset();
@@ -36,49 +36,23 @@ try {
   r = verb(['full'], { cwd: free });
   assert.equal(r.status, 4);
   assert.equal(r.stdout.trim(), 'FREE');
-  r = verb(['--', 'echo', 'hi'], { cwd: free });
-  assert.notEqual(r.status, 0, 'outside a run tree a non-test command is refused too');
-  assert.ok(!r.stdout.includes('hi'), 'and nothing runs');
   fs.mkdirSync(path.join(free, 'tests'));
   fs.writeFileSync(path.join(free, 'tests', 'a.test.js'), 'process.exit(5);\n');
-  r = verb(['--', 'node', 'tests/a.test.js'], { cwd: free });
-  assert.equal(r.status, 5, 'a classified test command runs outside a run tree, and passes the status through');
-  // A test path naming no file is no test run, as the hook reads it: the verb refuses it and runs nothing.
-  r = verb(['--', 'node', 'tests/missing.test.js'], { cwd: free });
-  assert.match(r.stderr, /not a test run/, 'a test path naming no file is refused');
-  // A runner script named `test`, given as a path, is a test run: only the bare builtin `test` reads as no run.
-  fs.writeFileSync(path.join(free, 'test'), '#!/bin/sh\nexit 6\n', { mode: 0o755 });
-  r = verb(['--', './test', 'tests/a.test.js'], { cwd: free });
-  assert.equal(r.status, 6, 'a runner script named test runs and passes its status through');
-  fs.rmSync(path.join(free, 'test'));
-  // A command that cd's into a run tree is that tree's run, wherever the verb stands: it records there.
+  r = verb(['path', 'tests/a.test.js', '--', 'node', 'tests/a.test.js'], { cwd: free });
+  assert.equal(r.status, 5, 'outside a run tree the command runs from the cwd and its status passes through');
+  // A run tree's own run records from the cwd, whichever subdirectory it stands in.
   reset();
   fs.mkdirSync(path.join(S, 'tests'), { recursive: true });
   fs.writeFileSync(path.join(S, 'tests', 'cd.test.js'), 'process.exit(0);\n');
-  r = verb(['--', `cd ${S} && node tests/cd.test.js`], { cwd: free });
-  assert.equal(r.status, 0);
-  assert.match(lines()[0] || '', / run path pass [0-9a-f]{40} \w+ tests\/cd\.test\.js tests\/cd\.test\.js$/, 'a cd into a run tree records its run');
+  r = verb(['path', 'tests/cd.test.js', '--', 'node tests/cd.test.js'], { cwd: S });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(lines()[0] || '', / run path pass [0-9a-f]{40} \w+ tests\/cd\.test\.js node\\x20tests\/cd\.test\.js$/, 'a run in a run tree records its run');
   fs.rmSync(path.join(S, 'tests', 'cd.test.js'));
-  // A command that cd's out of every run tree is an out-of-tree run, wherever the verb stands: it runs and records nothing.
+  // The command runs from the cwd as given: a run outside every run tree records nothing, wherever the verb stands.
   reset();
-  r = verb(['--', `cd ${free} && node tests/a.test.js`]);
-  assert.equal(r.status, 5, 'a cd out of the run tree runs the test command and passes the status through: ' + r.stderr);
+  r = verb(['path', 'tests/a.test.js', '--', 'node tests/a.test.js'], { cwd: free });
+  assert.equal(r.status, 5, r.stderr);
   assert.deepEqual(lines(), [], 'and records nothing');
-  // A `cd` into a subdirectory classifies against that directory's repository top, where the commands are configured.
-  const other = path.join(D, 'other');
-  fs.mkdirSync(path.join(other, 'docs', 'agents'), { recursive: true });
-  fs.mkdirSync(path.join(other, 'sub'));
-  fs.writeFileSync(path.join(other, 'docs', 'agents', 'verification.md'), '# V\n\n```sh\nchecker\n```\n');
-  fs.writeFileSync(path.join(bin, 'checker'), '#!/bin/sh\nexit 6\n', { mode: 0o755 });
-  sh(other, ['init', '-q']);
-  r = verb(['--', 'cd sub && checker'], { cwd: other });
-  assert.equal(r.status, 6, 'outside every run tree, a cd into a subdirectory runs the configured command: ' + r.stderr);
-  reset();
-  r = verb(['--', `cd ${path.join(other, 'sub')} && checker`]);
-  assert.equal(r.status, 6, 'a cd into another repository\'s subdirectory runs the configured command: ' + r.stderr);
-  assert.deepEqual(lines(), [], 'and records nothing');
-  reset();
-  assert.deepEqual(lines(), [], 'nothing is written');
   fs.rmSync(path.join(free, 'tests'), { recursive: true });
   assert.deepEqual(fs.readdirSync(free).sort(), ['docs'], 'and no file appears');
 

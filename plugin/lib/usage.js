@@ -37,7 +37,7 @@ function usage() {
     '  trace [--slice <id>] --root <run-root>   prints the run trace, oldest first (read-only)',
     '  test full|whole                    runs the configured command, records the run line the command\'s own exit status makes',
     '  test focused [<path>…]             {paths} takes the paths; none runs the full command, recorded full; an empty path is refused',
-    '  test -- <command>                  runs a command the run trace classes as a test run, recorded as a direct run is',
+    '  test path <file>… -- <command>     runs the command as given from the current directory, recorded as a path run naming the files; the command is recorded as typed and pushed with the run state, so a secret belongs in the environment',
     '  fail-to-pass <base>..<tip> -- <command>   runs the command, meant to run every test file the range adds or modifies,',
     '                                     twice in a throwaway worktree at <tip>, the second time with the files the range changed',
     '                                     outside its test files put back as at <base>; prints the outcome',
