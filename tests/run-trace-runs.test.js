@@ -79,6 +79,7 @@ assert.equal(trace(A).pop()[3], 'focused', 'a compound full run with a segment p
 assert.equal(trace(A).pop()[7], '-', 'a focused run the hook records from a direct call holds no path set');
 reset();
 fs.writeFileSync(vf, '# V\n\n```sh\ncd sub && bun test\n```\n');
+fs.mkdirSync(path.join(S3, 'sub'), { recursive: true }); // a cd to a directory that exists cannot fail
 post('cd sub && bun test');
 assert.deepEqual(tail(trace(A)), [`run full pass ${sha} dirty - - test`], 'a compound configured command starting with cd matches');
 fs.mkdirSync(path.join(S3, 'sub', 'tests'), { recursive: true });
@@ -106,8 +107,10 @@ post('rtk proxy bun test | tee out.log');
 assert.equal(trace(A).filter((l) => l[2] === 'run').length, 1, 'rtk proxy <command> is <command>');
 fs.writeFileSync(vf, '# V\n\n```sh\ncd sub; bun test\n```\n\n```sh\ncd sub && set -o pipefail && bun test | tail -5\n```\n');
 reset();
+fs.mkdirSync(path.join(S3, 'sub'), { recursive: true });
 post('cd sub; bun test');
 fail('cd sub && set -o pipefail && bun test | tail -5');
+fs.rmSync(path.join(S3, 'sub'), { recursive: true });
 assert.deepEqual(trace(A).filter((l) => l[2] === 'run').map((l) => l[4]), ['pass', 'fail'], 'a joiner before the test and a pipefail past the first segment do not hide the outcome');
 fs.writeFileSync(vf, vfSaved);
 
@@ -400,7 +403,9 @@ fail('cd tests <<EOF && bun run test\n$(exit 1)\nEOF');
 assert.deepEqual(trace(A).map((l) => l.slice(3, 5).join(' ')), ['full unknown'], 'a heredoc body adds no run line');
 // A plain list keeps its outcome.
 reset();
+fs.mkdirSync(path.join(S3, 'sub'), { recursive: true });
 for (const c of ['bun run test', 'cd sub && bun run test', 'set -o pipefail; bun run test | tail -5']) { post(c); fail(c); }
+fs.rmSync(path.join(S3, 'sub'), { recursive: true });
 assert.deepEqual(trace(A).map((l) => l.slice(3, 5).join(' ')), ['full pass', 'full fail', 'full pass', 'full fail', 'full pass', 'full fail'], 'a plain list of simple commands keeps pass and fail');
 
 // A function body's writes record at its definition, since a call of it later writes them; its `cd` moves nothing at the definition.
@@ -520,5 +525,27 @@ assert.deepEqual(tail(trace(A)).map((l) => l.split(' ').slice(0, 2).join(' ')), 
   }
   assert.deepEqual(trace(A), [], 'a prepare call records no run');
 }
+
+// An exit status that may not be the test's reads unknown (#115): a `cd` that can fail before it, `set -n`, a redirect that can fail before the
+// run, and a pass-through stage with arguments. A bare pass-through stage and an option-turned pipefail keep the test's status.
+{
+  fs.writeFileSync(vf, '# V\n\n```sh\nbun run test\n```\n\n```sh\nbun run test\n```\n');
+  const outcomes = (cmds) => { reset(); for (const c of cmds) fail(c); return trace(A).filter((l) => l[2] === 'run').map((l) => l[4]); };
+  const unknowns = ['cd nowhere && bun run test', 'set -n; bun run test', 'set -o noexec; bun run test', 'set -en; bun run test', 'bun run test > /no/such/dir/x',
+    'bun run test < /no/such/file', 'bun run test >"$(exit 3)"', 'set -o pipefail; bun run test | cat missingfile'];
+  assert.deepEqual(outcomes(unknowns), unknowns.map(() => 'unknown'), 'a cd, set -n, a redirect, or a pass-through stage with arguments that can fail first reads unknown');
+  const keeps = ['set -o pipefail; bun run test | tail', 'set -o pipefail; bun run test | tail -n 5', 'set -eo pipefail; bun run test | cat', 'bun run test 2>&1', 'bun run test > /dev/null', 'cd sub && bun run test'];
+  fs.mkdirSync(path.join(S3, 'sub'), { recursive: true });
+  assert.deepEqual(outcomes(keeps), keeps.map(() => 'fail'), 'a bare pass-through stage, an option group, an fd duplication, and a cd to a directory keep the test status');
+  fs.rmSync(path.join(S3, 'sub'), { recursive: true });
+  const off = ['set -- -o pipefail; bun run test | tail', 'set x -o pipefail; bun run test | tail'];
+  assert.deepEqual(outcomes(off), ['unknown', 'unknown'], 'positional parameters named like an option turn pipefail on no more than a pipe without it');
+  assert.strictEqual(commandArgs('bun run test'), 'run,test');
+}
+
+// An `exit`/`return` operand, an fd duplication, and a process substitution are no written path.
+assert.deepEqual(bashTargets('cd tests && exit 0', S3), [], 'an exit operand records no path');
+assert.deepEqual(bashTargets('f() { return 0; }; echo x >&2; echo y 2>&1; echo x > >(cat); cat < <(echo a)', S3), [], 'fd duplications and process substitutions record no path');
+assert.deepEqual(bashTargets('echo x > >(cat) > out', S3), [path.join(S3, 'out')], 'a process substitution beside a file redirect leaves the file');
 
 cleanup();

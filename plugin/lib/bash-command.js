@@ -75,6 +75,8 @@ function cmdSegments(command) {
       // The same words as the scanner's Word objects, which `cdCall` reads without scanning them again.
       words,
       sep: c.sep === '|&' ? '|' : c.sep,
+      // The segment's redirects as the scanner reads them ({ op, fd, target }); a process substitution target is no file.
+      redirects: c.redirects || [],
       nest: c.nest,
       group: c.group,
       inst: c.inst,
