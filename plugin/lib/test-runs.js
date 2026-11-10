@@ -273,16 +273,22 @@ function restoreEvents(command, cwd) {
   return restoreEventsOf(cmdSegments(command), cwd);
 }
 
-function restoreEventsOf(segs, cwd, end) {
+function restoreEventsOf(segs, cwd, end, failed) {
   const events = [];
   const dirs = dirTracker(cwd, end);
-  for (const seg of segs) {
+  for (let n = 0; n < segs.length; n++) {
+    const seg = segs[n];
     if (seg.fn) continue;
     const base = dirs.of(seg);
     const { cmd, args } = segWords(seg);
     const cd = cdDir(...cdCall(seg.words), base, dirs, seg);
     if (cd) { dirs.set(seg, cd); continue; }
     if (cmd !== 'git') continue;
+    // A segment that never ran records none. A literal `false &&` or `true ||` before it at the same nesting proves that; on a failed call, any `&&` before it may have been what failed.
+    // simplicity: no evaluation of the list's status; upgrade by tracking each segment's exit status.
+    const prev = n > 0 ? segs[n - 1] : null;
+    const pw = prev && segWords(prev);
+    if (prev && ((failed && prev.sep === '&&') || (prev.nest === seg.nest && !pw.negated && ((pw.cmd === 'false' && prev.sep === '&&') || (pw.cmd === 'true' && prev.sep === '||'))))) continue;
     // git read through gitSubcommand (ADR 0160); a `-C` the hook cannot read leaves the restored paths nowhere it knows (INV-0161).
     const g = gitSubcommand([cmd, ...args]);
     const sub = g && g.subcommand;
@@ -392,10 +398,8 @@ function recordBash(command, cwd, agent, failed, background, end) {
     const outcome = r.unknown || !r.sole || background ? 'unknown' : failed ? 'fail' : 'pass';
     lines.push([r.at.runRoot, { slice: r.at.slice, agent, kind: 'run', fields: [r.kind, outcome, sha, clean, r.files.join(','), '-', r.args] }]);
   }
-  // A failed command did not (reliably) move files: only a successful one records a revert or restore.
-  if (!failed) {
-    for (const e of restoreEventsOf(segs, cwd, end)) lines.push([e.at.runRoot, { slice: e.at.slice, agent, kind: e.kind, fields: [e.paths] }]);
-  }
+  // A revert or restore that ran moved files whatever the call's exit status (a test after it may be what failed); `restoreEventsOf` drops the segments that never ran, and on a failed call a segment behind an `&&`.
+  for (const e of restoreEventsOf(segs, cwd, end, failed)) lines.push([e.at.runRoot, { slice: e.at.slice, agent, kind: e.kind, fields: [e.paths] }]);
   return lines;
 }
 

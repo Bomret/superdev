@@ -167,8 +167,32 @@ post('git restore -- src/x.js');
 post('git checkout HEAD -- src/x.js');
 post('git checkout main -- src/x.js');
 post('git checkout feature');
-fail('git restore --source=main -- src/y.js');
 assert.deepEqual(trace(A).map((l) => l.slice(2).join(' ')), ['revert src/x.js', 'restore src/x.js', 'restore src/x.js', 'revert src/x.js']);
+
+// A revert or restore is recorded whatever the Bash call's exit status: a failed test after the revert in one chain (#111).
+reset();
+fail('git restore --worktree --source=main src/x.js && bun run test');
+assert.deepEqual(trace(A).map((l) => l.slice(2, 5).join(' ')), ['run full unknown', 'revert src/x.js'], 'a failed test after the revert records both lines');
+reset();
+fail('git restore --source=main -- src/y.js');
+fail('git restore --worktree src/z.js');
+assert.deepEqual(trace(A).map((l) => l.slice(2).join(' ')), ['revert src/y.js', 'restore src/z.js'], 'a failed call still records its revert and restore');
+
+// A failed call records no restore that follows an `&&` whose earlier command may have failed.
+reset();
+fail('bun run test && git restore --source=main -- src/x.js');
+fail('false && cd sub && git restore --source=main -- src/y.js');
+assert.deepEqual(trace(A).map((l) => l.slice(2, 5).join(' ')), ['run full unknown'], 'a restore behind a failed `&&` predecessor never ran');
+reset();
+post('bun run test && git restore --source=main -- src/x.js');
+fail('git restore src/y.js; git restore --source=main -- src/z.js');
+assert.deepEqual(trace(A).map((l) => l.slice(2).join(' ')).filter((l) => l.startsWith('re')), ['revert src/x.js', 'restore src/y.js', 'revert src/z.js'], 'a succeeded call, and a `;` after a failure, record their restores');
+
+// A segment that never ran records nothing, whatever the exit status.
+reset();
+fail('false && git restore --worktree --source=main src/x.js');
+post('true || git restore --source=main -- src/y.js');
+assert.deepEqual(trace(A), [], 'a revert behind a failed `&&` or a succeeded `||` never ran');
 
 // `--source <rev>` and `-s <rev>` as separate words name the source like `--source=<rev>`: a revert, and `HEAD` a restore.
 reset();
