@@ -5,13 +5,13 @@
 const fs = require('fs');
 const path = require('path');
 const { readTrace, untraceField } = require('./trace-log.js');
-const { SLUG_RE } = require('./ledger.js');
+const { SLUG_RE, splitLines, tableRowIndexes, splitRow } = require('./ledger.js');
 const { mainWorkTree } = require('./main-work-tree.js');
 const { GIT_BOUND_MS } = require('./run-tree.js');
 const { holds, lastRunLine } = require('./dispatch-lines.js');
 
 // PreToolUse on Agent: the one run root named in the prompt (counted only with a readable ledger) and the one slice id
-// named under it (`slicetrees/<id>` or `reports/<id>/`), else `scope`. No run root or two records nothing. The dispatch
+// named under it (`slicetrees/<id>` or `reports/<id>/`, an id the run's ledger lists), else `scope`. No run root or two records nothing. The dispatch
 // is keyed by the call's `tool_use_id`: the platform sends SubagentStart no prompt, and a dispatch has no agent id yet.
 // Writes nothing: every writer of this module gives its line as `[runRoot, entry]`, `undefined` for none, and the hook writes the
 // lines of an event together (INV-0159).
@@ -23,9 +23,13 @@ function recordDispatch(input) {
   const slug = SLUG_RE.source.replace(/^\^|\$$/g, ''); // one slug definition: lib/ledger.js's
   const re = new RegExp(`((?:/[^\\s"'\`<>()]*?)?/\\.superdev/scopes/${slug})(?:/(?:slicetrees/([\\w-]+)|reports/([\\w-]+)/))?`, 'g');
   for (let m; (m = re.exec(prompt));) {
-    try { fs.readFileSync(path.join(m[1], 'ledger.md')); } catch { continue; }
+    let content;
+    try { content = fs.readFileSync(path.join(m[1], 'ledger.md'), 'utf8'); } catch { continue; }
     roots.add(m[1]);
-    if (m[2] || m[3]) ids.add(m[2] || m[3]);
+    // Only an id the ledger lists is a slice: `reports/review/` and any other directory name read `scope`.
+    const id = m[2] || m[3];
+    const lines = id ? splitLines(content) : [];
+    if (id && tableRowIndexes(lines).some((i) => splitRow(lines[i])[0] === id)) ids.add(id);
   }
   if (roots.size !== 1) return undefined;
   // The session id is the last field: the boundary close (`closeSession`) matches a dispatch to the session that made it.
