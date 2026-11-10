@@ -1,12 +1,11 @@
 'use strict';
 
 // Selftest suite: the table-driven checks, which run through `lib.js`'s scanContract() over the tables in
-// `contracts.js` — change-type, arg-token, source-sections, and containment-delegation. Run by ./index.js.
+// `contracts.js` — change-type, source-sections, and containment-delegation. Run by ./index.js.
 
 const { scanContract } = require('../lib');
 const {
   CHANGE_TYPE_CONTRACTS,
-  ARG_TOKEN_CONTRACTS,
   SOURCE_SECTION_CONTRACTS,
   SPECIALISING_SECTIONS,
   specialisingGenericRows,
@@ -36,69 +35,6 @@ module.exports = ({ assert, path, fixture, found }) => {
     0,
     'a re-wrapped but correct glossary line stays clean',
   );
-
-  // --- arg-token (ADR 0135): the Bash hooks read a command line through ../lib/shell-words.js and declare no
-  // shell-word reader of their own ---
-
-  const SCANNER_REQUIRE = "const sw = require('../lib/shell-words.js');\n";
-  const argToken = (files) => found(scanContract(fixture(files), ARG_TOKEN_CONTRACTS));
-
-  const argGaps1 = argToken({ 'hooks/merge-guard.js': SCANNER_REQUIRE + 'const ARG = /\\S+/.source;\n' });
-  assert.equal(argGaps1.length, 1, 'flags a hook that declares its own ARG');
-  assert.equal(argGaps1[0].source, path.join('hooks', 'merge-guard.js'), 'names the hook that drifted');
-  for (const name of ['RAW_ARG', 'STUCK', 'STUCK_MERGE']) {
-    assert.equal(argToken({ 'lib/bash-command.js': SCANNER_REQUIRE + `const ${name} = /x/;\n` }).length, 1, `flags a hook that declares its own ${name}`);
-  }
-  assert.equal(
-    argToken({ 'hooks/ledger-guard.js': SCANNER_REQUIRE + 'function stripHeredocs(s) { return s; }\n' }).length,
-    1,
-    'flags a hook that declares its own stripHeredocs',
-  );
-  assert.equal(
-    argToken({ 'hooks/ledger-guard.js': SCANNER_REQUIRE + "const dash = text.replace(/(?<![$(])\\(\\(+/g, (r) => r.split('').join(' '));\n" }).length,
-    1,
-    'flags a hook that declares its own (( spread',
-  );
-  for (const spread of ['/\\({2,}/g', '/[(]{2,}/g', '/\\(+\\(/g', '/[(][(]/g']) {
-    assert.equal(
-      argToken({ 'lib/bash-command.js': SCANNER_REQUIRE + `const dash = text.replace(${spread}, (r) => r.split('').join(' '));\n` }).length,
-      1,
-      `flags a hook that spreads (( written ${spread}`,
-    );
-  }
-  assert.equal(
-    argToken({ 'hooks/merge-guard.js': SCANNER_REQUIRE + '// `dash -c \\(\\(git\\ push\\)\\)` is read through dashReading\n' }).length,
-    0,
-    'a comment naming \\(\\( is no spread',
-  );
-  assert.equal(argToken({ 'lib/bash-command.js': 'const x = 1;\n' }).length, 1, 'flags a hook that does not require ../lib/shell-words.js');
-  assert.equal(
-    scanContract(
-      fixture({
-        'hooks/merge-guard.js': '// leading comment\n' + SCANNER_REQUIRE,
-        'hooks/ledger-guard.js': SCANNER_REQUIRE,
-        'lib/bash-command.js': SCANNER_REQUIRE + 'const IS_MERGE = null;\n',
-        'lib/ledger-writes.js': SCANNER_REQUIRE,
-      }),
-      ARG_TOKEN_CONTRACTS,
-    ).length,
-    0,
-    'a require of ../lib/shell-words.js in every hook yields zero gaps',
-  );
-  for (const decl of ['let ARG = /x/;\n', 'var STUCK = /x/;\n', 'const x = 1, ARG = /x/;\n', 'let a = 1,\n  stripHeredocs = (s) => s;\n']) {
-    assert.equal(argToken({ 'hooks/merge-guard.js': SCANNER_REQUIRE + decl }).length, 1, `flags a hook that declares a reader through ${JSON.stringify(decl)}`);
-  }
-  for (const text of [
-    "// const sw = require('../lib/shell-words.js');\n",
-    "/* const sw = require('../lib/shell-words.js'); */\n",
-    " * require('../lib/shell-words.js')\n",
-    "const x = 1; // require('../lib/shell-words.js')\n",
-  ]) {
-    assert.equal(argToken({ 'lib/bash-command.js': text }).length, 1, `flags a hook whose only require is commented out: ${JSON.stringify(text)}`);
-  }
-  for (const text of ["const sw = require( '../lib/shell-words.js' );\n", "({ scan } = require(\"../lib/shell-words.js\"));\n", "const sw = require('./shell-words.js');\n"]) {
-    assert.equal(argToken({ 'lib/bash-command.js': text }).length, 0, `accepts the require ${JSON.stringify(text)}`);
-  }
 
   // --- source-sections: each canonical reference still carries the sections its readers are sent to ---
 

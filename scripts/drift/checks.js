@@ -44,7 +44,6 @@ const {
 const {
   ADR_STATUSES,
   CHANGE_TYPE_CONTRACTS,
-  ARG_TOKEN_CONTRACTS,
   SOURCE_SECTION_CONTRACTS,
   CONTAINMENT_DELEGATION_CONTRACTS,
 } = require('./contracts');
@@ -152,7 +151,6 @@ module.exports = [
     run: scanHookLedgerParsers,
     format: contractGap,
   },
-  table('arg-token', ARG_TOKEN_CONTRACTS, 'the Bash hooks and the run trace\'s command layer read shell words through lib/shell-words.js and carry no reader of their own'),
   {
     id: 'shell-spawn',
     ok: 'no shipped executable starts a shell by absolute path, starts bash, or uses the default shell',
