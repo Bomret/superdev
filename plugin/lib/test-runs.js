@@ -137,16 +137,16 @@ function redirectMayFail(seg, dir) {
     } catch { return true; }
   });
 }
-// Whether a `cd`/`pushd`/`popd` segment can fail: its literal target names no directory. A target the hook cannot read (`$D`, `~`, `-`) moves
+// Whether a `cd`/`pushd`/`popd` segment can fail: the directory its literal target moves to (`moved`) is absent. A target the hook cannot read (`$D`, `~`, `-`) moves
 // as `cdDir` reads it and adds no doubt.
-function cdMayFail(seg, dir) {
+function cdMayFail(seg, moved) {
   const [cmd, args] = unwrapBuiltin(...cdCall(seg.words));
   if (!/^(?:cd|pushd|popd)$/.test(cmd)) return false;
   const operands = args.filter((w) => !/^-[LPe@]+$/.test(w) && w !== '--');
   if (!operands.length) return false;
   const t = plain(operands[operands.length - 1]);
   if (t === null || t === '-') return false;
-  try { return !fs.statSync(path.resolve(dir, drivePath(t))).isDirectory(); } catch { return true; }
+  try { return !fs.statSync(moved).isDirectory(); } catch { return true; }
 }
 // A pass-through stage that has an operand (`cat missing`, `tail f`) can fail on its own; its flags and a flag's number (`tail -n 5`) cannot.
 function stageHasOperand(seg) {
@@ -204,7 +204,7 @@ function testRunsOf(segs, cwd, outside, end) {
     const compound = at ? compoundKind(segs, i, v) : null;
     if (!compound) {
       const cd = cdDir(...cdCall(first.words), base, dirs, first);
-      if (cd) { cdFails = cdFails || cdMayFail(first, base); dirs.set(first, cd); return; }
+      if (cd) { cdFails = cdFails || cdMayFail(first, cd); dirs.set(first, cd); return; }
       if ((NOT_RUNNERS.has(path.basename(cmd)) || SHELL_READERS.has(cmd)) && !verificationKind(first, v)) return;
     }
     if (!at) return;
@@ -216,7 +216,7 @@ function testRunsOf(segs, cwd, outside, end) {
     for (const s of segs.slice(i, last)) {
       if (s.fn) continue;
       const cd = cdDir(...cdCall(s.words), dirs.of(s), dirs, s);
-      if (cd) { cdFails = cdFails || cdMayFail(s, dirs.of(s)); dirs.set(s, cd); }
+      if (cd) { cdFails = cdFails || cdMayFail(s, cd); dirs.set(s, cd); }
     }
     const runDir = dirs.of(seg);
     let kind = compound ? compound.kind : verificationKind(seg, v);
