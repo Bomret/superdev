@@ -1,6 +1,6 @@
 ---
 name: verify-ship
-description: Start only when the operator typed it, asked for it, or agreed to an offer: verify a shipped superdev scope's open Definition-of-Done criteria by observing the deployed system, ticking each one that holds with its evidence. Run it after `/superdev:ship` merged and deployed. It is safe to run again.
+description: Start only when the operator typed it, asked for it, or agreed to an offer: verify a shipped superdev scope's open Definition-of-Done criteria by observing the deployed system, ticking each one that holds with its evidence, and start `/superdev:wrap-up` when every line settles. Run it after `/superdev:ship` merged and deployed. It is safe to run again.
 argument-hint: "[<scope>  (empty = the only shipped run in this repo)]"
 ---
 
@@ -34,7 +34,7 @@ Applies to every observation. Observe within the observe-only bound of `${CLAUDE
 
 ## The closing message
 
-Applies to every message this command ends on. Close it with the Next block per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in that file's `## The offer` section at every exit, a refusal included (ADR 0157).
+Applies to every message this command ends on, the wrap-up start in §6 excepted. Close it with the Next block per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in that file's `## The offer` section at every exit, a refusal included (ADR 0157).
 
 ## 1. Scope + run root
 
@@ -75,6 +75,7 @@ Read the stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --r
 **The anchor sync.** Applies to every run that reaches §4. Read the anchor's Definition-of-Done lines per `docs/agents/issue-tracker.md`. Run the anchor sync of `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## Pairing dod.md with the anchor` before any observation.
 
 - **A failed anchor write** → report it once.
+- **An anchor whose Definition-of-Done lines could not be read** → report it once. §6 then prints `/superdev:wrap-up <scope>` and starts no wrap-up.
 - **A `dod.md` line unpaired on the anchor** → report it by name as needing a hand-sync of the anchor's criterion text.
 
 **The open lines.** Applies after the anchor sync. Read `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s *Verify-ship's case*. Take the open lines from `<run-root>/dod.md` as that case states. With no open line go to §6 before the repairs read.
@@ -99,14 +100,20 @@ Applies to each verdict. Write it at once, before the next line, into `<run-root
 **The exits.** Applies after the summary. End on exactly one exit below.
 
 - **Every line settled** → say in one line that all criteria are settled and the scope is ready to close.
-  - With no unpaired line from §4 → print `/superdev:wrap-up <scope>` as the next command.
+  - With no unpaired line from §4 and the anchor's lines read → the wrap-up start below.
+  - With no unpaired line from §4 and the anchor's lines unread → print `/superdev:wrap-up <scope>` as the next command.
   - With an unpaired line → say "hand-sync, then `/superdev:wrap-up <scope>`" and print the command on a `First:` wait.
 - **The run routes to re-verify** per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` → name each open line. Print `/superdev:verify-ship <scope>` as the next command, with one line: a repair of this scope has closed since the line was last observed. Print `/superdev:plan` on an `Or:` line, for a repair that did not hold.
 - **The run routes to repair** per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` → name each observed `not met:` line with its observation. Print `/superdev:plan` as the next command, with one line: its repair choice plans a `fix` feature for this scope (ADR 0124). For each open anchor among the repairs §4 read whose `**Repairs:**` line names this scope's anchor, print that section's open-repair line too. Print `/superdev:verify-ship <scope>` on an `Or:` line, for an observation that was transient.
 - **Otherwise** → name each open line, an unobserved `not met:` line among them, and say running `/superdev:verify-ship <scope>` again is safe.
 
-**The offer.** Applies to every exit, a refusal included, ahead of the Next block. The conditions of `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` alone decide it. The hand-sync exit's `First:` wait fails a condition and makes no offer. The re-verify and Otherwise exits print this skill, so each names the same-skill exception in one line.
+**The wrap-up start.** Applies to the settled exit that reaches it, after the summary and its one line (ADR 0224). Call the Skill tool with `superdev:wrap-up` and the resolved scope slug, in the same turn, and ask no question first. Make no offer on this exit, print no Next block and no staged-pages lines, and print nothing after wrap-up returns. Wrap-up's last message ends the chain: it names the staged pages on every exit, a refusal or a stop included, and makes its own offer.
 
-**The staged pages.** Applies to every §6 exit. Name the scope's staged pages in the final message, which follows the offer call, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close` (ADR 0119, INV-0123). Add the publish command to the Next block as the list states.
+- **A wrap-up that started and then refused or stopped** → its message stands as the chain's last, unchanged.
+- **The Skill tool refuses the start, errors, or finds no such skill** → print `/superdev:wrap-up <scope>` as the next command, with the staged-pages lines and the offer below.
+
+**The offer.** Applies to every exit but the wrap-up start, a refusal included, ahead of the Next block. The conditions of `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` alone decide it. The hand-sync exit's `First:` wait fails a condition and makes no offer. The re-verify and Otherwise exits print this skill, so each names the same-skill exception in one line.
+
+**The staged pages.** Applies to every §6 exit but the wrap-up start. Name the scope's staged pages in the final message, which follows the offer call, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close` (ADR 0119, INV-0123). Add the publish command to the Next block as the list states.
 
 - **A count above zero** → put `/superdev:publish-kb <scope>` on an `Or:` line of the Next block.

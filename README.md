@@ -54,7 +54,9 @@ flowchart LR
 ```
 
 `/superdev:ship`, `/superdev:verify-ship`, and `/superdev:wrap-up` start only when you type the command,
-ask for it, or agree to an offer.
+ask for it, or agree to an offer. When verify-ship settles every Definition-of-Done line, it starts
+`/superdev:wrap-up` itself in the same turn, so a fully verified scope closes without another prompt.
+Wrap-up still runs every check and asks every question it asks when you type it.
 
 ## Install
 

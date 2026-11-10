@@ -1,6 +1,6 @@
 ---
 name: wrap-up
-description: Start only when the operator typed it, asked for it, or agreed to an offer: wrap up a shipped superdev scope — check the pull request is merged, every Definition-of-Done line is settled, and every deploy target is deployed, then close the scope anchor and its slice records and take the run down. Run it after `/superdev:ship` and, where criteria stayed open, `/superdev:verify-ship`.
+description: Start only when the operator typed it, asked for it, or agreed to an offer, or verify-ship's settled exit started it: wrap up a shipped superdev scope — check the pull request is merged, every Definition-of-Done line is settled, and every deploy target is deployed, then close the scope anchor and its slice records and take the run down. Run it after `/superdev:ship` and, where criteria stayed open, `/superdev:verify-ship`.
 argument-hint: "[<scope>  (empty = the only shipped run in this repo)]"
 ---
 
@@ -22,6 +22,7 @@ Applies to every start. Start this command only on one of the starts below (ADR 
 - The operator asked for it.
 - The operator agreed to an offer.
 - Another session's brief asked for it.
+- `/superdev:verify-ship`'s settled exit started it (ADR 0224).
 
 ## No extra question
 
@@ -30,6 +31,8 @@ Applies to every start. Ask no extra question.
 ## The closing message
 
 Applies to every message this command ends on. Close it with the Next block per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in that file's `## The offer` section (ADR 0157).
+
+**The chained staged pages.** Applies to a start `/superdev:verify-ship`'s settled exit made, on every message it ends on before §7, a refusal and a stop included (ADR 0224, INV-0123). Verify-ship named no staged pages, so name them here per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close`. A count above zero puts `/superdev:publish-kb <scope>` on an `Or:` line of the Next block. §7's finish names them on its own exit.
 
 ## 1. Scope + run root
 

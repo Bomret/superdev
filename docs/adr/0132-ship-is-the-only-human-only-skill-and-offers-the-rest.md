@@ -13,6 +13,9 @@ wrap-up with verify-ship's own offer (point 3), and has a typed verify-ship offe
 conditions: ship offers the next command it prints at every exit, a refusal included, under
 `references/response-shapes.md`'s `## The offer` alone.
 
+**Amended by:** [ADR 0224](0224-verify-ship-starts-wrap-up-when-every-line-settles.md), which reverses point 5:
+every verify-ship start, a typed one included, starts wrap-up when every line settles.
+
 ## Context
 
 ADR 0106 made `/superdev:ship`, `/superdev:verify-ship`, and `/superdev:wrap-up` human-only. Each

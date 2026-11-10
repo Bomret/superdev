@@ -6,6 +6,9 @@
 [ADR 0013](0013-implement-tail-is-a-command-chain.md)'s rejection of confirmation prompts, and
 [ADR 0113](0113-commands-end-on-a-shared-next-block.md)'s set of covered commands.
 
+**Amended by:** [ADR 0224](0224-verify-ship-starts-wrap-up-when-every-line-settles.md), which has verify-ship
+start wrap-up at its settled exit instead of offering it (decision 6).
+
 **Amended by:** [ADR 0223](0223-a-skill-adds-no-offer-condition-of-its-own.md), which lets no skill add an
 offer condition of its own.
 

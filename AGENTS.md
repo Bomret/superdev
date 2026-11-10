@@ -375,10 +375,14 @@ This root owns every other subtree directly:
   the merge consent. It routes to `/superdev:verify-ship`
   while a criterion is left to verify, and to `/superdev:wrap-up` otherwise (ADR 0116), and offers to start the
   next command it prints, a refusal included. `/superdev:verify-ship`
-  settles the criteria only a deployed system can show, and offers the next command it prints. A skill adds no
+  settles the criteria only a deployed system can show, and offers the next command it prints. When every
+  line settles, no line waits for a hand-sync, and it read the anchor's lines, it starts `/superdev:wrap-up` through
+  the Skill tool in the same turn instead, and wrap-up's last message carries the chain's one Next block, offer,
+  and staged-pages lines (ADR 0224). A skill adds no
   offer condition of its own: `references/response-shapes.md`'s `## The offer` alone decides it (ADR 0223). `/superdev:wrap-up` closes the triage records the anchor's Absorbs line names, then the scope anchor, and takes
   the run down. No skill carries `disable-model-invocation: true`. Ship, verify-ship, and wrap-up start
-  only when the operator typed the command, asked for it, or agreed to an offer. Ship refuses `--unattended` (ADR 0157, INV-0093). A criterion verify-ship observes false routes to `/superdev:plan`'s
+  only when the operator typed the command, asked for it, or agreed to an offer, and wrap-up also when
+  verify-ship's settled exit started it. Ship refuses `--unattended` (ADR 0157, INV-0093). A criterion verify-ship observes false routes to `/superdev:plan`'s
   repair choice, which plans a `fix` feature on its own anchor, linked to the original by a `**Repairs:**`
   line (ADR 0124).
   No test runs after review: `/superdev:document` and `/superdev:setup` run no test command, and a green suite record carries across Markdown-only commits with no run. ADR 0189 and INV-0175 state this rule, and the `doc-setup-no-test-run` drift check holds it.
