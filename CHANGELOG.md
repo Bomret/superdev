@@ -1,3 +1,10 @@
+# [0.103.0](https://github.com/Bomret/superdev/compare/v0.102.8...v0.103.0) (2026-11-10)
+
+
+### Features
+
+* **verify-ship:** start wrap-up when every line settles ([ead218c](https://github.com/Bomret/superdev/commit/ead218c4968781fb77bcec397cd6b816d8651b1f))
+
 ## [0.102.8](https://github.com/Bomret/superdev/compare/v0.102.7...v0.102.8) (2026-11-10)
 
 
