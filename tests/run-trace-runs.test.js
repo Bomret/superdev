@@ -178,6 +178,16 @@ fail('git restore --source=main -- src/y.js');
 fail('git restore --worktree src/z.js');
 assert.deepEqual(trace(A).map((l) => l.slice(2).join(' ')), ['revert src/y.js', 'restore src/z.js'], 'a failed call still records its revert and restore');
 
+// A failed call records no restore that follows an `&&` whose earlier command may have failed.
+reset();
+fail('bun run test && git restore --source=main -- src/x.js');
+fail('false && cd sub && git restore --source=main -- src/y.js');
+assert.deepEqual(trace(A).map((l) => l.slice(2, 5).join(' ')), ['run full unknown'], 'a restore behind a failed `&&` predecessor never ran');
+reset();
+post('bun run test && git restore --source=main -- src/x.js');
+fail('git restore src/y.js; git restore --source=main -- src/z.js');
+assert.deepEqual(trace(A).map((l) => l.slice(2).join(' ')).filter((l) => l.startsWith('re')), ['revert src/x.js', 'restore src/y.js', 'revert src/z.js'], 'a succeeded call, and a `;` after a failure, record their restores');
+
 // A segment that never ran records nothing, whatever the exit status.
 reset();
 fail('false && git restore --worktree --source=main src/x.js');
