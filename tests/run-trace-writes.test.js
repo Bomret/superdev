@@ -8,6 +8,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const cp = require('node:child_process');
 const { bashTargets } = require('../plugin/lib/bash-writes.js');
+const { assertSpawnDecided, boundFromSamples } = require('./spawn-verdict');
 const { A, B, S3, trace, reset, run, edit, bash, hookPath, cleanup } = require('./run-trace-setup');
 
 // Quoted `>` is data, not a redirect; a quoted redirect target still records.
@@ -191,6 +192,22 @@ for (const c of ['f() { cd /a; ( g() { true; }; tee z ); }', 'f() { cd /a; ( g()
   assert.deepEqual(bashTargets(c, '/r', '/e'), [path.resolve('/a', 'z')], c);
 }
 assert.deepEqual(bashTargets('f() { cd /a; g() { tee z; }; tee y; }', '/r', '/e'), [path.resolve('/a', 'z'), path.resolve('/a', 'y')], 'a nested body starts in its enclosing body');
+// A call made inside a body, at any depth, to a function that moves the directory moves as an unreadable `cd` does.
+for (const c of ['g() { cd /b; }; f() { cd /a; g; tee z; }', 'f() { cd /a; g() { cd /b; }; g; tee z; }']) {
+  assert.deepEqual(bashTargets(c, '/r', '/e'), [path.resolve('/e', 'z')], c);
+}
+// A recursive or mutually recursive definition ends the walk: each case runs in a child under a bound taken from this run, so a hang
+// fails by its kill (INV-0009) and a finished run pins its recorded targets.
+const recursive = (c) => cp.spawnSync(process.execPath, ['-e',
+  `process.stdout.write(JSON.stringify(require(${JSON.stringify(path.resolve(__dirname, '../plugin/lib/bash-writes.js'))}).bashTargets(process.argv[1], '/r', '/e')))`, c],
+  { encoding: 'utf8', timeout: recursiveBound });
+const recursiveBound = boundFromSamples(() => cp.spawnSync(process.execPath, ['-e', '0']));
+for (const [c, want] of [['f() { f; }; f', []], ['f() { cd /a; f; tee z; }; f', [path.resolve('/e', 'z')]], ['f() { g; }; g() { f; cd /a; }; f', []]]) {
+  const r = recursive(c);
+  assertSpawnDecided(r, c);
+  assert.equal(r.status, 0, c);
+  assert.deepEqual(JSON.parse(r.stdout), want, c);
+}
 // A body inside a shell-read heredoc or a backtick group is its own body: an outer body's `cd` moves none of its writes.
 for (const c of ['f() { cd /a; }; bash <<E\ng() { tee z; }\nE', 'f() { cd /a; }; echo `g() { tee z; }`']) {
   assert.deepEqual(bashTargets(c, '/r', '/e'), [path.resolve('/r', 'z')], c);

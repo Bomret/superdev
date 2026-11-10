@@ -37,7 +37,7 @@ function readWord(w) {
 const unquote = (word) => readWord(word).path;
 
 // The scanned commands in the order bash runs them (`at`, stable sort), marked for how they move the directory (`cdDir`).
-// `calls` marks a call of a function that moves the directory: a command outside every function body whose command word, past
+// `calls` marks a call of a function that moves the directory: a command, in a function body at any depth or outside every one, whose command word, past
 // env assignments and unquoted (`"f"` and `\f` call `f`), names a function the line defines, after a `cd`, `pushd`, or `popd` in a
 // function body, its word read as `cdCall` reads it (`\cd`, `'cd'`, `eval cd`, `eval "cd …"`), also behind `command` or `builtin` (`unwrapBuiltin`). A function body runs in the shell that calls it, so its `cd` moves that shell.
 // simplicity: a call of any defined function counts once any function body holds a `cd`, since the scanner names no body's
@@ -49,8 +49,8 @@ function markMoves(scanned) {
     const ws = c.words.map((w) => w.raw);
     const at = ws.findIndex((w) => !ASSIGN_WORD.test(w));
     const word = at < 0 ? undefined : ws[at];
+    c.calls = moves && word !== undefined && scanned.fns.has(readWord(c.words[at]).path);
     if (c.fn) moves = moves || /^(?:cd|pushd|popd)$/.test(unwrapBuiltin(...cdCall(c.words))[0]);
-    else c.calls = moves && word !== undefined && scanned.fns.has(readWord(c.words[at]).path);
   }
   return cmds;
 }
