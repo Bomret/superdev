@@ -191,6 +191,14 @@ for (const c of ['f() { cd /a; ( g() { true; }; tee z ); }', 'f() { cd /a; ( g()
   assert.deepEqual(bashTargets(c, '/r', '/e'), [path.resolve('/a', 'z')], c);
 }
 assert.deepEqual(bashTargets('f() { cd /a; g() { tee z; }; tee y; }', '/r', '/e'), [path.resolve('/a', 'z'), path.resolve('/a', 'y')], 'a nested body starts in its enclosing body');
+// A call made inside a body, at any depth, to a function that moves the directory moves as an unreadable `cd` does.
+for (const c of ['g() { cd /b; }; f() { cd /a; g; tee z; }', 'f() { cd /a; g() { cd /b; }; g; tee z; }']) {
+  assert.deepEqual(bashTargets(c, '/r', '/e'), [path.resolve('/e', 'z')], c);
+}
+// A recursive or mutually recursive definition ends the walk.
+for (const c of ['f() { f; }; f', 'f() { cd /a; f; tee z; }; f', 'f() { g; }; g() { f; cd /a; }; f']) {
+  assert.doesNotThrow(() => bashTargets(c, '/r', '/e'), c);
+}
 // A body inside a shell-read heredoc or a backtick group is its own body: an outer body's `cd` moves none of its writes.
 for (const c of ['f() { cd /a; }; bash <<E\ng() { tee z; }\nE', 'f() { cd /a; }; echo `g() { tee z; }`']) {
   assert.deepEqual(bashTargets(c, '/r', '/e'), [path.resolve('/r', 'z')], c);
