@@ -527,6 +527,19 @@ assert.deepEqual(tail(trace(A)).map((l) => l.split(' ').slice(0, 2).join(' ')), 
   fs.rmSync(vf2);
 }
 
+// A backgrounded `scope.js test -- <command>` call writes no hook run line (the verb writes its own, ADR 0127), so the recorded
+// rerun is the only run at the tip (triage #55); a backgrounded direct test run still records unknown.
+{
+  const bg = (command, cwd) => run({ hook_event_name: 'PostToolUse', tool_name: 'Bash', tool_input: { command, run_in_background: true }, cwd });
+  const wrapped = (cd) => `${cd} && node "\${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test -- node tests/x.test.js > "$TMPDIR/rerun.log" 2>&1; echo "exit=$?" >> "$TMPDIR/rerun.log"; tail -4 "$TMPDIR/rerun.log"`;
+  reset();
+  bg(wrapped(`cd ${S3}`), S3);
+  bg(wrapped('cd "$TREE"'), S3);
+  assert.deepEqual(trace(A), [], 'a backgrounded scope.js test call records no hook run line');
+  bg('node tests/x.test.js', S3);
+  assert.deepEqual(trace(A).map((l) => l.slice(2, 5).join(' ')), ['run path unknown'], 'a backgrounded direct run records unknown');
+}
+
 // A `scope.js fail-to-pass … -- <command>` call records its own control run (ADR 0182), so the hook records no run for the test
 // file its command names, quoted script word or not; the rest of the command line records as usual.
 {
