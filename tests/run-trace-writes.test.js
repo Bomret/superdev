@@ -198,10 +198,10 @@ for (const c of ['g() { cd /b; }; f() { cd /a; g; tee z; }', 'f() { cd /a; g() {
 }
 // A recursive or mutually recursive definition ends the walk: each case runs in a child under a bound taken from this run, so a hang
 // fails by its kill (INV-0009) and a finished run pins its recorded targets.
+const recursiveBound = boundFromSamples(() => cp.spawnSync(process.execPath, ['-e', '0']));
 const recursive = (c) => cp.spawnSync(process.execPath, ['-e',
   `process.stdout.write(JSON.stringify(require(${JSON.stringify(path.resolve(__dirname, '../plugin/lib/bash-writes.js'))}).bashTargets(process.argv[1], '/r', '/e')))`, c],
   { encoding: 'utf8', timeout: recursiveBound });
-const recursiveBound = boundFromSamples(() => cp.spawnSync(process.execPath, ['-e', '0']));
 for (const [c, want] of [['f() { f; }; f', []], ['f() { cd /a; f; tee z; }; f', [path.resolve('/e', 'z')]], ['f() { g; }; g() { f; cd /a; }; f', []]]) {
   const r = recursive(c);
   assertSpawnDecided(r, c);

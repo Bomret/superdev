@@ -62,6 +62,7 @@ const denied = (command, cwd, agentType) => decide(call(command, cwd, agentType)
   assert.strictEqual(denied(`${SCOPE} fail-to-pass abc..def -- npm test`, slicetree), true, 'the full command through fail-to-pass is refused');
   assert.strictEqual(denied(`${SCOPE} fail-to-pass abc..def -- 'npm test' 2>&1 | tail -5`, slicetree), true, 'a quoted, piped full command through fail-to-pass is refused');
   assert.strictEqual(denied(`${SCOPE} fail-to-pass abc..def -- npm run test:all`, slicetree), true, 'the whole-repo command through fail-to-pass is refused');
+  assert.strictEqual(denied(`${SCOPE} fail-to-pass abc..def '--' npm test`, slicetree), true, 'a quoted -- separator through fail-to-pass is read');
   const { reason } = decide(call(`${SCOPE} test full`, slicetree));
   assert.match(reason, /test focused <paths>/, 'the refusal names the run to make instead');
   assert.match(reason, /controller/, 'the refusal names who owns the full-suite run');

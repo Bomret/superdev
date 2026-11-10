@@ -4,7 +4,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { cmdSegments, dirTracker, cdDir, cdCall, unwrapBuiltin, segWords, plain, readWord, gitBase, drivePath, gitSubcommand } = require('./bash-command.js');
+const { isFileRedirect, cmdSegments, dirTracker, cdDir, cdCall, unwrapBuiltin, segWords, plain, readWord, gitBase, drivePath, gitSubcommand } = require('./bash-command.js');
 const { locate, isTestPath, treeState, gitOut } = require('./run-tree.js');
 const { verificationCommands } = require('./verification.js');
 const { encodeArgs } = require('./trace-log.js');
@@ -123,10 +123,10 @@ function applySet(seg, state) {
 // Whether a redirect can fail before its command runs: a file target that holds an expansion the hook cannot read, an input file that is
 // absent, or an output whose directory is absent or whose path is a directory. A descriptor duplication (`2>&1`, `>&-`), a heredoc, a here-string,
 // and a process substitution open no file.
-const FILE_REDIRECT = /^(?:<|>>?|>\||<>|&>>?|>&)$/;
+// It reads the filesystem after the command ran, so a target the command removed reads as may-fail: the check yields a cautious `unknown`.
 function redirectMayFail(seg, dir) {
   return seg.redirects.some(({ op, target }) => {
-    if (!FILE_REDIRECT.test(op) || /^[<>]\(/.test(target.raw) || (op === '>&' && /^(?:\d+|-)$/.test(target.raw))) return false;
+    if (!isFileRedirect(op, target)) return false;
     const t = plain(target);
     if (t === null) return true;
     if (t.startsWith('/dev/')) return false;
@@ -138,7 +138,7 @@ function redirectMayFail(seg, dir) {
   });
 }
 // Whether a `cd`/`pushd`/`popd` segment can fail: the directory its literal target moves to (`moved`) is absent. A target the hook cannot read (`$D`, `~`, `-`) moves
-// as `cdDir` reads it and adds no doubt.
+// as `cdDir` reads it and adds no doubt. Like `redirectMayFail` it reads the post-run state, so a directory the command removed reads as may-fail (a cautious `unknown`).
 function cdMayFail(seg, moved) {
   const [cmd, args] = unwrapBuiltin(...cdCall(seg.words));
   if (!/^(?:cd|pushd|popd)$/.test(cmd)) return false;
@@ -285,6 +285,7 @@ function restoreEventsOf(segs, cwd, end, failed) {
     if (cd) { dirs.set(seg, cd); continue; }
     if (cmd !== 'git') continue;
     // A segment that never ran records none. A literal `false &&` or `true ||` before it at the same nesting proves that; on a failed call, any `&&` before it may have been what failed.
+    // The rule is conservative: a predecessor that succeeded (`cd sub && git restore …`) drops the segment too, so a revert that ran after it goes unrecorded.
     // simplicity: no evaluation of the list's status; upgrade by tracking each segment's exit status.
     const prev = n > 0 ? segs[n - 1] : null;
     const pw = prev && segWords(prev);

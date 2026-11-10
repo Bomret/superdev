@@ -14,7 +14,7 @@
 
 let lib = null;
 try {
-  const { cmdSegments, plain } =require('../lib/bash-command.js');
+  const { cmdSegments, plain } = require('../lib/bash-command.js');
   const { testRuns, verificationKind, scopeTestCalls, scopeCall, scopeVars } = require('../lib/test-runs.js');
   const { verificationCommands } = require('../lib/verification.js');
   const { locate } = require('../lib/run-tree.js');
@@ -73,7 +73,7 @@ function judge(command, cwd) {
       // The script word is read as `scopeTestCalls` reads it: quoted, or a variable that names `scope.js`.
       const c = !seg.fn && scopeCall(seg, vars[n]);
       if (!c || c.args[c.j + 1] !== 'fail-to-pass') continue;
-      const d = c.args.indexOf('--', c.j + 2);
+      const d = c.args.findIndex((w, k) => k >= c.j + 2 && (plain(w) ?? w) === '--');
       if (d < 0 || d === c.args.length - 1) continue;
       const rest = c.args.slice(d + 1);
       const kind = verificationKind(rest.length === 1 ? plain(rest[0]) || rest[0] : rest.join(' '), verificationCommands(at.tree));

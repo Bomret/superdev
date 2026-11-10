@@ -616,7 +616,8 @@ assert.deepEqual(tail(trace(A)).map((l) => l.split(' ').slice(0, 2).join(' ')), 
   fs.writeFileSync(vf, '# V\n\n```sh\nbun run test\n```\n\n```sh\nbun run test\n```\n');
   const outcomes = (cmds) => { reset(); for (const c of cmds) fail(c); return trace(A).filter((l) => l[2] === 'run').map((l) => l[4]); };
   const unknowns = ['cd nowhere && bun run test', 'set -n; bun run test', 'set -o noexec; bun run test', 'set -en; bun run test', 'bun run test > /no/such/dir/x',
-    'bun run test < /no/such/file', 'bun run test >"$(exit 3)"', 'set -o pipefail; bun run test | cat missingfile'];
+    'bun run test < /no/such/file', 'bun run test >"$(exit 3)"', 'set -o pipefail; bun run test | cat missingfile',
+    'pushd nowhere && bun run test', 'popd nowhere && bun run test', 'set -eo noexec; bun run test'];
   assert.deepEqual(outcomes(unknowns), unknowns.map(() => 'unknown'), 'a cd, set -n, a redirect, or a pass-through stage with arguments that can fail first reads unknown');
   const keeps = ['set -o pipefail; bun run test | tail', 'set -o pipefail; bun run test | tail -n 5', 'set -eo pipefail; bun run test | cat', 'bun run test 2>&1', 'bun run test > /dev/null', 'cd sub && bun run test'];
   fs.mkdirSync(path.join(S3, 'sub'), { recursive: true });

@@ -4,7 +4,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { scan, dirTracker, cdDir, cdCall, markMoves, segWords, unquote, gitBase, drivePath, gitSubcommand } = require('./bash-command.js');
+const { isFileRedirect, scan, dirTracker, cdDir, cdCall, markMoves, segWords, unquote, gitBase, drivePath, gitSubcommand } = require('./bash-command.js');
 const { locate } = require('./run-tree.js');
 
 // The files `git apply <args>` writes, run in `dir`. The patch is its own input only: its operand files, or else its heredoc,
@@ -96,9 +96,7 @@ function bashTargets(command, cwd, end) {
     // A file write is `>`, `>>`, `>|`, `<>`, `&>`, `&>>`, or `>&` onto a file; `>&2` and `>&-` duplicate a descriptor.
     // The redirects of a `cd` or a call still write, against the directory before it: bash opens them before the command runs.
     for (const { op, target } of redirects) {
-      if (!/^(?:>>?|>\||<>|&>>?|>&)$/.test(op)) continue;
-      if (op === '>&' && /^(?:\d+|-)$/.test(target.raw)) continue;
-      if (/^[<>]\(/.test(target.raw)) continue; // a process substitution is a command, no file
+      if (op === '<' || !isFileRedirect(op, target)) continue;
       add(base, target.raw);
     }
     if (cd && !cmdLine.calls) continue;

@@ -287,4 +287,9 @@ function segWords({ ws, negated: neg }) {
 const plain = (w) => readWord(w).literal;
 
 // `scan`, `drivePath`, and `gitSubcommand` are the scanner's own, re-exported so every reader takes the scanner through this layer's check.
-module.exports = { scan, drivePath, gitSubcommand, readWord, unquote, plain, markMoves, cmdSegments, dirTracker, unwrapBuiltin, cdCall, cdDir, gitBase, segWords };
+// Whether a redirect opens a file: `<`, `>`, `>>`, `>|`, `<>`, `&>`, `&>>`, or `>&` onto a file. A descriptor duplication (`>&2`, `>&-`), a heredoc,
+// a here-string, and a process substitution (`>(cmd)`, `<(cmd)`) open none.
+function isFileRedirect(op, target) {
+  return /^(?:<|>>?|>\||<>|&>>?|>&)$/.test(op) && !/^[<>]\(/.test(target.raw) && !(op === '>&' && /^(?:\d+|-)$/.test(target.raw));
+}
+module.exports = { isFileRedirect, scan,drivePath, gitSubcommand, readWord, unquote, plain, markMoves, cmdSegments, dirTracker, unwrapBuiltin, cdCall, cdDir, gitBase, segWords };
