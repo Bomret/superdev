@@ -49,7 +49,6 @@ function markMoves(scanned) {
     const ws = c.words.map((w) => w.raw);
     const at = ws.findIndex((w) => !ASSIGN_WORD.test(w));
     const word = at < 0 ? undefined : ws[at];
-    // A call inside a function body, at any depth, marks as one outside; a recursive definition needs no walk, since no body is followed.
     c.calls = moves && word !== undefined && scanned.fns.has(readWord(c.words[at]).path);
     if (c.fn) moves = moves || /^(?:cd|pushd|popd)$/.test(unwrapBuiltin(...cdCall(c.words))[0]);
   }
