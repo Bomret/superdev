@@ -35,6 +35,6 @@ topic pages, and its `Guide:` pages and the `Concepts` aggregate page stay.
 
 Two scopes that stage the same topic page leave the second one staged after the first publishes, because its
 `live-hash` no longer matches. Re-running `/superdev:document` re-reads the live page, rebuilds the staged
-page from it with the second scope's passages kept, and re-stages it with a fresh hash. Links to a removed
+page from it with the second scope's additions, corrections, and removals carried over, and re-stages it with a fresh hash. Links to a removed
 `How it works:` page stop resolving, and the wiki carries no redirects. An adopter's existing per-feature
 pages stay as they are: the doc pass corrects stale text on them and adds none.

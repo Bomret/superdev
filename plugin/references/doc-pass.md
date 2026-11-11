@@ -150,8 +150,8 @@ agent-relevant detail second:
   `live-hash` is no reading of the live page. Read the live page on every pass, as **Read before an `upsert`
   replaces a page** below states. Where the live hash equals the staged `live-hash`, extend the staged
   body. Where it differs, the live page changed since this scope staged it, as when another scope's
-  staged page landed first: rebuild the page from the live body, work this scope's staged passages into
-  it, and record the fresh hash. Either way, overwrite the one staged file for that title.
+  staged page landed first: rebuild the page from the live body, carry this scope's staged changes into
+  it (the passages it added, and the passages it corrected or removed), and record the fresh hash. Either way, overwrite the one staged file for that title.
 - **A page the outline does not name**, such as an existing per-feature page, is corrected when the
   range makes its text stale, and receives no new text.
 - Correct and **remove obsolete** content — a knowledge base that contradicts the code is worse than none.
