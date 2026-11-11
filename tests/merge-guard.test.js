@@ -37,6 +37,9 @@ const DENIED = [
   'git push</dev/null',
   'tea pr m>/dev/null',
   'git commit -m "git push fails"',
+  '\\git push',
+  '\\gh pr merge 3',
+  '\\tea pr m 3',
 ];
 const ALLOWED = [
   'git add src/push.ts',
