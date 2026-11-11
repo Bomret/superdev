@@ -8,63 +8,50 @@ const { fail } = require('./refusal.js');
 const { gitSpawn } = require('./git-spawn.js');
 const { verificationCommands } = require('./verification.js');
 const { appendTrace, readTrace, encodePaths } = require('./trace-log.js');
+const { checkRun } = require('./run-check.js');
 const { superviseRuns } = require('./run-supervision.js');
 const { usage } = require('./usage.js');
 
-// A word as the shell reads it back: left bare where it needs no quoting, so the hook's classifier reads it as typed.
+// A word as the shell reads it back: left bare where it needs no quoting.
 const shellWord = (w) => (/^[\w@%+=:,./-]+$/.test(w) ? w : `'${w.replace(/'/g, "'\\''")}'`);
 // A focused command template with every `{paths}` token replaced by the shell-quoted paths. A replacer function inserts
 // its value literally, so a path holding a `$&`-style pattern stays a path.
 const withPaths = (template, paths) => template.replace(/\{paths\}/g, () => paths.map(shellWord).join(' '));
 
-// `test full|whole`, `test focused [<path>…]`, `test -- <command>`: runs a test command under `sh`, streaming its output,
-// and appends one `run` line carrying the command's own exit status (an Observed run), its duration in milliseconds, and its command's arguments. The run root, slice, commit, and
+// `test full|whole`, `test focused [<path>…]`, `test path <file>… -- <command>`: runs a test command under `sh`, streaming its output,
+// and appends one `run` line carrying the command's own exit status (an Observed run), its duration in milliseconds, and its command as run. The run root, slice, commit, and
 // tree state are read when the run starts; the line is written when the command finishes, `dirty` when HEAD moved, the tree
 // was dirty at either end, or the trace recorded a change to the slice's files during the run. No option sets a field.
 // A command ended by a signal, or a verb killed first, writes no line, and a verb that is killed or interrupted
 // has its command's process group sent SIGTERM by the watcher, whatever ended the verb (`taskkill /t /f` on Windows), so a
 // runner that ignores SIGTERM can outlive the verb.
-// Outside every run tree, or for a command that cd's out of every run tree, the command runs and nothing is written. lib/run-tree.js and lib/test-runs.js are required here, at call time, for the
-// locator and the classifier they share with the run-trace hook. An install whose classifier cannot find a module (lib/shell-words.js is
-// missing) classifies no command as a test run, so `test --` refuses every command and a configured kind still runs; any other load
-// failure propagates.
+// `test path <file>… -- <command>` runs the command as given, from the current directory, against the test files its caller names,
+// and classifies nothing (ADR 0227). The line records the files (`encodePaths`) and the command as typed, which the run state
+// carries to the remote, so a secret belongs in the environment. Outside every run tree the command runs and nothing is written.
 // simplicity: a command that changes its own process group escapes the group kill; upgrade: a cgroup or subreaper if one bites.
 function verbTest(cwd, args) {
   const { locate, treeState } = require('./run-tree.js');
-  let testRuns = () => [];
-  let commandArgs = () => '-';
-  try {
-    ({ testRuns, commandArgs } = require('./test-runs.js'));
-  } catch (e) {
-    if (e.code !== 'MODULE_NOT_FOUND') throw e; // a syntax error or a throwing module stays visible
-  }
-  const free = args[0] === '--';
   let kind = args[0];
   let command;
   let files = [];
-  let at = locate(path.join(cwd, 'x'));
-  let runArgs = '-'; // the arguments field of the command's test segment
-  let hidden = false; // the command's shape hides its status from the test
+  const at = locate(path.join(cwd, 'x'));
   let runCwd = cwd;
-  // The tree a command classifies against outside every run tree: the repository's, else the cwd.
+  // The tree a configured kind runs in outside every run tree: the repository's, else the cwd.
   const topOf = () => {
     const top = gitSpawn(['rev-parse', '--show-toplevel'], cwd);
     return top.status === 0 ? top.stdout.trim() : cwd;
   };
-  if (free) {
-    if (args.length < 2) fail('test --: needs a command');
-    command = args.length === 2 ? args[1] : args.slice(1).map(shellWord).join(' ');
-    let runs = testRuns(command, cwd, at ? null : topOf());
-    // From inside a run tree, a command that cd's out of every run tree classifies as it would outside one.
-    if (at && !runs.length) runs = testRuns(command, cwd, topOf());
-    if (runs.length !== 1) fail(runs.length ? 'test --: the command holds more than one test run, run one per call' : `test --: not a test run, so nothing runs: ${command}`);
-    // The classified run's own location decides, so a `cd` into a run tree records there from any cwd, and a `cd` out of
-    // every run tree records nothing.
-    if (runs[0].at.runRoot) {
-      ({ kind, files, at } = runs[0]);
-      hidden = runs[0].unknown || !runs[0].sole;
-      runArgs = runs[0].args;
-    } else at = null;
+  const form = 'test path <file>… -- <command>';
+  if (kind === '--') fail(`test --: names no test file; use \`${form}\``);
+  if (kind === 'path') {
+    const sep = args.indexOf('--');
+    if (sep < 0) fail(`test path: needs \`--\` before the command (${form})`);
+    files = args.slice(1, sep);
+    const words = args.slice(sep + 1);
+    if (!files.length) fail(`test path: needs at least one test file (${form})`);
+    if (files.includes('')) fail('test path: an empty file argument names no file');
+    if (!words.length || (words.length === 1 && !words[0].trim())) fail(`test path: needs a command after \`--\` (${form})`);
+    command = words.length === 1 ? words[0] : words.map(shellWord).join(' ');
   } else {
     if (!['full', 'focused', 'whole'].includes(kind) || (kind !== 'focused' && args.length > 1)) fail(`test: unrecognized arguments (${usage().split('\n').find((l) => /^ {2}test /.test(l)).trim()})`);
     const paths = args.slice(1);
@@ -80,8 +67,9 @@ function verbTest(cwd, args) {
     if (!template) fail(`test ${kind}: no ${kind} command is configured in docs/agents/verification.md`);
     command = kind === 'focused' ? withPaths(template, paths) : template;
     if (kind === 'focused') files = paths;
-    runArgs = commandArgs(command);
   }
+  // The run's digest is checked before the run line is written (ADR 0227); the check may append a `tamper` line, so it comes first.
+  if (at) checkRun(at.runRoot);
   const [sha, tree0] = at ? treeState(at.tree) : [];
   // Where the trace ends now: a file change it records for this slice past this point happened during the run.
   const traceFile = at && path.join(at.runRoot, 'trace.log');
@@ -111,18 +99,18 @@ function verbTest(cwd, args) {
     }
     if (at) {
       const [sha1, tree1] = treeState(at.tree);
-      // An edit, revert, or restore the trace recorded for this slice during the run changed the tree, even one undone
+      // An edit the trace recorded for this slice during the run changed the tree, even one undone
       // before the end. simplicity: a change no hook records (another process writing the tree) shows only at the two ends.
       let changed = false;
       try {
         changed = readTrace(fs.readFileSync(traceFile).subarray(traceMark).toString('utf8'))
-          .some((e) => e.slice === at.slice && ['edit', 'revert', 'restore'].includes(e.kind));
+          .some((e) => e.slice === at.slice && e.kind === 'edit');
       } catch { /* no trace: nothing recorded */ }
       // The commit and tree state the command ran against: a moved HEAD, a dirty tree at either end, or a recorded change
       // during the run is `dirty`.
       const tree = sha1 !== sha || tree0 === 'dirty' || tree1 === 'dirty' || changed ? 'dirty' : tree0 === 'unknown' || tree1 === 'unknown' ? 'unknown' : 'clean';
-      const outcome = hidden ? 'unknown' : code === 0 ? 'pass' : 'fail';
-      if (!appendTrace(at.runRoot, { slice: at.slice, kind: 'run', fields: [kind, outcome, sha, tree, kind === 'focused' ? encodePaths(files) : files.join(','), ms, runArgs] })) {
+      const outcome = code === 0 ? 'pass' : 'fail';
+      if (!appendTrace(at.runRoot, { slice: at.slice, kind: 'run', fields: [kind, outcome, sha, tree, encodePaths(files), ms, command] })) {
         process.stderr.write('test: the run line could not be written to the run trace\n');
       }
     }

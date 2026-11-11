@@ -1123,6 +1123,16 @@ const { appendTrace, isTestPath } = require(scopePath);
     assert.ok(f.reusableNoBase(gr).ok, 'a green record at the tip is reusable without --base');
     // A multi-file path run is no run of the file alone.
     red([FAILED(f.T), ['path', 'pass', f.T, 'clean', 'tests/a.test.js,tests/b.test.js'], FOCUSED(f.T)], 'a multi-file run holding the rerun file');
+    // A path run records its file `encodePaths`-encoded: a name holding `%` matches its own rerun.
+    const pc = make(DECLARED);
+    fs.writeFileSync(path.join(pc.repo, 'tests', '100%.test.js'), 'a\n');
+    g(['add', '.'], pc.repo);
+    g(['commit', '-q', '-m', 'pct'], pc.repo);
+    const PT = g(['rev-parse', 'HEAD'], pc.repo);
+    const pct = pc.root(`red @ ${PT}`, [FAILED(PT), ['path', 'pass', PT, 'clean', encodePaths(['tests/100%.test.js'])], FOCUSED(PT, 'pass', 'clean', ['src/x.js', 'tests/100%.test.js'])]);
+    assert.ok(pc.rerun(pct, 'tests/100%.test.js', '#1').ok, 'a file name holding % records');
+    r = pc.reusable(pct);
+    assert.ok(r.ok && r.out === 'reusable', 'a path run of a file name holding % is the rerun of that file alone: ' + (r.err || ''));
     // The test file is a blob at the tip, named root-relative however it is typed.
     const dv = f.root(`red @ ${f.T}`, good);
     assert.ok(!f.rerun(dv, 'tests', '#1').ok, 'a directory is no test file');

@@ -172,7 +172,7 @@ function reusableOnRerun(cwd, root, branch, recordedSha, kind, whole, base) {
   const file = rootRelative(rm[1], top);
   const isAlone = (e) => {
     if (e.fields[0] !== 'path') return false;
-    const files = (e.fields[4] || '').split(',').map((p) => rootRelative(p, top));
+    const files = decodePaths(e.fields[4]).map((p) => rootRelative(p, top));
     return files.length === 1 && files[0] === file;
   };
   const other = at.find((e) => e.fields[0] === 'path' && e.fields[1] === 'fail' && !isAlone(e));

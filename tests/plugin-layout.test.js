@@ -33,16 +33,22 @@ const hookFiles = fs.readdirSync(path.join(plugin, 'hooks')).filter((n) => n.end
   }
 }
 
+// No hook refuses an implementer's full-suite run, and no module classifies a test command (ADR 0227).
+assert.ok(!fs.existsSync(path.join(plugin, 'hooks', 'test-guard.js')), 'no test-guard hook');
+assert.ok(!fs.existsSync(path.join(plugin, 'lib', 'test-runs.js')), 'no test-runs module');
+assert.ok(!/test-guard/.test(fs.readFileSync(path.join(plugin, 'hooks', 'hooks.json'), 'utf8')), 'hooks.json registers no test-guard');
+
+// No hook refuses a scopetree's creation: a run recreates its own absent scopetree with a plain `git worktree add` (ADR 0227).
+assert.ok(!fs.existsSync(path.join(plugin, 'hooks', 'run-lock.js')), 'no run-lock hook');
+assert.ok(!/run-lock/.test(fs.readFileSync(path.join(plugin, 'hooks', 'hooks.json'), 'utf8')), 'hooks.json registers no run-lock');
+
 // The export names of each entry point, sorted. A dropped or added export fails here.
 const EXPORTS = {
-  'hooks/ledger-guard.js': ['decide'],
   'hooks/merge-guard.js': ['decide'],
   'hooks/model-explicit.js': ['OURS', 'decide'],
-  'hooks/run-lock.js': ['STALENESS_MS', 'decide'],
   'hooks/run-trace.js': ['record'],
   'hooks/scope-prune.js': ['TTL_MS', 'branchNamesFrom', 'main', 'readBranch', 'readHeader', 'readStage', 'selectPrunable', 'shapeScanBranch'],
   'hooks/slicetree-sweep.js': ['git', 'main', 'selectRemovable'],
-  'hooks/test-guard.js': ['decide'],
   'hooks/tree-guard.js': ['decide'],
   'hooks/update-check.js': ['cmpVersion'],
   'scripts/kb-patch.js': ['merge'],
@@ -138,11 +144,6 @@ for (const [rel, mods] of Object.entries(RE_EXPORTS)) {
   fs.writeFileSync(path.join(runRoot, 'ledger.md'), ledger([['01', 'in-progress']]));
   fs.writeFileSync(path.join(slicetree, 'docs', 'agents', 'verification.md'), '# Verification\n\n```sh\nnpm test\n```\n\n```sh\nnpm test\n```\n');
 
-  const lockRoot = dir('lock-root');
-  const lockDir = path.join(lockRoot, '.superdev', 'scopes', 'lk');
-  fs.mkdirSync(lockDir, { recursive: true });
-  fs.writeFileSync(path.join(lockDir, 'run.lock'), 'locked');
-
   const pluginRoot = dir('plugin-root');
   fs.mkdirSync(path.join(pluginRoot, '.claude-plugin'));
   fs.writeFileSync(path.join(pluginRoot, '.claude-plugin', 'plugin.json'), JSON.stringify({ version: '0.0.1' }));
@@ -172,24 +173,18 @@ for (const [rel, mods] of Object.entries(RE_EXPORTS)) {
 
   // Each entry: the payload, the env, and the check on the result and the world after the run.
   const DIRECT = {
-    'ledger-guard.js': { input: { tool_input: { file_path: '.superdev/scopes/demo/ledger.md' } },
-      check: (r) => { assert.strictEqual(r.status, 2, 'blocks a ledger edit'); assert.match(r.stderr, /scope\.js/); } },
     'merge-guard.js': { input: { agent_id: 'a1', tool_input: { command: 'git merge scope' } },
       check: (r) => { assert.strictEqual(r.status, 2, 'blocks a subagent merge'); assert.match(r.stderr, /subagents must not integrate/); } },
     'model-explicit.js': { input: { tool_name: 'Agent', tool_input: { subagent_type: 'implementer' } },
       check: (r) => { assert.strictEqual(r.status, 2, 'blocks a modelless dispatch'); assert.match(r.stderr, /must set an explicit model/); } },
     'offer-guard.js': { input: { hook_event_name: 'Stop', session_id: 's1', prompt_id: 'p1', stop_hook_active: false, last_assistant_message: '### Next\n\n```\n/superdev:review x\n```\n' },
       check: (r) => { assert.strictEqual(r.status, 0); assert.strictEqual(JSON.parse(r.stdout).decision, 'block', 'holds a Next block with no offer'); } },
-    'run-lock.js': { input: { tool_input: { command: 'git worktree add .superdev/scopes/lk/scopetree x' }, cwd: lockRoot },
-      check: (r) => { assert.strictEqual(r.status, 2, 'blocks on a fresh lock'); assert.match(r.stderr, /another session is running this scope/); } },
     'run-trace.js': { input: { hook_event_name: 'PostToolUse', tool_name: 'Edit', tool_input: { file_path: path.join(slicetree, 'x.js') }, cwd: runRepo },
       check: (r) => { assert.strictEqual(r.status, 0); assert.match(fs.readFileSync(path.join(runRoot, 'trace.log'), 'utf8'), / 01 main edit impl x\.js/, 'records the edit'); } },
     'scope-prune.js': { input: { cwd: pruneRepo },
       check: (r) => { assert.strictEqual(r.status, 0); assert.ok(!fs.existsSync(pruneScope), 'prunes the gone, closed, stale scope'); } },
     'slicetree-sweep.js': { input: { cwd: sweepRepo },
       check: (r) => { assert.strictEqual(r.status, 0); assert.ok(!fs.existsSync(sweepTree), 'sweeps the merged-and-worked slice'); } },
-    'test-guard.js': { input: implementer({ tool_name: 'Bash', cwd: slicetree, tool_input: { command: 'node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full' } }),
-      check: (r) => { assert.strictEqual(r.status, 2, 'refuses a full run'); assert.match(r.stderr, /^superdev: refused/); } },
     'tree-guard.js': { input: implementer({ tool_name: 'Write', cwd: runRepo, tool_input: { file_path: path.join(runRepo, 'a.txt'), content: 'x' } }),
       check: (r) => { assert.strictEqual(r.status, 2, 'refuses a write into the main checkout'); } },
     'update-check.js': { input: {}, nodeArgs: ['--require', path.join(__dirname, 'fixtures', 'stub-https-get.js')], env: { CLAUDE_PLUGIN_ROOT: pluginRoot, CLAUDE_PLUGIN_DATA: updateData, STUB_HTTPS_MARKER: updateMarker },
@@ -201,5 +196,23 @@ for (const [rel, mods] of Object.entries(RE_EXPORTS)) {
     const r = cp.spawnSync(process.execPath, [...nodeArgs, path.join(plugin, 'hooks', name)], { input: JSON.stringify(input), encoding: 'utf8', timeout: 30000, env: { ...process.env, ...env } });
     assertSpawnDecided(r, `spawning ${name} directly`);
     try { check(r); } catch (e) { e.message = `${name} run directly: ${e.message}\nstderr: ${r.stderr}`; throw e; }
+  }
+}
+
+// INV-0187: no shipped file but merge-guard's raw-text check reads a Bash call's `tool_input.command` (ADR 0227). The scan takes
+// a root, so the fixture is a temporary tree outside plugin/.
+{
+  const READS = /\b(?:ti|tool_input|toolInput)\s*(?:\??\.\s*command\b|\[\s*['"]command['"]\s*\])|\{[^}]*\bcommand\b[^}]*\}\s*=\s*(?:input\.)?(?:ti|tool_input)\b/;
+  const readers = (root) => fs.readdirSync(root, { recursive: true })
+    .filter((f) => f.endsWith('.js') && READS.test(fs.readFileSync(path.join(root, f), 'utf8')))
+    .map((f) => f.split(path.sep).join('/')).sort();
+  assert.deepStrictEqual(readers(plugin), ['hooks/merge-guard.js'], 'only merge-guard reads a Bash call\'s command');
+  const T = fs.mkdtempSync(path.join(os.tmpdir(), 'inv-0187-'));
+  try {
+    fs.writeFileSync(path.join(T, 'reader.js'), "const cmd = input.tool_input.command;\n");
+    fs.writeFileSync(path.join(T, 'plain.js'), "const p = input.tool_input.prompt;\n");
+    assert.deepStrictEqual(readers(T), ['reader.js'], 'a file reading tool_input.command is found');
+  } finally {
+    fs.rmSync(T, { recursive: true, force: true });
   }
 }

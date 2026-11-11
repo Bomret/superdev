@@ -1,6 +1,6 @@
 'use strict';
 
-// Suite for the run-trace hook's failure posture (INV-0140, INV-0159): with any module it loads unloadable, or a function of a loaded
+// Suite for the run-trace hook's failure posture (INV-0159): with any module it loads unloadable, or a function of a loaded
 // module throwing, the hook records nothing. Each case confirms its stub loaded.
 
 const assert = require('node:assert');
@@ -11,15 +11,15 @@ const { assertSpawnDecided } = require('./spawn-verdict');
 const { readTrace, appendTrace } = require('../plugin/scripts/scope.js');
 const { tmp, ledger, A, S3, trace, reset, run, edit, bash, hookPath, agentPre, cleanup } = require('./run-trace-setup');
 
-// With shell-words.js unloadable, or scan throwing, the hook records nothing; a control run records.
+// With trace-log.js unloadable, or a function of it throwing, the hook records nothing; a control run records.
 {
   const preload = path.join(tmp, 'preload.js');
   const write = path.join(S3, 'src', 'unloadable.js');
-  // `setup` runs in-process first, scanner loadable; `events` are recorded in the spawned hook; returns the lines `events` added.
+  // `setup` runs in-process first, every module loadable; `events` are recorded in the spawned hook; returns the lines `events` added.
   const prepare = (events, setup) => {
     reset();
     if (setup) setup();
-    return { before: trace(A).length, evs: events || [{ tool_name: 'Bash', tool_input: { command: `echo x > ${write}` }, cwd: tmp }] };
+    return { before: trace(A).length, evs: events || [{ tool_name: 'Edit', tool_input: { file_path: write }, cwd: tmp }] };
   };
   // Spawned: a real process loads the hook with `patch` preloaded.
   const spawnRuns = (patch, events, setup) => {
@@ -27,7 +27,7 @@ const { tmp, ledger, A, S3, trace, reset, run, edit, bash, hookPath, agentPre, c
     const { before, evs } = prepare(events, setup);
     const code = `const { record } = require(${JSON.stringify(hookPath)}); for (const e of ${JSON.stringify(evs)}) { try { record(e); } catch { /* main() never blocks the tool call */ } }`;
     const r = cp.spawnSync(process.execPath, ['-r', preload, '-e', code], { encoding: 'utf8', timeout: 10000 });
-    assertSpawnDecided(r, 'run-trace.js with a broken scanner');
+    assertSpawnDecided(r, 'run-trace.js with a broken module');
     assert.equal(r.status, 0, r.stderr);
     return trace(A).slice(before).map((l) => l[2]);
   };
@@ -64,76 +64,38 @@ const { tmp, ledger, A, S3, trace, reset, run, edit, bash, hookPath, agentPre, c
   // another module of lib/. It marks its load in the file named by `marker`.
   const marker = path.join(tmp, 'stub-loaded');
   const requests = (mod) => `/^(?:\\.\\.\\/lib|\\.)\\/${mod}\\.js$/.test(req)`;
-  const intercept = (body) => `const M = require('module'); const load = M._load; M._load = function (req, ...a) { if (${requests('shell-words')}) { require('fs').writeFileSync(${JSON.stringify(marker)}, 'x'); ${body} } return load.call(this, req, ...a); };`;
+  const intercept = (body) => `const M = require('module'); const load = M._load; M._load = function (req, ...a) { if (${requests('trace-log')}) { require('fs').writeFileSync(${JSON.stringify(marker)}, 'x'); ${body} } return load.call(this, req, ...a); };`;
   const loaded = (what) => { assert.ok(fs.existsSync(marker), `the stub loaded: ${what}`); fs.rmSync(marker); };
   const unloadable = intercept("throw new Error('gone');");
   fs.rmSync(marker, { force: true });
   assert.deepEqual(spawnRuns(''), ['edit'], 'control: the write records');
   assert.ok(!fs.existsSync(marker), 'control: no stub loaded');
   // The one spawned failure row: the posture holds across a real process; every other row runs in-process.
-  assert.deepEqual(spawnRuns(unloadable), [], 'shell-words.js unloadable records nothing, spawned');
-  loaded('unloadable scanner, spawned');
+  assert.deepEqual(spawnRuns(unloadable), [], 'trace-log.js unloadable records nothing, spawned');
+  loaded('unloadable trace-log, spawned');
   // An in-process row restores the module loader and the require cache.
   const loadBefore = Module._load;
   const hookBefore = require.cache[hookPath];
-  assert.deepEqual(hookRuns(unloadable), [], 'shell-words.js unloadable records nothing');
-  loaded('unloadable scanner');
+  assert.deepEqual(hookRuns(unloadable), [], 'trace-log.js unloadable records nothing');
+  loaded('unloadable trace-log');
   assert.equal(Module._load, loadBefore, 'the module loader is restored');
   assert.equal(require.cache[hookPath], hookBefore, 'the require cache is restored');
   assert.deepEqual(hookRuns(''), ['edit'], 'in-process control: the write records after a stubbed row');
   assert.ok(!fs.existsSync(marker), 'in-process control: no stub loaded');
-  assert.deepEqual(hookRuns(intercept('return { scan() { throw new Error("boom"); } };')), [], 'scan throwing records nothing');
-  loaded('scan throwing');
+  assert.deepEqual(hookRuns(intercept('return { appendTrace() { throw new Error("boom"); } };')), [], 'appendTrace throwing records nothing');
+  loaded('appendTrace throwing');
   // Each module the hook loads, directly or through another module of lib/, each unloadable on its own: nothing records, and the
   // stub at its requiring module's request loaded.
-  const MODULES = ['ledger', 'trace-log', 'verification', 'main-work-tree', 'bash-command', 'bash-writes', 'test-runs', 'run-tree', 'dispatch',
-    'dispatch-lines', 'start-stash'];
+  const MODULES = ['ledger', 'trace-log', 'verification', 'main-work-tree', 'run-tree', 'dispatch', 'dispatch-lines'];
   for (const mod of MODULES) {
     const stub = `const M = require('module'); const load = M._load; M._load = function (req, ...a) { if (${requests(mod)}) { require('fs').writeFileSync(${JSON.stringify(marker)}, 'x'); throw new Error('gone'); } return load.call(this, req, ...a); };`;
     assert.deepEqual(hookRuns(stub), [], `${mod}.js unloadable records nothing`);
     loaded(`unloadable ${mod}.js`);
   }
-  // A scanner that loads but whose function throws, or is absent, leaves no partial trace: an event's lines write together or not at all.
-  const withScanner = (override) => intercept(`const r = load.call(this, req, ...a); return Object.assign({}, r, ${override});`);
-  const verifyFile = path.join(S3, 'docs', 'agents', 'verification.md');
-  const setupVerify = () => {
-    fs.mkdirSync(path.dirname(verifyFile), { recursive: true });
-    fs.writeFileSync(verifyFile, '# V\n\n```sh\nbun run test\n```\n\n```sh\nbun run test\n```\n');
-  };
   const boom = (name) => `{ ${name}() { throw new Error("boom"); } }`;
-  // Each event runs a test and one more command; the throwing function is one that command's scan calls.
-  const both = [
-    ['a write', `bun run test; echo x > ${write}`, ['run', 'edit'], [['drivePath throwing', boom('drivePath')], ['drivePath missing', '{ drivePath: undefined }'], ['gitSubcommand missing', '{ gitSubcommand: undefined }']]],
-    ['a restore', 'bun run test; git checkout -- src/a.js', ['run', 'restore'], [['gitSubcommand throwing', boom('gitSubcommand')], ['drivePath missing', '{ drivePath: undefined }'], ['gitSubcommand missing', '{ gitSubcommand: undefined }']]],
-  ];
-  for (const [what, command, real, broken] of both) {
-    const evs = [{ tool_name: 'Bash', tool_input: { command }, cwd: S3 }];
-    control(`a test run and ${what} record`, evs, setupVerify, real);
-    for (const [name, override] of broken) {
-      assert.deepEqual(hookRuns(withScanner(override), evs, setupVerify), [], `${name} on a test run and ${what} records nothing`);
-      loaded(`${name} on ${what}`);
-    }
-  }
-  // A scanner function that throws only for some inputs drops the whole event too, not just the line that read that input.
+  // A function that throws only for some inputs drops the whole event, not just the line that read that input.
   const only = (name, arg, args) => `{ ${name}: (...a) => { if (${arg} === ${JSON.stringify(args)}) throw new Error("boom"); return r.${name}(...a); } }`;
-  const picky = [
-    ['drivePath throwing for one patch file', `bun run test; git apply fix.diff`, ['run', 'edit'], only('drivePath', 'a[0]', 'fix.diff')],
-    ['scan throwing for one word', `bun run test; echo x > ${write}`, ['run', 'edit'], only('scan', 'a[0]', write)],
-  ];
-  for (const [name, command, real, override] of picky) {
-    const evs = [{ tool_name: 'Bash', tool_input: { command }, cwd: S3 }];
-    fs.writeFileSync(path.join(S3, 'fix.diff'), '--- a/x\n+++ b/x\n');
-    control(name, evs, setupVerify, real);
-    assert.deepEqual(hookRuns(withScanner(override), evs, setupVerify), [], `${name} records nothing`);
-    loaded(name);
-    fs.rmSync(path.join(S3, 'fix.diff'), { force: true });
-  }
-  fs.rmSync(verifyFile, { force: true });
-  // The core loads but its reader module is absent: the real core's own require throws.
-  const readersGone = `const M = require('module'); const load = M._load; M._load = function (req, ...a) { if (req === './shell-word-readers.js') { require('fs').writeFileSync(${JSON.stringify(marker)}, 'x'); throw new Error('gone'); } return load.call(this, req, ...a); };`;
-  assert.deepEqual(hookRuns(readersGone), [], 'a core without its reader module records nothing');
-  loaded('missing reader module');
-  // A non-Bash event records nothing either (INV-0140): a bound slice-reviewer's stop writes no end.
+  // A dispatch event records nothing either: a bound slice-reviewer's stop writes no end.
   const bound = () => {
     run({ hook_event_name: 'PreToolUse', tool_name: 'Agent', tool_use_id: 'ur1', tool_input: { prompt: `${S3}`, subagent_type: 'superdev:slice-reviewer', description: 'review' }, cwd: tmp });
     run({ hook_event_name: 'PostToolUse', tool_name: 'Agent', tool_use_id: 'ur1', tool_response: { status: 'async_launched', agentId: 'aur1' }, cwd: tmp });
@@ -142,15 +104,14 @@ const { tmp, ledger, A, S3, trace, reset, run, edit, bash, hookPath, agentPre, c
     { hook_event_name: 'SubagentStop', agent_id: 'aur1', agent_type: 'superdev:slice-reviewer', cwd: tmp },
   ];
   control('the review records its end', review, bound, ['dispatch-end']);
-  assert.deepEqual(hookRuns(unloadable, review, bound), [], 'shell-words.js unloadable records no dispatch-end');
-  loaded('unloadable scanner on a review');
+  assert.deepEqual(hookRuns(unloadable, review, bound), [], 'trace-log.js unloadable records no dispatch-end');
+  loaded('unloadable trace-log on a review');
   // A state module that loads but whose function throws: the event records nothing, and the stub at its requiring module's request loaded.
   const withLib = (mod, override) => `const M = require('module'); const load = M._load; M._load = function (req, ...a) { if (${requests(mod)}) { require('fs').writeFileSync(${JSON.stringify(marker)}, 'x'); const r = load.call(this, req, ...a); return Object.assign({}, r, ${override}); } return load.call(this, req, ...a); };`;
-  const verifyEvs = [{ tool_name: 'Bash', tool_input: { command: `bun run test; echo x > ${write}` }, cwd: S3 }];
-  control('a test run and a write record', verifyEvs, setupVerify, ['run', 'edit']);
-  assert.deepEqual(hookRuns(withLib('verification', boom('verificationCommands')), verifyEvs, setupVerify), [], 'verificationCommands throwing records nothing');
-  loaded('verificationCommands throwing');
-  fs.rmSync(verifyFile, { force: true });
+  const editEvs = [{ tool_name: 'Edit', tool_input: { file_path: write }, cwd: S3 }];
+  control('an edit records', editEvs, undefined, ['edit']);
+  assert.deepEqual(hookRuns(withLib('verification', boom('isTestPath')), editEvs), [], 'isTestPath throwing records nothing');
+  loaded('isTestPath throwing');
   assert.deepEqual(hookRuns(withLib('trace-log', boom('readTrace')), review, bound), [], 'readTrace throwing records no dispatch-end');
   loaded('readTrace throwing on a review');
   assert.deepEqual(hookRuns(withLib('main-work-tree', boom('mainWorkTree')), review, bound), [], 'mainWorkTree throwing records no dispatch-end');
@@ -161,10 +122,9 @@ const { tmp, ledger, A, S3, trace, reset, run, edit, bash, hookPath, agentPre, c
   const stopOnly = [{ hook_event_name: 'SubagentStop', agent_id: 'aur1', agent_type: 'superdev:slice-reviewer', last_assistant_message: verdictText, cwd: tmp }];
   const foreground = [{ hook_event_name: 'PostToolUse', tool_name: 'Agent', tool_use_id: 'ur1', tool_response: { status: 'completed', agentId: 'aur1', handbackReport: { text: verdictText } }, cwd: tmp }];
   const missing = (name) => `{ ${name}: undefined }`;
-  const WRITE = { evs: verifyEvs, setup: setupVerify, real: ['run', 'edit'] };
+  const WRITE = { evs: editEvs, setup: undefined, real: ['edit'] };
   const matrix = [
-    ...[['bash-command', 'cmdSegments'], ['bash-command', 'dirTracker'], ['bash-command', 'segWords'], ['bash-command', 'drivePath'], ['bash-writes', 'bashTargets'],
-      ['test-runs', 'recordBash'], ['run-tree', 'locate'], ['run-tree', 'isTestPath'], ['run-tree', 'treeState'], ['start-stash', 'takeStart']]
+    ...[['run-tree', 'locate'], ['run-tree', 'toolTarget'], ['run-tree', 'isTestPath'], ['trace-log', 'appendTrace']]
       .flatMap(([mod, fn]) => [[`${mod} ${fn} throwing`, mod, boom(fn), WRITE], [`${mod} ${fn} missing`, mod, missing(fn), WRITE]]),
     // `findDispatch` reaches the stop through the hook, and the foreground review through `bindAgentResult`, which calls its module's own copy.
     // `holds` reaches only the foreground review, through the bind check.
@@ -209,7 +169,6 @@ const { tmp, ledger, A, S3, trace, reset, run, edit, bash, hookPath, agentPre, c
     control(what, evs, setup, real);
     assert.deepEqual(hookRuns(withLib(mod, override), evs, setup), [], `${what} records nothing`);
     loaded(what);
-    fs.rmSync(verifyFile, { force: true });
   }
   reset();
 }

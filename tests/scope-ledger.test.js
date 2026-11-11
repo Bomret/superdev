@@ -404,7 +404,9 @@ try {
 
     // An earlier run that recorded no trace rotates its ledger alone, and init succeeds.
     closeRun();
+    // A run an older release wrote: no trace and no digest sidecar, so the missing trace is no tamper (ADR 0227).
     fs.unlinkSync(path.join(tRoot, 'trace.log'));
+    fs.rmSync(path.join(tRoot, 'digest.json'), { force: true });
     const before = pairs();
     assert.ok(call(['init', 'feat/' + slug, 'planned'], sliceJson).ok, 'a trace-less closed run rotates');
     const after = pairs();
@@ -1486,14 +1488,11 @@ try {
   assert.ok(ps.ok && !/ledger unreadable/.test(ps.out.split('\n').find((l) => l.startsWith('| newline-title |')) || ''), 'status reads the newline-title ledger fine');
 
   // The scope-slug and change-type rules live here as code (SLUG_RE, CHANGE_TYPES) but
-  // hooks/run-lock.js extracts with the same charset and references/scope-mode.md states it
-  // in prose — one fact in three syntaxes, kept equal (took over from drift-check's retired
-  // scope-slug contract row).
+  // references/scope-mode.md states the same charset in prose — one fact in two syntaxes, kept equal
+  // (took over from drift-check's retired scope-slug contract row).
   assert.strictEqual(SLUG_RE.source, '^[a-zA-Z0-9][a-zA-Z0-9_-]*$', 'SLUG_RE itself is pinned');
   const charset = SLUG_RE.source.slice(1, -1); // drop the ^…$ anchors
   const repo = path.join(path.dirname(scopePath), '..');
-  const runLock = fs.readFileSync(path.join(repo, 'hooks', 'run-lock.js'), 'utf8');
-  assert.ok(runLock.includes(charset), 'run-lock.js extracts with the SLUG_RE charset');
   const scopeMode = fs.readFileSync(path.join(repo, 'references', 'scope-mode.md'), 'utf8');
   assert.ok(scopeMode.includes('`' + charset + '`'), 'scope-mode.md states the SLUG_RE charset');
 
