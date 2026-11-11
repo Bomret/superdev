@@ -1,6 +1,6 @@
 ---
 name: review
-description: Review a change — a commit range, a branch, a path, or the working tree — for correctness, architecture, security, and over-engineering. Read-only on an ad-hoc range; on a live superdev scope it reviews against the DoD and can drive the fix loop.
+description: Review a change — a commit range, a branch, a path, or the working tree — for correctness, architecture, security, and over-engineering. Read-only on an ad-hoc range, except an inline fix of Minors on the operator's yes; on a live superdev scope it reviews against the DoD and can drive the fix loop.
 argument-hint: "[BASE..HEAD | branch | path | scope-slug | (empty, or the top-level path = changes, else a scope run, else the whole repo)]  [--unattended]  [--chained]  [-- what it should do]"
 ---
 
@@ -8,13 +8,14 @@ argument-hint: "[BASE..HEAD | branch | path | scope-slug | (empty, or the top-le
 
 Review a change end to end. §1 decides the mode.
 
-- **Ad-hoc**: a spot-check, a pre-PR pass, a second opinion on someone else's branch, or `/superdev:sweep`'s code leg under `--chained`. No plan stands behind it, and §3 keeps it read-only end to end.
+- **Ad-hoc**: a spot-check, a pre-PR pass, a second opinion on someone else's branch, or `/superdev:sweep`'s code leg under `--chained`. No plan stands behind it, and §3 keeps it read-only, except the inline fix the operator agrees to (ADR 0227).
 - **Scope**: the range is a live superdev scope branch, the whole-scope review gate of the implement chain (ADR 0013). It reviews against that run's Definition of Done, may drive the fix loop after asking once, and hands off to `/superdev:document`. `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md` owns everything that differs.
 
 **The closing message.** Applies to every message this command ends on. Close it with the Next block per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in that file's `## The offer` section (ADR 0157).
 
 - A run under `--chained` prints no Next block.
-- An ad-hoc review's block names `/superdev:plan` where findings stand (§3) and says no command follows otherwise.
+- An ad-hoc review's block names `/superdev:plan` where a Critical or Important finding or a failed focused run stands, the state after an inline fix included.
+- Any other ad-hoc review's block says no command follows: a clean review, a Minor-only remainder fixed, declined, unoffered, or left under `--unattended`. After an inline fix it names the fix branch.
 
 ## 0. Config (optional)
 
@@ -114,6 +115,11 @@ Review a change end to end. §1 decides the mode.
 
 **The range announcement.** Applies after the range resolves and before any dispatch. State the concrete range or target (`Reviewing a1b2c3..d4e5f6`, or `Reviewing working tree changes incl. untracked`).
 
+**The reviewed tip.** Applies to an ad-hoc subject that ends at a commit, at the range announcement. Resolve that commit to a full commit with `git rev-parse --verify '<ref>^{commit}'` and keep it as the reviewed tip §3's inline fix cuts from.
+
+- **Ends at a commit**: a `BASE..HEAD` or `BASE...HEAD` range (its right half, `HEAD` when empty), a branch, a path diff over committed changes (`HEAD`), standing code (`HEAD`), and the empty cascade's committed range (`HEAD`).
+- **Ends at no commit**: the working tree's uncommitted changes, and a path diff resolved as `git diff HEAD -- '<path>'`.
+
 **The size caution** (qualitative, non-blocking). Applies to the range announcement. Glance at `git diff --stat`, or on a standing-code target at the file count under it (`git ls-files -- '<path>'`, the whole tree for the top level). Never block on it.
 
 - **The change spans enough files or churn that one review pass would likely miss things** (a judgment call and no line count) → say so beside the announcement (`large, multi-concern diff; consider splitting it via /superdev:plan`) and proceed.
@@ -200,7 +206,17 @@ Reasoning: [1–2 sentences]
 - **Simplicity**: `simplicity-reviewer`'s `net: -N lines possible`, `net: +N lines possible`, or `Lean already`. A reviewer not dispatched reads `not dispatched — <reason>`, naming the skip rule that applied (for example `not dispatched — standing code, no diff to review`).
 - **A scope review's** combined verdict also follows `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md`'s `## 3. Report`.
 
-**Apply nothing.** Applies to an ad-hoc range. Apply no change to the reviewed tree. The operator acts on findings through the next command.
+**The inline-fix gate** (ADR 0227). Applies to an ad-hoc review once its report is out. Offer the inline fix only when every condition below holds.
 
-- Never edit, commit, or merge, however small the fix looks.
-- The operator runs `/superdev:plan` to slice the fix, the command this run's Next block names, and then `/superdev:implement`.
+- The run is attended, with neither `--chained` nor `--unattended`.
+- No Critical or Important finding stands.
+- The focused run did not come back `fail`. A `not run` passes.
+- At least one Minor finding or warranted cut stands (§2's warranted-cut concept).
+- The subject has a reviewed tip (§1's reviewed-tip concept).
+- No branch `review-fix/<git rev-parse --short=12 <tip>>` exists yet. An existing one is named in the report, and no second fix is offered.
+
+**The inline-fix question.** Applies when the gate holds. Ask one `AskUserQuestion`: fix the Minors inline, or leave them. On yes, read `${CLAUDE_PLUGIN_ROOT}/references/review-inline-fix.md` and follow it to its report.
+
+**Apply nothing otherwise.** Applies to an ad-hoc review outside the inline fix. Apply no change to the reviewed tree. Never edit, commit, or merge yourself, however small the fix looks.
+
+- A Critical or Important finding goes to `/superdev:plan`, the command this run's Next block names, and then `/superdev:implement`.
