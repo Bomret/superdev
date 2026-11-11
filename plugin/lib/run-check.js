@@ -1,6 +1,6 @@
 'use strict';
 
-// run-check.js: the digest check every scope.js verb that writes to a run makes before its write (ADR 0225, INV-0117).
+// run-check.js: the digest check every scope.js verb that writes to a run makes before its write (ADR 0227, INV-0117).
 
 const fs = require('fs');
 const path = require('path');

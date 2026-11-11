@@ -1,6 +1,6 @@
 'use strict';
 
-// Suite for plugin/scripts/scope.js's `untraced` verb (ADR 0225): the paths a window's commits change that no `edit` line
+// Suite for plugin/scripts/scope.js's `untraced` verb (ADR 0227): the paths a window's commits change that no `edit` line
 // of the window names. The fixtures are real git commits and real trace lines; the suite runs in temporary directories.
 
 require('./fixture-git');

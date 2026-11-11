@@ -14,7 +14,7 @@ const { tmp, call, run, sliceJson, scopePath, cleanup } = require('./scope-setup
 const { publishText } = require(scopePath);
 
 // Every file under `dir` with its bytes, so a refusal can be shown to write nothing. The digest sidecar is left out: the check a
-// writing verb makes first seals a hand-written run on its first check, a refusal included (ADR 0225).
+// writing verb makes first seals a hand-written run on its first check, a refusal included (ADR 0227).
 const snapshot = (dir) => {
   const out = {};
   const walk = (d) => {
@@ -141,7 +141,7 @@ try {
 
   // --- a hand-edited **Deploy:** entry, alone and inside a list ---
   const ledger = fs.readFileSync(ledgerFile, 'utf8');
-  // A hand-written ledger has no digest to mismatch: the sidecar goes with each edit (ADR 0225).
+  // A hand-written ledger has no digest to mismatch: the sidecar goes with each edit (ADR 0227).
   const handWrite = (text) => {
     fs.writeFileSync(ledgerFile, text);
     fs.rmSync(path.join(root, 'digest.json'), { force: true });

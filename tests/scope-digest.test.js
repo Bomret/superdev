@@ -1,6 +1,6 @@
 'use strict';
 
-// Suite for the run digest (ADR 0225, INV-0117, INV-0181): scope.js detects an outside edit of a run's ledger or trace after the fact.
+// Suite for the run digest (ADR 0227, INV-0117, INV-0181): scope.js detects an outside edit of a run's ledger or trace after the fact.
 // A sidecar in the run root seals both files; every scope.js verb that writes to a run checks it first, reports a mismatch once
 // on stderr and as a `tamper` trace line, re-seals, and goes on. Real repositories, real processes, and real lock files throughout (INV-0009).
 

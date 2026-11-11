@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 
-**Amended by:** [ADR 0225](0225-guardrails-read-no-shell-words.md), under which the run trace infers nothing from a Bash command: runs come from scope.js, edits from file-tool events.
+**Amended by:** [ADR 0227](0227-guardrails-read-no-shell-words.md), under which the run trace infers nothing from a Bash command: runs come from scope.js, edits from file-tool events.
 
 **Amends:** [ADR 0008](0008-tests-written-incrementally.md), [ADR 0114](0114-the-slice-review-reads-the-progress-log-only-after-its-blind-pass.md).
 

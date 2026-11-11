@@ -1,4 +1,4 @@
-# 0225: Guardrails read no shell words
+# 0227: Guardrails read no shell words
 
 **Status:** Accepted
 

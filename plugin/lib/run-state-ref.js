@@ -85,7 +85,7 @@ function entryFor(full, name, repo) {
 function buildCommit(root, repo, scope) {
   const lines = HANDOFF_ITEMS.filter((n) => n !== 'trace.log' && n !== TRACE_DIGEST).map((n) => entryFor(path.join(root, n), n, repo)).filter(Boolean);
   // The trace's digest rides beside it, taken from the very bytes the commit holds, so the two match whatever an appender
-  // writes meanwhile (ADR 0225). The run's own sidecar stays local.
+  // writes meanwhile (ADR 0227). The run's own sidecar stays local.
   const trace = readBytes(path.join(root, 'trace.log'));
   if (trace !== null) {
     const state = stateOf(trace);
@@ -142,7 +142,7 @@ function entryRefusal({ mode, type, name }) {
 }
 
 // Moves the unpacked `trace.digest` into the run's sidecar as the digest of the unpacked `trace.log`, so the first check of an
-// adopted run reports no tamper (ADR 0225). A ref with no `trace.digest` clears the trace's digest, and the first check seals the trace.
+// adopted run reports no tamper (ADR 0227). A ref with no `trace.digest` clears the trace's digest, and the first check seals the trace.
 // The caller holds the digest lock.
 function sealUnpackedTrace(root) {
   const file = path.join(root, TRACE_DIGEST);

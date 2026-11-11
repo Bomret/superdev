@@ -404,7 +404,7 @@ try {
 
     // An earlier run that recorded no trace rotates its ledger alone, and init succeeds.
     closeRun();
-    // A run an older release wrote: no trace and no digest sidecar, so the missing trace is no tamper (ADR 0225).
+    // A run an older release wrote: no trace and no digest sidecar, so the missing trace is no tamper (ADR 0227).
     fs.unlinkSync(path.join(tRoot, 'trace.log'));
     fs.rmSync(path.join(tRoot, 'digest.json'), { force: true });
     const before = pairs();

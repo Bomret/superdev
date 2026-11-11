@@ -16,9 +16,9 @@ const { readBytes, stateOf, sameState, readSide, writeSide, withRunLock } = requ
 //   dispatch-resume <tool_use_id> <agent_id> <session_id|-> <sendmessage_tool_use_id|->   (a SendMessage resumed the dispatch's subagent: a new run, with its own dispatch-end)
 //   ledger <verb> <args>     (written only by the ledger-writing verbs of this CLI, after they succeed)
 //   fail-to-pass <base>..<tip> <fail-to-pass|pass-to-pass|unknown> <reason> <command>     (written only by `fail-to-pass`, which derives the first three fields and records its caller's command, ADR 0188; no test run)
-//   tamper <ledger.md|trace.log>     (written only by a scope.js verb that writes to a run, when the file no longer matches the run's digest, ADR 0225)
+//   tamper <ledger.md|trace.log>     (written only by a scope.js verb that writes to a run, when the file no longer matches the run's digest, ADR 0227)
 // A trace an older release wrote can also hold `verdict` and `final-verdict` lines (ADR 0197), and `revert <paths>` and
-// `restore <paths>` lines (ADR 0225): no writer appends them, and every reader tolerates them.
+// `restore <paths>` lines (ADR 0227): no writer appends them, and every reader tolerates them.
 // Every field is escaped so none holds a control character or a line separator: no field can start
 // a new line. No CLI verb takes a caller-chosen event; `trace` only reads.
 function traceField(v) {

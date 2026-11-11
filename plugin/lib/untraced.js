@@ -1,6 +1,6 @@
 'use strict';
 
-// untraced.js: the `untraced` verb, the paths a window's commits change that no `edit` line of the window names (ADR 0225).
+// untraced.js: the `untraced` verb, the paths a window's commits change that no `edit` line of the window names (ADR 0227).
 
 const fs = require('fs');
 const path = require('path');

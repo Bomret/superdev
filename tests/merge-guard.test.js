@@ -1,6 +1,6 @@
 'use strict';
 
-// Suite for plugin/hooks/merge-guard.js (ADR 0225). The hook is one raw-text check over a subagent's Bash command.
+// Suite for plugin/hooks/merge-guard.js (ADR 0227). The hook is one raw-text check over a subagent's Bash command.
 // The suite requires the hook (silent, require.main guard) and calls its exported decide(), and spawns it once
 // for the hook's stdin and exit-code contract.
 
@@ -76,7 +76,7 @@ assert.equal(decide(sub('gh pr m 3')).block, false, 'gh has no m alias');
   assert.ok(reason.includes("git commit -F - <<'EOF'"), 'the denial names the heredoc form');
 }
 
-// merge-guard requires no module (ADR 0225).
+// merge-guard requires no module (ADR 0227).
 assert.ok(!/require\(/.test(fs.readFileSync(hookPath, 'utf8').replace(/^\s*\/\/.*$/gm, '').replace(/require\.main/g, '')), 'merge-guard.js requires no module');
 
 // A long line with many lead words and no verb answers in linear time: 10x the input costs ~10x when linear and ~100x

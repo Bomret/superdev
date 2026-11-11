@@ -4,7 +4,7 @@
 // run-trace: deterministic PostToolUse hook that records every file edit of a superdev run into the
 // run trace (ADR 0117), attributed to its run and slice and classified as test or implementation.
 // Events: Edit/Write/NotebookEdit. The hook reads no Bash command: a test run is recorded by `scope.js test` and
-// `scope.js fail-to-pass`, and a Bash write is no edit line (ADR 0225).
+// `scope.js fail-to-pass`, and a Bash write is no edit line (ADR 0227).
 // And every subagent dispatch and its end with an outcome (ADR 0140): PreToolUse on Agent, then PostToolUse, PostToolUseFailure,
 // or PermissionDenied on Agent, SubagentStop, PostToolUse on TaskStop, or the main session's Stop, UserPromptSubmit, or SessionEnd.
 // PreToolUse on SendMessage reopens an ended dispatch (`dispatch-resume`), and the resumed run ends again the same ways.

@@ -35,7 +35,7 @@ const B = runRoot('b', [['01', 'in-progress'], ['02', 'in-progress']]);
 const trace = (root) => {
   try { return fs.readFileSync(path.join(root, 'trace.log'), 'utf8').split('\n').filter(Boolean).map((l) => l.split(' ').slice(1)); } catch { return []; }
 };
-// An empty trace starts with no digest too: a trace deleted beside a present digest is a tamper (ADR 0225).
+// An empty trace starts with no digest too: a trace deleted beside a present digest is a tamper (ADR 0227).
 const reset = () => [A, B].forEach((r) => { fs.rmSync(path.join(r, 'trace.log'), { force: true }); fs.rmSync(path.join(r, 'digest.json'), { force: true }); });
 
 // Records one hook input in-process; returns the hook's output text, or '' (a test that expects none asserts '').

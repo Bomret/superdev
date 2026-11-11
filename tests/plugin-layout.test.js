@@ -33,12 +33,12 @@ const hookFiles = fs.readdirSync(path.join(plugin, 'hooks')).filter((n) => n.end
   }
 }
 
-// No hook refuses an implementer's full-suite run, and no module classifies a test command (ADR 0225).
+// No hook refuses an implementer's full-suite run, and no module classifies a test command (ADR 0227).
 assert.ok(!fs.existsSync(path.join(plugin, 'hooks', 'test-guard.js')), 'no test-guard hook');
 assert.ok(!fs.existsSync(path.join(plugin, 'lib', 'test-runs.js')), 'no test-runs module');
 assert.ok(!/test-guard/.test(fs.readFileSync(path.join(plugin, 'hooks', 'hooks.json'), 'utf8')), 'hooks.json registers no test-guard');
 
-// No hook refuses a scopetree's creation: a run recreates its own absent scopetree with a plain `git worktree add` (ADR 0225).
+// No hook refuses a scopetree's creation: a run recreates its own absent scopetree with a plain `git worktree add` (ADR 0227).
 assert.ok(!fs.existsSync(path.join(plugin, 'hooks', 'run-lock.js')), 'no run-lock hook');
 assert.ok(!/run-lock/.test(fs.readFileSync(path.join(plugin, 'hooks', 'hooks.json'), 'utf8')), 'hooks.json registers no run-lock');
 
@@ -199,7 +199,7 @@ for (const [rel, mods] of Object.entries(RE_EXPORTS)) {
   }
 }
 
-// INV-0187: no shipped file but merge-guard's raw-text check reads a Bash call's `tool_input.command` (ADR 0225). The scan takes
+// INV-0187: no shipped file but merge-guard's raw-text check reads a Bash call's `tool_input.command` (ADR 0227). The scan takes
 // a root, so the fixture is a temporary tree outside plugin/.
 {
   const READS = /\b(?:ti|tool_input|toolInput)\s*(?:\??\.\s*command\b|\[\s*['"]command['"]\s*\])|\{[^}]*\bcommand\b[^}]*\}\s*=\s*(?:input\.)?(?:ti|tool_input)\b/;

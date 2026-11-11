@@ -948,7 +948,7 @@ Paths: plugin/skills/ship/SKILL.md, plugin/skills/status/SKILL.md, plugin/skills
 
 Class: process
 Concepts: Run trace
-Statement: Only superdev's hooks and `scope.js` write a run trace, and `scope.js` detects any other write after the fact. A sidecar in the run root, `digest.json`, holds the digest of the trace and of the ledger. Every `scope.js` verb that writes to a run compares both files with it first, and a rewrite, a foreign append, or a deletion of the trace is reported once, on stderr and as a `tamper trace.log` trace line, after which the verb goes on and the digest seals what is on disk. A run with no sidecar is sealed on its first check and reports nothing. No `scope.js` verb appends an event its caller chooses: `scope.js test` appends only the exit status of a command it ran itself. A ledger write's mirror line, such as a stage or **Step** write, records state the controller declares and is no evidence event: no reviewer judges a slice on it. Every evidence event a reviewer reads there is one the agent under review did not author, unless that agent rewrote both the trace and its digest, which the check does not see (ADR 0117, ADR 0127, ADR 0140, ADR 0225).
+Statement: Only superdev's hooks and `scope.js` write a run trace, and `scope.js` detects any other write after the fact. A sidecar in the run root, `digest.json`, holds the digest of the trace and of the ledger. Every `scope.js` verb that writes to a run compares both files with it first, and a rewrite, a foreign append, or a deletion of the trace is reported once, on stderr and as a `tamper trace.log` trace line, after which the verb goes on and the digest seals what is on disk. A run with no sidecar is sealed on its first check and reports nothing. No `scope.js` verb appends an event its caller chooses: `scope.js test` appends only the exit status of a command it ran itself. A ledger write's mirror line, such as a stage or **Step** write, records state the controller declares and is no evidence event: no reviewer judges a slice on it. Every evidence event a reviewer reads there is one the agent under review did not author, unless that agent rewrote both the trace and its digest, which the check does not see (ADR 0117, ADR 0127, ADR 0140, ADR 0227).
 Breaks: silently
 Check: tests/scope-digest.test.js — a trace rewrite, `sed -i`, `echo >>` append, and deletion are each reported once by the next writing verb, which completes, `open` over an edited planned ledger among them; hook appends, eight parallel appenders, a killed holder's lock, a live holder's lock that a bounded wait outlasts, a broken holder that removes only its own lock, a hook append that races adopt, `init`'s rotation, `discard`, and a push then adopt report nothing; a run with no sidecar is sealed silently
 Paths: plugin/hooks/**, plugin/scripts/scope.js, plugin/lib/trace-log.js, plugin/lib/dispatch.js, plugin/lib/run-digest.js, plugin/lib/run-check.js
@@ -1047,7 +1047,7 @@ Paths: plugin/hooks/hooks.json, plugin/references/scope-mode.md, plugin/referenc
 
 Class: architecture
 Concepts: Run trace
-Statement: The run trace holds a test run only from `scope.js test` and `scope.js fail-to-pass`, each writing the run line itself, and an edit only from an Edit, Write, or NotebookEdit tool call. A Bash command adds no trace line, so a test command run directly, a redirect, `sed -i`, `cp`, or `git apply` leaves no trace (ADR 0225, INV-0017, ADR 0175).
+Statement: The run trace holds a test run only from `scope.js test` and `scope.js fail-to-pass`, each writing the run line itself, and an edit only from an Edit, Write, or NotebookEdit tool call. A Bash command adds no trace line, so a test command run directly, a redirect, `sed -i`, `cp`, or `git apply` leaves no trace (ADR 0227, INV-0017, ADR 0175).
 Breaks: silently
 Check: tests/run-trace.test.js — a Bash call adds no trace line on any hook event, and hooks.json registers run-trace.js on no Bash matcher
 Paths: plugin/hooks/run-trace.js, plugin/hooks/hooks.json
@@ -1056,7 +1056,7 @@ Paths: plugin/hooks/run-trace.js, plugin/hooks/hooks.json
 
 Class: architecture
 Concepts: Run lock, Run root
-Statement: A fresh run lock stops a second plan session, through `scope.js open`'s nonce check, and a second implement session, through implement's entry liveness check. No hook refuses a scopetree's creation, so a run recreates its own absent scopetree with a plain `git worktree add` (ADR 0225).
+Statement: A fresh run lock stops a second plan session, through `scope.js open`'s nonce check, and a second implement session, through implement's entry liveness check. No hook refuses a scopetree's creation, so a run recreates its own absent scopetree with a plain `git worktree add` (ADR 0227).
 Breaks: silently
 Check: tests/scope-open.test.js — `scope.js open` stops a second plan session on a fresh lock; tests/plugin-layout.test.js — no run-lock hook exists or is registered
 Paths: plugin/lib/plan-open.js
@@ -1148,7 +1148,7 @@ Paths: plugin/scripts/scope.js, plugin/lib/fail-to-pass.js, plugin/lib/run-super
 
 Class: safety
 Concepts: Guardrail
-Statement: merge-guard reads no shell words and requires no module (ADR 0225). For a call that carries `agent_id` it denies one raw-text rule: a line, read after a backslash-newline is joined, that holds a lead word (`git`, `gh`, `tea`, or `scope.js`, in any letter case, at the line's start or after whitespace, `/`, a quote, a backtick, `;`, `&`, `|`, or `(`) and later a verb word (`push`, `merge`, `rebase`, `pull`, or `m` after `tea`), a verb word being bounded on both sides by the line's ends, whitespace, `/`, a quote, a backtick, `;`, `&`, `|`, `)`, `<`, or `>`. So `git -C /x merge main`, `rtk git push`, `/usr/bin/git rebase main`, `gh api -X PUT repos/o/r/pulls/1/merge`, and `node "…/scope.js" push` are denied, and `git add src/push.ts`, `dod-merge`, and `merge-guard.test.js` hold no verb. A commit message holding a verb passes when written through a heredoc on the lines after the command, and the denial message names that form. A call with no `agent_id` passes whatever its text, and a deliberately obfuscated command (`G=git; $G push`) is outside the rule.
+Statement: merge-guard reads no shell words and requires no module (ADR 0227). For a call that carries `agent_id` it denies one raw-text rule: a line, read after a backslash-newline is joined, that holds a lead word (`git`, `gh`, `tea`, or `scope.js`, in any letter case, at the line's start or after whitespace, `/`, a quote, a backtick, `;`, `&`, `|`, or `(`) and later a verb word (`push`, `merge`, `rebase`, `pull`, or `m` after `tea`), a verb word being bounded on both sides by the line's ends, whitespace, `/`, a quote, a backtick, `;`, `&`, `|`, `)`, `<`, or `>`. So `git -C /x merge main`, `rtk git push`, `/usr/bin/git rebase main`, `gh api -X PUT repos/o/r/pulls/1/merge`, and `node "…/scope.js" push` are denied, and `git add src/push.ts`, `dod-merge`, and `merge-guard.test.js` hold no verb. A commit message holding a verb passes when written through a heredoc on the lines after the command, and the denial message names that form. A call with no `agent_id` passes whatever its text, and a deliberately obfuscated command (`G=git; $G push`) is outside the rule.
 Breaks: silently
 Check: tests/merge-guard.test.js — a subagent's call is denied for each spelling of a lead word and verb word above and allowed where the line holds no verb word, the controller's call passes, and the denial names the heredoc form
 Paths: plugin/hooks/merge-guard.js
@@ -1283,7 +1283,7 @@ Paths: plugin/hooks/*.js, plugin/lib/*.js
 
 Class: safety
 Concepts: Run trace
-Statement: run-trace guards nothing: whatever fails in it, such as an unloadable module or a throwing function, it denies no call, prints nothing, records no partial event, and exits 0 (ADR 0159, ADR 0225).
+Statement: run-trace guards nothing: whatever fails in it, such as an unloadable module or a throwing function, it denies no call, prints nothing, records no partial event, and exits 0 (ADR 0159, ADR 0227).
 Breaks: loudly
 Check: tests/run-trace-guards.test.js — with any module it loads unloadable, or a function of one throwing, the hook records nothing
 Paths: plugin/hooks/run-trace.js, plugin/hooks/hooks.json
@@ -1454,7 +1454,7 @@ Paths: plugin/lib/push.js, plugin/lib/fail-to-pass.js, plugin/lib/kb-backend.js,
 
 Class: architecture
 Concepts: Ledger, Run trace, Run root
-Statement: A delete of a run's `ledger.md` or `trace.log`, by whatever means, is detected like any other outside write: the next `scope.js` verb that writes to the run finds the file absent while its digest is present, warns once on stderr naming the file, appends a `tamper <file>` trace line, and goes on. A delete of any other path in a run root is no concern of the check. Only `scope.js discard` removes a run's ledger, run trace, and digest sidecar (ADR 0208, ADR 0225).
+Statement: A delete of a run's `ledger.md` or `trace.log`, by whatever means, is detected like any other outside write: the next `scope.js` verb that writes to the run finds the file absent while its digest is present, warns once on stderr naming the file, appends a `tamper <file>` trace line, and goes on. A delete of any other path in a run root is no concern of the check. Only `scope.js discard` removes a run's ledger, run trace, and digest sidecar (ADR 0208, ADR 0227).
 Breaks: silently
 Check: tests/scope-digest.test.js — the ledger deletion and trace deletion cases; the `scope.js discard` suite
 Paths: plugin/lib/run-check.js, plugin/lib/run-digest.js, plugin/lib/discard.js, plugin/scripts/scope.js, plugin/skills/plan/SKILL.md
@@ -1508,7 +1508,7 @@ Paths: plugin/lib/trace-log.js
 
 Class: architecture
 Concepts: Guardrail
-Statement: No shipped hook or module reads a Bash call's `tool_input.command`, except merge-guard's raw-text check (ADR 0225).
+Statement: No shipped hook or module reads a Bash call's `tool_input.command`, except merge-guard's raw-text check (ADR 0227).
 Breaks: silently
 Check: tests/plugin-layout.test.js — the files under `plugin/` that read the command field are merge-guard.js alone, and the same scan finds a fixture file outside `plugin/` that reads it
 Paths: plugin/hooks/*.js, plugin/lib/*.js, plugin/scripts/*.js

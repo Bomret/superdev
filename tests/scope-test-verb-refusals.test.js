@@ -16,7 +16,7 @@ const { D, root, S, verif, sh, verb, lines, reset, end } = testVerbFixture();
 try {
   verif('echo FULLRAN', 'echo FOCUSED {paths}', 'echo WHOLERAN');
 
-  // `test path <file>... -- <command>` runs the command as given and records one path run (ADR 0225).
+  // `test path <file>... -- <command>` runs the command as given and records one path run (ADR 0227).
   reset();
   let r = verb(['path', 'services/x/tests/a.bats', '--', 'bats', 'services/x/tests/a.bats']);
   assert.equal(r.status, 0, r.stderr);

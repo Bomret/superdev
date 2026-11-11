@@ -32,7 +32,7 @@ const { appendTrace } = require(scopePath);
     assert.equal(s.runLines()[0].split(' ')[0], s.trace()[0].split(' ')[0], 'and the control run line names the same slice');
     const slice = spawnSync(process.execPath, [scopePath, 'slice', '01', 'merged', '--root', s.root], { cwd: s.repo, encoding: 'utf8' });
     assert.equal(slice.status, 0, slice.stderr);
-    // An empty trace starts with no digest too: a trace deleted beside a present digest is a tamper (ADR 0225).
+    // An empty trace starts with no digest too: a trace deleted beside a present digest is a tamper (ADR 0227).
     fs.rmSync(path.join(s.root, 'trace.log'));
     fs.rmSync(path.join(s.root, 'digest.json'), { force: true });
     s.run(s.range);

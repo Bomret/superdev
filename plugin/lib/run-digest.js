@@ -1,6 +1,6 @@
 'use strict';
 
-// run-digest.js: the digest sidecar of a run root and the lock that keeps it in step with the files it seals (ADR 0225).
+// run-digest.js: the digest sidecar of a run root and the lock that keeps it in step with the files it seals (ADR 0227).
 
 const crypto = require('crypto');
 const fs = require('fs');

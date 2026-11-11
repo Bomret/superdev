@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 
-**Amended by:** [ADR 0225](0225-guardrails-read-no-shell-words.md), under which the hook records no direct run, and `scope.js test` runs a free command against the test files its caller names.
+**Amended by:** [ADR 0227](0227-guardrails-read-no-shell-words.md), under which the hook records no direct run, and `scope.js test` runs a free command against the test files its caller names.
 
 **Amended by:** [ADR 0136](0136-the-run-trace-records-each-slice-review-verdict.md).
 

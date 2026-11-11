@@ -6,7 +6,7 @@
 // call carries `agent_id` on the hook stdin; the controller's does not. So the guard checks
 // the command of a call that carries `agent_id` and leaves the controller free.
 //
-// The check is one raw-text rule (ADR 0225) and reads no shell words, so the hook requires no module. After a
+// The check is one raw-text rule (ADR 0227) and reads no shell words, so the hook requires no module. After a
 // backslash-newline is joined, a line is denied when it holds a lead word (`git`, `gh`, `tea`, or `scope.js`, in any
 // letter case) and, later on that line, a verb word: `push`, `merge`, `rebase`, `pull`, or, after `tea`, its `m` merge
 // alias. A lead word starts at the line's start, after whitespace, `/`, a quote, or a shell operator character; a verb

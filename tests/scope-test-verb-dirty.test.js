@@ -64,7 +64,7 @@ try {
     ` touch ${gate}/go3; wait $V`);
   assert.match(lines().find((l) => / run /.test(l)) || '', new RegExp(`^03 main run full pass ${sha} dirty - touch`), 'an edit made and reverted during the run records dirty');
   assert.match(reuse().stderr, /dirty tree/, 'and that run line does not back reuse');
-  // A trace an older release wrote holds `revert` and `restore` lines (ADR 0225): the run reads them without error, and they
+  // A trace an older release wrote holds `revert` and `restore` lines (ADR 0227): the run reads them without error, and they
   // mark nothing, since the tree state alone names a change no edit line records.
   sh(S, ['reset', '-q', '--hard', sha]);
   reset();

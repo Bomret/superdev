@@ -15,7 +15,7 @@ add|clear` / `docs set|clear` / `pr set|clear` / `deploy set` / `suite set` move
 No command or playbook edits or parses the file directly. `scope.js` keeps a digest of the ledger and of
 the run trace in `<run-root>/digest.json`, so the next verb that writes to the run reports a change made any
 other way: one warning on stderr naming the file and one `tamper <file>` trace line, after which the verb
-goes on (ADR 0225).
+goes on (ADR 0227).
 
 **The slice table** (written by `init` from the slice JSON it receives, moved row by row with
 `slice <id> <status>`, read back with `get slices`) carries one row per slice: id, store issue, title,

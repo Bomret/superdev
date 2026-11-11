@@ -47,7 +47,7 @@ edit(path.join(tmp, 'elsewhere.js'));
 edit(path.join(A, 'notes.md'));
 assert.ok(!fs.existsSync(path.join(A, 'trace.log')) && !fs.existsSync(path.join(B, 'trace.log')));
 
-// A Bash call infers nothing (ADR 0225): a write through a redirect, `sed -i`, `cp`, `tee`, or `git apply` adds no line,
+// A Bash call infers nothing (ADR 0227): a write through a redirect, `sed -i`, `cp`, `tee`, or `git apply` adds no line,
 // and a test command run directly adds none either, on every hook event a Bash call can fire.
 reset();
 fs.writeFileSync(path.join(tmp, 'a.txt'), 'x');

@@ -5,7 +5,7 @@
 // Verbs: open, init, stage, step, slice, degraded, unresolved, deferred, minors, docs, pr, deploy, suite, base, get, status,
 // publish, adopt, trace, untraced, collisions, citations, source-set, push, root, staging, dod-line, dod-tags; `main()` also runs test, fail-to-pass, and prepare. Exit
 // nonzero with a one-line stderr reason on any refusal. Every verb that writes to a run first checks the run's
-// digest sidecar and reports an outside edit of its ledger or trace once (lib/run-check.js, ADR 0225).
+// digest sidecar and reports an outside edit of its ledger or trace once (lib/run-check.js, ADR 0227).
 // `root` and `dod-line` touch no ledger: `root` resolves a run root's absolute
 // path, anchored to the repository's main working tree regardless of which checkout invoked it (ADR
 // 0080); `dod-line` edits one Definition-of-Done checklist line handed to it on stdin, on behalf of a
@@ -119,7 +119,7 @@ function writtenRoot(verb, args) {
 function run(argv, cwd, stdinJson) {
   const args = argv.slice();
   const verb = args.shift();
-  // The run's digest is checked before the verb reads or writes a file of the run (ADR 0225).
+  // The run's digest is checked before the verb reads or writes a file of the run (ADR 0227).
   const writtenTo = writtenRoot(verb, args);
   if (writtenTo !== null) checkRun(writtenTo);
   // Set by a ledger-writing verb once its write succeeded; a refused verb throws before it is set.
@@ -342,7 +342,7 @@ function run(argv, cwd, stdinJson) {
     case 'citations':
       verbCitations(cwd, args);
       break;
-    // Reads git and the run's trace and writes nothing (ADR 0225); `verbUntraced` takes `--root` itself.
+    // Reads git and the run's trace and writes nothing (ADR 0227); `verbUntraced` takes `--root` itself.
     case 'untraced':
       verbUntraced(cwd, args);
       break;

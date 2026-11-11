@@ -2,7 +2,7 @@
 
 **Status:** Superseded
 
-**Superseded by:** [ADR 0225](0225-guardrails-read-no-shell-words.md), which removes test-guard: an implementer's full-suite run is a review finding.
+**Superseded by:** [ADR 0227](0227-guardrails-read-no-shell-words.md), which removes test-guard: an implementer's full-suite run is a review finding.
 
 ## Context
 

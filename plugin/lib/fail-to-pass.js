@@ -147,7 +147,7 @@ async function verbFailToPass(cwd, args) {
   // is written, `.superdev/` is git-ignored first through the repository's `info/exclude` (no file of the checkout changes), and
   // a `.superdev/` this call created is removed at exit. `mkdtemp` makes the directory unique to this invocation, so parallel runs never share one.
   const at = require('./run-tree.js').locate(path.join(cwd, 'x'));
-  // The run's digest is checked before this verb reads the trace or writes a line to it (ADR 0225).
+  // The run's digest is checked before this verb reads the trace or writes a line to it (ADR 0227).
   if (at) checkRun(at.runRoot);
   const main = at ? null : mainWorkTree(cwd) || cwd;
   const home = at ? at.runRoot : path.join(main, '.superdev');

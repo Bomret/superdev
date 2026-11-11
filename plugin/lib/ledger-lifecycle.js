@@ -108,7 +108,7 @@ function verbInit(cwd, label, stage, stdinJson, log = console.log, checked = fal
   const { slug } = validateLabel(label);
   const workTree = mainWorkTree(cwd) || cwd;
   const root = path.join(workTree, '.superdev', 'scopes', slug);
-  // `init` names no `--root`, so it checks the run's digest itself, once, before it reads or writes a file of the run (ADR 0225).
+  // `init` names no `--root`, so it checks the run's digest itself, once, before it reads or writes a file of the run (ADR 0227).
   if (!checked) checkRun(root);
   // The real double-init signal is an existing ledger.md, not the run-root directory: run init
   // writes dod.md into the run root before calling init, so the directory legitimately exists

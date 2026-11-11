@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 
-**Amended by:** [ADR 0225](0225-guardrails-read-no-shell-words.md), which removes ledger-guard: scope.js reports an outside delete or edit of run state when it next reads it.
+**Amended by:** [ADR 0227](0227-guardrails-read-no-shell-words.md), which removes ledger-guard: scope.js reports an outside delete or edit of run state when it next reads it.
 
 **Amends:** [ADR 0022](0022-run-state-is-owned-by-a-deterministic-cli.md): the CLI that owns run state also owns its removal.
 

@@ -26,7 +26,7 @@ const withPaths = (template, paths) => template.replace(/\{paths\}/g, () => path
 // has its command's process group sent SIGTERM by the watcher, whatever ended the verb (`taskkill /t /f` on Windows), so a
 // runner that ignores SIGTERM can outlive the verb.
 // `test path <file>… -- <command>` runs the command as given, from the current directory, against the test files its caller names,
-// and classifies nothing (ADR 0225). The line records the files (`encodePaths`) and the command as typed, which the run state
+// and classifies nothing (ADR 0227). The line records the files (`encodePaths`) and the command as typed, which the run state
 // carries to the remote, so a secret belongs in the environment. Outside every run tree the command runs and nothing is written.
 // simplicity: a command that changes its own process group escapes the group kill; upgrade: a cgroup or subreaper if one bites.
 function verbTest(cwd, args) {
@@ -68,7 +68,7 @@ function verbTest(cwd, args) {
     command = kind === 'focused' ? withPaths(template, paths) : template;
     if (kind === 'focused') files = paths;
   }
-  // The run's digest is checked before the run line is written (ADR 0225); the check may append a `tamper` line, so it comes first.
+  // The run's digest is checked before the run line is written (ADR 0227); the check may append a `tamper` line, so it comes first.
   if (at) checkRun(at.runRoot);
   const [sha, tree0] = at ? treeState(at.tree) : [];
   // Where the trace ends now: a file change it records for this slice past this point happened during the run.

@@ -2,7 +2,7 @@
 
 **Status:** Superseded
 
-**Superseded by:** [ADR 0225](0225-guardrails-read-no-shell-words.md), which removes run-trace's Bash readers and with them the PreToolUse stash.
+**Superseded by:** [ADR 0227](0227-guardrails-read-no-shell-words.md), which removes run-trace's Bash readers and with them the PreToolUse stash.
 
 **Amends:** [ADR 0117](0117-the-run-trace-is-hook-written-evidence.md), whose hook resolved a Bash command's
 relative paths against the hook input's `cwd`.

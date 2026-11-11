@@ -327,7 +327,7 @@ run's first `unknown` that `references/scope-findings.md`'s `## Observations` do
 
 ## Untraced writes
 
-**`slice-reviewer` and `final-reviewer` read this section** (ADR 0225). The run trace records an edit only from an Edit, Write, or
+**`slice-reviewer` and `final-reviewer` read this section** (ADR 0227). The run trace records an edit only from an Edit, Write, or
 NotebookEdit tool call and a test run only from `scope.js test` and `scope.js fail-to-pass`, so a change made through a shell
 command leaves no `edit` line. The commits show every change, and this section reads the two against each other.
 
@@ -359,7 +359,7 @@ slice must record one and any other slice may (`implement-lite.md`), so a `lite`
 - A call that refuses names the reason: the report names the window the call could not read, and the review raises no finding for it.
 
 **Implementer suite run** — a `run full` or `run whole` line inside an `implementer` window, by time and slice. Severity Minor
-(ADR 0225). The implementer owns focused and path runs only (`implementer.md`'s `### Running tests`), and the controller's full and
+(ADR 0227). The implementer owns focused and path runs only (`implementer.md`'s `### Running tests`), and the controller's full and
 whole-repo runs fall outside every implementer window. A `run focused` line, a `run path` line, and the controller's lines raise none.
 The finding names the line's time, its slice, and its kind.
 

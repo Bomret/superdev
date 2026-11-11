@@ -186,7 +186,7 @@ the probe loaded it through `ToolSearch` first.
 A PreToolUse hook can return `updatedInput`, which replaces a tool's arguments before the tool runs.
 A PostToolUse or PostToolUseFailure hook then receives the rewritten `tool_input`, because that is the
 command that ran. RTK, a third-party output filter, ships such a hook: it rewrites `bun run test` to
-`rtk bun run test`. The run trace reads no Bash command (ADR 0225): it records a test run only from
+`rtk bun run test`. The run trace reads no Bash command (ADR 0227): it records a test run only from
 `scope.js test` and `scope.js fail-to-pass`, which write the run line themselves, so a rewrite hides no run.
 
 **Mitigation (implemented):** merge-guard reads each line as raw text and needs no `rtk` handling: a lead word

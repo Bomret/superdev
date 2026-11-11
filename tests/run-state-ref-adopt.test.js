@@ -92,7 +92,7 @@ function listing(dir) {
   };
   walk(dir);
   // trace.log: adopt's own ledger event creates it, so its content is judged where it matters. digest.json: the run's digest sidecar
-  // (ADR 0225), which every ledger write creates and the run state never carries.
+  // (ADR 0227), which every ledger write creates and the run state never carries.
   return out.filter((n) => n !== 'trace.log' && n !== 'digest.json').sort();
 }
 
