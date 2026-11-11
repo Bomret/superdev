@@ -83,7 +83,8 @@ by that section's heading. Every other page is staged whole (ADR 0027).
 ## Staging
 
 This is a **remote** backend, so nothing but `/superdev:publish-kb` calls it (ADR 0023).
-`/superdev:document` writes each page as a **staged page** under `.superdev/kb-pending/<scope>/`. That directory lives in the main working tree, and `scope.js staging <scope>` resolves it (ADR 0119). Each
+The doc pass writes each page as a **staged page**: `/superdev:document` runs it, and on the `lite` tier
+`/superdev:implement` runs it inline first. Each page is staged under `.superdev/kb-pending/<scope>/`. That directory lives in the main working tree, and `scope.js staging <scope>` resolves it (ADR 0119). Each
 carries YAML frontmatter with the page `title` and an `action` of `upsert`, `patch`, or `delete`, and the
 page body below. The wiki git conventions below are what `/superdev:publish-kb` applies when a human runs it,
 once the feature has reached the adopters this wiki is written for.
@@ -221,6 +222,8 @@ Human-consumption first: shape pages around the audience, write in English, foll
 
 - `/superdev:document` reconciles and extends the wiki's topic pages through its doc-writer, and stages
   the pages it changed.
+- `/superdev:implement` runs the same doc pass inline first on the `lite` tier, and stages the pages it
+  changed; `/superdev:document`'s doc-writer then extends them.
 - `/superdev:publish-kb` sends the staged pages to the wiki. The only command that calls it.
 
 ## Degrade / switching

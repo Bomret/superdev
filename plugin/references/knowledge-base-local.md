@@ -44,6 +44,8 @@ Staging exists for a **remote** backend, whose pages go live the instant they ar
 
 - `/superdev:document` — reconcile and extend the affected `docs/kb/` docs (via its doc-writer) after a
   scope lands, and on demand.
+- `/superdev:implement` — on the `lite` tier, runs the same doc pass inline first and edits the affected
+  `docs/kb/` docs; `/superdev:document`'s doc-writer then extends them.
 
 ## Switching later
 

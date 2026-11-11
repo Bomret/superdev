@@ -57,7 +57,8 @@ no outline entry `aggregate` here.
 ## Staging
 
 Confluence is a **remote** backend, so nothing but `/superdev:publish-kb` calls it (ADR 0023).
-`/superdev:document` writes each page as a **staged page** under
+The doc pass writes each page as a **staged page**: `/superdev:document` runs it, and on the `lite` tier
+`/superdev:implement` runs it inline first. Each page is staged under
 `.superdev/kb-pending/<scope>/` in the main working tree, resolved by `scope.js staging <scope>` (ADR 0119) — YAML frontmatter carrying the page `title` and an `action` of `upsert`
 or `delete`, the page body below. A page the outline places under another page also carries
 `parent: <that page's title>`. `scripts/publish-kb.js` resolves that title through `find` (a page, else a folder), publishes a
@@ -218,6 +219,8 @@ curl -sf -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" \
 
 - `/superdev:document` — reconciles and extends the KB (via its doc-writer) and stages the pages it
   changed, after a scope lands and on demand.
+- `/superdev:implement` — on the `lite` tier, runs the same doc pass inline first and stages the pages it
+  changed; `/superdev:document`'s doc-writer then extends them.
 - `/superdev:publish-kb` — sends the staged pages to the space. The only command that calls Confluence.
 
 ## Degrade / switching

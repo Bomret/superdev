@@ -145,8 +145,13 @@ agent-relevant detail second:
   meets writes no page and adds no outline entry.
 - **Extend what this scope already wrote.** A page already staged under the staging path, or an outline
   entry already committed in this scope's range, by an earlier pass of the same scope (the `lite` inline
-  step, then the doc-writer), is your starting point: extend that staged body, its `live-hash` kept, or
-  that entry, and write no second one beside it.
+  step, then the doc-writer, or a re-run of `/superdev:document`), is carried forward: extend that entry,
+  and write no second one beside it. A staged `upsert`'s body is content to carry forward, and its
+  `live-hash` is no reading of the live page. Read the live page on every pass, as **Read before an `upsert`
+  replaces a page** below states. Where the live hash equals the staged `live-hash`, extend the staged
+  body. Where it differs, the live page changed since this scope staged it, as when another scope's
+  staged page landed first: rebuild the page from the live body, work this scope's staged passages into
+  it, and record the fresh hash. Either way, overwrite the one staged file for that title.
 - **A page the outline does not name**, such as an existing per-feature page, is corrected when the
   range makes its text stale, and receives no new text.
 - Correct and **remove obsolete** content — a knowledge base that contradicts the code is worse than none.
