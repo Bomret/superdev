@@ -195,7 +195,7 @@ rtk's run-anything subcommands: `proxy`, `err`, `run`, `summary`, and `test`. So
 `hooks/merge-guard.js`.
 
 The PreToolUse hooks are out of the rewrite's reach. Claude Code runs every matching hook of one event
-in parallel, so `hooks/merge-guard.js` and `hooks/run-lock.js` receive the
+in parallel, so `hooks/merge-guard.js` receives the
 command as it was written, before RTK's hook rewrites it. `hooks/model-explicit.js` matches the Agent
 tool, which RTK does not rewrite. `hooks/slicetree-sweep.js` and `hooks/scope-prune.js` run on Stop and
 read no command.

@@ -13,7 +13,6 @@ const { scopePath, call } = require('./scope-setup');
 const { copyFixture, templateOnce } = require('./fixture-git');
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { STALENESS_MS } = require('../plugin/lib/plan-open.js');
-const hook = require('../plugin/hooks/run-lock.js');
 
 const BRANCH = 'feat/open-me';
 const made = [];
@@ -333,9 +332,6 @@ try {
     assert.strictEqual(again.status, 0, `a second open of a fresh run succeeds: ${again.err}`);
     assert.strictEqual(again.word, 'reused', `reuses the branch and scopetree: ${again.out}`);
   }
-
-  // #lock-bound: the lock ages out at the same bound the run-lock hook applies.
-  assert.strictEqual(STALENESS_MS, hook.STALENESS_MS, 'open and hooks/run-lock.js share one staleness bound');
 
   console.log('scope-open: all checks passed');
 } finally {

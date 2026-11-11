@@ -38,11 +38,14 @@ assert.ok(!fs.existsSync(path.join(plugin, 'hooks', 'test-guard.js')), 'no test-
 assert.ok(!fs.existsSync(path.join(plugin, 'lib', 'test-runs.js')), 'no test-runs module');
 assert.ok(!/test-guard/.test(fs.readFileSync(path.join(plugin, 'hooks', 'hooks.json'), 'utf8')), 'hooks.json registers no test-guard');
 
+// No hook refuses a scopetree's creation: a run recreates its own absent scopetree with a plain `git worktree add` (ADR 0225).
+assert.ok(!fs.existsSync(path.join(plugin, 'hooks', 'run-lock.js')), 'no run-lock hook');
+assert.ok(!/run-lock/.test(fs.readFileSync(path.join(plugin, 'hooks', 'hooks.json'), 'utf8')), 'hooks.json registers no run-lock');
+
 // The export names of each entry point, sorted. A dropped or added export fails here.
 const EXPORTS = {
   'hooks/merge-guard.js': ['decide'],
   'hooks/model-explicit.js': ['OURS', 'decide'],
-  'hooks/run-lock.js': ['STALENESS_MS', 'decide'],
   'hooks/run-trace.js': ['record'],
   'hooks/scope-prune.js': ['TTL_MS', 'branchNamesFrom', 'main', 'readBranch', 'readHeader', 'readStage', 'selectPrunable', 'shapeScanBranch'],
   'hooks/slicetree-sweep.js': ['git', 'main', 'selectRemovable'],
@@ -141,11 +144,6 @@ for (const [rel, mods] of Object.entries(RE_EXPORTS)) {
   fs.writeFileSync(path.join(runRoot, 'ledger.md'), ledger([['01', 'in-progress']]));
   fs.writeFileSync(path.join(slicetree, 'docs', 'agents', 'verification.md'), '# Verification\n\n```sh\nnpm test\n```\n\n```sh\nnpm test\n```\n');
 
-  const lockRoot = dir('lock-root');
-  const lockDir = path.join(lockRoot, '.superdev', 'scopes', 'lk');
-  fs.mkdirSync(lockDir, { recursive: true });
-  fs.writeFileSync(path.join(lockDir, 'run.lock'), 'locked');
-
   const pluginRoot = dir('plugin-root');
   fs.mkdirSync(path.join(pluginRoot, '.claude-plugin'));
   fs.writeFileSync(path.join(pluginRoot, '.claude-plugin', 'plugin.json'), JSON.stringify({ version: '0.0.1' }));
@@ -181,8 +179,6 @@ for (const [rel, mods] of Object.entries(RE_EXPORTS)) {
       check: (r) => { assert.strictEqual(r.status, 2, 'blocks a modelless dispatch'); assert.match(r.stderr, /must set an explicit model/); } },
     'offer-guard.js': { input: { hook_event_name: 'Stop', session_id: 's1', prompt_id: 'p1', stop_hook_active: false, last_assistant_message: '### Next\n\n```\n/superdev:review x\n```\n' },
       check: (r) => { assert.strictEqual(r.status, 0); assert.strictEqual(JSON.parse(r.stdout).decision, 'block', 'holds a Next block with no offer'); } },
-    'run-lock.js': { input: { tool_input: { command: 'git worktree add .superdev/scopes/lk/scopetree x' }, cwd: lockRoot },
-      check: (r) => { assert.strictEqual(r.status, 2, 'blocks on a fresh lock'); assert.match(r.stderr, /another session is running this scope/); } },
     'run-trace.js': { input: { hook_event_name: 'PostToolUse', tool_name: 'Edit', tool_input: { file_path: path.join(slicetree, 'x.js') }, cwd: runRepo },
       check: (r) => { assert.strictEqual(r.status, 0); assert.match(fs.readFileSync(path.join(runRoot, 'trace.log'), 'utf8'), / 01 main edit impl x\.js/, 'records the edit'); } },
     'scope-prune.js': { input: { cwd: pruneRepo },

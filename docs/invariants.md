@@ -221,7 +221,7 @@ Concepts: Run root, Scope
 Statement: Every run-root scan reads `.superdev/scopes/*/` only. A directory beside `scopes/` under `.superdev/` is never treated as a run root.
 Breaks: silently
 Check: none — no test covers a sibling area
-Paths: plugin/hooks/scope-prune.js, plugin/hooks/slicetree-sweep.js, plugin/hooks/run-lock.js, plugin/scripts/scope.js, plugin/lib/main-work-tree.js, plugin/skills/status/SKILL.md
+Paths: plugin/hooks/scope-prune.js, plugin/hooks/slicetree-sweep.js, plugin/scripts/scope.js, plugin/lib/main-work-tree.js, plugin/skills/status/SKILL.md
 
 ### INV-0025
 
@@ -1056,10 +1056,10 @@ Paths: plugin/hooks/run-trace.js, plugin/hooks/hooks.json
 
 Class: architecture
 Concepts: Run lock, Run root
-Statement: A fresh run lock blocks a second session from creating that scope's scopetree, whatever directory or linked worktree the second session started from. The lock is found in the run root the guarded command names. The run root under the session's working directory is checked as well, a fail-closed backstop for a path the hook cannot expand.
+Statement: A fresh run lock stops a second plan session, through `scope.js open`'s nonce check, and a second implement session, through implement's entry liveness check. No hook refuses a scopetree's creation, so a run recreates its own absent scopetree with a plain `git worktree add` (ADR 0225).
 Breaks: silently
-Check: tests/run-lock.test.js — a fresh lock blocks from the main tree, a subdirectory, and a linked worktree; tests/scope-open.test.js — `scope.js open` stops a second plan session on a fresh lock
-Paths: plugin/hooks/run-lock.js, plugin/lib/plan-open.js
+Check: tests/scope-open.test.js — `scope.js open` stops a second plan session on a fresh lock; tests/plugin-layout.test.js — no run-lock hook exists or is registered
+Paths: plugin/lib/plan-open.js
 
 ### INV-0131
 
@@ -1148,10 +1148,10 @@ Paths: plugin/scripts/scope.js, plugin/lib/fail-to-pass.js, plugin/lib/run-super
 
 Class: safety
 Concepts: Guardrail
-Statement: A guardrail that reads a Bash command's words through the shared shell scanner fails closed when it cannot load the scanner: run-lock blocks a scopetree creation (it loads the module for the drive-path translator, ADR 0150). Only run-trace, which records evidence and guards nothing, records nothing instead (ADR 0135).
+Statement: A hook that reads a Bash command's words through the shared shell scanner and cannot load the scanner records nothing: run-trace records evidence and guards nothing (ADR 0135).
 Breaks: silently
-Check: tests/run-lock.test.js — it runs its hook with a stub scanner in a lib directory beside the copied hook's directory, that the test confirms was loaded, and asserts the fail-closed verdict; tests/run-trace-guards.test.js — with a stub for the scanner require of the run trace's command layer loaded that throws, a Bash write, a slice-reviewer hand-back, and a stop record nothing, and with its scan throwing a Bash write records nothing, against a control run that records; and on a command that runs a test and then writes or runs `git checkout`, a loaded scanner whose `drivePath` or `gitSubcommand` throws or is missing records no `run` line either, and so does one whose `drivePath` throws only for a patch file, or whose `scan` throws only for one word
-Paths: plugin/hooks/run-lock.js, plugin/hooks/run-trace.js, plugin/lib/bash-command.js, plugin/lib/shell-words.js, plugin/lib/shell-word-readers.js
+Check: tests/run-trace-guards.test.js — with a stub for the scanner require of the run trace's command layer loaded that throws, a Bash write, a slice-reviewer hand-back, and a stop record nothing, and with its scan throwing a Bash write records nothing, against a control run that records; and on a command that runs a test and then writes or runs `git checkout`, a loaded scanner whose `drivePath` or `gitSubcommand` throws or is missing records no `run` line either, and so does one whose `drivePath` throws only for a patch file, or whose `scan` throws only for one word
+Paths: plugin/hooks/run-trace.js, plugin/lib/bash-command.js, plugin/lib/shell-words.js, plugin/lib/shell-word-readers.js
 
 ### INV-0141
 
@@ -1283,9 +1283,9 @@ Paths: plugin/skills/plan/SKILL.md, plugin/agents/final-reviewer.md
 
 Class: safety
 Concepts: Guardrail
-Statement: Each guardrail reads its own hook input and writes its own decision with code in its own file. A guardrail loads every plugin module it uses through a guarded require, and it keeps the failure posture it documents for each module on its own: when one module cannot load, when only some of its modules load, and when a function of a loaded module throws. merge-guard and run-lock deny a Bash call without the shell scanner (INV-0140). tree-guard allows (ADR 0148). run-trace records nothing. scope-prune and slicetree-sweep remove nothing (ADR 0151).
+Statement: Each guardrail reads its own hook input and writes its own decision with code in its own file. A guardrail loads every plugin module it uses through a guarded require, and it keeps the failure posture it documents for each module on its own: when one module cannot load, when only some of its modules load, and when a function of a loaded module throws. merge-guard requires no module (INV-0141). tree-guard allows (ADR 0148). run-trace records nothing. scope-prune and slicetree-sweep remove nothing (ADR 0151).
 Breaks: silently
-Check: tests/merge-guard.test.js, tests/run-lock.test.js, tests/scope-prune-guards.test.js, tests/slicetree-sweep.test.js, tests/tree-guard.test.js — each runs its hook copied away from the modules it loads, with a stub module in each module's place that the test confirms was loaded, and asserts that hook's documented verdict; tests/run-trace-guards.test.js runs its hook in place under a `-r` preload that intercepts `Module._load`, stubs each module at the request its requiring module makes, confirms each stub loaded through a marker file, and asserts that hook's documented verdict; tests/run-trace-guards.test.js also runs each module the run-trace hook loads, directly or through another module, unloadable, with the stub loaded at its requiring module's request; tests/run-trace-guards.test.js also runs each function the run-trace hook takes from a new module of `plugin/lib/` missing and throwing, on the event that calls it, a review's stop and a foreground review's result included, and asserts that the event records no dispatch-end; tests/run-trace-guards.test.js also runs a function that throws only for the second of two dispatches a Stop closes, and asserts that the event records no dispatch-end; tests/scope-prune-guards.test.js also runs with its containment module throwing on load or carrying no probe, and asserts it prunes by tree comparison alone; tests/scope-prune-guards.test.js and tests/slicetree-sweep.test.js also run each hook with `plugin/lib/git-spawn.js` unloadable, missing a function the hook takes, or with one of those functions throwing, each beside a control stub that does prune or sweep, and assert that the hook prunes or sweeps nothing; tests/slicetree-sweep.test.js also runs a `parseBranchList` that throws for only one of two scopes, and asserts that the hook skips that scope and sweeps the other
+Check: tests/merge-guard.test.js, tests/scope-prune-guards.test.js, tests/slicetree-sweep.test.js, tests/tree-guard.test.js — each runs its hook copied away from the modules it loads, with a stub module in each module's place that the test confirms was loaded, and asserts that hook's documented verdict; tests/run-trace-guards.test.js runs its hook in place under a `-r` preload that intercepts `Module._load`, stubs each module at the request its requiring module makes, confirms each stub loaded through a marker file, and asserts that hook's documented verdict; tests/run-trace-guards.test.js also runs each module the run-trace hook loads, directly or through another module, unloadable, with the stub loaded at its requiring module's request; tests/run-trace-guards.test.js also runs each function the run-trace hook takes from a new module of `plugin/lib/` missing and throwing, on the event that calls it, a review's stop and a foreground review's result included, and asserts that the event records no dispatch-end; tests/run-trace-guards.test.js also runs a function that throws only for the second of two dispatches a Stop closes, and asserts that the event records no dispatch-end; tests/scope-prune-guards.test.js also runs with its containment module throwing on load or carrying no probe, and asserts it prunes by tree comparison alone; tests/scope-prune-guards.test.js and tests/slicetree-sweep.test.js also run each hook with `plugin/lib/git-spawn.js` unloadable, missing a function the hook takes, or with one of those functions throwing, each beside a control stub that does prune or sweep, and assert that the hook prunes or sweeps nothing; tests/slicetree-sweep.test.js also runs a `parseBranchList` that throws for only one of two scopes, and asserts that the hook skips that scope and sweeps the other
 Paths: plugin/hooks/*.js, plugin/lib/*.js
 
 ### INV-0160
@@ -1510,5 +1510,5 @@ Class: architecture
 Concepts: Run lock, Run trace
 Statement: Each line written to a run root's `trace.log` sets that run root's `run.lock` mtime to the current time when the lock exists as a regular file. The refresh never creates a lock, never changes its content, never follows a symlink, and never changes whether the trace line counts as written (ADR 0220).
 Breaks: silently
-Check: tests/scope-trace.test.js and tests/run-lock.test.js — a trace line refreshes a two-hour-old lock with its bytes unchanged, creates no lock, leaves a symlinked lock's target, a directory lock, another run root's lock, and a removed run root as they were, refreshes nothing on a failed append, and a ledger verb's line refreshes the lock; an edit traced into a busy scopetree makes the run-lock hook block a second session's `git worktree add` on it; a ledger verb's line on an old lock makes the hook block a resumed run's own `git worktree add` of its absent scopetree, which passes once the lock is removed
+Check: tests/scope-trace.test.js — a trace line refreshes a two-hour-old lock with its bytes unchanged, creates no lock, leaves a symlinked lock's target, a directory lock, another run root's lock, and a removed run root as they were, refreshes nothing on a failed append, and a ledger verb's line refreshes the lock
 Paths: plugin/lib/trace-log.js
