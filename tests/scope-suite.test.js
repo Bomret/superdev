@@ -610,11 +610,11 @@ const { appendTrace, isTestPath } = require(scopePath);
   r = callIn(['suite', 'reusable', '--branch', 'cfg', '--root', root(`green @ ${cfgR}`, [['full', 'pass', cfgR, 'clean'], ['focused', 'pass', cfgT, 'clean']])], path.join(repo, 'check'));
   assert.ok(!r.ok && /check\/case\.md is a test path/.test(r.err), 'a configured test path at T refuses from a subdirectory too: ' + (r.err || ''));
 
-  // A change to the verification configuration itself refuses: it can rewrite the commands and test
-  // paths the carry trusts.
+  // A change to the verification configuration's run configuration refuses: it can rewrite the commands and test
+  // paths the carry trusts (ADR 0230).
   const cfgT2 = commit(vRel, '# V\n\n## Test paths\n\n- `nothing/`\n');
   r = callIn(['suite', 'reusable', '--branch', 'cfg', '--root', root(`green @ ${cfgT}`, [['full', 'pass', cfgT, 'clean'], ['focused', 'pass', cfgT2, 'clean']])], repo);
-  assert.ok(!r.ok && /verification\.md is the verification configuration/.test(r.err), 'a verification.md change refuses: ' + (r.err || ''));
+  assert.ok(!r.ok && /verification\.md changed its test paths/.test(r.err), 'a verification.md test-path change refuses: ' + (r.err || ''));
   g(['checkout', '-q', 'main'], repo);
 
   // A failed full or whole run at T is not hidden by a later focused pass.
@@ -908,9 +908,9 @@ const { appendTrace, isTestPath } = require(scopePath);
     assert.ok(!r.ok && /tools\/select\.js is a selector file/.test(r.err), 'a listed selector file refuses: ' + (r.err || ''));
     const vc = make(verification(FOCUSED, DECLARED));
     fs.writeFileSync(path.join(vc.repo, 'src', 'a.js'), 'changed\n');
-    const VT = vc.commit(vRel, verification(FOCUSED, DECLARED) + '\nmore\n');
+    const VT = vc.commit(vRel, verification('node focus.js --all {paths}', DECLARED));
     r = vc.reusable(vc.root(`green @ ${vc.R}`, [base(vc.R), focused(VT, [vRel, 'src/a.js'])]));
-    assert.ok(!r.ok && /verification configuration/.test(r.err), 'a verification.md change next to a code path refuses: ' + (r.err || ''));
+    assert.ok(!r.ok && /verification\.md changed its focused command/.test(r.err), 'a run-configuration change next to a code path refuses: ' + (r.err || ''));
 
     // A list item may carry text after its span, and a listed directory covers the files under it.
     const lt = make(verification(FOCUSED, `${DECLARED}\n- \`tools/select.js\` — the runner\n- \`tools/lib/\`\n`));
@@ -1192,6 +1192,165 @@ const { appendTrace, isTestPath } = require(scopePath);
     dpCommit('OTHER.md');
     r = dp.reusable(offRt);
     assert.ok(!r.ok && /neither at the tip nor an ancestor/.test(r.err), 'a failed run off the tip\'s history stays red: ' + (r.err || ''));
+
+    // A prose-only verification.md commit after the failed run keeps the rerun (ADR 0230); a run-configuration change refuses.
+    const vp = make(DECLARED);
+    const vpRt = vp.root(`red @ ${vp.T}`, [FAILED(vp.T), ALONE(vp.T), FOCUSED(vp.T)]);
+    assert.ok(vp.rerun(vpRt, 'tests/a.test.js', '#99').ok);
+    const vFile = path.join(vp.repo, 'docs', 'agents', 'verification.md');
+    const vpCommit = (text) => {
+      fs.writeFileSync(vFile, text);
+      g(['add', '-A'], vp.repo);
+      g(['commit', '-q', '-m', 'v'], vp.repo);
+    };
+    vpCommit(fs.readFileSync(vFile, 'utf8').replace('# V\n', '# V\n\nProse.\n'));
+    r = vp.reusable(vpRt);
+    assert.ok(r.ok && r.out === 'reusable', 'a prose-only verification.md commit after a passing rerun reuses: ' + (r.err || ''));
+    vpCommit(fs.readFileSync(vFile, 'utf8').replace('node all.js', 'node all.js --bail'));
+    r = vp.reusable(vpRt);
+    assert.ok(!r.ok && /changed its full command/.test(r.err), 'a run-configuration change after the failed run stays red: ' + (r.err || ''));
+  } finally {
+    cases.forEach((d) => fs.rmSync(d, { recursive: true, force: true }));
+  }
+}
+
+// --- suite reusable: the run configuration (ADR 0230, INV-0017) -------------------------------------
+// A carry refuses a change to verification.md only where its run configuration differs between the two commits a
+// carry leg judges: the full and focused commands as written, the whole-repo command, the prepare command, the
+// test-path entries, and the complete-selector declaration. Prose and every other section carry.
+{
+  const { encodePaths } = require('../plugin/lib/trace-log.js');
+  const g = (args, cwd) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  const callIn = (argv, cwd) => {
+    const orig = console.log;
+    const logged = [];
+    console.log = (s) => logged.push(String(s));
+    try {
+      run(argv, cwd, '');
+      return { ok: true, out: logged.join('\n') };
+    } catch (e) {
+      if (e.isRefusal) return { ok: false, err: e.message };
+      throw e;
+    } finally {
+      console.log = orig;
+    }
+  };
+  const vRel = 'docs/agents/verification.md';
+  const V = ({ prose = 'The first fence is the full command; the second the focused one.', full = 'node all.js', focused = 'node focus.js {paths}', info = 'sh', extra = '' } = {}) =>
+    `# Verification\n\n${prose}\n\n\`\`\`${info}\n${full}\n\`\`\`\n\n\`\`\`${info}\n${focused}\n\`\`\`\n${extra}`;
+  const cases = [];
+  // A repository whose first commit R holds `text` as verification.md, on `main`.
+  const make = (text) => {
+    const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-runcfg-')));
+    cases.push(repo);
+    g(['init', '-q', '-b', 'main'], repo);
+    g(['config', 'user.email', 'test@example.com'], repo);
+    g(['config', 'user.name', 'test'], repo);
+    fs.writeFileSync(path.join(repo, '.gitignore'), '.superdev/\n');
+    fs.mkdirSync(path.join(repo, 'docs', 'agents'), { recursive: true });
+    fs.writeFileSync(path.join(repo, vRel), text);
+    fs.mkdirSync(path.join(repo, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(repo, 'src', 'a.js'), 'a\n');
+    g(['add', '.'], repo);
+    g(['commit', '-q', '-m', 'base'], repo);
+    const R = g(['rev-parse', 'HEAD'], repo);
+    let n = 0;
+    const root = (record, lines, extraHeader) => {
+      const rt = path.join(repo, '.superdev', 'scopes', `rc-${++n}`);
+      fs.mkdirSync(rt, { recursive: true });
+      fs.writeFileSync(path.join(rt, 'ledger.md'), `# Ledger — rc-${n}\n\n**Stage:** documented\n**Branch:** main\n${extraHeader || ''}**Suite:** ${record}\n**Anchor:** #1 — rc\n\n` +
+        '| id | issue | title | type | depends-on | status | range |\n|---|---|---|---|---|---|---|\n', 'utf8');
+      for (const l of lines) appendTrace(rt, { kind: 'run', fields: l });
+      return rt;
+    };
+    const commit = (file, content) => {
+      fs.mkdirSync(path.dirname(path.join(repo, file)), { recursive: true });
+      fs.writeFileSync(path.join(repo, file), content);
+      g(['add', '-A'], repo);
+      g(['commit', '-q', '-m', file], repo);
+      return g(['rev-parse', 'HEAD'], repo);
+    };
+    const reusable = (rt, ...flags) => callIn(['suite', 'reusable', '--branch', 'main', ...flags, '--root', rt], repo);
+    return { repo, R, root, commit, reusable };
+  };
+  const full = (sha) => ['full', 'pass', sha, 'clean'];
+  const focused = (sha, paths) => ['focused', 'pass', sha, 'clean', encodePaths(paths)];
+  try {
+    // The reproduction: a green full run at R, a prose-only edit to verification.md at T, a passing focused run at T.
+    const p = make(V());
+    const PT = p.commit(vRel, V({ prose: 'The first fence is the full command. The second the focused one.' }));
+    let r = p.reusable(p.root(`green @ ${p.R}`, [full(p.R), focused(PT, [vRel])]));
+    assert.ok(r.ok && r.out === 'reusable', 'a prose-only verification.md edit keeps the carry: ' + (r.err || ''));
+
+    // Parts outside the run configuration carry: the timing command, a fence's info string, CRLF line endings, a third fence.
+    const TIMING = '\n## Timing command\n\n`node all.js`\n';
+    for (const [before, after, what] of [
+      [V({ extra: TIMING }), V({ extra: TIMING.replace('node all.js', 'node all.js --time') }), 'a changed timing command'],
+      [V(), V({ info: '' }), 'a fence info string'],
+      [V(), V().replace(/\n/g, '\r\n'), 'CRLF line endings'],
+      [V(), V({ extra: '\n```\nnode third.js\n```\n' }), 'a third fence'],
+    ]) {
+      const c = make(before);
+      const T = c.commit(vRel, after);
+      r = c.reusable(c.root(`green @ ${c.R}`, [full(c.R), focused(T, [vRel])]));
+      assert.ok(r.ok && r.out === 'reusable', `${what} keeps the carry: ` + (r.err || ''));
+    }
+
+    // Every part of the run configuration refuses, and the reason names it.
+    const WHOLE = (cmd) => `\n## Whole-repo command\n\n\`${cmd}\`\n`;
+    const PREP = (cmd) => `\n## Prepare command\n\n\`${cmd}\`\n`;
+    const TESTS = (entry) => `\n## Test paths\n\n- \`${entry}\`\n`;
+    const SEL = '\n## Complete selector\n\nThe focused command selects every test.\n';
+    const SELF = (f) => `${SEL}\n- \`${f}\`\n`;
+    for (const [before, after, part] of [
+      [V(), V({ full: 'node all.js --bail' }), 'full command'],
+      [V(), V({ focused: 'node focus.js --fast {paths}' }), 'focused command'],
+      [V(), V({ focused: 'node focus.js  {paths}' }), 'focused command'],
+      [V(), V({ focused: 'node focus.js\n{paths}' }), 'focused command'],
+      [V({ extra: WHOLE('node all.js') }), V({ extra: WHOLE('node all.js --all') }), 'whole-repo command'],
+      [V({ extra: PREP('bun install') }), V({ extra: PREP('npm ci') }), 'prepare command'],
+      [V({ extra: TESTS('tests/') }), V({ extra: TESTS('spec/') }), 'test paths'],
+      [V({ extra: SELF('tools/a.js') }), V({ extra: SELF('tools/b.js') }), 'complete-selector declaration'],
+      [V(), V({ extra: SEL }), 'complete-selector declaration'],
+      [V({ extra: SEL }), V(), 'complete-selector declaration'],
+    ]) {
+      const c = make(before);
+      const T = c.commit(vRel, after);
+      r = c.reusable(c.root(`green @ ${c.R}`, [full(c.R), focused(T, [vRel])]));
+      assert.ok(!r.ok && r.err.includes(`${vRel} changed its ${part}`), `a changed ${part} refuses and names it: ` + (r.err || ''));
+    }
+
+    // A verification.md git cannot read at the recorded commit, or at the tip, refuses with a git reason.
+    for (const [at, what] of [['R', 'the recorded commit'], ['T', 'the tip']]) {
+      const c = make(V());
+      const T = c.commit(vRel, V({ prose: 'Other prose.' }));
+      const rt = c.root(`green @ ${c.R}`, [full(c.R), focused(T, [vRel])]);
+      const oid = g(['rev-parse', `${at === 'R' ? c.R : T}:${vRel}`], c.repo);
+      const obj = path.join(c.repo, '.git', 'objects', oid.slice(0, 2), oid.slice(2));
+      fs.renameSync(obj, `${obj}.aside`);
+      try {
+        r = c.reusable(rt);
+      } finally {
+        fs.renameSync(`${obj}.aside`, obj);
+      }
+      assert.ok(!r.ok && /git could not read/.test(r.err), `an unreadable verification.md at ${what} refuses: ` + (r.err || ''));
+    }
+
+    // The complete-selector carry: a prose-only verification.md change beside a code path carries when the focused run
+    // covered both paths.
+    const cs = make(V({ extra: SEL }));
+    fs.writeFileSync(path.join(cs.repo, 'src', 'a.js'), 'changed\n');
+    const CT = cs.commit(vRel, V({ prose: 'Other prose.', extra: SEL }));
+    r = cs.reusable(cs.root(`green @ ${cs.R}`, [full(cs.R), focused(CT, [vRel, 'src/a.js'])]));
+    assert.ok(r.ok && r.out === 'reusable', 'a covered prose-only verification.md change beside a code path carries: ' + (r.err || ''));
+
+    // The chained carry: the run configuration differs between the record and M, and agrees between the record and the tip.
+    const ch = make(V({ extra: SEL }));
+    fs.writeFileSync(path.join(ch.repo, 'src', 'a.js'), 'changed\n');
+    const CM = ch.commit(vRel, V({ full: 'node all.js --bail', extra: SEL }));
+    ch.commit(vRel, V({ extra: SEL }));
+    r = ch.reusable(ch.root(`green @ ${ch.R}`, [full(ch.R), focused(CM, [vRel, 'src/a.js'])]));
+    assert.ok(!r.ok && /changed its full command/.test(r.err), 'a chain whose M changed the run configuration refuses: ' + (r.err || ''));
   } finally {
     cases.forEach((d) => fs.rmSync(d, { recursive: true, force: true }));
   }

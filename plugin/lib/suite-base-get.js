@@ -8,12 +8,40 @@ const { fail } = require('./refusal.js');
 const {
   SUITE_RESULTS, readLines, headerRe, getHeader, readBullets, insertHeader, writeLines, tableRowIndexes, splitRow,
 } = require('./ledger.js');
-const { isTestPath, completeSelector, verificationCommandsOf } = require('./verification.js');
+const { isTestPath, completeSelector, verificationCommandsOf, prepareCommandOf, configuredTestPaths } = require('./verification.js');
 const { gitSpawn, resolveCommit, fileAt } = require('./git-spawn.js');
 const { readTrace, decodePaths } = require('./trace-log.js');
 const { DENIAL_PREFIX, RESET_PREFIX } = require('./ledger-records.js');
 
 const VERIFICATION = 'docs/agents/verification.md';
+
+// The run configuration of a `verification.md` text (ADR 0230): each part as the readers yield it, in a form that
+// compares by string. Prose and every other section are no part of it.
+function runConfiguration(raw) {
+  const { full, focused, whole } = verificationCommandsOf(raw, true);
+  const tests = configuredTestPaths(raw);
+  return [
+    ['full command', JSON.stringify(full)],
+    ['focused command', JSON.stringify(focused)],
+    ['whole-repo command', JSON.stringify(whole)],
+    ['prepare command', JSON.stringify(prepareCommandOf(raw))],
+    ['test paths', JSON.stringify(tests && tests.map((re) => re.source))],
+    ['complete-selector declaration', JSON.stringify(completeSelector(raw))],
+  ];
+}
+
+// Whether `verification.md`'s run configuration differs between commits `from` and `to`: null where it agrees, or the
+// reason the carry refuses. `toText` is `to`'s text where the caller already read it.
+function configRefusal(cwd, from, to, toText) {
+  const before = fileAt(from, VERIFICATION, cwd);
+  if (before === null) return 'git could not read the recorded commit\'s verification configuration';
+  const after = toText === undefined ? fileAt(to, VERIFICATION, cwd) : toText;
+  if (after === null) return 'git could not read the tip\'s verification configuration';
+  const a = runConfiguration(before);
+  const b = runConfiguration(after);
+  const part = a.find(([, v], i) => v !== b[i][1]);
+  return part ? `${VERIFICATION} changed its ${part[0]}` : null;
+}
 
 // The first failed full, whole, or path run recorded at commit `to`, or undefined: a failure there is never hidden by a later pass.
 function failedRunAt(events, to) {
@@ -155,7 +183,7 @@ function reusableOnRerun(cwd, root, branch, recordedSha, kind, whole, base) {
     if (gitSpawn(['merge-base', '--is-ancestor', recordedSha, tip], cwd).status !== 0) red('the failed run is neither at the tip nor an ancestor of it');
     const since = changedPaths(cwd, recordedSha, tip);
     if (!since) red('git could not list the paths changed since the failed run');
-    const why = markdownRefusal(cwd, tip, events, since);
+    const why = markdownRefusal(cwd, recordedSha, tip, events, since);
     if (why) red(`the failed run predates the tip and ${why}`);
   }
   const raw = getHeader(readLines(root), 'Rerun');
@@ -255,7 +283,10 @@ function completeRefusal(cwd, from, to, events, paths) {
   if (!declared) return undefined;
   const { focused } = verificationCommandsOf(config);
   if (!focused || !focused.includes('{paths}')) return 'the verification configuration declares the selector complete but its focused command takes no {paths}';
-  if (paths.includes(VERIFICATION)) return `${VERIFICATION} is the verification configuration`;
+  if (paths.includes(VERIFICATION)) {
+    const changed = configRefusal(cwd, from, to, config);
+    if (changed) return changed;
+  }
   // A listed path covers itself and every path under it, a trailing `/` being optional.
   const own = declared.files.map((f) => path.posix.normalize(f).replace(/\/$/, ''));
   const sel = paths.find((p) => own.some((f) => p === f || p.startsWith(`${f}/`)));
@@ -288,7 +319,7 @@ function coverageRefusal(cwd, paths, at) {
 }
 
 // ADR 0128 as amended by ADR 0189: a green record at `from` also covers `to` when `from` is an ancestor of `to`,
-// every path changed between them is Markdown, none is a test path or the verification configuration, no full,
+// every path changed between them is Markdown, none is a test path, the run configuration agrees at both (ADR 0230), no full,
 // whole, path, or focused run recorded at `to` failed, and the latest run at `to`, if any, does not read unknown.
 // No run at `to` is needed. Under the complete-selector declaration the two carries also chain: the record covers `to`
 // when a commit M on the ancestry path from `from` to `to` passes the complete-selector carry from `from`, and M..`to`
@@ -299,7 +330,7 @@ function carryRefusal(cwd, from, to, events) {
   const paths = changedPaths(cwd, from, to);
   if (!paths) return 'git could not list the paths changed since';
   const other = paths.find((p) => !p.endsWith('.md'));
-  if (!other) return markdownRefusal(cwd, to, events, paths);
+  if (!other) return markdownRefusal(cwd, from, to, events, paths);
   const complete = completeRefusal(cwd, from, to, events, paths);
   if (complete === undefined) return `${other} changed since and is not Markdown`;
   if (complete === null) return null;
@@ -318,7 +349,7 @@ function carryRefusal(cwd, from, to, events) {
       continue;
     }
     if (config === undefined) config = fileAt(to, VERIFICATION, cwd);
-    const why = markdownRefusal(cwd, to, events, tail, config);
+    const why = markdownRefusal(cwd, mid, to, events, tail, config);
     if (why !== null) return why;
     const head = changedPaths(cwd, from, mid);
     if (head && completeRefusal(cwd, from, mid, events, head) === null) return null;
@@ -326,15 +357,18 @@ function carryRefusal(cwd, from, to, events) {
   return complete;
 }
 
-// The Markdown-only rule over `paths`, changed up to `to`: null where it holds, or the reason it fails. `config` is the
-// text of `to`'s verification configuration where the caller already read it.
-function markdownRefusal(cwd, to, events, paths, config) {
+// The Markdown-only rule over `paths`, changed from `from` to `to`: null where it holds, or the reason it fails. `config` is
+// the text of `to`'s verification configuration where the caller already read it.
+function markdownRefusal(cwd, from, to, events, paths, config) {
   const other = paths.find((p) => !p.endsWith('.md'));
   if (other) return `${other} changed since and is not Markdown`;
-  if (paths.includes(VERIFICATION)) return `${VERIFICATION} is the verification configuration`;
   // The test paths come from the tip commit, never a working tree; no file there means the defaults.
   if (config === undefined) config = fileAt(to, VERIFICATION, cwd);
   if (config === null) return 'git could not read the tip\'s verification configuration';
+  if (paths.includes(VERIFICATION)) {
+    const changed = configRefusal(cwd, from, to, config);
+    if (changed) return changed;
+  }
   const test = paths.find((p) => isTestPath(config, p));
   if (test) return `${test} is a test path`;
   // No recorded run at the tip is fine. A failed full, whole, path, or focused run there is never hidden by a later

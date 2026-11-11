@@ -177,7 +177,8 @@ The carry is refused, each time with its own reason, when:
 
 - the section is absent, or the focused command carries no `{paths}`;
 - A is not an ancestor of T, or the record is not green;
-- a path changed in A..T is `docs/agents/verification.md`, a listed path, or a path under one;
+- a path changed in A..T is a listed path or a path under one, or is a `docs/agents/verification.md` whose **Run
+  configuration** (CONTEXT.md) differs between A and T; the reason names the part that changed;
 - the latest focused run at T failed, ran on a dirty tree, or read `unknown`, covered fewer paths than changed,
   or carries no recorded path set (a run an earlier release wrote, or one made by a direct call). Only passing
   clean runs after the last failed focused run at T count toward coverage;
@@ -188,13 +189,14 @@ The carry is a read-time check. No verb writes a carried record, and every carry
 own commit, so a focused run over only the paths since an intermediate tip carries nothing. A repository
 without the section, and a Markdown-only range under it, take the Markdown-only carry: a green record at an
 ancestor A carries to T when the run trace backs A, every path changed in A..T ends in `.md`, none is a test path
-at T or `docs/agents/verification.md`, no full, whole, path, or focused run recorded at T failed, and the latest
-run recorded at T does not read `unknown`. It needs no test run at T, and a passing run on a dirty tree refuses
-nothing (ADR 0128, ADR 0189).
+at T, `docs/agents/verification.md` carries the same run configuration at A and at T, no full, whole, path, or
+focused run recorded at T failed, and the latest run recorded at T does not read `unknown`. It needs no test run
+at T, and a passing run on a dirty tree refuses nothing. A `verification.md` git cannot read at either commit
+refuses (ADR 0128, ADR 0189, ADR 0230).
 
 Under the section, the two carries chain once. A green record at A carries to T when some commit M on the ancestry
 path from A to T takes the complete-selector carry from A, judged at M, and M..T takes the Markdown-only carry,
-judged at T. A gate that reached M by carry leaves the record at A, so a doc pass's Markdown commits after M carry
+judged at T. Each leg compares the run configuration at its own two commits. A gate that reached M by carry leaves the record at A, so a doc pass's Markdown commits after M carry
 with no test run at T (ADR 0189).
 
 ## The carry run
@@ -260,8 +262,8 @@ the tip. Nothing reruns on its own, and no step reruns a failed suite until it p
 
 The `red` record at T also counts at a later tip U when T is an ancestor of U, every check above holds when
 judged at T, and T..U passes the Markdown-only rule of `## Complete selector`, judged at U: every path changed
-ends in `.md`, none is a test path at U or `docs/agents/verification.md`, no full, whole, path, or focused run
-recorded at U failed, and the latest run recorded at U does not read `unknown`. A doc pass's Markdown commits
+ends in `.md`, none is a test path at U, `docs/agents/verification.md` carries the same run configuration at T and
+at U, no full, whole, path, or focused run recorded at U failed, and the latest run recorded at U does not read `unknown`. A doc pass's Markdown commits
 after a gate that passed on the rerun so need no test run at U (ADR 0189).
 
 ## A fix cycle's runs

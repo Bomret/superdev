@@ -173,4 +173,4 @@ function completeSelector(text) {
   return found ? { files } : null;
 }
 
-module.exports = { prepareCommandOf, isTestPath, testPathPatterns, verificationCommands, verificationCommandsOf, completeSelector };
+module.exports = { prepareCommandOf, isTestPath, testPathPatterns, configuredTestPaths, verificationCommands, verificationCommandsOf, completeSelector };
