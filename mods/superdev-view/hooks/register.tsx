@@ -249,6 +249,8 @@ export const register: Register = on => {
           return row(key, [{ text: `⋯ ${clock(e.ms)}`, dim: true, shrink: true }])
         case 'stage':
           return row(key, [{ text: `${hm(e.at)} ` }, { text: `stage ${e.stage}`, shrink: true }])
+        case 'tamper':
+          return row(key, [{ text: `${hm(e.at)} ` }, { text: '⚠', color: 'yellow', bold: true }, { text: ` ${e.file} changed outside scope.js`, shrink: true }], isInGroup)
         case 'slice':
           return null
         case 'sliceEnd':
