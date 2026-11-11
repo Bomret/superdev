@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0231](0231-the-self-check-compares-demand-with-result.md), which sets the evidence
+an item needs to count as covered: what the item or its cited reference demands, quoted beside what the
+work does, per member of a set, with the wrong implementation each test rejects.
+
 ## Context
 
 On the full tier, about 80% of first slice reviews from 2026-10-24 to 2026-10-29 found a Critical or
