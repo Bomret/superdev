@@ -25,7 +25,7 @@ Applies to every message an unchained run ends on. Close it with the Next block 
 
 ## Read-only
 
-Applies to the whole run. Apply no finding, fix nothing, write no test, and run no coverage tool, as an ad-hoc `/superdev:review` does. Under `--chained` the run writes nothing. Unchained, its only writes are an observation's triage record, the intent record in the slice store, the intent file under the git-ignored `.superdev/brainstorm/` that the record replaces, and the one-line `.gitignore` entry that keeps that directory ignored.
+Applies to the whole run. Apply no finding, fix nothing, write no test, and run no coverage tool, as an ad-hoc `/superdev:review` does outside its inline fix. Under `--chained` the run writes nothing. Unchained, its only writes are an observation's triage record, the intent record in the slice store, the intent file under the git-ignored `.superdev/brainstorm/` that the record replaces, and the one-line `.gitignore` entry that keeps that directory ignored.
 
 ## 1. Derive the test set and the source set
 

@@ -6,7 +6,9 @@
 splits the last command in two: `/superdev:submit-pr` opens the pull request and ends the chain, and
 `/superdev:ship` merges it. [ADR 0157](0157-every-chain-command-offers-to-start-its-successor.md) has
 each command offer to start its successor in the same conversation, the confirmation prompt rejected
-below, while the split into commands stays.
+below, while the split into commands stays. [ADR 0228](0228-an-ad-hoc-review-fixes-a-minor-only-remainder-inline.md)
+lets an ad-hoc review fix a Minor-only remainder inline on the operator's yes, on a fresh branch in a
+worktree under `.superdev/`.
 
 **Context.** `/superdev:implement` welds five steps behind the last slice merge: the whole-scope review,
 the fix loop, the documentation pass, the Definition of Done tick, and the pull request. The maintainer

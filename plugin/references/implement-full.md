@@ -191,9 +191,8 @@ Repeat until every slice is `merged`:
      (correctness + independent verification; it reads the review checklist itself via
      `${CLAUDE_PLUGIN_ROOT}`). **On the slice's first review, dispatch `superdev:simplicity-reviewer` in parallel with it**,
      over the same tip and the slice's range, and build the fix list once both have returned (ADR 0138). The `simplicity-reviewer` assesses the diff itself; any text the dispatch hands it is input to check, not a verdict to adopt. **Warrant a
-     recommended cut only when it honours the rules the repository documents for itself** — its `AGENTS.md` or
-     `CLAUDE.md` files, its `docs/agents/` configuration, and its invariant register; a repository that documents
-     none leaves the cut to your judgment alone. You judge this, and in the slice's report you name each cut you
+     recommended cut by `${CLAUDE_PLUGIN_ROOT}/skills/review/SKILL.md` §2's warranted-cut concept**, which owns the
+     rule. You judge this, and in the slice's report you name each cut you
      decline, with the rule it would break. Each cut you warrant joins the review's findings as a Minor finding. A first
      review that lists no finding, with no warranted cut, merges the slice with no fix cycle. A first review whose
      only findings are warranted cuts ends the slice's loop with them: the slice merges and the cuts join the Minor
@@ -346,7 +345,7 @@ Repeat until every slice is `merged`:
      dispatched one, the fix cycle's range, and
      carry on, bounded by that section's cap — read `scope.js get denials` after writing
      the entry, and **block** once the count reaches it instead of reviewing inline again. A denied
-     `simplicity-reviewer` follows that same authorship rule, and since its findings are advisory, the
+     `simplicity-reviewer` follows that same authorship rule, and since its cuts block nothing on their own, the
      pass runs inline and the run carries on; write its entry with plain `scope.js degraded add` — its
      denial is not a verification dispatch, so it stays outside that cap. Nothing in that outcome can end
      the command, so this write relies on its defining section's own citation
