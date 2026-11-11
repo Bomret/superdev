@@ -456,8 +456,7 @@ try {
 
   // Pin: the modules holding scope.js's fence-aware readers (the run-state adopt and the dod-line edit) share
   // kb-patch.js's fence-masking rule, which lives in lib/md-sections.js, via `require` rather than growing a
-  // private copy that could silently diverge (ADR 0022's second-reader lesson) — the same shape as the
-  // drift `arg-token` contract, which holds every Bash hook to a require of ../lib/shell-words.js.
+  // private copy that could silently diverge (ADR 0022's second-reader lesson).
   for (const name of ['run-state', 'dod-line']) {
     const src = fs.readFileSync(path.join(path.dirname(scopePath), '..', 'lib', `${name}.js`), 'utf8');
     assert.ok(

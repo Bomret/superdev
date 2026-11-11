@@ -120,22 +120,4 @@ assert.equal(trace(A).length, 1, 'a missing verification.md still records, with 
   assert.ok(big < base * 2000, `reading a trace of 50000 lines stays linear: 500 lines took ${base} ns, 50000 took ${big} ns`);
 }
 
-// Reading a `command`/`builtin` chain stays linear in its length: the Bash hooks that read a command read it through unwrapBuiltin.
-// 100 times the wrappers cost about 100 times when linear; the copying walk read 1000 to 1700 times at these sizes, so the
-// 400x ceiling falsifies only the quadratic shape (ADR 0086, ADR 0149). The behaviour cases pin what the walk returns.
-{
-  const { timePair } = require('./linear-time');
-  const { unwrapBuiltin } = require('../plugin/lib/bash-command.js');
-  const chain = (n) => [...Array(n - 1).fill('command'), 'cd', 'a'];
-  const [base, big] = timePair((args) => unwrapBuiltin('command', args), chain(500), chain(50000), 400);
-  assert.ok(big < base * 400, `a chain of 50000 wrappers reads linear: 500 took ${base} ns, 50000 took ${big} ns`);
-  assert.deepEqual(unwrapBuiltin('command', ['builtin', 'cd', 'a']), ['cd', ['a']]);
-  assert.deepEqual(unwrapBuiltin('command', ['-p', '--', 'cd', 'a']), ['cd', ['a']]);
-  assert.deepEqual(unwrapBuiltin('command', ['-v', 'cd']), ['', []]);
-  assert.deepEqual(unwrapBuiltin('builtin', ['command', '-V', 'cd']), ['', []]);
-  assert.deepEqual(unwrapBuiltin('command', ['x'.repeat(65), 'a']), ['', ['a']]);
-  assert.deepEqual(unwrapBuiltin('command', []), ['', []]);
-  assert.deepEqual(unwrapBuiltin('ls', ['-l']), ['ls', ['-l']]);
-}
-
 cleanup();

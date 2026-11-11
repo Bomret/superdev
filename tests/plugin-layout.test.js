@@ -198,3 +198,21 @@ for (const [rel, mods] of Object.entries(RE_EXPORTS)) {
     try { check(r); } catch (e) { e.message = `${name} run directly: ${e.message}\nstderr: ${r.stderr}`; throw e; }
   }
 }
+
+// INV-0187: no shipped file but merge-guard's raw-text check reads a Bash call's `tool_input.command` (ADR 0225). The scan takes
+// a root, so the fixture is a temporary tree outside plugin/.
+{
+  const READS = /\b(?:ti|tool_input|toolInput)\s*(?:\??\.\s*command\b|\[\s*['"]command['"]\s*\])|\{[^}]*\bcommand\b[^}]*\}\s*=\s*(?:input\.)?(?:ti|tool_input)\b/;
+  const readers = (root) => fs.readdirSync(root, { recursive: true })
+    .filter((f) => f.endsWith('.js') && READS.test(fs.readFileSync(path.join(root, f), 'utf8')))
+    .map((f) => f.split(path.sep).join('/')).sort();
+  assert.deepStrictEqual(readers(plugin), ['hooks/merge-guard.js'], 'only merge-guard reads a Bash call\'s command');
+  const T = fs.mkdtempSync(path.join(os.tmpdir(), 'inv-0187-'));
+  try {
+    fs.writeFileSync(path.join(T, 'reader.js'), "const cmd = input.tool_input.command;\n");
+    fs.writeFileSync(path.join(T, 'plain.js'), "const p = input.tool_input.prompt;\n");
+    assert.deepStrictEqual(readers(T), ['reader.js'], 'a file reading tool_input.command is found');
+  } finally {
+    fs.rmSync(T, { recursive: true, force: true });
+  }
+}

@@ -439,7 +439,7 @@ This root owns every other subtree directly:
   `shell-words.js` and keep no shell-word reader of their own (ADR 0135, the `arg-token` drift check).
   `run-lock.js` requires it too, for its drive-path translator (ADR 0150). When the module cannot load, the
   guardrails `merge-guard.js`, `ledger-guard.js`, and `run-lock.js` fail closed,
-  `run-trace.js` records nothing, and `test-guard.js` passes the call (INV-0140).
+  `run-trace.js` records nothing, and `test-guard.js` passes the call.
   `offer-guard.js` requires `../lib/offer-marker.js` and `../lib/running-skill.js`. Its PostToolUse half records each offer call
   (`start_session` with the offer's marker line, or an `AskUserQuestion` with a `Start /superdev:` option) by
   session, turn, and command. Its Stop half, last in the Stop array, holds a main-session turn once when the last

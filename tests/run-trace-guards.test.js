@@ -1,6 +1,6 @@
 'use strict';
 
-// Suite for the run-trace hook's failure posture (INV-0140, INV-0159): with any module it loads unloadable, or a function of a loaded
+// Suite for the run-trace hook's failure posture (INV-0159): with any module it loads unloadable, or a function of a loaded
 // module throwing, the hook records nothing. Each case confirms its stub loaded.
 
 const assert = require('node:assert');
@@ -95,7 +95,7 @@ const { tmp, ledger, A, S3, trace, reset, run, edit, bash, hookPath, agentPre, c
   const boom = (name) => `{ ${name}() { throw new Error("boom"); } }`;
   // A function that throws only for some inputs drops the whole event, not just the line that read that input.
   const only = (name, arg, args) => `{ ${name}: (...a) => { if (${arg} === ${JSON.stringify(args)}) throw new Error("boom"); return r.${name}(...a); } }`;
-  // A dispatch event records nothing either (INV-0140): a bound slice-reviewer's stop writes no end.
+  // A dispatch event records nothing either: a bound slice-reviewer's stop writes no end.
   const bound = () => {
     run({ hook_event_name: 'PreToolUse', tool_name: 'Agent', tool_use_id: 'ur1', tool_input: { prompt: `${S3}`, subagent_type: 'superdev:slice-reviewer', description: 'review' }, cwd: tmp });
     run({ hook_event_name: 'PostToolUse', tool_name: 'Agent', tool_use_id: 'ur1', tool_response: { status: 'async_launched', agentId: 'aur1' }, cwd: tmp });
