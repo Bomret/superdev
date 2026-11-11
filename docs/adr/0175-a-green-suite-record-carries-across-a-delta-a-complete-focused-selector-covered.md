@@ -6,6 +6,9 @@
 
 **Amended by:** [ADR 0194](0194-ship-carries-a-post-review-delta-before-it-refuses.md), under which every ship gate whose `suite reusable` call refuses takes the carry before it refuses.
 
+**Amended by:** [ADR 0230](0230-submit-pr-offers-ship-only-on-a-tip-its-gate-accepts.md), under which a
+changed `docs/agents/verification.md` refuses the carry only where its run configuration changed.
+
 **Amends:** [ADR 0128](0128-a-green-suite-record-carries-across-markdown-only-commits.md), whose carry
 admits only Markdown paths, and [ADR 0134](0134-a-fail-to-pass-run-shows-a-change-s-tests-discriminate.md),
 under which a fail-to-pass run records no test run.
