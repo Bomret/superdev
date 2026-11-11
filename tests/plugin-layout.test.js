@@ -35,7 +35,6 @@ const hookFiles = fs.readdirSync(path.join(plugin, 'hooks')).filter((n) => n.end
 
 // The export names of each entry point, sorted. A dropped or added export fails here.
 const EXPORTS = {
-  'hooks/ledger-guard.js': ['decide'],
   'hooks/merge-guard.js': ['decide'],
   'hooks/model-explicit.js': ['OURS', 'decide'],
   'hooks/run-lock.js': ['STALENESS_MS', 'decide'],
@@ -172,8 +171,6 @@ for (const [rel, mods] of Object.entries(RE_EXPORTS)) {
 
   // Each entry: the payload, the env, and the check on the result and the world after the run.
   const DIRECT = {
-    'ledger-guard.js': { input: { tool_input: { file_path: '.superdev/scopes/demo/ledger.md' } },
-      check: (r) => { assert.strictEqual(r.status, 2, 'blocks a ledger edit'); assert.match(r.stderr, /scope\.js/); } },
     'merge-guard.js': { input: { agent_id: 'a1', tool_input: { command: 'git merge scope' } },
       check: (r) => { assert.strictEqual(r.status, 2, 'blocks a subagent merge'); assert.match(r.stderr, /subagents must not integrate/); } },
     'model-explicit.js': { input: { tool_name: 'Agent', tool_input: { subagent_type: 'implementer' } },

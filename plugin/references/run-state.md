@@ -12,8 +12,10 @@ section here is read by the step that cites it.
 `init` creates the document, `stage` / `slice` / `degraded add|add-denial|reset-denials` / `unresolved
 add|clear` / `docs set|clear` / `pr set|clear` / `deploy set` / `suite set` move it, `get` / `status` /
 `deploy get` read it back.
-No command or playbook edits or parses the file directly — the `ledger-guard` hook denies any other
-write, naming `scope.js`.
+No command or playbook edits or parses the file directly. `scope.js` keeps a digest of the ledger and of
+the run trace in `<run-root>/digest.json`, so the next verb that writes to the run reports a change made any
+other way: one warning on stderr naming the file and one `tamper <file>` trace line, after which the verb
+goes on (ADR 0225).
 
 **The slice table** (written by `init` from the slice JSON it receives, moved row by row with
 `slice <id> <status>`, read back with `get slices`) carries one row per slice: id, store issue, title,
