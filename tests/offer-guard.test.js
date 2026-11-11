@@ -119,6 +119,11 @@ function passed(r, label) {
   passed(run(tmp, stop('The hook reads `/superdev:review` output.')), 'prose span');
   passed(run(tmp, stop('Run in order:\n```\n/superdev:ship a\n```\n```\n/superdev:publish-kb a\n```\n')), 'two fences');
   passed(run(tmp, stop('Example:\n```\n/superdev:review a\n/superdev:document a\n```\n')), 'two-line fence');
+  // Only the last paragraph is read: a mention earlier in an interview question is no next step.
+  const question = '- Its Next block always names `/superdev:plan`.\n\nWhich case?\n\n1. Ad hoc.\n\n2. Something else.\n';
+  passed(run(tmp, stop(question)), 'mention before the last paragraph');
+  passed(run(tmp, stop('Run this:\n```\n/superdev:submit-pr a\n```\n\nWhich case?\n')), 'fence before the last paragraph');
+  blocked(run(tmp, stop('Done.\n\nNext would be `/superdev:submit-pr`:\n\n```\n/superdev:submit-pr a\n```\n\n')));
   run(tmp, card(`/superdev:submit-pr a\n${MARK}`));
   passed(run(tmp, stop('Next would be `/superdev:submit-pr a`.')), 'headless offered');
 }

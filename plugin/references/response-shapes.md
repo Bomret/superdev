@@ -52,8 +52,8 @@ answers one question.
 **Precedence.** The offer takes precedence over the Claude desktop app's own guidance that a follow-up acting
 on the session's findings stays in the session and is asked through its wrap-up box. `hooks/offer-guard.js`
 holds a turn once when its Next block names one command that no offer call of the turn named, and when a
-message without the Next heading names one next command in a fence or beside the word "next" (ADR 0213,
-ADR 0216, INV-0183). It passes a next command that is the skill still running (ADR 0222).
+message without the Next heading names one next command in a fence or beside the word "next" in its last
+paragraph (ADR 0213, ADR 0216, ADR 0226, INV-0183). It passes a next command that is the skill still running (ADR 0222).
 
 **First action.** Where the offer applies, the offer call is the first action of the closing. Decide it
 before you compose the closing message: make the offer call, then call the app's wrap-up tool, if at all, and
@@ -87,10 +87,12 @@ a block with an `Or:`, `Blocked:`, or `First:` line makes no offer. A skill adds
 an exit that meets these conditions offers, whatever its next command. A block that fails a condition makes
 no offer and names no exception, since the hook passes it.
 
-**An offer of ship.** Every offer of `/superdev:ship`, whichever command makes it, names the pull-request URL
-in each start option's description (INV-0093). Start's description says it merges the pull request now,
-exactly as typing `/superdev:ship` does, with the host's approvals and branch protection still in force. The
-new-session option's description says it starts ship in a new session, which asks once more before it merges.
+**An offer of ship.** Every offer of `/superdev:ship`, whichever command makes it, names the pull request and
+says ship merges it (INV-0093). The question's Start option names the pull-request URL in its description and
+says it merges the pull request now, exactly as typing `/superdev:ship` does, with the host's approvals and
+branch protection still in force. The card's `title` names the pull request by its number and says ship merges
+it, such as `Merge PR #141 with /superdev:ship`, within the tool's 60-character title limit. The card's click
+starts ship in a new session, which merges with no further question.
 
 **Detection.** The session carries the session tool when `mcp__ccd_session__start_session` is loaded, or
 listed as a deferred tool. Only the Claude desktop app provides it (`docs/known-issues.md`, *The session
@@ -100,7 +102,7 @@ load counts as absent.
 
 **With the session tool: the card.** Ask no `AskUserQuestion`. Make one `start_session` call:
 `initiation: "own_initiative"`, `context: "fresh"`, `use_worktree: false`, and no `model`, `effort`, or
-`permission_mode`, so the new session inherits this session's own. The `title` names the command. The
+`permission_mode`, so the new session inherits this session's own. The `title` names the command, and an offer of ship's `title` also names the merge (**An offer of ship**). The
 `prompt` is the command exactly as the fence prints it, then this marker line, verbatim:
 
 `A superdev offer started this session.`
