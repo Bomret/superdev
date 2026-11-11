@@ -309,7 +309,7 @@ GitHub. Push scope branch, open ready PR against `main`, squash-merge with Conve
 `AGENTS.md` hierarchy (root + `scripts/AGENTS.md` + `plugin/references/AGENTS.md` + `mods/superdev-view/AGENTS.md`). `controlled` writing standard, American English. See `docs/agents/documentation.md`.
 
 ### Knowledge base
-GitHub repo Wiki, published by git push. Adopters first, maintainers second, English. `(aggregate)` page: Concepts. See `docs/agents/knowledge-base.md`.
+GitHub repo Wiki, published by git push. Adopters first, maintainers second, English. Topic pages and Guide pages under Home, each named in the outline; `(aggregate)` page: Concepts. See `docs/agents/knowledge-base.md`.
 
 ### Toolchain
 Bun dev toolchain, Node runtime for hooks. `node scripts/run-tests.js`, `bun run release`. No linter or formatter. See `docs/agents/toolchain.md`.
