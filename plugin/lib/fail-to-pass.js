@@ -155,12 +155,15 @@ async function verbFailToPass(cwd, args) {
   if (main) ignoreSuperdevLocally(main);
   fs.mkdirSync(home, { recursive: true });
   const dir = fs.mkdtempSync(path.join(home, 'fail-to-pass-'));
-  // No git hook runs, whoever configured one: `core.hooksPath` names no directory for every git call below.
-  const noHooks = ['-c', 'core.hooksPath=/dev/null'];
+  // No git hook runs, whoever configured one: `core.hooksPath` names no directory for every git call below, and each
+  // config-based hook (`hook.<name>.command`, as hk installs them), which `core.hooksPath` does not reach, is disabled.
+  const configHooks = spawnSync('git', ['config', '--name-only', '--get-regexp', '^hook\\..+\\.(command|event)$'], { cwd, encoding: 'utf8' }).stdout || '';
+  const hookNames = [...new Set(configHooks.split('\n').filter(Boolean).map((key) => key.slice('hook.'.length, key.lastIndexOf('.'))))];
+  const noHooks = ['-c', 'core.hooksPath=/dev/null', ...hookNames.flatMap((name) => ['-c', `hook.${name}.enabled=false`])];
   // The worktree outlives no exit. The watcher holds a channel from this process and takes over when it closes, on an
   // interrupt or a kill past the signal handlers: it ends the running command's group (the process tree on Windows), then
   // removes the worktree.
-  const sup = superviseRuns(['ignore', 2, 2], { cwd, dir }, 'SIGKILL');
+  const sup = superviseRuns(['ignore', 2, 2], { cwd, dir, noHooks }, 'SIGKILL');
   let removed = false;
   const cleanup = () => {
     if (removed) return;

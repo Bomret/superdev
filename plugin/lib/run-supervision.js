@@ -82,17 +82,18 @@ function withWorktreeLock(cwd, fn) {
 // once the leader is gone until the group is empty (at most 5 s), and removes the worktree the argv names (fail-to-pass).
 function watchMain() {
   const cp = require('child_process');
-  const [cwd, dir, signal] = process.argv.slice(1);
+  const [cwd, dir, signal, noHooksJson] = process.argv.slice(1);
+  const noHooks = noHooksJson ? JSON.parse(noHooksJson) : [];
   let run = null;
   let last = null; // the pid (and group) of the last command started, kept after it exits while its group has members
   let dead = false;
   const finish = () => {
     if (dir) {
       withWorktreeLock(cwd, () => {
-        const gone = cp.spawnSync('git', ['-c', 'core.hooksPath=/dev/null', '-C', cwd, 'worktree', 'remove', '--force', dir], { stdio: 'ignore' });
+        const gone = cp.spawnSync('git', [...noHooks, '-C', cwd, 'worktree', 'remove', '--force', dir], { stdio: 'ignore' });
         if (gone.status !== 0) {
           require('fs').rmSync(dir, { recursive: true, force: true });
-          cp.spawnSync('git', ['-C', cwd, 'worktree', 'prune'], { stdio: 'ignore' });
+          cp.spawnSync('git', [...noHooks, '-C', cwd, 'worktree', 'prune'], { stdio: 'ignore' });
         }
       });
     }
@@ -140,7 +141,8 @@ function watchMain() {
   });
 }
 
-// Starts the watcher. `stdio` is the command's own three descriptors; `cleanup` is `{cwd, dir}` for a worktree to remove;
+// Starts the watcher. `stdio` is the command's own three descriptors; `cleanup` is `{cwd, dir, noHooks}` for a worktree to
+// remove, `noHooks` the git config arguments that run no hook while the watcher removes it;
 // `signal` is what the watcher sends the command's group when the verb dies.
 // `run(command, cwd, sweep)` resolves `{code, signal}` or `{error}`. `detach()` closes the channel, which hands the running
 // command to the watcher as a dead verb does; no run settles after it, and the promise it returns resolves once the watcher
@@ -148,7 +150,7 @@ function watchMain() {
 function superviseRuns(stdio, cleanup, signal) {
   const cp = require('child_process');
   const src = `const {spawnSync}=require('child_process');const endRun=${endRun};const withWorktreeLock=${withWorktreeLock};(${watchMain})()`;
-  const watcher = cp.spawn(process.execPath, ['-e', src, ...(cleanup ? [cleanup.cwd, cleanup.dir] : ['', '']), signal], { stdio: [...stdio, 'ipc'], detached: true, windowsHide: true });
+  const watcher = cp.spawn(process.execPath, ['-e', src, ...(cleanup ? [cleanup.cwd, cleanup.dir] : ['', '']), signal, JSON.stringify(cleanup ? cleanup.noHooks : [])], { stdio: [...stdio, 'ipc'], detached: true, windowsHide: true });
   watcher.on('error', () => {});
   let detached = false;
   const sup = {
