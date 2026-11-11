@@ -1,6 +1,6 @@
 # Knowledge base: GitHub repository wiki
 
-Durable, **human-first** reader-facing docs (guides, mechanism pages, concepts) published to the wiki of a
+Durable, **human-first** reader-facing docs (guides, topic pages, concepts) published to the wiki of a
 GitHub repository, reached through `git` and the `gh` CLI. In-repo docs (`docs/agents/documentation.md`)
 remain the source of truth; the wiki is a published view.
 
@@ -24,14 +24,23 @@ remain the source of truth; the wiki is a published view.
 
 ## Outline
 
-A living skeleton. `/superdev:plan` and `/superdev:document` fill and extend it.
+A living skeleton. `/superdev:document` extends it. The entries below are examples: setup replaces them
+with the repository's own topics, each named by its exact title.
 
-- **`<Root page, e.g. Home>`.** The root page, with no parent. Hand-written. Each group section below
-  holds one link list that `/superdev:publish-kb` maintains.
-- **`<Group, e.g. Guide: <task>>`.** `<What one page of this group covers>`. Parent: `<root page>`,
-  section `<section heading in the parent>`.
-- **`<Group, e.g. Concepts>`.** `(aggregate)`: `<one ## section per term, contributed by the scope that
-  built it>`. Parent: `<root page>`, section `<section heading in the parent>`.
+- **`Home`.** The root page, with no parent. Hand-written. Each section below holds one link list that
+  `/superdev:publish-kb` maintains.
+- **`Guide: Getting started`.** One task a reader does, step by step. Parent: `Home`, section `Guides`.
+- **`Architecture`.** One subject a reader looks up: how the parts fit together and why. Parent: `Home`,
+  section `Topics`.
+- **`Configuration`.** One subject a reader looks up: every setting, what it changes, and when to use it.
+  Parent: `Home`, section `Topics`.
+- **`Concepts`.** `(aggregate)`: one `##` section per term, contributed by the scope that built it.
+  Parent: `Home`, section `Concepts`.
+
+**Every outline entry names a topic page** (ADR 0229, INV-0188). An entry gives one page's exact title,
+and the page holds one subject a reader looks up, such as `Architecture` or `Configuration`. An entry holding a placeholder (`<...>`)
+names no page, and the doc pass writes no page under it. `/superdev:document`'s doc pass extends the topic page a change touches. Only when no topic fits does it
+add one explicit entry here, in the scope's doc commit, with its reason. A page per feature is no entry.
 
 **Create the root page first.** A child published before its root lands, but stays staged as not linked,
 because its parent has no page to carry the link yet.
@@ -49,8 +58,8 @@ section's own content, or below the heading as its first list item when that con
 
 ## Staging
 
-This is a **remote** backend, so nothing but `/superdev:publish-kb` calls it (ADR 0023). `/superdev:plan`
-and `/superdev:document` write each page as a **staged page** under `.superdev/kb-pending/<scope>/` in the
+This is a **remote** backend, so nothing but `/superdev:publish-kb` calls it (ADR 0023).
+`/superdev:document` writes each page as a **staged page** under `.superdev/kb-pending/<scope>/` in the
 main working tree, resolved by `scope.js staging <scope>` (ADR 0119). Each carries YAML frontmatter with
 the page `title` and an `action` of `upsert`, `patch`, or `delete`, and the page body below. A page reaches
 the wiki when a human runs `/superdev:publish-kb`, after the feature has reached the readers this wiki is
@@ -187,8 +196,8 @@ Human-consumption first: shape pages around the audience, write in the language 
 
 ## superdev usage
 
-- `/superdev:plan` and `/superdev:document` stage pages; `/superdev:document` reconciles and extends the
-  wiki through its doc-writer.
+- `/superdev:document` reconciles and extends the wiki's topic pages through its doc-writer, and stages
+  the pages it changed.
 - `/superdev:publish-kb` sends the staged pages to the wiki. The only command that calls it.
 
 ## Degrade / switching

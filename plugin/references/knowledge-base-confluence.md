@@ -1,7 +1,7 @@
 # Knowledge base: Confluence
 
-An external knowledge base for durable, human-facing docs (feature specifications, design overviews),
-published to a Confluence space. In-repo docs (`docs/agents/documentation.md`) remain the source of
+An external knowledge base for durable, human-facing topic pages, each holding one subject a reader looks
+up, published to a Confluence space. In-repo docs (`docs/agents/documentation.md`) remain the source of
 truth; the KB is a published view.
 
 ## Audience, language & outline
@@ -10,14 +10,18 @@ The KB is **human-consumption first**. Recorded at setup:
 
 - **Audience(s):** `<end-users | internal developers | ops/support | stakeholders | …>`
 - **Language:** `<e.g. English | German>` — all KB prose is written in this language.
-- **Outline** (living skeleton; a top-level page per audience — `/superdev:document`
-  fills and extends it):
+- **Outline** (living skeleton; a top-level page per audience, each topic named by its exact title —
+  `/superdev:document` extends it). Example entries, which setup replaces with the repository's own:
 
-  - `<Audience A — e.g. User Guide>` → `<topic>` → `<subtopic>`, `<subtopic>`
-  - `<Audience B — e.g. Developer Docs>` → `Architecture` → `<subtopic>`
-  - `<Audience B — e.g. Developer Docs>` → `Setup`
+  - `User Guide` → `Getting started`, `Configuration`
+  - `Developer Docs` → `Architecture`, `Setup`
 
   Each `→` nests one level deeper. `/superdev:publish-kb` creates a parent before its child.
+
+**Every outline entry names a topic page** (ADR 0229, INV-0188). An entry gives one page's exact title,
+and the page holds one subject a reader looks up, such as `Configuration` or `Architecture`. An entry holding a placeholder (`<...>`)
+names no page, and the doc pass writes no page under it. `/superdev:document`'s doc pass extends the topic page a change touches. Only when no topic fits does it
+add one explicit entry here, in the scope's doc commit, with its reason. A page per feature is no entry.
 
 **`(aggregate)` marks a page many scopes contribute to** — an index, a changelog, a
 glossary. `/superdev:document` stages one **section** for such a page (`action: patch`) rather than the
@@ -45,7 +49,7 @@ no outline entry `aggregate` here.
 - **Space id**: `<space-id>` (the v2 API takes it)
 - **Auth**: API token in env var `<CONFLUENCE_API_TOKEN>`, user email in `<CONFLUENCE_EMAIL>`. Record
   the env-var NAMES only, never the secrets.
-- **What to publish**: `<feature specifications + design overviews>` — durable, reader-facing docs only, not every `AGENTS.md`.
+- **What to publish**: topic pages, each holding one subject a reader looks up — durable, reader-facing docs only, not every `AGENTS.md`.
   Decisions stay in the repository's ADRs: the knowledge base carries no ADR digest and no ADR summaries.
 - **Parent page or folder** (optional): `<id of the page or folder under which superdev pages are created>` — the `<parent-id>`
   the `### create` template below falls back to for a page that names no parent of its own.

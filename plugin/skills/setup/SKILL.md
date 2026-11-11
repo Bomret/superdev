@@ -76,6 +76,7 @@ Applies to every start. You write the per-repo config documents the superdev ski
 **A replaced rule.** Applies to a rule the current seed replaced, such as the token or curl rules a Forgejo config document written before ADR 0111 can carry. Such a rule is a contradicted rule. List it as a seed gap under the seed rule it contradicts, never as a stale deviation or a section only the document carries.
 
 - Such Forgejo token or curl rules contradict the seed's `Login` bullet, `tea conventions` section, or `Degrade when no tea login` section.
+- A knowledge-base outline entry holding a placeholder (`<...>`, such as `How it works: <mechanism>`), or an outline lacking the rule, contradicts the seed's **Every outline entry names a topic page** rule (ADR 0229). Explicit entries that differ from the seed's example entries are filled-in values, no gap.
 
 - A Forgejo issue-tracker document's `**Auth:**` bullet and `## REST conventions`.
 - A Forgejo code-management document's `**Auth:**` bullet naming a token env var or an `Authorization` header, a `## tea CLI conventions` section whose login line passes `--token`, a `## REST conventions (curl)` section, and a `## Degrade when no CLI / token` section.
@@ -211,7 +212,7 @@ Applies to the full interview. Scan these before any decision:
 
 ### D — Knowledge base (optional)
 
-**The choice.** Applies to decision D: is there a knowledge base for durable, reader-facing docs (feature specifications, design overviews)?
+**The choice.** Applies to decision D: is there a knowledge base for durable, reader-facing topic pages, each holding one subject a reader looks up?
 
 - **Knowledge base software**, such as **Confluence** → **Confluence**, or **Other wiki** for a different one.
 - **Forgejo / Gitea repo wiki** (`tea`, Codeberg included) → **Forgejo wiki**.
@@ -227,7 +228,7 @@ Applies to the full interview. Scan these before any decision:
 
 **Other wiki.** Applies to a different wiki. Capture the backend command contract below. Ask whether its page bodies are markdown, and record `- **Body format:** <value>` only when they are not. Record the `## Staging` section the seeded templates carry (ADR 0023).
 
-- The `## Staging` section states that `/superdev:publish-kb` is the only caller of this backend, and that `/superdev:plan` and `/superdev:document` stage its pages.
+- The `## Staging` section states that `/superdev:publish-kb` is the only caller of this backend, and that `/superdev:document` stages its pages.
 
 - A backend declaring no `delete` template leaves every `action: delete` staged page unpublishable.
 - One declaring no `read` template, or a non-markdown body, blocks the aggregate question.
@@ -249,8 +250,8 @@ Applies to the full interview. Scan these before any decision:
 
 1. **Audience** (multi-select): end-users, internal developers, ops/support, stakeholders. Record the list.
 2. **Language**: the single natural language KB prose is written in. Code and in-repo docs keep theirs.
-3. **Outline**: scan the README and top-level structure, and propose a top-level section per audience with a few candidate topics under each (*User Guide → Getting started, FAQ*; *Developer Docs → Architecture, Setup*). Discuss and adjust with the user, and record the agreed outline in `knowledge-base.md` as the skeleton `/superdev:plan` and `/superdev:document` fill and extend.
-4. **A Forgejo or GitHub wiki outline** names a root page with no parent, gives each group its parent page and the section in that parent, and records the seed's link line form (the `**Links.**` line of the wiki's own seed) under the wiki's own URL.
+3. **Outline**: scan the README and top-level structure, and propose a top-level section per audience with a few explicit topic entries under each, each naming one page by its exact title (*User Guide → Getting started, FAQ*; *Developer Docs → Architecture, Setup*). Propose no placeholder entry and no page per feature, and carry the seed's **Every outline entry names a topic page** rule (ADR 0229, INV-0188). Discuss and adjust with the user, and record the agreed outline in `knowledge-base.md` as the skeleton `/superdev:document` extends.
+4. **A Forgejo or GitHub wiki outline** names a root page with no parent, gives each entry its parent page and the section in that parent, and records the seed's link line form (the `**Links.**` line of the wiki's own seed) under the wiki's own URL.
 
 **The command contract.** Applies to a remote backend (ADR 0069), except that a Forgejo or GitHub wiki's seed carries all five templates, so it gets no per-verb question (**Forgejo wiki**, **GitHub wiki**). Ask, verb by verb, for the shell command each of `find`, `read`, `create`, `update`, and `delete` runs. Write each under a `## Commands` section of `knowledge-base.md` as a `### <verb>` subsection holding one fenced `sh` block.
 
