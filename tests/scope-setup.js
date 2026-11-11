@@ -292,7 +292,8 @@ const testVerbFixture = () => {
     assertSpawnDecided(r, 'bash driver');
     return r;
   };
-  const reset = () => fs.rmSync(traceFile, { force: true });
+  // An empty trace starts with no digest too: a trace deleted beside a present digest is a tamper (ADR 0225).
+  const reset = () => { fs.rmSync(traceFile, { force: true }); fs.rmSync(path.join(root, 'digest.json'), { force: true }); };
   const end = () => fs.rmSync(D, { recursive: true, force: true });
   return { D, root, S, bin, env, sh, cli, verif, traceFile, lines, verb, bash, reset, end };
 };

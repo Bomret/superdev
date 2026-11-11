@@ -13,6 +13,7 @@ const { gitSpawn, resolveCommit, fileAt } = require('./git-spawn.js');
 const { PROBE_MAX_BUFFER } = require('./containment.js');
 const { mainWorkTree } = require('./main-work-tree.js');
 const { appendTrace, readTrace, encodePaths, decodePaths, untraceField } = require('./trace-log.js');
+const { checkRun } = require('./run-check.js');
 const { treeState, gitOut } = require('./run-tree.js');
 const { superviseRuns, withWorktreeLock } = require('./run-supervision.js');
 const { shellWord } = require('./test-verb.js');
@@ -146,6 +147,8 @@ async function verbFailToPass(cwd, args) {
   // is written, `.superdev/` is git-ignored first through the repository's `info/exclude` (no file of the checkout changes), and
   // a `.superdev/` this call created is removed at exit. `mkdtemp` makes the directory unique to this invocation, so parallel runs never share one.
   const at = require('./run-tree.js').locate(path.join(cwd, 'x'));
+  // The run's digest is checked before this verb reads the trace or writes a line to it (ADR 0225).
+  if (at) checkRun(at.runRoot);
   const main = at ? null : mainWorkTree(cwd) || cwd;
   const home = at ? at.runRoot : path.join(main, '.superdev');
   const madeHome = !at && !fs.existsSync(home);

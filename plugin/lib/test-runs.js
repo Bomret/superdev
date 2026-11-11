@@ -16,7 +16,7 @@ const NOT_RUNNERS = new Set(['grep', 'egrep', 'fgrep', 'rg', 'cat', 'sed', 'head
   'basename', 'dirname', 'realpath']);
 // The shell's own builtins `test` and `[` and its keywords `[[`, `for`, and `select` read nothing they run, and match only as a
 // bare command word: a word with a `/` names a file, so `./test spec/a_spec.rb` is a runner script. A `[[`, `for`, or `select`
-// is here because the scanner keeps it as a command word (ledger-guard reads a loop's list words), and it runs nothing.
+// is here because the scanner keeps it as a command word, and it runs nothing.
 const SHELL_READERS = new Set(['test', '[', '[[', 'for', 'select']);
 
 // Whether `words` begin with the template's words. A `{paths}` word stands for one or more path words (not flags), after

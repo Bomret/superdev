@@ -11,6 +11,8 @@ const {
 } = require('./ledger.js');
 const { mainWorkTree } = require('./main-work-tree.js');
 const { appendTrace } = require('./trace-log.js');
+const { readSide, writeSide, withRunLock } = require('./run-digest.js');
+const { checkRun } = require('./run-check.js');
 
 // Appended, never read-concat-written: two `init` calls racing each other on the same fresh
 // repository at worst leave a duplicate line, where a rewrite could truncate the file.
@@ -75,6 +77,13 @@ function rotateFinishedLedger(root, stage, log) {
     }
     fail(`cannot move the ${stage} run's ledger.md aside (${e.code}) — the ledger and its trace stay in place`);
   }
+  // Both files left their names: the new run's ledger and trace start with no digest, and the writes that follow seal them.
+  withRunLock(root, () => {
+    const side = readSide(root);
+    delete side.ledger;
+    delete side.trace;
+    writeSide(root, side);
+  });
   log(`rotated ${stage} ledger to ${dest}`);
 }
 
@@ -91,13 +100,16 @@ function validateLabel(label) {
 }
 
 // `log` takes init's own stdout lines; `open` passes one that drops them, since its stdout is its outcome.
-function verbInit(cwd, label, stage, stdinJson, log = console.log) {
+// `checked` is true where the caller (`open`) has already checked the run's digest, so the check runs once per verb.
+function verbInit(cwd, label, stage, stdinJson, log = console.log, checked = false) {
   if (!INIT_ENTRY_STAGES.includes(stage)) {
     fail(`init needs an entry stage, one of ${INIT_ENTRY_STAGES.join('|')} — got "${stage || ''}"`);
   }
   const { slug } = validateLabel(label);
   const workTree = mainWorkTree(cwd) || cwd;
   const root = path.join(workTree, '.superdev', 'scopes', slug);
+  // `init` names no `--root`, so it checks the run's digest itself, once, before it reads or writes a file of the run (ADR 0225).
+  if (!checked) checkRun(root);
   // The real double-init signal is an existing ledger.md, not the run-root directory: run init
   // writes dod.md into the run root before calling init, so the directory legitimately exists
   // on every fresh run. A ledger at stage `planned` is the one exception (ADR 0079): it names a

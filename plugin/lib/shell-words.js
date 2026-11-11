@@ -1054,7 +1054,7 @@ function scan(command, opts = {}) {
 }
 
 // Prefix wrappers, shared by the Bash hooks: each runs the command that follows its own options. The value is the set of
-// options, short and long, that take a separate value. ledger-guard.js skips every one before it reads a command word;
+// options, short and long, that take a separate value. The Bash hooks skip every one before they read a command word;
 // bash-command.js reads a test run behind the names its own WRAPPERS pattern lists.
 const WRAPPER = new Map([
   ['sudo', new Set(['-u', '-g', '-C', '-h', '-p', '-r', '-t', '-T', '-U', '-D', '-R', '--user', '--group', '--host', '--prompt', '--role', '--type',
@@ -1214,7 +1214,7 @@ const reads = (c) => (c.reads === undefined ? (c.reads = !c.drop && (c.outPsub =
 // `fnUp[id]` the id of the body that body opened inside (the scan result's `fnUp`).
 // simplicity: a definition in a text read later (a backtick body, a quoted word, a shell-fed body) reaches only the texts read after
 // it, so a call read before it is missed, which fails open; merge-guard denies a heredoc body or here-string text by its own words
-// (`texts`), so ledger-guard, the run trace, and `echo`/`printf` text a shell reads depend on it. An alias or function counts
+// (`texts`), so the run trace and `echo`/`printf` text a shell reads depend on it. An alias or function counts
 // wherever it sits on the line and whichever function holds the heredoc, which fails closed.
 const newIndirect = () => ({ aliases: new Set(), fns: new Set(), fnShell: false, fds: new Set(), callers: [], seen: 0, fnFed: false, fnSeq: 0, fnUp: [] });
 const nameOf = (c) => (c.name === undefined ? (c.name = commandName(c.words)) : c.name);

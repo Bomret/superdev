@@ -8,6 +8,7 @@ const { fail } = require('./refusal.js');
 const { gitSpawn } = require('./git-spawn.js');
 const { verificationCommands } = require('./verification.js');
 const { appendTrace, readTrace, encodePaths } = require('./trace-log.js');
+const { checkRun } = require('./run-check.js');
 const { superviseRuns } = require('./run-supervision.js');
 const { usage } = require('./usage.js');
 
@@ -66,6 +67,8 @@ function verbTest(cwd, args) {
     command = kind === 'focused' ? withPaths(template, paths) : template;
     if (kind === 'focused') files = paths;
   }
+  // The run's digest is checked before the run line is written (ADR 0225); the check may append a `tamper` line, so it comes first.
+  if (at) checkRun(at.runRoot);
   const [sha, tree0] = at ? treeState(at.tree) : [];
   // Where the trace ends now: a file change it records for this slice past this point happened during the run.
   const traceFile = at && path.join(at.runRoot, 'trace.log');

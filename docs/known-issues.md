@@ -192,12 +192,10 @@ command that ran. RTK, a third-party output filter, ships such a hook: it rewrit
 **Mitigation (implemented):** `commandStart` and `gitSubcommand` in `lib/shell-words.js`, which merge-guard
 reads commands through, read `rtk` as a prefix wrapper, as they read `nice` or `nohup`, and skip all five of
 rtk's run-anything subcommands: `proxy`, `err`, `run`, `summary`, and `test`. So does `RTK_PREFIX` in
-`hooks/merge-guard.js`. `hooks/ledger-guard.js` skips all five too, because `lib/ledger-writes.js` finds the
-command word through the same `commandStart`, and `tests/ledger-guard.test.js` pins that it refuses an editor
-behind every wrapper `lib/shell-words.js` knows and a copy behind `rtk proxy`.
+`hooks/merge-guard.js`.
 
 The PreToolUse hooks are out of the rewrite's reach. Claude Code runs every matching hook of one event
-in parallel, so `hooks/merge-guard.js`, `hooks/run-lock.js`, and `hooks/ledger-guard.js` receive the
+in parallel, so `hooks/merge-guard.js` and `hooks/run-lock.js` receive the
 command as it was written, before RTK's hook rewrites it. `hooks/model-explicit.js` matches the Agent
 tool, which RTK does not rewrite. `hooks/slicetree-sweep.js` and `hooks/scope-prune.js` run on Stop and
 read no command.

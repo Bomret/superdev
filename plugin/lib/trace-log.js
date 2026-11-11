@@ -4,6 +4,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { readBytes, stateOf, sameState, readSide, writeSide, withRunLock } = require('./run-digest.js');
 
 // The run trace is `<run-root>/trace.log`, one event per line, space-separated:
 //   <ISO-8601 UTC timestamp> <slice id|scope> <agent id|main> <kind> <kind fields...>
@@ -15,6 +16,7 @@ const path = require('path');
 //   dispatch-resume <tool_use_id> <agent_id> <session_id|-> <sendmessage_tool_use_id|->   (a SendMessage resumed the dispatch's subagent: a new run, with its own dispatch-end)
 //   ledger <verb> <args>     (written only by the ledger-writing verbs of this CLI, after they succeed)
 //   fail-to-pass <base>..<tip> <fail-to-pass|pass-to-pass|unknown> <reason> <command>     (written only by `fail-to-pass`, which derives the first three fields and records its caller's command, ADR 0188; no test run)
+//   tamper <ledger.md|trace.log>     (written only by a scope.js verb that writes to a run, when the file no longer matches the run's digest, ADR 0225)
 // A trace an older release wrote can also hold `verdict` and `final-verdict` lines (ADR 0197), and `revert <paths>` and
 // `restore <paths>` lines (ADR 0225): no writer appends them, and every reader tolerates them.
 // Every field is escaped so none holds a control character or a line separator: no field can start
@@ -58,14 +60,32 @@ const decodePaths = (field) => (field === undefined || field === '-' ? [] : untr
 const encodeArgs = (args) => (args.length === 1 && args[0] === '' ? '%00' : encodePaths(args));
 const decodeArgs = (field) => (field === '%00' ? [''] : decodePaths(field));
 
-// event: { slice?, agent?, kind, fields? }. One O_APPEND write per line, so concurrent writers never
-// tear a line. A failed write is swallowed: the trace never blocks the work it records. Returns whether
-// the line was written, for the one caller that tells its user (`scope.js test`). A written line also
-// refreshes the run lock (ADR 0220, INV-0186), so a run that keeps writing trace lines reads as live.
+// event: { slice?, agent?, kind, fields? } as one trace line, newline included.
+function traceLine(event) {
+  const parts = [new Date().toISOString(), event.slice || 'scope', event.agent || 'main', event.kind, ...(event.fields || [])];
+  return parts.map(traceField).join(' ') + '\n';
+}
+
+// event: { slice?, agent?, kind, fields? }. The append and the update of the trace's digest (`run-digest.js`) happen under the
+// run's digest lock, so a check never reads a new line under an old digest. The digest moves only when the trace matched it
+// before the append (or both were absent), so an outside edit stays visible to the next check. A failed write is swallowed:
+// the trace never blocks the work it records. Returns whether the line was written, for the one caller that tells its user
+// (`scope.js test`). A written line also refreshes the run lock (ADR 0220, INV-0186), so a run that keeps writing trace
+// lines reads as live.
 function appendTrace(runRoot, event) {
   try {
-    const parts = [new Date().toISOString(), event.slice || 'scope', event.agent || 'main', event.kind, ...(event.fields || [])];
-    fs.appendFileSync(path.join(runRoot, 'trace.log'), parts.map(traceField).join(' ') + '\n', 'utf8');
+    const line = Buffer.from(traceLine(event), 'utf8');
+    withRunLock(runRoot, () => {
+      const file = path.join(runRoot, 'trace.log');
+      const side = readSide(runRoot);
+      const before = readBytes(file);
+      const sealed = side.trace ? sameState(side.trace, stateOf(before)) : before === null;
+      fs.appendFileSync(file, line);
+      if (sealed) {
+        side.trace = stateOf(before === null ? line : Buffer.concat([before, line]));
+        writeSide(runRoot, side);
+      }
+    });
   } catch {
     // simplicity: silent by design (a recording failure must not fail a ledger verb); ceiling: a failed write loses that event; upgrade: add a stderr diagnostic if silent loss bites
     return false;
@@ -96,4 +116,4 @@ function readTrace(raw) {
   });
 }
 
-module.exports = { traceField, untraceField, encodePaths, decodePaths, encodeArgs, decodeArgs, appendTrace, readTrace };
+module.exports = { traceField, untraceField, encodePaths, decodePaths, encodeArgs, decodeArgs, traceLine, appendTrace, readTrace };

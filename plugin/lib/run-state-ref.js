@@ -10,10 +10,13 @@ const { gitSpawn } = require('./git-spawn.js');
 const { gitCall, lastLine, boundEnded } = require('./push.js');
 const { parseRemote } = require('./kb-containment.js');
 const { mergeDod } = require('./dod-merge.js');
+const { readBytes, stateOf, readSide, writeSide, withRunLock } = require('./run-digest.js');
 
 // dod.md rides the ref because implement's ticks never reach the anchor, the copy adopt reads first. The unpack
 // merges it into a local dod.md rather than replacing it (ADR 0206).
-const HANDOFF_ITEMS = ['trace.log', 'reports', 'interfaces.md', 'dod.md'];
+// `trace.digest` is `<size> <sha256>` of the pushed `trace.log`; the unpack moves it into the run's digest sidecar.
+const TRACE_DIGEST = 'trace.digest';
+const HANDOFF_ITEMS = ['trace.log', TRACE_DIGEST, 'reports', 'interfaces.md', 'dod.md'];
 
 // The remote ref of a scope, or null where git cannot use the scope as a ref name.
 function refName(scope) {
@@ -80,7 +83,15 @@ function entryFor(full, name, repo) {
 // One parentless commit of the handoff items that exist in `root`, built with plumbing only: no checkout's
 // working tree, index, or HEAD changes (INV-0179).
 function buildCommit(root, repo, scope) {
-  const lines = HANDOFF_ITEMS.map((n) => entryFor(path.join(root, n), n, repo)).filter(Boolean);
+  const lines = HANDOFF_ITEMS.filter((n) => n !== 'trace.log' && n !== TRACE_DIGEST).map((n) => entryFor(path.join(root, n), n, repo)).filter(Boolean);
+  // The trace's digest rides beside it, taken from the very bytes the commit holds, so the two match whatever an appender
+  // writes meanwhile (ADR 0225). The run's own sidecar stays local.
+  const trace = readBytes(path.join(root, 'trace.log'));
+  if (trace !== null) {
+    const state = stateOf(trace);
+    lines.push(`100644 blob ${must(gitIn(['hash-object', '-w', '--stdin'], repo, trace))}\ttrace.log`);
+    lines.push(`100644 blob ${must(gitIn(['hash-object', '-w', '--stdin'], repo, `${state.size} ${state.sha256}\n`))}\t${TRACE_DIGEST}`);
+  }
   const tree = treeOf(lines, repo);
   return must(gitCall(['-c', 'user.name=superdev', '-c', 'user.email=superdev@localhost', 'commit-tree', tree, '-m', `run state of ${scope}`], repo));
 }
@@ -128,6 +139,20 @@ function entryRefusal({ mode, type, name }) {
   if (name.startsWith('/') || /^[A-Za-z]:/.test(name) || name.includes('\\')) return `${name}: absolute or drive path`;
   if (segments.some((s) => s === '' || s === '.' || s === '..' || s.toLowerCase() === '.git')) return `${name}: path segment leads outside the run root`;
   return null;
+}
+
+// Moves the unpacked `trace.digest` into the run's sidecar as the digest of the unpacked `trace.log`, so the first check of an
+// adopted run reports no tamper (ADR 0225). A ref with no `trace.digest` clears the trace's digest, and the first check seals the trace.
+// The caller holds the digest lock.
+function sealUnpackedTrace(root) {
+  const file = path.join(root, TRACE_DIGEST);
+  const text = readBytes(file);
+  const m = text && /^(\d+) ([0-9a-f]{64})\n?$/.exec(text.toString('utf8'));
+  const side = readSide(root);
+  if (m) side.trace = { size: Number(m[1]), sha256: m[2] };
+  else delete side.trace;
+  writeSide(root, side);
+  fs.rmSync(file, { force: true });
 }
 
 // Fetches the scope's run-state ref and unpacks its handoff items into `root`, then records the fetched tip as
@@ -195,7 +220,11 @@ function fetchRunState(root, cwd) {
         fs.writeFileSync(dest, b.data, { flag: 'wx' });
       }
       // simplicity: the renames are not atomic as a set. A failure part-way leaves the items already renamed in place; a killed process leaves its .run-state-* directory, which the next adopt removes.
-      for (const n of fs.readdirSync(stage)) fs.renameSync(path.join(stage, n), path.join(root, n));
+      // The renames and the trace's digest go under the digest lock, so no hook append lands between the trace's arrival and its seal.
+      withRunLock(root, () => {
+        for (const n of fs.readdirSync(stage)) fs.renameSync(path.join(stage, n), path.join(root, n));
+        sealUnpackedTrace(root);
+      });
     } finally {
       fs.rmSync(stage, { recursive: true, force: true });
     }

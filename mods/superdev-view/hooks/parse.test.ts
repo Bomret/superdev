@@ -532,3 +532,10 @@ test('reads the ledger and dispatch lines of the shared trace fixture', () => {
   const sum = log.entries.flatMap(e => (e.kind === 'slice' && e.id === '04' ? e.entries : [])).find(e => e.kind === 'sliceSummary')
   expect(sum).toMatchObject({ suite: { fail: 0, pass: 1 } })
 })
+
+test('a tamper line scope.js writes draws one line naming the file, in the flat log, and no command or slice group', () => {
+  const lines = [`${at('09:00:00')} scope main ledger init fix/x planned`, `${at('09:05:00')} scope main tamper ledger.md`, `${at('09:06:00')} scope main tamper trace.log`]
+  const log = eventLog(LEDGER_OPEN, lines.join('\n'), t('12:00:00'))
+  expect(log.entries.filter(e => e.kind === 'tamper')).toEqual([{ kind: 'tamper', at: t('09:05:00'), file: 'ledger.md' }, { kind: 'tamper', at: t('09:06:00'), file: 'trace.log' }])
+  expect(log.entries.some(e => e.kind === 'slice')).toBe(false)
+})

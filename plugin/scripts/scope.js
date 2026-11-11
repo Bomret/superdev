@@ -4,8 +4,8 @@
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
 // Verbs: open, init, stage, step, slice, degraded, unresolved, deferred, minors, docs, pr, deploy, suite, base, get, status,
 // publish, adopt, trace, collisions, citations, source-set, push, root, staging, dod-line, dod-tags; `main()` also runs test, fail-to-pass, and prepare. Exit
-// nonzero with a one-line stderr reason on any refusal. hooks/ledger-guard.js makes this the only
-// ledger write path.
+// nonzero with a one-line stderr reason on any refusal. Every verb that writes to a run first checks the run's
+// digest sidecar and reports an outside edit of its ledger or trace once (lib/run-check.js, ADR 0225).
 // `root` and `dod-line` touch no ledger: `root` resolves a run root's absolute
 // path, anchored to the repository's main working tree regardless of which checkout invoked it (ADR
 // 0080); `dod-line` edits one Definition-of-Done checklist line handed to it on stdin, on behalf of a
@@ -24,6 +24,7 @@ const { isTestPath, verificationCommandsOf } = require('../lib/verification.js')
 const { testContainment, baseHistoryHasPatch } = require('../lib/containment.js');
 const { mainTreePath } = require('../lib/main-work-tree.js');
 const { appendTrace, readTrace } = require('../lib/trace-log.js');
+const { checkRun } = require('../lib/run-check.js');
 const { collisionRefusal, findCollisions } = require('../lib/collisions.js');
 const { verbInit, verbStage, verbStep, verbSlice } = require('../lib/ledger-lifecycle.js');
 const {
@@ -100,9 +101,26 @@ function takeRoot(args) {
   return root;
 }
 
+// The run root a verb writes to, or null for a verb that only reads (`get`, `publish`, `trace`, `status`, `suite reusable`,
+// `base resolve`, `deploy get`) or writes no run file (`discard`, `push`, `run-state delete`). `init` and `open` find their
+// root themselves: `init` checks it in `lib/ledger-lifecycle.js`'s `verbInit`, and `open` in `lib/plan-open.js`'s `verbOpen`, once for every path it takes; `test` and `fail-to-pass` check it in their own verbs.
+// Every other verb of this CLI that writes to a run names its root with `--root`, and is checked here, once.
+function writtenRoot(verb, args) {
+  const at = args.indexOf('--root');
+  if (at < 0 || !args[at + 1]) return null;
+  const rest = args.filter((_, i) => i !== at && i !== at + 1);
+  const writes = ['stage', 'step', 'slice', 'degraded', 'unresolved', 'deferred', 'minors', 'docs', 'pr', 'adopt', 'dod-merge'].includes(verb)
+    || ((verb === 'deploy' || verb === 'base') && rest[0] === 'set')
+    || (verb === 'suite' && rest[0] !== 'reusable');
+  return writes ? args[at + 1] : null;
+}
+
 function run(argv, cwd, stdinJson) {
   const args = argv.slice();
   const verb = args.shift();
+  // The run's digest is checked before the verb reads or writes a file of the run (ADR 0225).
+  const writtenTo = writtenRoot(verb, args);
+  if (writtenTo !== null) checkRun(writtenTo);
   // Set by a ledger-writing verb once its write succeeded; a refused verb throws before it is set.
   let ledgerEvent = null;
   // Set by a step end (`step clear`, `step block`) once its ledger write succeeded: the run root to send (ADR 0202).
