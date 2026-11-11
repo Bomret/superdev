@@ -103,7 +103,7 @@ function takeRoot(args) {
 
 // The run root a verb writes to, or null for a verb that only reads (`get`, `publish`, `trace`, `status`, `suite reusable`,
 // `base resolve`, `deploy get`) or writes no run file (`discard`, `push`, `run-state delete`). `init` and `open` find their
-// root themselves and check it in `lib/ledger-lifecycle.js`'s `verbInit`; `test` and `fail-to-pass` check it in their own verbs.
+// root themselves: `init` checks it in `lib/ledger-lifecycle.js`'s `verbInit`, and `open` in `lib/plan-open.js`'s `verbOpen`, once for every path it takes; `test` and `fail-to-pass` check it in their own verbs.
 // Every other verb of this CLI that writes to a run names its root with `--root`, and is checked here, once.
 function writtenRoot(verb, args) {
   const at = args.indexOf('--root');

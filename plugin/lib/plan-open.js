@@ -14,6 +14,7 @@ const { judgeContainment } = require('./containment.js');
 const { mainWorkTree } = require('./main-work-tree.js');
 const { verbInit, verbStep, validateLabel } = require('./ledger-lifecycle.js');
 const { appendTrace } = require('./trace-log.js');
+const { checkRun } = require('./run-check.js');
 
 // Every outcome that set up nothing exits with this status, apart from the 1 a refusal exits with.
 const STOPPED_EXIT = 3;
@@ -145,6 +146,9 @@ function verbOpen(cwd, args) {
   const root = path.join(workTree, '.superdev', 'scopes', slug);
   const scopetree = path.join(root, 'scopetree');
   const lockPath = path.join(root, 'run.lock');
+  // `open` names no `--root`, so it checks the run's digest itself, once, before it reads or writes a file of the run (ADR 0225).
+  // Every path below writes the ledger and the trace, through `verbInit` or through `verbStep`.
+  checkRun(root);
 
   let stage = null;
   let step = null;
@@ -190,7 +194,7 @@ function verbOpen(cwd, args) {
   }
 
   if (!existing) {
-    verbInit(cwd, label, 'planned', JSON.stringify({ anchor: PENDING_ANCHOR, slices: [] }), () => {});
+    verbInit(cwd, label, 'planned', JSON.stringify({ anchor: PENDING_ANCHOR, slices: [] }), () => {}, true);
     appendTrace(root, { kind: 'ledger', fields: ['init', label, 'planned'] });
   }
   // A repeat call of the same run leaves the step it already set; every new run records a start of its own (ADR 0147).

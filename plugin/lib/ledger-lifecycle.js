@@ -100,7 +100,8 @@ function validateLabel(label) {
 }
 
 // `log` takes init's own stdout lines; `open` passes one that drops them, since its stdout is its outcome.
-function verbInit(cwd, label, stage, stdinJson, log = console.log) {
+// `checked` is true where the caller (`open`) has already checked the run's digest, so the check runs once per verb.
+function verbInit(cwd, label, stage, stdinJson, log = console.log, checked = false) {
   if (!INIT_ENTRY_STAGES.includes(stage)) {
     fail(`init needs an entry stage, one of ${INIT_ENTRY_STAGES.join('|')} — got "${stage || ''}"`);
   }
@@ -108,7 +109,7 @@ function verbInit(cwd, label, stage, stdinJson, log = console.log) {
   const workTree = mainWorkTree(cwd) || cwd;
   const root = path.join(workTree, '.superdev', 'scopes', slug);
   // `init` names no `--root`, so it checks the run's digest itself, once, before it reads or writes a file of the run (ADR 0225).
-  checkRun(root);
+  if (!checked) checkRun(root);
   // The real double-init signal is an existing ledger.md, not the run-root directory: run init
   // writes dod.md into the run root before calling init, so the directory legitimately exists
   // on every fresh run. A ledger at stage `planned` is the one exception (ADR 0079): it names a

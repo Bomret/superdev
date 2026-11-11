@@ -291,27 +291,37 @@ async function main() {
     assert.strictEqual(write(f).stderr, '', 'no tamper after the broken lock');
   }
 
-  // #lock-bound: a holder that stays live (its lock never ages out) delays an event's appends by a bounded wait in all, so the
-  // event lands while that holder still holds: the wait is well under the run-trace hook's own 5 s bound, however many lines the event has.
+  // #lock-bound: a live holder that takes the lock again after every break (its lock never ages out) delays an event's appends by
+  // one wait budget in all, not one per append. Each of the three appends meets a held lock. The first waits the budget and breaks the
+  // lock; the two after it find the budget spent and wait none. A per-append limit would make each of the three wait as long as the first,
+  // so the later two together would take about twice the first. The comparison is against the first append of the same run.
   {
     const f = fixture();
     const lock = path.join(f.root, 'digest.lock');
     const holder = spawn(process.execPath, ['-e',
-      `const fs = require('fs'); fs.closeSync(fs.openSync(${JSON.stringify(lock)}, 'wx')); console.log('held');` +
-      `const t = setInterval(() => { try { const now = new Date(); fs.utimesSync(${JSON.stringify(lock)}, now, now); } catch {} }, 100);` +
-      `setTimeout(() => { clearInterval(t); process.exit(0); }, 4500);`], { stdio: ['ignore', 'pipe', 'ignore'] });
+      `const fs = require('fs'); const lock = ${JSON.stringify(lock)};` +
+      `const take = () => { try { fs.closeSync(fs.openSync(lock, 'wx')); } catch { try { const now = new Date(); fs.utimesSync(lock, now, now); } catch {} } };` +
+      `take(); console.log('held'); const t = setInterval(take, 5);` +
+      `setTimeout(() => { clearInterval(t); process.exit(0); }, 9000);`], { stdio: ['ignore', 'pipe', 'ignore'] });
     let holderGone = false;
     holder.on('exit', () => { holderGone = true; });
     await new Promise((resolve) => holder.stdout.once('data', resolve));
-    const code = `const { appendTrace } = require(${JSON.stringify(traceLogPath)});` +
-      `for (let i = 0; i < 3; i++) if (!appendTrace(${JSON.stringify(f.root)}, { kind: 'edit', fields: ['impl', 'line' + i] })) process.exit(3);`;
-    const appender = spawn(process.execPath, ['-e', code], { stdio: 'ignore' });
+    const code = `const { appendTrace } = require(${JSON.stringify(traceLogPath)}); const took = [];` +
+      `for (let i = 0; i < 3; i++) { const from = process.hrtime.bigint();` +
+      `if (!appendTrace(${JSON.stringify(f.root)}, { kind: 'edit', fields: ['impl', 'line' + i] })) process.exit(3);` +
+      `took.push(Number(process.hrtime.bigint() - from) / 1e6); } console.log(JSON.stringify(took));`;
+    const appender = spawn(process.execPath, ['-e', code], { stdio: ['ignore', 'pipe', 'ignore'] });
+    let out = '';
+    appender.stdout.on('data', (d) => { out += d; });
     const guard = setTimeout(() => appender.kill('SIGKILL'), 60000);
     const status = await new Promise((resolve) => appender.on('exit', (s) => resolve(s)));
     clearTimeout(guard);
     assert.strictEqual(status, 0, 'the three-line event landed');
-    assert.strictEqual(holderGone, false, 'the event landed while a live holder still held the lock');
+    const [first, second, third] = JSON.parse(out);
+    assert.ok(first >= 500, `the first append waited behind the live holder: ${first} ms`);
+    assert.ok(second + third < first, `the later appends waited none, one budget in all: ${first}, ${second}, ${third} ms`);
     assert.strictEqual(traceText(f).split('\n').filter((l) => /edit impl line\d/.test(l)).length, 3, 'all three lines are in the trace');
+    holder.kill('SIGKILL');
     await new Promise((resolve) => (holderGone ? resolve() : holder.on('exit', resolve)));
   }
 
