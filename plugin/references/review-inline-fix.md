@@ -13,7 +13,7 @@ Applies to an ad-hoc `/superdev:review` once the operator answered yes to `${CLA
 
 ## 1. The ignore check
 
-Run `git -C <main> check-ignore -q .superdev/`. Exit 0 → continue. Exit 1 → append the line `.superdev/` to `info/exclude` in the git directory `<main>` resolved, never to `.gitignore`.
+Run `git -C <main> check-ignore -q .superdev/`. Exit 0 → continue. Exit 1 → append the line `.superdev/` to `info/exclude` in the git directory `<main>` resolved, never to `.gitignore`. Any other exit → stop and report the exit and what git reported. Nothing is created yet, so nothing needs cleanup.
 
 ## 2. The branch and the worktree
 
@@ -84,5 +84,6 @@ Report each item below. Then close per the skill's closing-message concept.
 
 Applies to a stop at step 3 or step 4. Run `git -C <main> worktree remove <tree>`, never with `--force`. Then delete `<branch>` with `git -C <main> branch -D <branch>` only when it still points at `<tip>`.
 
-- **A branch with commits beyond `<tip>`, or a dirty worktree** → keep it and name it in the report.
+- **A branch with commits beyond `<tip>`** → keep it and name it in the report.
+- **A dirty worktree** → git refuses the removal, and `<branch>` stays too, because git deletes no branch a kept worktree has checked out. Name both in the report, and tell the operator to remove both before a later review can offer an inline fix for `<tip>` again: `git worktree remove --force <tree>`, then `git branch -D <branch>`.
 - The report names the step that stopped and what this cleanup removed and kept.

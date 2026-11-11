@@ -20,8 +20,8 @@ as advisory, while the full tier's per-slice loop already turns each warranted c
    committed path diff, or standing code. A subject with uncommitted changes gets no offer. `--chained` and
    `--unattended` stay read-only, and the yes is the consent to write.
 2. **The fix never touches the operator's checkout.** It lands on a fresh branch `review-fix/<short SHA>`,
-   cut from the reviewed tip into a worktree under the main working tree's `.superdev/review-fixes/`, the
-   one area `tree-guard.js` lets an implementer write to while a run exists. Review removes a clean worktree
+   cut from the reviewed tip into a worktree under the main working tree's `.superdev/review-fixes/`,
+   inside the area under `.superdev/` that `tree-guard.js` lets an implementer write to while a run exists. Review removes a clean worktree
    at its end and keeps the branch. It merges, pushes, and opens nothing.
 3. **One dispatched implementer fixes, in one cycle.** The controller applies no fix. A focused run in the
    fix worktree and a warm re-review of the fix range close the cycle. No second cycle and no full-suite run
