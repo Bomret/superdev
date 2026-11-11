@@ -27,15 +27,15 @@ Applies to every start. Start this command only on one of the starts below (ADR 
 - The operator typed the command.
 - The operator asked for it.
 - The operator agreed to `/superdev:submit-pr`'s offer.
-- Another session's brief asked for it, confirmed by the one yes `## A new session an offer or a brief started` asks first.
+- Another session's brief asked for it, confirmed by the one yes `## A brief started` asks first.
 
 ## No extra question
 
-Applies to a typed start and to a start an offer's Start option or the card's Do it here button made in the conversation that offered it. Ask no extra question.
+Applies to a typed start, to a start an offer's Start option or the card's Do it here button made in the conversation that offered it, and to an offer's new-session prompt: this command's text followed by the marker line `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section defines. Ask no extra question: the operator's click on the card is the merge consent (ADR 0225).
 
-## A new session an offer or a brief started
+## A brief started
 
-Applies when the message that started this command is an offer's new-session prompt, this command's text followed by the marker line `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section defines, or another session's brief (ADR 0176, ADR 0201, INV-0093). Your first act is one `AskUserQuestion` confirming `/superdev:ship` with its arguments. It comes before any `step set`, ledger write, store write, or host call.
+Applies when another session's brief started this command, with no offer's marker line (ADR 0214, ADR 0225, INV-0093). Your first act is one `AskUserQuestion` confirming `/superdev:ship` with its arguments. It comes before any `step set`, ledger write, store write, or host call.
 
 - **A yes** → run the command as typed.
 - **Any other answer** → write nothing and end on the Next block with the same command in its fence.

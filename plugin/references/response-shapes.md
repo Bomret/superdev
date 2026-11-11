@@ -90,7 +90,7 @@ no offer and names no exception, since the hook passes it.
 **An offer of ship.** Every offer of `/superdev:ship`, whichever command makes it, names the pull-request URL
 in each start option's description (INV-0093). Start's description says it merges the pull request now,
 exactly as typing `/superdev:ship` does, with the host's approvals and branch protection still in force. The
-new-session option's description says it starts ship in a new session, which asks once more before it merges.
+new-session option's description says it starts ship in a new session, which merges with no further question.
 
 **Detection.** The session carries the session tool when `mcp__ccd_session__start_session` is loaded, or
 listed as a deferred tool. Only the Claude desktop app provides it (`docs/known-issues.md`, *The session
