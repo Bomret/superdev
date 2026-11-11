@@ -83,18 +83,12 @@ function record(input) {
   if (input.hook_event_name === 'PostToolUseFailure') return null;
   const agent = typeof input.agent_id === 'string' && input.agent_id ? input.agent_id : 'main';
   // Every line this event produces is computed before any is written: a function that throws leaves no partial trace (INV-0159).
-  const lines = [];
-  let targets = [];
-  if (typeof ti.file_path === 'string') targets = [toolTarget(cwd, ti.file_path)];
-  else if (typeof ti.notebook_path === 'string') targets = [toolTarget(cwd, ti.notebook_path)];
-  for (const abs of targets) {
-    const at = locate(abs);
-    if (!at) continue;
-    const kind = isTestPath(at.tree, at.rel) ? 'test' : 'impl';
-    lines.push([at.runRoot, { slice: at.slice, agent, kind: 'edit', fields: [kind, at.rel] }]);
-  }
-  // Every line the event built is written together (INV-0159).
-  writeLines(lines);
+  const path = typeof ti.file_path === 'string' ? ti.file_path : ti.notebook_path;
+  if (typeof path !== 'string') return null;
+  const at = locate(toolTarget(cwd, path));
+  if (!at) return null;
+  const kind = isTestPath(at.tree, at.rel) ? 'test' : 'impl';
+  writeLines([[at.runRoot, { slice: at.slice, agent, kind: 'edit', fields: [kind, at.rel] }]]);
   return null;
 }
 

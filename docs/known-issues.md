@@ -186,26 +186,19 @@ the probe loaded it through `ToolSearch` first.
 A PreToolUse hook can return `updatedInput`, which replaces a tool's arguments before the tool runs.
 A PostToolUse or PostToolUseFailure hook then receives the rewritten `tool_input`, because that is the
 command that ran. RTK, a third-party output filter, ships such a hook: it rewrites `bun run test` to
-`rtk bun run test`. The run trace, through `lib/bash-command.js`, matches the configured verification command at the segment's
-command word, after the wrappers it knows. Before it knew `rtk`, it read `rtk` as the command and
-recorded no run line, so `scope.js suite reusable` refused a green tip (#955).
+`rtk bun run test`. The run trace reads no Bash command (ADR 0225): it records a test run only from
+`scope.js test` and `scope.js fail-to-pass`, which write the run line themselves, so a rewrite hides no run.
 
-**Mitigation (implemented):** `lib/bash-command.js`, the command layer of `hooks/run-trace.js`, reads `rtk` as a prefix wrapper, as it reads `nice`
-or `nohup`, and it skips rtk's `proxy` subcommand after it. RTK passes the wrapped command's exit status
-through, so the run records its outcome. The run trace skips none of rtk's other subcommands
-that run a command: `rtk err`, `rtk run`, `rtk summary`, or `rtk test` in front of the configured
-verification command records no configured-command run, and a named test file still records a `path`
-run (triage #941). `commandStart` and `gitSubcommand` in `lib/shell-words.js`, which merge-guard
-reads commands through, skip all five, and so does `RTK_PREFIX` in `hooks/merge-guard.js`.
-`hooks/ledger-guard.js` skips all five too, because `lib/ledger-writes.js` finds the command word through the same
-`commandStart`, and `tests/ledger-guard.test.js` pins that it refuses an editor behind every
-wrapper `lib/bash-command.js` knows and a copy behind `rtk proxy`. `lib/test-runs.js` reads a `git restore` or `git checkout` behind `rtk`
-through the same wrapper list. A rewrite by another hook that puts an unknown word in front of the command still hides the run.
+**Mitigation (implemented):** `commandStart` and `gitSubcommand` in `lib/shell-words.js`, which merge-guard
+reads commands through, read `rtk` as a prefix wrapper, as they read `nice` or `nohup`, and skip all five of
+rtk's run-anything subcommands: `proxy`, `err`, `run`, `summary`, and `test`. So does `RTK_PREFIX` in
+`hooks/merge-guard.js`. `hooks/ledger-guard.js` skips all five too, because `lib/ledger-writes.js` finds the
+command word through the same `commandStart`, and `tests/ledger-guard.test.js` pins that it refuses an editor
+behind every wrapper `lib/shell-words.js` knows and a copy behind `rtk proxy`.
 
 The PreToolUse hooks are out of the rewrite's reach. Claude Code runs every matching hook of one event
 in parallel, so `hooks/merge-guard.js`, `hooks/run-lock.js`, and `hooks/ledger-guard.js` receive the
-command as it was written, before RTK's hook rewrites it. `hooks/run-trace.js` also runs on PreToolUse for Bash, and
-reads only the input's `cwd` there, never the command (ADR 0159). `hooks/model-explicit.js` matches the Agent
+command as it was written, before RTK's hook rewrites it. `hooks/model-explicit.js` matches the Agent
 tool, which RTK does not rewrite. `hooks/slicetree-sweep.js` and `hooks/scope-prune.js` run on Stop and
 read no command.
 
@@ -223,7 +216,7 @@ pull-request merge and API merge tests.
 
 **Fix required at:** no platform fix is due, because the hook sees the command that actually ran. A
 different rewriting hook needs its prefix added to the wrapper table (`WRAPPER` in
-`lib/shell-words.js`) and run-trace's wrapper list, to `gitSubcommand`, and to the `RTK_PREFIX` of
+`lib/shell-words.js`), to `gitSubcommand`, and to the `RTK_PREFIX` of
 `hooks/merge-guard.js`.
 
 Verified 2026-10-08, on Claude Code 2.1.289 and rtk 0.51.0. Two session transcripts of that day show
