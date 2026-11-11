@@ -55,7 +55,7 @@ function verbUntraced(cwd, args) {
   if (!root) fail('untraced needs --root <run-root>');
   if (!slice) fail('untraced needs --slice <id|scope>');
   if (rest.length !== 1) fail('untraced needs one <base>..<tip> range');
-  if (!rest[0].includes('..')) fail(`untraced: "${rest[0]}" is no <base>..<tip> range`);
+  if (!rest[0].includes('..') || rest[0].includes('...')) fail(`untraced: "${rest[0]}" is no <base>..<tip> range`);
   if (!fs.existsSync(path.join(root, 'ledger.md'))) fail(`untraced: "${root}" holds no ledger.md, so it is no run root`);
   const changes = changesOf(rest[0], cwd);
 
@@ -68,7 +68,7 @@ function verbUntraced(cwd, args) {
   );
 
   // The range's net change per path, in commit order, keyed by the path as it stands now: a path added and then modified stays
-  // added, one added and then deleted drops out, one modified or renamed and then renamed is one rename from its original path,
+  // added, one added and then deleted drops out, one deleted and then added is modified, one modified or renamed and then renamed is one rename from its original path,
   // and a rename's old path is no entry of its own.
   const net = new Map();
   for (const c of changes) {
@@ -84,6 +84,8 @@ function verbUntraced(cwd, args) {
         net.delete(c.path);
         net.set(before.from, { path: before.from, status: 'deleted' });
       } else net.set(c.path, c);
+    } else if (c.status === 'added' && before && before.status === 'deleted') {
+      net.set(c.path, { path: c.path, status: 'modified' });
     } else if (!(before && (before.status === 'added' || before.status === 'renamed') && c.status === 'modified')) {
       net.set(c.path, c);
     }

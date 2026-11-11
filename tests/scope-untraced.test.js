@@ -121,6 +121,7 @@ const edit = (root, slice, rel) => appendTrace(root, { slice, agent: 'a1', kind:
   assert.ok(!call(['untraced', `${head}..${head}`, '--slice', '05'], '', repo).ok, 'no --root refuses');
   assert.ok(!call(['untraced', 'nowhere..alsonowhere', '--slice', '05', '--root', root], '', repo).ok, 'an unreadable range refuses');
   assert.ok(!call(['untraced', head, '--slice', '05', '--root', root], '', repo).ok, 'a bare commit, which walks the whole history, refuses');
+  assert.ok(!call(['untraced', `${head}...${head}`, '--slice', '05', '--root', root], '', repo).ok, 'a three-dot range, which walks the base side too, refuses');
   assert.ok(!call(['untraced', `${head}..${head}`, '--slice', '05', '--root', path.join(dir, 'no-such-run')], '', repo).ok, 'a root with no ledger refuses');
 }
 
@@ -140,6 +141,22 @@ const edit = (root, slice, rel) => appendTrace(root, { slice, agent: 'a1', kind:
   const r = call(['untraced', `${base}..${tip}`, '--slice', '05', '--root', root], '', repo);
   assert.ok(r.ok, r.err);
   assert.equal(r.out, 'renamed\tm2.txt\tm.txt', 'a path added then deleted is not listed, and a modified then renamed path is listed once, as the rename');
+}
+
+// #readd: a path deleted and then added again inside the range is a modification.
+{
+  const { repo, root } = repoOf('readd');
+  put(repo, 'z.txt', 'z\n');
+  commit(repo, 'base');
+  const base = git(repo, 'rev-parse', 'HEAD');
+  fs.rmSync(path.join(repo, 'z.txt'));
+  commit(repo, 'delete');
+  put(repo, 'z.txt', 'z2\n');
+  commit(repo, 'add again');
+  const tip = git(repo, 'rev-parse', 'HEAD');
+  const r = call(['untraced', `${base}..${tip}`, '--slice', '05', '--root', root], '', repo);
+  assert.ok(r.ok, r.err);
+  assert.equal(r.out, 'modified\tz.txt', 'a path deleted then added again is listed as modified');
 }
 
 // #hook-paths: an `edit` line the real run-trace hook writes for a spaced or non-ASCII path masks that path's change.
