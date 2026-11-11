@@ -11,6 +11,8 @@ const {
 } = require('./ledger.js');
 const { mainWorkTree } = require('./main-work-tree.js');
 const { appendTrace } = require('./trace-log.js');
+const { readSide, writeSide, withRunLock } = require('./run-digest.js');
+const { checkRun } = require('./run-check.js');
 
 // Appended, never read-concat-written: two `init` calls racing each other on the same fresh
 // repository at worst leave a duplicate line, where a rewrite could truncate the file.
@@ -47,6 +49,7 @@ const INIT_ENTRY_STAGES = ['planned', 'implementing'];
 // and when the trace cannot go back either, init stops naming the stranded trace's path; a run that
 // recorded no trace rotates its ledger alone.
 function rotateFinishedLedger(root, stage, log) {
+  checkRun(root);
   const stamp = new Date().toISOString().slice(0, 19).replace(/:/g, '');
   let stem = `${stage}-${stamp}`;
   const taken = (s) => fs.existsSync(path.join(root, `ledger-${s}.md`)) || fs.existsSync(path.join(root, `trace-${s}.log`));
@@ -75,6 +78,13 @@ function rotateFinishedLedger(root, stage, log) {
     }
     fail(`cannot move the ${stage} run's ledger.md aside (${e.code}) — the ledger and its trace stay in place`);
   }
+  // Both files left their names: the new run's ledger and trace start with no digest, and the writes that follow seal them.
+  withRunLock(root, () => {
+    const side = readSide(root);
+    delete side.ledger;
+    delete side.trace;
+    writeSide(root, side);
+  });
   log(`rotated ${stage} ledger to ${dest}`);
 }
 

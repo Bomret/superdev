@@ -1,0 +1,291 @@
+'use strict';
+
+// Suite for the run digest (ADR 0225, INV-0117, INV-0181): scope.js detects an outside edit of a run's ledger or trace after the fact.
+// A sidecar in the run root seals both files; every scope.js verb that writes to a run checks it first, reports a mismatch once
+// on stderr and as a `tamper` trace line, re-seals, and goes on. Real repositories, real processes, and real lock files throughout (INV-0009).
+
+const assert = require('node:assert');
+const crypto = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
+const { spawn, spawnSync, execFileSync } = require('node:child_process');
+const { scopePath, sliceJson } = require('./scope-setup');
+const { copyFixture, templateOnce } = require('./fixture-git');
+const { assertSpawnDecided } = require('./spawn-verdict');
+
+const traceLogPath = require.resolve('../plugin/lib/trace-log.js');
+const made = [];
+
+const git = (args, cwd) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+
+const template = templateOnce((dir) => {
+  const repo = path.join(dir, 'repo');
+  const origin = path.join(dir, 'origin');
+  fs.mkdirSync(repo);
+  fs.mkdirSync(origin);
+  git(['init', '-q', '--bare', '-b', 'main'], origin);
+  git(['init', '-q', '-b', 'main'], repo);
+  git(['config', 'user.email', 'test@example.com'], repo);
+  git(['config', 'user.name', 'test'], repo);
+  fs.mkdirSync(path.join(repo, 'docs', 'agents'), { recursive: true });
+  fs.writeFileSync(path.join(repo, 'docs', 'agents', 'code-management.md'), '# CM\n\n- **Remote:** `origin`. Confirm.\n');
+  fs.writeFileSync(path.join(repo, 'README.md'), 'x\n');
+  git(['add', '.'], repo);
+  git(['commit', '-q', '-m', 'init'], repo);
+  git(['remote', 'add', 'origin', origin], repo);
+}, 'scope-digest-template-');
+
+// A repository with a run `demo` at `implementing`, made by the real `init` verb.
+function fixture(stage = 'implementing') {
+  const copy = copyFixture(template(), 'scope-digest-');
+  made.push(copy);
+  const repo = path.join(copy, 'repo');
+  git(['remote', 'set-url', 'origin', path.join(copy, 'origin')], repo);
+  const f = { repo, origin: path.join(copy, 'origin'), root: path.join(repo, '.superdev', 'scopes', 'demo') };
+  const r = sc(f, ['init', 'feat/demo', stage], sliceJson);
+  assert.strictEqual(r.status, 0, 'init: ' + r.stderr);
+  return f;
+}
+
+function sc(f, argv, input = '') {
+  const r = spawnSync(process.execPath, [scopePath, ...argv], { cwd: f.repo, input, encoding: 'utf8', timeout: 120000, killSignal: 'SIGKILL' });
+  assertSpawnDecided(r, 'scope.js ' + argv[0]);
+  return r;
+}
+// A writing verb that touches the ledger on every call.
+let n = 0;
+const write = (f) => sc(f, ['degraded', 'add', `note ${++n}`, '--root', f.root]);
+
+const ledgerFile = (f) => path.join(f.root, 'ledger.md');
+const traceFile = (f) => path.join(f.root, 'trace.log');
+const traceText = (f) => (fs.existsSync(traceFile(f)) ? fs.readFileSync(traceFile(f), 'utf8') : '');
+const tampers = (f) => traceText(f).split('\n').filter((l) => l.split(' ')[3] === 'tamper').map((l) => l.split(' ')[4]);
+const warnings = (r) => r.stderr.split('\n').filter((l) => /was changed outside scope\.js/.test(l));
+const sh = (cwd, script) => {
+  const r = spawnSync('sh', ['-c', script], { cwd, encoding: 'utf8', timeout: 20000 });
+  assertSpawnDecided(r, 'sh');
+  assert.strictEqual(r.status, 0, script + ': ' + r.stderr);
+};
+const snapshot = (dir) => Object.fromEntries(fs.readdirSync(dir).filter((e) => fs.statSync(path.join(dir, e)).isFile()).map((e) => [e, fs.readFileSync(path.join(dir, e), 'utf8')]));
+const sealOf = (file) => {
+  const b = fs.readFileSync(file);
+  return { size: b.length, sha256: crypto.createHash('sha256').update(b).digest('hex') };
+};
+
+// One tamper is reported once: the next writing verb warns once naming the file and appends one tamper line, and the one after that is silent.
+function assertReportedOnce(f, file, label, expectOk = true) {
+  const before = tampers(f).length;
+  const r = write(f);
+  if (expectOk) assert.strictEqual(r.status, 0, `${label}: the verb completes: ${r.stderr}`);
+  assert.strictEqual(warnings(r).length, 1, `${label}: one warning: ${r.stderr}`);
+  assert.ok(warnings(r)[0].includes(file), `${label}: the warning names ${file}`);
+  assert.strictEqual(tampers(f).length, before + 1, `${label}: one tamper line`);
+  assert.strictEqual(tampers(f).at(-1), file, `${label}: the tamper line names ${file}`);
+  const again = write(f);
+  assert.strictEqual(warnings(again).length, 0, `${label}: reported once: ${again.stderr}`);
+  assert.strictEqual(tampers(f).length, before + 1, `${label}: no second tamper line`);
+}
+
+async function main() {
+  // #ledger: an Edit-tool rewrite, a shell `sed -i`, an `echo >>` append, and a deletion.
+  {
+    const f = fixture();
+    assert.strictEqual(write(f).stderr, '', 'a plain write warns of nothing');
+    assert.ok(fs.existsSync(path.join(f.root, 'digest.json')), 'the run holds a digest sidecar');
+    fs.writeFileSync(ledgerFile(f), fs.readFileSync(ledgerFile(f), 'utf8').replace('scope.js CLI', 'scope.js CLX'));
+    assertReportedOnce(f, 'ledger.md', 'ledger rewrite');
+    sh(f.root, "sed -i.bak 's/CLX/CLY/' ledger.md && rm ledger.md.bak");
+    assertReportedOnce(f, 'ledger.md', 'ledger sed -i');
+    sh(f.root, 'echo "extra" >> ledger.md');
+    assertReportedOnce(f, 'ledger.md', 'ledger echo >>');
+    fs.rmSync(ledgerFile(f));
+    assertReportedOnce(f, 'ledger.md', 'ledger deletion', false);
+  }
+
+  // #trace: the same four, on `trace.log`.
+  {
+    const f = fixture();
+    write(f);
+    fs.writeFileSync(traceFile(f), traceText(f).split('\n').slice(1).join('\n'));
+    assertReportedOnce(f, 'trace.log', 'trace rewrite');
+    sh(f.root, "sed -i.bak 's/ledger/LEDGER/' trace.log && rm trace.log.bak");
+    assertReportedOnce(f, 'trace.log', 'trace sed -i');
+    sh(f.root, 'echo "2026-01-01T00:00:00.000Z scope main edit impl x" >> trace.log');
+    assertReportedOnce(f, 'trace.log', 'trace foreign append');
+    fs.rmSync(traceFile(f));
+    assertReportedOnce(f, 'trace.log', 'trace deletion');
+  }
+
+  // #both: each file is reported on its own.
+  {
+    const f = fixture();
+    write(f);
+    sh(f.root, 'echo a >> ledger.md; echo b >> trace.log');
+    const r = write(f);
+    assert.deepStrictEqual(warnings(r).map((w) => (w.includes('ledger.md') ? 'ledger.md' : 'trace.log')).sort(), ['ledger.md', 'trace.log']);
+    assert.deepStrictEqual(tampers(f).sort(), ['ledger.md', 'trace.log']);
+    assert.strictEqual(warnings(write(f)).length, 0);
+  }
+
+  // #no-digest: a run with no sidecar, or an unreadable one, is sealed on its first check and reports nothing.
+  for (const [label, garble] of [['absent', null], ['unreadable', '{not json']]) {
+    const f = fixture();
+    write(f);
+    const side = path.join(f.root, 'digest.json');
+    if (garble === null) fs.rmSync(side);
+    else fs.writeFileSync(side, garble);
+    sh(f.root, 'echo "an old release wrote this" >> trace.log');
+    const r = write(f);
+    assert.strictEqual(r.status, 0, r.stderr);
+    assert.strictEqual(r.stderr, '', `${label} sidecar: nothing reported`);
+    assert.deepStrictEqual(tampers(f), [], `${label} sidecar: no tamper line`);
+    assert.deepStrictEqual(JSON.parse(fs.readFileSync(side, 'utf8')).trace, sealOf(traceFile(f)), `${label} sidecar: sealed`);
+    sh(f.root, 'echo "outside" >> ledger.md');
+    assertReportedOnce(f, 'ledger.md', `${label} sidecar, then an edit`);
+  }
+
+  // #sanctioned: no tamper across ledger verbs, hook appends, parallel appenders, rotation, discard, and push then adopt.
+  {
+    const f = fixture();
+    for (let i = 0; i < 4; i++) assert.strictEqual(write(f).stderr, '');
+    sc(f, ['slice', '01', 'in-progress', '--root', f.root]);
+    sc(f, ['step', 'set', 'implement', '--root', f.root]);
+    // A hook append and eight parallel appenders, each its own process.
+    const append = (tag, count) => new Promise((resolve) => {
+      const code = `const { appendTrace } = require(${JSON.stringify(traceLogPath)});` +
+        `for (let i = 0; i < ${count}; i++) appendTrace(${JSON.stringify(f.root)}, { slice: 's', agent: process.argv[1], kind: 'edit', fields: ['impl', 'f' + i] });`;
+      const p = spawn(process.execPath, ['-e', code, tag], { stdio: 'ignore' });
+      p.on('exit', (status) => resolve(status));
+    });
+    const statuses = await Promise.all(Array.from({ length: 8 }, (_, i) => append('a' + i, 25)));
+    assert.deepStrictEqual(statuses, Array(8).fill(0));
+    const lines = traceText(f).split('\n').filter(Boolean);
+    assert.strictEqual(lines.filter((l) => l.split(' ')[3] === 'edit').length, 200, 'every parallel append landed whole');
+    assert.ok(lines.every((l) => /^\d{4}-\d\d-\d\dT[\d:.]+Z \S+ \S+ \S+/.test(l)), 'no torn line');
+    const r = write(f);
+    assert.strictEqual(r.stderr, '', 'after hook and parallel appends: ' + r.stderr);
+    assert.deepStrictEqual(tampers(f), []);
+    assert.deepStrictEqual(JSON.parse(fs.readFileSync(path.join(f.root, 'digest.json'), 'utf8')).trace, sealOf(traceFile(f)));
+    // The lock leaves nothing behind.
+    assert.ok(!fs.existsSync(path.join(f.root, 'digest.lock')), 'no lock left');
+  }
+  {
+    // init's rotation: a closed run's trace moves aside, and the new run starts a fresh digest.
+    const f = fixture();
+    for (const s of ['merged', 'reviewed', 'documented', 'submitted', 'shipped', 'closed']) {
+      const r = sc(f, ['stage', 'set', s, '--root', f.root]);
+      assert.strictEqual(r.status, 0, `stage ${s}: ${r.stderr}`);
+    }
+    const re = sc(f, ['init', 'feat/demo', 'implementing'], sliceJson);
+    assert.strictEqual(re.status, 0, re.stderr);
+    assert.strictEqual(re.stderr, '', 'init over a closed run reports no tamper');
+    assert.ok(fs.readdirSync(f.root).some((e) => /^trace-closed-.*\.log$/.test(e)), 'the old trace moved aside');
+    assert.strictEqual(write(f).stderr, '', 'the verb after the rotation reports no tamper');
+    assert.deepStrictEqual(tampers(f), []);
+  }
+  {
+    // discard removes the sidecar with the run.
+    const f = fixture('planned');
+    write(f);
+    assert.ok(fs.existsSync(path.join(f.root, 'digest.json')));
+    const r = sc(f, ['discard', '--root', f.root]);
+    assert.strictEqual(r.status, 0, r.stderr);
+    assert.strictEqual(r.stderr, '');
+    assert.ok(!fs.existsSync(f.root), 'the run root and its sidecar are gone');
+  }
+  {
+    // push then adopt: the ref carries the trace's digest, and an adopted run reports no tamper.
+    const f = fixture();
+    write(f);
+    sc(f, ['step', 'set', 'implement', '--root', f.root]);
+    const body = sc(f, ['publish', '--root', f.root]).stdout;
+    const cleared = sc(f, ['step', 'clear', '--root', f.root]);
+    assert.match(cleared.stdout, /run-state: sent/, cleared.stdout + cleared.stderr);
+    const ref = 'refs/superdev/demo';
+    const pushedTrace = git(['show', `${ref}:trace.log`], f.origin) + '\n';
+    const pushed = sealOf(traceFile(f));
+    assert.strictEqual(git(['show', `${ref}:trace.digest`], f.origin), `${Buffer.byteLength(pushedTrace)} ${crypto.createHash('sha256').update(pushedTrace).digest('hex')}`, 'trace.digest matches the pushed trace');
+    assert.strictEqual(pushed.size, Buffer.byteLength(pushedTrace), 'the pushed trace is the local one');
+    for (const e of fs.readdirSync(f.root)) fs.rmSync(path.join(f.root, e), { recursive: true, force: true });
+    const adopted = sc(f, ['adopt', '--root', f.root], body);
+    assert.strictEqual(adopted.status, 0, adopted.stderr);
+    assert.match(adopted.stdout, /run-state: fetched/, adopted.stdout);
+    assert.strictEqual(adopted.stderr, '', 'adopt reports no tamper');
+    assert.ok(!fs.existsSync(path.join(f.root, 'trace.digest')), 'the unpacked digest moves into the sidecar');
+    const next = write(f);
+    assert.strictEqual(next.stderr, '', 'the verb after adopt reports no tamper: ' + next.stderr);
+    assert.deepStrictEqual(tampers(f), []);
+    // An adopt that keeps the local trace keeps the local sidecar's trace digest: only the ledger, which adopt rebuilds, is sealed anew.
+    const side = path.join(f.root, 'digest.json');
+    const localTrace = JSON.parse(fs.readFileSync(side, 'utf8')).trace;
+    fs.rmSync(ledgerFile(f));
+    fs.writeFileSync(side, JSON.stringify({ trace: localTrace }) + '\n');
+    const kept = sc(f, ['adopt', '--root', f.root], body);
+    assert.strictEqual(kept.status, 0, kept.stderr);
+    assert.match(kept.stdout, /kept the local trace\.log/, kept.stdout);
+    assert.strictEqual(kept.stderr, '', 'an adopt that keeps its trace reports no tamper');
+    assert.ok(JSON.parse(fs.readFileSync(side, 'utf8')).ledger, 'adopt sealed the ledger it rebuilt');
+    assert.strictEqual(write(f).stderr, '', 'the verb after the keeping adopt reports no tamper');
+  }
+
+  // #lock: a lock a killed holder left is broken, and an append waiting on it lands.
+  {
+    const f = fixture();
+    const lock = path.join(f.root, 'digest.lock');
+    const append = () => {
+      const code = `const { appendTrace } = require(${JSON.stringify(traceLogPath)}); process.exit(appendTrace(${JSON.stringify(f.root)}, { kind: 'edit', fields: ['impl', 'late'] }) ? 0 : 3);`;
+      const r = spawnSync(process.execPath, ['-e', code], { encoding: 'utf8', timeout: 60000, killSignal: 'SIGKILL' });
+      assertSpawnDecided(r, 'append behind a lock');
+      return r;
+    };
+    // An old lock is broken at once.
+    fs.writeFileSync(lock, '');
+    const old = new Date(Date.now() - 3600 * 1000);
+    fs.utimesSync(lock, old, old);
+    assert.strictEqual(append().status, 0, 'an append lands over an old lock');
+    assert.ok(!fs.existsSync(lock), 'the old lock is gone');
+    // A holder killed with its lock fresh: the append waits for the lock to age, then lands.
+    const holder = spawn(process.execPath, ['-e', `require('fs').closeSync(require('fs').openSync(${JSON.stringify(lock)}, 'wx')); console.log('held'); setInterval(() => {}, 1000);`], { stdio: ['ignore', 'pipe', 'ignore'] });
+    await new Promise((resolve) => holder.stdout.once('data', resolve));
+    holder.kill('SIGKILL');
+    await new Promise((resolve) => holder.on('exit', resolve));
+    assert.ok(fs.existsSync(lock), 'the killed holder left its lock');
+    assert.strictEqual(append().status, 0, 'an append lands behind the killed holder\'s lock');
+    assert.strictEqual(traceText(f).split('\n').filter((l) => l.includes(' edit impl late')).length, 2, 'both appends landed');
+    assert.ok(!fs.existsSync(lock), 'the lock was broken and released');
+    assert.strictEqual(write(f).stderr, '', 'no tamper after the broken lock');
+  }
+
+  // #read-only: status, get, and trace leave every file of the run, its sidecar included, byte for byte, even over an outside edit.
+  {
+    const f = fixture();
+    write(f);
+    sh(f.root, 'echo "outside" >> ledger.md');
+    const before = snapshot(f.root);
+    for (const argv of [['status'], ['get', 'stage', '--root', f.root], ['trace', '--root', f.root], ['publish', '--root', f.root]]) {
+      const r = sc(f, argv);
+      assert.strictEqual(r.status, 0, argv[0] + ': ' + r.stderr);
+      assert.strictEqual(warnings(r).length, 0, argv[0] + ' checks nothing');
+    }
+    assert.deepStrictEqual(snapshot(f.root), before, 'no file of the run changed');
+    assert.ok(!fs.existsSync(path.join(f.root, 'digest.lock')));
+    assertReportedOnce(f, 'ledger.md', 'the tamper those verbs left stands for the next writer');
+  }
+
+  // #gone: no hook registration or module named ledger-guard or ledger-writes remains.
+  {
+    const plugin = path.join(__dirname, '..', 'plugin');
+    const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
+    assert.deepStrictEqual(walk(plugin).filter((p) => /ledger-guard|ledger-writes/.test(path.basename(p))), []);
+    assert.doesNotMatch(fs.readFileSync(path.join(plugin, 'hooks', 'hooks.json'), 'utf8'), /ledger-guard/);
+    assert.deepStrictEqual(fs.readdirSync(__dirname).filter((e) => /ledger-guard|ledger-writes/.test(e)), []);
+  }
+}
+
+main().then(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+  console.log('scope-digest tests ok');
+}, (e) => {
+  console.error(e);
+  process.exit(1);
+});
