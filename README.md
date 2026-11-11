@@ -19,7 +19,8 @@ docs to a knowledge base. It needs no other plugin.
 - The chain continues through docs, pull request, merge, deploy, and verification. Each command names the
   next one and offers to start it.
 - Deterministic hooks hold the rules a prompt cannot: a subagent cannot merge or push, an implementer
-  cannot write outside its own worktree, and the run's ledger cannot be edited by hand.
+  cannot write outside its own worktree. `scope.js` reports an outside edit of a run's ledger or trace, and
+  the review grades an untraced write.
 - Backends are pluggable. Slices live in GitHub Issues, Jira, Forgejo or Codeberg Issues, or a tracker you
   describe. Docs can go to a knowledge base such as a GitHub Wiki or Confluence.
 
