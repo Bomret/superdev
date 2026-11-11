@@ -163,7 +163,7 @@ async function verbFailToPass(cwd, args) {
   // The worktree outlives no exit. The watcher holds a channel from this process and takes over when it closes, on an
   // interrupt or a kill past the signal handlers: it ends the running command's group (the process tree on Windows), then
   // removes the worktree.
-  const sup = superviseRuns(['ignore', 2, 2], { cwd, dir }, 'SIGKILL');
+  const sup = superviseRuns(['ignore', 2, 2], { cwd, dir, noHooks }, 'SIGKILL');
   let removed = false;
   const cleanup = () => {
     if (removed) return;

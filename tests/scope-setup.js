@@ -160,8 +160,8 @@ const f2pFixture = () => {
     assert.equal(gone.stdout.trim(), 'gone', message);
   };
   // No git hook runs, neither a hook file nor a config-based hook (`hook.<name>.command`, as hk installs them), which
-  // `core.hooksPath` does not reach. The control proves the fixture's hook files are live: a plain `git worktree add`
-  // fires them. A git without config-based hooks ignores the `hook.*` keys.
+  // `core.hooksPath` does not reach. The control proves the fixture's hooks are live: a plain `git worktree add` fires the
+  // hook files, and the config hooks too where `git hook list` shows git supports them. A git without them ignores the keys.
   const hooked = (sc) => {
     const sentinel = path.join(path.dirname(sc.repo), 'hook-fired');
     for (const hook of ['post-checkout', 'reference-transaction', 'post-index-change']) {
@@ -174,6 +174,10 @@ const f2pFixture = () => {
     const probeDir = path.join(path.dirname(sc.repo), 'hook-probe');
     git(sc.repo, ['worktree', 'add', '-q', '--detach', probeDir, sc.tipSha]);
     assert.ok(fs.existsSync(sentinel), 'a plain git worktree add fires the fixture hooks');
+    const listed = spawnSync('git', ['hook', 'list', 'post-checkout'], { cwd: sc.repo, encoding: 'utf8' });
+    if (listed.status === 0 && listed.stdout.includes('probe.post-checkout')) {
+      assert.match(fs.readFileSync(sentinel, 'utf8'), /^config:post-checkout\b/m, 'a git with config-based hooks fires the fixture config hooks too');
+    }
     git(sc.repo, ['worktree', 'remove', '--force', probeDir]);
     fs.rmSync(sentinel);
     return sentinel;
