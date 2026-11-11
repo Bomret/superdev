@@ -28,7 +28,7 @@ try {
 
   // No file, no `--`, or no command is refused and runs nothing; the old form names `test path`.
   reset();
-  for (const argv of [['path', '--', 'echo', 'RAN'], ['path', 'a.bats', 'echo', 'RAN'], ['path', 'a.bats', '--'], ['path'], ['path', '--']]) {
+  for (const argv of [['path', '--', 'echo', 'RAN'], ['path', 'a.bats', 'echo', 'RAN'], ['path', 'a.bats', '--'], ['path'], ['path', '--'], ['path', '', '--', 'echo', 'RAN'], ['path', 'a.bats', '', '--', 'echo', 'RAN']]) {
     r = verb(argv);
     assert.notEqual(r.status, 0, argv.join(' ') + ' is refused');
     assert.ok(!r.stdout.includes('RAN'), 'and nothing runs');

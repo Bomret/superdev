@@ -49,6 +49,7 @@ function verbTest(cwd, args) {
     files = args.slice(1, sep);
     const words = args.slice(sep + 1);
     if (!files.length) fail(`test path: needs at least one test file (${form})`);
+    if (files.includes('')) fail('test path: an empty file argument names no file');
     if (!words.length || (words.length === 1 && !words[0].trim())) fail(`test path: needs a command after \`--\` (${form})`);
     command = words.length === 1 ? words[0] : words.map(shellWord).join(' ');
   } else {
