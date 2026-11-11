@@ -213,7 +213,7 @@ Reasoning: [1–2 sentences]
 - The focused run did not come back `fail`. A `not run` passes.
 - At least one Minor finding or warranted cut stands (§2's warranted-cut concept).
 - The subject has a reviewed tip (§1's reviewed-tip concept).
-- No branch `review-fix/<git rev-parse --short=12 <tip>>` exists yet. An existing one is named in the report, and no second fix is offered. Where it still points at the tip, the report names the `git branch -D review-fix/<short>` that brings the offer back. Where it carries commits beyond the tip, the report names those commits and leaves the choice of keeping or deleting them to the operator.
+- No branch `review-fix/<git rev-parse --short=12 <tip>>` exists yet. An existing one is named in the report, and no second fix is offered. Where it still points at the tip, the report names the `git branch -D review-fix/<short>` that brings the offer back. Where `git worktree list` shows that branch checked out, the report first names `git worktree remove --force <path>`, with the worktree's path as that list shows it, because git deletes no branch a worktree has checked out. Where it carries commits beyond the tip, the report names those commits and leaves the choice of keeping or deleting them to the operator.
 
 **The inline-fix question.** Applies when the gate holds. Ask one `AskUserQuestion`: fix the Minors inline, or leave them. On yes, read `${CLAUDE_PLUGIN_ROOT}/references/review-inline-fix.md` and follow it to its report.
 
