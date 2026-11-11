@@ -311,7 +311,10 @@ dispatch.
 - The report contract: the implementer returns its required report (`agents/implementer.md`'s `## Report`) and
   repeats no narrative its log holds (ADR 0204).
 - In the Minor sweep, the self-check: the implementer appends a fresh entry to the sweep log before its report,
-  headed `Self-check — sweep cycle <n>` with the current cycle's number, as its `## Self-check` states. The
+  headed `Self-check — sweep cycle <n>` with the current cycle's number, as its `## Self-check` states: each
+  finding's claim quoted beside what the work now does, for each finding whose fix changes behaviour one plausible
+  wrong implementation its test rejects, an item no tool the repository offers can observe marked `not observable`
+  with its reason and named in its concerns, and no file, test, or commit pointer standing alone as evidence. The
   controller writes the sweep log's `dispatch:` line before the resume message
   (`references/implement-full.md`'s `## Progress log (per slice)`), and a report whose log holds no entry under that
   heading below that line goes back to it (ADR 0205). Scope review's fix loop keeps

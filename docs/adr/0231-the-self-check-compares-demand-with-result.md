@@ -2,7 +2,8 @@
 
 **Status:** Accepted
 
-Amends [ADR 0205](0205-the-implementer-self-checks-before-it-reports.md).
+**Amends:** [ADR 0205](0205-the-implementer-self-checks-before-it-reports.md): a self-check item counts as covered
+only where its evidence quotes what the item demands beside what the work does.
 
 ## Context
 
