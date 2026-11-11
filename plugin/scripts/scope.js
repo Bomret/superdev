@@ -3,7 +3,7 @@
 
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
 // Verbs: open, init, stage, step, slice, degraded, unresolved, deferred, minors, docs, pr, deploy, suite, base, get, status,
-// publish, adopt, trace, collisions, citations, source-set, push, root, staging, dod-line, dod-tags; `main()` also runs test, fail-to-pass, and prepare. Exit
+// publish, adopt, trace, untraced, collisions, citations, source-set, push, root, staging, dod-line, dod-tags; `main()` also runs test, fail-to-pass, and prepare. Exit
 // nonzero with a one-line stderr reason on any refusal. Every verb that writes to a run first checks the run's
 // digest sidecar and reports an outside edit of its ledger or trace once (lib/run-check.js, ADR 0225).
 // `root` and `dod-line` touch no ledger: `root` resolves a run root's absolute
@@ -41,6 +41,7 @@ const { verbFailToPass } = require('../lib/fail-to-pass.js');
 const { verbPrepare } = require('../lib/prepare.js');
 const { verbCitations } = require('../lib/citations.js');
 const { verbSourceSet } = require('../lib/source-set.js');
+const { verbUntraced } = require('../lib/untraced.js');
 const { verbPush } = require('../lib/push.js');
 const { pushRunState, fetchRunState, deleteRunState } = require('../lib/run-state-ref.js');
 const { verbDodMerge } = require('../lib/dod-merge.js');
@@ -340,6 +341,10 @@ function run(argv, cwd, stdinJson) {
     // No --root: citations reads git only and touches no ledger (ADR 0156).
     case 'citations':
       verbCitations(cwd, args);
+      break;
+    // Reads git and the run's trace and writes nothing (ADR 0225); `verbUntraced` takes `--root` itself.
+    case 'untraced':
+      verbUntraced(cwd, args);
       break;
     // No --root: source-set reads git only and touches no ledger (ADR 0162).
     case 'source-set':
