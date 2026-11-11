@@ -28,9 +28,11 @@ This outline is a living skeleton. `/superdev:document` extends it.
   maintains.
 - **Guides.** One page per thing an adopter does, step by step. Parent: `Home`, section `Guides`:
   - `Guide: Audit tests`
+  - `Guide: Check prose`
   - `Guide: Deploy after the merge`
   - `Guide: Install and configure`
   - `Guide: Plan a feature`
+  - `Guide: Profile a run`
   - `Guide: Publish to the knowledge base`
   - `Guide: Scope the test runs`
   - `Guide: Ship and wrap up`

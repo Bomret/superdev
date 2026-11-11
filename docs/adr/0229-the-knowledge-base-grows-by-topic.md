@@ -6,16 +6,16 @@
 
 superdev's own outline gave every built feature a `How it works: <mechanism>` page, and the wiki reached 50
 of them. A reader looking up one subject, such as tests, collects it from several pages. The shipped doc pass
-names no page shape, and the local seed's `docs/kb/<feature>-spec.md` example points to one file per feature,
-so every adopter's knowledge base drifts the same way.
+names no page shape. The local seed's `docs/kb/<feature>-spec.md` example points to one file per feature.
+Every adopter's knowledge base drifts the same way.
 
 ## Decision
 
-The doc pass routes a feature's knowledge-base text to the **topic page** of an existing outline entry and
-stages it as a whole-page `upsert` with `live-hash` (ADR 0094). Every page the doc pass writes is one the
+The doc pass routes a feature's knowledge-base text to the **topic page** of an existing outline entry.
+It stages the page as a whole-page `upsert` with `live-hash` (ADR 0094). Every page the doc pass writes is one the
 outline names explicitly. An outline entry holding a placeholder, such as `How it works: <mechanism>`, names
 no page, and the doc pass writes no new page under it. When no entry fits, the doc pass adds a new topic entry
-to `docs/agents/knowledge-base.md` in the scope's doc commit and states the reason there and in its report.
+to `docs/agents/knowledge-base.md` in the scope's doc commit. It states the reason there and in its report.
 Every seed proposes a topic-shaped outline. superdev's own outline replaces the `How it works:` group with
 topic pages, and its `Guide:` pages and the `Concepts` aggregate page stay.
 
@@ -34,7 +34,7 @@ topic pages, and its `Guide:` pages and the `Concepts` aggregate page stay.
 ## Consequences
 
 Two scopes that stage the same topic page leave the second one staged after the first publishes, because its
-`live-hash` no longer matches. Re-running `/superdev:document` re-reads the live page, rebuilds the staged
-page from it with the second scope's additions, corrections, and removals carried over, and re-stages it with a fresh hash. Links to a removed
+`live-hash` no longer matches. Re-running `/superdev:document` re-reads the live page. It rebuilds the staged
+page from it and carries over the second scope's additions, corrections, and removals. It then re-stages the page with a fresh hash. Links to a removed
 `How it works:` page stop resolving, and the wiki carries no redirects. An adopter's existing per-feature
 pages stay as they are: the doc pass corrects stale text on them and adds none.

@@ -246,7 +246,7 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   - **A step that starts another skill names the Skill tool.** Write "call the Skill tool with
     `superdev:setup`", never a bare "run `/superdev:setup`", and name one skill per call. Upstream
     mattpocock/skills adopted this because a skill named in prose loads less reliably (its CHANGELOG, PR
-    #878); superdev has not measured that gain (ADR 0071). A step whose target carries
+    #878); superdev has not measured that gain (ADR 0129). A step whose target carries
     `disable-model-invocation: true` cannot reach it through the tool, so it tells the operator what to run
     instead, and so does every line written for the operator, such as the Next block.
   - **A contract in an agent body also holds in the dispatch prose that reaches it.** Both halves arrive
@@ -309,7 +309,7 @@ GitHub. Push scope branch, open ready PR against `main`, squash-merge with Conve
 `AGENTS.md` hierarchy (root + `scripts/AGENTS.md` + `plugin/references/AGENTS.md` + `mods/superdev-view/AGENTS.md`). `controlled` writing standard, American English. See `docs/agents/documentation.md`.
 
 ### Knowledge base
-GitHub repo Wiki, published by git push. Adopters first, maintainers second, English. Topic pages and Guide pages under Home, each named in the outline; `(aggregate)` page: Concepts. See `docs/agents/knowledge-base.md`.
+GitHub repo Wiki, published by git push. Adopters first, maintainers second, English. Topic pages and Guide pages sit under Home, each named in the outline. The `(aggregate)` page is Concepts. See `docs/agents/knowledge-base.md`.
 
 ### Toolchain
 Bun dev toolchain, Node runtime for hooks. `node scripts/run-tests.js`, `bun run release`. No linter or formatter. See `docs/agents/toolchain.md`.
