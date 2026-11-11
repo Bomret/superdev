@@ -189,10 +189,9 @@ command that ran. RTK, a third-party output filter, ships such a hook: it rewrit
 `rtk bun run test`. The run trace reads no Bash command (ADR 0225): it records a test run only from
 `scope.js test` and `scope.js fail-to-pass`, which write the run line themselves, so a rewrite hides no run.
 
-**Mitigation (implemented):** `commandStart` and `gitSubcommand` in `lib/shell-words.js`, which merge-guard
-reads commands through, read `rtk` as a prefix wrapper, as they read `nice` or `nohup`, and skip all five of
-rtk's run-anything subcommands: `proxy`, `err`, `run`, `summary`, and `test`. So does `RTK_PREFIX` in
-`hooks/merge-guard.js`.
+**Mitigation (implemented):** merge-guard reads each line as raw text and needs no `rtk` handling: a lead word
+(`git`, `gh`, `tea`, or `scope.js`) followed later on the line by a verb word is denied wherever `rtk`, or any
+other prefix, stands before it, so `rtk git push` and `rtk proxy git push` are denied alike.
 
 The PreToolUse hooks are out of the rewrite's reach. Claude Code runs every matching hook of one event
 in parallel, so `hooks/merge-guard.js` receives the
@@ -201,21 +200,11 @@ tool, which RTK does not rewrite. `hooks/slicetree-sweep.js` and `hooks/scope-pr
 read no command.
 
 An agent can still type the `rtk` prefix itself, and RTK runs the command behind it. `hooks/merge-guard.js`
-therefore takes the same optional `rtk`, with rtk's value-less global options, before `git` in its merge,
-push, rebase, pull, and subtree push checks and before `gh` or `tea` in its pull-request merge and API merge matchers.
-Without the prefix, a subagent's hand-typed `rtk git push` or `rtk gh pr merge` passed the guard (#958).
-rtk's run-anything subcommands, `proxy`, `err`, `run`, `summary`, and `test`, execute the command after
-them, so the prefix also takes one of them, with its value-less options and an optional `--`
-separator, after rtk's global options. The whole prefix repeats, so an rtk behind another rtk matches
-too. Without these, `rtk proxy git push`, `rtk proxy -- git push`, and `rtk proxy rtk git push` passed
-the guard. `hooks/merge-guard.js` reads its git, `gh`, and `tea` checks past it through
-`commandStart` in the same module, and `RTK_PREFIX` in `hooks/merge-guard.js` serves its raw-text
-pull-request merge and API merge tests.
+denies a subagent's hand-typed `rtk git push`, `rtk gh pr merge`, `rtk proxy git push`, `rtk proxy -- git push`,
+and `rtk proxy rtk git push` through the same raw-text rule, which names no prefix (#958).
 
 **Fix required at:** no platform fix is due, because the hook sees the command that actually ran. A
-different rewriting hook needs its prefix added to the wrapper table (`WRAPPER` in
-`lib/shell-words.js`), to `gitSubcommand`, and to the `RTK_PREFIX` of
-`hooks/merge-guard.js`.
+different rewriting hook needs no change to `hooks/merge-guard.js`, which reads no prefix.
 
 Verified 2026-10-08, on Claude Code 2.1.289 and rtk 0.51.0. Two session transcripts of that day show
 RTK's PreToolUse hook rewriting `bun run test` to `rtk bun run test`, and the run-trace hook of superdev

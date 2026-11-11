@@ -30,11 +30,10 @@ first failing step ends the steps still running, which print one `cancelled` lin
 **Measured cost, 2026-10-26.** The machine is the maintainer's 8-core Apple M1 (4 performance and 4 efficiency
 cores). The Node build is the official Node.js v26.12.1 build from nodejs.org, installed through fnm. Five consecutive
 full runs at commit `b382c879` took 91, 89, 88, 91, and 93 s wall clock; the median of the first three is 89 s.
-Under concurrency, the longest steps were `scope-suite` (30 to 33 s), `shell-words` (27 to 31 s), and `ledger-guard` (about 25 s). Run alone one after
+Under concurrency, the longest step was `scope-suite` (30 to 33 s). Run alone one after
 another, the suites take about 375 s of wall clock and about 330 s of CPU time together. The linear-time pins
 (`tests/linear-time.js`) take about 70 s of that wall clock. A focused run for a change set whose `.md` paths no
-suite names runs the tail alone, about 2 s. One for a change to the `run-lock` hook runs four suites beside the
-tail and takes about 3 s.
+suite names runs the tail alone, about 2 s.
 
 ## Prepare command
 
