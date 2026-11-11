@@ -19,7 +19,7 @@ const { checkRun } = require('./run-check.js');
 // Every outcome that set up nothing exits with this status, apart from the 1 a refusal exits with.
 const STOPPED_EXIT = 3;
 
-// The age past which a run lock is dead. `hooks/run-lock.js` exports the same bound.
+// The age past which a run lock is dead.
 const STALENESS_MS = 60 * 60 * 1000;
 
 // The anchor an empty ledger carries until §6 writes the store and the full `init` replaces it.
