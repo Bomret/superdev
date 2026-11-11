@@ -259,6 +259,7 @@ Read the trace with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --root 
 - On either tier a slice is `behavior` when its ledger row's type says so (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>`).
 - **Unreviewed slice**: apply `## Review coverage`.
 - **Pass-to-pass** and **Missing fail-to-pass run**: apply `## Fail-to-pass run`.
+- **Untraced writes** and **Implementer suite run**: apply `## Untraced writes`. Run `scope.js untraced` for every slice and fix cycle with commits, a `lite` slice included (its window is its whole trace, over the range its ledger row records), grade each listed path, and count the listed paths as change events for **Missing fail-to-pass run**: a window with untraced writes and no `edit` line is held to that rule like any other (ADR 0225).
 - Mark each unclosable **Pass-to-pass** finding as `## Fail-to-pass run` states, with its case and reason, at every dispatch against the current range. An implementer's or the lite controller's claim of a case is input you check, never your verdict.
 - Each section owns its findings' definition, severity, tier, closing rule, and no-trace rule, and which ranges and cycles you read.
 - Each `unknown` outcome `## Fail-to-pass run` has you name goes under `### Fail-to-pass unknown`.

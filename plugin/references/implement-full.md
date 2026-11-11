@@ -223,7 +223,7 @@ Repeat until every slice is `merged`:
      the blind pass reads the slice's run-trace lines (`scope.js trace --slice <id>`).
      The dispatch also names the slice's range, from the commit its branch was cut from to the tip the first review
      read (the same range on every review), and on a re-review the fix cycle's range, from the tip the earlier review
-     read to the current tip, each range with both ends full commits. It tells the reviewer to apply `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` to each: on a
+     read to the current tip, each range with both ends full commits. It tells the reviewer to apply `## Untraced writes` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` to each window of the slice: it runs `scope.js untraced` over the window's range, grades each listed path, counts the listed paths as change events for **Missing fail-to-pass run**, and raises **Implementer suite run**, a Minor, for a `run full` or `run whole` line inside the window (ADR 0225). It tells the reviewer to apply `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` to each: on a
      `behavior` slice, a latest outcome line over a range that reads `pass-to-pass` is an Important finding,
      **Pass-to-pass**, and a range that changes both a test-path file and another file, with no outcome line over it,
      is an Important finding, **Missing fail-to-pass run**. A slice's range or a fix cycle's range whose test-path
@@ -239,8 +239,8 @@ Repeat until every slice is `merged`:
      reads `fail-to-pass` over a range from the base of the range that drew the finding to the current tip. It closes
      a **Missing fail-to-pass run** finding on the outcome line the fix implementer's run writes, and a `pass-to-pass` line there
      is a **Pass-to-pass** finding on that range. The reviewer reads the outcome line from the trace and never from the
-     dispatch, which carries no outcome (INV-0114), and no trace, no `edit` line for the slice, or no test command
-     gets no finding, only a named gap. Only `edit` lines count as a slice's or a cycle's change events, so a `run` or
+     dispatch, which carries no outcome (INV-0114), and no trace, neither an `edit` line nor an untraced write for the slice, or no test command
+     gets no finding, only a named gap. Only `edit` lines and listed untraced writes count as a slice's or a cycle's change events, so a `run` or
      `ledger` line is none, even one written after the trace began for a slice whose edits came before it. Reading
      the log can add a finding or raise a finding's severity, and it never withdraws or downgrades one
      (INV-0113). The reviewer appends its full findings to the log, and a re-review reads the earlier

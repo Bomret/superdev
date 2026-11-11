@@ -430,10 +430,7 @@ This root owns every other subtree directly:
   NotebookEdit into a checkout of a repository that holds a run, outside its main working tree's `.superdev/`.
   It also denies such a write into that repository's git directory. That covers the main `.git/`, a linked
   worktree's gitdir, and a submodule's gitdir (ADR 0148, INV-0152). It fails open: when `main-work-tree.js`
-  cannot load, or git cannot place the target, the write passes. `test-guard.js` requires `../lib/bash-command.js`,
-  `test-runs.js`, `verification.js`, and `run-tree.js`. It denies a dispatched implementer's Bash call that runs the full or the
-  whole-repo suite inside a run tree, through `scope.js test`, through `scope.js fail-to-pass … --`, or directly, and a
-  `scope.js test focused` where the focused fence repeats the full one (ADR 0181, ADR 0182, INV-0174). It fails open too: when a module cannot load, or the call lies outside every run tree, the call passes. `slicetree-sweep.js`
+  cannot load, or git cannot place the target, the write passes. `slicetree-sweep.js`
   tests a worked slice branch's tip against its scope branch's first-parent chain, alongside the
   default-branch content check (ADR 0089). A `require` failure leaves the hook
   with no fallback reader: it sweeps, prunes, records, or denies nothing and says nothing. The probe has its own, narrower

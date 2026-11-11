@@ -1148,10 +1148,10 @@ Paths: plugin/scripts/scope.js, plugin/lib/fail-to-pass.js, plugin/lib/run-super
 
 Class: safety
 Concepts: Guardrail
-Statement: A guardrail that reads a Bash command's words through the shared shell scanner fails closed when it cannot load the scanner: run-lock blocks a scopetree creation (it loads the module for the drive-path translator, ADR 0150). Only run-trace, which records evidence and guards nothing, records nothing instead (ADR 0135), and test-guard, which refuses only a suite run's cost, passes the call (ADR 0181).
+Statement: A guardrail that reads a Bash command's words through the shared shell scanner fails closed when it cannot load the scanner: run-lock blocks a scopetree creation (it loads the module for the drive-path translator, ADR 0150). Only run-trace, which records evidence and guards nothing, records nothing instead (ADR 0135).
 Breaks: silently
 Check: tests/run-lock.test.js — it runs its hook with a stub scanner in a lib directory beside the copied hook's directory, that the test confirms was loaded, and asserts the fail-closed verdict; tests/run-trace-guards.test.js — with a stub for the scanner require of the run trace's command layer loaded that throws, a Bash write, a slice-reviewer hand-back, and a stop record nothing, and with its scan throwing a Bash write records nothing, against a control run that records; and on a command that runs a test and then writes or runs `git checkout`, a loaded scanner whose `drivePath` or `gitSubcommand` throws or is missing records no `run` line either, and so does one whose `drivePath` throws only for a patch file, or whose `scan` throws only for one word
-Paths: plugin/hooks/run-lock.js, plugin/hooks/run-trace.js, plugin/hooks/test-guard.js, plugin/lib/bash-command.js, plugin/lib/shell-words.js, plugin/lib/shell-word-readers.js
+Paths: plugin/hooks/run-lock.js, plugin/hooks/run-trace.js, plugin/lib/bash-command.js, plugin/lib/shell-words.js, plugin/lib/shell-word-readers.js
 
 ### INV-0141
 
@@ -1404,15 +1404,6 @@ Statement: `final-reviewer` runs no test, in scope mode and in ad-hoc mode, and 
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/agents/final-reviewer.md, plugin/skills/review/SKILL.md, plugin/references/review-scope-mode.md
-
-### INV-0174
-
-Class: process
-Concepts: Implementer, Guardrail
-Statement: A dispatched implementer's Bash call that runs `scope.js test full`, `scope.js test whole`, a `scope.js test focused` with no path, or the configured full or whole-repo command, directly, through `scope.js test --`, or through `scope.js fail-to-pass … --`, is refused inside a run tree. Where the focused fence repeats the full fence, a `scope.js test focused` with paths is refused too. Every other caller passes, and a call the guard cannot judge passes (ADR 0181, ADR 0182).
-Breaks: silently
-Check: tests/test-guard.test.js — each refused shape is denied for an implementer, its own focused, one-file, and fail-to-pass runs pass, the controller and other agents pass, a call outside every run tree passes, and a hook whose library will not load exits 0
-Paths: plugin/hooks/test-guard.js, plugin/lib/test-runs.js, plugin/hooks/hooks.json
 
 ### INV-0175
 
