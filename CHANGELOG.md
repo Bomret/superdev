@@ -1,3 +1,16 @@
+# [0.106.0](https://github.com/Bomret/superdev/compare/v0.105.0...v0.106.0) (2026-11-11)
+
+
+### Bug Fixes
+
+* **scope:** disable config-based git hooks in the fail-to-pass worktree ([#150](https://github.com/Bomret/superdev/issues/150)) ([36ef84d](https://github.com/Bomret/superdev/commit/36ef84d9336ec214fd388f7d3b6dc1985743e20c))
+* **setup:** disable config-based git hooks on the probe commit ([#156](https://github.com/Bomret/superdev/issues/156)) ([9c41665](https://github.com/Bomret/superdev/commit/9c416653899b60e2d8cd50babb736ab23986c804))
+
+
+### Features
+
+* **kb:** grow the knowledge base by topic, not by feature ([f5bd32d](https://github.com/Bomret/superdev/commit/f5bd32dc87fc6b55dc091d0add533fdeb34cdad1)), closes [#27](https://github.com/Bomret/superdev/issues/27) [#128](https://github.com/Bomret/superdev/issues/128)
+
 # [0.105.0](https://github.com/Bomret/superdev/compare/v0.104.0...v0.105.0) (2026-11-11)
 
 

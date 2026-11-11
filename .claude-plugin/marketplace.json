@@ -12,7 +12,7 @@
         "source": "git-subdir",
         "url": "https://github.com/Bomret/superdev.git",
         "path": "plugin",
-        "ref": "v0.105.0"
+        "ref": "v0.106.0"
       },
       "category": "productivity"
     }
