@@ -345,7 +345,7 @@ Repeat until every slice is `merged`:
      dispatched one, the fix cycle's range, and
      carry on, bounded by that section's cap — read `scope.js get denials` after writing
      the entry, and **block** once the count reaches it instead of reviewing inline again. A denied
-     `simplicity-reviewer` follows that same authorship rule, and since its findings are advisory, the
+     `simplicity-reviewer` follows that same authorship rule, and since its cuts block nothing on their own, the
      pass runs inline and the run carries on; write its entry with plain `scope.js degraded add` — its
      denial is not a verification dispatch, so it stays outside that cap. Nothing in that outcome can end
      the command, so this write relies on its defining section's own citation

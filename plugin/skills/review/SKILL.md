@@ -140,6 +140,11 @@ Review a change end to end. §1 decides the mode.
 
 **The `simplicity-reviewer` dispatch** (`model: sonnet`). Applies to every dispatch of `superdev:simplicity-reviewer`. Hand it the same git range. Its `## Scope of the review` owns the lens.
 
+**The warranted cut** (ADR 0227). Applies to every cut `simplicity-reviewer` recommends, in both modes. Warrant a cut only when it honours the rules the repository documents for itself: its `AGENTS.md` or `CLAUDE.md` files, its `docs/agents/` configuration, and its invariant register. A repository that documents none leaves the cut to your judgment alone. This is the rule `${CLAUDE_PLUGIN_ROOT}/references/implement-full.md` applies per slice.
+
+- **A warranted cut** joins the findings as a Minor finding. It blocks nothing on its own and still enters the fix set.
+- **A declined cut** is named in §3's report with the rule it would break, and enters no fix set.
+
 **The skip rules.** Applies to every review. Evaluate them in this order.
 
 - **A scope review** → `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md`'s `## 2. Review` decides a `full`-tier scope whose every slice is `behavior` first, and the rules below decide every other subject (ADR 0210).
@@ -178,19 +183,19 @@ Review a change end to end. §1 decides the mode.
 file:line · what's wrong · why it matters · how to fix (if not obvious)
 
 ### Over-engineering cuts
-[simplicity-reviewer's findings, if dispatched; omit this section if it wasn't]
+[simplicity-reviewer's findings, if dispatched, each marked warranted or declined — a declined cut with the rule it would break; omit this section if it wasn't]
 net: -<N> lines possible   (zero included; "net: +<N> lines possible" when a clearer shrink: makes the cuts add more lines than they remove; "Lean already" if nothing to cut)
 
 ### Assessment
 Full-suite run: [pass | fail | not run | denied — degraded pass]
-Correctness: [ready | not ready]. Simplicity: [N cuts recommended, non-blocking | Lean already | not dispatched — <reason>].
+Correctness: [ready | not ready]. Simplicity: [N cuts warranted, M declined | Lean already | not dispatched — <reason>].
 Ready to merge? [Yes | No | With fixes]
 Reasoning: [1–2 sentences]
 ```
 
 **The per-axis line.** Applies to the Assessment's `Correctness` and `Simplicity` entries. They add to the combined `Ready to merge?` verdict. They never replace it.
 
-- Over-engineering findings stay non-blocking and never gate merge on their own.
+- A warranted cut is a Minor finding, and gates merge no more than any other Minor (§2's warranted-cut concept).
 - **Correctness**: `final-reviewer`'s `Ready to merge?` line.
 - **Simplicity**: `simplicity-reviewer`'s `net: -N lines possible`, `net: +N lines possible`, or `Lean already`. A reviewer not dispatched reads `not dispatched — <reason>`, naming the skip rule that applied (for example `not dispatched — standing code, no diff to review`).
 - **A scope review's** combined verdict also follows `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md`'s `## 3. Report`.
