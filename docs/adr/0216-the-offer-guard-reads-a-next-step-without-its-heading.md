@@ -6,7 +6,8 @@
 command without a `### Next` heading.
 
 **Amended by:** [ADR 0222](0222-the-offer-guard-passes-the-running-skill.md): a next command that is the
-skill still running passes.
+skill still running passes. [ADR 0226](0226-the-offer-guard-reads-only-the-last-paragraph.md): only the
+message's last paragraph is read.
 
 ## Context
 

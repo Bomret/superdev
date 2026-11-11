@@ -52,8 +52,8 @@ answers one question.
 **Precedence.** The offer takes precedence over the Claude desktop app's own guidance that a follow-up acting
 on the session's findings stays in the session and is asked through its wrap-up box. `hooks/offer-guard.js`
 holds a turn once when its Next block names one command that no offer call of the turn named, and when a
-message without the Next heading names one next command in a fence or beside the word "next" (ADR 0213,
-ADR 0216, INV-0183). It passes a next command that is the skill still running (ADR 0222).
+message without the Next heading names one next command in a fence or beside the word "next" in its last
+paragraph (ADR 0213, ADR 0216, ADR 0226, INV-0183). It passes a next command that is the skill still running (ADR 0222).
 
 **First action.** Where the offer applies, the offer call is the first action of the closing. Decide it
 before you compose the closing message: make the offer call, then call the app's wrap-up tool, if at all, and
