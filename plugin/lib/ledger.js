@@ -5,6 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const { fail } = require('./refusal.js');
+const { stateOf, readSide, writeSide, withRunLock } = require('./run-digest.js');
 
 // references/scope-mode.md `## The change type` — the eleven Conventional Commits types.
 const CHANGE_TYPES = ['feat', 'fix', 'refactor', 'docs', 'perf', 'test', 'build', 'ci', 'chore', 'style', 'revert'];
@@ -81,10 +82,18 @@ function splitLines(raw) {
 function writeLines(root, lines) {
   // Atomic write: a reader (or a concurrent scope.js invocation) never observes a partially
   // written ledger.md — write to a temp file in the same directory, then rename over it.
+  // The digest is updated with the write, under the digest lock, so the file and its digest change together. The verb that
+  // calls this has already checked the run's digest (scope.js `run()`, `verbInit`, `verbOpen`), so an outside edit was reported before this write replaces it (ADR 0227).
   const target = ledgerPath(root);
   const tmpFile = `${target}.tmp-${process.pid}-${Date.now()}`;
-  fs.writeFileSync(tmpFile, lines.join('\n'), 'utf8');
-  fs.renameSync(tmpFile, target);
+  const content = Buffer.from(lines.join('\n'), 'utf8');
+  withRunLock(root, () => {
+    fs.writeFileSync(tmpFile, content);
+    fs.renameSync(tmpFile, target);
+    const side = readSide(root);
+    side.ledger = stateOf(content);
+    writeSide(root, side);
+  });
 }
 
 function headerRe(name) {

@@ -12,17 +12,11 @@ const { runPrepare } = require('./prepare.js');
 const { gitSpawn, resolveCommit, fileAt } = require('./git-spawn.js');
 const { PROBE_MAX_BUFFER } = require('./containment.js');
 const { mainWorkTree } = require('./main-work-tree.js');
-const { appendTrace, readTrace } = require('./trace-log.js');
+const { appendTrace, readTrace, encodePaths, decodePaths, untraceField } = require('./trace-log.js');
+const { checkRun } = require('./run-check.js');
 const { treeState, gitOut } = require('./run-tree.js');
 const { superviseRuns, withWorktreeLock } = require('./run-supervision.js');
 const { shellWord } = require('./test-verb.js');
-// A missing scanner module leaves the control run's line without arguments, as `test-verb.js` does.
-let commandArgs = () => '-';
-try {
-  ({ commandArgs } = require('./test-runs.js'));
-} catch (e) {
-  if (e.code !== 'MODULE_NOT_FOUND') throw e; // a syntax error or a throwing module stays visible
-}
 const { operatorBoundMs } = require('./operator-config.js');
 
 // The floor of the bound on the run with the files put back (ADR 0142): 10 000 ms, or the operator configuration's
@@ -83,18 +77,18 @@ function sliceOfRange(root, base, tip, cwd) {
 }
 
 // The control a run root's trace already holds for `tip` (ADR 0215): { code: 0, ms, ts } from the last `path` run line at `tip`
-// on a clean tree that names every one of `testFiles` and a duration, or null. A failing `path` run at `tip` after it, over any
-// files, voids it.
-function reusableControl(runRoot, tip, testFiles) {
+// on a clean tree that names every one of `testFiles`, a duration, and exactly `command`, or null. A failing `path` run at `tip`
+// after it, over any files or command, voids it.
+function reusableControl(runRoot, tip, testFiles, command) {
   let events;
   try { events = readTrace(fs.readFileSync(path.join(runRoot, 'trace.log'), 'utf8')); } catch { return null; }
   let found = null;
   for (const e of events) {
-    const [kind, outcome, sha, tree, files, ms] = e.fields;
+    const [kind, outcome, sha, tree, files, ms, recorded] = e.fields;
     if (e.kind !== 'run' || kind !== 'path' || sha !== tip || tree !== 'clean') continue;
     if (outcome !== 'pass') { found = null; continue; }
-    const named = new Set((files || '').split(','));
-    if (/^\d+$/.test(ms || '') && testFiles.every((f) => named.has(f))) found = { code: 0, ms: Number(ms), ts: e.ts };
+    const named = new Set(decodePaths(files));
+    if (/^\d+$/.test(ms || '') && recorded !== undefined && untraceField(recorded) === command && testFiles.every((f) => named.has(f))) found = { code: 0, ms: Number(ms), ts: e.ts };
   }
   return found;
 }
@@ -153,6 +147,8 @@ async function verbFailToPass(cwd, args) {
   // is written, `.superdev/` is git-ignored first through the repository's `info/exclude` (no file of the checkout changes), and
   // a `.superdev/` this call created is removed at exit. `mkdtemp` makes the directory unique to this invocation, so parallel runs never share one.
   const at = require('./run-tree.js').locate(path.join(cwd, 'x'));
+  // The run's digest is checked before this verb reads the trace or writes a line to it (ADR 0227).
+  if (at) checkRun(at.runRoot);
   const main = at ? null : mainWorkTree(cwd) || cwd;
   const home = at ? at.runRoot : path.join(main, '.superdev');
   const madeHome = !at && !fs.existsSync(home);
@@ -239,7 +235,7 @@ async function verbFailToPass(cwd, args) {
     // A passing run the trace already holds is the control (ADR 0215): the last `path` run line at the tip on a clean tree that
     // names every test file of the range and its duration, which the bound needs, when no later run there failed. Only a tip
     // that states its prepare command, or `none`, gives this worktree the dependencies that run had (ADR 0218).
-    const reused = at && prep.state !== 'absent' && reusableControl(at.runRoot, tip, testFiles);
+    const reused = at && prep.state !== 'absent' && reusableControl(at.runRoot, tip, testFiles, command);
     if (reused) process.stderr.write(`fail-to-pass: control reused from the run trace line of ${reused.ts}\n`);
     const unprepared = reused ? null : await prepare();
     if (unprepared) return record('unknown', `prepare=${unprepared}`);
@@ -256,7 +252,7 @@ async function verbFailToPass(cwd, args) {
       const [sha1, tree1] = treeState(dir);
       const states = [tree0, tree1];
       const tree = sha0 !== tip || sha1 !== tip || states.includes('dirty') ? 'dirty' : states.includes('unknown') ? 'unknown' : 'clean';
-      if (!appendTrace(at.runRoot, { slice, kind: 'run', fields: ['path', control.code === 0 ? 'pass' : 'fail', tip, tree, testFiles.join(','), String(Math.round(control.ms)), commandArgs(command)] })) {
+      if (!appendTrace(at.runRoot, { slice, kind: 'run', fields: ['path', control.code === 0 ? 'pass' : 'fail', tip, tree, encodePaths(testFiles), String(Math.round(control.ms)), command] })) {
         process.stderr.write('fail-to-pass: the control run line could not be written to the run trace\n');
       }
     }

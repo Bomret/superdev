@@ -175,10 +175,8 @@ second time from git state. One call cuts or reuses the branch at every run kind
   branch from the sole matching remote-tracking ref the moment one exists. Create or reattach the
   scopetree, at both tiers, whenever it is absent — because `/superdev:wrap-up` already removed it, or
   because this checkout never held it (a resumed run adopted from the anchor on a fresh clone) — and
-  otherwise work in the one already there. **`run-lock` refuses that `git worktree add`, naming another
-  session** → apply `scope-mode.md`'s `## The scope checkout` Absent recovery: remove `<run-root>/run.lock`
-  and retry the call. The lock is this run's own: `/superdev:implement`'s entry liveness check already
-  passed, and the ledger writes since then refreshed the lock through their trace lines (ADR 0220).
+  otherwise work in the one already there. The run's own lock stays as it is: no hook refuses that
+  `git worktree add`, and `/superdev:implement`'s entry liveness check already passed.
 
 **Prepare the scopetree** once this step leaves it in place, at every run kind and tier: run
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <run-root>/scopetree` before its first test run, per

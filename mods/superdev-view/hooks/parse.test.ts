@@ -298,7 +298,7 @@ test('an inline-tier slice draws one closed group at its start, with its status,
     `${at('09:59:00')} scope main ledger stage set implementing`,
     `${at('10:00:00')} 01 main ledger slice 01 in-progress`,
     `${at('10:01:00')} 01 main run path fail 6e9 dirty a.js`,
-    `${at('10:02:00')} 01 main run path pass 6e9 dirty a.js 120 a.js,%2D-grep,a\\x20b`,
+    `${at('10:02:00')} 01 main run path pass 6e9 dirty a.js 120 node\\x20a.js\\x20--grep\\x20'a\\x20b'`,
     `${at('10:02:30')} 01 main run path unknown 6e9 dirty a.js`,
     `${at('10:03:00')} 01 main run focused pass 6e9 clean -`,
     `${at('10:03:30')} 01 main run whole fail 6e9 clean - - -`,
@@ -531,4 +531,11 @@ test('reads the ledger and dispatch lines of the shared trace fixture', () => {
   expect(log.running).toBe(1)
   const sum = log.entries.flatMap(e => (e.kind === 'slice' && e.id === '04' ? e.entries : [])).find(e => e.kind === 'sliceSummary')
   expect(sum).toMatchObject({ suite: { fail: 0, pass: 1 } })
+})
+
+test('a tamper line scope.js writes draws one line naming the file, in the flat log, and no command or slice group', () => {
+  const lines = [`${at('09:00:00')} scope main ledger init fix/x planned`, `${at('09:05:00')} scope main tamper ledger.md`, `${at('09:06:00')} scope main tamper trace.log`]
+  const log = eventLog(LEDGER_OPEN, lines.join('\n'), t('12:00:00'))
+  expect(log.entries.filter(e => e.kind === 'tamper')).toEqual([{ kind: 'tamper', at: t('09:05:00'), file: 'ledger.md' }, { kind: 'tamper', at: t('09:06:00'), file: 'trace.log' }])
+  expect(log.entries.some(e => e.kind === 'slice')).toBe(false)
 })

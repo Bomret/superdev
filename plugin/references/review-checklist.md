@@ -207,8 +207,6 @@ run, and the verb runs only the second (ADR 0215).
 the command, so read it against the repository's runner and the test files the range adds or modifies. A line whose
 command leaves one of them out counts as no outcome line for either entry below, and the finding names the file.
 A line whose coverage you cannot judge, one with no command among them, counts, and the report names the doubt.
-The run trace records a revert or restore whatever its Bash call's exit status, and none for a segment that never ran.
-The implementer runs the revert, each test run, and the restore as separate Bash calls, so each line stands in its own order.
 
 - **Pass-to-pass** — on a `behavior` slice, a latest outcome line over the slice's range that reads
   `pass-to-pass`: the slice's tests passed with the slice's other files put back as they stood before it, so
@@ -220,12 +218,13 @@ The implementer runs the revert, each test run, and the restore as separate Bash
   written. A finding no fix can close carries the unclosable mark, defined below.
 - **Missing fail-to-pass run** — on a `behavior` slice, a range that changes both a test-path file and another
   file, with no outcome line over that range. Severity Important. A slice whose ledger row records no range is
-  read from its own trace: its `edit test` and `edit impl` lines name both a test-path file and another file.
-  A slice with no `edit` line, a run with no trace, and a repository with no test command get no finding: the report
+  read from its own trace: its `edit test` and `edit impl` lines, and the paths `## Untraced writes` lists, name both a
+  test-path file and another file.
+  A slice with neither an `edit` line nor an untraced write, a run with no trace, and a repository with no test command get no finding: the report
   names the gap. A range whose test-path changes are all deletions has no test of its own to run, so the verb refuses
   it: where its changes outside the test paths add no behaviour, it needs no outcome line and gets no finding (ADR 0196).
   Read every file such a range changed outside its test paths: one that adds behaviour leaves that behaviour with no
-  test, so the range draws the finding, and its fix adds a test for that behaviour and runs the verb. Only `edit` lines count as a slice's or a cycle's change events, so a `run` or `ledger` line is none,
+  test, so the range draws the finding, and its fix adds a test for that behaviour and runs the verb. Only `edit` lines and the paths `## Untraced writes` lists count as a slice's or a cycle's change events, so a `run` or `ledger` line is none,
   even one written after the trace began for a slice whose edits came before it. The finding goes into the fix
   list: the fix implementer runs `scope.js fail-to-pass <base>..HEAD -- <command>` over the range the finding names,
   and the finding closes on the outcome line that run writes. Where the row records no range, the controller first
@@ -240,7 +239,7 @@ before its report (ADR 0182), and the trace line names `scope`, because no ledge
 slice is in progress. `final-reviewer` reads a
 review cycle's range from the re-review's dispatch. A re-review hands `final-reviewer` only the current cycle's
 range, so it reads the scope's earlier review cycles from the trace at every dispatch of `/superdev:review`: a `scope` range whose latest outcome line reads
-`pass-to-pass` is a Pass-to-pass finding, and an `implementer` `dispatch` of `scope` with `edit` lines in its
+`pass-to-pass` is a Pass-to-pass finding, and an `implementer` `dispatch` of `scope` with `edit` lines or untraced writes (`## Untraced writes`) in its
 window, whose commits that landed in that window change both a test-path file and another file, with no outcome
 line over those commits, is a Missing fail-to-pass run finding. A fix cycle's window runs from each run of its
 `implementer` dispatch of `scope` (its `dispatch` line, and each `dispatch-resume` line of that dispatch) to the first
@@ -256,7 +255,7 @@ slice's recorded range base, or the fix cycle's own base. A `scope` line that fo
 line and starts its range at that line's base is the finding's closing run, not a cycle: it closes the finding or
 keeps it open, and raises no second finding. A cycle's Missing finding goes into the fix list the same way a slice's
 does, over the cycle's range, which the controller names in the fix dispatch.
-The report names a cycle's finding with its range. No trace, a cycle with no `edit` lines, and a
+The report names a cycle's finding with its range. No trace, a cycle with neither an `edit` line nor an untraced write, and a
 repository with no test command get no finding: the report names the gap. A cycle whose commits change only
 test-path files, or no file, has nothing to put back, and a cycle whose test-path changes are all deletions and whose
 changes outside the test paths add no behaviour has no test of its own to run: either needs no outcome line and gets
@@ -325,6 +324,44 @@ with its slice and its reason, raises no finding for it, and starts no fix cycle
 for **Missing fail-to-pass run**, and the latest line reading `fail-to-pass` or `pass-to-pass` decides
 **Pass-to-pass**, so an `unknown` neither raises nor closes it. The controller, not the reviewer, captures the scope
 run's first `unknown` that `references/scope-findings.md`'s `## Observations` does not exempt, as an observation.
+
+## Untraced writes
+
+**`slice-reviewer` and `final-reviewer` read this section** (ADR 0227). The run trace records an edit only from an Edit, Write, or
+NotebookEdit tool call and a test run only from `scope.js test` and `scope.js fail-to-pass`, so a change made through a shell
+command leaves no `edit` line. The commits show every change, and this section reads the two against each other.
+
+**A window** is the stretch of the trace one run of an `implementer` dispatch covers, bounded as `## Fail-to-pass run` defines a fix
+cycle's window. A slice's boundary lines are those whose second field is the slice id, so a
+dispatch of another slice running in parallel cuts no window. A line belongs to a window when its time lies inside it and its slice
+field is the window's slice. A `lite` slice has no `implementer` dispatch, because the controller builds it inline: its window is
+the slice's whole trace, its `edit` lines carry agent `main`, and its range is the one its ledger row records. A `behavior`
+slice must record one and any other slice may (`implement-lite.md`), so a `lite` slice with no recorded range has none to list: the report names the gap.
+
+**The untraced-write listing.** `slice-reviewer` runs it for every full-tier slice and every fix cycle with commits, and
+`final-reviewer` for the windows `## Fail-to-pass run` gives it: the `lite` slices and the scope's fix cycles. Run
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" untraced <base>..<tip> --slice <id|scope> [--from <ts>] [--until <ts>] --root <run-root>`.
+
+- `<base>..<tip>` is the range of that window's commits: the slice's range for the build window (the ledger row's range for a `lite`
+  slice), and a fix cycle's range for a cycle. Both ends are full commits, and the range runs along the first-parent chain, so a
+  merge commit that brings the base in adds none.
+- `--slice` is the window's slice field: the slice id, or `scope` for a fix cycle in the scope checkout.
+- `--from` is the time of the window's first line and `--until` the time of the boundary line that ends it, copied from the trace.
+  Omit `--until` where the window runs to the end of the trace, and omit both for a `lite` slice.
+- Each output line is a path the commits change that no `edit` line of that slice names inside the window: `<added|modified|deleted>`
+  and the path, or `renamed`, the new path, and the old path, separated by tabs. The status is the range's net change: a path added
+  and then deleted is not listed, and a path modified and then renamed is listed once, as the rename. A later window's `edit` line never hides an earlier
+  window's write, because each call passes its own window.
+- Grade each listed path as a hunk of the diff: read its change under the lenses, and give it the severity the entry it falls under
+  states. A write through a shell is no defect of its own: a `git mv`, a formatter, and a generator are ordinary.
+- A listed path counts as an `edit test` event where it is a test path and as an `edit impl` event otherwise, for **Missing
+  fail-to-pass run**. A slice or a fix cycle with untraced writes and no `edit` line is held to that rule like any other.
+- A call that refuses names the reason: the report names the window the call could not read, and the review raises no finding for it.
+
+**Implementer suite run** — a `run full` or `run whole` line inside an `implementer` window, by time and slice. Severity Minor
+(ADR 0227). The implementer owns focused and path runs only (`implementer.md`'s `### Running tests`), and the controller's full and
+whole-repo runs fall outside every implementer window. A `run focused` line, a `run path` line, and the controller's lines raise none.
+The finding names the line's time, its slice, and its kind.
 
 ## Dependency verification
 

@@ -46,7 +46,7 @@ responsibility. `scope.js` exports only the names a requirer uses. No module req
 `suite reusable --branch <b> [--whole] [--base <base-branch>]`, `suite rerun <test-file> <triage-ref>`,
 `base set <sha>`, `base resolve --branch <b> --base <ref>`,
 `get stage|branch|anchor|slices|unresolved|degraded|deferred|minors|denials|docs|pr|suite`,
-`status` (which renders the whole `/superdev:status` report), `trace [--slice <id>]` (prints the run trace, read-only), `publish`, `adopt`, `root <slug>`,
+`status` (which renders the whole `/superdev:status` report), `trace [--slice <id>]` (prints the run trace, read-only), `untraced <base>..<tip> --slice <id|scope> [--from <ts>] [--until <ts>] --root <run-root>` (read-only), `publish`, `adopt`, `root <slug>`,
 `staging <scope> [--count]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `citations --range-base <ref> --branch <ref> <id>…`, `source-set [<path>]`, `push --root <run-root> --remote <remote> --base <base-ref>`, `dod-merge --root <run-root>`, `dod-line`, `dod-tags [--map-file <path>] [--line]`, `fail-to-pass <base>..<tip> -- <command>`, `prepare <tree>`, and `test`.
 `--help` or `-h`, alone or after any verb, prints the usage and exits 0, except that a flag's value, or the text after `add`, `add-denial`, `reset-denials`, or `resolve`, is data and never a help request. It is checked before any verb
 reads stdin or touches a ledger, so a stdin verb such as `dod-line` never waits on input for it.
@@ -140,9 +140,8 @@ silently. A module requires no entry point, so a `require` of a module runs no C
 guards its own CLI entry with `require.main === module`. `hooks/run-trace.js` takes
 the trace writer `appendTrace` from `trace-log.js`,
 the tree locator `locate` and the test-path classifier `isTestPath` (ADR 0128) from `run-tree.js`,
-the Bash recorder `recordBash` from `test-runs.js`, and the dispatch, write-target, and start-stash
-readers from `dispatch.js`, `bash-writes.js`, and `start-stash.js`. Each `require` has its own guard, and a module that fails to load
-leaves the hook recording nothing (ADR 0117, INV-0159). `hooks/tree-guard.js` takes `mainWorkTree` from `main-work-tree.js` (ADR 0148). `hooks/test-guard.js` takes `cmdSegments` and `plain` from `bash-command.js`, `testRuns`, `verificationKind`, and the `scope.js test` call finder `scopeTestCalls` from `test-runs.js`, and `verificationCommands` from `verification.js`, and a module that fails to load lets every call pass (ADR 0181). `publish-kb.js` reaches
+and the dispatch readers from `dispatch.js`. The hook reads no Bash command (ADR 0227). Each `require` has its own guard, and a module that fails to load
+leaves the hook recording nothing (ADR 0117, INV-0159). `hooks/tree-guard.js` takes `mainWorkTree` from `main-work-tree.js` (ADR 0148). `publish-kb.js` reaches
 the containment test `testContainment` from `containment.js`, which refetches the base before it answers not contained (ADR 0053,
 ADR 0065), `refResolves` from `git-spawn.js`, and `readLedgerHeader`, `SLUG_RE`, `CHANGE_TYPES` from `ledger.js`, through its `lib/kb-*.js` modules. `base set` appends a `ledger`
 trace event like every other ledger-writing verb. Normalisation is per
@@ -223,30 +222,26 @@ git repository included. `--count` prints the number of `.md` pages in that dire
 it is missing. The staged-page scan behind `status` resolves its staging root through the same main
 working tree.
 
-`test full|whole`, `test focused [<path>…]`, and `test -- <command>` run a test command through `sh -c`, `sh` resolved from PATH (ADR 0150), and append one
+`test full|whole`, `test focused [<path>…]`, and `test path <file>… -- <command>` run a test command through `sh -c`, `sh` resolved from PATH (ADR 0150), and append one
 `run` line carrying the command's own exit status, an **Observed run** (CONTEXT.md, ADR 0127, INV-0117). The line ends with
 the run's duration in whole milliseconds (ADR 0182) and the arguments of the command's test segment (`encodeArgs` of `lib/trace-log.js`; `-` for none). The test segment is the matched test run inside a compound command, so `cd x && bun test a b` records `a b`. `scope.js` records the arguments verbatim, and the run-state ref publishes the trace. Pass a secret through the environment, never through an argument. The verb
 streams the command's output and exits with its status. `full`, `focused`, and `whole` run the command
 `docs/agents/verification.md` configures, as written; `focused` substitutes its shell-quoted paths for `{paths}`
 and, given none, runs the full command and records `full`. It refuses an empty path argument, and an argument that holds
-whitespace and names no file relative to the tree root, a path list joined into one word (ADR 0217). `--` runs a command that `testRuns` of `lib/test-runs.js`
-classifies as exactly one test run, and records the kind and files a direct run records. A word counts as a
-path argument of that classification only when its file part names an existing file or directory; a runner node id
-(`a.py::test_x`, `a.test.js:12`) counts by its file part, and a glob word keeps its reading. A quoted note that begins
-with a test path is therefore free text, and so is a test path that names no file. A status the
-command shape hides from the test, such as a pipe without `pipefail`, records `unknown`. A command that classifies
-as no test run, or a kind with no configured command, is refused and nothing runs. The verb reads the run root,
+whitespace and names no file relative to the tree root, a path list joined into one word (ADR 0217). `path <file>… -- <command>` runs the
+command as given, from the current directory, against the test files its caller names, and classifies nothing (ADR 0227). It
+records the kind `path`, the files, and the command as typed. A status the command shape hides from the test, such as a pipe without
+`pipefail`, records `unknown`. `test --` without files, a missing file, a missing command, and a kind with no configured command
+are refused and nothing runs. The verb reads the run root,
 slice, commit, and tree state when the command starts, and appends the line when it finishes. A run during which
 HEAD moved, the tree was dirty at either end, or the trace recorded an edit, revert, or restore for the slice
 during the run records `dirty`, so it never backs `suite reusable`. A change no hook records shows only at the two ends. A command ended by a
 signal, or a verb killed first, writes no line, and the command's run ends with the verb: a Node watcher process supervises it and ends it
 through `endRun` (a process-group kill, `taskkill /pid <pid> /t /f` on Windows), which covers `SIGKILL`. `test` ends the group with `SIGTERM`. A failed trace write prints a note on stderr and leaves the exit status unchanged.
-Outside every run tree the command runs and nothing is written. So does a command that `cd`s out of every run tree:
-`outsideTree` of `lib/test-runs.js` classifies the `cd` target against its repository top. The verb takes no option that sets an outcome,
-kind, slice, or tree state. `lib/test-verb.js` requires `lib/run-tree.js` (`locate`, `treeState`) and `lib/test-runs.js` (`testRuns`) at call time, the locator and classifier it shares with the
-run-trace hook. When the classifier's own module cannot be found, it classifies no command as a test run, so `test --` refuses every command and a configured kind still runs.
-`hooks/run-trace.js` records no run for a Bash command that runs `scope.js test` or `scope.js fail-to-pass`, since each
-verb writes its own run line.
+Outside every run tree the command runs and nothing is written. The verb takes no option that sets an outcome,
+kind, slice, or tree state. `lib/test-verb.js` requires `lib/run-tree.js` (`locate`, `treeState`) at call time, the locator it shares with the
+run-trace hook, and `lib/run-check.js`, whose digest check runs before the run line is written. `hooks/run-trace.js` reads no Bash command,
+so a test run enters the trace through `scope.js test` and `scope.js fail-to-pass` alone, each writing its own run line.
 
 `fail-to-pass <base>..<tip> -- <command>` runs the caller's command twice and reports whether the range's tests
 discriminate (CONTEXT.md **Fail-to-pass run**, ADR 0134, ADR 0182, INV-0139). The command runs at the tree root. The caller
@@ -291,7 +286,7 @@ and no gate reads it as green.
 
 Inside a run root the verb appends one `fail-to-pass` trace line, `<base>..<tip> <outcome> <reason> <command>`. Its slice is the
 ledger row that records exactly that range, else the slice the run's directory attributes to, else `scope`. The control run also writes a `path` run line naming the range's test files, the files the command was handed to cover, and ending with its duration. The line
-has the same slice as the outcome line and the form `test --` writes. It backs no suite record. It names the tip. The verb reads the worktree's HEAD
+has the same slice as the outcome line and the form `test path` writes. It backs no suite record. It names the tip. The verb reads the worktree's HEAD
 and tree at both ends. A HEAD that left the tip, or a dirty tree at either end, records `dirty`. An unreadable tree state
 records `unknown`. Otherwise the tree is `clean`. A run ended by a signal, or one that could not start, writes no line
 (ADR 0175). The outcome line itself is no
@@ -317,15 +312,14 @@ command and each changed path. The verb compares each tracked path's difference 
 after the command, read with `--no-ext-diff --no-textconv` so no diff program of the user's runs, and a tracked edit the
 tree already held is no such change. An untracked file it writes is no such change either, the
 rule `fail-to-pass` applies. An interrupt ends the command's group with `SIGKILL` and exits 128 plus the signal
-number. A `scope.js prepare` call is no test run: `hooks/run-trace.js` records no run for it, as it records none for any
-`node` script outside the test paths.
+number. A `scope.js prepare` call is no test run: it writes no run line.
 
 `scope.js` has one suite per topic, so a test-first step on one verb runs only that verb's cases (ADR 0139, ADR 0151). `tests/scope-setup.js`
 holds the setup they share and is no suite. The `test` verb's cases split over `scope-test-verb-<topic>` (dirty, first-moment-kill,
 first-moment-term, install, kill, late-fork, record, refusals, tree) and the `fail-to-pass` verb's over `scope-fail-to-pass-<topic>` (bound,
 concurrency, environment, interrupt, prepare, reuse, signals, trace, verdict, watcher), and the `prepare` verb's is `scope-prepare`. The rest: `scope-ledger` (init, stage, step, slice, the bullet and header records, get, status, and the ledger-fixtures pin),
 `scope-ledger-header` (`readLedgerHeader`), `scope-suite` (the suite and base records), `scope-dod-line`, `scope-dod-tags` (the `dod-tags` verb), `scope-dod-merge` (the `dod-merge` verb), `scope-publish-adopt` (`publish`, `adopt`, and the
-`maskFencedLines` pin), `scope-trace` (the run trace, `appendTrace`, and its run-lock refresh), `scope-root-base` (`root`, `staging`, `base` from a linked worktree),
+`maskFencedLines` pin), `scope-trace` (the run trace, `appendTrace`, and its `run.lock` refresh), `scope-digest` (the digest check), `scope-untraced` (the `untraced` verb), `scope-root-base` (`root`, `staging`, `base` from a linked worktree),
 `scope-containment`, `scope-citations-collisions`, `scope-source-set`, `scope-push`, `scope-open`, `scope-help`, and `scope-stdin` (every verb that reads piped input receives it through the CLI). A focused run for `scope.js`, or for a module it requires, selects
 every suite that reaches it (`run-tests.js`, below).
 
@@ -378,6 +372,26 @@ and `tests/scope-open.test.js` holds its cases.
 missing `--root`, a root that does not resolve (after `..`, symlinks, and a drive path) to `<main working tree>/.superdev/scopes/<scope>`,
 and a run whose stage is later than `planned`. An absent file or an absent root exits 0. `/superdev:plan`'s label revision calls
 it. The code lives in `plugin/lib/discard.js`, and `tests/scope-discard.test.js` holds its cases.
+
+### Run digest (ADR 0227)
+
+`run-digest.js` keeps `<run-root>/digest.json`, the size and sha256 of `ledger.md` and `trace.log` as `scope.js` and the hooks last
+wrote them, under `digest.lock`, a lock created exclusively whose holder removes it and whose stale holder's lock is broken after
+`LOCK_STALE_MS`. Neither file is pushed with the run state. `run-check.js`'s `checkRun(root)` compares both files with the digest
+before a verb writes to the run: `scope.js` calls it once from `writtenRoot` for every verb that names `--root` and writes
+(`stage`, `step`, `slice`, `degraded`, `unresolved`, `deferred`, `minors`, `docs`, `pr`, `adopt`, `dod-merge`, `deploy set`,
+`base set`, `suite` other than `reusable`), and `init`, `open`, `test`, and `fail-to-pass` call it in their own verbs. A file that
+differs, or that was deleted while its digest was present, prints one stderr warning naming the file and appends a `tamper <file>`
+trace line. The digest then seals what is on disk and the verb goes on. A file with no digest is sealed and reported on no stream.
+No hook refuses an edit of either file. The code lives in `plugin/lib/run-digest.js` and `plugin/lib/run-check.js`, and
+`tests/scope-digest.test.js` holds its cases.
+
+`untraced <base>..<tip> --slice <id|scope> --root <run-root> [--from <ts>] [--until <ts>]` writes nothing (ADR 0227). It lists, one
+line per path, the changes of the range's first-parent, non-merge commits that no `edit` line of the slice names inside the window
+`[from, until)` (ISO times of the trace's own lines; none means the whole trace): `<added|modified|deleted>\t<path>`, or
+`renamed\t<new>\t<old>`, sorted by path. It refuses a missing `--root` or `--slice`, a range that is not `<base>..<tip>` (a
+three-dot range included), and a root with no `ledger.md`. A review reads the list as the untraced writes of a slice. The code lives
+in `plugin/lib/untraced.js`, and `tests/scope-untraced.test.js` holds its cases.
 
 `dod-line` is another verb that touches no ledger, and makes no store call of its own
 (`references/dod-ticks.md`, INV-0014, triage #664): `--match-file <path>
@@ -497,12 +511,10 @@ non-`.md` file staged and ignored, and a `.md` file staged directly under `.supe
 outside any scope directory. Each is a page `/superdev:publish-kb` would otherwise silently miss.
 
 The stage machine's transition rules are enforced in its code, not in prose, and
-`hooks/ledger-guard.js` denies every other write path. `tests/scope-ledger.test.js` carries the retired
+`scope.js` detects any other write path after the fact (`### Run digest` below). `tests/scope-ledger.test.js` carries the retired
 drift assertions along with scope.js's own behavior: the stage machine, the ledger schema and header
-lines, a pre-CLI ledger parsing unchanged, and the scope-slug charset staying equal across `scope.js`,
-`hooks/run-lock.js`, and `references/scope-mode.md`. A further pin — the same class of assertion as
-the `arg-token` pin of the Bash hooks' scanner require, adapted for a
-shared function instead of a shared module — asserts, in `tests/scope-publish-adopt.test.js`, that `lib/run-state.js` and `lib/dod-line.js` still require
+lines, a pre-CLI ledger parsing unchanged, and the scope-slug charset staying equal across `scope.js`
+and `references/scope-mode.md`. A further pin, a shared function instead of a shared module, asserts, in `tests/scope-publish-adopt.test.js`, that `lib/run-state.js` and `lib/dod-line.js` still require
 `maskFencedLines` from `md-sections.js` and declare no private function of that name, so a reintroduced
 private copy of the masking rule fails this instead of only being caught by chance, on whichever
 fixture happens to exercise the drift.
@@ -947,7 +959,6 @@ path, when that document is missing. A check that walks a directory reads whatev
 | `scopetree-run-root` | `skills/ship/SKILL.md`, `skills/document/SKILL.md`, and `scripts/publish-kb.js` address another run's scopetree by `<run-root>/scopetree`, never by a checkout-relative path (ADR 0080) | prohibition |
 | `change-type` | `references/scope-mode.md`, `hooks/scope-prune.js`, `CONTEXT.md`, and `lib/ledger.js` carry the same change-type set | structural |
 | `no-second-reader` | no file under `plugin/hooks/` builds a ledger-header regex of its own, and no file under `plugin/lib/` other than `ledger.js` does (ADR 0022) | prohibition |
-| `arg-token` | `hooks/merge-guard.js`, `hooks/ledger-guard.js`, `lib/ledger-writes.js`, and `lib/bash-command.js` require the shell scanner `shell-words.js` (`../lib/shell-words.js` from a hook) and declare no shell-word reader or `((` spread of their own (ADR 0135) | structural |
 | `shell-spawn` | no file under `plugin/hooks/`, `plugin/scripts/`, or `plugin/lib/` starts a shell by absolute path, starts `bash`, or uses Node's default shell (INV-0153) | prohibition |
 | `test-seams` | no JavaScript file at any depth of `plugin/` names a file of the repository's `tests/` directory by base name or by a `tests/` path that carries a glob (`tests/scope-*.test.js`), and none reads `process.env.NAME`, `process.env['NAME']`, or a destructured `NAME` that no Markdown document under `plugin/` names, unless `NAME` starts with `CLAUDE_`; none uses a `SUPERDEV_` name on any object, `process.env` or an alias or passed-in one (a property, a bracket, a destructuring, an object key plain, quoted, computed by a literal, or shorthand, a `const`, `let`, or `var` binding, or a `NAME=` prefix; a key built by concatenation or held in a variable matches no form), and no Markdown file under `plugin/` names a `SUPERDEV_` identifier, with `SUPERDEV_TEXT_EOF` allowed by name and a document naming a `SUPERDEV_` variable allowing none (ADR 0207, INV-0180); a classifier glob such as `**/tests/` or `**/tests/**` names no file (INV-0156, ADR 0154) | prohibition |
 | `containment-delegation` | `lib/kb-containment.js` imports and calls `lib/containment.js`'s `testContainment` (ADR 0053) | structural |

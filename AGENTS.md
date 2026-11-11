@@ -49,22 +49,23 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          final-reviewer, doc-writer, doc-reader, test-auditor,
                          test-gap-auditor
   hooks/               — the deterministic Node hooks + hooks.json: merge-guard, model-explicit,
-                         run-lock, ledger-guard, tree-guard, test-guard, run-trace, slicetree-sweep, scope-prune, update-check,
+                         tree-guard, run-trace, slicetree-sweep, scope-prune, update-check,
                          offer-guard
   lib/                 — every module: code that no hook registration and no prose step runs (ADR 0151).
                          `hooks/` and `scripts/` hold entry points only, each keeping its path and exports.
                          A module has one responsibility and opens with its file name and a colon.
-                         Shell scanning: `shell-words.js` (the scanner the Bash hooks read a command
-                         through, ADR 0135, ADR 0150), `shell-word-readers.js` (its hook-only readers),
-                         `bash-command.js` (words, segments, wrappers, and the directory each segment runs
-                         in), `bash-writes.js` (the files a command writes), `ledger-writes.js`
-                         (ledger-guard's write-target table).
+                         No module reads a Bash command's words (ADR 0227): `merge-guard.js` holds the one raw-text
+                         check, and `drive-path.js` (the MSYS drive-path translator, ADR 0150) is the only path
+                         helper `discard.js` and `prepare.js` share.
                          Ledger and run state: `ledger.js` (vocabulary, stage rank, line primitives),
                          `ledger-lifecycle.js` and `ledger-records.js` (the verbs that move a run and
                          record a fact), `suite-base-get.js`, `dod-line.js`, `dod-tags.js` (the `dod-tags` verb that rewrites and checks criterion tags, ADR 0209), `dod-merge.js` (the `dod-merge` verb and the
                          per-line merge adopt uses, ADR 0206), `run-state.js` (`publish` and
                          `adopt`), `status.js`, `usage.js`, `refusal.js` (the refusal error),
                          `main-work-tree.js`, `verification.js` (the readers of `verification.md`).
+                         Run integrity: `run-digest.js` (the digest sidecar of a run root and its lock) and
+                         `run-check.js` (the check every verb that writes to a run makes before its write,
+                         which records a `tamper` trace line, ADR 0227); `untraced.js` (the `untraced` verb).
                          Operator configuration: `operator-config.js` (the reader of `.superdev/info.json`,
                          used by push, fail-to-pass, and the KB backend runner, ADR 0207).
                          Git and containment: `git-spawn.js` (the shared git calls), `containment.js`,
@@ -74,7 +75,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          `run-state-ref.js` (the run-state ref `refs/superdev/<scope>`: sent at a step end,
                          fetched in `adopt`, deleted at wrap-up, ADR 0202).
                          Run trace: `trace-log.js` (writer, reader, field codec), `run-tree.js`,
-                         `test-runs.js`, `dispatch.js`, `dispatch-lines.js`, `start-stash.js`.
+                         `dispatch.js`, `dispatch-lines.js`.
                          Offer guard: `offer-marker.js` (the per-turn offer markers `offer-guard.js` writes and reads, ADR 0213),
                          `running-skill.js` (the superdev skill a session transcript last started, ADR 0222).
                          Test verbs: `test-verb.js`, `fail-to-pass.js`, `run-supervision.js`, `prepare.js` (the prepare command's runner and the `prepare` verb, ADR 0218).
@@ -93,17 +94,16 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
   LICENSE · NOTICE     — copies of the root files, so the shipped tree carries its own attribution
 tests/                 — one suite per shipped executable (the hooks, `scope.js`, `kb-patch.js`,
                          `publish-kb.js`), one per module named for it
-                         (`git-spawn.js`, `shell-words.js`, `md-to-storage.js`), one for the shipped
+                         (`git-spawn.js`, `drive-path.js`, `md-to-storage.js`), one for the shipped
                          tree's layout (`plugin-layout.test.js`: entry-point export names, re-export
                          identity, the CommonJS anchor over `plugin/lib/`), and one each for the
                          maintainer-only `invariant-check.js` and `run-tests.js`, framework-free
                          `node:assert`, run under `node` by `node scripts/run-tests.js` (ADR 0059). A large entry
                          point's suite is split flat by topic into `tests/<entry>-<topic>.test.js` over one
                          `<entry>-setup.js` that is no suite (ADR 0139, ADR 0151): `scope-*` (ledger,
-                         ledger-header, suite, dod-line, dod-tags, dod-merge, publish-adopt, trace, root-base, containment,
+                         ledger-header, suite, dod-line, dod-tags, dod-merge, publish-adopt, trace, digest, untraced, root-base, containment,
                          citations-collisions, source-set, push, open, help, stdin, discard, prepare, `test-verb-*`, `fail-to-pass-*`, over `scope-setup.js`),
-                         `run-trace*` (dispatch, drive-paths, guards, paths, runs, stash,
-                         writes, over `run-trace-setup.js`), `publish-kb*` (containment, guard, `parent-link-*`,
+                         `run-trace*` (dispatch, guards, paths, over `run-trace-setup.js`), `publish-kb*` (containment, guard, `parent-link-*`,
                          patch, publish, read, scope, templates, timeout, over `publish-kb-setup.js`),
                          and `scope-prune*` (containment, guards, main, reap, over `scope-prune-setup.js`);
                          `spawn-verdict.js` and `fixture-git.js`
@@ -427,30 +427,26 @@ This root owns every other subtree directly:
 - `plugin/hooks/`. Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working
   rules, Hooks are CommonJS** and **Every shipped executable has a suite in `tests/`, named for it**.
   This is the strongest future child-doc candidate, if its rules outgrow this root. Of the
-  hooks, `scope-prune.js`, `slicetree-sweep.js`, `run-trace.js`, `ledger-guard.js`, `tree-guard.js`, `test-guard.js`, and `offer-guard.js` depend on modules in `plugin/lib/`,
+  hooks, `scope-prune.js`, `slicetree-sweep.js`, `run-trace.js`, `tree-guard.js`, and `offer-guard.js` depend on modules in `plugin/lib/`,
   and the scripts require them as well. No hook and no script requires `scope.js`. `scope-prune.js` and `slicetree-sweep.js` both
   `require` `../lib/ledger.js` for their ledger-header reader (ADR 0022) and `../lib/git-spawn.js` for the git calls the two Stop hooks
   share (the spawn, the throwing call, and the `git branch` list parse; a module missing any of them reads as unloaded). `run-trace.js` takes each of
-  `../lib/trace-log.js`, `bash-writes.js`, `test-runs.js`, `run-tree.js`, `dispatch.js`, and
-  `start-stash.js` through a `require` of its own (ADR 0117, INV-0159). `ledger-guard.js` requires `../lib/ledger-writes.js` for its write-target reader.
+  `../lib/trace-log.js`, `run-tree.js`, and `dispatch.js` through a `require` of its own (ADR 0117, INV-0159).
   `scope-prune.js` takes the containment probe `baseHistoryHasPatch` off `../lib/containment.js` through a `require` of its own (ADR 0082). `tree-guard.js` requires
   `../lib/main-work-tree.js` for the main-working-tree resolver `mainWorkTree`. It denies a dispatched implementer's Edit, Write, or
   NotebookEdit into a checkout of a repository that holds a run, outside its main working tree's `.superdev/`.
   It also denies such a write into that repository's git directory. That covers the main `.git/`, a linked
   worktree's gitdir, and a submodule's gitdir (ADR 0148, INV-0152). It fails open: when `main-work-tree.js`
-  cannot load, or git cannot place the target, the write passes. `test-guard.js` requires `../lib/bash-command.js`,
-  `test-runs.js`, `verification.js`, and `run-tree.js`. It denies a dispatched implementer's Bash call that runs the full or the
-  whole-repo suite inside a run tree, through `scope.js test`, through `scope.js fail-to-pass … --`, or directly, and a
-  `scope.js test focused` where the focused fence repeats the full one (ADR 0181, ADR 0182, INV-0174). It fails open too: when a module cannot load, or the call lies outside every run tree, the call passes. `slicetree-sweep.js`
+  cannot load, or git cannot place the target, the write passes. `slicetree-sweep.js`
   tests a worked slice branch's tip against its scope branch's first-parent chain, alongside the
   default-branch content check (ADR 0089). A `require` failure leaves the hook
   with no fallback reader: it sweeps, prunes, records, or denies nothing and says nothing. The probe has its own, narrower
-  fallback: when `containment.js` cannot load or carries no probe, `scope-prune.js` prunes by tree comparison alone, still silently. The Bash hooks
-  `merge-guard.js`, `ledger-guard.js` (through `lib/ledger-writes.js`), `run-trace.js`, and `test-guard.js` (both through `lib/bash-command.js`) each reach the module
-  `shell-words.js` and keep no shell-word reader of their own (ADR 0135, the `arg-token` drift check).
-  `run-lock.js` requires it too, for its drive-path translator (ADR 0150). When the module cannot load, the
-  guardrails `merge-guard.js`, `ledger-guard.js`, and `run-lock.js` fail closed,
-  `run-trace.js` records nothing, and `test-guard.js` passes the call (INV-0140).
+  fallback: when `containment.js` cannot load or carries no probe, `scope-prune.js` prunes by tree comparison alone, still silently. `merge-guard.js` is the one Bash hook that denies, and it
+  requires no module: it checks the raw text of a subagent's Bash call for a lead word (`git`, `gh`, `tea`, `scope.js`)
+  followed by an integration verb (ADR 0227). `run-trace.js` reads no Bash command and records a file edit from a file-tool
+  event only. Nothing refuses a write to a run's ledger or trace, and nothing refuses an implementer's full-suite run:
+  `scope.js` detects an outside edit of a run's ledger or trace after the fact (`lib/run-check.js`), and a review grades
+  an untraced write and a full-suite run (`scope.js untraced`).
   `offer-guard.js` requires `../lib/offer-marker.js` and `../lib/running-skill.js`. Its PostToolUse half records each offer call
   (`start_session` with the offer's marker line, or an `AskUserQuestion` with a `Start /superdev:` option) by
   session, turn, and command. Its Stop half, last in the Stop array, holds a main-session turn once when the last

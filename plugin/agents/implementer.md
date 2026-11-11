@@ -135,10 +135,11 @@ Applies to every test run in any dispatch.
 
 Run only the tests that verify your work. Run each through the runner `${CLAUDE_PLUGIN_ROOT}/scripts/scope.js test`, as `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` states in `## The two commands` and `## The changed-path set`. The controller owns every full-suite run.
 
-- Your runs: `scope.js test focused <paths>` with at least one path, `scope.js test -- <command>` for one test file, and the fail-to-pass run `### Fail-to-pass run` states.
+- Your runs: `scope.js test focused <paths>` with at least one path, `scope.js test path <file>... -- <command>` for one test file, and the fail-to-pass run `### Fail-to-pass run` states.
+- A test command is recorded as typed and pushed with the run state, so a secret belongs in the environment, never on the command line.
 - The controller's runs: `test full`, `test whole`, and a `test focused` with no path, which runs the full command.
-- Where the focused fence of `docs/agents/verification.md` repeats the full fence, each RED or GREEN step runs each test file it works on through `scope.js test -- <command>`, and the fail-to-pass run is the one run you make before your report.
-- The `test-guard` hook refuses a controller's run when you start one, and its refusal names the run to make instead (ADR 0181).
+- Where the focused fence of `docs/agents/verification.md` repeats the full fence, each RED or GREEN step runs each test file it works on through `scope.js test path <file>... -- <command>`, and the fail-to-pass run is the one run you make before your report.
+- A `run full` or `run whole` line recorded in your dispatch window is a Minor review finding, so run only the commands above.
 
 ### Edit tools
 
@@ -170,11 +171,10 @@ Applies to a `behavior` slice dispatch.
 
 Applies to a `behavior` slice dispatch and to every fix dispatch.
 
-Your tests must fail without your change. Prove it before you report (ADR 0182). Once your last GREEN increment is committed, where your range changes a test-path file and another file, and deletes not every test-path file it changes, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <range-start>..HEAD -- <command>` from your checkout. A range that deletes every test-path file it changes and adds behaviour outside the test paths leaves that behaviour with no test: write one for it, then run the verb (ADR 0196). The test paths are `docs/agents/verification.md`'s `## Test paths`, or the defaults where it has none. Write the command to run every test file your range adds or modifies, in the form your runner selects them, and to run from the tree root. The verb records the command on its outcome line, and the reviewer checks that it runs each of those files. The verb's first run is your last GREEN run of those files: commit your GREEN code and run the verb in place of another run of them, and a first run that does not pass is a RED step. A passing run of them through `scope.js test --` at your committed tip is the first run, and the verb runs only the second (ADR 0215).
+Your tests must fail without your change. Prove it before you report (ADR 0182). Once your last GREEN increment is committed, where your range changes a test-path file and another file, and deletes not every test-path file it changes, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <range-start>..HEAD -- <command>` from your checkout. A range that deletes every test-path file it changes and adds behaviour outside the test paths leaves that behaviour with no test: write one for it, then run the verb (ADR 0196). The test paths are `docs/agents/verification.md`'s `## Test paths`, or the defaults where it has none. Write the command to run every test file your range adds or modifies, in the form your runner selects them, and to run from the tree root. The verb records the command on its outcome line, and the reviewer checks that it runs each of those files. The verb's first run is your last GREEN run of those files: commit your GREEN code and run the verb in place of another run of them, and a first run that does not pass is a RED step. A passing run of them through `scope.js test path` at your committed tip is the first run, and the verb runs only the second (ADR 0215).
 
 - `<range-start>`: `<base>` on a slice dispatch and a slice fix dispatch, `<sweep-base>` on a sweep fix dispatch, and `<cycle-base>` on a review fix dispatch and an inline fix dispatch. Outside a run root the verb writes no run-trace line, and its printed outcome goes in your report.
 - A fix dispatch that hands a **Pass-to-pass** finding names that finding's original base. Run the verb from that base as well, once your fix is committed: its `fail-to-pass` outcome closes the finding.
-- Run any revert (to show RED by hand: `git restore --worktree --source=<range-start> <impl files>`), each test run, and the restore as separate Bash calls. The run trace then orders each line by its own call.
 - Pass every secret to a test run through the environment and keep it out of the command's arguments. The run trace records test arguments verbatim and is published to the remote run-state ref.
 - The verb runs the command at your tip, then again with every file your range changed outside its test files put back as it stood at `<range-start>`. It prints one outcome and writes it to the run trace.
 - `fail-to-pass`: your tests detect your change.

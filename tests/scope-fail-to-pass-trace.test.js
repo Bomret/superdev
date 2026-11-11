@@ -32,7 +32,9 @@ const { appendTrace } = require(scopePath);
     assert.equal(s.runLines()[0].split(' ')[0], s.trace()[0].split(' ')[0], 'and the control run line names the same slice');
     const slice = spawnSync(process.execPath, [scopePath, 'slice', '01', 'merged', '--root', s.root], { cwd: s.repo, encoding: 'utf8' });
     assert.equal(slice.status, 0, slice.stderr);
+    // An empty trace starts with no digest too: a trace deleted beside a present digest is a tamper (ADR 0227).
     fs.rmSync(path.join(s.root, 'trace.log'));
+    fs.rmSync(path.join(s.root, 'digest.json'), { force: true });
     s.run(s.range);
     assert.deepEqual(s.trace(), [`scope main fail-to-pass ${s.range} fail-to-pass control=0,put-back=1`], 'a scopetree with no slice in progress names `scope`');
     assert.equal(s.runLines()[0].split(' ')[0], s.trace()[0].split(' ')[0], 'and the control run line names the same slice');
@@ -42,10 +44,12 @@ const { appendTrace } = require(scopePath);
     const recorded = spawnSync(process.execPath, [scopePath, 'slice', '01', 'merged', '--range', short, '--root', s.root], { cwd: s.repo, encoding: 'utf8' });
     assert.equal(recorded.status, 0, 'a range is recorded on a row that is merged already: ' + recorded.stderr);
     fs.rmSync(path.join(s.root, 'trace.log'));
+    fs.rmSync(path.join(s.root, 'digest.json'), { force: true });
     s.run(s.range);
     assert.deepEqual(s.trace(), [`01 main fail-to-pass ${s.range} fail-to-pass control=0,put-back=1`], 'the scopetree line names the slice that recorded the range');
     assert.equal(s.runLines()[0].split(' ')[0], s.trace()[0].split(' ')[0], 'and the control run line names that slice too');
     fs.rmSync(path.join(s.root, 'trace.log'));
+    fs.rmSync(path.join(s.root, 'digest.json'), { force: true });
     s.run(s.range, { cwd: path.join(s.root, 'slicetrees', '07') });
     assert.deepEqual(s.trace(), [`01 main fail-to-pass ${s.range} fail-to-pass control=0,put-back=1`], 'and so does a line from another slicetree');
     assert.equal(s.runLines()[0].split(' ')[0], s.trace()[0].split(' ')[0], 'and so does the control run line');
@@ -60,6 +64,7 @@ const { appendTrace } = require(scopePath);
     const fixSha = git(s.tree, ['rev-parse', 'HEAD']);
     for (const [label, range] of [['a fix cycle', `${s.tipSha}..${fixSha}`], ["a merged slice's base to the tip a fix cycle moved on", `${s.baseSha}..${fixSha}`]]) {
       fs.rmSync(path.join(s.root, 'trace.log'));
+      fs.rmSync(path.join(s.root, 'digest.json'), { force: true });
       const r = s.run(range);
       assert.equal(r.stdout.trim(), 'fail-to-pass control=0,put-back=1', `${label}: ${r.stderr}`);
       assert.deepEqual(s.trace(), [`scope main fail-to-pass ${range} fail-to-pass control=0,put-back=1`], `${label} names \`scope\``);
@@ -70,6 +75,7 @@ const { appendTrace } = require(scopePath);
     // The scenario above has the same base and tip, so it runs here from an empty trace, its branch back at the tip.
     git(s.tree, ['reset', '-q', '--hard', s.tipSha]);
     fs.rmSync(path.join(s.root, 'trace.log'));
+    fs.rmSync(path.join(s.root, 'digest.json'), { force: true });
     const cli = (sc, argv) => {
       const out = spawnSync(process.execPath, [scopePath, ...argv, '--root', sc.root], { cwd: sc.repo, encoding: 'utf8', timeout: 20000 });
       assertSpawnDecided(out, 'scope.js ' + argv.join(' '));

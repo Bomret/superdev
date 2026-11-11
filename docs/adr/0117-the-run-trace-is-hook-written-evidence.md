@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0227](0227-guardrails-read-no-shell-words.md), under which the run trace infers nothing from a Bash command: runs come from scope.js, edits from file-tool events.
+
 **Amends:** [ADR 0008](0008-tests-written-incrementally.md), [ADR 0114](0114-the-slice-review-reads-the-progress-log-only-after-its-blind-pass.md).
 
 **Amended by:** [ADR 0136](0136-the-run-trace-records-each-slice-review-verdict.md), [ADR 0127](0127-a-test-run-records-its-own-outcome.md), [ADR 0125](0125-missing-red-never-blocks-a-slice-at-the-fix-cap.md), [ADR 0128](0128-a-green-suite-record-carries-across-markdown-only-commits.md), [ADR 0159](0159-run-trace-reads-a-bash-call-s-starting-directory-from-a-pretooluse-stash.md), [ADR 0182](0182-the-implementer-proves-its-change-and-the-controller-runs-only-suite-gates.md), which

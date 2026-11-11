@@ -121,13 +121,14 @@ Repeat until every slice is `merged`:
    all deletions and it adds behaviour outside the test paths, and to fix a `pass-to-pass` outcome in the same dispatch, unless its range is in one of the three unclosable cases
    of `review-checklist.md`'s `## Fail-to-pass run`, which it then reports with its reason (ADR 0182, ADR 0193, ADR 0196). Every implementer dispatch also
    tells it to run only the tests that verify its work, each through `scope.js test` (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test
-   focused <changed paths>` with at least one path, or `test -- <command>` for a direct test-file run), and its fail-to-pass run, and never `test full`,
+   focused <changed paths>` with at least one path, or `test path <file>... -- <command>` for a direct test-file run), and its fail-to-pass run, and never `test full`,
    `test whole`, or a `test focused` with no path: the scope review's exit run is the scope's one full-suite run (ADR 0192). It tells it to run a suite longer than the
    Bash tool's time limit through the runner in the background and wait for its end before acting on it, and
-   tells it to edit files through the edit tools, never through a script, and to run any revert, each test run, and the restore as separate Bash calls. It also tells it that a RED or GREEN step passes the test files
+   tells it that a test command is recorded as typed and pushed with the run state, so a secret belongs in the environment, never on the command line, and
+   tells it to edit files through the edit tools, never through a script. It also tells it that a RED or GREEN step passes the test files
    that hold the tests that step works on, and that its last run before the fail-to-pass run passes the slice's whole
    changed-path set (ADR 0139). Where the focused fence repeats the full fence, it tells it instead that each step runs each test file
-   it works on through `test -- <command>` and that the fail-to-pass run is its one run before the report (ADR 0180). Every implementer dispatch also tells it that a failing test its slice did not cause, one that
+   it works on through `test path <file>... -- <command>` and that the fail-to-pass run is its one run before the report (ADR 0180). Every implementer dispatch also tells it that a failing test its slice did not cause, one that
    also fails at the slice's base commit, is named in its report, neither fixed nor blocked on, and left to
    the scope review's fix loop: a named inherited failure is no BLOCKED and no strike
    (ADR 0155, ADR 0192, INV-0157). A dispatch for a
@@ -221,7 +222,7 @@ Repeat until every slice is `merged`:
      the blind pass reads the slice's run-trace lines (`scope.js trace --slice <id>`).
      The dispatch also names the slice's range, from the commit its branch was cut from to the tip the first review
      read (the same range on every review), and on a re-review the fix cycle's range, from the tip the earlier review
-     read to the current tip, each range with both ends full commits. It tells the reviewer to apply `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` to each: on a
+     read to the current tip, each range with both ends full commits. It tells the reviewer to apply `## Untraced writes` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` to each window of the slice: it runs `scope.js untraced` over the window's range, grades each listed path, counts the listed paths as change events for **Missing fail-to-pass run**, and raises **Implementer suite run**, a Minor, for a `run full` or `run whole` line inside the window (ADR 0227). It tells the reviewer to apply `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` to each: on a
      `behavior` slice, a latest outcome line over a range that reads `pass-to-pass` is an Important finding,
      **Pass-to-pass**, and a range that changes both a test-path file and another file, with no outcome line over it,
      is an Important finding, **Missing fail-to-pass run**. A slice's range or a fix cycle's range whose test-path
@@ -237,8 +238,8 @@ Repeat until every slice is `merged`:
      reads `fail-to-pass` over a range from the base of the range that drew the finding to the current tip. It closes
      a **Missing fail-to-pass run** finding on the outcome line the fix implementer's run writes, and a `pass-to-pass` line there
      is a **Pass-to-pass** finding on that range. The reviewer reads the outcome line from the trace and never from the
-     dispatch, which carries no outcome (INV-0114), and no trace, no `edit` line for the slice, or no test command
-     gets no finding, only a named gap. Only `edit` lines count as a slice's or a cycle's change events, so a `run` or
+     dispatch, which carries no outcome (INV-0114), and no trace, neither an `edit` line nor an untraced write for the slice, or no test command
+     gets no finding, only a named gap. Only `edit` lines and listed untraced writes count as a slice's or a cycle's change events, so a `run` or
      `ledger` line is none, even one written after the trace began for a slice whose edits came before it. Reading
      the log can add a finding or raise a finding's severity, and it never withdraws or downgrades one
      (INV-0113). The reviewer appends its full findings to the log, and a re-review reads the earlier

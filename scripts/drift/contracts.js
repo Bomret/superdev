@@ -213,34 +213,6 @@ const KB_BACKEND_CALL_MARKERS = [
 // of its own is covered by neither, and needs its own orphan test.
 const HOOK_HEADER_REGEX = /\\+\*\\+\*[^\n]{0,60}:\\+\*\\+\*/;
 
-// The Bash hooks `merge-guard` and `ledger-guard`, ledger-guard's reader `lib/ledger-writes.js`, and the run trace's command layer `lib/bash-command.js`, read a command line through
-// the one shared scanner `lib/shell-words.js` (ADR 0135). A hook that grows its own shell-word reader
-// reopens the quoted-argument and command-substitution bypasses the scanner closes, so each must
-// require the module (`../lib/shell-words.js` from a hook, `./shell-words.js` from lib/) and declare none of the reader's names itself. The pattern holds a negative
-// lookahead at the start of the text (no `m` flag, so `^` is the text start) and then the require.
-// The require counts only on a line that is no comment, ahead of any `//` on that line, and with any spacing inside its
-// parentheses. A reader name counts after `const`, `let`, `var`, or `function`, and as a later declarator of one statement
-// (`const x = 1, ARG = …`).
-const SHELL_WORDS_REQUIRE = String.raw`(?:^|\n)(?![ \t]*(?:\/\/|\/?\*))(?:(?!\/\/)[^\n])*?\brequire\(\s*(['"])(?:\.\.\/lib|\.)\/shell-words\.js\1\s*\)`;
-const READER_NAME = String.raw`(?:ARG|RAW_ARG|STUCK|STUCK_MERGE|stripHeredocs)`;
-const OWN_READER_DECLARATION = String.raw`(?:\b(?:const|let|var|function)\s+${READER_NAME}\b|,\s*${READER_NAME}\s*=(?!=))`;
-// A `((` spread of a hook's own (a regex holding a paren, `\(` or `[(]`, followed by a second one, `{2`, or `+`: `\(\(`, `\({2,}`,
-// `[(]{2,}`, `\(+`, on a line that is no comment, ahead of any `//` on it) is a private dash reading: shell-words.js's dashReading is
-// the one reading every Bash hook shares (#1062).
-const PAREN_ATOM = String.raw`(?:\\\(|\[\\?\(\])`;
-const OWN_DASH_SPREAD = String.raw`(?:^|\n)(?![ \t]*(?:\/\/|\/?\*))(?:(?!\/\/)[^\n])*?${PAREN_ATOM}(?:${PAREN_ATOM}|\{[2-9]|\+)`;
-const SCANNER_ONLY_PATTERN = new RegExp(`^(?![\\s\\S]*(?:${OWN_READER_DECLARATION}|${OWN_DASH_SPREAD}))[\\s\\S]*${SHELL_WORDS_REQUIRE}`);
-
-const ARG_TOKEN_EXPECTATION =
-  'require lib/shell-words.js and declare no ARG, RAW_ARG, STUCK, STUCK_MERGE, stripHeredocs, or `((` spread of its own — a private shell-word reader reopens the quoted-argument, the command-substitution, or the dash `((` bypass';
-
-const ARG_TOKEN_CONTRACTS = [
-  [path.join('hooks', 'merge-guard.js'), SCANNER_ONLY_PATTERN, ARG_TOKEN_EXPECTATION],
-  [path.join('hooks', 'ledger-guard.js'), SCANNER_ONLY_PATTERN, ARG_TOKEN_EXPECTATION],
-  [path.join('lib', 'bash-command.js'), SCANNER_ONLY_PATTERN, ARG_TOKEN_EXPECTATION],
-  [path.join('lib', 'ledger-writes.js'), SCANNER_ONLY_PATTERN, ARG_TOKEN_EXPECTATION],
-];
-
 // A section heading, found up to a word boundary rather than end-of-line, because a real heading can
 // carry a trailing qualifier: `plan-contract.md` writes `### Assignee — store configuration, not a slice
 // field`, at `###` under `## Issue-backend mapping (general)`.
@@ -562,7 +534,6 @@ module.exports = {
   KB_NO_CALL_DOCS,
   KB_BACKEND_CALL_MARKERS,
   HOOK_HEADER_REGEX,
-  ARG_TOKEN_CONTRACTS,
   SPECIALISING_SECTIONS,
   specialisingGenericRows,
   SOURCE_SECTION_CONTRACTS,

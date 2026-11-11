@@ -1,6 +1,8 @@
 # 0160: run-trace's Bash readers share one command-word reader and one word reader
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0227](0227-guardrails-read-no-shell-words.md), which removes run-trace's Bash readers.
 
 **Amends:** [ADR 0159](0159-run-trace-reads-a-bash-call-s-starting-directory-from-a-pretooluse-stash.md),
 whose rule for a `cd` the hook cannot read stays, and whose list of wrong-path shapes changes as stated

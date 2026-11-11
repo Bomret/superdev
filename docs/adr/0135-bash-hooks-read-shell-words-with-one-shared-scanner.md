@@ -1,6 +1,8 @@
 # 0135: Bash hooks read shell words with one shared scanner
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0227](0227-guardrails-read-no-shell-words.md), which deletes the shared scanner: no shipped code reads a Bash command's words.
 
 **Amended by:** [ADR 0155](0155-a-slice-merge-runs-no-test-suite.md), which deletes `green-gate.js`, so
 the shared scanner serves `merge-guard.js`, `ledger-guard.js`, and `run-trace.js`, and the green-gate rules below no longer apply.

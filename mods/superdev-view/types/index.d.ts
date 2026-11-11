@@ -2,7 +2,8 @@ export type Slice = { id: string; title: string; status: string }
 // One line of a scope's event log (ADR 0141), oldest first. `command` is a chain command the trace records as
 // started: its duration runs to its end, or to now while it runs. `wait` is the time between one command's end and
 // the next command's start, a minute or more. `stage` is a stage write after implement, in a trace with no step
-// lines and a stage write past merged. `run` is one run of a dispatch, placed at its start (a resumed run at its resume): `ms` is its
+// lines and a stage write past merged. `tamper` is a `tamper` trace line (ADR 0227): scope.js found `file` (`ledger.md` or
+// `trace.log`) changed outside scope.js. `run` is one run of a dispatch, placed at its start (a resumed run at its resume): `ms` is its
 // duration once it ended (`isEnded`), else the time from its start to now; `outcome` is its dispatch outcome ('' when none is
 // recorded). `date` opens a new day: the
 // flat log reads a group on the day where it sits, and a group's own lines start from the day of its header's `at`.
@@ -12,6 +13,7 @@ export type LogEntry =
   | { kind: 'commandEnd'; at: number; name: string; ms: number; isBlocked: boolean }
   | { kind: 'wait'; at: number; ms: number }
   | { kind: 'stage'; at: number; stage: string }
+  | { kind: 'tamper'; at: number; file: string }
   | { kind: 'run'; at: number; type: string; slice: string; isResumed: boolean; isEnded: boolean; ms: number; outcome: string }
   | { kind: 'slice'; at: number; id: string; title: string; status: string; ms?: number; isRunning: boolean; review: number; isOpenByDefault: boolean; entries: LogEntry[] }
   | { kind: 'sliceEnd'; at: number; status: string; ms?: number }

@@ -42,6 +42,7 @@ Each step below applies beside the skill's step of the same number. A departure 
 - **Range**: the whole scope range `<range-base>..<branch>` on every dispatch, a re-review after a fix cycle included (ADR 0137, INV-0143).
 - **Tier and run root**: the tier per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` (three or fewer slices is `lite`), and `<run-root>`.
 - **Fix-cycle range**: a re-review hands the cycle's range `<cycle-base>..<cycle-tip>` as full commits. `<cycle-tip>` is the scope tip once you accept the cycle's report, before any merge of §4.1's **The moved base**.
+- **Untraced writes**: the reviewer runs `scope.js untraced` over the range of each window `## Fail-to-pass run` gives the final reviewer, the `lite` slices with a recorded range and the scope's fix cycles with commits, and grades the listing, per `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`'s `## Untraced writes` (ADR 0227). The dispatch hands the run root and the ranges above and no listing, because the verb reads git and the trace itself. A **Missing fail-to-pass run** finding counts the listed paths as change events, and a `run full` or `run whole` line inside an implementer window is a Minor **Implementer suite run** finding.
 - **Suite result**: as the next concept states.
 
 **The re-review after a warm cycle.** Applies to the re-review of a fix cycle whose list held only Minor findings (ADR 0174). Message the reviewer of the fixed verdict with SendMessage. Name the cycle's range as full commits, per the **Fix-cycle range** above. That range is its subject in place of the whole range.
@@ -291,7 +292,6 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 - **Findings**: the list, with `<cycle-base>` and the bases the previous concept names.
 - **Range-base input**: `<base>`, handed as `<base-branch>` for the implementer's `scope.js base resolve`.
 - **Definition of Done**: the `<run-root>/dod.md` path plus exactly the lines this cycle unticked or found broken, a listed-lines case of `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s mapping gate.
-- **Separate calls**: tell the implementer to run any revert, each test run, and the restore as separate Bash calls.
 - **Sibling surfaces**: require the implementer to bring each sibling surface in its own checkout into agreement with the rule or behaviour its fix changes, and to report each place it checked and each it changed (INV-0120). It reports a place outside its checkout, the `AGENTS.md` hierarchy, and the knowledge base unedited (INV-0162).
 
 **A warm cycle.** Applies to a cycle whose list holds only Minor findings, warranted cuts included. Run it per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Warm cycles` (ADR 0174). The re-review's subject is §2's warm re-review range.

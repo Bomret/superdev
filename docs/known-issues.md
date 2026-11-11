@@ -186,45 +186,25 @@ the probe loaded it through `ToolSearch` first.
 A PreToolUse hook can return `updatedInput`, which replaces a tool's arguments before the tool runs.
 A PostToolUse or PostToolUseFailure hook then receives the rewritten `tool_input`, because that is the
 command that ran. RTK, a third-party output filter, ships such a hook: it rewrites `bun run test` to
-`rtk bun run test`. The run trace, through `lib/bash-command.js`, matches the configured verification command at the segment's
-command word, after the wrappers it knows. Before it knew `rtk`, it read `rtk` as the command and
-recorded no run line, so `scope.js suite reusable` refused a green tip (#955).
+`rtk bun run test`. The run trace reads no Bash command (ADR 0227): it records a test run only from
+`scope.js test` and `scope.js fail-to-pass`, which write the run line themselves, so a rewrite hides no run.
 
-**Mitigation (implemented):** `lib/bash-command.js`, the command layer of `hooks/run-trace.js`, reads `rtk` as a prefix wrapper, as it reads `nice`
-or `nohup`, and it skips rtk's `proxy` subcommand after it. RTK passes the wrapped command's exit status
-through, so the run records its outcome. The run trace skips none of rtk's other subcommands
-that run a command: `rtk err`, `rtk run`, `rtk summary`, or `rtk test` in front of the configured
-verification command records no configured-command run, and a named test file still records a `path`
-run (triage #941). `commandStart` and `gitSubcommand` in `lib/shell-words.js`, which merge-guard
-reads commands through, skip all five, and so does `RTK_PREFIX` in `hooks/merge-guard.js`.
-`hooks/ledger-guard.js` skips all five too, because `lib/ledger-writes.js` finds the command word through the same
-`commandStart`, and `tests/ledger-guard.test.js` pins that it refuses an editor behind every
-wrapper `lib/bash-command.js` knows and a copy behind `rtk proxy`. `lib/test-runs.js` reads a `git restore` or `git checkout` behind `rtk`
-through the same wrapper list. A rewrite by another hook that puts an unknown word in front of the command still hides the run.
+**Mitigation (implemented):** merge-guard reads each line as raw text and needs no `rtk` handling: a lead word
+(`git`, `gh`, `tea`, or `scope.js`) followed later on the line by a verb word is denied wherever `rtk`, or any
+other prefix, stands before it, so `rtk git push` and `rtk proxy git push` are denied alike.
 
 The PreToolUse hooks are out of the rewrite's reach. Claude Code runs every matching hook of one event
-in parallel, so `hooks/merge-guard.js`, `hooks/run-lock.js`, and `hooks/ledger-guard.js` receive the
-command as it was written, before RTK's hook rewrites it. `hooks/run-trace.js` also runs on PreToolUse for Bash, and
-reads only the input's `cwd` there, never the command (ADR 0159). `hooks/model-explicit.js` matches the Agent
+in parallel, so `hooks/merge-guard.js` receives the
+command as it was written, before RTK's hook rewrites it. `hooks/model-explicit.js` matches the Agent
 tool, which RTK does not rewrite. `hooks/slicetree-sweep.js` and `hooks/scope-prune.js` run on Stop and
 read no command.
 
 An agent can still type the `rtk` prefix itself, and RTK runs the command behind it. `hooks/merge-guard.js`
-therefore takes the same optional `rtk`, with rtk's value-less global options, before `git` in its merge,
-push, rebase, pull, and subtree push checks and before `gh` or `tea` in its pull-request merge and API merge matchers.
-Without the prefix, a subagent's hand-typed `rtk git push` or `rtk gh pr merge` passed the guard (#958).
-rtk's run-anything subcommands, `proxy`, `err`, `run`, `summary`, and `test`, execute the command after
-them, so the prefix also takes one of them, with its value-less options and an optional `--`
-separator, after rtk's global options. The whole prefix repeats, so an rtk behind another rtk matches
-too. Without these, `rtk proxy git push`, `rtk proxy -- git push`, and `rtk proxy rtk git push` passed
-the guard. `hooks/merge-guard.js` reads its git, `gh`, and `tea` checks past it through
-`commandStart` in the same module, and `RTK_PREFIX` in `hooks/merge-guard.js` serves its raw-text
-pull-request merge and API merge tests.
+denies a subagent's hand-typed `rtk git push`, `rtk gh pr merge`, `rtk proxy git push`, `rtk proxy -- git push`,
+and `rtk proxy rtk git push` through the same raw-text rule, which names no prefix (#958).
 
 **Fix required at:** no platform fix is due, because the hook sees the command that actually ran. A
-different rewriting hook needs its prefix added to the wrapper table (`WRAPPER` in
-`lib/shell-words.js`) and run-trace's wrapper list, to `gitSubcommand`, and to the `RTK_PREFIX` of
-`hooks/merge-guard.js`.
+different rewriting hook needs no change to `hooks/merge-guard.js`, which reads no prefix.
 
 Verified 2026-10-08, on Claude Code 2.1.289 and rtk 0.51.0. Two session transcripts of that day show
 RTK's PreToolUse hook rewriting `bun run test` to `rtk bun run test`, and the run-trace hook of superdev
@@ -258,36 +238,6 @@ Verified 2026-10-09, on rtk 0.51.0. `rtk proxy -- git --version`, `rtk run -- gi
 `rtk err -- git --version` reported that the command completed. Each subcommand runs the command after
 its `--` separator. `rtk proxy rtk git --version` printed git's version too, so an rtk behind another rtk
 runs the command behind it.
-
-## A PostToolUse hook's cwd is the directory the command ended in
-
-A hook input's `cwd` is the working directory when the hook runs. The Bash tool keeps a `cd` across calls, so
-a PostToolUse or PostToolUseFailure hook for a Bash call receives the directory the command ended in, not the
-one it started in. A hook that resolves the command's relative paths against that `cwd` applies a leading
-`cd` twice: `cd scripts/drift/selftest && …`, run from the repository root, resolves to
-`scripts/drift/selftest/scripts/drift/selftest/…` (triage #1210, triage #978).
-
-**Mitigation:** `hooks/run-trace.js` runs on PreToolUse for Bash, whose `cwd` is the directory the command
-starts in, and writes that `cwd`, through `lib/start-stash.js`, to a stash file named by the call's `tool_use_id`, in a per-user directory under
-the operating system's temporary directory, used only when it is a real directory the user owns. Its PostToolUse and PostToolUseFailure for Bash read the stash, remove it, and resolve the
-command from it. With no readable stash it resolves from the input's `cwd`. After a `cd` it cannot read, such
-as `cd "$D"` or `cd -`, it resolves the rest of the command against the input's `cwd`, a later relative `cd`
-of the outer shell included. Only a later absolute `cd` moves it elsewhere. A segment between such a relative
-`cd` and the end of the command therefore resolves against the ending directory, not the directory it ran
-in. A subshell that starts after such a `cd` starts at the ending directory too, so its writes record under
-the ending directory, a later move of the outer shell included: `cd "$X" && (cd sub && echo x > f.txt) ; cd ..`
-records `sub/f.txt` below the parent of `$X`. A `cd` in a subshell, a substitution, a pipeline stage, simple or
-compound, an `&` job, or a coprocess moves only that shell instance, and nothing outside it. A `cd` in a
-function body moves nothing where the function is defined, and a call of the function resolves as a `cd` it
-cannot read. ADR 0159 lists the known shapes whose recorded path differs from the one the command reached
-(ADR 0159, INV-0160).
-
-Verified 2026-10-16, on Claude Code 2.1.301. The hooks reference
-(<https://code.claude.com/docs/en/hooks.md>) defines `cwd` as "Current working directory when the hook is
-invoked", and states that it is "the new directory after Claude runs `cd`". The run trace of scope
-`drift-facts-only`, written on 2026-10-15, holds the line `run path unknown … scripts/drift/selftest/scripts/drift/selftest/f,…`
-for a `cd scripts/drift/selftest && for f in …` call made from the scopetree root. That call ran in the main
-session. The `cwd` a PostToolUse hook receives for a subagent's Bash call is not verified.
 
 ## Native Windows runs superdev under Git Bash
 

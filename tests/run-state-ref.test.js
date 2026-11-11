@@ -85,7 +85,7 @@ try {
     const r = step(f);
     assert.strictEqual(r.status, 0, r.stderr);
     assert.match(r.stdout, /run-state: sent/);
-    assert.deepStrictEqual(remoteFiles(f), ['dod.md', 'interfaces.md', 'reports/S1/progress.md', 'trace.log']);
+    assert.deepStrictEqual(remoteFiles(f), ['dod.md', 'interfaces.md', 'reports/S1/progress.md', 'trace.digest', 'trace.log']);
     assert.strictEqual(git(['show', `${refName}:interfaces.md`], f.origin), 'iface');
     assert.strictEqual(git(['show', `${refName}:reports/S1/progress.md`], f.origin), 'p');
   }
@@ -250,7 +250,7 @@ try {
     const f = fixture({ files: false });
     const r = step(f);
     assert.match(r.stdout, /run-state: sent/);
-    assert.deepStrictEqual(remoteFiles(f), ['trace.log'], 'only the trace the step itself wrote');
+    assert.deepStrictEqual(remoteFiles(f), ['trace.digest', 'trace.log'], 'only the trace the step itself wrote, with its digest');
   }
 
   // #url-remote: a `Remote:` given as a URL records a seen tip, so a second push succeeds.
