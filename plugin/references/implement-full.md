@@ -125,7 +125,7 @@ Repeat until every slice is `merged`:
    `test whole`, or a `test focused` with no path: the scope review's exit run is the scope's one full-suite run (ADR 0192). It tells it to run a suite longer than the
    Bash tool's time limit through the runner in the background and wait for its end before acting on it, and
    tells it that a test command is recorded as typed and pushed with the run state, so a secret belongs in the environment, never on the command line, and
-   tells it to edit files through the edit tools, never through a script, and to run any revert, each test run, and the restore as separate Bash calls. It also tells it that a RED or GREEN step passes the test files
+   tells it to edit files through the edit tools, never through a script. It also tells it that a RED or GREEN step passes the test files
    that hold the tests that step works on, and that its last run before the fail-to-pass run passes the slice's whole
    changed-path set (ADR 0139). Where the focused fence repeats the full fence, it tells it instead that each step runs each test file
    it works on through `test path <file>... -- <command>` and that the fail-to-pass run is its one run before the report (ADR 0180). Every implementer dispatch also tells it that a failing test its slice did not cause, one that

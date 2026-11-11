@@ -9,15 +9,14 @@ const path = require('path');
 //   <ISO-8601 UTC timestamp> <slice id|scope> <agent id|main> <kind> <kind fields...>
 // `appendTrace` is its single writer. Kinds and their fields:
 //   edit <test|impl> <path>
-//   run <full|focused|whole|path> <pass|fail|unknown> <sha|unknown> <clean|dirty|unknown> [<files>] [<ms>] [<args>]   (written by `scope.js test`, and by the control run of `fail-to-pass` as a `path` run; <files>: a `path` run's test files comma-joined; a `scope.js test focused` run's path set, `encodePaths`; else `-`; <ms>: the run's duration in whole milliseconds, which those two writers record and the run-trace hook does not, and which the hook leaves `-`; <args>: the arguments of the command's test segment, `encodeArgs`, `-` for none, recorded verbatim, and absent from a line an earlier release wrote, which reads as none)
-//   revert <paths> / restore <paths>
+//   run <full|focused|whole|path> <pass|fail|unknown> <sha|unknown> <clean|dirty|unknown> <files> <ms> <command>   (written only by `scope.js test` and by the control run of `fail-to-pass`, which writes a `path` run; <files>: the run's test files, `encodePaths`, `-` for none; <ms>: the run's duration in whole milliseconds; <command>: the raw command as typed, through `traceField`, read with `untraceField`)
 //   dispatch <agent_type> <tool_use_id> <description> <session_id|-> / dispatch-bind <agent_type> <tool_use_id> <agent_id> /
 //   dispatch-end <agent_type> <tool_use_id> <completed|failed|denied|stopped|unknown|session-end>   (an end with no outcome reads completed, ADR 0140)
 //   dispatch-resume <tool_use_id> <agent_id> <session_id|-> <sendmessage_tool_use_id|->   (a SendMessage resumed the dispatch's subagent: a new run, with its own dispatch-end)
 //   ledger <verb> <args>     (written only by the ledger-writing verbs of this CLI, after they succeed)
 //   fail-to-pass <base>..<tip> <fail-to-pass|pass-to-pass|unknown> <reason> <command>     (written only by `fail-to-pass`, which derives the first three fields and records its caller's command, ADR 0188; no test run)
-// A trace an older release wrote can also hold `verdict` and `final-verdict` lines: no writer appends them, and every
-// reader tolerates them (ADR 0197).
+// A trace an older release wrote can also hold `verdict` and `final-verdict` lines (ADR 0197), and `revert <paths>` and
+// `restore <paths>` lines (ADR 0225): no writer appends them, and every reader tolerates them.
 // Every field is escaped so none holds a control character or a line separator: no field can start
 // a new line. No CLI verb takes a caller-chosen event; `trace` only reads.
 function traceField(v) {

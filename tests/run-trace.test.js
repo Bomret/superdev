@@ -1,6 +1,6 @@
 'use strict';
 
-// Suite for plugin/hooks/run-trace.js (ADR 0117): the stdin-to-line contract of the hook. Edit attribution and Bash writes call the exported
+// Suite for plugin/hooks/run-trace.js (ADR 0117): the stdin-to-line contract of the hook. Edit attribution and the Bash calls that add no line call the exported
 // `record` in-process; the spawned hook covers exit 0, empty stderr, and empty stdout.
 
 const assert = require('node:assert');
@@ -45,41 +45,55 @@ assert.deepEqual(trace(B), [['02', 'main', 'edit', 'impl', 'x.js']]);
 reset();
 edit(path.join(tmp, 'elsewhere.js'));
 edit(path.join(A, 'notes.md'));
-bash('echo x > ' + path.join(tmp, 'plain.txt'));
 assert.ok(!fs.existsSync(path.join(A, 'trace.log')) && !fs.existsSync(path.join(B, 'trace.log')));
 
-// Shell writes: heredoc redirect, sed -i, cp into a slicetree.
+// A Bash call infers nothing (ADR 0225): a write through a redirect, `sed -i`, `cp`, `tee`, or `git apply` adds no line,
+// and a test command run directly adds none either, on every hook event a Bash call can fire.
 reset();
-bash(`cat > ${S3}/src/h.js <<'EOF'\n> ${S3}/src/inside-body.js\nEOF`);
-bash(`sed -i 's/a/b/' ${S3}/tests/s.test.js`);
 fs.writeFileSync(path.join(tmp, 'a.txt'), 'x');
-bash(`cp ${tmp}/a.txt ${S3}/src/b.js`);
-bash(`cp ${tmp}/a.txt ${S3}/src`);
-bash(`cd ${S3}/src && echo y | tee c.js`);
-bash(`git -C ${S3} apply p.patch`, tmp);
-bash(`echo x >> y.js`, path.join(S3, 'src'));
-assert.deepEqual(trace(A), [
-  ['03', 'main', 'edit', 'impl', 'src/h.js'],
-  ['03', 'main', 'edit', 'test', 'tests/s.test.js'],
-  ['03', 'main', 'edit', 'impl', 'src/b.js'],
-  ['03', 'main', 'edit', 'impl', 'src/a.txt'],
-  ['03', 'main', 'edit', 'impl', 'src/c.js'],
-  ['03', 'main', 'edit', 'impl', 'src/y.js'],
-]);
-reset();
-fs.writeFileSync(path.join(tmp, 'p.patch'), '--- a/src/p.js\n+++ b/src/p.js\n@@\n');
-bash(`git -C ${S3} apply ${tmp}/p.patch`);
-assert.deepEqual(trace(A), [['03', 'main', 'edit', 'impl', 'src/p.js']]);
+const ver = path.join(S3, 'docs', 'agents', 'verification.md');
+fs.writeFileSync(ver, '# V\n\n```sh\nbun run test\n```\n\n```sh\nbun run test\n```\n');
+for (const command of [
+  `echo x > ${S3}/src/h.js`,
+  `sed -i 's/a/b/' ${S3}/tests/s.test.js`,
+  `cp ${tmp}/a.txt ${S3}/src/b.js`,
+  `cd ${S3}/src && echo y | tee c.js`,
+  `git -C ${S3} apply p.patch`,
+  `git -C ${S3} restore -- src/x.js`,
+  `git -C ${S3} checkout HEAD~1 -- src/x.js`,
+  'bun run test',
+]) {
+  for (const hook_event_name of ['PreToolUse', 'PostToolUse', 'PostToolUseFailure']) {
+    run({ hook_event_name, tool_name: 'Bash', tool_use_id: 'b1', tool_input: { command }, cwd: S3 });
+  }
+  bash(command, path.join(S3, 'src'));
+}
+fs.rmSync(ver);
+assert.ok(!fs.existsSync(path.join(A, 'trace.log')) && !fs.existsSync(path.join(B, 'trace.log')), 'a Bash call adds no trace line');
 
-// The stdin-to-line contract through the spawned hook: an edit line and a run line, and no output.
+// hooks.json registers run-trace.js on no Bash matcher, and no shipped file names a module the hook dropped.
+{
+  const hooks = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'plugin', 'hooks', 'hooks.json'), 'utf8')).hooks;
+  for (const [ev, groups] of Object.entries(hooks)) {
+    for (const g of groups) {
+      if (g.matcher && g.matcher.split('|').includes('Bash')) {
+        assert.ok(!g.hooks.some((h) => h.command.includes('hooks/run-trace.js')), `${ev} on Bash does not run run-trace.js`);
+      }
+    }
+  }
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
+  const gone = ['bash', 'writes'].join('-') + '|' + ['start', 'stash'].join('-');
+  for (const f of walk(path.join(__dirname, '..', 'plugin')).filter((p) => /\.(js|json)$/.test(p))) {
+    assert.ok(!new RegExp(`${gone}`).test(fs.readFileSync(f, 'utf8')), `${path.relative(path.join(__dirname, '..'), f)} requires no deleted module`);
+  }
+}
+
+// The stdin-to-line contract through the spawned hook: an edit line, and no output; a Bash call beside it adds none.
 {
   reset();
-  const ver = path.join(S3, 'docs', 'agents', 'verification.md');
-  fs.writeFileSync(ver, '# V\n\n```sh\nbun run test\n```\n\n```sh\nbun run test\n```\n');
   assert.equal(spawnOut({ hook_event_name: 'PostToolUse', tool_name: 'Edit', tool_input: { file_path: path.join(S3, 'tests', 'sp.test.js') }, cwd: tmp }), '');
-  assert.equal(spawnOut({ hook_event_name: 'PostToolUse', tool_name: 'Bash', tool_input: { command: 'bun run test' }, cwd: S3 }), '', 'a passing run after a test edit prints nothing');
-  assert.deepEqual(trace(A).map((l) => l[2] + ' ' + l[3]), ['edit test', 'run full']);
-  fs.rmSync(ver);
+  assert.equal(spawnOut({ hook_event_name: 'PostToolUse', tool_name: 'Bash', tool_input: { command: 'bun run test' }, cwd: S3 }), '', 'a Bash call prints nothing');
+  assert.deepEqual(trace(A).map((l) => l[2] + ' ' + l[3]), ['edit test']);
 }
 
 // Failure modes: malformed stdin, unreadable ledger, no verification.md. Exit 0, no output, no line.
@@ -106,7 +120,7 @@ assert.equal(trace(A).length, 1, 'a missing verification.md still records, with 
   assert.ok(big < base * 2000, `reading a trace of 50000 lines stays linear: 500 lines took ${base} ns, 50000 took ${big} ns`);
 }
 
-// Reading a `command`/`builtin` chain stays linear in its length: run-trace reads every Bash call through unwrapBuiltin.
+// Reading a `command`/`builtin` chain stays linear in its length: the Bash hooks that read a command read it through unwrapBuiltin.
 // 100 times the wrappers cost about 100 times when linear; the copying walk read 1000 to 1700 times at these sizes, so the
 // 400x ceiling falsifies only the quadratic shape (ADR 0086, ADR 0149). The behaviour cases pin what the walk returns.
 {

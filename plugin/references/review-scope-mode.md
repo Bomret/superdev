@@ -288,7 +288,6 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 - **Working directory**: the scope checkout, where its fix commits must land.
 - **Findings**: the list, with `<cycle-base>` and the bases the previous concept names.
 - **Definition of Done**: the `<run-root>/dod.md` path plus exactly the lines this cycle unticked or found broken, a listed-lines case of `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s mapping gate.
-- **Separate calls**: tell the implementer to run any revert, each test run, and the restore as separate Bash calls.
 - **Sibling surfaces**: require the implementer to bring each sibling surface in its own checkout into agreement with the rule or behaviour its fix changes, and to report each place it checked and each it changed (INV-0120). It reports a place outside its checkout, the `AGENTS.md` hierarchy, and the knowledge base unedited (INV-0162).
 
 **A warm cycle.** Applies to a cycle whose list holds only Minor findings. Run it per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Warm cycles` (ADR 0174). The re-review's subject is §2's warm re-review range.

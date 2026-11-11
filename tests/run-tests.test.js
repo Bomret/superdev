@@ -613,7 +613,7 @@ cases.push(async () => {
   for (const s of [...parts, 'scope-prune', 'slicetree-sweep', 'run-trace', 'publish-kb']) {
     assert.ok(scope.includes(s), `scope.js selects ${s}`);
   }
-  const required = of([`plugin/lib/${['test', 'runs'].join('-')}.js`]);
+  const required = of([`plugin/lib/${['run', 'supervision'].join('-')}.js`]);
   for (const s of parts) {
     assert.ok(required.includes(s), `a file scope.js requires selects ${s}`);
     assert.ok(of([`tests/${s}.test.js`]).includes(s), `${s} selects itself`);

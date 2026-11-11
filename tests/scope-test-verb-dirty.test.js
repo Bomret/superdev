@@ -64,6 +64,17 @@ try {
     ` touch ${gate}/go3; wait $V`);
   assert.match(lines().find((l) => / run /.test(l)) || '', new RegExp(`^03 main run full pass ${sha} dirty - touch`), 'an edit made and reverted during the run records dirty');
   assert.match(reuse().stderr, /dirty tree/, 'and that run line does not back reuse');
+  // A trace an older release wrote holds `revert` and `restore` lines (ADR 0225): the run reads them without error, and they
+  // mark nothing, since the tree state alone names a change no edit line records.
+  sh(S, ['reset', '-q', '--hard', sha]);
+  reset();
+  verif(`touch ${gate}/started4; while [ ! -f ${gate}/go4 ]; do sleep 0.05; done`, 'true');
+  sha = sh(S, ['rev-parse', 'HEAD']);
+  const traceFile = path.join(root, 'trace.log');
+  bash(`node ${scopePath} test full & V=$!; while [ ! -f ${gate}/started4 ]; do sleep 0.05; done;` +
+    ` printf '%s\\n' '2026-01-01T00:00:00Z 03 main revert src/a.js' '2026-01-01T00:00:01Z 03 main restore src/b.js' >> ${traceFile};` +
+    ` touch ${gate}/go4; wait $V`);
+  assert.match(lines().find((l) => / run /.test(l)) || '', new RegExp(`^03 main run full pass ${sha} clean - touch`), 'revert and restore lines read without error and mark nothing');
 } finally {
   end();
 }
