@@ -88,7 +88,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          run handoff, execution playbooks, test-selection, scope-mode with its split files scope-branch,
                          run-state, scope-findings, and shipped-run, authoring
                          disciplines, intent handoff, prior-art audit, design sketch, diagnosis, prototype, merge-conflicts,
-                         review-checklist, review-scope-mode, dod-ticks, response-shapes); its own AGENTS.md routes them
+                         review-checklist, review-scope-mode, review-inline-fix, dod-ticks, response-shapes); its own AGENTS.md routes them
   scripts/             — the runtime CLIs: `scope.js`, `kb-patch.js`, `publish-kb.js`
   LICENSE · NOTICE     — copies of the root files, so the shipped tree carries its own attribution
 tests/                 — one suite per shipped executable (the hooks, `scope.js`, `kb-patch.js`,
@@ -360,7 +360,14 @@ This root owns every other subtree directly:
   **Minor sweep** after the last slice merges. `scope.js minors add` writes the queue. A fix
   cycle whose list holds only Minors is a **Warm cycle**: it continues the previous fix implementer. The
   sweep is `references/implement-full.md`'s `## Minor sweep`, the warm cycle `references/scope-findings.md`'s
-  `## Warm cycles` (ADR 0174). Every command listed in `references/response-shapes.md`'s Next block section closes its last
+  `## Warm cycles` (ADR 0174). A scope review warrants each `simplicity-reviewer` cut by the rules the
+  repository documents for itself, names each declined cut with the rule it would break, and puts each
+  warranted cut into its ask-once fix set as a Minor. Only the entry review gets the over-engineering pass
+  (ADR 0227). An attended ad-hoc review whose remaining findings are all Minor, warranted cuts included, and
+  whose subject ends at a commit offers an **Inline fix** after one yes: one implementer fixes the list on a
+  `review-fix/<short SHA>` branch in a **Fix worktree** under the main working tree's `.superdev/review-fixes/`,
+  one focused run and a warm re-review close it, and review merges, pushes, and opens nothing
+  (`references/review-inline-fix.md`, ADR 0227). Every command listed in `references/response-shapes.md`'s Next block section closes its last
   message with that block (ADR 0113), and an attended run first offers to start the one next command it names,
   per that file's `## The offer` (ADR 0157). Where the Claude desktop app's session tool is present, the offer
   asks no question: it puts up a New task card at once, which starts that command in a new session with a
