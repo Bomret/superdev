@@ -85,5 +85,5 @@ Report each item below. Then close per the skill's closing-message concept.
 Applies to a stop at step 3 or step 4. Run `git -C <main> worktree remove <tree>`, never with `--force`. Then delete `<branch>` with `git -C <main> branch -D <branch>` only when it still points at `<tip>`.
 
 - **A branch with commits beyond `<tip>`** → keep it and name it in the report.
-- **A dirty worktree** → git refuses the removal, and `<branch>` stays too, because git deletes no branch a kept worktree has checked out. Name both in the report, and tell the operator to remove both before a later review can offer an inline fix for `<tip>` again: `git worktree remove --force <tree>`, then `git branch -D <branch>`.
+- **A dirty worktree** → git refuses the removal, and `<branch>` stays too, because git deletes no branch a kept worktree has checked out. Name both in the report. Where `<branch>` still points at `<tip>`, tell the operator to remove both before a later review can offer an inline fix for `<tip>` again: `git worktree remove --force <tree>`, then `git branch -D <branch>`. Where it carries commits beyond `<tip>`, name those commits and leave the choice of keeping or deleting them to the operator.
 - The report names the step that stopped and what this cleanup removed and kept.
