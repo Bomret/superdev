@@ -62,7 +62,6 @@ Applies to every start. Read `docs/agents/documentation.md` (the in-repo documen
 - on a live run, every open `docs` line, verbatim, as targets the pass must make true (ADR 0161)
 - on a live run, the scope checkout as its working directory
 - where the KB config carries `- **Hierarchy:** links`, that it stages each page's parent link as `references/doc-pass.md`'s knowledge-base pass states (ADR 0168)
-- that it reports every outline entry it added to the KB config, with its reason (ADR 0229)
 
 The writer commits its doc changes on the current branch. A denied writer's inline reconcile takes the same targets.
 
