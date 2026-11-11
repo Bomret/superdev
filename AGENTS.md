@@ -381,7 +381,8 @@ This root owns every other subtree directly:
   `/superdev:ship` is a separate command: it merges the pull request submit-pr
   opened, deploys the merge under the repository's deploy posture (`none`/`manual`/`auto`,
   `docs/agents/deployment.md`, ADR 0101), and closes no anchor (ADR 0106). submit-pr offers it, and the yes is
-  the merge consent. It routes to `/superdev:verify-ship`
+  the merge consent. Where no whole-repo command is configured, submit-pr first runs ship's own reuse check, which
+  runs no test, and on a tip ship would refuse with no carry it offers `/superdev:review` instead (ADR 0230). Ship routes to `/superdev:verify-ship`
   while a criterion is left to verify, and to `/superdev:wrap-up` otherwise (ADR 0116), and offers to start the
   next command it prints, a refusal included. `/superdev:verify-ship`
   settles the criteria only a deployed system can show, and offers the next command it prints. When every
