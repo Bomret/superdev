@@ -39,6 +39,7 @@ const repoOf = (name) => {
   git(repo, 'config', 'user.name', 't');
   const root = path.join(dir, `${name}-run`, '.superdev', 'scopes', 'demo'); // outside the repository, so `add -A` commits no trace
   fs.mkdirSync(root, { recursive: true });
+  fs.writeFileSync(path.join(root, 'ledger.md'), '# Ledger — demo\n');
   return { repo, root };
 };
 const edit = (root, slice, rel) => appendTrace(root, { slice, agent: 'a1', kind: 'edit', fields: ['impl', rel] });
@@ -119,4 +120,60 @@ const edit = (root, slice, rel) => appendTrace(root, { slice, agent: 'a1', kind:
   assert.ok(!call(['untraced', `${head}..${head}`, '--root', root], '', repo).ok, 'no --slice refuses');
   assert.ok(!call(['untraced', `${head}..${head}`, '--slice', '05'], '', repo).ok, 'no --root refuses');
   assert.ok(!call(['untraced', 'nowhere..alsonowhere', '--slice', '05', '--root', root], '', repo).ok, 'an unreadable range refuses');
+  assert.ok(!call(['untraced', head, '--slice', '05', '--root', root], '', repo).ok, 'a bare commit, which walks the whole history, refuses');
+  assert.ok(!call(['untraced', `${head}..${head}`, '--slice', '05', '--root', path.join(dir, 'no-such-run')], '', repo).ok, 'a root with no ledger refuses');
+}
+
+// #net: the listing is the range's net change per path.
+{
+  const { repo, root } = repoOf('net');
+  for (const f of ['m.txt', 'keep.txt']) put(repo, f, `${f}\none\ntwo\nthree\nfour\n`);
+  commit(repo, 'base');
+  const base = git(repo, 'rev-parse', 'HEAD');
+  put(repo, 'temp.txt', 'x\n');
+  put(repo, 'm.txt', 'm.txt\nchanged\ntwo\nthree\nfour\n');
+  commit(repo, 'first');
+  fs.rmSync(path.join(repo, 'temp.txt'));
+  git(repo, 'mv', 'm.txt', 'm2.txt');
+  commit(repo, 'second');
+  const tip = git(repo, 'rev-parse', 'HEAD');
+  const r = call(['untraced', `${base}..${tip}`, '--slice', '05', '--root', root], '', repo);
+  assert.ok(r.ok, r.err);
+  assert.equal(r.out, 'renamed\tm2.txt\tm.txt', 'a path added then deleted is not listed, and a modified then renamed path is listed once, as the rename');
+}
+
+// #hook-paths: an `edit` line the real run-trace hook writes for a spaced or non-ASCII path masks that path's change.
+{
+  const { repo, root } = repoOf('hook');
+  const tree = path.join(root, 'slicetrees', '05'); // the hook finds the run from a path under `.superdev/scopes/<name>/slicetrees/<id>`
+  fs.mkdirSync(tree, { recursive: true });
+  fs.writeFileSync(path.join(root, 'ledger.md'), '# Ledger — demo\n\n**Stage:** implementing\n\n| id | issue | title | type | depends-on | status | range |\n|---|---|---|---|---|---|---|\n| 05 | #5 | t | behavior | — | in-progress | — |\n');
+  git(tree, 'init', '-q', '-b', 'main');
+  git(tree, 'config', 'user.email', 't@example.com');
+  git(tree, 'config', 'user.name', 't');
+  put(tree, 'seed.txt', 's\n');
+  commit(tree, 'base');
+  const base = git(tree, 'rev-parse', 'HEAD');
+  const names = ['with space.txt', 'café ü.txt', 'plain.txt'];
+  for (const n of names) put(tree, n, 'one\n');
+  commit(tree, 'write through the tool');
+  const tip = git(tree, 'rev-parse', 'HEAD');
+
+  const none = call(['untraced', `${base}..${tip}`, '--slice', '05', '--root', root], '', tree);
+  assert.ok(none.ok, none.err);
+  assert.deepEqual(rows(none.out), names.map((n) => `added\t${n}`).sort(), 'with no edit line every path is listed');
+
+  const hook = require.resolve('../plugin/hooks/run-trace.js');
+  for (const n of names.slice(0, 2)) {
+    const r = spawnSync(process.execPath, [hook], {
+      input: JSON.stringify({ hook_event_name: 'PostToolUse', tool_name: 'Write', tool_input: { file_path: path.join(tree, n) }, cwd: tree }),
+      encoding: 'utf8',
+      timeout: 10000,
+    });
+    assertSpawnDecided(r, 'run-trace.js');
+    assert.equal(r.status, 0, r.stderr);
+  }
+  const traced = call(['untraced', `${base}..${tip}`, '--slice', '05', '--root', root], '', tree);
+  assert.ok(traced.ok, traced.err);
+  assert.equal(traced.out, 'added\tplain.txt', 'the hook-recorded spaced and non-ASCII paths match git\'s and are not listed');
 }

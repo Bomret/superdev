@@ -39,7 +39,7 @@ function usage() {
     '                                     one line per path the range\'s first-parent, non-merge commits change that no `edit` line of the',
     '                                     slice names inside [from, until) (ISO times of the trace\'s own lines; none = the whole trace):',
     '                                     `<added|modified|deleted>\\t<path>`, or `renamed\\t<new>\\t<old>` (read-only)',
-    '  test full|whole                  runs the configured command, records the run line the command\'s own exit status makes',
+    '  test full|whole                    runs the configured command, records the run line the command\'s own exit status makes',
     '  test focused [<path>…]             {paths} takes the paths; none runs the full command, recorded full; an empty path is refused',
     '  test path <file>… -- <command>     runs the command as given from the current directory, recorded as a path run naming the files; the command is recorded as typed and pushed with the run state, so a secret belongs in the environment',
     '  fail-to-pass <base>..<tip> -- <command>   runs the command, meant to run every test file the range adds or modifies,',

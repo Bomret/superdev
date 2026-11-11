@@ -70,7 +70,7 @@ Applies to every review of a `behavior` slice.
 Read the slice's run-trace lines with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --slice <id> --root <run-root>`. Apply `## Fail-to-pass run` and `## Untraced writes` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`.
 
 - `## Fail-to-pass run` owns **Pass-to-pass** and **Missing fail-to-pass run**, with their severity, their no-trace rules, and their closing rules.
-- `## Untraced writes` owns the listing `scope.js untraced` prints for each implementer window of the slice and the **Implementer suite run** finding. Run the listing for each window with commits, grade each listed path, and count the listed paths as change events for **Missing fail-to-pass run**: a window with untraced writes and no `edit` line is held to that rule like any other (ADR 0225).
+- `## Untraced writes` owns the listing `scope.js untraced` prints for each window of the slice, a `lite` slice's whole trace included, and the **Implementer suite run** finding. Run the listing for each window with commits, grade each listed path, and count the listed paths as change events for **Missing fail-to-pass run**: a window with untraced writes and no `edit` line is held to that rule like any other (ADR 0225).
 - Judge each range the dispatch names.
 - Name the range in each **Pass-to-pass** and **Missing fail-to-pass run** finding, both ends full commits.
 - Mark each unclosable **Pass-to-pass** finding as that section states, with its case and reason, at every review against the current range. An implementer's claim of a case is input you check, never your verdict.
