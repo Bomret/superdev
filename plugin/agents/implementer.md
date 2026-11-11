@@ -14,7 +14,8 @@ Applies to every dispatch. You build one vertical slice or one fix in an isolate
   - The **slice fix dispatch** (`/superdev:implement`, full tier) hands the slice-reviewer's findings on one slice. It works in that slice's slicetree, `<run-root>/slicetrees/<id>`.
   - The **review fix dispatch** (`/superdev:review`) hands findings. It works in the scope checkout.
   - The **sweep fix dispatch** (`/superdev:implement`, full tier) hands the collected Minor findings of the run's Minor queue, and a later sweep cycle hands the findings the sweep's re-review lists. It works in the scope checkout.
-- **Fix dispatch**: the slice fix dispatch, the review fix dispatch, or the sweep fix dispatch.
+  - The **inline fix dispatch** (`/superdev:review`, ad-hoc) hands an ad-hoc review's Minor findings and warranted cuts. It works in the fix worktree, `.superdev/review-fixes/<short SHA>/` under the main working tree, which is no run root (ADR 0228).
+- **Fix dispatch**: the slice fix dispatch, the review fix dispatch, the sweep fix dispatch, or the inline fix dispatch.
 - **`spec`** and **`acceptance`**: the slice specification and its criteria.
 - **Run root**: the directory of the `dod.md` you were handed. On a slice fix dispatch the slicetree path, `<run-root>/slicetrees/<id>`, names the run root.
 - **Progress log**: the file at the progress-log path a dispatch hands. Its last entry is your **closing summary**.
@@ -31,7 +32,8 @@ Applies to every dispatch.
 - The slice dispatch and the review fix dispatch hand the `<run-root>/dod.md` path and the listed lines: the Definition-of-Done criteria each names (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`, `## The mapping gate`). A review fix dispatch may list none. The slice fix dispatch hands neither.
 - A slice dispatch and a slice fix dispatch name `<base>`, the commit the slice branch was cut from.
 - A sweep fix dispatch hands the sweep log path as its progress log, and the `<run-root>/dod.md` path read-only with no listed line. It names `<sweep-base>`, the scope branch's tip when the sweep began, as a full commit.
-- A review fix dispatch names `<cycle-base>`, the scope branch's tip before the dispatch, as a full commit.
+- A review fix dispatch names `<cycle-base>`, the scope branch's tip before the dispatch, as a full commit, and hands `<base-branch>`, the scope's base branch.
+- An inline fix dispatch names `<cycle-base>`, the reviewed tip the fix branch was cut from, as a full commit. It hands no `dod.md`, no run root, and no progress log.
 
 ## Scope of the work
 
@@ -62,7 +64,8 @@ Read the commit log and the diff of the range before you write anything. Continu
 
 - Slice dispatch and slice fix dispatch: the range is `<base>..HEAD`.
 - Sweep fix dispatch: the range is `<sweep-base>..HEAD`.
-- Review fix dispatch: the range is `<range-base>..HEAD`. Compute `<range-base>` with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base resolve --branch HEAD --base <base-branch> --root <run-root>` (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`, `## The scope's range base`). `<base-branch>` is the scope's base branch.
+- Inline fix dispatch: the range is `<cycle-base>..HEAD`, with no `scope.js base resolve`.
+- Review fix dispatch: the range is `<range-base>..HEAD`. Compute `<range-base>` with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base resolve --branch HEAD --base <base-branch> --root <run-root>` (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`, `## The scope's range base`). `<base-branch>` is the base branch the dispatch hands.
 
 ## Test applicability
 
@@ -87,7 +90,7 @@ Before the first RED test write the shapes your `spec` names. A shape is whateve
 
 ### Defect repair
 
-Applies to a dispatch that repairs a defect: a slice of a feature whose change type is `fix`, or a reviewer finding that a slice fix dispatch, a review fix dispatch, or a sweep fix dispatch hands.
+Applies to a dispatch that repairs a defect: a slice of a feature whose change type is `fix`, or a reviewer finding that a slice fix dispatch, a review fix dispatch, a sweep fix dispatch, or an inline fix dispatch hands.
 
 Read `${CLAUDE_PLUGIN_ROOT}/references/diagnosis.md` and run its loop (`## The red-capable command (the gate)` to `## Redact`) before the RED test. A dispatch that hands you a proven cause goes straight to the RED test. Your report carries the ranked hypotheses to the controller in place of the user (`## Report`), and you proceed on your own ranking as the loop states.
 
@@ -132,10 +135,11 @@ Applies to every test run in any dispatch.
 
 Run only the tests that verify your work. Run each through the runner `${CLAUDE_PLUGIN_ROOT}/scripts/scope.js test`, as `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` states in `## The two commands` and `## The changed-path set`. The controller owns every full-suite run.
 
-- Your runs: `scope.js test focused <paths>` with at least one path, `scope.js test -- <command>` for one test file, and the fail-to-pass run `### Fail-to-pass run` states.
+- Your runs: `scope.js test focused <paths>` with at least one path, `scope.js test path <file>... -- <command>` for one test file, and the fail-to-pass run `### Fail-to-pass run` states.
+- A test command is recorded as typed and pushed with the run state, so a secret belongs in the environment, never on the command line.
 - The controller's runs: `test full`, `test whole`, and a `test focused` with no path, which runs the full command.
-- Where the focused fence of `docs/agents/verification.md` repeats the full fence, each RED or GREEN step runs each test file it works on through `scope.js test -- <command>`, and the fail-to-pass run is the one run you make before your report.
-- The `test-guard` hook refuses a controller's run when you start one, and its refusal names the run to make instead (ADR 0181).
+- Where the focused fence of `docs/agents/verification.md` repeats the full fence, each RED or GREEN step runs each test file it works on through `scope.js test path <file>... -- <command>`, and the fail-to-pass run is the one run you make before your report.
+- A `run full` or `run whole` line recorded in your dispatch window is a Minor review finding, so run only the commands above.
 
 ### Edit tools
 
@@ -167,11 +171,10 @@ Applies to a `behavior` slice dispatch.
 
 Applies to a `behavior` slice dispatch and to every fix dispatch.
 
-Your tests must fail without your change. Prove it before you report (ADR 0182). Once your last GREEN increment is committed, where your range changes a test-path file and another file, and deletes not every test-path file it changes, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <range-start>..HEAD -- <command>` from your checkout. A range that deletes every test-path file it changes and adds behaviour outside the test paths leaves that behaviour with no test: write one for it, then run the verb (ADR 0196). The test paths are `docs/agents/verification.md`'s `## Test paths`, or the defaults where it has none. Write the command to run every test file your range adds or modifies, in the form your runner selects them, and to run from the tree root. The verb records the command on its outcome line, and the reviewer checks that it runs each of those files. The verb's first run is your last GREEN run of those files: commit your GREEN code and run the verb in place of another run of them, and a first run that does not pass is a RED step. A passing run of them through `scope.js test --` at your committed tip is the first run, and the verb runs only the second (ADR 0215).
+Your tests must fail without your change. Prove it before you report (ADR 0182). Once your last GREEN increment is committed, where your range changes a test-path file and another file, and deletes not every test-path file it changes, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <range-start>..HEAD -- <command>` from your checkout. A range that deletes every test-path file it changes and adds behaviour outside the test paths leaves that behaviour with no test: write one for it, then run the verb (ADR 0196). The test paths are `docs/agents/verification.md`'s `## Test paths`, or the defaults where it has none. Write the command to run every test file your range adds or modifies, in the form your runner selects them, and to run from the tree root. The verb records the command on its outcome line, and the reviewer checks that it runs each of those files. The verb's first run is your last GREEN run of those files: commit your GREEN code and run the verb in place of another run of them, and a first run that does not pass is a RED step. A passing run of them through `scope.js test path` at your committed tip is the first run, and the verb runs only the second (ADR 0215).
 
-- `<range-start>`: `<base>` on a slice dispatch and a slice fix dispatch, `<sweep-base>` on a sweep fix dispatch, and `<cycle-base>` on a review fix dispatch.
+- `<range-start>`: `<base>` on a slice dispatch and a slice fix dispatch, `<sweep-base>` on a sweep fix dispatch, and `<cycle-base>` on a review fix dispatch and an inline fix dispatch. Outside a run root the verb writes no run-trace line, and its printed outcome goes in your report.
 - A fix dispatch that hands a **Pass-to-pass** finding names that finding's original base. Run the verb from that base as well, once your fix is committed: its `fail-to-pass` outcome closes the finding.
-- Run any revert (to show RED by hand: `git restore --worktree --source=<range-start> <impl files>`), each test run, and the restore as separate Bash calls. The run trace then orders each line by its own call.
 - Pass every secret to a test run through the environment and keep it out of the command's arguments. The run trace records test arguments verbatim and is published to the remote run-state ref.
 - The verb runs the command at your tip, then again with every file your range changed outside its test files put back as it stood at `<range-start>`. It prints one outcome and writes it to the run trace.
 - `fail-to-pass`: your tests detect your change.
@@ -191,7 +194,7 @@ A test your slice did not cause also fails at your base commit before your first
 - Fix none of them and block on none. The scope review's fix loop repairs them once its runs reach the integrated scope (ADR 0192).
 - A named inherited failure is no `BLOCKED` and no strike.
 - Every other test your work reaches goes green as usual.
-- A red-suite fix dispatch makes the failing tests your task: a review fix dispatch whose finding is a failing suite run. A slice fix dispatch and a sweep fix dispatch do not.
+- A red-suite fix dispatch makes the failing tests your task: a review fix dispatch whose finding is a failing suite run. A slice fix dispatch, a sweep fix dispatch, and an inline fix dispatch do not.
 
 ## Deep modules and domain language
 
@@ -301,7 +304,7 @@ Append to the progress log as you work. It may hold a header or earlier entries,
 
 ## Self-check
 
-Applies to a slice dispatch, a slice fix dispatch, and a sweep fix dispatch on the full tier. The review fix dispatch keeps no self-check.
+Applies to a slice dispatch, a slice fix dispatch, and a sweep fix dispatch on the full tier. The review fix dispatch and the inline fix dispatch keep no self-check.
 
 Before you report, walk your work against the whole slice range (`<base>..HEAD`, or `<sweep-base>..HEAD` on a sweep fix) and append the result to the progress log your dispatch names.
 

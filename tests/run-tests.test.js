@@ -603,8 +603,8 @@ cases.push(async () => {
 {
   const suites = discoverSuites(path.join(repoRoot, 'tests'));
   const of = (paths) => selectSuites(repoRoot, suites, paths).map((f) => path.basename(f, '.test.js'));
-  const lock = ['run', 'lock'].join('-');
-  assert.deepStrictEqual(of([`plugin/hooks/${lock}.js`]), ['plugin-layout', lock, 'scope-ledger', 'scope-open'], 'run-lock selects its suite and the suites naming it');
+  const guard = ['merge', 'guard'].join('-');
+  assert.deepStrictEqual(of([`plugin/hooks/${guard}.js`]), [guard, 'plugin-layout', 'run-tests'],'a hook selects its suite and the suites naming it');
   const scope = of([`plugin/scripts/${'scope'}.js`]);
   const topics = ['ledger', 'ledger-header', 'publish-adopt', 'root-base', 'citations-collisions', 'suite', 'containment', 'dod-line', 'help', 'trace'];
   const verbTopics = ['record', 'refusals', 'dirty', 'kill', 'late-fork', 'first-moment-term', 'first-moment-kill', 'tree', 'install'];
@@ -613,7 +613,7 @@ cases.push(async () => {
   for (const s of [...parts, 'scope-prune', 'slicetree-sweep', 'run-trace', 'publish-kb']) {
     assert.ok(scope.includes(s), `scope.js selects ${s}`);
   }
-  const required = of([`plugin/lib/${['test', 'runs'].join('-')}.js`]);
+  const required = of([`plugin/lib/${['run', 'supervision'].join('-')}.js`]);
   for (const s of parts) {
     assert.ok(required.includes(s), `a file scope.js requires selects ${s}`);
     assert.ok(of([`tests/${s}.test.js`]).includes(s), `${s} selects itself`);

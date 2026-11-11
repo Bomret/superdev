@@ -1,3 +1,23 @@
+# [0.105.0](https://github.com/Bomret/superdev/compare/v0.104.0...v0.105.0) (2026-11-11)
+
+
+### Features
+
+* **review:** fix a Minor-only ad-hoc review remainder inline, and warranted cuts join every fix set ([db2585c](https://github.com/Bomret/superdev/commit/db2585cc9aa2cbc32c72e226879e512c7612ef5d)), closes [#145](https://github.com/Bomret/superdev/issues/145) [#147](https://github.com/Bomret/superdev/issues/147) [#48](https://github.com/Bomret/superdev/issues/48) [#10](https://github.com/Bomret/superdev/issues/10) [#146](https://github.com/Bomret/superdev/issues/146)
+
+# [0.104.0](https://github.com/Bomret/superdev/compare/v0.103.0...v0.104.0) (2026-11-11)
+
+
+### Bug Fixes
+
+* **offer-guard:** read a headless next step only in the last paragraph ([#142](https://github.com/Bomret/superdev/issues/142)) ([b8d8f48](https://github.com/Bomret/superdev/commit/b8d8f48ef851849bf26b88b7cda94089eeddb43d))
+
+
+### Features
+
+* **hooks:** guardrails without shell parsing ([0d49cb3](https://github.com/Bomret/superdev/commit/0d49cb392941c63d64f266c70ef55894e18436b6))
+* **ship:** run a card start without a confirming question ([#141](https://github.com/Bomret/superdev/issues/141)) ([d2d8f09](https://github.com/Bomret/superdev/commit/d2d8f0943b90b5f000dd48f84aede4f368459b58))
+
 # [0.103.0](https://github.com/Bomret/superdev/compare/v0.102.8...v0.103.0) (2026-11-10)
 
 

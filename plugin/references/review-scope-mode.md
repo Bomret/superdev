@@ -42,6 +42,7 @@ Each step below applies beside the skill's step of the same number. A departure 
 - **Range**: the whole scope range `<range-base>..<branch>` on every dispatch, a re-review after a fix cycle included (ADR 0137, INV-0143).
 - **Tier and run root**: the tier per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` (three or fewer slices is `lite`), and `<run-root>`.
 - **Fix-cycle range**: a re-review hands the cycle's range `<cycle-base>..<cycle-tip>` as full commits. `<cycle-tip>` is the scope tip once you accept the cycle's report, before any merge of §4.1's **The moved base**.
+- **Untraced writes**: the reviewer runs `scope.js untraced` over the range of each window `## Fail-to-pass run` gives the final reviewer, the `lite` slices with a recorded range and the scope's fix cycles with commits, and grades the listing, per `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`'s `## Untraced writes` (ADR 0227). The dispatch hands the run root and the ranges above and no listing, because the verb reads git and the trace itself. A **Missing fail-to-pass run** finding counts the listed paths as change events, and a `run full` or `run whole` line inside an implementer window is a Minor **Implementer suite run** finding.
 - **Suite result**: as the next concept states.
 
 **The re-review after a warm cycle.** Applies to the re-review of a fix cycle whose list held only Minor findings (ADR 0174). Message the reviewer of the fixed verdict with SendMessage. Name the cycle's range as full commits, per the **Fix-cycle range** above. That range is its subject in place of the whole range.
@@ -59,7 +60,8 @@ Each step below applies beside the skill's step of the same number. A departure 
 - **A `full`-tier scope whose every slice row in `scope.js get slices` reads `behavior`** → dispatch `final-reviewer` alone and skip `superdev:simplicity-reviewer`, reporting `` not dispatched — full tier, every slice `behavior` `` (ADR 0037, ADR 0138, ADR 0210).
 - **A `full`-tier scope with a `mechanical` or `docs` row, or a row whose type cannot be read** → takes no skip from this concept. The skill's skip rules decide it, as they decide a `lite` scope, and the pass's findings go through the existing fix loop (ADR 0210).
 - **A `lite` scope** takes no skip from this concept.
-- The decision is the same on the entry review, on a fix cycle's re-review, on a warm re-review, and on a second `/superdev:review` invocation.
+- **Only the entry review dispatches it**, on every `/superdev:review` invocation. A fix cycle's re-review and a warm re-review get no over-engineering pass, so a cut never starts the next cycle (ADR 0228).
+- Each cut it recommends is warranted or declined by the skill's §2 warranted-cut concept. A warranted cut joins the findings as a Minor.
 - **A ledger with no slice rows** leaves the tier unknown → dispatch.
 - A denied `simplicity-reviewer` dispatch records no `**Degraded:**` entry (`${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes`).
 
@@ -248,19 +250,20 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 
 ### 4.6 The ask-once
 
-**The ask.** Applies when `final-reviewer` returned any finding, a Minor-only verdict included, a criterion is broken, or a suite run of §4.2 came back `fail`, the exit run included. Report them per §3 first. Ask once with the three options below. §4.7 runs over the chosen option's set.
+**The ask.** Applies when `final-reviewer` returned any finding, a Minor-only verdict included, the entry review warranted a cut, a set of warranted cuts alone included, a criterion is broken, or a suite run of §4.2 came back `fail`, the exit run included. Report them per §3 first. Ask once with the three options below. §4.7 runs over the chosen option's set.
 
 - **Fix every finding** (recommended), **fix only the Critical and Important findings**, or **fix none**.
+- **A warranted cut is a Minor here.** Fix every finding puts each warranted cut into the fix list, and fix only the Critical and Important findings leaves them out. A declined cut is never offered: the report names it with the rule it would break.
 - **An unclosable Pass-to-pass finding** (`${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`'s `## Fail-to-pass run`, ADR 0193) is never offered and never enters the chosen set. Its standing is §4.7's early escape. When the only Critical or Important findings left are unclosable or deferred, and no Minor, no criterion broken, and no red suite stands, ask nothing and take §4.7's early escape.
 - **The findings include an unmet criterion** (a broken line, or one this cycle leaves unticked) → the same question also offers to accept it as unmet, with the operator's own reason. This is the one decision point where a fresh `accepted:` note gets written (ADR 0095).
 - **`--unattended`** → never makes that offer and never writes `accepted:`. An unmet criterion there follows the ordinary fix-or-block path.
 
 **The branches.** Applies to the answer, or to `--unattended`.
 
-- **Declined, with only Minor findings standing, beside any unclosable or deferred ones** → take the clean-verdict path of §4.10 once the exit run of §4.2 is green, naming the standing Minors in the report and nowhere else: no `unresolved add`, no `deferred add`, no triage record (INV-0094). §3's combined verdict names each unclosable finding.
+- **Declined, with only Minor findings standing, warranted cuts included, beside any unclosable or deferred ones** → take the clean-verdict path of §4.10 once the exit run of §4.2 is green, naming the standing Minors in the report and nowhere else: no `unresolved add`, no `deferred add`, no triage record (INV-0094). §3's combined verdict names each unclosable finding.
 - **Declined, with a Critical or Important finding other than an unclosable or deferred one, a broken criterion, or a red suite standing** → stop and write the `**Unresolved:**` entry, per the standing-defect writes below. The findings stand and the stage does not advance.
 - **Accepted** (the criterion's own reason, attended only) → write `accepted: <reason> (operator, <date>)` as that line's note, through `scope.js dod-line --match-file <path> --verdict accepted --note-file <path>` on `<run-root>/dod.md` and the anchor's checklist, through the store's `## Definition of Done ticks` section (controller-only, INV-0015, ADR 0095). That criterion drops out of the findings this cycle fixes, and any other finding still goes through the three options.
-- **`--unattended`** → fix every finding, Minors included, without asking. Every finding here leaves out unclosable ones.
+- **`--unattended`** → fix every finding, Minors and warranted cuts included, without asking. Every finding here leaves out unclosable ones.
 - **Fix only Critical and Important, with only unclosable or deferred ones among them** → the loop ends with no cycle and takes §4.7's early escape.
 - **A Missing fail-to-pass run finding in the chosen set** → it joins the **Confirmed** fix of §4.7, whose implementer runs the verb over the finding's range (ADR 0182). A slice whose ledger row records no range first has its range recorded: read the slice's commits from the scope branch's log, run `scope.js slice <id> merged --range <base>..<tip> --root <run-root>`, and name that range in the fix dispatch.
 - **An Unreviewed slice finding in the chosen set**, which names a merged `behavior` slice → answer it yourself, with no implementer cycle. Dispatch `superdev:slice-reviewer` with an explicit `model`, handing it the slice's `spec`, `acceptance`, range, and progress-log path `<run-root>/reports/<id>/progress.md`, and tell it to run no test and read the slice's recorded runs from the run trace (ADR 0178, ADR 0182). Before the dispatch, append the line `dispatch: slice-reviewer` to that progress log. Tell it the report contract of `slice-reviewer.md`'s `## Report`: it appends its full findings, with their remedies, to that progress log under the heading `Review — post-merge` and returns the summary that section lists, every item of it and no remedy. Read its entry under that heading below that line for any step that needs more than the summary. A review whose entry there is missing goes back to that same reviewer through SendMessage to append it before you act on the verdict. The progress log is input for it to check against the code, not a verdict to adopt (INV-0020). Leave the finding off the **Confirmed** list, dispatching no implementer when no finding remains on it. The run trace records that dispatch on the slice, which closes the finding at the re-review.
@@ -287,11 +290,11 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 - **Model**: `opus`. `haiku` only when every finding in the list is mechanical, one whose fix changes no stated rule or behaviour, and any other finding keeps the whole dispatch on `opus`.
 - **Working directory**: the scope checkout, where its fix commits must land.
 - **Findings**: the list, with `<cycle-base>` and the bases the previous concept names.
+- **Range-base input**: `<base>`, handed as `<base-branch>` for the implementer's `scope.js base resolve`.
 - **Definition of Done**: the `<run-root>/dod.md` path plus exactly the lines this cycle unticked or found broken, a listed-lines case of `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s mapping gate.
-- **Separate calls**: tell the implementer to run any revert, each test run, and the restore as separate Bash calls.
 - **Sibling surfaces**: require the implementer to bring each sibling surface in its own checkout into agreement with the rule or behaviour its fix changes, and to report each place it checked and each it changed (INV-0120). It reports a place outside its checkout, the `AGENTS.md` hierarchy, and the knowledge base unedited (INV-0162).
 
-**A warm cycle.** Applies to a cycle whose list holds only Minor findings. Run it per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Warm cycles` (ADR 0174). The re-review's subject is §2's warm re-review range.
+**A warm cycle.** Applies to a cycle whose list holds only Minor findings, warranted cuts included. Run it per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Warm cycles` (ADR 0174). The re-review's subject is §2's warm re-review range.
 
 - `scope-findings.md`'s `## Warm cycles` owns when a resume gives way to a fresh dispatch, the wait, what each resume message carries, and the continued `final-reviewer`.
 
@@ -305,9 +308,9 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 
 - The loop ends when the re-review lists no finding in the chosen set, when its only remaining Critical or Important findings are unclosable or deferred, or when the **3-strike cap** is reached.
 - **The early escape: only unclosable Pass-to-pass findings remain among the Critical or Important ones, beside any deferred ones**, at any cycle the first verdict included → the scope proceeds under §3's combined verdict once the exit run of §4.2 is green, with no further cycle (ADR 0193). This holds attended and unattended, and neither blocks nor asks. Minors beside them still go through §4.6's ask-once first.
-- The cap is **3 cycles in total, every cycle counting**, whichever findings drove it. §4.1's **The moved base** states what its merge counts.
+- The cap is **3 cycles in total, every cycle counting**, whichever findings drove it, a cycle driven by warranted cuts alone included. §4.1's **The moved base** states what its merge counts.
 - **A re-review whose only findings left are Minor Prompt-concept overlap findings** (`${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`'s `## Prompt-concept overlap`), with no criterion standing broken → the loop ends there, attended or `--unattended`. It takes the clean-verdict path of §4.10 as a Minor remainder at the cap does, after the same exit run.
-- **At the cap, only Minor findings remain** → take the clean-verdict path of §4.10 once the exit run of §4.2 is green, naming the leftover Minors in the report and nowhere else (INV-0094). A red exit run at the cap is a remaining red suite.
+- **At the cap, only Minor findings remain**, warranted cuts included → take the clean-verdict path of §4.10 once the exit run of §4.2 is green, naming the leftover Minors in the report and nowhere else (INV-0094). A red exit run at the cap is a remaining red suite.
 - **At the cap, the only remaining Critical or Important findings are Pass-to-pass or Missing fail-to-pass run** → the scope proceeds under §3's combined verdict once the exit run of §4.2 is green (ADR 0125, ADR 0134, INV-0138). This holds attended and unattended. Any of them beside a Critical or Important finding of another kind blocks. An unclosable finding is never that other kind: beside it, cycles fix the others only, and at the cap the others alone decide.
 - **At the cap, a Critical or Important finding, a broken criterion, or a red suite remains** → stop and say it is a wrong cut and no bug, and make the standing-defect writes of §4.6.
 - **`--unattended`, at that cap** → **block** per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unattended`, after the same writes.
@@ -321,9 +324,9 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 - **Attended** → apply the fix inline yourself and say so in §3's report.
 - **Unattended** → **block there** instead of the `--unattended → fix` rule of §4.6.
 
-**Advisory notes.** Applies to over-engineering findings and to `final-reviewer`'s `### Ceiling` section (ADR 0020). They gate nothing. Carry them into the report.
+**Advisory notes.** Applies to `final-reviewer`'s `### Ceiling` section (ADR 0020). It gates nothing. Carry it into the report. A warranted cut is no advisory note: it is a Minor finding of §4.6.
 
-- They hold up no handoff, start no fix cycle, and change no stage.
+- It holds up no handoff, starts no fix cycle, and changes no stage.
 - That holds attended and unattended alike.
 
 **The verification-ceiling case.** Applies to a criterion only a deploy or another outward-facing change can verify (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Verification ceiling`). Carry it into §3's report as unmet with a one-line note on why. Never fold it into the fix loop.
@@ -372,6 +375,7 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 
 **The closing message.** Applies to the message this review ends on. The skill's closing-message concept requires the Next block. Call this conversation disposable first. Then an attended run reads `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section at this step, a read made earlier in the run included, and makes the offer for the command the cases below name when that section's conditions hold. The Next block, when this message prints one, comes last; a command the offer started leaves this review nothing to print. The block names the command by the cases below.
 
+- **A stop that made the standing-defect writes of §4.6**, the Declined branch or the cap of §4.7 → put `Blocked: <reason>` before the fence, and print `/superdev:review <scope-slug>` in it as the command that resumes the run.
 - **The `docs` untick wrote an `**Unresolved:**` entry** → print `/superdev:document <range>`, carrying the concrete range §1 resolved, and say in one line that it re-judges the unticked `docs` lines. `/superdev:submit-pr` and `/superdev:ship` wait for it.
 - **The stage reads `submitted`** → print `/superdev:ship <scope>`, and say in one line that it merges the pull request `/superdev:submit-pr` opened (ADR 0096).
 - **Otherwise** → print `/superdev:document <range>`, carrying the concrete range §1 resolved, and say in one line that it reconciles the in-repo docs and the knowledge base with the merged state.

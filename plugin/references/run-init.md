@@ -214,7 +214,7 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
 
   The stage names the last completed step (`documented-unreviewed` = `/superdev:document` ran before
   `/superdev:review`; ADR 0013). You own `implementing` and `merged`. Every later ledger write goes
-  through a `scope.js` verb (`stage`, `slice`, `degraded add`) — `ledger-guard` denies any other path.
+  through a `scope.js` verb (`stage`, `slice`, `degraded add`); the next verb reports a write made any other way as a `tamper` line.
 - **Name this run's kind.** A ledger you wrote with `init` is **`fresh`** — including one `init` wrote
   after rotating a `closed` ledger aside — and a live ledger — one already on disk, or one you just
   adopted from the anchor's snapshot — is **`resumed`**. The carve-out above (an empty `planned` ledger re-inited from the store's

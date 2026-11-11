@@ -36,8 +36,8 @@ const { readTrace, traceField } = require('../plugin/lib/trace-log.js');
     // tree, and the range's test files, the files the command was handed to cover. The line is attributed like the outcome
     // line, and the outcome line is unchanged.
     assert.deepEqual(s.runLines(), [`01 main run path pass ${s.tipSha} clean tests/t.sh`], 'one passing path run line at the tip on a clean tree, naming the test files');
-    assert.match(s.rawRunLines()[0], / tests\/t\.sh \d+ tests\/t\.sh$/, 'and its duration in whole milliseconds, then the command\'s arguments, last');
-
+    assert.match(s.rawRunLines()[0], / tests\/t\.sh \d+ sh\\x20tests\/t\.sh$/, 'and its duration in whole milliseconds, then the command as given, last');
+    // A command that is only a comment still gets an outcome, and the control run's line records it as given.
     // A command with no segment (a comment) has no arguments to record: the verb still prints an outcome and writes the control run's line.
     s = scenario({
       base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
@@ -46,7 +46,7 @@ const { readTrace, traceField } = require('../plugin/lib/trace-log.js');
     r = s.run(s.range, { cmd: '# note' });
     assert.equal(r.status, 0, 'a segmentless command ends with an outcome, not a crash: ' + r.stderr);
     assert.match(r.stdout.trim(), /^(fail-to-pass|pass-to-pass|unknown)\b/, 'an outcome prints');
-    assert.match(s.rawRunLines()[0] || '', / -$/, 'the control run line ends with the absent arguments field');
+    assert.match(s.rawRunLines()[0] || '', / #\\x20note$/, 'the control run line ends with the command as given');
 
     // Tests that pass with the other files put back as well read pass-to-pass.
     s = scenario({
@@ -219,6 +219,7 @@ const { readTrace, traceField } = require('../plugin/lib/trace-log.js');
     });
     for (const cmd of ['sh tests/t.sh', ': tests/old.sh; sh tests/t.sh', 'sh tests/t.sh old']) {
       fs.rmSync(path.join(twoTests.root, 'trace.log'), { force: true });
+      fs.rmSync(path.join(twoTests.root, 'digest.json'), { force: true });
       r = twoTests.run(twoTests.range, { cmd });
       assert.equal(r.stdout.trim(), 'pass-to-pass control=0,put-back=0', `${cmd} runs: ${r.stderr}`);
       assert.equal(readTrace(fs.readFileSync(path.join(twoTests.root, 'trace.log'), 'utf8')).find((e) => e.kind === 'fail-to-pass').fields[3], traceField(cmd), `${cmd} is recorded on the outcome line`);
@@ -256,7 +257,8 @@ const { readTrace, traceField } = require('../plugin/lib/trace-log.js');
 
     // A real run's trace holds lines already: its ledger lines and an earlier outcome that read a verdict, which is no
     // `unknown`, so the first `unknown` after them still says so. The scenario above has the same base and tip: its trace is
-    // overwritten with the seed.
+    // overwritten with the seed, which an older release wrote, so no digest seals it.
+    fs.rmSync(path.join(s.root, 'digest.json'), { force: true });
     fs.writeFileSync(path.join(s.root, 'trace.log'),
       '2026-10-10T00:00:00.000Z scope main ledger init demo\n' +
       `2026-10-10T00:00:01.000Z 01 main fail-to-pass ${s.range} fail-to-pass control=0,put-back=1\n`);

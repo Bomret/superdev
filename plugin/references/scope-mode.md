@@ -139,12 +139,8 @@ the invoking checkout, which stays wherever it was.
   A `shipped` ledger carrying the header with nothing left to deploy, or a posture other than `auto`, is
   "already shipped". Ship recreates no checkout for it.
 - **Absent** → recreate it: `git worktree add <run-root>/scopetree <branch>`, the same call
-  the `resumed` run kind already makes. **`run-lock` refuses the call, naming another session** → that
-  lock is this run's own: the scopetree this step just found absent makes that safe, because no session
-  can be working inside a tree that does not exist. Remove `<run-root>/run.lock` and retry
-  the `git worktree add` call, then let `## The run lock` below rewrite it once the scopetree is back. `##
-  The run lock`'s ordering caveat covers only the very first cut; this is the same self-block, met later
-  in the same run. **Prepare the recreated scopetree** before its first test run:
+  the `resumed` run kind already makes. The run's own lock stays as it is: no hook refuses the call.
+  **Prepare the recreated scopetree** before its first test run:
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <run-root>/scopetree`, per `scope-branch.md`'s
   `## Preparing a worktree`; a failing preparation stops the command, and `--unattended` blocks.
 - **A different working tree already holds `<branch>`** → git's own refusal on that `worktree add` call
@@ -175,7 +171,6 @@ The check does not cover these (ADR 0090):
 - A run that writes no trace line for over an hour, such as a read-only reviewer dispatch that long: its lock goes stale while it works (ADR 0220).
 - A session end: its closing trace lines leave the lock fresh for an hour after the session stopped.
 - Another session's work in the run's trees: its trace lines keep the run's lock fresh too.
-- A `resumed` run whose scopetree is absent: the ledger writes after the entry check refresh the lock, so `run-lock` refuses the run's own `git worktree add`. `scope-branch.md`'s `resumed` bullet applies `## The scope checkout`'s Absent recovery.
 - An identity scheme in the lock's content: it stays freeform text a human reads, where the check asks, to judge self from another session.
 - The `planned`-stage window: two `/superdev:implement` invocations that both enter while the stage reads `planned` both proceed. Only the stage's advance to `implementing` in `run-init.md` closes it.
 
@@ -186,22 +181,18 @@ nonce of its own into the lock, `plan <nonce>`, and passes it back on its later 
 another session (ADR 0163, ADR 0185).
 
 **Write `<run-root>/run.lock` once `scope-branch.md`'s `## Cutting the scope branch` has cut the scopetree, at both
-tiers**, and once `/superdev:plan` has made its own cut (ADR 0079). A lock written ahead of that call makes the run block
-on its own scopetree creation, because the `run-lock` hook guards `git worktree add` on the scopetree. Refresh the file if it already exists, the case a `resumed` run finds, once
+tiers**, and once `/superdev:plan` has made its own cut (ADR 0079). Refresh the file if it already exists, the case a `resumed` run finds, once
 `/superdev:implement`'s own liveness check above has passed. The execution playbooks and `/superdev:plan` each write the lock
-into the run root right after their own cut. Plan's `scope.js open` writes it, refreshes it on plan's §6 call, and checks it itself, because the `run-lock` hook
-sees no `git worktree add` inside the verb. **On a `resumed` run, the liveness check above is what tells a live second
+into the run root right after their own cut. Plan's `scope.js open` writes it, refreshes it on plan's §6 call, and checks it itself. **On a `resumed` run, the liveness check above is what tells a live second
 `/superdev:implement` invocation from this run's own stale or absent lock.** The playbook's own Resume
 section only reconciles the ledger against `git log` and performs no liveness check.
 
 **Every other caller — `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`, `/superdev:ship`,
 `/superdev:verify-ship`, `/superdev:wrap-up` — only ever refreshes this file. Never create it.** A tail command reaches a scope only after an execution playbook, or
 `/superdev:plan`, already ran, so a missing lock there means no live run to refresh.
-**The one exception** is `## The scope checkout` above's recreate path: it removes a stale lock of this run's own first,
-and this section's own write puts the lock back as part of that recreate.
 
-The lock's mtime marks the run as live across the whole chain. The `run-lock` hook treats a lock older
-than an hour as dead. Each command in the chain refreshes the mtime at its own step, and every line written to the run's
+The lock's mtime marks the run as live across the whole chain. A lock older
+than an hour is dead (`scope.js open` and implement's entry check read that bound). Each command in the chain refreshes the mtime at its own step, and every line written to the run's
 `trace.log` refreshes it too (ADR 0220): the run-trace hook's edit, run, and dispatch lines and the `scope.js` verbs'
 lines keep a working run live between those steps. That refresh creates no lock and leaves its content as it is.
 

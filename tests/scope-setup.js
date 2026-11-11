@@ -159,15 +159,25 @@ const f2pFixture = () => {
     assertSpawnDecided(gone, 'the liveness poll');
     assert.equal(gone.stdout.trim(), 'gone', message);
   };
-  // No git hook runs. The control proves the fixture's hooks are live: a plain `git worktree add` fires them.
+  // No git hook runs, neither a hook file nor a config-based hook (`hook.<name>.command`, as hk installs them), which
+  // `core.hooksPath` does not reach. The control proves the fixture's hooks are live: a plain `git worktree add` fires the
+  // hook files, and the config hooks too where `git hook list` shows git supports them. A git without them ignores the keys.
   const hooked = (sc) => {
     const sentinel = path.join(path.dirname(sc.repo), 'hook-fired');
     for (const hook of ['post-checkout', 'reference-transaction', 'post-index-change']) {
       fs.writeFileSync(path.join(sc.repo, '.git', 'hooks', hook), `#!/bin/sh\necho ${hook} >> "${sentinel}"\n`, { mode: 0o755 });
     }
+    for (const hook of ['post-checkout', 'reference-transaction', 'post-index-change', 'pre-commit', 'commit-msg']) {
+      git(sc.repo, ['config', `hook.probe.${hook}.command`, `echo config:${hook} >> "${sentinel}"`]);
+      git(sc.repo, ['config', `hook.probe.${hook}.event`, hook]);
+    }
     const probeDir = path.join(path.dirname(sc.repo), 'hook-probe');
     git(sc.repo, ['worktree', 'add', '-q', '--detach', probeDir, sc.tipSha]);
     assert.ok(fs.existsSync(sentinel), 'a plain git worktree add fires the fixture hooks');
+    const listed = spawnSync('git', ['hook', 'list', 'post-checkout'], { cwd: sc.repo, encoding: 'utf8' });
+    if (listed.status === 0 && listed.stdout.includes('probe.post-checkout')) {
+      assert.match(fs.readFileSync(sentinel, 'utf8'), /^config:post-checkout\b/m, 'a git with config-based hooks fires the fixture config hooks too');
+    }
     git(sc.repo, ['worktree', 'remove', '--force', probeDir]);
     fs.rmSync(sentinel);
     return sentinel;
@@ -292,7 +302,8 @@ const testVerbFixture = () => {
     assertSpawnDecided(r, 'bash driver');
     return r;
   };
-  const reset = () => fs.rmSync(traceFile, { force: true });
+  // An empty trace starts with no digest too: a trace deleted beside a present digest is a tamper (ADR 0227).
+  const reset = () => { fs.rmSync(traceFile, { force: true }); fs.rmSync(path.join(root, 'digest.json'), { force: true }); };
   const end = () => fs.rmSync(D, { recursive: true, force: true });
   return { D, root, S, bin, env, sh, cli, verif, traceFile, lines, verb, bash, reset, end };
 };

@@ -1,7 +1,7 @@
 'use strict';
 
 // discard.js: the `discard` verb (ADR 0208, INV-0181), the one sanctioned removal of a run's ledger and run trace. It removes
-// `ledger.md`, `trace.log`, and `run.lock` from a run root that is `<main working tree>/.superdev/scopes/<scope>`, then removes the
+// `ledger.md`, `trace.log`, `run.lock`, and the digest sidecar and its lock from a run root that is `<main working tree>/.superdev/scopes/<scope>`, then removes the
 // run root when that leaves it empty. It refuses a run whose stage is later than `planned`, and removes nothing on a refusal.
 // An absent file or an absent root is no error.
 
@@ -10,9 +10,9 @@ const path = require('path');
 const { fail } = require('./refusal.js');
 const { readLedgerHeader } = require('./ledger.js');
 const { mainWorkTree } = require('./main-work-tree.js');
-const { drivePath } = require('./shell-word-readers.js');
+const { drivePath } = require('./drive-path.js');
 
-const RUN_FILES = ['ledger.md', 'trace.log', 'run.lock'];
+const RUN_FILES = ['ledger.md', 'trace.log', 'run.lock', 'digest.json', 'digest.lock'];
 
 // A path with every existing ancestor's symlinks resolved, so a link inside the scopes directory is judged by its target.
 function realish(p) {

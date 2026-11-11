@@ -52,6 +52,7 @@ The dispatch names the subject. Assume no range exists beyond it. `${CLAUDE_PLUG
 - **Scope dispatch subject.** The whole scope range `BASE..HEAD` on every dispatch, each re-review after a fix cycle included, except the re-review after a warm cycle (ADR 0137, INV-0143, ADR 0174). `BASE` is the scope's range base (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`, `## The scope's range base`). `HEAD` is the scope branch tip. A full-tier slice re-review reads only its fix cycle's range, so you are the backstop that reads the whole branch.
 - **Warm re-review subject.** A SendMessage after a fix cycle whose list held only Minor findings names that cycle's range as full commits, and it is your subject. It resumes you when the cycle fixed your verdict, your entry review's verdict included. Close or keep each listed Minor, report any defect the cycle's commits introduced, and judge the criteria the cycle's changes touch in `### Criteria`. Every other criterion keeps its verdict from your last whole-range review. Restate each unclosable **Pass-to-pass** finding of your last verdict with its slice or range, its case, and its reason, its mark re-judged against the cycle's range as `## Fail-to-pass run` states (ADR 0193).
 - **Fix cycle's range.** A re-review's dispatch names it. It feeds `### Run-trace findings` and, outside a warm re-review, is never your subject.
+- **Inline-fix re-review subject.** A SendMessage after an ad-hoc review's inline fix names the fix range as full commits, and it is your subject (ADR 0228). It also hands the fix worktree's focused run and the fixed list as quoted data. Close or keep each listed item, a warranted cut you did not raise included, and report any defect the fix's commits introduced. No run root and no run trace stand behind it.
 - **Ad-hoc dispatch subject.** The diff the dispatch names. For a working-tree or path scope diffed against `HEAD`, the controller stages untracked files with `git add -N :/` or says it could not. You mutate nothing.
 - **Standing-code dispatch subject.** The files under the path at `HEAD`. Read them as they stand and apply every check to the code itself.
 - **Suite result or command.** `### Suite run` states it.
@@ -63,7 +64,7 @@ Applies to every review dispatch.
 Run no test. Review against the suite result the controller hands you, and judge whether it covers the changed code (ADR 0025, ADR 0075, ADR 0179). The controller says which run it is.
 
 - On a scope dispatch: the focused run the review ran at its entry over the scope range's changed paths, or no run with its reason (ADR 0192). The scope's full-suite run comes after your verdict. A re-review inside a fix cycle gets no run: read the cycle implementer's recorded runs and its fail-to-pass outcome in the run trace (ADR 0182).
-- On an ad-hoc dispatch: the focused run over the range's changed paths, the full suite where the operator asked for it, or no run with its reason.
+- On an ad-hoc dispatch: the focused run over the range's changed paths, the full suite where the operator asked for it, or no run with its reason. An inline-fix re-review gets the focused run over the fix range, run in the fix worktree.
 - On a standing-code dispatch: no run.
 - The Assessment's `Full-suite run` line reports the handed run, and names it focused where it is. A dispatch that hands no run reads `not run`.
 
@@ -259,6 +260,7 @@ Read the trace with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --root 
 - On either tier a slice is `behavior` when its ledger row's type says so (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>`).
 - **Unreviewed slice**: apply `## Review coverage`.
 - **Pass-to-pass** and **Missing fail-to-pass run**: apply `## Fail-to-pass run`.
+- **Untraced writes** and **Implementer suite run**: apply `## Untraced writes`. Run `scope.js untraced` for the windows `## Fail-to-pass run` gives you, each `lite` slice with a recorded range (its window is its whole trace, over the range its ledger row records) and each fix cycle of the scope with commits, grade each listed path, and count the listed paths as change events for **Missing fail-to-pass run**: a window with untraced writes and no `edit` line is held to that rule like any other (ADR 0227).
 - Mark each unclosable **Pass-to-pass** finding as `## Fail-to-pass run` states, with its case and reason, at every dispatch against the current range. An implementer's or the lite controller's claim of a case is input you check, never your verdict.
 - Each section owns its findings' definition, severity, tier, closing rule, and no-trace rule, and which ranges and cycles you read.
 - Each `unknown` outcome `## Fail-to-pass run` has you name goes under `### Fail-to-pass unknown`.

@@ -14,11 +14,12 @@ const { judgeContainment } = require('./containment.js');
 const { mainWorkTree } = require('./main-work-tree.js');
 const { verbInit, verbStep, validateLabel } = require('./ledger-lifecycle.js');
 const { appendTrace } = require('./trace-log.js');
+const { checkRun } = require('./run-check.js');
 
 // Every outcome that set up nothing exits with this status, apart from the 1 a refusal exits with.
 const STOPPED_EXIT = 3;
 
-// The age past which a run lock is dead. `hooks/run-lock.js` exports the same bound.
+// The age past which a run lock is dead.
 const STALENESS_MS = 60 * 60 * 1000;
 
 // The anchor an empty ledger carries until §6 writes the store and the full `init` replaces it.
@@ -145,6 +146,11 @@ function verbOpen(cwd, args) {
   const root = path.join(workTree, '.superdev', 'scopes', slug);
   const scopetree = path.join(root, 'scopetree');
   const lockPath = path.join(root, 'run.lock');
+  // `open` names no `--root`, so it checks the run's digest itself, once, before it reads or writes a file of the run (ADR 0227).
+  // The check runs once, before any path that writes. A refusal, the `locked` stop, and a cut or attach stop write no file of the run.
+  // A run that passes them writes `run.lock`, writes the ledger through `verbInit` or `verbStep`, and writes the trace with
+  // `appendTrace` beside each; a repeat call with the same nonce at step `plan` writes `run.lock` alone.
+  checkRun(root);
 
   let stage = null;
   let step = null;
@@ -190,7 +196,7 @@ function verbOpen(cwd, args) {
   }
 
   if (!existing) {
-    verbInit(cwd, label, 'planned', JSON.stringify({ anchor: PENDING_ANCHOR, slices: [] }), () => {});
+    verbInit(cwd, label, 'planned', JSON.stringify({ anchor: PENDING_ANCHOR, slices: [] }), () => {}, true);
     appendTrace(root, { kind: 'ledger', fields: ['init', label, 'planned'] });
   }
   // A repeat call of the same run leaves the step it already set; every new run records a start of its own (ADR 0147).

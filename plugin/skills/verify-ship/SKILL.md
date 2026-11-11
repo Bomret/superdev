@@ -67,7 +67,7 @@ Read the stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --r
 
 - **`none`, a `**Deploy:** none` line, or no `**Deploy:**` line** → ask nothing and go to §4.
 - **`auto`, and a listed target not recorded `deployed`** → refuse and observe nothing. Name each such target and print `/superdev:ship <scope>`.
-- **`manual`, and a listed target recorded `pending` or carrying no record** → ask the operator once per such target whether it deployed. Yes → `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deploy set <target> deployed --root <run-root>`. Any no → refuse, name the undeployed targets, and observe nothing. A recorded yes stands when a later target is answered no.
+- **`manual`, and a listed target recorded `pending` or carrying no record** → ask the operator once per such target whether it deployed. Yes → `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deploy set <target> deployed --root <run-root>`. Any no → refuse, name the undeployed targets, and observe nothing. The Next block puts `First: deploy <targets>` before the fence, and prints `/superdev:verify-ship <scope>` in it. A recorded yes stands when a later target is answered no.
 - **Every listed target `deployed`** → go to §4.
 
 ## 4. Observe

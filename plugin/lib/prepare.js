@@ -7,7 +7,7 @@ const os = require('os');
 const path = require('path');
 const { fail } = require('./refusal.js');
 const { gitSpawn } = require('./git-spawn.js');
-const { drivePath } = require('./shell-word-readers.js');
+const { drivePath } = require('./drive-path.js');
 const { prepareCommandOf } = require('./verification.js');
 const { superviseRuns } = require('./run-supervision.js');
 

@@ -209,6 +209,8 @@ export const eventLog = (ledger: string, trace: string, now: number): EventLog =
       const s = counting(slice)
       const group = f[0] === 'path' ? s?.path : f[0] === 'focused' || f[0] === 'full' || f[0] === 'whole' ? s?.suite : undefined
       if (group && (f[1] === 'pass' || f[1] === 'fail')) group[f[1]]++
+    } else if (kind === 'tamper') {
+      draw({ kind: 'tamper', at, file: untrace(f[0]) }, untrace(slice))
     } else if (kind === 'fail-to-pass') {
       const s = counting(slice)
       if (s && f[1] && f[1] !== 'unknown') s.f2p = f[1]
