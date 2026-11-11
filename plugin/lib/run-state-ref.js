@@ -143,16 +143,15 @@ function entryRefusal({ mode, type, name }) {
 
 // Moves the unpacked `trace.digest` into the run's sidecar as the digest of the unpacked `trace.log`, so the first check of an
 // adopted run reports no tamper (ADR 0225). A ref with no `trace.digest` clears the trace's digest, and the first check seals the trace.
+// The caller holds the digest lock.
 function sealUnpackedTrace(root) {
   const file = path.join(root, TRACE_DIGEST);
   const text = readBytes(file);
   const m = text && /^(\d+) ([0-9a-f]{64})\n?$/.exec(text.toString('utf8'));
-  withRunLock(root, () => {
-    const side = readSide(root);
-    if (m) side.trace = { size: Number(m[1]), sha256: m[2] };
-    else delete side.trace;
-    writeSide(root, side);
-  });
+  const side = readSide(root);
+  if (m) side.trace = { size: Number(m[1]), sha256: m[2] };
+  else delete side.trace;
+  writeSide(root, side);
   fs.rmSync(file, { force: true });
 }
 
@@ -221,11 +220,14 @@ function fetchRunState(root, cwd) {
         fs.writeFileSync(dest, b.data, { flag: 'wx' });
       }
       // simplicity: the renames are not atomic as a set. A failure part-way leaves the items already renamed in place; a killed process leaves its .run-state-* directory, which the next adopt removes.
-      for (const n of fs.readdirSync(stage)) fs.renameSync(path.join(stage, n), path.join(root, n));
+      // The renames and the trace's digest go under the digest lock, so no hook append lands between the trace's arrival and its seal.
+      withRunLock(root, () => {
+        for (const n of fs.readdirSync(stage)) fs.renameSync(path.join(stage, n), path.join(root, n));
+        sealUnpackedTrace(root);
+      });
     } finally {
       fs.rmSync(stage, { recursive: true, force: true });
     }
-    sealUnpackedTrace(root);
     const recorded = recordSeenTip(repo, remote, scope, tip);
     const kept = keptInterfaces && listed.some((e) => e.name === 'interfaces.md') ? '; kept the local interfaces.md, the next send overwrites the remote copy' : '';
     return `run-state: fetched ${blobs.length} files from ${remote} ${ref}${dodNote}${kept}${recorded ? '' : ' (recording the seen tip failed, the next send will refuse)'}`;
