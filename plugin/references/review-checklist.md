@@ -331,14 +331,15 @@ run's first `unknown` that `references/scope-findings.md`'s `## Observations` do
 NotebookEdit tool call and a test run only from `scope.js test` and `scope.js fail-to-pass`, so a change made through a shell
 command leaves no `edit` line. The commits show every change, and this section reads the two against each other.
 
-**A window** is the stretch of the trace one run of an `implementer` dispatch covers, as `## Fail-to-pass run` defines a fix cycle's
-window: from its `dispatch` line, or one of its `dispatch-resume` lines, to the first later `dispatch` line or reviewer
-`dispatch-resume` line, or to the end of the trace. A slice's boundary lines are those whose second field is the slice id, so a
+**A window** is the stretch of the trace one run of an `implementer` dispatch covers, bounded as `## Fail-to-pass run` defines a fix
+cycle's window. A slice's boundary lines are those whose second field is the slice id, so a
 dispatch of another slice running in parallel cuts no window. A line belongs to a window when its time lies inside it and its slice
 field is the window's slice. A `lite` slice has no `implementer` dispatch, because the controller builds it inline: its window is
-the slice's whole trace, its `edit` lines carry agent `main`, and its range is the one its ledger row records.
+the slice's whole trace, its `edit` lines carry agent `main`, and its range is the one its ledger row records. Only a `behavior`
+slice records one (`implement-lite.md`), so a `lite` `mechanical` or `docs` slice has no range to list: the report names the gap.
 
-**The untraced-write listing.** For every slice and every fix cycle with commits, on either tier, run
+**The untraced-write listing.** `slice-reviewer` runs it for every full-tier slice and every fix cycle with commits, and
+`final-reviewer` for the windows `## Fail-to-pass run` gives it: the `lite` slices and the scope's fix cycles. Run
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" untraced <base>..<tip> --slice <id|scope> [--from <ts>] [--until <ts>] --root <run-root>`.
 
 - `<base>..<tip>` is the range of that window's commits: the slice's range for the build window (the ledger row's range for a `lite`

@@ -147,7 +147,8 @@ function verbOpen(cwd, args) {
   const scopetree = path.join(root, 'scopetree');
   const lockPath = path.join(root, 'run.lock');
   // `open` names no `--root`, so it checks the run's digest itself, once, before it reads or writes a file of the run (ADR 0225).
-  // Every path below writes the ledger and the trace, through `verbInit` or through `verbStep`.
+  // The check runs once, before any path that writes. A path that writes the ledger and the trace does so through `verbInit` or
+  // `verbStep`; a refusal, the `locked` stop, a cut or attach stop, and a repeat call with the same nonce at step `plan` write neither.
   checkRun(root);
 
   let stage = null;
