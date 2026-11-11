@@ -335,8 +335,8 @@ command leaves no `edit` line. The commits show every change, and this section r
 cycle's window. A slice's boundary lines are those whose second field is the slice id, so a
 dispatch of another slice running in parallel cuts no window. A line belongs to a window when its time lies inside it and its slice
 field is the window's slice. A `lite` slice has no `implementer` dispatch, because the controller builds it inline: its window is
-the slice's whole trace, its `edit` lines carry agent `main`, and its range is the one its ledger row records. Only a `behavior`
-slice records one (`implement-lite.md`), so a `lite` `mechanical` or `docs` slice has no range to list: the report names the gap.
+the slice's whole trace, its `edit` lines carry agent `main`, and its range is the one its ledger row records. A `behavior`
+slice must record one and any other slice may (`implement-lite.md`), so a `lite` slice with no recorded range has none to list: the report names the gap.
 
 **The untraced-write listing.** `slice-reviewer` runs it for every full-tier slice and every fix cycle with commits, and
 `final-reviewer` for the windows `## Fail-to-pass run` gives it: the `lite` slices and the scope's fix cycles. Run
