@@ -40,6 +40,12 @@ const DENIED = [
   '\\git push',
   '\\gh pr merge 3',
   '\\tea pr m 3',
+  // Over-denials ADR 0227 accepts: a verb word after a lead word denies whatever the command does.
+  'git stash push -u -m tag',
+  'git log feat/merge',
+  'grep -rn "git push" plugin',
+  // A heredoc line that itself holds a lead word and a verb is denied.
+  "git commit -F - <<'EOF'\nfix: run git push later\nEOF",
 ];
 const ALLOWED = [
   'git add src/push.ts',
@@ -77,6 +83,7 @@ assert.equal(decide(sub('gh pr m 3')).block, false, 'gh has no m alias');
   const { reason } = decide(sub('git push'));
   assert.match(reason, /subagents must not integrate/);
   assert.ok(reason.includes("git commit -F - <<'EOF'"), 'the denial names the heredoc form');
+  assert.match(reason, /as long as no line of it holds/, 'the denial states the heredoc passes only without a lead word and verb on one line');
 }
 
 // merge-guard requires no module (ADR 0227).

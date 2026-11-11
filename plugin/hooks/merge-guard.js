@@ -28,7 +28,8 @@ const INTEGRATE =
   'superdev: subagents must not integrate. A line naming `git`, `gh`, `tea`, or `scope.js` and later the word `push`, `merge`, ' +
   "`rebase`, or `pull` (or `m` after `tea`) is the controller's job — commit on your slice branch and report your status. " +
   'A commit message or PR body that holds one of those words passes when written through a heredoc on the lines after the ' +
-  "command: `git commit -F - <<'EOF'`, then the message, then `EOF`. (merge-guard)";
+  "command (`git commit -F - <<'EOF'`, then the message, then `EOF`), as long as no line of it holds one of those lead " +
+  'words followed by one of those verbs. (merge-guard)';
 
 function integrates(cmd) {
   for (const line of cmd.replace(/\\\r?\n/g, ' ').split(/\r?\n/)) {
