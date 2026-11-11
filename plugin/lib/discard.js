@@ -10,7 +10,7 @@ const path = require('path');
 const { fail } = require('./refusal.js');
 const { readLedgerHeader } = require('./ledger.js');
 const { mainWorkTree } = require('./main-work-tree.js');
-const { drivePath } = require('./shell-word-readers.js');
+const { drivePath } = require('./drive-path.js');
 
 const RUN_FILES = ['ledger.md', 'trace.log', 'run.lock', 'digest.json', 'digest.lock'];
 

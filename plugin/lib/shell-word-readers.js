@@ -77,12 +77,7 @@ function rawNamesVerb(text, verbRe, leadRe = GIT_WORD) {
   return Boolean(g) && stateless(verbRe).test(text.slice(g.index + g[0].length));
 }
 
-// A Git Bash drive path (`/c/Users/x`) as the Windows path (`C:/Users/x`) on win32 (ADR 0150). MSYS converts
-// such a path for the programs it starts, but a hook reads the raw command text. Only `/<letter>` followed by
-// `/` or the end translates; every other path (`/tmp/x`, `/dev/null`, `/cc/x`) and every other platform keeps it.
-function drivePath(p) {
-  const m = process.platform === 'win32' && /^\/([a-zA-Z])(\/.*)?$/.exec(p);
-  return m ? `${m[1].toUpperCase()}:${m[2] || '/'}` : p;
-}
+// The drive-path translator lives in drive-path.js; the scanner re-exports it for bash-command.js until slice 07.
+const { drivePath } = require('./drive-path.js');
 
 module.exports = { ASSIGN_WORD, RTK_RUNNERS, gitSubcommand, inlineAlias, rawNamesVerb, drivePath };
