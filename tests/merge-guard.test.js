@@ -32,6 +32,10 @@ const DENIED = [
   'cd x && git push -u origin s',
   'git add -A\ngit commit -m x\ngit push',
   '$(git push)',
+  'echo `git push`',
+  'git push>/dev/null',
+  'git push</dev/null',
+  'tea pr m>/dev/null',
   'git commit -m "git push fails"',
 ];
 const ALLOWED = [

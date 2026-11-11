@@ -10,7 +10,7 @@
 // backslash-newline is joined, a line is denied when it holds a lead word (`git`, `gh`, `tea`, or `scope.js`, in any
 // letter case) and, later on that line, a verb word: `push`, `merge`, `rebase`, `pull`, or, after `tea`, its `m` merge
 // alias. A lead word starts at the line's start, after whitespace, `/`, a quote, or a shell operator character; a verb
-// word is bounded on both sides by the line's ends, whitespace, `/`, a quote, `;`, `&`, `|`, or `)`. So `-merge`
+// word is bounded on both sides by the line's ends, whitespace, `/`, a quote, a backtick, `;`, `&`, `|`, `)`, `<`, or `>`. So `-merge`
 // (`dod-merge`), `push.ts`, and `merge-guard.js` hold no verb. `gh api -X PUT repos/o/r/pulls/1/merge` is denied
 // through its trailing `/merge`.
 //
@@ -20,8 +20,8 @@
 
 const LEAD = /(?<![^\s/"'`;&|(])(git|gh|tea|scope\.js)(?![\w-])/i;
 const TEA = /(?<![^\s/"'`;&|(])tea(?![\w-])/i;
-const VERB = /(?<![^\s/"';&|)])(?:push|merge|rebase|pull)(?![^\s/"';&|)])/;
-const TEA_ALIAS = /(?<![^\s/"';&|)])m(?![^\s/"';&|)])/;
+const VERB = /(?<![^\s/"'`;&|)<>])(?:push|merge|rebase|pull)(?![^\s/"'`;&|)<>])/;
+const TEA_ALIAS = /(?<![^\s/"'`;&|)<>])m(?![^\s/"'`;&|)<>])/;
 
 const INTEGRATE =
   'superdev: subagents must not integrate. A line naming `git`, `gh`, `tea`, or `scope.js` and later the word `push`, `merge`, ' +
