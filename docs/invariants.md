@@ -281,7 +281,7 @@ Paths: plugin/references/documentation.md
 
 Class: process
 Concepts: Scope mode, Final-reviewer
-Statement: `/superdev:review` writes nothing to the operator's checkout on an ad-hoc range. Its one ad-hoc write is the inline fix, which runs only after an attended yes and lands on a fresh `review-fix/` branch in a worktree under the main working tree's `.superdev/`; review merges, pushes, and opens nothing there. `--chained` and `--unattended` write nothing (ADR 0227). It writes elsewhere only when it reviews a live scope.
+Statement: `/superdev:review` writes nothing to the operator's checkout on an ad-hoc range. Its one ad-hoc write is the inline fix, which runs only after an attended yes and lands on a fresh `review-fix/` branch in a worktree under the main working tree's `.superdev/`; review merges, pushes, and opens nothing there. `--chained` and `--unattended` write nothing (ADR 0228). It writes elsewhere only when it reviews a live scope.
 Breaks: silently
 Check: none — no pin exists today
 Paths: plugin/skills/review/SKILL.md, plugin/references/review-scope-mode.md, plugin/references/review-inline-fix.md
@@ -470,7 +470,7 @@ Paths: plugin/skills/plan/SKILL.md, plugin/references/design-sketch.md
 
 Class: process
 Concepts: Tier, Simplicity-reviewer, Final-reviewer, Execution playbook
-Statement: Every scope gets an over-engineering pass. A full-tier scope whose every slice is `behavior` gets it per slice in `implement-full.md`, so `/superdev:review` skips simplicity-reviewer there. Every other scope gets it whole-scope from `/superdev:review`, under the skip rules a lite scope takes. Its findings gate nothing on their own, and each cut the controller warrants joins the review's fix set as a Minor; only the entry review gets the pass (ADR 0227).
+Statement: Every scope gets an over-engineering pass. A full-tier scope whose every slice is `behavior` gets it per slice in `implement-full.md`, so `/superdev:review` skips simplicity-reviewer there. Every other scope gets it whole-scope from `/superdev:review`, under the skip rules a lite scope takes. Its findings gate nothing on their own, and each cut the controller warrants joins the review's fix set as a Minor; only the entry review gets the pass (ADR 0228).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/review/SKILL.md, plugin/references/review-scope-mode.md, plugin/references/implement-full.md
@@ -1409,7 +1409,7 @@ Paths: plugin/references/response-shapes.md, plugin/references/run-handoff.md, p
 
 Class: process
 Concepts: Final-reviewer, Focused test command
-Statement: `final-reviewer` runs no test, in scope mode and in ad-hoc mode, and reviews against the result `/superdev:review` hands it. In ad-hoc mode the review skill runs one focused run over the subject's changed paths, and only where the subject's tip is the checked-out tree: the working tree's uncommitted changes, or a range ending at `HEAD` on a clean working tree. Every other subject runs no test, and the report names the reason. An inline fix adds one focused run over the fix range's changed paths in the fix worktree (ADR 0227). The full suite runs in ad-hoc mode only when the operator asks for it, and never under `--chained` (ADR 0179). In scope mode the review skill runs one focused run at entry over the paths the scope's range changes, and hands no run where that path set is empty or the focused command repeats the full one; the full suite runs only at the scope review's exit (ADR 0192).
+Statement: `final-reviewer` runs no test, in scope mode and in ad-hoc mode, and reviews against the result `/superdev:review` hands it. In ad-hoc mode the review skill runs one focused run over the subject's changed paths, and only where the subject's tip is the checked-out tree: the working tree's uncommitted changes, or a range ending at `HEAD` on a clean working tree. Every other subject runs no test, and the report names the reason. An inline fix adds one focused run over the fix range's changed paths in the fix worktree (ADR 0228). The full suite runs in ad-hoc mode only when the operator asks for it, and never under `--chained` (ADR 0179). In scope mode the review skill runs one focused run at entry over the paths the scope's range changes, and hands no run where that path set is empty or the focused command repeats the full one; the full suite runs only at the scope review's exit (ADR 0192).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/agents/final-reviewer.md, plugin/skills/review/SKILL.md, plugin/references/review-scope-mode.md

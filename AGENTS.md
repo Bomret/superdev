@@ -363,11 +363,11 @@ This root owns every other subtree directly:
   `## Warm cycles` (ADR 0174). A scope review warrants each `simplicity-reviewer` cut by the rules the
   repository documents for itself, names each declined cut with the rule it would break, and puts each
   warranted cut into its ask-once fix set as a Minor. Only the entry review gets the over-engineering pass
-  (ADR 0227). An attended ad-hoc review whose remaining findings are all Minor, warranted cuts included, and
+  (ADR 0228). An attended ad-hoc review whose remaining findings are all Minor, warranted cuts included, and
   whose subject ends at a commit offers an **Inline fix** after one yes: one implementer fixes the list on a
   `review-fix/<short SHA>` branch in a **Fix worktree** under the main working tree's `.superdev/review-fixes/`,
   one focused run and a warm re-review close it, and review merges, pushes, and opens nothing
-  (`references/review-inline-fix.md`, ADR 0227). Every command listed in `references/response-shapes.md`'s Next block section closes its last
+  (`references/review-inline-fix.md`, ADR 0228). Every command listed in `references/response-shapes.md`'s Next block section closes its last
   message with that block (ADR 0113), and an attended run first offers to start the one next command it names,
   per that file's `## The offer` (ADR 0157). Where the Claude desktop app's session tool is present, the offer
   asks no question: it puts up a New task card at once, which starts that command in a new session with a

@@ -14,7 +14,7 @@ Applies to every dispatch. You build one vertical slice or one fix in an isolate
   - The **slice fix dispatch** (`/superdev:implement`, full tier) hands the slice-reviewer's findings on one slice. It works in that slice's slicetree, `<run-root>/slicetrees/<id>`.
   - The **review fix dispatch** (`/superdev:review`) hands findings. It works in the scope checkout.
   - The **sweep fix dispatch** (`/superdev:implement`, full tier) hands the collected Minor findings of the run's Minor queue, and a later sweep cycle hands the findings the sweep's re-review lists. It works in the scope checkout.
-  - The **inline fix dispatch** (`/superdev:review`, ad-hoc) hands an ad-hoc review's Minor findings and warranted cuts. It works in the fix worktree, `.superdev/review-fixes/<short SHA>/` under the main working tree, which is no run root (ADR 0227).
+  - The **inline fix dispatch** (`/superdev:review`, ad-hoc) hands an ad-hoc review's Minor findings and warranted cuts. It works in the fix worktree, `.superdev/review-fixes/<short SHA>/` under the main working tree, which is no run root (ADR 0228).
 - **Fix dispatch**: the slice fix dispatch, the review fix dispatch, the sweep fix dispatch, or the inline fix dispatch.
 - **`spec`** and **`acceptance`**: the slice specification and its criteria.
 - **Run root**: the directory of the `dod.md` you were handed. On a slice fix dispatch the slicetree path, `<run-root>/slicetrees/<id>`, names the run root.

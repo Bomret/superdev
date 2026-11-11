@@ -8,7 +8,7 @@ argument-hint: "[BASE..HEAD | branch | path | scope-slug | (empty, or the top-le
 
 Review a change end to end. §1 decides the mode.
 
-- **Ad-hoc**: a spot-check, a pre-PR pass, a second opinion on someone else's branch, or `/superdev:sweep`'s code leg under `--chained`. No plan stands behind it, and §3 keeps it read-only, except the inline fix the operator agrees to (ADR 0227).
+- **Ad-hoc**: a spot-check, a pre-PR pass, a second opinion on someone else's branch, or `/superdev:sweep`'s code leg under `--chained`. No plan stands behind it, and §3 keeps it read-only, except the inline fix the operator agrees to (ADR 0228).
 - **Scope**: the range is a live superdev scope branch, the whole-scope review gate of the implement chain (ADR 0013). It reviews against that run's Definition of Done, may drive the fix loop after asking once, and hands off to `/superdev:document`. `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md` owns everything that differs.
 
 **The closing message.** Applies to every message this command ends on. Close it with the Next block per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in that file's `## The offer` section (ADR 0157).
@@ -146,7 +146,7 @@ Review a change end to end. §1 decides the mode.
 
 **The `simplicity-reviewer` dispatch** (`model: sonnet`). Applies to every dispatch of `superdev:simplicity-reviewer`. Hand it the same git range. Its `## Scope of the review` owns the lens.
 
-**The warranted cut** (ADR 0227). Applies to every cut `simplicity-reviewer` recommends, in both modes. Warrant a cut only when it honours the rules the repository documents for itself: its `AGENTS.md` or `CLAUDE.md` files, its `docs/agents/` configuration, and its invariant register. A repository that documents none leaves the cut to your judgment alone. This is the rule `${CLAUDE_PLUGIN_ROOT}/references/implement-full.md` applies per slice.
+**The warranted cut** (ADR 0228). Applies to every cut `simplicity-reviewer` recommends, in both modes. Warrant a cut only when it honours the rules the repository documents for itself: its `AGENTS.md` or `CLAUDE.md` files, its `docs/agents/` configuration, and its invariant register. A repository that documents none leaves the cut to your judgment alone. This is the rule `${CLAUDE_PLUGIN_ROOT}/references/implement-full.md` applies per slice.
 
 - **A warranted cut** joins the findings as a Minor finding. It blocks nothing on its own and still enters the fix set.
 - **A declined cut** is named in §3's report with the rule it would break, and enters no fix set.
@@ -206,7 +206,7 @@ Reasoning: [1–2 sentences]
 - **Simplicity**: `simplicity-reviewer`'s `net: -N lines possible`, `net: +N lines possible`, or `Lean already`. A reviewer not dispatched reads `not dispatched — <reason>`, naming the skip rule that applied (for example `not dispatched — standing code, no diff to review`).
 - **A scope review's** combined verdict also follows `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md`'s `## 3. Report`.
 
-**The inline-fix gate** (ADR 0227). Applies to an ad-hoc review once its report is out. Offer the inline fix only when every condition below holds.
+**The inline-fix gate** (ADR 0228). Applies to an ad-hoc review once its report is out. Offer the inline fix only when every condition below holds.
 
 - The run is attended, with neither `--chained` nor `--unattended`.
 - No Critical or Important finding stands.

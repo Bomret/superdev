@@ -1,4 +1,4 @@
-# 0227: An ad-hoc review fixes a Minor-only remainder inline
+# 0228: An ad-hoc review fixes a Minor-only remainder inline
 
 **Status:** Accepted
 

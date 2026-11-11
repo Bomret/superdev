@@ -284,7 +284,7 @@ on every `deferred resolve` call.
 
 ## Warm cycles
 
-A **warm cycle** is a fix cycle whose fix list holds only Minor findings, warranted cuts included (ADR 0174, ADR 0227). `/superdev:review`'s
+A **warm cycle** is a fix cycle whose fix list holds only Minor findings, warranted cuts included (ADR 0174, ADR 0228). `/superdev:review`'s
 fix loop (`review-scope-mode.md`'s `### 4.7 Fix cycles`) reads this section, and so does the Minor sweep (`references/implement-full.md`, `## Minor sweep`), the
 other fix loop that continues a fix implementer. The cycle
 continues the loop's previous fix implementer through SendMessage, with its context intact, in place of a

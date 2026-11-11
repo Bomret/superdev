@@ -59,7 +59,7 @@ Each step below applies beside the skill's step of the same number. A departure 
 - **A `full`-tier scope whose every slice row in `scope.js get slices` reads `behavior`** → dispatch `final-reviewer` alone and skip `superdev:simplicity-reviewer`, reporting `` not dispatched — full tier, every slice `behavior` `` (ADR 0037, ADR 0138, ADR 0210).
 - **A `full`-tier scope with a `mechanical` or `docs` row, or a row whose type cannot be read** → takes no skip from this concept. The skill's skip rules decide it, as they decide a `lite` scope, and the pass's findings go through the existing fix loop (ADR 0210).
 - **A `lite` scope** takes no skip from this concept.
-- **Only the entry review dispatches it**, on every `/superdev:review` invocation. A fix cycle's re-review and a warm re-review get no over-engineering pass, so a cut never starts the next cycle (ADR 0227).
+- **Only the entry review dispatches it**, on every `/superdev:review` invocation. A fix cycle's re-review and a warm re-review get no over-engineering pass, so a cut never starts the next cycle (ADR 0228).
 - Each cut it recommends is warranted or declined by the skill's §2 warranted-cut concept. A warranted cut joins the findings as a Minor.
 - **A ledger with no slice rows** leaves the tier unknown → dispatch.
 - A denied `simplicity-reviewer` dispatch records no `**Degraded:**` entry (`${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes`).

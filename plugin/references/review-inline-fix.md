@@ -1,6 +1,6 @@
 # Inline fix
 
-Applies to an ad-hoc `/superdev:review` once the operator answered yes to `${CLAUDE_PLUGIN_ROOT}/skills/review/SKILL.md` §3's inline-fix question. The skill reads this file at that point, and no other command reads it (ADR 0227). Follow the steps in order to the report.
+Applies to an ad-hoc `/superdev:review` once the operator answered yes to `${CLAUDE_PLUGIN_ROOT}/skills/review/SKILL.md` §3's inline-fix question. The skill reads this file at that point, and no other command reads it (ADR 0228). Follow the steps in order to the report.
 
 - `<tip>`: the reviewed tip §1 resolved, a full commit.
 - `<short>`: `git rev-parse --short=12 <tip>`.
