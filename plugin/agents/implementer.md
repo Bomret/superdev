@@ -32,7 +32,7 @@ Applies to every dispatch.
 - The slice dispatch and the review fix dispatch hand the `<run-root>/dod.md` path and the listed lines: the Definition-of-Done criteria each names (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`, `## The mapping gate`). A review fix dispatch may list none. The slice fix dispatch hands neither.
 - A slice dispatch and a slice fix dispatch name `<base>`, the commit the slice branch was cut from.
 - A sweep fix dispatch hands the sweep log path as its progress log, and the `<run-root>/dod.md` path read-only with no listed line. It names `<sweep-base>`, the scope branch's tip when the sweep began, as a full commit.
-- A review fix dispatch names `<cycle-base>`, the scope branch's tip before the dispatch, as a full commit.
+- A review fix dispatch names `<cycle-base>`, the scope branch's tip before the dispatch, as a full commit, and hands `<base-branch>`, the scope's base branch.
 - An inline fix dispatch names `<cycle-base>`, the reviewed tip the fix branch was cut from, as a full commit. It hands no `dod.md`, no run root, and no progress log.
 
 ## Scope of the work
@@ -65,7 +65,7 @@ Read the commit log and the diff of the range before you write anything. Continu
 - Slice dispatch and slice fix dispatch: the range is `<base>..HEAD`.
 - Sweep fix dispatch: the range is `<sweep-base>..HEAD`.
 - Inline fix dispatch: the range is `<cycle-base>..HEAD`, with no `scope.js base resolve`.
-- Review fix dispatch: the range is `<range-base>..HEAD`. Compute `<range-base>` with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base resolve --branch HEAD --base <base-branch> --root <run-root>` (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`, `## The scope's range base`). `<base-branch>` is the scope's base branch.
+- Review fix dispatch: the range is `<range-base>..HEAD`. Compute `<range-base>` with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base resolve --branch HEAD --base <base-branch> --root <run-root>` (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`, `## The scope's range base`). `<base-branch>` is the base branch the dispatch hands.
 
 ## Test applicability
 
