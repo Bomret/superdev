@@ -71,10 +71,19 @@ Applies to every start past §1. Find the scope checkout.
 
 ## 4. Whole-repo run
 
-**The section.** Applies to every run past §3. Read `docs/agents/verification.md` from the scope checkout per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## Whole-repo command` section (ADR 0105, INV-0017).
+**The section.** Applies to every run past §3. Read `docs/agents/verification.md` from the scope branch's tip commit (`git -C <run-root>/scopetree show <branch>:docs/agents/verification.md`), never the working tree, per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## Whole-repo command` section (ADR 0105, INV-0017).
 
-- **No such section** → run no suite. The outcome is `not configured`. Continue to §5.
+- **No such section** → run no suite. The outcome is `not configured`. Take **The ship check**.
 - **Section present** → take **The reuse**.
+
+**The ship check.** Applies to a tip with no such section. In the scope checkout, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base> --root <run-root>`, the call `/superdev:ship`'s suite gate makes, and run no test command (ADR 0230, INV-0093). `<base>` is the base branch `docs/agents/code-management.md` names.
+
+- **Exit 0** → the ship check reads `reusable`.
+- **Any other exit** → keep its stderr line as the refusal reason. Judge the preconditions of `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## The carry run` step 1. They hold → the ship check reads `carry possible`. One fails → the ship check reads `ship would refuse`.
+
+Continue to §5 on every reading.
+
+**A rewritten record.** Applies to the ship check and **The reuse**. A reuse call that accepts a passing run at the exact tip rewrites the suite record (ADR 0186). §5's publish carries that record.
 
 **The reuse.** Applies to a present section. In the scope checkout, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --whole --root <run-root>`. Only a record of kind `whole` satisfies this step, and a green record with no kind does not. Exit 0 → the outcome is `reused`, with no run, and you continue to §5.
 
@@ -87,7 +96,7 @@ Applies to every start past §1. Find the scope checkout.
 
 **A stopped run.** Applies to the red, denied, killed, and not-started results. Open no pull request. Under `--unattended` the stop is the same, and it is an unattended block.
 
-**The outcome.** Applies to every outcome: `reused`, `green`, `red`, `denied`, `killed`, `not started`, or `not configured`. State it in this command's report.
+**The outcome.** Applies to every outcome: `reused`, `green`, `red`, `denied`, `killed`, `not started`, or `not configured`. State it in this command's report. With `not configured`, also state the ship check's reading, and on `ship would refuse` its refusal reason.
 
 ## 5. Pull request
 
@@ -109,10 +118,14 @@ Applies to every start past §1. Find the scope checkout.
 
 **The stage write.** Applies after the open. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set submitted --root <run-root>`, then run the publish.
 
-**The offer.** Applies to an attended run. Make the offer for `/superdev:ship <scope>` per `## The offer` (ADR 0157, INV-0093). Its start options carry that section's **An offer of ship** wording, and each also says the pull request is not reviewed yet.
+**The offer.** Applies to an attended run. Make the offer for the next command below per `## The offer` (ADR 0157, INV-0093).
 
-- The operator who wants to review first answers once the review is done, or stops here.
+- **`/superdev:ship <scope>`** → its start options carry that section's **An offer of ship** wording, and each also says the pull request is not reviewed yet. The operator who wants to review first answers once the review is done, or stops here.
+- **`/superdev:review <scope>`** → its start options carry no **An offer of ship** wording.
 
 **The unattended end.** Applies to an unattended run. Make no offer. The next command below still prints.
 
-**The next command.** Applies to every run that reaches the stage write. Print `/superdev:ship <scope>` as the next command, with one line on what it does: it merges the pull request once an operator has reviewed it and applies the repository's deploy posture to the merge. It then offers to start `/superdev:verify-ship <scope>`, or `/superdev:wrap-up <scope>` when nothing is left to verify, and prints that command when the operator does not take the offer.
+**The next command.** Applies to every run that reaches the stage write.
+
+- **The ship check reads `ship would refuse`** → print `/superdev:review <scope>` as the next command, with one line on what it does: it records the suite at the tip and then prints `/superdev:ship <scope>`.
+- **Every other outcome** → print `/superdev:ship <scope>` as the next command, with one line on what it does: it merges the pull request once an operator has reviewed it and applies the repository's deploy posture to the merge. It then offers to start `/superdev:verify-ship <scope>`, or `/superdev:wrap-up <scope>` when nothing is left to verify, and prints that command when the operator does not take the offer.

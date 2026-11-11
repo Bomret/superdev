@@ -67,7 +67,9 @@ repository configures one only together with an affected form.
   once on the scope branch's tip before opening the pull request and reuses a green `whole` record of that
   tip instead, ship runs it on a tip that carries no green `whole` record, and a review entered while the suite record reads red of kind `whole` runs it at its exit run in place
   of the full command.
-- **An absent section leaves the full command as the whole suite**, and every caller unaffected.
+- **An absent section leaves the full command as the whole suite**, and every caller unaffected. submit-pr
+  then runs ship's plain reuse check, which runs no test, and routes a tip ship would refuse to
+  `/superdev:review` (ADR 0230).
 
 ## Prepare command
 
