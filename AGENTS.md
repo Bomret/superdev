@@ -366,7 +366,8 @@ This root owns every other subtree directly:
   (ADR 0228). An attended ad-hoc review whose remaining findings are all Minor, warranted cuts included, and
   whose subject ends at a commit offers an **Inline fix** after one yes: one implementer fixes the list on a
   `review-fix/<short SHA>` branch in a **Fix worktree** under the main working tree's `.superdev/review-fixes/`,
-  one focused run and a warm re-review close it, and review merges, pushes, and opens nothing
+  one focused run and a warm re-review close it. The worktree is no run root and is removed when clean, kept
+  and named when dirty, and the branch stays. Review merges, pushes, and opens nothing
   (`references/review-inline-fix.md`, ADR 0228). Every command listed in `references/response-shapes.md`'s Next block section closes its last
   message with that block (ADR 0113), and an attended run first offers to start the one next command it names,
   per that file's `## The offer` (ADR 0157). Where the Claude desktop app's session tool is present, the offer
