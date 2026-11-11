@@ -1530,3 +1530,12 @@ Statement: Each line written to a run root's `trace.log` sets that run root's `r
 Breaks: silently
 Check: tests/scope-trace.test.js and tests/run-lock.test.js — a trace line refreshes a two-hour-old lock with its bytes unchanged, creates no lock, leaves a symlinked lock's target, a directory lock, another run root's lock, and a removed run root as they were, refreshes nothing on a failed append, and a ledger verb's line refreshes the lock; an edit traced into a busy scopetree makes the run-lock hook block a second session's `git worktree add` on it; a ledger verb's line on an old lock makes the hook block a resumed run's own `git worktree add` of its absent scopetree, which passes once the lock is removed
 Paths: plugin/lib/trace-log.js
+
+### INV-0188
+
+Class: architecture
+Concepts: Topic page, Knowledge base, Staged page
+Statement: The doc pass writes knowledge-base text only to a page the outline names explicitly. An outline entry that holds a placeholder names no page. Text no named page fits goes to a new outline entry, added to `docs/agents/knowledge-base.md` in the scope's doc commit with its reason, before any page for it is written. A page the outline does not name is corrected when the change makes it stale, and receives no new text.
+Breaks: silently
+Check: none — final-reviewer's invariant compliance judges it
+Paths: plugin/references/doc-pass.md, plugin/agents/doc-writer.md, plugin/skills/document/SKILL.md, plugin/references/knowledge-base-*.md
