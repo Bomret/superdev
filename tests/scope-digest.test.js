@@ -99,7 +99,20 @@ async function main() {
     sh(f.root, 'echo "extra" >> ledger.md');
     assertReportedOnce(f, 'ledger.md', 'ledger echo >>');
     fs.rmSync(ledgerFile(f));
+    // `degraded add` refuses on a run with no ledger, after it reports the deletion.
     assertReportedOnce(f, 'ledger.md', 'ledger deletion', false);
+  }
+  {
+    // `init` writes a ledger, so it completes over a deletion and reports it.
+    const f = fixture();
+    write(f);
+    fs.rmSync(ledgerFile(f));
+    const re = sc(f, ['init', 'feat/demo', 'implementing'], sliceJson);
+    assert.strictEqual(re.status, 0, 'init completes after a ledger deletion: ' + re.stderr);
+    assert.strictEqual(warnings(re).length, 1, 'init reports the deletion once: ' + re.stderr);
+    assert.ok(fs.existsSync(ledgerFile(f)), 'init wrote the ledger');
+    assert.deepStrictEqual(tampers(f), ['ledger.md'], 'one tamper line');
+    assert.strictEqual(warnings(write(f)).length, 0, 'reported once');
   }
 
   // #trace: the same four, on `trace.log`.
@@ -254,6 +267,86 @@ async function main() {
     assert.strictEqual(traceText(f).split('\n').filter((l) => l.includes(' edit impl late')).length, 2, 'both appends landed');
     assert.ok(!fs.existsSync(lock), 'the lock was broken and released');
     assert.strictEqual(write(f).stderr, '', 'no tamper after the broken lock');
+  }
+
+  // #lock-bound: a holder that stays live (its lock never ages out) delays an event's appends by a bounded wait in all, so the
+  // event lands while that holder still holds: the wait is well under the run-trace hook's own 5 s bound, however many lines the event has.
+  {
+    const f = fixture();
+    const lock = path.join(f.root, 'digest.lock');
+    const holder = spawn(process.execPath, ['-e',
+      `const fs = require('fs'); fs.closeSync(fs.openSync(${JSON.stringify(lock)}, 'wx')); console.log('held');` +
+      `const t = setInterval(() => { try { const now = new Date(); fs.utimesSync(${JSON.stringify(lock)}, now, now); } catch {} }, 100);` +
+      `setTimeout(() => { clearInterval(t); process.exit(0); }, 4500);`], { stdio: ['ignore', 'pipe', 'ignore'] });
+    let holderGone = false;
+    holder.on('exit', () => { holderGone = true; });
+    await new Promise((resolve) => holder.stdout.once('data', resolve));
+    const code = `const { appendTrace } = require(${JSON.stringify(traceLogPath)});` +
+      `for (let i = 0; i < 3; i++) if (!appendTrace(${JSON.stringify(f.root)}, { kind: 'edit', fields: ['impl', 'line' + i] })) process.exit(3);`;
+    const appender = spawn(process.execPath, ['-e', code], { stdio: 'ignore' });
+    const guard = setTimeout(() => appender.kill('SIGKILL'), 60000);
+    const status = await new Promise((resolve) => appender.on('exit', (s) => resolve(s)));
+    clearTimeout(guard);
+    assert.strictEqual(status, 0, 'the three-line event landed');
+    assert.strictEqual(holderGone, false, 'the event landed while a live holder still held the lock');
+    assert.strictEqual(traceText(f).split('\n').filter((l) => /edit impl line\d/.test(l)).length, 3, 'all three lines are in the trace');
+    await new Promise((resolve) => (holderGone ? resolve() : holder.on('exit', resolve)));
+  }
+
+  // #lock-owner: a holder whose lock was broken after the stale bound removes no lock but its own, so the holder after it keeps its lock.
+  {
+    const f = fixture();
+    const lock = path.join(f.root, 'digest.lock');
+    const digestPath = require.resolve('../plugin/lib/run-digest.js');
+    const nap = 'const nap = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);';
+    const run = (body) => spawn(process.execPath, ['-e',
+      `const { withRunLock } = require(${JSON.stringify(digestPath)}); ${nap} withRunLock(${JSON.stringify(f.root)}, () => { ${body} });`], { stdio: ['ignore', 'pipe', 'ignore'] });
+    const first = run("console.log('held'); nap(2600);");
+    let firstGone = false;
+    first.on('exit', () => { firstGone = true; });
+    await new Promise((resolve) => first.stdout.once('data', resolve));
+    const second = run("console.log('in'); nap(2500);");
+    let secondIn = false;
+    second.stdout.on('data', () => { secondIn = true; });
+    await new Promise((resolve) => first.on('exit', resolve));
+    assert.ok(secondIn, 'the second holder broke the old lock and was inside before the first ended');
+    assert.ok(fs.existsSync(lock), 'the first holder left the second holder\'s lock alone');
+    await new Promise((resolve) => second.on('exit', resolve));
+    assert.ok(!fs.existsSync(lock), 'the second holder released its own lock');
+  }
+
+  // #adopt-race: a hook append that lands while adopt moves the trace into place is no tamper, however the two interleave. The test holds
+  // the lock and watches whether the trace appears under it: adopt that moves the trace outside the lock exposes the gap, and the
+  // append made in it is what the digest must still match.
+  {
+    const f = fixture();
+    write(f);
+    sc(f, ['step', 'set', 'implement', '--root', f.root]);
+    assert.match(sc(f, ['step', 'clear', '--root', f.root]).stdout, /run-state: sent/);
+    for (const e of fs.readdirSync(f.root)) fs.rmSync(path.join(f.root, e), { recursive: true, force: true });
+    const lock = path.join(f.root, 'digest.lock');
+    fs.closeSync(fs.openSync(lock, 'wx'));
+    const stateRefPath = require.resolve('../plugin/lib/run-state-ref.js');
+    const adopt = spawn(process.execPath, ['-e', `console.log(require(${JSON.stringify(stateRefPath)}).fetchRunState(${JSON.stringify(f.root)}, ${JSON.stringify(f.repo)}))`], { stdio: ['ignore', 'pipe', 'ignore'] });
+    const done = new Promise((resolve) => adopt.on('exit', resolve));
+    const until = Date.now() + 1200;
+    let exposed = false;
+    while (Date.now() < until) {
+      if (fs.existsSync(traceFile(f))) { exposed = true; break; }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    if (exposed) fs.appendFileSync(traceFile(f), '2026-01-01T00:00:00.000Z scope main edit impl raced\n');
+    fs.rmSync(lock, { force: true });
+    await done;
+    assert.ok(fs.existsSync(traceFile(f)), 'adopt unpacked the trace');
+    if (!exposed) {
+      const code = `process.exit(require(${JSON.stringify(traceLogPath)}).appendTrace(${JSON.stringify(f.root)}, { kind: 'edit', fields: ['impl', 'raced'] }) ? 0 : 3);`;
+      const late = spawnSync(process.execPath, ['-e', code], { timeout: 60000, killSignal: 'SIGKILL' });
+      assertSpawnDecided(late, 'append after adopt');
+      assert.strictEqual(late.status, 0);
+    }
+    assert.ok(traceText(f).includes('edit impl raced'), 'the raced append is in the trace');
+    assert.deepStrictEqual(JSON.parse(fs.readFileSync(path.join(f.root, 'digest.json'), 'utf8')).trace, sealOf(traceFile(f)), 'the digest matches the trace with the append');
   }
 
   // #read-only: status, get, and trace leave every file of the run, its sidecar included, byte for byte, even over an outside edit.
