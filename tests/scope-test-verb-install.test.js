@@ -113,19 +113,3 @@ const scopePath = require.resolve('../plugin/scripts/scope.js');
     fs.rmSync(D, { recursive: true, force: true });
   }
 }
-
-// The test verbs read no shell words: no module `test-verb.js` or `fail-to-pass.js` requires, directly or through
-// another, is a shell scanner (ADR 0225).
-{
-  const lib = path.join(path.dirname(scopePath), '..', 'lib');
-  const seen = new Set();
-  const walk = (file) => {
-    if (seen.has(file)) return;
-    seen.add(file);
-    for (const m of fs.readFileSync(file, 'utf8').matchAll(/require\('(\.\/[^']+)'\)/g)) walk(path.join(lib, m[1].replace(/^\.\//, '')));
-  };
-  walk(path.join(lib, 'test-verb.js'));
-  walk(path.join(lib, 'fail-to-pass.js'));
-  assert.ok(seen.has(path.join(lib, 'run-supervision.js')), 'the walk reaches the modules the verbs require');
-  assert.ok(![...seen].some((f) => /shell-words|bash-command/.test(f)), 'and neither reaches a shell scanner');
-}

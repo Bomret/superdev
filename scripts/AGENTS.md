@@ -142,7 +142,7 @@ the trace writer `appendTrace` from `trace-log.js`,
 the tree locator `locate` and the test-path classifier `isTestPath` (ADR 0128) from `run-tree.js`,
 the Bash recorder `recordBash` from `test-runs.js`, and the dispatch, write-target, and start-stash
 readers from `dispatch.js`, `bash-writes.js`, and `start-stash.js`. Each `require` has its own guard, and a module that fails to load
-leaves the hook recording nothing (ADR 0117, INV-0159). `hooks/tree-guard.js` takes `mainWorkTree` from `main-work-tree.js` (ADR 0148). `hooks/test-guard.js` takes `cmdSegments` and `plain` from `bash-command.js`, `testRuns`, `verificationKind`, and the `scope.js test` call finder `scopeTestCalls` from `test-runs.js`, and `verificationCommands` from `verification.js`, and a module that fails to load lets every call pass (ADR 0181). `publish-kb.js` reaches
+leaves the hook recording nothing (ADR 0117, INV-0159). `hooks/tree-guard.js` takes `mainWorkTree` from `main-work-tree.js` (ADR 0148). `publish-kb.js` reaches
 the containment test `testContainment` from `containment.js`, which refetches the base before it answers not contained (ADR 0053,
 ADR 0065), `refResolves` from `git-spawn.js`, and `readLedgerHeader`, `SLUG_RE`, `CHANGE_TYPES` from `ledger.js`, through its `lib/kb-*.js` modules. `base set` appends a `ledger`
 trace event like every other ledger-writing verb. Normalisation is per
@@ -500,9 +500,7 @@ The stage machine's transition rules are enforced in its code, not in prose, and
 `hooks/ledger-guard.js` denies every other write path. `tests/scope-ledger.test.js` carries the retired
 drift assertions along with scope.js's own behavior: the stage machine, the ledger schema and header
 lines, a pre-CLI ledger parsing unchanged, and the scope-slug charset staying equal across `scope.js`,
-`hooks/run-lock.js`, and `references/scope-mode.md`. A further pin — the same class of assertion as
-the `arg-token` pin of the Bash hooks' scanner require, adapted for a
-shared function instead of a shared module — asserts, in `tests/scope-publish-adopt.test.js`, that `lib/run-state.js` and `lib/dod-line.js` still require
+`hooks/run-lock.js`, and `references/scope-mode.md`. A further pin, a shared function instead of a shared module, asserts, in `tests/scope-publish-adopt.test.js`, that `lib/run-state.js` and `lib/dod-line.js` still require
 `maskFencedLines` from `md-sections.js` and declare no private function of that name, so a reintroduced
 private copy of the masking rule fails this instead of only being caught by chance, on whichever
 fixture happens to exercise the drift.

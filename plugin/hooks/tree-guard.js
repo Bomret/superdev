@@ -5,7 +5,7 @@
 // A dispatched implementer works in the slicetree its dispatch named. A file-tool write it aims at a checkout of a repository
 // that holds a superdev run, or at that repository's git directory, is denied.
 //
-// The guard fails open, the opposite of the Bash guardrails (INV-0140): a call it cannot judge passes. That covers unreadable hook
+// The guard fails open: a call it cannot judge passes. That covers unreadable hook
 // input, a git call that fails or exceeds its bound, an unreadable run directory, a main working tree it cannot determine, and a
 // `lib/main-work-tree.js` that will not load. A misdirected write into a checkout shows in `git status` and reverts easily. A write into a git
 // directory never shows there, which is why the guard refuses one whenever it can judge the call. A transient git failure must

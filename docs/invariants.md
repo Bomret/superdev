@@ -1144,15 +1144,6 @@ Breaks: silently
 Check: tests/scope-fail-to-pass-verdict.test.js, tests/scope-fail-to-pass-signals.test.js, tests/scope-fail-to-pass-bound.test.js, tests/scope-fail-to-pass-trace.test.js, tests/scope-fail-to-pass-environment.test.js, tests/scope-fail-to-pass-interrupt.test.js, tests/scope-fail-to-pass-concurrency.test.js, tests/scope-fail-to-pass-watcher.test.js, tests/scope-fail-to-pass-prepare.test.js — the fail-to-pass cases
 Paths: plugin/scripts/scope.js, plugin/lib/fail-to-pass.js, plugin/lib/run-supervision.js, plugin/lib/verification.js, plugin/lib/prepare.js
 
-### INV-0140
-
-Class: safety
-Concepts: Guardrail
-Statement: A hook that reads a Bash command's words through the shared shell scanner and cannot load the scanner records nothing: run-trace records evidence and guards nothing (ADR 0135).
-Breaks: silently
-Check: tests/run-trace-guards.test.js — with a stub for the scanner require of the run trace's command layer loaded that throws, a Bash write, a slice-reviewer hand-back, and a stop record nothing, and with its scan throwing a Bash write records nothing, against a control run that records; and on a command that runs a test and then writes or runs `git checkout`, a loaded scanner whose `drivePath` or `gitSubcommand` throws or is missing records no `run` line either, and so does one whose `drivePath` throws only for a patch file, or whose `scan` throws only for one word
-Paths: plugin/hooks/run-trace.js, plugin/lib/bash-command.js, plugin/lib/shell-words.js, plugin/lib/shell-word-readers.js
-
 ### INV-0141
 
 Class: safety
@@ -1512,3 +1503,12 @@ Statement: Each line written to a run root's `trace.log` sets that run root's `r
 Breaks: silently
 Check: tests/scope-trace.test.js — a trace line refreshes a two-hour-old lock with its bytes unchanged, creates no lock, leaves a symlinked lock's target, a directory lock, another run root's lock, and a removed run root as they were, refreshes nothing on a failed append, and a ledger verb's line refreshes the lock
 Paths: plugin/lib/trace-log.js
+
+### INV-0187
+
+Class: architecture
+Concepts: Guardrail
+Statement: No shipped hook or module reads a Bash call's `tool_input.command`, except merge-guard's raw-text check (ADR 0225).
+Breaks: silently
+Check: tests/plugin-layout.test.js — the files under `plugin/` that read the command field are merge-guard.js alone, and the same scan finds a fixture file outside `plugin/` that reads it
+Paths: plugin/hooks/*.js, plugin/lib/*.js, plugin/scripts/*.js

@@ -46,8 +46,8 @@ const SHELL_SPAWN_FORMS = [
   ['execSync', /\bexecSync\s*\(/],
   ['absolute path', /\b(?:spawn|spawnSync|execFile|execFileSync)\s*\(\s*['"`]\//],
   ['bash', /\b(?:spawn|spawnSync|execFile|execFileSync)\s*\(\s*['"`]bash['"`]/],
-  // Any `shell:` object-literal key (after `{`, `,`, or a line start); `lib/shell-words.js`'s parse-node field
-  // `shell: undefined` is no spawn option, and a ternary `ok ? shell : other` is no key.
+  // Any `shell:` object-literal key (after `{`, `,`, or a line start); `shell: undefined`
+  // is no spawn option, and a ternary `ok ? shell : other` is no key.
   ['shell option', /(?:^|[{,])[ \t]*shell\s*:(?!\s*undefined\b)/m],
   // A shorthand `{ cwd, shell }` key: a brace, then only non-brace, non-paren text ending in a comma, then `shell`
   // before a comma or a closing brace that is no destructuring target (`const { shell } = x`).
