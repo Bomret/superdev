@@ -33,9 +33,9 @@ changed; then check which docs that touches.
 ## Content types
 
 Read `${CLAUDE_PLUGIN_ROOT}/references/content-types.md` before the first edit and apply it in **both**
-passes below — the in-repo docs (Pass 1) and the knowledge base (Pass 2). The knowledge base holds feature
-specifications and design overviews, which are conceptual content by definition, so the lens carries at
-least as much weight there.
+passes below — the in-repo docs (Pass 1) and the knowledge base (Pass 2). The knowledge base holds topic
+pages, each explaining one subject a reader looks up, which is conceptual content by definition, so the lens
+carries at least as much weight there.
 
 It names four kinds of information — interface, reference, conceptual, procedural — and one question to ask
 of every doc you touch: does a reader learn **why** this exists and **when** to use it? Reference text
@@ -125,9 +125,30 @@ Otherwise update the knowledge base to match reality, following that file's back
 **outline**, writing in its **language**, for its **audience(s)** — **human-consumption first**,
 agent-relevant detail second:
 
-- Fill/refresh the durable, reader-facing docs the change affects (feature specification, design
-  overview) under the agreed outline. Don't mirror every `AGENTS.md`, and leave decisions in the ADRs:
-  the knowledge base carries no ADR digest and no ADR summaries.
+- **Route every reader-facing passage to a topic page** (ADR 0229, INV-0188). A topic page is a page the
+  outline names explicitly and that holds one subject a reader looks up. Put each passage the range calls
+  for on the topic page whose subject it belongs to, and work it into that page's own structure: a section
+  per feature is the shape this rule replaces. Don't mirror every `AGENTS.md`, and leave decisions in the
+  ADRs: the knowledge base carries no ADR digest and no ADR summaries.
+- **A placeholder entry names no page.** An outline entry holding a placeholder (`<...>`, such as
+  `How it works: <mechanism>`) gives no title, so the pass writes no new page under it.
+- **When no topic fits**, extend the existing topic closest to the subject first. Only when none can
+  carry it, add one explicit entry to the outline in `docs/agents/knowledge-base.md`: its title, plus its
+  parent page and parent section where the configuration's hierarchy needs them, or its `→` nesting. The
+  entry goes in the same doc commit as the page's text, and the commit message and the report each state
+  why no existing topic fit. This asks no question and blocks no `--unattended` run. An ad-hoc pass
+  commits the entry on the current branch.
+- **Keep what other features wrote.** Every scope that touches a subject extends the same topic page.
+  Rewrite it from the live body you read, or from the local file, keep every still-true passage on it,
+  and change only what this range affects.
+- **No reader-visible change, no page.** A range that changes nothing a reader of the knowledge base
+  meets writes no page and adds no outline entry.
+- **Extend what this scope already wrote.** A page already staged under the staging path, or an outline
+  entry already committed in this scope's range, by an earlier pass of the same scope (the `lite` inline
+  step, then the doc-writer), is your starting point: extend that staged body, its `live-hash` kept, or
+  that entry, and write no second one beside it.
+- **A page the outline does not name**, such as an existing per-feature page, is corrected when the
+  range makes its text stale, and receives no new text.
 - Correct and **remove obsolete** content — a knowledge base that contradicts the code is worse than none.
 - **Local file** backend: edit the markdown under `docs/kb/` and keep its index current. Its pages are
   repository files, so they ride the branch with the code and you stage nothing.

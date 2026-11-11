@@ -62,6 +62,7 @@ Applies to every start. Read `docs/agents/documentation.md` (the in-repo documen
 - on a live run, every open `docs` line, verbatim, as targets the pass must make true (ADR 0161)
 - on a live run, the scope checkout as its working directory
 - where the KB config carries `- **Hierarchy:** links`, that it stages each page's parent link as `references/doc-pass.md`'s knowledge-base pass states (ADR 0168)
+- that it reports every outline entry it added to the KB config, with its reason (ADR 0229)
 
 The writer commits its doc changes on the current branch. A denied writer's inline reconcile takes the same targets.
 
@@ -98,6 +99,7 @@ The writer commits its doc changes on the current branch. A denied writer's inli
 
 - the `AGENTS.md` files and docs updated, and the stale text removed
 - the KB pages written to `docs/kb/` or **staged**, and under which action, or that the KB pass was none or skipped
+- every outline entry the writer added to the KB config, with its reason
 - the reader test's result, on every doc pass: the reader's tally with the findings left unresolved after the fix round; or, on an empty file list, the writer's reason and that the reader had no in-repo doc to test; or a denied reader's degraded entry
 - the **writing standard** that applied, or that none did
 - on a live run whose stage reads `shipped` or `closed`, every unticked `docs` line

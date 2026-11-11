@@ -168,7 +168,9 @@ slicetrees and would collide on shared doc files.
   in the main working tree, resolved the same from this scopetree's cwd (ADR 0119).
 - **Hand the pass its `docs` targets**: every `docs`-tagged line of `<run-root>/dod.md` neither
   ticked nor `accepted:`, verbatim (ADR 0161). `/superdev:review`'s `holds` verdict ticks each one the pass made true (`review-scope-mode.md`'s `### 4.5 The Definition-of-Done criteria`).
-- **Commit the doc changes on the scope branch**, in this scopetree, as their own commit.
+- **Commit the doc changes on the scope branch**, in this scopetree, as their own commit. An outline
+  entry the pass added to `docs/agents/knowledge-base.md` rides in that commit, its reason in the commit
+  message (`doc-pass.md`'s `## Pass 2 — knowledge base`).
 - **Record the pass** with
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs set inline --root <run-root>`. Write it **after** the
   pass, never before, so the record stands only for a pass that ran. `/superdev:document` takes no
