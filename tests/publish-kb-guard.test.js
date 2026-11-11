@@ -37,6 +37,28 @@ withState((stateFile) => {
   assert.ok(fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'changed.md')));
 });
 
+// --- two scopes stage the same topic page from one live body: the first lands, the second stays ---
+// staged with a live-hash mismatch (ADR 0229)
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', ['find', 'read', 'create', 'update', 'delete']));
+  fs.writeFileSync(stateFile, JSON.stringify({ 'Topic Page': { id: 'id-1', body: 'shared live body.\n' } }));
+  const frontmatter = `title: Topic Page\naction: upsert\nlive-hash: ${hashBody('shared live body.\n')}`;
+  stagePage(repo, 'first', 'topic-page.md', frontmatter, 'shared live body.\n\nfrom first.\n');
+  stagePage(repo, 'second', 'topic-page.md', frontmatter, 'shared live body.\n\nfrom second.\n');
+
+  const first = call(['--scope', 'first'], repo);
+  assert.ok(first.ok, `expected a report, got: ${first.err}`);
+  assert.match(first.out, /published \(updated\): Topic Page/);
+
+  const second = call(['--scope', 'second'], repo);
+  assert.ok(second.ok, `expected a report, got: ${second.err}`);
+  assert.match(second.out, /left staged: Topic Page — .*live-hash mismatch/);
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.equal(state['Topic Page'].body, 'shared live body.\n\nfrom first.\n', 'the second scope overwrites nothing');
+  assert.ok(fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'second', 'topic-page.md')));
+});
+
 // --- a storage backend receives the staged markdown converted to XHTML, on create and update ----
 // (ADR 0109)
 withState((stateFile) => {

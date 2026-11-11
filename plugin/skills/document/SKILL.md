@@ -98,6 +98,7 @@ The writer commits its doc changes on the current branch. A denied writer's inli
 
 - the `AGENTS.md` files and docs updated, and the stale text removed
 - the KB pages written to `docs/kb/` or **staged**, and under which action, or that the KB pass was none or skipped
+- every outline entry the writer added to the KB config, with its reason
 - the reader test's result, on every doc pass: the reader's tally with the findings left unresolved after the fix round; or, on an empty file list, the writer's reason and that the reader had no in-repo doc to test; or a denied reader's degraded entry
 - the **writing standard** that applied, or that none did
 - on a live run whose stage reads `shipped` or `closed`, every unticked `docs` line

@@ -1,6 +1,6 @@
 # Knowledge base: GitHub Wiki
 
-Durable, **human-first** reader-facing docs (guides, mechanism pages, concepts) live in the
+Durable, **human-first** reader-facing docs (guides, topic pages, concepts) live in the
 GitHub repo **Wiki** for `Bomret/superdev`. Distinct from the agent-first in-repo `AGENTS.md` docs.
 In-repo docs (`docs/agents/documentation.md`) remain the source of truth; the wiki is a published view.
 
@@ -21,22 +21,47 @@ In-repo docs (`docs/agents/documentation.md`) remain the source of truth; the wi
 
 ## Outline
 
-This outline is a living skeleton. `/plan` and `/document` fill and extend it.
+This outline is a living skeleton. `/superdev:document` extends it.
 
 - **Home.** The root page, with no parent. Hand-written: what superdev is, the plan and implement loop,
-  and the compatibility note. Each group section below holds one link list that `/superdev:publish-kb`
+  and the compatibility note. Each section below holds one link list that `/superdev:publish-kb`
   maintains.
-- **`Guide: <task>`.** One page per thing an adopter does: install and configure, plan a feature,
-  scope the test runs, ship and wrap up, deploy after the merge, publish to the knowledge base, audit
-  tests, sweep a repository, survey the backlog. Parent: `Home`, section `Guides`.
-- **`How it works: <mechanism>`.** One page per feature or mechanism, titled by the behavior a reader
-  meets, written as what it does, where you meet it, and how to configure it. `/document` stages
-  this page once the feature is built, under one title per feature, so one feature has one page. Parent: `Home`, section `How it works`.
+- **Guides.** One page per thing an adopter does, step by step. Parent: `Home`, section `Guides`:
+  - `Guide: Audit tests`
+  - `Guide: Check prose`
+  - `Guide: Deploy after the merge`
+  - `Guide: Install and configure`
+  - `Guide: Plan a feature`
+  - `Guide: Profile a run`
+  - `Guide: Publish to the knowledge base`
+  - `Guide: Scope the test runs`
+  - `Guide: Ship and wrap up`
+  - `Guide: Survey the backlog`
+  - `Guide: Sweep a repository`
+- **Topics.** One page per subject an adopter looks up: what superdev does there, where you meet it, and
+  how to configure it. Parent: `Home`, section `Topics`:
+  - `Planning a feature`: the plan interview, its criteria, design sketch and visuals, intent and triage
+    records, the invariant register, and repairs.
+  - `The command chain`: the commands, the order they run in, the offer of the next one, response
+    shapes, the operator configuration, and Windows.
+  - `Scope runs`: the scope branch and its worktrees, the run lock, the run root, run state, the guards,
+    and the run trace.
+  - `Review`: slice review, the fix loop, Minor findings, ad-hoc review, review models, unresolved
+    defects, and triage records.
+  - `Tests`: test cost, the fail-to-pass run, where a run runs the suite, suite reuse, and the test audit.
+  - `Definition of Done and verification`: criterion ticks, the verification ceiling, and the criteria
+    the doc pass settles.
+  - `Documentation and knowledge base`: the doc loop, the writing standard, the content-type lens, the
+    inline doc pass, topic pages, and parent links.
 - **Concepts.** The terms an adopter configures or sizes: slice store, code host, documentation
   convention, knowledge base, toolchain, verification, execution tiers, unattended runs, deploy
   posture, seed gaps. `(aggregate)`: one `## <concept>` section per concept, contributed by the scope
-  that built it. A mechanism belongs on its own `How it works:` page, not here. Parent: `Home`, section
-  `Concepts`.
+  that built it. A mechanism belongs on its topic page, not here. Parent: `Home`, section `Concepts`.
+
+**Every outline entry names a topic page** (ADR 0229, INV-0188). An entry gives one page's exact title,
+and the page holds one subject a reader looks up. `/superdev:document`'s doc pass extends the topic page a
+change touches. Only when no topic fits does it add one explicit entry here, in the scope's doc commit,
+with its reason. A page per feature is no entry.
 
 **Create the root page first.** A child published before its root lands, but stays staged as not linked,
 because its parent has no page to carry the link yet.
@@ -59,8 +84,9 @@ by that section's heading. Every other page is staged whole (ADR 0027).
 
 ## Staging
 
-This is a **remote** backend, so nothing but `/superdev:publish-kb` calls it (ADR 0023). `/superdev:plan`
-and `/superdev:document` write each page as a **staged page** under `.superdev/kb-pending/<scope>/`. That directory lives in the main working tree, and `scope.js staging <scope>` resolves it (ADR 0119). Each
+This is a **remote** backend, so nothing but `/superdev:publish-kb` calls it (ADR 0023).
+The doc pass writes each page as a **staged page**: `/superdev:document` runs it, and on the `lite` tier
+`/superdev:implement` runs it inline first. Each page is staged under `.superdev/kb-pending/<scope>/`. That directory lives in the main working tree, and `scope.js staging <scope>` resolves it (ADR 0119). Each
 carries YAML frontmatter with the page `title` and an `action` of `upsert`, `patch`, or `delete`, and the
 page body below. The wiki git conventions below are what `/superdev:publish-kb` applies when a human runs it,
 once the feature has reached the adopters this wiki is written for.
@@ -196,8 +222,10 @@ Human-consumption first: shape pages around the audience, write in English, foll
 
 ## superdev usage
 
-- `/superdev:plan` and `/superdev:document` stage pages; `/superdev:document` reconciles and extends the
-  wiki through its doc-writer.
+- `/superdev:document` reconciles and extends the wiki's topic pages through its doc-writer, and stages
+  the pages it changed.
+- `/superdev:implement` runs the same doc pass inline first on the `lite` tier, and stages the pages it
+  changed; `/superdev:document`'s doc-writer then extends them.
 - `/superdev:publish-kb` sends the staged pages to the wiki. The only command that calls it.
 
 ## Degrade / switching

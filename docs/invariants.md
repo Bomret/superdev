@@ -1512,3 +1512,12 @@ Statement: No shipped hook or module reads a Bash call's `tool_input.command`, e
 Breaks: silently
 Check: tests/plugin-layout.test.js — the files under `plugin/` that read the command field are merge-guard.js alone, and the same scan finds a fixture file outside `plugin/` that reads it
 Paths: plugin/hooks/*.js, plugin/lib/*.js, plugin/scripts/*.js
+
+### INV-0188
+
+Class: architecture
+Concepts: Topic page, Knowledge base, Staged page
+Statement: The doc pass writes knowledge-base text only to a page the outline names explicitly. An outline entry that holds a placeholder names no page. Text no named page fits goes to a new outline entry, added to `docs/agents/knowledge-base.md` in the scope's doc commit with its reason, before any page for it is written. A page the outline does not name is corrected when the change makes it stale, and receives no new text.
+Breaks: silently
+Check: none — final-reviewer's invariant compliance judges it
+Paths: plugin/references/doc-pass.md, plugin/agents/doc-writer.md, plugin/skills/document/SKILL.md, plugin/references/knowledge-base-*.md

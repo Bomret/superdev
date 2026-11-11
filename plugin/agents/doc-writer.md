@@ -81,6 +81,7 @@ Return:
 - the docs and `AGENTS.md` files you changed, and what you deleted as stale;
 - every doc and `AGENTS.md` file you read and left unchanged because you judged it current, by path, or, when you judged no doc relevant to the range, your reason in one line;
 - the knowledge-base pages you wrote to `docs/kb/` or staged, and under which action, or that the knowledge-base pass was skipped or none;
+- every outline entry you added to `docs/agents/knowledge-base.md`, with the reason no existing topic fit, or that you added none;
 - per `docs` target, the file and section that now states it;
 - the commit range, and any concerns;
 - the items `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md` directs into the report (`## Writing standard`, `## Pass 1 — in-repo docs`, `## Pass 2 — knowledge base`);
