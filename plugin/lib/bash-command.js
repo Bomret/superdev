@@ -198,7 +198,7 @@ function gitBase(g, base) {
 }
 
 // The wrappers a test run and a write sit behind (`timeout` has its own option parsing below). shell-words.js's WRAPPER table,
-// which ledger-guard.js skips, is wider: it adds `xargs`, `doas`, `stdbuf`, `builtin`, `eval`, `arch`, `caffeinate`, `flock`,
+// which the other Bash hooks skip, is wider: it adds `xargs`, `doas`, `stdbuf`, `builtin`, `eval`, `arch`, `caffeinate`, `flock`,
 // `chronic`, `unbuffer`, `ionice`, and `taskset`, behind which no run and no write is recorded.
 // `rtk` is RTK's output filter: its PreToolUse hook rewrites `bun run test` to `rtk bun run test`, PostToolUse sees the rewritten
 // command, and `rtk` passes the exit status through (docs/known-issues.md). segWords also skips rtk's `proxy` subcommand; its other

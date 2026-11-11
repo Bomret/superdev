@@ -76,7 +76,7 @@ const { appendTrace } = require(scopePath);
     git(s.tree, ['reset', '-q', '--hard', s.tipSha]);
     fs.rmSync(path.join(s.root, 'trace.log'));
     fs.rmSync(path.join(s.root, 'digest.json'), { force: true });
-    const cli =(sc, argv) => {
+    const cli = (sc, argv) => {
       const out = spawnSync(process.execPath, [scopePath, ...argv, '--root', sc.root], { cwd: sc.repo, encoding: 'utf8', timeout: 20000 });
       assertSpawnDecided(out, 'scope.js ' + argv.join(' '));
       return out;

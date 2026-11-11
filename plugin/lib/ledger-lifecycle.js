@@ -49,7 +49,6 @@ const INIT_ENTRY_STAGES = ['planned', 'implementing'];
 // and when the trace cannot go back either, init stops naming the stranded trace's path; a run that
 // recorded no trace rotates its ledger alone.
 function rotateFinishedLedger(root, stage, log) {
-  checkRun(root);
   const stamp = new Date().toISOString().slice(0, 19).replace(/:/g, '');
   let stem = `${stage}-${stamp}`;
   const taken = (s) => fs.existsSync(path.join(root, `ledger-${s}.md`)) || fs.existsSync(path.join(root, `trace-${s}.log`));
@@ -108,6 +107,8 @@ function verbInit(cwd, label, stage, stdinJson, log = console.log) {
   const { slug } = validateLabel(label);
   const workTree = mainWorkTree(cwd) || cwd;
   const root = path.join(workTree, '.superdev', 'scopes', slug);
+  // `init` names no `--root`, so it checks the run's digest itself, once, before it reads or writes a file of the run (ADR 0225).
+  checkRun(root);
   // The real double-init signal is an existing ledger.md, not the run-root directory: run init
   // writes dod.md into the run root before calling init, so the directory legitimately exists
   // on every fresh run. A ledger at stage `planned` is the one exception (ADR 0079): it names a
