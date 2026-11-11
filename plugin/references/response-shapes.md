@@ -87,10 +87,12 @@ a block with an `Or:`, `Blocked:`, or `First:` line makes no offer. A skill adds
 an exit that meets these conditions offers, whatever its next command. A block that fails a condition makes
 no offer and names no exception, since the hook passes it.
 
-**An offer of ship.** Every offer of `/superdev:ship`, whichever command makes it, names the pull-request URL
-in each start option's description (INV-0093). Start's description says it merges the pull request now,
-exactly as typing `/superdev:ship` does, with the host's approvals and branch protection still in force. The
-new-session option's description says it starts ship in a new session, which merges with no further question.
+**An offer of ship.** Every offer of `/superdev:ship`, whichever command makes it, names the pull request and
+says ship merges it (INV-0093). The question's Start option names the pull-request URL in its description and
+says it merges the pull request now, exactly as typing `/superdev:ship` does, with the host's approvals and
+branch protection still in force. The card's `title` names the pull request by its number and says ship merges
+it, such as `Merge PR #141 with /superdev:ship`, within the tool's 60-character title limit. The card's click
+starts ship in a new session, which merges with no further question.
 
 **Detection.** The session carries the session tool when `mcp__ccd_session__start_session` is loaded, or
 listed as a deferred tool. Only the Claude desktop app provides it (`docs/known-issues.md`, *The session
@@ -100,7 +102,7 @@ load counts as absent.
 
 **With the session tool: the card.** Ask no `AskUserQuestion`. Make one `start_session` call:
 `initiation: "own_initiative"`, `context: "fresh"`, `use_worktree: false`, and no `model`, `effort`, or
-`permission_mode`, so the new session inherits this session's own. The `title` names the command. The
+`permission_mode`, so the new session inherits this session's own. The `title` names the command, and an offer of ship's `title` also names the merge (**An offer of ship**). The
 `prompt` is the command exactly as the fence prints it, then this marker line, verbatim:
 
 `A superdev offer started this session.`

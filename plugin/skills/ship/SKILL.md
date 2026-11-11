@@ -26,7 +26,7 @@ Applies to every start. Start this command only on one of the starts below (ADR 
 
 - The operator typed the command.
 - The operator asked for it.
-- The operator agreed to `/superdev:submit-pr`'s offer.
+- The operator agreed to an offer of it, which `/superdev:submit-pr` makes, as does any command whose Next block prints it.
 - Another session's brief asked for it, confirmed by the one yes `## A brief started` asks first.
 
 ## No extra question
