@@ -114,6 +114,28 @@ async function main() {
     assert.deepStrictEqual(tampers(f), ['ledger.md'], 'one tamper line');
     assert.strictEqual(warnings(write(f)).length, 0, 'reported once');
   }
+  {
+    // #open: `open` names no `--root`. On an existing planned ledger it writes through `step set plan` without `init`, and checks first.
+    const open = (f) => {
+      git(['branch', '-f', 'feat/demo', 'main'], f.repo);
+      return sc(f, ['open', 'feat/demo', '--base', 'main']);
+    };
+    const clean = fixture('planned');
+    const ok = open(clean);
+    assert.strictEqual(ok.status, 0, 'open over a planned ledger with no outside edit completes: ' + ok.stderr);
+    assert.strictEqual(warnings(ok).length, 0, 'open reports nothing without an outside edit: ' + ok.stderr);
+    assert.deepStrictEqual(tampers(clean), [], 'no tamper line');
+
+    const f = fixture('planned');
+    fs.writeFileSync(ledgerFile(f), fs.readFileSync(ledgerFile(f), 'utf8') + '\nedited from outside\n');
+    const r = open(f);
+    assert.strictEqual(r.status, 0, 'open completes over an edited planned ledger: ' + r.stderr);
+    assert.strictEqual(warnings(r).length, 1, 'open reports the outside edit once: ' + r.stderr);
+    assert.ok(warnings(r)[0].includes('ledger.md'), 'the warning names ledger.md');
+    assert.deepStrictEqual(tampers(f), ['ledger.md'], 'one tamper line');
+    assert.match(fs.readFileSync(ledgerFile(f), 'utf8'), /\*\*Step:\*\* plan/, 'open wrote the plan step');
+    assert.strictEqual(warnings(write(f)).length, 0, 'reported once');
+  }
 
   // #trace: the same four, on `trace.log`.
   {
