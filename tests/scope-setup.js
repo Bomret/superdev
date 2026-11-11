@@ -159,11 +159,17 @@ const f2pFixture = () => {
     assertSpawnDecided(gone, 'the liveness poll');
     assert.equal(gone.stdout.trim(), 'gone', message);
   };
-  // No git hook runs. The control proves the fixture's hooks are live: a plain `git worktree add` fires them.
+  // No git hook runs, neither a hook file nor a config-based hook (`hook.<name>.command`, as hk installs them), which
+  // `core.hooksPath` does not reach. The control proves the fixture's hook files are live: a plain `git worktree add`
+  // fires them. A git without config-based hooks ignores the `hook.*` keys.
   const hooked = (sc) => {
     const sentinel = path.join(path.dirname(sc.repo), 'hook-fired');
     for (const hook of ['post-checkout', 'reference-transaction', 'post-index-change']) {
       fs.writeFileSync(path.join(sc.repo, '.git', 'hooks', hook), `#!/bin/sh\necho ${hook} >> "${sentinel}"\n`, { mode: 0o755 });
+    }
+    for (const hook of ['post-checkout', 'reference-transaction', 'post-index-change', 'pre-commit', 'commit-msg']) {
+      git(sc.repo, ['config', `hook.probe.${hook}.command`, `echo config:${hook} >> "${sentinel}"`]);
+      git(sc.repo, ['config', `hook.probe.${hook}.event`, hook]);
     }
     const probeDir = path.join(path.dirname(sc.repo), 'hook-probe');
     git(sc.repo, ['worktree', 'add', '-q', '--detach', probeDir, sc.tipSha]);
