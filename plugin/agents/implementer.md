@@ -136,7 +136,7 @@ Run only the tests that verify your work. Run each through the runner `${CLAUDE_
 - A test command is recorded as typed and pushed with the run state, so a secret belongs in the environment, never on the command line.
 - The controller's runs: `test full`, `test whole`, and a `test focused` with no path, which runs the full command.
 - Where the focused fence of `docs/agents/verification.md` repeats the full fence, each RED or GREEN step runs each test file it works on through `scope.js test path <file>... -- <command>`, and the fail-to-pass run is the one run you make before your report.
-- The `test-guard` hook refuses a controller's run when you start one, and its refusal names the run to make instead (ADR 0181).
+- A `run full` or `run whole` line recorded in your dispatch window is a Minor review finding, so run only the commands above.
 
 ### Edit tools
 

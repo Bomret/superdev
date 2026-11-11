@@ -115,7 +115,7 @@ const scopePath = require.resolve('../plugin/scripts/scope.js');
 }
 
 // The test verbs read no shell words: no module `test-verb.js` or `fail-to-pass.js` requires, directly or through
-// another, is the command classifier `test-runs.js` (ADR 0225).
+// another, is a shell scanner (ADR 0225).
 {
   const lib = path.join(path.dirname(scopePath), '..', 'lib');
   const seen = new Set();
@@ -127,6 +127,5 @@ const scopePath = require.resolve('../plugin/scripts/scope.js');
   walk(path.join(lib, 'test-verb.js'));
   walk(path.join(lib, 'fail-to-pass.js'));
   assert.ok(seen.has(path.join(lib, 'run-supervision.js')), 'the walk reaches the modules the verbs require');
-  assert.ok(!seen.has(path.join(lib, 'test-runs.js')), 'neither verb reaches test-runs.js');
   assert.ok(![...seen].some((f) => /shell-words|bash-command/.test(f)), 'and neither reaches a shell scanner');
 }

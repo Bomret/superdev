@@ -33,6 +33,11 @@ const hookFiles = fs.readdirSync(path.join(plugin, 'hooks')).filter((n) => n.end
   }
 }
 
+// No hook refuses an implementer's full-suite run, and no module classifies a test command (ADR 0225).
+assert.ok(!fs.existsSync(path.join(plugin, 'hooks', 'test-guard.js')), 'no test-guard hook');
+assert.ok(!fs.existsSync(path.join(plugin, 'lib', 'test-runs.js')), 'no test-runs module');
+assert.ok(!/test-guard/.test(fs.readFileSync(path.join(plugin, 'hooks', 'hooks.json'), 'utf8')), 'hooks.json registers no test-guard');
+
 // The export names of each entry point, sorted. A dropped or added export fails here.
 const EXPORTS = {
   'hooks/merge-guard.js': ['decide'],
@@ -41,7 +46,6 @@ const EXPORTS = {
   'hooks/run-trace.js': ['record'],
   'hooks/scope-prune.js': ['TTL_MS', 'branchNamesFrom', 'main', 'readBranch', 'readHeader', 'readStage', 'selectPrunable', 'shapeScanBranch'],
   'hooks/slicetree-sweep.js': ['git', 'main', 'selectRemovable'],
-  'hooks/test-guard.js': ['decide'],
   'hooks/tree-guard.js': ['decide'],
   'hooks/update-check.js': ['cmpVersion'],
   'scripts/kb-patch.js': ['merge'],
@@ -185,8 +189,6 @@ for (const [rel, mods] of Object.entries(RE_EXPORTS)) {
       check: (r) => { assert.strictEqual(r.status, 0); assert.ok(!fs.existsSync(pruneScope), 'prunes the gone, closed, stale scope'); } },
     'slicetree-sweep.js': { input: { cwd: sweepRepo },
       check: (r) => { assert.strictEqual(r.status, 0); assert.ok(!fs.existsSync(sweepTree), 'sweeps the merged-and-worked slice'); } },
-    'test-guard.js': { input: implementer({ tool_name: 'Bash', cwd: slicetree, tool_input: { command: 'node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full' } }),
-      check: (r) => { assert.strictEqual(r.status, 2, 'refuses a full run'); assert.match(r.stderr, /^superdev: refused/); } },
     'tree-guard.js': { input: implementer({ tool_name: 'Write', cwd: runRepo, tool_input: { file_path: path.join(runRepo, 'a.txt'), content: 'x' } }),
       check: (r) => { assert.strictEqual(r.status, 2, 'refuses a write into the main checkout'); } },
     'update-check.js': { input: {}, nodeArgs: ['--require', path.join(__dirname, 'fixtures', 'stub-https-get.js')], env: { CLAUDE_PLUGIN_ROOT: pluginRoot, CLAUDE_PLUGIN_DATA: updateData, STUB_HTTPS_MARKER: updateMarker },
