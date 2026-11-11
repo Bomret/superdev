@@ -5,6 +5,9 @@
 **Amends:** [ADR 0176](0176-the-offer-recommends-a-new-session.md) point 5, and
 [ADR 0201](0201-the-offer-puts-up-the-card-first.md) point 5.
 
+**Amended by:** [ADR 0225](0225-ship-runs-a-card-start-without-a-question.md), which limits point 1's ask
+to a brief start.
+
 ## Context
 
 Under ADR 0176 and ADR 0201, `/superdev:ship`, `/superdev:verify-ship`, and `/superdev:wrap-up` each ask the

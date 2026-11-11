@@ -7,6 +7,8 @@ starts the session.
 
 **Amended by:** [ADR 0201](0201-the-offer-puts-up-the-card-first.md), under which the card is put up at
 once with no question before it (points 1 and 3).
+[ADR 0225](0225-ship-runs-a-card-start-without-a-question.md), under which only ship asks the one yes, and only
+on a brief start (Consequences).
 
 ## Context
 

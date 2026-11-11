@@ -11,6 +11,8 @@ answer proposes the session as a New task card instead of starting it (point 1).
 session tool is present, and a brief-started consent-gated command asks first too (points 1 and 5).
 [ADR 0214](0214-only-ship-asks-a-started-session-for-consent.md), under which only ship asks the one yes
 (point 5).
+[ADR 0225](0225-ship-runs-a-card-start-without-a-question.md), under which ship asks it only on a brief start
+(point 5).
 
 ## Context
 
