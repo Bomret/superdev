@@ -89,9 +89,9 @@ claude --plugin-dir ./plugin
 - [Install and configure](https://github.com/Bomret/superdev/wiki/Guide:-Install-and-configure)
 - [Plan a feature](https://github.com/Bomret/superdev/wiki/Guide:-Plan-a-feature)
 - [Ship and wrap up](https://github.com/Bomret/superdev/wiki/Guide:-Ship-and-wrap-up)
-- [Command chain](https://github.com/Bomret/superdev/wiki/How-it-works:-Command-chain)
+- [The command chain](https://github.com/Bomret/superdev/wiki/The-command-chain)
 - [Concepts](https://github.com/Bomret/superdev/wiki/Concepts)
-- Every guide and mechanism page: the [wiki home](https://github.com/Bomret/superdev/wiki)
+- Every guide and topic page: the [wiki home](https://github.com/Bomret/superdev/wiki)
 - Why it is built this way: [`docs/adr/`](docs/adr/)
 - Contributing: [`CONTRIBUTING.md`](CONTRIBUTING.md). Releases: [`RELEASING.md`](RELEASING.md)
 
