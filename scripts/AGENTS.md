@@ -229,7 +229,7 @@ working tree.
 
 `test full|whole`, `test focused [<path>…]`, and `test path <file>… -- <command>` run a test command through `sh -c`, `sh` resolved from PATH (ADR 0150), and append one
 `run` line carrying the command's own exit status, an **Observed run** (CONTEXT.md, ADR 0127, INV-0117). The line ends with
-the run's duration in whole milliseconds (ADR 0182) and the arguments of the command's test segment (`encodeArgs` of `lib/trace-log.js`; `-` for none). The test segment is the matched test run inside a compound command, so `cd x && bun test a b` records `a b`. `scope.js` records the arguments verbatim, and the run-state ref publishes the trace. Pass a secret through the environment, never through an argument. The verb
+the run's duration in whole milliseconds (ADR 0182), the raw command (`traceField` of `lib/trace-log.js`), and the **directory field**: the directory the command ran in, relative to the run tree's root, `/`-separated, `.` at the root, and `..` or an absolute path outside the tree (ADR 0232). `scope.js` records the command verbatim, and the run-state ref publishes the trace. Pass a secret through the environment, never through an argument. The verb
 streams the command's output and exits with its status. `full`, `focused`, and `whole` run the command
 `docs/agents/verification.md` configures, as written; `focused` substitutes its shell-quoted paths for `{paths}`
 and, given none, runs the full command and records `full`. It refuses an empty path argument, and an argument that holds
