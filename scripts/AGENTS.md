@@ -292,8 +292,8 @@ status, and when a preparation gives no verdict. No reviewer reads `unknown` as 
 and no gate reads it as green.
 
 Inside a run root the verb appends one `fail-to-pass` trace line, `<base>..<tip> <outcome> <reason> <command>`. Its slice is the
-ledger row that records exactly that range, else the slice the run's directory attributes to, else `scope`. The control run also writes a `path` run line naming the range's test files, the files the command was handed to cover, and ending with its duration. The line
-has the same slice as the outcome line and the form `test path` writes. It backs no suite record. It names the tip. The verb reads the worktree's HEAD
+ledger row that records exactly that range, else the slice the run's directory attributes to, else `scope`. The control run also writes a `path` run line naming the range's test files, the files the command was handed to cover. The line
+has the same slice as the outcome line and the form `test path` writes, its directory field `.`. It backs no suite record. It names the tip. The verb reads the worktree's HEAD
 and tree at both ends. A HEAD that left the tip, or a dirty tree at either end, records `dirty`. An unreadable tree state
 records `unknown`. Otherwise the tree is `clean`. A run ended by a signal, or one that could not start, writes no line
 (ADR 0175). The outcome line itself is no

@@ -59,6 +59,9 @@ try {
   assert.equal(r.stdout.trim(), 'FULLRAN', 'no path runs the full command');
   assert.match(lines()[3], / run full pass /, 'and records full');
   assert.match(lines()[3], / - echo\\x20FULLRAN \.$/, 'a full run records no path set');
+  // A direct run whose command is the full command's text is still a path run: the kind comes from the verb, never the text.
+  assert.equal(verb(['path', 'a.js', '--', 'echo FULLRAN']).status, 0);
+  assert.match(lines()[4], / run path pass .* echo\\x20FULLRAN \.$/, 'a path run of the full command text records kind path');
 
   // Two path runs over the same file that differ in the command differ in the command field.
   reset();

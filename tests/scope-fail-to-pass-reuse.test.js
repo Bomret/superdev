@@ -65,6 +65,7 @@ const { appendTrace } = require(scopePath);
       ['a later failing run', (t) => [['path', 'pass', t, 'clean', 'tests/t.sh', '40', CMD, '.'], ['path', 'fail', t, 'clean', 'tests/t.sh', '40', CMD, '.']]],
       ['no directory field', (t) => [['path', 'pass', t, 'clean', 'tests/t.sh', '40', CMD]]],
       ['a subdirectory run', (t) => [['path', 'pass', t, 'clean', 'tests/t.sh', '40', CMD, 'tests']]],
+      ['a directory whose name holds a space', (t) => [['path', 'pass', t, 'clean', 'tests/t.sh', '40', CMD, 'my dir']]],
       ['a run from outside the tree', (t) => [['path', 'pass', t, 'clean', 'tests/t.sh', '40', CMD, '..']]],
       ['an absolute directory', (t) => [['path', 'pass', t, 'clean', 'tests/t.sh', '40', CMD, '/tmp']]],
       ['an empty directory marker', (t) => [['path', 'pass', t, 'clean', 'tests/t.sh', '40', CMD, '-']]],
