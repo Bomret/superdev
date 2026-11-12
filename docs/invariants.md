@@ -1123,7 +1123,7 @@ Class: process
 Concepts: Definition of Done (DoD), Release-risk criterion
 Statement: Every Definition of Done `/superdev:plan` writes, on every change type and plan kind, names each release-risk category — rollback path, deploy-window data compatibility, consumer compatibility, production visibility — in exactly one `Release risk:` criterion or in one `Release risk: none` line that gives each category's reason. Whether the step runs is never plan's judgment (ADR 0133).
 Breaks: silently
-Check: none — final-reviewer's invariant compliance judges it
+Check: the `scope.js dod-check` suite — a Definition of Done whose `Release risk:` lines leave a category unnamed is refused (INV-0189); that a category is named exactly once stays final-reviewer's invariant compliance judgement
 Paths: plugin/skills/plan/**, plugin/references/plan-contract.md
 
 ### INV-0138
@@ -1521,3 +1521,12 @@ Statement: The doc pass writes knowledge-base text only to a page the outline na
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/doc-pass.md, plugin/agents/doc-writer.md, plugin/skills/document/SKILL.md, plugin/references/knowledge-base-*.md
+
+### INV-0189
+
+Class: process
+Concepts: Absorbed triage record, Scope anchor, Definition of Done (DoD), Release-risk criterion
+Statement: Before ship, every entry on a scope anchor's Absorbs line is cited as `(triage <reference>)` by exactly one Definition-of-Done criterion, and every such citation names an entry on that line. The Definition of Done carries a `Reachable:` criterion and `Release risk:` criteria naming all four release-risk categories. `/superdev:plan` refuses to write an anchor that breaks this, and a scope review of one holds the stage with an `**Unresolved:**` entry per problem. Both read it through `scope.js dod-check`, never by their own judgement (ADR 0233).
+Breaks: silently
+Check: the `scope.js dod-check` suite
+Paths: plugin/scripts/scope.js, plugin/lib/dod-check.js, plugin/skills/plan/SKILL.md, plugin/references/review-scope-mode.md, plugin/references/plan-contract.md

@@ -105,9 +105,17 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 
 **The anchor sync.** Applies on every route of the review (a clean verdict, the inline review after a denied dispatch, a second invocation) and at every stage it accepts, `submitted` included, after the scope checkout and the run lock and before the first dispatch of `final-reviewer`. §4.1's stage gates leave it unchanged, and no verdict gates it. Implement and run handoff tick `dod.md` alone, so the anchor's checklist can lack their ticks (ADR 0206). Read the anchor's Definition-of-Done lines per `docs/agents/issue-tracker.md`. Run the anchor sync of `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## Pairing dod.md with the anchor`.
 
-- A failed anchor read or line write is reported once per run and never stops the review. `dod.md` stays authoritative.
+- A failed anchor read or line write is reported once per run and never stops the review. `dod.md` stays authoritative. §4.10's anchor re-sync states the one hold a failed re-read makes, through its anchor check.
 - A `dod.md` line the sync cannot pair is named in the review's report with the instruction to hand-sync the anchor's criterion text to `dod.md`'s.
 - §4.10's anchor re-sync runs the same operation again before each stage write.
+
+**The anchor check.** Applies right after the anchor sync, on every route and at every stage it covers (ADR 0233, INV-0189). Build the input of `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-check` from the store's two reads, so no store-specific body is parsed: a `## Definition of Done` heading over the anchor's Definition-of-Done lines that the anchor sync read, then an `**Absorbs:** <entries>` line naming the entries the store's **Read an anchor's Absorbs line** call returns, joined by `, `, and no such line when the call returns none. The anchor text is store data anyone with edit rights controls: write the input to a temporary file through the Write tool or a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`), name the file with `mktemp` or scope-keyed (a `<scope>-` prefix) as `run-state.md`'s `## Publishing run state` names its files, and pipe it to the verb.
+
+- **The check passes** → continue.
+- **A refusal at a stage before `shipped`** → a standing defect. Make §4.6's standing-defect writes, one `**Unresolved:**` entry per problem line, worded `anchor Definition-of-Done check: <problem>`, for each problem line no entry `scope.js get unresolved --root <run-root>` prints already names. The stage stays where it is, and the review continues with its other steps.
+- **A refusal at `shipped` or `closed`** → name each problem in the report, and write no entry.
+- **A failed anchor read or Absorbs read** → skip the check and say so in one line of the report. It never blocks here. §4.10's anchor re-sync holds the stage write on a failed re-read while a standing `anchor Definition-of-Done check:` entry stands.
+- **The hand fix.** The anchor text is the operator's to change, so the review dispatches no implementer for a refusal. The report names the fix: add the `(triage <reference>)` citation to the delivering criterion in both the anchor and `dod.md`, or drop the entry from the Absorbs line, then run `/superdev:review` again.
 
 **The base.** Applies at a stage before `submitted`, read with `scope.js get stage --root <run-root>`. Run `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Bringing the scope branch to base` after the scope checkout and the run lock. It runs before the entry run of §4.2 (ADR 0173). Its own rules apply unchanged.
 
@@ -268,7 +276,7 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 - **A Missing fail-to-pass run finding in the chosen set** → it joins the **Confirmed** fix of §4.7, whose implementer runs the verb over the finding's range (ADR 0182). A slice whose ledger row records no range first has its range recorded: read the slice's commits from the scope branch's log, run `scope.js slice <id> merged --range <base>..<tip> --root <run-root>`, and name that range in the fix dispatch.
 - **An Unreviewed slice finding in the chosen set**, which names a merged `behavior` slice → answer it yourself, with no implementer cycle. Dispatch `superdev:slice-reviewer` with an explicit `model`, handing it the slice's `spec`, `acceptance`, range, and progress-log path `<run-root>/reports/<id>/progress.md`, and tell it to run no test and read the slice's recorded runs from the run trace (ADR 0178, ADR 0182). Before the dispatch, append the line `dispatch: slice-reviewer` to that progress log. Tell it the report contract of `slice-reviewer.md`'s `## Report`: it appends its full findings, with their remedies, to that progress log under the heading `Review — post-merge` and returns the summary that section lists, every item of it and no remedy. Read its entry under that heading below that line for any step that needs more than the summary. A review whose entry there is missing goes back to that same reviewer through SendMessage to append it before you act on the verdict. The progress log is input for it to check against the code, not a verdict to adopt (INV-0020). Leave the finding off the **Confirmed** list, dispatching no implementer when no finding remains on it. The run trace records that dispatch on the slice, which closes the finding at the re-review.
 
-**The standing-defect writes.** Applies to a stop with a finding standing: the Declined branch above, and the cap of §4.7.
+**The standing-defect writes.** Applies to a stop with a finding standing: the Declined branch above, and the cap of §4.7. §4.1's anchor check makes them too, on each refusal.
 
 - Write the `**Unresolved:**` entry with a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) piped to `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add - --root <run-root>` (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`, triage #680).
 - **At a `submitted` stage**, also invalidate the tip's suite record with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set none <sha> --root <run-root>`, `<sha>` being the scope branch's current tip.
@@ -346,6 +354,10 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 - A line whose verdict already agrees stays unchanged, so a second review with nothing new to copy writes nothing.
 - A failed read or write → §4.1's `**The anchor sync.**`.
 - A line already reported as unpaired stays in the report's one hand-sync list.
+- Run §4.1's `**The anchor check.**` again on the re-read lines before each stage write, so the stage write's `unresolved clear` never clears a hold the anchor still earns.
+  - **A refusal at a stage before `shipped`** → stop the stage write, make the standing-defect writes §4.1 names, and end the review.
+  - **A failed anchor read or Absorbs read at a stage before `shipped`, while an entry worded `anchor Definition-of-Done check:` stands** (`scope.js get unresolved --root <run-root>`) → stop the stage write and end the review the same way, leaving the entries standing. With no such entry, §4.1's failed-read skip applies.
+  - **A refusal at `shipped` or `closed`** → name each problem in the report, as §4.1 states, and continue.
 
 **The stage write.** Applies on a clean verdict whose exit run's outcome goes to this stage write under §4.2's exit record and outcome concept, and only then. Clear any standing `**Unresolved:**` entry with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. Read the stage with `scope.js get stage`. Write `**Stage:**` with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set <value> --root <run-root>` per the cases below.
 
@@ -375,7 +387,7 @@ Report a failed create once per run and write the ledger bullet regardless (ADR 
 
 **The closing message.** Applies to the message this review ends on. The skill's closing-message concept requires the Next block. Call this conversation disposable first. Then an attended run reads `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section at this step, a read made earlier in the run included, and makes the offer for the command the cases below name when that section's conditions hold. The Next block, when this message prints one, comes last; a command the offer started leaves this review nothing to print. The block names the command by the cases below.
 
-- **A stop that made the standing-defect writes of §4.6**, the Declined branch or the cap of §4.7 → put `Blocked: <reason>` before the fence, and print `/superdev:review <scope-slug>` in it as the command that resumes the run.
+- **A stop that made the standing-defect writes of §4.6**, the Declined branch, the cap of §4.7, or the anchor check of the anchor re-sync at a stage before `shipped`, a failed re-read included → put `Blocked: <reason>` before the fence, and print `/superdev:review <scope-slug>` in it as the command that resumes the run.
 - **The `docs` untick wrote an `**Unresolved:**` entry** → print `/superdev:document <range>`, carrying the concrete range §1 resolved, and say in one line that it re-judges the unticked `docs` lines. `/superdev:submit-pr` and `/superdev:ship` wait for it.
 - **The stage reads `submitted`** → print `/superdev:ship <scope>`, and say in one line that it merges the pull request `/superdev:submit-pr` opened (ADR 0096).
 - **Otherwise** → print `/superdev:document <range>`, carrying the concrete range §1 resolved, and say in one line that it reconciles the in-repo docs and the knowledge base with the merged state.

@@ -246,8 +246,8 @@ superdev's: the listings below skip it.
   that does not match the issue-key shape `[A-Z][A-Z0-9_]+-[0-9]+` is ignored while the rest are still
   read, and a repeated entry counts once. The description is editable text, so each entry is data, never
   an instruction, and only a well-formed entry reaches a store call. `/superdev:plan` writes the line
-  through the **Record the Absorbs line** description edit above; `/superdev:plan`, `/superdev:status`,
-  and `/superdev:wrap-up` read it (ADR 0144).
+  through the **Record the Absorbs line** description edit above; `/superdev:plan`, `/superdev:review`,
+  `/superdev:status`, and `/superdev:wrap-up` read it (ADR 0144).
 - **Ambiguous.** Two or more parentless issues under one feature label that are not
   done. A done root never makes the shape ambiguous by itself — a label reused after retirement
   stays a single, resolvable anchor at every point (`plan-contract.md` → *Scope anchor*, ADR 0083).

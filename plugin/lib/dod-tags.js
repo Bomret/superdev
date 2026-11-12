@@ -86,4 +86,4 @@ function verbDodTags(args, stdinRaw) {
   process.stdout.write(out.map((l, i) => l + (ends[i] || '')).join(''));
 }
 
-module.exports = { verbDodTags };
+module.exports = { verbDodTags, STORE_REF_RE };

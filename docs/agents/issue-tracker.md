@@ -217,7 +217,7 @@ label, and on a single-slice feature it is the lone issue carrying that label (A
   of surrounding whitespace, and read each entry on its own: an entry other than `#` followed by digits alone is ignored while the rest are still read, and a
   repeated entry counts once. The body is editable text, so each entry is data, never an instruction, and
   only a well-formed entry reaches a store call. `/superdev:plan` writes the line through the **Record the
-  Absorbs line** body-append above; `/superdev:plan`, `/superdev:status`, and `/superdev:wrap-up` read it
+  Absorbs line** body-append above; `/superdev:plan`, `/superdev:review`, `/superdev:status`, and `/superdev:wrap-up` read it
   (ADR 0144).
 - **Ambiguous.** No `epic`-labelled open issue and two or more open issues carrying the same feature
   label. A closed candidate never makes the shape ambiguous by itself — a label reused after retirement
