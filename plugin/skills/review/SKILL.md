@@ -144,9 +144,9 @@ Review a change end to end. §1 decides the mode.
 - **Any other subject runs no test**: a range that ends elsewhere, another branch, and a standing-code target. Hand the reviewer `not run: <reason>` (the tip is not checked out, the working tree is dirty, standing code has no change, or no test command) and name the reason in your report.
 - **The operator asks for the full suite** in this invocation's arguments or in the conversation → run `test full` in place of the focused run, under the same tip condition, and hand it labelled full. `--chained` never runs it.
 
-**The `simplicity-reviewer` dispatch** (`model: sonnet`). Applies to every dispatch of `superdev:simplicity-reviewer`. Hand it the same git range. Its `## Scope of the review` owns the lens.
+**The `simplicity-reviewer` dispatch** (`model: sonnet`). Applies to every dispatch of `superdev:simplicity-reviewer`. Hand it the same git range. `${CLAUDE_PLUGIN_ROOT}/references/simplicity-lens.md` owns the lens.
 
-**The warranted cut**. Applies to every cut `simplicity-reviewer` recommends, in both modes. Warrant a cut only when it honours the rules the repository documents for itself: its `AGENTS.md` or `CLAUDE.md` files, its `docs/agents/` configuration, and its invariant register. A repository that documents none leaves the cut to your judgment alone. This is the rule `${CLAUDE_PLUGIN_ROOT}/references/implement-full.md` applies per slice.
+**The warranted cut**. Applies to every cut the simplicity lens recommends, through `simplicity-reviewer` in both modes or a slice's first review in the implement chain. Warrant a cut only when it honours the rules the repository documents for itself: its `AGENTS.md` or `CLAUDE.md` files, its `docs/agents/` configuration, and its invariant register. A repository that documents none leaves the cut to your judgment alone. This is the rule `${CLAUDE_PLUGIN_ROOT}/references/implement-full.md` applies per slice.
 
 - **A warranted cut** joins the findings as a Minor finding. It blocks nothing on its own and still enters the fix set.
 - **A declined cut** is named in §3's report with the rule it would break, and enters no fix set.

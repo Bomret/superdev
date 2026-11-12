@@ -77,10 +77,10 @@ adding a second one beside it:
 ## `test-applicability` → warrant gates
 
 - `behavior` — implementer does full TDD; **slice-reviewer runs** (correctness + independent
-  verification); **simplicity-reviewer runs** beside the first slice review (over-engineering), its warranted
-  cuts joining that review's fix list.
+  verification, and on its first review the over-engineering lens), its warranted cuts joining that review's
+  fix list.
 - `mechanical` — pure move/rename/format: no new test — the runs already in the loop, plus the scope's
-  full-suite run at `/superdev:review`'s exit, are the net; **both per-slice reviews skipped**; correctness is caught
+  full-suite run at `/superdev:review`'s exit, are the net; **the per-slice review skipped**; correctness is caught
   there, not by a dedicated per-slice review.
 - `docs` — documentation only: no test, **reviews skipped**.
 

@@ -1,6 +1,6 @@
 ---
 name: slice-reviewer
-description: Per-slice correctness reviewer. Verifies one slice against its specification and the run trace. Read-only; dispatched by /superdev:implement.
+description: Per-slice reviewer. Verifies one slice against its specification and the run trace, and on a first review flags over-engineering. Read-only; dispatched by /superdev:implement.
 tools: Read, Grep, Bash
 model: opus
 ---
@@ -143,7 +143,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`. Apply its anti-patt
 
 - Apply `## Binding rules` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` to every finding.
 - Does the slice do what the `spec` asked, end to end? Is all of it present?
-- Does it add anything beyond the `spec`? Over-building is a finding. Complexity belongs to the simplicity-reviewer.
+- Does it add anything beyond the `spec`? Over-building is a finding. Unnecessary complexity belongs to `## Lens 3 — Over-engineering`.
 - Does it meet every `acceptance` criterion?
 - Flag each deviation from the `spec` explicitly as a justified improvement or a problem.
 - A vulnerability class from the checklist, a leaked credential or secret, or an unsafe cast or unchecked assumption is **Critical**, subject to `## Binding rules`. A green suite does not catch these.
@@ -162,6 +162,13 @@ Run no test. Read the slice's recorded runs with `scope.js trace --slice <id>` a
 
 - Read the actual produced artifact against intent: the generated file, the wire output, the rendered result. Tests can pass while the artifact is wrong.
 - Name an input the existing fixtures do not cover and reason about whether the code handles it (the checklist's happy-path-only suite smell). Read every existing assertion against the tautological test smell. Feed each gap into the output section below.
+
+## Lens 3 — Over-engineering
+
+Applies to a slice's first review, and to no re-review and no sweep review. Read `${CLAUDE_PLUGIN_ROOT}/references/simplicity-lens.md` and apply it to the slice's range in your blind pass, before you read the progress log.
+
+- It flags unnecessary complexity only. Correctness and verification stay with Lens 1 and Lens 2.
+- A cut is no Issue. List each under `### Simplicity` in the reference's line format, and end the section with its net line. The controller warrants or declines each cut.
 
 ## Inherited failures
 
@@ -195,6 +202,9 @@ For each: file:line · what's wrong · why it matters · how to fix (if not obvi
 
 ### Uncovered input I'd add a test for
 - <the specific case>
+
+### Simplicity (first review only)
+<each cut in the line format of simplicity-lens.md, then its net line, or `Lean already. Ship.`>
 
 ### Inherited failures (only when a recorded run holds one) — a note, never an Issue: <the test> · <how you established it fails at the review base>
 
@@ -238,4 +248,5 @@ Return a summary. Your full findings stay in the progress-log entry (`## Progres
 - A finding the after-reading section added or raised carries an after-reading mark: `added`, or `raised` with the original severity.
 - A re-review adds one line per earlier finding: closed, or still open (`## Re-review`).
 - One line each for the notes that are no finding: each inherited failure (`## Inherited failures`), each fail-to-pass `unknown` (`## Run-trace findings`), each "cannot verify from diff" item, and a reviewed tip with no passing recorded run (`## Lens 2 — Independent verification`).
+- On a first review, the `### Simplicity` net line, and one line per cut.
 - Name a missing progress log on one line.

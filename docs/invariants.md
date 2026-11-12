@@ -470,7 +470,7 @@ Paths: plugin/skills/plan/SKILL.md, plugin/references/design-sketch.md
 
 Class: process
 Concepts: Tier, Simplicity-reviewer, Final-reviewer, Execution playbook
-Statement: Every scope gets an over-engineering pass. A full-tier scope whose every slice is `behavior` gets it per slice in `implement-full.md`, so `/superdev:review` skips simplicity-reviewer there. Every other scope gets it whole-scope from `/superdev:review`, under the skip rules a lite scope takes. Its findings gate nothing on their own, and each cut the controller warrants joins the review's fix set as a Minor; only the entry review gets the pass (ADR 0228).
+Statement: Every scope gets an over-engineering pass. A full-tier scope whose every slice is `behavior` gets it per slice in `implement-full.md`, from each slice's first `slice-reviewer` review, so `/superdev:review` skips simplicity-reviewer there. Every other scope gets it whole-scope from `/superdev:review`, under the skip rules a lite scope takes. Its findings gate nothing on their own, and each cut the controller warrants joins the review's fix set as a Minor; only the entry review gets the pass (ADR 0228).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/review/SKILL.md, plugin/references/review-scope-mode.md, plugin/references/implement-full.md
