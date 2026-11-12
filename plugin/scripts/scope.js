@@ -33,7 +33,7 @@ const {
 const { verbDodLine } = require('../lib/dod-line.js');
 const { verbDodTags } = require('../lib/dod-tags.js');
 const { verbDodCheck } = require('../lib/dod-check.js');
-const { verbSuite, verbSuiteRerun, verbSuiteReusable, verbBaseSet, verbBaseResolve, verbGet } = require('../lib/suite-base-get.js');
+const { verbSuite, verbSuiteRerun, verbSuiteFailed, verbSuiteReusable, verbBaseSet, verbBaseResolve, verbGet } = require('../lib/suite-base-get.js');
 const { publishText, verbPublish, verbAdopt } = require('../lib/run-state.js');
 const { verbStatus, verbStaging } = require('../lib/status.js');
 const { endRun, watchMain } = require('../lib/run-supervision.js');
@@ -253,6 +253,12 @@ function run(argv, cwd, stdinJson) {
         // refusing it, and a no-kind record would then pass a `--whole` check it must fail (INV-0017).
         if (args.length > 1) fail(`suite reusable: unrecognized argument "${args[1]}"`);
         verbSuiteReusable(cwd, root, branch, whole, base);
+        break;
+      }
+      if (args[0] === 'failed') {
+        if (whole) fail('suite failed: --whole is not an option of failed');
+        verbSuiteFailed(cwd, root, args.slice(1));
+        ledgerEvent = { root, fields: ['suite', 'failed', ...args.slice(1)] };
         break;
       }
       if (args[0] === 'rerun') {

@@ -127,7 +127,16 @@ function verbSuiteReusable(cwd, root, branch, whole, base) {
   }
   if (!raw) fail('no suite record to reuse');
   const [, result, recordedSha, kind] = m;
-  if (result === 'red') return reusableOnRerun(cwd, root, branch, recordedSha, kind, whole, base);
+  if (result === 'red') {
+    // A red record whose failures a fix cycle since repaired carries to a later tip (ADR 0237) where the rerun does not.
+    try {
+      return reusableOnRerun(cwd, root, branch, recordedSha, kind, whole, base);
+    } catch (err) {
+      const failed = err.isRefusal && failedRecord(root);
+      if (!failed || failed.sha !== recordedSha) throw err;
+      return reusableAfterFix(cwd, root, branch, recordedSha, kind, whole, failed.files);
+    }
+  }
   if (result !== 'green') fail(`suite record is ${result}, not green — not reusable`);
   if (whole && kind !== 'whole') fail('suite record carries no kind — a whole-repo run needs one');
   const tip = resolveCommit(branch, cwd);
@@ -216,6 +225,70 @@ function reusableOnRerun(cwd, root, branch, recordedSha, kind, whole, base) {
   const uncovered = coverageRefusal(cwd, changed, foc);
   if (uncovered) red(uncovered);
   console.log('reusable');
+}
+
+// The ledger's `**Failed:**` record, `<file>... @ <sha>`, as `{ files, sha }`, or null where it is absent or unreadable.
+function failedRecord(root) {
+  const raw = getHeader(readLines(root), 'Failed');
+  const m = raw && raw.match(/^(.+?) @ (\S+)$/);
+  return m ? { files: m[1].split(' ').filter(Boolean), sha: m[2] } : null;
+}
+
+// ADR 0237: a red record at commit R, whose failed full run the ledger's `**Failed:**` record names the failing test files
+// of, carries to a later tip T under T's complete-selector declaration when R is an ancestor of T, exactly one full run
+// failed at R, each named file passed on a clean tree at T in a `path` run from the tree root, and the complete-selector
+// carry from R to T holds: a passing clean focused run at T covers every path changed since R, and no full, whole, or path
+// run at T failed. Every test outside the named files passed at R, and the focused run selects every test the change
+// since R reaches. Which files failed is the controller's reading of the failed run's output.
+function reusableAfterFix(cwd, root, branch, from, kind, whole, files) {
+  const red = (why) => fail(`suite record is red, not green (${why}) — not reusable`);
+  if (whole || kind === 'whole') red('a repaired failure carries a full run only, never a whole-repo one');
+  const tip = resolveCommit(branch, cwd);
+  if (!tip) fail(`branch "${branch}" does not resolve to a commit`);
+  if (tip === from) red('the failed run is at the tip');
+  if (gitSpawn(['merge-base', '--is-ancestor', from, tip], cwd).status !== 0) red('the failed run is not an ancestor of the tip');
+  const events = runEvents(root);
+  const failedFull = events.filter((e) => ['full', 'whole'].includes(e.fields[0]) && e.fields[2] === from && e.fields[1] === 'fail').length;
+  if (failedFull !== 1) red(`${failedFull} failed full runs at the failed run's commit, the record names the failures of exactly one`);
+  const paths = changedPaths(cwd, from, tip);
+  if (!paths) red('git could not list the paths changed since the failed run');
+  const why = completeRefusal(cwd, from, tip, events, paths);
+  if (why === undefined) red(`${VERIFICATION} carries no complete-selector declaration`);
+  if (why) red(why);
+  const top = lazyToplevel(cwd);
+  for (const file of files) {
+    const passed = events.some((e) => e.fields[0] === 'path' && e.fields[2] === tip && e.fields[1] === 'pass' && e.fields[3] === 'clean'
+      && e.fields[7] !== undefined && untraceField(e.fields[7]) === '.'
+      && decodePaths(e.fields[4]).map((p) => rootRelative(p, top)).includes(file));
+    if (!passed) red(`no passing clean run of ${file} from the tree root at the tip`);
+  }
+  console.log('reusable');
+}
+
+// `suite failed <test-file>...` (ADR 0237): the ledger's one `**Failed:**` record, `<file>... @ <tip>`, naming the test files
+// a full run at the tip failed in, with the tip the checkout's HEAD. Each file is reduced to a root-relative path that is a
+// blob at the tip. A record for another tip is replaced.
+function verbSuiteFailed(cwd, root, files) {
+  if (!files.length) fail('suite failed needs at least one <test-file>');
+  if (files.some((f) => !f || /\s/.test(f))) fail('suite failed: each test file names one token');
+  const tip = resolveCommit('HEAD', cwd);
+  if (!tip) fail('HEAD does not resolve to a commit in this repository');
+  const top = lazyToplevel(cwd);
+  const rels = files.map((file) => {
+    const rel = rootRelative(path.resolve(cwd, file), top);
+    const listed = rel ? gitSpawn(['ls-tree', '--full-tree', tip, '--', rel], cwd) : null;
+    if (!listed || listed.status !== 0 || !/^\d+ blob /.test(listed.stdout)) fail(`${file} is not a file at the tip ${tip}`);
+    return rel;
+  });
+  const value = `${[...new Set(rels)].join(' ')} @ ${tip}`;
+  const lines = readLines(root);
+  const at = lines.findIndex((l) => headerRe('Failed').test(l));
+  if (at >= 0) {
+    lines[at] = `**Failed:** ${value}`;
+    writeLines(root, lines);
+    return;
+  }
+  writeLines(root, insertHeader(lines, 'Failed', value));
 }
 
 // `suite rerun <test-file> <triage-ref>` (ADR 0172): the ledger's one `**Rerun:**` record, `<file> @ <tip> <ref>`, with the
@@ -453,4 +526,4 @@ function verbGet(root, field) {
   console.log(v === null ? 'absent' : v);
 }
 
-module.exports = { verbSuite, verbSuiteRerun, verbSuiteReusable, verbBaseSet, verbBaseResolve, verbGet };
+module.exports = { verbSuite, verbSuiteRerun, verbSuiteFailed, verbSuiteReusable, verbBaseSet, verbBaseResolve, verbGet };

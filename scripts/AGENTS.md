@@ -43,7 +43,7 @@ responsibility. `scope.js` exports only the names a requirer uses. No module req
 `docs set <value>|clear`, `pr set <n>|clear`,
 `deploy set <target> pending|deployed|failed [--exit <n>]`, `deploy get`,
 `suite set <green|red|denied|none> <sha> [--whole]`,
-`suite reusable --branch <b> [--whole] [--base <base-branch>]`, `suite rerun <test-file> <triage-ref>`,
+`suite reusable --branch <b> [--whole] [--base <base-branch>]`, `suite rerun <test-file> <triage-ref>`, `suite failed <test-file>...`,
 `base set <sha>`, `base resolve --branch <b> --base <ref>`,
 `get stage|branch|anchor|slices|unresolved|degraded|deferred|minors|denials|docs|pr|suite`,
 `status` (which renders the whole `/superdev:status` report), `trace [--slice <id>]` (prints the run trace, read-only), `untraced <base>..<tip> --slice <id|scope> [--from <ts>] [--until <ts>] --root <run-root>` (read-only), `publish`, `adopt`, `root <slug>`,
@@ -97,6 +97,16 @@ configuration at its own two commits. The walk takes children before parents.
 `suite rerun <test-file> <triage-ref>` writes the ledger's one `**Rerun:**` header, `<file> @ <tip> <ref>`. The tip is the
 checkout's HEAD, and the file is a root-relative blob at it. The verb refuses `--whole`. A tip that already carries a
 record refuses a second one. A record for another tip is replaced.
+
+`suite failed <test-file>...` writes the ledger's one `**Failed:**` header, `<file>... @ <tip>`: the test files a full
+run at the tip failed in. The tip is the checkout's HEAD, and each file is a root-relative blob at it. The verb refuses
+`--whole`, no file, and a token holding whitespace. A record for another tip is replaced.
+
+The **repaired-failure carry** (ADR 0237) is a fourth route, which `suite reusable` tries where the recorded rerun
+refuses a `red` record at R. The `**Failed:**` record must name R, the record must carry no `whole` kind, and the
+gate must not ask for `--whole`. R is an ancestor of the tip and differs from it. The trace records exactly one failed full run at R,
+the complete-selector carry from R to the tip holds, and each named file passed on a clean tree at the tip in a `path`
+run from the tree root.
 
 The **recorded rerun** (ADR 0172) is the third route. `suite reusable` takes a `red` record only with `--base`. Without
 `--base` the record stays red. The record must be at the tip, or at an ancestor of it where every path changed since

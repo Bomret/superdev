@@ -210,12 +210,16 @@ or refuses: review's exit run, ship's plain gate and whole-repo gate (§3), and 
 moved-base gate and push gate (§4). Implement runs no full suite. Each gate cites
 this section and runs the steps in order, after its own `scope.js suite reusable` call refuses the tip:
 
-1. **Check the preconditions.** `scope.js get suite --root <run-root>` prints a green record at a commit A,
-   A differs from the tip, the record carries the kind `whole` where the gate calls `suite reusable --whole`,
+1. **Check the preconditions.** `scope.js get suite --root <run-root>` prints a green record at a commit A, or a
+   red record at A whose failing test files `## The recorded rerun`'s step 1 recorded (the ledger's `**Failed:**`
+   line names A, and the record carries no `whole` kind), A differs from the tip, the record carries the kind `whole` where the gate calls `suite reusable --whole`,
    `git merge-base --is-ancestor A <tip>` succeeds, the tip's own `docs/agents/verification.md`
    (`git show <tip>:docs/agents/verification.md`) carries the `## Complete selector` section, and the focused
    command carries `{paths}`. Any precondition missing → skip to step 4.
-2. **Run the focused command over A..<tip>.** From the tree the gate works in, over every path
+2. **Run the focused command over A..<tip>.** After a red record at A, first run the files the `**Failed:**` line
+   names through `scope.js test path <file>... -- <command running only those files>` at the tip on a clean tree,
+   from the tree root: a fix cycle repaired them since A. A failing run of them is the gate's red result, as step 3
+   states for the focused run. Then, from the tree the gate works in, over every path
    `git diff --name-only --no-renames A <tip>` lists, through `scope.js test focused <paths>`. The
    changed-path set of this caller is that list, whole. A path set too large for the command to start
    leaves no passing run: skip to step 4.
@@ -236,15 +240,20 @@ judges its own tip from A.
 ## The recorded rerun
 
 A full run at the tip T that fails in one test file, under the `## Complete selector` declaration, counts
-green once the rerun below is recorded and passed. Every gate that records a failed full run
-cites this section and runs the steps in order, once per tip:
+green once the rerun below is recorded and passed. Step 1 also records the failing test files of every
+attributable failed full run, one or several, and `## The carry run` reads that record at the fix cycle's tip. Every
+gate that records a failed full run cites this section and runs the steps in order, once per tip:
 
-1. **Attribute the failure.** Read the failed run's own output. It names exactly one test file → go on. It
-   names several, none, or a failure outside any test file → the failure is unattributable and stays red:
-   the gate takes the exit a failing full run takes.
+1. **Attribute the failure.** Read the failed run's own output. It names one or more test files and no failure
+   outside them → after `scope.js suite set red <tip> --root <run-root>`, record them with
+   `scope.js suite failed <file>... --root <run-root>` from the checkout at the tip, so the fix cycle's tip can take
+   `## The carry run` from this red record. Exactly one file → go on with step 2. Several files → the failure stays
+   red at this tip: the gate takes the exit a failing full run takes. None, or a failure outside any test file →
+   the failure is unattributable, records no files, and stays red: the gate takes the exit a failing full run
+   takes.
 2. **Write the triage record.** File it through the repository's triage flow with the failing lines quoted
    verbatim, and keep its reference (`#<n>` or the record's id, one token).
-3. **Record the failed run and the rerun.** `scope.js suite set red <tip> --root <run-root>`, then
+3. **Record the rerun.** The red record and the failing file stand from step 1. Run
    `scope.js suite rerun <test-file> <triage-ref> --root <run-root>` from the checkout at the tip. The verb
    refuses a tip that already carries a rerun record: a second failure at the tip stays red.
 4. **Run the file alone.** `scope.js test path <file> -- <command running only that file>` at the tip on a clean tree,
