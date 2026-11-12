@@ -1135,11 +1135,19 @@ const { appendTrace, isTestPath } = require(scopePath);
     assert.ok(!r.ok && /rerun|alone/.test(r.err), 'a subdirectory run refuses with the rerun reason: ' + (r.err || ''));
     // A failing run of another file from a subdirectory still counts against the rerun.
     red([FAILED(f.T), pathRun(f.T, 'fail', 'clean', 'tests/b.test.js', 'tests'), ALONE(f.T), FOCUSED(f.T)], 'a failed path run of another file from a subdirectory');
-    // A root run recorded after a subdirectory run carries the rerun.
+    // A failing run of the rerun file recorded after the failed full run refuses with the rerun's own reason from any
+    // directory, even where a root run passed after it.
     const both = f.root(`red @ ${f.T}`, [FAILED(f.T), ALONE(f.T, 'fail', 'clean', 'tests'), ALONE(f.T), FOCUSED(f.T)]);
     assert.ok(f.rerun(both, 'tests/a.test.js', '#99').ok);
     r = f.reusable(both);
-    assert.ok(!r.ok, 'a failed subdirectory run of the rerun file is no root run, yet a failed run of that file counts against the rerun');
+    assert.ok(!r.ok && /failed or ran on a dirty tree/.test(r.err) && !/another test file/.test(r.err), 'an after-failure subdirectory failing run of the rerun file refuses with the rerun reason: ' + (r.err || ''));
+    // Before the failed full run, a failing run of the rerun file from a subdirectory, or written without the field, counts for nothing.
+    for (const dir of ['tests', null]) {
+      const pre = f.root(`red @ ${f.T}`, [ALONE(f.T, 'fail', 'clean', dir), FAILED(f.T), ALONE(f.T), FOCUSED(f.T)]);
+      assert.ok(f.rerun(pre, 'tests/a.test.js', '#99').ok);
+      r = f.reusable(pre);
+      assert.ok(r.ok && r.out === 'reusable', `a failing run of the file before the failed full run (dir ${dir}) counts for nothing: ` + (r.err || ''));
+    }
     // A path run records its file `encodePaths`-encoded: a name holding `%` matches its own rerun.
     const pc = make(DECLARED);
     fs.writeFileSync(path.join(pc.repo, 'tests', '100%.test.js'), 'a\n');

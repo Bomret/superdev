@@ -10,7 +10,7 @@ const {
 } = require('./ledger.js');
 const { isTestPath, completeSelector, verificationCommandsOf, prepareCommandOf, configuredTestPaths } = require('./verification.js');
 const { gitSpawn, resolveCommit, fileAt } = require('./git-spawn.js');
-const { readTrace, decodePaths, untraceField } =require('./trace-log.js');
+const { readTrace, decodePaths } = require('./trace-log.js');
 const { DENIAL_PREFIX, RESET_PREFIX } = require('./ledger-records.js');
 
 const VERIFICATION = 'docs/agents/verification.md';
@@ -198,19 +198,20 @@ function reusableOnRerun(cwd, root, branch, recordedSha, kind, whole, base) {
   if (failed !== 1) red(`${failed} failed full runs at the failed run's commit, the rerun covers exactly one`);
   const top = lazyToplevel(cwd);
   const file = rootRelative(rm[1], top);
-  const isAlone = (e) => {
-    // Only a run at the tree root counts (ADR 0232): a line with no directory field reads as not at the root.
-    if (e.fields[0] !== 'path' || e.fields[7] === undefined || untraceField(e.fields[7]) !== '.') return false;
+  const ofFile = (e) => {
+    if (e.fields[0] !== 'path') return false;
     const files = decodePaths(e.fields[4]).map((p) => rootRelative(p, top));
     return files.length === 1 && files[0] === file;
   };
-  const other = at.find((e) => e.fields[0] === 'path' && e.fields[1] === 'fail' && !isAlone(e));
+  // Only a run at the tree root counts as the rerun (ADR 0232): a line with no directory field reads as not at the root.
+  const isAlone = (e) => ofFile(e) && e.fields[7] === '.';
+  const other = at.find((e) => e.fields[0] === 'path' && e.fields[1] === 'fail' && !ofFile(e));
   if (other) red('a path run of another test file at the failed run\'s commit failed');
   // The file and the range then passed: only runs the trace records after the failed full run count.
   const after = at.slice(at.findIndex((e) => kinds.includes(e.fields[0]) && e.fields[1] === 'fail') + 1);
   const alone = after.filter(isAlone);
   if (!alone.length) red(`no run of ${rm[1]} alone recorded at the failed run's commit after the failed full run`);
-  if (alone.some((e) => e.fields[1] !== 'pass' || e.fields[3] !== 'clean')) red(`a run of ${rm[1]} alone at the failed run's commit after the failed full run failed or ran on a dirty tree`);
+  if (after.filter(ofFile).some((e) => e.fields[1] !== 'pass' || e.fields[3] !== 'clean')) red(`a run of ${rm[1]} alone at the failed run's commit after the failed full run failed or ran on a dirty tree`);
   const foc = after.filter((e) => e.fields[0] === 'focused');
   const lastFocused = foc[foc.length - 1];
   if (!lastFocused) red('no focused run recorded at the failed run\'s commit after the failed full run');
