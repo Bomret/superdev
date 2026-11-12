@@ -84,20 +84,42 @@ function verbSuite(cwd, root, sub, result, sha, whole) {
   if (!sha) fail('suite set needs a <sha>');
   const commit = resolveCommit(sha, cwd);
   if (!commit) fail(`sha "${sha}" does not resolve to a commit in this repository`);
-  writeSuite(root, `${result} @ ${commit}${whole ? ' whole' : ''}`);
+  upsertHeader(root, 'Suite', `${result} @ ${commit}${whole ? ' whole' : ''}`);
 }
 
-// Writes `value` as the ledger's `**Suite:**` record, in place or as a new header line.
-function writeSuite(root, value) {
+// Writes `value` as the ledger's one `**<name>:**` record, in place or as a new header line.
+function upsertHeader(root, name, value) {
   const lines = readLines(root);
-  const at = lines.findIndex((l) => headerRe('Suite').test(l));
+  const at = lines.findIndex((l) => headerRe(name).test(l));
   if (at >= 0) {
-    lines[at] = `**Suite:** ${value}`;
+    lines[at] = `**${name}:** ${value}`;
     writeLines(root, lines);
     return;
   }
-  writeLines(root, insertHeader(lines, 'Suite', value));
+  writeLines(root, insertHeader(lines, name, value));
 }
+
+// `file` as typed (`./x`, relative to a subdirectory, absolute), reduced to a root-relative path that is a blob at `tip`;
+// refuses a file the tip does not hold.
+function tipBlob(cwd, file, tip) {
+  const rel = rootRelative(path.resolve(cwd, file), lazyToplevel(cwd));
+  const listed = rel ? gitSpawn(['ls-tree', '--full-tree', tip, '--', rel], cwd) : null;
+  if (!listed || listed.status !== 0 || !/^\d+ blob /.test(listed.stdout)) fail(`${file} is not a file at the tip ${tip}`);
+  return rel;
+}
+
+// The commit `branch` resolves to; refuses a branch that resolves to none.
+function tipOf(g, branch) {
+  const tip = g.commit(branch);
+  if (!tip) fail(`branch "${branch}" does not resolve to a commit`);
+  return tip;
+}
+
+// How many runs of `kinds` the trace `events` record as failed at `sha`.
+const failedRuns = (events, sha, kinds) => events.filter((e) => kinds.includes(e.fields[0]) && e.fields[2] === sha && e.fields[1] === 'fail').length;
+
+// The refusal text of a red record, with each route's reason.
+const redRefusal = (why) => `suite record is red, not green (${why}) — not reusable`;
 
 // INV-0017's reuse rule: a green suite record is reusable on the exact commit it was recorded on, and
 // only where the run trace backs it (the latest matching `run` line there reads `pass` and `clean`).
@@ -121,7 +143,7 @@ function verbSuiteReusable(cwd, root, branch, whole, base) {
     const events = runEvents(root);
     if (passedAtTip(events, exactTip, whole)) {
       const value = `green @ ${exactTip}${passedAtTip(events, exactTip, true) ? ' whole' : ''}`;
-      if (raw !== value) writeSuite(root, value);
+      if (raw !== value) upsertHeader(root, 'Suite', value);
       console.log('reusable');
       return;
     }
@@ -129,19 +151,21 @@ function verbSuiteReusable(cwd, root, branch, whole, base) {
   if (!raw) fail('no suite record to reuse');
   const [, result, recordedSha, kind] = m;
   if (result === 'red') {
-    // A red record whose failures a fix cycle since repaired carries to a later tip (ADR 0237) where the rerun does not.
-    try {
-      return reusableOnRerun(g, root, branch, recordedSha, kind, whole, base);
-    } catch (err) {
-      const failed = err.isRefusal && failedRecord(root);
-      if (!failed || failed.sha !== recordedSha) throw err;
-      return reusableAfterFix(g, root, branch, recordedSha, kind, whole, failed.files);
+    // Each route returns its refusal reason, or null where it accepts. A red record whose failures a fix cycle since
+    // repaired carries to a later tip (ADR 0237) where the rerun does not; a refusal names both routes' reasons.
+    const why = reusableOnRerun(g, root, branch, recordedSha, kind, whole, base);
+    if (why) {
+      const failed = failedRecord(root);
+      if (!failed || failed.sha !== recordedSha) fail(redRefusal(why));
+      const fixWhy = reusableAfterFix(g, root, branch, recordedSha, kind, whole, failed.files);
+      if (fixWhy) fail(redRefusal(`${why}; repaired-failure carry: ${fixWhy}`));
     }
+    console.log('reusable');
+    return;
   }
   if (result !== 'green') fail(`suite record is ${result}, not green — not reusable`);
   if (whole && kind !== 'whole') fail('suite record carries no kind — a whole-repo run needs one');
-  const tip = g.commit(branch);
-  if (!tip) fail(`branch "${branch}" does not resolve to a commit`);
+  const tip = tipOf(g, branch);
   // The run trace backs the record (ADR 0117, INV-0017): the latest `run` line of the matching kind at
   // the recorded commit, compared against the full sha, must read `pass` and `clean`.
   // For a plain check, either `full` or `whole` kind is accepted; for --whole, only `whole`.
@@ -168,29 +192,28 @@ function verbSuiteReusable(cwd, root, branch, whole, base) {
 // The focused run's path set must cover every path the scope's range changed up to R: `base` is the base branch, and the
 // range base is the one `base resolve` prints. Without `base` the range cannot be judged and the record stays red.
 // R is the tip, or (ADR 0189) an ancestor of it where every path changed since R passes the Markdown-only rule at the tip.
+// Returns the reason the route refuses, or null where it accepts.
 function reusableOnRerun(g, root, branch, recordedSha, kind, whole, base) {
-  const red = (why) => fail(`suite record is red, not green (${why}) — not reusable`);
-  const tip = g.commit(branch);
-  if (!tip) fail(`branch "${branch}" does not resolve to a commit`);
-  if (whole && kind !== 'whole') red('the record carries no kind — a whole-repo run needs one');
+  const tip = tipOf(g, branch);
+  if (whole && kind !== 'whole') return 'the record carries no kind — a whole-repo run needs one';
   const events = runEvents(root);
   if (tip !== recordedSha) {
-    if (!g.isAncestor(recordedSha, tip)) red('the failed run is neither at the tip nor an ancestor of it');
+    if (!g.isAncestor(recordedSha, tip)) return 'the failed run is neither at the tip nor an ancestor of it';
     const since = g.changed(recordedSha, tip);
-    if (!since) red('git could not list the paths changed since the failed run');
+    if (!since) return 'git could not list the paths changed since the failed run';
     const why = markdownRefusal(g, recordedSha, tip, events, since);
-    if (why) red(`the failed run predates the tip and ${why}`);
+    if (why) return `the failed run predates the tip and ${why}`;
   }
   const raw = getHeader(readLines(root), 'Rerun');
   const rm = raw && raw.match(/^(\S+) @ (\S+) (\S+)$/);
-  if (!rm || rm[2] !== recordedSha) red('no rerun recorded for the failed run\'s commit');
+  if (!rm || rm[2] !== recordedSha) return 'no rerun recorded for the failed run\'s commit';
   const config = g.fileAt(recordedSha, VERIFICATION);
-  if (config === null) red('git could not read the failed run\'s verification configuration');
-  if (!completeSelector(config)) red(`${VERIFICATION} carries no complete-selector declaration`);
+  if (config === null) return 'git could not read the failed run\'s verification configuration';
+  if (!completeSelector(config)) return `${VERIFICATION} carries no complete-selector declaration`;
   const at = events.filter((e) => e.fields[2] === recordedSha);
   const kinds = whole ? ['whole'] : ['full', 'whole'];
-  const failed = at.filter((e) => kinds.includes(e.fields[0]) && e.fields[1] === 'fail').length;
-  if (failed !== 1) red(`${failed} failed full runs at the failed run's commit, the rerun covers exactly one`);
+  const failed = failedRuns(at, recordedSha, kinds);
+  if (failed !== 1) return `${failed} failed full runs at the failed run's commit, the rerun covers exactly one`;
   const top = g.top;
   const file = rootRelative(rm[1], top);
   // The directory the run was made in (the eighth field), decoded from its trace encoding; undefined where the line has none.
@@ -209,23 +232,31 @@ function reusableOnRerun(g, root, branch, recordedSha, kind, whole, base) {
   // Only a run at the tree root counts as the rerun (ADR 0232): a line with no directory field reads as not at the root.
   const isAlone = (e) => ofFile(e) && runDir(e) === '.';
   const other = at.find((e) => e.fields[0] === 'path' && e.fields[1] === 'fail' && !ofFile(e));
-  if (other) red('a path run of another test file at the failed run\'s commit failed');
+  if (other) return 'a path run of another test file at the failed run\'s commit failed';
   // The file and the range then passed: only runs the trace records after the failed full run count.
   const after = at.slice(at.findIndex((e) => kinds.includes(e.fields[0]) && e.fields[1] === 'fail') + 1);
   const alone = after.filter(isAlone);
-  if (!alone.length) red(`no run of ${rm[1]} alone recorded at the failed run's commit after the failed full run`);
-  if (after.filter(ofFile).some((e) => e.fields[1] !== 'pass' || e.fields[3] !== 'clean')) red(`a run of ${rm[1]} alone at the failed run's commit after the failed full run failed or ran on a dirty tree`);
+  if (!alone.length) return `no run of ${rm[1]} alone recorded at the failed run's commit after the failed full run`;
+  if (after.filter(ofFile).some((e) => e.fields[1] !== 'pass' || e.fields[3] !== 'clean')) return `a run of ${rm[1]} alone at the failed run's commit after the failed full run failed or ran on a dirty tree`;
   const foc = after.filter((e) => e.fields[0] === 'focused');
   const lastFocused = foc[foc.length - 1];
-  if (!lastFocused) red('no focused run recorded at the failed run\'s commit after the failed full run');
-  if (lastFocused.fields[1] !== 'pass' || lastFocused.fields[3] !== 'clean') red('the latest focused run at the failed run\'s commit failed or ran on a dirty tree');
-  if (!decodePaths(lastFocused.fields[4]).length) red('the latest focused run at the failed run\'s commit carries no recorded path set');
-  if (!base) red('the scope\'s range cannot be judged without --base <base-branch>');
-  const changed = g.changed(rangeBase(g, root, branch, base), recordedSha);
-  if (!changed) red('git could not list the paths the scope\'s range changed');
+  if (!lastFocused) return 'no focused run recorded at the failed run\'s commit after the failed full run';
+  if (lastFocused.fields[1] !== 'pass' || lastFocused.fields[3] !== 'clean') return 'the latest focused run at the failed run\'s commit failed or ran on a dirty tree';
+  if (!decodePaths(lastFocused.fields[4]).length) return 'the latest focused run at the failed run\'s commit carries no recorded path set';
+  if (!base) return 'the scope\'s range cannot be judged without --base <base-branch>';
+  // A range base `base resolve` cannot name is this route's refusal, so the repaired-failure carry is still tried.
+  let from;
+  try {
+    from = rangeBase(g, root, branch, base);
+  } catch (err) {
+    if (!err.isRefusal) throw err;
+    return err.message;
+  }
+  const changed = g.changed(from, recordedSha);
+  if (!changed) return 'git could not list the paths the scope\'s range changed';
   const uncovered = coverageRefusal(g, changed, foc);
-  if (uncovered) red(uncovered);
-  console.log('reusable');
+  if (uncovered) return uncovered;
+  return null;
 }
 
 // The ledger's `**Failed:**` record, `<file>... @ <sha>`, as `{ files, sha }`, or null where it is absent or unreadable.
@@ -240,56 +271,42 @@ function failedRecord(root) {
 // failed at R, each named file passed on a clean tree at T in a `path` run from the tree root, and the complete-selector
 // carry from R to T holds: a passing clean focused run at T covers every path changed since R, and no full, whole, or path
 // run at T failed. Every test outside the named files passed at R, and the focused run selects every test the change
-// since R reaches. Which files failed is the controller's reading of the failed run's output.
+// since R reaches. Which files failed is the controller's reading of the failed run's output. Returns the reason the
+// route refuses, or null where it accepts.
 function reusableAfterFix(g, root, branch, from, kind, whole, files) {
-  const red = (why) => fail(`suite record is red, not green (${why}) — not reusable`);
-  if (whole || kind === 'whole') red('a repaired failure carries a full run only, never a whole-repo one');
-  const tip = g.commit(branch);
-  if (!tip) fail(`branch "${branch}" does not resolve to a commit`);
-  if (tip === from) red('the failed run is at the tip');
-  if (!g.isAncestor(from, tip)) red('the failed run is not an ancestor of the tip');
+  if (whole || kind === 'whole') return 'a repaired failure carries a full run only, never a whole-repo one';
+  const tip = tipOf(g, branch);
+  if (tip === from) return 'the failed run is at the tip';
+  if (!g.isAncestor(from, tip)) return 'the failed run is not an ancestor of the tip';
   const events = runEvents(root);
-  const failedFull = events.filter((e) => ['full', 'whole'].includes(e.fields[0]) && e.fields[2] === from && e.fields[1] === 'fail').length;
-  if (failedFull !== 1) red(`${failedFull} failed full runs at the failed run's commit, the record names the failures of exactly one`);
+  const failedFull = failedRuns(events, from, ['full', 'whole']);
+  if (failedFull !== 1) return `${failedFull} failed full runs at the failed run's commit, the record names the failures of exactly one`;
   const paths = g.changed(from, tip);
-  if (!paths) red('git could not list the paths changed since the failed run');
+  if (!paths) return 'git could not list the paths changed since the failed run';
   const why = completeRefusal(g, from, tip, events, paths);
-  if (why === undefined) red(`${VERIFICATION} carries no complete-selector declaration`);
-  if (why) red(why);
+  if (why === undefined) return `${VERIFICATION} carries no complete-selector declaration`;
+  if (why) return why;
   const top = g.top;
   for (const file of files) {
     const passed = events.some((e) => e.fields[0] === 'path' && e.fields[2] === tip && e.fields[1] === 'pass' && e.fields[3] === 'clean'
       && e.fields[7] !== undefined && untraceField(e.fields[7]) === '.'
       && decodePaths(e.fields[4]).map((p) => rootRelative(p, top)).includes(file));
-    if (!passed) red(`no passing clean run of ${file} from the tree root at the tip`);
+    if (!passed) return `no passing clean run of ${file} from the tree root at the tip`;
   }
-  console.log('reusable');
+  return null;
 }
 
 // `suite failed <test-file>...` (ADR 0237): the ledger's one `**Failed:**` record, `<file>... @ <tip>`, naming the test files
 // a full run at the tip failed in, with the tip the checkout's HEAD. Each file is reduced to a root-relative path that is a
-// blob at the tip. A record for another tip is replaced.
+// blob at the tip. A record for another tip is replaced. Returns the recorded paths.
 function verbSuiteFailed(cwd, root, files) {
   if (!files.length) fail('suite failed needs at least one <test-file>');
   if (files.some((f) => !f || /\s/.test(f))) fail('suite failed: each test file names one token');
   const tip = resolveCommit('HEAD', cwd);
   if (!tip) fail('HEAD does not resolve to a commit in this repository');
-  const top = lazyToplevel(cwd);
-  const rels = files.map((file) => {
-    const rel = rootRelative(path.resolve(cwd, file), top);
-    const listed = rel ? gitSpawn(['ls-tree', '--full-tree', tip, '--', rel], cwd) : null;
-    if (!listed || listed.status !== 0 || !/^\d+ blob /.test(listed.stdout)) fail(`${file} is not a file at the tip ${tip}`);
-    return rel;
-  });
-  const value = `${[...new Set(rels)].join(' ')} @ ${tip}`;
-  const lines = readLines(root);
-  const at = lines.findIndex((l) => headerRe('Failed').test(l));
-  if (at >= 0) {
-    lines[at] = `**Failed:** ${value}`;
-    writeLines(root, lines);
-    return;
-  }
-  writeLines(root, insertHeader(lines, 'Failed', value));
+  const rels = [...new Set(files.map((file) => tipBlob(cwd, file, tip)))];
+  upsertHeader(root, 'Failed', `${rels.join(' ')} @ ${tip}`);
+  return rels;
 }
 
 // `suite rerun <test-file> <triage-ref>` (ADR 0172): the ledger's one `**Rerun:**` record, `<file> @ <tip> <ref>`, with the
@@ -299,23 +316,11 @@ function verbSuiteRerun(cwd, root, file, ref) {
   if (/\s/.test(file) || /\s/.test(ref)) fail('suite rerun: the test file and the triage record each name one token');
   const tip = resolveCommit('HEAD', cwd);
   if (!tip) fail('HEAD does not resolve to a commit in this repository');
-  // The file as typed (`./x`, relative to a subdirectory, absolute) reduced to a root-relative path that is a blob at the tip.
-  const rel = rootRelative(path.resolve(cwd, file), lazyToplevel(cwd));
-  const listed = rel ? gitSpawn(['ls-tree', '--full-tree', tip, '--', rel], cwd) : null;
-  if (!listed || listed.status !== 0 || !/^\d+ blob /.test(listed.stdout)) fail(`${file} is not a file at the tip ${tip}`);
-  file = rel;
-  const lines = readLines(root);
-  const raw = getHeader(lines, 'Rerun');
+  file = tipBlob(cwd, file, tip);
+  const raw = getHeader(readLines(root), 'Rerun');
   const rm = raw && raw.match(/^\S+ @ (\S+) \S+$/);
   if (rm && rm[1] === tip) fail(`the ledger already records a rerun for ${tip}: ${raw}`);
-  const value = `${file} @ ${tip} ${ref}`;
-  const at = lines.findIndex((l) => headerRe('Rerun').test(l));
-  if (at >= 0) {
-    lines[at] = `**Rerun:** ${value}`;
-    writeLines(root, lines);
-    return;
-  }
-  writeLines(root, insertHeader(lines, 'Rerun', value));
+  upsertHeader(root, 'Rerun', `${file} @ ${tip} ${ref}`);
 }
 
 // The root-relative paths changed from `from` to `to`, renames split into both sides and deletions included, or
@@ -460,14 +465,7 @@ function verbBaseSet(cwd, root, sha) {
   if (!sha) fail('base set needs a <sha>');
   const commit = resolveCommit(sha, cwd);
   if (!commit) fail(`sha "${sha}" does not resolve to a commit in this repository`);
-  const lines = readLines(root);
-  const at = lines.findIndex((l) => headerRe('Base').test(l));
-  if (at >= 0) {
-    lines[at] = `**Base:** ${commit}`;
-    writeLines(root, lines);
-    return;
-  }
-  writeLines(root, insertHeader(lines, 'Base', commit));
+  upsertHeader(root, 'Base', commit);
 }
 
 // The scope's range base: what `base resolve` prints. Refuses where the branch or the merge-base does not resolve.
@@ -531,13 +529,20 @@ function verbGet(root, field) {
     console.log(m ? `${m[1]} ${m[2]}${m[3] ? ' whole' : ''}` : v);
     return;
   }
+  if (field === 'failed') {
+    // The read half of `suite failed`: `<file>... @ <sha>`, the test files a failed full run at `<sha>` failed in, or
+    // nothing on a ledger with no record, as `get suite` prints (`references/test-selection.md`'s `## The carry run`).
+    const rec = failedRecord(root);
+    if (rec) console.log(`${rec.files.join(' ')} @ ${rec.sha}`);
+    return;
+  }
   if (field === 'step') {
     console.log(getHeader(readLines(root), 'Step') || 'none');
     return;
   }
   const names = { stage: 'Stage', branch: 'Branch', anchor: 'Anchor', docs: 'Docs', pr: 'PR' };
   const name = names[field];
-  if (!name) fail(`unknown field "${field}" — use stage|step|branch|anchor|docs|pr|slices|unresolved|degraded|deferred|minors|denials|suite`);
+  if (!name) fail(`unknown field "${field}" — use stage|step|branch|anchor|docs|pr|slices|unresolved|degraded|deferred|minors|denials|suite|failed`);
   const v = getHeader(readLines(root), name);
   console.log(v === null ? 'absent' : v);
 }

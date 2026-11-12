@@ -75,21 +75,22 @@ function verbTrace(root, slice) {
 // --- collisions: the verbs over `lib/collisions.js`'s finder (ADR 0126, INV-0134) ---------------
 
 function verbCollisions(cwd, args) {
+  const collisions = libCollisions();
   const flags = { '--base': 'base', '--branch': 'branch', '--range-base': 'rangeBase' };
   const opts = { also: [] };
   for (let i = 0; i < args.length; ) {
     const flag = args[i];
     if (flag !== '--also' && !flags[flag]) { i++; continue; }
-    if (!args[i + 1] || args[i + 1].startsWith('--')) throw libCollisions().collisionRefusal(`collisions: ${flag} needs a value`);
+    if (!args[i + 1] || args[i + 1].startsWith('--')) throw collisions.collisionRefusal(`collisions: ${flag} needs a value`);
     const value = args.splice(i, 2)[1];
-    if (flag !== '--also' && opts[flags[flag]]) throw libCollisions().collisionRefusal(`collisions: ${flag} given twice`);
+    if (flag !== '--also' && opts[flags[flag]]) throw collisions.collisionRefusal(`collisions: ${flag} given twice`);
     if (flag === '--also') opts.also.push(value);
     else opts[flags[flag]] = value;
   }
   const missing = Object.keys(flags).find((f) => !opts[flags[f]]);
-  if (missing) throw libCollisions().collisionRefusal(`collisions needs ${missing} <ref>`);
-  if (args.length) throw libCollisions().collisionRefusal(`collisions: unrecognized argument "${args[0]}"`);
-  const found = libCollisions().findCollisions(cwd, opts);
+  if (missing) throw collisions.collisionRefusal(`collisions needs ${missing} <ref>`);
+  if (args.length) throw collisions.collisionRefusal(`collisions: unrecognized argument "${args[0]}"`);
+  const found = collisions.findCollisions(cwd, opts);
   for (const c of found) console.log([c.kind, c.home, c.number, c.scopePath, c.basePath, 'next', c.next].join(' '));
   if (found.length) process.exitCode = 1;
 }
@@ -171,21 +172,24 @@ function run(argv, cwd, stdinJson) {
     case 'degraded': {
       const root = takeRoot(args);
       const sub = args[0];
-      libLedgerRecords().verbDegraded(root, sub, libLedgerRecords().resolveBulletText(sub, args.slice(1), stdinJson));
+      const records = libLedgerRecords();
+      records.verbDegraded(root, sub, records.resolveBulletText(sub, args.slice(1), stdinJson));
       ledgerEvent = { root, fields: ['degraded', sub] }; // bullet text is free text and stays out of the trace
       break;
     }
     case 'unresolved': {
       const root = takeRoot(args);
       const sub = args[0];
-      const changed = libLedgerRecords().verbUnresolved(root, sub, libLedgerRecords().resolveBulletText(sub, args.slice(1), stdinJson));
+      const records = libLedgerRecords();
+      const changed = records.verbUnresolved(root, sub, records.resolveBulletText(sub, args.slice(1), stdinJson));
       if (changed) ledgerEvent = { root, fields: ['unresolved', sub] }; // bullet text is free text and stays out of the trace
       break;
     }
     case 'deferred': {
       const root = takeRoot(args);
       const sub = args[0];
-      libLedgerRecords().verbDeferred(root, sub, libLedgerRecords().resolveBulletText(sub, args.slice(1), stdinJson));
+      const records = libLedgerRecords();
+      records.verbDeferred(root, sub, records.resolveBulletText(sub, args.slice(1), stdinJson));
       ledgerEvent = { root, fields: ['deferred', sub] }; // bullet text is free text and stays out of the trace
       break;
     }
@@ -259,8 +263,9 @@ function run(argv, cwd, stdinJson) {
       }
       if (args[0] === 'failed') {
         if (whole) fail('suite failed: --whole is not an option of failed');
-        libSuiteBaseGet().verbSuiteFailed(cwd, root, args.slice(1));
-        ledgerEvent = { root, fields: ['suite', 'failed', ...args.slice(1)] };
+        // The trace names the root-relative paths the ledger records, not the arguments as typed.
+        const recorded = libSuiteBaseGet().verbSuiteFailed(cwd, root, args.slice(1));
+        ledgerEvent = { root, fields: ['suite', 'failed', ...recorded] };
         break;
       }
       if (args[0] === 'rerun') {

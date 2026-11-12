@@ -107,12 +107,15 @@ tracked files only, so a repository whose tests need installed dependencies stat
   signal, cannot start, or changes a tracked file exits 3.
 - **A tree already prepared skips it.** A run that succeeds on a tree with no tracked change leaves a stamp in the
   tree's git directory. The next call on that tree skips the command and prints one note while the command is the
-  same, every untracked path the run left is still there, and every tracked change since is a test path or a
-  Markdown file. A source or manifest change runs the command again, since the verb cannot know which files the
-  command reads.
+  same, every untracked path the run left is still there, and every tracked change and every new untracked file git
+  does not ignore is a Markdown file. A test, source, or manifest change runs the command again, since the verb cannot
+  know which files the command reads.
 - **`scope.js fail-to-pass` runs it** in its own worktree before each of its two runs, reading the tip's
   `verification.md` once. The clean between the runs keeps every path the first preparation wrote, so a command
-  that skips work already done prepares the second run fast. A reused control skips the first one. A preparation that fails, is ended by a signal, cannot start, or changes a tracked file
+  that skips work already done prepares the second run fast. The second run therefore sees whatever the first
+  preparation built from the tip's files: a prepare command whose output depends on source files, such as a build
+  into `dist/`, must itself remove output that the put-back files no longer produce, or the run before the change
+  can import the tip's build and read `pass-to-pass`. An install-only command needs nothing more. A reused control skips the first one. A preparation that fails, is ended by a signal, cannot start, or changes a tracked file
   makes the outcome `unknown`, with a `prepare=` reason.
 - **The reuse gate.** `scope.js fail-to-pass` takes a passing control from the run trace only where the tip states
   a command or `none`, because only then does its worktree hold what the tree that recorded the control held. With
@@ -234,13 +237,13 @@ moved-base gate and push gate (§4). Implement runs no full suite. Each gate cit
 this section and runs the steps in order, after its own `scope.js suite reusable` call refuses the tip:
 
 1. **Check the preconditions.** `scope.js get suite --root <run-root>` prints a green record at a commit A, or a
-   red record at A whose failing test files `## The recorded rerun`'s step 1 recorded (the ledger's `**Failed:**`
-   line names A, and the record carries no `whole` kind), A differs from the tip, the record carries the kind `whole` where the gate calls `suite reusable --whole`,
+   red record at A whose failing test files `## The recorded rerun`'s step 1 recorded (`scope.js get failed --root
+   <run-root>` prints `<test-file>... @ A`, and the record carries no `whole` kind), A differs from the tip, the record carries the kind `whole` where the gate calls `suite reusable --whole`,
    `git merge-base --is-ancestor A <tip>` succeeds, the tip's own `docs/agents/verification.md`
    (`git show <tip>:docs/agents/verification.md`) carries the `## Complete selector` section, and the focused
    command carries `{paths}`. Any precondition missing → skip to step 4.
-2. **Run the focused command over A..<tip>.** After a red record at A, first run the files the `**Failed:**` line
-   names through `scope.js test path <file>... -- <command running only those files>` at the tip on a clean tree,
+2. **Run the focused command over A..<tip>.** After a red record at A, first run the files `scope.js get failed` prints
+   through `scope.js test path <file>... -- <command running only those files>` at the tip on a clean tree,
    from the tree root: a fix cycle repaired them since A. A failing run of them is the gate's red result, as step 3
    states for the focused run. Then, from the tree the gate works in, over every path
    `git diff --name-only --no-renames A <tip>` lists, through `scope.js test focused <paths>`. The
@@ -267,12 +270,13 @@ green once the rerun below is recorded and passed. Step 1 also records the faili
 attributable failed full run, one or several, and `## The carry run` reads that record at the fix cycle's tip. Every
 gate that records a failed full run cites this section and runs the steps in order, once per tip:
 
-1. **Attribute the failure.** Read the failed run's own output. It names one or more test files and no failure
-   outside them → after `scope.js suite set red <tip> --root <run-root>`, record them with
+1. **Attribute the failure.** Read the failed run's own output. It ran to its end, closing on a summary that
+   covers the whole suite, and names one or more test files and no failure outside them → after `scope.js suite set red <tip> --root <run-root>`, record them with
    `scope.js suite failed <file>... --root <run-root>` from the checkout at the tip, so the fix cycle's tip can take
    `## The carry run` from this red record. Exactly one file → go on with step 2. Several files → the failure stays
-   red at this tip: the gate takes the exit a failing full run takes. None, or a failure outside any test file →
-   the failure is unattributable, records no files, and stays red: the gate takes the exit a failing full run
+   red at this tip: the gate takes the exit a failing full run takes. None, a failure outside any test file, or
+   a run that stopped at its first failure (a fail-fast option such as `--bail`, `-x`, or `-failfast`), whose
+   later files never ran → the failure is unattributable, records no files, and stays red: the gate takes the exit a failing full run
    takes.
 2. **Write the triage record.** File it through the repository's triage flow with the failing lines quoted
    verbatim, and keep its reference (`#<n>` or the record's id, one token).

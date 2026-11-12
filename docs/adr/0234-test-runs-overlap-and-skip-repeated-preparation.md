@@ -60,4 +60,7 @@ prepare command of one to two minutes, found three costs that buy no assurance.
 A review with no fix cycle pays one full run, overlapped with its reviews. The first `final-reviewer` dispatch gets
 no suite result, and a failing run reaches the fix loop through the controller. A full run that a fix cycle follows
 is spent: the cycle's commit moves the tip, and the exit run runs again. A path the control run writes inside a kept
-path, such as a cache under `node_modules/`, survives into the put-back run.
+path, such as a cache under `node_modules/`, survives into the put-back run. So does what the first preparation built
+from the tip's files: a prepare command that builds, such as one writing `dist/`, must itself remove output the put-back
+files no longer produce, or the run before the change can import the tip's build and read `pass-to-pass`
+(`references/test-selection.md`'s `## Prepare command`).

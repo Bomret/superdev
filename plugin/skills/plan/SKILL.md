@@ -28,7 +28,7 @@ Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROO
 
 ## 0. Config
 
-**The slice store.** Applies to every start. Read the store document and the plan document. Either missing → call the Skill tool with `superdev:setup` (no argument: the full setup), then continue.
+**The slice store.** Applies to every start. Read the store document and the plan document. Either missing → call the Skill tool with `superdev:setup` (no argument: the full setup), then continue. Either still missing once setup returns, as when the operator declined its seed-gap offer → stop before the interview: name the missing document, and end on the Next block with a `Blocked:` line naming it and `/superdev:setup` in the fence.
 
 **The focused command.** Applies to every start, as in `/superdev:implement`'s **Config + input**. A `docs/agents/verification.md` carrying one fenced block lacks its focused command → call the Skill tool with `superdev:setup` (no argument: the full setup), then continue. A repository with no `docs/agents/verification.md` needs no focused command, and a file carrying zero fenced blocks reads as an absent file.
 
