@@ -30,6 +30,7 @@ function usage() {
     '  suite set <green|red|denied|none> <sha> [--whole]   --root <run-root>',
     '  suite reusable --branch <b> [--whole] [--base <base-branch>]   --root <run-root>   exits 0 (reusable) or 1; a red record on the recorded rerun (ADR 0172) needs --base',
     '  suite rerun <test-file> <triage-ref>   --root <run-root>   records the one rerun for HEAD (ADR 0172)',
+    '  suite failed <test-file>...           --root <run-root>   records the test files a full run at HEAD failed in (ADR 0237)',
     '  base set <sha>   --root <run-root>   records the merged base tip',
     '  base resolve --branch <b> --base <base-ref>   --root <run-root>   prints the scope\'s range base',
     '  discard   --root <run-root>   removes a planned run\'s ledger, run trace, and lock, and the emptied run root (ADR 0208)',
