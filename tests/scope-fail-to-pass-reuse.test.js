@@ -32,7 +32,9 @@ const { appendTrace } = require(scopePath);
     assert.equal(r.stdout.trim(), 'fail-to-pass control=0,put-back=1', r.stderr);
     assert.equal(runs(s), 1, 'the command ran once, with the files put back');
     assert.equal(s.runLines().length, 1, 'no control run line is written beside the reused one');
+    const appended = require('../plugin/lib/trace-log.js').readTrace(fs.readFileSync(path.join(s.root, 'trace.log'), 'utf8')).filter((e) => e.kind === 'run')[0];
     assert.match(r.stderr, /control reused/, 'the verb says it reused a run');
+    assert.ok(r.stderr.includes(`of ${appended.ts}`), 'the message names the reused line by its timestamp');
 
     // A recorded name is one file however it is spelled: `./` first, or absolute inside the tree (INV-0139).
     for (const spell of ['./tests/t.sh', (sc) => path.join(fs.realpathSync(sc.tree), 'tests', 't.sh')]) {

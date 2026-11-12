@@ -406,7 +406,7 @@ const CONFLICT_COMMIT_CONCLUSION_PATTERNS = [
 // "the Bash tool's time limit" or "the tool's limit", which read against the 120000 ms default. Whitespace runs
 // and line wraps are normalized before the match. simplicity: the two spellings below are the ceiling; a
 // paraphrase of the unnamed limit walks past.
-const UNNAMED_BASH_LIMIT_PATTERN = /\b(?:Bash\s+)?tool['’]s\s+(?:time\s+)?limit\b/gi;
+const UNNAMED_BASH_LIMIT_PATTERN = /\btool['’]s\s+(?:time\s+)?limit\b/gi;
 
 // #683, INV-0092: none of the three code-management documents may ever *send* a force or bypass option
 // on a merge call — `force_merge` (Forgejo) or `--admin` (GitHub's `gh pr merge`) each override branch

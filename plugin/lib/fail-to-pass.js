@@ -80,7 +80,8 @@ function sliceOfRange(root, base, tip, cwd) {
 // The control a run root's trace already holds for `tip` (ADR 0215): { code: 0, ms, ts } from the last `path` run line at `tip`
 // on a clean tree, run at the tree root (its directory field reads `.`), that names every one of `testFiles`, a duration, and
 // exactly `command`, or null. Recorded names compare as root-relative POSIX paths, `top` reading the tree root. A failing `path`
-// run at `tip` after it, over any files, directory, or command, voids it (INV-0139).
+// run at `tip` after it, over any files, directory, or command, voids it (INV-0139). An absolute recorded name compares
+// against the calling checkout's root, so a run made in another tree costs one extra control run.
 function reusableControl(runRoot, tip, testFiles, command, top) {
   let events;
   try { events = readTrace(fs.readFileSync(path.join(runRoot, 'trace.log'), 'utf8')); } catch { return null; }
