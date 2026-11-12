@@ -8,7 +8,7 @@
 
 A throwaway HTML page that shows the operator the design `/superdev:plan` is holding, while changing it
 is still free. `skills/plan/SKILL.md` §3 reads this after its grounding step and before it decomposes, and
-only when the operator asked for a sketch (ADR 0036).
+only when the operator asked for a sketch.
 
 The reader is the operator running the interview, not a later reviewer. The epic's `## Slice graph` and
 `## Touch map` serve that other reader and are unaffected: they draw the dependency order and the files,
@@ -36,7 +36,7 @@ that says so in one line, rather than a page with no cards.
 | name | every card | the component's own name, in `CONTEXT.md`'s vocabulary |
 | `now` / `after` | changed only | what the component does today, and what it becomes |
 | talks to | every card | this component's interactions with the others |
-| shapes | where the language has them | the domain shapes this component introduces, by name (ADR 0030) |
+| shapes | where the language has them | the domain shapes this component introduces, by name |
 
 **An interaction names the other component and the direction.** Write it as a short verb phrase —
 `reads`, `writes`, `calls`, `dispatches`, `subscribes to` are examples of the shape, not a closed list,

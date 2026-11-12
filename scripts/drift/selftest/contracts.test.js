@@ -40,17 +40,19 @@ module.exports = ({ assert, path, fixture, found }) => {
 
   const sourceSectionBodies = {
     'references/plan-contract.md':
-      '# Plan contract\n\n## Fields\n\n## Epic visuals (optional, epic-only)\n\n' +
-      '## Slice lifecycle & status\n\n## Append mode\n\n## Scope anchor\n\n## Release\n\n' +
-      '## Run state\n\n## Definition of Done ticks\n\n## Triage record\n\n## Intent record\n\n' +
+      '# Plan contract\n\n## Fields\n\n' +
+      '## Slice lifecycle & status\n\n## Scope anchor\n\n## Release\n\n' +
+      '## Run state\n\n## Definition of Done ticks\n\n' +
       // the real document carries this one at `###`, with a trailing qualifier
       '### Assignee — store configuration, not a slice field\n\n## Feature label\n',
+    'references/plan-authoring.md': '# Plan authoring\n\n## Epic visuals (optional, epic-only)\n\n## Append mode\n',
+    'references/store-records.md': '# Store records\n\n## Triage record\n\n## Intent record\n',
     'references/test-selection.md': '# Test selection\n\n## The two commands\n\n## Fallback to the full command\n',
     'references/content-types.md': '# Content types\n\n## The four types\n\n## The conceptual layer\n',
     'references/controlled-prose.md': '# Controlled prose\n\n## Modes\n\n## Self-check\n',
-    'references/review-checklist.md':
-      '# Review checklist\n\n## Anti-patterns\n\n## Vulnerability classes\n\n## Reuse audit\n\n## Consistency\n\n' +
-      '## Prompt-concept overlap\n',
+    'references/review-checklist.md': '# Review checklist\n\n## Anti-patterns\n\n## Vulnerability classes\n',
+    'references/review-design-lenses.md': '# Review design lenses\n\n## Reuse audit\n\n## Consistency\n',
+    'references/prompt-concept-overlap.md': '# Prompt-concept overlap\n\n## Prompt-concept overlap\n',
     'references/scope-branch.md': '# Scope branch work\n\n## Pushing the scope branch\n',
     // the real body carries the output sections inside its fenced template
     'agents/final-reviewer.md':
@@ -64,15 +66,15 @@ module.exports = ({ assert, path, fixture, found }) => {
 
   const pinnedHeadings = [
     ['references/plan-contract.md', '## Fields\n\n'],
-    ['references/plan-contract.md', '## Epic visuals (optional, epic-only)\n\n'],
+    ['references/plan-authoring.md', '## Epic visuals (optional, epic-only)\n\n'],
     ['references/plan-contract.md', '## Slice lifecycle & status\n\n'],
-    ['references/plan-contract.md', '## Append mode\n\n'],
+    ['references/plan-authoring.md', '## Append mode\n'],
     ['references/plan-contract.md', '## Scope anchor\n\n'],
     ['references/plan-contract.md', '## Release\n\n'],
     ['references/plan-contract.md', '## Run state\n\n'],
     ['references/plan-contract.md', '## Definition of Done ticks\n\n'],
-    ['references/plan-contract.md', '## Triage record\n\n'],
-    ['references/plan-contract.md', '## Intent record\n\n'],
+    ['references/store-records.md', '## Triage record\n\n'],
+    ['references/store-records.md', '## Intent record\n'],
     ['references/plan-contract.md', '### Assignee — store configuration, not a slice field\n\n'],
     ['references/plan-contract.md', '## Feature label\n'],
     ['references/test-selection.md', '## The two commands\n\n'],
@@ -82,10 +84,10 @@ module.exports = ({ assert, path, fixture, found }) => {
     ['references/controlled-prose.md', '## Modes\n\n'],
     ['references/controlled-prose.md', '## Self-check\n'],
     ['references/review-checklist.md', '## Anti-patterns\n\n'],
-    ['references/review-checklist.md', '## Vulnerability classes\n\n'],
-    ['references/review-checklist.md', '## Reuse audit\n\n'],
-    ['references/review-checklist.md', '## Consistency\n\n'],
-    ['references/review-checklist.md', '## Prompt-concept overlap\n'],
+    ['references/review-checklist.md', '## Vulnerability classes\n'],
+    ['references/review-design-lenses.md', '## Reuse audit\n\n'],
+    ['references/review-design-lenses.md', '## Consistency\n'],
+    ['references/prompt-concept-overlap.md', '## Prompt-concept overlap\n'],
     ['references/scope-branch.md', '## Pushing the scope branch\n'],
     ['agents/final-reviewer.md', '### Judge every criterion\n\n'],
     ['agents/final-reviewer.md', '### Criteria\n\n'],

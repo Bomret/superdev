@@ -8,12 +8,12 @@ argument-hint: "[<scope>  (empty = the only scope with staged pages)]"
 
 ## Role and terms
 
-Applies to every start. You send a scope's **staged pages**, the knowledge-base pages `/superdev:document` writes instead of sending them (ADR 0023, ADR 0191), through the script, the only path from superdev to a remote knowledge-base backend and the owner of every mechanical rule of a publish (ADR 0069). You dispatch no subagent: you invoke the script, answer the two questions only a human can answer, and relay what it reports.
+Applies to every start. You send a scope's **staged pages**, the knowledge-base pages `/superdev:document` writes instead of sending them, through the script, the only path from superdev to a remote knowledge-base backend and the owner of every mechanical rule of a publish. You dispatch no subagent: you invoke the script, answer the two questions only a human can answer, and relay what it reports.
 
 - **The script**: `node "${CLAUDE_PLUGIN_ROOT}/scripts/publish-kb.js"`.
 - **A human stop**: one of the two refusals in §2, the only ones you answer by asking the operator.
 - **`parent-section`**: an ATX heading of the parent, a line opened by `#`; a setext heading is not read.
-- **`sub_url`**: an optional key a `find` template may emit (the backend command contract, ADR 0069).
+- **`sub_url`**: an optional key a `find` template may emit (the backend command contract).
 
 ## No unattended run
 
@@ -33,7 +33,7 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/publish-kb.js" [--scope <slug>]
 
 **More than one pending scope.** Applies when no `--scope` was given and the script exits nonzero listing every pending scope with its page count on stderr. Relay that list and ask which one to publish, without guessing. Once the operator answers, re-invoke the script with `--scope <the chosen slug>`.
 
-**An unmerged scope.** Applies when the scope branch is not contained in base, or a surviving run root names no branch that resolves, and the refusal ends with `— nothing published (pass --allow-unmerged to publish anyway)`. A scope whose branch and run root are both reaped publishes silently instead (ADR 0071). Ask once, naming exactly what the script found.
+**An unmerged scope.** Applies when the scope branch is not contained in base, or a surviving run root names no branch that resolves, and the refusal ends with `— nothing published (pass --allow-unmerged to publish anyway)`. A scope whose branch and run root are both reaped publishes silently instead. Ask once, naming exactly what the script found.
 
 - **Declined** → publish nothing, delete nothing, and report that.
 - **Confirmed** → re-invoke the same command with `--allow-unmerged` added.
@@ -50,11 +50,11 @@ Applies to every refusal outside §2. Relay the script's stderr reason and stop,
 
 **The success report.** Applies when the script succeeds. It prints on stdout the scope, the backend it reached, every page published, every page removed, and every page left staged with its reason, plus an `unmerged:` line when §2's unmerged stop was confirmed. Relay that report as the result.
 
-**A page left staged for its hash.** Applies to a page left staged for carrying no recorded `live-hash` and no `created-by-publish` marker, or for a recorded hash that no longer matches the live page (ADR 0094, INV-0091). Relay the reason and take no other action: re-running `/superdev:document` re-reads the live page and re-stages it with a fresh hash.
+**A page left staged for its hash.** Applies to a page left staged for carrying no recorded `live-hash` and no `created-by-publish` marker, or for a recorded hash that no longer matches the live page. Relay the reason and take no other action: re-running `/superdev:document` re-reads the live page and re-stages it with a fresh hash.
 
 **The create marker.** Applies to a page carrying the `created-by-publish` marker. With no recorded `live-hash`, it is the script's retry of a create a killed run landed, and publishes as an update. A recorded `live-hash` is checked regardless of the marker.
 
-**Parent links.** Applies to a knowledge base whose configuration declares `- **Hierarchy:** links` (ADR 0168). The script links each published page into its parent's live body and unlinks a staged `delete` from its parent, per the cases below. A `not linked` or `not unlinked` page keeps its staged file, and the next publish after the fix retries it; relay every `not linked:` and `not unlinked:` line with its reason and fix, and every `link kept in parent` line as printed.
+**Parent links.** Applies to a knowledge base whose configuration declares `- **Hierarchy:** links`. The script links each published page into its parent's live body and unlinks a staged `delete` from its parent, per the cases below. A `not linked` or `not unlinked` page keeps its staged file, and the next publish after the fix retries it; relay every `not linked:` and `not unlinked:` line with its reason and fix, and every `link kept in parent` line as printed.
 
 | Case | Outcome |
 |------|---------|

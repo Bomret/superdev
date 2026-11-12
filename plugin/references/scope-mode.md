@@ -1,12 +1,12 @@
 # Scope mode
 
-`/superdev:review`, `/superdev:document`, and `/superdev:submit-pr` share one rule (ADR 0013). Each reads this
+`/superdev:review`, `/superdev:document`, and `/superdev:submit-pr` share one rule. Each reads this
 file at runtime and keeps only what is specific to it: the stage it reads or writes, and what it prints
 next.
 
 This file holds the run basics: the scope slug, the change type, a live scope run, resolving an empty
 argument, the scope branch, the scope checkout, the run lock, the scope's range base, `## Unattended`, the
-verification ceiling, and the stage rule. The other sections moved into four files by job (ADR 0203). A
+verification ceiling, and the stage rule. The other sections moved into four files by job. A
 citation of one of them written against this file, with the section's heading, leads here, to the file that holds it:
 
 - **`scope-branch.md`** — `## Containment`, `## Cutting the scope branch`, `## Pushing the scope branch`,
@@ -19,13 +19,13 @@ citation of one of them written against this file, with the section's heading, l
 
 **Several sections have a wider audience than these three.** `/superdev:implement` and both
 execution playbooks read `## Unattended`, `scope-findings.md`'s `## Degraded passes`, `## The run lock`, `## The scope
-checkout` (ADR 0045), and `scope-branch.md`'s `## Bringing the scope branch to
-base` (ADR 0120; `/superdev:review` also reads it, ADR 0173) and `## The scope's range base`. `/superdev:implement`
+checkout`, and `scope-branch.md`'s `## Bringing the scope branch to
+base` (`/superdev:review` also reads it) and `## The scope's range base`. `/superdev:implement`
 reads `## The scope slug`, which sends it to `## The change type`. `run-state.md`'s `## The ledger` is read by
 `/superdev:implement`, `/superdev:status`, and `/superdev:submit-pr` besides `/superdev:review`. `##
 Resolving an empty argument` is read by `/superdev:implement`, `/superdev:review`, and
 `/superdev:submit-pr` on their own empty-argument entrance. `/superdev:plan` reads `scope-branch.md`'s `## Cutting the scope
-branch`, `## Containment`, and this file's `## The run lock` for its own cut (ADR 0079). A run is unattended from its
+branch`, `## Containment`, and this file's `## The run lock` for its own cut. A run is unattended from its
 first command, so the token cannot wait for the stage where the other rules begin.
 
 ## The scope slug
@@ -43,7 +43,7 @@ name, so the type reaches `git worktree add … -b` exactly as the slug does.
 - **The type** — what precedes it — is one of the eleven in `## The change type`, matched exactly.
   A label leading with `-x` reaches git as an option. A type outside the set makes `hooks/scope-prune.js`
   misread a live, unmerged branch as gone, one of the three conditions a scope needs to be prunable,
-  alongside the staleness TTL and a `closed` stage (ADR 0007, ADR 0106).
+  alongside the staleness TTL and a `closed` stage.
 
 **Either segment failing is the same stop.** Say which one failed and why, and build no branch and no
 path out of the label. A label with no `/`, or an empty segment on either side, fails here too.
@@ -65,7 +65,7 @@ A range or a scope slug names a live run when two conditions hold: its head is t
 holding a `ledger.md`.
 
 Capture `<run-root>` with `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js root <scope>`'s printed absolute
-path — the repository's main working tree, whichever checkout the command runs from (ADR 0080). Build no
+path — the repository's main working tree, whichever checkout the command runs from. Build no
 path against the invoking checkout's own cwd. Address every artifact by that absolute path:
 `<run-root>/ledger.md`, `<run-root>/dod.md`, `<run-root>/run.lock`.
 
@@ -82,7 +82,7 @@ This section owns the one cascade that resolves whichever set a caller hands it:
 
 A caller may add its own step after a no-candidate result, in place of the stop. That step still
 reports every run root with its stage before it acts: `/superdev:review` reads standing code of the whole
-repository there (ADR 0165, INV-0077).
+repository there.
 
 **Run-root enumeration.** A run root is a `.superdev/scopes/*/` directory holding a `ledger.md`, per
 `## A live scope run`. The calling command names the stages that qualify — `/superdev:submit-pr`
@@ -95,7 +95,7 @@ slices are ready) and hands that set straight to this cascade, so this
 section never enumerates run roots on its behalf.
 
 **A caller that cannot ask stops and lists instead.** `plugin/scripts/publish-kb.js` has no interview
-loop behind it (ADR 0069). With several candidates, or none, it refuses and lists them, the same shape this
+loop behind it. With several candidates, or none, it refuses and lists them, the same shape this
 section's several-candidate and no-candidate branches print.
 
 ## The scope branch
@@ -120,7 +120,7 @@ from a slug. Read the branch rather than compute it.
 **Resolve the scope branch first**, per `## The scope branch`, never from the slug alone. Then find the
 working tree holding it, from disk.
 
-`<run-root>/scopetree` is the scope checkout, at both tiers (ADR 0045). Run every git
+`<run-root>/scopetree` is the scope checkout, at both tiers. Run every git
 command that writes to the scope branch there — `git -C <run-root>/scopetree ...` — never in
 the invoking checkout, which stays wherever it was.
 
@@ -149,8 +149,7 @@ the invoking checkout, which stays wherever it was.
 
 ## The run lock
 
-**`/superdev:implement`'s own entry into an existing run root consults liveness before its first write**
-(INV-0013, ADR 0090), because a second, independent invocation can redispatch onto a scope already
+**`/superdev:implement`'s own entry into an existing run root consults liveness before its first write**, because a second, independent invocation can redispatch onto a scope already
 mid-implementation. `run-init.md`'s entry step reads the ledger's stage (`scope.js get stage`) and the lock's mtime together,
 before `dod.md` is written or the ledger's stage moves:
 
@@ -164,11 +163,11 @@ before `dod.md` is written or the ledger's stage moves:
 
 **This check governs `/superdev:implement`'s own entry alone.** `/superdev:review`,
 `/superdev:document`, `/superdev:submit-pr`, and `/superdev:ship` skip it: each enters at the chain's
-designed hand-off, with a fresh lock by construction (ADR 0090).
+designed hand-off, with a fresh lock by construction.
 
-The check does not cover these (ADR 0090):
+The check does not cover these:
 
-- A run that writes no trace line for over an hour, such as a read-only reviewer dispatch that long: its lock goes stale while it works (ADR 0220).
+- A run that writes no trace line for over an hour, such as a read-only reviewer dispatch that long: its lock goes stale while it works.
 - A session end: its closing trace lines leave the lock fresh for an hour after the session stopped.
 - Another session's work in the run's trees: its trace lines keep the run's lock fresh too.
 - An identity scheme in the lock's content: it stays freeform text a human reads, where the check asks, to judge self from another session.
@@ -178,10 +177,10 @@ The check does not cover these (ADR 0090):
 nonce of its own into the lock, `plan <nonce>`, and passes it back on its later calls. `open` stops with
 `locked` on a lock under an hour old that names another nonce: with no live ledger, any such lock; on a
 `planned` ledger, only while the ledger's step stands, the rule `/superdev:status` applies to a run live in
-another session (ADR 0163, ADR 0185).
+another session.
 
 **Write `<run-root>/run.lock` once `scope-branch.md`'s `## Cutting the scope branch` has cut the scopetree, at both
-tiers**, and once `/superdev:plan` has made its own cut (ADR 0079). Refresh the file if it already exists, the case a `resumed` run finds, once
+tiers**, and once `/superdev:plan` has made its own cut. Refresh the file if it already exists, the case a `resumed` run finds, once
 `/superdev:implement`'s own liveness check above has passed. The execution playbooks and `/superdev:plan` each write the lock
 into the run root right after their own cut. Plan's `scope.js open` writes it, refreshes it on plan's §6 call, and checks it itself. **On a `resumed` run, the liveness check above is what tells a live second
 `/superdev:implement` invocation from this run's own stale or absent lock.** The playbook's own Resume
@@ -193,14 +192,14 @@ section only reconciles the ledger against `git log` and performs no liveness ch
 
 The lock's mtime marks the run as live across the whole chain. A lock older
 than an hour is dead (`scope.js open` and implement's entry check read that bound). Each command in the chain refreshes the mtime at its own step, and every line written to the run's
-`trace.log` refreshes it too (ADR 0220): the run-trace hook's edit, run, and dispatch lines and the `scope.js` verbs'
+`trace.log` refreshes it too: the run-trace hook's edit, run, and dispatch lines and the `scope.js` verbs'
 lines keep a working run live between those steps. That refresh creates no lock and leaves its content as it is.
 
 ## The scope's range base
 
 The **range base** is the commit every range of a scope's own work starts from: review's range, the doc
 pass, run handoff's `BASE`, resume's cross-check, and ship's `deployment.md` diff are all
-`<range-base>..<branch>` (ADR 0120). It is the newer of two candidates: `merge-base(<base>, <branch>)`,
+`<range-base>..<branch>`. It is the newer of two candidates: `merge-base(<base>, <branch>)`,
 and the tip the base step recorded in the `**Base:**` header (`run-state.md`'s `## The ledger`), when that record
 resolves to a commit and is an ancestor of `<branch>`. The newer candidate is the one the other is an
 ancestor of. With no usable record, or with two candidates where neither holds the other, the range base
@@ -224,7 +223,7 @@ base. Containment (`scope-branch.md`'s `## Containment`) asks a different questi
 
 `--unattended` in a command's arguments means nobody is watching this invocation. Whoever invokes a
 chain command passes it. It is an argument and never a run-root field, so it cannot outlive the run
-that passed it (ADR 0016): the next command a maintainer types after an interrupted unattended run
+that passed it: the next command a maintainer types after an interrupted unattended run
 asks its questions as usual.
 
 **Take it out before parsing anything else.** The token is never part of the range, the area path, or the
@@ -252,8 +251,7 @@ status write is: the ledger drives control flow, so a failed write is logged and
 
 ## Verification ceiling
 
-**Verifying a Definition-of-Done criterion observes.** It changes no system outside the repository
-(ADR 0084, INV-0006). A criterion needing a deploy, a migration, or any other outward-facing change to
+**Verifying a Definition-of-Done criterion observes.** It changes no system outside the repository. A criterion needing a deploy, a migration, or any other outward-facing change to
 verify stays unticked, with a note naming what it needs, for the operator to verify after merge.
 
 ## The stage never moves backwards
@@ -266,7 +264,7 @@ stage write never undoes completed work.**
 - `shipped` together with the ledger's own `**PR:**` header stops `/superdev:ship` from merging a second time.
   A later command overwriting the stage with an earlier one would disarm that check. A legacy `shipped` ledger
   predating the header is not yet finished, and `/superdev:ship` treats it like `submitted` (`## The scope checkout`).
-- `closed` is the terminal stage (ADR 0106): nothing outranks it, `stage set` refuses any move out of it, and `hooks/scope-prune.js` reaps only a run root that reads it.
+- `closed` is the terminal stage: nothing outranks it, `stage set` refuses any move out of it, and `hooks/scope-prune.js` reaps only a run root that reads it.
 - `shipped` is not terminal.
 - `submitted` is an ordinary in-flight stage: `/superdev:submit-pr`'s own stage gate, not the rank rule, keeps a second run from opening a
   second pull request.

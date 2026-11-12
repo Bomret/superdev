@@ -1,11 +1,11 @@
 # Inline fix
 
-Applies to an ad-hoc `/superdev:review` once the operator answered yes to `${CLAUDE_PLUGIN_ROOT}/skills/review/SKILL.md` §3's inline-fix question. The skill reads this file at that point, and no other command reads it (ADR 0228). Follow the steps in order to the report.
+Applies to an ad-hoc `/superdev:review` once the operator answered yes to `${CLAUDE_PLUGIN_ROOT}/skills/review/SKILL.md` §3's inline-fix question. The skill reads this file at that point, and no other command reads it. Follow the steps in order to the report.
 
 - `<tip>`: the reviewed tip §1 resolved, a full commit.
 - `<short>`: `git rev-parse --short=12 <tip>`.
 - `<branch>`: `review-fix/<short>`.
-- `<main>`: the main working tree, resolved as `lib/main-work-tree.js` resolves it. Take the parent of `git rev-parse --path-format=absolute --git-common-dir`, or the `core.worktree` that git directory's own config names (a submodule). Normalize the path before you compose with it (ADR 0150).
+- `<main>`: the main working tree, resolved as `lib/main-work-tree.js` resolves it. Take the parent of `git rev-parse --path-format=absolute --git-common-dir`, or the `core.worktree` that git directory's own config names (a submodule). Normalize the path before you compose with it.
 - `<tree>`: `<main>/.superdev/review-fixes/<short>`, the **Fix worktree** (CONTEXT.md).
 - `<list>`: every Minor finding of the review and every warranted cut, each as quoted data.
 
@@ -29,14 +29,14 @@ Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <tree>`, per `${CLAUD
 
 ## 4. The inline fix dispatch
 
-Dispatch one `superdev:implementer`. This is the inline fix dispatch of the implementer's own contract, which owns the RED-test rule, the test-run bound, the fail-to-pass run, and the report. Restate none of it beyond the bullets below (INV-0120).
+Dispatch one `superdev:implementer`. This is the inline fix dispatch of the implementer's own contract, which owns the RED-test rule, the test-run bound, the fail-to-pass run, and the report. Restate none of it beyond the bullets below.
 
 - **Model**: `opus`. `haiku` only when every item in `<list>` is mechanical, one whose fix changes no stated rule or behaviour.
 - **Working directory**: `<tree>`, where its commits land on `<branch>`.
 - **Findings**: the complete `<list>`, and `<cycle-base>` = `<tip>`. One implementer takes the whole list.
 - **Hand no `dod.md`, no run root, and no progress log.** The fix worktree is no run root.
 - **Separate calls**: tell the implementer to run any revert, each test run, and the restore as separate Bash calls.
-- **Sibling surfaces**: require the implementer to bring each sibling surface in `<tree>` into agreement with the rule or behaviour its fix changes, and to report each place it checked and each it changed (INV-0120). It reports a place outside `<tree>`, the `AGENTS.md` hierarchy, and the knowledge base unedited (INV-0162).
+- **Sibling surfaces**: require the implementer to bring each sibling surface in `<tree>` into agreement with the rule or behaviour its fix changes, and to report each place it checked and each it changed. It reports a place outside `<tree>`, the `AGENTS.md` hierarchy, and the knowledge base unedited.
 
 **You apply no fix yourself**, also when the dispatch is denied.
 
@@ -57,7 +57,7 @@ Continue the review's own `final-reviewer` through SendMessage. Its subject is t
 
 - Hand it the step 5 result labelled focused, and `<list>` as quoted data.
 - Its instruction: close or keep each listed item, a warranted cut it did not raise included, and report any defect the fix introduced.
-- Hand it no implementer report text (INV-0114). It reads the code and the range.
+- Hand it no implementer report text. It reads the code and the range.
 - **The resume fails, is denied, or ends other than `completed`** → dispatch a fresh `superdev:final-reviewer` (`model: opus`) with the same subject and inputs.
 
 This is the only cycle. Run no second cycle, no full suite, and no `simplicity-reviewer`, and read no run trace.

@@ -11,7 +11,7 @@ which names the branch and its checkout. A section here is read by the step that
 `scope-mode.md`'s `## The scope branch` finds the branch. This section decides the other question every caller of it
 asks: does `<base>` already hold that branch's work. The answer is about **content**, because a
 squash-merge rewrites a branch's commits into one new commit and leaves not one of them reachable from
-base, however completely base holds the result (ADR 0053). A scope branch has reached base when merging
+base, however completely base holds the result. A scope branch has reached base when merging
 it into base would change nothing:
 
 ```sh
@@ -32,7 +32,7 @@ way:
   taking its work conflicts here on a branch it holds in full, so **the second tier below decides this
   outcome**.
 
-**The second tier asks whether base's history took the patch** (ADR 0082). It runs on the exit 1 above,
+**The second tier asks whether base's history took the patch**. It runs on the exit 1 above,
 and on a `no` from the `git merge-base --is-ancestor` fallback a git older than 2.38 takes. Resolve the
 merge base of `<base>` and `<branch>`, take the patch id of the branch's cumulative diff from it, and look
 for that id among the patch ids of the commits `<base>` gained since that same merge base:
@@ -53,7 +53,7 @@ is skipped and the answer is not contained, so a base that has diverged far from
 one counting call instead of a full patch walk. The bound is a commit count rather than a wall clock: one
 repository state gives one verdict.
 
-**Every probe step that cannot answer answers not contained** (INV-0003): a failed `merge-base`, `diff`,
+**Every probe step that cannot answer answers not contained**: a failed `merge-base`, `diff`,
 `patch-id`, `rev-list`, or `log`, an unreadable count, and an exhausted cap alike. The scan writes no
 objects, unlike the tree comparison it follows.
 
@@ -68,7 +68,7 @@ it reapplies content the revert just removed and the tree comparison reads not c
 
 **A not-contained verdict against a local base is provisional, and the second pass settles it.** The code
 host squash-merges the pull request and the clone learns nothing about it until something fetches, so such
-a verdict is as likely to be stale as it is to be true (ADR 0065). Fetch the base branch once from the
+a verdict is as likely to be stale as it is to be true. Fetch the base branch once from the
 remote `docs/agents/code-management.md` names — `GIT_TERMINAL_PROMPT=0 git fetch <remote> <base>`, so a
 missing credential fails the fetch instead of prompting — and run the same test again against
 `FETCH_HEAD`, substituting it for `<base>` throughout, in both positions the shell line above names:
@@ -117,19 +117,18 @@ contained however little of its work base actually holds.
 
 Run init computes this run's **run kind** — `CONTEXT.md`'s glossary names both
 values — and hands it to the execution playbook; `/superdev:plan`'s `scope.js open` computes the same value for its
-own cut, ahead of any slice run (ADR 0079): no live ledger is `fresh`, a `planned` ledger is `resumed`. Every caller acts on that value instead of deriving it a
+own cut, ahead of any slice run: no live ledger is `fresh`, a `planned` ledger is `resumed`. Every caller acts on that value instead of deriving it a
 second time from git state. One call cuts or reuses the branch at every run kind, into the same
-**scopetree** — `<run-root>/scopetree` — at both tiers: the invoking checkout is never switched
-(ADR 0045).
+**scopetree** — `<run-root>/scopetree` — at both tiers: the invoking checkout is never switched.
 
 - **`fresh`** — no ledger existed, so the run itself has never cut this branch before. Cut it from
   `<base>`: `git worktree add <run-root>/scopetree -b <type>/<scope> <base>`. **The name already
   exists** — a squash-merging host leaves a scope's branch standing after its pull request merges, and
-  `hooks/scope-prune.js` reaps it only alongside its run root (ADR 0007, ADR 0071), so a taken name is
+  `hooks/scope-prune.js` reaps it only alongside its run root, so a taken name is
   the ordinary case in such a repository, not an error (closes triage #417): `-b` fails rather than reset
   it, which is the safe outcome, and the branch is then decided rather than stopped on unconditionally —
   contained in `<base>` and reused, or not contained and stopped, per `## Containment` above: the same
-  test that decides a scope is finished with (ADR 0007), contained in `<base>`, or gone entirely.
+  test that decides a scope is finished with, contained in `<base>`, or gone entirely.
   `/superdev:plan`'s cut is `scope.js open`, which applies this rule in `lib/plan-open.js` and prints
   `not-contained`, `dirty`, or `held` where the rule stops; plan acts on the printed outcome.
   - **Gone** — `<branch>` does not verify: nothing survives to reuse, so the `-b` cut above is the whole
@@ -154,7 +153,7 @@ second time from git state. One call cuts or reuses the branch at every run kind
   reads present and contained, and is reused — the ordinary outcome there. What still reaches the
   question is a branch carrying real work base never took.
 - **`resumed`** — the branch holds unmerged work by design, so no containment test runs and nothing is
-  cut. A **`planned`** ledger is one instance of this run kind (ADR 0079): `/superdev:plan` already cut,
+  cut. A **`planned`** ledger is one instance of this run kind: `/superdev:plan` already cut,
   and where the name was taken, decided and re-pointed the branch under the rule `fresh` follows above, so
   run init cuts nothing, tests no containment, and re-points nothing either — it moves the stage past
   `planned` and works in the scopetree already there. The branch may carry unmerged slice work, for a run
@@ -184,11 +183,11 @@ second time from git state. One call cuts or reuses the branch at every run kind
 
 **No forcing flag, at any run kind.** `git switch -C` and `git worktree add -B` reset the branch to
 `<base>` and leave every slice already merged into it unreachable from any ref, while the ledger still
-records those slices as `merged` — nothing in the run rebuilds what it lost (ADR 0028). Two re-pointings
+records those slices as `merged` — nothing in the run rebuilds what it lost. Two re-pointings
 are permitted, and no third. **Fast-forwarding to `<base>`.** And **`git reset --hard <base>` on a branch
 `## Containment` has just proved contained** — that proof is the precondition, never a general
 permission: containment establishes that the content is already landed, on `<base>` or on the base the
-second pass fetched, so the commits the reset discards carry nothing to lose (ADR 0053). A branch that
+second pass fetched, so the commits the reset discards carry nothing to lose. A branch that
 has not passed the test in this run keeps the
 whole rule.
 
@@ -197,7 +196,7 @@ pass either: `scope-findings.md`'s `## Degraded passes` records work done a less
 
 ## Preparing a worktree
 
-Every worktree superdev creates or reuses for a test run is prepared before its first test run (ADR 0218): the
+Every worktree superdev creates or reuses for a test run is prepared before its first test run: the
 scopetree at implement start, fresh or resumed, at both tiers; each slicetree, a reused one included; a scopetree
 `scope-mode.md`'s `## The scope checkout` recreates; and the scopetree again at review start, because a merged slice
 can add a dependency. Reviewer worktrees under `/tmp` and ship's deploy tree run no test and are not prepared.
@@ -217,7 +216,7 @@ set to 600000, the Bash tool's maximum. The verb runs the **Prepare command** (C
 ## Pushing the scope branch
 
 `/superdev:plan` puts the scope branch on the remote at the end of every plan run, so a `resumed` run on
-another machine finds it there (ADR 0167, INV-0087). `/superdev:submit-pr` and `/superdev:ship` push later
+another machine finds it there. `/superdev:submit-pr` and `/superdev:ship` push later
 in the chain, and no other command pushes a scope branch. Plan pushes before any slice runs, so the branch
 it pushes holds the design captures and nothing a slice built.
 
@@ -237,14 +236,14 @@ The verb reads the branch from the ledger's `**Branch:**` line, fetches the remo
 - **No remote branch, or a remote tip that is an ancestor of the local tip** → a plain push with an upstream
   set. It prints `pushed`.
 - **A remote tip that `## Containment` proves contained in `<base>`** → a push through
-  `--force-with-lease` naming that exact tip, so a remote that moved since the fetch rejects it (INV-0169).
+  `--force-with-lease` naming that exact tip, so a remote that moved since the fetch rejects it.
   It prints `overwritten`.
 - **Any other remote tip** → no push. It prints `refused` and the remote tip's commits that the base the
   containment test judged does not hold, the base refetched from the remote when the refetch ran.
 
 Every case the verb cannot decide pushes nothing: `unreachable` and `credential-rejected` (a failed fetch, the
 containment test's refetch of `<base>` included, read under the C locale), `timed-out` (a git call its own bound ended, the refetch of `<base>`
-included, which carries no verdict, INV-0009; the line names the bound in milliseconds and its key, `code-host.pushTimeoutMs`), and `push-failed` (the remote rejected the push, a moved lease
+included, which carries no verdict, the line names the bound in milliseconds and its key, `code-host.pushTimeoutMs`), and `push-failed` (the remote rejected the push, a moved lease
 included). The verb exits 0 on `pushed` and `overwritten`, 3 on every outcome that pushed nothing, and 1 on a
 usage refusal, a `**Branch:**` line naming `<base>` included, so it never pushes base. It writes nothing to the
 ledger.
@@ -259,12 +258,12 @@ as if the push had succeeded: no ledger stage, step, or published snapshot chang
 ## Bringing the scope branch to base
 
 Both execution playbooks run this step right after their own write of `scope-mode.md`'s `## The run lock` and before their first
-slice, on every `/superdev:implement` invocation and at every run kind (ADR 0120, INV-0124).
+slice, on every `/superdev:implement` invocation and at every run kind.
 `/superdev:review` runs it too, on a live scope run at a stage before `submitted`, after its scope
-checkout and run lock and before its entry run (ADR 0173), and again itself, never through a fix implementer,
-before an exit run and at a fix cycle's end when the scope branch no longer holds the base tip (`review-scope-mode.md`'s **The moved base** concept, ADR 0221). At `submitted` review merges nothing and names
+checkout and run lock and before its entry run, and again itself, never through a fix implementer,
+before an exit run and at a fix cycle's end when the scope branch no longer holds the base tip (`review-scope-mode.md`'s **The moved base** concept). At `submitted` review merges nothing and names
 the moved base: `/superdev:ship` owns a moved base there. The step runs no test suite: the scope review's exit run
-verifies every merge it makes, implement's and the review's own alike (ADR 0192). It brings
+verifies every merge it makes, implement's and the review's own alike. It brings
 the remote's `<base>` tip into the scope branch, so slices build on what the pull request targets rather
 than on whatever `<base>` the branch was cut from. `/superdev:plan`'s own cut never reads it. `<remote>`
 and `<base>` come from `docs/agents/code-management.md`; `<branch>` is the scope branch the playbook's
@@ -281,7 +280,7 @@ branch step left you on.
 2. **Fetch the remote base.** Run `GIT_TERMINAL_PROMPT=0 git fetch <remote> <base>` through the Bash
    tool with its `timeout` set to 120000 ms: a missing credential fails the fetch instead of prompting,
    and a stalled remote ends it. Capture `<tip>` at once with `git rev-parse FETCH_HEAD`, because step 3
-   overwrites `FETCH_HEAD`. A fetch the timeout killed carries no verdict (INV-0009) and counts as failed.
+   overwrites `FETCH_HEAD`. A fetch the timeout killed carries no verdict and counts as failed.
 3. **Fast-forward the local `<base>` ref, and nothing more.** Run
    `git fetch . <tip>:refs/heads/<base>`. This is the only local-git write to `<base>` INV-0001 admits: it
    moves a ref, writes no commit, and touches no working tree. Git refuses it when `<base>` is checked
@@ -289,7 +288,7 @@ branch step left you on.
    128, `fatal: refusing to fetch into branch 'refs/heads/<base>' checked out at …`). A refusal is not a
    failure: skip it, leave the local `<base>` where it was, and name the refusal in the run's report. A
    local `<base>` already at `<tip>` needs no word. Step 4 runs either way.
-4. **Bring `<tip>` in, and record it.** **Move every numbering collision first** (ADR 0126, INV-0134):
+4. **Bring `<tip>` in, and record it.** **Move every numbering collision first**:
    run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" collisions --base <tip> --branch <branch>
    --range-base <range-base>`, with `<range-base>` per `scope-mode.md`'s `## The scope's range base` and one `--also <ref>`
    for each other live plan run's scope branch (`scope-mode.md`'s `## Resolving an empty argument` → *Run-root enumeration*, stage
@@ -301,7 +300,7 @@ branch step left you on.
    that in the scopetree, and name each renumber, old and new, in the run's report. A renumber resolves
    and asks nothing, so an unattended run renumbers the same way. Exit 2 → the check could not run: name
    its message and stop, dispatching no slice, never reading it as no collision; on exit 2,
-   **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`. **Then find the citations the renumber missed** (ADR 0156, INV-0134): after the
+   **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`. **Then find the citations the renumber missed**: after the
    renumber commit and before the merge, run
    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" citations --range-base <range-base> --branch <branch> <id>…`
    with every old id the renumber moved, each as `collisions` printed it. It prints one `<path>:<line> <id>`
@@ -327,7 +326,7 @@ branch step left you on.
    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base set <tip> --root <run-root>`: the local `<base>`
    may still lack `<tip>`, and `scope-mode.md`'s `## The scope's range base` reads the record. Then go to the first
    slice, or, for `/superdev:review`, to its entry run, whatever the suite record reads: a red,
-   denied, or absent record asks nothing, stops nothing, and blocks no unattended run (ADR 0192).
+   denied, or absent record asks nothing, stops nothing, and blocks no unattended run.
 
 **A base that cannot be fetched is a degraded pass.** No `<remote>` configured, a failed or killed fetch,
 or a remote that does not carry `<base>` → skip steps 2 and 3, run step 4 with the local `<base>`

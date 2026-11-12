@@ -31,7 +31,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/references/content-types.md` first (`## The conceptu
 - **Ambiguity**: text with two plausible readings.
 - **Assumed context**: a term or decision the doc leans on that neither it nor a doc it links to introduces.
 - **Contradiction**: statements in conflict, within one doc or across the set.
-- **Missing conceptual layer**: report it as `### When to report a gap` states (ADR 0014).
+- **Missing conceptual layer**: report it as `### When to report a gap` states.
 
 ## Pass 2: grounding
 
@@ -49,7 +49,7 @@ Extract every checkable claim from the docs and verify it against the repo, in t
 
 Applies to a post-writer dispatch, because an audit dispatch has no newly written prose to judge.
 
-Read the `## Writing standard` section of `docs/agents/documentation.md` (ADR 0012). Its value decides the standard:
+Read the `## Writing standard` section of `docs/agents/documentation.md`. Its value decides the standard:
 
 - `none`, no section, or no such file: no standard applies, and the pass is over.
 - `controlled`: the standard is `${CLAUDE_PLUGIN_ROOT}/references/controlled-prose.md`.

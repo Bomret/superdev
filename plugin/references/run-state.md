@@ -8,14 +8,14 @@ section here is read by the step that cites it.
 ## The ledger
 
 `<run-root>/ledger.md` is one document: labeled header lines, then a slice table.
-`${CLAUDE_PLUGIN_ROOT}/scripts/scope.js` owns its schema and is its only read and write path (ADR 0022):
+`${CLAUDE_PLUGIN_ROOT}/scripts/scope.js` owns its schema and is its only read and write path:
 `init` creates the document, `stage` / `slice` / `degraded add|add-denial|reset-denials` / `unresolved
 add|clear` / `docs set|clear` / `pr set|clear` / `deploy set` / `suite set` move it, `get` / `status` /
 `deploy get` read it back.
 No command or playbook edits or parses the file directly. `scope.js` keeps a digest of the ledger and of
 the run trace in `<run-root>/digest.json`, so the next verb that writes to the run reports a change made any
 other way: one warning on stderr naming the file and one `tamper <file>` trace line, after which the verb
-goes on (ADR 0227).
+goes on.
 
 **The slice table** (written by `init` from the slice JSON it receives, moved row by row with
 `slice <id> <status>`, read back with `get slices`) carries one row per slice: id, store issue, title,
@@ -27,15 +27,14 @@ goes on (ADR 0227).
   `stage set <value>`; `scope-mode.md`'s `## The stage never moves backwards` owns the value set, which `scope.js` enforces
   in code.
 - **`**Step:**`** — the chain step a command has started and not yet completed: `plan`, `implement`, `review`, `document`,
-  `submit`, `ship`, `verify-ship`, or `wrap-up` (ADR 0140). Read with `get step`, which prints `none` when
+  `submit`, `ship`, `verify-ship`, or `wrap-up`. Read with `get step`, which prints `none` when
   the line is absent, and written with `step set <name>` as the step starts. `scope.js` refuses any other
   name and leaves the ledger and the trace unchanged. Every `step set` appends its `step set` trace line, also
-  when the ledger already carries that step, because each invocation of a command is a start of its own
-  (ADR 0147). An `init` with entry stage `planned` that overwrites a `planned` ledger keeps the line, and an
+  when the ledger already carries that step, because each invocation of a command is a start of its own. An `init` with entry stage `planned` that overwrites a `planned` ledger keeps the line, and an
   `init` with entry stage `implementing` writes none. A `stage set` that writes a new stage clears the line
   in the same write and appends a `step clear` line to the run trace, and a refused or same-stage `stage set` leaves it. A step that completes with no
   stage write removes it with `step clear`, which succeeds and changes nothing when the line is absent. A
-  step that stops keeps it and records the stop with `step block` (ADR 0147), which takes no argument,
+  step that stops keeps it and records the stop with `step block`, which takes no argument,
   appends a `step block <step>` trace line, and leaves the ledger unchanged; with no step standing it writes
   nothing and succeeds. **Every exit a chain command reaches after its `step set` ends in a `step clear`, a
   stage write, or a `step block`.** A blocked stop, a refusal, a `First:` wait on the operator, and a review
@@ -43,17 +42,17 @@ goes on (ADR 0227).
   standing, and each `step clear` that changes the ledger, appends a
   `ledger` line to the run trace, and `status` prints the step beside the stage. `publish` carries the line
   in the snapshot, `adopt` refuses a snapshot whose step is not one of those names, and a ledger without it reads as no step started. No review rule reads the line as
-  evidence (INV-0117).
+  evidence.
 - **`**Branch:**`** — the scope branch. `scope-mode.md`'s `## The scope branch` owns how it is written and resolved.
 - **`**Anchor:** <key> — <title>`** — the scope anchor's store key and title, e.g. `**Anchor:** #183 —
   Audit fixes`. Run init hands it to `init`, per the store's `## Scope anchor`
   contract (`docs/agents/issue-tracker.md`); `/superdev:review` reads the title back with `get anchor`
-  for the PR-facing summary (ADR 0020) instead of deriving one from the diff.
+  for the PR-facing summary instead of deriving one from the diff.
 - **`**Degraded:**`** — the run's degrade record. `scope-findings.md`'s `## Degraded passes` owns its shape and when it is
   written.
 - **`**Unresolved:**`** — the run's unresolved-defect record. `scope-findings.md`'s `## Unresolved defects` owns the same.
 - **`**Deferred:**`** — the run's deferred-finding record. `scope-findings.md`'s `## Deferred findings` owns the same.
-- **`**Minors:**`** — the run's Minor queue (ADR 0174, INV-0171): one bullet per full-tier slice that merged with open
+- **`**Minors:**`** — the run's Minor queue: one bullet per full-tier slice that merged with open
   Minor findings, naming the slice by id and nothing else. Its progress log is `reports/<id>/progress.md` under the
   run root, derived from the id and never written into the bullet. Written with `minors add <id>`, which refuses an id
   the slice table lacks and leaves one bullet for an id added twice. Removed with `minors clear` once the Minor sweep
@@ -64,21 +63,21 @@ goes on (ADR 0227).
   every `minors add` or `minors clear` call.
 - **`**Docs:**`** — that the run performed its documentation pass, and in whose context. Read with
   `get docs`, written with `docs set <value>` and removed with `docs clear`. The `lite` playbook writes
-  it for the pass it runs inline (ADR 0031), and `/superdev:review` clears it when a fix cycle lands
-  commits. `/superdev:document` takes no decision from the record: it dispatches its doc-writer on every live run and hands its doc-reader the scope's own commits as the commit range (ADR 0219). A single whitespace-free token, which `docs set` enforces.
+  it for the pass it runs inline, and `/superdev:review` clears it when a fix cycle lands
+  commits. `/superdev:document` takes no decision from the record: it dispatches its doc-writer on every live run and hands its doc-reader the scope's own commits as the commit range. A single whitespace-free token, which `docs set` enforces.
   Publish the snapshot afterwards, per `## Publishing run state` below, on every `docs set` or `docs clear`
   call.
 - **`**PR:** #<n>`** — the pull request `/superdev:submit-pr` opened for the scope branch. Read with
   `get pr`, written with `pr set <n>` (a bare number, `#` optional) the moment the pull request opens, and
   removed with `pr clear`. `/superdev:ship` reads it back rather than looking the pull request up by head
   branch: a reused branch name (`scope-mode.md`'s `## The scope branch`) leaves old, merged pull requests on the host under
-  the same head, and a lookup by branch alone could adopt one of those instead (INV-0092) — the head-branch
+  the same head, and a lookup by branch alone could adopt one of those instead — the head-branch
   lookup stays only as a fallback for a ledger predating this header, and only among *open* pull requests.
   Publish the snapshot afterwards, per `## Publishing run state` below, on every `pr set` or `pr clear`
   call.
 - **`**Deploy:** <target> <state>[ exit <n>][, …]`** — one entry per deploy target (`docs/agents/
   deployment.md`'s targets table), in the order each target was first recorded, so `/superdev:ship` can
-  tell a finished deploy from a failed one and resume where it stopped (INV-0099). State is `pending`,
+  tell a finished deploy from a failed one and resume where it stopped. State is `pending`,
   `deployed`, or `failed`; `failed` may carry the command's exit code. Written with `deploy set <target>
   pending|deployed|failed [--exit <n>]`, which replaces a target already recorded in place rather than
   adding a second entry. Read with `deploy get`, which prints one line per target as `<target>
@@ -87,23 +86,22 @@ goes on (ADR 0227).
   result — `green`, `red`, `denied` (a run the permission classifier denied), or `none` (no test command
   configured; with kind `whole`, a whole-repo run that was killed or never started, INV-0009; or, with no
   kind, `/superdev:review`'s invalidation of a submitted tip, which `/superdev:ship`'s refusal keys on) — the
-  commit it ran on, and its kind: `whole` for a run of the **whole-repo command** (CONTEXT.md, ADR 0105), no kind for a run of the full command. Read with `get suite`, which prints
+  commit it ran on, and its kind: `whole` for a run of the **whole-repo command** (CONTEXT.md), no kind for a run of the full command. Read with `get suite`, which prints
   `<result> <sha>`, with a trailing ` whole` when the record carries that kind, or nothing on a ledger
   with no record; written with `suite set <result> <sha> [--whole]`, which refuses a sha that does not
-  resolve to a commit in the repository, and by `suite reusable` when it accepts a passing run at the tip
-  (ADR 0186). A later step reuses a green record `scope.js suite reusable`
+  resolve to a commit in the repository, and by `suite reusable` when it accepts a passing run at the tip. A later step reuses a green record `scope.js suite reusable`
   calls reusable against the scope branch's current tip — an exact match, or a record on an ancestor of
-  the tip when every commit since changed only Markdown, with no test run needed at the tip and none recorded there failed (ADR 0128, ADR 0189),
+  the tip when every commit since changed only Markdown, with no test run needed at the tip and none recorded there failed,
   or, under the complete-selector declaration, the carries `test-selection.md`'s `## Complete selector` states —
-  instead of running the suite again (INV-0017). `suite reusable --whole` additionally refuses a record with no kind, even when it is
+  instead of running the suite again. `suite reusable --whole` additionally refuses a record with no kind, even when it is
   green and tip-matched: a step that needs a whole-repo run reuses only a record of kind `whole`; a
   step content with either kind omits `--whole` and accepts both.
 - **`**Rerun:** <test-file> @ <sha> <triage-ref>`** — the one recorded rerun of a failed full run at `<sha>`
-  (ADR 0172, `references/test-selection.md`'s `## The recorded rerun`). Written with `suite rerun <test-file>
+  (`references/test-selection.md`'s `## The recorded rerun`). Written with `suite rerun <test-file>
   <triage-ref>` at the tip, which refuses a tip that already carries a record and replaces a record for another
   tip. `suite reusable --base <base-branch>` accepts a red record at that tip against it, under the complete-selector declaration and
   a focused run covering every path the scope's range changed, and at a later tip reached from it by Markdown-only
-  commits (ADR 0189); without `--base` it refuses a red record.
+  commits; without `--base` it refuses a red record.
 - **`**Base:** <sha>`** — the remote base tip the base step last merged into the scope branch
   (`scope-branch.md`'s `## Bringing the scope branch to base`), as a full commit. Written with `base set <sha>`, which
   refuses a sha that does not resolve to a commit; read only through `base resolve`
@@ -145,8 +143,7 @@ citing here.
    response with the extraction that store's **Edit an issue's body** rule names. A failed read, or a
    response without the body, ends the publish here: the merge never sees an empty anchor.
 2. **Fold.** Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js publish --root <run-root>` and capture its
-   stdout — the `## Run state` section text, and nothing else, since `publish` performs no store I/O itself
-   (ADR 0022). Write that stdout to a temporary file too, the same shape
+   stdout — the `## Run state` section text, and nothing else, since `publish` performs no store I/O itself. Write that stdout to a temporary file too, the same shape
    `/superdev:publish-kb`'s `patch` case already takes with a live page and a staged section, and merge the
    two with `node ${CLAUDE_PLUGIN_ROOT}/scripts/kb-patch.js <anchor-body-file> <publish-output-file>`,
    redirecting its stdout to a third temporary file. Name every temporary file with `mktemp`, or scope-keyed
@@ -156,7 +153,7 @@ citing here.
    publish on a fresh anchor.
 3. **Write.** Only when the merge exited 0 and its output file is non-empty, send that file back under the
    anchor's own identity, by path, through the active store's **Edit an issue's body** rule — never on
-   stdin (ADR 0115, INV-0115). A failed read or merge leaves the anchor body as it was.
+   stdin. A failed read or merge leaves the anchor body as it was.
 
 **The `## Run state` section is machine-owned.** `kb-patch.js`'s `merge` replaces the whole section,
 bounded at the next heading of the same or higher level — including a deeper subsection an operator adds

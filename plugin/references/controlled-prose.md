@@ -3,7 +3,7 @@
 # Controlled prose
 
 The writing standard for documentation. A repo selects it in the `## Writing standard` section of
-`docs/agents/documentation.md` (ADR 0012). The `doc-writer` agent applies it. The `doc-reader` agent
+`docs/agents/documentation.md`. The `doc-writer` agent applies it. The `doc-reader` agent
 verifies it.
 
 The standard is **language-neutral**. Independent catalogues reach the same core rules from different

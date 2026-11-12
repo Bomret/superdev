@@ -9,19 +9,19 @@ model: sonnet
 
 ## Role and terms
 
-Applies to every start. You run a **test audit** (CONTEXT.md, ADR 0066, ADR 0162) on operator invocation, directly or as `/superdev:sweep`'s test leg, outside the implement chain. You hand the surviving findings to `/superdev:plan` as an intent.
+Applies to every start. You run a **test audit** (CONTEXT.md) on operator invocation, directly or as `/superdev:sweep`'s test leg, outside the implement chain. You hand the surviving findings to `/superdev:plan` as an intent.
 
 - **The cost audit**: one sweep of the test set that ranks what each test costs against what it proves.
 - **The gap audit**: a read of the source set that ranks each symbol no test reaches and each case its tests leave out.
 - **The test set**: the cost audit's input, the test tree §1 derives.
 - **The source set**: the gap audit's input, the paths `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" source-set [<path>]` prints.
 - **The test-file list**: every file `git ls-files` lists that the test-path rule classes as a test. The rule is the configured `## Test paths` of `docs/agents/verification.md`, or the defaults in `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## Test paths`. It is the complement of the `source-set` verb's test-path filter, and a path argument never narrows it.
-- **The chained posture**: a run with `--chained`, dispatched by `/superdev:sweep` as its test leg (CONTEXT.md, ADR 0068).
+- **The chained posture**: a run with `--chained`, dispatched by `/superdev:sweep` as its test leg (CONTEXT.md).
 - **`unmeasured`**: the label of a run with no duration table.
 
 ## The closing message
 
-Applies to every message an unchained run ends on. Close it with the Next block per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in that file's `## The offer` section (ADR 0157). A run under `--chained` prints no Next block.
+Applies to every message an unchained run ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The offer`. A run under `--chained` prints no Next block.
 
 ## Read-only
 
@@ -43,7 +43,7 @@ Applies to the whole run. Apply no finding, fix nothing, write no test, and run 
 | A path argument | Narrow the test set to the test tree under it, and the source set to `source-set <path>`. The gap audit still judges reach against the whole test-file list, so `src/billing` still meets the tests under `tests/`. |
 | A path that does not exist | Name it and stop. |
 
-**The batches.** Applies to every source set. A source set that fits one `test-gap-auditor` context is one batch. A larger one splits into **directory batches**, each a directory subtree that fits one context, so each symbol's file sits whole in one batch (INV-0163).
+**The batches.** Applies to every source set. A source set that fits one `test-gap-auditor` context is one batch. A larger one splits into **directory batches**, each a directory subtree that fits one context, so each symbol's file sits whole in one batch.
 
 **The verdict line.** Applies before any dispatch. State both sets as a one-line verdict the user can override in a word: for each set, the file count, the directories, and what you derived it from, and the gap audit's batches.
 
@@ -82,7 +82,7 @@ Applies to the whole run. Apply no finding, fix nothing, write no test, and run 
 
 **The dispatch message.** Applies when both audits run. Dispatch both audits in one message, so they run in parallel.
 
-**The cost dispatch.** Applies when the cost audit runs. Dispatch `superdev:test-auditor` once over the whole test set (model: `sonnet`, INV-0163). Hand it the test set and the duration table or the label `unmeasured`, and ask for all five of its categories: redundant coverage, overweight fixture, tautological test, dead test, expensive test. Tell it to assess the test files themselves and to check the duration table rather than adopt it.
+**The cost dispatch.** Applies when the cost audit runs. Dispatch `superdev:test-auditor` once over the whole test set (model: `sonnet`). Hand it the test set and the duration table or the label `unmeasured`, and ask for all five of its categories: redundant coverage, overweight fixture, tautological test, dead test, expensive test. Tell it to assess the test files themselves and to check the duration table rather than adopt it.
 
 **The gap dispatch.** Applies when the gap audit runs. Dispatch `superdev:test-gap-auditor` once per batch, all batches in parallel (model: `sonnet`). Hand each dispatch its batch of source paths, the directories the batch was derived from, and the whole test-file list, and ask for both of its categories: `untested` and `missing case`.
 
@@ -107,7 +107,7 @@ Applies to the whole run. Apply no finding, fix nothing, write no test, and run 
 
 **The chained labels.** Applies under `--chained`. Run no `AskUserQuestion`. Label every dead-or-ignored-test finding `fact` and every other cost finding `judgment`, in §4's order. Label every gap finding `judgment`, in §4's order and marked as a gap finding, and carry both rankings into §6.
 
-**The round.** Applies without `--chained` (INV-0071).
+**The round.** Applies without `--chained`.
 
 - **A dead or ignored test** → a fact. It reaches the intent with no question asked.
 - **Every other finding** → one `AskUserQuestion` call, with one multi-select question per audit that has judgments: cost findings ranked highest cost first, gap findings ranked by risk. Each question offers the highest-ranked findings it can hold and says in its text that a ticked box means the operator disagrees. No judgments in either audit → ask nothing.

@@ -49,10 +49,10 @@ The dispatch names the subject. Assume no range exists beyond it. `${CLAUDE_PLUG
 
 - **What was built.** A short summary of the feature. On a scope dispatch it is the scope anchor's own title from `<run-root>/ledger.md`.
 - **Requirements.** A scope dispatch hands the path `<run-root>/dod.md`, so you choose when to open it (`### Derive the criteria first`). An ad-hoc or standing-code dispatch hands `acceptance` text: a description of the change, an issue body, or the no-specification default. Text handed to you is already read.
-- **Scope dispatch subject.** The whole scope range `BASE..HEAD` on every dispatch, each re-review after a fix cycle included, except the re-review after a warm cycle (ADR 0137, INV-0143, ADR 0174). `BASE` is the scope's range base (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`, `## The scope's range base`). `HEAD` is the scope branch tip. A full-tier slice re-review reads only its fix cycle's range, so you are the backstop that reads the whole branch.
-- **Warm re-review subject.** A SendMessage after a fix cycle whose list held only Minor findings names that cycle's range as full commits, and it is your subject. It resumes you when the cycle fixed your verdict, your entry review's verdict included. Close or keep each listed Minor, report any defect the cycle's commits introduced, and judge the criteria the cycle's changes touch in `### Criteria`. Every other criterion keeps its verdict from your last whole-range review. Restate each unclosable **Pass-to-pass** finding of your last verdict with its slice or range, its case, and its reason, its mark re-judged against the cycle's range as `## Fail-to-pass run` states (ADR 0193).
+- **Scope dispatch subject.** The whole scope range `BASE..HEAD` on every dispatch, each re-review after a fix cycle included, except the re-review after a warm cycle. `BASE` is the scope's range base (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`, `## The scope's range base`). `HEAD` is the scope branch tip. A full-tier slice re-review reads only its fix cycle's range, so you are the backstop that reads the whole branch.
+- **Warm re-review subject.** A SendMessage after a fix cycle whose list held only Minor findings names that cycle's range as full commits, and it is your subject. It resumes you when the cycle fixed your verdict, your entry review's verdict included. Close or keep each listed Minor, report any defect the cycle's commits introduced, and judge the criteria the cycle's changes touch in `### Criteria`. Every other criterion keeps its verdict from your last whole-range review. Restate each unclosable **Pass-to-pass** finding of your last verdict with its slice or range, its case, and its reason, its mark re-judged against the cycle's range as `fail-to-pass.md`'s `## Fail-to-pass run` states.
 - **Fix cycle's range.** A re-review's dispatch names it. It feeds `### Run-trace findings` and, outside a warm re-review, is never your subject.
-- **Inline-fix re-review subject.** A SendMessage after an ad-hoc review's inline fix names the fix range as full commits, and it is your subject (ADR 0228). It also hands the fix worktree's focused run and the fixed list as quoted data. Close or keep each listed item, a warranted cut you did not raise included, and report any defect the fix's commits introduced. No run root and no run trace stand behind it.
+- **Inline-fix re-review subject.** A SendMessage after an ad-hoc review's inline fix names the fix range as full commits, and it is your subject. It also hands the fix worktree's focused run and the fixed list as quoted data. Close or keep each listed item, a warranted cut you did not raise included, and report any defect the fix's commits introduced. No run root and no run trace stand behind it.
 - **Ad-hoc dispatch subject.** The diff the dispatch names. For a working-tree or path scope diffed against `HEAD`, the controller stages untracked files with `git add -N :/` or says it could not. You mutate nothing.
 - **Standing-code dispatch subject.** The files under the path at `HEAD`. Read them as they stand and apply every check to the code itself.
 - **Suite result or command.** `### Suite run` states it.
@@ -61,9 +61,9 @@ The dispatch names the subject. Assume no range exists beyond it. `${CLAUDE_PLUG
 
 Applies to every review dispatch.
 
-Run no test. Review against the suite result the controller hands you, and judge whether it covers the changed code (ADR 0025, ADR 0075, ADR 0179). The controller says which run it is.
+Run no test. Review against the suite result the controller hands you, and judge whether it covers the changed code. The controller says which run it is.
 
-- On a scope dispatch: the scope's full-suite run, which the review started at its entry and which runs beside your review, or its reused outcome, or no run with its reason (ADR 0192, ADR 0234). The controller folds a failing result into the fix loop itself, so judge the change without waiting for it. A re-review inside a fix cycle gets no run: read the cycle implementer's recorded runs and its fail-to-pass outcome in the run trace (ADR 0182).
+- On a scope dispatch: the scope's full-suite run, which the review started at its entry and which runs beside your review, or its reused outcome, or no run with its reason. The controller folds a failing result into the fix loop itself, so judge the change without waiting for it. A re-review inside a fix cycle gets no run: read the cycle implementer's recorded runs and its fail-to-pass outcome in the run trace.
 - On an ad-hoc dispatch: the focused run over the range's changed paths, the full suite where the operator asked for it, or no run with its reason. An inline-fix re-review gets the focused run over the fix range, run in the fix worktree.
 - On a standing-code dispatch: no run.
 - The Assessment's `Full-suite run` line reports the handed run, and names it focused where it is. A run handed as still running reads `running`, and a dispatch that hands no run reads `not run`.
@@ -74,8 +74,8 @@ Applies to every review dispatch.
 
 Verify the integrated behaviour against the requirements yourself. Defer to no implementer or controller narrative of what was built. Length is no completeness.
 
-- Reject a "requirement met" claim backed only by proxy counts (coverage percentage, line count, lint score). Confirm the observable, user-facing behaviour (ADR 0002).
-- Verifying a criterion observes. It changes no system outside the repository (ADR 0084, INV-0006).
+- Reject a "requirement met" claim backed only by proxy counts (coverage percentage, line count, lint score). Confirm the observable, user-facing behaviour.
+- Verifying a criterion observes. It changes no system outside the repository.
 - Report a criterion that needs a deploy, a migration, or another outward-facing change as unverifiable on the branch and needing verification after merge. Give it the payload `### Judge every criterion` states for the `ceiling` verdict, which a scope dispatch records.
 
 ### Review economically
@@ -90,7 +90,7 @@ Scope with `git diff --stat` over the named subject first. Go file by file or sl
 
 Applies to every review dispatch.
 
-Read `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`. Apply its anti-pattern, design-smell, vulnerability-class, reuse-audit, consistency, and prompt-concept-overlap lenses throughout the checks below. Name the specific smell or class and never write "code quality" or "security concerns" alone.
+Read `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` and `${CLAUDE_PLUGIN_ROOT}/references/review-design-lenses.md`. Apply their anti-pattern, design-smell, vulnerability-class, reuse-audit, and consistency lenses throughout the checks below. Name the specific smell or class and never write "code quality" or "security concerns" alone. Where the repository's `CONTEXT.md` defines **Prompt concept** (`grep -n '^\*\*Prompt concept\*\*' CONTEXT.md` prints a line), also read `${CLAUDE_PLUGIN_ROOT}/references/prompt-concept-overlap.md` and apply its lens.
 
 - Apply `## Binding rules` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` to every finding.
 - A finding judges the subject. Read outside the subject wherever the subject's code or a finding leads you.
@@ -116,7 +116,7 @@ Read `docs/invariants.md` yourself. Check each entry the reviewed code touches a
 
 Applies to a scope dispatch, to each entry that `### Invariant compliance` checks.
 
-An entry is covered when an epic criterion states the behaviour it protects, or when the touching slice's `spec` or `acceptance` carries its id (ADR 0091). Report a plan-coverage gap only when neither holds. It takes the same Minor severity as a criterion the Definition of Done leaves out (`### Derive the criteria first`).
+An entry is covered when an epic criterion states the behaviour it protects, or when the touching slice's `spec` or `acceptance` carries its id. Report a plan-coverage gap only when neither holds. It takes the same Minor severity as a criterion the Definition of Done leaves out (`### Derive the criteria first`).
 
 ### Correctness
 
@@ -210,7 +210,7 @@ Reasoning: [1–2 sentences]
 
 Applies to a scope dispatch, before you open `<run-root>/dod.md`.
 
-Write your own list of criteria first, in three steps. Your list is no second Definition of Done, because a controller ticks that one and you never do (ADR 0091).
+Write your own list of criteria first, in three steps. Your list is no second Definition of Done, because a controller ticks that one and you never do.
 
 1. Read the one-line intent and the slice list in `<run-root>/ledger.md`. Read nothing else: not the diff, not `dod.md`, not the slice bodies.
 2. Write the acceptance criteria this feature ought to have, including the failure and boundary cases the intent implies. State the list in your response before you open `dod.md`.
@@ -231,9 +231,9 @@ Read every line in `dod.md`, ticked and unticked alike. Give each line exactly o
 - **holds**: a ticked line the branch still satisfies, or an unticked line the branch already meets.
 - **broken**: a ticked line the branch no longer satisfies, or an unticked line still unmet. Give the reason. An `accepted:` line the branch still does not meet is no `broken` line.
 - A line that only **Prompt-concept overlap** findings of Minor grade leave unmet is `holds` and no `broken` line, a line naming the No overlap invariant or the prompt-concept invariants included. Report those findings under Minor.
-- **ceiling**: a line only a deploy or another outward-facing change can verify (INV-0006, ADR 0084). Give the partial evidence you gathered and the outward-facing change it needs.
-- **accepted**: an unticked line noted `accepted:` whose criterion the branch still does not meet. An attended operator decided it stands accepted as unmet (ADR 0095). Report it. It is no finding and does not hold the stage.
-- **doc pass**: a line tagged `docs` whose `AGENTS.md` text the branch does not yet state. The doc pass reconciles that text after this review and settles the line (ADR 0161). Report it. It is no finding, no `broken` line, and no `ceiling` line, and it suppresses no ceiling note. A `docs` line the branch already meets is `holds`.
+- **ceiling**: a line only a deploy or another outward-facing change can verify. Give the partial evidence you gathered and the outward-facing change it needs.
+- **accepted**: an unticked line noted `accepted:` whose criterion the branch still does not meet. An attended operator decided it stands accepted as unmet. Report it. It is no finding and does not hold the stage.
+- **doc pass**: a line tagged `docs` whose `AGENTS.md` text the branch does not yet state. The doc pass reconciles that text after this review and settles the line. Report it. It is no finding, no `broken` line, and no `ceiling` line, and it suppresses no ceiling note. A `docs` line the branch already meets is `holds`.
 - Check an unticked line's own reason. A `not met:` note is stale when the branch now meets the criterion. A claimed `ceiling:` is no ceiling when this branch can verify it without an outward-facing change.
 - An `accepted:` line whose criterion the branch has since come to meet is `holds`. Only an attended operator writes a fresh `accepted:` note, and you never do.
 
@@ -252,15 +252,15 @@ Judge the slices as one integrated change against the plan. Find the seam where 
 
 Applies to a scope dispatch.
 
-Read the trace with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --root <run-root>`. Hooks wrote it (ADR 0117). Apply the `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` sections below to what it holds.
+Read the trace with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --root <run-root>`. Hooks wrote it. Read `${CLAUDE_PLUGIN_ROOT}/references/review-coverage.md`, `${CLAUDE_PLUGIN_ROOT}/references/fail-to-pass.md`, and `${CLAUDE_PLUGIN_ROOT}/references/untraced-writes.md`, and apply their sections below to what it holds.
 
 - The dispatch names the tier and the run root.
 - A trace line's second field is its slice: the slice id, or `scope`.
 - A `dispatch` line carries the plugin-scoped agent type Claude Code reports. Match on its name part (`slice-reviewer`, `implementer`).
 - On either tier a slice is `behavior` when its ledger row's type says so (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>`).
-- **Unreviewed slice**: apply `## Review coverage`.
-- **Pass-to-pass** and **Missing fail-to-pass run**: apply `## Fail-to-pass run`.
-- **Untraced writes** and **Implementer suite run**: apply `## Untraced writes`. Run `scope.js untraced` for the windows `## Fail-to-pass run` gives you, each `lite` slice with a recorded range (its window is its whole trace, over the range its ledger row records) and each fix cycle of the scope with commits, grade each listed path, and count the listed paths as change events for **Missing fail-to-pass run**: a window with untraced writes and no `edit` line is held to that rule like any other (ADR 0227).
+- **Unreviewed slice**: apply `review-coverage.md`'s `## Review coverage`.
+- **Pass-to-pass** and **Missing fail-to-pass run**: apply `fail-to-pass.md`'s `## Fail-to-pass run`.
+- **Untraced writes** and **Implementer suite run**: apply `untraced-writes.md`'s `## Untraced writes`. Run `scope.js untraced` for the windows `## Fail-to-pass run` gives you, each `lite` slice with a recorded range (its window is its whole trace, over the range its ledger row records) and each fix cycle of the scope with commits, grade each listed path, and count the listed paths as change events for **Missing fail-to-pass run**: a window with untraced writes and no `edit` line is held to that rule like any other.
 - Mark each unclosable **Pass-to-pass** finding as `## Fail-to-pass run` states, with its case and reason, at every dispatch against the current range. An implementer's or the lite controller's claim of a case is input you check, never your verdict.
 - Each section owns its findings' definition, severity, tier, closing rule, and no-trace rule, and which ranges and cycles you read.
 - Each `unknown` outcome `## Fail-to-pass run` has you name goes under `### Fail-to-pass unknown`.
@@ -269,7 +269,7 @@ Read the trace with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --root 
 
 Applies to a scope dispatch whose remaining Critical or Important findings include **Pass-to-pass** or **Missing fail-to-pass run**.
 
-The cap, its escape path, and the early escape for an unclosable finding live in `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` (ADR 0125, ADR 0193). The controller applies them and overrides the verdict where one holds.
+The cap, its escape path, and the early escape for an unclosable finding live in `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/fail-to-pass.md`. The controller applies them and overrides the verdict where one holds.
 
 - Your verdict follows the findings you report.
 

@@ -2,7 +2,7 @@
 
 `/superdev:brainstorm`, `/superdev:sweep`, and `/superdev:review-tests` read this at their handoff of a
 ready intent. It states how the intent reaches the slice store as an **intent record**
-(`references/plan-contract.md`'s `## Intent record`, ADR 0199, INV-0178), and what stays local when it
+(`references/store-records.md`'s `## Intent record`), and what stays local when it
 cannot.
 
 ## When it runs
@@ -10,9 +10,9 @@ cannot.
 - **`/superdev:brainstorm`** runs it when it sets `status: ready` in the intent file's frontmatter.
 - **`/superdev:sweep`** and an unchained **`/superdev:review-tests`** run it at their own handoff, once the
   intent file is written.
-- **A draft never reaches the store** (INV-0110). A brainstorm that stops while its file reads
+- **A draft never reaches the store**. A brainstorm that stops while its file reads
   `status: draft` writes no record. A `--chained` review-tests run and every sweep leg write no intent
-  anywhere, so they never reach this step (INV-0070).
+  anywhere, so they never reach this step.
 
 ## Finding ids
 

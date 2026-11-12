@@ -1,7 +1,7 @@
 # Merge-conflict resolution
 
 How a controller resolves a conflicted merge, in the DAG loop and in the base merge
-`scope-branch.md`'s `## Bringing the scope branch to base` runs before the first slice and at `/superdev:review`'s entry (ADR 0120, ADR 0173). The rule
+`scope-branch.md`'s `## Bringing the scope branch to base` runs before the first slice and at `/superdev:review`'s entry. The rule
 is intent, not text: a hunk is resolved by what each side **meant**, and each side's intent has a primary
 source — its slice's `spec`, its progress log, its commit messages. In the base merge, the scope side's
 sources are its own commit messages and its slices' `spec`s, and the base side's are the base commits'
@@ -20,7 +20,7 @@ own messages.
   scope added, whose number the other side also took, takes the next number free on both sides, and on
   every other live plan run (`skills/plan/SKILL.md`'s shared-identifier check). A collision is found by
   number, whether or not git reports a conflict. `scope.js collisions` finds each one and prints its
-  next free number (ADR 0126). Update every citation of the old number on the scope branch in
+  next free number. Update every citation of the old number on the scope branch in
   the same resolution, and name each renumber, old and new, in the report. In the base merge, base's
   number never moves: it has already landed.
 - **Conclude a resolved conflict with `git -C <run-root>/scopetree merge --continue`.** Stage the

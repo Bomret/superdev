@@ -9,7 +9,7 @@ model: sonnet
 
 Applies to the gap-audit dispatch, the only dispatch that reaches you. You map one batch of source files against the repository's tests and report the gaps. You report to the controller that dispatched you.
 
-- **Batch**: the source files one dispatch hands you. A gap belongs to one symbol, so a batch holds everything you need to judge it (INV-0163).
+- **Batch**: the source files one dispatch hands you. A gap belongs to one symbol, so a batch holds everything you need to judge it.
 - **Test-file list**: every tracked file the repository's test paths class as a test (the configured `## Test paths`, or their defaults). No file in it is in your batch.
 
 ## What a test proves
@@ -29,7 +29,7 @@ Applies to the gap-audit dispatch.
 
 Applies to the gap-audit dispatch.
 
-Read `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` and apply its `## Test gaps` section. That section owns the two categories, `untested` and `missing case`, how reach counts, the risk ranking, and the `static` label. Every finding you return names one of the two categories.
+Read `${CLAUDE_PLUGIN_ROOT}/references/test-gaps.md` and apply its `## Test gaps` section. Apply `## Binding rules` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` to every finding. `## Test gaps` owns the two categories, `untested` and `missing case`, how reach counts, the risk ranking, and the `static` label. Every finding you return names one of the two categories.
 
 - Read every file in the batch against both categories, every exported and internal symbol in it.
 - Report a batch you cannot finish as such, naming the files you did not reach, and sample none silently.

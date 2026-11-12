@@ -423,7 +423,7 @@ otherwise-tagged DoD; `--line` mode accepts the same line with no leading `- `, 
 node's own string carries. The tag — slice ids (`01`, `01, 02`), store refs (`#667`, `#672, #673`), or the
 literal `scope` or `docs`, each standing alone (ADR 0161) — and any verdict note past it are parsed off the line's *right* end, greedily handing
 everything before that to the criterion, which is what keeps a criterion carrying its own " — "
-(`plan-contract.md`'s own worked example, "Reachable: none — entrance unchanged; … — scope") intact
+(`plan-authoring.md`'s own worked example, "Reachable: none — entrance unchanged; … — scope") intact
 instead of splitting at its first dash. An untagged criterion that merely ends in something shaped like a
 tag (`- [ ] Retries capped — 3`) offers a second reading alongside the rightmost-tag one — the whole line,
 untagged — and a line matches when either reading's criterion equals the `--match-file` text (triage #679); a genuinely
@@ -974,7 +974,7 @@ path, when that document is missing. A check that walks a directory reads whatev
 |-------|---------------|-------|
 | `reference` | every `references/*.md` path that `skills/`, `agents/`, or `references/` names exists | structural |
 | `heading-citation` | every "`<file>.md`'s `## Heading`" citation (heading level two to four) in `skills/`, `agents/`, or `references/` prose names a heading the cited file carries at that level, whitespace collapsed so a wrapped heading matches; a bare file name resolves in `references/`, then `agents/`, then the repository root, and a file that resolves nowhere is a finding too, except a `references/<name>.md` path, which the `reference` check reports. A section-map entry (a list item of a file name and its headings) counts as a citation of each heading it lists | structural |
-| `source-sections` | `plan-contract.md`, `test-selection.md`, `content-types.md`, `controlled-prose.md`, `review-checklist.md`, and `scope-branch.md`'s `## Pushing the scope branch`, and each agent body another file cites by heading, still carry each section a reader is sent to, by heading | structural |
+| `source-sections` | `plan-contract.md`, `plan-authoring.md`, `store-records.md`, `test-selection.md`, `content-types.md`, `controlled-prose.md`, `review-checklist.md`, `review-design-lenses.md`, `prompt-concept-overlap.md`, and `scope-branch.md`'s `## Pushing the scope branch`, and each agent body another file cites by heading, still carry each section a reader is sent to, by heading | structural |
 | `command-resolution` | every `/superdev:<name>` a skill or agent names has a `skills/<name>/SKILL.md` | structural |
 | `governed-skill-files` | every backticked path in `CONTEXT.md`'s **Prompt concept** entry, the list of governed skill files, names a file (ADR 0190) | structural |
 | `audit-set-globs` | `docs/agents/documentation.md` carries `## Audit set`, and every pattern listed there matches a file | structural |

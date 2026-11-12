@@ -28,7 +28,7 @@ Applies to the audit dispatch.
 
 Applies to the audit dispatch.
 
-Read `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`. Apply its `## Test cost` lenses and the three test lenses under `## Anti-patterns`. Every finding you return names one of these five.
+Read `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` and `${CLAUDE_PLUGIN_ROOT}/references/test-cost.md`. Apply the `## Test cost` lenses and the three test lenses under `## Anti-patterns`. Every finding you return names one of these five.
 
 | Category | Lens |
 |---|---|

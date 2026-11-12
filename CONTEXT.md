@@ -356,7 +356,7 @@ the scope review's fix loop or the full tier's per-slice loop at the moment it d
 the moment it meets an observation, and by `/superdev:plan` at the moment its interview places a found
 defect later. It is neither a slice nor a scope anchor, which is what keeps every run and every sweep from
 selecting it as work to build. How a given store expresses it is stated in that store's own
-`## Triage record` section, which specialises `plan-contract.md` → *Triage record* (ADR 0046). Every
+`## Triage record` section, which specialises `store-records.md` → *Triage record* (ADR 0046). Every
 writer reads the open records before it creates one: a record that plainly states the same defect gets a
 comment carrying the new finding, and no second record is created (ADR 0145).
 _Avoid: "draft issue" (no backend the plugin supports has a draft issue state outside GitHub's project
@@ -408,7 +408,7 @@ _Avoid: "test review" (review is the code-review family, and this one neither re
 **Execution playbook**: the linear, tier-specific procedure that runs a scope's whole `/implement` execution, start to finish. It is `references/implement-full.md` (full tier) or `references/implement-lite.md` (lite tier), computed and `Read` by the controller once the tier is known. Each playbook opens by reading `references/run-init.md` (run init) and closes by reading `references/run-handoff.md` (run handoff). The `/implement` command body therefore keeps config and input, the tier computation, the invariants, the model table, the issue-status map, and red flags. Control never returns to it once a playbook starts.
 _Avoid: "command" (the playbook is the file the command delegates to, not the command itself)_
 
-**Review checklist**: the shared file (`references/review-checklist.md`) naming concrete anti-patterns, vulnerability classes, design smells, a reuse-audit lens, a consistency lens (convention drift, cross-slice divergence, glossary drift), and a test-cost lens, read at dispatch time. `final-reviewer` applies every lens its own list names, `slice-reviewer` applies anti-patterns and vulnerability classes, and `test-auditor` applies the test lenses plus `## Test cost`, which only it reads because those two need a measured duration (ADR 0066). It follows the same shared-file-read-at-dispatch pattern as `Execution playbook`, one level down: a checklist of things to look for, not a procedure to follow.
+**Review checklist**: the shared file (`references/review-checklist.md`) naming the binding rules, concrete anti-patterns, and vulnerability classes, read at dispatch time, beside the lens files that only some reviewers read: `references/review-design-lenses.md` (design smells, a reuse-audit lens, a consistency lens with convention drift, cross-slice divergence, and glossary drift), `references/test-cost.md`, `references/test-gaps.md`, `references/review-coverage.md`, `references/fail-to-pass.md`, `references/untraced-writes.md`, `references/dependency-verification.md`, and `references/prompt-concept-overlap.md`. `final-reviewer` applies the checklist and the design lenses, `slice-reviewer` applies anti-patterns and vulnerability classes, and `test-auditor` applies the test lenses plus `test-cost.md`'s `## Test cost`, which only it reads because those two need a measured duration (ADR 0066). A reviewer reads `prompt-concept-overlap.md` only where the reviewed repository's `CONTEXT.md` defines **Prompt concept**. It follows the same shared-file-read-at-dispatch pattern as `Execution playbook`, one level down: a checklist of things to look for, not a procedure to follow.
 _Avoid: "checklist" alone (ambiguous with the DoD's own checklist), "linter rules" (it is read and reasoned about, not mechanically run)_
 
 **Sweep**: a read-only pass over a whole tree, where a review resolves a range. It is what finds a property of a pair — a redundant implementation, a fact stated twice — because the covering half lives wherever it lives and no range is guaranteed to contain it. `/superdev:sweep` is the chain-runner over four legs (code, docs, tests, config); `/superdev:review-tests` sweeps the test tree alone (ADR 0066, ADR 0068).
@@ -570,7 +570,7 @@ _Avoid: "the prompt" (ambiguous between the two halves)_
 
 - **Boundary.** It has a name, and its content clearly belongs to it.
 - **Encapsulation.** It reads without any sibling. A pointer to another concept is a reference, not content.
-- **No overlap.** No two sentences apply under the same condition and give the same instruction, in the body or in a reference section the body directs its reader to read. `review-checklist.md`'s `## Prompt-concept overlap` states the test and how a reviewer grades a pair (ADR 0170).
+- **No overlap.** No two sentences apply under the same condition and give the same instruction, in the body or in a reference section the body directs its reader to read. `prompt-concept-overlap.md`'s `## Prompt-concept overlap` states the test and how a reviewer grades a pair (ADR 0170).
 - **Effect.** It changes what the agent does or outputs. Rationale and history are not prompt concepts.
 - **Condition at the head.** When it applies is stated once, at its head.
 - **No conflict.** No two concepts instruct differently for one situation without a stated precedence.

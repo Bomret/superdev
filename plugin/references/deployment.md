@@ -1,7 +1,7 @@
 # Deployment
 
 A repository's deploy posture and its deploy targets: what `/superdev:ship` does with a feature's deploy
-targets once its pull request has merged (ADR 0101). `/superdev:plan` reads the targets table to ask what
+targets once its pull request has merged. `/superdev:plan` reads the targets table to ask what
 a feature deploys to; `/superdev:ship` reads the posture and runs (or prints) the targets a feature's
 anchor lists.
 
@@ -15,7 +15,7 @@ One of `none`, `manual`, or `auto`, for the whole repository — never one per t
 - **`auto`** — `/superdev:ship` runs each target's command itself, after the merge, in a tree checked out
   at the merge commit.
 
-**Only `/superdev:ship` ever runs a target's command, and only under the `auto` posture** (INV-0098). No
+**Only `/superdev:ship` ever runs a target's command, and only under the `auto` posture**. No
 other command, and no unattended run, deploys. `/superdev:setup` proposes `manual` as the default and
 never proposes `auto`: the operator picks `auto` themselves.
 

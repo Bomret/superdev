@@ -8,10 +8,10 @@ argument-hint: "[BASE..HEAD | branch | path | scope-slug | (empty, or the top-le
 
 Review a change end to end. §1 decides the mode.
 
-- **Ad-hoc**: a spot-check, a pre-PR pass, a second opinion on someone else's branch, or `/superdev:sweep`'s code leg under `--chained`. No plan stands behind it, and §3 keeps it read-only, except the inline fix the operator agrees to (ADR 0228).
-- **Scope**: the range is a live superdev scope branch, the whole-scope review gate of the implement chain (ADR 0013). It reviews against that run's Definition of Done, may drive the fix loop after asking once, and hands off to `/superdev:document`. `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md` owns everything that differs.
+- **Ad-hoc**: a spot-check, a pre-PR pass, a second opinion on someone else's branch, or `/superdev:sweep`'s code leg under `--chained`. No plan stands behind it, and §3 keeps it read-only, except the inline fix the operator agrees to.
+- **Scope**: the range is a live superdev scope branch, the whole-scope review gate of the implement chain. It reviews against that run's Definition of Done, may drive the fix loop after asking once, and hands off to `/superdev:document`. `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md` owns everything that differs.
 
-**The closing message.** Applies to every message this command ends on. Close it with the Next block per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in that file's `## The offer` section (ADR 0157).
+**The closing message.** Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The offer`.
 
 - A run under `--chained` prints no Next block.
 - An ad-hoc review's block names `/superdev:plan` where a Critical or Important finding or a failed focused run stands, the state after an inline fix included.
@@ -22,14 +22,14 @@ Review a change end to end. §1 decides the mode.
 **The config reads.** Applies to every run. Every file below is optional. A missing file costs the command only its hint.
 
 - `docs/agents/code-management.md` → the **base branch** to diff against, default `main`.
-- `docs/agents/verification.md` → the **test command**. The controller runs it and hands `final-reviewer` the result and never the command: §2's focused run states the ad-hoc run (ADR 0179).
+- `docs/agents/verification.md` → the **test command**. The controller runs it and hands `final-reviewer` the result and never the command: §2's focused run states the ad-hoc run.
 
 ## 1. Range
 
 **The flags.** Applies to `$ARGUMENTS` before any parsing. Neither flag is ever part of the range or the trailing description.
 
 - **`--unattended`** comes out first, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section.
-- **`--chained`** comes out the same way. It marks a run `/superdev:sweep` dispatched as its code leg, in the **chained posture** (CONTEXT.md, ADR 0068). The concepts below state what it changes.
+- **`--chained`** comes out the same way. It marks a run `/superdev:sweep` dispatched as its code leg, in the **chained posture** (CONTEXT.md). The concepts below state what it changes.
 
 **The parse.** Applies after the flags. Parse `$ARGUMENTS` into a **range** and an optional trailing description of what the change should do.
 
@@ -73,10 +73,10 @@ Review a change end to end. §1 decides the mode.
   - A branch a live run root names takes its range base instead, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`: `<range-base>..branch`.
 - **A path outside the checkout**: it exists on disk and `git ls-files -- '<path>'` exits non-zero, git reporting the path outside the repository.
   - It resolves to nothing: stop, name the argument, say it lies outside the checkout, and dispatch nobody.
-  - Git decides from the quoted input, so the test needs no path normalization (ADR 0150).
+  - Git decides from the quoted input, so the test needs no path normalization.
   - `..` or `../x` at the top level takes this shape. A path through `..` that stays inside the work tree (`../plugin` from a subdirectory) passes the test and takes the path shapes below.
-- **A path naming the checkout's top level** → the Empty shape, exactly as if no argument were given (ADR 0165, INV-0168).
-  - A path names the top level when both git calls succeed: `git -C '<path>' rev-parse --show-toplevel` prints the invoking checkout's own `git rev-parse --show-toplevel`, and `git -C '<path>' rev-parse --show-prefix` prints nothing. Compare the two strings as git prints them, with no path normalization (ADR 0150). Any non-zero exit means the path does not name the top level.
+- **A path naming the checkout's top level** → the Empty shape, exactly as if no argument were given.
+  - A path names the top level when both git calls succeed: `git -C '<path>' rev-parse --show-toplevel` prints the invoking checkout's own `git rev-parse --show-toplevel`, and `git -C '<path>' rev-parse --show-prefix` prints nothing. Compare the two strings as git prints them, with no path normalization. Any non-zero exit means the path does not name the top level.
   - Taking the Empty shape: `.` and `./` at the top level, the absolute top-level path, and a symlink to it.
   - Keeping the path shape: `.` from a subdirectory, any subdirectory, a submodule root, a nested repository, another linked worktree's root, the git directory, and a file.
 - **A path or area**: it exists on disk inside the checkout, is no ref, and does not name the top level.
@@ -95,7 +95,7 @@ Review a change end to end. §1 decides the mode.
 3. **Not under `--chained`** → run `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Resolving an empty argument` cascade over the run roots at stage `merged` or `documented-unreviewed`, the stages the chain hands to this review.
    - Its resolved candidate is a scope slug. Resolve its range as the scope-branch concept below states.
    - Several candidates still put the question, and block under `--unattended`, as `## Resolving an empty argument` states.
-   - **No candidate** → go on to step 4. This review adds step 3 after the shared cascade, so the cascade's own **No candidate** stop does not apply here (ADR 0165, INV-0077).
+   - **No candidate** → go on to step 4. This review adds step 3 after the shared cascade, so the cascade's own **No candidate** stop does not apply here.
 4. **Otherwise** → **standing code of the whole repository**: the files at `HEAD`, the standing-code shape applied to the top level.
    - Before any reviewer starts, the range announcement lists every run root with its stage (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Resolving an empty argument`, *Run-root enumeration*) and adds a `/superdev:review <scope-slug>` line for the operator who meant a run. A repository with no run root says so.
    - The review is ad-hoc, attended or unattended: no ledger write, no run lock, no fix loop.
@@ -135,7 +135,7 @@ Review a change end to end. §1 decides the mode.
 - **Subject**: the git range. On a standing-code target (§1's standing-code shape) hand the path and its file set at `HEAD` in place of a range, and derive the summary from that file set.
 - **Suite result**: the focused-run concept below hands it.
 
-**The focused run** (ADR 0179). Applies to every ad-hoc dispatch of `final-reviewer`. A scope review runs no focused run: `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md`'s `### 4.2 The suite gate` starts its full-suite run at entry (ADR 0192, ADR 0234). The bullets below decide which run an ad-hoc dispatch gets.
+**The focused run**. Applies to every ad-hoc dispatch of `final-reviewer`. A scope review runs no focused run: `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md`'s `### 4.2 The suite gate` starts its full-suite run at entry. The bullets below decide which run an ad-hoc dispatch gets.
 
 - **A test command is configured in `docs/agents/verification.md` and the subject's tip is the checked-out tree** → run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths>` once from the invoking checkout before the dispatch, and hand the reviewer that result labelled focused.
 - **Every test run** passes Bash's `timeout` at its ceiling, 600000 ms unless `BASH_MAX_TIMEOUT_MS` raises it, and runs in the foreground. A run that can outlast the ceiling runs in the background, and you wait for its end.
@@ -146,14 +146,14 @@ Review a change end to end. §1 decides the mode.
 
 **The `simplicity-reviewer` dispatch** (`model: sonnet`). Applies to every dispatch of `superdev:simplicity-reviewer`. Hand it the same git range. Its `## Scope of the review` owns the lens.
 
-**The warranted cut** (ADR 0228). Applies to every cut `simplicity-reviewer` recommends, in both modes. Warrant a cut only when it honours the rules the repository documents for itself: its `AGENTS.md` or `CLAUDE.md` files, its `docs/agents/` configuration, and its invariant register. A repository that documents none leaves the cut to your judgment alone. This is the rule `${CLAUDE_PLUGIN_ROOT}/references/implement-full.md` applies per slice.
+**The warranted cut**. Applies to every cut `simplicity-reviewer` recommends, in both modes. Warrant a cut only when it honours the rules the repository documents for itself: its `AGENTS.md` or `CLAUDE.md` files, its `docs/agents/` configuration, and its invariant register. A repository that documents none leaves the cut to your judgment alone. This is the rule `${CLAUDE_PLUGIN_ROOT}/references/implement-full.md` applies per slice.
 
 - **A warranted cut** joins the findings as a Minor finding. It blocks nothing on its own and still enters the fix set.
 - **A declined cut** is named in §3's report with the rule it would break, and enters no fix set.
 
 **The skip rules.** Applies to every review. Evaluate them in this order.
 
-- **A scope review** → `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md`'s `## 2. Review` decides a `full`-tier scope whose every slice is `behavior` first, and the rules below decide every other subject (ADR 0210).
+- **A scope review** → `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md`'s `## 2. Review` decides a `full`-tier scope whose every slice is `behavior` first, and the rules below decide every other subject.
 - **A standing-code target** (§1's standing-code shape) → `final-reviewer` alone, reporting `` not dispatched — standing code, no diff to review ``.
 - **A tiny diff** (a handful of lines) → `final-reviewer` alone.
 - **Nothing plausible to cut** (docs-only, or already lean) → skip `simplicity-reviewer`.
@@ -206,7 +206,7 @@ Reasoning: [1–2 sentences]
 - **Simplicity**: `simplicity-reviewer`'s `net: -N lines possible`, `net: +N lines possible`, or `Lean already`. A reviewer not dispatched reads `not dispatched — <reason>`, naming the skip rule that applied (for example `not dispatched — standing code, no diff to review`).
 - **A scope review's** combined verdict also follows `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md`'s `## 3. Report`.
 
-**The inline-fix gate** (ADR 0228). Applies to an ad-hoc review once its report is out. Offer the inline fix only when every condition below holds.
+**The inline-fix gate**. Applies to an ad-hoc review once its report is out. Offer the inline fix only when every condition below holds.
 
 - The run is attended, with neither `--chained` nor `--unattended`.
 - No Critical or Important finding stands.

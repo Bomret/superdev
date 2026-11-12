@@ -84,12 +84,15 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          Confluence storage), and `kb-staging.js`, `kb-backend-config.js`,
                          `kb-staged-page.js`, `kb-backend.js`, `kb-apply.js`, `kb-parent-link.js`,
                          `kb-containment.js`, `kb-read.js`, `kb-report.js` (the parts of `publish-kb.js`).
-  references/          — backend seed templates + the non-seed runtime references (plan-contract,
+  references/          — backend seed templates + the non-seed runtime references (plan-contract with
+                         plan-authoring and store-records,
                          documentation convention, controlled-prose, content-types, doc pass, run init,
                          run handoff, execution playbooks, test-selection, scope-mode with its split files scope-branch,
                          run-state, scope-findings, and shipped-run, authoring
                          disciplines, intent handoff, prior-art audit, design sketch, diagnosis, prototype, merge-conflicts,
-                         review-checklist, review-scope-mode, review-inline-fix, dod-ticks, response-shapes); its own AGENTS.md routes them
+                         review-checklist with its split lens files (review-design-lenses, review-coverage, fail-to-pass,
+                         untraced-writes, dependency-verification, prompt-concept-overlap, test-cost, test-gaps),
+                         review-scope-mode, review-inline-fix, dod-ticks, response-shapes); its own AGENTS.md routes them
   scripts/             — the runtime CLIs: `scope.js`, `kb-patch.js`, `publish-kb.js`
   LICENSE · NOTICE     — copies of the root files, so the shipped tree carries its own attribution
 tests/                 — one suite per shipped executable (the hooks, `scope.js`, `kb-patch.js`,
@@ -257,7 +260,8 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
     [`CONTEXT.md`](CONTEXT.md) → *Prompt concept* and *Main sentence*, and in ADR 0169 and ADR 0190.
     The glossary's *Prompt concept* entry lists the governed skill files. An edit to `plugin/agents/`
     or to a listed file keeps every concept's invariants. A review checks the **No overlap** invariant with the test and grades in
-    `references/review-checklist.md`'s `## Prompt-concept overlap` (ADR 0170).
+    `references/prompt-concept-overlap.md`'s `## Prompt-concept overlap` (ADR 0170). A reviewer reads that file only
+    where the reviewed repository's `CONTEXT.md` defines **Prompt concept**.
   - **Prose states no count of a growing set.** "The eight shipped hooks" reads as a fact and is a
     hostage: adding a hook makes it false in every document repeating it, and nothing fails. Name the
     set, or name its members, and keep a numeral only where the number is the fact — a cap, a
@@ -417,7 +421,7 @@ This root owns every other subtree directly:
   as an intent record: a cost audit, sweeping the whole test tree in one `test-auditor` dispatch and measuring it
   through the repo's optional timing command (ADR 0066), and a gap audit, reading the source set
   `scope.js source-set` prints in directory batches, one `test-gap-auditor` dispatch each, in parallel,
-  with the `## Test gaps` lens of `references/review-checklist.md` that only that agent reads (ADR 0162,
+  with the `## Test gaps` lens of `references/test-gaps.md` that only that agent reads (ADR 0162,
   INV-0163), and sweep chains `/superdev:review`,
   `/superdev:document audit`, `/superdev:review-tests`, and `/superdev:setup check` over a whole
   repository into one merged, ranked report and a single plan-ready intent record, every leg dispatched

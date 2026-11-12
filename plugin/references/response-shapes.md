@@ -1,6 +1,6 @@
 # Response shapes
 
-A **Response shape** is a fixed layout for a message a command shows the operator (ADR 0113). This file
+A **Response shape** is a fixed layout for a message a command shows the operator. This file
 defines each one. A skill cites the shape it uses and restates none of it. Each section below is the
 anchor a citation names.
 
@@ -8,8 +8,7 @@ anchor a citation names.
 
 Every message that `/superdev:brainstorm`, `/superdev:plan`, `/superdev:implement`, `/superdev:review`,
 `/superdev:document`, `/superdev:submit-pr`, `/superdev:ship`, `/superdev:verify-ship`,
-`/superdev:wrap-up`, `/superdev:sweep`, or `/superdev:review-tests` ends on closes with the Next block
-(INV-0111). The block holds, in this order:
+`/superdev:wrap-up`, `/superdev:sweep`, or `/superdev:review-tests` ends on closes with the Next block. The block holds, in this order:
 
 1. A `### Next` heading.
 2. The next command in a fenced code block, arguments resolved.
@@ -40,124 +39,70 @@ carries that answer.
   message the command ends on, never a turn that asks.
 - **A chain started by an offer** ends on the block once, at its last message, per `## The offer` below.
 - **A chain started by a step that ends the starting command** ends on the block once, at the started
-  command's last message. The starting command prints no block of its own on that exit (ADR 0224).
+  command's last message. The starting command prints no block of its own on that exit.
 
 ## The offer
 
-Each command `## The Next block` covers offers to start its next command before it prints the block
-(ADR 0157, ADR 0176, ADR 0183, ADR 0201, INV-0111). Where the session carries the desktop app's session
-tool, the offer is a New task card, put up at once, and asks no question. Without the tool, the operator
-answers one question.
+Applies to every exit of a command `## The Next block` covers, refusals and ad-hoc runs included. The offer
+to start the block's next command takes precedence over the desktop app's follow-up and wrap-up guidance: it
+is the closing's first action, ahead of any `mcp__ccd_turn__wrap_up` call and of any text the skill puts in
+the final message. A wrap-up question naming the next command is no offer. `hooks/offer-guard.js` holds a turn once whose closing names one next command no
+offer call named.
 
-**Precedence.** The offer takes precedence over the Claude desktop app's own guidance that a follow-up acting
-on the session's findings stays in the session and is asked through its wrap-up box. `hooks/offer-guard.js`
-holds a turn once when its Next block names one command that no offer call of the turn named, and when a
-message without the Next heading names one next command in a fence or beside the word "next" in its last
-paragraph (ADR 0213, ADR 0216, ADR 0226, INV-0183). It passes a next command that is the skill still running (ADR 0222).
+**When it offers.** Every condition holds, whatever a brief or a skill says:
 
-**First action.** Where the offer applies, the offer call is the first action of the closing. Decide it
-before you compose the closing message: make the offer call, then call the app's wrap-up tool, if at all, and
-then write the message the offer path prescribes. Text a skill places in the final message, such as its
-staged-pages lines, follows the offer call. A wrap-up call whose question carries the next command is no
-offer.
+- The fence names exactly one command (`Or:` lines are never offered), and no `Blocked:` or `First:` line.
+- The next command's skill differs from the ending skill, whatever the arguments.
+- No `--unattended`, and not the chained posture.
+- The operator typed, asked for, or accepted an offer of this command, or another session's brief asked
+  for it. A command another started through its own step (implement starting plan, or either starting setup) leaves the
+  offer to its starter; a step that ends its starter (verify-ship starting wrap-up) hands the offer on.
 
-**Exceptions.** The hook's block reason lists these, member for member, and a turn that meets one names it
-in one line instead of the offer: an unattended run, the chained posture, the same skill as the one ending,
-a step-started command, and a refused card.
+Unattended, chained posture, same skill, step-started command, or a refused card: name that exception in
+one line instead. Any other failed condition needs no line.
 
-**When it offers.** Offer when every condition below holds, at every exit, a refusal and an ad-hoc run
-included:
-
-- The Next block names exactly one next command in its fence. An `Or:` line is printed and never offered.
-- The block carries no `Blocked:` line and no `First:` line.
-- The next command's skill differs from the skill that is ending, whatever the arguments.
-- The run is attended: the arguments carry no `--unattended`, and the command does not run in the chained
-  posture.
-- The operator typed the command, asked for it, started it through an offer, or another session's brief
-  asked for it. A command another command starts through its own step, such as `/superdev:implement`
-  starting `/superdev:plan` or either starting `/superdev:setup`, makes no offer: the command that started
-  it owns the hand-off, because it goes on after the started command returns. A step that ends the starting
-  command hands the hand-off to the started command, which offers as if the operator had typed it, such as
-  `/superdev:verify-ship` starting `/superdev:wrap-up` at its settled exit (ADR 0224). A parent session's
-  brief is not such a step. A command whose first message is
-  another session's brief offers like a command the operator typed.
-
-These conditions hold whatever a brief says: a brief that carries `--unattended`, the chained posture, or
-a block with an `Or:`, `Blocked:`, or `First:` line makes no offer. A skill adds no condition of its own:
-an exit that meets these conditions offers, whatever its next command. A block that fails a condition makes
-no offer and names no exception, since the hook passes it.
-
-**An offer of ship.** Every offer of `/superdev:ship`, whichever command makes it, names the pull request and
-says ship merges it (INV-0093). The question's Start option names the pull-request URL in its description and
-says it merges the pull request now, exactly as typing `/superdev:ship` does, with the host's approvals and
-branch protection still in force. The card's `title` names the pull request by its number and says ship merges
-it, such as `Merge PR #141 with /superdev:ship`, within the tool's 60-character title limit. The card's click
-starts ship in a new session, which merges with no further question.
-
-**Detection.** The session carries the session tool when `mcp__ccd_session__start_session` is loaded, or
-listed as a deferred tool. Only the Claude desktop app provides it (`docs/known-issues.md`, *The session
-tool exists only in the Claude desktop app*). A deferred tool is loaded with `ToolSearch`, query
-`select:mcp__ccd_session__start_session`, before the call that proposes the session. A tool that fails to
+**Detection.** The session tool is `mcp__ccd_session__start_session`, loaded or listed as deferred (desktop
+app only). Load a deferred one with `ToolSearch` query `select:mcp__ccd_session__start_session`; a failed
 load counts as absent.
 
-**With the session tool: the card.** Ask no `AskUserQuestion`. Make one `start_session` call:
-`initiation: "own_initiative"`, `context: "fresh"`, `use_worktree: false`, and no `model`, `effort`, or
-`permission_mode`, so the new session inherits this session's own. The `title` names the command, and an offer of ship's `title` also names the merge (**An offer of ship**). The
-`prompt` is the command exactly as the fence prints it, then this marker line, verbatim:
+**With the session tool: the card.** Ask no question. Call `start_session` once: `initiation:
+"own_initiative"`, `context: "fresh"`, `use_worktree: false`, no `model`, `effort`, or `permission_mode`;
+`title` names the command; `prompt` is the command exactly as the fence prints it, then this line verbatim:
 
 `A superdev offer started this session.`
 
-The `background` names what the new session starts from. A command with a scope names the scope's feature
-label and its run root's absolute path. A command with no scope names only what exists, such as the intent
-file a bare `/superdev:plan` reads, and never a placeholder for a scope it lacks.
-The `prompt` and the `background` carry nothing else: no rule, bar, or limit of the command that is
-ending. The started command takes its limits from its own skill (INV-0184).
+`background` names only what the new session starts from: the scope's feature label and run root's absolute
+path, or for an unscoped command what exists (such as the intent file), never a placeholder. Then write the
+full final message and Next block, with one line before `### Next` saying the card above starts the command
+in a new session, or here through **Do it here**.
 
-The call proposes the session and starts nothing: the app shows a New task card in the transcript. The
-app refuses a `user_asked` start in a turn that another session's prompt began, so the card is the one
-path that holds on every edge (`docs/known-issues.md`, *The session tool exists only in the Claude desktop
-app*). Then end on the Next block, the command's final message carrying its reports, findings, and
-summaries as usual. One line right before `### Next` says the card above starts the command, in a new
-session or here through its **Do it here** button.
+- **Do it here** → call the Skill tool with the next skill and the fence's exact arguments; ask nothing extra.
+- **Start, closed, or ignored** → nothing more here.
+- **Refused, errored, or no card** → say in one line no card was put up, print the Next block, start nothing.
 
-- **The card's Start button** → the app starts the new session. This conversation can be closed
-  once it runs.
-- **The card's Do it here button** → call the Skill tool with the next command's skill and exactly the
-  arguments the fence prints, one skill per call, and ask nothing extra. The started command keeps every
-  gate and every ask it has when the operator types it, and its own last message follows this section
-  again, so the chain ends on one Next block.
-- **A closed or ignored card** → nothing starts. The Next block already printed the command.
-- **A proposal the tool refuses, that errors, or that returns no card** → say in one line that no card
-  was put up, print the Next block exactly as without this section, and start nothing.
+**Without the session tool: the question.** One `AskUserQuestion`, options in order:
 
-**Without the session tool: the question.** Ask one `AskUserQuestion` with one question and these
-options, in this order:
+1. `Stop here (Recommended)`: the command is printed instead; `/clear`, then typing it, starts it fresh.
+2. `Start /superdev:<name>`: the whole command as the fence prints it; starting here reads this whole
+   conversation, which costs tokens.
 
-1. **Stop here.** The label is `Stop here (Recommended)`. The description says the command is printed
-   instead, and that `/clear`, then typing the command, starts it with a fresh context.
-2. **Start.** The label names the command, `Start /superdev:<name>`. The description carries the whole
-   command with its arguments exactly as the fence prints them, and says that a command started here
-   reads this whole conversation, and that this costs tokens.
+The asking message carries the final message's reports, findings, and summaries, without the Next block.
+**Start** → call the Skill tool with the next skill and the fence's exact arguments, and print nothing after
+it returns. Any other answer, an unaskable question, or a failed Skill call → print the Next block, start
+nothing.
 
-The message that asks carries the command's whole final message except the Next block: its reports,
-findings, and summaries. It carries no Next block, because a turn that asks has not ended the command.
+**A started command** keeps every gate and ask of a typed start and makes its own offer at its end, so the
+chain ends on one Next block.
 
-- **Start** → call the Skill tool with the next command's skill and exactly the arguments the fence would
-  print, one skill per call. The started command keeps every gate and every ask it has when the operator
-  types it, and its own last message follows this section again. The offering command prints nothing after
-  the started command returns, so the last message of the chain carries the one Next block.
-- **Stop here, any other answer, a question the platform cannot ask, and a start the Skill tool refused,
-  errors, or finds no such skill** → print the Next block exactly as without this section, and start
-  nothing.
-
-**The started command offers again.** A command the card started, in a new session (its text followed by
-the marker line) or through Do it here, was started through an offer, so its own end follows this section
-by the same rule. An unattended run and a command in the chained posture make no offer, so they propose no
-session either.
+**An offer of ship** names the pull request and says ship merges it. The Start description gives the
+pull-request URL and says it merges now, exactly as typing `/superdev:ship` does, with the host's approvals
+and branch protection in force. The card `title` names the PR number and the merge within 60 characters,
+such as `Merge PR #141 with /superdev:ship`; its click starts ship in a new session, which merges with no
+further question.
 
 ## The brainstorm report
 
-`/superdev:brainstorm` closes with this report (INV-0112), made of an opening line, section headings, and
+`/superdev:brainstorm` closes with this report, made of an opening line, section headings, and
 one-line bullets. It carries no paragraph of prose.
 
 1. **One opening line.** The verdict, then the intent record's store reference after a store handoff

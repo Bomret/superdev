@@ -1,11 +1,11 @@
 # Test selection
 
-The rule that picks between the full test command and the focused one (ADR 0025, ADR 0074). Every prose caller
+The rule that picks between the full test command and the focused one. Every prose caller
 reads this file at runtime, the same shared-file-read-at-dispatch pattern as `references/scope-mode.md`.
 
 ## The two commands
 
-`docs/agents/verification.md` carries two fenced code blocks in every repository with a suite (ADR 0085).
+`docs/agents/verification.md` carries two fenced code blocks in every repository with a suite.
 A repository with no suite at all carries no such file.
 
 - **The full command** is the first fenced block. Run it verbatim.
@@ -16,7 +16,7 @@ A repository with no suite at all carries no such file.
   beside it stating why. A second fenced block is **only ever** the focused command — never a watch
   command, a coverage command, or sample failure output.
 
-**Run the full, focused, or whole-repo command through `scope.js test`** (ADR 0127). From the tree the
+**Run the full, focused, or whole-repo command through `scope.js test`**. From the tree the
 work lives in, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full`, `test focused [<path>…]`, or
 `test whole`, and `test path <file>... -- <command>` for a direct run of the test files it names. The runner runs the configured command
 as configured, and `test path` runs its command as given from the current directory, and records one run line with the command's own exit status, however the caller pipes,
@@ -43,11 +43,11 @@ character at least as long as the opener. A fence that never closes holds no blo
 
 ## Affected form
 
-The full command may take an **affected form** (ADR 0105): instead of running the whole suite verbatim,
+The full command may take an **affected form**: instead of running the whole suite verbatim,
 it selects through the repository's dependency-graph tool the changed projects and every project
 depending on them, dependents included, and runs each selected project's whole suite using nx, turborepo,
 pnpm, or dotnet-affected. It never selects fewer projects than the change can break: a change the graph
-cannot attribute to one project selects every project. It exits green when the change reaches no project, it selects at least one project on a change that touches one, and its target exists on the selected projects. `/superdev:setup` checks the second and third through read-only tool queries, and the operator confirms the first from the tool's docs, before it writes the form. Setup runs no test command and never starts the form (ADR 0189).
+cannot attribute to one project selects every project. It exits green when the change reaches no project, it selects at least one project on a change that touches one, and its target exists on the selected projects. `/superdev:setup` checks the second and third through read-only tool queries, and the operator confirms the first from the tool's docs, before it writes the form. Setup runs no test command and never starts the form.
 
 Selection by path prefix does not qualify — a change to a shared library reaches every project that
 depends on it, and a prefix match over changed paths cannot see that dependency. Only the repository's
@@ -64,18 +64,18 @@ repository configures one only together with an affected form.
 - **Its command lives in a backtick span**, per the rule above — a fenced block would land in the
   focused slot the same way the timing command's would, and every caller would then run it as the
   focused command.
-- **`/superdev:submit-pr`, `/superdev:ship`, and a scope review read it** (ADR 0105): submit-pr runs it
+- **`/superdev:submit-pr`, `/superdev:ship`, and a scope review read it**: submit-pr runs it
   once on the scope branch's tip before opening the pull request and reuses a green `whole` record of that
   tip instead, ship runs it on a tip that carries no green `whole` record, and a review entered while the suite record reads red of kind `whole` runs it at its exit run in place
   of the full command.
 - **An absent section leaves the full command as the whole suite**, and every caller unaffected. submit-pr
   then runs ship's plain reuse check, which runs no test, and routes a tip ship would refuse to
-  `/superdev:review` (ADR 0230).
+  `/superdev:review`.
 
 ## Prepare command
 
 An optional **`## Prepare command`** section, holding the one shell command that makes a new worktree of the
-repository ready to run its tests, such as an install of its dependencies (ADR 0218). A new worktree holds the
+repository ready to run its tests, such as an install of its dependencies. A new worktree holds the
 tracked files only, so a repository whose tests need installed dependencies states this command.
 
 - **Three states.** The section's first backtick span is the command. The span `` `none` ``, or with no span a line
@@ -89,7 +89,7 @@ tracked files only, so a repository whose tests need installed dependencies stat
   signal, cannot start, or changes a tracked file exits 3.
 - **`scope.js fail-to-pass` runs it** in its own worktree before each of its two runs, reading the tip's
   `verification.md` once. The clean between the runs keeps every path the first preparation wrote, so a command
-  that skips work already done prepares the second run fast (ADR 0234). A reused control skips the first one. A preparation that fails, is ended by a signal, cannot start, or changes a tracked file
+  that skips work already done prepares the second run fast. A reused control skips the first one. A preparation that fails, is ended by a signal, cannot start, or changes a tracked file
   makes the outcome `unknown`, with a `prepare=` reason.
 - **The reuse gate.** `scope.js fail-to-pass` takes a passing control from the run trace only where the tip states
   a command or `none`, because only then does its worktree hold what the tree that recorded the control held. With
@@ -106,7 +106,7 @@ cost: per-test durations where the runner gives them, total wall clock otherwise
   focused slot of a repository that has not yet recorded a focused command, hiding the missing
   configuration, and every caller would then run the timing command as the focused command.
 - **A test audit is its only reader.** `/superdev:review-tests` runs it to rank its findings by
-  measured cost (ADR 0066). Nothing in the implement loop reads it.
+  measured cost. Nothing in the implement loop reads it.
 - **An absent section leaves the audit `unmeasured`**, ranking by judgment instead, and every other
   caller unaffected. A repository states the reason it configures none as prose beside the section's
   absence.
@@ -115,7 +115,7 @@ cost: per-test durations where the runner gives them, total wall clock otherwise
 
 An optional **`## Test paths`** section of `docs/agents/verification.md`, listing the glob patterns that
 name the repository's test files. `hooks/run-trace.js` reads it to class each recorded edit as `test` or
-`impl` (ADR 0117), from the tree the edit lands in.
+`impl`, from the tree the edit lands in.
 
 - **Its entries are an unfenced list**, per the rule above: one pattern per list item, optionally in a
   backtick span. A fence would land in the focused slot.
@@ -133,7 +133,7 @@ name the repository's test files. `hooks/run-trace.js` reads it to class each re
 Where the focused command contains the token `{paths}`, substitute the shell-quoted changed-path set
 for it. The caller passes the paths to the runner as arguments (`scope.js test focused <changed paths>`),
 and the runner substitutes them; a `test focused` with no paths runs the full command and records `full`, and an empty path argument is refused. Pass each path as its own argument: an argument that holds whitespace and names no
-file is a joined path list, and is refused (ADR 0217).
+file is a joined path list, and is refused.
 **A `{paths}` form belongs to a runner that maps a source file to the tests covering it** — for
 example `vitest related` or `jest --findRelatedTests`. The changed-path set holds source files and prose
 alongside tests, and a runner without that mapping collects nothing from them. Such a form also carries
@@ -156,7 +156,7 @@ own argument parsing.
 ## Complete selector
 
 An optional **`## Complete selector`** section of `docs/agents/verification.md` declares that the focused
-command, given the changed-path set, selects every test any changed path can affect (ADR 0175). It takes
+command, given the changed-path set, selects every test any changed path can affect. It takes
 effect only where the focused command carries `{paths}`. It may list the selector's own files as list items
 (marker `-`, `*`, `+`, or an ordered `1.`), one path from the repository root in the item's first backtick span (text after the span is a comment). A listed path covers itself and every path under it, a trailing `/` being optional. The heading is read outside code fences,
 and the section runs to the next heading of level 2 or above:
@@ -196,18 +196,18 @@ ancestor A carries to T when the run trace backs A, every path changed in A..T e
 at T, `docs/agents/verification.md` carries the same run configuration at A and at T, no full, whole, path, or
 focused run recorded at T failed, and the latest run recorded at T does not read `unknown`. It needs no test run
 at T, and a passing run on a dirty tree refuses nothing. A `verification.md` git cannot read at either commit
-refuses (ADR 0128, ADR 0189, ADR 0230).
+refuses.
 
 Under the section, the two carries chain once. A green record at A carries to T when some commit M on the ancestry
 path from A to T takes the complete-selector carry from A, judged at M, and M..T takes the Markdown-only carry,
 judged at T. Each leg compares the run configuration at its own two commits. A gate that reached M by carry leaves the record at A, so a doc pass's Markdown commits after M carry
-with no test run at T (ADR 0189).
+with no test run at T.
 
 ## The carry run
 
 Every gate whose `scope.js suite reusable` call refuses the tip takes the carry before it runs the full command
-or refuses (ADR 0175, ADR 0194): review's exit run, ship's plain gate and whole-repo gate (§3), and ship's
-moved-base gate and push gate (§4). Implement runs no full suite (ADR 0192). Each gate cites
+or refuses: review's exit run, ship's plain gate and whole-repo gate (§3), and ship's
+moved-base gate and push gate (§4). Implement runs no full suite. Each gate cites
 this section and runs the steps in order, after its own `scope.js suite reusable` call refuses the tip:
 
 1. **Check the preconditions.** `scope.js get suite --root <run-root>` prints a green record at a commit A,
@@ -236,7 +236,7 @@ judges its own tip from A.
 ## The recorded rerun
 
 A full run at the tip T that fails in one test file, under the `## Complete selector` declaration, counts
-green once the rerun below is recorded and passed (ADR 0172). Every gate that records a failed full run
+green once the rerun below is recorded and passed. Every gate that records a failed full run
 cites this section and runs the steps in order, once per tip:
 
 1. **Attribute the failure.** Read the failed run's own output. It names exactly one test file → go on. It
@@ -248,7 +248,7 @@ cites this section and runs the steps in order, once per tip:
    `scope.js suite rerun <test-file> <triage-ref> --root <run-root>` from the checkout at the tip. The verb
    refuses a tip that already carries a rerun record: a second failure at the tip stays red.
 4. **Run the file alone.** `scope.js test path <file> -- <command running only that file>` at the tip on a clean tree,
-   from the tree root (ADR 0232), through the runner so the trace records it. A failing or dirty rerun stays red.
+   from the tree root, through the runner so the trace records it. A failing or dirty rerun stays red.
 5. **Run the focused command over the scope's range.** `scope.js test focused <paths>` over every path
    `git diff --name-only --no-renames <range-base> <tip>` lists, at the tip on a clean tree. The range base
    is what `scope.js base resolve --branch <branch> --base <base> --root <run-root>` prints, `<base>` being
@@ -268,11 +268,11 @@ The `red` record at T also counts at a later tip U when T is an ancestor of U, e
 judged at T, and T..U passes the Markdown-only rule of `## Complete selector`, judged at U: every path changed
 ends in `.md`, none is a test path at U, `docs/agents/verification.md` carries the same run configuration at T and
 at U, no full, whole, path, or focused run recorded at U failed, and the latest run recorded at U does not read `unknown`. A doc pass's Markdown commits
-after a gate that passed on the rerun so need no test run at U (ADR 0189).
+after a gate that passed on the rerun so need no test run at U.
 
 ## A fix cycle's runs
 
-Review's fix loop runs no test inside a cycle (ADR 0182). The cycle's implementer runs
+Review's fix loop runs no test inside a cycle. The cycle's implementer runs
 the tests that verify its fix and its fail-to-pass run over the cycle's commits, and the re-review reads those runs
 from the run trace. The loop's exit full-suite run is the gate the stage advances on.
 
@@ -284,29 +284,28 @@ Each caller judges its own range and builds the set from it:
   `## The carry run`.
 - **The implementer's TDD loop, and the lite tier's inline loop.** Each failing-test or passing-test step runs
   the test files it works on through `scope.js test path <file>... -- <command>`, a runner filter allowed, and never
-  through the focused command (ADR 0232). Once the work is committed, one `scope.js test focused <paths>` runs over the
+  through the focused command. Once the work is committed, one `scope.js test focused <paths>` runs over the
   whole changed-path set: the slice base against the working tree, or `<cycle-base>..HEAD` on a fix cycle. It runs
   before the fail-to-pass run. The last run before that verb is a `test path` run of the range's test files from the
-  tree root, at the committed tip, with the verb's exact command, which the verb reuses as its first run (ADR 0234). A focused
+  tree root, at the committed tip, with the verb's exact command, which the verb reuses as its first run. A focused
   failure is a RED step: fix, commit, and run the focused command again. A step that works on no test file runs
   that focused command over the whole set. A focused command with no `{paths}` token runs verbatim, and the run
-  trace records every run either way (ADR 0139). Every loop run passes at least one path, or runs test files
+  trace records every run either way. Every loop run passes at least one path, or runs test files
   through `test path`, so the loop runs only the tests that verify the work. `test full`,
-  `test whole`, and a `test focused` with no path run only at the scope review's and ship's gates (ADR 0177, ADR 0192).
+  `test whole`, and a `test focused` with no path run only at the scope review's and ship's gates.
   Where the focused fence repeats the full fence, `test focused` runs the whole suite whatever paths it gets. There
   each step runs each test file it works on through `test path`, and the loop makes no whole-set run: neither the
-  committed-work run nor a step that works on no test file runs, because the scope review's exit run covers that work
-  (ADR 0180, ADR 0192). The fail-to-pass run still runs (ADR 0182).
+  committed-work run nor a step that works on no test file runs, because the scope review's exit run covers that work. The fail-to-pass run still runs.
 - **The documentation step.** None: the step runs no test command and builds no set. `scope.js suite reusable`
-  carries a green record across Markdown-only commits with no test run at the tip (ADR 0128, ADR 0189,
+  carries a green record across Markdown-only commits with no test run at the tip (ADR 0189,
   INV-0017), so the doc commits need none. Where the record stays at an earlier commit because review reached
   its tip by the complete-selector carry, the record carries through that tip to the doc commits, per
   `## Complete selector`. Where review's gate passed on `## The recorded rerun`, the `red` record at that tip
   counts at the doc commits too, per that section.
 - **The `scope.js fail-to-pass` verb.** Its caller hands it the command, written to run every test file the range
   adds or modifies in whatever form the runner selects them: `cargo test --test foo`, `dotnet test --filter Orders`,
-  or one runner per package in a monorepo (ADR 0182). The verb reads none of its words, and the outcome line records it
-  for the reviewer (ADR 0188). Every path changed in `<base>..<tip>`, with a rename split into its old and its new
+  or one runner per package in a monorepo. The verb reads none of its words, and the outcome line records it
+  for the reviewer. Every path changed in `<base>..<tip>`, with a rename split into its old and its new
   path (`--no-renames`), decides what the second run puts back. The test paths come from the tip's own
   `docs/agents/verification.md`, never a working tree's. The verb refuses an empty range, so the fallback
   below never applies to it.
@@ -325,7 +324,7 @@ One condition falls back to the full command instead of the focused one:
 ## Stop on a missing focused command
 
 `docs/agents/verification.md` carrying exactly one fenced block records a repository whose focused
-command was never configured (ADR 0085, INV-0007). A prose caller finding one fenced block reports the
+command was never configured. A prose caller finding one fenced block reports the
 missing configuration and names `/superdev:setup`, running no command. `/superdev:plan` and
 `/superdev:implement` already auto-invoke `/superdev:setup` on missing configuration, so this case is
 unreachable once a repository has been configured. A `verification.md` carrying **zero** fenced blocks —

@@ -93,7 +93,7 @@ A **load-bearing commitment** arrives as a principle — a sentence about how th
 rule with a subject. "The record is why this is a binary and not `curl`" is a rationale and belongs in no
 register; the rule under it, *every call that reaches the service writes a record*, is an entry with a
 `Breaks: silently` and a test. Convert before you record, and ask what later decision the commitment
-constrains (ADR 0081):
+constrains:
 
 - **A rule about how the work is done** — how acceptance criteria are written, what a review must cover,
   when a test is required — is an **authoring rule**. Name it out loud as one, and record it nowhere: this
