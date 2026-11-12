@@ -107,9 +107,11 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
   test-path changes are not all deletions (ADR 0196), run
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <base>..<tip> -- <command>` from the scopetree first, the
   command naming every test file the range adds or modifies, while the slice is still `in-progress`, so the trace line
-  names the slice (ADR 0182). The verb's first run is the slice's last GREEN run of those test files: commit the GREEN code
-  and run the verb in place of another run of them, and a first run that does not pass is a RED step. A passing run of
-  them through `scope.js test path` at the committed tip is the first run, and the verb runs only the second (ADR 0215). A range whose test-path changes are all deletions and that adds behaviour outside the
+  names the slice (ADR 0182). The verb's first run is the slice's last GREEN run of those test files, made in the scopetree:
+  once the work is committed and its focused run passed, run `scope.js test path <each of those files> -- <command>` from
+  the tree root, with the exact command the verb then takes. That passing run at the committed tip is the verb's first
+  run, so the verb runs only the second and skips its own first preparation (ADR 0215, ADR 0234). A run that does not
+  pass is a RED step. A range whose test-path changes are all deletions and that adds behaviour outside the
   test paths leaves that behaviour with no test: write one for it, then run the verb. The verb runs in the background when
   two runs of the range's test files can outlast the ceiling, and you wait for its end before you read its outcome
   (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`). The verb runs the command twice in a

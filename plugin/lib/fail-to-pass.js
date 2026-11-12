@@ -96,6 +96,15 @@ function reusableControl(runRoot, tip, testFiles, command, top) {
   return found;
 }
 
+// The paths a `git clean -ndx` listing (`core.quotePath=false`) says it would remove, each as git printed it, a directory with
+// its trailing `/`. A name git still quotes, one holding a control character, is left out, so the clean takes it.
+const preparedPaths = (r) => (r.status !== 0 ? [] : r.stdout.split('\n')
+  .filter((l) => l.startsWith('Would remove ')).map((l) => l.slice('Would remove '.length)).filter((p) => p && !p.startsWith('"')));
+
+// An exclude pattern for `git clean -e` that matches the one path `p` from the tree root: anchored by a leading `/`, every
+// glob character and trailing space escaped. `-x` drops the standard ignore rules and keeps the `-e` ones.
+const excludePattern = (p) => '/' + p.replace(/[\\*?[]/g, '\\$&').replace(/ +$/, (sp) => sp.replace(/ /g, '\\ '));
+
 // Makes `.superdev/` ignored for the repository whose main working tree is `main`, through the `info/exclude` of its common git
 // dir, so no file of the checkout changes (`ensureSuperdevIgnored` writes the checkout's own `.gitignore`, which this verb never
 // does). A repository that ignores it already, by any rule, is left alone.
@@ -245,6 +254,9 @@ async function verbFailToPass(cwd, args) {
     if (reused) process.stderr.write(`fail-to-pass: control reused from the run trace line of ${reused.ts}\n`);
     const unprepared = reused ? null : await prepare();
     if (unprepared) return record('unknown', `prepare=${unprepared}`);
+    // What the preparation wrote outside the tracked files, such as installed dependencies, read before the control runs: the
+    // clean below keeps it, so the second preparation finds it in place, and a command that skips work already done runs fast.
+    const kept = reused || prep.state !== 'command' ? [] : preparedPaths(git(['-c', 'core.quotePath=false', 'clean', '-ndx']));
     // Only a control that passed gives the second run a meaning (INV-0139); a control that did not pass records `unknown`,
     // and the second run never starts.
     const [sha0, tree0] = treeState(dir);
@@ -265,12 +277,13 @@ async function verbFailToPass(cwd, args) {
     // A control the bound ended carries no verdict whatever exit status it reports (INV-0009), and the second run never starts.
     if (control.expired) return record('unknown', `control=${status(control)},bound=${controlBound}ms`);
     if (control.code !== 0) return record('unknown', `control=${status(control)}`);
-    // The second run sees the base's files outside the test paths, the tip's test files, and nothing the control run left:
-    // a tracked file it changed (`reset --hard` to the tip), an untracked or ignored one it wrote (`dist/`, `target/classes`, a
-    // copy under an ignored `build/`; `clean -ffdx` takes every such path, a nested repository included). The clean takes the
-    // installed dependencies too, so the prepare command runs again after the put-back, with the files the second run sees.
+    // The second run sees the base's files outside the test paths, the tip's test files, and nothing the control run left
+    // outside the paths the first preparation wrote: a tracked file it changed (`reset --hard` to the tip), an untracked or
+    // ignored one it wrote (`dist/`, `target/classes`, a copy under an ignored `build/`; `clean -ffdx` takes every such path, a
+    // nested repository included). The clean keeps each path the first preparation wrote, and the prepare command runs again
+    // after the put-back, with the files the second run sees.
     step('clear what the first run left', ['reset', '-q', '--hard', tip]);
-    step('clear what the first run left', ['clean', '-ffdxq']);
+    step('clear what the first run left', ['clean', '-ffdxq', ...kept.flatMap((p) => ['-e', excludePattern(p)])]);
     // The range's added paths are removed first, and the rest come back from the base. Restoring a path the base held as a file
     // where the tip has a directory (or the reverse) already drops the paths beneath it from the index, so a pathspec for an
     // added one, named afterwards, matches nothing and git refuses.

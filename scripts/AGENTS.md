@@ -273,7 +273,8 @@ bounds that run with the line's duration, writes no control run line, and names 
 runs itself is bounded at 300 000 ms, or `verification.failToPassControlMs` of the operator configuration, read the same way as the
 floor; the prepare command's time falls outside it. A first run that outlasts its bound is killed with its process group, records
 `unknown` with the reason `control=<exit or signal>,bound=<ms>ms` whatever exit status it reports, writes no run line, and the second
-run never starts. The verb then resets and cleans the worktree. The verb puts
+run never starts. The verb then resets and cleans the worktree. The clean keeps every path the first preparation wrote,
+which `git clean -ndx` lists after it, so the second preparation finds it in place (ADR 0234). The verb puts
 every changed file outside the test paths back as that file stood at `<base>`, and commits the put-back on the detached
 HEAD. The verb runs the command again and bounds that second run at 10 times the first run's duration, measured in the
 same invocation, or at a floor of 10 000 ms, whichever is larger (INV-0009, ADR 0142). `verification.failToPassFloorMs` of the

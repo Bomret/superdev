@@ -516,6 +516,30 @@ assert.deepEqual(
     fs.rmSync(repo, { recursive: true, force: true });
   }
 
+  // #no-slicetree-no-git: a scope with no slicetree, such as a closed run, asks git nothing about its branch.
+  // The Stop hook fires every turn, and a repository keeps its closed run roots until scope-prune reaps them.
+  {
+    const repo = makeRepo();
+    git(['branch', 'scope/closed'], repo);
+    git(['branch', 'scope/live'], repo);
+    makeScope(repo, 'closed', '**Branch:** scope/closed\n');
+    makeScope(repo, 'live', '**Branch:** scope/live\n');
+    const wt = path.join(repo, '.superdev/scopes/live/slicetrees/1');
+    git(['worktree', 'add', '-q', '-b', 'slice/live/1', wt], repo);
+    fs.writeFileSync(path.join(wt, 's1.txt'), 'y\n');
+    git(['add', '.'], wt);
+    git(['commit', '-q', '-m', 's1'], wt);
+    fold(repo, 'scope/live', 'slice/live/1');
+    const trace = path.join(repo, 'git-trace.log');
+    process.env.GIT_TRACE = trace;
+    try { main(repo); } finally { delete process.env.GIT_TRACE; }
+    const merged = fs.readFileSync(trace, 'utf8').split('\n').filter((l) => / trace: built-in: git branch --merged /.test(l));
+    assert.equal(merged.length, 1, `one --merged query, for the live scope alone: ${merged.join(' | ')}`);
+    assert.match(merged[0], /scope\/live/, 'the query is the live scope\'s');
+    assert.ok(!fs.existsSync(wt), 'the live scope still sweeps its merged slicetree');
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+
 }
 
 console.log('slicetree-sweep tests ok');

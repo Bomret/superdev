@@ -135,7 +135,7 @@ Review a change end to end. §1 decides the mode.
 - **Subject**: the git range. On a standing-code target (§1's standing-code shape) hand the path and its file set at `HEAD` in place of a range, and derive the summary from that file set.
 - **Suite result**: the focused-run concept below hands it.
 
-**The focused run** (ADR 0179). Applies to every ad-hoc dispatch of `final-reviewer`, and to a scope review's entry run, which `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md`'s `### 4.2 The suite gate` adapts to the scope range (ADR 0192). The bullets below decide which run an ad-hoc dispatch gets.
+**The focused run** (ADR 0179). Applies to every ad-hoc dispatch of `final-reviewer`. A scope review runs no focused run: `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md`'s `### 4.2 The suite gate` starts its full-suite run at entry (ADR 0192, ADR 0234). The bullets below decide which run an ad-hoc dispatch gets.
 
 - **A test command is configured in `docs/agents/verification.md` and the subject's tip is the checked-out tree** → run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths>` once from the invoking checkout before the dispatch, and hand the reviewer that result labelled focused.
 - **Every test run** passes Bash's `timeout` at its ceiling, 600000 ms unless `BASH_MAX_TIMEOUT_MS` raises it, and runs in the foreground. A run that can outlast the ceiling runs in the background, and you wait for its end.

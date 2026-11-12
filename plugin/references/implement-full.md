@@ -127,8 +127,10 @@ Repeat until every slice is `merged`:
    tells it that a test command is recorded as typed and pushed with the run state, so a secret belongs in the environment, never on the command line, and
    tells it to edit files through the edit tools, never through a script. It also tells it that a RED or GREEN step runs the test files
    that hold the tests that step works on through `test path`, and that the one focused run over the whole
-   changed-path set comes after its commit and before the fail-to-pass run (ADR 0139, ADR 0232). Where the focused fence repeats the full fence, it tells it instead that each step runs each test file
-   it works on through `test path <file>... -- <command>`, that it makes no whole-set run, and that the fail-to-pass run is its one run before the report (ADR 0180). Every implementer dispatch also tells it that a failing test its slice did not cause, one that
+   changed-path set comes after its commit and before the fail-to-pass run (ADR 0139, ADR 0232), and that its last run
+   before the verb is a `test path` run of the range's test files from the tree root, at its committed tip, with the exact
+   command it then passes to the verb, which reuses that run as its first (ADR 0234). Where the focused fence repeats the full fence, it tells it instead that each step runs each test file
+   it works on through `test path <file>... -- <command>`, that it makes no whole-set run, and that the `test path` run of its range's test files and the fail-to-pass run are its runs before the report (ADR 0180, ADR 0234). Every implementer dispatch also tells it that a failing test its slice did not cause, one that
    also fails at the slice's base commit, is named in its report, neither fixed nor blocked on, and left to
    the scope review's fix loop: a named inherited failure is no BLOCKED and no strike
    (ADR 0155, ADR 0192, INV-0157). A dispatch for a
@@ -368,7 +370,7 @@ Repeat until every slice is `merged`:
    winner is exactly the human decision the token cannot stand in for.
 
    **A slice merge runs no suite**, clean or concluded with `merge --continue` (ADR 0155, INV-0128). The
-   slice's own runs already tested it, and the scope review's entry focused run and exit run (a full run, or
+   slice's own runs already tested it, and the scope review's full-suite run (started at its entry, and its exit run: a full run, or
    the carry or recorded rerun `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` admits) verify the
    integrated scope: its fix loop repairs a break between two slices that each passed alone (ADR 0192). Go straight on to the next dispatch or merge.
 

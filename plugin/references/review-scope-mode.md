@@ -10,7 +10,7 @@ Each step below applies beside the skill's step of the same number. A departure 
 
 ## 0. Config
 
-**The test command.** Applies to the entry run and the exit run of §4.2. The entry run is the skill's focused run over the scope's range. The exit run runs the full command, the scope's one full-suite run (ADR 0025, ADR 0192).
+**The test command.** Applies to the entry run and the exit run of §4.2. The entry run starts the exit run's steps at the scope branch's tip, in the background, while the first reviews run. The exit run runs the full command, the scope's one full-suite run, and reuses the entry run's result at an unchanged tip (ADR 0025, ADR 0192, ADR 0234).
 
 **The triage section.** Applies when you read this reference and `docs/agents/issue-tracker.md` exists. Read its `## Triage record` section. §4.4's deferral branch needs the section's presence.
 
@@ -52,7 +52,7 @@ Each step below applies beside the skill's step of the same number. A departure 
 
 **The suite result.** Applies to every dispatch of `final-reviewer` in a scope review. `final-reviewer`'s `### Suite run` owns the result's handling.
 
-- The first dispatch hands §4.2's entry run labelled focused, or `not run: <reason>` (ADR 0192).
+- The first dispatch hands §4.2's entry run: `running: <the full or whole command>`, its reused outcome, or `not run: <reason>` (ADR 0192, ADR 0234).
 - A fix cycle's re-review hands no run, a cycle a red exit run opened included. `### Suite run` names what it reads in place of one (ADR 0182).
 
 **The `simplicity-reviewer` dispatch.** Applies to the `simplicity-reviewer` dispatch of a scope review.
@@ -146,15 +146,14 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - **Any other record** → the exit run runs the full command.
 - **The exit run follows this choice**, not a re-read of the record at the exit.
 
-**The entry run.** Applies once per invocation, in the scope checkout, after §4.1 and before the first `final-reviewer` dispatch (ADR 0179, ADR 0192). Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <paths>` once, `<paths>` being every path `git diff --name-only --no-renames <range-base> <branch>` lists that exists in the tree. Write no suite record. Hand the result and any failure output to §2's dispatch, labelled focused.
+**The entry run.** Applies once per invocation, in the scope checkout, after §4.1 and the suite record, before the first `final-reviewer` dispatch (ADR 0192, ADR 0234). Take the exit run's steps 1 to 3 below at the scope branch's tip, in their order. A tip step 1 or step 2 reuses runs nothing. Otherwise step 3 starts the full command, or `test whole` per the suite record, through the runner in the background, and §2's dispatches and the `simplicity-reviewer` dispatch go out while it runs. Hand the first `final-reviewer` dispatch `running: <the command>`, the reused outcome, or `not run: <reason>`.
 
-- Every test run passes Bash's `timeout` at its ceiling, 600000 ms unless `BASH_MAX_TIMEOUT_MS` raises it, and runs in the foreground. Only a run that can outlast the ceiling runs through the runner in the background, and you wait for its end before acting on it.
-- **The path set is empty** → run no test, and hand `not run: the scope changes no path`.
-- **The focused fence of `docs/agents/verification.md` repeats the full fence** → run no test, and hand `not run: the focused command repeats the full command, so the exit run covers the scope`. A scope never pays the full suite twice.
+- **Wait for its end** before the first fix cycle, before a base merge of **The moved base**, and before §4.10's stage write. Nothing writes in the scope checkout while it runs.
+- **At its end** take step 4 and **The exit record and outcome** below, as for the exit run, except for a run that never finished or was denied, which the bullet below and **A denied entry run** take. A `fail` is a Critical finding per **A failing run**, and joins the first fix list.
+- **A pass at a tip no commit has moved** is the exit run's result: step 1 reuses it by the exact tip match, so a review with no fix cycle pays the full suite once.
+- **The run never finished** (killed, or `unknown` in the run trace) → it carries no verdict (INV-0009). Record nothing and continue. The exit run runs at the exit.
 - **No test command configured** → run no test, hand `not run: no test command`, and continue. This never blocks the review.
-- **One fenced block, so no focused command** → record the degraded pass of `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## Stop on a missing focused command`, hand `not run: no focused command`, and continue to the dispatch. The exit run still runs the full command.
-- **The run never finished** (killed, or `unknown` in the run trace) → it carries no verdict (INV-0009). Hand `not run: never finished`, and continue. The exit run still gates the stage.
-- State the outcome in your own output: pass, fail, not run with its reason, or denied.
+- State the outcome in your own output: reused, pass, fail, not run with its reason, or denied.
 
 **A denied entry run.** Applies to an entry run the permission classifier denies. It takes the second shape of `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes`. Write the `**Degraded:**` entry, hand `denied`, and publish the snapshot before deciding the branch per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state`.
 

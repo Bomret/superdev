@@ -63,10 +63,10 @@ Applies to every review dispatch.
 
 Run no test. Review against the suite result the controller hands you, and judge whether it covers the changed code (ADR 0025, ADR 0075, ADR 0179). The controller says which run it is.
 
-- On a scope dispatch: the focused run the review ran at its entry over the scope range's changed paths, or no run with its reason (ADR 0192). The scope's full-suite run comes after your verdict. A re-review inside a fix cycle gets no run: read the cycle implementer's recorded runs and its fail-to-pass outcome in the run trace (ADR 0182).
+- On a scope dispatch: the scope's full-suite run, which the review started at its entry and which runs beside your review, or its reused outcome, or no run with its reason (ADR 0192, ADR 0234). The controller folds a failing result into the fix loop itself, so judge the change without waiting for it. A re-review inside a fix cycle gets no run: read the cycle implementer's recorded runs and its fail-to-pass outcome in the run trace (ADR 0182).
 - On an ad-hoc dispatch: the focused run over the range's changed paths, the full suite where the operator asked for it, or no run with its reason. An inline-fix re-review gets the focused run over the fix range, run in the fix worktree.
 - On a standing-code dispatch: no run.
-- The Assessment's `Full-suite run` line reports the handed run, and names it focused where it is. A dispatch that hands no run reads `not run`.
+- The Assessment's `Full-suite run` line reports the handed run, and names it focused where it is. A run handed as still running reads `running`, and a dispatch that hands no run reads `not run`.
 
 ### Judge discipline
 
@@ -194,7 +194,7 @@ document order: `<criterion>` — holds | broken: <why> | ceiling: <partial evid
 ### Fail-to-pass unknown [scope dispatch only; omit this section entirely when the trace holds none] — one note per outcome, never an Issue: <slice> · <its reason: control=<exit status or signal>, or bound=<ms>, or start-failed:<code> in control= or put-back=, or prepare=<exit, signal, start-failed:<code>, or dirty>>
 
 ### Assessment
-Full-suite run: [pass | fail | not run | denied — degraded pass]
+Full-suite run: [pass | fail | running | not run | denied — degraded pass]
 Ready to merge? [Yes | No | With fixes]
 Reasoning: [1–2 sentences]
 ```

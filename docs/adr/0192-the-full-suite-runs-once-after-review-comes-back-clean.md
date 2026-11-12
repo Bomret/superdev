@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0234](0234-test-runs-overlap-and-skip-repeated-preparation.md), which starts the full-suite run at the review's entry, in place of an entry focused run.
+
 **Supersedes:** [ADR 0152](0152-a-red-base-gate-lets-the-operator-name-the-slices-that-fix-it.md), whose
 red-record pick has no gate left to answer.
 

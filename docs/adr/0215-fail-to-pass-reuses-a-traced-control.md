@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0234](0234-test-runs-overlap-and-skip-repeated-preparation.md), whose implementer runs the range's test files through
+`scope.js test path` before the verb, which reuses that run as its control.
+
 **Amended by:** [ADR 0218](0218-a-worktree-runs-the-repositorys-prepare-command.md), which reuses a traced control only
 where `docs/agents/verification.md` states a `## Prepare command`.
 

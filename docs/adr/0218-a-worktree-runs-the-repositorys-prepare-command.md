@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0234](0234-test-runs-overlap-and-skip-repeated-preparation.md), whose clean between the two runs keeps what the first
+preparation wrote.
+
 **Amends:** [ADR 0215](0215-fail-to-pass-reuses-a-traced-control.md): the verb reuses a traced control only when
 `docs/agents/verification.md` carries a `## Prepare command` section.
 
