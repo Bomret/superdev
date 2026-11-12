@@ -1,3 +1,21 @@
+# [0.107.0](https://github.com/Bomret/superdev/compare/v0.106.0...v0.107.0) (2026-11-12)
+
+
+### Bug Fixes
+
+* **scope:** keep the suite carry across verification.md prose edits and route submit-pr to review when ship's gate would refuse ([a2ea84c](https://github.com/Bomret/superdev/commit/a2ea84c7865aeebdf06948a468f5662cb938b4e6))
+
+
+### Features
+
+* **implement:** the self-check compares what an item demands with what the work does ([a23e5e4](https://github.com/Bomret/superdev/commit/a23e5e46d1a8a7774a65970d604dfe373538f2ad)), closes [#164](https://github.com/Bomret/superdev/issues/164)
+* **scope:** check an anchor's Definition of Done at plan and at scope review ([711a4ef](https://github.com/Bomret/superdev/commit/711a4ef0876eabe35c77837d4762ac03acf1277d))
+
+
+### Performance Improvements
+
+* **implement:** the implementer's loop runs its test files directly and the focused command once ([a05d349](https://github.com/Bomret/superdev/commit/a05d349d3172af98821a85b068e8e922f176204f))
+
 # [0.106.0](https://github.com/Bomret/superdev/compare/v0.105.0...v0.106.0) (2026-11-11)
 
 
