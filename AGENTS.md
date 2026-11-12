@@ -104,7 +104,7 @@ tests/                 — one suite per shipped executable (the hooks, `scope.j
                          `node:assert`, run under `node` by `node scripts/run-tests.js` (ADR 0059). A large entry
                          point's suite is split flat by topic into `tests/<entry>-<topic>.test.js` over one
                          `<entry>-setup.js` that is no suite (ADR 0139, ADR 0151): `scope-*` (ledger,
-                         ledger-header, suite, dod-line, dod-tags, dod-check, dod-merge, publish-adopt, trace, digest, untraced, root-base, containment,
+                         ledger-header, `suite-*` (record, carry, complete, rerun, config, failed), dod-line, dod-tags, dod-check, dod-merge, publish-adopt, trace, digest, untraced, root-base, containment,
                          citations-collisions, source-set, push, open, help, stdin, discard, prepare, `test-verb-*`, `fail-to-pass-*`, over `scope-setup.js`),
                          `run-trace*` (dispatch, guards, paths, over `run-trace-setup.js`), `publish-kb*` (containment, guard, `parent-link-*`,
                          patch, publish, read, scope, templates, timeout, over `publish-kb-setup.js`),
