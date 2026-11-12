@@ -29,7 +29,7 @@ four release-risk categories unnamed.
   line to fix before anything is written.
 - **Scope review runs it in the anchor sync.** Its input is built from the store's own two reads: the
   anchor's Definition-of-Done lines under a `## Definition of Done` heading, and an Absorbs line naming the
-  entries the store's **Read an anchor's Absorbs line** call returns. The verb so never parses a
+  entries the store's **Read an anchor's Absorbs line** call returns. The verb never parses a
   store-specific body such as a Jira description. A refusal is a standing defect, written by the review's
   standing-defect writes: one `**Unresolved:**` entry per problem, the tip's suite record invalidated at
   `submitted`, and the stage left where it is, so `/superdev:submit-pr` and `/superdev:ship` wait. The
