@@ -1,3 +1,20 @@
+## [0.107.1](https://github.com/Bomret/superdev/compare/v0.107.0...v0.107.1) (2026-11-12)
+
+
+### Bug Fixes
+
+* **scope:** close the review findings of the perf range ([#184](https://github.com/Bomret/superdev/issues/184)) ([6918847](https://github.com/Bomret/superdev/commit/691884770cbedabb13d465c37a90c129cfadaac1)), closes [#178](https://github.com/Bomret/superdev/issues/178) [#183](https://github.com/Bomret/superdev/issues/183)
+
+
+### Performance Improvements
+
+* **prose:** load only the prose each reader applies ([#179](https://github.com/Bomret/superdev/issues/179)) ([a0904b9](https://github.com/Bomret/superdev/commit/a0904b95f56409f26b65967ebd81ee86f9ca7672))
+* **review:** start the full suite at review entry and skip repeated fail-to-pass preparation ([#178](https://github.com/Bomret/superdev/issues/178)) ([c1f827c](https://github.com/Bomret/superdev/commit/c1f827cfa5d5a63abff7e8b2b228f3c8977bd28c))
+* **run-state:** publish the anchor snapshot once per command ([#180](https://github.com/Bomret/superdev/issues/180)) ([eee028f](https://github.com/Bomret/superdev/commit/eee028fad5c1219baae057cdb8e8df9fd7ccc6a8))
+* **scope:** carry a red suite record once a fix cycle repairs its failing files ([#181](https://github.com/Bomret/superdev/issues/181)) ([0e5a767](https://github.com/Bomret/superdev/commit/0e5a76754dfc6a684d93d72051645e7ddf98969c))
+* tier by behavior slices, load rare branches on demand, and cut startup and git cost ([#183](https://github.com/Bomret/superdev/issues/183)) ([80316a7](https://github.com/Bomret/superdev/commit/80316a70c0ff9e2d011b7a165cbf17a37a6aec98))
+* trim the implement chain's prose, dispatches, and test runs ([#182](https://github.com/Bomret/superdev/issues/182)) ([857c6d7](https://github.com/Bomret/superdev/commit/857c6d78cf7dcc9abad42f52dfd9c4747beaf6bb))
+
 # [0.107.0](https://github.com/Bomret/superdev/compare/v0.106.0...v0.107.0) (2026-11-12)
 
 
