@@ -10,7 +10,7 @@ const {
 } = require('./ledger.js');
 const { isTestPath, completeSelector, verificationCommandsOf, prepareCommandOf, configuredTestPaths } = require('./verification.js');
 const { gitSpawn, resolveCommit, fileAt } = require('./git-spawn.js');
-const { readTrace, decodePaths } = require('./trace-log.js');
+const { readTrace, decodePaths, untraceField } =require('./trace-log.js');
 const { DENIAL_PREFIX, RESET_PREFIX } = require('./ledger-records.js');
 
 const VERIFICATION = 'docs/agents/verification.md';
@@ -199,7 +199,8 @@ function reusableOnRerun(cwd, root, branch, recordedSha, kind, whole, base) {
   const top = lazyToplevel(cwd);
   const file = rootRelative(rm[1], top);
   const isAlone = (e) => {
-    if (e.fields[0] !== 'path') return false;
+    // Only a run at the tree root counts (ADR 0232): a line with no directory field reads as not at the root.
+    if (e.fields[0] !== 'path' || e.fields[7] === undefined || untraceField(e.fields[7]) !== '.') return false;
     const files = decodePaths(e.fields[4]).map((p) => rootRelative(p, top));
     return files.length === 1 && files[0] === file;
   };

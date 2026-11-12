@@ -1054,7 +1054,9 @@ const { appendTrace, isTestPath } = require(scopePath);
     return { repo, T, root, rerun, reusable, reusableNoBase };
   };
   const FAILED = (T) => ['full', 'fail', T, 'clean'];
-  const ALONE = (T, res, tree) => ['path', res || 'pass', T, tree || 'clean', 'tests/a.test.js'];
+  // A path run records the directory it ran in as its eighth field (`.` at the tree root); `dir` null writes a line without it.
+  const pathRun = (T, res, tree, files, dir) => ['path', res || 'pass', T, tree || 'clean', files, '1', 'node t.js', ...(dir === null ? [] : [dir || '.'])];
+  const ALONE = (T, res, tree, dir) => pathRun(T, res, tree, 'tests/a.test.js', dir);
   const FOCUSED = (T, res, tree, paths) => ['focused', res || 'pass', T, tree || 'clean', encodePaths(paths || ['src/x.js'])];
   const ledgerOf = (rt) => fs.readFileSync(path.join(rt, 'ledger.md'), 'utf8');
   try {
@@ -1122,14 +1124,29 @@ const { appendTrace, isTestPath } = require(scopePath);
     const gr = f.root(`green @ ${f.T}`, [['full', 'pass', f.T, 'clean']]);
     assert.ok(f.reusableNoBase(gr).ok, 'a green record at the tip is reusable without --base');
     // A multi-file path run is no run of the file alone.
-    red([FAILED(f.T), ['path', 'pass', f.T, 'clean', 'tests/a.test.js,tests/b.test.js'], FOCUSED(f.T)], 'a multi-file run holding the rerun file');
+    red([FAILED(f.T), pathRun(f.T, 'pass', 'clean', 'tests/a.test.js,tests/b.test.js'), FOCUSED(f.T)], 'a multi-file run holding the rerun file');
+    // The rerun file's passing run counts only where it ran at the tree root.
+    red([FAILED(f.T), ALONE(f.T, 'pass', 'clean', 'tests'), FOCUSED(f.T)], 'a passing run made from a subdirectory');
+    red([FAILED(f.T), ALONE(f.T, 'pass', 'clean', '..'), FOCUSED(f.T)], 'a passing run made outside the tree');
+    red([FAILED(f.T), ALONE(f.T, 'pass', 'clean', null), FOCUSED(f.T)], 'a passing run written without the directory field');
+    const subRun = f.root(`red @ ${f.T}`, [FAILED(f.T), ALONE(f.T, 'pass', 'clean', 'tests'), FOCUSED(f.T)]);
+    assert.ok(f.rerun(subRun, 'tests/a.test.js', '#99').ok);
+    r = f.reusable(subRun);
+    assert.ok(!r.ok && /rerun|alone/.test(r.err), 'a subdirectory run refuses with the rerun reason: ' + (r.err || ''));
+    // A failing run of another file from a subdirectory still counts against the rerun.
+    red([FAILED(f.T), pathRun(f.T, 'fail', 'clean', 'tests/b.test.js', 'tests'), ALONE(f.T), FOCUSED(f.T)], 'a failed path run of another file from a subdirectory');
+    // A root run recorded after a subdirectory run carries the rerun.
+    const both = f.root(`red @ ${f.T}`, [FAILED(f.T), ALONE(f.T, 'fail', 'clean', 'tests'), ALONE(f.T), FOCUSED(f.T)]);
+    assert.ok(f.rerun(both, 'tests/a.test.js', '#99').ok);
+    r = f.reusable(both);
+    assert.ok(!r.ok, 'a failed subdirectory run of the rerun file is no root run, yet a failed run of that file counts against the rerun');
     // A path run records its file `encodePaths`-encoded: a name holding `%` matches its own rerun.
     const pc = make(DECLARED);
     fs.writeFileSync(path.join(pc.repo, 'tests', '100%.test.js'), 'a\n');
     g(['add', '.'], pc.repo);
     g(['commit', '-q', '-m', 'pct'], pc.repo);
     const PT = g(['rev-parse', 'HEAD'], pc.repo);
-    const pct = pc.root(`red @ ${PT}`, [FAILED(PT), ['path', 'pass', PT, 'clean', encodePaths(['tests/100%.test.js'])], FOCUSED(PT, 'pass', 'clean', ['src/x.js', 'tests/100%.test.js'])]);
+    const pct = pc.root(`red @ ${PT}`, [FAILED(PT), pathRun(PT, 'pass', 'clean', encodePaths(['tests/100%.test.js'])), FOCUSED(PT, 'pass', 'clean', ['src/x.js', 'tests/100%.test.js'])]);
     assert.ok(pc.rerun(pct, 'tests/100%.test.js', '#1').ok, 'a file name holding % records');
     r = pc.reusable(pct);
     assert.ok(r.ok && r.out === 'reusable', 'a path run of a file name holding % is the rerun of that file alone: ' + (r.err || ''));
