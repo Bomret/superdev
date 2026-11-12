@@ -402,6 +402,12 @@ const CONFLICT_COMMIT_CONCLUSION_PATTERNS = [
   /commit\s+(?:the\s+merge|it)\s+with\s+`git\s+(?:-C\s+\S+\s+)?commit\b/,
 ];
 
+// ADR 0232: the background rule names the Bash ceiling (600000 ms, or the higher `BASH_MAX_TIMEOUT_MS`), never
+// "the Bash tool's time limit" or "the tool's limit", which read against the 120000 ms default. Whitespace runs
+// and line wraps are normalized before the match. simplicity: the two spellings below are the ceiling; a
+// paraphrase of the unnamed limit walks past.
+const UNNAMED_BASH_LIMIT_PATTERN = /\btool['’]s\s+(?:time\s+)?limit\b/gi;
+
 // #683, INV-0092: none of the three code-management documents may ever *send* a force or bypass option
 // on a merge call — `force_merge` (Forgejo) or `--admin` (GitHub's `gh pr merge`) each override branch
 // protection and required approvals, which is exactly what a pinned merge must never do. This is a
@@ -539,6 +545,7 @@ module.exports = {
   SOURCE_SECTION_CONTRACTS,
   CONTAINMENT_DELEGATION_CONTRACTS,
   CONFLICT_COMMIT_CONCLUSION_PATTERNS,
+  UNNAMED_BASH_LIMIT_PATTERN,
   NO_FORCE_MERGE_DOCS,
   NO_FORCE_MERGE_PATTERNS,
   TEA_ONLY_DOCS,

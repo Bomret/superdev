@@ -14,7 +14,7 @@ const { PROBE_MAX_BUFFER } = require('./containment.js');
 const { mainWorkTree } = require('./main-work-tree.js');
 const { appendTrace, readTrace, encodePaths, decodePaths, untraceField } = require('./trace-log.js');
 const { checkRun } = require('./run-check.js');
-const { treeState, gitOut } = require('./run-tree.js');
+const { treeState, gitOut, rootRelative, lazyToplevel } = require('./run-tree.js');
 const { superviseRuns, withWorktreeLock } = require('./run-supervision.js');
 const { shellWord } = require('./test-verb.js');
 const { operatorBoundMs } = require('./operator-config.js');
@@ -77,17 +77,20 @@ function sliceOfRange(root, base, tip, cwd) {
 }
 
 // The control a run root's trace already holds for `tip` (ADR 0215): { code: 0, ms, ts } from the last `path` run line at `tip`
-// on a clean tree that names every one of `testFiles`, a duration, and exactly `command`, or null. A failing `path` run at `tip`
-// after it, over any files or command, voids it.
-function reusableControl(runRoot, tip, testFiles, command) {
+// on a clean tree, run at the tree root (its directory field reads `.`), that names every one of `testFiles`, a duration, and
+// exactly `command`, or null. Recorded names compare as root-relative POSIX paths, `top` reading the tree root. A failing `path`
+// run at `tip` after it, over any files, directory, or command, voids it (INV-0139). An absolute recorded name compares
+// against the calling checkout's root, so a run made in another tree costs one extra control run.
+function reusableControl(runRoot, tip, testFiles, command, top) {
   let events;
   try { events = readTrace(fs.readFileSync(path.join(runRoot, 'trace.log'), 'utf8')); } catch { return null; }
   let found = null;
   for (const e of events) {
-    const [kind, outcome, sha, tree, files, ms, recorded] = e.fields;
+    const [kind, outcome, sha, tree, files, ms, recorded, dir] = e.fields;
     if (e.kind !== 'run' || kind !== 'path' || sha !== tip || tree !== 'clean') continue;
     if (outcome !== 'pass') { found = null; continue; }
-    const named = new Set(decodePaths(files));
+    if (dir === undefined || untraceField(dir) !== '.') continue;
+    const named = new Set(decodePaths(files).map((p) => rootRelative(p, top)).filter((p) => p !== null));
     if (/^\d+$/.test(ms || '') && recorded !== undefined && untraceField(recorded) === command && testFiles.every((f) => named.has(f))) found = { code: 0, ms: Number(ms), ts: e.ts };
   }
   return found;
@@ -238,7 +241,7 @@ async function verbFailToPass(cwd, args) {
     // A passing run the trace already holds is the control (ADR 0215): the last `path` run line at the tip on a clean tree that
     // names every test file of the range and its duration, which the bound needs, when no later run there failed. Only a tip
     // that states its prepare command, or `none`, gives this worktree the dependencies that run had (ADR 0218).
-    const reused = at && prep.state !== 'absent' && reusableControl(at.runRoot, tip, testFiles, command);
+    const reused = at && prep.state !== 'absent' && reusableControl(at.runRoot, tip, testFiles, command, lazyToplevel(cwd));
     if (reused) process.stderr.write(`fail-to-pass: control reused from the run trace line of ${reused.ts}\n`);
     const unprepared = reused ? null : await prepare();
     if (unprepared) return record('unknown', `prepare=${unprepared}`);
@@ -255,7 +258,7 @@ async function verbFailToPass(cwd, args) {
       const [sha1, tree1] = treeState(dir);
       const states = [tree0, tree1];
       const tree = sha0 !== tip || sha1 !== tip || states.includes('dirty') ? 'dirty' : states.includes('unknown') ? 'unknown' : 'clean';
-      if (!appendTrace(at.runRoot, { slice, kind: 'run', fields: ['path', control.code === 0 ? 'pass' : 'fail', tip, tree, encodePaths(testFiles), String(Math.round(control.ms)), command] })) {
+      if (!appendTrace(at.runRoot, { slice, kind: 'run', fields: ['path', control.code === 0 ? 'pass' : 'fail', tip, tree, encodePaths(testFiles), String(Math.round(control.ms)), command, '.'] })) {
         process.stderr.write('fail-to-pass: the control run line could not be written to the run trace\n');
       }
     }

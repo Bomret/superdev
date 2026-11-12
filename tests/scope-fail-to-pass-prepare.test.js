@@ -81,7 +81,7 @@ const prepared = (s) => {
         base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD, extra) },
         tip: { 'src.txt': 'b\n', 'tests/t.sh': probe + 'grep -q b src.txt\n' },
       });
-      appendTrace(s.root, { slice: '01', kind: 'run', fields: ['path', 'pass', s.tipSha, 'clean', 'tests/t.sh', '40', CMD] });
+      appendTrace(s.root, { slice: '01', kind: 'run', fields: ['path', 'pass', s.tipSha, 'clean', 'tests/t.sh', '40', CMD, '.'] });
       r = s.run(s.range);
       if (label === 'an uppercase NONE') {
         // `NONE` is no `none`: it reads as a command, so the control is reused and the put-back run's preparation runs it.

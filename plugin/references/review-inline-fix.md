@@ -49,7 +49,7 @@ Dispatch one `superdev:implementer`. This is the inline fix dispatch of the impl
 With `<tree>` as the working directory, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <paths>` once. `<paths>` are the paths `git -C <tree> diff --name-only --no-renames <tip> HEAD` lists that exist in `<tree>`.
 
 - **No path, or no test command configured** → run no test and record `not run: <reason>`.
-- A suite longer than the Bash tool's time limit runs in the background, and you wait for its end.
+- Every test run passes Bash's `timeout` at its ceiling, 600000 ms unless `BASH_MAX_TIMEOUT_MS` raises it, and runs in the foreground. Only a run that can outlast the ceiling runs in the background, and you wait for its end.
 
 ## 6. The warm re-review
 

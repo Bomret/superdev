@@ -27,12 +27,23 @@ const { appendTrace } = require(scopePath);
     // A passing run at the tip on a clean tree that covered every test file the range adds or modifies, with its duration,
     // is the control: the verb runs the command once, with the files put back, and writes no control run line of its own.
     let s = scenario(files);
-    appendTrace(s.root, { slice: '01', kind: 'run', fields: ['path', 'pass', s.tipSha, 'clean', 'tests/t.sh,tests/other.sh', '40', CMD] });
+    appendTrace(s.root, { slice: '01', kind: 'run', fields: ['path', 'pass', s.tipSha, 'clean', 'tests/t.sh,tests/other.sh', '40', CMD, '.'] });
     let r = s.run(s.range);
     assert.equal(r.stdout.trim(), 'fail-to-pass control=0,put-back=1', r.stderr);
     assert.equal(runs(s), 1, 'the command ran once, with the files put back');
     assert.equal(s.runLines().length, 1, 'no control run line is written beside the reused one');
+    const appended = require('../plugin/lib/trace-log.js').readTrace(fs.readFileSync(path.join(s.root, 'trace.log'), 'utf8')).filter((e) => e.kind === 'run')[0];
     assert.match(r.stderr, /control reused/, 'the verb says it reused a run');
+    assert.ok(r.stderr.includes(`of ${appended.ts}`), 'the message names the reused line by its timestamp');
+
+    // A recorded name is one file however it is spelled: `./` first, or absolute inside the tree (INV-0139).
+    for (const spell of ['./tests/t.sh', (sc) => path.join(fs.realpathSync(sc.tree), 'tests', 't.sh')]) {
+      s = scenario(files);
+      appendTrace(s.root, { slice: '01', kind: 'run', fields: ['path', 'pass', s.tipSha, 'clean', typeof spell === 'function' ? spell(s) : spell, '40', CMD, '.'] });
+      r = s.run(s.range);
+      assert.equal(r.stdout.trim(), 'fail-to-pass control=0,put-back=1', r.stderr);
+      assert.equal(runs(s), 1, `${typeof spell === 'function' ? 'an absolute' : 'a ./'} spelling is reused`);
+    }
 
     // A second call over the same range reuses the control the first call wrote.
     s = scenario(files);
@@ -44,14 +55,22 @@ const { appendTrace } = require(scopePath);
     // No reuse: a dirty tree, another commit, a failed run, a test file the run did not cover, a run line with no duration,
     // or a later failing run at the same tip.
     const misses = [
-      ['a dirty tree', (t) => [['path', 'pass', t, 'dirty', 'tests/t.sh', '40', CMD]]],
-      ['another commit', (t, b) => [['path', 'pass', b, 'clean', 'tests/t.sh', '40', CMD]]],
-      ['a failed run', (t) => [['path', 'fail', t, 'clean', 'tests/t.sh', '40', CMD]]],
-      ['an uncovered test file', (t) => [['path', 'pass', t, 'clean', 'tests/u.sh', '40', CMD]]],
+      ['a dirty tree', (t) => [['path', 'pass', t, 'dirty', 'tests/t.sh', '40', CMD, '.']]],
+      ['another commit', (t, b) => [['path', 'pass', b, 'clean', 'tests/t.sh', '40', CMD, '.']]],
+      ['a failed run', (t) => [['path', 'fail', t, 'clean', 'tests/t.sh', '40', CMD, '.']]],
+      ['an uncovered test file', (t) => [['path', 'pass', t, 'clean', 'tests/u.sh', '40', CMD, '.']]],
       ['no duration', (t) => [['path', 'pass', t, 'clean', 'tests/t.sh']]],
-      ['another command', (t) => [['path', 'pass', t, 'clean', 'tests/t.sh', '40', 'sh tests/t.sh --only one']]],
+      ['another command', (t) => [['path', 'pass', t, 'clean', 'tests/t.sh', '40', 'sh tests/t.sh --only one', '.']]],
       ['no command', (t) => [['path', 'pass', t, 'clean', 'tests/t.sh', '40']]],
-      ['a later failing run', (t) => [['path', 'pass', t, 'clean', 'tests/t.sh', '40', CMD], ['path', 'fail', t, 'clean', 'tests/t.sh', '40', CMD]]],
+      ['a later failing run', (t) => [['path', 'pass', t, 'clean', 'tests/t.sh', '40', CMD, '.'], ['path', 'fail', t, 'clean', 'tests/t.sh', '40', CMD, '.']]],
+      ['no directory field', (t) => [['path', 'pass', t, 'clean', 'tests/t.sh', '40', CMD]]],
+      ['a subdirectory run', (t) => [['path', 'pass', t, 'clean', 'tests/t.sh', '40', CMD, 'tests']]],
+      ['a directory whose name holds a space', (t) => [['path', 'pass', t, 'clean', 'tests/t.sh', '40', CMD, 'my dir']]],
+      ['a run from outside the tree', (t) => [['path', 'pass', t, 'clean', 'tests/t.sh', '40', CMD, '..']]],
+      ['an absolute directory', (t) => [['path', 'pass', t, 'clean', 'tests/t.sh', '40', CMD, '/tmp']]],
+      ['an empty directory marker', (t) => [['path', 'pass', t, 'clean', 'tests/t.sh', '40', CMD, '-']]],
+      ['a name outside the tree', (t) => [['path', 'pass', t, 'clean', '../tests/t.sh', '40', CMD, '.']]],
+      ['an absolute name outside the tree', (t) => [['path', 'pass', t, 'clean', '/elsewhere/tests/t.sh', '40', CMD, '.']]],
     ];
     for (const [label, lines] of misses) {
       s = scenario(files);

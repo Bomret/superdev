@@ -54,13 +54,14 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
   All file edits, test runs, `git` commands, and commits happen **in the scopetree as the cwd** —
   never in the invoking checkout. `mechanical` / `docs` slices need no new test — the existing suite is
   the net. Read `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it selects for
-  each run, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths>` with at least one path (or
-  `test path <file>... -- <command>` for a direct test-file run). The loop runs only the tests that verify the slice, never `test full`, `test whole`, or a `test focused`
-  with no path: the scope review's exit run is the scope's one full-suite run (ADR 0192). Each failing-test or passing-test step passes the test
-  files that hold the tests it works on. Your last run before you commit a slice passes the slice's whole
-  changed-path set, and so does a step that works on no test file (ADR 0139). Where the focused fence repeats the
+  each run, through `scope.js test`. The loop runs only the tests that verify the slice, never `test full`, `test whole`, or a `test focused`
+  with no path: the scope review's exit run is the scope's one full-suite run (ADR 0192). Each failing-test or passing-test step runs
+  the test files that hold the tests it works on through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test path <file>... -- <command>`, a runner filter allowed.
+  After the work is committed and before the fail-to-pass run, one `test focused <changed paths>` with at least one path
+  runs over the slice's whole changed-path set, and so does a step that works on no test file (ADR 0139, ADR 0232). A focused failure is a RED step: fix, commit, and run it again. Where the focused fence repeats the
   full fence, each step runs each test file it works on through `test path <file>... -- <command>`, and you make neither of those
-  whole-set runs: the scope review's exit run covers them (ADR 0180, ADR 0192). A suite longer than the Bash tool's time limit runs
+  whole-set runs: the scope review's exit run covers them (ADR 0180, ADR 0192). Every test run passes Bash's `timeout` at its ceiling,
+  600000 ms unless `BASH_MAX_TIMEOUT_MS` raises it, and runs in the foreground; only a run that can outlast the ceiling runs
   through the runner in the background, and you wait for its end before acting on it. A test command is recorded as typed and pushed with the run state, so a secret belongs in the environment, never on the command line. The run trace records your edits and runs.
 - **A failing test the slice did not cause is named, never fixed.** A test that also fails at the slice's
   base commit is inherited: name it in your report, fix none, block on none, and count no strike for it.
@@ -109,8 +110,8 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
   names the slice (ADR 0182). The verb's first run is the slice's last GREEN run of those test files: commit the GREEN code
   and run the verb in place of another run of them, and a first run that does not pass is a RED step. A passing run of
   them through `scope.js test path` at the committed tip is the first run, and the verb runs only the second (ADR 0215). A range whose test-path changes are all deletions and that adds behaviour outside the
-  test paths leaves that behaviour with no test: write one for it, then run the verb. Every run of the verb goes in the background when
-  the suite outlasts the Bash tool's time limit, and you wait for its end before you read its outcome
+  test paths leaves that behaviour with no test: write one for it, then run the verb. The verb runs in the background when
+  two runs of the range's test files can outlast the ceiling, and you wait for its end before you read its outcome
   (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`). The verb runs the command twice in a
   throwaway worktree, the second time with the files the slice changed outside its test files put back as they
   stood at `<base>`, prints `fail-to-pass`, `pass-to-pass`, or `unknown`, and appends a `fail-to-pass` line to the run

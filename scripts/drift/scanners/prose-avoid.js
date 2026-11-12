@@ -19,6 +19,7 @@ const {
   GITHUB_WIKI_GH_ONLY_DOCS,
   GITHUB_WIKI_GH_ONLY_MARKERS,
   CONFLICT_COMMIT_CONCLUSION_PATTERNS,
+  UNNAMED_BASH_LIMIT_PATTERN,
   NO_TEST_RUN_DOCS,
   NO_TEST_RUN_PATTERNS,
   IMPLEMENT_NO_FULL_RUN_DOCS,
@@ -109,6 +110,26 @@ const scanConflictConclusionNoCommit = (root) =>
         `\`${normalizeWhitespace(hit[0])}\` names the other form (ADR 0123)`,
     ]),
   );
+
+// ADR 0232: no shipped skill, agent, or reference, and no shipped AGENTS.md beside them, states the background rule
+// against an unnamed Bash limit. Fences are masked and whitespace runs, line wraps included, are normalized before the match.
+function scanBackgroundRuleNamesLimit(root) {
+  const gaps = [];
+  const shippedAgentsDocs = ['skills', 'agents', 'references'].map((dir) => [path.join(dir, 'AGENTS.md')]);
+  for (const [rel] of [...proseDocuments(root, ['skills', 'agents', 'references']), ...shippedAgentsDocs]) {
+    const text = readDoc(root, rel);
+    if (text === null) continue;
+    for (const hit of normalizeWhitespace(maskFences(text)).matchAll(UNNAMED_BASH_LIMIT_PATTERN)) {
+      gaps.push({
+        source: rel,
+        expectation:
+          `name the Bash ceiling in the background rule (\`timeout\` at 600000 ms, or the higher \`BASH_MAX_TIMEOUT_MS\`) — ` +
+          `\`${hit[0]}\` names no limit (ADR 0232)`,
+      });
+    }
+  }
+  return gaps;
+}
 
 // ADR 0189, INV-0175: `/superdev:document` (its skill, its doc agents, and `references/doc-pass.md`) and
 // `/superdev:setup` instruct no test run. A statement that
@@ -272,4 +293,5 @@ module.exports = {
   scanDocSetupNoTestRun,
   scanImplementNoFullRun,
   scanObservationNoSuiteRun,
+  scanBackgroundRuleNamesLimit,
 };

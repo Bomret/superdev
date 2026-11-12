@@ -15,6 +15,7 @@ const {
   scanDocSetupNoTestRun,
   scanImplementNoFullRun,
   scanObservationNoSuiteRun,
+  scanBackgroundRuleNamesLimit,
 } = require('../scanners');
 
 module.exports = ({ assert, path, fixture, found }) => {
@@ -419,4 +420,33 @@ module.exports = ({ assert, path, fixture, found }) => {
     [{ source: reviewScope, missing: true }],
     'observation-no-suite-run: a missing document is a missing-document gap',
   );
+
+  // --- background-rule-names-limit (ADR 0232): the background rule names the Bash ceiling, never an unnamed limit ---
+
+  const limit = (files) => found(scanBackgroundRuleNamesLimit(fixture(files)));
+  for (const [text, label] of [
+    ['A suite longer than the Bash tool\'s time limit runs in the background.\n', 'one line'],
+    ['A suite longer than the Bash tool\'s time\nlimit runs in the background.\n', 'wrapped after "time"'],
+    ['A suite longer than the Bash tool\'s\ntime limit runs in the background.\n', 'wrapped after "tool\'s"'],
+    ['A suite longer than the Bash tool\'s   time   limit runs in the background.\n', 'a run of spaces'],
+    ['Run it in the background when the suite outlasts the tool\'s limit.\n', 'the tool\'s limit'],
+    ['A verb the tool’s limit kills writes no outcome line.\n', 'a typographic apostrophe'],
+  ]) {
+    const gaps = limit({ 'references/test-selection.md': text, 'agents/implementer.md': text });
+    assert.equal(gaps.length, 2, `background-rule-names-limit: flags ${label} in a reference and an agent`);
+  }
+  assert.equal(
+    limit({ 'skills/review/SKILL.md': 'A suite that outlasts the Bash tool\'s time limit runs in the background.\n' }).length,
+    1,
+    'background-rule-names-limit: a skill is read',
+  );
+  assert.equal(
+    limit({
+      'references/test-selection.md': 'Pass the Bash `timeout` at its ceiling, 600000 ms unless `BASH_MAX_TIMEOUT_MS` raises it, and run in the background only a run that can outlast the ceiling.\n',
+    }).length,
+    0,
+    'background-rule-names-limit: the named ceiling passes',
+  );
+  assert.equal(limit({ 'references/AGENTS.md': 'run in the background when a suite outlasts the Bash tool\'s time\nlimit\n' }).length, 1, 'background-rule-names-limit: the shipped references/AGENTS.md is read');
+  assert.equal(limit({ 'references/x.md': '```\nthe Bash tool\'s time limit\n```\n' }).length, 0, 'background-rule-names-limit: a fenced example is masked');
 };

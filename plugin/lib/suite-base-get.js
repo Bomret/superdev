@@ -10,8 +10,9 @@ const {
 } = require('./ledger.js');
 const { isTestPath, completeSelector, verificationCommandsOf, prepareCommandOf, configuredTestPaths } = require('./verification.js');
 const { gitSpawn, resolveCommit, fileAt } = require('./git-spawn.js');
-const { readTrace, decodePaths } = require('./trace-log.js');
+const { readTrace, decodePaths, untraceField } = require('./trace-log.js');
 const { DENIAL_PREFIX, RESET_PREFIX } = require('./ledger-records.js');
+const { rootRelative, lazyToplevel } = require('./run-tree.js');
 
 const VERIFICATION = 'docs/agents/verification.md';
 
@@ -66,22 +67,6 @@ function runEvents(root) {
     if (e.code !== 'ENOENT') throw e;
   }
   return readTrace(raw).filter((e) => e.kind === 'run');
-}
-
-// A reader of the checkout's repository root, asked of git once on its first call: '' where git cannot answer, and then
-// its `failed` property is true.
-function lazyToplevel(cwd) {
-  let root;
-  const top = () => {
-    if (root === undefined) {
-      const t = gitSpawn(['rev-parse', '--show-toplevel'], cwd);
-      top.failed = t.status !== 0;
-      root = top.failed ? '' : t.stdout.trim();
-    }
-    return root;
-  };
-  top.failed = false;
-  return top;
 }
 
 // `**Suite:**` records the last full-suite run: its result, the commit it ran on, and its kind
@@ -198,18 +183,28 @@ function reusableOnRerun(cwd, root, branch, recordedSha, kind, whole, base) {
   if (failed !== 1) red(`${failed} failed full runs at the failed run's commit, the rerun covers exactly one`);
   const top = lazyToplevel(cwd);
   const file = rootRelative(rm[1], top);
-  const isAlone = (e) => {
+  // The directory the run was made in (the eighth field), decoded from its trace encoding; undefined where the line has none.
+  const runDir = (e) => (e.fields[7] === undefined ? undefined : untraceField(e.fields[7]));
+  const ofFile = (e) => {
     if (e.fields[0] !== 'path') return false;
-    const files = decodePaths(e.fields[4]).map((p) => rootRelative(p, top));
+    // A name is as typed, relative to the directory the run was made in: resolve it against that
+    // directory when the directory is relative and inside the tree. A line with no directory field reads root-relative;
+    // a directory outside the tree makes the run one of no file in it.
+    const raw = runDir(e);
+    const dir = raw === undefined ? null : rootRelative(raw, top);
+    if (raw !== undefined && dir === null) return false;
+    const files = decodePaths(e.fields[4]).map((p) => rootRelative(dir && !/^([\\/]|[A-Za-z]:[\\/])/.test(p) ? path.posix.join(dir, p.replace(/\\/g, '/')) : p, top));
     return files.length === 1 && files[0] === file;
   };
-  const other = at.find((e) => e.fields[0] === 'path' && e.fields[1] === 'fail' && !isAlone(e));
+  // Only a run at the tree root counts as the rerun (ADR 0232): a line with no directory field reads as not at the root.
+  const isAlone = (e) => ofFile(e) && runDir(e) === '.';
+  const other = at.find((e) => e.fields[0] === 'path' && e.fields[1] === 'fail' && !ofFile(e));
   if (other) red('a path run of another test file at the failed run\'s commit failed');
   // The file and the range then passed: only runs the trace records after the failed full run count.
   const after = at.slice(at.findIndex((e) => kinds.includes(e.fields[0]) && e.fields[1] === 'fail') + 1);
   const alone = after.filter(isAlone);
   if (!alone.length) red(`no run of ${rm[1]} alone recorded at the failed run's commit after the failed full run`);
-  if (alone.some((e) => e.fields[1] !== 'pass' || e.fields[3] !== 'clean')) red(`a run of ${rm[1]} alone at the failed run's commit after the failed full run failed or ran on a dirty tree`);
+  if (after.filter(ofFile).some((e) => e.fields[1] !== 'pass' || e.fields[3] !== 'clean')) red(`a run of ${rm[1]} alone at the failed run's commit after the failed full run failed or ran on a dirty tree`);
   const foc = after.filter((e) => e.fields[0] === 'focused');
   const lastFocused = foc[foc.length - 1];
   if (!lastFocused) red('no focused run recorded at the failed run\'s commit after the failed full run');
@@ -255,21 +250,6 @@ function verbSuiteRerun(cwd, root, file, ref) {
 function changedPaths(cwd, from, to) {
   const diff = gitSpawn(['-c', 'diff.relative=false', 'diff', '--name-only', '--no-renames', '-z', from, to], cwd);
   return diff.status === 0 ? diff.stdout.split('\0').filter(Boolean) : null;
-}
-
-// A path as a focused run recorded it (as typed: `./x`, a directory, absolute) reduced to a root-relative
-// POSIX path, or null where it names nothing inside the tree. `top` is the tree root, read once and lazily.
-function rootRelative(p, top) {
-  let s = p.replace(/\\/g, '/');
-  if (process.platform === 'win32') s = s.replace(/^\/([a-zA-Z])\//, (m, d) => `${d.toUpperCase()}:/`);
-  if (s.startsWith('/') || /^[A-Za-z]:\//.test(s)) {
-    const root = top();
-    if (!root) return null;
-    s = path.posix.relative(root.replace(/\\/g, '/'), s);
-  }
-  s = path.posix.normalize(s).replace(/\/$/, '');
-  if (s === '..' || s.startsWith('../')) return null;
-  return s === '.' ? '' : s;
 }
 
 // ADR 0175: under the tip's complete-selector declaration, a green record at `from` carries to `to` when a passing

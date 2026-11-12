@@ -30,7 +30,7 @@ const withPaths = (template, paths) => template.replace(/\{paths\}/g, () => path
 // carries to the remote, so a secret belongs in the environment. Outside every run tree the command runs and nothing is written.
 // simplicity: a command that changes its own process group escapes the group kill; upgrade: a cgroup or subreaper if one bites.
 function verbTest(cwd, args) {
-  const { locate, treeState } = require('./run-tree.js');
+  const { locate, treeState, relDir } = require('./run-tree.js');
   let kind = args[0];
   let command;
   let files = [];
@@ -110,7 +110,7 @@ function verbTest(cwd, args) {
       // during the run is `dirty`.
       const tree = sha1 !== sha || tree0 === 'dirty' || tree1 === 'dirty' || changed ? 'dirty' : tree0 === 'unknown' || tree1 === 'unknown' ? 'unknown' : 'clean';
       const outcome = code === 0 ? 'pass' : 'fail';
-      if (!appendTrace(at.runRoot, { slice: at.slice, kind: 'run', fields: [kind, outcome, sha, tree, encodePaths(files), ms, command] })) {
+      if (!appendTrace(at.runRoot, { slice: at.slice, kind: 'run', fields: [kind, outcome, sha, tree, encodePaths(files), ms, command, relDir(at.tree, runCwd)] })) {
         process.stderr.write('test: the run line could not be written to the run trace\n');
       }
     }

@@ -120,15 +120,15 @@ Repeat until every slice is `merged`:
    file and its test-path changes are not all deletions (ADR 0196), to write a test first where its test-path changes are
    all deletions and it adds behaviour outside the test paths, and to fix a `pass-to-pass` outcome in the same dispatch, unless its range is in one of the three unclosable cases
    of `review-checklist.md`'s `## Fail-to-pass run`, which it then reports with its reason (ADR 0182, ADR 0193, ADR 0196). Every implementer dispatch also
-   tells it to run only the tests that verify its work, each through `scope.js test` (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test
-   focused <changed paths>` with at least one path, or `test path <file>... -- <command>` for a direct test-file run), and its fail-to-pass run, and never `test full`,
-   `test whole`, or a `test focused` with no path: the scope review's exit run is the scope's one full-suite run (ADR 0192). It tells it to run a suite longer than the
-   Bash tool's time limit through the runner in the background and wait for its end before acting on it, and
+   tells it to run only the tests that verify its work, each through `scope.js test` (`test path <file>... -- <command>` for a step's test files, and one `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test
+   focused <changed paths>` with at least one path over the whole changed-path set once its work is committed), and its fail-to-pass run, and never `test full`,
+   `test whole`, or a `test focused` with no path: the scope review's exit run is the scope's one full-suite run (ADR 0192). It tells it to run every test run in the foreground with Bash's `timeout` at its ceiling, 600000 ms unless
+   `BASH_MAX_TIMEOUT_MS` raises it, to run only a run that can outlast the ceiling through the runner in the background, and to wait for its end before acting on it, and
    tells it that a test command is recorded as typed and pushed with the run state, so a secret belongs in the environment, never on the command line, and
-   tells it to edit files through the edit tools, never through a script. It also tells it that a RED or GREEN step passes the test files
-   that hold the tests that step works on, and that its last run before the fail-to-pass run passes the slice's whole
-   changed-path set (ADR 0139). Where the focused fence repeats the full fence, it tells it instead that each step runs each test file
-   it works on through `test path <file>... -- <command>` and that the fail-to-pass run is its one run before the report (ADR 0180). Every implementer dispatch also tells it that a failing test its slice did not cause, one that
+   tells it to edit files through the edit tools, never through a script. It also tells it that a RED or GREEN step runs the test files
+   that hold the tests that step works on through `test path`, and that the one focused run over the whole
+   changed-path set comes after its commit and before the fail-to-pass run (ADR 0139, ADR 0232). Where the focused fence repeats the full fence, it tells it instead that each step runs each test file
+   it works on through `test path <file>... -- <command>`, that it makes no whole-set run, and that the fail-to-pass run is its one run before the report (ADR 0180). Every implementer dispatch also tells it that a failing test its slice did not cause, one that
    also fails at the slice's base commit, is named in its report, neither fixed nor blocked on, and left to
    the scope review's fix loop: a named inherited failure is no BLOCKED and no strike
    (ADR 0155, ADR 0192, INV-0157). A dispatch for a

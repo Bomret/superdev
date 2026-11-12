@@ -9,8 +9,8 @@ reads this file at runtime, the same shared-file-read-at-dispatch pattern as `re
 A repository with no suite at all carries no such file.
 
 - **The full command** is the first fenced block. Run it verbatim.
-- **The focused command** is the second fenced block, and it is the command every step inside
-  the loop runs. What defines it is that it **costs less than the full suite**: a run scoped to a set of
+- **The focused command** is the second fenced block, and it is the command the loop runs
+  once over its whole changed-path set, after the work is committed. What defines it is that it **costs less than the full suite**: a run scoped to a set of
   changed paths qualifies, and so does a fast subset — the unit tests, with the slow integration tests
   left out. Where narrowing is impossible, the second fence records the full command again, with prose
   beside it stating why. A second fenced block is **only ever** the focused command — never a watch
@@ -23,10 +23,11 @@ as configured, and `test path` runs its command as given from the current direct
 redirects, backgrounds, or wraps the call. A test command is recorded as typed and pushed with the run state, so a secret belongs in the environment, never on the command line. To trim the output, pipe the runner into `tail`, or redirect it to a
 file outside the working tree, such as one from `mktemp` under `$TMPDIR`, and read the file afterwards.
 A redirect into the working tree leaves an untracked file, and on a passing run also records an implementation edit.
-**A suite longer than the Bash tool's time limit runs through the runner in the background, and you wait for
-its end before acting on it.** **`scope.js fail-to-pass` follows the same rule:** it runs its command up to
-twice, so run it in the background when the suite outlasts the Bash tool's time limit, and wait for its end before
-you read its outcome. A verb the tool's limit kills writes no outcome line. The run trace records a run made outside the runner as `unknown` whenever its
+**Every test run passes the Bash tool's `timeout` at its ceiling, 600000 ms unless `BASH_MAX_TIMEOUT_MS` raises it, and runs in the foreground.
+Only a run that can outlast the ceiling runs through the runner in the background, and you wait for
+its end before acting on it.** **`scope.js fail-to-pass` follows the same rule:** it runs its command twice, after a
+prepare where one is configured, so run it in the background when two runs of the range's test files can outlast the ceiling,
+and wait for its end before you read its outcome. A verb the ceiling kills writes no outcome line. The run trace records a run made outside the runner as `unknown` whenever its
 exit status does not reflect the test. An `unknown` run is no passing run, so `scope.js suite reusable` never
 reuses it and the suite runs again at the next gate. The whole-repo command is the third command
 (`## Whole-repo command` below), and `scope.js suite reusable` reads its runs too.
@@ -246,7 +247,7 @@ cites this section and runs the steps in order, once per tip:
    `scope.js suite rerun <test-file> <triage-ref> --root <run-root>` from the checkout at the tip. The verb
    refuses a tip that already carries a rerun record: a second failure at the tip stays red.
 4. **Run the file alone.** `scope.js test path <file> -- <command running only that file>` at the tip on a clean tree,
-   through the runner so the trace records it. A failing or dirty rerun stays red.
+   from the tree root (ADR 0232), through the runner so the trace records it. A failing or dirty rerun stays red.
 5. **Run the focused command over the scope's range.** `scope.js test focused <paths>` over every path
    `git diff --name-only --no-renames <range-base> <tip>` lists, at the tip on a clean tree. The range base
    is what `scope.js base resolve --branch <branch> --base <base> --root <run-root>` prints, `<base>` being
@@ -256,11 +257,11 @@ cites this section and runs the steps in order, once per tip:
    failing-run exit. Without `--base` the verb refuses, because it cannot judge the range.
 
 `scope.js` checks the ledger and the run trace: the rerun record for the tip, the file alone (and no other
-file in the same run) passing clean at the tip after the failed full run, every run of it alone recorded
-there after that failure passing clean (a run of it before the failure counts for nothing), a passing clean focused run there
+file in the same run) passing clean at the tip after the failed full run, run at the tree root, every run of it alone
+recorded there after that failure, from any directory, passing clean (a run of it before the failure counts for nothing), a passing clean focused run there
 after the failed full run whose recorded path set covers every path `base resolve`'s range base to the tip
 changes, the declaration, exactly one failed full run at the tip, and no failed run of another test file at
-the tip. Nothing reruns on its own, and no step reruns a failed suite until it passes.
+the tip. A recorded file name is read against the directory the run was made in, so `a.test.js` from `tests` is `tests/a.test.js`. Nothing reruns on its own, and no step reruns a failed suite until it passes.
 
 The `red` record at T also counts at a later tip U when T is an ancestor of U, every check above holds when
 judged at T, and T..U passes the Markdown-only rule of `## Complete selector`, judged at U: every path changed
@@ -280,18 +281,19 @@ Each caller judges its own range and builds the set from it:
 
 - **A chain gate's carry run.** Every path changed from the suite record's commit to the gate's tip, per
   `## The carry run`.
-- **The implementer's TDD loop, and the lite tier's inline loop.** A failing-test or passing-test step runs
-  over the test files that hold the tests the step works on, and passes those files alone to `scope.js test
-  focused`. The last run before the implementer reports, and before the lite tier commits a slice, runs over
-  the slice's whole changed-path set: the slice base against the working tree. A step that works on no test
-  file runs over that whole set too. A focused command with no `{paths}` token runs unchanged at every step,
-  and the run trace records every step's run either way (ADR 0139). Every loop run passes at least one path, or
-  runs one test file through `test path <file>... -- <command>`, so the loop runs only the tests that verify the work. `test full`,
+- **The implementer's TDD loop, and the lite tier's inline loop.** Each failing-test or passing-test step runs
+  the test files it works on through `scope.js test path <file>... -- <command>`, a runner filter allowed, and never
+  through the focused command (ADR 0232). Once the work is committed, one `scope.js test focused <paths>` runs over the
+  whole changed-path set: the slice base against the working tree, or `<cycle-base>..HEAD` on a fix cycle. It runs
+  before the fail-to-pass run, whose first run stays the last passing run of the range's test files. A focused
+  failure is a RED step: fix, commit, and run the focused command again. A step that works on no test file runs
+  that focused command over the whole set. A focused command with no `{paths}` token runs verbatim, and the run
+  trace records every run either way (ADR 0139). Every loop run passes at least one path, or runs test files
+  through `test path`, so the loop runs only the tests that verify the work. `test full`,
   `test whole`, and a `test focused` with no path run only at the scope review's and ship's gates (ADR 0177, ADR 0192).
-  Where the focused fence repeats the full fence, `test focused` runs the whole suite whatever paths it gets. There a
-  failing-test or passing-test step runs each test file it works on through `test path <file>... -- <command>`, the runner's own
-  invocation of that one file. The last run before the implementer reports, or before the lite tier commits a slice,
-  does not run, and neither does a step that works on no test file: the scope review's exit run covers that work
+  Where the focused fence repeats the full fence, `test focused` runs the whole suite whatever paths it gets. There
+  each step runs each test file it works on through `test path`, and the loop makes no whole-set run: neither the
+  committed-work run nor a step that works on no test file runs, because the scope review's exit run covers that work
   (ADR 0180, ADR 0192). The fail-to-pass run still runs (ADR 0182).
 - **The documentation step.** None: the step runs no test command and builds no set. `scope.js suite reusable`
   carries a green record across Markdown-only commits with no test run at the tip (ADR 0128, ADR 0189,
