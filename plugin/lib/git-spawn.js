@@ -46,12 +46,12 @@ function refResolves(ref, cwd) {
 // A file's text at a commit: '' where the commit has no such file, null where git cannot say. The tip's own
 // `docs/agents/verification.md` is read this way, never a working tree's. `rel` is a path from the tree root: `--full-tree`
 // stops `ls-tree` resolving it against `cwd`, which can be any subdirectory of the checkout (`commit:rel` is root-relative already).
+// `show` answers a file that is there in one call; only where it fails does `ls-tree` tell an absent file from a git that cannot say.
 function fileAt(commit, rel, cwd) {
-  const listed = gitSpawn(['ls-tree', '--full-tree', '--name-only', commit, '--', rel], cwd);
-  if (listed.status !== 0) return null;
-  if (!listed.stdout.trim()) return '';
   const shown = gitSpawn(['show', `${commit}:${rel}`], cwd);
-  return shown.status === 0 ? shown.stdout : null;
+  if (shown.status === 0) return shown.stdout;
+  const listed = gitSpawn(['ls-tree', '--full-tree', '--name-only', commit, '--', rel], cwd);
+  return listed.status === 0 && !listed.stdout.trim() ? '' : null;
 }
 
 module.exports = { gitSpawn, gitThrow, parseBranchList, resolveCommit, refResolves, fileAt };
