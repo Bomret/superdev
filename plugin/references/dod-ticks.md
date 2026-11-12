@@ -161,8 +161,8 @@ together must have covered. Each write lands in `<run-root>/dod.md`, the run's o
   below).
 - **The anchor write** goes through the active slice store's own `## Definition of Done ticks` section
   (every store document carries one), which runs `scope.js dod-line` (`plan-contract.md` → *Definition of
-  Done ticks*) for the line edit itself through that store's gated **Edit an issue's body** rule (ADR
-  0115) — best-effort, the same posture every other anchor write in the chain takes.
+  Done ticks*) for the line edit itself through that store's gated **Edit an issue's body** rule —
+  best-effort, the same posture every other anchor write in the chain takes.
 
 ## Pairing dod.md with the anchor
 
@@ -190,7 +190,7 @@ them this way:
 
 The implementer's report carries one line per criterion its dispatch listed: met with evidence, not met
 with a reason, or ceiling with whatever partial evidence it gathered (`agents/implementer.md`'s
-per-criterion report section, INV-0006's verification-ceiling clause). The controller ticks a listed
+per-criterion report section and its verification-ceiling clause). The controller ticks a listed
 line the report calls met, with that evidence as the note; leaves a listed line the report calls not met
 or ceiling unticked, with that reason or partial evidence as the note; sends the report back for any
 listed line it omits, per the note rule above; and applies the mapping gate above to anything else the

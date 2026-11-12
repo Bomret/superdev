@@ -6,6 +6,10 @@
 slice-store configuration into a store document every command reads and a plan document only `/superdev:plan` reads,
 and trims `fail-to-pass.md` to its rules.
 
+**Amended by:** [ADR 0246](0246-a-scope-review-loads-its-rare-branches-on-demand.md), which moves the scope review's
+rare branches into files read on demand, trims the Jira core seed and the setup skill, and removes the remaining
+sentence-level citations.
+
 ## Context
 
 Every chain command and every subagent dispatch reads its references whole, because the Read tool returns a whole

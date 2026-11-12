@@ -56,8 +56,8 @@ The merge call below degrades the same way: print the exact `gh pr merge`/REST c
 ## Edit the pull request body
 
 A run that resolves a deferred finding after `/superdev:submit-pr` opened the pull request rebuilds that
-pull request's `## Deferred to a plan` section (`references/scope-findings.md`'s `## Deferred findings`,
-ADR 0121). Only an open pull request is edited.
+pull request's `## Deferred to a plan` section (`references/scope-findings.md`'s `## Deferred findings`).
+Only an open pull request is edited.
 
 - **Read it**: `gh pr view <number> --json state,body` (or `GET /repos/<owner>/<repo>/pulls/<pull_number>`
   for `state`, `merged`, and `body`), into a file. Only `state` `OPEN` (`open` and `merged` false on the

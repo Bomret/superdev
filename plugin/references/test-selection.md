@@ -329,8 +329,8 @@ Each caller judges its own range and builds the set from it:
   each step runs each test file it works on through `test path`, and the loop makes no whole-set run: neither the
   committed-work run nor a step that works on no test file runs, because the scope review's exit run covers that work. The fail-to-pass run still runs.
 - **The documentation step.** None: the step runs no test command and builds no set. `scope.js suite reusable`
-  carries a green record across Markdown-only commits with no test run at the tip (ADR 0189,
-  INV-0017), so the doc commits need none. Where the record stays at an earlier commit because review reached
+  carries a green record across Markdown-only commits with no test run at the tip,
+  so the doc commits need none. Where the record stays at an earlier commit because review reached
   its tip by the complete-selector carry, the record carries through that tip to the doc commits, per
   `## Complete selector`. Where review's gate passed on `## The recorded rerun`, the `red` record at that tip
   counts at the doc commits too, per that section.

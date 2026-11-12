@@ -96,7 +96,9 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          disciplines, intent handoff, prior-art audit, design sketch, diagnosis, prototype, merge-conflicts,
                          review-checklist with its split lens files (review-design-lenses, review-coverage, fail-to-pass,
                          untraced-writes, dependency-verification, prompt-concept-overlap, test-cost, test-gaps),
-                         review-scope-mode, review-inline-fix, dod-ticks, response-shapes); its own AGENTS.md routes them
+                         review-scope-mode with its branch files (review-scope-holds, review-scope-denials,
+                         review-scope-base, review-scope-deferrals, review-scope-coverage), review-inline-fix, dod-ticks,
+                         response-shapes); its own AGENTS.md routes them
   scripts/             — the runtime CLIs: `scope.js`, `kb-patch.js`, `publish-kb.js`
   LICENSE · NOTICE     — copies of the root files, so the shipped tree carries its own attribution
 tests/                 — one suite per shipped executable (the hooks, `scope.js`, `kb-patch.js`,

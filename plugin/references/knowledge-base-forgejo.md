@@ -117,8 +117,8 @@ The **backend command contract** `scripts/publish-kb.js` runs. Each command runs
 the `find` result's fields under `found` (`read`, `update`, and `delete`), and the `knowledge-base`
 section of `.superdev/info.json` under `operator`. Every command reads its values from that
 file with `jq`. `find` lists every wiki page and filters by title, emitting the matching entry's
-`sub_url`; `read`, `update`, and `delete` take `.found.sub_url` from it, and `/superdev:publish-kb` fills a parent link's `{sub_url}` from it (ADR
-0168). `update` always sends `title`, for the reason the wiki API conventions above state. `find` maps
+`sub_url`; `read`, `update`, and `delete` take `.found.sub_url` from it, and `/superdev:publish-kb` fills a parent link's `{sub_url}` from it.
+`update` always sends `title`, for the reason the wiki API conventions above state. `find` maps
 `jq -e`'s exit 1 (a genuine no-match) to exit 3, the only outcome `scripts/publish-kb.js` reads as positive
 absence; any other `jq` exit maps to exit 2, "could not answer". `find` reads page after page until one
 holds the title, or until a page returns fewer than 50 entries, which ends the listing. A full listing,

@@ -269,12 +269,12 @@ user places the fix **later** (`skills/plan/SKILL.md` §1). The plan holds the s
 holds; the record carries the provenance that exists at that moment, and every capture rule below applies
 unchanged.
 
-**A fail-to-pass run that reads `unknown` is an observation when it is the scope run's first non-exempt one** (ADR 0134,
-INV-0139). `scope.js fail-to-pass` reads `unknown` where it cannot judge. Either the tests did not pass against the
+**A fail-to-pass run that reads `unknown` is an observation when it is the scope run's first non-exempt one**.
+`scope.js fail-to-pass` reads `unknown` where it cannot judge. Either the tests did not pass against the
 changed code in the verb's throwaway worktree, an environment gap that no slice of the scope covers, or the run against the changed code outlasted
 its bound of 300000 ms (`verification.failToPassControlMs` in `.superdev/info.json` overrides it), or the run before
-the change was killed at its bound, ten times the first run's duration or 10 seconds, whichever is larger (ADR 0142;
-`verification.failToPassFloorMs` in `.superdev/info.json` overrides the 10-second floor),
+the change was killed at its bound, ten times the first run's duration or 10 seconds, whichever is larger
+(`verification.failToPassFloorMs` in `.superdev/info.json` overrides the 10-second floor),
 or ended by a signal, or a run's command could
 not start (`start-failed:<code>`, a missing shell among the causes), or the prepare command did not succeed before a
 run (`prepare=`). A run killed at the bound

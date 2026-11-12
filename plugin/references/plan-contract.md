@@ -137,7 +137,7 @@ a store where the two could land on the same record.** A single-slice feature's 
 the feature and can never reach `merged` — and would lose it outright the moment append mode promotes that
 lone slice to an epic (`plan-authoring.md`'s `## Append mode`). Each store's `## Scope anchor` section names the distinct
 notation it uses instead. A dependency is **satisfied** only when the anchor it names is closed, or when
-no such anchor exists; no ledger stage satisfies it (amending ADR 0040). A merged feature
+no such anchor exists; no ledger stage satisfies it. A merged feature
 whose anchor is still open has not been verified or wrapped up, so a dependent keeps waiting for the close. `/superdev:plan` records
 one when its interview named a prerequisite feature, and `/superdev:status` is the reader: it groups an
 anchor whose dependency is unsatisfied as `waiting`.
