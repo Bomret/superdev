@@ -470,7 +470,9 @@ criterion, when a citation names no Absorbs entry or the body has no Absorbs lin
 cite one reference, when no criterion begins with `Reachable:`, and for each of rollback, deploy-window data
 compatibility, consumer compatibility, and production visibility that no criterion beginning with `Release
 risk:` names. A problem line quotes only references and category names. It also refuses empty input.
-`tests/scope-dod-check.test.js` holds its cases.
+`/superdev:plan` runs it on the drafted anchor body before any store write, and the scope review runs it in
+its anchor sync on input built from the store's Definition-of-Done lines and Absorbs line, again before each
+stage write. `tests/scope-dod-check.test.js` holds its cases.
 
 `init` writes a fresh ledger at stage `planned` (ADR 0079) — the one stage that precedes the four-command
 chain rather than naming a step within it, ranked below `implementing` so `stage set implementing` (or any
