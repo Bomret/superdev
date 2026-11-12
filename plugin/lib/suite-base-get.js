@@ -201,8 +201,10 @@ function reusableOnRerun(cwd, root, branch, recordedSha, kind, whole, base) {
   const ofFile = (e) => {
     if (e.fields[0] !== 'path') return false;
     // A name is as typed, relative to the directory the run was made in (the eighth field): resolve it against that
-    // directory when the directory is relative and inside the tree. A line with no directory field reads root-relative.
+    // directory when the directory is relative and inside the tree. A line with no directory field reads root-relative;
+    // a directory outside the tree makes the run one of no file in it.
     const dir = e.fields[7] === undefined ? null : rootRelative(e.fields[7], top);
+    if (e.fields[7] !== undefined && dir === null) return false;
     const files = decodePaths(e.fields[4]).map((p) => rootRelative(dir && !/^([\\/]|[A-Za-z]:[\\/])/.test(p) ? path.posix.join(dir, p.replace(/\\/g, '/')) : p, top));
     return files.length === 1 && files[0] === file;
   };
