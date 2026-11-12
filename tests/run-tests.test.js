@@ -113,6 +113,28 @@ cases.push(async () => {
   assert.notStrictEqual((await go(empty, [])).status, 0);
 });
 
+// The suites start longest first by the durations the last run recorded, a suite with no record first of all, and the
+// run records what it measured for the next one.
+cases.push(async () => {
+  const root = tree({
+    'tests/a.test.js': suite('a'),
+    'tests/b.test.js': suite('b'),
+    'tests/c.test.js': suite('c'),
+    'tests/d.test.js': suite('d'),
+  });
+  const first = await go(root, [], undefined, { parallelism: 1 });
+  assert.strictEqual(first.status, 0, first.out);
+  assert.strictEqual(logOf(root), 'a\nb\nc\nd\n', 'with no record the discovery order holds');
+  const file = path.join(root, 'node_modules', '.cache', 'run-tests.json');
+  const recorded = JSON.parse(fs.readFileSync(file, 'utf8'));
+  assert.deepStrictEqual(Object.keys(recorded).sort(), ['tests/a.test.js', 'tests/b.test.js', 'tests/c.test.js', 'tests/d.test.js']);
+  fs.writeFileSync(file, JSON.stringify({ 'tests/a.test.js': 10, 'tests/b.test.js': 300, 'tests/c.test.js': 20 }));
+  fs.rmSync(path.join(root, 'log'));
+  const second = await go(root, [], undefined, { parallelism: 1 });
+  assert.strictEqual(second.status, 0, second.out);
+  assert.strictEqual(logOf(root), 'd\nb\nc\na\n', 'unrecorded first, then longest first');
+});
+
 // Every discovered suite and every tail step runs, each prints one wall-clock line, and a step passes through the
 // whole run (INV-0155).
 cases.push(async () => {

@@ -15,7 +15,7 @@ Applies to every start. You bring the docs and the knowledge base into agreement
 - **The scope's own commits**: `<range-base>..<branch>`, per `scope-mode.md`'s `## The scope's range base`.
 - **The staging path**: the **absolute** path `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" staging <scope>` prints, or `staging _adhoc` on an ad-hoc start, resolved before the dispatch. It names `.superdev/kb-pending/<scope>/` in the main working tree from any cwd.
 - **An open `docs` line**: a `docs`-tagged line of `<run-root>/dod.md` neither ticked nor `accepted:`.
-- **The publish**: publish the snapshot per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section.
+- **The publish**: on a live run, the run's one snapshot publish, per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section. It is the last act of the exit that ends the run, after the closer §3's **The step** lists. No write site publishes.
 - **A writer dispatch**: dispatch `superdev:doc-writer` with an **explicit `model`** (`sonnet`).
 - **A reader dispatch**: dispatch `superdev:doc-reader` with an **explicit `model`** (`sonnet`).
 
@@ -85,8 +85,8 @@ The writer commits its doc changes on the current branch. A denied writer's inli
 
 **A denied dispatch.** Applies when the permission classifier denies a `doc-writer` or a `doc-reader`. It is a degraded pass: read and follow `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section. Say so in §5's report.
 
-- **A denied `doc-writer`** → reconcile inline, and name the docs you changed and every doc you judged current, or your reason when you judged no doc relevant, as `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md`'s `## Pass 1 — in-repo docs` directs. On a live run, write the entry with `scope.js degraded add`, then run the publish. Under `--unattended`, block instead.
-- **A denied `doc-reader`** → the docs went unread by fresh eyes. On a live run, write the entry with `scope.js degraded add-denial -`, the refusal piped through a quoted heredoc, then run the publish. Under `--unattended`, follow that section's authorship rule up to the cap: read `scope.js get denials` after the entry and block once the count reaches it.
+- **A denied `doc-writer`** → reconcile inline, and name the docs you changed and every doc you judged current, or your reason when you judged no doc relevant, as `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md`'s `## Pass 1 — in-repo docs` directs. On a live run, write the entry with `scope.js degraded add`. Under `--unattended`, block instead.
+- **A denied `doc-reader`** → the docs went unread by fresh eyes. On a live run, write the entry with `scope.js degraded add-denial -`, the refusal piped through a quoted heredoc. Under `--unattended`, follow that section's authorship rule up to the cap: read `scope.js get denials` after the entry and block once the count reaches it.
 
 **A pass the writer could not stage.** Applies to a staging path the writer could not write, or an existing page a read could not reconcile against. It is a degraded pass, and the writer's report carries the note. On a live run, write the entry too.
 
@@ -139,7 +139,7 @@ Applies to a live run. Everything above still applies.
 
 **The anchor checklist.** Applies to every tick and untick this section writes. Apply the same verdict to the anchor's Definition of Done checklist, through the active store's `## Definition of Done ticks` section (`docs/agents/issue-tracker.md`). It is best-effort: report a failed write once and continue.
 
-**An untick's entry.** Applies to every untick of the tick re-check. Write a `**Unresolved:**` entry naming the criterion it broke: a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) piped to `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add - --root <run-root>`. Then run the publish.
+**An untick's entry.** Applies to every untick of the tick re-check. Write a `**Unresolved:**` entry naming the criterion it broke: a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) piped to `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add - --root <run-root>`.
 
 **The `docs` settle.** Applies to every live run, on every path the pass took. Follow `dod-ticks.md`'s Document's case. Read the stage first with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>`.
 
@@ -153,7 +153,7 @@ An `accepted:` `docs` line stays exactly as it stands.
 - **Now true** → tick it with its evidence.
 - **Still false** → untick it with a `not met:` note naming what the `AGENTS.md` text still lacks. Write one `**Unresolved:**` entry worded `docs criterion unmet after the doc pass: <criterion>`, as **An untick's entry** does, unless `scope.js get unresolved` already prints a bullet naming that criterion.
 
-**The settle's clear.** Applies after the settle, when every `docs` line is ticked or `accepted:` and every bullet `get unresolved` prints is a `docs criterion unmet after the doc pass:` entry. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. Any other bullet standing → leave every entry. Run the publish after any `unresolved` write.
+**The settle's clear.** Applies after the settle, when every `docs` line is ticked or `accepted:` and every bullet `get unresolved` prints is a `docs criterion unmet after the doc pass:` entry. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. Any other bullet standing → leave every entry.
 
 **The stage write.** Applies after the settle. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get unresolved --root <run-root>` first.
 
@@ -168,7 +168,7 @@ An `accepted:` `docs` line stays exactly as it stands.
 | `documented` | leave the line and run `step clear` |
 | anything else, or no line | write `documented-unreviewed`, then run `step clear` |
 
-A pass in which the writer changed nothing still counts. After a write of `documented` or `documented-unreviewed`, run the publish.
+A pass in which the writer changed nothing still counts. Each branch above ends in its closer, and the publish follows it.
 
 **The next command.** Applies to every live run. Where a command prints, first say that the conversation is disposable: the ledger's stage and `dod.md` carry everything the next command reads, so a `/clear` first costs nothing. Print the command last, from the first row that matches.
 

@@ -73,6 +73,8 @@ Applies to every start past §1. Read the stage with `node "${CLAUDE_PLUGIN_ROOT
 - a stage write
 - `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step block --root <run-root>`
 
+**The publish.** Applies to every exit after `step set ship`. When this run made a ledger write `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section lists, publish the snapshot once per that section, as the exit's last act: after its closer and after every ledger write the exit makes past it. A §5 exit after the stage write, a failed or declined deploy included, carries no closer of its own and publishes at that exit. No write site publishes.
+
 **The stage.** Applies to every start past §2.
 
 - **Short of `submitted`** (`planned`, `implementing`, `merged`, `reviewed`, `documented`, `documented-unreviewed`, or no line at all) → refuse with no step. Name the missing step, print `/superdev:submit-pr` as what has not run yet, and merge nothing.
@@ -106,7 +108,7 @@ Applies to every start past §1. Read the stage with `node "${CLAUDE_PLUGIN_ROOT
 - **Exits 0** → the merged head is a commit the suite record covers (INV-0017 states every way it does: an exact match, a Markdown-only range that needs no test run at the tip, a focused-selector carry, alone or followed by Markdown-only commits, or a recorded rerun, alone or followed by Markdown-only commits). Add no `**Degraded:**` bullet.
 - **Exits 1, or no record** → run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" degraded add "the merge landed on <head.sha>, not a commit the green suite record covers"`.
 
-**The adopt's stage write.** Applies after the adopt's `suite reusable` bullet. Set the stage to `shipped` with `scope.js stage set shipped --root <run-root>` unless it already reads that, and publish the snapshot per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section. Go to §5.
+**The adopt's stage write.** Applies after the adopt's `suite reusable` bullet. Set the stage to `shipped` with `scope.js stage set shipped --root <run-root>` unless it already reads that. Go to §5.
 
 **The deploy gate.** Applies to an open pull request, before anything merges. Read the deployment document from the scope branch's tip (`git -C <run-root>/scopetree show <branch>:docs/agents/deployment.md`) and the anchor's `**Deploy:**` line per `docs/agents/issue-tracker.md`. §4 runs this gate again at the merged tip whenever its merge moves the tip.
 
@@ -181,7 +183,7 @@ Applies to every start past §1. Read the stage with `node "${CLAUDE_PLUGIN_ROOT
 
 - The pinned sha is the local tip, never a value read from the host. Never send a force or bypass option.
 - **A host refusal** (an unmet approval, branch protection, or a head that moved since) → relay its message and merge nothing.
-- **A merge call the permission classifier denies** (the tool result names a denial by Claude Code's permission classifier, auto mode's included) → merge nothing further, and try no other route to merge: no switch between `gh` and the host's API, no retry in another form. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step block --root <run-root>`, then publish the snapshot per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section. Name the denial, and name the operator's mitigation: an allow rule for the merge command in the permission settings, or `/superdev:ship <scope>` run in a mode that prompts for it.
+- **A merge call the permission classifier denies** (the tool result names a denial by Claude Code's permission classifier, auto mode's included) → merge nothing further, and try no other route to merge: no switch between `gh` and the host's API, no retry in another form. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step block --root <run-root>`. Name the denial, and name the operator's mitigation: an allow rule for the merge command in the permission settings, or `/superdev:ship <scope>` run in a mode that prompts for it.
 
 ## 5. After the merge
 
@@ -190,7 +192,7 @@ Applies to every start past §1. Read the stage with `node "${CLAUDE_PLUGIN_ROOT
 - **`merged` reads false** → refuse: the pull request no longer reads as merged on the host. Run `step block`, change nothing else, and write no stage.
 - **Otherwise** → take `merge_commit_sha` and `head.sha`.
 
-**The stage write.** Applies after the merge commit is found. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set shipped --root <run-root>` unless the stage already reads `shipped`. Then publish the snapshot per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section.
+**The stage write.** Applies after the merge commit is found. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set shipped --root <run-root>` unless the stage already reads `shipped`.
 
 **The deploy posture.** Applies after the stage write (INV-0098: only ship runs a target's command, only under `auto`, only after the merge, only in a tree detached at the merge commit). Read the posture and the anchor's `**Deploy:**` line fresh here, never reused from §3 or §4, at the merge commit, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Reading the posture at the merge commit`. Read through the scope checkout: `git -C <run-root>/scopetree fetch origin <base>` when the commit is missing, then `git -C <run-root>/scopetree show <merge-commit-sha>:docs/agents/deployment.md`.
 

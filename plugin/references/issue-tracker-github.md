@@ -403,7 +403,7 @@ On this store it is an ordinary issue carrying the **Intent label** from *Config
 every other body section — the epic issue on a multi-slice feature, the lone slice issue on a single-slice
 one (`## Scope anchor` above).
 
-- **Write** (after any ledger write the snapshot would show): the anchor body with the `## Run state`
+- **Write** (once per command, at its end, per `run-state.md`'s `## Publishing run state`): the anchor body with the `## Run state`
   section folded in, through **Edit an issue's body** (*REST conventions*), the merge as its producer — the
   same rule the epic amendment under *Append mode* below uses. **Best-effort:** a failed write is reported once
   per run and the run continues; the ledger stays authoritative.

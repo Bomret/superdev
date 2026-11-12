@@ -804,7 +804,9 @@ guard, the storage body, and `parent:`), `publish-kb-parent-link-<topic>` (the p
 
 `node scripts/run-tests.js` runs every suite under `tests/` and the tail; `package.json` carries no test script. It discovers the suites under `tests/` by
 name: every `*.test.js` file directly in that directory, in name order, so a suite added to the tree runs
-with no roster edit. The fixed order is the start order only. A helper (`spawn-verdict.js`, `linear-time.js`), a shared setup file (`tests/*-setup.js`), and a subdirectory
+with no roster edit. The suites start longest first by the durations the last run recorded in
+`node_modules/.cache/run-tests.json`, a suite with no recorded duration first of all, and in name order where no
+record orders them. Each run merges what it measured into that file. A helper (`spawn-verdict.js`, `linear-time.js`), a shared setup file (`tests/*-setup.js`), and a subdirectory
 (`tests/fixtures/`) are not suites. It runs each suite under `node`, then the fixed tail: `invariant-check.js
 --root .`, `drift-check.js --selftest`, `drift-check.js`, and `claude plugin validate ./plugin`. The steps, suites and tail alike, run
 concurrently. The runner keeps as many going as `os.availableParallelism()` reports, each in its own process group.

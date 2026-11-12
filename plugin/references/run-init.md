@@ -169,8 +169,6 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
   `**Branch:** <type>/<scope>` (the branch is not computable from the slug, and `/superdev:submit-pr`
   receives a slug — ADR 0021), and the `**Anchor:**` line — the anchor's key and title, per the store's `## Scope
   anchor` contract — which `/superdev:review` reads back instead of deriving a title from the diff.
-  Publish the snapshot afterwards, per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing
-  run state` section.
 
   **`<run-root>/ledger.md` already present** → read its stage:
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>`.
@@ -228,3 +226,5 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
   or later sets no implement step. The `merged` stage write clears it. Every exit this command reaches after
   `step set implement` ends in a `step clear`, a stage write, or `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js"
   step block --root <run-root>`: a blocked stop, a refusal, and a `First:` wait each run `step block` first.
+  The run's one snapshot publish follows that closer, per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s
+  `## Publishing run state` section.

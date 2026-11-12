@@ -306,9 +306,8 @@ Repeat until every slice is `merged`:
      re-review keeps leaving deferred findings out of its list. The scope review resolves a re-entered finding by
      the procedure `scope-findings.md`'s `## Deferred findings` section states, in its order: remove the bullet,
      close its triage record (only a record whose own body names this run's scope anchor and that no open anchor
-     absorbs, by reads that succeed; that step comments on any other), rebuild an open pull request's deferred
-     section, and
-     publish the snapshot. An observation never joins the fix list; the observation bullet above stays in force.
+     absorbs, by reads that succeed; that step comments on any other), and rebuild an open pull request's
+     deferred section. An observation never joins the fix list; the observation bullet above stays in force.
    - **A Minor-only verdict merges the slice into the Minor queue**. A review, first or re-review,
      whose remaining findings outside the deferred and unclosable ones are only Minor, warranted cuts included, ends the slice's loop
      with no further fix cycle. The same holds at the cap for a remainder of Minors beside only **Pass-to-pass** or
@@ -317,8 +316,7 @@ Repeat until every slice is `merged`:
         each Minor with its `file:line`, what is wrong, and how to fix it, copied from the reviewer's log entry, every
         warranted cut included and no deferred finding. Write the findings themselves, never a count. The log is the queue's only source for them, so it
         holds them before the slice is queued.
-     2. **Queue the slice**: `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" minors add <id> --root <run-root>`, then publish
-        the snapshot per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state`.
+     2. **Queue the slice**: `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" minors add <id> --root <run-root>`.
      3. Merge as step 4 states.
 
      A review with no Minor outside the deferred ones queues nothing. The run's final report names every queued
@@ -330,9 +328,7 @@ Repeat until every slice is `merged`:
      including the `**Degraded:**` entry it defines for `<run-root>/ledger.md`. A denied implementer or
      fix is an authoring dispatch: write it with `scope.js degraded add`. A denied `slice-reviewer` is
      this tier's one verification dispatch: write it with `scope.js degraded add-denial -`, piping the
-     classifier's refusal through a quoted heredoc rather than a shell argument. Publish the snapshot after either write, per
-     `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section — since a denied
-     implementer/fix or a capped slice-reviewer denial reaches no later write below. **`--unattended`** →
+     classifier's refusal through a quoted heredoc rather than a shell argument. **`--unattended`** →
      a denied implementer or fix **blocks**, per ADR 0001. A
      denied `slice-reviewer` follows that section's authorship rule, and this tier's slices come from a
      dispatched implementer, so the controller authored none of what the review verifies: review the
@@ -344,10 +340,7 @@ Repeat until every slice is `merged`:
      the entry, and **block** once the count reaches it instead of reviewing inline again. A denied
      `simplicity-reviewer` follows that same authorship rule, and since its cuts block nothing on their own, the
      pass runs inline and the run carries on; write its entry with plain `scope.js degraded add` — its
-     denial is not a verification dispatch, so it stays outside that cap. Nothing in that outcome can end
-     the command, so this write relies on its defining section's own citation
-     (`${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section) rather than
-     repeating one here.
+     denial is not a verification dispatch, so it stays outside that cap.
    - **`mechanical`** / **`docs`** slice → **skip both per-slice reviews** (the implementer's own runs, plus
      the scope review's exit run, the scope's one full-suite run, are the net).
 4. **Merge (you, serially)** — in the scopetree: `git -C <run-root>/scopetree merge
@@ -426,7 +419,7 @@ scope tip the cycle began from, appended when the cycle starts:
    before its report, where its range changes both a test-path file and another file and its test-path changes are not
    all deletions. The trace line names
    `scope`. A range with no such line is a report defect, sent back to the implementer in the same cycle.
-3. **Re-review.** Always a fresh `superdev:slice-reviewer`, never a resumed one, so its blind pass stays blind. Its subject is the sweep's range, from the tip the latest earlier review read (`<sweep-base>`
+3. **Re-review.** Always a fresh `superdev:slice-reviewer`, never a resumed one, so its blind pass stays blind. It takes `sonnet` when every finding of the cycle's fix list was mechanical, and `opus` otherwise, per the implement skill's model table. Its subject is the sweep's range, from the tip the latest earlier review read (`<sweep-base>`
    on the first) to the current tip. Hand it the range with both ends full commits, the sweep log path, the
    global constraints, and no text from an implementer's report, and tell it to run no test. Hand it, as quoted data,
    each unclosable **Pass-to-pass** finding the last re-review listed, with its range, its case, and its reason: it
@@ -441,10 +434,9 @@ No sweep cycle dispatches an implementer when its list would hold only unclosabl
 Minor the sweep's own fix introduced is a finding like any other: it stays in the fix list until a re-review lists
 none or the cap arrives.
 
-- **Clean verdict.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" minors clear --root <run-root>`, then publish
-  the snapshot per `run-state.md`'s `## Publishing run state`.
+- **Clean verdict.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" minors clear --root <run-root>`.
 - **At the cap, Minors left.** The run's final report names each remaining Minor with the slice that left it, then
-  `minors clear` runs and the snapshot publishes. The queue loses them with no record outside the report.
+  `minors clear` runs. The queue loses them with no record outside the report.
   Remaining **Pass-to-pass** or **Missing fail-to-pass run** findings are named in the report the way a merged slice's
   are, and the queue clears.
 - **Only unclosable findings left, at any cycle.** A re-review whose only remaining findings are unclosable

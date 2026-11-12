@@ -13,7 +13,7 @@ Applies to every start. You are the **controller**: you drive a plan's slices to
 - **The tier**: `lite` for 3 or fewer loaded slices, `full` for more. It is derived fresh every run, never configured or persisted.
 - **The playbook**: `${CLAUDE_PLUGIN_ROOT}/references/implement-full.md` for `full`, `${CLAUDE_PLUGIN_ROOT}/references/implement-lite.md` for `lite`. Each ends by reading `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md`.
 - **The scope anchor**: the epic, or the lone slice on a single-slice plan, per the store's `## Scope anchor` contract (`docs/agents/issue-tracker.md`).
-- **The publish**: publish the snapshot per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section.
+- **The publish**: the snapshot publish, per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section. It runs twice: right after the entry's write of `**Stage:** implementing` (`init` or `stage set`), and as the last act of the exit that ends the run, after run handoff's `merged` stage write, or after the `step clear` or `step block` of an earlier exit. No other write site publishes.
 - **A block**: a stop under `--unattended`, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section.
 
 ## The closing message
@@ -64,7 +64,7 @@ Applies to the `lite` tier. Its playbook runs the documentation pass in the same
 
 **Hook-enforced.** Applies to every dispatch and integration. Only the controller merges and pushes (`merge-guard`), and every dispatch sets an explicit `model` (`model-explicit`).
 
-**A denied dispatch.** Applies when a dispatch is denied. It is a degraded pass: follow `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section. Work inline, say so, write the `**Degraded:**` entry, then run the publish.
+**A denied dispatch.** Applies when a dispatch is denied. It is a degraded pass: follow `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section. Work inline, say so, and write the `**Degraded:**` entry.
 
 - **An authoring dispatch** (implementer, fix) → `scope.js degraded add`. Under `--unattended` it blocks.
 - **A verification dispatch** → `scope.js degraded add-denial -`, the refusal piped through a quoted heredoc rather than a shell argument. Under `--unattended`, follow that section's authorship rule: block where the controller authored what the pass verifies, and otherwise do the pass inline up to its cap. Read `scope.js get denials` after the entry and block once the count reaches it.
@@ -133,10 +133,11 @@ Applies to every `full` dispatch; `lite` dispatches none, and the reviews later 
 |---|---|---|
 | implementer / fix | `haiku` | mechanical slice (move, rename, format change), transcription from a complete specification, or a fix list in which every finding is a mechanical finding |
 | implementer / fix | `sonnet` | design / multi-file / judgment slice, or a fix list with any other finding |
-| slice-reviewer | `opus` | always |
+| slice-reviewer | `opus` | a slice's review and re-review, and a Minor sweep re-review after a fix list with any other finding |
+| slice-reviewer | `sonnet` | a Minor sweep re-review after a fix list in which every finding is a mechanical finding |
 | simplicity-reviewer | `sonnet` | always |
 
-**A mechanical finding.** Applies to the fix rows. A mechanical finding's fix changes no stated rule or behaviour (a rename, a rewrap, a typo). A fix that changes a rule or behaviour any surface states stays off `haiku`. An implementer working from a prose specification takes at least `sonnet`.
+**A mechanical finding.** Applies to the fix rows and the Minor sweep's re-review rows. A mechanical finding's fix changes no stated rule or behaviour (a rename, a rewrap, a typo). A fix that changes a rule or behaviour any surface states stays off `haiku`. An implementer working from a prose specification takes at least `sonnet`.
 
 ## Red flags
 

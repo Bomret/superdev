@@ -410,7 +410,7 @@ try {
   assert.ok(merged1.includes('## Non-goals'), 'the section after it survives untouched');
 
   // Replace: a further ledger write, then a second publish folded into the body the first fold just
-  // produced — the real per-write shape run-state.md's `## Publishing run state` runs under.
+  // produced — the shape a later command's publish under run-state.md's `## Publishing run state` takes.
   assert.ok(call(['degraded', 'add', 'a denied pass', '--root', foldRoot]).ok);
   const merged1File = path.join(foldDir, 'anchor-2.md');
   fs.writeFileSync(merged1File, merged1, 'utf8');
