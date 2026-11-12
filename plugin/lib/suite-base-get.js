@@ -10,7 +10,7 @@ const {
 } = require('./ledger.js');
 const { isTestPath, completeSelector, verificationCommandsOf, prepareCommandOf, configuredTestPaths } = require('./verification.js');
 const { gitSpawn, resolveCommit, fileAt } = require('./git-spawn.js');
-const { readTrace, decodePaths } = require('./trace-log.js');
+const { readTrace, decodePaths, untraceField } = require('./trace-log.js');
 const { DENIAL_PREFIX, RESET_PREFIX } = require('./ledger-records.js');
 
 const VERIFICATION = 'docs/agents/verification.md';
@@ -198,18 +198,21 @@ function reusableOnRerun(cwd, root, branch, recordedSha, kind, whole, base) {
   if (failed !== 1) red(`${failed} failed full runs at the failed run's commit, the rerun covers exactly one`);
   const top = lazyToplevel(cwd);
   const file = rootRelative(rm[1], top);
+  // The directory the run was made in (the eighth field), decoded from its trace encoding; undefined where the line has none.
+  const runDir = (e) => (e.fields[7] === undefined ? undefined : untraceField(e.fields[7]));
   const ofFile = (e) => {
     if (e.fields[0] !== 'path') return false;
-    // A name is as typed, relative to the directory the run was made in (the eighth field): resolve it against that
+    // A name is as typed, relative to the directory the run was made in: resolve it against that
     // directory when the directory is relative and inside the tree. A line with no directory field reads root-relative;
     // a directory outside the tree makes the run one of no file in it.
-    const dir = e.fields[7] === undefined ? null : rootRelative(e.fields[7], top);
-    if (e.fields[7] !== undefined && dir === null) return false;
+    const raw = runDir(e);
+    const dir = raw === undefined ? null : rootRelative(raw, top);
+    if (raw !== undefined && dir === null) return false;
     const files = decodePaths(e.fields[4]).map((p) => rootRelative(dir && !/^([\\/]|[A-Za-z]:[\\/])/.test(p) ? path.posix.join(dir, p.replace(/\\/g, '/')) : p, top));
     return files.length === 1 && files[0] === file;
   };
   // Only a run at the tree root counts as the rerun (ADR 0232): a line with no directory field reads as not at the root.
-  const isAlone = (e) => ofFile(e) && e.fields[7] === '.';
+  const isAlone = (e) => ofFile(e) && runDir(e) === '.';
   const other = at.find((e) => e.fields[0] === 'path' && e.fields[1] === 'fail' && !ofFile(e));
   if (other) red('a path run of another test file at the failed run\'s commit failed');
   // The file and the range then passed: only runs the trace records after the failed full run count.

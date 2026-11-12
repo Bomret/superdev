@@ -1148,6 +1148,11 @@ const { appendTrace, isTestPath } = require(scopePath);
     assert.ok(f.rerun(sib, 'tests/a.test.js', '#99').ok);
     r = f.reusable(sib);
     assert.ok(!r.ok && /failed or ran on a dirty tree/.test(r.err) && !/another test file/.test(r.err), 'a sibling-directory failing run of the rerun file refuses with the rerun reason: ' + (r.err || ''));
+    // The directory field is stored trace-encoded (a space as `\x20`): a directory whose name holds a space resolves as typed.
+    const spaced = f.root(`red @ ${f.T}`, [FAILED(f.T), SUBRUN(f.T, 'fail', 'clean', '../tests/a.test.js', 'my dir'), ALONE(f.T), FOCUSED(f.T)]);
+    assert.ok(f.rerun(spaced, 'tests/a.test.js', '#99').ok);
+    r = f.reusable(spaced);
+    assert.ok(!r.ok && /failed or ran on a dirty tree/.test(r.err) && !/another test file/.test(r.err), 'a failing run of the rerun file from a directory holding a space refuses with the rerun reason: ' + (r.err || ''));
     // A directory field outside the tree (`..`, or absolute elsewhere) puts the run outside the tree: its failing run is a run
     // of another file, never of the rerun file, whatever name it carries.
     for (const outside of ['..', path.join(path.dirname(fs.realpathSync(os.tmpdir())), 'elsewhere')]) {
