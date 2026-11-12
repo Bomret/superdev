@@ -23,8 +23,9 @@ item that names a set, such as every page or each dialog, is walked member by me
 slice, each covered item also names one plausible wrong implementation that its test rejects. On a fix
 dispatch, each finding's claim is quoted beside what the work now does. An item the implementer has no
 tool to observe is marked `not observable` with its reason, and the report names it as a concern under
-`DONE_WITH_CONCERNS`. The controller takes that concern on to the slice review, where the reviewer judges
-the item in its blind pass like any other. The `lite` tier stays outside the self-check, as ADR 0205 decided.
+`DONE_WITH_CONCERNS`. The item stays in the spec's acceptance list, which the slice reviewer already reads,
+so the reviewer judges it in its blind pass like any other. The controller relays no concern text to the
+reviewer, and the dispatch hands only the log path. The `lite` tier stays outside the self-check, as ADR 0205 decided.
 
 ## Considered options
 
