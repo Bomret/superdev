@@ -18,7 +18,7 @@ try {
   reset();
   verif('touch made-dirty.txt', 'true');
   verb(['full']);
-  assert.match(lines()[0], / run full pass [0-9a-f]{40} dirty - touch\\x20made-dirty\.txt$/, 'a tree dirtied during the run is dirty');
+  assert.match(lines()[0], / run full pass [0-9a-f]{40} dirty - touch\\x20made-dirty\.txt \.$/, 'a tree dirtied during the run is dirty');
   fs.rmSync(path.join(S, 'made-dirty.txt'));
   reset();
   const gate = path.join(D, 'gate');

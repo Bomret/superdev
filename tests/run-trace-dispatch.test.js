@@ -61,10 +61,10 @@ const { tmp, ledger, A, B, trace, reset, run, spawnOut, hookPath, agentPre, agen
   scopeCli(['slice', '--root', A, '04', 'in-progress']);
   scopeCli(['slice', '--root', A, '05', 'in-progress']);
   // `scope.js test focused` writes its run line through this writer, with the path set in `encodePaths`' field encoding (ADR 0175).
-  // Every run line ends with the duration and the raw command, which `appendTrace` escapes as a trace field.
-  appendTrace(A, { slice: '04', kind: 'run', fields: ['focused', 'pass', 'e4f5a6b', 'clean', encodePaths(['a b.ts', 'x,y.ts', '-lead.ts']), '85', 'bun test a b.ts'] });
+  // Every run line ends with the duration, the raw command, and the directory it ran in relative to the tree root, which `appendTrace` escapes as a trace field.
+  appendTrace(A, { slice: '04', kind: 'run', fields: ['focused', 'pass', 'e4f5a6b', 'clean', encodePaths(['a b.ts', 'x,y.ts', '-lead.ts']), '85', 'bun test a b.ts', '.'] });
   // A `path` run, as `scope.js test path` and the control run of `fail-to-pass` write it.
-  appendTrace(A, { slice: '04', kind: 'run', fields: ['path', 'fail', 'e4f5a6b', 'clean', encodePaths(['tests/a.test.js']), '120', "node tests/a.test.js --grep 'a b'"] });
+  appendTrace(A, { slice: '04', kind: 'run', fields: ['path', 'fail', 'e4f5a6b', 'clean', encodePaths(['tests/a.test.js']), '120', "node tests/a.test.js --grep 'a b'", 'pkg/sub'] });
   run(agentPre(`Work in ${A}/slicetrees/04`, 'tu1', 'superdev:implementer', 'Build slice 04', undefined, 's1'));
   run(agentPost('tu1', { status: 'async_launched', agentId: 'ag1' }));
   run({ hook_event_name: 'SubagentStop', agent_id: 'ag1', agent_type: 'superdev:implementer', cwd: tmp });

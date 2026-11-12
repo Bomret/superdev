@@ -46,11 +46,11 @@ try {
   fs.writeFileSync(path.join(S, 'tests', 'cd.test.js'), 'process.exit(0);\n');
   r = verb(['path', 'tests/cd.test.js', '--', 'node tests/cd.test.js'], { cwd: S });
   assert.equal(r.status, 0, r.stderr);
-  assert.match(lines()[0] || '', / run path pass [0-9a-f]{40} \w+ tests\/cd\.test\.js node\\x20tests\/cd\.test\.js$/, 'a run in a run tree records its run');
+  assert.match(lines()[0] || '', / run path pass [0-9a-f]{40} \w+ tests\/cd\.test\.js node\\x20tests\/cd\.test\.js \.$/, 'a run in a run tree records its run');
   reset();
   r = verb(['path', 'cd.test.js', '--', 'node cd.test.js'], { cwd: path.join(S, 'tests') });
   assert.equal(r.status, 0, r.stderr);
-  assert.match(lines()[0] || '', / run path pass [0-9a-f]{40} \w+ cd\.test\.js node\\x20cd\.test\.js$/, 'a run from a subdirectory of the tree records its run, with the files as typed');
+  assert.match(lines()[0] || '', / run path pass [0-9a-f]{40} \w+ cd\.test\.js node\\x20cd\.test\.js tests$/, 'a run from a subdirectory of the tree records its run, with the files as typed');
   fs.rmSync(path.join(S, 'tests', 'cd.test.js'));
   // The command runs from the cwd as given: a run outside every run tree records nothing, wherever the verb stands.
   reset();
