@@ -20,7 +20,7 @@ try {
   reset();
   let r = verb(['path', 'services/x/tests/a.bats', '--', 'bats', 'services/x/tests/a.bats']);
   assert.equal(r.status, 0, r.stderr);
-  assert.match(lines()[0], /^03 main run path pass [0-9a-f]{40} clean services\/x\/tests\/a\.bats bats\\x20services\/x\/tests\/a\.bats$/, 'a path run records its file and its command');
+  assert.match(lines()[0], /^03 main run path pass [0-9a-f]{40} clean services\/x\/tests\/a\.bats bats\\x20services\/x\/tests\/a\.bats \.$/, 'a path run records its file, its command, and the root');
   reset();
   r = verb(['path', 'services/x/tests/a.bats', '--', 'echo hi; exit 3']);
   assert.equal(r.status, 3, 'a failing command exits with its own status');

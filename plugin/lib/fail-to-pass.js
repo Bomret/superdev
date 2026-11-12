@@ -255,7 +255,7 @@ async function verbFailToPass(cwd, args) {
       const [sha1, tree1] = treeState(dir);
       const states = [tree0, tree1];
       const tree = sha0 !== tip || sha1 !== tip || states.includes('dirty') ? 'dirty' : states.includes('unknown') ? 'unknown' : 'clean';
-      if (!appendTrace(at.runRoot, { slice, kind: 'run', fields: ['path', control.code === 0 ? 'pass' : 'fail', tip, tree, encodePaths(testFiles), String(Math.round(control.ms)), command] })) {
+      if (!appendTrace(at.runRoot, { slice, kind: 'run', fields: ['path', control.code === 0 ? 'pass' : 'fail', tip, tree, encodePaths(testFiles), String(Math.round(control.ms)), command, '.'] })) {
         process.stderr.write('fail-to-pass: the control run line could not be written to the run trace\n');
       }
     }

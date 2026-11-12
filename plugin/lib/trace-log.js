@@ -10,7 +10,7 @@ const { readBytes, stateOf, sameState, readSide, writeSide, withRunLock } = requ
 //   <ISO-8601 UTC timestamp> <slice id|scope> <agent id|main> <kind> <kind fields...>
 // `appendTrace` is its single writer. Kinds and their fields:
 //   edit <test|impl> <path>
-//   run <full|focused|whole|path> <pass|fail|unknown> <sha|unknown> <clean|dirty|unknown> <files> <ms> <command>   (written only by `scope.js test` and by the control run of `fail-to-pass`, which writes a `path` run; <files>: the run's test files, `encodePaths`, `-` for none; <ms>: the run's duration in whole milliseconds; <command>: the raw command as typed, through `traceField`, read with `untraceField`)
+//   run <full|focused|whole|path> <pass|fail|unknown> <sha|unknown> <clean|dirty|unknown> <files> <ms> <command> <dir>   (written only by `scope.js test` and by the control run of `fail-to-pass`, which writes a `path` run; <files>: the run's test files, `encodePaths`, `-` for none; <ms>: the run's duration in whole milliseconds; <command>: the raw command as typed, through `traceField`, read with `untraceField`; <dir>: the directory the command ran in, relative to the run tree's root, `/`-separated, `.` at the root, a directory outside the tree as `..` or an absolute path; a line an older release wrote ends at <command>)
 //   dispatch <agent_type> <tool_use_id> <description> <session_id|-> / dispatch-bind <agent_type> <tool_use_id> <agent_id> /
 //   dispatch-end <agent_type> <tool_use_id> <completed|failed|denied|stopped|unknown|session-end>   (an end with no outcome reads completed, ADR 0140)
 //   dispatch-resume <tool_use_id> <agent_id> <session_id|-> <sendmessage_tool_use_id|->   (a SendMessage resumed the dispatch's subagent: a new run, with its own dispatch-end)

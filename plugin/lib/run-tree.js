@@ -7,6 +7,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 const { inProgressSlices } = require('./ledger.js');
 const { isTestPath: testPathOf } = require('./verification.js');
+const { drivePath } = require('./drive-path.js');
 
 // The bound on each `git` call a run line needs; a call past it records `unknown` for its field (INV-0009).
 const GIT_BOUND_MS = 1500;
@@ -63,4 +64,18 @@ function treeState(tree) {
   return [/^[0-9a-f]{40,64}$/.test(sha) ? sha : 'unknown', st === null ? 'unknown' : st.trim() ? 'dirty' : 'clean'];
 }
 
-module.exports = { locate, toolTarget, isTestPath, treeState, gitOut, GIT_BOUND_MS };
+// A directory as one spelling (ADR 0150): an MSYS drive path as the Windows path, symlinks resolved, no trailing slash. Both call
+// sites pass a directory that exists; one that does not keeps its resolved spelling.
+function canonical(dir) {
+  const p = path.resolve(drivePath(dir));
+  try { return fs.realpathSync(p); } catch { return p; }
+}
+
+// The directory `dir` as the run line's last field: relative to `tree`, `/`-separated, `.` at the tree root. A directory outside the
+// tree is its own relative path (`..` first, or absolute across drives), never `.`.
+function relDir(tree, dir) {
+  const rel = path.relative(canonical(tree), canonical(dir)).split(path.sep).join('/');
+  return rel || '.';
+}
+
+module.exports = { relDir, locate, toolTarget, isTestPath, treeState, gitOut, GIT_BOUND_MS };
