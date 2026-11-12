@@ -310,7 +310,7 @@ never that saying it helps.
 ## Agent skills
 
 ### Slice store
-GitHub Issues (`Bomret/superdev`). Slices as issues, feature labels, epics as scope anchors. See `docs/agents/issue-tracker.md`.
+GitHub Issues (`Bomret/superdev`). Slices as issues, feature labels, epics as scope anchors. See `docs/agents/issue-tracker.md`, and `docs/agents/issue-tracker-plan.md` for the calls only `/superdev:plan` makes.
 
 ### Code host
 GitHub. Push scope branch, open ready PR against `main`, squash-merge with Conventional Commits title. See `docs/agents/code-management.md`.

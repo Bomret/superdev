@@ -67,6 +67,9 @@ Every other file here is a backend seed: a slice store, a code host, or a knowle
 above is a seed of its own kind, one shape for every repository rather than a per-backend choice.
 `/superdev:setup` reads each seed twice: to write a document on a first run or a backend switch, and to
 compare a configured document with it, listing and offering its seed gaps (ADR 0107).
+A slice-store backend has two seeds: `issue-tracker-<backend>.md` becomes `docs/agents/issue-tracker.md`, the store
+document every command reads, and `issue-tracker-<backend>-plan.md` becomes `docs/agents/issue-tracker-plan.md`, the
+calls only `/superdev:plan` makes (issue creation, the anchor-line writes, the assignee, the tag rewrite, append mode).
 A slice-store seed's `## Triage record` **List the records**, **Comment on it**, and **Close it** calls, its **Read an anchor's Absorbs line** read, and a code-host seed's `## Edit the pull request body`
 section become the configured document's calls that `scope-findings.md`'s `## Deferred findings` resolve
 procedure runs (ADR 0121).
@@ -78,7 +81,7 @@ proposes a topic-shaped outline of explicit entries in its backend's hierarchy. 
 outline entry names a topic page** rule (ADR 0229, INV-0188). `/superdev:setup` question D writes `docs/agents/knowledge-base.md`
 from the chosen one, and its seed-gap pass compares a configured document with it. `/superdev:publish-kb`
 runs the configured templates, and `tests/publish-kb-templates.test.js` runs the Confluence and Forgejo
-seeds' templates. The `forgejo-tea-only` drift check reads the Forgejo seed, and the `github-wiki-gh-only` drift check reads the GitHub wiki seed.
+seeds' templates. The `forgejo-tea-only` drift check reads both Forgejo slice-store seeds and the other Forgejo seeds, and the `github-wiki-gh-only` drift check reads the GitHub wiki seed.
 Adding a slice-store, code-host, or knowledge-base seed is the **Backends are pluggable** rule in the root
 doc.
 

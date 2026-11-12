@@ -441,9 +441,11 @@ const NO_FORCE_MERGE_PATTERNS = [
 // `curl` written with nothing but a bare word after it walk past.
 const TEA_ONLY_DOCS = [
   path.join('references', 'issue-tracker-forgejo.md'),
+  path.join('references', 'issue-tracker-forgejo-plan.md'),
   path.join('references', 'code-management-forgejo.md'),
   path.join('references', 'knowledge-base-forgejo.md'),
   path.join('docs', 'agents', 'issue-tracker.md'),
+  path.join('docs', 'agents', 'issue-tracker-plan.md'),
   path.join('docs', 'agents', 'code-management.md'),
 ];
 const TEA_ONLY_MARKERS = [

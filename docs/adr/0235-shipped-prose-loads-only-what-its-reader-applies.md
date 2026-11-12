@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0239](0239-the-store-document-holds-only-the-calls-every-command-makes.md), which splits the
+slice-store configuration into a store document every command reads and a plan document only `/superdev:plan` reads,
+and trims `fail-to-pass.md` to its rules.
+
 ## Context
 
 Every chain command and every subagent dispatch reads its references whole, because the Read tool returns a whole

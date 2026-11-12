@@ -297,4 +297,5 @@ When the slice store is an issue tracker, each slice is one issue:
 - **Epic visuals** (optional) ↔ `## Slice graph` and `## Touch map` sections in the epic issue body,
   same body-text pattern. Epic-only, advisory, and written only when `plan-authoring.md`'s `### When to write them` says so.
 
-The exact commands and vocabulary live in the active `docs/agents/issue-tracker.md`.
+The exact commands and vocabulary live in the active `docs/agents/issue-tracker.md`, and the calls only
+`/superdev:plan` makes (issue creation, the anchor-line writes, append mode) in `docs/agents/issue-tracker-plan.md`.

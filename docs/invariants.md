@@ -257,7 +257,7 @@ Concepts: Depends-on, Slice store
 Statement: A failed dependency write stops the run, because it would corrupt the execution order. A failed sub-issue link is logged and the run continues.
 Breaks: silently
 Check: none — no pin exists today
-Paths: plugin/references/issue-tracker-github.md
+Paths: plugin/references/issue-tracker-github-plan.md
 
 ### INV-0029
 
@@ -933,7 +933,7 @@ Concepts: Scope anchor
 Statement: An edit to a scope anchor's body runs only when the read of the current body and the command that built the new body both succeeded and the new body is non-empty, and the edit reads that body from a file. A failed read, producer, or payload build leaves the anchor body as it was (ADR 0115).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/references/issue-tracker-*.md, docs/agents/issue-tracker.md, plugin/references/scope-mode.md, plugin/references/run-state.md
+Paths: plugin/references/issue-tracker-*.md, docs/agents/issue-tracker.md, docs/agents/issue-tracker-plan.md, plugin/references/scope-mode.md, plugin/references/run-state.md
 
 ### INV-0116
 
@@ -1466,7 +1466,7 @@ Concepts: Definition of Done (DoD), Criterion tag, Scope anchor
 Statement: Every unjudged checklist line of a multi-slice epic's Definition of Done reaches the store with a tag `dod-line` reads: slice ids, store references joined by `, ` with no brackets, `scope`, or `docs`. `/superdev:plan` writes store-notation tags only through `scope.js dod-tags`, which refuses a body holding an untagged unjudged line or a slice id its map lacks (ADR 0209).
 Breaks: silently
 Check: the `scope.js dod-tags` suite
-Paths: plugin/scripts/scope.js, plugin/lib/dod-line.js, plugin/skills/plan/SKILL.md, plugin/references/plan-contract.md, plugin/references/issue-tracker-forgejo.md, plugin/references/issue-tracker-github.md, plugin/references/issue-tracker-jira.md
+Paths: plugin/scripts/scope.js, plugin/lib/dod-line.js, plugin/skills/plan/SKILL.md, plugin/references/plan-contract.md, plugin/references/issue-tracker-forgejo-plan.md, plugin/references/issue-tracker-github-plan.md, plugin/references/issue-tracker-jira-plan.md
 
 ### INV-0183
 

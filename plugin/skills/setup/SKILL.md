@@ -16,7 +16,8 @@ Applies to every start. You write the per-repo config documents the superdev ski
 
   | File | Holds |
   |---|---|
-  | `issue-tracker.md` | the **slice store**: where slices live and how to create, read, update, and delete them |
+  | `issue-tracker.md` | the **slice store**: where slices live and the calls every command makes to read, update, and close them |
+  | `issue-tracker-plan.md` | the slice store's calls only `/superdev:plan` makes: creating issues, the anchor lines, the assignee, the tag rewrite, and append mode |
   | `code-management.md` | the **code host**: push, open a PR or MR, and the default posture |
   | `documentation.md` | the in-repo **documentation** convention |
   | `knowledge-base.md` | the optional **knowledge base**: software, local file, or none |
@@ -52,7 +53,7 @@ Applies to every start. You write the per-repo config documents the superdev ski
 | `verification.md` | A `## Complete selector` section on a focused command with no `{paths}` token gets an **advisory** line, never a drift verdict: state that the declaration has no effect there. |
 | `verification.md` | Test commands and no `## Prepare command` section, or a section holding neither a command nor `none`, is reported: state that no test worktree is prepared and that a **Fail-to-pass run** reuses no traced control (`references/test-selection.md`'s `## Prepare command`), and that a re-run of `/superdev:setup` proposes the section. A command the section names gets the resolution check of the first row. |
 | `deployment.md` | The same resolution check on each target's command: a target naming a script the manifest no longer defines is drift. A `none` posture, or a `manual`/`auto` posture with an empty targets table, reports consistent once confirmed present. |
-| `issue-tracker.md`, `code-management.md` | A recorded host/owner/repo (or base URL) still matches `git remote -v`. Compare the host/owner/repo path alone, ignoring userinfo such as `https://user:TOKEN@host/owner/repo.git`. Report the remote with any userinfo stripped, never verbatim. A document naming no such fact (an "Other" backend written as prose) reports consistent once confirmed present. |
+| `issue-tracker.md`, `issue-tracker-plan.md`, `code-management.md` | A recorded host/owner/repo (or base URL) still matches `git remote -v`. Compare the host/owner/repo path alone, ignoring userinfo such as `https://user:TOKEN@host/owner/repo.git`. Report the remote with any userinfo stripped, never verbatim. A document naming no such fact (an "Other" backend written as prose) reports consistent once confirmed present. |
 | `documentation.md` | A `## Writing standard` naming a repo-relative path still resolves to a file, and each `## Audit set` glob still matches at least one file. |
 | `knowledge-base.md` | A local `docs/kb/` path still exists. A configuration carrying `- **Body format:** storage` whose `### create` template never reads `parentId` is drift: name the Confluence seed's `### create` template (`references/knowledge-base-confluence.md`) as its replacement. A software backend records no other local fact, and reports consistent once confirmed present. A `## Commands` command naming an environment variable that starts with `SUPERDEV` and `_KB_` joined (the retired placeholders) is a seed gap: name it and offer the seed's current command for that verb, since `/superdev:publish-kb` refuses that command. |
 
@@ -65,8 +66,9 @@ Applies to every start. You write the per-repo config documents the superdev ski
 
 **The comparison.** Applies to each present document, beside its verdict. Compare it with its **seed** (CONTEXT.md) and list its **seed gaps**. The comparison reads the installed plugin's files and the document only.
 
-- **The seed** is the one for the backend the document records, read from `${CLAUDE_PLUGIN_ROOT}/references/`: `issue-tracker-<backend>.md`, `code-management-<host>.md`, `documentation.md`, `knowledge-base-<backend>.md`, `deployment.md`.
+- **The seed** is the one for the backend the document records, read from `${CLAUDE_PLUGIN_ROOT}/references/`: `issue-tracker-<backend>.md`, `issue-tracker-<backend>-plan.md` for `issue-tracker-plan.md`, `code-management-<host>.md`, `documentation.md`, `knowledge-base-<backend>.md`, `deployment.md`.
 - **A knowledge-base document recording a Forgejo, Codeberg, Gitea, or GitHub wiki** maps to its own seed, whoever wrote it: `knowledge-base-forgejo.md` for the first three, `knowledge-base-github-wiki.md` for GitHub, never the other's. A document lacking `- **Hierarchy:** links` or the seed's link line form is a seed gap. So is a Forgejo `find` template lacking the seed's empty-wiki rule (a 404 first listing page followed by the repository read). Each is offered like any other gap, and written only on the operator's choice.
+- **An absent `issue-tracker-plan.md`** beside a present `issue-tracker.md` with a seed is one seed gap of the store document: name the `-plan` seed and the store-document sections that move into it (§3's **An absent plan document**).
 - **No matching seed** reports `no seed to compare`: an "Other" prose backend, a `None` knowledge base, a `documentation.md` recording the user's own convention, `toolchain.md`, and `verification.md`. The last two keep the fact checks.
 
 **Matching.** Applies to a document with a seed. Pair each seed section with the document section that does the same job, whatever its heading. A seed gap is a seed section with no matching document section, or a seed rule that a matched section lacks or contradicts. List each by the seed's name for it, with the document section it belongs under.
@@ -386,6 +388,7 @@ Applies to the full interview. Scan these before any decision:
 **The writes.** Applies once the draft is confirmed.
 
 - `issue-tracker.md`: the chosen seed with the specifics filled in, or the user's prose for Other.
+- `issue-tracker-plan.md`: the chosen backend's `-plan` seed with the same specifics filled in. For Other, the part of the user's prose that creates issues, records dependencies, and assigns them.
 - `code-management.md`: the same, from the chosen host seed.
 - `documentation.md`: from `references/documentation.md`, or the user's convention as prose. It always carries `## Writing standard` with decision C's answer, `none` included. It carries `## Audit set` only when decision C named documentation outside the default tree.
 - `knowledge-base.md`: the chosen KB seed (`knowledge-base-confluence.md` / `knowledge-base-forgejo.md` / `knowledge-base-local.md`) filled in, or the Other prose. **None** writes a one-line file stating there is no separate KB, or skips the file. A remote backend carries decision D's `## Commands`, written only once the probes passed, with a re-run's verbs per **A re-run's templates**.
@@ -553,6 +556,8 @@ The focused command selects every test a changed path can affect.
 - Applying a seed's `## Assignee` writes no assignee into a tracked document; the answer goes to the operator file.
 
 **The operator file on re-run.** Applies to every re-run. Read the operator file. An `issue-tracker.assignee` other than `none` with no `displayName` gets the display name looked up and written per decision A, with no question.
+
+**An absent plan document.** Applies to a re-run where `issue-tracker.md` is present and `issue-tracker-plan.md` is absent. Offer it as one seed gap. **Apply** writes `issue-tracker-plan.md` from the `-plan` seed, filled in with the store document's values, carries over the operator's text of every store-document section that matches a `-plan` seed section (append mode, the assignee, issue creation, the anchor-line writes, the tag rewrite, writing slices), and removes those sections from `issue-tracker.md`. Every store-document `## Seed deviations` bullet naming a moved rule moves with it.
 
 **A backend switch.** Applies to a re-run that changes a document's backend. Write the new seed fresh and carry no seed deviation over.
 

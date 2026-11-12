@@ -472,7 +472,7 @@ _Avoid: "override", "exception"_
 **Stale deviation**: a `## Seed deviations` bullet that names no rule in the current seed, for example after a plugin release renames the rule. `/superdev:setup check` lists it and never reports it as a gap. A `/superdev:setup` re-run offers to drop it or keep it, and offers a kept one again until it is dropped (ADR 0107).
 _Avoid: "orphaned deviation", "dead deviation"_
 
-**Slice store**: the backend where a feature's plan and slices live: an issue tracker. Configured in `docs/agents/issue-tracker.md`.
+**Slice store**: the backend where a feature's plan and slices live: an issue tracker. Configured in two documents: `docs/agents/issue-tracker.md`, the **store document**, holds the calls every command makes, and `docs/agents/issue-tracker-plan.md`, the **plan document**, holds the calls only `/superdev:plan` makes (issue creation, the anchor-line writes, the assignee, the tag rewrite, and append mode). Each has its own seed: `issue-tracker-<backend>.md` and `issue-tracker-<backend>-plan.md`.
 _Avoid: "issue tracker" as the concept name (that is one backend), "database"_
 
 **Repository component**: the slice-store value that marks an issue as this repository's, for a store several repositories share — a Jira component, set on every issue superdev creates and required by every query it runs. Optional: a store one repository owns names none. Recorded in `docs/agents/issue-tracker.md`.
