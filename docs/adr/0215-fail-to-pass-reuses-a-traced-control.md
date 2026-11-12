@@ -5,6 +5,9 @@
 **Amended by:** [ADR 0218](0218-a-worktree-runs-the-repositorys-prepare-command.md), which reuses a traced control only
 where `docs/agents/verification.md` states a `## Prepare command`.
 
+**Amended by:** [ADR 0232](0232-the-loop-runs-test-files-and-the-focused-command-once.md), which reuses only a `path` run line
+that records the tree root as the directory it ran in.
+
 **Amends:** [ADR 0182](0182-the-implementer-proves-its-change-and-the-controller-runs-only-suite-gates.md): the verb's control run can come from
 the run trace, and the implementer's last GREEN run of the range's test files is the verb's control.
 
