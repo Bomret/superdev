@@ -27,6 +27,7 @@ const {
   scanTestSeams,
   scanNoForceMerge,
   scanConflictConclusionNoCommit,
+  scanBackgroundRuleNamesLimit,
   scanTeaOnly,
   scanGithubWikiGhOnly,
   scanDeployRunnerExclusivity,
@@ -251,6 +252,12 @@ module.exports = [
     id: 'implement-no-full-run',
     ok: "neither implement's base step, run handoff, nor either execution playbook instructs a full or whole-repo run (INV-0128)",
     run: scanImplementNoFullRun,
+    format: contractGap,
+  },
+  {
+    id: 'background-rule-names-limit',
+    ok: "no shipped prose states the background rule against an unnamed Bash limit, so it names the ceiling (ADR 0232)",
+    run: scanBackgroundRuleNamesLimit,
     format: contractGap,
   },
   {
