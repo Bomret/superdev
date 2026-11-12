@@ -45,8 +45,7 @@ assert.ok(!/run-lock/.test(fs.readFileSync(path.join(plugin, 'hooks', 'hooks.jso
 // The export names of each entry point, sorted. A dropped or added export fails here.
 const EXPORTS = {
   'hooks/merge-guard.js': ['decide'],
-  'hooks/model-explicit.js': ['OURS', 'decide'],
-  'hooks/run-trace.js': ['record'],
+  'hooks/run-trace.js': ['OURS', 'decide', 'record'],
   'hooks/scope-prune.js': ['TTL_MS', 'branchNamesFrom', 'main', 'readBranch', 'readHeader', 'readStage', 'selectPrunable', 'shapeScanBranch'],
   'hooks/slicetree-sweep.js': ['git', 'main', 'selectRemovable'],
   'hooks/tree-guard.js': ['decide'],
@@ -175,8 +174,6 @@ for (const [rel, mods] of Object.entries(RE_EXPORTS)) {
   const DIRECT = {
     'merge-guard.js': { input: { agent_id: 'a1', tool_input: { command: 'git merge scope' } },
       check: (r) => { assert.strictEqual(r.status, 2, 'blocks a subagent merge'); assert.match(r.stderr, /subagents must not integrate/); } },
-    'model-explicit.js': { input: { tool_name: 'Agent', tool_input: { subagent_type: 'implementer' } },
-      check: (r) => { assert.strictEqual(r.status, 2, 'blocks a modelless dispatch'); assert.match(r.stderr, /must set an explicit model/); } },
     'offer-guard.js': { input: { hook_event_name: 'Stop', session_id: 's1', prompt_id: 'p1', stop_hook_active: false, last_assistant_message: '### Next\n\n```\n/superdev:review x\n```\n' },
       check: (r) => { assert.strictEqual(r.status, 0); assert.strictEqual(JSON.parse(r.stdout).decision, 'block', 'holds a Next block with no offer'); } },
     'run-trace.js': { input: { hook_event_name: 'PostToolUse', tool_name: 'Edit', tool_input: { file_path: path.join(slicetree, 'x.js') }, cwd: runRepo },

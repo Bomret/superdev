@@ -62,7 +62,7 @@ Applies to the `lite` tier. Its playbook runs the documentation pass in the same
 
 **Recovery.** Applies after compaction. Trust the ledger and `git log` over memory. Re-dispatch no slice marked `merged`.
 
-**Hook-enforced.** Applies to every dispatch and integration. Only the controller merges and pushes (`merge-guard`), and every dispatch sets an explicit `model` (`model-explicit`).
+**Hook-enforced.** Applies to every dispatch and integration. Only the controller merges and pushes (`merge-guard`), and every dispatch sets an explicit `model` (`run-trace`).
 
 **A denied dispatch.** Applies when a dispatch is denied. It is a degraded pass: follow `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section. Work inline, say so, and write the `**Degraded:**` entry.
 

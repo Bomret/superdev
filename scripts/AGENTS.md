@@ -37,7 +37,10 @@ a ledger's header lines, bullets, and table rows), `refusal.js` (the refusal err
 `verificationCommandsOf`, `prepareCommandOf`, `isTestPath`), `git-spawn.js` (`gitSpawn`, `gitThrow`, `parseBranchList`, `resolveCommit`, `refResolves`, `fileAt`),
 `containment.js` (`testContainment`, `judgeContainment`, `baseHistoryHasPatch`), `main-work-tree.js` (`mainWorkTree`, `scopesDirFor`, `mainTreePath`), and
 `trace-log.js` (`appendTrace`, `readTrace`, `traceField`, `untraceField`). The root [`AGENTS.md`](../AGENTS.md) *Structure* names every module and its
-responsibility. `scope.js` exports only the names a requirer uses. No module requires an entry point. `scope.js` owns the ledger's schema through `ledger.js` and is the only `ledger.md` read and write path in the chain:
+responsibility. At startup `scope.js` loads only `refusal.js`, `ledger.js`, and `trace-log.js`. Every other module
+loads when a verb that uses it runs, through an accessor that names the module in a literal `require`, so the
+`--related` require scan still reaches it. `scope.js` exports only the names a requirer uses. A name it re-exports from a
+lazily loaded module is a getter that returns that module's own value. No module requires an entry point. `scope.js` owns the ledger's schema through `ledger.js` and is the only `ledger.md` read and write path in the chain:
 `open <type>/<slug> --base <base-ref> [--remote <remote>] [--lock <nonce>]`, `init`, `stage set`, `slice`, `degraded add|add-denial|reset-denials`, `unresolved add|clear`,
 `deferred add|resolve`, `minors add <slice-id>|clear`,
 `docs set <value>|clear`, `pr set <n>|clear`,
@@ -156,7 +159,8 @@ guards its own CLI entry with `require.main === module`. `hooks/run-trace.js` ta
 the trace writer `appendTrace` from `trace-log.js`,
 the tree locator `locate` and the test-path classifier `isTestPath` (ADR 0128) from `run-tree.js`,
 and the dispatch readers from `dispatch.js`. The hook reads no Bash command (ADR 0227). Each `require` has its own guard, and a module that fails to load
-leaves the hook recording nothing (ADR 0117, INV-0159). `hooks/tree-guard.js` takes `mainWorkTree` from `main-work-tree.js` (ADR 0148). `publish-kb.js` reaches
+leaves the hook recording nothing (ADR 0117, INV-0159). Its model guard, which denies a modelless dispatch to a superdev
+agent on PreToolUse(Agent), requires no module, so a failed load leaves the deny in force (ADR 0245). `hooks/tree-guard.js` takes `mainWorkTree` from `main-work-tree.js` (ADR 0148). `publish-kb.js` reaches
 the containment test `testContainment` from `containment.js`, which refetches the base before it answers not contained (ADR 0053,
 ADR 0065), `refResolves` from `git-spawn.js`, and `readLedgerHeader`, `SLUG_RE`, `CHANGE_TYPES` from `ledger.js`, through its `lib/kb-*.js` modules. `base set` appends a `ledger`
 trace event like every other ledger-writing verb. Normalisation is per
@@ -873,14 +877,14 @@ join from any other value (`path.join(S3, 'docs', 'agents', 'verification.md')`)
 `tests/publish-kb-templates.test.js` runs the templates of `docs/agents/knowledge-base.md`, `tests/scope-ledger.test.js` pins a
 sentence of `plugin/references/scope-mode.md`). A `.md` path also reaches a suite whose text names a directory
 holding it, because a suite that lists or scans a directory reads every document in it
-(`tests/model-explicit.test.js` lists `plugin/agents/`, `tests/invariant-check.test.js` scans `plugin/`). A named directory
+(`tests/run-trace-model.test.js` lists `plugin/agents/`, `tests/invariant-check.test.js` scans `plugin/`). A named directory
 is a `./` or `../` path string that resolves from `tests/` to a directory of the repository, or the literal segments of
 a `path.join` or `path.resolve` call. A call whose first argument is `__dirname` or a `./` or `../` literal is anchored at
 `tests/`. A bare relative literal (`'docs/agents'`, `path.join('docs', 'agents')`) names nothing, because suites build
 their fixture trees from such paths. A suite that scans a repository directory through a bare cwd-relative literal
 is therefore missed, so a suite names a repository directory from `__dirname` or with `../`. A call whose leading
 directory is `path.dirname(<name>)`, where the suite's own text assigns `<name>` a `require.resolve` of a relative path
-(`const hookPath = require.resolve('../plugin/hooks/model-explicit.js')`), is anchored at that path's directory. Any
+(`const hookPath = require.resolve('../plugin/hooks/run-trace.js')`), is anchored at that path's directory. Any
 other `path.dirname(...)` names its literal tail, which matches that tail at any depth, so
 it may select a suite for a directory the suite does not scan and never misses one it does. A call whose leading
 directory is any other computed value (a variable, `os.tmpdir()`) builds a path in a fixture tree and names nothing. A directory built from

@@ -8,7 +8,10 @@
 // And every subagent dispatch and its end with an outcome (ADR 0140): PreToolUse on Agent, then PostToolUse, PostToolUseFailure,
 // or PermissionDenied on Agent, SubagentStop, PostToolUse on TaskStop, or the main session's Stop, UserPromptSubmit, or SessionEnd.
 // PreToolUse on SendMessage reopens an ended dispatch (`dispatch-resume`), and the resumed run ends again the same ways.
-// Any error exits 0 silently; the hook never blocks.
+// It also guards PreToolUse on Agent (ADR 0245): a dispatch to one of superdev's own subagents must set an explicit model,
+// warrant-scaled by the controller, because an omitted model silently inherits the session model, usually the most expensive
+// tier. decide() needs no module, so the deny holds when a module fails to load. The user's other subagent dispatches pass.
+// Apart from that deny, any error exits 0 silently; the hook blocks nothing else.
 
 // The modules in `lib/` own everything the hook records from: the trace writer, the run locator, and the dispatch lifecycle.
 // The same fail-silent require as scope-prune: no module, no recording. One `try` covers all of them, so a module that will not
@@ -33,6 +36,22 @@ try {
   ({ recordDispatch, findDispatch, endLine, bindAgentResult, recordAgentEnd, recordTaskStop, recordSendMessage, recordSendMessageEnd, closeSession } = require('../lib/dispatch.js'));
 } catch {
   // left null: record() records nothing
+}
+
+const OURS = /^(superdev[:_-])?(implementer|slice-reviewer|simplicity-reviewer|final-reviewer|doc-writer|doc-reader|test-auditor|test-gap-auditor)$/;
+
+function decide(input) {
+  if (!input || input.tool_name !== 'Agent') return { block: false };
+  const ti = input.tool_input || {};
+  const type = ti.subagent_type || '';
+  if (!OURS.test(type)) return { block: false }; // not our agent → not our rule
+  const model = ti.model;
+  if (model && String(model).trim()) return { block: false };
+  return {
+    block: true,
+    reason:
+      `superdev: dispatch to "${type}" must set an explicit model (warrant-scaled). Omitting it inherits the session model — usually the most expensive tier. (model-explicit)`,
+  };
 }
 
 // Writes the lines an event built, skipping a line that is `undefined`: the caller builds every line first (INV-0159).
@@ -99,10 +118,27 @@ function main() {
   process.stdin.setEncoding('utf8');
   process.stdin.on('data', (c) => (raw += c));
   process.stdin.on('end', () => {
+    let input;
     try {
-      record(JSON.parse(raw || '{}'));
+      input = JSON.parse(raw || '{}');
     } catch {
-      // never block the tool call
+      process.exit(0);
+    }
+    // The deny is decided first, and the dispatch is still recorded: a denied dispatch keeps its trace line.
+    let verdict = { block: false };
+    try {
+      if (input && input.hook_event_name === 'PreToolUse') verdict = decide(input);
+    } catch {
+      // a malformed input is no dispatch to deny
+    }
+    try {
+      record(input);
+    } catch {
+      // a recording error never blocks the tool call
+    }
+    if (verdict.block) {
+      process.stderr.write(verdict.reason + '\n');
+      process.exit(2);
     }
     process.exit(0);
   });
@@ -110,4 +146,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { record };
+module.exports = { OURS, decide, record };

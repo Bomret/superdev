@@ -509,7 +509,7 @@ const picked = (root, paths) =>
   assert.deepStrictEqual(picked(root, ['plugin/agents/new-agent.md']), ['scan'], 'a document the directory gains later maps by its directory');
   assert.deepStrictEqual(picked(root, ['plugin/hooks/nobody.js']), discoverSuites(path.join(root, 'tests')).map((f) => path.basename(f, '.test.js')), 'a code path no rule places still runs every suite');
   const real = (md) => selectSuites(repoRoot, discoverSuites(path.join(repoRoot, 'tests')), [md]).map((f) => path.basename(f, '.test.js'));
-  assert.ok(real(['plugin', 'agents', 'implementer.md'].join('/')).includes('model-explicit'), 'model-explicit lists the agents directory');
+  assert.ok(real(['plugin', 'agents', 'implementer.md'].join('/')).includes('run-trace-model'), 'run-trace-model lists the agents directory');
   assert.ok(real(['plugin', 'skills', 'plan', 'SKILL.md'].join('/')).includes('invariant-check'), 'invariant-check scans every file under plugin/');
 }
 
@@ -527,7 +527,7 @@ const picked = (root, paths) =>
   assert.deepStrictEqual(picked(root, ['plugin/agents/a.md']), ['pin'], 'the resolved directory is named');
   assert.deepStrictEqual(picked(root, ['docs/agents/b.md']), [], 'a same-named directory elsewhere is not');
   const real = (md) => selectSuites(repoRoot, discoverSuites(path.join(repoRoot, 'tests')), [md]).map((f) => path.basename(f, '.test.js'));
-  assert.ok(!real(['docs', 'agents', ['toolchain', 'md'].join('.')].join('/')).includes(['model', 'explicit'].join('-')), 'model-explicit lists plugin/agents, not docs/agents');
+  assert.ok(!real(['docs', 'agents', ['toolchain', 'md'].join('.')].join('/')).includes(['run-trace', 'model'].join('-')), 'run-trace-model lists plugin/agents, not docs/agents');
 }
 
 // A join whose leading directory is a variable or another computed value other than `path.dirname(...)` builds a path

@@ -57,8 +57,8 @@ const edit = (file_path, extra) => run(Object.assign({ tool_name: 'Edit', tool_i
 const bash = (command, cwd) => run({ tool_name: 'Bash', tool_input: { command }, cwd: cwd || tmp });
 const S3 = path.join(A, 'slicetrees', '03');
 
-// The Agent events of a dispatch: PreToolUse names the prompt, PostToolUse the response.
-const agentPre = (prompt, tu, type, description, cwd, session) => ({ hook_event_name: 'PreToolUse', tool_name: 'Agent', tool_use_id: tu, tool_input: { prompt, subagent_type: type || 'superdev:implementer', description: description || 'build it' }, cwd: cwd || tmp, ...(session ? { session_id: session } : {}) });
+// The Agent events of a dispatch: PreToolUse names the prompt and an explicit model, so the model guard passes it (ADR 0245); PostToolUse the response.
+const agentPre = (prompt, tu, type, description, cwd, session) => ({ hook_event_name: 'PreToolUse', tool_name: 'Agent', tool_use_id: tu, tool_input: { prompt, subagent_type: type || 'superdev:implementer', model: 'sonnet', description: description || 'build it' }, cwd: cwd || tmp, ...(session ? { session_id: session } : {}) });
 const agentPost = (tu, response, cwd) => ({ hook_event_name: 'PostToolUse', tool_name: 'Agent', tool_use_id: tu, tool_response: response, cwd: cwd || tmp });
 
 // S3 becomes a git repository so a run line carries a real sha. A path run needs its file to exist (triage #1210): the test file
