@@ -39,7 +39,8 @@ commands and the test paths the carry trusts. A prose edit rewrites neither.
    and every line of prose are outside it.
 3. **submit-pr reads ship's inputs from the tip commit.** It decides whether a `## Whole-repo command` applies
    from the scope branch's tip commit, as ship does, and calls `suite reusable` with the flags ship's gate
-   passes, `--base` included. Any exit other than 0 counts as a refusal.
+   passes, `--base` included. Any exit other than 0 counts as a refusal. Only exit 1 goes on to the carry
+   preconditions, because ship's gate takes the carry on exit 1 alone. Any other exit reads as ship would refuse.
 
 ## Considered options
 

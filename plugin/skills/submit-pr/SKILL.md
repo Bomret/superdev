@@ -79,7 +79,8 @@ Applies to every start past §1. Find the scope checkout.
 **The ship check.** Applies to a tip with no such section. In the scope checkout, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base> --root <run-root>`, the call `/superdev:ship`'s suite gate makes, and run no test command (ADR 0230, INV-0093). `<base>` is the base branch `docs/agents/code-management.md` names.
 
 - **Exit 0** → the ship check reads `reusable`.
-- **Any other exit** → keep its stderr line as the refusal reason. Judge the preconditions of `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## The carry run` step 1. They hold → the ship check reads `carry possible`. One fails → the ship check reads `ship would refuse`.
+- **Exit 1** → keep its stderr line as the refusal reason. Judge the preconditions of `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## The carry run` step 1, the carry ship's gate takes on exit 1 alone. They hold → the ship check reads `carry possible`. One fails → the ship check reads `ship would refuse`.
+- **Any other exit** → the ship check reads `ship would refuse`. Keep its stderr line as the refusal reason.
 
 Continue to §5 on every reading.
 
