@@ -105,7 +105,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 
 **The anchor sync.** Applies on every route of the review (a clean verdict, the inline review after a denied dispatch, a second invocation) and at every stage it accepts, `submitted` included, after the scope checkout and the run lock and before the first dispatch of `final-reviewer`. §4.1's stage gates leave it unchanged, and no verdict gates it. Implement and run handoff tick `dod.md` alone, so the anchor's checklist can lack their ticks (ADR 0206). Read the anchor's Definition-of-Done lines per `docs/agents/issue-tracker.md`. Run the anchor sync of `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## Pairing dod.md with the anchor`.
 
-- A failed anchor read or line write is reported once per run and never stops the review. `dod.md` stays authoritative.
+- A failed anchor read or line write is reported once per run and never stops the review. `dod.md` stays authoritative. §4.10's anchor re-sync states the one hold a failed re-read makes, through its anchor check.
 - A `dod.md` line the sync cannot pair is named in the review's report with the instruction to hand-sync the anchor's criterion text to `dod.md`'s.
 - §4.10's anchor re-sync runs the same operation again before each stage write.
 

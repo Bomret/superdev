@@ -131,6 +131,14 @@ try {
     }
   }
 
+  // An unterminated fenced code block refuses, checking nothing: no problem line, though the body has problems.
+  {
+    r = call(['dod-check'], ['## Definition of Done', '', '- [ ] a (triage #2) — 01', '', '```', 'unclosed'].join('\n'));
+    assert.ok(!r.ok, 'an unclosed fence refuses');
+    assert.match(r.err, /unterminated fenced code block/);
+    assert.doesNotMatch(r.err, /dod-check refused|Reachable|Release risk|triage/, 'no problem line is checked');
+  }
+
   console.log('scope-dod-check: ok');
 } finally {
   cleanup();
