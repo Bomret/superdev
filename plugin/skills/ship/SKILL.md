@@ -78,16 +78,15 @@ Applies to every start past §1. Read the stage with `node "${CLAUDE_PLUGIN_ROOT
 **The stage.** Applies to every start past §2.
 
 - **Short of `submitted`** (`planned`, `implementing`, `merged`, `reviewed`, `documented`, `documented-unreviewed`, or no line at all) → refuse with no step. Name the missing step, print `/superdev:submit-pr` as what has not run yet, and merge nothing.
-- **`shipped` with a `**PR:**` header** (`scope.js get pr` prints a number) → take **A shipped run**.
-- **`shipped` with no `**PR:**` header** (`scope.js get pr` prints `absent`) → a legacy run: a version before ADR 0096 wrote this stage when it opened the pull request. Treat it as `submitted`, recreating an absent scope checkout, except in **None found**.
+- **`shipped`** → take **A shipped run**.
 - **`submitted`** → proceed to **Find the pull request**.
 
-**A shipped run.** Applies to `shipped` with a `**PR:**` header. Read the deploy record with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deploy get --root <run-root>`; the listed targets are the anchor's `**Deploy:**` line, per `docs/agents/issue-tracker.md`. Only when a listed target is not `deployed`, read the posture at the merge commit from the invoking checkout, by the PR read first, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Reading the posture at the merge commit`.
+**A shipped run.** Applies to `shipped`. Read the deploy record with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deploy get --root <run-root>`; the listed targets are the anchor's `**Deploy:**` line, per `docs/agents/issue-tracker.md`. Only when a listed target is not `deployed`, read the posture at the merge commit from the invoking checkout, by the PR read first, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Reading the posture at the merge commit`.
 
 - **Every listed target reads `deployed`, or none is listed, or the posture is not `auto`** → report "already shipped", run `step clear`, print the next command §5's **Hand off** picks, and stop. Recreate no scope checkout.
 - **The posture is `auto` and a listed target reads `pending`, `failed`, or carries no record** → an earlier `auto` deploy stopped mid-way (a declined unshown config left it `pending`, a session that ended before §5's first `deploy set` left no record). Recreate an absent scope checkout per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`, and go to §5's **Find the merge commit**. Nothing merges again.
 
-**Find the pull request.** Applies to `submitted` and to a legacy run. Take the PR read; `/superdev:submit-pr` records the number when it opens the pull request (`${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## The ledger`).
+**Find the pull request.** Applies to `submitted`. Take the PR read; `/superdev:submit-pr` records the number when it opens the pull request (`${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## The ledger`).
 
 - **A number** → read that pull request by index. A read that finds nothing takes **None found**.
 - **`absent`** → use the code host's find-open-pull-requests-by-head-branch call per `docs/agents/code-management.md`'s `## Merge` section, filtered to **open** pull requests only.
@@ -97,8 +96,7 @@ Applies to every start past §1. Read the stage with `node "${CLAUDE_PLUGIN_ROOT
 
 **The pull request's state.** Applies to the pull request found.
 
-- **None found, from `submitted`** → refuse and merge nothing. Name both cases the operator tells apart. **No pull request was ever opened** (the `push-only` posture opens none) → print `/superdev:submit-pr`. **One was opened and has since merged or closed by hand** → find its number on the host, record it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" pr set <n> --root <run-root>`, then run `/superdev:ship <scope>` again.
-- **None found, from a legacy `shipped` run** → report that nothing is left to merge, run `step clear`, change nothing else, and refuse nothing.
+- **None found** → refuse and merge nothing. Name both cases the operator tells apart. **No pull request was ever opened** (the `push-only` posture opens none) → print `/superdev:submit-pr`. **One was opened and has since merged or closed by hand** → find its number on the host, record it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" pr set <n> --root <run-root>`, then run `/superdev:ship <scope>` again.
 - **Closed, and `merged` is false** → refuse: name that it was closed without merging, and merge nothing.
 - **`merged` is true** → take **Adopting a hand merge**.
 - **Open** → continue to **The deploy gate**.

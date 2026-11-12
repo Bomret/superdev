@@ -85,7 +85,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          `kb-staged-page.js`, `kb-backend.js`, `kb-apply.js`, `kb-parent-link.js`,
                          `kb-containment.js`, `kb-read.js`, `kb-report.js` (the parts of `publish-kb.js`).
   references/          — backend seed templates + the non-seed runtime references (plan-contract with
-                         plan-authoring and store-records,
+                         plan-authoring, store-records, and assignee,
                          documentation convention, controlled-prose, content-types, doc pass, run init,
                          run handoff, execution playbooks, test-selection, scope-mode with its split files scope-branch,
                          run-state, scope-findings, and shipped-run, authoring
@@ -463,8 +463,8 @@ This root owns every other subtree directly:
   (`start_session` with the offer's marker line, or an `AskUserQuestion` with a `Start /superdev:` option) by
   session, turn, and command. Its Stop half, last in the Stop array, holds a main-session turn once when the last
   message's Next block names one command no offer call of the turn named. A message with no `### Next` heading counts
-  as one when the lone-command fences and the `/superdev:` code spans on a line saying "next" in its last paragraph
-  name one command (ADR 0213, ADR 0216, ADR 0226, INV-0183). It passes a turn whose command is the superdev skill the session transcript
+  as one when the lone-command fences and the `/superdev:` code spans on a line whose first word, past a list marker
+  and emphasis, is "next" in its last paragraph name one command (ADR 0213, ADR 0216, ADR 0226, ADR 0240, INV-0183). It passes a turn whose command is the superdev skill the session transcript
   last started, by `<command-name>` or `Skill` call (ADR 0222). It fails open on
   any malformed input or filesystem error, and passes a Stop with `stop_hook_active` set.
 - `scripts/` and `plugin/scripts/`. Owned by [`scripts/AGENTS.md`](scripts/AGENTS.md), which states

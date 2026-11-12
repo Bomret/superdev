@@ -344,10 +344,10 @@ Paths: plugin/references/scope-mode.md, plugin/skills/**, plugin/references/impl
 
 Class: architecture
 Concepts: Scope anchor, Slice store, Seed, Release, Published snapshot, Triage record, Untriaged item, Assignee, Anchor dependency
-Statement: No command or agent names a slice store's own mechanics. Each reads them from the matching section of the active store document, which specialises `references/plan-contract.md`, `references/plan-authoring.md`, or `references/store-records.md`.
+Statement: No command or agent names a slice store's own mechanics. Each reads them from the matching section of the active store document, which specialises `references/plan-contract.md`, `references/plan-authoring.md`, `references/store-records.md`, or `references/assignee.md`.
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/skills/**, plugin/agents/**, plugin/references/plan-contract.md, plugin/references/plan-authoring.md, plugin/references/store-records.md, plugin/references/issue-tracker-*.md
+Paths: plugin/skills/**, plugin/agents/**, plugin/references/plan-contract.md, plugin/references/plan-authoring.md, plugin/references/store-records.md, plugin/references/assignee.md, plugin/references/issue-tracker-*.md
 
 ### INV-0041
 
@@ -618,7 +618,7 @@ Concepts: Assignee, Operator configuration, Slice store
 Statement: The assignee lives only in the untracked `.superdev/info.json`, resolved against the main working tree from any checkout: that file, else the API token's own identity, with `"none"` opting out. No tracked store document carries an assignee bullet, and the plan-contract slice schema carries no assignee field. Tokens never enter the file. The file's `displayName` is display-only: no issue-tracker call reads it, so it never changes who is assigned.
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/references/plan-contract.md, plugin/references/issue-tracker-*.md, plugin/skills/setup/SKILL.md
+Paths: plugin/references/assignee.md, plugin/references/issue-tracker-*.md, plugin/skills/setup/SKILL.md
 
 ### INV-0075
 
@@ -627,7 +627,7 @@ Concepts: Assignee, Operator configuration
 Statement: A malformed `.superdev/info.json`, or an absent or empty assignee, falls through to the token's identity and is reported once per run. It never stops the plan.
 Breaks: silently
 Check: none — no pin exists today
-Paths: plugin/references/plan-contract.md
+Paths: plugin/references/assignee.md
 
 ### INV-0076
 
@@ -1448,7 +1448,7 @@ Concepts: Operator configuration, Backend command contract, Knowledge base
 Statement: The shipped plugin reads no environment variable that superdev defines, and passes none to a child process. Every knob comes from the operator configuration, and a knowledge-base backend command takes its values only from the JSON file named by `$1`, never from its command text (ADR 0207).
 Breaks: silently
 Check: the drift check that forbids a `SUPERDEV_` environment variable in shipped code and prose; the publish-kb suites that run a template against the values file
-Paths: plugin/lib/push.js, plugin/lib/fail-to-pass.js, plugin/lib/kb-backend.js, plugin/lib/kb-backend-config.js, plugin/lib/operator-config.js, plugin/references/knowledge-base-forgejo.md, plugin/references/knowledge-base-confluence.md
+Paths: plugin/lib/push.js, plugin/lib/fail-to-pass.js, plugin/lib/kb-backend.js, plugin/lib/kb-backend-config.js, plugin/lib/operator-config.js, plugin/references/assignee.md, plugin/references/knowledge-base-forgejo.md, plugin/references/knowledge-base-confluence.md
 
 ### INV-0181
 
@@ -1472,7 +1472,7 @@ Paths: plugin/scripts/scope.js, plugin/lib/dod-line.js, plugin/skills/plan/SKILL
 
 Class: architecture
 Concepts: Next block, Offer
-Statement: A main-session turn that ends on a Next block naming one command, with no `Blocked:` or `First:` line, or with no Next heading names one command in a lone-command fence or in a `/superdev:` code span on a line saying "next", both in its last paragraph, ends only after an offer call of that turn named that command, or after one block by `hooks/offer-guard.js`. The block reason names the exceptions. The hook fails open on every malformed input and never blocks twice in a row. A turn whose one next command is the superdev skill the session transcript last started passes (ADR 0213, ADR 0216, ADR 0222, ADR 0226).
+Statement: A main-session turn that ends on a Next block naming one command, with no `Blocked:` or `First:` line, or with no Next heading names one command in a lone-command fence or in a `/superdev:` code span on a line whose first word, past a list marker and emphasis, is "next", both in its last paragraph, ends only after an offer call of that turn named that command, or after one block by `hooks/offer-guard.js`. The block reason names the exceptions. The hook fails open on every malformed input and never blocks twice in a row. A turn whose one next command is the superdev skill the session transcript last started passes (ADR 0213, ADR 0216, ADR 0222, ADR 0226, ADR 0240).
 Breaks: silently
 Check: the `offer-guard.js` suite
 Paths: plugin/hooks/offer-guard.js, plugin/lib/running-skill.js, plugin/hooks/hooks.json, plugin/references/response-shapes.md

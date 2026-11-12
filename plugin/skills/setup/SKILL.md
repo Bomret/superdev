@@ -73,13 +73,9 @@ Applies to every start. You write the per-repo config documents the superdev ski
 
 - A document's `## Outline` matches the Confluence seed's `## Audience, language & outline`.
 
-**A replaced rule.** Applies to a rule the current seed replaced, such as the token or curl rules a Forgejo config document written before ADR 0111 can carry. Such a rule is a contradicted rule. List it as a seed gap under the seed rule it contradicts, never as a stale deviation or a section only the document carries.
+**A replaced rule.** Applies to a rule the current seed replaced. Such a rule is a contradicted rule. List it as a seed gap under the seed rule it contradicts, never as a stale deviation or a section only the document carries.
 
-- Such Forgejo token or curl rules contradict the seed's `Login` bullet, `tea conventions` section, or `Degrade when no tea login` section.
 - A knowledge-base outline entry holding a placeholder (`<...>`, such as `How it works: <mechanism>`), or an outline lacking the rule, contradicts the seed's **Every outline entry names a topic page** rule. Explicit entries that differ from the seed's example entries are filled-in values, no gap.
-
-- A Forgejo issue-tracker document's `**Auth:**` bullet and `## REST conventions`.
-- A Forgejo code-management document's `**Auth:**` bullet naming a token env var or an `Authorization` header, a `## tea CLI conventions` section whose login line passes `--token`, a `## REST conventions (curl)` section, and a `## Degrade when no CLI / token` section.
 - A slice-store close that strips no status label contradicts the seed's **Close an issue** rule: a bare `tea issues close <index>` (Forgejo), a bare close `PATCH` (GitHub), or a bare `merged` transition where the ready marker is a label (Jira). It sits in the status map's `merged` row (Forgejo, GitHub), the labels-and-status rule (Forgejo, GitHub), the **Perform a transition** rule (Jira), or GitHub's abandoned (`not_planned`) close. The triage record's **Close it** call is no such close.
 
 **No gap.** Applies to a difference of these kinds: a renamed heading, a filled-in value where the seed carries a placeholder, setup-facing instruction text, and a section only the document carries. List none of them as a gap. A document with no seed gap says so.
@@ -159,7 +155,7 @@ Applies to the full interview. Scan these before any decision:
 - It sits on the **scope anchor**, the epic or a single-slice feature's lone issue.
 - It **survives the lifecycle moves** `/superdev:implement` makes. The status map's `ready` label is swapped to `in-progress` on dispatch, so it cannot be the signal. A separate label is the default to propose.
 
-**The assignee.** Applies to any issue backend. Capture the account every issue `/superdev:plan` creates is assigned to (`plan-contract.md` → *Assignee*). Propose the API token's own identity, resolved from the backend's whoami: the matched `tea` login's `user` on Forgejo/Gitea, `GET /user` on GitHub, `GET /rest/api/3/myself` on Jira.
+**The assignee.** Applies to any issue backend. Capture the account every issue `/superdev:plan` creates is assigned to (`assignee.md` → *Assignee*). Propose the API token's own identity, resolved from the backend's whoami: the matched `tea` login's `user` on Forgejo/Gitea, `GET /user` on GitHub, `GET /rest/api/3/myself` on Jira.
 
 - Accept a different account that can be assigned there (a repo collaborator, an assignable project user).
 - Accept `none` to create issues unassigned.
@@ -539,12 +535,7 @@ The focused command selects every test a changed path can affect.
 
 - `toolchain.md`, the knowledge base's `## Commands`, and `deployment.md`'s targets keep their re-run rules above.
 
-- **Apply.** A missing section goes in at its seed position relative to the matched neighbours. A missing or contradicted rule replaces or joins only that rule inside its section, and no old rule stays beside the new one:
-  - the `**Auth:**` gap replaces that bullet with the seed's `Login` bullet where the seed's `## Configuration` carries one, and removes it otherwise (the code-management seed carries its login rule in `tea conventions` only);
-  - the `tea conventions` gap replaces the matched `## tea CLI conventions` section;
-  - a `## REST conventions` gap removes that section;
-  - the degrade gap replaces `## Degrade when no CLI / token`.
-  Every other section keeps the operator's text.
+- **Apply.** A missing section goes in at its seed position relative to the matched neighbours. A missing or contradicted rule replaces or joins only that rule inside its section, and no old rule stays beside the new one. Every other section keeps the operator's text.
 - **Record as a seed deviation.** Ask for the operator's reason and require one. Write §0's bullet into `## Seed deviations`, creating the section at the end of the document when absent. Change no other line.
 - **Leave for later.** Write nothing. The gap is offered again next time.
 

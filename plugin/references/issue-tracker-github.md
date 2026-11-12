@@ -250,10 +250,10 @@ like a typo.
 
 ## Assignee
 
-Operator configuration, not a slice field (`plan-contract.md` → *Assignee*). The
+Operator configuration, not a slice field (`assignee.md` → *Assignee*). The
 identifier is a GitHub **login**, read from `.superdev/info.json` under `issue-tracker.assignee`, and
 applied to the **epic and every slice** in the create call, never a follow-up pass. The failure shape below
-is the general *Assignee* recovery rule (`plan-contract.md`) made concrete for GitHub.
+is the general *Assignee* recovery rule (`assignee.md`) made concrete for GitHub.
 
 ```json
 {
@@ -271,7 +271,7 @@ is the general *Assignee* recovery rule (`plan-contract.md`) made concrete for G
   rolled back.
 - **A login GitHub cannot assign rejects the whole create**: a token with push access gets `422` with an
   `errors` entry naming `field: assignees`, `code: invalid`, and no issue exists. Retry that one create with
-  `assignees` omitted, per the retry-once-without-the-assignee path in `plan-contract.md`, and report it
+  `assignees` omitted, per the retry-once-without-the-assignee path in `assignee.md`, and report it
   once per run.
 - **Check the returned `labels`, not just `assignees`.** Labels are sent on every create; an assignee is
   not sent at all under `"assignee": "none"`, so assignee-based detection is blind in exactly that

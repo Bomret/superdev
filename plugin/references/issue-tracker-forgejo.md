@@ -229,10 +229,10 @@ feature label, and on a single-slice feature it is the lone issue carrying that 
 
 ## Assignee
 
-Operator configuration, not a slice field (`plan-contract.md` → *Assignee*). The
+Operator configuration, not a slice field (`assignee.md` → *Assignee*). The
 identifier is a Forgejo **login**, read from `.superdev/info.json` under `issue-tracker.assignee`, and
 applied to the **epic and every slice** in `tea issues create`'s `-a`, never a follow-up pass. The two failure shapes
-below are the general *Assignee* recovery rule (`plan-contract.md`) made concrete for Forgejo.
+below are the general *Assignee* recovery rule (`assignee.md`) made concrete for Forgejo.
 
 ```json
 {

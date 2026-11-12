@@ -64,7 +64,7 @@ Read the stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --r
 **The pull request is not merged.** Applies to every gate.
 
 - **`scope.js get pr` prints a number** → read that pull request by index per `docs/agents/code-management.md`'s `## Merge` section. Take its `merged` field.
-- **`absent`** (a legacy run) → test the scope branch's containment in base with `scope.js`'s exported `testContainment` (`${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Containment`; it has no CLI verb): `node -e "console.log(require(process.argv[1]).testContainment(process.cwd(), process.argv[2], process.argv[3]))" "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" <base> <scope-branch>`. Read `<scope-branch>` with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get branch --root <run-root>`. `<base>` is the base branch `docs/agents/code-management.md` names. Only `contained` counts as merged.
+- **`absent`** (the `push-only` posture opened no pull request) → test the scope branch's containment in base with `scope.js`'s exported `testContainment` (`${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Containment`; it has no CLI verb): `node -e "console.log(require(process.argv[1]).testContainment(process.cwd(), process.argv[2], process.argv[3]))" "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" <base> <scope-branch>`. Read `<scope-branch>` with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get branch --root <run-root>`. `<base>` is the base branch `docs/agents/code-management.md` names. Only `contained` counts as merged.
 - **Unknown** (a failed host read, or any other containment verdict) → not merged.
 
 **A Definition-of-Done line is unsettled.** Applies to every gate. Judge settledness from `<run-root>/dod.md`. Read the anchor's Definition-of-Done lines per `docs/agents/issue-tracker.md` only when `dod.md` is missing.
@@ -79,7 +79,7 @@ Read the stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --r
 
 **A deploy target is not `deployed`.** Applies when the pull request is merged; otherwise skip this read. Read the posture, the anchor's `**Deploy:**` line, and the deploy record per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Reading the posture at the merge commit`.
 
-- **Posture `none`, a `**Deploy:** none` or missing line, a ledger with no `**PR:**` header, or an anchor an older version already closed** → no reason.
+- **Posture `none`, a `**Deploy:** none` or missing line, or a ledger with no `**PR:**` header** → no reason.
 - **Otherwise, each listed target not recorded `deployed`** → name it, with `/superdev:verify-ship` for a `manual` posture and `/superdev:ship` for `auto`.
 
 **A run checkout holds a staged file.** Applies to every gate. List every file, of any extension, under `<run-root>/scopetree/.superdev/kb-pending/` and `<run-root>/slicetrees/*/.superdev/kb-pending/`. A missing directory holds no reason.

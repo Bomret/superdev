@@ -1,7 +1,7 @@
 'use strict';
 
 // Suite for plugin/scripts/scope.js's ledger header reader: `readLedgerHeader`'s normalisation per header kind
-// (ADR 0022), the ledgers an older version or an editor left behind (`shipped` before `submitted`, CRLF), and a
+// (ADR 0022), a ledger an editor left behind (CRLF), and a
 // comma inside a bullet. The shared directory, `call`, and the init payload come from tests/scope-setup.js.
 
 const assert = require('node:assert');
@@ -11,7 +11,7 @@ const path = require('node:path');
 const cp = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { tmp, call, scopePath, cleanup } = require('./scope-setup');
-const { publishText, readLedgerHeader } = require(scopePath);
+const { readLedgerHeader } = require(scopePath);
 
 try {
   // --- readLedgerHeader: one reader, normalisation per header kind (ADR 0022) ---
@@ -101,35 +101,6 @@ try {
   assert.ok(
     call(['status']).out.includes('| markupstage | shipped |'),
     'a backticked stage still collapses: ' + call(['status']).out
-  );
-
-  // A ledger an older version — one that predates `submitted` — left at stage `shipped` reads back
-  // unchanged across every verb this suite exercises: STAGE_RANK gained a new value, not a new
-  // parse rule.
-  const preSubmittedRoot = path.join(tmp, '.superdev', 'scopes', 'pre-submitted-shipped');
-  fs.mkdirSync(preSubmittedRoot, { recursive: true });
-  const preSubmittedText =
-    '# Ledger — pre-submitted-shipped\n\n**Stage:** shipped\n**Branch:** feat/pre-submitted-shipped\n' +
-    '**Anchor:** #1 — anchor\n\n' +
-    '| id | issue | title | type | depends-on | status | range |\n' +
-    '|---|---|---|---|---|---|---|\n' +
-    '| 01 | #1 | one | behavior | — | merged | a..b |\n';
-  fs.writeFileSync(path.join(preSubmittedRoot, 'ledger.md'), preSubmittedText, 'utf8');
-  assert.strictEqual(call(['get', 'stage', '--root', preSubmittedRoot]).out, 'shipped', 'get stage still reads shipped');
-  assert.ok(
-    call(['status']).out.includes('| pre-submitted-shipped | shipped |'),
-    'status still collapses the pre-existing shipped scope'
-  );
-  assert.ok(call(['stage', 'set', 'shipped', '--root', preSubmittedRoot]).ok, 'same-value shipped write is still a no-op');
-  const prePublished = publishText(preSubmittedRoot);
-  const preAdoptRoot = path.join(tmp, 'adopted-elsewhere', 'pre-submitted-shipped');
-  fs.mkdirSync(path.dirname(preAdoptRoot), { recursive: true });
-  const preAdopted = call(['adopt', '--root', preAdoptRoot], prePublished);
-  assert.ok(!preAdopted.ok && /shipped/.test(preAdopted.err), 'adopt still refuses a shipped snapshot, pre-existing or not');
-  assert.strictEqual(
-    fs.readFileSync(path.join(preSubmittedRoot, 'ledger.md'), 'utf8'),
-    preSubmittedText,
-    'every verb above left the pre-existing shipped ledger byte-for-byte unchanged'
   );
 
   // Requiring the module must run no CLI code. Unguarded, `main()` parses the *caller's* argv and a

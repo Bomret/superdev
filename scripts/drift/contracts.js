@@ -213,9 +213,8 @@ const KB_BACKEND_CALL_MARKERS = [
 // of its own is covered by neither, and needs its own orphan test.
 const HOOK_HEADER_REGEX = /\\+\*\\+\*[^\n]{0,60}:\\+\*\\+\*/;
 
-// A section heading, found up to a word boundary rather than end-of-line, because a real heading can
-// carry a trailing qualifier: `plan-contract.md` writes `### Assignee — store configuration, not a slice
-// field`, at `###` under `## Issue-backend mapping (general)`.
+// A section heading at `##` or `###`, found up to a word boundary rather than end-of-line, so a heading
+// may carry a trailing qualifier.
 const specialisingHeading = (name) => new RegExp(`^#{2,3}\\s+${name}\\b`, 'm');
 
 // The generic contracts that each slice-store document renders as a section of its own, and cites by
@@ -236,6 +235,7 @@ const SPECIALISING_HOMES = {
   'Append mode': 'plan-authoring.md',
   'Triage record': 'store-records.md',
   'Intent record': 'store-records.md',
+  Assignee: 'assignee.md',
 };
 
 // One row per member, pinned to the reference that holds it. Taking the names as an argument is what lets

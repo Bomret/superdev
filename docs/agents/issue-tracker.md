@@ -228,11 +228,11 @@ label, and on a single-slice feature it is the lone issue carrying that label (A
 
 ## Assignee
 
-Operator configuration, not a slice field (`plan-contract.md` → *Assignee*; ADR 0010, ADR 0073). The
+Operator configuration, not a slice field (`assignee.md` → *Assignee*; ADR 0010, ADR 0073). The
 identifier is a GitHub **login**, read from `.superdev/info.json` under `issue-tracker.assignee`. The
 create call applies it to the **epic and every slice**, never a follow-up pass. The file is untracked,
 so this repository records no maintainer's account. The failure shapes below make the general
-*Assignee* recovery rule (`plan-contract.md`) concrete for GitHub.
+*Assignee* recovery rule (`assignee.md`) concrete for GitHub.
 
 ```json
 {

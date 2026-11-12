@@ -132,11 +132,10 @@ the invoking checkout, which stays wherever it was.
   command has nothing left to write to a shipped scope.
   **The one exception is `/superdev:ship` itself, reading any `shipped` ledger.** Its §3 reads the posture
   with `git show` from the invoking checkout, which needs no scope checkout. Ship recreates the checkout
-  below, as an `Absent` one does, in two cases only:
-  - a legacy ledger carrying no `**PR:**` header, whose pull request may still be open, which proceeds like `submitted`;
-  - a ledger carrying the header whose `auto` deploy stopped mid-way, whose §5 detaches it.
+  below, as an `Absent` one does, in one case only: a ledger whose `auto` deploy stopped mid-way, whose §5
+  detaches it.
 
-  A `shipped` ledger carrying the header with nothing left to deploy, or a posture other than `auto`, is
+  A `shipped` ledger with nothing left to deploy, or a posture other than `auto`, is
   "already shipped". Ship recreates no checkout for it.
 - **Absent** → recreate it: `git worktree add <run-root>/scopetree <branch>`, the same call
   the `resumed` run kind already makes. The run's own lock stays as it is: no hook refuses the call.
@@ -261,9 +260,8 @@ These writers move the ledger's `**Stage:**` line — `/superdev:review`, `/supe
 stage set`, which enforces every rule in this section in code and refuses a write that breaks one: **a
 stage write never undoes completed work.**
 
-- `shipped` together with the ledger's own `**PR:**` header stops `/superdev:ship` from merging a second time.
-  A later command overwriting the stage with an earlier one would disarm that check. A legacy `shipped` ledger
-  predating the header is not yet finished, and `/superdev:ship` treats it like `submitted` (`## The scope checkout`).
+- `shipped` stops `/superdev:ship` from merging a second time.
+  A later command overwriting the stage with an earlier one would disarm that check.
 - `closed` is the terminal stage: nothing outranks it, `stage set` refuses any move out of it, and `hooks/scope-prune.js` reaps only a run root that reads it.
 - `shipped` is not terminal.
 - `submitted` is an ordinary in-flight stage: `/superdev:submit-pr`'s own stage gate, not the rank rule, keeps a second run from opening a

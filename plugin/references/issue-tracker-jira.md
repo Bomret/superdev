@@ -255,10 +255,10 @@ superdev's: the listings below skip it.
 
 ## Assignee
 
-Operator configuration, not a slice field (`plan-contract.md` → *Assignee*). The
+Operator configuration, not a slice field (`assignee.md` → *Assignee*). The
 identifier is a Jira **`accountId`**, read from `.superdev/info.json` under `issue-tracker.assignee`, and
 applied to the **anchor and every slice** in the create call, never a follow-up pass. The failure shape below
-is the general *Assignee* recovery rule (`plan-contract.md`) made concrete for Jira.
+is the general *Assignee* recovery rule (`assignee.md`) made concrete for Jira.
 
 ```json
 {

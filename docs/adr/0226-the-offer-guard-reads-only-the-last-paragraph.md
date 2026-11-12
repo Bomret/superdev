@@ -5,6 +5,9 @@
 **Amends:** [ADR 0216](0216-the-offer-guard-reads-a-next-step-without-its-heading.md): the hook reads a next
 step without its heading only in the message's last paragraph.
 
+**Amended by:** [ADR 0240](0240-the-offer-guard-reads-only-a-next-line.md): a `/superdev:` code span names a
+command only on a line whose first word is "next".
+
 ## Context
 
 On 2026-11-11 a `/superdev:brainstorm` interview turn explained a skill's behaviour with the line "Its Next block

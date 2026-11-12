@@ -436,7 +436,7 @@ once. A note opening with any other verdict's label is note text and stays as gi
 body on stdin and prints the transformed body; `--line` takes and prints exactly one checklist line
 instead, for the Jira seed's ADF text node, which is JSON, not markdown lines. A checklist line is `- [ ]
 <criterion>[ — <tag>][ — <verdict>: <note>]` (`plan-contract.md`'s line format) — the tag absent on a
-single-slice feature's own DoD, a run predating tagging, or one untagged line inside an
+single-slice feature's own DoD or one untagged line inside an
 otherwise-tagged DoD; `--line` mode accepts the same line with no leading `- `, the shape a Jira text
 node's own string carries. The tag — slice ids (`01`, `01, 02`), store refs (`#667`, `#672, #673`), or the
 literal `scope` or `docs`, each standing alone (ADR 0161) — and any verdict note past it are parsed off the line's *right* end, greedily handing

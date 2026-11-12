@@ -69,7 +69,7 @@ goes on.
   removed with `pr clear`. `/superdev:ship` reads it back rather than looking the pull request up by head
   branch: a reused branch name (`scope-mode.md`'s `## The scope branch`) leaves old, merged pull requests on the host under
   the same head, and a lookup by branch alone could adopt one of those instead — the head-branch
-  lookup stays only as a fallback for a ledger predating this header, and only among *open* pull requests.
+  lookup stays only as a fallback for a `submitted` ledger without this header, and only among *open* pull requests.
 - **`**Deploy:** <target> <state>[ exit <n>][, …]`** — one entry per deploy target (`docs/agents/
   deployment.md`'s targets table), in the order each target was first recorded, so `/superdev:ship` can
   tell a finished deploy from a failed one and resume where it stopped. State is `pending`,
