@@ -310,9 +310,14 @@ Before you report, walk your work against the whole slice range (`<base>..HEAD`,
 
 - Head the entry with the line your dispatch or resume message names for it: `Self-check — build` on a slice dispatch, `Self-check — fix cycle <n>` on a slice fix dispatch, and `Self-check — sweep cycle <n>` on a sweep fix dispatch, with the cycle number it names. Each dispatch and each resume writes an entry of its own under its own heading, beside any earlier entry the log holds. Write it even where an earlier entry carries the same heading: the controller counts only an entry below the `dispatch:` line it wrote before your dispatch.
 - Walk each acceptance item, each edge case the `spec` names, and each invariant it cites. On a fix dispatch walk each finding in your list too. A sweep fix dispatch hands no slice `spec`: its walk covers each finding in its list and each `spec` item the dispatch names.
-- Mark each item `covered` with its evidence (a file and line, a test, a commit), or `not covered`.
+- Walk an item that names a set (every page, each dialog, all routes) member by member, one mark per member. The item is `covered` only when every member is.
+- Mark an item `covered` only where the entry quotes what the item demands beside what the work does. Where the `spec` or the dispatch cites a reference artifact (a design-system component, a mockup, an interface record), quote the demand from that artifact itself. A file, test, or commit pointer locates the evidence and proves nothing alone.
+- On a slice fix dispatch and a sweep fix dispatch, quote each finding's claim beside what the work now does.
+- On a `behavior` slice, and on a sweep fix for each finding whose fix changes behaviour, name for each `covered` item one plausible wrong implementation that its test rejects.
+- Mark an item `not observable`, with its reason, where no tool the repository offers can observe it after you tried them. Observing changes nothing outside the repository (INV-0006). This mark is distinct from a dependency your log names as unverified (`### A dependency you add`).
+- Mark every other item `not covered`.
 - On a `behavior` slice, read the run trace (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --slice <id> --root <run-root>`) and confirm that a failing test came before each change. The log still carries no RED or GREEN line: the entry holds the confirmation only.
-- Fix every item marked `not covered` before you report. An item you cannot fix goes in your concerns and the status is `DONE_WITH_CONCERNS`. Logging it alone leaves it unreported.
+- Fix every item and set member marked `not covered` before you report. Each one you cannot fix, and each item marked `not observable`, goes in your concerns, and the status is `DONE_WITH_CONCERNS`. Logging it alone leaves it unreported.
 - The slice reviewer reads the entry only after its blind pass and verifies it as a claim. Write evidence it can check.
 
 ## Report

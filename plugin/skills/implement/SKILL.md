@@ -32,7 +32,7 @@ Applies to the `lite` tier. Its playbook runs the documentation pass in the same
 
 **A slice-reviewer's entry.** Applies to every `superdev:slice-reviewer` report. It appends its full findings, with their remedies, to the log its dispatch names, under the heading the dispatch names, and returns a summary (`${CLAUDE_PLUGIN_ROOT}/agents/slice-reviewer.md`'s `## Report`). Read its current entry for any step that needs more than the summary. A missing current entry goes back to that same reviewer through SendMessage first.
 
-**An implementer's entry.** Applies to a `superdev:implementer` that builds a slice, fixes a slice, or fixes a Minor sweep. Before it reports, it appends a self-check entry to its log, headed with its dispatch kind and cycle, and returns its required report (`${CLAUDE_PLUGIN_ROOT}/agents/implementer.md`'s `## Self-check` and `## Report`). A report whose log holds no current entry under the dispatch's heading goes back to it before the review, and no slice-review dispatch carries the entry.
+**An implementer's entry.** Applies to a `superdev:implementer` that builds a slice, fixes a slice, or fixes a Minor sweep. Before it reports, it appends a self-check entry to its log, headed with its dispatch kind and cycle, marking an item `covered` only where the entry quotes what the item demands beside what the work does and naming each `not observable` item in its concerns, and returns its required report (`${CLAUDE_PLUGIN_ROOT}/agents/implementer.md`'s `## Self-check` and `## Report`). A report whose log holds no current entry under the dispatch's heading goes back to it before the review, and no slice-review dispatch carries the entry.
 
 **Narration.** Applies between dispatches. Narrate at most one line.
 
