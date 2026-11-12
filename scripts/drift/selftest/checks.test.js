@@ -23,6 +23,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'agent-tool-agnostic',
     'deploy-runner-exclusivity',
     'ship-no-opens-pr',
+    'background-rule-names-limit',
   ]);
   const empty = fixture({ '.keep': '' });
   for (const check of CHECKS) {

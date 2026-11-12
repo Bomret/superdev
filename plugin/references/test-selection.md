@@ -23,10 +23,11 @@ as configured, and `test path` runs its command as given from the current direct
 redirects, backgrounds, or wraps the call. A test command is recorded as typed and pushed with the run state, so a secret belongs in the environment, never on the command line. To trim the output, pipe the runner into `tail`, or redirect it to a
 file outside the working tree, such as one from `mktemp` under `$TMPDIR`, and read the file afterwards.
 A redirect into the working tree leaves an untracked file, and on a passing run also records an implementation edit.
-**A suite longer than the Bash tool's time limit runs through the runner in the background, and you wait for
-its end before acting on it.** **`scope.js fail-to-pass` follows the same rule:** it runs its command up to
-twice, so run it in the background when the suite outlasts the Bash tool's time limit, and wait for its end before
-you read its outcome. A verb the tool's limit kills writes no outcome line. The run trace records a run made outside the runner as `unknown` whenever its
+**Every test run passes the Bash tool's `timeout` at its ceiling, 600000 ms unless `BASH_MAX_TIMEOUT_MS` raises it, and runs in the foreground.
+Only a run that can outlast the ceiling runs through the runner in the background, and you wait for
+its end before acting on it.** **`scope.js fail-to-pass` follows the same rule:** it runs its command twice, after a
+prepare where one is configured, so run it in the background when two runs of the range's test files can outlast the ceiling,
+and wait for its end before you read its outcome. A verb the ceiling kills writes no outcome line. The run trace records a run made outside the runner as `unknown` whenever its
 exit status does not reflect the test. An `unknown` run is no passing run, so `scope.js suite reusable` never
 reuses it and the suite runs again at the next gate. The whole-repo command is the third command
 (`## Whole-repo command` below), and `scope.js suite reusable` reads its runs too.

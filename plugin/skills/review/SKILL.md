@@ -138,7 +138,7 @@ Review a change end to end. §1 decides the mode.
 **The focused run** (ADR 0179). Applies to every ad-hoc dispatch of `final-reviewer`, and to a scope review's entry run, which `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md`'s `### 4.2 The suite gate` adapts to the scope range (ADR 0192). The bullets below decide which run an ad-hoc dispatch gets.
 
 - **A test command is configured in `docs/agents/verification.md` and the subject's tip is the checked-out tree** → run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths>` once from the invoking checkout before the dispatch, and hand the reviewer that result labelled focused.
-- **A suite that outlasts the Bash tool's time limit** runs in the background, and you wait for its end.
+- **Every test run** passes Bash's `timeout` at its ceiling, 600000 ms unless `BASH_MAX_TIMEOUT_MS` raises it, and runs in the foreground. A run that can outlast the ceiling runs in the background, and you wait for its end.
 - **The changed paths** are the paths the subject's diff changes that exist in the tree. A subject left with none runs no test.
 - **The subject's tip is the checked-out tree** when the subject is the working tree's uncommitted changes, or when its range ends at the commit `git rev-parse HEAD` names and `git status --porcelain` prints nothing.
 - **Any other subject runs no test**: a range that ends elsewhere, another branch, and a standing-code target. Hand the reviewer `not run: <reason>` (the tip is not checked out, the working tree is dirty, standing code has no change, or no test command) and name the reason in your report.

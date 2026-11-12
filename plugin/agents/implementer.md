@@ -181,7 +181,7 @@ Your tests must fail without your change. Prove it before you report (ADR 0182).
 - `pass-to-pass`: your tests pass without your change, so they do not check it. Strengthen them, commit, and run the verb again over the same range.
 - `pass-to-pass` in an unclosable case: your range's behaviour change lies wholly in test-path files (a file your command does not read, such as prompt prose or a doc, carries none), your test pins existing behaviour on purpose, or your range's changes outside the test paths only restructure or remove code, as a refactor or a cut does (`review-checklist.md`'s `## Fail-to-pass run`, ADR 0193, ADR 0196). Stop strengthening, keep the outcome line, and report the case with its reason; for the last case, name per file what was restructured or removed and why no behaviour changed. The reviewer judges the case.
 - `unknown`: the verb could not judge. A failing first run means a test of yours fails at your tip: fix it and run the verb again. Name any other `unknown` in your report with the reason the verb printed; a `prepare=` reason means the repository's prepare command did not succeed in the verb's worktree, no verdict on your tests.
-- Run the verb in the background when the suite outlasts the Bash tool's time limit, and wait for its end.
+- Run every test run in the foreground with Bash's `timeout` at its ceiling, 600000 ms unless `BASH_MAX_TIMEOUT_MS` raises it. Run the verb in the background when two runs of your range's test files can outlast the ceiling, and wait for its end.
 - Your report carries the outcome line, or the reason your range needs none.
 
 ## A failing test your slice did not cause
