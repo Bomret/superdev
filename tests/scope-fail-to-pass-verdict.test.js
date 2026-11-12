@@ -46,7 +46,7 @@ const { readTrace, traceField } = require('../plugin/lib/trace-log.js');
     r = s.run(s.range, { cmd: '# note' });
     assert.equal(r.status, 0, 'a segmentless command ends with an outcome, not a crash: ' + r.stderr);
     assert.match(r.stdout.trim(), /^(fail-to-pass|pass-to-pass|unknown)\b/, 'an outcome prints');
-    assert.match(s.rawRunLines()[0] || '', / #\\x20note$/, 'the control run line ends with the command as given');
+    assert.match(s.rawRunLines()[0] || '', / #\\x20note \.$/, 'the control run line holds the command as given, then the root directory');
 
     // Tests that pass with the other files put back as well read pass-to-pass.
     s = scenario({
