@@ -33,6 +33,8 @@ Each step below applies beside the skill's step of the same number. A departure 
 - `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step block --root <run-root>`.
   - A blocked stop, a refusal, a `First:` wait, and a review exit without a clean verdict each run `step block` first.
 
+**The snapshot.** Applies to every exit after the `step set review` call. When this review made a ledger write `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` lists, publish the snapshot once per that section, as the exit's last act: after its closer and after every ledger write the exit makes past it, such as §4.10's `docs clear` and `docs` untick entries. No other step of this review publishes.
+
 ## 2. Review
 
 **The dispatch of `final-reviewer`.** Applies to every dispatch of `final-reviewer` in a scope review. `final-reviewer`'s `### What the dispatch hands you` and `### Run-trace findings` own each input's handling below. The dispatch hands these inputs. It restates none of those rules.
@@ -67,7 +69,7 @@ Each step below applies beside the skill's step of the same number. A departure 
 
 **The slice reviewer for an Unreviewed slice.** Applies to §4.6's **Unreviewed slice** branch, which only a merged `behavior` slice reaches: a merged `mechanical` or `docs` slice, or one whose type cannot be read, draws no such finding and no `slice-reviewer` dispatch (`review-coverage.md`'s `## Review coverage`). Its `superdev:slice-reviewer` dispatch departs from the skill's exclusion of `slice-reviewer`.
 
-**A denied `final-reviewer` dispatch.** Applies beside the skill's degraded-pass step, on a live run. Write the `**Degraded:**` entry per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` with `scope.js degraded add-denial -`. Pipe the classifier's refusal through a quoted heredoc and never a shell argument. Publish the snapshot per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state`.
+**A denied `final-reviewer` dispatch.** Applies beside the skill's degraded-pass step, on a live run. Write the `**Degraded:**` entry per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` with `scope.js degraded add-denial -`. Pipe the classifier's refusal through a quoted heredoc and never a shell argument.
 
 - **`--unattended`** → read `scope.js get denials` after writing the entry, and **block** once the count reaches the cap in that section, instead of reviewing inline again.
 
@@ -155,7 +157,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - **No test command configured** → run no test, hand `not run: no test command`, and continue. This never blocks the review.
 - State the outcome in your own output: reused, pass, fail, not run with its reason, or denied.
 
-**A denied entry run.** Applies to an entry run the permission classifier denies. It takes the second shape of `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes`. Write the `**Degraded:**` entry, hand `denied`, and publish the snapshot before deciding the branch per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state`.
+**A denied entry run.** Applies to an entry run the permission classifier denies. It takes the second shape of `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes`. Write the `**Degraded:**` entry and hand `denied`.
 
 - The branches below deviate locally from that section's record-and-continue default.
 - **Attended** → continue.
@@ -184,7 +186,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - **Reused, pass, or `pass on rerun`** → go to §4.10's stage write. That run is the gate the stage advances on.
 - **Fail** → the failing-run concept above takes it.
 - **Never finished** (killed, or `unknown` in the run trace) → it carries no verdict. Record `none` at the tip, leave the stage where it is, run `step block`, and say the next `/superdev:review` runs it again.
-- **Denied** → record `denied`, write the `**Degraded:**` entry, and publish the snapshot per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state`. The stage stays where it is. **Attended** → continue to the report, which names the denied exit run. **Unattended** → **block**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unattended`.
+- **Denied** → record `denied` and write the `**Degraded:**` entry. The stage stays where it is. **Attended** → continue to the report, which names the denied exit run. **Unattended** → **block**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unattended`.
 - **No test command configured** → record `none` and go to §4.10's stage write. This never blocks the review.
 
 ### 4.3 Observations
@@ -279,7 +281,7 @@ Report a failed create once per run and write the ledger bullet regardless.
 
 - Write the `**Unresolved:**` entry with a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) piped to `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add - --root <run-root>` (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`, triage #680).
 - **At a `submitted` stage**, also invalidate the tip's suite record with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set none <sha> --root <run-root>`, `<sha>` being the scope branch's current tip.
-- Publish the snapshot before stopping, per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state`, and leave the stage where it is.
+- Leave the stage where it is.
 
 ### 4.7 Fix cycles
 
@@ -325,7 +327,7 @@ Report a failed create once per run and write the ledger bullet regardless.
 
 ### 4.8 Degraded fix dispatch and advisory notes
 
-**A denied fix implementer.** Applies when the permission classifier denies the fix implementer's dispatch. Follow `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes`. Write the `**Degraded:**` entry either way with `scope.js degraded add`. Publish the snapshot per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state`.
+**A denied fix implementer.** Applies when the permission classifier denies the fix implementer's dispatch. Follow `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes`. Write the `**Degraded:**` entry either way with `scope.js degraded add`.
 
 - The fix implementer is an authoring dispatch and none of the three the cap counts.
 - **Attended** → apply the fix inline yourself and say so in §3's report.
@@ -379,8 +381,6 @@ Report a failed create once per run and write the ledger bullet regardless.
 - **A stage before `documented`** (`documented-unreviewed` included) → no `**Unresolved:**` entry and no stage hold.
 - **`documented` or `submitted`** → write one `**Unresolved:**` entry per unticked `docs` line, worded exactly `docs criterion unmet after the doc pass: <criterion>`, through a quoted heredoc piped to `scope.js unresolved add - --root <run-root>`. At `submitted`, also invalidate the tip's suite record as §4.6's standing-defect writes state.
 - **`shipped` or `closed`** → write no `**Unresolved:**` entry, invalidate no suite record, and change no route. Name each unticked `docs` line in your report instead. The `/superdev:document` this block prints at that stage judges no `docs` line.
-
-**The snapshot.** Applies after any write above: `unresolved clear`, the stage write, `docs clear`, `unresolved add`, and `suite set` alike. Publish it per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state`.
 
 **The integration bar.** Applies to this review's own steps only, and ends with the review. This review merges nothing, pushes nothing, and opens no pull request: `/superdev:submit-pr` and `/superdev:ship`, the chain's last steps, own those. The run-state ref send `scope.js` makes at a step end is no push of the scope branch, and this bar allows it (`run-handoff.md`). A brief this review writes for the next command carries no part of this bar.
 

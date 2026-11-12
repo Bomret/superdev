@@ -321,7 +321,7 @@ function killGroup(child) {
 // Ceiling: on Windows a negative pid names no process group, so `process.kill(-pid)` throws, `killGroup` swallows the
 // throw, and neither a failure nor a signal ends a running step or its processes there; the run still exits nonzero
 // once every running step ends on its own (ADR 0150). The runner is maintainer-only, so no adopter meets this ceiling.
-function runSteps(steps, cwd, out, limit) {
+function runSteps(steps, cwd, out, limit, durations = new Map()) {
   return new Promise((resolve) => {
     const running = new Set();
     // The running children whose process has exited (their pipes may still be open), and those `stop` ended.
@@ -375,7 +375,9 @@ function runSteps(steps, cwd, out, limit) {
           if (cancelled.delete(child)) out(`run-tests: ${label}: cancelled`);
           else {
             const text = Buffer.concat(chunks).toString().replace(/\n$/, '');
-            out([`run-tests: ${label}`, ...(text ? [text] : []), `run-tests: ${label}: ${Math.round(performance.now() - started)} ms`].join('\n'));
+            const ms = Math.round(performance.now() - started);
+            durations.set(label, ms);
+            out([`run-tests: ${label}`, ...(text ? [text] : []), `run-tests: ${label}: ${ms} ms`].join('\n'));
             if (status !== 0) {
               const why = signal ? `killed by ${signal}` : failure ? `did not start: ${failure.message}` : `exit ${status}`;
               out(`run-tests: FAILED ${label} (${why})`);
@@ -403,7 +405,32 @@ function runSteps(steps, cwd, out, limit) {
   });
 }
 
-// `parallelism` is how many steps run at once; it defaults to the logical CPUs available to the process.
+// Where the last run's per-suite durations live: under `node_modules/`, which git ignores and `bun install` keeps.
+const DURATIONS_FILE = path.join('node_modules', '.cache', 'run-tests.json');
+
+// The `{ label: ms }` map the last run left in `root`, or an empty one.
+function readDurations(root) {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(path.join(root, DURATIONS_FILE), 'utf8'));
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+// Merges this run's measured durations into the file. A run that cannot write it loses only the ordering.
+function writeDurations(root, before, measured) {
+  try {
+    fs.mkdirSync(path.join(root, path.dirname(DURATIONS_FILE)), { recursive: true });
+    fs.writeFileSync(path.join(root, DURATIONS_FILE), JSON.stringify({ ...before, ...Object.fromEntries(measured) }, null, 2) + '\n');
+  } catch {
+    /* ordering only */
+  }
+}
+
+// `parallelism` is how many steps run at once; it defaults to the logical CPUs available to the process. The suites start
+// longest first by the durations the last run recorded, a suite with none first of all, so the slowest suite never
+// starts last and holds the run open alone. With no record the order is the discovery order.
 function runAll({ root, tail = TAIL, modSuite = MOD_SUITE, out = console.log, related, parallelism = os.availableParallelism() }) {
   const found = discoverSuites(path.join(root, 'tests'));
   if (found.length === 0) {
@@ -412,11 +439,19 @@ function runAll({ root, tail = TAIL, modSuite = MOD_SUITE, out = console.log, re
   }
   const suites = related ? selectSuites(root, found, related) : found;
   const mod = related && related.some((p) => path.posix.normalize(p.split(path.sep).join('/')).startsWith(MOD_DIR));
+  const before = readDurations(root);
+  const known = (label) => (Number.isFinite(before[label]) ? before[label] : Infinity);
+  const suiteSteps = suites.map((file) => [process.execPath, [file], path.relative(root, file)]);
+  suiteSteps.sort((a, b) => known(b[2]) - known(a[2]) || 0);
   const steps = [
-    ...suites.map((file) => [process.execPath, [file], path.relative(root, file)]),
+    ...suiteSteps,
     ...(mod ? [modSuite, ...tail] : tail).map(([command, args]) => [command, args, [path.basename(command), ...args].join(' ')]),
   ];
-  return runSteps(steps, root, out, Math.max(1, parallelism));
+  const measured = new Map();
+  return runSteps(steps, root, out, Math.max(1, parallelism), measured).then((code) => {
+    writeDurations(root, before, measured);
+    return code;
+  });
 }
 
 module.exports = { discoverSuites, selectSuites, parseArgs, runAll, TAIL };

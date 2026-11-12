@@ -13,7 +13,7 @@ Applies to every start. You open a pull request for a run whose slices are on th
 - **The scope checkout**: the checkout `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md` finds. §4's suite run and §5's git commands run in it.
 - **`<branch>`**: the scope branch, the ledger's `**Branch:**` line, read with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get branch --root <run-root>`.
 - **`<sha>`**: `git rev-parse <branch>`, run in the scope checkout.
-- **The publish**: publish the snapshot per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section.
+- **The publish**: the run's one snapshot publish, per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section. It is the last act of the exit that ends the run, after the closer §3's **The step** lists. No write site publishes.
 - **An unattended block**: a stop that counts as a block under `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section.
 - **The body**: the pull request body §5 builds.
 
@@ -84,15 +84,15 @@ Applies to every start past §1. Find the scope checkout.
 
 Continue to §5 on every reading.
 
-**A rewritten record.** Applies to the ship check and **The reuse**. A reuse call that accepts a passing run at the exact tip rewrites the suite record. §5's publish carries that record.
+**A rewritten record.** Applies to the ship check and **The reuse**. A reuse call that accepts a passing run at the exact tip rewrites the suite record. The publish carries that record.
 
 **The reuse.** Applies to a present section. In the scope checkout, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --whole --root <run-root>`. Only a record of kind `whole` satisfies this step, and a green record with no kind does not. Exit 0 → the outcome is `reused`, with no run, and you continue to §5.
 
 **The run.** Applies when the reuse does not exit 0. Run the whole-repo command once in the scope checkout over the scope branch's tip, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test whole`. Record it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set <green|red|denied|none> <sha> --whole --root <run-root>`, the value the result below names.
 
 - **Green** → record `green`. The outcome is `green`. Continue to §5.
-- **Red** → record `red`. The outcome is `red`. Add an unresolved defect naming the failing output's decisive lines, per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Unresolved defects` section, then run the publish. Leave the stage where it was, print `/superdev:review <scope>` as the next command, and stop.
-- **Denied** (the permission classifier refused the run) → record `denied`. The outcome is `denied`. Write a `**Degraded:**` entry naming the denied whole-repo run with plain `degraded add`, per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section, then run the publish, and stop with the same report.
+- **Red** → record `red`. The outcome is `red`. Add an unresolved defect naming the failing output's decisive lines, per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Unresolved defects` section. Leave the stage where it was, print `/superdev:review <scope>` as the next command, and stop.
+- **Denied** (the permission classifier refused the run) → record `denied`. The outcome is `denied`. Write a `**Degraded:**` entry naming the denied whole-repo run with plain `degraded add`, per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section, and stop with the same report.
 - **Killed, or never started** → record `none`. The outcome is `killed` or `not started`, saying which. Stop with the same report.
 
 **A stopped run.** Applies to the red, denied, killed, and not-started results. Open no pull request. Under `--unattended` the stop is the same, and it is an unattended block.
@@ -117,7 +117,7 @@ Continue to §5 on every reading.
 
 **No tick.** Applies to the post-merge checklist. Copy what an earlier step recorded. Write no tick anywhere.
 
-**The stage write.** Applies after the open. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set submitted --root <run-root>`, then run the publish.
+**The stage write.** Applies after the open. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set submitted --root <run-root>`. Then run the publish.
 
 **The offer.** Applies to an attended run. Make the offer for the next command below per `## The offer`.
 

@@ -444,7 +444,7 @@ mechanism is the same as Forgejo's and GitHub's. At setup, confirm which of the 
 strike the other, so `docs/agents/issue-tracker.md` states one posture, not both — `references/run-init.md`
 reads this section for a single yes-or-no answer to "does this store carry a snapshot":
 
-- **Write** (after any ledger write the snapshot would show): the anchor description, folded per
+- **Write** (once per command, at its end): the anchor description, folded per
   `run-state.md`'s `## Publishing run state`, through **Edit an issue's body** (*REST conventions*), the fold as its
   producer — the same rule the Epic amendment under *Append mode* below uses. **Best-effort:** a failed
   write is reported once per run and the run continues; the ledger stays authoritative.

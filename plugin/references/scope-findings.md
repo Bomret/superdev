@@ -62,10 +62,6 @@ line or appends to it:
 A run with nothing to report carries no such line. An ad-hoc run, with no run root, reports the degraded
 pass in its own output and writes nothing.
 
-**Publish the snapshot afterwards**, per `run-state.md`'s `## Publishing run state`, on every `degraded add`,
-`degraded add-denial`, or `degraded reset-denials` call, one written just before an unattended block
-included.
-
 ## Unresolved defects
 
 An **unresolved defect** is a defect the run finds in the code and leaves standing: a full suite still
@@ -99,10 +95,6 @@ scope with a green suite clears the record with
 `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js unresolved clear --root <run-root>`. Clearing is wholesale,
 never per-bullet: the run that clears has re-verified the whole scope. `unresolved clear` on a ledger
 carrying no such line succeeds and changes nothing.
-
-**Publish the snapshot afterwards**, per `run-state.md`'s `## Publishing run state`, on every `unresolved add` or
-`unresolved clear` call — including one written where the run then stops and leaves the stage alone, the
-path a stale local record most needs the mirror for.
 
 ## Deferred findings
 
@@ -175,9 +167,6 @@ re-review no longer lists the finding, resolve it in this order:
 
 Steps 2 and 3 are best-effort: a missing call, a failed or denied call, and a merged or closed pull
 request are each reported once per run, and the bullet stays removed.
-
-**Publish the snapshot afterwards**, per `run-state.md`'s `## Publishing run state`, on every `deferred add` and
-every `deferred resolve` call.
 
 ## Warm cycles
 

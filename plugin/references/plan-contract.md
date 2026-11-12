@@ -214,8 +214,8 @@ section for the backend's signal and the calls that set and read it:
 A run publishes a **snapshot** of its progress onto the scope anchor: a `## Run state` section in the
 anchor's own body. `<run-root>/ledger.md` stays the run's single source of truth; the snapshot is a
 mirror, never a second authority — it is what lets the anchor still show where a run stood after the run
-root is gone, and what a resumed run on a clean checkout reconciles against. Publishing follows any ledger
-write the snapshot would show, not `stage set` alone, one rule rather than a list of call sites, and it
+root is gone, and what a resumed run on a clean checkout reconciles against. A command that wrote
+the ledger publishes once, at its end, rather than after each write, and the publish
 is **best-effort**: a failed publish is reported once and the run continues, exactly as a failed status
 label is, because the ledger drives control flow, not the anchor.
 

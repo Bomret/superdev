@@ -50,9 +50,9 @@ tiers: record that slice execution finished, name what comes next.
     is the gate, not this pass.
 - **Set the stage to `merged`:**
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set merged --root <run-root>`. The `**Stage:**`
-  line is what tells the next command, or a resumed run, that every slice is on the scope branch. Publish
-  the snapshot afterwards, per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state`
-  section.
+  line is what tells the next command, or a resumed run, that every slice is on the scope branch. This
+  stage write is the run's closer: publish the snapshot now, the run's one publish, per
+  `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section.
 - **Leave the run standing.** Keep the scopetree and `<run-root>/run.lock`, leave
   the anchor at `in-progress` — `dod.md` now carries whatever the handoff pass above settled, never a
   fully ticked checklist: review is still the gate. `/superdev:review`, `/superdev:document`,

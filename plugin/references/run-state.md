@@ -59,22 +59,17 @@ goes on.
   settles, which succeeds and changes nothing when the line is absent. Read with `get minors`, one id per line, and
   nothing on an empty or absent queue. Each write that changes the ledger appends a `ledger minors <add|clear>` trace
   line with no id. `status` prints the queued ids, `publish` carries the line in the snapshot, `adopt` restores it (refusing a bullet that is no id in the snapshot's slice table), and a
-  ledger without it reads as an empty queue. Publish the snapshot afterwards, per `## Publishing run state` below, on
-  every `minors add` or `minors clear` call.
+  ledger without it reads as an empty queue.
 - **`**Docs:**`** — that the run performed its documentation pass, and in whose context. Read with
   `get docs`, written with `docs set <value>` and removed with `docs clear`. The `lite` playbook writes
   it for the pass it runs inline, and `/superdev:review` clears it when a fix cycle lands
   commits. `/superdev:document` takes no decision from the record: it dispatches its doc-writer on every live run and hands its doc-reader the scope's own commits as the commit range. A single whitespace-free token, which `docs set` enforces.
-  Publish the snapshot afterwards, per `## Publishing run state` below, on every `docs set` or `docs clear`
-  call.
 - **`**PR:** #<n>`** — the pull request `/superdev:submit-pr` opened for the scope branch. Read with
   `get pr`, written with `pr set <n>` (a bare number, `#` optional) the moment the pull request opens, and
   removed with `pr clear`. `/superdev:ship` reads it back rather than looking the pull request up by head
   branch: a reused branch name (`scope-mode.md`'s `## The scope branch`) leaves old, merged pull requests on the host under
   the same head, and a lookup by branch alone could adopt one of those instead — the head-branch
   lookup stays only as a fallback for a ledger predating this header, and only among *open* pull requests.
-  Publish the snapshot afterwards, per `## Publishing run state` below, on every `pr set` or `pr clear`
-  call.
 - **`**Deploy:** <target> <state>[ exit <n>][, …]`** — one entry per deploy target (`docs/agents/
   deployment.md`'s targets table), in the order each target was first recorded, so `/superdev:ship` can
   tell a finished deploy from a failed one and resume where it stopped. State is `pending`,
@@ -113,27 +108,20 @@ prints nothing on an absent Suite line rather than the literal word `absent`.
 
 ## Publishing run state
 
-**Publishing follows any ledger write the snapshot would show** — `scope.js init`'s first write of
-`**Stage:**` (the caller's own entry stage — ADR 0079), every later `stage set`, every `degraded add`/`degraded
-add-denial`/`degraded reset-denials`, every `unresolved add`/`unresolved clear`, every `deferred add`/`deferred resolve`,
-every `minors add`/`minors clear`, and every `docs set`/`docs clear` — one rule
-rather than a list of call sites. Each site below cites this section instead of restating it. **One
-exception:** a slice-row move (`scope.js slice`) is not published on its own — the **Slice rows are not
-published on their own** paragraph below states why. `plan-contract.md` → *Run state* owns what a
-**snapshot** is and why the ledger stays the one source of truth; this section owns how a command actually
-moves the bytes.
+**A command publishes once, at its end.** A command that made one of the ledger writes listed here publishes
+the snapshot once, as the last act of the exit that ends it: after the exit's closer (a `step clear`, a
+`step block`, or a stage write, per the **`**Step:**`** line above) and after any ledger write the exit makes
+past that closer. The writes are `init`'s first write of `**Stage:**`, `stage set`, `degraded
+add`, `degraded add-denial`, `degraded reset-denials`, `unresolved add`, `unresolved clear`, `deferred add`,
+`deferred resolve`, `minors add`, `minors clear`, `docs set`, `docs clear`, `pr set`, `pr clear`, `suite set`,
+and `deploy set`. A write site records its write and goes on, and the one publish carries every write the command made.
+An exit a command reaches with no closer after such a write publishes at that exit. Implement also publishes right
+after its entry writes `**Stage:** implementing`, so a session elsewhere sees the run in flight while it works. A command that made none
+of them publishes nothing. Each command names where its publish runs. `plan-contract.md` → *Run
+state* owns what a **snapshot** is and why the ledger stays the one source of truth; this section owns how a
+command moves the bytes.
 
-**Which sites cite this directly.** Cite this section directly at the write, rather than relying on
-inheritance, when that write's own instruction can end the command — a block, a stop, a refusal, stated in
-the same bullet as the write — before any later ledger write in the same run reaches a site that already
-cites this section. Every other write relies on its defining section's own citation instead: nothing in its
-own instruction can end the command. Naming a write's defining section (`scope-findings.md`'s `## Degraded passes`,
-`## Unresolved defects`, `## Deferred findings`) explains the entry's own shape, and is never a substitute
-for this section's own citation at a site that needs one directly — the two answer different questions,
-and a site that can end the command states both only when it has reason to, never as an alternative to
-citing here.
-
-**The mechanism**, in this order, is what a citing site actually runs:
+**The mechanism**, in this order, is what the publish runs:
 
 1. **Read.** Fetch the anchor's current body with the active store's own read call, from that store's own
    `## Run state` section (`docs/agents/issue-tracker.md`'s, or whichever store seed is active). **That

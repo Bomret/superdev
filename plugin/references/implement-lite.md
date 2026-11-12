@@ -182,10 +182,7 @@ slicetrees and would collide on shared doc files.
   `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section: record it with
   `scope.js degraded add` and continue, attended or unattended alike. Record the doc pass as well — what
   ran, ran.
-- **Nothing here asks a question**, so `--unattended` changes nothing about this step — nothing in this
-  section can end the command, so both writes above rely on their defining section's own citation
-  (`${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section) rather than
-  repeating one here.
+- **Nothing here asks a question**, so `--unattended` changes nothing about this step.
 
 ## Resume
 

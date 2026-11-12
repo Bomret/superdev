@@ -488,7 +488,7 @@ Paths: plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/r
 
 Class: process
 Concepts: Published snapshot, Adopt, Ledger, Scope anchor, Run kind
-Statement: The ledger drives control flow, and the anchor's snapshot only mirrors it. Every ledger write the snapshot shows is followed by a publish, and a failed publish changes nothing in the run. Run init adopts only where no local ledger exists and the snapshot's stage is not `shipped`, and reports that run as `resumed`. A store that declares itself snapshot-less publishes and adopts nothing.
+Statement: The ledger drives control flow, and the anchor's snapshot only mirrors it. A command that makes a ledger write the snapshot shows publishes once, at the end of the exit that ends it, and a failed publish changes nothing in the run. Run init adopts only where no local ledger exists and the snapshot's stage is not `shipped`, and reports that run as `resumed`. A store that declares itself snapshot-less publishes and adopts nothing.
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/scope-mode.md, plugin/references/run-state.md, plugin/references/run-init.md, plugin/skills/**, plugin/references/implement-full.md, plugin/references/run-handoff.md

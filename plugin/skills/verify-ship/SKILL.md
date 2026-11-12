@@ -59,6 +59,8 @@ Read the stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --r
 - a stage write
 - `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step block --root <run-root>`
 
+**The publish.** Applies to every exit after `step set`. When this run changed a deploy record, publish the snapshot once per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section, as the exit's last act, after its closer.
+
 ## 3. Deploy check
 
 **A legacy run.** Applies to a ledger with no `**PR:**` header (`scope.js get pr` prints `absent`), before any posture read. It reads as posture `none`. Ask nothing and go to §4.
@@ -95,7 +97,7 @@ Applies to each verdict. Write it at once, before the next line, into `<run-root
 
 **The end step.** Applies to every §6 exit. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root <run-root>` first. It replaces `step block` on every §6 exit. The hand-sync `First:` wait departs from the `step block` rule for a `First:` wait in `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## The ledger`.
 
-**The summary.** Applies after the `step clear`. Publish the snapshot when a deploy record changed, per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section. Print a summary of the lines settled with their verdicts and the lines still open. Leave the stage at `shipped`.
+**The summary.** Applies after the `step clear` and the publish. Print a summary of the lines settled with their verdicts and the lines still open. Leave the stage at `shipped`.
 
 **The exits.** Applies after the summary. End on exactly one exit below.
 

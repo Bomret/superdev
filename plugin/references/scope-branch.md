@@ -334,4 +334,4 @@ in place of `<tip>`, record no `**Base:**` line, and record the reason with `sco
 `scope.js get degraded --root <run-root>` shows no entry for the
 same reason: repeated offline invocations add one entry. It is the second shape in
 `scope-findings.md`'s `## Degraded passes`: record and continue, attended or unattended alike. `/superdev:submit-pr` carries the
-entry into the pull request body. Publish the snapshot, per `run-state.md`'s `## Publishing run state`.
+entry into the pull request body.
