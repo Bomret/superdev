@@ -99,7 +99,8 @@ function usage() {
     '  dod-check                          stdin: an anchor body; exits 0 printing nothing, or refuses with one line per problem:',
     '                                     an Absorbs entry no criterion cites, a (triage <ref>) citation the Absorbs line does',
     '                                     not name, a record cited by two or more criteria, no Reachable: criterion, or a',
-    '                                     release-risk category no Release risk: criterion names',
+    '                                     release-risk category no Release risk: criterion names; refuses, checking nothing,',
+    '                                     an empty input or one with an unterminated fenced code block',
     '  dod-merge --root <run-root>        stdin: the anchor\'s Definition of Done; writes <run-root>/dod.md from it, keeping',
     '                                     each verdict the existing dod.md carries on a line the anchor leaves without a note',
   ].join('\n');
