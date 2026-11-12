@@ -247,7 +247,7 @@ cites this section and runs the steps in order, once per tip:
    `scope.js suite rerun <test-file> <triage-ref> --root <run-root>` from the checkout at the tip. The verb
    refuses a tip that already carries a rerun record: a second failure at the tip stays red.
 4. **Run the file alone.** `scope.js test path <file> -- <command running only that file>` at the tip on a clean tree,
-   through the runner so the trace records it. A failing or dirty rerun stays red.
+   from the tree root (ADR 0232), through the runner so the trace records it. A failing or dirty rerun stays red.
 5. **Run the focused command over the scope's range.** `scope.js test focused <paths>` over every path
    `git diff --name-only --no-renames <range-base> <tip>` lists, at the tip on a clean tree. The range base
    is what `scope.js base resolve --branch <branch> --base <base> --root <run-root>` prints, `<base>` being
@@ -257,11 +257,11 @@ cites this section and runs the steps in order, once per tip:
    failing-run exit. Without `--base` the verb refuses, because it cannot judge the range.
 
 `scope.js` checks the ledger and the run trace: the rerun record for the tip, the file alone (and no other
-file in the same run) passing clean at the tip after the failed full run, every run of it alone recorded
-there after that failure passing clean (a run of it before the failure counts for nothing), a passing clean focused run there
+file in the same run) passing clean at the tip after the failed full run, run at the tree root, every run of it alone
+recorded there after that failure, from any directory, passing clean (a run of it before the failure counts for nothing), a passing clean focused run there
 after the failed full run whose recorded path set covers every path `base resolve`'s range base to the tip
 changes, the declaration, exactly one failed full run at the tip, and no failed run of another test file at
-the tip. Nothing reruns on its own, and no step reruns a failed suite until it passes.
+the tip. A recorded file name is read against the directory the run was made in, so `a.test.js` from `tests` is `tests/a.test.js`. Nothing reruns on its own, and no step reruns a failed suite until it passes.
 
 The `red` record at T also counts at a later tip U when T is an ancestor of U, every check above holds when
 judged at T, and T..U passes the Markdown-only rule of `## Complete selector`, judged at U: every path changed
