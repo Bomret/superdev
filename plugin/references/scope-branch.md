@@ -261,7 +261,7 @@ as if the push had succeeded: no ledger stage, step, or published snapshot chang
 Both execution playbooks run this step right after their own write of `scope-mode.md`'s `## The run lock` and before their first
 slice, on every `/superdev:implement` invocation and at every run kind (ADR 0120, INV-0124).
 `/superdev:review` runs it too, on a live scope run at a stage before `submitted`, after its scope
-checkout and run lock and before its entry focused run (ADR 0173), and again itself, never through a fix implementer,
+checkout and run lock and before its entry run (ADR 0173), and again itself, never through a fix implementer,
 before an exit run and at a fix cycle's end when the scope branch no longer holds the base tip (`review-scope-mode.md`'s **The moved base** concept, ADR 0221). At `submitted` review merges nothing and names
 the moved base: `/superdev:ship` owns a moved base there. The step runs no test suite: the scope review's exit run
 verifies every merge it makes, implement's and the review's own alike (ADR 0192). It brings
@@ -326,7 +326,7 @@ branch step left you on.
    Once `<tip>` is in the scope branch, whether merged now or already there, record it with
    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base set <tip> --root <run-root>`: the local `<base>`
    may still lack `<tip>`, and `scope-mode.md`'s `## The scope's range base` reads the record. Then go to the first
-   slice, or, for `/superdev:review`, to its entry focused run, whatever the suite record reads: a red,
+   slice, or, for `/superdev:review`, to its entry run, whatever the suite record reads: a red,
    denied, or absent record asks nothing, stops nothing, and blocks no unattended run (ADR 0192).
 
 **A base that cannot be fetched is a degraded pass.** No `<remote>` configured, a failed or killed fetch,

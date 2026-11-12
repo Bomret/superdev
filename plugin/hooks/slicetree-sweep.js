@@ -158,7 +158,10 @@ function main(cwd) {
   // Each scope run is judged against its own scope branch, so two runs present at once never see each
   // other's merge state (references/scope-mode.md, `## The scope branch`).
   const toRemove = [];
+  const any = { has: () => true };
   for (const scope of scopeNames) {
+    // A scope with no slicetree in the porcelain list has nothing to sweep, so it costs no git call: a closed run, a lite run.
+    if (!selectRemovable(porcelain, any, any, path.join(scopesRoot, scope)).length) continue;
     const branch = scopeBranch(path.join(scopesRoot, scope));
     if (!branch) continue; // unreadable ledger, or no Branch line → sweep nothing for this scope
 

@@ -88,7 +88,8 @@ tracked files only, so a repository whose tests need installed dependencies stat
   (`scope-branch.md`'s `## Preparing a worktree`). The call is no test run. A command that fails, is ended by a
   signal, cannot start, or changes a tracked file exits 3.
 - **`scope.js fail-to-pass` runs it** in its own worktree before each of its two runs, reading the tip's
-  `verification.md` once. A preparation that fails, is ended by a signal, cannot start, or changes a tracked file
+  `verification.md` once. The clean between the runs keeps every path the first preparation wrote, so a command
+  that skips work already done prepares the second run fast (ADR 0234). A reused control skips the first one. A preparation that fails, is ended by a signal, cannot start, or changes a tracked file
   makes the outcome `unknown`, with a `prepare=` reason.
 - **The reuse gate.** `scope.js fail-to-pass` takes a passing control from the run trace only where the tip states
   a command or `none`, because only then does its worktree hold what the tree that recorded the control held. With
@@ -285,7 +286,8 @@ Each caller judges its own range and builds the set from it:
   the test files it works on through `scope.js test path <file>... -- <command>`, a runner filter allowed, and never
   through the focused command (ADR 0232). Once the work is committed, one `scope.js test focused <paths>` runs over the
   whole changed-path set: the slice base against the working tree, or `<cycle-base>..HEAD` on a fix cycle. It runs
-  before the fail-to-pass run, whose first run stays the last passing run of the range's test files. A focused
+  before the fail-to-pass run. The last run before that verb is a `test path` run of the range's test files from the
+  tree root, at the committed tip, with the verb's exact command, which the verb reuses as its first run (ADR 0234). A focused
   failure is a RED step: fix, commit, and run the focused command again. A step that works on no test file runs
   that focused command over the whole set. A focused command with no `{paths}` token runs verbatim, and the run
   trace records every run either way (ADR 0139). Every loop run passes at least one path, or runs test files

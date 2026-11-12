@@ -307,8 +307,8 @@ dispatch.
 
 - The complete fix list, the RED-test rule, and the sibling-surface duty.
 - The test-run bound: the implementer runs only the tests that verify its fix, each step through `test path` over
-  its test files, one `test focused` over the whole changed-path set once the fix is committed, and its fail-to-pass run over
-  `<cycle-base>..HEAD`, never `test full`, `test whole`, or a `test focused` with no path (ADR 0182).
+  its test files, one `test focused` over the whole changed-path set once the fix is committed, one `test path` run of the
+  range's test files that the verb reuses as its first run, and its fail-to-pass run over `<cycle-base>..HEAD`, never `test full`, `test whole`, or a `test focused` with no path (ADR 0182).
 - The report contract: the implementer returns its required report (`agents/implementer.md`'s `## Report`) and
   repeats no narrative its log holds (ADR 0204).
 - In the Minor sweep, the self-check: the implementer appends a fresh entry to the sweep log before its report,

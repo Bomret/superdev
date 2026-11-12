@@ -402,7 +402,7 @@ This root owns every other subtree directly:
   own worktree before each run. `docs/agents/verification.md`'s `## Prepare command` section states the command, `none`,
   or nothing (`references/test-selection.md`'s `## Prepare command`, ADR 0218).
   The scope review's exit run is the scope's one full-suite run: implement and run handoff run no suite, and the
-  review runs a focused run at entry. ADR 0192 and INV-0128 state this rule, and the `implement-no-full-run` drift
+  review starts that run at entry, in the background beside its first reviews (ADR 0234). ADR 0192 and INV-0128 state this rule, and the `implement-no-full-run` drift
   check holds it.
   Whoever invokes a chain command passes `--unattended` to run it unattended (ADR 0016, ADR 0108);
   superdev ships no driver. Some skills sit outside the chain: publish-kb sends a scope's

@@ -142,6 +142,17 @@ const prepared = (s) => {
     r = s.run(s.range);
     assert.equal(r.stdout.trim(), 'fail-to-pass control=0,put-back=1', r.stderr);
 
+    // The clean between the runs keeps what the first preparation wrote, a name holding glob characters included, so the second
+    // preparation finds it in place. An ignored file the control run wrote is still gone for the put-back run: the test exits 9
+    // where it finds one.
+    s = scenario({
+      base: { 'src.txt': 'a\n', '.gitignore': '.superdev/\ndep*\nout/\n', 'docs/agents/verification.md': verif(CMD, CMD, section('`test -d "dep[1]*" || { mkdir "dep[1]*" && echo fresh >> "$F2P_DIR/prep"; }; echo ran >> "$F2P_DIR/prep"`')) },
+      tip: { 'src.txt': 'b\n', 'tests/t.sh': probe + 'test -e out/x && exit 9\nmkdir -p out && touch out/x\ngrep -q b src.txt\n' },
+    });
+    r = s.run(s.range);
+    assert.equal(r.stdout.trim(), 'fail-to-pass control=0,put-back=1', r.stderr);
+    assert.deepEqual(prepared(s), ['fresh', 'ran', 'ran'], 'the second preparation finds the first one\'s output');
+
     // Preparation time counts in neither the control's recorded duration nor the put-back bound: a two-second preparation,
     // counted, would make the control's duration at least 2000 ms and the bound at least ten times that. The put-back run
     // hangs, so the bound shows in the outcome.
