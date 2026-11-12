@@ -889,7 +889,7 @@ other `path.dirname(...)` names its literal tail, which matches that tail at any
 it may select a suite for a directory the suite does not scan and never misses one it does. A call whose leading
 directory is any other computed value (a variable, `os.tmpdir()`) builds a path in a fixture tree and names nothing. A directory built from
 computed expressions with no literal segment names nothing. The directory rule never applies to a code path. A `.md` path no
-suite names, directly or by directory, and a path under `scripts/drift/`, reach no suite, because the drift selftest sits in the tail. A code path no rule places runs every suite, except the repository-root release tooling
+suite names, directly or by directory, and a path under `scripts/drift/`, reach no suite, because the drift selftest sits in the tail. A code path no rule places runs every suite, except a deleted one no suite names, which reaches no suite, except the repository-root release tooling
 (`release.config.cjs`, `package.json`, `bun.lock`, the `RELEASE_TOOLING` list), which reaches only the suites that name it,
 because semantic-release and Bun read it and no suite's code under test does. An empty list runs the tail alone and exits 0. A path under
 `mods/superdev-view/` places itself: it adds `claude plugin test mods/superdev-view` before the tail, and runs no

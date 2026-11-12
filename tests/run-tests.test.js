@@ -452,8 +452,14 @@ const picked = (root, paths) =>
 // A change set no suite can place runs every suite; prose and drift paths run none, an empty set runs none.
 {
   const root = focusedTree();
+  for (const rel of ['plugin/hooks/nobody.js', 'src/x.js']) {
+    fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
+    fs.writeFileSync(path.join(root, rel), '');
+  }
   const all = discoverSuites(path.join(root, 'tests')).map((f) => path.basename(f, '.test.js'));
   assert.deepStrictEqual(picked(root, ['plugin/hooks/nobody.js']), all, 'an unplaceable code path runs every suite');
+  assert.deepStrictEqual(picked(root, ['plugin/hooks/deleted.js']), [], 'a deleted code path no suite names reaches no suite');
+  assert.deepStrictEqual(picked(root, ['plugin/hooks/alpha.js', 'plugin/hooks/deleted.js']), picked(root, ['plugin/hooks/alpha.js']), 'a deleted path adds nothing to the placed ones');
   assert.deepStrictEqual(picked(root, ['plugin/hooks/alpha.js', 'src/x.js']), all, 'one unplaceable path among placed ones runs every suite');
   assert.deepStrictEqual(picked(root, [['release', 'config', 'cjs'].join('.'), 'package.json', ['bun', 'lock'].join('.')]), [], 'release tooling no suite names selects no suite');
   assert.deepStrictEqual(picked(root, ['README.md', 'docs/adr/0001-x.md']), [], 'a prose-only change set selects no suite');
@@ -507,6 +513,8 @@ const picked = (root, paths) =>
   assert.deepStrictEqual(picked(root, ['docs/adr/0001-x.md']), ['str'], 'a ../ path string names the directory; a bare relative literal does not');
   assert.deepStrictEqual(picked(root, ['docs/other/y.md']), [], 'a document under no named directory reaches no suite');
   assert.deepStrictEqual(picked(root, ['plugin/agents/new-agent.md']), ['scan'], 'a document the directory gains later maps by its directory');
+  fs.mkdirSync(path.join(root, 'plugin', 'hooks'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'plugin', 'hooks', 'nobody.js'), '');
   assert.deepStrictEqual(picked(root, ['plugin/hooks/nobody.js']), discoverSuites(path.join(root, 'tests')).map((f) => path.basename(f, '.test.js')), 'a code path no rule places still runs every suite');
   const real = (md) => selectSuites(repoRoot, discoverSuites(path.join(repoRoot, 'tests')), [md]).map((f) => path.basename(f, '.test.js'));
   assert.ok(real(['plugin', 'agents', 'implementer.md'].join('/')).includes('run-trace-model'), 'run-trace-model lists the agents directory');
@@ -590,7 +598,7 @@ cases.push(async () => {
   const empty = tree({ 'tests/a.test.js': suite('a') });
   assert.strictEqual((await go(empty, [tailEntry(empty, 'tail')], [])).status, 0, 'an empty list exits 0');
   assert.strictEqual(logSet(empty), 'tail', 'an empty list runs the tail alone');
-  const un = tree({ 'tests/a.test.js': suite('a'), 'tests/b.test.js': suite('b') });
+  const un = tree({ 'tests/a.test.js': suite('a'), 'tests/b.test.js': suite('b'), 'src/x.js': '' });
   await go(un, [tailEntry(un, 'tail')], ['src/x.js']);
   assert.strictEqual(logSet(un), 'a,b,tail', 'an unplaceable code path runs every suite');
 });
