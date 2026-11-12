@@ -25,7 +25,7 @@ Applies to every start. You write the per-repo config documents the superdev ski
   | `verification.md` | the optional **test commands**: a full one and, for every repository with a suite, a required focused one, which the implement chain's test runs read, an optional **timing command**, which a test audit reads, and the **prepare command**, which every test worktree runs first |
   | `deployment.md` | the repository's **deploy posture** (`none` / `manual` / `auto`) and its **deploy targets**, which `/superdev:ship` reads once a feature's pull request has merged |
 
-- **The operator file**: `.superdev/info.json`, the **operator configuration** (`CONTEXT.md`). It is no config document. It holds the slice store's assignee and display name under `issue-tracker`, a Forgejo knowledge base's tea login under `knowledge-base`, and the time bounds an operator sets (`plan-contract.md` → *Assignee — operator configuration* lists every key). It is git-ignored.
+- **The operator file**: `.superdev/info.json`, the **operator configuration** (`CONTEXT.md`). It is no config document. It holds the slice store's assignee and display name under `issue-tracker`, a Forgejo knowledge base's tea login under `knowledge-base`, and the time bounds an operator sets (`assignee.md` → *Assignee* lists every key). It is git-ignored.
 - **An operator-file write**: merge into the operator file and keep each key already there. First ensure `.superdev/` is in `.gitignore`, adding it when absent.
 - **A remote backend**: a knowledge base on software (Confluence, a Forgejo, Gitea, or GitHub wiki, an "other" wiki). A local `docs/kb/` and none are not remote.
 - **A seed gap** and **`## Seed deviations`**: as §0's **Seed gaps** defines them.
@@ -187,7 +187,7 @@ Applies to the full interview. Scan these before any decision:
 
 **Posture and base.** Applies to every code host. Confirm the **default PR posture** (`draft` recommended | `ready` | `push-only`) and the **base branch** (default `main`).
 
-**The push bound.** Applies when the operator asks for a push bound other than 60000 milliseconds. Write `code-host.pushTimeoutMs` by an operator-file write. It bounds each network git call `scope.js push` and the run-state ref make (`plan-contract.md` → *Assignee — operator configuration*).
+**The push bound.** Applies when the operator asks for a push bound other than 60000 milliseconds. Write `code-host.pushTimeoutMs` by an operator-file write. It bounds each network git call `scope.js push` and the run-state ref make (`assignee.md` → *Assignee*).
 
 - An operator naming no bound gets no key.
 
@@ -291,7 +291,7 @@ Applies to the full interview. Scan these before any decision:
 - No hook runs it on a merge.
 - **No suite** (a docs-only repository) skips this question, and nothing runs a suite. The fail-to-pass floor, focused, timing, and test-paths questions are skipped too.
 
-**The fail-to-pass floor.** Applies to a repository with a full command, when the operator asks for a floor other than 10000 milliseconds. Write `verification.failToPassFloorMs` by an operator-file write. It is the floor of the fail-to-pass run's bound (`plan-contract.md` → *Assignee — operator configuration*).
+**The fail-to-pass floor.** Applies to a repository with a full command, when the operator asks for a floor other than 10000 milliseconds. Write `verification.failToPassFloorMs` by an operator-file write. It is the floor of the fail-to-pass run's bound (`assignee.md` → *Assignee*).
 
 - An operator naming no floor gets no key.
 
