@@ -244,8 +244,10 @@ during the run records `dirty`, so it never backs `suite reusable`. A change no 
 signal, or a verb killed first, writes no line, and the command's run ends with the verb: a Node watcher process supervises it and ends it
 through `endRun` (a process-group kill, `taskkill /pid <pid> /t /f` on Windows), which covers `SIGKILL`. `test` ends the group with `SIGTERM`. A failed trace write prints a note on stderr and leaves the exit status unchanged.
 Outside every run tree the command runs and nothing is written. The verb takes no option that sets an outcome,
-kind, slice, or tree state. `lib/test-verb.js` requires `lib/run-tree.js` (`locate`, `treeState`) at call time, the locator it shares with the
-run-trace hook, and `lib/run-check.js`, whose digest check runs before the run line is written. `hooks/run-trace.js` reads no Bash command,
+kind, slice, or tree state. `lib/test-verb.js` requires `lib/run-tree.js` (`locate`, `treeState`, and `relDir`, which writes the run line's directory field) at call time, the locator it shares with the
+run-trace hook, and `lib/run-check.js`, whose digest check runs before the run line is written. `lib/run-tree.js` also holds the path helpers
+`rootRelative` and `lazyToplevel`, which reduce a recorded path to the tree root: `lib/fail-to-pass.js` takes them with `treeState` and `gitOut`,
+and `lib/suite-base-get.js` takes them for the rerun and the carry. `hooks/run-trace.js` reads no Bash command,
 so a test run enters the trace through `scope.js test` and `scope.js fail-to-pass` alone, each writing its own run line.
 
 `fail-to-pass <base>..<tip> -- <command>` runs the caller's command twice and reports whether the range's tests
@@ -303,8 +305,9 @@ therefore name an exempt one.
 
 The verb exits 0 when it read an outcome and 1 on a refusal or an error. It exits 2 when no test command is configured, so
 nothing ran, and 128 plus the signal number when interrupted. An interrupt ends the command's run through `endRun` with `SIGKILL`, and the Node
-watcher process covers a killed verb, so no worktree outlives the verb. A suite that outlasts the Bash tool's time limit runs the verb
-in the background (`references/test-selection.md`).
+watcher process covers a killed verb, so no worktree outlives the verb. The caller runs the verb in the foreground with the Bash tool's `timeout`
+at its ceiling (600000 ms, or the higher `BASH_MAX_TIMEOUT_MS`), and in the background where two runs of the range's test files can
+outlast that ceiling (`references/test-selection.md`, ADR 0232).
 
 `prepare <tree>` runs the **Prepare command** (CONTEXT.md, ADR 0218) at the root of `<tree>`, which must be the root of a
 working tree that `git worktree list` names for the invoking repository; any other path is refused with exit 1. It reads
@@ -988,7 +991,7 @@ path, when that document is missing. A check that walks a directory reads whatev
 | `containment-delegation` | `lib/kb-containment.js` imports and calls `lib/containment.js`'s `testContainment` (ADR 0053) | structural |
 | `past-pr-skills` | the skills an offer starts past the open pull request (ship, verify-ship, wrap-up, publish-kb) carry no `disable-model-invocation: true`, neither verify-ship nor wrap-up names `--unattended`, and ship, verify-ship, and `references/response-shapes.md` name no `--from-ship` (INV-0066, INV-0093, ADR 0157) | structural |
 | `no-base-branch-commit` | no file under `skills/` or `references/` instructs a commit, a push, or a merge to the base branch, other than ship's host-API merge (INV-0001) | prohibition |
-| `background-rule-names-limit` | no skill, agent, or reference states the background rule against an unnamed Bash limit: "the Bash tool's time limit" or "the tool's limit", matched across a line wrap and a run of spaces, fenced examples masked, so the rule names the ceiling (600000 ms, or the higher `BASH_MAX_TIMEOUT_MS`) (ADR 0232) | prohibition |
+| `background-rule-names-limit` | no skill, agent, or reference, and no `AGENTS.md` in `plugin/skills/`, `plugin/agents/`, or `plugin/references/` (the shipped one is `plugin/references/AGENTS.md`), states the background rule against an unnamed Bash limit: "the Bash tool's time limit" or "the tool's limit", matched across a line wrap and a run of spaces, fenced examples masked, so the rule names the ceiling (600000 ms, or the higher `BASH_MAX_TIMEOUT_MS`) (ADR 0232) | prohibition |
 | `conflict-conclusion-no-commit` | no skill, agent, or reference concludes a resolved merge conflict with `git commit` (ADR 0123) | prohibition |
 | `code-management-no-force` | no code-management document sends `force_merge: true` or `--admin` on a merge (INV-0092) | prohibition |
 | `forgejo-tea-only` | no Forgejo backend document names a token env var, an `Authorization` header, or a curl call (ADR 0111) | prohibition |

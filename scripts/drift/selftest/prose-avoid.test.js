@@ -447,6 +447,6 @@ module.exports = ({ assert, path, fixture, found }) => {
     0,
     'background-rule-names-limit: the named ceiling passes',
   );
-  assert.equal(limit({ 'references/AGENTS.md': 'the Bash tool\'s time limit\n' }).length, 0, 'background-rule-names-limit: reads no AGENTS.md');
+  assert.equal(limit({ 'references/AGENTS.md': 'run in the background when a suite outlasts the Bash tool\'s time\nlimit\n' }).length, 1, 'background-rule-names-limit: the shipped references/AGENTS.md is read');
   assert.equal(limit({ 'references/x.md': '```\nthe Bash tool\'s time limit\n```\n' }).length, 0, 'background-rule-names-limit: a fenced example is masked');
 };

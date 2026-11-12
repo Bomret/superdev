@@ -111,11 +111,12 @@ const scanConflictConclusionNoCommit = (root) =>
     ]),
   );
 
-// ADR 0232: no shipped skill, agent, or reference states the background rule against an unnamed Bash limit.
-// Fences are masked and whitespace runs, line wraps included, are normalized before the match.
+// ADR 0232: no shipped skill, agent, or reference, and no shipped AGENTS.md beside them, states the background rule
+// against an unnamed Bash limit. Fences are masked and whitespace runs, line wraps included, are normalized before the match.
 function scanBackgroundRuleNamesLimit(root) {
   const gaps = [];
-  for (const [rel] of proseDocuments(root, ['skills', 'agents', 'references'])) {
+  const shippedAgentsDocs = ['skills', 'agents', 'references'].map((dir) => [path.join(dir, 'AGENTS.md')]);
+  for (const [rel] of [...proseDocuments(root, ['skills', 'agents', 'references']), ...shippedAgentsDocs]) {
     const text = readDoc(root, rel);
     if (text === null) continue;
     for (const hit of normalizeWhitespace(maskFences(text)).matchAll(UNNAMED_BASH_LIMIT_PATTERN)) {
