@@ -64,21 +64,11 @@ function treeState(tree) {
   return [/^[0-9a-f]{40,64}$/.test(sha) ? sha : 'unknown', st === null ? 'unknown' : st.trim() ? 'dirty' : 'clean'];
 }
 
-// A directory as one spelling (ADR 0150): an MSYS drive path as the Windows path, backslashes as `/` on win32 (a POSIX name may hold
-// one), the symlinks of its existing part resolved, no trailing slash.
+// A directory as one spelling (ADR 0150): an MSYS drive path as the Windows path, symlinks resolved, no trailing slash. Both call
+// sites pass a directory that exists; one that does not keeps its resolved spelling.
 function canonical(dir) {
-  let p = path.resolve(drivePath(dir));
-  if (process.platform === 'win32') p = p.replace(/\\/g, '/');
-  const tail = [];
-  for (;;) {
-    try { p = fs.realpathSync(p); break; } catch {
-      const up = path.dirname(p);
-      if (up === p) break;
-      tail.unshift(path.basename(p));
-      p = up;
-    }
-  }
-  return path.join(p, ...tail);
+  const p = path.resolve(drivePath(dir));
+  try { return fs.realpathSync(p); } catch { return p; }
 }
 
 // The directory `dir` as the run line's last field: relative to `tree`, `/`-separated, `.` at the tree root. A directory outside the

@@ -90,18 +90,21 @@ try {
     fs.mkdirSync(sub, { recursive: true });
     reset();
     verif('true', 'true');
-    assert.equal(verb(['path', 'a.js', '--', 'true'], { cwd: sub }).status, 0);
-    assert.equal(lastDir(), 'pkg/inner', 'a path run from a subdirectory records it, relative to the tree root');
-    assert.equal(verb(['path', 'a.js', '--', 'true'], { cwd: sub + '/' }).status, 0);
-    assert.equal(lastDir(), 'pkg/inner', 'a trailing slash records the same value');
+    // Each case starts from an empty trace, so the line read back is the one the call just wrote.
+    const runDir = (argv, cwd) => {
+      reset();
+      assert.equal(verb(argv, { cwd }).status, 0);
+      assert.equal(lines().length, 1, 'the call wrote one run line');
+      return lastDir();
+    };
+    assert.equal(runDir(['path', 'a.js', '--', 'true'], sub), 'pkg/inner', 'a path run from a subdirectory records it, relative to the tree root');
+    assert.equal(runDir(['path', 'a.js', '--', 'true'], sub + '/'), 'pkg/inner', 'a trailing slash records the same value');
     const link = path.join(D, 'link');
     fs.symlinkSync(S, link);
-    assert.equal(verb(['path', 'a.js', '--', 'true'], { cwd: path.join(link, 'pkg', 'inner') }).status, 0);
-    assert.equal(lastDir(), 'pkg/inner', 'a symlinked spelling of the tree records the same value');
+    assert.equal(runDir(['path', 'a.js', '--', 'true'], path.join(link, 'pkg', 'inner')), 'pkg/inner', 'a symlinked spelling of the tree records the same value');
     for (const argv of [['full'], ['focused', 'a.js'], ['whole']]) {
       verif('true', 'true', 'true');
-      assert.equal(verb(argv, { cwd: sub }).status, 0);
-      assert.equal(lastDir(), '.', `${argv[0]} runs at the tree root and records it`);
+      assert.equal(runDir(argv, sub), '.', `${argv[0]} runs at the tree root and records it`);
     }
     // A directory outside the tree records as itself made relative, which no reader takes as `.`.
     const { relDir } = require('../plugin/lib/run-tree.js');
@@ -109,6 +112,18 @@ try {
     assert.ok(outside.startsWith('..') && outside.endsWith('elsewhere'), `outside the tree: ${outside}`);
     assert.equal(relDir(S, path.join(S, '..') + '/'), '..', 'a parent directory is never the root');
     assert.equal(relDir(S, S + '/'), '.', 'the root with a trailing slash is the root');
+    // The two sides spelled differently (ADR 0150): a symlinked tree, a symlinked directory, a trailing slash on either side,
+    // and the tree reached through its unresolved and its resolved temp spelling all give one value.
+    assert.equal(relDir(link, sub), 'pkg/inner', 'a symlinked tree against the real directory');
+    assert.equal(relDir(S, path.join(link, 'pkg', 'inner') + '/'), 'pkg/inner', 'the real tree against a symlinked, slash-ended directory');
+    assert.equal(relDir(S + '/', sub), 'pkg/inner', 'a trailing slash on the tree side');
+    assert.equal(relDir(fs.realpathSync(S), sub), 'pkg/inner', 'the resolved tree against the unresolved directory');
+    assert.equal(relDir(S, fs.realpathSync(sub)), 'pkg/inner', 'the unresolved tree against the resolved directory');
+    if (process.platform === 'win32') {
+      const msys = '/' + S[0].toLowerCase() + S.slice(2).replace(/\\/g, '/');
+      assert.equal(relDir(S, msys + '/pkg/inner'), 'pkg/inner', 'an MSYS drive path records the same value');
+      assert.equal(relDir(msys, sub), 'pkg/inner', 'an MSYS drive path as the tree');
+    }
   }
 
   // A focused run records its path set, and the trace reader returns it whole for any path (ADR 0175).
