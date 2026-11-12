@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0243](0243-the-tier-counts-behavior-slices-and-the-controller-builds-tiny-slices.md), under which
+the tier counts only `behavior` rows and a `full` run with a `docs` or `mechanical` row counts as authored.
+
 ## Context
 
 `references/scope-mode.md`'s `## Degraded passes` blocks an unattended run whenever the permission

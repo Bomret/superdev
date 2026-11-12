@@ -42,7 +42,7 @@ Each step below applies beside the skill's step of the same number. A departure 
 - **Summary**: the scope anchor's title, from `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get anchor --root <run-root>` (`${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## The ledger`). The verb prints `absent` → say so in one line and hand a diff-derived summary.
 - **Acceptance**: the path `<run-root>/dod.md`, as §1 states.
 - **Range**: the whole scope range `<range-base>..<branch>` on every dispatch, a re-review after a fix cycle included.
-- **Tier and run root**: the tier per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` (three or fewer slices is `lite`), and `<run-root>`.
+- **Tier and run root**: the tier per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` (3 or fewer `behavior` slices is `lite`), and `<run-root>`.
 - **Fix-cycle range**: a re-review hands the cycle's range `<cycle-base>..<cycle-tip>` as full commits. `<cycle-tip>` is the scope tip once you accept the cycle's report, before any merge of §4.1's **The moved base**.
 - **Untraced writes**: the reviewer runs `scope.js untraced` over the range of each window `fail-to-pass.md`'s `## Fail-to-pass run` gives the final reviewer, the `lite` slices with a recorded range and the scope's fix cycles with commits, and grades the listing, per `${CLAUDE_PLUGIN_ROOT}/references/untraced-writes.md`'s `## Untraced writes`. The dispatch hands the run root and the ranges above and no listing, because the verb reads git and the trace itself. A **Missing fail-to-pass run** finding counts the listed paths as change events, and a `run full` or `run whole` line inside an implementer window is a Minor **Implementer suite run** finding.
 - **Suite result**: as the next concept states.
@@ -64,7 +64,7 @@ Each step below applies beside the skill's step of the same number. A departure 
 - **A `lite` scope** takes no skip from this concept.
 - **Only the entry review dispatches it**, on every `/superdev:review` invocation. A fix cycle's re-review and a warm re-review get no over-engineering pass, so a cut never starts the next cycle.
 - Each cut it recommends is warranted or declined by the skill's §2 warranted-cut concept. A warranted cut joins the findings as a Minor.
-- **A ledger with no slice rows** leaves the tier unknown → dispatch.
+- **A ledger with no slice rows, or with a row whose type cannot be read,** leaves the tier unknown → dispatch.
 - A denied `simplicity-reviewer` dispatch records no `**Degraded:**` entry (`${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes`).
 
 **The slice reviewer for an Unreviewed slice.** Applies to §4.6's **Unreviewed slice** branch, which only a merged `behavior` slice reaches: a merged `mechanical` or `docs` slice, or one whose type cannot be read, draws no such finding and no `slice-reviewer` dispatch (`review-coverage.md`'s `## Review coverage`). Its `superdev:slice-reviewer` dispatch departs from the skill's exclusion of `slice-reviewer`.

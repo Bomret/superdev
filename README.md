@@ -12,9 +12,10 @@ docs to a knowledge base. It needs no other plugin.
 
 - `/superdev:plan` interviews you until the **Definition of Done** is checkable. Then it cuts the work into
   small **vertical slices**, each one green on its own.
-- `/superdev:implement` builds the slices. A plan of 3 slices or fewer runs test-first, inline. A larger
-  plan runs in parallel, one isolated git worktree per slice, and a separate reviewer subagent checks each
-  slice before it merges.
+- `/superdev:implement` builds the slices. A plan of 3 behaviour slices or fewer runs test-first, inline,
+  however many rename or documentation slices it holds. A plan with more behaviour slices runs in parallel, one
+  isolated git worktree per slice, and a separate reviewer subagent checks each behaviour slice before it
+  merges.
 - `/superdev:review` reviews the whole scope against the Definition of Done and runs the full suite once.
 - The chain continues through docs, pull request, merge, deploy, and verification. Each command names the
   next one and offers to start it.

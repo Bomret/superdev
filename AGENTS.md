@@ -4,8 +4,10 @@ A self-contained **Claude Code plugin** that takes a feature from a rough idea t
 brainstorm, plan, implement, review, document, pull request, ship, verify, and wrap-up. Beside that chain
 it audits tests, sweeps a repository, reports run status, and publishes a knowledge base. It gives you interview-driven
 vertical slicing, an execution tier sized to the plan, deterministic hook guardrails, and a pluggable
-slice store plus code host. A plan of more than 3 slices runs in parallel slicetrees with isolated
-implementer and reviewer subagents. A plan of 3 or fewer runs test-first, inline in the scopetree.
+slice store plus code host. A plan of more than 3 `behavior` slices runs in parallel slicetrees with
+isolated implementer and reviewer subagents, and the controller builds each `docs` and one-file `mechanical`
+slice itself in its slicetree. A plan of 3 or fewer `behavior` slices, whatever its number of `mechanical` and
+`docs` slices, runs test-first, inline in the scopetree.
 No prerequisite plugins.
 
 ## Need something? Read this
@@ -87,7 +89,9 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
   references/          — backend seed templates + the non-seed runtime references (plan-contract with
                          plan-authoring, store-records, and assignee,
                          documentation convention, controlled-prose, content-types, doc pass, run init,
-                         run handoff, execution playbooks, test-selection, scope-mode with its split files scope-branch,
+                         run handoff, execution playbooks with the full playbook's rare-branch files (implement-full-resume,
+                         implement-full-fix-cycle, implement-full-denied, implement-full-minor-sweep), test-selection,
+                         scope-mode with its split files scope-branch,
                          run-state, scope-findings, and shipped-run, authoring
                          disciplines, intent handoff, prior-art audit, design sketch, diagnosis, prototype, merge-conflicts,
                          review-checklist with its split lens files (review-design-lenses, review-coverage, fail-to-pass,
@@ -369,7 +373,7 @@ This root owns every other subtree directly:
   (ADR 0013). A full-tier run queues the Minors of each Minor-only slice review. The queue is settled in one
   **Minor sweep** after the last slice merges. `scope.js minors add` writes the queue. A fix
   cycle whose list holds only Minors is a **Warm cycle**: it continues the previous fix implementer. The
-  sweep is `references/implement-full.md`'s `## Minor sweep`, the warm cycle `references/scope-findings.md`'s
+  sweep is `references/implement-full-minor-sweep.md`'s `## Minor sweep`, the warm cycle `references/scope-findings.md`'s
   `## Warm cycles` (ADR 0174). A scope review warrants each `simplicity-reviewer` cut by the rules the
   repository documents for itself, names each declined cut with the rule it would break, and puts each
   warranted cut into its ask-once fix set as a Minor. Only the entry review gets the over-engineering pass

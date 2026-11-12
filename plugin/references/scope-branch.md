@@ -274,7 +274,7 @@ branch step left you on.
    `git -C <run-root>/scopetree rev-parse -q --verify MERGE_HEAD` finds no unfinished merge. Anything
    else → name what you found and stop, discarding nothing and dispatching no slice. **`--unattended` →
    block**, per `scope-mode.md`'s `## Unattended`. One exception, at the `lite` tier only (`scope.js get slices --root <run-root>`
-   lists three or fewer slices, as in `scope-findings.md`'s `## Degraded passes`): the scopetree is dirty, no merge is
+   lists 3 or fewer `behavior` slices, as in `scope-findings.md`'s `## Degraded passes`): the scopetree is dirty, no merge is
    unfinished, and a slice is `in-progress`. That dirt is the slice's own work. At the full tier
    slices work in their own slicetrees, so any dirty scopetree stops. Skip the whole base step, name the skip in the
    report, and leave the work to the playbook's `## Resume`; the next invocation brings the base in.

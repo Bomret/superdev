@@ -260,7 +260,7 @@ A triage record already written is amended instead, through the store's own `## 
 
 **A failed settle.** Applies to a comment or close that fails. Report it once. The filed scope stands, its records, ledger, and branch as written, and a record already closed is no error.
 
-**The expected tier.** Applies to every plan. Tell the user the execution tier `/superdev:implement` derives fresh from the final slice count, informational only and persisted nowhere: **≤3 slices → `lite`** (the controller implements each slice inline in a single scopetree, no per-slice review), **>3 slices → `full`** (parallel slicetrees + implementer/reviewer subagents). Either tier hands off to `/superdev:review` once every slice is on the scope branch, whatever the slices' types.
+**The expected tier.** Applies to every plan. Tell the user the execution tier `/superdev:implement` derives fresh from the final count of `behavior` slices, informational only and persisted nowhere: **3 or fewer `behavior` slices → `lite`**, whatever the number of `mechanical` and `docs` slices (the controller implements each slice inline in a single scopetree, no per-slice review), **more than 3 `behavior` slices → `full`** (parallel slicetrees + implementer/reviewer subagents, the controller building each `docs` and one-file `mechanical` slice itself). Either tier hands off to `/superdev:review` once every slice is on the scope branch, whatever the slices' types.
 
 **Opening the run again.** Applies to every plan. Run §2's `scope.js open` call, adding `--lock <nonce>` with the nonce §2's call printed when there was one; its outcomes are §2's. Where no capture crystallised, this is the run's first `open`, and it cuts; otherwise it reads `existing` and refreshes the lock.
 

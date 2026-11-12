@@ -25,8 +25,12 @@ A pass the command was already free to skip on judgment, such as `/superdev:revi
 (`final-reviewer`, `slice-reviewer`, `doc-reader`), authorship decides:
 
 - **The controller authored what the pass verifies** → write the entry and block, per `scope-mode.md`'s
-  `## Unattended`. Read the tier as `/superdev:implement` derives it from `scope.js get slices`: `lite`
-  (three or fewer slice rows) counts as authored, `full` does not, and a ledger with no slice rows blocks.
+  `## Unattended`. Read the tier as `/superdev:implement` derives it, from the rows `scope.js get slices` prints:
+  more than 3 rows whose type reads `behavior` is `full`, and otherwise `lite`, whatever the number of
+  `mechanical` and `docs` rows. A ledger with no slice rows, or with a row whose type cannot be read, leaves
+  the tier unknown, and an unknown tier blocks. `lite` counts as authored. `full` counts as authored when a
+  row reads `docs` or `mechanical`, because the controller builds a `docs` slice and a one-file `mechanical`
+  slice itself, and otherwise does not.
 - **It did not** → do the pass inline, say so in the report, write the entry, and continue, until the
   run's second recorded denial, which blocks whoever authored the work.
 
@@ -171,7 +175,7 @@ request are each reported once per run, and the bullet stays removed.
 ## Warm cycles
 
 A **warm cycle** is a fix cycle whose fix list holds only Minor findings, warranted cuts included. `/superdev:review`'s
-fix loop (`review-scope-mode.md`'s `### 4.7 Fix cycles`) reads this section, and so does the Minor sweep (`references/implement-full.md`, `## Minor sweep`), the
+fix loop (`review-scope-mode.md`'s `### 4.7 Fix cycles`) reads this section, and so does the Minor sweep (`references/implement-full-minor-sweep.md`, `## Minor sweep`), the
 other fix loop that continues a fix implementer. The cycle
 continues the loop's previous fix implementer through SendMessage, with its context intact, in place of a
 fresh `superdev:implementer` dispatch. A cycle whose list holds any Critical or Important finding
@@ -235,7 +239,7 @@ closing `fail-to-pass` outcome closes it. The controller carries each restated f
 **The sweep's re-review is always a fresh `slice-reviewer`.** A resumed one has read the sweep log already, so
 its blind pass is gone. Its dispatch hands each unclosable finding the last re-review listed,
 with its range, its case, and its reason, as quoted data, and the reviewer restates each with its mark re-judged
-against the current range (`references/implement-full.md`, `## Minor sweep`).
+against the current range (`references/implement-full-minor-sweep.md`, `## Minor sweep`).
 
 **The loop's other rules hold.** A warm cycle counts toward the 3-cycle cap. The exit full-suite run
 still gates the stage. A re-review left with only Minor Prompt-concept overlap findings ends the loop.
