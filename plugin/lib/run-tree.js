@@ -1,6 +1,6 @@
 'use strict';
 
-// run-tree.js: where a path lands in a run's trees (its run root, tree, relative path, and slice), whether it is a test path, and the git state of a tree.
+// run-tree.js: where a path lands in a run's trees (its run root, tree, relative path, and slice), whether it is a test path, the git state of a tree, and a recorded path or directory reduced to the tree root.
 
 const fs = require('fs');
 const path = require('path');
@@ -8,6 +8,7 @@ const { spawnSync } = require('child_process');
 const { inProgressSlices } = require('./ledger.js');
 const { isTestPath: testPathOf } = require('./verification.js');
 const { drivePath } = require('./drive-path.js');
+const { gitSpawn } = require('./git-spawn.js');
 
 // The bound on each `git` call a run line needs; a call past it records `unknown` for its field (INV-0009).
 const GIT_BOUND_MS = 1500;
@@ -78,4 +79,35 @@ function relDir(tree, dir) {
   return rel || '.';
 }
 
-module.exports = { relDir, locate, toolTarget, isTestPath, treeState, gitOut, GIT_BOUND_MS };
+// A reader of the checkout's repository root, asked of git once on its first call: '' where git cannot answer, and then
+// its `failed` property is true.
+function lazyToplevel(cwd) {
+  let root;
+  const top = () => {
+    if (root === undefined) {
+      const t = gitSpawn(['rev-parse', '--show-toplevel'], cwd);
+      top.failed = t.status !== 0;
+      root = top.failed ? '' : t.stdout.trim();
+    }
+    return root;
+  };
+  top.failed = false;
+  return top;
+}
+
+// A path as a focused run recorded it (as typed: `./x`, a directory, absolute) reduced to a root-relative
+// POSIX path, or null where it names nothing inside the tree. `top` is the tree root, read once and lazily.
+function rootRelative(p, top) {
+  let s = p.replace(/\\/g, '/');
+  if (process.platform === 'win32') s = s.replace(/^\/([a-zA-Z])\//, (m, d) => `${d.toUpperCase()}:/`);
+  if (s.startsWith('/') || /^[A-Za-z]:\//.test(s)) {
+    const root = top();
+    if (!root) return null;
+    s = path.posix.relative(root.replace(/\\/g, '/'), s);
+  }
+  s = path.posix.normalize(s).replace(/\/$/, '');
+  if (s === '..' || s.startsWith('../')) return null;
+  return s === '.' ? '' : s;
+}
+
+module.exports = { relDir, rootRelative, lazyToplevel, locate, toolTarget, isTestPath, treeState, gitOut, GIT_BOUND_MS };

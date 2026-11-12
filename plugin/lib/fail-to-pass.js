@@ -14,10 +14,9 @@ const { PROBE_MAX_BUFFER } = require('./containment.js');
 const { mainWorkTree } = require('./main-work-tree.js');
 const { appendTrace, readTrace, encodePaths, decodePaths, untraceField } = require('./trace-log.js');
 const { checkRun } = require('./run-check.js');
-const { treeState, gitOut } = require('./run-tree.js');
+const { treeState, gitOut, rootRelative, lazyToplevel } = require('./run-tree.js');
 const { superviseRuns, withWorktreeLock } = require('./run-supervision.js');
 const { shellWord } = require('./test-verb.js');
-const { rootRelative, lazyToplevel } = require('./suite-base-get.js');
 const { operatorBoundMs } = require('./operator-config.js');
 
 // The floor of the bound on the run with the files put back (ADR 0142): 10 000 ms, or the operator configuration's

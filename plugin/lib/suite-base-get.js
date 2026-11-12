@@ -12,6 +12,7 @@ const { isTestPath, completeSelector, verificationCommandsOf, prepareCommandOf, 
 const { gitSpawn, resolveCommit, fileAt } = require('./git-spawn.js');
 const { readTrace, decodePaths, untraceField } = require('./trace-log.js');
 const { DENIAL_PREFIX, RESET_PREFIX } = require('./ledger-records.js');
+const { rootRelative, lazyToplevel } = require('./run-tree.js');
 
 const VERIFICATION = 'docs/agents/verification.md';
 
@@ -66,22 +67,6 @@ function runEvents(root) {
     if (e.code !== 'ENOENT') throw e;
   }
   return readTrace(raw).filter((e) => e.kind === 'run');
-}
-
-// A reader of the checkout's repository root, asked of git once on its first call: '' where git cannot answer, and then
-// its `failed` property is true.
-function lazyToplevel(cwd) {
-  let root;
-  const top = () => {
-    if (root === undefined) {
-      const t = gitSpawn(['rev-parse', '--show-toplevel'], cwd);
-      top.failed = t.status !== 0;
-      root = top.failed ? '' : t.stdout.trim();
-    }
-    return root;
-  };
-  top.failed = false;
-  return top;
 }
 
 // `**Suite:**` records the last full-suite run: its result, the commit it ran on, and its kind
@@ -265,21 +250,6 @@ function verbSuiteRerun(cwd, root, file, ref) {
 function changedPaths(cwd, from, to) {
   const diff = gitSpawn(['-c', 'diff.relative=false', 'diff', '--name-only', '--no-renames', '-z', from, to], cwd);
   return diff.status === 0 ? diff.stdout.split('\0').filter(Boolean) : null;
-}
-
-// A path as a focused run recorded it (as typed: `./x`, a directory, absolute) reduced to a root-relative
-// POSIX path, or null where it names nothing inside the tree. `top` is the tree root, read once and lazily.
-function rootRelative(p, top) {
-  let s = p.replace(/\\/g, '/');
-  if (process.platform === 'win32') s = s.replace(/^\/([a-zA-Z])\//, (m, d) => `${d.toUpperCase()}:/`);
-  if (s.startsWith('/') || /^[A-Za-z]:\//.test(s)) {
-    const root = top();
-    if (!root) return null;
-    s = path.posix.relative(root.replace(/\\/g, '/'), s);
-  }
-  s = path.posix.normalize(s).replace(/\/$/, '');
-  if (s === '..' || s.startsWith('../')) return null;
-  return s === '.' ? '' : s;
 }
 
 // ADR 0175: under the tip's complete-selector declaration, a green record at `from` carries to `to` when a passing
@@ -483,4 +453,4 @@ function verbGet(root, field) {
   console.log(v === null ? 'absent' : v);
 }
 
-module.exports = { rootRelative, lazyToplevel, verbSuite, verbSuiteRerun, verbSuiteReusable, verbBaseSet, verbBaseResolve, verbGet };
+module.exports = { verbSuite, verbSuiteRerun, verbSuiteReusable, verbBaseSet, verbBaseResolve, verbGet };
