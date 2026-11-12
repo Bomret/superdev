@@ -63,7 +63,7 @@ Read the stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --r
 
 ## 3. Deploy check
 
-**A legacy run.** Applies to a ledger with no `**PR:**` header (`scope.js get pr` prints `absent`), before any posture read. It reads as posture `none`. Ask nothing and go to §4.
+**A run with no pull request.** Applies to a ledger with no `**PR:**` header (`scope.js get pr` prints `absent`, as a `push-only` run's does), before any posture read. It reads as posture `none`. Ask nothing and go to §4.
 
 **The deploy read.** Applies to a ledger that carries a `**PR:**` header, before its first observation. Read the posture, the anchor's `**Deploy:**` line, and the deploy record per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Reading the posture at the merge commit`.
 

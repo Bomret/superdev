@@ -45,7 +45,7 @@ first, and the repair choice once verify-ship observes the line false.
 ## A single-slice feature
 
 A picked feature with no epic is promoted to one, per `## Append mode`'s *Extending a single-slice feature
-creates the epic first* (`docs/agents/issue-tracker.md` → *Append mode* owns the backend mechanics). §6
+creates the epic first* (`docs/agents/issue-tracker-plan.md` → *Append mode* owns the backend mechanics). §6
 writes the epic, where the other writes happen, so an abandoned interview strands no epic.
 
 ## Parked questions

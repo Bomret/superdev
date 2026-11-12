@@ -157,7 +157,7 @@ Class: process
 Concepts: Focused test command, Suite record, Run trace
 Statement: A slice implementer and a fix cycle run only the tests of their own work: the focused command over their own paths, a direct run of a test file, and the fail-to-pass run over their own range. The full suite runs once per scope, in the scope review, on whichever route of the exit run that `plugin/references/review-scope-mode.md` §4.2 lists the review takes first, and again after a fix cycle that a red result there opened (ADR 0192). The scope review starts that full-suite run at its entry, in the background beside its first reviews, and its exit run reuses a pass at a tip no commit has moved (ADR 0234). Where the repository configures a whole-repo command, it runs once before the pull request opens, on a tip that carries no green whole-repo result at ship (which instead refuses while a review invalidation stands, INV-0092), and in place of the full suite in a review entered while the suite record reads red of kind `whole`. A green result recorded on the commit a step would run on is reused rather than run again, but only where the latest run of that command the run trace records at that commit passed on a clean working tree (ADR 0117). With no record, or a record on another commit, the step reuses the latest full or whole run the run trace records at that commit, whoever wrote it, where it passed on a clean tree; a step that needs a whole-repo run reuses only a whole one (ADR 0182). A green result recorded on an ancestor of that commit is reused too, but only where every path that differs between the two ends in `.md`, is no test path, and is not a `docs/agents/verification.md` whose run configuration differs from the recorded commit's (ADR 0230), the run trace backs the recorded commit with a passing full or whole run on a clean tree, and no full, whole, path, or focused run it records at the tip failed and its latest run there does not read `unknown`. The carry needs no test run at the tip, and a passing run on a dirty tree refuses nothing (ADR 0128, ADR 0189). Where `docs/agents/verification.md` at the tip carries the complete-selector declaration and the focused command carries `{paths}`, a green record on an ancestor is reused too when the run trace backs the recorded commit with a passing full or whole run on a clean tree, the run trace records at the tip a passing focused run on a clean tree, written by `scope.js` with the path set it ran over, that covers every path changed since the record, no changed path is a `docs/agents/verification.md` whose run configuration differs from the recorded commit's, nor a file the declaration lists, and no full or whole run, nor any run of a test file named directly, at the tip failed (ADR 0175). No verb writes a carried record, so every carry is judged from the recorded commit. Every ship gate whose reuse check refuses takes the focused carry before it refuses: a carried tip merges, a failing carry run is the gate's red result, and a tip with no carry refuses or runs the whole-repo command as before (ADR 0194). Under the same declaration the two carries chain once: a green record on an ancestor is reused too when some commit on the ancestry path to the tip takes the focused carry from the recorded commit, judged at that commit, and the range from that commit to the tip passes the Markdown-only rule, judged at the tip (ADR 0189). Under the same declaration, a full run at the tip that failed in one test file counts green once, when the ledger records a rerun naming that file, the tip, and a triage record, that file alone then passed at the tip on a clean tree, run at the tree root (ADR 0232), with every run of it alone the run trace records there after the failed full run passing on a clean tree and the runs recorded before that failure counting for nothing, a focused run over the scope's range then passed there, and no other full run, nor any run of another test file, at the tip failed (ADR 0172). That red record counts at a later tip too, when its commit is an ancestor of that tip, every rerun condition holds when judged at its commit, and the range from its commit to the tip passes the Markdown-only rule, judged at the tip (ADR 0189). Under the same declaration, a red record at a commit R whose ledger `**Failed:**` record names the test files a full run at R failed in, with exactly one failed full run recorded at R, is reused at a later tip T that R is an ancestor of, when each named file passed on a clean tree at T in a `path` run from the tree root, and the focused carry from R to T holds at T (ADR 0237). Nothing reruns a failed run on its own. Any git error while deciding this refuses reuse. A result recorded on any other commit is not, and neither is one the run trace does not back. A step that needs a whole-repo run reuses only a record of kind `whole`. A fail-to-pass run is no suite run: it runs the command its caller hands it, which names the range's test files, records no suite result, and its control run writes a `path` run line that backs no suite record (ADR 0134, ADR 0182).
 Breaks: silently
-Check: tests/scope-suite.test.js — the suite record's read and write, and `suite reusable`'s tip-match cases, Markdown-only carry cases, focused-run carry cases, rerun cases, and run-trace backing
+Check: tests/scope-suite-record.test.js, tests/scope-suite-carry.test.js, tests/scope-suite-complete.test.js, tests/scope-suite-rerun.test.js, tests/scope-suite-config.test.js — the suite record's read and write, and `suite reusable`'s tip-match cases, Markdown-only carry cases, focused-run carry cases, rerun cases, and run-trace backing
 Paths: plugin/references/run-handoff.md, plugin/references/scope-mode.md, plugin/references/run-state.md, plugin/references/test-selection.md, plugin/lib/suite-base-get.js, plugin/lib/test-verb.js, plugin/lib/fail-to-pass.js, plugin/skills/review/**, plugin/references/review-scope-mode.md, plugin/skills/submit-pr/**, plugin/skills/ship/**, plugin/agents/implementer.md, plugin/scripts/scope.js
 
 ### INV-0018
@@ -257,7 +257,7 @@ Concepts: Depends-on, Slice store
 Statement: A failed dependency write stops the run, because it would corrupt the execution order. A failed sub-issue link is logged and the run continues.
 Breaks: silently
 Check: none — no pin exists today
-Paths: plugin/references/issue-tracker-github.md
+Paths: plugin/references/issue-tracker-github-plan.md
 
 ### INV-0029
 
@@ -344,10 +344,10 @@ Paths: plugin/references/scope-mode.md, plugin/skills/**, plugin/references/impl
 
 Class: architecture
 Concepts: Scope anchor, Slice store, Seed, Release, Published snapshot, Triage record, Untriaged item, Assignee, Anchor dependency
-Statement: No command or agent names a slice store's own mechanics. Each reads them from the matching section of the active store document, which specialises `references/plan-contract.md`, `references/plan-authoring.md`, or `references/store-records.md`.
+Statement: No command or agent names a slice store's own mechanics. Each reads them from the matching section of the active store document, which specialises `references/plan-contract.md`, `references/plan-authoring.md`, `references/store-records.md`, or `references/assignee.md`.
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/skills/**, plugin/agents/**, plugin/references/plan-contract.md, plugin/references/plan-authoring.md, plugin/references/store-records.md, plugin/references/issue-tracker-*.md
+Paths: plugin/skills/**, plugin/agents/**, plugin/references/plan-contract.md, plugin/references/plan-authoring.md, plugin/references/store-records.md, plugin/references/assignee.md, plugin/references/issue-tracker-*.md
 
 ### INV-0041
 
@@ -470,7 +470,7 @@ Paths: plugin/skills/plan/SKILL.md, plugin/references/design-sketch.md
 
 Class: process
 Concepts: Tier, Simplicity-reviewer, Final-reviewer, Execution playbook
-Statement: Every scope gets an over-engineering pass. A full-tier scope whose every slice is `behavior` gets it per slice in `implement-full.md`, so `/superdev:review` skips simplicity-reviewer there. Every other scope gets it whole-scope from `/superdev:review`, under the skip rules a lite scope takes. Its findings gate nothing on their own, and each cut the controller warrants joins the review's fix set as a Minor; only the entry review gets the pass (ADR 0228).
+Statement: Every scope gets an over-engineering pass. A full-tier scope whose every slice is `behavior` gets it per slice in `implement-full.md`, from each slice's first `slice-reviewer` review, so `/superdev:review` skips simplicity-reviewer there. Every other scope gets it whole-scope from `/superdev:review`, under the skip rules a lite scope takes. Its findings gate nothing on their own, and each cut the controller warrants joins the review's fix set as a Minor; only the entry review gets the pass (ADR 0228).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/review/SKILL.md, plugin/references/review-scope-mode.md, plugin/references/implement-full.md
@@ -618,7 +618,7 @@ Concepts: Assignee, Operator configuration, Slice store
 Statement: The assignee lives only in the untracked `.superdev/info.json`, resolved against the main working tree from any checkout: that file, else the API token's own identity, with `"none"` opting out. No tracked store document carries an assignee bullet, and the plan-contract slice schema carries no assignee field. Tokens never enter the file. The file's `displayName` is display-only: no issue-tracker call reads it, so it never changes who is assigned.
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/references/plan-contract.md, plugin/references/issue-tracker-*.md, plugin/skills/setup/SKILL.md
+Paths: plugin/references/assignee.md, plugin/references/issue-tracker-*.md, plugin/skills/setup/SKILL.md
 
 ### INV-0075
 
@@ -627,7 +627,7 @@ Concepts: Assignee, Operator configuration
 Statement: A malformed `.superdev/info.json`, or an absent or empty assignee, falls through to the token's identity and is reported once per run. It never stops the plan.
 Breaks: silently
 Check: none — no pin exists today
-Paths: plugin/references/plan-contract.md
+Paths: plugin/references/assignee.md
 
 ### INV-0076
 
@@ -779,7 +779,7 @@ Class: process
 Concepts: Pinned merge, Suite record, Stage
 Statement: A merge superdev makes lands only a scope-branch head whose suite record `scope.js suite reusable` accepts (INV-0017 states the full rule), and a green whole-repo run where the repository configures a whole-repo command. The record is accepted directly, across Markdown-only commits (ADR 0128), across a delta a passing focused run covered under the complete-selector declaration (ADR 0175), or, for a record that reads red at the head or at an ancestor of it followed only by Markdown-only commits, on its one recorded rerun (ADR 0172, ADR 0189). That is either such a head, or `/superdev:ship`'s own conflict-free merge of base into the scope branch, tested green before it lands. The merge is pinned to that head, so a head that moved after the test is refused by the host. It never forces past the host's branch protection or required approvals. A red result `suite reusable` does not accept, a denied result, or a conflicting result lands nothing, and neither does a head whose suite record review invalidated for a standing unresolved defect (ADR 0096, ADR 0105).
 Breaks: silently
-Check: scripts/drift-check.js `code-management-no-force` — no code-management document forces a merge; tests/scope-suite.test.js — `suite reusable`, the verb that decides reuse; final-reviewer's invariant compliance judges ship's pinned-merge and not-green-lands-nothing clauses
+Check: scripts/drift-check.js `code-management-no-force` — no code-management document forces a merge; tests/scope-suite-record.test.js, tests/scope-suite-carry.test.js, tests/scope-suite-complete.test.js, tests/scope-suite-rerun.test.js — `suite reusable`, the verb that decides reuse; final-reviewer's invariant compliance judges ship's pinned-merge and not-green-lands-nothing clauses
 Paths: plugin/skills/ship/**, plugin/references/code-management-*.md, plugin/scripts/scope.js, plugin/lib/suite-base-get.js
 
 ### INV-0093
@@ -933,7 +933,7 @@ Concepts: Scope anchor
 Statement: An edit to a scope anchor's body runs only when the read of the current body and the command that built the new body both succeeded and the new body is non-empty, and the edit reads that body from a file. A failed read, producer, or payload build leaves the anchor body as it was (ADR 0115).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/references/issue-tracker-*.md, docs/agents/issue-tracker.md, plugin/references/scope-mode.md, plugin/references/run-state.md
+Paths: plugin/references/issue-tracker-*.md, docs/agents/issue-tracker.md, docs/agents/issue-tracker-plan.md, plugin/references/scope-mode.md, plugin/references/run-state.md
 
 ### INV-0116
 
@@ -1448,7 +1448,7 @@ Concepts: Operator configuration, Backend command contract, Knowledge base
 Statement: The shipped plugin reads no environment variable that superdev defines, and passes none to a child process. Every knob comes from the operator configuration, and a knowledge-base backend command takes its values only from the JSON file named by `$1`, never from its command text (ADR 0207).
 Breaks: silently
 Check: the drift check that forbids a `SUPERDEV_` environment variable in shipped code and prose; the publish-kb suites that run a template against the values file
-Paths: plugin/lib/push.js, plugin/lib/fail-to-pass.js, plugin/lib/kb-backend.js, plugin/lib/kb-backend-config.js, plugin/lib/operator-config.js, plugin/references/knowledge-base-forgejo.md, plugin/references/knowledge-base-confluence.md
+Paths: plugin/lib/push.js, plugin/lib/fail-to-pass.js, plugin/lib/kb-backend.js, plugin/lib/kb-backend-config.js, plugin/lib/operator-config.js, plugin/references/assignee.md, plugin/references/knowledge-base-forgejo.md, plugin/references/knowledge-base-confluence.md
 
 ### INV-0181
 
@@ -1466,13 +1466,13 @@ Concepts: Definition of Done (DoD), Criterion tag, Scope anchor
 Statement: Every unjudged checklist line of a multi-slice epic's Definition of Done reaches the store with a tag `dod-line` reads: slice ids, store references joined by `, ` with no brackets, `scope`, or `docs`. `/superdev:plan` writes store-notation tags only through `scope.js dod-tags`, which refuses a body holding an untagged unjudged line or a slice id its map lacks (ADR 0209).
 Breaks: silently
 Check: the `scope.js dod-tags` suite
-Paths: plugin/scripts/scope.js, plugin/lib/dod-line.js, plugin/skills/plan/SKILL.md, plugin/references/plan-contract.md, plugin/references/issue-tracker-forgejo.md, plugin/references/issue-tracker-github.md, plugin/references/issue-tracker-jira.md
+Paths: plugin/scripts/scope.js, plugin/lib/dod-line.js, plugin/skills/plan/SKILL.md, plugin/references/plan-contract.md, plugin/references/issue-tracker-forgejo-plan.md, plugin/references/issue-tracker-github-plan.md, plugin/references/issue-tracker-jira-plan.md
 
 ### INV-0183
 
 Class: architecture
 Concepts: Next block, Offer
-Statement: A main-session turn that ends on a Next block naming one command, with no `Blocked:` or `First:` line, or with no Next heading names one command in a lone-command fence or in a `/superdev:` code span on a line saying "next", both in its last paragraph, ends only after an offer call of that turn named that command, or after one block by `hooks/offer-guard.js`. The block reason names the exceptions. The hook fails open on every malformed input and never blocks twice in a row. A turn whose one next command is the superdev skill the session transcript last started passes (ADR 0213, ADR 0216, ADR 0222, ADR 0226).
+Statement: A main-session turn that ends on a Next block naming one command, with no `Blocked:` or `First:` line, or with no Next heading names one command in a lone-command fence or in a `/superdev:` code span on a line whose first word, past a list marker and emphasis, is "next", both in its last paragraph, ends only after an offer call of that turn named that command, or after one block by `hooks/offer-guard.js`. The block reason names the exceptions. The hook fails open on every malformed input and never blocks twice in a row. A turn whose one next command is the superdev skill the session transcript last started passes (ADR 0213, ADR 0216, ADR 0222, ADR 0226, ADR 0240).
 Breaks: silently
 Check: the `offer-guard.js` suite
 Paths: plugin/hooks/offer-guard.js, plugin/lib/running-skill.js, plugin/hooks/hooks.json, plugin/references/response-shapes.md

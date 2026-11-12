@@ -126,8 +126,8 @@ Repeat until every slice is `merged`:
    tells it that a test command is recorded as typed and pushed with the run state, so a secret belongs in the environment, never on the command line, and
    tells it to edit files through the edit tools, never through a script. It also tells it that a RED or GREEN step runs the test files
    that hold the tests that step works on through `test path`, and that the one focused run over the whole
-   changed-path set comes after its commit and before the fail-to-pass run, and that its last run
-   before the verb is a `test path` run of the range's test files from the tree root, at its committed tip, with the exact
+   changed-path set comes after its commit and before the fail-to-pass run, and that its last GREEN
+   step runs after the last commit, as a `test path` run of the range's test files from the tree root with the exact
    command it then passes to the verb, which reuses that run as its first. Where the focused fence repeats the full fence, it tells it instead that each step runs each test file
    it works on through `test path <file>... -- <command>`, that it makes no whole-set run, and that the `test path` run of its range's test files and the fail-to-pass run are its runs before the report. Every implementer dispatch also tells it that a failing test its slice did not cause, one that
    also fails at the slice's base commit, is named in its report, neither fixed nor blocked on, and left to
@@ -188,10 +188,10 @@ Repeat until every slice is `merged`:
      exit run covers what they leave out.
    - **`behavior`** slice → move it → `in-review`, beside the store move, with
      `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" slice <id> in-review --root <run-root>` before the first slice review dispatch
-     (the row stays `in-review` through the parallel simplicity pass and every fix cycle, until the merge or a block), then dispatch **`superdev:slice-reviewer`**
-     (correctness + independent verification; it reads the review checklist itself via
-     `${CLAUDE_PLUGIN_ROOT}`). **On the slice's first review, dispatch `superdev:simplicity-reviewer` in parallel with it**,
-     over the same tip and the slice's range, and build the fix list once both have returned. The `simplicity-reviewer` assesses the diff itself; any text the dispatch hands it is input to check, not a verdict to adopt. **Warrant a
+     (the row stays `in-review` through every fix cycle, until the merge or a block), then dispatch **`superdev:slice-reviewer`**
+     (correctness, independent verification, and on the slice's first review the over-engineering lens; it reads its
+     references itself via `${CLAUDE_PLUGIN_ROOT}`). Its first review lists the cuts it recommends under `### Simplicity`
+     in its progress-log entry. **Warrant a
      recommended cut by `${CLAUDE_PLUGIN_ROOT}/skills/review/SKILL.md` §2's warranted-cut concept**, which owns the
      rule. You judge this, and in the slice's report you name each cut you
      decline, with the rule it would break. Each cut you warrant joins the review's findings as a Minor finding. A first
@@ -321,8 +321,7 @@ Repeat until every slice is `merged`:
 
      A review with no Minor outside the deferred ones queues nothing. The run's final report names every queued
      slice.
-   - **A dispatch the permission classifier denies** — an implementer, a slice-reviewer, a
-     simplicity-reviewer, or a fix — is a **degraded pass**, not a step to redo silently inline. None is
+   - **A dispatch the permission classifier denies** — an implementer, a slice-reviewer, or a fix — is a **degraded pass**, not a step to redo silently inline. None is
      ever skipped on judgment in this tier, so scope-findings.md's own skip carve-out never exempts one here.
      Read `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section and follow it,
      including the `**Degraded:**` entry it defines for `<run-root>/ledger.md`. A denied implementer or
@@ -337,11 +336,9 @@ Repeat until every slice is `merged`:
      check and the one-way rule above, where an inline re-review takes the same subject as a
      dispatched one, the fix cycle's range, and
      carry on, bounded by that section's cap — read `scope.js get denials` after writing
-     the entry, and **block** once the count reaches it instead of reviewing inline again. A denied
-     `simplicity-reviewer` follows that same authorship rule, and since its cuts block nothing on their own, the
-     pass runs inline and the run carries on; write its entry with plain `scope.js degraded add` — its
-     denial is not a verification dispatch, so it stays outside that cap.
-   - **`mechanical`** / **`docs`** slice → **skip both per-slice reviews** (the implementer's own runs, plus
+     the entry, and **block** once the count reaches it instead of reviewing inline again. An inline
+     first review applies the over-engineering lens too.
+   - **`mechanical`** / **`docs`** slice → **skip the per-slice review** (the implementer's own runs, plus
      the scope review's exit run, the scope's one full-suite run, are the net).
 4. **Merge (you, serially)** — in the scopetree: `git -C <run-root>/scopetree merge
    --no-ff slice/<scope>/<id>`. Resolve

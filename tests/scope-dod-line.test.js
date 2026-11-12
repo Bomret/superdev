@@ -293,7 +293,7 @@ try {
   }
 
   // dod-line: an untagged criterion — a single-slice feature's own DoD (plan-contract.md's `###
-  // Criterion tags`), a run from before tagging existed, or one untagged line inside an otherwise
+  // Criterion tags`) or one untagged line inside an otherwise
   // tagged DoD — ticks with no tag segment, in body mode.
   {
     r = call(

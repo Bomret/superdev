@@ -42,9 +42,8 @@ module.exports = ({ assert, path, fixture, found }) => {
     'references/plan-contract.md':
       '# Plan contract\n\n## Fields\n\n' +
       '## Slice lifecycle & status\n\n## Scope anchor\n\n## Release\n\n' +
-      '## Run state\n\n## Definition of Done ticks\n\n' +
-      // the real document carries this one at `###`, with a trailing qualifier
-      '### Assignee — store configuration, not a slice field\n\n## Feature label\n',
+      '## Run state\n\n## Definition of Done ticks\n\n## Feature label\n',
+    'references/assignee.md': '# Assignee\n\n## Assignee\n',
     'references/plan-authoring.md': '# Plan authoring\n\n## Epic visuals (optional, epic-only)\n\n## Append mode\n',
     'references/store-records.md': '# Store records\n\n## Triage record\n\n## Intent record\n',
     'references/test-selection.md': '# Test selection\n\n## The two commands\n\n## Fallback to the full command\n',
@@ -75,7 +74,7 @@ module.exports = ({ assert, path, fixture, found }) => {
     ['references/plan-contract.md', '## Definition of Done ticks\n\n'],
     ['references/store-records.md', '## Triage record\n\n'],
     ['references/store-records.md', '## Intent record\n'],
-    ['references/plan-contract.md', '### Assignee — store configuration, not a slice field\n\n'],
+    ['references/assignee.md', '## Assignee\n'],
     ['references/plan-contract.md', '## Feature label\n'],
     ['references/test-selection.md', '## The two commands\n\n'],
     ['references/test-selection.md', '## Fallback to the full command\n'],

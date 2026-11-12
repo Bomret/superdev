@@ -10,7 +10,8 @@ argument-hint: "[an intent, or nothing]"
 
 Applies to every start. You turn an intent into **independently-green vertical slices** with explicit dependencies, written to the slice store, ready for `/superdev:implement`. The run is interactive and needs the user's judgment.
 
-- **The store document**: `docs/agents/issue-tracker.md`, the slice store's configuration.
+- **The store document**: `docs/agents/issue-tracker.md`, the slice store's configuration: the calls every command makes.
+- **The plan document**: `docs/agents/issue-tracker-plan.md`, the store calls only this command makes: creating issues, the anchor lines, the assignee, the tag rewrite, and append mode.
 - **The feature label**: the feature's change type plus its slug, `<type>/<slug>`, in the notation the store document states (`${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md` → *Feature label*).
 - **A capture**: a glossary term in `CONTEXT.md`, an ADR in `docs/adr/`, or an invariant in `docs/invariants.md`, written the moment it crystallises.
 - **`<run-root>`**: the run root that §2's `open` prints on its `root` line.
@@ -27,7 +28,7 @@ Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROO
 
 ## 0. Config
 
-**The slice store.** Applies to every start. Read the store document. Missing → call the Skill tool with `superdev:setup` (no argument: the full setup), then continue.
+**The slice store.** Applies to every start. Read the store document and the plan document. Either missing → call the Skill tool with `superdev:setup` (no argument: the full setup), then continue.
 
 **The focused command.** Applies to every start, as in `/superdev:implement`'s **Config + input**. A `docs/agents/verification.md` carrying one fenced block lacks its focused command → call the Skill tool with `superdev:setup` (no argument: the full setup), then continue. A repository with no `docs/agents/verification.md` needs no focused command, and a file carrying zero fenced blocks reads as an absent file.
 
@@ -217,13 +218,13 @@ A triage record already written is amended instead, through the store's own `## 
 
 **The label.** Applies before anything is written. State the feature label with the slice list.
 
-**The records.** Applies to the approved slices. Write them per the store document as issues, with the plan-contract's `id`, `depends-on`, `test-applicability`, `spec`, and `acceptance` fields.
+**The records.** Applies to the approved slices. Write them per the plan document as issues, with the plan-contract's `id`, `depends-on`, `test-applicability`, `spec`, and `acceptance` fields.
 
 - **Exactly one slice** → the epic is optional (plan-contract.md): fold the global Definition of Done into that slice's `acceptance` and write only the slice. It carries no tags and runs no `dod-tags`.
 - **Two or more slices** → write the epic carrying the global Definition of Done, each criterion tagged in `plan-contract.md`'s line format (*Criterion tags*), plus each slice.
-- **Extending a feature** → create only the **new** slice records, and never edit, close, renumber, or delete a merged one. Amend the epic's Definition of Done **in place** with the new criteria, tagged the same way. The store document's *Append mode* owns the per-backend mechanics.
+- **Extending a feature** → create only the **new** slice records, and never edit, close, renumber, or delete a merged one. Amend the epic's Definition of Done **in place** with the new criteria, tagged the same way. The plan document's `## Append mode` owns the per-backend mechanics.
 
-**Tag checks.** Applies to a plan with two or more slices. Before the epic is created, pipe the drafted body through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-tags` with no map: it checks that every unjudged line carries a tag `dod-line` reads, and a refusal names each line to fix before anything is written. Once every slice issue exists, the store's tag rewrite runs `dod-tags --map-file <path>` as the producer of its body edit, the map holding one `<id> <reference>` pair per slice, so every store tag comes from the verb.
+**Tag checks.** Applies to a plan with two or more slices. Before the epic is created, pipe the drafted body through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-tags` with no map: it checks that every unjudged line carries a tag `dod-line` reads, and a refusal names each line to fix before anything is written. Once every slice issue exists, the plan document's tag rewrite runs `dod-tags --map-file <path>` as the producer of its body edit, the map holding one `<id> <reference>` pair per slice, so every store tag comes from the verb.
 
 **The anchor check.** Applies to every plan kind, a new plan, an append, and a repair, and to a single-slice plan, whose lone slice carries the Definition of Done. Before any store write, pipe the drafted anchor body through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-check`, beside the tag checks above. The drafted body carries the Definition of Done and the drafted anchor-only lines below, the Absorbs line included. On an append it carries the whole amended Definition of Done and the revised Absorbs line. A refusal names each problem on its own line: fix each named line in the draft and run the check again, and write nothing to the store until it passes. The fix asks no question, so a `--unattended` plan makes it the same way and writes nothing to the store until the check passes.
 
@@ -231,11 +232,11 @@ A triage record already written is amended instead, through the store's own `## 
 
 **Write order.** Applies to every store write. Order is strict only where one record references another.
 
-1. Create the epic first, since slices reference its key, carrying the assignee the store document configures.
+1. Create the epic first, since slices reference its key, carrying the assignee the plan document configures.
 2. Create **all slice issues in parallel**, a single batch, applying each slice's labels (`test-applicability` + feature + ready) and the same assignee **at creation**.
 3. Once every slice key is known, apply the `depends-on` cross-references **in parallel**.
 
-**Anchor-only lines.** Applies to the scope anchor. Write each line below whose condition holds, through the call the store document's `## Scope anchor` section states for it (`${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md` → *Scope anchor*). An append onto a `planned` feature revises a line already there in place.
+**Anchor-only lines.** Applies to the scope anchor. Write each line below whose condition holds, through the call the plan document's `## Anchor lines` section states for it (`${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md` → *Scope anchor*). An append onto a `planned` feature revises a line already there in place.
 
 | Line | Condition and content |
 |---|---|
@@ -245,7 +246,7 @@ A triage record already written is amended instead, through the store's own `## 
 | `**Absorbs:** #<n>[, #<n>]` | The operator picked records to absorb: through the **Record the Absorbs line** call, naming every pick. An append that absorbs more keeps the records the line already names. |
 | `**Intent:** #<n>[, #<n>]` | §1 seeded this plan from an intent record: name that record, through the **Record the Intent line** call, whether or not the intent turns out fully planned. A plan seeded from a local file or from nothing writes none. An append seeded from another record keeps the records the line already names. |
 
-**A missing Intent call.** Applies to a store document that states no **Record the Intent line** call. Write no line and name `/superdev:setup`, whose re-run offers the call. A failed Intent write is reported once, and the filed scope stands.
+**A missing Intent call.** Applies to a plan document that states no **Record the Intent line** call. Write no line and name `/superdev:setup`, whose re-run offers the call. A failed Intent write is reported once, and the filed scope stands.
 
 **Deleting the draft.** Applies once the Definition of Done is durably in the slice store. Delete the draft.
 

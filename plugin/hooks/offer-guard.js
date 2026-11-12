@@ -71,8 +71,11 @@ function nextCommand(message) {
 }
 
 // A message with no Next heading names a next command through a fence holding one `/superdev:` line, or a `/superdev:`
-// code span on a line that says "next". Only the last paragraph counts: a blank line outside a fence, followed by more
-// text, starts a new one. The one command name all of them name, or null when they name none or two.
+// code span on a Next line: a line whose first word, past a list marker and emphasis, is "next" (ADR 0240). Only the last
+// paragraph counts: a blank line outside a fence, followed by more text, starts a new one. The one command name all of
+// them name, or null when they name none or two.
+const NEXT_LINE = /^\s*(?:(?:[-*+]|\d+[.)])\s+)?[*_]*next\b/i;
+
 function headlessCommand(lines) {
   const names = new Set();
   let fence = null;
@@ -93,7 +96,7 @@ function headlessCommand(lines) {
       continue;
     }
     if (f) { fence = f[1]; body = []; continue; }
-    if (!/\bnext\b/i.test(line)) continue;
+    if (!NEXT_LINE.test(line)) continue;
     for (const s of line.matchAll(/`(\/superdev:[a-z][a-z-]*)[^`]*`/g)) names.add(COMMAND.exec(s[1])[1]);
   }
   return names.size === 1 ? [...names][0] : null;

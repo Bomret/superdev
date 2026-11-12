@@ -25,8 +25,8 @@ The classical catalogue (Fowler), each one nameable and huntable:
 - **Divergent change** — one module edited for many unrelated reasons; it wants splitting.
 - **Message chains** — `a.b().c().d()` coupling the caller to the whole path.
 - **Middle man** — a module that only delegates; call the target.
-- **Speculative generality** — flexibility nobody asked for. The `simplicity-reviewer` owns this on a
-  slice diff; flag it here only on a whole-scope range that reviewer never saw.
+- **Speculative generality** — flexibility nobody asked for. The simplicity lens
+  (`simplicity-lens.md`) owns this on a diff it reviewed; flag it here only on a range no lens pass saw.
 - **Single-adapter seam** — a port/interface with exactly one adapter behind it and no second in sight:
   a hypothetical seam, which is indirection, not architecture. Two adapters make a seam real — one of
   them may be the in-memory test adapter of a true external dependency.

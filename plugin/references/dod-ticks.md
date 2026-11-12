@@ -23,10 +23,7 @@ settle it).
 
 **No tags at all.** A `dod.md` carrying no tags anywhere, on a ledger listing exactly one slice, is that
 single-slice feature's own DoD (`plan-contract.md`'s `### Criterion tags`: "a single-slice feature carries
-no tags"): every line is a listed line of that lone slice, with no mapping to resolve. **A `dod.md`
-carrying no tags anywhere on a ledger listing more than one slice** — a run begun under a superdev version
-that predates tagging — resolves no line to any slice either: every line is treated as if it read `scope`,
-settled by run handoff's handoff pass the same way an untagged line below is. **An untagged line in a
+no tags"): every line is a listed line of that lone slice, with no mapping to resolve. **An untagged line in a
 `dod.md` that also carries tags** — a pre-existing or appended epic line no tagging pass reached — is not
 a listed line for any slice; run handoff's handoff pass settles it as if it read `scope`
 (`references/run-handoff.md`, `references/implement-lite.md`).

@@ -3,7 +3,8 @@
 **Status:** Accepted
 
 **Amended by:** [ADR 0234](0234-test-runs-overlap-and-skip-repeated-preparation.md), whose clean between the two runs keeps what the first
-preparation wrote.
+preparation wrote. [ADR 0238](0238-prepare-skips-a-tree-it-already-prepared.md), whose verb skips the command on a tree it
+already prepared whose every tracked change since is a test path or Markdown.
 
 **Amends:** [ADR 0215](0215-fail-to-pass-reuses-a-traced-control.md): the verb reuses a traced control only when
 `docs/agents/verification.md` carries a `## Prepare command` section.

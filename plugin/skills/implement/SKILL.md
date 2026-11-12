@@ -26,7 +26,7 @@ Applies to the `lite` tier. Its playbook runs the documentation pass in the same
 
 ## Dispatches and the log
 
-**Who dispatches.** Applies to every run. `full` dispatches `superdev:implementer`, `superdev:slice-reviewer`, and `superdev:simplicity-reviewer` with per-slice specifics, never the whole plan. `lite` dispatches none, and you carry the TDD discipline yourself.
+**Who dispatches.** Applies to every run. `full` dispatches `superdev:implementer` and `superdev:slice-reviewer` with per-slice specifics, never the whole plan. `lite` dispatches none, and you carry the TDD discipline yourself.
 
 **The `dispatch:` line.** Applies before each dispatch. Mark the log with a `dispatch:` line. Only an entry below the last such line is current (`${CLAUDE_PLUGIN_ROOT}/references/implement-full.md`'s `## Progress log (per slice)`).
 
@@ -135,7 +135,6 @@ Applies to every `full` dispatch; `lite` dispatches none, and the reviews later 
 | implementer / fix | `sonnet` | design / multi-file / judgment slice, or a fix list with any other finding |
 | slice-reviewer | `opus` | a slice's review and re-review, and a Minor sweep re-review after a fix list with any other finding |
 | slice-reviewer | `sonnet` | a Minor sweep re-review after a fix list in which every finding is a mechanical finding |
-| simplicity-reviewer | `sonnet` | always |
 
 **A mechanical finding.** Applies to the fix rows and the Minor sweep's re-review rows. A mechanical finding's fix changes no stated rule or behaviour (a rename, a rewrap, a typo). A fix that changes a rule or behaviour any surface states stays off `haiku`. An implementer working from a prose specification takes at least `sonnet`.
 

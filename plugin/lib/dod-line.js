@@ -21,8 +21,7 @@ const { maskFencedLines } = require('./md-sections.js');
 // (`PROJ-12`, `PROJ-12, PROJ-13` — `references/issue-tracker-jira.md`'s own rewritten notation), or the
 // literal `scope` or `docs` (a criterion the doc pass settles, ADR 0161), each standing alone — never
 // free text. It is absent on a single-slice feature's own DoD (`plan-contract.md`'s
-// `### Criterion tags`: "a single-slice feature carries no tags"), on a run from before tagging existed,
-// or on one untagged line inside an otherwise tagged DoD (`references/dod-ticks.md`'s own "No tags at
+// `### Criterion tags`: "a single-slice feature carries no tags"), or on one untagged line inside an otherwise tagged DoD (`references/dod-ticks.md`'s own "No tags at
 // all"). A line with no note takes its tag from the *rightmost* ` — <tag>` at the end of the line,
 // greedily handing everything else to the criterion: that is what keeps a criterion carrying its own
 // " — " (`plan-authoring.md`'s own worked example, "Reachable: none — entrance unchanged; … — scope")

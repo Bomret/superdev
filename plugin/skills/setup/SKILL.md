@@ -16,7 +16,8 @@ Applies to every start. You write the per-repo config documents the superdev ski
 
   | File | Holds |
   |---|---|
-  | `issue-tracker.md` | the **slice store**: where slices live and how to create, read, update, and delete them |
+  | `issue-tracker.md` | the **slice store**: where slices live and the calls every command makes to read, update, and close them |
+  | `issue-tracker-plan.md` | the slice store's calls only `/superdev:plan` makes: creating issues, the anchor lines, the assignee, the tag rewrite, and append mode |
   | `code-management.md` | the **code host**: push, open a PR or MR, and the default posture |
   | `documentation.md` | the in-repo **documentation** convention |
   | `knowledge-base.md` | the optional **knowledge base**: software, local file, or none |
@@ -24,7 +25,7 @@ Applies to every start. You write the per-repo config documents the superdev ski
   | `verification.md` | the optional **test commands**: a full one and, for every repository with a suite, a required focused one, which the implement chain's test runs read, an optional **timing command**, which a test audit reads, and the **prepare command**, which every test worktree runs first |
   | `deployment.md` | the repository's **deploy posture** (`none` / `manual` / `auto`) and its **deploy targets**, which `/superdev:ship` reads once a feature's pull request has merged |
 
-- **The operator file**: `.superdev/info.json`, the **operator configuration** (`CONTEXT.md`). It is no config document. It holds the slice store's assignee and display name under `issue-tracker`, a Forgejo knowledge base's tea login under `knowledge-base`, and the time bounds an operator sets (`plan-contract.md` → *Assignee — operator configuration* lists every key). It is git-ignored.
+- **The operator file**: `.superdev/info.json`, the **operator configuration** (`CONTEXT.md`). It is no config document. It holds the slice store's assignee and display name under `issue-tracker`, a Forgejo knowledge base's tea login under `knowledge-base`, and the time bounds an operator sets (`assignee.md` → *Assignee* lists every key). It is git-ignored.
 - **An operator-file write**: merge into the operator file and keep each key already there. First ensure `.superdev/` is in `.gitignore`, adding it when absent.
 - **A remote backend**: a knowledge base on software (Confluence, a Forgejo, Gitea, or GitHub wiki, an "other" wiki). A local `docs/kb/` and none are not remote.
 - **A seed gap** and **`## Seed deviations`**: as §0's **Seed gaps** defines them.
@@ -52,7 +53,7 @@ Applies to every start. You write the per-repo config documents the superdev ski
 | `verification.md` | A `## Complete selector` section on a focused command with no `{paths}` token gets an **advisory** line, never a drift verdict: state that the declaration has no effect there. |
 | `verification.md` | Test commands and no `## Prepare command` section, or a section holding neither a command nor `none`, is reported: state that no test worktree is prepared and that a **Fail-to-pass run** reuses no traced control (`references/test-selection.md`'s `## Prepare command`), and that a re-run of `/superdev:setup` proposes the section. A command the section names gets the resolution check of the first row. |
 | `deployment.md` | The same resolution check on each target's command: a target naming a script the manifest no longer defines is drift. A `none` posture, or a `manual`/`auto` posture with an empty targets table, reports consistent once confirmed present. |
-| `issue-tracker.md`, `code-management.md` | A recorded host/owner/repo (or base URL) still matches `git remote -v`. Compare the host/owner/repo path alone, ignoring userinfo such as `https://user:TOKEN@host/owner/repo.git`. Report the remote with any userinfo stripped, never verbatim. A document naming no such fact (an "Other" backend written as prose) reports consistent once confirmed present. |
+| `issue-tracker.md`, `issue-tracker-plan.md`, `code-management.md` | A recorded host/owner/repo (or base URL) still matches `git remote -v`. Compare the host/owner/repo path alone, ignoring userinfo such as `https://user:TOKEN@host/owner/repo.git`. Report the remote with any userinfo stripped, never verbatim. A document naming no such fact (an "Other" backend written as prose) reports consistent once confirmed present. |
 | `documentation.md` | A `## Writing standard` naming a repo-relative path still resolves to a file, and each `## Audit set` glob still matches at least one file. |
 | `knowledge-base.md` | A local `docs/kb/` path still exists. A configuration carrying `- **Body format:** storage` whose `### create` template never reads `parentId` is drift: name the Confluence seed's `### create` template (`references/knowledge-base-confluence.md`) as its replacement. A software backend records no other local fact, and reports consistent once confirmed present. A `## Commands` command naming an environment variable that starts with `SUPERDEV` and `_KB_` joined (the retired placeholders) is a seed gap: name it and offer the seed's current command for that verb, since `/superdev:publish-kb` refuses that command. |
 
@@ -65,21 +66,18 @@ Applies to every start. You write the per-repo config documents the superdev ski
 
 **The comparison.** Applies to each present document, beside its verdict. Compare it with its **seed** (CONTEXT.md) and list its **seed gaps**. The comparison reads the installed plugin's files and the document only.
 
-- **The seed** is the one for the backend the document records, read from `${CLAUDE_PLUGIN_ROOT}/references/`: `issue-tracker-<backend>.md`, `code-management-<host>.md`, `documentation.md`, `knowledge-base-<backend>.md`, `deployment.md`.
+- **The seed** is the one for the backend the document records, read from `${CLAUDE_PLUGIN_ROOT}/references/`: `issue-tracker-<backend>.md`, `issue-tracker-<backend>-plan.md` for `issue-tracker-plan.md`, `code-management-<host>.md`, `documentation.md`, `knowledge-base-<backend>.md`, `deployment.md`.
 - **A knowledge-base document recording a Forgejo, Codeberg, Gitea, or GitHub wiki** maps to its own seed, whoever wrote it: `knowledge-base-forgejo.md` for the first three, `knowledge-base-github-wiki.md` for GitHub, never the other's. A document lacking `- **Hierarchy:** links` or the seed's link line form is a seed gap. So is a Forgejo `find` template lacking the seed's empty-wiki rule (a 404 first listing page followed by the repository read). Each is offered like any other gap, and written only on the operator's choice.
+- **An absent `issue-tracker-plan.md`** beside a present `issue-tracker.md` with a seed is one seed gap of the store document: name the `-plan` seed and the store-document sections that move into it (§3's **An absent plan document**).
 - **No matching seed** reports `no seed to compare`: an "Other" prose backend, a `None` knowledge base, a `documentation.md` recording the user's own convention, `toolchain.md`, and `verification.md`. The last two keep the fact checks.
 
 **Matching.** Applies to a document with a seed. Pair each seed section with the document section that does the same job, whatever its heading. A seed gap is a seed section with no matching document section, or a seed rule that a matched section lacks or contradicts. List each by the seed's name for it, with the document section it belongs under.
 
 - A document's `## Outline` matches the Confluence seed's `## Audience, language & outline`.
 
-**A replaced rule.** Applies to a rule the current seed replaced, such as the token or curl rules a Forgejo config document written before ADR 0111 can carry. Such a rule is a contradicted rule. List it as a seed gap under the seed rule it contradicts, never as a stale deviation or a section only the document carries.
+**A replaced rule.** Applies to a rule the current seed replaced. Such a rule is a contradicted rule. List it as a seed gap under the seed rule it contradicts, never as a stale deviation or a section only the document carries.
 
-- Such Forgejo token or curl rules contradict the seed's `Login` bullet, `tea conventions` section, or `Degrade when no tea login` section.
 - A knowledge-base outline entry holding a placeholder (`<...>`, such as `How it works: <mechanism>`), or an outline lacking the rule, contradicts the seed's **Every outline entry names a topic page** rule. Explicit entries that differ from the seed's example entries are filled-in values, no gap.
-
-- A Forgejo issue-tracker document's `**Auth:**` bullet and `## REST conventions`.
-- A Forgejo code-management document's `**Auth:**` bullet naming a token env var or an `Authorization` header, a `## tea CLI conventions` section whose login line passes `--token`, a `## REST conventions (curl)` section, and a `## Degrade when no CLI / token` section.
 - A slice-store close that strips no status label contradicts the seed's **Close an issue** rule: a bare `tea issues close <index>` (Forgejo), a bare close `PATCH` (GitHub), or a bare `merged` transition where the ready marker is a label (Jira). It sits in the status map's `merged` row (Forgejo, GitHub), the labels-and-status rule (Forgejo, GitHub), the **Perform a transition** rule (Jira), or GitHub's abandoned (`not_planned`) close. The triage record's **Close it** call is no such close.
 
 **No gap.** Applies to a difference of these kinds: a renamed heading, a filled-in value where the seed carries a placeholder, setup-facing instruction text, and a section only the document carries. List none of them as a gap. A document with no seed gap says so.
@@ -159,7 +157,7 @@ Applies to the full interview. Scan these before any decision:
 - It sits on the **scope anchor**, the epic or a single-slice feature's lone issue.
 - It **survives the lifecycle moves** `/superdev:implement` makes. The status map's `ready` label is swapped to `in-progress` on dispatch, so it cannot be the signal. A separate label is the default to propose.
 
-**The assignee.** Applies to any issue backend. Capture the account every issue `/superdev:plan` creates is assigned to (`plan-contract.md` → *Assignee*). Propose the API token's own identity, resolved from the backend's whoami: the matched `tea` login's `user` on Forgejo/Gitea, `GET /user` on GitHub, `GET /rest/api/3/myself` on Jira.
+**The assignee.** Applies to any issue backend. Capture the account every issue `/superdev:plan` creates is assigned to (`assignee.md` → *Assignee*). Propose the API token's own identity, resolved from the backend's whoami: the matched `tea` login's `user` on Forgejo/Gitea, `GET /user` on GitHub, `GET /rest/api/3/myself` on Jira.
 
 - Accept a different account that can be assigned there (a repo collaborator, an assignable project user).
 - Accept `none` to create issues unassigned.
@@ -189,7 +187,7 @@ Applies to the full interview. Scan these before any decision:
 
 **Posture and base.** Applies to every code host. Confirm the **default PR posture** (`draft` recommended | `ready` | `push-only`) and the **base branch** (default `main`).
 
-**The push bound.** Applies when the operator asks for a push bound other than 60000 milliseconds. Write `code-host.pushTimeoutMs` by an operator-file write. It bounds each network git call `scope.js push` and the run-state ref make (`plan-contract.md` → *Assignee — operator configuration*).
+**The push bound.** Applies when the operator asks for a push bound other than 60000 milliseconds. Write `code-host.pushTimeoutMs` by an operator-file write. It bounds each network git call `scope.js push` and the run-state ref make (`assignee.md` → *Assignee*).
 
 - An operator naming no bound gets no key.
 
@@ -293,7 +291,7 @@ Applies to the full interview. Scan these before any decision:
 - No hook runs it on a merge.
 - **No suite** (a docs-only repository) skips this question, and nothing runs a suite. The fail-to-pass floor, focused, timing, and test-paths questions are skipped too.
 
-**The fail-to-pass floor.** Applies to a repository with a full command, when the operator asks for a floor other than 10000 milliseconds. Write `verification.failToPassFloorMs` by an operator-file write. It is the floor of the fail-to-pass run's bound (`plan-contract.md` → *Assignee — operator configuration*).
+**The fail-to-pass floor.** Applies to a repository with a full command, when the operator asks for a floor other than 10000 milliseconds. Write `verification.failToPassFloorMs` by an operator-file write. It is the floor of the fail-to-pass run's bound (`assignee.md` → *Assignee*).
 
 - An operator naming no floor gets no key.
 
@@ -311,6 +309,7 @@ Applies to the full interview. Scan these before any decision:
 **The complete selector.** Applies to a focused command carrying `{paths}`, once it is settled. Ask whether it selects every test any changed path can affect. Name what a yes trusts: gates then skip the full suite and carry a green suite record across a change the focused run covered (`references/test-selection.md`'s `## Complete selector`). A yes writes the `## Complete selector` section, listing as items each selector file the operator names (a runner script, a mapping config).
 
 - A no, or no answer, writes no section.
+- **A slow full suite.** Ask the operator roughly how long the full suite runs. Where it runs for several minutes or more, recommend the declaration, and state what it buys: review's exit run and ship's gates carry a green record across the change a passing focused run covered, and after a failed full run the fix cycle's tip carries by rerunning the repaired test files and the focused command, each in place of a full run.
 
 - A fixed fast subset, a self-detecting flag, and a focused command repeating the full one carry no `{paths}` and get no question.
 - A re-run on a `verification.md` without the section asks once. One with the section asks nothing.
@@ -389,6 +388,7 @@ Applies to the full interview. Scan these before any decision:
 **The writes.** Applies once the draft is confirmed.
 
 - `issue-tracker.md`: the chosen seed with the specifics filled in, or the user's prose for Other.
+- `issue-tracker-plan.md`: the chosen backend's `-plan` seed with the same specifics filled in. For Other, the part of the user's prose that creates issues, records dependencies, and assigns them.
 - `code-management.md`: the same, from the chosen host seed.
 - `documentation.md`: from `references/documentation.md`, or the user's convention as prose. It always carries `## Writing standard` with decision C's answer, `none` included. It carries `## Audit set` only when decision C named documentation outside the default tree.
 - `knowledge-base.md`: the chosen KB seed (`knowledge-base-confluence.md` / `knowledge-base-forgejo.md` / `knowledge-base-local.md`) filled in, or the Other prose. **None** writes a one-line file stating there is no separate KB, or skips the file. A remote backend carries decision D's `## Commands`, written only once the probes passed, with a re-run's verbs per **A re-run's templates**.
@@ -538,12 +538,7 @@ The focused command selects every test a changed path can affect.
 
 - `toolchain.md`, the knowledge base's `## Commands`, and `deployment.md`'s targets keep their re-run rules above.
 
-- **Apply.** A missing section goes in at its seed position relative to the matched neighbours. A missing or contradicted rule replaces or joins only that rule inside its section, and no old rule stays beside the new one:
-  - the `**Auth:**` gap replaces that bullet with the seed's `Login` bullet where the seed's `## Configuration` carries one, and removes it otherwise (the code-management seed carries its login rule in `tea conventions` only);
-  - the `tea conventions` gap replaces the matched `## tea CLI conventions` section;
-  - a `## REST conventions` gap removes that section;
-  - the degrade gap replaces `## Degrade when no CLI / token`.
-  Every other section keeps the operator's text.
+- **Apply.** A missing section goes in at its seed position relative to the matched neighbours. A missing or contradicted rule replaces or joins only that rule inside its section, and no old rule stays beside the new one. Every other section keeps the operator's text.
 - **Record as a seed deviation.** Ask for the operator's reason and require one. Write §0's bullet into `## Seed deviations`, creating the section at the end of the document when absent. Change no other line.
 - **Leave for later.** Write nothing. The gap is offered again next time.
 
@@ -561,6 +556,8 @@ The focused command selects every test a changed path can affect.
 - Applying a seed's `## Assignee` writes no assignee into a tracked document; the answer goes to the operator file.
 
 **The operator file on re-run.** Applies to every re-run. Read the operator file. An `issue-tracker.assignee` other than `none` with no `displayName` gets the display name looked up and written per decision A, with no question.
+
+**An absent plan document.** Applies to a re-run where `issue-tracker.md` is present and `issue-tracker-plan.md` is absent. Offer it as one seed gap. **Apply** writes `issue-tracker-plan.md` from the `-plan` seed, filled in with the store document's values, carries over the operator's text of every store-document section that matches a `-plan` seed section (append mode, the assignee, issue creation, the anchor-line writes, the tag rewrite, writing slices), and removes those sections from `issue-tracker.md`. Every store-document `## Seed deviations` bullet naming a moved rule moves with it.
 
 **A backend switch.** Applies to a re-run that changes a document's backend. Write the new seed fresh and carry no seed deviation over.
 

@@ -111,12 +111,15 @@ function passed(r, label) {
 }
 
 // A message with no Next heading that still names one next command is held: a lone command fence, or a `/superdev:` code
-// span on a line that says "next". Commands in prose without "next", and two different commands, are not held.
+// span on a Next line, one whose first word past a list marker and emphasis is "next". Commands in prose, "next" inside a
+// sentence included, and two different commands, are not held.
 {
   const tmp = freshTmp();
   blocked(run(tmp, stop('Reviewed.\n\nTo open the PR, run this:\n```\n/superdev:submit-pr a\n```\n')));
   blocked(run(tmp, stop('Done.\n\nNext would be `/superdev:submit-pr` to open the PR. I start it only if you ask.')));
+  blocked(run(tmp, stop('Done.\n\n- **Next:** `/superdev:submit-pr a`')));
   passed(run(tmp, stop('The hook reads `/superdev:review` output.')), 'prose span');
+  passed(run(tmp, stop('Done.\n\nAdopters will see that as a seed gap on the next `/superdev:setup` run.')), 'next inside a sentence');
   passed(run(tmp, stop('Run in order:\n```\n/superdev:ship a\n```\n```\n/superdev:publish-kb a\n```\n')), 'two fences');
   passed(run(tmp, stop('Example:\n```\n/superdev:review a\n/superdev:document a\n```\n')), 'two-line fence');
   // Only the last paragraph is read: a mention earlier in an interview question is no next step.

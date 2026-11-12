@@ -46,6 +46,7 @@ const template = templateOnce((dir) => {
   git(['init', '-q', '-b', 'main'], repo);
   git(['config', 'user.email', 'test@example.com'], repo);
   git(['config', 'user.name', 'test'], repo);
+  git(['config', 'maintenance.auto', 'false'], repo);
   commit(repo, 'README.md', 'x\n', 'init');
   git(['remote', 'add', 'origin', origin], repo);
   git(['push', '-q', 'origin', 'main'], repo);

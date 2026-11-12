@@ -29,6 +29,7 @@ const template = templateOnce((dir) => {
   git(['init', '-q', '-b', 'main'], repo);
   git(['config', 'user.email', 'test@example.com'], repo);
   git(['config', 'user.name', 'test'], repo);
+  git(['config', 'maintenance.auto', 'false'], repo);
   fs.mkdirSync(path.join(repo, 'docs', 'agents'), { recursive: true });
   fs.writeFileSync(path.join(repo, 'docs', 'agents', 'code-management.md'), '# CM\n\n- **Remote:** `origin`. Confirm.\n');
   fs.writeFileSync(path.join(repo, 'README.md'), 'x\n');

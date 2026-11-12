@@ -206,7 +206,8 @@ set to 600000, the Bash tool's maximum. The verb runs the **Prepare command** (C
 `docs/agents/verification.md` states, at `<tree>`'s root, and is no test run.
 
 - **Exit 0** → continue. With no `## Prepare command` section the verb prints one note naming `/superdev:setup`;
-  repeat it once in the run's report.
+  repeat it once in the run's report. A `prepare: skipped` note means the tree was already prepared and nothing
+  since needs the command again.
 - **Exit 3** → the command failed, was ended by a signal, could not start, or changed a tracked file. A tracked edit
   the tree already held before the command is no such change. Stop the
   step, naming the command and the reason the verb printed, and dispatch nothing into that tree. **`--unattended` → block**, per `scope-mode.md`'s

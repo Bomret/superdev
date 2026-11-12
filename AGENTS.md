@@ -85,7 +85,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          `kb-staged-page.js`, `kb-backend.js`, `kb-apply.js`, `kb-parent-link.js`,
                          `kb-containment.js`, `kb-read.js`, `kb-report.js` (the parts of `publish-kb.js`).
   references/          — backend seed templates + the non-seed runtime references (plan-contract with
-                         plan-authoring and store-records,
+                         plan-authoring, store-records, and assignee,
                          documentation convention, controlled-prose, content-types, doc pass, run init,
                          run handoff, execution playbooks, test-selection, scope-mode with its split files scope-branch,
                          run-state, scope-findings, and shipped-run, authoring
@@ -104,7 +104,7 @@ tests/                 — one suite per shipped executable (the hooks, `scope.j
                          `node:assert`, run under `node` by `node scripts/run-tests.js` (ADR 0059). A large entry
                          point's suite is split flat by topic into `tests/<entry>-<topic>.test.js` over one
                          `<entry>-setup.js` that is no suite (ADR 0139, ADR 0151): `scope-*` (ledger,
-                         ledger-header, suite, dod-line, dod-tags, dod-check, dod-merge, publish-adopt, trace, digest, untraced, root-base, containment,
+                         ledger-header, `suite-*` (record, carry, complete, rerun, config, failed), dod-line, dod-tags, dod-check, dod-merge, publish-adopt, trace, digest, untraced, root-base, containment,
                          citations-collisions, source-set, push, open, help, stdin, discard, prepare, `test-verb-*`, `fail-to-pass-*`, over `scope-setup.js`),
                          `run-trace*` (dispatch, guards, paths, over `run-trace-setup.js`), `publish-kb*` (containment, guard, `parent-link-*`,
                          patch, publish, read, scope, templates, timeout, over `publish-kb-setup.js`),
@@ -205,6 +205,12 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   in all, and the pin judges the last pair. A one-off load spike then decides no pin.
   `timePair` needs `process.threadCpuUsage()`, so `package.json`'s `engines.node` requires Node 24 or later
   for the test toolchain. The hooks under `plugin/` do not use it.
+- **No test run without due cause** (ADR 0242). A maintainer or agent working here names the question a run
+  answers before making it, and makes the smallest run that answers it: one test where the runner can pick it, one
+  suite (`node tests/<suite>.test.js`), or `node scripts/run-tests.js --related <paths>`. A prose-only change needs the `--related` tail alone. The full
+  `node scripts/run-tests.js` runs at most once per branch, before its pull request, and only when the change touches
+  code a focused run cannot reach. Parallel agents never each run the full suite. Shipped prose holds adopters' runs to
+  the same rule, in `references/test-selection.md`'s `## Every run answers a question`.
 - **Shipped code carries no test seam** (ADR 0154). Under `plugin/`, no environment variable, parameter,
   default, export, or comment exists for a test's sake. A suite reaches behaviour through the shipped
   entry points and the real inputs they take, and a suite that needs a different bound or remote builds
@@ -304,7 +310,7 @@ never that saying it helps.
 ## Agent skills
 
 ### Slice store
-GitHub Issues (`Bomret/superdev`). Slices as issues, feature labels, epics as scope anchors. See `docs/agents/issue-tracker.md`.
+GitHub Issues (`Bomret/superdev`). Slices as issues, feature labels, epics as scope anchors. See `docs/agents/issue-tracker.md`, and `docs/agents/issue-tracker-plan.md` for the calls only `/superdev:plan` makes.
 
 ### Code host
 GitHub. Push scope branch, open ready PR against `main`, squash-merge with Conventional Commits title. See `docs/agents/code-management.md`.
@@ -457,8 +463,8 @@ This root owns every other subtree directly:
   (`start_session` with the offer's marker line, or an `AskUserQuestion` with a `Start /superdev:` option) by
   session, turn, and command. Its Stop half, last in the Stop array, holds a main-session turn once when the last
   message's Next block names one command no offer call of the turn named. A message with no `### Next` heading counts
-  as one when the lone-command fences and the `/superdev:` code spans on a line saying "next" in its last paragraph
-  name one command (ADR 0213, ADR 0216, ADR 0226, INV-0183). It passes a turn whose command is the superdev skill the session transcript
+  as one when the lone-command fences and the `/superdev:` code spans on a line whose first word, past a list marker
+  and emphasis, is "next" in its last paragraph name one command (ADR 0213, ADR 0216, ADR 0226, ADR 0240, INV-0183). It passes a turn whose command is the superdev skill the session transcript
   last started, by `<command-name>` or `Skill` call (ADR 0222). It fails open on
   any malformed input or filesystem error, and passes a Stop with `stop_hook_active` set.
 - `scripts/` and `plugin/scripts/`. Owned by [`scripts/AGENTS.md`](scripts/AGENTS.md), which states

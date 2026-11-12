@@ -5,7 +5,7 @@
 // it, so each suite runs on its own. It is no suite. `tmp` is created on first read, so a suite that needs only
 // `verif` creates no directory.
 
-const { copyFixture } = require('./fixture-git');
+const { copyFixture, templateOnce } = require('./fixture-git');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -249,6 +249,44 @@ const cleanup = () => {
   if (dir) fs.rmSync(dir, { recursive: true, force: true });
 };
 
+// The git repositories of the suite-record suites (`tests/scope-suite-*.test.js`). `gitOut` runs git and returns its trimmed
+// stdout. Every fixture repository is on `main`, carries a user identity, and runs no automatic maintenance, so its refs stay
+// loose and `head` reads the commit HEAD names from the ref files, asking git only where no loose ref file holds it.
+// `fixtureRepo(key, build, prefix)` builds the repository of one `key` once per process: `build(dir)` fills a fresh repository
+// and returns what it records (its commits). Each call returns a copy of that repository, `{ repo, ...record }`, which the
+// caller removes. `commitAll(repo, message)` commits every change in the working tree and returns the new commit.
+const gitOut = (args, cwd, env) =>
+  require('node:child_process').execFileSync('git', args, { cwd, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+const head = (repo) => {
+  const gitDir = path.join(repo, '.git');
+  const ref = fs.readFileSync(path.join(gitDir, 'HEAD'), 'utf8').trim();
+  if (!ref.startsWith('ref: ')) return ref;
+  const file = path.join(gitDir, ref.slice('ref: '.length));
+  return fs.existsSync(file) ? fs.readFileSync(file, 'utf8').trim() : gitOut(['rev-parse', 'HEAD'], repo);
+};
+const commitAll = (repo, message) => {
+  gitOut(['add', '-A'], repo);
+  gitOut(['commit', '-q', '-m', message], repo);
+  return head(repo);
+};
+const repoTemplates = templateOnce((root) => {
+  const empty = path.join(root, 'empty');
+  fs.mkdirSync(empty);
+  gitOut(['init', '-q', '-b', 'main'], empty);
+  fs.appendFileSync(path.join(empty, '.git', 'config'), '[user]\n\temail = test@example.com\n\tname = test\n[maintenance]\n\tauto = false\n[gc]\n\tauto = 0\n');
+}, 'scope-repo-templates-');
+const builtRepos = new Map();
+const fixtureRepo = (key, build, prefix = 'scope-repo-') => {
+  let built = builtRepos.get(key);
+  if (!built) {
+    const tdir = path.join(repoTemplates(), 't' + builtRepos.size);
+    fs.cpSync(path.join(repoTemplates(), 'empty'), tdir, { recursive: true });
+    built = { tdir, record: build(tdir) };
+    builtRepos.set(key, built);
+  }
+  return { repo: copyFixture(built.tdir, prefix), ...built.record };
+};
+
 // The fixture of the `scope.js test` verb's suites (`tests/scope-test-verb-*.test.js`): a run root `demo` with slice 03's
 // tree `S` (a git repository holding a stub `bats` on PATH), its own temporary directory `D`, and the helpers that
 // run the verb, a bash driver, and read the run trace. `verif` writes `verification.md` and commits it. `end` removes `D`.
@@ -395,4 +433,8 @@ module.exports = {
   scopePath,
   run,
   cleanup,
+  gitOut,
+  head,
+  commitAll,
+  fixtureRepo,
 };

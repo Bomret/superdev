@@ -1380,7 +1380,7 @@ try {
   );
 
   // pr clear: removes the line and leaves every other byte alone; clearing an absent line still
-  // succeeds and changes nothing (the shape a legacy ledger predating this header leaves behind).
+  // succeeds and changes nothing.
   const beforePrClear = fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
   assert.ok(call(['pr', 'clear', ...R]).ok, 'pr clear');
   assert.strictEqual(
@@ -1510,7 +1510,7 @@ try {
   assert.strictEqual(call(['get', 'branch', ...P]).out, 'absent', 'absent Branch reported as absent');
   assert.strictEqual(readLedgerHeader(preCliText, 'Unresolved'), null, 'a missing Unresolved line reads as absent rather than raising');
   assert.ok(call(['unresolved', 'clear', ...P]).ok, 'clearing an absent Unresolved line on a pre-CLI ledger still succeeds');
-  assert.strictEqual(call(['deploy', 'get', ...P]).out, 'absent', 'a ledger predating the Deploy header reads it as absent');
+  assert.strictEqual(call(['deploy', 'get', ...P]).out, 'absent', 'a ledger with no Deploy header reads it as absent');
   assert.ok(call(['stage', 'set', 'reviewed', ...P]).ok, 'pre-CLI ledger writable');
 
   // status: renders every scope; an unreadable ledger is reported while others render.
