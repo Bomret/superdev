@@ -473,4 +473,4 @@ function verbGet(root, field) {
   console.log(v === null ? 'absent' : v);
 }
 
-module.exports = { verbSuite, verbSuiteRerun, verbSuiteReusable, verbBaseSet, verbBaseResolve, verbGet };
+module.exports = { rootRelative, lazyToplevel, verbSuite, verbSuiteRerun, verbSuiteReusable, verbBaseSet, verbBaseResolve, verbGet };
