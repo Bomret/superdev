@@ -40,7 +40,7 @@ entries like any other doc. No rejections yet → no directory; never scaffold a
 
 **Standard:** `<controlled | <repo-relative path> | none>`
 
-The prose style the doc agents apply (ADR 0012). One of:
+The prose style the doc agents apply. One of:
 
 - `controlled`: the language-neutral rule set shipped with the plugin. The agents read
   `${CLAUDE_PLUGIN_ROOT}/references/controlled-prose.md`.

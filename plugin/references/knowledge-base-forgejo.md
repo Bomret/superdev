@@ -22,7 +22,7 @@ untested against Gitea.
   exactly one entry whose `url` is `<host>`, that login is used; set and naming none, the step stops with
   exit 2 and lists the matching names. No token environment variable is read.
 - **Hierarchy:** links. A Forgejo wiki nests no pages. Each child page links from a list item in its
-  parent's body, and `/superdev:publish-kb` writes that link (ADR 0168).
+  parent's body, and `/superdev:publish-kb` writes that link.
 
 ## Audience, language & outline
 
@@ -49,7 +49,7 @@ with the repository's own topics, each named by its exact title.
 - **`Concepts`.** `(aggregate)`: one `##` section per term, contributed by the scope that built it.
   Parent: `Home`, section `Concepts`.
 
-**Every outline entry names a topic page** (ADR 0229, INV-0188). An entry gives one page's exact title,
+**Every outline entry names a topic page**. An entry gives one page's exact title,
 and the page holds one subject a reader looks up, such as `Architecture` or `Configuration`. An entry holding a placeholder (`<...>`)
 names no page, and the doc pass writes no page under it. `/superdev:document`'s doc pass extends the topic page a change touches. Only when no topic fits does it
 add one explicit entry here, in the scope's doc commit, with its reason. A page per feature is no entry.
@@ -59,7 +59,7 @@ because its parent has no page to carry the link yet.
 
 **`(aggregate)` marks a page many scopes contribute to.** Such a page is staged one section at a time
 (`action: patch`) and merged into the live page by that section's heading. Every other page is staged
-whole (ADR 0027).
+whole.
 
 **Links.** A parent's link line has the form `- [<title>](<host>/<owner>/<repo>/wiki/{sub_url}): <one line>`.
 `<title>` is the child's full title. `{sub_url}` is written literally. The doc-writer writes the whole line,
@@ -70,10 +70,10 @@ section's own content, or below the heading as its first list item when that con
 
 ## Staging
 
-This is a **remote** backend, so nothing but `/superdev:publish-kb` calls it (ADR 0023).
+This is a **remote** backend, so nothing but `/superdev:publish-kb` calls it.
 The doc pass writes each page as a **staged page**: `/superdev:document` runs it, and on the `lite` tier
 `/superdev:implement` runs it inline first. Each page is staged under `.superdev/kb-pending/<scope>/` in the
-main working tree, resolved by `scope.js staging <scope>` (ADR 0119). Each carries YAML frontmatter with
+main working tree, resolved by `scope.js staging <scope>`. Each carries YAML frontmatter with
 the page `title` and an `action` of `upsert`, `patch`, or `delete`, and the page body below. A page reaches
 the wiki when a human runs `/superdev:publish-kb`, after the feature has reached the readers this wiki is
 written for.
@@ -112,10 +112,10 @@ not used: it reads a disabled wiki's 404 as an empty listing.
 
 ## Commands
 
-The **backend command contract** (ADR 0069) `scripts/publish-kb.js` runs. Each command runs as
+The **backend command contract** `scripts/publish-kb.js` runs. Each command runs as
 `sh -c <template> sh <path>`: `$1` names a JSON file holding `title`, `bodyFile` (`create` and `update`),
 the `find` result's fields under `found` (`read`, `update`, and `delete`), and the `knowledge-base`
-section of `.superdev/info.json` under `operator` (ADR 0207). Every command reads its values from that
+section of `.superdev/info.json` under `operator`. Every command reads its values from that
 file with `jq`. `find` lists every wiki page and filters by title, emitting the matching entry's
 `sub_url`; `read`, `update`, and `delete` take `.found.sub_url` from it, and `/superdev:publish-kb` fills a parent link's `{sub_url}` from it (ADR
 0168). `update` always sends `title`, for the reason the wiki API conventions above state. `find` maps
@@ -133,7 +133,7 @@ Every template opens with the same login line: `tea login list -o json` narrowed
 after writing the cause and the `tea login add --url <host>` command to stderr, which `publish-kb.js`
 appends to the failure reason it reports. `create` and `update` map a non-2xx answer to exit 1.
 
-Every command below runs under a **30-second bound** (ADR 0130), or whatever
+Every command below runs under a **30-second bound**, or whatever
 `knowledge-base.timeoutMs` of `.superdev/info.json` names. `scripts/publish-kb.js` applies it at the spawn. A command killed at
 the bound leaves its page staged and **stops the run**: the remaining pages are reported untried and stay
 staged for the next one.

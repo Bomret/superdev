@@ -2,8 +2,8 @@
 
 The **extend** branch of `/superdev:plan`: add slices to a feature that already has them.
 `skills/plan/SKILL.md` §0 reads this only when the operator picks extend, so a new-feature or repair plan
-loads none of it. `plan-contract.md`'s `## Append mode` owns the invariants an append holds and the reason
-behind each refusal (ADR 0004, ADR 0083, INV-0004). This file owns the steps that apply them.
+loads none of it. `plan-authoring.md`'s `## Append mode` owns the invariants an append holds and the reason
+behind each refusal. This file owns the steps that apply them.
 
 ## Load the feature
 
@@ -19,9 +19,9 @@ is fixing the state. Name which signal fired and what clears it. Any one signal 
 - **An active run.** The store holds a slice `in-progress`, `in-review`, or `blocked`. Clears once that
   slice leaves the state.
 - **The run root's ledger stage.** The run root is
-  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" root <slug>`'s printed path (ADR 0080). Read its stage with
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" root <slug>`'s printed path. Read its stage with
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>`. `planned` proceeds: §2 and
-  §6 carry it through as the `planned`-ledger case of their own steps (ADR 0079). Every stage from
+  §6 carry it through as the `planned`-ledger case of their own steps. Every stage from
   `implementing` on refuses, `shipped` and `closed` included. A run root that exists with no `ledger.md`,
   or whose `get stage` call errors, refuses: the gate fails closed on a state it cannot read. A run root
   that does not exist carries no signal here.
@@ -35,8 +35,8 @@ is fixing the state. Name which signal fired and what clears it. Any one signal 
 
 **Name the remedy, per `## Append mode`.** A stage from `implementing` on, a done anchor, or a `shipped`
 or `closed` snapshot takes a **new feature** carrying `**Blocked by feature:** #<anchor>`
-(`plan-contract.md` → *Scope anchor*, ADR 0040), opened now. A shipped feature whose run root's `dod.md`
-holds a `not met:` line takes the **repair** choice instead (ADR 0124). A feature only its snapshot shows
+(`plan-contract.md` → *Scope anchor*), opened now. A shipped feature whose run root's `dod.md`
+holds a `not met:` line takes the **repair** choice instead. A feature only its snapshot shows
 shipped reads those lines off the Definition-of-Done lines in the same body file, in place of `dod.md`.
 When none of those `not met:` notes carries `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s **The
 repair citation**, the repair choice does not list the feature yet: name `/superdev:verify-ship <scope>`
@@ -51,7 +51,7 @@ writes the epic, where the other writes happen, so an abandoned interview strand
 ## Parked questions
 
 Surface the epic's parked questions once it loads, before the interview moves into new ground. Each is a
-load-bearing decision an earlier interview could not resolve (`plan-contract.md` → *Parked questions*):
+load-bearing decision an earlier interview could not resolve (`plan-authoring.md` → *Parked questions*):
 present every entry in the epic's `## Parked questions` section. An absent or empty section surfaces
 nothing, and is not an error. A question this interview resolves has its line deleted from that section,
 and the new slice's `spec` and `acceptance` become the durable record instead (`domain-modeling.md` →

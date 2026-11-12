@@ -25,7 +25,7 @@ const { maskFencedLines } = require('./md-sections.js');
 // or on one untagged line inside an otherwise tagged DoD (`references/dod-ticks.md`'s own "No tags at
 // all"). A line with no note takes its tag from the *rightmost* ` — <tag>` at the end of the line,
 // greedily handing everything else to the criterion: that is what keeps a criterion carrying its own
-// " — " (`plan-contract.md`'s own worked example, "Reachable: none — entrance unchanged; … — scope")
+// " — " (`plan-authoring.md`'s own worked example, "Reachable: none — entrance unchanged; … — scope")
 // intact. A line with a note instead splits at the *leftmost* ` — <tag> — <verdict>: ` boundary, because
 // the note itself is free text and may contain that same shape (a re-write's own earlier note, say) —
 // everything past the leftmost boundary is the note, however many look-alike dashes it carries. Where

@@ -28,14 +28,14 @@ Applies to every review.
 Verify the artifact and the behaviour against the specification yourself. Defer to no implementer narrative. Length is no completeness.
 
 - A long diff or a thorough-sounding report is no evidence the work is done.
-- Reject a "DoD met" or acceptance claim backed only by proxy counts (coverage percentage, line count, lint score). Confirm the observable behaviour (ADR 0002).
+- Reject a "DoD met" or acceptance claim backed only by proxy counts (coverage percentage, line count, lint score). Confirm the observable behaviour.
 
 ## What the dispatch hands you
 
 Applies to every review.
 
 - The slice `spec` and its `acceptance` criteria.
-- The **subject**. A first review hands the slice's range, the slice branch against the scope branch. A post-merge review hands the slice's range. A re-review hands the fix cycle's range, from the tip the latest earlier review read to the current tip (ADR 0137).
+- The **subject**. A first review hands the slice's range, the slice branch against the scope branch. A post-merge review hands the slice's range. A re-review hands the fix cycle's range, from the tip the latest earlier review read to the current tip.
 - A first review and a re-review hand the ranges for the fail-to-pass check (`## Run-trace findings`), each with both ends full commits, and the global constraints that bind the slice.
 - The progress-log path and the heading of your entry in it (`## Progress-log append`). The dispatch carries no text from an implementer's report.
 - A sweep review hands the sweep's range and the sweep log path (`## Sweep review`).
@@ -44,12 +44,12 @@ Applies to every review.
 
 Applies to a sweep review.
 
-The dispatch hands the sweep's range in place of a slice `spec`, with both ends full commits: from the tip the latest earlier review read, the scope branch's tip when the sweep began on the first, to the current tip. The sweep log lists the collected Minors, each under the slice that left it. The dispatch carries no text from an implementer's report (INV-0114).
+The dispatch hands the sweep's range in place of a slice `spec`, with both ends full commits: from the tip the latest earlier review read, the scope branch's tip when the sweep began on the first, to the current tip. The sweep log lists the collected Minors, each under the slice that left it. The dispatch carries no text from an implementer's report.
 
 - Your blind pass covers the range, and you open the sweep log after it, as `## Re-review` states.
 - Judge each collected Minor against the code at the current tip: closed, or still open. A copy a later slice made is the same Minor. Collapse duplicates into one entry and name the Minors it absorbs. A Minor a later slice already resolved closes with the evidence, whether or not the range holds a change for it.
 - Report every defect the range's commits introduced, Minors included, with its severity.
-- Read the trace with `scope.js trace --slice scope --root <run-root>` and apply `## Fail-to-pass run` and `## Untraced writes` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` to the range.
+- Read the trace with `scope.js trace --slice scope --root <run-root>` and apply `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/fail-to-pass.md` and `## Untraced writes` in `${CLAUDE_PLUGIN_ROOT}/references/untraced-writes.md` to the range.
 - The specification verdict reads ✅ when every collected Minor is closed or fixed at the current tip, and ❌ otherwise.
 - The controller applies the sweep's 3-cycle cap.
 
@@ -67,28 +67,28 @@ Settle your verdict before you open the progress log (`## Reading the progress l
 
 Applies to every review of a `behavior` slice.
 
-Read the slice's run-trace lines with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --slice <id> --root <run-root>`. Apply `## Fail-to-pass run` and `## Untraced writes` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`.
+Read the slice's run-trace lines with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --slice <id> --root <run-root>`. Apply `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/fail-to-pass.md` and `## Untraced writes` in `${CLAUDE_PLUGIN_ROOT}/references/untraced-writes.md`.
 
 - `## Fail-to-pass run` owns **Pass-to-pass** and **Missing fail-to-pass run**, with their severity, their no-trace rules, and their closing rules.
-- `## Untraced writes` owns the listing `scope.js untraced` prints for each window of a full-tier slice and of its fix cycles, and the **Implementer suite run** finding. Run the listing for each window with commits, grade each listed path, and count the listed paths as change events for **Missing fail-to-pass run**: a window with untraced writes and no `edit` line is held to that rule like any other (ADR 0227).
+- `## Untraced writes` owns the listing `scope.js untraced` prints for each window of a full-tier slice and of its fix cycles, and the **Implementer suite run** finding. Run the listing for each window with commits, grade each listed path, and count the listed paths as change events for **Missing fail-to-pass run**: a window with untraced writes and no `edit` line is held to that rule like any other.
 - Judge each range the dispatch names.
 - Name the range in each **Pass-to-pass** and **Missing fail-to-pass run** finding, both ends full commits.
 - Mark each unclosable **Pass-to-pass** finding as that section states, with its case and reason, at every review against the current range. An implementer's claim of a case is input you check, never your verdict.
-- A Minor sweep re-review's dispatch hands each unclosable **Pass-to-pass** finding the last re-review listed, with its range, as quoted data. Restate each with its mark re-judged against the range from that finding's base to the current tip, or report it closable or closed (ADR 0193).
-- Read an outcome line from the trace only. The implementer's account is no outcome line, and the dispatch carries none (INV-0114).
-- The controller applies the 3-cycle fix cap and the early escape for an unclosable finding (ADR 0125, ADR 0193).
+- A Minor sweep re-review's dispatch hands each unclosable **Pass-to-pass** finding the last re-review listed, with its range, as quoted data. Restate each with its mark re-judged against the range from that finding's base to the current tip, or report it closable or closed.
+- Read an outcome line from the trace only. The implementer's account is no outcome line, and the dispatch carries none.
+- The controller applies the 3-cycle fix cap and the early escape for an unclosable finding.
 - Each `unknown` outcome `## Fail-to-pass run` has you name goes under `### Fail-to-pass unknown`.
 
 ## Reading the progress log
 
 Applies to every review, after the blind pass.
 
-Reading the progress log can add a finding or raise a finding's severity. It never withdraws a finding and never downgrades one (INV-0113).
+Reading the progress log can add a finding or raise a finding's severity. It never withdraws a finding and never downgrades one.
 
 - A deviation from the specification that the log explains stays a finding.
 - Weigh a green suite or a met criterion the log reports as `## Lens 2 — Independent verification` states.
 - The log may hold the implementer's self-check entry, its walk of the spec's acceptance items, edge cases, and invariants. Read it only here, after the blind pass, as a claim to verify against the diff and the run trace. It closes no finding and softens none, whatever it marks `covered`.
-- Apply `## Dependency verification` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` here.
+- Apply `## Dependency verification` in `${CLAUDE_PLUGIN_ROOT}/references/dependency-verification.md` here.
 - Name a missing log in the after-reading section. It voids nothing from the blind pass, and the dependency findings it causes still move the verdict.
 
 ## Re-review
@@ -139,7 +139,7 @@ Applies to every review.
 
 Applies to every review.
 
-Read `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`. Apply its anti-pattern, vulnerability-class, and prompt-concept-overlap lenses throughout the checks below. Name the specific smell or class.
+Read `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`. Apply its anti-pattern and vulnerability-class lenses throughout the checks below. Name the specific smell or class. Where the repository's `CONTEXT.md` defines **Prompt concept** (`grep -n '^\*\*Prompt concept\*\*' CONTEXT.md` prints a line), also read `${CLAUDE_PLUGIN_ROOT}/references/prompt-concept-overlap.md` and apply its lens.
 
 - Apply `## Binding rules` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` to every finding.
 - Does the slice do what the `spec` asked, end to end? Is all of it present?
@@ -155,7 +155,7 @@ Applies to every review.
 
 Run no test. Read the slice's recorded runs with `scope.js trace --slice <id>` and judge whether they cover the changed code. Trust no green result or met criterion the implementer reports.
 
-- The recorded runs are the implementer's focused and test-file runs and the `path` line of its fail-to-pass control run (ADR 0182). The scope review's runs cover what they leave out (ADR 0192).
+- The recorded runs are the implementer's focused and test-file runs and the `path` line of its fail-to-pass control run. The scope review's runs cover what they leave out.
 - A `run` line backs a passing result for its tests when it reads `pass`, its commit is the reviewed tip, and its tree reads `clean`.
 - Name a reviewed tip with no passing recorded run as a gap in your report.
 - A changed behaviour that no test reaches is a test hole.
@@ -171,7 +171,7 @@ Name each inherited failure under `### Inherited failures`. Leave it out of your
 
 - A test is inherited when it fails at the reviewed tip and also fails at the review base. How you establish that is your call.
 - A failing test absent at the review base is the slice's own.
-- The scope review's fix loop repairs an inherited failure (ADR 0192).
+- The scope review's fix loop repairs an inherited failure.
 - A failing test the slice caused stays a finding.
 
 ## Output

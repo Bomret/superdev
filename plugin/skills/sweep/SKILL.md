@@ -8,10 +8,10 @@ argument-hint: "[path]"
 
 ## Role and terms
 
-Applies to every start. You chain four read-only surfaces into one **sweep** (CONTEXT.md) of a whole tree, and turn what they find into one plan-ready intent (ADR 0068). You report findings and apply none of them.
+Applies to every start. You chain four read-only surfaces into one **sweep** (CONTEXT.md) of a whole tree, and turn what they find into one plan-ready intent. You report findings and apply none of them.
 
 - **The swept path**: `$ARGUMENTS` read as a path, or `.`, the whole repository, when it is absent.
-- **A leg**: one of the four surfaces §2 invokes. Each runs in the **chained posture** (CONTEXT.md, ADR 0068): it returns its findings and writes nothing.
+- **A leg**: one of the four surfaces §2 invokes. Each runs in the **chained posture** (CONTEXT.md): it returns its findings and writes nothing.
 - **A fact**: a finding checkable against the repository with no room for disagreement. §3 lists which findings are facts.
 - **A judgment**: a call about what is worth acting on. §3 lists which findings are judgments.
 - **The intent file**: `.superdev/brainstorm/sweep-<date>-<swept-slug>.md`. `<swept-slug>` is the path argument with each `/` turned into `-`, or `all` when the swept path is `.`.
@@ -22,7 +22,7 @@ Applies to every start. Your only writes are the intent file under `.superdev/br
 
 ## The closing message
 
-Applies to every message this command ends on. Close it with the Next block per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in that file's `## The offer` section (ADR 0157).
+Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The offer`.
 
 ## 1. Derive the swept set
 
@@ -36,7 +36,7 @@ Applies to every message this command ends on. Close it with the Next block per 
 
 | Leg | What it reads |
 |---|---|
-| Code | The swept path as standing code, the whole tree at `HEAD`, on a **clean** path (ADR 0068). A path carrying commits against base, or uncommitted changes on it, makes `/superdev:review` review that diff instead; say so when it applies. |
+| Code | The swept path as standing code, the whole tree at `HEAD`, on a **clean** path. A path carrying commits against base, or uncommitted changes on it, makes `/superdev:review` review that diff instead; say so when it applies. |
 | Tests | The swept path narrows the cost audit's test set and the gap audit's source set. The gap audit still searches the repository's whole test-file list. |
 | Docs | Its own fixed set, the doc tree, whatever the path. |
 | Config | Its own fixed set, `docs/agents/*.md`, whatever the path. |

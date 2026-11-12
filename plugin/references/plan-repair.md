@@ -1,7 +1,7 @@
 # Plan: repair
 
 The **repair** branch of `/superdev:plan`: plan a `fix` feature for a shipped scope whose Definition of Done
-holds a line observed false (ADR 0124, INV-0131). `skills/plan/SKILL.md` §0 reads this only when the
+holds a line observed false. `skills/plan/SKILL.md` §0 reads this only when the
 operator picks repair, so a new-feature or extend plan loads none of it. The repair is a new feature with
 its own anchor, label, branch, and run. It appends nothing to the original.
 
@@ -70,4 +70,4 @@ as a store label, a branch, or a run root, take the first free `-2`, `-3`, … s
 it, like any label.
 
 Everything else follows the new-feature path. §6 writes the Repairs line, and writes nothing to the
-original anchor, its `dod.md`, or its ledger (INV-0131).
+original anchor, its `dod.md`, or its ledger.

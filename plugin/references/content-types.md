@@ -9,7 +9,7 @@
 # Content types
 
 The four kinds of information documentation carries. The `doc-writer` agent applies this lens when it
-writes. The `doc-reader` agent checks it in Pass 1, its cold read (ADR 0014).
+writes. The `doc-reader` agent checks it in Pass 1, its cold read.
 
 This lens is not a style. The **writing standard** governs how a sentence is formed, and a repo may set
 that standard to `none`. This file governs whether a reader receives the kind of information the document

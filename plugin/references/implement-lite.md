@@ -3,7 +3,7 @@
 The controller `Read`s this after computing tier = `lite` (see `skills/implement/SKILL.md`). Small plans
 don't need per-slice slicetrees or subagents: you (the controller) implement every slice yourself, inline,
 test-first, in a single dedicated scopetree. This is the one deliberate exception to the "controller
-never implements inline" invariant (ADR 0001). Honor the controller's **Invariants** throughout. Once
+never implements inline" invariant. Honor the controller's **Invariants** throughout. Once
 every slice is committed, perform the documentation pass (`## Document, before you hand off` below), then
 read `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md` as your last step.
 
@@ -13,7 +13,7 @@ read `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md` as your last step.
   the scopetree.
 - **Scope branch into a dedicated scopetree, per this run's kind.** Read
   `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Cutting the scope branch` and do what it says for
-  the run kind the controller handed you — `fresh` or `resumed` (ADR 0028). Never derive that
+  the run kind the controller handed you — `fresh` or `resumed`. Never derive that
   value yourself. Call whatever it leaves you on `<branch>` for the rest of this file: for `fresh` that is
   literally `git worktree add <run-root>/scopetree -b <type>/<scope> <base>` (`<path>` there
   is always `<run-root>/scopetree`; base from `code-management.md`, default `main`), while
@@ -37,9 +37,8 @@ closed.
 ## Bring in the base
 
 Right after the run lock, before the first slice, run `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s
-`## Bringing the scope branch to base`, on every invocation and at every run kind (ADR 0120, INV-0124).
-A stop there dispatches no slice. The step runs no test suite, so the suite record never holds a slice back
-(ADR 0192).
+`## Bringing the scope branch to base`, on every invocation and at every run kind.
+A stop there dispatches no slice. The step runs no test suite, so the suite record never holds a slice back.
 
 ## Implement
 
@@ -55,22 +54,22 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
   never in the invoking checkout. `mechanical` / `docs` slices need no new test — the existing suite is
   the net. Read `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it selects for
   each run, through `scope.js test`. The loop runs only the tests that verify the slice, never `test full`, `test whole`, or a `test focused`
-  with no path: the scope review's exit run is the scope's one full-suite run (ADR 0192). Each failing-test or passing-test step runs
+  with no path: the scope review's exit run is the scope's one full-suite run. Each failing-test or passing-test step runs
   the test files that hold the tests it works on through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test path <file>... -- <command>`, a runner filter allowed.
   After the work is committed and before the fail-to-pass run, one `test focused <changed paths>` with at least one path
-  runs over the slice's whole changed-path set, and so does a step that works on no test file (ADR 0139, ADR 0232). A focused failure is a RED step: fix, commit, and run it again. Where the focused fence repeats the
+  runs over the slice's whole changed-path set, and so does a step that works on no test file. A focused failure is a RED step: fix, commit, and run it again. Where the focused fence repeats the
   full fence, each step runs each test file it works on through `test path <file>... -- <command>`, and you make neither of those
-  whole-set runs: the scope review's exit run covers them (ADR 0180, ADR 0192). Every test run passes Bash's `timeout` at its ceiling,
+  whole-set runs: the scope review's exit run covers them. Every test run passes Bash's `timeout` at its ceiling,
   600000 ms unless `BASH_MAX_TIMEOUT_MS` raises it, and runs in the foreground; only a run that can outlast the ceiling runs
   through the runner in the background, and you wait for its end before acting on it. A test command is recorded as typed and pushed with the run state, so a secret belongs in the environment, never on the command line. The run trace records your edits and runs.
 - **A failing test the slice did not cause is named, never fixed.** A test that also fails at the slice's
   base commit is inherited: name it in your report, fix none, block on none, and count no strike for it.
-  The scope review's fix loop repairs it (ADR 0192, INV-0157).
+  The scope review's fix loop repairs it.
 - **Declare the domain shapes a slice's `spec` names before its first RED test** — the same step
   `agents/implementer.md` carries, for the tier that dispatches nobody. A `spec` naming none leaves
   nothing to declare, the fields are yours, and a shape whose term `CONTEXT.md` lacks is reported rather
   than invented. A `spec`-named shape is requested, so the minimalism ladder still forbids every
-  abstraction the `spec` did not name (ADR 0030).
+  abstraction the `spec` did not name.
 - **Survey the tests already there, and take the cheapest fixture** — the same two steps
   `agents/implementer.md` carries, for the tier that dispatches nobody. Before a `behavior` slice's first
   RED test, grep the test tree for the interface its `spec` names — one targeted search on that name, not
@@ -99,18 +98,18 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
   `todo` → `in-progress` → `merged`, where `merged` means "committed to the scope branch" — there is no
   separate slice branch. Update the tracker status too, and **skip the `in-review` transition**: lite has
   no per-slice review.
-- **Record every `behavior` slice's commit range, and run its fail-to-pass run** (ADR 0134). A `behavior`
+- **Record every `behavior` slice's commit range, and run its fail-to-pass run**. A `behavior`
   slice's `merged` write carries `--range <base>..<tip>`, both full commits: `<base>` is the scope branch's
   tip before the slice's first commit, the `git rev-parse HEAD` you recorded when the slice started, and
   `<tip>` is `git rev-parse HEAD` once the slice's last commit is in. Where the range changes both a test-path
   file (`docs/agents/verification.md`'s `## Test paths`, the defaults where it has none) and another file, and its
-  test-path changes are not all deletions (ADR 0196), run
+  test-path changes are not all deletions, run
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <base>..<tip> -- <command>` from the scopetree first, the
   command naming every test file the range adds or modifies, while the slice is still `in-progress`, so the trace line
-  names the slice (ADR 0182). The verb's first run is the slice's last GREEN run of those test files, made in the scopetree:
+  names the slice. The verb's first run is the slice's last GREEN run of those test files, made in the scopetree:
   once the work is committed and its focused run passed, run `scope.js test path <each of those files> -- <command>` from
   the tree root, with the exact command the verb then takes. That passing run at the committed tip is the verb's first
-  run, so the verb runs only the second and skips its own first preparation (ADR 0215, ADR 0234). A run that does not
+  run, so the verb runs only the second and skips its own first preparation. A run that does not
   pass is a RED step. A range whose test-path changes are all deletions and that adds behaviour outside the
   test paths leaves that behaviour with no test: write one for it, then run the verb. The verb runs in the background when
   two runs of the range's test files can outlast the ceiling, and you wait for its end before you read its outcome
@@ -119,9 +118,9 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
   stood at `<base>`, prints `fail-to-pass`, `pass-to-pass`, or `unknown`, and appends a `fail-to-pass` line to the run
   trace. The outcome line is no test run and moves no suite record. A `pass-to-pass` outcome means the slice's tests
   pass without its change: strengthen them, commit, and run the verb again from the same `<base>` before the
-  `merged` write. A `pass-to-pass` outcome in one of the three unclosable cases of `review-checklist.md`'s
+  `merged` write. A `pass-to-pass` outcome in one of the three unclosable cases of `fail-to-pass.md`'s
   `## Fail-to-pass run` is the exit from that loop: stop strengthening, keep the outcome line, write the `merged` row,
-  and name the case with its reason in your report. The scope review's `final-reviewer` judges the case (ADR 0193). Exit status 0 means
+  and name the case with its reason in your report. The scope review's `final-reviewer` judges the case. Exit status 0 means
   the verb read and printed an outcome; inside a run root it appends the line, and a failed append is reported
   on stderr with the status still 0. Status 1 means the verb refused the range, naming the reason, or hit an error.
   Name a test file the command left out and run it again; an error blocks nothing, and `final-reviewer`
@@ -130,7 +129,7 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
   (`verification.failToPassControlMs` in `.superdev/info.json` overrides it), or the run before the change outlasted ten times the
   duration the first run took or 10 seconds, whichever is larger (`verification.failToPassFloorMs` in `.superdev/info.json` overrides the
   10-second floor), or ended by a signal, or a run's command could not start (`start-failed:<code>` in its
-  reason), or the prepare command did not succeed before a run (`prepare=` in its reason, ADR 0218). It draws no finding and starts no fix cycle. The scope run's
+  reason), or the prepare command did not succeed before a run (`prepare=` in its reason). It draws no finding and starts no fix cycle. The scope run's
   first `unknown` is an observation: you write its triage record under
   `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Observations`, naming the environment gap. That rule
   exempts an inherited `unknown` and counts the first one it does not exempt, whether or not the verb's stderr
@@ -143,7 +142,7 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
   `dod.md` line whose tag names it, by `id` or by its `issue` (or, on a `dod.md` with no tags at all **and
   a ledger listing exactly one slice**, every line) — met with evidence, not met with a reason, or ceiling
   with partial evidence — and tick what earns it on `<run-root>/dod.md` alone, once the slice is
-  committed. The scope review copies it onto the anchor (`dod-ticks.md`, ADR 0206). An untagged line on a multi-slice `dod.md` is no slice's listed line — nor is any line on a
+  committed. The scope review copies it onto the anchor (`dod-ticks.md`). An untagged line on a multi-slice `dod.md` is no slice's listed line — nor is any line on a
   `dod.md` with no tags at all when the ledger lists more than one slice (a run begun before tagging
   existed); leave it for run handoff's own handoff pass, read next, which settles it as if it read `scope`.
 - **No dispatch degrades here.** This tier dispatches nobody, so a denied dispatch cannot happen and the
@@ -156,9 +155,9 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
 
 Once every slice is committed, **you** perform the documentation pass, in this same scopetree, while the
 scope is still in your context. That is the point of doing it here: a `doc-writer` dispatched later would
-rebuild the same picture from a diff (ADR 0031). `/superdev:document` still dispatches the `doc-writer`
+rebuild the same picture from a diff. `/superdev:document` still dispatches the `doc-writer`
 after this pass, whatever it changed, so the writer names the docs it judges current and the cold
-`doc-reader` tests them (ADR 0219). The `full` tier does not do this — its slices are built in parallel
+`doc-reader` tests them. The `full` tier does not do this — its slices are built in parallel
 slicetrees and would collide on shared doc files.
 
 - **Read `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md` and perform the pass it states**, both passes,
@@ -168,16 +167,15 @@ slicetrees and would collide on shared doc files.
   it records.
 - **Hand the pass the staging path as an absolute path** — the directory
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" staging <scope>` prints, `.superdev/kb-pending/<scope>/`
-  in the main working tree, resolved the same from this scopetree's cwd (ADR 0119).
+  in the main working tree, resolved the same from this scopetree's cwd.
 - **Hand the pass its `docs` targets**: every `docs`-tagged line of `<run-root>/dod.md` neither
-  ticked nor `accepted:`, verbatim (ADR 0161). `/superdev:review`'s `holds` verdict ticks each one the pass made true (`review-scope-mode.md`'s `### 4.5 The Definition-of-Done criteria`).
+  ticked nor `accepted:`, verbatim. `/superdev:review`'s `holds` verdict ticks each one the pass made true (`review-scope-mode.md`'s `### 4.5 The Definition-of-Done criteria`).
 - **Commit the doc changes on the scope branch**, in this scopetree, as their own commit.
 - **Record the pass** with
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs set inline --root <run-root>`. Write it **after** the
   pass, never before, so the record stands only for a pass that ran. `/superdev:document` takes no
   decision from the record: it dispatches the `doc-writer` and hands the `doc-reader` this scope's own
-  commits as the commit range, so the reader judges this pass's doc lines against the writing standard
-  (ADR 0219).
+  commits as the commit range, so the reader judges this pass's doc lines against the writing standard.
 - **A pass that changed nothing still records.** The docs already agreed with the code, which is a
   finished pass.
 - **A knowledge-base pass you cannot stage is a degraded pass**, the second shape in

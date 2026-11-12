@@ -24,7 +24,7 @@ Applies to every start. You write the per-repo config documents the superdev ski
   | `verification.md` | the optional **test commands**: a full one and, for every repository with a suite, a required focused one, which the implement chain's test runs read, an optional **timing command**, which a test audit reads, and the **prepare command**, which every test worktree runs first |
   | `deployment.md` | the repository's **deploy posture** (`none` / `manual` / `auto`) and its **deploy targets**, which `/superdev:ship` reads once a feature's pull request has merged |
 
-- **The operator file**: `.superdev/info.json`, the **operator configuration** (`CONTEXT.md`). It is no config document. It holds the slice store's assignee and display name under `issue-tracker`, a Forgejo knowledge base's tea login under `knowledge-base`, and the time bounds an operator sets (`plan-contract.md` → *Assignee — operator configuration* lists every key). It is git-ignored (ADR 0073).
+- **The operator file**: `.superdev/info.json`, the **operator configuration** (`CONTEXT.md`). It is no config document. It holds the slice store's assignee and display name under `issue-tracker`, a Forgejo knowledge base's tea login under `knowledge-base`, and the time bounds an operator sets (`plan-contract.md` → *Assignee — operator configuration* lists every key). It is git-ignored.
 - **An operator-file write**: merge into the operator file and keep each key already there. First ensure `.superdev/` is in `.gitignore`, adding it when absent.
 - **A remote backend**: a knowledge base on software (Confluence, a Forgejo, Gitea, or GitHub wiki, an "other" wiki). A local `docs/kb/` and none are not remote.
 - **A seed gap** and **`## Seed deviations`**: as §0's **Seed gaps** defines them.
@@ -33,7 +33,7 @@ Applies to every start. You write the per-repo config documents the superdev ski
 
 **The mode.** Applies to every start. `$ARGUMENTS` carrying the literal word `check` runs this read-only drift check and skips §1–§4. Any other `$ARGUMENTS`, including none, runs the full interview.
 
-- The operator names the mode. The command sniffs nothing (ADR 0068).
+- The operator names the mode. The command sniffs nothing.
 
 **The posture.** Applies to `check`. Write no file, make no slice-store or code-host call, and start no interview. Check each present document's facts against the repository alone.
 
@@ -50,23 +50,23 @@ Applies to every start. You write the per-repo config documents the superdev ski
 | `verification.md`, `toolchain.md` | Every command named (the full, focused, timing, and whole-repo commands, each toolchain entry) still resolves: a package-manager script is still declared in its manifest (`package.json`, `pyproject.toml`, a `Makefile` target, …), and a bare executable is still reachable. A command the manifest no longer defines is drift. A full command that looks affected (`nx affected`, `turbo --affected`, `pnpm` with a `--filter "...[<base>]"` selector, `dotnet-affected`, or another dependency-graph tool's affected mode, per decision E) in a `verification.md` with no `## Whole-repo command` section is drift: state that the section is missing, since `references/test-selection.md`'s `## Affected form` has such a repository configure one. |
 | `verification.md` | Test commands and no `## Test paths` section get an **advisory** line, never a drift verdict: state that the default patterns of `references/test-selection.md`'s `## Test paths` section apply (`tests/`, `test/`, `__tests__/`, and `spec/` directories at any depth by whole segment, `*.Tests` and `*.Test` directories, and the file names `*.test.*`, `*.spec.*`, `*_test.*`, `test_*.py`), and that the operator may add the section to name the repository's own test locations. A section with no usable entry, empty or all malformed, gets the same line. A `verification.md` with no test command gets no such line. |
 | `verification.md` | A `## Complete selector` section on a focused command with no `{paths}` token gets an **advisory** line, never a drift verdict: state that the declaration has no effect there. |
-| `verification.md` | Test commands and no `## Prepare command` section, or a section holding neither a command nor `none`, is reported: state that no test worktree is prepared and that a **Fail-to-pass run** reuses no traced control (`references/test-selection.md`'s `## Prepare command`, ADR 0218), and that a re-run of `/superdev:setup` proposes the section. A command the section names gets the resolution check of the first row. |
+| `verification.md` | Test commands and no `## Prepare command` section, or a section holding neither a command nor `none`, is reported: state that no test worktree is prepared and that a **Fail-to-pass run** reuses no traced control (`references/test-selection.md`'s `## Prepare command`), and that a re-run of `/superdev:setup` proposes the section. A command the section names gets the resolution check of the first row. |
 | `deployment.md` | The same resolution check on each target's command: a target naming a script the manifest no longer defines is drift. A `none` posture, or a `manual`/`auto` posture with an empty targets table, reports consistent once confirmed present. |
 | `issue-tracker.md`, `code-management.md` | A recorded host/owner/repo (or base URL) still matches `git remote -v`. Compare the host/owner/repo path alone, ignoring userinfo such as `https://user:TOKEN@host/owner/repo.git`. Report the remote with any userinfo stripped, never verbatim. A document naming no such fact (an "Other" backend written as prose) reports consistent once confirmed present. |
 | `documentation.md` | A `## Writing standard` naming a repo-relative path still resolves to a file, and each `## Audit set` glob still matches at least one file. |
-| `knowledge-base.md` | A local `docs/kb/` path still exists. A configuration carrying `- **Body format:** storage` whose `### create` template never reads `parentId` is drift: name the Confluence seed's `### create` template (`references/knowledge-base-confluence.md`) as its replacement. A software backend records no other local fact, and reports consistent once confirmed present. A `## Commands` command naming an environment variable that starts with `SUPERDEV` and `_KB_` joined (the retired placeholders, ADR 0207) is a seed gap: name it and offer the seed's current command for that verb, since `/superdev:publish-kb` refuses that command. |
+| `knowledge-base.md` | A local `docs/kb/` path still exists. A configuration carrying `- **Body format:** storage` whose `### create` template never reads `parentId` is drift: name the Confluence seed's `### create` template (`references/knowledge-base-confluence.md`) as its replacement. A software backend records no other local fact, and reports consistent once confirmed present. A `## Commands` command naming an environment variable that starts with `SUPERDEV` and `_KB_` joined (the retired placeholders) is a seed gap: name it and offer the seed's current command for that verb, since `/superdev:publish-kb` refuses that command. |
 
-**A leftover rules directory.** Applies to a `.claude/rules/` directory holding at least one `.md` file, superdev's retired rule-compliance home (ADR 0077). Report its path and how many `.md` files it holds. Name `docs/invariants.md` as where the content belongs. State that the move is by hand.
+**A leftover rules directory.** Applies to a `.claude/rules/` directory holding at least one `.md` file, superdev's retired rule-compliance home. Report its path and how many `.md` files it holds. Name `docs/invariants.md` as where the content belongs. State that the move is by hand.
 
 - `Class` and `Concepts` are mandatory register fields a glob-scoped rule records nowhere.
 - An absent `.claude/rules/`, or one holding no `.md` file, gets no line.
 
 ### Seed gaps
 
-**The comparison.** Applies to each present document, beside its verdict. Compare it with its **seed** (CONTEXT.md) and list its **seed gaps** (ADR 0107). The comparison reads the installed plugin's files and the document only.
+**The comparison.** Applies to each present document, beside its verdict. Compare it with its **seed** (CONTEXT.md) and list its **seed gaps**. The comparison reads the installed plugin's files and the document only.
 
 - **The seed** is the one for the backend the document records, read from `${CLAUDE_PLUGIN_ROOT}/references/`: `issue-tracker-<backend>.md`, `code-management-<host>.md`, `documentation.md`, `knowledge-base-<backend>.md`, `deployment.md`.
-- **A knowledge-base document recording a Forgejo, Codeberg, Gitea, or GitHub wiki** maps to its own seed, whoever wrote it: `knowledge-base-forgejo.md` for the first three, `knowledge-base-github-wiki.md` for GitHub, never the other's. A document lacking `- **Hierarchy:** links` or the seed's link line form is a seed gap. So is a Forgejo `find` template lacking the seed's empty-wiki rule (a 404 first listing page followed by the repository read). Each is offered like any other gap, and written only on the operator's choice (INV-0107).
+- **A knowledge-base document recording a Forgejo, Codeberg, Gitea, or GitHub wiki** maps to its own seed, whoever wrote it: `knowledge-base-forgejo.md` for the first three, `knowledge-base-github-wiki.md` for GitHub, never the other's. A document lacking `- **Hierarchy:** links` or the seed's link line form is a seed gap. So is a Forgejo `find` template lacking the seed's empty-wiki rule (a 404 first listing page followed by the repository read). Each is offered like any other gap, and written only on the operator's choice.
 - **No matching seed** reports `no seed to compare`: an "Other" prose backend, a `None` knowledge base, a `documentation.md` recording the user's own convention, `toolchain.md`, and `verification.md`. The last two keep the fact checks.
 
 **Matching.** Applies to a document with a seed. Pair each seed section with the document section that does the same job, whatever its heading. A seed gap is a seed section with no matching document section, or a seed rule that a matched section lacks or contradicts. List each by the seed's name for it, with the document section it belongs under.
@@ -76,7 +76,7 @@ Applies to every start. You write the per-repo config documents the superdev ski
 **A replaced rule.** Applies to a rule the current seed replaced, such as the token or curl rules a Forgejo config document written before ADR 0111 can carry. Such a rule is a contradicted rule. List it as a seed gap under the seed rule it contradicts, never as a stale deviation or a section only the document carries.
 
 - Such Forgejo token or curl rules contradict the seed's `Login` bullet, `tea conventions` section, or `Degrade when no tea login` section.
-- A knowledge-base outline entry holding a placeholder (`<...>`, such as `How it works: <mechanism>`), or an outline lacking the rule, contradicts the seed's **Every outline entry names a topic page** rule (ADR 0229). Explicit entries that differ from the seed's example entries are filled-in values, no gap.
+- A knowledge-base outline entry holding a placeholder (`<...>`, such as `How it works: <mechanism>`), or an outline lacking the rule, contradicts the seed's **Every outline entry names a topic page** rule. Explicit entries that differ from the seed's example entries are filled-in values, no gap.
 
 - A Forgejo issue-tracker document's `**Auth:**` bullet and `## REST conventions`.
 - A Forgejo code-management document's `**Auth:**` bullet naming a token env var or an `Authorization` header, a `## tea CLI conventions` section whose login line passes `--token`, a `## REST conventions (curl)` section, and a `## Degrade when no CLI / token` section.
@@ -146,13 +146,13 @@ Applies to the full interview. Scan these before any decision:
 - Offer the anchor role only types with `hierarchyLevel` 1, and the slice and triage roles only types with `hierarchyLevel` 0 and `subtask: false`.
 - Ask which types the operator allows per role, the first being the role's default, each with a one-line "use for" in the operator's words. Finish no role without a type.
 - A failed or denied probe is reported with its HTTP status, and setup asks for the types by name and id.
-- A re-run offers the per-role bullets as a seed gap to a configuration still carrying the single issue-type bullet, written only on the operator's choice (ADR 0107).
+- A re-run offers the per-role bullets as a seed gap to a configuration still carrying the single issue-type bullet, written only on the operator's choice.
 
 **Jira component.** Applies to Jira. Ask for the optional **repository component** (CONTEXT.md → *Repository component*). List `GET <base>/rest/api/3/project/<PROJ>/components`. Offer each component plus `none`, which writes no bullet and changes nothing.
 
 - A failed or denied listing is reported with its HTTP status, and setup asks for the component by name or `none`.
 - Before writing the `Repository component` bullet, list the repository's open superdev issues lacking it: open issues with `component is EMPTY` (the seed's JQL transport) whose feature label matches `<type>/<slug>`, whose triage label or `[triage] ` summary prefix marks a triage record, and whose type a role allows. Show them and offer to add the component to each (`{"update": {"components": [{"add": {"name": "<component>"}}]}}`, sent through the seed's transport rules). The operator chooses which.
-- A re-run offers the `Repository component` bullet and the seed's transport rules as seed gaps to a configuration lacking them, written only on the operator's choice (ADR 0107).
+- A re-run offers the `Repository component` bullet and the seed's transport rules as seed gaps to a configuration lacking them, written only on the operator's choice.
 
 **The release signal.** Applies to any issue backend. Ask what marks a ticket ready for work here: a label (`released`, `ready-for-work`), a status, or a board column. Record the signal as a `## Release` section in `issue-tracker.md` (`plan-contract.md` → *Release*), with the calls that **apply** it (what `/superdev:plan` fires on a release) and **read** it (what `/superdev:implement` and `/superdev:status` check). State these two properties back to the user:
 
@@ -164,7 +164,7 @@ Applies to the full interview. Scan these before any decision:
 - Accept a different account that can be assigned there (a repo collaborator, an assignable project user).
 - Accept `none` to create issues unassigned.
 
-**The assignee write.** Applies to an assignee answer. Make an operator-file write, never a write to `issue-tracker.md` (ADR 0073):
+**The assignee write.** Applies to an assignee answer. Make an operator-file write, never a write to `issue-tracker.md`:
 
 ```json
 {
@@ -172,7 +172,7 @@ Applies to the full interview. Scan these before any decision:
 }
 ```
 
-- **The display name.** For an answer other than `none`, look it up by its identifier: Forgejo/Gitea `tea api -i /users/<login>` and its `full_name`, reading the HTTP status from stderr, since `tea api` exits 0 on a 4xx or 5xx answer; GitHub `GET /users/<login>` and its `name`; Jira `GET /rest/api/3/user?accountId=<accountId>` and its `displayName`. A status other than 2xx is a failed lookup. `/superdev:plan` assigns by `assignee` alone (INV-0074).
+- **The display name.** For an answer other than `none`, look it up by its identifier: Forgejo/Gitea `tea api -i /users/<login>` and its `full_name`, reading the HTTP status from stderr, since `tea api` exits 0 on a 4xx or 5xx answer; GitHub `GET /users/<login>` and its `name`; Jira `GET /rest/api/3/user?accountId=<accountId>` and its `displayName`. A status other than 2xx is a failed lookup. `/superdev:plan` assigns by `assignee` alone.
 - **The merge.** Set `issue-tracker.assignee` and `issue-tracker.displayName`. An empty or null name, a failed lookup, or `none` removes `displayName`. Report a failed lookup in one line and continue, since the assignee is written either way.
 - **The report.** Say the path written and that the file is untracked, so a teammate inherits nothing from this answer.
 - **Declining** leaves no file. An absent file resolves to the token's own identity.
@@ -197,7 +197,7 @@ Applies to the full interview. Scan these before any decision:
 
 **The convention.** Applies to decision C. Propose an **`AGENTS.md` hierarchy** (walk before editing, update the affected `AGENTS.md` after meaningful changes, keep it concise and current), seed `references/documentation.md`. Capture a user's different convention as prose.
 
-**The writing standard.** Applies to decision C, next (ADR 0012). Ask for the prose style the doc agents apply, and record the answer as the `## Writing standard` section of `docs/agents/documentation.md`.
+**The writing standard.** Applies to decision C, next. Ask for the prose style the doc agents apply, and record the answer as the `## Writing standard` section of `docs/agents/documentation.md`.
 
 - **`controlled`** (recommended): the language-neutral rule set `references/controlled-prose.md` (active voice, a sentence-length cap, one name for one thing, no hedging or marketing adjectives, in the docs' own language).
 - **A repo-relative path**: the project's own style guide, which the agents read.
@@ -226,14 +226,14 @@ Applies to the full interview. Scan these before any decision:
 - Ask again for a parent id neither call finds.
 - The seed's `- **Body format:** storage` bullet needs no question.
 
-**Other wiki.** Applies to a different wiki. Capture the backend command contract below. Ask whether its page bodies are markdown, and record `- **Body format:** <value>` only when they are not. Record the `## Staging` section the seeded templates carry (ADR 0023).
+**Other wiki.** Applies to a different wiki. Capture the backend command contract below. Ask whether its page bodies are markdown, and record `- **Body format:** <value>` only when they are not. Record the `## Staging` section the seeded templates carry.
 
 - The `## Staging` section states that `/superdev:publish-kb` is the only caller of this backend, and that `/superdev:document` stages its pages.
 
 - A backend declaring no `delete` template leaves every `action: delete` staged page unpublishable.
 - One declaring no `read` template, or a non-markdown body, blocks the aggregate question.
 
-**Wiki templates.** Applies to a Forgejo, Gitea, or GitHub repo wiki (**Forgejo wiki**, **GitHub wiki**). The seed carries all five templates, so ask no per-verb template question. **The probes** still run (INV-0072). A probe exit `2` (on Forgejo a disabled or external wiki, on GitHub a wiki with no page yet): report the cause the template wrote to stderr, and leave `## Commands` unwritten.
+**Wiki templates.** Applies to a Forgejo, Gitea, or GitHub repo wiki (**Forgejo wiki**, **GitHub wiki**). The seed carries all five templates, so ask no per-verb template question. **The probes** still run. A probe exit `2` (on Forgejo a disabled or external wiki, on GitHub a wiki with no page yet): report the cause the template wrote to stderr, and leave `## Commands` unwritten.
 
 **Forgejo wiki.** Applies to a Forgejo or Gitea repo wiki, seed `references/knowledge-base-forgejo.md`. Ask the base URL and owner/repo. Fill every `<host>` and `<owner>/<repo>` placeholder with the base URL in the form `tea login list` reports (scheme included, no trailing slash) and owner/repo. Check `tea`, a `tea login list -o json` entry whose `url` equals the base URL, and `jq`, as the Forgejo code host does.
 
@@ -250,10 +250,10 @@ Applies to the full interview. Scan these before any decision:
 
 1. **Audience** (multi-select): end-users, internal developers, ops/support, stakeholders. Record the list.
 2. **Language**: the single natural language KB prose is written in. Code and in-repo docs keep theirs.
-3. **Outline**: scan the README and top-level structure, and propose a top-level section per audience with a few explicit topic entries under each, each naming one page by its exact title (*User Guide → Getting started, FAQ*; *Developer Docs → Architecture, Setup*). Propose no placeholder entry and no page per feature, and carry the seed's **Every outline entry names a topic page** rule (ADR 0229, INV-0188). Discuss and adjust with the user, and record the agreed outline in `knowledge-base.md` as the skeleton `/superdev:document` extends.
+3. **Outline**: scan the README and top-level structure, and propose a top-level section per audience with a few explicit topic entries under each, each naming one page by its exact title (*User Guide → Getting started, FAQ*; *Developer Docs → Architecture, Setup*). Propose no placeholder entry and no page per feature, and carry the seed's **Every outline entry names a topic page** rule. Discuss and adjust with the user, and record the agreed outline in `knowledge-base.md` as the skeleton `/superdev:document` extends.
 4. **A Forgejo or GitHub wiki outline** names a root page with no parent, gives each entry its parent page and the section in that parent, and records the seed's link line form (the `**Links.**` line of the wiki's own seed) under the wiki's own URL.
 
-**The command contract.** Applies to a remote backend (ADR 0069), except that a Forgejo or GitHub wiki's seed carries all five templates, so it gets no per-verb question (**Forgejo wiki**, **GitHub wiki**). Ask, verb by verb, for the shell command each of `find`, `read`, `create`, `update`, and `delete` runs. Write each under a `## Commands` section of `knowledge-base.md` as a `### <verb>` subsection holding one fenced `sh` block.
+**The command contract.** Applies to a remote backend, except that a Forgejo or GitHub wiki's seed carries all five templates, so it gets no per-verb question (**Forgejo wiki**, **GitHub wiki**). Ask, verb by verb, for the shell command each of `find`, `read`, `create`, `update`, and `delete` runs. Write each under a `## Commands` section of `knowledge-base.md` as a `### <verb>` subsection holding one fenced `sh` block.
 
 - Leave a verb the backend has no use for absent.
 - A local or none knowledge base is asked for no commands.
@@ -261,7 +261,7 @@ Applies to the full interview. Scan these before any decision:
 - Every command runs as `sh -c <template> sh <path>`, where `$1` names a JSON values file the template reads with `jq`.
 - Check that `jq` is installed for every remote backend. A missing `jq` stops the step with its fix (install `jq`) and leaves `## Commands` unwritten.
 - State every value to the user: `title` reaches every call; `bodyFile` (a path to the staged body, never the body inline) reaches `create` and `update`; `parentId` reaches `create` when the page names a parent; `found` (the `find` template's JSON object, types kept) reaches `read`, `update`, and `delete`; `operator` (the `knowledge-base` section of the operator file, `{}` when absent) reaches every call.
-- Name two `found` keys: an optional `sub_url`, the page's address, from which `/superdev:publish-kb` fills a `parent-link` target's `{sub_url}` placeholder (ADR 0168), and an optional `type`, whose value `folder` marks a container, so `/superdev:publish-kb` refuses an upsert or delete and names the folder.
+- Name two `found` keys: an optional `sub_url`, the page's address, from which `/superdev:publish-kb` fills a `parent-link` target's `{sub_url}` placeholder, and an optional `type`, whose value `folder` marks a container, so `/superdev:publish-kb` refuses an upsert or delete and names the folder.
 - `find` exit `0` with a JSON object on stdout means the page exists, exit `3` means it is absent, and anything else means the backend could not answer.
 
 **The probes.** Applies before `## Commands` is written for a remote backend. Run `find` with a values file whose `title` cannot exist (a random UUID), requiring exit `3`. For a backend whose auth is an environment variable, run `find` again with that variable set to a value that cannot authenticate, requiring an exit other than `0` and `3`. Leave `## Commands` unwritten until both pass.
@@ -270,7 +270,7 @@ Applies to the full interview. Scan these before any decision:
 
 - A backend whose auth is no environment variable (a CLI login) skips the second probe, and setup tells the operator so.
 
-**The probe bound.** Applies to each `find` probe of **The probes** (ADR 0130). Pass the Bash tool's `timeout` parameter, set to 30000, or to `knowledge-base.timeoutMs` of the operator file when set, both in milliseconds. State the bound to the operator while capturing the templates.
+**The probe bound.** Applies to each `find` probe of **The probes**. Pass the Bash tool's `timeout` parameter, set to 30000, or to `knowledge-base.timeoutMs` of the operator file when set, both in milliseconds. State the bound to the operator while capturing the templates.
 
 - A probe that exhausts the bound is a probe failure.
 
@@ -278,7 +278,7 @@ Applies to the full interview. Scan these before any decision:
 
 **A re-run's templates.** Applies when `knowledge-base.md` already carries `## Commands`. Show the delta between the newly captured templates and the existing ones. Keep the operator's template for a verb unless they choose to replace it.
 
-**The aggregate question.** Applies to a remote backend whose page bodies are markdown and whose `## Commands` holds a `### read` subsection (ADR 0027). Ask which pages **aggregate**: a page many scopes each contribute one section to (an index, a changelog, a glossary), naming any digest or index page in the outline. Mark each answer in the outline with `(aggregate)` and pin the heading level its sections take (e.g. `## <concept>`).
+**The aggregate question.** Applies to a remote backend whose page bodies are markdown and whose `## Commands` holds a `### read` subsection. Ask which pages **aggregate**: a page many scopes each contribute one section to (an index, a changelog, a glossary), naming any digest or index page in the outline. Mark each answer in the outline with `(aggregate)` and pin the heading level its sections take (e.g. `## <concept>`).
 
 - A marked page is staged one section at a time (`action: patch`) and merged into the live page. An unmarked one is replaced wholesale.
 - **None aggregate** marks nothing.
@@ -289,8 +289,8 @@ Applies to the full interview. Scan these before any decision:
 
 **The full command.** Applies to decision E. Ask for the single command that runs the repository's test suite (`npm test`, `pytest -q`, `cargo test`). Detect a likely one from the §1 scan (package.json scripts, a Makefile `test` target, `pyproject.toml`), and propose it.
 
-- It is the suite the implement chain runs: the scope review's exit run over the integrated scope, the scope's one full-suite run, where no reusable record, carry, or recorded rerun meets the gate (ADR 0192, `references/test-selection.md`).
-- No hook runs it on a merge (ADR 0155).
+- It is the suite the implement chain runs: the scope review's exit run over the integrated scope, the scope's one full-suite run, where no reusable record, carry, or recorded rerun meets the gate (`references/test-selection.md`).
+- No hook runs it on a merge.
 - **No suite** (a docs-only repository) skips this question, and nothing runs a suite. The fail-to-pass floor, focused, timing, and test-paths questions are skipped too.
 
 **The fail-to-pass floor.** Applies to a repository with a full command, when the operator asks for a floor other than 10000 milliseconds. Write `verification.failToPassFloorMs` by an operator-file write. It is the floor of the fail-to-pass run's bound (`plan-contract.md` → *Assignee — operator configuration*).
@@ -304,29 +304,29 @@ Applies to the full interview. Scan these before any decision:
   - **a fixed fast subset**, the unit tests without the slow integration tests (`pytest tests/unit`, `go test ./internal/...`, `cargo test --lib`);
   - **a self-detecting runner flag** with the runner's pass-with-no-tests flag: `npx vitest --changed --passWithNoTests`, `npx jest -o --passWithNoTests`.
 
-**No cheaper subset.** Applies to a repository with a suite whose full suite is **already cheap**, or where **no cheaper subset exists** because every test is slow (ADR 0085, INV-0007). A repository with a suite never reaches `none`. Ask which case applies. Record the answer as prose beside a second fence carrying the full command again.
+**No cheaper subset.** Applies to a repository with a suite whose full suite is **already cheap**, or where **no cheaper subset exists** because every test is slow. A repository with a suite never reaches `none`. Ask which case applies. Record the answer as prose beside a second fence carrying the full command again.
 
 - A runner that maps nothing is not one of these cases. It takes the fast subset.
 
-**The complete selector.** Applies to a focused command carrying `{paths}`, once it is settled (ADR 0175). Ask whether it selects every test any changed path can affect. Name what a yes trusts: gates then skip the full suite and carry a green suite record across a change the focused run covered (`references/test-selection.md`'s `## Complete selector`). A yes writes the `## Complete selector` section, listing as items each selector file the operator names (a runner script, a mapping config).
+**The complete selector.** Applies to a focused command carrying `{paths}`, once it is settled. Ask whether it selects every test any changed path can affect. Name what a yes trusts: gates then skip the full suite and carry a green suite record across a change the focused run covered (`references/test-selection.md`'s `## Complete selector`). A yes writes the `## Complete selector` section, listing as items each selector file the operator names (a runner script, a mapping config).
 
 - A no, or no answer, writes no section.
 
 - A fixed fast subset, a self-detecting flag, and a focused command repeating the full one carry no `{paths}` and get no question.
 - A re-run on a `verification.md` without the section asks once. One with the section asks nothing.
 
-**The test paths.** Applies to a repository with a full command (ADR 0117). Propose the glob patterns naming its test files, which `hooks/run-trace.js` reads to class each recorded edit: the defaults `references/test-selection.md`'s `## Test paths` lists, plus the directories and file patterns its test command and manifests name. Write the operator's answer as that section's **unfenced** list.
+**The test paths.** Applies to a repository with a full command. Propose the glob patterns naming its test files, which `hooks/run-trace.js` reads to class each recorded edit: the defaults `references/test-selection.md`'s `## Test paths` lists, plus the directories and file patterns its test command and manifests name. Write the operator's answer as that section's **unfenced** list.
 
 - No test command proposes no test paths and writes no section.
 
-**The prepare command.** Applies to a repository with a full command (ADR 0218). Read `references/test-selection.md`'s `## Prepare command`, which owns the contract. Propose the one command that makes a new worktree ready to run the tests, derived from the manifests and lockfiles the §1 scan found (a `bun.lock` with workspaces, a `pnpm-lock.yaml`, a `*.sln` to restore), each tool's form verified against its official docs (`references/doc-verification.md`), or `none` where a fresh checkout runs the tests as it stands. Settle it before **The affected form**.
+**The prepare command.** Applies to a repository with a full command. Read `references/test-selection.md`'s `## Prepare command`, which owns the contract. Propose the one command that makes a new worktree ready to run the tests, derived from the manifests and lockfiles the §1 scan found (a `bun.lock` with workspaces, a `pnpm-lock.yaml`, a `*.sln` to restore), each tool's form verified against its official docs (`references/doc-verification.md`), or `none` where a fresh checkout runs the tests as it stands. Settle it before **The affected form**.
 
 - **Try a proposed command first.** Create a probe worktree as **The probe worktree**'s steps 1 and 2 place it, run the command once at its root, then run `git status --porcelain --untracked-files=no` there, and remove the worktree as its step 7 does, on every exit path. Running it is no test run.
 - **A run that fails, or that changed a tracked file** (the status lists a path; the fresh worktree held none) → show the command, its exit, each path the status lists, and the tail of its output. Write it only on the operator's confirmation. A corrected command goes through the same run in a new probe worktree.
 - **`none`** runs nothing and is written on the operator's confirmation.
 - A re-run on a `verification.md` without the section asks once. One with the section asks nothing.
 
-**The affected form.** Applies to a monorepo's full command (ADR 0105, INV-0105). Identify the tool that owns the dependency graph (nx, turborepo, pnpm, or `dotnet-affected` over an MSBuild project graph). Verify its affected syntax against its official docs (`references/doc-verification.md`) before proposing it. Write no unverified form.
+**The affected form.** Applies to a monorepo's full command. Identify the tool that owns the dependency graph (nx, turborepo, pnpm, or `dotnet-affected` over an MSBuild project graph). Verify its affected syntax against its official docs (`references/doc-verification.md`) before proposing it. Write no unverified form.
 
 - `check` mode and sweep's chained setup leg ask nothing here.
 
@@ -335,7 +335,7 @@ Applies to the full interview. Scan these before any decision:
 - **The tool is not installed** → name it and its official install command, and write no affected form until it is installed and every query passes.
 - **No tool owns an affected mode** → keep the whole-suite full command and record the reason as prose beside the second fence.
 
-**No test run.** Applies to every configuration of this skill (ADR 0189, INV-0175). Setup runs no test command and never starts the affected form or the whole-repo command. Running the prepare command in a probe worktree is no test run (ADR 0218).
+**No test run.** Applies to every configuration of this skill. Setup runs no test command and never starts the affected form or the whole-repo command. Running the prepare command in a probe worktree is no test run.
 
 **The probe worktree.** Applies to an installed affected-mode tool, before the affected form or whole-repo command is written. Run read-only tool queries in a throwaway worktree, in the order below, each step's conditions holding from that step on. Take each query's syntax from the tool's official docs (`references/doc-verification.md`). Turn remote caching off: `NX_NO_CLOUD=true` (nx), `--cache=local:rw` (turborepo), and for any other tool its own docs' switch.
 
@@ -355,7 +355,7 @@ Applies to the full interview. Scan these before any decision:
 - A corrected form goes through steps 1 to 6 in a new probe worktree, which step 7 removes.
 - Every answer that writes a form passes step 6 first.
 
-**The timing command.** Applies to a repository with a full command (ADR 0066). Read `references/test-selection.md`, which owns the contract. Derive the proposal from the full command and the detected runner (`vitest --reporter=verbose`, `pytest --durations=0`, `go test -v ./...`, or the full command alone where the runner times only the whole suite). Write the section on the user's confirmation.
+**The timing command.** Applies to a repository with a full command. Read `references/test-selection.md`, which owns the contract. Derive the proposal from the full command and the detected runner (`vitest --reporter=verbose`, `pytest --durations=0`, `go test -v ./...`, or the full command alone where the runner times only the whole suite). Write the section on the user's confirmation.
 
 - **A runner reporting no durations** records no section, with the runner stated as the reason in prose.
 - **A user who declines** records no section either: ask what makes that right here, and record the reason as prose (a suite finishing in seconds is one).
@@ -372,7 +372,7 @@ Applies to the full interview. Scan these before any decision:
 
 ### G — Deployment (optional)
 
-**The posture.** Applies to decision G, seed `references/deployment.md`. Ask for one posture for the whole repository: `none` (nothing deploys), `manual` (the operator deploys outside superdev; `/superdev:ship` prints each target's command and records it pending), or `auto` (`/superdev:ship` runs each target's command after the merge, in a tree checked out at the merge commit, and only then, INV-0098). Propose `manual`, and list `auto` as opt-in only.
+**The posture.** Applies to decision G, seed `references/deployment.md`. Ask for one posture for the whole repository: `none` (nothing deploys), `manual` (the operator deploys outside superdev; `/superdev:ship` prints each target's command and records it pending), or `auto` (`/superdev:ship` runs each target's command after the merge, in a tree checked out at the merge commit, and only then). Propose `manual`, and list `auto` as opt-in only.
 
 - Write `auto` only when the operator picks it.
 
@@ -418,7 +418,7 @@ Applies to the full interview. Scan these before any decision:
 - Style prose: `CONTRIBUTING.md §Style`
 ````
 
-**The verification document.** Applies to `verification.md`. The first fenced block is the full command. A second fenced block always follows: decision E's focused command, or the full command again for the already-cheap and cannot-narrow cases (ADR 0085, INV-0007). Record the reason for the second fence's content beside it as prose outside any fence.
+**The verification document.** Applies to `verification.md`. The first fenced block is the full command. A second fenced block always follows: decision E's focused command, or the full command again for the already-cheap and cannot-narrow cases. Record the reason for the second fence's content beside it as prose outside any fence.
 
 ````markdown
 # Verification
@@ -447,8 +447,8 @@ npm test
 
 **No cheaper focused command, deliberately.** This suite finishes in seconds, so a distinct focused
 command saves nothing worth naming, and every caller runs the full command
-except a test-first step, which runs its own test file (`references/test-selection.md`, ADR 0025, ADR 0074,
-ADR 0085, ADR 0180).
+except a test-first step, which runs its own test file (`references/test-selection.md`, ADR 0074,
+ADR 0085).
 ````
 
 A runner that cannot narrow:
@@ -466,7 +466,7 @@ go test ./...
 
 **No cheaper focused command, deliberately.** This runner has no subset narrower than the full suite to
 name, so every caller runs the full command except a test-first step, which runs its own test file
-(`references/test-selection.md`, ADR 0025, ADR 0074, ADR 0085, ADR 0180).
+(`references/test-selection.md`).
 ````
 
 **The verification sections.** Applies to `verification.md`, after the fences. A command inside these sections takes a backtick span, never a fenced block, since every reader takes a fenced block by index.
@@ -534,7 +534,7 @@ The focused command selects every test a changed path can affect.
 
 ### Re-run: reconcile each document with its seed
 
-**The reconcile.** Applies to a plain re-run on a configured repository, for every document whose backend stays the same (ADR 0107). Show each document's seed gaps. Offer each gap on its own, with the document's current text beside the seed's and three choices.
+**The reconcile.** Applies to a plain re-run on a configured repository, for every document whose backend stays the same. Show each document's seed gaps. Offer each gap on its own, with the document's current text beside the seed's and three choices.
 
 - `toolchain.md`, the knowledge base's `## Commands`, and `deployment.md`'s targets keep their re-run rules above.
 
@@ -547,7 +547,7 @@ The focused command selects every test a changed path can affect.
 - **Record as a seed deviation.** Ask for the operator's reason and require one. Write §0's bullet into `## Seed deviations`, creating the section at the end of the document when absent. Change no other line.
 - **Leave for later.** Write nothing. The gap is offered again next time.
 
-**The operator's choice.** Applies to every gap and stale deviation. Write nothing without the operator's choice (INV-0107). List a recorded gap as recorded, and never offer it again.
+**The operator's choice.** Applies to every gap and stale deviation. Write nothing without the operator's choice. List a recorded gap as recorded, and never offer it again.
 
 - A re-run with no seed gaps asks nothing.
 
@@ -557,8 +557,8 @@ The focused command selects every test a changed path can affect.
 
 - Where §2 asks none, the seed section names the fill-in: the triage label, a repository filter for a store shared across repositories, a `(fill in at setup)` section such as `## Run state` or the status workflow.
 
-- Applying a knowledge-base gap writes `## Commands` only after §2's probe pair: the `find` probe exits 3 (INV-0072), and the bad-token probe exits other than `0` and `3`, or the notice that a backend with no token variable skips it.
-- Applying a seed's `## Assignee` writes no assignee into a tracked document; the answer goes to the operator file (INV-0074).
+- Applying a knowledge-base gap writes `## Commands` only after §2's probe pair: the `find` probe exits 3, and the bad-token probe exits other than `0` and `3`, or the notice that a backend with no token variable skips it.
+- Applying a seed's `## Assignee` writes no assignee into a tracked document; the answer goes to the operator file.
 
 **The operator file on re-run.** Applies to every re-run. Read the operator file. An `issue-tracker.assignee` other than `none` with no `displayName` gets the display name looked up and written per decision A, with no question.
 

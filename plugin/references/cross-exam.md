@@ -68,9 +68,9 @@ exhausted and you and the user share the same picture — **not** until you have
 - **Park explicitly, write it down.** A load-bearing decision genuinely can't be resolved this session
   (blocked on something outside the conversation, the user doesn't know yet)? Park it as a known-open
   question rather than forcing a premature answer — but write it to the epic's `## Parked questions`
-  section (`plan-contract.md`) the moment it's parked, not batched at the end. A multi-slice plan only:
+  section (`plan-authoring.md`) the moment it's parked, not batched at the end. A multi-slice plan only:
   on a single-slice plan, a genuinely open load-bearing decision means the plan isn't single-slice-simple
-  yet — resolve it now or decompose further (ADR 0005).
+  yet — resolve it now or decompose further.
 
 ## Termination
 

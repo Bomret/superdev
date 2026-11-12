@@ -22,20 +22,20 @@ Applies to every dispatch.
 - The range, area path, `full`, or `bootstrap`.
 - The path to `docs/agents/documentation.md`, the in-repo doc convention.
 - The path to `docs/agents/knowledge-base.md`: the backend (local `docs/kb/`, a remote backend such as Confluence, or none), its audience, its language, and its agreed outline.
-- The staging path: an absolute path, the one `scope.js staging <scope>` printed (`.superdev/kb-pending/<scope>/` in the main working tree). Where the knowledge-base config carries `- **Hierarchy:** links`, the staged pages carry the parent-link keys `references/doc-pass.md` states (ADR 0168).
+- The staging path: an absolute path, the one `scope.js staging <scope>` printed (`.superdev/kb-pending/<scope>/` in the main working tree). Where the knowledge-base config carries `- **Hierarchy:** links`, the staged pages carry the parent-link keys `references/doc-pass.md` states.
 - On a live scope run, the `docs` targets.
 
 ## The `docs` targets
 
 Applies to a dispatch that hands `docs` targets.
 
-Make every target true: write the `AGENTS.md` text it names where the hierarchy owns it, as `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md` states in `## Pass 1 — in-repo docs` (ADR 0161). Every target is part of the pass's work, never an option.
+Make every target true: write the `AGENTS.md` text it names where the hierarchy owns it, as `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md` states in `## Pass 1 — in-repo docs`. Every target is part of the pass's work, never an option.
 
 ## The pass
 
 Applies to every dispatch.
 
-Read `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md` and perform the pass it states. It owns the content-type lens, the writing standard, the in-repo docs pass, and the knowledge-base pass with its staged pages, because the `lite` playbook's controller performs the same pass in its own context (ADR 0031). Commit your doc changes on the current branch.
+Read `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md` and perform the pass it states. It owns the content-type lens, the writing standard, the in-repo docs pass, and the knowledge-base pass with its staged pages, because the `lite` playbook's controller performs the same pass in its own context. Commit your doc changes on the current branch.
 
 - Perform the pass over the range or area the dispatch hands you.
 
@@ -56,7 +56,7 @@ The dispatch hands you compressed recon maps, or `small repo — explore directl
 
 Applies to every dispatch.
 
-Read a remote knowledge base and write to none, as `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md` states in `## Read the knowledge base, never write to it` (ADR 0023, ADR 0094, INV-0091).
+Read a remote knowledge base and write to none, as `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md` states in `## Read the knowledge base, never write to it`.
 
 ## Read economically
 

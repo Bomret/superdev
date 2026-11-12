@@ -17,7 +17,7 @@ remain the source of truth; the wiki is a published view.
 - **Audience:** `<end-users | internal developers | ops/support | stakeholders | …>`
 - **Language:** `<e.g. English | German>`. All wiki prose is written in this language.
 - **Hierarchy:** links. The wiki nests no pages. Each child page links from a list item in its parent's
-  body, and `/superdev:publish-kb` writes that link (ADR 0168).
+  body, and `/superdev:publish-kb` writes that link.
 
 - **Decisions:** stay in the repository's ADRs. The knowledge base carries no ADR digest and no ADR
   summaries.
@@ -37,7 +37,7 @@ with the repository's own topics, each named by its exact title.
 - **`Concepts`.** `(aggregate)`: one `##` section per term, contributed by the scope that built it.
   Parent: `Home`, section `Concepts`.
 
-**Every outline entry names a topic page** (ADR 0229, INV-0188). An entry gives one page's exact title,
+**Every outline entry names a topic page**. An entry gives one page's exact title,
 and the page holds one subject a reader looks up, such as `Architecture` or `Configuration`. An entry holding a placeholder (`<...>`)
 names no page, and the doc pass writes no page under it. `/superdev:document`'s doc pass extends the topic page a change touches. Only when no topic fits does it
 add one explicit entry here, in the scope's doc commit, with its reason. A page per feature is no entry.
@@ -47,7 +47,7 @@ because its parent has no page to carry the link yet.
 
 **`(aggregate)` marks a page many scopes contribute to.** Such a page is staged one section at a time
 (`action: patch`) and merged into the live page by that section's heading. Every other page is staged
-whole (ADR 0027).
+whole.
 
 **Links.** A parent's link line has the form `- [<title>](https://<host>/<owner>/<repo>/wiki/{sub_url}): <one line>`.
 `<title>` is the child's full title. `{sub_url}` is written literally. The doc-writer writes the whole line,
@@ -58,10 +58,10 @@ section's own content, or below the heading as its first list item when that con
 
 ## Staging
 
-This is a **remote** backend, so nothing but `/superdev:publish-kb` calls it (ADR 0023).
+This is a **remote** backend, so nothing but `/superdev:publish-kb` calls it.
 The doc pass writes each page as a **staged page**: `/superdev:document` runs it, and on the `lite` tier
 `/superdev:implement` runs it inline first. Each page is staged under `.superdev/kb-pending/<scope>/` in the
-main working tree, resolved by `scope.js staging <scope>` (ADR 0119). Each carries YAML frontmatter with
+main working tree, resolved by `scope.js staging <scope>`. Each carries YAML frontmatter with
 the page `title` and an `action` of `upsert`, `patch`, or `delete`, and the page body below. A page reaches
 the wiki when a human runs `/superdev:publish-kb`, after the feature has reached the readers this wiki is
 written for.
@@ -82,7 +82,7 @@ written for.
 - **Only `.md` pages count.** A page GitHub renders from another extension, such as `.markdown`,
   `.asciidoc`, or `.rst`, reads as absent, and `create` adds a `.md` page beside it.
 - **The page is absent** only when a clone succeeds and holds no file for the title. That is the only
-  outcome `/superdev:publish-kb` §4 treats as positive absence (ADR 0027). A failed clone could not answer.
+  outcome `/superdev:publish-kb` §4 treats as positive absence. A failed clone could not answer.
 - **The wiki repository exists only once the wiki holds a page.** GitHub creates it when the first page is
   saved in the web editor. Until then every clone fails and every command answers exit 2.
 - **A write that changes nothing lands nothing.** `create` and `update` answer exit 0 without a commit when
@@ -92,12 +92,12 @@ written for.
 
 ## Commands
 
-The **backend command contract** (ADR 0069) `scripts/publish-kb.js` runs. Each command runs as
+The **backend command contract** `scripts/publish-kb.js` runs. Each command runs as
 `sh -c <template> sh <path>`: `$1` names a JSON file holding `title`, `bodyFile` (`create` and `update`),
 the `find` result's fields under `found` (`read`, `update`, and `delete`), and the `knowledge-base`
-section of `.superdev/info.json` under `operator` (ADR 0207). Every command reads its values from that
+section of `.superdev/info.json` under `operator`. Every command reads its values from that
 file with `jq`. `find` emits the page's `sub_url`, and `/superdev:publish-kb` fills a `parent-link`
-target's `{sub_url}` from it (`sub_url` is the contract's optional named `find` key, ADR 0168). `find`
+target's `{sub_url}` from it (`sub_url` is the contract's optional named `find` key). `find`
 answers exit 3 only when the clone succeeded and holds no file for the title; any other failure answers
 exit 2, "could not answer," so a page never gets created from a clone that failed. Every failure exit
 writes its cause to stderr.
@@ -107,7 +107,7 @@ the wiki without a checkout into a temporary directory that is removed on exit, 
 each one stands alone under the bound below. The templates use POSIX `sh` and options every platform's
 tools accept.
 
-Every command below runs under a **30-second bound** (ADR 0130), or whatever
+Every command below runs under a **30-second bound**, or whatever
 `knowledge-base.timeoutMs` of `.superdev/info.json` names. `scripts/publish-kb.js` applies it at the spawn.
 A command killed at the bound leaves its page staged and **stops the run**: the remaining pages are
 reported untried and stay staged for the next one.

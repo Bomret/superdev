@@ -51,7 +51,7 @@ Concepts: Release, Append mode, Scope anchor
 Statement: A release decision covers the work that existed when it was made. Work added to a feature after its release does not inherit that release.
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/skills/plan/**, plugin/references/plan-contract.md
+Paths: plugin/skills/plan/**, plugin/references/plan-contract.md, plugin/references/plan-authoring.md
 
 ### INV-0006
 
@@ -78,7 +78,7 @@ Concepts: Definition of Done (DoD), Reachability criterion
 Statement: A Definition-of-Done criterion states a requirement the feature meets, never a procedure superdev executes to verify it. A Reachable: criterion names an entrance, which is not a procedure.
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/skills/plan/**, plugin/references/plan-contract.md
+Paths: plugin/skills/plan/**, plugin/references/plan-authoring.md
 
 ### INV-0009
 
@@ -176,7 +176,7 @@ Concepts: Definition of Done (DoD), Acceptance
 Statement: A Definition-of-Done criterion names observable, user-facing behaviour. A proxy count (coverage, line count, lint score) may appear as a reviewer signal, never as a gate.
 Breaks: silently
 Check: none — no pin exists today
-Paths: plugin/references/plan-contract.md, plugin/skills/plan/**
+Paths: plugin/references/plan-authoring.md, plugin/skills/plan/**
 
 ### INV-0020
 
@@ -344,10 +344,10 @@ Paths: plugin/references/scope-mode.md, plugin/skills/**, plugin/references/impl
 
 Class: architecture
 Concepts: Scope anchor, Slice store, Seed, Release, Published snapshot, Triage record, Untriaged item, Assignee, Anchor dependency
-Statement: No command or agent names a slice store's own mechanics. Each reads them from the matching section of the active store document, which specialises `references/plan-contract.md`.
+Statement: No command or agent names a slice store's own mechanics. Each reads them from the matching section of the active store document, which specialises `references/plan-contract.md`, `references/plan-authoring.md`, or `references/store-records.md`.
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/skills/**, plugin/agents/**, plugin/references/plan-contract.md, plugin/references/issue-tracker-*.md
+Paths: plugin/skills/**, plugin/agents/**, plugin/references/plan-contract.md, plugin/references/plan-authoring.md, plugin/references/store-records.md, plugin/references/issue-tracker-*.md
 
 ### INV-0041
 
@@ -671,7 +671,7 @@ Concepts: Touch map, Slice
 Statement: No slice `spec` names file paths, and no reviewer gates on the touch map.
 Breaks: silently
 Check: none — no pin exists today
-Paths: plugin/skills/plan/**, plugin/references/plan-contract.md
+Paths: plugin/skills/plan/**, plugin/references/plan-contract.md, plugin/references/plan-authoring.md
 
 ### INV-0081
 
@@ -1124,16 +1124,16 @@ Concepts: Definition of Done (DoD), Release-risk criterion
 Statement: Every Definition of Done `/superdev:plan` writes, on every change type and plan kind, names each release-risk category — rollback path, deploy-window data compatibility, consumer compatibility, production visibility — in exactly one `Release risk:` criterion or in one `Release risk: none` line that gives each category's reason. Whether the step runs is never plan's judgment (ADR 0133).
 Breaks: silently
 Check: the `scope.js dod-check` suite — a Definition of Done whose `Release risk:` lines leave a category unnamed is refused (INV-0189); that a category is named exactly once stays final-reviewer's invariant compliance judgement
-Paths: plugin/skills/plan/**, plugin/references/plan-contract.md
+Paths: plugin/skills/plan/**, plugin/references/plan-authoring.md
 
 ### INV-0138
 
 Class: process
 Concepts: Fail-to-pass run, Run trace, Slice-reviewer
-Statement: A `behavior` slice, and a fix cycle whose commits change both a test-path file and another file, carries an outcome line of a fail-to-pass run in the run trace before the reviewer that next reads the trace, unless every test-path file it changes is deleted, so no test of its own can run, and its changes outside the test paths add no behaviour (ADR 0196). Such a change that adds behaviour outside the test paths is a Missing fail-to-pass run finding. The implementer of the change runs it over its own range before its report; the controller runs none (ADR 0182). A `pass-to-pass` outcome is an Important finding, and so is such a change with no outcome line: `slice-reviewer`'s on the full tier, `final-reviewer`'s on the lite tier and in `/superdev:review`'s fix loop. Both take the 3-cycle cap and the escape path of ADR 0125: at the cap, a remainder whose only Critical or Important findings are Pass-to-pass or Missing fail-to-pass run, in any mix, proceeds and the report names each, and any of them beside a Critical or Important finding of another kind blocks. A Pass-to-pass finding the reviewer marks unclosable, in one of the closed cases of `review-checklist.md`'s `## Fail-to-pass run`, takes that escape at once, before the cap: it never enters a fix list or review's ask-once, and no fix cycle runs when no other finding is left to fix (ADR 0193). A `pass-to-pass` finding closes only on a `fail-to-pass` outcome over a range from the original change's base to the tip current when that closing run ran, and stays closed once that outcome is written (ADR 0134, ADR 0125, ADR 0193, ADR 0196).
+Statement: A `behavior` slice, and a fix cycle whose commits change both a test-path file and another file, carries an outcome line of a fail-to-pass run in the run trace before the reviewer that next reads the trace, unless every test-path file it changes is deleted, so no test of its own can run, and its changes outside the test paths add no behaviour (ADR 0196). Such a change that adds behaviour outside the test paths is a Missing fail-to-pass run finding. The implementer of the change runs it over its own range before its report; the controller runs none (ADR 0182). A `pass-to-pass` outcome is an Important finding, and so is such a change with no outcome line: `slice-reviewer`'s on the full tier, `final-reviewer`'s on the lite tier and in `/superdev:review`'s fix loop. Both take the 3-cycle cap and the escape path of ADR 0125: at the cap, a remainder whose only Critical or Important findings are Pass-to-pass or Missing fail-to-pass run, in any mix, proceeds and the report names each, and any of them beside a Critical or Important finding of another kind blocks. A Pass-to-pass finding the reviewer marks unclosable, in one of the closed cases of `fail-to-pass.md`'s `## Fail-to-pass run`, takes that escape at once, before the cap: it never enters a fix list or review's ask-once, and no fix cycle runs when no other finding is left to fix (ADR 0193). A `pass-to-pass` finding closes only on a `fail-to-pass` outcome over a range from the original change's base to the tip current when that closing run ran, and stays closed once that outcome is written (ADR 0134, ADR 0125, ADR 0193, ADR 0196).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/agents/slice-reviewer.md, plugin/agents/final-reviewer.md, plugin/agents/implementer.md, plugin/references/review-checklist.md, plugin/references/implement-full.md, plugin/references/implement-lite.md, plugin/references/run-handoff.md, plugin/skills/review/SKILL.md, plugin/references/review-scope-mode.md, plugin/skills/implement/SKILL.md
+Paths: plugin/agents/slice-reviewer.md, plugin/agents/final-reviewer.md, plugin/agents/implementer.md, plugin/references/fail-to-pass.md, plugin/references/implement-full.md, plugin/references/implement-lite.md, plugin/references/run-handoff.md, plugin/skills/review/SKILL.md, plugin/references/review-scope-mode.md, plugin/skills/implement/SKILL.md
 
 ### INV-0139
 
@@ -1196,7 +1196,7 @@ Concepts: Triage record, Deferred finding, Observation
 Statement: Every finding or observation a trigger meets reaches a triage record, as a new record or as a comment on an open record that plainly states the same defect. An uncertain match, a comment that fails or is denied, and a store document that defines no comment call create a new record. The one exception is a store document that defines no triage record (ADR 0145).
 Breaks: silently
 Check: none — whether two findings state the same defect is a judgment no test can check; a reviewer of a change to a triage-record writer applies it.
-Paths: plugin/references/plan-contract.md, plugin/references/scope-mode.md, plugin/references/scope-findings.md, plugin/skills/review/SKILL.md, plugin/references/review-scope-mode.md, plugin/references/implement-full.md, plugin/skills/plan/SKILL.md
+Paths: plugin/references/store-records.md, plugin/references/scope-mode.md, plugin/references/scope-findings.md, plugin/skills/review/SKILL.md, plugin/references/review-scope-mode.md, plugin/references/implement-full.md, plugin/skills/plan/SKILL.md
 
 ### INV-0151
 
@@ -1412,7 +1412,7 @@ Concepts: Fail-to-pass run, 3-strike fix loop, Slice-reviewer, Final-reviewer
 Statement: A Pass-to-pass finding carries the unclosable mark only when the reviewer that raised it sets it, in one of the closed cases: the range's behaviour change lies wholly in test-path files, a file the outcome line's command does not read carrying none, its test pins existing behaviour on purpose, or its changes outside the test paths preserve behaviour. An implementer's or the lite controller's claim of a case is input the reviewer checks. A marked finding enters no fix list, and a Missing fail-to-pass run finding never carries the mark (ADR 0193, ADR 0196).
 Breaks: silently
 Check: none — the mark is a reviewer's reading of a diff, and no cheap test tells a sound case from a waved-off weak test; final-reviewer's invariant compliance judges it.
-Paths: plugin/references/review-checklist.md, plugin/agents/slice-reviewer.md, plugin/agents/final-reviewer.md, plugin/agents/implementer.md, plugin/references/implement-full.md, plugin/references/implement-lite.md, plugin/references/review-scope-mode.md
+Paths: plugin/references/fail-to-pass.md, plugin/agents/slice-reviewer.md, plugin/agents/final-reviewer.md, plugin/agents/implementer.md, plugin/references/implement-full.md, plugin/references/implement-lite.md, plugin/references/review-scope-mode.md
 
 ### INV-0177
 
@@ -1529,4 +1529,4 @@ Concepts: Absorbed triage record, Scope anchor, Definition of Done (DoD), Releas
 Statement: Before ship, every entry on a scope anchor's Absorbs line is cited as `(triage <reference>)` by exactly one Definition-of-Done criterion, and every such citation names an entry on that line. The Definition of Done carries a `Reachable:` criterion and `Release risk:` criteria naming all four release-risk categories. `/superdev:plan` refuses to write an anchor that breaks this, and a scope review of one holds the stage with an `**Unresolved:**` entry per problem. Both read it through `scope.js dod-check`, never by their own judgement (ADR 0233).
 Breaks: silently
 Check: the `scope.js dod-check` suite
-Paths: plugin/scripts/scope.js, plugin/lib/dod-check.js, plugin/skills/plan/SKILL.md, plugin/references/review-scope-mode.md, plugin/references/plan-contract.md
+Paths: plugin/scripts/scope.js, plugin/lib/dod-check.js, plugin/skills/plan/SKILL.md, plugin/references/review-scope-mode.md, plugin/references/plan-contract.md, plugin/references/plan-authoring.md

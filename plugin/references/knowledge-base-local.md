@@ -16,7 +16,7 @@ The KB is **human-consumption first**. Recorded at setup:
   - `User Guide` → `Getting started`, `Configuration`
   - `Developer Docs` → `Architecture`, `Setup`
 
-**Every outline entry names a topic page** (ADR 0229, INV-0188). An entry gives one page's exact title,
+**Every outline entry names a topic page**. An entry gives one page's exact title,
 and the page holds one subject a reader looks up, such as `Configuration` or `Architecture`. An entry holding a placeholder (`<...>`)
 names no page, and the doc pass writes no page under it. `/superdev:document`'s doc pass extends the topic page a change touches. Only when no topic fits does it
 add one explicit entry here, in the scope's doc commit, with its reason. A page per feature is no entry.
@@ -37,7 +37,7 @@ Decisions stay in the repository's ADRs: the knowledge base carries no ADR diges
 
 **This backend stages nothing.** Its pages are repository files, so they ride the scope branch and merge
 with the code that makes them true — there is no moment where a reader sees a page the code does not back.
-Staging exists for a **remote** backend, whose pages go live the instant they are sent (ADR 0023), and
+Staging exists for a **remote** backend, whose pages go live the instant they are sent, and
 `/superdev:publish-kb` has nothing to do here.
 
 ## superdev usage

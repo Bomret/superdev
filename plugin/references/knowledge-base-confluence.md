@@ -18,7 +18,7 @@ The KB is **human-consumption first**. Recorded at setup:
 
   Each `→` nests one level deeper. `/superdev:publish-kb` creates a parent before its child.
 
-**Every outline entry names a topic page** (ADR 0229, INV-0188). An entry gives one page's exact title,
+**Every outline entry names a topic page**. An entry gives one page's exact title,
 and the page holds one subject a reader looks up, such as `Configuration` or `Architecture`. An entry holding a placeholder (`<...>`)
 names no page, and the doc pass writes no page under it. `/superdev:document`'s doc pass extends the topic page a change touches. Only when no topic fits does it
 add one explicit entry here, in the scope's doc commit, with its reason. A page per feature is no entry.
@@ -27,13 +27,13 @@ add one explicit entry here, in the scope's doc commit, with its reason. A page 
 glossary. `/superdev:document` stages one **section** for such a page (`action: patch`) rather than the
 whole page, and `/superdev:publish-kb` merges that section into the live page by its heading. Without the
 marker the doc pass stages an `upsert`, which replaces the page wholesale and drops every section written
-by a scope it cannot see (ADR 0027). `/superdev:setup` asks which outline pages aggregate; a page no
+by a scope it cannot see. `/superdev:setup` asks which outline pages aggregate; a page no
 scope but its own contributes to carries no marker.
 
 **A non-markdown backend marks nothing `aggregate`.** Confluence stores a page as `storage` — XHTML
 (`body.representation: storage` below), not markdown. Staged pages stay markdown, and
 `scripts/publish-kb.js` converts a whole staged page to `storage` itself before `create` and `update`
-(`lib/md-to-storage.js`, ADR 0109). `scripts/kb-patch.js` merges a section by matching markdown ATX
+(`lib/md-to-storage.js`). `scripts/kb-patch.js` merges a section by matching markdown ATX
 headings in the live page, and a live XHTML page carries none, so a patch has nothing to merge into. Mark
 no outline entry `aggregate` here.
 
@@ -42,7 +42,7 @@ no outline entry `aggregate` here.
 - **Backend:** Confluence.
 - **Body format:** storage. `scripts/publish-kb.js` reads this bullet and refuses an `action: patch`
   page outright — leaving it staged, with the reason reported per page — rather than merge markdown
-  headings into XHTML (ADR 0027). Absent means markdown, which is why every markdown-backed seed
+  headings into XHTML. Absent means markdown, which is why every markdown-backed seed
   carries no such bullet.
 - **Base URL**: `<https://your-domain.atlassian.net/wiki>`
 - **Space key**: `<SPACE>` (the CQL folder search takes it)
@@ -56,14 +56,13 @@ no outline entry `aggregate` here.
 
 ## Staging
 
-Confluence is a **remote** backend, so nothing but `/superdev:publish-kb` calls it (ADR 0023).
+Confluence is a **remote** backend, so nothing but `/superdev:publish-kb` calls it.
 The doc pass writes each page as a **staged page**: `/superdev:document` runs it, and on the `lite` tier
 `/superdev:implement` runs it inline first. Each page is staged under
-`.superdev/kb-pending/<scope>/` in the main working tree, resolved by `scope.js staging <scope>` (ADR 0119) — YAML frontmatter carrying the page `title` and an `action` of `upsert`
+`.superdev/kb-pending/<scope>/` in the main working tree, resolved by `scope.js staging <scope>` — YAML frontmatter carrying the page `title` and an `action` of `upsert`
 or `delete`, the page body below. A page the outline places under another page also carries
 `parent: <that page's title>`. `scripts/publish-kb.js` resolves that title through `find` (a page, else a folder), publishes a
-parent staged in the same batch first, and leaves the page staged when the parent cannot be found
-(ADR 0109). A page reaches the space when a human runs `/superdev:publish-kb`,
+parent staged in the same batch first, and leaves the page staged when the parent cannot be found. A page reaches the space when a human runs `/superdev:publish-kb`,
 after the feature has reached the readers this space is written for.
 
 ## REST conventions (curl, Confluence Cloud v2)
@@ -105,10 +104,10 @@ environment or stdin, so no non-ASCII text or temp-file path travels as an argum
 
 ## Commands
 
-The **backend command contract** (ADR 0069) `scripts/publish-kb.js` runs. Each command runs as
+The **backend command contract** `scripts/publish-kb.js` runs. Each command runs as
 `sh -c <template> sh <path>`: `$1` names a JSON file holding `title`, the `find` result's fields under
 `found` (`read`, `update`, and `delete`, as `.found.id` and `.found.version`), and the `knowledge-base`
-section of `.superdev/info.json` under `operator` (ADR 0207). Every command reads its values from that
+section of `.superdev/info.json` under `operator`. Every command reads its values from that
 file with `jq`. `create` and `update` also receive `bodyFile`, a path to the staged body already
 converted to `storage` XHTML (the `Body format` bullet above), so the commands send it unchanged.
 `create` also receives `parentId` when the staged page names a parent; a `create` template that never
@@ -116,7 +115,7 @@ reads it leaves such a page staged. Fill in `<base>`, `<SPACE>`, `<space-id>`, a
 names no parent, which Confluence files under the space homepage (the `parentId` default of `POST
 /api/v2/pages` while its `root-level` parameter is `false`). `read`
 prints the live page's storage-format body on stdout, nothing else — the text `/superdev:document`
-reconciles its prose against and hashes (ADR 0094), never JSON. `find` answers
+reconciles its prose against and hashes, never JSON. `find` answers
 exit 0 with a JSON object for a page (`id`, `version`) or a folder (`id`, `type: folder`, which reaches the later verbs as
 `.found.type`, so `read`, `update`, and `delete` refuse a folder and name it). It answers exit 3 only for an empty page
 answer followed by an empty folder search, read by a signed-in user, the only outcome `scripts/publish-kb.js` reads as positive absence. Every other
@@ -125,7 +124,7 @@ page, a title that matches only in another case, two or more exact matches, or a
 read by anyone but a signed-in user. A page is never created from an answer `find`
 could not read. `create` and `update` write Confluence's error body to stderr, which the publish report carries.
 
-Every command below runs under a **30-second bound** (ADR 0130), or whatever
+Every command below runs under a **30-second bound**, or whatever
 `knowledge-base.timeoutMs` of `.superdev/info.json` names. `scripts/publish-kb.js` applies it at the spawn, so a command
 written here needs no `--max-time` of its own to be safe against a host that accepts the connection and
 never answers. A command killed at the bound leaves its page staged and **stops the run**: the remaining
@@ -180,7 +179,7 @@ printf '%s' "$resp" | jq -ej '.body.storage.value' && echo
 ```
 
 The storage XHTML `read` returns is stable across reads of an unchanged page, so `/superdev:publish-kb`'s
-live-hash guard (ADR 0094) never refuses an upsert Confluence itself reformatted underneath it.
+live-hash guard never refuses an upsert Confluence itself reformatted underneath it.
 
 ### create
 

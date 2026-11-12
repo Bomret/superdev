@@ -2,10 +2,10 @@
 
 The procedure that brings documentation into agreement with reality: adding what is new, correcting what
 changed, and **deleting what is obsolete**. Two callers perform it, and both `Read` this file at the point
-they run it (ADR 0031):
+they run it:
 
 - **`agents/doc-writer.md`**, dispatched by `/superdev:document` on every live run of either tier, also a
-  `lite` run whose inline pass already ran (ADR 0219), plus audit mode, bootstrap mode, any fix round, and
+  `lite` run whose inline pass already ran, plus audit mode, bootstrap mode, any fix round, and
   every ad-hoc invocation.
 - **`references/implement-lite.md`**, where the `lite` controller performs the pass in its own context as
   the last step of the run.
@@ -25,7 +25,7 @@ commits, the ledger record it writes — stays in the execution playbook.
 - **The staging path**, as an **absolute** path, when the knowledge-base backend is remote.
 - **The `docs` targets**, on a live scope run: every `docs`-tagged Definition-of-Done line neither
   ticked nor `accepted:`, verbatim. Each names `AGENTS.md`-hierarchy text the scope requires, and Pass 1 makes every one of them
-  true (ADR 0161). `/superdev:document` judges them after the pass.
+  true. `/superdev:document` judges them after the pass.
 
 Given a git range, start from `git diff --stat BASE..HEAD` and `git log BASE..HEAD` to see what actually
 changed; then check which docs that touches.
@@ -43,13 +43,13 @@ answers *what* and procedural text answers *how*. Neither answers *whether*. A d
 behavior with structure and steps but no rationale is the gap this lens exists to close.
 
 Unlike the writing standard below, this lens is **never configurable and never `none`** — content coverage
-is a completeness property, not a style one (ADR 0014). Don't pad a doc to reach all four types; add the
+is a completeness property, not a style one. Don't pad a doc to reach all four types; add the
 conceptual layer where its absence would leave a reader guessing.
 
 ## Writing standard
 
 `docs/agents/documentation.md` carries a **`## Writing standard`** section naming the prose style this
-repo writes in (ADR 0012). Read it before the first edit and act on the value:
+repo writes in. Read it before the first edit and act on the value:
 
 - **`controlled`** → Read `${CLAUDE_PLUGIN_ROOT}/references/controlled-prose.md` and apply it.
 - **a repo-relative path** → Read that file and apply it.
@@ -76,11 +76,11 @@ A missing style guide does not fail a doc pass.
 ## Read the knowledge base, never write to it
 
 You write files. A remote backend is **written to** by `/superdev:publish-kb` alone, after a human
-decides the feature has reached its readers (ADR 0023) — so make no wiki, Confluence, or other
+decides the feature has reached its readers — so make no wiki, Confluence, or other
 knowledge-base `create`, `update`, `delete`, or `upsert` call. You may **read** one, though (ADR 0094,
 INV-0091): Pass 2's remote-backend bullet below reads an existing non-aggregate page before it stages an
 `upsert` for it, through the read entry `plugin/scripts/publish-kb.js` already exposes, under the same
-time bound as every other backend call (ADR 0130). A read needs the same credential a write would; where
+time bound as every other backend call. A read needs the same credential a write would; where
 none is configured, or the backend declares no `read` command, the read is simply unavailable, handled
 as Pass 2 below states.
 
@@ -112,7 +112,7 @@ resolution, and a repository with no `docs/invariants.md` needs no check at all.
 each doc and `AGENTS.md` file the pass read and left unchanged because it agrees with the code, beside the
 docs it changed. When the pass judged no doc relevant to the range, the report states that reason in one
 line instead. `/superdev:document`'s doc-reader tests the judged-current docs of the doc-writer and of its
-own inline reconcile as it tests the changed ones (ADR 0219). The `lite` inline pass records no such list:
+own inline reconcile as it tests the changed ones. The `lite` inline pass records no such list:
 the doc-writer `/superdev:document` dispatches after it names them.
 
 Do not touch code or tests — docs only.
@@ -125,7 +125,7 @@ Otherwise update the knowledge base to match reality, following that file's back
 **outline**, writing in its **language**, for its **audience(s)** — **human-consumption first**,
 agent-relevant detail second:
 
-- **Route every reader-facing passage to a topic page** (ADR 0229, INV-0188). A topic page is a page the
+- **Route every reader-facing passage to a topic page**. A topic page is a page the
   outline names explicitly and that holds one subject a reader looks up. Put each passage the range calls
   for on the topic page whose subject it belongs to, and work it into that page's own structure: a section
   per feature is the shape this rule replaces. Don't mirror every `AGENTS.md`, and leave decisions in the
@@ -163,16 +163,16 @@ agent-relevant detail second:
   or `delete`, the page body below. A non-`.md` file is invisible to `/superdev:status` and
   `/superdev:publish-kb` alike. A page you judge obsolete is `action: delete`, never a call to the
   backend: a removal waits for the same gate a creation does. Find the existing page's title from the
-  configured outline, the pages already staged, and a live read of the backend below (ADR 0094), so one
+  configured outline, the pages already staged, and a live read of the backend below, so one
   title yields one file for `upsert` and `delete` — the slugged filename is what makes a second write to
   that title overwrite it instead of creating a rival.
 
-  **Name the parent where the configuration documents it** (ADR 0109). When
+  **Name the parent where the configuration documents it**. When
   `docs/agents/knowledge-base.md` documents a staged page's `parent` key, a page the outline places
   under another page carries `parent: <that page's title>` in its frontmatter. A configuration that
   documents no `parent` key gets none.
 
-  **Under `- **Hierarchy:** links`, stage the parent link too** (ADR 0168). When
+  **Under `- **Hierarchy:** links`, stage the parent link too**. When
   `docs/agents/knowledge-base.md` carries that bullet, every page the outline places under another page
   — an `upsert`, a `patch`, and a `delete` alike — carries three frontmatter keys beside the title and
   action: `parent: <that page's title>`, `parent-section: <the heading in the parent page that the
@@ -186,7 +186,7 @@ agent-relevant detail second:
   its live body carries: reconcile against the live body you read, and drop a child link line only for a
   child whose `delete` page you stage.
 
-  **Read before an `upsert` replaces a page** (ADR 0094, INV-0091). Before staging an `upsert` for a
+  **Read before an `upsert` replaces a page**. Before staging an `upsert` for a
   non-aggregate page that already exists, read it:
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/publish-kb.js" --read <title>` prints
   `{"title","exists","body","hash"}` on stdout. Reconcile your prose against the live `body` — it is
@@ -204,7 +204,7 @@ agent-relevant detail second:
   on an ad-hoc pass with no run root. A **local file** backend reads its page straight off disk, per the
   bullet above, and needs none of this: it stages nothing either way.
 
-  **An outline entry marked `(aggregate)` takes `action: patch` instead** (ADR 0027). Such a page collects
+  **An outline entry marked `(aggregate)` takes `action: patch` instead**. Such a page collects
   one section from each of many scopes — an index, a changelog, a glossary — so the sections
   already on it were written by scopes you cannot see. Name the file `<title-slug>--<section-slug>.md`
   (`<section-slug>` is the section heading's text, kebab-cased the same way `<title-slug>` is), never the
@@ -223,5 +223,5 @@ agent-relevant detail second:
   still removes a whole page.
 
 **Use the absolute staging path you were given** — the directory `scope.js staging <scope>` printed,
-`.superdev/kb-pending/<scope>/` in the main working tree (ADR 0119). Write every page under it exactly
+`.superdev/kb-pending/<scope>/` in the main working tree. Write every page under it exactly
 as given, so it lands where `/superdev:publish-kb` reads it, whatever checkout the pass runs in.

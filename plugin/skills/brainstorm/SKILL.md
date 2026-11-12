@@ -11,7 +11,7 @@ argument-hint: "[a rough idea, or nothing]"
 Applies to every start. You turn a vague idea into an intent sharp enough for `/superdev:plan` to interview. Plan converges on a Definition of Done, and you diverge first: generate options, take "I don't know yet" as signal, and narrow once the problem's shape is clear.
 
 - **The intent file**: `.superdev/brainstorm/<intent-slug>.md`. It opens with YAML frontmatter carrying `status: draft` or `status: ready`, then carries §5's headings.
-- **A draft**: an intent file whose frontmatter `status` is `draft` (ADR 0112, INV-0110). A file with no frontmatter or any other status is not a draft.
+- **A draft**: an intent file whose frontmatter `status` is `draft`. A file with no frontmatter or any other status is not a draft.
 - **cross-exam.md**: `${CLAUDE_PLUGIN_ROOT}/references/cross-exam.md`.
 - **domain-modeling.md**: `${CLAUDE_PLUGIN_ROOT}/references/domain-modeling.md`.
 
@@ -21,7 +21,7 @@ Applies to every start. Write only these: the intent file as the interview runs,
 
 ## The closing message
 
-Applies to the message of each exit of §6: the intent is ready, or the operator stops before it is. Close it with the Next block per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in that file's `## The offer` section (ADR 0157). An interview turn that ends on a question to the operator is no exit: end it on the question, with no Next block and no next command.
+Applies to the message of each exit of §6: the intent is ready, or the operator stops before it is. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The offer`. An interview turn that ends on a question to the operator is no exit: end it on the question, with no Next block and no next command.
 
 ## The mode
 
@@ -41,7 +41,7 @@ Applies to the whole conversation. Run it with these core moves of cross-exam.md
 
 **The scan.** Applies to every start. Glob `.superdev/brainstorm/*.md` and read each file's YAML frontmatter. No draft, or no directory → start at §1.
 
-**The ask.** Applies when any draft exists. Ask one `AskUserQuestion` (ADR 0184): a **resume** option per draft, its description carrying the draft's problem-statement line, then **start fresh**. Select none yourself, `$ARGUMENTS` matching a draft included.
+**The ask.** Applies when any draft exists. Ask one `AskUserQuestion`: a **resume** option per draft, its description carrying the draft's problem-statement line, then **start fresh**. Select none yourself, `$ARGUMENTS` matching a draft included.
 
 - `AskUserQuestion` holds 2–4 options. Drafts beyond the options → name them in the question text, and the operator reaches them through the tool's free-text "Other".
 - **Resume** → re-read the file, summarize where it stands, skip §1, and continue at the first still-open decision. Ask no point the file records as settled.
@@ -100,7 +100,7 @@ Applies once the space has been explored. Bring the intent file to its final for
 | **Success criteria** | Checkable criteria. |
 | **Rough scope + non-goals** | The MLP, and what is deliberately excluded. |
 | **Still-open decisions** | What remains genuinely undecided. |
-| **Load-bearing commitments** | Each commitment the discovery settled that constrains later decisions, written as a pair: the principle, then the rule it implies. A principle with no rule is no commitment. `/superdev:plan` turns each into an invariant register entry, or names why it implies none (domain-modeling.md, ADR 0081). None settled → write no section, and say so. |
+| **Load-bearing commitments** | Each commitment the discovery settled that constrains later decisions, written as a pair: the principle, then the rule it implies. A principle with no rule is no commitment. `/superdev:plan` turns each into an invariant register entry, or names why it implies none (domain-modeling.md). None settled → write no section, and say so. |
 | **Rejected directions** | Each direction explored and dropped, and why it lost, kept only where a future reader would plausibly re-propose it. Nothing worth keeping → omit the heading. `/superdev:plan` makes these durable (domain-modeling.md). |
 
 ## 6. Hand off
@@ -116,4 +116,4 @@ Applies once the space has been explored. Bring the intent file to its final for
 - It resumes the draft at §0.
 - `/superdev:plan` skips a draft, so it is never this exit's next command.
 
-**The report.** Applies to every exit. Close with the brainstorm report per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The brainstorm report` section (INV-0112).
+**The report.** Applies to every exit. Close with the brainstorm report per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The brainstorm report` section.

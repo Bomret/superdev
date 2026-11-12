@@ -11,7 +11,7 @@ is read by the step that cites it.
 
 `/superdev:ship`, `/superdev:verify-ship`, `/superdev:wrap-up`, and `/superdev:status` each need a merged
 feature's deploy posture, its listed targets, and their deploy record. This section states the read once;
-each caller states only what it does with the result (ADR 0101, ADR 0106).
+each caller states only what it does with the result.
 
 1. **The merge commit.** Read the pull request by the ledger's `**PR:**` number, per
    `docs/agents/code-management.md`'s `## Merge` section, and take its `merge_commit_sha`. A ledger with
@@ -31,10 +31,10 @@ each caller states only what it does with the result (ADR 0101, ADR 0106).
 
 `/superdev:ship`'s final hand-off, `/superdev:status`, `/superdev:document`, run init's shipped-run stops (`references/run-init.md`), `/superdev:verify-ship`'s end, and `/superdev:wrap-up`'s hand-off from a closed repair to its original each decide where a `shipped` run whose anchor is
 still open goes next: to `/superdev:plan`'s repair choice, to `/superdev:verify-ship`, or straight to
-`/superdev:wrap-up`. This section states that rule once, so every caller names the same command for the same run (ADR 0116, ADR 0124, INV-0116). Each caller states
+`/superdev:wrap-up`. This section states that rule once, so every caller names the same command for the same run. Each caller states
 only what it does with the outcome, and what it does when the anchor cannot be read.
 
-1. **The run's criteria.** Read the Definition-of-Done lines from `<run-root>/dod.md` (INV-0016). It is
+1. **The run's criteria.** Read the Definition-of-Done lines from `<run-root>/dod.md`. It is
    authoritative, because a store's tick write is best-effort. The note's verdict, not the box, decides a
    line's state. A `dod.md` that is missing or unreadable → judge from the anchor alone, read through the
    store document's anchor read.
@@ -53,13 +53,12 @@ only what it does with the outcome, and what it does when the anchor cannot be r
   `**Repairs:**` line names this run's anchor and the note's repair citation (below) does not cite that anchor, and no
   open anchor's `**Repairs:**` line names this run's anchor: a repair has closed since the line was last
   observed, no other repair is under way, and only this run's own
-  verify-ship settles the line (INV-0131). Name `/superdev:verify-ship <scope>`, which observes the line
-  again, and `/superdev:plan`'s repair choice as the `Or:` alternative, for a repair that did not hold
-  (ADR 0124).
+  verify-ship settles the line. Name `/superdev:verify-ship <scope>`, which observes the line
+  again, and `/superdev:plan`'s repair choice as the `Or:` alternative, for a repair that did not hold.
 - **Repair** — otherwise, while a Definition-of-Done line holds an observed `not met:` note (**The repair
   citation** below), read by the note and never by the box: the run needs a fix before its line can hold.
   Name `/superdev:plan` with its repair choice, and `/superdev:verify-ship <scope>` again as the
-  alternative for an observation that was transient (ADR 0124). **The open-repair line.** For each open
+  alternative for an observation that was transient. **The open-repair line.** For each open
   anchor whose `**Repairs:**` line names this run's anchor, the caller adds one line,
   `repair <key> is open; finish its chain first`, the key in the store's own notation. `/superdev:plan`
   stays the named command, because a second repair of the same scope is its own feature.
@@ -92,7 +91,7 @@ from that anchor itself, and has no deploy record for step 3 to read. So the **V
 a closed repair to its original each need a `shipped` run's run root. A run done on another machine, or a
 run root already reaped, has none under the main working tree, and survives only as its scope anchor's
 `## Run state` snapshot (`run-state.md`'s `## Publishing run state`). This section states once how such a command
-recreates the run root from that snapshot (ADR 0124, INV-0132). `/superdev:status` writes nothing and adopts nothing: its backlog survey
+recreates the run root from that snapshot. `/superdev:status` writes nothing and adopts nothing: its backlog survey
 routes such an anchor by `## Routing a shipped run`'s **A run with no local ledger** case.
 
 1. **The anchor body.** The run root is `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" root <scope>`'s
@@ -114,7 +113,7 @@ routes such an anchor by `## Routing a shipped run`'s **A run with no local ledg
 3. **The Definition of Done.** After a successful adopt, write `<run-root>/dod.md` from the anchor's Definition-of-Done lines,
    exactly as run init's **Write the DoD** writes it for an adopted run, through `scope.js dod-merge`: each verdict
    note carried as the anchor states it, and a line the anchor leaves without a note keeps the verdict the ref's
-   `dod.md`, unpacked by the adopt above, carries (ADR 0206). The ledger and `dod.md` are a local copy only: adoption writes nothing to the anchor,
+   `dod.md`, unpacked by the adopt above, carries. The ledger and `dod.md` are a local copy only: adoption writes nothing to the anchor,
    moves no stage, and publishes nothing.
 
 The adopted run root holds no scopetree and no slicetrees. Nothing adopted → the caller goes on as it does with no run root.
@@ -123,9 +122,9 @@ The adopted run root holds no scopetree and no slicetrees. Nothing adopted → t
 
 `/superdev:ship`'s post-merge hand-off, `/superdev:verify-ship`'s end message, and `/superdev:wrap-up`'s
 finish each name the scope's staged knowledge-base pages by this one rule, so the operator reads the same
-facts at every close step (ADR 0119, INV-0123). Each caller states only where the publish command goes in
+facts at every close step. Each caller states only where the publish command goes in
 its own Next block. On verify-ship's exit that starts wrap-up, verify-ship's message names none, and
-wrap-up's last message names the pages, whether it finishes, refuses, or stops (ADR 0224).
+wrap-up's last message names the pages, whether it finishes, refuses, or stops.
 
 Read the count with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" staging <scope> --count`, and the
 directory with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" staging <scope>`, in the same run that

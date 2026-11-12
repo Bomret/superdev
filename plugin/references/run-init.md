@@ -12,7 +12,7 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
   ledger's stage read together with the lock's mtime, before the DoD write, the ledger-stage advance, or
   the playbook's own later `## Run lock` step touch anything. No existing run root → nothing to check
   yet; continue to the next bullet, which is where a `fresh` run's own root gets created.
-- **A run whose wrap-up has not closed it stops here, ahead of every step that writes** (ADR 0106) — the
+- **A run whose wrap-up has not closed it stops here, ahead of every step that writes** — the
   design-doc move and the DoD write below both write, and a `shipped` run's `dod.md` carries
   verify-ship's verdicts. The stops in this
   step write nothing. The one exception is the second-read stop in **Create the ledger**, which runs after
@@ -39,13 +39,13 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
   root (`dod.md`, `ledger.md`, `run.lock`, per that file's `## The run lock`) stays in
   the repository's **main working tree** and never moves into a scopetree; only the code checkout does.
   **Capture `<run-root>` now with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" root <scope>`'s printed
-  absolute path** (ADR 0080) — never a path built against the invoking checkout's own cwd, which resolves
+  absolute path** — never a path built against the invoking checkout's own cwd, which resolves
   one level too deep once the command runs from a scopetree or slicetree instead of the main working
   tree. Address every artifact as `<run-root>/dod.md`, `<run-root>/ledger.md`, `<run-root>/run.lock`,
   `<run-root>/reports/<id>/…`, `<run-root>/interfaces.md`. Hand subagents that absolute path. Namespacing
   by `<scope>` is what lets scope runs go in parallel. Nothing in the run root is committed or lands in
   the PR.
-- **Move dirty design docs into the scopetree, never onto the base branch** (ADR 0079; no superdev
+- **Move dirty design docs into the scopetree, never onto the base branch** (no superdev
   command commits to base — INV-0001). The only paths this step touches are `CONTEXT.md`,
   every file under `docs/adr/`, and `docs/invariants.md`: check `git status --porcelain -uall -- CONTEXT.md
   docs/adr/ docs/invariants.md` in the invoking checkout — `-uall` so a wholly-untracked directory lists
@@ -58,10 +58,10 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
   **The scopetree must exist before anything moves.** `<run-root>/scopetree` absent → it doesn't exist
   yet here; do the copy, commit, and revert below immediately after your playbook's branch-model step has
   cut or reused it, not now. `<run-root>/scopetree` already present — including a `planned` ledger where
-  `/superdev:plan` already cut it (ADR 0079) — do it now.
+  `/superdev:plan` already cut it — do it now.
 
   **A captured path that already differs in `<run-root>/scopetree`** — `/superdev:plan` already committed
-  its own capture of that path there (ADR 0076), and a plain copy would silently overwrite it — names both
+  its own capture of that path there, and a plain copy would silently overwrite it — names both
   versions and stops instead of choosing. **`--unattended` → block**, per
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section.
 
@@ -73,14 +73,13 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
   uncommitted, instead of discarded: report which path and move on. Checking content identity rather than
   authorship is what keeps this sound where a cleanup scoped to "whose edit is this" is not — two
   concurrent `/superdev:plan` sessions revise the same unstaged `CONTEXT.md`, so "the paths this run
-  wrote" and "the paths another run wrote" name the same file, and no ownership test can tell them apart
-  (ADR 0076). A content match can.
+  wrote" and "the paths another run wrote" name the same file, and no ownership test can tell them apart. A content match can.
 - **Write the DoD** — the global verification plan, made concrete and checkable — to `<run-root>/dod.md`,
   through a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) piped to
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-merge --root <run-root>`. On a resumed run the verb keeps
   each verdict the existing `dod.md` carries on a line the epic leaves without a note, because implement's ticks
-  live in `dod.md` alone (ADR 0206). `/superdev:review` reviews against it, and a controller ticks it while the run works, from an
-  implementer's report (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`, ADR 0091). No DoD → don't proceed. **No epic**
+  live in `dod.md` alone. `/superdev:review` reviews against it, and a controller ticks it while the run works, from an
+  implementer's report (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`). No DoD → don't proceed. **No epic**
   → write the lone slice's `acceptance` verbatim.
 - **Create the ledger.** **No `<run-root>/ledger.md` yet** → before running `init`, check the scope
   anchor for a snapshot to adopt, unless the active store declares itself snapshot-less
@@ -112,7 +111,7 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
     `docs/agents/code-management.md` and unpacks its `trace.log`, `reports/`, `interfaces.md`, and `dod.md` into the run
     root. The ref's `dod.md` merges into the copy written from the anchor body by the same rule `dod-merge` applies:
     the anchor's lines decide the criteria, and a line the anchor leaves without a note takes the ref's verdict, which
-    carries the ticks implement and run handoff wrote to `dod.md` alone (ADR 0206). The `run-state:` line names how
+    carries the ticks implement and run handoff wrote to `dod.md` alone. The `run-state:` line names how
     `dod.md` was settled. It then records the fetched tip so this machine's next run-state push succeeds. It prints one
     `run-state:` line. A missing ref, or no remote, adopts as before with that line as the note. A local
     `trace.log` or `reports/` is kept, the unpack is skipped, and no tip is recorded, so the next push refuses
@@ -160,7 +159,7 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
   ```
 
   `scope.js` owns the ledger schema (`${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## The ledger`,
-  ADR 0022). **`init` takes the entry stage as its own argument, with no default** (ADR 0079): only the
+  ADR 0022). **`init` takes the entry stage as its own argument, with no default**: only the
   caller knows who is writing this ledger, and a feature that reaches this path — no `/superdev:plan`
   session ever cut it, or `<run-root>/ledger.md` was rotated aside from `closed` just above — has no
   `planned` interval to enter through, so this call names `implementing` rather than leaving it to guess.
@@ -180,16 +179,16 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
     enough that two same-day rotations never
     collide) before writing the fresh one. A rotation never overwrites an existing
     `ledger-closed-<date>.md` and nothing is deleted, so ADR
-    0007's seven-day trail and `scope-prune`'s contained-or-gone reap rule (ADR 0053) both stand
+    0007's seven-day trail and `scope-prune`'s contained-or-gone reap rule both stand
     unchanged. Rotation, not deletion, is what lets a new feature reusing a retired label begin beside a
-    finished run's trail (ADR 0083). The run's `trace.log` moves aside first, to `trace-closed-<date>.log`
+    finished run's trail. The run's `trace.log` moves aside first, to `trace-closed-<date>.log`
     under the rotated ledger's own name stem, so the new run's trace holds only its own lines; a trace that
     cannot be moved stops `init` with the closed ledger still in place, and a ledger that cannot be moved
     puts the trace back and stops `init` with both files in place. When the trace cannot go back either,
     `init` stops with the ledger in place and names the stranded `trace-closed-<date>.log`, to move back
     to `trace.log` by hand. The ledger `init` then writes is this run's own, so the run kind is
     `fresh`.
-  - **`planned`** — the normal entry for a feature `/superdev:plan` cut (ADR 0079): skip `init`, move the
+  - **`planned`** — the normal entry for a feature `/superdev:plan` cut: skip `init`, move the
     stage forward now, before your playbook's first dispatch —
     `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set implementing --root <run-root>` — then go to
     your playbook. This run's kind is `resumed`; `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s
@@ -213,7 +212,7 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
     against `git log`.
 
   The stage names the last completed step (`documented-unreviewed` = `/superdev:document` ran before
-  `/superdev:review`; ADR 0013). You own `implementing` and `merged`. Every later ledger write goes
+  `/superdev:review`). You own `implementing` and `merged`. Every later ledger write goes
   through a `scope.js` verb (`stage`, `slice`, `degraded add`); the next verb reports a write made any other way as a `tamper` line.
 - **Name this run's kind.** A ledger you wrote with `init` is **`fresh`** — including one `init` wrote
   after rotating a `closed` ledger aside — and a live ledger — one already on disk, or one you just
@@ -221,8 +220,8 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
   slices) still counts as **`resumed`** despite going through `init`: `/superdev:plan` already cut the
   branch and the scopetree, so nothing here is cut. Carry the kind into your playbook's branch step; its
   branch model acts on that value, per `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Cutting the
-  scope branch`. One determination, made here (ADR 0028).
-- **Record the implement step** (ADR 0147). Every entry whose run continues at the `implementing` stage, a
+  scope branch`. One determination, made here.
+- **Record the implement step**. Every entry whose run continues at the `implementing` stage, a
   `resumed` run included, ends this run init with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step set
   implement --root <run-root>`, after the ledger writes above: `init … implementing` and `stage set
   implementing` write no step and would erase an earlier one. An entry on a scope whose stage is `merged`

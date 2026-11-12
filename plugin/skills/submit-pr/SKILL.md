@@ -19,7 +19,7 @@ Applies to every start. You open a pull request for a run whose slices are on th
 
 ## The closing message
 
-Applies to every message this command ends on. Close it with the Next block per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in that file's `## The offer` section (ADR 0157).
+Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The offer`.
 
 ## 1. Scope + run root
 
@@ -67,16 +67,16 @@ Applies to every start past §1. Find the scope checkout.
 - **Output present, attended** → name every bullet and ask once whether to submit with it standing. Declined → stop, open no pull request, and write nothing further. Confirmed → proceed, and record in the report that the scope was submitted with the defect standing.
 - **Output present, `--unattended`** → refuse. Name what stands, open no pull request, and stop.
 
-**A settled criterion.** Applies to a `dod.md` criterion noted `accepted:` (ADR 0095) or `ceiling:`. It is settled and no defect. It writes no `**Unresolved:**` bullet and never reaches this gate.
+**A settled criterion.** Applies to a `dod.md` criterion noted `accepted:` or `ceiling:`. It is settled and no defect. It writes no `**Unresolved:**` bullet and never reaches this gate.
 
 ## 4. Whole-repo run
 
-**The section.** Applies to every run past §3. Read `docs/agents/verification.md` from the scope branch's tip commit (`git -C <run-root>/scopetree show <branch>:docs/agents/verification.md`), never the working tree, per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## Whole-repo command` section (ADR 0105, INV-0017).
+**The section.** Applies to every run past §3. Read `docs/agents/verification.md` from the scope branch's tip commit (`git -C <run-root>/scopetree show <branch>:docs/agents/verification.md`), never the working tree, per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## Whole-repo command` section.
 
 - **No such section** → run no suite. The outcome is `not configured`. Take **The ship check**.
 - **Section present** → take **The reuse**.
 
-**The ship check.** Applies to a tip with no such section. In the scope checkout, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base> --root <run-root>`, the call `/superdev:ship`'s suite gate makes, and run no test command (ADR 0230, INV-0093). `<base>` is the base branch `docs/agents/code-management.md` names.
+**The ship check.** Applies to a tip with no such section. In the scope checkout, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base> --root <run-root>`, the call `/superdev:ship`'s suite gate makes, and run no test command. `<base>` is the base branch `docs/agents/code-management.md` names.
 
 - **Exit 0** → the ship check reads `reusable`.
 - **Exit 1** → keep its stderr line as the refusal reason. Judge the preconditions of `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## The carry run` step 1, the carry ship's gate takes on exit 1 alone. They hold → the ship check reads `carry possible`. One fails → the ship check reads `ship would refuse`.
@@ -84,7 +84,7 @@ Applies to every start past §1. Find the scope checkout.
 
 Continue to §5 on every reading.
 
-**A rewritten record.** Applies to the ship check and **The reuse**. A reuse call that accepts a passing run at the exact tip rewrites the suite record (ADR 0186). §5's publish carries that record.
+**A rewritten record.** Applies to the ship check and **The reuse**. A reuse call that accepts a passing run at the exact tip rewrites the suite record. §5's publish carries that record.
 
 **The reuse.** Applies to a present section. In the scope checkout, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --whole --root <run-root>`. Only a record of kind `whole` satisfies this step, and a green record with no kind does not. Exit 0 → the outcome is `reused`, with no run, and you continue to §5.
 
@@ -93,7 +93,7 @@ Continue to §5 on every reading.
 - **Green** → record `green`. The outcome is `green`. Continue to §5.
 - **Red** → record `red`. The outcome is `red`. Add an unresolved defect naming the failing output's decisive lines, per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Unresolved defects` section, then run the publish. Leave the stage where it was, print `/superdev:review <scope>` as the next command, and stop.
 - **Denied** (the permission classifier refused the run) → record `denied`. The outcome is `denied`. Write a `**Degraded:**` entry naming the denied whole-repo run with plain `degraded add`, per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section, then run the publish, and stop with the same report.
-- **Killed, or never started** → record `none` (INV-0009). The outcome is `killed` or `not started`, saying which. Stop with the same report.
+- **Killed, or never started** → record `none`. The outcome is `killed` or `not started`, saying which. Stop with the same report.
 
 **A stopped run.** Applies to the red, denied, killed, and not-started results. Open no pull request. Under `--unattended` the stop is the same, and it is an unattended block.
 
@@ -103,9 +103,9 @@ Continue to §5 on every reading.
 
 **The open.** Applies to every run past §4. Per `docs/agents/code-management.md`, push the scope branch, then open the pull request at the configured posture, with a body built from the Definition of Done and the slice list. No host CLI or API access → degrade exactly as that document says: push, then print the compare URL and the ready-to-run call. Report the pull-request URL.
 
-**The number.** Applies the moment the pull request opens. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" pr set <n> --root <run-root>`, `<n>` the number the host's own open call returned (INV-0092). Degraded to the compare-URL fallback → record nothing. `pr clear` need not run.
+**The number.** Applies the moment the pull request opens. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" pr set <n> --root <run-root>`, `<n>` the number the host's own open call returned. Degraded to the compare-URL fallback → record nothing. `pr clear` need not run.
 
-**The body sections.** Applies to the body. Add each heading below in its own section, distinct from the others (ADR 0035). A source with no output adds no empty heading, except `## Whole-repo run`, which the body always carries.
+**The body sections.** Applies to the body. Add each heading below in its own section, distinct from the others. A source with no output adds no empty heading, except `## Whole-repo run`, which the body always carries.
 
 | Heading | Content |
 |---|---|
@@ -119,7 +119,7 @@ Continue to §5 on every reading.
 
 **The stage write.** Applies after the open. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set submitted --root <run-root>`, then run the publish.
 
-**The offer.** Applies to an attended run. Make the offer for the next command below per `## The offer` (ADR 0157, INV-0093).
+**The offer.** Applies to an attended run. Make the offer for the next command below per `## The offer`.
 
 - **`/superdev:ship <scope>`** → its start options carry that section's **An offer of ship** wording, and each also says the pull request is not reviewed yet. The operator who wants to review first answers once the review is done, or stops here.
 - **`/superdev:review <scope>`** → its start options carry no **An offer of ship** wording.

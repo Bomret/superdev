@@ -134,7 +134,7 @@ module.exports = ({ assert, path, fixture, found }) => {
 
   const entry =
     '# Context\n\n**Prompt concept**: a governed body. The listed skill files are `plugin/skills/review/SKILL.md` and ' +
-    '`plugin/references/review-scope-mode.md`. `review-checklist.md`\'s `## Prompt-concept overlap` grades a pair.\n\n' +
+    '`plugin/references/review-scope-mode.md`. `prompt-concept-overlap.md`\'s `## Prompt-concept overlap` grades a pair.\n\n' +
     '- **Boundary.** It has a name.\n\n**Main sentence**: one clause, see `plugin/skills/gone/SKILL.md`.\n';
   assert.equal(
     scanGovernedSkillFiles(

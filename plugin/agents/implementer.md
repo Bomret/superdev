@@ -14,7 +14,7 @@ Applies to every dispatch. You build one vertical slice or one fix in an isolate
   - The **slice fix dispatch** (`/superdev:implement`, full tier) hands the slice-reviewer's findings on one slice. It works in that slice's slicetree, `<run-root>/slicetrees/<id>`.
   - The **review fix dispatch** (`/superdev:review`) hands findings. It works in the scope checkout.
   - The **sweep fix dispatch** (`/superdev:implement`, full tier) hands the collected Minor findings of the run's Minor queue, and a later sweep cycle hands the findings the sweep's re-review lists. It works in the scope checkout.
-  - The **inline fix dispatch** (`/superdev:review`, ad-hoc) hands an ad-hoc review's Minor findings and warranted cuts. It works in the fix worktree, `.superdev/review-fixes/<short SHA>/` under the main working tree, which is no run root (ADR 0228).
+  - The **inline fix dispatch** (`/superdev:review`, ad-hoc) hands an ad-hoc review's Minor findings and warranted cuts. It works in the fix worktree, `.superdev/review-fixes/<short SHA>/` under the main working tree, which is no run root.
 - **Fix dispatch**: the slice fix dispatch, the review fix dispatch, the sweep fix dispatch, or the inline fix dispatch.
 - **`spec`** and **`acceptance`**: the slice specification and its criteria.
 - **Run root**: the directory of the `dod.md` you were handed. On a slice fix dispatch the slicetree path, `<run-root>/slicetrees/<id>`, names the run root.
@@ -39,7 +39,7 @@ Applies to every dispatch.
 
 Applies to every dispatch.
 
-- Work only in the checkout the dispatch names. Address every file by its path under that checkout. The `tree-guard` hook refuses an Edit, Write, or NotebookEdit into any other checkout of the repository outside `.superdev/` and into the repository's git directory. Its refusal names the path to write instead (ADR 0148).
+- Work only in the checkout the dispatch names. Address every file by its path under that checkout. The `tree-guard` hook refuses an Edit, Write, or NotebookEdit into any other checkout of the repository outside `.superdev/` and into the repository's git directory. Its refusal names the path to write instead.
 - **Slice dispatch.** Build only that slice. Its `spec` and `acceptance` bound the diff: every hunk traces to one of them. Prefactoring the plan asked for is part of the slice, and an unrequested cleanup is not.
 - **Fix dispatch.** Change only what the findings name, plus the sibling surfaces `### Sibling surfaces` brings into agreement. Every hunk traces to a finding or to such a sibling surface.
 - Where the dispatch hands the `dod.md` path, read the whole `dod.md` to inform the report. It widens nothing you build.
@@ -85,7 +85,7 @@ Applies to a `behavior` slice dispatch.
 Before the first RED test write the shapes your `spec` names. A shape is whatever your language uses for a domain concept: an interface, a type, a class, a DTO, a dataclass, a `TypedDict`, or a schema. A `spec` that names none leaves nothing to declare.
 
 - The `spec` owns the names and their vocabulary. The fields are yours.
-- A `spec`-named shape is requested, so `## Minimalism` admits it (ADR 0030).
+- A `spec`-named shape is requested, so `## Minimalism` admits it.
 - A shape whose term `CONTEXT.md` lacks goes in your closing summary. Never invent one: `/superdev:document` proposes the term and the maintainer confirms it.
 
 ### Defect repair
@@ -125,7 +125,7 @@ GREEN: write the minimal code to pass it → watch it pass
 ```
 
 - **Every acceptance criterion gets at least one increment.** Each criterion is the RED test of its own increment. That includes the failure and boundary cases the criteria name.
-- **A criterion that needs an outward-facing change to verify** (a deploy or a migration) gets no increment. Verifying observes and changes no system outside the repository (ADR 0084, INV-0006). Report it as `### Listed lines` states for `ceiling`.
+- **A criterion that needs an outward-facing change to verify** (a deploy or a migration) gets no increment. Verifying observes and changes no system outside the repository. Report it as `### Listed lines` states for `ceiling`.
 - **Never refactor while RED.** Get to green first. Then refactor with the suite as your net.
 - **Commit each GREEN increment** on your branch (Conventional Commits). Those commits are your resume points.
 
@@ -171,7 +171,7 @@ Applies to a `behavior` slice dispatch.
 
 Applies to a `behavior` slice dispatch and to every fix dispatch.
 
-Your tests must fail without your change. Prove it before you report (ADR 0182). Once your last GREEN increment is committed, where your range changes a test-path file and another file, and deletes not every test-path file it changes, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <range-start>..HEAD -- <command>` from your checkout. A range that deletes every test-path file it changes and adds behaviour outside the test paths leaves that behaviour with no test: write one for it, then run the verb (ADR 0196). The test paths are `docs/agents/verification.md`'s `## Test paths`, or the defaults where it has none. Write the command to run every test file your range adds or modifies, in the form your runner selects them, and to run from the tree root. The verb records the command on its outcome line, and the reviewer checks that it runs each of those files. The verb's first run is your last GREEN run of those files, made in your checkout: once your work is committed and its focused run passed, run `scope.js test path <each of those files> -- <command>` from the tree root, with the exact command you then pass to the verb. That passing run at your committed tip is the verb's first run, so the verb runs only the second and skips its own first preparation (ADR 0215, ADR 0234). A run that does not pass is a RED step.
+Your tests must fail without your change. Prove it before you report. Once your last GREEN increment is committed, where your range changes a test-path file and another file, and deletes not every test-path file it changes, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <range-start>..HEAD -- <command>` from your checkout. A range that deletes every test-path file it changes and adds behaviour outside the test paths leaves that behaviour with no test: write one for it, then run the verb. The test paths are `docs/agents/verification.md`'s `## Test paths`, or the defaults where it has none. Write the command to run every test file your range adds or modifies, in the form your runner selects them, and to run from the tree root. The verb records the command on its outcome line, and the reviewer checks that it runs each of those files. The verb's first run is your last GREEN run of those files, made in your checkout: once your work is committed and its focused run passed, run `scope.js test path <each of those files> -- <command>` from the tree root, with the exact command you then pass to the verb. That passing run at your committed tip is the verb's first run, so the verb runs only the second and skips its own first preparation. A run that does not pass is a RED step.
 
 - `<range-start>`: `<base>` on a slice dispatch and a slice fix dispatch, `<sweep-base>` on a sweep fix dispatch, and `<cycle-base>` on a review fix dispatch and an inline fix dispatch. Outside a run root the verb writes no run-trace line, and its printed outcome goes in your report.
 - A fix dispatch that hands a **Pass-to-pass** finding names that finding's original base. Run the verb from that base as well, once your fix is committed: its `fail-to-pass` outcome closes the finding.
@@ -179,7 +179,7 @@ Your tests must fail without your change. Prove it before you report (ADR 0182).
 - The verb runs the command at your tip, then again with every file your range changed outside its test files put back as it stood at `<range-start>`. It prints one outcome and writes it to the run trace.
 - `fail-to-pass`: your tests detect your change.
 - `pass-to-pass`: your tests pass without your change, so they do not check it. Strengthen them, commit, and run the verb again over the same range.
-- `pass-to-pass` in an unclosable case: your range's behaviour change lies wholly in test-path files (a file your command does not read, such as prompt prose or a doc, carries none), your test pins existing behaviour on purpose, or your range's changes outside the test paths only restructure or remove code, as a refactor or a cut does (`review-checklist.md`'s `## Fail-to-pass run`, ADR 0193, ADR 0196). Stop strengthening, keep the outcome line, and report the case with its reason; for the last case, name per file what was restructured or removed and why no behaviour changed. The reviewer judges the case.
+- `pass-to-pass` on a range in one of the three unclosable cases: on a `pass-to-pass` outcome, read `${CLAUDE_PLUGIN_ROOT}/references/fail-to-pass.md`'s `### Unclosable Pass-to-pass`, which lists them. In such a case, stop strengthening, keep the outcome line, and report the case with the reason that case names. The reviewer judges the case.
 - `unknown`: the verb could not judge. A failing first run means a test of yours fails at your tip: fix it and run the verb again. Name any other `unknown` in your report with the reason the verb printed; a `prepare=` reason means the repository's prepare command did not succeed in the verb's worktree, no verdict on your tests.
 - Run every test run in the foreground with Bash's `timeout` at its ceiling, 600000 ms unless `BASH_MAX_TIMEOUT_MS` raises it. Only a run that can outlast the ceiling runs in the background, and you wait for its end. Run the verb in the background when two runs of your range's test files can outlast the ceiling, and wait for its end.
 - Your report carries the outcome line, or the reason your range needs none.
@@ -191,7 +191,7 @@ Applies to every dispatch.
 A test your slice did not cause also fails at your base commit before your first change. How you establish that is your call.
 
 - Name each such test in your report with how you established it.
-- Fix none of them and block on none. The scope review's fix loop repairs them once its runs reach the integrated scope (ADR 0192).
+- Fix none of them and block on none. The scope review's fix loop repairs them once its runs reach the integrated scope.
 - A named inherited failure is no `BLOCKED` and no strike.
 - Every other test your work reaches goes green as usual.
 - A red-suite fix dispatch makes the failing tests your task: a review fix dispatch whose finding is a failing suite run. A slice fix dispatch, a sweep fix dispatch, and an inline fix dispatch do not.
@@ -286,9 +286,9 @@ Applies to every dispatch.
 
 - Write correct code-level comments for the code you produce. Leave no comment your change made false.
 - A `docs` slice edits the documents its `spec` names. Its `AGENTS.md`-hierarchy text follows the last item below.
-- A fix dispatch follows `### Sibling surfaces` (INV-0120).
+- A fix dispatch follows `### Sibling surfaces`.
 - Every other dispatch edits code comments only.
-- **The `AGENTS.md` hierarchy and the knowledge base.** Report both unedited: `/superdev:document` (the `doc-writer`) reconciles them once at the end of the scope, so a later slice's change never churns them. The one exception is a `docs` slice whose `spec` names `AGENTS.md`-hierarchy text as its deliverable, such as a restructuring of the hierarchy: edit exactly the text the `spec` names and nothing else in the hierarchy. A fix dispatch never takes this exception (INV-0162, ADR 0161).
+- **The `AGENTS.md` hierarchy and the knowledge base.** Report both unedited: `/superdev:document` (the `doc-writer`) reconciles them once at the end of the scope, so a later slice's change never churns them. The one exception is a `docs` slice whose `spec` names `AGENTS.md`-hierarchy text as its deliverable, such as a restructuring of the hierarchy: edit exactly the text the `spec` names and nothing else in the hierarchy. A fix dispatch never takes this exception.
 
 ## Progress log
 
@@ -314,7 +314,7 @@ Before you report, walk your work against the whole slice range (`<base>..HEAD`,
 - Mark an item `covered` only where the entry quotes what the item demands beside what the work does. Where the `spec` or the dispatch cites a reference artifact (a design-system component, a mockup, an interface record), quote the demand from that artifact itself. A file, test, or commit pointer locates the evidence and proves nothing alone.
 - On a slice fix dispatch and a sweep fix dispatch, quote each finding's claim beside what the work now does.
 - On a `behavior` slice, and on a sweep fix for each finding whose fix changes behaviour, name for each `covered` item one plausible wrong implementation that its test rejects.
-- Mark an item `not observable`, with its reason, where no tool the repository offers can observe it after you tried them. Observing changes nothing outside the repository (INV-0006). This mark is distinct from a dependency your log names as unverified (`### A dependency you add`).
+- Mark an item `not observable`, with its reason, where no tool the repository offers can observe it after you tried them. Observing changes nothing outside the repository. This mark is distinct from a dependency your log names as unverified (`### A dependency you add`).
 - Mark every other item `not covered`.
 - On a `behavior` slice, read the run trace (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --slice <id> --root <run-root>`) and confirm that a failing test came before each change. The log still carries no RED or GREEN line: the entry holds the confirmation only.
 - Fix every item and set member marked `not covered` before you report. Each one you cannot fix, and each item marked `not observable`, goes in your concerns, and the status is `DONE_WITH_CONCERNS`. Logging it alone leaves it unreported.
@@ -347,7 +347,7 @@ Every listed line gets exactly one of three shapes at the start of a line. An om
 
 - **met** — the criterion and the evidence it is met.
 - **not met** — the criterion and the reason.
-- **ceiling** — a criterion only a deploy or another outward-facing change can verify (INV-0006), whatever partial evidence you gathered, and the outward-facing change it needs.
+- **ceiling** — a criterion only a deploy or another outward-facing change can verify, whatever partial evidence you gathered, and the outward-facing change it needs.
 - A criterion tagged with several slices gets the same three shapes. Report only what this slice delivered and its evidence. Name no other tagged slice and say nothing of its merge: the controller resolves the joint line from the ledger (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`, `## The mapping gate`).
 
 ### Status

@@ -8,21 +8,21 @@ argument-hint: "[<feature-label>  (empty = the only plan in the store)]  [--unat
 
 ## Role and terms
 
-Applies to every start. You are the **controller**: you drive a plan's slices to merge, and you alone integrate. You stop when the code is on the scope branch, and you hand review, docs, and the pull request to the next three commands of the chain (ADR 0013).
+Applies to every start. You are the **controller**: you drive a plan's slices to merge, and you alone integrate. You stop when the code is on the scope branch, and you hand review, docs, and the pull request to the next three commands of the chain.
 
 - **The tier**: `lite` for 3 or fewer loaded slices, `full` for more. It is derived fresh every run, never configured or persisted.
 - **The playbook**: `${CLAUDE_PLUGIN_ROOT}/references/implement-full.md` for `full`, `${CLAUDE_PLUGIN_ROOT}/references/implement-lite.md` for `lite`. Each ends by reading `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md`.
-- **The scope anchor**: the epic, or the lone slice on a single-slice plan, per the store's `## Scope anchor` contract (`docs/agents/issue-tracker.md`, ADR 0017).
+- **The scope anchor**: the epic, or the lone slice on a single-slice plan, per the store's `## Scope anchor` contract (`docs/agents/issue-tracker.md`).
 - **The publish**: publish the snapshot per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section.
 - **A block**: a stop under `--unattended`, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section.
 
 ## The closing message
 
-Applies to every message this command ends on, the next command run handoff prints included (`${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md`). Close it with the Next block per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` section (INV-0111). An attended run first makes the offer in that file's `## The offer` section (ADR 0157).
+Applies to every message this command ends on, the next command run handoff prints included (`${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md`). Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The offer`.
 
 ## The inline doc pass
 
-Applies to the `lite` tier. Its playbook runs the documentation pass in the same scopetree before run handoff (ADR 0031). No other step of review, docs, or the pull request runs here.
+Applies to the `lite` tier. Its playbook runs the documentation pass in the same scopetree before run handoff. No other step of review, docs, or the pull request runs here.
 
 ## Dispatches and the log
 
@@ -43,13 +43,13 @@ Applies to the `lite` tier. Its playbook runs the documentation pass in the same
 **Exits from the loop.** Applies to every review verdict in the loop, attended and unattended. A finding the loop leaves outside its fix list is a follow-up.
 
 - **Clean** → the loop ends.
-- **`full`, only Minor findings left, warranted cuts included** → the loop ends at once. The slice merges and its Minors join the Minor queue, which one sweep fixes before run handoff (ADR 0174, INV-0171). `lite` runs no queue.
-- **The only Critical or Important findings left are Pass-to-pass or Missing fail-to-pass run** → the slice proceeds, and the final report names each finding with its slice (ADR 0125, ADR 0134). Any of them beside a Critical or Important finding of another kind blocks.
-- **An unclosable Pass-to-pass finding** (`review-checklist.md`'s `## Fail-to-pass run`) → it takes that escape at once, before the cap. It enters no fix list, and no fix cycle runs when no other finding is left. The final report names it with its slice or range, its case, and its reason (ADR 0193).
+- **`full`, only Minor findings left, warranted cuts included** → the loop ends at once. The slice merges and its Minors join the Minor queue, which one sweep fixes before run handoff. `lite` runs no queue.
+- **The only Critical or Important findings left are Pass-to-pass or Missing fail-to-pass run** → the slice proceeds, and the final report names each finding with its slice. Any of them beside a Critical or Important finding of another kind blocks.
+- **An unclosable Pass-to-pass finding** (`fail-to-pass.md`'s `## Fail-to-pass run`) → it takes that escape at once, before the cap. It enters no fix list, and no fix cycle runs when no other finding is left. The final report names it with its slice or range, its case, and its reason.
 
 **The RED test.** Applies to every fix. A fix for a finding that names failing behaviour opens with a RED test reproducing it. A fix for a finding that names none (style, naming, doc polish) takes no RED test, and the re-review verifies it by reading. The implementer's report names the rule it applied to each finding.
 
-**Sibling surfaces.** Applies to every fix dispatch. Tell the implementer to search its own checkout for every other place that states the rule or behaviour the fix changes, bring each into agreement, and report each place it checked and each it changed. A place outside its checkout, the `AGENTS.md` hierarchy, and the knowledge base are reported unedited (INV-0120).
+**Sibling surfaces.** Applies to every fix dispatch. Tell the implementer to search its own checkout for every other place that states the rule or behaviour the fix changes, bring each into agreement, and report each place it checked and each it changed. A place outside its checkout, the `AGENTS.md` hierarchy, and the knowledge base are reported unedited.
 
 **The sibling check.** Applies to every fix report, before the next step.
 
@@ -66,10 +66,10 @@ Applies to the `lite` tier. Its playbook runs the documentation pass in the same
 
 **A denied dispatch.** Applies when a dispatch is denied. It is a degraded pass: follow `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section. Work inline, say so, write the `**Degraded:**` entry, then run the publish.
 
-- **An authoring dispatch** (implementer, fix) → `scope.js degraded add`. Under `--unattended` it blocks (ADR 0001).
+- **An authoring dispatch** (implementer, fix) → `scope.js degraded add`. Under `--unattended` it blocks.
 - **A verification dispatch** → `scope.js degraded add-denial -`, the refusal piped through a quoted heredoc rather than a shell argument. Under `--unattended`, follow that section's authorship rule: block where the controller authored what the pass verifies, and otherwise do the pass inline up to its cap. Read `scope.js get denials` after the entry and block once the count reaches it.
 
-**Agents carry their own discipline.** Applies to every dispatch. Pass specifics, not lectures. A `mechanical` or `docs` slice invents no tests: the loop's runs and the scope review's exit run, the scope's one full-suite run (a full run, or the carry or recorded rerun `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` admits), are the net (ADR 0025, ADR 0075, ADR 0091, ADR 0172, ADR 0175, ADR 0192).
+**Agents carry their own discipline.** Applies to every dispatch. Pass specifics, not lectures. A `mechanical` or `docs` slice invents no tests: the loop's runs and the scope review's exit run, the scope's one full-suite run (a full run, or the carry or recorded rerun `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` admits), are the net.
 
 ## Config + input
 
@@ -78,7 +78,7 @@ Applies to the `lite` tier. Its playbook runs the documentation pass in the same
 **The config.** Applies to every start. Read `docs/agents/issue-tracker.md` (slice store), `docs/agents/code-management.md` (code host), `docs/agents/documentation.md` (documentation convention), `docs/agents/knowledge-base.md` (optional KB), and `docs/agents/verification.md` (test command).
 
 - **Slice store or code host missing** → call the Skill tool with `superdev:setup` (no argument: the full setup), then continue. Under `--unattended`, block.
-- **`docs/agents/verification.md` carrying one fenced block** → the focused command was never recorded (ADR 0085, INV-0007). Call the Skill tool with `superdev:setup` (no argument), then continue. Under `--unattended`, block. No file, or zero fenced blocks, needs no such command.
+- **`docs/agents/verification.md` carrying one fenced block** → the focused command was never recorded. Call the Skill tool with `superdev:setup` (no argument), then continue. Under `--unattended`, block. No file, or zero fenced blocks, needs no such command.
 - **`docs/agents/toolchain.md` absent while the repo has build manifests** (`package.json`, `*.csproj`/`*.sln`, `pom.xml`/`build.gradle*`, `pyproject.toml`, `Cargo.toml`, `go.mod`, …) → suggest **`/superdev:setup`** and continue.
 
 **The feature label.** Applies to a given argument. It is the feature's slice-store label per `docs/agents/issue-tracker.md`, in that store's shape, carrying a **change type** and a slug (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The change type`). Both segments pass `scope-mode.md`'s scope-slug rule, because the whole label becomes the branch.
@@ -100,7 +100,7 @@ Applies to the `lite` tier. Its playbook runs the documentation pass in the same
 - **No slices** → call the Skill tool with `superdev:plan` and stop once plan ends. Under `--unattended`, block.
 - **One slice, no epic** → the DoD is that slice's `acceptance` (`plan-contract.md`).
 
-**An outward criterion.** Applies to an `acceptance` criterion that needs a deploy, a migration, or any other outward-facing change to verify. Give it no increment, and report it as needing verification after merge, naming that change. Verifying a criterion changes no system outside the repository (ADR 0084, INV-0006).
+**An outward criterion.** Applies to an `acceptance` criterion that needs a deploy, a migration, or any other outward-facing change to verify. Give it no increment, and report it as needing verification after merge, naming that change. Verifying a criterion changes no system outside the repository.
 
 **The release.** Applies once the slices load. Read the signal off the scope anchor, through `docs/agents/issue-tracker.md`'s `## Release` section (`plan-contract.md` → *Release*).
 
@@ -133,8 +133,8 @@ Applies to every `full` dispatch; `lite` dispatches none, and the reviews later 
 |---|---|---|
 | implementer / fix | `haiku` | mechanical slice (move, rename, format change), transcription from a complete specification, or a fix list in which every finding is a mechanical finding |
 | implementer / fix | `sonnet` | design / multi-file / judgment slice, or a fix list with any other finding |
-| slice-reviewer | `opus` | always (ADR 0118) |
-| simplicity-reviewer | `sonnet` | always (ADR 0118) |
+| slice-reviewer | `opus` | always |
+| simplicity-reviewer | `sonnet` | always |
 
 **A mechanical finding.** Applies to the fix rows. A mechanical finding's fix changes no stated rule or behaviour (a rename, a rewrap, a typo). A fix that changes a rule or behaviour any surface states stays off `haiku`. An implementer working from a prose specification takes at least `sonnet`.
 

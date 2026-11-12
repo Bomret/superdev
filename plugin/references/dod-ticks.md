@@ -1,6 +1,6 @@
 # Definition-of-Done ticks
 
-A controller ticks from an implementer's report (ADR 0091). Neither playbook's implementer writes a
+A controller ticks from an implementer's report. Neither playbook's implementer writes a
 tick itself — it reports, and the controller that dispatched it judges the report and writes the tick.
 
 ## The mapping gate
@@ -19,7 +19,7 @@ controller matches a tag to a slice through the ledger's `issue` column (`scope.
 `issue`) — a tag already in `id` notation names the slice by `id` directly; a tag in the store's own
 notation names the slice whose `issue` equals it. `scope` and `docs` never resolve through that column — each
 stays as written, and a `docs` line is no slice's listed line (Review's case and Document's case below
-settle it, ADR 0161).
+settle it).
 
 **No tags at all.** A `dod.md` carrying no tags anywhere, on a ledger listing exactly one slice, is that
 single-slice feature's own DoD (`plan-contract.md`'s `### Criterion tags`: "a single-slice feature carries
@@ -56,12 +56,11 @@ findings; a fix cycle's dispatch then lists exactly the lines that cycle unticke
 implementer's report on those listed lines is judged the same way as any other: `met` re-ticks the line
 with that evidence, `not met`/`ceiling` leaves it unticked with that reason, and an omitted listed line is
 sent back per the note rule below. A `ceiling` verdict is never listed — no fix cycle can close it. An
-`accepted` verdict leaves the line exactly as it stood: only an attended operator writes `accepted:`
-(ADR 0095).
+`accepted` verdict leaves the line exactly as it stood: only an attended operator writes `accepted:`.
 
-**A `docs`-tagged line waits for the doc pass** (ADR 0161). `final-reviewer` gives an unmet one the `doc
+**A `docs`-tagged line waits for the doc pass**. `final-reviewer` gives an unmet one the `doc
 pass` verdict, and the review's controller writes nothing for it: no note, no untick of an unjudged line,
-no fix-cycle listing, and no `**Unresolved:**` entry, so it never holds the stage at review (INV-0016).
+no fix-cycle listing, and no `**Unresolved:**` entry, so it never holds the stage at review.
 A `holds` verdict ticks it as below. **A fix cycle that landed commits unticks every ticked `docs` line**,
 with the note `not met: a fix cycle landed after the doc pass`, on the same trigger that clears the
 inline doc-pass record: those commits may have made the `AGENTS.md` text stale, and the next doc pass
@@ -75,12 +74,12 @@ any shipped or closed run does (Document's case below).
 
 **A `holds` verdict can tick a line too.** A `holds` verdict on a line that stands unticked with `not
 met:`, or carries no note at all, ticks that line — the review's controller writes the tick, with the
-verdict's own evidence as the note (INV-0015); a joint criterion a slice under-reported, a `scope` line
+verdict's own evidence as the note; a joint criterion a slice under-reported, a `scope` line
 judged too early, or an implementer that misjudged its own work all take this shape. A line unticked with
 `ceiling:` takes a holds tick only when the verdict itself states the criterion needs no deploy or other
 outward-facing change to verify and cites evidence observed on the branch — the ceiling claim was wrong,
 and the line was never a ceiling criterion. A `holds` verdict never ticks a line that genuinely needs a
-deploy to verify (INV-0006); post-deploy verification of such a line is a later feature's own concern. A
+deploy to verify; post-deploy verification of such a line is a later feature's own concern. A
 `holds` verdict on an already-ticked line changes nothing. Re-ticking after a fix cycle still follows the
 fix implementer's report, once that cycle's re-review comes back clean.
 
@@ -92,29 +91,29 @@ re-checks each ticked line against what its own commits just landed: a line the 
 left exactly as it stood, with no note added; a line its own change broke is unticked, with a one-line note
 on what broke it. It judges each `docs` line neither ticked nor `accepted:` against the branch after its
 pass: a true one is ticked with its evidence; a false one is unticked with a `not met:` note naming what
-the `AGENTS.md` text still lacks (ADR 0161). An `accepted:` `docs` line is left exactly as it stands: only
-an attended operator writes or removes `accepted:` (ADR 0095). At a `shipped` or `closed` stage the pass
+the `AGENTS.md` text still lacks. An `accepted:` `docs` line is left exactly as it stands: only
+an attended operator writes or removes `accepted:`. At a `shipped` or `closed` stage the pass
 judges no `docs` line: its report names each unticked one, and the shipped or closed route picks the next
 command. No other line is a listed line for this pass, so an earlier tick outside that set
 is never touched. Verifying a line observes; it changes no
-system outside the repository (ADR 0084, INV-0006).
+system outside the repository.
 
 **Verify-ship's case:** `/superdev:verify-ship`'s own controller judges, never a dispatched worker's
 report. Its listed lines are exactly the `dod.md` lines that are neither ticked nor `accepted:` — at
 `shipped`, the `ceiling:` lines and the `not met:` lines, its own earlier ones and any written before
-merge (INV-0016). It observes each one
+merge. It observes each one
 inline against the deployed system: observed true writes `met: <evidence>`, observed false writes
 `not met: <the observation>` ending in the repair citation
 (`shipped-run.md`'s `## Routing a shipped run`), and a line it cannot observe goes to the attended
 operator. The answer *verified* writes `met:` with the answer as the evidence, *false* writes
 `not met: <the answer>` ending in the repair citation, *accept as unverifiable* writes
-`accepted: <the operator's reason>` (ADR 0095), and *later* leaves the line unchanged. Verifying a line
-observes; it changes no system outside the repository (ADR 0084, INV-0006, ADR 0106). A ticked or
+`accepted: <the operator's reason>`, and *later* leaves the line unchanged. Verifying a line
+observes; it changes no system outside the repository. A ticked or
 `accepted:` line is never a listed line and is never rewritten. A `not met:` note written before merge
 carries no repair citation, so the shipped-run routing rule sends a run whose `not met:` notes were all
 written before merge to verify-ship before any repair is planned.
 
-## The note rule (INV-0014)
+## The note rule
 
 Every judged line carries a note, in `plan-contract.md`'s line format:
 
@@ -127,7 +126,7 @@ Every judged line carries a note, in `plan-contract.md`'s line format:
 
 A ticked line's note names the evidence. An unticked line's note names why the criterion is not met,
 that only a deploy can verify it (`ceiling:`), or that an attended operator accepted it as unmet
-(`accepted:`, ADR 0095), with any partial evidence the report already gathered. A bare tick with no note
+(`accepted:`), with any partial evidence the report already gathered. A bare tick with no note
 is invalid.
 
 **`accepted` is written only by an attended operator, never by a report.** No mapping-gate dispatch —
@@ -135,7 +134,7 @@ implement's slice dispatch, a review fix cycle, run handoff's own settling pass 
 `accepted`, and no controller writes it from a report the way it writes `met`/`not met`/`ceiling`: only
 an attended operator's own decision, mid-conversation with the controller, does. No unattended run and
 no subagent writes it; an unattended run meeting an unmet criterion behaves exactly as it does today.
-The stage gate (INV-0016) treats an `accepted:` line as settled — review does not raise it as a Critical
+The stage gate treats an `accepted:` line as settled — review does not raise it as a Critical
 finding and does not hold the stage on it, and run handoff, document's re-check, and ship's gate all read
 it the same way. Review still challenges the line's own facts: a `holds` verdict on an `accepted:` line
 whose criterion the branch has since come to meet ticks it `met:`, the same re-tick a `holds` verdict
@@ -149,7 +148,7 @@ listed line, and sends the report back for that line before merging or ticking a
 (the same re-ask a NEEDS_CONTEXT status gets). "A line the report never touches carries no note at all"
 stays true only for a line the dispatch never listed — one tagged to another slice, or to `scope`.
 
-## Only a controller ticks (INV-0015)
+## Only a controller ticks
 
 Writing a tick is the controller's own act, never a subagent's, and never `/superdev:submit-pr`'s or
 `/superdev:ship`'s. `/superdev:verify-ship`'s own controller ticks from its own direct observation. The same
@@ -159,7 +158,7 @@ dispatched worker, that same direct check — never batched from an assumption a
 together must have covered. Each write lands in `<run-root>/dod.md`, the run's own working copy:
 
 - **Implement's case and run handoff's pass write `dod.md` alone.** They are the only writers that skip
-  the anchor, so its checklist lacks their ticks until the anchor sync copies them (ADR 0206).
+  the anchor, so its checklist lacks their ticks until the anchor sync copies them.
 - **Every other write also lands on the scope anchor**: review's, the doc pass's, and verify-ship's. The
   review runs the anchor sync at entry and again before each stage write (`## Pairing dod.md with the anchor`
   below).
@@ -170,7 +169,7 @@ together must have covered. Each write lands in `<run-root>/dod.md`, the run's o
 
 ## Pairing dod.md with the anchor
 
-`dod.md` is authoritative (INV-0016). Implement and run handoff write no anchor line, and a store's tick
+`dod.md` is authoritative. Implement and run handoff write no anchor line, and a store's tick
 write is best-effort, so the anchor can lag it. An anchor line **pairs** with a `dod.md` line by
 criterion text, the match `scope.js dod-line` uses. A line's **verdict** is its note's verdict — `met:`,
 `not met:`, `ceiling:`, `accepted:`, or no note — never the box alone: an unticked anchor line with no

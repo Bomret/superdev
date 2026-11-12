@@ -218,8 +218,8 @@ const HOOK_HEADER_REGEX = /\\+\*\\+\*[^\n]{0,60}:\\+\*\\+\*/;
 // field`, at `###` under `## Issue-backend mapping (general)`.
 const specialisingHeading = (name) => new RegExp(`^#{2,3}\\s+${name}\\b`, 'm');
 
-// The generic contracts in `references/plan-contract.md` that each slice-store document renders as a
-// section of its own, and cites by name.
+// The generic contracts that each slice-store document renders as a section of its own, and cites by
+// name. Each lives in `references/plan-contract.md` unless `SPECIALISING_HOMES` names another reference.
 const SPECIALISING_SECTIONS = [
   'Scope anchor',
   'Release',
@@ -231,11 +231,18 @@ const SPECIALISING_SECTIONS = [
   'Definition of Done ticks',
 ];
 
-// One `plan-contract.md` row per member. Taking the names as an argument is what lets the selftest
-// assert the derivation itself: a name the real list has never held yields a row for it.
+// The generic contracts that live outside `references/plan-contract.md`, by the reference that holds them.
+const SPECIALISING_HOMES = {
+  'Append mode': 'plan-authoring.md',
+  'Triage record': 'store-records.md',
+  'Intent record': 'store-records.md',
+};
+
+// One row per member, pinned to the reference that holds it. Taking the names as an argument is what lets
+// the selftest assert the derivation itself: a name the real list has never held yields a row for it.
 const specialisingGenericRows = (names) =>
   names.map((name) => [
-    path.join('references', 'plan-contract.md'),
+    path.join('references', SPECIALISING_HOMES[name] || 'plan-contract.md'),
     specialisingHeading(name),
     `carry the \`## ${name}\` section — the generic contract each store document specialises`,
   ]);
@@ -257,7 +264,7 @@ const SOURCE_SECTION_CONTRACTS = [
     'carry the `## Slice lifecycle & status` section, which the chain documents cite by name',
   ],
   [
-    path.join('references', 'plan-contract.md'),
+    path.join('references', 'plan-authoring.md'),
     /^#{2,3}\s+Epic visuals\b/m,
     'carry the `## Epic visuals` section, which holds the epic-visuals gate for `## Slice graph` and ' +
       '`## Touch map`',
@@ -312,17 +319,17 @@ const SOURCE_SECTION_CONTRACTS = [
     'carry the `## Vulnerability classes` section, which both `final-reviewer` and `slice-reviewer` read',
   ],
   [
-    path.join('references', 'review-checklist.md'),
+    path.join('references', 'review-design-lenses.md'),
     /^#{2,3}\s+Reuse audit\s*$/m,
     'carry the `## Reuse audit` section, which `final-reviewer` reads',
   ],
   [
-    path.join('references', 'review-checklist.md'),
+    path.join('references', 'review-design-lenses.md'),
     /^#{2,3}\s+Consistency\s*$/m,
     'carry the `## Consistency` section, which `final-reviewer` reads',
   ],
   [
-    path.join('references', 'review-checklist.md'),
+    path.join('references', 'prompt-concept-overlap.md'),
     /^#{2,3}\s+Prompt-concept overlap\s*$/m,
     'carry the `## Prompt-concept overlap` section, which `references/review-scope-mode.md`, ' +
       '`references/AGENTS.md`, `CONTEXT.md`, and the root `AGENTS.md` cite',
