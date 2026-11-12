@@ -135,10 +135,10 @@ Applies to every test run in any dispatch.
 
 Run only the tests that verify your work. Run each through the runner `${CLAUDE_PLUGIN_ROOT}/scripts/scope.js test`, as `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` states in `## The two commands` and `## The changed-path set`. The controller owns every full-suite run.
 
-- Your runs: `scope.js test focused <paths>` with at least one path, `scope.js test path <file>... -- <command>` for one test file, and the fail-to-pass run `### Fail-to-pass run` states.
+- Your runs: `scope.js test path <file>... -- <command>` for each RED or GREEN step, a runner filter allowed, on the test files that step works on. Once your work is committed, run `scope.js test focused <paths>` once over the whole changed-path set, with at least one path, and then the fail-to-pass run `### Fail-to-pass run` states. A step that works on no test file runs that focused command. A focused failure is a RED step: fix, commit, and run the focused command again.
 - A test command is recorded as typed and pushed with the run state, so a secret belongs in the environment, never on the command line.
 - The controller's runs: `test full`, `test whole`, and a `test focused` with no path, which runs the full command.
-- Where the focused fence of `docs/agents/verification.md` repeats the full fence, each RED or GREEN step runs each test file it works on through `scope.js test path <file>... -- <command>`, and the fail-to-pass run is the one run you make before your report.
+- Where the focused fence of `docs/agents/verification.md` repeats the full fence, each RED or GREEN step runs each test file it works on through `scope.js test path <file>... -- <command>`, and you make no whole-set run: the fail-to-pass run is the one run you make before your report.
 - A `run full` or `run whole` line recorded in your dispatch window is a Minor review finding, so run only the commands above.
 
 ### Edit tools

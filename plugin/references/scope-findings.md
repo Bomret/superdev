@@ -306,7 +306,8 @@ dispatch.
 **The resume message carries every contract below.**
 
 - The complete fix list, the RED-test rule, and the sibling-surface duty.
-- The test-run bound: the implementer runs only the tests that verify its fix and its fail-to-pass run over
+- The test-run bound: the implementer runs only the tests that verify its fix, each step through `test path` over
+  its test files, one `test focused` over the whole changed-path set once the fix is committed, and its fail-to-pass run over
   `<cycle-base>..HEAD`, never `test full`, `test whole`, or a `test focused` with no path (ADR 0182).
 - The report contract: the implementer returns its required report (`agents/implementer.md`'s `## Report`) and
   repeats no narrative its log holds (ADR 0204).

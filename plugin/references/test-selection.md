@@ -9,8 +9,8 @@ reads this file at runtime, the same shared-file-read-at-dispatch pattern as `re
 A repository with no suite at all carries no such file.
 
 - **The full command** is the first fenced block. Run it verbatim.
-- **The focused command** is the second fenced block, and it is the command every step inside
-  the loop runs. What defines it is that it **costs less than the full suite**: a run scoped to a set of
+- **The focused command** is the second fenced block, and it is the command the loop runs
+  once over its whole changed-path set, after the work is committed. What defines it is that it **costs less than the full suite**: a run scoped to a set of
   changed paths qualifies, and so does a fast subset — the unit tests, with the slow integration tests
   left out. Where narrowing is impossible, the second fence records the full command again, with prose
   beside it stating why. A second fenced block is **only ever** the focused command — never a watch
@@ -280,18 +280,19 @@ Each caller judges its own range and builds the set from it:
 
 - **A chain gate's carry run.** Every path changed from the suite record's commit to the gate's tip, per
   `## The carry run`.
-- **The implementer's TDD loop, and the lite tier's inline loop.** A failing-test or passing-test step runs
-  over the test files that hold the tests the step works on, and passes those files alone to `scope.js test
-  focused`. The last run before the implementer reports, and before the lite tier commits a slice, runs over
-  the slice's whole changed-path set: the slice base against the working tree. A step that works on no test
-  file runs over that whole set too. A focused command with no `{paths}` token runs unchanged at every step,
-  and the run trace records every step's run either way (ADR 0139). Every loop run passes at least one path, or
-  runs one test file through `test path <file>... -- <command>`, so the loop runs only the tests that verify the work. `test full`,
+- **The implementer's TDD loop, and the lite tier's inline loop.** Each failing-test or passing-test step runs
+  the test files it works on through `scope.js test path <file>... -- <command>`, a runner filter allowed, and never
+  through the focused command (ADR 0232). Once the work is committed, one `scope.js test focused <paths>` runs over the
+  whole changed-path set: the slice base against the working tree, or `<cycle-base>..HEAD` on a fix cycle. It runs
+  before the fail-to-pass run, whose first run stays the last passing run of the range's test files. A focused
+  failure is a RED step: fix, commit, and run the focused command again. A step that works on no test file runs
+  that focused command over the whole set. A focused command with no `{paths}` token runs verbatim, and the run
+  trace records every run either way (ADR 0139). Every loop run passes at least one path, or runs test files
+  through `test path`, so the loop runs only the tests that verify the work. `test full`,
   `test whole`, and a `test focused` with no path run only at the scope review's and ship's gates (ADR 0177, ADR 0192).
-  Where the focused fence repeats the full fence, `test focused` runs the whole suite whatever paths it gets. There a
-  failing-test or passing-test step runs each test file it works on through `test path <file>... -- <command>`, the runner's own
-  invocation of that one file. The last run before the implementer reports, or before the lite tier commits a slice,
-  does not run, and neither does a step that works on no test file: the scope review's exit run covers that work
+  Where the focused fence repeats the full fence, `test focused` runs the whole suite whatever paths it gets. There
+  each step runs each test file it works on through `test path`, and the loop makes no whole-set run: neither the
+  committed-work run nor a step that works on no test file runs, because the scope review's exit run covers that work
   (ADR 0180, ADR 0192). The fail-to-pass run still runs (ADR 0182).
 - **The documentation step.** None: the step runs no test command and builds no set. `scope.js suite reusable`
   carries a green record across Markdown-only commits with no test run at the tip (ADR 0128, ADR 0189,
