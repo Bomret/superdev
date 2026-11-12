@@ -54,11 +54,11 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
   All file edits, test runs, `git` commands, and commits happen **in the scopetree as the cwd** —
   never in the invoking checkout. `mechanical` / `docs` slices need no new test — the existing suite is
   the net. Read `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it selects for
-  each run, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths>` with at least one path (or
-  `test path <file>... -- <command>` for a direct test-file run). The loop runs only the tests that verify the slice, never `test full`, `test whole`, or a `test focused`
-  with no path: the scope review's exit run is the scope's one full-suite run (ADR 0192). Each failing-test or passing-test step passes the test
-  files that hold the tests it works on. Your last run before you commit a slice passes the slice's whole
-  changed-path set, and so does a step that works on no test file (ADR 0139). Where the focused fence repeats the
+  each run, through `scope.js test`. The loop runs only the tests that verify the slice, never `test full`, `test whole`, or a `test focused`
+  with no path: the scope review's exit run is the scope's one full-suite run (ADR 0192). Each failing-test or passing-test step runs
+  the test files that hold the tests it works on through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test path <file>... -- <command>`, a runner filter allowed.
+  After the work is committed and before the fail-to-pass run, one `test focused <changed paths>` with at least one path
+  runs over the slice's whole changed-path set, and so does a step that works on no test file (ADR 0139, ADR 0232). A focused failure is a RED step: fix, commit, and run it again. Where the focused fence repeats the
   full fence, each step runs each test file it works on through `test path <file>... -- <command>`, and you make neither of those
   whole-set runs: the scope review's exit run covers them (ADR 0180, ADR 0192). A suite longer than the Bash tool's time limit runs
   through the runner in the background, and you wait for its end before acting on it. A test command is recorded as typed and pushed with the run state, so a secret belongs in the environment, never on the command line. The run trace records your edits and runs.
