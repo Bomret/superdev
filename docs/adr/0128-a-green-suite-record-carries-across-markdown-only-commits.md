@@ -16,6 +16,9 @@ suite that fails once passes the gate on one recorded rerun.
 **Amended by:** [ADR 0189](0189-no-test-runs-after-review-and-none-in-setup.md), under which the carry needs no test
 run at the tip and the documentation step runs none.
 
+**Amended by:** [ADR 0230](0230-submit-pr-offers-ship-only-on-a-tip-its-gate-accepts.md), under which a
+changed `docs/agents/verification.md` refuses the carry only where its run configuration changed.
+
 ## Context
 
 `/superdev:review` records the full suite green on the review tip. `/superdev:document` then lands doc

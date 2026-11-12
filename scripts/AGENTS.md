@@ -67,7 +67,11 @@ by the third route alone. The fourth route writes the run it accepts as the reco
 the latest whole run at the tip passed, and leaves a record that already reads so untouched. No other route writes.
 
 The **Markdown-only carry** (ADR 0128) holds when every path changed since the record ends in `.md`. No such path is a
-test path, and none is `docs/agents/verification.md`. The carry needs no test run at the tip (ADR 0189, INV-0175). It
+test path. A changed `docs/agents/verification.md` carries only where its **Run configuration** (CONTEXT.md) is the same
+at both commits the carry judges: the full and focused commands as written, the whole-repo command, the prepare command,
+the test-path entries, and the complete-selector declaration (ADR 0230). `runConfiguration` and `configRefusal` of
+`lib/suite-base-get.js` compare them through the readers of `lib/verification.js`. A refusal names the part that changed,
+and a `verification.md` git cannot read at either commit refuses. The carry needs no test run at the tip (ADR 0189, INV-0175). It
 refuses when the run trace records a failed full, whole, path, or focused run there. It also refuses when the latest run
 there reads `unknown`. The test paths come from the tip commit's `verification.md`.
 `isTestPath` of `lib/verification.js` reads them. The run trace's `lib/run-tree.js` wraps that classifier.
@@ -78,7 +82,7 @@ have the record's commit as an ancestor of the tip. The tip's `docs/agents/verif
 directory covers every path under it. `completeSelector` of `lib/verification.js` reads the section. Without the
 declaration, the non-Markdown path is the refusal. With it, the carry holds under these conditions:
 
-- No changed path is a selector file or `verification.md`.
+- No changed path is a selector file, and a changed `verification.md` keeps its run configuration.
 - The focused command carries `{paths}`.
 - No full, whole, or path run at the tip failed.
 - The latest focused run at the tip passed on a clean tree.
@@ -87,7 +91,8 @@ declaration, the non-Markdown path is the refusal. With it, the carry holds unde
 A directory in that path set covers no file under it. A focused run records its path set as the fifth field of its `run`
 line. A range of Markdown paths only keeps the Markdown-only rules, with or without the declaration. Under the
 declaration the two carries chain. A commit on the ancestry path from the record must pass the complete-selector carry
-from the record. Markdown-only commits from that commit up to the tip then carry the record. The walk takes children before parents.
+from the record. Markdown-only commits from that commit up to the tip then carry the record. Each leg compares the run
+configuration at its own two commits. The walk takes children before parents.
 
 `suite rerun <test-file> <triage-ref>` writes the ledger's one `**Rerun:**` header, `<file> @ <tip> <ref>`. The tip is the
 checkout's HEAD, and the file is a root-relative blob at it. The verb refuses `--whole`. A tip that already carries a
