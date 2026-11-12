@@ -3,7 +3,7 @@
 
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
 // Verbs: open, init, stage, step, slice, degraded, unresolved, deferred, minors, docs, pr, deploy, suite, base, get, status,
-// publish, adopt, trace, untraced, collisions, citations, source-set, push, root, staging, dod-line, dod-tags; `main()` also runs test, fail-to-pass, and prepare. Exit
+// publish, adopt, trace, untraced, collisions, citations, source-set, push, root, staging, dod-line, dod-tags, dod-check; `main()` also runs test, fail-to-pass, and prepare. Exit
 // nonzero with a one-line stderr reason on any refusal. Every verb that writes to a run first checks the run's
 // digest sidecar and reports an outside edit of its ledger or trace once (lib/run-check.js, ADR 0227).
 // `root` and `dod-line` touch no ledger: `root` resolves a run root's absolute
@@ -32,6 +32,7 @@ const {
 } = require('../lib/ledger-records.js');
 const { verbDodLine } = require('../lib/dod-line.js');
 const { verbDodTags } = require('../lib/dod-tags.js');
+const { verbDodCheck } = require('../lib/dod-check.js');
 const { verbSuite, verbSuiteRerun, verbSuiteReusable, verbBaseSet, verbBaseResolve, verbGet } = require('../lib/suite-base-get.js');
 const { publishText, verbPublish, verbAdopt } = require('../lib/run-state.js');
 const { verbStatus, verbStaging } = require('../lib/status.js');
@@ -371,6 +372,10 @@ function run(argv, cwd, stdinJson) {
     case 'dod-tags':
       verbDodTags(args, stdinJson);
       break;
+    // No --root: dod-check checks an anchor body on stdin, no ledger, no trace, no store call (ADR 0233).
+    case 'dod-check':
+      verbDodCheck(stdinJson);
+      break;
     default:
       fail('unknown verb "' + (verb || '') + '"\n' + usage());
   }
@@ -406,7 +411,7 @@ function asksForHelp(argv) {
 }
 
 // The verbs `run()` hands the whole stdin text to; `main()` reads stdin for these alone, plus a bullet verb given `-`.
-const STDIN_VERBS = ['init', 'adopt', 'dod-line', 'dod-tags', 'dod-merge'];
+const STDIN_VERBS = ['init', 'adopt', 'dod-line', 'dod-tags', 'dod-check', 'dod-merge'];
 
 function main() {
   const argv = process.argv.slice(2);

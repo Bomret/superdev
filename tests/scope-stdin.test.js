@@ -71,6 +71,7 @@ try {
     'dod-merge': [[['dod-merge', '--root', root], '- [ ] a piped criterion\n', () => assert.match(fs.readFileSync(path.join(root, 'dod.md'), 'utf8'), /a piped criterion/)]],
     'dod-line': [],
     'dod-tags': [],
+    'dod-check': [],
   };
   const matchFile = path.join(tmp, 'match.txt');
   const noteFile = path.join(tmp, 'note.txt');
@@ -89,6 +90,12 @@ try {
     ['dod-tags', '--map-file', tagMap],
     '## Definition of Done\n\n- [ ] a piped criterion — 01\n',
     () => assert.match(pipedOut, /a piped criterion — #7/, 'dod-tags rewrote the piped tag'),
+  ]);
+
+  cases['dod-check'].push([
+    ['dod-check'],
+    '## Definition of Done\n\n- [ ] a piped criterion (triage #3)\n- [ ] Reachable: piped\n- [ ] Release risk: rollback, deploy-window data compatibility, consumer compatibility, production visibility\n\n**Absorbs:** #3\n',
+    () => assert.strictEqual(pipedOut, '', 'dod-check passed the piped body silently'),
   ]);
 
   for (const verb of stdinVerbs) assert.ok(cases[verb], `verb "${verb}" reads piped input and has a case in this suite`);

@@ -83,7 +83,7 @@ const { sliceJson, scopePath, run } = require('./scope-setup');
     // `ledger <verb> …` line: a verb added to the usage text with no driver here, or one that stops tracing, fails.
     {
       const usageText = require('../plugin/lib/usage.js').usage();
-      const readOnly = new Set(['get', 'trace', 'publish', 'status', 'root', 'staging', 'dod-line', 'dod-tags', 'dod-merge', 'collisions', 'citations', 'source-set', 'untraced', 'push', 'run-state', 'test', 'fail-to-pass', 'prepare',
+      const readOnly = new Set(['get', 'trace', 'publish', 'status', 'root', 'staging', 'dod-line', 'dod-tags', 'dod-check', 'dod-merge', 'collisions', 'citations', 'source-set', 'untraced', 'push', 'run-state', 'test', 'fail-to-pass', 'prepare',
         // discard removes the run trace with the ledger, so it leaves no line to append to (ADR 0208).
         'discard']);
       const readOnlySub = /^\s+(deploy get|suite reusable|base resolve)\b/;

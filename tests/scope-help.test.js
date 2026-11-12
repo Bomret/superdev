@@ -21,7 +21,7 @@ try {
     const ledgerBefore = fs.readdirSync(tmp).join(',');
     const endless = fs.openSync('/dev/zero', 'r');
     try {
-      for (const argv of [['--help'], ['-h'], ['dod-line', '--help'], ['init', '--help'], ['adopt', '--help'], ['deferred', 'add', '-', '-h']]) {
+      for (const argv of [['--help'], ['-h'], ['dod-line', '--help'], ['dod-check', '--help'], ['dod-check', '-h'], ['init', '--help'], ['adopt', '--help'], ['deferred', 'add', '-', '-h']]) {
         const res = cp.spawnSync(process.execPath, [scopePath, ...argv], {
           cwd: tmp,
           stdio: [endless, 'pipe', 'pipe'],
@@ -34,6 +34,7 @@ try {
         if (argv.join(' ') === '--help') {
           assert.match(res.stdout, /push --root <run-root> --remote <remote> --base <base-ref>/, 'the usage lists push');
           assert.match(res.stdout, /^ {2}citations /m, 'the usage lists citations');
+          assert.match(res.stdout, /^ {2}dod-check +stdin: an anchor body/m, 'the usage lists dod-check');
           assert.match(res.stdout, /^ {2}discard +--root <run-root>/m, 'the usage lists discard');
           assert.doesNotMatch(res.stdout, /--match </, 'the usage lists no inline --match form');
           assert.doesNotMatch(res.stdout, /--note </, 'the usage lists no inline --note form');

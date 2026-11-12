@@ -400,7 +400,8 @@ absent line reads as no absorbed records, never as an error. `/superdev:plan` wr
 absorbs records, and an append that absorbs more records revises the line in place, as it revises the
 deploy line. A body holding several such lines reads the first. Each entry is trimmed of surrounding whitespace and
 read on its own: a malformed entry is ignored while the rest are still read, and a repeated entry counts
-once. Append mode's single-slice promotion moves the line to the new epic
+once. `scope.js dod-check` holds the line against the Definition of Done's `(triage <reference>)` citations at
+`/superdev:plan`'s store write and at the scope review's anchor sync (ADR 0233, INV-0189). Append mode's single-slice promotion moves the line to the new epic
 (*Append mode* above). Each store's own `## Scope anchor` section states the mechanism it writes and
 reads the line with, and never confuses it with the anchor dependency, the deploy line, the Repairs line,
 or a slice's `depends-on`.
