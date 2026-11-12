@@ -205,6 +205,12 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   in all, and the pin judges the last pair. A one-off load spike then decides no pin.
   `timePair` needs `process.threadCpuUsage()`, so `package.json`'s `engines.node` requires Node 24 or later
   for the test toolchain. The hooks under `plugin/` do not use it.
+- **No test run without due cause** (ADR 0242). A maintainer or agent working here names the question a run
+  answers before making it, and makes the smallest run that answers it: one test where the runner can pick it, one
+  suite (`node tests/<suite>.test.js`), or `node scripts/run-tests.js --related <paths>`. A prose-only change needs the `--related` tail alone. The full
+  `node scripts/run-tests.js` runs at most once per branch, before its pull request, and only when the change touches
+  code a focused run cannot reach. Parallel agents never each run the full suite. Shipped prose holds adopters' runs to
+  the same rule, in `references/test-selection.md`'s `## Every run answers a question`.
 - **Shipped code carries no test seam** (ADR 0154). Under `plugin/`, no environment variable, parameter,
   default, export, or comment exists for a test's sake. A suite reaches behaviour through the shipped
   entry points and the real inputs they take, and a suite that needs a different bound or remote builds

@@ -3,6 +3,24 @@
 The rule that picks between the full test command and the focused one. Every prose caller
 reads this file at runtime, the same shared-file-read-at-dispatch pattern as `references/scope-mode.md`.
 
+## Every run answers a question
+
+Tests cost time, so every test run answers a question that no cheaper source and no earlier run at the same commit
+answers. Before a run, know which of these it answers, and make the smallest run that answers it. The smallest is
+often one test, picked by the runner's own filter (a test name, a `-t`/`-k`/`--grep` pattern, a `file:line`), not
+the file or suite around it:
+
+- **A failing-test step:** the new or changed test fails before the change. Run that test alone.
+- **A passing-test step:** that test passes with the change. Run it alone. Only the last passing-test step runs the
+  range's test files whole, once, as the fail-to-pass control.
+- **The focused run:** the tests the changed paths reach still pass. Once per work unit, after its last commit.
+- **The fail-to-pass run:** the tests detect the change. Once per range, reusing the last passing-test step.
+- **A gate's run:** the integrated scope passes where no record or carry already shows it.
+
+A run that answers none of these is not made: a rerun of a passing run at the same commit on a clean tree, a run
+after a change to Markdown or prose alone, and a wider run where a narrower one answers the question. A failing run
+is rerun only after a change meant to fix it.
+
 ## The two commands
 
 `docs/agents/verification.md` carries two fenced code blocks in every repository with a suite.
@@ -300,8 +318,8 @@ Each caller judges its own range and builds the set from it:
   the test files it works on through `scope.js test path <file>... -- <command>`, a runner filter allowed, and never
   through the focused command. Once the work is committed, one `scope.js test focused <paths>` runs over the
   whole changed-path set: the slice base against the working tree, or `<cycle-base>..HEAD` on a fix cycle. It runs
-  before the fail-to-pass run. The last run before that verb is a `test path` run of the range's test files from the
-  tree root, at the committed tip, with the verb's exact command, which the verb reuses as its first run. A focused
+  before the fail-to-pass run. The last passing-test step runs after the last commit, as a `test path` run of the range's
+  test files from the tree root with the verb's exact command, which the verb reuses as its first run. A focused
   failure is a RED step: fix, commit, and run the focused command again. A step that works on no test file runs
   that focused command over the whole set. A focused command with no `{paths}` token runs verbatim, and the run
   trace records every run either way. Every loop run passes at least one path, or runs test files

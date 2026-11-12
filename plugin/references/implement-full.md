@@ -126,8 +126,8 @@ Repeat until every slice is `merged`:
    tells it that a test command is recorded as typed and pushed with the run state, so a secret belongs in the environment, never on the command line, and
    tells it to edit files through the edit tools, never through a script. It also tells it that a RED or GREEN step runs the test files
    that hold the tests that step works on through `test path`, and that the one focused run over the whole
-   changed-path set comes after its commit and before the fail-to-pass run, and that its last run
-   before the verb is a `test path` run of the range's test files from the tree root, at its committed tip, with the exact
+   changed-path set comes after its commit and before the fail-to-pass run, and that its last GREEN
+   step runs after the last commit, as a `test path` run of the range's test files from the tree root with the exact
    command it then passes to the verb, which reuses that run as its first. Where the focused fence repeats the full fence, it tells it instead that each step runs each test file
    it works on through `test path <file>... -- <command>`, that it makes no whole-set run, and that the `test path` run of its range's test files and the fail-to-pass run are its runs before the report. Every implementer dispatch also tells it that a failing test its slice did not cause, one that
    also fails at the slice's base commit, is named in its report, neither fixed nor blocked on, and left to
