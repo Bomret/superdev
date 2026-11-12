@@ -1239,7 +1239,7 @@ const { appendTrace, isTestPath } = require(scopePath);
   const V = ({ prose = 'The first fence is the full command; the second the focused one.', full = 'node all.js', focused = 'node focus.js {paths}', info = 'sh', extra = '' } = {}) =>
     `# Verification\n\n${prose}\n\n\`\`\`${info}\n${full}\n\`\`\`\n\n\`\`\`${info}\n${focused}\n\`\`\`\n${extra}`;
   const cases = [];
-  // A repository whose first commit R holds `text` as verification.md, on `main`.
+  // A repository whose first commit R holds `text` as verification.md, on `main`; `null` leaves the file out of R.
   const make = (text) => {
     const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-runcfg-')));
     cases.push(repo);
@@ -1248,7 +1248,7 @@ const { appendTrace, isTestPath } = require(scopePath);
     g(['config', 'user.name', 'test'], repo);
     fs.writeFileSync(path.join(repo, '.gitignore'), '.superdev/\n');
     fs.mkdirSync(path.join(repo, 'docs', 'agents'), { recursive: true });
-    fs.writeFileSync(path.join(repo, vRel), text);
+    if (text !== null) fs.writeFileSync(path.join(repo, vRel), text);
     fs.mkdirSync(path.join(repo, 'src'), { recursive: true });
     fs.writeFileSync(path.join(repo, 'src', 'a.js'), 'a\n');
     g(['add', '.'], repo);
@@ -1335,6 +1335,20 @@ const { appendTrace, isTestPath } = require(scopePath);
       }
       assert.ok(!r.ok && /git could not read/.test(r.err), `an unreadable verification.md at ${what} refuses: ` + (r.err || ''));
     }
+
+    // A verification.md deleted at the tip compares as an empty file: the recorded commit's fences differ, so it refuses.
+    const del = make(V());
+    g(['rm', '-q', vRel], del.repo);
+    g(['commit', '-q', '-m', 'delete'], del.repo);
+    const DT = g(['rev-parse', 'HEAD'], del.repo);
+    r = del.reusable(del.root(`green @ ${del.R}`, [full(del.R), focused(DT, [vRel])]));
+    assert.ok(!r.ok && r.err.includes(`${vRel} changed its full command`), 'a verification.md deleted at the tip refuses: ' + (r.err || ''));
+
+    // A verification.md created at the tip holding prose only reads as the absent file did, so it carries.
+    const cr = make(null);
+    const NT = cr.commit(vRel, '# Verification\n\nProse only.\n');
+    r = cr.reusable(cr.root(`green @ ${cr.R}`, [full(cr.R), focused(NT, [vRel])]));
+    assert.ok(r.ok && r.out === 'reusable', 'a prose-only verification.md created at the tip carries: ' + (r.err || ''));
 
     // The complete-selector carry: a prose-only verification.md change beside a code path carries when the focused run
     // covered both paths.
