@@ -261,7 +261,7 @@ file in the same run) passing clean at the tip after the failed full run, run at
 recorded there after that failure, from any directory, passing clean (a run of it before the failure counts for nothing), a passing clean focused run there
 after the failed full run whose recorded path set covers every path `base resolve`'s range base to the tip
 changes, the declaration, exactly one failed full run at the tip, and no failed run of another test file at
-the tip. Nothing reruns on its own, and no step reruns a failed suite until it passes.
+the tip. A recorded file name is read against the directory the run was made in, so `a.test.js` from `tests` is `tests/a.test.js`. Nothing reruns on its own, and no step reruns a failed suite until it passes.
 
 The `red` record at T also counts at a later tip U when T is an ancestor of U, every check above holds when
 judged at T, and T..U passes the Markdown-only rule of `## Complete selector`, judged at U: every path changed

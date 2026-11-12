@@ -1057,6 +1057,8 @@ const { appendTrace, isTestPath } = require(scopePath);
   // A path run records the directory it ran in as its eighth field (`.` at the tree root); `dir` null writes a line without it.
   const pathRun = (T, res, tree, files, dir) => ['path', res || 'pass', T, tree || 'clean', files, '1', 'node t.js', ...(dir === null ? [] : [dir || '.'])];
   const ALONE = (T, res, tree, dir) => pathRun(T, res, tree, 'tests/a.test.js', dir);
+  // The writer records a name as typed, relative to the directory the run was made in: `a.test.js` from `tests`.
+  const SUBRUN = (T, res, tree, name, dir) => pathRun(T, res, tree, name || 'a.test.js', dir || 'tests');
   const FOCUSED = (T, res, tree, paths) => ['focused', res || 'pass', T, tree || 'clean', encodePaths(paths || ['src/x.js'])];
   const ledgerOf = (rt) => fs.readFileSync(path.join(rt, 'ledger.md'), 'utf8');
   try {
@@ -1126,24 +1128,30 @@ const { appendTrace, isTestPath } = require(scopePath);
     // A multi-file path run is no run of the file alone.
     red([FAILED(f.T), pathRun(f.T, 'pass', 'clean', 'tests/a.test.js,tests/b.test.js'), FOCUSED(f.T)], 'a multi-file run holding the rerun file');
     // The rerun file's passing run counts only where it ran at the tree root.
-    red([FAILED(f.T), ALONE(f.T, 'pass', 'clean', 'tests'), FOCUSED(f.T)], 'a passing run made from a subdirectory');
+    red([FAILED(f.T), SUBRUN(f.T, 'pass', 'clean'), FOCUSED(f.T)], 'a passing run made from a subdirectory');
     red([FAILED(f.T), ALONE(f.T, 'pass', 'clean', '..'), FOCUSED(f.T)], 'a passing run made outside the tree');
     red([FAILED(f.T), ALONE(f.T, 'pass', 'clean', null), FOCUSED(f.T)], 'a passing run written without the directory field');
-    const subRun = f.root(`red @ ${f.T}`, [FAILED(f.T), ALONE(f.T, 'pass', 'clean', 'tests'), FOCUSED(f.T)]);
+    const subRun = f.root(`red @ ${f.T}`, [FAILED(f.T), SUBRUN(f.T, 'pass', 'clean'), FOCUSED(f.T)]);
     assert.ok(f.rerun(subRun, 'tests/a.test.js', '#99').ok);
     r = f.reusable(subRun);
-    assert.ok(!r.ok && /rerun|alone/.test(r.err), 'a subdirectory run refuses with the rerun reason: ' + (r.err || ''));
+    assert.ok(!r.ok && /no run of tests\/a\.test\.js alone recorded/.test(r.err), 'a subdirectory run refuses with the rerun reason: ' + (r.err || ''));
     // A failing run of another file from a subdirectory still counts against the rerun.
-    red([FAILED(f.T), pathRun(f.T, 'fail', 'clean', 'tests/b.test.js', 'tests'), ALONE(f.T), FOCUSED(f.T)], 'a failed path run of another file from a subdirectory');
+    red([FAILED(f.T), SUBRUN(f.T, 'fail', 'clean', 'b.test.js'), ALONE(f.T), FOCUSED(f.T)], 'a failed path run of another file from a subdirectory');
     // A failing run of the rerun file recorded after the failed full run refuses with the rerun's own reason from any
     // directory, even where a root run passed after it.
-    const both = f.root(`red @ ${f.T}`, [FAILED(f.T), ALONE(f.T, 'fail', 'clean', 'tests'), ALONE(f.T), FOCUSED(f.T)]);
+    const both = f.root(`red @ ${f.T}`, [FAILED(f.T), SUBRUN(f.T, 'fail', 'clean'), ALONE(f.T), FOCUSED(f.T)]);
     assert.ok(f.rerun(both, 'tests/a.test.js', '#99').ok);
     r = f.reusable(both);
     assert.ok(!r.ok && /failed or ran on a dirty tree/.test(r.err) && !/another test file/.test(r.err), 'an after-failure subdirectory failing run of the rerun file refuses with the rerun reason: ' + (r.err || ''));
+    // The same file reached as `../tests/a.test.js` from a sibling directory is the rerun file too.
+    const sib = f.root(`red @ ${f.T}`, [FAILED(f.T), SUBRUN(f.T, 'fail', 'clean', '../tests/a.test.js', 'src'), ALONE(f.T), FOCUSED(f.T)]);
+    assert.ok(f.rerun(sib, 'tests/a.test.js', '#99').ok);
+    r = f.reusable(sib);
+    assert.ok(!r.ok && /failed or ran on a dirty tree/.test(r.err) && !/another test file/.test(r.err), 'a sibling-directory failing run of the rerun file refuses with the rerun reason: ' + (r.err || ''));
     // Before the failed full run, a failing run of the rerun file from a subdirectory, or written without the field, counts for nothing.
-    for (const dir of ['tests', null]) {
-      const pre = f.root(`red @ ${f.T}`, [ALONE(f.T, 'fail', 'clean', dir), FAILED(f.T), ALONE(f.T), FOCUSED(f.T)]);
+    for (const early of [SUBRUN(f.T, 'fail', 'clean'), SUBRUN(f.T, 'fail', 'clean', '../tests/a.test.js', 'src'), ALONE(f.T, 'fail', 'clean', null)]) {
+      const dir = early[7] === undefined ? 'none' : early[7];
+      const pre = f.root(`red @ ${f.T}`, [early, FAILED(f.T), ALONE(f.T), FOCUSED(f.T)]);
       assert.ok(f.rerun(pre, 'tests/a.test.js', '#99').ok);
       r = f.reusable(pre);
       assert.ok(r.ok && r.out === 'reusable', `a failing run of the file before the failed full run (dir ${dir}) counts for nothing: ` + (r.err || ''));

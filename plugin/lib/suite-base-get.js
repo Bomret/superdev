@@ -200,7 +200,10 @@ function reusableOnRerun(cwd, root, branch, recordedSha, kind, whole, base) {
   const file = rootRelative(rm[1], top);
   const ofFile = (e) => {
     if (e.fields[0] !== 'path') return false;
-    const files = decodePaths(e.fields[4]).map((p) => rootRelative(p, top));
+    // A name is as typed, relative to the directory the run was made in (the eighth field): resolve it against that
+    // directory when the directory is relative and inside the tree. A line with no directory field reads root-relative.
+    const dir = e.fields[7] === undefined ? null : rootRelative(e.fields[7], top);
+    const files = decodePaths(e.fields[4]).map((p) => rootRelative(dir && !/^([\\/]|[A-Za-z]:[\\/])/.test(p) ? path.posix.join(dir, p.replace(/\\/g, '/')) : p, top));
     return files.length === 1 && files[0] === file;
   };
   // Only a run at the tree root counts as the rerun (ADR 0232): a line with no directory field reads as not at the root.
