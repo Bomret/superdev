@@ -33,8 +33,10 @@ four release-risk categories unnamed.
   store-specific body such as a Jira description. A refusal is a standing defect, written by the review's
   standing-defect writes: one `**Unresolved:**` entry per problem, the tip's suite record invalidated at
   `submitted`, and the stage left where it is, so `/superdev:submit-pr` and `/superdev:ship` wait. The
-  re-sync before each stage write runs the check again, so a clean verdict never clears a hold the anchor
-  still earns. The anchor text is the operator's to change, so the review dispatches no
+  re-sync before each stage write runs the check again at a stage before `shipped`, so a clean verdict
+  never clears a hold the anchor still earns. A failed anchor read or Absorbs read on the re-sync also
+  stops the stage write while an `anchor Definition-of-Done check:` entry stands, and leaves the entry
+  standing. With no such entry, a failed read skips the check, as it does at entry. The anchor text is the operator's to change, so the review dispatches no
   implementer and names the hand fix. At `shipped` or `closed` it names the problems in its report only.
 - **Wrap-up stays the backstop.** Its rule for an absorbed record with no citing criterion is unchanged.
 
