@@ -237,7 +237,7 @@ merge, and closes once, when `/superdev:wrap-up` runs. Every label swap is read 
 best-effort, because the run ledger drives control flow: a failed label or close call is logged and the
 run continues.
 
-**Lite execution tier** (3 slices or fewer) skips `in-review` for every slice: it goes from
+**Lite execution tier** (3 `behavior` slices or fewer) skips `in-review` for every slice: it goes from
 `in-progress` to closed once the slice's commit lands on the scope branch.
 
 ## When a skill says "load slices from the store"

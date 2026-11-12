@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0244](0244-the-full-playbook-keeps-its-rare-branches-in-their-own-files.md), which moves
+`implement-full.md`'s rare branches to files read only when the branch fires.
+
 ## Context
 
 `references/scope-mode.md` holds 25 `##` sections in about 104 KB. Five commands tell the controller to

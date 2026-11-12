@@ -33,10 +33,10 @@ function runConfiguration(raw) {
 
 // Whether `verification.md`'s run configuration differs between commits `from` and `to`: null where it agrees, or the
 // reason the carry refuses. `toText` is `to`'s text where the caller already read it.
-function configRefusal(cwd, from, to, toText) {
-  const before = fileAt(from, VERIFICATION, cwd);
+function configRefusal(g, from, to, toText) {
+  const before = g.fileAt(from, VERIFICATION);
   if (before === null) return 'git could not read the recorded commit\'s verification configuration';
-  const after = toText === undefined ? fileAt(to, VERIFICATION, cwd) : toText;
+  const after = toText === undefined ? g.fileAt(to, VERIFICATION) : toText;
   if (after === null) return 'git could not read the tip\'s verification configuration';
   const a = runConfiguration(before);
   const b = runConfiguration(after);
@@ -109,13 +109,14 @@ function writeSuite(root, value) {
 // `whole` is INV-0017's kind gate (ADR 0105): a step that needs a whole-repo run passes it, and refuses
 // a record with no kind even when it is green and tip-matched; a step content with either kind omits it.
 function verbSuiteReusable(cwd, root, branch, whole, base) {
+  const g = gitReads(cwd);
   const raw = getHeader(readLines(root), 'Suite');
   const m = raw && raw.match(/^(\S+)\s+@\s+(\S+)(?:\s+(whole))?$/);
   if (raw && !m) fail(`unreadable suite record: ${raw}`);
   // ADR 0182: a passing full-suite run at the exact tip meets the gate, whoever wrote it. A record at the tip that is not
   // green decides on its own below, so a red record there stays the rerun's (ADR 0172). An accepted run becomes the record,
   // `whole` where a whole run passed at the tip, so `get suite` names the commit the gate passed on (ADR 0186).
-  const exactTip = resolveCommit(branch, cwd);
+  const exactTip = g.commit(branch);
   if (exactTip && (!m || m[2] !== exactTip || m[1] === 'green')) {
     const events = runEvents(root);
     if (passedAtTip(events, exactTip, whole)) {
@@ -130,16 +131,16 @@ function verbSuiteReusable(cwd, root, branch, whole, base) {
   if (result === 'red') {
     // A red record whose failures a fix cycle since repaired carries to a later tip (ADR 0237) where the rerun does not.
     try {
-      return reusableOnRerun(cwd, root, branch, recordedSha, kind, whole, base);
+      return reusableOnRerun(g, root, branch, recordedSha, kind, whole, base);
     } catch (err) {
       const failed = err.isRefusal && failedRecord(root);
       if (!failed || failed.sha !== recordedSha) throw err;
-      return reusableAfterFix(cwd, root, branch, recordedSha, kind, whole, failed.files);
+      return reusableAfterFix(g, root, branch, recordedSha, kind, whole, failed.files);
     }
   }
   if (result !== 'green') fail(`suite record is ${result}, not green — not reusable`);
   if (whole && kind !== 'whole') fail('suite record carries no kind — a whole-repo run needs one');
-  const tip = resolveCommit(branch, cwd);
+  const tip = g.commit(branch);
   if (!tip) fail(`branch "${branch}" does not resolve to a commit`);
   // The run trace backs the record (ADR 0117, INV-0017): the latest `run` line of the matching kind at
   // the recorded commit, compared against the full sha, must read `pass` and `clean`.
@@ -153,7 +154,7 @@ function verbSuiteReusable(cwd, root, branch, whole, base) {
   const [, result2, , tree] = runs[runs.length - 1].fields;
   if (result2 !== 'pass' || tree !== 'clean') fail(`latest ${kindList} run at ${recordedSha} is ${result2} on a ${tree} tree — not reusable`);
   if (tip !== recordedSha) {
-    const why = carryRefusal(cwd, recordedSha, tip, events);
+    const why = carryRefusal(g, recordedSha, tip, events);
     if (why) fail(`suite record @ ${recordedSha} predates tip ${tip}: ${why} — not reusable`);
   }
   console.log('reusable');
@@ -167,30 +168,30 @@ function verbSuiteReusable(cwd, root, branch, whole, base) {
 // The focused run's path set must cover every path the scope's range changed up to R: `base` is the base branch, and the
 // range base is the one `base resolve` prints. Without `base` the range cannot be judged and the record stays red.
 // R is the tip, or (ADR 0189) an ancestor of it where every path changed since R passes the Markdown-only rule at the tip.
-function reusableOnRerun(cwd, root, branch, recordedSha, kind, whole, base) {
+function reusableOnRerun(g, root, branch, recordedSha, kind, whole, base) {
   const red = (why) => fail(`suite record is red, not green (${why}) — not reusable`);
-  const tip = resolveCommit(branch, cwd);
+  const tip = g.commit(branch);
   if (!tip) fail(`branch "${branch}" does not resolve to a commit`);
   if (whole && kind !== 'whole') red('the record carries no kind — a whole-repo run needs one');
   const events = runEvents(root);
   if (tip !== recordedSha) {
-    if (gitSpawn(['merge-base', '--is-ancestor', recordedSha, tip], cwd).status !== 0) red('the failed run is neither at the tip nor an ancestor of it');
-    const since = changedPaths(cwd, recordedSha, tip);
+    if (!g.isAncestor(recordedSha, tip)) red('the failed run is neither at the tip nor an ancestor of it');
+    const since = g.changed(recordedSha, tip);
     if (!since) red('git could not list the paths changed since the failed run');
-    const why = markdownRefusal(cwd, recordedSha, tip, events, since);
+    const why = markdownRefusal(g, recordedSha, tip, events, since);
     if (why) red(`the failed run predates the tip and ${why}`);
   }
   const raw = getHeader(readLines(root), 'Rerun');
   const rm = raw && raw.match(/^(\S+) @ (\S+) (\S+)$/);
   if (!rm || rm[2] !== recordedSha) red('no rerun recorded for the failed run\'s commit');
-  const config = fileAt(recordedSha, VERIFICATION, cwd);
+  const config = g.fileAt(recordedSha, VERIFICATION);
   if (config === null) red('git could not read the failed run\'s verification configuration');
   if (!completeSelector(config)) red(`${VERIFICATION} carries no complete-selector declaration`);
   const at = events.filter((e) => e.fields[2] === recordedSha);
   const kinds = whole ? ['whole'] : ['full', 'whole'];
   const failed = at.filter((e) => kinds.includes(e.fields[0]) && e.fields[1] === 'fail').length;
   if (failed !== 1) red(`${failed} failed full runs at the failed run's commit, the rerun covers exactly one`);
-  const top = lazyToplevel(cwd);
+  const top = g.top;
   const file = rootRelative(rm[1], top);
   // The directory the run was made in (the eighth field), decoded from its trace encoding; undefined where the line has none.
   const runDir = (e) => (e.fields[7] === undefined ? undefined : untraceField(e.fields[7]));
@@ -220,9 +221,9 @@ function reusableOnRerun(cwd, root, branch, recordedSha, kind, whole, base) {
   if (lastFocused.fields[1] !== 'pass' || lastFocused.fields[3] !== 'clean') red('the latest focused run at the failed run\'s commit failed or ran on a dirty tree');
   if (!decodePaths(lastFocused.fields[4]).length) red('the latest focused run at the failed run\'s commit carries no recorded path set');
   if (!base) red('the scope\'s range cannot be judged without --base <base-branch>');
-  const changed = changedPaths(cwd, rangeBase(cwd, root, branch, base), recordedSha);
+  const changed = g.changed(rangeBase(g, root, branch, base), recordedSha);
   if (!changed) red('git could not list the paths the scope\'s range changed');
-  const uncovered = coverageRefusal(cwd, changed, foc);
+  const uncovered = coverageRefusal(g, changed, foc);
   if (uncovered) red(uncovered);
   console.log('reusable');
 }
@@ -240,22 +241,22 @@ function failedRecord(root) {
 // carry from R to T holds: a passing clean focused run at T covers every path changed since R, and no full, whole, or path
 // run at T failed. Every test outside the named files passed at R, and the focused run selects every test the change
 // since R reaches. Which files failed is the controller's reading of the failed run's output.
-function reusableAfterFix(cwd, root, branch, from, kind, whole, files) {
+function reusableAfterFix(g, root, branch, from, kind, whole, files) {
   const red = (why) => fail(`suite record is red, not green (${why}) — not reusable`);
   if (whole || kind === 'whole') red('a repaired failure carries a full run only, never a whole-repo one');
-  const tip = resolveCommit(branch, cwd);
+  const tip = g.commit(branch);
   if (!tip) fail(`branch "${branch}" does not resolve to a commit`);
   if (tip === from) red('the failed run is at the tip');
-  if (gitSpawn(['merge-base', '--is-ancestor', from, tip], cwd).status !== 0) red('the failed run is not an ancestor of the tip');
+  if (!g.isAncestor(from, tip)) red('the failed run is not an ancestor of the tip');
   const events = runEvents(root);
   const failedFull = events.filter((e) => ['full', 'whole'].includes(e.fields[0]) && e.fields[2] === from && e.fields[1] === 'fail').length;
   if (failedFull !== 1) red(`${failedFull} failed full runs at the failed run's commit, the record names the failures of exactly one`);
-  const paths = changedPaths(cwd, from, tip);
+  const paths = g.changed(from, tip);
   if (!paths) red('git could not list the paths changed since the failed run');
-  const why = completeRefusal(cwd, from, tip, events, paths);
+  const why = completeRefusal(g, from, tip, events, paths);
   if (why === undefined) red(`${VERIFICATION} carries no complete-selector declaration`);
   if (why) red(why);
-  const top = lazyToplevel(cwd);
+  const top = g.top;
   for (const file of files) {
     const passed = events.some((e) => e.fields[0] === 'path' && e.fields[2] === tip && e.fields[1] === 'pass' && e.fields[3] === 'clean'
       && e.fields[7] !== undefined && untraceField(e.fields[7]) === '.'
@@ -325,19 +326,38 @@ function changedPaths(cwd, from, to) {
   return diff.status === 0 ? diff.stdout.split('\0').filter(Boolean) : null;
 }
 
+// The git reads of one `suite reusable` or `base resolve` call, each asked of git once per call: the commit a ref resolves to,
+// a file's text at a commit, the paths changed between two commits, whether one commit is an ancestor of another, and the tree
+// root. No such call writes to the repository, so a repeated read has the first one's answer.
+function gitReads(cwd) {
+  const memo = new Map();
+  const once = (key, read) => {
+    if (!memo.has(key)) memo.set(key, read());
+    return memo.get(key);
+  };
+  return {
+    cwd,
+    commit: (ref) => once(`commit ${ref}`, () => resolveCommit(ref, cwd)),
+    fileAt: (commit, rel) => once(`file ${commit} ${rel}`, () => fileAt(commit, rel, cwd)),
+    changed: (from, to) => once(`changed ${from} ${to}`, () => changedPaths(cwd, from, to)),
+    isAncestor: (a, b) => once(`ancestor ${a} ${b}`, () => gitSpawn(['merge-base', '--is-ancestor', a, b], cwd).status === 0),
+    top: lazyToplevel(cwd),
+  };
+}
+
 // ADR 0175: under the tip's complete-selector declaration, a green record at `from` carries to `to` when a passing
 // clean focused run at the tip named every changed path itself. A directory the run named covers no file under it.
 // Returns undefined where no declaration applies (the caller's Markdown reason stands), null where the carry
 // holds, or the reason it fails. Judged from the record's own commit only; nothing is written.
-function completeRefusal(cwd, from, to, events, paths) {
-  const config = fileAt(to, VERIFICATION, cwd);
+function completeRefusal(g, from, to, events, paths) {
+  const config = g.fileAt(to, VERIFICATION);
   if (config === null) return 'git could not read the tip\'s verification configuration';
   const declared = completeSelector(config);
   if (!declared) return undefined;
   const { focused } = verificationCommandsOf(config);
   if (!focused || !focused.includes('{paths}')) return 'the verification configuration declares the selector complete but its focused command takes no {paths}';
   if (paths.includes(VERIFICATION)) {
-    const changed = configRefusal(cwd, from, to, config);
+    const changed = configRefusal(g, from, to, config);
     if (changed) return changed;
   }
   // A listed path covers itself and every path under it, a trailing `/` being optional.
@@ -350,13 +370,13 @@ function completeRefusal(cwd, from, to, events, paths) {
   if (!at.length) return 'no focused run recorded at the tip';
   const [, result, , tree] = at[at.length - 1].fields;
   if (result !== 'pass' || tree !== 'clean') return `the latest focused run at the tip is ${result} on a ${tree} tree`;
-  return coverageRefusal(cwd, paths, at);
+  return coverageRefusal(g, paths, at);
 }
 
 // Whether one passing clean focused run among `at` (a tip's focused runs) covers every path in `paths`: null where one
 // does, or the reason none does. Coverage counts only runs after the last failed focused run in `at`.
-function coverageRefusal(cwd, paths, at) {
-  const top = lazyToplevel(cwd);
+function coverageRefusal(g, paths, at) {
+  const top = g.top;
   const lastFail = at.map((e) => e.fields[1]).lastIndexOf('fail');
   const good = at.slice(lastFail + 1).filter((e) => e.fields[1] === 'pass' && e.fields[3] === 'clean');
   let sawSet = false;
@@ -378,48 +398,45 @@ function coverageRefusal(cwd, paths, at) {
 // when a commit M on the ancestry path from `from` to `to` passes the complete-selector carry from `from`, and M..`to`
 // passes this Markdown-only rule. Returns the reason the carry fails, or null when it holds; where the chain fails on a
 // Markdown-only tail, the tail's own reason.
-function carryRefusal(cwd, from, to, events) {
-  if (gitSpawn(['merge-base', '--is-ancestor', from, to], cwd).status !== 0) return 'it is not an ancestor of the tip';
-  const paths = changedPaths(cwd, from, to);
+function carryRefusal(g, from, to, events) {
+  if (!g.isAncestor(from, to)) return 'it is not an ancestor of the tip';
+  const paths = g.changed(from, to);
   if (!paths) return 'git could not list the paths changed since';
   const other = paths.find((p) => !p.endsWith('.md'));
-  if (!other) return markdownRefusal(cwd, from, to, events, paths);
-  const complete = completeRefusal(cwd, from, to, events, paths);
+  if (!other) return markdownRefusal(g, from, to, events, paths);
+  const complete = completeRefusal(g, from, to, events, paths);
   if (complete === undefined) return `${other} changed since and is not Markdown`;
   if (complete === null) return null;
   // Children before parents (`--topo-order`, never commit dates). A tail with a non-Markdown path rules out every ancestor
   // of its commit unjudged: an ancestor's tail holds every path the commit's does, short of a revert. A commit on
   // another line of history is still judged. The first refusing Markdown-only tail ends the walk.
-  const list = gitSpawn(['rev-list', '--topo-order', '--parents', '--ancestry-path', `${from}..${to}`], cwd);
+  const list = gitSpawn(['rev-list', '--topo-order', '--parents', '--ancestry-path', `${from}..${to}`], g.cwd);
   const rows = list.status === 0 ? list.stdout.split('\n').filter(Boolean).map((l) => l.split(' ')) : [];
   const ruledOut = new Set();
-  let config;
   for (const [mid, ...parents] of rows) {
     if (mid === to) continue;
-    const tail = ruledOut.has(mid) ? null : changedPaths(cwd, mid, to);
+    const tail = ruledOut.has(mid) ? null : g.changed(mid, to);
     if (!tail || tail.some((p) => !p.endsWith('.md'))) {
       parents.forEach((p) => ruledOut.add(p));
       continue;
     }
-    if (config === undefined) config = fileAt(to, VERIFICATION, cwd);
-    const why = markdownRefusal(cwd, mid, to, events, tail, config);
+    const why = markdownRefusal(g, mid, to, events, tail);
     if (why !== null) return why;
-    const head = changedPaths(cwd, from, mid);
-    if (head && completeRefusal(cwd, from, mid, events, head) === null) return null;
+    const head = g.changed(from, mid);
+    if (head && completeRefusal(g, from, mid, events, head) === null) return null;
   }
   return complete;
 }
 
-// The Markdown-only rule over `paths`, changed from `from` to `to`: null where it holds, or the reason it fails. `config` is
-// the text of `to`'s verification configuration where the caller already read it.
-function markdownRefusal(cwd, from, to, events, paths, config) {
+// The Markdown-only rule over `paths`, changed from `from` to `to`: null where it holds, or the reason it fails.
+function markdownRefusal(g, from, to, events, paths) {
   const other = paths.find((p) => !p.endsWith('.md'));
   if (other) return `${other} changed since and is not Markdown`;
   // The test paths come from the tip commit, never a working tree; no file there means the defaults.
-  if (config === undefined) config = fileAt(to, VERIFICATION, cwd);
+  const config = g.fileAt(to, VERIFICATION);
   if (config === null) return 'git could not read the tip\'s verification configuration';
   if (paths.includes(VERIFICATION)) {
-    const changed = configRefusal(cwd, from, to, config);
+    const changed = configRefusal(g, from, to, config);
     if (changed) return changed;
   }
   const test = paths.find((p) => isTestPath(config, p));
@@ -454,22 +471,21 @@ function verbBaseSet(cwd, root, sha) {
 }
 
 // The scope's range base: what `base resolve` prints. Refuses where the branch or the merge-base does not resolve.
-function rangeBase(cwd, root, branch, base) {
-  const tip = resolveCommit(branch, cwd);
+function rangeBase(g, root, branch, base) {
+  const tip = g.commit(branch);
   if (!tip) fail(`branch "${branch}" does not resolve to a commit`);
-  const found = gitSpawn(['merge-base', '--end-of-options', base, tip], cwd);
+  const found = gitSpawn(['merge-base', '--end-of-options', base, tip], g.cwd);
   const mb = found.status === 0 ? found.stdout.trim() : '';
   if (!mb) fail(`no merge-base of "${base}" and "${branch}"`);
-  const isAnc = (a, b) => gitSpawn(['merge-base', '--is-ancestor', a, b], cwd).status === 0;
   const raw = getHeader(readLines(root), 'Base');
-  const rec = raw ? resolveCommit(raw, cwd) : null;
+  const rec = raw ? g.commit(raw) : null;
   let out = mb;
-  if (rec && isAnc(rec, tip) && isAnc(mb, rec)) out = rec;
+  if (rec && g.isAncestor(rec, tip) && g.isAncestor(mb, rec)) out = rec;
   return out;
 }
 
 function verbBaseResolve(cwd, root, branch, base) {
-  console.log(rangeBase(cwd, root, branch, base));
+  console.log(rangeBase(gitReads(cwd), root, branch, base));
 }
 
 function verbGet(root, field) {

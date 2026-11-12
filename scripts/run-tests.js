@@ -286,7 +286,9 @@ function selectSuites(root, suites, paths) {
         placed = true;
       }
     });
-    if (!placed && !rel.endsWith('.md')) return suites;
+    // A path no suite places runs every suite, unless it no longer exists: a deleted file no suite names is code no suite
+    // can reach.
+    if (!placed && !rel.endsWith('.md') && fs.existsSync(path.join(root, rel))) return suites;
   }
   return suites.filter((_, i) => chosen.has(i));
 }

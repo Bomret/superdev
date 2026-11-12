@@ -79,7 +79,7 @@ goes on.
   <state>[ exit <n>]`, or `absent` on a ledger with no record.
 - **`**Suite:** <result> @ <sha>[ whole]`** — the **suite record** (CONTEXT.md): the last full-suite run's
   result — `green`, `red`, `denied` (a run the permission classifier denied), or `none` (no test command
-  configured; with kind `whole`, a whole-repo run that was killed or never started, INV-0009; or, with no
+  configured; with kind `whole`, a whole-repo run that was killed or never started, which carries no verdict; or, with no
   kind, `/superdev:review`'s invalidation of a submitted tip, which `/superdev:ship`'s refusal keys on) — the
   commit it ran on, and its kind: `whole` for a run of the **whole-repo command** (CONTEXT.md), no kind for a run of the full command. Read with `get suite`, which prints
   `<result> <sha>`, with a trailing ` whole` when the record carries that kind, or nothing on a ledger

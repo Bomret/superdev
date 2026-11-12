@@ -318,7 +318,15 @@ module.exports = ({ assert, path, fixture, found }) => {
 
   const noFull = (files) => found(scanImplementNoFullRun(fixture(files)));
   const baseStep = (body) => '# Scope branch work\n\n## Bringing the scope branch to base\n\n' + body + '\n## The scope\'s range base\n\nDone.\n';
-  const fullDocs = ['references/run-handoff.md', 'references/implement-full.md', 'references/implement-lite.md'];
+  const fullDocs = [
+    'references/run-handoff.md',
+    'references/implement-full.md',
+    'references/implement-full-resume.md',
+    'references/implement-full-fix-cycle.md',
+    'references/implement-full-denied.md',
+    'references/implement-full-minor-sweep.md',
+    'references/implement-lite.md',
+  ];
   const hits = [
     ['Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full` in the scopetree.\n', 'a `scope.js test full` call'],
     ['Then run `scope.js test whole` once.\n', 'a `scope.js test whole` call'],
@@ -382,7 +390,17 @@ module.exports = ({ assert, path, fixture, found }) => {
     'a scope-branch.md without the base-step section is a gap',
   );
   assert.deepEqual(
-    scanImplementNoFullRun(fixture({ 'references/scope-branch.md': baseStep('No run.\n'), 'references/implement-full.md': 'x\n', 'references/implement-lite.md': 'x\n' })),
+    scanImplementNoFullRun(
+      fixture({
+        'references/scope-branch.md': baseStep('No run.\n'),
+        'references/implement-full.md': 'x\n',
+        'references/implement-full-resume.md': 'x\n',
+        'references/implement-full-fix-cycle.md': 'x\n',
+        'references/implement-full-denied.md': 'x\n',
+        'references/implement-full-minor-sweep.md': 'x\n',
+        'references/implement-lite.md': 'x\n',
+      }),
+    ),
     [{ source: path.join('references', 'run-handoff.md'), missing: true }],
     'a missing document is a missing-document gap',
   );

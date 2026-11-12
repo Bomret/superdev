@@ -37,7 +37,10 @@ a ledger's header lines, bullets, and table rows), `refusal.js` (the refusal err
 `verificationCommandsOf`, `prepareCommandOf`, `isTestPath`), `git-spawn.js` (`gitSpawn`, `gitThrow`, `parseBranchList`, `resolveCommit`, `refResolves`, `fileAt`),
 `containment.js` (`testContainment`, `judgeContainment`, `baseHistoryHasPatch`), `main-work-tree.js` (`mainWorkTree`, `scopesDirFor`, `mainTreePath`), and
 `trace-log.js` (`appendTrace`, `readTrace`, `traceField`, `untraceField`). The root [`AGENTS.md`](../AGENTS.md) *Structure* names every module and its
-responsibility. `scope.js` exports only the names a requirer uses. No module requires an entry point. `scope.js` owns the ledger's schema through `ledger.js` and is the only `ledger.md` read and write path in the chain:
+responsibility. At startup `scope.js` loads only `refusal.js`, `ledger.js`, and `trace-log.js`. Every other module
+loads when a verb that uses it runs, through an accessor that names the module in a literal `require`, so the
+`--related` require scan still reaches it. `scope.js` exports only the names a requirer uses. A name it re-exports from a
+lazily loaded module is a getter that returns that module's own value. No module requires an entry point. `scope.js` owns the ledger's schema through `ledger.js` and is the only `ledger.md` read and write path in the chain:
 `open <type>/<slug> --base <base-ref> [--remote <remote>] [--lock <nonce>]`, `init`, `stage set`, `slice`, `degraded add|add-denial|reset-denials`, `unresolved add|clear`,
 `deferred add|resolve`, `minors add <slice-id>|clear`,
 `docs set <value>|clear`, `pr set <n>|clear`,
@@ -156,7 +159,8 @@ guards its own CLI entry with `require.main === module`. `hooks/run-trace.js` ta
 the trace writer `appendTrace` from `trace-log.js`,
 the tree locator `locate` and the test-path classifier `isTestPath` (ADR 0128) from `run-tree.js`,
 and the dispatch readers from `dispatch.js`. The hook reads no Bash command (ADR 0227). Each `require` has its own guard, and a module that fails to load
-leaves the hook recording nothing (ADR 0117, INV-0159). `hooks/tree-guard.js` takes `mainWorkTree` from `main-work-tree.js` (ADR 0148). `publish-kb.js` reaches
+leaves the hook recording nothing (ADR 0117, INV-0159). Its model guard, which denies a modelless dispatch to a superdev
+agent on PreToolUse(Agent), requires no module, so a failed load leaves the deny in force (ADR 0245). `hooks/tree-guard.js` takes `mainWorkTree` from `main-work-tree.js` (ADR 0148). `publish-kb.js` reaches
 the containment test `testContainment` from `containment.js`, which refetches the base before it answers not contained (ADR 0053,
 ADR 0065), `refResolves` from `git-spawn.js`, and `readLedgerHeader`, `SLUG_RE`, `CHANGE_TYPES` from `ledger.js`, through its `lib/kb-*.js` modules. `base set` appends a `ledger`
 trace event like every other ledger-writing verb. Normalisation is per
@@ -186,7 +190,7 @@ line, which holds one bullet per full-tier slice that merged with open Minor fin
 id alone. `add` refuses an
 id the slice table lacks and leaves one bullet for an id queued twice. `clear` removes the line and succeeds with no
 change when it is absent. Either verb refuses an extra argument, and `adopt` refuses a `**Minors:**` bullet that
-the payload's slice table lacks. `get minors` prints the bullets. `references/implement-full.md`'s `## Minor sweep`
+the payload's slice table lacks. `get minors` prints the bullets. `references/implement-full-minor-sweep.md`'s `## Minor sweep`
 reads and clears the queue.
 
 `root <slug>` is a verb that touches no ledger (ADR 0080). It resolves and prints a run root's
@@ -873,19 +877,19 @@ join from any other value (`path.join(S3, 'docs', 'agents', 'verification.md')`)
 `tests/publish-kb-templates.test.js` runs the templates of `docs/agents/knowledge-base.md`, `tests/scope-ledger.test.js` pins a
 sentence of `plugin/references/scope-mode.md`). A `.md` path also reaches a suite whose text names a directory
 holding it, because a suite that lists or scans a directory reads every document in it
-(`tests/model-explicit.test.js` lists `plugin/agents/`, `tests/invariant-check.test.js` scans `plugin/`). A named directory
+(`tests/run-trace-model.test.js` lists `plugin/agents/`, `tests/invariant-check.test.js` scans `plugin/`). A named directory
 is a `./` or `../` path string that resolves from `tests/` to a directory of the repository, or the literal segments of
 a `path.join` or `path.resolve` call. A call whose first argument is `__dirname` or a `./` or `../` literal is anchored at
 `tests/`. A bare relative literal (`'docs/agents'`, `path.join('docs', 'agents')`) names nothing, because suites build
 their fixture trees from such paths. A suite that scans a repository directory through a bare cwd-relative literal
 is therefore missed, so a suite names a repository directory from `__dirname` or with `../`. A call whose leading
 directory is `path.dirname(<name>)`, where the suite's own text assigns `<name>` a `require.resolve` of a relative path
-(`const hookPath = require.resolve('../plugin/hooks/model-explicit.js')`), is anchored at that path's directory. Any
+(`const hookPath = require.resolve('../plugin/hooks/run-trace.js')`), is anchored at that path's directory. Any
 other `path.dirname(...)` names its literal tail, which matches that tail at any depth, so
 it may select a suite for a directory the suite does not scan and never misses one it does. A call whose leading
 directory is any other computed value (a variable, `os.tmpdir()`) builds a path in a fixture tree and names nothing. A directory built from
 computed expressions with no literal segment names nothing. The directory rule never applies to a code path. A `.md` path no
-suite names, directly or by directory, and a path under `scripts/drift/`, reach no suite, because the drift selftest sits in the tail. A code path no rule places runs every suite, except the repository-root release tooling
+suite names, directly or by directory, and a path under `scripts/drift/`, reach no suite, because the drift selftest sits in the tail. A code path no rule places runs every suite, except a deleted one no suite names, which reaches no suite, except the repository-root release tooling
 (`release.config.cjs`, `package.json`, `bun.lock`, the `RELEASE_TOOLING` list), which reaches only the suites that name it,
 because semantic-release and Bun read it and no suite's code under test does. An empty list runs the tail alone and exits 0. A path under
 `mods/superdev-view/` places itself: it adds `claude plugin test mods/superdev-view` before the tail, and runs no
@@ -1024,7 +1028,7 @@ path, when that document is missing. A check that walks a directory reads whatev
 | `derive-no-dod` | plan's derive dispatch bullet hands `final-reviewer` no Definition of Done, and `final-reviewer`'s `## Derive mode` reads none (INV-0158, ADR 0158) | prohibition |
 | `unmapped-paths-form` | `skills/setup/SKILL.md` and `references/test-selection.md` propose no `{paths}` form to a runner that maps no source file to its tests (ADR 0074) | prohibition |
 | `doc-setup-no-test-run` | `skills/document/SKILL.md`, `skills/setup/SKILL.md`, `agents/doc-writer.md`, `agents/doc-reader.md`, and `references/doc-pass.md` instruct no test run: no `scope.js test` or `scope.js fail-to-pass` call, and no run of the full, focused, whole-repo, or affected command; a sentence stating that no test runs passes, its negation (`no`, `not`, `never`, `without`, `nor`) at most one word before the hit, past an opening quote or backtick (ADR 0189, INV-0175) | prohibition |
-| `implement-no-full-run` | implement's base step (`references/scope-branch.md`'s `## Bringing the scope branch to base` section alone), `references/run-handoff.md`, `references/implement-full.md`, and `references/implement-lite.md` instruct no full or whole-repo run: no `scope.js test full` or `scope.js test whole` call, no `test focused` with no path, no run, rerun, execution, or invocation of the full or whole-repo command or suite, no gate on one, and no such command or suite as the subject of `runs` up to two words later; a `no` directly before the hit or its article, a `not`, `never`, `nor`, or `without` at most one word before it, or a negation heading a list of code spans excuses it, and the rest of `scope-branch.md` stays unscanned (ADR 0192, INV-0128) | prohibition |
+| `implement-no-full-run` | implement's base step (`references/scope-branch.md`'s `## Bringing the scope branch to base` section alone), `references/run-handoff.md`, `references/implement-full.md` with its rare-branch files (`implement-full-resume.md`, `implement-full-fix-cycle.md`, `implement-full-denied.md`, `implement-full-minor-sweep.md`), and `references/implement-lite.md` instruct no full or whole-repo run: no `scope.js test full` or `scope.js test whole` call, no `test focused` with no path, no run, rerun, execution, or invocation of the full or whole-repo command or suite, no gate on one, and no such command or suite as the subject of `runs` up to two words later; a `no` directly before the hit or its article, a `not`, `never`, `nor`, or `without` at most one word before it, or a negation heading a list of code spans excuses it, and the rest of `scope-branch.md` stays unscanned (ADR 0192, INV-0128) | prohibition |
 | `observation-no-suite-run` | `references/review-scope-mode.md`'s `### 4.3 Observations` section names no suite run as an observation's source: no suite, test, entry, exit, focused, or full run, no `§4.2` citation, and no failing test or failing run, so a failing test in a scope review's suite run joins the fix list; a missing section or document is a gap (INV-0157) | prohibition |
 
 ## Work Guidance

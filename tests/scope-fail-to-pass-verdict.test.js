@@ -203,7 +203,7 @@ const { readTrace, traceField } = require('../plugin/lib/trace-log.js');
       return { env: { PATH: dir + path.delimiter + process.env.PATH } };
     };
     refuses(s, s.range, /git could not list the paths the range changes/, failing('diff'));
-    refuses(s, s.range, /git could not read the tip's verification configuration/, failing('ls-tree'));
+    refuses(s, s.range, /git could not read the tip's verification configuration/, failing('show'));
 
     // The verb runs only the command it is handed (ADR 0182): a range with no `--` command, or an empty one, is refused.
     refuses(s, s.range, /-- <command>/, { noCommand: true });

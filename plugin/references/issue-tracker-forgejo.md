@@ -255,7 +255,7 @@ merge, and closes once, when `/superdev:wrap-up` runs. Every label swap is by id
 conventions*). Every status write is best-effort: the run ledger drives control flow, so a failed label or
 close call is logged and the run continues.
 
-**Lite execution tier** (≤3 slices) skips `in-review` for every slice: it goes from `in-progress` to
+**Lite execution tier** (3 or fewer `behavior` slices) skips `in-review` for every slice: it goes from `in-progress` to
 closed once the slice's commit lands on the scope branch.
 
 ## When a skill says "load slices from the store"

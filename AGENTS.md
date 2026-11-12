@@ -4,8 +4,10 @@ A self-contained **Claude Code plugin** that takes a feature from a rough idea t
 brainstorm, plan, implement, review, document, pull request, ship, verify, and wrap-up. Beside that chain
 it audits tests, sweeps a repository, reports run status, and publishes a knowledge base. It gives you interview-driven
 vertical slicing, an execution tier sized to the plan, deterministic hook guardrails, and a pluggable
-slice store plus code host. A plan of more than 3 slices runs in parallel slicetrees with isolated
-implementer and reviewer subagents. A plan of 3 or fewer runs test-first, inline in the scopetree.
+slice store plus code host. A plan of more than 3 `behavior` slices runs in parallel slicetrees with
+isolated implementer and reviewer subagents, and the controller builds each `docs` and one-file `mechanical`
+slice itself in its slicetree. A plan of 3 or fewer `behavior` slices, whatever its number of `mechanical` and
+`docs` slices, runs test-first, inline in the scopetree.
 No prerequisite plugins.
 
 ## Need something? Read this
@@ -48,8 +50,8 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
   agents/              — the subagents (*.md): implementer, slice-reviewer, simplicity-reviewer,
                          final-reviewer, doc-writer, doc-reader, test-auditor,
                          test-gap-auditor
-  hooks/               — the deterministic Node hooks + hooks.json: merge-guard, model-explicit,
-                         tree-guard, run-trace, slicetree-sweep, scope-prune, update-check,
+  hooks/               — the deterministic Node hooks + hooks.json: merge-guard,
+                         tree-guard, run-trace (with the model guard), slicetree-sweep, scope-prune, update-check,
                          offer-guard
   lib/                 — every module: code that no hook registration and no prose step runs (ADR 0151).
                          `hooks/` and `scripts/` hold entry points only, each keeping its path and exports.
@@ -87,12 +89,16 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
   references/          — backend seed templates + the non-seed runtime references (plan-contract with
                          plan-authoring, store-records, and assignee,
                          documentation convention, controlled-prose, content-types, doc pass, run init,
-                         run handoff, execution playbooks, test-selection, scope-mode with its split files scope-branch,
+                         run handoff, execution playbooks with the full playbook's rare-branch files (implement-full-resume,
+                         implement-full-fix-cycle, implement-full-denied, implement-full-minor-sweep), test-selection,
+                         scope-mode with its split files scope-branch,
                          run-state, scope-findings, and shipped-run, authoring
                          disciplines, intent handoff, prior-art audit, design sketch, diagnosis, prototype, merge-conflicts,
                          review-checklist with its split lens files (review-design-lenses, review-coverage, fail-to-pass,
                          untraced-writes, dependency-verification, prompt-concept-overlap, test-cost, test-gaps),
-                         review-scope-mode, review-inline-fix, dod-ticks, response-shapes); its own AGENTS.md routes them
+                         review-scope-mode with its branch files (review-scope-holds, review-scope-denials,
+                         review-scope-base, review-scope-deferrals, review-scope-coverage), review-inline-fix, dod-ticks,
+                         response-shapes); its own AGENTS.md routes them
   scripts/             — the runtime CLIs: `scope.js`, `kb-patch.js`, `publish-kb.js`
   LICENSE · NOTICE     — copies of the root files, so the shipped tree carries its own attribution
 tests/                 — one suite per shipped executable (the hooks, `scope.js`, `kb-patch.js`,
@@ -106,7 +112,7 @@ tests/                 — one suite per shipped executable (the hooks, `scope.j
                          `<entry>-setup.js` that is no suite (ADR 0139, ADR 0151): `scope-*` (ledger,
                          ledger-header, `suite-*` (record, carry, complete, rerun, config, failed), dod-line, dod-tags, dod-check, dod-merge, publish-adopt, trace, digest, untraced, root-base, containment,
                          citations-collisions, source-set, push, open, help, stdin, discard, prepare, `test-verb-*`, `fail-to-pass-*`, over `scope-setup.js`),
-                         `run-trace*` (dispatch, guards, paths, over `run-trace-setup.js`), `publish-kb*` (containment, guard, `parent-link-*`,
+                         `run-trace*` (dispatch, guards, model, paths, over `run-trace-setup.js`), `publish-kb*` (containment, guard, `parent-link-*`,
                          patch, publish, read, scope, templates, timeout, over `publish-kb-setup.js`),
                          and `scope-prune*` (containment, guards, main, reap, over `scope-prune-setup.js`);
                          `spawn-verdict.js` and `fixture-git.js`
@@ -369,7 +375,7 @@ This root owns every other subtree directly:
   (ADR 0013). A full-tier run queues the Minors of each Minor-only slice review. The queue is settled in one
   **Minor sweep** after the last slice merges. `scope.js minors add` writes the queue. A fix
   cycle whose list holds only Minors is a **Warm cycle**: it continues the previous fix implementer. The
-  sweep is `references/implement-full.md`'s `## Minor sweep`, the warm cycle `references/scope-findings.md`'s
+  sweep is `references/implement-full-minor-sweep.md`'s `## Minor sweep`, the warm cycle `references/scope-findings.md`'s
   `## Warm cycles` (ADR 0174). A scope review warrants each `simplicity-reviewer` cut by the rules the
   repository documents for itself, names each declined cut with the rule it would break, and puts each
   warranted cut into its ask-once fix set as a Minor. Only the entry review gets the over-engineering pass
@@ -456,7 +462,9 @@ This root owns every other subtree directly:
   fallback: when `containment.js` cannot load or carries no probe, `scope-prune.js` prunes by tree comparison alone, still silently. `merge-guard.js` is the one Bash hook that denies, and it
   requires no module: it checks the raw text of a subagent's Bash call for a lead word (`git`, `gh`, `tea`, `scope.js`)
   followed by an integration verb (ADR 0227). `run-trace.js` reads no Bash command and records a file edit from a file-tool
-  event only. Nothing refuses a write to a run's ledger or trace, and nothing refuses an implementer's full-suite run:
+  event only. On PreToolUse(Agent) it also denies a dispatch to one of superdev's own agents that sets no explicit
+  `model`, exit 2 with the reason on stderr. That check requires no module, so it denies even where a module fails to
+  load, and the dispatch is still recorded (ADR 0245). Nothing refuses a write to a run's ledger or trace, and nothing refuses an implementer's full-suite run:
   `scope.js` detects an outside edit of a run's ledger or trace after the fact (`lib/run-check.js`), and a review grades
   an untraced write and a full-suite run (`scope.js untraced`).
   `offer-guard.js` requires `../lib/offer-marker.js` and `../lib/running-skill.js`. Its PostToolUse half records each offer call

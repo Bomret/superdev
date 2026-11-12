@@ -18,42 +18,44 @@ const path = require('path');
 // verification readers, the git spawn, the containment test, the main-working-tree resolver, the run
 // trace reader and writer, the collision finder, the verbs themselves, and the usage text. This file keeps the
 // CLI switch, the verbs `root`, `trace`, and `collisions`, and the exports.
+// Only the refusal helper, the ledger primitives, and the trace writer load at startup, because every verb's path may
+// reach them. Each other module loads when a verb that uses it runs, through its accessor below, so a verb pays the
+// load cost of its own modules alone. Each accessor names its module in a literal `require`, which the suite
+// selector of `scripts/run-tests.js` reads.
 const { fail } = require('../lib/refusal.js');
 const { SLUG_RE, readLines, getHeader, readLedgerHeader, inProgressSlices } = require('../lib/ledger.js');
-const { isTestPath, verificationCommandsOf } = require('../lib/verification.js');
-const { testContainment, baseHistoryHasPatch } = require('../lib/containment.js');
-const { mainTreePath } = require('../lib/main-work-tree.js');
 const { appendTrace, readTrace } = require('../lib/trace-log.js');
-const { checkRun } = require('../lib/run-check.js');
-const { collisionRefusal, findCollisions } = require('../lib/collisions.js');
-const { verbInit, verbStage, verbStep, verbSlice } = require('../lib/ledger-lifecycle.js');
-const {
-  BULLET_STDIN_SUBS, resolveBulletText, verbDegraded, verbUnresolved, verbDeferred, verbMinors, verbDocs, verbPr, verbDeploySet, verbDeployGet,
-} = require('../lib/ledger-records.js');
-const { verbDodLine } = require('../lib/dod-line.js');
-const { verbDodTags } = require('../lib/dod-tags.js');
-const { verbDodCheck } = require('../lib/dod-check.js');
-const { verbSuite, verbSuiteRerun, verbSuiteFailed, verbSuiteReusable, verbBaseSet, verbBaseResolve, verbGet } = require('../lib/suite-base-get.js');
-const { publishText, verbPublish, verbAdopt } = require('../lib/run-state.js');
-const { verbStatus, verbStaging } = require('../lib/status.js');
-const { endRun, watchMain } = require('../lib/run-supervision.js');
-const { verbTest } = require('../lib/test-verb.js');
-const { verbFailToPass } = require('../lib/fail-to-pass.js');
-const { verbPrepare } = require('../lib/prepare.js');
-const { verbCitations } = require('../lib/citations.js');
-const { verbSourceSet } = require('../lib/source-set.js');
-const { verbUntraced } = require('../lib/untraced.js');
-const { verbPush } = require('../lib/push.js');
-const { pushRunState, fetchRunState, deleteRunState } = require('../lib/run-state-ref.js');
-const { verbDodMerge } = require('../lib/dod-merge.js');
-const { verbOpen } = require('../lib/plan-open.js');
-const { verbDiscard } = require('../lib/discard.js');
-const { usage } = require('../lib/usage.js');
+const libVerification = () => require('../lib/verification.js');
+const libContainment = () => require('../lib/containment.js');
+const libMainWorkTree = () => require('../lib/main-work-tree.js');
+const libRunCheck = () => require('../lib/run-check.js');
+const libCollisions = () => require('../lib/collisions.js');
+const libLedgerLifecycle = () => require('../lib/ledger-lifecycle.js');
+const libLedgerRecords = () => require('../lib/ledger-records.js');
+const libDodLine = () => require('../lib/dod-line.js');
+const libDodTags = () => require('../lib/dod-tags.js');
+const libDodCheck = () => require('../lib/dod-check.js');
+const libSuiteBaseGet = () => require('../lib/suite-base-get.js');
+const libRunState = () => require('../lib/run-state.js');
+const libStatus = () => require('../lib/status.js');
+const libRunSupervision = () => require('../lib/run-supervision.js');
+const libTestVerb = () => require('../lib/test-verb.js');
+const libFailToPass = () => require('../lib/fail-to-pass.js');
+const libPrepare = () => require('../lib/prepare.js');
+const libCitations = () => require('../lib/citations.js');
+const libSourceSet = () => require('../lib/source-set.js');
+const libUntraced = () => require('../lib/untraced.js');
+const libPush = () => require('../lib/push.js');
+const libRunStateRef = () => require('../lib/run-state-ref.js');
+const libDodMerge = () => require('../lib/dod-merge.js');
+const libPlanOpen = () => require('../lib/plan-open.js');
+const libDiscard = () => require('../lib/discard.js');
+const libUsage = () => require('../lib/usage.js');
 
 // --- root: the verbs over `lib/main-work-tree.js`'s run-root resolver (ADR 0080) -----------------
 
 function verbRoot(cwd, slug) {
-  console.log(mainTreePath(cwd, 'root', 'scopes', slug));
+  console.log(libMainWorkTree().mainTreePath(cwd, 'root', 'scopes', slug));
 }
 
 // --- trace: the verb over `lib/trace-log.js`'s reader (ADR 0117, INV-0117) -------------------
@@ -78,16 +80,16 @@ function verbCollisions(cwd, args) {
   for (let i = 0; i < args.length; ) {
     const flag = args[i];
     if (flag !== '--also' && !flags[flag]) { i++; continue; }
-    if (!args[i + 1] || args[i + 1].startsWith('--')) throw collisionRefusal(`collisions: ${flag} needs a value`);
+    if (!args[i + 1] || args[i + 1].startsWith('--')) throw libCollisions().collisionRefusal(`collisions: ${flag} needs a value`);
     const value = args.splice(i, 2)[1];
-    if (flag !== '--also' && opts[flags[flag]]) throw collisionRefusal(`collisions: ${flag} given twice`);
+    if (flag !== '--also' && opts[flags[flag]]) throw libCollisions().collisionRefusal(`collisions: ${flag} given twice`);
     if (flag === '--also') opts.also.push(value);
     else opts[flags[flag]] = value;
   }
   const missing = Object.keys(flags).find((f) => !opts[flags[f]]);
-  if (missing) throw collisionRefusal(`collisions needs ${missing} <ref>`);
-  if (args.length) throw collisionRefusal(`collisions: unrecognized argument "${args[0]}"`);
-  const found = findCollisions(cwd, opts);
+  if (missing) throw libCollisions().collisionRefusal(`collisions needs ${missing} <ref>`);
+  if (args.length) throw libCollisions().collisionRefusal(`collisions: unrecognized argument "${args[0]}"`);
+  const found = libCollisions().findCollisions(cwd, opts);
   for (const c of found) console.log([c.kind, c.home, c.number, c.scopePath, c.basePath, 'next', c.next].join(' '));
   if (found.length) process.exitCode = 1;
 }
@@ -122,7 +124,7 @@ function run(argv, cwd, stdinJson) {
   const verb = args.shift();
   // The run's digest is checked before the verb reads or writes a file of the run (ADR 0227).
   const writtenTo = writtenRoot(verb, args);
-  if (writtenTo !== null) checkRun(writtenTo);
+  if (writtenTo !== null) libRunCheck().checkRun(writtenTo);
   // Set by a ledger-writing verb once its write succeeded; a refused verb throws before it is set.
   let ledgerEvent = null;
   // Set by a step end (`step clear`, `step block`) once its ledger write succeeded: the run root to send (ADR 0202).
@@ -130,23 +132,23 @@ function run(argv, cwd, stdinJson) {
   switch (verb) {
     // Writes the ledger and the trace itself, and traces the `init` and `step set plan` it makes (lib/plan-open.js).
     case 'open':
-      verbOpen(cwd, args);
+      libPlanOpen().verbOpen(cwd, args);
       break;
     case 'init':
       if (!args[0]) fail('init needs a <type>/<slug> label');
-      ledgerEvent = { root: verbInit(cwd, args[0], args[1], stdinJson), fields: ['init', args[0], args[1]] };
+      ledgerEvent = { root: libLedgerLifecycle().verbInit(cwd, args[0], args[1], stdinJson), fields: ['init', args[0], args[1]] };
       break;
     case 'stage': {
       const root = takeRoot(args);
       // A stage write that closes the standing step is a step end, so it sends the run-state ref (ADR 0206).
       // `closed` sends nothing: wrap-up deleted the ref before it, and a closed run hands nothing off.
-      if (verbStage(root, args[0], args[1]) && args[1] !== 'closed') handoffRoot = root;
+      if (libLedgerLifecycle().verbStage(root, args[0], args[1]) && args[1] !== 'closed') handoffRoot = root;
       ledgerEvent = { root, fields: ['stage', args[0], args[1]] };
       break;
     }
     case 'step': {
       const root = takeRoot(args);
-      const changed = verbStep(root, args[0], args[1]);
+      const changed = libLedgerLifecycle().verbStep(root, args[0], args[1]);
       // `block` names the standing step, which the ledger holds.
       if (changed) ledgerEvent = { root, fields: ['step', args[0], ...(args[0] === 'block' ? [getHeader(readLines(root), 'Step')] : args[1] ? [args[1]] : [])] };
       if (changed && (args[0] === 'clear' || args[0] === 'block')) handoffRoot = root;
@@ -162,46 +164,46 @@ function run(argv, cwd, stdinJson) {
         args.splice(ri, 2);
       }
       if (!args[0] || !args[1]) fail('slice needs <id> <status>');
-      verbSlice(root, args[0], args[1], range);
+      libLedgerLifecycle().verbSlice(root, args[0], args[1], range);
       ledgerEvent = { root, slice: args[0], fields: ['slice', args[0], args[1], ...(range ? [range] : [])] };
       break;
     }
     case 'degraded': {
       const root = takeRoot(args);
       const sub = args[0];
-      verbDegraded(root, sub, resolveBulletText(sub, args.slice(1), stdinJson));
+      libLedgerRecords().verbDegraded(root, sub, libLedgerRecords().resolveBulletText(sub, args.slice(1), stdinJson));
       ledgerEvent = { root, fields: ['degraded', sub] }; // bullet text is free text and stays out of the trace
       break;
     }
     case 'unresolved': {
       const root = takeRoot(args);
       const sub = args[0];
-      const changed = verbUnresolved(root, sub, resolveBulletText(sub, args.slice(1), stdinJson));
+      const changed = libLedgerRecords().verbUnresolved(root, sub, libLedgerRecords().resolveBulletText(sub, args.slice(1), stdinJson));
       if (changed) ledgerEvent = { root, fields: ['unresolved', sub] }; // bullet text is free text and stays out of the trace
       break;
     }
     case 'deferred': {
       const root = takeRoot(args);
       const sub = args[0];
-      verbDeferred(root, sub, resolveBulletText(sub, args.slice(1), stdinJson));
+      libLedgerRecords().verbDeferred(root, sub, libLedgerRecords().resolveBulletText(sub, args.slice(1), stdinJson));
       ledgerEvent = { root, fields: ['deferred', sub] }; // bullet text is free text and stays out of the trace
       break;
     }
     case 'minors': {
       const root = takeRoot(args);
-      const changed = verbMinors(root, args[0], args[1], args.length);
+      const changed = libLedgerRecords().verbMinors(root, args[0], args[1], args.length);
       if (changed) ledgerEvent = { root, fields: ['minors', args[0]] }; // the slice id stays out of the trace
       break;
     }
     case 'docs': {
       const root = takeRoot(args);
-      const changed = verbDocs(root, args[0], args[1]);
+      const changed = libLedgerRecords().verbDocs(root, args[0], args[1]);
       if (changed) ledgerEvent = { root, fields: ['docs', args[0], ...(args[1] ? [args[1]] : [])] };
       break;
     }
     case 'pr': {
       const root = takeRoot(args);
-      const changed = verbPr(root, args[0], args[1]);
+      const changed = libLedgerRecords().verbPr(root, args[0], args[1]);
       if (changed) ledgerEvent = { root, fields: ['pr', args[0], ...(args[1] ? [args[1]] : [])] };
       break;
     }
@@ -209,7 +211,7 @@ function run(argv, cwd, stdinJson) {
       const root = takeRoot(args);
       const sub = args[0];
       if (sub === 'get') {
-        verbDeployGet(root);
+        libLedgerRecords().verbDeployGet(root);
         break;
       }
       if (sub !== 'set') fail(`unknown deploy subcommand "${sub}" — use set|get`);
@@ -220,7 +222,7 @@ function run(argv, cwd, stdinJson) {
         if (exitCode === undefined) fail('--exit needs a value');
         args.splice(ei, 2);
       }
-      verbDeploySet(root, args[1], args[2], exitCode);
+      libLedgerRecords().verbDeploySet(root, args[1], args[2], exitCode);
       ledgerEvent = { root, fields: ['deploy', 'set', args[1], args[2], ...(exitCode !== undefined ? ['--exit', exitCode] : [])] };
       break;
     }
@@ -252,26 +254,26 @@ function run(argv, cwd, stdinJson) {
         // mistyped `--whole`) left over here would silently drop the whole-repo gate instead of
         // refusing it, and a no-kind record would then pass a `--whole` check it must fail (INV-0017).
         if (args.length > 1) fail(`suite reusable: unrecognized argument "${args[1]}"`);
-        verbSuiteReusable(cwd, root, branch, whole, base);
+        libSuiteBaseGet().verbSuiteReusable(cwd, root, branch, whole, base);
         break;
       }
       if (args[0] === 'failed') {
         if (whole) fail('suite failed: --whole is not an option of failed');
-        verbSuiteFailed(cwd, root, args.slice(1));
+        libSuiteBaseGet().verbSuiteFailed(cwd, root, args.slice(1));
         ledgerEvent = { root, fields: ['suite', 'failed', ...args.slice(1)] };
         break;
       }
       if (args[0] === 'rerun') {
         if (whole) fail('suite rerun: --whole is not an option of rerun');
         if (args.length > 3) fail(`suite rerun: unrecognized argument "${args[3]}"`);
-        verbSuiteRerun(cwd, root, args[1], args[2]);
+        libSuiteBaseGet().verbSuiteRerun(cwd, root, args[1], args[2]);
         ledgerEvent = { root, fields: ['suite', 'rerun', args[1], args[2]] };
         break;
       }
       // `set <result> <sha>` is the whole shape — an unrecognized fourth token (a mistyped `--whole`,
       // or `--kind whole`) must refuse rather than silently write a no-kind record.
       if (args.length > 3) fail(`suite ${args[0]}: unrecognized argument "${args[3]}"`);
-      verbSuite(cwd, root, args[0], args[1], args[2], whole);
+      libSuiteBaseGet().verbSuite(cwd, root, args[0], args[1], args[2], whole);
       ledgerEvent = { root, fields: ['suite', args[0], args[1], args[2], ...(whole ? ['--whole'] : [])] };
       break;
     }
@@ -291,38 +293,38 @@ function run(argv, cwd, stdinJson) {
         if (!branch) fail('base resolve needs --branch <branch>');
         if (!base) fail('base resolve needs --base <base-ref>');
         if (args.length > 1) fail(`base resolve: unrecognized argument "${args[1]}"`);
-        verbBaseResolve(cwd, root, branch, base);
+        libSuiteBaseGet().verbBaseResolve(cwd, root, branch, base);
         break;
       }
       if (args[0] !== 'set') fail(`unknown base subcommand "${args[0]}" — use set|resolve`);
       if (args.length > 2) fail(`base set: unrecognized argument "${args[2]}"`);
-      verbBaseSet(cwd, root, args[1]);
+      libSuiteBaseGet().verbBaseSet(cwd, root, args[1]);
       ledgerEvent = { root, fields: ['base', 'set', args[1]] };
       break;
     }
     case 'discard': {
       const root = takeRoot(args);
       if (args.length) fail(`discard: unrecognized argument "${args[0]}"`);
-      verbDiscard(cwd, root);
+      libDiscard().verbDiscard(cwd, root);
       break;
     }
     case 'get': {
       const root = takeRoot(args);
-      verbGet(root, args[0]);
+      libSuiteBaseGet().verbGet(root, args[0]);
       break;
     }
     case 'status':
-      verbStatus(cwd);
+      libStatus().verbStatus(cwd);
       break;
     case 'publish': {
       const root = takeRoot(args);
-      verbPublish(root);
+      libRunState().verbPublish(root);
       break;
     }
     case 'adopt': {
       const root = takeRoot(args);
-      verbAdopt(root, stdinJson, args.includes('--shipped'));
-      console.log(fetchRunState(root, cwd));
+      libRunState().verbAdopt(root, stdinJson, args.includes('--shipped'));
+      console.log(libRunStateRef().fetchRunState(root, cwd));
       ledgerEvent = { root, fields: ['adopt'] };
       break;
     }
@@ -343,50 +345,50 @@ function run(argv, cwd, stdinJson) {
       break;
     // No --root: staging resolves a staging directory, not a run root, and touches no ledger (ADR 0119).
     case 'staging':
-      verbStaging(cwd, args);
+      libStatus().verbStaging(cwd, args);
       break;
     // No --root: citations reads git only and touches no ledger (ADR 0156).
     case 'citations':
-      verbCitations(cwd, args);
+      libCitations().verbCitations(cwd, args);
       break;
     // Reads git and the run's trace and writes nothing (ADR 0227); `verbUntraced` takes `--root` itself.
     case 'untraced':
-      verbUntraced(cwd, args);
+      libUntraced().verbUntraced(cwd, args);
       break;
     // No --root: source-set reads git only and touches no ledger (ADR 0162).
     case 'source-set':
-      verbSourceSet(cwd, args);
+      libSourceSet().verbSourceSet(cwd, args);
       break;
     // Reads the ledger's branch and writes nothing to it (ADR 0167); `verbPush` takes `--root` itself.
     case 'push':
-      verbPush(cwd, args);
+      libPush().verbPush(cwd, args);
       break;
     // Deletes the run-state ref of a run root from the remote (ADR 0202); best-effort, always exits 0.
     case 'run-state':
-      if (args[0] !== 'delete') fail('run-state: expected "delete"\n' + usage());
-      console.log(deleteRunState(takeRoot(args), cwd));
+      if (args[0] !== 'delete') fail('run-state: expected "delete"\n' + libUsage().usage());
+      console.log(libRunStateRef().deleteRunState(takeRoot(args), cwd));
       break;
     // dod-merge writes dod.md alone: no ledger, no store call (references/dod-ticks.md, ADR 0206).
     case 'dod-merge':
-      verbDodMerge(takeRoot(args), stdinJson);
+      libDodMerge().verbDodMerge(takeRoot(args), stdinJson);
       break;
     // No --root: dod-line touches no ledger, and makes no store call (references/dod-ticks.md).
     case 'dod-line':
-      verbDodLine(args, stdinJson);
+      libDodLine().verbDodLine(args, stdinJson);
       break;
     // No --root: dod-tags rewrites and checks criterion tags on stdin, no ledger, no store call (ADR 0209).
     case 'dod-tags':
-      verbDodTags(args, stdinJson);
+      libDodTags().verbDodTags(args, stdinJson);
       break;
     // No --root: dod-check checks an anchor body on stdin, no ledger, no trace, no store call (ADR 0233).
     case 'dod-check':
-      verbDodCheck(stdinJson);
+      libDodCheck().verbDodCheck(stdinJson);
       break;
     default:
-      fail('unknown verb "' + (verb || '') + '"\n' + usage());
+      fail('unknown verb "' + (verb || '') + '"\n' + libUsage().usage());
   }
   if (ledgerEvent) appendTrace(ledgerEvent.root, { slice: ledgerEvent.slice, kind: 'ledger', fields: ledgerEvent.fields });
-  if (handoffRoot) console.log(pushRunState(handoffRoot, cwd));
+  if (handoffRoot) console.log(libRunStateRef().pushRunState(handoffRoot, cwd));
 }
 
 // True for `unresolved add -`, `deferred add -`, and `degraded add -` (any `--root <path>` position
@@ -398,7 +400,7 @@ function isBulletStdinInvocation(argv) {
   const rest = argv.slice(1);
   const ri = rest.indexOf('--root');
   if (ri >= 0) rest.splice(ri, 2);
-  return rest.length === 2 && BULLET_STDIN_SUBS.includes(rest[0]) && rest[1] === '-';
+  return rest.length === 2 && libLedgerRecords().BULLET_STDIN_SUBS.includes(rest[0]) && rest[1] === '-';
 }
 
 // `--help` / `-h` asks for usage unless it is the value of a flag that takes one or the text of a bullet
@@ -412,7 +414,7 @@ function asksForHelp(argv) {
     if (VALUE_FLAGS.includes(argv[i])) i++;
     else rest.push(argv[i]);
   }
-  if (BULLET_STDIN_VERBS.includes(rest[0]) && BULLET_STDIN_SUBS.includes(rest[1]) && rest[2] !== '-') rest.length = 2; // `-` reads stdin: no text on the command line
+  if (BULLET_STDIN_VERBS.includes(rest[0]) && libLedgerRecords().BULLET_STDIN_SUBS.includes(rest[1]) && rest[2] !== '-') rest.length = 2; // `-` reads stdin: no text on the command line
   return rest.includes('--help') || rest.includes('-h');
 }
 
@@ -423,7 +425,7 @@ function main() {
   const argv = process.argv.slice(2);
   // Checked before any verb reads stdin, so `dod-line --help` and its stdin siblings never wait on input.
   if (asksForHelp(argv)) {
-    console.log(usage());
+    console.log(libUsage().usage());
     return;
   }
   const needsStdin = STDIN_VERBS.includes(argv[0]) || isBulletStdinInvocation(argv);
@@ -437,9 +439,9 @@ function main() {
       throw e;
     };
     try {
-      if (argv[0] === 'test') verbTest(process.cwd(), argv.slice(1));
-      else if (argv[0] === 'fail-to-pass') verbFailToPass(process.cwd(), argv.slice(1)).catch(settle);
-      else if (argv[0] === 'prepare') verbPrepare(process.cwd(), argv.slice(1)).catch(settle);
+      if (argv[0] === 'test') libTestVerb().verbTest(process.cwd(), argv.slice(1));
+      else if (argv[0] === 'fail-to-pass') libFailToPass().verbFailToPass(process.cwd(), argv.slice(1)).catch(settle);
+      else if (argv[0] === 'prepare') libPrepare().verbPrepare(process.cwd(), argv.slice(1)).catch(settle);
       else run(argv, process.cwd(), stdinJson);
       // Let the process exit naturally on success, so stdout is guaranteed to flush first;
       // a refusal still exits nonzero below.
@@ -462,6 +464,23 @@ function main() {
 // process dies with `unknown verb ""` and exit 1 before its own first statement, because a refusal calls
 // process.exit. Had the caller's argv happened to start with `init`, the same path waits on stdin
 // instead and hangs. Either way the require, not the CLI, is what fails.
-module.exports = { endRun, watchMain, verificationCommandsOf, appendTrace, readTrace, readLedgerHeader, inProgressSlices, isTestPath, run, publishText, SLUG_RE, testContainment, baseHistoryHasPatch, findCollisions };
+// A name re-exported from a lazily loaded module is a getter, so requiring this file loads that module only when
+// the name is read.
+module.exports = {
+  get endRun() { return libRunSupervision().endRun; },
+  get watchMain() { return libRunSupervision().watchMain; },
+  get verificationCommandsOf() { return libVerification().verificationCommandsOf; },
+  appendTrace,
+  readTrace,
+  readLedgerHeader,
+  inProgressSlices,
+  get isTestPath() { return libVerification().isTestPath; },
+  run,
+  get publishText() { return libRunState().publishText; },
+  SLUG_RE,
+  get testContainment() { return libContainment().testContainment; },
+  get baseHistoryHasPatch() { return libContainment().baseHistoryHasPatch; },
+  get findCollisions() { return libCollisions().findCollisions; },
+};
 
 if (require.main === module) main();

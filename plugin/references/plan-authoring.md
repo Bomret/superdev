@@ -10,8 +10,7 @@ the lifecycle, and the scope anchor these rules write into.
 
 Both `acceptance` and the DoD state **observable, user-facing behaviour** — not gameable proxy counts
 (coverage %, line count, lint score). Behaviour can't be faked without doing the work; a count can. Where
-a proxy count appears at all it's a signal a reviewer reads, never a gate an agent optimizes toward (ADR
-0002).
+a proxy count appears at all it's a signal a reviewer reads, never a gate an agent optimizes toward.
 
 A criterion states a requirement the feature meets, never a procedure superdev executes to verify it: it
 names no command superdev runs to check it. `Reachable:` below is the standing
@@ -40,9 +39,8 @@ criterion exists to catch.
 The rule holds on **every change type**. A behaviour-preserving refactor answers `none — entrance
 unchanged`. A prose feature names the surface that reaches the running system as its entrance — a skill
 step that runs, a reference a surface is routed to read, a checklist section a named agent applies — since
-that is how prose reaches anything at all; a reference nobody routes to is dead code in exactly the sense
-ADR 0062 is about. Staying uniform is what leaves `/plan` no judgment about whether the rule fires, and
-that judgment is exactly where a rule of this kind drifts.
+that is how prose reaches anything at all; a reference nobody routes to is dead code. Staying uniform leaves `/plan` no judgment about whether
+the rule fires.
 
 It is **feature-level**. A single-slice feature carries it in the lone slice's `acceptance`, which is
 already that feature's Definition of Done, so no slice gains a criterion of its own. **Append mode** adds
@@ -124,7 +122,7 @@ Two sections `/plan` may add to the epic when the plan's shape defeats a numbere
 human readers of the epic; both are **advisory**, exactly like `Parked questions` — `/implement` never
 reads them, no review agent gates on them, and neither adds a lifecycle status. The epic's own visuals
 are markdown only: superdev ships no renderer, and the epic itself carries no HTML. The design sketch
-(`design-sketch.md`) is a separate, throwaway file outside the epic (ADR 0036 supersedes ADR 0009).
+(`design-sketch.md`) is a separate, throwaway file outside the epic.
 
 **`## Slice graph`** — a mermaid `flowchart LR` of the plan's `depends-on` DAG, one node per slice
 labelled `<id> · <title>`, one edge per `depends-on` entry:
@@ -247,8 +245,8 @@ Append mode holds these invariants, and every backend renders all of them:
   longer reads as this feature's anchor.
 - **Append refuses, and writes nothing, while a run is active.**
 - **A shipped or closed feature takes no append.** Amending a shipped feature's Definition of Done in place pools
-  criteria verified against a merged pull request with criteria nobody has verified (ADR 0083,
-  INV-0004), and the run root's reap removes the local half of that mixture while the scope anchor keeps
+  criteria verified against a merged pull request with criteria nobody has verified,
+  and the run root's reap removes the local half of that mixture while the scope anchor keeps
   its own. `/superdev:plan`'s extend path refuses on any one of its shipped signals alone — a run root
   whose ledger stage reads `shipped` or `closed`, a scope anchor at the store's done status, and an anchor
   whose `## Run state` snapshot stage reads `shipped` or `closed`, which alone shows a feature shipped on

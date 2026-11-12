@@ -46,7 +46,7 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
   by `<scope>` is what lets scope runs go in parallel. Nothing in the run root is committed or lands in
   the PR.
 - **Move dirty design docs into the scopetree, never onto the base branch** (no superdev
-  command commits to base — INV-0001). The only paths this step touches are `CONTEXT.md`,
+  command commits to base). The only paths this step touches are `CONTEXT.md`,
   every file under `docs/adr/`, and `docs/invariants.md`: check `git status --porcelain -uall -- CONTEXT.md
   docs/adr/ docs/invariants.md` in the invoking checkout — `-uall` so a wholly-untracked directory lists
   each file inside it individually, never the directory itself, and this step's captured paths are always
@@ -158,8 +158,7 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
     | node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" init <type>/<scope> implementing
   ```
 
-  `scope.js` owns the ledger schema (`${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## The ledger`,
-  ADR 0022). **`init` takes the entry stage as its own argument, with no default**: only the
+  `scope.js` owns the ledger schema (`${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## The ledger`). **`init` takes the entry stage as its own argument, with no default**: only the
   caller knows who is writing this ledger, and a feature that reaches this path — no `/superdev:plan`
   session ever cut it, or `<run-root>/ledger.md` was rotated aside from `closed` just above — has no
   `planned` interval to enter through, so this call names `implementing` rather than leaving it to guess.
@@ -167,7 +166,7 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
   already exists at any stage other than `planned` (a `dod.md` already there is fine), ensures
   `.superdev/` is git-ignored, and writes the ledger: the slice table, `**Stage:** implementing`,
   `**Branch:** <type>/<scope>` (the branch is not computable from the slug, and `/superdev:submit-pr`
-  receives a slug — ADR 0021), and the `**Anchor:**` line — the anchor's key and title, per the store's `## Scope
+  receives a slug), and the `**Anchor:**` line — the anchor's key and title, per the store's `## Scope
   anchor` contract — which `/superdev:review` reads back instead of deriving a title from the diff.
 
   **`<run-root>/ledger.md` already present** → read its stage:
@@ -176,8 +175,8 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
     itself rotates the existing ledger aside to `ledger-closed-<date>.md` (`date +%FT%H%M%S`, precise
     enough that two same-day rotations never
     collide) before writing the fresh one. A rotation never overwrites an existing
-    `ledger-closed-<date>.md` and nothing is deleted, so ADR
-    0007's seven-day trail and `scope-prune`'s contained-or-gone reap rule both stand
+    `ledger-closed-<date>.md` and nothing is deleted, so the
+    seven-day trail and `scope-prune`'s contained-or-gone reap rule both stand
     unchanged. Rotation, not deletion, is what lets a new feature reusing a retired label begin beside a
     finished run's trail. The run's `trace.log` moves aside first, to `trace-closed-<date>.log`
     under the rotated ledger's own name stem, so the new run's trace holds only its own lines; a trace that

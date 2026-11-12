@@ -21,6 +21,10 @@ const RUN_ROOT_DOCS = [
   'skills/publish-kb/SKILL.md',
   'references/implement-lite.md',
   'references/implement-full.md',
+  'references/implement-full-resume.md',
+  'references/implement-full-fix-cycle.md',
+  'references/implement-full-denied.md',
+  'references/implement-full-minor-sweep.md',
   'references/run-init.md',
   'references/run-handoff.md',
   'references/scope-mode.md',
@@ -29,6 +33,11 @@ const RUN_ROOT_DOCS = [
   'references/scope-findings.md',
   'references/shipped-run.md',
   'references/review-scope-mode.md',
+  'references/review-scope-holds.md',
+  'references/review-scope-denials.md',
+  'references/review-scope-base.md',
+  'references/review-scope-deferrals.md',
+  'references/review-scope-coverage.md',
   'agents/implementer.md',
   'agents/slice-reviewer.md',
   'agents/simplicity-reviewer.md',
@@ -494,13 +503,17 @@ const NO_TEST_RUN_PATTERNS = [
   /\brun(?:s|ning)?\s+(?:the\s+|a\s+|an\s+)?(?:configured\s+)?test\s+(?:command|suite)\b/gi,
 ];
 
-// ADR 0192, INV-0128: implement's base step, run handoff, and both execution playbooks instruct no full or whole-repo
-// run. Each entry is a document and the one section of it the check reads, or null for the whole document: scope-branch.md
+// ADR 0192, INV-0128: implement's base step, run handoff, and both execution playbooks, the full one with its rare-branch
+// files, instruct no full or whole-repo run. Each entry is a document and the one section of it the check reads, or null for the whole document: scope-branch.md
 // also holds the review's and ship's rules, so only its base step is read.
 const IMPLEMENT_NO_FULL_RUN_DOCS = [
   [path.join('references', 'scope-branch.md'), '## Bringing the scope branch to base'],
   [path.join('references', 'run-handoff.md'), null],
   [path.join('references', 'implement-full.md'), null],
+  [path.join('references', 'implement-full-resume.md'), null],
+  [path.join('references', 'implement-full-fix-cycle.md'), null],
+  [path.join('references', 'implement-full-denied.md'), null],
+  [path.join('references', 'implement-full-minor-sweep.md'), null],
   [path.join('references', 'implement-lite.md'), null],
 ];
 // A `scope.js test full|whole` call, the bare `test full|whole` verb in a code span, a `test focused` call with no path

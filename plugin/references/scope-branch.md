@@ -78,7 +78,7 @@ stands, so the fetch is paid where the local answer would otherwise be wrong and
 `--is-ancestor` fallback below takes the same second pass, against that same `FETCH_HEAD`.
 
 **`hooks/scope-prune.js` runs the local test alone and never fetches.** It is a `Stop` hook firing on every
-finished turn, and a stale base defers a reap that ADR 0007's seven-day TTL has already delayed — the safe
+finished turn, and a stale base defers a reap that the seven-day TTL has already delayed — the safe
 direction, and the same best-effort posture that keeps the hook silent below.
 
 **No remote configured, or a fetch that fails** — an unreachable host, a rejected credential, a branch the
@@ -108,8 +108,8 @@ reads and what it does with each.
 already meant; `## Cutting the scope branch` below and `skills/publish-kb/SKILL.md` §3 use the base
 branch named in `docs/agents/code-management.md`. The test only ever compares the tree its caller hands
 it, so a ref that already holds the branch's content reads contained whether or not it is what the caller
-means by "landed." `HEAD` is safe for `hooks/scope-prune.js` on that basis, and only because ADR 0045
-keeps the invoking checkout off the scope branch at every tier: were `HEAD` ever the branch itself,
+means by "landed." `HEAD` is safe for `hooks/scope-prune.js` on that basis, and only because the
+invoking checkout stays off the scope branch at every tier: were `HEAD` ever the branch itself,
 `git merge-tree --write-tree HEAD <branch>` would yield `HEAD`'s own tree and the branch would read
 contained however little of its work base actually holds.
 
@@ -274,7 +274,7 @@ branch step left you on.
    `git -C <run-root>/scopetree rev-parse -q --verify MERGE_HEAD` finds no unfinished merge. Anything
    else → name what you found and stop, discarding nothing and dispatching no slice. **`--unattended` →
    block**, per `scope-mode.md`'s `## Unattended`. One exception, at the `lite` tier only (`scope.js get slices --root <run-root>`
-   lists three or fewer slices, as in `scope-findings.md`'s `## Degraded passes`): the scopetree is dirty, no merge is
+   lists 3 or fewer `behavior` slices, as in `scope-findings.md`'s `## Degraded passes`): the scopetree is dirty, no merge is
    unfinished, and a slice is `in-progress`. That dirt is the slice's own work. At the full tier
    slices work in their own slicetrees, so any dirty scopetree stops. Skip the whole base step, name the skip in the
    report, and leave the work to the playbook's `## Resume`; the next invocation brings the base in.
@@ -283,7 +283,7 @@ branch step left you on.
    and a stalled remote ends it. Capture `<tip>` at once with `git rev-parse FETCH_HEAD`, because step 3
    overwrites `FETCH_HEAD`. A fetch the timeout killed carries no verdict and counts as failed.
 3. **Fast-forward the local `<base>` ref, and nothing more.** Run
-   `git fetch . <tip>:refs/heads/<base>`. This is the only local-git write to `<base>` INV-0001 admits: it
+   `git fetch . <tip>:refs/heads/<base>`. This is the only local-git write to `<base>` superdev makes: it
    moves a ref, writes no commit, and touches no working tree. Git refuses it when `<base>` is checked
    out in any worktree, or when the update is not a fast-forward (verified 2026-10-05, git 2.54.0: exit
    128, `fatal: refusing to fetch into branch 'refs/heads/<base>' checked out at …`). A refusal is not a

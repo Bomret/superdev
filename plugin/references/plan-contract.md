@@ -103,7 +103,8 @@ close changes nothing). On a
 single-slice plan the lone issue is both the slice and the anchor. The anchor rule wins: it stays
 `in-progress` through the merge, and closes once, at wrap-up.
 
-`/implement` derives an **execution tier** from the loaded slice count (≤3 → `lite`, >3 → `full`) —
+`/implement` derives an **execution tier** from the loaded `behavior` slices (3 or fewer → `lite`, more than 3
+→ `full`; `mechanical` and `docs` slices never count) —
 never a plan field, never persisted. The **lite** tier has no per-slice review at all, regardless of
 `test-applicability`: every slice goes `todo` → `in-progress` → `merged` directly, and a single
 whole-scope review substitutes for the per-slice ones. The table above (and the `behavior`-only
@@ -136,7 +137,7 @@ a store where the two could land on the same record.** A single-slice feature's 
 the feature and can never reach `merged` — and would lose it outright the moment append mode promotes that
 lone slice to an epic (`plan-authoring.md`'s `## Append mode`). Each store's `## Scope anchor` section names the distinct
 notation it uses instead. A dependency is **satisfied** only when the anchor it names is closed, or when
-no such anchor exists; no ledger stage satisfies it (amending ADR 0040). A merged feature
+no such anchor exists; no ledger stage satisfies it. A merged feature
 whose anchor is still open has not been verified or wrapped up, so a dependent keeps waiting for the close. `/superdev:plan` records
 one when its interview named a prerequisite feature, and `/superdev:status` is the reader: it groups an
 anchor whose dependency is unsatisfied as `waiting`.

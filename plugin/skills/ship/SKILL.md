@@ -103,7 +103,7 @@ Applies to every start past §1. Read the stage with `node "${CLAUDE_PLUGIN_ROOT
 
 **Adopting a hand merge.** Applies to a pull request whose `merged` is true. Run `suite reusable` with `--branch <head.sha>`, plain and never `--whole`, and take its bullet below. Then take the adopt's stage write.
 
-- **Exits 0** → the merged head is a commit the suite record covers (INV-0017 states every way it does: an exact match, a Markdown-only range that needs no test run at the tip, a focused-selector carry, alone or followed by Markdown-only commits, or a recorded rerun, alone or followed by Markdown-only commits). Add no `**Degraded:**` bullet.
+- **Exits 0** → the merged head is a commit the suite record covers (an exact match, a Markdown-only range that needs no test run at the tip, a focused-selector carry, alone or followed by Markdown-only commits, or a recorded rerun, alone or followed by Markdown-only commits). Add no `**Degraded:**` bullet.
 - **Exits 1, or no record** → run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" degraded add "the merge landed on <head.sha>, not a commit the green suite record covers"`.
 
 **The adopt's stage write.** Applies after the adopt's `suite reusable` bullet. Set the stage to `shipped` with `scope.js stage set shipped --root <run-root>` unless it already reads that. Go to §5.
@@ -192,7 +192,7 @@ Applies to every start past §1. Read the stage with `node "${CLAUDE_PLUGIN_ROOT
 
 **The stage write.** Applies after the merge commit is found. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set shipped --root <run-root>` unless the stage already reads `shipped`.
 
-**The deploy posture.** Applies after the stage write (INV-0098: only ship runs a target's command, only under `auto`, only after the merge, only in a tree detached at the merge commit). Read the posture and the anchor's `**Deploy:**` line fresh here, never reused from §3 or §4, at the merge commit, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Reading the posture at the merge commit`. Read through the scope checkout: `git -C <run-root>/scopetree fetch origin <base>` when the commit is missing, then `git -C <run-root>/scopetree show <merge-commit-sha>:docs/agents/deployment.md`.
+**The deploy posture.** Applies after the stage write. Only ship runs a target's command, only under `auto`, only after the merge, only in a tree detached at the merge commit. Read the posture and the anchor's `**Deploy:**` line fresh here, never reused from §3 or §4, at the merge commit, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Reading the posture at the merge commit`. Read through the scope checkout: `git -C <run-root>/scopetree fetch origin <base>` when the commit is missing, then `git -C <run-root>/scopetree show <merge-commit-sha>:docs/agents/deployment.md`.
 
 - **`none`, a `**Deploy:** none` line, or no `**Deploy:**` line** → deploy nothing. Say so in one line and go to **Hand off**.
 - **`manual`** → print each listed target's command not already recorded `deployed`, in listed order. Record each with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deploy set <target> pending --root <run-root>`, and go to **Hand off**.

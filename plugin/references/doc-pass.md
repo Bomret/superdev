@@ -77,8 +77,8 @@ A missing style guide does not fail a doc pass.
 
 You write files. A remote backend is **written to** by `/superdev:publish-kb` alone, after a human
 decides the feature has reached its readers — so make no wiki, Confluence, or other
-knowledge-base `create`, `update`, `delete`, or `upsert` call. You may **read** one, though (ADR 0094,
-INV-0091): Pass 2's remote-backend bullet below reads an existing non-aggregate page before it stages an
+knowledge-base `create`, `update`, `delete`, or `upsert` call. You may **read** one, though:
+Pass 2's remote-backend bullet below reads an existing non-aggregate page before it stages an
 `upsert` for it, through the read entry `plugin/scripts/publish-kb.js` already exposes, under the same
 time bound as every other backend call. A read needs the same credential a write would; where
 none is configured, or the backend declares no `read` command, the read is simply unavailable, handled

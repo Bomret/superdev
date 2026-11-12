@@ -1,6 +1,6 @@
 ---
 name: implement
-description: Execute a superdev plan — drive its vertical slices to merge as a dependency-ordered DAG, with an execution tier sized to the slice count, then hand off to the next command in the chain. Use when a plan exists in the slice store; run /superdev:plan first if not.
+description: Execute a superdev plan — drive its vertical slices to merge as a dependency-ordered DAG, with an execution tier sized to its `behavior` slices, then hand off to the next command in the chain. Use when a plan exists in the slice store; run /superdev:plan first if not.
 argument-hint: "[<feature-label>  (empty = the only plan in the store)]  [--unattended]"
 ---
 
@@ -10,7 +10,7 @@ argument-hint: "[<feature-label>  (empty = the only plan in the store)]  [--unat
 
 Applies to every start. You are the **controller**: you drive a plan's slices to merge, and you alone integrate. You stop when the code is on the scope branch, and you hand review, docs, and the pull request to the next three commands of the chain.
 
-- **The tier**: `lite` for 3 or fewer loaded slices, `full` for more. It is derived fresh every run, never configured or persisted.
+- **The tier**: `full` for more than 3 loaded `behavior` slices, `lite` otherwise, whatever the number of `mechanical` and `docs` slices. It is derived fresh every run, never configured or persisted.
 - **The playbook**: `${CLAUDE_PLUGIN_ROOT}/references/implement-full.md` for `full`, `${CLAUDE_PLUGIN_ROOT}/references/implement-lite.md` for `lite`. Each ends by reading `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md`.
 - **The scope anchor**: the epic, or the lone slice on a single-slice plan, per the store's `## Scope anchor` contract (`docs/agents/issue-tracker.md`).
 - **The publish**: the snapshot publish, per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section. It runs twice: right after the entry's write of `**Stage:** implementing` (`init` or `stage set`), and as the last act of the exit that ends the run, after run handoff's `merged` stage write, or after the `step clear` or `step block` of an earlier exit. No other write site publishes.
@@ -26,7 +26,7 @@ Applies to the `lite` tier. Its playbook runs the documentation pass in the same
 
 ## Dispatches and the log
 
-**Who dispatches.** Applies to every run. `full` dispatches `superdev:implementer` and `superdev:slice-reviewer` with per-slice specifics, never the whole plan. `lite` dispatches none, and you carry the TDD discipline yourself.
+**Who dispatches.** Applies to every run. `full` dispatches `superdev:implementer` and `superdev:slice-reviewer` with per-slice specifics, never the whole plan. A `full` run's **tiny slice**, a `docs` slice or a `mechanical` slice whose `spec` names a single file, gets no dispatch: you build it yourself in its slicetree, and its merge, ledger, and trace steps stay the same (`implement-full.md`'s DAG loop step 2). `lite` dispatches none, and you carry the TDD discipline yourself.
 
 **The `dispatch:` line.** Applies before each dispatch. Mark the log with a `dispatch:` line. Only an entry below the last such line is current (`${CLAUDE_PLUGIN_ROOT}/references/implement-full.md`'s `## Progress log (per slice)`).
 
@@ -62,7 +62,7 @@ Applies to the `lite` tier. Its playbook runs the documentation pass in the same
 
 **Recovery.** Applies after compaction. Trust the ledger and `git log` over memory. Re-dispatch no slice marked `merged`.
 
-**Hook-enforced.** Applies to every dispatch and integration. Only the controller merges and pushes (`merge-guard`), and every dispatch sets an explicit `model` (`model-explicit`).
+**Hook-enforced.** Applies to every dispatch and integration. Only the controller merges and pushes (`merge-guard`), and every dispatch sets an explicit `model` (`run-trace`).
 
 **A denied dispatch.** Applies when a dispatch is denied. It is a degraded pass: follow `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section. Work inline, say so, and write the `**Degraded:**` entry.
 

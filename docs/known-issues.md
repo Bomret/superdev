@@ -83,7 +83,7 @@ dispatch ends on its `completed` response, and its first run's `SubagentStop` fi
 names the agent yet. A change to either field leaves a
 dispatch without an end, and `final-reviewer`'s per-slice review check then reports the review missing.
 
-**Mitigation:** the hook never blocks on an `Agent` event; a missing field records no end, which the check
+**Mitigation:** the hook blocks no `Agent` event but a superdev dispatch with no explicit `model` (ADR 0245); a missing field records no end, which the check
 reads as an unreviewed slice, never as a passed one.
 
 Verified 2026-10-08, on Claude Code 2.1.294, against session transcripts written by Claude Code 2.1.x: an
@@ -195,7 +195,7 @@ other prefix, stands before it, so `rtk git push` and `rtk proxy git push` are d
 
 The PreToolUse hooks are out of the rewrite's reach. Claude Code runs every matching hook of one event
 in parallel, so `hooks/merge-guard.js` receives the
-command as it was written, before RTK's hook rewrites it. `hooks/model-explicit.js` matches the Agent
+command as it was written, before RTK's hook rewrites it. `hooks/run-trace.js` denies a modelless dispatch on the Agent
 tool, which RTK does not rewrite. `hooks/slicetree-sweep.js` and `hooks/scope-prune.js` run on Stop and
 read no command.
 
