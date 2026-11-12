@@ -48,7 +48,7 @@ lazily loaded module is a getter that returns that module's own value. No module
 `suite set <green|red|denied|none> <sha> [--whole]`,
 `suite reusable --branch <b> [--whole] [--base <base-branch>]`, `suite rerun <test-file> <triage-ref>`, `suite failed <test-file>...`,
 `base set <sha>`, `base resolve --branch <b> --base <ref>`,
-`get stage|branch|anchor|slices|unresolved|degraded|deferred|minors|denials|docs|pr|suite`,
+`get stage|branch|anchor|slices|unresolved|degraded|deferred|minors|denials|docs|pr|suite|failed`,
 `status` (which renders the whole `/superdev:status` report), `trace [--slice <id>]` (prints the run trace, read-only), `untraced <base>..<tip> --slice <id|scope> [--from <ts>] [--until <ts>] --root <run-root>` (read-only), `publish`, `adopt`, `root <slug>`,
 `staging <scope> [--count]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `citations --range-base <ref> --branch <ref> <id>…`, `source-set [<path>]`, `push --root <run-root> --remote <remote> --base <base-ref>`, `dod-merge --root <run-root>`, `dod-line`, `dod-tags [--map-file <path>] [--line]`, `dod-check`, `fail-to-pass <base>..<tip> -- <command>`, `prepare <tree>`, and `test`.
 `--help` or `-h`, alone or after any verb, prints the usage and exits 0, except that a flag's value, or the text after `add`, `add-denial`, `reset-denials`, or `resolve`, is data and never a help request. It is checked before any verb
@@ -104,12 +104,13 @@ record refuses a second one. A record for another tip is replaced.
 `suite failed <test-file>...` writes the ledger's one `**Failed:**` header, `<file>... @ <tip>`: the test files a full
 run at the tip failed in. The tip is the checkout's HEAD, and each file is a root-relative blob at it. The verb refuses
 `--whole`, no file, and a token holding whitespace. A record for another tip is replaced.
+Its trace line names the root-relative paths the record holds, not the arguments as typed. `get failed` prints the record back, `<file>... @ <sha>`, or nothing on a ledger with no record.
 
 The **repaired-failure carry** (ADR 0237) is a fourth route, which `suite reusable` tries where the recorded rerun
 refuses a `red` record at R. The `**Failed:**` record must name R, the record must carry no `whole` kind, and the
 gate must not ask for `--whole`. R is an ancestor of the tip and differs from it. The trace records exactly one failed full run at R,
 the complete-selector carry from R to the tip holds, and each named file passed on a clean tree at the tip in a `path`
-run from the tree root.
+run from the tree root. Where both routes refuse, the refusal names each route's reason.
 
 The **recorded rerun** (ADR 0172) is the third route. `suite reusable` takes a `red` record only with `--base`. Without
 `--base` the record stays red. The record must be at the tip, or at an ancestor of it where every path changed since
@@ -340,8 +341,9 @@ A command that succeeds on a tree with no tracked change from `HEAD` leaves a st
 git directory (`git rev-parse --absolute-git-dir`), recording the command, `HEAD`, and the tree's untracked paths
 (`git ls-files --others --directory`). A later call skips the command, prints one `prepare: skipped` note on stderr, and exits
 0 while the stamp holds: the command is the same, every recorded untracked path is still there, and every path
-`git diff --name-only <stamped HEAD>` names, committed or not, is a test path under the tree's `## Test paths` or a `.md`
-file. Any other change runs the command again, because the verb cannot know which files the command reads: a lockfile for an
+`git diff --name-only <stamped HEAD>` names, committed or not, is a `.md` file, and so is every untracked file
+`git ls-files --others --exclude-standard` lists that the stamp does not record. The stamp records that list too, file by
+file, so a new file inside an untracked directory it recorded as one entry counts as new. Any other change runs the command again, because the verb cannot know which files the command reads: a lockfile for an
 install, every source file for a build (ADR 0238). A call that runs the command removes the stamp first, so a failed run
 leaves none.
 

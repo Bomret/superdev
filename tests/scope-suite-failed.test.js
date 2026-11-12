@@ -87,9 +87,16 @@ try {
   let rt = f.root(good);
   let r = reusable(rt);
   assert.ok(!r.ok, 'a red record with no failed-files record stays red: ' + (r.err || ''));
+  r = callIn(['get', 'failed', '--root', rt], f.repo);
+  assert.ok(r.ok && r.out === '', 'get failed prints nothing on a ledger with no record: ' + JSON.stringify(r));
   r = failedAt(rt, ['tests/a.test.js', './tests/b.test.js'], f.R);
   assert.ok(r.ok, 'suite failed records: ' + (r.err || ''));
   assert.ok(ledgerOf(rt).includes(`**Failed:** tests/a.test.js tests/b.test.js @ ${f.R}\n`), 'the ledger carries the record: ' + ledgerOf(rt));
+  const traced = fs.readFileSync(path.join(rt, 'trace.log'), 'utf8');
+  assert.ok(/ ledger suite failed tests\/a\.test\.js tests\/b\.test\.js$/m.test(traced) && !traced.includes('./tests/b.test.js'),
+    'the trace names the root-relative paths the ledger records: ' + traced);
+  r = callIn(['get', 'failed', '--root', rt], f.repo);
+  assert.ok(r.ok && r.out === `tests/a.test.js tests/b.test.js @ ${f.R}`, 'get failed prints the record back: ' + JSON.stringify(r));
   r = reusable(rt);
   assert.ok(r.ok && r.out === 'reusable', 'the repaired failures carry the record to the fix tip: ' + (r.err || ''));
   assert.ok(!reusable(rt, '--whole').ok, 'a repaired failure never serves a whole-repo gate');
@@ -107,6 +114,7 @@ try {
     assert.ok(failedAt(x, files, f.R).ok);
     const res = reusable(x);
     assert.ok(!res.ok, `${why} stays red`);
+    assert.ok(/red, not green \(.+; repaired-failure carry: .+\)/.test(res.err), `${why} names both routes' reasons: ${res.err}`);
   };
   red([FAILED(f.R), ALONE(f.T, 'tests/a.test.js'), FOCUSED(f.T)], 'a named file with no passing run at the tip');
   red([FAILED(f.R), ALONE(f.T, 'tests/a.test.js'), ALONE(f.T, 'tests/b.test.js', 'pass', 'dirty'), FOCUSED(f.T)], 'a named file passing only on a dirty tree');
@@ -122,6 +130,26 @@ try {
   rt = f.root(good);
   assert.ok(failedAt(rt, ['tests/a.test.js'], f.T).ok);
   assert.ok(!reusable(rt).ok, 'a failed-files record for another commit carries nothing');
+
+  // A `--base` with no merge-base refuses the rerun route only: the repaired-failure carry still decides, here at a
+  // Markdown-only tip past R that carries both records.
+  g(['checkout', '-q', '-b', 'md', f.R], f.repo);
+  fs.writeFileSync(path.join(f.repo, 'notes.md'), 'n\n');
+  g(['add', 'notes.md'], f.repo);
+  g(['commit', '-q', '-m', 'notes'], f.repo);
+  const M = g(['rev-parse', 'HEAD'], f.repo);
+  g(['checkout', '-q', '--orphan', 'lone'], f.repo);
+  g(['rm', '-rq', '--cached', '.'], f.repo);
+  g(['commit', '-q', '--allow-empty', '-m', 'lone'], f.repo);
+  g(['checkout', '-qf', 'feat'], f.repo);
+  fs.rmSync(path.join(f.repo, 'notes.md'), { force: true });
+  rt = f.root([FAILED(f.R), ALONE(f.R, 'tests/a.test.js'), FOCUSED(f.R), ALONE(M, 'tests/a.test.js'), FOCUSED(M, 'pass', 'clean', ['notes.md'])]);
+  fs.writeFileSync(path.join(rt, 'ledger.md'), ledgerOf(rt).replace('**Anchor:**', `**Rerun:** tests/a.test.js @ ${f.R} #1\n**Anchor:**`));
+  r = callIn(['suite', 'reusable', '--branch', 'md', '--base', 'lone', '--root', rt], f.repo);
+  assert.ok(!r.ok && /red, not green \(no merge-base of "lone" and "md"\)/.test(r.err), 'the rerun route reaches the range base and refuses: ' + (r.err || ''));
+  assert.ok(failedAt(rt, ['tests/a.test.js'], f.R).ok);
+  r = callIn(['suite', 'reusable', '--branch', 'md', '--base', 'lone', '--root', rt], f.repo);
+  assert.ok(r.ok && r.out === 'reusable', 'an unresolvable range base leaves the repaired-failure carry to decide: ' + (r.err || ''));
 
   // Without the complete-selector declaration the record stays red.
   const plain = make('');

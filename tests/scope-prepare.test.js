@@ -133,7 +133,7 @@ try {
   assert.equal(r.status, 0, r.stderr);
   assert.deepEqual(logged(), [], 'no external diff program ran');
 
-  // A preparation that succeeded is skipped while every tracked change since is a test path or Markdown, the command is the
+  // A preparation that succeeded is skipped while every tracked change since is Markdown, the command is the
   // same, and every untracked path it left is still there; any other change runs the command again.
   fs.rmSync(log, { force: true });
   const stamped = worktree(repo, 'stamped', section('`echo ran >> "$P_LOG"; mkdir -p deps; touch deps/x`'));
@@ -152,28 +152,49 @@ try {
   assert.equal(runs(), 1, 'an unchanged tree skips the command');
   assert.equal(r.stderr.trim().split('\n').length, 1, 'a skip prints one note: ' + r.stderr);
   assert.match(r.stderr, /^prepare: skipped `echo ran/);
-  commitFile('tests/a.test.js', 'x\n');
   commitFile('notes.md', 'x\n');
   fs.writeFileSync(path.join(stamped, 'notes.md'), 'uncommitted\n');
   r = prepare(stamped, { env });
   assert.equal(r.status, 0, r.stderr);
-  assert.equal(runs(), 1, 'test-path and Markdown changes, committed or not, skip the command');
+  assert.equal(runs(), 1, 'Markdown changes, committed or not, skip the command');
+  git(stamped, ['checkout', '-q', '--', 'notes.md']);
+  commitFile('tests/a.test.js', 'x\n');
+  r = prepare(stamped, { env });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(runs(), 2, 'a committed test-path change runs the command again, since a command may compile tests');
   commitFile('src/a.js', 'x\n');
   r = prepare(stamped, { env });
   assert.equal(r.status, 0, r.stderr);
-  assert.equal(runs(), 2, 'a committed source change runs the command again');
+  assert.equal(runs(), 3, 'a committed source change runs the command again');
   fs.writeFileSync(path.join(stamped, 'src', 'a.js'), 'uncommitted\n');
   r = prepare(stamped, { env });
-  assert.equal(runs(), 3, 'an uncommitted source change runs the command again');
-  git(stamped, ['checkout', '-q', '--', 'src/a.js', 'notes.md']);
+  assert.equal(runs(), 4, 'an uncommitted source change runs the command again');
+  git(stamped, ['checkout', '-q', '--', 'src/a.js']);
   r = prepare(stamped, { env });
-  assert.equal(runs(), 4, 'a preparation over a tracked edit leaves no stamp, so reverting the edit runs the command again');
+  assert.equal(runs(), 5, 'a preparation over a tracked edit leaves no stamp, so reverting the edit runs the command again');
   r = prepare(stamped, { env });
-  assert.equal(runs(), 4, 'the clean tree is stamped again');
+  assert.equal(runs(), 5, 'the clean tree is stamped again');
   fs.rmSync(path.join(stamped, 'deps'), { recursive: true });
   r = prepare(stamped, { env });
   assert.equal(r.status, 0, r.stderr);
-  assert.equal(runs(), 5, 'a removed untracked path the preparation left runs the command again');
+  assert.equal(runs(), 6, 'a removed untracked path the preparation left runs the command again');
+  fs.writeFileSync(path.join(stamped, 'draft.md'), 'x\n');
+  r = prepare(stamped, { env });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(runs(), 6, 'a new untracked Markdown file skips the command');
+  fs.writeFileSync(path.join(stamped, 'src', 'b.js'), 'x\n');
+  r = prepare(stamped, { env });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(runs(), 7, 'a new untracked source file runs the command again');
+  fs.rmSync(path.join(stamped, 'src', 'b.js'));
+  fs.rmSync(path.join(stamped, 'draft.md'));
+  r = prepare(stamped, { env });
+  assert.equal(runs(), 8, 'the removed file the stamp recorded runs the command again');
+  fs.writeFileSync(path.join(stamped, 'deps', 'y.js'), 'x\n');
+  r = prepare(stamped, { env });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(runs(), 9, 'a new file inside an untracked directory the stamp recorded runs the command again');
+  fs.rmSync(path.join(stamped, 'deps', 'y.js'));
   fs.writeFileSync(path.join(stamped, 'docs', 'agents', 'verification.md'), verification(section('`echo again >> "$P_LOG"`')));
   git(stamped, ['commit', '-q', '-am', 'command']);
   r = prepare(stamped, { env });

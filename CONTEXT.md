@@ -125,7 +125,7 @@ _Avoid: "wrapped run", "recorded run" (every run line is recorded), "traced run"
 _Avoid: "replay" (ADR 0118 uses it for re-running reviewers on earlier slices), "mutation test" (nothing is mutated; only the code before the change comes back), "red check" (the invariant register's `Check:` field owns "check")_
 
 **Prepare command**: the one shell command that makes a new worktree of the repository ready to run its tests, such as an install of its dependencies. `docs/agents/verification.md`'s `## Prepare command` section states it, or states `none` when a new worktree needs no preparation. It runs at the root of every worktree superdev creates for a test run: the **Scopetree** at implement start and again at review start, each **Slicetree**, setup's probe worktree, and the **Fail-to-pass run**'s worktree before each of its runs (ADR 0218). `scope.js prepare`
-skips it on a tree it already prepared whose every tracked change since is a test path or Markdown (ADR 0238).
+skips it on a tree it already prepared whose every tracked change since is Markdown (ADR 0238).
 _Avoid: "setup command" (`/superdev:setup` owns "setup"), "install step" (the command can do more than install)_
 
 **Warrant**: the justification a piece of work carries. It scales both cost (which model a dispatch uses) and rigor (which review gates run). Derived from a slice's test-applicability and complexity, never a plan field. A `behavior` slice warrants more than a `mechanical` one. A hook blocks any dispatch that omits an explicit model, so cost stays warrant-scaled.

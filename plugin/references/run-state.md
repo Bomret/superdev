@@ -97,14 +97,19 @@ goes on.
   tip. `suite reusable --base <base-branch>` accepts a red record at that tip against it, under the complete-selector declaration and
   a focused run covering every path the scope's range changed, and at a later tip reached from it by Markdown-only
   commits; without `--base` it refuses a red record.
+- **`**Failed:** <test-file>... @ <sha>`** — the test files a failed full run at `<sha>` failed in
+  (`references/test-selection.md`'s `## The recorded rerun`, step 1). Written with `suite failed <test-file>...` at the
+  tip, which replaces a record for another tip. Read with `get failed`, which prints `<test-file>... @ <sha>`, or
+  nothing on a ledger with no record. `suite reusable --base <base-branch>` carries a red record at `<sha>` to a later
+  tip once each named file passed there (`references/test-selection.md`'s `## The carry run`).
 - **`**Base:** <sha>`** — the remote base tip the base step last merged into the scope branch
   (`scope-branch.md`'s `## Bringing the scope branch to base`), as a full commit. Written with `base set <sha>`, which
   refuses a sha that does not resolve to a commit; read only through `base resolve`
   (`scope-mode.md`'s `## The scope's range base`). A ledger with no such line has no merged tip on record.
 
 A ledger written before a line existed carries none of it — `scope.js` parses a pre-CLI ledger unchanged,
-and `get` reports an absent header line as `absent`, never as a parse error — except `get suite`, which
-prints nothing on an absent Suite line rather than the literal word `absent`.
+and `get` reports an absent header line as `absent`, never as a parse error — except `get suite` and `get failed`,
+which print nothing on an absent line rather than the literal word `absent`.
 
 ## Publishing run state
 

@@ -15,8 +15,8 @@ failure. A failure a fix cycle repairs moves the tip.
 
 ## Decision
 
-1. **The failing files are recorded.** After a failed full run whose output names one or more test files and no
-   failure outside them, the gate records the red result and then the files with `scope.js suite failed <file>...`.
+1. **The failing files are recorded.** After a failed full run that ran to its end and whose output names one or
+   more test files and no failure outside them, the gate records the red result and then the files with `scope.js suite failed <file>...`.
    The ledger's one `**Failed:**` line holds them with the commit.
 2. **The record carries to the fix tip.** Under the tip's complete-selector declaration, `scope.js suite reusable`
    accepts the red record at R at a later tip T when R is an ancestor of T, exactly one full run failed at R, each
@@ -37,5 +37,6 @@ failure. A failure a fix cycle repairs moves the tip.
 A scope whose exit run fails pays one full run, and each fix cycle after it pays the named files and a focused run
 where the repository declares a complete selector. A repository without the declaration runs the full command at
 every exit, as before. The gate trusts the controller's reading of which files failed: a failing file it leaves out
-of the record, and that the change since R does not reach, goes unrun at the tip. A failing carry run records red at
+of the record, and that the change since R does not reach, goes unrun at the tip. A run that stopped at its first failure, under a fail-fast option, never ran the files after it, so
+its failure is unattributable and records no files. A failing carry run records red at
 its tip with no failed-files record, so the next exit runs the full command.
