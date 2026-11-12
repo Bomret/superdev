@@ -209,7 +209,7 @@ Repeat until every slice is `merged`:
      not judge. The `superdev:slice-reviewer` dispatch tells it to name every one for the slice in its
      report with its reason (the exit status or signal in `control=`, or the `bound=` the run before the change ran under, or
      `start-failed:<code>` where a run could not start, or `prepare=` where the prepare command did not succeed before a
-     run, ADR 0218), to
+     run), to
      raise no finding for it, and to start no fix cycle, so you start none either. A slice cut after a break between two slices inherits the failing test, so its
      control run fails and the verb writes `unknown`: that outcome is expected and no finding. Such an inherited `unknown`, its control failure also showing at the
      slice's base, earns no observation. For every other `unknown`, the scope run's first non-exempt `unknown` is an
