@@ -8,7 +8,7 @@ const path = require('path');
 const { fail } = require('./refusal.js');
 const { gitSpawn } = require('./git-spawn.js');
 const { drivePath } = require('./drive-path.js');
-const { prepareCommandOf } = require('./verification.js');
+const { prepareCommandOf, isTestPath } = require('./verification.js');
 const { superviseRuns } = require('./run-supervision.js');
 
 // The exit status of a prepare command that ran and did not succeed, apart from a refusal's 1.
@@ -24,12 +24,34 @@ async function runPrepare(sup, command, tree) {
   return { ok: !signal && code === 0, reason: signal || String(code) };
 }
 
+// The stamp a successful preparation leaves in the tree's own git directory, outside every tracked file.
+const STAMP = 'superdev-prepare.json';
+
+// The untracked paths of `tree`, ignored ones included, a wholly untracked directory listed as one entry.
+const untracked = (tree) => gitSpawn(['--no-optional-locks', 'ls-files', '-z', '--others', '--directory'], tree, { maxBuffer: Infinity }).stdout.split('\0').filter(Boolean);
+
+// The stamp is written only for a tree with no tracked change from its HEAD, so the stamped commit is the whole tracked state
+// the command saw. Whether the preparation `stamp` records still holds at `tree`, whose `verification.md` text is `text` and command `command`:
+// the stamp names the same command, every untracked path it recorded is still there, and every tracked path that differs between
+// the stamped commit and the working tree is a test path or a Markdown file. Any other change, such as a source file a
+// building command reads or a lockfile an install reads, needs the command again.
+function stillPrepared(stamp, tree, text, command) {
+  if (!stamp || stamp.command !== command || typeof stamp.head !== 'string' || !Array.isArray(stamp.untracked)) return false;
+  const diff = gitSpawn(['--no-optional-locks', 'diff', '--name-only', '-z', '--no-renames', '--no-ext-diff', stamp.head, '--'], tree, { maxBuffer: Infinity });
+  if (diff.status !== 0) return false;
+  if (!diff.stdout.split('\0').filter(Boolean).every((rel) => /\.md$/i.test(rel) || isTestPath(text, rel))) return false;
+  const now = new Set(untracked(tree));
+  return stamp.untracked.every((rel) => now.has(rel));
+}
+
 // `prepare <tree>`: runs the prepare command that `<tree>`'s own `docs/agents/verification.md` states, at that tree's root, its
 // output on stderr. `<tree>` must be the root of a working tree of the invoking repository. No section prints one note and exits
 // 0, `none` exits 0, and a command that does not succeed exits 3, naming the command and its exit, signal, or start error. A
 // command that succeeds but changes a tracked file exits 3 too, naming each such path: a path whose difference from HEAD,
 // staged and unstaged, differs after the command from before it. A tracked edit the tree already held is no such change, and
 // an untracked file the command writes is none either. An interrupt ends the command's group and exits 128 plus the signal number.
+// A preparation that succeeds on a tree with no tracked change from HEAD writes a stamp to the tree's git directory, and a later call the stamp still holds for runs
+// nothing, prints one note, and exits 0 (`stillPrepared`).
 async function verbPrepare(cwd, args) {
   if (args.length !== 1 || !args[0]) fail('prepare needs <tree>, the root of a working tree of this repository');
   const tree = path.resolve(cwd, drivePath(args[0]));
@@ -50,6 +72,15 @@ async function verbPrepare(cwd, args) {
     return;
   }
   if (prep.state === 'none') return;
+  const gitDir = gitSpawn(['rev-parse', '--absolute-git-dir'], real).stdout.trim();
+  const stampPath = gitDir ? path.join(drivePath(gitDir), STAMP) : null;
+  let stamp = null;
+  if (stampPath) try { stamp = JSON.parse(fs.readFileSync(stampPath, 'utf8')); } catch { /* no stamp: prepare */ }
+  if (stillPrepared(stamp, real, text, prep.command)) {
+    process.stderr.write(`prepare: skipped \`${prep.command}\`: it succeeded at ${stamp.head.slice(0, 12)}, and every tracked change since is a test path or Markdown\n`);
+    return;
+  }
+  if (stampPath) fs.rmSync(stampPath, { force: true });
   const sup = superviseRuns(['ignore', 2, 2], null, 'SIGKILL');
   for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
     process.on(sig, () => sup.detach().then(() => process.exit(128 + os.constants.signals[sig])));
@@ -86,6 +117,9 @@ async function verbPrepare(cwd, args) {
       const changed = before.parts && after.parts ? union.filter((name) => before.parts.get(name) !== after.parts.get(name)) : union;
       process.stderr.write(`prepare: \`${prep.command}\` changed a tracked file: ${changed.sort().join(', ')}\n`);
       process.exitCode = PREPARE_FAILED_EXIT;
+    } else if (stampPath && !after.text) {
+      const head = gitSpawn(['rev-parse', '--verify', 'HEAD^{commit}'], real).stdout.trim();
+      if (head) fs.writeFileSync(stampPath, JSON.stringify({ command: prep.command, head, untracked: untracked(real) }) + '\n');
     }
   }
 }

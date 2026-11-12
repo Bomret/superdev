@@ -133,6 +133,63 @@ try {
   assert.equal(r.status, 0, r.stderr);
   assert.deepEqual(logged(), [], 'no external diff program ran');
 
+  // A preparation that succeeded is skipped while every tracked change since is a test path or Markdown, the command is the
+  // same, and every untracked path it left is still there; any other change runs the command again.
+  fs.rmSync(log, { force: true });
+  const stamped = worktree(repo, 'stamped', section('`echo ran >> "$P_LOG"; mkdir -p deps; touch deps/x`'));
+  const commitFile = (rel, body) => {
+    fs.mkdirSync(path.dirname(path.join(stamped, rel)), { recursive: true });
+    fs.writeFileSync(path.join(stamped, rel), body);
+    git(stamped, ['add', '-A', '--', rel]);
+    git(stamped, ['commit', '-q', '-m', rel]);
+  };
+  const runs = () => logged().length;
+  r = prepare(stamped, { env });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(runs(), 1);
+  r = prepare(stamped, { env });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(runs(), 1, 'an unchanged tree skips the command');
+  assert.equal(r.stderr.trim().split('\n').length, 1, 'a skip prints one note: ' + r.stderr);
+  assert.match(r.stderr, /^prepare: skipped `echo ran/);
+  commitFile('tests/a.test.js', 'x\n');
+  commitFile('notes.md', 'x\n');
+  fs.writeFileSync(path.join(stamped, 'notes.md'), 'uncommitted\n');
+  r = prepare(stamped, { env });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(runs(), 1, 'test-path and Markdown changes, committed or not, skip the command');
+  commitFile('src/a.js', 'x\n');
+  r = prepare(stamped, { env });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(runs(), 2, 'a committed source change runs the command again');
+  fs.writeFileSync(path.join(stamped, 'src', 'a.js'), 'uncommitted\n');
+  r = prepare(stamped, { env });
+  assert.equal(runs(), 3, 'an uncommitted source change runs the command again');
+  git(stamped, ['checkout', '-q', '--', 'src/a.js', 'notes.md']);
+  r = prepare(stamped, { env });
+  assert.equal(runs(), 4, 'a preparation over a tracked edit leaves no stamp, so reverting the edit runs the command again');
+  r = prepare(stamped, { env });
+  assert.equal(runs(), 4, 'the clean tree is stamped again');
+  fs.rmSync(path.join(stamped, 'deps'), { recursive: true });
+  r = prepare(stamped, { env });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(runs(), 5, 'a removed untracked path the preparation left runs the command again');
+  fs.writeFileSync(path.join(stamped, 'docs', 'agents', 'verification.md'), verification(section('`echo again >> "$P_LOG"`')));
+  git(stamped, ['commit', '-q', '-am', 'command']);
+  r = prepare(stamped, { env });
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(logged().slice(-1), ['again'], 'a changed command runs, though verification.md is Markdown');
+  // A failing preparation leaves no stamp, so the next call runs the command again.
+  const flaky = worktree(repo, 'flaky', section(`\`echo try >> "$P_LOG"; test -e "${path.join(D, 'flaky-ok')}"\``));
+  r = prepare(flaky, { env });
+  assert.equal(r.status, 3, r.stderr);
+  fs.writeFileSync(path.join(D, 'flaky-ok'), '');
+  r = prepare(flaky, { env });
+  assert.equal(r.status, 0, r.stderr);
+  r = prepare(flaky, { env });
+  assert.equal(logged().filter((l) => l === 'try').length, 2, 'the call after a failure ran; the one after a success skipped');
+  fs.rmSync(log);
+
   // Refused with exit 1: a path that does not exist, a directory that is no worktree, a subdirectory of a worktree, and a
   // worktree of another repository.
   const plain = path.join(D, 'plain');

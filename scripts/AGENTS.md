@@ -332,6 +332,14 @@ after the command, read with `--no-ext-diff --no-textconv` so no diff program of
 tree already held is no such change. An untracked file it writes is no such change either, the
 rule `fail-to-pass` applies. An interrupt ends the command's group with `SIGKILL` and exits 128 plus the signal
 number. A `scope.js prepare` call is no test run: it writes no run line.
+A command that succeeds on a tree with no tracked change from `HEAD` leaves a stamp, `superdev-prepare.json` in the tree's own
+git directory (`git rev-parse --absolute-git-dir`), recording the command, `HEAD`, and the tree's untracked paths
+(`git ls-files --others --directory`). A later call skips the command, prints one `prepare: skipped` note on stderr, and exits
+0 while the stamp holds: the command is the same, every recorded untracked path is still there, and every path
+`git diff --name-only <stamped HEAD>` names, committed or not, is a test path under the tree's `## Test paths` or a `.md`
+file. Any other change runs the command again, because the verb cannot know which files the command reads: a lockfile for an
+install, every source file for a build (ADR 0238). A call that runs the command removes the stamp first, so a failed run
+leaves none.
 
 `scope.js` has one suite per topic, so a test-first step on one verb runs only that verb's cases (ADR 0139, ADR 0151). `tests/scope-setup.js`
 holds the setup they share and is no suite. The `test` verb's cases split over `scope-test-verb-<topic>` (dirty, first-moment-kill,

@@ -87,6 +87,11 @@ tracked files only, so a repository whose tests need installed dependencies stat
   worktree superdev creates or reuses for a test run calls the verb before its first test run
   (`scope-branch.md`'s `## Preparing a worktree`). The call is no test run. A command that fails, is ended by a
   signal, cannot start, or changes a tracked file exits 3.
+- **A tree already prepared skips it.** A run that succeeds on a tree with no tracked change leaves a stamp in the
+  tree's git directory. The next call on that tree skips the command and prints one note while the command is the
+  same, every untracked path the run left is still there, and every tracked change since is a test path or a
+  Markdown file. A source or manifest change runs the command again, since the verb cannot know which files the
+  command reads.
 - **`scope.js fail-to-pass` runs it** in its own worktree before each of its two runs, reading the tip's
   `verification.md` once. The clean between the runs keeps every path the first preparation wrote, so a command
   that skips work already done prepares the second run fast. A reused control skips the first one. A preparation that fails, is ended by a signal, cannot start, or changes a tracked file

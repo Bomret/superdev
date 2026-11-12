@@ -311,6 +311,7 @@ Applies to the full interview. Scan these before any decision:
 **The complete selector.** Applies to a focused command carrying `{paths}`, once it is settled. Ask whether it selects every test any changed path can affect. Name what a yes trusts: gates then skip the full suite and carry a green suite record across a change the focused run covered (`references/test-selection.md`'s `## Complete selector`). A yes writes the `## Complete selector` section, listing as items each selector file the operator names (a runner script, a mapping config).
 
 - A no, or no answer, writes no section.
+- **A slow full suite.** Ask the operator roughly how long the full suite runs. Where it runs for several minutes or more, recommend the declaration, and state what it buys: review's exit run and ship's gates carry a green record across the change a passing focused run covered, and after a failed full run the fix cycle's tip carries by rerunning the repaired test files and the focused command, each in place of a full run.
 
 - A fixed fast subset, a self-detecting flag, and a focused command repeating the full one carry no `{paths}` and get no question.
 - A re-run on a `verification.md` without the section asks once. One with the section asks nothing.
