@@ -193,7 +193,7 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
     re-points nothing here, and works in the scopetree already there.
 
     **A `planned` ledger carrying no slice rows never reaches this stage-forward move.** Its interview
-    was abandoned somewhere between `/superdev:plan`'s cut and its slice-table write (triage #509), not
+    was abandoned somewhere between `/superdev:plan`'s cut and its slice-table write, not
     resumed at the normal point: read `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root
     <run-root>` before applying the paragraph above. **At least one row** → the paragraph above applies as
     written. **No row** → check the store for this feature's slices (`docs/agents/issue-tracker.md`'s own
