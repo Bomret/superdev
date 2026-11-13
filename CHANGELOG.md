@@ -1,3 +1,11 @@
+## [0.107.2](https://github.com/Bomret/superdev/compare/v0.107.1...v0.107.2) (2026-11-13)
+
+
+### Bug Fixes
+
+* **references:** drop the triage number from run-init prose ([ace6b9f](https://github.com/Bomret/superdev/commit/ace6b9fb9337d108f4e892127870df620e711e10)), closes [#509](https://github.com/Bomret/superdev/issues/509)
+* **skills:** drop the narration cap and triage numbers from skill prose ([5bbd902](https://github.com/Bomret/superdev/commit/5bbd9029099cfdb1da69e2a6493cc267e5f120a9)), closes [#NNN](https://github.com/Bomret/superdev/issues/NNN)
+
 ## [0.107.1](https://github.com/Bomret/superdev/compare/v0.107.0...v0.107.1) (2026-11-12)
 
 
