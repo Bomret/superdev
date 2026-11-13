@@ -111,7 +111,7 @@ Applies once the space has been explored. Bring the intent file to its final for
 - A record that cannot be written whole → the file stays `ready`, and the report says why.
 - Tell the user the intent is ready, and name **`/superdev:plan`** as the next command. Plan interviews the open decisions one at a time and slices the work.
 
-**A stop before ready.** Applies when the operator stops while the file reads `status: draft` (triage #829). Write nothing to the slice store, and name `/superdev:brainstorm` as the next command.
+**A stop before ready.** Applies when the operator stops while the file reads `status: draft`. Write nothing to the slice store, and name `/superdev:brainstorm` as the next command.
 
 - It resumes the draft at §0.
 - `/superdev:plan` skips a draft, so it is never this exit's next command.

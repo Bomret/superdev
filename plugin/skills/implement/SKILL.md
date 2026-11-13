@@ -34,7 +34,7 @@ Applies to the `lite` tier. Its playbook runs the documentation pass in the same
 
 **An implementer's entry.** Applies to a `superdev:implementer` that builds a slice, fixes a slice, or fixes a Minor sweep. Before it reports, it appends a self-check entry to its log, headed with its dispatch kind and cycle, marking an item `covered` only where the entry quotes what the item demands beside what the work does and naming each `not observable` item in its concerns, and returns its required report (`${CLAUDE_PLUGIN_ROOT}/agents/implementer.md`'s `## Self-check` and `## Report`). A report whose log holds no current entry under the dispatch's heading goes back to it before the review, and no slice-review dispatch carries the entry.
 
-**Narration.** Applies between dispatches. Narrate at most one line.
+**Narration.** Applies between dispatches. Tell the operator which slice moved and what comes next.
 
 ## Invariants (both playbooks)
 

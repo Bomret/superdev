@@ -125,7 +125,7 @@ Applies to every open anchor, triage record, intent record, running, stranded, `
 | `needs planning` | a triage record no open anchor's Absorbs line names, or an anchor that is neither itself a slice nor has slices beneath it | `/superdev:plan` |
 | `intent` | an open intent record | `/superdev:plan` — it offers the record |
 | `unreleased` | an anchor with no release signal (store document's `## Release`) | a release decision |
-| `ready` | every remaining anchor: released, dependencies satisfied, and no run root or a matched run root at `planned` (triage #509) | `/superdev:implement <feature-label>` |
+| `ready` | every remaining anchor: released, dependencies satisfied, and no run root or a matched run root at `planned` | `/superdev:implement <feature-label>` |
 | `untriaged` | an open store record with no feature label, no triage signal, and no intent signal | read it — a human decides |
 
 ## Shipped routing
@@ -152,7 +152,7 @@ Applies to an `in flight` row's act. Name the chain command its stage has not re
 
 ## The table
 
-Applies to the report after the ledger report. Print one line naming the local time and offset the listings ran at, and the checkout, for example `Read bomret/superdev at 2026-09-21 23:40 +02:00, from /Users/me/src/app.` (triage #573). Then print one markdown table, outside a code fence, with the columns store reference, title, bucket, and act (a copy-pasteable superdev command, or the human act in a few words).
+Applies to the report after the ledger report. Print one line naming the local time and offset the listings ran at, and the checkout, for example `Read bomret/superdev at 2026-09-21 23:40 +02:00, from /Users/me/src/app.` Then print one markdown table, outside a code fence, with the columns store reference, title, bucket, and act (a copy-pasteable superdev command, or the human act in a few words).
 
 | Item | Title | Bucket | Act |
 |------|-------|--------|-----|

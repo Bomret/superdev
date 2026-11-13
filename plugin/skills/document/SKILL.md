@@ -105,7 +105,7 @@ The writer commits its doc changes on the current branch. A denied writer's inli
 
 **Staged pages.** Applies when pages were staged. Name `/superdev:publish-kb`, and say how many pages wait and under which scope.
 
-**The ad-hoc next command.** Applies to an ad-hoc run. A run that staged knowledge-base pages names `/superdev:publish-kb _adhoc` as its next command (triage #815). Any other ad-hoc run's Next block says no command follows.
+**The ad-hoc next command.** Applies to an ad-hoc run. A run that staged knowledge-base pages names `/superdev:publish-kb _adhoc` as its next command. Any other ad-hoc run's Next block says no command follows.
 
 ## 6. Audit mode (`audit`)
 

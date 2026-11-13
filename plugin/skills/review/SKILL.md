@@ -51,7 +51,7 @@ Review a change end to end. §1 decides the mode.
 - **Files cannot be included** → check `git status --porcelain` and say so in the range announcement.
 - **`--chained`** → run no `git add -N :/`.
 
-**The ref shape test** (triage #451). Applies to every ref candidate: a branch name, or each non-empty half of a range. The argument is user input and never command text.
+**The ref shape test.** Applies to every ref candidate: a branch name, or each non-empty half of a range. The argument is user input and never command text.
 
 - **Admit** a candidate that matches `[A-Za-z0-9._/~^@{}:+-]+` and does not start with `-` (`HEAD~3`, `main^`, `@{u}`, a branch name with `+`). Never pass a failing candidate to git as a ref.
 - **Quote** an admitted candidate in single quotes wherever it reaches git or `scope.js`.
