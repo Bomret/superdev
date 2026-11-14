@@ -96,17 +96,19 @@ is never touched. Verifying a line observes; it changes no
 system outside the repository.
 
 **Verify-ship's case:** `/superdev:verify-ship`'s own controller judges, never a dispatched worker's
-report. Its listed lines are exactly the `dod.md` lines that are neither ticked nor `accepted:` — at
-`shipped`, the `ceiling:` lines and the `not met:` lines, its own earlier ones and any written before
-merge. It observes each one
+report. Its listed lines are exactly the open lines of `dod.md` (`## The note rule`) — at `shipped`,
+the `ceiling:` lines, the `not met:` lines, its own earlier ones and any written before merge, and the
+lines with no note, whatever box each shows. It observes each one
 inline against the deployed system: observed true writes `met: <evidence>`, observed false writes
 `not met: <the observation>` ending in the repair citation
 (`shipped-run.md`'s `## Routing a shipped run`), and a line it cannot observe goes to the attended
 operator. The answer *verified* writes `met:` with the answer as the evidence, *false* writes
 `not met: <the answer>` ending in the repair citation, *accept as unverifiable* writes
 `accepted: <the operator's reason>`, and *later* leaves the line unchanged. Verifying a line
-observes; it changes no system outside the repository. A ticked or
-`accepted:` line is never a listed line and is never rewritten. A `not met:` note written before merge
+observes; it changes no system outside the repository. Each verdict it writes goes through
+`scope.js dod-line`, which redraws the line's box from the verdict, so a `[x]` line noted `ceiling:` or
+`not met:` is listed, observed, and rewritten like any other open line. A settled line is never a listed
+line and is never rewritten. A `not met:` note written before merge
 carries no repair citation, so the shipped-run routing rule sends a run whose `not met:` notes were all
 written before merge to verify-ship before any repair is planned.
 
@@ -125,6 +127,18 @@ A ticked line's note names the evidence. An unticked line's note names why the c
 that only a deploy can verify it (`ceiling:`), or that an attended operator accepted it as unmet
 (`accepted:`), with any partial evidence the report already gathered. A bare tick with no note
 is invalid.
+
+**A line's state is read from its note, never from its checkbox** (ADR 0247, INV-0190). The note's
+label is the text right after the line's leftmost ` — [<tag> — ]` boundary, as `lib/dod-line.js`'s
+parser reads it, matched as a whole label and never as a substring, since `not met:` contains `met:`.
+
+- **Settled line**: a line whose note's label is `met:` or `accepted:`, whatever its checkbox shows. A
+  `[ ] … met:` line is settled.
+- **Open line**: every other line: a note labelled `not met:` or `ceiling:`, or no note at all. A bare
+  `[x]` carries no note, so it is open. A reader treats a bare tick as open; a writer still never writes one.
+
+Every command that judges a line open or settled applies these two terms, whether it reads `dod.md` or
+only the scope anchor's lines.
 
 **`accepted` is written only by an attended operator, never by a report.** No mapping-gate dispatch —
 implement's slice dispatch, a review fix cycle, run handoff's own settling pass — ever reports

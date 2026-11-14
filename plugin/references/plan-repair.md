@@ -18,9 +18,10 @@ List every run root under the main working tree (`${CLAUDE_PLUGIN_ROOT}/referenc
 `## Resolving an empty argument` → *Run-root enumeration*) whose ledger stage reads `shipped`
 (`scope.js get stage --root <run-root>`) and whose `<run-root>/dod.md` holds at least one `not met:` note
 `/superdev:verify-ship` observed. Read the note by `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s
-**The repair citation**, and never by the box (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`). A ticked,
-`ceiling:`, or `accepted:` line makes no candidate, nor does a `not met:` note written before merge, and
-neither does a `closed` run.
+**The repair citation**, and never by the box (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s
+`## The note rule`). A line makes a candidate by its note alone, so a `[x]` line noted
+`not met: … (observed)` is a candidate. A settled line, a `ceiling:` line, and a line with no note make
+none, nor does a `not met:` note written before merge, and neither does a `closed` run.
 
 Show each candidate with its observed `not met:` lines, and its unobserved `not met:` lines labelled as
 context, not seed, because `/superdev:verify-ship` has not observed them. Alongside the candidates, name

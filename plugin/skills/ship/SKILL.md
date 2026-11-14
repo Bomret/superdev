@@ -221,7 +221,7 @@ Applies to every start past §1. Read the stage with `node "${CLAUDE_PLUGIN_ROOT
 - **It routes to re-verify** → print `/superdev:verify-ship <scope>`, with one line: a repair of this scope has closed since the `not met:` line was last observed, and verify-ship observes it again. Print `/superdev:plan` on an `Or:` line, for a repair that did not hold.
 - **It routes to repair** → print `/superdev:plan`, with one line: a criterion reads `not met:`, and its repair choice plans the fix. Print the route's open-repair line for each open repair, and `/superdev:verify-ship <scope>` on an `Or:` line, for a transient observation.
 - **It routes to wrap-up** → print `/superdev:wrap-up <scope>`, with one line: nothing is left to verify, and wrap-up closes the scope. A `dod.md` line unpaired on the anchor puts the hand-sync of the anchor's criterion text under `First:`.
-- **It routes to verify-ship** → print `/superdev:verify-ship <scope>`, with one line: it observes the Definition-of-Done lines that are neither ticked nor accepted, and `/superdev:wrap-up <scope>` closes the scope afterwards.
+- **It routes to verify-ship** → print `/superdev:verify-ship <scope>`, with one line: it observes the open Definition-of-Done lines (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule`), and `/superdev:wrap-up <scope>` closes the scope afterwards.
 - **The anchor cannot be read** → print `/superdev:verify-ship <scope>`; its reconcile reads the anchor again.
 
 **The staged pages.** Applies to every route. Name the scope's staged pages per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close`. A count above zero puts `/superdev:publish-kb <scope>` on an `Or:` line of the Next block when that block prints.

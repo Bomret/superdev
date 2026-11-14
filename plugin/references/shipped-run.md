@@ -35,8 +35,9 @@ still open goes next: to `/superdev:plan`'s repair choice, to `/superdev:verify-
 only what it does with the outcome, and what it does when the anchor cannot be read.
 
 1. **The run's criteria.** Read the Definition-of-Done lines from `<run-root>/dod.md`. It is
-   authoritative, because a store's tick write is best-effort. The note's verdict, not the box, decides a
-   line's state. A `dod.md` that is missing or unreadable → judge from the anchor alone, read through the
+   authoritative, because a store's tick write is best-effort. Each line is an open line or a settled line
+   by `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule`, which reads the note and never
+   the box. A `dod.md` that is missing or unreadable → judge from the anchor alone, read through the
    store document's anchor read.
 2. **The anchor's lines.** With `dod.md` read, also read the anchor's lines and pair them per
    `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## Pairing dod.md with the anchor`.
@@ -62,10 +63,11 @@ only what it does with the outcome, and what it does when the anchor cannot be r
   anchor whose `**Repairs:**` line names this run's anchor, the caller adds one line,
   `repair <key> is open; finish its chain first`, the key in the store's own notation. `/superdev:plan`
   stays the named command, because a second repair of the same scope is its own feature.
-- **Verify-ship** — otherwise, while a Definition-of-Done line is neither ticked nor `accepted:`, a paired
+- **Verify-ship** — otherwise, while a Definition-of-Done line is an open line (a bare `[x]` and a `[x]`
+  noted `ceiling:` included), a paired
   line's verdict on the anchor differs from `dod.md` (verify-ship's anchor sync rewrites it), or a listed `manual` target is
   not recorded `deployed`.
-- **Wrap-up** — otherwise: every line ticked or noted `accepted:`, every paired anchor line agreeing with `dod.md`, and every listed `manual` target recorded `deployed`. A
+- **Wrap-up** — otherwise: every line a settled line, noted `met:` or `accepted:`, every paired anchor line agreeing with `dod.md`, and every listed `manual` target recorded `deployed`. A
   `dod.md` line with no text-matching line on the anchor still routes here, because verify-ship's anchor
   sync cannot reach it: the hand-sync of the anchor's criterion text comes first, then `/superdev:wrap-up <scope>`.
 
@@ -77,7 +79,7 @@ run → the citation reads ` (observed)`. A closed repair a note cites had close
 so the observation already judged it. A `not met:` note carrying the citation is an **observed** one.
 A `not met:` note that carries no repair citation was written before merge — a controller's tick from a
 report, or `/superdev:submit-pr`'s standing-entry ask — and nothing has observed the deployed system for
-it yet: its line counts as neither ticked nor `accepted:`, so a run whose `not met:` notes all lack the
+it yet: its line is an open line that no observation has judged, so a run whose `not met:` notes all lack the
 citation takes the **Verify-ship** route, and verify-ship observes each such line first.
 
 **A run with no local ledger** — an anchor whose `## Run state` snapshot alone reads `shipped`
