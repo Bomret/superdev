@@ -202,12 +202,17 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - The untick carries a one-line note naming why.
 - Untick `<run-root>/dod.md` and the anchor's checklist through the active store's `## Definition of Done ticks` section (`docs/agents/issue-tracker.md`, controller-only).
 
-**A line left as it stood.** Applies to a line `final-reviewer` calls `ceiling`, `accepted`, or `doc pass`, unless the **holds** concept below turns it over. Leave such a line exactly as it stood.
+**A `ceiling` verdict.** Applies to a line `final-reviewer` calls `ceiling`. §4.8's verification-ceiling case covers it.
+
+- **Noted `ceiling:`** → leave it exactly as it stood.
+- **Any other line**: no note, a bare `[x]`, `met:`, or `not met:` → untick it with the note `ceiling: <the verdict's partial evidence>`, through the active store's `## Definition of Done ticks` section (`scope.js dod-line --verdict ceiling`), on `<run-root>/dod.md` and the anchor's checklist. The note makes it a line noted `ceiling:`, which **The stage hold** below exempts.
+- Add no fix-cycle listing and no `**Unresolved:**` entry, and raise no finding for it.
+
+**A line left as it stood.** Applies to a line `final-reviewer` calls `accepted` or `doc pass`, unless the **holds** concept below turns it over. Leave such a line exactly as it stood.
 
 - Write no note and no untick.
 - Add no fix-cycle listing and no `**Unresolved:**` entry.
 - Raise no finding for it.
-- **ceiling** → §4.8's verification-ceiling case covers it.
 - **accepted** → an attended operator's own decision, which never holds the stage.
 - **doc pass** → a `docs` line whose `AGENTS.md` text is not yet written. `/superdev:document` settles it after this review (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`).
 
@@ -295,7 +300,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - It holds up no handoff, starts no fix cycle, and changes no stage.
 - That holds attended and unattended alike.
 
-**The verification-ceiling case.** Applies to a criterion only a deploy or another outward-facing change can verify (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Verification ceiling`). Carry it into §3's report as unmet with a one-line note on why. Never fold it into the fix loop.
+**The verification-ceiling case.** Applies to a criterion only a deploy or another outward-facing change can verify (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Verification ceiling`). Carry it into §3's report as unmet with a one-line note on why. Its `dod.md` line carries a `ceiling:` note, written by §4.5's **A `ceiling` verdict** where the line lacked one. Never fold it into the fix loop.
 
 ### 4.9 The re-tick
 

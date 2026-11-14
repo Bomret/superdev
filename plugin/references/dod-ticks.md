@@ -52,8 +52,10 @@ controller (`review-scope-mode.md`'s `### 4.5 The Definition-of-Done criteria` a
 findings; a fix cycle's dispatch then lists exactly the lines that cycle unticked or found broken. The fix
 implementer's report on those listed lines is judged the same way as any other: `met` re-ticks the line
 with that evidence, `not met`/`ceiling` leaves it unticked with that reason, and an omitted listed line is
-sent back per the note rule below. A `ceiling` verdict is never listed — no fix cycle can close it. An
-`accepted` verdict leaves the line exactly as it stood: only an attended operator writes `accepted:`.
+sent back per the note rule below. A `ceiling` verdict is never listed — no fix cycle can close it. On a
+line not yet noted `ceiling:` the review's controller unticks it with the note `ceiling: <the verdict's
+partial evidence>`, so the line holds no stage before the merge; a line already noted `ceiling:` is left as it
+stood. An `accepted` verdict leaves the line exactly as it stood: only an attended operator writes `accepted:`.
 
 **A `docs`-tagged line waits for the doc pass**. `final-reviewer` gives an unmet one the `doc
 pass` verdict, and the review's controller writes nothing for it: no note, no untick of an unjudged line,
