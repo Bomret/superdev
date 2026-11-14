@@ -67,7 +67,7 @@ Applies to every start past §1. Find the scope checkout.
 - **Output present, attended** → name every bullet and ask once whether to submit with it standing. Declined → stop, open no pull request, and write nothing further. Confirmed → proceed, and record in the report that the scope was submitted with the defect standing.
 - **Output present, `--unattended`** → refuse. Name what stands, open no pull request, and stop.
 
-**A settled criterion.** Applies to a `dod.md` criterion noted `accepted:` or `ceiling:`. It is settled and no defect. It writes no `**Unresolved:**` bullet and never reaches this gate.
+**A criterion that holds no stage.** Applies to a `dod.md` criterion noted `accepted:` or `ceiling:`. It holds no stage and is no defect; a `ceiling:` line stays open until `/superdev:verify-ship` observes it (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule`). It writes no `**Unresolved:**` bullet and never reaches this gate.
 
 ## 4. Whole-repo run
 

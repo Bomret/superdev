@@ -226,15 +226,15 @@ Write your own list of criteria first, in three steps. Your list is no second De
 
 Applies to a scope dispatch, after `### Derive the criteria first`.
 
-Read every line in `dod.md`, ticked and unticked alike. Give each line exactly one verdict against the integrated branch. List them all in `### Criteria`, whatever the review found elsewhere.
+Read every line in `dod.md`, whatever its checkbox or note. Give each line exactly one verdict against the integrated branch. List them all in `### Criteria`, whatever the review found elsewhere. A line's state is its note's, never its checkbox's: a settled line is noted `met:` or `accepted:`, and every other line, a bare `[x]` included, is an open line (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule`).
 
-- **holds**: a ticked line the branch still satisfies, or an unticked line the branch already meets.
-- **broken**: a ticked line the branch no longer satisfies, or an unticked line still unmet. Give the reason. An `accepted:` line the branch still does not meet is no `broken` line.
+- **holds**: a line noted `met:` the branch still satisfies, or an open line the branch already meets.
+- **broken**: a line noted `met:` the branch no longer satisfies, or an open line still unmet. Give the reason. An `accepted:` line the branch still does not meet is no `broken` line.
 - A line that only **Prompt-concept overlap** findings of Minor grade leave unmet is `holds` and no `broken` line, a line naming the No overlap invariant or the prompt-concept invariants included. Report those findings under Minor.
 - **ceiling**: a line only a deploy or another outward-facing change can verify. Give the partial evidence you gathered and the outward-facing change it needs.
-- **accepted**: an unticked line noted `accepted:` whose criterion the branch still does not meet. An attended operator decided it stands accepted as unmet. Report it. It is no finding and does not hold the stage.
+- **accepted**: a line noted `accepted:` whose criterion the branch still does not meet. An attended operator decided it stands accepted as unmet. Report it. It is no finding and does not hold the stage.
 - **doc pass**: a line tagged `docs` whose `AGENTS.md` text the branch does not yet state. The doc pass reconciles that text after this review and settles the line. Report it. It is no finding, no `broken` line, and no `ceiling` line, and it suppresses no ceiling note. A `docs` line the branch already meets is `holds`.
-- Check an unticked line's own reason. A `not met:` note is stale when the branch now meets the criterion. A claimed `ceiling:` is no ceiling when this branch can verify it without an outward-facing change.
+- Check an open line's own reason. A `not met:` note is stale when the branch now meets the criterion. A claimed `ceiling:` is no ceiling when this branch can verify it without an outward-facing change.
 - An `accepted:` line whose criterion the branch has since come to meet is `holds`. Only an attended operator writes a fresh `accepted:` note, and you never do.
 
 ### Slices and plan

@@ -81,16 +81,15 @@ deploy to verify; post-deploy verification of such a line is a later feature's o
 fix implementer's report, once that cycle's re-review comes back clean.
 
 **Document's case:** the doc pass's own controller judges, never a dispatched worker's report. Its listed
-lines are the ticked `dod.md` lines its own doc commits could touch — a criterion naming a file, an
-ADR, a glossary entry, or a fixture those commits changed — and every `docs`-tagged line neither ticked
-nor `accepted:`. It
-re-checks each ticked line against what its own commits just landed: a line the branch still satisfies is
+lines are the `dod.md` lines noted `met:` that its own doc commits could touch — a criterion naming a file, an
+ADR, a glossary entry, or a fixture those commits changed — and every `docs`-tagged open line (`## The note rule`), a `[x]` line noted `not met:` included. It
+re-checks each line noted `met:` against what its own commits just landed: a line the branch still satisfies is
 left exactly as it stood, with no note added; a line its own change broke is unticked, with a one-line note
-on what broke it. It judges each `docs` line neither ticked nor `accepted:` against the branch after its
+on what broke it. It judges each open `docs` line against the branch after its
 pass: a true one is ticked with its evidence; a false one is unticked with a `not met:` note naming what
 the `AGENTS.md` text still lacks. An `accepted:` `docs` line is left exactly as it stands: only
 an attended operator writes or removes `accepted:`. At a `shipped` or `closed` stage the pass
-judges no `docs` line: its report names each unticked one, and the shipped or closed route picks the next
+judges no `docs` line: its report names each open one, and the shipped or closed route picks the next
 command. No other line is a listed line for this pass, so an earlier tick outside that set
 is never touched. Verifying a line observes; it changes no
 system outside the repository.

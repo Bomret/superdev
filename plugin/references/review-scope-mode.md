@@ -155,7 +155,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - The fold holds whether or not that dispatch returned findings of its own.
 - **A failing test the scope did not cause** is this Critical finding too, and joins the fix list. A triage record for it may sit beside its fix, never in its place.
 - **A red exit run opens a fix cycle**, after a clean first verdict included. It goes through the ask-once of §4.6 when attended, and its cycle counts toward the 3-cycle cap of §4.7. The cap bounds the exit runs a scope pays.
-- **Its re-review re-judges every criterion ticked before the red run**: §2's whole-range dispatch hands the whole `dod.md`, and a line it calls broken is unticked per §4.5 before the stage advances.
+- **Its re-review re-judges every line noted `met:` before the red run**: §2's whole-range dispatch hands the whole `dod.md`, and a line it calls broken is unticked per §4.5 before the stage advances.
 
 **Inside a fix cycle.** Applies to every fix cycle. Run no test. The re-review reads the cycle implementer's recorded runs and its fail-to-pass outcome in the run trace.
 
@@ -197,7 +197,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 
 - Every tick and untick here writes `dod.md` and the anchor's checklist, as the concepts below state.
 
-**A broken line.** Applies to a line `final-reviewer`'s `### Criteria` calls broken, ticked or not (`### Judge every criterion` owns the verdicts). It is a Critical finding. Untick it first. Fold it into the findings list beside `final-reviewer`'s `### Issues` after the untick.
+**A broken line.** Applies to a line `final-reviewer`'s `### Criteria` calls broken, whatever its checkbox or note (`### Judge every criterion` owns the verdicts). It is a Critical finding. Untick it first. Fold it into the findings list beside `final-reviewer`'s `### Issues` after the untick.
 
 - The untick carries a one-line note naming why.
 - Untick `<run-root>/dod.md` and the anchor's checklist through the active store's `## Definition of Done ticks` section (`docs/agents/issue-tracker.md`, controller-only).
@@ -211,17 +211,17 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - **accepted** → an attended operator's own decision, which never holds the stage.
 - **doc pass** → a `docs` line whose `AGENTS.md` text is not yet written. `/superdev:document` settles it after this review (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`).
 
-**A `holds` verdict.** Applies to a line `final-reviewer` calls `holds`. You write every tick. The verdict's own evidence is the note.
+**A `holds` verdict.** Applies to a line `final-reviewer` calls `holds`. You write every tick. The verdict's own evidence is the note. Each row keys on the line's note, whatever its checkbox shows (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule`).
 
-- **Already ticked** → change nothing.
-- **Unticked with `not met:`, or with no note** → tick it.
-- **Unticked with `ceiling:`** → tick it only when the verdict states the criterion needs no deploy or other outward-facing change to verify and cites evidence observed on the branch.
-- **Unticked with `accepted:`** → tick it only when the verdict cites evidence, observed on the branch, that the criterion is now met. Write no fresh `accepted:` note yourself.
+- **Noted `met:`** → change nothing.
+- **Noted `not met:`, or with no note, a bare `[x]` included** → tick it.
+- **Noted `ceiling:`** → tick it only when the verdict states the criterion needs no deploy or other outward-facing change to verify and cites evidence observed on the branch.
+- **Noted `accepted:`** → tick it only when the verdict cites evidence, observed on the branch, that the criterion is now met. Write no fresh `accepted:` note yourself.
 - **A line that genuinely needs a deploy to verify** is never ticked on a `holds` verdict.
 
-**The stage hold.** Applies to every stage write of this review. The stage does not advance while any `dod.md` criterion stands unmet.
+**The stage hold.** Applies to every stage write of this review. The stage does not advance while any `dod.md` line is an open line by `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule`.
 
-- The exceptions: a `ceiling`, an `accepted`, or a `docs` criterion.
+- These lines hold no stage: a line noted `ceiling:`, a line noted `accepted:`, and a `docs` line. A `ceiling:` line stays an open line; it only holds no stage before the merge.
 
 **A criterion missing from `dod.md`.** Applies to a criterion `final-reviewer` finds missing. Write no new line into `dod.md`.
 
