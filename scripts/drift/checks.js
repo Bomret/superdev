@@ -28,6 +28,7 @@ const {
   scanNoForceMerge,
   scanConflictConclusionNoCommit,
   scanBackgroundRuleNamesLimit,
+  scanDodBoxRule,
   scanTeaOnly,
   scanGithubWikiGhOnly,
   scanDeployRunnerExclusivity,
@@ -186,6 +187,12 @@ module.exports = [
     id: 'conflict-conclusion-no-commit',
     ok: 'no shipped prose concludes a resolved merge conflict with `git commit`',
     run: scanConflictConclusionNoCommit,
+    format: contractGap,
+  },
+  {
+    id: 'dod-box-rule',
+    ok: 'no shipped prose judges a Definition-of-Done line by its checkbox or calls a `ceiling:` line settled (INV-0190)',
+    run: scanDodBoxRule,
     format: contractGap,
   },
   {

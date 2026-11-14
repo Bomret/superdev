@@ -16,6 +16,7 @@ const {
   scanImplementNoFullRun,
   scanObservationNoSuiteRun,
   scanBackgroundRuleNamesLimit,
+  scanDodBoxRule,
 } = require('../scanners');
 
 module.exports = ({ assert, path, fixture, found }) => {
@@ -467,4 +468,49 @@ module.exports = ({ assert, path, fixture, found }) => {
   );
   assert.equal(limit({ 'references/AGENTS.md': 'run in the background when a suite outlasts the Bash tool\'s time\nlimit\n' }).length, 1, 'background-rule-names-limit: the shipped references/AGENTS.md is read');
   assert.equal(limit({ 'references/x.md': '```\nthe Bash tool\'s time limit\n```\n' }).length, 0, 'background-rule-names-limit: a fenced example is masked');
+  // --- dod-box-rule (ADR 0247, INV-0190): no shipped prose judges a Definition-of-Done line by its box ---
+
+  const boxRule = (files) => found(scanDodBoxRule(fixture(files)));
+  for (const [text, label] of [
+    ['Its listed lines are the `dod.md` lines that are neither ticked nor `accepted:`.\n', 'neither ticked nor `accepted:`'],
+    ['It observes the lines that are neither ticked nor accepted.\n', 'neither ticked nor accepted, no backticks'],
+    ['Its line counts as neither ticked nor `accepted:`, so it routes on.\n', 'counts as neither ticked nor'],
+    ['Wrap-up: every line ticked or `accepted:`.\n', 'ticked or `accepted:`'],
+    ['Wrap-up: every line ticked or noted `accepted:`.\n', 'ticked or noted `accepted:`'],
+    ['- **Settled line**: a ticked line or an `accepted:` line.\n', 'a ticked line or an `accepted:` line'],
+    ['A settled line is ticked with no `ceiling:` or `not met:` note.\n', 'ticked with no `ceiling:`'],
+    ['A ticked or `accepted:` line is never rewritten.\n', 'A ticked or `accepted:` line'],
+    ['A ticked, `ceiling:`, or `accepted:` line makes no candidate.\n', 'A ticked, `ceiling:`, or `accepted:` line'],
+    ['The gate treats it as settled the same way a `ceiling:` line already is.\n', 'settled the same way a `ceiling:` line'],
+    ['A `ceiling:` line is settled before the merge.\n', 'a `ceiling:` line is settled'],
+    ['A criterion noted `accepted:` or `ceiling:`. It is settled and no defect.\n', '`ceiling:`. It is settled'],
+  ]) {
+    const gaps = boxRule({ 'references/dod-ticks.md': text, 'agents/final-reviewer.md': text, 'skills/wrap-up/SKILL.md': text });
+    assert.equal(gaps.length, 3, `dod-box-rule: flags ${label} in a reference, an agent, and a skill`);
+  }
+  assert.match(
+    boxRule({ 'references/dod-ticks.md': 'lines neither ticked nor `accepted:`\n' })[0].expectation,
+    /neither ticked nor `accepted/,
+    'dod-box-rule: the gap quotes the form it found',
+  );
+  assert.equal(
+    boxRule({ 'references/doc-pass.md': 'every `docs` line neither\n  ticked nor `accepted:`, verbatim.\n' }).length,
+    1,
+    'dod-box-rule: a form broken across a line end is caught',
+  );
+  assert.equal(
+    boxRule({
+      'references/dod-ticks.md':
+        'A line is settled when its note is `met:` or `accepted:`; a `ceiling:` line stays an open line and holds no stage.\n',
+      'references/test-cost.md': 'A ticked cost finding joins the intent record.\n',
+      'skills/review-tests/SKILL.md': 'Tick it, or untick it, in the multi-select.\n',
+    }).length,
+    0,
+    'dod-box-rule: clean prose and prose that describes ticking pass',
+  );
+  assert.equal(
+    boxRule({ 'references/plan-contract.md': '```\n- [x] <criterion> — met: <evidence> neither ticked nor `accepted:`\n```\n' }).length,
+    0,
+    'dod-box-rule: a fenced line-format example is masked',
+  );
 };

@@ -24,6 +24,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'deploy-runner-exclusivity',
     'ship-no-opens-pr',
     'background-rule-names-limit',
+    'dod-box-rule',
   ]);
   const empty = fixture({ '.keep': '' });
   for (const check of CHECKS) {

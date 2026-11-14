@@ -19,6 +19,7 @@ const {
   GITHUB_WIKI_GH_ONLY_DOCS,
   GITHUB_WIKI_GH_ONLY_MARKERS,
   CONFLICT_COMMIT_CONCLUSION_PATTERNS,
+  DOD_BOX_RULE_PATTERNS,
   UNNAMED_BASH_LIMIT_PATTERN,
   NO_TEST_RUN_DOCS,
   NO_TEST_RUN_PATTERNS,
@@ -110,6 +111,29 @@ const scanConflictConclusionNoCommit = (root) =>
         `\`${normalizeWhitespace(hit[0])}\` names the other form (ADR 0123)`,
     ]),
   );
+
+// ADR 0247, INV-0190: no shipped skill, agent, or reference judges a Definition-of-Done line by its checkbox. The
+// documents are the prose directories read at scan time, so a document added later is covered the day it lands. Fenced
+// examples are masked. See `DOD_BOX_RULE_PATTERNS`'s own comment for the ceiling.
+function scanDodBoxRule(root) {
+  const gaps = [];
+  for (const [rel] of proseDocuments(root, ['skills', 'agents', 'references'])) {
+    const text = readDoc(root, rel);
+    if (text === null) continue;
+    const masked = maskFences(text);
+    for (const pattern of DOD_BOX_RULE_PATTERNS) {
+      for (const hit of masked.matchAll(pattern)) {
+        gaps.push({
+          source: rel,
+          expectation:
+            "judge a Definition-of-Done line by its note, per `references/dod-ticks.md`'s `## The note rule` — " +
+            `\`${normalizeWhitespace(hit[0])}\` judges it by its checkbox (ADR 0247, INV-0190)`,
+        });
+      }
+    }
+  }
+  return gaps;
+}
 
 // ADR 0232: no shipped skill, agent, or reference, and no shipped AGENTS.md beside them, states the background rule
 // against an unnamed Bash limit. Fences are masked and whitespace runs, line wraps included, are normalized before the match.
@@ -294,4 +318,5 @@ module.exports = {
   scanImplementNoFullRun,
   scanObservationNoSuiteRun,
   scanBackgroundRuleNamesLimit,
+  scanDodBoxRule,
 };
