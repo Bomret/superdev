@@ -49,8 +49,8 @@ This outline is a living skeleton. `/superdev:document` extends it.
   - `Review`: slice review, the fix loop, Minor findings, ad-hoc review, review models, unresolved
     defects, and triage records.
   - `Tests`: test cost, the fail-to-pass run, where a run runs the suite, suite reuse, and the test audit.
-  - `Definition of Done and verification`: criterion ticks, the verification ceiling, and the criteria
-    the doc pass settles.
+  - `Definition of Done and verification`: criterion ticks, settled and open criteria, the verification
+    ceiling, and the criteria the doc pass settles.
   - `Documentation and knowledge base`: the doc loop, the writing standard, the content-type lens, the
     inline doc pass, topic pages, and parent links.
 - **Concepts.** The terms an adopter configures or sizes: slice store, code host, documentation

@@ -5,9 +5,9 @@
 ## Context
 
 A `dod.md` line carries a checkbox and a verdict note (`met:`, `not met:`, `ceiling:`, `accepted:`). `/superdev:wrap-up`
-and the first step of `shipped-run.md`'s routing judged a line by its note. `/superdev:verify-ship`, the routing's
-Verify-ship and Wrap-up routes, `/superdev:ship`, `/superdev:document`, the doc pass, and the doc-writer judged it by
-its box ("neither ticked nor `accepted:`"). A `[x]` line noted `ceiling:` or `not met:` was then open for wrap-up and
+and the first step of `shipped-run.md`'s routing judged a line by its note. Six other surfaces judged it by its box
+("neither ticked nor `accepted:`"). They are `/superdev:verify-ship`, the routing's Verify-ship and Wrap-up routes,
+`/superdev:ship`, `/superdev:document`, the doc pass, and the doc-writer. A `[x]` line noted `ceiling:` or `not met:` was then open for wrap-up and
 settled for verify-ship. Wrap-up named verify-ship, verify-ship found nothing open and routed back, and no command
 settled the line (triage #126). `scope.js dod-line` always draws the box from the verdict, so only a hand edit or a
 legacy line reaches that state.
