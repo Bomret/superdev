@@ -1530,3 +1530,12 @@ Statement: Before ship, every entry on a scope anchor's Absorbs line is cited as
 Breaks: silently
 Check: the `scope.js dod-check` suite
 Paths: plugin/scripts/scope.js, plugin/lib/dod-check.js, plugin/skills/plan/SKILL.md, plugin/references/review-scope-*.md, plugin/references/plan-contract.md, plugin/references/plan-authoring.md
+
+### INV-0190
+
+Class: process
+Concepts: Definition of Done (DoD), Settled line, Open line, Tick
+Statement: A Definition-of-Done line's state is decided by its verdict note, never by its checkbox. A line noted `met:` or `accepted:` is settled; a line noted `not met:` or `ceiling:`, or carrying no note, is open. Every command that judges a line's state applies this one rule, so a line wrap-up calls open is a line verify-ship observes (ADR 0247).
+Breaks: silently
+Check: scripts/drift-check.js `dod-box-rule` — no shipped prose judges a line by its box
+Paths: plugin/references/dod-ticks.md, plugin/references/shipped-run.md, plugin/references/doc-pass.md, plugin/references/implement-lite.md, plugin/skills/verify-ship/SKILL.md, plugin/skills/wrap-up/SKILL.md, plugin/skills/ship/SKILL.md, plugin/skills/document/SKILL.md, plugin/agents/doc-writer.md
