@@ -10,8 +10,8 @@ argument-hint: "[<scope>  (empty = the only shipped run in this repo)]"
 
 Applies to every start. You settle the open Definition-of-Done criteria of a shipped scope. You dispatch no subagent. You never move the stage.
 
-- **Open line**: a line of `<run-root>/dod.md` that is neither ticked nor `accepted:`. At `shipped` it is a `ceiling:` line or a `not met:` line, written by this command or before the merge.
-- **Settled line**: a ticked line or an `accepted:` line.
+- **Open line**: a line of `<run-root>/dod.md` that `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule` calls open.
+- **Settled line**: a line that same rule calls settled.
 - **Repair citation**: the ending of a `not met:` note, as `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` defines it.
 - **Equivalent read**: an HTTP GET, a DNS lookup, an ssh read, or a status command.
 

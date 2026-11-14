@@ -10,7 +10,7 @@ argument-hint: "[<scope>  (empty = the only shipped run in this repo)]"
 
 Applies to every start. You check that a shipped scope is fully settled, then close its anchor and take the run down. You dispatch no subagent. You commit nothing to base.
 
-- **Settled line**: a `<run-root>/dod.md` line that is ticked with no `ceiling:` or `not met:` note, or whose note is `accepted:`. The note's verdict decides, never the box: a `[x]` whose note is `ceiling:` or `not met:` is unsettled.
+- **Settled line**: a `<run-root>/dod.md` line, or an anchor line when `dod.md` is missing, that `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule` calls settled.
 - **Absorbed record**: a triage record the anchor's Absorbs line names.
 - **Citing criterion**: the Definition-of-Done criterion whose text carries `(triage <reference>)` for an absorbed record, the form `/superdev:plan` writes. Any other mention of the reference is no citation, one in a verdict note included.
 

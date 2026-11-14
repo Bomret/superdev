@@ -23,8 +23,8 @@ commits, the ledger record it writes — stays in the execution playbook.
   like Confluence, or none), plus its **audience(s)**, **language**, and agreed **outline**. May say
   "none".
 - **The staging path**, as an **absolute** path, when the knowledge-base backend is remote.
-- **The `docs` targets**, on a live scope run: every `docs`-tagged Definition-of-Done line neither
-  ticked nor `accepted:`, verbatim. Each names `AGENTS.md`-hierarchy text the scope requires, and Pass 1 makes every one of them
+- **The `docs` targets**, on a live scope run: every `docs`-tagged Definition-of-Done line that is
+  an open line by `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule`, a `[x]` line noted `not met:` included, verbatim. Each names `AGENTS.md`-hierarchy text the scope requires, and Pass 1 makes every one of them
   true. `/superdev:document` judges them after the pass.
 
 Given a git range, start from `git diff --stat BASE..HEAD` and `git log BASE..HEAD` to see what actually

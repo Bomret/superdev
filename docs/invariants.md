@@ -137,7 +137,7 @@ Paths: plugin/references/**, plugin/references/review-scope-*.md, plugin/skills/
 
 Class: process
 Concepts: Definition of Done (DoD), Tick, Criterion tag, Controller
-Statement: Only a controller writes a Definition-of-Done tick. It ticks a criterion from an implementer's report only where the criterion's tag names that implementer's slice, and settles every other criterion only in run handoff's own pass, in review, or in document's own untick of a criterion its commits broke. Review's controller may also tick a criterion straight from `final-reviewer`'s own `holds` verdict, with the verdict's evidence as the note. Before the merge, a criterion tagged `docs` is settled only by review's `holds` tick, by review's untick after a fix cycle that landed commits, and by document's own judgment of it after its pass, which ticks it or unticks it (ADR 0161); run handoff leaves it unjudged. After the merge, `/superdev:verify-ship`'s controller ticks a criterion that is neither ticked nor `accepted:`, from its own read-only observation or from the operator's answer (ADR 0106). No subagent writes a tick, and neither `/superdev:submit-pr`, `/superdev:ship`, nor `/superdev:wrap-up` writes one.
+Statement: Only a controller writes a Definition-of-Done tick. It ticks a criterion from an implementer's report only where the criterion's tag names that implementer's slice, and settles every other criterion only in run handoff's own pass, in review, or in document's own untick of a criterion its commits broke. Review's controller may also tick a criterion straight from `final-reviewer`'s own `holds` verdict, with the verdict's evidence as the note. Before the merge, a criterion tagged `docs` is settled only by review's `holds` tick, by review's untick after a fix cycle that landed commits, and by document's own judgment of it after its pass, which ticks it or unticks it (ADR 0161); run handoff leaves it unjudged. After the merge, `/superdev:verify-ship`'s controller ticks an open criterion, from its own read-only observation or from the operator's answer (ADR 0106). No subagent writes a tick, and neither `/superdev:submit-pr`, `/superdev:ship`, nor `/superdev:wrap-up` writes one.
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/**, plugin/references/review-scope-*.md, plugin/agents/**, plugin/skills/implement/**, plugin/skills/review/**, plugin/skills/document/**, plugin/skills/submit-pr/**, plugin/skills/ship/**, plugin/skills/verify-ship/**
@@ -831,7 +831,7 @@ Paths: plugin/skills/ship/**, plugin/references/deployment.md, plugin/skills/ver
 
 Class: process
 Concepts: Deploy posture, Deploy target, Scope anchor, Definition of Done (DoD), Stage
-Statement: After the merge, only `/superdev:wrap-up` closes a scope anchor. It closes one only when the pull request has merged, every Definition-of-Done criterion is ticked or `accepted:`, and every deploy target listed on the anchor is recorded `deployed`. A failed close changes neither the stage nor the run's scaffolding. A failed `auto` target keeps the anchor open, and a later ship resumes at the first target not yet deployed (ADR 0101, ADR 0106).
+Statement: After the merge, only `/superdev:wrap-up` closes a scope anchor. It closes one only when the pull request has merged, every Definition-of-Done criterion is a settled line, noted `met:` or `accepted:`, and every deploy target listed on the anchor is recorded `deployed`. A failed close changes neither the stage nor the run's scaffolding. A failed `auto` target keeps the anchor open, and a later ship resumes at the first target not yet deployed (ADR 0101, ADR 0106).
 Breaks: silently
 Check: `tests/scope-ledger.test.js` for the ledger's deploy record; final-reviewer's invariant compliance judges ship's stop and wrap-up's close gate
 Paths: plugin/skills/ship/**, plugin/scripts/scope.js, plugin/lib/ledger-records.js, plugin/skills/wrap-up/**
@@ -1530,3 +1530,12 @@ Statement: Before ship, every entry on a scope anchor's Absorbs line is cited as
 Breaks: silently
 Check: the `scope.js dod-check` suite
 Paths: plugin/scripts/scope.js, plugin/lib/dod-check.js, plugin/skills/plan/SKILL.md, plugin/references/review-scope-*.md, plugin/references/plan-contract.md, plugin/references/plan-authoring.md
+
+### INV-0190
+
+Class: process
+Concepts: Definition of Done (DoD), Settled line, Open line, Tick
+Statement: A Definition-of-Done line's state is decided by its verdict note, never by its checkbox. A line noted `met:` or `accepted:` is settled; a line noted `not met:` or `ceiling:`, or carrying no note, is open. Every command that judges a line's state applies this one rule, so a line wrap-up calls open is a line verify-ship observes (ADR 0247).
+Breaks: silently
+Check: scripts/drift-check.js `dod-box-rule` — no shipped prose judges a line by its box
+Paths: plugin/references/dod-ticks.md, plugin/references/shipped-run.md, plugin/references/doc-pass.md, plugin/references/implement-lite.md, plugin/skills/verify-ship/SKILL.md, plugin/skills/wrap-up/SKILL.md, plugin/skills/ship/SKILL.md, plugin/skills/document/SKILL.md, plugin/agents/doc-writer.md, plugin/references/review-scope-mode.md, plugin/agents/final-reviewer.md, plugin/references/plan-repair.md, plugin/skills/submit-pr/SKILL.md, plugin/references/run-handoff.md, plugin/references/plan-contract.md

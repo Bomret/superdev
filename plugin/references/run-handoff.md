@@ -32,14 +32,14 @@ tiers: record that slice execution finished, name what comes next.
     line on a `dod.md` with no tags at all when the ledger lists more than one slice** — `dod-ticks.md`'s
     mapping gate settles each of the latter two as if it read `scope`, since no slice's dispatch ever
     listed it. **Also settle every joint criterion — tagged with several slices — that an earlier tagged
-    slice's genuine `not met:` or `ceiling:` note left unticked** — `dod-ticks.md`'s mapping gate hands
+    slice's genuine `not met:` or `ceiling:` note left an open line** — `dod-ticks.md`'s mapping gate hands
     this pass exactly those lines, alongside the ones above. Judge each against the integrated scope
     branch and tick, leave unticked with a `not met:`/`ceiling:` note, or leave it as it stands if you
     cannot yet judge it — the same three shapes, the note rule, and the controller-only,
     one-at-a-time discipline that `dod-ticks.md` states. **Leave a line already noted
     `accepted:` exactly as it stands** — that decision is an attended operator's alone, and
-    this pass never writes one itself or overwrites one already there; the stage gate treats it as
-    settled the same way a `ceiling:` line already is.
+    this pass never writes one itself or overwrites one already there; like a `ceiling:` line, it holds
+    no stage at the gate.
   - **Re-check every earlier tick against the integrated branch** — a tick a slice's own report earned may
     have held at that slice's merge and broken at a later one (preservation claims do exactly this). A
     tick that no longer holds comes back off, with a `not met:` note naming what broke.

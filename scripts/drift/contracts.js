@@ -418,6 +418,24 @@ const CONFLICT_COMMIT_CONCLUSION_PATTERNS = [
   /commit\s+(?:the\s+merge|it)\s+with\s+`git\s+(?:-C\s+\S+\s+)?commit\b/,
 ];
 
+// ADR 0247, INV-0190: a Definition-of-Done line's state is read from its note, never its checkbox, so no shipped prose
+// judges a line by its box or calls a `ceiling:` line settled. Every word is joined by `\s+`, so a form broken across a
+// line end matches. Each pattern needs a settledness context (`accepted`, "neither … nor", "settled", or a judgment
+// drawn from the box alone, "already-ticked line changes nothing"), never the word "ticked" alone, so prose describing
+// the act of ticking passes. simplicity: shape-based, and its ceiling is the
+// spellings below; a paraphrase ("a line with its box checked") walks past.
+const DOD_BOX_RULE_PATTERNS = [
+  /\bneither\s+ticked\s+nor\s+`?accepted\b/gi,
+  /\bticked\s+or\s+(?:noted\s+)?`?accepted\b/gi,
+  /\ba\s+ticked\s+line\s+or\s+an\s+`?accepted\b/gi,
+  /\bticked\s+with\s+no\s+`?ceiling\b/gi,
+  /\bticked,\s+`?ceiling:?`?,\s+or\s+`?accepted\b/gi,
+  /\bsettled\s+the\s+same\s+way\s+a\s+`?ceiling\b/gi,
+  /`?\bceiling:?`?\s+line\s+(?:is|stays|counts\s+as)\s+settled\b/gi,
+  /`?\bceiling:?`?\.\s+It\s+is\s+settled\b/gi,
+  /\balready-ticked\s+line\s+changes\s+nothing\b/gi,
+];
+
 // ADR 0232: the background rule names the Bash ceiling (600000 ms, or the higher `BASH_MAX_TIMEOUT_MS`), never
 // "the Bash tool's time limit" or "the tool's limit", which read against the 120000 ms default. Whitespace runs
 // and line wraps are normalized before the match. simplicity: the two spellings below are the ceiling; a
@@ -567,6 +585,7 @@ module.exports = {
   SOURCE_SECTION_CONTRACTS,
   CONTAINMENT_DELEGATION_CONTRACTS,
   CONFLICT_COMMIT_CONCLUSION_PATTERNS,
+  DOD_BOX_RULE_PATTERNS,
   UNNAMED_BASH_LIMIT_PATTERN,
   NO_FORCE_MERGE_DOCS,
   NO_FORCE_MERGE_PATTERNS,

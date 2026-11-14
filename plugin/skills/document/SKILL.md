@@ -14,7 +14,7 @@ Applies to every start. You bring the docs and the knowledge base into agreement
 - **`<run-root>`**: the **absolute** path to the live run's scope directory. The run's artifacts are `<run-root>/ledger.md`, `<run-root>/run.lock`, and `<run-root>/dod.md`.
 - **The scope's own commits**: `<range-base>..<branch>`, per `scope-mode.md`'s `## The scope's range base`.
 - **The staging path**: the **absolute** path `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" staging <scope>` prints, or `staging _adhoc` on an ad-hoc start, resolved before the dispatch. It names `.superdev/kb-pending/<scope>/` in the main working tree from any cwd.
-- **An open `docs` line**: a `docs`-tagged line of `<run-root>/dod.md` neither ticked nor `accepted:`.
+- **An open `docs` line**: a `docs`-tagged line of `<run-root>/dod.md` that `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule` calls open.
 - **The publish**: on a live run, the run's one snapshot publish, per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section. It is the last act of the exit that ends the run, after the closer §3's **The step** lists. No write site publishes.
 - **A writer dispatch**: dispatch `superdev:doc-writer` with an **explicit `model`** (`sonnet`).
 - **A reader dispatch**: dispatch `superdev:doc-reader` with an **explicit `model`** (`sonnet`).
@@ -101,7 +101,7 @@ The writer commits its doc changes on the current branch. A denied writer's inli
 - every outline entry the writer added to the KB config, with its reason
 - the reader test's result, on every doc pass: the reader's tally with the findings left unresolved after the fix round; or, on an empty file list, the writer's reason and that the reader had no in-repo doc to test; or a denied reader's degraded entry
 - the **writing standard** that applied, or that none did
-- on a live run whose stage reads `shipped` or `closed`, every unticked `docs` line
+- on a live run whose stage reads `shipped` or `closed`, every open `docs` line
 
 **Staged pages.** Applies when pages were staged. Name `/superdev:publish-kb`, and say how many pages wait and under which scope.
 
@@ -135,7 +135,7 @@ Applies to a live run. Everything above still applies.
 
 **The checkout.** Applies to every live run. Find the scope checkout, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`. The writer's commits land there.
 
-**The tick re-check.** Applies to every ticked `dod.md` line naming a file, an ADR, a glossary entry, or a fixture that a doc commit landed in this run touched: the writer's, §4's fix round's, the `docs` fix round's, or the inline pass's. Follow `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s Document's case. A line the branch still satisfies stays as it stood, with no note, and a line your change broke is unticked with a one-line note on what broke it. The re-check observes and changes no system outside the repository.
+**The tick re-check.** Applies to every `dod.md` line noted `met:` naming a file, an ADR, a glossary entry, or a fixture that a doc commit landed in this run touched: the writer's, §4's fix round's, the `docs` fix round's, or the inline pass's. Follow `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s Document's case. A line the branch still satisfies stays as it stood, with no note, and a line your change broke is unticked with a one-line note on what broke it. The re-check observes and changes no system outside the repository.
 
 **The anchor checklist.** Applies to every tick and untick this section writes. Apply the same verdict to the anchor's Definition of Done checklist, through the active store's `## Definition of Done ticks` section (`docs/agents/issue-tracker.md`). It is best-effort: report a failed write once and continue.
 
@@ -143,7 +143,7 @@ Applies to a live run. Everything above still applies.
 
 **The `docs` settle.** Applies to every live run, on every path the pass took. Follow `dod-ticks.md`'s Document's case. Read the stage first with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>`.
 
-- **`shipped` or `closed`** → judge no `docs` line and write no tick, untick, or entry. §5 names the unticked lines.
+- **`shipped` or `closed`** → judge no `docs` line and write no tick, untick, or entry. §5 names the open `docs` lines.
 - **Any other stage** → judge each open `docs` line against the scope branch after the pass. True → tick it with its evidence. False → take **The `docs` fix round**.
 
 An `accepted:` `docs` line stays exactly as it stands.
@@ -153,7 +153,7 @@ An `accepted:` `docs` line stays exactly as it stands.
 - **Now true** → tick it with its evidence.
 - **Still false** → untick it with a `not met:` note naming what the `AGENTS.md` text still lacks. Write one `**Unresolved:**` entry worded `docs criterion unmet after the doc pass: <criterion>`, as **An untick's entry** does, unless `scope.js get unresolved` already prints a bullet naming that criterion.
 
-**The settle's clear.** Applies after the settle, when every `docs` line is ticked or `accepted:` and every bullet `get unresolved` prints is a `docs criterion unmet after the doc pass:` entry. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. Any other bullet standing → leave every entry.
+**The settle's clear.** Applies after the settle, when every `docs` line is a settled line, noted `met:` or `accepted:`, and every bullet `get unresolved` prints is a `docs criterion unmet after the doc pass:` entry. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. Any other bullet standing → leave every entry.
 
 **The stage write.** Applies after the settle. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get unresolved --root <run-root>` first.
 

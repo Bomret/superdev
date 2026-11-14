@@ -65,8 +65,9 @@ empty one.
 A line nobody has judged yet carries only its tag, or nothing at all when it carries none. A judged line
 carries one note — `— met: <evidence>`,
 `— not met: <reason>`, `— ceiling: <partial evidence>`, or `— accepted: <reason>` — never a bare tick. `accepted` is an attended operator's own decision that an unmet criterion stands accepted as
-unmet: the box stays unticked, since the criterion is honestly unmet, and the stage gate
-treats the line as settled rather than holding on it. A later judgment replaces that note rather than
+unmet: the box stays unticked, since the criterion is honestly unmet, and the line is still a settled
+line, because `references/dod-ticks.md`'s `## The note rule` reads a line's state from its note and never
+from its box, so the stage gate does not hold on it. A later judgment replaces that note rather than
 adding a second one beside it:
 
 ```

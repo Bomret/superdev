@@ -52,13 +52,15 @@ controller (`review-scope-mode.md`'s `### 4.5 The Definition-of-Done criteria` a
 findings; a fix cycle's dispatch then lists exactly the lines that cycle unticked or found broken. The fix
 implementer's report on those listed lines is judged the same way as any other: `met` re-ticks the line
 with that evidence, `not met`/`ceiling` leaves it unticked with that reason, and an omitted listed line is
-sent back per the note rule below. A `ceiling` verdict is never listed — no fix cycle can close it. An
-`accepted` verdict leaves the line exactly as it stood: only an attended operator writes `accepted:`.
+sent back per the note rule below. A `ceiling` verdict is never listed — no fix cycle can close it. On a
+line noted neither `ceiling:` nor `accepted:` the review's controller unticks it with the note `ceiling: <the
+verdict's partial evidence>`, so the line holds no stage before the merge; a line already noted `ceiling:` or
+`accepted:` is left as it stood. An `accepted` verdict leaves the line exactly as it stood: only an attended operator writes `accepted:`.
 
 **A `docs`-tagged line waits for the doc pass**. `final-reviewer` gives an unmet one the `doc
 pass` verdict, and the review's controller writes nothing for it: no note, no untick of an unjudged line,
 no fix-cycle listing, and no `**Unresolved:**` entry, so it never holds the stage at review.
-A `holds` verdict ticks it as below. **A fix cycle that landed commits unticks every ticked `docs` line**,
+A `holds` verdict ticks it as below. **A fix cycle that landed commits unticks every `docs` line noted `met:`**,
 with the note `not met: a fix cycle landed after the doc pass`, on the same trigger that clears the
 inline doc-pass record: those commits may have made the `AGENTS.md` text stale, and the next doc pass
 judges the line again. At a `documented` or `submitted` stage no doc pass follows in the chain, so that
@@ -69,44 +71,47 @@ route; the review's report names each unticked line, and a shipped run's open li
 `/superdev:verify-ship` as `not met:` lines. A doc pass at that stage judges no `docs` line and routes as
 any shipped or closed run does (Document's case below).
 
-**A `holds` verdict can tick a line too.** A `holds` verdict on a line that stands unticked with `not
-met:`, or carries no note at all, ticks that line — the review's controller writes the tick, with the
+**A `holds` verdict can tick a line too.** It keys on the line's note, whatever its checkbox shows
+(`## The note rule`). A `holds` verdict on a line noted `not met:`, or carrying no note at all, a bare
+`[x]` included, ticks that line — the review's controller writes the tick, with the
 verdict's own evidence as the note; a joint criterion a slice under-reported, a `scope` line
-judged too early, or an implementer that misjudged its own work all take this shape. A line unticked with
+judged too early, or an implementer that misjudged its own work all take this shape. A line noted
 `ceiling:` takes a holds tick only when the verdict itself states the criterion needs no deploy or other
 outward-facing change to verify and cites evidence observed on the branch — the ceiling claim was wrong,
-and the line was never a ceiling criterion. A `holds` verdict never ticks a line that genuinely needs a
-deploy to verify; post-deploy verification of such a line is a later feature's own concern. A
-`holds` verdict on an already-ticked line changes nothing. Re-ticking after a fix cycle still follows the
-fix implementer's report, once that cycle's re-review comes back clean.
+and the line was never a ceiling criterion. A line noted `accepted:` takes a holds tick only when the
+verdict cites evidence, observed on the branch, that the criterion is now met. A `holds` verdict never
+ticks a line that genuinely needs a deploy to verify; post-deploy verification of such a line is a later
+feature's own concern. A `holds` verdict on a line noted `met:` changes nothing. Re-ticking after a fix
+cycle still follows the fix implementer's report, once that cycle's re-review comes back clean.
 
 **Document's case:** the doc pass's own controller judges, never a dispatched worker's report. Its listed
-lines are the ticked `dod.md` lines its own doc commits could touch — a criterion naming a file, an
-ADR, a glossary entry, or a fixture those commits changed — and every `docs`-tagged line neither ticked
-nor `accepted:`. It
-re-checks each ticked line against what its own commits just landed: a line the branch still satisfies is
+lines are the `dod.md` lines noted `met:` that its own doc commits could touch — a criterion naming a file, an
+ADR, a glossary entry, or a fixture those commits changed — and every `docs`-tagged open line (`## The note rule`), a `[x]` line noted `not met:` included. It
+re-checks each line noted `met:` against what its own commits just landed: a line the branch still satisfies is
 left exactly as it stood, with no note added; a line its own change broke is unticked, with a one-line note
-on what broke it. It judges each `docs` line neither ticked nor `accepted:` against the branch after its
+on what broke it. It judges each open `docs` line against the branch after its
 pass: a true one is ticked with its evidence; a false one is unticked with a `not met:` note naming what
 the `AGENTS.md` text still lacks. An `accepted:` `docs` line is left exactly as it stands: only
 an attended operator writes or removes `accepted:`. At a `shipped` or `closed` stage the pass
-judges no `docs` line: its report names each unticked one, and the shipped or closed route picks the next
+judges no `docs` line: its report names each open one, and the shipped or closed route picks the next
 command. No other line is a listed line for this pass, so an earlier tick outside that set
 is never touched. Verifying a line observes; it changes no
 system outside the repository.
 
 **Verify-ship's case:** `/superdev:verify-ship`'s own controller judges, never a dispatched worker's
-report. Its listed lines are exactly the `dod.md` lines that are neither ticked nor `accepted:` — at
-`shipped`, the `ceiling:` lines and the `not met:` lines, its own earlier ones and any written before
-merge. It observes each one
+report. Its listed lines are exactly the open lines of `dod.md` (`## The note rule`) — at `shipped`,
+the `ceiling:` lines, the `not met:` lines, its own earlier ones and any written before merge, and the
+lines with no note, whatever box each shows. It observes each one
 inline against the deployed system: observed true writes `met: <evidence>`, observed false writes
 `not met: <the observation>` ending in the repair citation
 (`shipped-run.md`'s `## Routing a shipped run`), and a line it cannot observe goes to the attended
 operator. The answer *verified* writes `met:` with the answer as the evidence, *false* writes
 `not met: <the answer>` ending in the repair citation, *accept as unverifiable* writes
 `accepted: <the operator's reason>`, and *later* leaves the line unchanged. Verifying a line
-observes; it changes no system outside the repository. A ticked or
-`accepted:` line is never a listed line and is never rewritten. A `not met:` note written before merge
+observes; it changes no system outside the repository. Each verdict it writes goes through
+`scope.js dod-line`, which redraws the line's box from the verdict, so a `[x]` line noted `ceiling:` or
+`not met:` is listed, observed, and rewritten like any other open line. A settled line is never a listed
+line and is never rewritten. A `not met:` note written before merge
 carries no repair citation, so the shipped-run routing rule sends a run whose `not met:` notes were all
 written before merge to verify-ship before any repair is planned.
 
@@ -125,6 +130,18 @@ A ticked line's note names the evidence. An unticked line's note names why the c
 that only a deploy can verify it (`ceiling:`), or that an attended operator accepted it as unmet
 (`accepted:`), with any partial evidence the report already gathered. A bare tick with no note
 is invalid.
+
+**A line's state is read from its note, never from its checkbox** (ADR 0247, INV-0190). The note's
+label is the text right after the line's leftmost ` — [<tag> — ]` boundary, as `lib/dod-line.js`'s
+parser reads it, matched as a whole label and never as a substring, since `not met:` contains `met:`.
+
+- **Settled line**: a line whose note's label is `met:` or `accepted:`, whatever its checkbox shows. A
+  `[ ] … met:` line is settled.
+- **Open line**: every other line: a note labelled `not met:` or `ceiling:`, or no note at all. A bare
+  `[x]` carries no note, so it is open. A reader treats a bare tick as open; a writer still never writes one.
+
+Every command that judges a line open or settled applies these two terms, whether it reads `dod.md` or
+only the scope anchor's lines.
 
 **`accepted` is written only by an attended operator, never by a report.** No mapping-gate dispatch —
 implement's slice dispatch, a review fix cycle, run handoff's own settling pass — ever reports
