@@ -420,8 +420,9 @@ const CONFLICT_COMMIT_CONCLUSION_PATTERNS = [
 
 // ADR 0247, INV-0190: a Definition-of-Done line's state is read from its note, never its checkbox, so no shipped prose
 // judges a line by its box or calls a `ceiling:` line settled. Every word is joined by `\s+`, so a form broken across a
-// line end matches. Each pattern needs the settledness context (`accepted`, "neither … nor", "settled"), never the word
-// "ticked" alone, so prose describing the act of ticking passes. simplicity: shape-based, and its ceiling is the
+// line end matches. Each pattern needs a settledness context (`accepted`, "neither … nor", "settled", or a judgment
+// drawn from the box alone, "already-ticked line changes nothing"), never the word "ticked" alone, so prose describing
+// the act of ticking passes. simplicity: shape-based, and its ceiling is the
 // spellings below; a paraphrase ("a line with its box checked") walks past.
 const DOD_BOX_RULE_PATTERNS = [
   /\bneither\s+ticked\s+nor\s+`?accepted\b/gi,
