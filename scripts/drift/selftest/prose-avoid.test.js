@@ -484,10 +484,18 @@ module.exports = ({ assert, path, fixture, found }) => {
     ['The gate treats it as settled the same way a `ceiling:` line already is.\n', 'settled the same way a `ceiling:` line'],
     ['A `ceiling:` line is settled before the merge.\n', 'a `ceiling:` line is settled'],
     ['A criterion noted `accepted:` or `ceiling:`. It is settled and no defect.\n', '`ceiling:`. It is settled'],
+    ['A `holds` verdict on an already-ticked line changes nothing.\n', 'already-ticked line changes nothing'],
   ]) {
-    const gaps = boxRule({ 'references/dod-ticks.md': text, 'agents/final-reviewer.md': text, 'skills/wrap-up/SKILL.md': text });
-    assert.equal(gaps.length, 3, `dod-box-rule: flags ${label} in a reference, an agent, and a skill`);
+    assert.equal(boxRule({ 'references/dod-ticks.md': text }).length, 1, `dod-box-rule: flags ${label}`);
   }
+  const anyDir = 'Its listed lines are the `dod.md` lines that are neither ticked nor `accepted:`.\n';
+  assert.deepEqual(
+    boxRule({ 'references/dod-ticks.md': anyDir, 'agents/final-reviewer.md': anyDir, 'skills/wrap-up/SKILL.md': anyDir })
+      .map((gap) => gap.source)
+      .sort(),
+    ['agents/final-reviewer.md', 'references/dod-ticks.md', 'skills/wrap-up/SKILL.md'],
+    'dod-box-rule: a reference, an agent, and a skill are each read',
+  );
   assert.match(
     boxRule({ 'references/dod-ticks.md': 'lines neither ticked nor `accepted:`\n' })[0].expectation,
     /neither ticked nor `accepted/,

@@ -329,7 +329,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 
 **The doc-pass record.** Applies when a fix cycle landed commits. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs clear --root <run-root>`.
 
-**The `docs` untick.** Applies to every ticked `docs` line when a fix cycle landed commits. Untick it with the note `not met: a fix cycle landed after the doc pass` (`dod-ticks.md`). The untick runs after the `unresolved clear` above. The stage read before the stage write decides the untick's writes.
+**The `docs` untick.** Applies to every `docs` line noted `met:` when a fix cycle landed commits. Untick it with the note `not met: a fix cycle landed after the doc pass` (`dod-ticks.md`). The untick runs after the `unresolved clear` above. The stage read before the stage write decides the untick's writes.
 
 - Untick `<run-root>/dod.md` and the anchor's checklist through the store's `## Definition of Done ticks` section.
 - **A stage before `documented`** (`documented-unreviewed` included) → no `**Unresolved:**` entry and no stage hold.

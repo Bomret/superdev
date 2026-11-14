@@ -58,7 +58,7 @@ sent back per the note rule below. A `ceiling` verdict is never listed — no fi
 **A `docs`-tagged line waits for the doc pass**. `final-reviewer` gives an unmet one the `doc
 pass` verdict, and the review's controller writes nothing for it: no note, no untick of an unjudged line,
 no fix-cycle listing, and no `**Unresolved:**` entry, so it never holds the stage at review.
-A `holds` verdict ticks it as below. **A fix cycle that landed commits unticks every ticked `docs` line**,
+A `holds` verdict ticks it as below. **A fix cycle that landed commits unticks every `docs` line noted `met:`**,
 with the note `not met: a fix cycle landed after the doc pass`, on the same trigger that clears the
 inline doc-pass record: those commits may have made the `AGENTS.md` text stale, and the next doc pass
 judges the line again. At a `documented` or `submitted` stage no doc pass follows in the chain, so that
@@ -69,16 +69,18 @@ route; the review's report names each unticked line, and a shipped run's open li
 `/superdev:verify-ship` as `not met:` lines. A doc pass at that stage judges no `docs` line and routes as
 any shipped or closed run does (Document's case below).
 
-**A `holds` verdict can tick a line too.** A `holds` verdict on a line that stands unticked with `not
-met:`, or carries no note at all, ticks that line — the review's controller writes the tick, with the
+**A `holds` verdict can tick a line too.** It keys on the line's note, whatever its checkbox shows
+(`## The note rule`). A `holds` verdict on a line noted `not met:`, or carrying no note at all, a bare
+`[x]` included, ticks that line — the review's controller writes the tick, with the
 verdict's own evidence as the note; a joint criterion a slice under-reported, a `scope` line
-judged too early, or an implementer that misjudged its own work all take this shape. A line unticked with
+judged too early, or an implementer that misjudged its own work all take this shape. A line noted
 `ceiling:` takes a holds tick only when the verdict itself states the criterion needs no deploy or other
 outward-facing change to verify and cites evidence observed on the branch — the ceiling claim was wrong,
-and the line was never a ceiling criterion. A `holds` verdict never ticks a line that genuinely needs a
-deploy to verify; post-deploy verification of such a line is a later feature's own concern. A
-`holds` verdict on an already-ticked line changes nothing. Re-ticking after a fix cycle still follows the
-fix implementer's report, once that cycle's re-review comes back clean.
+and the line was never a ceiling criterion. A line noted `accepted:` takes a holds tick only when the
+verdict cites evidence, observed on the branch, that the criterion is now met. A `holds` verdict never
+ticks a line that genuinely needs a deploy to verify; post-deploy verification of such a line is a later
+feature's own concern. A `holds` verdict on a line noted `met:` changes nothing. Re-ticking after a fix
+cycle still follows the fix implementer's report, once that cycle's re-review comes back clean.
 
 **Document's case:** the doc pass's own controller judges, never a dispatched worker's report. Its listed
 lines are the `dod.md` lines noted `met:` that its own doc commits could touch — a criterion naming a file, an

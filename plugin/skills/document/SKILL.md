@@ -14,7 +14,7 @@ Applies to every start. You bring the docs and the knowledge base into agreement
 - **`<run-root>`**: the **absolute** path to the live run's scope directory. The run's artifacts are `<run-root>/ledger.md`, `<run-root>/run.lock`, and `<run-root>/dod.md`.
 - **The scope's own commits**: `<range-base>..<branch>`, per `scope-mode.md`'s `## The scope's range base`.
 - **The staging path**: the **absolute** path `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" staging <scope>` prints, or `staging _adhoc` on an ad-hoc start, resolved before the dispatch. It names `.superdev/kb-pending/<scope>/` in the main working tree from any cwd.
-- **An open `docs` line**: a `docs`-tagged line of `<run-root>/dod.md` that `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule` calls open: noted `not met:` or `ceiling:`, or with no note, whatever its checkbox shows. A `[x]` `docs` line noted `not met:` is one.
+- **An open `docs` line**: a `docs`-tagged line of `<run-root>/dod.md` that `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule` calls open.
 - **The publish**: on a live run, the run's one snapshot publish, per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section. It is the last act of the exit that ends the run, after the closer §3's **The step** lists. No write site publishes.
 - **A writer dispatch**: dispatch `superdev:doc-writer` with an **explicit `model`** (`sonnet`).
 - **A reader dispatch**: dispatch `superdev:doc-reader` with an **explicit `model`** (`sonnet`).

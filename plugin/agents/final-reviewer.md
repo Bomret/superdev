@@ -226,7 +226,7 @@ Write your own list of criteria first, in three steps. Your list is no second De
 
 Applies to a scope dispatch, after `### Derive the criteria first`.
 
-Read every line in `dod.md`, whatever its checkbox or note. Give each line exactly one verdict against the integrated branch. List them all in `### Criteria`, whatever the review found elsewhere. A line's state is its note's, never its checkbox's: a settled line is noted `met:` or `accepted:`, and every other line, a bare `[x]` included, is an open line (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule`).
+Read every line in `dod.md`, whatever its checkbox or note. Give each line exactly one verdict against the integrated branch. List them all in `### Criteria`, whatever the review found elsewhere. A line is settled or open by `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule`.
 
 - **holds**: a line noted `met:` the branch still satisfies, or an open line the branch already meets.
 - **broken**: a line noted `met:` the branch no longer satisfies, or an open line still unmet. Give the reason. An `accepted:` line the branch still does not meet is no `broken` line.

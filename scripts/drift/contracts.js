@@ -432,6 +432,7 @@ const DOD_BOX_RULE_PATTERNS = [
   /\bsettled\s+the\s+same\s+way\s+a\s+`?ceiling\b/gi,
   /`?\bceiling:?`?\s+line\s+(?:is|stays|counts\s+as)\s+settled\b/gi,
   /`?\bceiling:?`?\.\s+It\s+is\s+settled\b/gi,
+  /\balready-ticked\s+line\s+changes\s+nothing\b/gi,
 ];
 
 // ADR 0232: the background rule names the Bash ceiling (600000 ms, or the higher `BASH_MAX_TIMEOUT_MS`), never
