@@ -1,3 +1,10 @@
+## [0.107.3](https://github.com/Bomret/superdev/compare/v0.107.2...v0.107.3) (2026-11-16)
+
+
+### Bug Fixes
+
+* **references:** settle a Definition-of-Done line by its verdict note ([#191](https://github.com/Bomret/superdev/issues/191)) ([10dd57e](https://github.com/Bomret/superdev/commit/10dd57e69ad1d5d850cdbb21d6df3f90308077fe))
+
 ## [0.107.2](https://github.com/Bomret/superdev/compare/v0.107.1...v0.107.2) (2026-11-13)
 
 
