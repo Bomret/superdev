@@ -51,7 +51,10 @@ const pending = (repo, name) => path.join(repo, '.superdev', 'kb-pending', name)
 }
 
 {
-  // #symlink-stays: a symlink at kb-pending/<name> is never followed or removed.
+  // #symlink-stays: a symlink at kb-pending/<name> is never followed or removed. On POSIX this case cannot tell the hook's
+  // `lstatSync(...).isDirectory()` guard from its absence: `rmdirSync` on a symlink to a directory fails with ENOTDIR and
+  // the hook's catch swallows it, so the link stays either way. The guard decides the outcome only where `rmdirSync`
+  // removes a directory link (a Windows junction or directory symlink), which no suite here can show.
   const repo = makeRepo();
   const target = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-kbp-target-'));
   fs.mkdirSync(path.join(repo, '.superdev', 'kb-pending'), { recursive: true });

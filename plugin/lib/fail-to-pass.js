@@ -106,7 +106,8 @@ function reusableControl(runRoot, tip, testFiles, command, top) {
 // its latest start in the trace: a `dispatch` or `dispatch-resume` line, or the ledger line setting the slice `in-progress`.
 // A window with no such line opens at the trace's start. Every test file in `testFiles` needs, after its last `edit` line in
 // the window, a failing `path` or `focused` run naming that file alone, then an `edit` outside the test paths, then a passing
-// run naming it. Recorded names compare as root-relative POSIX paths, `top` reading the tree root. Any trace that cannot be read,
+// run naming it after the window's last `edit` outside the test paths. Only runs made at the tree root (directory field `.`)
+// count, and recorded names compare as root-relative POSIX paths, `top` reading the tree root. Any trace that cannot be read,
 // or holds no such sequence, answers false.
 function settledFromTrace(runRoot, slice, testFiles, config, top) {
   let events;
@@ -115,14 +116,15 @@ function settledFromTrace(runRoot, slice, testFiles, config, top) {
   const opens = (e) => e.kind === 'dispatch' || e.kind === 'dispatch-resume' || (e.kind === 'ledger' && e.fields[0] === 'slice' && e.fields[1] === slice && e.fields[2] === 'in-progress');
   const window = events.slice(events.findLastIndex(opens) + 1);
   const named = (e) => (e.kind === 'run' && (e.fields[0] === 'path' || e.fields[0] === 'focused') && e.fields[4] !== undefined
+    && e.fields[7] !== undefined && untraceField(e.fields[7]) === '.'
     ? new Set(decodePaths(e.fields[4]).map((p) => rootRelative(p, top)).filter((p) => p !== null)) : null);
   const edited = (e) => (e.kind === 'edit' && e.fields[1] !== undefined ? rootRelative(untraceField(e.fields[1]), top) : null);
   return testFiles.every((file) => {
     const lastEdit = window.findLastIndex((e) => edited(e) === file);
     const red = window.findIndex((e, i) => i > lastEdit && e.fields[1] === 'fail' && named(e)?.size === 1 && named(e).has(file));
     if (red < 0) return false;
-    const impl = window.findIndex((e, i) => i > red && edited(e) !== null && !isTestPath(config, edited(e)));
-    return impl >= 0 && window.some((e, i) => i > impl && e.fields[1] === 'pass' && named(e)?.has(file));
+    const impl = window.findLastIndex((e) => edited(e) !== null && !isTestPath(config, edited(e)));
+    return impl > red && window.some((e, i) => i > impl && e.fields[1] === 'pass' && named(e)?.has(file));
   });
 }
 

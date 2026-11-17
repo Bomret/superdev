@@ -76,7 +76,7 @@ Read the slice's run-trace lines with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope
 - Mark each unclosable **Pass-to-pass** finding as that section states, with its case and reason, at every review against the current range. An implementer's claim of a case is input you check, never your verdict.
 - A Minor sweep re-review's dispatch hands each unclosable **Pass-to-pass** finding the last re-review listed, with its range, as quoted data. Restate each with its mark re-judged against the range from that finding's base to the current tip, or report it closable or closed.
 - Read an outcome line from the trace only. The implementer's account is no outcome line, and the dispatch carries none.
-- A `fail-to-pass` line whose reason reads `settled-from-trace` is the change's proof like any `fail-to-pass` line, and a range with no outcome line still draws **Missing fail-to-pass run**.
+- `## Fail-to-pass run` states how a `settled-from-trace` outcome line counts.
 - The controller applies the 3-cycle fix cap and the early escape for an unclosable finding.
 - Each `unknown` outcome `## Fail-to-pass run` has you name goes under `### Fail-to-pass unknown`.
 

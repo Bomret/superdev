@@ -21,8 +21,11 @@ try {
   const U = 'tests/u.sh';
   // A trace line is `[slice, kind, ...fields]`; the fixture's one in-progress slice, `01`, is the slice of its scopetree's own lines.
   const edit = (p, slice = '01') => [slice, 'edit', p.startsWith('tests/') ? 'test' : 'impl', p];
-  const run = (outcome, names, slice = '01') => [slice, 'run', 'path', outcome, 'abc', 'clean', names, '40', CMD, '.'];
+  const run = (outcome, names, slice = '01', dir = '.') => [slice, 'run', 'path', outcome, 'abc', 'clean', names, '40', CMD, dir];
   const sequence = (name) => [edit(name), run('fail', name), edit('src.txt'), run('pass', name)];
+  // A passing run over a file counts only after the window's last edit outside the test paths, so a trace holding several
+  // sequences ends in a run naming the files whose passing run an earlier sequence's later edit would otherwise outdate.
+  const ledgerStart = ['01', 'ledger', 'slice', '01', 'in-progress'];
   const attempt = (lines) => {
     const s = scenario(files);
     for (const [slice, kind, ...fields] of lines) appendTrace(s.root, { slice, kind, fields });
@@ -30,29 +33,37 @@ try {
   };
 
   // The rule holds for every test file the range changes: no test runs, and one `fail-to-pass` line marks its settlement.
-  let { s, r } = attempt([...sequence(T), ...sequence(U)]);
+  let { s, r } = attempt([...sequence(T), ...sequence(U), run('pass', `${T},${U}`)]);
   assert.equal(r.stdout.trim(), 'fail-to-pass settled-from-trace', r.stderr);
   assert.deepEqual(s.ran(), [], 'no test ran');
-  assert.equal(s.runLines().length, 4, 'the verb writes no control run line beside the four the trace holds');
+  assert.equal(s.runLines().length, 5, 'the verb writes no control run line beside the five the trace holds');
   const outcomes = s.rawTrace().filter((l) => l.split(' ')[2] === 'fail-to-pass');
   assert.equal(outcomes.length, 1, 'one outcome line');
   assert.equal(outcomes[0].replace(/ \S+$/, ''), `01 main fail-to-pass ${s.range} fail-to-pass settled-from-trace`, 'the existing layout, the reason marking the settlement');
 
   // Names compare normalized (`./` first), and a passing run over several files names each of them.
-  ({ s, r } = attempt([edit(T), run('fail', './tests/t.sh'), edit('src.txt'), run('pass', `${U},${T}`), ...sequence(U)]));
+  ({ s, r } = attempt([...sequence(U), edit(T), run('fail', './tests/t.sh'), edit('src.txt'), run('pass', `${U},${T}`)]));
   assert.equal(r.stdout.trim(), 'fail-to-pass settled-from-trace', r.stderr);
   assert.deepEqual(s.ran(), []);
 
   // Every variant that breaks the rule runs both runs as before, and none settles.
+  // `withU` surrounds the lines under test with a settled sequence for U and a closing passing run over U.
+  const withU = (lines) => [...sequence(U), ...lines, run('pass', U)];
+  const dispatched = (agent) => ['01', 'dispatch', agent, 'tu9', 'x', 's1'];
   const variants = [
-    ['a failing run naming two files', [edit(T), run('fail', `${T},${U}`), edit('src.txt'), run('pass', T), ...sequence(U)]],
-    ['no non-test edit between red and green', [edit(T), run('fail', T), run('pass', T), ...sequence(U)]],
-    ['only a test edit between red and green', [edit(T), run('fail', T), edit(U), run('pass', T), ...sequence(U)]],
-    ['a test-file edit after the last red run', [run('fail', T), edit(T), edit('src.txt'), run('pass', T), ...sequence(U)]],
-    ['a red run from an earlier slice', [edit(T), run('fail', T, '03'), edit('src.txt'), run('pass', T), ...sequence(U)]],
-    ['a red run before the implementer was dispatched', [edit(T), run('fail', T), ['01', 'dispatch', 'superdev:implementer', 'tu9', 'x', 's1'], edit('src.txt'), run('pass', T), ...sequence(U)]],
-    ['no passing run after the non-test edit', [edit(T), run('fail', T), edit('src.txt'), ...sequence(U)]],
-    ['no failing run', [edit(T), edit('src.txt'), run('pass', T), ...sequence(U)]],
+    ['a failing run naming two files', withU([edit(T), run('fail', `${T},${U}`), edit('src.txt'), run('pass', T)])],
+    ['no non-test edit between red and green', withU([edit(T), run('fail', T), run('pass', T)])],
+    ['only a test edit between red and green', withU([edit(T), run('fail', T), edit(U), run('pass', T)])],
+    ['a test-file edit after the last red run', withU([run('fail', T), edit(T), edit('src.txt'), run('pass', T)])],
+    ['a red run from an earlier slice', withU([edit(T), run('fail', T, '03'), edit('src.txt'), run('pass', T)])],
+    ['a red run before the implementer was dispatched', [edit(T), run('fail', T), dispatched('superdev:implementer'), ...sequence(U), edit('src.txt'), run('pass', `${T},${U}`)]],
+    ['a red run before the slice reviewer was dispatched', [edit(T), run('fail', T), dispatched('superdev:slice-reviewer'), ...sequence(U), edit('src.txt'), run('pass', `${T},${U}`)]],
+    ['a red run before the slice was set in-progress', [edit(T), run('fail', T), ledgerStart, ...sequence(U), edit('src.txt'), run('pass', `${T},${U}`)]],
+    ['no passing run after the non-test edit', withU([edit(T), run('fail', T), edit('src.txt')])],
+    ['no failing run', withU([edit(T), edit('src.txt'), run('pass', T)])],
+    ['a non-test edit after the passing run', [...sequence(U), ...sequence(T), edit('src.txt'), run('pass', U)]],
+    ['a failing run made in a subdirectory', withU([edit(T), run('fail', T, '01', 'pkg'), edit('src.txt'), run('pass', T)])],
+    ['a passing run made in a subdirectory', withU([edit(T), run('fail', T), edit('src.txt'), run('pass', T, '01', 'pkg')])],
     ['a second test file with no sequence', sequence(T)],
     ['no trace at all', []],
   ];

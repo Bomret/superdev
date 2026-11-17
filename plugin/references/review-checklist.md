@@ -59,8 +59,7 @@ Every smell is a labelled judgment call ("possible feature envy"), never a hard 
   on another input, so a function that always returns nothing fails one of the two. Two cases are not this
   smell: a check that two sources agree (a schema and its fixture, a table's rows against each other), and
   a pin on text whose only runtime reader is a person or a model (a prompt's wording, a clause a document
-  must carry). A `fail-to-pass` outcome, one settled from the trace (reason `settled-from-trace`) included, is
-  the change's proof and still a range's required outcome line, and it does not clear this finding, because a fail-to-pass run reads exit
+  must carry). A `fail-to-pass` outcome does not clear this finding, because a fail-to-pass run reads exit
   statuses only and cannot see two cases: a test of a symbol the change introduces fails before the change
   at compile, import, or name lookup in every language, and a weak test beside a discriminating one leaves
   the whole change reading `fail-to-pass`. Read the assertions of both.

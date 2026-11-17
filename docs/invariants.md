@@ -635,7 +635,7 @@ Class: architecture
 Concepts: Operator configuration, Run root, Slicetree
 Statement: The reaping hooks delete only inside `.superdev/scopes/<scope>/`, with one exception: `hooks/scope-prune.js` removes a `.superdev/kb-pending/<name>/` directory that holds no entry at all when no `.superdev/scopes/<name>/` run root exists. They never touch `.superdev/info.json`, and never remove a staged page.
 Breaks: silently
-Check: none — no test covers it
+Check: tests/scope-prune-kb-pending.test.js
 Paths: plugin/hooks/scope-prune.js, plugin/hooks/slicetree-sweep.js, plugin/lib/git-spawn.js
 
 ### INV-0077
