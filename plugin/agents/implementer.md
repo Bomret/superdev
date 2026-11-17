@@ -120,14 +120,14 @@ Applies to a `behavior` slice dispatch and to a fix dispatch whose finding names
 Build in vertical tracer-bullet increments: one test, one implementation, repeat. Tests written in bulk verify imagined behavior. Never write all the tests first.
 
 ```
-RED:   write ONE test for the next behavior → watch it fail
-GREEN: write the minimal code to pass it → watch it pass
+RED:   write ONE test for the next behavior → run its test file once → watch the new test fail and the file's earlier tests pass
+GREEN: write the minimal code to pass it → the next increment's run, or the final run, shows it pass
 ```
 
 - **Every acceptance criterion gets at least one increment.** Each criterion is the RED test of its own increment. That includes the failure and boundary cases the criteria name.
 - **A criterion that needs an outward-facing change to verify** (a deploy or a migration) gets no increment. Verifying observes and changes no system outside the repository. Report it as `### Listed lines` states for `ceiling`.
 - **Never refactor while RED.** Get to green first. Then refactor with the suite as your net.
-- **Commit each GREEN increment** on your branch (Conventional Commits). Those commits are your resume points.
+- **Commit each increment** on your branch (Conventional Commits) once its code is written. Those commits are your resume points, and the next increment's run or the final run checks each one green.
 
 ### Running tests
 
@@ -135,10 +135,10 @@ Applies to every test run in any dispatch.
 
 Run only the tests that verify your work, and make each run answer a question no earlier run at the same commit answered (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## Every run answers a question`). Run each through the runner `${CLAUDE_PLUGIN_ROOT}/scripts/scope.js test`, as `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` states in `## The two commands` and `## The changed-path set`. The controller owns every full-suite run.
 
-- Your runs: `scope.js test path <file>... -- <command>` for each RED or GREEN step, narrowed by the runner's filter to the one test the step works on where the runner has one. Once your work is committed, run `scope.js test focused <paths>` once over the whole changed-path set, with at least one path, and then the fail-to-pass run `### Fail-to-pass run` states. A step that works on no test file runs that focused command. A focused failure is a RED step: fix, commit, and run the focused command again.
+- Your runs: one `scope.js test path <file> -- <command>` per increment, naming the one test file the increment works on, run after you write its new test and before you write the code that passes it. That run shows the new test failing and the file's earlier tests passing. You make no separate GREEN run per increment and no separate control run. Once the last increment is committed, run `scope.js test focused <paths>` once over the whole changed-path set, with at least one path: it is the last GREEN and the final check. Then run the fail-to-pass run `### Fail-to-pass run` states. A step that works on no test file runs that focused command. A failing final run is a RED step: fix, commit, and run it again.
 - A test command is recorded as typed and pushed with the run state, so a secret belongs in the environment, never on the command line.
 - The controller's runs: `test full`, `test whole`, and a `test focused` with no path, which runs the full command.
-- Where the focused fence of `docs/agents/verification.md` repeats the full fence, each RED or GREEN step runs each test file it works on through `scope.js test path <file>... -- <command>`, and you make no whole-set run: the run of your range's test files that gives the verb its first run, and the fail-to-pass run, are the runs you make before your report.
+- Where the focused fence of `docs/agents/verification.md` repeats the full fence, each increment runs its one test file through `scope.js test path <file> -- <command>`, and your final run is one `scope.js test path <every test file your range changed> -- <command>` from the tree root, with the exact command you then pass to the fail-to-pass verb. You make no whole-set run: that final `test path` run and the fail-to-pass run are the runs you make before your report.
 - A `run full` or `run whole` line recorded in your dispatch window is a Minor review finding, so run only the commands above.
 
 ### Edit tools
@@ -171,7 +171,7 @@ Applies to a `behavior` slice dispatch.
 
 Applies to a `behavior` slice dispatch and to every fix dispatch.
 
-Your tests must fail without your change. Prove it before you report. Once your last GREEN increment is committed, where your range changes a test-path file and another file, and deletes not every test-path file it changes, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <range-start>..HEAD -- <command>` from your checkout. A range that deletes every test-path file it changes and adds behaviour outside the test paths leaves that behaviour with no test: write one for it, then run the verb. The test paths are `docs/agents/verification.md`'s `## Test paths`, or the defaults where it has none. Write the command to run every test file your range adds or modifies, in the form your runner selects them, and to run from the tree root. The verb records the command on its outcome line, and the reviewer checks that it runs each of those files. Your last GREEN step is also the verb's first run: commit the last increment first, then run `scope.js test path <each of those files> -- <command>` from the tree root, with the exact command you then pass to the verb. That one passing run at your committed tip is the GREEN step and the verb's control, so the verb runs only the second and skips its own first preparation. A run that does not pass is a RED step.
+Your tests must fail without your change. Prove it before you report. Once your last increment is committed and your final run has passed, where your range changes a test-path file and another file, and deletes not every test-path file it changes, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <range-start>..HEAD -- <command>` from your checkout. A range that deletes every test-path file it changes and adds behaviour outside the test paths leaves that behaviour with no test: write one for it, then run the verb. The test paths are `docs/agents/verification.md`'s `## Test paths`, or the defaults where it has none. Write the command to run every test file your range adds or modifies, in the form your runner selects them, and to run from the tree root. The verb records the command on its outcome line, and the reviewer checks that it runs each of those files. Your final run is the verb's first run where it is a `test path` run of those files from the tree root, made at your committed tip with the exact command you then pass to the verb: the verb reuses that passing run as its control, runs only the second, and skips its own first preparation. Where your final run was a `test focused` run, the verb settles from the trace, or runs its own control. A run that does not pass is a RED step.
 
 - `<range-start>`: `<base>` on a slice dispatch and a slice fix dispatch, `<sweep-base>` on a sweep fix dispatch, and `<cycle-base>` on a review fix dispatch and an inline fix dispatch. Outside a run root the verb writes no run-trace line, and its printed outcome goes in your report.
 - A fix dispatch that hands a **Pass-to-pass** finding names that finding's original base. Run the verb from that base as well, once your fix is committed: its `fail-to-pass` outcome closes the finding.
@@ -256,7 +256,7 @@ Keep each edit inside the bound `## Scope of the work` states.
 
 Applies to every dispatch.
 
-Rely on what is already in context. The red-green loop re-runs its tests by design.
+Rely on what is already in context. The loop runs each increment's test file once and the changed-path set once by design.
 
 - Scope with `git diff --stat` and `git log --oneline -N`.
 - Locate a spot with `grep -n` and read it at an offset and limit.

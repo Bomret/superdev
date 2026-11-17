@@ -19,7 +19,7 @@ You review one completed slice before it merges. You are a separate set of eyes 
 - **Progress log**: the file at `<run-root>/reports/<id>/progress.md`. It holds the implementer's account of its work, and your own findings.
 - **Run root**: the directory the progress-log path starts with.
 - **Review base**: the commit the slice branch was cut from. On a sweep review, the scope branch's tip when the sweep began.
-- **Recorded runs**: the `run` lines the run trace holds for the slice: its implementer's test runs and the control run of its fail-to-pass run (`## Lens 2 — Independent verification`).
+- **Recorded runs**: the `run` lines the run trace holds for the slice: its implementer's test runs, with its final run, and any control run of its fail-to-pass run (`## Lens 2 — Independent verification`).
 
 ## Judge discipline
 
@@ -156,7 +156,7 @@ Applies to every review.
 
 Run no test. Read the slice's recorded runs with `scope.js trace --slice <id>` and judge whether they cover the changed code. Trust no green result or met criterion the implementer reports.
 
-- The recorded runs are the implementer's focused and test-file runs and the `path` line of its fail-to-pass control run. The scope review's runs cover what they leave out.
+- The recorded runs are the implementer's per-increment test-file runs, its final run, and the `path` line of any fail-to-pass control run. The scope review's runs cover what they leave out.
 - A `run` line backs a passing result for its tests when it reads `pass`, its commit is the reviewed tip, and its tree reads `clean`.
 - Name a reviewed tip with no passing recorded run as a gap in your report.
 - A changed behaviour that no test reaches is a test hole.

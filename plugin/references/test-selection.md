@@ -318,19 +318,20 @@ Each caller judges its own range and builds the set from it:
 
 - **A chain gate's carry run.** Every path changed from the suite record's commit to the gate's tip, per
   `## The carry run`.
-- **The implementer's TDD loop, and the lite tier's inline loop.** Each failing-test or passing-test step runs
-  the test files it works on through `scope.js test path <file>... -- <command>`, a runner filter allowed, and never
-  through the focused command. Once the work is committed, one `scope.js test focused <paths>` runs over the
-  whole changed-path set: the slice base against the working tree, or `<cycle-base>..HEAD` on a fix cycle. It runs
-  before the fail-to-pass run. The last passing-test step runs after the last commit, as a `test path` run of the range's
-  test files from the tree root with the verb's exact command, which the verb reuses as its first run. A focused
-  failure is a RED step: fix, commit, and run the focused command again. A step that works on no test file runs
+- **The implementer's TDD loop, and the lite tier's inline loop.** Each increment runs its one test file
+  once through `scope.js test path <file> -- <command>`, a runner filter allowed, and never
+  through the focused command, after it writes the new test and before it writes the code that passes it. That run shows the new test failing and the
+  file's earlier tests passing, and no separate GREEN run per increment and no separate control run follows. Once the last increment is committed, one `scope.js test focused <paths>` runs over the
+  whole changed-path set as the last GREEN and the final check: the slice base against the working tree, or `<cycle-base>..HEAD` on a fix cycle. It runs
+  before the fail-to-pass run, and the trace settlement of ADR 0251 counts it as the passing run over each test file it names.
+  Where the focused fence repeats the full fence, the final run is one `test path` run of every test file the range changed, from the tree root with the verb's exact command, which the verb reuses as its first run. A failing
+  final run is a RED step: fix, commit, and run it again. A step that works on no test file runs
   that focused command over the whole set. A focused command with no `{paths}` token runs verbatim, and the run
   trace records every run either way. Every loop run passes at least one path, or runs test files
   through `test path`, so the loop runs only the tests that verify the work. `test full`,
   `test whole`, and a `test focused` with no path run only at the scope review's and ship's gates.
   Where the focused fence repeats the full fence, `test focused` runs the whole suite whatever paths it gets. There
-  each step runs each test file it works on through `test path`, and the loop makes no whole-set run: neither the
+  each increment runs its test file through `test path`, and the loop makes no whole-set run: neither the
   committed-work run nor a step that works on no test file runs, because the scope review's exit run covers that work. The fail-to-pass run still runs.
 - **The documentation step.** None: the step runs no test command and builds no set. `scope.js suite reusable`
   carries a green record across Markdown-only commits with no test run at the tip,
