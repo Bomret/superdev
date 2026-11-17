@@ -459,7 +459,7 @@ This root owns every other subtree directly:
   `require` `../lib/ledger.js` for their ledger-header reader (ADR 0022) and `../lib/git-spawn.js` for the git calls the two Stop hooks
   share (the spawn, the throwing call, and the `git branch` list parse; a module missing any of them reads as unloaded). `run-trace.js` takes each of
   `../lib/trace-log.js`, `run-tree.js`, and `dispatch.js` through a `require` of its own (ADR 0117, INV-0159).
-  `scope-prune.js` takes the containment probe `baseHistoryHasPatch` off `../lib/containment.js` through a `require` of its own (ADR 0082). `tree-guard.js` requires
+  `scope-prune.js` takes the containment probe `baseHistoryHasPatch` and the third tier `baseCommitHoldsBranch` off `../lib/containment.js` through a `require` of its own (ADR 0082, ADR 0248). `tree-guard.js` requires
   `../lib/main-work-tree.js` for the main-working-tree resolver `mainWorkTree`. It denies a dispatched implementer's Edit, Write, or
   NotebookEdit into a checkout of a repository that holds a run, outside its main working tree's `.superdev/`.
   It also denies such a write into that repository's git directory. That covers the main `.git/`, a linked

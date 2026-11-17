@@ -35,7 +35,7 @@ a module of its own: the ledger verbs in `ledger-lifecycle.js` and `ledger-recor
 `citations`, `collisions`, `source-set`, `push`, `discard`, and `status` each in the module of its name. The run-state ref (`refs/superdev/<scope>`, ADR 0202) is `run-state-ref.js`: `pushRunState` at a step end (`step clear`, `step block`, or a `stage set` that closes the standing step, except `stage set closed`), `fetchRunState` inside `adopt`, and `deleteRunState` behind `run-state delete`. It takes `gitCall` from `push.js` and `parseRemote` from `kb-containment.js`. The vocabulary beneath them is `ledger.js` (the stage rank and the readers and writers of
 a ledger's header lines, bullets, and table rows), `refusal.js` (the refusal error `fail`), `verification.js` (`verificationCommands`,
 `verificationCommandsOf`, `prepareCommandOf`, `isTestPath`), `git-spawn.js` (`gitSpawn`, `gitThrow`, `parseBranchList`, `resolveCommit`, `refResolves`, `fileAt`),
-`containment.js` (`testContainment`, `judgeContainment`, `baseHistoryHasPatch`), `main-work-tree.js` (`mainWorkTree`, `scopesDirFor`, `mainTreePath`), and
+`containment.js` (`testContainment`, `judgeContainment`, `baseHistoryHasPatch`, `baseCommitHoldsBranch`), `main-work-tree.js` (`mainWorkTree`, `scopesDirFor`, `mainTreePath`), and
 `trace-log.js` (`appendTrace`, `readTrace`, `traceField`, `untraceField`). The root [`AGENTS.md`](../AGENTS.md) *Structure* names every module and its
 responsibility. At startup `scope.js` loads only `refusal.js`, `ledger.js`, and `trace-log.js`. Every other module
 loads when a verb that uses it runs, through an accessor that names the module in a literal `require`, so the
@@ -151,11 +151,11 @@ refresh leaves the append's result as it was.
 `readLedgerHeader`, and no hook and no sibling script requires `scope.js`: each requires the module that
 holds what it uses. `readLedgerHeader`, the per-header ledger-line reader, lives in `plugin/lib/ledger.js`,
 and `hooks/scope-prune.js` and `hooks/slicetree-sweep.js` both require it there instead of carrying their own
-regex. `hooks/scope-prune.js` requires `baseHistoryHasPatch` — the containment probe (ADR 0082) — from
-`plugin/lib/containment.js` through a `require` of its own, and the two fall back
-differently: the reader missing stops that hook's sweep outright, while the probe missing, because its
-module cannot load or carries no probe, narrows its containment test back to the tree comparison alone,
-silently. A module requires no entry point, so a `require` of a module runs no CLI code, and `scope.js`
+regex. `hooks/scope-prune.js` requires `baseHistoryHasPatch` — the containment probe (ADR 0082) — and
+`baseCommitHoldsBranch` — the third tier (ADR 0248) — from `plugin/lib/containment.js` through a `require` of
+its own, and they fall back differently from the reader: the reader missing stops that hook's sweep outright,
+while a tier missing, because its module cannot load or lacks that tier, narrows its containment test to the
+tiers it keeps, silently. A module requires no entry point, so a `require` of a module runs no CLI code, and `scope.js`
 guards its own CLI entry with `require.main === module`. `hooks/run-trace.js` takes
 the trace writer `appendTrace` from `trace-log.js`,
 the tree locator `locate` and the test-path classifier `isTestPath` (ADR 0128) from `run-tree.js`,

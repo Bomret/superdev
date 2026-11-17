@@ -1,8 +1,8 @@
 'use strict';
 
 // Suite for plugin/hooks/scope-prune.js, the containment test end to end against real repositories: a branch still
-// present locally whose content base holds (ADR 0053), the second tier of the patch probe (ADR 0082), and a git
-// without `--write-tree`.
+// present locally whose content base holds (ADR 0053), the second tier of the patch probe (ADR 0082), the third
+// tier of a base commit holding the branch (ADR 0248), and a git without `--write-tree`.
 
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -105,6 +105,31 @@ const { main } = hook;
     'and its branch goes with the run root'
   );
   fs.rmSync(tookItRepo, { recursive: true, force: true });
+
+  // #squash-onto-moved-base-pruned: the third tier (ADR 0248). Base edits a line inside the branch's diff
+  // context before the squash lands, so no patch id matches, and edits the branch's line afterward, so the
+  // tree comparison conflicts. The squash commit's own tree holds the branch, and both the run root and the
+  // branch go.
+  const movedRepo = makeRepo();
+  fs.writeFileSync(path.join(movedRepo, 'app.txt'), 'l1\nl2\nl3\nl4\nl5\n');
+  gitTest(['add', '.'], movedRepo);
+  gitTest(['commit', '-q', '-m', 'app'], movedRepo);
+  makeWorkBranch(movedRepo, 'fix/moved', 'app.txt', 'l1\nl2\nB3\nl4\nl5\n');
+  fs.writeFileSync(path.join(movedRepo, 'app.txt'), 'A1\nl2\nl3\nl4\nl5\n');
+  gitTest(['commit', '-q', '-am', 'base edits a line inside the diff context'], movedRepo);
+  gitTest(['merge', '--squash', 'fix/moved'], movedRepo);
+  gitTest(['commit', '-q', '-m', 'fix: moved (#1)'], movedRepo);
+  fs.writeFileSync(path.join(movedRepo, 'app.txt'), 'A1\nl2\nB3 revised\nl4\nl5\n');
+  gitTest(['commit', '-q', '-am', 'base revises the same line'], movedRepo);
+  const movedScopeDir = makeScope(movedRepo, 'moved', '**Stage:** closed\n**Branch:** fix/moved\n');
+  main(movedRepo);
+  assert.equal(
+    fs.existsSync(movedScopeDir),
+    false,
+    'a closed, past-TTL scope squash-merged onto a moved HEAD, whose line HEAD edited afterward, is pruned'
+  );
+  assert.equal(refExists(movedRepo, 'refs/heads/fix/moved'), false, 'and its branch goes with the run root');
+  fs.rmSync(movedRepo, { recursive: true, force: true });
 
   // #no-fetch-on-any-path: a `Stop` hook fires on every finished turn, so it stays off the network
   // whatever the probe decides (ADR 0065, ADR 0082).

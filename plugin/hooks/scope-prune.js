@@ -183,7 +183,10 @@ function selectPrunable(scopeNames, isContained, mtimeOf, stageOf, allBranchSet,
 // the conflict alone is no answer (ADR 0082). `baseHistoryHasPatch` — the probe `lib/containment.js`
 // exports, required below — asks whether base's history holds a commit whose diff is this branch's own
 // cumulative diff, and a match is what a reap needs: the work sits in base's history, so deleting the
-// branch loses nothing. The probe absent leaves the tree comparison as the whole test, and a failed
+// branch loses nothing. Where no patch id matches, `baseCommitHoldsBranch` (ADR 0248) runs this same tree
+// comparison against each commit base gained since the fork point that touches the branch's paths, which
+// reads a squash-merge onto a moved base contained. Each one absent leaves the tiers before it as the whole
+// test, both absent leave the tree comparison alone, and a failed
 // `rev-parse` below, or `git` itself missing or broken, answers false the same way — fail closed, the
 // direction everywhere else in this hook takes too.
 //
@@ -193,7 +196,10 @@ function selectPrunable(scopeNames, isContained, mtimeOf, stageOf, allBranchSet,
 // seven-day TTL has already delayed — the same direction every other failure here falls.
 function containedInBase(branch, cwd) {
   const merged = gitSpawn(['merge-tree', '--write-tree', 'HEAD', branch], cwd);
-  if (merged.status !== 0) return baseHistoryHasPatch ? baseHistoryHasPatch(cwd, 'HEAD', branch) : false;
+  if (merged.status !== 0) {
+    if (baseHistoryHasPatch && baseHistoryHasPatch(cwd, 'HEAD', branch)) return true;
+    return baseCommitHoldsBranch ? baseCommitHoldsBranch(cwd, 'HEAD', branch) : false;
+  }
   const baseTree = gitSpawn(['rev-parse', 'HEAD^{tree}'], cwd);
   if (baseTree.status !== 0) return false;
   return merged.stdout.trim() === baseTree.stdout.trim();
@@ -209,8 +215,9 @@ function supportsWriteTree(cwd) {
 // The branch predicate `selectPrunable` calls, built lazily so nothing here runs until a scope has
 // already passed the TTL and stage gates. Both the `--write-tree` support check and the older-git
 // fallback set are memoised: a repository with nothing prunable makes no git call at all, and one with
-// several prunable scopes probes support once. `baseHistoryHasPatch` (ADR 0082) is not memoised here —
-// it runs once per prunable branch that conflicts, inside `containedInBase`.
+// several prunable scopes probes support once. `baseHistoryHasPatch` (ADR 0082) and `baseCommitHoldsBranch`
+// (ADR 0248) are not memoised here — they run once per prunable branch that conflicts, inside
+// `containedInBase`.
 //
 // **The fallback is today's ancestry test**, `git branch --merged`, so a git older than 2.38 prunes
 // exactly what it prunes now rather than erroring. A failed read there yields an empty set, which reads
@@ -244,13 +251,14 @@ function readMergedSet(cwd) {
 // width, newline crossing, normalisation — and none of those fixes travelled back. There is one reader
 // now, and no fallback: a fallback is the second reader again, and the second reader is the defect.
 //
-// `baseHistoryHasPatch` comes from `lib/containment.js` through its own require, and the two fall back
-// differently (ADR 0082): the ledger reader missing stops the sweep outright, while the probe missing
-// only narrows the containment test back to the tree comparison. The probe's own `try` covers the
-// version-skewed install as well as the failed load: a module that carries no probe leaves it `null`,
-// exactly as a throwing `require` would, and the reader stays loaded.
+// `baseHistoryHasPatch` and `baseCommitHoldsBranch` come from `lib/containment.js` through their own require,
+// and they fall back differently from the ledger reader (ADR 0082, ADR 0248): the reader missing stops the
+// sweep outright, while a missing tier only narrows the containment test to the tiers it keeps. That `try`
+// covers the version-skewed install as well as the failed load: a module that lacks a tier leaves it `null`,
+// exactly as a throwing `require` leaves both, and the reader stays loaded.
 let readLedgerHeader = null;
 let baseHistoryHasPatch = null;
+let baseCommitHoldsBranch = null;
 try {
   ({ readLedgerHeader } = require('../lib/ledger.js'));
 } catch {
@@ -258,7 +266,7 @@ try {
   // a hook that cannot read a stage must never conclude a scope is finished with.
 }
 try {
-  ({ baseHistoryHasPatch } = require('../lib/containment.js'));
+  ({ baseHistoryHasPatch = null, baseCommitHoldsBranch = null } = require('../lib/containment.js'));
 } catch {
   // Left null. The containment test below falls back to the tree comparison alone, silently.
 }

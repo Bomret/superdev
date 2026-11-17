@@ -29,10 +29,10 @@ Paths: plugin/skills/brainstorm/**, plugin/skills/plan/**, plugin/references/dom
 
 Class: architecture
 Concepts: Containment, Scope branch, Base branch
-Statement: A containment test answers contained only on positive evidence that base holds the branch's work — an equal tree, or a patch id base's history carries. Every path that cannot answer, whether a failed git call, an exhausted bound, or an unresolved ref, answers not contained.
+Statement: A containment test answers contained only on positive evidence that base holds the branch's work — an equal tree against base or against a commit in base's history, or a patch id base's history carries. Every path that cannot answer, whether a failed git call, an exhausted bound, or an unresolved ref, answers not contained.
 Breaks: silently
 Check: tests/scope-containment.test.js, tests/scope-prune-containment.test.js, tests/scope-prune-guards.test.js — each failure path asserted to answer not contained
-Symbols: testContainment, judgeContainment, baseHistoryHasPatch, containedInBase
+Symbols: testContainment, judgeContainment, baseHistoryHasPatch, baseCommitHoldsBranch, containedInBase
 Paths: plugin/lib/containment.js, plugin/lib/git-spawn.js, plugin/hooks/scope-prune.js, plugin/references/scope-mode.md, plugin/references/scope-branch.md
 
 ### INV-0004
