@@ -28,6 +28,8 @@
 // merges the run makes carry slice commits in as second parents, so a slice that did work never has its
 // tip on that chain. A fast-forwarded slice branch does land on it, and is left standing — a slicetree
 // that outlives its slice, never one removed while live.
+// The hook acts on the main working tree's runs from any session directory, so a session may stand in a merged,
+// worked slicetree: that slicetree is skipped, since removing it would delete the session's own directory.
 // Best-effort and silent: any git error, a dirty slicetree, an unreadable ledger, or no .superdev/ →
 // no-op for the affected scope (or the whole sweep, where the failure isn't scope-specific).
 
@@ -69,6 +71,26 @@ function defaultBranch(cwd) {
   }
 }
 
+// Git prints `C:/…` on Windows where Node builds `C:\…`: compare with `\` as `/` and a lower-cased
+// drive letter. `wt` itself stays as git printed it, since that is what `git worktree remove` takes.
+// Only a drive-letter path is Windows-shaped; a POSIX path compares as written, where `\` is a name character.
+const norm = (p) =>
+  /^[A-Za-z]:/.test(p) ? p.replace(/\\/g, '/').replace(/^[A-Za-z]:/, (d) => d.toLowerCase()) : p;
+
+// True when `dir` is the worktree `wt` or lies below it, on a separator boundary. The session's directory is
+// resolved through the filesystem first, so a symlinked temporary directory compares equal to what git prints.
+function standsIn(dir, wt) {
+  let real = dir;
+  try {
+    real = fs.realpathSync(dir);
+  } catch {
+    /* compare the path as given */
+  }
+  const w = norm(wt).replace(/\/?$/, '/');
+  const d = norm(real).replace(/\/?$/, '/');
+  return d.startsWith(w);
+}
+
 // Pure: from `git worktree list --porcelain` text, the merged-branch set, the worked-branch
 // set, and the absolute path to ONE scope's own directory (`.superdev/scopes/<scope>`), return the
 // {wt, br} entries safe to remove for that scope. `mergedSet` is that scope's own branch's merge
@@ -76,11 +98,6 @@ function defaultBranch(cwd) {
 // `.superdev/` tree here would let a sibling scope's slicetree be judged by this scope's `mergedSet`,
 // sweeping it whenever its slice branch happens to be an ancestor of this scope's branch as well.
 function selectRemovable(porcelain, mergedSet, workedSet, scopeRoot) {
-  // Git prints `C:/…` on Windows where Node builds `C:\…`: compare with `\` as `/` and a lower-cased
-  // drive letter. `wt` itself stays as git printed it, since that is what `git worktree remove` takes.
-  // Only a drive-letter path is Windows-shaped; a POSIX path compares as written, where `\` is a name character.
-  const norm = (p) =>
-    /^[A-Za-z]:/.test(p) ? p.replace(/\\/g, '/').replace(/^[A-Za-z]:/, (d) => d.toLowerCase()) : p;
   const prefix = norm(scopeRoot).replace(/\/?$/, '/');
   const out = [];
   for (const block of porcelain.split('\n\n')) {
@@ -200,6 +217,7 @@ function main(sessionCwd) {
   }
 
   for (const { wt, br } of toRemove) {
+    if (standsIn(sessionCwd, wt)) continue; // removing the slicetree the session stands in would delete its own directory
     try {
       git(['worktree', 'remove', wt], cwd); // refuses if dirty → caught, left for later
       git(['branch', '-D', br], cwd);
