@@ -1,6 +1,6 @@
 'use strict';
 
-// The scanner over the shipped tree for test seams and `SUPERDEV_` names (INV-0156, ADR 0154, ADR 0207, INV-0180).
+// The scanner over the shipped tree for test seams and `SUPERDEV_` names (root AGENTS.md, Shipped code carries no test seam, ADR 0207, INV-0180).
 // It reads every `.js`, `.mjs`, and `.cjs` file at any depth of the shipped tree (`plugin/`) and every shipped
 // Markdown file, and reports four forms:
 //   1. A file that names one of superdev's own test files: the base name of any file in the repository's
@@ -87,12 +87,12 @@ function scanTestSeams(root) {
     const raw = fs.readFileSync(file, 'utf8');
     for (const name of testNames) {
       if (new RegExp(String.raw`(?<![\w.-])${escape(name)}(?![\w-])`).test(raw)) {
-        offenders.push({ source, expectation: `name no superdev test file (\`${name}\`) — INV-0156, ADR 0154` });
+        offenders.push({ source, expectation: `name no superdev test file (\`${name}\`) — root AGENTS.md, Shipped code carries no test seam` });
       }
     }
     for (const [ref] of raw.matchAll(/(?<![\w.-])tests\/[\w.*?{},\[\]\/-]*/g)) {
       if (/[*?{[]/.test(ref) && /\w/.test(ref.slice('tests/'.length))) {
-        offenders.push({ source, expectation: `name no superdev test file (\`${ref}\`) — INV-0156, ADR 0154` });
+        offenders.push({ source, expectation: `name no superdev test file (\`${ref}\`) — root AGENTS.md, Shipped code carries no test seam` });
       }
     }
     const code = stripComments(raw);
@@ -104,7 +104,7 @@ function scanTestSeams(root) {
       if (name.startsWith('CLAUDE_') || new RegExp(String.raw`(?<![\w])${escape(name)}(?![\w])`).test(documented)) continue;
       offenders.push({
         source,
-        expectation: `read only an environment variable a shipped Markdown document names or one starting \`CLAUDE_\` (\`${name}\`) — INV-0156, ADR 0154`,
+        expectation: `read only an environment variable a shipped Markdown document names or one starting \`CLAUDE_\` (\`${name}\`) — root AGENTS.md, Shipped code carries no test seam`,
       });
     }
   }

@@ -6,7 +6,7 @@ require('./fixture-git');
 
 // Suite for plugin/scripts/scope.js's `fail-to-pass` verb (ADR 0134, ADR 0182): the environment a run reads, the test paths and
 // the checkout it runs from, the hooks it never runs, and a command that cannot start. Every scenario writes only inside the
-// fixture's own temporary directory (INV-0154).
+// fixture's own temporary directory (root AGENTS.md, concurrent suites).
 
 const assert = require('node:assert');
 const fs = require('node:fs');

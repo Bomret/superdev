@@ -754,16 +754,6 @@ Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/plan/SKILL.md, plugin/references/plan-contract.md
 
-### INV-0090
-
-Class: process
-Concepts: Invariant register
-Statement: Every register entry's mandatory fields, its Concepts, and the Paths, Symbols, and Check paths it names are checked by scripts/invariant-check.js, which node scripts/run-tests.js runs against this repository. The check fails naming the entry and the field, so a register rule breaks loudly rather than silently.
-Breaks: silently
-Check: tests/invariant-check.test.js — each format and resolution rule fails naming the entry and the field; the test chain runs the validator against this repository
-Symbols: check, parseEntries, globMatcher
-Paths: scripts/invariant-check.js, tests/invariant-check.test.js, package.json
-
 ### INV-0091
 
 Class: architecture
@@ -1224,33 +1214,6 @@ Statement: A shipped executable hands text to a shell only to run an operator-su
 Breaks: loudly
 Check: scripts/drift-check.js `shell-spawn` — fails on a shell start under `plugin/hooks/`, `plugin/scripts/`, or `plugin/lib/` that breaks the rule
 Paths: plugin/hooks/*.js, plugin/scripts/*.js, plugin/lib/*.js
-
-### INV-0154
-
-Class: process
-Concepts: Timing command, Focused test command
-Statement: Test suites run at the same time, so a suite writes only inside a temporary directory it created itself. It reads the repository's files and never writes them, and it uses no fixed path that another suite could also use.
-Breaks: silently
-Check: none — a general rule with no single test. A breach shows as a suite that fails only when another suite runs beside it.
-Paths: tests/**
-
-### INV-0155
-
-Class: process
-Concepts: Timing command, Focused test command
-Statement: The full test command runs every suite and every fixed tail step on every call. It gets faster by running steps at the same time and by cheaper setup, never by running fewer of them.
-Breaks: silently
-Check: tests/run-tests.test.js — a full run starts every suite it discovers and every tail step
-Paths: scripts/run-tests.js
-
-### INV-0156
-
-Class: architecture
-Concepts: Test seam, Shipped tree
-Statement: No JavaScript file in the shipped tree holds a test seam: no code path, parameter, default value, option, environment read, export, or comment that exists only for superdev's own suites. The exports a suite requires and the `require.main === module` guards are the module interface, not seams. Shipped JavaScript reads only an environment variable a Markdown document in the shipped tree names, or one whose name starts with `CLAUDE_` (ADR 0154).
-Breaks: silently
-Check: scripts/drift-check.js `test-seams` — fails on shipped JavaScript that names one of superdev's own test files or reads an environment variable outside the rule; a reviewer catches an injected parameter or an unused export
-Paths: plugin/**/*.js
 
 ### INV-0157
 

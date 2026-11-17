@@ -5,7 +5,7 @@
 require('./fixture-git');
 
 // Suite for plugin/scripts/scope.js's `fail-to-pass` verb (ADR 0134): the watcher of an interrupted run. It writes only inside
-// its own temporary directory (INV-0154).
+// its own temporary directory (root AGENTS.md, concurrent suites).
 
 const assert = require('node:assert');
 const fs = require('node:fs');

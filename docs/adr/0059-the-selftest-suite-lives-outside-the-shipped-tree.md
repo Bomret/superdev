@@ -1,6 +1,8 @@
 # 0059: The selftest suite lives outside the shipped tree
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [`AGENTS.md`](../../AGENTS.md) → Working rules, *Every shipped executable has a suite in `tests/`, named for it*, a working rule of this repository's test setup. An ADR governs production assets only.
 
 **Amended by:** [ADR 0155](0155-a-slice-merge-runs-no-test-suite.md), which deletes `green-gate.js` and its
 suite, so that hook's suite no longer runs under `bun run test`.

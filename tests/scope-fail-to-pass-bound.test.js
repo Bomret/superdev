@@ -6,7 +6,7 @@ require('./fixture-git');
 
 // Suite for plugin/scripts/scope.js's `fail-to-pass` verb (ADR 0134, ADR 0142): the bound and the floor of the run with the
 // files put back, whose cases wait on real sleeps and kill bounds. Every scenario writes only inside the fixture's own
-// temporary directory (INV-0154).
+// temporary directory (root AGENTS.md, concurrent suites).
 
 const assert = require('node:assert');
 const path = require('node:path');

@@ -5,7 +5,7 @@
 require('./fixture-git');
 
 // Suite for plugin/scripts/scope.js's `fail-to-pass` verb (ADR 0134, ADR 0182): the slice a trace line names, and the outcome
-// line's place beside the suite record. Every scenario writes only inside the fixture's own temporary directory (INV-0154).
+// line's place beside the suite record. Every scenario writes only inside the fixture's own temporary directory (root AGENTS.md, concurrent suites).
 
 const assert = require('node:assert');
 const fs = require('node:fs');

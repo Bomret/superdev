@@ -1,6 +1,8 @@
 # 0149: A linear-time pin reads the main thread's CPU time
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [`AGENTS.md`](../../AGENTS.md) → Working rules, *A duration assertion is legitimate only against a same-run baseline, or a qualitative ceiling*, a working rule of this repository's test setup. An ADR governs production assets only.
 
 **Amends:** [ADR 0086](0086-a-duration-is-never-the-assertion.md), whose same-run baseline the linear-time
 pins measure in wall-clock time.

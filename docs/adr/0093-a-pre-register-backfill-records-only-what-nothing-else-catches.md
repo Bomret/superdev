@@ -1,6 +1,8 @@
 # 0093: A pre-register backfill records only what nothing else catches
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [`scripts/AGENTS.md`](../../scripts/AGENTS.md) → *invariant-check.js, the invariant register validator*, a working rule of this repository's test setup. An ADR governs production assets only.
 
 **Amends:** [ADR 0077](0077-invariants-live-in-one-central-register.md), which rejected a script that
 parses the register. This record adds a script that validates the register and selects nothing, and it

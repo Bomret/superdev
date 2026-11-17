@@ -1,6 +1,8 @@
 # 0086: A duration is never the assertion, and a killed process is never a pass
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [`AGENTS.md`](../../AGENTS.md) → Working rules, *A duration assertion is legitimate only against a same-run baseline, or a qualitative ceiling*, a working rule of this repository's test setup. An ADR governs production assets only.
 
 **Amended by:** [ADR 0087](0087-a-spawn-that-never-started-is-not-a-spawn-that-was-killed.md), and
 [ADR 0149](0149-a-linear-time-pin-reads-the-main-thread-s-cpu-time.md), under which a

@@ -6,7 +6,7 @@ require('./fixture-git');
 
 // Suite for plugin/scripts/scope.js's `fail-to-pass` verb (ADR 0134): an interrupt, a kill included, ends the command's process
 // group and removes the worktree; a started control that is still running leaves its marker, and the driver signals the
-// verb once it exists. Every scenario writes only inside the fixture's own temporary directory (INV-0154).
+// verb once it exists. Every scenario writes only inside the fixture's own temporary directory (root AGENTS.md, concurrent suites).
 
 const assert = require('node:assert');
 const fs = require('node:fs');

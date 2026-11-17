@@ -90,6 +90,19 @@ module.exports = ({ assert, path, fixture }) => {
     'Amends against Superseded by is two gaps, one per side',
   );
 
+  // a setup decision superseded by a working rule: the header links AGENTS.md files only
+  const toRules = (href) =>
+    scanAdrRelations(fixture({ 'AGENTS.md': '# rules\n', 'docs/adr/0001-a.md': a1(`**Superseded by:** [\`AGENTS.md\`](${href}) → Working rules.`, 'Superseded') }));
+  assert.deepEqual(toRules('../../AGENTS.md'), [], 'a Superseded by header linking an existing AGENTS.md passes');
+  const goneRules = toRules('../../scripts/AGENTS.md');
+  assert.equal(goneRules.length, 1, 'a Superseded by header linking a missing AGENTS.md fails');
+  assert.match(goneRules[0].expectation, /working-rules file/, 'the gap names the missing working-rules file');
+  assert.equal(
+    scanAdrRelations(fixture({ 'README.md': 'x\n', 'docs/adr/0001-a.md': a1('**Superseded by:** [README](../../README.md).', 'Superseded') })).length,
+    1,
+    'a Superseded by header linking a non-rules file fails',
+  );
+
   // two targets on one header, and a header wrapped over lines: each target is checked
   const twoFix = (reverseOnC) =>
     fixture({

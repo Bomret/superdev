@@ -7,7 +7,7 @@ require('./fixture-git');
 // Suite for plugin/scripts/scope.js's `fail-to-pass` verb (ADR 0134, ADR 0182, INV-0138, INV-0139), split off the core verbs'
 // suite so a test-first step on one verb runs only that verb's cases (ADR 0139): the verdict cases, which put the range's
 // files back, refuse a range, and record the control run. Its sibling files hold the signal, bound, interrupt, concurrency,
-// and environment cases. Every scenario writes only inside the fixture's own temporary directory (INV-0154).
+// and environment cases. Every scenario writes only inside the fixture's own temporary directory (root AGENTS.md, concurrent suites).
 
 const assert = require('node:assert');
 const fs = require('node:fs');

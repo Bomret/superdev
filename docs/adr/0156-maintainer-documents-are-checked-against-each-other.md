@@ -1,6 +1,8 @@
 # 0156: Maintainer documents are checked against each other
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [`scripts/AGENTS.md`](../../scripts/AGENTS.md) → the drift-check table, a working rule of this repository's documentation setup. An ADR governs production assets only.
 
 **Amends:** [ADR 0126](0126-a-numbering-collision-is-found-by-number-not-by-conflict.md), whose base step moves a
 colliding number and leaves updating its citations to the controller.

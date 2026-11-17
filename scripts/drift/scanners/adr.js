@@ -122,6 +122,16 @@ function scanAdrRelations(root) {
       // only a header naming INV targets alone (linked or plain) may hold no ADR link
       const invOnly =
         /\bINV-\d{4}\b/.test(text) && !/\bADR\s*\d{4}\b/i.test(text.replace(/\[INV-\d{4}\]\([^)]*\)/g, '')) && links.every((l) => /^INV-\d{4}$/.test(l.linkText));
+      // a decision about the repository's setup moves to a working rule: a `**Superseded by:**` header may link
+      // only `AGENTS.md` files, each of which must exist
+      const rulesOnly = label === 'Superseded by' && !misnamed.length && links.length > 0 && !/\bADR\s*\d{4}\b/i.test(text) &&
+        links.every((l) => path.basename(l.file) === 'AGENTS.md');
+      if (rulesOnly) {
+        for (const { href, file } of links) {
+          if (!fs.existsSync(path.join(root, ADR_DIR, file))) gap(adr.source, `link an existing working-rules file — ADR ${num}'s \`**${label}:**\` header links \`${href}\``);
+        }
+        continue;
+      }
       if (!adrLinks.length && !misnamed.length && !invOnly) {
         gap(adr.source, `link each target as [ADR NNNN](NNNN-<slug>.md) — ADR ${num}'s \`**${label}:**\` header holds no such link`);
         continue;

@@ -1,6 +1,8 @@
 # 0154: Shipped code carries no test seams; a test substitutes on its own side
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [`AGENTS.md`](../../AGENTS.md) → Working rules, *Shipped code carries no test seam*, a working rule of this repository's test setup. An ADR governs production assets only.
 
 **Amends:** [ADR 0059](0059-the-selftest-suite-lives-outside-the-shipped-tree.md), which moved the
 assertions out of the shipped tree and kept the code paths they drive.

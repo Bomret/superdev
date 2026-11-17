@@ -1,6 +1,8 @@
 # 0166: Tests run through `node` with no package script
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [`AGENTS.md`](../../AGENTS.md) → Stack and Common commands, working rules of this repository's test setup. An ADR governs production assets only.
 
 **Amends:** [ADR 0059](0059-the-selftest-suite-lives-outside-the-shipped-tree.md), whose suites ran
 under `bun run test`.
