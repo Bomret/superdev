@@ -5,7 +5,8 @@ changed, and **deleting what is obsolete**. Two callers perform it, and both `Re
 they run it:
 
 - **`agents/doc-writer.md`**, dispatched by `/superdev:document` on every live run of either tier, also a
-  `lite` run whose inline pass already ran, plus audit mode, bootstrap mode, any fix round, and
+  `lite` run whose inline pass already ran, except a scope that changes only test paths, which gets no
+  pass (ADR 0252), plus audit mode, bootstrap mode, any fix round, and
   every ad-hoc invocation.
 - **`references/implement-lite.md`**, where the `lite` controller performs the pass in its own context as
   the last step of the run.

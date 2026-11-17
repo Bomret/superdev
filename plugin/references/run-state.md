@@ -63,7 +63,7 @@ goes on.
 - **`**Docs:**`** — that the run performed its documentation pass, and in whose context. Read with
   `get docs`, written with `docs set <value>` and removed with `docs clear`. The `lite` playbook writes
   it for the pass it runs inline, and `/superdev:review` clears it when a fix cycle lands
-  commits. `/superdev:document` takes no decision from the record: it dispatches its doc-writer on every live run and hands its doc-reader the scope's own commits as the commit range. A single whitespace-free token, which `docs set` enforces.
+  commits. `/superdev:document` takes no decision from the record: it dispatches its doc-writer on every live run and hands its doc-reader the scope's own commits as the commit range, except a scope that changes only test paths, which gets no doc pass (ADR 0252). A single whitespace-free token, which `docs set` enforces.
 - **`**PR:** #<n>`** — the pull request `/superdev:submit-pr` opened for the scope branch. Read with
   `get pr`, written with `pr set <n>` (a bare number, `#` optional) the moment the pull request opens, and
   removed with `pr clear`. `/superdev:ship` reads it back rather than looking the pull request up by head
