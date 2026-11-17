@@ -35,7 +35,7 @@ function usage() {
     '  base resolve --branch <b> --base <base-ref>   --root <run-root>   prints the scope\'s range base',
     '  discard   --root <run-root>   removes a planned run\'s ledger, run trace, and lock, and the emptied run root (ADR 0208)',
     '  get stage|step|branch|anchor|docs|pr|slices|unresolved|degraded|deferred|minors|denials|suite|failed --root <run-root>',
-    '  state [--json] --root <run-root>   prints every field `get` knows in one read-only call; --json prints one object, list fields as arrays',
+    '  state [--json] --root <run-root>   prints every field `get` knows in one read-only call; --json prints one object, list fields as arrays (`failed` as the failed test files, no `@ <sha>`)',
     '  trace [--slice <id>] --root <run-root>   prints the run trace, oldest first (read-only)',
     '  untraced <base>..<tip> --slice <id|scope> [--from <ts>] [--until <ts>] --root <run-root>',
     '                                     one line per path the range\'s first-parent, non-merge commits change that no `edit` line of the',

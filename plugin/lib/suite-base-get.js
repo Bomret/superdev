@@ -549,7 +549,7 @@ function verbGet(root, field) {
 
 // `state` prints every field `get` knows in one read: each value is what `get <field>` prints for it, captured from
 // `verbGet` itself, so the two cannot drift. A slice row that does not carry the 7 columns is named under `malformed`
-// and every other row and field still prints. List fields stay arrays in `--json`; the others are one string.
+// and every other row and field still prints. List fields stay arrays in `--json`, `failed` as the failed test files; the others are one string.
 const STATE_LISTS = ['slices', 'unresolved', 'degraded', 'deferred', 'minors', 'failed'];
 const STATE_FIELDS = ['stage', 'step', 'branch', 'anchor', 'docs', 'pr', 'slices', 'unresolved', 'degraded', 'deferred', 'minors', 'denials', 'suite', 'failed'];
 function verbState(root, json) {
@@ -580,7 +580,9 @@ function verbState(root, json) {
   }
   if (malformed.length) state.malformed = malformed;
   if (json) {
-    console.log(JSON.stringify(state, null, 2));
+    // `failed` is the array of failed test files; the `@ <sha>` part stays in `get failed`, and `suite` carries the sha of its run.
+    const failedFiles = (state.failed[0] || '').split(' @ ')[0].split(' ').filter(Boolean);
+    console.log(JSON.stringify({ ...state, failed: failedFiles }, null, 2));
     return;
   }
   const text = [];

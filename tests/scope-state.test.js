@@ -58,7 +58,9 @@ try {
   const json = JSON.parse(call(['state', ...R, '--json']).out);
   assert.deepStrictEqual(Object.keys(json), FIELDS, 'one key per field, in get order');
   for (const f of FIELDS) {
-    if (LISTS.includes(f)) {
+    if (f === 'failed') {
+      assert.deepStrictEqual(json.failed, ['a.test.js', 'b.test.js'], 'json failed is the array of failed test files, the `@ <sha>` part left to get failed');
+    } else if (LISTS.includes(f)) {
       assert.ok(Array.isArray(json[f]), `${f} is an array`);
       assert.deepStrictEqual(json[f], lines(f), `json ${f} equals get ${f}`);
     } else {
@@ -103,8 +105,6 @@ try {
   const marker = path.join(shim, 'git-called');
   fs.writeFileSync(path.join(shim, 'git'), `#!/bin/sh\necho called >> "${marker}"\nexit 1\n`, { mode: 0o755 });
   const env = { ...process.env, PATH: shim + path.delimiter + process.env.PATH };
-  // The hand edits above are an outside edit to scope.js; one verb call records them, so the snapshot starts clean.
-  assert.ok(get('stage').ok);
   const still = snapshot(root);
   for (const args of [[...R], [...R, '--json']]) {
     const res = spawnState(args, env);
