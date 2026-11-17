@@ -39,7 +39,7 @@ Rare branches live in files of their own, each read only when its branch fires: 
 
 **The dispatch of `final-reviewer`.** Applies to every dispatch of `final-reviewer` in a scope review. `final-reviewer`'s `### What the dispatch hands you` and `### Run-trace findings` own each input's handling below. The dispatch hands these inputs. It restates none of those rules.
 
-- **Summary**: the scope anchor's title, from `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get anchor --root <run-root>` (`${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## The ledger`). The verb prints `absent` → say so in one line and hand a diff-derived summary.
+- **Summary**: the scope anchor's title, from the `anchor` field of the `scope.js state` call the skill's §1 made (`${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## The ledger`). The field reads `absent` → say so in one line and hand a diff-derived summary.
 - **Acceptance**: the path `<run-root>/dod.md`, as §1 states.
 - **Range**: the whole scope range `<range-base>..<branch>` on every dispatch, a re-review after a fix cycle included.
 - **Tier and run root**: the tier per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` (3 or fewer `behavior` slices is `lite`), and `<run-root>`.
@@ -59,7 +59,7 @@ Rare branches live in files of their own, each read only when its branch fires: 
 
 **The `simplicity-reviewer` dispatch.** Applies to the `simplicity-reviewer` dispatch of a scope review.
 
-- **A `full`-tier scope whose every slice row in `scope.js get slices` reads `behavior`** → dispatch `final-reviewer` alone and skip `superdev:simplicity-reviewer`, reporting `` not dispatched — full tier, every slice `behavior` ``.
+- **A `full`-tier scope whose every slice row in the `slices` field of the skill's `scope.js state` call reads `behavior`, with no `malformed` row** → dispatch `final-reviewer` alone and skip `superdev:simplicity-reviewer`, reporting `` not dispatched — full tier, every slice `behavior` ``.
 - **A `full`-tier scope with a `mechanical` or `docs` row, or a row whose type cannot be read** → takes no skip from this concept. The skill's skip rules decide it, as they decide a `lite` scope, and the pass's findings go through the existing fix loop.
 - **A `lite` scope** takes no skip from this concept.
 - **Only the entry review dispatches it**, on every `/superdev:review` invocation. A fix cycle's re-review and a warm re-review get no over-engineering pass, so a cut never starts the next cycle.
@@ -113,7 +113,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - **The check passes** → continue.
 - **A refusal, or a failed anchor read or Absorbs read** → take `review-scope-holds.md`'s `## The anchor check's refusals`, its entry branch.
 
-**The base.** Applies at a stage before `submitted`, read with `scope.js get stage --root <run-root>`. Run `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Bringing the scope branch to base` after the scope checkout and the run lock. It runs before the entry run of §4.2. Its own rules apply unchanged.
+**The base.** Applies at a stage before `submitted`, read from the `stage` field of the skill's `scope.js state` call. Run `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Bringing the scope branch to base` after the scope checkout and the run lock. It runs before the entry run of §4.2. Its own rules apply unchanged.
 
 - The unchanged rules: conflict, numbering-collision, citation, unattended-block, and degraded-fetch.
 - A stop there ends the review with the scopetree clean.
@@ -133,7 +133,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 
 ### 4.2 The suite gate
 
-**The suite record.** Applies before the entry run. Read `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get suite --root <run-root>`. It prints `<result> <sha>[ whole]`. It decides the exit run's command.
+**The suite record.** Applies before the entry run. Read the `suite` field of the skill's `scope.js state` call. It reads `<result> <sha>[ whole]`, or nothing with no record. It decides the exit run's command.
 
 - **Red with `whole`, and a `## Whole-repo command` section configured** (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## Whole-repo command`) → the exit run runs the whole-repo command in place of the full command, through `scope.js test whole`. It skips the reuse check, records with `scope.js suite set <result> <sha> --whole --root <run-root>`, and the report names it the whole-repo run.
 - **Any other record** → the exit run runs the full command.

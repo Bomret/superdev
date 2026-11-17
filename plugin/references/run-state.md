@@ -46,8 +46,8 @@ goes on.
 - **`**Branch:**`** — the scope branch. `scope-mode.md`'s `## The scope branch` owns how it is written and resolved.
 - **`**Anchor:** <key> — <title>`** — the scope anchor's store key and title, e.g. `**Anchor:** #183 —
   Audit fixes`. Run init hands it to `init`, per the store's `## Scope anchor`
-  contract (`docs/agents/issue-tracker.md`); `/superdev:review` reads the title back with `get anchor`
-  for the PR-facing summary instead of deriving one from the diff.
+  contract (`docs/agents/issue-tracker.md`); `/superdev:review` reads the title back from the `anchor` field
+  of its entry `state` call for the PR-facing summary instead of deriving one from the diff.
 - **`**Degraded:**`** — the run's degrade record. `scope-findings.md`'s `## Degraded passes` owns its shape and when it is
   written.
 - **`**Unresolved:**`** — the run's unresolved-defect record. `scope-findings.md`'s `## Unresolved defects` owns the same.
