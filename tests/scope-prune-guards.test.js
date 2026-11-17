@@ -24,6 +24,15 @@ function passThroughGitSpawn(libDir) {
   return marker;
 }
 
+// A stub of the hook's `../lib/main-work-tree.js` that loads the real resolver, so a case about another module keeps
+// the hook's run-root resolution working.
+function passThroughMainWorkTree(libDir) {
+  fs.writeFileSync(
+    path.join(libDir, 'main-work-tree.js'),
+    `module.exports = require(${JSON.stringify(require.resolve('../plugin/lib/main-work-tree.js'))});\n`
+  );
+}
+
 // #probe-unavailable: the containment module is absent from its place, throws on load, or carries no
 // probe — a version-skewed install. The hook drops to the tree comparison alone, pruning what that test
 // can prove and saying nothing, while its ledger module still loads (ADR 0022, ADR 0082). The hook is
@@ -52,6 +61,7 @@ for (const [skewName, containmentBody] of [
       `require('fs').writeFileSync(${JSON.stringify(skewMarker)}, 'x');\n${containmentBody}\n`
     );
   }
+  passThroughMainWorkTree(path.join(skewDir, 'lib'));
   const gitSpawnMarker = passThroughGitSpawn(path.join(skewDir, 'lib'));
   const skewed = require(path.join(skewDir, 'hooks', 'scope-prune.js'));
   assert.equal(fs.existsSync(ledgerMarker), true, `the stub at ../lib/ledger.js loaded (${skewName})`);
@@ -106,6 +116,7 @@ for (const [skewName, containmentBody] of [
     `module.exports = require(${JSON.stringify(require.resolve('../plugin/lib/ledger.js'))});\n`
   );
   const probeMarker = path.join(throwDir, 'probe-called');
+  passThroughMainWorkTree(path.join(throwDir, 'lib'));
   const throwGitSpawnMarker = passThroughGitSpawn(path.join(throwDir, 'lib'));
   fs.writeFileSync(
     path.join(throwDir, 'lib', 'containment.js'),
@@ -179,6 +190,7 @@ for (const [skewName, containmentBody] of [
   fs.mkdirSync(path.join(stubbed, 'lib'));
   fs.copyFileSync(hookPath, path.join(stubbed, 'hooks', 'scope-prune.js'));
   const stubMarker = path.join(stubbed, 'stub-loaded');
+  passThroughMainWorkTree(path.join(stubbed, 'lib'));
   const stubbedGitSpawnMarker = passThroughGitSpawn(path.join(stubbed, 'lib'));
   fs.writeFileSync(path.join(stubbed, 'lib', 'ledger.js'), `require('fs').writeFileSync(${JSON.stringify(stubMarker)}, 'x'); throw new Error('gone');`);
   const loadedContainmentMarker = path.join(stubbed, 'containment-loaded');
@@ -235,7 +247,7 @@ for (const [skewName, containmentBody] of [
     fs.mkdirSync(path.join(dir, 'hooks'));
     fs.mkdirSync(path.join(dir, 'lib'));
     fs.copyFileSync(hookPath, path.join(dir, 'hooks', 'scope-prune.js'));
-    for (const mod of ['ledger.js', 'containment.js']) {
+    for (const mod of ['ledger.js', 'containment.js', 'main-work-tree.js']) {
       fs.writeFileSync(
         path.join(dir, 'lib', mod),
         `module.exports = require(${JSON.stringify(require.resolve(`../plugin/lib/${mod}`))});\n`
@@ -298,6 +310,71 @@ for (const [skewName, containmentBody] of [
     assert.equal(throwing.stands, true, `a hook whose ${fn} throws prunes nothing`);
   }
   fs.rmSync(shimDir, { recursive: true, force: true });
+}
+
+// #resolver-unavailable: the hook takes the main working tree from `../lib/main-work-tree.js`. With the module absent,
+// throwing on load, carrying no `mainWorkTree`, or resolving nothing, it prunes nothing, exits 0, and says nothing. A
+// control beside a pass-through stub prunes the same fixture, and each case confirms its own stub loaded first.
+{
+  const realResolver = JSON.stringify(require.resolve('../plugin/lib/main-work-tree.js'));
+  function runResolver(caseName, resolverBody) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-resolver-'));
+    fs.mkdirSync(path.join(dir, 'hooks'));
+    fs.mkdirSync(path.join(dir, 'lib'));
+    fs.copyFileSync(hookPath, path.join(dir, 'hooks', 'scope-prune.js'));
+    for (const mod of ['ledger.js', 'containment.js', 'git-spawn.js']) {
+      fs.writeFileSync(
+        path.join(dir, 'lib', mod),
+        `module.exports = require(${JSON.stringify(require.resolve(`../plugin/lib/${mod}`))});\n`
+      );
+    }
+    const loaded = path.join(dir, 'loaded');
+    if (resolverBody !== null) {
+      fs.writeFileSync(
+        path.join(dir, 'lib', 'main-work-tree.js'),
+        `require('fs').writeFileSync(${JSON.stringify(loaded)}, 'x');\nconst real = require(${realResolver});\n${resolverBody}\n`
+      );
+    }
+    const repo = makeRepo();
+    const scopeDir = makeScope(repo, 'resolver', '**Stage:** closed\n');
+    const ran = spawnSync(process.execPath, [path.join(dir, 'hooks', 'scope-prune.js')], {
+      input: JSON.stringify({ cwd: repo }), encoding: 'utf8', timeout: 15000,
+    });
+    assertSpawnDecided(ran, `spawning scope-prune.js (${caseName})`);
+    assert.equal(ran.status, 0, `the hook exits 0 (${caseName})`);
+    assert.equal(ran.stdout, '', `and prints nothing (${caseName})`);
+    const result = { loaded: fs.existsSync(loaded), stands: fs.existsSync(scopeDir) };
+    fs.rmSync(repo, { recursive: true, force: true });
+    fs.rmSync(dir, { recursive: true, force: true });
+    return result;
+  }
+
+  const control = runResolver('control', 'module.exports = real;');
+  assert.equal(control.loaded, true, 'the control stub at ../lib/main-work-tree.js loaded');
+  assert.equal(control.stands, false, 'the control prunes the fixture run, so a surviving run below is the posture');
+  const absent = runResolver('resolver absent', null);
+  assert.equal(absent.stands, true, 'a hook with no resolver module prunes nothing');
+  for (const [name, body] of [
+    ['throws on load', "throw new Error('gone');"],
+    ['carries no mainWorkTree', 'module.exports = {};'],
+    ['resolves nothing', 'module.exports = { mainWorkTree() { return null; } };'],
+  ]) {
+    const result = runResolver(`resolver ${name}`, body);
+    assert.equal(result.loaded, true, `the resolver stub that ${name} loaded`);
+    assert.equal(result.stands, true, `a hook whose resolver ${name} prunes nothing`);
+  }
+
+  // A session directory outside any repository resolves no main working tree, through the real resolver.
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-outside-'));
+  const outsideScope = makeScope(outside, 'resolver', '**Stage:** closed\n');
+  const outsideRun = spawnSync(process.execPath, [hookPath], {
+    input: JSON.stringify({ cwd: outside }), encoding: 'utf8', timeout: 15000,
+  });
+  assertSpawnDecided(outsideRun, 'spawning scope-prune.js outside a repository');
+  assert.equal(outsideRun.status, 0, 'a session outside any repository exits 0');
+  assert.equal(outsideRun.stdout, '', 'and prints nothing');
+  assert.equal(fs.existsSync(outsideScope), true, 'and prunes no run root of its own cwd');
+  fs.rmSync(outside, { recursive: true, force: true });
 }
 
 console.log('scope-prune-guards tests ok');
