@@ -47,19 +47,21 @@ try {
   assert.equal(r.stdout.trim(), 'fail-to-pass settled-from-trace', r.stderr);
   assert.deepEqual(s.ran(), []);
 
-  // Every variant that breaks the rule runs both runs as before, and none settles.
+  // Every variant that breaks the rule runs both runs as before, and none settles. A variant marked `REUSED` ends in a passing
+  // run at the tip over every test file, a reusable control (ADR 0215), so the put-back alone runs there.
   // `withU` surrounds the lines under test with a settled sequence for U and a closing passing run over U.
   const withU = (lines) => [...sequence(U), ...lines, run('pass', U)];
   const dispatched = (agent) => ['01', 'dispatch', agent, 'tu9', 'x', 's1'];
+  const REUSED = true;
   const variants = [
     ['a failing run naming two files', withU([edit(T), run('fail', `${T},${U}`), edit('src.txt'), run('pass', T)])],
     ['no non-test edit between red and green', withU([edit(T), run('fail', T), run('pass', T)])],
     ['only a test edit between red and green', withU([edit(T), run('fail', T), edit(U), run('pass', T)])],
     ['a test-file edit after the last red run', withU([run('fail', T), edit(T), edit('src.txt'), run('pass', T)])],
     ['a red run from an earlier slice', withU([edit(T), run('fail', T, '03'), edit('src.txt'), run('pass', T)])],
-    ['a red run before the implementer was dispatched', [edit(T), run('fail', T), dispatched('superdev:implementer'), ...sequence(U), edit('src.txt'), run('pass', `${T},${U}`)]],
-    ['a red run before the slice reviewer was dispatched', [edit(T), run('fail', T), dispatched('superdev:slice-reviewer'), ...sequence(U), edit('src.txt'), run('pass', `${T},${U}`)]],
-    ['a red run before the slice was set in-progress', [edit(T), run('fail', T), ledgerStart, ...sequence(U), edit('src.txt'), run('pass', `${T},${U}`)]],
+    ['a red run before the implementer was dispatched', [edit(T), run('fail', T), dispatched('superdev:implementer'), ...sequence(U), edit('src.txt'), run('pass', `${T},${U}`)], REUSED],
+    ['a red run before the slice reviewer was dispatched', [edit(T), run('fail', T), dispatched('superdev:slice-reviewer'), ...sequence(U), edit('src.txt'), run('pass', `${T},${U}`)], REUSED],
+    ['a red run before the slice was set in-progress', [edit(T), run('fail', T), ledgerStart, ...sequence(U), edit('src.txt'), run('pass', `${T},${U}`)], REUSED],
     ['no passing run after the non-test edit', withU([edit(T), run('fail', T), edit('src.txt')])],
     ['no failing run', withU([edit(T), edit('src.txt'), run('pass', T)])],
     ['a non-test edit after the passing run', [...sequence(U), ...sequence(T), edit('src.txt'), run('pass', U)]],
@@ -70,11 +72,11 @@ try {
     ['a second test file with no sequence', sequence(T)],
     ['no trace at all', []],
   ];
-  for (const [label, lines] of variants) {
+  for (const [label, lines, reused = false] of variants) {
     ({ s, r } = attempt(lines));
     assert.equal(r.stdout.trim(), 'fail-to-pass control=0,put-back=1', `${label}: ${r.stderr}`);
-    // A passing run at the tip that names every test file is a reusable control (ADR 0215), so the put-back alone runs then.
-    assert.equal(s.ran().length, r.stderr.includes('control reused from the run trace') ? 1 : 2, `${label}: both runs ran, or the put-back beside a reused control`);
+    assert.equal(r.stderr.includes('control reused from the run trace'), reused, `${label}: the control is reused exactly where the variant expects`);
+    assert.equal(s.ran().length, reused ? 1 : 2, `${label}: both runs ran, or the put-back beside the reused control`);
     assert.ok(!s.rawTrace().some((l) => l.includes('settled-from-trace')), `${label}: nothing settled`);
   }
 
