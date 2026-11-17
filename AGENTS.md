@@ -285,9 +285,11 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   of code or configuration. A forbidden form is text shipped prose must never contain. No drift check
   asserts how a positive clause is worded, and none compares a value with a comment.
 - **ADRs and invariants govern production assets only.** An ADR in `docs/adr/` and an entry in
-  `docs/invariants.md` concern what ships: `plugin/`, `.claude-plugin/`, and `mods/superdev-view/`. A rule
-  about this repository's build, test, documentation, or release setup (`tests/`, `scripts/`,
-  `.github/`, `package.json`, `release.config.cjs`, the docs conventions) is a working rule here or in
+  `docs/invariants.md` state a rule that constrains a production asset: a file under `plugin/`,
+  `.claude-plugin/`, or `mods/superdev-view/`. What prompted the rule does not decide this, and a rule that
+  constrains a production asset and the setup together is an ADR or an invariant too. A rule that constrains
+  only this repository's build, test, documentation, or release setup (`tests/`, `scripts/`, `.github/`,
+  `package.json`, `release.config.cjs`, the docs conventions) is a working rule here or in
   `scripts/AGENTS.md` (`references/domain-modeling.md`).
 - **Platform-dependent claims carry dated verification.** An ADR, or an entry in
   [`docs/known-issues.md`](docs/known-issues.md),

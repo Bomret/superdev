@@ -44,9 +44,11 @@ non-obvious rejected alternatives. An ADR is a short title plus 1–3
 sentences (context, decision, why); add Status / Considered Options / Consequences only when they earn
 their place. Number by scanning the target directory for the highest existing number + 1.
 
-**Subject:** an ADR records a decision about the production assets the repository or folder holds — the
-code, configuration, and content it ships or deploys. A decision about its build, test, documentation, or
-release setup is a working rule of that setup, written where its contributors read it, such as `AGENTS.md`.
+**Subject:** an ADR records a decision that constrains a production asset the repository or folder holds —
+the code, configuration, and content it ships or deploys — whatever prompted the decision. A decision that
+constrains a production asset and the setup together is an ADR too. A decision that constrains only the
+build, test, documentation, or release setup is a working rule of that setup, written where its
+contributors read it, such as `AGENTS.md`.
 
 **Placement:** `docs/adr/` at the repo root. In a multi-context repo (root `CONTEXT-MAP.md`), a decision
 belonging to one bounded context lives beside it — that context's own `docs/adr/` — with the root
@@ -104,10 +106,12 @@ constrains:
   register holds rules about the system a repository builds, and an authoring rule belongs to the working
   rules of whatever writes the criteria. Ask this first, because such a rule does constrain later
   decisions and would otherwise answer yes below.
-- **A rule about the repository's build, test, documentation, or release setup** is a working rule of that
-  setup. Write it where the setup's contributors read it, such as `AGENTS.md`. The register holds rules
-  about the production assets alone: the code, configuration, and content the repository ships or deploys.
-- **A rule about the system the repository builds** that constrains a later decision, where the constraint
+- **A rule that constrains only the repository's build, test, documentation, or release setup** is a
+  working rule of that setup. Write it where the setup's contributors read it, such as `AGENTS.md`. A rule
+  that constrains a production asset — the code, configuration, and content the repository ships or
+  deploys — sorts into the branches below, whatever prompted it, and so does one that constrains a
+  production asset and the setup together.
+- **A rule that constrains a production asset** and a later decision, where the constraint
   is cheaply testable → a register entry, its `Check:` naming the proof.
 - **The same, where nothing cheaply tests it** → a register entry all the same, with `Check: none` and its
   reason. A commitment binding a hundred decisions and no single test is what `none` exists for, so sort
