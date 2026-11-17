@@ -6,7 +6,7 @@ require('./fixture-git');
 
 // Suite for plugin/scripts/scope.js's `prepare <tree>` verb: it runs the prepare command a worktree's own
 // `docs/agents/verification.md` states at that worktree's root (ADR 0218). Every case writes only inside its own temporary
-// directory (root AGENTS.md, concurrent suites).
+// directory (root AGENTS.md, *Every shipped executable has a suite in `tests/`, named for it*).
 
 const assert = require('node:assert');
 const fs = require('node:fs');
