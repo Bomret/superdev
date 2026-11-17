@@ -21,6 +21,8 @@ which a fail-to-pass run records a test run.
 **Amended by:** [ADR 0193](0193-an-unclosable-pass-to-pass-finding-takes-the-escape-at-once.md), under which a Pass-to-pass
 finding no fix can close is marked unclosable and takes the escape at once.
 
+**Amended by:** [ADR 0251](0251-fail-to-pass-settles-from-the-run-trace.md), which settles the run from the run trace when the trace already shows every changed test file failing first.
+
 **Context.** Every superdev gate reads a passing test as evidence, and a test can pass without being able
 to fail for the defect it names. Triage #576 records a fix-cycle test that passed on the exact regression
 it was written for. Triage #631 records six checks in four runs that passed without exercising what they

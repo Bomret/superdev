@@ -11,6 +11,8 @@ through `test --` where the focused command repeats the full one, and drops the 
 **Amended by:** [ADR 0232](0232-the-loop-runs-test-files-and-the-focused-command-once.md), which runs each step's test files
 through `test path` and the focused command once, over the whole changed-path set.
 
+**Amended by:** [ADR 0250](0250-a-test-first-increment-runs-its-test-file-once.md), which runs each increment's test file once and makes the final changed-path run the last GREEN.
+
 **Context.** The implementer's test-first loop, and the lite tier's inline loop, run the focused command
 over the slice base against the working tree, every path the slice changed so far. In this repository a
 change to `plugin/scripts/scope.js` selects every suite that names or requires it, and `run-tests.js` runs

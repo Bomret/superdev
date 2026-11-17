@@ -425,7 +425,7 @@ Paths: plugin/agents/implementer.md, plugin/references/plan-contract.md
 
 Class: process
 Concepts: Inline doc pass, Ledger, Tier
-Statement: A `**Docs:**` record stands only for the commits its pass saw. `/superdev:document` takes no decision from the record: on every live run it dispatches the doc-writer and hands the doc-reader the scope's own commits as its commit range (ADR 0219). A review fix loop that lands commits clears it. A full-tier run never writes one.
+Statement: A `**Docs:**` record stands only for the commits its pass saw. `/superdev:document` takes no decision from the record: on every live run it dispatches the doc-writer and hands the doc-reader the scope's own commits as its commit range (ADR 0219), except a run whose every changed path is a test-path file and whose Definition of Done holds no line the doc pass settles, which gets no doc pass (ADR 0252). A review fix loop that lands commits clears it. A full-tier run never writes one.
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/implement-lite.md, plugin/skills/document/SKILL.md, plugin/skills/review/SKILL.md, plugin/references/review-scope-*.md, plugin/references/run-handoff.md, plugin/references/doc-pass.md
@@ -633,7 +633,7 @@ Paths: plugin/references/assignee.md
 
 Class: architecture
 Concepts: Operator configuration, Run root, Slicetree
-Statement: The reaping hooks delete only inside `.superdev/scopes/<scope>/`, and never touch `.superdev/info.json`.
+Statement: The reaping hooks delete only inside `.superdev/scopes/<scope>/`, with one exception: `hooks/scope-prune.js` removes a `.superdev/kb-pending/<name>/` directory that holds no entry at all when no `.superdev/scopes/<name>/` run root exists. They never touch `.superdev/info.json`, and never remove a staged page.
 Breaks: silently
 Check: none — no test covers it
 Paths: plugin/hooks/scope-prune.js, plugin/hooks/slicetree-sweep.js, plugin/lib/git-spawn.js
@@ -956,7 +956,7 @@ Paths: plugin/agents/final-reviewer.md, plugin/skills/review/**, plugin/referenc
 
 Class: process
 Concepts: Implementer, Sibling surface, Dispatch prose
-Statement: Every fix dispatch to the implementer, and the implementer's own brief for a fix dispatch, require it to bring each sibling surface in its own checkout into agreement with the rule or behaviour its fix changes, to report each place it checked and each it changed, and to report rather than edit a place outside its checkout, and to report rather than edit the `AGENTS.md` hierarchy and the knowledge base, which the doc pass owns. Every dispatching site sends back a fix report that omits the checked-and-changed list before the next step. Before the next step, every dispatching site also greps the checkout for the key phrase of the rule the fix changed, in its old wording and its new, and sends the report back in the same cycle for each hit in a file its checked list does not name, outside the `AGENTS.md` hierarchy and the knowledge base. A hit in `CHANGELOG.md` is release history and needs no change (ADR 0118).
+Statement: Every fix dispatch to the implementer, and the implementer's own brief for a fix dispatch, require it to bring each sibling surface in its own checkout into agreement with the rule or behaviour its fix changes, to report each place it checked and each it changed, and to report rather than edit a place outside its checkout, and to report rather than edit the `AGENTS.md` hierarchy and the knowledge base, which the doc pass owns. The same dispatch requires it to fix every other instance of the defect a finding names within the files the scope changes, to name each in its report, and to report an instance outside those files as an observation without fixing it. Every dispatching site sends back a fix report that omits the checked-and-changed list before the next step. Before the next step, every dispatching site also greps the checkout for the key phrase of the rule the fix changed, in its old wording and its new, and sends the report back in the same cycle for each hit in a file its checked list does not name, outside the `AGENTS.md` hierarchy and the knowledge base. A hit in `CHANGELOG.md` is release history and needs no change (ADR 0118).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/agents/implementer.md, plugin/skills/implement/SKILL.md, plugin/skills/review/SKILL.md, plugin/references/review-scope-*.md, plugin/references/implement-full.md, plugin/references/run-handoff.md, plugin/references/implement-full-fix-cycle.md
