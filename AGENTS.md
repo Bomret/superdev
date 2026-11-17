@@ -222,10 +222,8 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
 - **Shipped code carries no test seam** (ADR 0154). Under `plugin/`, no environment variable, parameter,
   default, export, or comment exists for a test's sake. A suite reaches behaviour through the shipped
   entry points and the real inputs they take, and a suite that needs a different bound or remote builds
-  its fixture around the unchanged code. The exports a suite requires and the `require.main === module` guards
-  are the module interface, not seams. Shipped JavaScript reads only an environment variable a Markdown document
-  in the shipped tree names, or one whose name starts with `CLAUDE_`. The `test-seams` drift check holds the
-  forms it can scan (`scripts/AGENTS.md`).
+  its fixture around the unchanged code. The `test-seams` drift check holds the forms it can scan
+  (`scripts/AGENTS.md`).
 - **Normalize a path before you compare it.** A path from git output or from command text can be an MSYS
   path on Windows (`/c/Users/…`). Hooks and scripts normalize it before comparing it with a path Node
   builds (ADR 0150).

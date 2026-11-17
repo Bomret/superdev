@@ -1,6 +1,6 @@
 'use strict';
 
-// Selftest suite: the test-seam scanner over the shipped JavaScript (`scanners/test-seams.js`, root AGENTS.md,
+// Selftest suite: the test-seam scanner over the shipped JavaScript (`scanners/test-seams.js`, INV-0156,
 // ADR 0154). Run by ./index.js.
 
 const { scanTestSeams } = require('../scanners');
@@ -22,7 +22,7 @@ module.exports = ({ assert, path, fixture }) => {
     const gaps = scan({ 'plugin/lib/deep/x/rogue.js': src });
     assert.equal(gaps.length, 1, `flags ${label}`);
     assert.equal(gaps[0].source, path.join('plugin', 'lib', 'deep', 'x', 'rogue.js'), `names the file for ${label}`);
-    assert.ok(gaps[0].expectation.includes('Shipped code carries no test seam'), 'cites the working rule');
+    assert.ok(gaps[0].expectation.includes('INV-0156'), 'cites the invariant');
   }
 
   // --- a non-JavaScript file under tests/ is no test file ---
