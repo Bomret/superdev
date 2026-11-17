@@ -102,6 +102,7 @@ Your blind pass covers the fix cycle's range. The earlier findings live in the p
 - A run-trace finding closes by its closing rule (`## Run-trace findings`). An **Unverified dependency** finding closes by `## Dependency verification`.
 - Report a defect you find outside the range, where the fix or an earlier finding led you.
 - A fix cycle's range that holds no change leaves you judging the earlier findings alone.
+- Read each same-defect instance the fix report names, and report any instance of the defect still standing in the files the slice changes.
 - The specification verdict judges the whole slice at the current tip.
 
 ## Deferred findings

@@ -37,6 +37,7 @@ Dispatch one `superdev:implementer`. This is the inline fix dispatch of the impl
 - **Hand no `dod.md`, no run root, and no progress log.** The fix worktree is no run root.
 - **Separate calls**: tell the implementer to run any revert, each test run, and the restore as separate Bash calls.
 - **Sibling surfaces**: require the implementer to bring each sibling surface in `<tree>` into agreement with the rule or behaviour its fix changes, and to report each place it checked and each it changed. It reports a place outside `<tree>`, the `AGENTS.md` hierarchy, and the knowledge base unedited.
+- **Same-defect instances**: require the implementer to fix every other instance of the defect a finding names within the files the reviewed subject changed (no run root, so the subject's changed files), and to name each in its report. It reports an instance outside those files as an observation, unfixed. The warm re-review reads each instance the report names.
 
 **You apply no fix yourself**, also when the dispatch is denied.
 

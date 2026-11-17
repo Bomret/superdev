@@ -32,7 +32,9 @@ scope tip the cycle began from, appended when the cycle starts:
    log, and hands the `<run-root>/dod.md` path read-only with no listed lines, so the implementer can tell a
    capability the Definition of Done never named. The implementer closes a
    Minor a later slice already resolved with no change made for it, fixes a duplicated Minor once, and reports each
-   as its sweep fix dispatch states. The fix takes `haiku` only when every finding in its list is mechanical, as in
+   as its sweep fix dispatch states. It also fixes every other instance of a Minor's defect within the files the scope
+   changes, the paths changed over `<range-base>..HEAD` (the range base from `scope.js base resolve`, handed with the dispatch),
+   names each in its report, and reports an instance outside those files as an observation, unfixed. The fix takes `haiku` only when every finding in its list is mechanical, as in
    a slice's fix cycle, and any other finding puts the dispatch on `sonnet`. A cycle whose list holds only Minor findings
    continues the previous sweep implementer through SendMessage, as `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s
    `## Warm cycles` states: cycle 1 has no earlier implementer and dispatches fresh. A cycle whose list holds a

@@ -272,6 +272,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - **Range-base input**: `<base>`, handed as `<base-branch>` for the implementer's `scope.js base resolve`.
 - **Definition of Done**: the `<run-root>/dod.md` path plus exactly the lines this cycle unticked or found broken, a listed-lines case of `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s mapping gate.
 - **Sibling surfaces**: require the implementer to bring each sibling surface in its own checkout into agreement with the rule or behaviour its fix changes, and to report each place it checked and each it changed. It reports a place outside its checkout, the `AGENTS.md` hierarchy, and the knowledge base unedited.
+- **Same-defect instances**: require the implementer to fix every other instance of the defect a finding names within the files the scope changes, the paths changed over `<range-base>..HEAD`, and to name each in its report. It reports an instance outside those files as an observation, unfixed. The re-review reads each instance the report names.
 
 **A warm cycle.** Applies to a cycle whose list holds only Minor findings, warranted cuts included. Run it per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Warm cycles`. The re-review's subject is §2's warm re-review range.
 

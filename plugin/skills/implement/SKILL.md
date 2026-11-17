@@ -49,13 +49,13 @@ Applies to the `lite` tier. Its playbook runs the documentation pass in the same
 
 **The RED test.** Applies to every fix. A fix for a finding that names failing behaviour opens with a RED test reproducing it. A fix for a finding that names none (style, naming, doc polish) takes no RED test, and the re-review verifies it by reading. The implementer's report names the rule it applied to each finding.
 
-**Sibling surfaces.** Applies to every fix dispatch. Tell the implementer to search its own checkout for every other place that states the rule or behaviour the fix changes, bring each into agreement, and report each place it checked and each it changed. A place outside its checkout, the `AGENTS.md` hierarchy, and the knowledge base are reported unedited.
+**Sibling surfaces.** Applies to every fix dispatch. Tell the implementer to search its own checkout for every other place that states the rule or behaviour the fix changes, bring each into agreement, and report each place it checked and each it changed. A place outside its checkout, the `AGENTS.md` hierarchy, and the knowledge base are reported unedited. Tell it also to fix every other instance of the defect a finding names within the files the scope changes (a slice fix: the slice's `<base>..HEAD`; a sweep fix: the scope's `<range-base>..HEAD`), to name each in its report, and to report an instance outside those files as an observation, unfixed. The re-review reads each named instance.
 
 **The sibling check.** Applies to every fix report, before the next step.
 
 - **No checked-and-changed list** → a report defect: send it back to the implementer.
 - **Otherwise** → grep the checkout for the key phrase of the changed rule, in its old wording and its new, and compare the hits with the checked list.
-- **A hit in a file the list does not name** → a missed sibling surface: send it back with the hit named, in the same cycle.
+- **A hit in a file the list does not name** → a missed sibling surface: send it back with the hit named, in the same cycle. Compare the report's named same-defect instances with the defect's pattern searched over the changed files the same way.
 - **A hit in the `AGENTS.md` hierarchy or the knowledge base** → name it in your report. A hit in `CHANGELOG.md` needs no change.
 
 **An observation.** Applies to a defect a dispatched agent's report surfaces, or one you meet, that no slice of this scope covers and the scope did not cause. Follow `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Observations` section. File the triage record yourself, at once.
