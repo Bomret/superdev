@@ -59,7 +59,7 @@ function usage() {
     '                                     with `prepare=<exit|signal|start-failed:<code>|dirty>` (`control=0,prepare=…` before the',
     '                                     second run); a traced control is reused only where the tip states a command or `none`; a run',
     '                                     root\'s trace that holds, for every test file of the range, a failing run over it alone, then an edit',
-    '                                     outside the test paths, then a passing run after the last such edit, each run made from the tree root, settles `fail-to-pass settled-from-trace` with no run;',
+    '                                     outside the test paths, then a passing run after the last such edit at the tip on a clean tree, each run made from the tree root, settles `fail-to-pass settled-from-trace` with no run;',
     '                                     exits 0 (an outcome was read and printed; a failed trace append is reported on stderr),',
     '                                     1 (a refusal or an error, message on stderr, no outcome), or 128 plus the signal number',
     '                                     (interrupted)',

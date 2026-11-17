@@ -106,10 +106,10 @@ function reusableControl(runRoot, tip, testFiles, command, top) {
 // its latest start in the trace: a `dispatch` or `dispatch-resume` line, or the ledger line setting the slice `in-progress`.
 // A window with no such line opens at the trace's start. Every test file in `testFiles` needs, after its last `edit` line in
 // the window, a failing `path` or `focused` run naming that file alone, then an `edit` outside the test paths, then a passing
-// run naming it after the window's last `edit` outside the test paths. Only runs made at the tree root (directory field `.`)
+// run naming it after the window's last `edit` outside the test paths, made at `tip` on a clean tree. Only runs made at the tree root (directory field `.`)
 // count, and recorded names compare as root-relative POSIX paths, `top` reading the tree root. Any trace that cannot be read,
 // or holds no such sequence, answers false.
-function settledFromTrace(runRoot, slice, testFiles, config, top) {
+function settledFromTrace(runRoot, slice, tip, testFiles, config, top) {
   let events;
   try { events = readTrace(fs.readFileSync(path.join(runRoot, 'trace.log'), 'utf8')); } catch { return false; }
   events = events.filter((e) => untraceField(e.slice) === slice);
@@ -124,7 +124,7 @@ function settledFromTrace(runRoot, slice, testFiles, config, top) {
     const red = window.findIndex((e, i) => i > lastEdit && e.fields[1] === 'fail' && named(e)?.size === 1 && named(e).has(file));
     if (red < 0) return false;
     const impl = window.findLastIndex((e) => edited(e) !== null && !isTestPath(config, edited(e)));
-    return impl > red && window.some((e, i) => i > impl && e.fields[1] === 'pass' && named(e)?.has(file));
+    return impl > red && window.some((e, i) => i > impl && e.fields[1] === 'pass' && e.fields[2] === tip && e.fields[3] === 'clean' && named(e)?.has(file));
   });
 }
 
@@ -196,7 +196,7 @@ async function verbFailToPass(cwd, args) {
   // One ledger read names the slice the outcome line and the control run's `run` line carry (ADR 0175).
   const slice = at && (sliceOfRange(at.runRoot, base, tip, cwd) || at.slice);
   // A trace that already shows the range's tests fail before its change and pass after it settles the outcome with no run (ADR 0251).
-  if (at && settledFromTrace(at.runRoot, slice, testFiles, config, lazyToplevel(cwd))) {
+  if (at && settledFromTrace(at.runRoot, slice, tip, testFiles, config, lazyToplevel(cwd))) {
     if (!appendTrace(at.runRoot, { slice, kind: 'fail-to-pass', fields: [`${base}..${tip}`, 'fail-to-pass', SETTLED_FROM_TRACE, command] })) {
       process.stderr.write('fail-to-pass: the outcome line could not be written to the run trace\n');
     }

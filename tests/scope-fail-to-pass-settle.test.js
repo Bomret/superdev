@@ -21,14 +21,15 @@ try {
   const U = 'tests/u.sh';
   // A trace line is `[slice, kind, ...fields]`; the fixture's one in-progress slice, `01`, is the slice of its scopetree's own lines.
   const edit = (p, slice = '01') => [slice, 'edit', p.startsWith('tests/') ? 'test' : 'impl', p];
-  const run = (outcome, names, slice = '01', dir = '.') => [slice, 'run', 'path', outcome, 'abc', 'clean', names, '40', CMD, dir];
+  // `TIP` stands for the scenario's tip commit, which `attempt` writes in its place.
+  const run = (outcome, names, slice = '01', dir = '.', at = 'TIP', tree = 'clean') => [slice, 'run', 'path', outcome, at, tree, names, '40', CMD, dir];
   const sequence = (name) => [edit(name), run('fail', name), edit('src.txt'), run('pass', name)];
   // A passing run over a file counts only after the window's last edit outside the test paths, so a trace holding several
   // sequences ends in a run naming the files whose passing run an earlier sequence's later edit would otherwise outdate.
   const ledgerStart = ['01', 'ledger', 'slice', '01', 'in-progress'];
   const attempt = (lines) => {
     const s = scenario(files);
-    for (const [slice, kind, ...fields] of lines) appendTrace(s.root, { slice, kind, fields });
+    for (const [slice, kind, ...fields] of lines) appendTrace(s.root, { slice, kind, fields: fields.map((f) => (f === 'TIP' ? s.tipSha : f)) });
     return { s, r: s.run(s.range) };
   };
 
@@ -64,13 +65,16 @@ try {
     ['a non-test edit after the passing run', [...sequence(U), ...sequence(T), edit('src.txt'), run('pass', U)]],
     ['a failing run made in a subdirectory', withU([edit(T), run('fail', T, '01', 'pkg'), edit('src.txt'), run('pass', T)])],
     ['a passing run made in a subdirectory', withU([edit(T), run('fail', T), edit('src.txt'), run('pass', T, '01', 'pkg')])],
+    ['a passing run at another commit', withU([edit(T), run('fail', T), edit('src.txt'), run('pass', T, '01', '.', 'abc')])],
+    ['a passing run on a dirty tree', withU([edit(T), run('fail', T), edit('src.txt'), run('pass', T, '01', '.', 'TIP', 'dirty')])],
     ['a second test file with no sequence', sequence(T)],
     ['no trace at all', []],
   ];
   for (const [label, lines] of variants) {
     ({ s, r } = attempt(lines));
     assert.equal(r.stdout.trim(), 'fail-to-pass control=0,put-back=1', `${label}: ${r.stderr}`);
-    assert.equal(s.ran().length, 2, `${label}: both runs ran`);
+    // A passing run at the tip that names every test file is a reusable control (ADR 0215), so the put-back alone runs then.
+    assert.equal(s.ran().length, r.stderr.includes('control reused from the run trace') ? 1 : 2, `${label}: both runs ran, or the put-back beside a reused control`);
     assert.ok(!s.rawTrace().some((l) => l.includes('settled-from-trace')), `${label}: nothing settled`);
   }
 

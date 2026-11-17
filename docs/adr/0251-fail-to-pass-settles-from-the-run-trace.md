@@ -26,7 +26,8 @@ that file's last edit in the range:
 
 1. a failing test run whose file list names that file alone;
 2. then an edit outside the test paths;
-3. then a passing run over that file, after the last edit outside the test paths in the window.
+3. then a passing run over that file, after the last edit outside the test paths in the window, recorded at the
+   range's tip commit on a clean tree.
 
 Only runs recorded at the tree root (directory `.`) count, the failing run and the passing run alike. A later
 edit outside the test paths outdates the green run, and the file names of a run made in a subdirectory do not

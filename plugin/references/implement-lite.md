@@ -115,7 +115,7 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
   test paths leaves that behaviour with no test: write one for it, then run the verb. The verb runs in the background when
   two runs of the range's test files can outlast the ceiling, and you wait for its end before you read its outcome
   (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`). The verb settles from the run trace, with no run, when for every test-path file of
-  the range the trace holds a failing run over that file alone, then an edit outside the test paths, then a passing run over it after the last such edit, each run made at the tree root, and prints
+  the range the trace holds a failing run over that file alone, then an edit outside the test paths, then a passing run over it after the last such edit, made at the tip on a clean tree, each run made at the tree root, and prints
   `fail-to-pass settled-from-trace`. Otherwise it runs the command in a
   throwaway worktree, then again with the files the slice changed outside its test files put back as they
   stood at `<base>`, prints `fail-to-pass`, `pass-to-pass`, or `unknown`, and appends a `fail-to-pass` line to the run

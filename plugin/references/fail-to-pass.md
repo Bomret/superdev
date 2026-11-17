@@ -13,7 +13,7 @@ command. It is no test run.
 
 An outcome line whose reason reads `settled-from-trace` is a `fail-to-pass` outcome the verb wrote with no run, because the
 run trace already held, for every test-path file the range changes, a failing run over that file alone, then an edit
-outside the test paths, then a passing run over it after the last such edit, each run made at the tree root (ADR 0251). It is the change's proof as a run's `fail-to-pass` line is,
+outside the test paths, then a passing run over it after the last such edit, made at the tip on a clean tree, each run made at the tree root (ADR 0251). It is the change's proof as a run's `fail-to-pass` line is,
 and it never reads `pass-to-pass` or `unknown`.
 
 ### Reading an outcome line
