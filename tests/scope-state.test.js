@@ -87,6 +87,12 @@ try {
   assert.ok(!call(['state', '--root', path.join(tmp, 'nope')]).ok, 'a root with no ledger is refused');
   assert.ok(!call(['state', ...R, 'extra']).ok, 'an unrecognized argument is refused');
 
+  // A ledger with no suite record prints a bare `suite:` label, with no trailing space.
+  const withRecords = fs.readFileSync(ledger, 'utf8');
+  fs.writeFileSync(ledger, text);
+  assert.ok(call(['state', ...R]).out.split('\n').includes('suite:'), 'no suite record prints a bare label');
+  fs.writeFileSync(ledger, withRecords);
+
   // A malformed slice row is named; every other field and row still prints.
   const bad = fs.readFileSync(ledger, 'utf8').replace('| 02 | #189 | ledger-guard hook | behavior | 01 | todo | — |', '| 02 | #189 | broken row |');
   assert.notStrictEqual(bad, fs.readFileSync(ledger, 'utf8'), 'the fixture row was broken');
@@ -119,6 +125,10 @@ try {
   const help = cp.spawnSync(process.execPath, [scopePath, '--help'], { encoding: 'utf8', timeout: 30000 });
   assertSpawnDecided(help, 'help');
   assert.match(help.stdout, /^ {2}state \[--json\]/m, 'the usage lists state');
+  // state's field set is the field set the usage's get line names, and the set get's refusal names.
+  const usageFields = help.stdout.match(/^ {2}get (\S+) --root/m)[1].split('|');
+  assert.deepStrictEqual(Object.keys(JSON.parse(call(['state', ...R, '--json']).out)), usageFields, 'state reads every field the usage names for get');
+  assert.ok(call(['get', 'nope', ...R]).err.includes(`use ${usageFields.join('|')}`), 'get refuses with the same field set');
 } finally {
   cleanup();
 }

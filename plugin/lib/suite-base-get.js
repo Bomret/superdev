@@ -542,7 +542,7 @@ function verbGet(root, field) {
   }
   const names = { stage: 'Stage', branch: 'Branch', anchor: 'Anchor', docs: 'Docs', pr: 'PR' };
   const name = names[field];
-  if (!name) fail(`unknown field "${field}" — use stage|step|branch|anchor|docs|pr|slices|unresolved|degraded|deferred|minors|denials|suite|failed`);
+  if (!name) fail(`unknown field "${field}" — use ${GET_FIELDS.join('|')}`);
   const v = getHeader(readLines(root), name);
   console.log(v === null ? 'absent' : v);
 }
@@ -550,8 +550,9 @@ function verbGet(root, field) {
 // `state` prints every field `get` knows in one read: each value is what `get <field>` prints for it, captured from
 // `verbGet` itself, so the two cannot drift. A slice row that does not carry the 7 columns is named under `malformed`
 // and every other row and field still prints. List fields stay arrays in `--json`, `failed` as the failed test files; the others are one string.
-const STATE_LISTS = ['slices', 'unresolved', 'degraded', 'deferred', 'minors', 'failed'];
-const STATE_FIELDS = ['stage', 'step', 'branch', 'anchor', 'docs', 'pr', 'slices', 'unresolved', 'degraded', 'deferred', 'minors', 'denials', 'suite', 'failed'];
+// `GET_FIELDS` is the one field list: `get`'s refusal names it and `state` reads each member.
+const GET_FIELDS = ['stage', 'step', 'branch', 'anchor', 'docs', 'pr', 'slices', 'unresolved', 'degraded', 'deferred', 'minors', 'denials', 'suite', 'failed'];
+const STATE_LISTS = ['unresolved', 'degraded', 'deferred', 'minors', 'failed'];
 function verbState(root, json) {
   const read = (field) => {
     const out = [];
@@ -573,7 +574,7 @@ function verbState(root, json) {
     if (cells.length !== 7) malformed.push(lines[i].trim());
     else rows.push(cells.join('\t'));
   }
-  for (const f of STATE_FIELDS) {
+  for (const f of GET_FIELDS) {
     if (f === 'slices') state[f] = rows;
     else if (STATE_LISTS.includes(f)) state[f] = read(f);
     else state[f] = read(f).join('\n');
@@ -588,7 +589,7 @@ function verbState(root, json) {
   const text = [];
   for (const [f, v] of Object.entries(state)) {
     if (Array.isArray(v)) text.push(`${f}:`, ...v.map((x) => (f === 'malformed' ? `  malformed slice row: ${x}` : `  ${x}`)));
-    else text.push(`${f}: ${v}`);
+    else text.push(v === '' ? `${f}:` : `${f}: ${v}`);
   }
   console.log(text.join('\n'));
 }
