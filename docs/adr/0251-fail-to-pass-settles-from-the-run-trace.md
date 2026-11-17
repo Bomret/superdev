@@ -26,7 +26,11 @@ that file's last edit in the range:
 
 1. a failing test run whose file list names that file alone;
 2. then an edit outside the test paths;
-3. then a passing run over that file.
+3. then a passing run over that file, after the last edit outside the test paths in the window.
+
+Only runs recorded at the tree root (directory `.`) count, the failing run and the passing run alike. A later
+edit outside the test paths outdates the green run, and the file names of a run made in a subdirectory do not
+resolve against the tree root.
 
 The run's single outcome then belongs to that one file, the last test added to it was red after it was
 written, and code outside the tests changed before it went green. The verb writes a `fail-to-pass` outcome

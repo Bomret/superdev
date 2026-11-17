@@ -580,7 +580,7 @@ function verbState(root, json) {
   }
   if (malformed.length) state.malformed = malformed;
   if (json) {
-    // `failed` is the array of failed test files; the `@ <sha>` part stays in `get failed`, and `suite` carries the sha of its run.
+    // `failed` is the array of failed test files; the `@ <sha>` part stays in `get failed` and in the text `state` output, with no key of its own in the object.
     const failedFiles = (state.failed[0] || '').split(' @ ')[0].split(' ').filter(Boolean);
     console.log(JSON.stringify({ ...state, failed: failedFiles }, null, 2));
     return;
