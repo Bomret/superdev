@@ -1,6 +1,8 @@
 # 0129: The A/B eval harness is removed
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [`AGENTS.md`](../../AGENTS.md) → Common commands, a statement of this repository's test setup. An ADR governs production assets only.
 
 **Supersedes:** [ADR 0024](0024-the-eval-suite-runs-on-subscription-auth.md),
 [ADR 0038](0038-a-prose-ablation-runs-as-two-hand-toggled-eval-runs.md),

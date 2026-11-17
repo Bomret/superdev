@@ -6,7 +6,7 @@ require('./fixture-git');
 
 // Suite for plugin/scripts/scope.js's `fail-to-pass` verb (ADR 0134, INV-0009): a run ended by a signal, and the background
 // processes a run leaves behind, each polled until gone. Every scenario writes only inside the fixture's own temporary
-// directory (INV-0154).
+// directory (root AGENTS.md, *Every shipped executable has a suite in `tests/`, named for it*).
 
 const assert = require('node:assert');
 const path = require('node:path');

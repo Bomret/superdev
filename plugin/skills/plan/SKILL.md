@@ -171,7 +171,7 @@ A triage record already written is amended instead, through the store's own `## 
 
 **Seeded rejects.** Applies to every rejected direction §1 carried in, before this plan ends. Route it where `references/domain-modeling.md` says: an ADR's `Considered options` for a dropped approach, the epic's non-goals for dropped scope. Otherwise filter it out loud.
 
-**Commitments.** Applies to every seeded commitment and every commitment this interview originates. Convert each by the move `references/domain-modeling.md` states: into an invariant register entry, or into a reason said out loud that it constrains nothing, or that it is an authoring rule this repository's register never receives.
+**Commitments.** Applies to every seeded commitment and every commitment this interview originates. Convert each by the move `references/domain-modeling.md` states: into an invariant register entry, or into a reason said out loud that it constrains nothing, or that it is an authoring rule this repository's register never receives, or into a working rule of the build, test, documentation, or release setup when it constrains that setup alone.
 
 **A settled invariant.** Applies to a rule the system may never break that the interview settles. Record it in the register `references/domain-modeling.md` describes. A slice-specific requirement goes to that slice's `spec` instead.
 

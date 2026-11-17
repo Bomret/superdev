@@ -834,6 +834,8 @@ record orders them. Each run merges what it measured into that file. A helper (`
 (`tests/fixtures/`) are not suites. It runs each suite under `node`, then the fixed tail: `invariant-check.js
 --root .`, `drift-check.js --selftest`, `drift-check.js`, and `claude plugin validate ./plugin`. The steps, suites and tail alike, run
 concurrently. The runner keeps as many going as `os.availableParallelism()` reports, each in its own process group.
+A full run starts every suite and every tail step on every call. It gets faster by running steps at the same time and
+by cheaper setup, never by running fewer of them; `tests/run-tests.test.js` asserts that a full run starts them all.
 It prints a step's output whole when that step ends, so the output of two steps never interleaves.
 
 Every step that finishes prints one `run-tests: <label>: <ms> ms` line. `docs/agents/verification.md` names it as the
@@ -1007,7 +1009,7 @@ path, when that document is missing. A check that walks a directory reads whatev
 | `marketplace-source` | each `.claude-plugin/marketplace.json` source resolves to a tree carrying `.claude-plugin/plugin.json`; a `git-subdir` source names this repository's clone URL and pins `ref` to `v` plus that tree's version | structural |
 | `adr-numbers` | no two ADRs in `docs/adr/` share a number | structural |
 | `adr-status` | every ADR carries a `**Status:**` line with a recognised value | structural |
-| `adr-relations` | every ADR relation header links an existing ADR that carries the reverse header, and `**Status:** Superseded` goes with `**Superseded by:**` | structural |
+| `adr-relations` | Every ADR link (link text `ADR NNNN`) in a relation header names an existing ADR that carries the reverse header. Every other `AGENTS.md` link in a `**Superseded by:**` header names an existing file, where a setup decision moved to a working rule. A header whose links are all such `AGENTS.md` links needs no ADR link, even where its prose mentions an ADR. `**Status:** Superseded` goes with `**Superseded by:**`. | structural |
 | `invariant-register-join` | every drift id a `docs/invariants.md` `Check:` line names is registered, and every invariant a contract row cites covers that row's document in its `Paths:` | structural |
 | `run-root` | the execution documents address run-root artifacts by `<run-root>/…`, never by a checkout-relative `.superdev/scopes/<scope>/…` path | prohibition |
 | `scopetree-run-root` | `skills/ship/SKILL.md`, `skills/document/SKILL.md`, and `scripts/publish-kb.js` address another run's scopetree by `<run-root>/scopetree`, never by a checkout-relative path (ADR 0080) | prohibition |

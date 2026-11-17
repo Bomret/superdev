@@ -185,7 +185,9 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
 - **Every shipped executable has a suite in `tests/`, named for it.** Add one for any new hook or
   script. `node scripts/run-tests.js` runs every `tests/*.test.js` suite under
   `node`, which matches the production runtime. The suites and the tail run concurrently, as many at once as
-  `os.availableParallelism()` reports, so a suite must share no mutable state with another. A suite builds each fixture
+  `os.availableParallelism()` reports, so a suite must share no mutable state with another. A suite writes only inside a
+  temporary directory it created itself, reads the repository's files without writing them, and uses no fixed path
+  another suite could also use. A breach shows as a suite that fails only when another runs beside it. A suite builds each fixture
   repository once per process and copies it per case. Each `run-tests: <label>: <ms> ms` line is wall clock including the wait for a CPU,
   so time one suite alone with `time node tests/<suite>.test.js` (`scripts/AGENTS.md` → run-tests.js; measured on Node v26.12.1, about 89 s for the full run, in `docs/agents/verification.md`). No roster needs an edit when a suite is added. The runner then runs `invariant-check.js` against this repository's own register, `drift-check`'s own
   `--selftest`, `drift-check` itself, and `claude plugin validate ./plugin` as a manifest-validation
@@ -282,6 +284,13 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   or section target that resolves, a number that is unique, a file or command that exists, or a property
   of code or configuration. A forbidden form is text shipped prose must never contain. No drift check
   asserts how a positive clause is worded, and none compares a value with a comment.
+- **ADRs and invariants govern production assets only.** An ADR in `docs/adr/` and an entry in
+  `docs/invariants.md` state a rule that constrains a production asset: a file under `plugin/`,
+  `.claude-plugin/`, or `mods/superdev-view/`. What prompted the rule does not decide this, and a rule that
+  constrains a production asset and the setup together is an ADR or an invariant too. A rule that constrains
+  only this repository's build, test, documentation, or release setup (`tests/`, `scripts/`, `.github/`,
+  `package.json`, `release.config.cjs`, the docs conventions) is a working rule here or in
+  `scripts/AGENTS.md` (`references/domain-modeling.md`).
 - **Platform-dependent claims carry dated verification.** An ADR, or an entry in
   [`docs/known-issues.md`](docs/known-issues.md),
   states a claim about Claude Code behaviour. When you re-check that claim, record a dated update naming

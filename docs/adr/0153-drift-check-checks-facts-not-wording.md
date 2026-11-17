@@ -1,6 +1,8 @@
 # 0153: drift-check checks facts, not wording
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [`AGENTS.md`](../../AGENTS.md) → Working rules, *A new drift check tests a mechanical fact or forbids a form*, and [`scripts/AGENTS.md`](../../scripts/AGENTS.md), working rules of this repository's test setup. An ADR governs production assets only.
 
 **Supersedes:** [ADR 0061](0061-the-check-narrative-keys-on-check-id-not-ordinal-position.md).
 

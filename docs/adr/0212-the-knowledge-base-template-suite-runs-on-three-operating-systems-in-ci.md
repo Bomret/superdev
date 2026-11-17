@@ -1,6 +1,8 @@
 # 0212: The knowledge-base template suite runs on three operating systems in CI
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [`AGENTS.md`](../../AGENTS.md) → Structure, `.github/workflows/`, a working rule of this repository's test setup. An ADR governs production assets only.
 
 ## Context
 

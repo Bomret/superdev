@@ -136,7 +136,7 @@ cases.push(async () => {
 });
 
 // Every discovered suite and every tail step runs, each prints one wall-clock line, and a step passes through the
-// whole run (INV-0155).
+// whole run (scripts/AGENTS.md, run-tests.js).
 cases.push(async () => {
   const root = tree({ 'tests/b.test.js': suite('b'), 'tests/a.test.js': suite('a') });
   const first = await go(root, [tailEntry(root, 'tail1'), tailEntry(root, 'tail2')]);

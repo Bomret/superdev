@@ -6,7 +6,7 @@ require('./fixture-git');
 
 // Suite for plugin/scripts/scope.js's `fail-to-pass` verb: the repository's prepare command, which runs in the verb's worktree
 // before each of its two runs, and the traced control it gates (ADR 0218, INV-0139). Every scenario writes only inside the
-// fixture's own temporary directory (INV-0154).
+// fixture's own temporary directory (root AGENTS.md, *Every shipped executable has a suite in `tests/`, named for it*).
 
 const assert = require('node:assert');
 const fs = require('node:fs');
