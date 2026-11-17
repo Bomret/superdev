@@ -1215,6 +1215,15 @@ Breaks: loudly
 Check: scripts/drift-check.js `shell-spawn` — fails on a shell start under `plugin/hooks/`, `plugin/scripts/`, or `plugin/lib/` that breaks the rule
 Paths: plugin/hooks/*.js, plugin/scripts/*.js, plugin/lib/*.js
 
+### INV-0156
+
+Class: architecture
+Concepts: Test seam, Shipped tree
+Statement: No JavaScript file in the shipped tree holds a test seam: no code path, parameter, default value, option, environment read, export, or comment that exists only for superdev's own suites. The exports a suite requires and the `require.main === module` guards are the module interface, not seams. Shipped JavaScript reads only an environment variable a Markdown document in the shipped tree names, or one whose name starts with `CLAUDE_` (ADR 0154).
+Breaks: silently
+Check: scripts/drift-check.js `test-seams` — fails on shipped JavaScript that names one of superdev's own test files or reads an environment variable outside the rule; a reviewer catches an injected parameter or an unused export
+Paths: plugin/**/*.js
+
 ### INV-0157
 
 Class: process
