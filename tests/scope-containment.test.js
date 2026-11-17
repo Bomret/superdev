@@ -435,6 +435,33 @@ const { shq } = require('./spawn-verdict');
   );
   fs.rmSync(unheldRepo, { recursive: true, force: true });
 
+  // #squash-onto-moved-base: the third tier. Base edits a line inside the branch's diff context before the
+  // squash lands, so the squash commit's diff carries different context and no patch id matches the
+  // branch's cumulative diff; base then edits the branch's line again, so the tree comparison conflicts.
+  // The squash commit's own tree holds the branch in full, and that answers contained.
+  const movedRepo = makeRepo();
+  fs.writeFileSync(path.join(movedRepo, 'app.txt'), 'l1\nl2\nl3\nl4\nl5\n');
+  gitTest(['add', '.'], movedRepo);
+  gitTest(['commit', '-q', '-m', 'app'], movedRepo);
+  makeWorkBranch(movedRepo, 'fix/moved', 'app.txt', 'l1\nl2\nB3\nl4\nl5\n');
+  fs.writeFileSync(path.join(movedRepo, 'app.txt'), 'A1\nl2\nl3\nl4\nl5\n');
+  gitTest(['commit', '-q', '-am', 'base edits the neighbouring line'], movedRepo);
+  gitTest(['merge', '--squash', 'fix/moved'], movedRepo);
+  gitTest(['commit', '-q', '-m', 'fix: moved (#1)'], movedRepo);
+  fs.writeFileSync(path.join(movedRepo, 'app.txt'), 'A1\nl2\nB3 revised\nl4\nl5\n');
+  gitTest(['commit', '-q', '-am', 'base revises the same line'], movedRepo);
+  assert.strictEqual(
+    baseHistoryHasPatch(movedRepo, 'main', 'fix/moved'),
+    false,
+    'the fixture defeats the patch-id probe, so only the third tier can read it contained'
+  );
+  assert.strictEqual(
+    testContainment(movedRepo, 'main', 'fix/moved'),
+    'contained',
+    'a branch squash-merged onto a moved base, whose line base edited afterward, reads contained'
+  );
+  fs.rmSync(movedRepo, { recursive: true, force: true });
+
   // #commit-cap: past the cap the scan is skipped entirely. A real fixture would need the cap's worth
   // of commits, so the fake git reports the count instead and marks any `git log` that runs — the
   // assertion is that none does.
@@ -461,8 +488,10 @@ const { shq } = require('./spawn-verdict');
   );
 
   // #probe-fails-closed: INV-0003. Every git call the probe makes is a step that can fail, and each
-  // failure answers not-contained rather than throwing.
-  for (const failing of ['merge-base', 'diff', 'patch-id', 'rev-list', 'log']) {
+  // failure answers not-contained rather than throwing. `merge-base`, `diff`, and `rev-list` are steps
+  // of the third tier too, so the whole test reads not-contained; a failing `patch-id` or `log` leaves
+  // the third tier free to answer, so the probe alone is asserted for those.
+  for (const failing of ['merge-base', 'diff', 'rev-list']) {
     const verdict = withFakeGit(`if [ "$1" = "${failing}" ]; then exit 3; fi`, () =>
       testContainment(squashShared, 'main', 'fix/took-it')
     );
@@ -471,6 +500,12 @@ const { shq } = require('./spawn-verdict');
       'not-contained',
       `a failing git ${failing} on a probe step reads not-contained rather than throwing`
     );
+  }
+  for (const failing of ['patch-id', 'log']) {
+    const held = withFakeGit(`if [ "$1" = "${failing}" ]; then exit 3; fi`, () =>
+      baseHistoryHasPatch(squashShared, 'main', 'fix/took-it')
+    );
+    assert.strictEqual(held, false, `a failing git ${failing} makes the probe answer false rather than throw`);
   }
 
   // #probe-argument-injection: an option-shaped `base` reaches the probe, because the tree comparison

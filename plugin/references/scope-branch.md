@@ -57,6 +57,22 @@ repository state gives one verdict.
 `patch-id`, `rev-list`, or `log`, an unreadable count, and an exhausted cap alike. The scan writes no
 objects, unlike the tree comparison it follows.
 
+**The third tier asks whether a commit base gained holds the branch** (ADR 0248). It runs where the second
+tier finds no match, and only where `--write-tree` runs. A squash-merge onto a base that moved first carries
+diff context the branch's cumulative diff lacks, so the patch ids differ, and the squash commit itself still
+holds every byte of the branch. Run the tree comparison against each commit base gained since the merge
+base that touches a path the branch changed:
+
+```sh
+git rev-list "$mb..<base>" -- $(git diff --name-only "$mb" <branch>) | while read -r c; do
+  tree=$(git merge-tree --write-tree "$c" <branch>) && [ "$tree" = "$(git rev-parse "$c^{tree}")" ] && exit 0
+done; exit 1
+```
+
+A commit whose tree comparison reads contained → **contained**. None → **not contained**. The same cap of
+1000 commits bounds the candidate list, and a failed `merge-base`, `diff`, or `rev-list` answers not
+contained. Each comparison writes tree objects, as the first tier's does.
+
 **A base that takes the branch's work and then reverts it in a way that also conflicts with base's own
 later edits reads contained.** The work stays reachable from base's history, so deleting the branch
 destroys nothing unique, and retracting a knowledge-base page published for a reverted feature is the

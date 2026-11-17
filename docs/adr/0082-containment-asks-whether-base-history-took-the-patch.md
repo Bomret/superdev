@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0248](0248-containment-asks-whether-a-base-commit-holds-the-branch.md), which adds a
+third tier where the patch-id probe finds no match.
+
 **Amends:** [ADR 0053](0053-containment-not-ancestry-decides-that-a-scope-branch-reached-base.md), whose
 Decision states the test as one `git merge-tree --write-tree` tree comparison, and reads its exit 1 as not
 contained. And [ADR 0065](0065-containment-refetches-the-base-before-it-answers-not-contained.md), whose

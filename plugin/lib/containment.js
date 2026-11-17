@@ -156,6 +156,44 @@ function baseHistoryHasPatch(cwd, base, branch) {
   return patchIds(walked.stdout, cwd).has(wanted);
 }
 
+// The third tier. Whether a commit base gained since the merge base holds the branch in its own tree:
+// the tree comparison above, run against each such commit that touches a path the branch changed. A
+// squash-merge onto a base that moved first carries diff context the branch's cumulative diff lacks, so
+// the patch ids differ and the second tier misses it; the squash commit itself still holds every byte of
+// the branch. Needs `--write-tree`, takes the second tier's commit cap, and fails closed the same way:
+// a failed `merge-base`, `diff`, `rev-list`, or comparison answers `false`. Exported for
+// `hooks/scope-prune.js`, which calls it only where `--write-tree` runs.
+function baseCommitHoldsBranch(cwd, base, branch) {
+  const found = gitSpawn(['merge-base', '--end-of-options', base, branch], cwd);
+  if (found.status !== 0) return false;
+  const mergeBase = found.stdout.trim();
+  if (!mergeBase) return false;
+  const range = `${mergeBase}..${base}`;
+
+  const changed = gitSpawn(['diff', '--name-only', '--no-renames', '-z', '--end-of-options', mergeBase, branch], cwd, {
+    maxBuffer: PROBE_MAX_BUFFER,
+  });
+  if (changed.status !== 0) return false;
+  const paths = changed.stdout.split('\0').filter(Boolean);
+  if (paths.length === 0) return false;
+
+  // `:(literal)` keeps a changed path that looks like a pathspec pattern from matching other paths.
+  const listed = gitSpawn(
+    ['rev-list', `--max-count=${PROBE_COMMIT_CAP + 1}`, '--end-of-options', range, '--', ...paths.map((p) => `:(literal)${p}`)],
+    cwd,
+    { maxBuffer: PROBE_MAX_BUFFER }
+  );
+  if (listed.status !== 0) return false;
+  const candidates = listed.stdout.split('\n').map((line) => line.trim()).filter(Boolean);
+  if (candidates.length > PROBE_COMMIT_CAP) return false;
+  return candidates.some((commit) => containedAgainst(branch, commit, cwd, true) === 'contained');
+}
+
+// The second tier, then the third where `--write-tree` runs: the answer an inconclusive comparison takes.
+function heldInHistory(cwd, base, ref, writeTreeSupported) {
+  return baseHistoryHasPatch(cwd, base, ref) || (writeTreeSupported && baseCommitHoldsBranch(cwd, base, ref));
+}
+
 // The exported test. `remote` is the name `docs/agents/code-management.md` config names; a caller with
 // no such config passes its own default. Never throws, and safe on any `base`/`branch` string, not only
 // one sourced from trusted config: an option-shaped value (`--upload-pack=...`, `-C<path>`) never runs
@@ -177,7 +215,7 @@ function judgeContainment(cwd, base, branch, remote = 'origin', { fetchTimeoutMs
   const writeTreeSupported = supportsWriteTree(cwd);
   const local = containedAgainst(ref, base, cwd, writeTreeSupported);
   if (local === 'contained') return result('contained');
-  if (local === 'inconclusive' && baseHistoryHasPatch(cwd, base, ref)) return result('contained');
+  if (local === 'inconclusive' && heldInHistory(cwd, base, ref, writeTreeSupported)) return result('contained');
 
   // Not contained against the local base — refetch before answering (ADR 0065). A fetch that fails
   // (no remote configured, an unreachable host, a rejected credential) leaves the local verdict
@@ -210,8 +248,8 @@ function judgeContainment(cwd, base, branch, remote = 'origin', { fetchTimeoutMs
   const fetchedBase = head.status === 0 ? head.stdout.trim() : 'FETCH_HEAD';
   const fresh = containedAgainst(ref, fetchedBase, cwd, writeTreeSupported);
   if (fresh === 'contained') return result('contained', fetched, fetchedBase);
-  if (fresh === 'inconclusive' && baseHistoryHasPatch(cwd, fetchedBase, ref)) return result('contained', fetched, fetchedBase);
+  if (fresh === 'inconclusive' && heldInHistory(cwd, fetchedBase, ref, writeTreeSupported)) return result('contained', fetched, fetchedBase);
   return result('not-contained', fetched, fetchedBase);
 }
 
-module.exports = { testContainment, judgeContainment, baseHistoryHasPatch, PROBE_MAX_BUFFER };
+module.exports = { testContainment, judgeContainment, baseHistoryHasPatch, baseCommitHoldsBranch, PROBE_MAX_BUFFER };
