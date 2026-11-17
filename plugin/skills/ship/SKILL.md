@@ -14,7 +14,7 @@ Applies to every start. You merge the pull request `/superdev:submit-pr` opened,
 - **A reusable tip**: a tip `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base> [--whole] --root <run-root>` accepts, the call `review-scope-mode.md`'s `### 4.2 The suite gate` uses. Run it from any checkout of the repository.
 - **The carry**: `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## The carry run`, run in `<run-root>/scopetree` with no ask. A carried tip proceeds, and ship writes no suite record for it.
 - **The red exit**: merge nothing, name the result, and point at `/superdev:review <scope>` to fix it and record a new one. A review at stage `submitted` records its suite result and leaves the stage where it is.
-- **The PR read**: `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get pr --root <run-root>`, then the pull request read by that number per `docs/agents/code-management.md`'s `## Merge` section: its `state`, `merged`, `merge_commit_sha`, `head.sha`, and `mergeable`.
+- **The PR read**: the `pr` field of the `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state --root <run-root>` call §2 makes, then the pull request read by that number per `docs/agents/code-management.md`'s `## Merge` section: its `state`, `merged`, `merge_commit_sha`, `head.sha`, and `mergeable`.
 - **The deployment document**: `docs/agents/deployment.md`. Its posture is its `## Posture` section's `Posture:` line. A missing document, or one with no such line, reads as posture `none`.
 - **`<range-base>`**: per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`.
 
@@ -59,7 +59,7 @@ Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROO
 
 ## 2. Scope checkout
 
-Applies to every start past §1. Read the stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>`.
+Applies to every start past §1. Read the stage and the pull request number with one `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state --root <run-root>` call, its `stage` and `pr` fields.
 
 - **`closed`** → say the scope is already closed and change nothing. Recreate no checkout.
 - **`shipped`** → recreate nothing here. §3 decides whether the run needs a checkout.
@@ -125,7 +125,7 @@ Applies to every start past §1. Read the stage with `node "${CLAUDE_PLUGIN_ROOT
 
 **The whole-repo run.** Applies to a tip with no green whole-repo result and no carry.
 
-- **`scope.js get suite --root <run-root>` prints `none <sha>` with no trailing `whole`, and `scope.js get unresolved` prints any bullet** → refuse: name every standing bullet, merge nothing, and point at `/superdev:review <scope>`. That record is the invalidation `/superdev:review` left, and a run here would overwrite it. Ship's own killed run records `none <sha> whole`, which is not this record.
+- **The `suite` field of `scope.js state --root <run-root>` prints `none <sha>` with no trailing `whole`, and its `unresolved` field prints any bullet** → refuse: name every standing bullet, merge nothing, and point at `/superdev:review <scope>`. That record is the invalidation `/superdev:review` left, and a run here would overwrite it. Ship's own killed run records `none <sha> whole`, which is not this record.
 - **Any other tip** → run the section's command in the scope checkout over the tip through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test whole`. Record it with `suite set <green|red|denied|none> <tip> --whole --root <run-root>`.
   - **Green** → proceed.
   - **Red, denied, or killed or never started** (no verdict, recorded as `none`) → take the red exit.
