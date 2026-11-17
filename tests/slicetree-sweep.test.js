@@ -326,6 +326,10 @@ assert.deepEqual(
     const stubbed = path.join(away, 'stubbed');
     fs.mkdirSync(path.join(stubbed, 'hooks'), { recursive: true });
     fs.mkdirSync(path.join(stubbed, 'lib'));
+    fs.writeFileSync(
+      path.join(stubbed, 'lib', 'main-work-tree.js'),
+      `module.exports = require(${JSON.stringify(require.resolve('../plugin/lib/main-work-tree.js'))});\n`
+    );
     fs.copyFileSync(hookPath, path.join(stubbed, 'hooks', 'slicetree-sweep.js'));
     const stubMarker = path.join(stubbed, 'stub-loaded');
     const gitSpawnMarker = path.join(stubbed, 'git-spawn-loaded');
@@ -378,6 +382,10 @@ assert.deepEqual(
       fs.writeFileSync(
         path.join(dir, 'lib', 'ledger.js'),
         `module.exports = require(${JSON.stringify(require.resolve('../plugin/lib/ledger.js'))});\n`
+      );
+      fs.writeFileSync(
+        path.join(dir, 'lib', 'main-work-tree.js'),
+        `module.exports = require(${JSON.stringify(require.resolve('../plugin/lib/main-work-tree.js'))});\n`
       );
       const loaded = path.join(dir, 'loaded');
       const called = path.join(dir, 'called');
@@ -540,6 +548,106 @@ assert.deepEqual(
     fs.rmSync(repo, { recursive: true, force: true });
   }
 
+  // #resolver-unavailable: the hook takes the main working tree from `../lib/main-work-tree.js`. With the module
+  // absent, throwing on load, carrying no `mainWorkTree`, or resolving nothing, it sweeps nothing, exits 0, and says
+  // nothing. A control beside a pass-through stub sweeps the same fixture, and each case confirms its stub loaded first.
+  {
+    const cp = require('node:child_process');
+    const realResolver = JSON.stringify(require.resolve('../plugin/lib/main-work-tree.js'));
+    function runResolver(caseName, resolverBody) {
+      const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ws-resolver-')));
+      fs.mkdirSync(path.join(dir, 'hooks'));
+      fs.mkdirSync(path.join(dir, 'lib'));
+      fs.copyFileSync(hookPath, path.join(dir, 'hooks', 'slicetree-sweep.js'));
+      for (const mod of ['ledger.js', 'git-spawn.js']) {
+        fs.writeFileSync(
+          path.join(dir, 'lib', mod),
+          `module.exports = require(${JSON.stringify(require.resolve(`../plugin/lib/${mod}`))});\n`
+        );
+      }
+      const loaded = path.join(dir, 'loaded');
+      if (resolverBody !== null) {
+        fs.writeFileSync(
+          path.join(dir, 'lib', 'main-work-tree.js'),
+          `require('fs').writeFileSync(${JSON.stringify(loaded)}, 'x');\nconst real = require(${realResolver});\n${resolverBody}\n`
+        );
+      }
+      const repo = makeRepo();
+      git(['branch', 'scope/resolver'], repo);
+      makeScope(repo, 'resolver', '**Branch:** scope/resolver\n');
+      const wt = path.join(repo, '.superdev/scopes/resolver/slicetrees/1');
+      git(['worktree', 'add', '-q', '-b', 'slice/resolver/1', wt], repo);
+      fs.writeFileSync(path.join(wt, 'w.txt'), 'y\n');
+      git(['add', '.'], wt);
+      git(['commit', '-q', '-m', 'work'], wt);
+      fold(repo, 'scope/resolver', 'slice/resolver/1');
+      const ran = cp.spawnSync(process.execPath, [path.join(dir, 'hooks', 'slicetree-sweep.js')], {
+        input: JSON.stringify({ cwd: repo }), encoding: 'utf8', timeout: 15000,
+      });
+      assertSpawnDecided(ran, `spawning slicetree-sweep.js (${caseName})`);
+      assert.equal(ran.status, 0, `the hook exits 0 (${caseName})`);
+      assert.equal(ran.stdout, '', `and prints nothing (${caseName})`);
+      const result = { loaded: fs.existsSync(loaded), stands: fs.existsSync(wt) };
+      fs.rmSync(repo, { recursive: true, force: true });
+      fs.rmSync(dir, { recursive: true, force: true });
+      return result;
+    }
+    const control = runResolver('control', 'module.exports = real;');
+    assert.equal(control.loaded, true, 'the control stub at ../lib/main-work-tree.js loaded');
+    assert.equal(control.stands, false, 'the control sweeps the fixture slice, so a surviving slice below is the posture');
+    assert.equal(runResolver('resolver absent', null).stands, true, 'a hook with no resolver module sweeps nothing');
+    for (const [name, body] of [
+      ['throws on load', "throw new Error('gone');"],
+      ['carries no mainWorkTree', 'module.exports = {};'],
+      ['resolves nothing', 'module.exports = { mainWorkTree() { return null; } };'],
+    ]) {
+      const result = runResolver(`resolver ${name}`, body);
+      assert.equal(result.loaded, true, `the resolver stub that ${name} loaded`);
+      assert.equal(result.stands, true, `a hook whose resolver ${name} sweeps nothing`);
+    }
+    // A session directory outside any repository resolves no main working tree, through the real resolver.
+    const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ws-outside-')));
+    fs.mkdirSync(path.join(outside, '.superdev', 'scopes', 'resolver'), { recursive: true });
+    const outsideRun = cp.spawnSync(process.execPath, [hookPath], {
+      input: JSON.stringify({ cwd: outside }), encoding: 'utf8', timeout: 15000,
+    });
+    assertSpawnDecided(outsideRun, 'spawning slicetree-sweep.js outside a repository');
+    assert.equal(outsideRun.status, 0, 'a session outside any repository exits 0');
+    assert.equal(outsideRun.stdout, '', 'and prints nothing');
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+
+  // #session-directory: the hook sweeps the main working tree's runs from wherever the session stands: the repository
+  // root, a subdirectory, a scopetree, or a slicetree (the session's own slicetree is a fresh, unworked slice and stays).
+  for (const session of ['the repository root', 'a subdirectory', 'a scopetree', 'a slicetree']) {
+    const repo = makeRepo();
+    const g = (args, cwd) => git(args, cwd);
+    g(['branch', 'scope/demo'], repo);
+    makeScope(repo, 'demo', '**Branch:** scope/demo\n');
+    const wtDone = path.join(repo, '.superdev/scopes/demo/slicetrees/1');
+    const wtOwn = path.join(repo, '.superdev/scopes/demo/slicetrees/2');
+    g(['worktree', 'add', '-q', '-b', 'slice/demo/1', wtDone], repo);
+    g(['worktree', 'add', '-q', '-b', 'slice/demo/2', wtOwn], repo);
+    fs.writeFileSync(path.join(wtDone, 's1.txt'), 'y\n');
+    g(['add', '.'], wtDone);
+    g(['commit', '-q', '-m', 's1'], wtDone);
+    fold(repo, 'scope/demo', 'slice/demo/1');
+    let cwd = repo;
+    if (session === 'a subdirectory') {
+      cwd = path.join(repo, 'sub', 'deep');
+      fs.mkdirSync(cwd, { recursive: true });
+    } else if (session === 'a scopetree') {
+      cwd = path.join(repo, '.superdev/scopes/demo/scopetree');
+      g(['worktree', 'add', '-q', cwd, 'scope/demo'], repo);
+    } else if (session === 'a slicetree') {
+      cwd = wtOwn;
+    }
+    main(cwd);
+    assert.ok(!fs.existsSync(wtDone), `a session in ${session} sweeps the main tree's merged, worked slicetree`);
+    assert.equal(git(['branch', '--list', 'slice/demo/1'], repo), '', `a session in ${session} deletes the swept branch`);
+    assert.ok(fs.existsSync(wtOwn), `a session in ${session} leaves the unworked slicetree`);
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
 }
 
 console.log('slicetree-sweep tests ok');

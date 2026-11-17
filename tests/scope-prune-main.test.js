@@ -270,4 +270,58 @@ const { main } = hook;
   fs.rmSync(fakeBinDir, { recursive: true, force: true });
 }
 
+// --- the session directory: the hook acts on the main working tree's runs from wherever the session stands ---
+// Each session directory is a checkout or folder of one repository: its root, a subdirectory, a scopetree, a
+// slicetree. The two worktrees sit beside an unrelated live run, so the scope under test holds no `scopetree/`
+// or `slicetrees/` entry that would stop its prune. The same closed run, whose branch is gone, is pruned from each.
+{
+  const sessions = {
+    'the repository root': () => ['', null],
+    'a subdirectory': (repo) => {
+      fs.mkdirSync(path.join(repo, 'sub', 'deep'), { recursive: true });
+      return [path.join(repo, 'sub', 'deep'), null];
+    },
+    'a scopetree': (repo) => {
+      gitTest(['branch', 'feat/live'], repo);
+      const wt = path.join(repo, '.superdev', 'scopes', 'live', 'scopetree');
+      gitTest(['worktree', 'add', '-q', wt, 'feat/live'], repo);
+      return [wt, null];
+    },
+    'a slicetree': (repo) => {
+      const wt = path.join(repo, '.superdev', 'scopes', 'live', 'slicetrees', '1');
+      gitTest(['worktree', 'add', '-q', '-b', 'slice/live/1', wt], repo);
+      return [wt, null];
+    },
+  };
+  for (const [name, stand] of Object.entries(sessions)) {
+    const repo = makeRepo();
+    makeScope(repo, 'live', '**Stage:** implement\n');
+    const doomed = makeScope(repo, 'done');
+    const [cwd] = stand(repo);
+    main(cwd || repo);
+    assert.equal(fs.existsSync(doomed), false, `a session in ${name} prunes the main tree's closed run`);
+    assert.equal(fs.existsSync(path.join(repo, '.superdev', 'scopes', 'live')), true, `a session in ${name} leaves the live run`);
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+
+  // #scopetree-head: a scopetree stands on the scope branch, so its `HEAD` is that branch and trivially contains it.
+  // The containment test reads the main tree's `HEAD`: a branch carrying work the main tree's branch lacks is kept.
+  {
+    const repo = makeRepo();
+    gitTest(['checkout', '-q', '-b', 'feat/work'], repo);
+    fs.writeFileSync(path.join(repo, 'work.txt'), 'w\n');
+    gitTest(['add', '.'], repo);
+    gitTest(['commit', '-q', '-m', 'work'], repo);
+    gitTest(['checkout', '-q', 'main'], repo);
+    const dir = makeScope(repo, 'work', '**Stage:** closed\n**Branch:** feat/work\n');
+    const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-scopetree-')));
+    const wt = path.join(outside, 'wt');
+    gitTest(['worktree', 'add', '-q', wt, 'feat/work'], repo);
+    main(wt);
+    assert.equal(fs.existsSync(dir), true, "a session in a scopetree tests containment against the main tree's HEAD, not the scope branch");
+    fs.rmSync(outside, { recursive: true, force: true });
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+}
+
 console.log('scope-prune-main tests ok');

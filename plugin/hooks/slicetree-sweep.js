@@ -119,8 +119,25 @@ function scopeBranch(scopeDir) {
   }
 }
 
-function main(cwd) {
-  if (!readLedgerHeader || !git || !parseBranchList) return; // shared reader or git module unavailable → sweep nothing, say nothing
+// `lib/main-work-tree.js` owns the main-working-tree resolver (ADR 0080): every run root lives under it, whatever
+// checkout the session stands in. No fallback to the session's cwd: a hook that cannot place the main tree sweeps
+// nothing, so a failed load leaves this null and main() sweeps nothing, silently.
+let mainWorkTree = null;
+try {
+  ({ mainWorkTree } = require('../lib/main-work-tree.js'));
+} catch {
+  // Left null. main() checks this before doing anything below.
+}
+
+// The bound on each git spawn the resolver makes; a spawn past it carries no verdict (INV-0009).
+const RESOLVE_BOUND_MS = 5000;
+
+function main(sessionCwd) {
+  if (!readLedgerHeader || !git || !parseBranchList || typeof mainWorkTree !== 'function') return; // shared reader, git module, or resolver unavailable → sweep nothing, say nothing
+  // Every git call below runs in the main working tree, so a session standing in a scopetree reads the main tree's
+  // `HEAD`, not the scope branch.
+  const cwd = mainWorkTree(sessionCwd, { timeout: RESOLVE_BOUND_MS });
+  if (!cwd) return; // not inside a git repository, or no verdict → sweep nothing
   const superdevRoot = path.join(cwd, '.superdev');
   if (!fs.existsSync(superdevRoot)) return; // not a superdev run in this repo
   const def = defaultBranch(cwd);
