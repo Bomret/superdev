@@ -318,6 +318,15 @@ function run(argv, cwd, stdinJson) {
       libSuiteBaseGet().verbGet(root, args[0]);
       break;
     }
+    // Reads the ledger alone and writes nothing: no git, no trace line, no digest seal.
+    case 'state': {
+      const root = takeRoot(args);
+      const json = args.includes('--json');
+      const extra = args.filter((a) => a !== '--json');
+      if (extra.length) fail(`state: unrecognized argument "${extra[0]}"`);
+      libSuiteBaseGet().verbState(root, json);
+      break;
+    }
     case 'status':
       libStatus().verbStatus(cwd);
       break;

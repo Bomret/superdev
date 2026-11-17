@@ -547,4 +547,48 @@ function verbGet(root, field) {
   console.log(v === null ? 'absent' : v);
 }
 
-module.exports = { verbSuite, verbSuiteRerun, verbSuiteFailed, verbSuiteReusable, verbBaseSet, verbBaseResolve, verbGet };
+// `state` prints every field `get` knows in one read: each value is what `get <field>` prints for it, captured from
+// `verbGet` itself, so the two cannot drift. A slice row that does not carry the 7 columns is named under `malformed`
+// and every other row and field still prints. List fields stay arrays in `--json`; the others are one string.
+const STATE_LISTS = ['slices', 'unresolved', 'degraded', 'deferred', 'minors', 'failed'];
+const STATE_FIELDS = ['stage', 'step', 'branch', 'anchor', 'docs', 'pr', 'slices', 'unresolved', 'degraded', 'deferred', 'minors', 'denials', 'suite', 'failed'];
+function verbState(root, json) {
+  const read = (field) => {
+    const out = [];
+    const orig = console.log;
+    console.log = (s) => out.push(String(s));
+    try {
+      verbGet(root, field);
+    } finally {
+      console.log = orig;
+    }
+    return out;
+  };
+  const state = {};
+  const malformed = [];
+  const lines = readLines(root);
+  const rows = [];
+  for (const i of tableRowIndexes(lines)) {
+    const cells = splitRow(lines[i]);
+    if (cells.length !== 7) malformed.push(lines[i].trim());
+    else rows.push(cells.join('\t'));
+  }
+  for (const f of STATE_FIELDS) {
+    if (f === 'slices') state[f] = rows;
+    else if (STATE_LISTS.includes(f)) state[f] = read(f);
+    else state[f] = read(f).join('\n');
+  }
+  if (malformed.length) state.malformed = malformed;
+  if (json) {
+    console.log(JSON.stringify(state, null, 2));
+    return;
+  }
+  const text = [];
+  for (const [f, v] of Object.entries(state)) {
+    if (Array.isArray(v)) text.push(`${f}:`, ...v.map((x) => (f === 'malformed' ? `  malformed slice row: ${x}` : `  ${x}`)));
+    else text.push(`${f}: ${v}`);
+  }
+  console.log(text.join('\n'));
+}
+
+module.exports = { verbState, verbSuite, verbSuiteRerun, verbSuiteFailed, verbSuiteReusable, verbBaseSet, verbBaseResolve, verbGet };
