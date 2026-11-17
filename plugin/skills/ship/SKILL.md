@@ -180,9 +180,10 @@ Applies to every start past §1. Read the stage and the pull request number with
 **The draft gate.** Applies once the equality check passes, after every gate before the merge, and before the merge call. Read the pull request's draft state through the code-management document's **Read the draft state** call. ADR 0249 states the rule.
 
 - **Not a draft** → go to **The merge**.
-- **A draft, and the document states a Mark ready call** → run that call under the merge consent already given, with no further question, then go to **The merge**. A Forgejo merge title carries no `WIP:` prefix. A refusal or stop earlier in this command leaves the draft a draft.
+- **A draft, and the document states a Mark ready call** → run that call under the merge consent already given, with no further question, then go to **The merge**. A Forgejo merge title carries no `WIP:` or `[WIP]` prefix. A refusal or stop earlier in this command leaves the draft a draft.
 - **A draft, and the document states no Mark ready call or no draft-state read** → refuse: name that the pull request is a draft and the document lacks the call, point at `/superdev:setup`, and merge nothing.
 - **A Mark ready call the permission classifier denies** → take the denial stop of **The merge**: merge nothing, try no other route, run `step block`, name the denial and its mitigation.
+- **A Mark ready call that fails otherwise** (an auth, network, or host error) → relay its error and merge nothing. The pull request stays a draft.
 
 **The merge.** Applies once **The draft gate** passes. Print the pull request, its head, the base, and the suite result or the carry outcome. Then squash-merge it into the base branch through the host's merge API, pinned to the tip, per `docs/agents/code-management.md`'s `## Merge` section: the one write this plugin makes straight onto base, and the only merge this contract admits.
 
