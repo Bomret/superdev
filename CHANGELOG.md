@@ -1,3 +1,10 @@
+## [0.107.4](https://github.com/Bomret/superdev/compare/v0.107.3...v0.107.4) (2026-11-17)
+
+
+### Bug Fixes
+
+* **containment:** read a branch squash-merged onto a moved base as contained ([#192](https://github.com/Bomret/superdev/issues/192)) ([f13a049](https://github.com/Bomret/superdev/commit/f13a0499f6143d26fa8f5bb1cc5e76e3291d8ec3))
+
 ## [0.107.3](https://github.com/Bomret/superdev/compare/v0.107.2...v0.107.3) (2026-11-16)
 
 
