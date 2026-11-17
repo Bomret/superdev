@@ -130,7 +130,7 @@ Applies to every start past §1. Read the stage and the pull request number with
   - **Green** → proceed.
   - **Red, denied, or killed or never started** (no verdict, recorded as `none`) → take the red exit.
 
-**Entries standing.** Applies after the suite gate. Read every bullet with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get unresolved --root <run-root>`.
+**Entries standing.** Applies after the suite gate. Read every bullet from the `unresolved` field of the `scope.js state` call §2 made: no step before this one writes an unresolved entry.
 
 - **No output** → proceed silently.
 - **Output present** → name every bullet and **ask once** whether to merge with it standing. Declined → run `step block`, stop, merge nothing, and write nothing further. Confirmed → proceed, and record in the report that the scope merged with the defect standing.
@@ -183,7 +183,7 @@ Applies to every start past §1. Read the stage and the pull request number with
 - **A draft, and the document states a Mark ready call** → run that call under the merge consent already given, with no further question, then go to **The merge**. A Forgejo merge title carries no `WIP:` or `[WIP]` prefix. A refusal or stop earlier in this command leaves the draft a draft.
 - **A draft, and the document states no Mark ready call or no draft-state read** → refuse: name that the pull request is a draft and the document lacks the call, point at `/superdev:setup`, and merge nothing.
 - **A Mark ready call the permission classifier denies** → take the denial stop of **The merge**: merge nothing, try no other route, run `step block`, name the denial and its mitigation.
-- **A Mark ready call that fails otherwise** (an auth, network, or host error) → relay its error and merge nothing. The pull request stays a draft.
+- **A Mark ready call that fails otherwise** (an auth, network, or host error) → relay its error and merge nothing. Read the draft state again through the **Read the draft state** call and report whether the pull request is still a draft or now ready: a call that timed out can have taken effect on the host.
 
 **The merge.** Applies once **The draft gate** passes. Print the pull request, its head, the base, and the suite result or the carry outcome. Then squash-merge it into the base branch through the host's merge API, pinned to the tip, per `docs/agents/code-management.md`'s `## Merge` section: the one write this plugin makes straight onto base, and the only merge this contract admits.
 

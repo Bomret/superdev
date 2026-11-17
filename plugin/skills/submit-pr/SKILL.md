@@ -61,7 +61,7 @@ Applies to every start past §1. Find the scope checkout.
 
 **The missing-step answer.** Applies to an ask of **A missing step**. Declined → stop and print the missing command. Confirmed → proceed, and record in the report that the scope was submitted without it.
 
-**Entries standing.** Applies after **A missing step**. Read every bullet with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get unresolved --root <run-root>`, one bullet per line, never through the cwd-dependent `status`, per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Unresolved defects` section.
+**Entries standing.** Applies after **A missing step**. Read every bullet from the `unresolved` field of the `scope.js state` call §2 made, one bullet per line, never through the cwd-dependent `status`, per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Unresolved defects` section.
 
 - **No output** → proceed silently.
 - **Output present, attended** → name every bullet and ask once whether to submit with it standing. Declined → stop, open no pull request, and write nothing further. Confirmed → proceed, and record in the report that the scope was submitted with the defect standing.
