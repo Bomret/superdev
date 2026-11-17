@@ -372,6 +372,28 @@ function reapBranch(branch, refLines, cwd) {
   return true;
 }
 
+// Removes each `<pendingRoot>/<name>/` that holds no entry at all while no `<scopesRoot>/<name>/` run root exists
+// (INV-0076). Only a real directory qualifies (lstat, so a symlink is never followed). `rmdirSync` is non-recursive:
+// a directory that gains a staged page between the check and the removal fails and stays (INV-0122).
+function reapEmptyStagedDirs(pendingRoot, scopesRoot) {
+  let names;
+  try {
+    names = fs.readdirSync(pendingRoot);
+  } catch {
+    return;
+  }
+  for (const name of names) {
+    const dir = path.join(pendingRoot, name);
+    try {
+      if (!fs.lstatSync(dir).isDirectory()) continue;
+      if (fs.existsSync(path.join(scopesRoot, name))) continue;
+      fs.rmdirSync(dir);
+    } catch {
+      /* not empty, unreadable, or gone: leave it */
+    }
+  }
+}
+
 // `lib/main-work-tree.js` owns the main-working-tree resolver (ADR 0080): every run root lives under it, whatever
 // checkout the session stands in. No fallback to the session's cwd: a hook that cannot place the main tree must
 // prune nothing, so a failed load leaves this null and main() prunes nothing, silently.
@@ -393,6 +415,7 @@ function main(sessionCwd) {
   const cwd = mainWorkTree(sessionCwd, { timeout: RESOLVE_BOUND_MS });
   if (!cwd) return; // not inside a git repository, or no verdict → prune nothing
   const scopesRoot = path.join(cwd, '.superdev', 'scopes');
+  reapEmptyStagedDirs(path.join(cwd, '.superdev', 'kb-pending'), scopesRoot);
   if (!fs.existsSync(scopesRoot)) return; // no superdev runs in this repo
 
   let allBranches;
