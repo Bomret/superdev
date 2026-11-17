@@ -4,7 +4,7 @@
 // a `step block review` line last, each without its leading timestamp (a `dispatch` line ends with the session id, a `dispatch-end`
 // line with its outcome): tu1 a background dispatch on slice 04, bound to agent ag1 and ended
 // by its SubagentStop, then resumed through a SendMessage (a `dispatch-resume` line: tool_use_id, agent id, session id, the SendMessage call's tool_use_id) and ended
-// again by the resumed run's own SubagentStop; tu2 a background scope-level final-reviewer, bound to agent ag2 and ended by its SubagentStop, then resumed through a SendMessage and ended again; tu3 a dispatch on
+// again by the resumed run's own SubagentStop (slice 04 also holds a `fail-to-pass` outcome line settled from the trace, whose reason field reads `settled-from-trace`); tu2 a background scope-level final-reviewer, bound to agent ag2 and ended by its SubagentStop, then resumed through a SendMessage and ended again; tu3 a dispatch on
 // slice 05 still running; tu4 a background slice-reviewer on slice 04, bound to ag4 and ended by its SubagentStop. No
 // review writes a verdict line (ADR 0197). tests/run-trace-dispatch.test.js parses the JSON between the two markers and asserts the
 // hook writes exactly these lines; parse.test.ts asserts `eventLog` reads them. A layout change on
@@ -19,6 +19,7 @@ export const TRACE_LINES: string[] = /* trace:start */ [
   "05 main ledger slice 05 in-progress",
   "04 main run focused pass e4f5a6b clean a\\x20b.ts,x%2Cy.ts,%2Dlead.ts 85 bun\\x20test\\x20a\\x20b.ts .",
   "04 main run path fail e4f5a6b clean tests/a.test.js 120 node\\x20tests/a.test.js\\x20--grep\\x20'a\\x20b' pkg/sub",
+  "04 main fail-to-pass a1b2c3d..e4f5a6b fail-to-pass settled-from-trace node\\x20tests/a.test.js",
   "04 main dispatch superdev:implementer tu1 Build\\x20slice\\x2004 s1",
   "04 main dispatch-bind superdev:implementer tu1 ag1",
   "04 main dispatch-end superdev:implementer tu1 completed",
