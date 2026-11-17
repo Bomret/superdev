@@ -160,8 +160,10 @@ function baseHistoryHasPatch(cwd, base, branch) {
 // the tree comparison above, run against each such commit that touches a path the branch changed. A
 // squash-merge onto a base that moved first carries diff context the branch's cumulative diff lacks, so
 // the patch ids differ and the second tier misses it; the squash commit itself still holds every byte of
-// the branch. Needs `--write-tree`, takes the second tier's commit cap, and fails closed the same way:
-// a failed `merge-base`, `diff`, `rev-list`, or comparison answers `false`. Exported for
+// the branch. Needs `--write-tree`, and fails closed the same way: a failed `merge-base`, `diff`,
+// `rev-list`, or comparison answers `false`. The second tier's count gates it, so a range past the cap
+// compares no candidate, and the candidates run oldest first, so the squash commit, which sits near the
+// merge base, is compared before the later commits that edit the same paths. Exported for
 // `hooks/scope-prune.js`, which calls it only where `--write-tree` runs.
 function baseCommitHoldsBranch(cwd, base, branch) {
   const found = gitSpawn(['merge-base', '--end-of-options', base, branch], cwd);
@@ -169,6 +171,10 @@ function baseCommitHoldsBranch(cwd, base, branch) {
   const mergeBase = found.stdout.trim();
   if (!mergeBase) return false;
   const range = `${mergeBase}..${base}`;
+  const counted = gitSpawn(['rev-list', '--count', '--end-of-options', range], cwd);
+  if (counted.status !== 0) return false;
+  const gained = Number(counted.stdout.trim());
+  if (!Number.isInteger(gained) || gained < 1 || gained > PROBE_COMMIT_CAP) return false;
 
   const changed = gitSpawn(['diff', '--name-only', '--no-renames', '-z', '--end-of-options', mergeBase, branch], cwd, {
     maxBuffer: PROBE_MAX_BUFFER,
@@ -179,13 +185,12 @@ function baseCommitHoldsBranch(cwd, base, branch) {
 
   // `:(literal)` keeps a changed path that looks like a pathspec pattern from matching other paths.
   const listed = gitSpawn(
-    ['rev-list', `--max-count=${PROBE_COMMIT_CAP + 1}`, '--end-of-options', range, '--', ...paths.map((p) => `:(literal)${p}`)],
+    ['rev-list', '--reverse', '--end-of-options', range, '--', ...paths.map((p) => `:(literal)${p}`)],
     cwd,
     { maxBuffer: PROBE_MAX_BUFFER }
   );
   if (listed.status !== 0) return false;
   const candidates = listed.stdout.split('\n').map((line) => line.trim()).filter(Boolean);
-  if (candidates.length > PROBE_COMMIT_CAP) return false;
   return candidates.some((commit) => containedAgainst(branch, commit, cwd, true) === 'contained');
 }
 

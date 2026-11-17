@@ -24,10 +24,13 @@ The squash commit itself held the branch: `git merge-tree --write-tree a2ea84c7 
 
 `references/scope-branch.md`'s `## Containment` runs a third tier where the second tier finds no match and
 `--write-tree` runs. It lists the commits base gained since the merge base that touch a path the branch
-changed, and runs the first tier's tree comparison against each one. A commit whose tree comparison reads
-contained answers **contained**. None answers **not contained**.
+changed, oldest first, and runs the first tier's tree comparison against each one. A commit whose tree
+comparison reads contained answers **contained**. None answers **not contained**. Oldest first reaches the
+squash commit, which sits near the merge base, before the later commits that edit the same paths, and each
+comparison writes tree objects.
 
-The second tier's cap of 1000 commits bounds the candidate list. A failed `merge-base`, `diff`, or
+The second tier's count gates the tier: a base that gained more than 1000 commits since the merge base
+compares no candidate and answers not contained. A failed `merge-base`, `diff`, or
 `rev-list` answers not contained (INV-0003). `plugin/lib/containment.js` implements the tier as
 `baseCommitHoldsBranch` and runs it inside `judgeContainment`, so `testContainment` and every caller of either
 reads it. `hooks/scope-prune.js` requires it beside the second tier's probe and calls it with `HEAD` as its

@@ -439,17 +439,21 @@ const { shq } = require('./spawn-verdict');
   // squash lands, so the squash commit's diff carries different context and no patch id matches the
   // branch's cumulative diff; base then edits the branch's line again, so the tree comparison conflicts.
   // The squash commit's own tree holds the branch in full, and that answers contained.
-  const movedRepo = makeRepo();
-  fs.writeFileSync(path.join(movedRepo, 'app.txt'), 'l1\nl2\nl3\nl4\nl5\n');
-  gitTest(['add', '.'], movedRepo);
-  gitTest(['commit', '-q', '-m', 'app'], movedRepo);
-  makeWorkBranch(movedRepo, 'fix/moved', 'app.txt', 'l1\nl2\nB3\nl4\nl5\n');
-  fs.writeFileSync(path.join(movedRepo, 'app.txt'), 'A1\nl2\nl3\nl4\nl5\n');
-  gitTest(['commit', '-q', '-am', 'base edits the neighbouring line'], movedRepo);
-  gitTest(['merge', '--squash', 'fix/moved'], movedRepo);
-  gitTest(['commit', '-q', '-m', 'fix: moved (#1)'], movedRepo);
-  fs.writeFileSync(path.join(movedRepo, 'app.txt'), 'A1\nl2\nB3 revised\nl4\nl5\n');
-  gitTest(['commit', '-q', '-am', 'base revises the same line'], movedRepo);
+  function makeMovedSquashRepo() {
+    const repo = makeRepo();
+    fs.writeFileSync(path.join(repo, 'app.txt'), 'l1\nl2\nl3\nl4\nl5\n');
+    gitTest(['add', '.'], repo);
+    gitTest(['commit', '-q', '-m', 'app'], repo);
+    makeWorkBranch(repo, 'fix/moved', 'app.txt', 'l1\nl2\nB3\nl4\nl5\n');
+    fs.writeFileSync(path.join(repo, 'app.txt'), 'A1\nl2\nl3\nl4\nl5\n');
+    gitTest(['commit', '-q', '-am', 'base edits the neighbouring line'], repo);
+    gitTest(['merge', '--squash', 'fix/moved'], repo);
+    gitTest(['commit', '-q', '-m', 'fix: moved (#1)'], repo);
+    fs.writeFileSync(path.join(repo, 'app.txt'), 'A1\nl2\nB3 revised\nl4\nl5\n');
+    gitTest(['commit', '-q', '-am', 'base revises the same line'], repo);
+    return repo;
+  }
+  const movedRepo = makeMovedSquashRepo();
   assert.strictEqual(
     baseHistoryHasPatch(movedRepo, 'main', 'fix/moved'),
     false,
@@ -461,6 +465,37 @@ const { shq } = require('./spawn-verdict');
     'a branch squash-merged onto a moved base, whose line base edited afterward, reads contained'
   );
   fs.rmSync(movedRepo, { recursive: true, force: true });
+
+  // #squash-onto-moved-base-later-work: the third tier's negative. The same squash onto a moved base, then the
+  // branch gains a commit base never took. The squash commit's tree lacks that commit, and so does every later
+  // base commit, so no candidate holds the branch and it reads not-contained.
+  const laterRepo = makeMovedSquashRepo();
+  gitTest(['checkout', '-q', 'fix/moved'], laterRepo);
+  fs.writeFileSync(path.join(laterRepo, 'app.txt'), 'l1\nl2\nB3\nl4\nl5\nl6 later\n');
+  gitTest(['commit', '-q', '-am', 'work after the squash'], laterRepo);
+  gitTest(['checkout', '-q', 'main'], laterRepo);
+  assert.strictEqual(
+    testContainment(laterRepo, 'main', 'fix/moved'),
+    'not-contained',
+    'a branch squash-merged onto a moved base that gained work base never took reads not-contained'
+  );
+  fs.rmSync(laterRepo, { recursive: true, force: true });
+
+  // #third-tier-cap: past the second tier's cap the third tier compares no candidate either. The fake git
+  // reports the count past the cap and marks every `merge-tree` whose base argument is a commit hash, which
+  // only a candidate comparison passes; the fixture is one only the third tier reads contained.
+  const tierCapRepo = makeMovedSquashRepo();
+  const tierCapDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-tier-cap-'));
+  const tierCapMarker = path.join(tierCapDir, 'candidate-compared');
+  const tierCapVerdict = withFakeGit(
+    'if [ "$1" = "rev-list" ] && [ "$2" = "--count" ]; then echo 999999; exit 0; fi\n' +
+      'if [ "$1" = "merge-tree" ] && [ ${#3} -eq 40 ]; then touch ' + shq(tierCapMarker) + '; fi',
+    () => testContainment(tierCapRepo, 'main', 'fix/moved')
+  );
+  assert.strictEqual(tierCapVerdict, 'not-contained', 'a range past the commit cap reads not-contained at the third tier');
+  assert.strictEqual(fs.existsSync(tierCapMarker), false, 'a range past the cap compares no candidate commit');
+  fs.rmSync(tierCapDir, { recursive: true, force: true });
+  fs.rmSync(tierCapRepo, { recursive: true, force: true });
 
   // #commit-cap: past the cap the scan is skipped entirely. A real fixture would need the cap's worth
   // of commits, so the fake git reports the count instead and marks any `git log` that runs — the
