@@ -489,7 +489,7 @@ const { shq } = require('./spawn-verdict');
   const tierCapMarker = path.join(tierCapDir, 'candidate-compared');
   const tierCapVerdict = withFakeGit(
     'if [ "$1" = "rev-list" ] && [ "$2" = "--count" ]; then echo 999999; exit 0; fi\n' +
-      'if [ "$1" = "merge-tree" ] && [ ${#3} -eq 40 ]; then touch ' + shq(tierCapMarker) + '; fi',
+      'if [ "$1" = "merge-tree" ] && [ ${#4} -eq 40 ]; then touch ' + shq(tierCapMarker) + '; fi',
     () => testContainment(tierCapRepo, 'main', 'fix/moved')
   );
   assert.strictEqual(tierCapVerdict, 'not-contained', 'a range past the commit cap reads not-contained at the third tier');

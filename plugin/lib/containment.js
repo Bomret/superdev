@@ -118,6 +118,24 @@ function patchIds(input, cwd) {
   );
 }
 
+// The opening both history tiers share: the merge base of `base` and `branch`, and the range of commits
+// base gained since it. `null` on a failed `merge-base` or `rev-list --count`, an unreadable count, an
+// empty range, or a range past the cap, which each tier reads as `false` (INV-0003).
+function cappedRange(cwd, base, branch) {
+  const found = gitSpawn(['merge-base', '--end-of-options', base, branch], cwd);
+  if (found.status !== 0) return null;
+  const mergeBase = found.stdout.trim();
+  if (!mergeBase) return null;
+
+  // The range leads with the merge-base hash, so it is option-shaped under no `base` at all.
+  const range = `${mergeBase}..${base}`;
+  const counted = gitSpawn(['rev-list', '--count', '--end-of-options', range], cwd);
+  if (counted.status !== 0) return null;
+  const gained = Number(counted.stdout.trim());
+  if (!Number.isInteger(gained) || gained < 1 || gained > PROBE_COMMIT_CAP) return null;
+  return { mergeBase, range };
+}
+
 // The second tier (ADR 0082). Whether base's history holds a commit whose diff equals the branch's
 // cumulative diff from their merge base — the neighbouring, exactly decidable question the first tier
 // cannot answer once base has edited the branch's files after taking its work. `hooks/scope-prune.js`
@@ -128,17 +146,9 @@ function patchIds(input, cwd) {
 // verdict standing. `--end-of-options` opens every revision-taking call for the same reason the rest
 // of this module carries it — neither ref is required to have come from trusted config.
 function baseHistoryHasPatch(cwd, base, branch) {
-  const found = gitSpawn(['merge-base', '--end-of-options', base, branch], cwd);
-  if (found.status !== 0) return false;
-  const mergeBase = found.stdout.trim();
-  if (!mergeBase) return false;
-
-  // The range leads with the merge-base hash, so it is option-shaped under no `base` at all.
-  const range = `${mergeBase}..${base}`;
-  const counted = gitSpawn(['rev-list', '--count', '--end-of-options', range], cwd);
-  if (counted.status !== 0) return false;
-  const gained = Number(counted.stdout.trim());
-  if (!Number.isInteger(gained) || gained < 1 || gained > PROBE_COMMIT_CAP) return false;
+  const capped = cappedRange(cwd, base, branch);
+  if (!capped) return false;
+  const { mergeBase, range } = capped;
 
   const diffed = gitSpawn(['diff', '--end-of-options', mergeBase, branch], cwd, {
     maxBuffer: PROBE_MAX_BUFFER,
@@ -166,15 +176,9 @@ function baseHistoryHasPatch(cwd, base, branch) {
 // merge base, is compared before the later commits that edit the same paths. Exported for
 // `hooks/scope-prune.js`, which calls it only where `--write-tree` runs.
 function baseCommitHoldsBranch(cwd, base, branch) {
-  const found = gitSpawn(['merge-base', '--end-of-options', base, branch], cwd);
-  if (found.status !== 0) return false;
-  const mergeBase = found.stdout.trim();
-  if (!mergeBase) return false;
-  const range = `${mergeBase}..${base}`;
-  const counted = gitSpawn(['rev-list', '--count', '--end-of-options', range], cwd);
-  if (counted.status !== 0) return false;
-  const gained = Number(counted.stdout.trim());
-  if (!Number.isInteger(gained) || gained < 1 || gained > PROBE_COMMIT_CAP) return false;
+  const capped = cappedRange(cwd, base, branch);
+  if (!capped) return false;
+  const { mergeBase, range } = capped;
 
   const changed = gitSpawn(['diff', '--name-only', '--no-renames', '-z', '--end-of-options', mergeBase, branch], cwd, {
     maxBuffer: PROBE_MAX_BUFFER,

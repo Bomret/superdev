@@ -64,6 +64,7 @@ holds every byte of the branch. Run the tree comparison against each commit base
 base that touches a path the branch changed, oldest first:
 
 ```sh
+[ "$(git rev-list --count "$mb..<base>")" -le 1000 ] || exit 1
 for c in $(git rev-list --reverse "$mb..<base>" -- $(git diff --name-only "$mb" <branch>)); do
   tree=$(git merge-tree --write-tree "$c" <branch>) && [ "$tree" = "$(git rev-parse "$c^{tree}")" ] && exit 0
 done; exit 1
