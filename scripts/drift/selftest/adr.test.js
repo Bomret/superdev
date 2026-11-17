@@ -110,6 +110,11 @@ module.exports = ({ assert, path, fixture }) => {
   const goneProse = rulesProse('../../scripts/AGENTS.md');
   assert.equal(goneProse.length, 1, 'an AGENTS.md-only Superseded by header whose prose mentions an ADR checks its link');
   assert.match(goneProse[0].expectation, /scripts\/AGENTS\.md/, 'the gap names the missing href');
+  const namedToRules = scanAdrRelations(
+    fixture({ 'AGENTS.md': '# rules\n', 'docs/adr/0001-a.md': a1('**Superseded by:** [ADR 0002](../../AGENTS.md) → Working rules.', 'Superseded') }),
+  );
+  assert.equal(namedToRules.length, 1, 'an `ADR NNNN` link to an AGENTS.md file is an ADR link, not a working-rules link');
+  assert.match(namedToRules[0].expectation, /link \[ADR 0002\]/, 'the gap names the misdirected ADR link');
 
   // a Superseded by header mixing an ADR link with an AGENTS.md link: each kind is checked
   const mixed = (href) =>

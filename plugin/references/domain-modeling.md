@@ -108,9 +108,8 @@ constrains:
   decisions and would otherwise answer yes below.
 - **A rule that constrains only the repository's build, test, documentation, or release setup** is a
   working rule of that setup. Write it where the setup's contributors read it, such as `AGENTS.md`. A rule
-  that constrains a production asset — the code, configuration, and content the repository ships or
-  deploys — sorts into the branches below, whatever prompted it, and so does one that constrains a
-  production asset and the setup together.
+  that constrains a production asset, alone or with the setup, sorts into the branches below, whatever
+  prompted it.
 - **A rule that constrains a production asset** and a later decision, where the constraint
   is cheaply testable → a register entry, its `Check:` naming the proof.
 - **The same, where nothing cheaply tests it** → a register entry all the same, with `Check: none` and its

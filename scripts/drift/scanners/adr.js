@@ -85,8 +85,8 @@ const adrHeaderLinks = (text) =>
 // appears. `**Status:** Superseded` and a `**Superseded by:**` header go together. Every `[ADR NNNN](...)`
 // link in a header is a relation target. A header with no such link fails unless it names only INV
 // targets, and a link to an ADR file whose text is not `ADR NNNN` fails. The exception is
-// `**Superseded by:**`: every `AGENTS.md` link in it must name an existing file, and a header linking only
-// `AGENTS.md` files passes on that alone, whatever ADR its prose mentions.
+// `**Superseded by:**`: every `AGENTS.md` link in it whose text is not `ADR NNNN` must name an existing file,
+// and a header whose links are all such links passes on that alone, whatever ADR its prose mentions.
 function scanAdrRelations(root) {
   const adrs = new Map(); // number → { source, headers, superseded }
   for (const n of adrNames(root).filter((x) => /^\d{4}-.*\.md$/.test(x))) {
@@ -125,8 +125,9 @@ function scanAdrRelations(root) {
       const invOnly =
         /\bINV-\d{4}\b/.test(text) && !/\bADR\s*\d{4}\b/i.test(text.replace(/\[INV-\d{4}\]\([^)]*\)/g, '')) && links.every((l) => /^INV-\d{4}$/.test(l.linkText));
       // a decision about the repository's setup moves to a working rule: every `AGENTS.md` link in a
-      // `**Superseded by:**` header must exist, and a header linking only `AGENTS.md` files needs no ADR link
-      const rulesLinks = label === 'Superseded by' ? links.filter((l) => path.basename(l.file) === 'AGENTS.md') : [];
+      // `**Superseded by:**` header must exist, and a header linking only `AGENTS.md` files needs no ADR link.
+      // A link whose text is `ADR NNNN` stays an ADR link wherever it points.
+      const rulesLinks = label === 'Superseded by' ? links.filter((l) => !l.named && path.basename(l.file) === 'AGENTS.md') : [];
       for (const { href, file } of rulesLinks) {
         if (!fs.existsSync(path.join(root, ADR_DIR, file))) gap(adr.source, `link an existing working-rules file — ADR ${num}'s \`**${label}:**\` header links \`${href}\``);
       }
