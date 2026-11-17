@@ -110,7 +110,7 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
   command naming every test file the range adds or modifies, while the slice is still `in-progress`, so the trace line
   names the slice. Where the slice's final run is a `test path` run of those files from the tree root at the committed tip, with the exact command the verb
   then takes, the verb reuses that passing run as its control, runs only the second, and skips its own first preparation.
-  Where the final run was a `test focused` run, the verb settles from the trace or runs its own control. A run that does not
+  Where the final run was the focused run, the verb settles from the trace or runs its own control. A run that does not
   pass is a RED step. A range whose test-path changes are all deletions and that adds behaviour outside the
   test paths leaves that behaviour with no test: write one for it, then run the verb. The verb runs in the background when
   two runs of the range's test files can outlast the ceiling, and you wait for its end before you read its outcome
