@@ -108,6 +108,8 @@ Applies to a fix dispatch.
 
 Search your checkout for every other place that states the rule or behaviour your fix changes: prose, docs, the glossary, code comments, and tests. Bring each place into agreement. On a red-suite fix the rule is the behaviour the failing test pins.
 
+- Beside the places that state the changed rule, fix every other instance of the defect a finding names within the files the scope changes: the paths changed over the range the dispatch names (a scope's `<range-base>..HEAD`, a slice's `<base>..HEAD` on a slice fix dispatch, the reviewed subject's changed files on an inline fix dispatch). Search those files for the defect's pattern and fix each hit. Your report names each instance you fixed.
+- An instance in a file outside those files goes into the report as an observation (`${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Observations`), left unfixed.
 - Your report names each place you checked and each place you changed. It names every file your search hit.
 - A place outside your checkout, such as a slice-store issue, goes into the report unedited.
 - The `AGENTS.md` hierarchy and the knowledge base: `## Documentation` states how a fix dispatch reports them.
@@ -335,7 +337,7 @@ Return the report only to the controller that dispatched you. You never talk to 
 - On a slice dispatch and a slice fix dispatch: the cross-slice interfaces you decided (a name, a signature, a file's role a later slice builds on), or `interfaces: none`.
 - Each failing test your slice did not cause, with how you established it (`## A failing test your slice did not cause`).
 - The `AGENTS.md`-hierarchy and knowledge-base places you left unedited (`## Documentation`).
-- On a fix dispatch: the rule you applied to each finding (`### RED-test rule`), each place you checked and each you changed (`### Sibling surfaces`), and each place outside your checkout left unedited.
+- On a fix dispatch: the rule you applied to each finding (`### RED-test rule`), each place you checked and each you changed (`### Sibling surfaces`), each same-defect instance you fixed, each such instance outside the scope's changed files as an observation, and each place outside your checkout left unedited.
 - On a dispatch that repairs a defect: the ranked hypotheses your diagnosis wrote, in rank order (`### Defect repair`).
 - On a sweep fix dispatch: each collected Minor as fixed, closed with its evidence, or reported unedited (`## The sweep fix dispatch`).
 
