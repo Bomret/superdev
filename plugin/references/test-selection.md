@@ -236,13 +236,13 @@ or refuses: review's exit run, ship's plain gate and whole-repo gate (§3), and 
 moved-base gate and push gate (§4). Implement runs no full suite. Each gate cites
 this section and runs the steps in order, after its own `scope.js suite reusable` call refuses the tip:
 
-1. **Check the preconditions.** `scope.js get suite --root <run-root>` prints a green record at a commit A, or a
-   red record at A whose failing test files `## The recorded rerun`'s step 1 recorded (`scope.js get failed --root
-   <run-root>` prints `<test-file>... @ A`, and the record carries no `whole` kind), A differs from the tip, the record carries the kind `whole` where the gate calls `suite reusable --whole`,
+1. **Check the preconditions.** One `scope.js state --root <run-root>` call prints the `suite` field, a green record at a commit A, or a
+   red record at A whose failing test files `## The recorded rerun`'s step 1 recorded (its `failed` field
+   prints `<test-file>... @ A`, and the record carries no `whole` kind), A differs from the tip, the record carries the kind `whole` where the gate calls `suite reusable --whole`,
    `git merge-base --is-ancestor A <tip>` succeeds, the tip's own `docs/agents/verification.md`
    (`git show <tip>:docs/agents/verification.md`) carries the `## Complete selector` section, and the focused
    command carries `{paths}`. Any precondition missing → skip to step 4.
-2. **Run the focused command over A..<tip>.** After a red record at A, first run the files `scope.js get failed` prints
+2. **Run the focused command over A..<tip>.** After a red record at A, first run the files the `failed` field of that `scope.js state` read prints
    through `scope.js test path <file>... -- <command running only those files>` at the tip on a clean tree,
    from the tree root: a fix cycle repaired them since A. A failing run of them is the gate's red result, as step 3
    states for the focused run. Then, from the tree the gate works in, over every path

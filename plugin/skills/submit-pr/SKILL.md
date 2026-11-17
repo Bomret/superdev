@@ -11,7 +11,7 @@ argument-hint: "[<scope>  (empty = the only run in this repo)]  [--unattended]"
 Applies to every start. You open a pull request for a run whose slices are on the scope branch. You dispatch no subagent. You leave the run standing: the scopetree, the slicetrees, the run lock, and the scope anchor stay, and `/superdev:wrap-up` takes them down.
 
 - **The scope checkout**: the checkout `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md` finds. §4's suite run and §5's git commands run in it.
-- **`<branch>`**: the scope branch, the ledger's `**Branch:**` line, read with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get branch --root <run-root>`.
+- **`<branch>`**: the scope branch, the ledger's `**Branch:**` line, the `branch` field of the one `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state --root <run-root>` call this entry makes. §3 reads the `stage` and `pr` fields of that same output.
 - **`<sha>`**: `git rev-parse <branch>`, run in the scope checkout.
 - **The publish**: the run's one snapshot publish, per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section. It is the last act of the exit that ends the run, after the closer §3's **The step** lists. No write site publishes.
 - **An unattended block**: a stop that counts as a block under `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section.
@@ -38,11 +38,11 @@ Applies to every start past §1. Find the scope checkout.
 
 ## 3. Stage gate
 
-**The stage.** Applies to every start past §2. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>`, where `absent` means no line.
+**The stage.** Applies to every start past §2. Take the `stage` field of the `scope.js state` call §2 made, where `absent` means no line.
 
 - **`shipped`** → report that the scope is already shipped and stop. Open no pull request.
 - **`closed`** → report that the scope is already closed and stop, with no push and no pull request.
-- **`submitted`** → report that the scope is already submitted. Print the pull request `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get pr --root <run-root>` names; on `absent`, print the existing pull request if the code host still lists one. Stop, and open no second one.
+- **`submitted`** → report that the scope is already submitted. Print the pull request the `pr` field of that same `state` output names; on `absent`, print the existing pull request if the code host still lists one. Stop, and open no second one.
 - **Any other stage** → take **An unattended stage** and then **The step**.
 
 **An unattended stage.** Applies under `--unattended` to any other stage except `documented`. Refuse before any step is recorded. Name what is missing (`/superdev:review`, `/superdev:document`, or both), open no pull request, and stop.
@@ -105,14 +105,14 @@ Continue to §5 on every reading.
 
 **The number.** Applies the moment the pull request opens. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" pr set <n> --root <run-root>`, `<n>` the number the host's own open call returned. Degraded to the compare-URL fallback → record nothing. `pr clear` need not run.
 
-**The body sections.** Applies to the body. Add each heading below in its own section, distinct from the others. A source with no output adds no empty heading, except `## Whole-repo run`, which the body always carries.
+**The body sections.** Applies to the body. Read the three list fields below with one `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state --root <run-root>` call. Add each heading below in its own section, distinct from the others. A source with no output adds no empty heading, except `## Whole-repo run`, which the body always carries.
 
 | Heading | Content |
 |---|---|
 | `## Whole-repo run` | §4's outcome. `not configured` → say so. |
-| `## Degraded passes` | every bullet of `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get degraded --root <run-root>`, one per line (`${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes`) |
-| `## Unresolved defects` | every bullet of `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get unresolved --root <run-root>`, one per line (`scope-findings.md`'s `## Unresolved defects`) |
-| `## Deferred to a plan` | every bullet of `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get deferred --root <run-root>`, one per line (`scope-findings.md`'s `## Deferred findings`) |
+| `## Degraded passes` | every bullet of the `degraded` field, one per line (`${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes`) |
+| `## Unresolved defects` | every bullet of the `unresolved` field, one per line (`scope-findings.md`'s `## Unresolved defects`) |
+| `## Deferred to a plan` | every bullet of the `deferred` field, one per line (`scope-findings.md`'s `## Deferred findings`) |
 | `## Post-merge checklist` | every `dod.md` line carrying `— ceiling: <partial evidence>`, as a checkbox; the note format is `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s note rule |
 
 **No tick.** Applies to the post-merge checklist. Copy what an earlier step recorded. Write no tick anywhere.

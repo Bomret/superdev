@@ -146,7 +146,7 @@ Applies to a live run. Everything above still applies.
 
 **An untick's entry.** Applies to every untick of the tick re-check. Write a `**Unresolved:**` entry naming the criterion it broke: a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) piped to `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add - --root <run-root>`.
 
-**The `docs` settle.** Applies to every live run, on every path the pass took. Follow `dod-ticks.md`'s Document's case. Read the stage first with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>`.
+**The `docs` settle.** Applies to every live run, on every path the pass took. Follow `dod-ticks.md`'s Document's case. Read the stage first, as the `stage` field of `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state --root <run-root>`.
 
 - **`shipped` or `closed`** → judge no `docs` line and write no tick, untick, or entry. §5 names the open `docs` lines.
 - **Any other stage** → judge each open `docs` line against the scope branch after the pass. True → tick it with its evidence. False → take **The `docs` fix round**.
@@ -160,11 +160,11 @@ An `accepted:` `docs` line stays exactly as it stands.
 
 **The settle's clear.** Applies after the settle, when every `docs` line is a settled line, noted `met:` or `accepted:`, and every bullet `get unresolved` prints is a `docs criterion unmet after the doc pass:` entry. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. Any other bullet standing → leave every entry.
 
-**The stage write.** Applies after the settle. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get unresolved --root <run-root>` first.
+**The stage write.** Applies after the settle. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state --root <run-root>` first and read its `unresolved` and `stage` fields.
 
 - **An open `docs` line still stands after the settle** → write no stage. Run `step block` and go to **The next command**.
-- **Otherwise, the re-check unticked a line or `get unresolved` prints anything** → write no stage. Run `step clear` and go to **The next command**.
-- **None of them** → read the current stage with `scope.js get stage`, and write with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set <value> --root <run-root>` per the table below. The verb refuses a write that undoes completed work.
+- **Otherwise, the re-check unticked a line or the `unresolved` field prints anything** → write no stage. Run `step clear` and go to **The next command**.
+- **None of them** → take the current stage from that `stage` field, and write with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set <value> --root <run-root>` per the table below. The verb refuses a write that undoes completed work.
 
 | Current stage | Action |
 |---|---|

@@ -189,8 +189,8 @@ slicetrees and would collide on shared doc files.
 
 ## Resume
 
-Read the ledger — `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>` and
-`get stage` — and cross-check it against `git log <range-base>..<branch>` (`<range-base>` per
+Read the ledger — `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state --root <run-root>`, its `slices` and
+`stage` fields (a `malformed` entry names a slice row the ledger cannot read: resolve it first) — and cross-check it against `git log <range-base>..<branch>` (`<range-base>` per
 `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`; `<branch>` from the branch step
 above, never rebuilt as `<type>/<scope>`) in the scopetree. A slice the ledger marks `merged` is
 done; pick up at the next `todo` slice in `depends-on` order.

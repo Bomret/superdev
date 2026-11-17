@@ -45,7 +45,7 @@ Capture `<run-root>` per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## 
 
 ## 2. Stage and store
 
-Read the stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>`:
+Read the stage and the pull request number with one `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state --root <run-root>` call, its `stage` and `pr` fields:
 
 - **`closed`** → say the scope is already closed and change nothing.
 - **Below `shipped`** (`planned`, `implementing`, `merged`, `reviewed`, `documented`, `documented-unreviewed`, `submitted`, or no line at all) → refuse and change nothing else. Name the command that comes first: `/superdev:submit-pr` for a scope short of `submitted`, `/superdev:ship` for `submitted`.
@@ -63,7 +63,7 @@ Read the stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --r
 
 **The pull request is not merged.** Applies to every gate.
 
-- **`scope.js get pr` prints a number** → read that pull request by index per `docs/agents/code-management.md`'s `## Merge` section. Take its `merged` field.
+- **The `pr` field of §2's `state` read prints a number** → read that pull request by index per `docs/agents/code-management.md`'s `## Merge` section. Take its `merged` field.
 - **`absent`** (the `push-only` posture opened no pull request) → test the scope branch's containment in base with `scope.js`'s exported `testContainment` (`${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Containment`; it has no CLI verb): `node -e "console.log(require(process.argv[1]).testContainment(process.cwd(), process.argv[2], process.argv[3]))" "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" <base> <scope-branch>`. Read `<scope-branch>` with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get branch --root <run-root>`. `<base>` is the base branch `docs/agents/code-management.md` names. Only `contained` counts as merged.
 - **Unknown** (a failed host read, or any other containment verdict) → not merged.
 

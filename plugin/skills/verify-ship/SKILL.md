@@ -47,7 +47,7 @@ Capture `<run-root>` per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## 
 
 ## 2. Gate
 
-Read the stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>`:
+Read the stage and the pull request number with one `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state --root <run-root>` call, its `stage` and `pr` fields:
 
 - **`closed`** → say the scope is already closed and change nothing.
 - **Below `shipped`** (`planned`, `implementing`, `merged`, `reviewed`, `documented`, `documented-unreviewed`, `submitted`, or no line at all) → refuse and observe nothing. Name the command that comes first: `/superdev:submit-pr` for a scope short of `submitted`, `/superdev:ship` for `submitted`.
@@ -63,7 +63,7 @@ Read the stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --r
 
 ## 3. Deploy check
 
-**A run with no pull request.** Applies to a ledger with no `**PR:**` header (`scope.js get pr` prints `absent`, as a `push-only` run's does), before any posture read. It reads as posture `none`. Ask nothing and go to §4.
+**A run with no pull request.** Applies to a ledger with no `**PR:**` header (the `pr` field of §2's `state` read prints `absent`, as a `push-only` run's does), before any posture read. It reads as posture `none`. Ask nothing and go to §4.
 
 **The deploy read.** Applies to a ledger that carries a `**PR:**` header, before its first observation. Read the posture, the anchor's `**Deploy:**` line, and the deploy record per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Reading the posture at the merge commit`.
 
