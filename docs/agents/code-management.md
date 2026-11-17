@@ -48,6 +48,10 @@ and merge nothing.
   carries the merge commit once merged. GitHub computes `mergeable` asynchronously and answers `UNKNOWN`
   while it does. Re-read up to 3 times with a short pause, and when it is still `UNKNOWN`, report it as
   **unknown**, never as mergeable.
+- **Read the draft state:** `gh pr view <number> --repo Bomret/superdev --json isDraft --jq .isDraft` prints
+  `true` for a draft.
+- **Mark ready:** `gh pr ready <number> --repo Bomret/superdev` takes a draft pull request out of draft.
+  `/superdev:ship` calls it before the merge under the merge consent.
 - **Merge it, pinned:** `gh pr merge <number> --repo Bomret/superdev --squash --match-head-commit
   <tested-tip-sha> --subject "$title"`, `title` set from a quoted heredoc as the PR-create line does.
   `--match-head-commit` pins the merge to that sha: GitHub refuses the merge when the head moved since.
