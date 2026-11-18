@@ -554,11 +554,9 @@ const OBSERVATION_NO_SUITE_RUN_DOC = [path.join('references', 'review-scope-mode
 // A suite, test, entry, exit, focused, or full run, a §4.2 citation, and a failing test or run.
 const OBSERVATION_NO_SUITE_RUN_PATTERN = /\b(?:suite|test|entry|exit|focused|full)\s+runs?\b|§\s*4\.2\b|\bfailing\s+(?:tests?|runs?)\b/gi;
 
-// ADR 0254: the scope review starts its full-suite run at the exit alone, so its prose names no entry run. The documents
-// are `review-scope-*.md`, read at scan time, plus these two. The pattern covers an entry run, a denied entry run, and
-// an entry-or-exit run; the entry reuse check, which runs no test, does not match.
+// ADR 0254: scope-review prose names no entry run; a bare "entry runs" is the verb and passes.
 const SCOPE_REVIEW_NO_ENTRY_RUN_DOCS = [path.join('skills', 'review', 'SKILL.md'), path.join('agents', 'final-reviewer.md')];
-const SCOPE_REVIEW_NO_ENTRY_RUN_PATTERN = /\bentry[-\s]+(?:(?:or|and)\s+exit\s+|full[-\s]suite\s+|focused\s+|suite\s+|test\s+)?runs?\b/gi;
+const SCOPE_REVIEW_NO_ENTRY_RUN_PATTERN = /\bentry(?:-runs?|\s+run|\s+(?:(?:or|and)\s+exit|full[-\s]suite|focused|suite|test)\s+runs?)\b/gi;
 
 module.exports = {
   OBSERVATION_NO_SUITE_RUN_DOC,

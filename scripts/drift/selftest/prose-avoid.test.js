@@ -470,10 +470,11 @@ module.exports = ({ assert, path, fixture, found }) => {
     entryRun({
       'references/review-scope-mode.md': "Run §4.2's entry reuse check, which runs no test, then the exit run.\n```\nentry run\n```\n",
       'references/review-scope-holds.md': 'At entry, run the anchor check.\n',
+      'references/review-scope-base.md': 'The entry runs no test.\n',
       'references/scope-mode.md': 'The entry run.\n',
     }),
     [],
-    'scope-review-no-entry-run: the entry reuse check, a fenced example, and a document outside the set pass',
+    'scope-review-no-entry-run: the entry reuse check, "entry runs" as a verb, a fenced example, and a document outside the set pass',
   );
   assert.deepEqual(
     scanScopeReviewNoEntryRun(fixture({ 'skills/review/SKILL.md': 'x\n' })),
