@@ -1,6 +1,6 @@
 ---
 name: verify-ship
-description: Start only when the operator typed it, asked for it, or agreed to an offer: verify a shipped superdev scope's open Definition-of-Done criteria by observing the deployed system, ticking each one that holds with its evidence, and start `/superdev:wrap-up` when every line settles. Run it after `/superdev:ship` merged and deployed. It is safe to run again.
+description: Start only when the operator typed it, asked for it, or ship's verify-ship route started it: verify a shipped superdev scope's open Definition-of-Done criteria by observing the deployed system, ticking each one that holds with its evidence, and start `/superdev:wrap-up` when every line settles. Run it after `/superdev:ship` merged and deployed. It is safe to run again.
 argument-hint: "[<scope>  (empty = the only shipped run in this repo)]"
 ---
 
@@ -21,7 +21,7 @@ Applies to every start. Start this command only on one of the starts below. The 
 
 - The operator typed the command.
 - The operator asked for it.
-- The operator agreed to an offer.
+- `/superdev:ship`'s verify-ship route started it.
 - Another session's brief asked for it.
 
 ## No extra question
@@ -109,13 +109,11 @@ Applies to each verdict. Write it at once, before the next line, into `<run-root
 - **The run routes to repair** per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` → name each observed `not met:` line with its observation. Print `/superdev:plan` as the next command, with one line: its repair choice plans a `fix` feature for this scope. For each open anchor among the repairs §4 read whose `**Repairs:**` line names this scope's anchor, print that section's open-repair line too. Print `/superdev:verify-ship <scope>` on an `Or:` line, for an observation that was transient.
 - **Otherwise** → name each open line, an unobserved `not met:` line among them, and say running `/superdev:verify-ship <scope>` again is safe.
 
-**The wrap-up start.** Applies to the settled exit that reaches it, after the summary and its one line. Call the Skill tool with `superdev:wrap-up` and the resolved scope slug, in the same turn, and ask no question first. Make no offer on this exit, print no Next block and no staged-pages lines, and print nothing after wrap-up returns. Wrap-up's last message ends the chain: it names the staged pages on every exit, a refusal or a stop included, and makes its own offer.
+**The wrap-up start.** Applies to the settled exit that reaches it, after the summary and its one line. Call the Skill tool with `superdev:wrap-up` and the resolved scope slug, in the same turn, and ask no question first. Print no Next block and no staged-pages lines on this exit, and print nothing after wrap-up returns. Wrap-up's last message ends the chain on its Next block: it names the staged pages on every exit, a refusal or a stop included.
 
 - **A wrap-up that started and then refused or stopped** → its message stands as the chain's last, unchanged.
-- **The Skill tool refuses the start, errors, or finds no such skill** → print `/superdev:wrap-up <scope>` as the next command, with the staged-pages lines and the offer below.
+- **The Skill tool refuses the start, errors, or finds no such skill** → print `/superdev:wrap-up <scope>` as the next command, with the staged-pages lines below.
 
-**The offer.** Applies to every exit but the wrap-up start. The re-verify and Otherwise exits print this skill, so each names the same-skill exception in one line.
-
-**The staged pages.** Applies to every §6 exit but the wrap-up start. Name the scope's staged pages in the final message, which follows the offer call, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close`. Add the publish command to the Next block as the list states.
+**The staged pages.** Applies to every §6 exit but the wrap-up start. Name the scope's staged pages in the final message, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close`. Add the publish command to the Next block as the list states.
 
 - **A count above zero** → put `/superdev:publish-kb <scope>` on an `Or:` line of the Next block.
