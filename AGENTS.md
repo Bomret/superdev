@@ -431,9 +431,7 @@ This root owns every other subtree directly:
   otherwise. Nothing waits on CI: a check not yet green makes ship refuse, and the operator runs it again (ADR 0255).
   Implement, run handoff, review, and submit-pr run no full suite. A scope review reads a red local suite record or a failed
   named check as a Critical finding at entry (ADR 0255): a failed check only on a pull-request head that is the tip or an
-  ancestor of it, and either one only where no later passing run on a clean tree on the tip's ancestry covers it. A
-  `path` run of each failed test file, or a focused run whose path set includes each, covers a red record. A focused run
-  over the scope's whole range covers a red record with no failed test file and a failed check.
+  ancestor of it, and either one only where no later passing run on a clean tree on the tip's ancestry covers it.
   On the local path ship runs the suite once, on the merged tip where base will move and on the tip otherwise. INV-0128 and INV-0191 state this rule, and the `implement-no-full-run`,
   `scope-review-no-full-run`, and `no-ci-wait` drift checks hold it.
   Whoever invokes a chain command passes `--unattended` to run it unattended (ADR 0016, ADR 0108);

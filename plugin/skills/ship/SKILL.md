@@ -128,10 +128,10 @@ Applies to every start past §1. Read the stage and the pull request number with
 - **No `docs/agents/verification.md` at the tip, or one with no fenced command** → run nothing, write no record, and proceed. The report says no test command is configured.
 - **Otherwise** → run `suite reusable` on `<branch>`, with `--whole` when **The whole-repo gate** applies. **Exits 0** → proceed. **Exits 1** → take the carry; a carried tip proceeds, and a failing carry run takes **A failing carry**. **No carry, or no record** → take **The base-move test**.
 
-**The base-move test.** Applies on the local path to a tip with no reusable green result and no carry, before **The local run**. Run `git -C <run-root>/scopetree merge-base --is-ancestor <base> <branch>`. The suite runs once per scope, on the head ship merges (INV-0017).
+**The base-move test.** Applies on the local path to a tip with no reusable green result and no carry, before **The local run**. Run `git -C <run-root>/scopetree merge-base --is-ancestor <base> <branch>`.
 
 - **It succeeds** → base will not move: take **The local run** on the tip.
-- **It fails** → base will move, and §4's base merge makes a new head. First apply **The local run**'s invalidation refusal on the tip: where the `suite` field prints `none <sha>` and the `unresolved` field prints any bullet, refuse as that bullet states, before any question and any branch write. Otherwise run nothing here, and proceed. §4's **The merged-tip run** is the evidence.
+- **It fails** → base will move, and §4's base merge makes a new head. First apply **The local run**'s invalidation refusal on the tip, before any question and any branch write. Otherwise run nothing here, and proceed. §4's **The merged-tip run** is the evidence.
 
 **A failing carry.** Applies to a carry run that fails at the tip, in §3, in §4's merged-tip run, or in §4's push. Record `suite set red <tip> --root <run-root>`, with `--whole` where **The whole-repo gate** added it, and take no `test-selection.md`'s `## The recorded rerun`. Then take the red exit.
 
@@ -139,6 +139,7 @@ Applies to every start past §1. Read the stage and the pull request number with
 
 **The local run.** Applies on the local path to a tip with no reusable green result and no carry: the tip **The base-move test** keeps, §4's merged tip, and §4's push.
 
+- **No `docs/agents/verification.md` at that tip, or one with no fenced command** → **The local suite gate**'s first bullet decides it.
 - **The `suite` field of `scope.js state --root <run-root>` prints `none <sha>`, and its `unresolved` field prints any bullet** → refuse: name every standing bullet, merge nothing, and point at `/superdev:review <scope>`. That record is the invalidation `/superdev:review` left, and a run here would overwrite it.
 - **Any other tip** → run the full command over the tip in the scope checkout through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full`, or the whole-repo command through `test whole` under **The whole-repo gate**, in the foreground with Bash's `timeout` at its ceiling (600000 ms unless `BASH_MAX_TIMEOUT_MS` raises it), and in the background only when the suite can outlast the ceiling, waiting for its end.
   - **Green, red, or denied** → record it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set <green|red|denied> <tip> --root <run-root>`, with `--whole` for the whole-repo command. **Green** → proceed. **Red or denied** → take the red exit. A red full run takes `test-selection.md`'s `## The recorded rerun` first: the triage record quoting the failure, then the rerun record, the failing test file alone, and the focused run; an unattributable failure stays red.
@@ -170,25 +171,23 @@ Applies to every start past §1. Read the stage and the pull request number with
 - **The CI path** → run nothing locally. Take **The deploy gate again**, then **The push**, which pushes the merged tip and refuses as pending: CI has not reported on it.
 - **The local path, carry** → take the carry first. A carried merged tip runs no full command and writes no record. A failing carry run takes **A failing carry**.
 - **The local path, no carry** → take **The local run** on the merged tip, the whole-repo command in place of the full command under **The whole-repo gate**, never beside it.
-- **No `docs/agents/verification.md`, or one with zero fenced blocks** → nothing runs and no record is written.
 
 **The deploy gate again.** Applies after a clean merge moved the tip. Read the deployment document and the anchor's `**Deploy:**` line again at the merged tip, as §3's deploy gate reads them.
 
 - **A listed target the `## Targets` table now lacks** → refuse: name it, and merge nothing.
 - **The deployment document differs between `<pre-merge-tip>` and the merged tip** (`git -C <run-root>/scopetree diff <pre-merge-tip> <branch> -- docs/agents/deployment.md` finds anything) → print the changed posture and target lines, sourced from base's document, here, before anything merges on the host.
 
-**The push.** Applies to every run that reaches it, whether or not base moved. Compare the tip with the `head.sha` §3 read.
+**The push.** Applies to every run that reaches it, whether or not base moved. Compare the tip with the `head.sha` §3 read. To push, print `git -C <run-root>/scopetree log <head-sha-just-compared>..<branch> --oneline`, and go on even when that log fails with "unknown revision". Then run `git push origin <scope-branch>` per `docs/agents/code-management.md`, a push of the **scope branch**, never of base.
 
 - **Identical** → nothing to push.
-- **They differ, on the CI path** → print `git -C <run-root>/scopetree log <head-sha-just-compared>..<branch> --oneline`, and go on to the push even when that log fails with "unknown revision". Run `git push origin <scope-branch>` per `docs/agents/code-management.md`, a push of the **scope branch**, never of base. An accepted push refuses as pending: run `step block`, merge nothing, name the new SHA the named checks have not reported on, and print `/superdev:ship <scope>` to run once they are green. A rejected push takes **The push result**.
-- **They differ, on the local path** → run `suite reusable` on the tip (`--whole` where §3 added it). **Refuses** → take the carry; a failing carry run takes **A failing carry** and pushes nothing. **No carry** → take **The local run** on the tip; a red, denied, or unfinished run pushes nothing. **Accepts, carried, or a green local run** → print `git -C <run-root>/scopetree log <head-sha-just-compared>..<branch> --oneline`, and go on to the push even when that log fails with "unknown revision". Then run `git push origin <scope-branch>` per `docs/agents/code-management.md`, a push of the **scope branch**, never of base.
+- **They differ, on the CI path** → push. An accepted push refuses as pending: run `step block`, merge nothing, name the new SHA the named checks have not reported on, and print `/superdev:ship <scope>` to run once they are green. A rejected push takes **The push result**.
+- **They differ, on the local path** → run `suite reusable` on the tip (`--whole` where §3 added it). **Refuses** → take the carry; a failing carry run takes **A failing carry** and pushes nothing. **No carry** → take **The local run** on the tip; a red, denied, or unfinished run pushes nothing. **Accepts, carried, or a green local run** → push.
 
-**The push result.** Applies to a push that ran.
+**The push result.** Applies to a push that ran, except an accepted push on the CI path, which **The push** ends.
 
 - **Rejected, non-fast-forward** → the pull request's head carries commits this scope branch lacks. Refuse: name that gap and merge nothing. Put fetching those commits into the scope branch on a `First:` line, and print `/superdev:review <scope>` as the next command, then `/superdev:ship <scope>` again.
 - **Rejected for any other reason** (authentication, a pre-receive hook, the network) → relay git's error and merge nothing. Stop.
 - **Accepted, on the local path** → repeat the PR read until its `head.sha` equals the tip just pushed, at most 3 times with a short pause, the bound `plugin/references/code-management-github.md` uses for a `null` `mergeable`. Still different → the equality check refuses.
-- **Accepted, on the CI path** → the pending refusal above.
 
 **The equality check.** Applies before the merge. The freshest `head.sha`, from the read after a push or from §3 without one, must equal the tip: on the local path, the tip `suite reusable` accepted, the carry covered, or the local run passed; on the CI path, the local tip. They differ → refuse: name both shas, and merge nothing.
 
