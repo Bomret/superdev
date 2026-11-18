@@ -35,6 +35,7 @@ const {
   scanDocSetupNoTestRun,
   scanImplementNoFullRun,
   scanObservationNoSuiteRun,
+  scanScopeReviewNoEntryRun,
   scanMarketplaceSource,
   scanAuditSetGlobs,
   scanNoBaseBranchCommit,
@@ -271,6 +272,12 @@ module.exports = [
     id: 'observation-no-suite-run',
     ok: "the scope review's observation concept names no suite run as a source, so a failing test in one joins the fix list (INV-0157)",
     run: scanObservationNoSuiteRun,
+    format: contractGap,
+  },
+  {
+    id: 'scope-review-no-entry-run',
+    ok: 'no scope-review document names an entry run: the full-suite run starts at the exit alone (ADR 0253)',
+    run: scanScopeReviewNoEntryRun,
     format: contractGap,
   },
 ];

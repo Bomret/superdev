@@ -27,6 +27,8 @@ const {
   IMPLEMENT_NO_FULL_RUN_PATTERNS,
   OBSERVATION_NO_SUITE_RUN_DOC,
   OBSERVATION_NO_SUITE_RUN_PATTERN,
+  SCOPE_REVIEW_NO_ENTRY_RUN_DOCS,
+  SCOPE_REVIEW_NO_ENTRY_RUN_PATTERN,
 } = require('../contracts');
 const { proseDocuments, scanDocsAvoid, walkFiles, NEVER_NEGATION_WINDOW } = require('./walkers');
 
@@ -305,7 +307,34 @@ function scanObservationNoSuiteRun(root) {
   }));
 }
 
+// ADR 0253: the scope review runs no test at entry, so `review-scope-*.md`, the review skill, and `final-reviewer` name
+// no entry run. The `review-scope-*.md` files are read at scan time, so a branch file added later is covered the day it
+// lands. Fenced examples are masked.
+function scanScopeReviewNoEntryRun(root) {
+  const branchFiles = proseDocuments(root, ['references'])
+    .map(([rel]) => rel)
+    .filter((rel) => /^review-scope-.*\.md$/.test(path.basename(rel)));
+  const gaps = [];
+  for (const rel of [...branchFiles, ...SCOPE_REVIEW_NO_ENTRY_RUN_DOCS]) {
+    const text = readDoc(root, rel);
+    if (text === null) {
+      gaps.push(missingDoc(rel));
+      continue;
+    }
+    for (const hit of maskFences(text).matchAll(SCOPE_REVIEW_NO_ENTRY_RUN_PATTERN)) {
+      gaps.push({
+        source: rel,
+        expectation:
+          `name no entry run — \`${normalizeWhitespace(hit[0])}\` does, and the scope review starts its full-suite run ` +
+          'at its exit alone, reading only a recorded result at entry (ADR 0253)',
+      });
+    }
+  }
+  return gaps;
+}
+
 module.exports = {
+  scanScopeReviewNoEntryRun,
   scanKbNoBackendCall,
   scanAgentToolAgnostic,
   scanUnmappedPathsForms,
