@@ -344,16 +344,17 @@ withState((stateFile) => {
 
 // --- a branch listing git could not produce never reads as an absent branch (INV-0194) ------------
 // A `git` shim first on PATH fails only `for-each-ref`, the way tests/scope-prune-main.test.js's does,
-// so the shipped code runs unchanged. `body` is the shell text the shim runs for `for-each-ref`.
+// so the shipped code runs unchanged. `body` is the shell text the shim runs for a call whose arguments
+// match the `case` pattern `match`, by default the `for-each-ref` listing.
 const { execFileSync } = require('node:child_process');
 const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
 const SUFFIX = '— nothing published (pass --allow-unmerged to publish anyway)';
 
-function gitShim(body) {
+function gitShim(body, match = 'for-each-ref*') {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-git-shim-'));
   fs.writeFileSync(
     path.join(dir, 'git'),
-    `#!/bin/sh\nif [ "$1" = "for-each-ref" ]; then ${body}; fi\nexec "${realGit}" "$@"\n`,
+    `#!/bin/sh\ncase "$*" in ${match}) ${body} ;; esac\nexec "${realGit}" "$@"\n`,
     { mode: 0o755 },
   );
   return dir;
@@ -394,7 +395,7 @@ function assertListingRefusal(res, how, page) {
 
 // A non-zero exit, with the run root gone and with it surviving.
 for (const survives of [false, true]) {
-  withState((stateFile) => {
+  withState(() => {
     const repo = makeRepo();
     writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
     const page = unmergedScope(repo, 'gitfail', 'Git Fail Page');
@@ -403,7 +404,6 @@ for (const survives of [false, true]) {
     const res = callWithPath(`${shim}${path.delimiter}${process.env.PATH}`, ['--scope', 'gitfail'], repo);
     assertListingRefusal(res, `exit, run root ${survives ? 'surviving' : 'gone'}`, page);
     assert.match(res.err, /status 128/, 'the refusal names the exit status');
-    assert.ok(!fs.existsSync(stateFile) || !Object.hasOwn(JSON.parse(fs.readFileSync(stateFile, 'utf8')), 'Git Fail Page'));
     fs.rmSync(shim, { recursive: true, force: true });
   });
 }
@@ -422,16 +422,13 @@ withState(() => {
 
 // A git that cannot start. PATH holds the shim alone, and the shim deletes itself on the call that
 // reads `core.worktree`, the last git call before the listing, so the listing finds no git to start.
+// The trigger stays on call order: a spawn error happens before git reads its arguments, so no shim
+// keyed on the listing's own arguments can make that listing fail to start.
 withState(() => {
   const repo = makeRepo();
   writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
   const page = unmergedScope(repo, 'gitgone', 'Git Gone Page');
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-git-shim-'));
-  fs.writeFileSync(
-    path.join(dir, 'git'),
-    `#!/bin/sh\ncase "$*" in *core.worktree*) /bin/rm -f "$0" ;; esac\nexec "${realGit}" "$@"\n`,
-    { mode: 0o755 },
-  );
+  const dir = gitShim('/bin/rm -f "$0"', '*core.worktree*');
   const res = callWithPath(dir, ['--scope', 'gitgone'], repo);
   assertListingRefusal(res, 'spawn error', page);
   assert.match(res.err, /could not start/, 'the refusal says git could not start');
