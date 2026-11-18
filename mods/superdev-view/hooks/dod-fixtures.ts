@@ -15,6 +15,17 @@ export const DOD_WRITTEN_LINES: string[] = /* dod:start */ [
   "- [ ] the widget renders — accepted: the note"
 ] /* dod:end */
 
+// The lines scope.js's `dod-line` writes for the same criterion with a note that carries a look-alike verdict: not-met
+// with note `was — met: x`, then met with note `was — not met: x`, each tagged then untagged. The leftmost boundary
+// decides the label, so the not-met lines count open and the met lines done. tests/scope-dod-line.test.js asserts
+// scope.js writes exactly these lines; parse.test.ts asserts how `progress` counts them.
+export const DOD_LOOKALIKE_LINES: string[] = /* dod-lookalike:start */ [
+  "- [ ] the widget renders — 01 — not met: was — met: x",
+  "- [ ] the widget renders — not met: was — met: x",
+  "- [x] the widget renders — 01 — met: was — not met: x",
+  "- [x] the widget renders — met: was — not met: x"
+] /* dod-lookalike:end */
+
 // Open lines scope.js never writes: a bare tick, an unjudged line, and a tick beside a note that settles nothing.
 export const DOD_OPEN_LINES: string[] = [
   '- [x] the widget renders',

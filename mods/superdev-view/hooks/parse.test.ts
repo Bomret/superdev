@@ -1,6 +1,6 @@
 import { test, expect } from 'claude-code/testing'
 import { closedAt, eventLog, frontmatter, header, intent, progress, queuedMinors, slices, untrace } from './parse'
-import { DOD_OPEN_LINES, DOD_WRITTEN_LINES } from './dod-fixtures'
+import { DOD_LOOKALIKE_LINES, DOD_OPEN_LINES, DOD_WRITTEN_LINES } from './dod-fixtures'
 import { LEDGER_LINES, LEDGER_QUEUE_LINES, LEDGER_STEP_LINES } from './ledger-fixtures'
 import { TRACE_LINES } from './trace-fixtures'
 
@@ -59,6 +59,14 @@ test('dod progress counts a line done by its verdict note, never by its checkbox
   expect(DOD_WRITTEN_LINES.map(l => progress(l).done)).toEqual([1, 1, 0, 0, 0, 0, 1, 1])
   expect(progress(DOD_OPEN_LINES.join('\n'))).toEqual({ done: 0, total: 4 })
   expect(progress('- [x] a — ceiling: x\n')).toEqual({ done: 0, total: 1 })
+})
+
+test('dod progress counts a written line with a look-alike note by its leftmost verdict', () => {
+  expect(DOD_LOOKALIKE_LINES.map(l => progress(l).done)).toEqual([0, 0, 1, 1])
+})
+
+test('an empty dod.md reads no progress', () => {
+  expect(progress('')).toEqual({ done: 0, total: 0 })
 })
 
 test('dod progress reads a note label whole, at the boundary the shipped line parser picks', () => {
