@@ -49,6 +49,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     ...['skills', 'agents', 'references', 'hooks', 'scripts', 'lib'].map((dir) => docPath(realRoot, dir)),
     path.join(realRoot, 'docs', 'adr'),
     path.join(realRoot, 'tests'),
+    path.join(realRoot, 'plugin'),
   ];
   for (const dir of walkedDirs) {
     assert.ok(fs.statSync(dir, { throwIfNoEntry: false })?.isDirectory(), `the directory walkers read ${dir}`);

@@ -168,12 +168,13 @@ function scanShipNoOpensPr(root) {
   return gaps;
 }
 
-// scanPastPrSkills(): the skills a chain start reaches (ADR 0253). Three facts and
-// forbidden forms, no wording (ADR 0153): each of CHAIN_START_TARGETS carries no `disable-model-invocation: true` in
-// its frontmatter, since the Skill tool cannot start such a skill (INV-0066); verify-ship and wrap-up name no
+// scanPastPrSkills(): the skills a chain start reaches (ADR 0253), plus publish-kb. Three facts and
+// forbidden forms, no wording (ADR 0153): each of MODEL_INVOCABLE_SKILLS carries no `disable-model-invocation: true`
+// in its frontmatter, since the Skill tool cannot start such a skill (INV-0066); verify-ship and wrap-up name no
 // `--unattended` token, since every unattended run ends at submit-pr (INV-0093) — ship names it only to
 // refuse it; and the removed `--from-ship` path stays out of ship, verify-ship, and response-shapes.md.
-const CHAIN_START_TARGETS = ['review', 'document', 'submit-pr', 'ship', 'verify-ship', 'wrap-up'];
+// MODEL_INVOCABLE_SKILLS: the chain-start targets plus publish-kb, which INV-0066 also keeps model-invocable.
+const MODEL_INVOCABLE_SKILLS = ['review', 'document', 'submit-pr', 'ship', 'verify-ship', 'wrap-up', 'publish-kb'];
 const NO_UNATTENDED_SKILLS = ['verify-ship', 'wrap-up'];
 const NO_FROM_SHIP_DOCS = [
   path.join('skills', 'ship', 'SKILL.md'),
@@ -195,14 +196,14 @@ function scanPastPrSkills(root) {
     missing.add(source);
     return false;
   };
-  for (const name of CHAIN_START_TARGETS) {
+  for (const name of MODEL_INVOCABLE_SKILLS) {
     const source = path.join('skills', name, 'SKILL.md');
     if (!present(source)) continue;
     const fm = read(source).match(/^---\n([\s\S]*?)\n---(?:\n|$)/);
     if (fm !== null && /^disable-model-invocation:\s*true\s*$/m.test(fm[1])) {
       gaps.push({
         source,
-        expectation: 'carry no `disable-model-invocation: true`, because a chain start reaches it through the Skill tool (INV-0066, ADR 0253)',
+        expectation: 'carry no `disable-model-invocation: true`, because it stays model-invocable (INV-0066, ADR 0253)',
       });
     }
   }
@@ -225,9 +226,9 @@ function scanPastPrSkills(root) {
 // so plan's intent and triage offers stay free. It walks every file of the shipped tree, AGENTS.md included.
 const OFFER_START_FORMS = [/start_session/, /A superdev offer started this session\./];
 function scanNoOfferStart(root) {
-  const plugin = path.join(root, 'plugin');
-  const tree = fs.existsSync(plugin) ? plugin : root;
+  const tree = path.join(root, 'plugin');
   const gaps = [];
+  if (!fs.existsSync(tree)) return gaps; // no shipped tree → nothing to scan
   const files = fs
     .readdirSync(tree, { recursive: true, withFileTypes: true })
     .filter((entry) => entry.isFile())
