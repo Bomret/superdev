@@ -395,8 +395,8 @@ This root owns every other subtree directly:
   same turn, per that file's `## The chain start` (ADR 0253): implement starts review, a clean scope review
   starts document, and document on a reviewed scope starts submit-pr, each with the arguments its Next block
   would print and no question first. The start is the first action of the closing. The starter first closes
-  its step and publishes, prints no Next block on that exit, and prints nothing after the started command
-  returns; a step-scoped bar of the starter ends at the start. A `Blocked:` line, a `First:` wait, a refusal,
+  its step and publishes. It prints no Next block on that exit. It prints nothing after the started command
+  returns. A step-scoped bar of the starter ends at the start. A `Blocked:` line, a `First:` wait, a refusal,
   a non-clean verdict, or a failed start ends the chain on the stopping command's Next block. An ad-hoc run
   and the chained posture start nothing, and `/superdev:plan` starts nothing. A command typed on a live scope
   chains on from there. superdev starts no other session and asks no Start or Stop question.
