@@ -51,8 +51,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          final-reviewer, doc-writer, doc-reader, test-auditor,
                          test-gap-auditor
   hooks/               — the deterministic Node hooks + hooks.json: merge-guard,
-                         tree-guard, run-trace (with the model guard), slicetree-sweep, scope-prune, update-check,
-                         offer-guard
+                         tree-guard, run-trace (with the model guard), slicetree-sweep, scope-prune, update-check
   lib/                 — every module: code that no hook registration and no prose step runs (ADR 0151).
                          `hooks/` and `scripts/` hold entry points only, each keeping its path and exports.
                          A module has one responsibility and opens with its file name and a colon.
@@ -78,8 +77,6 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          fetched in `adopt`, deleted at wrap-up, ADR 0202).
                          Run trace: `trace-log.js` (writer, reader, field codec), `run-tree.js`,
                          `dispatch.js`, `dispatch-lines.js`.
-                         Offer guard: `offer-marker.js` (the per-turn offer markers `offer-guard.js` writes and reads, ADR 0213),
-                         `running-skill.js` (the superdev skill a session transcript last started, ADR 0222).
                          Test verbs: `test-verb.js`, `fail-to-pass.js`, `run-supervision.js`, `prepare.js` (the prepare command's runner and the `prepare` verb, ADR 0218).
                          Knowledge base: `md-sections.js` (the section rules `kb-patch.js` and the
                          run-state and `dod-line` readers share), `md-to-storage.js` (markdown to
@@ -305,8 +302,8 @@ into subagent prompts (issue #32), the delegation handoff classifier behind a de
 (ADR 0039, ADR 0041), and the `SubagentHandback` tool that carries a subagent's report, which the run trace
 does not read (ADR 0197). It also covers the classifier's denial of ship's own merge call. Ship stops on that denial and names it, per `plugin/skills/ship/SKILL.md`. It also covers native Windows with Git Bash (ADR 0150), and the PostToolUse `cwd` that names the
 directory a Bash command ended in, which run-trace works around with a PreToolUse stash (ADR 0159), and the
-desktop app's session tool behind the offer's New task card (ADR 0176, ADR 0183, ADR 0201), and the app's wrap-up
-guidance that competes with the offer, which `offer-guard.js` holds (ADR 0213). Read it before you change subagent prose or the unattended block.
+desktop app's wrap-up guidance that competes with the chain start, which the start answers by being the first
+action of the closing (ADR 0253). Read it before you change subagent prose or the unattended block.
 
 ## Common commands
 
@@ -454,7 +451,7 @@ This root owns every other subtree directly:
 - `plugin/hooks/`. Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working
   rules, Hooks are CommonJS** and **Every shipped executable has a suite in `tests/`, named for it**.
   This is the strongest future child-doc candidate, if its rules outgrow this root. Of the
-  hooks, `scope-prune.js`, `slicetree-sweep.js`, `run-trace.js`, `tree-guard.js`, and `offer-guard.js` depend on modules in `plugin/lib/`,
+  hooks, `scope-prune.js`, `slicetree-sweep.js`, `run-trace.js`, and `tree-guard.js` depend on modules in `plugin/lib/`,
   and the scripts require them as well. No hook and no script requires `scope.js`. `scope-prune.js` and `slicetree-sweep.js` both
   `require` `../lib/ledger.js` for their ledger-header reader (ADR 0022) and `../lib/git-spawn.js` for the git calls the two Stop hooks
   share (the spawn, the throwing call, and the `git branch` list parse; a module missing any of them reads as unloaded). `run-trace.js` takes each of
@@ -476,14 +473,6 @@ This root owns every other subtree directly:
   load, and the dispatch is still recorded (ADR 0245). Nothing refuses a write to a run's ledger or trace, and nothing refuses an implementer's full-suite run:
   `scope.js` detects an outside edit of a run's ledger or trace after the fact (`lib/run-check.js`), and a review grades
   an untraced write and a full-suite run (`scope.js untraced`).
-  `offer-guard.js` requires `../lib/offer-marker.js` and `../lib/running-skill.js`. Its PostToolUse half records each offer call
-  (`start_session` with the offer's marker line, or an `AskUserQuestion` with a `Start /superdev:` option) by
-  session, turn, and command. Its Stop half, last in the Stop array, holds a main-session turn once when the last
-  message's Next block names one command no offer call of the turn named. A message with no `### Next` heading counts
-  as one when the lone-command fences and the `/superdev:` code spans on a line whose first word, past a list marker
-  and emphasis, is "next" in its last paragraph name one command (ADR 0213, ADR 0216, ADR 0226, ADR 0240, INV-0183). It passes a turn whose command is the superdev skill the session transcript
-  last started, by `<command-name>` or `Skill` call (ADR 0222). It fails open on
-  any malformed input or filesystem error, and passes a Stop with `stop_hook_active` set.
 - `scripts/` and `plugin/scripts/`. Owned by [`scripts/AGENTS.md`](scripts/AGENTS.md), which states
   each script's contract: the shipped `plugin/scripts/` CLIs `scope.js`, `kb-patch.js`, `publish-kb.js`,
   the modules in `plugin/lib/` behind them, and the maintainer-only `scripts/drift-check.js` with

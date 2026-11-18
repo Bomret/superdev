@@ -174,8 +174,6 @@ for (const [rel, mods] of Object.entries(RE_EXPORTS)) {
   const DIRECT = {
     'merge-guard.js': { input: { agent_id: 'a1', tool_input: { command: 'git merge scope' } },
       check: (r) => { assert.strictEqual(r.status, 2, 'blocks a subagent merge'); assert.match(r.stderr, /subagents must not integrate/); } },
-    'offer-guard.js': { input: { hook_event_name: 'Stop', session_id: 's1', prompt_id: 'p1', stop_hook_active: false, last_assistant_message: '### Next\n\n```\n/superdev:review x\n```\n' },
-      check: (r) => { assert.strictEqual(r.status, 0); assert.strictEqual(JSON.parse(r.stdout).decision, 'block', 'holds a Next block with no offer'); } },
     'run-trace.js': { input: { hook_event_name: 'PostToolUse', tool_name: 'Edit', tool_input: { file_path: path.join(slicetree, 'x.js') }, cwd: runRepo },
       check: (r) => { assert.strictEqual(r.status, 0); assert.match(fs.readFileSync(path.join(runRoot, 'trace.log'), 'utf8'), / 01 main edit impl x\.js/, 'records the edit'); } },
     'scope-prune.js': { input: { cwd: pruneRepo },

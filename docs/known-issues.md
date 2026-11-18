@@ -268,92 +268,21 @@ parent has already exited is outside the tree `taskkill /t` walks, so it can out
 
 Verification: pending. Date it, with the Claude Code and Git for Windows versions, when the checklist runs.
 
-## The session tool exists only in the Claude desktop app
-
-The offer's New task card (ADR 0176, ADR 0183, ADR 0201) comes from `mcp__ccd_session__start_session`. The Claude
-desktop app's Code tab provides that tool through its own session server. A Claude Code CLI session has
-no such server, so the tool is absent there. A desktop session can list the tool as deferred. A deferred
-tool has no schema until `ToolSearch` loads it with the query `select:mcp__ccd_session__start_session`,
-and only then can the offer call it.
-
-What a call with `context: "fresh"` and `use_worktree: false` does:
-
-- **`user_asked` starts only in a turn the operator's own message began.** In a turn that another
-  session's prompt began, which is every turn of a session an offer started, the app refuses the start and
-  names `initiation: "own_initiative"` as the alternative. An `AskUserQuestion` answer inside that turn
-  does not change what began it.
-- **`own_initiative` proposes a card and starts nothing.** The call returns a task id, `task_<hex>`, and
-  the app shows a New task card in the transcript. The session starts when the operator clicks the card.
-  An unclicked card expires after 7 days.
-- **The card carries its own answers.** Its buttons are *Do it here*, which runs the work in the
-  conversation that proposed it, *Start*, which starts the new session, *Options*, and a close button.
-
-- **The prompt arrives as text.** A prompt that begins with `/superdev:<name>` does not run as a slash
-  command. The new session's model reads the text and starts the skill through the Skill tool. A model
-  can therefore treat the line as text and not start the command at all.
-- **The checkout is the session's own folder.** From a plain checkout, the new session opens in that
-  same folder, on the branch checked out there. It does not open in a scopetree that the offering session
-  worked in through `cd`.
-- **The new session inherits model, effort, and permission mode** when the call omits `model`, `effort`,
-  and `permission_mode`. The tool accepts each one only at or below the offering session's own level.
-- **A started session has an id** of the form `local_<uuid>`. A link in the transcript reads
-  `[<title>](#local_<uuid>)`.
-- **The new session sees the offering session's run as live.** Both sessions work on one run root, and
-  the run lock is under an hour old, so `/superdev:status` in the new session reports the run as live in
-  another session (ADR 0176, Consequences).
-
-**Mitigation (implemented, ADR 0176, ADR 0183, ADR 0201):** the offer detects the tool, loaded or deferred.
-With the tool it asks no question and proposes the session as an `own_initiative` card on every step of a
-chain; the card's *Do it here* button runs the command in place. Without the tool, or when it fails to
-load, the offer asks one question with two options, *Stop here* first with its `/clear`-then-type path, then
-*Start*. The prompt carries the printed command and a fixed marker line, so `/superdev:ship` can tell a
-new-session start, which it runs with no question, from a brief start, which it confirms (ADR 0225).
-
-**Fix required at:** no platform fix is due. A start that runs the prompt as a slash command would remove
-the dependence on the model reading the text.
-
-Verified 2026-10-24, on Claude desktop app 3.6556.2 with Claude Code 2.1.302, with one start from a plain
-checkout of this repository: the prompt `/superdev:status` and one marker line, `context: "fresh"`,
-`use_worktree: false`, and no `model`, `effort`, or `permission_mode`. The new session reported that the
-command arrived as plain text in its first message, and that it started `superdev:status` through the
-Skill tool. Its metadata showed the working directory of the offering session's checkout, branch `main`,
-model `claude-opus-5-5`, effort `medium`, and permission mode `auto`, all equal to the offering
-session's own. The call returned `local_47e436f3-6ba3-4e6e-b671-da5d5b007ac0`. In the offering session
-the tool was listed as deferred and was loaded through `ToolSearch` before the call. Unverified: which
-checkout `use_worktree: false` opens from a session that runs in an app-made worktree (the tool's own
-description states that it is that worktree), and the tool's absence from a CLI session (the CLI on this
-machine was not logged in, so no CLI session ran).
-
-Verified 2026-10-24, on Claude desktop app 3.6556.2: an operator report of the offer's `user_asked` start
-in a chained session returned the refusal ADR 0183 quotes. In a turn the operator's own message began, an
-`own_initiative` call with the prompt `/superdev:status` and the marker line, `context: "fresh"`, and
-`use_worktree: false` returned `task_eb944ace`, a card that expires in 7 days. The card was withdrawn with
-`dismiss_task` without a click. A probe session started with `user_asked`, from a turn another session's
-prompt began, then made both calls: `user_asked` returned the refusal ADR 0183 quotes, and
-`own_initiative` returned the card `task_b7857f84`. The operator clicked the card, and it started a
-session whose first message carried the card's prompt under the `background` text.
-
-Verified 2026-10-30, on the Claude desktop app: an operator observation of a New task card a superdev
-offer put up. The card showed the buttons *Do it here*, *Start*, *Options*, and a close button.
-
-## The desktop app's wrap-up guidance competes with the offer
+## The desktop app's wrap-up guidance competes with the chain start
 
 The Claude desktop app's system prompt tells the model that a follow-up acting on the session's own
 findings stays in the session and is asked through its wrap-up box (`mcp__ccd_turn__wrap_up`). The next
-command a superdev Next block names is such a follow-up. Late in a long run, that guidance wins over
-`references/response-shapes.md`'s `## The offer`, and the session ends on the Next block after a wrap-up
-call, with no New task card.
+command a superdev Next block names is such a follow-up. Late in a long run, that guidance can win over
+`references/response-shapes.md`'s `## The chain start`, and the session ends on the Next block after a
+wrap-up call, with the successor not started.
 
-**Mitigation (implemented):** `## The offer` states that the offer takes precedence over the app's
-follow-up and wrap-up guidance and makes the offer call the first action of the closing, before the
-wrap-up call. The Stop hook `hooks/offer-guard.js` holds a main-session turn once when its Next block names
-one command that no offer call of the turn named.
-A message that names one next command without the `### Next` heading is held too (ADR 0213, ADR 0216, INV-0183). A next command that is the superdev skill the transcript last started is not held (ADR 0222).
+**Mitigation (implemented, ADR 0253):** `## The chain start` makes the start the first action of the
+closing, ahead of the app's wrap-up call. No hook holds a missed start. A missed start costs the operator
+one typed command, the one the Next block prints.
 
-**Fix required at:** none in superdev. The app's guidance is the app's own; the hook holds the offer
-whatever the prompt says.
+**Fix required at:** none in superdev. The app's guidance is the app's own.
 
 Verified 2026-11-03, on Claude Code 2.1.310 in the Claude desktop app: the system prompt of a session
-started by a superdev offer carried the guidance that one piece of work acting on what the session just
-found stays in the session and is asked through `wrap_up`. Operator reports of attended sessions ending on a
-Next block with no card after a `wrap_up` call are the evidence ADR 0213 records.
+carried the guidance that one piece of work acting on what the session just found stays in the session and
+is asked through `wrap_up`. Operator reports of attended sessions ending on a Next block after a `wrap_up`
+call, with the next command not started, are the evidence ADR 0213 records.

@@ -1440,16 +1440,6 @@ Breaks: silently
 Check: the `scope.js dod-tags` suite
 Paths: plugin/scripts/scope.js, plugin/lib/dod-line.js, plugin/skills/plan/SKILL.md, plugin/references/plan-contract.md, plugin/references/issue-tracker-forgejo-plan.md, plugin/references/issue-tracker-github-plan.md, plugin/references/issue-tracker-jira-plan.md
 
-### INV-0183
-
-Class: architecture
-Concepts: Next block
-Statement: A main-session turn that ends on a Next block naming one command, with no `Blocked:` or `First:` line, or with no Next heading names one command in a lone-command fence or in a `/superdev:` code span on a line whose first word, past a list marker and emphasis, is "next", both in its last paragraph, ends only after an offer call of that turn named that command, or after one block by `hooks/offer-guard.js`. The block reason names the exceptions. The hook fails open on every malformed input and never blocks twice in a row. A turn whose one next command is the superdev skill the session transcript last started passes (ADR 0213, ADR 0216, ADR 0222, ADR 0226, ADR 0240).
-Breaks: silently
-Check: the `offer-guard.js` suite
-Paths: plugin/hooks/offer-guard.js, plugin/lib/running-skill.js, plugin/hooks/hooks.json, plugin/references/response-shapes.md
-
-
 ### INV-0184
 
 Class: process
