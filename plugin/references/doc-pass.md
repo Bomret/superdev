@@ -116,7 +116,14 @@ line instead. `/superdev:document`'s doc-reader tests the judged-current docs of
 own inline reconcile as it tests the changed ones. The `lite` inline pass records no such list:
 the doc-writer `/superdev:document` dispatches after it names them.
 
-Do not touch code or tests — docs only.
+**Reconcile the comments in the code the range changed.** Given a git range, list its changed files with
+`git diff --name-only BASE..HEAD`. In every non-Markdown file among them, bring each comment and docstring into
+agreement with the code as it is now. Rewrite comment text only: an identifier, a literal, a statement, and the
+code of a doctest stay exactly as they are. A stale comment you find in a file outside the range stays unedited,
+and the report names it by `file:line` with what makes it stale. An area path or a full reconcile edits no
+comment. The report names every file whose comments the pass rewrote.
+
+Touch no code token and no test: docs, and comment text in the files the range changed, only.
 
 ## Pass 2 — knowledge base
 

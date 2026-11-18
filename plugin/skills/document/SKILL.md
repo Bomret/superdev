@@ -26,7 +26,7 @@ Applies to every message this command ends on, except under `--chained`, which p
 
 ## No test command
 
-Applies to every path of this command: the pass, its fix round, an audit, a bootstrap, the tick re-check, and the `docs`-line fix round. Run no test command. The review's green suite record carries to `/superdev:ship` across Markdown-only doc commits.
+Applies to every path of this command: the pass, its fix round, an audit, a bootstrap, the tick re-check, and the `docs`-line fix round. Run no test command. Ship takes the full-suite evidence on the head it merges (ADR 0255), so no doc commit needs a run here, a comment edit in a non-Markdown file included.
 
 ## 1. Config
 
@@ -62,6 +62,7 @@ Applies to every start. Read `docs/agents/documentation.md` (the in-repo documen
 - the range: the git range, the area, or "full"; for a range, a reminder to start from `git diff --stat` and `git log` over it
 - the two config file paths
 - the staging path
+- for a range, that the pass reconciles the comments and docstrings of the non-Markdown files the range changes, rewriting comment text only, never a code token, and names a stale comment outside the range in its report, unedited
 - on a live run, every open `docs` line, verbatim, as targets the pass must make true
 - on a live run, the scope checkout as its working directory
 - where the KB config carries `- **Hierarchy:** links`, that it stages each page's parent link as `references/doc-pass.md`'s knowledge-base pass states
@@ -76,7 +77,7 @@ The writer commits its doc changes on the current branch. A denied writer's inli
 
 **The reader dispatch.** Applies to every doc pass, also one whose writer changed nothing, and to no skipped pass. Make a reader dispatch: it reads the docs cold and read-only. Hand no narrative and no summary of the work.
 
-- the file list: in-repo docs and **local** KB pages the writer changed, and every doc its report names as judged current; after a denied writer, the docs your inline reconcile changed and every doc it judged current, named the same way
+- the file list: in-repo docs and **local** KB pages the writer changed, every non-Markdown file whose comments it rewrote, and every doc its report names as judged current; after a denied writer, the docs your inline reconcile changed and every doc it judged current, named the same way
 - the staged pages, after the writer and after a denied writer's inline reconcile alike: every `.md` file under the staging path whose frontmatter `action` is not `delete`. A KB config with no remote backend, or a staging directory that is absent or empty, adds no page and reports no gap
 - the tree to ground against: the scope checkout on a live run, the current checkout on an ad-hoc run. The staging path lies in the main working tree, which may not hold the scope's code
 - the `docs/agents/documentation.md` path
