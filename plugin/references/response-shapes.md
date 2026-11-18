@@ -37,68 +37,41 @@ carries that answer.
   to `/superdev:sweep`, which is its reader.
 - **A turn that stops on an `AskUserQuestion` call** has not ended the command. The block closes the
   message the command ends on, never a turn that asks.
-- **A chain started by an offer** ends on the block once, at its last message, per `## The offer` below.
 - **A chain started by a step that ends the starting command** ends on the block once, at the started
   command's last message. The starting command prints no block of its own on that exit.
 
-## The offer
+## The chain start
 
-Applies to every exit of a command `## The Next block` covers, refusals and ad-hoc runs included. The offer
-to start the block's next command takes precedence over the desktop app's follow-up and wrap-up guidance: it
-is the closing's first action, ahead of any `mcp__ccd_turn__wrap_up` call and of any text the skill puts in
-the final message. A wrap-up question naming the next command is no offer. `hooks/offer-guard.js` holds a turn once whose closing names one next command no
-offer call named.
+Applies to every exit of a chain command: `/superdev:implement`, `/superdev:review`, `/superdev:document`,
+`/superdev:submit-pr`, `/superdev:ship`, and `/superdev:verify-ship`. Each starts its own successor, and only
+that one: implement starts review, review starts document, document starts submit-pr, submit-pr starts ship
+on the yes to its ship question, ship starts verify-ship or wrap-up on those routes, and verify-ship starts
+wrap-up at its settled exit. Its own skill names the exit that starts.
 
-**When it offers.** Every condition holds, whatever a brief or a skill says:
+**When it starts.** Every condition holds:
 
-- The fence names exactly one command (`Or:` lines are never offered), and no `Blocked:` or `First:` line.
-- The next command's skill differs from the ending skill, whatever the arguments.
-- No `--unattended`, and not the chained posture.
-- The operator typed, asked for, or accepted an offer of this command, or another session's brief asked
-  for it. A command another started through its own step (implement starting plan, or either starting setup) leaves the
-  offer to its starter; a step that ends its starter (verify-ship starting wrap-up) hands the offer on.
+- The exit is the one its skill names as a start.
+- The Next block it would print names exactly that one command, with no `Or:`-only alternative chosen and no
+  `Blocked:` or `First:` line. A refusal or a non-clean review verdict starts nothing.
+- The run is a live scope: never an ad-hoc run, and never the chained posture of a `/superdev:sweep` leg.
 
-Unattended, chained posture, same skill, step-started command, or a refused card: name that exception in
-one line instead. Any other failed condition needs no line.
+Every other exit prints its Next block and starts nothing. A command typed on a live scope chains on from
+there, exactly as one its predecessor started.
 
-**Detection.** The session tool is `mcp__ccd_session__start_session`, loaded or listed as deferred (desktop
-app only). Load a deferred one with `ToolSearch` query `select:mcp__ccd_session__start_session`; a failed
-load counts as absent.
+**How it starts.** In this order, as the first action of the closing, ahead of any
+`mcp__ccd_turn__wrap_up` call and of any closing text, and with no question first:
 
-**With the session tool: the card.** Ask no question. Call `start_session` once: `initiation:
-"own_initiative"`, `context: "fresh"`, `use_worktree: false`, no `model`, `effort`, or `permission_mode`;
-`title` names the command; `prompt` is the command exactly as the fence prints it, then this line verbatim:
+1. Close its own step, with `step clear` or the stage write its skill names, then publish its run state.
+2. Call the Skill tool with the successor's skill and the arguments the Next block would print, plus
+   `--unattended` when its own run is unattended.
 
-`A superdev offer started this session.`
+**After the start.** The started command owns the last message. The starter prints no Next block on that
+exit and nothing after the started command returns. A start the Skill tool refuses or fails prints the
+starter's Next block, naming the command it did not start.
 
-`background` names only what the new session starts from: the scope's feature label and run root's absolute
-path, or for an unscoped command what exists (such as the intent file), never a placeholder. Then write the
-full final message and Next block, with one line before `### Next` saying the card above starts the command
-in a new session, or here through **Do it here**.
-
-- **Do it here** → call the Skill tool with the next skill and the fence's exact arguments; ask nothing extra.
-- **Start, closed, or ignored** → nothing more here.
-- **Refused, errored, or no card** → say in one line no card was put up, print the Next block, start nothing.
-
-**Without the session tool: the question.** One `AskUserQuestion`, options in order:
-
-1. `Stop here (Recommended)`: the command is printed instead; `/clear`, then typing it, starts it fresh.
-2. `Start /superdev:<name>`: the whole command as the fence prints it; starting here reads this whole
-   conversation, which costs tokens.
-
-The asking message carries the final message's reports, findings, and summaries, without the Next block.
-**Start** → call the Skill tool with the next skill and the fence's exact arguments, and print nothing after
-it returns. Any other answer, an unaskable question, or a failed Skill call → print the Next block, start
-nothing.
-
-**A started command** keeps every gate and ask of a typed start and makes its own offer at its end, so the
-chain ends on one Next block.
-
-**An offer of ship** names the pull request and says ship merges it. The Start description gives the
-pull-request URL and says it merges now, exactly as typing `/superdev:ship` does, with the host's approvals
-and branch protection in force. The card `title` names the PR number and the merge within 60 characters,
-such as `Merge PR #141 with /superdev:ship`; its click starts ship in a new session, which merges with no
-further question.
+**The started command's limits.** It takes its gates, questions, and bars from its own skill alone. A
+step-scoped bar of the starter, such as review's integration bar or document's bar on test runs, ends at the
+start.
 
 ## The brainstorm report
 

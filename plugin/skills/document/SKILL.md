@@ -22,7 +22,7 @@ Applies to every start. You bring the docs and the knowledge base into agreement
 
 ## The closing message
 
-Applies to every message this command ends on, except under `--chained`, which prints no Next block. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The offer`.
+Applies to every message this command ends on, except under `--chained`, which prints no Next block. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`.
 
 ## No test command
 
@@ -175,7 +175,7 @@ An `accepted:` `docs` line stays exactly as it stands.
 
 A pass in which the writer changed nothing still counts. Each branch above ends in its closer, and the publish follows it.
 
-**The next command.** Applies to every live run. Where a command prints, first say that the conversation is disposable: the ledger's stage and `dod.md` carry everything the next command reads, so a `/clear` first costs nothing. Print the command last, from the first row that matches.
+**The next command.** Applies to every live run. Print the command last, from the first row that matches. Only the **Any other** row on a reviewed scope, the stage written `documented`, starts its command, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The chain start`; this command's **No test command** bar ends at the start, and a started submit-pr leaves this command nothing to print. Every other row prints, `documented-unreviewed` and an ad-hoc run included.
 
 | Case | Next block |
 |---|---|
@@ -183,5 +183,5 @@ A pass in which the writer changed nothing still counts. Each branch above ends 
 | This pass unticked a line, or `get unresolved` printed one | `/superdev:review <range>`, naming the unmet criterion and that review's fix loop (`review-scope-mode.md`'s `### 4.9 The re-tick`) re-ticks it; no `/superdev:submit-pr` |
 | The stage read `submitted` | `/superdev:ship <scope>` |
 | The stage read `shipped` | the command `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` picks: `/superdev:plan` (its repair choice, with the route's open-repair line for each open repair and `/superdev:verify-ship <scope>` on the `Or:` line), `/superdev:verify-ship <scope>`, or `/superdev:wrap-up <scope>` (re-verify adds `/superdev:plan`'s repair choice on the `Or:` line); `/superdev:verify-ship <scope>` when the anchor cannot be read |
-| The stage read `closed` | no command follows, and the disposable note is left out |
+| The stage read `closed` | no command follows |
 | Any other | `/superdev:submit-pr <scope>`, with one line: it opens the pull request against the scope's current Definition of Done |

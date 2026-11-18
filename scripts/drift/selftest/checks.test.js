@@ -25,6 +25,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'ship-no-opens-pr',
     'background-rule-names-limit',
     'dod-box-rule',
+    'no-offer-start',
   ]);
   const empty = fixture({ '.keep': '' });
   for (const check of CHECKS) {
@@ -48,6 +49,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     ...['skills', 'agents', 'references', 'hooks', 'scripts', 'lib'].map((dir) => docPath(realRoot, dir)),
     path.join(realRoot, 'docs', 'adr'),
     path.join(realRoot, 'tests'),
+    path.join(realRoot, 'plugin'),
   ];
   for (const dir of walkedDirs) {
     assert.ok(fs.statSync(dir, { throwIfNoEntry: false })?.isDirectory(), `the directory walkers read ${dir}`);

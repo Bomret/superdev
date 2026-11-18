@@ -1,6 +1,8 @@
 # 0213: A Stop hook holds the offer
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0253](0253-the-chain-starts-its-successor-and-the-offer-is-removed.md), which removes the offer and its Stop hook.
 
 **Amends:** [ADR 0157](0157-every-chain-command-offers-to-start-its-successor.md): the offer is enforced, not
 only stated.

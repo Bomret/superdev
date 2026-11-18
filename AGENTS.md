@@ -51,8 +51,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          final-reviewer, doc-writer, doc-reader, test-auditor,
                          test-gap-auditor
   hooks/               — the deterministic Node hooks + hooks.json: merge-guard,
-                         tree-guard, run-trace (with the model guard), slicetree-sweep, scope-prune, update-check,
-                         offer-guard
+                         tree-guard, run-trace (with the model guard), slicetree-sweep, scope-prune, update-check
   lib/                 — every module: code that no hook registration and no prose step runs (ADR 0151).
                          `hooks/` and `scripts/` hold entry points only, each keeping its path and exports.
                          A module has one responsibility and opens with its file name and a colon.
@@ -78,8 +77,6 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          fetched in `adopt`, deleted at wrap-up, ADR 0202).
                          Run trace: `trace-log.js` (writer, reader, field codec), `run-tree.js`,
                          `dispatch.js`, `dispatch-lines.js`.
-                         Offer guard: `offer-marker.js` (the per-turn offer markers `offer-guard.js` writes and reads, ADR 0213),
-                         `running-skill.js` (the superdev skill a session transcript last started, ADR 0222).
                          Test verbs: `test-verb.js`, `fail-to-pass.js`, `run-supervision.js`, `prepare.js` (the prepare command's runner and the `prepare` verb, ADR 0218).
                          Knowledge base: `md-sections.js` (the section rules `kb-patch.js` and the
                          run-state and `dod-line` readers share), `md-to-storage.js` (markdown to
@@ -305,8 +302,8 @@ into subagent prompts (issue #32), the delegation handoff classifier behind a de
 (ADR 0039, ADR 0041), and the `SubagentHandback` tool that carries a subagent's report, which the run trace
 does not read (ADR 0197). It also covers the classifier's denial of ship's own merge call. Ship stops on that denial and names it, per `plugin/skills/ship/SKILL.md`. It also covers native Windows with Git Bash (ADR 0150), and the PostToolUse `cwd` that names the
 directory a Bash command ended in, which run-trace works around with a PreToolUse stash (ADR 0159), and the
-desktop app's session tool behind the offer's New task card (ADR 0176, ADR 0183, ADR 0201), and the app's wrap-up
-guidance that competes with the offer, which `offer-guard.js` holds (ADR 0213). Read it before you change subagent prose or the unattended block.
+desktop app's wrap-up guidance that competes with the chain start, which the start answers by being the first
+action of the closing (ADR 0253). Read it before you change subagent prose or the unattended block.
 
 ## Common commands
 
@@ -380,8 +377,8 @@ This root owns every other subtree directly:
 - `plugin/skills/`, `plugin/agents/`. Prose skill surfaces and subagents. Governed by **Working
   rules, Backends are pluggable**: stay backend-agnostic and never hardcode a backend. Behaviour contracts
   live in the files. Claude Code merges plugin skills and commands into one `/superdev:<name>` surface.
-  implement → review → document → submit-pr is the chain a scope walks, each skill printing the next
-  (ADR 0013). A full-tier run queues the Minors of each Minor-only slice review. The queue is settled in one
+  implement → review → document → submit-pr is the chain a scope walks, each skill starting the next at
+  its clean exit (ADR 0013, ADR 0253). A full-tier run queues the Minors of each Minor-only slice review. The queue is settled in one
   **Minor sweep** after the last slice merges. `scope.js minors add` writes the queue. A fix
   cycle whose list holds only Minors is a **Warm cycle**: it continues the previous fix implementer. The
   sweep is `references/implement-full-minor-sweep.md`'s `## Minor sweep`, the warm cycle `references/scope-findings.md`'s
@@ -394,30 +391,33 @@ This root owns every other subtree directly:
   one focused run and a warm re-review close it. The worktree is no run root and is removed when clean, kept
   and named when dirty, and the branch stays. Review merges, pushes, and opens nothing
   (`references/review-inline-fix.md`, ADR 0228). Every command listed in `references/response-shapes.md`'s Next block section closes its last
-  message with that block (ADR 0113), and an attended run first offers to start the one next command it names,
-  per that file's `## The offer` (ADR 0157). Where the Claude desktop app's session tool is present, the offer
-  asks no question: it puts up a New task card at once, which starts that command in a new session with a
-  fresh context in the same checkout, or in the same conversation through its Do it here button (ADR 0183,
-  ADR 0201). Without the tool, as in the CLI, it asks one question and recommends Stop here, with its
-  `/clear`-then-type path; Start runs the command through the Skill tool in the same conversation (ADR 0176).
-  A command another session's brief asked for offers too. A new session's prompt carries the offer's marker
-  line, and ship started from it asks no further question. Ship started from another session's brief
-  asks the operator one yes first (ADR 0225).
+  message with that block (ADR 0113). A chain command starts its own successor through the Skill tool in the
+  same turn, per that file's `## The chain start` (ADR 0253): implement starts review, a clean scope review
+  starts document, and document on a reviewed scope starts submit-pr, each with the arguments its Next block
+  would print and no question first. The start is the first action of the closing. The starter first closes
+  its step and publishes. It prints no Next block on that exit. It prints nothing after the started command
+  returns. A step-scoped bar of the starter ends at the start. A `Blocked:` line, a `First:` wait, a refusal,
+  a non-clean verdict, or a failed start ends the chain on the stopping command's Next block. An ad-hoc run
+  and the chained posture start nothing, and `/superdev:plan` starts nothing. A command typed on a live scope
+  chains on from there. superdev starts no other session and asks no Start or Stop question.
   `/superdev:ship` is a separate command: it merges the pull request submit-pr
   opened, deploys the merge under the repository's deploy posture (`none`/`manual`/`auto`,
-  `docs/agents/deployment.md`, ADR 0101), and closes no anchor (ADR 0106). submit-pr offers it, and the yes is
-  the merge consent. Where no whole-repo command is configured, submit-pr first runs ship's own reuse check, which
-  runs no test, and on a tip ship would refuse with no carry it offers `/superdev:review` instead (ADR 0230). Ship routes to `/superdev:verify-ship`
-  while a criterion is left to verify, and to `/superdev:wrap-up` otherwise (ADR 0116), and offers to start the
-  next command it prints, a refusal included. `/superdev:verify-ship`
-  settles the criteria only a deployed system can show, and offers the next command it prints. When every
-  line settles, no line waits for a hand-sync, and it read the anchor's lines, it starts `/superdev:wrap-up` through
-  the Skill tool in the same turn instead, and wrap-up's last message carries the chain's one Next block, offer,
-  and staged-pages lines (ADR 0224). A skill adds no
-  offer condition of its own: `references/response-shapes.md`'s `## The offer` alone decides it (ADR 0223). `/superdev:wrap-up` closes the triage records the anchor's Absorbs line names, then the scope anchor, and takes
-  the run down. No skill carries `disable-model-invocation: true`. Ship, verify-ship, and wrap-up start
-  only when the operator typed the command, asked for it, or agreed to an offer, and wrap-up also when
-  verify-ship's settled exit started it. Ship refuses `--unattended` (ADR 0157, INV-0093). A criterion verify-ship observes false routes to `/superdev:plan`'s
+  `docs/agents/deployment.md`, ADR 0101), and closes no anchor (ADR 0106). After the pull request opens, an
+  attended submit-pr asks one ship question that names the pull request and says nobody has reviewed it; its
+  yes is the merge consent and starts ship. Where no whole-repo command is configured, submit-pr first runs
+  ship's own reuse check, which runs no test, and on a tip ship would refuse with no carry it prints
+  `/superdev:review` instead and asks no ship question (ADR 0230). Ship starts `/superdev:verify-ship` while a
+  criterion is left to verify, and `/superdev:wrap-up` otherwise (ADR 0116); its repair and re-verify routes
+  and every refusal print their command. `/superdev:verify-ship` settles the criteria only a deployed system
+  can show. When every line settles, no line waits for a hand-sync, and it read the anchor's lines, it starts
+  `/superdev:wrap-up` through the Skill tool in the same turn, and wrap-up's last message carries the chain's
+  one Next block and staged-pages lines (ADR 0224). `/superdev:wrap-up` closes the triage records the anchor's
+  Absorbs line names, then the scope anchor, and takes the run down. No skill carries
+  `disable-model-invocation: true`. Ship, verify-ship, and wrap-up start only when the operator typed the
+  command, asked for it, another session's brief asked for it, or the command before them started it: ship on
+  the yes to submit-pr's ship question, verify-ship and wrap-up on ship's routes, and wrap-up at verify-ship's
+  settled exit. Ship started from another session's brief asks the operator one yes first, because a brief is
+  never merge consent (ADR 0253). Ship refuses `--unattended` (INV-0093). A criterion verify-ship observes false routes to `/superdev:plan`'s
   repair choice, which plans a `fix` feature on its own anchor, linked to the original by a `**Repairs:**`
   line (ADR 0124).
   No test runs after review: `/superdev:document` and `/superdev:setup` run no test command, and a green suite record carries across Markdown-only commits with no run. ADR 0189 and INV-0175 state this rule, and the `doc-setup-no-test-run` drift check holds it.
@@ -430,7 +430,8 @@ This root owns every other subtree directly:
   review starts that run at entry, in the background beside its first reviews (ADR 0234). ADR 0192 and INV-0128 state this rule, and the `implement-no-full-run` drift
   check holds it.
   Whoever invokes a chain command passes `--unattended` to run it unattended (ADR 0016, ADR 0108);
-  superdev ships no driver. Some skills sit outside the chain: publish-kb sends a scope's
+  superdev ships no driver. One unattended implement runs through submit-pr: each start carries
+  `--unattended`, and submit-pr asks no ship question. Some skills sit outside the chain: publish-kb sends a scope's
   staged knowledge-base pages to a remote backend on the operator's own clock (ADR 0023), status prints
   every run's ledger and then surveys the slice store read-only, grouping every open scope anchor, intent record (an `intent` row, ADR 0199), triage record (an `absorbed`
   row when an open anchor's Absorbs line names it, ADR 0144, and a `needs planning` row otherwise, ADR 0198),
@@ -454,7 +455,7 @@ This root owns every other subtree directly:
 - `plugin/hooks/`. Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working
   rules, Hooks are CommonJS** and **Every shipped executable has a suite in `tests/`, named for it**.
   This is the strongest future child-doc candidate, if its rules outgrow this root. Of the
-  hooks, `scope-prune.js`, `slicetree-sweep.js`, `run-trace.js`, `tree-guard.js`, and `offer-guard.js` depend on modules in `plugin/lib/`,
+  hooks, `scope-prune.js`, `slicetree-sweep.js`, `run-trace.js`, and `tree-guard.js` depend on modules in `plugin/lib/`,
   and the scripts require them as well. No hook and no script requires `scope.js`. `scope-prune.js` and `slicetree-sweep.js` both
   `require` `../lib/ledger.js` for their ledger-header reader (ADR 0022) and `../lib/git-spawn.js` for the git calls the two Stop hooks
   share (the spawn, the throwing call, and the `git branch` list parse; a module missing any of them reads as unloaded). `run-trace.js` takes each of
@@ -476,14 +477,6 @@ This root owns every other subtree directly:
   load, and the dispatch is still recorded (ADR 0245). Nothing refuses a write to a run's ledger or trace, and nothing refuses an implementer's full-suite run:
   `scope.js` detects an outside edit of a run's ledger or trace after the fact (`lib/run-check.js`), and a review grades
   an untraced write and a full-suite run (`scope.js untraced`).
-  `offer-guard.js` requires `../lib/offer-marker.js` and `../lib/running-skill.js`. Its PostToolUse half records each offer call
-  (`start_session` with the offer's marker line, or an `AskUserQuestion` with a `Start /superdev:` option) by
-  session, turn, and command. Its Stop half, last in the Stop array, holds a main-session turn once when the last
-  message's Next block names one command no offer call of the turn named. A message with no `### Next` heading counts
-  as one when the lone-command fences and the `/superdev:` code spans on a line whose first word, past a list marker
-  and emphasis, is "next" in its last paragraph name one command (ADR 0213, ADR 0216, ADR 0226, ADR 0240, INV-0183). It passes a turn whose command is the superdev skill the session transcript
-  last started, by `<command-name>` or `Skill` call (ADR 0222). It fails open on
-  any malformed input or filesystem error, and passes a Stop with `stop_hook_active` set.
 - `scripts/` and `plugin/scripts/`. Owned by [`scripts/AGENTS.md`](scripts/AGENTS.md), which states
   each script's contract: the shipped `plugin/scripts/` CLIs `scope.js`, `kb-patch.js`, `publish-kb.js`,
   the modules in `plugin/lib/` behind them, and the maintainer-only `scripts/drift-check.js` with

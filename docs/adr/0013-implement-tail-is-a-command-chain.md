@@ -10,6 +10,9 @@ below, while the split into commands stays. [ADR 0228](0228-an-ad-hoc-review-fix
 lets an ad-hoc review fix a Minor-only remainder inline on the operator's yes, on a fresh branch in a
 worktree under `.superdev/`.
 
+**Amended by:** [ADR 0253](0253-the-chain-starts-its-successor-and-the-offer-is-removed.md), under which
+implement, review, and document each start the next command at a clean exit, so the commands no longer pause.
+
 **Context.** `/superdev:implement` welds five steps behind the last slice merge: the whole-scope review,
 the fix loop, the documentation pass, the Definition of Done tick, and the pull request. The maintainer
 cannot inspect the merged scope branch before the documentation lands and the pull request opens. Every

@@ -7,6 +7,7 @@ const {
   scanNoBaseBranchCommit,
   scanShipNoOpensPr,
   scanPastPrSkills,
+  scanNoOfferStart,
   scanDeriveNoDod,
   scanDeployRunnerExclusivity,
   scanConflictConclusionNoCommit,
@@ -248,13 +249,13 @@ module.exports = ({ assert, fixture, found }) => {
     'a final-reviewer with no `## Derive mode` section is a gap',
   );
 
-  // --- past-pr-skills (ADR 0157, INV-0066, INV-0093): every skill an offer starts past the open pull
-  // request is model-invocable, verify-ship and wrap-up name no `--unattended`, and no `--from-ship` remains ---
+  // --- past-pr-skills (ADR 0253, INV-0066, INV-0093): every skill a chain start reaches, and publish-kb,
+  // is model-invocable, verify-ship and wrap-up name no `--unattended`, and no `--from-ship` remains ---
 
   const humanSkill = (extra) => ['---', 'name: x', 'disable-model-invocation: true', '---', '', extra, ''].join('\n');
   const openSkill = (extra) => ['---', 'name: x', '---', '', extra, ''].join('\n');
   const pastPr = (files) => found(scanPastPrSkills(fixture(files)));
-  for (const name of ['ship', 'verify-ship', 'wrap-up', 'publish-kb']) {
+  for (const name of ['review', 'document', 'submit-pr', 'ship', 'verify-ship', 'wrap-up', 'publish-kb']) {
     assert.equal(pastPr({ [`skills/${name}/SKILL.md`]: openSkill('Body.') }).length, 0, `${name} on the model-invocable surface is clean`);
     assert.equal(pastPr({ [`skills/${name}/SKILL.md`]: humanSkill('Body.') }).length, 1, `${name} off the model-invocable surface is caught`);
     assert.equal(
@@ -270,4 +271,24 @@ module.exports = ({ assert, fixture, found }) => {
   for (const rel of ['skills/ship/SKILL.md', 'skills/verify-ship/SKILL.md', 'references/response-shapes.md']) {
     assert.equal(pastPr({ [rel]: openSkill('Add `--from-ship` to the call.') }).length, 1, `${rel} naming --from-ship is caught`);
   }
+
+  // --- no-offer-start (ADR 0253): no shipped file names the session tool or the offer's marker line;
+  // the bare word "offer" stays free ---
+
+  const noOffer = (files) => found(scanNoOfferStart(fixture(files)));
+  assert.equal(
+    noOffer({ 'plugin/references/response-shapes.md': 'Call `mcp__ccd_session__start_session` once.\n' }).length,
+    1,
+    'a shipped reference naming start_session is caught',
+  );
+  assert.equal(
+    noOffer({ 'plugin/skills/ship/SKILL.md': 'The prompt ends with `A superdev offer started this session.`\n' }).length,
+    1,
+    'a shipped skill naming the offer marker line is caught',
+  );
+  assert.equal(
+    noOffer({ 'plugin/skills/plan/SKILL.md': '**The intent offer.** Applies to every plan. Offer two sources together, in one offer.\n' }).length,
+    0,
+    "plan's intent offer passes: the bare word is no forbidden form",
+  );
 };

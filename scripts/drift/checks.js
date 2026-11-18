@@ -40,6 +40,7 @@ const {
   scanNoBaseBranchCommit,
   scanShipNoOpensPr,
   scanPastPrSkills,
+  scanNoOfferStart,
   scanDeriveNoDod,
   scanInvariantRegisterJoin,
 } = require('./scanners');
@@ -173,9 +174,15 @@ module.exports = [
   ),
   {
     id: 'past-pr-skills',
-    ok: 'ship, verify-ship, wrap-up, and publish-kb carry no `disable-model-invocation: true`, neither verify-ship nor wrap-up names `--unattended`, and no `--from-ship` remains (INV-0066, INV-0093)',
+    ok: 'review, document, submit-pr, ship, verify-ship, wrap-up, and publish-kb carry no `disable-model-invocation: true`, neither verify-ship nor wrap-up names `--unattended`, and no `--from-ship` remains (INV-0066, INV-0093)',
     run: scanPastPrSkills,
     format: contractGap,
+  },
+  {
+    id: 'no-offer-start',
+    ok: 'no shipped file names `start_session` or the offer marker line (ADR 0253)',
+    run: scanNoOfferStart,
+    format: (g) => `${g.source}:${g.line} names \`start_session\` or the offer marker line — superdev starts no session and makes no offer (ADR 0253)`,
   },
   {
     id: 'no-base-branch-commit',

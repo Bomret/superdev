@@ -24,7 +24,7 @@ Applies to every start. You turn an intent into **independently-green vertical s
 
 ## The closing message
 
-Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The offer`.
+Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`.
 
 ## 0. Config
 
@@ -278,4 +278,4 @@ A triage record already written is amended instead, through the store's own `## 
 
 **The release answer.** Applies to the release question. The answer is the user's, so **wait for it**; an authorization to run the whole chain unattended is not that answer. A correction the user names on seeing the list is applied to the store before the question is put again.
 
-**The last act.** Applies once the release answer is applied. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root <run-root>`. Then print the next command with the feature label resolved: `/superdev:implement <feature-label>`, carrying the real label this plan wrote, in the shape the store document states.
+**The last act.** Applies once the release answer is applied. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root <run-root>`. Then print the next command with the feature label resolved: `/superdev:implement <feature-label>`, carrying the real label this plan wrote, in the shape the store document states. End on that Next block and start nothing, also when `/superdev:implement` started this plan: the operator starts implement.

@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Start only when the operator typed it, asked for it, or agreed to an offer: merge a superdev scope's pull request, pinned to the tested head, through the host's merge API — apply the repository's deploy posture to the merge, then hand off to `/superdev:verify-ship`, to `/superdev:wrap-up` when nothing is left to verify, or to `/superdev:plan` when a criterion needs a repair, offering to start the next command. Run it once `/superdev:submit-pr` has opened the pull request and it has been reviewed.
+description: Start only when the operator typed it, asked for it, or said yes to submit-pr's ship question: merge a superdev scope's pull request, pinned to the tested head, through the host's merge API — apply the repository's deploy posture to the merge, then hand off to `/superdev:verify-ship`, to `/superdev:wrap-up` when nothing is left to verify, or to `/superdev:plan` when a criterion needs a repair, starting verify-ship or wrap-up on those routes. Run it once `/superdev:submit-pr` has opened the pull request and it has been reviewed.
 argument-hint: "[<scope>  (empty = the only run in this repo)]"
 ---
 
@@ -26,16 +26,16 @@ Applies to every start. Start this command only on one of the starts below. The 
 
 - The operator typed the command.
 - The operator asked for it.
-- The operator agreed to an offer of it, which `/superdev:submit-pr` makes, as does any command whose Next block prints it.
+- The operator said yes to `/superdev:submit-pr`'s ship question, which started it.
 - Another session's brief asked for it, confirmed by the one yes `## A brief started` asks first.
 
 ## No extra question
 
-Applies to a typed start, to a start an offer's Start option or the card's Do it here button made in the conversation that offered it, and to an offer's new-session prompt: this command's text followed by the marker line `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section defines. Ask no extra question: the operator's click on the card is the merge consent.
+Applies to a typed start, a start the operator asked for, and the start submit-pr's ship question made on its yes. Ask no extra question: that yes is the merge consent.
 
 ## A brief started
 
-Applies when another session's brief started this command, with no offer's marker line. Your first act is one `AskUserQuestion` confirming `/superdev:ship` with its arguments. It comes before any `step set`, ledger write, store write, or host call.
+Applies when another session's brief started this command, a prompt that carries a marker line of an older superdev offer included. Your first act is one `AskUserQuestion` confirming `/superdev:ship` with its arguments. It comes before any `step set`, ledger write, store write, or host call.
 
 - **A yes** → run the command as typed.
 - **Any other answer** → write nothing and end on the Next block with the same command in its fence.
@@ -44,7 +44,7 @@ A brief is never merge consent.
 
 ## The closing message
 
-Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The offer`.
+Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`.
 
 ## 1. Scope + run root
 
@@ -228,10 +228,10 @@ Applies to every start past §1. Read the stage and the pull request number with
 
 - **It routes to re-verify** → print `/superdev:verify-ship <scope>`, with one line: a repair of this scope has closed since the `not met:` line was last observed, and verify-ship observes it again. Print `/superdev:plan` on an `Or:` line, for a repair that did not hold.
 - **It routes to repair** → print `/superdev:plan`, with one line: a criterion reads `not met:`, and its repair choice plans the fix. Print the route's open-repair line for each open repair, and `/superdev:verify-ship <scope>` on an `Or:` line, for a transient observation.
-- **It routes to wrap-up** → print `/superdev:wrap-up <scope>`, with one line: nothing is left to verify, and wrap-up closes the scope. A `dod.md` line unpaired on the anchor puts the hand-sync of the anchor's criterion text under `First:`.
-- **It routes to verify-ship** → print `/superdev:verify-ship <scope>`, with one line: it observes the open Definition-of-Done lines (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule`), and `/superdev:wrap-up <scope>` closes the scope afterwards.
+- **It routes to wrap-up** → start `/superdev:wrap-up <scope>`: nothing is left to verify, and wrap-up closes the scope. A `dod.md` line unpaired on the anchor puts the hand-sync of the anchor's criterion text under `First:`, and that exit prints the command instead.
+- **It routes to verify-ship** → start `/superdev:verify-ship <scope>`: it observes the open Definition-of-Done lines (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule`), and `/superdev:wrap-up <scope>` closes the scope afterwards.
 - **The anchor cannot be read** → print `/superdev:verify-ship <scope>`; its reconcile reads the anchor again.
 
-**The staged pages.** Applies to every route. Name the scope's staged pages per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close`. A count above zero puts `/superdev:publish-kb <scope>` on an `Or:` line of the Next block when that block prints.
+**The staged pages.** Applies to every route that prints its command, a failed start included. Name the scope's staged pages per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close`. A count above zero puts `/superdev:publish-kb <scope>` on an `Or:` line of the Next block. On a started route, the chain's last message names them, whichever command ends it and whether it finishes, refuses, or stops.
 
-**Offer to continue.** Applies to every route and every refusal. A resume that prints `/superdev:ship <scope>` names the same-skill exception. Ship prints nothing after a started command returns: a started verify-ship starts wrap-up itself at its settled exit.
+**The start.** Applies to the verify-ship and wrap-up routes. Start that command per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The chain start`, after the `step clear` above and the publish; its **After the start** decides what ship prints. The re-verify, repair, and unreadable-anchor routes and every refusal print their command and start nothing. A started verify-ship starts wrap-up itself at its settled exit.

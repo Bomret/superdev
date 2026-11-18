@@ -75,15 +75,6 @@
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-trace.js\""
           }
         ]
-      },
-      {
-        "matcher": "mcp__ccd_session__start_session|AskUserQuestion",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/offer-guard.js\""
-          }
-        ]
       }
     ],
     "PostToolUseFailure": [
@@ -152,10 +143,6 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-trace.js\""
-          },
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/offer-guard.js\""
           }
         ]
       }
