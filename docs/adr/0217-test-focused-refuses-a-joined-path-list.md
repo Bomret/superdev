@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0259](0259-a-test-run-takes-its-changed-paths-from-a-ref.md), which lets a caller name a ref instead of
+a path list.
+
 ## Context
 
 An implementer ran `P=$(git diff --name-only <base>..HEAD | tr '\n' ' '); node scope.js test focused $P` in zsh, which
