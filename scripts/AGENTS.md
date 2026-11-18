@@ -518,7 +518,8 @@ named check is green when every line carrying its name reads `success`, failed w
 and finished-not-green when its lines read only `success`, `skipped`, `neutral`, `stale`, or `warning`. Lines for names
 not listed are ignored, a trailing `\r` is stripped, and a line without a TAB matches nothing. It prints
 `ci: <green|not-green|failed|cannot-judge> <sha>`, then one `<pending|finished|failed><TAB><name><TAB><state>[<TAB><link>]`
-line per check not green. It exits 0 (green), 3 (not yet green), 4 (failed), or 2 (cannot judge: an unresolvable SHA, no
+line per check not green. Empty or unparseable stdin, with no line that holds a name and a state, judges every named check
+missing: the verdict is not-green, never green, and its `ci:` line ends in `(no check report read)`. It exits 0 (green), 3 (not yet green), 4 (failed), or 2 (cannot judge: an unresolvable SHA, no
 named checks at that commit, or a malformed section), and 1 on a usage refusal. It writes no ledger line, no trace line,
 and no suite record. `tests/scope-ci.test.js` holds its cases.
 

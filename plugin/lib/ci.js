@@ -26,7 +26,8 @@ function judge(reports) {
   return finished ? { kind: 'finished', ...finished } : { kind: 'green' };
 }
 
-// `ci --sha <sha> [--root <path>]`: stdin holds `name<TAB>state[<TAB>link]` lines. Prints `ci: <verdict> <sha>`, then one
+// `ci --sha <sha> [--root <path>]`: stdin holds `name<TAB>state[<TAB>link]` lines. Prints `ci: <verdict> <sha>`, with `(no check report read)` after it where no
+// input line holds a name and a state, then one
 // `<pending|finished|failed><TAB><name><TAB><state>[<TAB><link>]` line per named check that is not green, and sets the
 // verdict's exit status.
 function verbCi(cwd, args, input) {

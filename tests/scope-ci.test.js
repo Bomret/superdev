@@ -157,6 +157,15 @@ try {
     assert.equal(ci(fenced, lines(['lint', 'success'])).code, 0);
   }
 
+  // An option-shaped SHA resolves to no commit: cannot judge (exit 2), and git writes no file it names.
+  {
+    const out = path.join(dir, 'option-shaped-out');
+    const r = ci(`--output=${out}`, lines(['lint', 'success'], ['test (ubuntu)', 'success']));
+    assert.equal(r.code, 2, JSON.stringify(r));
+    assert.match(r.out, /^ci: cannot-judge /);
+    assert.ok(!fs.existsSync(out));
+  }
+
   // Usage: no --sha refuses.
   {
     const r = ci(null, '');
