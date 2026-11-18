@@ -125,8 +125,9 @@ The adopted run root holds no scopetree and no slicetrees. Nothing adopted → t
 `/superdev:ship`'s post-merge hand-off, `/superdev:verify-ship`'s end message, and `/superdev:wrap-up`'s
 finish each name the scope's staged knowledge-base pages by this one rule, so the operator reads the same
 facts at every close step. Each caller states only where the publish command goes in
-its own Next block. On verify-ship's exit that starts wrap-up, verify-ship's message names none, and
-wrap-up's last message names the pages, whether it finishes, refuses, or stops.
+its own Next block. A command that starts its successor names none on that exit: ship's verify-ship and
+wrap-up routes and verify-ship's settled exit pass the naming on. The chain's last message names the pages,
+whichever of verify-ship or wrap-up ends it and whether it finishes, refuses, or stops.
 
 Read the count with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" staging <scope> --count`, and the
 directory with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" staging <scope>`, in the same run that

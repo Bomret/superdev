@@ -47,7 +47,9 @@ with no question (ADR 0224), and ship already starts verify-ship.
    `/superdev:ship` in the same turn. A no ends on the Next block that names `/superdev:ship <scope>`.
    Ship's route to verify-ship starts `/superdev:verify-ship`, and its route to wrap-up starts
    `/superdev:wrap-up`, in the same turn. Its repair and re-verify routes print their command. Verify-ship
-   starts wrap-up at its settled exit (ADR 0224). The merge yes carries the scope to its close.
+   starts wrap-up at its settled exit (ADR 0224). The merge yes carries the scope to its close. A command
+   that starts its successor names no staged pages on that exit, and the chain's last message names them,
+   whether verify-ship or wrap-up ends it, a refusal or a stop included.
 3. **A stop ends the chain.** A `Blocked:` line, a `First:` wait, a refusal, or a start the Skill tool
    refuses or fails ends the chain on the Next block of the command that stopped.
 4. **An unattended run chains to submit-pr.** It carries `--unattended` to every command it starts and
@@ -58,6 +60,10 @@ with no question (ADR 0224), and ship already starts verify-ship.
 7. **The offer is removed.** No command puts up a card, calls the session tool, or asks a Start or Stop
    question. Every covered command still ends on its Next block. `hooks/offer-guard.js`, `lib/offer-marker.js`,
    and `lib/running-skill.js` are deleted. No hook enforces the start in item 1.
+8. **A brief start of ship asks one yes.** Ship, verify-ship, and wrap-up may start from another
+   session's brief. Ship started that way asks the operator one `AskUserQuestion` confirming the command
+   before any write, because a brief is never merge consent. Every other start of the three asks no extra
+   question.
 
 ```mermaid
 flowchart LR

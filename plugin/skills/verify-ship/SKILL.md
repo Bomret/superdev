@@ -36,6 +36,8 @@ Applies to every observation. Observe within the observe-only bound of `${CLAUDE
 
 Applies to every message this command ends on, the wrap-up start in §6 excepted. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`.
 
+**The chained staged pages.** Applies to a start `/superdev:ship`'s verify-ship route made, on every message it ends on before §6, a refusal and a stop included. Ship named no staged pages on its Next block, so name them here per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close`. A count above zero puts `/superdev:publish-kb <scope>` on an `Or:` line of the Next block. §6's **The staged pages** names them on its own exits.
+
 ## 1. Scope + run root
 
 Resolve `$ARGUMENTS` to one scope, a **run root**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## A live scope run` section:

@@ -63,15 +63,15 @@ tiers: record that slice execution finished, name what comes next.
   **Pass-to-pass** or **Missing fail-to-pass run** left, named with each finding, and each
   unclosable **Pass-to-pass** finding a slice or the Minor sweep took the early escape with, or a lite slice merged
   on, named with its slice or range, its case, and its reason.
-- **Print the next command, resolved.** Compute `BASE`, the scope's range base, per
+- **Resolve the next command.** Compute `BASE`, the scope's range base, per
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`
   (`scope.js base resolve --branch <branch> --base <base> --root <run-root>`; `<base>` from
-  `docs/agents/code-management.md`, default `main`) and print `/superdev:review <BASE-sha>..<branch>` with
-  the real commit substituted, plus one line on what it does (review the integrated scope against the
-  DoD and run the scope's one full-suite run) — **every scope**, whatever its slice types.
-  This line fills the Next block that closes the message, so it comes last.
+  `docs/agents/code-management.md`, default `main`). The next command is `/superdev:review <BASE-sha>..<branch>`
+  with the real commit substituted — **every scope**, whatever its slice types.
 - **Start the review.** Once every slice is on the scope branch and this handoff's closer and publish ran,
-  start `/superdev:review <BASE-sha>..<branch>` per
-  `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The chain start`. A started review leaves this
-  command nothing to print. Every other exit prints the Next block and stops: no review, no doc pass, no pull
-  request, no cleanup.
+  start that command per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The chain start`. A
+  started review leaves this command nothing to print.
+- **Print the next command.** Applies to every exit that starts no review, a failed start included. Print the
+  resolved command, plus one line on what it does (review the integrated scope against the DoD and run the
+  scope's one full-suite run). This line fills the Next block that closes the message, so it comes last. The
+  exit stops there: no review, no doc pass, no pull request, no cleanup.

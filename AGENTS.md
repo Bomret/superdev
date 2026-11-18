@@ -414,9 +414,10 @@ This root owns every other subtree directly:
   one Next block and staged-pages lines (ADR 0224). `/superdev:wrap-up` closes the triage records the anchor's
   Absorbs line names, then the scope anchor, and takes the run down. No skill carries
   `disable-model-invocation: true`. Ship, verify-ship, and wrap-up start only when the operator typed the
-  command, asked for it, or the command before them started it: ship on the yes to submit-pr's ship question,
-  verify-ship and wrap-up on ship's routes, and wrap-up at verify-ship's settled exit. Ship started from
-  another session's brief asks the operator one yes first (ADR 0225). Ship refuses `--unattended` (INV-0093). A criterion verify-ship observes false routes to `/superdev:plan`'s
+  command, asked for it, another session's brief asked for it, or the command before them started it: ship on
+  the yes to submit-pr's ship question, verify-ship and wrap-up on ship's routes, and wrap-up at verify-ship's
+  settled exit. Ship started from another session's brief asks the operator one yes first, because a brief is
+  never merge consent (ADR 0253). Ship refuses `--unattended` (INV-0093). A criterion verify-ship observes false routes to `/superdev:plan`'s
   repair choice, which plans a `fix` feature on its own anchor, linked to the original by a `**Repairs:**`
   line (ADR 0124).
   No test runs after review: `/superdev:document` and `/superdev:setup` run no test command, and a green suite record carries across Markdown-only commits with no run. ADR 0189 and INV-0175 state this rule, and the `doc-setup-no-test-run` drift check holds it.

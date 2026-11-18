@@ -22,7 +22,7 @@ Applies to every message this command ends on, the next command run handoff prin
 
 ## The review start
 
-Applies to run handoff's exit with every slice on the scope branch, once its `merged` stage write and publish ran. Start `/superdev:review` with the arguments the Next block would print, per `## The chain start`. Every other exit prints its Next block.
+Applies to run handoff's exit. Start or print `/superdev:review` per `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md`'s **Start the review** and **Print the next command**.
 
 ## The inline doc pass
 
