@@ -135,11 +135,11 @@ GREEN: write the minimal code to pass it → the next increment's run, or the fi
 
 Applies to every test run in any dispatch.
 
-Run only the tests that verify your work, and make each run answer a question no earlier run at the same commit answered (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## Every run answers a question`). Run each through the runner `${CLAUDE_PLUGIN_ROOT}/scripts/scope.js test`, as `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` states in `## The two commands` and `## The changed-path set`. The controller owns every full-suite run.
+Run only the tests that verify your work, and make each run answer a question no earlier run at the same commit answered (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## Every run answers a question`). Run each through the runner `${CLAUDE_PLUGIN_ROOT}/scripts/scope.js test`, as `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` states in `## The two commands` and `## The changed-path set`. `/superdev:ship` takes the scope's full-suite evidence, and you make no full-suite run.
 
 - Your runs: one `scope.js test path <file> -- <command>` per increment, naming the one test file the increment works on, run after you write its new test and before you write the code that passes it. That run shows the new test failing and the file's earlier tests passing. You make no separate GREEN run per increment and no separate control run. Once the last increment is committed, run `scope.js test focused <paths>` once over the whole changed-path set, with at least one path: it is the last GREEN and the final check. Then run the fail-to-pass run `### Fail-to-pass run` states. A step that works on no test file runs that focused command. A failing final run is a RED step: fix, commit, and run it again.
 - A test command is recorded as typed and pushed with the run state, so a secret belongs in the environment, never on the command line.
-- The controller's runs: `test full`, `test whole`, and a `test focused` with no path, which runs the full command.
+- Ship's runs: `test full`, `test whole`, and a `test focused` with no path, which runs the full command.
 - Where the focused fence of `docs/agents/verification.md` repeats the full fence, each increment runs its one test file through `scope.js test path <file> -- <command>`, and your final run is one `scope.js test path <every test file your range changed> -- <command>` from the tree root, with the exact command you then pass to the fail-to-pass verb. You make no whole-set run: that final `test path` run and the fail-to-pass run are the runs you make before your report.
 - A `run full` or `run whole` line recorded in your dispatch window is a Minor review finding, so run only the commands above.
 

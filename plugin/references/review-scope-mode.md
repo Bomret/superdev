@@ -12,7 +12,7 @@ Rare branches live in files of their own, each read only when its branch fires: 
 
 ## 0. Config
 
-**The test command.** Applies to the exit run of §4.2, the scope's one full-suite run. The exit run runs the full command once, on a route that advances the stage, at the tip the stage would advance on, and never while a fix cycle can still move that tip. Before the first reviews, see §4.2's entry reuse check.
+**The test command.** Applies to every test run of a scope review. The review starts no full-suite or whole-repo run (ADR 0255, INV-0193). Its fix cycles run focused, path, and fail-to-pass runs, and the scope's full-suite evidence is taken at `/superdev:ship`, through the named checks or a local run. Before the first reviews, see §4.2's red evidence.
 
 ## 1. Range
 
@@ -45,7 +45,7 @@ Rare branches live in files of their own, each read only when its branch fires: 
 - **Tier and run root**: the tier per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` (3 or fewer `behavior` slices is `lite`), and `<run-root>`.
 - **Fix-cycle range**: a re-review hands the cycle's range `<cycle-base>..<cycle-tip>` as full commits. `<cycle-tip>` is the scope tip once you accept the cycle's report, before any merge of §4.1's **The moved base**.
 - **Untraced writes**: the reviewer runs `scope.js untraced` over the range of each window `fail-to-pass.md`'s `## Fail-to-pass run` gives the final reviewer, the `lite` slices with a recorded range and the scope's fix cycles with commits, and grades the listing, per `${CLAUDE_PLUGIN_ROOT}/references/untraced-writes.md`'s `## Untraced writes`. The dispatch hands the run root and the ranges above and no listing, because the verb reads git and the trace itself. A **Missing fail-to-pass run** finding counts the listed paths as change events, and a `run full` or `run whole` line inside an implementer window is a Minor **Implementer suite run** finding.
-- **Suite result**: as the next concept states.
+- **Suite result and red evidence**: as the next concept states.
 
 **The re-review after a warm cycle.** Applies to the re-review of a fix cycle whose list held only Minor findings. Message the reviewer of the fixed verdict with SendMessage. Name the cycle's range as full commits, per the **Fix-cycle range** above. That range is its subject in place of the whole range.
 
@@ -54,8 +54,8 @@ Rare branches live in files of their own, each read only when its branch fires: 
 
 **The suite result.** Applies to every dispatch of `final-reviewer` in a scope review. `final-reviewer`'s `### Suite run` owns the result's handling.
 
-- The first dispatch hands §4.2's entry reuse check: its reused outcome, or `not run: <reason>`. It never hands a run still in progress.
-- A fix cycle's re-review hands no run, a cycle a red exit run opened included. `### Suite run` names what it reads in place of one.
+- The first dispatch hands `not run: ship takes the full-suite evidence, from the named checks or a local run`, and each red-evidence finding §4.2 found, as Critical findings already in the fix list.
+- A fix cycle's re-review hands no run, a cycle red evidence opened included. `### Suite run` names what it reads in place of one.
 
 **The `simplicity-reviewer` dispatch.** Applies to the `simplicity-reviewer` dispatch of a scope review.
 
@@ -113,17 +113,17 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - **The check passes** → continue.
 - **A refusal, or a failed anchor read or Absorbs read** → take `review-scope-holds.md`'s `## The anchor check's refusals`, its entry branch.
 
-**The base.** Applies at a stage before `submitted`, read from the `stage` field of the skill's `scope.js state` call. Run `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Bringing the scope branch to base` after the scope checkout and the run lock. It runs before §4.2's entry reuse check. Its own rules apply unchanged.
+**The base.** Applies at a stage before `submitted`, read from the `stage` field of the skill's `scope.js state` call. Run `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Bringing the scope branch to base` after the scope checkout and the run lock. It runs before §4.2's red evidence. Its own rules apply unchanged.
 
 - The unchanged rules: conflict, numbering-collision, citation, unattended-block, and degraded-fetch.
 - A stop there ends the review with the scopetree clean.
 - An unreachable remote records a degraded pass, and the review continues.
-- It runs no suite. §4.2's exit run verifies its merge together with implement's.
+- It runs no suite. Ship's full-suite evidence covers its merge together with implement's.
 - The base step records the range base `final-reviewer` starts from. Resolve `<range-base>` with `scope.js base resolve --branch <branch> --base <base> --root <run-root>` after it, and hand every dispatch the range from that value.
 
-**The preparation.** Applies at a stage before `submitted`, after the base step and before §4.2's entry reuse check, so the tree is ready before the first fix cycle runs a test in it. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <run-root>/scopetree` in the controller's own Bash call, per `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Preparing a worktree`: a merged slice or the base step can add a dependency. A failing preparation stops the review, naming the command and its exit. **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`.
+**The preparation.** Applies at a stage before `submitted`, after the base step and before §4.2's red evidence, so the tree is ready before the first fix cycle runs a test in it. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <run-root>/scopetree` in the controller's own Bash call, per `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Preparing a worktree`: a merged slice or the base step can add a dependency. A failing preparation stops the review, naming the command and its exit. **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`.
 
-**The moved base.** Applies before every exit run of §4.2 and when each fix cycle ends, at every stage the review accepts, `submitted` included. The base may move while the review runs. Fetch `<base>` per `scope-branch.md`'s `## Bringing the scope branch to base` (its fetch step) and read from git whether the scope branch holds the base tip: `git -C <run-root>/scopetree merge-base --is-ancestor <tip> <branch>`, `<tip>` being the fetched base tip as a full commit.
+**The moved base.** Applies before §4.10's stage write and when each fix cycle ends, at every stage the review accepts, `submitted` included. The base may move while the review runs. Fetch `<base>` per `scope-branch.md`'s `## Bringing the scope branch to base` (its fetch step) and read from git whether the scope branch holds the base tip: `git -C <run-root>/scopetree merge-base --is-ancestor <tip> <branch>`, `<tip>` being the fetched base tip as a full commit.
 
 - **The branch holds the tip** → continue.
 - **At `submitted`, the branch lacks the tip** → merge nothing and name the moved base in the report for `/superdev:ship`, which owns it there.
@@ -131,50 +131,22 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - **A finding whose remedy is merging the base** → `review-scope-base.md`'s `## A finding answered by the base step`.
 - **A fetch that failed** → record the degraded pass **The base** names and continue.
 
-### 4.2 The suite gate
+### 4.2 Red evidence
 
-**The suite record.** Applies after §4.1, before the entry reuse check. Read the `suite` field of the skill's `scope.js state` call. It reads `<result> <sha>[ whole]`, or nothing with no record. It decides the exit run's command.
+**The red evidence.** Applies once per invocation, in the scope checkout, after §4.1 and before the first `final-reviewer` dispatch. Run no test. Read both sources below. Each red the reading finds is a Critical finding in the fix list, even when `final-reviewer` returns none. §2's dispatches and the `simplicity-reviewer` dispatch go out at once after the reading.
 
-- **Red with `whole`, and a `## Whole-repo command` section configured** (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## Whole-repo command`) → the exit run runs the whole-repo command in place of the full command, through `scope.js test whole`. It skips the reuse check, records with `scope.js suite set <result> <sha> --whole --root <run-root>`, and the report names it the whole-repo run.
-- **Any other record** → the exit run runs the full command.
-- **The exit run follows this choice**, not a re-read of the record at the exit.
+- **The local suite record.** Read the `suite` and `failed` fields of the skill's `scope.js state` call. A record that reads `red` at the scope branch's tip, or at an ancestor of it (`git -C <run-root>/scopetree merge-base --is-ancestor <sha> <branch>` succeeds), is a red-evidence finding naming its commit and the test files the `failed` field prints. A red record on a commit that is no ancestor of the tip is ignored. Any other record finds nothing.
+- **The named CI checks.** Applies where the `## CI` section of `docs/agents/verification.md` at the tip names checks and the `pr` field records a pull request. Read that pull request per `docs/agents/code-management.md`'s `## Merge` section for its `head.sha`. Take that document's `## Check status` read for `head.sha`, its lines read into a file, and feed them to `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" ci --sha <head.sha> --root <run-root>/scopetree`. **Exit 4** → one red-evidence finding per check the verb names failed, naming the check, its link, and the SHA it ran on. **Any other exit** → no finding. State the verdict for that SHA. Evidence for a head other than the tip is reported for that head, never as the tip's state.
+- **A CI read that fails** (the pull request read, the check-status read, or a document with no `## Check status` section) → print `CI status unreadable: <reason>` once, and continue. It never holds the review.
 
-**The entry reuse check.** Applies once per invocation, in the scope checkout, after §4.1 and the suite record, before the first `final-reviewer` dispatch. Run no test. Read `docs/agents/verification.md` first, and take the first bullet below that holds. Where no earlier bullet holds, run the exit run's step 1 below alone at the scope branch's tip, `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base> --root <run-root>`. Hand the first `final-reviewer` dispatch the outcome. §2's dispatches and the `simplicity-reviewer` dispatch go out at once.
+**A red-evidence finding.** Applies to every finding the red evidence found. Fold it into the fix loop like a `final-reviewer` finding. The stage does not advance while it stands.
 
-- **No test command configured** → hand `not run: no test command`, and continue. This never blocks the review.
-- **The suite record's whole-repo choice above** → skip the check, and hand `not run: the whole-repo command runs at the exit, once the tip is settled`.
-- **Exit 0** → hand the reused outcome. The exit run judges its own tip afresh at the exit, and its step 1 reuses the same record at a tip no commit has moved.
-- **Exit 1, or no record** → hand `not run: the full suite runs at the exit, once the tip is settled`. Exit 1 is no `fail`: record nothing, and add nothing to the fix list.
-- **The carry waits for the exit run.** Take no carry here: its focused run is a test run at a tip a fix cycle can still move.
-- The first fix cycle starts as soon as the ask-once of §4.6 is answered, or at once under `--unattended`. No test run holds it.
-- State the outcome in your own output: reused, or not run with its reason.
-
-**A failing run.** Applies to a `fail` of the exit run. It is a Critical finding. Fold it into the fix loop like a `final-reviewer` finding. The stage does not advance while it stands.
-
-- The fold holds whether or not that dispatch returned findings of its own.
 - **A failing test the scope did not cause** is this Critical finding too, and joins the fix list. A triage record for it may sit beside its fix, never in its place.
-- **A red exit run opens a fix cycle**, after a clean first verdict included. It goes through the ask-once of §4.6 when attended, and its cycle counts toward the 3-cycle cap of §4.7. The cap bounds the exit runs a scope pays.
-- **Its re-review re-judges every line noted `met:` before the red run**: §2's whole-range dispatch hands the whole `dod.md`, and a line it calls broken is unticked per §4.5 before the stage advances.
+- **It goes through the ask-once of §4.6** when attended, and its cycle counts toward the 3-cycle cap of §4.7.
+- **It closes on the fix cycle's own runs**: a passing `path` run of the failed test files, or a passing focused run over the cycle's range, at the cycle's tip, which the re-review reads in the run trace. A failed CI check with no named test file closes on the focused run.
+- **The report says ship takes the full-suite evidence again**, from the named checks or a local run.
 
 **Inside a fix cycle.** Applies to every fix cycle. Run no test. The re-review reads the cycle implementer's recorded runs and its fail-to-pass outcome in the run trace.
-
-**The exit run.** Applies on every route that advances the stage, before §4.10's stage write. The routes: a clean first verdict, a clean re-review, a re-review left with only Minor **Prompt-concept overlap** findings and no broken criterion, only Minor findings left at the cap, a declined ask-once with only Minor findings standing, and a ready combined verdict of §3 whose remaining findings are only deferred, or at any cycle only unclosable **Pass-to-pass** beside deferred ones, a warm re-review's restated ones included, or at the cap **Pass-to-pass** or **Missing fail-to-pass run**. Run it once in the scope checkout at the scope branch's tip, in this order.
-
-1. **Reuse.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base> --root <run-root>`. Exit 0 → reused, running nothing: an exact tip match, a Markdown-only range since the record, needing no test run at the tip, a focused-selector carry, alone or followed by Markdown-only commits, a recorded rerun, alone or followed by Markdown-only commits, or a passing full run at the tip itself.
-2. **The carry.** Exit 1, or no record → take the carry per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## The carry run`. A carried tip is reused, running and recording nothing. A failing carry run is a `fail`, recorded red at the tip.
-3. **The full command.** A tip with no carry → run the full command from `docs/agents/verification.md` per `test-selection.md`, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full`, or `test whole` per the suite-record concept above. It runs in the foreground with Bash's `timeout` at its ceiling, in the background only where it can outlast the ceiling, and you wait for its end before acting on it.
-4. **The recorded rerun.** A failed full run takes `test-selection.md`'s `## The recorded rerun` before it stands as the `fail`: the red record and the failing files first, then for one file the triage record quoting the failure, the rerun record, the file alone, and the focused run. Several files, or an unattributable failure, stay the `fail`. The failing-files record lets the next exit run take the carry from this red record once the fix cycle repaired them, in place of another full run.
-
-**The exit record and outcome.** Applies to every exit run. A reused tip records nothing. Record every other outcome with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set <green|red|denied|none> <tip> --root <run-root>`, with `--whole` after the whole-repo choice: `green` for a pass, `red` for a fail or `pass on rerun`, and the bullets below name the rest. The run verifies the slices, implement's base merge, and this review's own base merge together.
-
-- `<tip>` is the scope branch's tip after the last fix commit.
-- The outcome is one of: reused, pass, `pass on rerun` (the gate passed on `## The recorded rerun` while the record stays `red`), fail, never finished, no command configured, or denied.
-- State the outcome in the review's report, so a stage that advanced on a green exit run never reads as untested beside a first dispatch handed `not run`.
-- **Reused, pass, or `pass on rerun`** → go to §4.10's stage write. That run is the gate the stage advances on.
-- **Fail** → the failing-run concept above takes it.
-- **Never finished** (killed, or `unknown` in the run trace) → it carries no verdict. Record `none` at the tip, leave the stage where it is, run `step block`, and say the next `/superdev:review` runs it again.
-- **Denied** → `review-scope-denials.md`'s `## A denied exit run`.
-- **No test command configured** → record `none` and go to §4.10's stage write. This never blocks the review.
 
 ### 4.3 Observations
 
@@ -236,18 +208,18 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 
 ### 4.6 The ask-once
 
-**The ask.** Applies when `final-reviewer` returned any finding, a Minor-only verdict included, the entry review warranted a cut, a set of warranted cuts alone included, a criterion is broken, or §4.2's exit run came back `fail`. Report them per §3 first. Ask once with the three options below. §4.7 runs over the chosen option's set.
+**The ask.** Applies when `final-reviewer` returned any finding, a Minor-only verdict included, the entry review warranted a cut, a set of warranted cuts alone included, a criterion is broken, or §4.2 found red evidence. Report them per §3 first. Ask once with the three options below. §4.7 runs over the chosen option's set.
 
 - **Fix every finding** (recommended), **fix only the Critical and Important findings**, or **fix none**.
 - **A warranted cut is a Minor here.** Fix every finding puts each warranted cut into the fix list, and fix only the Critical and Important findings leaves them out. A declined cut is never offered: the report names it with the rule it would break.
-- **An unclosable Pass-to-pass finding** (`${CLAUDE_PLUGIN_ROOT}/references/fail-to-pass.md`'s `## Fail-to-pass run`) is never offered and never enters the chosen set. Its standing is §4.7's early escape. When the only Critical or Important findings left are unclosable or deferred, and no Minor, no criterion broken, and no red suite stands, ask nothing and take §4.7's early escape.
+- **An unclosable Pass-to-pass finding** (`${CLAUDE_PLUGIN_ROOT}/references/fail-to-pass.md`'s `## Fail-to-pass run`) is never offered and never enters the chosen set. Its standing is §4.7's early escape. When the only Critical or Important findings left are unclosable or deferred, and no Minor, no criterion broken, and no red-evidence finding stands, ask nothing and take §4.7's early escape.
 - **The findings include an unmet criterion** (a broken line, or one this cycle leaves unticked) → the same question also offers to accept it as unmet, with the operator's own reason. This is the one decision point where a fresh `accepted:` note gets written.
 - **`--unattended`** → never makes that offer and never writes `accepted:`. An unmet criterion there follows the ordinary fix-or-block path.
 
 **The branches.** Applies to the answer, or to `--unattended`.
 
-- **Declined, with only Minor findings standing, warranted cuts included, beside any unclosable or deferred ones** → take the clean-verdict path of §4.10 once the exit run of §4.2 is green, naming the standing Minors in the report and nowhere else: no `unresolved add`, no `deferred add`, no triage record. §3's combined verdict names each unclosable finding.
-- **Declined, with a Critical or Important finding other than an unclosable or deferred one, a broken criterion, or a red suite standing** → stop and write the `**Unresolved:**` entry, per `review-scope-holds.md`'s `## The standing-defect writes`. The findings stand and the stage does not advance.
+- **Declined, with only Minor findings standing, warranted cuts included, beside any unclosable or deferred ones** → take the clean-verdict path of §4.10, naming the standing Minors in the report and nowhere else: no `unresolved add`, no `deferred add`, no triage record. §3's combined verdict names each unclosable finding.
+- **Declined, with a Critical or Important finding other than an unclosable or deferred one, a broken criterion, or a red-evidence finding standing** → stop and write the `**Unresolved:**` entry, per `review-scope-holds.md`'s `## The standing-defect writes`. The findings stand and the stage does not advance.
 - **Accepted** (the criterion's own reason, attended only) → write `accepted: <reason> (operator, <date>)` as that line's note, through `scope.js dod-line --match-file <path> --verdict accepted --note-file <path>` on `<run-root>/dod.md` and the anchor's checklist, through the store's `## Definition of Done ticks` section (controller-only). That criterion drops out of the findings this cycle fixes, and any other finding still goes through the three options.
 - **`--unattended`** → fix every finding, Minors and warranted cuts included, without asking. Every finding here leaves out unclosable ones.
 - **Fix only Critical and Important, with only unclosable or deferred ones among them** → the loop ends with no cycle and takes §4.7's early escape.
@@ -287,11 +259,11 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 **The re-review and the cap.** Applies after the implementer returns. Re-review per §2 after each cycle.
 
 - The loop ends when the re-review lists no finding in the chosen set, when its only remaining Critical or Important findings are unclosable or deferred, or when the **3-strike cap** is reached.
-- **The early escape: only unclosable Pass-to-pass findings remain among the Critical or Important ones, beside any deferred ones**, at any cycle the first verdict included → the scope proceeds under §3's combined verdict once the exit run of §4.2 is green, with no further cycle. This holds attended and unattended, and neither blocks nor asks. Minors beside them still go through §4.6's ask-once first.
+- **The early escape: only unclosable Pass-to-pass findings remain among the Critical or Important ones, beside any deferred ones**, at any cycle the first verdict included → the scope proceeds under §3's combined verdict, with no further cycle. This holds attended and unattended, and neither blocks nor asks. Minors beside them still go through §4.6's ask-once first.
 - The cap is **3 cycles in total, every cycle counting**, whichever findings drove it, a cycle driven by warranted cuts alone included. §4.1's **The moved base** states what its merge counts.
-- **A re-review whose only findings left are Minor Prompt-concept overlap findings** (`${CLAUDE_PLUGIN_ROOT}/references/prompt-concept-overlap.md`'s `## Prompt-concept overlap`), with no criterion standing broken → the loop ends there, attended or `--unattended`. It takes the clean-verdict path of §4.10 as a Minor remainder at the cap does, after the same exit run.
+- **A re-review whose only findings left are Minor Prompt-concept overlap findings** (`${CLAUDE_PLUGIN_ROOT}/references/prompt-concept-overlap.md`'s `## Prompt-concept overlap`), with no criterion standing broken → the loop ends there, attended or `--unattended`. It takes the clean-verdict path of §4.10 as a Minor remainder at the cap does.
 - **At the cap, a finding in the chosen set still stands** → take `review-scope-holds.md`'s `## At the cap`.
-- **A clean verdict** ends the loop, attended or unattended, and takes the exit run of §4.2. A finding it leaves standing outside the chosen set is a follow-up, never a fourth cycle.
+- **A clean verdict** ends the loop, attended or unattended, and takes §4.10. A finding it leaves standing outside the chosen set is a follow-up, never a fourth cycle.
 
 ### 4.8 Degraded fix dispatch and advisory notes
 
@@ -321,7 +293,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - A line already reported as unpaired stays in the report's one hand-sync list.
 - Run §4.1's `**The anchor check.**` again on the re-read lines before each stage write, so the stage write's `unresolved clear` never clears a hold the anchor still earns. A refusal or a failed read there takes `review-scope-holds.md`'s `## The anchor check's refusals`, its stage-write branch.
 
-**The stage write.** Applies on a clean verdict whose exit run's outcome goes to this stage write under §4.2's exit record and outcome concept, and only then. Clear any standing `**Unresolved:**` entry with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. Read the stage with `scope.js get stage`. Write `**Stage:**` with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set <value> --root <run-root>` per the cases below.
+**The stage write.** Applies on every route that advances the stage, and only then: a clean first verdict, a clean re-review, a re-review left with only Minor **Prompt-concept overlap** findings and no broken criterion, only Minor findings left at the cap, a declined ask-once with only Minor findings standing, and a ready combined verdict of §3 whose remaining findings are only deferred, or at any cycle only unclosable **Pass-to-pass** beside deferred ones, a warm re-review's restated ones included, or at the cap **Pass-to-pass** or **Missing fail-to-pass run**. No red-evidence finding stands on any of them. Clear any standing `**Unresolved:**` entry with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. Read the stage with `scope.js get stage`. Write `**Stage:**` with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set <value> --root <run-root>` per the cases below.
 
 - The clear changes nothing when no entry stands.
 - A stage write never undoes completed work, and the verb refuses a write that breaks that.

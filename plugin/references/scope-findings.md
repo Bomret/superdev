@@ -68,8 +68,8 @@ pass in its own output and writes nothing.
 
 ## Unresolved defects
 
-An **unresolved defect** is a defect the run finds in the code and leaves standing: a full suite still
-red at the three-strike cap, a finding the operator declines to fix, an unattended block reached at
+An **unresolved defect** is a defect the run finds in the code and leaves standing: a red-evidence finding
+still standing at the three-strike cap, a finding the operator declines to fix, an unattended block reached at
 that cap, or a Definition-of-Done criterion the doc pass's own re-check unticks (`references/dod-ticks.md`'s
 Document's case), or a `docs` criterion left unmet after the doc pass.
 
@@ -240,8 +240,7 @@ its blind pass is gone. Its dispatch hands each unclosable finding the last re-r
 with its range, its case, and its reason, as quoted data, and the reviewer restates each with its mark re-judged
 against the current range (`references/implement-full-minor-sweep.md`, `## Minor sweep`).
 
-**The loop's other rules hold.** A warm cycle counts toward the 3-cycle cap. The exit full-suite run
-still gates the stage. A re-review left with only Minor Prompt-concept overlap findings ends the loop.
+**The loop's other rules hold.** A warm cycle counts toward the 3-cycle cap. A re-review left with only Minor Prompt-concept overlap findings ends the loop.
 
 **The cycle's window in the run trace** ends at the next `dispatch` line, whatever its agent type or slice, or
 the next reviewer `dispatch-resume` line (one whose first field is the `tool_use_id` of a `final-reviewer`, `slice-reviewer`, or `simplicity-reviewer` `dispatch` line)

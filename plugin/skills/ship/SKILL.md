@@ -11,7 +11,7 @@ argument-hint: "[<scope>  (empty = the only run in this repo)]"
 Applies to every start. You merge the pull request `/superdev:submit-pr` opened, and apply the deploy posture to the merge. You dispatch no subagent, close no anchor, write no tick, and remove no checkout, slice checkout, or lock.
 
 - **The tip**: the local scope-branch tip, `git -C <run-root>/scopetree rev-parse <branch>`.
-- **A reusable tip**: a tip `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base> [--whole] --root <run-root>` accepts, the call `review-scope-mode.md`'s `### 4.2 The suite gate` uses. Run it from any checkout of the repository.
+- **A reusable tip**: a tip `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base> [--whole] --root <run-root>` accepts. Run it from any checkout of the repository.
 - **The carry**: `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## The carry run`, run in `<run-root>/scopetree` with no ask. A carried tip proceeds, and ship writes no suite record for it.
 - **The red exit**: merge nothing, name the result, and point at `/superdev:review <scope>` to fix it. A review at stage `submitted` leaves the stage where it is.
 - **The named checks**: the check names the `## CI` section of `docs/agents/verification.md` lists at a commit, read with `git -C <run-root>/scopetree show <commit>:docs/agents/verification.md` (`CONTEXT.md` → *Named check*, ADR 0255). The tip naming checks puts this run on **the CI path**; a section reading `none`, an absent section, or an absent document puts it on **the local path**.

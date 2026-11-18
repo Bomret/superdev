@@ -1,6 +1,6 @@
 # Review in scope mode: denials
 
-Applies to a scope-mode `/superdev:review` when the permission classifier denies one of its dispatches or test runs. `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md` sends it here. Read the section for the denied call. `<run-root>` is the value `review-scope-mode.md` names, and a `§` number names that file's step. Each section departs locally from the record-and-continue default of `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` only where it says so.
+Applies to a scope-mode `/superdev:review` when the permission classifier denies one of its dispatches. `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md` sends it here. Read the section for the denied call. `<run-root>` is the value `review-scope-mode.md` names, and a `§` number names that file's step. Each section departs locally from the record-and-continue default of `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` only where it says so.
 
 ## A denied final-reviewer dispatch
 
@@ -11,13 +11,6 @@ Applies to a scope-mode `/superdev:review` when the permission classifier denies
 ## A denied simplicity-reviewer dispatch
 
 **No entry.** Applies to a denied `simplicity-reviewer` dispatch. It records no `**Degraded:**` entry.
-
-## A denied exit run
-
-**The record.** Applies to §4.2's exit run when the classifier denies it. Record `denied` with `scope.js suite set denied <tip> --root <run-root>` and write the `**Degraded:**` entry. The stage stays where it is.
-
-- **Attended** → continue to the report, which names the denied exit run.
-- **Unattended** → **block**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unattended`.
 
 ## A denied fix implementer
 

@@ -14,7 +14,7 @@ tiers: record that slice execution finished, name what comes next.
   best-effort: no remote, an unreachable remote, or a remote ref this machine has not seen refuses it
   with that line as the note, and the step end stands. Read the line and continue. `/superdev:wrap-up`
   deletes the ref.
-- **Run no test suite here**. The scope review's exit run is the scope's one full-suite run, and it
+- **Run no test suite here**. `/superdev:ship` takes the scope's full-suite evidence, and it
   verifies the integrated scope branch, implement's base merge included. A failing test a slice did not cause,
   named in an implementer's report or met in your own loop, goes to the scope review's fix loop.
 - **An observation is captured the moment you meet it.** Read
@@ -72,6 +72,6 @@ tiers: record that slice execution finished, name what comes next.
   start that command per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The chain start`. A
   started review leaves this command nothing to print.
 - **Print the next command.** Applies to every exit that starts no review, a failed start included. Print the
-  resolved command, plus one line on what it does (review the integrated scope against the DoD and run the
-  scope's one full-suite run). This line fills the Next block that closes the message, so it comes last. The
+  resolved command, plus one line on what it does (review the integrated scope against the DoD; `/superdev:ship`
+  takes the scope's full-suite evidence). This line fills the Next block that closes the message, so it comes last. The
   exit stops there: no review, no doc pass, no pull request, no cleanup.

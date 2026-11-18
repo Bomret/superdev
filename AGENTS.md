@@ -426,10 +426,12 @@ This root owns every other subtree directly:
   recreated scopetree (`references/scope-branch.md`'s `## Preparing a worktree`). `scope.js fail-to-pass` prepares its
   own worktree before each run. `docs/agents/verification.md`'s `## Prepare command` section states the command, `none`,
   or nothing (`references/test-selection.md`'s `## Prepare command`, ADR 0218).
-  The scope review's exit run is the scope's one full-suite run: implement and run handoff run no suite, and the
-  review starts that run only at its exit, on the tip the stage would advance on. Before its first reviews it runs no
-  test and only reads whether a recorded result covers the tip (ADR 0254). ADR 0192 and INV-0128 state this rule, and the `implement-no-full-run` drift
-  check holds it.
+  `/superdev:ship` takes the scope's full-suite evidence, on the head it merges: every named CI check green where
+  `docs/agents/verification.md`'s `## CI` section names checks, and its own local run of the full or whole-repo command
+  otherwise. Nothing waits on CI: a check not yet green makes ship refuse, and the operator runs it again (ADR 0255).
+  Implement, run handoff, review, and submit-pr run no full suite. A scope review reads a red local suite record or a failed
+  named check as a Critical finding at entry (INV-0193). INV-0128 and INV-0191 state this rule, and the `implement-no-full-run`,
+  `scope-review-no-full-run`, and `no-ci-wait` drift checks hold it.
   Whoever invokes a chain command passes `--unattended` to run it unattended (ADR 0016, ADR 0108);
   superdev ships no driver. One unattended implement runs through submit-pr: each start carries
   `--unattended`, and submit-pr asks no ship question. Some skills sit outside the chain: publish-kb sends a scope's

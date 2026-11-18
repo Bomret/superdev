@@ -84,8 +84,7 @@ repository configures one only together with an affected form.
   focused command.
 - **`/superdev:submit-pr`, `/superdev:ship`, and a scope review read it**: submit-pr runs it
   once on the scope branch's tip before opening the pull request and reuses a green `whole` record of that
-  tip instead, ship runs it on its local path on a tip that carries no green `whole` record, and a review entered while the suite record reads red of kind `whole` runs it at its exit run in place
-  of the full command.
+  tip instead, ship runs it on its local path on a tip that carries no green `whole` record, and ship's local run takes it in place of the full command.
 - **An absent section leaves the full command as the whole suite**, and every caller unaffected. submit-pr
   then runs ship's plain reuse check, which runs no test, and routes a tip ship would refuse to
   `/superdev:review`.
@@ -232,7 +231,7 @@ with no test run at T.
 ## The carry run
 
 Every gate whose `scope.js suite reusable` call refuses the tip takes the carry before it runs the full command
-or refuses: review's exit run, ship's local suite gate (§3), and ship's
+or refuses: ship's local suite gate (§3), and ship's
 moved-base gate and push gate (§4), each on ship's local path. Ship's CI path takes no carry. Implement runs no full suite. Each gate cites
 this section and runs the steps in order, after its own `scope.js suite reusable` call refuses the tip:
 
@@ -255,7 +254,7 @@ this section and runs the steps in order, after its own `scope.js suite reusable
    reusable` again. Exit 0 → the tip is carried: the gate runs no full command.
 4. **No carry** (a missing precondition, such as a record at the tip itself or a record with no `whole` kind
    at a `--whole` gate, a refused second call, a killed or `unknown` focused run, or a path
-   set too large) → the gate takes its own no-carry exit. Review's exit run and ship's moved-base gate run
+   set too large) → the gate takes its own no-carry exit. Ship's moved-base gate runs
    the full command, or the whole-repo command where one is configured, and record its result as the gate
    states. Ship's local suite gate runs the full command, or the whole-repo command where one is configured, after its
    standing-finding check. Ship's push gate refuses and runs no full command.
@@ -310,7 +309,7 @@ after a gate that passed on the rerun so need no test run at U.
 
 Review's fix loop runs no test inside a cycle. The cycle's implementer runs
 the tests that verify its fix and its fail-to-pass run over the cycle's commits, and the re-review reads those runs
-from the run trace. The loop's exit full-suite run is the gate the stage advances on.
+from the run trace. The review runs no full-suite run: `/superdev:ship` takes the scope's full-suite evidence.
 
 ## The changed-path set
 
@@ -329,15 +328,15 @@ Each caller judges its own range and builds the set from it:
   that focused command over the whole set. A focused command with no `{paths}` token runs verbatim, and the run
   trace records every run either way. Every loop run passes at least one path, or runs test files
   through `test path`, so the loop runs only the tests that verify the work. `test full`,
-  `test whole`, and a `test focused` with no path run only at the scope review's and ship's gates.
+  `test whole`, and a `test focused` with no path run only at ship's gates, and in an ad-hoc review where the operator asks for the full suite.
   Where the focused fence repeats the full fence, `test focused` runs the whole suite whatever paths it gets. There
   each increment runs its test file through `test path`, and the loop makes no whole-set run: neither the
-  committed-work run nor a step that works on no test file runs, because the scope review's exit run covers that work. The fail-to-pass run still runs.
+  committed-work run nor a step that works on no test file runs, because the full-suite evidence ship takes covers that work. The fail-to-pass run still runs.
 - **The documentation step.** None: the step runs no test command and builds no set. `scope.js suite reusable`
   carries a green record across Markdown-only commits with no test run at the tip,
-  so the doc commits need none. Where the record stays at an earlier commit because review reached
+  so the doc commits need none. Where the record stays at an earlier commit because a gate reached
   its tip by the complete-selector carry, the record carries through that tip to the doc commits, per
-  `## Complete selector`. Where review's gate passed on `## The recorded rerun`, the `red` record at that tip
+  `## Complete selector`. Where a gate passed on `## The recorded rerun`, the `red` record at that tip
   counts at the doc commits too, per that section.
 - **The `scope.js fail-to-pass` verb.** Its caller hands it the command, written to run every test file the range
   adds or modifies in whatever form the runner selects them: `cargo test --test foo`, `dotnet test --filter Orders`,

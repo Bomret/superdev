@@ -35,7 +35,7 @@ const {
   scanDocSetupNoTestRun,
   scanImplementNoFullRun,
   scanObservationNoSuiteRun,
-  scanScopeReviewNoEntryRun,
+  scanScopeReviewNoFullRun,
   scanMarketplaceSource,
   scanAuditSetGlobs,
   scanNoBaseBranchCommit,
@@ -289,9 +289,9 @@ module.exports = [
     format: contractGap,
   },
   {
-    id: 'scope-review-no-entry-run',
-    ok: 'no scope-review document names an entry run: the full-suite run starts at the exit alone (ADR 0254)',
-    run: scanScopeReviewNoEntryRun,
+    id: 'scope-review-no-full-run',
+    ok: 'no scope-review document instructs a full or whole-repo run outside the ad-hoc clause the operator asks for: ship takes the full-suite evidence (ADR 0255, INV-0193)',
+    run: scanScopeReviewNoFullRun,
     format: contractGap,
   },
 ];

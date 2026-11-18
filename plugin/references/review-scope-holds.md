@@ -29,7 +29,7 @@ Applies to a scope-mode `/superdev:review` at the moment `${CLAUDE_PLUGIN_ROOT}/
 
 **The cap's branches.** Applies when §4.7's re-review comes back after the third fix cycle with a finding in the chosen set still standing.
 
-- **Only Minor findings remain**, warranted cuts included → take the clean-verdict path of §4.10 once the exit run of §4.2 is green, naming the leftover Minors in the report and nowhere else. A red exit run at the cap is a remaining red suite.
-- **The only remaining Critical or Important findings are Pass-to-pass or Missing fail-to-pass run** → the scope proceeds under §3's combined verdict once the exit run of §4.2 is green. This holds attended and unattended. Any of them beside a Critical or Important finding of another kind blocks. An unclosable finding is never that other kind: beside it, cycles fix the others only, and at the cap the others alone decide.
-- **A Critical or Important finding, a broken criterion, or a red suite remains** → stop and say it is a wrong cut and no bug, and make the standing-defect writes above.
+- **Only Minor findings remain**, warranted cuts included → take the clean-verdict path of §4.10, naming the leftover Minors in the report and nowhere else.
+- **The only remaining Critical or Important findings are Pass-to-pass or Missing fail-to-pass run** → the scope proceeds under §3's combined verdict. This holds attended and unattended. Any of them beside a Critical or Important finding of another kind blocks. An unclosable finding is never that other kind: beside it, cycles fix the others only, and at the cap the others alone decide.
+- **A Critical or Important finding, a broken criterion, or a red-evidence finding remains** → stop and say it is a wrong cut and no bug, and make the standing-defect writes above.
 - **`--unattended`, at that stop** → **block** per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unattended`, after the same writes.
