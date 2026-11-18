@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0252](0252-a-scope-that-changes-only-test-paths-gets-no-doc-pass.md), which skips the doc pass for a scope that changes only test-path files.
+
 **Amends:** [ADR 0031](0031-the-lite-tier-writes-its-own-documentation.md): an inline doc pass no longer spares the doc-writer.
 
 ## Context

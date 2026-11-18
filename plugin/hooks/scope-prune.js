@@ -372,10 +372,50 @@ function reapBranch(branch, refLines, cwd) {
   return true;
 }
 
-function main(cwd) {
-  // shared reader or git module unavailable → prune nothing, say nothing
-  if (!readLedgerHeader || !gitSpawn || !gitThrow || !parseBranchList) return;
+// Removes each `<pendingRoot>/<name>/` that holds no entry at all while no `<scopesRoot>/<name>/` run root exists
+// (INV-0076). Only a real directory qualifies (lstat, so a symlink is never followed). `rmdirSync` is non-recursive:
+// a directory that gains a staged page between the check and the removal fails and stays (INV-0122).
+function reapEmptyStagedDirs(pendingRoot, scopesRoot) {
+  let names;
+  try {
+    names = fs.readdirSync(pendingRoot);
+  } catch {
+    return;
+  }
+  for (const name of names) {
+    const dir = path.join(pendingRoot, name);
+    try {
+      if (!fs.lstatSync(dir).isDirectory()) continue;
+      if (fs.existsSync(path.join(scopesRoot, name))) continue;
+      fs.rmdirSync(dir);
+    } catch {
+      /* not empty, unreadable, or gone: leave it */
+    }
+  }
+}
+
+// `lib/main-work-tree.js` owns the main-working-tree resolver (ADR 0080): every run root lives under it, whatever
+// checkout the session stands in. No fallback to the session's cwd: a hook that cannot place the main tree must
+// prune nothing, so a failed load leaves this null and main() prunes nothing, silently.
+let mainWorkTree = null;
+try {
+  ({ mainWorkTree } = require('../lib/main-work-tree.js'));
+} catch {
+  // Left null. main() checks this before doing anything below.
+}
+
+// The bound on each git spawn the resolver makes; a spawn past it carries no verdict (INV-0009).
+const RESOLVE_BOUND_MS = 5000;
+
+function main(sessionCwd) {
+  // shared reader, git module, or resolver unavailable → prune nothing, say nothing
+  if (!readLedgerHeader || !gitSpawn || !gitThrow || !parseBranchList || typeof mainWorkTree !== 'function') return;
+  // The main working tree is the root of every git call below, `HEAD` included, so a session standing in a
+  // scopetree does not read the scope branch as `HEAD`. `cwd` names it for the rest of this function.
+  const cwd = mainWorkTree(sessionCwd, { timeout: RESOLVE_BOUND_MS });
+  if (!cwd) return; // not inside a git repository, or no verdict → prune nothing
   const scopesRoot = path.join(cwd, '.superdev', 'scopes');
+  reapEmptyStagedDirs(path.join(cwd, '.superdev', 'kb-pending'), scopesRoot);
   if (!fs.existsSync(scopesRoot)) return; // no superdev runs in this repo
 
   let allBranches;

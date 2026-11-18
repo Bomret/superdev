@@ -42,6 +42,12 @@ have run. The merge call below degrades the same way: print the exact `tea api` 
 - **Read the pull request**: `tea api -i '/repos/{owner}/{repo}/pulls/<index>'` with `--login <login>
   --repo <owner>/<repo>` → `state`, `merged`, `merge_commit_sha` (once merged), `head.sha`, and
   `mergeable`. `tea pr <index> -o json` lacks `merge_commit_sha`, so this read is a `tea api` call.
+- **Read the draft state**: the same read's `draft` flag (`jq -r .draft`), or a `title` that starts with
+  `WIP:` or `[WIP]`, the host's default draft prefixes (`WORK_IN_PROGRESS_PREFIXES`); any one marks a draft.
+- **Mark ready**: `tea pr edit <index> --ready --login <login> --repo <owner>/<repo>` takes a draft pull
+  request out of draft and strips the `WIP:` prefix from its title. `/superdev:ship` calls it before the
+  merge under the merge consent. The merge `title` carries no `WIP:` or `[WIP]` prefix: read it from the
+  pull request after the ready call, and strip a leading `WIP:` or `[WIP]` that still stands.
 - **Merge it, pinned**: `jq -n --arg t "$title" --arg sha "<tested-tip-sha>"
   '{Do:"squash",MergeTitleField:$t,head_commit_id:$sha}'` piped to `tea api -i -X POST
   '/repos/{owner}/{repo}/pulls/<index>/merge' -d @-`, `title` set from a quoted heredoc as the PR-create

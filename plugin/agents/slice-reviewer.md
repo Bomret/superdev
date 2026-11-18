@@ -19,7 +19,7 @@ You review one completed slice before it merges. You are a separate set of eyes 
 - **Progress log**: the file at `<run-root>/reports/<id>/progress.md`. It holds the implementer's account of its work, and your own findings.
 - **Run root**: the directory the progress-log path starts with.
 - **Review base**: the commit the slice branch was cut from. On a sweep review, the scope branch's tip when the sweep began.
-- **Recorded runs**: the `run` lines the run trace holds for the slice: its implementer's test runs and the control run of its fail-to-pass run (`## Lens 2 — Independent verification`).
+- **Recorded runs**: the `run` lines the run trace holds for the slice: its implementer's test runs, with its final run, and any control run of its fail-to-pass run (`## Lens 2 — Independent verification`).
 
 ## Judge discipline
 
@@ -76,6 +76,7 @@ Read the slice's run-trace lines with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope
 - Mark each unclosable **Pass-to-pass** finding as that section states, with its case and reason, at every review against the current range. An implementer's claim of a case is input you check, never your verdict.
 - A Minor sweep re-review's dispatch hands each unclosable **Pass-to-pass** finding the last re-review listed, with its range, as quoted data. Restate each with its mark re-judged against the range from that finding's base to the current tip, or report it closable or closed.
 - Read an outcome line from the trace only. The implementer's account is no outcome line, and the dispatch carries none.
+- `## Fail-to-pass run` states how a `settled-from-trace` outcome line counts.
 - The controller applies the 3-cycle fix cap and the early escape for an unclosable finding.
 - Each `unknown` outcome `## Fail-to-pass run` has you name goes under `### Fail-to-pass unknown`.
 
@@ -101,6 +102,7 @@ Your blind pass covers the fix cycle's range. The earlier findings live in the p
 - A run-trace finding closes by its closing rule (`## Run-trace findings`). An **Unverified dependency** finding closes by `## Dependency verification`.
 - Report a defect you find outside the range, where the fix or an earlier finding led you.
 - A fix cycle's range that holds no change leaves you judging the earlier findings alone.
+- Read each same-defect instance the fix report names, and report any instance of the defect still standing in the files the slice changes.
 - The specification verdict judges the whole slice at the current tip.
 
 ## Deferred findings
@@ -155,7 +157,7 @@ Applies to every review.
 
 Run no test. Read the slice's recorded runs with `scope.js trace --slice <id>` and judge whether they cover the changed code. Trust no green result or met criterion the implementer reports.
 
-- The recorded runs are the implementer's focused and test-file runs and the `path` line of its fail-to-pass control run. The scope review's runs cover what they leave out.
+- The recorded runs are the implementer's per-increment test-file runs, its final run, and the `path` line of any fail-to-pass control run. The scope review's runs cover what they leave out.
 - A `run` line backs a passing result for its tests when it reads `pass`, its commit is the reviewed tip, and its tree reads `clean`.
 - Name a reviewed tip with no passing recorded run as a gap in your report.
 - A changed behaviour that no test reaches is a test hole.

@@ -106,7 +106,7 @@ function takeRoot(args) {
   return root;
 }
 
-// The run root a verb writes to, or null for a verb that only reads (`get`, `publish`, `trace`, `status`, `suite reusable`,
+// The run root a verb writes to, or null for a verb that only reads (`get`, `state`, `publish`, `trace`, `status`, `suite reusable`,
 // `base resolve`, `deploy get`) or writes no run file (`discard`, `push`, `run-state delete`). `init` and `open` find their
 // root themselves: `init` checks it in `lib/ledger-lifecycle.js`'s `verbInit`, and `open` in `lib/plan-open.js`'s `verbOpen`, once for every path it takes; `test` and `fail-to-pass` check it in their own verbs.
 // Every other verb of this CLI that writes to a run names its root with `--root`, and is checked here, once.
@@ -316,6 +316,15 @@ function run(argv, cwd, stdinJson) {
     case 'get': {
       const root = takeRoot(args);
       libSuiteBaseGet().verbGet(root, args[0]);
+      break;
+    }
+    // Reads the ledger alone and writes nothing: no git, no trace line, no digest seal.
+    case 'state': {
+      const root = takeRoot(args);
+      const json = args.includes('--json');
+      const extra = args.filter((a) => a !== '--json');
+      if (extra.length) fail(`state: unrecognized argument "${extra[0]}"`);
+      libSuiteBaseGet().verbState(root, json);
       break;
     }
     case 'status':

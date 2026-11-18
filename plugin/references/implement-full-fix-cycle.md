@@ -37,12 +37,15 @@ behaviour opens with a RED test, one naming none takes no RED test, and the re-r
 **Every sibling surface is reconciled**: tell the implementer to search its own checkout for every other place
 that states the rule or behaviour the fix changes, bring each one into agreement, and report each place it
 checked and each it changed, reporting a place outside its checkout unedited. Tell it to report the `AGENTS.md`
-hierarchy and the knowledge base unedited too, since the doc pass owns them. A fix report that omits the
+hierarchy and the knowledge base unedited too, since the doc pass owns them. Tell it also to fix every other
+instance of the defect a finding names within the files the slice changes (`<base>..HEAD`), to name each in its
+report, and to report an instance outside those files as an observation, unfixed. A fix report that omits the
 checked-and-changed list is a report defect, sent back to the implementer before the re-review. Before the
 re-review, grep the fix's slicetree (`<run-root>/slicetrees/<id>`) for the key phrase of the rule the fix
 changed, in its old wording and its new, and compare the hits with the report's checked list. A hit in a file
 the list does not name is a missed sibling surface: send the report back to the implementer, naming the hit, in
-the same cycle. A hit in the `AGENTS.md` hierarchy or the knowledge base is named in your report instead. A hit
+the same cycle. Compare also the report's named same-defect instances with the defect's pattern searched over
+the slice's changed files, and send back an instance the report omits the same way. A hit in the `AGENTS.md` hierarchy or the knowledge base is named in your report instead. A hit
 in `CHANGELOG.md` is release history and needs no change.
 
 ## The re-review dispatch
@@ -53,6 +56,8 @@ with the fix cycle's range as its subject. The dispatch also tells the reviewer:
 - to blind-pass over that range and then judge every earlier finding from the progress log, to read code
   outside the range wherever the fix or an earlier finding leads it and report any defect it finds there too,
   and to judge the earlier findings alone when the fix cycle's range holds no change;
+- to read each same-defect instance the fix report names, and to report any instance of the defect still standing
+  in the files the slice changes;
 - that a re-review closes a **Pass-to-pass** finding only when the trace records, after the finding, an outcome
   line that reads `fail-to-pass` over a range from the base of the range that drew the finding to the current
   tip, and closes a **Missing fail-to-pass run** finding on the outcome line the fix implementer's run writes,

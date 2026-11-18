@@ -45,8 +45,8 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
 - **In `depends-on` order, inline, test-first, skipping every slice the ledger already marks `merged`**
   (a slice the store already reports as merged seeds `merged`, per the `status` field run init carried into
   `scope.js init`, and are never dispatched). For each slice: read its `spec` + `acceptance`, then carry
-  the same tracer-bullet **and surgical-edit** disciplines an implementer subagent would (one RED test,
-  minimal GREEN code, repeat; every hunk traces to an acceptance criterion or the specification — remove
+  the same tracer-bullet **and surgical-edit** disciplines an implementer subagent would (one RED test run once,
+  minimal code that passes it, repeat; every hunk traces to an acceptance criterion or the specification — remove
   only what your own edit orphaned, name pre-existing dead code instead of deleting it, and **grep for a
   sentence before you replace it**, since a clause restated in a sibling document keeps the old contract
   alive while the suite stays green), **directly in the scopetree at `<run-root>/scopetree/`**.
@@ -54,12 +54,14 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
   never in the invoking checkout. `mechanical` / `docs` slices need no new test — the existing suite is
   the net. Read `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it selects for
   each run, through `scope.js test`. The loop runs only the tests that verify the slice, never `test full`, `test whole`, or a `test focused`
-  with no path: the scope review's exit run is the scope's one full-suite run. Each failing-test or passing-test step runs
-  the test files that hold the tests it works on through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test path <file>... -- <command>`, a runner filter allowed.
-  After the work is committed and before the fail-to-pass run, one `test focused <changed paths>` with at least one path
-  runs over the slice's whole changed-path set, and so does a step that works on no test file. A focused failure is a RED step: fix, commit, and run it again. Where the focused fence repeats the
-  full fence, each step runs each test file it works on through `test path <file>... -- <command>`, and you make neither of those
-  whole-set runs: the scope review's exit run covers them. Every test run passes Bash's `timeout` at its ceiling,
+  with no path: the scope review's exit run is the scope's one full-suite run. Each increment runs its one test file once,
+  through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test path <file> -- <command>`, after you write its new test and before you write the
+  code that passes it: the run shows the new test failing and the file's earlier tests passing. No separate GREEN run per increment and no
+  separate control run follows. After the last increment is committed and before the fail-to-pass run, one `test focused <changed paths>` with
+  at least one path runs over the slice's whole changed-path set as the last GREEN and the final check, and so does a step that works on no test file.
+  A failing final run is a RED step: fix, commit, and run it again. Where the focused fence repeats the
+  full fence, each increment runs its one test file through `test path <file> -- <command>`, the final run is one `test path` run over every test
+  file the slice changed, and you make neither of those whole-set runs: the scope review's exit run covers them. Every test run passes Bash's `timeout` at its ceiling,
   600000 ms unless `BASH_MAX_TIMEOUT_MS` raises it, and runs in the foreground; only a run that can outlast the ceiling runs
   through the runner in the background, and you wait for its end before acting on it. A test command is recorded as typed and pushed with the run state, so a secret belongs in the environment, never on the command line. The run trace records your edits and runs.
 - **A failing test the slice did not cause is named, never fixed.** A test that also fails at the slice's
@@ -106,15 +108,16 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
   test-path changes are not all deletions, run
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <base>..<tip> -- <command>` from the scopetree first, the
   command naming every test file the range adds or modifies, while the slice is still `in-progress`, so the trace line
-  names the slice. The slice's last GREEN step is also the verb's first run: commit the last increment first,
-  then run `scope.js test path <each of those files> -- <command>` from the tree root, with the exact command the verb
-  then takes. That one passing run at the committed tip is the GREEN step and the verb's control, so the verb runs only
-  the second and skips its own first preparation. A run that does not
+  names the slice. Where the slice's final run is a `test path` run of those files from the tree root at the committed tip, with the exact command the verb
+  then takes, the verb reuses that passing run as its control, runs only the second, and skips its own first preparation.
+  Where the final run was the focused run, the verb settles from the trace or runs its own control. A run that does not
   pass is a RED step. A range whose test-path changes are all deletions and that adds behaviour outside the
   test paths leaves that behaviour with no test: write one for it, then run the verb. The verb runs in the background when
   two runs of the range's test files can outlast the ceiling, and you wait for its end before you read its outcome
-  (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`). The verb runs the command twice in a
-  throwaway worktree, the second time with the files the slice changed outside its test files put back as they
+  (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`). The verb settles from the run trace, with no run, when for every test-path file of
+  the range the trace holds a failing run over that file alone, then an edit outside the test paths, then a passing run over it after the last such edit, made at the tip on a clean tree, each run made at the tree root, and prints
+  `fail-to-pass settled-from-trace`. Otherwise it runs the command in a
+  throwaway worktree, then again with the files the slice changed outside its test files put back as they
   stood at `<base>`, prints `fail-to-pass`, `pass-to-pass`, or `unknown`, and appends a `fail-to-pass` line to the run
   trace. The outcome line is no test run and moves no suite record. A `pass-to-pass` outcome means the slice's tests
   pass without its change: strengthen them, commit, and run the verb again from the same `<base>` before the
@@ -186,8 +189,8 @@ slicetrees and would collide on shared doc files.
 
 ## Resume
 
-Read the ledger — `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>` and
-`get stage` — and cross-check it against `git log <range-base>..<branch>` (`<range-base>` per
+Read the ledger — `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state --root <run-root>`, its `slices` and
+`stage` fields (a `malformed` entry names a slice row the ledger cannot read: resolve it first) — and cross-check it against `git log <range-base>..<branch>` (`<range-base>` per
 `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`; `<branch>` from the branch step
 above, never rebuilt as `<type>/<scope>`) in the scopetree. A slice the ledger marks `merged` is
 done; pick up at the next `todo` slice in `depends-on` order.

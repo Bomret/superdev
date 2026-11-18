@@ -170,7 +170,9 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
   anchor` contract — which `/superdev:review` reads back instead of deriving a title from the diff.
 
   **`<run-root>/ledger.md` already present** → read its stage:
-  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>`.
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state --root <run-root>`, its `stage` field (its `slices` field
+  serves the abandoned-interview check below; a `malformed` entry names a slice row the ledger cannot read: stop
+  and report it).
   - **`closed`** — a finished run: run `init` directly, with no rename step of your own first. `init`
     itself rotates the existing ledger aside to `ledger-closed-<date>.md` (`date +%FT%H%M%S`, precise
     enough that two same-day rotations never
@@ -194,8 +196,7 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
 
     **A `planned` ledger carrying no slice rows never reaches this stage-forward move.** Its interview
     was abandoned somewhere between `/superdev:plan`'s cut and its slice-table write, not
-    resumed at the normal point: read `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root
-    <run-root>` before applying the paragraph above. **At least one row** → the paragraph above applies as
+    resumed at the normal point: read the `slices` field of that `state` output before applying the paragraph above. **At least one row** → the paragraph above applies as
     written. **No row** → check the store for this feature's slices (`docs/agents/issue-tracker.md`'s own
     read call). **The read fails** (the store is unreachable) → report the read failure once and stop, rather
     than treating it as the plan never reaching its decomposition step. **The store carries slices** → the

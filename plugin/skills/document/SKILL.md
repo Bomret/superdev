@@ -16,6 +16,7 @@ Applies to every start. You bring the docs and the knowledge base into agreement
 - **The staging path**: the **absolute** path `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" staging <scope>` prints, or `staging _adhoc` on an ad-hoc start, resolved before the dispatch. It names `.superdev/kb-pending/<scope>/` in the main working tree from any cwd.
 - **An open `docs` line**: a `docs`-tagged line of `<run-root>/dod.md` that `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule` calls open.
 - **The publish**: on a live run, the run's one snapshot publish, per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section. It is the last act of the exit that ends the run, after the closer §3's **The step** lists. No write site publishes.
+- **A test-only scope**: a live run whose range `<range-base>..<branch>` holds at least one changed path, whose every changed path is a test-path file, and whose `<run-root>/dod.md` holds no `docs`-tagged line. The test paths are the `## Test paths` entries of `docs/agents/verification.md` at the branch tip, or `${CLAUDE_PLUGIN_ROOT}/lib/verification.js`'s defaults where that section is absent. An empty range is no test-only scope (ADR 0252).
 - **A writer dispatch**: dispatch `superdev:doc-writer` with an **explicit `model`** (`sonnet`).
 - **A reader dispatch**: dispatch `superdev:doc-reader` with an **explicit `model`** (`sonnet`).
 
@@ -54,7 +55,9 @@ Applies to every start. Read `docs/agents/documentation.md` (the in-repo documen
 - a stage write
 - `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step block --root <run-root>`
 
-**The writer dispatch.** Applies to an ad-hoc start and to every live run. Make a writer dispatch, `haiku` for a tiny focused range. Name `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md` in it as the pass the writer performs, and describe the pass in no words of your own.
+**The skip.** Applies to a test-only scope, after `.gitignore` below. List the changed paths with `git diff --name-only <range-base>..<branch>` in the scope checkout. Make no writer dispatch, no reader dispatch, and no staged page. Say in one line that the doc pass was skipped because the scope changes only test paths (ADR 0252). Skip §4, and take §5's report as that one line. Then run §8's stage write, which records the stage and clears the step as every pass does. Every other live run, an empty range and a run with a `docs`-tagged line included, takes the writer dispatch.
+
+**The writer dispatch.** Applies to an ad-hoc start and to every live run that is no test-only scope. Make a writer dispatch, `haiku` for a tiny focused range. Name `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md` in it as the pass the writer performs, and describe the pass in no words of your own.
 
 - the range: the git range, the area, or "full"; for a range, a reminder to start from `git diff --stat` and `git log` over it
 - the two config file paths
@@ -67,11 +70,11 @@ The writer commits its doc changes on the current branch. A denied writer's inli
 
 **The knowledge-base pass.** Applies to a remote KB backend. The writer stages every page, and nothing in this command writes to the backend. `/superdev:publish-kb` sends the staged pages later.
 
-**`.gitignore`.** Applies before this section's writer dispatch. Add `.superdev/` to the repository's `.gitignore` when it is absent.
+**`.gitignore`.** Applies before this section's skip and writer dispatch. Add `.superdev/` to the repository's `.gitignore` when it is absent.
 
 ## 4. Reader test
 
-**The reader dispatch.** Applies to every doc pass, also one whose writer changed nothing. Make a reader dispatch: it reads the docs cold and read-only. Hand no narrative and no summary of the work.
+**The reader dispatch.** Applies to every doc pass, also one whose writer changed nothing, and to no skipped pass. Make a reader dispatch: it reads the docs cold and read-only. Hand no narrative and no summary of the work.
 
 - the file list: in-repo docs and **local** KB pages the writer changed, and every doc its report names as judged current; after a denied writer, the docs your inline reconcile changed and every doc it judged current, named the same way
 - the staged pages, after the writer and after a denied writer's inline reconcile alike: every `.md` file under the staging path whose frontmatter `action` is not `delete`. A KB config with no remote backend, or a staging directory that is absent or empty, adds no page and reports no gap
@@ -94,7 +97,9 @@ The writer commits its doc changes on the current branch. A denied writer's inli
 
 ## 5. Report
 
-**The relay.** Applies to every report except a chained audit. Relay what the writer changed and any concerns.
+**The skipped pass.** Applies to a test-only scope. The report is §3's one line. Relay nothing else.
+
+**The relay.** Applies to every report except a chained audit and a skipped pass. Relay what the writer changed and any concerns.
 
 - the `AGENTS.md` files and docs updated, and the stale text removed
 - the KB pages written to `docs/kb/` or **staged**, and under which action, or that the KB pass was none or skipped
@@ -141,7 +146,7 @@ Applies to a live run. Everything above still applies.
 
 **An untick's entry.** Applies to every untick of the tick re-check. Write a `**Unresolved:**` entry naming the criterion it broke: a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) piped to `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add - --root <run-root>`.
 
-**The `docs` settle.** Applies to every live run, on every path the pass took. Follow `dod-ticks.md`'s Document's case. Read the stage first with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <run-root>`.
+**The `docs` settle.** Applies to every live run, on every path the pass took. Follow `dod-ticks.md`'s Document's case. Read the stage first, as the `stage` field of `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state --root <run-root>`.
 
 - **`shipped` or `closed`** → judge no `docs` line and write no tick, untick, or entry. §5 names the open `docs` lines.
 - **Any other stage** → judge each open `docs` line against the scope branch after the pass. True → tick it with its evidence. False → take **The `docs` fix round**.
@@ -155,11 +160,11 @@ An `accepted:` `docs` line stays exactly as it stands.
 
 **The settle's clear.** Applies after the settle, when every `docs` line is a settled line, noted `met:` or `accepted:`, and every bullet `get unresolved` prints is a `docs criterion unmet after the doc pass:` entry. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. Any other bullet standing → leave every entry.
 
-**The stage write.** Applies after the settle. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get unresolved --root <run-root>` first.
+**The stage write.** Applies after the settle. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state --root <run-root>` first and read its `unresolved` and `stage` fields.
 
 - **An open `docs` line still stands after the settle** → write no stage. Run `step block` and go to **The next command**.
-- **Otherwise, the re-check unticked a line or `get unresolved` prints anything** → write no stage. Run `step clear` and go to **The next command**.
-- **None of them** → read the current stage with `scope.js get stage`, and write with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set <value> --root <run-root>` per the table below. The verb refuses a write that undoes completed work.
+- **Otherwise, the re-check unticked a line or the `unresolved` field prints anything** → write no stage. Run `step clear` and go to **The next command**.
+- **None of them** → take the current stage from that `stage` field, and write with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set <value> --root <run-root>` per the table below. The verb refuses a write that undoes completed work.
 
 | Current stage | Action |
 |---|---|

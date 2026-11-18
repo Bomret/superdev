@@ -35,6 +35,9 @@ const failToPassControlMs = (cwd) => operatorBoundMs(cwd, 'verification', 'failT
 // is larger (ADR 0142). Pure: it reads no clock, and the caller reads the floor.
 const failToPassBoundMs = (controlMs, floorMs) => Math.max(Math.ceil(controlMs * 10), floorMs);
 
+// The reason field of an outcome the run trace settled (ADR 0251): the line keeps the layout below, and no run's exit statuses exist to name.
+const SETTLED_FROM_TRACE = 'settled-from-trace';
+
 // The domain shapes, named as CONTEXT.md names them. A **fail-to-pass run** is a performed test comparison over a
 // commit range; its **outcome** is what the two runs showed, and the run trace carries it as a line of its own kind.
 //
@@ -58,6 +61,9 @@ const failToPassBoundMs = (controlMs, floorMs) => Math.max(Math.ceil(controlMs *
 //              A run whose command could not start reads `start-failed:<error code>` in place of its exit, and the second carries no bound.
 //              A preparation that did not succeed reads `prepare=<exit, signal, start-failed:<error code>, or dirty>` in place of
 //              the run it preceded: `prepare=…` before the control, `control=0,prepare=…` before the put-back run.
+//
+//   A run root's trace that already proves the tests discriminate settles the outcome with no run (ADR 0251): `fail-to-pass` with the
+//   reason `settled-from-trace`, never `pass-to-pass` or `unknown`.
 //
 // The trace line is `<ts> <slice|scope> main fail-to-pass <base>..<tip> <outcome> <reason> <command>`. The slice is the one whose
 // ledger row records exactly this range, else the one the run's directory attributes to, else `scope`. The control run also
@@ -94,6 +100,32 @@ function reusableControl(runRoot, tip, testFiles, command, top) {
     if (/^\d+$/.test(ms || '') && recorded !== undefined && untraceField(recorded) === command && testFiles.every((f) => named.has(f))) found = { code: 0, ms: Number(ms), ts: e.ts };
   }
   return found;
+}
+
+// Whether the run trace proves the range's tests discriminate (ADR 0251). `slice` is the range's slice, and its window opens at
+// its latest start in the trace: a `dispatch` or `dispatch-resume` line, or the ledger line setting the slice `in-progress`.
+// A window with no such line opens at the trace's start. Every test file in `testFiles` needs, after its last `edit` line in
+// the window, a failing `path` or `focused` run naming that file alone, then an `edit` outside the test paths, then a passing
+// run naming it after the window's last `edit` outside the test paths, made at `tip` on a clean tree. Only runs made at the tree root (directory field `.`)
+// count, and recorded names compare as root-relative POSIX paths, `top` reading the tree root. Any trace that cannot be read,
+// or holds no such sequence, answers false.
+function settledFromTrace(runRoot, slice, tip, testFiles, config, top) {
+  let events;
+  try { events = readTrace(fs.readFileSync(path.join(runRoot, 'trace.log'), 'utf8')); } catch { return false; }
+  events = events.filter((e) => untraceField(e.slice) === slice);
+  const opens = (e) => e.kind === 'dispatch' || e.kind === 'dispatch-resume' || (e.kind === 'ledger' && e.fields[0] === 'slice' && e.fields[1] === slice && e.fields[2] === 'in-progress');
+  const window = events.slice(events.findLastIndex(opens) + 1);
+  const named = (e) => (e.kind === 'run' && (e.fields[0] === 'path' || e.fields[0] === 'focused') && e.fields[4] !== undefined
+    && e.fields[7] !== undefined && untraceField(e.fields[7]) === '.'
+    ? new Set(decodePaths(e.fields[4]).map((p) => rootRelative(p, top)).filter((p) => p !== null)) : null);
+  const edited = (e) => (e.kind === 'edit' && e.fields[1] !== undefined ? rootRelative(untraceField(e.fields[1]), top) : null);
+  return testFiles.every((file) => {
+    const lastEdit = window.findLastIndex((e) => edited(e) === file);
+    const red = window.findIndex((e, i) => i > lastEdit && e.fields[1] === 'fail' && named(e)?.size === 1 && named(e).has(file));
+    if (red < 0) return false;
+    const impl = window.findLastIndex((e) => edited(e) !== null && !isTestPath(config, edited(e)));
+    return impl > red && window.some((e, i) => i > impl && e.fields[1] === 'pass' && e.fields[2] === tip && e.fields[3] === 'clean' && named(e)?.has(file));
+  });
 }
 
 // The paths a `git clean -ndx` listing (`core.quotePath=false`) says it would remove, each as git printed it, a directory with
@@ -161,6 +193,15 @@ async function verbFailToPass(cwd, args) {
   const at = require('./run-tree.js').locate(path.join(cwd, 'x'));
   // The run's digest is checked before this verb reads the trace or writes a line to it (ADR 0227).
   if (at) checkRun(at.runRoot);
+  // One ledger read names the slice the outcome line and the control run's `run` line carry (ADR 0175).
+  const slice = at && (sliceOfRange(at.runRoot, base, tip, cwd) || at.slice);
+  // A trace that already shows the range's tests fail before its change and pass after it settles the outcome with no run (ADR 0251).
+  if (at && settledFromTrace(at.runRoot, slice, tip, testFiles, config, lazyToplevel(cwd))) {
+    if (!appendTrace(at.runRoot, { slice, kind: 'fail-to-pass', fields: [`${base}..${tip}`, 'fail-to-pass', SETTLED_FROM_TRACE, command] })) {
+      process.stderr.write('fail-to-pass: the outcome line could not be written to the run trace\n');
+    }
+    return console.log(`fail-to-pass ${SETTLED_FROM_TRACE}`);
+  }
   const main = at ? null : mainWorkTree(cwd) || cwd;
   const home = at ? at.runRoot : path.join(main, '.superdev');
   const madeHome = !at && !fs.existsSync(home);
@@ -222,8 +263,6 @@ async function verbFailToPass(cwd, args) {
   try {
     const added = withWorktreeLock(cwd, () => spawnSync('git', [...noHooks, 'worktree', 'add', '-q', '--detach', dir, tip], { cwd, encoding: 'utf8' }));
     if (added.status !== 0) fail(`fail-to-pass: git could not create the worktree: ${added.stderr.trim()}`);
-    // One ledger read names the slice both lines carry, the outcome line and the control run's `run` line (ADR 0175).
-    const slice = at && (sliceOfRange(at.runRoot, base, tip, cwd) || at.slice);
     const record = (outcome, reason) => {
       // The scope run's first `unknown` is an observation (references/scope-findings.md's `## Observations`), and the run root's
       // own trace says whether an earlier one exists, so the caller counts nothing. simplicity: two `unknown` outcomes

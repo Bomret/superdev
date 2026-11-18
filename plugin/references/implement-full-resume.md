@@ -17,7 +17,8 @@ the DAG loop at step 1.
   reconciles rather than detects a live second session — no further lock read of its own. Continue below;
   `implement-full.md`'s `## Run lock` refreshes the file at your first write.
 - **Reconcile before dispatching.** Read the ledger through
-  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>` (and `get stage`), plus
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state --root <run-root>` (its `slices` and `stage` fields; a
+  `malformed` entry names a slice row the ledger cannot read: resolve it before dispatching), plus
   `<run-root>/interfaces.md` (your pre-compaction context is gone; this file is what survives), and
   cross-check the ledger against `git -C <run-root>/scopetree log <range-base>..<branch>`
   (`<range-base>` per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`;

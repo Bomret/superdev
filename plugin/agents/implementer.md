@@ -108,6 +108,8 @@ Applies to a fix dispatch.
 
 Search your checkout for every other place that states the rule or behaviour your fix changes: prose, docs, the glossary, code comments, and tests. Bring each place into agreement. On a red-suite fix the rule is the behaviour the failing test pins.
 
+- Beside the places that state the changed rule, fix every other instance of the defect a finding names within the files the scope changes: the paths changed over the range the dispatch names (a scope's `<range-base>..HEAD`, a slice's `<base>..HEAD` on a slice fix dispatch, the reviewed subject's changed files on an inline fix dispatch). Search those files for the defect's pattern and fix each hit. Your report names each instance you fixed.
+- An instance in a file outside those files goes into the report as an observation (`${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Observations`), left unfixed.
 - Your report names each place you checked and each place you changed. It names every file your search hit.
 - A place outside your checkout, such as a slice-store issue, goes into the report unedited.
 - The `AGENTS.md` hierarchy and the knowledge base: `## Documentation` states how a fix dispatch reports them.
@@ -120,14 +122,14 @@ Applies to a `behavior` slice dispatch and to a fix dispatch whose finding names
 Build in vertical tracer-bullet increments: one test, one implementation, repeat. Tests written in bulk verify imagined behavior. Never write all the tests first.
 
 ```
-RED:   write ONE test for the next behavior → watch it fail
-GREEN: write the minimal code to pass it → watch it pass
+RED:   write ONE test for the next behavior → run its test file once → watch the new test fail and the file's earlier tests pass
+GREEN: write the minimal code to pass it → the next increment's run, or the final run, shows it pass
 ```
 
 - **Every acceptance criterion gets at least one increment.** Each criterion is the RED test of its own increment. That includes the failure and boundary cases the criteria name.
 - **A criterion that needs an outward-facing change to verify** (a deploy or a migration) gets no increment. Verifying observes and changes no system outside the repository. Report it as `### Listed lines` states for `ceiling`.
 - **Never refactor while RED.** Get to green first. Then refactor with the suite as your net.
-- **Commit each GREEN increment** on your branch (Conventional Commits). Those commits are your resume points.
+- **Commit each increment** on your branch (Conventional Commits) once its code is written. Those commits are your resume points, and the next increment's run or the final run checks each one green.
 
 ### Running tests
 
@@ -135,10 +137,10 @@ Applies to every test run in any dispatch.
 
 Run only the tests that verify your work, and make each run answer a question no earlier run at the same commit answered (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## Every run answers a question`). Run each through the runner `${CLAUDE_PLUGIN_ROOT}/scripts/scope.js test`, as `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` states in `## The two commands` and `## The changed-path set`. The controller owns every full-suite run.
 
-- Your runs: `scope.js test path <file>... -- <command>` for each RED or GREEN step, narrowed by the runner's filter to the one test the step works on where the runner has one. Once your work is committed, run `scope.js test focused <paths>` once over the whole changed-path set, with at least one path, and then the fail-to-pass run `### Fail-to-pass run` states. A step that works on no test file runs that focused command. A focused failure is a RED step: fix, commit, and run the focused command again.
+- Your runs: one `scope.js test path <file> -- <command>` per increment, naming the one test file the increment works on, run after you write its new test and before you write the code that passes it. That run shows the new test failing and the file's earlier tests passing. You make no separate GREEN run per increment and no separate control run. Once the last increment is committed, run `scope.js test focused <paths>` once over the whole changed-path set, with at least one path: it is the last GREEN and the final check. Then run the fail-to-pass run `### Fail-to-pass run` states. A step that works on no test file runs that focused command. A failing final run is a RED step: fix, commit, and run it again.
 - A test command is recorded as typed and pushed with the run state, so a secret belongs in the environment, never on the command line.
 - The controller's runs: `test full`, `test whole`, and a `test focused` with no path, which runs the full command.
-- Where the focused fence of `docs/agents/verification.md` repeats the full fence, each RED or GREEN step runs each test file it works on through `scope.js test path <file>... -- <command>`, and you make no whole-set run: the run of your range's test files that gives the verb its first run, and the fail-to-pass run, are the runs you make before your report.
+- Where the focused fence of `docs/agents/verification.md` repeats the full fence, each increment runs its one test file through `scope.js test path <file> -- <command>`, and your final run is one `scope.js test path <every test file your range changed> -- <command>` from the tree root, with the exact command you then pass to the fail-to-pass verb. You make no whole-set run: that final `test path` run and the fail-to-pass run are the runs you make before your report.
 - A `run full` or `run whole` line recorded in your dispatch window is a Minor review finding, so run only the commands above.
 
 ### Edit tools
@@ -171,13 +173,13 @@ Applies to a `behavior` slice dispatch.
 
 Applies to a `behavior` slice dispatch and to every fix dispatch.
 
-Your tests must fail without your change. Prove it before you report. Once your last GREEN increment is committed, where your range changes a test-path file and another file, and deletes not every test-path file it changes, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <range-start>..HEAD -- <command>` from your checkout. A range that deletes every test-path file it changes and adds behaviour outside the test paths leaves that behaviour with no test: write one for it, then run the verb. The test paths are `docs/agents/verification.md`'s `## Test paths`, or the defaults where it has none. Write the command to run every test file your range adds or modifies, in the form your runner selects them, and to run from the tree root. The verb records the command on its outcome line, and the reviewer checks that it runs each of those files. Your last GREEN step is also the verb's first run: commit the last increment first, then run `scope.js test path <each of those files> -- <command>` from the tree root, with the exact command you then pass to the verb. That one passing run at your committed tip is the GREEN step and the verb's control, so the verb runs only the second and skips its own first preparation. A run that does not pass is a RED step.
+Your tests must fail without your change. Prove it before you report. Once your last increment is committed and your final run has passed, where your range changes a test-path file and another file, and deletes not every test-path file it changes, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass <range-start>..HEAD -- <command>` from your checkout. A range that deletes every test-path file it changes and adds behaviour outside the test paths leaves that behaviour with no test: write one for it, then run the verb. The test paths are `docs/agents/verification.md`'s `## Test paths`, or the defaults where it has none. Write the command to run every test file your range adds or modifies, in the form your runner selects them, and to run from the tree root. The verb records the command on its outcome line, and the reviewer checks that it runs each of those files. Your final run is the verb's first run where it is a `test path` run of those files from the tree root, made at your committed tip with the exact command you then pass to the verb: the verb reuses that passing run as its control, runs only the second, and skips its own first preparation. Where your final run was a `test focused` run, the verb settles from the trace, or runs its own control. A run that does not pass is a RED step.
 
 - `<range-start>`: `<base>` on a slice dispatch and a slice fix dispatch, `<sweep-base>` on a sweep fix dispatch, and `<cycle-base>` on a review fix dispatch and an inline fix dispatch. Outside a run root the verb writes no run-trace line, and its printed outcome goes in your report.
 - A fix dispatch that hands a **Pass-to-pass** finding names that finding's original base. Run the verb from that base as well, once your fix is committed: its `fail-to-pass` outcome closes the finding.
 - Pass every secret to a test run through the environment and keep it out of the command's arguments. The run trace records test arguments verbatim and is published to the remote run-state ref.
-- The verb runs the command at your tip, then again with every file your range changed outside its test files put back as it stood at `<range-start>`. It prints one outcome and writes it to the run trace.
-- `fail-to-pass`: your tests detect your change.
+- Where the trace settles nothing, the verb runs the command at your tip, then again with every file your range changed outside its test files put back as it stood at `<range-start>`. It prints one outcome and writes it to the run trace.
+- `fail-to-pass`: your tests detect your change. The verb settles with no run, printing `fail-to-pass settled-from-trace`, when the run trace already holds, for every test-path file of your range, a failing run over that file alone, then an edit outside the test paths, then a passing run over it after the last such edit, made at your tip on a clean tree, each run made at the tree root. Report that line as your outcome.
 - `pass-to-pass`: your tests pass without your change, so they do not check it. Strengthen them, commit, and run the verb again over the same range.
 - `pass-to-pass` on a range in one of the three unclosable cases: on a `pass-to-pass` outcome, read `${CLAUDE_PLUGIN_ROOT}/references/fail-to-pass.md`'s `### Unclosable Pass-to-pass`, which lists them. In such a case, stop strengthening, keep the outcome line, and report the case with the reason that case names. The reviewer judges the case.
 - `unknown`: the verb could not judge. A failing first run means a test of yours fails at your tip: fix it and run the verb again. Name any other `unknown` in your report with the reason the verb printed; a `prepare=` reason means the repository's prepare command did not succeed in the verb's worktree, no verdict on your tests.
@@ -256,7 +258,7 @@ Keep each edit inside the bound `## Scope of the work` states.
 
 Applies to every dispatch.
 
-Rely on what is already in context. The red-green loop re-runs its tests by design.
+Rely on what is already in context. The loop runs each increment's test file once and the changed-path set once by design.
 
 - Scope with `git diff --stat` and `git log --oneline -N`.
 - Locate a spot with `grep -n` and read it at an offset and limit.
@@ -335,7 +337,7 @@ Return the report only to the controller that dispatched you. You never talk to 
 - On a slice dispatch and a slice fix dispatch: the cross-slice interfaces you decided (a name, a signature, a file's role a later slice builds on), or `interfaces: none`.
 - Each failing test your slice did not cause, with how you established it (`## A failing test your slice did not cause`).
 - The `AGENTS.md`-hierarchy and knowledge-base places you left unedited (`## Documentation`).
-- On a fix dispatch: the rule you applied to each finding (`### RED-test rule`), each place you checked and each you changed (`### Sibling surfaces`), and each place outside your checkout left unedited.
+- On a fix dispatch: the rule you applied to each finding (`### RED-test rule`), each place you checked and each you changed (`### Sibling surfaces`), each same-defect instance you fixed, each such instance outside the scope's changed files as an observation, and each place outside your checkout left unedited.
 - On a dispatch that repairs a defect: the ranked hypotheses your diagnosis wrote, in rank order (`### Defect repair`).
 - On a sweep fix dispatch: each collected Minor as fixed, closed with its evidence, or reported unedited (`## The sweep fix dispatch`).
 
