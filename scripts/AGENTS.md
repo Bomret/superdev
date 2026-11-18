@@ -49,6 +49,7 @@ lazily loaded module is a getter that returns that module's own value. No module
 `suite reusable --branch <b> [--whole] [--base <base-branch>]`, `suite rerun <test-file> <triage-ref>`, `suite failed <test-file>...`,
 `base set <sha>`, `base resolve --branch <b> --base <ref>`,
 `get stage|branch|anchor|slices|unresolved|degraded|deferred|minors|denials|docs|pr|suite|failed`,
+`state [--json] --root <run-root>` (every field `get` names in one read-only call, from the ledger alone: no git, no trace line, no digest seal; `--json` prints one object with list fields as arrays and `failed` as the failed test files, its `@ <sha>` staying in `get failed` and the text output; `suite-base-get.js`'s `verbState`),
 `status` (which renders the whole `/superdev:status` report), `trace [--slice <id>]` (prints the run trace, read-only), `untraced <base>..<tip> --slice <id|scope> [--from <ts>] [--until <ts>] --root <run-root>` (read-only), `publish`, `adopt`, `root <slug>`,
 `staging <scope> [--count]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `citations --range-base <ref> --branch <ref> <id>…`, `source-set [<path>]`, `push --root <run-root> --remote <remote> --base <base-ref>`, `dod-merge --root <run-root>`, `dod-line`, `dod-tags [--map-file <path>] [--line]`, `dod-check`, `fail-to-pass <base>..<tip> -- <command>`, `prepare <tree>`, and `test`.
 `--help` or `-h`, alone or after any verb, prints the usage and exits 0, except that a flag's value, or the text after `add`, `add-denial`, `reset-denials`, or `resolve`, is data and never a help request. It is checked before any verb
@@ -306,6 +307,8 @@ run fails, when the second run is killed at its bound or ended by a signal, and 
 (no shell on the PATH among the causes), its reason then reading `start-failed:<code>` in place of the exit
 status, and when a preparation gives no verdict. No reviewer reads `unknown` as a verdict,
 and no gate reads it as green.
+
+Before any run, inside a run root, the verb settles the outcome from the run trace when it proves the tests discriminate (ADR 0251, `settledFromTrace`). For every test file of the range, the range's slice window (from its latest `dispatch`, `dispatch-resume`, or `in-progress` ledger line) holds, after that file's last `edit`, a failing `path` or `focused` run naming that file alone; then an `edit` outside the test paths; then a passing run naming the file after the window's last such edit, at `<tip>` on a clean tree. Only runs made at the tree root count. The verb then appends the outcome line `fail-to-pass settled-from-trace`, prints `fail-to-pass settled-from-trace`, and runs and preps nothing. A trace that cannot be read or lacks that sequence runs the two runs as below.
 
 Inside a run root the verb appends one `fail-to-pass` trace line, `<base>..<tip> <outcome> <reason> <command>`. Its slice is the
 ledger row that records exactly that range, else the slice the run's directory attributes to, else `scope`. The control run also writes a `path` run line naming the range's test files, the files the command was handed to cover. The line
