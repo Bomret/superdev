@@ -43,9 +43,9 @@ function verbCi(cwd, args, input) {
   if (!sha) fail('ci needs --sha <sha>');
   if (args.length) fail(`ci: unrecognized argument "${args[0]}"`);
   const repo = root ? path.resolve(cwd, drivePath(root)) : cwd;
-  const verdict = (name, sha, reason) => {
-    console.log(`ci: ${name} ${sha}${reason ? ' ' + reason : ''}`);
-    process.exitCode = EXIT[name];
+  const verdict = (kind, at, reason) => {
+    console.log(`ci: ${kind} ${at}${reason ? ' ' + reason : ''}`);
+    process.exitCode = EXIT[kind];
   };
   const commit = resolveCommit(sha, repo);
   if (!commit) return verdict('cannot-judge', sha, `(${sha} resolves to no commit)`);
@@ -55,15 +55,18 @@ function verbCi(cwd, args, input) {
   if (checks.state === 'malformed') return verdict('cannot-judge', commit, '(## CI holds both none and a check name)');
   if (checks.state === 'none') return verdict('cannot-judge', commit, '(no named checks at that commit)');
   const byName = new Map(checks.names.map((n) => [n, []]));
+  let read = false;
   for (const line of String(input || '').split('\n')) {
     const fields = line.replace(/\r$/, '').split('\t');
     if (fields.length < 2) continue;
+    read = true;
     const reports = byName.get(fields[0].trim());
     if (reports) reports.push({ state: fields[1].trim().toLowerCase(), link: (fields[2] || '').trim() });
   }
   const standing = checks.names.map((name) => ({ name, ...judge(byName.get(name)) })).filter((s) => s.kind !== 'green');
   const name = standing.some((s) => s.kind === 'failed') ? 'failed' : standing.length ? 'not-green' : 'green';
-  verdict(name, commit);
+  // No `name<TAB>state` line at all is a read that delivered nothing: still not green, and named as such.
+  verdict(name, commit, read ? '' : '(no check report read)');
   for (const s of standing) console.log([s.kind, s.name, s.state, ...(s.link ? [s.link] : [])].join('\t'));
 }
 
