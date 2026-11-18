@@ -11,7 +11,7 @@ Review a change end to end. §1 decides the mode.
 - **Ad-hoc**: a spot-check, a pre-PR pass, a second opinion on someone else's branch, or `/superdev:sweep`'s code leg under `--chained`. No plan stands behind it, and §3 keeps it read-only, except the inline fix the operator agrees to.
 - **Scope**: the range is a live superdev scope branch, the whole-scope review gate of the implement chain. It reviews against that run's Definition of Done, may drive the fix loop after asking once, and hands off to `/superdev:document`. `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md` owns everything that differs.
 
-**The closing message.** Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The offer`.
+**The closing message.** Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`.
 
 - A run under `--chained` prints no Next block.
 - An ad-hoc review's block names `/superdev:plan` where a Critical or Important finding or a failed focused run stands, the state after an inline fix included.

@@ -17,8 +17,10 @@ docs to a knowledge base. It needs no other plugin.
   isolated git worktree per slice, and a separate reviewer subagent checks each behaviour slice before it
   merges.
 - `/superdev:review` reviews the whole scope against the Definition of Done and runs the full suite once.
-- The chain continues through docs, pull request, merge, deploy, and verification. Each command names the
-  next one and offers to start it.
+- The chain continues through docs, pull request, merge, deploy, and verification. Each chain command starts
+  the next one in the same turn at its clean exit: implement runs on through review and document to
+  submit-pr, which asks once whether to ship. A yes runs on through ship, verify-ship, and wrap-up. Every
+  other exit prints the next command for you to type.
 - Deterministic hooks hold the rules a prompt cannot: a subagent cannot merge or push, an implementer
   cannot write outside its own worktree. `scope.js` reports an outside edit of a run's ledger or trace, and
   the review grades an untraced write.
@@ -56,7 +58,7 @@ flowchart LR
 ```
 
 `/superdev:ship`, `/superdev:verify-ship`, and `/superdev:wrap-up` start only when you type the command,
-ask for it, or agree to an offer. When verify-ship settles every Definition-of-Done line, it starts
+ask for it, or the command before them starts them: ship on your yes to submit-pr's ship question. When verify-ship settles every Definition-of-Done line, it starts
 `/superdev:wrap-up` itself in the same turn, so a fully verified scope closes without another prompt.
 Wrap-up still runs every check and asks every question it asks when you type it.
 

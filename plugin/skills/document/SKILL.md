@@ -22,7 +22,7 @@ Applies to every start. You bring the docs and the knowledge base into agreement
 
 ## The closing message
 
-Applies to every message this command ends on, except under `--chained`, which prints no Next block. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The offer`.
+Applies to every message this command ends on, except under `--chained`, which prints no Next block. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`.
 
 ## No test command
 

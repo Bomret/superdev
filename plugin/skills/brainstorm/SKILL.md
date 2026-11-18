@@ -21,7 +21,7 @@ Applies to every start. Write only these: the intent file as the interview runs,
 
 ## The closing message
 
-Applies to the message of each exit of §6: the intent is ready, or the operator stops before it is. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The offer`. An interview turn that ends on a question to the operator is no exit: end it on the question, with no Next block and no next command.
+Applies to the message of each exit of §6: the intent is ready, or the operator stops before it is. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`. An interview turn that ends on a question to the operator is no exit: end it on the question, with no Next block and no next command.
 
 ## The mode
 

@@ -19,7 +19,7 @@ Applies to every start. You open a pull request for a run whose slices are on th
 
 ## The closing message
 
-Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The offer`.
+Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`.
 
 ## 1. Scope + run root
 

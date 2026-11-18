@@ -18,7 +18,7 @@ Applies to every start. You are the **controller**: you drive a plan's slices to
 
 ## The closing message
 
-Applies to every message this command ends on, the next command run handoff prints included (`${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md`). Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The offer`.
+Applies to every message this command ends on, the next command run handoff prints included (`${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md`). Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`.
 
 ## The inline doc pass
 
