@@ -39,6 +39,8 @@ const both = commitWith(CI('none\n\n- `lint`'));
 const noSection = commitWith(verif('node t.js'));
 const noFile = commitWith(null);
 const fenced = commitWith(CI('- `lint`\n\n```sh\nnode evil.js\n```'));
+const SHELLY = 'a$(touch x);c|b && touch y';
+const shelly = commitWith(CI(`- \`${SHELLY}\``));
 
 // The verb in-process: its stdout lines and the exit code it set.
 const ci = (sha, input, extra = []) => {
@@ -157,6 +159,14 @@ try {
     assert.equal(ci(fenced, lines(['lint', 'success'])).code, 0);
   }
 
+  // A check name holding shell metacharacters is judged as a plain name, and nothing it spells runs.
+  {
+    const r = ci(shelly, lines([SHELLY, 'success']));
+    assert.equal(r.code, 0, JSON.stringify(r));
+    assert.match(r.out, /^ci: green /);
+    assert.ok(!fs.existsSync(path.join(dir, 'x')) && !fs.existsSync(path.join(dir, 'y')));
+  }
+
   // An option-shaped SHA resolves to no commit: cannot judge (exit 2), and git writes no file it names.
   {
     const out = path.join(dir, 'option-shaped-out');
@@ -173,7 +183,7 @@ try {
     assert.match(r.err, /--sha/);
   }
 
-  // `--root` names the repository to read; an MSYS-shaped path is accepted the way the other verbs accept one.
+  // `--root` names the repository to read.
   {
     const r = ci(named, lines(['lint', 'success'], ['test (ubuntu)', 'success']), ['--root', dir]);
     assert.equal(r.code, 0, r.out);

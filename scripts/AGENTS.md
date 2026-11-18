@@ -511,12 +511,12 @@ stage write. `tests/scope-dod-check.test.js` holds its cases.
 them, with an optional third field, the report's link. It reads the `## CI` section of `docs/agents/verification.md` at
 `--sha` through git, never a working tree, in the repository `--root` names (an MSYS path is translated), or in its
 working directory. `verification.js`'s `namedChecksOf` reads the section: backtick spans outside a fence, trimmed, each
-name once, or `none`. An absent file or section, `none`, and a section with neither names no check. A section with both is
+name once, or `none`, a bare `none` line counting as `none` too. An absent file or section, `none`, and a section with neither names no check. A section with both is
 malformed. The section is cut out before the positional fence read, so a fence under `## CI` is never a test command. A
 named check is green when every line carrying its name reads `success`, failed when one reads `failure`, `error`,
 `timed_out`, `cancelled`, `action_required`, or `startup_failure`, pending when one reads any other state or none exists,
 and finished-not-green when its lines read only `success`, `skipped`, `neutral`, `stale`, or `warning`. Lines for names
-not listed are ignored, a trailing `\r` is stripped, and a line without a TAB matches nothing. It prints
+not listed are ignored, a trailing `\r` is stripped, and a line without a TAB, or with an empty name or state, matches nothing. It prints
 `ci: <green|not-green|failed|cannot-judge> <sha>`, then one `<pending|finished|failed><TAB><name><TAB><state>[<TAB><link>]`
 line per check not green. Empty or unparseable stdin, with no line that holds a name and a state, judges every named check
 missing: the verdict is not-green, never green, and its `ci:` line ends in `(no check report read)`. It exits 0 (green), 3 (not yet green), 4 (failed), or 2 (cannot judge: an unresolvable SHA, no
