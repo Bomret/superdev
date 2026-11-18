@@ -8,7 +8,9 @@
 // `os.availableParallelism()` reports, each in its own process group, and each prints its output whole with one
 // `run-tests: <label>: <ms> ms` line, so a test audit ranks measured cost. The first failure ends the steps still
 // running with their processes, starts no further step, and exits nonzero, naming what failed. `--related <path>...` runs the tail plus only the
-// suites the changed paths reach (`selectSuites`), and the mod suite when a path is under `MOD_DIR`. Pure Node, no shell.
+// suites the changed paths reach (`selectSuites`), and the mod suite when a path is under `MOD_DIR`. `-h` or `--help`
+// prints the usage and exits 0; any other argument is refused with exit 2 (`parseArgs`), and neither starts a step.
+// Pure Node, no shell.
 
 const fs = require('node:fs');
 const path = require('node:path');

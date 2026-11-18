@@ -937,8 +937,16 @@ suite file and from its pinned file, and continues through a `plugin/lib/` modul
 `tests/` (a cycle ends the walk). It stops at any other file, a hook or script having a suite of its own. A focused run is never a full suite
 (INV-0017).
 
+The runner accepts three forms: no argument (the full run), `--related` as the first argument followed by paths
+(the focused run), and `-h` or `--help` (the usage on stdout, exit 0). `-h` or `--help` anywhere among the arguments
+asks for help, ahead of any refusal. Every other argument is refused: an unknown flag (`--relatd`, `--related=a.js`), a
+word before `--related`, and after it a dash-led word (a second `--related`, `-`, `--`) or an empty path. A dash-led
+path therefore cannot be passed, and no `--` separator exists. A refusal prints `run-tests: unknown argument: <arg>`
+and the usage on stderr, and exits 2. Help and a refusal start no step and write no recorded durations.
+
 Its suite is `tests/run-tests.test.js`, which calls `discoverSuites`, `selectSuites`, `parseArgs`, and
-`runAll` against throwaway trees it removes at the end. It carries no roster of this repository's suites. The
+`runAll` against throwaway trees it removes at the end. It drives the CLI end to end from a copy of the runner in a
+throwaway tree, never against this repository. It carries no roster of this repository's suites. The
 tail is exported as `TAIL`, so a suite reads it instead of matching the runner's source text.
 
 ### invariant-check.js, the invariant register validator (ADR 0093)
