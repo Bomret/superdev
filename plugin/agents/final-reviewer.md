@@ -64,10 +64,10 @@ Applies to every review dispatch.
 
 Run no test. Review against the suite result the controller hands you, and judge whether it covers the changed code. The controller says which run it is.
 
-- On a scope dispatch: the scope's full-suite run, which the review started at its entry and which runs beside your review, or its reused outcome, or no run with its reason. The controller folds a failing result into the fix loop itself, so judge the change without waiting for it. A re-review inside a fix cycle gets no run: read the cycle implementer's recorded runs and its fail-to-pass outcome in the run trace.
+- On a scope dispatch: the reused outcome of a recorded suite result that already covers the tip, or no run with its reason. A first scope dispatch handed `not run` pending the exit run is no gap in the change's testing: the review runs the full suite at its exit, on the settled tip, and that run gates the stage. The controller folds a failing exit run into the fix loop itself. A re-review inside a fix cycle gets no run: read the cycle implementer's recorded runs and its fail-to-pass outcome in the run trace.
 - On an ad-hoc dispatch: the focused run over the range's changed paths, the full suite where the operator asked for it, or no run with its reason. An inline-fix re-review gets the focused run over the fix range, run in the fix worktree.
 - On a standing-code dispatch: no run.
-- The Assessment's `Full-suite run` line reports the handed run, and names it focused where it is. A run handed as still running reads `running`, and a dispatch that hands no run reads `not run`.
+- The Assessment's `Full-suite run` line reports the handed run, and names it focused where it is. A dispatch that hands no run reads `not run`.
 
 ### Judge discipline
 
@@ -195,7 +195,7 @@ document order: `<criterion>` — holds | broken: <why> | ceiling: <partial evid
 ### Fail-to-pass unknown [scope dispatch only; omit this section entirely when the trace holds none] — one note per outcome, never an Issue: <slice> · <its reason: control=<exit status or signal>, or bound=<ms>, or start-failed:<code> in control= or put-back=, or prepare=<exit, signal, start-failed:<code>, or dirty>>
 
 ### Assessment
-Full-suite run: [pass | fail | running | not run | denied — degraded pass]
+Full-suite run: [pass | fail | not run | denied — degraded pass]
 Ready to merge? [Yes | No | With fixes]
 Reasoning: [1–2 sentences]
 ```

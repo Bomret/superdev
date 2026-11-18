@@ -15,6 +15,7 @@ const {
   scanDocSetupNoTestRun,
   scanImplementNoFullRun,
   scanObservationNoSuiteRun,
+  scanScopeReviewNoEntryRun,
   scanBackgroundRuleNamesLimit,
   scanDodBoxRule,
 } = require('../scanners');
@@ -438,6 +439,47 @@ module.exports = ({ assert, path, fixture, found }) => {
     scanObservationNoSuiteRun(fixture({ '.keep': '' })),
     [{ source: reviewScope, missing: true }],
     'observation-no-suite-run: a missing document is a missing-document gap',
+  );
+
+  // --- scope-review-no-entry-run (ADR 0254): scope-review prose names no entry run ---
+
+  const reviewSkill = path.join('skills', 'review', 'SKILL.md');
+  const finalReviewer = path.join('agents', 'final-reviewer.md');
+  const entryRun = (files) =>
+    scanScopeReviewNoEntryRun(fixture({ 'skills/review/SKILL.md': 'x\n', 'agents/final-reviewer.md': 'x\n', ...files }));
+  for (const [text, label] of [
+    ['The review starts the entry run beside its first reviews.\n', 'the entry run'],
+    ['## A denied entry run\n', 'a denied entry run'],
+    ['A denied entry or exit run blocks.\n', 'an entry-or-exit run'],
+    ['Wait for the entry full-suite run.\n', 'an entry full-suite run'],
+    ['Merge the base before the entry focused run.\n', 'an entry focused run'],
+    ['Wait for the entry suite run.\n', 'an entry suite run'],
+    ['Start the entry test run.\n', 'an entry test run'],
+    ['Skip the entry-run.\n', 'a hyphenated entry-run'],
+  ]) {
+    const gaps = entryRun({ 'references/review-scope-denials.md': text });
+    assert.equal(gaps.length, 1, `scope-review-no-entry-run: flags ${label}`);
+    assert.equal(gaps[0].source, path.join('references', 'review-scope-denials.md'), `scope-review-no-entry-run: names the document for ${label}`);
+  }
+  assert.deepEqual(
+    entryRun({ 'skills/review/SKILL.md': 'Hand it the entry run.\n', 'agents/final-reviewer.md': 'Read the entry run.\n' }).map((g) => g.source),
+    [reviewSkill, finalReviewer],
+    'scope-review-no-entry-run: the review skill and final-reviewer are read',
+  );
+  assert.deepEqual(
+    entryRun({
+      'references/review-scope-mode.md': "Run §4.2's entry reuse check, which runs no test, then the exit run.\n```\nentry run\n```\n",
+      'references/review-scope-holds.md': 'At entry, run the anchor check.\n',
+      'references/review-scope-base.md': 'The entry runs no test.\n',
+      'references/scope-mode.md': 'The entry run.\n',
+    }),
+    [],
+    'scope-review-no-entry-run: the entry reuse check, "entry runs" as a verb, a fenced example, and a document outside the set pass',
+  );
+  assert.deepEqual(
+    scanScopeReviewNoEntryRun(fixture({ 'skills/review/SKILL.md': 'x\n' })),
+    [{ source: finalReviewer, missing: true }],
+    'scope-review-no-entry-run: a missing document is a missing-document gap',
   );
 
   // --- background-rule-names-limit (ADR 0232): the background rule names the Bash ceiling, never an unnamed limit ---

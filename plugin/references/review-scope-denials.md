@@ -12,19 +12,12 @@ Applies to a scope-mode `/superdev:review` when the permission classifier denies
 
 **No entry.** Applies to a denied `simplicity-reviewer` dispatch. It records no `**Degraded:**` entry.
 
-## A denied entry run
-
-**The entry.** Applies to §4.2's entry run when the classifier denies it. It takes the second shape of `## Degraded passes`. Write the `**Degraded:**` entry and hand `denied` to the first `final-reviewer` dispatch.
-
-- **Attended** → continue.
-- **Unattended** → **block**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unattended`.
-
 ## A denied exit run
 
 **The record.** Applies to §4.2's exit run when the classifier denies it. Record `denied` with `scope.js suite set denied <tip> --root <run-root>` and write the `**Degraded:**` entry. The stage stays where it is.
 
 - **Attended** → continue to the report, which names the denied exit run.
-- **Unattended** → **block**, per `scope-mode.md`'s `## Unattended`.
+- **Unattended** → **block**, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Unattended`.
 
 ## A denied fix implementer
 

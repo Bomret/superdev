@@ -299,7 +299,7 @@ Repeat until every slice is `merged`:
    escalation on a genuine winner-picking overlap, which **`--unattended`** turns into a block.
 
    **A slice merge runs no suite**, clean or concluded with `merge --continue`. The
-   slice's own runs already tested it, and the scope review's full-suite run (started at its entry, and its exit run: a full run, or
+   slice's own runs already tested it, and the scope review's full-suite run (its exit run: a full run, or
    the carry or recorded rerun `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` admits) verify the
    integrated scope: its fix loop repairs a break between two slices that each passed alone. Go straight on to the next dispatch or merge.
 
