@@ -123,9 +123,13 @@ records it and to the slice that trace line names. Therefore `plugin/lib/dispatc
 ## Work Guidance
 
 Install the mod into a session with `/plugin marketplace add <repo>/mods/superdev-view`, then
-`/plugin install superdev-view@superdev-view` and `/reload-plugins`. Claude Code caches an install by
-the `version` in the mod's own `.claude-plugin/plugin.json`, which is set by hand: a change reaches an
-install only after that version is raised and `claude plugin update superdev-view@superdev-view` runs.
+`/plugin install superdev-view@superdev-view` and `/reload-plugins`. The mod's marketplace lists it with
+the relative source `./`, so Claude Code loads it in place from this folder. An edit here, a `git pull`
+included, takes effect at the next session start or `/reload-plugins`, with no raise of the `version` in
+`.claude-plugin/plugin.json` and no `claude plugin update`
+([plugin loading](https://code.claude.com/docs/en/plugins/loading.md#in-place-and-copied-plugins)).
+Verified 2026-11-18, on Claude Code 2.1.311: `claude plugin update superdev-view@superdev-view` prints
+that the mod is read from its folder and has nothing to update.
 
 ## Verification
 
