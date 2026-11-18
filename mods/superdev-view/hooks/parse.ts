@@ -40,11 +40,24 @@ export const closedAt = (trace: string): number | null => {
   return Number.isNaN(ms) ? null : ms
 }
 
-// DoD checkboxes: `- [x]` done, `- [ ]` open.
-export const progress = (md: string) => ({
-  done: (md.match(/^\s*- \[[xX]\]/gm) ?? []).length,
-  total: (md.match(/^\s*- \[[ xX]\]/gm) ?? []).length,
-})
+// DoD progress by the note rule (plugin/references/dod-ticks.md, ADR 0247, INV-0190): every checklist line counts
+// toward the total, and a line is done only when its verdict note is `met:` or `accepted:`, whatever its checkbox
+// shows. The note label is read as plugin/lib/dod-line.js reads it: the tagged form first, then the untagged one,
+// each at its leftmost boundary, the label matched whole. The mod installs from its own folder and cannot require
+// plugin/lib/, so it carries the reading itself; hooks/dod-fixtures.ts pins it to the lines scope.js writes, and
+// tests/scope-dod-line.test.js asserts DOD_TAG and DOD_LABEL match dod-line.js's tag and verdict patterns.
+const DOD_TAG = '(?:scope|docs|(?:#?\\d+|[A-Z][A-Z0-9_]*-\\d+)(?:,\\s*(?:#?\\d+|[A-Z][A-Z0-9_]*-\\d+))*)'
+const DOD_LABEL = '(met|not met|ceiling|accepted)'
+const DOD_NOTE_TAGGED = new RegExp(`^.+? — ${DOD_TAG} — ${DOD_LABEL}: `)
+const DOD_NOTE_UNTAGGED = new RegExp(`^.+? — ${DOD_LABEL}: `)
+export const progress = (md: string) => {
+  const labels = md.split(/\r?\n/).map(l => /^\s*- \[[ xX]\]\s*(.*)$/.exec(l)?.[1]).filter((r): r is string => r !== undefined)
+    .map(r => (DOD_NOTE_TAGGED.exec(r) ?? DOD_NOTE_UNTAGGED.exec(r))?.[1])
+  return {
+    done: labels.filter(l => l === 'met' || l === 'accepted').length,
+    total: labels.length,
+  }
+}
 
 // One YAML frontmatter field's value, unquoted; '' when the file has no frontmatter or no such key.
 const fmField = (md: string, k: string) => {

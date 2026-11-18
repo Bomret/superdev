@@ -9,7 +9,7 @@ const overviewRepo = () => {
   const files: Record<string, string> = {
     [`${R}/info.json`]: '{"issue-tracker":{"assignee":"stefan"}}',
     [`${A}/ledger.md`]: ledger('implementing', [['01', 'merged'], ['02', 'in-progress'], ['03', 'todo']]),
-    [`${A}/dod.md`]: '- [x] one\n- [ ] two\n',
+    [`${A}/dod.md`]: '- [x] one — met: ok\n- [ ] two\n',
     [`${R}/scopes/c/ledger.md`]: ledger('closed', [['01', 'merged']]),
     [`${R}/brainstorm/i.md`]: '---\nstatus: draft\n---\n# Intent: Idea\n',
     [`${R}/kb-pending/a/p.md`]: '---\ntitle: Page\naction: patch\n---\nbody',

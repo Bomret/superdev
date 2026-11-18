@@ -1,5 +1,6 @@
 import { test, expect } from 'claude-code/testing'
 import { closedAt, eventLog, frontmatter, header, intent, progress, queuedMinors, slices, untrace } from './parse'
+import { DOD_LOOKALIKE_LINES, DOD_OPEN_LINES, DOD_WRITTEN_LINES } from './dod-fixtures'
 import { LEDGER_LINES, LEDGER_QUEUE_LINES, LEDGER_STEP_LINES } from './ledger-fixtures'
 import { TRACE_LINES } from './trace-fixtures'
 
@@ -48,9 +49,30 @@ test('a closed stage write with an unparseable time gives no close time', () => 
 })
 
 test('parses dod progress, intents, and staged page frontmatter', () => {
-  expect(progress('- [x] a\n- [ ] b\n  - [X] c\n')).toEqual({ done: 2, total: 3 })
+  expect(progress('- [ ] a — met: x\n- [ ] b\n  - [X] c — accepted: y\n')).toEqual({ done: 2, total: 3 })
   expect(intent('x', '# Intent: Help\n\n**Status: ready to plan.** more')).toEqual({ name: 'x', title: 'Help', status: 'ready to plan', isDraft: false })
   expect(frontmatter('---\ntitle: "Page"\naction: patch\n---\nbody')).toEqual({ title: 'Page', action: 'patch' })
+})
+
+test('dod progress counts a line done by its verdict note, never by its checkbox (ADR 0247)', () => {
+  expect(progress(DOD_WRITTEN_LINES.join('\n'))).toEqual({ done: 4, total: 8 })
+  expect(DOD_WRITTEN_LINES.map(l => progress(l).done)).toEqual([1, 1, 0, 0, 0, 0, 1, 1])
+  expect(progress(DOD_OPEN_LINES.join('\n'))).toEqual({ done: 0, total: 4 })
+  expect(progress('- [x] a — ceiling: x\n')).toEqual({ done: 0, total: 1 })
+})
+
+test('dod progress counts a written line with a look-alike note by its leftmost verdict', () => {
+  expect(DOD_LOOKALIKE_LINES.map(l => progress(l).done)).toEqual([0, 0, 1, 1])
+})
+
+test('an empty dod.md reads no progress', () => {
+  expect(progress('')).toEqual({ done: 0, total: 0 })
+})
+
+test('dod progress reads a note label whole, at the boundary the shipped line parser picks', () => {
+  expect(progress('- [ ] c — not met: was — met: x')).toEqual({ done: 0, total: 1 })
+  expect(progress('- [ ] c — not met: see — 01 — met: y')).toEqual({ done: 1, total: 1 })
+  expect(progress('- [ ] c — unmet: x\n- [ ] c — met:x\n- [x] c - met: x')).toEqual({ done: 0, total: 3 })
 })
 
 // --- the event log (ADR 0141) ---

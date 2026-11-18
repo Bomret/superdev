@@ -604,6 +604,41 @@ try {
     assert.strictEqual(res.stdout, '', 'no match prints nothing on stdout');
     assert.ok(res.stderr.includes('absent criterion'), 'no match names the criterion on stderr: ' + res.stderr);
   }
+
+  // The lines superdev-view's progress reads (ADR 0247, INV-0190): scope.js writes exactly the shared DoD lines, for
+  // every verdict, tagged and untagged, and the mod's suite counts the same text, so a change on either side fails one suite.
+  {
+    const modDir = path.join(__dirname, '..', 'mods', 'superdev-view', 'hooks');
+    const src = fs.readFileSync(path.join(modDir, 'dod-fixtures.ts'), 'utf8');
+    const pinned = name => JSON.parse(src.slice(src.indexOf(`/* ${name}:start */`) + name.length + 12, src.indexOf(`/* ${name}:end */`)));
+    const write = (cases, note) => {
+      const written = [];
+      for (const verdict of cases) {
+        for (const line of ['- [ ] the widget renders — 01', '- [ ] the widget renders']) {
+          r = call(['dod-line', '--match', 'the widget renders', '--verdict', verdict, '--note', note[verdict]], line);
+          assert.ok(r.ok, `dod-line ${verdict} should pass: ` + (r.err || ''));
+          written.push(r.out.trimEnd());
+        }
+      }
+      return written;
+    };
+    const plain = { met: 'the note', 'not-met': 'the note', ceiling: 'the note', accepted: 'the note' };
+    assert.deepEqual(write(['met', 'not-met', 'ceiling', 'accepted'], plain), pinned('dod'),
+      'scope.js writes the DoD lines superdev-view counts');
+    assert.deepEqual(write(['not-met', 'met'], { 'not-met': 'was — met: x', met: 'was — not met: x' }), pinned('dod-lookalike'),
+      'scope.js writes the look-alike-note DoD lines superdev-view counts');
+
+    // The mod carries its own copy of the note reader's tag and verdict patterns, since it cannot require plugin/lib/.
+    // Each copy must read exactly as dod-line.js's, so an edit of either side fails here.
+    const parseSrc = fs.readFileSync(path.join(modDir, 'parse.ts'), 'utf8');
+    const modTag = JSON.parse('"' + /^const DOD_TAG = '([^']*)'$/m.exec(parseSrc)[1] + '"');
+    const modLabel = /^const DOD_LABEL = '\(([^']*)\)'$/m.exec(parseSrc)[1];
+    const { DOD_NO_NOTE_TAG_RE } = require('../plugin/lib/dod-line.js');
+    assert.strictEqual(DOD_NO_NOTE_TAG_RE.source, `^(.+) — (${modTag})\\s*$`, 'parse.ts DOD_TAG reads as dod-line.js DOD_TAG_PATTERN');
+    const libSrc = fs.readFileSync(path.join(__dirname, '..', 'plugin', 'lib', 'dod-line.js'), 'utf8');
+    const libLabel = /^const DOD_NOTE_VERDICT_RE = '\(\?:([^']*)\)';$/m.exec(libSrc)[1];
+    assert.strictEqual(modLabel, libLabel, 'parse.ts DOD_LABEL reads as dod-line.js DOD_NOTE_VERDICT_RE');
+  }
 } finally {
   fs.rmSync(fileDir, { recursive: true, force: true });
   cleanup();

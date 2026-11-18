@@ -127,8 +127,8 @@ docs/known-issues.md   — Claude Code platform behaviour superdev works around,
 mods/superdev-view/    — maintainer-only Claude Code mod: a pane of a repository's `.superdev/`
                          folder, its own single-plugin marketplace (`.claude-plugin/marketplace.json`);
                          never shipped. Its own suites run under `claude plugin test`; `node scripts/run-tests.js` runs none
-                         of them, and only reads its fixture files through `tests/run-trace-dispatch.test.js`
-                         and `tests/scope-ledger.test.js`
+                         of them, and only reads its fixture files through `tests/run-trace-dispatch.test.js`,
+                         `tests/scope-ledger.test.js`, and `tests/scope-dod-line.test.js`
                          its `.gitignore` excludes `hooks/*.js`, because the hooks are TypeScript only;
                          its own AGENTS.md states the pane's behaviour contract
 scripts/               — the maintainer-only CLIs `node scripts/run-tests.js` runs: `drift-check.js` with its
@@ -505,14 +505,16 @@ This root owns every other subtree directly:
   Nothing under `plugin/` requires it, and the root marketplace does not list it, so no adopter install
   carries it.
 
-  The mod's fixture files are `mods/superdev-view/hooks/trace-fixtures.ts` and
-  `mods/superdev-view/hooks/ledger-fixtures.ts`. A bare `hooks/` path in this paragraph is under
-  `mods/superdev-view/`. `tests/run-trace-dispatch.test.js` reads `hooks/trace-fixtures.ts`,
-  and `tests/scope-ledger.test.js` reads `hooks/ledger-fixtures.ts`. `hooks/parse.ts` reads the ledger and the
-  run trace that `scope.js` writes, and two pins hold that coupling. The ledger pin in
+  The mod's fixture files are `mods/superdev-view/hooks/trace-fixtures.ts`,
+  `mods/superdev-view/hooks/ledger-fixtures.ts`, and `mods/superdev-view/hooks/dod-fixtures.ts`. A bare `hooks/`
+  path in this paragraph is under `mods/superdev-view/`. `tests/run-trace-dispatch.test.js` reads
+  `hooks/trace-fixtures.ts`, `tests/scope-ledger.test.js` reads `hooks/ledger-fixtures.ts`, and
+  `tests/scope-dod-line.test.js` reads `hooks/dod-fixtures.ts`. `hooks/parse.ts` reads the ledger, the run trace,
+  and the Definition-of-Done lines that `scope.js` writes, and one pin holds each coupling. The ledger pin in
   `tests/scope-ledger.test.js` asserts that `scope.js` writes the lines in `hooks/ledger-fixtures.ts`. The trace
   pin in `tests/run-trace-dispatch.test.js` asserts that `plugin/hooks/run-trace.js` writes the lines in
-  `hooks/trace-fixtures.ts`. `hooks/parse.test.ts` parses both fixture files. A change to the ledger or
-  trace layout fails one of these suites, so the change must update `hooks/parse.ts` and the fixture file
-  together.
+  `hooks/trace-fixtures.ts`. The DoD line pin in `tests/scope-dod-line.test.js` asserts that `scope.js dod-line`
+  writes the lines in `hooks/dod-fixtures.ts`, one per verdict, tagged and untagged (INV-0190).
+  `hooks/parse.test.ts` parses each fixture file. A change to the ledger, trace, or DoD line layout fails one of
+  these suites, so the change must update `hooks/parse.ts` and the fixture file together.
 - `CONTEXT.md`. The domain glossary.
