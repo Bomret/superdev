@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0255](0255-ship-owns-the-full-suite-evidence-and-ci-can-carry-it.md), under which the scope review runs no full suite, and ship takes the scope's full-suite evidence.
+
 **Amended by:** [ADR 0192](0192-the-full-suite-runs-once-after-review-comes-back-clean.md), under which the scope review's one full-suite run is its exit run alone, and run handoff runs no suite.
 
 **Amended by:** [ADR 0074](0074-the-focused-test-command-is-the-loops-cheap-command.md), which redefines

@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0255](0255-ship-owns-the-full-suite-evidence-and-ci-can-carry-it.md), under which the carry serves ship's own suite gate.
+
 **Amends:** [ADR 0025](0025-the-scope-review-owns-the-full-suite-run.md), whose documentation step
 verifies its commits with the focused command while the merge gate demands a full-suite result on the
 exact tip, and [ADR 0117](0117-the-run-trace-is-hook-written-evidence.md), under which a focused run never

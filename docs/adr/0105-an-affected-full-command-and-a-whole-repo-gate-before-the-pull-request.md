@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0255](0255-ship-owns-the-full-suite-evidence-and-ci-can-carry-it.md), under which submit-pr runs no whole-repo command, and ship runs it where no named CI checks are recorded.
+
 **Amends:** [ADR 0025](0025-the-scope-review-owns-the-full-suite-run.md),
 [ADR 0075](0075-the-scope-review-gates-on-a-full-suite-entering-and-leaving.md),
 [ADR 0096](0096-opening-the-pull-request-and-merging-it-are-separate-commands.md).

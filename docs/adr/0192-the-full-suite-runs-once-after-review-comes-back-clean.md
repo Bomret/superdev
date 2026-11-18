@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0255](0255-ship-owns-the-full-suite-evidence-and-ci-can-carry-it.md), which moves the scope's one full-suite run from the review's exit to ship.
+
 **Amended by:** [ADR 0234](0234-test-runs-overlap-and-skip-repeated-preparation.md), which starts the full-suite run at the review's entry, in place of an entry focused run.
 
 **Amended by:** [ADR 0254](0254-the-scope-review-runs-its-full-suite-at-the-exit-alone.md), which withdraws ADR 0234's entry run: the
