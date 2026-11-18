@@ -131,7 +131,8 @@ git, never a working tree.
 - **Absent, `none`, or holding no name** → no named checks: `/superdev:ship` runs the full command, or the whole-repo
   command, locally on the head it merges. A section holding both `none` and a name is a configuration error that
   `scope.js ci` cannot judge: ship refuses, submit-pr reports it and asks no ship question, and review says so once
-  and continues. Every backtick span other than `none` counts as a name, so prose in the section carries no span.
+  and continues. Every backtick span outside a fenced block other than `none` counts as a name, and a bare `none` line counts as
+  `none`, so prose in the section carries no span.
 - **Names present** → `/superdev:ship` merges only when every named check reads green on the exact head it merges, and
   runs no local suite (INV-0191). A check not named counts for nothing, so a CI that runs part of the suite records
   `none`.

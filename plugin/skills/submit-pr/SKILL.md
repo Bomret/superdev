@@ -73,7 +73,7 @@ Applies to every start past §1. Find the scope checkout.
 
 **No test run.** Applies to every run past §3. Run no test command and no `scope.js suite reusable` call: `/superdev:ship` takes the scope's full-suite evidence on the head it merges (ADR 0255, INV-0193).
 
-**The named checks.** Applies to every run past §3. Read the `## CI` section of `docs/agents/verification.md` from the scope branch's tip commit (`git -C <run-root>/scopetree show <branch>:docs/agents/verification.md`), never the working tree. Its backtick spans other than `none` are the named checks (`CONTEXT.md` → *Named check*).
+**The named checks.** Applies to every run past §3. Read the `## CI` section of `docs/agents/verification.md` from the scope branch's tip commit (`git -C <run-root>/scopetree show <branch>:docs/agents/verification.md`), never the working tree. Its backtick spans outside a fenced block, other than `none`, are the named checks, and a bare `none` line counts as `none` (`CONTEXT.md` → *Named check*).
 
 - **Named checks, and no `none`** → the full suite runs in those checks, which this command lists in the body and its report.
 - **None** (no document, no section, or a section reading `none`) → the full suite runs locally at ship: the full command, or the whole-repo command where `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## Whole-repo command` section is configured.

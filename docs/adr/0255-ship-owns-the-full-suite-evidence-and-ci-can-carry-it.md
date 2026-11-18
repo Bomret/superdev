@@ -43,11 +43,14 @@ check status.
    merge or for local commits the pull request lacks, ends in the pending refusal.
 5. **Ship reads CI status fresh and records none.** The suite record stays the record of a local run.
 6. **Review reads red evidence as its starting finding.** A local red suite record, or a failed named check on the
-   recorded pull request's head where that head is the scope branch's tip, becomes a Critical finding at review entry.
-   The fix loop's focused runs prove the fix, and ship checks the evidence again. A red record that a later passing
-   `path` run of its failed test files, or a passing focused run, on a clean tree on the tip's ancestry already closed
-   raises no finding, because a fix cycle's runs write no suite record. A head behind the tip has its verdict reported
-   for that head and raises nothing.
+   recorded pull request's head where that head is the scope branch's tip or an ancestor of it, becomes a Critical
+   finding at review entry. A failed check on an ancestor is reported for that head, never as the tip's state. The fix
+   loop's focused runs prove the fix, and ship checks the evidence again. A fix cycle's runs write no suite record, so
+   red evidence that later passing runs on a clean tree, at a commit on the tip's ancestry, already cover raises no
+   finding. A red record's failed test files are covered by a passing `path` run of each, or by a passing focused run
+   whose path set includes each. A red record with no failed test file, and a failed check, which names none, are
+   covered only by a passing focused run over the scope's whole range. A head that is no ancestor of the tip has its
+   verdict reported for that head and raises nothing.
 
 ## Considered options
 
