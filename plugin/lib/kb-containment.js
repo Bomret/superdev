@@ -20,8 +20,12 @@ function branchNamesFrom(cwd) {
     encoding: 'utf8',
   });
   // A listing git could not produce is no listing of zero branches: return how it failed instead.
-  // Exit 0 with empty stdout is a successful listing of none.
-  if (res.error) return { failure: `could not start (${res.error.code || res.error.message})` };
+  // Exit 0 with empty stdout is a successful listing of none. spawnSync also sets `error` on a git that
+  // started, such as ENOBUFS past maxBuffer, so only ENOENT and EACCES read as git unable to start.
+  if (res.error) {
+    const how = ['ENOENT', 'EACCES'].includes(res.error.code) ? 'could not start' : 'failed';
+    return { failure: `${how} (${res.error.code || res.error.message})` };
+  }
   if (res.status === null) return { failure: `was ended by signal ${res.signal}` };
   if (res.status !== 0) return { failure: `exited with status ${res.status}` };
   const names = new Set();
@@ -112,9 +116,8 @@ function parseRemote(docText) {
 // what a refusal means. `{ performed: false }` for `_adhoc`. Otherwise `{ performed: true, ok, ...
 // }`: `ok: true` on a contained branch, and on a scope whose branch and run root are both reaped
 // (ADR 0071). `ok: false` with a `message` naming the branch (when one
-// resolved) and what was found — "no base branch configured", "cannot list branches" (a `git
-// for-each-ref` that exited non-zero, was ended by a signal, or could not start, never read as no
-// branch), "no branch resolved", "not contained", or "names no ref this repository can find" (`testContainment`'s own
+// resolved) and what was found — "no base branch configured", "cannot list branches",
+// "no branch resolved", "not contained", or "names no ref this repository can find" (`testContainment`'s own
 // `'could-not-resolve'`, kept distinct from not-contained per slice #494's interface note, so a
 // branch that never existed never reads as one that simply hasn't landed yet).
 function checkContainment(mainCheckout, scope) {

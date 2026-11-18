@@ -439,6 +439,20 @@ withState(() => {
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+// A git that started and then failed with a spawn error: a listing past spawnSync's default maxBuffer
+// (1 MiB) ends in ENOBUFS, which names git as failed and never as unable to start.
+withState(() => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  const page = unmergedScope(repo, 'gitflood', 'Git Flood Page');
+  const shim = gitShim('head -c 2000000 /dev/zero; exit 0');
+  const res = callWithPath(`${shim}${path.delimiter}${process.env.PATH}`, ['--scope', 'gitflood'], repo);
+  assertListingRefusal(res, 'spawn error after start', page);
+  assert.match(res.err, /failed \(ENOBUFS\)/, 'the refusal says git failed and names the error');
+  assert.doesNotMatch(res.err, /could not start/, 'a git that started never reads as one that could not start');
+  fs.rmSync(shim, { recursive: true, force: true });
+});
+
 // --allow-unmerged publishes through a failed listing, and the report marks the scope unmerged.
 withState((stateFile) => {
   const repo = makeRepo();
