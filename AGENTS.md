@@ -311,6 +311,7 @@ action of the closing (ADR 0253). Read it before you change subagent prose or th
 bun install                        # install dev deps (release toolchain)
 node scripts/run-tests.js          # every tests/ suite, drift-check, plugin manifest validation
 node scripts/run-tests.js --related <path>...  # the tail plus the suites the paths reach
+node scripts/run-tests.js --help   # the accepted forms; any other argument is refused, exit 2
 node tests/<suite>.test.js         # one suite, no tail
 GH_TOKEN=$(gh auth token) bun run release  # cut a release from clean main (see RELEASING.md)
 ```
