@@ -942,7 +942,7 @@ The runner accepts three forms: no argument (the full run), `--related` as the f
 asks for help, ahead of any refusal. Every other argument is refused: an unknown flag (`--relatd`, `--related=a.js`), a
 word before `--related`, and after it a dash-led word (a second `--related`, `-`, `--`) or an empty path. A dash-led
 path therefore cannot be passed, and no `--` separator exists. A refusal prints `run-tests: unknown argument: <arg>`
-and the usage on stderr, and exits 2. Help and a refusal start no step and write no recorded durations.
+and the usage on stderr, and exits 2. An empty argument is named `(empty argument)`. Help and a refusal start no step and write no recorded durations.
 
 Its suite is `tests/run-tests.test.js`, which calls `discoverSuites`, `selectSuites`, `parseArgs`, and
 `runAll` against throwaway trees it removes at the end. It drives the CLI end to end from a copy of the runner in a
