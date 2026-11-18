@@ -420,7 +420,7 @@ This root owns every other subtree directly:
   never merge consent (ADR 0253). Ship refuses `--unattended` (INV-0093). A criterion verify-ship observes false routes to `/superdev:plan`'s
   repair choice, which plans a `fix` feature on its own anchor, linked to the original by a `**Repairs:**`
   line (ADR 0124).
-  No test runs after review: `/superdev:document` and `/superdev:setup` run no test command, and a green suite record carries across Markdown-only commits with no run. ADR 0189 and INV-0175 state this rule, and the `doc-setup-no-test-run` drift check holds it.
+  `/superdev:document` and `/superdev:setup` run no test command, and a green suite record carries across Markdown-only commits with no run. ADR 0189 and INV-0175 state this rule, and the `doc-setup-no-test-run` drift check holds it.
   Every worktree superdev creates or reuses for a test run runs the repository's **Prepare command** through
   `scope.js prepare` before its first test run: the scopetree at implement and review start, each slicetree, and a
   recreated scopetree (`references/scope-branch.md`'s `## Preparing a worktree`). `scope.js fail-to-pass` prepares its
