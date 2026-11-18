@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { fail } = require('./refusal.js');
 const { gitSpawn } = require('./git-spawn.js');
-const { verificationCommands } = require('./verification.js');
+const { verificationCommands, isTestPath } = require('./verification.js');
 const { appendTrace, readTrace, encodePaths } = require('./trace-log.js');
 const { checkRun } = require('./run-check.js');
 const { superviseRuns } = require('./run-supervision.js');
@@ -17,6 +17,27 @@ const shellWord = (w) => (/^[\w@%+=:,./-]+$/.test(w) ? w : `'${w.replace(/'/g, "
 // A focused command template with every `{paths}` token replaced by the shell-quoted paths. A replacer function inserts
 // its value literally, so a path holding a `$&`-style pattern stays a path.
 const withPaths = (template, paths) => template.replace(/\{paths\}/g, () => paths.map(shellWord).join(' '));
+
+// The `--since <ref>` operand at the head of `rest`, or undefined where `rest` holds none. A missing operand, a ref starting with
+// a dash, a ref git cannot resolve to a commit, and paths beside it are refused (ADR 0259).
+function sinceRef(verb, rest, top) {
+  if (rest[0] !== '--since') return undefined;
+  const ref = rest[1];
+  if (ref === undefined || ref === '--' || ref === '') fail(`test ${verb}: --since needs a ref`);
+  if (ref.startsWith('-')) fail(`test ${verb}: the ref ${JSON.stringify(ref)} starts with a dash`);
+  if (rest.length > 2) fail(`test ${verb}: --since takes no paths beside its ref`);
+  if (gitSpawn(['rev-parse', '--verify', '--quiet', '--end-of-options', ref + '^{commit}'], top).status !== 0) fail(`test ${verb}: git cannot resolve ${JSON.stringify(ref)} to a commit`);
+  return ref;
+}
+
+// Every path changed since `ref`, relative to the tree root `top`: committed and uncommitted changes against the working tree,
+// plus untracked files git does not ignore, each read NUL-separated so any file name survives.
+function changedSince(verb, ref, top) {
+  const diff = gitSpawn(['-c', 'diff.relative=false', '-c', 'core.quotePath=false', 'diff', '--name-only', '--no-renames', '-z', ref, '--'], top);
+  const others = gitSpawn(['ls-files', '--others', '--exclude-standard', '-z'], top);
+  if (diff.status !== 0 || others.status !== 0) fail(`test ${verb}: git could not list the paths changed since ${JSON.stringify(ref)}`);
+  return [...new Set((diff.stdout + others.stdout).split('\0').filter(Boolean))];
+}
 
 // `test full|whole`, `test focused [<path>…]`, `test path <file>… -- <command>`: runs a test command under `sh`, streaming its output,
 // and appends one `run` line carrying the command's own exit status (an Observed run), its duration in milliseconds, and its command as run. The run root, slice, commit, and
@@ -48,20 +69,37 @@ function verbTest(cwd, args) {
     if (sep < 0) fail(`test path: needs \`--\` before the command (${form})`);
     files = args.slice(1, sep);
     const words = args.slice(sep + 1);
+    const ref = sinceRef('path', files, topOf());
     if (!files.length) fail(`test path: needs at least one test file (${form})`);
     if (files.includes('')) fail('test path: an empty file argument names no file');
     if (!words.length || (words.length === 1 && !words[0].trim())) fail(`test path: needs a command after \`--\` (${form})`);
     command = words.length === 1 ? words[0] : words.map(shellWord).join(' ');
+    if (ref !== undefined) {
+      // The changed test-path files that exist at the tip, as the cwd reaches them, appended to the command.
+      const top = topOf();
+      const text = (() => { try { return fs.readFileSync(path.join(top, 'docs', 'agents', 'verification.md'), 'utf8'); } catch { return ''; } })();
+      files = changedSince('path', ref, top)
+        .filter((p) => isTestPath(text, p) && fs.existsSync(path.join(top, p)))
+        .map((p) => path.relative(cwd, path.join(top, p)).split(path.sep).join('/'));
+      if (!files.length) fail(`test path: no test file changed since ${JSON.stringify(ref)}`);
+      command += ' ' + files.map(shellWord).join(' ');
+    }
   } else {
     if (!['full', 'focused', 'whole'].includes(kind) || (kind !== 'focused' && args.length > 1)) fail(`test: unrecognized arguments (${usage().split('\n').find((l) => /^ {2}test /.test(l)).trim()})`);
-    const paths = args.slice(1);
+    const tree = at ? at.tree : topOf();
+    let paths = args.slice(1);
+    const ref = sinceRef('focused', paths, tree);
+    if (ref !== undefined) {
+      // A ref-given set is never empty: an empty one is refused rather than run as the full command.
+      paths = changedSince('focused', ref, tree);
+      if (!paths.length) fail(`test focused: no path changed since ${JSON.stringify(ref)}`);
+    }
     if (paths.includes('')) fail('test focused: an empty path argument names no file');
     if (kind === 'focused' && !paths.length) kind = 'full';
-    const tree = at ? at.tree : topOf();
     // An argument holding whitespace that names no file is a path list joined into one word (an unsplit `$P`): the
     // command would read it as one path, select nothing, and pass.
-    const joined = paths.find((p) => /\s/.test(p) && !fs.existsSync(path.resolve(tree, p)));
-    if (joined !== undefined) fail(`test focused: the argument ${JSON.stringify(joined)} holds whitespace and names no file; pass each path as its own argument`);
+    const joined = ref === undefined && paths.find((p) => /\s/.test(p) && !fs.existsSync(path.resolve(tree, p)));
+    if (joined) fail(`test focused: the argument ${JSON.stringify(joined)} holds whitespace and names no file; pass each path as its own argument`);
     runCwd = tree; // the template is read from the tree root, so it runs there
     const template = verificationCommands(tree, true)[kind];
     if (!template) fail(`test ${kind}: no ${kind} command is configured in docs/agents/verification.md`);
