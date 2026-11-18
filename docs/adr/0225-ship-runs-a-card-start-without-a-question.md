@@ -1,6 +1,8 @@
 # 0225: Ship runs a card start without a question
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0253](0253-the-chain-starts-its-successor-and-the-offer-is-removed.md), which removes the offer and its Stop hook.
 
 **Amends:** [ADR 0214](0214-only-ship-asks-a-started-session-for-consent.md) point 1: ship asks its one yes
 only on a brief start. [ADR 0176](0176-the-offer-recommends-a-new-session.md) point 5 and

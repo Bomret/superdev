@@ -1,6 +1,8 @@
 # 0216: The offer guard reads a next step without its heading
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0253](0253-the-chain-starts-its-successor-and-the-offer-is-removed.md), which removes the offer and its Stop hook.
 
 **Amends:** [ADR 0213](0213-a-stop-hook-holds-the-offer.md): the hook also holds a message that names its next
 command without a `### Next` heading.

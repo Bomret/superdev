@@ -1,6 +1,8 @@
 # 0240: The offer guard reads only a Next line
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0253](0253-the-chain-starts-its-successor-and-the-offer-is-removed.md), which removes the offer and its Stop hook.
 
 **Amends:** [ADR 0226](0226-the-offer-guard-reads-only-the-last-paragraph.md): in the last paragraph of a
 message with no `### Next` heading, a `/superdev:` code span names a command only on a line whose first word is

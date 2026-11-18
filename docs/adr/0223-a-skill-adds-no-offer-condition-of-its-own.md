@@ -1,6 +1,8 @@
 # 0223: A skill adds no offer condition of its own
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0253](0253-the-chain-starts-its-successor-and-the-offer-is-removed.md), which removes the offer and its Stop hook.
 
 **Amends:** [ADR 0157](0157-every-chain-command-offers-to-start-its-successor.md): decision 6 no longer limits
 verify-ship's offer to the settled exit. [ADR 0132](0132-ship-is-the-only-human-only-skill-and-offers-the-rest.md):

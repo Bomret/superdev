@@ -17,6 +17,8 @@ offer condition of its own.
 **Amended by:** [ADR 0176](0176-the-offer-recommends-a-new-session.md), which makes the offer recommend a
 new session where the desktop app's session tool is present, and Stop here where it is absent (point 2).
 
+**Amended by:** [ADR 0253](0253-the-chain-starts-its-successor-and-the-offer-is-removed.md), which removes the offer and has implement, review, and document start their successor.
+
 ## Context
 
 Every chain command except `/superdev:ship` ends by printing its next command in the Next block (ADR 0113).
