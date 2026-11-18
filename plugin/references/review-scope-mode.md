@@ -1,6 +1,6 @@
 # Review in scope mode
 
-Applies to a `/superdev:review` run whose `${CLAUDE_PLUGIN_ROOT}/skills/review/SKILL.md` §1 found a live scope run. The skill reads this file at that point. It reads it before its first scope write (`step set review`) and before the entry run. No other review reads it.
+Applies to a `/superdev:review` run whose `${CLAUDE_PLUGIN_ROOT}/skills/review/SKILL.md` §1 found a live scope run. The skill reads this file at that point. It reads it before its first scope write (`step set review`). No other review reads it.
 
 Each step below applies beside the skill's step of the same number. A departure from the skill names the departed skill rule.
 
@@ -12,7 +12,7 @@ Rare branches live in files of their own, each read only when its branch fires: 
 
 ## 0. Config
 
-**The test command.** Applies to the entry run and the exit run of §4.2. The entry run starts the exit run's steps at the scope branch's tip, in the background, while the first reviews run. The exit run runs the full command, the scope's one full-suite run, and reuses the entry run's result at an unchanged tip.
+**The test command.** Applies to the exit run of §4.2, the scope's one full-suite run. The exit run runs the full command once, on a route that advances the stage, at the tip the stage would advance on, and never while a fix cycle can still move that tip. Before the first reviews the review runs no test: §4.2's entry reuse check only reads whether a recorded result already covers the tip.
 
 ## 1. Range
 
@@ -54,7 +54,7 @@ Rare branches live in files of their own, each read only when its branch fires: 
 
 **The suite result.** Applies to every dispatch of `final-reviewer` in a scope review. `final-reviewer`'s `### Suite run` owns the result's handling.
 
-- The first dispatch hands §4.2's entry run: `running: <the full or whole command>`, its reused outcome, or `not run: <reason>`.
+- The first dispatch hands §4.2's entry reuse check: its reused outcome, or `not run: <reason>`. It never hands a run still in progress.
 - A fix cycle's re-review hands no run, a cycle a red exit run opened included. `### Suite run` names what it reads in place of one.
 
 **The `simplicity-reviewer` dispatch.** Applies to the `simplicity-reviewer` dispatch of a scope review.
@@ -113,7 +113,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - **The check passes** → continue.
 - **A refusal, or a failed anchor read or Absorbs read** → take `review-scope-holds.md`'s `## The anchor check's refusals`, its entry branch.
 
-**The base.** Applies at a stage before `submitted`, read from the `stage` field of the skill's `scope.js state` call. Run `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Bringing the scope branch to base` after the scope checkout and the run lock. It runs before the entry run of §4.2. Its own rules apply unchanged.
+**The base.** Applies at a stage before `submitted`, read from the `stage` field of the skill's `scope.js state` call. Run `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Bringing the scope branch to base` after the scope checkout and the run lock. It runs before §4.2's entry reuse check. Its own rules apply unchanged.
 
 - The unchanged rules: conflict, numbering-collision, citation, unattended-block, and degraded-fetch.
 - A stop there ends the review with the scopetree clean.
@@ -121,7 +121,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - It runs no suite. §4.2's exit run verifies its merge together with implement's.
 - The base step records the range base `final-reviewer` starts from. Resolve `<range-base>` with `scope.js base resolve --branch <branch> --base <base> --root <run-root>` after it, and hand every dispatch the range from that value.
 
-**The preparation.** Applies at a stage before `submitted`, after the base step and before the entry run. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <run-root>/scopetree` in the controller's own Bash call, per `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Preparing a worktree`: a merged slice or the base step can add a dependency. A failing preparation stops the review, naming the command and its exit. **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`.
+**The preparation.** Applies at a stage before `submitted`, after the base step and before §4.2's entry reuse check, so the tree is ready before the first fix cycle runs a test in it. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <run-root>/scopetree` in the controller's own Bash call, per `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Preparing a worktree`: a merged slice or the base step can add a dependency. A failing preparation stops the review, naming the command and its exit. **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`.
 
 **The moved base.** Applies before every exit run of §4.2 and when each fix cycle ends, at every stage the review accepts, `submitted` included. The base may move while the review runs. Fetch `<base>` per `scope-branch.md`'s `## Bringing the scope branch to base` (its fetch step) and read from git whether the scope branch holds the base tip: `git -C <run-root>/scopetree merge-base --is-ancestor <tip> <branch>`, `<tip>` being the fetched base tip as a full commit.
 
@@ -133,24 +133,23 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 
 ### 4.2 The suite gate
 
-**The suite record.** Applies before the entry run. Read the `suite` field of the skill's `scope.js state` call. It reads `<result> <sha>[ whole]`, or nothing with no record. It decides the exit run's command.
+**The suite record.** Applies after §4.1, before the entry reuse check. Read the `suite` field of the skill's `scope.js state` call. It reads `<result> <sha>[ whole]`, or nothing with no record. It decides the exit run's command.
 
 - **Red with `whole`, and a `## Whole-repo command` section configured** (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## Whole-repo command`) → the exit run runs the whole-repo command in place of the full command, through `scope.js test whole`. It skips the reuse check, records with `scope.js suite set <result> <sha> --whole --root <run-root>`, and the report names it the whole-repo run.
 - **Any other record** → the exit run runs the full command.
 - **The exit run follows this choice**, not a re-read of the record at the exit.
 
-**The entry run.** Applies once per invocation, in the scope checkout, after §4.1 and the suite record, before the first `final-reviewer` dispatch. Take the exit run's steps 1 to 3 below at the scope branch's tip, in their order. A tip step 1 or step 2 reuses runs nothing. Otherwise step 3 starts the full command, or `test whole` per the suite record, through the runner in the background, and §2's dispatches and the `simplicity-reviewer` dispatch go out while it runs. Hand the first `final-reviewer` dispatch `running: <the command>`, the reused outcome, or `not run: <reason>`.
+**The entry reuse check.** Applies once per invocation, in the scope checkout, after §4.1 and the suite record, before the first `final-reviewer` dispatch. Run no test. Run the exit run's step 1 below alone at the scope branch's tip, `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base> --root <run-root>`, and hand the first `final-reviewer` dispatch its outcome. §2's dispatches and the `simplicity-reviewer` dispatch go out at once.
 
-- **Wait for its end** before the first fix cycle, before a base merge of **The moved base**, and before §4.10's stage write. Nothing writes in the scope checkout while it runs.
-- **At its end** take step 4 and **The exit record and outcome** below, as for the exit run, except for a run that never finished or was denied, which the bullet below and **A denied entry run** take. A `fail` is a Critical finding per **A failing run**, and joins the first fix list.
-- **A pass at a tip no commit has moved** is the exit run's result: step 1 reuses it by the exact tip match, so a review with no fix cycle pays the full suite once.
-- **The run never finished** (killed, or `unknown` in the run trace) → it carries no verdict. Record nothing and continue. The exit run runs at the exit.
-- **No test command configured** → run no test, hand `not run: no test command`, and continue. This never blocks the review.
-- State the outcome in your own output: reused, pass, fail, not run with its reason, or denied.
+- **Exit 0** → hand the reused outcome. The exit run judges its own tip afresh at the exit, and its step 1 reuses the same record at a tip no commit has moved.
+- **Exit 1, or no record** → hand `not run: the full suite runs at the exit, once the tip is settled`. Exit 1 is no `fail`: record nothing, and add nothing to the fix list.
+- **The suite record's whole-repo choice above** → skip the check, and hand `not run: the whole-repo command runs at the exit, once the tip is settled`.
+- **No test command configured** → hand `not run: no test command`, and continue. This never blocks the review.
+- **The carry waits for the exit run.** Take no carry here: its focused run is a test run at a tip a fix cycle can still move.
+- The first fix cycle starts as soon as the ask-once of §4.6 is answered, or at once under `--unattended`. No test run holds it.
+- State the outcome in your own output: reused, or not run with its reason.
 
-**A denied entry run.** Applies to an entry run the permission classifier denies. Take `review-scope-denials.md`'s `## A denied entry run`.
-
-**A failing run.** Applies to a `fail` at the entry or the exit. It is a Critical finding. Fold it into the fix loop like a `final-reviewer` finding. The stage does not advance while it stands.
+**A failing run.** Applies to a `fail` of the exit run. It is a Critical finding. Fold it into the fix loop like a `final-reviewer` finding. The stage does not advance while it stands.
 
 - The fold holds whether or not that dispatch returned findings of its own.
 - **A failing test the scope did not cause** is this Critical finding too, and joins the fix list. A triage record for it may sit beside its fix, never in its place.
@@ -170,6 +169,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 
 - `<tip>` is the scope branch's tip after the last fix commit.
 - The outcome is one of: reused, pass, `pass on rerun` (the gate passed on `## The recorded rerun` while the record stays `red`), fail, never finished, no command configured, or denied.
+- State the outcome in the review's report, so a stage that advanced on a green exit run never reads as untested beside a first dispatch handed `not run`.
 - **Reused, pass, or `pass on rerun`** → go to §4.10's stage write. That run is the gate the stage advances on.
 - **Fail** → the failing-run concept above takes it.
 - **Never finished** (killed, or `unknown` in the run trace) → it carries no verdict. Record `none` at the tip, leave the stage where it is, run `step block`, and say the next `/superdev:review` runs it again.
@@ -236,7 +236,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 
 ### 4.6 The ask-once
 
-**The ask.** Applies when `final-reviewer` returned any finding, a Minor-only verdict included, the entry review warranted a cut, a set of warranted cuts alone included, a criterion is broken, or a suite run of §4.2 came back `fail`, the exit run included. Report them per §3 first. Ask once with the three options below. §4.7 runs over the chosen option's set.
+**The ask.** Applies when `final-reviewer` returned any finding, a Minor-only verdict included, the entry review warranted a cut, a set of warranted cuts alone included, a criterion is broken, or §4.2's exit run came back `fail`. Report them per §3 first. Ask once with the three options below. §4.7 runs over the chosen option's set.
 
 - **Fix every finding** (recommended), **fix only the Critical and Important findings**, or **fix none**.
 - **A warranted cut is a Minor here.** Fix every finding puts each warranted cut into the fix list, and fix only the Critical and Important findings leaves them out. A declined cut is never offered: the report names it with the rule it would break.
