@@ -1502,3 +1502,13 @@ Statement: A Definition-of-Done line's state is decided by its verdict note, nev
 Breaks: silently
 Check: scripts/drift-check.js `dod-box-rule` — no shipped prose judges a line by its box; tests/scope-dod-line.test.js — `scope.js dod-line` writes exactly the lines in `mods/superdev-view/hooks/dod-fixtures.ts`, which `mods/superdev-view/hooks/parse.test.ts` counts by their note, and the tag and verdict patterns in `mods/superdev-view/hooks/parse.ts` read as `plugin/lib/dod-line.js`'s
 Paths: mods/superdev-view/hooks/parse.ts, plugin/references/dod-ticks.md, plugin/references/shipped-run.md, plugin/references/doc-pass.md, plugin/references/implement-lite.md, plugin/skills/verify-ship/SKILL.md, plugin/skills/wrap-up/SKILL.md, plugin/skills/ship/SKILL.md, plugin/skills/document/SKILL.md, plugin/agents/doc-writer.md, plugin/references/review-scope-mode.md, plugin/agents/final-reviewer.md, plugin/references/plan-repair.md, plugin/skills/submit-pr/SKILL.md, plugin/references/run-handoff.md, plugin/references/plan-contract.md
+
+### INV-0194
+
+Class: architecture
+Concepts: Containment, Scope branch, Run root
+Statement: A branch listing git could not produce never reads as a repository without that branch. Where the listing fails, `hooks/scope-prune.js` prunes nothing, and `publish-kb.js` refuses the publish, naming the git failure, whether or not the scope's run root survives. A listing that succeeds and finds no branch is the only absence either reads.
+Breaks: silently
+Check: tests/publish-kb-containment.test.js — a failing branch listing refuses with the run root gone and with it surviving; tests/scope-prune-main.test.js — a failing `for-each-ref` prunes nothing
+Symbols: branchNamesFrom, shapeScanBranch, checkContainment
+Paths: plugin/lib/kb-containment.js, plugin/hooks/scope-prune.js
