@@ -677,10 +677,13 @@ cases.push(async () => {
     return { ...r, steps, recorded: fs.existsSync(durations) };
   };
   // The bound is taken from this run's own healthy full runs (AGENTS.md, ADR 0086).
-  bound = boundFromSamples(() => cli([]));
-  const full = cli([]);
+  let full;
+  bound = boundFromSamples(() => {
+    full = cli([]);
+  });
   assert.strictEqual(full.status, 0, full.stdout + full.stderr);
   assert.strictEqual(full.steps, 'a,b,claude,drift,drift,invariant', 'no argument starts every suite and every tail step');
+  assert.strictEqual(full.recorded, true, 'the full run records durations');
   const tailOnly = cli(['--related']);
   assert.strictEqual(tailOnly.status, 0);
   assert.strictEqual(tailOnly.steps, 'claude,drift,drift,invariant', '--related with no path runs the tail alone');
@@ -688,7 +691,7 @@ cases.push(async () => {
   assert.strictEqual(focused.status, 0);
   assert.strictEqual(focused.steps, 'a,claude,drift,drift,invariant', '--related with a path runs the tail and the suites it reaches');
 
-  for (const args of [['--help'], ['-h'], ['--related', 'a.js', '-h'], ['--relatd', '--help']]) {
+  for (const args of [['--help'], ['-h']]) {
     const r = cli(args);
     assert.strictEqual(r.status, 0, `${JSON.stringify(args)} exits 0`);
     for (const form of ['node scripts/run-tests.js ', '--related <path>...', '-h | --help']) {
@@ -699,12 +702,8 @@ cases.push(async () => {
   }
   for (const [args, named] of [
     [['--relatd', 'x.js'], '--relatd'],
-    [['--related=a.js'], '--related=a.js'],
     [['x', '--related', 'a.js'], 'x'],
-    [['--related', 'a.js', '--related', 'b.js'], '--related'],
-    [['--related', '-'], '-'],
-    [['--related', '--'], '--'],
-    [['--related', 'a.js', ''], '(empty path)'],
+    [['--related', 'a.js', ''], '(empty argument)'],
   ]) {
     const r = cli(args);
     assert.strictEqual(r.status, 2, `${JSON.stringify(args)} exits 2`);

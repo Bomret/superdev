@@ -295,9 +295,7 @@ function selectSuites(root, suites, paths) {
   return suites.filter((_, i) => chosen.has(i));
 }
 
-// No argument is the full run (undefined). `--related` as the first argument gives the path list that follows it.
-// `--help` or `-h` anywhere gives `{ help: true }`, ahead of any refusal. Any other argument gives `{ refused: <arg> }`:
-// an unknown flag, a word before `--related`, and, after it, a dash-led word or an empty string.
+// Returns undefined (the full run), the `--related` path list, `{ help: true }`, or `{ refused: <arg> }`.
 function parseArgs(argv) {
   if (argv.includes('--help') || argv.includes('-h')) return { help: true };
   if (argv.length === 0) return undefined;
@@ -473,13 +471,12 @@ function runAll({ root, tail = TAIL, modSuite = MOD_SUITE, out = console.log, re
 
 module.exports = { discoverSuites, selectSuites, parseArgs, runAll, TAIL };
 
-// Help and a refusal are answered before `runAll`, so neither installs a handler, starts a step, or records durations.
 if (require.main === module) {
   const parsed = parseArgs(process.argv.slice(2));
   if (parsed && parsed.help) {
     process.stdout.write(`${USAGE}\n`);
   } else if (parsed && 'refused' in parsed) {
-    process.stderr.write(`run-tests: unknown argument: ${parsed.refused === '' ? '(empty path)' : parsed.refused}\n${USAGE}\n`);
+    process.stderr.write(`run-tests: unknown argument: ${parsed.refused === '' ? '(empty argument)' : parsed.refused}\n${USAGE}\n`);
     process.exitCode = 2;
   } else {
     runAll({ root: path.join(__dirname, '..'), related: parsed }).then((code) => {
