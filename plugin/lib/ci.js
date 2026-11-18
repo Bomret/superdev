@@ -60,9 +60,12 @@ function verbCi(cwd, args, input) {
   for (const line of String(input || '').split('\n')) {
     const fields = line.replace(/\r$/, '').split('\t');
     if (fields.length < 2) continue;
+    const checkName = fields[0].trim();
+    const state = fields[1].trim().toLowerCase();
+    if (!checkName || !state) continue;
     read = true;
-    const reports = byName.get(fields[0].trim());
-    if (reports) reports.push({ state: fields[1].trim().toLowerCase(), link: (fields[2] || '').trim() });
+    const reports = byName.get(checkName);
+    if (reports) reports.push({ state, link: (fields[2] || '').trim() });
   }
   const standing = checks.names.map((name) => ({ name, ...judge(byName.get(name)) })).filter((s) => s.kind !== 'green');
   const name = standing.some((s) => s.kind === 'failed') ? 'failed' : standing.length ? 'not-green' : 'green';

@@ -129,7 +129,7 @@ try {
 
   // Empty or unparseable stdin with named checks refuses as not green, never green, and its verdict line names that no
   // check report was read; a report naming only unlisted checks was read.
-  for (const input of ['', 'no tab here\n\n']) {
+  for (const input of ['', 'no tab here\n\n', '\t\n', 'lint\t\n', '\tsuccess\n']) {
     const r = ci(named, input);
     assert.equal(r.code, 3, r.out);
     assert.match(r.out, /^ci: not-green [0-9a-f]{40} \(no check report read\)$/m);
