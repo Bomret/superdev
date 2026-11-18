@@ -377,8 +377,8 @@ This root owns every other subtree directly:
 - `plugin/skills/`, `plugin/agents/`. Prose skill surfaces and subagents. Governed by **Working
   rules, Backends are pluggable**: stay backend-agnostic and never hardcode a backend. Behaviour contracts
   live in the files. Claude Code merges plugin skills and commands into one `/superdev:<name>` surface.
-  implement → review → document → submit-pr is the chain a scope walks, each skill printing the next
-  (ADR 0013). A full-tier run queues the Minors of each Minor-only slice review. The queue is settled in one
+  implement → review → document → submit-pr is the chain a scope walks, each skill starting the next at
+  its clean exit (ADR 0013, ADR 0253). A full-tier run queues the Minors of each Minor-only slice review. The queue is settled in one
   **Minor sweep** after the last slice merges. `scope.js minors add` writes the queue. A fix
   cycle whose list holds only Minors is a **Warm cycle**: it continues the previous fix implementer. The
   sweep is `references/implement-full-minor-sweep.md`'s `## Minor sweep`, the warm cycle `references/scope-findings.md`'s
@@ -391,30 +391,32 @@ This root owns every other subtree directly:
   one focused run and a warm re-review close it. The worktree is no run root and is removed when clean, kept
   and named when dirty, and the branch stays. Review merges, pushes, and opens nothing
   (`references/review-inline-fix.md`, ADR 0228). Every command listed in `references/response-shapes.md`'s Next block section closes its last
-  message with that block (ADR 0113), and an attended run first offers to start the one next command it names,
-  per that file's `## The offer` (ADR 0157). Where the Claude desktop app's session tool is present, the offer
-  asks no question: it puts up a New task card at once, which starts that command in a new session with a
-  fresh context in the same checkout, or in the same conversation through its Do it here button (ADR 0183,
-  ADR 0201). Without the tool, as in the CLI, it asks one question and recommends Stop here, with its
-  `/clear`-then-type path; Start runs the command through the Skill tool in the same conversation (ADR 0176).
-  A command another session's brief asked for offers too. A new session's prompt carries the offer's marker
-  line, and ship started from it asks no further question. Ship started from another session's brief
-  asks the operator one yes first (ADR 0225).
+  message with that block (ADR 0113). A chain command starts its own successor through the Skill tool in the
+  same turn, per that file's `## The chain start` (ADR 0253): implement starts review, a clean scope review
+  starts document, and document on a reviewed scope starts submit-pr, each with the arguments its Next block
+  would print and no question first. The start is the first action of the closing. The starter first closes
+  its step and publishes, prints no Next block on that exit, and prints nothing after the started command
+  returns; a step-scoped bar of the starter ends at the start. A `Blocked:` line, a `First:` wait, a refusal,
+  a non-clean verdict, or a failed start ends the chain on the stopping command's Next block. An ad-hoc run
+  and the chained posture start nothing, and `/superdev:plan` starts nothing. A command typed on a live scope
+  chains on from there. superdev starts no other session and asks no Start or Stop question.
   `/superdev:ship` is a separate command: it merges the pull request submit-pr
   opened, deploys the merge under the repository's deploy posture (`none`/`manual`/`auto`,
-  `docs/agents/deployment.md`, ADR 0101), and closes no anchor (ADR 0106). submit-pr offers it, and the yes is
-  the merge consent. Where no whole-repo command is configured, submit-pr first runs ship's own reuse check, which
-  runs no test, and on a tip ship would refuse with no carry it offers `/superdev:review` instead (ADR 0230). Ship routes to `/superdev:verify-ship`
-  while a criterion is left to verify, and to `/superdev:wrap-up` otherwise (ADR 0116), and offers to start the
-  next command it prints, a refusal included. `/superdev:verify-ship`
-  settles the criteria only a deployed system can show, and offers the next command it prints. When every
-  line settles, no line waits for a hand-sync, and it read the anchor's lines, it starts `/superdev:wrap-up` through
-  the Skill tool in the same turn instead, and wrap-up's last message carries the chain's one Next block, offer,
-  and staged-pages lines (ADR 0224). A skill adds no
-  offer condition of its own: `references/response-shapes.md`'s `## The offer` alone decides it (ADR 0223). `/superdev:wrap-up` closes the triage records the anchor's Absorbs line names, then the scope anchor, and takes
-  the run down. No skill carries `disable-model-invocation: true`. Ship, verify-ship, and wrap-up start
-  only when the operator typed the command, asked for it, or agreed to an offer, and wrap-up also when
-  verify-ship's settled exit started it. Ship refuses `--unattended` (ADR 0157, INV-0093). A criterion verify-ship observes false routes to `/superdev:plan`'s
+  `docs/agents/deployment.md`, ADR 0101), and closes no anchor (ADR 0106). After the pull request opens, an
+  attended submit-pr asks one ship question that names the pull request and says nobody has reviewed it; its
+  yes is the merge consent and starts ship. Where no whole-repo command is configured, submit-pr first runs
+  ship's own reuse check, which runs no test, and on a tip ship would refuse with no carry it prints
+  `/superdev:review` instead and asks no ship question (ADR 0230). Ship starts `/superdev:verify-ship` while a
+  criterion is left to verify, and `/superdev:wrap-up` otherwise (ADR 0116); its repair and re-verify routes
+  and every refusal print their command. `/superdev:verify-ship` settles the criteria only a deployed system
+  can show. When every line settles, no line waits for a hand-sync, and it read the anchor's lines, it starts
+  `/superdev:wrap-up` through the Skill tool in the same turn, and wrap-up's last message carries the chain's
+  one Next block and staged-pages lines (ADR 0224). `/superdev:wrap-up` closes the triage records the anchor's
+  Absorbs line names, then the scope anchor, and takes the run down. No skill carries
+  `disable-model-invocation: true`. Ship, verify-ship, and wrap-up start only when the operator typed the
+  command, asked for it, or the command before them started it: ship on the yes to submit-pr's ship question,
+  verify-ship and wrap-up on ship's routes, and wrap-up at verify-ship's settled exit. Ship started from
+  another session's brief asks the operator one yes first (ADR 0225). Ship refuses `--unattended` (INV-0093). A criterion verify-ship observes false routes to `/superdev:plan`'s
   repair choice, which plans a `fix` feature on its own anchor, linked to the original by a `**Repairs:**`
   line (ADR 0124).
   No test runs after review: `/superdev:document` and `/superdev:setup` run no test command, and a green suite record carries across Markdown-only commits with no run. ADR 0189 and INV-0175 state this rule, and the `doc-setup-no-test-run` drift check holds it.
@@ -427,7 +429,8 @@ This root owns every other subtree directly:
   review starts that run at entry, in the background beside its first reviews (ADR 0234). ADR 0192 and INV-0128 state this rule, and the `implement-no-full-run` drift
   check holds it.
   Whoever invokes a chain command passes `--unattended` to run it unattended (ADR 0016, ADR 0108);
-  superdev ships no driver. Some skills sit outside the chain: publish-kb sends a scope's
+  superdev ships no driver. One unattended implement runs through submit-pr: each start carries
+  `--unattended`, and submit-pr asks no ship question. Some skills sit outside the chain: publish-kb sends a scope's
   staged knowledge-base pages to a remote backend on the operator's own clock (ADR 0023), status prints
   every run's ledger and then surveys the slice store read-only, grouping every open scope anchor, intent record (an `intent` row, ADR 0199), triage record (an `absorbed`
   row when an open anchor's Absorbs line names it, ADR 0144, and a `needs planning` row otherwise, ADR 0198),
