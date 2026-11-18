@@ -452,6 +452,7 @@ module.exports = ({ assert, path, fixture, found }) => {
     ['## A denied entry run\n', 'a denied entry run'],
     ['A denied entry or exit run blocks.\n', 'an entry-or-exit run'],
     ['Wait for the entry full-suite run.\n', 'an entry full-suite run'],
+    ['Merge the base before the entry focused run.\n', 'an entry focused run'],
   ]) {
     const gaps = entryRun({ 'references/review-scope-denials.md': text });
     assert.equal(gaps.length, 1, `scope-review-no-entry-run: flags ${label}`);
