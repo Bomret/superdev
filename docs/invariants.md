@@ -1502,3 +1502,30 @@ Statement: A Definition-of-Done line's state is decided by its verdict note, nev
 Breaks: silently
 Check: scripts/drift-check.js `dod-box-rule` — no shipped prose judges a line by its box; tests/scope-dod-line.test.js — `scope.js dod-line` writes exactly the lines in `mods/superdev-view/hooks/dod-fixtures.ts`, which `mods/superdev-view/hooks/parse.test.ts` counts by their note, and the tag and verdict patterns in `mods/superdev-view/hooks/parse.ts` read as `plugin/lib/dod-line.js`'s
 Paths: mods/superdev-view/hooks/parse.ts, plugin/references/dod-ticks.md, plugin/references/shipped-run.md, plugin/references/doc-pass.md, plugin/references/implement-lite.md, plugin/skills/verify-ship/SKILL.md, plugin/skills/wrap-up/SKILL.md, plugin/skills/ship/SKILL.md, plugin/skills/document/SKILL.md, plugin/agents/doc-writer.md, plugin/references/review-scope-mode.md, plugin/agents/final-reviewer.md, plugin/references/plan-repair.md, plugin/skills/submit-pr/SKILL.md, plugin/references/run-handoff.md, plugin/references/plan-contract.md
+
+### INV-0191
+
+Class: process
+Concepts: Named check, Pinned merge, Suite record
+Statement: Where `docs/agents/verification.md` at the merged head names CI checks, `/superdev:ship` merges a pull request only when every named check reads green on the exact head SHA it pins the merge to. A named check that is missing, pending, or failed on that SHA lands nothing, and a check not named counts for nothing. Where several reports on that SHA carry one name, every one of them reads green. Ship runs no local full or whole-repo command on that path, and writes no suite record from the check status (ADR 0255).
+Breaks: silently
+Check: final-reviewer's invariant compliance judges ship's CI gate and the hand-merge adopt; the slice that adds `scope.js ci` names its suite here
+Paths: plugin/skills/ship/**, plugin/references/code-management-*.md, plugin/scripts/scope.js
+
+### INV-0192
+
+Class: process
+Concepts: Named check, Pinned merge
+Statement: Nothing in superdev waits on a CI check or polls one. A named check that has not reported green makes `/superdev:ship` refuse, naming the SHA and the checks still pending, and the operator runs ship again later. superdev triggers, re-runs, and cancels no CI run (ADR 0255).
+Breaks: silently
+Check: final-reviewer's invariant compliance judges ship, setup, review, and the code-host seeds; the slice that adds the forbidden-form drift check names it here
+Paths: plugin/skills/**, plugin/references/**, plugin/agents/**
+
+### INV-0193
+
+Class: process
+Concepts: Suite record, Focused test command
+Statement: `/superdev:review` starts no full-suite or whole-repo run on its own, in scope mode or ad hoc, in every repository: its fix loop runs focused runs, and the scope's full-suite evidence is taken at `/superdev:ship`. An ad-hoc review runs the full suite only where the operator asks for it, and never under `--chained`. `/superdev:submit-pr` runs no full-suite or whole-repo run before it opens the pull request (ADR 0255).
+Breaks: silently
+Check: final-reviewer's invariant compliance judges the review and submit-pr prose; the slice that retargets the review drift check names it here
+Paths: plugin/skills/review/**, plugin/references/review-scope-*.md, plugin/agents/final-reviewer.md, plugin/skills/submit-pr/**
