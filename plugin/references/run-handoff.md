@@ -62,18 +62,16 @@ tiers: record that slice execution finished, name what comes next.
   inherited, and each slice merged at the fix cap with only
   **Pass-to-pass** or **Missing fail-to-pass run** left, named with each finding, and each
   unclosable **Pass-to-pass** finding a slice or the Minor sweep took the early escape with, or a lite slice merged
-  on, named with its slice or range, its case, and its reason. Then **say the conversation is
-  disposable**: the ledger, `dod.md`, `interfaces.md`, and the per-slice progress logs now hold
-  everything `/superdev:review` needs, so a `/clear` before it costs nothing — a fresh-context review
-  reads the run state cold, which is the least anchored shape a reviewer can start in.
+  on, named with its slice or range, its case, and its reason.
 - **Print the next command, resolved.** Compute `BASE`, the scope's range base, per
   `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`
   (`scope.js base resolve --branch <branch> --base <base> --root <run-root>`; `<base>` from
   `docs/agents/code-management.md`, default `main`) and print `/superdev:review <BASE-sha>..<branch>` with
   the real commit substituted, plus one line on what it does (review the integrated scope against the
   DoD and run the scope's one full-suite run) — **every scope**, whatever its slice types.
-  An attended run first reads
-  `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The offer` section at this step, a read made
-  earlier in the run included, and makes the offer there for that command, and a
-  started review leaves this command nothing to print. This line fills the Next block that closes the message,
-  so it comes last. Then stop: no review, no doc pass, no pull request, no cleanup.
+  This line fills the Next block that closes the message, so it comes last.
+- **Start the review.** Once every slice is on the scope branch and this handoff's closer and publish ran,
+  start `/superdev:review <BASE-sha>..<branch>` per
+  `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The chain start`. A started review leaves this
+  command nothing to print. Every other exit prints the Next block and stops: no review, no doc pass, no pull
+  request, no cleanup.

@@ -20,6 +20,10 @@ Applies to every start. You are the **controller**: you drive a plan's slices to
 
 Applies to every message this command ends on, the next command run handoff prints included (`${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md`). Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`.
 
+## The review start
+
+Applies to run handoff's exit with every slice on the scope branch, once its `merged` stage write and publish ran. Start `/superdev:review` with the arguments the Next block would print, per `## The chain start`. Every other exit prints its Next block.
+
 ## The inline doc pass
 
 Applies to the `lite` tier. Its playbook runs the documentation pass in the same scopetree before run handoff. No other step of review, docs, or the pull request runs here.

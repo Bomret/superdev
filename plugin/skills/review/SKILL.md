@@ -13,7 +13,8 @@ Review a change end to end. §1 decides the mode.
 
 **The closing message.** Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`.
 
-- A run under `--chained` prints no Next block.
+- A scope review whose verdict is clean starts `/superdev:document <range>`; its integration bar ends at the start. Review at `submitted`, a `Blocked` exit, and a non-clean verdict print (`review-scope-mode.md`'s closing message).
+- A run under `--chained` prints no Next block, and an ad-hoc review starts nothing.
 - An ad-hoc review's block names `/superdev:plan` where a Critical or Important finding or a failed focused run stands, the state after an inline fix included.
 - Any other ad-hoc review's block says no command follows: a clean review, a Minor-only remainder fixed, declined, unoffered, or left under `--unattended`. After an inline fix it names the fix branch.
 
