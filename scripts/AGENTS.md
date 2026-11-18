@@ -842,7 +842,8 @@ whose branch and run root are both gone reads as contained rather than as a refu
 reaps the two together, and gates that reap on the branch already reading contained in base or gone, so
 their joint absence is the fully-reaped steady state a publish meets (ADR 0071). A run root that survives
 without a resolving branch is the real unreachable case, and still refuses. A branch listing git could not
-produce (`git for-each-ref` exits non-zero, is ended by a signal, or cannot start) is no absent branch: the
+produce (`git for-each-ref` exits non-zero, is ended by a signal, cannot start, or ends in another spawn error
+such as ENOBUFS) is no absent branch: the
 check refuses and names how git failed, whether or not the run root survives (INV-0194). A ledger
 `**Branch:**` line that resolves never runs the listing. `checkContainment`
 delegates the ancestry test to `plugin/lib/containment.js`'s exported `testContainment` instead of reimplementing it.
