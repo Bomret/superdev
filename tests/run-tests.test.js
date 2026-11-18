@@ -626,6 +626,94 @@ cases.push(async () => {
   assert.strictEqual(parseArgs([]), undefined, 'no flag is the full run');
   assert.deepStrictEqual(parseArgs(['--related']), [], 'a flag with no path is an empty list');
   assert.deepStrictEqual(parseArgs(['--related', 'a.js', 'b/c.md']), ['a.js', 'b/c.md']);
+  // `--help` or `-h` anywhere asks for help, ahead of any refusal.
+  for (const argv of [['--help'], ['-h'], ['--related', 'a.js', '-h'], ['--relatd', '--help'], ['x', '--related', '', '-h']]) {
+    assert.deepStrictEqual(parseArgs(argv), { help: true }, `${JSON.stringify(argv)} asks for help`);
+  }
+  // Any other argument is refused, naming the first one the runner does not accept.
+  const refusals = [
+    [['--relatd', 'x.js'], '--relatd'],
+    [['--related=a.js'], '--related=a.js'],
+    [['x', '--related', 'a.js'], 'x'],
+    [['--related', 'a.js', '--related', 'b.js'], '--related'],
+    [['--related', '-'], '-'],
+    [['--related', 'a.js', '--'], '--'],
+    [['--related', '--x'], '--x'],
+    [['--related', 'a.js', ''], ''],
+  ];
+  for (const [argv, refused] of refusals) {
+    assert.deepStrictEqual(parseArgs(argv), { refused }, `${JSON.stringify(argv)} is refused`);
+  }
+}
+
+// The CLI, driven end to end from a copy of the runner in a fixture tree (its root comes from `__dirname`), so a
+// regression starts the fixture's steps, never this repository's suites. Every step appends its name to <root>/log.
+{
+  const { spawnSync } = require('node:child_process');
+  const { assertSpawnDecided, boundFromSamples } = require('./spawn-verdict');
+  const note = (name) => `require('node:fs').appendFileSync(require('node:path').join(__dirname, '..', 'log'), '${name}\\n');`;
+  const root = tree({
+    'scripts/run-tests.js': fs.readFileSync(path.join(repoRoot, 'scripts', 'run-tests.js'), 'utf8'),
+    'scripts/invariant-check.js': note('invariant'),
+    'scripts/drift-check.js': note('drift'),
+    'tests/a.test.js': suite('a'),
+    'tests/b.test.js': suite('b'),
+    // The tail's `claude plugin validate`, found first on PATH.
+    'bin/claude': `#!/bin/sh\necho claude >> "$(dirname "$0")/../log"\n`,
+  });
+  fs.chmodSync(path.join(root, 'bin', 'claude'), 0o755);
+  const log = path.join(root, 'log');
+  const durations = path.join(root, 'node_modules', '.cache', 'run-tests.json');
+  let bound = 0;
+  const cli = (args) => {
+    for (const f of [log, durations]) fs.rmSync(f, { force: true });
+    const r = spawnSync(process.execPath, [path.join(root, 'scripts', 'run-tests.js'), ...args], {
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${path.join(root, 'bin')}${path.delimiter}${process.env.PATH}` },
+      ...(bound ? { timeout: bound, killSignal: 'SIGKILL' } : {}),
+    });
+    assertSpawnDecided(r, `run-tests ${JSON.stringify(args)}`);
+    const steps = logOf(root).split('\n').filter(Boolean).sort().join(',');
+    return { ...r, steps, recorded: fs.existsSync(durations) };
+  };
+  // The bound is taken from this run's own healthy full runs (AGENTS.md, ADR 0086).
+  bound = boundFromSamples(() => cli([]));
+  const full = cli([]);
+  assert.strictEqual(full.status, 0, full.stdout + full.stderr);
+  assert.strictEqual(full.steps, 'a,b,claude,drift,drift,invariant', 'no argument starts every suite and every tail step');
+  const tailOnly = cli(['--related']);
+  assert.strictEqual(tailOnly.status, 0);
+  assert.strictEqual(tailOnly.steps, 'claude,drift,drift,invariant', '--related with no path runs the tail alone');
+  const focused = cli(['--related', 'tests/a.test.js']);
+  assert.strictEqual(focused.status, 0);
+  assert.strictEqual(focused.steps, 'a,claude,drift,drift,invariant', '--related with a path runs the tail and the suites it reaches');
+
+  for (const args of [['--help'], ['-h'], ['--related', 'a.js', '-h'], ['--relatd', '--help']]) {
+    const r = cli(args);
+    assert.strictEqual(r.status, 0, `${JSON.stringify(args)} exits 0`);
+    for (const form of ['node scripts/run-tests.js ', '--related <path>...', '-h | --help']) {
+      assert.ok(r.stdout.includes(form), `${JSON.stringify(args)} prints a usage naming ${form}:\n${r.stdout}`);
+    }
+    assert.strictEqual(r.steps, '', `${JSON.stringify(args)} starts no step`);
+    assert.strictEqual(r.recorded, false, `${JSON.stringify(args)} records no durations`);
+  }
+  for (const [args, named] of [
+    [['--relatd', 'x.js'], '--relatd'],
+    [['--related=a.js'], '--related=a.js'],
+    [['x', '--related', 'a.js'], 'x'],
+    [['--related', 'a.js', '--related', 'b.js'], '--related'],
+    [['--related', '-'], '-'],
+    [['--related', '--'], '--'],
+    [['--related', 'a.js', ''], '(empty path)'],
+  ]) {
+    const r = cli(args);
+    assert.strictEqual(r.status, 2, `${JSON.stringify(args)} exits 2`);
+    assert.strictEqual(r.stderr.split('\n')[0], `run-tests: unknown argument: ${named}`, `${JSON.stringify(args)} names the argument`);
+    assert.ok(r.stderr.includes('--related <path>...'), `${JSON.stringify(args)} prints the usage on stderr`);
+    assert.strictEqual(r.stdout, '', `${JSON.stringify(args)} prints nothing on stdout`);
+    assert.strictEqual(r.steps, '', `${JSON.stringify(args)} starts no step`);
+    assert.strictEqual(r.recorded, false, `${JSON.stringify(args)} records no durations`);
+  }
 }
 
 // On this repository, the acceptance cases hold. The file names are joined at run time so this suite's

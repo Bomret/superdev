@@ -293,11 +293,24 @@ function selectSuites(root, suites, paths) {
   return suites.filter((_, i) => chosen.has(i));
 }
 
-// `--related <path>...` gives the changed-path set; no flag is the full run (undefined).
+// No argument is the full run (undefined). `--related` as the first argument gives the path list that follows it.
+// `--help` or `-h` anywhere gives `{ help: true }`, ahead of any refusal. Any other argument gives `{ refused: <arg> }`:
+// an unknown flag, a word before `--related`, and, after it, a dash-led word or an empty string.
 function parseArgs(argv) {
-  const at = argv.indexOf('--related');
-  return at < 0 ? undefined : argv.slice(at + 1);
+  if (argv.includes('--help') || argv.includes('-h')) return { help: true };
+  if (argv.length === 0) return undefined;
+  if (argv[0] !== '--related') return { refused: argv[0] };
+  const paths = argv.slice(1);
+  const bad = paths.find((p) => p === '' || p.startsWith('-'));
+  return bad === undefined ? paths : { refused: bad };
 }
+
+const USAGE = [
+  'usage: node scripts/run-tests.js                     every suite and the tail',
+  '       node scripts/run-tests.js --related <path>... the tail and the suites the paths reach',
+  '       node scripts/run-tests.js -h | --help         this text',
+  '--related comes first; every other argument, a dash-led or empty path included, is refused.',
+].join('\n');
 
 // Ends a step's whole process group (each step is spawned as a group leader), so no process the step started outlives it.
 function killGroup(child) {
@@ -458,8 +471,17 @@ function runAll({ root, tail = TAIL, modSuite = MOD_SUITE, out = console.log, re
 
 module.exports = { discoverSuites, selectSuites, parseArgs, runAll, TAIL };
 
+// Help and a refusal are answered before `runAll`, so neither installs a handler, starts a step, or records durations.
 if (require.main === module) {
-  runAll({ root: path.join(__dirname, '..'), related: parseArgs(process.argv.slice(2)) }).then((code) => {
-    process.exitCode = code;
-  });
+  const parsed = parseArgs(process.argv.slice(2));
+  if (parsed && parsed.help) {
+    process.stdout.write(`${USAGE}\n`);
+  } else if (parsed && 'refused' in parsed) {
+    process.stderr.write(`run-tests: unknown argument: ${parsed.refused === '' ? '(empty path)' : parsed.refused}\n${USAGE}\n`);
+    process.exitCode = 2;
+  } else {
+    runAll({ root: path.join(__dirname, '..'), related: parsed }).then((code) => {
+      process.exitCode = code;
+    });
+  }
 }
