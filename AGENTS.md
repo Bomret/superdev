@@ -404,9 +404,9 @@ This root owns every other subtree directly:
   opened, deploys the merge under the repository's deploy posture (`none`/`manual`/`auto`,
   `docs/agents/deployment.md`, ADR 0101), and closes no anchor (ADR 0106). After the pull request opens, an
   attended submit-pr asks one ship question that names the pull request and says nobody has reviewed it; its
-  yes is the merge consent and starts ship. Where no whole-repo command is configured, submit-pr first runs
-  ship's own reuse check, which runs no test, and on a tip ship would refuse with no carry it prints
-  `/superdev:review` instead and asks no ship question (ADR 0230). Ship starts `/superdev:verify-ship` while a
+  yes is the merge consent and starts ship. Submit-pr runs no test. Where `docs/agents/verification.md` names CI checks,
+  it asks no ship question, because CI has not reported when the pull request opens, and prints `/superdev:ship` to run
+  once the named checks are green (ADR 0255). Ship starts `/superdev:verify-ship` while a
   criterion is left to verify, and `/superdev:wrap-up` otherwise (ADR 0116); its repair and re-verify routes
   and every refusal print their command. `/superdev:verify-ship` settles the criteria only a deployed system
   can show. When every line settles, no line waits for a hand-sync, and it read the anchor's lines, it starts

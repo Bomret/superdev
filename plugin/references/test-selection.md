@@ -82,12 +82,10 @@ repository configures one only together with an affected form.
 - **Its command lives in a backtick span**, per the rule above — a fenced block would land in the
   focused slot the same way the timing command's would, and every caller would then run it as the
   focused command.
-- **`/superdev:submit-pr`, `/superdev:ship`, and a scope review read it**: submit-pr runs it
-  once on the scope branch's tip before opening the pull request and reuses a green `whole` record of that
-  tip instead, ship runs it on its local path on a tip that carries no green `whole` record, and ship's local run takes it in place of the full command.
-- **An absent section leaves the full command as the whole suite**, and every caller unaffected. submit-pr
-  then runs ship's plain reuse check, which runs no test, and routes a tip ship would refuse to
-  `/superdev:review`.
+- **`/superdev:ship` reads it**: on its local path, ship runs it in place of the full command on a tip that
+  carries no green `whole` record, and reuses a green `whole` record of that tip instead. `/superdev:submit-pr`
+  names it as where the full suite runs, and runs nothing (ADR 0255).
+- **An absent section leaves the full command as the whole suite**, and every caller unaffected.
 
 ## Prepare command
 
