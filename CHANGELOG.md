@@ -1,3 +1,15 @@
+# [0.108.0](https://github.com/Bomret/superdev/compare/v0.107.5...v0.108.0) (2026-11-18)
+
+
+### Features
+
+* **chain:** chain commands start their successor, and the offer is removed ([9418f66](https://github.com/Bomret/superdev/commit/9418f66e6275cc197894955b6b19db33d499074c))
+
+
+### Performance Improvements
+
+* **review:** run the scope review's full suite at the exit alone ([c34555e](https://github.com/Bomret/superdev/commit/c34555e7b58792bd03b7ed3a0015adee14e27960))
+
 ## [0.107.5](https://github.com/Bomret/superdev/compare/v0.107.4...v0.107.5) (2026-11-18)
 
 
