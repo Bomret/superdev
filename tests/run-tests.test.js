@@ -487,7 +487,7 @@ const picked = (root, paths) =>
   assert.ok(real('plugin/references/knowledge-base-confluence.md').includes('publish-kb-templates'), 'publish-kb executes the confluence template');
   assert.ok(real('plugin/references/knowledge-base-forgejo.md').includes('publish-kb-templates'), 'publish-kb executes the Forgejo wiki seed templates');
   assert.ok(real('plugin/references/scope-mode.md').includes('scope-ledger'), 'the scope suite pins a sentence of scope-mode.md');
-  assert.deepStrictEqual(real(['docs', 'agents', ['verification', 'md'].join('.')].join('/')), [], 'a fixture verification.md selects no suite');
+  assert.deepStrictEqual(real(['docs', 'agents', ['verification', 'md'].join('.')].join('/')), ['scope-ci'], 'a fixture verification.md selects no suite; scope-ci reads the repository\'s own');
 }
 
 // A `.md` path under a directory a suite names reaches that suite: a suite that lists or scans a directory reads

@@ -554,15 +554,16 @@ const OBSERVATION_NO_SUITE_RUN_DOC = [path.join('references', 'review-scope-mode
 // A suite, test, entry, exit, focused, or full run, a §4.2 citation, and a failing test or run.
 const OBSERVATION_NO_SUITE_RUN_PATTERN = /\b(?:suite|test|entry|exit|focused|full)\s+runs?\b|§\s*4\.2\b|\bfailing\s+(?:tests?|runs?)\b/gi;
 
-// ADR 0254: scope-review prose names no entry run; a bare "entry runs" is the verb and passes.
-const SCOPE_REVIEW_NO_ENTRY_RUN_DOCS = [path.join('skills', 'review', 'SKILL.md'), path.join('agents', 'final-reviewer.md')];
-const SCOPE_REVIEW_NO_ENTRY_RUN_PATTERN = /\bentry(?:-runs?|\s+run|\s+(?:(?:or|and)\s+exit|full[-\s]suite|focused|suite|test)\s+runs?)\b/gi;
+// ADR 0255, INV-0193: review prose instructs no full or whole-repo run, by IMPLEMENT_NO_FULL_RUN_PATTERNS, outside the ad-hoc
+// clause in which the operator asks for the full suite; that clause is the list item this marker opens.
+const SCOPE_REVIEW_NO_FULL_RUN_DOCS = [path.join('skills', 'review', 'SKILL.md'), path.join('agents', 'final-reviewer.md')];
+const SCOPE_REVIEW_OPERATOR_ASKED = /^\s*- \*\*The operator asks for the full suite\*\*/;
 
 module.exports = {
   OBSERVATION_NO_SUITE_RUN_DOC,
   OBSERVATION_NO_SUITE_RUN_PATTERN,
-  SCOPE_REVIEW_NO_ENTRY_RUN_DOCS,
-  SCOPE_REVIEW_NO_ENTRY_RUN_PATTERN,
+  SCOPE_REVIEW_NO_FULL_RUN_DOCS,
+  SCOPE_REVIEW_OPERATOR_ASKED,
   IMPLEMENT_NO_FULL_RUN_DOCS,
   IMPLEMENT_NO_FULL_RUN_PATTERNS,
   NO_TEST_RUN_DOCS,

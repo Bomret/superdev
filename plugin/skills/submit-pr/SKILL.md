@@ -10,7 +10,7 @@ argument-hint: "[<scope>  (empty = the only run in this repo)]  [--unattended]"
 
 Applies to every start. You open a pull request for a run whose slices are on the scope branch. You dispatch no subagent. You leave the run standing: the scopetree, the slicetrees, the run lock, and the scope anchor stay, and `/superdev:wrap-up` takes them down.
 
-- **The scope checkout**: the checkout `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md` finds. §4's suite run and §5's git commands run in it.
+- **The scope checkout**: the checkout `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md` finds. §4's read and §5's git commands run in it.
 - **`<branch>`**: the scope branch, the ledger's `**Branch:**` line, the `branch` field of the one `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state --root <run-root>` call this entry makes. §3 reads the `stage` and `pr` fields of that same output.
 - **`<sha>`**: `git rev-parse <branch>`, run in the scope checkout.
 - **The publish**: the run's one snapshot publish, per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section. It is the last act of the exit that ends the run, after the closer §3's **The step** lists. No write site publishes.
@@ -69,35 +69,15 @@ Applies to every start past §1. Find the scope checkout.
 
 **A criterion that holds no stage.** Applies to a `dod.md` criterion noted `accepted:` or `ceiling:`. It holds no stage and is no defect; a `ceiling:` line stays open until `/superdev:verify-ship` observes it (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule`). It writes no `**Unresolved:**` bullet and never reaches this gate.
 
-## 4. Whole-repo run
+## 4. Where the full suite runs
 
-**The section.** Applies to every run past §3. Read `docs/agents/verification.md` from the scope branch's tip commit (`git -C <run-root>/scopetree show <branch>:docs/agents/verification.md`), never the working tree, per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## Whole-repo command` section.
+**No test run.** Applies to every run past §3. Run no test command and no `scope.js suite reusable` call: `/superdev:ship` takes the scope's full-suite evidence on the head it merges (ADR 0255, INV-0193).
 
-- **No such section** → run no suite. The outcome is `not configured`. Take **The ship check**.
-- **Section present** → take **The reuse**.
+**The named checks.** Applies to every run past §3. Read the `## CI` section of `docs/agents/verification.md` from the scope branch's tip commit (`git -C <run-root>/scopetree show <branch>:docs/agents/verification.md`), never the working tree. Its backtick spans outside a fenced block, other than `none`, are the named checks, and a bare `none` line counts as `none` (`CONTEXT.md` → *Named check*).
 
-**The ship check.** Applies to a tip with no such section. In the scope checkout, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base> --root <run-root>`, the call `/superdev:ship`'s suite gate makes, and run no test command. `<base>` is the base branch `docs/agents/code-management.md` names.
-
-- **Exit 0** → the ship check reads `reusable`.
-- **Exit 1** → keep its stderr line as the refusal reason. Judge the preconditions of `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## The carry run` step 1, the carry ship's gate takes on exit 1 alone. They hold → the ship check reads `carry possible`. One fails → the ship check reads `ship would refuse`.
-- **Any other exit** → the ship check reads `ship would refuse`. Keep its stderr line as the refusal reason.
-
-Continue to §5 on every reading.
-
-**A rewritten record.** Applies to the ship check and **The reuse**. A reuse call that accepts a passing run at the exact tip rewrites the suite record. The publish carries that record.
-
-**The reuse.** Applies to a present section. In the scope checkout, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --whole --root <run-root>`. Only a record of kind `whole` satisfies this step, and a green record with no kind does not. Exit 0 → the outcome is `reused`, with no run, and you continue to §5.
-
-**The run.** Applies when the reuse does not exit 0. Run the whole-repo command once in the scope checkout over the scope branch's tip, through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test whole`. Record it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set <green|red|denied|none> <sha> --whole --root <run-root>`, the value the result below names.
-
-- **Green** → record `green`. The outcome is `green`. Continue to §5.
-- **Red** → record `red`. The outcome is `red`. Add an unresolved defect naming the failing output's decisive lines, per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Unresolved defects` section. Leave the stage where it was, print `/superdev:review <scope>` as the next command, and stop.
-- **Denied** (the permission classifier refused the run) → record `denied`. The outcome is `denied`. Write a `**Degraded:**` entry naming the denied whole-repo run with plain `degraded add`, per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section, and stop with the same report.
-- **Killed, or never started** → record `none`. The outcome is `killed` or `not started`, saying which. Stop with the same report.
-
-**A stopped run.** Applies to the red, denied, killed, and not-started results. Open no pull request. Under `--unattended` the stop is the same, and it is an unattended block.
-
-**The outcome.** Applies to every outcome: `reused`, `green`, `red`, `denied`, `killed`, `not started`, or `not configured`. State it in this command's report. With `not configured`, also state the ship check's reading, and on `ship would refuse` its refusal reason.
+- **Named checks, and no `none`** → the full suite runs in those checks, which this command lists in the body and its report.
+- **None** (no document, no section, or a section reading `none`) → the full suite runs locally at ship: the full command, or the whole-repo command where `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## Whole-repo command` section is configured.
+- **Both `none` and a name** → a configuration error that `scope.js ci` cannot judge and ship refuses. Report it in the body's `## Full suite` section and the report, point at `/superdev:setup`, and ask no ship question.
 
 ## 5. Pull request
 
@@ -105,11 +85,11 @@ Continue to §5 on every reading.
 
 **The number.** Applies the moment the pull request opens. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" pr set <n> --root <run-root>`, `<n>` the number the host's own open call returned. Degraded to the compare-URL fallback → record nothing. `pr clear` need not run.
 
-**The body sections.** Applies to the body. Read the three list fields below with one `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state --root <run-root>` call. Add each heading below in its own section, distinct from the others. A source with no output adds no empty heading, except `## Whole-repo run`, which the body always carries.
+**The body sections.** Applies to the body. Read the three list fields below with one `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state --root <run-root>` call. Add each heading below in its own section, distinct from the others. A source with no output adds no empty heading, except `## Full suite`, which the body always carries.
 
 | Heading | Content |
 |---|---|
-| `## Whole-repo run` | §4's outcome. `not configured` → say so. |
+| `## Full suite` | where the full suite runs, per §4: the named checks, listed, a local run at ship, or the `## CI` configuration error |
 | `## Degraded passes` | every bullet of the `degraded` field, one per line (`${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes`) |
 | `## Unresolved defects` | every bullet of the `unresolved` field, one per line (`scope-findings.md`'s `## Unresolved defects`) |
 | `## Deferred to a plan` | every bullet of the `deferred` field, one per line (`scope-findings.md`'s `## Deferred findings`) |
@@ -119,14 +99,15 @@ Continue to §5 on every reading.
 
 **The stage write.** Applies after the open. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set submitted --root <run-root>`. Then run the publish.
 
-**The ship question.** Applies to an attended run, after the stage write and its publish, whose next command below is `/superdev:ship <scope>` and which recorded a pull request number. Ask one `AskUserQuestion`: ship it now? Its text names the pull request URL, says nobody has reviewed it, and says a yes merges it now through `/superdev:ship`, with the host's approvals and branch protection in force. Put the explicit yes option first and a no option second.
+**The ship question.** Applies to an attended run, after the stage write and its publish, where §4 found no named checks and no configuration error, and the open recorded a pull request number. Ask one `AskUserQuestion`: ship it now? Its text names the pull request URL, says nobody has reviewed it, and says a yes merges it now through `/superdev:ship`, which first takes the full-suite evidence (a reusable record, the carry, or a local run), with the host's approvals and branch protection in force. Put the explicit yes option first and a no option second.
 
 - **The yes option** → start `/superdev:ship <scope>` per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The chain start`; the yes is the merge consent.
 - **Any other answer, a dismissal, or a question the platform cannot ask** → print the next command below and start nothing.
 
-**No ship question.** Applies where the ship check reads `ship would refuse`, where no pull request number was recorded, and to an unattended run. Ask nothing, start nothing, and print the next command below.
+**No ship question.** Applies where §4 found named checks or the configuration error, where no pull request number was recorded, and to an unattended run. Ask nothing, start nothing, and print the next command below.
 
-**The next command.** Applies to every run that reaches the stage write.
+**The next command.** Applies to every run that reaches the stage write. Print `/superdev:ship <scope>` as the next command, with one line on what it does: it merges the pull request once an operator has reviewed it and applies the repository's deploy posture to the merge. It then starts `/superdev:verify-ship <scope>`, or `/superdev:wrap-up <scope>` when nothing is left to verify.
 
-- **The ship check reads `ship would refuse`** → print `/superdev:review <scope>` as the next command, with one line on what it does: it records the suite at the tip and then prints `/superdev:ship <scope>`.
-- **Every other outcome** → print `/superdev:ship <scope>` as the next command, with one line on what it does: it merges the pull request once an operator has reviewed it and applies the repository's deploy posture to the merge. It then starts `/superdev:verify-ship <scope>`, or `/superdev:wrap-up <scope>` when nothing is left to verify.
+- **§4 found named checks** → add one line: run it once the named checks are green on the pull request's head. Ship refuses while one is pending, and nothing waits for them.
+- **§4 found the configuration error** → put fixing the `## CI` section through `/superdev:setup` on a `First:` line: ship refuses until the section holds names or `none` alone.
+- **No pull request number was recorded** (the `push-only` posture, or an open degraded to the compare URL) → add one line: ship has no pull request to read until one is opened and its number recorded.

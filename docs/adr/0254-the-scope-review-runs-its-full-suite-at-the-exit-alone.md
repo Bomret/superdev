@@ -1,6 +1,8 @@
 # 0254: The scope review runs its full suite at the exit alone
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0255](0255-ship-owns-the-full-suite-evidence-and-ci-can-carry-it.md), under which the scope review runs no full suite and ship takes the full-suite evidence.
 
 **Amends:** [ADR 0234](0234-test-runs-overlap-and-skip-repeated-preparation.md): its decision 1 is withdrawn. The scope
 review starts no full-suite run at entry. Decisions 2 to 4 stand.

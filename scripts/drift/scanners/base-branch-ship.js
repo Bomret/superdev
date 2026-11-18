@@ -243,6 +243,29 @@ function scanNoOfferStart(root) {
   return gaps;
 }
 
+// scanNoCiWait(): no shipped prose names a wait or a poll on CI (ADR 0255, INV-0192). A forbidden form (ADR 0153): a
+// `--watch` flag (`gh pr checks --watch`, `gh run watch --watch`), `gh run watch`, and a line pairing `sleep` with a check
+// or a status, the shape of a sleep-and-reread loop. It walks every Markdown file of the shipped tree; the code under it
+// sleeps for its own lock, never on CI.
+const CI_WAIT_FORMS = [/--watch\b/, /\bgh run watch\b/, /\bsleep\b.*\b(?:checks?|status(?:es)?)\b/i, /\b(?:checks?|status(?:es)?)\b.*\bsleep\b/i];
+function scanNoCiWait(root) {
+  const tree = path.join(root, 'plugin');
+  const gaps = [];
+  if (!fs.existsSync(tree)) return gaps; // no shipped tree → nothing to scan
+  const files = fs
+    .readdirSync(tree, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
+    .map((entry) => path.relative(tree, path.join(entry.parentPath ?? entry.path, entry.name)).split(path.sep).join('/'))
+    .sort();
+  for (const rel of files) {
+    const lines = fs.readFileSync(path.join(tree, rel), 'utf8').split('\n');
+    lines.forEach((line, i) => {
+      if (CI_WAIT_FORMS.some((form) => form.test(line))) gaps.push({ source: rel, line: i + 1 });
+    });
+  }
+  return gaps;
+}
+
 // scanDeriveNoDod(): plan's derive dispatch hands `final-reviewer` no Definition of Done, and derive mode
 // reads none (INV-0158, ADR 0158). The plan side is bounded to the dispatch bullet and its indented
 // continuation lines, because plan names the draft legitimately elsewhere; the agent side to the
@@ -282,4 +305,4 @@ function scanDeriveNoDod(root) {
   return gaps;
 }
 
-module.exports = { scanNoBaseBranchCommit, scanShipNoOpensPr, scanPastPrSkills, scanNoOfferStart, scanDeriveNoDod };
+module.exports = { scanNoBaseBranchCommit, scanShipNoOpensPr, scanPastPrSkills, scanNoOfferStart, scanNoCiWait, scanDeriveNoDod };

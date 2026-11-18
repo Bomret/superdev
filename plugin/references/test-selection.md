@@ -82,13 +82,10 @@ repository configures one only together with an affected form.
 - **Its command lives in a backtick span**, per the rule above — a fenced block would land in the
   focused slot the same way the timing command's would, and every caller would then run it as the
   focused command.
-- **`/superdev:submit-pr`, `/superdev:ship`, and a scope review read it**: submit-pr runs it
-  once on the scope branch's tip before opening the pull request and reuses a green `whole` record of that
-  tip instead, ship runs it on a tip that carries no green `whole` record, and a review entered while the suite record reads red of kind `whole` runs it at its exit run in place
-  of the full command.
-- **An absent section leaves the full command as the whole suite**, and every caller unaffected. submit-pr
-  then runs ship's plain reuse check, which runs no test, and routes a tip ship would refuse to
-  `/superdev:review`.
+- **`/superdev:ship` reads it**: on its local path, ship runs it in place of the full command on a tip that
+  carries no green `whole` record, and reuses a green `whole` record of that tip instead. `/superdev:submit-pr`
+  names it as where the full suite runs, and runs nothing (ADR 0255).
+- **An absent section leaves the full command as the whole suite**, and every caller unaffected.
 
 ## Prepare command
 
@@ -122,6 +119,25 @@ tracked files only, so a repository whose tests need installed dependencies stat
   the section absent, the control runs in the verb's worktree.
 - **No preparation is a test command.** It never changes which command runs as the full, the focused, or the
   whole-repo command.
+
+## CI
+
+An optional **`## CI`** section, listing the **Named check**s (`CONTEXT.md`) that together run the full suite on every
+pull request, or reading `none` (ADR 0255). `/superdev:setup` writes it, and `scope.js ci` reads it at a commit through
+git, never a working tree.
+
+- **Its names live in backtick spans**, one list item each, so no fenced block lands in the full or focused slot. The
+  reader also cuts the section out before it reads the fences, so a fence placed there is never a test command.
+- **Absent, `none`, or holding no name** → no named checks: `/superdev:ship` runs the full command, or the whole-repo
+  command, locally on the head it merges. A section holding both `none` and a name is a configuration error that
+  `scope.js ci` cannot judge: ship refuses, submit-pr reports it and asks no ship question, and review says so once
+  and continues. Every backtick span outside a fenced block other than `none` counts as a name, and a bare `none` line counts as
+  `none`, so prose in the section carries no span.
+- **Names present** → `/superdev:ship` merges only when every named check reads green on the exact head it merges, and
+  runs no local suite (INV-0191). A check not named counts for nothing, so a CI that runs part of the suite records
+  `none`.
+- Names match the code host's check-run names and commit-status contexts exactly and case-sensitively. A name listed
+  twice is one requirement.
 
 ## Timing command
 
@@ -232,8 +248,8 @@ with no test run at T.
 ## The carry run
 
 Every gate whose `scope.js suite reusable` call refuses the tip takes the carry before it runs the full command
-or refuses: review's exit run, ship's plain gate and whole-repo gate (§3), and ship's
-moved-base gate and push gate (§4). Implement runs no full suite. Each gate cites
+or refuses: ship's local suite gate (§3), and ship's
+moved-base gate and push gate (§4), each on ship's local path. Ship's CI path takes no carry. Implement runs no full suite. Each gate cites
 this section and runs the steps in order, after its own `scope.js suite reusable` call refuses the tip:
 
 1. **Check the preconditions.** One `scope.js state --root <run-root>` call prints the `suite` field, a green record at a commit A, or a
@@ -255,10 +271,10 @@ this section and runs the steps in order, after its own `scope.js suite reusable
    reusable` again. Exit 0 → the tip is carried: the gate runs no full command.
 4. **No carry** (a missing precondition, such as a record at the tip itself or a record with no `whole` kind
    at a `--whole` gate, a refused second call, a killed or `unknown` focused run, or a path
-   set too large) → the gate takes its own no-carry exit. Review's exit run and ship's moved-base gate run
+   set too large) → the gate takes its own no-carry exit. Ship's moved-base gate runs
    the full command, or the whole-repo command where one is configured, and record its result as the gate
-   states. Ship's plain gate and push gate refuse and run no full command. Ship's whole-repo gate runs the
-   whole-repo command, after its standing-finding check.
+   states. Ship's local suite gate runs the full command, or the whole-repo command where one is configured, after its
+   standing-finding check. Ship's push gate refuses and runs no full command.
 
 No gate writes a suite record for a tip it reached by carry: the record stays at A, and the next gate
 judges its own tip from A.
@@ -310,7 +326,7 @@ after a gate that passed on the rerun so need no test run at U.
 
 Review's fix loop runs no test inside a cycle. The cycle's implementer runs
 the tests that verify its fix and its fail-to-pass run over the cycle's commits, and the re-review reads those runs
-from the run trace. The loop's exit full-suite run is the gate the stage advances on.
+from the run trace. The review runs no full-suite run: `/superdev:ship` takes the scope's full-suite evidence.
 
 ## The changed-path set
 
@@ -322,22 +338,29 @@ Each caller judges its own range and builds the set from it:
   once through `scope.js test path <file> -- <command>`, a runner filter allowed, and never
   through the focused command, after it writes the new test and before it writes the code that passes it. That run shows the new test failing and the
   file's earlier tests passing, and no separate GREEN run per increment and no separate control run follows. Once the last increment is committed, one `scope.js test focused <paths>` runs over the
-  whole changed-path set as the last GREEN and the final check: the slice base against the working tree, or `<cycle-base>..HEAD` on a fix cycle. It runs
+  whole changed-path set as the last GREEN and the final check: the slice base against the working tree, or `<cycle-base>..HEAD` on a fix cycle.
+  Where the focused fence differs from the full fence, a review fix cycle whose list holds a red-evidence finding that names
+  no failed test file (a failed named check, or a red suite record whose `failed` field prints no file) widens that set to
+  every path `git diff --name-only <range-base>..HEAD` prints, `<range-base>` being the scope's range base the implementer
+  resolves from the dispatch's range-base input. The final run runs
   before the fail-to-pass run, and the trace settlement of ADR 0251 counts it as the passing run over each test file it names.
-  Where the focused fence repeats the full fence, the final run is one `test path` run of every test file the range changed, from the tree root with the verb's exact command, which the verb reuses as its first run. A failing
+  A red-evidence finding that names failed test files needs a passing `path` run of each, at the cycle's tip, in either fence
+  configuration, because a fix that changes only source leaves those files out of the changed set. Where the fences differ, the
+  final focused run's path set includes each of them, or a `path` run of each is made.
+  Where the focused fence repeats the full fence, the final run is one `test path` run of every test file the range changed, plus each failed test file a red-evidence finding names, from the tree root with the verb's exact command, which the verb reuses as its first run. There a finding that names no failed test file widens it to no other file: that run, passing at the cycle's tip on a clean tree, closes the finding, or the clean tip does where the cycle changed no test file, per `review-scope-mode.md`'s `### 4.2 Red evidence`, and ship checks the evidence again. A failing
   final run is a RED step: fix, commit, and run it again. A step that works on no test file runs
   that focused command over the whole set. A focused command with no `{paths}` token runs verbatim, and the run
   trace records every run either way. Every loop run passes at least one path, or runs test files
   through `test path`, so the loop runs only the tests that verify the work. `test full`,
-  `test whole`, and a `test focused` with no path run only at the scope review's and ship's gates.
+  `test whole`, and a `test focused` with no path run only at ship's gates, and in an ad-hoc review where the operator asks for the full suite.
   Where the focused fence repeats the full fence, `test focused` runs the whole suite whatever paths it gets. There
   each increment runs its test file through `test path`, and the loop makes no whole-set run: neither the
-  committed-work run nor a step that works on no test file runs, because the scope review's exit run covers that work. The fail-to-pass run still runs.
+  committed-work run nor a step that works on no test file runs, because the full-suite evidence ship takes covers that work. The fail-to-pass run still runs.
 - **The documentation step.** None: the step runs no test command and builds no set. `scope.js suite reusable`
   carries a green record across Markdown-only commits with no test run at the tip,
-  so the doc commits need none. Where the record stays at an earlier commit because review reached
+  so the doc commits need none. Where the record stays at an earlier commit because a gate reached
   its tip by the complete-selector carry, the record carries through that tip to the doc commits, per
-  `## Complete selector`. Where review's gate passed on `## The recorded rerun`, the `red` record at that tip
+  `## Complete selector`. Where a gate passed on `## The recorded rerun`, the `red` record at that tip
   counts at the doc commits too, per that section.
 - **The `scope.js fail-to-pass` verb.** Its caller hands it the command, written to run every test file the range
   adds or modifies in whatever form the runner selects them: `cargo test --test foo`, `dotnet test --filter Orders`,

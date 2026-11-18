@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0255](0255-ship-owns-the-full-suite-evidence-and-ci-can-carry-it.md), under which ship's merge rests on the named CI checks or a local run, still pinned to the head whose evidence it read.
+
 **Amends:** [ADR 0013](0013-implement-tail-is-a-command-chain.md).
 
 **Amended by:** [ADR 0105](0105-an-affected-full-command-and-a-whole-repo-gate-before-the-pull-request.md),

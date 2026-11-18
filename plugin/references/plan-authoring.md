@@ -213,7 +213,7 @@ green alone**, green is promised at one node instead of per slice: the epic carr
 `## Integration branch` section naming `integration/<scope>`, the full playbook merges every slice into
 that branch, which keeps the scope branch green between invocations, and a final
 **integrate-and-verify** slice, depending on every batch, is where `integration/<scope>` merges into the
-scope branch. The scope review's exit run verifies that merge.
+scope branch. The full-suite evidence `/superdev:ship` takes verifies that merge.
 
 ## Append mode
 

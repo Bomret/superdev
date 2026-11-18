@@ -54,14 +54,14 @@ A stop there dispatches no slice. The step runs no test suite, so the suite reco
   never in the invoking checkout. `mechanical` / `docs` slices need no new test — the existing suite is
   the net. Read `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` and run the command it selects for
   each run, through `scope.js test`. The loop runs only the tests that verify the slice, never `test full`, `test whole`, or a `test focused`
-  with no path: the scope review's exit run is the scope's one full-suite run. Each increment runs its one test file once,
+  with no path: `/superdev:ship` takes the scope's full-suite evidence. Each increment runs its one test file once,
   through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test path <file> -- <command>`, after you write its new test and before you write the
   code that passes it: the run shows the new test failing and the file's earlier tests passing. No separate GREEN run per increment and no
   separate control run follows. After the last increment is committed and before the fail-to-pass run, one `test focused <changed paths>` with
   at least one path runs over the slice's whole changed-path set as the last GREEN and the final check, and so does a step that works on no test file.
   A failing final run is a RED step: fix, commit, and run it again. Where the focused fence repeats the
   full fence, each increment runs its one test file through `test path <file> -- <command>`, the final run is one `test path` run over every test
-  file the slice changed, and you make neither of those whole-set runs: the scope review's exit run covers them. Every test run passes Bash's `timeout` at its ceiling,
+  file the slice changed, and you make neither of those whole-set runs: the full-suite evidence `/superdev:ship` takes covers them. Every test run passes Bash's `timeout` at its ceiling,
   600000 ms unless `BASH_MAX_TIMEOUT_MS` raises it, and runs in the foreground; only a run that can outlast the ceiling runs
   through the runner in the background, and you wait for its end before acting on it. A test command is recorded as typed and pushed with the run state, so a secret belongs in the environment, never on the command line. The run trace records your edits and runs.
 - **A failing test the slice did not cause is named, never fixed.** A test that also fails at the slice's

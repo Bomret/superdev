@@ -68,8 +68,8 @@ pass in its own output and writes nothing.
 
 ## Unresolved defects
 
-An **unresolved defect** is a defect the run finds in the code and leaves standing: a full suite still
-red at the three-strike cap, a finding the operator declines to fix, an unattended block reached at
+An **unresolved defect** is a defect the run finds in the code and leaves standing: a red-evidence finding
+still standing at the three-strike cap, a finding the operator declines to fix, an unattended block reached at
 that cap, or a Definition-of-Done criterion the doc pass's own re-check unticks (`references/dod-ticks.md`'s
 Document's case), or a `docs` criterion left unmet after the doc pass.
 
@@ -197,7 +197,7 @@ dispatch.
 
 - The complete fix list, the RED-test rule, and the sibling-surface duty.
 - The test-run bound: the implementer runs only the tests that verify its fix, each step through `test path` over
-  its one test file per increment, one final run over the whole changed-path set once the fix is committed (a `test focused` run, or where the focused fence repeats the full fence one `test path` run over every changed test file that the verb reuses as its first run), and its fail-to-pass run over `<cycle-base>..HEAD`, never `test full`, `test whole`, or a `test focused` with no path.
+  its one test file per increment, one final run over the whole changed-path set once the fix is committed (a `test focused` run, or where the focused fence repeats the full fence one `test path` run over every changed test file that the verb reuses as its first run; each failed test file a red-evidence finding names joins the final run in either case, and a red-evidence finding that names no failed test file widens the `test focused` set to the scope's whole range, per `references/test-selection.md`'s `## The changed-path set`), and its fail-to-pass run over `<cycle-base>..HEAD`, never `test full`, `test whole`, or a `test focused` with no path.
 - The report contract: the implementer returns its required report (`agents/implementer.md`'s `## Report`) and
   repeats no narrative its log holds.
 - In the Minor sweep, the self-check: the implementer appends a fresh entry to the sweep log before its report,
@@ -240,8 +240,7 @@ its blind pass is gone. Its dispatch hands each unclosable finding the last re-r
 with its range, its case, and its reason, as quoted data, and the reviewer restates each with its mark re-judged
 against the current range (`references/implement-full-minor-sweep.md`, `## Minor sweep`).
 
-**The loop's other rules hold.** A warm cycle counts toward the 3-cycle cap. The exit full-suite run
-still gates the stage. A re-review left with only Minor Prompt-concept overlap findings ends the loop.
+**The loop's other rules hold.** A warm cycle counts toward the 3-cycle cap. A re-review left with only Minor Prompt-concept overlap findings ends the loop.
 
 **The cycle's window in the run trace** ends at the next `dispatch` line, whatever its agent type or slice, or
 the next reviewer `dispatch-resume` line (one whose first field is the `tool_use_id` of a `final-reviewer`, `slice-reviewer`, or `simplicity-reviewer` `dispatch` line)

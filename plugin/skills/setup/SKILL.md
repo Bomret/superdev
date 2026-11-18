@@ -51,6 +51,8 @@ Applies to every start. You write the per-repo config documents the superdev ski
 | `verification.md`, `toolchain.md` | Every command named (the full, focused, timing, and whole-repo commands, each toolchain entry) still resolves: a package-manager script is still declared in its manifest (`package.json`, `pyproject.toml`, a `Makefile` target, …), and a bare executable is still reachable. A command the manifest no longer defines is drift. A full command that looks affected (`nx affected`, `turbo --affected`, `pnpm` with a `--filter "...[<base>]"` selector, `dotnet-affected`, or another dependency-graph tool's affected mode, per decision E) in a `verification.md` with no `## Whole-repo command` section is drift: state that the section is missing (`references/test-selection.md`'s `## Affected form`). |
 | `verification.md` | Test commands and no `## Test paths` section get an **advisory** line, never a drift verdict: state that the default patterns of `references/test-selection.md`'s `## Test paths` section apply, and that the operator may add the section to name the repository's own test locations. A section with no usable entry, empty or all malformed, gets the same line. A `verification.md` with no test command gets no such line. |
 | `verification.md` | A `## Complete selector` section on a focused command with no `{paths}` token gets an **advisory** line, never a drift verdict: state that the declaration has no effect there. |
+| `verification.md` | CI workflow files under `.github/workflows/`, `.forgejo/workflows/`, or `.gitea/workflows/` and no `## CI` section is reported: state that ship takes the full-suite evidence from a local run, and that the full `/superdev:setup` records the named checks. Make no code-host call. |
+| `verification.md` | A `## CI` section holding both `none` and a check name, a check name being any backtick span outside a fence other than `none`, and a bare `none` line counting as `none`, is drift: state that `scope.js ci` cannot judge it, that ship refuses on it, and that the section must hold the names alone or `none` alone, with any explanation written outside the section or with no backtick span. |
 | `verification.md` | Test commands and no `## Prepare command` section, or a section holding neither a command nor `none`, is reported: state that no test worktree is prepared and that a **Fail-to-pass run** reuses no traced control (`references/test-selection.md`'s `## Prepare command`), and that a re-run of `/superdev:setup` proposes the section. A command the section names gets the resolution check of the first row. |
 | `deployment.md` | The same resolution check on each target's command: a target naming a script the manifest no longer defines is drift. A `none` posture, or a `manual`/`auto` posture with an empty targets table, reports consistent once confirmed present. |
 | `issue-tracker.md`, `issue-tracker-plan.md`, `code-management.md` | A recorded host/owner/repo (or base URL) still matches `git remote -v`. Compare the host/owner/repo path alone, ignoring userinfo such as `https://user:TOKEN@host/owner/repo.git`. Report the remote with any userinfo stripped, never verbatim. A document naming no such fact (an "Other" backend written as prose) reports consistent once confirmed present. |
@@ -293,7 +295,7 @@ Applies to the full interview. Scan these before any decision:
 **The complete selector.** Applies to a focused command carrying `{paths}`, once it is settled. Ask whether it selects every test any changed path can affect. Name what a yes trusts: gates then skip the full suite and carry a green suite record across a change the focused run covered (`references/test-selection.md`'s `## Complete selector`). A yes writes the `## Complete selector` section, listing as items each selector file the operator names (a runner script, a mapping config).
 
 - A no, or no answer, writes no section.
-- **A slow full suite.** Ask roughly how long the full suite runs. Where it runs for several minutes or more, recommend the declaration: review's and ship's gates then carry a green record across a covered change, and a failed full run's fix cycle carries by rerunning the repaired test files and the focused command.
+- **A slow full suite.** Ask roughly how long the full suite runs. Where it runs for several minutes or more, recommend the declaration: ship's local gates then carry a green record across a covered change, and a failed full run's fix cycle carries by rerunning the repaired test files and the focused command.
 - A re-run on a `verification.md` without the section asks once. One with the section asks nothing.
 
 **The test paths.** Applies to a repository with a full command. Propose the glob patterns naming its test files: the defaults `references/test-selection.md`'s `## Test paths` lists, plus the directories and file patterns its test command and manifests name. Write the operator's answer as that section's **unfenced** list.
@@ -306,6 +308,14 @@ Applies to the full interview. Scan these before any decision:
 - **A run that fails, or that changed a tracked file** (the status lists a path; the fresh worktree held none) → show the command, its exit, each path the status lists, and the tail of its output. Write it only on the operator's confirmation. A corrected command goes through the same run in a new probe worktree.
 - **`none`** runs nothing and is written on the operator's confirmation.
 - A re-run on a `verification.md` without the section asks once. One with the section asks nothing.
+
+**The named CI checks.** Applies to decision E, in every repository. Read `references/test-selection.md`'s `## CI`, which owns the contract. Look for CI workflow files under `.github/workflows/`, `.forgejo/workflows/`, and `.gitea/workflows/`.
+
+- **Workflow files found** → read the head commit of the most recent pull request on the code host decision B configured, and take `docs/agents/code-management.md`'s `## Check status` read for that commit. Propose the check names it reports, each once. With no pull request, a document with no `## Check status` section, or a read that fails, propose names derived from the workflow files (the jobs' names, or the workflow's own name where a job names none) and label them **unverified**: the code host reports a check under its own name, which only a read of a real commit confirms.
+- **No workflow file found** → ask whether CI covers the whole suite on every pull request. "No CI" writes `none`; names typed by hand are written as typed.
+- **A CI that runs only part of the suite** (one job, one platform's subset, a lint-only workflow) records `none`: the named checks together stand in for the full suite at ship (ADR 0255). A note on why goes outside the section, or carries no backtick span, because every span in it reads as a check name.
+- **Write the section only on the operator's confirmation**, edits to the proposed names included. A declined proposal writes nothing, and ship takes its local path.
+- A check-status read is no test run: it reads what the code host already holds and starts, re-runs, or cancels nothing.
 
 **The affected form.** Applies to a monorepo's full command. Identify the tool that owns the dependency graph (nx, turborepo, pnpm, or `dotnet-affected` over an MSBuild project graph). Verify its affected syntax against its official docs (`references/doc-verification.md`) before proposing it. Write no unverified form.
 
@@ -436,6 +446,7 @@ full command except a test-first step, which runs its own test file (`references
 | `## Complete selector` | the operator's explicit yes to E's selector question | `references/test-selection.md`'s format: an unfenced list, one backtick-spanned path per item |
 | `## Test paths` | decision E settled them | `references/test-selection.md`'s format: an unfenced list, one pattern per item. No test command writes no section. |
 | `## Prepare command` | decision E settled a command or `none` | the command, or `none`, in a backtick span |
+| `## CI` | decision E settled named checks or `none` | each named check as a list item in a backtick span, or `none` in a backtick span; `references/test-selection.md`'s `## CI` |
 | `## Whole-repo command` | a monorepo whose full command took the affected form | its command in a backtick span. No affected form (no tool owns one, or the operator kept the whole-suite command after a failed query) writes no section. |
 
 ````markdown
@@ -462,6 +473,13 @@ The focused command selects every test a changed path can affect.
 ## Prepare command
 
 `bun install --frozen-lockfile`
+````
+
+````markdown
+## CI
+
+- `test (ubuntu-latest)`
+- `test (windows-latest)`
 ````
 
 **The Agent skills block.** Applies to the root instruction file. Add the block to whichever of `CLAUDE.md` / `AGENTS.md` already exists, and create no other. Duplicate no existing block. If neither exists, ask the user which to create.

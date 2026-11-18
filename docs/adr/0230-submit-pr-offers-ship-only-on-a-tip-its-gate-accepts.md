@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0255](0255-ship-owns-the-full-suite-evidence-and-ci-can-carry-it.md), which withdraws submit-pr's ship check: submit-pr runs no test.
+
 **Amends:** [ADR 0128](0128-a-green-suite-record-carries-across-markdown-only-commits.md), whose carry refuses
 any change to `docs/agents/verification.md`, and
 [ADR 0175](0175-a-green-suite-record-carries-across-a-delta-a-complete-focused-selector-covered.md), whose
