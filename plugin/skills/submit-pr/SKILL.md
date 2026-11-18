@@ -99,7 +99,7 @@ Applies to every start past §1. Find the scope checkout.
 
 **The stage write.** Applies after the open. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set submitted --root <run-root>`. Then run the publish.
 
-**The ship question.** Applies to an attended run, after the stage write and its publish, where §4 found no named checks and no configuration error, and the open recorded a pull request number. Ask one `AskUserQuestion`: ship it now? Its text names the pull request URL, says nobody has reviewed it, and says a yes merges it now through `/superdev:ship`, which runs the full suite locally first, with the host's approvals and branch protection in force. Put the explicit yes option first and a no option second.
+**The ship question.** Applies to an attended run, after the stage write and its publish, where §4 found no named checks and no configuration error, and the open recorded a pull request number. Ask one `AskUserQuestion`: ship it now? Its text names the pull request URL, says nobody has reviewed it, and says a yes merges it now through `/superdev:ship`, which first takes the full-suite evidence (a reusable record, the carry, or a local run), with the host's approvals and branch protection in force. Put the explicit yes option first and a no option second.
 
 - **The yes option** → start `/superdev:ship <scope>` per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The chain start`; the yes is the merge consent.
 - **Any other answer, a dismissal, or a question the platform cannot ask** → print the next command below and start nothing.

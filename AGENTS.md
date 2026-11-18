@@ -405,8 +405,8 @@ This root owns every other subtree directly:
   `docs/agents/deployment.md`, ADR 0101), and closes no anchor (ADR 0106). After the pull request opens, an
   attended submit-pr asks one ship question that names the pull request and says nobody has reviewed it; its
   yes is the merge consent and starts ship. Submit-pr runs no test. Where `docs/agents/verification.md` names CI checks,
-  it asks no ship question, because CI has not reported when the pull request opens, and prints `/superdev:ship` to run
-  once the named checks are green (ADR 0255). Ship starts `/superdev:verify-ship` while a
+  it asks no ship question. CI has not reported when the pull request opens.
+  Submit-pr prints `/superdev:ship` to run once the named checks are green (ADR 0255). Ship starts `/superdev:verify-ship` while a
   criterion is left to verify, and `/superdev:wrap-up` otherwise (ADR 0116); its repair and re-verify routes
   and every refusal print their command. `/superdev:verify-ship` settles the criteria only a deployed system
   can show. When every line settles, no line waits for a hand-sync, and it read the anchor's lines, it starts
@@ -426,12 +426,14 @@ This root owns every other subtree directly:
   recreated scopetree (`references/scope-branch.md`'s `## Preparing a worktree`). `scope.js fail-to-pass` prepares its
   own worktree before each run. `docs/agents/verification.md`'s `## Prepare command` section states the command, `none`,
   or nothing (`references/test-selection.md`'s `## Prepare command`, ADR 0218).
-  `/superdev:ship` takes the scope's full-suite evidence, on the head it merges: every named CI check green where
-  `docs/agents/verification.md`'s `## CI` section names checks, and its own local run of the full or whole-repo command
-  otherwise. Nothing waits on CI: a check not yet green makes ship refuse, and the operator runs it again (ADR 0255).
-  Implement, run handoff, review, and submit-pr run no full suite. A scope review reads a red local suite record or a failed
-  named check as a Critical finding at entry (ADR 0255): a failed check only on a pull-request head that is the tip or an
-  ancestor of it, and either one only where no later passing run on a clean tree on the tip's ancestry covers it
+  `/superdev:ship` takes the scope's full-suite evidence on the head it merges.
+  Where `docs/agents/verification.md`'s `## CI` section names checks, the evidence is every named CI check green.
+  Otherwise it is ship's own local run of the full or whole-repo command.
+  Nothing waits on CI. A check not yet green makes ship refuse, and the operator runs it again (ADR 0255).
+  Implement, run handoff, review, and submit-pr run no full suite.
+  A scope review reads a red local suite record as a Critical finding at entry (ADR 0255).
+  It reads a failed named check the same way, only on a pull-request head that is the tip or an ancestor of it.
+  Either finding stays closed where a later passing run on a clean tree on the tip's ancestry covers it
   (`references/review-scope-mode.md`'s `### 4.2 Red evidence` states which runs cover it).
   On the local path ship runs the suite once, on the merged tip where base will move and on the tip otherwise. INV-0128 and INV-0191 state this rule, and the `implement-no-full-run`,
   `scope-review-no-full-run`, and `no-ci-wait` drift checks hold it.

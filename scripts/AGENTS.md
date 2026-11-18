@@ -506,22 +506,35 @@ input with an unterminated fenced code block, checking nothing.
 its anchor sync on input built from the store's Definition-of-Done lines and Absorbs line, again before each
 stage write. `tests/scope-dod-check.test.js` holds its cases.
 
-`ci` judges a commit's check status against its **Named check**s (ADR 0255, INV-0191), in `plugin/lib/ci.js`. It reads
-`name<TAB>state` lines on stdin, one per check run or commit status as the code-host document's check-status read emits
-them, with an optional third field, the report's link. It reads the `## CI` section of `docs/agents/verification.md` at
-`--sha` through git, never a working tree, in the repository `--root` names (an MSYS path is translated), or in its
-working directory. `verification.js`'s `namedChecksOf` reads the section: backtick spans outside a fence, trimmed, each
-name once, or `none`, a bare `none` line counting as `none` too. An absent file or section, `none`, and a section with neither names no check. A section with both is
-malformed. The section is cut out before the positional fence read, so a fence under `## CI` is never a test command. A
-named check is green when every line carrying its name reads `success`, failed when one reads `failure`, `error`,
-`timed_out`, `cancelled`, `action_required`, or `startup_failure`, pending when one reads any other state or none exists,
-and finished-not-green when its lines read only `success`, `skipped`, `neutral`, `stale`, or `warning`. Lines for names
-not listed are ignored, a trailing `\r` is stripped, and a line without a TAB, or with an empty name or state, matches nothing. It prints
-`ci: <green|not-green|failed|cannot-judge> <sha>`, then one `<pending|finished|failed><TAB><name><TAB><state>[<TAB><link>]`
-line per check not green. Empty or unparseable stdin, with no line that holds a name and a state, judges every named check
-missing: the verdict is not-green, never green, and its `ci:` line ends in `(no check report read)`. It exits 0 (green), 3 (not yet green), 4 (failed), or 2 (cannot judge: an unresolvable SHA, no
-named checks at that commit, or a malformed section), and 1 on a usage refusal. It writes no ledger line, no trace line,
-and no suite record. `tests/scope-ci.test.js` holds its cases.
+`ci` judges a commit's check status against its **Named check**s (ADR 0255, INV-0191), in `plugin/lib/ci.js`.
+It reads `name<TAB>state` lines on stdin. Each line is one check run or commit status, as the code-host document's
+check-status read emits it, with an optional third field, the report's link.
+
+It reads the `## CI` section of `docs/agents/verification.md` at `--sha` through git, never a working tree. The
+repository is the one `--root` names (an MSYS path is translated), or the working directory.
+`verification.js`'s `namedChecksOf` reads the section. A name is a backtick span outside a fence, trimmed, each name
+once. The section may read `none` instead, and a bare `none` line counts as `none` too. An absent file or section,
+`none`, and a section with neither names no check. A section with both is malformed. The section is cut out before
+the positional fence read, so a fence under `## CI` is never a test command.
+
+A named check takes one state from the lines that carry its name:
+
+- green: every line reads `success`.
+- failed: one line reads `failure`, `error`, `timed_out`, `cancelled`, `action_required`, or `startup_failure`.
+- pending: one line reads any other state, or no line exists.
+- finished-not-green: the lines read only `success`, `skipped`, `neutral`, `stale`, or `warning`.
+
+Lines for names not listed are ignored. A trailing `\r` is stripped. A line without a TAB, or with an empty name or
+state, matches nothing.
+
+It prints `ci: <green|not-green|failed|cannot-judge> <sha>`, then one
+`<pending|finished|failed><TAB><name><TAB><state>[<TAB><link>]` line per check not green. Empty or unparseable stdin,
+with no line that holds a name and a state, judges every named check missing. The verdict is not-green, never green,
+and its `ci:` line ends in `(no check report read)`.
+
+It exits 0 (green), 3 (not yet green), 4 (failed), or 2 (cannot judge: an unresolvable SHA, no named checks at that
+commit, or a malformed section), and 1 on a usage refusal. It writes no ledger line, no trace line, and no suite
+record. `tests/scope-ci.test.js` holds its cases.
 
 `init` writes a fresh ledger at stage `planned` (ADR 0079) — the one stage that precedes the four-command
 chain rather than naming a step within it, ranked below `implementing` so `stage set implementing` (or any

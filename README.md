@@ -21,8 +21,8 @@ docs to a knowledge base. It needs no other plugin.
 - The chain continues through docs, pull request, merge, deploy, and verification. Each chain command starts
   the next one in the same turn at its clean exit. Implement runs on through review and document to
   submit-pr. Where no CI checks are recorded, submit-pr asks once whether to ship. A yes runs on through ship,
-  verify-ship, and wrap-up. `/superdev:ship` takes the full-suite evidence for the head it merges: every named CI
-  check green, or a local run of the full suite where none are named.
+  verify-ship, and wrap-up. `/superdev:ship` takes the full-suite evidence for the head it merges.
+  The evidence is every named CI check green. Where no checks are named, it is a local run of the full suite.
   Every other exit prints the next command for you to type.
 - Deterministic hooks hold the rules a prompt cannot: a subagent cannot merge or push, an implementer
   cannot write outside its own worktree. `scope.js` reports an outside edit of a run's ledger or trace, and

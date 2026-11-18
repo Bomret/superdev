@@ -261,10 +261,17 @@ _Avoid: "changed suites" (the dependents are what make it safe), "partial full c
 **Whole-repo command**: the optional `## Whole-repo command` section of `docs/agents/verification.md`, whose command runs every project's suite. A repository configures one only when its full command is an **affected form**. `/superdev:ship` runs it on its local path, on a tip that carries no green whole-repo result (refusing instead while a review invalidation stands, INV-0092). It holds its command in a backtick span, never a fenced block, for the same reason the **timing command** does (ADR 0105).
 _Avoid: "full-full command", "third fence" (it is not a fenced block), "CI command" (superdev runs it, not a CI system)_
 
-**Named check**: a check the code host reports for a commit, a check run's name or a commit status's context, that the optional `## CI` section of `docs/agents/verification.md` lists as part of the full suite. The named checks together run the whole suite, so every one green on a pull request's head SHA is `/superdev:ship`'s evidence in place of a local run. A section reading `none` names no check (ADR 0255).
+**Named check**: a check name that the optional `## CI` section of `docs/agents/verification.md` lists as part of the full suite. The code host reports a check for a commit as a check run's name or a commit status's context. The named checks together run the whole suite. Every one green on a pull request's head SHA is `/superdev:ship`'s evidence in place of a local run. A section reading `none` names no check (ADR 0255).
 _Avoid: "required check" (the host's branch-protection term, which superdev neither reads nor sets), "CI status" for the whole set (a check not named counts for nothing)_
 
-**CI verdict**: the one judgement `scope.js ci` makes of a commit's check status against the **Named check**s listed at that commit: `green` (exit 0) when every named check reads green, `not-green` (exit 3) when one is pending, missing, or finished not green, `failed` (exit 4) when one failed, and `cannot-judge` (exit 2) for a SHA that resolves to no commit, a commit with no named checks, or a `## CI` section holding both `none` and a name. A CI verdict writes no **Suite record**: ship reads it fresh for the head it merges (ADR 0255).
+**CI verdict**: the one judgement `scope.js ci` makes of a commit's check status against the **Named check**s listed at that commit. It is one of four verdicts:
+
+- `green` (exit 0): every named check reads green.
+- `not-green` (exit 3): a named check is pending, missing, or finished not green.
+- `failed` (exit 4): a named check failed.
+- `cannot-judge` (exit 2): the SHA resolves to no commit, the commit has no named checks, or the `## CI` section holds both `none` and a name.
+
+A CI verdict writes no **Suite record**. Ship reads it fresh for the head it merges (ADR 0255).
 _Avoid: "CI result" (reads as a recorded result, and the verdict is never recorded), "pass" or "fail" for `not-green` (a pending check has neither passed nor failed)_
 
 **Timing command**: the optional `## Timing command` section of `docs/agents/verification.md`, whose command reports what the suite's tests cost — per-test durations where the runner gives them, total wall clock otherwise. It holds its command in a backtick span, never a fenced block: `lib/verification.js`'s `verificationCommands` reads fenced blocks and takes the first two as the full and focused commands, so a fenced third would run as the focused suite in a repository that has not yet recorded a focused command. A **test audit** is its only reader, and an absent section makes that audit `unmeasured` rather than failing it (ADR 0066).
