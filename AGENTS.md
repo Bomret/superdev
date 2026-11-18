@@ -303,7 +303,8 @@ into subagent prompts (issue #32), the delegation handoff classifier behind a de
 does not read (ADR 0197). It also covers the classifier's denial of ship's own merge call. Ship stops on that denial and names it, per `plugin/skills/ship/SKILL.md`. It also covers native Windows with Git Bash (ADR 0150), and the PostToolUse `cwd` that names the
 directory a Bash command ended in, which run-trace works around with a PreToolUse stash (ADR 0159), and the
 desktop app's wrap-up guidance that competes with the chain start, which the start answers by being the first
-action of the closing (ADR 0253). Read it before you change subagent prose or the unattended block.
+action of the closing (ADR 0253). It also covers Code Mode, which refuses a tool call from code when a PreToolUse
+hook gives no decision, and fires UserPromptSubmit at the end of each piece of code. Read it before you change subagent prose or the unattended block.
 
 ## Common commands
 
