@@ -286,3 +286,39 @@ Verified 2026-11-03, on Claude Code 2.1.310 in the Claude desktop app: the syste
 carried the guidance that one piece of work acting on what the session just found stays in the session and
 is asked through `wrap_up`. Operator reports of attended sessions ending on a Next block after a `wrap_up`
 call, with the next command not started, are the evidence ADR 0213 records.
+
+## Code Mode refuses a tool call whose PreToolUse hook gives no decision
+
+Code Mode is an experimental Claude Code setting (`CLAUDE_CODE_EXPERIMENTAL_CODE_MODE=1`, interactive
+terminal sessions only). In it, Claude writes JavaScript that the `REPL` tool runs, and the code makes the
+tool calls. Each call from code reaches the PreToolUse and PostToolUse hooks under its own tool name. A
+subagent also works in Code Mode, and its calls carry `agent_id` and `agent_type`. `merge-guard.js`,
+`tree-guard.js`, and `run-trace.js` therefore match and decide as they do outside Code Mode. Two behaviours
+differ:
+
+- A PreToolUse hook that fails without a decision refuses a call from code. Exit 126, exit 127, an exit
+  above 128, and a timeout each refuse it. Exit 1, the exit of an uncaught Node exception, lets the call
+  run with a non-blocking error, as it does outside Code Mode. superdev's hooks run under `node` from PATH.
+  Where `node` is missing, every Bash, Edit, Write, NotebookEdit, Agent, and SendMessage call from code is
+  refused.
+- UserPromptSubmit fires at the end of each piece of code, with `source: "poll_event"`, in the main session
+  and in a subagent. `run-trace.js` reads it as a turn boundary, and `closeSession` ends each open dispatch
+  that has no `dispatch-bind`. An Agent call from code returns `async_launched`, and its PostToolUse, which
+  writes the bind, arrives before the poll event. The dispatch stays open until its SubagentStop. A poll
+  event that carries `agent_id` closes nothing.
+
+**Mitigation:** none shipped. Node on PATH is a stated prerequisite (root `AGENTS.md` → Stack), and a
+refusal fails closed. Not observed: a foreground Agent call that is still running in background code when
+another piece of code ends. If that dispatch has no bind when the poll event arrives, `closeSession` ends
+it `unknown`.
+
+**Fix required at:** none in superdev while Code Mode is experimental.
+
+Verified 2026-11-19, on Claude Code 2.1.327 in a terminal session, Opus 5.5, auto mode, in a scratch
+repository whose project hooks logged every event. A PreToolUse Bash hook exiting 1, then throwing, then
+exiting 127, was run from code. The first two calls ran. The third was refused with "PreToolUse:Bash hook
+error: [node]: the hook failed, so this call was not run.", and a retry was refused the same way. Outside
+Code Mode, on the same version, all three calls ran. An Agent dispatched from code logged PreToolUse(Agent),
+PostToolUse(Agent), PostToolUse(REPL), then UserPromptSubmit with `source` `poll_event`. The subagent's own
+`sleep 45` ran through its own REPL call, with `agent_id` and `agent_type` `general-purpose` on the hook
+input. Its poll event carried the same `agent_id`.
