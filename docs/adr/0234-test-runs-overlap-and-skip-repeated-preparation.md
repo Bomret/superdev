@@ -4,6 +4,8 @@
 
 **Amended by:** [ADR 0242](0242-every-test-run-answers-a-question.md), whose last passing-test step after the last
 commit is the fail-to-pass control.
+[ADR 0253](0253-the-scope-review-runs-its-full-suite-at-the-exit-alone.md), which withdraws decision 1: the scope
+review starts no full-suite run at entry.
 
 **Amends:** [ADR 0192](0192-the-full-suite-runs-once-after-review-comes-back-clean.md): the scope review starts its
 full-suite run at entry, beside its first reviews, in place of an entry focused run.
