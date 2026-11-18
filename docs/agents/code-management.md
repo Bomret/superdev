@@ -67,7 +67,8 @@ judge nothing.
   Leaving `--state open` off would surface closed and merged pull requests too, including an old one left
   over from a reused branch name. Never widen the filter to catch one of those.
 - **`<tested-tip-sha>` above is never read from the host.** It is the local scope-branch tip
-  `scope.js suite reusable` just accepted, resolved with `git rev-parse <branch>` in the scope checkout.
+  `scope.js suite reusable` just accepted, the carry covered, ship's own local run passed, or whose named checks
+  `scope.js ci` judged green, resolved with `git rev-parse <branch>` in the scope checkout.
   `/superdev:ship` reads the pull request's own `headRefOid` only to decide whether to push and to refuse
   when it still differs from that tip after pushing, never as the merge's own pin.
 

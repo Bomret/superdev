@@ -84,7 +84,7 @@ repository configures one only together with an affected form.
   focused command.
 - **`/superdev:submit-pr`, `/superdev:ship`, and a scope review read it**: submit-pr runs it
   once on the scope branch's tip before opening the pull request and reuses a green `whole` record of that
-  tip instead, ship runs it on a tip that carries no green `whole` record, and a review entered while the suite record reads red of kind `whole` runs it at its exit run in place
+  tip instead, ship runs it on its local path on a tip that carries no green `whole` record, and a review entered while the suite record reads red of kind `whole` runs it at its exit run in place
   of the full command.
 - **An absent section leaves the full command as the whole suite**, and every caller unaffected. submit-pr
   then runs ship's plain reuse check, which runs no test, and routes a tip ship would refuse to
@@ -232,8 +232,8 @@ with no test run at T.
 ## The carry run
 
 Every gate whose `scope.js suite reusable` call refuses the tip takes the carry before it runs the full command
-or refuses: review's exit run, ship's plain gate and whole-repo gate (§3), and ship's
-moved-base gate and push gate (§4). Implement runs no full suite. Each gate cites
+or refuses: review's exit run, ship's local suite gate (§3), and ship's
+moved-base gate and push gate (§4), each on ship's local path. Ship's CI path takes no carry. Implement runs no full suite. Each gate cites
 this section and runs the steps in order, after its own `scope.js suite reusable` call refuses the tip:
 
 1. **Check the preconditions.** One `scope.js state --root <run-root>` call prints the `suite` field, a green record at a commit A, or a
@@ -257,8 +257,8 @@ this section and runs the steps in order, after its own `scope.js suite reusable
    at a `--whole` gate, a refused second call, a killed or `unknown` focused run, or a path
    set too large) → the gate takes its own no-carry exit. Review's exit run and ship's moved-base gate run
    the full command, or the whole-repo command where one is configured, and record its result as the gate
-   states. Ship's plain gate and push gate refuse and run no full command. Ship's whole-repo gate runs the
-   whole-repo command, after its standing-finding check.
+   states. Ship's local suite gate runs the full command, or the whole-repo command where one is configured, after its
+   standing-finding check. Ship's push gate refuses and runs no full command.
 
 No gate writes a suite record for a tip it reached by carry: the record stays at A, and the next gate
 judges its own tip from A.
