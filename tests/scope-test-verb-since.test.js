@@ -82,6 +82,8 @@ try {
   const refusals = [
     [['focused', '--since', base, 'lib/old.js'], /--since takes no paths/],
     [['path', '--since', base, 'tests/new.test.js', '--', 'echo', 'RAN'], /--since takes no paths/],
+    [['focused', 'lib/old.js', '--since', base], /--since takes no paths/],
+    [['path', 'tests/new.test.js', '--since', base, '--', 'echo', 'RAN'], /--since takes no paths/],
     [['focused', '--since'], /--since needs a ref/],
     [['path', '--since', '--', 'echo', 'RAN'], /--since needs a ref/],
     [['focused', '--since', '-x'], /starts with a dash/],

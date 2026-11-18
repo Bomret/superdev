@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { fail } = require('./refusal.js');
 const { gitSpawn } = require('./git-spawn.js');
-const { verificationCommands, isTestPath } = require('./verification.js');
+const { verificationCommands } = require('./verification.js');
 const { appendTrace, readTrace, encodePaths } = require('./trace-log.js');
 const { checkRun } = require('./run-check.js');
 const { superviseRuns } = require('./run-supervision.js');
@@ -18,10 +18,12 @@ const shellWord = (w) => (/^[\w@%+=:,./-]+$/.test(w) ? w : `'${w.replace(/'/g, "
 // its value literally, so a path holding a `$&`-style pattern stays a path.
 const withPaths = (template, paths) => template.replace(/\{paths\}/g, () => paths.map(shellWord).join(' '));
 
-// The `--since <ref>` operand at the head of `rest`, or undefined where `rest` holds none. A missing operand, a ref starting with
-// a dash, a ref git cannot resolve to a commit, and paths beside it are refused (ADR 0259).
+// The `--since <ref>` operand of `rest`, or undefined where `rest` holds none. Paths beside it, at any position, a missing operand,
+// a ref starting with a dash, and a ref git cannot resolve to a commit are refused (ADR 0259).
 function sinceRef(verb, rest, top) {
-  if (rest[0] !== '--since') return undefined;
+  const at = rest.indexOf('--since');
+  if (at < 0) return undefined;
+  if (at > 0) fail(`test ${verb}: --since takes no paths beside its ref`);
   const ref = rest[1];
   if (ref === undefined || ref === '--' || ref === '') fail(`test ${verb}: --since needs a ref`);
   if (ref.startsWith('-')) fail(`test ${verb}: the ref ${JSON.stringify(ref)} starts with a dash`);
@@ -51,7 +53,7 @@ function changedSince(verb, ref, top) {
 // carries to the remote, so a secret belongs in the environment. Outside every run tree the command runs and nothing is written.
 // simplicity: a command that changes its own process group escapes the group kill; upgrade: a cgroup or subreaper if one bites.
 function verbTest(cwd, args) {
-  const { locate, treeState, relDir } = require('./run-tree.js');
+  const { locate, treeState, relDir, isTestPath } = require('./run-tree.js');
   let kind = args[0];
   let command;
   let files = [];
@@ -69,17 +71,16 @@ function verbTest(cwd, args) {
     if (sep < 0) fail(`test path: needs \`--\` before the command (${form})`);
     files = args.slice(1, sep);
     const words = args.slice(sep + 1);
-    const ref = sinceRef('path', files, topOf());
+    const top = topOf();
+    const ref = sinceRef('path', files, top);
     if (!files.length) fail(`test path: needs at least one test file (${form})`);
     if (files.includes('')) fail('test path: an empty file argument names no file');
     if (!words.length || (words.length === 1 && !words[0].trim())) fail(`test path: needs a command after \`--\` (${form})`);
     command = words.length === 1 ? words[0] : words.map(shellWord).join(' ');
     if (ref !== undefined) {
       // The changed test-path files that exist at the tip, as the cwd reaches them, appended to the command.
-      const top = topOf();
-      const text = (() => { try { return fs.readFileSync(path.join(top, 'docs', 'agents', 'verification.md'), 'utf8'); } catch { return ''; } })();
       files = changedSince('path', ref, top)
-        .filter((p) => isTestPath(text, p) && fs.existsSync(path.join(top, p)))
+        .filter((p) => isTestPath(top, p) && fs.existsSync(path.join(top, p)))
         .map((p) => path.relative(cwd, path.join(top, p)).split(path.sep).join('/'));
       if (!files.length) fail(`test path: no test file changed since ${JSON.stringify(ref)}`);
       command += ' ' + files.map(shellWord).join(' ');
