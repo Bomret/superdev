@@ -98,6 +98,17 @@ try {
     () => assert.strictEqual(pipedOut, '', 'dod-check passed the piped body silently'),
   ]);
 
+  // ci reads a commit of a repository of its own, named by --root, and judges the piped check status green.
+  const ciRepo = path.join(tmp, 'ci-repo');
+  fs.mkdirSync(path.join(ciRepo, 'docs', 'agents'), { recursive: true });
+  fs.writeFileSync(path.join(ciRepo, 'docs', 'agents', 'verification.md'), '# V\n\n## CI\n\n- `lint`\n');
+  for (const argv of [['init', '-q'], ['add', '-A'], ['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'c']]) {
+    const r = cp.spawnSync('git', argv, { cwd: ciRepo, encoding: 'utf8', timeout: 20000 });
+    assertSpawnDecided(r, 'git ' + argv.join(' '));
+    assert.strictEqual(r.status, 0, r.stderr);
+  }
+  cases.ci = [[['ci', '--sha', 'HEAD', '--root', ciRepo], 'lint\tsuccess\n', () => assert.match(pipedOut, /^ci: green /, 'ci judged the piped status')]];
+
   for (const verb of stdinVerbs) assert.ok(cases[verb], `verb "${verb}" reads piped input and has a case in this suite`);
 
   const order = ['init', ...stdinVerbs.filter((v) => v !== 'init' && v !== 'adopt'), 'adopt'];

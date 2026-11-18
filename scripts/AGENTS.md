@@ -31,10 +31,10 @@ reports, which names the bound and `code-host.pushTimeoutMs`; `lib/run-state-ref
 
 `scope.js` owns the CLI and the verbs, and requires only modules from `plugin/lib/` (ADR 0151). Each verb's code lives in
 a module of its own: the ledger verbs in `ledger-lifecycle.js` and `ledger-records.js`, `suite` and `base` and `get` in
-`suite-base-get.js`, `test` in `test-verb.js`, `publish` with `adopt` in `run-state.js`, `open` in `plan-open.js`, `dod-merge` in `dod-merge.js` (with `mergeDod`, the per-line merge `fetchRunState` also uses, ADR 0206), and `dod-line`, `dod-tags`, `dod-check`, `fail-to-pass`, `prepare`,
+`suite-base-get.js`, `test` in `test-verb.js`, `publish` with `adopt` in `run-state.js`, `open` in `plan-open.js`, `dod-merge` in `dod-merge.js` (with `mergeDod`, the per-line merge `fetchRunState` also uses, ADR 0206), and `dod-line`, `dod-tags`, `dod-check`, `ci`, `fail-to-pass`, `prepare`,
 `citations`, `collisions`, `source-set`, `push`, `discard`, and `status` each in the module of its name. The run-state ref (`refs/superdev/<scope>`, ADR 0202) is `run-state-ref.js`: `pushRunState` at a step end (`step clear`, `step block`, or a `stage set` that closes the standing step, except `stage set closed`), `fetchRunState` inside `adopt`, and `deleteRunState` behind `run-state delete`. It takes `gitCall` from `push.js` and `parseRemote` from `kb-containment.js`. The vocabulary beneath them is `ledger.js` (the stage rank and the readers and writers of
 a ledger's header lines, bullets, and table rows), `refusal.js` (the refusal error `fail`), `verification.js` (`verificationCommands`,
-`verificationCommandsOf`, `prepareCommandOf`, `isTestPath`), `git-spawn.js` (`gitSpawn`, `gitThrow`, `parseBranchList`, `resolveCommit`, `refResolves`, `fileAt`),
+`verificationCommandsOf`, `prepareCommandOf`, `namedChecksOf`, `isTestPath`), `git-spawn.js` (`gitSpawn`, `gitThrow`, `parseBranchList`, `resolveCommit`, `refResolves`, `fileAt`),
 `containment.js` (`testContainment`, `judgeContainment`, `baseHistoryHasPatch`, `baseCommitHoldsBranch`), `main-work-tree.js` (`mainWorkTree`, `scopesDirFor`, `mainTreePath`), and
 `trace-log.js` (`appendTrace`, `readTrace`, `traceField`, `untraceField`). The root [`AGENTS.md`](../AGENTS.md) *Structure* names every module and its
 responsibility. At startup `scope.js` loads only `refusal.js`, `ledger.js`, and `trace-log.js`. Every other module
@@ -51,7 +51,7 @@ lazily loaded module is a getter that returns that module's own value. No module
 `get stage|branch|anchor|slices|unresolved|degraded|deferred|minors|denials|docs|pr|suite|failed`,
 `state [--json] --root <run-root>` (every field `get` names in one read-only call, from the ledger alone: no git, no trace line, no digest seal; `--json` prints one object with list fields as arrays and `failed` as the failed test files, its `@ <sha>` staying in `get failed` and the text output; `suite-base-get.js`'s `verbState`),
 `status` (which renders the whole `/superdev:status` report), `trace [--slice <id>]` (prints the run trace, read-only), `untraced <base>..<tip> --slice <id|scope> [--from <ts>] [--until <ts>] --root <run-root>` (read-only), `publish`, `adopt`, `root <slug>`,
-`staging <scope> [--count]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `citations --range-base <ref> --branch <ref> <id>…`, `source-set [<path>]`, `push --root <run-root> --remote <remote> --base <base-ref>`, `dod-merge --root <run-root>`, `dod-line`, `dod-tags [--map-file <path>] [--line]`, `dod-check`, `fail-to-pass <base>..<tip> -- <command>`, `prepare <tree>`, and `test`.
+`staging <scope> [--count]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `citations --range-base <ref> --branch <ref> <id>…`, `source-set [<path>]`, `push --root <run-root> --remote <remote> --base <base-ref>`, `dod-merge --root <run-root>`, `dod-line`, `dod-tags [--map-file <path>] [--line]`, `dod-check`, `ci --sha <sha> [--root <path>]`, `fail-to-pass <base>..<tip> -- <command>`, `prepare <tree>`, and `test`.
 `--help` or `-h`, alone or after any verb, prints the usage and exits 0, except that a flag's value, or the text after `add`, `add-denial`, `reset-denials`, or `resolve`, is data and never a help request. It is checked before any verb
 reads stdin or touches a ledger, so a stdin verb such as `dod-line` never waits on input for it.
 `suite set` writes the **suite record** (CONTEXT.md) — the last full-suite run's result and the commit
@@ -356,7 +356,7 @@ first-moment-term, install, kill, late-fork, record, refusals, tree) and the `fa
 concurrency, environment, interrupt, prepare, reuse, signals, trace, verdict, watcher), and the `prepare` verb's is `scope-prepare`. The rest: `scope-ledger` (init, stage, step, slice, the bullet and header records, get, status, and the ledger-fixtures pin),
 `scope-ledger-header` (`readLedgerHeader`), `scope-suite` (the suite and base records), `scope-dod-line` (the `dod-line` verb and the dod-fixtures pin), `scope-dod-tags` (the `dod-tags` verb), `scope-dod-check` (the `dod-check` verb), `scope-dod-merge` (the `dod-merge` verb), `scope-publish-adopt` (`publish`, `adopt`, and the
 `maskFencedLines` pin), `scope-trace` (the run trace, `appendTrace`, and its `run.lock` refresh), `scope-digest` (the digest check), `scope-untraced` (the `untraced` verb), `scope-root-base` (`root`, `staging`, `base` from a linked worktree),
-`scope-containment`, `scope-citations-collisions`, `scope-source-set`, `scope-push`, `scope-open`, `scope-help`, and `scope-stdin` (every verb that reads piped input receives it through the CLI). A focused run for `scope.js`, or for a module it requires, selects
+`scope-containment`, `scope-citations-collisions`, `scope-source-set`, `scope-ci`, `scope-push`, `scope-open`, `scope-help`, and `scope-stdin` (every verb that reads piped input receives it through the CLI). A focused run for `scope.js`, or for a module it requires, selects
 every suite that reaches it (`run-tests.js`, below).
 
 `source-set [<path>]` prints the gap audit's source set and touches no ledger and no run root (ADR 0162). It prints one
@@ -505,6 +505,22 @@ input with an unterminated fenced code block, checking nothing.
 `/superdev:plan` runs it on the drafted anchor body before any store write, and the scope review runs it in
 its anchor sync on input built from the store's Definition-of-Done lines and Absorbs line, again before each
 stage write. `tests/scope-dod-check.test.js` holds its cases.
+
+`ci` judges a commit's check status against its **Named check**s (ADR 0255, INV-0191), in `plugin/lib/ci.js`. It reads
+`name<TAB>state` lines on stdin, one per check run or commit status as the code-host document's check-status read emits
+them, with an optional third field, the report's link. It reads the `## CI` section of `docs/agents/verification.md` at
+`--sha` through git, never a working tree, in the repository `--root` names (an MSYS path is translated), or in its
+working directory. `verification.js`'s `namedChecksOf` reads the section: backtick spans outside a fence, trimmed, each
+name once, or `none`. An absent file or section, `none`, and a section with neither names no check. A section with both is
+malformed. The section is cut out before the positional fence read, so a fence under `## CI` is never a test command. A
+named check is green when every line carrying its name reads `success`, failed when one reads `failure`, `error`,
+`timed_out`, `cancelled`, `action_required`, or `startup_failure`, pending when one reads any other state or none exists,
+and finished-not-green when its lines read only `success`, `skipped`, `neutral`, `stale`, or `warning`. Lines for names
+not listed are ignored, a trailing `\r` is stripped, and a line without a TAB matches nothing. It prints
+`ci: <green|not-green|failed|cannot-judge> <sha>`, then one `<pending|finished|failed><TAB><name><TAB><state>[<TAB><link>]`
+line per check not green. It exits 0 (green), 3 (not yet green), 4 (failed), or 2 (cannot judge: an unresolvable SHA, no
+named checks at that commit, or a malformed section), and 1 on a usage refusal. It writes no ledger line, no trace line,
+and no suite record. `tests/scope-ci.test.js` holds its cases.
 
 `init` writes a fresh ledger at stage `planned` (ADR 0079) — the one stage that precedes the four-command
 chain rather than naming a step within it, ranked below `implementing` so `stage set implementing` (or any

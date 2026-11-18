@@ -1509,8 +1509,8 @@ Class: process
 Concepts: Named check, Pinned merge, Suite record
 Statement: Where `docs/agents/verification.md` at the merged head names CI checks, `/superdev:ship` merges a pull request only when every named check reads green on the exact head SHA it pins the merge to. A named check that is missing, pending, or failed on that SHA lands nothing, and a check not named counts for nothing. Where several reports on that SHA carry one name, every one of them reads green. Ship runs no local full or whole-repo command on that path, and writes no suite record from the check status (ADR 0255).
 Breaks: silently
-Check: final-reviewer's invariant compliance judges ship's CI gate and the hand-merge adopt; the slice that adds `scope.js ci` names its suite here
-Paths: plugin/skills/ship/**, plugin/references/code-management-*.md, plugin/scripts/scope.js
+Check: `tests/scope-ci.test.js` holds the verdict of `scope.js ci`; final-reviewer's invariant compliance judges ship's CI gate and the hand-merge adopt
+Paths: plugin/skills/ship/**, plugin/references/code-management-*.md, plugin/scripts/scope.js, plugin/lib/ci.js, plugin/lib/verification.js
 
 ### INV-0192
 

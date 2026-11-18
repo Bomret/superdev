@@ -60,7 +60,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          helper `discard.js` and `prepare.js` share.
                          Ledger and run state: `ledger.js` (vocabulary, stage rank, line primitives),
                          `ledger-lifecycle.js` and `ledger-records.js` (the verbs that move a run and
-                         record a fact), `suite-base-get.js`, `dod-line.js`, `dod-tags.js` (the `dod-tags` verb that rewrites and checks criterion tags, ADR 0209), `dod-check.js` (the `dod-check` verb that checks an anchor's Absorbs citations, `Reachable:`, and release-risk categories, ADR 0233), `dod-merge.js` (the `dod-merge` verb and the
+                         record a fact), `suite-base-get.js`, `dod-line.js`, `dod-tags.js` (the `dod-tags` verb that rewrites and checks criterion tags, ADR 0209), `dod-check.js` (the `dod-check` verb that checks an anchor's Absorbs citations, `Reachable:`, and release-risk categories, ADR 0233), `ci.js` (the `ci` verb that judges a commit's check status against its named CI checks, ADR 0255), `dod-merge.js` (the `dod-merge` verb and the
                          per-line merge adopt uses, ADR 0206), `run-state.js` (`publish` and
                          `adopt`), `status.js`, `usage.js`, `refusal.js` (the refusal error),
                          `main-work-tree.js`, `verification.js` (the readers of `verification.md`).
@@ -108,7 +108,7 @@ tests/                 — one suite per shipped executable (the hooks, `scope.j
                          point's suite is split flat by topic into `tests/<entry>-<topic>.test.js` over one
                          `<entry>-setup.js` that is no suite (ADR 0139, ADR 0151): `scope-*` (ledger,
                          ledger-header, `suite-*` (record, carry, complete, rerun, config, failed), dod-line, dod-tags, dod-check, dod-merge, publish-adopt, trace, digest, untraced, root-base, containment,
-                         citations-collisions, source-set, push, open, help, stdin, discard, prepare, `test-verb-*`, `fail-to-pass-*`, over `scope-setup.js`),
+                         citations-collisions, source-set, ci, push, open, help, stdin, discard, prepare, `test-verb-*`, `fail-to-pass-*`, over `scope-setup.js`),
                          `run-trace*` (dispatch, guards, model, paths, over `run-trace-setup.js`), `publish-kb*` (containment, guard, `parent-link-*`,
                          patch, publish, read, scope, templates, timeout, over `publish-kb-setup.js`),
                          and `scope-prune*` (containment, guards, main, reap, over `scope-prune-setup.js`);
