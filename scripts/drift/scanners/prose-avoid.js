@@ -307,7 +307,7 @@ function scanObservationNoSuiteRun(root) {
   }));
 }
 
-// ADR 0253: the scope review runs no test at entry, so `review-scope-*.md`, the review skill, and `final-reviewer` name
+// ADR 0254: the scope review runs no test at entry, so `review-scope-*.md`, the review skill, and `final-reviewer` name
 // no entry run. The `review-scope-*.md` files are read at scan time, so a branch file added later is covered the day it
 // lands. Fenced examples are masked.
 function scanScopeReviewNoEntryRun(root) {
@@ -326,7 +326,7 @@ function scanScopeReviewNoEntryRun(root) {
         source: rel,
         expectation:
           `name no entry run — \`${normalizeWhitespace(hit[0])}\` does, and the scope review starts its full-suite run ` +
-          'at its exit alone, reading only a recorded result at entry (ADR 0253)',
+          'at its exit alone, reading only a recorded result at entry (ADR 0254)',
       });
     }
   }

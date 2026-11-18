@@ -276,7 +276,7 @@ module.exports = [
   },
   {
     id: 'scope-review-no-entry-run',
-    ok: 'no scope-review document names an entry run: the full-suite run starts at the exit alone (ADR 0253)',
+    ok: 'no scope-review document names an entry run: the full-suite run starts at the exit alone (ADR 0254)',
     run: scanScopeReviewNoEntryRun,
     format: contractGap,
   },

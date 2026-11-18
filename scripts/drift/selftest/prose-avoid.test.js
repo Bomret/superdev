@@ -441,7 +441,7 @@ module.exports = ({ assert, path, fixture, found }) => {
     'observation-no-suite-run: a missing document is a missing-document gap',
   );
 
-  // --- scope-review-no-entry-run (ADR 0253): scope-review prose names no entry run ---
+  // --- scope-review-no-entry-run (ADR 0254): scope-review prose names no entry run ---
 
   const reviewSkill = path.join('skills', 'review', 'SKILL.md');
   const finalReviewer = path.join('agents', 'final-reviewer.md');

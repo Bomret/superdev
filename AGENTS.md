@@ -428,7 +428,7 @@ This root owns every other subtree directly:
   or nothing (`references/test-selection.md`'s `## Prepare command`, ADR 0218).
   The scope review's exit run is the scope's one full-suite run: implement and run handoff run no suite, and the
   review starts that run only at its exit, on the tip the stage would advance on. Before its first reviews it runs no
-  test and only reads whether a recorded result covers the tip (ADR 0253). ADR 0192 and INV-0128 state this rule, and the `implement-no-full-run` drift
+  test and only reads whether a recorded result covers the tip (ADR 0254). ADR 0192 and INV-0128 state this rule, and the `implement-no-full-run` drift
   check holds it.
   Whoever invokes a chain command passes `--unattended` to run it unattended (ADR 0016, ADR 0108);
   superdev ships no driver. Some skills sit outside the chain: publish-kb sends a scope's

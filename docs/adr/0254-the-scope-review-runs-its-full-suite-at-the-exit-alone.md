@@ -1,4 +1,4 @@
-# 0253: The scope review runs its full suite at the exit alone
+# 0254: The scope review runs its full suite at the exit alone
 
 **Status:** Accepted
 
