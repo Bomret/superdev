@@ -8,6 +8,7 @@ const {
   scanShipNoOpensPr,
   scanPastPrSkills,
   scanNoOfferStart,
+  scanNoCiWait,
   scanDeriveNoDod,
   scanDeployRunnerExclusivity,
   scanConflictConclusionNoCommit,
@@ -290,5 +291,17 @@ module.exports = ({ assert, fixture, found }) => {
     noOffer({ 'plugin/skills/plan/SKILL.md': '**The intent offer.** Applies to every plan. Offer two sources together, in one offer.\n' }).length,
     0,
     "plan's intent offer passes: the bare word is no forbidden form",
+  );
+
+  // --- no-ci-wait (INV-0192): no shipped prose names a wait or a poll on CI ---
+
+  const noWait = (files) => found(scanNoCiWait(fixture(files)));
+  assert.equal(noWait({ 'plugin/skills/ship/SKILL.md': 'Run `gh pr checks 12 --watch` until it settles.\n' }).length, 1, 'gh pr checks --watch is caught');
+  assert.equal(noWait({ 'plugin/references/code-management-github.md': 'Then `gh run watch <id>`.\n' }).length, 1, 'gh run watch is caught');
+  assert.equal(noWait({ 'plugin/skills/review/SKILL.md': 'sleep 30 and read the check status again.\n' }).length, 1, 'a sleep-and-reread loop is caught');
+  assert.equal(
+    noWait({ 'plugin/skills/ship/SKILL.md': 'A named check still pending refuses, naming the SHA.\n', 'plugin/lib/run-digest.js': 'sleep(5); // status\n' }).length,
+    0,
+    'a pending refusal and shipped code pass',
   );
 };

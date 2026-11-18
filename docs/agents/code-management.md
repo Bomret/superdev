@@ -39,7 +39,8 @@ Do not fall back to a token or a raw HTTP call (curl). No `gh` or `jq` on the pa
 `gh` login for `github.com`: push the branch, then print the compare URL
 (`https://github.com/Bomret/superdev/compare/main...<scope-branch>?expand=1`) and the exact `gh` command
 the step would have run. The merge call below degrades the same way: print the exact `gh pr merge` call
-and merge nothing.
+and merge nothing. The check-status read below degrades the same way: print the exact `gh api` calls and
+judge nothing.
 
 ## Merge
 
@@ -69,6 +70,23 @@ and merge nothing.
   `scope.js suite reusable` just accepted, resolved with `git rev-parse <branch>` in the scope checkout.
   `/superdev:ship` reads the pull request's own `headRefOid` only to decide whether to push and to refuse
   when it still differs from that tip after pushing, never as the merge's own pin.
+
+## Check status
+
+`/superdev:ship`, `/superdev:review`, and `/superdev:setup` read the latest check status of one commit through this
+call, and `scope.js ci` judges it against the named checks the `## CI` section of `docs/agents/verification.md` lists (ADR 0255).
+The read emits one `name<TAB>state<TAB>link` line per latest check run and per latest commit-status context, across
+every page:
+
+- **Check runs**: `gh api --paginate 'repos/Bomret/superdev/commits/<sha>/check-runs?per_page=100' --jq '.check_runs[] | [.name, (if .status == "completed" then .conclusion else .status end), (.html_url // .details_url // "")] | @tsv'`.
+  The endpoint's default `filter=latest` keeps the latest run per name, and `--paginate` follows every page.
+- **Commit statuses**: `gh api --paginate 'repos/Bomret/superdev/commits/<sha>/status?per_page=100' --jq '.statuses[] | [.context, .state, (.target_url // "")] | @tsv'`.
+  The combined status holds the latest status per context.
+- **Read into a file, then judge.** `c=$(mktemp) && gh api … > "$c" && gh api … >> "$c" && node
+  "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" ci --sha <sha> < "$c"`. A pipe drops the read's exit status, so a failed
+  read would reach the verdict as empty input. No `gh`, no `github.com` login, a 401, 403, or 404, or a network error ends the chain
+  at the failed read with its error: report it, and pass nothing to `scope.js ci`.
+- Nothing here waits for a check, re-reads it on a timer, or starts, re-runs, or cancels a CI run.
 
 ## Edit the pull request body
 

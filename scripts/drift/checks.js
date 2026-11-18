@@ -42,6 +42,7 @@ const {
   scanShipNoOpensPr,
   scanPastPrSkills,
   scanNoOfferStart,
+  scanNoCiWait,
   scanDeriveNoDod,
   scanInvariantRegisterJoin,
 } = require('./scanners');
@@ -184,6 +185,12 @@ module.exports = [
     ok: 'no shipped file names `start_session` or the offer marker line (ADR 0253)',
     run: scanNoOfferStart,
     format: (g) => `${g.source}:${g.line} names \`start_session\` or the offer marker line — superdev starts no session and makes no offer (ADR 0253)`,
+  },
+  {
+    id: 'no-ci-wait',
+    ok: 'no shipped prose names a wait or a poll on CI: no `--watch`, no `gh run watch`, no sleep over a check or a status (INV-0192)',
+    run: scanNoCiWait,
+    format: (g) => `plugin/${g.source}:${g.line} names a wait or a poll on CI — superdev never waits on a check; ship refuses as pending instead (INV-0192, ADR 0255)`,
   },
   {
     id: 'no-base-branch-commit',

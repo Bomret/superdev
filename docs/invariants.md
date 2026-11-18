@@ -1518,7 +1518,7 @@ Class: process
 Concepts: Named check, Pinned merge
 Statement: Nothing in superdev waits on a CI check or polls one. A named check that has not reported green makes `/superdev:ship` refuse, naming the SHA and the checks still pending, and the operator runs ship again later. superdev triggers, re-runs, and cancels no CI run (ADR 0255).
 Breaks: silently
-Check: final-reviewer's invariant compliance judges ship, setup, review, and the code-host seeds; the slice that adds the forbidden-form drift check names it here
+Check: drift-check `no-ci-wait` forbids a wait or a poll on CI in shipped prose; final-reviewer's invariant compliance judges ship, setup, review, and the code-host seeds
 Paths: plugin/skills/**, plugin/references/**, plugin/agents/**
 
 ### INV-0193
