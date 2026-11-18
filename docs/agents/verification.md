@@ -75,3 +75,10 @@ their own cost, time each one alone (`## One-suite run`).
 - `mods/superdev-view/hooks/*.test.*`
 - `mods/superdev-view/hooks/*-fixtures.ts`
 - `mods/superdev-view/hooks/testkit.ts`
+
+## CI
+
+`none`
+
+`.github/workflows/template-tests.yml` runs one suite, `tests/publish-kb-templates.test.js`, on three platforms. It is
+no full-suite run, so `/superdev:ship` runs the full suite locally (ADR 0255).
