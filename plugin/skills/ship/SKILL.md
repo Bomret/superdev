@@ -14,7 +14,7 @@ Applies to every start. You merge the pull request `/superdev:submit-pr` opened,
 - **A reusable tip**: a tip `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base> [--whole] --root <run-root>` accepts. Run it from any checkout of the repository.
 - **The carry**: `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## The carry run`, run in `<run-root>/scopetree` with no ask. A carried tip proceeds, and ship writes no suite record for it.
 - **The red exit**: merge nothing, name the result, and point at `/superdev:review <scope>` to fix it. A review at stage `submitted` leaves the stage where it is.
-- **The named checks**: the check names the `## CI` section of `docs/agents/verification.md` lists at a commit, read with `git -C <run-root>/scopetree show <commit>:docs/agents/verification.md` (`CONTEXT.md` → *Named check*, ADR 0255). The tip naming checks puts this run on **the CI path**; a section reading `none`, an absent section, or an absent document puts it on **the local path**.
+- **The named checks**: the check names the `## CI` section of `docs/agents/verification.md` lists at a commit, read with `git -C <run-root>/scopetree show <commit>:docs/agents/verification.md` (`CONTEXT.md` → *Named check*, ADR 0255). The tip naming checks puts this run on **the CI path**; a section reading `none`, an absent section, or an absent document puts it on **the local path**. A section holding both `none` and a check name, a check name being any backtick span other than `none`, puts it on neither path: it is a configuration error, the one `scope.js ci` cannot judge. Refuse: run `step block`, name the error, merge nothing, and point at `/superdev:setup`. **Adopting a hand merge** records it at `head.sha` as a cannot-judge `**Degraded:**` bullet instead.
 - **The CI read**: `docs/agents/code-management.md`'s `## Check status` read for one commit, its lines read into a file, then fed to `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" ci --sha <sha> --root <run-root>/scopetree`. The verb prints `ci: <verdict> <sha>` and one line per check that is not green, and exits 0 (green), 3 (not yet green: pending, missing, or finished not green), 4 (failed), or 2 (cannot judge). A read that fails passes nothing to the verb. The CI read writes no suite record, and a local suite record neither blocks nor permits a merge on the CI path.
 - **The PR read**: the `pr` field of the `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state --root <run-root>` call §2 makes, then the pull request read by that number per `docs/agents/code-management.md`'s `## Merge` section: its `state`, `merged`, `merge_commit_sha`, `head.sha`, and `mergeable`.
 - **The deployment document**: `docs/agents/deployment.md`. Its posture is its `## Posture` section's `Posture:` line. A missing document, or one with no such line, reads as posture `none`.
@@ -105,7 +105,7 @@ Applies to every start past §1. Read the stage and the pull request number with
 
 **Adopting a hand merge.** Applies to a pull request whose `merged` is true. Judge the merged `head.sha` by the named checks at that commit, or by the local suite record where it names none, and take its bullet below. Then take the adopt's stage write.
 
-- **Named checks at `head.sha`** → take the CI read for `head.sha`. **Green** → add no `**Degraded:**` bullet. **Not yet green, failed, cannot judge, or a failed read** → run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" degraded add "the merge landed on <head.sha>, whose named checks read <state>"`, one bullet, `<state>` naming the verdict and each check not green, or the read's error.
+- **Named checks at `head.sha`, or a `## CI` section holding both `none` and a name** → take the CI read for `head.sha`. **Green** → add no `**Degraded:**` bullet. **Not yet green, failed, cannot judge, or a failed read** → run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" degraded add "the merge landed on <head.sha>, whose named checks read <state>"`, one bullet, `<state>` naming the verdict and each check not green, or the read's error.
 - **No named checks, `suite reusable` with `--branch <head.sha>`, plain and never `--whole`, exits 0** → the merged head is a commit the suite record covers (an exact match, a Markdown-only range that needs no test run at the tip, a focused-selector carry, alone or followed by Markdown-only commits, or a recorded rerun, alone or followed by Markdown-only commits). Add no `**Degraded:**` bullet.
 - **No named checks, and it exits 1 or finds no record** → run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" degraded add "the merge landed on <head.sha>, not a commit the green suite record covers"`.
 
@@ -121,17 +121,23 @@ Applies to every start past §1. Read the stage and the pull request number with
 
 - **The CI path** → run no `scope.js test` call and no carry. The CI read runs in §4, at **The CI gate**, once the equality check and **The draft gate** have passed.
 - **The local path** → take **The local suite gate**.
+- **A `## CI` section at the tip holding both `none` and a name** → take the configuration-error refusal of **The named checks**.
 
 **The local suite gate.** Applies on the local path.
 
 - **No `docs/agents/verification.md` at the tip, or one with no fenced command** → run nothing, write no record, and proceed. The report says no test command is configured.
-- **Otherwise** → run `suite reusable` on `<branch>`, with `--whole` when **The whole-repo gate** applies. **Exits 0** → proceed. **Exits 1** → take the carry; a carried tip proceeds, and a failing carry run takes **A failing carry**. **No carry, or no record** → take **The local run** on the tip.
+- **Otherwise** → run `suite reusable` on `<branch>`, with `--whole` when **The whole-repo gate** applies. **Exits 0** → proceed. **Exits 1** → take the carry; a carried tip proceeds, and a failing carry run takes **A failing carry**. **No carry, or no record** → take **The base-move test**.
+
+**The base-move test.** Applies on the local path to a tip with no reusable green result and no carry, before **The local run**. Run `git -C <run-root>/scopetree merge-base --is-ancestor <base> <branch>`. The suite runs once per scope, on the head ship merges (INV-0017).
+
+- **It succeeds** → base will not move: take **The local run** on the tip.
+- **It fails** → base will move, and §4's base merge makes a new head: run nothing here, and proceed. §4's **The merged-tip run** is the evidence. A refusal **The local run** names for a standing invalidation still applies there.
 
 **A failing carry.** Applies to a carry run that fails at the tip, in §3, in §4's merged-tip run, or in §4's push. Record `suite set red <tip> --root <run-root>`, with `--whole` where **The whole-repo gate** added it, and take no `test-selection.md`'s `## The recorded rerun`. Then take the red exit.
 
 **The whole-repo gate.** Applies on the local path when `docs/agents/verification.md` at the scope branch's tip (`git -C <run-root>/scopetree show <branch>:docs/agents/verification.md`) has a `## Whole-repo command` section, per `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s section of that name. Add `--whole` to the `suite reusable` call of **The local suite gate** and to every `suite reusable` call in §4; **Adopting a hand merge** keeps its plain call. Without the section, every call stays as written.
 
-**The local run.** Applies on the local path to a tip with no reusable green result and no carry.
+**The local run.** Applies on the local path to a tip with no reusable green result and no carry: the tip **The base-move test** keeps, §4's merged tip, and §4's push.
 
 - **The `suite` field of `scope.js state --root <run-root>` prints `none <sha>`, and its `unresolved` field prints any bullet** → refuse: name every standing bullet, merge nothing, and point at `/superdev:review <scope>`. That record is the invalidation `/superdev:review` left, and a run here would overwrite it.
 - **Any other tip** → run the full command over the tip in the scope checkout through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full`, or the whole-repo command through `test whole` under **The whole-repo gate**, in the foreground with Bash's `timeout` at its ceiling (600000 ms unless `BASH_MAX_TIMEOUT_MS` raises it), and in the background only when the suite can outlast the ceiling, waiting for its end.
@@ -175,7 +181,7 @@ Applies to every start past §1. Read the stage and the pull request number with
 
 - **Identical** → nothing to push.
 - **They differ, on the CI path** → print `git -C <run-root>/scopetree log <head-sha-just-compared>..<branch> --oneline`, and go on to the push even when that log fails with "unknown revision". Run `git push origin <scope-branch>` per `docs/agents/code-management.md`, a push of the **scope branch**, never of base. An accepted push refuses as pending: run `step block`, merge nothing, name the new SHA the named checks have not reported on, and print `/superdev:ship <scope>` to run once they are green. A rejected push takes **The push result**.
-- **They differ, on the local path** → run `suite reusable` on the tip (`--whole` where §3 added it). **Refuses** → take the carry; a failing carry run takes **A failing carry** and pushes nothing. **No carry** → refuse the command, name that the tip carries no reusable green result, point at `/superdev:review <scope>`, and push nothing. **Accepts, or carried** → print `git -C <run-root>/scopetree log <head-sha-just-compared>..<branch> --oneline`, and go on to the push even when that log fails with "unknown revision". Then run `git push origin <scope-branch>` per `docs/agents/code-management.md`, a push of the **scope branch**, never of base.
+- **They differ, on the local path** → run `suite reusable` on the tip (`--whole` where §3 added it). **Refuses** → take the carry; a failing carry run takes **A failing carry** and pushes nothing. **No carry** → take **The local run** on the tip; a red, denied, or unfinished run pushes nothing. **Accepts, carried, or a green local run** → print `git -C <run-root>/scopetree log <head-sha-just-compared>..<branch> --oneline`, and go on to the push even when that log fails with "unknown revision". Then run `git push origin <scope-branch>` per `docs/agents/code-management.md`, a push of the **scope branch**, never of base.
 
 **The push result.** Applies to a push that ran.
 
@@ -201,7 +207,8 @@ Applies to every start past §1. Read the stage and the pull request number with
 - **Green, exit 0** → go to **The merge**, pinned to that SHA.
 - **Not yet green, exit 3** → refuse: run `step block`, merge nothing, name the SHA and each check the verb lists as pending, missing, or finished not green, and print `/superdev:ship <scope>` to run once they are green.
 - **Failed, exit 4** → refuse: run `step block`, merge nothing, name each failed check with its link, and point at `/superdev:review <scope>`, which starts from that red.
-- **Cannot judge, exit 2** → refuse: run `step block`, name the verb's reason, and merge nothing.
+- **Cannot judge, exit 2, or a usage refusal, exit 1** → refuse: run `step block`, name the verb's reason or its usage error, and merge nothing.
+- **Any refusal above, after The draft gate's Mark ready call ran** → add that the pull request is now ready, as **The merge**'s host-refusal bullet does.
 
 **The merge.** Applies once **The CI gate** passes. Print the pull request, its head, the base, and the CI verdict, the suite result, or the carry outcome. Then squash-merge it into the base branch through the host's merge API, pinned to the tip, per `docs/agents/code-management.md`'s `## Merge` section: the one write this plugin makes straight onto base, and the only merge this contract admits.
 

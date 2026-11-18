@@ -36,13 +36,18 @@ check status.
    it against the section at that commit. Every named check green merges, pinned to that SHA. A missing or pending
    check refuses and names the SHA. A failed check refuses and points at `/superdev:review`. Without `## CI`, ship runs
    the full command, or the whole-repo command where one is configured, on the head it merges, after its reuse and
-   carry checks.
+   carry checks. Where base will move, ship runs it on the merged tip alone, never also on the pre-merge tip. A
+   `## CI` section that holds both `none` and a name is a configuration error: ship refuses, submit-pr reports it and
+   asks no ship question, and review says so once and continues.
 4. **Ship never waits on CI.** Nothing in superdev polls a check or waits for one. A push that ship makes, after a base
    merge or for local commits the pull request lacks, ends in the pending refusal.
 5. **Ship reads CI status fresh and records none.** The suite record stays the record of a local run.
 6. **Review reads red evidence as its starting finding.** A local red suite record, or a failed named check on the
-   recorded pull request's head, becomes a Critical finding at review entry. The fix loop's focused runs prove the fix,
-   and ship checks the evidence again.
+   recorded pull request's head where that head is the scope branch's tip, becomes a Critical finding at review entry.
+   The fix loop's focused runs prove the fix, and ship checks the evidence again. A red record that a later passing
+   `path` run of its failed test files, or a passing focused run, on a clean tree on the tip's ancestry already closed
+   raises no finding, because a fix cycle's runs write no suite record. A head behind the tip has its verdict reported
+   for that head and raises nothing.
 
 ## Considered options
 

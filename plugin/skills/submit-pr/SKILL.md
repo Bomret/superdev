@@ -75,8 +75,9 @@ Applies to every start past §1. Find the scope checkout.
 
 **The named checks.** Applies to every run past §3. Read the `## CI` section of `docs/agents/verification.md` from the scope branch's tip commit (`git -C <run-root>/scopetree show <branch>:docs/agents/verification.md`), never the working tree. Its backtick spans other than `none` are the named checks (`CONTEXT.md` → *Named check*).
 
-- **Named checks** → the full suite runs in those checks, which this command lists in the body and its report.
+- **Named checks, and no `none`** → the full suite runs in those checks, which this command lists in the body and its report.
 - **None** (no document, no section, or a section reading `none`) → the full suite runs locally at ship: the full command, or the whole-repo command where `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## Whole-repo command` section is configured.
+- **Both `none` and a name** → a configuration error that `scope.js ci` cannot judge and ship refuses. Report it in the body's `## Full suite` section and the report, point at `/superdev:setup`, and ask no ship question.
 
 ## 5. Pull request
 
@@ -88,7 +89,7 @@ Applies to every start past §1. Find the scope checkout.
 
 | Heading | Content |
 |---|---|
-| `## Full suite` | where the full suite runs, per §4: the named checks, listed, or a local run at ship |
+| `## Full suite` | where the full suite runs, per §4: the named checks, listed, a local run at ship, or the `## CI` configuration error |
 | `## Degraded passes` | every bullet of the `degraded` field, one per line (`${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes`) |
 | `## Unresolved defects` | every bullet of the `unresolved` field, one per line (`scope-findings.md`'s `## Unresolved defects`) |
 | `## Deferred to a plan` | every bullet of the `deferred` field, one per line (`scope-findings.md`'s `## Deferred findings`) |
@@ -98,14 +99,15 @@ Applies to every start past §1. Find the scope checkout.
 
 **The stage write.** Applies after the open. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set submitted --root <run-root>`. Then run the publish.
 
-**The ship question.** Applies to an attended run, after the stage write and its publish, where §4 found no named checks and the open recorded a pull request number. Ask one `AskUserQuestion`: ship it now? Its text names the pull request URL, says nobody has reviewed it, and says a yes merges it now through `/superdev:ship`, which runs the full suite locally first, with the host's approvals and branch protection in force. Put the explicit yes option first and a no option second.
+**The ship question.** Applies to an attended run, after the stage write and its publish, where §4 found no named checks and no configuration error, and the open recorded a pull request number. Ask one `AskUserQuestion`: ship it now? Its text names the pull request URL, says nobody has reviewed it, and says a yes merges it now through `/superdev:ship`, which runs the full suite locally first, with the host's approvals and branch protection in force. Put the explicit yes option first and a no option second.
 
 - **The yes option** → start `/superdev:ship <scope>` per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The chain start`; the yes is the merge consent.
 - **Any other answer, a dismissal, or a question the platform cannot ask** → print the next command below and start nothing.
 
-**No ship question.** Applies where §4 found named checks, where no pull request number was recorded, and to an unattended run. Ask nothing, start nothing, and print the next command below.
+**No ship question.** Applies where §4 found named checks or the configuration error, where no pull request number was recorded, and to an unattended run. Ask nothing, start nothing, and print the next command below.
 
 **The next command.** Applies to every run that reaches the stage write. Print `/superdev:ship <scope>` as the next command, with one line on what it does: it merges the pull request once an operator has reviewed it and applies the repository's deploy posture to the merge. It then starts `/superdev:verify-ship <scope>`, or `/superdev:wrap-up <scope>` when nothing is left to verify.
 
 - **§4 found named checks** → add one line: run it once the named checks are green on the pull request's head. Ship refuses while one is pending, and nothing waits for them.
+- **§4 found the configuration error** → put fixing the `## CI` section through `/superdev:setup` on a `First:` line: ship refuses until the section holds names or `none` alone.
 - **No pull request number was recorded** (the `push-only` posture, or an open degraded to the compare URL) → add one line: ship has no pull request to read until one is opened and its number recorded.

@@ -430,7 +430,9 @@ This root owns every other subtree directly:
   `docs/agents/verification.md`'s `## CI` section names checks, and its own local run of the full or whole-repo command
   otherwise. Nothing waits on CI: a check not yet green makes ship refuse, and the operator runs it again (ADR 0255).
   Implement, run handoff, review, and submit-pr run no full suite. A scope review reads a red local suite record or a failed
-  named check as a Critical finding at entry (INV-0193). INV-0128 and INV-0191 state this rule, and the `implement-no-full-run`,
+  named check as a Critical finding at entry (INV-0193): a red record only where no later passing `path` or focused run
+  on a clean tree on the tip's ancestry closed it, and a failed check only on a pull-request head that equals the tip.
+  On the local path ship runs the suite once, on the merged tip where base will move and on the tip otherwise. INV-0128 and INV-0191 state this rule, and the `implement-no-full-run`,
   `scope-review-no-full-run`, and `no-ci-wait` drift checks hold it.
   Whoever invokes a chain command passes `--unattended` to run it unattended (ADR 0016, ADR 0108);
   superdev ships no driver. One unattended implement runs through submit-pr: each start carries
