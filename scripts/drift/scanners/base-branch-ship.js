@@ -168,12 +168,13 @@ function scanShipNoOpensPr(root) {
   return gaps;
 }
 
-// scanPastPrSkills(): the skills an offer starts past the open pull request (ADR 0157). Three facts and
-// forbidden forms, no wording (ADR 0153): each of OFFER_TARGETS carries no `disable-model-invocation: true` in
-// its frontmatter, since the Skill tool cannot start such a skill (INV-0066); verify-ship and wrap-up name no
+// scanPastPrSkills(): the skills a chain start reaches (ADR 0253), plus publish-kb. Three facts and
+// forbidden forms, no wording (ADR 0153): each of MODEL_INVOCABLE_SKILLS carries no `disable-model-invocation: true`
+// in its frontmatter, since the Skill tool cannot start such a skill (INV-0066); verify-ship and wrap-up name no
 // `--unattended` token, since every unattended run ends at submit-pr (INV-0093) — ship names it only to
 // refuse it; and the removed `--from-ship` path stays out of ship, verify-ship, and response-shapes.md.
-const OFFER_TARGETS = ['ship', 'verify-ship', 'wrap-up', 'publish-kb'];
+// MODEL_INVOCABLE_SKILLS: the chain-start targets plus publish-kb, which INV-0066 also keeps model-invocable.
+const MODEL_INVOCABLE_SKILLS = ['review', 'document', 'submit-pr', 'ship', 'verify-ship', 'wrap-up', 'publish-kb'];
 const NO_UNATTENDED_SKILLS = ['verify-ship', 'wrap-up'];
 const NO_FROM_SHIP_DOCS = [
   path.join('skills', 'ship', 'SKILL.md'),
@@ -195,14 +196,14 @@ function scanPastPrSkills(root) {
     missing.add(source);
     return false;
   };
-  for (const name of OFFER_TARGETS) {
+  for (const name of MODEL_INVOCABLE_SKILLS) {
     const source = path.join('skills', name, 'SKILL.md');
     if (!present(source)) continue;
     const fm = read(source).match(/^---\n([\s\S]*?)\n---(?:\n|$)/);
     if (fm !== null && /^disable-model-invocation:\s*true\s*$/m.test(fm[1])) {
       gaps.push({
         source,
-        expectation: 'carry no `disable-model-invocation: true`, because an offer starts it through the Skill tool (INV-0066, ADR 0157)',
+        expectation: 'carry no `disable-model-invocation: true`, because it stays model-invocable (INV-0066, ADR 0253)',
       });
     }
   }
@@ -216,6 +217,28 @@ function scanPastPrSkills(root) {
     if (present(source) && /--from-ship/.test(read(source))) {
       gaps.push({ source, expectation: 'name no `--from-ship` path: a started verify-ship runs exactly as a typed one (ADR 0157)' });
     }
+  }
+  return gaps;
+}
+
+// scanNoOfferStart(): no shipped file names the desktop app's session tool or the removed offer's marker
+// line (ADR 0253). A forbidden form (ADR 0153): it matches those two forms only, never the bare word "offer",
+// so plan's intent and triage offers stay free. It walks every file of the shipped tree, AGENTS.md included.
+const OFFER_START_FORMS = [/start_session/, /A superdev offer started this session\./];
+function scanNoOfferStart(root) {
+  const tree = path.join(root, 'plugin');
+  const gaps = [];
+  if (!fs.existsSync(tree)) return gaps; // no shipped tree → nothing to scan
+  const files = fs
+    .readdirSync(tree, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => path.relative(tree, path.join(entry.parentPath ?? entry.path, entry.name)).split(path.sep).join('/'))
+    .sort();
+  for (const rel of files) {
+    const lines = fs.readFileSync(path.join(tree, rel), 'utf8').split('\n');
+    lines.forEach((line, i) => {
+      if (OFFER_START_FORMS.some((form) => form.test(line))) gaps.push({ source: rel, line: i + 1 });
+    });
   }
   return gaps;
 }
@@ -259,4 +282,4 @@ function scanDeriveNoDod(root) {
   return gaps;
 }
 
-module.exports = { scanNoBaseBranchCommit, scanShipNoOpensPr, scanPastPrSkills, scanDeriveNoDod };
+module.exports = { scanNoBaseBranchCommit, scanShipNoOpensPr, scanPastPrSkills, scanNoOfferStart, scanDeriveNoDod };

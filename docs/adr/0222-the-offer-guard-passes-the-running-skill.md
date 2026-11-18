@@ -1,6 +1,8 @@
 # 0222: The offer guard passes the running skill
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0253](0253-the-chain-starts-its-successor-and-the-offer-is-removed.md), which removes the offer and its Stop hook.
 
 **Amends:** [ADR 0213](0213-a-stop-hook-holds-the-offer.md) and
 [ADR 0216](0216-the-offer-guard-reads-a-next-step-without-its-heading.md): the hook does not hold a turn whose

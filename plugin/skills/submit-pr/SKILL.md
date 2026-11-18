@@ -19,7 +19,7 @@ Applies to every start. You open a pull request for a run whose slices are on th
 
 ## The closing message
 
-Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The offer`.
+Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`.
 
 ## 1. Scope + run root
 
@@ -119,14 +119,14 @@ Continue to §5 on every reading.
 
 **The stage write.** Applies after the open. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set submitted --root <run-root>`. Then run the publish.
 
-**The offer.** Applies to an attended run. Make the offer for the next command below per `## The offer`.
+**The ship question.** Applies to an attended run, after the stage write and its publish, whose next command below is `/superdev:ship <scope>` and which recorded a pull request number. Ask one `AskUserQuestion`: ship it now? Its text names the pull request URL, says nobody has reviewed it, and says a yes merges it now through `/superdev:ship`, with the host's approvals and branch protection in force. Put the explicit yes option first and a no option second.
 
-- **`/superdev:ship <scope>`** → its start options carry that section's **An offer of ship** wording, and each also says the pull request is not reviewed yet. The operator who wants to review first answers once the review is done, or stops here.
-- **`/superdev:review <scope>`** → its start options carry no **An offer of ship** wording.
+- **The yes option** → start `/superdev:ship <scope>` per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The chain start`; the yes is the merge consent.
+- **Any other answer, a dismissal, or a question the platform cannot ask** → print the next command below and start nothing.
 
-**The unattended end.** Applies to an unattended run. Make no offer. The next command below still prints.
+**No ship question.** Applies where the ship check reads `ship would refuse`, where no pull request number was recorded, and to an unattended run. Ask nothing, start nothing, and print the next command below.
 
 **The next command.** Applies to every run that reaches the stage write.
 
 - **The ship check reads `ship would refuse`** → print `/superdev:review <scope>` as the next command, with one line on what it does: it records the suite at the tip and then prints `/superdev:ship <scope>`.
-- **Every other outcome** → print `/superdev:ship <scope>` as the next command, with one line on what it does: it merges the pull request once an operator has reviewed it and applies the repository's deploy posture to the merge. It then offers to start `/superdev:verify-ship <scope>`, or `/superdev:wrap-up <scope>` when nothing is left to verify, and prints that command when the operator does not take the offer.
+- **Every other outcome** → print `/superdev:ship <scope>` as the next command, with one line on what it does: it merges the pull request once an operator has reviewed it and applies the repository's deploy posture to the merge. It then starts `/superdev:verify-ship <scope>`, or `/superdev:wrap-up <scope>` when nothing is left to verify.

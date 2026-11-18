@@ -6,6 +6,8 @@
 [ADR 0157](0157-every-chain-command-offers-to-start-its-successor.md) decision 6: verify-ship starts wrap-up at
 its settled exit instead of offering it.
 
+**Amended by:** [ADR 0253](0253-the-chain-starts-its-successor-and-the-offer-is-removed.md), under which wrap-up ends the chain on its Next block and makes no offer.
+
 ## Context
 
 When `/superdev:verify-ship` settles every open Definition-of-Done line, the operator still runs

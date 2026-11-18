@@ -1,6 +1,8 @@
 # 0183: The offer proposes the new session as a card
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0253](0253-the-chain-starts-its-successor-and-the-offer-is-removed.md), which removes the offer and its Stop hook.
 
 **Amends:** [ADR 0176](0176-the-offer-recommends-a-new-session.md) point 1, whose new-session answer
 starts the session.

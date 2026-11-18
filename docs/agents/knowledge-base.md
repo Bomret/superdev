@@ -42,7 +42,7 @@ This outline is a living skeleton. `/superdev:document` extends it.
   how to configure it. Parent: `Home`, section `Topics`:
   - `Planning a feature`: the plan interview, its criteria, design sketch and visuals, intent and triage
     records, the invariant register, and repairs.
-  - `The command chain`: the commands, the order they run in, the offer of the next one, response
+  - `The command chain`: the commands, the order they run in, the chain start of the next one, response
     shapes, the operator configuration, and Windows.
   - `Scope runs`: the scope branch and its worktrees, the run lock, the run root, run state, the guards,
     and the run trace.

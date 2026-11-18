@@ -1,6 +1,8 @@
 # 0176: The offer recommends a new session
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0253](0253-the-chain-starts-its-successor-and-the-offer-is-removed.md), which removes the offer and its Stop hook.
 
 **Amends:** [ADR 0157](0157-every-chain-command-offers-to-start-its-successor.md) point 2, and its
 considered option *Start the successor in a fresh session*.

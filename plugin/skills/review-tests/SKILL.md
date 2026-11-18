@@ -21,7 +21,7 @@ Applies to every start. You run a **test audit** (CONTEXT.md) on operator invoca
 
 ## The closing message
 
-Applies to every message an unchained run ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The offer`. A run under `--chained` prints no Next block.
+Applies to every message an unchained run ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`. A run under `--chained` prints no Next block.
 
 ## Read-only
 

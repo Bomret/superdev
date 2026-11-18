@@ -1,6 +1,6 @@
 ---
 name: wrap-up
-description: Start only when the operator typed it, asked for it, or agreed to an offer, or verify-ship's settled exit started it: wrap up a shipped superdev scope — check the pull request is merged, every Definition-of-Done line is settled, and every deploy target is deployed, then close the scope anchor and its slice records and take the run down. Run it after `/superdev:ship` and, where criteria stayed open, `/superdev:verify-ship`.
+description: Start only when the operator typed it, asked for it, or ship's wrap-up route or verify-ship's settled exit started it: wrap up a shipped superdev scope — check the pull request is merged, every Definition-of-Done line is settled, and every deploy target is deployed, then close the scope anchor and its slice records and take the run down. Run it after `/superdev:ship` and, where criteria stayed open, `/superdev:verify-ship`.
 argument-hint: "[<scope>  (empty = the only shipped run in this repo)]"
 ---
 
@@ -20,7 +20,7 @@ Applies to every start. Start this command only on one of the starts below. The 
 
 - The operator typed the command.
 - The operator asked for it.
-- The operator agreed to an offer.
+- `/superdev:ship`'s wrap-up route started it.
 - Another session's brief asked for it.
 - `/superdev:verify-ship`'s settled exit started it.
 
@@ -30,9 +30,9 @@ Applies to every start. Ask no extra question.
 
 ## The closing message
 
-Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The offer`.
+Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`.
 
-**The chained staged pages.** Applies to a start `/superdev:verify-ship`'s settled exit made, on every message it ends on before §7, a refusal and a stop included. Verify-ship named no staged pages, so name them here per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close`. A count above zero puts `/superdev:publish-kb <scope>` on an `Or:` line of the Next block. §7's finish names them on its own exit.
+**The chained staged pages.** Applies to a start `/superdev:ship`'s wrap-up route or `/superdev:verify-ship`'s settled exit made, on every message it ends on before §7, a refusal and a stop included. The starter named no staged pages on its Next block, so name them here per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close`. A count above zero puts `/superdev:publish-kb <scope>` on an `Or:` line of the Next block. §7's finish names them on its own exit.
 
 ## 1. Scope + run root
 
