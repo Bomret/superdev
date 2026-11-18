@@ -1,3 +1,10 @@
+## [0.107.5](https://github.com/Bomret/superdev/compare/v0.107.4...v0.107.5) (2026-11-18)
+
+
+### Performance Improvements
+
+* **run:** draft-ready ship, one state read, leaner test runs, test-only doc skip ([fbe4b97](https://github.com/Bomret/superdev/commit/fbe4b97428843305ac5d1bf57475c40ac940936a))
+
 ## [0.107.4](https://github.com/Bomret/superdev/compare/v0.107.3...v0.107.4) (2026-11-17)
 
 
