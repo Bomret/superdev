@@ -12,7 +12,7 @@ const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { run, scopePath, verif } = require('./scope-setup');
-const { verificationCommandsOf } = require('../plugin/lib/verification.js');
+const { verificationCommandsOf, namedChecksOf } = require('../plugin/lib/verification.js');
 
 const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-ci-')));
 const g = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
@@ -176,6 +176,12 @@ try {
     assert.equal(res.status, 4, res.stderr);
     assert.ok(before.equals(fs.readFileSync(ledger)));
     assert.ok(!fs.existsSync(path.join(root, 'trace.log')));
+  }
+
+  // This repository's own `## CI` section reads as no named checks, never as the malformed both-`none`-and-a-name.
+  {
+    const own = fs.readFileSync(path.join(__dirname, '..', 'docs', 'agents', 'verification.md'), 'utf8');
+    assert.deepEqual(namedChecksOf(own), { state: 'none' });
   }
 
   console.log('scope-ci: ok');

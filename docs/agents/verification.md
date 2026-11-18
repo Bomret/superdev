@@ -80,5 +80,6 @@ their own cost, time each one alone (`## One-suite run`).
 
 `none`
 
-`.github/workflows/template-tests.yml` runs one suite, `tests/publish-kb-templates.test.js`, on three platforms. It is
-no full-suite run, so `/superdev:ship` runs the full suite locally (ADR 0255).
+The template-tests workflow under .github/workflows runs one suite, tests/publish-kb-templates.test.js, on three
+platforms. It is no full-suite run, so /superdev:ship runs the full suite locally (ADR 0255). This explanation carries
+no backtick span, because every span in this section reads as a check name.
