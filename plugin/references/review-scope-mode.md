@@ -310,12 +310,12 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 
 **The doc-pass record.** Applies when a fix cycle landed commits. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs clear --root <run-root>`.
 
-**The `docs` untick.** Applies to every `docs` line noted `met:` when a fix cycle landed commits. Untick it with the note `not met: a fix cycle landed after the doc pass` (`dod-ticks.md`). The untick runs after the `unresolved clear` above. The stage read before the stage write decides the untick's writes.
+**The `docs` untick.** Applies to every `docs` line noted `met:` when a fix cycle landed commits. Untick it with the note `not met: a fix cycle landed after the doc pass` (`dod-ticks.md`). The untick runs after the `unresolved clear` above. The stage read before the stage write decides the untick's writes. The untick makes no suite-record write at any stage.
 
 - Untick `<run-root>/dod.md` and the anchor's checklist through the store's `## Definition of Done ticks` section.
 - **A stage before `documented`** (`documented-unreviewed` included) → no `**Unresolved:**` entry and no stage hold.
-- **`documented` or `submitted`** → write one `**Unresolved:**` entry per unticked `docs` line, worded exactly `docs criterion unmet after the doc pass: <criterion>`, through a quoted heredoc piped to `scope.js unresolved add - --root <run-root>`. At `submitted`, also invalidate the tip's suite record with `scope.js suite set none <sha> --root <run-root>`, `<sha>` being the scope branch's current tip.
-- **`shipped` or `closed`** → write no `**Unresolved:**` entry, invalidate no suite record, and change no route. Name each unticked `docs` line in your report instead. The `/superdev:document` this block prints at that stage judges no `docs` line.
+- **`documented` or `submitted`** → write one `**Unresolved:**` entry per unticked `docs` line, worded exactly `docs criterion unmet after the doc pass: <criterion>`, through a quoted heredoc piped to `scope.js unresolved add - --root <run-root>`.
+- **`shipped` or `closed`** → write no `**Unresolved:**` entry and change no route. Name each unticked `docs` line in your report instead. The `/superdev:document` this block prints at that stage judges no `docs` line.
 
 **The integration bar.** Applies to this review's own steps only, and ends with the review, at the document start included. This review merges nothing, pushes nothing, and opens no pull request: `/superdev:submit-pr` and `/superdev:ship`, the chain's last steps, own those. The run-state ref send `scope.js` makes at a step end is no push of the scope branch, and this bar allows it (`run-handoff.md`). A brief this review writes for the next command carries no part of this bar.
 
