@@ -339,12 +339,13 @@ Each caller judges its own range and builds the set from it:
   through the focused command, after it writes the new test and before it writes the code that passes it. That run shows the new test failing and the
   file's earlier tests passing, and no separate GREEN run per increment and no separate control run follows. Once the last increment is committed, one `scope.js test focused <paths>` runs over the
   whole changed-path set as the last GREEN and the final check: the slice base against the working tree, or `<cycle-base>..HEAD` on a fix cycle.
-  A review fix cycle whose list holds a red-evidence finding that names no failed test file (a failed named check, or a
-  red suite record whose `failed` field prints no file) widens that set to every path
-  `git diff --name-only <range-base>..HEAD` prints, `<range-base>` being the scope's range base the implementer resolves
-  from the dispatch's range-base input. A red record that names failed test files keeps a `path` run of each of them. It runs
+  Where the focused fence differs from the full fence, a review fix cycle whose list holds a red-evidence finding that names
+  no failed test file (a failed named check, or a red suite record whose `failed` field prints no file) widens that set to
+  every path `git diff --name-only <range-base>..HEAD` prints, `<range-base>` being the scope's range base the implementer
+  resolves from the dispatch's range-base input. The final run runs
   before the fail-to-pass run, and the trace settlement of ADR 0251 counts it as the passing run over each test file it names.
-  Where the focused fence repeats the full fence, the final run is one `test path` run of every test file the range changed, from the tree root with the verb's exact command, which the verb reuses as its first run. A failing
+  A red record that names failed test files keeps a `path` run of each of them.
+  Where the focused fence repeats the full fence, the final run is one `test path` run of every test file the range changed, from the tree root with the verb's exact command, which the verb reuses as its first run. There no red-evidence finding widens it: that run, passing at the cycle's tip on a clean tree, closes a finding that names no failed test file, per `review-scope-mode.md`'s `### 4.2 Red evidence`, and ship checks the evidence again. A failing
   final run is a RED step: fix, commit, and run it again. A step that works on no test file runs
   that focused command over the whole set. A focused command with no `{paths}` token runs verbatim, and the run
   trace records every run either way. Every loop run passes at least one path, or runs test files

@@ -49,8 +49,11 @@ check status.
    red evidence that later passing runs on a clean tree, at a commit on the tip's ancestry, already cover raises no
    finding. A red record's failed test files are covered by a passing `path` run of each, or by a passing focused run
    whose path set includes each. A red record with no failed test file, and a failed check, which names none, are
-   covered only by a passing focused run over the scope's whole range. A fix cycle whose list holds such a finding
-   makes that run: its final focused run covers every path changed since the scope's range base. A head that is no ancestor of the tip has its
+   covered by a passing focused run over the scope's whole range. A fix cycle whose list holds such a finding
+   makes that run: its final focused run covers every path changed since the scope's range base. Where the focused
+   fence repeats the full fence, that run would be a full run, which a fix cycle never makes. There such a finding
+   closes on the fix cycle's own passing `path` run of every test file the cycle changed, at the cycle's tip on a clean
+   tree, and the report says ship checks the evidence again, through the named checks or its local suite gate. A head that is no ancestor of the tip has its
    verdict reported for that head and raises nothing.
 
 ## Considered options
