@@ -62,7 +62,6 @@ Applies to every start. Read `docs/agents/documentation.md` (the in-repo documen
 - the range: the git range, the area, or "full"; for a range, a reminder to start from `git diff --stat` and `git log` over it
 - the two config file paths
 - the staging path
-- for a range, that the pass reconciles the comments and docstrings of the non-Markdown files the range changes, rewriting comment text only, never a code token, and names a stale comment outside the range in its report, unedited
 - on a live run, every open `docs` line, verbatim, as targets the pass must make true
 - on a live run, the scope checkout as its working directory
 - where the KB config carries `- **Hierarchy:** links`, that it stages each page's parent link as `references/doc-pass.md`'s knowledge-base pass states

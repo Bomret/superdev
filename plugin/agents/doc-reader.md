@@ -62,7 +62,7 @@ Read the file the value names and apply every rule it states.
 - A dispatch with no commit range, which only an ad-hoc pass that committed nothing hands, has no added lines to judge. Say so in the report, and the pass is over.
 - Judge only the lines the range added: run `git diff <range>`. A range whose first commit is the root commit has no parent: diff from the empty tree (`git hash-object -t tree /dev/null`).
 - Prose nobody touched is out of scope, whatever it breaks.
-- In a non-Markdown file, judge only the comment text the range added. The code is out of scope for this pass.
+- In a non-Markdown file, judge only the comment text the writer rewrote. The code is out of scope for this pass.
 - Report a breach of a rule the standard states as a requirement as `style:`. Report advice the standard gives as `ambiguous:`, only where it leaves the text ambiguous.
 - The standard states its own exemptions (`${CLAUDE_PLUGIN_ROOT}/references/controlled-prose.md`, `## Scope`).
 

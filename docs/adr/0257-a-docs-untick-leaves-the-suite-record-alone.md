@@ -10,7 +10,7 @@ tip's suite record at the `submitted` stage is withdrawn.
 Under ADR 0161, a review fix cycle that lands commits at the `submitted` stage unticks every `docs` criterion,
 writes an `**Unresolved:**` entry per line, and sets the tip's suite record to `none`. The untick fires only after
 a fix cycle landed commits, so the tip is a new commit. Since ADR 0255 the scope review runs no full suite, so no
-green record can exist at that tip. The invalidation writes `none` over nothing.
+record was written at that tip. The invalidation writes `none` over nothing.
 
 ## Decision
 
