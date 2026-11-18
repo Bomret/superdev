@@ -139,12 +139,12 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - **Any other record** → the exit run runs the full command.
 - **The exit run follows this choice**, not a re-read of the record at the exit.
 
-**The entry reuse check.** Applies once per invocation, in the scope checkout, after §4.1 and the suite record, before the first `final-reviewer` dispatch. Run no test. Run the exit run's step 1 below alone at the scope branch's tip, `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base> --root <run-root>`, and hand the first `final-reviewer` dispatch its outcome. §2's dispatches and the `simplicity-reviewer` dispatch go out at once.
+**The entry reuse check.** Applies once per invocation, in the scope checkout, after §4.1 and the suite record, before the first `final-reviewer` dispatch. Run no test. Read `docs/agents/verification.md` first, and take the first bullet below that holds. Where no earlier bullet holds, run the exit run's step 1 below alone at the scope branch's tip, `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base> --root <run-root>`. Hand the first `final-reviewer` dispatch the outcome. §2's dispatches and the `simplicity-reviewer` dispatch go out at once.
 
+- **No test command configured** → hand `not run: no test command`, and continue. This never blocks the review.
+- **The suite record's whole-repo choice above** → skip the check, and hand `not run: the whole-repo command runs at the exit, once the tip is settled`.
 - **Exit 0** → hand the reused outcome. The exit run judges its own tip afresh at the exit, and its step 1 reuses the same record at a tip no commit has moved.
 - **Exit 1, or no record** → hand `not run: the full suite runs at the exit, once the tip is settled`. Exit 1 is no `fail`: record nothing, and add nothing to the fix list.
-- **The suite record's whole-repo choice above** → skip the check, and hand `not run: the whole-repo command runs at the exit, once the tip is settled`.
-- **No test command configured** → hand `not run: no test command`, and continue. This never blocks the review.
 - **The carry waits for the exit run.** Take no carry here: its focused run is a test run at a tip a fix cycle can still move.
 - The first fix cycle starts as soon as the ask-once of §4.6 is answered, or at once under `--unattended`. No test run holds it.
 - State the outcome in your own output: reused, or not run with its reason.
