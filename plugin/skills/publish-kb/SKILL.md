@@ -33,7 +33,7 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/publish-kb.js" [--scope <slug>]
 
 **More than one pending scope.** Applies when no `--scope` was given and the script exits nonzero listing every pending scope with its page count on stderr. Relay that list and ask which one to publish, without guessing. Once the operator answers, re-invoke the script with `--scope <the chosen slug>`.
 
-**An unmerged scope.** Applies when the scope branch is not contained in base, or a surviving run root names no branch that resolves, and the refusal ends with `— nothing published (pass --allow-unmerged to publish anyway)`. A scope whose branch and run root are both reaped publishes silently instead. Ask once, naming exactly what the script found.
+**An unmerged scope.** Applies when the scope branch is not contained in base, a surviving run root names no branch that resolves, or git could not list the branches, and the refusal ends with `— nothing published (pass --allow-unmerged to publish anyway)`. A scope whose branch and run root are both reaped publishes silently instead. Ask once, naming exactly what the script found.
 
 - **Declined** → publish nothing, delete nothing, and report that.
 - **Confirmed** → re-invoke the same command with `--allow-unmerged` added.

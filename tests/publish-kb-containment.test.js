@@ -342,4 +342,151 @@ withState((stateFile) => {
   fs.rmSync(remoteDir, { recursive: true, force: true });
 });
 
+// --- a branch listing git could not produce never reads as an absent branch (INV-0194) ------------
+// A `git` shim first on PATH fails only `for-each-ref`, the way tests/scope-prune-main.test.js's does,
+// so the shipped code runs unchanged. `body` is the shell text the shim runs for `for-each-ref`.
+const { execFileSync } = require('node:child_process');
+const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
+const SUFFIX = '— nothing published (pass --allow-unmerged to publish anyway)';
+
+function gitShim(body) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-git-shim-'));
+  fs.writeFileSync(
+    path.join(dir, 'git'),
+    `#!/bin/sh\nif [ "$1" = "for-each-ref" ]; then ${body}; fi\nexec "${realGit}" "$@"\n`,
+    { mode: 0o755 },
+  );
+  return dir;
+}
+
+// Runs publish-kb with `pathValue` as PATH, restoring the ambient PATH afterwards.
+function callWithPath(pathValue, argv, repo) {
+  const original = process.env.PATH;
+  process.env.PATH = pathValue;
+  try {
+    return call(argv, repo);
+  } finally {
+    process.env.PATH = original;
+  }
+}
+
+// A scope with an unmerged `feat/<scope>` branch, its page staged by hand, and no ledger, so the
+// branch listing is the only route that could find the branch.
+function unmergedScope(repo, scope, title) {
+  git(['checkout', '-q', '-b', `feat/${scope}`], repo);
+  fs.writeFileSync(path.join(repo, `${scope}-only.txt`), 'x\n');
+  git(['add', `${scope}-only.txt`], repo);
+  git(['commit', '-q', '-m', `${scope}-only work`], repo);
+  git(['checkout', '-q', 'main'], repo);
+  const dir = path.join(repo, '.superdev', 'kb-pending', scope);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'p.md'), `---\ntitle: ${title}\naction: upsert\n---\nbody.\n`);
+  return path.join(dir, 'p.md');
+}
+
+function assertListingRefusal(res, how, page) {
+  assert.equal(res.ok, false, `a failed branch listing refuses (${how})`);
+  assert.match(res.err, /git for-each-ref/, 'the refusal names the failed branch listing');
+  assert.doesNotMatch(res.err, /no branch resolved/, 'a failed listing never reads as no branch');
+  assert.ok(res.err.endsWith(SUFFIX), `the refusal ends with the standard suffix, got: ${res.err}`);
+  assert.ok(fs.existsSync(page), 'nothing is published, and the staged page is not deleted');
+}
+
+// A non-zero exit, with the run root gone and with it surviving.
+for (const survives of [false, true]) {
+  withState((stateFile) => {
+    const repo = makeRepo();
+    writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+    const page = unmergedScope(repo, 'gitfail', 'Git Fail Page');
+    if (survives) fs.mkdirSync(path.join(repo, '.superdev', 'scopes', 'gitfail'), { recursive: true });
+    const shim = gitShim('exit 128');
+    const res = callWithPath(`${shim}${path.delimiter}${process.env.PATH}`, ['--scope', 'gitfail'], repo);
+    assertListingRefusal(res, `exit, run root ${survives ? 'surviving' : 'gone'}`, page);
+    assert.match(res.err, /status 128/, 'the refusal names the exit status');
+    assert.ok(!fs.existsSync(stateFile) || !Object.hasOwn(JSON.parse(fs.readFileSync(stateFile, 'utf8')), 'Git Fail Page'));
+    fs.rmSync(shim, { recursive: true, force: true });
+  });
+}
+
+// A git killed by a signal while it lists the branches.
+withState(() => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  const page = unmergedScope(repo, 'gitkilled', 'Git Killed Page');
+  const shim = gitShim('kill -KILL $$');
+  const res = callWithPath(`${shim}${path.delimiter}${process.env.PATH}`, ['--scope', 'gitkilled'], repo);
+  assertListingRefusal(res, 'signal', page);
+  assert.match(res.err, /SIGKILL/, 'the refusal names the signal');
+  fs.rmSync(shim, { recursive: true, force: true });
+});
+
+// A git that cannot start. PATH holds the shim alone, and the shim deletes itself on the call that
+// reads `core.worktree`, the last git call before the listing, so the listing finds no git to start.
+withState(() => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  const page = unmergedScope(repo, 'gitgone', 'Git Gone Page');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-git-shim-'));
+  fs.writeFileSync(
+    path.join(dir, 'git'),
+    `#!/bin/sh\ncase "$*" in *core.worktree*) /bin/rm -f "$0" ;; esac\nexec "${realGit}" "$@"\n`,
+    { mode: 0o755 },
+  );
+  const res = callWithPath(dir, ['--scope', 'gitgone'], repo);
+  assertListingRefusal(res, 'spawn error', page);
+  assert.match(res.err, /could not start/, 'the refusal says git could not start');
+  assert.match(res.err, /ENOENT/, 'the refusal names the spawn error');
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+// --allow-unmerged publishes through a failed listing, and the report marks the scope unmerged.
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  unmergedScope(repo, 'gitoverride', 'Git Override Page');
+  const shim = gitShim('exit 128');
+  const res = callWithPath(`${shim}${path.delimiter}${process.env.PATH}`, ['--scope', 'gitoverride', '--allow-unmerged'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  assert.match(res.out, /unmerged/i, 'the report records that the scope was unmerged');
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.ok(Object.hasOwn(state, 'Git Override Page'));
+  fs.rmSync(shim, { recursive: true, force: true });
+});
+
+// A ledger Branch line that resolves is judged on that branch: the failing listing never runs.
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  stagePage(repo, 'gitledger', 'p.md', 'title: Git Ledger Page\naction: upsert'); // cuts a contained feat/gitledger
+  const root = path.join(repo, '.superdev', 'scopes', 'gitledger');
+  fs.mkdirSync(root, { recursive: true });
+  fs.writeFileSync(path.join(root, 'ledger.md'), '# Ledger\n\n**Branch:** feat/gitledger\n');
+  const shim = gitShim('exit 128');
+  const res = callWithPath(`${shim}${path.delimiter}${process.env.PATH}`, ['--scope', 'gitledger'], repo);
+  assert.ok(res.ok, `expected success via the ledger route, got: ${res.err}`);
+  assert.doesNotMatch(res.out, /unmerged/i, 'the ledger branch is contained, no override needed');
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.ok(Object.hasOwn(state, 'Git Ledger Page'));
+  fs.rmSync(shim, { recursive: true, force: true });
+});
+
+// A repository with no branches at all is a successful listing of none: no branch and no run root
+// publishes silently, as the reaped steady state does.
+withState((stateFile) => {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-nobranch-'));
+  git(['init', '-q', '-b', 'main'], repo);
+  fs.mkdirSync(path.join(repo, 'docs', 'agents'), { recursive: true });
+  fs.writeFileSync(path.join(repo, 'docs', 'agents', 'code-management.md'), '# Code host\n\n- **Base branch:** `main`.\n');
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  const dir = path.join(repo, '.superdev', 'kb-pending', 'nobranches');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'p.md'), '---\ntitle: No Branches Page\naction: upsert\n---\nbody.\n');
+  const res = call(['--scope', 'nobranches'], repo);
+  assert.ok(res.ok, `expected success on an empty listing, got: ${res.err}`);
+  assert.doesNotMatch(res.out, /unmerged/i);
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  assert.ok(Object.hasOwn(state, 'No Branches Page'));
+  fs.rmSync(repo, { recursive: true, force: true });
+});
+
 console.log('publish-kb-containment.test.js: all assertions passed');
