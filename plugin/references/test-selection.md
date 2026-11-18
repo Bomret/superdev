@@ -35,8 +35,8 @@ A repository with no suite at all carries no such file.
   command, a coverage command, or sample failure output.
 
 **Run the full, focused, or whole-repo command through `scope.js test`**. From the tree the
-work lives in, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full`, `test focused [<path>…]`, or
-`test whole`, and `test path <file>... -- <command>` for a direct run of the test files it names. The runner runs the configured command
+work lives in, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test full`, `test focused [<path>…]`, `test focused --since <ref>`, or
+`test whole`, and `test path <file>... -- <command>` or `test path --since <ref> -- <command>` for a direct run of the test files it names. The runner runs the configured command
 as configured, and `test path` runs its command as given from the current directory, and records one run line with the command's own exit status, however the caller pipes,
 redirects, backgrounds, or wraps the call. A test command is recorded as typed and pushed with the run state, so a secret belongs in the environment, never on the command line. To trim the output, pipe the runner into `tail`, or redirect it to a
 file outside the working tree, such as one from `mktemp` under `$TMPDIR`, and read the file afterwards.
@@ -175,7 +175,9 @@ name the repository's test files. `hooks/run-trace.js` reads it to class each re
 Where the focused command contains the token `{paths}`, substitute the shell-quoted changed-path set
 for it. The caller passes the paths to the runner as arguments (`scope.js test focused <changed paths>`),
 and the runner substitutes them; a `test focused` with no paths runs the full command and records `full`, and an empty path argument is refused. Pass each path as its own argument: an argument that holds whitespace and names no
-file is a joined path list, and is refused.
+file is a joined path list, and is refused. `scope.js test focused --since <ref>` takes the set from git instead:
+every path changed since `<ref>`, committed and uncommitted, plus untracked files git does not ignore, relative to the
+tree root. It is a path-given run and records the paths it resolved, and an empty set is refused, never run as the full command.
 **A `{paths}` form belongs to a runner that maps a source file to the tests covering it** — for
 example `vitest related` or `jest --findRelatedTests`. The changed-path set holds source files and prose
 alongside tests, and a runner without that mapping collects nothing from them. Such a form also carries
@@ -261,9 +263,9 @@ this section and runs the steps in order, after its own `scope.js suite reusable
 2. **Run the focused command over A..<tip>.** After a red record at A, first run the files the `failed` field of that `scope.js state` read prints
    through `scope.js test path <file>... -- <command running only those files>` at the tip on a clean tree,
    from the tree root: a fix cycle repaired them since A. A failing run of them is the gate's red result, as step 3
-   states for the focused run. Then, from the tree the gate works in, over every path
-   `git diff --name-only --no-renames A <tip>` lists, through `scope.js test focused <paths>`. The
-   changed-path set of this caller is that list, whole. A path set too large for the command to start
+   states for the focused run. Then, from the tree the gate works in, at the tip on a clean tree, run
+   `scope.js test focused --since A`, which runs over every path changed since A. The
+   changed-path set of this caller is that set, whole. A path set too large for the command to start
    leaves no passing run: skip to step 4.
 3. **Judge the focused run.** It **fails** → that is the gate's red result: record it with
    `scope.js suite set red <tip> --root <run-root>` (with `--whole` where the gate runs the whole-repo
@@ -301,8 +303,8 @@ gate that records a failed full run cites this section and runs the steps in ord
    refuses a tip that already carries a rerun record: a second failure at the tip stays red.
 4. **Run the file alone.** `scope.js test path <file> -- <command running only that file>` at the tip on a clean tree,
    from the tree root, through the runner so the trace records it. A failing or dirty rerun stays red.
-5. **Run the focused command over the scope's range.** `scope.js test focused <paths>` over every path
-   `git diff --name-only --no-renames <range-base> <tip>` lists, at the tip on a clean tree. The range base
+5. **Run the focused command over the scope's range.** `scope.js test focused --since <range-base>`, which runs over every
+   path changed since the range base, at the tip on a clean tree. The range base
    is what `scope.js base resolve --branch <branch> --base <base> --root <run-root>` prints, `<base>` being
    the base branch `docs/agents/code-management.md` names.
 6. **Check reuse.** `scope.js suite reusable --branch <branch> --base <base> --root <run-root>` exits 0 →
@@ -337,22 +339,23 @@ Each caller judges its own range and builds the set from it:
 - **The implementer's TDD loop, and the lite tier's inline loop.** Each increment runs its one test file
   once through `scope.js test path <file> -- <command>`, a runner filter allowed, and never
   through the focused command, after it writes the new test and before it writes the code that passes it. That run shows the new test failing and the
-  file's earlier tests passing, and no separate GREEN run per increment and no separate control run follows. Once the last increment is committed, one `scope.js test focused <paths>` runs over the
-  whole changed-path set as the last GREEN and the final check: the slice base against the working tree, or `<cycle-base>..HEAD` on a fix cycle.
+  file's earlier tests passing, and no separate GREEN run per increment and no separate control run follows. Once the last increment is committed, one `scope.js test focused --since <ref>` runs over the
+  whole changed-path set as the last GREEN and the final check, `<ref>` being the slice base, or `<cycle-base>` on a fix cycle.
+  The loop names the ref and never builds the path list in the shell.
   Where the focused fence differs from the full fence, a review fix cycle whose list holds a red-evidence finding that names
-  no failed test file (a failed named check, or a red suite record whose `failed` field prints no file) widens that set to
-  every path `git diff --name-only <range-base>..HEAD` prints, `<range-base>` being the scope's range base the implementer
+  no failed test file (a failed named check, or a red suite record whose `failed` field prints no file) widens that run to
+  `scope.js test focused --since <range-base>`, `<range-base>` being the scope's range base the implementer
   resolves from the dispatch's range-base input. The final run runs
   before the fail-to-pass run, and the trace settlement of ADR 0251 counts it as the passing run over each test file it names.
   A red-evidence finding that names failed test files needs a passing `path` run of each, at the cycle's tip, in either fence
-  configuration, because a fix that changes only source leaves those files out of the changed set. Where the fences differ, the
-  final focused run's path set includes each of them, or a `path` run of each is made.
-  Where the focused fence repeats the full fence, the final run is one `test path` run of every test file the range changed, plus each failed test file a red-evidence finding names, from the tree root with the verb's exact command, which the verb reuses as its first run. There a finding that names no failed test file widens it to no other file: that run, passing at the cycle's tip on a clean tree, closes the finding, or the clean tip does where the cycle changed no test file, per `review-scope-mode.md`'s `### 4.2 Red evidence`, and ship checks the evidence again. A failing
+  configuration, because a fix that changes only source leaves those files out of the changed set. Where the fences differ, a `path` run of each is made
+  unless the final focused run's recorded path set already holds it.
+  Where the focused fence repeats the full fence, the final run is one `scope.js test path --since <ref> -- <command>` run over every test file the range changed, plus each failed test file a red-evidence finding names as its own `test path` run, from the tree root with the verb's exact command, which the verb reuses as its first run. There a finding that names no failed test file widens it to no other file: that run, passing at the cycle's tip on a clean tree, closes the finding, or the clean tip does where the cycle changed no test file, per `review-scope-mode.md`'s `### 4.2 Red evidence`, and ship checks the evidence again. A failing
   final run is a RED step: fix, commit, and run it again. A step that works on no test file runs
   that focused command over the whole set. A focused command with no `{paths}` token runs verbatim, and the run
-  trace records every run either way. Every loop run passes at least one path, or runs test files
+  trace records every run either way. Every loop run names a ref or at least one path, or runs test files
   through `test path`, so the loop runs only the tests that verify the work. `test full`,
-  `test whole`, and a `test focused` with no path run only at ship's gates, and in an ad-hoc review where the operator asks for the full suite.
+  `test whole`, and a `test focused` with neither a path nor a ref run only at ship's gates, and in an ad-hoc review where the operator asks for the full suite.
   Where the focused fence repeats the full fence, `test focused` runs the whole suite whatever paths it gets. There
   each increment runs its test file through `test path`, and the loop makes no whole-set run: neither the
   committed-work run nor a step that works on no test file runs, because the full-suite evidence ship takes covers that work. The fail-to-pass run still runs.
@@ -380,6 +383,8 @@ One condition falls back to the full command instead of the focused one:
   runner flag carries no `{paths}` token either, but computes the change set itself and can collect
   nothing from an empty one — its own pass-with-no-tests flag is what keeps that case green, not this
   fallback.
+
+A run given a ref never falls back: `scope.js test focused --since <ref>` refuses an empty set and runs nothing.
 
 ## Stop on a missing focused command
 

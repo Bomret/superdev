@@ -137,14 +137,14 @@ Repeat until every slice is `merged`:
    all deletions and it adds behaviour outside the test paths, and to fix a `pass-to-pass` outcome in the same dispatch, unless its range is in one of the three unclosable cases
    of `fail-to-pass.md`'s `## Fail-to-pass run`, which it then reports with its reason. Every implementer dispatch also
    tells it to run only the tests that verify its work, each through `scope.js test` (`test path <file> -- <command>` once per increment, and one `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test
-   focused <changed paths>` with at least one path over the whole changed-path set once its work is committed), and its fail-to-pass run, and never `test full`,
-   `test whole`, or a `test focused` with no path: `/superdev:ship` takes the scope's full-suite evidence. It tells it to run every test run in the foreground with Bash's `timeout` at its ceiling, 600000 ms unless
+   focused --since <base>` over the whole changed-path set once its work is committed), and its fail-to-pass run, and never `test full`,
+   `test whole`, or a `test focused` with neither a path nor a ref: `/superdev:ship` takes the scope's full-suite evidence. It tells it to run every test run in the foreground with Bash's `timeout` at its ceiling, 600000 ms unless
    `BASH_MAX_TIMEOUT_MS` raises it, to run only a run that can outlast the ceiling through the runner in the background, and to wait for its end before acting on it, and
    tells it that a test command is recorded as typed and pushed with the run state, so a secret belongs in the environment, never on the command line, and
    tells it to edit files through the edit tools, never through a script. It also tells it that each increment runs its one test file once through `test path <file> -- <command>`, after it writes the new test and before it writes the code that passes it, with no separate GREEN run per increment and no separate control run, and that the one focused run over the whole
    changed-path set comes after its last commit and before the fail-to-pass run as its last GREEN and final check, a failing final run being a RED step. Where the focused fence repeats the full fence, it tells it instead that each increment runs its one test file
-   through `test path <file> -- <command>`, that its final run is one `test path` run of every test file its range changed from the tree root with the exact
-   command it then passes to the verb, which reuses that run as its first, that it makes no whole-set run, and that this final run and the fail-to-pass run are its runs before the report. Every implementer dispatch also tells it that a failing test its slice did not cause, one that
+   through `test path <file> -- <command>`, that its final run is one `test path --since <base> -- <command>` run of every test file its range changed from the tree root, the
+   command it recorded being the one it then passes to the verb, which reuses that run as its first, that it makes no whole-set run, and that this final run and the fail-to-pass run are its runs before the report. Every implementer dispatch also tells it that a failing test its slice did not cause, one that
    also fails at the slice's base commit, is named in its report, neither fixed nor blocked on, and left to
    the scope review's fix loop: a named inherited failure is no BLOCKED and no strike. A dispatch for a
    `docs` slice whose `spec` names `AGENTS.md`-hierarchy text as its deliverable tells the implementer it
