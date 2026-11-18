@@ -604,6 +604,22 @@ try {
     assert.strictEqual(res.stdout, '', 'no match prints nothing on stdout');
     assert.ok(res.stderr.includes('absent criterion'), 'no match names the criterion on stderr: ' + res.stderr);
   }
+
+  // The lines superdev-view's progress reads (ADR 0247, INV-0190): scope.js writes exactly the shared DoD lines, for
+  // every verdict, tagged and untagged, and the mod's suite counts the same text, so a change on either side fails one suite.
+  {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'mods', 'superdev-view', 'hooks', 'dod-fixtures.ts'), 'utf8');
+    const lines = JSON.parse(src.slice(src.indexOf('/* dod:start */') + 15, src.indexOf('/* dod:end */')));
+    const written = [];
+    for (const verdict of ['met', 'not-met', 'ceiling', 'accepted']) {
+      for (const line of ['- [ ] the widget renders — 01', '- [ ] the widget renders']) {
+        r = call(['dod-line', '--match', 'the widget renders', '--verdict', verdict, '--note', 'the note'], line);
+        assert.ok(r.ok, `dod-line ${verdict} should pass: ` + (r.err || ''));
+        written.push(r.out.trimEnd());
+      }
+    }
+    assert.deepEqual(written, lines, 'scope.js writes the DoD lines superdev-view counts');
+  }
 } finally {
   fs.rmSync(fileDir, { recursive: true, force: true });
   cleanup();

@@ -29,7 +29,7 @@ const TRACE = [
 const repo = (trace: string[] = TRACE, stage = 'merged') => ({
   files: {
     [`${A}/ledger.md`]: ledger(stage, [['01', 'merged'], ['02', 'merged', '01']]),
-    [`${A}/dod.md`]: '- [x] one\n- [ ] two\n',
+    [`${A}/dod.md`]: '- [x] one — met: ok\n- [ ] two\n',
     ...(trace.length ? { [`${A}/trace.log`]: trace.join('\n') } : {}),
   } as Record<string, string>,
   lists: { [R]: [dir('scopes')], [`${R}/scopes`]: [dir('a')], [A]: [] } as Record<string, ReturnType<typeof dir>[]>,

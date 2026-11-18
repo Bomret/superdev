@@ -41,7 +41,11 @@ stays whole. A card's open state lives in the `sections` plugin state atom for t
 writes no file. The Scopes card first counts the slices of the active scopes: the share merged, a
 stacked bar that keeps a segment for every status that has a slice, and one legend row per such status. A legend row shows the status as the
 ledger records it. Then the card lists the active scopes, each row with its stage on the right, a bar segment per
-slice, and its counts. The closed scopes follow as dim rows, the most recently closed first, by the
+slice, and its counts. The `DoD n/m` count, on a scope row and on the scope page's header line, follows the note
+rule (`plugin/references/dod-ticks.md`'s `## The note rule`, INV-0190): `m` is every checklist line of the
+scope's `dod.md`, and `n` is the lines whose verdict note is `met:` or `accepted:`, whatever their checkbox shows.
+A bare tick, an unjudged line, and a line noted `not met:` or `ceiling:` count as open. `progress` in
+`hooks/parse.ts` reads the note label as `plugin/lib/dod-line.js` reads it. The closed scopes follow as dim rows, the most recently closed first, by the
 trace's `ledger stage set closed` line. A closed scope whose trace has no such line comes last. The card
 shows the five most recently closed scopes. A fold below them shows the rest on a press and folds them
 again, and its state lives in the `sections` atom like a card's. The other
@@ -129,7 +133,7 @@ The mod's own tests run under `claude plugin test mods/superdev-view`. `node scr
 reads only the mod's shared fixture files. The focused command runs them when a changed path is under
 `mods/superdev-view/`. Each pane test case imports `test` from `hooks/testkit.ts`, which bounds a case at 60 s of wall
 clock instead of the kit's 5 s default: the bound counts time a case spends descheduled and only catches a hang. The fixture
-pins that couple `hooks/parse.ts` to the ledger and the run trace are stated in the root
+pins that couple `hooks/parse.ts` to the ledger, the run trace, and the Definition-of-Done lines are stated in the root
 [`AGENTS.md`](../../AGENTS.md), in the `mods/superdev-view/` entry of its Child DOX Index.
 
 ## Child DOX Index
