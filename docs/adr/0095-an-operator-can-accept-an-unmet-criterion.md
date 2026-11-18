@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0256](0256-an-attended-scope-review-fixes-every-finding-without-asking.md), which asks
+the accept question per broken criterion before the first fix dispatch.
+
 **Context.** ADR 0091 ticks a Definition-of-Done criterion from an implementer's report while the run
 works, and every later step re-checks it. A criterion sometimes stands genuinely unmet by design: the
 operator reads `not met:`'s own reason and decides, attended, that the run should ship anyway — a

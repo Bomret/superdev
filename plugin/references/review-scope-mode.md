@@ -4,7 +4,7 @@ Applies to a `/superdev:review` run whose `${CLAUDE_PLUGIN_ROOT}/skills/review/S
 
 Each step below applies beside the skill's step of the same number. A departure from the skill names the departed skill rule.
 
-Rare branches live in files of their own, each read only when its branch fires: `${CLAUDE_PLUGIN_ROOT}/references/review-scope-holds.md` (an anchor check that refuses or cannot read, the standing-defect writes, the fix cap), `review-scope-denials.md` (a denied dispatch or test run), `review-scope-base.md` (a moved base), `review-scope-deferrals.md` (a deferred finding), and `review-scope-coverage.md` (an Unreviewed slice or Missing fail-to-pass run finding in the chosen set).
+Rare branches live in files of their own, each read only when its branch fires: `${CLAUDE_PLUGIN_ROOT}/references/review-scope-holds.md` (an anchor check that refuses or cannot read, the standing-defect writes, the fix cap), `review-scope-denials.md` (a denied dispatch or test run), `review-scope-base.md` (a moved base), `review-scope-deferrals.md` (a deferred finding), and `review-scope-coverage.md` (an Unreviewed slice or Missing fail-to-pass run finding in the fix list).
 
 - `<run-root>` and `<branch>`: the run root and scope branch §1 captured.
 - `<base>`: the base branch §0 read.
@@ -92,7 +92,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - At the fix cap, a verdict whose only remaining Critical or Important findings are **Pass-to-pass** or **Missing fail-to-pass run** (§4.7): name each such finding in the Reasoning line with its slice, or a cycle's finding with its range.
 - At any cycle, a verdict whose only remaining Critical or Important findings are unclosable **Pass-to-pass** findings, beside any deferred ones (§4.7): name each unclosable finding in the Reasoning line with its slice or range, its case, and its reason.
 
-**Fixes.** Applies to the findings of a scope review. Apply them through §4 after the ask-once of §4.6. This departs from the skill's apply-nothing rule. The reviewers stay read-only.
+**Fixes.** Applies to the findings of a scope review. Apply them through §4 over §4.6's fix list. This departs from the skill's apply-nothing rule. The reviewers stay read-only.
 
 ## 4. Fix loop and handoff
 
@@ -146,7 +146,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 **A red-evidence finding.** Applies to every finding the red evidence found. Fold it into the fix loop like a `final-reviewer` finding. The stage does not advance while it stands.
 
 - **A failing test the scope did not cause** is this Critical finding too, and joins the fix list. A triage record for it may sit beside its fix, never in its place.
-- **It goes through the ask-once of §4.6** when attended, and its cycle counts toward the 3-cycle cap of §4.7.
+- **It joins §4.6's fix list**, and its cycle counts toward the 3-cycle cap of §4.7.
 - **It closes on the fix cycle's own runs** at the cycle's tip, which the re-review reads in the run trace: runs that cover it as **A red record a fix already closed** states, a failed check included.
 - **The report says ship takes the full-suite evidence again**, from the named checks or a local run.
 
@@ -160,10 +160,10 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 
 **The boundary.** Applies to a finding whose remedy adds a capability the Definition of Done never named. `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Deferred findings` owns the boundary and the record, and states the guard-rail remedy, the failure-mode class, the absorbed record, and the severity rule. Report the finding under `### Deferred to a plan` with the follow-up command. Give it a durable home before any ledger write: make the writes of `review-scope-deferrals.md`.
 
-**A deferred finding's standing.** Applies to a deferred finding. It holds precedence over §4.6's `--unattended → fix every finding`.
+**A deferred finding's standing.** Applies to a deferred finding. It holds precedence over §4.6's fix list.
 
 - It enters no fix loop, holds no stage, and is no unresolved defect.
-- A verdict whose only remaining findings are deferred counts as clean for the ask-once of §4.6, the 3-cycle cap of §4.7, and the stage advance of §4.10.
+- A verdict whose only remaining findings are deferred counts as clean for §4.6's fix list, the 3-cycle cap of §4.7, and the stage advance of §4.10.
 
 **Re-entry.** Applies to a deferred finding that `final-reviewer` names a guard-rail remedy for. Take `review-scope-deferrals.md`'s `## Re-entry`.
 
@@ -210,24 +210,21 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - **A plan-coverage gap the code satisfies** → fix it in the loop with the guard-rail remedy that proves the behaviour. A gap an existing test already proves is reported only.
 - **A derived criterion the code fails** → a `### Deferred to a plan` finding, under §4.4.
 
-### 4.6 The ask-once
+### 4.6 The fix list
 
-**The ask.** Applies when `final-reviewer` returned any finding, a Minor-only verdict included, the entry review warranted a cut, a set of warranted cuts alone included, a criterion is broken, or §4.2 found red evidence. Report them per §3 first. Ask once with the three options below. §4.7 runs over the chosen option's set.
+**The fix list.** Applies when `final-reviewer` returned any finding, a Minor-only verdict included, the entry review warranted a cut, a set of warranted cuts alone included, a criterion is broken, or §4.2 found red evidence. Report them per §3 first. The fix list is every finding, attended and `--unattended` alike: Critical, Important, and Minor findings, warranted cuts, broken criteria, and red-evidence findings. §4.7 runs over it without asking whether to fix.
 
-- **Fix every finding** (recommended), **fix only the Critical and Important findings**, or **fix none**.
-- **A warranted cut is a Minor here.** Fix every finding puts each warranted cut into the fix list, and fix only the Critical and Important findings leaves them out. A declined cut is never offered: the report names it with the rule it would break.
-- **An unclosable Pass-to-pass finding** (`${CLAUDE_PLUGIN_ROOT}/references/fail-to-pass.md`'s `## Fail-to-pass run`) is never offered and never enters the chosen set. Its standing is §4.7's early escape. When the only Critical or Important findings left are unclosable or deferred, and no Minor, no criterion broken, and no red-evidence finding stands, ask nothing and take §4.7's early escape.
-- **The findings include an unmet criterion** (a broken line, or one this cycle leaves unticked) → the same question also offers to accept it as unmet, with the operator's own reason. This is the one decision point where a fresh `accepted:` note gets written.
-- **`--unattended`** → never makes that offer and never writes `accepted:`. An unmet criterion there follows the ordinary fix-or-block path.
+- **A warranted cut is a Minor here**, and joins the fix list. A declined cut never joins it: the report names it with the rule it would break.
+- **A Minor-only fix list**, warranted cuts included, runs a fix cycle, a warm cycle by §4.7's **A warm cycle**, under the 3-cycle cap.
+- **An unclosable Pass-to-pass finding** (`${CLAUDE_PLUGIN_ROOT}/references/fail-to-pass.md`'s `## Fail-to-pass run`) never enters the fix list. Its standing is §4.7's early escape. When the only Critical or Important findings left are unclosable or deferred, and no Minor, no criterion broken, and no red-evidence finding stands, ask nothing and take §4.7's early escape.
+- **A Missing fail-to-pass run finding, or an Unreviewed slice finding, in the fix list** → take its section of `review-scope-coverage.md`.
 
-**The branches.** Applies to the answer, or to `--unattended`.
+**The criterion question.** Applies to an attended review whose fix list holds an unmet criterion (a broken line, or one a cycle leaves unticked), before the first fix dispatch that would list it. Ask one `AskUserQuestion` per such criterion: fix it, or accept it as unmet with the operator's own reason. This is the one decision point where a fresh `accepted:` note gets written.
 
-- **Declined, with only Minor findings standing, warranted cuts included, beside any unclosable or deferred ones** → take the clean-verdict path of §4.10, naming the standing Minors in the report and nowhere else: no `unresolved add`, no `deferred add`, no triage record. §3's combined verdict names each unclosable finding.
-- **Declined, with a Critical or Important finding other than an unclosable or deferred one, a broken criterion, or a red-evidence finding standing** → stop and write the `**Unresolved:**` entry, per `review-scope-holds.md`'s `## The standing-defect writes`. The findings stand and the stage does not advance.
-- **Accepted** (the criterion's own reason, attended only) → write `accepted: <reason> (operator, <date>)` as that line's note, through `scope.js dod-line --match-file <path> --verdict accepted --note-file <path>` on `<run-root>/dod.md` and the anchor's checklist, through the store's `## Definition of Done ticks` section (controller-only). That criterion drops out of the findings this cycle fixes, and any other finding still goes through the three options.
-- **`--unattended`** → fix every finding, Minors and warranted cuts included, without asking. Every finding here leaves out unclosable ones.
-- **Fix only Critical and Important, with only unclosable or deferred ones among them** → the loop ends with no cycle and takes §4.7's early escape.
-- **A Missing fail-to-pass run finding, or an Unreviewed slice finding, in the chosen set** → take its section of `review-scope-coverage.md`.
+- **Fix it** → the criterion stays in the fix list.
+- **Accepted** (the criterion's own reason) → write `accepted: <reason> (operator, <date>)` as that line's note, through `scope.js dod-line --match-file <path> --verdict accepted --note-file <path>` on `<run-root>/dod.md` and the anchor's checklist, through the store's `## Definition of Done ticks` section (controller-only). That criterion drops out of the fix list. Every other finding stays in it.
+- **A fix list the answers leave empty** → take the clean-verdict path of §4.10.
+- **`--unattended`** → never ask it and never write `accepted:`. An unmet criterion there follows the ordinary fix-or-block path.
 
 ### 4.7 Fix cycles
 
@@ -235,10 +232,10 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 
 - The scope tip is `git -C <run-root>/scopetree rev-parse HEAD`.
 - The outcome's trace line names `scope`.
-- **A Pass-to-pass finding in the chosen set** → also name that finding's original base: the base of the range the finding's `pass-to-pass` line names, a lite slice's recorded range base or a fix cycle's own base. The finding closes on the implementer's `fail-to-pass` outcome from that base.
+- **A Pass-to-pass finding in the fix list** → also name that finding's original base: the base of the range the finding's `pass-to-pass` line names, a lite slice's recorded range base or a fix cycle's own base. The finding closes on the implementer's `fail-to-pass` outcome from that base.
 - **A Missing fail-to-pass run finding on a cycle** → name the cycle's range, `<cycle-base>..<cycle-tip>`.
 
-**The fix dispatch.** Applies to the **Confirmed** branch: fix every finding, or fix only Critical and Important, when the chosen set holds a finding that is neither unclosable nor deferred. Dispatch **one** `superdev:implementer` with the **complete** list of the chosen option's findings, unclosable ones left out. The dispatch is the review fix dispatch of the implementer's own contract. It restates none of that contract beyond the red-evidence, sibling-surfaces, and separate-calls bullets below.
+**The fix dispatch.** Applies when §4.6's fix list holds a finding that is neither unclosable nor deferred. Dispatch **one** `superdev:implementer` with the **complete** fix list, unclosable ones left out. The dispatch is the review fix dispatch of the implementer's own contract. It restates none of that contract beyond the red-evidence, sibling-surfaces, and separate-calls bullets below.
 
 - The implementer's contract owns the RED-test rule, the diagnosis loop, the test-run bound, and the report.
 - One fixer takes the whole list and never one per finding.
@@ -263,12 +260,12 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 
 **The re-review and the cap.** Applies after the implementer returns. Re-review per §2 after each cycle.
 
-- The loop ends when the re-review lists no finding in the chosen set, when its only remaining Critical or Important findings are unclosable or deferred, or when the **3-strike cap** is reached.
-- **The early escape: only unclosable Pass-to-pass findings remain among the Critical or Important ones, beside any deferred ones**, at any cycle the first verdict included → the scope proceeds under §3's combined verdict, with no further cycle. This holds attended and unattended, and neither blocks nor asks. Minors beside them still go through §4.6's ask-once first.
+- The loop ends when the re-review lists no finding in the fix list, when its only remaining Critical or Important findings are unclosable or deferred, or when the **3-strike cap** is reached.
+- **The early escape: only unclosable Pass-to-pass findings remain among the Critical or Important ones, beside any deferred ones**, at any cycle the first verdict included → the scope proceeds under §3's combined verdict, with no further cycle. This holds attended and unattended, and neither blocks nor asks. Minors beside them are still fixed first, per §4.6.
 - The cap is **3 cycles in total, every cycle counting**, whichever findings drove it, a cycle driven by warranted cuts alone included. §4.1's **The moved base** states what its merge counts.
 - **A re-review whose only findings left are Minor Prompt-concept overlap findings** (`${CLAUDE_PLUGIN_ROOT}/references/prompt-concept-overlap.md`'s `## Prompt-concept overlap`), with no criterion standing broken → the loop ends there, attended or `--unattended`. It takes the clean-verdict path of §4.10 as a Minor remainder at the cap does.
-- **At the cap, a finding in the chosen set still stands** → take `review-scope-holds.md`'s `## At the cap`.
-- **A clean verdict** ends the loop, attended or unattended, and takes §4.10. A finding it leaves standing outside the chosen set is a follow-up, never a fourth cycle.
+- **At the cap, a finding in the fix list still stands** → take `review-scope-holds.md`'s `## At the cap`.
+- **A clean verdict** ends the loop, attended or unattended, and takes §4.10. A finding it leaves standing outside the fix list is a follow-up, never a fourth cycle.
 
 ### 4.8 Degraded fix dispatch and advisory notes
 
@@ -298,7 +295,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - A line already reported as unpaired stays in the report's one hand-sync list.
 - Run §4.1's `**The anchor check.**` again on the re-read lines before each stage write, so the stage write's `unresolved clear` never clears a hold the anchor still earns. A refusal or a failed read there takes `review-scope-holds.md`'s `## The anchor check's refusals`, its stage-write branch.
 
-**The stage write.** Applies on every route that advances the stage, and only then: a clean first verdict, a clean re-review, a re-review left with only Minor **Prompt-concept overlap** findings and no broken criterion, only Minor findings left at the cap, a declined ask-once with only Minor findings standing, and a ready combined verdict of §3 whose remaining findings are only deferred, or at any cycle only unclosable **Pass-to-pass** beside deferred ones, a warm re-review's restated ones included, or at the cap **Pass-to-pass** or **Missing fail-to-pass run**. No red-evidence finding stands on any of them. Clear any standing `**Unresolved:**` entry with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. Read the stage with `scope.js get stage`. Write `**Stage:**` with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set <value> --root <run-root>` per the cases below.
+**The stage write.** Applies on every route that advances the stage, and only then: a clean first verdict, a clean re-review, a re-review left with only Minor **Prompt-concept overlap** findings and no broken criterion, only Minor findings left at the cap, and a ready combined verdict of §3 whose remaining findings are only deferred, or at any cycle only unclosable **Pass-to-pass** beside deferred ones, a warm re-review's restated ones included, or at the cap **Pass-to-pass** or **Missing fail-to-pass run**. No red-evidence finding stands on any of them. Clear any standing `**Unresolved:**` entry with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. Read the stage with `scope.js get stage`. Write `**Stage:**` with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set <value> --root <run-root>` per the cases below.
 
 - The clear changes nothing when no entry stands.
 - A stage write never undoes completed work, and the verb refuses a write that breaks that.
@@ -324,7 +321,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 
 **The closing message.** Applies to the message this review ends on. The skill's closing-message concept requires the Next block. The Next block, when this message prints one, comes last, and names the command by the cases below. Only the **Otherwise** case starts its command, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The chain start`; a started document leaves this review nothing to print. Every other case prints.
 
-- **A stop that made the standing-defect writes of `review-scope-holds.md`**, the Declined branch, the cap of §4.7, or the anchor check of the anchor re-sync at a stage before `shipped`, a failed re-read included → put `Blocked: <reason>` before the fence, and print `/superdev:review <scope-slug>` in it as the command that resumes the run.
+- **A stop that made the standing-defect writes of `review-scope-holds.md`**, the cap of §4.7, or the anchor check of the anchor re-sync at a stage before `shipped`, a failed re-read included → put `Blocked: <reason>` before the fence, and print `/superdev:review <scope-slug>` in it as the command that resumes the run.
 - **The `docs` untick wrote an `**Unresolved:**` entry** → print `/superdev:document <range>`, carrying the concrete range §1 resolved, and say in one line that it re-judges the unticked `docs` lines. `/superdev:submit-pr` and `/superdev:ship` wait for it.
 - **The stage reads `submitted`** → print `/superdev:ship <scope>`, and say in one line that it merges the pull request `/superdev:submit-pr` opened.
 - **Otherwise** → start `/superdev:document <range>`, carrying the concrete range §1 resolved. Where the start is refused or fails, print it, and say in one line that it reconciles the in-repo docs and the knowledge base with the merged state.
