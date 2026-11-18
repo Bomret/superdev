@@ -344,8 +344,10 @@ Each caller judges its own range and builds the set from it:
   every path `git diff --name-only <range-base>..HEAD` prints, `<range-base>` being the scope's range base the implementer
   resolves from the dispatch's range-base input. The final run runs
   before the fail-to-pass run, and the trace settlement of ADR 0251 counts it as the passing run over each test file it names.
-  A red record that names failed test files keeps a `path` run of each of them.
-  Where the focused fence repeats the full fence, the final run is one `test path` run of every test file the range changed, from the tree root with the verb's exact command, which the verb reuses as its first run. There no red-evidence finding widens it: that run, passing at the cycle's tip on a clean tree, closes a finding that names no failed test file, per `review-scope-mode.md`'s `### 4.2 Red evidence`, and ship checks the evidence again. A failing
+  A red-evidence finding that names failed test files needs a passing `path` run of each, at the cycle's tip, in either fence
+  configuration, because a fix that changes only source leaves those files out of the changed set. Where the fences differ, the
+  final focused run's path set includes each of them, or a `path` run of each is made.
+  Where the focused fence repeats the full fence, the final run is one `test path` run of every test file the range changed, plus each failed test file a red-evidence finding names, from the tree root with the verb's exact command, which the verb reuses as its first run. There a finding that names no failed test file widens it to no other file: that run, passing at the cycle's tip on a clean tree, closes the finding, or the clean tip does where the cycle changed no test file, per `review-scope-mode.md`'s `### 4.2 Red evidence`, and ship checks the evidence again. A failing
   final run is a RED step: fix, commit, and run it again. A step that works on no test file runs
   that focused command over the whole set. A focused command with no `{paths}` token runs verbatim, and the run
   trace records every run either way. Every loop run passes at least one path, or runs test files
