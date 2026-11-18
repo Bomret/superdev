@@ -1529,3 +1529,13 @@ Statement: `/superdev:review` starts no full-suite or whole-repo run on its own,
 Breaks: silently
 Check: scripts/drift-check.js `scope-review-no-full-run` — the review prose instructs no full or whole-repo run outside the ad-hoc operator-asked clause; final-reviewer's invariant compliance judges the review and submit-pr prose
 Paths: plugin/skills/review/**, plugin/references/review-scope-*.md, plugin/agents/final-reviewer.md, plugin/skills/submit-pr/**
+
+### INV-0194
+
+Class: architecture
+Concepts: Containment, Scope branch, Run root
+Statement: A branch listing git could not produce never reads as a repository without that branch. Where the listing fails, `hooks/scope-prune.js` prunes nothing. `publish-kb.js` refuses the publish and names the git failure, whether or not the scope's run root survives. A listing that succeeds and finds no branch is the only absence either reads.
+Breaks: silently
+Check: tests/publish-kb-containment.test.js — a failing branch listing refuses with the run root gone and with it surviving; tests/scope-prune-main.test.js — a failing `for-each-ref` prunes nothing
+Symbols: branchNamesFrom, shapeScanBranch, checkContainment
+Paths: plugin/lib/kb-containment.js, plugin/hooks/scope-prune.js

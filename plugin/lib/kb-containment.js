@@ -19,8 +19,16 @@ function branchNamesFrom(cwd) {
     cwd,
     encoding: 'utf8',
   });
+  // A listing git could not produce is no listing of zero branches: return how it failed instead.
+  // Exit 0 with empty stdout is a successful listing of none. spawnSync also sets `error` on a git that
+  // started, such as ENOBUFS past maxBuffer, so only ENOENT and EACCES read as git unable to start.
+  if (res.error) {
+    const how = ['ENOENT', 'EACCES'].includes(res.error.code) ? 'could not start' : 'failed';
+    return { failure: `${how} (${res.error.code || res.error.message})` };
+  }
+  if (res.status === null) return { failure: `was ended by signal ${res.signal}` };
+  if (res.status !== 0) return { failure: `exited with status ${res.status}` };
   const names = new Set();
-  if (res.status !== 0 || !res.stdout) return names;
   for (const raw of res.stdout.split('\n')) {
     const ref = raw.trim();
     if (!ref) continue;
@@ -35,27 +43,30 @@ function branchNamesFrom(cwd) {
     const name = rest.slice(cut + 1);
     if (name !== 'HEAD') names.add(name);
   }
-  return names;
+  return { names };
 }
 
 // The shape scan `hooks/scope-prune.js` applies: a branch whose last segment is `scope` and whose
 // leading segment is a change type, the set `lib/ledger.js` owns. The scan itself stays a copy — a script
 // requires no hook, and a hook requires only the `lib/` surface scripts/AGENTS.md lists.
+// Returns `{ branch }` (null when none matches), or `{ failure }` when git could not list the branches.
 function shapeScanBranch(cwd, scope) {
-  for (const branch of branchNamesFrom(cwd)) {
+  const listing = branchNamesFrom(cwd);
+  if (listing.failure) return listing;
+  for (const branch of listing.names) {
     const cut = branch.lastIndexOf('/');
     if (cut < 1) continue;
-    if (branch.slice(cut + 1) === scope && CHANGE_TYPES.includes(branch.slice(0, cut))) return branch;
+    if (branch.slice(cut + 1) === scope && CHANGE_TYPES.includes(branch.slice(0, cut))) return { branch };
   }
-  return null;
+  return { branch: null };
 }
 
 // `references/scope-mode.md`'s `## The scope branch`: the ledger's `**Branch:**` line, verified
 // before it is trusted — run init writes it before cutting the branch, so a run that died in
 // between names one never cut. Falls back to the shape scan for a pre-CLI ledger, a gone/unreadable
 // run root, or a line naming a branch that no longer verifies — the steady-state path, since
-// `hooks/scope-prune.js` reaps the run root well before most `publish-kb` runs happen. Returns the
-// branch name, or null when neither route finds one.
+// `hooks/scope-prune.js` reaps the run root well before most `publish-kb` runs happen. Returns
+// `{ branch }`, null when neither route finds one, or the shape scan's `{ failure }`.
 function resolveScopeBranch(mainCheckout, scope) {
   let ledgerText = null;
   try {
@@ -65,7 +76,7 @@ function resolveScopeBranch(mainCheckout, scope) {
   }
   if (ledgerText !== null) {
     const branch = readLedgerHeader(ledgerText, 'Branch');
-    if (branch && refResolves(branch, mainCheckout)) return branch;
+    if (branch && refResolves(branch, mainCheckout)) return { branch };
   }
   return shapeScanBranch(mainCheckout, scope);
 }
@@ -105,8 +116,8 @@ function parseRemote(docText) {
 // what a refusal means. `{ performed: false }` for `_adhoc`. Otherwise `{ performed: true, ok, ...
 // }`: `ok: true` on a contained branch, and on a scope whose branch and run root are both reaped
 // (ADR 0071). `ok: false` with a `message` naming the branch (when one
-// resolved) and what was found — "no base branch configured", "no branch resolved", "not
-// contained", or "names no ref this repository can find" (`testContainment`'s own
+// resolved) and what was found — "no base branch configured", "cannot list branches",
+// "no branch resolved", "not contained", or "names no ref this repository can find" (`testContainment`'s own
 // `'could-not-resolve'`, kept distinct from not-contained per slice #494's interface note, so a
 // branch that never existed never reads as one that simply hasn't landed yet).
 function checkContainment(mainCheckout, scope) {
@@ -121,7 +132,11 @@ function checkContainment(mainCheckout, scope) {
   if (!base) {
     return { performed: true, ok: false, message: 'docs/agents/code-management.md names no base branch' };
   }
-  const branch = resolveScopeBranch(mainCheckout, scope);
+  const resolved = resolveScopeBranch(mainCheckout, scope);
+  if (resolved.failure) {
+    return { performed: true, ok: false, message: `cannot list branches for scope "${scope}": git for-each-ref ${resolved.failure}` };
+  }
+  const branch = resolved.branch;
   if (!branch) {
     // `hooks/scope-prune.js` reaps a closed scope's branch together with its run root (ADR 0071), and
     // gates that reap on the branch already reading contained in base or gone. So no branch AND no run

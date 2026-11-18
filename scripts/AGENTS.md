@@ -841,7 +841,10 @@ Before publishing, `checkContainment` refuses a scope whose branch is not confir
 whose branch and run root are both gone reads as contained rather than as a refusal: `hooks/scope-prune.js`
 reaps the two together, and gates that reap on the branch already reading contained in base or gone, so
 their joint absence is the fully-reaped steady state a publish meets (ADR 0071). A run root that survives
-without a resolving branch is the real unreachable case, and still refuses. It
+without a resolving branch is the real unreachable case, and still refuses. A branch listing can fail in four
+ways. `git for-each-ref` can exit non-zero, end by a signal, fail to start, or end in another spawn error such
+as ENOBUFS. Any of these is no absent branch. The check refuses and names how git failed, whether or not the run
+root survives (INV-0194). A ledger `**Branch:**` line that resolves never runs the listing. `checkContainment`
 delegates the ancestry test to `plugin/lib/containment.js`'s exported `testContainment` instead of reimplementing it.
 `--allow-unmerged` overrides the refusal once the operator confirms. `_adhoc`, the literal value
 `/superdev:document` writes for a doc pass outside a live scope, skips the check entirely. The report
