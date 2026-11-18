@@ -47,7 +47,7 @@ names the point where you read it.
   checked out **in the scopetree**, and merge every slice into it instead of `<branch>`. The branch keeps
   the scope branch green while batches that cannot stay green alone are in flight. The plan's final **integrate-and-verify** slice is
   where you switch that same scopetree back to `<branch>` and merge `integration/<scope>` into it. That
-  merge runs no suite: the scope review's exit run verifies it, and it is the run's promise of green.
+  merge runs no suite: the full-suite evidence `/superdev:ship` takes verifies it, and it is the run's promise of green.
   Everything else in the loop is unchanged.
 
 ## Run lock
@@ -138,7 +138,7 @@ Repeat until every slice is `merged`:
    of `fail-to-pass.md`'s `## Fail-to-pass run`, which it then reports with its reason. Every implementer dispatch also
    tells it to run only the tests that verify its work, each through `scope.js test` (`test path <file> -- <command>` once per increment, and one `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test
    focused <changed paths>` with at least one path over the whole changed-path set once its work is committed), and its fail-to-pass run, and never `test full`,
-   `test whole`, or a `test focused` with no path: the scope review's exit run is the scope's one full-suite run. It tells it to run every test run in the foreground with Bash's `timeout` at its ceiling, 600000 ms unless
+   `test whole`, or a `test focused` with no path: `/superdev:ship` takes the scope's full-suite evidence. It tells it to run every test run in the foreground with Bash's `timeout` at its ceiling, 600000 ms unless
    `BASH_MAX_TIMEOUT_MS` raises it, to run only a run that can outlast the ceiling through the runner in the background, and to wait for its end before acting on it, and
    tells it that a test command is recorded as typed and pushed with the run state, so a secret belongs in the environment, never on the command line, and
    tells it to edit files through the edit tools, never through a script. It also tells it that each increment runs its one test file once through `test path <file> -- <command>`, after it writes the new test and before it writes the code that passes it, with no separate GREEN run per increment and no separate control run, and that the one focused run over the whole
@@ -213,8 +213,8 @@ Repeat until every slice is `merged`:
      slice's base, earns no observation. For every other `unknown`, the scope run's first non-exempt `unknown` is an
      observation: write its triage record under `scope-findings.md`'s `## Observations` rule, naming the environment gap.
    - **A slice review reads the run trace, and runs no test**. You hand it no tip result. The
-     implementer's recorded runs and its fail-to-pass outcome are the slice's evidence, and the scope review's
-     exit run covers what they leave out.
+     implementer's recorded runs and its fail-to-pass outcome are the slice's evidence, and the full-suite
+     evidence `/superdev:ship` takes covers what they leave out.
    - **`behavior`** slice → move it → `in-review`, beside the store move, with
      `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" slice <id> in-review --root <run-root>` before the first slice review dispatch
      (the row stays `in-review` through every fix cycle, until the merge or a block), then dispatch **`superdev:slice-reviewer`**
@@ -290,7 +290,7 @@ Repeat until every slice is `merged`:
    - **A dispatch the permission classifier denies** — an implementer, a slice-reviewer, or a fix → read
      `${CLAUDE_PLUGIN_ROOT}/references/implement-full-denied.md` and follow its `## A denied dispatch`.
    - **`mechanical`** / **`docs`** slice → **skip the per-slice review** (the implementer's or your own runs, plus
-     the scope review's exit run, the scope's one full-suite run, are the net).
+     the full-suite evidence `/superdev:ship` takes, are the net).
 4. **Merge (you, serially)** — in the scopetree: `git -C <run-root>/scopetree merge
    --no-ff slice/<scope>/<id>`. **A conflicted merge** → read
    `${CLAUDE_PLUGIN_ROOT}/references/merge-conflicts.md` and resolve it yourself as it states (you hold
@@ -299,9 +299,9 @@ Repeat until every slice is `merged`:
    escalation on a genuine winner-picking overlap, which **`--unattended`** turns into a block.
 
    **A slice merge runs no suite**, clean or concluded with `merge --continue`. The
-   slice's own runs already tested it, and the scope review's full-suite run (its exit run: a full run, or
-   the carry or recorded rerun `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` admits) verify the
-   integrated scope: its fix loop repairs a break between two slices that each passed alone. Go straight on to the next dispatch or merge.
+   slice's own runs already tested it, and the full-suite evidence `/superdev:ship` takes (the named CI checks, or a
+   full run, the carry, or the recorded rerun `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` admits) verifies the
+   integrated scope: the scope review's fix loop repairs a break that red evidence names. Go straight on to the next dispatch or merge.
 
    Then clean up. First read the slice branch's tip with `git -C <run-root>/scopetree rev-parse slice/<scope>/<id>`:
    the branch is gone after the cleanup, and the `merged` write below records that full commit as its `<tip>`. Then

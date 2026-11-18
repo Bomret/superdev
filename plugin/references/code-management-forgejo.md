@@ -35,7 +35,8 @@ where one performs the operation, `tea api` where none does.
 Do not fall back to a token or a raw HTTP call (curl). No `tea` or `jq` on the path, or no `tea login list -o json` entry
 whose `url` equals the Base URL: push the branch, then print the instance compare URL
 (`<base-url>/<owner>/<repo>/compare/<base>...<scope-branch>`) and the exact `tea` command the step would
-have run. The merge call below degrades the same way: print the exact `tea api` call and merge nothing.
+have run. The merge call below degrades the same way: print the exact `tea api` call and merge nothing. The
+check-status read below degrades the same way: print the exact `tea api` call and judge nothing.
 
 ## Merge
 
@@ -66,9 +67,30 @@ have run. The merge call below degrades the same way: print the exact `tea api` 
   `--state open` off would surface closed and merged pull requests too, including an old one left over from
   a reused branch name — never widen the filter to catch one of those.
 - **`<tested-tip-sha>` above is never read from the host.** It is the local scope-branch tip
-  `scope.js suite reusable` just accepted, resolved with `git rev-parse <branch>` in the scope checkout.
+  `scope.js suite reusable` just accepted, the carry covered, ship's own local run passed, or whose named checks
+  `scope.js ci` judged green, resolved with `git rev-parse <branch>` in the scope checkout.
   `/superdev:ship` reads the pull request's own `head.sha` only to decide whether to push and to refuse
   when it still differs from that tip after pushing, never as the merge's own pin.
+
+## Check status
+
+`/superdev:ship`, `/superdev:review`, and `/superdev:setup` read the latest check status of one commit through this
+call, and `scope.js ci` judges it against the named checks the `## CI` section of `docs/agents/verification.md` lists (ADR 0255).
+The read emits one `name<TAB>state<TAB>link` line per latest commit-status context, across every page. Forgejo Actions
+reports its jobs as commit statuses, so the combined status covers them.
+
+- **Read one page**: `tea api -i --login <login> --repo <owner>/<repo>
+  '/repos/{owner}/{repo}/commits/<sha>/status?page=<p>&limit=50' > "$r" 2> "$h"`. The combined status holds the latest
+  status per context; the raw `/statuses` list holds every status ever posted, and is never read here. Read the HTTP
+  status from `"$h"` (`-i`), because `tea api` exits 0 on a 4xx or 5xx answer: anything but 200 is a failed read.
+- **Emit its lines**: `jq -r '.statuses[] | [.context, .status, (.target_url // "")] | @tsv' "$r" >> "$c"`. A Forgejo
+  commit status names its state `status`, one of `pending`, `success`, `error`, `failure`, `warning`, or `skipped`.
+- **Page on** from `p=1` until a page returns fewer than 50 statuses, then judge: `node
+  "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" ci --sha <sha> < "$c"`, `c` named with `mktemp` and read only once every
+  page succeeded. A pipe drops the read's exit status, so a failed read would reach the verdict as empty input. No
+  `tea` or `jq`, no matching login, a 401, 403, or 404, or a network error ends the read at the failed page with its
+  error: report it, and pass nothing to `scope.js ci`.
+- Nothing here waits for a check, re-reads it on a timer, or starts, re-runs, or cancels a CI run.
 
 ## Edit the pull request body
 

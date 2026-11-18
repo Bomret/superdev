@@ -107,6 +107,12 @@ function usage() {
     '                                     not name, a record cited by two or more criteria, no Reachable: criterion, or a',
     '                                     release-risk category no Release risk: criterion names; refuses, checking nothing,',
     '                                     an empty input or one with an unterminated fenced code block',
+    '  ci --sha <sha> [--root <path>]     stdin: name<TAB>state[<TAB>link] lines, one per check report; judges them against',
+    '                                     the ## CI named checks of docs/agents/verification.md at <sha>; prints ci: <verdict>',
+    '                                     <sha> and one <pending|finished|failed><TAB><name><TAB><state> line per check not',
+    '                                     green; an input with no name<TAB>state line adds (no check report read) to the',
+    '                                     ci: line; exits 0 (green), 3 (not yet green), 4 (failed), 2 (cannot judge: no such',
+    '                                     commit, no named checks, or a malformed section), 1 (a usage refusal); writes nothing',
     '  dod-merge --root <run-root>        stdin: the anchor\'s Definition of Done; writes <run-root>/dod.md from it, keeping',
     '                                     each verdict the existing dod.md carries on a line the anchor leaves without a note',
   ].join('\n');

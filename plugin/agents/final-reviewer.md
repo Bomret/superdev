@@ -64,7 +64,7 @@ Applies to every review dispatch.
 
 Run no test. Review against the suite result the controller hands you, and judge whether it covers the changed code. The controller says which run it is.
 
-- On a scope dispatch: the reused outcome of a recorded suite result that already covers the tip, or no run with its reason. A first scope dispatch handed `not run` pending the exit run is no gap in the change's testing: the review runs the full suite at its exit, on the settled tip, and that run gates the stage. The controller folds a failing exit run into the fix loop itself. A re-review inside a fix cycle gets no run: read the cycle implementer's recorded runs and its fail-to-pass outcome in the run trace.
+- On a scope dispatch: no run. A scope dispatch handed no run is no gap in the change's testing: the scope review starts no full-suite run, and `/superdev:ship` takes the scope's full-suite evidence, through the named CI checks or a local run. The controller hands any red evidence it found, a red suite record or a failed named check, as Critical findings already in the fix list. A re-review inside a fix cycle gets no run: read the cycle implementer's recorded runs and its fail-to-pass outcome in the run trace.
 - On an ad-hoc dispatch: the focused run over the range's changed paths, the full suite where the operator asked for it, or no run with its reason. An inline-fix re-review gets the focused run over the fix range, run in the fix worktree.
 - On a standing-code dispatch: no run.
 - The Assessment's `Full-suite run` line reports the handed run, and names it focused where it is. A dispatch that hands no run reads `not run`.

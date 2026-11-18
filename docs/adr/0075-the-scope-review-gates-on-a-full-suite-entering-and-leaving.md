@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0255](0255-ship-owns-the-full-suite-evidence-and-ci-can-carry-it.md), under which the scope review runs no full suite, entering or leaving its fix loop.
+
 **Amended by:** [ADR 0192](0192-the-full-suite-runs-once-after-review-comes-back-clean.md), under which the scope review runs the focused command at entry, and the full suite only on leaving its fix loop, including after a first clean verdict.
 
 **Amends:** [ADR 0025](0025-the-scope-review-owns-the-full-suite-run.md).

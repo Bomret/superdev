@@ -26,6 +26,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'background-rule-names-limit',
     'dod-box-rule',
     'no-offer-start',
+    'no-ci-wait',
   ]);
   const empty = fixture({ '.keep': '' });
   for (const check of CHECKS) {

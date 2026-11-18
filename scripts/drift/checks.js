@@ -35,13 +35,14 @@ const {
   scanDocSetupNoTestRun,
   scanImplementNoFullRun,
   scanObservationNoSuiteRun,
-  scanScopeReviewNoEntryRun,
+  scanScopeReviewNoFullRun,
   scanMarketplaceSource,
   scanAuditSetGlobs,
   scanNoBaseBranchCommit,
   scanShipNoOpensPr,
   scanPastPrSkills,
   scanNoOfferStart,
+  scanNoCiWait,
   scanDeriveNoDod,
   scanInvariantRegisterJoin,
 } = require('./scanners');
@@ -186,6 +187,12 @@ module.exports = [
     format: (g) => `${g.source}:${g.line} names \`start_session\` or the offer marker line — superdev starts no session and makes no offer (ADR 0253)`,
   },
   {
+    id: 'no-ci-wait',
+    ok: 'no shipped prose names a wait or a poll on CI: no `--watch`, no `gh run watch`, no sleep over a check or a status (INV-0192)',
+    run: scanNoCiWait,
+    format: (g) => `plugin/${g.source}:${g.line} names a wait or a poll on CI — superdev never waits on a check; ship refuses as pending instead (INV-0192, ADR 0255)`,
+  },
+  {
     id: 'no-base-branch-commit',
     ok: 'no shipped prose instructs a commit, a push, or a merge to the base branch, other than ship\'s own admitted host-API merge (INV-0001)',
     run: scanNoBaseBranchCommit,
@@ -282,9 +289,9 @@ module.exports = [
     format: contractGap,
   },
   {
-    id: 'scope-review-no-entry-run',
-    ok: 'no scope-review document names an entry run: the full-suite run starts at the exit alone (ADR 0254)',
-    run: scanScopeReviewNoEntryRun,
+    id: 'scope-review-no-full-run',
+    ok: 'no scope-review document instructs a full or whole-repo run outside the ad-hoc clause the operator asks for: ship takes the full-suite evidence (ADR 0255, INV-0193)',
+    run: scanScopeReviewNoFullRun,
     format: contractGap,
   },
 ];

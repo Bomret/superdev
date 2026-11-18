@@ -60,7 +60,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          helper `discard.js` and `prepare.js` share.
                          Ledger and run state: `ledger.js` (vocabulary, stage rank, line primitives),
                          `ledger-lifecycle.js` and `ledger-records.js` (the verbs that move a run and
-                         record a fact), `suite-base-get.js`, `dod-line.js`, `dod-tags.js` (the `dod-tags` verb that rewrites and checks criterion tags, ADR 0209), `dod-check.js` (the `dod-check` verb that checks an anchor's Absorbs citations, `Reachable:`, and release-risk categories, ADR 0233), `dod-merge.js` (the `dod-merge` verb and the
+                         record a fact), `suite-base-get.js`, `dod-line.js`, `dod-tags.js` (the `dod-tags` verb that rewrites and checks criterion tags, ADR 0209), `dod-check.js` (the `dod-check` verb that checks an anchor's Absorbs citations, `Reachable:`, and release-risk categories, ADR 0233), `ci.js` (the `ci` verb that judges a commit's check status against its named CI checks, ADR 0255), `dod-merge.js` (the `dod-merge` verb and the
                          per-line merge adopt uses, ADR 0206), `run-state.js` (`publish` and
                          `adopt`), `status.js`, `usage.js`, `refusal.js` (the refusal error),
                          `main-work-tree.js`, `verification.js` (the readers of `verification.md`).
@@ -108,7 +108,7 @@ tests/                 — one suite per shipped executable (the hooks, `scope.j
                          point's suite is split flat by topic into `tests/<entry>-<topic>.test.js` over one
                          `<entry>-setup.js` that is no suite (ADR 0139, ADR 0151): `scope-*` (ledger,
                          ledger-header, `suite-*` (record, carry, complete, rerun, config, failed), dod-line, dod-tags, dod-check, dod-merge, publish-adopt, trace, digest, untraced, root-base, containment,
-                         citations-collisions, source-set, push, open, help, stdin, discard, prepare, `test-verb-*`, `fail-to-pass-*`, over `scope-setup.js`),
+                         citations-collisions, source-set, ci, push, open, help, stdin, discard, prepare, `test-verb-*`, `fail-to-pass-*`, over `scope-setup.js`),
                          `run-trace*` (dispatch, guards, model, paths, over `run-trace-setup.js`), `publish-kb*` (containment, guard, `parent-link-*`,
                          patch, publish, read, scope, templates, timeout, over `publish-kb-setup.js`),
                          and `scope-prune*` (containment, guards, main, reap, over `scope-prune-setup.js`);
@@ -311,6 +311,7 @@ action of the closing (ADR 0253). Read it before you change subagent prose or th
 bun install                        # install dev deps (release toolchain)
 node scripts/run-tests.js          # every tests/ suite, drift-check, plugin manifest validation
 node scripts/run-tests.js --related <path>...  # the tail plus the suites the paths reach
+node scripts/run-tests.js --help   # the accepted forms; any other argument is refused, exit 2
 node tests/<suite>.test.js         # one suite, no tail
 GH_TOKEN=$(gh auth token) bun run release  # cut a release from clean main (see RELEASING.md)
 ```
@@ -404,9 +405,9 @@ This root owns every other subtree directly:
   opened, deploys the merge under the repository's deploy posture (`none`/`manual`/`auto`,
   `docs/agents/deployment.md`, ADR 0101), and closes no anchor (ADR 0106). After the pull request opens, an
   attended submit-pr asks one ship question that names the pull request and says nobody has reviewed it; its
-  yes is the merge consent and starts ship. Where no whole-repo command is configured, submit-pr first runs
-  ship's own reuse check, which runs no test, and on a tip ship would refuse with no carry it prints
-  `/superdev:review` instead and asks no ship question (ADR 0230). Ship starts `/superdev:verify-ship` while a
+  yes is the merge consent and starts ship. Submit-pr runs no test. Where `docs/agents/verification.md` names CI checks,
+  it asks no ship question. CI has not reported when the pull request opens.
+  Submit-pr prints `/superdev:ship` to run once the named checks are green (ADR 0255). Ship starts `/superdev:verify-ship` while a
   criterion is left to verify, and `/superdev:wrap-up` otherwise (ADR 0116); its repair and re-verify routes
   and every refusal print their command. `/superdev:verify-ship` settles the criteria only a deployed system
   can show. When every line settles, no line waits for a hand-sync, and it read the anchor's lines, it starts
@@ -420,16 +421,23 @@ This root owns every other subtree directly:
   never merge consent (ADR 0253). Ship refuses `--unattended` (INV-0093). A criterion verify-ship observes false routes to `/superdev:plan`'s
   repair choice, which plans a `fix` feature on its own anchor, linked to the original by a `**Repairs:**`
   line (ADR 0124).
-  No test runs after review: `/superdev:document` and `/superdev:setup` run no test command, and a green suite record carries across Markdown-only commits with no run. ADR 0189 and INV-0175 state this rule, and the `doc-setup-no-test-run` drift check holds it.
+  `/superdev:document` and `/superdev:setup` run no test command, and a green suite record carries across Markdown-only commits with no run. ADR 0189 and INV-0175 state this rule, and the `doc-setup-no-test-run` drift check holds it.
   Every worktree superdev creates or reuses for a test run runs the repository's **Prepare command** through
   `scope.js prepare` before its first test run: the scopetree at implement and review start, each slicetree, and a
   recreated scopetree (`references/scope-branch.md`'s `## Preparing a worktree`). `scope.js fail-to-pass` prepares its
   own worktree before each run. `docs/agents/verification.md`'s `## Prepare command` section states the command, `none`,
   or nothing (`references/test-selection.md`'s `## Prepare command`, ADR 0218).
-  The scope review's exit run is the scope's one full-suite run: implement and run handoff run no suite, and the
-  review starts that run only at its exit, on the tip the stage would advance on. Before its first reviews it runs no
-  test and only reads whether a recorded result covers the tip (ADR 0254). ADR 0192 and INV-0128 state this rule, and the `implement-no-full-run` drift
-  check holds it.
+  `/superdev:ship` takes the scope's full-suite evidence on the head it merges.
+  Where `docs/agents/verification.md`'s `## CI` section names checks, the evidence is every named CI check green.
+  Otherwise it is ship's own local run of the full or whole-repo command.
+  Nothing waits on CI. A check not yet green makes ship refuse, and the operator runs it again (ADR 0255).
+  Implement, run handoff, review, and submit-pr run no full suite.
+  A scope review reads a red local suite record as a Critical finding at entry (ADR 0255).
+  It reads a failed named check the same way, only on a pull-request head that is the tip or an ancestor of it.
+  Either finding stays closed where a later passing run on a clean tree on the tip's ancestry covers it
+  (`references/review-scope-mode.md`'s `### 4.2 Red evidence` states which runs cover it).
+  On the local path ship runs the suite once, on the merged tip where base will move and on the tip otherwise. INV-0128 and INV-0191 state this rule, and the `implement-no-full-run`,
+  `scope-review-no-full-run`, and `no-ci-wait` drift checks hold it.
   Whoever invokes a chain command passes `--unattended` to run it unattended (ADR 0016, ADR 0108);
   superdev ships no driver. One unattended implement runs through submit-pr: each start carries
   `--unattended`, and submit-pr asks no ship question. Some skills sit outside the chain: publish-kb sends a scope's

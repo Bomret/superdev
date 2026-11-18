@@ -40,10 +40,11 @@ function fenceCloses(line, open) {
   return /^ {0,3}(`+|~+)\s*$/.test(line) && line.trim()[0] === open[0] && line.trim().length >= open.length;
 }
 
-// A `verification.md` text split at its `## Prepare command` section (ADR 0218): `section` holds the section's lines after
-// its heading, or is null where the text has no such section, and `rest` every other line. The section runs to the next
-// heading. A heading inside a fenced block opens and ends no section.
-function prepareSection(raw) {
+// A `verification.md` text split at its `## <title>` section: `section` holds the section's lines after its heading, or is
+// null where the text has no such section, and `rest` every other line. The section runs to the next heading. A heading
+// inside a fenced block opens and ends no section. The `## Prepare command` (ADR 0218) and `## CI` (ADR 0255) sections are
+// cut out this way, so no fence of theirs is a test command.
+function sectionSplit(raw, title) {
   const section = [];
   const rest = [];
   let open = null;
@@ -54,7 +55,7 @@ function prepareSection(raw) {
     if (!open) {
       if (/^#{1,6}\s/.test(line)) {
         heading = true;
-        inSection = /^##\s+Prepare command\s*$/.test(line);
+        inSection = new RegExp('^##\\s+' + title + '\\s*$').test(line);
         found = found || inSection;
       }
       open = fenceOpener(line);
@@ -64,6 +65,8 @@ function prepareSection(raw) {
   }
   return { section: found ? section : null, rest: rest.join('\n') };
 }
+
+const prepareSection = (raw) => sectionSplit(raw, 'Prepare command');
 
 // The **Prepare command** of a `verification.md` text (ADR 0218), in one of three states: `{ state: 'absent' }`,
 // `{ state: 'none' }`, or `{ state: 'command', command }`. The command is the section's first backtick span outside a fence,
@@ -77,6 +80,21 @@ function prepareCommandOf(raw) {
   const word = span ? span[1].trim() : null;
   if (word === 'none' || (!span && /^\s*none\s*$/m.test(text))) return { state: 'none' };
   return word ? { state: 'command', command: word } : { state: 'absent' };
+}
+
+// The **Named check**s of a `verification.md` text (ADR 0255), in one of three states: `{ state: 'none' }` where the text has
+// no `## CI` section, the section reads `none`, or it holds neither a name nor `none`; `{ state: 'named', names }`, each
+// name a backtick span outside a fence, trimmed, listed once in first-seen order; and `{ state: 'malformed' }` where the
+// section holds both `none` and a name. `none` is a span reading `none`, or a line holding the bare word, lowercase.
+function namedChecksOf(raw) {
+  const { section } = sectionSplit(raw.replace(/\r\n?/g, '\n'), 'CI');
+  if (!section) return { state: 'none' };
+  const text = fenceBlocks(section.join('\n')).outside;
+  const spans = [...text.matchAll(/`([^`\n]+)`/g)].map((m) => m[1].trim()).filter(Boolean);
+  const none = spans.includes('none') || /^\s*none\s*$/m.test(text);
+  const names = [...new Set(spans.filter((n) => n !== 'none'))];
+  if (none && names.length) return { state: 'malformed' };
+  return names.length ? { state: 'named', names } : { state: 'none' };
 }
 
 // The default test patterns, used where `docs/agents/verification.md` has no usable `## Test paths`.
@@ -145,8 +163,8 @@ function verificationCommands(tree, keepLines) {
 function verificationCommandsOf(raw, keepLines) {
   // `keepLines` keeps a fence's own newlines, for the runner that executes the command as written (ADR 0127).
   const norm = (t) => (t ? (keepLines ? t.trim() : t.replace(/\s+/g, ' ').trim()) || null : null);
-  // The `## Prepare command` section's fences are no test command, wherever the section sits.
-  const { blocks, outside } = fenceBlocks(prepareSection(raw).rest);
+  // The `## Prepare command` and `## CI` sections' fences are no test command, wherever the sections sit.
+  const { blocks, outside } = fenceBlocks(sectionSplit(prepareSection(raw).rest, 'CI').rest);
   const sec = /^##\s+Whole-repo command\s*$([\s\S]*?)(?=^#{1,6}\s|(?![\s\S]))/m.exec(outside);
   const span = sec && /`([^`\n]+)`/.exec(sec[1]);
   return { full: norm(blocks[0]), focused: norm(blocks[1]), whole: norm(span && span[1]) };
@@ -173,4 +191,4 @@ function completeSelector(text) {
   return found ? { files } : null;
 }
 
-module.exports = { prepareCommandOf, isTestPath, testPathPatterns, configuredTestPaths, verificationCommands, verificationCommandsOf, completeSelector };
+module.exports = { prepareCommandOf, namedChecksOf, isTestPath, testPathPatterns, configuredTestPaths, verificationCommands, verificationCommandsOf, completeSelector };
