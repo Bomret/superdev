@@ -4,6 +4,8 @@
 
 **Amends:** [ADR 0234](0234-test-runs-overlap-and-skip-repeated-preparation.md): its decision 1 is withdrawn. The scope
 review starts no full-suite run at entry. Decisions 2 to 4 stand.
+[ADR 0192](0192-the-full-suite-runs-once-after-review-comes-back-clean.md): the scope review runs no test at entry, the
+option ADR 0192 rejected, and its full-suite run stays at the exit alone.
 
 ## Context
 

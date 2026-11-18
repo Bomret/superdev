@@ -12,7 +12,7 @@ Rare branches live in files of their own, each read only when its branch fires: 
 
 ## 0. Config
 
-**The test command.** Applies to the exit run of §4.2, the scope's one full-suite run. The exit run runs the full command once, on a route that advances the stage, at the tip the stage would advance on, and never while a fix cycle can still move that tip. Before the first reviews the review runs no test: §4.2's entry reuse check only reads whether a recorded result already covers the tip.
+**The test command.** Applies to the exit run of §4.2, the scope's one full-suite run. The exit run runs the full command once, on a route that advances the stage, at the tip the stage would advance on, and never while a fix cycle can still move that tip. Before the first reviews, see §4.2's entry reuse check.
 
 ## 1. Range
 
