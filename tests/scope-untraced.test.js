@@ -151,6 +151,10 @@ const edit = (root, slice, rel) => appendTrace(root, { slice, agent: 'a1', kind:
   assert.ok(!call(['untraced', head, '--slice', '05', '--root', root], '', repo).ok, 'a bare commit, which walks the whole history, refuses');
   assert.ok(!call(['untraced', `${head}...${head}`, '--slice', '05', '--root', root], '', repo).ok, 'a three-dot range, which walks the base side too, refuses');
   assert.ok(!call(['untraced', `${head}..${head}`, '--slice', '05', '--root', path.join(dir, 'no-such-run')], '', repo).ok, 'a root with no ledger refuses');
+  const twice = call(['untraced', `${head}..${head}`, '--slice', '05', '--window', 'w1', '--window', 'w1', '--root', root], '', repo);
+  assert.ok(!twice.ok && twice.err.includes('untraced') && twice.err.includes('--window'), `a flag given twice is refused naming the flag: ${twice.err}`);
+  const stray = call(['untraced', `${head}..${head}`, '--slice', '05', '--windw', 'w1', '--root', root], '', repo);
+  assert.ok(!stray.ok && stray.err.includes('untraced') && stray.err.includes('--windw'), `an unknown flag is refused naming the flag: ${stray.err}`);
 }
 
 // #net: the listing is the range's net change per path.

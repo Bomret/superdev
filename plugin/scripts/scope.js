@@ -85,7 +85,7 @@ function verbTrace(root, args) {
   }
   const { lines, events } = tw.readRunTrace(root);
   const slice = f['--slice'];
-  const inWindow = f['--window'] === undefined ? null : tw.windowIndexes(events, f['--window'], slice, fail);
+  const inWindow = f['--window'] === undefined ? null : tw.windowIndexes(events, f['--window'], slice, (m) => fail(`trace: ${m}`));
   let kept = lines.filter((_, i) => (slice === undefined || tw.sliceOf(events[i]) === slice)
     && (kinds === null || kinds.has(events[i].kind))
     && (inWindow === null || inWindow.has(i)));

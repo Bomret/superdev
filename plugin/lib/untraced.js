@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { gitSpawn } = require('./git-spawn.js');
 const { lazyToplevel } = require('./run-tree.js');
-const { readRunTrace, sliceOf, editPath, windowIndexes } = require('./trace-window.js');
+const { readRunTrace, sliceOf, editPath, windowIndexes, traceFlags } = require('./trace-window.js');
 const { fail } = require('./refusal.js');
 
 const STATUS = { A: 'added', M: 'modified', T: 'modified', D: 'deleted', R: 'renamed' };
@@ -68,19 +68,11 @@ function netChanges(range, cwd, verb) {
 // trace holds no `edit` line of `--slice` naming it, compared root-relative. `--window <dispatch id>` keeps only the edit lines every
 // run of that implementer dispatch covers (`trace-window.js`); none means the slice's whole trace. Lines come out sorted by path.
 function verbUntraced(cwd, args) {
-  const rest = args.slice();
-  const take = (flag) => {
-    const i = rest.indexOf(flag);
-    if (i < 0) return undefined;
-    const v = rest[i + 1];
-    if (!v || v.startsWith('--')) fail(`untraced: ${flag} needs a value`);
-    rest.splice(i, 2);
-    return v;
-  };
-  for (const flag of ['--from', '--until']) if (rest.includes(flag)) fail(`untraced: ${flag} is no flag of untraced; name the window by its dispatch with --window <dispatch id>`);
-  const root = take('--root');
-  const slice = take('--slice');
-  const window = take('--window');
+  for (const flag of ['--from', '--until']) if (args.includes(flag)) fail(`untraced: ${flag} is no flag of untraced; name the window by its dispatch with --window <dispatch id>`);
+  const { flags, positional: rest } = traceFlags('untraced', args, ['--root', '--slice', '--window'], true);
+  const root = flags['--root'];
+  const slice = flags['--slice'];
+  const window = flags['--window'];
   if (!root) fail('untraced needs --root <run-root>');
   if (!slice) fail('untraced needs --slice <id|scope>');
   if (rest.length !== 1) fail('untraced needs one <base>..<tip> range');

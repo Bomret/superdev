@@ -68,9 +68,9 @@ const L = [
   assert.ok(s.ok, s.err);
   assert.deepEqual(s.out.split('\n'), [L[12], L[13]], 'an open run runs to the trace\'s end');
   const other = call(['trace', '--slice', '02', '--window', 'tu1', '--root', root]);
-  assert.ok(!other.ok && /tu1/.test(other.err) && /01/.test(other.err), 'a window of another slice is refused by name');
+  assert.ok(!other.ok && /trace: --window tu1/.test(other.err) && /01/.test(other.err), 'a window of another slice is refused by name, naming the verb');
   const unknown = call(['trace', '--window', 'tr1', '--root', root]);
-  assert.ok(!unknown.ok && /tr1/.test(unknown.err), 'a reviewer dispatch names no window, and is refused by name');
+  assert.ok(!unknown.ok && /trace: --window tr1/.test(unknown.err), 'a reviewer dispatch names no window, and is refused by name, naming the verb');
 }
 
 // #ends: a session-end, stopped, or missing end still closes a run at the next boundary; a dispatch-end with no outcome
