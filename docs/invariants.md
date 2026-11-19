@@ -221,7 +221,7 @@ Concepts: Run root, Scope
 Statement: Every run-root scan reads `.superdev/scopes/*/` only. A directory beside `scopes/` under `.superdev/` is never treated as a run root.
 Breaks: silently
 Check: none — no test covers a sibling area
-Paths: plugin/hooks/scope-prune.js, plugin/hooks/slicetree-sweep.js, plugin/scripts/scope.js, plugin/lib/main-work-tree.js, plugin/skills/status/SKILL.md
+Paths: plugin/hooks/scope-prune.js, plugin/hooks/slicetree-sweep.js, plugin/scripts/scope.js, plugin/lib/main-work-tree.js, plugin/lib/run-roots.js, plugin/skills/status/SKILL.md
 
 ### INV-0025
 

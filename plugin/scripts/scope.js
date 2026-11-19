@@ -58,7 +58,7 @@ const libTier = () => require('../lib/tier.js');
 const libDodOpen = () => require('../lib/dod-open.js');
 const libContained = () => require('../lib/contained.js');
 const libCandidates = () => require('../lib/candidates.js');
-const libScopeBranch =() => require('../lib/scope-branch.js');
+const libScopeBranch = () => require('../lib/scope-branch.js');
 const libDrivePath = () => require('../lib/drive-path.js');
 const libRedEvidence = () => require('../lib/red-evidence.js');
 const libUsage = () => require('../lib/usage.js');

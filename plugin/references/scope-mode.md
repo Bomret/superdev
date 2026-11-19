@@ -92,7 +92,7 @@ Ask for the verdict instead of computing it:
 working tree's run roots from any checkout, reads each ledger, writes nothing, and prints one verdict:
 
 - **`one <slug> <stage>`** — exactly one candidate. Use it.
-- **`several`** — then one `<slug> <stage>` line per candidate. List them.
+- **`several`** — then one `<slug> <stage>` line per candidate. List them and ask the operator, or block under `--unattended`, per the cascade above.
 - **`none`** — then one `<slug> <stage>` line per run root the repository holds, the stage reading
   `absent` where the ledger names none and `unreadable` where it cannot be read. Report them and stop.
 
