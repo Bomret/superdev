@@ -47,9 +47,9 @@ Dispatch one `superdev:implementer`. This is the inline fix dispatch of the impl
 
 ## 5. The focused run
 
-With `<tree>` as the working directory, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <paths>` once. `<paths>` are the paths `git -C <tree> diff --name-only --no-renames <tip> HEAD` lists that exist in `<tree>`.
+With `<tree>` as the working directory, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused --since <tip>` once. It runs over every path changed since `<tip>`, a path the fix deleted included: a selector that maps a path to the tests naming it reaches those tests through the deleted path.
 
-- **No path, or no test command configured** → run no test and record `not run: <reason>`.
+- **No path changed since `<tip>`, which the verb refuses, or no test command configured** → run no test and record `not run: <reason>`.
 - Every test run passes Bash's `timeout` at its ceiling, 600000 ms unless `BASH_MAX_TIMEOUT_MS` raises it, and runs in the foreground. Only a run that can outlast the ceiling runs in the background, and you wait for its end.
 
 ## 6. The warm re-review

@@ -354,6 +354,7 @@ module.exports = ({ assert, path, fixture, found }) => {
       assert.equal(gaps[0].source, rel, `${rel}: names the document`);
     }
     assert.equal(noFull({ [rel]: 'Run `scope.js test focused <changed paths>` with at least one path.\n' }).length, 0, `${rel}: a focused run with a path passes`);
+    assert.equal(noFull({ [rel]: 'Run `scope.js test focused --since main` once.\n' }).length, 0, `${rel}: a focused run given a ref passes as a path-given run`);
     assert.equal(noFull({ [rel]: 'Run no test suite here (ADR 0192).\n' }).length, 0, `${rel}: a statement that no suite runs passes`);
     assert.equal(noFull({ [rel]: 'It never runs the full command.\n' }).length, 0, `${rel}: a negated run passes`);
     assert.equal(noFull({ [rel]: 'The step runs no full suite.\n' }).length, 0, `${rel}: a run of no full suite passes`);

@@ -18,6 +18,7 @@ Applies to every dispatch. You are the reader test. Read docs the way a newcomer
 Applies to every dispatch.
 
 - A list of doc files to test and the path to `docs/agents/documentation.md`.
+- A post-writer dispatch's list can hold non-Markdown files whose comments the writer rewrote. Those files are in the range the scope changed, so the comment edits are in scope: test each comment and docstring as a doc, and leave the code around it to the review. A stale comment you meet in a file outside the range is a `stale:` finding in the same form as any other, naming that the file lies outside the range.
 - A post-writer dispatch adds the commit range: `<range-base>..<branch>`, the scope's own commits, on a live run; `<first>^..<last>` of the commits the writer or the inline reconcile made, on an ad-hoc run. An ad-hoc pass that committed nothing hands no range.
 - The range scopes Pass 3 only. It is no narrative of the work.
 - A post-writer dispatch also hands the tree to ground against: the scope checkout on a live run, the current checkout on an ad-hoc run. Its file list can hold staged pages.
@@ -61,6 +62,7 @@ Read the file the value names and apply every rule it states.
 - A dispatch with no commit range, which only an ad-hoc pass that committed nothing hands, has no added lines to judge. Say so in the report, and the pass is over.
 - Judge only the lines the range added: run `git diff <range>`. A range whose first commit is the root commit has no parent: diff from the empty tree (`git hash-object -t tree /dev/null`).
 - Prose nobody touched is out of scope, whatever it breaks.
+- In a non-Markdown file, judge only the comment text the writer rewrote. The code is out of scope for this pass.
 - Report a breach of a rule the standard states as a requirement as `style:`. Report advice the standard gives as `ambiguous:`, only where it leaves the text ambiguous.
 - The standard states its own exemptions (`${CLAUDE_PLUGIN_ROOT}/references/controlled-prose.md`, `## Scope`).
 

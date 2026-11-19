@@ -386,7 +386,9 @@ This root owns every other subtree directly:
   sweep is `references/implement-full-minor-sweep.md`'s `## Minor sweep`, the warm cycle `references/scope-findings.md`'s
   `## Warm cycles` (ADR 0174). A scope review warrants each `simplicity-reviewer` cut by the rules the
   repository documents for itself, names each declined cut with the rule it would break, and puts each
-  warranted cut into its ask-once fix set as a Minor. Only the entry review gets the over-engineering pass
+  warranted cut into its fix list as a Minor. The scope review fixes every finding it lists without asking whether to,
+  attended and unattended alike. An attended review asks only, per broken Definition-of-Done criterion and before
+  its first fix dispatch, whether to fix it or accept it as unmet with the operator's reason (ADR 0256). Only the entry review gets the over-engineering pass
   (ADR 0228). An attended ad-hoc review whose remaining findings are all Minor, warranted cuts included, and
   whose subject ends at a commit offers an **Inline fix** after one yes: one implementer fixes the list on a
   `review-fix/<short SHA>` branch in a **Fix worktree** under the main working tree's `.superdev/review-fixes/`,
@@ -422,6 +424,8 @@ This root owns every other subtree directly:
   never merge consent (ADR 0253). Ship refuses `--unattended` (INV-0093). A criterion verify-ship observes false routes to `/superdev:plan`'s
   repair choice, which plans a `fix` feature on its own anchor, linked to the original by a `**Repairs:**`
   line (ADR 0124).
+  The doc pass also rewrites the comment text of the non-Markdown files the scope's range changes, never a code
+  token, and names a stale comment outside the range unedited (ADR 0258).
   `/superdev:document` and `/superdev:setup` run no test command, and a green suite record carries across Markdown-only commits with no run. ADR 0189 and INV-0175 state this rule, and the `doc-setup-no-test-run` drift check holds it.
   Every worktree superdev creates or reuses for a test run runs the repository's **Prepare command** through
   `scope.js prepare` before its first test run: the scopetree at implement and review start, each slicetree, and a
