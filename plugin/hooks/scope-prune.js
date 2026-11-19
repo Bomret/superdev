@@ -34,44 +34,17 @@ const path = require('node:path');
 
 const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days from the newest file mtime in the run root, `.DS_Store` aside
 
-// A scope branch is `<type>/<scope>`, where `<type>` is the change type — the Conventional Commits type
-// of the work (`references/scope-mode.md`, `## The change type`). The run-root directory name carries the
-// slug alone, so the branch cannot be rebuilt from it: match the last segment against the scope and the
-// leading segment against the type set instead. `slice/<scope>/<id>` never matches — its last segment is
-// the slice id.
-const CHANGE_TYPES = /^(feat|fix|refactor|docs|perf|test|build|ci|chore|style|revert)$/;
-
-// The shape scan, returning the branch **name** rather than a bare yes: the containment test below needs
-// something to hand git, and a pre-CLI ledger with no `**Branch:**` line leaves the scan as the only
-// source of one.
-function shapeScanBranch(branchSet, scope) {
-  for (const branch of branchSet) {
-    const cut = branch.lastIndexOf('/');
-    if (cut < 1) continue; // no type segment → not a scope branch
-    if (branch.slice(cut + 1) === scope && CHANGE_TYPES.test(branch.slice(0, cut))) return branch;
-  }
-  return null;
-}
+// A scope branch is `<type>/<scope>` (`references/scope-mode.md`, `## The scope branch`); `lib/scope-branch.js` owns the shape
+// rule and returns every match. It is loaded below through a guarded require. A pre-CLI ledger with no `**Branch:**` line
+// leaves the shape scan as the only source of a branch name for the containment test.
+// Returned by `resolveBranch` where the shape matches two branches: nothing says which is the scope's.
+const AMBIGUOUS = Symbol('ambiguous');
 
 // Normalises `git for-each-ref refs/heads refs/remotes` output to plain branch names, so a local branch
-// and its remote-tracking copy compare equal. `refs/remotes/<remote>/HEAD` is a symbolic ref rather than
-// a branch, and drops out.
+// and its remote-tracking copy compare equal. `lib/scope-branch.js`'s `parseBranchRefs`, loaded below, owns the parse.
 function branchNamesFrom(refLines) {
-  const names = new Set();
-  for (const raw of refLines) {
-    const ref = raw.trim();
-    if (ref.startsWith('refs/heads/')) {
-      names.add(ref.slice('refs/heads/'.length));
-      continue;
-    }
-    if (!ref.startsWith('refs/remotes/')) continue;
-    const rest = ref.slice('refs/remotes/'.length);
-    const cut = rest.indexOf('/'); // drop the remote name, whatever it is called
-    if (cut < 1) continue;
-    const name = rest.slice(cut + 1);
-    if (name !== 'HEAD') names.add(name);
-  }
-  return names;
+  const { local, remote } = parseBranchRefs(refLines);
+  return new Set([...local, ...remote]);
 }
 
 // Maps a bare branch name to the exact ref `git merge-tree` can resolve: the bare name itself when a
@@ -107,12 +80,15 @@ function qualifyBranchRefs(refLines) {
 // `exactBranch` (from `readBranch` below) is authoritative when the ledger carries a `**Branch:**` line
 // — exact-name membership, no guessing (references/scope-mode.md, `## The scope branch`). The shape scan
 // is the fallback, only for a pre-CLI ledger with no such line: it can misread a branch as gone that is
-// really alive and carrying unlanded work, either because its type isn't in `CHANGE_TYPES` (`feature/x`
+// really alive and carrying unlanded work, either because its type isn't a change type (`feature/x`
 // vs `feat/x`) or because the slug in its name has drifted from the run-root's directory name — and
-// reading "gone" here prunes a live run's root, not just skips a merge.
+// reading "gone" here prunes a live run's root, not just skips a merge. Two shape matches return `AMBIGUOUS`:
+// the caller prunes, reaps, and deletes nothing for that scope (INV-0003, INV-0106).
 function resolveBranch(branchSet, scope, exactBranch) {
   if (exactBranch) return branchSet.has(exactBranch) ? exactBranch : null;
-  return shapeScanBranch(branchSet, scope);
+  const matches = shapeMatches(branchSet, scope);
+  if (matches.length > 1) return AMBIGUOUS;
+  return matches.length ? matches[0] : null;
 }
 
 // Pure: from the list of scope directory names, a predicate answering whether one branch's work is
@@ -161,6 +137,7 @@ function selectPrunable(scopeNames, isContained, mtimeOf, stageOf, allBranchSet,
     // to the shape-scan guess (Important 3 removed that guess as the default; `() => null` opts a
     // caller into it deliberately).
     const branch = resolveBranch(allBranchSet, scope, branchOf(scope));
+    if (branch === AMBIGUOUS) continue; // two branches match the shape → no way to tell which is this scope's
     // Gone → finished with. Present → only contained content counts as landed.
     if (branch !== null && !isContained(branch)) continue;
     out.push(scope);
@@ -269,6 +246,20 @@ try {
   ({ baseHistoryHasPatch = null, baseCommitHoldsBranch = null } = require('../lib/containment.js'));
 } catch {
   // Left null. The containment test below falls back to the tree comparison alone, silently.
+}
+
+// `lib/scope-branch.js` owns the shape rule and the ref-name parse (INV-0159, INV-0068). No fallback: without it the hook cannot
+// tell a gone branch from one it cannot name, so a failed load, or a module carrying no `shapeMatches` or no `parseBranchRefs`,
+// leaves both null and main() prunes nothing, silently.
+let shapeMatches = null;
+let parseBranchRefs = null;
+try {
+  const scopeBranchModule = require('../lib/scope-branch.js');
+  if (typeof scopeBranchModule.shapeMatches === 'function' && typeof scopeBranchModule.parseBranchRefs === 'function') {
+    ({ shapeMatches, parseBranchRefs } = scopeBranchModule);
+  }
+} catch {
+  // Left null. main() checks it before doing anything below.
 }
 
 // `lib/git-spawn.js` owns the git calls (the status-reading spawn, the throwing call, the `git branch` list
@@ -409,7 +400,7 @@ const RESOLVE_BOUND_MS = 5000;
 
 function main(sessionCwd) {
   // shared reader, git module, or resolver unavailable → prune nothing, say nothing
-  if (!readLedgerHeader || !gitSpawn || !gitThrow || !parseBranchList || typeof mainWorkTree !== 'function') return;
+  if (!readLedgerHeader || !shapeMatches || !parseBranchRefs || !gitSpawn || !gitThrow || !parseBranchList || typeof mainWorkTree !== 'function') return;
   // The main working tree is the root of every git call below, `HEAD` included, so a session standing in a
   // scopetree does not read the scope branch as `HEAD`. `cwd` names it for the rest of this function.
   const cwd = mainWorkTree(sessionCwd, { timeout: RESOLVE_BOUND_MS });
@@ -491,7 +482,6 @@ if (require.main === module) {
 module.exports = {
   TTL_MS,
   selectPrunable,
-  shapeScanBranch,
   branchNamesFrom,
   readHeader,
   readStage,

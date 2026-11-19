@@ -24,8 +24,7 @@ commits, the ledger record it writes — stays in the execution playbook.
   like Confluence, or none), plus its **audience(s)**, **language**, and agreed **outline**. May say
   "none".
 - **The staging path**, as an **absolute** path, when the knowledge-base backend is remote.
-- **The `docs` targets**, on a live scope run: every `docs`-tagged Definition-of-Done line that is
-  an open line by `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule`, a `[x]` line noted `not met:` included.
+- **The `docs` targets**, on a live scope run: every open `docs`-tagged Definition-of-Done line.
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-open --root <run-root> --tag docs` prints them, one row per line, the criterion text in the last field, and that text is the target. A refused `dod.md`, or `no criteria`, names no target: the pass has none and names the refusal in its report, and it never reads as every `docs` line settled. Each names `AGENTS.md`-hierarchy text the scope requires, and Pass 1 makes every one of them
   true. `/superdev:document` judges them after the pass.
 

@@ -12,7 +12,7 @@ const { spawnSync, execFileSync } = require('node:child_process');
 const { scopePath, call, fetchBound, writeOperatorConfig } = require('./scope-setup');
 const { copyFixture, templateOnce } = require('./fixture-git');
 const { assertSpawnDecided } = require('./spawn-verdict');
-const { STALENESS_MS } = require('../plugin/lib/plan-open.js');
+const { STALENESS_MS } = require('../plugin/lib/run-lock.js');
 
 const BRANCH = 'feat/open-me';
 const made = [];
@@ -227,6 +227,17 @@ try {
     assert.strictEqual(r.status, 3, `exits 3: ${r.out}`);
     assert.strictEqual(r.word, 'held');
     assert.ok(r.out.includes(elsewhere), 'names the holding worktree');
+  }
+
+  // #held: the holding worktree's path holds a newline and is named whole.
+  {
+    const f = fixture();
+    git(['branch', BRANCH, 'main'], f.repo);
+    const elsewhere = path.join(tmp('scope-open-elsewhere-'), 'w\nt');
+    git(['worktree', 'add', '-q', elsewhere, BRANCH], f.repo);
+    const r = open(f);
+    assert.strictEqual(r.word, 'held');
+    assert.ok(r.out.includes(elsewhere), 'names the holding worktree whole');
   }
 
   // #closed: a closed ledger from a retired label is rotated aside, and the run is cut fresh.

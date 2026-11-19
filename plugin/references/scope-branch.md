@@ -133,8 +133,8 @@ second time from git state. One call cuts or reuses the branch at every run kind
   `planned` and works in the scopetree already there. The branch may carry unmerged slice work, for a run
   already in flight, or nothing at all beyond `/superdev:plan`'s own design-docs commit, for one just
   handed off. Read `<branch>` from the ledger's own line — `scope.js get branch --root <run-root>`,
-  verified with `git rev-parse --verify <branch>` — never by rebuilding `<type>/<scope>` and never through
-  `scope-mode.md`'s `## The scope branch`'s shape-scan fallback, which can return a foreign branch.
+  verified with `git rev-parse --verify <branch>` — never by rebuilding `<type>/<scope>` and never from a
+  `guess` or `guess-remote` verdict of `scope.js branch`, which can name a foreign branch.
   **A name that does not verify locally is fetched before anything else**: `git fetch
   <remote> <branch>` (`<remote>` from `docs/agents/code-management.md`) — a fresh clone, or a ledger just
   adopted from the anchor's snapshot, holds no scope branch until this runs. **Verify the fetch's own
@@ -265,8 +265,7 @@ branch step left you on.
 4. **Bring `<tip>` in, and record it.** **Move every numbering collision first**:
    run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" collisions --base <tip> --branch <branch>
    --range-base <range-base>`, with `<range-base>` per `scope-mode.md`'s `## The scope's range base` and one `--also <ref>`
-   for each other live plan run's scope branch (`scope-mode.md`'s `## Resolving an empty argument` → *Run-root enumeration*, stage
-   `planned` or later, its branch read with `scope.js get branch --root <run-root>`) whose ref resolves:
+   for each other live plan run's scope branch (the runs `scope.js candidates --stage planned,implementing,merged,reviewed,documented-unreviewed,documented,submitted,shipped,closed` names per `scope-mode.md`'s `## Resolving an empty argument` → *Run-root enumeration*, this run's own slug left out; each branch read with `scope.js get branch --root <run-root>`) whose ref resolves:
    `git rev-parse --verify <ref>` succeeds. A run root whose branch no longer resolves gets no `--also`,
    so it never stops this run. It compares numbers, so it finds a collision git never reports as a conflict.
    Exit 0 → nothing collides. Exit 1 → for each line it prints, move this scope's ADR file or invariant

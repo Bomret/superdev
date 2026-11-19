@@ -93,14 +93,14 @@ Review a change end to end. §1 decides the mode.
 
 **The empty cascade.** Applies to an absent argument and to a path naming the top level. Review the first subject below that exists.
 
-1. **The working tree carries uncommitted changes** (`git diff HEAD` non-empty) → review those. Say in one line which eligible scope this passed over when one exists: the single run root step 3 would have found, named by a quick best-effort scan. Several or none → say nothing extra.
+1. **The working tree carries uncommitted changes** (`git diff HEAD` non-empty) → review those. Say in one line which eligible scope this passed over when one exists: the single run root step 3 would have found, named by `scope.js candidates --stage merged,documented-unreviewed`. Several or none → say nothing extra.
 2. **`merge-base(base, HEAD)..HEAD` is non-empty** → review that. When HEAD is a branch a live run root names, the range base per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base` replaces the merge-base: `<range-base>..HEAD`. Any other HEAD keeps `merge-base(base, HEAD)`.
 3. **Not under `--chained`** → run `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Resolving an empty argument` cascade over the run roots at stage `merged` or `documented-unreviewed`, the stages the chain hands to this review.
    - Its resolved candidate is a scope slug. Resolve its range as the scope-branch concept below states.
    - Several candidates still put the question, and block under `--unattended`, as `## Resolving an empty argument` states.
    - **No candidate** → go on to step 4. This review adds step 3 after the shared cascade, so the cascade's own **No candidate** stop does not apply here.
 4. **Otherwise** → **standing code of the whole repository**: the files at `HEAD`, the standing-code shape applied to the top level.
-   - Before any reviewer starts, the range announcement lists every run root with its stage (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Resolving an empty argument`, *Run-root enumeration*) and adds a `/superdev:review <scope-slug>` line for the operator who meant a run. A repository with no run root says so.
+   - Before any reviewer starts, the range announcement lists every run root with its stage (the `none` lines of `scope.js candidates --stage merged,documented-unreviewed`, which step 3 already printed when it ran, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Resolving an empty argument`, *Run-root enumeration*) and adds a `/superdev:review <scope-slug>` line for the operator who meant a run. A repository with no run root says so.
    - The review is ad-hoc, attended or unattended: no ledger write, no run lock, no fix loop.
    - No files at `HEAD` → say there is nothing to review and dispatch nobody.
 
@@ -113,7 +113,7 @@ Review a change end to end. §1 decides the mode.
 **The scope branch's range.** Applies to a scope slug that names a run root, from the empty cascade or from a scope-slug argument. Read the run state with one `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state --root <run-root>` call, and take `<branch>` from its `branch` field, the scope's `**Branch:**` line. `review-scope-mode.md` reads the `anchor`, `slices`, `stage`, and `suite` fields of that same output. Verify it with `git rev-parse --verify --quiet '<branch>^{commit}'`. The range is `<range-base>..branch`.
 
 - The range base comes from `scope.js base resolve --branch <branch> --base <base> --root <run-root>` per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`.
-- No such line, or the named branch does not verify → take `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope branch` shape-scan fallback and say which route was taken.
+- No such line, or the named branch does not verify → run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" branch --root <run-root>` and act on its verdict per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope branch`; name a `guess` or `guess-remote` route.
 - The scope-mode bullet of the parse concept then recognizes a live run.
 
 **The range announcement.** Applies after the range resolves and before any dispatch. State the concrete range or target (`Reviewing a1b2c3..d4e5f6`, or `Reviewing working tree changes incl. untracked`).
@@ -173,9 +173,8 @@ Review a change end to end. §1 decides the mode.
 
 **A denied `final-reviewer` dispatch.** Applies when the permission classifier denies the dispatch. The denial is a degraded pass. Follow `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section.
 
-- **Attended** → review inline yourself and say so in §3's report.
-- **A live scope run** → also take the writes of `${CLAUDE_PLUGIN_ROOT}/references/review-scope-denials.md`'s `## A denied final-reviewer dispatch`.
-- **`--unattended`** → that section's authorship rule decides: **block** where the controller authored what the review verifies, which the tier answers, and otherwise review inline as the attended branch does.
+- **An ad-hoc run** → attended or unattended, review inline yourself and say so in §3's report. An ad-hoc run has no run root, records no denial, and asks no verdict.
+- **A live scope run** → take the writes of `${CLAUDE_PLUGIN_ROOT}/references/review-scope-denials.md`'s `## A denied final-reviewer dispatch`, then ask `scope.js denial final-reviewer [--unattended] --root <run-root>` for the verdict, passing `--unattended` on an unattended run: `inline` → review inline yourself and say so in §3's report, and a `block …` verdict blocks.
 
 ## 3. Report
 

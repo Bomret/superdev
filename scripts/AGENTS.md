@@ -32,9 +32,9 @@ reports, which names the bound and `code-host.pushTimeoutMs`; `lib/run-state-ref
 `scope.js` owns the CLI and the verbs, and requires only modules from `plugin/lib/` (ADR 0151). Each verb's code lives in
 a module of its own: the ledger verbs in `ledger-lifecycle.js` and `ledger-records.js`, `suite` and `base` and `get` in
 `suite-base-get.js`, `test` in `test-verb.js`, `publish` with `adopt` in `run-state.js`, `open` in `plan-open.js`, `dod-merge` in `dod-merge.js` (with `mergeDod`, the per-line merge `fetchRunState` also uses, ADR 0206), and `dod-line`, `dod-tags`, `dod-check`, `ci`, `fail-to-pass`, `fail-to-pass-check`, `prepare`,
-`citations`, `collisions`, `source-set`, `untraced`, `push`, `discard`, `status`, `section`, `tier`, `dod-open`, `contained`, and `red-evidence` each in the module of its name. `trace` and `windows` live in `scope.js` over `trace-window.js` (`readRunTrace`, `sliceOf`, `editPath`, `windowsOf`, `windowIndexes`, `traceFlags`), the one window derivation `trace --window`, `untraced --window`, and `fail-to-pass-check --window` share, and `traceFlags` is the flag parser `trace`, `windows`, `untraced`, and `fail-to-pass-check` share. The run-state ref (`refs/superdev/<scope>`, ADR 0202) is `run-state-ref.js`: `pushRunState` at a step end (`step clear`, `step block`, or a `stage set` that closes the standing step, except `stage set closed`), `fetchRunState` inside `adopt`, and `deleteRunState` behind `run-state delete`. It takes `gitCall` from `push.js` and `parseRemote` from `kb-containment.js`. The vocabulary beneath them is `ledger.js` (the stage rank and the readers and writers of
+`citations`, `collisions`, `source-set`, `untraced`, `push`, `discard`, `status`, `section`, `tier`, `dod-open`, `contained`, `red-evidence`, `candidates`, `denial`, and `route` each in the module of its name. `branch` is `scope-branch.js`'s `resolveScopeBranch`, `checkout` is `scope-checkout.js`'s `scopeCheckout`, and `lock` is `run-lock.js`'s `verbLock`; `run-lock.js` also holds the run lock's reader and one-hour bound that `plan-open.js` shares. `run-roots.js` holds the one scan of `.superdev/scopes/*/` that `status` and `candidates` share. `trace` and `windows` live in `scope.js` over `trace-window.js` (`readRunTrace`, `sliceOf`, `editPath`, `windowsOf`, `windowIndexes`, `traceFlags`), the one window derivation `trace --window`, `untraced --window`, and `fail-to-pass-check --window` share, and `traceFlags` is the flag parser `trace`, `windows`, `untraced`, and `fail-to-pass-check` share. The run-state ref (`refs/superdev/<scope>`, ADR 0202) is `run-state-ref.js`: `pushRunState` at a step end (`step clear`, `step block`, or a `stage set` that closes the standing step, except `stage set closed`), `fetchRunState` inside `adopt`, and `deleteRunState` behind `run-state delete`. It takes `gitCall` from `push.js` and `parseRemote` from `kb-containment.js`. The vocabulary beneath them is `ledger.js` (the stage rank and the readers and writers of
 a ledger's header lines, bullets, and table rows), `refusal.js` (the refusal error `fail`), `verification.js` (`verificationCommands`,
-`verificationCommandsOf`, `prepareCommandOf`, `namedChecksOf`, `isTestPath`), `git-spawn.js` (`gitSpawn`, `gitThrow`, `parseBranchList`, `resolveCommit`, `refResolves`, `fileAt`),
+`verificationCommandsOf`, `prepareCommandOf`, `namedChecksOf`, `isTestPath`), `git-spawn.js` (`gitSpawn`, `gitThrow`, `parseBranchList`, `resolveCommit`, `refResolves`, `fileAt`, `listWorktrees`),
 `containment.js` (`testContainment`, `judgeContainment`, `refetchMark`, `baseHistoryHasPatch`, `baseCommitHoldsBranch`), `main-work-tree.js` (`mainWorkTree`, `scopesDirFor`, `mainTreePath`), and
 `trace-log.js` (`appendTrace`, `readTrace`, `traceField`, `untraceField`). The root [`AGENTS.md`](../AGENTS.md) *Structure* names every module and its
 responsibility. At startup `scope.js` loads only `refusal.js`, `ledger.js`, and `trace-log.js`. Every other module
@@ -50,8 +50,8 @@ lazily loaded module is a getter that returns that module's own value. No module
 `base set <sha>`, `base resolve --branch <b> --base <ref>`,
 `get stage|branch|anchor|slices|unresolved|degraded|deferred|minors|denials|docs|pr|suite|failed`,
 `state [--json] --root <run-root>` (every field `get` names in one read-only call, from the ledger alone: no git, no trace line, no digest seal; `--json` prints one object with list fields as arrays and `failed` as the failed test files, its `@ <sha>` staying in `get failed` and the text output; `suite-base-get.js`'s `verbState`),
-`status` (which renders the whole `/superdev:status` report), `trace [--slice <id|scope>] [--kind <kind>[,<kind>]] [--window <dispatch id>] [--last <n>]` (prints the run trace's lines, filtered, read-only), `windows --slice <id|scope>` (read-only), `untraced <base>..<tip> --slice <id|scope> [--window <dispatch id>] --root <run-root>` (read-only), `fail-to-pass-check <base>..<tip> --slice <id|scope> [--window <dispatch id>] --root <run-root>` (read-only), `section <file>` (read-only, the heading line on stdin), `tier --root <run-root>` (read-only), `dod-open --root <run-root> [--tag docs]` (read-only), `contained <base> <branch> [--remote <remote>]` (read-only), `red-evidence --root <run-root> --branch <branch> --base <base-ref> [--ci-head <sha> --ci-file <path>]` (read-only), `publish`, `adopt`, `root <slug>`,
-`staging <scope> [--count]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `citations --range-base <ref> --branch <ref> <id>…`, `source-set [<path>]`, `source-set --tests`, `push --root <run-root> --remote <remote> --base <base-ref>`, `dod-merge --root <run-root>`, `dod-line`, `dod-tags [--map-file <path>] [--line]`, `dod-check`, `ci --sha <sha> [--root <path>]`, `fail-to-pass <base>..<tip> -- <command>`, `prepare <tree>`, and `test`.
+`status` (which renders the whole `/superdev:status` report), `trace [--slice <id|scope>] [--kind <kind>[,<kind>]] [--window <dispatch id>] [--last <n>]` (prints the run trace's lines, filtered, read-only), `windows --slice <id|scope>` (read-only), `untraced <base>..<tip> --slice <id|scope> [--window <dispatch id>] --root <run-root>` (read-only), `fail-to-pass-check <base>..<tip> --slice <id|scope> [--window <dispatch id>] --root <run-root>` (read-only), `section <file>` (read-only, the heading line on stdin), `tier --root <run-root>` (read-only), `dod-open --root <run-root> [--tag docs]` (read-only), `contained <base> <branch> [--remote <remote>]` (read-only), `branch --root <run-root>`, `checkout --root <run-root>`, `lock --root <run-root>`, `denial <pass> [--unattended] --root <run-root>`, and `route --root <run-root> …` (each read-only), `candidates --stage <stage>[,<stage>]` (read-only, no run root), `red-evidence --root <run-root> --branch <branch> --base <base-ref> [--ci-head <sha> --ci-file <path>]` (read-only), `publish`, `adopt`, `root <slug>`,
+`staging <scope> [--count|--line]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `citations --range-base <ref> --branch <ref> <id>…`, `source-set [<path>]`, `source-set --tests`, `push --root <run-root> --remote <remote> --base <base-ref>`, `dod-merge --root <run-root>`, `dod-line`, `dod-tags [--map-file <path>] [--line]`, `dod-check`, `ci --sha <sha> [--root <path>]`, `fail-to-pass <base>..<tip> -- <command>`, `prepare <tree>`, and `test`.
 `--help` or `-h`, alone or after any verb, prints the usage and exits 0, except that a flag's value, or the text after `add`, `add-denial`, `reset-denials`, or `resolve`, is data and never a help request. It is checked before any verb
 reads stdin or touches a ledger, so a stdin verb such as `dod-line` never waits on input for it.
 `suite set` writes the **suite record** (CONTEXT.md) — the last full-suite run's result and the commit
@@ -235,12 +235,12 @@ submodule is no report. A citation inside a binary file is reported, since the v
 exits 2 when a ref resolves to no commit, a flag or an id is missing or malformed, or git fails. It writes
 nothing. The base step runs it after the renumber commit and before the merge.
 
-`staging <scope> [--count]` is another verb that touches no ledger and needs no run root (ADR 0119). It
+`staging <scope> [--count|--line]` is another verb that touches no ledger and needs no run root (ADR 0119). It
 prints a scope's staging directory, `<main-worktree>/.superdev/kb-pending/<scope>`, resolved the same way
 `root` resolves a run root, so a page staged from a scopetree or a slicetree lands in the main working
 tree and survives that checkout's removal. It accepts `_adhoc`, and refuses what `root` refuses, outside a
 git repository included. `--count` prints the number of `.md` pages in that directory instead, `0` when
-it is missing. The staged-page scan behind `status` resolves its staging root through the same main
+it is missing. `--line` prints the close steps' staged-pages line: nothing for no page, a could-not-read line where the read fails. The staged-page scan behind `status` resolves its staging root through the same main
 working tree.
 
 `test full|whole`, `test focused [<path>…]`, `test focused --since <ref>`, `test path <file>… -- <command>`, and
@@ -362,7 +362,7 @@ holds the setup they share and is no suite. The `test` verb's cases split over `
 first-moment-term, install, kill, late-fork, record, refusals, tree) and the `fail-to-pass` verb's over `scope-fail-to-pass-<topic>` (bound,
 concurrency, environment, interrupt, prepare, reuse, signals, trace, verdict, watcher), and the `prepare` verb's is `scope-prepare`. The rest: `scope-ledger` (init, stage, step, slice, the bullet and header records, get, status, and the ledger-fixtures pin),
 `scope-ledger-header` (`readLedgerHeader`), `scope-suite` (the suite and base records), `scope-dod-line` (the `dod-line` verb and the dod-fixtures pin), `scope-dod-tags` (the `dod-tags` verb), `scope-dod-check` (the `dod-check` verb), `scope-dod-merge` (the `dod-merge` verb), `scope-publish-adopt` (`publish`, `adopt`, and the
-`maskFencedLines` pin), `scope-trace` (the run trace, `appendTrace`, its `run.lock` refresh, and the `trace` filters), `scope-windows` (the `windows` verb and `trace --window`), `scope-digest` (the digest check), `scope-untraced` (the `untraced` verb), `scope-fail-to-pass-check` (the `fail-to-pass-check` verb), `scope-section`, `scope-tier`, `scope-dod-open`, `scope-contained`, and `scope-red-evidence` (the verb of each name), `scope-dod-gate` (the Definition-of-Done check on entering `implementing`), `scope-root-base` (`root`, `staging`, `base` from a linked worktree),
+`maskFencedLines` pin), `scope-trace` (the run trace, `appendTrace`, its `run.lock` refresh, and the `trace` filters), `scope-windows` (the `windows` verb and `trace --window`), `scope-digest` (the digest check), `scope-untraced` (the `untraced` verb), `scope-fail-to-pass-check` (the `fail-to-pass-check` verb), `scope-section`, `scope-tier`, `scope-dod-open`, `scope-contained`, `scope-red-evidence`, `scope-branch`, `scope-checkout`, `scope-lock`, `scope-denial`, `scope-route`, and `scope-candidates` (the verb of each name), `scope-staging` (`staging` and its `--count` and `--line` forms), `scope-dod-gate` (the Definition-of-Done check on entering `implementing`), `scope-root-base` (`root`, `staging`, `base` from a linked worktree),
 `scope-containment`, `scope-citations-collisions`, `scope-source-set`, `scope-ci`, `scope-push`, `scope-open`, `scope-help`, and `scope-stdin` (every verb that reads piped input receives it through the CLI). A focused run for `scope.js`, or for a module it requires, selects
 every suite that reaches it (`run-tests.js`, below).
 
@@ -473,7 +473,7 @@ digest, and none runs a test. Each grading verb prints a verdict or the trace li
 `tests/scope-windows.test.js`, `tests/scope-trace.test.js`, `tests/scope-untraced.test.js`, and `tests/scope-fail-to-pass-check.test.js`
 hold their cases.
 
-`section`, `tier`, `dod-open`, `contained`, and `red-evidence` are read-only decision verbs (ADR 0262, INV-0195, INV-0196): a
+`section`, `tier`, `dod-open`, `contained`, `red-evidence`, `branch`, `checkout`, `lock`, `route`, `denial`, and `candidates` are read-only decision verbs (ADR 0262, ADR 0263, INV-0195, INV-0196). A verb reads the ledger, `dod.md`, the run trace, git, and the files of the main working tree's `.superdev/`. A verb takes a slice-store or code-host result its caller fetched, handed over as a flag or on stdin. A verb makes no backend call itself (ADR 0263). A
 table or procedure whose every branch the ledger, `dod.md`, the run trace, a reference, or git decides lives in the verb, and a
 reference names the verb and the judgment the agent keeps. Each prints a verdict or the lines or section its caller named. None
 writes a ledger line, a trace line, or a digest, and none runs a test. A usage refusal exits 1 and prints nothing on stdout.
@@ -549,6 +549,32 @@ writes a ledger line, a trace line, or a digest, and none runs a test. A usage r
   - any git read that fails.
 
   The code lives in `plugin/lib/red-evidence.js`, over the readers `suite-base-get.js` exports.
+
+- **`branch --root <run-root>`** prints one scope-branch verdict: `ledger <b>` (the ledger's `**Branch:**` line names a local
+  branch), else a shape scan over local and remote-tracking names (leading segment a change type, last segment the run root's
+  slug): `guess <b>`, `guess-remote <b>` (a remote-tracking ref only), `ambiguous <b> <b>…`, `none`, or `git-failed <reason>`.
+  Every verdict exits 0. The code lives in `plugin/lib/scope-branch.js`.
+- **`checkout --root <run-root>`** prints one scope-checkout verdict for the branch `branch` resolves: `present <path>` (git
+  registers `<run-root>/scopetree` on it), `absent` (no scopetree before `shipped`), `absent-terminal <stage>` (`shipped` or
+  `closed`), `held-elsewhere <path>`, `unregistered <reason>`, or a branch verdict (`none`, `ambiguous`, `git-failed`). A path
+  holding a line break is never printed. Exit 0. The code lives in `plugin/lib/scope-checkout.js`, over `listWorktrees` of
+  `git-spawn.js`.
+- **`lock --root <run-root>`** prints implement's entry liveness verdict: `proceed planned`, `proceed absent`,
+  `proceed stale <age>` (a lock an hour old or older), or `live <age> <stage> <lock content>`. It refuses a lock that is no regular
+  file, and writes no trace line, so it never refreshes the lock it measures (INV-0186). The code lives in `plugin/lib/run-lock.js`.
+- **`denial <pass> [--unattended] --root <run-root>`** prints one verdict for a denied dispatch the caller already recorded:
+  `inline`, or `block implementer | unknown-tier | authored | second-denial`. `<pass>` is `implementer`, `fix`, `final-reviewer`,
+  `slice-reviewer`, or `doc-reader`. It refuses an unknown pass and a verification pass with no denial recorded since the last
+  reset. The code lives in `plugin/lib/denial.js`, over `tierOf` and `denialCount`.
+- **`route --root <run-root> [--merge <sha>] [--target <name>]… [--repair open|closed <key>]… [--repairs-failed|--repairs-none]`**
+  reads the anchor's Definition of Done on stdin and prints a shipped run's route: `repair`, `re-verify`, `verify-ship`, `wrap-up`,
+  or `needs-repairs`, with `repair <key> is open` lines and a `hand-sync` line where a `dod.md` line has no matching anchor line.
+  The caller hands the store facts as flags (ADR 0263), and the verb parses no `**Repairs:**` line. A missing, unreadable, or empty
+  `dod.md`, and a run root with no ledger, never route to `wrap-up`. The code lives in `plugin/lib/route.js`.
+- **`candidates --stage <stage>[,<stage>]`** takes no run root. It prints the empty-argument verdict over the run roots, read through
+  the main working tree: `one <slug> <stage>`, `several` and a `<slug> <stage>` line each, or `none` and every run root with its
+  stage. A run root with no stage reads `absent`, and one whose ledger cannot be read or names a stage outside the ledger's stages
+  reads `unreadable`; neither qualifies. The code lives in `plugin/lib/candidates.js`, over `scanRunRoots` of `run-roots.js`.
 
 `dod-line` is another verb that touches no ledger, and makes no store call of its own
 (`references/dod-ticks.md`, INV-0014, triage #664): `--match-file <path>

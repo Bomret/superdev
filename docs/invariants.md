@@ -221,7 +221,7 @@ Concepts: Run root, Scope
 Statement: Every run-root scan reads `.superdev/scopes/*/` only. A directory beside `scopes/` under `.superdev/` is never treated as a run root.
 Breaks: silently
 Check: none — no test covers a sibling area
-Paths: plugin/hooks/scope-prune.js, plugin/hooks/slicetree-sweep.js, plugin/scripts/scope.js, plugin/lib/main-work-tree.js, plugin/skills/status/SKILL.md
+Paths: plugin/hooks/scope-prune.js, plugin/hooks/slicetree-sweep.js, plugin/scripts/scope.js, plugin/lib/main-work-tree.js, plugin/lib/run-roots.js, plugin/skills/status/SKILL.md
 
 ### INV-0025
 
@@ -1544,10 +1544,10 @@ Paths: plugin/lib/kb-containment.js, plugin/hooks/scope-prune.js
 
 Class: architecture
 Concepts: Run trace, Window, Tier
-Statement: A grading step or decision table whose every branch the ledger, the run trace, `dod.md`, or git decides is carried by one read-only `scope.js` verb, and no reference repeats the procedure the verb carries. A reference names the verb, what each verdict means, and the judgment the agent keeps.
+Statement: A grading step or decision table whose every branch the ledger, the run trace, `dod.md`, git, the main working tree's `.superdev/` files, or a slice-store or code-host fact the caller read through the backend document and hands over decides is carried by one read-only `scope.js` verb, and no reference, skill, or agent repeats the procedure the verb carries. A reference, skill, or agent names the verb, what each verdict means, and the judgment the agent keeps.
 Breaks: silently
-Check: none — a duplicated procedure in prose is a wording fact no drift check may assert (ADR 0153); review reads the reference beside the verb
-Paths: plugin/references/**
+Check: none — a duplicated procedure in prose is a wording fact no drift check may assert (ADR 0153); review reads the prose beside the verb
+Paths: plugin/references/**, plugin/skills/**, plugin/agents/**
 
 ### INV-0196
 

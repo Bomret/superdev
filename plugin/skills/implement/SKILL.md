@@ -73,7 +73,7 @@ Applies to the `lite` tier. Its playbook runs the documentation pass in the same
 **A denied dispatch.** Applies when a dispatch is denied. It is a degraded pass: follow `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section. Work inline, say so, and write the `**Degraded:**` entry.
 
 - **An authoring dispatch** (implementer, fix) → `scope.js degraded add`. Under `--unattended` it blocks.
-- **A verification dispatch** → `scope.js degraded add-denial -`, the refusal piped through a quoted heredoc rather than a shell argument. Under `--unattended`, follow that section's authorship rule: block where the controller authored what the pass verifies, and otherwise do the pass inline up to its cap. Read `scope.js get denials` after the entry and block once the count reaches it.
+- **A verification dispatch** → `scope.js degraded add-denial -`, the refusal piped through a quoted heredoc rather than a shell argument. Then ask `scope.js denial <pass> [--unattended] --root <run-root>` for the verdict, per that section's **The verdict**: `inline` → do the pass inline, and a `block …` verdict blocks.
 
 **Agents carry their own discipline.** Applies to every dispatch. Pass specifics, not lectures. A `mechanical` or `docs` slice invents no tests: the loop's runs and the full-suite evidence `/superdev:ship` takes, from the named CI checks or a local run (a full run, or the carry or recorded rerun `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` admits), are the net.
 

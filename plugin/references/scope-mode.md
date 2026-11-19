@@ -87,12 +87,22 @@ repository there.
 **Run-root enumeration.** A run root is a `.superdev/scopes/*/` directory holding a `ledger.md`, per
 `## A live scope run`. The calling command names the stages that qualify — `/superdev:submit-pr`
 names every stage but `shipped` and `closed`, `/superdev:review` names `merged` and `documented-unreviewed`.
-This section scans every run root, reads each one's stage with `scope.js get stage --root <run-root>`, and
-keeps only the ones whose stage is named. A directory holding no `ledger.md` is no run root and never
-a candidate. A run root whose `get stage` prints `absent` matches no named stage and is never a
-candidate. `/superdev:implement` reads its candidate set from the slice store (the features whose
-slices are ready) and hands that set straight to this cascade, so this
-section never enumerates run roots on its behalf.
+Ask for the verdict instead of computing it:
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js candidates --stage <stage>[,<stage>]`. The call scans the main
+working tree's run roots from any checkout, reads each ledger, writes nothing, and prints one verdict:
+
+- **`one <slug> <stage>`** — exactly one candidate. Use it.
+- **`several`** — then one `<slug> <stage>` line per candidate. List them and ask the operator, or block under `--unattended`, per the cascade above.
+- **`none`** — then one `<slug> <stage>` line per run root the repository holds, the stage reading
+  `absent` where the ledger names none and `unreadable` where it cannot be read or names a stage outside the
+  ledger's stages. Report them and stop.
+
+A run root whose directory name fails `## The scope slug` charset is left out of every verdict.
+
+A run root whose stage reads `absent` or `unreadable` never qualifies. A stage name outside the ledger's
+stages is refused with exit 1 and no verdict. `/superdev:implement` reads its candidate set from the slice
+store (the features whose slices are ready) and hands that set straight to this cascade, so the call
+never enumerates run roots on its behalf.
 
 **A caller that cannot ask stops and lists instead.** `plugin/scripts/publish-kb.js` has no interview
 loop behind it. With several candidates, or none, it refuses and lists them, the same shape this
@@ -101,64 +111,75 @@ section's several-candidate and no-candidate branches print.
 ## The scope branch
 
 A scope slug does not name its branch: the type leads and the slug follows, and nothing recovers a type
-from a slug. Read the branch rather than compute it.
+from a slug. Ask for the verdict instead of computing it:
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js branch --root <run-root>`. The call reads the ledger and git,
+writes nothing, and prints one line.
 
-- **The ledger's `**Branch:**` line.** Run init writes it beside `**Stage:**`
-  (`scope.js init` writes both from the feature label). Read it with
-  `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js get branch --root <run-root>`, then verify with
-  `git rev-parse --verify <branch>` before trusting it: run init writes the line before it cuts the
-  branch, so a run that died in between names a branch that was never cut. It verifies → this is the
-  answer. A command given only a scope slug still finds the run root from that slug, and the branch here.
-- **No such line, or the named branch does not verify — fall back to the shape.** Scan the branches for
-  one whose last segment is `<scope>` and whose leading segment is a change type, the rule
-  `hooks/scope-prune.js` applies. **Say which route you took**, because this one is a guess: two runs
-  whose slugs differ only by change type both match, and the scan cannot separate them. **No branch
-  matches** → say so and stop, rather than proceeding against whatever HEAD happens to be.
+- **`ledger <branch>`** — the ledger's `**Branch:**` line names a local branch. This is the answer. A tag, a
+  SHA, or a name run init wrote and never cut does not count, and falls through to the scan.
+- **`guess <branch>`** — no such branch, and exactly one local branch has the run root's slug as its last
+  segment and a change type as its leading segment. **Say which route you took**, because this one is a guess.
+- **`guess-remote <branch>`** — the one match exists only as a remote-tracking ref. Say so with the guess.
+- **`ambiguous <branch> <branch>…`** — several branches match, such as two runs whose slugs differ only by
+  change type. The scan cannot separate them. Stop and name every branch to the operator.
+- **`none`** — nothing matches. Say so and stop, rather than proceeding against whatever HEAD happens to be.
+- **`git-failed <reason>`** — git could not list the branches. This is no `none`. Stop and name the reason.
+
+The Stop hook's prune and the knowledge-base publish's containment check apply the same shape rule
+(`lib/scope-branch.js`): where two branches match, the hook prunes, reaps, and deletes nothing for that scope,
+and the publish refuses naming both.
 
 ## The scope checkout
-
-**Resolve the scope branch first**, per `## The scope branch`, never from the slug alone. Then find the
-working tree holding it, from disk.
 
 `<run-root>/scopetree` is the scope checkout, at both tiers. Run every git
 command that writes to the scope branch there — `git -C <run-root>/scopetree ...` — never in
 the invoking checkout, which stays wherever it was.
 
-- **Present** → work there.
-- **The ledger's `**Stage:**` reads `shipped` or `closed`, and the checkout is absent** → `/superdev:wrap-up`'s
-  cleanup, or an operator, removed it. No command recreates it at `closed`, a terminal stage nothing
-  removes scaffolding from. A read-only command (`/superdev:review`, `/superdev:document`,
-  `/superdev:verify-ship`, `/superdev:wrap-up`) says so and reviews or reconciles read-only, and recreates no checkout. A writing
-  command has nothing left to write to a shipped scope.
-  **The one exception is `/superdev:ship` itself, reading any `shipped` ledger.** Its §3 reads the posture
-  with `git show` from the invoking checkout, which needs no scope checkout. Ship recreates the checkout
-  below, as an `Absent` one does, in one case only: a ledger whose `auto` deploy stopped mid-way, whose §5
-  detaches it.
+**The call.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" checkout --root <run-root>`. It resolves the scope branch itself
+(`## The scope branch`; a `guess` or `guess-remote` branch is the branch it checks, and its verdict does not name the route, so a
+command that reports the guess runs `branch` as well), reads `git worktree list` and the ledger's
+`**Stage:**`, and writes nothing. It prints one verdict:
 
-  A `shipped` ledger with nothing left to deploy, or a posture other than `auto`, is
-  "already shipped". Ship recreates no checkout for it.
-- **Absent** → recreate it: `git worktree add <run-root>/scopetree <branch>`, the same call
+- **`present <path>`** → git registers the scopetree on the scope branch. Work there.
+- **`absent`** → the scopetree is missing before `shipped`. Recreate it: `git worktree add <run-root>/scopetree <branch>`, the same call
   the `resumed` run kind already makes. The run's own lock stays as it is: no hook refuses the call.
   **Prepare the recreated scopetree** before its first test run:
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <run-root>/scopetree`, per `scope-branch.md`'s
   `## Preparing a worktree`; a failing preparation stops the command, and `--unattended` blocks.
-- **A different working tree already holds `<branch>`** → git's own refusal on that `worktree add` call
-  names the tree holding it. Say so and stop, writing nothing, rather than switching a checkout superdev
-  does not own.
+- **`absent-terminal <stage>`** (`shipped` or `closed`) → `/superdev:wrap-up`'s cleanup, or an operator, removed it. No command
+  recreates it at `closed`, a terminal stage nothing removes scaffolding from. A read-only command (`/superdev:review`,
+  `/superdev:document`, `/superdev:verify-ship`, `/superdev:wrap-up`) says so and reviews or reconciles read-only, and recreates no
+  checkout. A writing command has nothing left to write to a shipped scope.
+  **The one exception is `/superdev:ship` itself, reading any `shipped` ledger.** Its §3 reads the posture
+  with `git show` from the invoking checkout, which needs no scope checkout. Ship recreates the checkout
+  as an `absent` verdict does, in one case only: a ledger whose `auto` deploy stopped mid-way, whose §5
+  detaches it. A `shipped` ledger with nothing left to deploy, or a posture other than `auto`, is
+  "already shipped". Ship recreates no checkout for it.
+- **`held-elsewhere <path>`** → another working tree holds the branch. Say so, naming the path, and stop, writing nothing, rather
+  than switching a checkout superdev does not own. A holder whose path holds a line break prints `held-elsewhere a working tree whose path
+  holds a line break` with no path: say so, and name no path.
+- **`unregistered <reason>`** → the scopetree path is a leftover directory, a detached or other-branch tree, a registration whose
+  directory is gone, or a registered scopetree whose path holds a line break. Say so with the reason and stop, writing nothing: the call recreates nothing over it, and the operator removes it.
+- **`none`, `ambiguous <b> <b>…`, or `git-failed <reason>`** → the scope branch itself is unresolved, per `## The scope branch`'s
+  reading of those verdicts.
 
 ## The run lock
 
 **`/superdev:implement`'s own entry into an existing run root consults liveness before its first write**, because a second, independent invocation can redispatch onto a scope already
-mid-implementation. `run-init.md`'s entry step reads the ledger's stage (`scope.js get stage`) and the lock's mtime together,
-before `dod.md` is written or the ledger's stage moves:
+mid-implementation. `run-init.md`'s entry step runs `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" lock --root <run-root>`
+before `dod.md` is written or the ledger's stage moves. The verb reads the ledger's stage and the lock, writes nothing (it
+leaves the lock's mtime as it was), and prints one verdict line. The age is whole minutes rounded to the nearest, written `<n>m`:
 
-- **Stage `planned`, any lock age** — `/superdev:plan` cut this and nobody has implemented a slice yet.
+- **`proceed planned`** — stage `planned`, any lock age (a lock that is no regular file refuses at every stage, this one included): `/superdev:plan` cut this and nobody has implemented a slice yet.
   This is the ordinary hand-off, not a collision: proceed, exactly as the rest of this section describes.
-- **Any stage other than `planned`, with a lock under an hour old** — a live implement run (`CONTEXT.md`). Attended:
-  name the lock's age and content and the ledger's stage, and ask whether to continue. Unattended: block,
-  per `## Unattended` below.
-- **A stale (over an hour) or absent lock, at any stage** — proceed, exactly as the rest of this section
+- **`proceed absent`** and **`proceed stale <age>`** — no lock, or a lock an hour old or older, at any other stage: proceed, exactly as the rest of this section
   describes.
+- **`live <age> <stage> <lock content>`** — a lock under an hour old at any other stage, a lock dated in the future
+  included: a live implement run (`CONTEXT.md`). Attended: name the lock's age and content and the ledger's stage, and ask whether to
+  continue. Unattended: block, per `## Unattended` below.
+
+A lock that is no regular file, or that cannot be read, makes the verb refuse with one line naming it; surface that line and stop.
+The verb applies the one-hour bound and the future-date reading `scope.js open` applies.
 
 **This check governs `/superdev:implement`'s own entry alone.** `/superdev:review`,
 `/superdev:document`, `/superdev:submit-pr`, and `/superdev:ship` skip it: each enters at the chain's

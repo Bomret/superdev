@@ -2,8 +2,8 @@
 'use strict';
 
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
-// Verbs: open, init, stage, step, slice, degraded, unresolved, deferred, minors, docs, pr, deploy, suite, base, get, status,
-// publish, adopt, trace, windows, untraced, fail-to-pass-check, collisions, citations, source-set, push, root, staging, dod-line, dod-tags, dod-check, ci, section, tier, dod-open, contained, red-evidence; `main()` also runs test, fail-to-pass, and prepare. Exit
+// Verbs: open, init, stage, step, slice, degraded, unresolved, deferred, minors, docs, pr, deploy, suite, base, discard, get, state, status,
+// publish, adopt, run-state, trace, windows, untraced, fail-to-pass-check, collisions, citations, source-set, push, root, staging, dod-merge, dod-line, dod-tags, dod-check, ci, section, tier, dod-open, contained, red-evidence, branch, checkout, lock, route, denial, candidates; `main()` also runs test, fail-to-pass, and prepare. Exit
 // nonzero with a one-line stderr reason on any refusal. Every verb that writes to a run first checks the run's
 // digest sidecar and reports an outside edit of its ledger or trace once (lib/run-check.js, ADR 0227).
 // `root` and `dod-line` touch no ledger: `root` resolves a run root's absolute
@@ -57,7 +57,14 @@ const libSection = () => require('../lib/section.js');
 const libTier = () => require('../lib/tier.js');
 const libDodOpen = () => require('../lib/dod-open.js');
 const libContained = () => require('../lib/contained.js');
+const libCandidates = () => require('../lib/candidates.js');
+const libScopeBranch = () => require('../lib/scope-branch.js');
+const libScopeCheckout = () => require('../lib/scope-checkout.js');
+const libDenial = () => require('../lib/denial.js');
+const libDrivePath = () => require('../lib/drive-path.js');
+const libRunLock = () => require('../lib/run-lock.js');
 const libRedEvidence = () => require('../lib/red-evidence.js');
+const libRoute = () => require('../lib/route.js');
 const libUsage = () => require('../lib/usage.js');
 
 // --- root: the verbs over `lib/main-work-tree.js`'s run-root resolver (ADR 0080) -----------------
@@ -462,9 +469,56 @@ function run(argv, cwd, stdinJson) {
     case 'contained':
       libContained().verbContained(cwd, args);
       break;
+    // Reads the ledger and git and writes nothing: one scope-branch verdict, `--root` names the run to read (INV-0196).
+    // Prints `ledger <b>`, `guess <b>`, `guess-remote <b>`, `ambiguous <b> <b>…`, `none`, or `git-failed <reason>`; every verdict exits 0 and the caller judges it.
+    case 'branch': {
+      const root = path.resolve(cwd, libDrivePath().drivePath(takeRoot(args)));
+      if (args.length) fail(`branch: unrecognized argument "${args[0]}"`);
+      if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) fail(`branch: --root "${root}" is not a directory`);
+      const r = libScopeBranch().resolveScopeBranch(cwd, root);
+      console.log(r.verdict === 'ambiguous' ? `ambiguous ${r.branches.join(' ')}` : r.verdict === 'git-failed' ? `git-failed ${r.reason}` : r.branch ? `${r.verdict} ${r.branch}` : r.verdict);
+      break;
+    }
+    // Reads the ledger and git and writes nothing: one scope-checkout verdict, `--root` names the run to read (INV-0196).
+    // Prints `present <path>`, `absent`, `absent-terminal <stage>`, `held-elsewhere <path>`, `unregistered <reason>`, or a branch verdict; every verdict exits 0.
+    // A path holding a line break is never printed: a scopetree there is `unregistered`, a holder there is `held-elsewhere` with no path.
+    case 'checkout': {
+      const root = path.resolve(cwd, libDrivePath().drivePath(takeRoot(args)));
+      if (args.length) fail(`checkout: unrecognized argument "${args[0]}"`);
+      if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) fail(`checkout: --root "${root}" is not a directory`);
+      const r = libScopeCheckout().scopeCheckout(cwd, root);
+      console.log(r.detail ? `${r.verdict} ${r.detail}` : r.verdict);
+      break;
+    }
+    // Reads the ledger's stage and the run lock's mtime and content and writes nothing, no trace line included, so the verb never refreshes the lock it measures (INV-0186, INV-0196).
+    case 'lock': {
+      const root = path.resolve(cwd, libDrivePath().drivePath(takeRoot(args)));
+      if (args.length) fail(`lock: unrecognized argument "${args[0]}"`);
+      if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) fail(`lock: --root "${root}" is not a directory`);
+      libRunLock().verbLock(root);
+      break;
+    }
+    // Reads `dod.md`, the ledger, git, and the anchor's Definition of Done on stdin, and writes nothing: a shipped run's route (ADR 0263, INV-0196).
+    case 'route': {
+      const root = path.resolve(cwd, libDrivePath().drivePath(takeRoot(args)));
+      if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) fail(`route: --root "${root}" is not a directory`);
+      libRoute().verbRoute(cwd, root, args, stdinJson);
+      break;
+    }
+    // Reads the ledger and writes nothing: one verdict for a denied dispatch the caller already recorded (INV-0196). Prints `inline` or `block <reason>`.
+    case 'denial': {
+      const root = path.resolve(cwd, libDrivePath().drivePath(takeRoot(args)));
+      if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) fail(`denial: --root "${root}" is not a directory`);
+      libDenial().verbDenial(root, args);
+      break;
+    }
     // Reads the ledger, the run trace, git, and a check-status file and writes nothing (INV-0196); `verbRedEvidence` takes `--root` itself.
     case 'red-evidence':
       libRedEvidence().verbRedEvidence(cwd, args);
+      break;
+    // No --root: candidates scans `.superdev/scopes/*/` through the main working tree and reads ledgers only (INV-0024, INV-0196).
+    case 'candidates':
+      libCandidates().verbCandidates(cwd, args);
       break;
     // No --root: dod-check checks an anchor body on stdin, no ledger, no trace, no store call (ADR 0233).
     case 'dod-check':
@@ -505,7 +559,7 @@ function asksForHelp(argv) {
 }
 
 // The verbs `run()` hands the whole stdin text to; `main()` reads stdin for these alone, plus a bullet verb given `-`.
-const STDIN_VERBS = ['init', 'adopt', 'dod-line', 'dod-tags', 'dod-check', 'dod-merge', 'ci', 'section'];
+const STDIN_VERBS = ['init', 'adopt', 'dod-line', 'dod-tags', 'dod-check', 'dod-merge', 'ci', 'section', 'route'];
 
 function main() {
   const argv = process.argv.slice(2);

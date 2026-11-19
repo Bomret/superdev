@@ -10,7 +10,7 @@ argument-hint: "[<scope>  (empty = the only shipped run in this repo)]"
 
 Applies to every start. You settle the open Definition-of-Done criteria of a shipped scope. You dispatch no subagent. You never move the stage.
 
-- **Open line**: a line of `<run-root>/dod.md` that `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule` calls open.
+- **Open line**: an `open` row of `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-open --root <run-root>`.
 - **Settled line**: a line that same rule calls settled.
 - **Repair citation**: the ending of a `not met:` note, as `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` defines it.
 - **Equivalent read**: an HTTP GET, a DNS lookup, an ssh read, or a status command.
@@ -38,7 +38,7 @@ Applies to every observation. Observe within the observe-only bound of `${CLAUDE
 
 Applies to every message this command ends on, the wrap-up start in §6 excepted. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`.
 
-**The chained staged pages.** Applies to a start `/superdev:ship`'s verify-ship route made, on every message it ends on before §6, a refusal and a stop included. Ship named no staged pages on its Next block, so name them here per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close`. A count above zero puts `/superdev:publish-kb <scope>` on an `Or:` line of the Next block. §6's **The staged pages** names them on its own exits.
+**The chained staged pages.** Applies to a start `/superdev:ship`'s verify-ship route made, on every message it ends on before §6, a refusal and a stop included. Ship named no staged pages on its Next block, so name them here with the line `scope.js staging <scope> --line` prints, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close`. A line beginning with a count puts `/superdev:publish-kb <scope>` on an `Or:` line of the Next block. §6's **The staged pages** names them on its own exits.
 
 ## 1. Scope + run root
 
@@ -84,9 +84,9 @@ Read the stage and the pull request number with one `node "${CLAUDE_PLUGIN_ROOT}
 - **An anchor whose Definition-of-Done lines could not be read** → report it once. §6 then prints `/superdev:wrap-up <scope>` and starts no wrap-up.
 - **A `dod.md` line unpaired on the anchor** → report it by name as needing a hand-sync of the anchor's criterion text.
 
-**The open lines.** Applies after the anchor sync. Read `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s *Verify-ship's case*. Take the open lines from `<run-root>/dod.md` as that case states. With no open line go to §6 before the repairs read.
+**The open lines.** Applies after the anchor sync. Read `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s *Verify-ship's case*. Take the open lines from `dod-open --root <run-root>`. With no open line go to §6 before the repairs read.
 
-**The repairs read.** Applies when an open line exists. Read this scope's repairs once before the first observation. Read them through `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run`, step 4.
+**The repairs read.** Applies when an open line exists. Read this scope's repairs once before the first observation. Read them through `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run`, step 3.
 
 **The observation.** Applies to each open line. Observe it yourself and inline. Observe one line at a time. Reach a target through `docs/agents/deployment.md`'s `Read-only reach` column at the merge commit or through an equivalent read.
 
@@ -109,8 +109,8 @@ Applies to each verdict. Write it at once, before the next line, into `<run-root
   - With no unpaired line from §4 and the anchor's lines read → the wrap-up start below.
   - With no unpaired line from §4 and the anchor's lines unread → print `/superdev:wrap-up <scope>` as the next command.
   - With an unpaired line → say "hand-sync, then `/superdev:wrap-up <scope>`" and print the command on a `First:` wait.
-- **The run routes to re-verify** per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` → name each open line. Print `/superdev:verify-ship <scope>` as the next command, with one line: a repair of this scope has closed since the line was last observed. Print `/superdev:plan` on an `Or:` line, for a repair that did not hold.
-- **The run routes to repair** per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` → name each observed `not met:` line with its observation. Print `/superdev:plan` as the next command, with one line: its repair choice plans a `fix` feature for this scope. For each open anchor among the repairs §4 read whose `**Repairs:**` line names this scope's anchor, print that section's open-repair line too. Print `/superdev:verify-ship <scope>` on an `Or:` line, for an observation that was transient.
+- **`scope.js route` answers re-verify** per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` → name each open line. Print `/superdev:verify-ship <scope>` as the next command, with one line: a repair of this scope has closed since the line was last observed. Print `/superdev:plan` on an `Or:` line, for a repair that did not hold.
+- **`scope.js route` answers repair** per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` → name each observed `not met:` line with its observation. Print `/superdev:plan` as the next command, with one line: its repair choice plans a `fix` feature for this scope. For each open anchor among the repairs §4 read whose `**Repairs:**` line names this scope's anchor, print that section's open-repair line too. Print `/superdev:verify-ship <scope>` on an `Or:` line, for an observation that was transient.
 - **Otherwise** → name each open line, an unobserved `not met:` line among them, and say running `/superdev:verify-ship <scope>` again is safe.
 
 **The wrap-up start.** Applies to the settled exit that reaches it, after the summary and its one line. Call the Skill tool with `superdev:wrap-up` and the resolved scope slug, in the same turn, and ask no question first. Print no Next block and no staged-pages lines on this exit, and print nothing after wrap-up returns. Wrap-up's last message ends the chain on its Next block: it names the staged pages on every exit, a refusal or a stop included.
@@ -118,6 +118,6 @@ Applies to each verdict. Write it at once, before the next line, into `<run-root
 - **A wrap-up that started and then refused or stopped** → its message stands as the chain's last, unchanged.
 - **The Skill tool refuses the start, errors, or finds no such skill** → print `/superdev:wrap-up <scope>` as the next command, with the staged-pages lines below.
 
-**The staged pages.** Applies to every §6 exit but the wrap-up start. Name the scope's staged pages in the final message, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close`. Add the publish command to the Next block as the list states.
+**The staged pages.** Applies to every §6 exit but the wrap-up start. Name the scope's staged pages in the final message with the line `scope.js staging <scope> --line` prints, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close`. Add the publish command to the Next block as the list states.
 
-- **A count above zero** → put `/superdev:publish-kb <scope>` on an `Or:` line of the Next block.
+- **A line beginning with a count** → put `/superdev:publish-kb <scope>` on an `Or:` line of the Next block.

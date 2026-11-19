@@ -14,7 +14,7 @@ Applies to every start. You bring the docs and the knowledge base into agreement
 - **`<run-root>`**: the **absolute** path to the live run's scope directory. The run's artifacts are `<run-root>/ledger.md`, `<run-root>/run.lock`, and `<run-root>/dod.md`.
 - **The scope's own commits**: `<range-base>..<branch>`, per `scope-mode.md`'s `## The scope's range base`.
 - **The staging path**: the **absolute** path `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" staging <scope>` prints, or `staging _adhoc` on an ad-hoc start, resolved before the dispatch. It names `.superdev/kb-pending/<scope>/` in the main working tree from any cwd.
-- **An open `docs` line**: a `docs`-tagged line of `<run-root>/dod.md` that `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule` calls open.
+- **An open `docs` line**: a line `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-open --root <run-root> --tag docs` prints.
 - **The publish**: on a live run, the run's one snapshot publish, per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section. It is the last act of the exit that ends the run, after the closer §3's **The step** lists. No write site publishes.
 - **A test-only scope**: a live run whose range `<range-base>..<branch>` holds at least one changed path, whose every changed path is a test-path file, and whose `<run-root>/dod.md` holds no `docs`-tagged line. The test paths are the `## Test paths` entries of `docs/agents/verification.md` at the branch tip, or `${CLAUDE_PLUGIN_ROOT}/lib/verification.js`'s defaults where that section is absent. An empty range is no test-only scope (ADR 0252).
 - **A writer dispatch**: dispatch `superdev:doc-writer` with an **explicit `model`** (`sonnet`).
@@ -91,7 +91,7 @@ The writer commits its doc changes on the current branch. A denied writer's inli
 **A denied dispatch.** Applies when the permission classifier denies a `doc-writer` or a `doc-reader`. It is a degraded pass: read and follow `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section. Say so in §5's report.
 
 - **A denied `doc-writer`** → reconcile inline, and name the docs you changed and every doc you judged current, or your reason when you judged no doc relevant, as `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md`'s `## Pass 1 — in-repo docs` directs. On a live run, write the entry with `scope.js degraded add`. Under `--unattended`, block instead.
-- **A denied `doc-reader`** → the docs went unread by fresh eyes. On a live run, write the entry with `scope.js degraded add-denial -`, the refusal piped through a quoted heredoc. Under `--unattended`, follow that section's authorship rule up to the cap: read `scope.js get denials` after the entry and block once the count reaches it.
+- **A denied `doc-reader`** → the docs went unread by fresh eyes. Off a live run, read the docs yourself and say so in §5's report: no run root exists, no denial is recorded, and no verdict is asked. On a live run, write the entry with `scope.js degraded add-denial -`, the refusal piped through a quoted heredoc. Then ask `scope.js denial doc-reader [--unattended] --root <run-root>` for the verdict, per that section's **The verdict**: `inline` → read the docs yourself, and a `block …` verdict blocks.
 
 **A pass the writer could not stage.** Applies to a staging path the writer could not write, or an existing page a read could not reconcile against. It is a degraded pass, and the writer's report carries the note. On a live run, write the entry too.
 
@@ -160,7 +160,7 @@ An `accepted:` `docs` line stays exactly as it stands.
 - **Now true** → tick it with its evidence.
 - **Still false** → untick it with a `not met:` note naming what the `AGENTS.md` text still lacks. Write one `**Unresolved:**` entry worded `docs criterion unmet after the doc pass: <criterion>`, as **An untick's entry** does, unless `scope.js get unresolved` already prints a bullet naming that criterion.
 
-**The settle's clear.** Applies after the settle, when every `docs` line is a settled line, noted `met:` or `accepted:`, and every bullet `get unresolved` prints is a `docs criterion unmet after the doc pass:` entry. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. Any other bullet standing → leave every entry.
+**The settle's clear.** Applies after the settle, when `dod-open --root <run-root> --tag docs` prints no open line, and every bullet `get unresolved` prints is a `docs criterion unmet after the doc pass:` entry. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. Any other bullet standing → leave every entry.
 
 **The stage write.** Applies after the settle. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state --root <run-root>` first and read its `unresolved` and `stage` fields.
 
@@ -184,6 +184,6 @@ A pass in which the writer changed nothing still counts. Each branch above ends 
 | An open `docs` line the settle judged stands (never at `shipped` or `closed`) | `Blocked:` naming each such criterion, and `/superdev:document <range>` in the fence; an attended operator may instead accept the line (`accepted:`) |
 | This pass unticked a line, or `get unresolved` printed one | `/superdev:review <range>`, naming the unmet criterion and that review's fix loop (`review-scope-mode.md`'s `### 4.9 The re-tick`) re-ticks it; no `/superdev:submit-pr` |
 | The stage read `submitted` | `/superdev:ship <scope>` |
-| The stage read `shipped` | the command `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` picks: `/superdev:plan` (its repair choice, with the route's open-repair line for each open repair and `/superdev:verify-ship <scope>` on the `Or:` line), `/superdev:verify-ship <scope>`, or `/superdev:wrap-up <scope>` (re-verify adds `/superdev:plan`'s repair choice on the `Or:` line); `/superdev:verify-ship <scope>` when the anchor cannot be read |
+| The stage read `shipped` | the command `scope.js route` picks, called as `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` states: `/superdev:plan` (its repair choice, with the route's open-repair line for each open repair and `/superdev:verify-ship <scope>` on the `Or:` line), `/superdev:verify-ship <scope>`, or `/superdev:wrap-up <scope>` (re-verify adds `/superdev:plan`'s repair choice on the `Or:` line); `/superdev:verify-ship <scope>` when the anchor cannot be read |
 | The stage read `closed` | no command follows |
 | Any other | `/superdev:submit-pr <scope>`, with one line: it opens the pull request against the scope's current Definition of Done |

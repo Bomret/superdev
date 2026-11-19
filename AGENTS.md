@@ -67,6 +67,8 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          Run integrity: `run-digest.js` (the digest sidecar of a run root and its lock) and
                          `run-check.js` (the check every verb that writes to a run makes before its write,
                          which records a `tamper` trace line, ADR 0227); `untraced.js` (the `untraced` verb).
+                         Verdict verbs (ADR 0263): `scope-branch.js` (`branch`), `scope-checkout.js` (`checkout`), `run-lock.js` (`lock`, and the lock reader `plan-open.js` shares),
+                         `denial.js` (`denial`), `route.js` (`route`), `candidates.js` (`candidates`), and `run-roots.js` (the run-root scan `status` and `candidates` share).
                          Read-only grading (ADR 0261): `trace-window.js` (the one **Window** derivation, the slice and
                          edit-path comparison, and the flag parser the trace verbs share) and `fail-to-pass-check.js` (the `fail-to-pass-check` verb).
                          Read-only decision verbs (ADR 0262): `section.js` (one markdown section), `tier.js` (the execution tier),
@@ -114,7 +116,7 @@ tests/                 — one suite per shipped executable (the hooks, `scope.j
                          point's suite is split flat by topic into `tests/<entry>-<topic>.test.js` over one
                          `<entry>-setup.js` that is no suite (ADR 0139, ADR 0151): `scope-*` (ledger,
                          ledger-header, `suite-*` (record, carry, complete, rerun, config, failed), dod-line, dod-tags, dod-check, dod-merge, publish-adopt, trace, windows, digest, untraced, fail-to-pass-check, root-base, containment,
-                         citations-collisions, source-set, ci, push, open, help, stdin, discard, prepare, `test-verb-*`, `fail-to-pass-*`, over `scope-setup.js`),
+                         citations-collisions, source-set, ci, push, open, help, stdin, discard, prepare, branch, checkout, lock, candidates, denial, route, staging, `test-verb-*`, `fail-to-pass-*`, over `scope-setup.js`),
                          `run-trace*` (dispatch, guards, model, paths, over `run-trace-setup.js`), `publish-kb*` (containment, guard, `parent-link-*`,
                          patch, publish, read, scope, templates, timeout, over `publish-kb-setup.js`),
                          and `scope-prune*` (containment, guards, main, reap, over `scope-prune-setup.js`);
@@ -480,7 +482,7 @@ This root owns every other subtree directly:
   `require` `../lib/ledger.js` for their ledger-header reader (ADR 0022) and `../lib/git-spawn.js` for the git calls the two Stop hooks
   share (the spawn, the throwing call, and the `git branch` list parse; a module missing any of them reads as unloaded). `run-trace.js` takes each of
   `../lib/trace-log.js`, `run-tree.js`, and `dispatch.js` through a `require` of its own (ADR 0117, INV-0159).
-  `scope-prune.js` takes the containment probe `baseHistoryHasPatch` and the third tier `baseCommitHoldsBranch` off `../lib/containment.js` through a `require` of its own (ADR 0082, ADR 0248). `tree-guard.js`, `scope-prune.js`, and `slicetree-sweep.js` each require
+  `scope-prune.js` takes the containment probe `baseHistoryHasPatch` and the third tier `baseCommitHoldsBranch` off `../lib/containment.js` through a `require` of its own (ADR 0082, ADR 0248). It also takes `shapeMatches` and `parseBranchRefs` off `../lib/scope-branch.js` through a guarded `require`, and a module missing either reads as unloaded, so the hook prunes nothing. `tree-guard.js`, `scope-prune.js`, and `slicetree-sweep.js` each require
   `../lib/main-work-tree.js` for the main-working-tree resolver `mainWorkTree`. The two Stop hooks run every git call in the main working tree. A session standing in a scopetree therefore reads the main tree's `HEAD`. `slicetree-sweep.js` skips the slicetree the session stands in. With no resolver, both hooks sweep and prune nothing. `scope-prune.js` also removes an empty `.superdev/kb-pending/<scope>/` directory whose run root is gone (INV-0076, INV-0122). `tree-guard.js` denies a dispatched implementer's Edit, Write, or
   NotebookEdit into a checkout of a repository that holds a run, outside its main working tree's `.superdev/`.
   It also denies such a write into that repository's git directory. That covers the main `.git/`, a linked

@@ -51,6 +51,13 @@ function addBullet(root, name, verb, text, noun = 'bullet text') {
 const DENIAL_PREFIX = 'denied: ';
 const RESET_PREFIX = 'denials reset: ';
 
+// The denied verification dispatches recorded since the last `degraded reset-denials` marker (ADR 0044); reads the ledger only.
+function denialCount(root) {
+  const bullets = readBullets(readLines(root), 'Degraded');
+  const lastReset = bullets.map((b) => b.startsWith(RESET_PREFIX)).lastIndexOf(true);
+  return bullets.slice(lastReset + 1).filter((b) => b.startsWith(DENIAL_PREFIX)).length;
+}
+
 function verbDegraded(root, sub, text) {
   if (sub === 'add-denial') {
     // The refusals are `addBullet`'s, named as `add-denial`'s: one bullet record, one set of rules.
@@ -248,18 +255,24 @@ function verbDeploySet(root, target, state, exitCode) {
   writeLines(root, insertHeader(lines, 'Deploy', value));
 }
 
-function verbDeployGet(root) {
+// The ledger's deploy record as `{ target, state, exit? }` entries, or null where the ledger holds no `**Deploy:**` line.
+function readDeployRecord(root) {
   const raw = getHeader(readLines(root), 'Deploy');
-  if (raw === null) {
+  return raw === null ? null : parseDeployRecord(raw);
+}
+
+function verbDeployGet(root) {
+  const records = readDeployRecord(root);
+  if (records === null) {
     console.log('absent');
     return;
   }
-  for (const r of parseDeployRecord(raw)) {
+  for (const r of records) {
     console.log(`${r.target} ${r.state}${r.exit !== undefined ? ` exit ${r.exit}` : ''}`);
   }
 }
 
 module.exports = {
-  BULLET_STDIN_SUBS, DENIAL_PREFIX, RESET_PREFIX,
-  resolveBulletText, verbDegraded, verbUnresolved, verbDeferred, verbMinors, verbDocs, verbPr, verbDeploySet, verbDeployGet,
+  BULLET_STDIN_SUBS, DENIAL_PREFIX, RESET_PREFIX, denialCount,
+  resolveBulletText, verbDegraded, verbUnresolved, verbDeferred, verbMinors, verbDocs, verbPr, verbDeploySet, verbDeployGet, readDeployRecord,
 };

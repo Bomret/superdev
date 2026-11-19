@@ -10,7 +10,7 @@ argument-hint: "[<scope>  (empty = the only shipped run in this repo)]"
 
 Applies to every start. You check that a shipped scope is fully settled, then close its anchor and take the run down. You dispatch no subagent. You commit nothing to base.
 
-- **Settled line**: a `<run-root>/dod.md` line, or an anchor line when `dod.md` is missing, that `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule` calls settled.
+- **Settled line**: a `settled` row of `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-open --root <run-root>`. Where `dod.md` is missing the verb refuses, and an anchor line is settled by `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule`.
 - **Absorbed record**: a triage record the anchor's Absorbs line names.
 - **Citing criterion**: the Definition-of-Done criterion whose text carries `(triage <reference>)` for an absorbed record, the form `/superdev:plan` writes. Any other mention of the reference is no citation, one in a verdict note included.
 
@@ -34,7 +34,7 @@ Applies to every start. Ask no extra question.
 
 Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`.
 
-**The chained staged pages.** Applies to a start `/superdev:ship`'s wrap-up route or `/superdev:verify-ship`'s settled exit made, on every message it ends on before §7, a refusal and a stop included. The starter named no staged pages on its Next block, so name them here per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close`. A count above zero puts `/superdev:publish-kb <scope>` on an `Or:` line of the Next block. §7's finish names them on its own exit.
+**The chained staged pages.** Applies to a start `/superdev:ship`'s wrap-up route or `/superdev:verify-ship`'s settled exit made, on every message it ends on before §7, a refusal and a stop included. The starter named no staged pages on its Next block, so name them here with the line `scope.js staging <scope> --line` prints, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close`. A line beginning with a count puts `/superdev:publish-kb <scope>` on an `Or:` line of the Next block. §7's finish names them on its own exit.
 
 ## 1. Scope + run root
 
@@ -72,7 +72,7 @@ Read the stage and the pull request number with one `node "${CLAUDE_PLUGIN_ROOT}
 **A Definition-of-Done line is unsettled.** Applies to every gate. Judge settledness from `<run-root>/dod.md`. Read the anchor's Definition-of-Done lines per `docs/agents/issue-tracker.md` only when `dod.md` is missing.
 
 - **A line that is not a settled line** → name it and `/superdev:verify-ship <scope>`. Offer no acceptance yourself.
-- **A `not met:` line, when `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` routes this run to repair** → also name `/superdev:plan`'s repair choice.
+- **A `not met:` line, when `scope.js route` answers repair for this run**, called as `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` states, → also name `/superdev:plan`'s repair choice.
 
 **The anchor disagrees with a settled `dod.md`.** Applies when `dod.md` is present. Read the anchor's lines too, and pair them per `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## Pairing dod.md with the anchor`. Never close an anchor with its criterion text out of sync.
 
@@ -130,15 +130,15 @@ Applies once the gate passed. Read every bullet from the `unresolved` field of t
 
 **The stage write.** Applies after §6. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set closed --root <run-root>`. Then publish the snapshot per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section.
 
-**The staged pages.** Applies after the stage write. Name the scope's staged pages per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close`.
+**The staged pages.** Applies after the stage write. Name the scope's staged pages with the line `scope.js staging <scope> --line` prints, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close`.
 
-- **A count above zero** → print `/superdev:publish-kb <scope>` as the next command.
-- **A count of zero, or a failed read** → the Next block says no command follows.
+- **A line beginning with a count** → print `/superdev:publish-kb <scope>` as the next command.
+- **Nothing printed, or a could-not-read line** → the Next block says no command follows.
 
 **A repair hands off to its original.** Applies after the staged pages. Read this scope's anchor's Repairs line through `docs/agents/issue-tracker.md`'s **Read an anchor's Repairs line** call. No line → change nothing above.
 
 **The original's stage.** Applies to a Repairs line naming an anchor. Resolve that anchor's feature label and take its slug. Read the original's stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <original-run-root>`, where `scope.js root <slug>` names that path.
 
 - **No ledger at that path** → adopt the original first, from the anchor the Repairs line names, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Adopting a shipped original`. Then read the stage.
-- **`shipped`** → pick the original's next command by `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run`, with `<scope>` the original's slug. Print it as the next command. When it routes to repair, also print the Repair route's open-repair line for each open repair. Move `/superdev:publish-kb <scope>` to an `Or:` line.
+- **`shipped`** → pick the original's next command with `scope.js route`, called as `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` states, with `<scope>` the original's slug. Print it as the next command. When it routes to repair, also print the Repair route's open-repair line for each open repair. Move `/superdev:publish-kb <scope>` to an `Or:` line.
 - **A closed or missing original, or a Repairs line that resolves to no run root after that adoption** → name nothing for the original.

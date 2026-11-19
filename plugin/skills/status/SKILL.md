@@ -75,7 +75,7 @@ A gap line prints above the table and stops nothing else.
 Applies to a configured store whose listings answered.
 
 - **Checkout.** Resolve the main checkout once, as `scope.js root` resolves it: the parent of `git rev-parse --path-format=absolute --git-common-dir`, or inside a submodule the checkout its `core.worktree` names. Address every run root by that absolute path. Note the checkout for the read line.
-- **Stage and liveness.** List every run root once. Read each one's stage and step with one `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state --root <run-root>` call (its `stage:` and `step:` lines), and its lock with `find <run-root>/run.lock -mmin -60`. Derive no stage from git state.
+- **Stage and liveness.** List every run root once (the `.superdev/scopes/*/` directories holding a `ledger.md`, as `## A live scope run` in `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md` defines them): this step keeps its own listing because it needs each root's step as well as its stage, which `scope.js candidates` does not print. Read each one's stage and step with one `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state --root <run-root>` call (its `stage:` and `step:` lines), and its lock with `find <run-root>/run.lock -mmin -60`. Derive no stage from git state.
 - **Label check.** Validate both segments of each feature label per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope slug` before matching. A failing label is a `blocked` row with the rename as its act, and no match.
 - **Match.** Match each run root to an open anchor by scope slug against the run root's directory name.
 
@@ -132,7 +132,7 @@ Applies to every open anchor, triage record, intent record, running, stranded, `
 
 ## Shipped routing
 
-Applies to an open anchor over a `shipped` run root or a `shipped` snapshot. Route it per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run`, and read the `deploy resume` posture, targets, and record per that file's `## Reading the posture at the merge commit`. Read the anchor listing, and the Repairs lines through the store's **Read an anchor's Repairs line** call, once per survey, the first time a `shipped` run needs them, and reuse them for every `shipped` run.
+Applies to an open anchor over a `shipped` run root or a `shipped` snapshot. Route it with `scope.js route`, called as `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` states, and read the `deploy resume` posture, targets, and record per that file's `## Reading the posture at the merge commit`. Read the anchor listing, and the Repairs lines through the store's **Read an anchor's Repairs line** call, once per survey, the first time a `shipped` run needs them, and reuse them for every `shipped` run.
 
 - **Repairs named.** A run holding a `not met:` line outside the two repair buckets names, in its row, every open anchor whose Repairs line names its anchor.
 - **Closed anchor.** A `shipped` run root whose anchor is closed is `awaiting wrap-up` without the rule's reads.

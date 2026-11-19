@@ -19,7 +19,6 @@ const hookPath = require.resolve('../plugin/hooks/scope-prune.js');
 const {
   TTL_MS,
   selectPrunable,
-  shapeScanBranch,
   branchNamesFrom,
   readHeader,
   readStage,
@@ -95,15 +94,6 @@ assert.deepEqual(
 // already protect a run mid-chain. The stage gate is the second, independent signal, exercised here on
 // its own: a merged, stale scope whose ledger stage is `reviewed` (review ran, ship never did) must
 // still not be pruned, whatever the branch or scopetree checks would otherwise say.
-// The branch matcher takes the change type from the branch, because the run root's directory name is
-// the slug alone. Only a Conventional Commits type counts: a slice branch (`slice/<scope>/<id>`) and a
-// maintainer's own `wip/<scope>` both name the scope somewhere, and pruning a run root on either one
-// would delete a live run's ledger.
-assert.notEqual(shapeScanBranch(new Set(['refactor/exports']), 'exports'), null, 'a typed scope branch counts');
-assert.equal(shapeScanBranch(new Set(['wip/exports']), 'exports'), null, 'an untyped branch does not');
-assert.equal(shapeScanBranch(new Set(['slice/exports/03']), 'exports'), null, 'a slice branch does not');
-assert.equal(shapeScanBranch(new Set(['exports']), 'exports'), null, 'a bare branch name does not');
-
 const parkedAll = new Set(['main', 'feat/parked-mid-chain']);
 const parkedContained = containedIn('feat/parked-mid-chain');
 assert.deepEqual(
