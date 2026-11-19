@@ -89,21 +89,16 @@ const HEADING_CITATION_PATTERN = /`(?:\$\{CLAUDE_PLUGIN_ROOT\}\/)?([A-Za-z0-9_./
 const SECTION_MAP_PATTERN = /^- \*\*`([A-Za-z0-9_./-]+\.md)`\*\* \u2014((?:\s*(?:(?:and|or)\s+)?`#{2,4}\s+[^`]+`[,.]?)+)/gm;
 const HEADING_SPAN_PATTERN = /`(#{2,4})\s+([^`]+)`/g;
 
-// A scope branch is `<type>/<scope>`, and `hooks/scope-prune.js` reads that type back off a merged branch
-// to decide whether a run root may be deleted. The type set the prose lists and the set the hook matches
-// are one fact in two syntaxes. A hook set narrower than the prose leaves a run root behind forever on
-// the missing type — silent, because nothing reports a prune that never ran. A hook set wider than the
-// prose prunes a live run's ledger off a branch superdev never cut.
+// A scope branch is `<type>/<scope>`, and `lib/scope-branch.js` reads that type back off a branch from
+// `lib/ledger.js`'s set, for the hook that decides whether a run root may be deleted and for the publish
+// check. The type set the prose lists and that set are one fact in two syntaxes. A set narrower than the
+// prose leaves a run root behind forever on the missing type — silent, because nothing reports a prune that
+// never ran. A set wider than the prose prunes a live run's ledger off a branch superdev never cut.
 const CHANGE_TYPE_CONTRACTS = [
   [
     path.join('references', 'scope-mode.md'),
     /`feat`, `fix`, `refactor`, `docs`, `perf`, `test`, `build`, `ci`, `chore`,\s*`style`, `revert`/,
-    'list the change types as `feat`, `fix`, `refactor`, `docs`, `perf`, `test`, `build`, `ci`, `chore`, `style`, `revert` — the set `hooks/scope-prune.js` matches',
-  ],
-  [
-    path.join('hooks', 'scope-prune.js'),
-    /\^\(feat\|fix\|refactor\|docs\|perf\|test\|build\|ci\|chore\|style\|revert\)\$/,
-    'keep matching the change type with `^(feat|fix|refactor|docs|perf|test|build|ci|chore|style|revert)$` — the set `references/scope-mode.md` lists',
+    'list the change types as `feat`, `fix`, `refactor`, `docs`, `perf`, `test`, `build`, `ci`, `chore`, `style`, `revert` — the set `lib/ledger.js` owns and `lib/scope-branch.js` matches',
   ],
   // The glossary restates the set for a reader, which makes it a third copy of one fact. Every separator
   // tolerates a line break, so a re-wrap at any comma passes while the same eleven types, in order, are

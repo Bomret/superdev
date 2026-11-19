@@ -101,19 +101,23 @@ section's several-candidate and no-candidate branches print.
 ## The scope branch
 
 A scope slug does not name its branch: the type leads and the slug follows, and nothing recovers a type
-from a slug. Read the branch rather than compute it.
+from a slug. Ask for the verdict instead of computing it:
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js branch --root <run-root>`. The call reads the ledger and git,
+writes nothing, and prints one line.
 
-- **The ledger's `**Branch:**` line.** Run init writes it beside `**Stage:**`
-  (`scope.js init` writes both from the feature label). Read it with
-  `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js get branch --root <run-root>`, then verify with
-  `git rev-parse --verify <branch>` before trusting it: run init writes the line before it cuts the
-  branch, so a run that died in between names a branch that was never cut. It verifies → this is the
-  answer. A command given only a scope slug still finds the run root from that slug, and the branch here.
-- **No such line, or the named branch does not verify — fall back to the shape.** Scan the branches for
-  one whose last segment is `<scope>` and whose leading segment is a change type, the rule
-  `hooks/scope-prune.js` applies. **Say which route you took**, because this one is a guess: two runs
-  whose slugs differ only by change type both match, and the scan cannot separate them. **No branch
-  matches** → say so and stop, rather than proceeding against whatever HEAD happens to be.
+- **`ledger <branch>`** — the ledger's `**Branch:**` line names a local branch. This is the answer. A tag, a
+  SHA, or a name run init wrote and never cut does not count, and falls through to the scan.
+- **`guess <branch>`** — no such branch, and exactly one local branch has the run root's slug as its last
+  segment and a change type as its leading segment. **Say which route you took**, because this one is a guess.
+- **`guess-remote <branch>`** — the one match exists only as a remote-tracking ref. Say so with the guess.
+- **`ambiguous <branch> <branch>…`** — several branches match, such as two runs whose slugs differ only by
+  change type. The scan cannot separate them. Stop and name every branch to the operator.
+- **`none`** — nothing matches. Say so and stop, rather than proceeding against whatever HEAD happens to be.
+- **`git-failed <reason>`** — git could not list the branches. This is no `none`. Stop and name the reason.
+
+The Stop hook's prune and the knowledge-base publish's containment check apply the same shape rule
+(`lib/scope-branch.js`): where two branches match, the hook prunes, reaps, and deletes nothing for that scope,
+and the publish refuses naming both.
 
 ## The scope checkout
 

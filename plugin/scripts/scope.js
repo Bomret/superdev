@@ -3,7 +3,7 @@
 
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
 // Verbs: open, init, stage, step, slice, degraded, unresolved, deferred, minors, docs, pr, deploy, suite, base, get, status,
-// publish, adopt, trace, windows, untraced, fail-to-pass-check, collisions, citations, source-set, push, root, staging, dod-line, dod-tags, dod-check, ci, section, tier, dod-open, contained, red-evidence; `main()` also runs test, fail-to-pass, and prepare. Exit
+// publish, adopt, trace, windows, untraced, fail-to-pass-check, collisions, citations, source-set, push, root, staging, dod-line, dod-tags, dod-check, ci, section, tier, dod-open, contained, red-evidence, branch; `main()` also runs test, fail-to-pass, and prepare. Exit
 // nonzero with a one-line stderr reason on any refusal. Every verb that writes to a run first checks the run's
 // digest sidecar and reports an outside edit of its ledger or trace once (lib/run-check.js, ADR 0227).
 // `root` and `dod-line` touch no ledger: `root` resolves a run root's absolute
@@ -57,6 +57,8 @@ const libSection = () => require('../lib/section.js');
 const libTier = () => require('../lib/tier.js');
 const libDodOpen = () => require('../lib/dod-open.js');
 const libContained = () => require('../lib/contained.js');
+const libScopeBranch = () => require('../lib/scope-branch.js');
+const libDrivePath = () => require('../lib/drive-path.js');
 const libRedEvidence = () => require('../lib/red-evidence.js');
 const libUsage = () => require('../lib/usage.js');
 
@@ -462,6 +464,16 @@ function run(argv, cwd, stdinJson) {
     case 'contained':
       libContained().verbContained(cwd, args);
       break;
+    // Reads the ledger and git and writes nothing: one scope-branch verdict, `--root` names the run to read (INV-0196).
+    // Prints `ledger <b>`, `guess <b>`, `guess-remote <b>`, `ambiguous <b> <b>…`, `none`, or `git-failed <reason>`; every verdict exits 0 and the caller judges it.
+    case 'branch': {
+      const root = path.resolve(cwd, libDrivePath().drivePath(takeRoot(args)));
+      if (args.length) fail(`branch: unrecognized argument "${args[0]}"`);
+      if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) fail(`branch: --root "${root}" is not a directory`);
+      const r = libScopeBranch().resolveScopeBranch(cwd, root);
+      console.log(r.verdict === 'ambiguous' ? `ambiguous ${r.branches.join(' ')}` : r.verdict === 'git-failed' ? `git-failed ${r.reason}` : r.branch ? `${r.verdict} ${r.branch}` : r.verdict);
+      break;
+    }
     // Reads the ledger, the run trace, git, and a check-status file and writes nothing (INV-0196); `verbRedEvidence` takes `--root` itself.
     case 'red-evidence':
       libRedEvidence().verbRedEvidence(cwd, args);

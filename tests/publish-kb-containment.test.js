@@ -272,17 +272,23 @@ withState((stateFile) => {
   assert.ok(Object.hasOwn(state, 'Alt Spelling Page'));
 });
 
-// --- several branches matching the shape scan: no crash on the ambiguity, whichever one is picked --
-withState((stateFile) => {
+// --- several branches matching the shape scan: the check refuses, naming every match (INV-0003, INV-0106) --
+withState(() => {
   const repo = makeRepo();
   writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
   stagePage(repo, 'multi', 'p.md', 'title: Multi Page\naction: upsert'); // cuts feat/multi
+  const page = path.join(repo, '.superdev', 'kb-pending', 'multi', 'p.md');
   git(['branch', 'fix/multi'], repo); // a second branch also matching the scan shape
 
   const res = call(['--scope', 'multi'], repo);
-  assert.ok(res.ok, `expected success, got: ${res.err}`);
-  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
-  assert.ok(Object.hasOwn(state, 'Multi Page'));
+  assert.equal(res.ok, false, 'an ambiguous shape refuses');
+  assert.match(res.err, /feat\/multi/, 'the refusal names the first match');
+  assert.match(res.err, /fix\/multi/, 'and the second');
+  assert.match(res.err, /ambiguous/, 'and says the scope is ambiguous');
+  assert.doesNotMatch(res.err, /no branch resolved/, 'an ambiguity never reads as no branch');
+  assert.match(res.err, /nothing published/, 'and publishes nothing');
+  assert.ok(fs.existsSync(page), 'the staged page is not deleted');
+  fs.rmSync(repo, { recursive: true, force: true });
 });
 
 // --- parseRemote takes the first token of the `- **Remote:**` bullet, unlike parseBaseBranch's ------

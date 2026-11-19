@@ -9,56 +9,20 @@
 
 const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('child_process');
-const { CHANGE_TYPES, readLedgerHeader } = require('./ledger.js');
+const { readLedgerHeader } = require('./ledger.js');
+const { listBranches, shapeMatches } = require('./scope-branch.js');
 const { testContainment } = require('./containment.js');
 const { refResolves } = require('./git-spawn.js');
 
-function branchNamesFrom(cwd) {
-  const res = spawnSync('git', ['for-each-ref', '--format=%(refname)', 'refs/heads', 'refs/remotes'], {
-    cwd,
-    encoding: 'utf8',
-  });
-  // A listing git could not produce is no listing of zero branches: return how it failed instead.
-  // Exit 0 with empty stdout is a successful listing of none. spawnSync also sets `error` on a git that
-  // started, such as ENOBUFS past maxBuffer, so only ENOENT and EACCES read as git unable to start.
-  if (res.error) {
-    const how = ['ENOENT', 'EACCES'].includes(res.error.code) ? 'could not start' : 'failed';
-    return { failure: `${how} (${res.error.code || res.error.message})` };
-  }
-  if (res.status === null) return { failure: `was ended by signal ${res.signal}` };
-  if (res.status !== 0) return { failure: `exited with status ${res.status}` };
-  const names = new Set();
-  for (const raw of res.stdout.split('\n')) {
-    const ref = raw.trim();
-    if (!ref) continue;
-    if (ref.startsWith('refs/heads/')) {
-      names.add(ref.slice('refs/heads/'.length));
-      continue;
-    }
-    if (!ref.startsWith('refs/remotes/')) continue;
-    const rest = ref.slice('refs/remotes/'.length);
-    const cut = rest.indexOf('/');
-    if (cut < 1) continue;
-    const name = rest.slice(cut + 1);
-    if (name !== 'HEAD') names.add(name);
-  }
-  return { names };
-}
-
-// The shape scan `hooks/scope-prune.js` applies: a branch whose last segment is `scope` and whose
-// leading segment is a change type, the set `lib/ledger.js` owns. The scan itself stays a copy — a script
-// requires no hook, and a hook requires only the `lib/` surface scripts/AGENTS.md lists.
-// Returns `{ branch }` (null when none matches), or `{ failure }` when git could not list the branches.
+// The shape scan `lib/scope-branch.js` owns, which `hooks/scope-prune.js` applies too: every match over the local and
+// remote-tracking names. Returns `{ branch }` (null when none matches), `{ ambiguous }` naming every match when several do, or
+// `{ failure }` when git could not list the branches.
 function shapeScanBranch(cwd, scope) {
-  const listing = branchNamesFrom(cwd);
+  const listing = listBranches(cwd);
   if (listing.failure) return listing;
-  for (const branch of listing.names) {
-    const cut = branch.lastIndexOf('/');
-    if (cut < 1) continue;
-    if (branch.slice(cut + 1) === scope && CHANGE_TYPES.includes(branch.slice(0, cut))) return { branch };
-  }
-  return { branch: null };
+  const matches = shapeMatches(new Set([...listing.local, ...listing.remote]), scope);
+  if (matches.length > 1) return { ambiguous: matches };
+  return { branch: matches.length ? matches[0] : null };
 }
 
 // `references/scope-mode.md`'s `## The scope branch`: the ledger's `**Branch:**` line, verified
@@ -66,7 +30,7 @@ function shapeScanBranch(cwd, scope) {
 // between names one never cut. Falls back to the shape scan for a pre-CLI ledger, a gone/unreadable
 // run root, or a line naming a branch that no longer verifies — the steady-state path, since
 // `hooks/scope-prune.js` reaps the run root well before most `publish-kb` runs happen. Returns
-// `{ branch }`, null when neither route finds one, or the shape scan's `{ failure }`.
+// `{ branch }`, null when neither route finds one, or the shape scan's `{ ambiguous }` or `{ failure }`.
 function resolveScopeBranch(mainCheckout, scope) {
   let ledgerText = null;
   try {
@@ -135,6 +99,9 @@ function checkContainment(mainCheckout, scope) {
   const resolved = resolveScopeBranch(mainCheckout, scope);
   if (resolved.failure) {
     return { performed: true, ok: false, message: `cannot list branches for scope "${scope}": git for-each-ref ${resolved.failure}` };
+  }
+  if (resolved.ambiguous) {
+    return { performed: true, ok: false, message: `scope "${scope}" is ambiguous: its branch could be ${resolved.ambiguous.join(' or ')}; none holds a ledger **Branch:** line to say which` };
   }
   const branch = resolved.branch;
   if (!branch) {
