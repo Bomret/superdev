@@ -18,8 +18,6 @@ const { appendTrace } = require('./trace-log.js');
 const { checkRun } = require('./run-check.js');
 const { STALENESS_MS, readLock: readRunLock } = require('./run-lock.js');
 
-const readLock = (lockPath) => readRunLock(lockPath, 'open');
-
 // Every outcome that set up nothing exits with this status, apart from the 1 a refusal exits with.
 const STOPPED_EXIT = 3;
 
@@ -155,7 +153,7 @@ function verbOpen(cwd, args) {
 
   // A fresh lock held by another nonce stops the run. On a planned ledger the other session counts as live only
   // while its step stands, the rule /superdev:status applies (ADR 0163): a plan run that finished cleared it.
-  const held = readLock(lockPath);
+  const held = readRunLock(lockPath, 'open');
   if (held && held.age < STALENESS_MS && held.nonce !== lock && (!existing || step !== null)) {
     return report(stop('locked', [`a run lock under an hour old (${Math.round(held.age / 60000)} min) names another session: ${held.text}`]));
   }

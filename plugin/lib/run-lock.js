@@ -37,13 +37,20 @@ function readLock(lockPath, verb) {
 // Prints one verdict line for an existing run root: `proceed planned`, `proceed absent`, `proceed stale <age>`, or
 // `live <age> <stage> <lock content>`. The age is whole minutes, rounded to the nearest, as `open` reports it, with a `m` suffix.
 function verbLock(root) {
-  const stage = fs.existsSync(path.join(root, 'ledger.md')) ? getHeader(readLines(root), 'Stage') || 'none' : 'none';
-  if (stage === 'planned') return console.log('proceed planned');
+  let stage = 'none';
+  if (fs.existsSync(path.join(root, 'ledger.md'))) {
+    try {
+      stage = getHeader(readLines(root), 'Stage') || 'none';
+    } catch (e) {
+      fail(`lock: cannot read the ledger under ${root}: ${e.code || e.message}`);
+    }
+  }
   const held = readLock(path.join(root, 'run.lock'), 'lock');
+  if (stage === 'planned') return console.log('proceed planned');
   if (!held) return console.log('proceed absent');
   const age = `${Math.round(held.age / 60000)}m`;
   if (held.age >= STALENESS_MS) return console.log(`proceed stale ${age}`);
-  console.log(`live ${age} ${stage} ${held.text.replace(/\s+/g, ' ')}`);
+  console.log(`live ${age} ${stage} ${held.text.replace(/\s+/g, ' ')}`.trimEnd());
 }
 
 module.exports = { STALENESS_MS, readLock, verbLock };

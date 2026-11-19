@@ -157,7 +157,7 @@ mid-implementation. `run-init.md`'s entry step runs `node "${CLAUDE_PLUGIN_ROOT}
 before `dod.md` is written or the ledger's stage moves. The verb reads the ledger's stage and the lock, writes nothing (it
 leaves the lock's mtime as it was), and prints one verdict line. The age is whole minutes rounded to the nearest, written `<n>m`:
 
-- **`proceed planned`** — stage `planned`, any lock age: `/superdev:plan` cut this and nobody has implemented a slice yet.
+- **`proceed planned`** — stage `planned`, any lock age (a lock that is no regular file refuses at every stage, this one included): `/superdev:plan` cut this and nobody has implemented a slice yet.
   This is the ordinary hand-off, not a collision: proceed, exactly as the rest of this section describes.
 - **`proceed absent`** and **`proceed stale <age>`** — no lock, or a lock an hour old or older, at any other stage: proceed, exactly as the rest of this section
   describes.

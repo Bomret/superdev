@@ -170,7 +170,7 @@ function usage() {
     '  lock --root <run-root>             implement\'s entry liveness verdict: proceed planned (stage planned, any lock age), proceed absent',
     '                                     (no lock), proceed stale <age> (a lock an hour old or older), or live <age> <stage> <lock content>',
     '                                     (a lock under an hour old at another stage, a future-dated lock included); <age> is whole',
-    '                                     minutes rounded to the nearest, as <n>m; refuses a lock that is no regular file; writes nothing',
+    '                                     minutes rounded to the nearest, as <n>m; refuses, at every stage, a lock that is no regular file; writes nothing',
     '  red-evidence --root <run-root> --branch <branch> --base <base-ref> [--ci-head <sha> --ci-file <path>]',
     '                                     the scope review\'s red evidence: prints red <sha> files=<failed files> for a red suite',
     '                                     record at the tip or an ancestor, covered <sha> by <commit> where later passing runs close',

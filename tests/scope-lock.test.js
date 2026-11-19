@@ -66,6 +66,32 @@ assert.strictEqual(ok(setup({ stage: 'implementing', ageMs: -10 * 60 * 1000 })),
   assert.ok(!r.ok && /symbolic link/.test(r.err) && !r.err.includes('\n'), 'a symlink lock is refused: ' + r.err);
 }
 
+// The refusal holds at stage planned too, as `open` refuses it.
+{
+  const root = setup({ stage: 'planned' });
+  fs.mkdirSync(path.join(root, 'run.lock'));
+  const r = lock(root);
+  assert.ok(!r.ok && /a directory/.test(r.err) && !r.err.includes('\n'), 'a directory lock is refused at planned: ' + r.err);
+}
+{
+  const root = setup({ stage: 'planned' });
+  fs.writeFileSync(path.join(root, 'target'), 'x');
+  fs.symlinkSync(path.join(root, 'target'), path.join(root, 'run.lock'));
+  const r = lock(root);
+  assert.ok(!r.ok && /symbolic link/.test(r.err) && !r.err.includes('\n'), 'a symlink lock is refused at planned: ' + r.err);
+}
+
+// An unreadable ledger is one `lock:` refusal line.
+{
+  const root = setup({ stage: null });
+  fs.mkdirSync(path.join(root, 'ledger.md'));
+  const r = lock(root);
+  assert.ok(!r.ok && /^lock: cannot read the ledger/.test(r.err.trim()) && !r.err.trim().includes('\n'), 'an unreadable ledger is refused: ' + r.err);
+}
+
+// An empty lock prints no trailing space.
+assert.strictEqual(ok(setup({ stage: 'implementing', ageMs: 10 * 60 * 1000, content: '' })), 'live 10m implementing', 'an empty lock leaves no trailing space');
+
 // A root that is no directory, and a leftover argument, are refused.
 assert.ok(!call(['lock', '--root', path.join(os.tmpdir(), 'scope-lock-no-such-dir')]).ok, 'a missing root is refused');
 assert.ok(!call(['lock', '--root', setup({}), 'extra']).ok, 'a leftover argument is refused');
