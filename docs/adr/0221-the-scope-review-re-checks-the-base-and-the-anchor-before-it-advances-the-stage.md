@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0260](0260-the-scope-review-merges-a-moved-base-at-submitted-too.md), under which the
+review merges a moved base at `submitted` as it does at earlier stages.
+
 **Amends:** [ADR 0173](0173-the-scope-review-brings-the-base-in-at-entry.md), under which the review brings
 the base in at entry only, and [ADR 0206](0206-the-anchor-receives-ticks-from-the-review-on.md), under which
 the review runs the anchor sync once, when its Definition-of-Done step opens.
