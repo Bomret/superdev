@@ -19,7 +19,7 @@ Applies to a scope-mode `/superdev:review` at the moment `${CLAUDE_PLUGIN_ROOT}/
 
 ## The standing-defect writes
 
-**The writes.** Applies to a stop with a finding standing: §4.6's Declined branch, the cap below, and each anchor-check refusal above.
+**The writes.** Applies to a stop with a finding standing: the cap below and each anchor-check refusal above.
 
 - Write the `**Unresolved:**` entry with a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) piped to `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add - --root <run-root>` (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`).
 - **At a `submitted` stage**, also invalidate the tip's suite record with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set none <sha> --root <run-root>`, `<sha>` being the scope branch's current tip.
@@ -27,7 +27,7 @@ Applies to a scope-mode `/superdev:review` at the moment `${CLAUDE_PLUGIN_ROOT}/
 
 ## At the cap
 
-**The cap's branches.** Applies when §4.7's re-review comes back after the third fix cycle with a finding in the chosen set still standing.
+**The cap's branches.** Applies when §4.7's re-review comes back after the third fix cycle with a finding in the fix list still standing.
 
 - **Only Minor findings remain**, warranted cuts included → take the clean-verdict path of §4.10, naming the leftover Minors in the report and nowhere else.
 - **The only remaining Critical or Important findings are Pass-to-pass or Missing fail-to-pass run** → the scope proceeds under §3's combined verdict. This holds attended and unattended. Any of them beside a Critical or Important finding of another kind blocks. An unclosable finding is never that other kind: beside it, cycles fix the others only, and at the cap the others alone decide.

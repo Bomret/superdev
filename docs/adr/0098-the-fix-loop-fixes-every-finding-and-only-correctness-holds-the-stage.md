@@ -4,7 +4,8 @@
 
 **Amended by:** [ADR 0125](0125-missing-red-never-blocks-a-slice-at-the-fix-cap.md),
 [ADR 0170](0170-prompt-concept-overlap-is-judged-by-rule-equivalence.md),
-[ADR 0174](0174-minor-only-verdicts-batch-their-fixes-and-continue-warm.md).
+[ADR 0174](0174-minor-only-verdicts-batch-their-fixes-and-continue-warm.md),
+[ADR 0256](0256-an-attended-scope-review-fixes-every-finding-without-asking.md).
 
 **Context.** The scope review asked to fix only when it found a Critical or Important finding, a broken
 criterion, or a red suite. The full tier's per-slice review fixed only Critical and Important findings. A
