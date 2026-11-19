@@ -201,9 +201,9 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - **Noted `accepted:`** → tick it only when the verdict cites evidence, observed on the branch, that the criterion is now met. Write no fresh `accepted:` note yourself.
 - **A line that genuinely needs a deploy to verify** is never ticked on a `holds` verdict.
 
-**The stage hold.** Applies to every stage write of this review. The stage does not advance while any `dod.md` line is an open line by `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule`.
+**The stage hold.** Applies to every stage write of this review. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-open --root <run-root>` before the write. Its last line, `stage-hold: yes`, holds the stage, and `stage-hold: no` lets the write proceed. A refused `dod.md`, or `no criteria`, holds the stage too (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule`, `**The listing verb.**`).
 
-- These lines hold no stage: a line noted `ceiling:`, a line noted `accepted:`, and a `docs` line. A `ceiling:` line stays an open line; it only holds no stage before the merge.
+- The verb counts these lines as holding no stage: a line noted `ceiling:`, a line noted `accepted:`, and a `docs` line. A `ceiling:` line stays an open line; it only holds no stage before the merge.
 
 **A criterion missing from `dod.md`.** Applies to a criterion `final-reviewer` finds missing. Write no new line into `dod.md`.
 
@@ -310,7 +310,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 
 **The doc-pass record.** Applies when a fix cycle landed commits. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" docs clear --root <run-root>`.
 
-**The `docs` untick.** Applies to every `docs` line noted `met:` when a fix cycle landed commits. Untick it with the note `not met: a fix cycle landed after the doc pass` (`dod-ticks.md`). The untick runs after the `unresolved clear` above. The stage read before the stage write decides the untick's writes. The untick makes no suite-record write at any stage.
+**The `docs` untick.** Applies to every `docs` line noted `met:` when a fix cycle landed commits: the rows of `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-open --root <run-root>` with label `met` and tag `docs`. A refused `dod.md`, or `no criteria`, names no row: untick nothing and name the refusal in your report. Untick each such line with the note `not met: a fix cycle landed after the doc pass` (`dod-ticks.md`). The untick runs after the `unresolved clear` above. The stage read before the stage write decides the untick's writes. The untick makes no suite-record write at any stage.
 
 - Untick `<run-root>/dod.md` and the anchor's checklist through the store's `## Definition of Done ticks` section.
 - **A stage before `documented`** (`documented-unreviewed` included) → no `**Unresolved:**` entry and no stage hold.
