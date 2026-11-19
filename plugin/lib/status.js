@@ -5,7 +5,8 @@
 const fs = require('fs');
 const path = require('path');
 const { readLines, getHeader, readBullets, tableRowIndexes, splitRow } = require('./ledger.js');
-const { mainWorkTree, scopesDirFor, mainTreePath } = require('./main-work-tree.js');
+const { mainWorkTree, mainTreePath } = require('./main-work-tree.js');
+const { scanRunRoots } = require('./run-roots.js');
 
 // Staged knowledge-base pages wait under .superdev/kb-pending/<scope>/ until /superdev:publish-kb sends
 // them (ADR 0023). Nothing else in the chain reports them, and the safe failure this design chose — a
@@ -79,17 +80,7 @@ function verbStatus(cwd) {
   const { counts: pending, strays, loose } = stagedPageCounts(cwd);
   const pendingShown = new Set();
   const straysShown = new Set();
-  const scopesDir = scopesDirFor(cwd);
-  let entries = [];
-  try {
-    entries = fs
-      .readdirSync(scopesDir, { withFileTypes: true })
-      .filter((d) => d.isDirectory())
-      .map((d) => d.name)
-      .filter((n) => fs.existsSync(path.join(scopesDir, n, 'ledger.md')));
-  } catch (e) {
-    if (e.code !== 'ENOENT') throw e;
-  }
+  const { scopesDir, names: entries } = scanRunRoots(cwd);
   if (entries.length === 0 && pending.size === 0 && strays.size === 0 && loose.length === 0) {
     console.log('No superdev runs found in this repo.');
     return;
