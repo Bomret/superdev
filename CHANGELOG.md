@@ -1,3 +1,24 @@
+# [0.109.0](https://github.com/Bomret/superdev/compare/v0.108.0...v0.109.0) (2026-11-19)
+
+
+### Bug Fixes
+
+* **publish-kb:** refuse a scope when git cannot list branches ([#236](https://github.com/Bomret/superdev/issues/236)) ([bab533d](https://github.com/Bomret/superdev/commit/bab533d1f98a8d09a493d0fe84d88396d4e50ee8)), closes [#38](https://github.com/Bomret/superdev/issues/38)
+* **review:** merge a moved base at submitted too ([#252](https://github.com/Bomret/superdev/issues/252)) ([bff6976](https://github.com/Bomret/superdev/commit/bff697624dc652b387fbe81c8c269ba9fdde343b)), closes [#249](https://github.com/Bomret/superdev/issues/249)
+* **run-tests:** answer --help and refuse an argument the runner does not accept ([3c3fe6e](https://github.com/Bomret/superdev/commit/3c3fe6e766c54bc0d34b362430d7a01c821b2140)), closes [#209](https://github.com/Bomret/superdev/issues/209)
+* **superdev-view:** count a Definition-of-Done line by its verdict note ([a7bde5f](https://github.com/Bomret/superdev/commit/a7bde5f31ffe8421bad6fe29b0fa2c7156e06c99)), closes [#185](https://github.com/Bomret/superdev/issues/185)
+
+
+### Features
+
+* **scope:** read-only verbs grade review windows and fail-to-pass runs ([#254](https://github.com/Bomret/superdev/issues/254)) ([c1a6515](https://github.com/Bomret/superdev/commit/c1a651586172ac444bfc63f6261ce633e8df328c)), closes [#47](https://github.com/Bomret/superdev/issues/47)
+* ship takes the full-suite evidence from named CI checks or a local run ([#232](https://github.com/Bomret/superdev/issues/232)) ([e2abbe3](https://github.com/Bomret/superdev/commit/e2abbe38bd1dc6db2f920497f2822a9c96389aa1))
+
+
+### Performance Improvements
+
+* an attended review fixes without asking, and test runs take their paths from a ref ([#250](https://github.com/Bomret/superdev/issues/250)) ([6365e44](https://github.com/Bomret/superdev/commit/6365e442db062dd2ae70a8e91b7d77dec4e1cbb2))
+
 # [0.108.0](https://github.com/Bomret/superdev/compare/v0.107.5...v0.108.0) (2026-11-18)
 
 
