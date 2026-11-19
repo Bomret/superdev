@@ -109,6 +109,11 @@ try {
   }
   cases.ci = [[['ci', '--sha', 'HEAD', '--root', ciRepo], 'lint\tsuccess\n', () => assert.match(pipedOut, /^ci: green /, 'ci judged the piped status')]];
 
+  // section prints the piped heading's section of the file it names.
+  const sectionFile = path.join(tmp, 'section.md');
+  fs.writeFileSync(sectionFile, '## A\na1\n## B\nb1\n');
+  cases.section = [[['section', sectionFile], '## B\n', () => assert.strictEqual(pipedOut, '## B\nb1\n', 'section printed the piped heading\'s section')]];
+
   for (const verb of stdinVerbs) assert.ok(cases[verb], `verb "${verb}" reads piped input and has a case in this suite`);
 
   const order = ['init', ...stdinVerbs.filter((v) => v !== 'init' && v !== 'adopt'), 'adopt'];
