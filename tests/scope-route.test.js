@@ -170,7 +170,7 @@ assert.deepEqual(route(setup({ dod: SETTLED }), ''), ['verify-ship'], 'an empty 
 // Keys and targets: a newline or control character is refused, and no stdin text reaches the output.
 {
   const s = setup({ dod: OBSERVED });
-  for (const bad of ['#9\nrepair #1 is open', '#9\u0007', '', '#9\r', '#9\u0085', '#9\u009f', '#9 ', '#9 ']) {
+  for (const bad of ['#9\nrepair #1 is open', '#9\u0007', '', '#9\r', '#9\u0085', '#9\u009f', '#9\u{2028}', '#9\u{2029}']) {
     refused(s, OBSERVED, '--repair', 'open', bad);
     refused(s, OBSERVED, '--target', bad);
   }

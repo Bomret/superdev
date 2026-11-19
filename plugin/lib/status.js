@@ -194,7 +194,7 @@ function verbStatus(cwd) {
 
 // A scope's staging directory, where its staged knowledge-base pages wait for /superdev:publish-kb
 // (ADR 0023, ADR 0119). `--count` prints the number of `.md` pages there instead, 0 for a missing
-// directory: the same `.md`-only rule `stagedPageCounts` applies, over regular files only. `--line` prints
+// directory: regular `.md` files only, which is stricter than `stagedPageCounts`, whose count takes any entry named `*.md`. `--line` prints
 // the close steps' staged-pages line: nothing for no page, one could-not-read line (no count) for a read
 // that fails for any reason (INV-0121, INV-0123). The scope is the one positional argument; an unknown
 // flag, a second positional, and `--line` with `--count` are refused.

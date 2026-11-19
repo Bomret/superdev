@@ -100,7 +100,7 @@ Review a change end to end. §1 decides the mode.
    - Several candidates still put the question, and block under `--unattended`, as `## Resolving an empty argument` states.
    - **No candidate** → go on to step 4. This review adds step 3 after the shared cascade, so the cascade's own **No candidate** stop does not apply here.
 4. **Otherwise** → **standing code of the whole repository**: the files at `HEAD`, the standing-code shape applied to the top level.
-   - Before any reviewer starts, the range announcement lists every run root with its stage (step 3's `none` verdict prints each one, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Resolving an empty argument`, *Run-root enumeration*) and adds a `/superdev:review <scope-slug>` line for the operator who meant a run. A repository with no run root says so.
+   - Before any reviewer starts, the range announcement lists every run root with its stage (the `none` lines of `scope.js candidates --stage merged,documented-unreviewed`, which step 3 already printed when it ran, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Resolving an empty argument`, *Run-root enumeration*) and adds a `/superdev:review <scope-slug>` line for the operator who meant a run. A repository with no run root says so.
    - The review is ad-hoc, attended or unattended: no ledger write, no run lock, no fix loop.
    - No files at `HEAD` → say there is nothing to review and dispatch nobody.
 

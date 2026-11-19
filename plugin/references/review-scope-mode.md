@@ -101,7 +101,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 **The scope checkout.** Applies first, before any test run. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" checkout --root <run-root>` and act on its verdict per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope checkout`. Refresh the run lock per that file's `## The run lock`.
 
 - **`absent-terminal`** → review read-only, and recreate no checkout.
-- **`unregistered` or `held-elsewhere`** → the scopetree is not a checkout of the scope branch. Report that and review read-only, writing nothing to the wrong branch.
+- **`unregistered` or `held-elsewhere`** → the scopetree is not a checkout of the scope branch. Report that and review read-only, writing nothing to the wrong branch. This line replaces `scope-mode.md`'s stop for these two verdicts: the review reads the scope branch through `git show` and `git diff` from the invoking checkout, and reads no file of the scopetree path.
 
 **The anchor sync.** Applies on every route of the review (a clean verdict, the inline review after a denied dispatch, a second invocation) and at every stage it accepts, `submitted` included, after the scope checkout and the run lock and before the first dispatch of `final-reviewer`. §4.1's stage gates leave it unchanged, and no verdict gates it. Implement and run handoff tick `dod.md` alone, so the anchor's checklist can lack their ticks. Read the anchor's Definition-of-Done lines per `docs/agents/issue-tracker.md`. Run the anchor sync of `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## Pairing dod.md with the anchor`.
 

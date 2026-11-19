@@ -27,20 +27,24 @@ function normalize(p) {
   }
 }
 
-// The registered working trees as `{ path, branch, detached, bare }` (`branch` the short name), or `{ failure }` when git cannot list them.
+// The registered working trees as `{ path, branch, detached }` (`branch` the short name), or `{ failure }` when git cannot list them.
+// `-z` ends each field with a NUL, so a path holding a newline stays whole.
 function listWorktrees(cwd) {
-  const res = spawnSync('git', ['worktree', 'list', '--porcelain'], { cwd, encoding: 'utf8' });
-  if (res.error) return { failure: `worktree list could not run (${res.error.code || res.error.message})` };
+  const res = spawnSync('git', ['worktree', 'list', '--porcelain', '-z'], { cwd, encoding: 'utf8' });
+  if (res.error) {
+    const how = ['ENOENT', 'EACCES'].includes(res.error.code) ? 'could not start' : 'failed';
+    return { failure: `worktree list ${how} (${res.error.code || res.error.message})` };
+  }
+  if (res.status === null) return { failure: `worktree list was ended by signal ${res.signal}` };
   if (res.status !== 0) return { failure: `worktree list exited with status ${res.status}` };
   const trees = [];
   let cur = null;
-  for (const line of res.stdout.split('\n')) {
+  for (const line of res.stdout.split('\0')) {
     if (line.startsWith('worktree ')) {
-      cur = { path: line.slice('worktree '.length), branch: null, detached: false, bare: false };
+      cur = { path: line.slice('worktree '.length), branch: null, detached: false };
       trees.push(cur);
     } else if (cur && line.startsWith('branch ')) cur.branch = line.slice('branch '.length).replace(/^refs\/heads\//, '');
     else if (cur && line === 'detached') cur.detached = true;
-    else if (cur && line === 'bare') cur.bare = true;
   }
   return { trees };
 }

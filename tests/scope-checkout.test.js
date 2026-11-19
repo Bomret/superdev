@@ -115,6 +115,16 @@ assert.strictEqual(verdict(setup({ stage: 'closed' })), 'absent-terminal closed'
   assert.strictEqual(verdict(s), `present ${real(s.tree)}`, 'a guessed branch is the branch checked');
 }
 
+// A git failure passes through as git-failed, from the run read outside any repository.
+{
+  const s = setup();
+  const outside = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'scope-checkout-outside-'));
+  copies.push(outside);
+  const r = call(['checkout', '--root', s.root], '', outside);
+  assert.ok(r.ok, 'checkout should not refuse: ' + r.err);
+  assert.ok(/^git-failed /.test(r.out), 'a failing git prints git-failed, got: ' + r.out);
+}
+
 // The verb changes no ref, registration, or file.
 {
   const s = setup();

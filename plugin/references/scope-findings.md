@@ -33,8 +33,9 @@ It prints one verdict line:
   pass verifies (a lite run, or a full run with a `docs` or `mechanical` row; never a `slice-reviewer`, which
   verifies a slice a dispatched implementer built), or the run's second denial since the last reset arrived.
 
-Off a live run (an ad-hoc review or document pass) no ledger records a denial and no verdict is asked: do the pass
-inline and say so in the report, attended and unattended alike.
+Off a live run (an ad-hoc review or document pass) no ledger records a denial and no verdict is asked: do a denied
+verification pass (`final-reviewer`, `doc-reader`) inline and say so in the report, attended and unattended alike.
+A denied authoring dispatch (`doc-writer`) follows its skill's bullet, which blocks it under `--unattended`.
 
 A refusal means the pass name is outside the known set, or no denial of a verification pass is recorded since the
 last reset: record it, then ask again. A block comment names the denied dispatch, and the entry is written either way.

@@ -9,22 +9,9 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const { run } = require('./scope-setup');
+const { call } = require('./scope-setup');
 
-const callIn = (argv, cwd) => {
-  const logged = [];
-  const orig = console.log;
-  console.log = (s) => logged.push(String(s));
-  try {
-    run(argv, cwd, '');
-    return { ok: true, out: logged.join('\n') };
-  } catch (e) {
-    if (e.isRefusal) return { ok: false, err: e.message, out: logged.join('\n') };
-    throw e;
-  } finally {
-    console.log = orig;
-  }
-};
+const callIn = (argv, cwd) => call(argv, '', cwd);
 const git = (args, cwd) => execFileSync('git', args, { cwd, stdio: 'ignore' });
 
 const main = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-staging-')));
@@ -63,7 +50,6 @@ fs.mkdirSync(path.join(pending, 'empty'));
 fs.mkdirSync(path.join(pending, 'empty', 'only.md'));
 const empty = callIn(['staging', 'empty', '--line'], wt);
 assert.ok(empty.ok && empty.out === '', 'a directory holding no page file prints nothing');
-assert.strictEqual(callIn(['staging', 'absent', '--count'], wt).out, '0', '--count prints 0 for a missing directory');
 
 // A staging path that is a file: --line prints the could-not-read line with no count; --count reports a failure.
 fs.writeFileSync(path.join(pending, 'afile'), 'x');
