@@ -29,7 +29,7 @@ function verbDenial(root, args) {
     return;
   }
   const count = denialCount(root);
-  if (count === 0) fail(`denial: no denial recorded for ${pass} since the last reset; record it with degraded add-denial first`);
+  if (count === 0) fail(`denial: no verification denial recorded since the last reset; record it with degraded add-denial first`);
   if (!unattended) {
     console.log('inline');
     return;

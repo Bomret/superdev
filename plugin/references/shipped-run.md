@@ -56,7 +56,8 @@ call and writes nothing. The caller reads the store and hands over what it read,
    section's **Read an anchor's Repairs line** call. Call the verb again with `--repair open <key>` or `--repair closed <key>`
    for each anchor whose `**Repairs:**` line names this run's anchor, the key in the store's own notation, or with `--repairs-none`
    where none does. A failed listing, or an `absent` anchor key, hands `--repairs-failed`, which reads as no repair. The verb
-   refuses a key or target holding a newline or control character.
+   refuses a key or target holding a newline or control character. Conflicting repair flags are no refusal: `--repairs-failed`
+   outranks every other repair flag, and a `--repair` outranks `--repairs-none`.
 
 The verb prints one verdict line, then its extra lines:
 

@@ -12,7 +12,7 @@ const { spawnSync, execFileSync } = require('node:child_process');
 const { scopePath, call, fetchBound, writeOperatorConfig } = require('./scope-setup');
 const { copyFixture, templateOnce } = require('./fixture-git');
 const { assertSpawnDecided } = require('./spawn-verdict');
-const { STALENESS_MS } = require('../plugin/lib/plan-open.js');
+const { STALENESS_MS } = require('../plugin/lib/run-lock.js');
 
 const BRANCH = 'feat/open-me';
 const made = [];

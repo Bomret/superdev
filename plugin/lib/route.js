@@ -67,10 +67,10 @@ function anyUndeployed(root, targets) {
   return targets.some((t) => !deployed.has(t));
 }
 
-// The anchor's checklist lines as readings, or null where the anchor yields none (empty, fence-broken, or no checklist).
-function anchorLines(text) {
+// A Definition of Done's checklist lines, or null where it yields none (empty, fence-broken, or no checklist).
+function criterionLinesOrNull(text, label) {
   try {
-    const lines = dodCriterionLines(text, 'the anchor', 'read');
+    const lines = dodCriterionLines(text, label, 'read');
     return lines.length ? lines : null;
   } catch (e) {
     if (!e.isRefusal) throw e;
@@ -84,18 +84,18 @@ const verdictOf = (line) => parseDodLineReadings(line)[0].verdict;
 // `route --root <run-root> [--merge <sha>] [--target <name>]… [--repair open|closed <key>]… [--repairs-failed] [--repairs-none]`
 // with the anchor's Definition of Done on stdin. Prints the verdict line, then one `repair <key> is open; finish its chain first`
 // line per open repair on a `repair` verdict, then `hand-sync` where a `dod.md` line has no matching anchor line.
-function route(cwd, root, args, anchorText) {
+function verbRoute(cwd, root, args, anchorText) {
   const flags = parseFlags(args);
   const posture = postureAt(cwd, flags.merge);
   // One read of dod.md serves the criteria and the pairing: null where it is missing, unreadable, fence-broken, or holds no criterion line.
-  let dodLines = null;
+  let dodText = null;
   try {
-    const lines = dodCriterionLines(fs.readFileSync(path.join(root, 'dod.md'), 'utf8'), 'dod.md', 'read');
-    if (lines.length) dodLines = lines;
+    dodText = fs.readFileSync(path.join(root, 'dod.md'), 'utf8');
   } catch (e) {
-    if (!e.isRefusal && !e.code) throw e;
+    if (!e.code) throw e;
   }
-  const anchor = anchorLines(anchorText);
+  const dodLines = dodText === null ? null : criterionLinesOrNull(dodText, 'dod.md');
+  const anchor = criterionLinesOrNull(anchorText, 'the anchor');
   const fromDod = dodLines !== null;
   const criteria = (fromDod ? dodLines : anchor || []).map(readCriterion);
 
@@ -125,11 +125,7 @@ function route(cwd, root, args, anchorText) {
     out.push(settled && !differs && !manualUndeployed && !noLedger ? 'wrap-up' : 'verify-ship');
   }
   if (unpaired) out.push('hand-sync');
-  return out;
-}
-
-function verbRoute(cwd, root, args, anchorText) {
-  console.log(route(cwd, root, args, anchorText).join('\n'));
+  console.log(out.join('\n'));
 }
 
 module.exports = { verbRoute };

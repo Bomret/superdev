@@ -187,4 +187,4 @@ function report({ word, lines, exitCode }) {
   if (exitCode) process.exitCode = exitCode;
 }
 
-module.exports = { verbOpen, STALENESS_MS };
+module.exports = { verbOpen };

@@ -104,6 +104,9 @@ assert.deepEqual(route(setup({ dod: OBSERVED }), OBSERVED, '--repairs-none'), ['
 // A failed listing reads as no repair, and ignores whatever repair came with it.
 assert.deepEqual(route(setup({ dod: OBSERVED }), OBSERVED, '--repairs-failed'), ['repair'], 'a failed listing');
 assert.deepEqual(route(setup({ dod: OBSERVED }), OBSERVED, '--repairs-failed', '--repair', 'open', '#9'), ['repair'], 'a failed listing hands no open repair');
+assert.deepEqual(route(setup({ dod: OBSERVED }), OBSERVED, '--repairs-failed', '--repairs-none'), ['repair'], 'a failed listing outranks --repairs-none');
+// A listed repair outranks --repairs-none: an open one still names its chain.
+assert.deepEqual(route(setup({ dod: OBSERVED }), OBSERVED, '--repairs-none', '--repair', 'open', '#1'), ['repair', 'repair #1 is open; finish its chain first'], 'an open repair beside --repairs-none');
 // A closed repair the note does not cite, no open one: re-verify.
 assert.deepEqual(route(setup({ dod: OBSERVED }), OBSERVED, '--repair', 'closed', '#951'), ['re-verify'], 'a closed repair the note does not cite');
 assert.deepEqual(route(setup({ dod: OBSERVED_AFTER }), OBSERVED_AFTER, '--repair', 'closed', '#951'), ['repair'], 'the cited closed repair was judged already');
