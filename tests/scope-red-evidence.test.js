@@ -175,6 +175,15 @@ try {
     assert.strictEqual(ci(c.T, FAILED, both), `red ${c.T} files=\nci: failed ${c.T}\nci-failed lint http://l/1 ${c.T}`, 'both sources');
     assert.match(verb(c.args(rt, ['--ci-head', c.T, '--ci-file', path.join(c.repo, 'absent.tsv')]), c.repo).err, /absent\.tsv/, 'an unreadable check-status file refuses');
   }
+  // The verb writes no ledger, trace, digest, or git change.
+  {
+    const rt = f.root([`**Suite:** red @ ${f.R}`, `**Failed:** tests/a.test.js @ ${f.R}`], [['path', 'pass', f.M, 'clean', 'tests/a.test.js', '1', 'node t.js', '.']]);
+    const snap = () => [...fs.readdirSync(rt).sort().map((n) => `${n}=${fs.readFileSync(path.join(rt, n), 'utf8')}`),
+      g(['status', '--porcelain', '--ignored'], f.repo), g(['rev-parse', 'HEAD', 'feat'], f.repo), g(['for-each-ref'], f.repo)].join('\n--\n');
+    const before = snap();
+    assert.strictEqual(verb(f.args(rt), f.repo).ok, true);
+    assert.strictEqual(snap(), before, 'the ledger, the trace, the run root, and git are unchanged');
+  }
   console.log('scope-red-evidence tests passed');
 } finally {
   for (const d of made) fs.rmSync(d, { recursive: true, force: true });
