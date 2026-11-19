@@ -69,6 +69,10 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          which records a `tamper` trace line, ADR 0227); `untraced.js` (the `untraced` verb).
                          Read-only grading (ADR 0261): `trace-window.js` (the one **Window** derivation, the slice and
                          edit-path comparison, and the flag parser the trace verbs share) and `fail-to-pass-check.js` (the `fail-to-pass-check` verb).
+                         Read-only decision verbs (ADR 0262): `section.js` (one markdown section), `tier.js` (the execution tier),
+                         `dod-open.js` (a run's open criteria), `contained.js` (a branch's containment verdict), and
+                         `red-evidence.js` (the scope review's red evidence); `dod-gate.js` is the check every entry to
+                         `implementing` makes that `dod.md` is written.
                          Operator configuration: `operator-config.js` (the reader of `.superdev/info.json`,
                          used by push, fail-to-pass, and the KB backend runner, ADR 0207).
                          Git and containment: `git-spawn.js` (the shared git calls), `containment.js`,
