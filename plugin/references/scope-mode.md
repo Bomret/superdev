@@ -121,34 +121,36 @@ and the publish refuses naming both.
 
 ## The scope checkout
 
-**Resolve the scope branch first**, per `## The scope branch`, never from the slug alone. Then find the
-working tree holding it, from disk.
-
 `<run-root>/scopetree` is the scope checkout, at both tiers. Run every git
 command that writes to the scope branch there — `git -C <run-root>/scopetree ...` — never in
 the invoking checkout, which stays wherever it was.
 
-- **Present** → work there.
-- **The ledger's `**Stage:**` reads `shipped` or `closed`, and the checkout is absent** → `/superdev:wrap-up`'s
-  cleanup, or an operator, removed it. No command recreates it at `closed`, a terminal stage nothing
-  removes scaffolding from. A read-only command (`/superdev:review`, `/superdev:document`,
-  `/superdev:verify-ship`, `/superdev:wrap-up`) says so and reviews or reconciles read-only, and recreates no checkout. A writing
-  command has nothing left to write to a shipped scope.
-  **The one exception is `/superdev:ship` itself, reading any `shipped` ledger.** Its §3 reads the posture
-  with `git show` from the invoking checkout, which needs no scope checkout. Ship recreates the checkout
-  below, as an `Absent` one does, in one case only: a ledger whose `auto` deploy stopped mid-way, whose §5
-  detaches it.
+**The call.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" checkout --root <run-root>`. It resolves the scope branch itself
+(`## The scope branch`; a `guess` or `guess-remote` branch is the branch it checks, and its verdict does not name the route, so a
+command that reports the guess runs `branch` as well), reads `git worktree list` and the ledger's
+`**Stage:**`, and writes nothing. It prints one verdict:
 
-  A `shipped` ledger with nothing left to deploy, or a posture other than `auto`, is
-  "already shipped". Ship recreates no checkout for it.
-- **Absent** → recreate it: `git worktree add <run-root>/scopetree <branch>`, the same call
+- **`present <path>`** → git registers the scopetree on the scope branch. Work there.
+- **`absent`** → the scopetree is missing before `shipped`. Recreate it: `git worktree add <run-root>/scopetree <branch>`, the same call
   the `resumed` run kind already makes. The run's own lock stays as it is: no hook refuses the call.
   **Prepare the recreated scopetree** before its first test run:
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <run-root>/scopetree`, per `scope-branch.md`'s
   `## Preparing a worktree`; a failing preparation stops the command, and `--unattended` blocks.
-- **A different working tree already holds `<branch>`** → git's own refusal on that `worktree add` call
-  names the tree holding it. Say so and stop, writing nothing, rather than switching a checkout superdev
-  does not own.
+- **`absent-terminal <stage>`** (`shipped` or `closed`) → `/superdev:wrap-up`'s cleanup, or an operator, removed it. No command
+  recreates it at `closed`, a terminal stage nothing removes scaffolding from. A read-only command (`/superdev:review`,
+  `/superdev:document`, `/superdev:verify-ship`, `/superdev:wrap-up`) says so and reviews or reconciles read-only, and recreates no
+  checkout. A writing command has nothing left to write to a shipped scope.
+  **The one exception is `/superdev:ship` itself, reading any `shipped` ledger.** Its §3 reads the posture
+  with `git show` from the invoking checkout, which needs no scope checkout. Ship recreates the checkout
+  as an `absent` verdict does, in one case only: a ledger whose `auto` deploy stopped mid-way, whose §5
+  detaches it. A `shipped` ledger with nothing left to deploy, or a posture other than `auto`, is
+  "already shipped". Ship recreates no checkout for it.
+- **`held-elsewhere <path>`** → another working tree holds the branch. Say so, naming the path, and stop, writing nothing, rather
+  than switching a checkout superdev does not own.
+- **`unregistered <reason>`** → the scopetree path is a leftover directory, a detached or other-branch tree, or a registration whose
+  directory is gone. Say so with the reason and stop, writing nothing: the call recreates nothing over it, and the operator removes it.
+- **`none`, `ambiguous <b> <b>…`, or `git-failed <reason>`** → the scope branch itself is unresolved, per `## The scope branch`'s
+  reading of those verdicts.
 
 ## The run lock
 
