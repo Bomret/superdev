@@ -10,7 +10,7 @@ const os = require('node:os');
 const path = require('node:path');
 const cp = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
-const { tmp, call, sliceJson, scopePath, cleanup } = require('./scope-setup');
+const { tmp, call, sliceJson, scopePath, cleanup, writeDod, scopeRoot } = require('./scope-setup');
 
 const FIELDS = ['stage', 'step', 'branch', 'anchor', 'docs', 'pr', 'slices', 'unresolved', 'degraded', 'deferred', 'minors', 'denials', 'suite', 'failed'];
 const LISTS = ['slices', 'unresolved', 'degraded', 'deferred', 'minors', 'failed'];
@@ -25,6 +25,7 @@ const spawnState = (args, env) => {
 const snapshot = (root) => Object.fromEntries(fs.readdirSync(root).sort().map((n) => [n, fs.readFileSync(path.join(root, n)).toString('base64')]));
 
 try {
+  writeDod(scopeRoot('state'));
   assert.ok(call(['init', 'feat/state', 'implementing'], sliceJson).ok, 'init');
   const root = path.join(tmp, '.superdev', 'scopes', 'state');
   const R = ['--root', root];

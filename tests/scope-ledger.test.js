@@ -11,7 +11,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const { tmp, call, sliceJson, scopePath, run, cleanup } = require('./scope-setup');
+const { tmp, call, sliceJson, scopePath, run, cleanup, writeDod, scopeRoot } = require('./scope-setup');
 const { publishText, SLUG_RE, readLedgerHeader } = require(scopePath);
 
 try {
@@ -72,6 +72,7 @@ try {
     console.log = () => {};
     try {
       run(['init', 'feat/view', 'planned'], viewTmp, viewJson);
+      writeDod(viewRoot);
       run(['stage', '--root', viewRoot, 'set', 'implementing'], viewTmp);
       run(['slice', '--root', viewRoot, '01', 'merged', '--range', 'a1b2c3d..e4f5a6b'], viewTmp);
       run(['slice', '--root', viewRoot, '02', 'in-progress'], viewTmp);
@@ -88,6 +89,8 @@ try {
     const stepRoot = path.join(tmp, '.superdev', 'scopes', 'stepper');
     const stepLedger = () => fs.readFileSync(path.join(stepRoot, 'ledger.md'), 'utf8');
     const stepTrace = () => (fs.existsSync(path.join(stepRoot, 'trace.log')) ? fs.readFileSync(path.join(stepRoot, 'trace.log'), 'utf8').split('\n').filter(Boolean) : []);
+    writeDod(stepRoot);
+    for (const e of ['elsewhere', 'elsewhere3', 'elsewhere4']) writeDod(path.join(tmp, e, 'stepper'));
     assert.ok(call(['init', 'feat/stepper', 'implementing'], sliceJson).ok, 'step fixture init');
     assert.ok(call(['stage', '--root', stepRoot, 'set', 'merged']).ok, 'step fixture at merged');
     assert.equal(call(['get', '--root', stepRoot, 'step']).out, 'none', 'a ledger with no step line reads none');
@@ -191,6 +194,7 @@ try {
       assert.ok(call(['step', '--root', keepRoot, 'set', 'review']).ok, 'keeper step set review');
       assert.ok(call(['init', 'feat/keeper', 'planned'], sliceJson).ok, 'planned init over a planned ledger holding another step');
       assert.equal(call(['get', '--root', keepRoot, 'step']).out, 'review', 'a planned rewrite keeps any standing step');
+      writeDod(keepRoot);
       assert.ok(call(['init', 'feat/keeper', 'implementing'], sliceJson).ok, 'implementing init over a planned ledger');
       assert.equal(call(['get', '--root', keepRoot, 'step']).out, 'none', 'an implementing init writes no step');
       assert.ok(call(['step', '--root', keepRoot, 'set', 'implement']).ok, 'keeper step set implement');
@@ -265,6 +269,7 @@ try {
 
   // init: once a scope moves off `planned`, a ledger.md that already exists is refused (the real
   // double-init signal).
+  writeDod(root);
   assert.ok(call(['stage', 'set', 'implementing', '--root', root]).ok);
   r = call(['init', 'feat/demo', 'planned'], sliceJson);
   assert.ok(!r.ok && /already exists/.test(r.err), 'existing ledger refused');
@@ -283,6 +288,7 @@ try {
 
   // init: run init's own `fresh` path enters straight at `implementing` — no plan ever cut this
   // ledger, so there is no `planned` interval to move it out of afterwards (Critical review finding).
+  writeDod(scopeRoot('run-init-fresh'));
   r = call(['init', 'feat/run-init-fresh', 'implementing'], sliceJson);
   assert.ok(r.ok, 'init implementing should pass: ' + (r.err || ''));
   assert.strictEqual(
@@ -299,6 +305,7 @@ try {
     const slug = 'refuse-' + stage;
     assert.ok(call(['init', 'feat/' + slug, 'planned'], sliceJson).ok);
     const r2 = path.join(tmp, '.superdev', 'scopes', slug);
+    writeDod(r2);
     assert.ok(call(['stage', 'set', stage, '--root', r2]).ok, `advance ${slug} to ${stage}`);
     const reinit = call(['init', 'feat/' + slug, 'planned'], sliceJson);
     assert.ok(!reinit.ok && /already exists/.test(reinit.err), `init over stage "${stage}" still refuses`);
@@ -330,6 +337,7 @@ try {
     const slug = 'rotate-closed';
     assert.ok(call(['init', 'feat/' + slug, 'planned'], sliceJson).ok);
     const cRoot = path.join(tmp, '.superdev', 'scopes', slug);
+    writeDod(cRoot);
     const early = call(['stage', 'set', 'closed', '--root', cRoot]);
     assert.ok(!early.ok && /does not move to "closed"/.test(early.err), 'planned → closed refused: ' + early.err);
     assert.ok(call(['stage', 'set', 'submitted', '--root', cRoot]).ok);
@@ -420,6 +428,7 @@ try {
     assert.strictEqual(pairs().traces.length, after.traces.length, 'nothing rotated over planned');
 
     // A refused init leaves both files byte-identical.
+    writeDod(tRoot);
     assert.ok(call(['stage', 'set', 'implementing', '--root', tRoot]).ok);
     const ledgerText = fs.readFileSync(path.join(tRoot, 'ledger.md'), 'utf8');
     const traceText = fs.readFileSync(path.join(tRoot, 'trace.log'), 'utf8');
@@ -618,6 +627,7 @@ try {
   const plannedRoot = path.join(tmp, '.superdev', 'scopes', 'planned-fwd');
   assert.strictEqual(call(['get', 'stage', '--root', plannedRoot]).out, 'planned', 'init writes stage planned');
   assert.ok(call(['stage', 'set', 'planned', '--root', plannedRoot]).ok, 'same-value planned write is a no-op');
+  writeDod(plannedRoot);
   assert.ok(call(['stage', 'set', 'implementing', '--root', plannedRoot]).ok, 'planned → implementing moves forward');
 
   // stage: no write moves back to `planned` once a run has left it.
@@ -899,6 +909,7 @@ try {
     console.log = () => {};
     try {
       run(['init', 'feat/view', 'planned'], qTmp, JSON.stringify({ anchor: '#9 — Show the pane', slices: [{ id: '01', issue: '#10', title: 'Draw the tiles', type: 'behavior', 'depends-on': '—' }] }));
+      writeDod(qRoot);
       run(['stage', '--root', qRoot, 'set', 'implementing'], qTmp);
       run(['slice', '--root', qRoot, '01', 'merged', '--range', 'a1b2c3d..e4f5a6b'], qTmp);
       run(['minors', 'add', '01', '--root', qRoot], qTmp);
@@ -1294,6 +1305,7 @@ try {
       const hLines = (slug) => fs.readFileSync(path.join(hRoot(slug), 'ledger.md'), 'utf8').split('\n');
       const at = (lines, name) => lines.findIndex((l) => l.startsWith(`**${name}:**`));
 
+      for (const s of ['hdr-pr-first', 'hdr-docs-first', 'hdr-full']) writeDod(hRoot(s));
       hcall(['init', 'feat/hdr-pr-first', 'implementing'], sliceJson);
       hcall(['pr', 'set', '1', '--root', hRoot('hdr-pr-first')]);
       hcall(['docs', 'set', 'inline', '--root', hRoot('hdr-pr-first')]);

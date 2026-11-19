@@ -8,7 +8,7 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const { tmp, call, sliceJson, scopePath, run, cleanup } = require('./scope-setup');
+const { tmp, call, sliceJson, scopePath, run, cleanup, writeDod } = require('./scope-setup');
 const { publishText } = require(scopePath);
 
 try {
@@ -87,7 +87,7 @@ try {
   const submittedOriginal = fs.readFileSync(path.join(submittedRoot, 'ledger.md'), 'utf8');
   const submittedPublished = publishText(submittedRoot);
   const adoptSubmittedRoot = path.join(tmp, 'adopted-elsewhere', 'publish-submitted');
-  fs.mkdirSync(path.dirname(adoptSubmittedRoot), { recursive: true });
+  writeDod(adoptSubmittedRoot);
   run(['adopt', '--root', adoptSubmittedRoot], tmp, submittedPublished);
   assert.strictEqual(
     fs.readFileSync(path.join(adoptSubmittedRoot, 'ledger.md'), 'utf8'),
@@ -166,6 +166,7 @@ try {
   assert.ok(!fs.existsSync(path.join(badMinorRoot, 'ledger.md')), 'adopt writes nothing on a bad Minors bullet');
   r = call(['adopt', '--root', badMinorRoot], badMinorBody('- 99'));
   assert.ok(!r.ok && /99/.test(r.err), 'adopt with a Minors bullet the slice table lacks refused: ' + (r.err || ''));
+  writeDod(badMinorRoot);
   assert.ok(call(['adopt', '--root', badMinorRoot], badMinorBody('- 01')).ok, 'adopt with a Minors bullet naming a table id succeeds');
 
   // adopt: a run root whose ledger.md already exists refuses, and leaves that ledger untouched.
@@ -246,7 +247,7 @@ try {
   // trigger a refusal — the markers alone decide where it starts and stops, so heading-shaped
   // content between them is just more payload text.
   const headingsInsideRoot = path.join(tmp, 'adopted-elsewhere', 'headings-inside-payload');
-  fs.mkdirSync(path.dirname(headingsInsideRoot), { recursive: true });
+  writeDod(headingsInsideRoot);
   const headingsInsideBody =
     '## Run state\n\n<!-- superdev:run-state -->\n\n**Stage:** implementing\n**Branch:** feat/headings-inside-payload\n**Anchor:** #1 — anchor\n\n' +
     '| id | issue | title | type | depends-on | status | range |\n|---|---|---|---|---|---|---|\n' +
@@ -270,7 +271,7 @@ try {
   // "**Deferred:**"): none of that plays any part in bounding the payload, so none of it triggers a
   // refusal the way the inferred-boundary rule this replaced did.
   const sectionedRoot = path.join(tmp, 'adopted-elsewhere', 'sectioned');
-  fs.mkdirSync(path.dirname(sectionedRoot), { recursive: true });
+  writeDod(sectionedRoot);
   const sectionedBody =
     '# Add a widget\n\nSome description of the feature.\n\n' +
     '## Run state\n\n<!-- superdev:run-state -->\n\n**Stage:** merged\n**Branch:** feat/sectioned\n**Anchor:** #1 — anchor\n\n' +
@@ -307,7 +308,7 @@ try {
     '## Slice graph\n\n```mermaid\ngraph TD\n  01 --> 02\n```\n\n' +
     realPublished;
   const realAdoptRoot = path.join(tmp, 'adopted-elsewhere', 'real-publish-splice');
-  fs.mkdirSync(path.dirname(realAdoptRoot), { recursive: true });
+  writeDod(realAdoptRoot);
   run(['adopt', '--root', realAdoptRoot], tmp, realBodyRunStateLast);
   assert.strictEqual(
     fs.readFileSync(path.join(realAdoptRoot, 'ledger.md'), 'utf8'),
@@ -327,7 +328,7 @@ try {
   fs.mkdirSync(path.dirname(realAdoptFirstRoot), { recursive: true });
   // Adopting into the same slug at a second location — the run root's basename, not its parent
   // directory, is what adopt checks against the Branch slug.
-  fs.mkdirSync(path.join(tmp, 'adopted-elsewhere', 'real-publish-splice-second-parent'), { recursive: true });
+  writeDod(path.join(tmp, 'adopted-elsewhere', 'real-publish-splice-second-parent', 'real-publish-splice'));
   run(
     ['adopt', '--root', path.join(tmp, 'adopted-elsewhere', 'real-publish-splice-second-parent', 'real-publish-splice')],
     tmp,
@@ -347,7 +348,7 @@ try {
   // payload. The fence is masked before the marker scan runs, so it is neither mistaken for the
   // real payload nor counted as a second opening marker.
   const fencedExampleRoot = path.join(tmp, 'adopted-elsewhere', 'fenced-example');
-  fs.mkdirSync(path.dirname(fencedExampleRoot), { recursive: true });
+  writeDod(fencedExampleRoot);
   const fencedExampleBody =
     '# Anchor\n\n' +
     'Here is what the snapshot looks like:\n\n' +
@@ -446,7 +447,7 @@ try {
   // Round trip: adopting the kb-patch.js-folded body reproduces the ledger byte-for-byte.
   const foldedOriginal = fs.readFileSync(path.join(foldRoot, 'ledger.md'), 'utf8');
   const foldAdoptRoot = path.join(tmp, 'adopted-elsewhere', 'kb-patch-fold');
-  fs.mkdirSync(path.dirname(foldAdoptRoot), { recursive: true });
+  writeDod(foldAdoptRoot);
   run(['adopt', '--root', foldAdoptRoot], tmp, merged2);
   assert.strictEqual(
     fs.readFileSync(path.join(foldAdoptRoot, 'ledger.md'), 'utf8'),
