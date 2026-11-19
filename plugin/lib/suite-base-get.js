@@ -599,5 +599,5 @@ function verbState(root, json) {
 
 module.exports = {
   verbState, verbSuite, verbSuiteRerun, verbSuiteFailed, verbSuiteReusable, verbBaseSet, verbBaseResolve, verbGet,
-  gitReads, runEvents, rangeBase, failedRuns, failedRecord, coverageRefusal, pathRunPassed,
+  VERIFICATION, gitReads, runEvents, rangeBase, failedRuns, failedRecord, coverageRefusal, pathRunPassed,
 };

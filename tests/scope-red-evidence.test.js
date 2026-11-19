@@ -106,6 +106,44 @@ try {
     assert.match(verb(f.args(rt, ['--ci-head', f.T]), f.repo).err, /--ci-head and --ci-file/, '--ci-head without --ci-file');
     assert.match(verb(f.args(rt, ['--ci-file', 'x']), f.repo).err, /--ci-head and --ci-file/, '--ci-file without --ci-head');
   }
+  // Coverage: runs on a clean tree at a later commit on the tip's ancestry close the record. The trace line is
+  // `<kind> <result> <sha> <tree> <paths> ...`, a path run carrying its directory last.
+  const PATH_RUN = (sha, file, res = 'pass', tree = 'clean', dir = '.') => ['path', res, sha, tree, file, '1', 'node t.js', dir];
+  const FOCUSED = (sha, paths, res = 'pass', tree = 'clean') => ['focused', res, sha, tree, encodePaths(paths)];
+  const red = (lines, fail = true) => f.root([`**Suite:** red @ ${f.R}`, ...(fail ? [`**Failed:** tests/a.test.js @ ${f.R}`] : [])], lines);
+  const out = (rt, cwd = f.repo) => verb(f.args(rt), cwd).out;
+  const REDLINE = `red ${f.R} files=tests/a.test.js`;
+  {
+    assert.strictEqual(out(red([PATH_RUN(f.M, 'tests/a.test.js')])), `covered ${f.R} by ${f.M}`, 'covered by a path run at a later commit');
+    assert.strictEqual(out(red([FOCUSED(f.T, ['tests/a.test.js', 'src/x.js'])])), `covered ${f.R} by ${f.T}`, 'covered by a focused run whose path set holds the file');
+    assert.strictEqual(out(red([FOCUSED(f.T, ['src/x.js'])])), REDLINE, 'a focused run missing the failed file does not cover');
+    assert.strictEqual(out(red([PATH_RUN(f.R, 'tests/a.test.js')])), REDLINE, 'a run at the record\'s own commit does not cover it');
+    assert.strictEqual(out(red([PATH_RUN(f.S, 'tests/a.test.js')])), REDLINE, 'a run at a commit off the ancestry does not cover it');
+    assert.strictEqual(out(red([PATH_RUN(f.M, 'tests/a.test.js', 'pass', 'dirty')])), REDLINE, 'a dirty tree does not cover');
+    assert.strictEqual(out(red([PATH_RUN(f.M, 'tests/a.test.js', 'unknown')])), REDLINE, 'an unknown result never covers');
+    assert.strictEqual(out(red([PATH_RUN(f.M, 'tests/a.test.js', 'pass', 'unknown')])), REDLINE, 'an unknown tree never covers');
+    assert.strictEqual(out(red([PATH_RUN(f.M, 'tests/a.test.js'), PATH_RUN(f.M, 'tests/a.test.js', 'fail')])), REDLINE, 'a failed run at the commit is never hidden');
+    assert.strictEqual(out(red([PATH_RUN(f.M, 'tests/a.test.js', 'pass', 'clean', 'sub')])), REDLINE, 'a run from outside the tree root does not cover');
+  }
+  // A record with no failed file: a focused run over the scope's whole range covers it (the range base is the one `base resolve` prints).
+  {
+    const bare = (lines) => red(lines, false);
+    assert.strictEqual(out(bare([FOCUSED(f.M, ['src/x.js'])])), `covered ${f.R} by ${f.M}`, 'a focused run over the whole range covers');
+    assert.strictEqual(out(bare([FOCUSED(f.T, ['src/x.js', 'src/y.js'])])), `covered ${f.R} by ${f.T}`, 'the range at a later commit');
+    assert.strictEqual(out(bare([FOCUSED(f.T, ['src/x.js'])])), `red ${f.R} files=`, 'a focused run over fewer paths than the range does not cover');
+    assert.strictEqual(out(bare([FOCUSED(f.M, ['src/x.js'], 'unknown')])), `red ${f.R} files=`, 'an unknown focused run never covers');
+  }
+  // Where the focused fence repeats the full fence, a focused run is a full run: the cycle's own path runs cover it instead.
+  {
+    const e = make('node all.js');
+    const bare = (lines, at = e.T) => e.root([`**Suite:** red @ ${at}`], lines);
+    assert.strictEqual(out(bare([]), e.repo), `red ${e.T} files=`, 'no later commit: nothing covers the record');
+    assert.strictEqual(out(bare([], e.R), e.repo), `covered ${e.R} by ${e.M}`, 'no test file changed since: the clean later commit covers');
+    const T2 = commit(e.repo, 'tests/b.test.js', 'b\n', 'test');
+    assert.strictEqual(out(bare([]), e.repo), `red ${e.T} files=`, 'a test file changed since and no path run of it');
+    assert.strictEqual(out(bare([PATH_RUN(T2, 'tests/b.test.js')]), e.repo), `covered ${e.T} by ${T2}`, 'a path run of each changed test file covers');
+    assert.strictEqual(out(bare([FOCUSED(T2, ['src/y.js', 'tests/b.test.js'])]), e.repo), `red ${e.T} files=`, 'a focused run is a full run there and covers nothing');
+  }
   console.log('scope-red-evidence tests passed');
 } finally {
   for (const d of made) fs.rmSync(d, { recursive: true, force: true });
