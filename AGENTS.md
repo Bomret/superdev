@@ -67,10 +67,12 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          Run integrity: `run-digest.js` (the digest sidecar of a run root and its lock) and
                          `run-check.js` (the check every verb that writes to a run makes before its write,
                          which records a `tamper` trace line, ADR 0227); `untraced.js` (the `untraced` verb).
+                         Read-only grading (ADR 0260): `trace-window.js` (the one **Window** derivation and the slice and
+                         edit-path comparison the trace verbs share) and `fail-to-pass-check.js` (the `fail-to-pass-check` verb).
                          Operator configuration: `operator-config.js` (the reader of `.superdev/info.json`,
                          used by push, fail-to-pass, and the KB backend runner, ADR 0207).
                          Git and containment: `git-spawn.js` (the shared git calls), `containment.js`,
-                         `collisions.js`, `citations.js`, `source-set.js` (the gap audit's source set), `push.js`
+                         `collisions.js`, `citations.js`, `source-set.js` (the gap audit's source set and test-file list), `push.js`
                          (the `push` verb that puts a scope branch on the remote, ADR 0167), `plan-open.js`
                          (the `open` verb that sets up a plan run, ADR 0185), `discard.js` (the `discard` verb that removes a planned run's state, ADR 0208),
                          `run-state-ref.js` (the run-state ref `refs/superdev/<scope>`: sent at a step end,
@@ -107,7 +109,7 @@ tests/                 — one suite per shipped executable (the hooks, `scope.j
                          `node:assert`, run under `node` by `node scripts/run-tests.js` (ADR 0059). A large entry
                          point's suite is split flat by topic into `tests/<entry>-<topic>.test.js` over one
                          `<entry>-setup.js` that is no suite (ADR 0139, ADR 0151): `scope-*` (ledger,
-                         ledger-header, `suite-*` (record, carry, complete, rerun, config, failed), dod-line, dod-tags, dod-check, dod-merge, publish-adopt, trace, digest, untraced, root-base, containment,
+                         ledger-header, `suite-*` (record, carry, complete, rerun, config, failed), dod-line, dod-tags, dod-check, dod-merge, publish-adopt, trace, windows, digest, untraced, fail-to-pass-check, root-base, containment,
                          citations-collisions, source-set, ci, push, open, help, stdin, discard, prepare, `test-verb-*`, `fail-to-pass-*`, over `scope-setup.js`),
                          `run-trace*` (dispatch, guards, model, paths, over `run-trace-setup.js`), `publish-kb*` (containment, guard, `parent-link-*`,
                          patch, publish, read, scope, templates, timeout, over `publish-kb-setup.js`),
@@ -490,7 +492,7 @@ This root owns every other subtree directly:
   `model`, exit 2 with the reason on stderr. That check requires no module, so it denies even where a module fails to
   load, and the dispatch is still recorded (ADR 0245). Nothing refuses a write to a run's ledger or trace, and nothing refuses an implementer's full-suite run:
   `scope.js` detects an outside edit of a run's ledger or trace after the fact (`lib/run-check.js`), and a review grades
-  an untraced write and a full-suite run (`scope.js untraced`).
+  an untraced write and a full-suite run (`scope.js untraced`, `scope.js trace --kind run`).
 - `scripts/` and `plugin/scripts/`. Owned by [`scripts/AGENTS.md`](scripts/AGENTS.md), which states
   each script's contract: the shipped `plugin/scripts/` CLIs `scope.js`, `kb-patch.js`, `publish-kb.js`,
   the modules in `plugin/lib/` behind them, and the maintainer-only `scripts/drift-check.js` with
