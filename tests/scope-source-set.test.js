@@ -267,6 +267,14 @@ try {
     assert.match(res.err, /never narrowed/);
   }
 
+  // A repeated --tests is refused as given twice, never as a path.
+  {
+    const dir = repo({ 'tests/a.js': 'x\n' });
+    const res = sourceSet(dir, '--tests', '--tests');
+    assert.ok(!res.ok, 'a repeated --tests is refused');
+    assert.match(res.err, /^source-set: --tests given twice$/);
+  }
+
   // The usage text lists the verb and its flag.
   assert.match(usage(), /^ {2}source-set \[<path>\]/m);
   assert.match(usage(), /^ {2}source-set --tests/m);

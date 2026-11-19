@@ -110,6 +110,10 @@ const L = [
   assert.ok(!noValue.ok && /--slice/.test(noValue.err), 'a --slice value starting with -- is refused naming --slice');
   const stray = call(['windows', '--slice', '03', 'extra', '--root', root]);
   assert.ok(!stray.ok && /extra/.test(stray.err), 'an unrecognized argument is refused');
+  const noLedger = path.join(dir, 'no-such-run');
+  const wrongRoot = call(['windows', '--slice', '03', '--root', noLedger]);
+  assert.ok(!wrongRoot.ok && wrongRoot.err === `windows: "${noLedger}" holds no ledger.md, so it is no run root`,
+    `a root with no ledger is refused by name, never read as a lite slice: ${wrongRoot.err || wrongRoot.out}`);
 }
 
 console.log('scope windows tests ok');

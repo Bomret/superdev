@@ -96,11 +96,12 @@ function verbTrace(root, args) {
 }
 
 // Prints one line per implementer window of `--slice`: `<dispatch id> <slice> <from> <until|open>`, the times those of the run's
-// first line and of the boundary line that ends it.
+// first line and of the boundary line that ends it. A root holding no ledger.md is refused, so a wrong root never reads as a lite slice.
 function verbWindows(root, args) {
   const tw = libTraceWindow();
   const f = tw.traceFlags('windows', args, ['--slice'], false).flags;
   if (f['--slice'] === undefined) fail('windows needs --slice <id|scope>');
+  if (!fs.existsSync(path.join(root, 'ledger.md'))) fail(`windows: "${root}" holds no ledger.md, so it is no run root`);
   const { events } = tw.readRunTrace(root);
   const slice = f['--slice'];
   const found = tw.windowsOf(events, slice);

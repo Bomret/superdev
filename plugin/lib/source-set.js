@@ -34,6 +34,7 @@ function isSource(rel) {
 // non-code, dot-file, or vendored filter, so the two listings share no path; it takes no path, because the list is never narrowed.
 function verbSourceSet(cwd, args) {
   const tests = args.includes('--tests');
+  if (args.filter((a) => a === '--tests').length > 1) fail('source-set: --tests given twice');
   if (tests && args.length > 1) fail('source-set: --tests takes no path; the test-file list is never narrowed');
   const scope = tests ? undefined : args[0];
   if (scope !== undefined && !fs.existsSync(path.resolve(cwd, scope))) fail(`source-set: no such path "${scope}"`);

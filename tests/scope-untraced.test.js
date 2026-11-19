@@ -157,6 +157,32 @@ const edit = (root, slice, rel) => appendTrace(root, { slice, agent: 'a1', kind:
   assert.ok(!stray.ok && stray.err.includes('untraced') && stray.err.includes('--windw'), `an unknown flag is refused naming the flag: ${stray.err}`);
 }
 
+// #no-slice-line: a slice with no line in the trace lists every change and says on stderr that nothing masked it.
+{
+  const { repo, root } = repoOf('no-slice-line');
+  put(repo, 'n.txt', 'zero\n');
+  commit(repo, 'base');
+  const base = git(repo, 'rev-parse', 'HEAD');
+  put(repo, 'n.txt', 'one\n');
+  commit(repo, 'change');
+  const tip = git(repo, 'rev-parse', 'HEAD');
+  edit(root, '05', 'n.txt');
+  const noted = [];
+  const origErr = process.stderr.write;
+  process.stderr.write = (s) => { noted.push(String(s)); return true; };
+  let r;
+  try {
+    r = call(['untraced', `${base}..${tip}`, '--slice', '99', '--root', root], '', repo);
+    call(['untraced', `${base}..${tip}`, '--slice', '05', '--root', root], '', repo);
+  } finally {
+    process.stderr.write = origErr;
+  }
+  assert.ok(r.ok, r.err);
+  assert.equal(r.out, 'modified\tn.txt', 'stdout stays the listing');
+  assert.deepEqual(noted, ['untraced: the run trace holds no line of slice 99, so no edit line masks any path\n'],
+    'one stderr note names the slice that matched no line, and a slice with lines writes none');
+}
+
 // #net: the listing is the range's net change per path.
 {
   const { repo, root } = repoOf('net');

@@ -30,6 +30,8 @@ recorded range has none to list: the report names the gap.
   and the path, or `renamed`, the new path, and the old path, separated by tabs. The status is the range's net change: a path added
   and then deleted is not listed, and a path modified and then renamed is listed once, as the rename. A later window's `edit` line never hides an earlier
   window's write, because each call passes its own window.
+- Where the trace holds no line of `--slice` inside the window, the call lists every changed path and writes one stderr note naming
+  the slice: the report names the gap.
 - Grade each listed path as a hunk of the diff: read its change under the lenses, and give it the severity the entry it falls under
   states. A write through a shell is no defect of its own: a `git mv`, a formatter, and a generator are ordinary.
 - `fail-to-pass-check` (`fail-to-pass.md`'s `### The verdict`) reads every path the range's commits change, a listed one included,

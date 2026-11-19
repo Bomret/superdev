@@ -66,7 +66,8 @@ function netChanges(range, cwd, verb) {
 
 // Prints `<status>\t<path>` once per path the commits of `<base>..<tip>` change, with `renamed\t<new>\t<old>` for a rename, where the
 // trace holds no `edit` line of `--slice` naming it, compared root-relative. `--window <dispatch id>` keeps only the edit lines every
-// run of that implementer dispatch covers (`trace-window.js`); none means the slice's whole trace. Lines come out sorted by path.
+// run of that implementer dispatch covers (`trace-window.js`); none means the slice's whole trace. Lines come out sorted by path. Where the trace holds no line of the slice (within the
+// window), one stderr note names the slice, and stdout stays the listing.
 function verbUntraced(cwd, args) {
   for (const flag of ['--from', '--until']) if (args.includes(flag)) fail(`untraced: ${flag} is no flag of untraced; name the window by its dispatch with --window <dispatch id>`);
   const { flags, positional: rest } = traceFlags('untraced', args, ['--root', '--slice', '--window'], true);
@@ -83,9 +84,10 @@ function verbUntraced(cwd, args) {
   const { events } = readRunTrace(root);
   const inWindow = window === undefined ? null : windowIndexes(events, window, slice, (m) => fail(`untraced: ${m}`));
   const top = lazyToplevel(cwd);
+  const own = events.filter((e, i) => sliceOf(e) === slice && (inWindow === null || inWindow.has(i)));
+  if (!own.length) process.stderr.write(`untraced: the run trace holds no line of slice ${slice}, so no edit line masks any path\n`);
   const traced = new Set(
-    events
-      .filter((e, i) => sliceOf(e) === slice && (inWindow === null || inWindow.has(i)))
+    own
       .map((e) => editPath(e, top))
       .filter((p) => p !== null),
   );
