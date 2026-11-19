@@ -5,7 +5,7 @@
 const { gitSpawn, refResolves } = require('./git-spawn.js');
 
 // `references/scope-branch.md` `## Containment`. Exported for `publish-kb.js` and `hooks/scope-prune.js` to
-// `require`, and no CLI verb, because this touches no ledger.
+// `require`; `lib/contained.js` prints it as the `contained` verb, and this touches no ledger.
 //
 // A Containment verdict is one of three strings:
 //   'contained'         — base already holds every byte of branch's work
@@ -213,15 +213,17 @@ function testContainment(cwd, base, branch, remote = 'origin') {
 }
 
 // The same test, returning what a caller that must tell an undecided verdict apart needs beside it (`push.js`,
-// INV-0009): `verdict`, `refetch` (the refetch's spawn result, or null when no refetch ran), and `judgedBase`
-// (the base the verdict was judged against: `base`, or the commit id the refetch brought). `fetchTimeoutMs`
-// replaces the refetch's bound.
+// INV-0009): `verdict`, `refetch` (the refetch's spawn result, or null when no refetch ran), `judgedBase`
+// (the base the verdict was judged against: `base`, or the commit id the refetch brought), and `fallback` (true when
+// the git lacks `--write-tree` and the ancestry fallback judged). `fetchTimeoutMs` replaces the refetch's bound.
 function judgeContainment(cwd, base, branch, remote = 'origin', { fetchTimeoutMs = FETCH_TIMEOUT_MS } = {}) {
-  const result = (verdict, refetch = null, judgedBase = base) => ({ verdict, refetch, judgedBase });
+  let fallback = false;
+  const result = (verdict, refetch = null, judgedBase = base) => ({ verdict, refetch, judgedBase, fallback });
   const ref = qualifyBranch(branch, cwd);
   if (!refResolves(ref, cwd)) return result('could-not-resolve');
 
   const writeTreeSupported = supportsWriteTree(cwd);
+  fallback = !writeTreeSupported;
   const local = containedAgainst(ref, base, cwd, writeTreeSupported);
   if (local === 'contained') return result('contained');
   if (local === 'inconclusive' && heldInHistory(cwd, base, ref, writeTreeSupported)) return result('contained');
@@ -233,7 +235,9 @@ function judgeContainment(cwd, base, branch, remote = 'origin', { fetchTimeoutMs
   // which is minutes, not the "leaves the first verdict standing" scope-branch.md already promises.
   // The stderr is kept, in git's own English (the C locale), for a caller that reads why the refetch failed
   // (`push.js` tells a rejected credential from an unreachable remote); the verdict reads the status alone.
-  const fetched = gitSpawn(['fetch', '--end-of-options', remote, base], cwd, {
+  // `--refmap=` (an empty refspec) makes git ignore the remote's configured fetch refspec, so the fetch writes no
+  // remote-tracking ref (https://git-scm.com/docs/git-fetch, `--refmap`); it leaves `FETCH_HEAD` and the fetched objects.
+  const fetched = gitSpawn(['fetch', '--refmap=', '--end-of-options', remote, base], cwd, {
     env: { ...process.env, GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' },
     stdio: ['ignore', 'pipe', 'pipe'],
     timeout: fetchTimeoutMs,

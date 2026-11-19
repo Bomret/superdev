@@ -66,7 +66,7 @@ Read the stage and the pull request number with one `node "${CLAUDE_PLUGIN_ROOT}
 **The pull request is not merged.** Applies to every gate.
 
 - **The `pr` field of §2's `state` read prints a number** → read that pull request by index per `docs/agents/code-management.md`'s `## Merge` section. Take its `merged` field.
-- **`absent`** (the `push-only` posture opened no pull request) → test the scope branch's containment in base with `scope.js`'s exported `testContainment` (`${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Containment`; it has no CLI verb): `node -e "console.log(require(process.argv[1]).testContainment(process.cwd(), process.argv[2], process.argv[3]))" "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" <base> <scope-branch>`. Take `<scope-branch>` from the `branch` field of the `scope.js state` call §2 made. `<base>` is the base branch `docs/agents/code-management.md` names. Only `contained` counts as merged.
+- **`absent`** (the `push-only` posture opened no pull request) → test the scope branch's containment in base with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" contained <base> <scope-branch>` (`${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Containment` states its lines). Take `<scope-branch>` from the `branch` field of the `scope.js state` call §2 made. `<base>` is the base branch `docs/agents/code-management.md` names. Only a first line of `contained` counts as merged.
 - **Unknown** (a failed host read, or any other containment verdict) → not merged.
 
 **A Definition-of-Done line is unsettled.** Applies to every gate. Judge settledness from `<run-root>/dod.md`. Read the anchor's Definition-of-Done lines per `docs/agents/issue-tracker.md` only when `dod.md` is missing.

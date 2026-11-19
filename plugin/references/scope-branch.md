@@ -12,69 +12,41 @@ which names the branch and its checkout. A section here is read by the step that
 asks: does `<base>` already hold that branch's work. The answer is about **content**, because a
 squash-merge rewrites a branch's commits into one new commit and leaves not one of them reachable from
 base, however completely base holds the result. A scope branch has reached base when merging
-it into base would change nothing:
+it into base would change nothing: `git merge-tree --write-tree <base> <branch>` yields base's own tree.
 
-```sh
-tree=$(git merge-tree --write-tree <base> <branch>) && [ "$tree" = "$(git rev-parse <base>^{tree})" ]
-```
+**`scope.js contained` carries the test.** Call
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" contained <base> <branch>`. It runs the tree comparison, then the
+neighbouring questions a base that moved on raises: whether base's history took the branch's patch (ADR 0082) and
+whether a commit base gained holds the branch (ADR 0248). A not-contained answer against a local base refetches
+`<base>` from the remote and retests against what the fetch brought (the second pass), because the clone learns nothing of a
+squash-merge until something fetches (ADR 0065). `--remote <remote>` names the remote; without it the verb reads
+the `Remote:` value of `docs/agents/code-management.md`, and with neither it refuses with exit 1.
 
-Three outcomes, and comparing the tree is what separates the first two — a clean merge exits 0 either
-way:
+The first line is the verdict, and its exit status tells it apart in a script:
 
-- **Exit 0, and the tree equals `<base>`'s own tree** → **contained**. Base holds every byte of the
-  branch's work, whether it arrived by squash-merge, by a merge commit, or by fast-forward, and whether
-  or not base has moved on since.
-- **Exit 0, and the tree differs** → **not contained**. The merge is clean, and it would still change
-  base, so the branch carries content base does not hold.
-- **Exit 1** → **inconclusive**, whichever of two causes: a real conflict, where the branch and base
-  disagree over the same lines, or an argument git cannot resolve at all — a branch name with no ref
-  behind it. Neither proves the tree equal to `<base>`'s, and a base that edits the branch's files after
-  taking its work conflicts here on a branch it holds in full, so **the second tier below decides this
-  outcome**.
+- **`contained`** (exit 0). Base holds every byte of the branch's work, whether it arrived by squash-merge, by a
+  merge commit, or by fast-forward, and whether or not base has moved on since.
+- **`not-contained`** (exit 3). The branch carries content base does not hold, or no step could answer: every path
+  that cannot answer reads not contained, never contained (INV-0003).
+- **`could-not-resolve`** (exit 4). `<branch>` names no ref this repository can find. A branch that never existed
+  and one that has not landed call for different warnings, so the caller tells them apart.
 
-**The second tier asks whether base's history took the patch**. It runs on the exit 1 above,
-and on a `no` from the `git merge-base --is-ancestor` fallback a git older than 2.38 takes. Resolve the
-merge base of `<base>` and `<branch>`, take the patch id of the branch's cumulative diff from it, and look
-for that id among the patch ids of the commits `<base>` gained since that same merge base:
+Further lines follow, three always and two optional, and each says how far to trust the verdict:
 
-```sh
-mb=$(git merge-base <base> <branch>)
-pid=$(git diff "$mb" <branch> | git patch-id --stable | cut -d' ' -f1)
-git log -p --no-color "$mb..<base>" | git patch-id --stable | grep -q "^$pid "
-```
+- **`base <full sha>`** names the commit judged against: the commit the refetch brought where it ran, `<base>`
+  resolved otherwise.
+- **`remote <name>`** names the remote the refetch used.
+- **`judged local`** or **`judged refetched`**. `refetched` means the verdict came from the retest against the
+  fetched base. `local` means the refetch did not run or brought no base.
+- **`fallback ancestor`** appears where the git lacks `merge-tree --write-tree` (it needs git 2.38, 2022-10-02) and
+  the verb judged by ancestry alone, the older and weaker signal. The caller says the fallback route was taken.
+- **`refetch timed-out`** or **`refetch failed`** appears beside a `not-contained` verdict whose refetch ran out
+  of time or failed (the bound is `code-host.pushTimeoutMs` of `.superdev/info.json`). The verdict is the local
+  one and says nothing about the branch (INV-0009): the caller says the second pass did not run and acts on an
+  answer named as local.
 
-A match → **contained**: `git patch-id --stable` hashes the normalized diff content, so a match is the
-same change and not a guess. No match → **not contained**, the verdict the first tier already reached. The
-vocabulary stays at the three verdicts above, and the **exit 0, tree differs** outcome never reaches here —
-that comparison already settled it.
-
-**`git rev-list --count "$mb..<base>"` gates the scan, at a cap of 1000 commits.** Past the cap the probe
-is skipped and the answer is not contained, so a base that has diverged far from an abandoned branch pays
-one counting call instead of a full patch walk. The bound is a commit count rather than a wall clock: one
-repository state gives one verdict.
-
-**Every probe step that cannot answer answers not contained**: a failed `merge-base`, `diff`,
-`patch-id`, `rev-list`, or `log`, an unreadable count, and an exhausted cap alike. The scan writes no
-objects, unlike the tree comparison it follows.
-
-**The third tier asks whether a commit base gained holds the branch** (ADR 0248). It runs where the second
-tier finds no match, and only where `--write-tree` runs. A squash-merge onto a base that moved first carries
-diff context the branch's cumulative diff lacks, so the patch ids differ, and the squash commit itself still
-holds every byte of the branch. Run the tree comparison against each commit base gained since the merge
-base that touches a path the branch changed, oldest first:
-
-```sh
-[ "$(git rev-list --count "$mb..<base>")" -le 1000 ] || exit 1
-for c in $(git rev-list --reverse "$mb..<base>" -- $(git diff --name-only "$mb" <branch>)); do
-  tree=$(git merge-tree --write-tree "$c" <branch>) && [ "$tree" = "$(git rev-parse "$c^{tree}")" ] && exit 0
-done; exit 1
-```
-
-A commit whose tree comparison reads contained → **contained**. None → **not contained**. The second tier's
-count gates the tier: a range of more than 1000 commits compares no candidate and answers not contained.
-A failed `merge-base`, `diff`, or `rev-list` answers not contained. Oldest first reaches the squash commit,
-which sits near the merge base, before the later commits that edit the same paths. Each comparison writes
-tree objects, as the first tier's does.
+**The caller keeps the judgment.** The verb names a verdict. Which `<base>` to hand, what each verdict and
+marker means for the step, and whether a missing branch counts as finished (below) stay with the caller's own step.
 
 **A base that takes the branch's work and then reverts it in a way that also conflicts with base's own
 later edits reads contained.** The work stays reachable from base's history, so deleting the branch
@@ -85,37 +57,17 @@ branch an ancestor of base still, so the tree comparison finds base's own tree u
 contained; reverting a squash-merge leaves the branch's tip outside base's history entirely, so re-merging
 it reapplies content the revert just removed and the tree comparison reads not contained.
 
-**A not-contained verdict against a local base is provisional, and the second pass settles it.** The code
-host squash-merges the pull request and the clone learns nothing about it until something fetches, so such
-a verdict is as likely to be stale as it is to be true. Fetch the base branch once from the
-remote `docs/agents/code-management.md` names — `GIT_TERMINAL_PROMPT=0 git fetch <remote> <base>`, so a
-missing credential fails the fetch instead of prompting — and run the same test again against
-`FETCH_HEAD`, substituting it for `<base>` throughout, in both positions the shell line above names:
-`FETCH_HEAD` holds exactly what that fetch wrote, whichever refs the clone's own refspec maps. **The
-second verdict is the answer**, contained or not. A contained first verdict ends the test where it
-stands, so the fetch is paid where the local answer would otherwise be wrong and nowhere else. The
-`--is-ancestor` fallback below takes the same second pass, against that same `FETCH_HEAD`.
-
 **`hooks/scope-prune.js` runs the local test alone and never fetches.** It is a `Stop` hook firing on every
 finished turn, and a stale base defers a reap that the seven-day TTL has already delayed — the safe
 direction, and the same best-effort posture that keeps the hook silent below.
 
-**No remote configured, or a fetch that fails** — an unreachable host, a rejected credential, a branch the
-remote does not carry — **leaves the first verdict standing, and the caller says the second pass did not
-run**, the way the fallback route below is said out loud. The caller then acts on an answer named as local.
+**`hooks/scope-prune.js` is the one caller that says nothing on any path**, the `fallback ancestor` route
+included: it is best-effort and silent by contract. Its own fallback is `git branch --merged`, the equivalent
+older, weaker signal in the hook's own git call — it just never announces taking it.
 
-**`--write-tree` needs git 2.38** (2022-10-02), and rejecting the flag itself exits **128 or 129** —
-distinct from the exit 1 above, so an old git is never mistaken for a conflicting branch. Where
-`--write-tree` is unavailable, fall back to `git merge-base --is-ancestor <branch> <base>` and **say the
-fallback route was taken**: a `no` there reaches the second tier above, which answers a squash-merged
-branch base holds in full, and where that probe finds no match the caller is acting on the older, weaker
-signal. **`hooks/scope-prune.js` is the one
-exception**: it is best-effort and silent by contract, so it says nothing on any path, including this
-one. Its own fallback is `git branch --merged`, the equivalent older, weaker signal in the hook's own git
-call — it just never announces taking it.
-
-**The test writes tree objects into the object database.** A caller that fires on every turn reaches it
-only for a scope it would otherwise act on, behind its own cheaper filters — `hooks/scope-prune.js`
+**The test writes tree objects into the object database.** The verb changes no ref, index, working tree,
+ledger, or trace; the refetch writes `FETCH_HEAD` and fetched objects, and moves no remote-tracking ref. A caller that fires on every turn reaches
+the test only for a scope it would otherwise act on, behind its own cheaper filters — `hooks/scope-prune.js`
 mirrors this test in JavaScript and orders its filters exactly that way.
 
 **Absence stands beside containment, unchanged.** A branch that is gone is finished with just as a

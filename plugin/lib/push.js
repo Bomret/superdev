@@ -122,4 +122,4 @@ function lastLine(result) {
   return lines.length ? lines[lines.length - 1] : `git exited ${result.status}`;
 }
 
-module.exports = { verbPush, gitCall, lastLine, boundEnded };
+module.exports = { verbPush, gitCall, lastLine, boundEnded, pushTimeoutMs };
