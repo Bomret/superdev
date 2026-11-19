@@ -46,7 +46,7 @@ assert.ok(!/run-lock/.test(fs.readFileSync(path.join(plugin, 'hooks', 'hooks.jso
 const EXPORTS = {
   'hooks/merge-guard.js': ['decide'],
   'hooks/run-trace.js': ['OURS', 'decide', 'record'],
-  'hooks/scope-prune.js': ['TTL_MS', 'branchNamesFrom', 'main', 'readBranch', 'readHeader', 'readStage', 'selectPrunable', 'shapeScanBranch'],
+  'hooks/scope-prune.js': ['TTL_MS', 'branchNamesFrom', 'main', 'readBranch', 'readHeader', 'readStage', 'selectPrunable'],
   'hooks/slicetree-sweep.js': ['git', 'main', 'selectRemovable'],
   'hooks/tree-guard.js': ['decide'],
   'hooks/update-check.js': ['cmpVersion'],

@@ -33,6 +33,15 @@ function passThroughMainWorkTree(libDir) {
   );
 }
 
+// A stub of the hook's `../lib/scope-branch.js` that loads the real module, so a case about another module keeps
+// the hook's shape rule working.
+function passThroughScopeBranch(libDir) {
+  fs.writeFileSync(
+    path.join(libDir, 'scope-branch.js'),
+    `module.exports = require(${JSON.stringify(require.resolve('../plugin/lib/scope-branch.js'))});\n`
+  );
+}
+
 // #probe-unavailable: the containment module is absent from its place, throws on load, or carries no
 // probe — a version-skewed install. The hook drops to the tree comparison alone, pruning what that test
 // can prove and saying nothing, while its ledger module still loads (ADR 0022, ADR 0082). The hook is
@@ -62,6 +71,7 @@ for (const [skewName, containmentBody] of [
     );
   }
   passThroughMainWorkTree(path.join(skewDir, 'lib'));
+  passThroughScopeBranch(path.join(skewDir, 'lib'));
   const gitSpawnMarker = passThroughGitSpawn(path.join(skewDir, 'lib'));
   const skewed = require(path.join(skewDir, 'hooks', 'scope-prune.js'));
   assert.equal(fs.existsSync(ledgerMarker), true, `the stub at ../lib/ledger.js loaded (${skewName})`);
@@ -117,6 +127,7 @@ for (const [skewName, containmentBody] of [
   );
   const probeMarker = path.join(throwDir, 'probe-called');
   passThroughMainWorkTree(path.join(throwDir, 'lib'));
+  passThroughScopeBranch(path.join(throwDir, 'lib'));
   const throwGitSpawnMarker = passThroughGitSpawn(path.join(throwDir, 'lib'));
   fs.writeFileSync(
     path.join(throwDir, 'lib', 'containment.js'),
@@ -191,6 +202,7 @@ for (const [skewName, containmentBody] of [
   fs.copyFileSync(hookPath, path.join(stubbed, 'hooks', 'scope-prune.js'));
   const stubMarker = path.join(stubbed, 'stub-loaded');
   passThroughMainWorkTree(path.join(stubbed, 'lib'));
+  passThroughScopeBranch(path.join(stubbed, 'lib'));
   const stubbedGitSpawnMarker = passThroughGitSpawn(path.join(stubbed, 'lib'));
   fs.writeFileSync(path.join(stubbed, 'lib', 'ledger.js'), `require('fs').writeFileSync(${JSON.stringify(stubMarker)}, 'x'); throw new Error('gone');`);
   const loadedContainmentMarker = path.join(stubbed, 'containment-loaded');
@@ -247,7 +259,7 @@ for (const [skewName, containmentBody] of [
     fs.mkdirSync(path.join(dir, 'hooks'));
     fs.mkdirSync(path.join(dir, 'lib'));
     fs.copyFileSync(hookPath, path.join(dir, 'hooks', 'scope-prune.js'));
-    for (const mod of ['ledger.js', 'containment.js', 'main-work-tree.js']) {
+    for (const mod of ['ledger.js', 'containment.js', 'main-work-tree.js', 'scope-branch.js']) {
       fs.writeFileSync(
         path.join(dir, 'lib', mod),
         `module.exports = require(${JSON.stringify(require.resolve(`../plugin/lib/${mod}`))});\n`
@@ -322,7 +334,7 @@ for (const [skewName, containmentBody] of [
     fs.mkdirSync(path.join(dir, 'hooks'));
     fs.mkdirSync(path.join(dir, 'lib'));
     fs.copyFileSync(hookPath, path.join(dir, 'hooks', 'scope-prune.js'));
-    for (const mod of ['ledger.js', 'containment.js', 'git-spawn.js']) {
+    for (const mod of ['ledger.js', 'containment.js', 'git-spawn.js', 'scope-branch.js']) {
       fs.writeFileSync(
         path.join(dir, 'lib', mod),
         `module.exports = require(${JSON.stringify(require.resolve(`../plugin/lib/${mod}`))});\n`
@@ -375,6 +387,49 @@ for (const [skewName, containmentBody] of [
   assert.equal(outsideRun.stdout, '', 'and prints nothing');
   assert.equal(fs.existsSync(outsideScope), true, 'and prunes no run root of its own cwd');
   fs.rmSync(outside, { recursive: true, force: true });
+}
+
+// #shape-rule-unavailable: the hook takes the shape rule from `../lib/scope-branch.js` (INV-0159, INV-0068). With the module
+// absent, throwing on load, or carrying no `shapeMatches`, the hook prunes nothing, exits 0, and says nothing. Each case
+// runs beside a pass-through control that prunes the same fixture: a closed, stale scope with no `**Branch:**` line whose
+// contained `feat/shaperule` branch only the shape scan can name.
+{
+  const real = JSON.stringify(require.resolve('../plugin/lib/scope-branch.js'));
+  function runCase(caseName, body) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-shape-'));
+    fs.mkdirSync(path.join(dir, 'hooks'));
+    fs.mkdirSync(path.join(dir, 'lib'));
+    fs.copyFileSync(hookPath, path.join(dir, 'hooks', 'scope-prune.js'));
+    for (const mod of ['ledger.js', 'containment.js', 'main-work-tree.js', 'git-spawn.js']) {
+      fs.writeFileSync(path.join(dir, 'lib', mod), `module.exports = require(${JSON.stringify(require.resolve(`../plugin/lib/${mod}`))});\n`);
+    }
+    const loaded = path.join(dir, 'loaded');
+    if (body !== null) {
+      fs.writeFileSync(path.join(dir, 'lib', 'scope-branch.js'), `require('fs').writeFileSync(${JSON.stringify(loaded)}, 'x');\n${body}\n`);
+    }
+    const repo = makeRepo();
+    makeWorkBranch(repo, 'feat/shaperule', 'app.txt', 'v2\n');
+    gitTest(['merge', '-q', '--ff-only', 'feat/shaperule'], repo);
+    const scopeDir = makeScope(repo, 'shaperule', '**Stage:** closed\n');
+    const ran = spawnSync(process.execPath, [path.join(dir, 'hooks', 'scope-prune.js')], { input: JSON.stringify({ cwd: repo }), encoding: 'utf8', timeout: 15000 });
+    assertSpawnDecided(ran, `spawning scope-prune.js (${caseName})`);
+    assert.equal(ran.status, 0, `the hook exits 0 (${caseName})`);
+    assert.equal(ran.stdout, '', `and prints nothing (${caseName})`);
+    const result = { loaded: fs.existsSync(loaded), stands: fs.existsSync(scopeDir) };
+    fs.rmSync(repo, { recursive: true, force: true });
+    fs.rmSync(dir, { recursive: true, force: true });
+    return result;
+  }
+  const control = runCase('control', `module.exports = require(${real});`);
+  assert.equal(control.loaded, true, 'the control stub at ../lib/scope-branch.js loaded');
+  assert.equal(control.stands, false, 'the control prunes the fixture scope, so a surviving scope below is the posture');
+  assert.equal(runCase('scope-branch absent', null).stands, true, 'a hook that cannot load the shape rule prunes nothing');
+  const throwing = runCase('scope-branch throws on load', "throw new Error('gone');");
+  assert.equal(throwing.loaded, true, 'the throwing stub loaded');
+  assert.equal(throwing.stands, true, 'a hook whose shape rule throws on load prunes nothing');
+  const bare = runCase('shapeMatches missing', 'module.exports = {};');
+  assert.equal(bare.loaded, true, 'the stub without shapeMatches loaded');
+  assert.equal(bare.stands, true, 'a hook whose shape rule module carries no shapeMatches prunes nothing');
 }
 
 console.log('scope-prune-guards tests ok');
