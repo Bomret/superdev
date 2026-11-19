@@ -132,7 +132,7 @@ Applies to every open anchor, triage record, intent record, running, stranded, `
 
 ## Shipped routing
 
-Applies to an open anchor over a `shipped` run root or a `shipped` snapshot. Route it per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run`, and read the `deploy resume` posture, targets, and record per that file's `## Reading the posture at the merge commit`. Read the anchor listing, and the Repairs lines through the store's **Read an anchor's Repairs line** call, once per survey, the first time a `shipped` run needs them, and reuse them for every `shipped` run.
+Applies to an open anchor over a `shipped` run root or a `shipped` snapshot. Route it with `scope.js route`, called as `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` states, and read the `deploy resume` posture, targets, and record per that file's `## Reading the posture at the merge commit`. Read the anchor listing, and the Repairs lines through the store's **Read an anchor's Repairs line** call, once per survey, the first time a `shipped` run needs them, and reuse them for every `shipped` run.
 
 - **Repairs named.** A run holding a `not met:` line outside the two repair buckets names, in its row, every open anchor whose Repairs line names its anchor.
 - **Closed anchor.** A `shipped` run root whose anchor is closed is `awaiting wrap-up` without the rule's reads.

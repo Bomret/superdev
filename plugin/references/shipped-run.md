@@ -31,65 +31,65 @@ each caller states only what it does with the result.
 
 `/superdev:ship`'s final hand-off, `/superdev:status`, `/superdev:document`, run init's shipped-run stops (`references/run-init.md`), `/superdev:verify-ship`'s end, and `/superdev:wrap-up`'s hand-off from a closed repair to its original each decide where a `shipped` run whose anchor is
 still open goes next: to `/superdev:plan`'s repair choice, to `/superdev:verify-ship`, or straight to
-`/superdev:wrap-up`. This section states that rule once, so every caller names the same command for the same run. Each caller states
-only what it does with the outcome, and what it does when the anchor cannot be read.
+`/superdev:wrap-up`. One call states that rule, so every caller names the same command for the same run (ADR 0263, INV-0116).
+Each caller states only what it does with the route, and what it does when the anchor cannot be read.
 
-1. **The run's criteria.** Read the Definition-of-Done lines from `<run-root>/dod.md` with
-   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-open --root <run-root>`. It is
-   authoritative, because a store's tick write is best-effort. Each printed line is `open` or `settled`
-   by `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule`, which reads the note and never
-   the box. The label field (`not-met`, `ceiling`, `none`) and the `repair-citation` field carry what the routes below read:
-   `not-met` with `repair-citation` is an observed `not met:` note (**The repair citation** below). Re-verify
-   also needs the anchor keys that citation names: read them from that line's note in `<run-root>/dod.md`, because the
-   listing does not print them. Every refusal of `dod-open` (a `dod.md` that is missing, unreadable, or
-   fence-broken) and its `no criteria` exit → judge from the anchor alone, read through the
-   store document's anchor read. Neither outcome reads as every line settled, so neither reaches Wrap-up on the empty listing.
-2. **The anchor's lines.** With `dod.md` read, also read the anchor's lines and pair them per
-   `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## Pairing dod.md with the anchor`.
-3. **The deploy targets.** Read the posture, the listed targets, and their record per
-   `## Reading the posture at the merge commit` above.
-4. **The repairs.** Only while a line's verdict is `not met:`. Take this run's anchor key from
+```sh
+node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" route --root <run-root> [--merge <sha>] [--target <name>]… \
+  [--repair open|closed <key>]… [--repairs-failed | --repairs-none] < <anchor-dod-file>
+```
+
+The verb reads `<run-root>/dod.md`, the run's ledger, and `docs/agents/deployment.md` at the merge commit. It makes no backend
+call and writes nothing. The caller reads the store and hands over what it read, as data:
+
+1. **The anchor's Definition of Done** on stdin, read through the store document's anchor read: the checklist `dod-merge` takes.
+   The verb pairs its lines with `dod.md`'s per `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s
+   `## Pairing dod.md with the anchor`. An anchor that cannot be read hands an empty stdin, and the route is `verify-ship`.
+2. **The deploy facts.** `--merge <sha>` names the merge commit, read per `## Reading the posture at the merge commit` steps 1 and 2;
+   a ledger with no `**PR:**` header hands no `--merge`, and the verb reads posture `none`. One `--target <name>` per target the
+   anchor's `**Deploy:**` line lists, read per that section's step 3. The verb reads the deploy record from the ledger.
+3. **The repairs.** Only when the call answers `needs-repairs`. Take this run's anchor key from
    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get anchor --root <run-root>`, the part before ` — `.
    List the store's anchors through `docs/agents/issue-tracker.md`'s `## Scope anchor` **List the
    candidates** call, which returns open and closed anchors alike, and read each anchor's line through that
-   section's **Read an anchor's Repairs line** call.
-   An `absent` anchor key, or a failed listing, finds no repair, open or closed.
+   section's **Read an anchor's Repairs line** call. Call the verb again with `--repair open <key>` or `--repair closed <key>`
+   for each anchor whose `**Repairs:**` line names this run's anchor, the key in the store's own notation, or with `--repairs-none`
+   where none does. A failed listing, or an `absent` anchor key, hands `--repairs-failed`, which reads as no repair. The verb
+   refuses a key or target holding a newline or control character.
 
-- **Re-verify** — while a Definition-of-Done line holds an observed `not met:` note, a closed anchor's
-  `**Repairs:**` line names this run's anchor and the note's repair citation (below) does not cite that anchor, and no
-  open anchor's `**Repairs:**` line names this run's anchor: a repair has closed since the line was last
-  observed, no other repair is under way, and only this run's own
-  verify-ship settles the line. Name `/superdev:verify-ship <scope>`, which observes the line
-  again, and `/superdev:plan`'s repair choice as the `Or:` alternative, for a repair that did not hold.
-- **Repair** — otherwise, while a Definition-of-Done line holds an observed `not met:` note (**The repair
-  citation** below), read by the note and never by the box: the run needs a fix before its line can hold.
-  Name `/superdev:plan` with its repair choice, and `/superdev:verify-ship <scope>` again as the
-  alternative for an observation that was transient. **The open-repair line.** For each open
-  anchor whose `**Repairs:**` line names this run's anchor, the caller adds one line,
-  `repair <key> is open; finish its chain first`, the key in the store's own notation. `/superdev:plan`
-  stays the named command, because a second repair of the same scope is its own feature.
-- **Verify-ship** — otherwise, while a Definition-of-Done line is an open line (a bare `[x]` and a `[x]`
-  noted `ceiling:` included), a paired
-  line's verdict on the anchor differs from `dod.md` (verify-ship's anchor sync rewrites it), or a listed `manual` target is
-  not recorded `deployed`.
-- **Wrap-up** — otherwise: every line a settled line, noted `met:` or `accepted:`, every paired anchor line agreeing with `dod.md`, and every listed `manual` target recorded `deployed`. A
-  `dod.md` line with no text-matching line on the anchor still routes here, because verify-ship's anchor
-  sync cannot reach it: the hand-sync of the anchor's criterion text comes first, then `/superdev:wrap-up <scope>`.
+The verb prints one verdict line, then its extra lines:
+
+- **`wrap-up`** — every `dod.md` line is a settled line (`met:` or `accepted:`, per `dod-ticks.md`'s `## The note rule`), every paired
+  anchor line agrees with `dod.md`, and every listed target of a `manual` posture is recorded `deployed`.
+- **`verify-ship`** — otherwise, while a line is an open line (a bare `[x]` and a `[x]` noted `ceiling:` included), a paired
+  anchor line's verdict differs from `dod.md` (verify-ship's anchor sync rewrites it), a listed `manual` target is not recorded
+  `deployed` (an absent record included), or the run root holds no ledger. A `dod.md` that is missing, unreadable, fence-broken,
+  or holds no criterion line is judged from the anchor and never routes to `wrap-up`. A `not met:` note with no repair citation
+  takes this route and needs no listing.
+- **`re-verify`** — an observed `not met:` line, a closed repair its citation does not cite, and no open repair: a repair has
+  closed since the line was last observed, and only this run's own verify-ship settles the line. Name `/superdev:verify-ship <scope>`,
+  which observes the line again, and `/superdev:plan`'s repair choice as the `Or:` alternative, for a repair that did not hold.
+- **`repair`** — an observed `not met:` line, otherwise: the run needs a fix before its line can hold. Name `/superdev:plan`
+  with its repair choice, and `/superdev:verify-ship <scope>` again as the alternative for an observation that was transient.
+  **The open-repair line.** For each open repair the verb adds one `repair <key> is open; finish its chain first` line, and the
+  caller prints it. `/superdev:plan` stays the named command, because a second repair of the same scope is its own feature.
+- **`needs-repairs`** — an observed `not met:` line makes the repairs matter and none were handed. Read them (step 3) and call again.
+- **`hand-sync`** — an extra line where a `dod.md` line has no text-matching line on the anchor, whatever the route.
+  Verify-ship's anchor sync cannot reach that line: the hand-sync of the anchor's criterion text comes first, then the named command.
 
 **The repair citation.** `/superdev:verify-ship` ends every `not met:` note it writes or rewrites with
 ` (observed)`, or with ` (observed; after <key>, <key>)` naming every closed anchor whose
-`**Repairs:**` line names this run's anchor at that moment, read as step 4 reads them, each key in the
+`**Repairs:**` line names this run's anchor at that moment, read as step 3 reads them, each key in the
 store's own notation: `not met: <observation> (observed; after #951, #957)`. No closed anchor names the
 run → the citation reads ` (observed)`. A closed repair a note cites had closed before that observation,
 so the observation already judged it. A `not met:` note carrying the citation is an **observed** one.
 A `not met:` note that carries no repair citation was written before merge — a controller's tick from a
 report, or `/superdev:submit-pr`'s standing-entry ask — and nothing has observed the deployed system for
-it yet: its line is an open line that no observation has judged, so a run whose `not met:` notes all lack the
-citation takes the **Verify-ship** route, and verify-ship observes each such line first.
+it yet: its line is an open line that no observation has judged, so verify-ship observes each such line first.
 
 **A run with no local ledger** — an anchor whose `## Run state` snapshot alone reads `shipped`
-(`## Adopting a shipped original` below) — reads step 1 from the anchor alone, takes step 4's anchor key
-from that anchor itself, and has no deploy record for step 3 to read. So the **Verify-ship** route takes it ahead of **Wrap-up**:
+(`## Adopting a shipped original` below) — hands the anchor's Definition of Done on stdin and an empty `mktemp -d` directory as `--root`, takes step 3's anchor key
+from that anchor itself, and has no deploy record. The verb routes it to `verify-ship` ahead of `wrap-up`:
 `/superdev:verify-ship <scope>` adopts the run root first and reads the record there.
 
 ## Adopting a shipped original

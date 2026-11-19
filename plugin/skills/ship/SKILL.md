@@ -248,7 +248,7 @@ Applies to every start past §1. Read the stage and the pull request number with
 - **A non-zero exit** → record `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deploy set <target> failed --exit <n> --root <run-root>`, name every target not yet deployed, and print `/superdev:ship <scope>` as the resume. It re-reads the merge commit and starts at the first undeployed target. Stop.
 - **Every listed target `deployed`** → go to **Hand off**.
 
-**Hand off.** Applies when §5 sends the run here: every target deployed, none applicable, or `manual`. A failed or declined deploy stopped above and never reaches it. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root <run-root>` first, then pick the next command by `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run`.
+**Hand off.** Applies when §5 sends the run here: every target deployed, none applicable, or `manual`. A failed or declined deploy stopped above and never reaches it. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root <run-root>` first, then pick the next command with `scope.js route`, called as `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` states, and take its verdict line as the route.
 
 - The routing reads only choose the command: write no verdict and rewrite no anchor line from them.
 

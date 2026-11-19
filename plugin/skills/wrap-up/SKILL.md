@@ -72,7 +72,7 @@ Read the stage and the pull request number with one `node "${CLAUDE_PLUGIN_ROOT}
 **A Definition-of-Done line is unsettled.** Applies to every gate. Judge settledness from `<run-root>/dod.md`. Read the anchor's Definition-of-Done lines per `docs/agents/issue-tracker.md` only when `dod.md` is missing.
 
 - **A line that is not a settled line** → name it and `/superdev:verify-ship <scope>`. Offer no acceptance yourself.
-- **A `not met:` line, when `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` routes this run to repair** → also name `/superdev:plan`'s repair choice.
+- **A `not met:` line, when `scope.js route` answers repair for this run**, called as `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` states, → also name `/superdev:plan`'s repair choice.
 
 **The anchor disagrees with a settled `dod.md`.** Applies when `dod.md` is present. Read the anchor's lines too, and pair them per `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## Pairing dod.md with the anchor`. Never close an anchor with its criterion text out of sync.
 
@@ -140,5 +140,5 @@ Applies once the gate passed. Read every bullet from the `unresolved` field of t
 **The original's stage.** Applies to a Repairs line naming an anchor. Resolve that anchor's feature label and take its slug. Read the original's stage with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get stage --root <original-run-root>`, where `scope.js root <slug>` names that path.
 
 - **No ledger at that path** → adopt the original first, from the anchor the Repairs line names, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Adopting a shipped original`. Then read the stage.
-- **`shipped`** → pick the original's next command by `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run`, with `<scope>` the original's slug. Print it as the next command. When it routes to repair, also print the Repair route's open-repair line for each open repair. Move `/superdev:publish-kb <scope>` to an `Or:` line.
+- **`shipped`** → pick the original's next command with `scope.js route`, called as `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` states, with `<scope>` the original's slug. Print it as the next command. When it routes to repair, also print the Repair route's open-repair line for each open repair. Move `/superdev:publish-kb <scope>` to an `Or:` line.
 - **A closed or missing original, or a Repairs line that resolves to no run root after that adoption** → name nothing for the original.
