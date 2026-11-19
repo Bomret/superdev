@@ -8,6 +8,9 @@
 review also merges a moved base before each exit run and at each fix cycle's end, and a merge that resolved a
 conflict takes a whole-range `final-reviewer` re-review first.
 
+**Amended by:** [ADR 0260](0260-the-scope-review-merges-a-moved-base-at-submitted-too.md), under which the
+review also merges a moved base at `submitted`, so a conflict ship refuses there has a command that resolves it.
+
 **Amends:** [ADR 0120](0120-implement-brings-the-remote-base-into-the-scope-branch-before-the-first-slice.md), under which only
 `/superdev:implement` brings the base into the scope branch before ship.
 
