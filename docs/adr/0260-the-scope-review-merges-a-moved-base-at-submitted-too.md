@@ -42,6 +42,9 @@ push that already carries a fix-loop commit review lands at `submitted`.
 
 ## Consequences
 
-- A scope at `submitted` whose base merge conflicts reaches ship through one review run.
+- A scope at `submitted` whose base merge conflicts reaches ship through one review run when
+  `references/merge-conflicts.md` resolves each conflict by the intent of both sides. A winner-picking overlap,
+  where the two sides decide the same thing in incompatible ways, aborts the merge, and the review stops for the
+  operator. An unattended review blocks.
 - A review at `submitted` can move the scope branch's tip, so the pull request's head moves at ship's next
   push. Ship's full-suite evidence covers the merged tip, through the named checks or its local run.

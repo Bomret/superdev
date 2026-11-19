@@ -281,7 +281,7 @@ Both execution playbooks run this step right after their own write of `scope-mod
 slice, on every `/superdev:implement` invocation and at every run kind.
 `/superdev:review` runs it too, on a live scope run at every stage before `shipped`, `submitted` included, after its scope
 checkout and run lock and before its preparation and first dispatch, and again itself, never through a fix implementer,
-before its stage write, or its leave-alone at `submitted`, and at a fix cycle's end when the scope branch no longer holds the base tip (`review-scope-mode.md`'s **The moved base** concept). Review pushes
+before its stage write or its leave-alone, and at a fix cycle's end when the scope branch no longer holds the base tip (`review-scope-mode.md`'s **The moved base** concept). Review pushes
 nothing: at `submitted`, `/superdev:ship` pushes the merged tip. The step runs no test suite: the full-suite evidence `/superdev:ship` takes
 verifies every merge it makes, implement's and the review's own alike. It brings
 the remote's `<base>` tip into the scope branch, so slices build on what the pull request targets rather
