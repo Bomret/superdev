@@ -133,8 +133,8 @@ second time from git state. One call cuts or reuses the branch at every run kind
   `planned` and works in the scopetree already there. The branch may carry unmerged slice work, for a run
   already in flight, or nothing at all beyond `/superdev:plan`'s own design-docs commit, for one just
   handed off. Read `<branch>` from the ledger's own line — `scope.js get branch --root <run-root>`,
-  verified with `git rev-parse --verify <branch>` — never by rebuilding `<type>/<scope>` and never through
-  `scope-mode.md`'s `## The scope branch`'s shape-scan fallback, which can return a foreign branch.
+  verified with `git rev-parse --verify <branch>` — never by rebuilding `<type>/<scope>` and never from a
+  `guess` or `guess-remote` verdict of `scope.js branch`, which can name a foreign branch.
   **A name that does not verify locally is fetched before anything else**: `git fetch
   <remote> <branch>` (`<remote>` from `docs/agents/code-management.md`) — a fresh clone, or a ledger just
   adopted from the anchor's snapshot, holds no scope branch until this runs. **Verify the fetch's own

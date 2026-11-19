@@ -113,7 +113,7 @@ Review a change end to end. §1 decides the mode.
 **The scope branch's range.** Applies to a scope slug that names a run root, from the empty cascade or from a scope-slug argument. Read the run state with one `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state --root <run-root>` call, and take `<branch>` from its `branch` field, the scope's `**Branch:**` line. `review-scope-mode.md` reads the `anchor`, `slices`, `stage`, and `suite` fields of that same output. Verify it with `git rev-parse --verify --quiet '<branch>^{commit}'`. The range is `<range-base>..branch`.
 
 - The range base comes from `scope.js base resolve --branch <branch> --base <base> --root <run-root>` per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`.
-- No such line, or the named branch does not verify → take `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope branch` shape-scan fallback and say which route was taken.
+- No such line, or the named branch does not verify → run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" branch --root <run-root>` and act on its verdict per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope branch`; name a `guess` or `guess-remote` route.
 - The scope-mode bullet of the parse concept then recognizes a live run.
 
 **The range announcement.** Applies after the range resolves and before any dispatch. State the concrete range or target (`Reviewing a1b2c3..d4e5f6`, or `Reviewing working tree changes incl. untracked`).
