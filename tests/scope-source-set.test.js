@@ -259,6 +259,14 @@ try {
     assert.match(res.err, /never narrowed/);
   }
 
+  // --tests after a path argument is refused the same way: the flag is read wherever it stands.
+  {
+    const dir = repo({ 'tests/a.js': 'x\n' });
+    const res = sourceSet(dir, 'tests', '--tests');
+    assert.ok(!res.ok, 'a path before --tests is refused');
+    assert.match(res.err, /never narrowed/);
+  }
+
   // The usage text lists the verb and its flag.
   assert.match(usage(), /^ {2}source-set \[<path>\]/m);
   assert.match(usage(), /^ {2}source-set --tests/m);
