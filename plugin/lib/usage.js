@@ -138,6 +138,12 @@ function usage() {
     '                                     or a path under the plugin root then the current directory; refuses, printing nothing,',
     '                                     a missing file, a missing or duplicated heading, a heading only inside a fence, or an',
     '                                     unterminated fence, or a setext heading inside the section; writes nothing',
+    '  dod-open --root <run-root> [--tag docs]',
+    '                                     lists <run-root>/dod.md\'s criteria by the note rule: one <open|settled><TAB><label><TAB><tag|-><TAB>',
+    '                                     <repair-citation|-><TAB><criterion> line each, label met|not-met|ceiling|accepted|none, then',
+    '                                     stage-hold: yes|no (an open line other than ceiling and docs holds the stage); --tag docs prints',
+    '                                     the open docs lines alone; refuses a dod.md that is missing, unreadable, fence-broken, or',
+    '                                     holds no criterion line (no criteria); writes nothing',
     '  dod-merge --root <run-root>        stdin: the anchor\'s Definition of Done; writes <run-root>/dod.md from it, keeping',
     '                                     each verdict the existing dod.md carries on a line the anchor leaves without a note',
   ].join('\n');
