@@ -68,12 +68,13 @@ function covers(g, events, c, from, files, resolveBase) {
   return same.list.filter((p) => existsAt(g, c, p)).every((p) => pathRunPassed(g, events, c, p));
 }
 
-// ADR 0255's clean-tip exception: where the focused fence repeats the full fence, a commit `c` on the ancestry whose cycle (the
-// commits from the red commit `from` to `c`) changed no test-path file, with no failed run recorded at `c`, closes a red record
-// that names no failed file by `c` being clean. The verb reads no tree state there; the review judges the tip clean.
-function cleanTip(g, events, c, from) {
-  const same = sameFenceChanges(g, c, from);
-  return Boolean(same) && !same.list.length && !failedRuns(events, c, RUN_KINDS);
+// ADR 0255's clean-tip exception, offered for the branch tip `tip` only: where the focused fence repeats the full fence, no
+// test-path file changed from the red commit `from` to the tip, and no run recorded at the tip failed or reads `unknown` in its
+// result. The verb reads no tree state and cannot tell a fix cycle's tip from another; the review judges both.
+function cleanTip(g, events, tip, from) {
+  const same = sameFenceChanges(g, tip, from);
+  return Boolean(same) && !same.list.length && !failedRuns(events, tip, RUN_KINDS)
+    && !events.some((e) => RUN_KINDS.includes(e.fields[0]) && e.fields[2] === tip && e.fields[1] === 'unknown');
 }
 
 // The lines the local suite record raises: `red <sha> files=<failed files>` where the record reads red at the tip or at an ancestor
@@ -93,8 +94,8 @@ function localLines(ctx, record) {
 const coveredLine = (sha, closer) => `covered ${sha} by ${closer.commit}${closer.cleanTip ? ' clean-tip' : ''}`;
 
 // `{ commit, cleanTip }` for the first commit after `from` on the tip's ancestry (parents before children) whose recorded runs
-// cover the red commit `from` whose failed test files are `files`. Failing that, a record with no failed file takes the latest
-// commit `cleanTip` accepts, flagged. Undefined where nothing covers. Refuses where git cannot list the commits.
+// cover the red commit `from` whose failed test files are `files`. Failing that, a record with no failed file takes the branch
+// tip where `cleanTip` accepts it, flagged. Undefined where nothing covers. Refuses where git cannot list the commits.
 function closerOf(ctx, from, files) {
   const { g, tip, events, resolveBase } = ctx;
   const list = gitSpawn(['rev-list', '--reverse', '--topo-order', '--ancestry-path', `${from}..${tip}`], g.cwd);
@@ -102,8 +103,7 @@ function closerOf(ctx, from, files) {
   const commits = list.stdout.split('\n').filter(Boolean);
   const strict = commits.find((c) => covers(g, events, c, from, files, resolveBase));
   if (strict) return { commit: strict };
-  const clean = files.length ? undefined : commits.filter((c) => cleanTip(g, events, c, from)).pop();
-  return clean && { commit: clean, cleanTip: true };
+  return !files.length && commits.length && cleanTip(g, events, tip, from) ? { commit: tip, cleanTip: true } : undefined;
 }
 
 // The lines the check status raises: the verdict line `ci: <verdict> <sha>` and, only for a failed verdict on a head that is the
