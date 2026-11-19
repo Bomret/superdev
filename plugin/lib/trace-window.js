@@ -1,12 +1,13 @@
 'use strict';
 
 // trace-window.js: the one derivation of a slice's implementer windows from the run trace, and the one slice and edit-path
-// comparison the read-only trace verbs share (ADR 0260, INV-0195, INV-0196).
+// comparison and flag parser the read-only trace verbs share (ADR 0260, INV-0195, INV-0196).
 
 const fs = require('fs');
 const path = require('path');
 const { readTrace, untraceField } = require('./trace-log.js');
 const { rootRelative } = require('./run-tree.js');
+const { fail } = require('./refusal.js');
 
 // The domain shapes, named as CONTEXT.md names them.
 //
@@ -96,4 +97,23 @@ function windowIndexes(events, id, slice, refuse) {
   return set;
 }
 
-module.exports = { readRunTrace, sliceOf, editPath, windowsOf, dispatchSlice, windowIndexes };
+// The flag parser of the read-only trace verbs. Returns `{ flags, positional }`: the value of each of `names` given, each at
+// most once and never empty or starting with `--`, and the arguments that start with no `--` where `takesPositional` holds.
+// Any other argument is refused, every message naming `verb`.
+function traceFlags(verb, args, names, takesPositional) {
+  const flags = {};
+  const positional = [];
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (takesPositional && !a.startsWith('--')) { positional.push(a); continue; }
+    if (!names.includes(a)) fail(`${verb}: unrecognized argument "${a}"`);
+    const v = args[i + 1];
+    if (v === undefined || v === '' || v.startsWith('--')) fail(`${verb}: ${a} needs a value`);
+    if (a in flags) fail(`${verb}: ${a} given twice`);
+    flags[a] = v;
+    i++;
+  }
+  return { flags, positional };
+}
+
+module.exports = { readRunTrace, sliceOf, editPath, windowsOf, windowIndexes, traceFlags };

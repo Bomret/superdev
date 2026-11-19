@@ -67,25 +67,11 @@ function verbRoot(cwd, slug) {
 const TRACE_KINDS = ['edit', 'run', 'dispatch', 'dispatch-bind', 'dispatch-end', 'dispatch-resume', 'ledger', 'fail-to-pass', 'tamper'];
 const LEGACY_TRACE_KINDS = ['verdict', 'final-verdict', 'revert', 'restore'];
 
-// The values of `names` in `args` (`--root` already taken), each given at most once and never starting with `--`; any other
-// argument is refused.
-function traceFlags(verb, args, names) {
-  const out = {};
-  for (let i = 0; i < args.length; i += 2) {
-    const flag = args[i];
-    if (!names.includes(flag)) fail(`${verb}: unrecognized argument "${flag}"`);
-    const v = args[i + 1];
-    if (v === undefined || v === '' || v.startsWith('--')) fail(`${verb}: ${flag} needs a value`);
-    if (flag in out) fail(`${verb}: ${flag} given twice`);
-    out[flag] = v;
-  }
-  return out;
-}
-
 // Prints the recorded lines that pass every filter given, byte-identical and in file order: `--slice`, `--kind` (a comma
-// list), and `--window` combine as AND, and `--last` keeps the last n of what they pass.
+// list), and `--window` combine as AND, and `--last` keeps the last n of what they pass. `--root` is already taken.
 function verbTrace(root, args) {
-  const f = traceFlags('trace', args, ['--slice', '--kind', '--window', '--last']);
+  const tw = libTraceWindow();
+  const f = tw.traceFlags('trace', args, ['--slice', '--kind', '--window', '--last'], false).flags;
   let kinds = null;
   if (f['--kind'] !== undefined) {
     kinds = new Set(f['--kind'].split(','));
@@ -97,7 +83,6 @@ function verbTrace(root, args) {
     if (!/^[1-9]\d*$/.test(f['--last'])) fail(`trace: --last needs a whole number of lines above 0, not "${f['--last']}"`);
     last = Number(f['--last']);
   }
-  const tw = libTraceWindow();
   const { lines, events } = tw.readRunTrace(root);
   const slice = f['--slice'];
   const inWindow = f['--window'] === undefined ? null : tw.windowIndexes(events, f['--window'], slice, fail);
@@ -113,9 +98,9 @@ function verbTrace(root, args) {
 // Prints one line per implementer window of `--slice`: `<dispatch id> <slice> <from> <until|open>`, the times those of the run's
 // first line and of the boundary line that ends it.
 function verbWindows(root, args) {
-  const f = traceFlags('windows', args, ['--slice']);
-  if (f['--slice'] === undefined) fail('windows needs --slice <id|scope>');
   const tw = libTraceWindow();
+  const f = tw.traceFlags('windows', args, ['--slice'], false).flags;
+  if (f['--slice'] === undefined) fail('windows needs --slice <id|scope>');
   const { events } = tw.readRunTrace(root);
   const slice = f['--slice'];
   const found = tw.windowsOf(events, slice);

@@ -8,7 +8,7 @@ const path = require('path');
 const { fail } = require('./refusal.js');
 const { gitSpawn, resolveCommit, fileAt } = require('./git-spawn.js');
 const { isTestPath } = require('./verification.js');
-const { readRunTrace, sliceOf, windowIndexes } = require('./trace-window.js');
+const { readRunTrace, sliceOf, windowIndexes, traceFlags } = require('./trace-window.js');
 const { netChanges } = require('./untraced.js');
 const { outcomeOf } = require('./fail-to-pass.js');
 
@@ -25,18 +25,7 @@ const { outcomeOf } = require('./fail-to-pass.js');
 // outcome from the slice's base covers a fix cycle's range.
 
 function verbFailToPassCheck(cwd, args) {
-  const flags = {};
-  const positional = [];
-  for (let i = 0; i < args.length; i++) {
-    const a = args[i];
-    if (!a.startsWith('--')) { positional.push(a); continue; }
-    if (!['--slice', '--window', '--root'].includes(a)) fail(`fail-to-pass-check: unrecognized argument "${a}"`);
-    const v = args[i + 1];
-    if (v === undefined || v === '' || v.startsWith('--')) fail(`fail-to-pass-check: ${a} needs a value`);
-    if (a in flags) fail(`fail-to-pass-check: ${a} given twice`);
-    flags[a] = v;
-    i++;
-  }
+  const { flags, positional } = traceFlags('fail-to-pass-check', args, ['--slice', '--window', '--root'], true);
   const root = flags['--root'];
   const slice = flags['--slice'];
   if (!root) fail('fail-to-pass-check needs --root <run-root>');
