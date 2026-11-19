@@ -1,6 +1,8 @@
 # Fail-to-pass run — the reviewer's grading rules
 
-How a reviewer grades a fail-to-pass run. `implementer.md`'s `### Fail-to-pass run
+How a reviewer grades a fail-to-pass run. `implementer.md`'s `### Fail-to-pass run` states what the implementer runs.
+
+## Fail-to-pass run
 
 `final-reviewer` applies this on a `lite` scope and to fix cycles on either tier, `slice-reviewer` on the full tier, under
 `review-checklist.md`'s `## Binding rules`.
