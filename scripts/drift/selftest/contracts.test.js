@@ -13,13 +13,12 @@ const {
 } = require('../contracts');
 
 module.exports = ({ assert, path, fixture, found }) => {
-  // --- change-type: the change-type set the prose lists, the hook matches, the glossary restates, and
+  // --- change-type: the change-type set the prose lists, the glossary restates, and
   // lib/ledger.js validates is one set ---
 
   const changeType = (files) => found(scanContract(fixture(files), CHANGE_TYPE_CONTRACTS));
   for (const [rel, body, label] of [
-    ['references/scope-mode.md', 'one of `feat`, `fix`, `refactor`, `docs`, `perf`, `test`.\n', 'a prose list the hook no longer matches'],
-    ['hooks/scope-prune.js', 'const CHANGE_TYPES = /^(feat|fix)$/;\n', 'the hook narrowing away from the stated set'],
+    ['references/scope-mode.md', 'one of `feat`, `fix`, `refactor`, `docs`, `perf`, `test`.\n', 'a prose list that dropped types from the stated set'],
     ['lib/ledger.js', "const CHANGE_TYPES = ['feat', 'fix'];\n", 'lib/ledger.js narrowing CHANGE_TYPES away from the stated set'],
     ['CONTEXT.md', '**Change type** — one of `feat`, `fix`, or `docs`.\n', 'a glossary entry that drifted from the owned set'],
   ]) {
