@@ -43,9 +43,8 @@ assert.deepStrictEqual(tier([B, B, B, B, ['docs']]).slice(0, 2), ['tier: full', 
 // Rows of every status count, merged ones included.
 assert.deepStrictEqual(tier([['behavior', 'merged'], ['behavior', 'merged'], ['behavior', 'done'], ['behavior', 'todo']]).slice(0, 2), ['tier: full', 'simplicity: skip'], 'merged rows count');
 
-// A run of only mechanical and docs rows has no behavior row to make 1 to 3 or more than 3.
-const noBehavior = tier([['mechanical'], ['docs']]);
-assert.deepStrictEqual(noBehavior.slice(0, 2), ['tier: unknown', 'simplicity: dispatch'], 'no behavior rows is unknown');
+// A run of only mechanical and docs rows has 3 or fewer behavior rows: lite.
+assert.deepStrictEqual(tier([['mechanical'], ['docs']]), ['tier: lite', 'simplicity: dispatch'], 'zero behavior rows is lite');
 
 // unknown: no rows, a malformed row, a type outside the three (case-sensitive), each naming its cause.
 const none = tier([]);

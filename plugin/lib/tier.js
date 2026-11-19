@@ -10,10 +10,10 @@ const TYPES = ['behavior', 'mechanical', 'docs'];
 const FULL_OVER = 3;
 
 // `tier --root <run-root>` prints `tier: full|lite|unknown`, `simplicity: skip|dispatch`, and, for `unknown`, a third
-// `reason:` line naming the row or the absence. `full` is more than 3 `behavior` rows and `lite` is 1 to 3; `mechanical` and
+// `reason:` line naming the row or the absence. `full` is more than 3 `behavior` rows and `lite` is 3 or fewer; `mechanical` and
 // `docs` rows never count and a row of any status does. The simplicity reviewer is skipped only for a `full` run whose every row is
-// `behavior` (INV-0055). A row that does not carry the 7 columns, a type outside the three (matched case-sensitively), no rows, or
-// no `behavior` row is `unknown`.
+// `behavior` (INV-0055). A row that does not carry the 7 columns, a type outside the three (matched case-sensitively), or
+// no rows is `unknown`.
 function verbTier(root, args) {
   if (args.length) fail(`tier: unrecognized argument "${args[0]}"`);
   const lines = readLines(root);
@@ -25,7 +25,6 @@ function verbTier(root, args) {
   const odd = !reason && rows.find((r) => !TYPES.includes(r.cells[3]));
   if (odd) reason = `slice ${odd.cells[0]} has type "${odd.cells[3]}", outside behavior, mechanical, docs`;
   const behavior = rows.filter((r) => r.cells[3] === 'behavior').length;
-  if (!reason && !behavior) reason = 'no behavior slice rows';
   if (reason) {
     console.log(['tier: unknown', 'simplicity: dispatch', `reason: ${reason}`].join('\n'));
     return;
