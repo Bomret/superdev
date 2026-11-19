@@ -41,7 +41,7 @@ repair of the same scope is its own feature. A `closed` mark with no `open` one 
 since the line was last observed and none is under way, so `/superdev:verify-ship <scope>` observes the
 line again first. `closed, still not met` marks alone mean the line failed again after those repairs, so
 the scope needs another repair. An `open` mark means a repair is still under way
-(`${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run`).
+(`scope.js route`, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run`).
 
 **Anchors with no run root.** The candidates also include every scope anchor the **List the candidates**
 call returns whose slug has no run root, whose `## Run state` snapshot reads `shipped`, and whose
