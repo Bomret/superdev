@@ -67,10 +67,17 @@ function parseSuiteRecord(raw) {
 // Whether `a` is an ancestor of `b`; refuses where git fails for any reason but "not an ancestor" (exit 1), so a git error
 // is never read as a negative answer (INV-0009).
 function ancestorOrRefuse(g, a, b) {
-  const r = gitSpawn(['merge-base', '--is-ancestor', a, b], g.cwd);
-  if (r.status === 0) return true;
-  if (r.status === 1) return false;
-  fail(`could not tell whether ${a} is an ancestor of ${b}: ${(r.stderr || '').trim() || `git exited ${r.status}`}`);
+  const answer = g.ancestry(a, b);
+  if (typeof answer === 'string') fail(answer);
+  return answer;
+}
+
+// The reason a refusing caller gives where `a` is no ancestor of `b`: `why` for the negative answer, or the git error's own
+// text where git could not tell. Null where `a` is an ancestor.
+function notAncestorReason(g, a, b, why) {
+  const answer = g.ancestry(a, b);
+  if (answer === true) return null;
+  return answer === false ? why : answer;
 }
 
 // The run root's `run` trace events in trace order; none where no trace file exists yet.
@@ -213,7 +220,8 @@ function reusableOnRerun(g, root, branch, recordedSha, kind, whole, base) {
   if (whole && kind !== 'whole') return 'the record carries no kind — a whole-repo run needs one';
   const events = runEvents(root);
   if (tip !== recordedSha) {
-    if (!g.isAncestor(recordedSha, tip)) return 'the failed run is neither at the tip nor an ancestor of it';
+    const no = notAncestorReason(g, recordedSha, tip, 'the failed run is neither at the tip nor an ancestor of it');
+    if (no) return no;
     const since = g.changed(recordedSha, tip);
     if (!since) return 'git could not list the paths changed since the failed run';
     const why = markdownRefusal(g, recordedSha, tip, events, since);
@@ -292,7 +300,8 @@ function reusableAfterFix(g, root, branch, from, kind, whole, files) {
   if (whole || kind === 'whole') return 'a repaired failure carries a full run only, never a whole-repo one';
   const tip = tipOf(g, branch);
   if (tip === from) return 'the failed run is at the tip';
-  if (!g.isAncestor(from, tip)) return 'the failed run is not an ancestor of the tip';
+  const no = notAncestorReason(g, from, tip, 'the failed run is not an ancestor of the tip');
+  if (no) return no;
   const events = runEvents(root);
   const failedFull = failedRuns(events, from, ['full', 'whole']);
   if (failedFull !== 1) return `${failedFull} failed full runs at the failed run's commit, the record names the failures of exactly one`;
@@ -363,7 +372,13 @@ function gitReads(cwd) {
     commit: (ref) => once(`commit ${ref}`, () => resolveCommit(ref, cwd)),
     fileAt: (commit, rel) => once(`file ${commit} ${rel}`, () => fileAt(commit, rel, cwd)),
     changed: (from, to) => once(`changed ${from} ${to}`, () => changedPaths(cwd, from, to)),
-    isAncestor: (a, b) => once(`ancestor ${a} ${b}`, () => gitSpawn(['merge-base', '--is-ancestor', a, b], cwd).status === 0),
+    // true or false for git's answer (exit 0 or 1); the git error's text, a string, for any other exit.
+    ancestry: (a, b) => once(`ancestor ${a} ${b}`, () => {
+      const r = gitSpawn(['merge-base', '--is-ancestor', a, b], cwd);
+      if (r.status === 0) return true;
+      if (r.status === 1) return false;
+      return `could not tell whether ${a} is an ancestor of ${b}: ${(r.stderr || '').trim() || `git exited ${r.status}`}`;
+    }),
     top: lazyToplevel(cwd),
   };
 }
@@ -422,7 +437,8 @@ function coverageRefusal(g, paths, at) {
 // passes this Markdown-only rule. Returns the reason the carry fails, or null when it holds; where the chain fails on a
 // Markdown-only tail, the tail's own reason.
 function carryRefusal(g, from, to, events) {
-  if (!g.isAncestor(from, to)) return 'it is not an ancestor of the tip';
+  const no = notAncestorReason(g, from, to, 'it is not an ancestor of the tip');
+  if (no) return no;
   const paths = g.changed(from, to);
   if (!paths) return 'git could not list the paths changed since';
   const other = paths.find((p) => !p.endsWith('.md'));
@@ -496,7 +512,7 @@ function rangeBase(g, root, branch, base) {
   const raw = getHeader(readLines(root), 'Base');
   const rec = raw ? g.commit(raw) : null;
   let out = mb;
-  if (rec && g.isAncestor(rec, tip) && g.isAncestor(mb, rec)) out = rec;
+  if (rec && ancestorOrRefuse(g, rec, tip) && ancestorOrRefuse(g, mb, rec)) out = rec;
   return out;
 }
 

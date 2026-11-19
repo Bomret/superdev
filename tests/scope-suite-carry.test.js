@@ -188,6 +188,7 @@ const { appendTrace } = require(scopePath);
   const bogus = 'e'.repeat(40);
   r = reusable(root(`green @ ${bogus}`, [['full', 'pass', bogus, 'clean'], ['focused', 'pass', T, 'clean']]));
   assert.ok(!r.ok && /predates tip/.test(r.err), 'an unresolvable recorded sha refuses: ' + (r.err || ''));
+  assert.ok(/could not tell whether/.test(r.err) && !/not an ancestor/.test(r.err), 'a git error is named, not read as "not an ancestor": ' + (r.err || ''));
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }

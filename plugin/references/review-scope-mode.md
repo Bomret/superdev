@@ -139,6 +139,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - **The call.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" red-evidence --root <run-root> --branch <branch> --base <base>` in the scope checkout. It reads the ledger's suite and failed records and the run trace, and writes nothing. Where the `## CI` section of `docs/agents/verification.md` at the tip names a check, and the `pr` field records a pull request, read that pull request per `docs/agents/code-management.md`'s `## Merge` section for its `head.sha`, take that document's `## Check status` read for `head.sha` into a file, and add `--ci-head <head.sha> --ci-file <file>`.
 - **A line `red <sha> files=<files>`** → a red-evidence finding naming that commit and those test files. A record that names no test file leaves `files=` empty.
 - **A line `covered <sha> by <commit>`** → no finding. A later run on a clean tree closed that red record. Say once that a later run closed it, naming that commit.
+- **A line `covered <sha> by <commit> clean-tip`** → the finding closes only where `<commit>` is clean. Where the focused fence repeats the full fence, `<commit>` is a later commit on the tip's ancestry and its fix cycle changed no test file, so ADR 0255 closes a record with no failed test file on that tip being clean. The verb reads no tree state and recorded no passing run there. Confirm the tip clean (the working tree holds no change beyond what the commit holds, and no recorded run at `<commit>` failed) before you treat the finding as closed, and keep the finding in the fix list where it is not.
 - **A line `ci: <verdict> <sha>`** → state that verdict for that SHA, as the head's state and never as the tip's.
 - **A line `ci-failed <check> <link> <sha>`** → one red-evidence finding naming the check, its link, and that SHA. A failed check names no test file. Where a later commit's runs cover it, the verb prints `covered <sha> by <commit>` after the `ci:` line in place of the `ci-failed` lines, and that line is no finding.
 - **A line `ci-malformed`** → a configuration error that ship refuses. Print `CI section malformed: it holds both none and a check name; fix it through /superdev:setup` once and continue. It raises no finding.
@@ -146,13 +147,13 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - **A refusal** → print its reason and continue, with the red evidence unread. An unread source is never `none`.
 - **A CI read that fails** (the pull request read, the check-status read, or a document with no `## Check status` section) → print `CI status unreadable: <reason>` once, and continue without the CI flags. It never holds the review.
 
-**The judgment the review keeps.** Applies to every line the verb prints. The verb reads the records and the trace, so the review keeps the severity of each finding (Critical), its place in the fix list, and the report line that ship takes the full-suite evidence again.
+**The judgment the review keeps.** Applies to every line the verb prints. The verb reads the records and the trace, so the review keeps the severity of each finding (Critical), its place in the fix list, the report line that ship takes the full-suite evidence again, and the clean-tip judgment of a `covered … clean-tip` line.
 
 **A red-evidence finding.** Applies to every finding the red evidence found. Fold it into the fix loop like a `final-reviewer` finding. The stage does not advance while it stands.
 
 - **A failing test the scope did not cause** is this Critical finding too, and joins the fix list. A triage record for it may sit beside its fix, never in its place.
 - **It joins §4.6's fix list**, and its cycle counts toward the 3-cycle cap of §4.7.
-- **It closes on the fix cycle's own runs** at the cycle's tip, which the re-review reads in the run trace: runs after which the `red-evidence` call prints `covered` for it. A `ci-failed` finding closes the same way, because the verb applies the coverage rule of a `red` line with an empty `files=` field to it: a failed check names no test file.
+- **It closes on the fix cycle's own runs** at the cycle's tip, which the re-review reads in the run trace: runs after which the `red-evidence` call prints `covered` for it, or `covered … clean-tip` once the review confirms the tip clean. A `ci-failed` finding closes the same way, because the verb applies the coverage rule of a `red` line with an empty `files=` field to it: a failed check names no test file.
 - **The report says ship takes the full-suite evidence again**, from the named checks or a local run.
 
 **Inside a fix cycle.** Applies to every fix cycle. Run no test. The re-review reads the cycle implementer's recorded runs and its fail-to-pass outcome in the run trace.
