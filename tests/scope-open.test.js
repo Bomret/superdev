@@ -229,6 +229,17 @@ try {
     assert.ok(r.out.includes(elsewhere), 'names the holding worktree');
   }
 
+  // #held: the holding worktree's path holds a newline and is named whole.
+  {
+    const f = fixture();
+    git(['branch', BRANCH, 'main'], f.repo);
+    const elsewhere = path.join(tmp('scope-open-elsewhere-'), 'w\nt');
+    git(['worktree', 'add', '-q', elsewhere, BRANCH], f.repo);
+    const r = open(f);
+    assert.strictEqual(r.word, 'held');
+    assert.ok(r.out.includes(elsewhere), 'names the holding worktree whole');
+  }
+
   // #closed: a closed ledger from a retired label is rotated aside, and the run is cut fresh.
   {
     const f = fixture();

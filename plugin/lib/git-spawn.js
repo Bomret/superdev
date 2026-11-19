@@ -1,6 +1,6 @@
 'use strict';
 
-// git-spawn.js: the git calls the hooks and scripts share, the raw spawn and its commit-resolving reads, the throwing call, and the `git branch` list parse.
+// git-spawn.js: the git calls the hooks and scripts share, the raw spawn and its commit-resolving reads, the throwing call, the `git branch` list parse, and the `git worktree list` parse.
 
 const { spawnSync, execFileSync } = require('child_process');
 
@@ -54,4 +54,32 @@ function fileAt(commit, rel, cwd) {
   return listed.status === 0 && !listed.stdout.trim() ? '' : null;
 }
 
-module.exports = { gitSpawn, gitThrow, parseBranchList, resolveCommit, refResolves, fileAt };
+// The registered working trees as `{ path, branch, detached }` (`branch` the short name, null where none), or `{ failure }` with the
+// reason git cannot list them. `-z` ends each field with a NUL, so a path holding a newline stays whole; a git older than 2.36
+// refuses `-z`, and the listing then reads the newline-split form, which cannot keep such a path whole.
+function listWorktrees(cwd) {
+  let res = spawnSync('git', ['worktree', 'list', '--porcelain', '-z'], { cwd, encoding: 'utf8' });
+  let sep = '\0';
+  if (!res.error && res.status !== null && res.status !== 0) {
+    res = spawnSync('git', ['worktree', 'list', '--porcelain'], { cwd, encoding: 'utf8' });
+    sep = '\n';
+  }
+  if (res.error) {
+    const how = ['ENOENT', 'EACCES'].includes(res.error.code) ? 'could not start' : 'failed';
+    return { failure: `worktree list ${how} (${res.error.code || res.error.message})` };
+  }
+  if (res.status === null) return { failure: `worktree list was ended by signal ${res.signal}` };
+  if (res.status !== 0) return { failure: `worktree list exited with status ${res.status}` };
+  const trees = [];
+  let cur = null;
+  for (const line of res.stdout.split(sep)) {
+    if (line.startsWith('worktree ')) {
+      cur = { path: line.slice('worktree '.length), branch: null, detached: false };
+      trees.push(cur);
+    } else if (cur && line.startsWith('branch ')) cur.branch = line.slice('branch '.length).replace(/^refs\/heads\//, '');
+    else if (cur && line === 'detached') cur.detached = true;
+  }
+  return { trees };
+}
+
+module.exports = { gitSpawn, gitThrow, parseBranchList, resolveCommit, refResolves, fileAt, listWorktrees };

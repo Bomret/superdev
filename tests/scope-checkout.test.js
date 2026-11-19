@@ -115,15 +115,24 @@ assert.strictEqual(verdict(setup({ stage: 'closed' })), 'absent-terminal closed'
   assert.strictEqual(verdict(s), `present ${real(s.tree)}`, 'a guessed branch is the branch checked');
 }
 
-// A scopetree path holding a newline still reads present.
+// A path holding a newline keeps the verdict on one line: a registered scopetree there reads unregistered naming the line break,
+// and a holder there reads held-elsewhere with no path.
 {
   const s = setup();
   const root = path.join(s.repo, '.superdev', 'odd\ndir', 'x');
   fs.mkdirSync(root, { recursive: true });
   fs.copyFileSync(path.join(s.root, 'ledger.md'), path.join(root, 'ledger.md'));
-  const tree = path.join(root, 'scopetree');
-  git(['worktree', 'add', '-q', tree, 'feat/x'], s.repo);
-  assert.strictEqual(verdict(s, root), `present ${real(tree)}`, 'a newline in the scopetree path prints present');
+  git(['worktree', 'add', '-q', path.join(root, 'scopetree'), 'feat/x'], s.repo);
+  const out = verdict(s, root);
+  assert.ok(/^unregistered .*line break/.test(out) && !out.includes('\n'), 'a newline in the scopetree path prints one unregistered line, got: ' + out);
+}
+{
+  const s = setup();
+  const holder = path.join(s.repo, '..', path.basename(s.repo) + '-odd\nholder');
+  git(['worktree', 'add', '-q', holder, 'feat/x'], s.repo);
+  copies.push(holder);
+  const out = verdict(s);
+  assert.strictEqual(out, 'held-elsewhere a working tree whose path holds a line break', 'a newline in the holder path prints one held-elsewhere line');
 }
 
 // A git failure passes through as git-failed, from the run read outside any repository.

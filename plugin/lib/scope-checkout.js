@@ -5,7 +5,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('child_process');
+const { listWorktrees } = require('./git-spawn.js');
 const { readLedgerHeader } = require('./ledger.js');
 const { drivePath } = require('./drive-path.js');
 const { resolveScopeBranch } = require('./scope-branch.js');
@@ -27,32 +27,14 @@ function normalize(p) {
   }
 }
 
-// The registered working trees as `{ path, branch, detached }` (`branch` the short name), or `{ failure }` when git cannot list them.
-// `-z` ends each field with a NUL, so a path holding a newline stays whole.
-function listWorktrees(cwd) {
-  const res = spawnSync('git', ['worktree', 'list', '--porcelain', '-z'], { cwd, encoding: 'utf8' });
-  if (res.error) {
-    const how = ['ENOENT', 'EACCES'].includes(res.error.code) ? 'could not start' : 'failed';
-    return { failure: `worktree list ${how} (${res.error.code || res.error.message})` };
-  }
-  if (res.status === null) return { failure: `worktree list was ended by signal ${res.signal}` };
-  if (res.status !== 0) return { failure: `worktree list exited with status ${res.status}` };
-  const trees = [];
-  let cur = null;
-  for (const line of res.stdout.split('\0')) {
-    if (line.startsWith('worktree ')) {
-      cur = { path: line.slice('worktree '.length), branch: null, detached: false };
-      trees.push(cur);
-    } else if (cur && line.startsWith('branch ')) cur.branch = line.slice('branch '.length).replace(/^refs\/heads\//, '');
-    else if (cur && line === 'detached') cur.detached = true;
-  }
-  return { trees };
-}
+// A path no one-line verdict can carry: it holds a line break, so a printed `<verdict> <path>` would span lines (INV-0196).
+const holdsLineBreak = (p) => /[\n\r\u0085\u{2028}\u{2029}]/u.test(p);
 
 // The verdict for the run root `root` (absolute), read in `cwd`: `{ verdict, detail? }` with `verdict` one of `present` (detail the scopetree
 // path), `absent`, `absent-terminal` (detail the stage), `held-elsewhere` (detail the holding tree's path), `unregistered` (detail the reason),
 // or the branch verdicts `none`, `ambiguous` (detail the branches), `git-failed` (detail the reason). A `guess` or `guess-remote` branch
-// is the scope branch checked, as a `ledger` one is.
+// is the scope branch checked, as a `ledger` one is. A path holding a line break would span lines, so a scopetree at such a path reads
+// `unregistered`, and a holder at such a path reads `held-elsewhere` with no path.
 function scopeCheckout(cwd, root) {
   const b = resolveScopeBranch(cwd, root);
   if (b.verdict === 'none') return { verdict: 'none' };
@@ -67,10 +49,14 @@ function scopeCheckout(cwd, root) {
       return { verdict: 'unregistered', detail: `the scopetree is registered ${mine.detached ? 'detached' : `on ${mine.branch || 'no branch'}`}, not on ${b.branch}` };
     }
     if (!fs.existsSync(treePath)) return { verdict: 'unregistered', detail: 'the scopetree is registered but its directory is gone' };
+    if (holdsLineBreak(treePath)) return { verdict: 'unregistered', detail: 'the scopetree path holds a line break, which no one-line verdict can carry' };
     return { verdict: 'present', detail: treePath };
   }
   const holder = listing.trees.find((t) => t.branch === b.branch);
-  if (holder) return { verdict: 'held-elsewhere', detail: normalize(holder.path) };
+  if (holder) {
+    const at = normalize(holder.path);
+    return { verdict: 'held-elsewhere', detail: holdsLineBreak(at) ? 'a working tree whose path holds a line break' : at };
+  }
   if (fs.existsSync(treePath)) return { verdict: 'unregistered', detail: 'the scopetree directory is not a registered working tree of the repository' };
   let stage = null;
   try {

@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const { fail } = require('./refusal.js');
 const { readLines, getHeader, ledgerPath } = require('./ledger.js');
-const { gitSpawn, refResolves } = require('./git-spawn.js');
+const { gitSpawn, refResolves, listWorktrees } = require('./git-spawn.js');
 const { judgeContainment, refetchMark } = require('./containment.js');
 const { pushTimeoutMs } = require('./push.js');
 const { mainWorkTree } = require('./main-work-tree.js');
@@ -52,14 +52,10 @@ function realOrSelf(p) {
 
 // The path of the worktree that has `branch` checked out, or null.
 function worktreeHolding(cwd, branch) {
-  const listed = gitSpawn(['worktree', 'list', '--porcelain'], cwd);
-  if (listed.status !== 0) return null;
-  let at = null;
-  for (const line of listed.stdout.split('\n')) {
-    if (line.startsWith('worktree ')) at = line.slice('worktree '.length);
-    else if (line === `branch refs/heads/${branch}`) return at;
-  }
-  return null;
+  const listed = listWorktrees(cwd);
+  if (listed.failure) return null;
+  const holder = listed.trees.find((t) => t.branch === branch);
+  return holder ? holder.path : null;
 }
 
 function git(args, cwd) {
