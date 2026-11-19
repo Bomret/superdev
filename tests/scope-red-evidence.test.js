@@ -146,14 +146,35 @@ try {
     const e = make('node all.js');
     const bare = (lines, at = e.T) => e.root([`**Suite:** red @ ${at}`], lines);
     assert.strictEqual(out(bare([]), e.repo), `red ${e.T} files=`, 'no later commit: nothing covers the record');
-    assert.strictEqual(out(bare([], e.R), e.repo), `red ${e.R} files=`, 'no test file changed since and no run recorded: nothing covers');
-    assert.strictEqual(out(bare([['full', 'pass', e.M, 'clean']], e.R), e.repo), `covered ${e.R} by ${e.M}`, 'a passing clean run at the later commit covers');
-    assert.strictEqual(out(bare([['full', 'pass', e.M, 'dirty']], e.R), e.repo), `red ${e.R} files=`, 'a dirty run does not cover');
-    assert.strictEqual(out(bare([['full', 'pass', e.M, 'unknown']], e.R), e.repo), `red ${e.R} files=`, 'an unknown tree does not cover');
+    // ADR 0255: a cycle that changed no test file closes the finding on its tip being clean. The verb reads no clean-tree
+    // state there, so the line names the tip and the review judges it.
+    assert.strictEqual(out(bare([], e.R), e.repo), `covered ${e.R} by ${e.T} clean-tip`, 'no test file changed since: the latest such tip, flagged clean-tip');
+    assert.strictEqual(out(bare([['full', 'pass', e.M, 'clean']], e.R), e.repo), `covered ${e.R} by ${e.M}`, 'a passing clean run at the later commit covers, with no clean-tip flag');
+    assert.strictEqual(out(bare([['full', 'pass', e.M, 'dirty']], e.R), e.repo), `covered ${e.R} by ${e.T} clean-tip`, 'a dirty run is no pass, and the clean-tip line is the review\'s to judge');
+    assert.strictEqual(out(bare([['full', 'fail', e.T, 'clean']], e.R), e.repo), `covered ${e.R} by ${e.M} clean-tip`, 'a failed run at a tip rules that tip out');
+    assert.strictEqual(out(bare([['full', 'fail', e.T, 'clean'], ['full', 'fail', e.M, 'clean']], e.R), e.repo), `red ${e.R} files=`, 'a failed run at every later tip leaves the record red');
+    // A record that names failed files takes no clean-tip exception: its files need their own runs.
+    assert.strictEqual(out(e.root([`**Suite:** red @ ${e.R}`, `**Failed:** tests/a.test.js @ ${e.R}`], []), e.repo), `red ${e.R} files=tests/a.test.js`, 'failed files are covered only by runs');
     const T2 = commit(e.repo, 'tests/b.test.js', 'b\n', 'test');
     assert.strictEqual(out(bare([]), e.repo), `red ${e.T} files=`, 'a test file changed since and no path run of it');
     assert.strictEqual(out(bare([PATH_RUN(T2, 'tests/b.test.js')]), e.repo), `covered ${e.T} by ${T2}`, 'a path run of each changed test file covers');
     assert.strictEqual(out(bare([FOCUSED(T2, ['src/y.js', 'tests/b.test.js'])]), e.repo), `red ${e.T} files=`, 'a focused run is a full run there and covers nothing');
+  }
+  // A test file deleted since the record needs no run of its own, an empty one that remains still does, and a git error refuses.
+  {
+    const d = make('node all.js');
+    const bare = (lines) => d.root([`**Suite:** red @ ${d.T}`], lines);
+    commit(d.repo, 'tests/empty.test.js', '', 'empty test');
+    g(['rm', '-q', 'tests/a.test.js'], d.repo);
+    g(['commit', '-q', '-m', 'delete a'], d.repo);
+    const D = g(['rev-parse', 'HEAD'], d.repo);
+    assert.strictEqual(out(bare([['full', 'pass', D, 'clean'], PATH_RUN(D, 'tests/empty.test.js')]), d.repo), `covered ${d.T} by ${D}`, 'a deleted test file needs no run');
+    assert.strictEqual(out(bare([['full', 'pass', D, 'clean']]), d.repo), `red ${d.T} files=`, 'an empty test file that remains still needs its own run');
+    // `docs/agents` is unchanged since the record, so its tree object is unread by the path listing and unreadable by the configuration read.
+    const e = make('node all.js');
+    const tree = g(['rev-parse', `${e.M}:docs/agents`], e.repo);
+    fs.rmSync(path.join(e.repo, '.git', 'objects', tree.slice(0, 2), tree.slice(2)), { force: true });
+    assert.match(verb(e.args(e.root([`**Suite:** red @ ${e.R}`], [['full', 'pass', e.M, 'clean']])), e.repo).err, /git could not read docs\/agents\/verification\.md/, 'a git error refuses and names the cause');
   }
   // The named CI checks: judged through `ci.js`, a finding only on a failed verdict at the tip or an ancestor of it (INV-0191).
   {

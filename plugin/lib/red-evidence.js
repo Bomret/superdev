@@ -26,27 +26,54 @@ function suiteRecord(root) {
 
 const RUN_KINDS = ['full', 'whole', 'path', 'focused'];
 
+// The test files the range `from..c` changed where the focused fence repeats the full fence, as `{ list }`: every path a test-path
+// rule names, deleted ones included. Null where the fences differ. Refuses where git cannot read the configuration or list the paths.
+function sameFenceChanges(g, c, from) {
+  const config = g.fileAt(c, VERIFICATION);
+  if (config === null) fail(`red-evidence: git could not read ${VERIFICATION} at ${c}`);
+  const { full, focused } = verificationCommandsOf(config);
+  if (focused && focused !== full) return null;
+  const since = g.changed(from, c);
+  if (!since) fail(`red-evidence: git could not list the paths changed from ${from} to ${c}`);
+  return { list: since.filter((p) => isTestPath(config, p)) };
+}
+
+// Whether the file `p` exists at commit `c`. A git error refuses. `fileAt` reads an absent file as '' and an unreadable one as
+// null, and an empty file reads as '' too, so only `ls-tree` tells an empty file from an absent one.
+function existsAt(g, c, p) {
+  const text = g.fileAt(c, p);
+  if (text === null) fail(`red-evidence: git could not read ${p} at ${c}`);
+  if (text !== '') return true;
+  const listed = gitSpawn(['ls-tree', '--full-tree', '--name-only', c, '--', p], g.cwd);
+  if (listed.status !== 0) fail(`red-evidence: git could not list ${p} at ${c}: ${(listed.stderr || '').trim() || `git exited ${listed.status}`}`);
+  return Boolean(listed.stdout.trim());
+}
+
 // Whether the runs recorded at commit `c` cover the red record `from` whose failed test files are `files`: no failed run at `c`,
 // then each failed file passed alone or inside a focused run's path set on a clean tree there. A record with no failed file is
 // covered by a focused run over every path of the scope's range at `c`; where the focused fence repeats the full fence, that
-// run is a full run, so a passing run on a clean tree at `c` must be recorded and each test file changed since the record needs
-// its own passing `path` run (`resolveBase` reads the range base lazily).
+// run is a full run, so a passing run on a clean tree at `c` must be recorded and each test file changed since the record and
+// still present at `c` needs its own passing `path` run (`resolveBase` reads the range base lazily).
 // A run whose result or tree reads `unknown` is no pass and covers nothing (INV-0009).
 function covers(g, events, c, from, files, resolveBase) {
   if (failedRuns(events, c, RUN_KINDS)) return false;
   const focused = events.filter((e) => e.fields[0] === 'focused' && e.fields[2] === c);
   if (files.length) return files.every((file) => pathRunPassed(g, events, c, file) || coverageRefusal(g, [file], focused) === null);
-  const config = g.fileAt(c, VERIFICATION);
-  if (config === null) return false;
-  const { full, focused: foc } = verificationCommandsOf(config);
-  if (foc && foc !== full) {
+  const same = sameFenceChanges(g, c, from);
+  if (!same) {
     const paths = g.changed(resolveBase(), c);
     return Boolean(paths) && coverageRefusal(g, paths, focused) === null;
   }
   if (!events.some((e) => RUN_KINDS.includes(e.fields[0]) && e.fields[2] === c && e.fields[1] === 'pass' && e.fields[3] === 'clean')) return false;
-  const since = g.changed(from, c);
-  if (!since) return false;
-  return since.filter((p) => isTestPath(config, p) && g.fileAt(c, p) !== null).every((p) => pathRunPassed(g, events, c, p));
+  return same.list.filter((p) => existsAt(g, c, p)).every((p) => pathRunPassed(g, events, c, p));
+}
+
+// ADR 0255's clean-tip exception: where the focused fence repeats the full fence, a commit `c` on the ancestry whose cycle (the
+// commits from the red commit `from` to `c`) changed no test-path file, with no failed run recorded at `c`, closes a red record
+// that names no failed file by `c` being clean. The verb reads no tree state there; the review judges the tip clean.
+function cleanTip(g, events, c, from) {
+  const same = sameFenceChanges(g, c, from);
+  return Boolean(same) && !same.list.length && !failedRuns(events, c, RUN_KINDS);
 }
 
 // The lines the local suite record raises: `red <sha> files=<failed files>` where the record reads red at the tip or at an ancestor
@@ -59,16 +86,24 @@ function localLines(ctx, record) {
   const failed = failedRecord(root);
   const files = failed && failed.sha === record.sha ? failed.files : [];
   const closer = closerOf(ctx, record.sha, files);
-  return [closer ? `covered ${record.sha} by ${closer}` : `red ${record.sha} files=${files.join(' ')}`];
+  return [closer ? coveredLine(record.sha, closer) : `red ${record.sha} files=${files.join(' ')}`];
 }
 
-// The first commit after `from` on the tip's ancestry (parents before children) whose recorded runs cover the red commit `from`
-// whose failed test files are `files`, or undefined. Refuses where git cannot list the commits.
+// `covered <sha> by <commit>`, with ` clean-tip` where the commit closes the record by the clean-tip exception.
+const coveredLine = (sha, closer) => `covered ${sha} by ${closer.commit}${closer.cleanTip ? ' clean-tip' : ''}`;
+
+// `{ commit, cleanTip }` for the first commit after `from` on the tip's ancestry (parents before children) whose recorded runs
+// cover the red commit `from` whose failed test files are `files`. Failing that, a record with no failed file takes the latest
+// commit `cleanTip` accepts, flagged. Undefined where nothing covers. Refuses where git cannot list the commits.
 function closerOf(ctx, from, files) {
   const { g, tip, events, resolveBase } = ctx;
   const list = gitSpawn(['rev-list', '--reverse', '--topo-order', '--ancestry-path', `${from}..${tip}`], g.cwd);
   if (list.status !== 0) fail(`red-evidence: cannot list the commits from ${from} to ${tip}: ${(list.stderr || '').trim() || `git exited ${list.status}`}`);
-  return list.stdout.split('\n').filter(Boolean).find((c) => covers(g, events, c, from, files, resolveBase));
+  const commits = list.stdout.split('\n').filter(Boolean);
+  const strict = commits.find((c) => covers(g, events, c, from, files, resolveBase));
+  if (strict) return { commit: strict };
+  const clean = files.length ? undefined : commits.filter((c) => cleanTip(g, events, c, from)).pop();
+  return clean && { commit: clean, cleanTip: true };
 }
 
 // The lines the check status raises: the verdict line `ci: <verdict> <sha>` and, only for a failed verdict on a head that is the
@@ -90,7 +125,7 @@ function ciLines(ctx, head, file) {
   const lines = [`ci: ${judged.kind} ${judged.at}${judged.reason ? ' ' + judged.reason : ''}${behind ? ' (head is no ancestor of the tip)' : ''}`];
   if (judged.kind === 'failed' && !behind) {
     const closer = closerOf(ctx, judged.at, []);
-    if (closer) lines.push(`covered ${judged.at} by ${closer}`);
+    if (closer) lines.push(coveredLine(judged.at, closer));
     else for (const s of judged.standing.filter((x) => x.kind === 'failed')) lines.push(`ci-failed ${s.name} ${s.link || '-'} ${judged.at}`);
   }
   return lines;
