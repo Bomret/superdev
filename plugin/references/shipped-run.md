@@ -48,7 +48,8 @@ call and writes nothing. The caller reads the store and hands over what it read,
 2. **The deploy facts.** `--merge <sha>` names the merge commit, read per `## Reading the posture at the merge commit` steps 1 and 2;
    a ledger with no `**PR:**` header hands no `--merge`, and the verb reads posture `none`. One `--target <name>` per target the
    anchor's `**Deploy:**` line lists, read per that section's step 3. The verb reads the deploy record from the ledger.
-3. **The repairs.** Only when the call answers `needs-repairs`. Take this run's anchor key from
+3. **The repairs.** `/superdev:verify-ship` reads them before its first observation, to cite them in each `not met:` note it writes.
+   A caller that only routes reads them when the call answers `needs-repairs`. Take this run's anchor key from
    `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get anchor --root <run-root>`, the part before ` — `.
    List the store's anchors through `docs/agents/issue-tracker.md`'s `## Scope anchor` **List the
    candidates** call, which returns open and closed anchors alike, and read each anchor's line through that
@@ -88,7 +89,7 @@ report, or `/superdev:submit-pr`'s standing-entry ask — and nothing has observ
 it yet: its line is an open line that no observation has judged, so verify-ship observes each such line first.
 
 **A run with no local ledger** — an anchor whose `## Run state` snapshot alone reads `shipped`
-(`## Adopting a shipped original` below) — hands the anchor's Definition of Done on stdin and an empty `mktemp -d` directory as `--root`, takes step 3's anchor key
+(`## Adopting a shipped original` below) — hands the anchor's Definition of Done on stdin and an empty `mktemp -d` directory as `--root` that the caller removes after the call, takes step 3's anchor key
 from that anchor itself, and has no deploy record. The verb routes it to `verify-ship` ahead of `wrap-up`:
 `/superdev:verify-ship <scope>` adopts the run root first and reads the record there.
 
