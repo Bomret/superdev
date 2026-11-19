@@ -5,7 +5,7 @@
 const { gitSpawn, refResolves } = require('./git-spawn.js');
 
 // `references/scope-branch.md` `## Containment`. Exported for `publish-kb.js` and `hooks/scope-prune.js` to
-// `require`, and no CLI verb, because this touches no ledger.
+// `require`; `lib/contained.js` prints it as the `contained` verb, and this touches no ledger.
 //
 // A Containment verdict is one of three strings:
 //   'contained'         — base already holds every byte of branch's work
@@ -213,15 +213,17 @@ function testContainment(cwd, base, branch, remote = 'origin') {
 }
 
 // The same test, returning what a caller that must tell an undecided verdict apart needs beside it (`push.js`,
-// INV-0009): `verdict`, `refetch` (the refetch's spawn result, or null when no refetch ran), and `judgedBase`
-// (the base the verdict was judged against: `base`, or the commit id the refetch brought). `fetchTimeoutMs`
-// replaces the refetch's bound.
+// INV-0009): `verdict`, `refetch` (the refetch's spawn result, or null when no refetch ran), `judgedBase`
+// (the base the verdict was judged against: `base`, or the commit id the refetch brought), and `fallback` (true when
+// the git lacks `--write-tree` and the ancestry fallback judged). `fetchTimeoutMs` replaces the refetch's bound.
 function judgeContainment(cwd, base, branch, remote = 'origin', { fetchTimeoutMs = FETCH_TIMEOUT_MS } = {}) {
-  const result = (verdict, refetch = null, judgedBase = base) => ({ verdict, refetch, judgedBase });
+  let fallback = false;
+  const result = (verdict, refetch = null, judgedBase = base) => ({ verdict, refetch, judgedBase, fallback });
   const ref = qualifyBranch(branch, cwd);
   if (!refResolves(ref, cwd)) return result('could-not-resolve');
 
   const writeTreeSupported = supportsWriteTree(cwd);
+  fallback = !writeTreeSupported;
   const local = containedAgainst(ref, base, cwd, writeTreeSupported);
   if (local === 'contained') return result('contained');
   if (local === 'inconclusive' && heldInHistory(cwd, base, ref, writeTreeSupported)) return result('contained');

@@ -3,7 +3,7 @@
 
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
 // Verbs: open, init, stage, step, slice, degraded, unresolved, deferred, minors, docs, pr, deploy, suite, base, get, status,
-// publish, adopt, trace, windows, untraced, fail-to-pass-check, collisions, citations, source-set, push, root, staging, dod-line, dod-tags, dod-check, ci, section; `main()` also runs test, fail-to-pass, and prepare. Exit
+// publish, adopt, trace, windows, untraced, fail-to-pass-check, collisions, citations, source-set, push, root, staging, dod-line, dod-tags, dod-check, ci, section, contained; `main()` also runs test, fail-to-pass, and prepare. Exit
 // nonzero with a one-line stderr reason on any refusal. Every verb that writes to a run first checks the run's
 // digest sidecar and reports an outside edit of its ledger or trace once (lib/run-check.js, ADR 0227).
 // `root` and `dod-line` touch no ledger: `root` resolves a run root's absolute
@@ -54,6 +54,7 @@ const libPlanOpen = () => require('../lib/plan-open.js');
 const libDiscard = () => require('../lib/discard.js');
 const libCi = () => require('../lib/ci.js');
 const libSection = () => require('../lib/section.js');
+const libContained = () => require('../lib/contained.js');
 const libUsage = () => require('../lib/usage.js');
 
 // --- root: the verbs over `lib/main-work-tree.js`'s run-root resolver (ADR 0080) -----------------
@@ -445,6 +446,10 @@ function run(argv, cwd, stdinJson) {
     // Reads one file and writes nothing: the heading line of the section to print arrives on stdin (INV-0141, INV-0196).
     case 'section':
       libSection().verbSection(cwd, args, stdinJson);
+      break;
+    // No --root: contained reads git and writes no ledger, trace, or digest; the test writes tree objects and the refetch `FETCH_HEAD` (ADR 0065, INV-0195).
+    case 'contained':
+      libContained().verbContained(cwd, args);
       break;
     // No --root: dod-check checks an anchor body on stdin, no ledger, no trace, no store call (ADR 0233).
     case 'dod-check':
