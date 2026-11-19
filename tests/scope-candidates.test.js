@@ -77,6 +77,14 @@ const run = (repo, stage, cwd) => {
   assert.strictEqual(run(repo, 'implementing'), 'none\na absent\nb unreadable\nc merged');
 }
 
+// Every verdict word stays one token: a run root whose directory name fails the slug charset is left out, and a stage value
+// outside the ledger's stages reads `unreadable` and never qualifies.
+{
+  const repo = setup({ 'two words': ledgerAt('merged'), 'line\nbreak': ledgerAt('merged'), b: ledgerAt('implementing-ish'), c: ledgerAt('merged') });
+  assert.strictEqual(run(repo, 'merged'), 'one c merged');
+  assert.strictEqual(run(repo, 'implementing'), 'none\nb unreadable\nc merged');
+}
+
 // An unknown stage name is refused, with no verdict printed.
 {
   const repo = setup({ a: ledgerAt('merged') });
@@ -91,7 +99,11 @@ const run = (repo, stage, cwd) => {
   const repo = setup({ a: ledgerAt('merged') });
   assert.strictEqual(call(['candidates'], '', repo).ok, false);
   assert.strictEqual(call(['candidates', '--stage', ''], '', repo).ok, false);
-  assert.strictEqual(call(['candidates', '--stage', 'merged', 'extra'], '', repo).ok, false);
+  for (const extra of ['extra', '--bogus']) {
+    const r = call(['candidates', '--stage', 'merged', extra], '', repo);
+    assert.strictEqual(r.ok, false, `${extra} refuses`);
+    assert.strictEqual(r.out, '', `a refused ${extra} prints no verdict`);
+  }
 }
 
 // The same result from the main checkout and from a scopetree: the scan resolves through the main working tree.

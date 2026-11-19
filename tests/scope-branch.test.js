@@ -102,7 +102,11 @@ assert.ok(!verdict(setup({ local: ['feat/x', 'fix/x'] })).includes('\n'), 'one v
 {
   const s = setup({});
   assert.strictEqual(call(['branch'], '', s.repo).ok, false, 'no --root refuses');
-  assert.strictEqual(call(['branch', '--root', s.root, 'extra'], '', s.repo).ok, false, 'an extra argument refuses');
+  for (const extra of ['extra', '--bogus']) {
+    const r = call(['branch', '--root', s.root, extra], '', s.repo);
+    assert.strictEqual(r.ok, false, `${extra} refuses`);
+    assert.strictEqual(r.out, '', `a refused ${extra} prints no verdict`);
+  }
 }
 
 // A relative --root resolves against the cwd, so the ledger is read from a cwd other than the repository root.

@@ -5,11 +5,12 @@
 
 const path = require('path');
 const { fail } = require('./refusal.js');
-const { readLines, getHeader, STAGES } = require('./ledger.js');
+const { readLines, getHeader, SLUG_RE, STAGES } = require('./ledger.js');
 const { scanRunRoots } = require('./run-roots.js');
 
 // Prints `one <slug> <stage>`; `several` then one `<slug> <stage>` line per candidate; or `none` then one line per run root with its
-// stage. A run root whose ledger names no stage reads `absent`, and one whose ledger cannot be read reads `unreadable`: neither qualifies.
+// stage. A run root whose ledger names no stage reads `absent`, and one whose ledger cannot be read or names a stage outside the ledger's
+// stages reads `unreadable`: neither qualifies. A run root whose directory name fails the slug charset is left out, so every slug is one token.
 function verbCandidates(cwd, args) {
   const i = args.indexOf('--stage');
   if (i < 0 || !args[i + 1]) fail('candidates: --stage <stage>[,<stage>] is required');
@@ -19,14 +20,14 @@ function verbCandidates(cwd, args) {
   const unknown = wanted.find((s) => !STAGES.includes(s));
   if (unknown !== undefined) fail(`candidates: unknown stage "${unknown}" (stages: ${STAGES.join(', ')})`);
   const { scopesDir, names } = scanRunRoots(cwd);
-  const roots = names.sort().map((slug) => {
+  const roots = names.filter((slug) => SLUG_RE.test(slug)).sort().map((slug) => {
     let stage;
     try {
       stage = getHeader(readLines(path.join(scopesDir, slug)), 'Stage') || 'absent';
     } catch {
       stage = 'unreadable';
     }
-    return { slug, stage };
+    return { slug, stage: stage === 'absent' || STAGES.includes(stage) ? stage : 'unreadable' };
   });
   const found = roots.filter((r) => wanted.includes(r.stage));
   const line = (r) => `${r.slug} ${r.stage}`;

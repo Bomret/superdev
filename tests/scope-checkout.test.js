@@ -158,7 +158,11 @@ assert.strictEqual(verdict(setup({ stage: 'closed' })), 'absent-terminal closed'
 // Argument handling matches the branch verb.
 {
   const s = setup();
-  assert.ok(!call(['checkout', '--root', s.root, 'extra'], '', s.repo).ok, 'a leftover argument is refused');
+  for (const extra of ['extra', '--bogus']) {
+    const r = call(['checkout', '--root', s.root, extra], '', s.repo);
+    assert.strictEqual(r.ok, false, `${extra} refuses`);
+    assert.strictEqual(r.out, '', `a refused ${extra} prints no verdict`);
+  }
   assert.ok(!call(['checkout', '--root', path.join(s.root, 'nope')], '', s.repo).ok, 'a root that is no directory is refused');
 }
 
