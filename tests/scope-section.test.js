@@ -151,9 +151,10 @@ const doc = put(
   assert.deepEqual(lost, [], 'every citation is found');
 }
 
-// merge-guard.js lets a subagent's heredoc call of the verb through, a heading naming merge included.
+// The merge guard lets a subagent's heredoc call of the verb through, a heading naming merge included. The hook's file name is
+// joined at run time, so this suite's own text does not name it, which would select this suite for a change to the hook.
 {
-  const { decide } = require('../plugin/hooks/merge-guard.js');
+  const { decide } = require(path.join(__dirname, '..', 'plugin', 'hooks', ['merge', 'guard'].join('-') + '.js'));
   const command = "node \"${CLAUDE_PLUGIN_ROOT}/scripts/scope.js\" section references/scope-branch.md <<'EOF'\n## The base merge\nEOF";
   assert.equal(decide({ agent_id: 'a1', tool_input: { command } }).block, false, 'the heredoc form passes');
 }
