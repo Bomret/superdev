@@ -8,8 +8,8 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
   feature label your command already resolved before reading this file — gets the liveness check first,
   ahead of every other step below.** `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" root <scope>` names
   the path; a `ledger.md` there means this is a `resumed` run, not a `fresh` one, and
-  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The run lock` owns the check itself — the
-  ledger's stage read together with the lock's mtime, before the DoD write, the ledger-stage advance, or
+  call `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" lock --root <run-root>` and act on its verdict as
+  `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The run lock` states, before the DoD write, the ledger-stage advance, or
   the playbook's own later `## Run lock` step touch anything. No existing run root → nothing to check
   yet; continue to the next bullet, which is where a `fresh` run's own root gets created.
 - **A run whose wrap-up has not closed it stops here, ahead of every step that writes** — the
