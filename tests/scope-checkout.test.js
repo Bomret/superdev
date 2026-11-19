@@ -115,6 +115,17 @@ assert.strictEqual(verdict(setup({ stage: 'closed' })), 'absent-terminal closed'
   assert.strictEqual(verdict(s), `present ${real(s.tree)}`, 'a guessed branch is the branch checked');
 }
 
+// A scopetree path holding a newline still reads present.
+{
+  const s = setup();
+  const root = path.join(s.repo, '.superdev', 'odd\ndir', 'x');
+  fs.mkdirSync(root, { recursive: true });
+  fs.copyFileSync(path.join(s.root, 'ledger.md'), path.join(root, 'ledger.md'));
+  const tree = path.join(root, 'scopetree');
+  git(['worktree', 'add', '-q', tree, 'feat/x'], s.repo);
+  assert.strictEqual(verdict(s, root), `present ${real(tree)}`, 'a newline in the scopetree path prints present');
+}
+
 // A git failure passes through as git-failed, from the run read outside any repository.
 {
   const s = setup();
