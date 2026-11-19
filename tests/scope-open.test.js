@@ -190,9 +190,10 @@ try {
     const hung = open(f);
     assert.strictEqual(hung.status, 3, `a refetch its bound ended exits 3: ${hung.out}`);
     assert.strictEqual(hung.out.trimEnd().split('\n').pop(), 'refetch timed-out', `a refetch the configured bound ended is marked: ${hung.out}`);
-    // A remote that answers after 6 s, past the 5 s built-in refetch bound, under a configured bound above that wait plus a
-    // healthy fetch: the refetch brings the base, so the stop is the verdict and carries no mark.
-    writeOperatorConfig(f.repo, { 'code-host': { pushTimeoutMs: 6000 + bound } });
+    // A remote that answers after 6 s, past the 5 s built-in refetch bound, under a configured bound well above that wait plus a
+    // healthy fetch (ten of this run's measured bounds, so a loaded machine still clears it): the refetch brings the base, so
+    // the stop is the verdict and carries no mark.
+    writeOperatorConfig(f.repo, { 'code-host': { pushTimeoutMs: 6000 + 10 * bound } });
     const slow = path.join(f.repo, '..', 'slow.sh');
     fs.writeFileSync(slow, '#!/bin/sh\nsleep 6\nexec git-upload-pack "$@"\n', { mode: 0o755 });
     uploadpack(slow);
