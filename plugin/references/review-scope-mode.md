@@ -202,9 +202,9 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - **Noted `accepted:`** → tick it only when the verdict cites evidence, observed on the branch, that the criterion is now met. Write no fresh `accepted:` note yourself.
 - **A line that genuinely needs a deploy to verify** is never ticked on a `holds` verdict.
 
-**The stage hold.** Applies to every stage write of this review. The stage does not advance while any `dod.md` line is an open line by `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule`.
+**The stage hold.** Applies to every stage write of this review. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-open --root <run-root>` before the write. Its last line, `stage-hold: yes`, holds the stage, and `stage-hold: no` lets the write proceed. A refused `dod.md`, or `no criteria`, holds the stage too (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule`, `**The listing verb.**`).
 
-- These lines hold no stage: a line noted `ceiling:`, a line noted `accepted:`, and a `docs` line. A `ceiling:` line stays an open line; it only holds no stage before the merge.
+- The verb counts these lines as holding no stage: a line noted `ceiling:`, a line noted `accepted:`, and a `docs` line. A `ceiling:` line stays an open line; it only holds no stage before the merge.
 
 **A criterion missing from `dod.md`.** Applies to a criterion `final-reviewer` finds missing. Write no new line into `dod.md`.
 
