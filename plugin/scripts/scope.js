@@ -3,7 +3,7 @@
 
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
 // Verbs: open, init, stage, step, slice, degraded, unresolved, deferred, minors, docs, pr, deploy, suite, base, get, status,
-// publish, adopt, trace, windows, untraced, collisions, citations, source-set, push, root, staging, dod-line, dod-tags, dod-check, ci; `main()` also runs test, fail-to-pass, and prepare. Exit
+// publish, adopt, trace, windows, untraced, fail-to-pass-check, collisions, citations, source-set, push, root, staging, dod-line, dod-tags, dod-check, ci; `main()` also runs test, fail-to-pass, and prepare. Exit
 // nonzero with a one-line stderr reason on any refusal. Every verb that writes to a run first checks the run's
 // digest sidecar and reports an outside edit of its ledger or trace once (lib/run-check.js, ADR 0227).
 // `root` and `dod-line` touch no ledger: `root` resolves a run root's absolute
@@ -41,6 +41,7 @@ const libStatus = () => require('../lib/status.js');
 const libRunSupervision = () => require('../lib/run-supervision.js');
 const libTestVerb = () => require('../lib/test-verb.js');
 const libFailToPass = () => require('../lib/fail-to-pass.js');
+const libFailToPassCheck = () => require('../lib/fail-to-pass-check.js');
 const libPrepare = () => require('../lib/prepare.js');
 const libCitations = () => require('../lib/citations.js');
 const libSourceSet = () => require('../lib/source-set.js');
@@ -416,6 +417,10 @@ function run(argv, cwd, stdinJson) {
     // No --root: citations reads git only and touches no ledger (ADR 0156).
     case 'citations':
       libCitations().verbCitations(cwd, args);
+      break;
+    // Reads git and the run's trace and writes nothing, and runs no test (ADR 0260); it takes `--root` itself.
+    case 'fail-to-pass-check':
+      libFailToPassCheck().verbFailToPassCheck(cwd, args);
       break;
     // Reads git and the run's trace and writes nothing (ADR 0227); `verbUntraced` takes `--root` itself.
     case 'untraced':

@@ -69,13 +69,13 @@ Applies to every review of a `behavior` slice.
 
 Read the slice's run-trace lines with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --slice <id> --root <run-root>`, narrowed with `--kind <kind>[,<kind>]`, `--window <dispatch id>`, or `--last <n>` to the lines a section asks for. List the slice's windows with `scope.js windows --slice <id> --root <run-root>`. Apply `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/fail-to-pass.md` and `## Untraced writes` in `${CLAUDE_PLUGIN_ROOT}/references/untraced-writes.md`.
 
-- `## Fail-to-pass run` owns **Pass-to-pass** and **Missing fail-to-pass run**, with their severity, their no-trace rules, and their closing rules.
-- `## Untraced writes` owns the listing `scope.js untraced` prints for each window of a full-tier slice and of its fix cycles, and the **Implementer suite run** finding. Run the listing for each window `scope.js windows` lists with commits, its dispatch id as `--window`, grade each listed path, and count the listed paths as change events for **Missing fail-to-pass run**: a window with untraced writes and no `edit` line is held to that rule like any other.
+- `## Fail-to-pass run` owns **Pass-to-pass** and **Missing fail-to-pass run**, with their severity and the judgments you keep. Get each range's mechanical verdict with `scope.js fail-to-pass-check <base>..<tip> --slice <id> --window <dispatch id> --root <run-root>`, the window the build or fix run whose commits end at the range's tip.
+- `## Untraced writes` owns the listing `scope.js untraced` prints for each window of a full-tier slice and of its fix cycles, and the **Implementer suite run** finding. Run the listing for each window `scope.js windows` lists with commits, its dispatch id as `--window`, and grade each listed path.
 - Judge each range the dispatch names.
 - Name the range in each **Pass-to-pass** and **Missing fail-to-pass run** finding, both ends full commits.
 - Mark each unclosable **Pass-to-pass** finding as that section states, with its case and reason, at every review against the current range. An implementer's claim of a case is input you check, never your verdict.
 - A Minor sweep re-review's dispatch hands each unclosable **Pass-to-pass** finding the last re-review listed, with its range, as quoted data. Restate each with its mark re-judged against the range from that finding's base to the current tip, or report it closable or closed.
-- Read an outcome line from the trace only. The implementer's account is no outcome line, and the dispatch carries none.
+- Take a range's verdict from `fail-to-pass-check` only. The implementer's account is no verdict, and the dispatch carries none.
 - `## Fail-to-pass run` states how a `settled-from-trace` outcome line counts.
 - The controller applies the 3-cycle fix cap and the early escape for an unclosable finding.
 - Each `unknown` outcome `## Fail-to-pass run` has you name goes under `### Fail-to-pass unknown`.

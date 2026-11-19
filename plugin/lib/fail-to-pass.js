@@ -69,6 +69,16 @@ const SETTLED_FROM_TRACE = 'settled-from-trace';
 // ledger row records exactly this range, else the one the run's directory attributes to, else `scope`. The control run also
 // writes a `path` run line naming the range's test files, attributed the same way (ADR 0175, ADR 0182).
 
+// A `fail-to-pass` trace line as its outcome: { base, tip, outcome, reason, command } with the range's sides as recorded and the
+// command decoded, or null for any other line. The one reader of the outcome line's layout.
+function outcomeOf(e) {
+  if (e.kind !== 'fail-to-pass') return null;
+  const [range, outcome, reason, command] = e.fields;
+  const [base, tip, ...more] = (range || '').split('..');
+  if (!base || !tip || more.length) return null;
+  return { base, tip, outcome, reason: untraceField(reason || '-'), command: untraceField(command || '-') };
+}
+
 // The id of the ledger row whose range cell names exactly `base..tip`, each side read as a commit (a row may carry
 // abbreviated ones), or null.
 function sliceOfRange(root, base, tip, cwd) {
@@ -269,7 +279,7 @@ async function verbFailToPass(cwd, args) {
       // written in the same instant both read no earlier one and both say so; capture reads before it writes, so a
       // duplicate record is the worst case.
       const seenUnknown = () => {
-        try { return readTrace(fs.readFileSync(path.join(at.runRoot, 'trace.log'), 'utf8')).some((e) => e.kind === 'fail-to-pass' && e.fields[1] === 'unknown'); } catch { return false; }
+        try { return readTrace(fs.readFileSync(path.join(at.runRoot, 'trace.log'), 'utf8')).some((e) => outcomeOf(e)?.outcome === 'unknown'); } catch { return false; }
       };
       if (at && outcome === 'unknown' && !seenUnknown()) process.stderr.write("fail-to-pass: the scope run's first unknown outcome: capture an observation naming the environment gap (references/scope-findings.md, `## Observations`)\n");
       if (at && !appendTrace(at.runRoot, { slice, kind: 'fail-to-pass', fields: [`${base}..${tip}`, outcome, reason, command] })) {
@@ -352,4 +362,4 @@ async function verbFailToPass(cwd, args) {
   }
 }
 
-module.exports = { verbFailToPass, failToPassBoundMs, failToPassFloorMs, failToPassControlMs };
+module.exports = { verbFailToPass, outcomeOf, failToPassBoundMs, failToPassFloorMs, failToPassControlMs };

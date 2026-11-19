@@ -32,8 +32,8 @@ recorded range has none to list: the report names the gap.
   window's write, because each call passes its own window.
 - Grade each listed path as a hunk of the diff: read its change under the lenses, and give it the severity the entry it falls under
   states. A write through a shell is no defect of its own: a `git mv`, a formatter, and a generator are ordinary.
-- A listed path counts as an `edit test` event where it is a test path and as an `edit impl` event otherwise, for **Missing
-  fail-to-pass run**. A slice or a fix cycle with untraced writes and no `edit` line is held to that rule like any other.
+- `fail-to-pass-check` (`fail-to-pass.md`'s `### The verdict`) reads every path the range's commits change, a listed one included,
+  so a write through a shell reaches the fail-to-pass verdict like any other.
 - A call that refuses names the reason: the report names the window the call could not read, and the review raises no finding for it.
 
 **Implementer suite run** — a `run full` or `run whole` line inside an `implementer` window, read with
