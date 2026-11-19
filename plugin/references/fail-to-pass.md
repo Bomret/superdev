@@ -23,7 +23,7 @@ and its whole trace counts. The verb prints exactly one line:
 |---|---|---|
 | `fail-to-pass <range> <command>` | The latest deciding outcome line over the range shows its tests fail without the change. | **Command coverage** below. |
 | `pass-to-pass <range> <command>` | The latest deciding outcome line shows the tests pass without the change. | **Command coverage**, then **Pass-to-pass**, and whether **Unclosable Pass-to-pass** applies. |
-| `closed <range> <command>` | A later `fail-to-pass` line from the `pass-to-pass` line's base closes that finding. It stays closed. | **Command coverage** of the closing line. |
+| `closed <range> <command>` | A later `fail-to-pass` line from the `pass-to-pass` line's base closes that finding, in a later window too where you pass `--window`. It stays closed. | **Command coverage** of the closing line. |
 | `unknown <reason> …` | Only `unknown` lines cover the range (`### An unknown outcome`), or a gap: `no-trace` (the slice has no trace line), `no-change` (the range changes no file). | Name it in your report. It raises no finding. |
 | `missing` | The range changes a test-path file, not only by deletion, and another file, and no outcome line covers it. | **Missing fail-to-pass run**. |
 | `test-only` | The range changes only test-path files, and no outcome line covers it. | **Behaviour judgment**. |
