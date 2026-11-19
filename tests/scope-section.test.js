@@ -106,6 +106,19 @@ const doc = put(
   refused(call(['section', doc], 'not a heading\n', dir), 'doc.md');
 }
 
+// A setext heading in the printed span cannot be placed by the verb, so it refuses and names the file.
+{
+  const f = put('setext.md', '## A\na1\nTitle\n=====\nt1\n## B\nb1\n');
+  const r = section(f, '## A');
+  assert.equal(r.ok, false);
+  assert.equal(r.out, '', 'nothing printed');
+  assert.ok(r.err.includes('setext.md') && /setext/.test(r.err), 'the refusal names the file and the setext heading: ' + r.err);
+  const fenced = put('setext-fenced.md', '## A\n```\nTitle\n=====\n```\na1\n## B\n');
+  assert.equal(section(fenced, '## A').out, '## A\n```\nTitle\n=====\n```\na1', 'an underline inside a fence is no setext heading');
+  const rule = put('rule.md', '## A\na1\n\n---\nb\n## B\n');
+  assert.equal(section(rule, '## A').out, '## A\na1\n\n---\nb', 'a thematic break after a blank line is no setext underline');
+}
+
 // A heading holding backticks, apostrophes, and angle brackets matches as typed.
 {
   const f = put('odd.md', "## The `base` merge's <x>\nbody\n## Next\n");
@@ -118,6 +131,13 @@ const doc = put(
   assert.ok(section('implementer.md', '## Report').ok, 'a bare name then agents/');
   assert.ok(section('references/test-selection.md', '## Complete selector').ok, 'a path under the plugin root');
   assert.ok(section('${CLAUDE_PLUGIN_ROOT}/references/test-selection.md', '## Complete selector').ok, 'a ${CLAUDE_PLUGIN_ROOT} path');
+  // The same name under the plugin root and the current directory: the plugin's file wins.
+  put('references/test-selection.md', '## Complete selector\nCWD-PATH-COPY\n');
+  put('test-selection.md', '## Complete selector\nCWD-BARE-COPY\n');
+  for (const name of ['test-selection.md', 'references/test-selection.md']) {
+    const r = section(name, '## Complete selector');
+    assert.ok(r.ok && !r.out.includes('CWD-'), `${name}: the plugin's file wins over the current directory's: ` + r.out);
+  }
   put('docs/agents/own.md', '## Mine\nmine\n');
   assert.equal(section('docs/agents/own.md', '## Mine').out, '## Mine\nmine', 'any other relative path reads the current directory');
 }

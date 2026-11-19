@@ -5,7 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const { fail } = require('./refusal.js');
-const { maskFencedLines, headingKeyOf, headingLevel, readLines } = require('./md-sections.js');
+const { maskFencedLines, headingKeyOf, headingLevel, hasSetextHeading, readLines } = require('./md-sections.js');
 
 const PLUGIN_ROOT = path.join(__dirname, '..');
 const ROOT_VAR = '${CLAUDE_PLUGIN_ROOT}';
@@ -23,7 +23,8 @@ function resolveFile(cwd, name) {
 }
 
 // `section <file>`, the heading line on stdin: prints the heading line through the line before the next heading of the same
-// or a higher level, outside fences, or through end of file. A heading is found by its level and whole text.
+// or a higher level, outside fences, or through end of file. A heading is found by its level and whole text. A setext heading (`md-sections.js`'s
+// `hasSetextHeading`) inside the span makes the end unknowable, so the verb refuses.
 function verbSection(cwd, args, input) {
   if (!args[0]) fail('section needs a <file>');
   const wanted = headingKeyOf((input || '').replace(/\r\n/g, '\n').split('\n').find((l) => l.trim() !== '') || '');
@@ -55,6 +56,9 @@ function verbSection(cwd, args, input) {
       end = i;
       break;
     }
+  }
+  if (hasSetextHeading(masked, hits[0], end)) {
+    fail(`section: ${args[0]} may hold a setext heading inside "${wanted}", so where the section ends is unknown`);
   }
   const body = lines.slice(hits[0], end);
   while (body.length > 1 && body[body.length - 1].trim() === '') body.pop();
