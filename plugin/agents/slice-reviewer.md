@@ -49,7 +49,7 @@ The dispatch hands the sweep's range in place of a slice `spec`, with both ends 
 - Your blind pass covers the range, and you open the sweep log after it, as `## Re-review` states.
 - Judge each collected Minor against the code at the current tip: closed, or still open. A copy a later slice made is the same Minor. Collapse duplicates into one entry and name the Minors it absorbs. A Minor a later slice already resolved closes with the evidence, whether or not the range holds a change for it.
 - Report every defect the range's commits introduced, Minors included, with its severity.
-- Read the trace with `scope.js trace --slice scope --root <run-root>` and apply `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/fail-to-pass.md` and `## Untraced writes` in `${CLAUDE_PLUGIN_ROOT}/references/untraced-writes.md` to the range.
+- Read the trace with `scope.js trace --slice scope --root <run-root>`, narrowed with `--kind`, `--window <dispatch id>`, or `--last <n>` to the lines a section asks for, and apply `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/fail-to-pass.md` and `## Untraced writes` in `${CLAUDE_PLUGIN_ROOT}/references/untraced-writes.md` to the range.
 - The specification verdict reads ✅ when every collected Minor is closed or fixed at the current tip, and ❌ otherwise.
 - The controller applies the sweep's 3-cycle cap.
 
@@ -67,10 +67,10 @@ Settle your verdict before you open the progress log (`## Reading the progress l
 
 Applies to every review of a `behavior` slice.
 
-Read the slice's run-trace lines with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --slice <id> --root <run-root>`. Apply `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/fail-to-pass.md` and `## Untraced writes` in `${CLAUDE_PLUGIN_ROOT}/references/untraced-writes.md`.
+Read the slice's run-trace lines with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --slice <id> --root <run-root>`, narrowed with `--kind <kind>[,<kind>]`, `--window <dispatch id>`, or `--last <n>` to the lines a section asks for. List the slice's windows with `scope.js windows --slice <id> --root <run-root>`. Apply `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/fail-to-pass.md` and `## Untraced writes` in `${CLAUDE_PLUGIN_ROOT}/references/untraced-writes.md`.
 
 - `## Fail-to-pass run` owns **Pass-to-pass** and **Missing fail-to-pass run**, with their severity, their no-trace rules, and their closing rules.
-- `## Untraced writes` owns the listing `scope.js untraced` prints for each window of a full-tier slice and of its fix cycles, and the **Implementer suite run** finding. Run the listing for each window with commits, grade each listed path, and count the listed paths as change events for **Missing fail-to-pass run**: a window with untraced writes and no `edit` line is held to that rule like any other.
+- `## Untraced writes` owns the listing `scope.js untraced` prints for each window of a full-tier slice and of its fix cycles, and the **Implementer suite run** finding. Run the listing for each window `scope.js windows` lists with commits, its dispatch id as `--window`, grade each listed path, and count the listed paths as change events for **Missing fail-to-pass run**: a window with untraced writes and no `edit` line is held to that rule like any other.
 - Judge each range the dispatch names.
 - Name the range in each **Pass-to-pass** and **Missing fail-to-pass run** finding, both ends full commits.
 - Mark each unclosable **Pass-to-pass** finding as that section states, with its case and reason, at every review against the current range. An implementer's claim of a case is input you check, never your verdict.
@@ -155,7 +155,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`. Apply its anti-patt
 
 Applies to every review.
 
-Run no test. Read the slice's recorded runs with `scope.js trace --slice <id>` and judge whether they cover the changed code. Trust no green result or met criterion the implementer reports.
+Run no test. Read the slice's recorded runs with `scope.js trace --slice <id> --kind run` and judge whether they cover the changed code. Trust no green result or met criterion the implementer reports.
 
 - The recorded runs are the implementer's per-increment test-file runs, its final run, and the `path` line of any fail-to-pass control run. The scope review's runs cover what they leave out.
 - A `run` line backs a passing result for its tests when it reads `pass`, its commit is the reviewed tip, and its tree reads `clean`.
