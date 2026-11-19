@@ -34,7 +34,7 @@ Applies to every start. Ask no extra question.
 
 Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`.
 
-**The chained staged pages.** Applies to a start `/superdev:ship`'s wrap-up route or `/superdev:verify-ship`'s settled exit made, on every message it ends on before §7, a refusal and a stop included. The starter named no staged pages on its Next block, so name them here per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close`. A count above zero puts `/superdev:publish-kb <scope>` on an `Or:` line of the Next block. §7's finish names them on its own exit.
+**The chained staged pages.** Applies to a start `/superdev:ship`'s wrap-up route or `/superdev:verify-ship`'s settled exit made, on every message it ends on before §7, a refusal and a stop included. The starter named no staged pages on its Next block, so name them here with the line `scope.js staging <scope> --line` prints, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close`. A count above zero puts `/superdev:publish-kb <scope>` on an `Or:` line of the Next block. §7's finish names them on its own exit.
 
 ## 1. Scope + run root
 
@@ -130,7 +130,7 @@ Applies once the gate passed. Read every bullet from the `unresolved` field of t
 
 **The stage write.** Applies after §6. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set closed --root <run-root>`. Then publish the snapshot per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section.
 
-**The staged pages.** Applies after the stage write. Name the scope's staged pages per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close`.
+**The staged pages.** Applies after the stage write. Name the scope's staged pages with the line `scope.js staging <scope> --line` prints, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close`.
 
 - **A count above zero** → print `/superdev:publish-kb <scope>` as the next command.
 - **A count of zero, or a failed read** → the Next block says no command follows.
