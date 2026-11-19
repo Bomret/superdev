@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { maskFencedLines, headingKeyOf, readLines } = require('../../../plugin/lib/md-sections.js');
-const { docPath, readDoc, missingDoc, normalizeWhitespace } = require('../lib');
+const { docPath, readDoc, missingDoc } = require('../lib');
 const {
   REFERENCE_PATTERN,
   RUN_ROOT_DOCS,
@@ -95,8 +95,9 @@ function scanGovernedSkillFiles(root) {
 }
 
 // scanHeadingCitations(): every "`<file>.md`'s `## Heading`" citation (a heading of level two to four) in
-// shipped prose names a heading the cited file carries, at that level. Whitespace collapses on both sides,
-// so a heading wrapped across a line break matches. A bare file name resolves the way the other checks
+// shipped prose names a heading the cited file carries, at that level. A line break in a citation reads as
+// one space, so a heading wrapped across a line break matches; a run of spaces within a line stays, as the verb reads it.
+// A cited file with an unterminated fence is one gap (`unterminated`), whatever it is cited for. A bare file name resolves the way the other checks
 // resolve one: `references/<name>`, then `agents/<name>`, then the repository root; a name with a `/` resolves
 // from the plugin root, then the repository root. A file that resolves nowhere is a finding here, except a
 // `references/<name>.md` path, which the `reference` check already reports. A section map entry,
@@ -104,17 +105,23 @@ function scanGovernedSkillFiles(root) {
 function scanHeadingCitations(root) {
   const gaps = [];
   const headingsOf = new Map();
+  const reportedOpen = new Set();
   const headings = (file) => {
     if (!headingsOf.has(file)) {
       const lines = readLines(fs.readFileSync(file, 'utf8'));
       let masked = lines;
+      let unterminated = false;
       try {
         masked = maskFencedLines(lines, file, 'checked');
       } catch (e) {
         if (!e.isRefusal) throw e;
         masked = lines.map(() => '');
+        unterminated = true;
       }
-      headingsOf.set(file, new Set(masked.filter((l) => /^ {0,3}#{2,4}\s/.test(l)).map(headingKeyOf)));
+      headingsOf.set(file, {
+        unterminated,
+        keys: new Set(masked.filter((l) => /^ {0,3}#{2,4}\s/.test(l)).map(headingKeyOf)),
+      });
     }
     return headingsOf.get(file);
   };
@@ -129,9 +136,16 @@ function scanHeadingCitations(root) {
       if (!/^references\/[a-zA-Z0-9_-]+\.md$/.test(name)) gaps.push({ source, cited: name, missing: true });
       return;
     }
+    const { unterminated, keys } = headings(cited);
+    if (unterminated) {
+      if (!reportedOpen.has(cited)) gaps.push({ source, cited: name, unterminated: true });
+      reportedOpen.add(cited);
+      return;
+    }
     for (const [level, text] of spans) {
-      const heading = headingKeyOf(`${level} ${normalizeWhitespace(text)}`);
-      if (!headings(cited).has(heading)) gaps.push({ source, cited: name, heading });
+      // A line break inside a wrapped citation reads as one space; a run of spaces within a line stays, as the verb reads it.
+      const heading = headingKeyOf(`${level} ${text.replace(/\s*\n\s*/g, ' ')}`);
+      if (!keys.has(heading)) gaps.push({ source, cited: name, heading });
     }
   };
   for (const [source, filePath] of proseDocuments(root, ['skills', 'agents', 'references'])) {

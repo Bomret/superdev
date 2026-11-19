@@ -225,4 +225,23 @@ module.exports = ({ assert, path, fixture, found }) => {
     assert.deepEqual(joined.map((g) => g.heading), ['## Renamed heading'], `a section map span after "${joiner}" is checked too`);
   }
   assert.equal(cited('- **`nowhere.md`** — `## X`.\n')[0].missing, true, 'a section map naming no file fails');
+
+  // A heading with an internal run of spaces matches as the verb matches it: exactly, so a citation copying it passes
+  // and one that collapses the run fails.
+  const spaced = (body) =>
+    scanHeadingCitations(fixture({ 'references/spaced.md': '# S\n\n## A  B\n', 'skills/foo/SKILL.md': body }));
+  assert.deepEqual(spaced("See `spaced.md`'s `## A  B`.\n"), [], 'an internal run of spaces cited as written passes');
+  assert.equal(spaced("See `spaced.md`'s `## A B`.\n").length, 1, 'the run collapsed in the citation is another heading');
+
+  // A cited file with an unterminated fence is one gap that names the fence, however many headings cite it.
+  const open = scanHeadingCitations(
+    fixture({
+      'references/open.md': '# O\n\n## One\n\n```\nnever closed\n',
+      'skills/foo/SKILL.md': "See `open.md`'s `## One` and `open.md`'s `## Two`.\n",
+    }),
+  );
+  assert.equal(open.length, 1, 'one gap for the file, not one per citation');
+  assert.equal(open[0].cited, 'open.md', 'names the file');
+  assert.equal(open[0].unterminated, true, 'marks the unterminated fence');
+  assert.equal(open[0].heading, undefined, 'names no missing heading');
 };
