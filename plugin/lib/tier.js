@@ -1,0 +1,37 @@
+'use strict';
+
+// tier.js: the `tier` verb, the execution tier and the simplicity skip read from the ledger's slice rows. It reads the ledger and writes nothing; the tier is never stored (INV-0056).
+
+const { fail } = require('./refusal.js');
+const { readLines, tableRowIndexes, splitRow } = require('./ledger.js');
+
+const TYPES = ['behavior', 'mechanical', 'docs'];
+// The one threshold: more than this many `behavior` rows is the full tier.
+const FULL_OVER = 3;
+
+// `tier --root <run-root>` prints `tier: full|lite|unknown`, `simplicity: skip|dispatch`, and, for `unknown`, a third
+// `reason:` line naming the row or the absence. `full` is more than 3 `behavior` rows and `lite` is 1 to 3; `mechanical` and
+// `docs` rows never count and a row of any status does. The simplicity reviewer is skipped only for a `full` run whose every row is
+// `behavior` (INV-0055). A row that does not carry the 7 columns, a type outside the three (matched case-sensitively), no rows, or
+// no `behavior` row is `unknown`.
+function verbTier(root, args) {
+  if (args.length) fail(`tier: unrecognized argument "${args[0]}"`);
+  const lines = readLines(root);
+  const rows = tableRowIndexes(lines).map((i) => ({ raw: lines[i].trim(), cells: splitRow(lines[i]) }));
+  let reason = '';
+  if (!rows.length) reason = 'no slice rows in the ledger';
+  const bad = rows.find((r) => r.cells.length !== 7);
+  if (!reason && bad) reason = `malformed slice row: ${bad.raw}`;
+  const odd = !reason && rows.find((r) => !TYPES.includes(r.cells[3]));
+  if (odd) reason = `slice ${odd.cells[0]} has type "${odd.cells[3]}", outside behavior, mechanical, docs`;
+  const behavior = rows.filter((r) => r.cells[3] === 'behavior').length;
+  if (!reason && !behavior) reason = 'no behavior slice rows';
+  if (reason) {
+    console.log(['tier: unknown', 'simplicity: dispatch', `reason: ${reason}`].join('\n'));
+    return;
+  }
+  const full = behavior > FULL_OVER;
+  console.log([`tier: ${full ? 'full' : 'lite'}`, `simplicity: ${full && behavior === rows.length ? 'skip' : 'dispatch'}`].join('\n'));
+}
+
+module.exports = { verbTier };

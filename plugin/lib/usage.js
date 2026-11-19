@@ -138,6 +138,11 @@ function usage() {
     '                                     or a path under the plugin root then the current directory; refuses, printing nothing,',
     '                                     a missing file, a missing or duplicated heading, a heading only inside a fence, or an',
     '                                     unterminated fence, or a setext heading inside the section; writes nothing',
+    '  tier --root <run-root>             prints tier: full|lite|unknown and simplicity: skip|dispatch from the ledger\'s slice rows:',
+    '                                     full is more than 3 behavior rows, lite is 1 to 3, mechanical and docs rows never count,',
+    '                                     rows of every status do; unknown (no rows, a malformed row, a type outside behavior,',
+    '                                     mechanical, docs, or no behavior row) adds a reason: line naming the row; simplicity is',
+    '                                     skip only for a full run whose every row is behavior; writes nothing',
     '  dod-merge --root <run-root>        stdin: the anchor\'s Definition of Done; writes <run-root>/dod.md from it, keeping',
     '                                     each verdict the existing dod.md carries on a line the anchor leaves without a note',
   ].join('\n');
