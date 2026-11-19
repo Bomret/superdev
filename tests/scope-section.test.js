@@ -81,3 +81,100 @@ const doc = put(
   const g = put('closing.md', '## A ##\na1\n## B\n');
   assert.equal(section(g, '## A').out, '## A ##\na1');
 }
+
+// Each refusal names the file and prints nothing on stdout.
+{
+  const refused = (r, file) => {
+    assert.equal(r.ok, false);
+    assert.equal(r.out, '', 'nothing printed');
+    assert.ok(r.err.includes(file), 'the refusal names the file: ' + r.err);
+    assert.equal(r.err.includes('\n'), false, 'one line');
+  };
+  refused(section(path.join(dir, 'absent.md'), '## A'), 'absent.md');
+  refused(section(doc, '## Nope'), 'doc.md');
+  const twice = put('twice.md', '## A\none\n## B\n## A\ntwo\n');
+  refused(section(twice, '## A'), 'twice.md');
+  const onlyFenced = put('only-fenced.md', '## B\n```\n## A\n```\n');
+  const r = section(onlyFenced, '## A');
+  refused(r, 'only-fenced.md');
+  assert.match(r.err, /fence/);
+  const open = put('open.md', '## A\n```\n## B\n');
+  const u = section(open, '## A');
+  refused(u, 'open.md');
+  assert.doesNotMatch(u.err, /staged body/);
+  refused(call(['section', doc], '\n', dir), 'doc.md');
+  refused(call(['section', doc], 'not a heading\n', dir), 'doc.md');
+}
+
+// A heading holding backticks, apostrophes, and angle brackets matches as typed.
+{
+  const f = put('odd.md', "## The `base` merge's <x>\nbody\n## Next\n");
+  assert.equal(section(f, "## The `base` merge's <x>").out, "## The `base` merge's <x>\nbody");
+}
+
+// Path resolution: a bare name under the plugin's references/ then agents/, a plugin-root path, then the current directory.
+{
+  assert.ok(section('test-selection.md', '## Complete selector').out.startsWith('## Complete selector'), 'bare name under references/');
+  assert.ok(section('implementer.md', '## Report').ok, 'a bare name then agents/');
+  assert.ok(section('references/test-selection.md', '## Complete selector').ok, 'a path under the plugin root');
+  assert.ok(section('${CLAUDE_PLUGIN_ROOT}/references/test-selection.md', '## Complete selector').ok, 'a ${CLAUDE_PLUGIN_ROOT} path');
+  put('docs/agents/own.md', '## Mine\nmine\n');
+  assert.equal(section('docs/agents/own.md', '## Mine').out, '## Mine\nmine', 'any other relative path reads the current directory');
+}
+
+// Every "`<path>`'s `## <heading>`" citation of the shipped prose, and every heading a section map entry lists, is found through the verb.
+{
+  const repo = path.join(__dirname, '..');
+  const { HEADING_CITATION_PATTERN, SECTION_MAP_PATTERN, HEADING_SPAN_PATTERN } = require('../scripts/drift/contracts.js');
+  const prose = [];
+  const walk = (d) => {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      if (e.isDirectory()) walk(path.join(d, e.name));
+      else if (e.name.endsWith('.md')) prose.push(path.join(d, e.name));
+    }
+  };
+  for (const d of ['skills', 'agents', 'references']) walk(path.join(repo, 'plugin', d));
+  const cited = [];
+  for (const file of prose) {
+    const text = fs.readFileSync(file, 'utf8');
+    for (const m of text.matchAll(HEADING_CITATION_PATTERN)) cited.push([file, m[1], m[2], m[3]]);
+    for (const m of text.matchAll(SECTION_MAP_PATTERN)) {
+      for (const s of m[2].matchAll(HEADING_SPAN_PATTERN)) cited.push([file, m[1], s[1], s[2]]);
+    }
+  }
+  assert.ok(cited.length > 100, 'the shipped prose cites many headings: ' + cited.length);
+  const lost = [];
+  for (const [file, name, level, text] of cited) {
+    const r = call(['section', name], `${level} ${text.replace(/\s+/g, ' ').trim()}\n`, repo);
+    if (!r.ok || r.out === '') lost.push(`${path.relative(repo, file)}: ${name} ${level} ${text}: ${r.err}`);
+  }
+  assert.deepEqual(lost, [], 'every citation is found');
+}
+
+// merge-guard.js lets a subagent's heredoc call of the verb through, a heading naming merge included.
+{
+  const { decide } = require('../plugin/hooks/merge-guard.js');
+  const command = "node \"${CLAUDE_PLUGIN_ROOT}/scripts/scope.js\" section references/scope-branch.md <<'EOF'\n## The base merge\nEOF";
+  assert.equal(decide({ agent_id: 'a1', tool_input: { command } }).block, false, 'the heredoc form passes');
+}
+
+// The verb writes nothing: a run root and the git state stay as they were.
+{
+  const { execFileSync } = require('node:child_process');
+  const root = path.join(dir, 'run-root');
+  fs.mkdirSync(root);
+  fs.writeFileSync(path.join(root, 'ledger.md'), 'Stage: implement\n');
+  const snap = () => {
+    const files = fs.readdirSync(dir, { recursive: true }).sort().map((f) => [f, fs.statSync(path.join(dir, f)).isFile() ? fs.readFileSync(path.join(dir, f), 'utf8') : '']);
+    return JSON.stringify(files);
+  };
+  const before = snap();
+  section(doc, '## A');
+  section(doc, '## Nope');
+  assert.equal(snap(), before, 'no file appears, vanishes, or changes');
+  const repoDir = path.join(__dirname, '..');
+  const git = () => execFileSync('git', ['status', '--porcelain'], { cwd: repoDir, encoding: 'utf8' });
+  const gitBefore = git();
+  call(['section', 'test-selection.md'], '## Complete selector\n', repoDir);
+  assert.equal(git(), gitBefore, 'the git state is unchanged');
+}

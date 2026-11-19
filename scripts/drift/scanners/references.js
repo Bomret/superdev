@@ -6,6 +6,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+const { maskFencedLines, headingKeyOf, readLines } = require('../../../plugin/lib/md-sections.js');
 const { docPath, readDoc, missingDoc, normalizeWhitespace } = require('../lib');
 const {
   REFERENCE_PATTERN,
@@ -99,14 +100,21 @@ function scanGovernedSkillFiles(root) {
 // resolve one: `references/<name>`, then `agents/<name>`, then the repository root; a name with a `/` resolves
 // from the plugin root, then the repository root. A file that resolves nowhere is a finding here, except a
 // `references/<name>.md` path, which the `reference` check already reports. A section map entry,
-// "- **`<file>.md`** — `## A`, `## B`.", is a citation of each heading it lists. A heading in a fenced template counts: a file's output template carries headings a citation may name.
+// "- **`<file>.md`** — `## A`, `## B`.", is a citation of each heading it lists. A heading matches by `md-sections.js`'s `headingKeyOf`, the key `scope.js section` matches by, and a heading inside a fenced block is no heading, so the check and the verb agree.
 function scanHeadingCitations(root) {
   const gaps = [];
   const headingsOf = new Map();
   const headings = (file) => {
     if (!headingsOf.has(file)) {
-      const text = fs.readFileSync(file, 'utf8');
-      headingsOf.set(file, new Set([...text.matchAll(/^(#{2,4})[ \t]+(.+?)[ \t]*$/gm)].map((h) => `${h[1]} ${normalizeWhitespace(h[2])}`)));
+      const lines = readLines(fs.readFileSync(file, 'utf8'));
+      let masked = lines;
+      try {
+        masked = maskFencedLines(lines, file, 'checked');
+      } catch (e) {
+        if (!e.isRefusal) throw e;
+        masked = lines.map(() => '');
+      }
+      headingsOf.set(file, new Set(masked.filter((l) => /^ {0,3}#{2,4}\s/.test(l)).map(headingKeyOf)));
     }
     return headingsOf.get(file);
   };
@@ -122,7 +130,7 @@ function scanHeadingCitations(root) {
       return;
     }
     for (const [level, text] of spans) {
-      const heading = `${level} ${normalizeWhitespace(text).trim()}`;
+      const heading = headingKeyOf(`${level} ${normalizeWhitespace(text)}`);
       if (!headings(cited).has(heading)) gaps.push({ source, cited: name, heading });
     }
   };
