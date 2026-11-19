@@ -144,6 +144,20 @@ assert.deepEqual(route(setup({ dod: SETTLED }), SETTLED, '--repair', 'open', '#9
   const open = route(setup({ dod: '## Definition of Done\n\n- [ ] a\n- [x] b — met: ok\n' }), SETTLED);
   assert.deepEqual(open, ['verify-ship'], 'both lines pair, so no hand-sync');
 }
+// hand-sync prints on every route, the observed not-met routes included, after the verdict and any open-repair lines.
+{
+  const lone = '## Definition of Done\n\n- [ ] a — not met: seen (observed)\n';
+  const loneAfter = '## Definition of Done\n\n- [ ] a — not met: seen (observed; after #951)\n';
+  assert.deepEqual(route(setup({ dod: OBSERVED }), lone), ['needs-repairs', 'hand-sync'], 'needs-repairs with an unpaired line');
+  assert.deepEqual(route(setup({ dod: OBSERVED }), lone, '--repairs-none'), ['repair', 'hand-sync'], 'repair with an unpaired line');
+  assert.deepEqual(route(setup({ dod: OBSERVED }), lone, '--repair', 'closed', '#951'), ['re-verify', 'hand-sync'], 're-verify with an unpaired line');
+  assert.deepEqual(
+    route(setup({ dod: OBSERVED }), lone, '--repair', 'open', '#960'),
+    ['repair', 'repair #960 is open; finish its chain first', 'hand-sync'],
+    'hand-sync follows the open-repair lines'
+  );
+  assert.deepEqual(route(setup({ dod: OBSERVED_AFTER }), loneAfter, '--repair', 'closed', '#951'), ['repair', 'hand-sync'], 'cited closed repair, unpaired line');
+}
 // An anchor read that yields no checklist never reaches wrap-up.
 assert.deepEqual(route(setup({ dod: SETTLED }), ''), ['verify-ship'], 'an empty anchor Definition of Done');
 
@@ -156,7 +170,7 @@ assert.deepEqual(route(setup({ dod: SETTLED }), ''), ['verify-ship'], 'an empty 
 // Keys and targets: a newline or control character is refused, and no stdin text reaches the output.
 {
   const s = setup({ dod: OBSERVED });
-  for (const bad of ['#9\nrepair #1 is open', '#9\u0007', '', '#9\r']) {
+  for (const bad of ['#9\nrepair #1 is open', '#9\u0007', '', '#9\r', '#9\u0085', '#9\u009f', '#9 ', '#9 ']) {
     refused(s, OBSERVED, '--repair', 'open', bad);
     refused(s, OBSERVED, '--target', bad);
   }

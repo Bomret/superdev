@@ -10,10 +10,10 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 const { fail } = require('./refusal.js');
 const { parseDodLineReadings, dodCriterionLines, collapseWhitespace } = require('./dod-line.js');
-const { listCriteria, readCriterion } = require('./dod-open.js');
+const { readCriterion } = require('./dod-open.js');
 const { readDeployRecord } = require('./ledger-records.js');
 
-const CONTROL_RE = /[\x00-\x1f\x7f]/;
+const CONTROL_RE = new RegExp('[\\x00-\\x1f\\x7f-\\x9f\\u2028\\u2029]');
 const POSTURE_RE = /^Posture:\s*`?(none|manual|auto)`?\s*$/m;
 
 // A key or target name: one non-empty line with no control character, and no option-shaped word that is a missing value.
@@ -87,29 +87,17 @@ const verdictOf = (line) => parseDodLineReadings(line)[0].verdict;
 function route(cwd, root, args, anchorText) {
   const flags = parseFlags(args);
   const posture = postureAt(cwd, flags.merge);
-  let criteria = null;
+  // One read of dod.md serves the criteria and the pairing: null where it is missing, unreadable, fence-broken, or holds no criterion line.
   let dodLines = null;
   try {
-    criteria = listCriteria(root);
-    dodLines = dodCriterionLines(fs.readFileSync(path.join(root, 'dod.md'), 'utf8'), 'dod.md', 'read');
+    const lines = dodCriterionLines(fs.readFileSync(path.join(root, 'dod.md'), 'utf8'), 'dod.md', 'read');
+    if (lines.length) dodLines = lines;
   } catch (e) {
-    if (!e.isRefusal) throw e;
-    criteria = null;
+    if (!e.isRefusal && !e.code) throw e;
   }
   const anchor = anchorLines(anchorText);
-  const fromDod = criteria !== null;
-  if (!fromDod) criteria = (anchor || []).map(readCriterion);
-
-  const out = [];
-  const observed = criteria.filter((c) => c.label === 'not-met' && c.citation);
-  if (observed.length) {
-    if (flags.failed) out.push('repair');
-    else if (flags.open.length) out.push('repair', ...flags.open.map((k) => `repair ${k} is open; finish its chain first`));
-    else if (flags.closed.some((k) => observed.some((c) => !c.cited.includes(k)))) out.push('re-verify');
-    else if (flags.closed.length || flags.none) out.push('repair');
-    else out.push('needs-repairs');
-    return out;
-  }
+  const fromDod = dodLines !== null;
+  const criteria = (fromDod ? dodLines : anchor || []).map(readCriterion);
 
   let unpaired = false;
   let differs = false;
@@ -121,10 +109,21 @@ function route(cwd, root, args, anchorText) {
       else if (verdictOf(hit) !== verdictOf(line)) differs = true;
     }
   }
-  const manualUndeployed = posture === 'manual' && anyUndeployed(root, flags.targets);
-  const noLedger = !fs.existsSync(path.join(root, 'ledger.md'));
-  const settled = fromDod && anchor !== null && criteria.every((c) => c.settled);
-  out.push(settled && !differs && !manualUndeployed && !noLedger ? 'wrap-up' : 'verify-ship');
+
+  const out = [];
+  const observed = criteria.filter((c) => c.label === 'not-met' && c.citation);
+  if (observed.length) {
+    if (flags.failed) out.push('repair');
+    else if (flags.open.length) out.push('repair', ...flags.open.map((k) => `repair ${k} is open; finish its chain first`));
+    else if (flags.closed.some((k) => observed.some((c) => !c.cited.includes(k)))) out.push('re-verify');
+    else if (flags.closed.length || flags.none) out.push('repair');
+    else out.push('needs-repairs');
+  } else {
+    const manualUndeployed = posture === 'manual' && anyUndeployed(root, flags.targets);
+    const noLedger = !fs.existsSync(path.join(root, 'ledger.md'));
+    const settled = fromDod && anchor !== null && criteria.every((c) => c.settled);
+    out.push(settled && !differs && !manualUndeployed && !noLedger ? 'wrap-up' : 'verify-ship');
+  }
   if (unpaired) out.push('hand-sync');
   return out;
 }

@@ -63,4 +63,4 @@ function verbDodOpen(args) {
   if (out.length) console.log(out.join('\n'));
 }
 
-module.exports = { verbDodOpen, listCriteria, readCriterion };
+module.exports = { verbDodOpen, readCriterion };
