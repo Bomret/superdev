@@ -11,6 +11,7 @@ const { fail } = require('./refusal.js');
 const { readLines, getHeader, ledgerPath } = require('./ledger.js');
 const { gitSpawn, refResolves } = require('./git-spawn.js');
 const { judgeContainment, refetchMark } = require('./containment.js');
+const { pushTimeoutMs } = require('./push.js');
 const { mainWorkTree } = require('./main-work-tree.js');
 const { verbInit, verbStep, validateLabel } = require('./ledger-lifecycle.js');
 const { appendTrace } = require('./trace-log.js');
@@ -118,7 +119,7 @@ function cut(cwd, branch, base, remote, scopetree) {
     gitOrFail(['worktree', 'add', '-b', branch, '--end-of-options', scopetree, base], cwd, `git worktree add -b ${branch}`);
     return { word: 'cut' };
   }
-  const judged = judgeContainment(cwd, base, `refs/heads/${branch}`, remote);
+  const judged = judgeContainment(cwd, base, `refs/heads/${branch}`, remote, { fetchTimeoutMs: pushTimeoutMs(cwd) });
   if (judged.verdict !== 'contained') {
     const ahead = git(['log', '--oneline', '--no-decorate', '--end-of-options', `${judged.judgedBase}..refs/heads/${branch}`], cwd);
     const commits = ahead.status === 0 ? ahead.stdout.split('\n').filter(Boolean) : [`(could not list ${base}..${branch})`];

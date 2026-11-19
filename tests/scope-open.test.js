@@ -9,7 +9,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync, execFileSync } = require('node:child_process');
-const { scopePath, call } = require('./scope-setup');
+const { scopePath, call, fetchBound, writeOperatorConfig } = require('./scope-setup');
 const { copyFixture, templateOnce } = require('./fixture-git');
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { STALENESS_MS } = require('../plugin/lib/plan-open.js');
@@ -178,12 +178,27 @@ try {
     assert.strictEqual(failed.status, 3, `a failed refetch exits 3: ${failed.out}`);
     assert.strictEqual(failed.word, 'not-contained');
     assert.strictEqual(failed.out.trimEnd().split('\n').pop(), 'refetch failed', `a failed refetch is marked: ${failed.out}`);
+    // The refetch runs under the operator's `code-host.pushTimeoutMs` bound (`.superdev/info.json`), the bound `contained`
+    // takes. A bound this run measured, under a remote that stalls past it but ends well short of the 60 s default: the
+    // configured bound ends the refetch, so the stop is marked timed-out rather than failed.
+    const bound = fetchBound();
+    writeOperatorConfig(f.repo, { 'code-host': { pushTimeoutMs: bound } });
     const hang = path.join(f.repo, '..', 'hang.sh');
-    fs.writeFileSync(hang, '#!/bin/sh\nexec sleep 30\n', { mode: 0o755 });
-    git(['config', 'remote.origin.uploadpack', `'${hang.replace(/'/g, `'\\''`)}'`], f.repo);
+    fs.writeFileSync(hang, `#!/bin/sh\nexec sleep ${Math.ceil(bound / 1000) + 4}\n`, { mode: 0o755 });
+    const uploadpack = (script) => git(['config', 'remote.origin.uploadpack', `'${script.replace(/'/g, `'\\''`)}'`], f.repo);
+    uploadpack(hang);
     const hung = open(f);
     assert.strictEqual(hung.status, 3, `a refetch its bound ended exits 3: ${hung.out}`);
-    assert.strictEqual(hung.out.trimEnd().split('\n').pop(), 'refetch timed-out', `a refetch its bound ended is marked: ${hung.out}`);
+    assert.strictEqual(hung.out.trimEnd().split('\n').pop(), 'refetch timed-out', `a refetch the configured bound ended is marked: ${hung.out}`);
+    // A remote that answers after 6 s, past the 5 s built-in refetch bound, under a configured bound above that wait plus a
+    // healthy fetch: the refetch brings the base, so the stop is the verdict and carries no mark.
+    writeOperatorConfig(f.repo, { 'code-host': { pushTimeoutMs: 6000 + bound } });
+    const slow = path.join(f.repo, '..', 'slow.sh');
+    fs.writeFileSync(slow, '#!/bin/sh\nsleep 6\nexec git-upload-pack "$@"\n', { mode: 0o755 });
+    uploadpack(slow);
+    const late = open(f);
+    assert.strictEqual(late.status, 3, `a late refetch still answers not-contained: ${late.out}`);
+    assert.doesNotMatch(late.out, /^refetch /m, `a refetch within the configured bound brings the base: ${late.out}`);
     assert.ok(!fs.existsSync(f.root), 'nothing is written');
   }
 
