@@ -1544,10 +1544,10 @@ Paths: plugin/lib/kb-containment.js, plugin/hooks/scope-prune.js
 
 Class: architecture
 Concepts: Run trace, Window, Tier
-Statement: A grading step or decision table whose every branch the ledger, the run trace, `dod.md`, or git decides is carried by one read-only `scope.js` verb, and no reference repeats the procedure the verb carries. A reference names the verb, what each verdict means, and the judgment the agent keeps.
+Statement: A grading step or decision table whose every branch the ledger, the run trace, `dod.md`, git, the main working tree's `.superdev/` files, or a slice-store or code-host fact the caller read through the backend document and hands over decides is carried by one read-only `scope.js` verb, and no reference, skill, or agent repeats the procedure the verb carries. A reference, skill, or agent names the verb, what each verdict means, and the judgment the agent keeps.
 Breaks: silently
-Check: none — a duplicated procedure in prose is a wording fact no drift check may assert (ADR 0153); review reads the reference beside the verb
-Paths: plugin/references/**
+Check: none — a duplicated procedure in prose is a wording fact no drift check may assert (ADR 0153); review reads the prose beside the verb
+Paths: plugin/references/**, plugin/skills/**, plugin/agents/**
 
 ### INV-0196
 
