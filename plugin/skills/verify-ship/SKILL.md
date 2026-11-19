@@ -38,7 +38,7 @@ Applies to every observation. Observe within the observe-only bound of `${CLAUDE
 
 Applies to every message this command ends on, the wrap-up start in §6 excepted. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`.
 
-**The chained staged pages.** Applies to a start `/superdev:ship`'s verify-ship route made, on every message it ends on before §6, a refusal and a stop included. Ship named no staged pages on its Next block, so name them here per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close`. A count above zero puts `/superdev:publish-kb <scope>` on an `Or:` line of the Next block. §6's **The staged pages** names them on its own exits.
+**The chained staged pages.** Applies to a start `/superdev:ship`'s verify-ship route made, on every message it ends on before §6, a refusal and a stop included. Ship named no staged pages on its Next block, so name them here with the line `scope.js staging <scope> --line` prints, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close`. A count above zero puts `/superdev:publish-kb <scope>` on an `Or:` line of the Next block. §6's **The staged pages** names them on its own exits.
 
 ## 1. Scope + run root
 
@@ -118,6 +118,6 @@ Applies to each verdict. Write it at once, before the next line, into `<run-root
 - **A wrap-up that started and then refused or stopped** → its message stands as the chain's last, unchanged.
 - **The Skill tool refuses the start, errors, or finds no such skill** → print `/superdev:wrap-up <scope>` as the next command, with the staged-pages lines below.
 
-**The staged pages.** Applies to every §6 exit but the wrap-up start. Name the scope's staged pages in the final message, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close`. Add the publish command to the Next block as the list states.
+**The staged pages.** Applies to every §6 exit but the wrap-up start. Name the scope's staged pages in the final message with the line `scope.js staging <scope> --line` prints, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Staged pages at close`. Add the publish command to the Next block as the list states.
 
 - **A count above zero** → put `/superdev:publish-kb <scope>` on an `Or:` line of the Next block.

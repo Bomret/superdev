@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { readLines, getHeader, readBullets, tableRowIndexes, splitRow } = require('./ledger.js');
 const { mainWorkTree, scopesDirFor, mainTreePath } = require('./main-work-tree.js');
+const { fail } = require('./refusal.js');
 
 // Staged knowledge-base pages wait under .superdev/kb-pending/<scope>/ until /superdev:publish-kb sends
 // them (ADR 0023). Nothing else in the chain reports them, and the safe failure this design chose — a
@@ -202,21 +203,36 @@ function verbStatus(cwd) {
 
 // A scope's staging directory, where its staged knowledge-base pages wait for /superdev:publish-kb
 // (ADR 0023, ADR 0119). `--count` prints the number of `.md` pages there instead, 0 for a missing
-// directory: the same `.md`-only rule `stagedPageCounts` applies.
+// directory: the same `.md`-only rule `stagedPageCounts` applies, over regular files only. `--line` prints
+// the close steps' staged-pages line: nothing for no page, one could-not-read line (no count) for a read
+// that fails for any reason (INV-0121, INV-0123). The scope is the one positional argument; an unknown
+// flag, a second positional, and `--line` with `--count` are refused.
 function verbStaging(cwd, args) {
-  const count = args.includes('--count');
-  const dir = mainTreePath(cwd, 'staging', 'kb-pending', args.filter((a) => a !== '--count')[0]);
-  if (!count) {
+  // The scope comes first; a leading flag is no scope.
+  const positional = args.slice(0, 1).filter((a) => !a.startsWith('-'));
+  const flags = args.slice(positional.length);
+  const unknown = flags.find((f) => f !== '--count' && f !== '--line');
+  if (unknown) fail(`staging: unknown argument ${unknown}; expected <scope> [--count|--line]`);
+  const count = flags.includes('--count');
+  const line = flags.includes('--line');
+  if (count && line) fail('staging: --count and --line are exclusive');
+  const dir = mainTreePath(cwd, 'staging', 'kb-pending', positional[0]);
+  if (!count && !line) {
     console.log(dir);
     return;
   }
-  let entries = [];
+  let pages = 0;
   try {
-    entries = fs.readdirSync(dir);
+    pages = fs.readdirSync(dir, { withFileTypes: true }).filter((d) => d.isFile() && d.name.endsWith('.md')).length;
   } catch (e) {
-    if (e.code !== 'ENOENT') throw e;
+    if (e.code !== 'ENOENT') {
+      if (!line) fail(`staging: cannot read ${dir}: ${e.code || e.message}`);
+      console.log('The staged knowledge-base page count could not be read.');
+      return;
+    }
   }
-  console.log(String(entries.filter((f) => f.endsWith('.md')).length));
+  if (!line) console.log(String(pages));
+  else if (pages > 0) console.log(`${pages} staged knowledge-base page(s) wait in ${dir}. /superdev:wrap-up keeps them.`);
 }
 
 module.exports = { verbStatus, verbStaging };

@@ -134,16 +134,15 @@ its own Next block. A command that starts its successor names none on that exit:
 wrap-up routes and verify-ship's settled exit pass the naming on. The chain's last message names the pages,
 whichever of verify-ship or wrap-up ends it and whether it finishes, refuses, or stops.
 
-Read the count with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" staging <scope> --count`, and the
-directory with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" staging <scope>`, in the same run that
-prints the message.
+Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" staging <scope> --line` in the same run that prints
+the message, and print what it prints.
 
-- **A count above zero** → one line: `<N> staged knowledge-base page(s) wait in <directory>.
-  /superdev:wrap-up keeps them.` Then name `/superdev:publish-kb <scope>` once, with one line on when to
-  run it: once the feature has reached its readers.
-- **A count of zero** → the message says nothing about staged pages, whatever knowledge-base backend the
+- **A line beginning with a count** → that line stands in the message as printed. Then name
+  `/superdev:publish-kb <scope>` once, with one line on when to run it: once the feature has reached its
+  readers.
+- **Nothing printed** → the message says nothing about staged pages, whatever knowledge-base backend the
   repository configures.
-- **A failed read** → one line saying the staged-page count could not be read. The message states no
-  count and makes no claim about what any command does to the pages.
+- **A could-not-read line** → that line stands in the message as printed. The message states no count and
+  makes no claim about what any command does to the pages, and names no publish command.
 
-Every fact the message states about staged pages comes from these two reads.
+Every fact the message states about staged pages comes from this one call.
