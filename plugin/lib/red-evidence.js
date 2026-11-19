@@ -4,7 +4,9 @@
 // `### 4.2 Red evidence`): the ledger's red suite record and the check status of a pull-request head, read and judged without a
 // write to the run, the ledger, or git.
 
+const fs = require('fs');
 const path = require('path');
+const { ciJudgment } = require('./ci.js');
 const { fail } = require('./refusal.js');
 const { readLines, getHeader } = require('./ledger.js');
 const { drivePath } = require('./drive-path.js');
@@ -64,8 +66,30 @@ function localLines(g, root, branch, base, record) {
   return [closer ? `covered ${record.sha} by ${closer}` : `red ${record.sha} files=${files.join(' ')}`];
 }
 
-// `red-evidence --root <run-root> --branch <branch> --base <base-ref>`, run in the scope checkout: prints one line per finding,
-// `none` where it read and found nothing, and `nothing-to-read` where the ledger holds no suite record.
+// The lines the check status raises: the verdict line `ci: <verdict> <sha>` and, only for a failed verdict on a head that is the
+// tip or an ancestor of it (INV-0191), `ci-failed <check> <link> <sha>` per failed named check. A malformed `## CI` section prints
+// `ci-malformed` and no verdict. A head that is no ancestor of the tip says so on its verdict line and raises nothing.
+function ciLines(g, branch, head, file) {
+  let input;
+  try {
+    input = fs.readFileSync(path.resolve(g.cwd, drivePath(file)), 'utf8');
+  } catch (e) {
+    fail(`red-evidence: cannot read --ci-file ${file}: ${e.code || e.message}`);
+  }
+  const judged = ciJudgment(g.cwd, head, input);
+  if (judged.malformed) return ['ci-malformed'];
+  const tip = g.commit(branch);
+  const behind = judged.kind === 'failed' && !(judged.at === tip || g.isAncestor(judged.at, tip));
+  const lines = [`ci: ${judged.kind} ${judged.at}${judged.reason ? ' ' + judged.reason : ''}${behind ? ' (head is no ancestor of the tip)' : ''}`];
+  if (judged.kind === 'failed' && !behind) {
+    for (const s of judged.standing.filter((x) => x.kind === 'failed')) lines.push(`ci-failed ${s.name} ${s.link || '-'} ${judged.at}`);
+  }
+  return lines;
+}
+
+// `red-evidence --root <run-root> --branch <branch> --base <base-ref> [--ci-head <sha> --ci-file <path>]`, run in the scope
+// checkout: prints the local suite record's line, the CI lines, and `none` where it read and found no finding (a `red` or
+// `ci-failed` line), and only `nothing-to-read` where the ledger holds no suite record and no CI input is given.
 function verbRedEvidence(cwd, args) {
   const { flags } = traceFlags('red-evidence', args, ['--root', '--branch', '--base', '--ci-head', '--ci-file'], false);
   for (const need of ['--root', '--branch', '--base']) if (!flags[need]) fail(`red-evidence needs ${need} <value>`);
@@ -73,12 +97,16 @@ function verbRedEvidence(cwd, args) {
   const root = path.resolve(cwd, drivePath(flags['--root']));
   const g = gitReads(cwd);
   const record = suiteRecord(root);
-  if (!record) {
+  if (!record && !flags['--ci-head']) {
     console.log('nothing-to-read');
     return;
   }
-  const lines = localLines(g, root, flags['--branch'], flags['--base'], record);
-  console.log(lines.length ? lines.join('\n') : 'none');
+  const lines = [
+    ...(record ? localLines(g, root, flags['--branch'], flags['--base'], record) : []),
+    ...(flags['--ci-head'] ? ciLines(g, flags['--branch'], flags['--ci-head'], flags['--ci-file']) : []),
+  ];
+  if (!lines.some((l) => /^(red|ci-failed) /.test(l))) lines.push('none');
+  console.log(lines.join('\n'));
 }
 
 module.exports = { verbRedEvidence };

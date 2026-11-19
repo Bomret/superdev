@@ -111,7 +111,8 @@ try {
   const PATH_RUN = (sha, file, res = 'pass', tree = 'clean', dir = '.') => ['path', res, sha, tree, file, '1', 'node t.js', dir];
   const FOCUSED = (sha, paths, res = 'pass', tree = 'clean') => ['focused', res, sha, tree, encodePaths(paths)];
   const red = (lines, fail = true) => f.root([`**Suite:** red @ ${f.R}`, ...(fail ? [`**Failed:** tests/a.test.js @ ${f.R}`] : [])], lines);
-  const out = (rt, cwd = f.repo) => verb(f.args(rt), cwd).out;
+  // A covered record raises no finding, so `none` follows its line; the cases below read the record's own line.
+  const out = (rt, cwd = f.repo) => verb(f.args(rt), cwd).out.replace(/\nnone$/, '');
   const REDLINE = `red ${f.R} files=tests/a.test.js`;
   {
     assert.strictEqual(out(red([PATH_RUN(f.M, 'tests/a.test.js')])), `covered ${f.R} by ${f.M}`, 'covered by a path run at a later commit');
@@ -143,6 +144,36 @@ try {
     assert.strictEqual(out(bare([]), e.repo), `red ${e.T} files=`, 'a test file changed since and no path run of it');
     assert.strictEqual(out(bare([PATH_RUN(T2, 'tests/b.test.js')]), e.repo), `covered ${e.T} by ${T2}`, 'a path run of each changed test file covers');
     assert.strictEqual(out(bare([FOCUSED(T2, ['src/y.js', 'tests/b.test.js'])]), e.repo), `red ${e.T} files=`, 'a focused run is a full run there and covers nothing');
+  }
+  // The named CI checks: judged through `ci.js`, a finding only on a failed verdict at the tip or an ancestor of it (INV-0191).
+  {
+    const c = make('node focus.js {paths}', '\n## CI\n\n- `lint`\n- `test`\n');
+    const status = (text) => {
+      const file = path.join(c.repo, '.superdev', `status-${made.length}-${Math.abs(text.length)}-${text.charCodeAt(0)}.tsv`);
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, text);
+      return file;
+    };
+    const rt = c.root([]);
+    const ci = (head, text, root = rt) => verb(c.args(root, ['--ci-head', head, '--ci-file', status(text)]), c.repo).out;
+    const FAILED = 'lint\tfailure\thttp://l/1\ntest\tsuccess\n';
+    assert.strictEqual(ci(c.T, FAILED), `ci: failed ${c.T}\nci-failed lint http://l/1 ${c.T}`, 'a failed check at the tip is a finding');
+    assert.strictEqual(ci(c.R, FAILED), `ci: failed ${c.R}\nci-failed lint http://l/1 ${c.R}`, 'a failed check at an ancestor is a finding');
+    assert.strictEqual(ci(c.T, 'lint\tfailure\ta\ntest\terror\tb\n'), `ci: failed ${c.T}\nci-failed lint a ${c.T}\nci-failed test b ${c.T}`, 'one finding per failed check');
+    assert.strictEqual(ci(c.S, FAILED), `ci: failed ${c.S} (head is no ancestor of the tip)\nnone`, 'a head that is no ancestor of the tip raises no finding');
+    assert.strictEqual(ci(c.T, 'lint\tqueued\ntest\tsuccess\n'), `ci: not-green ${c.T}\nnone`, 'a pending verdict raises no finding');
+    assert.strictEqual(ci(c.T, 'lint\tsuccess\ntest\tsuccess\n'), `ci: green ${c.T}\nnone`, 'a green verdict raises no finding');
+    assert.strictEqual(ci(c.T, 'nothing\n'), `ci: not-green ${c.T} (no check report read)\nnone`, 'an input holding no report is undecided');
+    g(['checkout', '-q', '-b', 'noci', c.B], c.repo);
+    const noCi = commit(c.repo, 'docs/agents/verification.md', VERIF('node focus.js {paths}'), 'no ci');
+    g(['checkout', '-q', 'feat'], c.repo);
+    assert.strictEqual(ci(noCi, FAILED), `ci: cannot-judge ${noCi} (no named checks at that commit)\nnone`, 'a head with no named checks is undecided');
+    const m = make('node focus.js {paths}', '\n## CI\n\nnone\n\n- `lint`\n');
+    assert.strictEqual(verb(m.args(m.root([]), ['--ci-head', m.T, '--ci-file', status(FAILED)]), m.repo).out, 'ci-malformed\nnone', 'a malformed section');
+    // A red local record and a failed check are reported together; a CI input alone is no "nothing to read".
+    const both = c.root([`**Suite:** red @ ${c.T}`]);
+    assert.strictEqual(ci(c.T, FAILED, both), `red ${c.T} files=\nci: failed ${c.T}\nci-failed lint http://l/1 ${c.T}`, 'both sources');
+    assert.match(verb(c.args(rt, ['--ci-head', c.T, '--ci-file', path.join(c.repo, 'absent.tsv')]), c.repo).err, /absent\.tsv/, 'an unreadable check-status file refuses');
   }
   console.log('scope-red-evidence tests passed');
 } finally {
