@@ -58,6 +58,7 @@ const libTier = () => require('../lib/tier.js');
 const libDodOpen = () => require('../lib/dod-open.js');
 const libContained = () => require('../lib/contained.js');
 const libScopeBranch = () => require('../lib/scope-branch.js');
+const libDenial = () => require('../lib/denial.js');
 const libDrivePath = () => require('../lib/drive-path.js');
 const libRedEvidence = () => require('../lib/red-evidence.js');
 const libUsage = () => require('../lib/usage.js');
@@ -472,6 +473,13 @@ function run(argv, cwd, stdinJson) {
       if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) fail(`branch: --root "${root}" is not a directory`);
       const r = libScopeBranch().resolveScopeBranch(cwd, root);
       console.log(r.verdict === 'ambiguous' ? `ambiguous ${r.branches.join(' ')}` : r.verdict === 'git-failed' ? `git-failed ${r.reason}` : r.branch ? `${r.verdict} ${r.branch}` : r.verdict);
+      break;
+    }
+    // Reads the ledger and writes nothing: one verdict for a denied dispatch the caller already recorded (INV-0196). Prints `inline` or `block <reason>`.
+    case 'denial': {
+      const root = path.resolve(cwd, libDrivePath().drivePath(takeRoot(args)));
+      if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) fail(`denial: --root "${root}" is not a directory`);
+      libDenial().verbDenial(root, args);
       break;
     }
     // Reads the ledger, the run trace, git, and a check-status file and writes nothing (INV-0196); `verbRedEvidence` takes `--root` itself.

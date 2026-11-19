@@ -14,33 +14,32 @@ value and never a failure of the code. Two shapes occur:
 - **A dispatch the permission classifier denies**: a permission refusal naming the classifier. A timeout,
   a network error, or any other tool failure is an ordinary error to retry or report. **Attended** → do
   the pass inline, say so in the report, and write the entry, for every denial; an attended run has no
-  cap. **Unattended** → **Unattended denials** below.
+  cap. **Unattended** → **The verdict** below decides, attended and unattended alike.
 - **A pass that cannot complete its own work**, such as a knowledge-base pass whose writer could not
   stage → write the entry and continue, attended or unattended.
 
 A pass the command was already free to skip on judgment, such as `/superdev:review`'s §2
 `simplicity-reviewer`, records nothing when denied.
 
-**Unattended denials.** A denied `implementer` blocks at every tier. For a denied verification dispatch
-(`final-reviewer`, `slice-reviewer`, `doc-reader`), authorship decides:
+**The verdict.** After the denial is recorded (**Recording a denial** below), run
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js denial <pass> [--unattended] --root <run-root>`, with `<pass>` one of
+`implementer`, `fix`, `final-reviewer`, `slice-reviewer`, or `doc-reader`, and `--unattended` on an unattended run.
+It prints one verdict line:
 
-- **The controller authored what the pass verifies** → write the entry and block, per `scope-mode.md`'s
-  `## Unattended`. Read the tier from the `tier:` line of `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js tier --root <run-root>`
-  (`full`, `lite`, or `unknown`, derived from the ledger's rows and never stored, INV-0056). An `unknown` tier blocks.
-  `lite` counts as authored. `full` counts as authored when a
-  row reads `docs` or `mechanical`, because the controller builds a `docs` slice and a one-file `mechanical`
-  slice itself, and otherwise does not.
-- **It did not** → do the pass inline, say so in the report, write the entry, and continue, until the
-  run's second recorded denial, which blocks whoever authored the work.
+- `inline` → do the pass inline, say so in the report, and continue. Attended runs get `inline` for every
+  denial.
+- `block implementer` → an unattended denied authoring dispatch blocks.
+- `block unknown-tier`, `block authored`, `block second-denial` → an unattended denied verification dispatch
+  blocks, per `scope-mode.md`'s `## Unattended`: the tier is unknown (INV-0056), the controller authored what the
+  pass verifies, or the run's second denial since the last reset arrived.
 
-A block comment names the denied dispatch, and the entry is written either way.
+A refusal means the pass name is outside the known set, or no denial of a verification pass is recorded since the
+last reset: record it, then ask again. A block comment names the denied dispatch, and the entry is written either way.
 
 **Recording a denial.** Pipe the bullet through a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) to
 `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js degraded add-denial - --root <run-root>`, which prefixes it
-`denied: `, then read the run's count with
-`node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js get denials --root <run-root>`: one → inline and continue; two
-or more → block. The count lives in the ledger, so a resumed run counts the denials an earlier invocation
-recorded. Only a denied verification dispatch takes `add-denial`; a denied Bash command or authoring
+`denied: `, before asking for the verdict. The count lives in the ledger, so a resumed run counts the denials an
+earlier invocation recorded. Only a denied verification dispatch takes `add-denial`; a denied Bash command or authoring
 dispatch takes plain `degraded add`. The bullet quotes the classifier's refusal text beside the name of the
 pass, newlines flattened to spaces, cut at about 200 characters with an ellipsis (`add-denial` refuses a
 newline). A refusal text that never reached you is stated as unavailable.

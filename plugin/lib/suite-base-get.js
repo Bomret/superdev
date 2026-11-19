@@ -11,7 +11,7 @@ const {
 const { isTestPath, completeSelector, verificationCommandsOf, prepareCommandOf, configuredTestPaths } = require('./verification.js');
 const { gitSpawn, resolveCommit, fileAt } = require('./git-spawn.js');
 const { readTrace, decodePaths, untraceField } = require('./trace-log.js');
-const { DENIAL_PREFIX, RESET_PREFIX } = require('./ledger-records.js');
+const { denialCount } =require('./ledger-records.js');
 const { rootRelative, lazyToplevel } = require('./run-tree.js');
 
 const VERIFICATION = 'docs/agents/verification.md';
@@ -547,9 +547,7 @@ function verbGet(root, field) {
     // absorbed, which is what an unattended run caps at two (ADR 0041). A ledger with no `**Degraded:**`
     // line, or one carrying only the other degraded shape, counts zero. The count starts after the last
     // `degraded reset-denials` marker, so a reset returns the budget without removing a bullet (ADR 0044).
-    const bullets = readBullets(readLines(root), 'Degraded');
-    const lastReset = bullets.map((b) => b.startsWith(RESET_PREFIX)).lastIndexOf(true);
-    console.log(String(bullets.slice(lastReset + 1).filter((b) => b.startsWith(DENIAL_PREFIX)).length));
+    console.log(String(denialCount(root)));
     return;
   }
   if (field === 'suite') {
