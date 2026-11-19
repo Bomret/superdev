@@ -458,7 +458,7 @@ function run(argv, cwd, stdinJson) {
     case 'dod-open':
       libDodOpen().verbDodOpen(args);
       break;
-    // No --root: contained reads git and writes no ledger, trace, or digest; the test writes tree objects and the refetch `FETCH_HEAD` (ADR 0065, INV-0195).
+    // No --root: contained reads git and writes no ledger, trace, or digest; the test writes tree objects and the refetch writes fetched commit objects and `FETCH_HEAD` (ADR 0065, INV-0195).
     case 'contained':
       libContained().verbContained(cwd, args);
       break;

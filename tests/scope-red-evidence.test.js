@@ -159,7 +159,8 @@ try {
     // The run writer writes `unknown` in the commit field where it cannot read the tree's HEAD, and a failed run there is never placed at the tip (INV-0009).
     assert.strictEqual(out(bare([['full', 'fail', 'unknown', 'clean']], e.R), e.repo), `red ${e.R} files=`, 'a failed run whose commit reads unknown gives no clean-tip');
     assert.strictEqual(out(bare([['full', 'fail', 'unknown', 'unknown']], e.R), e.repo), `red ${e.R} files=`, 'a failed run whose commit and tree read unknown gives no clean-tip');
-    assert.strictEqual(out(bare([['full', 'fail', e.T, 'clean'], ['full', 'fail', e.M, 'clean']], e.R), e.repo),`red ${e.R} files=`, 'a failed run at every later commit leaves the record red');
+    assert.strictEqual(out(bare([['full', 'pass', 'unknown', 'clean']], e.R), e.repo), `red ${e.R} files=`, 'a passing run whose commit reads unknown covers nothing and gives no clean-tip');
+    assert.strictEqual(out(bare([['full', 'fail', e.T, 'clean'], ['full', 'fail', e.M, 'clean']], e.R), e.repo), `red ${e.R} files=`, 'a failed run at every later commit leaves the record red');
     // A record that names failed files takes no clean-tip exception: its files need their own runs.
     assert.strictEqual(out(e.root([`**Suite:** red @ ${e.R}`, `**Failed:** tests/a.test.js @ ${e.R}`], []), e.repo), `red ${e.R} files=tests/a.test.js`, 'failed files are covered only by runs');
     const T2 = commit(e.repo, 'tests/b.test.js', 'b\n', 'test');

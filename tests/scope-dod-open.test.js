@@ -204,11 +204,14 @@ const matchFile = (text) => {
     const [state, label, tag] = expected[i].split(' ');
     const got = listing(`## Definition of Done\n${line}\n`)[0].split(T);
     assert.deepEqual(got, [state, label, tag, '-', 'the widget renders'], 'row for ' + line);
-    // dod-line judges the same line with a note it writes itself; the label survives its rewrite.
-    if (label === 'none') return;
-    const rewritten = call(['dod-line', '--match-file', matchFile('the widget renders'), '--verdict', label, '--note-file', matchFile('x')], line);
+    // dod-line judges the same line with a note it writes itself; the label and the tag survive its rewrite.
+    // A line with no note takes `met`, the label it then reads.
+    const verdict = label === 'none' ? 'met' : label;
+    const rewritten = call(['dod-line', '--match-file', matchFile('the widget renders'), '--verdict', verdict, '--note-file', matchFile('x')], line);
     assert.ok(rewritten.ok, rewritten.err);
-    assert.equal(listing(`## Definition of Done\n${rewritten.out.trimEnd()}\n`)[0].split(T)[1], label, 'label survives a dod-line rewrite of ' + line);
+    const back = listing(`## Definition of Done\n${rewritten.out.trimEnd()}\n`)[0].split(T);
+    assert.equal(back[1], verdict, 'label survives a dod-line rewrite of ' + line);
+    assert.equal(back[2], tag, 'tag survives a dod-line rewrite of ' + line);
   });
   assert.deepEqual(
     listing(`## Definition of Done\n${pinned('dod-lookalike').join('\n')}\n`).map((l) => l.split(T)[1]),

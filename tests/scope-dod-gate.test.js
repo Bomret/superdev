@@ -25,6 +25,7 @@ const BAD = {
   'not a regular file': (root) => fs.mkdirSync(path.join(root, 'dod.md')),
   'no criterion line': (root) => fs.writeFileSync(path.join(root, 'dod.md'), '## Definition of Done\n\nProse, no checklist.\n- a bullet\n'),
   'only a fenced criterion line': (root) => fs.writeFileSync(path.join(root, 'dod.md'), '```\n- [ ] example\n```\n'),
+  'an unterminated fence': (root) => fs.writeFileSync(path.join(root, 'dod.md'), '## Definition of Done\n\n- [ ] a — 07\n```\nopen\n'),
   'a criterion outside the Definition of Done section': (root) =>
     fs.writeFileSync(path.join(root, 'dod.md'), '## Notes\n\n- [ ] stray\n\n## Definition of Done\n\nnone yet\n'),
 };
@@ -123,6 +124,17 @@ try {
     assert.ok(call(['init', 'feat/gate', 'planned'], sliceJson, cwd).ok);
     const root = rootOf(cwd, 'gate');
     assert.ok(call(['stage', 'set', 'planned', '--root', root], '', cwd).ok, 'a planned same-stage write needs no dod.md');
+  }
+  // The re-init run-init.md names: `init … implementing` over a `planned` ledger with no dod.md refuses and leaves the run as it was.
+  {
+    const cwd = fresh();
+    assert.ok(call(['init', 'feat/gate', 'planned'], sliceJson, cwd).ok);
+    const root = rootOf(cwd, 'gate');
+    const before = snapshot(cwd);
+    const r = call(['init', 'feat/gate', 'implementing'], sliceJson, cwd);
+    assert.ok(!r.ok && r.err.includes(path.join(root, 'dod.md')), `re-init implementing refuses over a planned ledger: ${r.err}`);
+    assert.deepStrictEqual(snapshot(cwd), before, 'the planned ledger, its standing step, and the run root stay unchanged');
+    assert.match(fs.readFileSync(path.join(root, 'ledger.md'), 'utf8'), /\*\*Stage:\*\* planned/, 'the ledger still reads planned');
   }
   // adopt: passes with a criterion line; a planned snapshot needs none; a later stage is gated too.
   {

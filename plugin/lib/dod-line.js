@@ -5,7 +5,7 @@
 const fs = require('fs');
 const { fail } = require('./refusal.js');
 const { splitLines } = require('./ledger.js');
-const { maskFencedLines } = require('./md-sections.js');
+const { maskFencedLines, readLines } = require('./md-sections.js');
 
 // The one line edit every store's own `## Definition of Done ticks` section names (`plan-contract.md`
 // → *Definition of Done ticks*). `dod-line` touches no ledger and makes no store call: a store seed
@@ -144,6 +144,15 @@ function dodSectionRange(masked) {
   return { start, end };
 }
 
+// The criterion lines of a `dod.md` body: every checklist line outside a fence, inside the `## Definition of Done` section when
+// the body has one, anywhere otherwise. `dod-open` lists them and the `implementing` gate counts them. Refuses, through
+// `maskFencedLines`, on an unterminated fence (`source` and `verb` word that refusal).
+function dodCriterionLines(text, source, verb) {
+  const masked = maskFencedLines(readLines(text), source, verb);
+  const range = dodSectionRange(masked);
+  return masked.slice(range ? range.start : 0, range ? range.end : masked.length).filter((l) => DOD_LINE_RE.test(l));
+}
+
 // The core: find the one non-fenced checklist line whose criterion equals `match` once both sides
 // collapse whitespace, and replace it with the judged line. Matching runs on `maskFencedLines()`'s
 // output (md-sections.js's own fence rule), so a line inside a fenced illustrative example is never a
@@ -241,6 +250,6 @@ function dodLineHasNote(line) {
 }
 
 module.exports = {
-  verbDodLine, parseDodLineReadings, dodLineHasNote, collapseWhitespace, dodSectionRange, takeOption, readOptionFile,
+  verbDodLine, parseDodLineReadings, dodLineHasNote, collapseWhitespace, dodSectionRange, dodCriterionLines, takeOption, readOptionFile,
   DOD_LINE_RE, DOD_NO_NOTE_TAG_RE,
 };

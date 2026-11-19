@@ -54,7 +54,7 @@ try {
   // The run root the ledger verbs write to: init itself is one of the stdin verbs.
   const root = path.join(tmp, '.superdev', 'scopes', 'demo');
   writeDod(root);
-  const ledger =() => fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
+  const ledger = () => fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
 
   // Each stdin verb's cases: argv, piped input, and the check that the verb acted on that input.
   const cases = {
