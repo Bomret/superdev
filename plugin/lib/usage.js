@@ -138,6 +138,13 @@ function usage() {
     '                                     or a path under the plugin root then the current directory; refuses, printing nothing,',
     '                                     a missing file, a missing or duplicated heading, a heading only inside a fence, or an',
     '                                     unterminated fence, or a setext heading inside the section; writes nothing',
+    '  red-evidence --root <run-root> --branch <branch> --base <base-ref> [--ci-head <sha> --ci-file <path>]',
+    '                                     the scope review\'s red evidence: prints red <sha> files=<failed files> for a red suite',
+    '                                     record at the tip or an ancestor, covered <sha> by <commit> where later passing runs close',
+    '                                     it, and with the CI pair ci: <verdict> <sha> and ci-failed <check> <link> <sha> per failed',
+    '                                     named check on a head at or behind the tip (ci-malformed for a malformed section); prints',
+    '                                     none where it read and found no finding, nothing-to-read with no record and no CI input;',
+    '                                     refuses a half-given CI pair; writes nothing',
     '  dod-merge --root <run-root>        stdin: the anchor\'s Definition of Done; writes <run-root>/dod.md from it, keeping',
     '                                     each verdict the existing dod.md carries on a line the anchor leaves without a note',
   ].join('\n');

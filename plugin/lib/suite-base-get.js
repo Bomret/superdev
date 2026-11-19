@@ -286,14 +286,17 @@ function reusableAfterFix(g, root, branch, from, kind, whole, files) {
   const why = completeRefusal(g, from, tip, events, paths);
   if (why === undefined) return `${VERIFICATION} carries no complete-selector declaration`;
   if (why) return why;
-  const top = g.top;
   for (const file of files) {
-    const passed = events.some((e) => e.fields[0] === 'path' && e.fields[2] === tip && e.fields[1] === 'pass' && e.fields[3] === 'clean'
-      && e.fields[7] !== undefined && untraceField(e.fields[7]) === '.'
-      && decodePaths(e.fields[4]).map((p) => rootRelative(p, top)).includes(file));
-    if (!passed) return `no passing clean run of ${file} from the tree root at the tip`;
+    if (!pathRunPassed(g, events, tip, file)) return `no passing clean run of ${file} from the tree root at the tip`;
   }
   return null;
+}
+
+// Whether the trace `events` hold a passing `path` run of `file` on a clean tree at commit `at`, made from the tree root.
+function pathRunPassed(g, events, at, file) {
+  return events.some((e) => e.fields[0] === 'path' && e.fields[2] === at && e.fields[1] === 'pass' && e.fields[3] === 'clean'
+    && e.fields[7] !== undefined && untraceField(e.fields[7]) === '.'
+    && decodePaths(e.fields[4]).map((p) => rootRelative(p, g.top)).includes(file));
 }
 
 // `suite failed <test-file>...` (ADR 0237): the ledger's one `**Failed:**` record, `<file>... @ <tip>`, naming the test files
@@ -594,4 +597,7 @@ function verbState(root, json) {
   console.log(text.join('\n'));
 }
 
-module.exports = { verbState, verbSuite, verbSuiteRerun, verbSuiteFailed, verbSuiteReusable, verbBaseSet, verbBaseResolve, verbGet };
+module.exports = {
+  verbState, verbSuite, verbSuiteRerun, verbSuiteFailed, verbSuiteReusable, verbBaseSet, verbBaseResolve, verbGet,
+  gitReads, runEvents, rangeBase, failedRuns, failedRecord, coverageRefusal, pathRunPassed,
+};
