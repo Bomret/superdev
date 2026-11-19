@@ -118,12 +118,13 @@ try {
   const PATH_RUN = (sha, file, res = 'pass', tree = 'clean', dir = '.') => ['path', res, sha, tree, file, '1', 'node t.js', dir];
   const FOCUSED = (sha, paths, res = 'pass', tree = 'clean') => ['focused', res, sha, tree, encodePaths(paths)];
   const red = (lines, fail = true) => f.root([`**Suite:** red @ ${f.R}`, ...(fail ? [`**Failed:** tests/a.test.js @ ${f.R}`] : [])], lines);
-  // A covered record raises no finding, so `none` follows its line; the cases below read the record's own line.
-  const out = (rt, cwd = f.repo) => verb(f.args(rt), cwd).out.replace(/\nnone$/, '');
+  // The verb's full output. A plainly covered record raises no finding, so `none` follows its line; a red line and a clean-tip
+  // line, which closes nothing at review entry, take no `none`.
+  const out = (rt, cwd = f.repo) => verb(f.args(rt), cwd).out;
   const REDLINE = `red ${f.R} files=tests/a.test.js`;
   {
-    assert.strictEqual(out(red([PATH_RUN(f.M, 'tests/a.test.js')])), `covered ${f.R} by ${f.M}`, 'covered by a path run at a later commit');
-    assert.strictEqual(out(red([FOCUSED(f.T, ['tests/a.test.js', 'src/x.js'])])), `covered ${f.R} by ${f.T}`, 'covered by a focused run whose path set holds the file');
+    assert.strictEqual(out(red([PATH_RUN(f.M, 'tests/a.test.js')])), `covered ${f.R} by ${f.M}\nnone`, 'covered by a path run at a later commit');
+    assert.strictEqual(out(red([FOCUSED(f.T, ['tests/a.test.js', 'src/x.js'])])), `covered ${f.R} by ${f.T}\nnone`, 'covered by a focused run whose path set holds the file');
     assert.strictEqual(out(red([FOCUSED(f.T, ['src/x.js'])])), REDLINE, 'a focused run missing the failed file does not cover');
     assert.strictEqual(out(red([PATH_RUN(f.R, 'tests/a.test.js')])), REDLINE, 'a run at the record\'s own commit does not cover it');
     assert.strictEqual(out(red([PATH_RUN(f.S, 'tests/a.test.js')])), REDLINE, 'a run at a commit off the ancestry does not cover it');
@@ -136,8 +137,8 @@ try {
   // A record with no failed file: a focused run over the scope's whole range covers it (the range base is the one `base resolve` prints).
   {
     const bare = (lines) => red(lines, false);
-    assert.strictEqual(out(bare([FOCUSED(f.M, ['src/x.js'])])), `covered ${f.R} by ${f.M}`, 'a focused run over the whole range covers');
-    assert.strictEqual(out(bare([FOCUSED(f.T, ['src/x.js', 'src/y.js'])])), `covered ${f.R} by ${f.T}`, 'the range at a later commit');
+    assert.strictEqual(out(bare([FOCUSED(f.M, ['src/x.js'])])), `covered ${f.R} by ${f.M}\nnone`, 'a focused run over the whole range covers');
+    assert.strictEqual(out(bare([FOCUSED(f.T, ['src/x.js', 'src/y.js'])])), `covered ${f.R} by ${f.T}\nnone`, 'the range at a later commit');
     assert.strictEqual(out(bare([FOCUSED(f.T, ['src/x.js'])])), `red ${f.R} files=`, 'a focused run over fewer paths than the range does not cover');
     assert.strictEqual(out(bare([FOCUSED(f.M, ['src/x.js'], 'unknown')])), `red ${f.R} files=`, 'an unknown focused run never covers');
   }
@@ -147,9 +148,10 @@ try {
     const bare = (lines, at = e.T) => e.root([`**Suite:** red @ ${at}`], lines);
     assert.strictEqual(out(bare([]), e.repo), `red ${e.T} files=`, 'no later commit: nothing covers the record');
     // ADR 0255: a cycle that changed no test file closes the finding on its tip being clean. The verb reads no clean-tree
-    // state there, so the line names the tip and the review judges it.
+    // state there, so the line names the tip and the review judges it. A clean-tip line closes nothing at review entry, so no
+    // `none` follows it.
     assert.strictEqual(out(bare([], e.R), e.repo), `covered ${e.R} by ${e.T} clean-tip`, 'no test file changed since: the branch tip, flagged clean-tip');
-    assert.strictEqual(out(bare([['full', 'pass', e.M, 'clean']], e.R), e.repo), `covered ${e.R} by ${e.M}`, 'a passing clean run at the later commit covers, with no clean-tip flag');
+    assert.strictEqual(out(bare([['full', 'pass', e.M, 'clean']], e.R), e.repo), `covered ${e.R} by ${e.M}\nnone`, 'a passing clean run at the later commit covers, with no clean-tip flag');
     assert.strictEqual(out(bare([['full', 'pass', e.M, 'dirty']], e.R), e.repo), `covered ${e.R} by ${e.T} clean-tip`, 'a dirty run is no pass, and the clean-tip line is the review\'s to judge');
     assert.strictEqual(out(bare([['full', 'pass', e.M, 'unknown']], e.R), e.repo), `covered ${e.R} by ${e.T} clean-tip`, 'an unknown tree never covers plainly (INV-0009)');
     assert.strictEqual(out(bare([['full', 'pass', e.T, 'unknown']], e.R), e.repo), `covered ${e.R} by ${e.T} clean-tip`, 'an unknown tree at the tip is no plain cover, and the review judges the tree');
@@ -167,7 +169,7 @@ try {
     assert.strictEqual(out(bare([]), e.repo), `red ${e.T} files=`, 'a test file changed since and no path run of it');
     // A later commit up to the tip changed a test file with no path run of it: no clean-tip line, however clean an earlier commit was.
     assert.strictEqual(out(e.root([`**Suite:** red @ ${e.R}`], []), e.repo), `red ${e.R} files=`, 'a test file changed up to the tip gives no clean-tip');
-    assert.strictEqual(out(bare([PATH_RUN(T2, 'tests/b.test.js')]), e.repo), `covered ${e.T} by ${T2}`, 'a path run of each changed test file covers');
+    assert.strictEqual(out(bare([PATH_RUN(T2, 'tests/b.test.js')]), e.repo), `covered ${e.T} by ${T2}\nnone`,'a path run of each changed test file covers');
     assert.strictEqual(out(bare([FOCUSED(T2, ['src/y.js', 'tests/b.test.js'])]), e.repo), `red ${e.T} files=`, 'a focused run is a full run there and covers nothing');
   }
   // A test file deleted since the record needs no run of its own, an empty one that remains still does, and a git error refuses.
@@ -178,7 +180,7 @@ try {
     g(['rm', '-q', 'tests/a.test.js'], d.repo);
     g(['commit', '-q', '-m', 'delete a'], d.repo);
     const D = g(['rev-parse', 'HEAD'], d.repo);
-    assert.strictEqual(out(bare([['full', 'pass', D, 'clean'], PATH_RUN(D, 'tests/empty.test.js')]), d.repo), `covered ${d.T} by ${D}`, 'a deleted test file needs no run');
+    assert.strictEqual(out(bare([['full', 'pass', D, 'clean'], PATH_RUN(D, 'tests/empty.test.js')]), d.repo), `covered ${d.T} by ${D}\nnone`,'a deleted test file needs no run');
     assert.strictEqual(out(bare([['full', 'pass', D, 'clean']]), d.repo), `red ${d.T} files=`, 'an empty test file that remains still needs its own run');
     // `docs/agents` is unchanged since the record, so its tree object is unread by the path listing and unreadable by the configuration read.
     const e = make('node all.js');
@@ -210,7 +212,7 @@ try {
     g(['checkout', '-q', 'feat'], c.repo);
     assert.strictEqual(ci(noCi, FAILED), `ci: cannot-judge ${noCi} (no named checks at that commit)\nnone`, 'a head with no named checks is undecided');
     const m = make('node focus.js {paths}', '\n## CI\n\nnone\n\n- `lint`\n');
-    assert.strictEqual(verb(m.args(m.root([]), ['--ci-head', m.T, '--ci-file', status(FAILED)]), m.repo).out, 'ci-malformed\nnone', 'a malformed section');
+    assert.strictEqual(verb(m.args(m.root([]), ['--ci-head', m.T, '--ci-file', status(FAILED)]), m.repo).out, 'ci-malformed', 'a malformed section is an unread source, never none');
     // A red local record and a failed check are reported together; a CI input alone is no "nothing to read".
     const both = c.root([`**Suite:** red @ ${c.T}`]);
     assert.strictEqual(ci(c.T, FAILED, both), `red ${c.T} files=\nci: failed ${c.T}\nci-failed lint http://l/1 ${c.T}`, 'both sources');

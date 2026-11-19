@@ -142,7 +142,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - **A line `ci: <verdict> <sha>`** → state that verdict for that SHA, as the head's state and never as the tip's.
 - **A line `ci-failed <check> <link> <sha>`** → one red-evidence finding naming the check, its link, and that SHA. A failed check names no test file. Where a later commit's runs cover it, the verb prints `covered <sha> by <commit>` after the `ci:` line in place of the `ci-failed` lines, and that line is no finding.
 - **A line `ci-malformed`** → a configuration error that ship refuses. Print `CI section malformed: it holds both none and a check name; fix it through /superdev:setup` once and continue. It raises no finding.
-- **A line `none`** → the verb read and found no finding. **A line `nothing-to-read`** → no suite record and no CI input existed, so the review states that nothing was read.
+- **A line `none`** → the verb read and found no finding. It never follows a `red`, `ci-failed`, `covered … clean-tip`, or `ci-malformed` line. **A line `nothing-to-read`** → no suite record and no CI input existed, so the review states that nothing was read.
 - **A refusal** → print its reason and continue, with the red evidence unread. An unread source is never `none`.
 - **A CI read that fails** (the pull request read, the check-status read, or a document with no `## Check status` section) → print `CI status unreadable: <reason>` once, and continue without the CI flags. It never holds the review.
 

@@ -134,8 +134,9 @@ function ciLines(ctx, head, file) {
 }
 
 // `red-evidence --root <run-root> --branch <branch> --base <base-ref> [--ci-head <sha> --ci-file <path>]`, run in the scope
-// checkout: prints the local suite record's line, the CI lines, and `none` where it read and found no finding (a `red` or
-// `ci-failed` line), and only `nothing-to-read` where the ledger holds no suite record and no CI input is given.
+// checkout: prints the local suite record's line, the CI lines, and `none` where it read and found no finding: no `red` line, no
+// `ci-failed` line, no `covered … clean-tip` line (the review judges it), and no `ci-malformed` line (an unread source is never
+// `none`). It prints only `nothing-to-read` where the ledger holds no suite record and no CI input is given.
 function verbRedEvidence(cwd, args) {
   const { flags } = traceFlags('red-evidence', args, ['--root', '--branch', '--base', '--ci-head', '--ci-file'], false);
   for (const need of ['--root', '--branch', '--base']) if (!flags[need]) fail(`red-evidence needs ${need} <value>`);
@@ -155,7 +156,7 @@ function verbRedEvidence(cwd, args) {
     ...(record ? localLines(ctx, record) : []),
     ...(flags['--ci-head'] ? ciLines(ctx, flags['--ci-head'], flags['--ci-file']) : []),
   ];
-  if (!lines.some((l) => /^(red|ci-failed) /.test(l))) lines.push('none');
+  if (!lines.some((l) => /^(red|ci-failed) /.test(l) || / clean-tip$/.test(l) || l === 'ci-malformed')) lines.push('none');
   console.log(lines.join('\n'));
 }
 
