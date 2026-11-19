@@ -115,6 +115,9 @@ try {
   fs.writeFileSync(sectionFile, '## A\na1\n## B\nb1\n');
   cases.section = [[['section', sectionFile], '## B\n', () => assert.strictEqual(pipedOut, '## B\nb1\n', 'section printed the piped heading\'s section')]];
 
+  // route pairs the piped anchor lines with the run's dod.md: a piped line the dod.md lacks adds the hand-sync line.
+  cases.route = [[['route', '--root', root], '- [ ] a criterion the dod.md lacks\n', () => assert.match(pipedOut, /^verify-ship\nhand-sync/, 'route read the piped anchor')]];
+
   for (const verb of stdinVerbs) assert.ok(cases[verb], `verb "${verb}" reads piped input and has a case in this suite`);
 
   const order = ['init', ...stdinVerbs.filter((v) => v !== 'init' && v !== 'adopt'), 'adopt'];
