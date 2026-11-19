@@ -9,10 +9,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const cp = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
-const { tmp, call, sliceJson, scopePath, cleanup } = require('./scope-setup');
+const { tmp, call, sliceJson, scopePath, cleanup, writeDod, scopeRoot } = require('./scope-setup');
 
 try {
   // The run root the bullet cases below write to.
+  writeDod(scopeRoot('demo'));
   assert.ok(call(['init', 'feat/demo', 'implementing'], sliceJson).ok, 'init for the help fixture');
 
   // --help / -h: usage on stdout, exit 0, before any verb reads stdin. stdin is /dev/zero, which never

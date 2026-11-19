@@ -9,7 +9,7 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn, spawnSync, execFileSync } = require('node:child_process');
-const { scopePath, sliceJson } = require('./scope-setup');
+const { scopePath, sliceJson, writeDod } = require('./scope-setup');
 const { copyFixture, templateOnce } = require('./fixture-git');
 const { assertSpawnDecided } = require('./spawn-verdict');
 
@@ -42,6 +42,7 @@ function fixture(stage = 'implementing') {
   const repo = path.join(copy, 'repo');
   git(['remote', 'set-url', 'origin', path.join(copy, 'origin')], repo);
   const f = { repo, origin: path.join(copy, 'origin'), root: path.join(repo, '.superdev', 'scopes', 'demo') };
+  if (stage !== 'planned') writeDod(f.root);
   const r = sc(f, ['init', 'feat/demo', stage], sliceJson);
   assert.strictEqual(r.status, 0, 'init: ' + r.stderr);
   return f;
@@ -242,6 +243,7 @@ async function main() {
     assert.strictEqual(git(['show', `${ref}:trace.digest`], f.origin), `${Buffer.byteLength(pushedTrace)} ${crypto.createHash('sha256').update(pushedTrace).digest('hex')}`, 'trace.digest matches the pushed trace');
     assert.strictEqual(pushed.size, Buffer.byteLength(pushedTrace), 'the pushed trace is the local one');
     for (const e of fs.readdirSync(f.root)) fs.rmSync(path.join(f.root, e), { recursive: true, force: true });
+    writeDod(f.root);
     const adopted = sc(f, ['adopt', '--root', f.root], body);
     assert.strictEqual(adopted.status, 0, adopted.stderr);
     assert.match(adopted.stdout, /run-state: fetched/, adopted.stdout);
