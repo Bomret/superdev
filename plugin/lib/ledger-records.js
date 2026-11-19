@@ -248,18 +248,24 @@ function verbDeploySet(root, target, state, exitCode) {
   writeLines(root, insertHeader(lines, 'Deploy', value));
 }
 
-function verbDeployGet(root) {
+// The ledger's deploy record as `{ target, state, exit? }` entries, or null where the ledger holds no `**Deploy:**` line.
+function readDeployRecord(root) {
   const raw = getHeader(readLines(root), 'Deploy');
-  if (raw === null) {
+  return raw === null ? null : parseDeployRecord(raw);
+}
+
+function verbDeployGet(root) {
+  const records = readDeployRecord(root);
+  if (records === null) {
     console.log('absent');
     return;
   }
-  for (const r of parseDeployRecord(raw)) {
+  for (const r of records) {
     console.log(`${r.target} ${r.state}${r.exit !== undefined ? ` exit ${r.exit}` : ''}`);
   }
 }
 
 module.exports = {
   BULLET_STDIN_SUBS, DENIAL_PREFIX, RESET_PREFIX,
-  resolveBulletText, verbDegraded, verbUnresolved, verbDeferred, verbMinors, verbDocs, verbPr, verbDeploySet, verbDeployGet,
+  resolveBulletText, verbDegraded, verbUnresolved, verbDeferred, verbMinors, verbDocs, verbPr, verbDeploySet, verbDeployGet, readDeployRecord,
 };

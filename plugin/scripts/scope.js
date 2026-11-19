@@ -60,6 +60,7 @@ const libContained = () => require('../lib/contained.js');
 const libScopeBranch = () => require('../lib/scope-branch.js');
 const libDrivePath = () => require('../lib/drive-path.js');
 const libRedEvidence = () => require('../lib/red-evidence.js');
+const libRoute = () => require('../lib/route.js');
 const libUsage = () => require('../lib/usage.js');
 
 // --- root: the verbs over `lib/main-work-tree.js`'s run-root resolver (ADR 0080) -----------------
@@ -474,6 +475,13 @@ function run(argv, cwd, stdinJson) {
       console.log(r.verdict === 'ambiguous' ? `ambiguous ${r.branches.join(' ')}` : r.verdict === 'git-failed' ? `git-failed ${r.reason}` : r.branch ? `${r.verdict} ${r.branch}` : r.verdict);
       break;
     }
+    // Reads `dod.md`, the ledger, git, and the anchor's Definition of Done on stdin, and writes nothing: a shipped run's route (ADR 0263, INV-0196).
+    case 'route': {
+      const root = path.resolve(cwd, libDrivePath().drivePath(takeRoot(args)));
+      if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) fail(`route: --root "${root}" is not a directory`);
+      libRoute().verbRoute(cwd, root, args, stdinJson);
+      break;
+    }
     // Reads the ledger, the run trace, git, and a check-status file and writes nothing (INV-0196); `verbRedEvidence` takes `--root` itself.
     case 'red-evidence':
       libRedEvidence().verbRedEvidence(cwd, args);
@@ -517,7 +525,7 @@ function asksForHelp(argv) {
 }
 
 // The verbs `run()` hands the whole stdin text to; `main()` reads stdin for these alone, plus a bullet verb given `-`.
-const STDIN_VERBS = ['init', 'adopt', 'dod-line', 'dod-tags', 'dod-check', 'dod-merge', 'ci', 'section'];
+const STDIN_VERBS = ['init', 'adopt', 'dod-line', 'dod-tags', 'dod-check', 'dod-merge', 'ci', 'section', 'route'];
 
 function main() {
   const argv = process.argv.slice(2);
