@@ -70,11 +70,13 @@ function covers(g, events, c, from, files, resolveBase) {
 
 // ADR 0255's clean-tip exception, offered for the branch tip `tip` only: where the focused fence repeats the full fence, no
 // test-path file changed from the red commit `from` to the tip, and no run recorded at the tip failed or reads `unknown` in its
-// result. The verb reads no tree state and cannot tell a fix cycle's tip from another; the review judges both.
+// result or commit. A run whose commit reads `unknown` could be a failed run at the tip, so it blocks whatever its result (INV-0009).
+// The verb reads no tree state and cannot tell a fix cycle's tip from another; the review judges both.
 function cleanTip(g, events, tip, from) {
   const same = sameFenceChanges(g, tip, from);
   return Boolean(same) && !same.list.length && !failedRuns(events, tip, RUN_KINDS)
-    && !events.some((e) => RUN_KINDS.includes(e.fields[0]) && e.fields[2] === tip && e.fields[1] === 'unknown');
+    && !events.some((e) => RUN_KINDS.includes(e.fields[0])
+      && ((e.fields[2] === tip && e.fields[1] === 'unknown') || e.fields[2] === 'unknown'));
 }
 
 // The lines the local suite record raises: `red <sha> files=<failed files>` where the record reads red at the tip or at an ancestor

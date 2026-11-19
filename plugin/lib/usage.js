@@ -142,7 +142,7 @@ function usage() {
     '                                     the scope review\'s red evidence: prints red <sha> files=<failed files> for a red suite',
     '                                     record at the tip or an ancestor, covered <sha> by <commit> where later passing runs close',
     '                                     it (covered <sha> by <tip> clean-tip where the focused fence repeats the full fence, no test',
-    '                                     file changed up to the tip, and no run at the tip failed: the review judges the tip a fix cycle\'s and clean), and with the CI pair ci: <verdict> <sha> and ci-failed <check> <link> <sha> per failed',
+    '                                     file changed up to the tip, and no run at the tip failed or reads unknown in result or commit: the review judges the tip a fix cycle\'s and clean), and with the CI pair ci: <verdict> <sha> and ci-failed <check> <link> <sha> per failed',
     '                                     named check on a head at or behind the tip (ci-malformed for a malformed section); prints',
     '                                     none where it read and found no finding, nothing-to-read with no record and no CI input;',
     '                                     refuses a half-given CI pair; writes nothing',

@@ -148,7 +148,7 @@ try {
     assert.strictEqual(out(bare([]), e.repo), `red ${e.T} files=`, 'no later commit: nothing covers the record');
     // ADR 0255: a cycle that changed no test file closes the finding on its tip being clean. The verb reads no clean-tree
     // state there, so the line names the tip and the review judges it.
-    assert.strictEqual(out(bare([], e.R), e.repo), `covered ${e.R} by ${e.T} clean-tip`, 'no test file changed since: the latest such tip, flagged clean-tip');
+    assert.strictEqual(out(bare([], e.R), e.repo), `covered ${e.R} by ${e.T} clean-tip`, 'no test file changed since: the branch tip, flagged clean-tip');
     assert.strictEqual(out(bare([['full', 'pass', e.M, 'clean']], e.R), e.repo), `covered ${e.R} by ${e.M}`, 'a passing clean run at the later commit covers, with no clean-tip flag');
     assert.strictEqual(out(bare([['full', 'pass', e.M, 'dirty']], e.R), e.repo), `covered ${e.R} by ${e.T} clean-tip`, 'a dirty run is no pass, and the clean-tip line is the review\'s to judge');
     assert.strictEqual(out(bare([['full', 'pass', e.M, 'unknown']], e.R), e.repo), `covered ${e.R} by ${e.T} clean-tip`, 'an unknown tree never covers plainly (INV-0009)');
@@ -156,7 +156,10 @@ try {
     // The clean-tip line names the branch tip only: a failed or unknown run at the tip leaves the record red, with no fallback to an earlier commit.
     assert.strictEqual(out(bare([['full', 'fail', e.T, 'clean']], e.R), e.repo), `red ${e.R} files=`, 'a failed run at the tip gives no clean-tip and no earlier commit');
     assert.strictEqual(out(bare([['full', 'unknown', e.T, 'clean']], e.R), e.repo), `red ${e.R} files=`, 'an unknown result at the tip gives no clean-tip');
-    assert.strictEqual(out(bare([['full', 'fail', e.T, 'clean'], ['full', 'fail', e.M, 'clean']], e.R), e.repo), `red ${e.R} files=`, 'a failed run at every later commit leaves the record red');
+    // The run writer writes `unknown` in the commit field where it cannot read the tree's HEAD, and a failed run there is never placed at the tip (INV-0009).
+    assert.strictEqual(out(bare([['full', 'fail', 'unknown', 'clean']], e.R), e.repo), `red ${e.R} files=`, 'a failed run whose commit reads unknown gives no clean-tip');
+    assert.strictEqual(out(bare([['full', 'fail', 'unknown', 'unknown']], e.R), e.repo), `red ${e.R} files=`, 'a failed run whose commit and tree read unknown gives no clean-tip');
+    assert.strictEqual(out(bare([['full', 'fail', e.T, 'clean'], ['full', 'fail', e.M, 'clean']], e.R), e.repo),`red ${e.R} files=`, 'a failed run at every later commit leaves the record red');
     // A record that names failed files takes no clean-tip exception: its files need their own runs.
     assert.strictEqual(out(e.root([`**Suite:** red @ ${e.R}`, `**Failed:** tests/a.test.js @ ${e.R}`], []), e.repo), `red ${e.R} files=tests/a.test.js`, 'failed files are covered only by runs');
     const T2 = commit(e.repo, 'tests/b.test.js', 'b\n', 'test');
