@@ -17,11 +17,8 @@ shipped `references/issue-tracker-*.md` seeds. Nothing is written.
 List every run root at stage `shipped` with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" candidates --stage shipped`
 (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Resolving an empty argument` → *Run-root enumeration*; its
 `one` and `several` lines name them, and `none` means no run is shipped) and keep each one whose `<run-root>/dod.md` holds at least one `not met:` note
-`/superdev:verify-ship` observed. Read the note by `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s
-**The repair citation**, and never by the box (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s
-`## The note rule`). A line makes a candidate by its note alone, so a `[x]` line noted
-`not met: … (observed)` is a candidate. A settled line, a `ceiling:` line, and a line with no note make
-none, nor does a `not met:` note written before merge, and neither does a `closed` run.
+`/superdev:verify-ship` observed. List them with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-open --root <run-root>`: a row labelled `not-met` whose fourth field reads `repair-citation` makes a candidate (`${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s
+**The repair citation**), whatever its box. No other row makes one, nor does a `not met:` note written before merge, and neither does a `closed` run.
 
 Show each candidate with its observed `not met:` lines, and its unobserved `not met:` lines labelled as
 context, not seed, because `/superdev:verify-ship` has not observed them. Alongside the candidates, name

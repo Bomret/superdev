@@ -14,7 +14,7 @@ Applies to every start. You bring the docs and the knowledge base into agreement
 - **`<run-root>`**: the **absolute** path to the live run's scope directory. The run's artifacts are `<run-root>/ledger.md`, `<run-root>/run.lock`, and `<run-root>/dod.md`.
 - **The scope's own commits**: `<range-base>..<branch>`, per `scope-mode.md`'s `## The scope's range base`.
 - **The staging path**: the **absolute** path `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" staging <scope>` prints, or `staging _adhoc` on an ad-hoc start, resolved before the dispatch. It names `.superdev/kb-pending/<scope>/` in the main working tree from any cwd.
-- **An open `docs` line**: a `docs`-tagged line of `<run-root>/dod.md` that `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule` calls open.
+- **An open `docs` line**: a line `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-open --root <run-root> --tag docs` prints.
 - **The publish**: on a live run, the run's one snapshot publish, per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section. It is the last act of the exit that ends the run, after the closer §3's **The step** lists. No write site publishes.
 - **A test-only scope**: a live run whose range `<range-base>..<branch>` holds at least one changed path, whose every changed path is a test-path file, and whose `<run-root>/dod.md` holds no `docs`-tagged line. The test paths are the `## Test paths` entries of `docs/agents/verification.md` at the branch tip, or `${CLAUDE_PLUGIN_ROOT}/lib/verification.js`'s defaults where that section is absent. An empty range is no test-only scope (ADR 0252).
 - **A writer dispatch**: dispatch `superdev:doc-writer` with an **explicit `model`** (`sonnet`).
@@ -160,7 +160,7 @@ An `accepted:` `docs` line stays exactly as it stands.
 - **Now true** → tick it with its evidence.
 - **Still false** → untick it with a `not met:` note naming what the `AGENTS.md` text still lacks. Write one `**Unresolved:**` entry worded `docs criterion unmet after the doc pass: <criterion>`, as **An untick's entry** does, unless `scope.js get unresolved` already prints a bullet naming that criterion.
 
-**The settle's clear.** Applies after the settle, when every `docs` line is a settled line, noted `met:` or `accepted:`, and every bullet `get unresolved` prints is a `docs criterion unmet after the doc pass:` entry. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. Any other bullet standing → leave every entry.
+**The settle's clear.** Applies after the settle, when `dod-open --root <run-root> --tag docs` prints no open line, and every bullet `get unresolved` prints is a `docs criterion unmet after the doc pass:` entry. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. Any other bullet standing → leave every entry.
 
 **The stage write.** Applies after the settle. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state --root <run-root>` first and read its `unresolved` and `stage` fields.
 
