@@ -25,7 +25,6 @@ const commit = (cwd, msg) => {
   git(cwd, 'add', '-A');
   git(cwd, 'commit', '-q', '-m', msg);
 };
-const wait = (ms) => { const end = Date.now() + ms; while (Date.now() < end); };
 const rows = (out) => out.split('\n').filter(Boolean).sort();
 
 const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-untraced-')));
@@ -85,29 +84,58 @@ const edit = (root, slice, rel) => appendTrace(root, { slice, agent: 'a1', kind:
   assert.equal(clean.out, '', 'an empty range lists nothing');
 }
 
-// #cycles: an earlier cycle's edit line masks no later cycle's write of the same path.
+// #cycles: an earlier cycle's edit line masks no later cycle's write of the same path; each call names its window by dispatch.
 {
   const { repo, root } = repoOf('cycles');
+  const line = (text) => fs.appendFileSync(path.join(root, 'trace.log'), `${new Date().toISOString()} ${text}\n`);
   put(repo, 'p.txt', 'zero\n');
+  put(repo, 'q.txt', 'zero\n');
   commit(repo, 'base');
   const base = git(repo, 'rev-parse', 'HEAD');
+  line('scope main dispatch superdev:implementer f1 fix -');
   edit(root, 'scope', 'p.txt');
+  line('scope main dispatch-end superdev:implementer f1 stopped');
+  line('scope main dispatch-resume f1 a1 - sm1');
+  line('scope a1 edit impl q.txt');
   put(repo, 'p.txt', 'one\n');
+  put(repo, 'q.txt', 'one\n');
   commit(repo, 'cycle one');
   const mid = git(repo, 'rev-parse', 'HEAD');
-  wait(5);
-  const boundary = new Date().toISOString();
-  wait(5);
+  line('scope main dispatch superdev:final-reviewer v1 review -');
+  line('scope main dispatch superdev:implementer f2 fix -');
   put(repo, 'p.txt', 'two\n');
   commit(repo, 'cycle two');
   const tip = git(repo, 'rev-parse', 'HEAD');
 
-  const one = call(['untraced', `${base}..${mid}`, '--slice', 'scope', '--until', boundary, '--root', root], '', repo);
+  const one = call(['untraced', `${base}..${mid}`, '--slice', 'scope', '--window', 'f1', '--root', root], '', repo);
   assert.ok(one.ok, one.err);
-  assert.equal(one.out, '', 'the cycle that edited p.txt through the tool lists nothing');
-  const two = call(['untraced', `${mid}..${tip}`, '--slice', 'scope', '--from', boundary, '--root', root], '', repo);
+  assert.equal(one.out, '', 'an edit line in any run of the window\'s dispatch counts as traced');
+  const two = call(['untraced', `${mid}..${tip}`, '--slice', 'scope', '--window', 'f2', '--root', root], '', repo);
   assert.ok(two.ok, two.err);
   assert.equal(two.out, 'modified\tp.txt', 'the later cycle changed p.txt with no edit line of its own window');
+  for (const flag of ['--from', '--until']) {
+    const r = call(['untraced', `${mid}..${tip}`, '--slice', 'scope', flag, '2026-01-01T00:00:00.000Z', '--root', root], '', repo);
+    assert.ok(!r.ok && r.err.includes(flag) && r.err.includes('--window'), `${flag} is refused naming --window: ${r.err}`);
+  }
+  const unknown = call(['untraced', `${mid}..${tip}`, '--slice', 'scope', '--window', 'v1', '--root', root], '', repo);
+  assert.ok(!unknown.ok && unknown.err.includes('v1'), 'a window that names no implementer dispatch is refused by name');
+  const other = call(['untraced', `${mid}..${tip}`, '--slice', '05', '--window', 'f2', '--root', root], '', repo);
+  assert.ok(!other.ok && other.err.includes('f2') && other.err.includes('scope'), 'a window of another slice than --slice is refused by name');
+}
+
+// #msys: an edit line naming the path absolute, as the tree root spells it, masks the root-relative change git reports.
+{
+  const { repo, root } = repoOf('abs');
+  put(repo, 'k.txt', 'zero\n');
+  commit(repo, 'base');
+  const base = git(repo, 'rev-parse', 'HEAD');
+  put(repo, 'k.txt', 'one\n');
+  commit(repo, 'change');
+  const tip = git(repo, 'rev-parse', 'HEAD');
+  edit(root, '05', path.join(repo, 'k.txt'));
+  const r = call(['untraced', `${base}..${tip}`, '--slice', '05', '--root', root], '', repo);
+  assert.ok(r.ok, r.err);
+  assert.equal(r.out, '', 'an absolute edit path compares root-relative');
 }
 
 // #refusals

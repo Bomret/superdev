@@ -89,7 +89,7 @@ try {
   refuses(['base', 'resolve', '--branch', 'a', '--base', 'b', 'extra', ...R], /base resolve: unrecognized argument "extra"/);
   refuses(['base', 'bogus', ...R], /unknown base subcommand "bogus" — use set\|resolve/);
   refuses(['base', 'set', 'a', 'b', ...R], /base set: unrecognized argument "b"/);
-  refuses(['trace', '--slice', ...R], /--slice needs an id/);
+  refuses(['trace', '--slice', ...R], /trace: --slice needs a value/);
   refuses(['collisions', '--base', 'a', '--branch', 'b', '--range-base', 'c', 'stray'], /unrecognized argument "stray"/, 2);
   refuses(['collisions', '--also'], /--also needs a value/, 2);
 

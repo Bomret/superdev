@@ -4,12 +4,12 @@
 
 const fs = require('fs');
 const path = require('path');
-const { readTrace, untraceField } = require('./trace-log.js');
 const { gitSpawn } = require('./git-spawn.js');
+const { lazyToplevel } = require('./run-tree.js');
+const { readRunTrace, sliceOf, editPath, windowIndexes } = require('./trace-window.js');
 const { fail } = require('./refusal.js');
 
 const STATUS = { A: 'added', M: 'modified', T: 'modified', D: 'deleted', R: 'renamed' };
-const slash = (p) => p.replace(/\\/g, '/');
 
 // The first-parent, non-merge commits of `range`, oldest first, as { path, status, from? } changes in commit order. A merge commit
 // carries the base's changes into the branch, so it is no write of the window; diff-tree reads each commit against its first parent.
@@ -36,8 +36,8 @@ function changesOf(range, cwd) {
 }
 
 // Prints `<status>\t<path>` once per path the commits of `<base>..<tip>` change, with `renamed\t<new>\t<old>` for a rename, where the
-// trace holds no `edit` line of `--slice` whose time lies in [`--from`, `--until`) and whose path equals it. The window flags take
-// the ISO times of the trace's own lines; none means the slice's whole trace. Lines come out sorted by path.
+// trace holds no `edit` line of `--slice` naming it, compared root-relative. `--window <dispatch id>` keeps only the edit lines every
+// run of that implementer dispatch covers (`trace-window.js`); none means the slice's whole trace. Lines come out sorted by path.
 function verbUntraced(cwd, args) {
   const rest = args.slice();
   const take = (flag) => {
@@ -48,10 +48,10 @@ function verbUntraced(cwd, args) {
     rest.splice(i, 2);
     return v;
   };
+  for (const flag of ['--from', '--until']) if (rest.includes(flag)) fail(`untraced: ${flag} is no flag of untraced; name the window by its dispatch with --window <dispatch id>`);
   const root = take('--root');
   const slice = take('--slice');
-  const from = take('--from');
-  const until = take('--until');
+  const window = take('--window');
   if (!root) fail('untraced needs --root <run-root>');
   if (!slice) fail('untraced needs --slice <id|scope>');
   if (rest.length !== 1) fail('untraced needs one <base>..<tip> range');
@@ -59,12 +59,14 @@ function verbUntraced(cwd, args) {
   if (!fs.existsSync(path.join(root, 'ledger.md'))) fail(`untraced: "${root}" holds no ledger.md, so it is no run root`);
   const changes = changesOf(rest[0], cwd);
 
-  let raw = '';
-  try { raw = fs.readFileSync(path.join(root, 'trace.log'), 'utf8'); } catch (e) { if (e.code !== 'ENOENT') throw e; }
+  const { events } = readRunTrace(root);
+  const inWindow = window === undefined ? null : windowIndexes(events, window, slice, (m) => fail(`untraced: ${m}`));
+  const top = lazyToplevel(cwd);
   const traced = new Set(
-    readTrace(raw)
-      .filter((e) => e.kind === 'edit' && e.slice === slice && e.fields[1] !== undefined && (!from || e.ts >= from) && (!until || e.ts < until))
-      .map((e) => slash(path.posix.normalize(slash(untraceField(e.fields[1]))))),
+    events
+      .filter((e, i) => sliceOf(e) === slice && (inWindow === null || inWindow.has(i)))
+      .map((e) => editPath(e, top))
+      .filter((p) => p !== null),
   );
 
   // The range's net change per path, in commit order, keyed by the path as it stands now: a path added and then modified stays

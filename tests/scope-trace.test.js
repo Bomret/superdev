@@ -83,7 +83,7 @@ const { sliceJson, scopePath, run } = require('./scope-setup');
     // `ledger <verb> …` line: a verb added to the usage text with no driver here, or one that stops tracing, fails.
     {
       const usageText = require('../plugin/lib/usage.js').usage();
-      const readOnly = new Set(['get', 'state', 'trace', 'publish', 'status', 'root', 'staging', 'dod-line', 'dod-tags', 'dod-check', 'dod-merge', 'ci', 'collisions', 'citations', 'source-set', 'untraced', 'push', 'run-state', 'test', 'fail-to-pass', 'prepare',
+      const readOnly = new Set(['get', 'state', 'trace', 'publish', 'status', 'root', 'staging', 'dod-line', 'dod-tags', 'dod-check', 'dod-merge', 'ci', 'collisions', 'citations', 'source-set', 'untraced', 'windows', 'push', 'run-state', 'test', 'fail-to-pass', 'prepare',
         // discard removes the run trace with the ledger, so it leaves no line to append to (ADR 0208).
         'discard']);
       const readOnlySub = /^\s+(deploy get|suite reusable|base resolve)\b/;
@@ -194,7 +194,7 @@ const { sliceJson, scopePath, run } = require('./scope-setup');
       assert.ok(one.stdout.includes('ledger slice 01 merged'));
       const none = spawnSync(process.execPath, [scopePath, 'trace', '--slice', '99', '--root', root], { encoding: 'utf8', timeout: 20000 });
       assertSpawnDecided(none, 'trace --slice none');
-      assert.match(none.stdout.trim(), /^no trace: this run has recorded no events$/, 'a slice with no lines prints the one no-trace line');
+      assert.match(none.stdout.trim(), /^no match: the filter matched no line of this run's trace$/, 'a slice with no lines on a non-empty trace says the filter matched nothing');
       for (const content of [null, '']) {
         const empty = path.join(dir, 'empty' + content);
         fs.mkdirSync(empty, { recursive: true });
@@ -337,6 +337,56 @@ const { sliceJson, scopePath, run } = require('./scope-setup');
     assertSpawnDecided(verb, 'scope.js step set');
     assert.strictEqual(verb.status, 0, verb.stderr);
     assert.ok(mtime(lockG) > beforeG + 60 * 60 * 1000, 'a ledger verb\'s trace line refreshes the lock');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+// trace filters (ADR 0260): --kind, --last, and --slice combine as AND, every printed line byte-identical to the recorded one; older
+// releases' lines read; a malformed flag is refused naming it.
+{
+  const { call } = require('./scope-setup');
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-trace-filters-')));
+  try {
+    const root = path.join(dir, '.superdev', 'scopes', 'demo');
+    fs.mkdirSync(root, { recursive: true });
+    const L = [
+      '2026-11-19T10:00:01.000Z 01 main dispatch superdev:implementer tu1 build',
+      '2026-11-19T10:00:02.000Z 01 a1 run path pass abc clean t.test.js 12 node\\x20t.test.js',
+      '2026-11-19T10:00:03.000Z 01 main fail-to-pass a..b fail-to-pass control=0,put-back=1 node\\x20t.test.js',
+      '2026-11-19T10:00:04.000Z 01 main verdict 01 approved',
+      '2026-11-19T10:00:05.000Z scope main revert x.js',
+      '2026-11-19T10:00:06.000Z 02 main dispatch superdev:implementer tu2 build -',
+      '2026-11-19T10:00:07.000Z 01 main fail-to-pass b..c pass-to-pass control=0,put-back=0 node\\x20u.test.js',
+    ];
+    fs.writeFileSync(path.join(root, 'trace.log'), L.join('\n') + '\n');
+    const before = fs.readFileSync(path.join(root, 'trace.log'));
+    const ok = (argv) => { const r = call([...argv, '--root', root], '', dir); assert.ok(r.ok, r.err); return r.out; };
+    assert.equal(ok(['trace', '--kind', 'fail-to-pass,dispatch', '--last', '2']), [L[5], L[6]].join('\n'), '--last applies after --kind, lines byte-identical');
+    assert.equal(ok(['trace', '--kind', 'fail-to-pass,dispatch', '--slice', '01']), [L[0], L[2], L[6]].join('\n'), '--kind and --slice combine as AND');
+    assert.equal(ok(['trace', '--kind', 'verdict,revert']), [L[3], L[4]].join('\n'), 'the legacy kinds are accepted and older lines read');
+    assert.equal(ok(['trace']), L.join('\n'), 'a trace holding older-release lines reads whole');
+    assert.equal(ok(['trace', '--kind', 'tamper']), "no match: the filter matched no line of this run's trace", 'a filter matching nothing says so');
+    const refused = (argv, flag) => {
+      const r = call([...argv, '--root', root], '', dir);
+      assert.ok(!r.ok, argv.join(' ') + ' is refused');
+      assert.ok(r.err.includes(flag), `${argv.join(' ')}: the refusal names ${flag}: ${r.err}`);
+      return r.err;
+    };
+    assert.match(refused(['trace', '--kind', 'bogus'], '--kind'), /edit, run, dispatch/, 'an unknown kind names the known kinds');
+    for (const v of ['0', '-1', 'x', '1.5']) refused(['trace', '--last', v], '--last');
+    refused(['trace', '--last'], '--last');
+    refused(['trace', '--kind'], '--kind');
+    refused(['trace', '--slice', '--kind', 'edit'], '--slice');
+    refused(['trace', '--window', '--last', '1'], '--window');
+    assert.deepEqual(fs.readFileSync(path.join(root, 'trace.log')), before, 'no filter changes the trace');
+    assert.deepEqual(fs.readdirSync(root).sort(), ['trace.log'], 'and no filter writes a ledger or a digest');
+    const empty = path.join(dir, 'empty');
+    fs.mkdirSync(empty);
+    fs.writeFileSync(path.join(empty, 'trace.log'), '');
+    const e = call(['trace', '--kind', 'edit', '--root', empty], '', dir);
+    assert.ok(e.ok, e.err);
+    assert.equal(e.out, 'no trace: this run has recorded no events', 'an empty trace still prints the no-events line under a filter');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
