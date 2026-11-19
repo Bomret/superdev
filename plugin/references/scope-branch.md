@@ -279,10 +279,10 @@ as if the push had succeeded: no ledger stage, step, or published snapshot chang
 
 Both execution playbooks run this step right after their own write of `scope-mode.md`'s `## The run lock` and before their first
 slice, on every `/superdev:implement` invocation and at every run kind.
-`/superdev:review` runs it too, on a live scope run at a stage before `submitted`, after its scope
+`/superdev:review` runs it too, on a live scope run at every stage before `shipped`, `submitted` included, after its scope
 checkout and run lock and before its preparation and first dispatch, and again itself, never through a fix implementer,
-before its stage write and at a fix cycle's end when the scope branch no longer holds the base tip (`review-scope-mode.md`'s **The moved base** concept). At `submitted` review merges nothing and names
-the moved base: `/superdev:ship` owns a moved base there. The step runs no test suite: the full-suite evidence `/superdev:ship` takes
+before its stage write, or its leave-alone at `submitted`, and at a fix cycle's end when the scope branch no longer holds the base tip (`review-scope-mode.md`'s **The moved base** concept). Review pushes
+nothing: at `submitted`, `/superdev:ship` pushes the merged tip. The step runs no test suite: the full-suite evidence `/superdev:ship` takes
 verifies every merge it makes, implement's and the review's own alike. It brings
 the remote's `<base>` tip into the scope branch, so slices build on what the pull request targets rather
 than on whatever `<base>` the branch was cut from. `/superdev:plan`'s own cut never reads it. `<remote>`

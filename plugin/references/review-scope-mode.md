@@ -8,7 +8,7 @@ Rare branches live in files of their own, each read only when its branch fires: 
 
 - `<run-root>` and `<branch>`: the run root and scope branch §1 captured.
 - `<base>`: the base branch §0 read.
-- `<range-base>`: the scope's range base per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`. Before `submitted` it is the value §4.1's base concept resolves after the base step. At `submitted` no base step runs, and it is the value §1 resolved.
+- `<range-base>`: the scope's range base per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`. Before `shipped`, `submitted` included, it is the value §4.1's base concept resolves after the base step. At `shipped` and `closed` no base step runs, and it is the value §1 resolved.
 
 ## 0. Config
 
@@ -113,7 +113,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - **The check passes** → continue.
 - **A refusal, or a failed anchor read or Absorbs read** → take `review-scope-holds.md`'s `## The anchor check's refusals`, its entry branch.
 
-**The base.** Applies at a stage before `submitted`, read from the `stage` field of the skill's `scope.js state` call. Run `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Bringing the scope branch to base` after the scope checkout and the run lock. It runs before §4.2's red evidence. Its own rules apply unchanged.
+**The base.** Applies at a stage before `shipped`, `submitted` included, read from the `stage` field of the skill's `scope.js state` call. Run `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Bringing the scope branch to base` after the scope checkout and the run lock. It runs before §4.2's red evidence. Its own rules apply unchanged.
 
 - The unchanged rules: conflict, numbering-collision, citation, unattended-block, and degraded-fetch.
 - A stop there ends the review with the scopetree clean.
@@ -121,13 +121,13 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - It runs no suite. Ship's full-suite evidence covers its merge together with implement's.
 - The base step records the range base `final-reviewer` starts from. Resolve `<range-base>` with `scope.js base resolve --branch <branch> --base <base> --root <run-root>` after it, and hand every dispatch the range from that value.
 
-**The preparation.** Applies at a stage before `submitted`, after the base step and before §4.2's red evidence, so the tree is ready before the first fix cycle runs a test in it. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <run-root>/scopetree` in the controller's own Bash call, per `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Preparing a worktree`: a merged slice or the base step can add a dependency. A failing preparation stops the review, naming the command and its exit. **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`.
+**The preparation.** Applies at a stage before `shipped`, `submitted` included, after the base step and before §4.2's red evidence, so the tree is ready before the first fix cycle runs a test in it. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <run-root>/scopetree` in the controller's own Bash call, per `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Preparing a worktree`: a merged slice or the base step can add a dependency. A failing preparation stops the review, naming the command and its exit. **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`.
 
-**The moved base.** Applies before §4.10's stage write and when each fix cycle ends, at every stage the review accepts, `submitted` included. The base may move while the review runs. Fetch `<base>` per `scope-branch.md`'s `## Bringing the scope branch to base` (its fetch step) and read from git whether the scope branch holds the base tip: `git -C <run-root>/scopetree merge-base --is-ancestor <tip> <branch>`, `<tip>` being the fetched base tip as a full commit.
+**The moved base.** Applies before §4.10's stage write, or its leave-alone at `submitted`, and when each fix cycle ends, at every stage the review accepts. The base may move while the review runs. Fetch `<base>` per `scope-branch.md`'s `## Bringing the scope branch to base` (its fetch step) and read from git whether the scope branch holds the base tip: `git -C <run-root>/scopetree merge-base --is-ancestor <tip> <branch>`, `<tip>` being the fetched base tip as a full commit.
 
 - **The branch holds the tip** → continue.
-- **At `submitted`, the branch lacks the tip** → merge nothing and name the moved base in the report for `/superdev:ship`, which owns it there.
-- **At a stage before `submitted`, the branch lacks the tip** → bring it in per `review-scope-base.md`'s `## The base merge`.
+- **At a stage before `shipped`, `submitted` included, the branch lacks the tip** → bring it in per `review-scope-base.md`'s `## The base merge`.
+- **At `shipped` or `closed`** → merge nothing. The pull request has merged, so no merge into the scope branch can reach it.
 - **A finding whose remedy is merging the base** → `review-scope-base.md`'s `## A finding answered by the base step`.
 - **A fetch that failed** → record the degraded pass **The base** names and continue.
 
@@ -323,5 +323,5 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 
 - **A stop that made the standing-defect writes of `review-scope-holds.md`**, the cap of §4.7, or the anchor check of the anchor re-sync at a stage before `shipped`, a failed re-read included → put `Blocked: <reason>` before the fence, and print `/superdev:review <scope-slug>` in it as the command that resumes the run.
 - **The `docs` untick wrote an `**Unresolved:**` entry** → print `/superdev:document <range>`, carrying the concrete range §1 resolved, and say in one line that it re-judges the unticked `docs` lines. `/superdev:submit-pr` and `/superdev:ship` wait for it.
-- **The stage reads `submitted`** → print `/superdev:ship <scope>`, and say in one line that it merges the pull request `/superdev:submit-pr` opened.
+- **The stage reads `submitted`** → print `/superdev:ship <scope>`, and say in one line that it merges the pull request `/superdev:submit-pr` opened. Where this review merged base or landed a fix commit, say in one more line that the merged tip is local and `/superdev:ship` pushes it.
 - **Otherwise** → start `/superdev:document <range>`, carrying the concrete range §1 resolved. Where the start is refused or fails, print it, and say in one line that it reconciles the in-repo docs and the knowledge base with the merged state.
