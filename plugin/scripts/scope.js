@@ -3,7 +3,7 @@
 
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
 // Verbs: open, init, stage, step, slice, degraded, unresolved, deferred, minors, docs, pr, deploy, suite, base, get, status,
-// publish, adopt, trace, windows, untraced, fail-to-pass-check, collisions, citations, source-set, push, root, staging, dod-line, dod-tags, dod-check, ci, section, tier, dod-open, contained, red-evidence; `main()` also runs test, fail-to-pass, and prepare. Exit
+// publish, adopt, trace, windows, untraced, fail-to-pass-check, collisions, citations, source-set, push, root, staging, dod-line, dod-tags, dod-check, ci, section, tier, dod-open, contained, red-evidence, branch; `main()` also runs test, fail-to-pass, and prepare. Exit
 // nonzero with a one-line stderr reason on any refusal. Every verb that writes to a run first checks the run's
 // digest sidecar and reports an outside edit of its ledger or trace once (lib/run-check.js, ADR 0227).
 // `root` and `dod-line` touch no ledger: `root` resolves a run root's absolute
@@ -57,6 +57,7 @@ const libSection = () => require('../lib/section.js');
 const libTier = () => require('../lib/tier.js');
 const libDodOpen = () => require('../lib/dod-open.js');
 const libContained = () => require('../lib/contained.js');
+const libScopeBranch = () => require('../lib/scope-branch.js');
 const libRedEvidence = () => require('../lib/red-evidence.js');
 const libUsage = () => require('../lib/usage.js');
 
@@ -461,6 +462,10 @@ function run(argv, cwd, stdinJson) {
     // No --root: contained reads git and writes no ledger, trace, or digest; the test writes tree objects and the refetch writes fetched commit objects and `FETCH_HEAD` (ADR 0065, INV-0195).
     case 'contained':
       libContained().verbContained(cwd, args);
+      break;
+    // Reads the ledger and git and writes nothing: one scope-branch verdict, `--root` names the run to read (INV-0196).
+    case 'branch':
+      libScopeBranch().verbBranch(cwd, args);
       break;
     // Reads the ledger, the run trace, git, and a check-status file and writes nothing (INV-0196); `verbRedEvidence` takes `--root` itself.
     case 'red-evidence':
