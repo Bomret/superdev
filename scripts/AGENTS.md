@@ -406,8 +406,9 @@ success it writes `run.lock` as `plan <nonce>`, writes an empty `planned` ledger
 `init` where no live ledger stood, records `step set plan` unless the same nonce's call already did, traces the `init`
 and the step as their own verbs would, prints `root <run-root>` and `lock <nonce>`, and exits 0. It writes nothing and
 exits 3 on `locked` (a lock under an hour old that names another nonce, on a `planned` ledger only while its step
-stands), `not-contained` (the commits base lacks, a `git branch -m` remedy, and a last line `refetch timed-out` or `refetch failed` where the refetch of the base ended without one, the refetch bounded by `code-host.pushTimeoutMs`), `dirty` (the scopetree's
-`status --porcelain`), and `held` (another worktree holds the branch). A ledger at a later stage, a `planned` ledger
+stands), `not-contained`, `dirty` (the scopetree's `status --porcelain`), and `held` (another worktree holds the branch).
+A `not-contained` refusal prints the commits base lacks and a `git branch -m` remedy. Where the refetch of the base ended
+without one, it prints a last line `refetch timed-out` or `refetch failed`. `code-host.pushTimeoutMs` bounds the refetch. A ledger at a later stage, a `planned` ledger
 naming another branch, a missing `--base`, and a failed git call exit 1. A run lock that is no regular file (a
 directory, a symlink, or another kind) or that cannot be read, and a ledger that cannot be read, exit 1 before the cut
 and write nothing. A lock write that fails after the cut exits 1 and names the branch and scopetree already set up, and
@@ -482,10 +483,17 @@ writes a ledger line, a trace line, or a digest, and none runs a test. A usage r
   and whole text through `md-sections.js`'s `headingKeyOf`, the key the `heading-citation` drift check uses. `<file>` is a
   `${CLAUDE_PLUGIN_ROOT}` path or an absolute path as given, a bare `<name>.md` under the plugin's `references/` then `agents/`,
   or any other relative path under the plugin root then the current directory. A bare `AGENTS.md` names the repository's own
-  hierarchy root and reads the current directory only. It refuses, printing nothing, a missing `<file>`, stdin with no markdown
-  heading line, a file that is not readable, an unterminated fence in the file, a heading that is absent, one found only inside
-  a fenced code block, one found more than once outside fences, and a setext heading inside the span, because where the section ends
-  is then unknown. The code lives in `plugin/lib/section.js`.
+  hierarchy root and reads the current directory only. It refuses and prints nothing in these cases:
+  - a missing `<file>`;
+  - stdin with no markdown heading line;
+  - a file that is not readable;
+  - an unterminated fence in the file;
+  - a heading that is absent;
+  - a heading found only inside a fenced code block;
+  - a heading found more than once outside fences;
+  - a setext heading inside the span, because where the section ends is then unknown.
+
+  The code lives in `plugin/lib/section.js`.
 - **`tier --root <run-root>`** prints `tier: full|lite|unknown` and `simplicity: skip|dispatch` from the ledger's slice rows. The
   tier is never stored (INV-0056). More than 3 `behavior` rows is `full`, and 3 or fewer is `lite`. `mechanical` and `docs` rows never
   count, and a row of any status does. `simplicity` is `skip` only for a `full` run whose every row is `behavior` (INV-0055). A run
@@ -497,37 +505,50 @@ writes a ledger line, a trace line, or a digest, and none runs a test. A usage r
   `<open|settled><TAB><label><TAB><tag|-><TAB><repair-citation|-><TAB><criterion>` line per criterion, then `stage-hold: yes|no`. The
   label is `met`, `not-met`, `ceiling`, `accepted`, or `none`; `met` and `accepted` are settled. `repair-citation` marks a `not-met`
   note that ends in verify-ship's `(observed)` citation. `stage-hold` is `yes` where an open line is neither `ceiling` nor tagged
-  `docs`. `--tag docs` prints the open `docs` lines alone and no `stage-hold` line, and takes only the value `docs`. It refuses a
-  missing `--root`, an unrecognized argument, a `dod.md` that cannot be read, an unterminated fence, and a `dod.md` with no
-  criterion line (`no criteria`). The code lives in `plugin/lib/dod-open.js`.
+  `docs`. `--tag docs` prints the open `docs` lines alone and no `stage-hold` line. It takes only the value `docs`. It refuses in
+  these cases:
+  - a missing `--root`;
+  - an unrecognized argument;
+  - a `dod.md` that cannot be read;
+  - an unterminated fence;
+  - a `dod.md` with no criterion line (`no criteria`).
+
+  The code lives in `plugin/lib/dod-open.js`.
 - **`contained <base> <branch> [--remote <remote>]`** prints the containment verdict of `<branch>` against `<base>` through
   `judgeContainment` (ADR 0053, ADR 0065): `contained`, `not-contained`, or `could-not-resolve`, then `base <full sha>` (the base
   judged against, the refetched one when the refetch ran, `unresolved` where none resolves), `remote <name>`, and
-  `judged local|refetched`. It adds `fallback ancestor` where the git lacks `merge-tree --write-tree`, and `refetch timed-out` or
-  `refetch failed` (`refetchMark` of `containment.js`) where the refetch ended without a base, so a `not-contained` answer there is
+  `judged local|refetched`. It adds `fallback ancestor` where the git lacks `merge-tree --write-tree`. It adds `refetch timed-out` or
+  `refetch failed` (`refetchMark` of `containment.js`) where the refetch ended without a base. A `not-contained` answer there is
   no verdict on the work (INV-0003, INV-0009). Only `--remote` is an option, so an option-shaped operand stays an operand. The remote
   defaults to the `Remote:` value of `docs/agents/code-management.md` read at the repository top level. The refetch is bounded by
   `code-host.pushTimeoutMs` of the operator configuration and writes no remote-tracking ref (`--refmap=`). Exit 0 is `contained`, 3
-  `not-contained`, 4 `could-not-resolve`, and 1 a usage refusal, including no remote from either source. It writes tree objects, fetched
-  commit objects, and `FETCH_HEAD`, and no ledger, trace, ref, index, or working tree. The code lives in `plugin/lib/contained.js`.
+  `not-contained`, 4 `could-not-resolve`, and 1 a usage refusal, including no remote from either source. It writes tree objects,
+  fetched commit objects, and `FETCH_HEAD`. It writes no ledger, trace, ref, index, or working tree. The code lives in
+  `plugin/lib/contained.js`.
 - **`red-evidence --root <run-root> --branch <branch> --base <base-ref> [--ci-head <sha> --ci-file <path>]`** reads what
   `references/review-scope-mode.md`'s `### 4.2 Red evidence` judges, from the ledger's suite record and the trace's run lines, in
   the scope checkout (ADR 0255, INV-0191). A red record at the tip or an ancestor of it prints `red <sha> files=<failed files>`,
   the files coming from a `Failed` record that carries the record's own full SHA. It prints `covered <sha> by <commit>` instead
-  where a later commit on the tip's ancestry holds passing runs that close it: no failed run there, and each failed file passed alone
-  on a clean tree or inside a focused run's path set. A record with no failed file is covered by a focused run over every path of
-  the scope's range, or, where the focused fence repeats the full fence, by a passing full-class run on a clean tree and a passing
-  `path` run of each test file changed since that is still present. A record with no failed file also takes the tip as its closer,
-  printed `covered <sha> by <tip> clean-tip`, where the focused fence repeats the full fence, no test file changed from the red commit to
-  the tip, and no run at the tip failed or reads `unknown` in result or commit; the review judges that line (ADR 0255). The CI pair
-  adds `ci: <verdict> <sha>` through `ciJudgment` of `ci.js` and, for a failed head at or behind the tip, `ci-failed <check> <link> <sha>`
-  per failed named check, or `covered` where a later commit's runs close it. A head that is no ancestor of the tip says so on its
-  `ci:` line and raises nothing, and a malformed `## CI` section prints `ci-malformed`. `none` prints where the verb read and found
-  no finding, never beside `red`, `ci-failed`, a `clean-tip` line, or `ci-malformed`. `nothing-to-read` prints alone where the
-  ledger holds no suite record and no CI input is given. A run whose result or commit reads `unknown` covers nothing (INV-0009).
-  It refuses a missing `--root`, `--branch`, or `--base`, one of `--ci-head` and `--ci-file` without the other, a branch that
-  resolves to no commit, an unreadable suite record or `--ci-file`, and any git read that fails, naming it. The code lives in
-  `plugin/lib/red-evidence.js`, over the readers `suite-base-get.js` exports.
+  where a later commit on the tip's ancestry holds passing runs that close it. There is no failed run there. Each failed file passed
+  alone on a clean tree or inside a focused run's path set. A record with no failed file is covered by a focused run over every path
+  of the scope's range. Where the focused fence repeats the full fence, a record with no failed file is covered by two kinds of run
+  instead. One is a passing full-class run on a clean tree. The other is a passing `path` run of each test file changed since that
+  is still present. A record with no failed file also takes the tip as its closer, printed `covered <sha> by <tip> clean-tip`. That
+  needs three conditions. The focused fence repeats the full fence. No test file changed from the red commit to the tip. No run at
+  the tip failed or reads `unknown` in result or commit. The review judges that line (ADR 0255). The CI pair adds `ci: <verdict> <sha>`
+  through `ciJudgment` of `ci.js`. For a failed head at or behind the tip, it adds `ci-failed <check> <link> <sha>` per failed named
+  check, or `covered` where a later commit's runs close it. A head that is no ancestor of the tip says so on its `ci:` line and
+  raises nothing. A malformed `## CI` section prints `ci-malformed`. `none` prints where the verb read and found no finding. It
+  never prints beside `red`, `ci-failed`, a `clean-tip` line, or `ci-malformed`. `nothing-to-read` prints alone where the ledger
+  holds no suite record and no CI input is given. A run whose result or commit reads `unknown` covers nothing (INV-0009). It
+  refuses in these cases, naming the failed git read where one fails:
+  - a missing `--root`, `--branch`, or `--base`;
+  - one of `--ci-head` and `--ci-file` without the other;
+  - a branch that resolves to no commit;
+  - an unreadable suite record or `--ci-file`;
+  - any git read that fails.
+
+  The code lives in `plugin/lib/red-evidence.js`, over the readers `suite-base-get.js` exports.
 
 `dod-line` is another verb that touches no ledger, and makes no store call of its own
 (`references/dod-ticks.md`, INV-0014, triage #664): `--match-file <path>
@@ -641,10 +662,15 @@ chain rather than naming a step within it, ranked below `implementing` so `stage
 higher stage) moves forward out of it and no later write moves back. `init` over an existing ledger at
 stage `planned` overwrites it, since a plan that cut the branch and scopetree but ran no slice yet has
 nothing to lose; any other stage still refuses. `stage set` refuses a ledger that carries no `**Stage:**` line, as it
-refuses one carrying an unknown stage, and writes nothing. Entering `implementing` needs the written Definition of Done: `init ... implementing`, `stage set implementing` from `planned`, and
-`adopt` of a snapshot whose stage is past `planned` (`adopt --shipped` excepted, which writes `dod.md` after the adopt) refuse, writing
-nothing, while `<run-root>/dod.md` is missing, empty, not a regular file, holds an unterminated fence, or holds no criterion line, read
-as `dod-line` reads a body (`plugin/lib/dod-gate.js`, `tests/scope-dod-gate.test.js`). A header-writing verb (`step`, `docs`, `pr`, `deploy`,
+refuses one carrying an unknown stage, and writes nothing. Entering `implementing` needs the written Definition of Done. Three
+entries refuse and write nothing while `<run-root>/dod.md` is unwritten:
+- `init ... implementing`;
+- `stage set implementing` from `planned`;
+- `adopt` of a snapshot whose stage is past `planned`.
+
+`adopt --shipped` is excepted, because it writes `dod.md` after the adopt. A `dod.md` is unwritten when it is missing, empty, not a
+regular file, holds an unterminated fence, or holds no criterion line, read as `dod-line` reads a body (`plugin/lib/dod-gate.js`,
+`tests/scope-dod-gate.test.js`). A header-writing verb (`step`, `docs`, `pr`, `deploy`,
 `suite`, `base`) that finds its header absent inserts it after the last present header line, the same rule for every
 verb; a header already present keeps its line and position.
 
@@ -1148,7 +1174,7 @@ path, when that document is missing. A check that walks a directory reads whatev
 | Check | What it tests | Class |
 |-------|---------------|-------|
 | `reference` | every `references/*.md` path that `skills/`, `agents/`, or `references/` names exists | structural |
-| `heading-citation` | every "`<file>.md`'s `## Heading`" citation (heading level two to four) in `skills/`, `agents/`, or `references/` prose names a heading the cited file carries at that level, a line break in a citation reads as one space so a wrapped heading matches, and a heading matches by `md-sections.js`'s `headingKeyOf`, the key `scope.js section` matches by, with a heading inside a fenced block no heading; a cited file with an unterminated fence is one gap, whatever it is cited for; a bare file name resolves in `references/`, then `agents/`, then the repository root, and a file that resolves nowhere is a finding too, except a `references/<name>.md` path, which the `reference` check reports. A section-map entry (a list item of a file name and its headings) counts as a citation of each heading it lists | structural |
+| `heading-citation` | every "`<file>.md`'s `## Heading`" citation (heading level two to four) in `skills/`, `agents/`, or `references/` prose names a heading the cited file carries at that level. A line break in a citation reads as one space, so a wrapped heading matches. A heading matches by `md-sections.js`'s `headingKeyOf`, the key `scope.js section` matches by. A heading inside a fenced block is no heading. A cited file with an unterminated fence is one gap, whatever it is cited for. A bare file name resolves in `references/`, then `agents/`, then the repository root. A file that resolves nowhere is a finding too. The exception is a `references/<name>.md` path, which the `reference` check reports. A section-map entry (a list item of a file name and its headings) counts as a citation of each heading it lists | structural |
 | `source-sections` | `plan-contract.md`, `plan-authoring.md`, `store-records.md`, `test-selection.md`, `content-types.md`, `controlled-prose.md`, `review-checklist.md`, `review-design-lenses.md`, `prompt-concept-overlap.md`, and `scope-branch.md`'s `## Pushing the scope branch`, and each agent body another file cites by heading, still carry each section a reader is sent to, by heading | structural |
 | `command-resolution` | every `/superdev:<name>` a skill or agent names has a `skills/<name>/SKILL.md` | structural |
 | `governed-skill-files` | every backticked path in `CONTEXT.md`'s **Prompt concept** entry, the list of governed skill files, names a file (ADR 0190) | structural |
