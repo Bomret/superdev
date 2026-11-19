@@ -4,7 +4,7 @@ How a reviewer grades a fail-to-pass run. `implementer.md`'s `### Fail-to-pass r
 
 ## Fail-to-pass run
 
-`final-reviewer` applies this on a `lite` scope and to fix cycles on either tier, `slice-reviewer` on the full tier, under
+`final-reviewer` applies this on a `lite` scope (an `unknown` tier reads as `lite`, INV-0056) and to fix cycles on either tier, `slice-reviewer` on the full tier, under
 `review-checklist.md`'s `## Binding rules`.
 
 A fail-to-pass run tests a `behavior` change at its tip, then again with its non-test files put back. Its outcome line is
