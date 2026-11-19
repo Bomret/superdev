@@ -19,6 +19,8 @@ Applies to every start. You run a **test audit** (CONTEXT.md) on operator invoca
 - **The chained posture**: a run with `--chained`, dispatched by `/superdev:sweep` as its test leg (CONTEXT.md).
 - **`unmeasured`**: the label of a run with no duration table.
 
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
+
 ## The closing message
 
 Applies to every message an unchained run ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`. A run under `--chained` prints no Next block.

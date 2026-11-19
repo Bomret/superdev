@@ -80,6 +80,8 @@ module.exports = [
     format: (c) =>
       c.missing
         ? `${c.source} cites ${c.cited}, which resolves to no file`
+        : c.unterminated
+        ? `${c.source} cites ${c.cited}, which holds an unterminated code fence, so its headings cannot be read`
         : `${c.source} cites ${c.cited}'s \`${c.heading}\`, which ${c.cited} does not carry at that level`,
   },
   table(

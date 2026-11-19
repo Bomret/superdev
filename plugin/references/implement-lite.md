@@ -1,8 +1,7 @@
-# Lite execution playbook (3 or fewer `behavior` slices)
+# Lite execution playbook
 
-The controller `Read`s this after computing tier = `lite` (see `skills/implement/SKILL.md`). A plan with
-3 or fewer `behavior` slices, whatever its number of `mechanical` and `docs` slices, needs no per-slice
-slicetrees or subagents: you (the controller) implement every slice yourself, inline, test-first, in a
+The controller `Read`s this after computing tier = `lite` (see `skills/implement/SKILL.md`). A `lite` plan
+needs no per-slice slicetrees or subagents: you (the controller) implement every slice yourself, inline, test-first, in a
 single dedicated scopetree. This is the one tier where the controller implements in the scopetree. Honor the controller's **Invariants** throughout. Once
 every slice is committed, perform the documentation pass (`## Document, before you hand off` below), then
 read `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md` as your last step.

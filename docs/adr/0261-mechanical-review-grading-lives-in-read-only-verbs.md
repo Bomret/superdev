@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0262](0262-mechanical-decision-tables-live-in-read-only-verbs-and-backends-stay-prose.md)
+
 ## Context
 
 Reviewers graded fail-to-pass runs and untraced writes from reference prose. `references/fail-to-pass.md` and

@@ -6,7 +6,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { docPath, readDoc, missingDoc, normalizeWhitespace } = require('../lib');
+const { maskFencedLines, headingKeyOf, readLines } = require('../../../plugin/lib/md-sections.js');
+const { docPath, readDoc, missingDoc } = require('../lib');
 const {
   REFERENCE_PATTERN,
   RUN_ROOT_DOCS,
@@ -94,19 +95,33 @@ function scanGovernedSkillFiles(root) {
 }
 
 // scanHeadingCitations(): every "`<file>.md`'s `## Heading`" citation (a heading of level two to four) in
-// shipped prose names a heading the cited file carries, at that level. Whitespace collapses on both sides,
-// so a heading wrapped across a line break matches. A bare file name resolves the way the other checks
+// shipped prose names a heading the cited file carries, at that level. A line break in a citation reads as
+// one space, so a heading wrapped across a line break matches; a run of spaces within a line stays, as the verb reads it.
+// A cited file with an unterminated fence is one gap (`unterminated`), whatever it is cited for. A bare file name resolves the way the other checks
 // resolve one: `references/<name>`, then `agents/<name>`, then the repository root; a name with a `/` resolves
 // from the plugin root, then the repository root. A file that resolves nowhere is a finding here, except a
 // `references/<name>.md` path, which the `reference` check already reports. A section map entry,
-// "- **`<file>.md`** — `## A`, `## B`.", is a citation of each heading it lists. A heading in a fenced template counts: a file's output template carries headings a citation may name.
+// "- **`<file>.md`** — `## A`, `## B`.", is a citation of each heading it lists. A heading matches by `md-sections.js`'s `headingKeyOf`, the key `scope.js section` matches by, and a heading inside a fenced block is no heading, so the check and the verb agree.
 function scanHeadingCitations(root) {
   const gaps = [];
   const headingsOf = new Map();
+  const reportedOpen = new Set();
   const headings = (file) => {
     if (!headingsOf.has(file)) {
-      const text = fs.readFileSync(file, 'utf8');
-      headingsOf.set(file, new Set([...text.matchAll(/^(#{2,4})[ \t]+(.+?)[ \t]*$/gm)].map((h) => `${h[1]} ${normalizeWhitespace(h[2])}`)));
+      const lines = readLines(fs.readFileSync(file, 'utf8'));
+      let masked = lines;
+      let unterminated = false;
+      try {
+        masked = maskFencedLines(lines, file, 'checked');
+      } catch (e) {
+        if (!e.isRefusal) throw e;
+        masked = lines.map(() => '');
+        unterminated = true;
+      }
+      headingsOf.set(file, {
+        unterminated,
+        keys: new Set(masked.filter((l) => /^ {0,3}#{2,4}\s/.test(l)).map(headingKeyOf)),
+      });
     }
     return headingsOf.get(file);
   };
@@ -121,9 +136,16 @@ function scanHeadingCitations(root) {
       if (!/^references\/[a-zA-Z0-9_-]+\.md$/.test(name)) gaps.push({ source, cited: name, missing: true });
       return;
     }
+    const { unterminated, keys } = headings(cited);
+    if (unterminated) {
+      if (!reportedOpen.has(cited)) gaps.push({ source, cited: name, unterminated: true });
+      reportedOpen.add(cited);
+      return;
+    }
     for (const [level, text] of spans) {
-      const heading = `${level} ${normalizeWhitespace(text).trim()}`;
-      if (!headings(cited).has(heading)) gaps.push({ source, cited: name, heading });
+      // A line break inside a wrapped citation reads as one space; a run of spaces within a line stays, as the verb reads it.
+      const heading = headingKeyOf(`${level} ${text.replace(/\s*\n\s*/g, ' ')}`);
+      if (!keys.has(heading)) gaps.push({ source, cited: name, heading });
     }
   };
   for (const [source, filePath] of proseDocuments(root, ['skills', 'agents', 'references'])) {

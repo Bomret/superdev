@@ -13,6 +13,7 @@ const { mainWorkTree } = require('./main-work-tree.js');
 const { appendTrace } = require('./trace-log.js');
 const { readSide, writeSide, withRunLock } = require('./run-digest.js');
 const { checkRun } = require('./run-check.js');
+const { checkDodWritten } = require('./dod-gate.js');
 
 // Appended, never read-concat-written: two `init` calls racing each other on the same fresh
 // repository at worst leave a duplicate line, where a rewrite could truncate the file.
@@ -166,6 +167,9 @@ function verbInit(cwd, label, stage, stdinJson, log = console.log, checked = fal
     );
   });
 
+  // Entering `implementing` needs the written Definition of Done (triage #4), checked before any write below.
+  if (stage === 'implementing') checkDodWritten(root);
+
   if (priorStage === 'closed') {
     // A closed run's ledger — ADR 0007's seven-day trail keeps it on disk past merge, so a new
     // feature reusing a retired label (ADR 0083) lands here. Rotate aside rather than refuse. Done only
@@ -213,6 +217,8 @@ function verbStage(root, sub, value) {
       fail(`stage "${cur}" does not move to "${value}" — allowed: ${allowed.join(', ') || 'none (terminal)'}`);
     }
   }
+  // A `planned` run enters `implementing` only with its Definition of Done written (triage #4).
+  if (cur === 'planned' && value === 'implementing') checkDodWritten(root);
   // A new stage completes whatever step was open (ADR 0140); a same-stage write leaves it.
   let closed = false;
   if (cur !== value) {

@@ -25,10 +25,9 @@ A pass the command was already free to skip on judgment, such as `/superdev:revi
 (`final-reviewer`, `slice-reviewer`, `doc-reader`), authorship decides:
 
 - **The controller authored what the pass verifies** → write the entry and block, per `scope-mode.md`'s
-  `## Unattended`. Read the tier as `/superdev:implement` derives it, from the rows `scope.js get slices` prints:
-  more than 3 rows whose type reads `behavior` is `full`, and otherwise `lite`, whatever the number of
-  `mechanical` and `docs` rows. A ledger with no slice rows, or with a row whose type cannot be read, leaves
-  the tier unknown, and an unknown tier blocks. `lite` counts as authored. `full` counts as authored when a
+  `## Unattended`. Read the tier from the `tier:` line of `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js tier --root <run-root>`
+  (`full`, `lite`, or `unknown`, derived from the ledger's rows and never stored, INV-0056). An `unknown` tier blocks.
+  `lite` counts as authored. `full` counts as authored when a
   row reads `docs` or `mechanical`, because the controller builds a `docs` slice and a one-file `mechanical`
   slice itself, and otherwise does not.
 - **It did not** → do the pass inline, say so in the report, write the entry, and continue, until the

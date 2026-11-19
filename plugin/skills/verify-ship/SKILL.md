@@ -15,6 +15,8 @@ Applies to every start. You settle the open Definition-of-Done criteria of a shi
 - **Repair citation**: the ending of a `not met:` note, as `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` defines it.
 - **Equivalent read**: an HTTP GET, a DNS lookup, an ssh read, or a status command.
 
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
+
 ## Start conditions
 
 Applies to every start. Start this command only on one of the starts below. The command carries no unattended mode of its own. Every gate and every ask below holds on every start.

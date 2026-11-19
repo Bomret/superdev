@@ -20,6 +20,8 @@ Applies to every start. You bring the docs and the knowledge base into agreement
 - **A writer dispatch**: dispatch `superdev:doc-writer` with an **explicit `model`** (`sonnet`).
 - **A reader dispatch**: dispatch `superdev:doc-reader` with an **explicit `model`** (`sonnet`).
 
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
+
 ## The closing message
 
 Applies to every message this command ends on, except under `--chained`, which prints no Next block. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`.

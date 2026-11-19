@@ -1543,17 +1543,17 @@ Paths: plugin/lib/kb-containment.js, plugin/hooks/scope-prune.js
 ### INV-0195
 
 Class: architecture
-Concepts: Run trace, Window
-Statement: A grading step that the run trace and git decide is carried by one read-only `scope.js` verb, and no reference repeats the procedure the verb carries. A reference names the verb, what each verdict means, and the judgment the reviewer keeps.
+Concepts: Run trace, Window, Tier
+Statement: A grading step or decision table whose every branch the ledger, the run trace, `dod.md`, or git decides is carried by one read-only `scope.js` verb, and no reference repeats the procedure the verb carries. A reference names the verb, what each verdict means, and the judgment the agent keeps.
 Breaks: silently
 Check: none — a duplicated procedure in prose is a wording fact no drift check may assert (ADR 0153); review reads the reference beside the verb
-Paths: plugin/references/fail-to-pass.md, plugin/references/untraced-writes.md
+Paths: plugin/references/**
 
 ### INV-0196
 
 Class: architecture
-Concepts: Run trace, Window
-Statement: A read-only grading verb prints a verdict or the filtered trace lines its caller named. It prints no raw data that a reader needs a reference to interpret.
+Concepts: Run trace, Window, Tier
+Statement: A read-only grading or decision verb prints a verdict, or the filtered lines or section its caller named. It prints no raw data that a reader needs a reference to interpret.
 Breaks: silently
 Check: none — the property is a reading of output meaning; each verb's suite pins its verdict lines
 Paths: plugin/scripts/scope.js

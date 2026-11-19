@@ -12,7 +12,7 @@ const path = require('node:path');
 const cp = require('node:child_process');
 require('./fixture-git');
 const { assertSpawnDecided } = require('./spawn-verdict');
-const { scopePath, sliceJson } = require('./scope-setup');
+const { scopePath, sliceJson, writeDod } = require('./scope-setup');
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-stdin-'));
 
@@ -53,6 +53,7 @@ try {
 
   // The run root the ledger verbs write to: init itself is one of the stdin verbs.
   const root = path.join(tmp, '.superdev', 'scopes', 'demo');
+  writeDod(root);
   const ledger = () => fs.readFileSync(path.join(root, 'ledger.md'), 'utf8');
 
   // Each stdin verb's cases: argv, piped input, and the check that the verb acted on that input.
@@ -109,6 +110,11 @@ try {
   }
   cases.ci = [[['ci', '--sha', 'HEAD', '--root', ciRepo], 'lint\tsuccess\n', () => assert.match(pipedOut, /^ci: green /, 'ci judged the piped status')]];
 
+  // section prints the piped heading's section of the file it names.
+  const sectionFile = path.join(tmp, 'section.md');
+  fs.writeFileSync(sectionFile, '## A\na1\n## B\nb1\n');
+  cases.section = [[['section', sectionFile], '## B\n', () => assert.strictEqual(pipedOut, '## B\nb1\n', 'section printed the piped heading\'s section')]];
+
   for (const verb of stdinVerbs) assert.ok(cases[verb], `verb "${verb}" reads piped input and has a case in this suite`);
 
   const order = ['init', ...stdinVerbs.filter((v) => v !== 'init' && v !== 'adopt'), 'adopt'];
@@ -117,7 +123,7 @@ try {
       const published = cli(['publish', '--root', root]);
       assert.strictEqual(published.status, 0, 'publish: ' + published.stderr);
       const adoptRoot = path.join(tmp, 'elsewhere', 'demo');
-      fs.mkdirSync(path.dirname(adoptRoot), { recursive: true });
+      writeDod(adoptRoot);
       cases.adopt.push([['adopt', '--root', adoptRoot], published.stdout, () => assert.strictEqual(fs.readFileSync(path.join(adoptRoot, 'ledger.md'), 'utf8'), ledger(), 'adopt rebuilt the piped ledger')]);
     }
     for (const [argv, input, check] of cases[verb]) {

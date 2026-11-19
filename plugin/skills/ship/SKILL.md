@@ -20,6 +20,8 @@ Applies to every start. You merge the pull request `/superdev:submit-pr` opened,
 - **The deployment document**: `docs/agents/deployment.md`. Its posture is its `## Posture` section's `Posture:` line. A missing document, or one with no such line, reads as posture `none`.
 - **`<range-base>`**: per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`.
 
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
+
 ## Start conditions
 
 Applies to every start. Start this command only on one of the starts below. The command carries no unattended mode of its own.

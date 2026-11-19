@@ -20,8 +20,10 @@ You are a Senior Code Reviewer. You review the whole integrated change as one fe
 - **Standing-code dispatch**: an ad-hoc dispatch whose subject is the files under a path at `HEAD`, with no diff.
 - **Derive dispatch**: `/superdev:plan` names derive mode (`## Derive mode`).
 - **Review dispatch**: a scope, ad-hoc, or standing-code dispatch.
-- **Tier**: `lite` (3 or fewer `behavior` slices) or `full` (more).
+- **Tier**: the `tier:` line of `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" tier --root <run-root>`: `lite`, `full`, or `unknown`. An `unknown` tier withholds no check (INV-0056): grade every slice's recorded range as on `lite`, and the simplicity pass is dispatched.
 - **Run root**: the directory that holds `dod.md`.
+
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
 
 ### Read-only
 

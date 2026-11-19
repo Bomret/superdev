@@ -56,6 +56,7 @@ const { tmp, ledger, A, B, trace, reset, run, spawnOut, hookPath, agentPre, agen
   scopeCli(['init', 'feat/a', 'planned'], JSON.stringify({ anchor: '#1 — A', slices: [{ id: '04', issue: '#4', title: 't', type: 'behavior', 'depends-on': '—' }, { id: '05', issue: '#5', title: 't', type: 'behavior', 'depends-on': '—' }] }));
   scopeCli(['step', 'set', 'plan', '--root', A]);
   scopeCli(['step', 'clear', '--root', A]);
+  fs.writeFileSync(path.join(A, 'dod.md'), '- [ ] The fixture run is done\n');
   scopeCli(['stage', '--root', A, 'set', 'implementing']);
   scopeCli(['step', 'set', 'implement', '--root', A]);
   scopeCli(['slice', '--root', A, '04', 'in-progress']);

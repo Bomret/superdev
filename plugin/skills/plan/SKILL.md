@@ -22,6 +22,8 @@ Applies to every start. You turn an intent into **independently-green vertical s
 - **The scope anchor**: the epic on a multi-slice feature, the lone slice on a single-slice one.
 - **An unattended block**: a stop that counts as a block under `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section.
 
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
+
 ## The closing message
 
 Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`.
@@ -145,7 +147,7 @@ A new-feature plan loads neither reference.
 |---|---|
 | `cut`, `reused`, or `existing` | Write that capture, and every capture after it (`CONTEXT.md`, every `docs/adr/` file, `docs/invariants.md`), into the scopetree. Nothing this step writes lands in the invoking checkout. |
 | `locked` | Another plan session holds this feature: stop, naming the lock it printed. |
-| `not-contained` | Show the commits it printed, ask, and name the rename remedy it printed. `--unattended` → an unattended block. |
+| `not-contained` | Show the commits it printed, ask, and name the rename remedy it printed. Where its last line is `refetch timed-out` or `refetch failed`, the refetch ended without a base, so the answer is the local one and carries no verdict on the branch (INV-0003, INV-0009): say the second pass did not run, name that line, and ask with the answer named as local. `--unattended` → an unattended block. |
 | `dirty` or `held` | Name what it printed and stop. `--unattended` → an unattended block. |
 
 The `not-contained`, `dirty`, and `held` stops write nothing.

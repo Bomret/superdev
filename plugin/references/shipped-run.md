@@ -34,11 +34,16 @@ still open goes next: to `/superdev:plan`'s repair choice, to `/superdev:verify-
 `/superdev:wrap-up`. This section states that rule once, so every caller names the same command for the same run. Each caller states
 only what it does with the outcome, and what it does when the anchor cannot be read.
 
-1. **The run's criteria.** Read the Definition-of-Done lines from `<run-root>/dod.md`. It is
-   authoritative, because a store's tick write is best-effort. Each line is an open line or a settled line
+1. **The run's criteria.** Read the Definition-of-Done lines from `<run-root>/dod.md` with
+   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-open --root <run-root>`. It is
+   authoritative, because a store's tick write is best-effort. Each printed line is `open` or `settled`
    by `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule`, which reads the note and never
-   the box. A `dod.md` that is missing or unreadable → judge from the anchor alone, read through the
-   store document's anchor read.
+   the box. The label field (`not-met`, `ceiling`, `none`) and the `repair-citation` field carry what the routes below read:
+   `not-met` with `repair-citation` is an observed `not met:` note (**The repair citation** below). Re-verify
+   also needs the anchor keys that citation names: read them from that line's note in `<run-root>/dod.md`, because the
+   listing does not print them. Every refusal of `dod-open` (a `dod.md` that is missing, unreadable, or
+   fence-broken) and its `no criteria` exit → judge from the anchor alone, read through the
+   store document's anchor read. Neither outcome reads as every line settled, so neither reaches Wrap-up on the empty listing.
 2. **The anchor's lines.** With `dod.md` read, also read the anchor's lines and pair them per
    `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## Pairing dod.md with the anchor`.
 3. **The deploy targets.** Read the posture, the listed targets, and their record per

@@ -27,7 +27,7 @@ default. `/superdev:setup` writes a key by merging it into the file, so every ke
 |------|-----|-------|---------|-------------|
 | `issue-tracker` | `assignee` | the store-native identifier, or `none` | the token's own identity | a non-empty string |
 | `issue-tracker` | `displayName` | the assignee's name, display-only | absent | a string |
-| `code-host` | `pushTimeoutMs` | the bound of each network git call: the `scope.js push` fetch and push, and the run-state ref's send, fetch, and delete, in milliseconds | `60000` | a whole number, 1 to 2147483647 |
+| `code-host` | `pushTimeoutMs` | the bound of each network git call: the `scope.js push` fetch and push, the `scope.js contained` refetch, the `scope.js open` refetch at plan's cut, and the run-state ref's send, fetch, and delete, in milliseconds | `60000` | a whole number, 1 to 2147483647 |
 | `verification` | `failToPassFloorMs` | the floor of the `fail-to-pass` run bound, in milliseconds | `10000` | a whole number, 1 to 2147483647 |
 | `verification` | `failToPassControlMs` | the bound of the `fail-to-pass` control run, the run against the changed code, in milliseconds | `300000` | a whole number, 1 to 2147483647 |
 | `knowledge-base` | `timeoutMs` | the bound of each knowledge-base backend command, in milliseconds | `30000` | a whole number, 1 to 2147483647 |

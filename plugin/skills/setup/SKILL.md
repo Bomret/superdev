@@ -30,6 +30,8 @@ Applies to every start. You write the per-repo config documents the superdev ski
 - **A remote backend**: a knowledge base on software (Confluence, a Forgejo, Gitea, or GitHub wiki, an "other" wiki). A local `docs/kb/` and none are not remote.
 - **A seed gap** and **`## Seed deviations`**: as §0's **Seed gaps** defines them.
 
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
+
 ## 0. Check mode (`check`)
 
 **The mode.** Applies to every start. `$ARGUMENTS` carrying the literal word `check` runs this read-only drift check and skips §1–§4. Any other `$ARGUMENTS`, including none, runs the full interview.

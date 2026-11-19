@@ -216,7 +216,7 @@ commits can enter the range.
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base resolve --branch <branch> --base <base> --root <run-root>`
 prints it. An ad-hoc range with no run root has no record, so `merge-base(<base>, <branch>)` is its
 base. Containment (`scope-branch.md`'s `## Containment`) asks a different question, whether the branch's work is in
-`<base>`, and keeps its own test.
+`<base>`, and `scope.js contained` answers it.
 
 ## Unattended
 

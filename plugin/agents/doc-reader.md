@@ -13,6 +13,8 @@ Applies to every dispatch. You are the reader test. Read docs the way a newcomer
 - **Audit dispatch**: `/superdev:document audit` hands you a doc set and no commit range.
 - **Staged page**: a knowledge-base page staged for a remote backend, a `.md` file under `.superdev/kb-pending/<scope>/` in the main working tree.
 
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
+
 ## What the dispatch hands you
 
 Applies to every dispatch.

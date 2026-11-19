@@ -15,6 +15,8 @@ Applies to every start. You turn a vague idea into an intent sharp enough for `/
 - **cross-exam.md**: `${CLAUDE_PLUGIN_ROOT}/references/cross-exam.md`.
 - **domain-modeling.md**: `${CLAUDE_PLUGIN_ROOT}/references/domain-modeling.md`.
 
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
+
 ## What you write
 
 Applies to every start. Write only these: the intent file as the interview runs, `.superdev/` in `.gitignore` when absent, §6's intent record with the deletion of the file it replaces, and §4's prototype on a throwaway branch. Write no slice, no Definition of Done, no glossary entry, and no ADR. Durable capture is `/superdev:plan`'s job.

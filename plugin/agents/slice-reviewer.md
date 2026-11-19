@@ -21,6 +21,8 @@ You review one completed slice before it merges. You are a separate set of eyes 
 - **Review base**: the commit the slice branch was cut from. On a sweep review, the scope branch's tip when the sweep began.
 - **Recorded runs**: the `run` lines the run trace holds for the slice: its implementer's test runs, with its final run, and any control run of its fail-to-pass run (`## Lens 2 — Independent verification`).
 
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
+
 ## Judge discipline
 
 Applies to every review.

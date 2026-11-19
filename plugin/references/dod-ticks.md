@@ -46,8 +46,8 @@ differently — a review fix loop's dispatch lists whatever criteria that pass i
 surface states its own listed set where it wires the gate.
 
 **Review's case:** `final-reviewer` judges every `dod.md` line, ticked or not, and returns its own verdict
-for each — holds, broken, ceiling, accepted, or doc pass (`agents/final-reviewer.md`'s `### Criteria`
-section). The review's
+for each — holds, broken, ceiling, accepted, or doc pass (`agents/final-reviewer.md`'s `### Output and verdict`
+section, its `### Criteria` block). The review's
 controller (`review-scope-mode.md`'s `### 4.5 The Definition-of-Done criteria` and `### 4.9 The re-tick`) unticks a line `final-reviewer` calls broken, with a note, and folds it into the fix loop's
 findings; a fix cycle's dispatch then lists exactly the lines that cycle unticked or found broken. The fix
 implementer's report on those listed lines is judged the same way as any other: `met` re-ticks the line
@@ -141,6 +141,8 @@ parser reads it, matched as a whole label and never as a substring, since `not m
 
 Every command that judges a line open or settled applies these two terms, whether it reads `dod.md` or
 only the scope anchor's lines.
+
+**The listing verb.** A caller that reads `dod.md` runs `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-open --root <run-root>` and takes each line's state from it. It prints one tab-separated line per criterion: `open` or `settled`, the label (`met`, `not-met`, `ceiling`, `accepted`, or `none` for a line with no note), the tag (`-` for none), `repair-citation` or `-`, and the criterion text. The fourth field reads `repair-citation` for a `not met:` note that ends in the observed citation (`shipped-run.md`'s `## Routing a shipped run`). A last `stage-hold: yes|no` line answers whether any open line other than a `ceiling:` line, an `accepted:` line, or a `docs` line holds the scope review's stage write. `--tag docs` prints the open `docs` lines alone. A missing, unreadable, or fence-broken `dod.md` is refused, and one with no criterion line prints `no criteria` and exits non-zero. Neither reads as every line settled. The caller keeps the judgment of what an open line needs.
 
 **`accepted` is written only by an attended operator, never by a report.** No mapping-gate dispatch —
 implement's slice dispatch, a review fix cycle, run handoff's own settling pass — ever reports

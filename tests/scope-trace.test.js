@@ -9,7 +9,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { assertSpawnDecided } = require('./spawn-verdict');
-const { sliceJson, scopePath, run } = require('./scope-setup');
+const { sliceJson, scopePath, run, writeDod } = require('./scope-setup');
 
 // run trace (ADR 0117): ledger events, the single writer, and the reader.
 {
@@ -34,6 +34,7 @@ const { sliceJson, scopePath, run } = require('./scope-setup');
       }
     };
 
+    writeDod(root);
     assert.ok(quiet(['init', 'feat/demo', 'implementing'], sliceJson), 'init');
     assert.equal(lines().length, 1, 'init appends one ledger line');
     assert.match(lines()[0], /^\d{4}-\d\d-\d\dT[\d:.]+Z scope main ledger init feat\/demo implementing$/, 'ledger line shape');
@@ -83,7 +84,7 @@ const { sliceJson, scopePath, run } = require('./scope-setup');
     // `ledger <verb> …` line: a verb added to the usage text with no driver here, or one that stops tracing, fails.
     {
       const usageText = require('../plugin/lib/usage.js').usage();
-      const readOnly = new Set(['get', 'state', 'trace', 'publish', 'status', 'root', 'staging', 'dod-line', 'dod-tags', 'dod-check', 'dod-merge', 'ci', 'collisions', 'citations', 'source-set', 'untraced', 'windows', 'fail-to-pass-check', 'push', 'run-state', 'test', 'fail-to-pass', 'prepare',
+      const readOnly = new Set(['get', 'state', 'trace', 'publish', 'status', 'root', 'staging', 'dod-line', 'dod-tags', 'dod-check', 'dod-merge', 'ci', 'section', 'tier', 'dod-open', 'contained', 'red-evidence', 'collisions', 'citations', 'source-set', 'untraced', 'windows', 'fail-to-pass-check', 'push', 'run-state', 'test', 'fail-to-pass', 'prepare',
         // discard removes the run trace with the ledger, so it leaves no line to append to (ADR 0208).
         'discard']);
       const readOnlySub = /^\s+(deploy get|suite reusable|base resolve)\b/;
@@ -122,11 +123,13 @@ const { sliceJson, scopePath, run } = require('./scope-setup');
         let target = gRoot;
         let argv = [...drivers[v], '--root', gRoot];
         let stdin;
+        writeDod(gRoot);
         if (v === 'init') argv = drivers.init, stdin = sliceJson;
         else {
           assert.ok(quiet(['init', 'feat/g-' + v, 'implementing'], sliceJson), v + ' fixture init');
           if (v === 'adopt') {
             target = path.join(dir, 'elsewhere', 'g-adopt');
+            writeDod(target);
             argv = ['adopt', '--root', target];
             stdin = require(scopePath).publishText(gRoot);
           }
@@ -146,6 +149,7 @@ const { sliceJson, scopePath, run } = require('./scope-setup');
     // No-op clears: clearing absent headers must not trace a line (RED test for finding 1).
     // Create a fresh root for the no-op clear test since root already has unresolved/docs/pr from above
     const noopRoot = path.join(dir, '.superdev', 'scopes', 'noop');
+    writeDod(noopRoot);
     assert.ok(quiet(['init', 'feat/noop', 'implementing'], sliceJson), 'init for noop root');
     const noop = lines().length;
     assert.ok(quiet(['unresolved', 'clear', '--root', noopRoot]), 'unresolved clear when absent succeeds');
@@ -155,6 +159,7 @@ const { sliceJson, scopePath, run } = require('./scope-setup');
     assert.ok(quiet(['pr', 'clear', '--root', noopRoot]), 'pr clear when absent succeeds');
     assert.equal(lines().length, noop, 'pr clear on absent header traces no line');
     const n0 = lines().length;
+    writeDod(adoptRoot);
     assert.ok(quiet(['adopt', '--root', adoptRoot], require(scopePath).publishText(root)), 'adopt');
     assert.equal(fs.readFileSync(path.join(adoptRoot, 'trace.log'), 'utf8').split('\n').filter(Boolean).length, 1, 'adopt appends one line');
     assert.equal(lines().length, n0, 'adopt traces into the adopted root only');
@@ -327,6 +332,7 @@ const { sliceJson, scopePath, run } = require('./scope-setup');
 
     // A scope.js verb that appends a trace line refreshes the lock through the same writer.
     const g = path.join(dir, '.superdev', 'scopes', 'demo');
+    writeDod(g);
     const out = require('node:child_process').spawnSync(process.execPath, [scopePath, 'init', 'feat/demo', 'implementing'], { cwd: dir, input: sliceJson, encoding: 'utf8', timeout: 20000 });
     assertSpawnDecided(out, 'scope.js init');
     assert.strictEqual(out.status, 0, out.stderr);

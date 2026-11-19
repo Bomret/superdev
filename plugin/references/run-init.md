@@ -79,7 +79,9 @@ Both execution playbooks (`implement-full.md`, `implement-lite.md`) `Read` this 
   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-merge --root <run-root>`. On a resumed run the verb keeps
   each verdict the existing `dod.md` carries on a line the epic leaves without a note, because implement's ticks
   live in `dod.md` alone. `/superdev:review` reviews against it, and a controller ticks it while the run works, from an
-  implementer's report (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`). No DoD → don't proceed. **No epic**
+  implementer's report (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`). Every entry to the `implementing`
+  stage (`init … implementing`, `stage set implementing` on a `planned` run, and `adopt` of an `implementing`-or-later
+  snapshot) refuses until `<run-root>/dod.md` is a regular file holding a criterion line, so write it first. **No epic**
   → write the lone slice's `acceptance` verbatim.
 - **Create the ledger.** **No `<run-root>/ledger.md` yet** → before running `init`, check the scope
   anchor for a snapshot to adopt, unless the active store declares itself snapshot-less

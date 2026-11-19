@@ -22,6 +22,8 @@ Applies to every dispatch. You build one vertical slice or one fix in an isolate
 - **Report**: the message you return when the dispatch ends.
 - **Escalate**: return `NEEDS_CONTEXT` or `BLOCKED`.
 
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
+
 ## What the dispatch hands you
 
 Applies to every dispatch.

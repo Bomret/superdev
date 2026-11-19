@@ -8,6 +8,7 @@ const { fail } = require('./refusal.js');
 const { checkSliceId, STAGES, ledgerPath, readLines, splitLines, writeLines, getHeader, readBullets, tableRowIndexes, splitRow } = require('./ledger.js');
 const { maskFencedLines } = require('./md-sections.js');
 const { validateLabel, STEPS } = require('./ledger-lifecycle.js');
+const { checkDodWritten } = require('./dod-gate.js');
 
 // scope.js performs no store I/O here — slice-store I/O stays in-agent (ADR 0022). `publish`
 // renders the ledger as a single `## Run state` section; `adopt` reverses that, reconstructing a
@@ -122,6 +123,9 @@ function adoptLines(root, body, shipped = false) {
 function verbAdopt(root, body, shipped) {
   if (fs.existsSync(ledgerPath(root))) fail(`ledger already exists: ${ledgerPath(root)}`);
   const lines = adoptLines(root, body, shipped);
+  // A snapshot at `implementing` or later needs the Definition of Done run init wrote from the anchor (triage #4).
+  // `--shipped` writes its `dod.md` after the adopt (shipped-run.md's `## Adopting a shipped original`), so it passes.
+  if (!shipped && STAGES.indexOf(getHeader(lines, 'Stage')) > STAGES.indexOf('planned')) checkDodWritten(root);
   fs.mkdirSync(root, { recursive: true });
   writeLines(root, lines);
 }

@@ -10,7 +10,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
-const { tmp, call, run, sliceJson, scopePath, cleanup } = require('./scope-setup');
+const { tmp, call, run, sliceJson, scopePath, cleanup, writeDod, scopeRoot } = require('./scope-setup');
 const { publishText } = require(scopePath);
 
 // Every file under `dir` with its bytes, so a refusal can be shown to write nothing. The digest sidecar is left out: the check a
@@ -61,6 +61,7 @@ const spawn = (argv, input = '') => {
 };
 
 try {
+  writeDod(scopeRoot('refuse-me'));
   assert.ok(call(['init', 'feat/refuse-me', 'implementing'], sliceJson).ok);
   const root = path.join(tmp, '.superdev', 'scopes', 'refuse-me');
   const R = ['--root', root];

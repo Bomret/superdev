@@ -49,6 +49,15 @@ const sliceJson = JSON.stringify({
   ],
 });
 
+// The Definition of Done every entry to the `implementing` stage needs: writes `<root>/dod.md` with one criterion line.
+const writeDod = (root) => {
+  fs.mkdirSync(root, { recursive: true });
+  fs.writeFileSync(path.join(root, 'dod.md'), '- [ ] The fixture run is done\n');
+  return root;
+};
+// The run root `init feat/<slug>` resolves to under `cwd` (the suite's temporary directory by default).
+const scopeRoot = (slug, cwd) => path.join(cwd || tmpDir(), '.superdev', 'scopes', slug);
+
 // `verification.md` text: the first fence is the full command, the second the focused one, `extra` a trailing section.
 const verif = (full, focused, extra = '') =>
   `# V\n\n\`\`\`sh\n${full}\n\`\`\`\n` + (focused ? `\n\`\`\`sh\n${focused}\n\`\`\`\n` : '') + extra;
@@ -428,6 +437,8 @@ module.exports = {
   },
   call,
   sliceJson,
+  writeDod,
+  scopeRoot,
   verif,
   f2pFixture,
   scopePath,
