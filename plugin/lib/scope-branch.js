@@ -31,9 +31,15 @@ function listBranches(cwd) {
   }
   if (res.status === null) return { failure: `was ended by signal ${res.signal}` };
   if (res.status !== 0) return { failure: `exited with status ${res.status}` };
+  return parseBranchRefs(res.stdout.split('\n'));
+}
+
+// The bare branch names in `git for-each-ref refs/heads refs/remotes` output lines: `{ local, remote }` as sets, a remote-tracking
+// name with its first segment, the remote, dropped whatever it is called, and `<remote>/HEAD` left out as no branch.
+function parseBranchRefs(refLines) {
   const local = new Set();
   const remote = new Set();
-  for (const raw of res.stdout.split('\n')) {
+  for (const raw of refLines) {
     const ref = raw.trim();
     if (ref.startsWith('refs/heads/')) {
       local.add(ref.slice('refs/heads/'.length));
@@ -49,6 +55,15 @@ function listBranches(cwd) {
   return { local, remote };
 }
 
+// The ledger header `name` of the run root `root`, or null where the ledger is missing or unreadable or holds no such line.
+function readHeaderOrNull(root, name) {
+  try {
+    return readLedgerHeader(fs.readFileSync(path.join(root, 'ledger.md'), 'utf8'), name);
+  } catch {
+    return null;
+  }
+}
+
 // The scope's branch verdict as data, for the run root `root` (its directory name is the scope slug), read in `cwd`:
 // `{ verdict: 'ledger', branch }` when the ledger's `**Branch:**` line names a local branch (a tag, a SHA, or a name never cut does not),
 // else the shape scan over local and remote-tracking names: `guess` (one match), `guess-remote` (one match, remote-tracking only),
@@ -56,12 +71,7 @@ function listBranches(cwd) {
 function resolveScopeBranch(cwd, root) {
   const listing = listBranches(cwd);
   if (listing.failure) return { verdict: 'git-failed', reason: listing.failure };
-  let ledgerBranch = null;
-  try {
-    ledgerBranch = readLedgerHeader(fs.readFileSync(path.join(root, 'ledger.md'), 'utf8'), 'Branch');
-  } catch {
-    ledgerBranch = null;
-  }
+  const ledgerBranch = readHeaderOrNull(root, 'Branch');
   if (ledgerBranch && listing.local.has(ledgerBranch)) return { verdict: 'ledger', branch: ledgerBranch };
   const matches = shapeMatches(new Set([...listing.local, ...listing.remote]), path.basename(root));
   if (matches.length === 0) return { verdict: 'none' };
@@ -69,4 +79,4 @@ function resolveScopeBranch(cwd, root) {
   return { verdict: listing.local.has(matches[0]) ? 'guess' : 'guess-remote', branch: matches[0] };
 }
 
-module.exports = { shapeMatches, listBranches, resolveScopeBranch };
+module.exports = { shapeMatches, parseBranchRefs, listBranches, readHeaderOrNull, resolveScopeBranch };

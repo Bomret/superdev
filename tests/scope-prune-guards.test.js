@@ -390,7 +390,7 @@ for (const [skewName, containmentBody] of [
 }
 
 // #shape-rule-unavailable: the hook takes the shape rule from `../lib/scope-branch.js` (INV-0159, INV-0068). With the module
-// absent, throwing on load, or carrying no `shapeMatches`, the hook prunes nothing, exits 0, and says nothing. Each case
+// absent, throwing on load, or carrying no `shapeMatches` or no `parseBranchRefs`, the hook prunes nothing, exits 0, and says nothing. Each case
 // runs beside a pass-through control that prunes the same fixture: a closed, stale scope with no `**Branch:**` line whose
 // contained `feat/shaperule` branch only the shape scan can name.
 {
@@ -430,6 +430,9 @@ for (const [skewName, containmentBody] of [
   const bare = runCase('shapeMatches missing', 'module.exports = {};');
   assert.equal(bare.loaded, true, 'the stub without shapeMatches loaded');
   assert.equal(bare.stands, true, 'a hook whose shape rule module carries no shapeMatches prunes nothing');
+  const old = runCase('parseBranchRefs missing', `module.exports = { shapeMatches: require(${real}).shapeMatches };`);
+  assert.equal(old.loaded, true, 'the stub without parseBranchRefs loaded');
+  assert.equal(old.stands, true, 'a hook whose shape rule module carries no parseBranchRefs prunes nothing');
 }
 
 console.log('scope-prune-guards tests ok');

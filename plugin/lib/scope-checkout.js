@@ -6,9 +6,8 @@
 const fs = require('fs');
 const path = require('path');
 const { listWorktrees } = require('./git-spawn.js');
-const { readLedgerHeader } = require('./ledger.js');
 const { drivePath } = require('./drive-path.js');
-const { resolveScopeBranch } = require('./scope-branch.js');
+const { readHeaderOrNull, resolveScopeBranch } = require('./scope-branch.js');
 
 // A path in one comparable spelling (ADR 0150): drive path translated, symlinks resolved (the macOS `/private` prefix included)
 // through the nearest existing ancestor, so a directory that is gone still compares by where it was.
@@ -58,12 +57,7 @@ function scopeCheckout(cwd, root) {
     return { verdict: 'held-elsewhere', detail: holdsLineBreak(at) ? 'a working tree whose path holds a line break' : at };
   }
   if (fs.existsSync(treePath)) return { verdict: 'unregistered', detail: 'the scopetree directory is not a registered working tree of the repository' };
-  let stage = null;
-  try {
-    stage = readLedgerHeader(fs.readFileSync(path.join(root, 'ledger.md'), 'utf8'), 'Stage');
-  } catch {
-    stage = null;
-  }
+  const stage = readHeaderOrNull(root, 'Stage');
   if (stage === 'shipped' || stage === 'closed') return { verdict: 'absent-terminal', detail: stage };
   return { verdict: 'absent' };
 }

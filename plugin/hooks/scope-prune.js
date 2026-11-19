@@ -41,24 +41,10 @@ const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days from the newest file mtime in 
 const AMBIGUOUS = Symbol('ambiguous');
 
 // Normalises `git for-each-ref refs/heads refs/remotes` output to plain branch names, so a local branch
-// and its remote-tracking copy compare equal. `refs/remotes/<remote>/HEAD` is a symbolic ref rather than
-// a branch, and drops out.
+// and its remote-tracking copy compare equal. `lib/scope-branch.js`'s `parseBranchRefs`, loaded below, owns the parse.
 function branchNamesFrom(refLines) {
-  const names = new Set();
-  for (const raw of refLines) {
-    const ref = raw.trim();
-    if (ref.startsWith('refs/heads/')) {
-      names.add(ref.slice('refs/heads/'.length));
-      continue;
-    }
-    if (!ref.startsWith('refs/remotes/')) continue;
-    const rest = ref.slice('refs/remotes/'.length);
-    const cut = rest.indexOf('/'); // drop the remote name, whatever it is called
-    if (cut < 1) continue;
-    const name = rest.slice(cut + 1);
-    if (name !== 'HEAD') names.add(name);
-  }
-  return names;
+  const { local, remote } = parseBranchRefs(refLines);
+  return new Set([...local, ...remote]);
 }
 
 // Maps a bare branch name to the exact ref `git merge-tree` can resolve: the bare name itself when a
@@ -262,13 +248,16 @@ try {
   // Left null. The containment test below falls back to the tree comparison alone, silently.
 }
 
-// `lib/scope-branch.js` owns the shape rule (INV-0159, INV-0068). No fallback: without it the hook cannot tell a gone branch
-// from one it cannot name, so a failed load, or a module carrying no `shapeMatches`, leaves this null and main() prunes
-// nothing, silently.
+// `lib/scope-branch.js` owns the shape rule and the ref-name parse (INV-0159, INV-0068). No fallback: without it the hook cannot
+// tell a gone branch from one it cannot name, so a failed load, or a module carrying no `shapeMatches` or no `parseBranchRefs`,
+// leaves both null and main() prunes nothing, silently.
 let shapeMatches = null;
+let parseBranchRefs = null;
 try {
   const scopeBranchModule = require('../lib/scope-branch.js');
-  if (typeof scopeBranchModule.shapeMatches === 'function') ({ shapeMatches } = scopeBranchModule);
+  if (typeof scopeBranchModule.shapeMatches === 'function' && typeof scopeBranchModule.parseBranchRefs === 'function') {
+    ({ shapeMatches, parseBranchRefs } = scopeBranchModule);
+  }
 } catch {
   // Left null. main() checks it before doing anything below.
 }
@@ -411,7 +400,7 @@ const RESOLVE_BOUND_MS = 5000;
 
 function main(sessionCwd) {
   // shared reader, git module, or resolver unavailable → prune nothing, say nothing
-  if (!readLedgerHeader || !shapeMatches || !gitSpawn || !gitThrow || !parseBranchList || typeof mainWorkTree !== 'function') return;
+  if (!readLedgerHeader || !shapeMatches || !parseBranchRefs || !gitSpawn || !gitThrow || !parseBranchList || typeof mainWorkTree !== 'function') return;
   // The main working tree is the root of every git call below, `HEAD` included, so a session standing in a
   // scopetree does not read the scope branch as `HEAD`. `cwd` names it for the rest of this function.
   const cwd = mainWorkTree(sessionCwd, { timeout: RESOLVE_BOUND_MS });
