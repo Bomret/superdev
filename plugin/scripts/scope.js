@@ -58,6 +58,7 @@ const libTier = () => require('../lib/tier.js');
 const libDodOpen = () => require('../lib/dod-open.js');
 const libContained = () => require('../lib/contained.js');
 const libScopeBranch = () => require('../lib/scope-branch.js');
+const libDrivePath = () => require('../lib/drive-path.js');
 const libRedEvidence = () => require('../lib/red-evidence.js');
 const libUsage = () => require('../lib/usage.js');
 
@@ -464,9 +465,15 @@ function run(argv, cwd, stdinJson) {
       libContained().verbContained(cwd, args);
       break;
     // Reads the ledger and git and writes nothing: one scope-branch verdict, `--root` names the run to read (INV-0196).
-    case 'branch':
-      libScopeBranch().verbBranch(cwd, args);
+    // Prints `ledger <b>`, `guess <b>`, `guess-remote <b>`, `ambiguous <b> <b>…`, `none`, or `git-failed <reason>`; every verdict exits 0 and the caller judges it.
+    case 'branch': {
+      const root = path.resolve(cwd, libDrivePath().drivePath(takeRoot(args)));
+      if (args.length) fail(`branch: unrecognized argument "${args[0]}"`);
+      if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) fail(`branch: --root "${root}" is not a directory`);
+      const r = libScopeBranch().resolveScopeBranch(cwd, root);
+      console.log(r.verdict === 'ambiguous' ? `ambiguous ${r.branches.join(' ')}` : r.verdict === 'git-failed' ? `git-failed ${r.reason}` : r.branch ? `${r.verdict} ${r.branch}` : r.verdict);
       break;
+    }
     // Reads the ledger, the run trace, git, and a check-status file and writes nothing (INV-0196); `verbRedEvidence` takes `--root` itself.
     case 'red-evidence':
       libRedEvidence().verbRedEvidence(cwd, args);

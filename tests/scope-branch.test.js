@@ -11,7 +11,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { call } = require('./scope-setup');
-const { shapeMatches, resolveScopeBranch } = require('../plugin/lib/scope-branch.js');
+const { shapeMatches } = require('../plugin/lib/scope-branch.js');
 
 const git = (args, cwd) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 
@@ -105,18 +105,30 @@ assert.ok(!verdict(setup({ local: ['feat/x', 'fix/x'] })).includes('\n'), 'one v
   assert.strictEqual(call(['branch', '--root', s.root, 'extra'], '', s.repo).ok, false, 'an extra argument refuses');
 }
 
+// A relative --root resolves against the cwd, so the ledger is read from a cwd other than the repository root.
+{
+  const s = setup({ local: ['feat/x', 'fix/x'], ledger: ledgerOf('fix/x') });
+  const r = call(['branch', '--root', path.join('scopes', 'x')], '', path.join(s.repo, '.superdev'));
+  assert.ok(r.ok, 'a relative root is no refusal: ' + r.err);
+  assert.strictEqual(r.out, 'ledger fix/x', 'a relative --root reads the ledger against the cwd');
+}
+
+// A --root that names no directory is refused with one line naming the path, never a scan verdict for its basename.
+{
+  const s = setup({ local: ['feat/x'] });
+  const missing = path.join(s.repo, '.superdev', 'scopes', 'gone');
+  const r = call(['branch', '--root', missing], '', s.repo);
+  assert.strictEqual(r.ok, false, 'a missing root refuses');
+  assert.ok(r.err.includes(missing) && !r.err.includes('\n'), 'the refusal is one line naming the path');
+  assert.strictEqual(r.out, '', 'a refused root prints no verdict');
+  const file = path.join(s.repo, 'f');
+  assert.strictEqual(call(['branch', '--root', file], '', s.repo).ok, false, 'a file as root refuses');
+}
+
 // The shared rule returns every match, in listing order, and only change-typed scope branches.
 assert.deepStrictEqual(shapeMatches(['feat/x', 'fix/x', 'wip/x', 'slice/x/03', 'x'], 'x'), ['feat/x', 'fix/x'], 'shapeMatches returns every match');
 assert.deepStrictEqual(shapeMatches(new Set(['refactor/exports']), 'exports'), ['refactor/exports'], 'a typed scope branch counts');
 assert.deepStrictEqual(shapeMatches(new Set(['wip/exports', 'slice/exports/03', 'exports']), 'exports'), [], 'untyped, slice, and bare names do not');
-
-// The exported resolver takes the repository and the run root and returns the verdict as data.
-{
-  const s = setup({ local: ['feat/x', 'fix/x'] });
-  assert.deepStrictEqual(resolveScopeBranch(s.repo, s.root), { verdict: 'ambiguous', branches: ['feat/x', 'fix/x'] }, 'the resolver returns the branches of an ambiguity');
-  const l = setup({ local: ['feat/x'], ledger: ledgerOf('feat/x') });
-  assert.deepStrictEqual(resolveScopeBranch(l.repo, l.root), { verdict: 'ledger', branch: 'feat/x' }, 'the resolver returns the ledger branch');
-}
 
 // Read-only: ledger, trace, digest, refs, and the run.lock mtime stay as they were.
 {

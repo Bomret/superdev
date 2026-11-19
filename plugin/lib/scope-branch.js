@@ -1,12 +1,11 @@
 'use strict';
 
-// scope-branch.js: the shape rule that names a scope's branch, the branch listing it reads, and the `branch` verb that prints one verdict (ADR 0263, INV-0196).
+// scope-branch.js: the shape rule that names a scope's branch, and the branch listing it reads. `scope.js`'s `branch` verb prints the verdict (ADR 0263, INV-0196).
 
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const { CHANGE_TYPES, readLedgerHeader } = require('./ledger.js');
-const { fail } = require('./refusal.js');
 
 // The shape rule: a scope branch is `<type>/<scope>`, the leading segment a change type and the last segment the scope's slug.
 // Returns every match of `names` in iteration order. `slice/<scope>/<id>` never matches: its last segment is the slice id.
@@ -70,17 +69,4 @@ function resolveScopeBranch(cwd, root) {
   return { verdict: listing.local.has(matches[0]) ? 'guess' : 'guess-remote', branch: matches[0] };
 }
 
-// `branch --root <run-root>` prints one line: `ledger <b>`, `guess <b>`, `guess-remote <b>`, `ambiguous <b> <b>…`, `none`, or
-// `git-failed <reason>`. It reads the ledger and git and writes nothing; every verdict exits 0 and the caller judges it.
-function verbBranch(cwd, args) {
-  const i = args.indexOf('--root');
-  if (i < 0) fail('missing --root <run-root> (the absolute run-root path)');
-  const root = args[i + 1];
-  if (!root) fail('--root needs a path');
-  const rest = args.filter((_, j) => j !== i && j !== i + 1);
-  if (rest.length) fail(`branch: unrecognized argument "${rest[0]}"`);
-  const r = resolveScopeBranch(cwd, root);
-  console.log(r.verdict === 'ambiguous' ? `ambiguous ${r.branches.join(' ')}` : r.verdict === 'git-failed' ? `git-failed ${r.reason}` : r.branch ? `${r.verdict} ${r.branch}` : r.verdict);
-}
-
-module.exports = { shapeMatches, listBranches, resolveScopeBranch, verbBranch };
+module.exports = { shapeMatches, listBranches, resolveScopeBranch };

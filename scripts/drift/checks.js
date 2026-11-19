@@ -151,7 +151,7 @@ module.exports = [
     run: scanScopetreeRunRootPaths,
     format: (o) => `checkout-relative scopetree path \`${o.match}\` in ${o.source} — use \`<run-root>/scopetree\``,
   },
-  table('change-type', CHANGE_TYPE_CONTRACTS, 'change-type set matches the scope-prune hook and lib/ledger.js'),
+  table('change-type', CHANGE_TYPE_CONTRACTS, 'change-type set matches references/scope-mode.md, CONTEXT.md, and lib/ledger.js'),
   {
     id: 'no-second-reader',
     ok: 'no hook parses a ledger header itself',
