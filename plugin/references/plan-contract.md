@@ -104,8 +104,7 @@ close changes nothing). On a
 single-slice plan the lone issue is both the slice and the anchor. The anchor rule wins: it stays
 `in-progress` through the merge, and closes once, at wrap-up.
 
-`/implement` derives an **execution tier** from the loaded `behavior` slices (3 or fewer → `lite`, more than 3
-→ `full`; `mechanical` and `docs` slices never count) —
+`/implement` derives an **execution tier** from the loaded `behavior` slices (`scope.js tier --root <run-root>` prints it) —
 never a plan field, never persisted. The **lite** tier has no per-slice review at all, regardless of
 `test-applicability`: every slice goes `todo` → `in-progress` → `merged` directly, and a single
 whole-scope review substitutes for the per-slice ones. The table above (and the `behavior`-only
