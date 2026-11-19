@@ -10,7 +10,7 @@ const path = require('path');
 const { fail } = require('./refusal.js');
 const { readLines, getHeader, ledgerPath } = require('./ledger.js');
 const { gitSpawn, refResolves } = require('./git-spawn.js');
-const { judgeContainment } = require('./containment.js');
+const { judgeContainment, refetchMark } = require('./containment.js');
 const { mainWorkTree } = require('./main-work-tree.js');
 const { verbInit, verbStep, validateLabel } = require('./ledger-lifecycle.js');
 const { appendTrace } = require('./trace-log.js');
@@ -123,10 +123,13 @@ function cut(cwd, branch, base, remote, scopetree) {
     const ahead = git(['log', '--oneline', '--no-decorate', '--end-of-options', `${judged.judgedBase}..refs/heads/${branch}`], cwd);
     const commits = ahead.status === 0 ? ahead.stdout.split('\n').filter(Boolean) : [`(could not list ${base}..${branch})`];
     const date = new Date().toISOString().slice(0, 10);
+    // A refetch that ended without a base leaves the answer no verdict: its mark is the stop's last line.
+    const mark = refetchMark(judged);
     return stop('not-contained', [
       `the branch ${branch} carries commits base ${base} does not hold:`,
       ...commits.map((c) => `  ${c}`),
       `remedy: git branch -m ${branch} ${branch}-${date}`,
+      ...(mark ? [mark] : []),
     ]);
   }
   const held = attach(cwd, branch, scopetree);

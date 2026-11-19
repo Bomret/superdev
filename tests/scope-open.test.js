@@ -169,6 +169,21 @@ try {
     assert.strictEqual(r.word, 'not-contained');
     assert.match(r.out, /real work/, 'lists the commit at risk');
     assert.match(r.out, new RegExp(`remedy: git branch -m ${BRANCH} ${BRANCH}-\\d{4}-\\d{2}-\\d{2}`), 'names the rename remedy');
+    assert.doesNotMatch(r.out, /^refetch /m, 'a refetch that brought the base marks nothing');
+    assert.ok(!fs.existsSync(f.root), 'nothing is written');
+
+    // A not-contained answer whose refetch ended without a base carries no verdict (INV-0003, INV-0009): the stop names the
+    // mark `contained` prints for it, as its last line, with the same exit.
+    const failed = open(f, ['--remote', 'nowhere']);
+    assert.strictEqual(failed.status, 3, `a failed refetch exits 3: ${failed.out}`);
+    assert.strictEqual(failed.word, 'not-contained');
+    assert.strictEqual(failed.out.trimEnd().split('\n').pop(), 'refetch failed', `a failed refetch is marked: ${failed.out}`);
+    const hang = path.join(f.repo, '..', 'hang.sh');
+    fs.writeFileSync(hang, '#!/bin/sh\nexec sleep 30\n', { mode: 0o755 });
+    git(['config', 'remote.origin.uploadpack', `'${hang.replace(/'/g, `'\\''`)}'`], f.repo);
+    const hung = open(f);
+    assert.strictEqual(hung.status, 3, `a refetch its bound ended exits 3: ${hung.out}`);
+    assert.strictEqual(hung.out.trimEnd().split('\n').pop(), 'refetch timed-out', `a refetch its bound ended is marked: ${hung.out}`);
     assert.ok(!fs.existsSync(f.root), 'nothing is written');
   }
 

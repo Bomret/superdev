@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { fail } = require('./refusal.js');
 const { resolveCommit } = require('./git-spawn.js');
-const { judgeContainment } = require('./containment.js');
+const { judgeContainment, refetchMark } = require('./containment.js');
 const { parseRemote } = require('./kb-containment.js');
 const { pushTimeoutMs } = require('./push.js');
 
@@ -57,7 +57,8 @@ function verbContained(cwd, args) {
     `judged ${refetched ? 'refetched' : 'local'}`,
   ];
   if (judged.fallback) lines.push('fallback ancestor');
-  if (judged.refetch && judged.refetch.status !== 0) lines.push(judged.refetch.signal != null ? 'refetch timed-out' : 'refetch failed');
+  const mark = refetchMark(judged);
+  if (mark) lines.push(mark);
   console.log(lines.join('\n'));
   process.exitCode = EXIT[judged.verdict];
 }

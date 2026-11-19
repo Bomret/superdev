@@ -101,7 +101,9 @@ second time from git state. One call cuts or reuses the branch at every run kind
   contained in `<base>` and reused, or not contained and stopped, per `## Containment` above: the same
   test that decides a scope is finished with, contained in `<base>`, or gone entirely.
   `/superdev:plan`'s cut is `scope.js open`, which applies this rule in `lib/plan-open.js` and prints
-  `not-contained`, `dirty`, or `held` where the rule stops; plan acts on the printed outcome.
+  `not-contained`, `dirty`, or `held` where the rule stops; plan acts on the printed outcome. A `not-contained`
+  stop whose refetch ended without a base ends on the same `refetch timed-out` or `refetch failed` line `## Containment`
+  names for the `contained` verb.
   - **Gone** — `<branch>` does not verify: nothing survives to reuse, so the `-b` cut above is the whole
     step.
   - **Present** — decide with `## Containment` above, which owns the test. **Contained** —

@@ -265,4 +265,12 @@ function judgeContainment(cwd, base, branch, remote = 'origin', { fetchTimeoutMs
   return result('not-contained', fetched, fetchedBase);
 }
 
-module.exports = { testContainment, judgeContainment, baseHistoryHasPatch, baseCommitHoldsBranch, PROBE_MAX_BUFFER };
+// The mark a `judgeContainment` result carries where its refetch ended without a base to judge, so the answer is no verdict
+// (INV-0003, INV-0009): `refetch timed-out` where the refetch's own bound ended it, `refetch failed` otherwise, and null where
+// no refetch ran or it brought the base. `contained` and `open` print it beside a not-contained answer.
+function refetchMark(judged) {
+  if (!judged.refetch || judged.refetch.status === 0) return null;
+  return judged.refetch.signal != null ? 'refetch timed-out' : 'refetch failed';
+}
+
+module.exports = { testContainment, judgeContainment, refetchMark, baseHistoryHasPatch, baseCommitHoldsBranch, PROBE_MAX_BUFFER };
