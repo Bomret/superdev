@@ -67,8 +67,8 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          Run integrity: `run-digest.js` (the digest sidecar of a run root and its lock) and
                          `run-check.js` (the check every verb that writes to a run makes before its write,
                          which records a `tamper` trace line, ADR 0227); `untraced.js` (the `untraced` verb).
-                         Read-only grading (ADR 0261): `trace-window.js` (the one **Window** derivation and the slice and
-                         edit-path comparison the trace verbs share) and `fail-to-pass-check.js` (the `fail-to-pass-check` verb).
+                         Read-only grading (ADR 0261): `trace-window.js` (the one **Window** derivation, the slice and
+                         edit-path comparison, and the flag parser the trace verbs share) and `fail-to-pass-check.js` (the `fail-to-pass-check` verb).
                          Operator configuration: `operator-config.js` (the reader of `.superdev/info.json`,
                          used by push, fail-to-pass, and the KB backend runner, ADR 0207).
                          Git and containment: `git-spawn.js` (the shared git calls), `containment.js`,

@@ -32,7 +32,7 @@ reports, which names the bound and `code-host.pushTimeoutMs`; `lib/run-state-ref
 `scope.js` owns the CLI and the verbs, and requires only modules from `plugin/lib/` (ADR 0151). Each verb's code lives in
 a module of its own: the ledger verbs in `ledger-lifecycle.js` and `ledger-records.js`, `suite` and `base` and `get` in
 `suite-base-get.js`, `test` in `test-verb.js`, `publish` with `adopt` in `run-state.js`, `open` in `plan-open.js`, `dod-merge` in `dod-merge.js` (with `mergeDod`, the per-line merge `fetchRunState` also uses, ADR 0206), and `dod-line`, `dod-tags`, `dod-check`, `ci`, `fail-to-pass`, `fail-to-pass-check`, `prepare`,
-`citations`, `collisions`, `source-set`, `untraced`, `push`, `discard`, and `status` each in the module of its name. `trace` and `windows` live in `scope.js` over `trace-window.js` (`readRunTrace`, `sliceOf`, `editPath`, `windowsOf`, `dispatchSlice`, `windowIndexes`), the one window derivation `trace --window`, `untraced --window`, and `fail-to-pass-check --window` share. The run-state ref (`refs/superdev/<scope>`, ADR 0202) is `run-state-ref.js`: `pushRunState` at a step end (`step clear`, `step block`, or a `stage set` that closes the standing step, except `stage set closed`), `fetchRunState` inside `adopt`, and `deleteRunState` behind `run-state delete`. It takes `gitCall` from `push.js` and `parseRemote` from `kb-containment.js`. The vocabulary beneath them is `ledger.js` (the stage rank and the readers and writers of
+`citations`, `collisions`, `source-set`, `untraced`, `push`, `discard`, and `status` each in the module of its name. `trace` and `windows` live in `scope.js` over `trace-window.js` (`readRunTrace`, `sliceOf`, `editPath`, `windowsOf`, `windowIndexes`, `traceFlags`), the one window derivation `trace --window`, `untraced --window`, and `fail-to-pass-check --window` share, and `traceFlags` is the flag parser `trace`, `windows`, `untraced`, and `fail-to-pass-check` share. The run-state ref (`refs/superdev/<scope>`, ADR 0202) is `run-state-ref.js`: `pushRunState` at a step end (`step clear`, `step block`, or a `stage set` that closes the standing step, except `stage set closed`), `fetchRunState` inside `adopt`, and `deleteRunState` behind `run-state delete`. It takes `gitCall` from `push.js` and `parseRemote` from `kb-containment.js`. The vocabulary beneath them is `ledger.js` (the stage rank and the readers and writers of
 a ledger's header lines, bullets, and table rows), `refusal.js` (the refusal error `fail`), `verification.js` (`verificationCommands`,
 `verificationCommandsOf`, `prepareCommandOf`, `namedChecksOf`, `isTestPath`), `git-spawn.js` (`gitSpawn`, `gitThrow`, `parseBranchList`, `resolveCommit`, `refResolves`, `fileAt`),
 `containment.js` (`testContainment`, `judgeContainment`, `baseHistoryHasPatch`, `baseCommitHoldsBranch`), `main-work-tree.js` (`mainWorkTree`, `scopesDirFor`, `mainTreePath`), and
@@ -376,7 +376,7 @@ set, and so is an index entry that is no regular file on disk (a submodule gitli
 `source-set --tests` prints the gap audit's test-file list instead: every file `git ls-files` lists that the same test-path rule
 classes as a test, with no doc, configuration, dot-file, or vendored filter, so fixtures, snapshots, and dot-files under a test path
 stay listed and no path appears in both listings. An index entry that is no regular file on disk is left out. A path beside `--tests`
-refuses, because the list is never narrowed (triage #47).
+refuses, because the list is never narrowed (triage #47), and a repeated `--tests` is refused as given twice.
 `/superdev:review-tests` §1 calls both. The classification lives in `plugin/lib/source-set.js`.
 
 `push --root <run-root> --remote <remote> --base <base-ref>` puts the scope branch on the remote and writes nothing to the
@@ -437,11 +437,12 @@ No hook refuses an edit of either file. The code lives in `plugin/lib/run-digest
 digest, and none runs a test. Each grading verb prints a verdict or the trace lines its caller named (INV-0196).
 
 - **`windows --slice <id|scope>`** prints one line per run of an implementer dispatch of the slice, `<dispatch id> <slice> <from>
-  <until|open>`, the times those of the run's first line and of the boundary line that ends it. A slice with no implementer dispatch,
+  <until|open>`, the times of the run's first line and of the boundary line that ends it. A slice with no implementer dispatch,
   such as a `lite` slice, prints `no window: slice <id> has no implementer dispatch`. `trace-window.js`'s `windowsOf` derives each
-  **Window** by position in the file, never by timestamp: a run starts at an implementer `dispatch` line or a `dispatch-resume` of one,
-  and ends at the first boundary line of its own slice after its `dispatch-end` (any outcome), or after its start when no end of its
-  own follows, or runs to the trace's end. A boundary line is any `dispatch` line, or a `dispatch-resume` of a reviewer's dispatch.
+  **Window** by position in the file, never by timestamp: a run starts at an implementer `dispatch` line or a `dispatch-resume` of one.
+  It ends at the first boundary line after its `dispatch-end` (any outcome), or after its start when no end of its own follows.
+  With no such boundary line, it runs to the trace's end. A boundary line is a `dispatch` line of the run's own slice, or a
+  `dispatch-resume` of a reviewer's dispatch of that slice. A root with no `ledger.md` is refused.
   The agent type matches on the name part of a plugin-scoped type.
 - **`trace`** prints every recorded line that passes the filters given, byte-identical and in file order. `--slice`, `--kind` (a comma
   list of `edit`, `run`, `dispatch`, `dispatch-bind`, `dispatch-end`, `dispatch-resume`, `ledger`, `fail-to-pass`, `tamper`, or the
@@ -452,7 +453,9 @@ digest, and none runs a test. Each grading verb prints a verdict or the trace li
   of the range's first-parent, non-merge commits that no `edit` line of the slice names, in every run of the `--window` dispatch or,
   without it, in the whole trace: `<added|modified|deleted>\t<path>`, or `renamed\t<new>\t<old>`, sorted by path. Edit paths
   compare root-relative, MSYS paths included (ADR 0150). It refuses a window given by time rather than by dispatch, naming `--window`, a missing `--root` or
-  `--slice`, a range that is not `<base>..<tip>` (a three-dot range included), and a root with no `ledger.md`. The code lives in
+  `--slice`, a range that is not `<base>..<tip>` (a three-dot range included), and a root with no `ledger.md`. It parses its flags with
+  `traceFlags`, so a flag given twice and an unrecognized argument are refused. It writes one stderr note naming a `--slice` with no
+  trace line, and stdout stays the listing. The code lives in
   `plugin/lib/untraced.js`, which also exports `netChanges`.
 - **`fail-to-pass-check <base>..<tip> --slice <id|scope> [--window <dispatch id>] --root <run-root>`** prints exactly one verdict line:
   `fail-to-pass`, `pass-to-pass`, or `closed` with the deciding outcome line's range and command, `unknown <reason>` (only `unknown`
@@ -463,7 +466,8 @@ digest, and none runs a test. Each grading verb prints a verdict or the trace li
   `docs/agents/verification.md` at the tip. `references/fail-to-pass.md` states what each verdict means. The code lives in
   `plugin/lib/fail-to-pass-check.js`, over `outcomeOf` from `plugin/lib/fail-to-pass.js`.
 - **A window id** that names no implementer dispatch, or a dispatch of another slice than `--slice`, is refused by name. Every flag needs
-  a value, and a value starting with `--` is refused.
+  a value, and a value starting with `--` is refused. A flag given twice and an unrecognized argument are refused, naming the verb and
+  the flag.
 
 `tests/scope-windows.test.js`, `tests/scope-trace.test.js`, `tests/scope-untraced.test.js`, and `tests/scope-fail-to-pass-check.test.js`
 hold their cases.
