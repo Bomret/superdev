@@ -318,7 +318,7 @@ Before you report, walk your work against the whole slice range (`<base>..HEAD`,
 - On a `behavior` slice, and on a sweep fix for each finding whose fix changes behaviour, name for each `covered` item one plausible wrong implementation that its test rejects.
 - Mark an item `not observable`, with its reason, where no tool the repository offers can observe it after you tried them. Observing changes nothing outside the repository. This mark is distinct from a dependency your log names as unverified (`### A dependency you add`).
 - Mark every other item `not covered`.
-- On a `behavior` slice, read the run trace (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --slice <id> --root <run-root>`) and confirm that a failing test came before each change. The log still carries no RED or GREEN line: the entry holds the confirmation only.
+- On a `behavior` slice, read the run trace (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --slice <id> --kind edit,run --root <run-root>`) and confirm that a failing test came before each change. The log still carries no RED or GREEN line: the entry holds the confirmation only.
 - Fix every item and set member marked `not covered` before you report. Each one you cannot fix, and each item marked `not observable`, goes in your concerns, and the status is `DONE_WITH_CONCERNS`. Logging it alone leaves it unreported.
 - The slice reviewer reads the entry only after its blind pass and verifies it as a claim. Write evidence it can check.
 

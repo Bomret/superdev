@@ -218,8 +218,66 @@ try {
     assert.deepEqual(sourceSet(dir).lines, ['kept.js']);
   }
 
-  // The usage text lists the verb.
+  // --tests (triage #47): every tracked file the test-path rule classes as a test, fixtures, snapshots, and dot-files under a
+  // test path included, and no source file; disjoint from the source set; a file the index lists but the disk lacks is left out.
+  {
+    const dir = repo({
+      'docs/agents/verification.md': '# V\n\n## Test paths\n\n- `checks/`\n- `*.spec.js`\n',
+      'src/app.js': 'x\n',
+      'src/app.spec.js': 'x\n',
+      'checks/app.js': 'x\n',
+      'checks/fixtures/data.json': '{}\n',
+      'checks/__snapshots__/app.snap': 'x\n',
+      'checks/.eslintrc': 'x\n',
+      'checks/gone.js': 'x\n',
+      'tests/kept.js': 'x\n',
+      'README.md': 'x\n',
+    });
+    fs.rmSync(path.join(dir, 'checks', 'gone.js'));
+    const res = sourceSet(dir, '--tests');
+    assert.ok(res.ok, res.err);
+    assert.deepEqual(res.lines.slice().sort(), ['checks/.eslintrc', 'checks/__snapshots__/app.snap', 'checks/app.js', 'checks/fixtures/data.json', 'src/app.spec.js']);
+    const src = sourceSet(dir);
+    assert.ok(src.ok, src.err);
+    assert.deepEqual(res.lines.filter((l) => src.lines.includes(l)), [], 'no path appears in both listings');
+  }
+
+  // --tests with no configured test paths lists what the default rule classes as tests.
+  {
+    const dir = repo({ 'src/app.js': 'x\n', 'src/app.test.js': 'x\n', 'test/helper.py': 'x\n', 'pkg/__tests__/a.js': 'x\n' });
+    const res = sourceSet(dir, '--tests');
+    assert.ok(res.ok, res.err);
+    assert.deepEqual(res.lines.slice().sort(), ['pkg/__tests__/a.js', 'src/app.test.js', 'test/helper.py']);
+  }
+
+  // --tests with a path argument is refused: the test-file list is never narrowed.
+  {
+    const dir = repo({ 'tests/a.js': 'x\n' });
+    const res = sourceSet(dir, '--tests', 'tests');
+    assert.ok(!res.ok, 'a path beside --tests is refused');
+    assert.match(res.err, /--tests/);
+    assert.match(res.err, /never narrowed/);
+  }
+
+  // --tests after a path argument is refused the same way: the flag is read wherever it stands.
+  {
+    const dir = repo({ 'tests/a.js': 'x\n' });
+    const res = sourceSet(dir, 'tests', '--tests');
+    assert.ok(!res.ok, 'a path before --tests is refused');
+    assert.match(res.err, /never narrowed/);
+  }
+
+  // A repeated --tests is refused as given twice, never as a path.
+  {
+    const dir = repo({ 'tests/a.js': 'x\n' });
+    const res = sourceSet(dir, '--tests', '--tests');
+    assert.ok(!res.ok, 'a repeated --tests is refused');
+    assert.match(res.err, /^source-set: --tests given twice$/);
+  }
+
+  // The usage text lists the verb and its flag.
   assert.match(usage(), /^ {2}source-set \[<path>\]/m);
+  assert.match(usage(), /^ {2}source-set --tests/m);
 
   console.log('scope-source-set.test.js: all assertions passed');
 } finally {

@@ -193,7 +193,7 @@ Repeat until every slice is `merged`:
      the slice's range, from the commit its slice branch was cut from to the slice branch's tip, changes both a test-path
      file (`docs/agents/verification.md`'s `## Test paths`, the defaults where it has none) and another file, and its
      test-path changes are not all deletions, the implementer's run writes a `fail-to-pass` line over a range from that base to that tip. Read it with
-     `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --slice <id> --root <run-root>` before you dispatch
+     `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --slice <id> --kind fail-to-pass --root <run-root>` before you dispatch
      `superdev:slice-reviewer`. A range with no such line is a report defect: send the report back to the implementer
      in the same cycle. You run no fail-to-pass run and no test run for a slice review.
    - **A report whose log holds no self-check entry goes back**. Before you dispatch
@@ -246,24 +246,13 @@ Repeat until every slice is `merged`:
      It tells the reviewer that a failing test the slice did not cause, one that also fails at the slice's
      base, is named under `### Inherited failures` and counts nothing against the verdict: no
      finding and no strike, left to the scope review's fix loop. The reviewer settles a **blind pass** before it opens the log, and
-     the blind pass reads the slice's run-trace lines (`scope.js trace --slice <id>`).
+     the blind pass reads the slice's run-trace lines (`scope.js trace --slice <id>`, narrowed with `--kind`, `--window`, or `--last`).
      The dispatch also names the slice's range, from the commit its branch was cut from to the tip the first review
      read (the same range on every review), and on a re-review the fix cycle's range, from the tip the earlier review
-     read to the current tip, each range with both ends full commits. It tells the reviewer to apply `## Untraced writes` in `${CLAUDE_PLUGIN_ROOT}/references/untraced-writes.md` to each window of the slice: it runs `scope.js untraced` over the window's range, grades each listed path, counts the listed paths as change events for **Missing fail-to-pass run**, and raises **Implementer suite run**, a Minor, for a `run full` or `run whole` line inside the window. It tells the reviewer to apply `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/fail-to-pass.md` to each: on a
-     `behavior` slice, a latest outcome line over a range that reads `pass-to-pass` is an Important finding,
-     **Pass-to-pass**, and a range that changes both a test-path file and another file, with no outcome line over it,
-     is an Important finding, **Missing fail-to-pass run**. A slice's range or a fix cycle's range whose test-path
-     changes are all deletions, and whose changes outside the test paths add no behaviour, needs no outcome line and
-     draws no finding, and neither does a fix cycle whose range is empty or whose commits change only test files. A range whose test-path changes are all deletions and that adds behaviour outside the test paths
-     draws **Missing fail-to-pass run**. The implementer runs the verb from the slice's base on
-     every dispatch, so an outcome line over a range from the slice's base to a range's tip covers that range:
-     the latest one decides **Pass-to-pass**, and one satisfies **Missing fail-to-pass run**, on the slice's own range and
-     on a fix cycle's range alike. Each **Pass-to-pass** and **Missing fail-to-pass run** finding names its range,
+     read to the current tip, each range with both ends full commits. It tells the reviewer to apply `## Untraced writes` in `${CLAUDE_PLUGIN_ROOT}/references/untraced-writes.md` to each window of the slice: it lists them with `scope.js windows --slice <id>`, runs `scope.js untraced` over the window's range with its dispatch id as `--window`, grades each listed path, and raises **Implementer suite run**, a Minor, for a `run full` or `run whole` line inside the window. It tells the reviewer to apply `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/fail-to-pass.md` to each: it gets the range's mechanical verdict with `scope.js fail-to-pass-check <base>..<tip> --slice <id> --window <dispatch id> --root <run-root>` and keeps the judgments that section names. Each **Pass-to-pass** and **Missing fail-to-pass run** finding names its range,
      both ends full commits. It tells the reviewer to mark an unclosable **Pass-to-pass** finding as that section
-     states, at every review against the current range, and to check an implementer's claimed case rather than adopt it. The reviewer reads the outcome line from the trace and never from the
-     dispatch, which carries no outcome, and no trace, neither an `edit` line nor an untraced write for the slice, or no test command
-     gets no finding, only a named gap. Only `edit` lines and listed untraced writes count as a slice's or a cycle's change events, so a `run` or
-     `ledger` line is none, even one written after the trace began for a slice whose edits came before it. Reading
+     states, at every review against the current range, and to check an implementer's claimed case rather than adopt it. The reviewer reads the verdict from the verb and never from the
+     dispatch, which carries none. Reading
      the log can add a finding or raise a finding's severity, and it never withdraws or downgrades one. The reviewer appends its full findings to the log.
      **A review whose only remaining Critical or Important findings are unclosable
      Pass-to-pass findings**, beside any deferred ones, ends the slice's loop at once, before the cap, with no fix

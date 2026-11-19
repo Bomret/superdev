@@ -15,7 +15,7 @@ Applies to every start. You run a **test audit** (CONTEXT.md) on operator invoca
 - **The gap audit**: a read of the source set that ranks each symbol no test reaches and each case its tests leave out.
 - **The test set**: the cost audit's input, the test tree §1 derives.
 - **The source set**: the gap audit's input, the paths `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" source-set [<path>]` prints.
-- **The test-file list**: every file `git ls-files` lists that the test-path rule classes as a test. The rule is the configured `## Test paths` of `docs/agents/verification.md`, or the defaults in `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## Test paths`. It is the complement of the `source-set` verb's test-path filter, and a path argument never narrows it.
+- **The test-file list**: the gap audit's view of the tests, the paths `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" source-set --tests` prints. A path argument never narrows it.
 - **The chained posture**: a run with `--chained`, dispatched by `/superdev:sweep` as its test leg (CONTEXT.md).
 - **`unmeasured`**: the label of a run with no duration table.
 
@@ -34,6 +34,8 @@ Applies to the whole run. Apply no finding, fix nothing, write no test, and run 
 **The test set.** Applies to every start. Read `docs/agents/verification.md` and `docs/agents/toolchain.md` for the runner, and derive the test tree from the directories and glob the configured command runs (`tests/`, `**/*_test.go`, `src/**/*.spec.ts`). Cross-check it with the files on disk.
 
 **The source set.** Applies to every start. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" source-set [<path>]`. Its output is one repository-relative path per line: every tracked file outside the test paths, minus docs, configuration (dot-prefixed files among it), lockfiles, binary assets such as images, fonts, archives, media, and native binaries, vendored or generated directories, and index entries that are no regular file on disk (a submodule, a file deleted from the working tree).
+
+**The test-file list.** Applies to every start. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" source-set --tests`, with no path. Its output is one repository-relative path per line: every tracked file the test-path rule classes as a test, fixtures, snapshots, and dot-files under a test path included, minus index entries that are no regular file on disk. It shares no path with the source set.
 
 **The arguments and config.** Applies to every start.
 

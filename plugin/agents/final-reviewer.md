@@ -253,15 +253,15 @@ Judge the slices as one integrated change against the plan. Find the seam where 
 
 Applies to a scope dispatch.
 
-Read the trace with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --root <run-root>`. Hooks wrote it. Read `${CLAUDE_PLUGIN_ROOT}/references/review-coverage.md`, `${CLAUDE_PLUGIN_ROOT}/references/fail-to-pass.md`, and `${CLAUDE_PLUGIN_ROOT}/references/untraced-writes.md`, and apply their sections below to what it holds.
+Read the trace with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --root <run-root>`, narrowed with `--slice <id|scope>`, `--kind <kind>[,<kind>]`, `--window <dispatch id>`, or `--last <n>` to the lines a section asks for. Hooks wrote it. List a slice's or the scope's implementer windows with `scope.js windows --slice <id|scope> --root <run-root>`. Read `${CLAUDE_PLUGIN_ROOT}/references/review-coverage.md`, `${CLAUDE_PLUGIN_ROOT}/references/fail-to-pass.md`, and `${CLAUDE_PLUGIN_ROOT}/references/untraced-writes.md`, and apply their sections below to what it holds.
 
 - The dispatch names the tier and the run root.
 - A trace line's second field is its slice: the slice id, or `scope`.
 - A `dispatch` line carries the plugin-scoped agent type Claude Code reports. Match on its name part (`slice-reviewer`, `implementer`).
 - On either tier a slice is `behavior` when its ledger row's type says so (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get slices --root <run-root>`).
 - **Unreviewed slice**: apply `review-coverage.md`'s `## Review coverage`.
-- **Pass-to-pass** and **Missing fail-to-pass run**: apply `fail-to-pass.md`'s `## Fail-to-pass run`.
-- **Untraced writes** and **Implementer suite run**: apply `untraced-writes.md`'s `## Untraced writes`. Run `scope.js untraced` for the windows `## Fail-to-pass run` gives you, each `lite` slice with a recorded range (its window is its whole trace, over the range its ledger row records) and each fix cycle of the scope with commits, grade each listed path, and count the listed paths as change events for **Missing fail-to-pass run**: a window with untraced writes and no `edit` line is held to that rule like any other.
+- **Pass-to-pass** and **Missing fail-to-pass run**: apply `fail-to-pass.md`'s `## Fail-to-pass run`. Get each range's mechanical verdict with `scope.js fail-to-pass-check <base>..<tip> --slice <id|scope> [--window <dispatch id>] --root <run-root>`: a `lite` slice's recorded range with no `--window`, and each fix cycle's range with `--slice scope` and its dispatch id.
+- **Untraced writes** and **Implementer suite run**: apply `untraced-writes.md`'s `## Untraced writes`. Run `scope.js untraced` for the windows `## Fail-to-pass run` gives you, each `lite` slice with a recorded range (its window is its whole trace, over the range its ledger row records, with no `--window`) and each fix cycle of the scope with commits (its dispatch id from `scope.js windows --slice scope` as `--window`), and grade each listed path.
 - Mark each unclosable **Pass-to-pass** finding as `## Fail-to-pass run` states, with its case and reason, at every dispatch against the current range. An implementer's or the lite controller's claim of a case is input you check, never your verdict.
 - Each section owns its findings' definition, severity, tier, closing rule, and no-trace rule, and which ranges and cycles you read.
 - Each `unknown` outcome `## Fail-to-pass run` has you name goes under `### Fail-to-pass unknown`.

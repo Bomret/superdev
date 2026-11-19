@@ -31,8 +31,8 @@ reports, which names the bound and `code-host.pushTimeoutMs`; `lib/run-state-ref
 
 `scope.js` owns the CLI and the verbs, and requires only modules from `plugin/lib/` (ADR 0151). Each verb's code lives in
 a module of its own: the ledger verbs in `ledger-lifecycle.js` and `ledger-records.js`, `suite` and `base` and `get` in
-`suite-base-get.js`, `test` in `test-verb.js`, `publish` with `adopt` in `run-state.js`, `open` in `plan-open.js`, `dod-merge` in `dod-merge.js` (with `mergeDod`, the per-line merge `fetchRunState` also uses, ADR 0206), and `dod-line`, `dod-tags`, `dod-check`, `ci`, `fail-to-pass`, `prepare`,
-`citations`, `collisions`, `source-set`, `push`, `discard`, and `status` each in the module of its name. The run-state ref (`refs/superdev/<scope>`, ADR 0202) is `run-state-ref.js`: `pushRunState` at a step end (`step clear`, `step block`, or a `stage set` that closes the standing step, except `stage set closed`), `fetchRunState` inside `adopt`, and `deleteRunState` behind `run-state delete`. It takes `gitCall` from `push.js` and `parseRemote` from `kb-containment.js`. The vocabulary beneath them is `ledger.js` (the stage rank and the readers and writers of
+`suite-base-get.js`, `test` in `test-verb.js`, `publish` with `adopt` in `run-state.js`, `open` in `plan-open.js`, `dod-merge` in `dod-merge.js` (with `mergeDod`, the per-line merge `fetchRunState` also uses, ADR 0206), and `dod-line`, `dod-tags`, `dod-check`, `ci`, `fail-to-pass`, `fail-to-pass-check`, `prepare`,
+`citations`, `collisions`, `source-set`, `untraced`, `push`, `discard`, and `status` each in the module of its name. `trace` and `windows` live in `scope.js` over `trace-window.js` (`readRunTrace`, `sliceOf`, `editPath`, `windowsOf`, `windowIndexes`, `traceFlags`), the one window derivation `trace --window`, `untraced --window`, and `fail-to-pass-check --window` share, and `traceFlags` is the flag parser `trace`, `windows`, `untraced`, and `fail-to-pass-check` share. The run-state ref (`refs/superdev/<scope>`, ADR 0202) is `run-state-ref.js`: `pushRunState` at a step end (`step clear`, `step block`, or a `stage set` that closes the standing step, except `stage set closed`), `fetchRunState` inside `adopt`, and `deleteRunState` behind `run-state delete`. It takes `gitCall` from `push.js` and `parseRemote` from `kb-containment.js`. The vocabulary beneath them is `ledger.js` (the stage rank and the readers and writers of
 a ledger's header lines, bullets, and table rows), `refusal.js` (the refusal error `fail`), `verification.js` (`verificationCommands`,
 `verificationCommandsOf`, `prepareCommandOf`, `namedChecksOf`, `isTestPath`), `git-spawn.js` (`gitSpawn`, `gitThrow`, `parseBranchList`, `resolveCommit`, `refResolves`, `fileAt`),
 `containment.js` (`testContainment`, `judgeContainment`, `baseHistoryHasPatch`, `baseCommitHoldsBranch`), `main-work-tree.js` (`mainWorkTree`, `scopesDirFor`, `mainTreePath`), and
@@ -50,8 +50,8 @@ lazily loaded module is a getter that returns that module's own value. No module
 `base set <sha>`, `base resolve --branch <b> --base <ref>`,
 `get stage|branch|anchor|slices|unresolved|degraded|deferred|minors|denials|docs|pr|suite|failed`,
 `state [--json] --root <run-root>` (every field `get` names in one read-only call, from the ledger alone: no git, no trace line, no digest seal; `--json` prints one object with list fields as arrays and `failed` as the failed test files, its `@ <sha>` staying in `get failed` and the text output; `suite-base-get.js`'s `verbState`),
-`status` (which renders the whole `/superdev:status` report), `trace [--slice <id>]` (prints the run trace, read-only), `untraced <base>..<tip> --slice <id|scope> [--from <ts>] [--until <ts>] --root <run-root>` (read-only), `publish`, `adopt`, `root <slug>`,
-`staging <scope> [--count]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `citations --range-base <ref> --branch <ref> <id>…`, `source-set [<path>]`, `push --root <run-root> --remote <remote> --base <base-ref>`, `dod-merge --root <run-root>`, `dod-line`, `dod-tags [--map-file <path>] [--line]`, `dod-check`, `ci --sha <sha> [--root <path>]`, `fail-to-pass <base>..<tip> -- <command>`, `prepare <tree>`, and `test`.
+`status` (which renders the whole `/superdev:status` report), `trace [--slice <id|scope>] [--kind <kind>[,<kind>]] [--window <dispatch id>] [--last <n>]` (prints the run trace's lines, filtered, read-only), `windows --slice <id|scope>` (read-only), `untraced <base>..<tip> --slice <id|scope> [--window <dispatch id>] --root <run-root>` (read-only), `fail-to-pass-check <base>..<tip> --slice <id|scope> [--window <dispatch id>] --root <run-root>` (read-only), `publish`, `adopt`, `root <slug>`,
+`staging <scope> [--count]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `citations --range-base <ref> --branch <ref> <id>…`, `source-set [<path>]`, `source-set --tests`, `push --root <run-root> --remote <remote> --base <base-ref>`, `dod-merge --root <run-root>`, `dod-line`, `dod-tags [--map-file <path>] [--line]`, `dod-check`, `ci --sha <sha> [--root <path>]`, `fail-to-pass <base>..<tip> -- <command>`, `prepare <tree>`, and `test`.
 `--help` or `-h`, alone or after any verb, prints the usage and exits 0, except that a flag's value, or the text after `add`, `add-denial`, `reset-denials`, or `resolve`, is data and never a help request. It is checked before any verb
 reads stdin or touches a ledger, so a stdin verb such as `dod-line` never waits on input for it.
 `suite set` writes the **suite record** (CONTEXT.md) — the last full-suite run's result and the commit
@@ -362,7 +362,7 @@ holds the setup they share and is no suite. The `test` verb's cases split over `
 first-moment-term, install, kill, late-fork, record, refusals, tree) and the `fail-to-pass` verb's over `scope-fail-to-pass-<topic>` (bound,
 concurrency, environment, interrupt, prepare, reuse, signals, trace, verdict, watcher), and the `prepare` verb's is `scope-prepare`. The rest: `scope-ledger` (init, stage, step, slice, the bullet and header records, get, status, and the ledger-fixtures pin),
 `scope-ledger-header` (`readLedgerHeader`), `scope-suite` (the suite and base records), `scope-dod-line` (the `dod-line` verb and the dod-fixtures pin), `scope-dod-tags` (the `dod-tags` verb), `scope-dod-check` (the `dod-check` verb), `scope-dod-merge` (the `dod-merge` verb), `scope-publish-adopt` (`publish`, `adopt`, and the
-`maskFencedLines` pin), `scope-trace` (the run trace, `appendTrace`, and its `run.lock` refresh), `scope-digest` (the digest check), `scope-untraced` (the `untraced` verb), `scope-root-base` (`root`, `staging`, `base` from a linked worktree),
+`maskFencedLines` pin), `scope-trace` (the run trace, `appendTrace`, its `run.lock` refresh, and the `trace` filters), `scope-windows` (the `windows` verb and `trace --window`), `scope-digest` (the digest check), `scope-untraced` (the `untraced` verb), `scope-fail-to-pass-check` (the `fail-to-pass-check` verb), `scope-root-base` (`root`, `staging`, `base` from a linked worktree),
 `scope-containment`, `scope-citations-collisions`, `scope-source-set`, `scope-ci`, `scope-push`, `scope-open`, `scope-help`, and `scope-stdin` (every verb that reads piped input receives it through the CLI). A focused run for `scope.js`, or for a module it requires, selects
 every suite that reaches it (`run-tests.js`, below).
 
@@ -373,7 +373,11 @@ bytecode), and under no `vendor/` or `node_modules/` directory at any depth, nor
 root. The test-path rule is `verification.js`'s `testPathPatterns`, the classifier the run trace shares, so the configured
 `## Test paths` of `docs/agents/verification.md` decide, or their defaults where it has none. An untracked file is outside the
 set, and so is an index entry that is no regular file on disk (a submodule gitlink, a file deleted from the working tree). An extensionless name counts as a doc in any case when it is `readme`, `history`, `changes`, `notice`, `changelog`, `authors`, `codeowners`, `contributors`, `license`, `licence`, or `copying` (`DOC_NAME_RE`). A `LICENSE` or `COPYING` stem also counts with a `-` suffix and no extension in any case, or with any `-` or `.` suffix in uppercase (`LICENSE-MIT`, `license-apache`, `COPYING.LESSER`). A lowercase or mixed-case stem with an extension is code (`license.js`, `license-check.js`). A `<path>` that does not exist refuses, naming it. A directory that is no git repository refuses too, and a set with no file prints nothing and exits 0.
-`/superdev:review-tests` §1 calls it. The classification lives in `plugin/lib/source-set.js`.
+`source-set --tests` prints the gap audit's test-file list instead: every file `git ls-files` lists that the same test-path rule
+classes as a test, with no doc, configuration, dot-file, or vendored filter, so fixtures, snapshots, and dot-files under a test path
+stay listed and no path appears in both listings. An index entry that is no regular file on disk is left out. A path beside `--tests`
+refuses, because the list is never narrowed (triage #47), and a repeated `--tests` is refused as given twice.
+`/superdev:review-tests` §1 calls both. The classification lives in `plugin/lib/source-set.js`.
 
 `push --root <run-root> --remote <remote> --base <base-ref>` puts the scope branch on the remote and writes nothing to the
 ledger (ADR 0167, INV-0169). `/superdev:plan` §6 calls it, and `plugin/references/scope-branch.md`'s
@@ -429,12 +433,44 @@ trace line. The digest then seals what is on disk and the verb goes on. A file w
 No hook refuses an edit of either file. The code lives in `plugin/lib/run-digest.js` and `plugin/lib/run-check.js`, and
 `tests/scope-digest.test.js` holds its cases.
 
-`untraced <base>..<tip> --slice <id|scope> --root <run-root> [--from <ts>] [--until <ts>]` writes nothing (ADR 0227). It lists, one
-line per path, the changes of the range's first-parent, non-merge commits that no `edit` line of the slice names inside the window
-`[from, until)` (ISO times of the trace's own lines; none means the whole trace): `<added|modified|deleted>\t<path>`, or
-`renamed\t<new>\t<old>`, sorted by path. It refuses a missing `--root` or `--slice`, a range that is not `<base>..<tip>` (a
-three-dot range included), and a root with no `ledger.md`. A review reads the list as the untraced writes of a slice. The code lives
-in `plugin/lib/untraced.js`, and `tests/scope-untraced.test.js` holds its cases.
+`trace`, `windows`, `untraced`, and `fail-to-pass-check` only read (ADR 0227, ADR 0261): none writes a trace line, a ledger change, or a
+digest, and none runs a test. Each grading verb prints a verdict or the trace lines its caller named (INV-0196).
+
+- **`windows --slice <id|scope>`** prints one line per run of an implementer dispatch of the slice, `<dispatch id> <slice> <from>
+  <until|open>`, the times of the run's first line and of the boundary line that ends it. A slice with no implementer dispatch,
+  such as a `lite` slice, prints `no window: slice <id> has no implementer dispatch`. `trace-window.js`'s `windowsOf` derives each
+  **Window** by position in the file, never by timestamp: a run starts at an implementer `dispatch` line or a `dispatch-resume` of one.
+  It ends at the first boundary line after its `dispatch-end` (any outcome), or after its start when no end of its own follows.
+  With no such boundary line, it runs to the trace's end. A boundary line is a `dispatch` line of the run's own slice, or a
+  `dispatch-resume` of a reviewer's dispatch of that slice. A root with no `ledger.md` is refused.
+  The agent type matches on the name part of a plugin-scoped type.
+- **`trace`** prints every recorded line that passes the filters given, byte-identical and in file order. `--slice`, `--kind` (a comma
+  list of `edit`, `run`, `dispatch`, `dispatch-bind`, `dispatch-end`, `dispatch-resume`, `ledger`, `fail-to-pass`, `tamper`, or the
+  older releases' `verdict`, `final-verdict`, `revert`, `restore`), and `--window` combine as AND, and `--last <n>` keeps the last n
+  they pass. An empty trace prints `no trace: this run has recorded no events`, and a filter that matches nothing on a non-empty trace
+  prints `no match: the filter matched no line of this run's trace`.
+- **`untraced <base>..<tip> --slice <id|scope> [--window <dispatch id>] --root <run-root>`** lists, one line per path, the net changes
+  of the range's first-parent, non-merge commits that no `edit` line of the slice names, in every run of the `--window` dispatch or,
+  without it, in the whole trace: `<added|modified|deleted>\t<path>`, or `renamed\t<new>\t<old>`, sorted by path. Edit paths
+  compare root-relative, MSYS paths included (ADR 0150). It refuses a window given by time rather than by dispatch, naming `--window`, a missing `--root` or
+  `--slice`, a range that is not `<base>..<tip>` (a three-dot range included), and a root with no `ledger.md`. It parses its flags with
+  `traceFlags`, so a flag given twice and an unrecognized argument are refused. It writes one stderr note naming a `--slice` with no
+  trace line, and stdout stays the listing. The code lives in
+  `plugin/lib/untraced.js`, which also exports `netChanges`.
+- **`fail-to-pass-check <base>..<tip> --slice <id|scope> [--window <dispatch id>] --root <run-root>`** prints exactly one verdict line:
+  `fail-to-pass`, `pass-to-pass`, or `closed` with the deciding outcome line's range and command, `unknown <reason>` (only `unknown`
+  lines, or the gaps `no-trace` and `no-change`), `missing`, `test-only`, or `no-test-change`. It resolves both sides to full commits
+  and refuses a `...` range, an unresolvable side, and a base that is no ancestor of the tip. Only `fail-to-pass` and `pass-to-pass`
+  lines decide, the latest in file order winning, and a line covers the range when its tip is the range's tip and its base is the
+  range's base or an ancestor of it. It reads the range's changes through `netChanges` and classes test paths by
+  `docs/agents/verification.md` at the tip. `references/fail-to-pass.md` states what each verdict means. The code lives in
+  `plugin/lib/fail-to-pass-check.js`, over `outcomeOf` from `plugin/lib/fail-to-pass.js`.
+- **A window id** that names no implementer dispatch, or a dispatch of another slice than `--slice`, is refused by name. Every flag needs
+  a value, and a value starting with `--` is refused. A flag given twice and an unrecognized argument are refused, naming the verb and
+  the flag.
+
+`tests/scope-windows.test.js`, `tests/scope-trace.test.js`, `tests/scope-untraced.test.js`, and `tests/scope-fail-to-pass-check.test.js`
+hold their cases.
 
 `dod-line` is another verb that touches no ledger, and makes no store call of its own
 (`references/dod-ticks.md`, INV-0014, triage #664): `--match-file <path>

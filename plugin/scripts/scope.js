@@ -3,7 +3,7 @@
 
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
 // Verbs: open, init, stage, step, slice, degraded, unresolved, deferred, minors, docs, pr, deploy, suite, base, get, status,
-// publish, adopt, trace, untraced, collisions, citations, source-set, push, root, staging, dod-line, dod-tags, dod-check, ci; `main()` also runs test, fail-to-pass, and prepare. Exit
+// publish, adopt, trace, windows, untraced, fail-to-pass-check, collisions, citations, source-set, push, root, staging, dod-line, dod-tags, dod-check, ci; `main()` also runs test, fail-to-pass, and prepare. Exit
 // nonzero with a one-line stderr reason on any refusal. Every verb that writes to a run first checks the run's
 // digest sidecar and reports an outside edit of its ledger or trace once (lib/run-check.js, ADR 0227).
 // `root` and `dod-line` touch no ledger: `root` resolves a run root's absolute
@@ -17,7 +17,7 @@ const path = require('path');
 // The modules in `../lib/` hold the verbs and their vocabulary: the ledger primitives, the refusal helper, the
 // verification readers, the git spawn, the containment test, the main-working-tree resolver, the run
 // trace reader and writer, the collision finder, the verbs themselves, and the usage text. This file keeps the
-// CLI switch, the verbs `root`, `trace`, and `collisions`, and the exports.
+// CLI switch, the verbs `root`, `trace`, `windows`, and `collisions`, and the exports.
 // Only the refusal helper, the ledger primitives, and the trace writer load at startup, because every verb's path may
 // reach them. Each other module loads when a verb that uses it runs, through its accessor below, so a verb pays the
 // load cost of its own modules alone. Each accessor names its module in a literal `require`, which the suite
@@ -41,10 +41,12 @@ const libStatus = () => require('../lib/status.js');
 const libRunSupervision = () => require('../lib/run-supervision.js');
 const libTestVerb = () => require('../lib/test-verb.js');
 const libFailToPass = () => require('../lib/fail-to-pass.js');
+const libFailToPassCheck = () => require('../lib/fail-to-pass-check.js');
 const libPrepare = () => require('../lib/prepare.js');
 const libCitations = () => require('../lib/citations.js');
 const libSourceSet = () => require('../lib/source-set.js');
 const libUntraced = () => require('../lib/untraced.js');
+const libTraceWindow = () => require('../lib/trace-window.js');
 const libPush = () => require('../lib/push.js');
 const libRunStateRef = () => require('../lib/run-state-ref.js');
 const libDodMerge = () => require('../lib/dod-merge.js');
@@ -59,18 +61,55 @@ function verbRoot(cwd, slug) {
   console.log(libMainWorkTree().mainTreePath(cwd, 'root', 'scopes', slug));
 }
 
-// --- trace: the verb over `lib/trace-log.js`'s reader (ADR 0117, INV-0117) -------------------
+// --- trace and windows: the read-only verbs over `lib/trace-window.js` (ADR 0117, ADR 0261, INV-0117, INV-0196) ---------
 
-function verbTrace(root, slice) {
-  let raw = '';
-  try {
-    raw = fs.readFileSync(path.join(root, 'trace.log'), 'utf8');
-  } catch (e) {
-    if (e.code !== 'ENOENT') throw e;
+// The kinds a trace line carries, and the kinds only an older release wrote (`lib/trace-log.js`).
+const TRACE_KINDS = ['edit', 'run', 'dispatch', 'dispatch-bind', 'dispatch-end', 'dispatch-resume', 'ledger', 'fail-to-pass', 'tamper'];
+const LEGACY_TRACE_KINDS = ['verdict', 'final-verdict', 'revert', 'restore'];
+
+// Prints the recorded lines that pass every filter given, byte-identical and in file order: `--slice`, `--kind` (a comma
+// list), and `--window` combine as AND, and `--last` keeps the last n of what they pass. `--root` is already taken.
+function verbTrace(root, args) {
+  const tw = libTraceWindow();
+  const f = tw.traceFlags('trace', args, ['--slice', '--kind', '--window', '--last'], false).flags;
+  let kinds = null;
+  if (f['--kind'] !== undefined) {
+    kinds = new Set(f['--kind'].split(','));
+    const bad = [...kinds].find((k) => !TRACE_KINDS.includes(k) && !LEGACY_TRACE_KINDS.includes(k));
+    if (bad !== undefined) fail(`trace: --kind "${bad}" is no trace kind; the kinds are ${TRACE_KINDS.join(', ')}, and ${LEGACY_TRACE_KINDS.join(', ')} from older releases`);
   }
-  let lines = raw.split('\n').filter(Boolean);
-  if (slice) lines = lines.filter((l) => readTrace(l)[0].slice === slice);
-  console.log(lines.length ? lines.join('\n') : 'no trace: this run has recorded no events');
+  let last = null;
+  if (f['--last'] !== undefined) {
+    if (!/^[1-9]\d*$/.test(f['--last'])) fail(`trace: --last needs a whole number of lines above 0, not "${f['--last']}"`);
+    last = Number(f['--last']);
+  }
+  const { lines, events } = tw.readRunTrace(root);
+  const slice = f['--slice'];
+  const inWindow = f['--window'] === undefined ? null : tw.windowIndexes(events, f['--window'], slice, (m) => fail(`trace: ${m}`));
+  let kept = lines.filter((_, i) => (slice === undefined || tw.sliceOf(events[i]) === slice)
+    && (kinds === null || kinds.has(events[i].kind))
+    && (inWindow === null || inWindow.has(i)));
+  if (last !== null) kept = kept.slice(-last);
+  if (!lines.length) console.log('no trace: this run has recorded no events');
+  else if (!kept.length) console.log('no match: the filter matched no line of this run\'s trace');
+  else console.log(kept.join('\n'));
+}
+
+// Prints one line per implementer window of `--slice`: `<dispatch id> <slice> <from> <until|open>`, the times those of the run's
+// first line and of the boundary line that ends it. A root holding no ledger.md is refused, so a wrong root never reads as a lite slice.
+function verbWindows(root, args) {
+  const tw = libTraceWindow();
+  const f = tw.traceFlags('windows', args, ['--slice'], false).flags;
+  if (f['--slice'] === undefined) fail('windows needs --slice <id|scope>');
+  if (!fs.existsSync(path.join(root, 'ledger.md'))) fail(`windows: "${root}" holds no ledger.md, so it is no run root`);
+  const { events } = tw.readRunTrace(root);
+  const slice = f['--slice'];
+  const found = tw.windowsOf(events, slice);
+  if (!found.length) {
+    console.log(`no window: slice ${slice} has no implementer dispatch`);
+    return;
+  }
+  console.log(found.map((w) => [w.id, slice, events[w.start].ts, w.until === null ? 'open' : events[w.until].ts].join(' ')).join('\n'));
 }
 
 // --- collisions: the verbs over `lib/collisions.js`'s finder (ADR 0126, INV-0134) ---------------
@@ -107,7 +146,7 @@ function takeRoot(args) {
   return root;
 }
 
-// The run root a verb writes to, or null for a verb that only reads (`get`, `state`, `publish`, `trace`, `status`, `suite reusable`,
+// The run root a verb writes to, or null for a verb that only reads (`get`, `state`, `publish`, `trace`, `windows`, `status`, `suite reusable`,
 // `base resolve`, `deploy get`) or writes no run file (`discard`, `push`, `run-state delete`). `init` and `open` find their
 // root themselves: `init` checks it in `lib/ledger-lifecycle.js`'s `verbInit`, and `open` in `lib/plan-open.js`'s `verbOpen`, once for every path it takes; `test` and `fail-to-pass` check it in their own verbs.
 // Every other verb of this CLI that writes to a run names its root with `--root`, and is checked here, once.
@@ -343,13 +382,12 @@ function run(argv, cwd, stdinJson) {
       ledgerEvent = { root, fields: ['adopt'] };
       break;
     }
-    case 'trace': {
-      const root = takeRoot(args);
-      const si = args.indexOf('--slice');
-      if (si >= 0 && !args[si + 1]) fail('--slice needs an id');
-      verbTrace(root, si >= 0 ? args[si + 1] : undefined);
+    case 'trace':
+      verbTrace(takeRoot(args), args);
       break;
-    }
+    case 'windows':
+      verbWindows(takeRoot(args), args);
+      break;
     // No --root: collisions reads git only and touches no ledger (ADR 0126).
     case 'collisions':
       verbCollisions(cwd, args);
@@ -365,6 +403,10 @@ function run(argv, cwd, stdinJson) {
     // No --root: citations reads git only and touches no ledger (ADR 0156).
     case 'citations':
       libCitations().verbCitations(cwd, args);
+      break;
+    // Reads git and the run's trace and writes nothing, and runs no test (ADR 0261); it takes `--root` itself.
+    case 'fail-to-pass-check':
+      libFailToPassCheck().verbFailToPassCheck(cwd, args);
       break;
     // Reads git and the run's trace and writes nothing (ADR 0227); `verbUntraced` takes `--root` itself.
     case 'untraced':
