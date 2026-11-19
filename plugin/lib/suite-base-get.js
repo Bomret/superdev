@@ -58,6 +58,21 @@ function passedAtTip(events, tip, whole) {
   return result === 'pass' && tree === 'clean';
 }
 
+// The ledger's `**Suite:**` value as `{ result, sha, kind }` (`kind` `whole` or undefined), or null where it is absent or unreadable.
+function parseSuiteRecord(raw) {
+  const m = raw && raw.match(/^(\S+)\s+@\s+(\S+)(?:\s+(whole))?$/);
+  return m ? { result: m[1], sha: m[2], kind: m[3] } : null;
+}
+
+// Whether `a` is an ancestor of `b`; refuses where git fails for any reason but "not an ancestor" (exit 1), so a git error
+// is never read as a negative answer (INV-0009).
+function ancestorOrRefuse(g, a, b) {
+  const r = gitSpawn(['merge-base', '--is-ancestor', a, b], g.cwd);
+  if (r.status === 0) return true;
+  if (r.status === 1) return false;
+  fail(`could not tell whether ${a} is an ancestor of ${b}: ${(r.stderr || '').trim() || `git exited ${r.status}`}`);
+}
+
 // The run root's `run` trace events in trace order; none where no trace file exists yet.
 function runEvents(root) {
   let raw = '';
@@ -133,13 +148,13 @@ const redRefusal = (why) => `suite record is red, not green (${why}) — not reu
 function verbSuiteReusable(cwd, root, branch, whole, base) {
   const g = gitReads(cwd);
   const raw = getHeader(readLines(root), 'Suite');
-  const m = raw && raw.match(/^(\S+)\s+@\s+(\S+)(?:\s+(whole))?$/);
+  const m = parseSuiteRecord(raw);
   if (raw && !m) fail(`unreadable suite record: ${raw}`);
   // ADR 0182: a passing full-suite run at the exact tip meets the gate, whoever wrote it. A record at the tip that is not
   // green decides on its own below, so a red record there stays the rerun's (ADR 0172). An accepted run becomes the record,
   // `whole` where a whole run passed at the tip, so `get suite` names the commit the gate passed on (ADR 0186).
   const exactTip = g.commit(branch);
-  if (exactTip && (!m || m[2] !== exactTip || m[1] === 'green')) {
+  if (exactTip && (!m || m.sha !== exactTip || m.result === 'green')) {
     const events = runEvents(root);
     if (passedAtTip(events, exactTip, whole)) {
       const value = `green @ ${exactTip}${passedAtTip(events, exactTip, true) ? ' whole' : ''}`;
@@ -149,7 +164,7 @@ function verbSuiteReusable(cwd, root, branch, whole, base) {
     }
   }
   if (!raw) fail('no suite record to reuse');
-  const [, result, recordedSha, kind] = m;
+  const { result, sha: recordedSha, kind } = m;
   if (result === 'red') {
     // Each route returns its refusal reason, or null where it accepts. A red record whose failures a fix cycle since
     // repaired carries to a later tip (ADR 0237) where the rerun does not; a refusal names both routes' reasons.
@@ -599,5 +614,5 @@ function verbState(root, json) {
 
 module.exports = {
   verbState, verbSuite, verbSuiteRerun, verbSuiteFailed, verbSuiteReusable, verbBaseSet, verbBaseResolve, verbGet,
-  VERIFICATION, gitReads, runEvents, rangeBase, failedRuns, failedRecord, coverageRefusal, pathRunPassed,
+  VERIFICATION, gitReads, runEvents, rangeBase, failedRuns, failedRecord, coverageRefusal, pathRunPassed, parseSuiteRecord, ancestorOrRefuse,
 };

@@ -92,6 +92,8 @@ try {
   // A red record off the tip's ancestry, and every other record, find nothing; no record and no CI input reads nothing.
   {
     assert.strictEqual(verb(f.args(f.root([`**Suite:** red @ ${f.S}`])), f.repo).out, 'none', 'red off the ancestry');
+    // A git error other than "not an ancestor" is no "not an ancestor": the record's commit does not exist, so the verb refuses.
+    assert.match(verb(f.args(f.root([`**Suite:** red @ ${'0'.repeat(40)}`])), f.repo).err, /ancestor/, 'a record commit git cannot read refuses');
     for (const res of ['green', 'none', 'denied']) {
       assert.strictEqual(verb(f.args(f.root([`**Suite:** ${res} @ ${f.T}`])), f.repo).out, 'none', `${res} record`);
     }
@@ -105,6 +107,11 @@ try {
     assert.match(verb(f.args(f.root(['**Suite:** garbage'])), f.repo).err, /unreadable suite record/, 'an unreadable record');
     assert.match(verb(f.args(rt, ['--ci-head', f.T]), f.repo).err, /--ci-head and --ci-file/, '--ci-head without --ci-file');
     assert.match(verb(f.args(rt, ['--ci-file', 'x']), f.repo).err, /--ci-head and --ci-file/, '--ci-file without --ci-head');
+    // An unresolved branch refuses up front, CI input only included.
+    const tsv = path.join(f.repo, '.superdev', 'unresolved.tsv');
+    fs.mkdirSync(path.dirname(tsv), { recursive: true });
+    fs.writeFileSync(tsv, 'lint\tfailure\n');
+    assert.match(verb(['--root', f.root([]), '--branch', 'nope', '--base', 'main', '--ci-head', f.T, '--ci-file', tsv], f.repo).err, /does not resolve/, 'an unknown branch with CI input only');
   }
   // Coverage: runs on a clean tree at a later commit on the tip's ancestry close the record. The trace line is
   // `<kind> <result> <sha> <tree> <paths> ...`, a path run carrying its directory last.
@@ -139,7 +146,10 @@ try {
     const e = make('node all.js');
     const bare = (lines, at = e.T) => e.root([`**Suite:** red @ ${at}`], lines);
     assert.strictEqual(out(bare([]), e.repo), `red ${e.T} files=`, 'no later commit: nothing covers the record');
-    assert.strictEqual(out(bare([], e.R), e.repo), `covered ${e.R} by ${e.M}`, 'no test file changed since: the clean later commit covers');
+    assert.strictEqual(out(bare([], e.R), e.repo), `red ${e.R} files=`, 'no test file changed since and no run recorded: nothing covers');
+    assert.strictEqual(out(bare([['full', 'pass', e.M, 'clean']], e.R), e.repo), `covered ${e.R} by ${e.M}`, 'a passing clean run at the later commit covers');
+    assert.strictEqual(out(bare([['full', 'pass', e.M, 'dirty']], e.R), e.repo), `red ${e.R} files=`, 'a dirty run does not cover');
+    assert.strictEqual(out(bare([['full', 'pass', e.M, 'unknown']], e.R), e.repo), `red ${e.R} files=`, 'an unknown tree does not cover');
     const T2 = commit(e.repo, 'tests/b.test.js', 'b\n', 'test');
     assert.strictEqual(out(bare([]), e.repo), `red ${e.T} files=`, 'a test file changed since and no path run of it');
     assert.strictEqual(out(bare([PATH_RUN(T2, 'tests/b.test.js')]), e.repo), `covered ${e.T} by ${T2}`, 'a path run of each changed test file covers');
@@ -173,6 +183,10 @@ try {
     // A red local record and a failed check are reported together; a CI input alone is no "nothing to read".
     const both = c.root([`**Suite:** red @ ${c.T}`]);
     assert.strictEqual(ci(c.T, FAILED, both), `red ${c.T} files=\nci: failed ${c.T}\nci-failed lint http://l/1 ${c.T}`, 'both sources');
+    // A failed check closes through the coverage rule of a red record with no failed file: a later commit's passing focused run over the range.
+    const FOC = (sha, paths, tree = 'clean') => ['focused', 'pass', sha, tree, encodePaths(paths)];
+    assert.strictEqual(ci(c.R, FAILED, c.root([], [FOC(c.M, ['src/x.js'])])), `ci: failed ${c.R}\ncovered ${c.R} by ${c.M}\nnone`, 'a failed check a later passing run covers');
+    assert.strictEqual(ci(c.R, FAILED, c.root([], [FOC(c.M, ['src/x.js'], 'dirty')])), `ci: failed ${c.R}\nci-failed lint http://l/1 ${c.R}`, 'a dirty run does not cover a failed check');
     assert.match(verb(c.args(rt, ['--ci-head', c.T, '--ci-file', path.join(c.repo, 'absent.tsv')]), c.repo).err, /absent\.tsv/, 'an unreadable check-status file refuses');
   }
   // The verb writes no ledger, trace, digest, or git change.

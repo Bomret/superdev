@@ -136,11 +136,11 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 
 **The red evidence.** Applies once per invocation, in the scope checkout, after §4.1 and before the first `final-reviewer` dispatch. Run no test. Each red the reading finds is a Critical finding in the fix list, even when `final-reviewer` returns none. §2's dispatches and the `simplicity-reviewer` dispatch go out at once after the reading.
 
-- **The call.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" red-evidence --root <run-root> --branch <branch> --base <base>` in the scope checkout. It reads the ledger's suite and failed records and the run trace, and writes nothing. Where the `## CI` section of `docs/agents/verification.md` at the tip names checks and holds no `none`, and the `pr` field records a pull request, read that pull request per `docs/agents/code-management.md`'s `## Merge` section for its `head.sha`, take that document's `## Check status` read for `head.sha` into a file, and add `--ci-head <head.sha> --ci-file <file>`.
+- **The call.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" red-evidence --root <run-root> --branch <branch> --base <base>` in the scope checkout. It reads the ledger's suite and failed records and the run trace, and writes nothing. Where the `## CI` section of `docs/agents/verification.md` at the tip names a check, and the `pr` field records a pull request, read that pull request per `docs/agents/code-management.md`'s `## Merge` section for its `head.sha`, take that document's `## Check status` read for `head.sha` into a file, and add `--ci-head <head.sha> --ci-file <file>`.
 - **A line `red <sha> files=<files>`** → a red-evidence finding naming that commit and those test files. A record that names no test file leaves `files=` empty.
 - **A line `covered <sha> by <commit>`** → no finding. A later run on a clean tree closed that red record. Say once that a later run closed it, naming that commit.
 - **A line `ci: <verdict> <sha>`** → state that verdict for that SHA, as the head's state and never as the tip's.
-- **A line `ci-failed <check> <link> <sha>`** → one red-evidence finding naming the check, its link, and that SHA. A failed check names no test file.
+- **A line `ci-failed <check> <link> <sha>`** → one red-evidence finding naming the check, its link, and that SHA. A failed check names no test file. Where a later commit's runs cover it, the verb prints `covered <sha> by <commit>` after the `ci:` line in place of the `ci-failed` lines, and that line is no finding.
 - **A line `ci-malformed`** → a configuration error that ship refuses. Print `CI section malformed: it holds both none and a check name; fix it through /superdev:setup` once and continue. It raises no finding.
 - **A line `none`** → the verb read and found no finding. **A line `nothing-to-read`** → no suite record and no CI input existed, so the review states that nothing was read.
 - **A refusal** → print its reason and continue, with the red evidence unread. An unread source is never `none`.
@@ -152,7 +152,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 
 - **A failing test the scope did not cause** is this Critical finding too, and joins the fix list. A triage record for it may sit beside its fix, never in its place.
 - **It joins §4.6's fix list**, and its cycle counts toward the 3-cycle cap of §4.7.
-- **It closes on the fix cycle's own runs** at the cycle's tip, which the re-review reads in the run trace: runs after which the `red-evidence` call prints `covered` for it. A `ci-failed` finding closes on the runs that cover a `red` line with an empty `files=` field, because a failed check names no test file.
+- **It closes on the fix cycle's own runs** at the cycle's tip, which the re-review reads in the run trace: runs after which the `red-evidence` call prints `covered` for it. A `ci-failed` finding closes the same way, because the verb applies the coverage rule of a `red` line with an empty `files=` field to it: a failed check names no test file.
 - **The report says ship takes the full-suite evidence again**, from the named checks or a local run.
 
 **Inside a fix cycle.** Applies to every fix cycle. Run no test. The re-review reads the cycle implementer's recorded runs and its fail-to-pass outcome in the run trace.
