@@ -200,4 +200,4 @@ function merge(liveText, stagedText) {
   return `${live.slice(0, start).concat(body, gap, tail).join('\n')}`;
 }
 
-module.exports = { maskFencedLines, merge, headingKeyOf };
+module.exports = { maskFencedLines, merge, headingKeyOf, headingLevel, readLines };
