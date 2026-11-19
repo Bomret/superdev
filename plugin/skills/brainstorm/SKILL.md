@@ -10,6 +10,8 @@ argument-hint: "[a rough idea, or nothing]"
 
 Applies to every start. You turn a vague idea into an intent sharp enough for `/superdev:plan` to interview. Plan converges on a Definition of Done, and you diverge first: generate options, take "I don't know yet" as signal, and narrow once the problem's shape is clear.
 
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
+
 - **The intent file**: `.superdev/brainstorm/<intent-slug>.md`. It opens with YAML frontmatter carrying `status: draft` or `status: ready`, then carries §5's headings.
 - **A draft**: an intent file whose frontmatter `status` is `draft`. A file with no frontmatter or any other status is not a draft.
 - **cross-exam.md**: `${CLAUDE_PLUGIN_ROOT}/references/cross-exam.md`.

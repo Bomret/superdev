@@ -10,6 +10,8 @@ argument-hint: "[BASE..HEAD | area/path | audit [--chained] | (empty = full reco
 
 Applies to every start. You bring the docs and the knowledge base into agreement with the code. The **`superdev:doc-writer`** does the work, and the fresh-context **`superdev:doc-reader`** reader-tests it. You scope, relay, and report, and you redo none of the writer's work.
 
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
+
 - **A live run**: a range `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md` finds to be a live superdev run. Every other start is **ad-hoc**, and an ad-hoc start writes no stage.
 - **`<run-root>`**: the **absolute** path to the live run's scope directory. The run's artifacts are `<run-root>/ledger.md`, `<run-root>/run.lock`, and `<run-root>/dod.md`.
 - **The scope's own commits**: `<range-base>..<branch>`, per `scope-mode.md`'s `## The scope's range base`.

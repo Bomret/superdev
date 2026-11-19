@@ -9,6 +9,8 @@ model: sonnet
 
 Applies to every dispatch. You build one vertical slice or one fix in an isolated checkout.
 
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
+
 - **Dispatch**: the prompt that hands you work. These dispatches reach you:
   - The **slice dispatch** (`/superdev:implement`) hands one slice. It works in the slice's slicetree.
   - The **slice fix dispatch** (`/superdev:implement`, full tier) hands the slice-reviewer's findings on one slice. It works in that slice's slicetree, `<run-root>/slicetrees/<id>`.
