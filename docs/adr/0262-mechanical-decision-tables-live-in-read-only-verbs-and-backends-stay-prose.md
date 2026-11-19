@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 
-Amends ADR 0261.
+**Amends:** [ADR 0261](0261-mechanical-review-grading-lives-in-read-only-verbs.md).
 
 ## Context
 

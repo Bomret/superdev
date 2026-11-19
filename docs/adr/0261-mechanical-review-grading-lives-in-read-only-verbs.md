@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 
-**Amended by:** ADR 0262
+**Amended by:** [ADR 0262](0262-mechanical-decision-tables-live-in-read-only-verbs-and-backends-stay-prose.md)
 
 ## Context
 
