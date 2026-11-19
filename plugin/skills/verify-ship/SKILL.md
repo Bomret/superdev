@@ -10,7 +10,7 @@ argument-hint: "[<scope>  (empty = the only shipped run in this repo)]"
 
 Applies to every start. You settle the open Definition-of-Done criteria of a shipped scope. You dispatch no subagent. You never move the stage.
 
-- **Open line**: a line of `<run-root>/dod.md` that `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule` calls open.
+- **Open line**: an `open` row of `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-open --root <run-root>`.
 - **Settled line**: a line that same rule calls settled.
 - **Repair citation**: the ending of a `not met:` note, as `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` defines it.
 - **Equivalent read**: an HTTP GET, a DNS lookup, an ssh read, or a status command.
@@ -84,7 +84,7 @@ Read the stage and the pull request number with one `node "${CLAUDE_PLUGIN_ROOT}
 - **An anchor whose Definition-of-Done lines could not be read** → report it once. §6 then prints `/superdev:wrap-up <scope>` and starts no wrap-up.
 - **A `dod.md` line unpaired on the anchor** → report it by name as needing a hand-sync of the anchor's criterion text.
 
-**The open lines.** Applies after the anchor sync. Read `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s *Verify-ship's case*. Take the open lines from `<run-root>/dod.md` as that case states. With no open line go to §6 before the repairs read.
+**The open lines.** Applies after the anchor sync. Read `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s *Verify-ship's case*. Take the open lines from `dod-open --root <run-root>`. With no open line go to §6 before the repairs read.
 
 **The repairs read.** Applies when an open line exists. Read this scope's repairs once before the first observation. Read them through `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run`, step 3.
 

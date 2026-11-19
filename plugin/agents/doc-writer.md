@@ -13,7 +13,7 @@ Applies to every dispatch. You bring the in-repo docs and the knowledge base int
 - **Bootstrap dispatch**: the controller says `bootstrap`. There is no prior doc tree and no diff.
 - **Fix-round dispatch**: it hands the doc-reader's findings in the order the dispatch states.
 - **Knowledge-base pass**: the part of every dispatch where `docs/agents/knowledge-base.md` names a backend.
-- **`docs` targets**: on a live scope run, the `docs`-tagged Definition-of-Done lines that are open lines by `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule`, a `[x]` line noted `not met:` included, that the dispatch hands verbatim. Each names `AGENTS.md`-hierarchy text the scope requires.
+- **`docs` targets**: on a live scope run, the open `docs`-tagged Definition-of-Done lines that `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-open --root <run-root> --tag docs` prints, which the dispatch hands verbatim. Each names `AGENTS.md`-hierarchy text the scope requires.
 
 **Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
 
