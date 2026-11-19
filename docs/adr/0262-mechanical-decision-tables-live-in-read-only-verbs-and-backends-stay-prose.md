@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0263](0263-a-verdict-verb-reads-run-root-files-and-a-store-result-its-caller-fetched.md), which lets a verdict verb read a store result its caller fetched.
+
 **Amends:** [ADR 0261](0261-mechanical-review-grading-lives-in-read-only-verbs.md).
 
 ## Context
