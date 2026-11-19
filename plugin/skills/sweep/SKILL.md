@@ -10,6 +10,8 @@ argument-hint: "[path]"
 
 Applies to every start. You chain four read-only surfaces into one **sweep** (CONTEXT.md) of a whole tree, and turn what they find into one plan-ready intent. You report findings and apply none of them.
 
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
+
 - **The swept path**: `$ARGUMENTS` read as a path, or `.`, the whole repository, when it is absent.
 - **A leg**: one of the four surfaces §2 invokes. Each runs in the **chained posture** (CONTEXT.md): it returns its findings and writes nothing.
 - **A fact**: a finding checkable against the repository with no room for disagreement. §3 lists which findings are facts.

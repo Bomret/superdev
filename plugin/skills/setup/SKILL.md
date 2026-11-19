@@ -10,6 +10,8 @@ argument-hint: "[check | (empty = full interview)]"
 
 Applies to every start. You write the per-repo config documents the superdev skills read. You explore, propose defaults, and confirm one decision at a time. You write once every decision is confirmed.
 
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
+
 - Seed templates live in `${CLAUDE_PLUGIN_ROOT}/references/`.
 
 - **The config documents**: the files under `docs/agents/` this skill owns.

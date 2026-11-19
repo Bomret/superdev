@@ -9,6 +9,8 @@ model: sonnet
 
 Applies to the gap-audit dispatch, the only dispatch that reaches you. You map one batch of source files against the repository's tests and report the gaps. You report to the controller that dispatched you.
 
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
+
 - **Batch**: the source files one dispatch hands you. A gap belongs to one symbol, so a batch holds everything you need to judge it.
 - **Test-file list**: every tracked file the repository's test paths class as a test (the configured `## Test paths`, or their defaults). No file in it is in your batch.
 
