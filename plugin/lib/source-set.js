@@ -1,6 +1,7 @@
 'use strict';
 
-// source-set.js: the gap audit's source set, every tracked code file of a tree outside its test paths (ADR 0162).
+// source-set.js: the gap audit's source set, every tracked code file of a tree outside its test paths (ADR 0162), and with
+// `--tests` its test-file list, every tracked file inside them.
 
 const fs = require('fs');
 const path = require('path');
@@ -29,9 +30,12 @@ function isSource(rel) {
 }
 
 // Prints one repository-relative path per line. `git ls-files` lists tracked files only, so an untracked file is outside;
-// of those, only a regular file on disk prints.
+// of those, only a regular file on disk prints. `--tests` prints the files the test-path rule classes as tests instead, with no
+// non-code, dot-file, or vendored filter, so the two listings share no path; it takes no path, because the list is never narrowed.
 function verbSourceSet(cwd, args) {
-  const scope = args[0];
+  const tests = args[0] === '--tests';
+  if (tests && args.length > 1) fail('source-set: --tests takes no path; the test-file list is never narrowed');
+  const scope = tests ? undefined : args[0];
   if (scope !== undefined && !fs.existsSync(path.resolve(cwd, scope))) fail(`source-set: no such path "${scope}"`);
   const top = gitSpawn(['rev-parse', '--show-toplevel'], cwd);
   if (top.status !== 0) fail('source-set: not inside a git repository');
@@ -43,13 +47,14 @@ function verbSourceSet(cwd, args) {
   // Read once for the whole listing; no file reads as no `## Test paths` section, so the defaults apply.
   let verification = '';
   try { verification = fs.readFileSync(path.join(root, 'docs', 'agents', 'verification.md'), 'utf8'); } catch {}
-  const tests = testPathPatterns(verification);
+  const patterns = testPathPatterns(verification);
+  const isTest = (rel) => patterns.some((re) => re.test(rel));
   // A regular file on disk only: a submodule gitlink is a directory or absent, and an index entry deleted from the
   // working tree is absent; neither is readable for the auditor.
   const onDisk = (rel) => fs.statSync(path.join(root, rel), { throwIfNoEntry: false })?.isFile();
   const files = listed.stdout
     .split('\0')
-    .filter((rel) => rel && isSource(rel) && !tests.some((re) => re.test(rel)) && onDisk(rel));
+    .filter((rel) => rel && (tests ? isTest(rel) : isSource(rel) && !isTest(rel)) && onDisk(rel));
   if (files.length) console.log(files.join('\n'));
 }
 
