@@ -1,6 +1,6 @@
 'use strict';
 
-// Suite for plugin/scripts/scope.js's `windows` verb and the `--window` filter of `trace` (ADR 0260): a slice's implementer
+// Suite for plugin/scripts/scope.js's `windows` verb and the `--window` filter of `trace` (ADR 0261): a slice's implementer
 // windows derived from the run trace's recorded order. The traces are written as raw lines, so a case controls every
 // timestamp; the suite runs in a temporary directory of its own.
 

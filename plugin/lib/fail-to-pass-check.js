@@ -1,7 +1,7 @@
 'use strict';
 
 // fail-to-pass-check.js: the `fail-to-pass-check` verb, a commit range's mechanical fail-to-pass verdict read from the run trace and
-// git, with no test run and no write (ADR 0260, INV-0117, INV-0195, INV-0196).
+// git, with no test run and no write (ADR 0261, INV-0117, INV-0195, INV-0196).
 
 const fs = require('fs');
 const path = require('path');

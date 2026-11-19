@@ -342,7 +342,7 @@ const { sliceJson, scopePath, run } = require('./scope-setup');
   }
 }
 
-// trace filters (ADR 0260): --kind, --last, and --slice combine as AND, every printed line byte-identical to the recorded one; older
+// trace filters (ADR 0261): --kind, --last, and --slice combine as AND, every printed line byte-identical to the recorded one; older
 // releases' lines read; a malformed flag is refused naming it.
 {
   const { call } = require('./scope-setup');

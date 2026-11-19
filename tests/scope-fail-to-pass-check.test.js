@@ -1,6 +1,6 @@
 'use strict';
 
-// Suite for plugin/scripts/scope.js's `fail-to-pass-check` verb (ADR 0260): a range's mechanical fail-to-pass verdict from the run
+// Suite for plugin/scripts/scope.js's `fail-to-pass-check` verb (ADR 0261): a range's mechanical fail-to-pass verdict from the run
 // trace and git. The fixtures are real git commits and raw trace lines; the suite runs in temporary directories.
 
 require('./fixture-git');

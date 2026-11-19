@@ -61,7 +61,7 @@ function verbRoot(cwd, slug) {
   console.log(libMainWorkTree().mainTreePath(cwd, 'root', 'scopes', slug));
 }
 
-// --- trace and windows: the read-only verbs over `lib/trace-window.js` (ADR 0117, ADR 0260, INV-0117, INV-0196) ---------
+// --- trace and windows: the read-only verbs over `lib/trace-window.js` (ADR 0117, ADR 0261, INV-0117, INV-0196) ---------
 
 // The kinds a trace line carries, and the kinds only an older release wrote (`lib/trace-log.js`).
 const TRACE_KINDS = ['edit', 'run', 'dispatch', 'dispatch-bind', 'dispatch-end', 'dispatch-resume', 'ledger', 'fail-to-pass', 'tamper'];
@@ -404,7 +404,7 @@ function run(argv, cwd, stdinJson) {
     case 'citations':
       libCitations().verbCitations(cwd, args);
       break;
-    // Reads git and the run's trace and writes nothing, and runs no test (ADR 0260); it takes `--root` itself.
+    // Reads git and the run's trace and writes nothing, and runs no test (ADR 0261); it takes `--root` itself.
     case 'fail-to-pass-check':
       libFailToPassCheck().verbFailToPassCheck(cwd, args);
       break;

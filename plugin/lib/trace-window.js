@@ -1,7 +1,7 @@
 'use strict';
 
 // trace-window.js: the one derivation of a slice's implementer windows from the run trace, and the one slice and edit-path
-// comparison and flag parser the read-only trace verbs share (ADR 0260, INV-0195, INV-0196).
+// comparison and flag parser the read-only trace verbs share (ADR 0261, INV-0195, INV-0196).
 
 const fs = require('fs');
 const path = require('path');

@@ -433,7 +433,7 @@ trace line. The digest then seals what is on disk and the verb goes on. A file w
 No hook refuses an edit of either file. The code lives in `plugin/lib/run-digest.js` and `plugin/lib/run-check.js`, and
 `tests/scope-digest.test.js` holds its cases.
 
-`trace`, `windows`, `untraced`, and `fail-to-pass-check` only read (ADR 0227, ADR 0260): none writes a trace line, a ledger change, or a
+`trace`, `windows`, `untraced`, and `fail-to-pass-check` only read (ADR 0227, ADR 0261): none writes a trace line, a ledger change, or a
 digest, and none runs a test. Each grading verb prints a verdict or the trace lines its caller named (INV-0196).
 
 - **`windows --slice <id|scope>`** prints one line per run of an implementer dispatch of the slice, `<dispatch id> <slice> <from>

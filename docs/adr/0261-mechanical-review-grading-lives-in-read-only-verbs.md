@@ -1,4 +1,4 @@
-# 0260: Mechanical review grading lives in read-only verbs
+# 0261: Mechanical review grading lives in read-only verbs
 
 **Status:** Accepted
 
