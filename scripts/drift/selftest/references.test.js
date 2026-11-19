@@ -189,6 +189,13 @@ module.exports = ({ assert, path, fixture, found }) => {
   assert.equal(broken[0].heading, '## Gone heading', 'names the heading');
   assert.equal(cited("See `target.md`'s `## 4.5 A numbered one`.\n").length, 1, 'a heading cited at another level fails');
   assert.equal(cited("See `target.md`'s `### 4.5`.\n").length, 1, 'a heading prefix is no heading');
+  const fencedOnly = scanHeadingCitations(
+    fixture({
+      'references/fenced.md': '# F\n\n## Real ##\n\n```\n### Only in a fence\n```\n',
+      'skills/foo/SKILL.md': "See `fenced.md`'s `## Real` and `fenced.md`'s `### Only in a fence`.\n",
+    }),
+  );
+  assert.deepEqual(fencedOnly.map((g) => g.heading), ['### Only in a fence'], 'a closed-ATX heading matches, and a heading only inside a fence is no heading');
   const missing = cited("See `nowhere.md`'s `## X`.\n");
   assert.equal(missing.length, 1, 'a bare file name that resolves nowhere fails');
   assert.equal(missing[0].source, path.join('skills', 'foo', 'SKILL.md'), 'names the citing file');
@@ -218,4 +225,23 @@ module.exports = ({ assert, path, fixture, found }) => {
     assert.deepEqual(joined.map((g) => g.heading), ['## Renamed heading'], `a section map span after "${joiner}" is checked too`);
   }
   assert.equal(cited('- **`nowhere.md`** — `## X`.\n')[0].missing, true, 'a section map naming no file fails');
+
+  // A heading with an internal run of spaces matches as the verb matches it: exactly, so a citation copying it passes
+  // and one that collapses the run fails.
+  const spaced = (body) =>
+    scanHeadingCitations(fixture({ 'references/spaced.md': '# S\n\n## A  B\n', 'skills/foo/SKILL.md': body }));
+  assert.deepEqual(spaced("See `spaced.md`'s `## A  B`.\n"), [], 'an internal run of spaces cited as written passes');
+  assert.equal(spaced("See `spaced.md`'s `## A B`.\n").length, 1, 'the run collapsed in the citation is another heading');
+
+  // A cited file with an unterminated fence is one gap that names the fence, however many headings cite it.
+  const open = scanHeadingCitations(
+    fixture({
+      'references/open.md': '# O\n\n## One\n\n```\nnever closed\n',
+      'skills/foo/SKILL.md': "See `open.md`'s `## One` and `open.md`'s `## Two`.\n",
+    }),
+  );
+  assert.equal(open.length, 1, 'one gap for the file, not one per citation');
+  assert.equal(open[0].cited, 'open.md', 'names the file');
+  assert.equal(open[0].unterminated, true, 'marks the unterminated fence');
+  assert.equal(open[0].heading, undefined, 'names no missing heading');
 };

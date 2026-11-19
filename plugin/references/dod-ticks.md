@@ -46,8 +46,8 @@ differently — a review fix loop's dispatch lists whatever criteria that pass i
 surface states its own listed set where it wires the gate.
 
 **Review's case:** `final-reviewer` judges every `dod.md` line, ticked or not, and returns its own verdict
-for each — holds, broken, ceiling, accepted, or doc pass (`agents/final-reviewer.md`'s `### Criteria`
-section). The review's
+for each — holds, broken, ceiling, accepted, or doc pass (`agents/final-reviewer.md`'s `### Output and verdict`
+section, its `### Criteria` block). The review's
 controller (`review-scope-mode.md`'s `### 4.5 The Definition-of-Done criteria` and `### 4.9 The re-tick`) unticks a line `final-reviewer` calls broken, with a note, and folds it into the fix loop's
 findings; a fix cycle's dispatch then lists exactly the lines that cycle unticked or found broken. The fix
 implementer's report on those listed lines is judged the same way as any other: `met` re-ticks the line

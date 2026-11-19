@@ -132,6 +132,12 @@ function usage() {
     '                                     green; an input with no name<TAB>state line adds (no check report read) to the',
     '                                     ci: line; exits 0 (green), 3 (not yet green), 4 (failed), 2 (cannot judge: no such',
     '                                     commit, no named checks, or a malformed section), 1 (a usage refusal); writes nothing',
+    '  section <file>                     stdin: one markdown heading line; prints that section of <file>: the heading line through',
+    '                                     the line before the next heading of the same or a higher level, outside fences;',
+    '                                     <file> is a ${CLAUDE_PLUGIN_ROOT} path, a bare <name>.md under references/ then agents/,',
+    '                                     or a path under the plugin root then the current directory; refuses, printing nothing,',
+    '                                     a missing file, a missing or duplicated heading, a heading only inside a fence, or an',
+    '                                     unterminated fence, or a setext heading inside the section; writes nothing',
     '  dod-merge --root <run-root>        stdin: the anchor\'s Definition of Done; writes <run-root>/dod.md from it, keeping',
     '                                     each verdict the existing dod.md carries on a line the anchor leaves without a note',
   ].join('\n');
