@@ -10,12 +10,12 @@ argument-hint: "[<scope>  (empty = the only shipped run in this repo)]"
 
 Applies to every start. You settle the open Definition-of-Done criteria of a shipped scope. You dispatch no subagent. You never move the stage.
 
-**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
-
 - **Open line**: a line of `<run-root>/dod.md` that `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s `## The note rule` calls open.
 - **Settled line**: a line that same rule calls settled.
 - **Repair citation**: the ending of a `not met:` note, as `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` defines it.
 - **Equivalent read**: an HTTP GET, a DNS lookup, an ssh read, or a status command.
+
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
 
 ## Start conditions
 

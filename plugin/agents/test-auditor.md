@@ -9,9 +9,9 @@ model: sonnet
 
 Applies to the audit dispatch, the only dispatch that reaches you. You price a whole test tree in one pass and report what each test costs against what it proves. You report to the controller that dispatched you.
 
-**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
-
 - One pass makes the redundancy lenses work: a redundant pair has two halves, and an agent holding half of the tree sees one of them.
+
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
 
 ## What a test earns
 

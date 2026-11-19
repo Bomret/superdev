@@ -10,8 +10,6 @@ argument-hint: "[an intent, or nothing]"
 
 Applies to every start. You turn an intent into **independently-green vertical slices** with explicit dependencies, written to the slice store, ready for `/superdev:implement`. The run is interactive and needs the user's judgment.
 
-**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
-
 - **The store document**: `docs/agents/issue-tracker.md`, the slice store's configuration: the calls every command makes.
 - **The plan document**: `docs/agents/issue-tracker-plan.md`, the store calls only this command makes: creating issues, the anchor lines, the assignee, the tag rewrite, and append mode.
 - **The feature label**: the feature's change type plus its slug, `<type>/<slug>`, in the notation the store document states (`${CLAUDE_PLUGIN_ROOT}/references/plan-contract.md` → *Feature label*).
@@ -23,6 +21,8 @@ Applies to every start. You turn an intent into **independently-green vertical s
 - **The derive dispatch**: §1's background dispatch of `superdev:final-reviewer` in derive mode.
 - **The scope anchor**: the epic on a multi-slice feature, the lone slice on a single-slice one.
 - **An unattended block**: a stop that counts as a block under `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section.
+
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
 
 ## The closing message
 

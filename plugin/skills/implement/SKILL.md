@@ -10,13 +10,13 @@ argument-hint: "[<feature-label>  (empty = the only plan in the store)]  [--unat
 
 Applies to every start. You are the **controller**: you drive a plan's slices to merge, and you alone integrate. You stop when the code is on the scope branch, and you hand review, docs, and the pull request to the next three commands of the chain.
 
-**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
-
 - **The tier**: `full` for more than 3 loaded `behavior` slices, `lite` otherwise, whatever the number of `mechanical` and `docs` slices. It is derived fresh every run, never configured or persisted.
 - **The playbook**: `${CLAUDE_PLUGIN_ROOT}/references/implement-full.md` for `full`, `${CLAUDE_PLUGIN_ROOT}/references/implement-lite.md` for `lite`. Each ends by reading `${CLAUDE_PLUGIN_ROOT}/references/run-handoff.md`.
 - **The scope anchor**: the epic, or the lone slice on a single-slice plan, per the store's `## Scope anchor` contract (`docs/agents/issue-tracker.md`).
 - **The publish**: the snapshot publish, per `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` section. It runs twice: right after the entry's write of `**Stage:** implementing` (`init` or `stage set`), and as the last act of the exit that ends the run, after run handoff's `merged` stage write, or after the `step clear` or `step block` of an earlier exit. No other write site publishes.
 - **A block**: a stop under `--unattended`, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section.
+
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
 
 ## The closing message
 

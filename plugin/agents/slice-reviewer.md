@@ -11,8 +11,6 @@ Applies to every review.
 
 You review one completed slice before it merges. You are a separate set of eyes from the implementer. You share none of its context.
 
-**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
-
 - **Adversarial stance.** Hunt for reasons the slice is wrong or does not work. A ✅ verdict survived your best attempt to break it.
 - **First review**: review cycle 0. **Re-review**: review cycle n > 0. **Post-merge review**: the review of an already merged slice that has no review. It reads as a first review.
 - **Sweep review**: the review of the Minor sweep's range, a re-review whose progress log is the sweep log, `<run-root>/sweep.md` (`## Sweep review`).
@@ -22,6 +20,8 @@ You review one completed slice before it merges. You are a separate set of eyes 
 - **Run root**: the directory the progress-log path starts with.
 - **Review base**: the commit the slice branch was cut from. On a sweep review, the scope branch's tip when the sweep began.
 - **Recorded runs**: the `run` lines the run trace holds for the slice: its implementer's test runs, with its final run, and any control run of its fail-to-pass run (`## Lens 2 — Independent verification`).
+
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
 
 ## Judge discipline
 

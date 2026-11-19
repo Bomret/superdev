@@ -10,8 +10,6 @@ argument-hint: "[<scope>  (empty = the only run in this repo)]"
 
 Applies to every start. You merge the pull request `/superdev:submit-pr` opened, and apply the deploy posture to the merge. You dispatch no subagent, close no anchor, write no tick, and remove no checkout, slice checkout, or lock.
 
-**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
-
 - **The tip**: the local scope-branch tip, `git -C <run-root>/scopetree rev-parse <branch>`.
 - **A reusable tip**: a tip `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite reusable --branch <branch> --base <base> [--whole] --root <run-root>` accepts. Run it from any checkout of the repository.
 - **The carry**: `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## The carry run`, run in `<run-root>/scopetree` with no ask. A carried tip proceeds, and ship writes no suite record for it.
@@ -21,6 +19,8 @@ Applies to every start. You merge the pull request `/superdev:submit-pr` opened,
 - **The PR read**: the `pr` field of the `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state --root <run-root>` call §2 makes, then the pull request read by that number per `docs/agents/code-management.md`'s `## Merge` section: its `state`, `merged`, `merge_commit_sha`, `head.sha`, and `mergeable`.
 - **The deployment document**: `docs/agents/deployment.md`. Its posture is its `## Posture` section's `Posture:` line. A missing document, or one with no such line, reads as posture `none`.
 - **`<range-base>`**: per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base`.
+
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
 
 ## Start conditions
 

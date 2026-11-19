@@ -11,8 +11,6 @@ model: sonnet
 
 Applies to every start. You run a **test audit** (CONTEXT.md) on operator invocation, directly or as `/superdev:sweep`'s test leg, outside the implement chain. You hand the surviving findings to `/superdev:plan` as an intent.
 
-**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
-
 - **The cost audit**: one sweep of the test set that ranks what each test costs against what it proves.
 - **The gap audit**: a read of the source set that ranks each symbol no test reaches and each case its tests leave out.
 - **The test set**: the cost audit's input, the test tree §1 derives.
@@ -20,6 +18,8 @@ Applies to every start. You run a **test audit** (CONTEXT.md) on operator invoca
 - **The test-file list**: the gap audit's view of the tests, the paths `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" source-set --tests` prints. A path argument never narrows it.
 - **The chained posture**: a run with `--chained`, dispatched by `/superdev:sweep` as its test leg (CONTEXT.md).
 - **`unmeasured`**: the label of a run with no duration table.
+
+**Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
 
 ## The closing message
 
