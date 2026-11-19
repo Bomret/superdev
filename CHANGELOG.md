@@ -1,3 +1,11 @@
+# [0.110.0](https://github.com/Bomret/superdev/compare/v0.109.0...v0.110.0) (2026-11-19)
+
+
+### Features
+
+* **scope:** read-only verbs decide the scope branch, checkout, lock, candidates, denial, staged pages, and shipped-run route ([#278](https://github.com/Bomret/superdev/issues/278)) ([0ffbe84](https://github.com/Bomret/superdev/commit/0ffbe845a54b7505aef3a378184861ea661d62eb))
+* **scope:** section reads and read-only verdict verbs replace prose procedures ([#267](https://github.com/Bomret/superdev/issues/267)) ([e41a6d2](https://github.com/Bomret/superdev/commit/e41a6d262e61e26880d6bfd221672b37263c9c42))
+
 # [0.109.0](https://github.com/Bomret/superdev/compare/v0.108.0...v0.109.0) (2026-11-19)
 
 
