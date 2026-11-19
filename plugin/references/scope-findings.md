@@ -20,7 +20,7 @@ value and never a failure of the code. Two shapes occur:
 A pass the command was already free to skip on judgment, such as `/superdev:review`'s §2
 `simplicity-reviewer`, records nothing when denied.
 
-**The verdict.** After the denial is recorded (**Recording a denial** below), run
+**The verdict.** On a live scope run, after the denial is recorded (**Recording a denial** below), run
 `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js denial <pass> [--unattended] --root <run-root>`, with `<pass>` one of
 `implementer`, `fix`, `final-reviewer`, `slice-reviewer`, or `doc-reader`, and `--unattended` on an unattended run.
 It prints one verdict line:
@@ -32,6 +32,9 @@ It prints one verdict line:
   blocks, per `scope-mode.md`'s `## Unattended`: the tier is unknown (INV-0056), the controller authored what the
   pass verifies (a lite run, or a full run with a `docs` or `mechanical` row; never a `slice-reviewer`, which
   verifies a slice a dispatched implementer built), or the run's second denial since the last reset arrived.
+
+Off a live run (an ad-hoc review or document pass) no ledger records a denial and no verdict is asked: do the pass
+inline and say so in the report, attended and unattended alike.
 
 A refusal means the pass name is outside the known set, or no denial of a verification pass is recorded since the
 last reset: record it, then ask again. A block comment names the denied dispatch, and the entry is written either way.
