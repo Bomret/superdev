@@ -5,7 +5,8 @@
 const fs = require('fs');
 const path = require('path');
 const { fail } = require('./refusal.js');
-const { resolveCommit } = require('./git-spawn.js');
+const { gitSpawn, resolveCommit } = require('./git-spawn.js');
+const { drivePath } = require('./drive-path.js');
 const { judgeContainment, refetchMark } = require('./containment.js');
 const { parseRemote } = require('./kb-containment.js');
 const { pushTimeoutMs } = require('./push.js');
@@ -32,9 +33,13 @@ function parseArgs(args) {
   return { base: operands[0], branch: operands[1], remote };
 }
 
+// The `Remote:` value of `docs/agents/code-management.md` at the repository's top level, so a call from a subdirectory
+// reads the same document; the current directory where git cannot name the top level. Null where none is read.
 function configuredRemote(cwd) {
+  const top = gitSpawn(['rev-parse', '--show-toplevel'], cwd);
+  const root = top.status === 0 && top.stdout.trim() ? drivePath(top.stdout.trim()) : cwd;
   try {
-    return parseRemote(fs.readFileSync(path.join(cwd, 'docs', 'agents', 'code-management.md'), 'utf8'));
+    return parseRemote(fs.readFileSync(path.join(root, 'docs', 'agents', 'code-management.md'), 'utf8'));
   } catch {
     return null;
   }

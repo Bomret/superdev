@@ -20,7 +20,8 @@ neighbouring questions a base that moved on raises: whether base's history took 
 whether a commit base gained holds the branch (ADR 0248). A not-contained answer against a local base refetches
 `<base>` from the remote and retests against what the fetch brought (the second pass), because the clone learns nothing of a
 squash-merge until something fetches (ADR 0065). `--remote <remote>` names the remote; without it the verb reads
-the `Remote:` value of `docs/agents/code-management.md`, and with neither it refuses with exit 1.
+the `Remote:` value of `docs/agents/code-management.md` at the repository's top level, from any directory of it, and
+with neither it refuses with exit 1.
 
 The first line is the verdict, and its exit status tells it apart in a script:
 

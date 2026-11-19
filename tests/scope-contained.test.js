@@ -103,6 +103,11 @@ function contained(repo, args, env = {}) {
   fs.writeFileSync(path.join(repo, 'docs', 'agents', 'code-management.md'), '- **Remote**: `upstream`\n');
   const fromDoc = contained(repo, ['main', 'fix/open']);
   assert.strictEqual(fromDoc.lines[2], 'remote upstream', `the default comes from code-management.md: ${fromDoc.out}`);
+  // A call from a subdirectory reads the document at the repository's top level.
+  const sub = path.join(repo, 'docs', 'agents');
+  const fromSub = spawnSync(process.execPath, [scopePath, 'contained', 'main', 'fix/open'], { cwd: sub, encoding: 'utf8', timeout: 120000, killSignal: 'SIGKILL' });
+  assertSpawnDecided(fromSub, 'scope.js contained from a subdirectory');
+  assert.strictEqual(fromSub.stdout.split('\n')[2], 'remote upstream', `a subdirectory call finds the Remote: value: ${fromSub.stdout}${fromSub.stderr}`);
 
   fs.rmSync(path.join(repo, 'docs', 'agents', 'code-management.md'));
   const refused = contained(repo, ['main', 'fix/open']);
