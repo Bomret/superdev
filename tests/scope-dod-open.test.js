@@ -176,6 +176,12 @@ const matchFile = (text) => {
   assert.ok(!r.ok && r.err === 'no criteria' && r.out === '', 'a dod.md with no criterion line says no criteria and fails');
   r = dodOpen('## Definition of Done\n- [ ] a\n', '--tag', 'scope');
   assert.ok(!r.ok, 'an unknown --tag is refused');
+  r = call(['dod-open', '--root', '--tag', 'docs']);
+  assert.ok(!r.ok && /--root/.test(r.err) && r.out === '', 'a --root with no value is refused: ' + r.err);
+  r = dodOpen('## Definition of Done\n- [ ] a\n', '--tag');
+  assert.ok(!r.ok && r.out === '', 'a --tag with no value is refused');
+  r = dodOpen('## Definition of Done\n- [ ] a\n', 'stray');
+  assert.ok(!r.ok && /stray/.test(r.err) && r.out === '', 'a stray argument is refused: ' + r.err);
 }
 
 // dod-open and dod-line agree on every line of the mod's fixtures.
@@ -186,26 +192,24 @@ const matchFile = (text) => {
   const openLines = [...open.matchAll(/^\s*'(- \[.*)',?$/gm)].map((m) => m[1]);
   const all = [...pinned('dod'), ...pinned('dod-lookalike'), ...openLines];
   assert.equal(openLines.length, 4, 'the fixture file holds its open lines');
-  for (const line of all) {
+  // Each fixture line's expected state, label, and tag, as parse.ts counts it: every criterion reads `the widget renders`.
+  const expected = [
+    'settled met 01', 'settled met -', 'open not-met 01', 'open not-met -',
+    'open ceiling 01', 'open ceiling -', 'settled accepted 01', 'settled accepted -',
+    'open not-met 01', 'open not-met -', 'settled met 01', 'settled met -',
+    'open none -', 'open none -', 'open not-met 01', 'open ceiling -',
+  ];
+  assert.equal(all.length, expected.length, 'the table covers every fixture line');
+  all.forEach((line, i) => {
+    const [state, label, tag] = expected[i].split(' ');
     const got = listing(`## Definition of Done\n${line}\n`)[0].split(T);
-    // dod-line judges the same line with a note it writes itself; both read the criterion, the tag, and the label alike.
-    const verdict = got[1] === 'not-met' ? 'not-met' : got[1];
-    if (verdict === 'none') continue;
-    const reading = require('../plugin/lib/dod-line.js').parseDodLineReadings(line)[0];
-    assert.equal(got[4], reading.criterion, 'criterion agrees for ' + line);
-    assert.equal(got[2], reading.tag || '-', 'tag agrees for ' + line);
-    const rewritten = call(['dod-line', '--match-file', matchFile(reading.criterion), '--verdict', verdict, '--note-file', matchFile('x')], line);
+    assert.deepEqual(got, [state, label, tag, '-', 'the widget renders'], 'row for ' + line);
+    // dod-line judges the same line with a note it writes itself; the label survives its rewrite.
+    if (label === 'none') return;
+    const rewritten = call(['dod-line', '--match-file', matchFile('the widget renders'), '--verdict', label, '--note-file', matchFile('x')], line);
     assert.ok(rewritten.ok, rewritten.err);
-    assert.equal(listing(`## Definition of Done\n${rewritten.out.trimEnd()}\n`)[0].split(T)[1], got[1], 'label survives a dod-line rewrite of ' + line);
-  }
-  // The settled lines are the `met`/`accepted` ones, as parse.ts counts them.
-  const settled = all.filter((l) => /^\S+ \[.\] .*(met|accepted): /.test(l) && listing(`## Definition of Done\n${l}\n`)[0].startsWith('settled'));
-  assert.ok(settled.length >= 4, 'settled fixture lines read settled');
-  assert.deepEqual(
-    listing(`## Definition of Done\n${openLines.join('\n')}\n`).map((l) => l.split(T)[0]),
-    ['open', 'open', 'open', 'open'],
-    'the open fixture lines read open'
-  );
+    assert.equal(listing(`## Definition of Done\n${rewritten.out.trimEnd()}\n`)[0].split(T)[1], label, 'label survives a dod-line rewrite of ' + line);
+  });
   assert.deepEqual(
     listing(`## Definition of Done\n${pinned('dod-lookalike').join('\n')}\n`).map((l) => l.split(T)[1]),
     ['not-met', 'not-met', 'met', 'met'],

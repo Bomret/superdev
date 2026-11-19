@@ -50,8 +50,8 @@ const DOD_NOTE_VERDICT_RE = '(?:met|not met|ceiling|accepted)';
 // Trailing whitespace is tolerated on either shape (an editor's or a store's own habit) and dropped
 // only where a matched line is actually rewritten — an untouched line keeps its own trailing bytes.
 const DOD_LINE_RE = /^(\s*(?:-\s*)?)\[[ xX]\]\s*(.*)$/;
-const DOD_WITH_NOTE_TAG_RE = new RegExp(`^(.+?) — (${DOD_TAG_PATTERN}) — ${DOD_NOTE_VERDICT_RE}: (.*?)\\s*$`);
-const DOD_WITH_NOTE_NO_TAG_RE = new RegExp(`^(.+?) — ${DOD_NOTE_VERDICT_RE}: (.*?)\\s*$`);
+const DOD_WITH_NOTE_TAG_RE = new RegExp(`^(.+?) — (${DOD_TAG_PATTERN}) — (${DOD_NOTE_VERDICT_RE}): (.*?)\\s*$`);
+const DOD_WITH_NOTE_NO_TAG_RE = new RegExp(`^(.+?) — (${DOD_NOTE_VERDICT_RE}): (.*?)\\s*$`);
 const DOD_NO_NOTE_TAG_RE = new RegExp(`^(.+) — (${DOD_TAG_PATTERN})\\s*$`);
 // The `## Definition of Done` heading — any level, up to 3 leading spaces (CommonMark's own ATX limit)
 // — that scopes body-mode matching to the checklist section alone (triage #679's C.3): a checkbox that
@@ -78,7 +78,8 @@ function collapseWhitespace(s) {
 // `<criterion — tag> — <verdict>: <note>` with an empty tag, once the line already carries a note (Minor
 // review find #4) — a tagged criterion that already carries a note is otherwise unreadable by its
 // untagged spelling on a re-judge. A line offering two readings still counts once toward the match limit
-// below. An empty array only when the line carries no task-list marker at all.
+// below. Each reading also carries the note's `verdict` label (`met`, `not met`, `ceiling`, `accepted`) and its `note`
+// text, both empty where the line carries no note. An empty array only when the line carries no task-list marker at all.
 function parseDodLineReadings(line) {
   const m = line.match(DOD_LINE_RE);
   if (!m) return [];
@@ -90,23 +91,23 @@ function parseDodLineReadings(line) {
     // ends in something tag-shaped is still readable once it already carries a note (Minor review find
     // #4) — matching runs after both readings, and a line offering two still counts once.
     const asUntagged = rest.match(DOD_WITH_NOTE_NO_TAG_RE);
+    const tagged = { prefix, criterion: withTagNote[1], tag: withTagNote[2], verdict: withTagNote[3], note: withTagNote[4] };
     return asUntagged
-      ? [
-          { prefix, criterion: withTagNote[1], tag: withTagNote[2] },
-          { prefix, criterion: asUntagged[1], tag: '' },
-        ]
-      : [{ prefix, criterion: withTagNote[1], tag: withTagNote[2] }];
+      ? [tagged, { prefix, criterion: asUntagged[1], tag: '', verdict: asUntagged[2], note: asUntagged[3] }]
+      : [tagged];
   }
   const withNoteNoTag = rest.match(DOD_WITH_NOTE_NO_TAG_RE);
-  if (withNoteNoTag) return [{ prefix, criterion: withNoteNoTag[1], tag: '' }];
+  if (withNoteNoTag) {
+    return [{ prefix, criterion: withNoteNoTag[1], tag: '', verdict: withNoteNoTag[2], note: withNoteNoTag[3] }];
+  }
   const tagNoNote = rest.match(DOD_NO_NOTE_TAG_RE);
   if (tagNoNote) {
     return [
-      { prefix, criterion: tagNoNote[1], tag: tagNoNote[2] },
-      { prefix, criterion: rest.trimEnd(), tag: '' },
+      { prefix, criterion: tagNoNote[1], tag: tagNoNote[2], verdict: '', note: '' },
+      { prefix, criterion: rest.trimEnd(), tag: '', verdict: '', note: '' },
     ];
   }
-  return [{ prefix, criterion: rest.trimEnd(), tag: '' }];
+  return [{ prefix, criterion: rest.trimEnd(), tag: '', verdict: '', note: '' }];
 }
 
 function renderDodLine(prefix, criterion, tag, verdict) {

@@ -7,39 +7,35 @@ const fs = require('fs');
 const path = require('path');
 const { fail } = require('./refusal.js');
 const { maskFencedLines, readLines } = require('./md-sections.js');
-const { parseDodLineReadings, dodSectionRange, DOD_LINE_RE } = require('./dod-line.js');
+const { parseDodLineReadings, dodSectionRange, takeOption, DOD_LINE_RE } = require('./dod-line.js');
 
-const NOTE_LABEL_RE = /^ — (met|not met|ceiling|accepted): (.*?)\s*$/;
 // The citation `/superdev:verify-ship` ends a `not met:` note with (references/shipped-run.md's `## Routing a shipped run`).
 const OBSERVED_RE = /\(observed(?:; after [^)]*)?\)$/;
-const LABELS = { met: 'met', 'not met': 'not-met', ceiling: 'ceiling', accepted: 'accepted' };
 
-// One criterion line read as dod-line.js reads it: the tagged reading first, then its note label from the text past the
-// criterion and tag.
+// One criterion line as dod-line.js reads it: the first reading's criterion, tag, note verdict, and note. `not met` prints
+// as `not-met`, the spelling of dod-line's own `--verdict`.
 function readCriterion(line) {
   const [reading] = parseDodLineReadings(line);
-  const rest = line.match(DOD_LINE_RE)[2];
-  const head = reading.criterion + (reading.tag ? ` — ${reading.tag}` : '');
-  const note = rest.startsWith(head) ? rest.slice(head.length).match(NOTE_LABEL_RE) : null;
-  const label = note ? LABELS[note[1]] : 'none';
+  const label = reading.verdict ? reading.verdict.replace(' ', '-') : 'none';
   return {
     criterion: reading.criterion.trim(),
     tag: reading.tag,
     label,
     settled: label === 'met' || label === 'accepted',
-    citation: label === 'not-met' && OBSERVED_RE.test(note[2]),
+    citation: label === 'not-met' && OBSERVED_RE.test(reading.note),
   };
 }
 
 // `dod-open --root <run-root> [--tag docs]`: one `<open|settled>\t<label>\t<tag|->\t<repair-citation|->\t<criterion>` line per
 // criterion, then `stage-hold: yes|no`. `--tag docs` prints the open `docs` lines alone.
 function verbDodOpen(args) {
-  const rootAt = args.indexOf('--root');
-  const root = rootAt < 0 ? '' : args[rootAt + 1] || '';
-  if (!root) fail('dod-open needs --root <run-root>');
-  const tagAt = args.indexOf('--tag');
-  const tagFilter = tagAt < 0 ? null : args[tagAt + 1];
-  if (tagFilter !== null && tagFilter !== 'docs') fail('dod-open --tag takes docs');
+  const rest = [...args];
+  const root = takeOption(rest, '--root');
+  if (!root || root.startsWith('--')) fail('dod-open needs --root <run-root>');
+  const hasTag = rest.includes('--tag');
+  const tagFilter = takeOption(rest, '--tag');
+  if (hasTag && tagFilter !== 'docs') fail('dod-open --tag takes docs');
+  if (rest.length) fail(`dod-open takes no argument "${rest[0]}"`);
   const file = path.join(root, 'dod.md');
   let text;
   try {
