@@ -84,6 +84,28 @@ try {
     const r = verb(f.args(rt), f.repo);
     assert.deepStrictEqual(r, { ok: true, code: 0, out: `red ${f.T} files=tests/a.test.js` }, 'a red record at the tip is a finding');
   }
+  // A red record at an ancestor of the tip is a finding too; a `Failed` record of another SHA pairs with nothing.
+  {
+    const rt = f.root([`**Suite:** red @ ${f.R}`, `**Failed:** tests/a.test.js @ ${f.T}`]);
+    assert.strictEqual(verb(f.args(rt), f.repo).out, `red ${f.R} files=`, 'red at an ancestor; the mismatched Failed record names no file');
+  }
+  // A red record off the tip's ancestry, and every other record, find nothing; no record and no CI input reads nothing.
+  {
+    assert.strictEqual(verb(f.args(f.root([`**Suite:** red @ ${f.S}`])), f.repo).out, 'none', 'red off the ancestry');
+    for (const res of ['green', 'none', 'denied']) {
+      assert.strictEqual(verb(f.args(f.root([`**Suite:** ${res} @ ${f.T}`])), f.repo).out, 'none', `${res} record`);
+    }
+    assert.strictEqual(verb(f.args(f.root([])), f.repo).out, 'nothing-to-read', 'no record, no CI input');
+  }
+  // Refusals: a missing flag, a branch that resolves to nothing, an unreadable record, and half a CI input.
+  {
+    const rt = f.root([`**Suite:** red @ ${f.T}`]);
+    assert.match(verb(['--root', rt, '--branch', 'feat'], f.repo).err, /needs --base/, 'a missing --base');
+    assert.match(verb(['--root', rt, '--branch', 'nope', '--base', 'main'], f.repo).err, /does not resolve/, 'an unknown branch');
+    assert.match(verb(f.args(f.root(['**Suite:** garbage'])), f.repo).err, /unreadable suite record/, 'an unreadable record');
+    assert.match(verb(f.args(rt, ['--ci-head', f.T]), f.repo).err, /--ci-head and --ci-file/, '--ci-head without --ci-file');
+    assert.match(verb(f.args(rt, ['--ci-file', 'x']), f.repo).err, /--ci-head and --ci-file/, '--ci-file without --ci-head');
+  }
   console.log('scope-red-evidence tests passed');
 } finally {
   for (const d of made) fs.rmSync(d, { recursive: true, force: true });

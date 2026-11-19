@@ -35,8 +35,9 @@ function localLines(g, root, branch, record) {
 // `red-evidence --root <run-root> --branch <branch> --base <base-ref>`, run in the scope checkout: prints one line per finding,
 // `none` where it read and found nothing, and `nothing-to-read` where the ledger holds no suite record.
 function verbRedEvidence(cwd, args) {
-  const { flags } = traceFlags('red-evidence', args, ['--root', '--branch', '--base'], false);
+  const { flags } = traceFlags('red-evidence', args, ['--root', '--branch', '--base', '--ci-head', '--ci-file'], false);
   for (const need of ['--root', '--branch', '--base']) if (!flags[need]) fail(`red-evidence needs ${need} <value>`);
+  if (Boolean(flags['--ci-head']) !== Boolean(flags['--ci-file'])) fail('red-evidence takes --ci-head and --ci-file together or neither');
   const root = path.resolve(cwd, drivePath(flags['--root']));
   const g = gitReads(cwd);
   const record = suiteRecord(root);
