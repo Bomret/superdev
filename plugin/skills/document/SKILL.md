@@ -91,7 +91,7 @@ The writer commits its doc changes on the current branch. A denied writer's inli
 **A denied dispatch.** Applies when the permission classifier denies a `doc-writer` or a `doc-reader`. It is a degraded pass: read and follow `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section. Say so in §5's report.
 
 - **A denied `doc-writer`** → reconcile inline, and name the docs you changed and every doc you judged current, or your reason when you judged no doc relevant, as `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md`'s `## Pass 1 — in-repo docs` directs. On a live run, write the entry with `scope.js degraded add`. Under `--unattended`, block instead.
-- **A denied `doc-reader`** → the docs went unread by fresh eyes. On a live run, write the entry with `scope.js degraded add-denial -`, the refusal piped through a quoted heredoc. Under `--unattended`, follow that section's authorship rule up to the cap: read `scope.js get denials` after the entry and block once the count reaches it.
+- **A denied `doc-reader`** → the docs went unread by fresh eyes. On a live run, write the entry with `scope.js degraded add-denial -`, the refusal piped through a quoted heredoc. Then ask `scope.js denial doc-reader [--unattended] --root <run-root>` for the verdict, per that section's **The verdict**: `inline` → read the docs yourself, and a `block …` verdict blocks.
 
 **A pass the writer could not stage.** Applies to a staging path the writer could not write, or an existing page a read could not reconcile against. It is a degraded pass, and the writer's report carries the note. On a live run, write the entry too.
 

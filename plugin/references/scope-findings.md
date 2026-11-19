@@ -12,9 +12,8 @@ A **degraded pass** is a chain step that did not get the assurance the chain pro
 value and never a failure of the code. Two shapes occur:
 
 - **A dispatch the permission classifier denies**: a permission refusal naming the classifier. A timeout,
-  a network error, or any other tool failure is an ordinary error to retry or report. **Attended** → do
-  the pass inline, say so in the report, and write the entry, for every denial; an attended run has no
-  cap. **Unattended** → **The verdict** below decides, attended and unattended alike.
+  a network error, or any other tool failure is an ordinary error to retry or report. Record the entry
+  first, then **The verdict** below decides, attended and unattended alike; an attended run has no cap.
 - **A pass that cannot complete its own work**, such as a knowledge-base pass whose writer could not
   stage → write the entry and continue, attended or unattended.
 
@@ -31,7 +30,8 @@ It prints one verdict line:
 - `block implementer` → an unattended denied authoring dispatch blocks.
 - `block unknown-tier`, `block authored`, `block second-denial` → an unattended denied verification dispatch
   blocks, per `scope-mode.md`'s `## Unattended`: the tier is unknown (INV-0056), the controller authored what the
-  pass verifies, or the run's second denial since the last reset arrived.
+  pass verifies (a lite run, or a full run with a `docs` or `mechanical` row; never a `slice-reviewer`, which
+  verifies a slice a dispatched implementer built), or the run's second denial since the last reset arrived.
 
 A refusal means the pass name is outside the known set, or no denial of a verification pass is recorded since the
 last reset: record it, then ask again. A block comment names the denied dispatch, and the entry is written either way.

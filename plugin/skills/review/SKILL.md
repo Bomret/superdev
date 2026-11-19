@@ -175,7 +175,7 @@ Review a change end to end. §1 decides the mode.
 
 - **Attended** → review inline yourself and say so in §3's report.
 - **A live scope run** → also take the writes of `${CLAUDE_PLUGIN_ROOT}/references/review-scope-denials.md`'s `## A denied final-reviewer dispatch`.
-- **`--unattended`** → that section's authorship rule decides: **block** where the controller authored what the review verifies, which the tier answers, and otherwise review inline as the attended branch does.
+- **The verdict** → after the entry, ask `scope.js denial final-reviewer [--unattended] --root <run-root>`: `inline` → review inline as the attended branch does, and a `block …` verdict blocks.
 
 ## 3. Report
 

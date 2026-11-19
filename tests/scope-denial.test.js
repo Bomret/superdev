@@ -56,7 +56,10 @@ assert.strictEqual(verdict('fix', rootWith([B]), true), 'block implementer');
 assert.strictEqual(verdict('final-reviewer', rootWith([], lots(1)), true), 'block unknown-tier');
 assert.strictEqual(verdict('final-reviewer', rootWith([B, B], lots(1)), true), 'block authored', 'a lite run is authored');
 assert.strictEqual(verdict('doc-reader', rootWith([...FULL, 'docs'], lots(1)), true), 'block authored', 'a docs row is authored');
-assert.strictEqual(verdict('slice-reviewer', rootWith([...FULL, 'mechanical'], lots(1)), true), 'block authored', 'a mechanical row is authored');
+assert.strictEqual(verdict('final-reviewer', rootWith([...FULL, 'mechanical'], lots(1)), true), 'block authored', 'a mechanical row is authored');
+// A slice review verifies a behavior slice a dispatched implementer built, so it is never authored work.
+assert.strictEqual(verdict('slice-reviewer', rootWith([...FULL, 'docs'], lots(1)), true), 'inline', 'a first slice-review denial with a docs row is inline');
+assert.strictEqual(verdict('slice-reviewer', rootWith([...FULL, 'mechanical'], lots(2)), true), 'block second-denial', 'a second slice-review denial blocks');
 assert.strictEqual(verdict('final-reviewer', rootWith(FULL, lots(1)), true), 'inline', 'the first denial of an all-behavior full run is inline');
 assert.strictEqual(verdict('final-reviewer', rootWith(FULL, lots(2)), true), 'block second-denial');
 assert.strictEqual(verdict('final-reviewer', rootWith(FULL, lots(3)), true), 'block second-denial', 'a later denial still blocks');

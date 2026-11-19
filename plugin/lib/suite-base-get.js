@@ -11,7 +11,7 @@ const {
 const { isTestPath, completeSelector, verificationCommandsOf, prepareCommandOf, configuredTestPaths } = require('./verification.js');
 const { gitSpawn, resolveCommit, fileAt } = require('./git-spawn.js');
 const { readTrace, decodePaths, untraceField } = require('./trace-log.js');
-const { denialCount } =require('./ledger-records.js');
+const { denialCount } = require('./ledger-records.js');
 const { rootRelative, lazyToplevel } = require('./run-tree.js');
 
 const VERIFICATION = 'docs/agents/verification.md';
