@@ -26,16 +26,22 @@ function unknownReason(rows) {
 // no rows is `unknown`.
 function verbTier(root, args) {
   if (args.length) fail(`tier: unrecognized argument "${args[0]}"`);
+  const t = tierOf(root);
+  if (t.tier === 'unknown') {
+    console.log(['tier: unknown', 'simplicity: dispatch', `reason: ${t.reason}`].join('\n'));
+    return;
+  }
+  console.log([`tier: ${t.tier}`, `simplicity: ${t.tier === 'full' && t.allBehavior ? 'skip' : 'dispatch'}`].join('\n'));
+}
+
+// The tier of the run at `root`: `{ tier: 'full'|'lite', allBehavior }`, or `{ tier: 'unknown', reason }`. Reads the ledger only.
+function tierOf(root) {
   const lines = readLines(root);
   const rows = tableRowIndexes(lines).map((i) => ({ raw: lines[i].trim(), cells: splitRow(lines[i]) }));
   const reason = unknownReason(rows);
-  if (reason) {
-    console.log(['tier: unknown', 'simplicity: dispatch', `reason: ${reason}`].join('\n'));
-    return;
-  }
+  if (reason) return { tier: 'unknown', reason };
   const behavior = rows.filter((r) => r.cells[3] === 'behavior').length;
-  const full = behavior > FULL_OVER;
-  console.log([`tier: ${full ? 'full' : 'lite'}`, `simplicity: ${full && behavior === rows.length ? 'skip' : 'dispatch'}`].join('\n'));
+  return { tier: behavior > FULL_OVER ? 'full' : 'lite', allBehavior: behavior === rows.length };
 }
 
-module.exports = { verbTier };
+module.exports = { verbTier, tierOf };

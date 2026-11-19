@@ -6,7 +6,7 @@ Applies to a scope-mode `/superdev:review` when the permission classifier denies
 
 **The entry.** Applies beside the skill's degraded-pass step, on a live run. Write the `**Degraded:**` entry per `## Degraded passes` with `scope.js degraded add-denial -`. Pipe the classifier's refusal through a quoted heredoc and never a shell argument.
 
-- **`--unattended`** → read `scope.js get denials` after writing the entry, and **block** once the count reaches the cap in that section, instead of reviewing inline again.
+- Ask `scope.js denial final-reviewer [--unattended]` for the verdict, per that section's `**The verdict**`: `inline` → review inline as §3's report says, and a `block …` verdict blocks instead of reviewing inline again.
 
 ## A denied simplicity-reviewer dispatch
 
@@ -18,4 +18,4 @@ Applies to a scope-mode `/superdev:review` when the permission classifier denies
 
 - The fix implementer is an authoring dispatch and none of the three the cap counts.
 - **Attended** → apply the fix inline yourself and say so in §3's report.
-- **Unattended** → **block there** instead of the `--unattended → fix` rule of §4.6.
+- **Unattended** → `scope.js denial fix --unattended` prints `block implementer`: **block there** instead of the `--unattended → fix` rule of §4.6.

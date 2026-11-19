@@ -12,15 +12,15 @@ in this tier, so scope-findings.md's own skip carve-out never exempts one here. 
 `**Degraded:**` entry it defines for `<run-root>/ledger.md`.
 
 - **A denied implementer or fix** is an authoring dispatch: write it with `scope.js degraded add`.
-  **`--unattended`** → it **blocks**.
+  Ask `scope.js denial implementer` (or `fix`), with `--unattended` on an unattended run, for the verdict:
+  `block implementer` blocks.
 - **A denied `slice-reviewer`** is this tier's one verification dispatch: write it with
   `scope.js degraded add-denial -`, piping the classifier's refusal through a quoted heredoc rather than a
-  shell argument. It follows that section's authorship rule. A slice review covers a `behavior` slice, which a
-  dispatched implementer built, so the controller authored none of what the review verifies: review the slice
-  inline — the controller already holds the implementer's report, so that review is not blind — applying
+  shell argument, then ask `scope.js denial slice-reviewer --unattended` (without `--unattended` on an attended
+  run) for the verdict. A `block …` verdict blocks. On `inline`, review the slice inline — the controller already
+  holds the implementer's report, so that review is not blind — applying
   `${CLAUDE_PLUGIN_ROOT}/references/dependency-verification.md`'s `## Dependency verification` check and the
   one-way rule of `implement-full.md`'s slice-reviewer dispatch (reading the log can add a finding or raise a
   finding's severity, and never withdraws or downgrades one), where an inline re-review takes the same subject
-  as a dispatched one, the fix cycle's range, and carry on, bounded by that section's cap — read
-  `scope.js get denials` after writing the entry, and **block** once the count reaches it instead of reviewing
-  inline again. An inline first review applies the over-engineering lens too.
+  as a dispatched one, the fix cycle's range, and carry on. An inline first review applies the
+  over-engineering lens too.

@@ -173,9 +173,8 @@ Review a change end to end. §1 decides the mode.
 
 **A denied `final-reviewer` dispatch.** Applies when the permission classifier denies the dispatch. The denial is a degraded pass. Follow `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section.
 
-- **Attended** → review inline yourself and say so in §3's report.
-- **A live scope run** → also take the writes of `${CLAUDE_PLUGIN_ROOT}/references/review-scope-denials.md`'s `## A denied final-reviewer dispatch`.
-- **`--unattended`** → that section's authorship rule decides: **block** where the controller authored what the review verifies, which the tier answers, and otherwise review inline as the attended branch does.
+- **An ad-hoc run** → attended or unattended, review inline yourself and say so in §3's report. An ad-hoc run has no run root, records no denial, and asks no verdict.
+- **A live scope run** → take the writes of `${CLAUDE_PLUGIN_ROOT}/references/review-scope-denials.md`'s `## A denied final-reviewer dispatch`, then ask `scope.js denial final-reviewer [--unattended] --root <run-root>` for the verdict, passing `--unattended` on an unattended run: `inline` → review inline yourself and say so in §3's report, and a `block …` verdict blocks.
 
 ## 3. Report
 

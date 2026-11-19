@@ -60,6 +60,7 @@ const libContained = () => require('../lib/contained.js');
 const libCandidates = () => require('../lib/candidates.js');
 const libScopeBranch = () => require('../lib/scope-branch.js');
 const libScopeCheckout = () => require('../lib/scope-checkout.js');
+const libDenial = () => require('../lib/denial.js');
 const libDrivePath = () => require('../lib/drive-path.js');
 const libRunLock = () => require('../lib/run-lock.js');
 const libRedEvidence = () => require('../lib/red-evidence.js');
@@ -501,6 +502,13 @@ function run(argv, cwd, stdinJson) {
       const root = path.resolve(cwd, libDrivePath().drivePath(takeRoot(args)));
       if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) fail(`route: --root "${root}" is not a directory`);
       libRoute().verbRoute(cwd, root, args, stdinJson);
+      break;
+    }
+    // Reads the ledger and writes nothing: one verdict for a denied dispatch the caller already recorded (INV-0196). Prints `inline` or `block <reason>`.
+    case 'denial': {
+      const root = path.resolve(cwd, libDrivePath().drivePath(takeRoot(args)));
+      if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) fail(`denial: --root "${root}" is not a directory`);
+      libDenial().verbDenial(root, args);
       break;
     }
     // Reads the ledger, the run trace, git, and a check-status file and writes nothing (INV-0196); `verbRedEvidence` takes `--root` itself.
