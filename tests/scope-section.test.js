@@ -138,6 +138,10 @@ const doc = put(
     const r = section(name, '## Complete selector');
     assert.ok(r.ok && !r.out.includes('CWD-'), `${name}: the plugin's file wins over the current directory's: ` + r.out);
   }
+  // A bare `AGENTS.md` is the repository's own hierarchy root: the plugin's references/AGENTS.md, which carries the same DOX
+  // headings, never stands in for it.
+  put('AGENTS.md', '# Repo\n\n## Purpose\nCONSUMER-AGENTS\n');
+  assert.equal(section('AGENTS.md', '## Purpose').out, '## Purpose\nCONSUMER-AGENTS', 'a bare AGENTS.md reads the current directory');
   put('docs/agents/own.md', '## Mine\nmine\n');
   assert.equal(section('docs/agents/own.md', '## Mine').out, '## Mine\nmine', 'any other relative path reads the current directory');
 }

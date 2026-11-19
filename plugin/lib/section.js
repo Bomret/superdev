@@ -11,10 +11,12 @@ const PLUGIN_ROOT = path.join(__dirname, '..');
 const ROOT_VAR = '${CLAUDE_PLUGIN_ROOT}';
 
 // The file a name points at: a `${CLAUDE_PLUGIN_ROOT}` path or an absolute path as given; a bare `<name>.md` under the
-// plugin's `references/`, then `agents/`; any other relative path under the plugin root, then the current directory.
+// plugin's `references/`, then `agents/`; any other relative path under the plugin root, then the current directory. A bare
+// `AGENTS.md` names the repository's own hierarchy root, so it reads the current directory only.
 function resolveFile(cwd, name) {
   if (name.startsWith(ROOT_VAR)) return path.join(PLUGIN_ROOT, name.slice(ROOT_VAR.length));
   if (path.isAbsolute(name)) return name;
+  if (name === 'AGENTS.md') return path.resolve(cwd, name);
   const candidates = !name.includes('/') && name.endsWith('.md')
     ? [path.join(PLUGIN_ROOT, 'references', name), path.join(PLUGIN_ROOT, 'agents', name)]
     : [path.join(PLUGIN_ROOT, name)];
