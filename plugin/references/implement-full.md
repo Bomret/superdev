@@ -1,4 +1,4 @@
-# Full execution playbook (more than 3 `behavior` slices)
+# Full execution playbook
 
 The controller `Read`s this after computing tier = `full` (see `skills/implement/SKILL.md`). Every slice is
 built in its own slicetree. A dispatched `superdev:implementer` builds a `behavior` slice and every

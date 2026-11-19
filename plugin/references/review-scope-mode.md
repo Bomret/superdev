@@ -42,7 +42,7 @@ Rare branches live in files of their own, each read only when its branch fires: 
 - **Summary**: the scope anchor's title, from the `anchor` field of the `scope.js state` call the skill's §1 made (`${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## The ledger`). The field reads `absent` → say so in one line and hand a diff-derived summary.
 - **Acceptance**: the path `<run-root>/dod.md`, as §1 states.
 - **Range**: the whole scope range `<range-base>..<branch>` on every dispatch, a re-review after a fix cycle included.
-- **Tier and run root**: the tier per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` (3 or fewer `behavior` slices is `lite`), and `<run-root>`.
+- **Tier and run root**: the `tier:` line of `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" tier --root <run-root>` (`full`, `lite`, or `unknown`; `unknown` withholds no check, INV-0056: the reviewer grades every slice's recorded range as on `lite`), and `<run-root>`.
 - **Fix-cycle range**: a re-review hands the cycle's range `<cycle-base>..<cycle-tip>` as full commits. `<cycle-tip>` is the scope tip once you accept the cycle's report, before any merge of §4.1's **The moved base**.
 - **Untraced writes**: the reviewer runs `scope.js untraced` over the range of each window `fail-to-pass.md`'s `## Fail-to-pass run` gives the final reviewer, the `lite` slices with a recorded range and the scope's fix cycles with commits, a fix cycle's call naming its dispatch id from `scope.js windows --slice scope` as `--window` and a `lite` slice's call none, and grades the listing, per `${CLAUDE_PLUGIN_ROOT}/references/untraced-writes.md`'s `## Untraced writes`. The dispatch hands the run root and the ranges above and no listing, because the verb reads git and the trace itself. A `run full` or `run whole` line inside an implementer window is a Minor **Implementer suite run** finding.
 - **Fail-to-pass verdicts**: the reviewer runs `scope.js fail-to-pass-check` over each `lite` slice's recorded range and each fix cycle's range, per `${CLAUDE_PLUGIN_ROOT}/references/fail-to-pass.md`'s `### The verdict`, and keeps the judgments that section names. The dispatch hands no verdict, because the verb reads git and the trace itself.
@@ -60,12 +60,11 @@ Rare branches live in files of their own, each read only when its branch fires: 
 
 **The `simplicity-reviewer` dispatch.** Applies to the `simplicity-reviewer` dispatch of a scope review.
 
-- **A `full`-tier scope whose every slice row in the `slices` field of the skill's `scope.js state` call reads `behavior`, with no `malformed` row** → dispatch `final-reviewer` alone and skip `superdev:simplicity-reviewer`, reporting `` not dispatched — full tier, every slice `behavior` ``.
-- **A `full`-tier scope with a `mechanical` or `docs` row, or a row whose type cannot be read** → takes no skip from this concept. The skill's skip rules decide it, as they decide a `lite` scope, and the pass's findings go through the existing fix loop.
-- **A `lite` scope** takes no skip from this concept.
+- **The tier call.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" tier --root <run-root>`. Its `simplicity:` line decides the skip. The verb derives it from the ledger's rows and stores nothing (INV-0056): `skip` is a `full` scope whose every slice is `behavior`, and `dispatch` is every other scope, an `unknown` tier included.
+- **`simplicity: skip`** → dispatch `final-reviewer` alone and skip `superdev:simplicity-reviewer`, reporting `` not dispatched — full tier, every slice `behavior` ``.
+- **`simplicity: dispatch`** → takes no skip from this concept. The skill's skip rules decide it, and the pass's findings go through the existing fix loop.
 - **Only the entry review dispatches it**, on every `/superdev:review` invocation. A fix cycle's re-review and a warm re-review get no over-engineering pass, so a cut never starts the next cycle.
 - Each cut it recommends is warranted or declined by the skill's §2 warranted-cut concept. A warranted cut joins the findings as a Minor.
-- **A ledger with no slice rows, or with a row whose type cannot be read,** leaves the tier unknown → dispatch.
 
 **The slice reviewer for an Unreviewed slice.** Applies to §4.6's **Unreviewed slice** branch. Its `superdev:slice-reviewer` dispatch departs from the skill's exclusion of `slice-reviewer`, and `review-scope-coverage.md`'s `## An Unreviewed slice finding` states it and its report contract.
 

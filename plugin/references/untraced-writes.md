@@ -17,7 +17,7 @@ one its ledger row records. A `behavior` slice must record one and any other sli
 recorded range has none to list: the report names the gap.
 
 **The untraced-write listing.** `slice-reviewer` runs it for every full-tier slice and every fix cycle with commits, and
-`final-reviewer` for the windows `fail-to-pass.md`'s `## Fail-to-pass run` gives it: the `lite` slices and the scope's fix cycles. Run
+`final-reviewer` (an `unknown` tier reads as `lite`, INV-0056) for the windows `fail-to-pass.md`'s `## Fail-to-pass run` gives it: the `lite` slices and the scope's fix cycles. Run
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" untraced <base>..<tip> --slice <id|scope> [--window <dispatch id>] --root <run-root>`.
 
 - `<base>..<tip>` is the range of that window's commits: the slice's range for the build window (the ledger row's range for a `lite`
