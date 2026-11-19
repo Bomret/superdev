@@ -16,12 +16,12 @@ const { mainWorkTree } = require('./main-work-tree.js');
 const { verbInit, verbStep, validateLabel } = require('./ledger-lifecycle.js');
 const { appendTrace } = require('./trace-log.js');
 const { checkRun } = require('./run-check.js');
+const { STALENESS_MS, readLock: readRunLock } = require('./run-lock.js');
+
+const readLock = (lockPath) => readRunLock(lockPath, 'open');
 
 // Every outcome that set up nothing exits with this status, apart from the 1 a refusal exits with.
 const STOPPED_EXIT = 3;
-
-// The age past which a run lock is dead.
-const STALENESS_MS = 60 * 60 * 1000;
 
 // The anchor an empty ledger carries until §6 writes the store and the full `init` replaces it.
 const PENDING_ANCHOR = 'pending';
@@ -42,29 +42,6 @@ function parseArgs(args) {
   }
   if (!opts.base) fail('open needs --base <base-ref>');
   return opts;
-}
-
-// The lock's nonce and its age in ms, or null when there is no lock. Anything but a regular file or no file refuses.
-function readLock(lockPath) {
-  let stat;
-  let text;
-  try {
-    stat = fs.lstatSync(lockPath);
-  } catch (e) {
-    if (e.code === 'ENOENT') return null;
-    fail(`open: cannot read the run lock ${lockPath}: ${e.code || e.message}`);
-  }
-  if (!stat.isFile()) {
-    const kind = stat.isDirectory() ? 'a directory (EISDIR)' : stat.isSymbolicLink() ? 'a symbolic link' : 'another file type';
-    fail(`open: the run lock ${lockPath} is ${kind}, not a regular file`);
-  }
-  try {
-    text = fs.readFileSync(lockPath, 'utf8');
-  } catch (e) {
-    fail(`open: cannot read the run lock ${lockPath}: ${e.code || e.message}`);
-  }
-  const m = text.match(/^plan ([0-9a-f]+)\s*$/m);
-  return { nonce: m ? m[1] : null, age: Date.now() - stat.mtimeMs, text: text.trim() };
 }
 
 function realOrSelf(p) {
