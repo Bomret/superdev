@@ -31,7 +31,7 @@ The first line is the verdict, and its exit status tells it apart in a script:
 - **`could-not-resolve`** (exit 4). `<branch>` names no ref this repository can find. A branch that never existed
   and one that has not landed call for different warnings, so the caller tells them apart.
 
-Four more lines follow, and each says how far to trust the verdict:
+Further lines follow, three always and two optional, and each says how far to trust the verdict:
 
 - **`base <full sha>`** names the commit judged against: the commit the refetch brought where it ran, `<base>`
   resolved otherwise.
@@ -66,7 +66,7 @@ included: it is best-effort and silent by contract. Its own fallback is `git bra
 older, weaker signal in the hook's own git call — it just never announces taking it.
 
 **The test writes tree objects into the object database.** The verb changes no ref, index, working tree,
-ledger, or trace; the refetch writes `FETCH_HEAD` and fetched objects. A caller that fires on every turn reaches
+ledger, or trace; the refetch writes `FETCH_HEAD` and fetched objects, and moves no remote-tracking ref. A caller that fires on every turn reaches
 the test only for a scope it would otherwise act on, behind its own cheaper filters — `hooks/scope-prune.js`
 mirrors this test in JavaScript and orders its filters exactly that way.
 

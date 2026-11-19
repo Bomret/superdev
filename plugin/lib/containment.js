@@ -235,7 +235,9 @@ function judgeContainment(cwd, base, branch, remote = 'origin', { fetchTimeoutMs
   // which is minutes, not the "leaves the first verdict standing" scope-branch.md already promises.
   // The stderr is kept, in git's own English (the C locale), for a caller that reads why the refetch failed
   // (`push.js` tells a rejected credential from an unreachable remote); the verdict reads the status alone.
-  const fetched = gitSpawn(['fetch', '--end-of-options', remote, base], cwd, {
+  // `--refmap=` (an empty refspec) makes git ignore the remote's configured fetch refspec, so the fetch writes no
+  // remote-tracking ref (https://git-scm.com/docs/git-fetch, `--refmap`); it leaves `FETCH_HEAD` and the fetched objects.
+  const fetched = gitSpawn(['fetch', '--refmap=', '--end-of-options', remote, base], cwd, {
     env: { ...process.env, GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' },
     stdio: ['ignore', 'pipe', 'pipe'],
     timeout: fetchTimeoutMs,

@@ -180,12 +180,18 @@ function contained(repo, args, env = {}) {
   assert.strictEqual(fs.existsSync(marker), false, 'neither operand ran as --upload-pack');
 }
 
-// #read-only: the verb changes no ref, index, or working tree, and creates no run state. It writes tree objects and
-// `FETCH_HEAD` in git, and nothing else.
+// #read-only: the verb changes no ref, index, or working tree, and creates no run state. It writes tree objects,
+// fetched objects, and `FETCH_HEAD` in git, and nothing else. The remote has moved, so one call refetches.
 {
   const repo = fixture();
+  const other = path.join(path.dirname(repo), 'other');
+  git(['clone', '-q', path.join(path.dirname(repo), 'origin'), other], repo);
+  git(['config', 'user.email', 'test@example.com'], other);
+  git(['config', 'user.name', 'test'], other);
+  commit(other, 'moved.txt', 'moved\n', 'fix: moved (#3)');
+  git(['push', '-q', 'origin', 'main'], other);
   const snapshot = () => [
-    git(['for-each-ref', 'refs/heads'], repo),
+    git(['for-each-ref'], repo),
     git(['rev-parse', 'HEAD'], repo),
     git(['ls-files', '-s'], repo),
     git(['status', '--porcelain'], repo),
@@ -193,7 +199,7 @@ function contained(repo, args, env = {}) {
   const before = snapshot();
   contained(repo, ['main', 'fix/open']);
   contained(repo, ['main', 'fix/squashed']);
-  assert.strictEqual(snapshot(), before, 'no branch, HEAD, index, or working tree changed');
+  assert.strictEqual(snapshot(), before, 'no ref (remote-tracking included), HEAD, index, or working tree changed');
   assert.strictEqual(fs.existsSync(path.join(repo, '.superdev')), false, 'no run state was created');
 }
 
