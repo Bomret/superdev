@@ -57,6 +57,7 @@ const libSection = () => require('../lib/section.js');
 const libTier = () => require('../lib/tier.js');
 const libDodOpen = () => require('../lib/dod-open.js');
 const libContained = () => require('../lib/contained.js');
+const libCandidates = () => require('../lib/candidates.js');
 const libScopeBranch = () => require('../lib/scope-branch.js');
 const libScopeCheckout = () => require('../lib/scope-checkout.js');
 const libDrivePath = () => require('../lib/drive-path.js');
@@ -497,6 +498,10 @@ function run(argv, cwd, stdinJson) {
     // Reads the ledger, the run trace, git, and a check-status file and writes nothing (INV-0196); `verbRedEvidence` takes `--root` itself.
     case 'red-evidence':
       libRedEvidence().verbRedEvidence(cwd, args);
+      break;
+    // No --root: candidates scans `.superdev/scopes/*/` through the main working tree and reads ledgers only (INV-0024, INV-0196).
+    case 'candidates':
+      libCandidates().verbCandidates(cwd, args);
       break;
     // No --root: dod-check checks an anchor body on stdin, no ledger, no trace, no store call (ADR 0233).
     case 'dod-check':

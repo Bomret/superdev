@@ -265,8 +265,7 @@ branch step left you on.
 4. **Bring `<tip>` in, and record it.** **Move every numbering collision first**:
    run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" collisions --base <tip> --branch <branch>
    --range-base <range-base>`, with `<range-base>` per `scope-mode.md`'s `## The scope's range base` and one `--also <ref>`
-   for each other live plan run's scope branch (`scope-mode.md`'s `## Resolving an empty argument` → *Run-root enumeration*, stage
-   `planned` or later, its branch read with `scope.js get branch --root <run-root>`) whose ref resolves:
+   for each other live plan run's scope branch (the runs `scope.js candidates --stage planned,implementing,merged,reviewed,documented-unreviewed,documented,submitted,shipped,closed` names per `scope-mode.md`'s `## Resolving an empty argument` → *Run-root enumeration*, this run's own slug left out; each branch read with `scope.js get branch --root <run-root>`) whose ref resolves:
    `git rev-parse --verify <ref>` succeeds. A run root whose branch no longer resolves gets no `--also`,
    so it never stops this run. It compares numbers, so it finds a collision git never reports as a conflict.
    Exit 0 → nothing collides. Exit 1 → for each line it prints, move this scope's ADR file or invariant

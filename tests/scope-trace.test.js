@@ -85,6 +85,7 @@ const { sliceJson, scopePath, run, writeDod } = require('./scope-setup');
     {
       const usageText = require('../plugin/lib/usage.js').usage();
       const readOnly = new Set(['get', 'state', 'trace', 'publish', 'status', 'root', 'staging', 'dod-line', 'dod-tags', 'dod-check', 'dod-merge', 'ci', 'section', 'tier', 'dod-open', 'contained', 'branch', 'checkout', 'lock', 'red-evidence', 'collisions', 'citations', 'source-set', 'untraced', 'windows', 'fail-to-pass-check', 'push', 'run-state', 'test', 'fail-to-pass', 'prepare',
+        'candidates',
         // discard removes the run trace with the ledger, so it leaves no line to append to (ADR 0208).
         'discard']);
       const readOnlySub = /^\s+(deploy get|suite reusable|base resolve)\b/;

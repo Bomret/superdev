@@ -14,9 +14,9 @@ shipped `references/issue-tracker-*.md` seeds. Nothing is written.
 
 ## Candidates
 
-List every run root under the main working tree (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
-`## Resolving an empty argument` → *Run-root enumeration*) whose ledger stage reads `shipped`
-(`scope.js get stage --root <run-root>`) and whose `<run-root>/dod.md` holds at least one `not met:` note
+List every run root at stage `shipped` with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" candidates --stage shipped`
+(`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Resolving an empty argument` → *Run-root enumeration*; its
+`one` and `several` lines name them, and `none` means no run is shipped) and keep each one whose `<run-root>/dod.md` holds at least one `not met:` note
 `/superdev:verify-ship` observed. Read the note by `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s
 **The repair citation**, and never by the box (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s
 `## The note rule`). A line makes a candidate by its note alone, so a `[x]` line noted

@@ -93,14 +93,14 @@ Review a change end to end. §1 decides the mode.
 
 **The empty cascade.** Applies to an absent argument and to a path naming the top level. Review the first subject below that exists.
 
-1. **The working tree carries uncommitted changes** (`git diff HEAD` non-empty) → review those. Say in one line which eligible scope this passed over when one exists: the single run root step 3 would have found, named by a quick best-effort scan. Several or none → say nothing extra.
+1. **The working tree carries uncommitted changes** (`git diff HEAD` non-empty) → review those. Say in one line which eligible scope this passed over when one exists: the single run root step 3 would have found, named by `scope.js candidates --stage merged,documented-unreviewed`. Several or none → say nothing extra.
 2. **`merge-base(base, HEAD)..HEAD` is non-empty** → review that. When HEAD is a branch a live run root names, the range base per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## The scope's range base` replaces the merge-base: `<range-base>..HEAD`. Any other HEAD keeps `merge-base(base, HEAD)`.
 3. **Not under `--chained`** → run `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Resolving an empty argument` cascade over the run roots at stage `merged` or `documented-unreviewed`, the stages the chain hands to this review.
    - Its resolved candidate is a scope slug. Resolve its range as the scope-branch concept below states.
    - Several candidates still put the question, and block under `--unattended`, as `## Resolving an empty argument` states.
    - **No candidate** → go on to step 4. This review adds step 3 after the shared cascade, so the cascade's own **No candidate** stop does not apply here.
 4. **Otherwise** → **standing code of the whole repository**: the files at `HEAD`, the standing-code shape applied to the top level.
-   - Before any reviewer starts, the range announcement lists every run root with its stage (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Resolving an empty argument`, *Run-root enumeration*) and adds a `/superdev:review <scope-slug>` line for the operator who meant a run. A repository with no run root says so.
+   - Before any reviewer starts, the range announcement lists every run root with its stage (step 3's `none` verdict prints each one, per `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Resolving an empty argument`, *Run-root enumeration*) and adds a `/superdev:review <scope-slug>` line for the operator who meant a run. A repository with no run root says so.
    - The review is ad-hoc, attended or unattended: no ledger write, no run lock, no fix loop.
    - No files at `HEAD` → say there is nothing to review and dispatch nobody.
 

@@ -87,12 +87,19 @@ repository there.
 **Run-root enumeration.** A run root is a `.superdev/scopes/*/` directory holding a `ledger.md`, per
 `## A live scope run`. The calling command names the stages that qualify — `/superdev:submit-pr`
 names every stage but `shipped` and `closed`, `/superdev:review` names `merged` and `documented-unreviewed`.
-This section scans every run root, reads each one's stage with `scope.js get stage --root <run-root>`, and
-keeps only the ones whose stage is named. A directory holding no `ledger.md` is no run root and never
-a candidate. A run root whose `get stage` prints `absent` matches no named stage and is never a
-candidate. `/superdev:implement` reads its candidate set from the slice store (the features whose
-slices are ready) and hands that set straight to this cascade, so this
-section never enumerates run roots on its behalf.
+Ask for the verdict instead of computing it:
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js candidates --stage <stage>[,<stage>]`. The call scans the main
+working tree's run roots from any checkout, reads each ledger, writes nothing, and prints one verdict:
+
+- **`one <slug> <stage>`** — exactly one candidate. Use it.
+- **`several`** — then one `<slug> <stage>` line per candidate. List them and ask the operator, or block under `--unattended`, per the cascade above.
+- **`none`** — then one `<slug> <stage>` line per run root the repository holds, the stage reading
+  `absent` where the ledger names none and `unreadable` where it cannot be read. Report them and stop.
+
+A run root whose stage reads `absent` or `unreadable` never qualifies. A stage name outside the ledger's
+stages is refused with exit 1 and no verdict. `/superdev:implement` reads its candidate set from the slice
+store (the features whose slices are ready) and hands that set straight to this cascade, so the call
+never enumerates run roots on its behalf.
 
 **A caller that cannot ask stops and lists instead.** `plugin/scripts/publish-kb.js` has no interview
 loop behind it. With several candidates, or none, it refuses and lists them, the same shape this
