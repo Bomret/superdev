@@ -58,6 +58,28 @@ function passedAtTip(events, tip, whole) {
   return result === 'pass' && tree === 'clean';
 }
 
+// The ledger's `**Suite:**` value as `{ result, sha, kind }` (`kind` `whole` or undefined), or null where it is absent or unreadable.
+function parseSuiteRecord(raw) {
+  const m = raw && raw.match(/^(\S+)\s+@\s+(\S+)(?:\s+(whole))?$/);
+  return m ? { result: m[1], sha: m[2], kind: m[3] } : null;
+}
+
+// Whether `a` is an ancestor of `b`; refuses where git fails for any reason but "not an ancestor" (exit 1), so a git error
+// is never read as a negative answer (INV-0009).
+function ancestorOrRefuse(g, a, b) {
+  const answer = g.ancestry(a, b);
+  if (typeof answer === 'string') fail(answer);
+  return answer;
+}
+
+// The reason a refusing caller gives where `a` is no ancestor of `b`: `why` for the negative answer, or the git error's own
+// text where git could not tell. Null where `a` is an ancestor.
+function notAncestorReason(g, a, b, why) {
+  const answer = g.ancestry(a, b);
+  if (answer === true) return null;
+  return answer === false ? why : answer;
+}
+
 // The run root's `run` trace events in trace order; none where no trace file exists yet.
 function runEvents(root) {
   let raw = '';
@@ -133,13 +155,13 @@ const redRefusal = (why) => `suite record is red, not green (${why}) — not reu
 function verbSuiteReusable(cwd, root, branch, whole, base) {
   const g = gitReads(cwd);
   const raw = getHeader(readLines(root), 'Suite');
-  const m = raw && raw.match(/^(\S+)\s+@\s+(\S+)(?:\s+(whole))?$/);
+  const m = parseSuiteRecord(raw);
   if (raw && !m) fail(`unreadable suite record: ${raw}`);
   // ADR 0182: a passing full-suite run at the exact tip meets the gate, whoever wrote it. A record at the tip that is not
   // green decides on its own below, so a red record there stays the rerun's (ADR 0172). An accepted run becomes the record,
   // `whole` where a whole run passed at the tip, so `get suite` names the commit the gate passed on (ADR 0186).
   const exactTip = g.commit(branch);
-  if (exactTip && (!m || m[2] !== exactTip || m[1] === 'green')) {
+  if (exactTip && (!m || m.sha !== exactTip || m.result === 'green')) {
     const events = runEvents(root);
     if (passedAtTip(events, exactTip, whole)) {
       const value = `green @ ${exactTip}${passedAtTip(events, exactTip, true) ? ' whole' : ''}`;
@@ -149,7 +171,7 @@ function verbSuiteReusable(cwd, root, branch, whole, base) {
     }
   }
   if (!raw) fail('no suite record to reuse');
-  const [, result, recordedSha, kind] = m;
+  const { result, sha: recordedSha, kind } = m;
   if (result === 'red') {
     // Each route returns its refusal reason, or null where it accepts. A red record whose failures a fix cycle since
     // repaired carries to a later tip (ADR 0237) where the rerun does not; a refusal names both routes' reasons.
@@ -198,7 +220,8 @@ function reusableOnRerun(g, root, branch, recordedSha, kind, whole, base) {
   if (whole && kind !== 'whole') return 'the record carries no kind — a whole-repo run needs one';
   const events = runEvents(root);
   if (tip !== recordedSha) {
-    if (!g.isAncestor(recordedSha, tip)) return 'the failed run is neither at the tip nor an ancestor of it';
+    const no = notAncestorReason(g, recordedSha, tip, 'the failed run is neither at the tip nor an ancestor of it');
+    if (no) return no;
     const since = g.changed(recordedSha, tip);
     if (!since) return 'git could not list the paths changed since the failed run';
     const why = markdownRefusal(g, recordedSha, tip, events, since);
@@ -277,7 +300,8 @@ function reusableAfterFix(g, root, branch, from, kind, whole, files) {
   if (whole || kind === 'whole') return 'a repaired failure carries a full run only, never a whole-repo one';
   const tip = tipOf(g, branch);
   if (tip === from) return 'the failed run is at the tip';
-  if (!g.isAncestor(from, tip)) return 'the failed run is not an ancestor of the tip';
+  const no = notAncestorReason(g, from, tip, 'the failed run is not an ancestor of the tip');
+  if (no) return no;
   const events = runEvents(root);
   const failedFull = failedRuns(events, from, ['full', 'whole']);
   if (failedFull !== 1) return `${failedFull} failed full runs at the failed run's commit, the record names the failures of exactly one`;
@@ -286,14 +310,17 @@ function reusableAfterFix(g, root, branch, from, kind, whole, files) {
   const why = completeRefusal(g, from, tip, events, paths);
   if (why === undefined) return `${VERIFICATION} carries no complete-selector declaration`;
   if (why) return why;
-  const top = g.top;
   for (const file of files) {
-    const passed = events.some((e) => e.fields[0] === 'path' && e.fields[2] === tip && e.fields[1] === 'pass' && e.fields[3] === 'clean'
-      && e.fields[7] !== undefined && untraceField(e.fields[7]) === '.'
-      && decodePaths(e.fields[4]).map((p) => rootRelative(p, top)).includes(file));
-    if (!passed) return `no passing clean run of ${file} from the tree root at the tip`;
+    if (!pathRunPassed(g, events, tip, file)) return `no passing clean run of ${file} from the tree root at the tip`;
   }
   return null;
+}
+
+// Whether the trace `events` hold a passing `path` run of `file` on a clean tree at commit `at`, made from the tree root.
+function pathRunPassed(g, events, at, file) {
+  return events.some((e) => e.fields[0] === 'path' && e.fields[2] === at && e.fields[1] === 'pass' && e.fields[3] === 'clean'
+    && e.fields[7] !== undefined && untraceField(e.fields[7]) === '.'
+    && decodePaths(e.fields[4]).map((p) => rootRelative(p, g.top)).includes(file));
 }
 
 // `suite failed <test-file>...` (ADR 0237): the ledger's one `**Failed:**` record, `<file>... @ <tip>`, naming the test files
@@ -345,7 +372,13 @@ function gitReads(cwd) {
     commit: (ref) => once(`commit ${ref}`, () => resolveCommit(ref, cwd)),
     fileAt: (commit, rel) => once(`file ${commit} ${rel}`, () => fileAt(commit, rel, cwd)),
     changed: (from, to) => once(`changed ${from} ${to}`, () => changedPaths(cwd, from, to)),
-    isAncestor: (a, b) => once(`ancestor ${a} ${b}`, () => gitSpawn(['merge-base', '--is-ancestor', a, b], cwd).status === 0),
+    // true or false for git's answer (exit 0 or 1); the git error's text, a string, for any other exit.
+    ancestry: (a, b) => once(`ancestor ${a} ${b}`, () => {
+      const r = gitSpawn(['merge-base', '--is-ancestor', a, b], cwd);
+      if (r.status === 0) return true;
+      if (r.status === 1) return false;
+      return `could not tell whether ${a} is an ancestor of ${b}: ${(r.stderr || '').trim() || `git exited ${r.status}`}`;
+    }),
     top: lazyToplevel(cwd),
   };
 }
@@ -404,7 +437,8 @@ function coverageRefusal(g, paths, at) {
 // passes this Markdown-only rule. Returns the reason the carry fails, or null when it holds; where the chain fails on a
 // Markdown-only tail, the tail's own reason.
 function carryRefusal(g, from, to, events) {
-  if (!g.isAncestor(from, to)) return 'it is not an ancestor of the tip';
+  const no = notAncestorReason(g, from, to, 'it is not an ancestor of the tip');
+  if (no) return no;
   const paths = g.changed(from, to);
   if (!paths) return 'git could not list the paths changed since';
   const other = paths.find((p) => !p.endsWith('.md'));
@@ -478,7 +512,7 @@ function rangeBase(g, root, branch, base) {
   const raw = getHeader(readLines(root), 'Base');
   const rec = raw ? g.commit(raw) : null;
   let out = mb;
-  if (rec && g.isAncestor(rec, tip) && g.isAncestor(mb, rec)) out = rec;
+  if (rec && ancestorOrRefuse(g, rec, tip) && ancestorOrRefuse(g, mb, rec)) out = rec;
   return out;
 }
 
@@ -594,4 +628,7 @@ function verbState(root, json) {
   console.log(text.join('\n'));
 }
 
-module.exports = { verbState, verbSuite, verbSuiteRerun, verbSuiteFailed, verbSuiteReusable, verbBaseSet, verbBaseResolve, verbGet };
+module.exports = {
+  verbState, verbSuite, verbSuiteRerun, verbSuiteFailed, verbSuiteReusable, verbBaseSet, verbBaseResolve, verbGet,
+  VERIFICATION, gitReads, runEvents, rangeBase, failedRuns, failedRecord, coverageRefusal, pathRunPassed, parseSuiteRecord, ancestorOrRefuse,
+};

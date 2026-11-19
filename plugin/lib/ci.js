@@ -44,16 +44,24 @@ function verbCi(cwd, args, input) {
   if (!sha) fail('ci needs --sha <sha>');
   if (args.length) fail(`ci: unrecognized argument "${args[0]}"`);
   const repo = root ? path.resolve(cwd, drivePath(root)) : cwd;
-  const verdict = (kind, at, reason) => {
-    console.log(`ci: ${kind} ${at}${reason ? ' ' + reason : ''}`);
-    process.exitCode = EXIT[kind];
-  };
+  const judged = ciJudgment(repo, sha, input);
+  console.log(`ci: ${judged.kind} ${judged.at}${judged.reason ? ' ' + judged.reason : ''}`);
+  process.exitCode = EXIT[judged.kind];
+  for (const s of judged.standing) console.log([s.kind, s.name, s.state, ...(s.link ? [s.link] : [])].join('\t'));
+}
+
+// The judgment of the check-status `input` lines (`name<TAB>state[<TAB>link]`) for commit `sha` in `repo`, against the named
+// checks of that commit's `## CI` section: `{ kind, at, reason, standing, malformed }`, `kind` one of the **CI verdict**s, `at` the
+// resolved commit (`sha` as given where it resolves to none), `standing` the named checks that are not green, and `malformed`
+// true where the section holds both `none` and a name.
+function ciJudgment(repo, sha, input) {
+  const verdict = (kind, at, reason, malformed) => ({ kind, at, reason, standing: [], malformed: Boolean(malformed) });
   const commit = resolveCommit(sha, repo);
   if (!commit) return verdict('cannot-judge', sha, `(${sha} resolves to no commit)`);
   const text = fileAt(commit, 'docs/agents/verification.md', repo);
   if (text === null) return verdict('cannot-judge', commit, '(git cannot read docs/agents/verification.md at that commit)');
   const checks = namedChecksOf(text);
-  if (checks.state === 'malformed') return verdict('cannot-judge', commit, '(## CI holds both none and a check name)');
+  if (checks.state === 'malformed') return verdict('cannot-judge', commit, '(## CI holds both none and a check name)', true);
   if (checks.state === 'none') return verdict('cannot-judge', commit, '(no named checks at that commit)');
   const byName = new Map(checks.names.map((n) => [n, []]));
   let read = false;
@@ -70,8 +78,7 @@ function verbCi(cwd, args, input) {
   const standing = checks.names.map((name) => ({ name, ...judge(byName.get(name)) })).filter((s) => s.kind !== 'green');
   const name = standing.some((s) => s.kind === 'failed') ? 'failed' : standing.length ? 'not-green' : 'green';
   // No `name<TAB>state` line at all is a read that delivered nothing: still not green, and named as such.
-  verdict(name, commit, read ? '' : '(no check report read)');
-  for (const s of standing) console.log([s.kind, s.name, s.state, ...(s.link ? [s.link] : [])].join('\t'));
+  return { ...verdict(name, commit, read ? '' : '(no check report read)'), standing };
 }
 
-module.exports = { verbCi };
+module.exports = { verbCi, ciJudgment };

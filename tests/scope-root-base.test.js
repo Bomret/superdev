@@ -266,6 +266,21 @@ const { run } = require('./scope-setup');
   const inc = callIn(['base', 'resolve', '--branch', 'feat/base-inc', '--base', 'localbase', ...RT], repo);
   assert.strictEqual(inc.out, M, 'incomparable candidates print merge-base(base, branch)');
 
+  // A git error while comparing the record with the branch refuses with the cause, never a quiet merge-base: the record is a commit
+  // on a side line whose parent object is gone, so git resolves the record and cannot walk its history.
+  const S1 = g(['commit-tree', `${A}^{tree}`, '-p', A, '-m', 's1'], repo);
+  const S2 = g(['commit-tree', `${A}^{tree}`, '-p', S1, '-m', 's2'], repo);
+  assert.ok(callIn(['base', 'set', S2, ...RT], repo).ok, 'base set S2');
+  const lost = path.join(repo, '.git', 'objects', S1.slice(0, 2), S1.slice(2));
+  fs.renameSync(lost, `${lost}.aside`);
+  let broken;
+  try {
+    broken = callIn(['base', 'resolve', '--branch', 'feat/base-inc', '--base', 'localbase', ...RT], repo);
+  } finally {
+    fs.renameSync(`${lost}.aside`, lost);
+  }
+  assert.ok(!broken.ok && /could not tell whether/.test(broken.err), 'a git error refuses with its cause: ' + (broken.err || broken.out));
+
   // --base and --branch are required.
   assert.ok(!callIn(['base', 'resolve', '--branch', 'feat/base-demo', ...RT], repo).ok, 'resolve needs --base');
   assert.ok(!callIn(['base', 'resolve', '--base', 'main', ...RT], repo).ok, 'resolve needs --branch');
