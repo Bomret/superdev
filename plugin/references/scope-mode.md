@@ -153,9 +153,10 @@ command that reports the guess runs `branch` as well), reads `git worktree list`
   detaches it. A `shipped` ledger with nothing left to deploy, or a posture other than `auto`, is
   "already shipped". Ship recreates no checkout for it.
 - **`held-elsewhere <path>`** → another working tree holds the branch. Say so, naming the path, and stop, writing nothing, rather
-  than switching a checkout superdev does not own.
-- **`unregistered <reason>`** → the scopetree path is a leftover directory, a detached or other-branch tree, or a registration whose
-  directory is gone. Say so with the reason and stop, writing nothing: the call recreates nothing over it, and the operator removes it.
+  than switching a checkout superdev does not own. A holder whose path holds a line break prints `held-elsewhere a working tree whose path
+  holds a line break` with no path: say so, and name no path.
+- **`unregistered <reason>`** → the scopetree path is a leftover directory, a detached or other-branch tree, a registration whose
+  directory is gone, or a registered scopetree whose path holds a line break. Say so with the reason and stop, writing nothing: the call recreates nothing over it, and the operator removes it.
 - **`none`, `ambiguous <b> <b>…`, or `git-failed <reason>`** → the scope branch itself is unresolved, per `## The scope branch`'s
   reading of those verdicts.
 

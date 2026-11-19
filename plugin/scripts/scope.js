@@ -481,6 +481,7 @@ function run(argv, cwd, stdinJson) {
     }
     // Reads the ledger and git and writes nothing: one scope-checkout verdict, `--root` names the run to read (INV-0196).
     // Prints `present <path>`, `absent`, `absent-terminal <stage>`, `held-elsewhere <path>`, `unregistered <reason>`, or a branch verdict; every verdict exits 0.
+    // A path holding a line break is never printed: a scopetree there is `unregistered`, a holder there is `held-elsewhere` with no path.
     case 'checkout': {
       const root = path.resolve(cwd, libDrivePath().drivePath(takeRoot(args)));
       if (args.length) fail(`checkout: unrecognized argument "${args[0]}"`);
