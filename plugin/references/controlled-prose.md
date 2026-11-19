@@ -18,7 +18,7 @@ the pair: prefer the shorter and more common word.
 ## Scope
 
 Apply the standard to **prose**: `AGENTS.md` files, `README.md`, ADR text, glossary entries,
-knowledge-base pages, and report text.
+knowledge-base pages, report text, and comment text a doc pass rewrites in a code file.
 
 Do not apply it to:
 

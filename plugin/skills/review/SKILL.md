@@ -9,7 +9,7 @@ argument-hint: "[BASE..HEAD | branch | path | scope-slug | (empty, or the top-le
 Review a change end to end. §1 decides the mode.
 
 - **Ad-hoc**: a spot-check, a pre-PR pass, a second opinion on someone else's branch, or `/superdev:sweep`'s code leg under `--chained`. No plan stands behind it, and §3 keeps it read-only, except the inline fix the operator agrees to.
-- **Scope**: the range is a live superdev scope branch, the whole-scope review gate of the implement chain. It reviews against that run's Definition of Done, may drive the fix loop after asking once, and hands off to `/superdev:document`. `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md` owns everything that differs.
+- **Scope**: the range is a live superdev scope branch, the whole-scope review gate of the implement chain. It reviews against that run's Definition of Done, drives the fix loop over every finding, asking only fix-or-accept per broken criterion, and hands off to `/superdev:document`. `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md` owns everything that differs.
 
 **The closing message.** Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`.
 
@@ -138,9 +138,9 @@ Review a change end to end. §1 decides the mode.
 
 **The focused run**. Applies to every ad-hoc dispatch of `final-reviewer`. A scope review runs no focused run and no full-suite run: `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md`'s `### 4.2 Red evidence` reads a recorded red result instead, and `/superdev:ship` takes the full-suite evidence. The bullets below decide which run an ad-hoc dispatch gets.
 
-- **A test command is configured in `docs/agents/verification.md` and the subject's tip is the checked-out tree** → run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused <changed paths>` once from the invoking checkout before the dispatch, and hand the reviewer that result labelled focused.
+- **A test command is configured in `docs/agents/verification.md` and the subject's tip is the checked-out tree** → run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" test focused --since <ref>` once from the invoking checkout before the dispatch, and hand the reviewer that result labelled focused. `<ref>` is the range's base for a range, and `HEAD` for the working tree's uncommitted changes. A path subject runs `test focused <changed paths>` in place of `--since`, so the run stays inside the path.
 - **Every test run** passes Bash's `timeout` at its ceiling, 600000 ms unless `BASH_MAX_TIMEOUT_MS` raises it, and runs in the foreground. A run that can outlast the ceiling runs in the background, and you wait for its end.
-- **The changed paths** are the paths the subject's diff changes that exist in the tree. A subject left with none runs no test.
+- **The changed paths** are every path changed since `<ref>`, a deleted path included, as the verb takes them from git. On a path subject they are the paths the subject's diff changes, a deleted path included, each passed as its own argument. Leave out a deleted path whose name holds whitespace: the verb refuses such an argument as a joined path list. A subject with none runs no test.
 - **The subject's tip is the checked-out tree** when the subject is the working tree's uncommitted changes, or when its range ends at the commit `git rev-parse HEAD` names and `git status --porcelain` prints nothing.
 - **Any other subject runs no test**: a range that ends elsewhere, another branch, and a standing-code target. Hand the reviewer `not run: <reason>` (the tip is not checked out, the working tree is dirty, standing code has no change, or no test command) and name the reason in your report.
 - **The operator asks for the full suite** in this invocation's arguments or in the conversation → run `test full` in place of the focused run, under the same tip condition, and hand it labelled full. `--chained` never runs it.

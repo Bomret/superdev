@@ -65,9 +65,8 @@ with the note `not met: a fix cycle landed after the doc pass`, on the same trig
 inline doc-pass record: those commits may have made the `AGENTS.md` text stale, and the next doc pass
 judges the line again. At a `documented` or `submitted` stage no doc pass follows in the chain, so that
 untick also writes one `**Unresolved:**` entry per line, worded `docs criterion unmet after the doc pass:
-<criterion>`, after the clean verdict's `unresolved clear`, and routes the run to `/superdev:document`.
-At a `shipped` or `closed` stage the untick writes no entry, invalidates no suite record, and changes no
-route; the review's report names each unticked line, and a shipped run's open lines reach
+<criterion>`, after the clean verdict's `unresolved clear`, and routes the run to `/superdev:document`. The untick makes no suite-record write at any stage.
+At a `shipped` or `closed` stage the untick writes no entry and changes no route; the review's report names each unticked line, and a shipped run's open lines reach
 `/superdev:verify-ship` as `not met:` lines. A doc pass at that stage judges no `docs` line and routes as
 any shipped or closed run does (Document's case below).
 

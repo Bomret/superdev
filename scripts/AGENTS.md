@@ -243,13 +243,20 @@ git repository included. `--count` prints the number of `.md` pages in that dire
 it is missing. The staged-page scan behind `status` resolves its staging root through the same main
 working tree.
 
-`test full|whole`, `test focused [<path>…]`, and `test path <file>… -- <command>` run a test command through `sh -c`, `sh` resolved from PATH (ADR 0150), and append one
+`test full|whole`, `test focused [<path>…]`, `test focused --since <ref>`, `test path <file>… -- <command>`, and
+`test path --since <ref> -- <command>` run a test command through `sh -c`, `sh` resolved from PATH (ADR 0150), and append one
 `run` line carrying the command's own exit status, an **Observed run** (CONTEXT.md, ADR 0127, INV-0117). The line ends with
 the run's duration in whole milliseconds (ADR 0182), the raw command (`traceField` of `lib/trace-log.js`), and the **directory field**: the directory the command ran in, relative to the run tree's root, `/`-separated, `.` at the root, and `..` or an absolute path outside the tree (ADR 0232). `scope.js` records the command verbatim, and the run-state ref publishes the trace. Pass a secret through the environment, never through an argument. The verb
 streams the command's output and exits with its status. `full`, `focused`, and `whole` run the command
 `docs/agents/verification.md` configures, as written; `focused` substitutes its shell-quoted paths for `{paths}`
 and, given none, runs the full command and records `full`. It refuses an empty path argument, and an argument that holds
-whitespace and names no file relative to the tree root, a path list joined into one word (ADR 0217). `path <file>… -- <command>` runs the
+whitespace and names no file relative to the tree root, a path list joined into one word (ADR 0217). `--since <ref>` takes
+the set from git at the tree root instead (ADR 0259): `git diff --name-only --no-renames -z <ref>` against the working tree under
+`diff.relative=false` and `core.quotePath=false`, plus `git ls-files --others --exclude-standard -z`, each path relative to the
+tree root. `focused --since` substitutes that set and records it. `path --since` keeps the paths the test-path rule matches that
+exist, each spelled as the current directory reaches it, appends them to the command, and records them. Either form refuses paths
+beside the ref, a missing ref, a ref starting with `-`, a ref that resolves to no commit, and an empty set, and runs and records
+nothing. An empty set never runs the full command. `path <file>… -- <command>` runs the
 command as given, from the current directory, against the test files its caller names, and classifies nothing (ADR 0227). It
 records the kind `path`, the files, and the command as typed. A status the command shape hides from the test, such as a pipe without
 `pipefail`, records `unknown`. `test --` without files, a missing file, a missing command, and a kind with no configured command

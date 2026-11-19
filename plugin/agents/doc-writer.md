@@ -38,6 +38,7 @@ Applies to every dispatch.
 Read `${CLAUDE_PLUGIN_ROOT}/references/doc-pass.md` and perform the pass it states. It owns the content-type lens, the writing standard, the in-repo docs pass, and the knowledge-base pass with its staged pages, because the `lite` playbook's controller performs the same pass in its own context. Commit your doc changes on the current branch.
 
 - Perform the pass over the range or area the dispatch hands you.
+- Over a range, the pass also reconciles the comments and docstrings of the non-Markdown files the range changes. Rewrite comment text only, never a code token. Name a stale comment in a file outside the range in your report, by `file:line`, and leave it unedited.
 
 ## Bootstrap
 
@@ -79,6 +80,7 @@ Applies to every dispatch.
 Return:
 
 - the docs and `AGENTS.md` files you changed, and what you deleted as stale;
+- every non-Markdown file whose comments you rewrote, and every stale comment outside the range, by `file:line`, left unedited;
 - every doc and `AGENTS.md` file you read and left unchanged because you judged it current, by path, or, when you judged no doc relevant to the range, your reason in one line;
 - the knowledge-base pages you wrote to `docs/kb/` or staged, and under which action, or that the knowledge-base pass was skipped or none;
 - every outline entry you added to `docs/agents/knowledge-base.md`, with the reason no existing topic fit, or that you added none;

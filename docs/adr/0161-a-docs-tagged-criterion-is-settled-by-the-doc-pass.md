@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0257](0257-a-docs-untick-leaves-the-suite-record-alone.md), which withdraws the
+invalidation of the tip's suite record at the `submitted` stage.
+
 ## Context
 
 The implement chain runs `/superdev:implement`, `/superdev:review`, `/superdev:document`, and
