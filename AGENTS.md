@@ -67,6 +67,8 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          Run integrity: `run-digest.js` (the digest sidecar of a run root and its lock) and
                          `run-check.js` (the check every verb that writes to a run makes before its write,
                          which records a `tamper` trace line, ADR 0227); `untraced.js` (the `untraced` verb).
+                         Verdict verbs (ADR 0263): `scope-branch.js` (`branch`), `scope-checkout.js` (`checkout`), `run-lock.js` (`lock`, and the lock reader `plan-open.js` shares),
+                         `denial.js` (`denial`), `route.js` (`route`), `candidates.js` (`candidates`), and `run-roots.js` (the run-root scan `status` and `candidates` share).
                          Read-only grading (ADR 0261): `trace-window.js` (the one **Window** derivation, the slice and
                          edit-path comparison, and the flag parser the trace verbs share) and `fail-to-pass-check.js` (the `fail-to-pass-check` verb).
                          Read-only decision verbs (ADR 0262): `section.js` (one markdown section), `tier.js` (the execution tier),
