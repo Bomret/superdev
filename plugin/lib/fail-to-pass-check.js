@@ -15,7 +15,8 @@ const { outcomeOf } = require('./fail-to-pass.js');
 // The verdicts, a closed set the reviewer prose reads (`references/fail-to-pass.md`):
 //   fail-to-pass <range> <command>      the latest deciding outcome line covering the range reads fail-to-pass (settled-from-trace included)
 //   pass-to-pass <range> <command>      it reads pass-to-pass, and no later fail-to-pass line closes it
-//   closed <range> <command>            it reads pass-to-pass, and a later fail-to-pass line from its base to its tip or a newer one closes it
+//   closed <range> <command>            it reads pass-to-pass, and a later fail-to-pass line from its base to its tip or a newer one closes it;
+//                                       with --window the closing line may sit in a later window of the slice
 //   unknown <reason> [<range> <command>]  only unknown lines cover the range, or a gap: `no-trace`, `no-change`
 //   missing                             the range changes a test-path file, not only by deletion, and another file, and no outcome line covers it
 //   test-only                           the range changes only test-path files, and no outcome line covers it
@@ -55,25 +56,26 @@ function verbFailToPassCheck(cwd, args) {
 
   const { events } = readRunTrace(root);
   const inWindow = flags['--window'] === undefined ? null : windowIndexes(events, flags['--window'], slice, (m) => fail(`fail-to-pass-check: ${m}`));
-  const mine = events.filter((e, i) => sliceOf(e) === slice && (inWindow === null || inWindow.has(i)));
+  const ofSlice = events.map((e, at) => ({ e, at })).filter(({ e }) => sliceOf(e) === slice);
+  const mine = ofSlice.filter(({ at }) => inWindow === null || inWindow.has(at));
   const changes = netChanges(`${base}..${tip}`, cwd, 'fail-to-pass-check');
   if (!mine.length) return console.log(`unknown no-trace: the run trace holds no line of slice ${slice}${inWindow ? ` in window ${flags['--window']}` : ''}`);
   if (!changes.length) return console.log('unknown no-change: the range\'s first-parent commits change no file');
 
-  const resolved = new Map();
-  const commitOf = (ref) => {
-    if (!resolved.has(ref)) resolved.set(ref, resolveCommit(ref, cwd));
-    return resolved.get(ref);
-  };
-  const outcomes = mine.map(outcomeOf).filter((o) => o !== null).map((o) => ({ ...o, b: commitOf(o.base), t: commitOf(o.tip) }));
+  // Every outcome line of the slice, with its file position and resolved commits. The deciding line comes from the window; a
+  // closing line may sit in any later window, so it is searched over the slice's whole trace after the deciding line.
+  const all = ofSlice
+    .map(({ e, at }) => ({ o: outcomeOf(e), at }))
+    .filter(({ o }) => o !== null)
+    .map(({ o, at }) => ({ ...o, at, b: resolveCommit(o.base, cwd), t: resolveCommit(o.tip, cwd) }));
+  const outcomes = inWindow === null ? all : all.filter((o) => inWindow.has(o.at));
   const covers = (o) => o.t === tip && o.b !== null && ancestor(o.b, base);
   const line = (verdict, o) => console.log(`${verdict} ${o.base}..${o.tip} ${o.command}`);
 
-  const decidingAt = outcomes.findLastIndex((o) => (o.outcome === 'fail-to-pass' || o.outcome === 'pass-to-pass') && covers(o));
-  if (decidingAt >= 0) {
-    const d = outcomes[decidingAt];
+  const d = outcomes.findLast((o) => (o.outcome === 'fail-to-pass' || o.outcome === 'pass-to-pass') && covers(o));
+  if (d) {
     if (d.outcome === 'fail-to-pass') return line('fail-to-pass', d);
-    const closing = outcomes.slice(decidingAt + 1).find((o) => o.outcome === 'fail-to-pass' && o.b === d.b && o.t !== null && ancestor(d.t, o.t));
+    const closing = all.find((o) => o.at > d.at && o.outcome === 'fail-to-pass' && o.b === d.b && o.t !== null && ancestor(d.t, o.t));
     return closing ? line('closed', closing) : line('pass-to-pass', d);
   }
   const unknown = outcomes.findLast((o) => o.outcome === 'unknown' && covers(o));

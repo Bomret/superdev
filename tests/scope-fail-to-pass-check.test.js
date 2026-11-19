@@ -163,16 +163,25 @@ const any = [edit('src/a.js')];
   assert.deepEqual(after, before, 'the verb changes no file in the run root');
 }
 
-// #window: with --window only the lines every run of that dispatch covers decide.
+// #window: with --window only the lines every run of that dispatch covers decide, and a closing line in a later window still
+// closes the window's pass-to-pass.
 {
   const root = runOf([
     `${ts} 01 main dispatch superdev:implementer tu1 build -`,
-    outcome(`${c0}..${c1}`, 'pass-to-pass', 'control=0,put-back=0'),
+    outcome(`${c1}..${c3}`, 'pass-to-pass', 'control=0,put-back=0'),
     `${ts} 01 main dispatch superdev:slice-reviewer tr1 review -`,
-    outcome(`${c0}..${c1}`, 'fail-to-pass', 'control=0,put-back=1'),
+    outcome(`${c0}..${c3}`, 'fail-to-pass', 'control=0,put-back=1'),
   ]);
-  assert.equal(verdict(repo, `${c0}..${c1}`, root).split(' ')[0], 'fail-to-pass', 'without --window the whole trace decides');
-  assert.equal(verdict(repo, `${c0}..${c1}`, root, '--window', 'tu1').split(' ')[0], 'pass-to-pass', 'with --window only the window\'s own line decides');
+  assert.equal(verdict(repo, `${c1}..${c3}`, root).split(' ')[0], 'fail-to-pass', 'without --window the whole trace decides');
+  assert.equal(verdict(repo, `${c1}..${c3}`, root, '--window', 'tu1').split(' ')[0], 'pass-to-pass', 'with --window only the window\'s own line decides');
+  const later = runOf([
+    `${ts} 01 main dispatch superdev:implementer tu1 build -`,
+    outcome(`${c0}..${c1}`, 'pass-to-pass', 'control=0,put-back=0'),
+    `${ts} 01 main dispatch superdev:implementer tu2 fix -`,
+    outcome(`${c0}..${c3}`, 'fail-to-pass', 'control=0,put-back=1'),
+  ]);
+  assert.equal(verdict(repo, `${c0}..${c1}`, later, '--window', 'tu1'), `closed ${c0}..${c3} node tests/a.test.js`,
+    'a fail-to-pass line in a later window from the same base to a newer tip closes the window\'s pass-to-pass');
 }
 
 console.log('scope fail-to-pass-check tests ok');
