@@ -60,6 +60,7 @@ const libContained = () => require('../lib/contained.js');
 const libScopeBranch = () => require('../lib/scope-branch.js');
 const libScopeCheckout = () => require('../lib/scope-checkout.js');
 const libDrivePath = () => require('../lib/drive-path.js');
+const libRunLock = () => require('../lib/run-lock.js');
 const libRedEvidence = () => require('../lib/red-evidence.js');
 const libUsage = () => require('../lib/usage.js');
 
@@ -483,6 +484,14 @@ function run(argv, cwd, stdinJson) {
       if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) fail(`checkout: --root "${root}" is not a directory`);
       const r = libScopeCheckout().scopeCheckout(cwd, root);
       console.log(r.detail ? `${r.verdict} ${r.detail}` : r.verdict);
+      break;
+    }
+    // Reads the ledger's stage and the run lock's mtime and content and writes nothing, no trace line included, so the verb never refreshes the lock it measures (INV-0186, INV-0196).
+    case 'lock': {
+      const root = path.resolve(cwd, libDrivePath().drivePath(takeRoot(args)));
+      if (args.length) fail(`lock: unrecognized argument "${args[0]}"`);
+      if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) fail(`lock: --root "${root}" is not a directory`);
+      libRunLock().verbLock(root);
       break;
     }
     // Reads the ledger, the run trace, git, and a check-status file and writes nothing (INV-0196); `verbRedEvidence` takes `--root` itself.

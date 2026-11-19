@@ -155,16 +155,20 @@ command that reports the guess runs `branch` as well), reads `git worktree list`
 ## The run lock
 
 **`/superdev:implement`'s own entry into an existing run root consults liveness before its first write**, because a second, independent invocation can redispatch onto a scope already
-mid-implementation. `run-init.md`'s entry step reads the ledger's stage (`scope.js get stage`) and the lock's mtime together,
-before `dod.md` is written or the ledger's stage moves:
+mid-implementation. `run-init.md`'s entry step runs `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" lock --root <run-root>`
+before `dod.md` is written or the ledger's stage moves. The verb reads the ledger's stage and the lock, writes nothing (it
+leaves the lock's mtime as it was), and prints one verdict line. The age is whole minutes rounded to the nearest, written `<n>m`:
 
-- **Stage `planned`, any lock age** — `/superdev:plan` cut this and nobody has implemented a slice yet.
+- **`proceed planned`** — stage `planned`, any lock age (a lock that is no regular file refuses at every stage, this one included): `/superdev:plan` cut this and nobody has implemented a slice yet.
   This is the ordinary hand-off, not a collision: proceed, exactly as the rest of this section describes.
-- **Any stage other than `planned`, with a lock under an hour old** — a live implement run (`CONTEXT.md`). Attended:
-  name the lock's age and content and the ledger's stage, and ask whether to continue. Unattended: block,
-  per `## Unattended` below.
-- **A stale (over an hour) or absent lock, at any stage** — proceed, exactly as the rest of this section
+- **`proceed absent`** and **`proceed stale <age>`** — no lock, or a lock an hour old or older, at any other stage: proceed, exactly as the rest of this section
   describes.
+- **`live <age> <stage> <lock content>`** — a lock under an hour old at any other stage, a lock dated in the future
+  included: a live implement run (`CONTEXT.md`). Attended: name the lock's age and content and the ledger's stage, and ask whether to
+  continue. Unattended: block, per `## Unattended` below.
+
+A lock that is no regular file, or that cannot be read, makes the verb refuse with one line naming it; surface that line and stop.
+The verb applies the one-hour bound and the future-date reading `scope.js open` applies.
 
 **This check governs `/superdev:implement`'s own entry alone.** `/superdev:review`,
 `/superdev:document`, `/superdev:submit-pr`, and `/superdev:ship` skip it: each enters at the chain's

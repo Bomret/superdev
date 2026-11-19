@@ -16,12 +16,10 @@ const { mainWorkTree } = require('./main-work-tree.js');
 const { verbInit, verbStep, validateLabel } = require('./ledger-lifecycle.js');
 const { appendTrace } = require('./trace-log.js');
 const { checkRun } = require('./run-check.js');
+const { STALENESS_MS, readLock: readRunLock } = require('./run-lock.js');
 
 // Every outcome that set up nothing exits with this status, apart from the 1 a refusal exits with.
 const STOPPED_EXIT = 3;
-
-// The age past which a run lock is dead.
-const STALENESS_MS = 60 * 60 * 1000;
 
 // The anchor an empty ledger carries until §6 writes the store and the full `init` replaces it.
 const PENDING_ANCHOR = 'pending';
@@ -42,29 +40,6 @@ function parseArgs(args) {
   }
   if (!opts.base) fail('open needs --base <base-ref>');
   return opts;
-}
-
-// The lock's nonce and its age in ms, or null when there is no lock. Anything but a regular file or no file refuses.
-function readLock(lockPath) {
-  let stat;
-  let text;
-  try {
-    stat = fs.lstatSync(lockPath);
-  } catch (e) {
-    if (e.code === 'ENOENT') return null;
-    fail(`open: cannot read the run lock ${lockPath}: ${e.code || e.message}`);
-  }
-  if (!stat.isFile()) {
-    const kind = stat.isDirectory() ? 'a directory (EISDIR)' : stat.isSymbolicLink() ? 'a symbolic link' : 'another file type';
-    fail(`open: the run lock ${lockPath} is ${kind}, not a regular file`);
-  }
-  try {
-    text = fs.readFileSync(lockPath, 'utf8');
-  } catch (e) {
-    fail(`open: cannot read the run lock ${lockPath}: ${e.code || e.message}`);
-  }
-  const m = text.match(/^plan ([0-9a-f]+)\s*$/m);
-  return { nonce: m ? m[1] : null, age: Date.now() - stat.mtimeMs, text: text.trim() };
 }
 
 function realOrSelf(p) {
@@ -178,7 +153,7 @@ function verbOpen(cwd, args) {
 
   // A fresh lock held by another nonce stops the run. On a planned ledger the other session counts as live only
   // while its step stands, the rule /superdev:status applies (ADR 0163): a plan run that finished cleared it.
-  const held = readLock(lockPath);
+  const held = readRunLock(lockPath, 'open');
   if (held && held.age < STALENESS_MS && held.nonce !== lock && (!existing || step !== null)) {
     return report(stop('locked', [`a run lock under an hour old (${Math.round(held.age / 60000)} min) names another session: ${held.text}`]));
   }
