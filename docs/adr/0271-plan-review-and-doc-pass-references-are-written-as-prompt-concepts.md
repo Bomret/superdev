@@ -176,3 +176,11 @@ sits outside `review-checklist.md`'s `## Anti-patterns` and a dead test costs ev
 suite** now names `review-checklist.md`. Removed: the reasons the section sits outside `## Anti-patterns` and a
 file-level finding bounds the report. `## Test gaps` stays the section only `test-gap-auditor` reads. Settled:
 nothing.
+
+**`doc-pass.md`.** Added: a bold label and condition head on each concept; **Reading the `docs` targets** apart from
+the inputs list; the remote backend's parent, parent-link, read, and aggregate rules as concepts with their cases as
+lists; **Read before an `upsert` replaces a page** named in `## Read the knowledge base, never write to it` in place of
+a "below" pointer. Removed: the reasons the content-type lens weighs more on the knowledge base, a stale `Paths:`
+costs only precision, a remote write waits for publish, and a slugged filename and a section filename prevent an
+overwrite, which ADR 0031, ADR 0119, ADR 0219, and ADR 0229 carry. No dispatch lives in this file, so no agent body
+gained a contract. Settled: nothing.
