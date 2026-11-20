@@ -177,13 +177,13 @@ An `accepted:` `docs` line stays exactly as it stands.
 
 A pass in which the writer changed nothing still counts. Each branch above ends in its closer, and the publish follows it.
 
-**The next command.** Applies to every live run. Print the command last, from the first row that matches. Only the **Any other** row on a reviewed scope, the stage written `documented`, starts its command, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The chain start`; this command's **No test command** bar ends at the start, and a started submit-pr leaves this command nothing to print. Every other row prints, `documented-unreviewed` and an ad-hoc run included.
+**The next command.** Applies to every live run. Print the command last, from the first row that matches. The **Any other** row on a reviewed scope, the stage written `documented`, and the `submitted` row on carried consent start their command, per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The chain start`; this command's **No test command** bar ends at the start, and a started submit-pr or ship leaves this command nothing to print. Every other row prints, `documented-unreviewed` and an ad-hoc run included.
 
 | Case | Next block |
 |---|---|
 | An open `docs` line the settle judged stands (never at `shipped` or `closed`) | `Blocked:` naming each such criterion, and `/superdev:document <range>` in the fence; an attended operator may instead accept the line (`accepted:`) |
 | This pass unticked a line, or `get unresolved` printed one | `/superdev:review <range>`, naming the unmet criterion and that review's fix loop (`review-scope-mode.md`'s `### 4.9 The re-tick`) re-ticks it; no `/superdev:submit-pr` |
-| The stage read `submitted` | `/superdev:ship <scope>` |
+| The stage read `submitted` | `/superdev:ship <scope>`. Ask `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" consent --root <run-root>` for the verdict first: `carried` on an attended run starts it; `none` and an unattended run print it |
 | The stage read `shipped` | the command `scope.js route` picks, called as `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Routing a shipped run` states: `/superdev:plan` (its repair choice, with the route's open-repair line for each open repair and `/superdev:verify-ship <scope>` on the `Or:` line), `/superdev:verify-ship <scope>`, or `/superdev:wrap-up <scope>` (re-verify adds `/superdev:plan`'s repair choice on the `Or:` line); `/superdev:verify-ship <scope>` when the anchor cannot be read |
 | The stage read `closed` | no command follows |
 | Any other | `/superdev:submit-pr <scope>`, with one line: it opens the pull request against the scope's current Definition of Done |

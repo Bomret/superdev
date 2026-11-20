@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Start only when the operator typed it, asked for it, or said yes to submit-pr's ship question: merge a superdev scope's pull request, pinned to the tested head, through the host's merge API — apply the repository's deploy posture to the merge, then hand off to `/superdev:verify-ship`, to `/superdev:wrap-up` when nothing is left to verify, or to `/superdev:plan` when a criterion needs a repair, starting verify-ship or wrap-up on those routes. Run it once `/superdev:submit-pr` has opened the pull request and it has been reviewed.
+description: Start only when the operator typed it, asked for it, said yes to submit-pr's ship question, or a clean review or document pass at `submitted` started it under carried consent: merge a superdev scope's pull request, pinned to the tested head, through the host's merge API — apply the repository's deploy posture to the merge, then hand off to `/superdev:verify-ship`, to `/superdev:wrap-up` when nothing is left to verify, or to `/superdev:plan` when a criterion needs a repair, starting verify-ship or wrap-up on those routes. Run it once `/superdev:submit-pr` has opened the pull request and it has been reviewed.
 argument-hint: "[<scope>  (empty = the only run in this repo)]"
 ---
 
@@ -32,10 +32,11 @@ Applies to every start. Start this command only on one of the starts below. The 
 - The operator asked for it.
 - The operator said yes to `/superdev:submit-pr`'s ship question, which started it.
 - Another session's brief asked for it, confirmed by the one yes `## A brief started` asks first.
+- A clean scope review or a document pass on a scope at `submitted` started it where `scope.js consent --root <run-root>` printed `carried`: the latest ship step after the scope's last submit step ended blocked. It takes no `## A brief started` path.
 
 ## No extra question
 
-Applies to a typed start, a start the operator asked for, and the start submit-pr's ship question made on its yes. Ask no extra question: that yes is the merge consent.
+Applies to a typed start, a start the operator asked for, the start submit-pr's ship question made on its yes, and a start under carried consent. Ask no extra question beyond the asks this file names: that yes, or the earlier ship start the carried consent records, is the merge consent.
 
 ## A brief started
 
@@ -48,7 +49,7 @@ A brief is never merge consent.
 
 ## The closing message
 
-Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`.
+Applies to every message this command ends on. Close it per `${CLAUDE_PLUGIN_ROOT}/references/response-shapes.md`'s `## The Next block` and `## The chain start`. Every refusal prints its command and starts nothing, whatever started this run: failed or pending checks, a conflict, a red or denied suite, a numbering collision, the push and draft refusals, and a denied merge call.
 
 ## 1. Scope + run root
 
@@ -118,6 +119,7 @@ Applies to every start past §1. Read the stage and the pull request number with
 - **A listed target the `## Targets` table lacks** → refuse: name it, and merge nothing.
 - **The pull request's diff touches the deployment document** (`git -C <run-root>/scopetree diff <range-base>..<branch> -- docs/agents/deployment.md` finds anything) → print the changed posture and target lines here, before anything merges. Calling ship is the consent to exactly the commands it is about to run.
 - **The pull request's diff changes the `## CI` section** (`git -C <run-root>/scopetree diff <range-base>..<branch> -- docs/agents/verification.md` touches it) → print the named checks before and after the change here, before anything merges.
+- **A start under carried consent, with either print above** → a fix cycle made the change after the consent, so ask once whether to merge with the changed posture, target, or named checks, after the prints and before anything merges. Declined → run `step clear`, stop, merge nothing, and write nothing further.
 
 **The suite gate.** Applies after the deploy gate. It takes the full-suite evidence for the exact head ship merges.
 
@@ -150,7 +152,7 @@ Applies to every start past §1. Read the stage and the pull request number with
 **Entries standing.** Applies after the suite gate. Read every bullet from the `unresolved` field of the `scope.js state` call §2 made: no step before this one writes an unresolved entry.
 
 - **No output** → proceed silently.
-- **Output present** → name every bullet and **ask once** whether to merge with it standing. Declined → run `step block`, stop, merge nothing, and write nothing further. Confirmed → proceed, and record in the report that the scope merged with the defect standing.
+- **Output present** → name every bullet and **ask once** whether to merge with it standing. Declined → run `step clear`, stop, merge nothing, and write nothing further: the decline withdraws the merge consent, so no later review or document pass starts ship on it. Confirmed → proceed, and record in the report that the scope merged with the defect standing.
 
 ## 4. Base moved, then the merge
 
