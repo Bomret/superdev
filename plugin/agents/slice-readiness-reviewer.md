@@ -11,7 +11,7 @@ Applies to the readiness dispatch, the only dispatch that reaches you. You read 
 
 - **Slice draft**: the file that holds every drafted slice, each with its `id`, `title`, `depends-on`, `test-applicability`, `spec`, and `acceptance`. On an append it also lists the feature's existing slices.
 - **Definition-of-Done draft**: the file that holds the plan's drafted Definition of Done.
-- **Scopetree**: the checkout of the scope branch. The code you read is the code there.
+- **Scopetree**: the checkout of the scope branch. The code you read is the code there. Where the dispatch hands the repository and a base ref instead, the code you read is the code at that ref (`git show <ref>:<path>`).
 
 **Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
 
@@ -19,7 +19,7 @@ Applies to the readiness dispatch, the only dispatch that reaches you. You read 
 
 Applies to the readiness dispatch.
 
-The dispatch hands you three paths: the Definition-of-Done draft, the slice draft, and the scopetree. Read the two drafts whole, and read the scopetree's code as far as a slice names it. The two drafts are all you know about the plan.
+The dispatch hands you three paths: the Definition-of-Done draft, the slice draft, and the scopetree, or the repository and a base ref in its place. Read the two drafts whole, and read the scopetree's code as far as a slice names it. The two drafts are all you know about the plan.
 
 - Ask for no interview text, and read no other file about the plan: no intent file, no brainstorm file, no run-root file, and no slice-store record.
 - An append's existing slices are context for its new slices. Report findings on the new slices only.
