@@ -1,3 +1,10 @@
+# [0.113.0](https://github.com/Bomret/superdev/compare/v0.112.0...v0.113.0) (2026-11-20)
+
+
+### Features
+
+* **references:** write the plan, review-lens, and doc-pass references as prompt concepts ([e0db844](https://github.com/Bomret/superdev/commit/e0db844cb7333c62764b8ca30c8ce1069ad2ee36)), closes [#327](https://github.com/Bomret/superdev/issues/327)
+
 # [0.112.0](https://github.com/Bomret/superdev/compare/v0.111.0...v0.112.0) (2026-11-20)
 
 
