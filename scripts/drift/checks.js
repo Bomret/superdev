@@ -24,6 +24,7 @@ const {
   scanUnmappedPathsForms,
   scanHookLedgerParsers,
   scanShellSpawn,
+  scanWorktreeListParsers,
   scanTestSeams,
   scanNoForceMerge,
   scanConflictConclusionNoCommit,
@@ -162,6 +163,12 @@ module.exports = [
     id: 'shell-spawn',
     ok: 'no shipped executable starts a shell by absolute path, starts bash, or uses the default shell',
     run: scanShellSpawn,
+    format: contractGap,
+  },
+  {
+    id: 'worktree-list-one-parser',
+    ok: 'no shipped executable other than lib/git-spawn.js spawns `git worktree list` (INV-0197)',
+    run: scanWorktreeListParsers,
     format: contractGap,
   },
   {

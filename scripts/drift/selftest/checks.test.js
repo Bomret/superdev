@@ -18,6 +18,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'adr-relations',
     'no-second-reader',
     'shell-spawn',
+    'worktree-list-one-parser',
     'test-seams',
     'conflict-conclusion-no-commit',
     'agent-tool-agnostic',

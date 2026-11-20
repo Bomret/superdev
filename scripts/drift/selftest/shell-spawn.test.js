@@ -1,11 +1,27 @@
 'use strict';
 
 // Selftest suite: the scanners over the shipped executables' source text (`scanners/shell-spawn.js`) —
-// hook ledger-header parsers and shell-starting spawn forms. Run by ./index.js.
+// hook ledger-header parsers, shell-starting spawn forms, and `git worktree list` spawns. Run by ./index.js.
 
-const { scanHookLedgerParsers, scanShellSpawn } = require('../scanners');
+const { scanHookLedgerParsers, scanShellSpawn, scanWorktreeListParsers } = require('../scanners');
 
 module.exports = ({ assert, path, fixture }) => {
+  // --- worktree-list-one-parser: only lib/git-spawn.js spawns `git worktree list` (INV-0197) ---
+
+  const listSpawn = "const r = spawnSync('git', ['worktree', 'list', '--porcelain'], { cwd });\n";
+  for (const rel of ['hooks/rogue.js', 'lib/rogue.js', 'scripts/rogue.js']) {
+    const gaps = scanWorktreeListParsers(fixture({ [rel]: listSpawn }));
+    assert.equal(gaps.length, 1, `flags ${rel} spawning git worktree list`);
+    assert.equal(gaps[0].source, path.join(...rel.split('/')), 'names the file');
+  }
+  assert.equal(scanWorktreeListParsers(fixture({ 'lib/git-spawn.js': listSpawn })).length, 0, 'lib/git-spawn.js alone spawns it');
+  assert.equal(
+    scanWorktreeListParsers(fixture({ 'hooks/good.js': "// reads `git worktree list` through listWorktrees\nconst { listWorktrees } = require('../lib/git-spawn.js');\n" })).length,
+    0,
+    'a file naming the listing in a comment and taking listWorktrees is clean',
+  );
+  assert.equal(scanWorktreeListParsers(fixture({ 'README.md': '# repo\n' })).length, 0, 'no executable dir holds nothing to scan');
+
   // --- no-second-reader: no hook carries a ledger-header regex of its own (ADR 0022) ---
 
   for (const [label, src] of [

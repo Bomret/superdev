@@ -1,6 +1,6 @@
 'use strict';
 
-// The scanners over the shipped executables' source text: hook ledger-header parsers and shell-starting spawn forms.
+// The scanners over the shipped executables' source text: hook ledger-header parsers, shell-starting spawn forms, and `git worktree list` spawns.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -104,4 +104,29 @@ function scanShellSpawn(root) {
   return offenders;
 }
 
-module.exports = { scanHookLedgerParsers, scanShellSpawn };
+// INV-0197: `lib/git-spawn.js`'s `listWorktrees` is the one shipped reader of the registered working trees, so no other file
+// under `plugin/hooks/`, `plugin/scripts/`, or `plugin/lib/` spawns `git worktree list`: a second parser could split a newline path.
+const WORKTREE_LIST_SPAWN = /['"`]worktree['"`]\s*,\s*['"`]list['"`]/;
+function scanWorktreeListParsers(root) {
+  const offenders = [];
+  for (const dir of ['hooks', 'scripts', 'lib']) {
+    let names = [];
+    try {
+      names = fs.readdirSync(docPath(root, dir)).filter((f) => /\.m?js$/.test(f) && !f.endsWith('.test.js'));
+    } catch {
+      continue; // no such dir → nothing to scan
+    }
+    for (const name of names) {
+      if (dir === 'lib' && name === 'git-spawn.js') continue; // the module that owns `listWorktrees`
+      if (WORKTREE_LIST_SPAWN.test(stripComments(fs.readFileSync(path.join(docPath(root, dir), name), 'utf8')))) {
+        offenders.push({
+          source: path.join(dir, name),
+          expectation: 'read the working trees through `lib/git-spawn.js`\'s `listWorktrees` — it spawns `git worktree list` itself (INV-0197)',
+        });
+      }
+    }
+  }
+  return offenders;
+}
+
+module.exports = { scanHookLedgerParsers, scanShellSpawn, scanWorktreeListParsers };
