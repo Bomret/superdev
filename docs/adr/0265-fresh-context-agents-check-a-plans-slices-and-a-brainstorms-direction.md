@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0271](0271-plan-review-and-doc-pass-references-are-written-as-prompt-concepts.md)
+
 ## Context
 
 `/superdev:plan` writes every slice's `spec` and `acceptance` in the same conversation that settled the design. The

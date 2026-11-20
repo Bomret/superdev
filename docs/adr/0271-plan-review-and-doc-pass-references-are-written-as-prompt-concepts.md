@@ -4,7 +4,9 @@
 
 **Amends:** [ADR 0270](0270-listed-reference-files-are-written-as-prompt-concepts.md), whose settled rule that a
 `docs` or `mechanical` slice of a `fix` feature skips the diagnosis loop now also places the feature's red-capable
-command on a `behavior` slice.
+command on a `behavior` slice, and
+[ADR 0265](0265-fresh-context-agents-check-a-plans-slices-and-a-brainstorms-direction.md), whose readiness finding for
+a slice that three or more other slices depend on now exempts a `fix` feature's reproduction slice.
 
 ## Context
 
