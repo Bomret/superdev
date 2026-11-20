@@ -1557,3 +1557,13 @@ Statement: A read-only grading or decision verb prints a verdict, or the filtere
 Breaks: silently
 Check: none — the property is a reading of output meaning; each verb's suite pins its verdict lines
 Paths: plugin/scripts/scope.js
+
+### INV-0197
+
+Class: correctness
+Concepts: Slicetree, Scopetree, Prepare command, Guardrail
+Statement: Every shipped reader of a repository's registered working trees takes them from `listWorktrees`, which reads `git worktree list --porcelain -z` and keeps a working-tree path holding a newline whole. No other shipped hook or module spawns `git worktree list` and parses its text.
+Breaks: silently
+Check: scripts/drift-check.js `worktree-list-one-parser` — no file under `plugin/` other than `plugin/lib/git-spawn.js` spawns `'worktree', 'list'`
+Symbols: listWorktrees
+Paths: plugin/lib/git-spawn.js, plugin/hooks/slicetree-sweep.js, plugin/lib/prepare.js, plugin/lib/scope-checkout.js, plugin/lib/plan-open.js
