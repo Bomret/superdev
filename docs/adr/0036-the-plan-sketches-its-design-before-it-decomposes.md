@@ -1,8 +1,11 @@
 # 0036: The plan sketches its design before it decomposes
 
-**Status:** Accepted
+**Status:** Superseded
 
 **Supersedes:** [ADR 0009](0009-plan-visuals-are-markdown.md).
+
+**Superseded by:** [ADR 0266](0266-the-design-sketch-draws-the-design-and-states-why.md), which keeps the
+sketch's place and wait, and adds diagrams drawn by a pinned Mermaid and the reasoning behind the design.
 
 ## Context
 
