@@ -1557,3 +1557,12 @@ Statement: A read-only grading or decision verb prints a verdict, or the filtere
 Breaks: silently
 Check: none — the property is a reading of output meaning; each verb's suite pins its verdict lines
 Paths: plugin/scripts/scope.js
+
+### INV-0197
+
+Class: architecture
+Concepts: Slice readiness check, Intent challenge
+Statement: A slice readiness check or an intent challenge whose dispatch ends without a result, after its one retry, reads as `not run` with its reason, never as a check that found nothing, and the controller that dispatched it never applies its lens itself (ADR 0264).
+Breaks: silently
+Check: none — the rule is prompt prose, and no drift check asserts how a positive clause is worded (ADR 0153); review reads the plan and brainstorm prose beside the two agent bodies
+Paths: plugin/skills/plan/SKILL.md, plugin/skills/brainstorm/SKILL.md, plugin/agents/slice-readiness-reviewer.md, plugin/agents/intent-challenger.md
