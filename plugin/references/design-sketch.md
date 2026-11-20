@@ -45,7 +45,7 @@ plain, so the reader sees where the change attaches. Leave out components neithe
 
 - **Before** draws the system as the grounding read it. Components the plan deletes appear here, marked deleted.
 - **After** draws the system the plan leaves. Added components appear here, marked added. Changed components appear
-  in both, marked changed in the after diagram.
+  in both, marked changed in both diagrams, so a plain node in either diagram is always an untouched neighbour.
 - **Each edge is labelled with its verb**, read from the component that starts the interaction: `reads`, `writes`,
   `calls`, `dispatches`, `subscribes to` are examples of the shape, not a closed list.
 - **A plan that only adds components** draws the after diagram alone, full width, with its neighbours. A plan that
@@ -56,7 +56,7 @@ plain, so the reader sees where the change attaches. Leave out components neithe
 | Pattern | Use it when | How |
 |---|---|---|
 | Mermaid flowchart | the change is in who talks to whom: a new edge, a removed hop, a rerouted call | `flowchart TB`, `classDef` for added, changed, deleted |
-| Mermaid sequence diagram | the change is in order or count of calls: "before 4 round trips, after 1" | `sequenceDiagram` |
+| Mermaid sequence diagram | the change is in order or count of calls: "before 4 round trips, after 1" | `sequenceDiagram`; it takes no `classDef`, so wrap the added, changed, or deleted messages in `rect rgb(236,253,245)`, `rect rgb(255,251,235)`, or `rect rgb(254,242,242)`, the flowchart classes' fills |
 | Cross-section | a call passes through layers, and the plan adds, removes, or merges layers | stacked bands, one per layer, labelled with its responsibility |
 | Collapse | several components merge into one, or one splits into several | the merged component as one thick box, its former parts faded inside it |
 
@@ -132,8 +132,8 @@ shape of the page and the stylesheet alone.
 <title>Design sketch — {{feature label}}</title>
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@12.3.0/dist/mermaid.esm.min.mjs";
-  mermaid.initialize({ startOnLoad: true, theme: "base", securityLevel: "strict",
-                       flowchart: { curve: "basis", htmlLabels: false },
+  mermaid.initialize({ startOnLoad: true, theme: "base", securityLevel: "strict", htmlLabels: false,
+                       flowchart: { curve: "basis" },
                        themeVariables: { fontFamily: "ui-sans-serif,-apple-system,sans-serif", fontSize: "13px",
                                          primaryColor: "#f8fafc", primaryBorderColor: "#cbd5e1",
                                          lineColor: "#94a3b8", edgeLabelBackground: "#ffffff" } });
@@ -199,10 +199,10 @@ shape of the page and the stylesheet alone.
   <h1>{{feature label}}</h1>
   <p class="sub">Design sketch · /superdev:plan · {{YYYY-MM-DD}}</p>
   <div class="legend">
-    <span><i class="dot" style="background:#059669"></i> added</span>
-    <span><i class="dot" style="background:#d97706"></i> changed</span>
-    <span><i class="dot" style="background:#dc2626"></i> deleted</span>
-    <span><i class="dot" style="background:#e2e8f0"></i> untouched neighbour</span>
+    <span><i class="dot" style="background:var(--add)"></i> added</span>
+    <span><i class="dot" style="background:var(--chg)"></i> changed</span>
+    <span><i class="dot" style="background:var(--del)"></i> deleted</span>
+    <span><i class="dot" style="background:#f8fafc;border:1px solid #cbd5e1"></i> untouched neighbour</span>
     <span>edge label = what the source does to the target</span>
   </div>
 
@@ -222,6 +222,7 @@ flowchart TB
   B -->|{{verb}}| C[{{Component}}]
   classDef del fill:#fef2f2,stroke:#dc2626,stroke-width:2px;
   classDef chg fill:#fffbeb,stroke:#d97706,stroke-width:2px;
+  class B chg
   class C del
       </pre>
     </figure>
@@ -300,7 +301,9 @@ flowchart TB
 ```
 
 Write each Mermaid block's source flush left, because Mermaid reads its indentation. Give each node a short id and its
-component name as the label. Quote a label that holds punctuation: `A["scope.js dod-line"]`.
+component name as the label. Quote a label that holds punctuation: `A["scope.js dod-line"]`. Mermaid reads the
+block's HTML, so write `<`, `>`, and `&` inside a Mermaid block as `&lt;`, `&gt;`, and `&amp;`:
+`A["Map&lt;K,V&gt;"]` keeps its type parameters.
 
 **Drop a whole section whose list is empty** — a plan with no decision worth a card carries no `Decisions` heading.
 Order the component cards added, then changed, then deleted.

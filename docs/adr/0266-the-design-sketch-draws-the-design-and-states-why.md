@@ -53,11 +53,17 @@ fallback is rare and still legible.
   carries a multi-megabyte library, and superdev ships no renderer.
 - **Tailwind from a CDN, as the reference report does.** Lost because the inline stylesheet already gives the look,
   and a second script adds a network dependency for no drawing gain.
+- **The single-file UMD build `mermaid.min.js` with an `integrity` attribute.** One file, so Subresource Integrity
+  covers all the code the page runs. Lost because that build bundles every diagram type into one large download,
+  and the sketch is a throwaway page on the operator's own machine, opened in a local browser with no credentials
+  at stake.
 - **An unpinned Mermaid major.** Lost because a new release could change how the same source renders between two
   revisions of one sketch.
 
 ## Consequences
 
 The sketch needs the network the first time it is opened, and a jsDelivr outage shows diagram source instead of a
-drawing. Raising the pinned version is a prose edit to `references/design-sketch.md`. INV-0054's self-contained
+drawing. The page trusts jsDelivr with no integrity check: the ESM entry imports its diagram chunks dynamically, so
+a Subresource Integrity attribute on the one `<script>` cannot cover the code it loads. The exact version pin is the
+only guard. Raising the pinned version is a prose edit to `references/design-sketch.md`. INV-0054's self-contained
 clause now reads as one pinned script and inline CSS.
