@@ -245,6 +245,27 @@ const { findCollisions } = require(scopePath);
   assert.equal(res.status, 2, 'a flag where a value belongs → exit 2');
   assert.match(res.stderr, /--base needs a value/, 'naming --base');
 
+  // The same collisions with the same repo-relative paths from the top level and from any subdirectory; a directory
+  // with no checkout top level (inside `.git/`) refuses with exit 2, never a clean exit 0.
+  const fromDir = (dir) =>
+    require('node:child_process').spawnSync(process.execPath, [scopePath, 'collisions', '--base', 'main', '--branch', 'scope', '--range-base', fork], {
+      cwd: dir,
+      encoding: 'utf8',
+      timeout: 30000,
+    });
+  fs.mkdirSync(path.join(repo, 'sub'), { recursive: true });
+  const top = fromDir(repo);
+  assertSpawnDecided(top, 'collisions CLI, top level');
+  for (const dir of ['docs', 'sub']) {
+    res = fromDir(path.join(repo, dir));
+    assertSpawnDecided(res, `collisions CLI, from ${dir}`);
+    assert.equal(res.status, 1, `run from ${dir} → exit 1`);
+    assert.equal(res.stdout, top.stdout, `run from ${dir} prints what the top level prints`);
+  }
+  res = fromDir(path.join(repo, '.git'));
+  assertSpawnDecided(res, 'collisions CLI, inside .git');
+  assert.equal(res.status, 2, 'no checkout top level → exit 2');
+
   // A repository with no ADR directory and no invariant register has nothing to compare.
   const bare = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-collisions-bare-')));
   g(['init', '-q', '-b', 'main'], bare);

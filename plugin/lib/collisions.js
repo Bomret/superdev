@@ -4,6 +4,7 @@
 
 const path = require('path');
 const { gitSpawn, refResolves } = require('./git-spawn.js');
+const { drivePath } = require('./drive-path.js');
 
 // An ADR number, in one `docs/adr` directory, or an invariant id in `docs/invariants.md`, that the
 // branch added since `rangeBase` (a file renamed into the number counts as added) and that `base`
@@ -55,7 +56,17 @@ function registerEntries(ref, cwd) {
   return entries;
 }
 
-function findCollisions(cwd, { base, branch, rangeBase, also = [] }) {
+// The checkout's top level, so the tree reads and the `docs/adr` pathspecs see the whole tree from any directory;
+// a directory with no top level (inside `.git/`) refuses.
+function checkoutTop(cwd) {
+  const top = gitSpawn(['rev-parse', '--show-toplevel'], cwd);
+  const root = top.status === 0 ? drivePath(top.stdout.trim()) : '';
+  if (!root) throw collisionRefusal('collisions: no checkout top level here');
+  return root;
+}
+
+function findCollisions(dir, { base, branch, rangeBase, also = [] }) {
+  const cwd = checkoutTop(dir);
   for (const ref of [base, branch, rangeBase, ...also]) {
     if (!refResolves(ref, cwd)) throw collisionRefusal(`collisions: "${ref}" resolves to no commit`);
   }
