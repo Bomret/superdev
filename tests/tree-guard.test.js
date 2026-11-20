@@ -8,8 +8,11 @@
 // call outlasted that bound, `decide` passed the write, and a denial assertion read the pass as a missing denial. The suite wraps
 // `child_process.spawnSync` before it loads the hook and records, per git call, whether the bound (or a signal) ended it. A
 // decision holding such a call carries no verdict and `measure` runs it again, up to `ATTEMPTS` times; a decision with no killed
-// call is final and asserted as it stands. Every in-process denial assertion goes through it.
-// Reproduction: the case "a git shim holds one designated call past the bound before it does anything" (the `hold-shim` block)
+// call is final and asserted as it stands. Every in-process denial assertion goes through it. A hook run as a child process cannot be
+// wrapped in-process, so a preload under `tests/` (`spawn-kill-record.js`, via `NODE_OPTIONS`) records each killed git call to a file in
+// the suite's temporary directory, and every child-process denial assertion (the registered-hooks checks and the hook-process
+// control) measures a child that left a record again, the same way. The fail-open cases assert the pass a kill produces.
+// Reproductions: the case "the reproduction for the child process" holds the hook child's first git call past the bound; the case "a git shim holds one designated call past the bound before it does anything" (the `hold-shim` block)
 // deterministically produces the killed-before-first-line call; the base suite's start/end bookkeeping took it for a verdict.
 
 require('./fixture-git');
@@ -62,19 +65,36 @@ const implementerWrite = (file, cwd) => ({
   tool_input: { file_path: file, content: 'x' },
 });
 
+// Runs a hook child process, then reads the kill record the preload (`tests/spawn-kill-record.js`) wrote for it. A child whose git
+// call the bound killed fails open and exits 0, which carries no verdict (INV-0009): it is run again, up to `ATTEMPTS` times, and
+// fails "no verdict" when every attempt holds a kill. The record lives in the suite's own temporary directory. Forward slashes keep
+// the `--require` path intact through `NODE_OPTIONS` on Windows.
+const ATTEMPTS = 5;
+const preload = path.join(__dirname, 'spawn-kill-record.js').replace(/\\/g, '/');
+let childRuns = 0;
+function measureChild(label, spawn) {
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+    const killFile = path.join(fx.base, `kills-${childRuns++}`);
+    const nodeOptions = `${process.env.NODE_OPTIONS ? process.env.NODE_OPTIONS + ' ' : ''}--require "${preload}"`;
+    const r = spawn({ NODE_OPTIONS: nodeOptions, SPAWN_KILL_FILE: killFile });
+    assertSpawnDecided(r, label);
+    if (!fs.existsSync(killFile)) return r;
+  }
+  return assert.fail(`${label}: a git call the hook's bound killed in each of ${ATTEMPTS} attempts: no verdict`);
+}
+
 // Runs every PreToolUse hook hooks.json registers for `tool`, the way Claude Code would, and reports whether any denied the call.
-function registeredHooksDeny(tool, input) {
+function registeredHooksDeny(tool, input, extraEnv) {
   let denied = false;
   for (const group of hooksJson.hooks.PreToolUse) {
     if (!new RegExp(`^(?:${group.matcher})$`).test(tool)) continue;
     for (const h of group.hooks) {
-      const r = cp.spawnSync('sh', ['-c', h.command], {
+      const r = measureChild(h.command, (env) => cp.spawnSync('sh', ['-c', h.command], {
         input: JSON.stringify(input),
         encoding: 'utf8',
         timeout: 30000,
-        env: { ...process.env, CLAUDE_PLUGIN_ROOT: pluginRoot },
-      });
-      assertSpawnDecided(r, h.command);
+        env: { ...process.env, ...extraEnv, ...env, CLAUDE_PLUGIN_ROOT: pluginRoot },
+      }));
       if (r.status === 2) denied = true;
     }
   }
@@ -98,6 +118,19 @@ assert.equal(
 );
 assert.equal(registeredHooksDeny('Edit', { ...implementerWrite(path.join(fx.main, 'a.txt'), fx.main), tool_name: 'Edit' }), true, 'an implementer Edit into the main checkout is denied by the registered hooks');
 
+// The reproduction for the child process: a git shim holds the hook's first git call past its bound, so the child fails open and
+// exits 0 although the write is denied. That reads as no verdict, and the registered-hooks check measures it again.
+{
+  const realGit = cp.execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
+  const shim = path.join(fx.base, 'child-hold-shim');
+  const flag = path.join(fx.base, 'child-hold-flag');
+  fs.mkdirSync(shim);
+  fs.writeFileSync(path.join(shim, 'git'), `#!/bin/sh\nif mkdir '${flag}' 2>/dev/null; then exec sleep 30; fi\nexec '${realGit}' "$@"\n`, { mode: 0o755 });
+  const denied = registeredHooksDeny('Write', implementerWrite(path.join(fx.main, 'a.txt'), fx.main), { PATH: `${shim}${path.delimiter}${process.env.PATH}` });
+  assert.ok(fs.existsSync(flag), 'the shim held the hook child\'s first git call');
+  assert.equal(denied, true, 'a hook child whose first git call the bound killed is measured again and denies the write');
+}
+
 // The hook and its git helper destructure `spawnSync` when they load, so the wrapper goes in before the require.
 const gitCalls = [];
 const realSpawnSync = cp.spawnSync;
@@ -110,7 +143,6 @@ const { decide } = require(path.join(pluginRoot, 'hooks', 'tree-guard.js'));
 
 // The bound kill, observed where it happens: every git call `decide` makes, in order, with whether the bound (or any signal) ended it.
 // A decision holding a killed call carries no verdict, so `measure` runs it again. A decision with no killed call is final.
-const ATTEMPTS = 5;
 function measure(input) {
   for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
     gitCalls.length = 0;
@@ -251,7 +283,7 @@ for (const target of [path.join(fx.main, 'a.txt'), path.join(fx.main, '.git', 'c
       fs.rmSync(flag, { recursive: true, force: true });
       const held = measure(implementerWrite(target, fx.main));
       assert.equal(held.r.block, true, `a decision whose first git call was held past the bound is measured again and denies ${target}`);
-      assert.equal(held.attempts, 2, `the held call made the first attempt carry no verdict for ${target}`);
+      assert.ok(fs.existsSync(flag) && held.attempts >= 2, `the held call made an earlier attempt carry no verdict for ${target}`);
     }
   } finally {
     process.env.PATH = savedPath;
@@ -266,8 +298,10 @@ for (const target of [path.join(fx.main, 'a.txt'), path.join(fx.main, '.git', 'c
     assertSpawnDecided(r, 'tree-guard');
     return r.status;
   };
+  // A denial the child process asserts goes through the kill record; the fail-open cases below keep `run`.
+  const runMeasured = (hookPath, input) => measureChild('tree-guard', (env) => cp.spawnSync(process.execPath, [hookPath], { input, encoding: 'utf8', timeout: 30000, env: { ...process.env, ...env } })).status;
   const write = JSON.stringify(implementerWrite(path.join(fx.main, 'a.txt'), fx.main));
-  assert.equal(run(hook, write), 2, 'control: the hook process denies an implementer write into the main checkout');
+  assert.equal(runMeasured(hook, write), 2, 'control: the hook process denies an implementer write into the main checkout');
   assert.equal(run(hook, '{not json'), 0, 'unreadable hook input passes');
 
   // A git call past its bound carries no verdict (INV-0009).
