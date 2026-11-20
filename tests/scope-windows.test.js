@@ -96,8 +96,8 @@ const L = [
   ], 'a stopped end, a missing end, and an end with no outcome each close at the next boundary, and an older dispatch line with no session field reads');
 }
 
-// #readers: a resume of a plan-time or brainstorm-time reader ends no run, where a slice-reviewer's resume at the same place
-// does: neither reader is a reviewer whose resume bounds a window.
+// #readers: a resume or a fresh dispatch of a plan-time or brainstorm-time reader ends no run, where a slice-reviewer's
+// resume or dispatch at the same place does: neither reader bounds a window.
 {
   const lines = (reader) => [
     `${t(1)} 02 main dispatch ${reader} x1 read -`,
@@ -114,6 +114,19 @@ const L = [
   assert.strictEqual(windows('superdev:slice-reviewer'), `tu1 01 ${t(3)} ${t(5)}`, 'control: a reviewer resume ends the run');
   for (const reader of ['superdev:slice-readiness-reviewer', 'superdev:intent-challenger']) {
     assert.strictEqual(windows(reader), `tu1 01 ${t(3)} open`, `a ${reader} resume ends no run`);
+  }
+  const fresh = (reader) => {
+    const r = call(['windows', '--slice', '01', '--root', runOf(`readers-fresh-${reader.replace(':', '-')}`, [
+      `${t(1)} 01 main dispatch superdev:implementer tu1 build -`,
+      `${t(2)} 01 main dispatch-end superdev:implementer tu1 completed`,
+      `${t(3)} 01 main dispatch ${reader} x1 read -`,
+    ])]);
+    assert.ok(r.ok, r.err);
+    return r.out;
+  };
+  assert.strictEqual(fresh('superdev:slice-reviewer'), `tu1 01 ${t(1)} ${t(3)}`, 'control: a reviewer dispatch ends the run');
+  for (const reader of ['superdev:slice-readiness-reviewer', 'superdev:intent-challenger', 'slice-readiness-reviewer', 'intent-challenger']) {
+    assert.strictEqual(fresh(reader), `tu1 01 ${t(1)} open`, `a fresh ${reader} dispatch ends no run`);
   }
 }
 
