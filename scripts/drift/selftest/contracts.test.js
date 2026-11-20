@@ -37,6 +37,23 @@ module.exports = ({ assert, path, fixture, found }) => {
 
   // --- source-sections: each canonical reference still carries the sections its readers are sent to ---
 
+  // every `##` heading of controlled-prose.md, in its order: one list feeds the fixture and its removal rows
+  const controlledProseHeadings = [
+    'Scope',
+    'Modes',
+    'Words',
+    'Verbs',
+    'Sentences',
+    'Definitions',
+    'Procedures (strict mode)',
+    'Descriptive text (relaxed mode)',
+    'Safety and error text (strict mode)',
+    'Headings, lists, tables, and references',
+    'Punctuation',
+    'How to count words',
+    'Declare per language',
+    'Self-check',
+  ];
   const sourceSectionBodies = {
     'references/plan-contract.md':
       '# Plan contract\n\n## Fields\n\n' +
@@ -47,10 +64,11 @@ module.exports = ({ assert, path, fixture, found }) => {
     'references/store-records.md': '# Store records\n\n## Triage record\n\n## Intent record\n',
     'references/test-selection.md': '# Test selection\n\n## The two commands\n\n## Fallback to the full command\n',
     'references/content-types.md': '# Content types\n\n## The four types\n\n## The conceptual layer\n',
-    'references/controlled-prose.md': '# Controlled prose\n\n## Modes\n\n## Self-check\n',
+    'references/controlled-prose.md': `# Controlled prose\n\n${controlledProseHeadings.map((h) => `## ${h}\n`).join('\n')}`,
     'references/review-checklist.md': '# Review checklist\n\n## Anti-patterns\n\n## Vulnerability classes\n',
     'references/review-design-lenses.md': '# Review design lenses\n\n## Reuse audit\n\n## Consistency\n',
     'references/prompt-concept-overlap.md': '# Prompt-concept overlap\n\n## Prompt-concept overlap\n',
+    'references/prompt-prose-form.md': '# Prompt-prose form\n\n## Prompt-prose form\n',
     'references/scope-branch.md': '# Scope branch work\n\n## Pushing the scope branch\n',
     // the real body carries the output sections inside its fenced template
     'agents/final-reviewer.md':
@@ -79,13 +97,13 @@ module.exports = ({ assert, path, fixture, found }) => {
     ['references/test-selection.md', '## Fallback to the full command\n'],
     ['references/content-types.md', '## The four types\n\n'],
     ['references/content-types.md', '## The conceptual layer\n'],
-    ['references/controlled-prose.md', '## Modes\n\n'],
-    ['references/controlled-prose.md', '## Self-check\n'],
+    ...controlledProseHeadings.map((h) => ['references/controlled-prose.md', `## ${h}\n`]),
     ['references/review-checklist.md', '## Anti-patterns\n\n'],
     ['references/review-checklist.md', '## Vulnerability classes\n'],
     ['references/review-design-lenses.md', '## Reuse audit\n\n'],
     ['references/review-design-lenses.md', '## Consistency\n'],
     ['references/prompt-concept-overlap.md', '## Prompt-concept overlap\n'],
+    ['references/prompt-prose-form.md', '## Prompt-prose form\n'],
     ['references/scope-branch.md', '## Pushing the scope branch\n'],
     ['agents/final-reviewer.md', '### Judge every criterion\n\n'],
     ['agents/final-reviewer.md', '### Criteria\n\n'],
@@ -95,12 +113,29 @@ module.exports = ({ assert, path, fixture, found }) => {
     ['agents/implementer.md', '## Documentation\n'],
     ['agents/doc-reader.md', '## Pass 1: cold read\n'],
   ];
-  assert.equal(pinnedHeadings.length, SOURCE_SECTION_CONTRACTS.length, 'every row in the table has a negative fixture');
+  // the exact-set row of controlled-prose.md fails on an added heading, never on a dropped one
+  const addedHeadings = [['references/controlled-prose.md', '## Foo\n']];
+  assert.equal(pinnedHeadings.length + addedHeadings.length, SOURCE_SECTION_CONTRACTS.length, 'every row in the table has a negative fixture');
   for (const [rel, heading] of pinnedHeadings) {
     const gaps = scanContract(fixture({ ...sourceSectionBodies, [rel]: sourceSectionBodies[rel].replace(heading, '') }), SOURCE_SECTION_CONTRACTS);
     assert.equal(gaps.length, 1, `dropping \`${heading.trim()}\` flags exactly one gap`);
     assert.equal(gaps[0].source, rel, `the gap names ${rel}`);
   }
+  for (const [rel, heading] of addedHeadings) {
+    const gaps = scanContract(fixture({ ...sourceSectionBodies, [rel]: `${sourceSectionBodies[rel]}\n${heading}` }), SOURCE_SECTION_CONTRACTS);
+    assert.equal(gaps.length, 1, `adding \`${heading.trim()}\` flags exactly one gap`);
+    assert.equal(gaps[0].source, rel, `the gap names ${rel}`);
+  }
+  assert.equal(
+    scanContract(fixture({ ...sourceSectionBodies, 'references/controlled-prose.md': `${sourceSectionBodies['references/controlled-prose.md']}\n### Foo\n` }), SOURCE_SECTION_CONTRACTS).length,
+    0,
+    'an added `###` heading under a pinned section stays clean',
+  );
+  assert.equal(
+    scanContract(fixture({ ...sourceSectionBodies, 'references/controlled-prose.md': sourceSectionBodies['references/controlled-prose.md'].replace(/\n/g, '\r\n') }), SOURCE_SECTION_CONTRACTS).length,
+    0,
+    'a CRLF controlled-prose.md with every pinned heading stays clean',
+  );
   assert.equal(
     scanContract(fixture({ ...sourceSectionBodies, 'references/test-selection.md': '# Test selection\n' }), SOURCE_SECTION_CONTRACTS).length,
     2,
