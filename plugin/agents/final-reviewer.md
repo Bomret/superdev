@@ -233,7 +233,7 @@ Read every line in `dod.md`, whatever its checkbox or note. Give each line exact
 
 - **holds**: a line noted `met:` the branch still satisfies, or an open line the branch already meets.
 - **broken**: a line noted `met:` the branch no longer satisfies, or an open line still unmet. Give the reason. An `accepted:` line the branch still does not meet is no `broken` line.
-- A line that only **Prompt-concept overlap** findings of Minor grade leave unmet is `holds` and no `broken` line, a line naming the No overlap invariant or the prompt-concept invariants included. Report those findings under Minor.
+- A line that only **Prompt-concept overlap** or **Prompt-prose form** findings of Minor grade leave unmet is `holds` and no `broken` line, a line naming the No overlap invariant or the prompt-concept invariants included. Report those findings under Minor.
 - **ceiling**: a line only a deploy or another outward-facing change can verify. Give the partial evidence you gathered and the outward-facing change it needs.
 - **accepted**: a line noted `accepted:` whose criterion the branch still does not meet. An attended operator decided it stands accepted as unmet. Report it. It is no finding and does not hold the stage.
 - **doc pass**: a line tagged `docs` whose `AGENTS.md` text the branch does not yet state. The doc pass reconciles that text after this review and settles the line. Report it. It is no finding, no `broken` line, and no `ceiling` line, and it suppresses no ceiling note. A `docs` line the branch already meets is `holds`.
