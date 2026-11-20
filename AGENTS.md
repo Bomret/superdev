@@ -474,15 +474,12 @@ This root owns every other subtree directly:
   `.superdev/brainstorm/` file only where the record cannot be written whole. `/superdev:plan` offers the
   open records on any checkout and closes the one it planned from, or keeps it open with a comment naming
   what it planned (ADR 0199, INV-0178).
-  Two read-only agents read a text with none of the conversation that wrote it, and each opens with a
-  paraphrase of it (ADR 0264). `/superdev:plan` dispatches `slice-readiness-reviewer` before it shows the
-  breakdown, on every plan kind and size. It reads the drafted slices and Definition of Done as their
-  implementer and reports an open decision that changes what a slice's acceptance observes or what another
-  slice or a consumer relies on. It also reports a named interface or file the code contradicts, an acceptance
-  line two readers would verify differently, and a slice three or more others depend on directly. Plan settles
-  every finding before the approval. `/superdev:brainstorm` dispatches `intent-challenger` at §4 on the
-  chosen direction, which reports false compromises and migration or rollback hazards. A dispatch of either
-  with no result after one retry reads `not run`, and the controller applies no lens itself (INV-0197).
+  `/superdev:plan` dispatches `slice-readiness-reviewer` before it shows the breakdown, which checks the drafted
+  slices for open decisions, contradicted names, ambiguous acceptance, and split candidates.
+  `/superdev:brainstorm` dispatches `intent-challenger` at §4, which checks the chosen direction for false
+  compromises and migration or rollback hazards. A dispatch of either with no result after one retry reads
+  `not run`, and the controller applies no lens itself (INV-0197). [`CONTEXT.md`](CONTEXT.md) → *Slice
+  readiness check* and *Intent challenge*, and ADR 0264, state the rest.
 - `plugin/hooks/`. Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working
   rules, Hooks are CommonJS** and **Every shipped executable has a suite in `tests/`, named for it**.
   This is the strongest future child-doc candidate, if its rules outgrow this root. Of the

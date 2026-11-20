@@ -42,7 +42,7 @@ Report each hazard to existing data, to an existing consumer, or to a rollback m
 
 Applies to every return you make.
 
-Your return opens with the paraphrase, then gives each lens its own heading. Each finding is one line. A return without `### Paraphrase` is no result, so write it on every return.
+After the paraphrase, give each lens its own heading. Each finding is one line. A return without `### Paraphrase` is no result, so write it on every return.
 
 ```
 ### Paraphrase

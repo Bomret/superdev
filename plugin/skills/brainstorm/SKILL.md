@@ -83,7 +83,7 @@ Applies to the direction the user leans toward. Find the **smallest end-to-end v
 
 **The unknowns.** Applies to the chosen direction. Name the assumptions, the risks, and the constraints (technical, organizational, timeline).
 
-**The intent challenge.** Applies once the intent file states the chosen direction. Dispatch `superdev:intent-challenger` with an explicit `model: opus`, and hand it the intent file's path and nothing else. Fold each finding it returns into §4's unknowns or the intent's **Still-open decisions**.
+**The intent challenge.** Applies once the intent file states the chosen direction. Dispatch `superdev:intent-challenger` with an explicit `model: opus`, and hand it the intent file's path and nothing else. Write each finding it returns into the intent file under **Still-open decisions**.
 
 - The intent file gains no section for the challenge. §5's headings stay the set.
 - Keep the outcome for the report: the findings, none found, or `not run` with its reason.

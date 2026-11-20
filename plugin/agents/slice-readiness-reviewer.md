@@ -50,7 +50,7 @@ Report each of these three as well.
 
 Applies to every return you make.
 
-Your return opens with the paraphrase and then lists every finding. Each finding names the slice and the line, the defect, and the reason. Give no severity, because the plan settles every finding.
+After the paraphrase, list every finding. Each finding names the slice and the line, the defect, and the reason. Give no severity, because the plan settles every finding.
 
 ```
 ### Paraphrase

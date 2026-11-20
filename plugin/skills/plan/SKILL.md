@@ -169,7 +169,7 @@ The `not-contained`, `dirty`, and `held` stops write nothing.
 1. `git worktree remove <run-root>/scopetree`.
 2. `git branch -D <old-type>/<old-slug>`.
 3. `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" discard --root <old-run-root>`, which removes its ledger, run trace, and lock, and the run root when that leaves it empty.
-4. Delete `.superdev/dod-draft-<old-slug>.md` if the derive pass wrote one, and `.superdev/slice-draft-<old-slug>.md` if the readiness check wrote one.
+4. Delete `.superdev/dod-draft-<old-slug>.md` if the derive pass wrote one, and `.superdev/slice-draft-<old-slug>.md` if this plan wrote one.
 
 A triage record already written is amended instead, through the store's own `## Triage record` section (best-effort), so its provenance names the revised label and branch.
 
@@ -214,7 +214,7 @@ A triage record already written is amended instead, through the store's own `## 
 - On an append, the draft is the amended Definition of Done, and the slice draft also lists the feature's existing slices.
 - With no run open yet, no scopetree exists: hand the repository's path and `<base>` in its place, because the scope branch is cut from `<base>`.
 
-**Settling readiness findings.** Applies to every finding the readiness check returns. Settle it by editing the slice text. A finding that is a real open design decision becomes one interview question under `references/cross-exam.md`'s rules, and under `--unattended` that question is an unattended block.
+**Settling readiness findings.** Applies to every finding the readiness check returns. Settle it by editing the slice text, or reject it. A finding that is a real open design decision becomes one interview question under `references/cross-exam.md`'s rules, and under `--unattended` that question is an unattended block. A finding the repository shows wrong, such as a contradicted name the code shows right, is rejected with a reason drawn from the repository, and the breakdown shows it as `rejected: <reason>`, with no slice edit.
 
 **A changed slice set.** Applies when a slice is split, merged, added, or dropped, or its `depends-on` changes, after the readiness check read the slices. Rewrite the slice draft and run the readiness check again before the approval. An edit to a slice's text alone runs no new check.
 
