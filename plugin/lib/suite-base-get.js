@@ -150,7 +150,7 @@ const redRefusal = (why) => `suite record is red, not green (${why}) — not reu
 // can change what a suite run exercises. The exceptions are a Markdown-only range (ADR 0128) and, under the complete-selector
 // declaration, a range a focused run covered (ADR 0175): see `carryRefusal`. A red record at the tip, or at an
 // ancestor of it followed by Markdown-only commits, is the rerun's (ADR 0172, ADR 0189): see `reusableOnRerun`. Reads via `fail()` (a thrown refusal, exit 1) for "not reusable" — the same channel
-// every other verb already uses to report a no — and prints `reusable` (exit 0) when it is.
+// every other verb already uses to report a no — and prints `reusable` (exit 0) when it is. Returns whether it wrote the `Suite` header, so the caller traces the write.
 // `whole` is INV-0017's kind gate (ADR 0105): a step that needs a whole-repo run passes it, and refuses
 // a record with no kind even when it is green and tip-matched; a step content with either kind omits it.
 function verbSuiteReusable(cwd, root, branch, whole, base) {
@@ -168,7 +168,7 @@ function verbSuiteReusable(cwd, root, branch, whole, base) {
       const value = `green @ ${exactTip}${passedAtTip(events, exactTip, true) ? ' whole' : ''}`;
       if (raw !== value) upsertHeader(root, 'Suite', value);
       console.log('reusable');
-      return;
+      return raw !== value;
     }
   }
   if (!raw) fail('no suite record to reuse');

@@ -159,7 +159,7 @@ function takeRoot(args) {
   return root;
 }
 
-// The run root a verb writes to, or null for a verb that only reads (`get`, `state`, `publish`, `trace`, `windows`, `status`, `suite reusable`,
+// The run root a verb writes to, or null for a verb that only reads (`get`, `state`, `publish`, `trace`, `windows`, `status`,
 // `base resolve`, `deploy get`) or writes no run file (`discard`, `push`, `run-state delete`). `init` and `open` find their
 // root themselves: `init` checks it in `lib/ledger-lifecycle.js`'s `verbInit`, and `open` in `lib/plan-open.js`'s `verbOpen`, once for every path it takes; `test` and `fail-to-pass` check it in their own verbs.
 // Every other verb of this CLI that writes to a run names its root with `--root`, and is checked here, once.
@@ -169,7 +169,7 @@ function writtenRoot(verb, args) {
   const rest = args.filter((_, i) => i !== at && i !== at + 1);
   const writes = ['stage', 'step', 'slice', 'degraded', 'unresolved', 'deferred', 'minors', 'docs', 'pr', 'adopt', 'dod-merge'].includes(verb)
     || ((verb === 'deploy' || verb === 'base') && rest[0] === 'set')
-    || (verb === 'suite' && rest[0] !== 'reusable');
+    || verb === 'suite';
   return writes ? args[at + 1] : null;
 }
 
@@ -311,7 +311,8 @@ function run(argv, cwd, stdinJson) {
         // mistyped `--whole`) left over here would silently drop the whole-repo gate instead of
         // refusing it, and a no-kind record would then pass a `--whole` check it must fail (INV-0017).
         if (args.length > 1) fail(`suite reusable: unrecognized argument "${args[1]}"`);
-        libSuiteBaseGet().verbSuiteReusable(cwd, root, branch, whole, base);
+        // A reused run it records in the `Suite` header is a ledger write, traced like every other.
+        if (libSuiteBaseGet().verbSuiteReusable(cwd, root, branch, whole, base)) ledgerEvent = { root, fields: ['suite', 'reusable', branch, ...(whole ? ['--whole'] : [])] };
         break;
       }
       if (args[0] === 'failed') {

@@ -399,6 +399,36 @@ async function main() {
     assertReportedOnce(f, 'ledger.md', 'the tamper those verbs left stands for the next writer');
   }
 
+  // #reusable: `suite reusable` re-seals the ledger when it records a reused run, so it checks the digest first whatever order its flags take,
+  // and its `Suite` header write reaches the trace as a ledger line.
+  for (const argv of [['reusable', '--branch', 'main'], ['--whole', 'reusable', '--branch', 'main'], ['reusable', '--whole', '--branch', 'main']]) {
+    const f = fixture();
+    const tip = git(['rev-parse', 'main'], f.repo);
+    write(f);
+    const code = `const { appendTrace } = require(${JSON.stringify(traceLogPath)});` +
+      `appendTrace(${JSON.stringify(f.root)}, { slice: 's', kind: 'run', fields: ['whole', 'pass', ${JSON.stringify(tip)}, 'clean', '-', '1', 'cmd', '.'] });`;
+    sh(f.repo, `${JSON.stringify(process.execPath)} -e ${JSON.stringify(code)}`);
+    sh(f.root, 'echo "outside" >> ledger.md');
+    const label = argv.join(' ');
+    const r = sc(f, ['suite', '--root', f.root, ...argv]);
+    assert.strictEqual(r.status, 0, `${label}: ${r.stderr}`);
+    assert.strictEqual(warnings(r).length, 1, `${label}: warns of the outside edit: ${r.stderr}`);
+    assert.deepStrictEqual(tampers(f), ['ledger.md'], `${label}: one tamper line`);
+    const lines = traceText(f).split('\n').map((l) => l.split(' '));
+    const at = (pred) => lines.findIndex((l) => pred(l));
+    const ledgerAt = at((l) => l[3] === 'ledger' && l[4] === 'suite' && l[5] === 'reusable');
+    assert.ok(ledgerAt >= 0, `${label}: the Suite header write is a ledger line`);
+    assert.ok(at((l) => l[3] === 'tamper') < ledgerAt, `${label}: the tamper line comes before the ledger write`);
+    assert.strictEqual(warnings(write(f)).length, 0, `${label}: a later writer records no second tamper`);
+    assert.deepStrictEqual(tampers(f), ['ledger.md'], `${label}: still one tamper line`);
+    // A second call at the same tip finds the header current, so it accepts without writing and traces no ledger line.
+    const reusableLines = () => traceText(f).split('\n').filter((l) => l.split(' ')[3] === 'ledger' && l.split(' ')[4] === 'suite' && l.split(' ')[5] === 'reusable').length;
+    assert.strictEqual(reusableLines(), 1, `${label}: one ledger line before the second call`);
+    const again = sc(f, ['suite', '--root', f.root, ...argv]);
+    assert.strictEqual(again.status, 0, `${label}, second call: ${again.stderr}`);
+    assert.strictEqual(reusableLines(), 1, `${label}: an accept that writes no header traces no ledger line`);
+  }
+
   // #gone: no hook registration or module named ledger-guard or ledger-writes remains.
   {
     const plugin = path.join(__dirname, '..', 'plugin');

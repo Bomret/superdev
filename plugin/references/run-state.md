@@ -11,7 +11,7 @@ edits or parses the file directly.
 
 - `init` creates the document.
 - `stage`, `step`, `slice`, `degraded add|add-denial|reset-denials`, `unresolved add|clear`, `deferred
-  add|resolve`, `minors add|clear`, `docs set|clear`, `pr set|clear`, `deploy set`, `suite set|rerun|failed`, and
+  add|resolve`, `minors add|clear`, `docs set|clear`, `pr set|clear`, `deploy set`, `suite set|rerun|failed`, `suite reusable` where it records a run at the tip, and
   `base set` move it.
 - `get`, `state`, `status`, and `deploy get` read it back.
 
@@ -146,7 +146,7 @@ suite` and `get failed`, which print nothing on an absent line.
 **A command publishes once, at its end.** Applies to every command that made one of these ledger writes: `init`'s
 first write of `**Stage:**`, `stage set`, `degraded add`, `degraded add-denial`, `degraded reset-denials`,
 `unresolved add`, `unresolved clear`, `deferred add`, `deferred resolve`, `minors add`, `minors clear`, `docs set`,
-`docs clear`, `pr set`, `pr clear`, `suite set`, and `deploy set`. It publishes the snapshot once, as the last act of
+`docs clear`, `pr set`, `pr clear`, `suite set`, `suite reusable` where it records a run at the tip, and `deploy set`. It publishes the snapshot once, as the last act of
 the exit that ends it: after the exit's closer (`## The ledger`'s **The step closer**) and after any ledger write the
 exit makes past that closer. A write site records its write and goes on, and the one publish carries every write the
 command made.
