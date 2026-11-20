@@ -14,8 +14,9 @@ const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 // Each name set is read from disk at scan time. `dir` is how a gap names the directory; `list` returns the
 // names the directory holds; `patterns` turns one name into the forms that count as naming it. A lib or suite
 // name counts only as a whole path segment, so `ledger.js` does not match inside `scope-ledger.test.js` or
-// `scope-ledger.js`. An agent counts only backticked or as `superdev:<agent>`, so the plain word and a
-// `/superdev:<skill>` command do not.
+// `scope-ledger.js`. A hyphenated agent name (`doc-reader`) counts wherever it stands as a whole segment, bare
+// prose included. An unhyphenated one (`implementer`) counts only backticked or as `superdev:<agent>`, so the
+// plain word does not. A `/superdev:<skill>` command counts for neither.
 const SEGMENT = (name) => [new RegExp(`(?<![\\w.-])${escape(name)}(?![\\w-]|\\.\\w)`, 'g')];
 const NAME_SETS = [
   {
@@ -38,10 +39,13 @@ const NAME_SETS = [
         .readdirSync(docPath(root, 'agents'))
         .filter((f) => f.endsWith('.md') && f !== 'AGENTS.md')
         .map((f) => f.slice(0, -3)),
-    patterns: (name) => [
-      new RegExp(`\`${escape(name)}\``, 'g'),
-      new RegExp(`(?<![\\w/-])superdev:${escape(name)}(?![\\w-])`, 'g'),
-    ],
+    patterns: (name) =>
+      name.includes('-')
+        ? [new RegExp(`(?<![\\w-])(?<!/superdev:)${escape(name)}(?![\\w-])`, 'g')]
+        : [
+            new RegExp(`\`${escape(name)}\``, 'g'),
+            new RegExp(`(?<![\\w/-])superdev:${escape(name)}(?![\\w-])`, 'g'),
+          ],
   },
 ];
 
@@ -61,12 +65,14 @@ function scanRootNoInventory(root) {
     let names;
     try {
       names = set.list(root);
-    } catch (err) {
-      gaps.push({ source: ROOT_DOC, expectation: `be checked against \`${set.dir}/\`, which cannot be read — ${err.code || err.message}` });
-      continue;
+    } catch {
+      names = [];
     }
     if (names.length === 0) {
-      gaps.push({ source: ROOT_DOC, expectation: `be checked against \`${set.dir}/\`, which holds no ${set.kind} name` });
+      gaps.push({
+        source: ROOT_DOC,
+        expectation: `be checked against \`${set.dir}/\`, which cannot be read or holds no ${set.kind} name`,
+      });
       continue;
     }
     for (const name of names) {

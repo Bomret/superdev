@@ -46,6 +46,20 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     assert.deepEqual(gapsOf(`# root\n\n${text}`), [], `${label} is no gap`);
   }
 
+  // --- a hyphenated agent name counts bare; an unhyphenated one does not ---
+  const bare = gapsOf('# root\n\nThe doc-reader answers, and a dispatched implementer writes.\n', {
+    'plugin/agents/doc-reader.md': '',
+  });
+  assert.equal(bare.length, 1, `a bare hyphenated agent name is a gap: ${JSON.stringify(bare)}`);
+  assert.ok(bare[0].expectation.includes('`doc-reader`'), 'the bare-name gap names the hyphenated agent');
+  assert.deepEqual(
+    gapsOf('# root\n\nSee `doc-reader`, superdev:doc-reader, and plugin/agents/doc-reader.md.\n', {
+      'plugin/agents/doc-reader.md': '',
+    }).length,
+    3,
+    'a hyphenated agent name counts once per place it is named, in any form'
+  );
+
   // --- the name sets are read at scan time, never fixed ---
   const later = gapsOf('# root\n\n`tier.js`, `scope-tier.test.js`, and `doc-reader` arrived later.\n', {
     'plugin/lib/tier.js': '',
