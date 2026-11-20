@@ -1,7 +1,7 @@
 'use strict';
 
 // Suite for plugin/lib/git-spawn.js: the throwing git call and the `git branch` list parse the two Stop hooks share, and the literal
-// path reads at a commit, `existsAt` and `fileAt`.
+// path reads at a commit, `existsAt` and `fileAt`, and the working-tree listing `listWorktrees`.
 
 require('./fixture-git');
 const assert = require('node:assert');
@@ -86,6 +86,56 @@ assert.equal(parseBranchList('a\na\n').size, 1, 'the parse is a set of names');
     }
   }
   fs.rmSync(repo, { recursive: true, force: true });
+}
+
+// `listWorktrees` reads each registered working tree as one `{ path, branch, detached }` entry: a locked tree and a prunable one
+// each stay one entry, and a git that refuses `-z` falls back to the newline-split listing with the same entries.
+{
+  const { listWorktrees } = require('../plugin/lib/git-spawn.js');
+  const { execFileSync } = require('node:child_process');
+  const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'git-spawn-trees-')));
+  const repo = path.join(base, 'repo');
+  fs.mkdirSync(repo);
+  gitThrow(['init', '-q', '-b', 'main'], repo);
+  gitThrow(['config', 'user.email', 'test@example.com'], repo);
+  gitThrow(['config', 'user.name', 'test'], repo);
+  fs.writeFileSync(path.join(repo, 'a.txt'), 'x\n');
+  gitThrow(['add', '.'], repo);
+  gitThrow(['commit', '-q', '-m', 'init'], repo);
+  const linked = path.join(base, 'linked');
+  const locked = path.join(base, 'locked');
+  const gone = path.join(base, 'gone');
+  gitThrow(['worktree', 'add', '-q', '-b', 'slice/linked', linked], repo);
+  gitThrow(['worktree', 'add', '-q', '-b', 'slice/locked', locked], repo);
+  gitThrow(['worktree', 'lock', '--reason', 'held by a test', locked], repo);
+  gitThrow(['worktree', 'add', '-q', '-b', 'slice/gone', gone], repo);
+  fs.rmSync(gone, { recursive: true, force: true });
+  const entries = (listing) => listing.trees.map(({ path: p, branch }) => [p, branch]);
+  const expected = [
+    [repo, 'main'],
+    [linked, 'slice/linked'],
+    [locked, 'slice/locked'],
+    [gone, 'slice/gone'],
+  ];
+
+  assert.deepEqual(entries(listWorktrees(repo)), expected, 'a locked and a prunable working tree each read as one entry, and no extra entry appears');
+
+  // A `git` on PATH that refuses `-z` with status 129 and runs every other call.
+  const shim = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'git-spawn-shim-')));
+  const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
+  fs.writeFileSync(path.join(shim, 'git'), `#!/bin/sh\nfor a in "$@"; do [ "$a" = -z ] && exit 129; done\nexec ${JSON.stringify(realGit)} "$@"\n`, { mode: 0o755 });
+  const savedPath = process.env.PATH;
+  process.env.PATH = `${shim}${path.delimiter}${savedPath}`;
+  let fallback;
+  try {
+    assert.equal(gitSpawn(['worktree', 'list', '--porcelain', '-z'], repo).status, 129, 'the shim refuses -z');
+    fallback = listWorktrees(repo);
+  } finally {
+    process.env.PATH = savedPath;
+  }
+  assert.deepEqual(entries(fallback), expected, 'a git that refuses -z falls back to the newline-split listing with the same entries');
+  fs.rmSync(shim, { recursive: true, force: true });
+  fs.rmSync(base, { recursive: true, force: true });
 }
 
 fs.rmSync(dir, { recursive: true, force: true });
