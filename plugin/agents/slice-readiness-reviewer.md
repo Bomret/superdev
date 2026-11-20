@@ -60,8 +60,8 @@ After the paraphrase, list every finding. Each finding names the slice and the l
 - <slice id> · <the spec or acceptance line, quoted> · <the defect> · <the reason>
 ```
 
-- Where you find nothing, write `No readiness findings.` under `### Findings`. The paraphrase stays.
-- A return without `### Paraphrase` is no result, so write it on every return.
+- Where you find nothing, write `No readiness findings.` under `### Findings`.
+- A return without `### Paraphrase` is no result.
 
 ## Read-only
 
