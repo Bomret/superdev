@@ -67,3 +67,22 @@ the trigger command writes the record and an uncertain match creates one, which 
 **`assignee.md`.** Added: **Resolving the assignee** and **A bad assignee never costs the run its issues**, each with
 its cases as a list. Removed: the reasons for the untracked file and for the single retry, which ADR 0010, ADR 0073,
 and ADR 0207 carry. Settled: nothing.
+
+**`plan-authoring.md`.** Added: `### A fix feature's reproduction` under `## Vertical-slice rules`, the one owner
+of where a `fix` feature's red-capable command lands, which `skills/plan/SKILL.md`, `plan-repair.md`, and
+`slice-readiness-reviewer.md` cite; **The integration branch** as its own concept under `### Wide refactors`; each
+`## Append mode` invariant under its own bold label, with the anchor lines that migrate on a single-slice promotion
+named once. Removed: the reasons for behaviour over proxy counts, for the uniform `Reachable:` and `Release risk:`
+rules, for the epic-visuals floor, for an honest dependency graph, and for each append refusal, which ADR 0004,
+ADR 0062, ADR 0083, and ADR 0133 carry. Settled: the plan skill and `plan-repair.md` put the red-capable command on a
+`fix` feature's first slice, whatever its type, while ADR 0270 has a `docs` or `mechanical` slice skip the diagnosis
+loop. The command now lands on a `behavior` slice every other `behavior` slice depends on, and the readiness check
+reports a plan that breaks this.
+
+**`plan-extend.md`.** Added: a condition head for each concept, and the run-root stage cases as a list. Removed: the
+reasons the feature loads before §1 and the gate fails closed, which `plan-authoring.md`'s `## Append mode` states as
+rules and ADR 0083 carries. Settled: nothing.
+
+**`plan-repair.md`.** Added: each repair mark's meaning as a list. Removed: the restated first-slice reproduction rule,
+which now points to `plan-authoring.md`'s `### A fix feature's reproduction`. Settled: the same conflict as
+`plan-authoring.md`'s, resolved by that pointer.
