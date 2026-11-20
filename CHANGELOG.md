@@ -1,3 +1,16 @@
+# [0.112.0](https://github.com/Bomret/superdev/compare/v0.111.0...v0.112.0) (2026-11-20)
+
+
+### Bug Fixes
+
+* **review:** bring the overlap lens's H1 and opening sentence under the form lens ([#326](https://github.com/Bomret/superdev/issues/326)) ([45c1a8c](https://github.com/Bomret/superdev/commit/45c1a8c226ede46a70b0e02751a59c5c67c38cd5)), closes [#324](https://github.com/Bomret/superdev/issues/324)
+
+
+### Features
+
+* **references:** write the execution playbooks, run basics, test selection, and DoD ticks as prompt concepts ([#328](https://github.com/Bomret/superdev/issues/328)) ([ad07adb](https://github.com/Bomret/superdev/commit/ad07adbc0a1d2df5f11899f0b6bc1f615c132cbc)), closes [#56](https://github.com/Bomret/superdev/issues/56) [#39](https://github.com/Bomret/superdev/issues/39) [#39](https://github.com/Bomret/superdev/issues/39)
+* **review:** reviewers judge prompt prose by controlled-prose sections ([#325](https://github.com/Bomret/superdev/issues/325)) ([c11a4b2](https://github.com/Bomret/superdev/commit/c11a4b2512d7c759c6dc599c47dfd8aa983b952f)), closes [#315](https://github.com/Bomret/superdev/issues/315) [#318](https://github.com/Bomret/superdev/issues/318) [#319](https://github.com/Bomret/superdev/issues/319)
+
 # [0.111.0](https://github.com/Bomret/superdev/compare/v0.110.0...v0.111.0) (2026-11-20)
 
 
