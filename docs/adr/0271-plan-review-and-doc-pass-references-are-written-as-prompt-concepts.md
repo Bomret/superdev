@@ -86,3 +86,16 @@ rules and ADR 0083 carries. Settled: nothing.
 **`plan-repair.md`.** Added: each repair mark's meaning as a list. Removed: the restated first-slice reproduction rule,
 which now points to `plan-authoring.md`'s `### A fix feature's reproduction`. Settled: the same conflict as
 `plan-authoring.md`'s, resolved by that pointer.
+
+**`diagnosis.md`.** Added: **A proven cause skips the loop** and **At plan time** as their own concepts. Removed: the
+plan-time sentence that put the red-capable command on the feature's first slice, which now points to
+`plan-authoring.md`'s `### A fix feature's reproduction`; the reasons for ranking several hypotheses and for tagging
+instrumentation. The gate's stop instruction stays a rule. Settled: the first-slice placement, as in
+`plan-authoring.md`'s paragraph.
+
+**`design-sketch.md`.** Added: a condition head on each concept that lacked one. Removed: the reasons for the
+top-to-bottom flowchart, for flush-left Mermaid source, and for the `.gitignore` guarantee, and the note that a
+declined sketch loads nothing, which ADR 0036 and ADR 0266 carry. Settled: nothing.
+
+**`prototype.md`.** Added: each bullet as a concept with its condition at the head. Removed: the reasons for stating
+the question first and for liftable logic. Settled: nothing.
