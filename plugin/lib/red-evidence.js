@@ -11,7 +11,7 @@ const { fail } = require('./refusal.js');
 const { readLines, getHeader } = require('./ledger.js');
 const { drivePath } = require('./drive-path.js');
 const { traceFlags } = require('./trace-window.js');
-const { gitSpawn, existsAt: pathExistsAt } = require('./git-spawn.js');
+const { gitSpawn, existsAt } = require('./git-spawn.js');
 const { isTestPath, verificationCommandsOf } = require('./verification.js');
 const { VERIFICATION, gitReads, runEvents, rangeBase, failedRuns, failedRecord, coverageRefusal, pathRunPassed, parseSuiteRecord, ancestorOrRefuse } = require('./suite-base-get.js');
 
@@ -40,8 +40,8 @@ function sameFenceChanges(g, c, from) {
 
 // Whether the file `p` exists at commit `c`, an empty file included, read literally through the shared existence check. Where git
 // cannot say, the verb refuses, naming the path and the commit.
-function existsAt(g, c, p) {
-  const there = pathExistsAt(c, p, g.cwd);
+function existsOrRefuse(g, c, p) {
+  const there = existsAt(c, p, g.cwd);
   if (there === null) fail(`red-evidence: git could not tell whether ${p} exists at ${c}`);
   return there;
 }
@@ -62,7 +62,7 @@ function covers(g, events, c, from, files, resolveBase) {
     return Boolean(paths) && coverageRefusal(g, paths, focused) === null;
   }
   if (!events.some((e) => RUN_KINDS.includes(e.fields[0]) && e.fields[2] === c && e.fields[1] === 'pass' && e.fields[3] === 'clean')) return false;
-  return same.list.filter((p) => existsAt(g, c, p)).every((p) => pathRunPassed(g, events, c, p));
+  return same.list.filter((p) => existsOrRefuse(g, c, p)).every((p) => pathRunPassed(g, events, c, p));
 }
 
 // ADR 0255's clean-tip exception, offered for the branch tip `tip` only: where the focused fence repeats the full fence, no
