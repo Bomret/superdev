@@ -461,9 +461,9 @@ Paths: plugin/references/plan-contract.md, plugin/skills/implement/SKILL.md, plu
 
 Class: process
 Concepts: Design sketch, Component, Epic
-Statement: A design sketch is written only when the operator asks, after the grounding and before decomposition, and blocks until approved. It is self-contained HTML with inline CSS and no JavaScript or network. It stays git-ignored and unreconciled, and never reaches the epic or the pull request.
+Statement: A design sketch is written only when the operator asks, after the grounding and before decomposition, and blocks until approved. It is one HTML file with inline CSS whose only script is Mermaid at one pinned version from jsDelivr, and it makes no other network request. It stays git-ignored and unreconciled, and never reaches the epic or the pull request.
 Breaks: silently
-Check: none — the ADR rejected a pin on cost
+Check: none — ADR 0036 rejected a pin on cost
 Paths: plugin/skills/plan/SKILL.md, plugin/references/design-sketch.md
 
 ### INV-0055

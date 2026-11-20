@@ -178,7 +178,7 @@ _Avoid: "the DAG" (that is the dependency structure itself, which exists whether
 **Touch map**: the epic's `## Touch map` section, a plain-text file tree marking which slices touch which files, and where slices that run in parallel collide. Evidence for the dependency order, not an instruction: no slice `spec` names file paths, and no reviewer gates on it.
 _Avoid: "file map" (too generic, because the collisions are the point), "impact analysis"_
 
-**Design sketch**: the throwaway HTML page `/superdev:plan` writes before it decomposes, inventorying the components a plan intends to add, change, or delete and the interactions between them. Written only when the operator asks for one, at `.superdev/design/<slug>.html`, git-ignored and overwritten per feature slug. The step waits for the operator's approval, so a design the operator did not expect is corrected while correcting it is still free. It never reaches the epic or the pull request, and `/superdev:document` never reconciles it (ADR 0036).
+**Design sketch**: the throwaway HTML page `/superdev:plan` writes before it decomposes. It states the problem, the solution, and its wins, draws the affected components before and after the plan with a pinned Mermaid, and gives each design decision and each component it adds, changes, or deletes a card that says why. Written only when the operator asks for one, at `.superdev/design/<slug>.html`, git-ignored and overwritten per feature slug. The step waits for the operator's approval, so a design the operator did not expect is corrected while correcting it is still free. It never reaches the epic or the pull request, and `/superdev:document` never reconciles it (ADR 0266).
 _Avoid: "plan preview" (it shows the design, not the plan, which is what the §5 quiz presents), "architecture diagram" (it is per-plan and throwaway, where that names a standing picture of the whole system), "slice graph" (that draws the dependency DAG, and this draws the components)_
 
 **Component**: a unit of a repository that acts — a module, a class, a command file, a hook, a service — named in the implementation language's own terms rather than a superdev word. What a **Design sketch** inventories. Distinct from a **Domain shape**, which is data the code declares rather than a unit that does something; a component's sketch card may name the shapes it introduces, and omits that line in a repository whose language has none.
@@ -570,7 +570,7 @@ _Avoid: "template" alone (a knowledge base's **Backend command contract** templa
 **Next block**: the `### Next` section that closes a covered command's last message, holding the next command and one line on what it does, defined once in `references/response-shapes.md` (ADR 0113, INV-0111).
 _Avoid: "handoff" (run handoff is the closing procedure of an execution playbook), "call to action"_
 
-_Avoid: "prompt" (prompt prose is the text of a skill or agent), "auto-continue" (nothing continues without the operator's yes)_
+_Avoid: "prompt" (**Prompt prose** is the instruction text a model loads), "auto-continue" (nothing continues without the operator's yes)_
 
 ## Roles
 
@@ -605,6 +605,8 @@ _Avoid: "test reviewer" (review is the code-review family; this prices cost, not
 
 **Dispatch prose**: the text a command sends to a subagent, as distinct from that subagent's own body. Both reach the model in one prompt, and the dispatch is the later, more specific instruction, so it wins a conflict between them. A behaviour contract stated in an agent body therefore also has to hold in every dispatch that reaches it (ADR 0035).
 _Avoid: "the prompt" (ambiguous between the two halves)_
+
+**Prompt prose**: the text a model loads as instructions: a skill, an agent body, a reference either one reads, a `docs/agents/` file, a `CLAUDE.md` or `AGENTS.md`. A README, an ADR, this glossary, and a knowledge-base page are human-facing docs. `/superdev:review`'s skip rules count prompt prose as code, so `simplicity-reviewer` reads a diff that changes it (ADR 0267).
 
 **Prompt concept**: the unit of prompt prose in a **governed body**: an agent body, or a skill file this entry lists. The listed skill files are `plugin/skills/review/SKILL.md`, `plugin/references/review-scope-mode.md` with its branch files `plugin/references/review-scope-holds.md`, `plugin/references/review-scope-denials.md`, `plugin/references/review-scope-base.md`, `plugin/references/review-scope-deferrals.md`, `plugin/references/review-scope-coverage.md`, `plugin/skills/ship/SKILL.md`, `plugin/skills/submit-pr/SKILL.md`, `plugin/skills/document/SKILL.md`, `plugin/skills/verify-ship/SKILL.md`, `plugin/skills/wrap-up/SKILL.md`, `plugin/skills/implement/SKILL.md`, `plugin/skills/plan/SKILL.md`, `plugin/skills/setup/SKILL.md`, `plugin/skills/status/SKILL.md`, `plugin/skills/brainstorm/SKILL.md`, `plugin/skills/upgrade/SKILL.md`, `plugin/skills/publish-kb/SKILL.md`, `plugin/skills/review-tests/SKILL.md`, and `plugin/skills/sweep/SKILL.md` (ADR 0190). It is a rule set with a clear boundary. Each one holds seven invariants:
 

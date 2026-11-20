@@ -13,6 +13,8 @@ Applies to every dispatch.
 
 Correctness, security, and performance belong to a separate reviewer. Flag none of them here, and nothing else beyond unnecessary complexity. Obtain the diff with the `git diff <range>` the controller gives you.
 
+Prose in the diff gets the same lens. Tag a rule nothing reaches `delete:`, a rule the diff states twice or restates where another file owns it `shrink:`, and a branch for a case that never occurs `yagni:`.
+
 ## Judge discipline
 
 Applies to every dispatch.
@@ -32,6 +34,7 @@ Fewer lines is the goal only where the shorter form is also clearer. Recommend n
 Applies to every dispatch.
 
 - A single smoke test or `assert`-based self-check is the minimum and no bloat. Never flag it for deletion.
+- A dispatch sentence that adds a condition, an exception, or a different effect to the agent body it reaches is no duplicate.
 - A `simplicity:` comment marks a deliberate simplification. It is intent and no debt to remove. So is a legacy `shortcut:` comment, the marker earlier superdev releases wrote.
 
 ## Format
