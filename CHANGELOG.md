@@ -1,3 +1,20 @@
+# [0.111.0](https://github.com/Bomret/superdev/compare/v0.110.0...v0.111.0) (2026-11-20)
+
+
+### Bug Fixes
+
+* **implement:** a subagent waits out a test run Claude Code moves to the background ([#306](https://github.com/Bomret/superdev/issues/306)) ([b6d340b](https://github.com/Bomret/superdev/commit/b6d340b29bf59b63d2ec6ff170e501ba8a2f8ffd))
+* **scope:** newline-safe worktree listing and literal path checks at a commit ([d76a7dc](https://github.com/Bomret/superdev/commit/d76a7dcf7077713961aeafd181b8c6c5f1c5c11c)), closes [#277](https://github.com/Bomret/superdev/issues/277) [#264](https://github.com/Bomret/superdev/issues/264)
+* **tests:** end the hung upload-pack fixture on Linux; harden the full-suite workflow ([#303](https://github.com/Bomret/superdev/issues/303)) ([5e8f85d](https://github.com/Bomret/superdev/commit/5e8f85d7cf195315b3a0b89b9a977410ada329fc))
+
+
+### Features
+
+* **plan:** fresh-context slice readiness check, brainstorm intent challenge, overclaiming-check smell ([32daaef](https://github.com/Bomret/superdev/commit/32daaefc4984407adfd3e286b5571721c7671c12))
+* **plan:** the design sketch draws the design and states why ([#312](https://github.com/Bomret/superdev/issues/312)) ([3e4be1d](https://github.com/Bomret/superdev/commit/3e4be1d9b029694773417477f63d6265874c3538)), closes [#lt](https://github.com/Bomret/superdev/issues/lt) [#gt](https://github.com/Bomret/superdev/issues/gt)
+* **review:** review and document at submitted start ship under carried consent ([#315](https://github.com/Bomret/superdev/issues/315)) ([72db279](https://github.com/Bomret/superdev/commit/72db279c05e23d10d6600067aee559eef5e40fa1))
+* **review:** the simplicity review reads prompt prose ([#314](https://github.com/Bomret/superdev/issues/314)) ([6866ae5](https://github.com/Bomret/superdev/commit/6866ae54ddd92bcef7e6a87b04c0a02590b8aac0))
+
 # [0.110.0](https://github.com/Bomret/superdev/compare/v0.109.0...v0.110.0) (2026-11-19)
 
 
