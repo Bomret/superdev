@@ -143,3 +143,15 @@ a resumed run hands the change type from the ledger's `**Branch:**` line, never 
 tiny slice is built, diagnosis loop included. Removed: nothing. Settled: `implement/SKILL.md` blocked a denied
 authoring dispatch under `--unattended` with no verdict call, while this file asked `scope.js denial`. Both now ask
 `scope.js denial` and act on its verdict.
+
+**`implement-full-fix-cycle.md`.** Added: **The fix dispatch** as a named concept listing the values a fix hands and
+naming the `agents/implementer.md` sections that own the rest, and **The re-review** naming the
+`agents/slice-reviewer.md` sections that judge a fix range. Removed: the restated cap, exits, RED-test rule,
+sibling-surface duty, sibling check, and fix model, which `skills/implement/SKILL.md`'s `## Invariants (both playbooks)` and `## Model
+selection` own; the restated deferral rules, which `scope-findings.md`'s `## Deferred findings` owns; and the
+re-review's closing rules, which `agents/slice-reviewer.md`'s `## Re-review` owns. `## Deferring a finding` keeps the
+two rules the slice loop adds. Settled: nothing.
+
+**`implement-full-minor-sweep.md`.** Added: a step for the sweep's self-check and the rule that the sweep's re-review
+is always a fresh `slice-reviewer`, both moved from `scope-findings.md`'s `## Warm cycles`, so `## Minor sweep` owns
+them. Removed: the restated self-check items, which `agents/implementer.md`'s `## Self-check` owns. Settled: nothing.
