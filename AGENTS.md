@@ -102,7 +102,8 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          run-state, scope-findings, and shipped-run, authoring
                          disciplines, intent handoff, prior-art audit, design sketch, diagnosis, prototype, merge-conflicts,
                          review-checklist with its split lens files (review-design-lenses, review-coverage, fail-to-pass,
-                         untraced-writes, dependency-verification, prompt-concept-overlap, test-cost, test-gaps),
+                         untraced-writes, dependency-verification, prompt-concept-overlap, prompt-prose-form, test-cost,
+                         test-gaps),
                          review-scope-mode with its branch files (review-scope-holds, review-scope-denials,
                          review-scope-base, review-scope-deferrals, review-scope-coverage), review-inline-fix, dod-ticks,
                          response-shapes); its own AGENTS.md routes them
@@ -251,8 +252,9 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   it to prose they write. This repo uses `controlled`
   ([`references/controlled-prose.md`](plugin/references/controlled-prose.md), ADR 0012). Its own
   `## Scope` section states where it applies: the `AGENTS.md` tree, `README.md`, ADR text, glossary
-  entries, knowledge-base pages, and report text. Prompt prose is outside it, and has its own rules
-  below.
+  entries, knowledge-base pages, and report text. Prompt prose is outside that list, and has its own rules
+  below. A review still applies named sections of the standard to governed prompt prose, through the
+  **Prompt-prose form** lens.
 - **Prompt prose follows the prompt-architecture rules.** They govern `skills/`, `agents/`, and
   `references/` prose:
   - **Prompt the positive.** Steering by prohibition drags the forbidden behaviour into context and makes
@@ -281,8 +283,10 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
     [`CONTEXT.md`](CONTEXT.md) → *Prompt concept* and *Main sentence*, and in ADR 0169 and ADR 0190.
     The glossary's *Prompt concept* entry lists the governed skill files. An edit to `plugin/agents/`
     or to a listed file keeps every concept's invariants. A review checks the **No overlap** invariant with the test and grades in
-    `references/prompt-concept-overlap.md`'s `## Prompt-concept overlap` (ADR 0170). A reviewer reads that file only
-    where the reviewed repository's `CONTEXT.md` defines **Prompt concept**.
+    `references/prompt-concept-overlap.md`'s `## Prompt-concept overlap` (ADR 0170). The review also judges the form of each
+    added or edited sentence by the controlled-prose sections `references/prompt-prose-form.md`'s
+    `## Prompt-prose form` cites by heading, and every such finding is Minor (ADR 0269). A reviewer reads either
+    file only where the reviewed repository's `CONTEXT.md` defines **Prompt concept**.
   - **Prose states no count of a growing set.** "The eight shipped hooks" reads as a fact and is a
     hostage: adding a hook makes it false in every document repeating it, and nothing fails. Name the
     set, or name its members, and keep a numeral only where the number is the fact — a cap, a
