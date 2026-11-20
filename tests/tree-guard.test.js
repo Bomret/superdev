@@ -5,9 +5,12 @@
 //
 // Cause of the earlier intermittent failure at "control: the counted write ... is denied" (triage #340): the hook bounds each git
 // call and fails open past it (INV-0009). Under CPU and process-spawn starvation, which the concurrent runner supplies, a counted
-// call (git behind the counting shim's `sh` hop) outlasted that bound, `decide` passed the write, and the control read the pass as
-// a missing denial. The counted block now tells a bound-killed call (a shim start with no end) from a verdict and measures that
-// decision again, so the suite gives the same verdict alone and under load.
+// call outlasted that bound, `decide` passed the write, and a denial assertion read the pass as a missing denial. The suite wraps
+// `child_process.spawnSync` before it loads the hook and records, per git call, whether the bound (or a signal) ended it. A
+// decision holding such a call carries no verdict and `measure` runs it again, up to `ATTEMPTS` times; a decision with no killed
+// call is final and asserted as it stands. Every in-process denial assertion goes through it.
+// Reproduction: the case "a git shim holds one designated call past the bound before it does anything" (the `hold-shim` block)
+// deterministically produces the killed-before-first-line call; the base suite's start/end bookkeeping took it for a verdict.
 
 require('./fixture-git');
 const assert = require('node:assert');
@@ -95,13 +98,34 @@ assert.equal(
 );
 assert.equal(registeredHooksDeny('Edit', { ...implementerWrite(path.join(fx.main, 'a.txt'), fx.main), tool_name: 'Edit' }), true, 'an implementer Edit into the main checkout is denied by the registered hooks');
 
+// The hook and its git helper destructure `spawnSync` when they load, so the wrapper goes in before the require.
+const gitCalls = [];
+const realSpawnSync = cp.spawnSync;
+cp.spawnSync = function spawnSync(command, ...rest) {
+  const res = realSpawnSync.call(this, command, ...rest);
+  if (command === 'git') gitCalls.push({ killed: Boolean(res.signal) || (res.error && res.error.code === 'ETIMEDOUT') });
+  return res;
+};
 const { decide } = require(path.join(pluginRoot, 'hooks', 'tree-guard.js'));
+
+// The bound kill, observed where it happens: every git call `decide` makes, in order, with whether the bound (or any signal) ended it.
+// A decision holding a killed call carries no verdict, so `measure` runs it again. A decision with no killed call is final.
+const ATTEMPTS = 5;
+function measure(input) {
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+    gitCalls.length = 0;
+    const r = decide(input);
+    if (!gitCalls.some((c) => c.killed)) return { r, git: gitCalls.length, attempts: attempt };
+  }
+  return assert.fail(`the decision for ${input.tool_input.file_path || input.tool_input.notebook_path} had a git call the hook's bound killed in each of ${ATTEMPTS} attempts: no verdict`);
+}
+const decideM = (input) => measure(input).r;
 
 // The refusal names the refused path, the slicetree rule, and the path to reuse under the slicetree.
 {
   const target = path.join(fx.main, 'plugin', 'x.md');
   fs.mkdirSync(path.dirname(target));
-  const r = decide(implementerWrite(target, fx.main));
+  const r = decideM(implementerWrite(target, fx.main));
   assert.equal(r.block, true, 'a write into a subdirectory of the main checkout is denied');
   assert.ok(r.reason.includes(target), 'the refusal names the refused path: ' + r.reason);
   assert.ok(/only inside the slicetree/.test(r.reason), 'the refusal states the slicetree rule: ' + r.reason);
@@ -126,21 +150,21 @@ const { decide } = require(path.join(pluginRoot, 'hooks', 'tree-guard.js'));
 {
   const linked = path.join(fx.base, 'linked');
   git(['worktree', 'add', '-q', '-b', 'linked', linked], fx.main);
-  assert.equal(decide(implementerWrite(path.join(linked, 'a.txt'), linked)).block, true, 'a write into another linked working tree is denied');
+  assert.equal(decideM(implementerWrite(path.join(linked, 'a.txt'), linked)).block, true, 'a write into another linked working tree is denied');
 }
 
 // Denied: the git directory of a repository holding a run, the main `.git/` and a linked working tree's own gitdir. `git status`
 // never shows such a write. Control: the same path in a repository holding no run passes.
 {
   const config = path.join(fx.main, '.git', 'config');
-  const r = decide(implementerWrite(config, fx.main));
+  const r = decideM(implementerWrite(config, fx.main));
   assert.equal(r.block, true, 'a write to the main .git/config is denied');
   assert.ok(r.reason.includes(config), 'the git-directory refusal names the refused path: ' + r.reason);
   assert.ok(/only inside the slicetree/.test(r.reason), 'the git-directory refusal states the slicetree rule: ' + r.reason);
   assert.ok(/git directory/.test(r.reason), 'the git-directory refusal names the git directory: ' + r.reason);
-  assert.equal(decide(implementerWrite(path.join(fx.main, '.git', 'hooks', 'pre-commit'), fx.main)).block, true, 'a write to .git/hooks/pre-commit is denied');
+  assert.equal(decideM(implementerWrite(path.join(fx.main, '.git', 'hooks', 'pre-commit'), fx.main)).block, true, 'a write to .git/hooks/pre-commit is denied');
   const gitdir = path.resolve(fx.slicetree, git(['rev-parse', '--git-dir'], fx.slicetree));
-  assert.equal(decide(implementerWrite(path.join(gitdir, 'HEAD'), fx.slicetree)).block, true, "a write into a linked working tree's gitdir is denied");
+  assert.equal(decideM(implementerWrite(path.join(gitdir, 'HEAD'), fx.slicetree)).block, true, "a write into a linked working tree's gitdir is denied");
   const other = path.join(fx.base, 'fixture-repo');
   assert.equal(decide(implementerWrite(path.join(other, '.git', 'config'), other)).block, false, "a write to the .git/config of a repository holding no run passes");
 }
@@ -155,8 +179,8 @@ const { decide } = require(path.join(pluginRoot, 'hooks', 'tree-guard.js'));
   fs.symlinkSync(path.join('..', 'm3real.git'), path.join(repo, '.git'));
   fs.mkdirSync(path.join(repo, '.superdev', 'scopes', 'x'), { recursive: true });
   fs.writeFileSync(path.join(repo, '.superdev', 'scopes', 'x', 'ledger.md'), '# Scope\n');
-  assert.equal(decide(implementerWrite(path.join(repo, 'x.txt'), repo)).block, true, 'a write into a checkout whose .git is a symlink is denied');
-  assert.equal(decide(implementerWrite(path.join(repo, '.git', 'config'), repo)).block, true, 'a write to .git/config through a symlinked .git is denied');
+  assert.equal(decideM(implementerWrite(path.join(repo, 'x.txt'), repo)).block, true, 'a write into a checkout whose .git is a symlink is denied');
+  assert.equal(decideM(implementerWrite(path.join(repo, '.git', 'config'), repo)).block, true, 'a write to .git/config through a symlinked .git is denied');
 }
 
 // Allowed: a bare repository inside the main checkout holds no run, and git places a path in it inside that bare repository, in
@@ -176,8 +200,8 @@ const { decide } = require(path.join(pluginRoot, 'hooks', 'tree-guard.js'));
   git(['-c', 'user.email=t@example.com', '-c', 'user.name=t', 'commit', '-q', '--allow-empty', '-m', 'sub'], src);
   git(['-c', 'protocol.file.allow=always', 'submodule', 'add', '-q', src, 'sub'], fx.main);
   const modules = path.join(fx.main, '.git', 'modules', 'sub');
-  assert.equal(decide(implementerWrite(path.join(modules, 'config'), fx.main)).block, true, "a write to a submodule's gitdir config is denied");
-  assert.equal(decide(implementerWrite(path.join(modules, 'hooks', 'pre-commit'), fx.main)).block, true, "a write to a submodule's gitdir hooks is denied");
+  assert.equal(decideM(implementerWrite(path.join(modules, 'config'), fx.main)).block, true, "a write to a submodule's gitdir config is denied");
+  assert.equal(decideM(implementerWrite(path.join(modules, 'hooks', 'pre-commit'), fx.main)).block, true, "a write to a submodule's gitdir hooks is denied");
 }
 
 // The controller, every other agent type, and a subagent call naming no agent type pass, and the guard runs no git to decide them.
@@ -203,33 +227,31 @@ const { decide } = require(path.join(pluginRoot, 'hooks', 'tree-guard.js'));
   }
 }
 
-// An implementer decision costs at most three git calls (ADR 0148), counted through a PATH shim that logs the start and the end
-// of each call and runs the real git. A count, never a duration (ADR 0086). The hook bounds each git call (`GIT_BOUND_MS`) and
-// fails open past it (INV-0009), so a call the bound killed ends no verdict: its shim logs a start and no end. A decision
-// with such a call is measured again, up to `ATTEMPTS` times, and a decision no attempt completed fails naming the missing verdict.
+// An implementer decision costs at most three git calls (ADR 0148), counted through the `spawnSync` wrapper. A count, never a
+// duration (ADR 0086).
+for (const target of [path.join(fx.main, 'a.txt'), path.join(fx.main, '.git', 'config')]) {
+  const { r, git: ran } = measure(implementerWrite(target, fx.main));
+  assert.equal(r.block, true, `control: the counted write to ${target} is denied`);
+  assert.ok(ran >= 1 && ran <= 3, `an implementer decision runs at most three git calls, ran ${ran} for ${target}`);
+}
+
+// The reproduction of the intermittent failure, made deterministic: a git shim that holds one designated call past the hook's
+// bound before it does anything (the call a starved spawn leaves killed before its first line ran). The hook fails open on that
+// call, so the decision carries no verdict and is measured again. Each target is a denial the suite asserts.
 {
-  const ATTEMPTS = 5;
   const realGit = cp.execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
-  const shim = path.join(fx.base, 'count-shim');
-  const calls = path.join(fx.base, 'git-calls');
+  const shim = path.join(fx.base, 'hold-shim');
+  const flag = path.join(fx.base, 'hold-flag');
   fs.mkdirSync(shim);
-  fs.writeFileSync(path.join(shim, 'git'), `#!/bin/sh\necho start >> '${calls}'\n'${realGit}' "$@"\ns=$?\necho end >> '${calls}'\nexit $s\n`, { mode: 0o755 });
+  fs.writeFileSync(path.join(shim, 'git'), `#!/bin/sh\nif mkdir '${flag}' 2>/dev/null; then exec sleep 30; fi\nexec '${realGit}' "$@"\n`, { mode: 0o755 });
   const savedPath = process.env.PATH;
   process.env.PATH = `${shim}${path.delimiter}${savedPath}`;
-  const log = () => fs.readFileSync(calls, 'utf8').split('\n').filter(Boolean);
   try {
-    for (const target of [path.join(fx.main, 'a.txt'), path.join(fx.main, '.git', 'config')]) {
-      let decided = null;
-      for (let attempt = 0; attempt < ATTEMPTS && !decided; attempt++) {
-        fs.writeFileSync(calls, '');
-        const r = decide(implementerWrite(target, fx.main));
-        const lines = log();
-        const started = lines.filter((l) => l === 'start').length;
-        if (lines.filter((l) => l === 'end').length === started) decided = { r, started };
-      }
-      assert.ok(decided, `the decision for ${target} had a git call the hook's bound killed in each of ${ATTEMPTS} attempts: no verdict`);
-      assert.equal(decided.r.block, true, `control: the counted write to ${target} is denied`);
-      assert.ok(decided.started >= 1 && decided.started <= 3, `an implementer decision runs at most three git calls, ran ${decided.started} for ${target}`);
+    for (const target of [path.join(fx.main, 'a.txt'), path.join(fx.main, '.git', 'hooks', 'pre-commit')]) {
+      fs.rmSync(flag, { recursive: true, force: true });
+      const held = measure(implementerWrite(target, fx.main));
+      assert.equal(held.r.block, true, `a decision whose first git call was held past the bound is measured again and denies ${target}`);
+      assert.equal(held.attempts, 2, `the held call made the first attempt carry no verdict for ${target}`);
     }
   } finally {
     process.env.PATH = savedPath;
@@ -288,7 +310,7 @@ const { decide } = require(path.join(pluginRoot, 'hooks', 'tree-guard.js'));
 
 // A target is judged by where its bytes would land, whatever its spelling.
 {
-  const denied = (file, cwd = fx.slicetree) => decide(implementerWrite(file, cwd)).block;
+  const denied = (file, cwd = fx.slicetree) => decideM(implementerWrite(file, cwd)).block;
   assert.equal(denied('../../../../../a.txt', fx.slicetree), true, 'a relative path that resolves into the main checkout is denied');
   assert.equal(denied('a.txt', fx.slicetree), false, 'a relative path inside the slicetree passes');
   assert.equal(denied(path.join(fx.slicetree, '..', '..', '..', '..', '..', 'a.txt')), true, '`..` segments that leave for the main checkout are denied');
@@ -335,5 +357,5 @@ const { decide } = require(path.join(pluginRoot, 'hooks', 'tree-guard.js'));
 {
   const lx = fixture({ linked: true });
   assert.equal(decide(implementerWrite(path.join(lx.slicetree, 'a.txt'), lx.slicetree)).block, false, 'a write into a slicetree under a symlinked `.superdev` passes');
-  assert.equal(decide(implementerWrite(path.join(lx.main, 'a.txt'), lx.main)).block, true, 'control: a write into that main checkout is denied');
+  assert.equal(decideM(implementerWrite(path.join(lx.main, 'a.txt'), lx.main)).block, true, 'control: a write into that main checkout is denied');
 }
