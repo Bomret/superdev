@@ -6,7 +6,26 @@
 
 const path = require('node:path');
 
-const REFERENCE_PATTERN = /(?:\$\{CLAUDE_PLUGIN_ROOT\}\/)?references\/([a-zA-Z0-9_-]+\.md)/g;
+const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// The `controlled-prose.md` headings `prompt-prose-form.md` cites as applied or exempt, beside `## Modes` and
+// `## Self-check`, which carry rows of their own (ADR 0269).
+const PROMPT_PROSE_FORM_CITED = [
+  'Scope',
+  'Words',
+  'Verbs',
+  'Sentences',
+  'Definitions',
+  'Procedures (strict mode)',
+  'Descriptive text (relaxed mode)',
+  'Safety and error text (strict mode)',
+  'Headings, lists, tables, and references',
+  'Punctuation',
+  'How to count words',
+  'Declare per language',
+];
+
+const REFERENCE_PATTERN =/(?:\$\{CLAUDE_PLUGIN_ROOT\}\/)?references\/([a-zA-Z0-9_-]+\.md)/g;
 
 // The execution/controller docs whose instructions are followed with a scopetree or slicetree as cwd (or
 // handed to a subagent whose cwd is a slicetree). Run-root artifacts referenced here must use the absolute
@@ -313,24 +332,22 @@ const SOURCE_SECTION_CONTRACTS = [
     'carry the `## Self-check` section — what `doc-reader` verifies prose against (ADR 0012)',
   ],
   // Every other controlled-prose heading `prompt-prose-form.md` cites as applied or exempt (ADR 0269).
-  ...[
-    ['Scope', /^#{2,3}\s+Scope\s*$/m],
-    ['Words', /^#{2,3}\s+Words\s*$/m],
-    ['Verbs', /^#{2,3}\s+Verbs\s*$/m],
-    ['Sentences', /^#{2,3}\s+Sentences\s*$/m],
-    ['Definitions', /^#{2,3}\s+Definitions\s*$/m],
-    ['Procedures (strict mode)', /^#{2,3}\s+Procedures \(strict mode\)\s*$/m],
-    ['Descriptive text (relaxed mode)', /^#{2,3}\s+Descriptive text \(relaxed mode\)\s*$/m],
-    ['Safety and error text (strict mode)', /^#{2,3}\s+Safety and error text \(strict mode\)\s*$/m],
-    ['Headings, lists, tables, and references', /^#{2,3}\s+Headings, lists, tables, and references\s*$/m],
-    ['Punctuation', /^#{2,3}\s+Punctuation\s*$/m],
-    ['How to count words', /^#{2,3}\s+How to count words\s*$/m],
-    ['Declare per language', /^#{2,3}\s+Declare per language\s*$/m],
-  ].map(([heading, re]) => [
+  ...PROMPT_PROSE_FORM_CITED.map((heading) => [
     path.join('references', 'controlled-prose.md'),
-    re,
+    new RegExp(`^#{2,3}\\s+${escapeRegExp(heading)}\\s*$`, 'm'),
     `carry the \`## ${heading}\` section, which \`references/prompt-prose-form.md\` cites by heading (ADR 0269)`,
   ]),
+  // No `##` heading outside the set `prompt-prose-form.md` sorts into its applied and exempt lists (ADR 0269).
+  // The `\n` lookahead fails on scanContract's whitespace-normalized second try, so only the raw text can pass.
+  [
+    path.join('references', 'controlled-prose.md'),
+    new RegExp(
+      `^(?=[\\s\\S]*\\n)(?![\\s\\S]*\\n##[ \\t]+(?!(?:${['Modes', 'Self-check', ...PROMPT_PROSE_FORM_CITED]
+        .map(escapeRegExp)
+        .join('|')})[ \\t]*(?:\\n|$)))`,
+    ),
+    'carry no `##` heading beyond the ones `references/prompt-prose-form.md` lists as applied or exempt (ADR 0269)',
+  ],
   [
     path.join('references', 'review-checklist.md'),
     /^#{2,3}\s+Anti-patterns\s*$/m,
