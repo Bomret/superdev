@@ -132,6 +132,11 @@ module.exports = ({ assert, path, fixture, found }) => {
     'an added `###` heading under a pinned section stays clean',
   );
   assert.equal(
+    scanContract(fixture({ ...sourceSectionBodies, 'references/controlled-prose.md': sourceSectionBodies['references/controlled-prose.md'].replace(/\n/g, '\r\n') }), SOURCE_SECTION_CONTRACTS).length,
+    0,
+    'a CRLF controlled-prose.md with every pinned heading stays clean',
+  );
+  assert.equal(
     scanContract(fixture({ ...sourceSectionBodies, 'references/test-selection.md': '# Test selection\n' }), SOURCE_SECTION_CONTRACTS).length,
     2,
     'a reference gutted to its title alone fails every row pinned to it',

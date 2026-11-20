@@ -25,7 +25,7 @@ const PROMPT_PROSE_FORM_CITED = [
   'Declare per language',
 ];
 
-const REFERENCE_PATTERN =/(?:\$\{CLAUDE_PLUGIN_ROOT\}\/)?references\/([a-zA-Z0-9_-]+\.md)/g;
+const REFERENCE_PATTERN = /(?:\$\{CLAUDE_PLUGIN_ROOT\}\/)?references\/([a-zA-Z0-9_-]+\.md)/g;
 
 // The execution/controller docs whose instructions are followed with a scopetree or slicetree as cwd (or
 // handed to a subagent whose cwd is a slicetree). Run-root artifacts referenced here must use the absolute
@@ -344,7 +344,7 @@ const SOURCE_SECTION_CONTRACTS = [
     new RegExp(
       `^(?=[\\s\\S]*\\n)(?![\\s\\S]*\\n##[ \\t]+(?!(?:${['Modes', 'Self-check', ...PROMPT_PROSE_FORM_CITED]
         .map(escapeRegExp)
-        .join('|')})[ \\t]*(?:\\n|$)))`,
+        .join('|')})[ \\t\\r]*(?:\\n|$)))`,
     ),
     'carry no `##` heading beyond the ones `references/prompt-prose-form.md` lists as applied or exempt (ADR 0269)',
   ],
