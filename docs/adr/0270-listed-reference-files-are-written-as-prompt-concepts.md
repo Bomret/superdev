@@ -108,3 +108,16 @@ drift comments that repeated the old claim read the same way.
 
 **`shipped-run.md`.** Added: a condition head per concept. Removed: the reasons for the route verb and for the
 adopt `--shipped` refusal, which ADR 0263 carries. Settled: nothing.
+
+**`run-init.md`.** Added: eight numbered `###` steps under the one cited `##` heading, so `scope.js section` still
+reads the whole procedure; **The shipped stop** and **The empty planned ledger** as named concepts, each stated once
+and cited from both places that reach it. Removed: the second statements of the shipped-route stop and the empty
+`planned` ledger case; the copies of "a `planned` run cuts nothing and runs no containment test", which
+`scope-branch.md`'s `## Cutting the scope branch` owns; the step-closer copy, which points to `run-state.md`'s `## The
+ledger`; and the reasons for the content-identity revert, the rotation, and the explicit entry stage, which ADR 0072, ADR 0079, and ADR 0022 carry. Settled: nothing.
+
+**`run-handoff.md`.** Added: a condition head per concept. Removed: the run-state ref send rule, which `run-state.md`'s
+`## Publishing run state` owns; the restated observation capture, which points to `scope-findings.md`'s `##
+Observations`; the restated tick rules, which point to `dod-ticks.md`; and the verification-ceiling copy. Settled:
+the handoff pass credited the multi-slice untagged case to `dod-ticks.md`, which did not state it; `dod-ticks.md`'s
+`## The mapping gate` now states it, and the pass cites it.
