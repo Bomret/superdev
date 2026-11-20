@@ -7,20 +7,18 @@
 
 # Design sketch
 
-An HTML page that shows the operator the design `/superdev:plan` is holding, and why, while changing it is still
-free. `skills/plan/SKILL.md` §3 reads this after its grounding step and before it decomposes, and only when the
-operator asked for a sketch.
+An HTML page that shows the operator the design `/superdev:plan` is holding, and why. `skills/plan/SKILL.md` §3
+reads this after its grounding step and before it decomposes, and only when the operator asked for a sketch.
 
-The reader is the operator running the interview, not a later reviewer. The epic's `## Slice graph` and
-`## Touch map` serve that other reader and are unaffected: they draw the dependency order and the files, where this
-draws what the feature is made of and why it takes that shape.
+**The reader.** Applies to every sketch. Write it for the operator running the interview. It draws what the feature
+is made of and why it takes that shape. The epic's `## Slice graph` and `## Touch map` are unaffected by it.
 
-**The diagrams carry the weight.** A reader who sees only the header and the before/after diagram knows what the
-plan builds, what it changes, and why. The decision and component cards are the detail under that picture.
+**The diagrams carry the weight.** Applies to the page as a whole. The header and the before/after diagram alone show
+what the plan builds, what it changes, and why. The decision and component cards are the detail under that picture.
 
 ## What the page holds
 
-Four parts, in this order:
+**The parts.** Applies to every page. It holds four parts, in this order:
 
 1. **Header.** The feature label, the date, a legend, then `Problem`, `Solution`, and `Wins`.
 2. **Before / after.** The affected part of the system as it is, and as the plan leaves it, side by side.
@@ -35,13 +33,14 @@ Four parts, in this order:
 | `Solution` | one sentence: what the plan builds or changes to answer it |
 | `Wins` | two to five bullets of six words or fewer, each a gain the operator can check after the merge |
 
-A win names a concrete gain in the repository's own terms: "one reader of the ledger", "reviews see the trace". It
-never reads as a generic quality, such as "cleaner code" or "easier to maintain".
+**A win.** Applies to every `Wins` bullet. Name a concrete gain in the repository's own terms: "one reader of the
+ledger", "reviews see the trace". It never reads as a generic quality, such as "cleaner code" or "easier to
+maintain".
 
 ### Before / after
 
-**Draw every component the plan touches, and the untouched components they talk to.** Untouched neighbours are drawn
-plain, so the reader sees where the change attaches. Leave out components neither touched nor adjacent.
+**Draw every component the plan touches, and the untouched components they talk to.** Applies to both diagrams. Draw
+untouched neighbours plain. Leave out components neither touched nor adjacent.
 
 - **Before** draws the system as the grounding read it. Components the plan deletes appear here, marked deleted.
 - **After** draws the system the plan leaves. Added components appear here, marked added. Changed components appear
@@ -51,7 +50,7 @@ plain, so the reader sees where the change attaches. Leave out components neithe
 - **A plan that only adds components** draws the after diagram alone, full width, with its neighbours. A plan that
   changes no components replaces the section with one `<div class="none">` saying so.
 
-**Pick the diagram pattern that shows the change.**
+**Pick the diagram pattern that shows the change.** Applies to every diagram.
 
 | Pattern | Use it when | How |
 |---|---|---|
@@ -60,16 +59,17 @@ plain, so the reader sees where the change attaches. Leave out components neithe
 | Cross-section | a call passes through layers, and the plan adds, removes, or merges layers | stacked bands, one per layer, labelled with its responsibility |
 | Collapse | several components merge into one, or one splits into several | the merged component as one thick box, its former parts faded inside it |
 
-A flowchart runs top to bottom, because a left-to-right graph shrinks to unreadable text in a half-width column. A
-Mermaid diagram stays at 14 nodes or fewer. A larger change draws one diagram per area, each with its own caption.
-Hand-built patterns are HTML boxes in the skeleton's `.stack` and `.collapse` classes, with inline SVG only where an
-arrow is needed.
+**Diagram size and direction.** Applies to every diagram. A flowchart runs top to bottom. A Mermaid diagram stays at
+14 nodes or fewer, and a larger change draws one diagram per area, each with its own caption.
+
+- Hand-built patterns are HTML boxes in the skeleton's `.stack` and `.collapse` classes, with inline SVG only where an
+  arrow is needed.
 
 ### Decisions
 
-One card per design decision the interview settled, that a reader of the diagram would otherwise question: a
-component's placement, a contract between components, a data shape, a dependency the plan takes or refuses. A choice
-left to the implementer is no decision here.
+**A decision card.** Applies to every design decision the interview settled that a reader of the diagram would
+otherwise question: a component's placement, a contract between components, a data shape, a dependency the plan takes
+or refuses. Give it one card. A choice left to the implementer gets no card.
 
 | Line | What it says |
 |---|---|
@@ -78,20 +78,20 @@ left to the implementer is no decision here.
 | instead of | the alternative that lost, and in a few words why |
 | ADR | where the decision rests on or reopens an ADR: its number and one line; omit the line otherwise |
 
-A decision that reopens an ADR is marked as such in its callout, and names why the friction warrants it.
+**A reopened ADR.** Applies to a decision that reopens an ADR. Mark it as such in its callout, and name why the
+friction warrants it.
 
 ### Components
 
-One card per **component** (`CONTEXT.md`) the plan intends to **add**, **change**, or **delete**. A component is a
-unit that acts — a module, a class, a command file, a hook, a service — as distinct from a **domain shape**, which is
-data the code declares.
+**A component card.** Applies to every **component** (`CONTEXT.md`) the plan intends to **add**, **change**, or
+**delete**. Give it one card, and the same name in the diagrams. A component is a unit that acts (a module, a class, a
+command file, a hook, a service), distinct from a **domain shape**, which is data the code declares.
 
-**Name each component in the implementation language's own terms.** `docs/agents/toolchain.md` records the language;
-take the word that language uses — class, struct, module, trait, protocol, command, hook. A repository with no
-recorded language gets plain component names, and no invented terms; its cards take a plain `kind` word, or omit the
-line.
+**Name each component in the implementation language's own terms.** Applies to every card's `kind` and name. Take the
+word the language `docs/agents/toolchain.md` records uses: class, struct, module, trait, protocol, command, hook.
 
-**Every component the plan touches has a card**, and the same name in the diagrams.
+- **No recorded language** → plain component names and no invented terms. Its cards take a plain `kind` word, or omit
+  the line.
 
 | Line | On which cards | What it says |
 |---|---|---|
@@ -102,16 +102,16 @@ line.
 | talks to | every card | this component's outgoing interactions, as in the after diagram |
 | shapes | where the language has them | the domain shapes this component introduces, by name |
 
-**A card with no shapes line is correct** in a repository whose language has none. Omit the line rather than
-printing a placeholder.
+**A card with no shapes line is correct.** Applies to a repository whose language has no shapes. Omit the line, and
+print no placeholder.
 
 ## The artifact
 
+**The file.** Applies to every sketch written. Write the artifact by these rules.
+
 - **One file, at `.superdev/design/<feature-slug>.html`**, resolved as an absolute path from the invoking checkout.
-  `<feature-slug>` is the feature label's slug, so re-planning the same feature overwrites the same file instead of
-  leaving a rival beside it.
-- **Ensure `.superdev/` is in the repository's `.gitignore`, and add it when it is absent** — the same guarantee §2's
-  knowledge-base staging makes.
+  `<feature-slug>` is the feature label's slug, and re-planning the same feature overwrites the same file.
+- **Ensure `.superdev/` is in the repository's `.gitignore`, and add it when it is absent.**
 - **HTML with an inline `<style>` block and one script: Mermaid 12.3.0 from jsDelivr**, exactly as the skeleton
   imports it. No other script, no other network request, no external stylesheet, no build step, and no local server.
   The page opens by double-click. Without the network, each Mermaid block shows its source, and every other part of
@@ -121,8 +121,8 @@ printing a placeholder.
 
 ## The skeleton
 
-Follow this structure, so every sketch reads the same way. Extend the lists and pick the diagram patterns; leave the
-shape of the page and the stylesheet alone.
+**The structure.** Applies to every sketch. Follow this structure. Extend the lists and pick the diagram patterns,
+and leave the shape of the page and the stylesheet alone.
 
 ```html
 <!doctype html>
@@ -286,7 +286,8 @@ flowchart TB
 </html>
 ```
 
-**Hand-built patterns** replace a `<pre class="mermaid">` inside the same `<figure>`:
+**Hand-built patterns.** Applies to a cross-section or a collapse. It replaces a `<pre class="mermaid">` inside the
+same `<figure>`:
 
 ```html
 <div class="stack">
@@ -300,31 +301,33 @@ flowchart TB
 </div>
 ```
 
-Write each Mermaid block's source flush left, because Mermaid reads its indentation. Give each node a short id and its
-component name as the label. Quote a label that holds punctuation: `A["scope.js dod-line"]`. Write an angle
-bracket inside a label as Mermaid's entity code `#lt;` or `#gt;`: `A["Map#lt;K,V#gt;"]` keeps its type parameters.
-Mermaid sanitizes every label as HTML, so a label written with `<` or `&lt;` loses the bracketed text.
+**Mermaid source.** Applies to every Mermaid block. Write its source flush left. Give each node a short id and its
+component name as the label.
 
-**Drop a whole section whose list is empty** — a plan with no decision worth a card carries no `Decisions` heading.
-Order the component cards added, then changed, then deleted.
+- Quote a label that holds punctuation: `A["scope.js dod-line"]`.
+- Write an angle bracket inside a label as Mermaid's entity code `#lt;` or `#gt;`: `A["Map#lt;K,V#gt;"]` keeps its type
+  parameters. A label written with `<` or `&lt;` loses the bracketed text.
+
+**Drop a whole section whose list is empty.** Applies to the `Decisions` and `Components` sections. A plan with no
+decision worth a card carries no `Decisions` heading. Order the component cards added, then changed, then deleted.
 
 ## The prose on the page
 
-**Prose is sparse and plain.** A diagram that needs a paragraph to be understood is redrawn, not explained.
+**Prose is sparse and plain.** Applies to every line of text on the page. A diagram that needs a paragraph to be
+understood is redrawn, not explained.
 
 - `Problem`, `Solution`, and every `why` line is one sentence. Every other line runs to six words or fewer where it
   can.
-- Component names come from `CONTEXT.md`'s vocabulary, and the diagrams and the cards use the same name. Concision is
-  not licence to drift to a synonym; a concept the glossary lacks is reported rather than renamed.
+- Component names come from `CONTEXT.md`'s vocabulary, and the diagrams and the cards use the same name, never a
+  synonym. A concept the glossary lacks is reported, never renamed.
 - `now` and `after` state behaviour, never a diff of the file.
 - The page carries no paragraph beyond the header fields, and no closing summary. A sentence that could be a bullet is
   a bullet, and a bullet that could be cut is cut.
 
 ## The wait
 
-**Write the file, print its path, and stop there.** The operator opens it.
+**Write the file, print its path, and stop there.** Applies once the sketch is written. The operator opens it.
 
 - **A correction** rewrites the same file and presents it again. Repeat until the operator approves.
 - **Approval** is what releases §3 to decompose, and it decomposes the design that was approved.
 
-An operator who declines the sketch at §3's question never reaches this file, so nothing here loads for them.

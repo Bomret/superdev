@@ -11,21 +11,21 @@ The over-engineering lens `simplicity-reviewer` applies to a whole scope's range
 
 Applies to every dispatch.
 
-Correctness, security, and performance belong to a separate reviewer. Flag none of them here, and nothing else beyond unnecessary complexity. Obtain the diff with the `git diff <range>` the controller gives you.
+Flag unnecessary complexity and nothing else: correctness, security, and performance belong to a separate reviewer. Obtain the diff with the `git diff <range>` the controller gives you.
 
-Prose in the diff gets the same lens. Tag a rule nothing reaches `delete:`, a rule the diff states twice or restates where another file owns it `shrink:`, and a branch for a case that never occurs `yagni:`.
+**Prose in the diff.** Applies to every prose hunk. Tag a rule nothing reaches `delete:`, a rule the diff states twice or restates where another file owns it `shrink:`, and a branch for a case that never occurs `yagni:`.
 
 ## Judge discipline
 
 Applies to every dispatch.
 
-Assess the diff itself and not the implementer's narrative for why the complexity is warranted. Length or an elaborate structure is no justification of its own. Flag machinery that does not earn its keep in the code you can see, however the dispatch explains it.
+Assess the diff itself, never the implementer's narrative for why the complexity is warranted. Flag machinery that does not earn its keep in the code you can see, however the dispatch explains it.
 
 ## Clarity is not bloat
 
 Applies to every dispatch.
 
-Fewer lines is the goal only where the shorter form is also clearer. Recommend no cut that trades readability for terseness: a clever one-liner nobody can debug at 3am, distinct concerns crammed into one function, or an abstraction that genuinely organizes the code.
+Recommend a cut only where the shorter form is also clearer. Recommend none that trades readability for terseness: a clever one-liner nobody can debug at 3am, distinct concerns crammed into one function, or an abstraction that genuinely organizes the code.
 
 - A deeply nested ternary is not already short. Tag it `shrink:` toward a `switch` or an if-else chain.
 

@@ -119,7 +119,7 @@ A new-feature plan loads neither reference.
 | A recorded posture (`none`, `manual`, or `auto`) and no target to deploy: no deploy question asked, or an answer listing none | Answer them `none` with that reason. Ask nothing. |
 | No recorded posture: no `docs/agents/deployment.md`, or one with no `Posture:` line | Ask once per plan whether the feature reaches a running production system, and answer the three from the reply. Name `/superdev:setup`'s deployment decision as the way to record a posture. |
 
-**A `fix` feature's reproduction.** Applies to a `fix`-type feature. Read `${CLAUDE_PLUGIN_ROOT}/references/diagnosis.md` and hold the plan to it. The **red-capable command**, one invocation that reproduces the defect and has run once, becomes the first acceptance criterion of the first slice, and a defect nobody can reproduce yet is what that first slice delivers.
+**A `fix` feature's reproduction.** Applies to a `fix`-type feature. Read `${CLAUDE_PLUGIN_ROOT}/references/diagnosis.md` and hold the plan to it. Place the **red-capable command** per `${CLAUDE_PLUGIN_ROOT}/references/plan-authoring.md`'s `### A fix feature's reproduction`.
 
 **Settling the derived criteria.** Applies once the "in every configuration?", reachability, and release-risk passes have pinned the Definition of Done, before §3 decomposes. Every plan runs it: a new feature, a single-slice plan, an append over the whole amended Definition of Done, and a repair. No plan reaches §3 while a gap stands unsettled.
 
@@ -201,7 +201,7 @@ A triage record already written is amended instead, through the store's own `## 
 
 ## 4. Tag dependencies
 
-**Dependencies.** Applies to every slice. Give it a stable `id` and `depends-on: [ids]`. A slice depends on another **only if it cannot be green without it**.
+**Dependencies.** Applies to every slice. Give it a stable `id` and `depends-on: [ids]`. A slice depends on another **only if it cannot be green without it**. A `fix` feature's reproduction slice is the one exception (`${CLAUDE_PLUGIN_ROOT}/references/plan-authoring.md`'s `### A fix feature's reproduction`).
 
 **Same-file conflict.** Applies to two slices with no dependency between them that **edit the same file**, such as both adding an export to one barrel file. They run in parallel and merge serially, so they will conflict. Give one a `depends-on` the other, or keep them parallel and call out the conflict in the plan, preferring a restructuring that gives parallel slices disjoint files.
 
@@ -209,7 +209,7 @@ A triage record already written is amended instead, through the store's own `## 
 
 ## 5. Quiz the user
 
-**The readiness check.** Applies to every plan, a new plan, an append, and a repair, at every size, a single-slice plan included, once §3 and §4 have drafted every slice's `spec` and `acceptance` and before the breakdown. Write the slice draft, then dispatch `superdev:slice-readiness-reviewer` with an explicit `model: opus`. Hand it the paths of the draft, the slice draft, and the scopetree, and no interview text.
+**The readiness check.** Applies to every plan, a new plan, an append, and a repair, at every size, a single-slice plan included, once §3 and §4 have drafted every slice's `spec` and `acceptance` and before the breakdown. Write the slice draft, then dispatch `superdev:slice-readiness-reviewer` with an explicit `model: opus`. Hand it the paths of the draft, the slice draft, and the scopetree, the feature label, and no interview text.
 
 - On an append, the draft is the amended Definition of Done, and the slice draft also lists the feature's existing slices.
 - With no run open yet, no scopetree exists: hand the repository's path and `<base>` in its place, the base branch `scope.js open` receives as `--base`.

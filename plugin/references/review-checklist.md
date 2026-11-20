@@ -5,22 +5,22 @@
 
 # Review checklist — cross-cutting, language-agnostic
 
-Concrete lenses for a reviewer to apply on top of its own judgment — named smells and vulnerability
-classes beat a generic "check code quality" / "check security."
+Concrete lenses a reviewer applies on top of its own judgment: named smells and vulnerability classes.
 
 ## Binding rules
 
-These rules bind every lens below, and every lens of a reference that cites this section:
+**The binding rules.** Applies to every lens in this file, and to every lens of a reference that cites this section.
 
-- **The repo overrides.** A documented repo standard wins; where it endorses something a lens would
-  flag, suppress the finding.
-- **Skip what tooling already enforces.** A linter or formatter the repo runs
-  (`docs/agents/toolchain.md`) already catches its own class of issue; re-reporting it spends review
-  attention on a solved problem.
-
-Every smell is a labelled judgment call ("possible feature envy"), never a hard violation.
+- **The repo overrides.** A documented repo standard wins. Where it endorses something a lens would flag, suppress
+  the finding.
+- **Skip what tooling already enforces.** A linter or formatter the repo runs (`docs/agents/toolchain.md`) owns its
+  own class of issue. Report none of that class.
+- **A smell is a judgment call.** Label every smell as one ("possible feature envy"), never as a hard violation.
 
 ## Anti-patterns
+
+**The anti-patterns.** Applies to every review that cites this section. Flag each smell the change shows, named as
+listed.
 
 - **Parameter sprawl** — a function/constructor taking so many params that call sites are unreadable or
   error-prone (wrong-order same-type args). Group into a value object, or split the function.
@@ -37,10 +37,8 @@ Every smell is a labelled judgment call ("possible feature envy"), never a hard 
 - **Redundant state** — a value stored in two places that must be kept in sync by convention rather than
   derived once from a single source of truth.
 - **Weakened net** — a diff that edits, deletes, or skips a *pre-existing* test to get the suite green.
-  The existing suite is the safety net; a change that must loosen it is hiding a regression, not fixing
-  one. Regenerating a snapshot, a golden file, or another recorded expected output to match new output is
-  the same smell, unless a slice's acceptance criteria or the Definition of Done changed that output: the
-  recorded output was the net, and the diff replaces it with whatever the code now produces.
+  Regenerating a snapshot, a golden file, or another recorded expected output to match new output is the same
+  smell, unless a slice's acceptance criteria or the Definition of Done changed that output.
 - **Tautological test** — a test that passes whatever the code under test does. The probe: would it still
   pass if every call to the code under test returned an empty value (nothing, zero, an empty collection)
   or a wrong one? Name the shape in the finding:
@@ -59,10 +57,8 @@ Every smell is a labelled judgment call ("possible feature envy"), never a hard 
   on another input, so a function that always returns nothing fails one of the two. Two cases are not this
   smell: a check that two sources agree (a schema and its fixture, a table's rows against each other), and
   a pin on text whose only runtime reader is a person or a model (a prompt's wording, a clause a document
-  must carry). A `fail-to-pass` outcome does not clear this finding, because a fail-to-pass run reads exit
-  statuses only and cannot see two cases: a test of a symbol the change introduces fails before the change
-  at compile, import, or name lookup in every language, and a weak test beside a discriminating one leaves
-  the whole change reading `fail-to-pass`. Read the assertions of both.
+  must carry). A `fail-to-pass` outcome does not clear this finding: read the assertions of a test of a symbol the
+  change introduces, and of a weak test beside a discriminating one.
 - **Overclaiming check** — a test or a drift check whose name, assertion message, or the criterion it is
   cited for claims more than the input it feeds and the property it asserts. The probe: reconstruct the
   input the check feeds and the property it asserts, state both in the finding, and compare them with the
@@ -71,30 +67,28 @@ Every smell is a labelled judgment call ("possible feature envy"), never a hard 
   code but asserts a narrower property than it claims is this smell; a check that passes whatever the code
   does is **Tautological test**. A finding names one of the two smells, never both. Tautological test's two
   exclusions hold here too: a check that two sources agree, and a pin on text whose only runtime reader is a
-  person or a model. This smell lies outside `test-auditor`'s three test lenses: a review applies it, and
-  the test audit does not.
+  person or a model. A review applies this smell, and the test audit does not.
 - **Happy-path-only suite** — new behaviour whose tests exercise only the success path, with no assertion
   for the failure and boundary cases named in its acceptance criteria. Name the specific uncovered case,
   not a vague "add more tests."
 - **Redundant test coverage** — a new test re-proving a case an existing test already covers. Name the
-  covering test's location, so the reader can decide which of the two survives. This is the counterweight
-  to the lenses above, which all argue for more coverage; a suite pays for every test it carries on
-  every run. Distinct from **weakened net**: that one loosens a test already there, this one adds a test
-  nothing needed.
+  covering test's location, so the reader can decide which of the two survives. Distinct from **weakened net**:
+  that one loosens a test already there, this one adds a test nothing needed.
 - **Overweight fixture** — a test standing up a heavier fixture than the behaviour it proves requires: a
   container, a real database, or a live network where an in-memory fake, a stub, or a direct call proves
-  the same thing. Name the lighter form. A heavy fixture is right where that integration is itself the
-  behaviour under test; the smell is the case where it is merely the most realistic option available.
-- **Justified workaround** — if it takes a paragraph-long comment to justify why a workaround is OK, the
-  code is wrong — fix the code. Stubbing a function out to silence a compile/test failure is the same
-  smell.
+  the same thing. Name the lighter form. A heavy fixture is no smell where that integration is itself the
+  behaviour under test.
+- **Justified workaround** — a workaround that takes a paragraph-long comment to justify. The remedy fixes the
+  code. Stubbing a function out to silence a compile/test failure is the same smell.
 - **Drive-by change** — a hunk that traces to no acceptance criterion and to nothing in the
   specification: a reformatted function the change never touched, a renamed unrelated variable, an
-  "improved" neighbouring comment, a refactor nobody asked for. It widens the review surface and the
-  merge-conflict surface for no requested value. Deleting *pre-existing* dead code is this smell too —
-  the report should name it, not remove it. Removing what the change itself orphaned is not.
+  "improved" neighbouring comment, a refactor nobody asked for. Deleting *pre-existing* dead code is this smell
+  too: the report names it and removes nothing. Removing what the change itself orphaned is no smell.
 
 ## Vulnerability classes
+
+**The vulnerability classes.** Applies to every review that cites this section. Flag each class the change shows,
+named as listed. The citing agent body states its severity.
 
 - **SQL injection** — unparameterized/string-concatenated query built from external input.
 - **XSS (cross-site scripting)** — external input rendered without output encoding/escaping.

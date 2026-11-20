@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0271](0271-plan-review-and-doc-pass-references-are-written-as-prompt-concepts.md)
+
 **Amends:** [ADR 0190](0190-listed-skill-files-are-written-as-prompt-concepts.md), whose convention now also
 governs the reference files the glossary lists, and
 [ADR 0170](0170-prompt-concept-overlap-is-judged-by-rule-equivalence.md), whose dispatch-sentence test now

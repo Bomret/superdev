@@ -1,81 +1,95 @@
 # Interview discipline (cross-examination)
 
-`/superdev:plan` runs its interview by this whole discipline. `/superdev:brainstorm` runs the core moves
-its opening names and stops at its own readiness test. In `/superdev:plan` the interview is the
-**main event**, not a warm-up before slicing or brief-writing: keep going until the design tree is
-exhausted and you and the user share the same picture — **not** until you have "enough to start."
+`/superdev:plan` runs its interview by this whole discipline. `/superdev:brainstorm` runs the core moves its opening
+names and stops at its own readiness test.
+
+**The main event.** Applies to `/superdev:plan`'s interview. The interview is the main event, never a warm-up before
+slicing or brief-writing. Keep going until the design tree is exhausted and you and the user share the same picture.
+"Enough to start" is no stopping point.
 
 ## Core moves
 
-- **One question at a time.** Multiple at once is bewildering. Ask, wait for the answer, then ask the
-  next. Never batch.
-- **A recommended answer every time.** Never pose a bare open question, except in the
-  no-survivor case of "Offer only live options" — state your best answer and the
-  reasoning behind it, so the user reacts to a concrete position instead of
-  generating one from nothing.
-  "I'd do X because Y — agree?" beats "how should we do X?". **Whenever a question resolves to discrete
-  options, ask it through `AskUserQuestion` — never list the options inline in prose.** Mark the lean
-  option `(Recommended)` (the tool's own labeling convention), put the reasoning in that option's
-  description, and never present a bare neutral list. Reserve prose for genuinely open questions that have
-  no option set to offer. A genuine toss-up (two readings truly equal) → say so explicitly rather than
-  fabricate a preference.
-- **Offer only live options.** Before you ask a question you compose, vet every option: check each
-  load-bearing claim it rests on — a claim about the repository by reading the repository, a claim about
-  a third party against its official docs (`references/doc-verification.md` owns what makes a claim
-  load-bearing and how to check it). Drop an option a check fails, and name it with the reason it failed.
-  A claim you cannot check keeps its option, labeled as an assumption. Then every option beside the
-  recommended one states, in its description, what choosing it saves — time, scope size, risk, reversibility, a
-  human check — and an option that can name no saving is dropped too. In a toss-up, with no recommended option,
-  each option states what it saves over the other. **Show the vetting before the question.** A short prose
-  paragraph ahead of the `AskUserQuestion` call cites the evidence for each load-bearing claim (`file:line`, or
-  a doc URL), carries every assumption label, and names every dropped option with its reason, so the option
-  descriptions stay short. **Offer at most two options.**
-  Exactly one survivor → the decision has one defensible answer: state it in one line with its reason
-  ("fixing X in slice 2, because Y") and continue with the next question. Stating it out loud is what
-  keeps it surfaced, and the user can object in any later turn. No survivor → ask no option question:
-  name each failed option with its reason, and put the decision to the user as an open question. A fact
-  that could not have been checked before the question still reopens an answer; name the fact when it
-  does. A question a skill requires by name — a release, new, extend, or repair, the feature to extend, the deploy
-  target, where a found defect goes, a brainstorm draft choice, a setup choice, submit-pr's ship question — keeps its fixed option
-  set, outside the two-option cap, and is asked every time regardless: an option in that set that can
-  name no saving states why instead of being dropped.
-- **Walk the design tree, branch by branch.** Resolve dependencies between decisions one by one: a
-  decision that constrains others is asked first; never ask a downstream question whose answer a still-open
-  upstream decision would change. Finish a branch before starting the next. **Recompute the open frontier
-  after every answer**: an answer reshapes the tree — settling some questions, spawning others — so the
-  next question comes from the recomputed frontier, not from a list drawn up at the start. The frontier is
-  your judgment, not a computed graph; recomputing it is what makes a long interview converge instead of
-  wander.
-- **Explore the code instead of asking.** If a question is answerable from the repo — does X exist, how
-  does Y work, what calls Z — read it. Spend a tool call, not the user's attention. Only ask what the code
-  cannot answer.
-- **Find facts concurrently.** Facts are your job, never the user's. When a frontier question needs a
-  fact from the environment that takes real digging, dispatch a background sub-agent to find it and keep
-  interviewing — a running exploration is an unsettled prerequisite, so only the questions downstream of
-  it wait for the report; ask the rest of the frontier now. A question is downstream of an exploration
-  whenever any of its options rests on a claim that exploration would check.
-- **Surface, never smuggle.** State assumptions out loud. Two readings of an answer → present both, don't
-  silently pick one. A simpler path than the user's framing → say so. Something unclear → stop and name the
-  confusing thing.
-- **Hunt contradictions.** When a new answer conflicts with an earlier one, or with what the code does,
-  stop and put the two side by side: "earlier you said A, now B — which holds?" A relentless interview is
-  one that refuses to let an inconsistency slide.
-- **Stress-test with concrete scenarios.** Probe boundaries with specific edge cases that force precision
-  — "what happens when two of these arrive at once?", "what does the user see if this step fails?" —
-  never settle for abstract agreement.
+**One question at a time.** Applies to every question you ask. Ask one and wait for its answer before you ask the next.
+Never batch questions.
 
-- **Park explicitly, write it down.** A load-bearing decision genuinely can't be resolved this session
-  (blocked on something outside the conversation, the user doesn't know yet)? Park it as a known-open
-  question rather than forcing a premature answer — but write it to the epic's `## Parked questions`
-  section (`plan-authoring.md`) the moment it's parked, not batched at the end. A multi-slice plan only:
-  on a single-slice plan, a genuinely open load-bearing decision means the plan isn't single-slice-simple
-  yet — resolve it now or decompose further.
+**A recommended answer every time.** Applies to every question, except the no-survivor case of **Offer only live
+options**. State your best answer and its reasoning, so the user reacts to a concrete position: "I'd do X because Y —
+agree?", never "how should we do X?".
+
+- **A question that resolves to discrete options** → ask it through `AskUserQuestion`, never as options listed inline
+  in prose. Mark the lean option `(Recommended)`, put the reasoning in that option's description, and never present a
+  bare neutral list.
+- **A genuinely open question with no option set** → ask it in prose.
+- **A genuine toss-up** (two readings truly equal) → say so explicitly, and fabricate no preference.
+
+**Offer only live options.** Applies to every question you compose. Before you ask it, vet every option by checking
+each load-bearing claim it rests on: a claim about the repository by reading the repository, a claim about a third
+party against its official docs (`references/doc-verification.md` owns what makes a claim load-bearing and how to
+check it). **Offer at most two options.**
+
+- **A check fails** → drop the option, and name it with the reason it failed.
+- **A claim you cannot check** → keep its option, labeled as an assumption.
+- **The saving** → every option beside the recommended one states, in its description, what choosing it saves: time,
+  scope size, risk, reversibility, a human check. An option that can name no saving is dropped. In a toss-up, each
+  option states what it saves over the other.
+- **Show the vetting before the question.** A short prose paragraph ahead of the `AskUserQuestion` call cites the
+  evidence for each load-bearing claim (`file:line`, or a doc URL), carries every assumption label, and names every
+  dropped option with its reason. The option descriptions stay short.
+- **Exactly one survivor** → state it in one line with its reason ("fixing X in slice 2, because Y") and continue with
+  the next question. The user can object in any later turn.
+- **No survivor** → ask no option question: name each failed option with its reason, and put the decision to the user
+  as an open question.
+- **A fact that could not have been checked before the question** still reopens an answer: name the fact when it
+  does.
+
+**A required question.** Applies to a question a skill requires by name: a release, new, extend, or repair, the
+feature to extend, the deploy target, where a found defect goes, a brainstorm draft choice, a setup choice,
+submit-pr's ship question. It keeps its fixed option set, outside the two-option cap, and is asked every time.
+
+- **An option in that set that can name no saving** → states why, and stays.
+
+**Walk the design tree, branch by branch.** Applies to the order of your questions. Ask a decision that constrains
+others first, and never ask a downstream question whose answer a still-open upstream decision would change. Finish a
+branch before starting the next.
+
+- **Recompute the open frontier after every answer.** An answer settles some questions and spawns others. The next
+  question comes from the recomputed frontier, never from a list drawn up at the start. The frontier is your
+  judgment, not a computed graph.
+
+**Explore the code instead of asking.** Applies to a question the repository can answer: does X exist, how does Y
+work, what calls Z. Read the code. Ask the user only what the code cannot answer.
+
+**Find facts concurrently.** Applies to a frontier question that needs a fact from the environment that takes real
+digging. Dispatch a background sub-agent to find it, and keep interviewing. Only the questions downstream of that
+exploration wait for its report.
+
+- **The rest of the frontier** → ask it now.
+- **Downstream** → a question any of whose options rests on a claim the exploration would check.
+
+**Surface, never smuggle.** Applies to every assumption and every answer. State assumptions out loud.
+
+- **Two readings of an answer** → present both, and pick neither silently.
+- **A simpler path than the user's framing** → say so.
+- **Something unclear** → stop and name the confusing thing.
+
+**Hunt contradictions.** Applies to a new answer that conflicts with an earlier one, or with what the code does. Stop
+and put the two side by side: "earlier you said A, now B — which holds?". Let no inconsistency slide.
+
+**Stress-test with concrete scenarios.** Applies to every agreement on a boundary. Probe it with specific edge cases
+that force precision: "what happens when two of these arrive at once?", "what does the user see if this step fails?".
+Never settle for abstract agreement.
+
+**Park explicitly, write it down.** Applies to a load-bearing decision this session cannot resolve: it is blocked on
+something outside the conversation, or the user does not know yet. On a multi-slice plan, park it as a known-open
+question, and write it to the epic's `## Parked questions` section (`plan-authoring.md`) the moment it is parked.
+
+- **A single-slice plan** → resolve the decision now, or decompose further.
 
 ## Termination
 
-Stop when every load-bearing decision is resolved (or explicitly parked as a known-open question), the
-picture is shared, and the next question would be ceremony. Stopping earlier — at "enough to begin" — is
-the failure this discipline exists to prevent. Then state the shared picture in a few sentences, listing
-every decision you stated rather than asked, and **get the user's explicit confirmation of it before
-acting on it** — slicing, writing, and briefing all wait
-for that confirmation, not just for the questions to run out.
+**When to stop.** Applies to every interview. Stop when every load-bearing decision is resolved or explicitly parked,
+the picture is shared, and the next question would be ceremony. Stopping at "enough to begin" is too early.
+
+**The shared picture.** Applies once you stop. State the shared picture in a few sentences, listing every decision you
+stated rather than asked. **Get the user's explicit confirmation of it before acting on it**: slicing, writing, and
+briefing all wait for that confirmation.
