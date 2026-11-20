@@ -275,6 +275,7 @@ module.exports = ({ assert, fixture, found }) => {
   // A start of ship from review or document names the consent verb on the same line (ADR 0266).
   for (const rel of ['references/review-scope-mode.md', 'skills/document/SKILL.md']) {
     assert.equal(pastPr({ [rel]: openSkill('- **Submitted** → start `/superdev:ship <scope>`.') }).length, 1, `${rel}: a ship start without scope.js consent is caught`);
+    assert.equal(pastPr({ [rel]: openSkill('Start `/superdev:ship <scope>` next.') }).length, 1, `${rel}: a capitalized ship start without scope.js consent is caught`);
     assert.equal(
       pastPr({ [rel]: openSkill('- **Submitted** → ask `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" consent --root <run-root>` first. `carried` → start `/superdev:ship <scope>`.') }).length,
       0,
