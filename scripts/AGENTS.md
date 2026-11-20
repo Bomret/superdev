@@ -40,8 +40,8 @@ a ledger's header lines, bullets, and table rows), `refusal.js` (the refusal err
 responsibility. `git-spawn.js`'s `existsAt` is the shared existence check at a commit: `true` for a path the commit holds, an empty
 file included. It returns `false` for a path the commit does not hold. It returns `null` where git cannot say. It reads no blob, so a file of any size answers, and a
 directory or submodule entry answers `true`. `fileAt` reads a file's text at a commit, `''` for an empty or absent file, and takes
-`existsAt` where `show` fails. Both read the path literally, with the flag `--literal-pathspecs`. They run under `literalEnv`, the
-environment without `GIT_GLOB_PATHSPECS`, `GIT_NOGLOB_PATHSPECS`, and `GIT_ICASE_PATHSPECS`, because git refuses those beside the flag.
+`existsAt` where `show` fails. `fileAt`'s `show <commit>:<path>` read is literal by its syntax. `existsAt` reads the path with the flag
+`--literal-pathspecs`. It runs under `literalEnv`, the environment without `GIT_GLOB_PATHSPECS`, `GIT_NOGLOB_PATHSPECS`, and `GIT_ICASE_PATHSPECS`, because git refuses those beside the flag.
 A path `:foo` is that file, never pathspec magic. A path `a*` is that file, never a glob. At startup `scope.js` loads only `refusal.js`, `ledger.js`, and `trace-log.js`. Every other module
 loads when a verb that uses it runs, through an accessor that names the module in a literal `require`, so the
 `--related` require scan still reaches it. `scope.js` exports only the names a requirer uses. A name it re-exports from a
