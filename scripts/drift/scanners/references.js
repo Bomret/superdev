@@ -1,7 +1,7 @@
 'use strict';
 
 // The scanners that resolve what prose points at: referenced documents, command names, run-root paths, and
-// the governed skill files the glossary lists.
+// the governed files the glossary lists.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -68,7 +68,7 @@ function scanCommandRefs(root) {
 }
 
 // scanGovernedSkillFiles(): every backticked repo-relative path in `CONTEXT.md`'s **Prompt concept** entry
-// names a file (ADR 0190). The entry is the only list of the governed skill files, so a renamed file would
+// names a file (ADR 0190, ADR 0270). The entry is the only list of the governed files, so a renamed file would
 // silently drop out of the convention. The entry runs to the next glossary headword. A backticked token with
 // no `/` is a bare name or a section, never a path.
 const GLOSSARY_DOC = 'CONTEXT.md';
@@ -77,7 +77,7 @@ function scanGovernedSkillFiles(root) {
   if (doc === null) return [missingDoc(GLOSSARY_DOC)];
   const at = doc.search(/^\*\*Prompt concept\*\*:/m);
   if (at === -1) {
-    return [{ source: GLOSSARY_DOC, expectation: 'carry the **Prompt concept** entry that lists the governed skill files' }];
+    return [{ source: GLOSSARY_DOC, expectation: 'carry the **Prompt concept** entry that lists the governed files' }];
   }
   const rest = doc.slice(at);
   const next = rest.slice(1).search(/^\*\*[^*\n]+\*\*:/m);

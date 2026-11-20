@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0270](0270-listed-reference-files-are-written-as-prompt-concepts.md), which extends the
+convention to the reference files the glossary lists.
+
 **Amends:** [ADR 0169](0169-agent-bodies-are-written-as-prompt-concepts.md), whose convention now also
 governs the skill files the glossary lists, and
 [ADR 0170](0170-prompt-concept-overlap-is-judged-by-rule-equivalence.md), whose overlap test now applies

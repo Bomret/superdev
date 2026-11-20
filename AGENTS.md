@@ -279,9 +279,9 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
     in one prompt, and the dispatch is the later, more specific instruction, so it wins a conflict
     ([`CONTEXT.md`](CONTEXT.md) → *Dispatch prose*, ADR 0035). An edit to a contract in `agents/` also
     edits the `skills/` sentence that dispatches it, and a review reads the two together.
-  - **Write each agent body and each listed skill file as prompt concepts.** The convention is in
-    [`CONTEXT.md`](CONTEXT.md) → *Prompt concept* and *Main sentence*, and in ADR 0169 and ADR 0190.
-    The glossary's *Prompt concept* entry lists the governed skill files. An edit to `plugin/agents/`
+  - **Write each agent body and each listed file as prompt concepts.** The convention is in
+    [`CONTEXT.md`](CONTEXT.md) → *Prompt concept* and *Main sentence*, and in ADR 0169, ADR 0190, and ADR 0270.
+    The glossary's *Prompt concept* entry lists the governed files, skill files and references alike. An edit to `plugin/agents/`
     or to a listed file keeps every concept's invariants. A review checks the **No overlap** invariant with the test and grades in
     `references/prompt-concept-overlap.md`'s `## Prompt-concept overlap` (ADR 0170). The review also judges the form of each
     added or edited sentence by the controlled-prose sections `references/prompt-prose-form.md`'s
