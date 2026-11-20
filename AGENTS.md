@@ -436,7 +436,7 @@ This root owns every other subtree directly:
   the yes to submit-pr's ship question or on carried consent from a clean review or document pass at `submitted`,
   verify-ship and wrap-up on ship's routes, and wrap-up at verify-ship's settled exit. A ship started on carried consent
   keeps every gate and ask it has when typed, and asks once before the merge where its deploy gate shows a changed
-  posture, target, or named-check list. A declined entries-standing question clears ship's step, which withdraws the
+  posture, target, or named-check list. A declined question whether to merge with unresolved entries (a defect) standing clears ship's step, which withdraws the
   consent. Ship started from another session's brief asks the operator one yes first, because a brief is
   never merge consent (ADR 0253). Ship refuses `--unattended` (INV-0093). A criterion verify-ship observes false routes to `/superdev:plan`'s
   repair choice, which plans a `fix` feature on its own anchor, linked to the original by a `**Repairs:**`
