@@ -5,11 +5,14 @@
 
 # Review design lenses — whole-change design, reuse, and consistency
 
-`final-reviewer` reads this file on a review dispatch, where the whole change is in view. `review-checklist.md`'s `## Binding rules` bind every lens below.
+`final-reviewer` reads this file on a review dispatch, where the whole change is in view.
+
+**Binding.** Applies to every lens in this file. `review-checklist.md`'s `## Binding rules` bind it.
 
 ## Design smells
 
-The classical catalogue (Fowler), each one nameable and huntable:
+**The design smells.** Applies to every review dispatch. Flag each smell of the classical catalogue (Fowler) the
+change shows, named as listed:
 
 - **Mysterious name** — a name that requires reading the body to learn what it does.
 - **Feature envy** — a function more interested in another module's data than its own; it wants to move
@@ -27,28 +30,27 @@ The classical catalogue (Fowler), each one nameable and huntable:
 - **Middle man** — a module that only delegates; call the target.
 - **Speculative generality** — flexibility nobody asked for. The simplicity lens
   (`simplicity-lens.md`) owns this on a diff it reviewed; flag it here only on a range no lens pass saw.
-- **Single-adapter seam** — a port/interface with exactly one adapter behind it and no second in sight:
-  a hypothetical seam, which is indirection, not architecture. Two adapters make a seam real — one of
-  them may be the in-memory test adapter of a true external dependency.
+- **Single-adapter seam** — a port/interface with exactly one adapter behind it and no second in sight. Two
+  adapters make a seam real, and one of them may be the in-memory test adapter of a true external dependency.
 - **Orphan production symbol** — a new production symbol the running application cannot reach: nothing
   registers it with the container or a manifest/configuration file (`hooks.json`, a skill the harness
-  dispatches by name), no route or handler maps to it, and no non-test code references it.
-  The feature was built and tested in isolation and never wired in, so the suite is green while the
-  capability does not exist. Name the symbol and the entrance it never reached. `final-reviewer` owns
-  this on the integrated scope, where the whole feature is in view: one slice diff **cannot tell an
-  orphan from a caller** that arrives in a later slice.
+  dispatches by name), no route or handler maps to it, and no non-test code references it. Name the symbol and
+  the entrance it never reached. `final-reviewer` owns this on the integrated scope: one slice diff **cannot tell
+  an orphan from a caller** that arrives in a later slice.
 
 ## Reuse audit
 
-Before accepting new code, search the project's own utils/helpers/adjacent and shared modules for an
-existing equivalent — a duplicate implementation is a quality issue even when each copy is individually
-correct. Prefer extending or calling the existing one over adding a parallel implementation.
+**Search before accepting.** Applies to every piece of new code. Search the project's own utils, helpers, adjacent
+modules, and shared modules for an existing equivalent before accepting it. A duplicate implementation is a finding
+even when each copy is individually correct, and the remedy extends or calls the existing one.
 
 ## Consistency
 
+**The consistency lenses.** Applies to every review dispatch. Flag each drift the change shows, named as listed:
+
 - **Convention drift** — new code that ignores the conventions already established in the codebase:
-  naming, file/module layout, error-handling style, the idiom used for the same job elsewhere. Match
-  what's there rather than introduce a second way to do one thing.
+  naming, file/module layout, error-handling style, the idiom used for the same job elsewhere. The remedy
+  matches what is there.
 - **Cross-slice divergence** — the same concept given a different name, API shape, or vocabulary across
   slices; two seams that should agree but don't. On standing code, with no slices to compare, this reads
   as a divergent second way to do one job living inside the code itself.

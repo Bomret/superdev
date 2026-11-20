@@ -120,3 +120,18 @@ API needs no check. Settled: nothing.
 
 **`intent-handoff.md`.** Added: a condition head on each section's concept; each "the fallback below" pointer now
 names `## The fallback`. Removed: nothing. Settled: nothing; ADR 0199 carries the reasons.
+
+**`review-checklist.md`.** Added: a condition head for `## Binding rules`, `## Anti-patterns`, and `## Vulnerability
+classes`; the judgment-call rule as a third binding rule, so it binds every citing lens as the section did. Removed:
+the reasons inside the **Weakened net**, **Tautological test**, **Redundant test coverage**, **Overweight fixture**,
+and **Drive-by change** entries, and the reason re-reporting a tooling class is waste. Each condition those reasons
+carried stays as a rule. The anti-pattern and vulnerability lists stay lists, and the citing agent bodies keep the
+Critical severity of a vulnerability class. Settled: nothing.
+
+**`review-design-lenses.md`.** Added: a condition head on each section's lens, and the binding by `## Binding rules`
+as its own concept. Removed: the reasons inside **Single-adapter seam** and **Orphan production symbol**, and the
+reason **Convention drift** matches what is there. Settled: nothing.
+
+**`simplicity-lens.md`.** Added: **Prose in the diff** as its own concept under `## Scope of the lens`. Removed: the
+sentence that length is no justification of its own, which **Judge discipline**'s remaining rule carries. Settled:
+nothing.
