@@ -73,3 +73,25 @@ reverses this decision.
 The controller's grep catches a missed sibling surface only where that surface repeats the rule's key
 phrase. A sibling that states the rule in other words passes the cross-check, so the implementer's own
 search stays the primary reconciliation.
+
+**Rerun 2026-11-20.** The transcript classification ran again over the local transcripts of 2026-11-13 to
+2026-11-20, on plugin 0.107 to 0.110. It covered 58 `/superdev:review` invocations with at least one fix
+cycle, in four repositories. Five model readers classified the findings of 101 re-reviews, in place of one
+human reader. 92 re-reviews followed an `opus` fix cycle, 7 followed a `haiku` one, and 2 followed a base
+merge the controller resolved.
+
+- Fix cycles per review invocation: mean 2.10, median 2. The 5 `full`-tier invocations averaged 2.4. The
+  count did not fall below the baseline.
+- Fix-introduced re-review findings that are new defects or incomplete fixes: 41 after the 92 `opus`
+  cycles, which is 0.45 per cycle. The baseline had 36 over 15 to 20 cycles. The rate is 0.25 per cycle
+  after a Minor-only fix list (56 cycles) and 0.75 after a list with an Important or Critical finding
+  (36 cycles).
+- Of the 180 re-review findings, 79 are classed pre-existing, most of them a finding an earlier verdict
+  already reported. More than half of the 54 other fix-introduced findings are the cycle's own unclosable
+  Pass-to-pass outcome.
+
+The fix-cycle implementer stays on `opus`. The drop in the rate is not assignable to the model alone: the
+sibling-surface rule of this decision, ADR 0205's self-check, and ADR 0174's warm cycles took effect in the
+same period, and the rerun is mostly `lite`-tier scopes where the baseline was `full`-tier only. The 7
+`haiku` cycles are too few to judge. Fix cycles per invocation did not fall, so fix-introduced defects are
+not what sets the cycle count.
