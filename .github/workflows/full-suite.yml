@@ -1,0 +1,32 @@
+name: full-suite
+
+# Runs the full suite on every pull request to main. docs/agents/verification.md names this
+# job's check run in its CI section, so /superdev:ship merges on it instead of a local run (ADR 0255).
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: full-suite-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  full-suite:
+    name: full-suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+      # The runner's tail calls `claude plugin validate ./plugin`, which needs no login.
+      - run: npm install -g @anthropic-ai/claude-code
+      # A fixture commit that sets no identity of its own takes this one, as on a maintainer machine.
+      - run: |
+          git config --global user.name ci
+          git config --global user.email ci@example.com
+      - run: node scripts/run-tests.js
