@@ -78,8 +78,9 @@ their own cost, time each one alone (`## One-suite run`).
 
 ## CI
 
-`none`
+- `full-suite`
 
-The template-tests workflow under .github/workflows runs one suite, tests/publish-kb-templates.test.js, on three
-platforms. It is no full-suite run, so /superdev:ship runs the full suite locally (ADR 0255). This explanation carries
-no backtick span, because every span in this section reads as a check name.
+The full-suite workflow under .github/workflows runs the full command on Linux for every pull request to main, and its
+one job reports the check run named above. /superdev:ship merges when that check is green on the head it merges, and
+runs no local suite (ADR 0255). The template-tests workflow runs one suite on three platforms and counts for nothing
+here. This explanation carries no backtick span, because every span in this section reads as a check name.
