@@ -1564,6 +1564,6 @@ Class: correctness
 Concepts: Slicetree, Scopetree, Prepare command, Guardrail
 Statement: Every shipped reader of a repository's registered working trees takes them from `listWorktrees`, which reads `git worktree list --porcelain -z` and keeps a working-tree path holding a newline whole. No other shipped hook or module spawns `git worktree list` and parses its text.
 Breaks: silently
-Check: scripts/drift-check.js `worktree-list-one-parser` — no file under `plugin/` other than `plugin/lib/git-spawn.js` spawns `'worktree', 'list'`
+Check: scripts/drift-check.js `worktree-list-one-parser` — no file at the top level of `plugin/hooks/`, `plugin/scripts/`, or `plugin/lib/` other than `plugin/lib/git-spawn.js` spawns `'worktree', 'list'`
 Symbols: listWorktrees
 Paths: plugin/lib/git-spawn.js, plugin/hooks/slicetree-sweep.js, plugin/lib/prepare.js, plugin/lib/scope-checkout.js, plugin/lib/plan-open.js
