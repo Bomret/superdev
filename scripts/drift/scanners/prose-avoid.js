@@ -291,7 +291,7 @@ function scanImplementNoFullRun(root) {
   return gaps;
 }
 
-// INV-0157: a failing test in a scope review's suite run joins the fix list as the failing-run concept's Critical finding,
+// INV-0157: a failing test in red evidence the scope review reads joins the fix list as the red-evidence concept's Critical finding,
 // so `review-scope-mode.md`'s observation concept, whose defects never join it, names no suite run as a source.
 function scanObservationNoSuiteRun(root) {
   const [rel, heading] = OBSERVATION_NO_SUITE_RUN_DOC;

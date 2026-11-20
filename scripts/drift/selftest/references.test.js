@@ -130,10 +130,10 @@ module.exports = ({ assert, path, fixture, found }) => {
     'each source naming a missing command is reported',
   );
 
-  // --- governed-skill-files (ADR 0190): every backticked path in CONTEXT.md's **Prompt concept** entry exists ---
+  // --- governed-skill-files (ADR 0190, ADR 0270): every backticked path in CONTEXT.md's **Prompt concept** entry exists ---
 
   const entry =
-    '# Context\n\n**Prompt concept**: a governed body. The listed skill files are `plugin/skills/review/SKILL.md` and ' +
+    '# Context\n\n**Prompt concept**: a governed body. The listed files are `plugin/skills/review/SKILL.md` and ' +
     '`plugin/references/review-scope-mode.md`. `prompt-concept-overlap.md`\'s `## Prompt-concept overlap` grades a pair.\n\n' +
     '- **Boundary.** It has a name.\n\n**Main sentence**: one clause, see `plugin/skills/gone/SKILL.md`.\n';
   assert.equal(
@@ -152,7 +152,7 @@ module.exports = ({ assert, path, fixture, found }) => {
   assert.match(gsGaps[0].expectation, /`plugin\/references\/review-scope-mode\.md`/, 'the gap names the missing path');
   const gsDir = scanGovernedSkillFiles(
     fixture({
-      'CONTEXT.md': '**Prompt concept**: the listed skill files are `plugin/skills/review`.\n',
+      'CONTEXT.md': '**Prompt concept**: the listed files are `plugin/skills/review`.\n',
       'plugin/skills/review/SKILL.md': '# review\n',
     }),
   );

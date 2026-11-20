@@ -72,14 +72,15 @@ Applies to the `lite` tier. Its playbook runs the documentation pass in the same
 
 **A denied dispatch.** Applies when a dispatch is denied. It is a degraded pass: follow `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Degraded passes` section. Work inline, say so, and write the `**Degraded:**` entry.
 
-- **An authoring dispatch** (implementer, fix) → `scope.js degraded add`. Under `--unattended` it blocks.
-- **A verification dispatch** → `scope.js degraded add-denial -`, the refusal piped through a quoted heredoc rather than a shell argument. Then ask `scope.js denial <pass> [--unattended] --root <run-root>` for the verdict, per that section's **The verdict**: `inline` → do the pass inline, and a `block …` verdict blocks.
+- **An authoring dispatch** (implementer, fix) → `scope.js degraded add`.
+- **A verification dispatch** → `scope.js degraded add-denial -`, the refusal piped through a quoted heredoc rather than a shell argument.
+- **Then, for either** → ask `scope.js denial <pass> [--unattended] --root <run-root>` for the verdict, per that section's **The verdict**: `inline` → do the pass inline, and a `block …` verdict blocks. On the `full` tier, `implement-full-denied.md` owns the inline pass.
 
 **Agents carry their own discipline.** Applies to every dispatch. Pass specifics, not lectures. A `mechanical` or `docs` slice invents no tests: the loop's runs and the full-suite evidence `/superdev:ship` takes, from the named CI checks or a local run (a full run, or the carry or recorded rerun `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md` admits), are the net.
 
 ## Config + input
 
-**`--unattended`.** Applies before anything else. Take it out of `$ARGUMENTS`, wherever it sits. Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section and follow it wherever this command or its playbook asks a question or starts an interview command (`/superdev:setup`, `/superdev:plan`). Nothing else in that file applies here.
+**`--unattended`.** Applies before anything else. Take it out of `$ARGUMENTS`, wherever it sits. Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section and follow it wherever this command or its playbook asks a question or starts an interview command (`/superdev:setup`, `/superdev:plan`). The playbook reads that file's `## The run lock`, `## The scope checkout`, and `## The scope's range base` where it cites them.
 
 **The config.** Applies to every start. Read `docs/agents/issue-tracker.md` (slice store), `docs/agents/code-management.md` (code host), `docs/agents/documentation.md` (documentation convention), `docs/agents/knowledge-base.md` (optional KB), and `docs/agents/verification.md` (test command).
 

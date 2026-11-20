@@ -4,6 +4,8 @@
 
 **Amended by:** [ADR 0190](0190-listed-skill-files-are-written-as-prompt-concepts.md), which applies the
 overlap test to a standing-code review, to a reference-only change, and to a governed skill's dispatch prose.
+[ADR 0270](0270-listed-reference-files-are-written-as-prompt-concepts.md) pairs a relayed dispatch sentence
+also with the reference sections the receiving agent reads.
 
 **Amends:** [ADR 0169](0169-agent-bodies-are-written-as-prompt-concepts.md), whose **One home per rule**
 the reviewer now checks with a stated test and stated grades, and
