@@ -73,6 +73,10 @@ assert.ok(refused(['denial', 'final-reviewer', '--root', rootWith(FULL, ['- ran 
 
 // Refusals: an unknown pass, an unrecorded verification denial (also behind a reset), a missing pass, a stray argument, a bad root.
 assert.ok(refused(['denial', 'simplicity-reviewer', '--root', rootWith(FULL, lots(1))]).includes('simplicity-reviewer'));
+// A plan-time or brainstorm-time reader is no verification pass.
+for (const reader of ['slice-readiness-reviewer', 'intent-challenger']) {
+  assert.ok(refused(['denial', reader, '--root', rootWith(FULL, lots(1))]).includes(`"${reader}" is no known pass`), `${reader} is no pass`);
+}
 assert.ok(refused(['denial', 'final-reviewer', '--root', rootWith(FULL)]).includes('record'));
 assert.ok(refused(['denial', 'final-reviewer', '--unattended', '--root', rootWith(FULL, [...lots(2), RESET])]).includes('record'));
 refused(['denial', '--root', rootWith(FULL)]);
