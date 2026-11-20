@@ -634,10 +634,50 @@ try {
     const modTag = JSON.parse('"' + /^const DOD_TAG = '([^']*)'$/m.exec(parseSrc)[1] + '"');
     const modLabel = /^const DOD_LABEL = '\(([^']*)\)'$/m.exec(parseSrc)[1];
     const { DOD_NO_NOTE_TAG_RE } = require('../plugin/lib/dod-line.js');
-    assert.strictEqual(DOD_NO_NOTE_TAG_RE.source, `^(.+) — (${modTag})\\s*$`, 'parse.ts DOD_TAG reads as dod-line.js DOD_TAG_PATTERN');
+    assert.strictEqual(DOD_NO_NOTE_TAG_RE.source, `^([^\\n\\r]+) — (${modTag})\\s*$`, 'parse.ts DOD_TAG reads as dod-line.js DOD_TAG_PATTERN');
     const libSrc = fs.readFileSync(path.join(__dirname, '..', 'plugin', 'lib', 'dod-line.js'), 'utf8');
     const libLabel = /^const DOD_NOTE_VERDICT_RE = '\(\?:([^']*)\)';$/m.exec(libSrc)[1];
     assert.strictEqual(modLabel, libLabel, 'parse.ts DOD_LABEL reads as dod-line.js DOD_NOTE_VERDICT_RE');
+  }
+  // Option parsing: a flag with no value, a flag as value, and an unknown argument refuse (F62).
+  {
+    const m = path.join(fileDir, 'opt-m.txt');
+    const n = path.join(fileDir, 'opt-n.txt');
+    fs.writeFileSync(m, 'a');
+    fs.writeFileSync(n, 'ok');
+    const body = '## Definition of Done\n\n- [ ] a — 01\n';
+    for (const args of [['--lines', 'x'], ['--match-file', m, '--verdict', 'met', '--note-file'], ['--match-file', m, '--verdict', '--note-file', n], ['--match-file', m, '--verdict', 'met', '--note-file', n, '--lines', '3']]) {
+      const res = rawCall(['dod-line', ...args], body);
+      assert.ok(!res.ok && res.out === '', 'dod-line refuses ' + args.join(' '));
+    }
+  }
+
+  // A note holding U+2028 or U+2029 refuses and writes nothing, in body and --line mode (F60).
+  {
+    const m = path.join(fileDir, 'sep-m.txt');
+    fs.writeFileSync(m, 'a');
+    for (const sep of ['\u2028', '\u2029']) {
+      const n = path.join(fileDir, 'sep-n.txt');
+      fs.writeFileSync(n, 'bad' + sep + 'note');
+      for (const extra of [[], ['--line']]) {
+        const res = rawCall(['dod-line', '--match-file', m, '--verdict', 'met', '--note-file', n, ...extra], extra.length ? '- [ ] a — 01\n' : '## Definition of Done\n\n- [ ] a — 01\n');
+        assert.ok(!res.ok && res.out === '', 'separator note refuses');
+      }
+    }
+  }
+
+  // Reading order (F59): a note quoting another line's tag-and-verdict text keeps the line's own reading.
+  {
+    const { parseDodLineReadings } = require('../plugin/lib/dod-line.js');
+    const e1 = parseDodLineReadings('- [ ] Retries are capped — not met: earlier note read "x — 3 — met: y"')[0];
+    assert.deepStrictEqual([e1.criterion, e1.tag, e1.verdict], ['Retries are capped', '', 'not met']);
+    const e2 = parseDodLineReadings('- [ ] Crit — 01 — not met: see — 02 — met: x')[0];
+    assert.deepStrictEqual([e2.criterion, e2.tag, e2.verdict], ['Crit', '01', 'not met']);
+    // The shortest-first order cannot tell a tagged line whose criterion holds ` — met: ` from E1: it reads as E1.
+    const amb = parseDodLineReadings('- [ ] A — met: b — 01 — not met: n')[0];
+    assert.deepStrictEqual([amb.criterion, amb.tag, amb.verdict], ['A', '', 'met']);
+    const sep = parseDodLineReadings('- [ ] Cr\u2028it — 01 — not met: n\u2029ote')[0];
+    assert.deepStrictEqual([sep.criterion, sep.tag, sep.verdict, sep.note], ['Cr\u2028it', '01', 'not met', 'n\u2029ote']);
   }
 } finally {
   fs.rmSync(fileDir, { recursive: true, force: true });

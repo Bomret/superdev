@@ -146,8 +146,8 @@ evidence the report gathered. A bare tick with no note is invalid, and a writer 
 
 **A line's state is read from its note, never from its checkbox** (ADR 0247, INV-0190). Applies to every command that
 judges a line open or settled, from `dod.md` or from the scope anchor's lines. The note's label is the text right
-after the line's leftmost ` — [<tag> — ]` boundary, as `lib/dod-line.js`'s parser reads it, matched as a whole label
-and never as a substring.
+after the line's leftmost ` — [<tag> — ]` boundary, taking whichever of the tagged and untagged boundaries leaves the
+shorter criterion, as `lib/dod-line.js`'s parser reads it, matched as a whole label and never as a substring.
 
 - **Settled line**: a line whose note's label is `met:` or `accepted:`, whatever its checkbox shows. A `[ ] … met:`
   line is settled.

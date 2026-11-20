@@ -161,6 +161,15 @@ try {
     const r = call(['adopt', '--root', root], ADOPT(stage), cwd);
     assert.ok(!r.ok && /dod\.md/.test(r.err), `adopt ${stage} refuses with no dod.md`);
   }
+  // A criterion line holding U+2028 in its criterion, or in its note, is a criterion line the gate counts.
+  for (const [where, line] of [['criterion', '- [ ] The gate\u2028counts — 07\n'], ['note', '- [ ] The gate counts — 07 — not met: n\u2028m\n']]) {
+    const cwd = fresh();
+    const root = rootOf(cwd, 'gate');
+    fs.mkdirSync(root, { recursive: true });
+    fs.writeFileSync(path.join(root, 'dod.md'), '## Definition of Done\n\n' + line);
+    const r = call(['init', 'feat/gate', 'implementing'], sliceJson, cwd);
+    assert.ok(r.ok, `init implementing counts a line with U+2028 in its ${where}: ${r.err}`);
+  }
 } finally {
   for (const d of made) fs.rmSync(d, { recursive: true, force: true });
   cleanup();

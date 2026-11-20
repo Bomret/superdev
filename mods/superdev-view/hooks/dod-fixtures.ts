@@ -26,6 +26,15 @@ export const DOD_LOOKALIKE_LINES: string[] = /* dod-lookalike:start */ [
   "- [x] the widget renders — met: was — not met: x"
 ] /* dod-lookalike:end */
 
+// Lines the shortest-criterion rule reads (plugin/lib/dod-line.js): an untagged line whose note quotes a tag and a
+// verdict reads open at its own label, and a line holding U+2028 is one line that counts in the total.
+// parse.test.ts asserts how `progress` counts them.
+export const DOD_SHORTEST_LINES: string[] = [
+  '- [ ] Retries are capped — not met: earlier note read "x — 3 — met: y"',
+  '- [ ] Retries are capped — 3 — not met: see — met: y',
+  '- [ ] Cr\u2028it — 01 — met: n\u2029ote',
+]
+
 // Open lines scope.js never writes: a bare tick, an unjudged line, and a tick beside a note that settles nothing.
 export const DOD_OPEN_LINES: string[] = [
   '- [x] the widget renders',
