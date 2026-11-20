@@ -204,7 +204,8 @@ chain — numbered list is clearer, skipping both".
 **The reproduction slice.** Applies to a feature whose change type is `fix`. Its **red-capable command**, one
 invocation that reproduces the defect and has run once (`diagnosis.md`'s `## The red-capable command (the gate)`), is
 the first acceptance criterion of a `behavior` slice. Every other `behavior` slice of the feature depends on that
-slice, directly or through other slices.
+slice, directly or through other slices. This dependency is the one exception to the slice rules' `depends-on` rule:
+it holds even where the other slice could be green without the reproduction slice.
 
 - **A defect nobody can reproduce yet** → building that command is the work of that slice.
 - **A `fix` feature with no `behavior` slice** → its first slice's `spec` states why no command reproduces the defect,

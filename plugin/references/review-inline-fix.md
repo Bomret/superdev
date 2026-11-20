@@ -35,7 +35,7 @@
 
 ## 4. The inline fix dispatch
 
-**The dispatch.** Applies once the worktree is prepared. Dispatch one `superdev:implementer` as its **inline fix dispatch**, with these values. `agents/implementer.md` owns the rest: `### RED-test rule`, `### Sibling surfaces` (the sibling places and the same-defect instances in the reviewed subject's changed files), `### Running tests` (the test-run bound and the separate Bash calls), `### Fail-to-pass run`, and `## Report`.
+**The dispatch.** Applies once the worktree is prepared. Dispatch one `superdev:implementer` as its **inline fix dispatch**, with these values. `agents/implementer.md` owns the rest: `### RED-test rule`, `### Sibling surfaces` (the sibling places and the same-defect instances in the reviewed subject's changed files), `### Running tests` (the separate Bash calls), `### Fail-to-pass run` (the test-run bound), and `## Report`.
 
 - **Model**: `opus`. `haiku` only when every item in `<list>` is mechanical, one whose fix changes no stated rule or behaviour.
 - **Working directory**: `<tree>`, where its commits land on `<branch>`.

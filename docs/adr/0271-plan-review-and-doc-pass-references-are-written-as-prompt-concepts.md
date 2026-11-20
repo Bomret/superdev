@@ -29,9 +29,11 @@ it (triage #327).
   prompt concepts by ADR 0270's rules, and the glossary lists each one.
 - **A `fix` feature's reproduction lands on a `behavior` slice.** The red-capable command is the first acceptance
   criterion of a `behavior` slice that every other `behavior` slice of the feature depends on, directly or through
-  other slices. A defect nobody can reproduce yet makes building that command the work of that slice. A `fix` feature with no `behavior` slice states in its first
+  other slices. That dependency is the one exception to the rule that a slice depends on another only if it cannot
+  be green without it. A defect nobody can reproduce yet makes building that command the work of that slice. A `fix` feature with no `behavior` slice states in its first
   slice's `spec` why no command reproduces the defect. `/superdev:plan` hands the feature label to
-  `slice-readiness-reviewer`, which reports a `fix` plan that breaks this rule.
+  `slice-readiness-reviewer`, which reports a `fix` plan that breaks this rule and exempts the reproduction slice from
+  its Split candidate finding.
 
 ## Considered options
 
@@ -69,8 +71,9 @@ its cases as a list. Removed: the reasons for the untracked file and for the sin
 and ADR 0207 carry. Settled: nothing.
 
 **`plan-authoring.md`.** Added: `### A fix feature's reproduction` under `## Vertical-slice rules`, the one owner
-of where a `fix` feature's red-capable command lands, which `skills/plan/SKILL.md`, `plan-repair.md`, and
-`slice-readiness-reviewer.md` cite; **The integration branch** as its own concept under `### Wide refactors`; each
+of where a `fix` feature's red-capable command lands, which `skills/plan/SKILL.md`, `plan-repair.md`, `diagnosis.md`,
+and `slice-readiness-reviewer.md` cite, and which names itself the one exception to the slice rules' `depends-on`
+rule; **The integration branch** as its own concept under `### Wide refactors`; each
 `## Append mode` invariant under its own bold label, with the anchor lines that migrate on a single-slice promotion
 named once. Removed: the reasons for behaviour over proxy counts, for the uniform `Reachable:` and `Release risk:`
 rules, for the epic-visuals floor, for an honest dependency graph, and for each append refusal, which ADR 0004,
@@ -155,7 +158,8 @@ end reviewed nothing. Settled: nothing.
 `agents/implementer.md` sections that own the RED-test rule, the sibling surfaces and same-defect instances, the test
 runs, the fail-to-pass run, and the report, and hands only the model, the working directory, the findings with
 `<cycle-base>`, and the no-run-root values. Removed: the restated sibling-surface and same-defect rules, which
-`implementer.md`'s `### Sibling surfaces` already owned for the inline fix dispatch; the "below" pointers. Settled: the
+`implementer.md`'s `### Sibling surfaces` already owned for the inline fix dispatch; the "below" pointers; the reason
+the focused run reaches a path the fix deleted, and the sentence that the fix worktree is no run root. Settled: the
 separate-Bash-calls rule lived only in this dispatch, so it moved into `implementer.md`'s `### Running tests` for the
 inline fix dispatch before the dispatch dropped it. ADR 0228 carries the reasons.
 

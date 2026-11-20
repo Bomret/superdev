@@ -201,7 +201,7 @@ A triage record already written is amended instead, through the store's own `## 
 
 ## 4. Tag dependencies
 
-**Dependencies.** Applies to every slice. Give it a stable `id` and `depends-on: [ids]`. A slice depends on another **only if it cannot be green without it**.
+**Dependencies.** Applies to every slice. Give it a stable `id` and `depends-on: [ids]`. A slice depends on another **only if it cannot be green without it**. A `fix` feature's reproduction slice is the one exception (`${CLAUDE_PLUGIN_ROOT}/references/plan-authoring.md`'s `### A fix feature's reproduction`).
 
 **Same-file conflict.** Applies to two slices with no dependency between them that **edit the same file**, such as both adding an export to one barrel file. They run in parallel and merge serially, so they will conflict. Give one a `depends-on` the other, or keep them parallel and call out the conflict in the plan, preferring a restructuring that gives parallel slices disjoint files.
 

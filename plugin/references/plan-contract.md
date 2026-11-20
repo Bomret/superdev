@@ -14,7 +14,7 @@ maps the same fields onto its own issue bodies, links, and statuses.
 | `id` | Stable slice identifier — the issue key the backend assigns. | DAG ordering, status tracking |
 | `title` | Short descriptive name. | humans |
 | `depends-on` | List of slice `id`s that must merge before this slice can start. Empty = root. | `/implement` DAG |
-| `test-applicability` | `behavior` \| `mechanical` \| `docs`. Drives the warrant gates (`## `test-applicability` → warrant gates`). | `/implement`, `implementer` |
+| `test-applicability` | `behavior` \| `mechanical` \| `docs`. Drives the warrant gates (``## `test-applicability` → warrant gates``). | `/implement`, `implementer` |
 | `spec` | What this slice delivers end-to-end — the implementer's requirements: the behaviour, and the specific interface its tests exercise (a function signature, an API endpoint, a CLI command), never file paths. It names the **domain shapes** the slice needs by name, in the project glossary's vocabulary, never as field lists; the implementer declares them before its first failing test and owns their fields. A prototype-produced snippet that encodes a decision more precisely than prose can (a state machine, a reducer, a schema) may be inlined, trimmed to the decision-rich parts and marked as prototype-sourced (`prototype.md`). | `implementer` |
 | `acceptance` | Checkable criteria for THIS slice. On a `behavior` slice they name the domain-level failure and boundary cases derivable from the interview, beside the happy path. Implementation-level edges stay with the implementer and the reviewers. `skills/plan/SKILL.md` holds the split with examples. | `slice-reviewer`, `implementer` |
 | `status` | Canonical lifecycle `todo` → `in-progress` → `in-review` → `merged` (= done), plus `blocked`. Backends map these onto their real statuses; the ledger is authoritative during a run. | `/implement`, store |
@@ -83,7 +83,7 @@ never from its box. The stage gate does not hold on it.
 - `behavior` — the implementer does full TDD, and **slice-reviewer runs**: correctness, independent verification, and
   on its first review the over-engineering lens, whose warranted cuts join that review's fix list.
 - `mechanical` — pure move, rename, or format: no new test, and **the per-slice review is skipped**. The runs already
-  in the loop and the scope's full-suite evidence at `/superdev:review`'s exit are the net, and the scope review
+  in the loop and the scope's full-suite evidence `/superdev:ship` takes are the net, and the scope review
   catches correctness.
 - `docs` — documentation only: no test, and **reviews are skipped**.
 
