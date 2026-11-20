@@ -14,9 +14,8 @@ concern, see `docs/agents/knowledge-base.md`.
 - **Keep it operational.** Concise, current, stable contracts, not diary entries. Broad rules in parent
   docs, concrete details in child docs. **Delete stale or contradictory text immediately.** Write present-tense, state-of-the-world prose, with no history.
 - **Single-source.** A derivable or shared fact (a name-list, a described behavior) lives in exactly one
-  owning place. Root `AGENTS.md`'s `Structure` listing is where this repo's `skills/`, `agents/`,
-  `hooks/`, and `scripts/` are named. Every other doc links to the owning place instead of restating the
-  fact.
+  owning place. A directory is the list of its members, and each member's own file states its
+  contract. Every other doc links to the owning place instead of restating the fact.
 
 superdev usage: `/superdev:plan` records ADRs (`docs/adr/`), the glossary (`CONTEXT.md`), and the
 invariant register (`docs/invariants.md`) in their conventional locations, and the `AGENTS.md` tree indexes and points to them. `/superdev:document`

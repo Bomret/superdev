@@ -14,7 +14,7 @@ Thank you for helping. This page states how to propose a change and how it gets 
 1. Install Node 24 or later and Bun.
 2. Clone the repository and run `bun install`.
 3. Read [`AGENTS.md`](AGENTS.md). It is the working contract for this repository: its layout, its rules,
-   and the rules for each subtree.
+   and the file that owns each subtree's rules.
 
 To try a change in Claude Code, load the working tree with `claude --plugin-dir ./plugin`.
 

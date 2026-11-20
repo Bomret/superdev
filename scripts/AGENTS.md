@@ -13,7 +13,7 @@ ADR 0093), and `run-tests.js` (the suite runner). This doc owns them all regardl
 ## Ownership
 
 This doc owns what each script guards and the contracts between them. Repo-wide rules stay in the root
-[`AGENTS.md`](../AGENTS.md): the stack, the working rules, and the release flow.
+[`AGENTS.md`](../AGENTS.md): the stack and the working rules. [`RELEASING.md`](../RELEASING.md) owns the release flow.
 
 ## Local Contracts
 
@@ -36,8 +36,8 @@ a module of its own: the ledger verbs in `ledger-lifecycle.js` and `ledger-recor
 a ledger's header lines, bullets, and table rows), `refusal.js` (the refusal error `fail`), `verification.js` (`verificationCommands`,
 `verificationCommandsOf`, `prepareCommandOf`, `namedChecksOf`, `isTestPath`), `git-spawn.js` (`gitSpawn`, `gitThrow`, `parseBranchList`, `resolveCommit`, `refResolves`, `literalEnv`, `existsAt`, `fileAt`, `listWorktrees`),
 `containment.js` (`testContainment`, `judgeContainment`, `refetchMark`, `baseHistoryHasPatch`, `baseCommitHoldsBranch`), `main-work-tree.js` (`mainWorkTree`, `scopesDirFor`, `mainTreePath`), and
-`trace-log.js` (`appendTrace`, `readTrace`, `traceField`, `untraceField`). The root [`AGENTS.md`](../AGENTS.md) *Structure* names every module and its
-responsibility. `git-spawn.js`'s `existsAt` is the shared existence check at a commit: `true` for a path the commit holds, an empty
+`trace-log.js` (`appendTrace`, `readTrace`, `traceField`, `untraceField`). Each `plugin/lib/` module opens with its file name and a colon naming its one
+responsibility, so the directory is the list of modules. `git-spawn.js`'s `existsAt` is the shared existence check at a commit: `true` for a path the commit holds, an empty
 file included. It returns `false` for a path the commit does not hold. It returns `null` where git cannot say. It reads no blob, so a file of any size answers, and a
 directory or submodule entry answers `true`. `fileAt` reads a file's text at a commit, `''` for an empty or absent file, and takes
 `existsAt` where `show` fails. `fileAt`'s `show <commit>:<path>` read is literal by its syntax. `existsAt` reads the path with the flag
@@ -165,7 +165,7 @@ tiers it keeps, silently. A module requires no entry point, so a `require` of a 
 guards its own CLI entry with `require.main === module`. `hooks/run-trace.js` takes
 the trace writer `appendTrace` from `trace-log.js`,
 the tree locator `locate` and the test-path classifier `isTestPath` (ADR 0128) from `run-tree.js`,
-and the dispatch readers from `dispatch.js`. The hook reads no Bash command (ADR 0227). Each `require` has its own guard, and a module that fails to load
+and the dispatch readers from `dispatch.js`. The hook reads no Bash command (ADR 0227). One `try` guards the three `require`s, and a module that fails to load
 leaves the hook recording nothing (ADR 0117, INV-0159). Its model guard, which denies a modelless dispatch to a superdev
 agent on PreToolUse(Agent), requires no module, so a failed load leaves the deny in force (ADR 0245). `hooks/tree-guard.js` takes `mainWorkTree` from `main-work-tree.js` (ADR 0148). `publish-kb.js` reaches
 the containment test `testContainment` from `containment.js`, which refetches the base before it answers not contained (ADR 0053,
@@ -427,7 +427,8 @@ and `tests/scope-open.test.js` holds its cases.
 `ledger.md`, `trace.log`, and `run.lock`, then removes the run root when that leaves it empty. It refuses, removing nothing, a
 missing `--root`, a root that does not resolve (after `..`, symlinks, and a drive path) to `<main working tree>/.superdev/scopes/<scope>`,
 and a run whose stage is later than `planned`. An absent file or an absent root exits 0. `/superdev:plan`'s label revision calls
-it. The code lives in `plugin/lib/discard.js`, and `tests/scope-discard.test.js` holds its cases.
+it. The code lives in `plugin/lib/discard.js`, and `tests/scope-discard.test.js` holds its cases. `plugin/lib/drive-path.js`, the
+MSYS drive-path translator, is the only path helper `discard.js` and `prepare.js` share (ADR 0150).
 
 ### Run digest (ADR 0227)
 
@@ -1206,12 +1207,12 @@ live beside it, in `scripts/drift/`.
 | `drift-check.js` | the CLI: `runChecks(checks, root)` (the per-check walk, catching a thrown `run()` as that check's own `threw` result instead of letting it crash the walk), `formatGap` (a missing-document gap printed by path, every other gap by its check's own format), `main()`, the ok line, the exit code, and the `--selftest` handoff. Guards its CLI dispatch with `require.main === module`, so a `require` of the file (the selftest's own import) runs neither branch |
 | `drift/checks.js` | the **registry**, one entry per check: `id`, `run`, its `ok` phrase, and how one gap prints, plus `contracts` on a table-driven check |
 | `drift/contracts.js` | the contract tables and patterns. Data only |
-| `drift/scanners/` | the bespoke scanners, every check whose assertion is more than one pattern over one document. `index.js` is the barrel `checks.js` and the selftest require. One file per topic holds the scanners: `references.js`, `adr.js`, `prose-avoid.js`, `shell-spawn.js`, `base-branch-ship.js`, `marketplace-readme.js`, `register-join.js`, and `test-seams.js`. `walkers.js` holds the document walks and the absence-check shape they share |
+| `drift/scanners/` | the bespoke scanners, every check whose assertion is more than one pattern over one document. `index.js` is the barrel `checks.js` and the selftest require. One file per topic holds the scanners: `references.js`, `adr.js`, `prose-avoid.js`, `shell-spawn.js`, `base-branch-ship.js`, `marketplace-readme.js`, `register-join.js`, `root-inventory.js`, and `test-seams.js`. `walkers.js` holds the document walks and the absence-check shape they share |
 | `drift/lib.js` | what they share: `maskFences`, `maskedSentences`, `normalizeWhitespace`, `docPath`, `readDoc`, `missingDoc`, `observeContracts`, `scanContract`, and `stripComments` |
-| `drift/selftest/` | `index.js` (the `fixture` helper, `found`, `realRoot`, temp-dir cleanup, and the coverage assertion) plus one suite per scanner topic (`references`, `adr`, `prose-avoid`, `shell-spawn`, `base-branch-ship`, `marketplace-readme`, `register-join`, `test-seams`), `contracts` (the table-driven checks), `checks` (every registered check against an empty tree), `observation` (the coverage observation itself), `drift-check` (`runChecks` and the registry wiring), and `coverage.js`, the coverage verdict helper |
+| `drift/selftest/` | `index.js` (the `fixture` helper, `found`, `realRoot`, temp-dir cleanup, and the coverage assertion) plus one suite per scanner topic (`references`, `adr`, `prose-avoid`, `shell-spawn`, `base-branch-ship`, `marketplace-readme`, `register-join`, `root-inventory`, `test-seams`), `contracts` (the table-driven checks), `checks` (every registered check against an empty tree), `observation` (the coverage observation itself), `drift-check` (`runChecks` and the registry wiring), and `coverage.js`, the coverage verdict helper |
 
 Every check tests a mechanical fact — a link or section target resolves, a number is unique, a file or
-command exists, a property of code or configuration holds — or forbids a form in shipped prose (ADR 0153).
+command exists, a property of code or configuration holds — or forbids a form in shipped prose or in the root `AGENTS.md` (ADR 0153).
 No check asserts how a positive clause is worded. A check that reads a named document fails, naming the
 path, when that document is missing. A check that walks a directory reads whatever the directory holds, except every `AGENTS.md` at any depth: `walkFiles`, `proseDocuments`, and `agent-tool-agnostic` skip it (ADR 0189). No check reads a `README.md`.
 
@@ -1256,6 +1257,7 @@ path, when that document is missing. A check that walks a directory reads whatev
 | `implement-no-full-run` | implement's base step (`references/scope-branch.md`'s `## Bringing the scope branch to base` section alone), `references/run-handoff.md`, `references/implement-full.md` with its rare-branch files (`implement-full-resume.md`, `implement-full-fix-cycle.md`, `implement-full-denied.md`, `implement-full-minor-sweep.md`), and `references/implement-lite.md` instruct no full or whole-repo run: no `scope.js test full` or `scope.js test whole` call, no `test focused` with no path, no run, rerun, execution, or invocation of the full or whole-repo command or suite, no gate on one, and no such command or suite as the subject of `runs` up to two words later; a `no` directly before the hit or its article, a `not`, `never`, `nor`, or `without` at most one word before it, or a negation heading a list of code spans excuses it, and the rest of `scope-branch.md` stays unscanned (ADR 0192, INV-0128) | prohibition |
 | `observation-no-suite-run` | `references/review-scope-mode.md`'s `### 4.3 Observations` section names no suite run as an observation's source: no suite, test, entry, exit, focused, or full run, no `§4.2` citation, and no failing test or failing run, so a failing test in a scope review's suite run joins the fix list; a missing section or document is a gap (INV-0157) | prohibition |
 | `scope-review-no-full-run` | every `references/review-scope-*.md` file, read at scan time, `skills/review/SKILL.md`, and `agents/final-reviewer.md` instruct no full or whole-repo run, by `implement-no-full-run`'s patterns and negation excuse: no `scope.js test full` or `test whole`, no `test focused` with no path, and no run of the full or whole-repo command or suite. The list item that opens `- **The operator asks for the full suite**`, the ad-hoc clause, is excused, and fenced examples are masked (ADR 0255, INV-0193, INV-0173) | prohibition |
+| `root-no-inventory` | the root `AGENTS.md`, read whole and unmasked so its fenced Structure tree counts, names no `plugin/lib/` module and no `tests/*.test.js` suite as a whole path segment, and no `plugin/agents/` agent: a hyphenated agent name as a whole segment, bare prose included, and an unhyphenated one backticked or as `superdev:<agent>`; each name set is read from disk at scan time, so a module, suite, or agent added later is caught with no edit to the check; a missing root is the missing-document finding, and a name directory that cannot be read or holds no name is a finding. Ceiling: an unhyphenated agent name outside backticks and outside `superdev:<agent>`, hook, skill, reference, and suite-topic names, and abbreviated forms, are not matched; hand review holds them | prohibition |
 
 ## Work Guidance
 
@@ -1277,7 +1279,7 @@ path, when that document is missing. A check that walks a directory reads whatev
   paraphrase is a **silent pass**: the check reads the reworded instruction as gone and stays green while
   it is still there. Write the ceiling down next to the patterns, in a `simplicity:` comment, so a
   reviewer who finds one more evadable phrasing reads it as the stated ceiling rather than a defect.
-- A new drift check tests a mechanical fact or forbids a form in shipped prose (ADR 0153). It is one
+- A new drift check tests a mechanical fact or forbids a form in shipped prose or in the root `AGENTS.md` (ADR 0153). It is one
   entry in the `drift/checks.js` registry, one row in the table above keyed on its own `id`, and its own
   cases in the `drift/selftest/` suite of its topic: its seeded violation, a clean fixture, and, when it reads a
   named document, the missing-document case the registry-wide selftest asserts. No check enforces the row. A review judges the row and the selftest cases.
