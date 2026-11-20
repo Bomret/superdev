@@ -314,7 +314,8 @@ does not read (ADR 0197). It also covers the classifier's denial of ship's own m
 directory a Bash command ended in, which run-trace works around with a PreToolUse stash (ADR 0159), and the
 desktop app's wrap-up guidance that competes with the chain start, which the start answers by being the first
 action of the closing (ADR 0253). It also covers Code Mode, which refuses a tool call from code when a PreToolUse
-hook gives no decision, and fires UserPromptSubmit at the end of each piece of code. Read it before you change subagent prose or the unattended block.
+hook gives no decision, and fires UserPromptSubmit at the end of each piece of code. It also covers a subagent's foreground Bash call that
+Claude Code moves to the background after 180 s, which a subagent waits out through an exit line in the run's output file (ADR 0264). Read it before you change subagent prose or the unattended block.
 
 ## Common commands
 

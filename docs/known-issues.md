@@ -322,3 +322,28 @@ Code Mode, on the same version, all three calls ran. An Agent dispatched from co
 PostToolUse(Agent), PostToolUse(REPL), then UserPromptSubmit with `source` `poll_event`. The subagent's own
 `sleep 45` ran through its own REPL call, with `agent_id` and `agent_type` `general-purpose` on the hook
 input. Its poll event carried the same `agent_id`.
+
+## A subagent's foreground Bash call moves to the background after 180 s
+
+Inside a dispatched subagent, Claude Code moves a foreground Bash call to the background once it has run for
+180 s, even when the call passes `timeout` 600000. The tool result reads "Command was moved to the background
+(ID: …) after running for 180s", names the output file, and says the subagent will be notified when the command
+completes. In the main session, a foreground call with the same `timeout` runs past 180 s. The documentation
+describes the move only at the call's own timeout, and states that a foreground subagent's moved command stops
+when the subagent's run ends. It offers no tool that blocks until a background command ends. `implementer`'s
+`tools` list holds neither `TaskStop` nor `Monitor`.
+
+**Mitigation (implemented):** a subagent writes each test run's exit status into the run's output file, and
+waits for that line with repeated Bash calls of under 180 s before it reads the outcome. It starts no second copy
+of a moved run and ends no turn while the run lasts (`plugin/references/test-selection.md`'s
+`## The two commands`, ADR 0264).
+
+**Fix required at:** the Claude Code platform layer: a foreground subagent call that keeps its `timeout`, or a
+blocking wait on a background command.
+
+Verified 2026-11-20, from the local transcripts of 2026-11-14 to 2026-11-20 on Claude Code 2.1.321, 2.1.325, and
+2.1.326. In subagent transcripts, 59 foreground Bash calls were moved to the background, 52 of them with "after
+running for 180s", and 31 of the 59 were test runs. 4 subagent calls ran past 185 s in the foreground. In main-session transcripts, 29 foreground
+calls ran past 185 s and none moved at 180 s. The documentation read that day
+(`https://code.claude.com/docs/en/tools-reference.md`, `https://code.claude.com/docs/en/sub-agents.md`,
+`https://code.claude.com/docs/en/env-vars.md`) names no 180 s limit.

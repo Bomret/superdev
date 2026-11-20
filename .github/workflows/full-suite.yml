@@ -10,21 +10,20 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: full-suite-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
-
 jobs:
   full-suite:
-    name: full-suite
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
-      # The runner's tail calls `claude plugin validate ./plugin`, which needs no login.
-      - run: npm install -g @anthropic-ai/claude-code
+      # The runner's tail calls `claude plugin validate ./plugin`, which needs no login. The version is pinned, so
+      # a CLI release changes the check only when this line changes.
+      - run: npm install -g @anthropic-ai/claude-code@2.1.329
       # A fixture commit that sets no identity of its own takes this one, as on a maintainer machine.
       - run: |
           git config --global user.name ci

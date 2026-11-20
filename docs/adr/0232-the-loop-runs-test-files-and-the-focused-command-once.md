@@ -4,6 +4,8 @@
 
 **Amended by:** [ADR 0250](0250-a-test-first-increment-runs-its-test-file-once.md), which runs each increment's test file once and makes the final run the last GREEN.
 
+**Amended by:** [ADR 0264](0264-a-subagent-waits-out-a-test-run-claude-code-moves-to-the-background.md), under which a subagent waits out a run Claude Code moves to the background.
+
 **Amends:** [ADR 0139](0139-a-test-first-step-runs-the-tests-it-works-on.md): a failing-test or passing-test step
 runs its test files through `scope.js test path`, and the focused command runs once, over the whole changed-path set.
 [ADR 0215](0215-fail-to-pass-reuses-a-traced-control.md): a reused control is a `path` run that ran at the tree root.
