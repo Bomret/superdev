@@ -343,7 +343,7 @@ at its ceiling (600000 ms, or the higher `BASH_MAX_TIMEOUT_MS`), and in the back
 outlast that ceiling (`references/test-selection.md`, ADR 0232).
 
 `prepare <tree>` runs the **Prepare command** (CONTEXT.md, ADR 0218) at the root of `<tree>`, which must be the root of a
-working tree that `listWorktrees` of `lib/git-spawn.js` lists for the invoking repository, a path holding a newline included on a git of 2.36 or later. Any
+working tree that `listWorktrees` of `lib/git-spawn.js` lists for the invoking repository. A path holding a newline counts on a git of 2.36 or later. Any
 other path is refused with exit 1. So is every path where git cannot list the working trees. It reads
 `docs/agents/verification.md` from `<tree>` itself, through `prepareCommandOf` of `lib/verification.js`. With no
 `## Prepare command` section it prints one note on stderr naming the section and `/superdev:setup`, runs nothing, and exits 0.
