@@ -289,7 +289,7 @@ _Avoid: "no verdict" (the entry above, and the distinction is the whole point), 
 **Controller**: the agent driving a plan's slices to merge (you). You dispatch implementers and reviewers, you merge, and you integrate serially. You never implement or merge inside a subagent.
 _Avoid: "orchestrator", "manager"_
 
-**Depends-on**: the set of slice IDs that must merge before a slice can start (a DAG edge). A slice depends on another only if it cannot be green without it. A `fix` feature's reproduction slice is the one exception: every other `behavior` slice of the feature depends on it. Too-eager dependencies serialize work that could run in parallel.
+**Depends-on**: the set of slice IDs that must merge before a slice can start (a DAG edge). A slice depends on another only if it cannot be green without it. A `fix` feature's reproduction slice is the one exception (`plugin/references/plan-authoring.md`'s `### A fix feature's reproduction`). Too-eager dependencies serialize work that could run in parallel.
 _Avoid: "blocked by", "dependency" (too generic, where "depends-on" is the explicit, load-bearing relationship). GitHub's **`blocked_by`** is the literal name of the native relation the GitHub slice store uses to record this same edge (ADR 0011), not a looser competing term_
 
 ## Review discipline

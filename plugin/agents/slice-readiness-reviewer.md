@@ -47,7 +47,11 @@ Report each of these as well.
 - **Contradicted name.** A slice names an interface or a file that the scopetree's code contradicts: it is absent, or it has another signature, behaviour, or path. A file a slice of the same plan creates is no finding.
 - **Ambiguous acceptance.** An `acceptance` line that two careful readers would verify differently. Name both readings.
 - **Split candidate.** A slice that three or more other slices name directly in their `depends-on` (triage #163). Two direct dependents is no finding, and a dependency through another slice does not count. A `fix` feature's reproduction slice is exempt: `${CLAUDE_PLUGIN_ROOT}/references/plan-authoring.md`'s `### A fix feature's reproduction` makes every other `behavior` slice depend on it.
-- **Misplaced reproduction.** Applies to a feature label whose change type is `fix`. Report the plan when it has a `behavior` slice and no slice carries a red-capable command. Report it when its red-capable command sits on a `docs` or `mechanical` slice, or is not the first acceptance criterion of its slice. Report it when the command sits on a `behavior` slice that some other `behavior` slice does not depend on, directly or through other slices. Report it also when the plan has no `behavior` slice and its first slice's `spec` states no reason why no command reproduces the defect (`${CLAUDE_PLUGIN_ROOT}/references/plan-authoring.md`'s `### A fix feature's reproduction`).
+- **Misplaced reproduction.** Applies to a feature label whose change type is `fix`. Report the plan when:
+    - it has a `behavior` slice and no slice carries a red-capable command;
+    - its red-capable command sits on a `docs` or `mechanical` slice, or is not the first acceptance criterion of its slice;
+    - the command sits on a `behavior` slice that some other `behavior` slice does not depend on, directly or through other slices;
+    - the plan has no `behavior` slice and its first slice's `spec` states no reason why no command reproduces the defect (`${CLAUDE_PLUGIN_ROOT}/references/plan-authoring.md`'s `### A fix feature's reproduction`).
   - On an append, judge the new slices. A reproduction already on an existing slice satisfies the rule.
 
 ## Your return
