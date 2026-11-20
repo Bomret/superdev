@@ -312,6 +312,25 @@ const SOURCE_SECTION_CONTRACTS = [
     /^#{2,3}\s+Self-check\s*$/m,
     'carry the `## Self-check` section — what `doc-reader` verifies prose against (ADR 0012)',
   ],
+  // Every other controlled-prose heading `prompt-prose-form.md` cites as applied or exempt (ADR 0269).
+  ...[
+    ['Scope', /^#{2,3}\s+Scope\s*$/m],
+    ['Words', /^#{2,3}\s+Words\s*$/m],
+    ['Verbs', /^#{2,3}\s+Verbs\s*$/m],
+    ['Sentences', /^#{2,3}\s+Sentences\s*$/m],
+    ['Definitions', /^#{2,3}\s+Definitions\s*$/m],
+    ['Procedures (strict mode)', /^#{2,3}\s+Procedures \(strict mode\)\s*$/m],
+    ['Descriptive text (relaxed mode)', /^#{2,3}\s+Descriptive text \(relaxed mode\)\s*$/m],
+    ['Safety and error text (strict mode)', /^#{2,3}\s+Safety and error text \(strict mode\)\s*$/m],
+    ['Headings, lists, tables, and references', /^#{2,3}\s+Headings, lists, tables, and references\s*$/m],
+    ['Punctuation', /^#{2,3}\s+Punctuation\s*$/m],
+    ['How to count words', /^#{2,3}\s+How to count words\s*$/m],
+    ['Declare per language', /^#{2,3}\s+Declare per language\s*$/m],
+  ].map(([heading, re]) => [
+    path.join('references', 'controlled-prose.md'),
+    re,
+    `carry the \`## ${heading}\` section, which \`references/prompt-prose-form.md\` cites by heading (ADR 0269)`,
+  ]),
   [
     path.join('references', 'review-checklist.md'),
     /^#{2,3}\s+Anti-patterns\s*$/m,
@@ -337,6 +356,12 @@ const SOURCE_SECTION_CONTRACTS = [
     /^#{2,3}\s+Prompt-concept overlap\s*$/m,
     'carry the `## Prompt-concept overlap` section, which `references/review-scope-mode.md`, ' +
       '`references/AGENTS.md`, `CONTEXT.md`, and the root `AGENTS.md` cite',
+  ],
+  [
+    path.join('references', 'prompt-prose-form.md'),
+    /^#{2,3}\s+Prompt-prose form\s*$/m,
+    'carry the `## Prompt-prose form` section, which `final-reviewer` and `slice-reviewer` read and ' +
+      '`references/review-scope-mode.md` cites (ADR 0269)',
   ],
   [
     path.join('references', 'scope-branch.md'),

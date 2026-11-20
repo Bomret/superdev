@@ -47,10 +47,15 @@ module.exports = ({ assert, path, fixture, found }) => {
     'references/store-records.md': '# Store records\n\n## Triage record\n\n## Intent record\n',
     'references/test-selection.md': '# Test selection\n\n## The two commands\n\n## Fallback to the full command\n',
     'references/content-types.md': '# Content types\n\n## The four types\n\n## The conceptual layer\n',
-    'references/controlled-prose.md': '# Controlled prose\n\n## Modes\n\n## Self-check\n',
+    'references/controlled-prose.md':
+      '# Controlled prose\n\n## Scope\n\n## Modes\n\n## Words\n\n## Verbs\n\n## Sentences\n\n## Definitions\n\n' +
+      '## Procedures (strict mode)\n\n## Descriptive text (relaxed mode)\n\n## Safety and error text (strict mode)\n\n' +
+      '## Headings, lists, tables, and references\n\n## Punctuation\n\n## How to count words\n\n' +
+      '## Declare per language\n\n## Self-check\n',
     'references/review-checklist.md': '# Review checklist\n\n## Anti-patterns\n\n## Vulnerability classes\n',
     'references/review-design-lenses.md': '# Review design lenses\n\n## Reuse audit\n\n## Consistency\n',
     'references/prompt-concept-overlap.md': '# Prompt-concept overlap\n\n## Prompt-concept overlap\n',
+    'references/prompt-prose-form.md': '# Prompt-prose form\n\n## Prompt-prose form\n',
     'references/scope-branch.md': '# Scope branch work\n\n## Pushing the scope branch\n',
     // the real body carries the output sections inside its fenced template
     'agents/final-reviewer.md':
@@ -81,11 +86,24 @@ module.exports = ({ assert, path, fixture, found }) => {
     ['references/content-types.md', '## The conceptual layer\n'],
     ['references/controlled-prose.md', '## Modes\n\n'],
     ['references/controlled-prose.md', '## Self-check\n'],
+    ['references/controlled-prose.md', '## Scope\n\n'],
+    ['references/controlled-prose.md', '## Words\n\n'],
+    ['references/controlled-prose.md', '## Verbs\n\n'],
+    ['references/controlled-prose.md', '## Sentences\n\n'],
+    ['references/controlled-prose.md', '## Definitions\n\n'],
+    ['references/controlled-prose.md', '## Procedures (strict mode)\n\n'],
+    ['references/controlled-prose.md', '## Descriptive text (relaxed mode)\n\n'],
+    ['references/controlled-prose.md', '## Safety and error text (strict mode)\n\n'],
+    ['references/controlled-prose.md', '## Headings, lists, tables, and references\n\n'],
+    ['references/controlled-prose.md', '## Punctuation\n\n'],
+    ['references/controlled-prose.md', '## How to count words\n\n'],
+    ['references/controlled-prose.md', '## Declare per language\n\n'],
     ['references/review-checklist.md', '## Anti-patterns\n\n'],
     ['references/review-checklist.md', '## Vulnerability classes\n'],
     ['references/review-design-lenses.md', '## Reuse audit\n\n'],
     ['references/review-design-lenses.md', '## Consistency\n'],
     ['references/prompt-concept-overlap.md', '## Prompt-concept overlap\n'],
+    ['references/prompt-prose-form.md', '## Prompt-prose form\n'],
     ['references/scope-branch.md', '## Pushing the scope branch\n'],
     ['agents/final-reviewer.md', '### Judge every criterion\n\n'],
     ['agents/final-reviewer.md', '### Criteria\n\n'],

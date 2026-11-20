@@ -93,7 +93,7 @@ Scope with `git diff --stat` over the named subject first. Go file by file or sl
 
 Applies to every review dispatch.
 
-Read `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` and `${CLAUDE_PLUGIN_ROOT}/references/review-design-lenses.md`. Apply their anti-pattern, design-smell, vulnerability-class, reuse-audit, and consistency lenses throughout the checks below. Name the specific smell or class and never write "code quality" or "security concerns" alone. Where the repository's `CONTEXT.md` defines **Prompt concept** (`grep -n '^\*\*Prompt concept\*\*' CONTEXT.md` prints a line), also read `${CLAUDE_PLUGIN_ROOT}/references/prompt-concept-overlap.md` and apply its lens.
+Read `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` and `${CLAUDE_PLUGIN_ROOT}/references/review-design-lenses.md`. Apply their anti-pattern, design-smell, vulnerability-class, reuse-audit, and consistency lenses throughout the checks below. Name the specific smell or class and never write "code quality" or "security concerns" alone. Where the repository's `CONTEXT.md` defines **Prompt concept** (`grep -n '^\*\*Prompt concept\*\*' CONTEXT.md` prints a line), also read `${CLAUDE_PLUGIN_ROOT}/references/prompt-concept-overlap.md` and `${CLAUDE_PLUGIN_ROOT}/references/prompt-prose-form.md` and apply their lenses.
 
 - Apply `## Binding rules` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` to every finding.
 - A finding judges the subject. Read outside the subject wherever the subject's code or a finding leads you.

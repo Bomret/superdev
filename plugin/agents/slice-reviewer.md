@@ -143,7 +143,7 @@ Applies to every review.
 
 Applies to every review.
 
-Read `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`. Apply its anti-pattern and vulnerability-class lenses throughout the checks below. Name the specific smell or class. Where the repository's `CONTEXT.md` defines **Prompt concept** (`grep -n '^\*\*Prompt concept\*\*' CONTEXT.md` prints a line), also read `${CLAUDE_PLUGIN_ROOT}/references/prompt-concept-overlap.md` and apply its lens.
+Read `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md`. Apply its anti-pattern and vulnerability-class lenses throughout the checks below. Name the specific smell or class. Where the repository's `CONTEXT.md` defines **Prompt concept** (`grep -n '^\*\*Prompt concept\*\*' CONTEXT.md` prints a line), also read `${CLAUDE_PLUGIN_ROOT}/references/prompt-concept-overlap.md` and `${CLAUDE_PLUGIN_ROOT}/references/prompt-prose-form.md` and apply their lenses.
 
 - Apply `## Binding rules` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` to every finding.
 - Does the slice do what the `spec` asked, end to end? Is all of it present?
