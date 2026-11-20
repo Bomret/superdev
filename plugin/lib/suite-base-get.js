@@ -9,7 +9,7 @@ const {
   SUITE_RESULTS, readLines, headerRe, getHeader, readBullets, insertHeader, writeLines, tableRowIndexes, splitRow,
 } = require('./ledger.js');
 const { isTestPath, completeSelector, verificationCommandsOf, prepareCommandOf, configuredTestPaths } = require('./verification.js');
-const { gitSpawn, resolveCommit, fileAt } = require('./git-spawn.js');
+const { gitSpawn, resolveCommit, fileAt, literalEnv } = require('./git-spawn.js');
 const { readTrace, decodePaths, untraceField } = require('./trace-log.js');
 const { denialCount } = require('./ledger-records.js');
 const { rootRelative, lazyToplevel } = require('./run-tree.js');
@@ -122,10 +122,11 @@ function upsertHeader(root, name, value) {
 }
 
 // `file` as typed (`./x`, relative to a subdirectory, absolute), reduced to a root-relative path that is a blob at `tip`;
-// refuses a file the tip does not hold.
+// refuses a file the tip does not hold. The path is read literally: `:foo` is that file and never pathspec magic, and `a*` is
+// that file and never a glob.
 function tipBlob(cwd, file, tip) {
   const rel = rootRelative(path.resolve(cwd, file), lazyToplevel(cwd));
-  const listed = rel ? gitSpawn(['ls-tree', '--full-tree', tip, '--', rel], cwd) : null;
+  const listed = rel ? gitSpawn(['--literal-pathspecs', 'ls-tree', '--full-tree', tip, '--', rel], cwd, { env: literalEnv() }) : null;
   if (!listed || listed.status !== 0 || !/^\d+ blob /.test(listed.stdout)) fail(`${file} is not a file at the tip ${tip}`);
   return rel;
 }

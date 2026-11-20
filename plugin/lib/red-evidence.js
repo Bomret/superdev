@@ -11,7 +11,7 @@ const { fail } = require('./refusal.js');
 const { readLines, getHeader } = require('./ledger.js');
 const { drivePath } = require('./drive-path.js');
 const { traceFlags } = require('./trace-window.js');
-const { gitSpawn } = require('./git-spawn.js');
+const { gitSpawn, existsAt: pathExistsAt } = require('./git-spawn.js');
 const { isTestPath, verificationCommandsOf } = require('./verification.js');
 const { VERIFICATION, gitReads, runEvents, rangeBase, failedRuns, failedRecord, coverageRefusal, pathRunPassed, parseSuiteRecord, ancestorOrRefuse } = require('./suite-base-get.js');
 
@@ -38,15 +38,12 @@ function sameFenceChanges(g, c, from) {
   return { list: since.filter((p) => isTestPath(config, p)) };
 }
 
-// Whether the file `p` exists at commit `c`. A git error refuses. `fileAt` reads an absent file as '' and an unreadable one as
-// null, and an empty file reads as '' too, so only `ls-tree` tells an empty file from an absent one.
+// Whether the file `p` exists at commit `c`, an empty file included, read literally through the shared existence check. Where git
+// cannot say, the verb refuses, naming the path and the commit.
 function existsAt(g, c, p) {
-  const text = g.fileAt(c, p);
-  if (text === null) fail(`red-evidence: git could not read ${p} at ${c}`);
-  if (text !== '') return true;
-  const listed = gitSpawn(['ls-tree', '--full-tree', '--name-only', c, '--', p], g.cwd);
-  if (listed.status !== 0) fail(`red-evidence: git could not list ${p} at ${c}: ${(listed.stderr || '').trim() || `git exited ${listed.status}`}`);
-  return Boolean(listed.stdout.trim());
+  const there = pathExistsAt(c, p, g.cwd);
+  if (there === null) fail(`red-evidence: git could not tell whether ${p} exists at ${c}`);
+  return there;
 }
 
 // Whether the runs recorded at commit `c` cover the red record `from` whose failed test files are `files`: no failed run at `c`,

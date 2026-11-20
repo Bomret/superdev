@@ -188,6 +188,33 @@ try {
     fs.rmSync(path.join(e.repo, '.git', 'objects', tree.slice(0, 2), tree.slice(2)), { force: true });
     assert.match(verb(e.args(e.root([`**Suite:** red @ ${e.R}`], [['full', 'pass', e.M, 'clean']])), e.repo).err, /git could not read docs\/agents\/verification\.md/, 'a git error refuses and names the cause');
   }
+  // A deleted test file whose name begins with `:` is read literally: `:foo.test.js` deleted beside a present `foo.test.js` needs
+  // no run of its own. Where git cannot say whether it exists, the verb refuses, naming the path and the commit.
+  {
+    const d = make('node all.js');
+    commit(d.repo, 'foo.test.js', 'foo\n', 'foo test');
+    const X = commit(d.repo, ':foo.test.js', 'colon\n', 'colon test');
+    g(['rm', '-q', '--', ':(literal):foo.test.js'], d.repo);
+    g(['commit', '-q', '-m', 'delete :foo.test.js'], d.repo);
+    const D = g(['rev-parse', 'HEAD'], d.repo);
+    const rt = d.root([`**Suite:** red @ ${X}`], [['full', 'pass', D, 'clean']]);
+    assert.strictEqual(out(rt, d.repo), `covered ${X} by ${D}\nnone`, 'a deleted :foo.test.js beside a present foo.test.js needs no run');
+    // A `git` on PATH that fails every `ls-tree` and runs every other call: only the existence check cannot answer.
+    const shim = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-red-shim-')));
+    made.push(shim);
+    const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
+    fs.writeFileSync(path.join(shim, 'git'), `#!/bin/sh\nfor a in "$@"; do [ "$a" = ls-tree ] && exit 128; done\nexec ${JSON.stringify(realGit)} "$@"\n`, { mode: 0o755 });
+    const savedPath = process.env.PATH;
+    process.env.PATH = `${shim}${path.delimiter}${savedPath}`;
+    let refused;
+    try {
+      refused = verb(d.args(rt), d.repo);
+    } finally {
+      process.env.PATH = savedPath;
+    }
+    assert.strictEqual(refused.ok, false, 'a check git cannot answer refuses');
+    assert.ok(refused.err.includes(':foo.test.js') && refused.err.includes(D), `the refusal names the path and the commit: ${refused.err}`);
+  }
   // The named CI checks: judged through `ci.js`, a finding only on a failed verdict at the tip or an ancestor of it (INV-0191).
   {
     const c = make('node focus.js {paths}', '\n## CI\n\n- `lint`\n- `test`\n');
