@@ -58,3 +58,12 @@ read, so the lens and the glossary disagree on that case (triage #56).
 
 Each rewritten reference keeps every rule of its old text, except where a paragraph below names a settled
 conflict. A paragraph per rewritten file states what the rewrite added, removed, and settled.
+
+**`test-selection.md`.** Added: a condition head and a bold label for each concept, and a numbered build loop
+under `## The changed-path set`. Removed: the reasons for the fence reservation, the backtick-span rule, the
+`{paths}` runner choice, and the empty-set fallback, which ADR 0025, ADR 0175, and ADR 0217 carry; and the
+auto-invoke reasoning behind the missing-focused-command stop. Settled: `## Every run answers a question` named a
+passing-test step per increment and a fail-to-pass control taken from the last one, while `## The changed-path set`,
+`agents/implementer.md`'s `### Running tests`, and `implement-lite.md` named one test-path run per increment before
+the code and one focused run as the last check. The second rule holds: an increment makes one run, and the focused
+run over the changed-path set is the work unit's last check.
