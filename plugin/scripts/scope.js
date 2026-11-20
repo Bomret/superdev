@@ -3,7 +3,7 @@
 
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
 // Verbs: open, init, stage, step, slice, degraded, unresolved, deferred, minors, docs, pr, deploy, suite, base, discard, get, state, status,
-// publish, adopt, run-state, trace, windows, untraced, fail-to-pass-check, collisions, citations, source-set, push, root, staging, dod-merge, dod-line, dod-tags, dod-check, ci, section, tier, dod-open, contained, red-evidence, branch, checkout, lock, route, denial, candidates; `main()` also runs test, fail-to-pass, and prepare. Exit
+// publish, adopt, run-state, trace, windows, untraced, fail-to-pass-check, collisions, citations, source-set, push, root, staging, dod-merge, dod-line, dod-tags, dod-check, ci, section, tier, dod-open, contained, red-evidence, branch, checkout, lock, route, denial, consent, candidates; `main()` also runs test, fail-to-pass, and prepare. Exit
 // nonzero with a one-line stderr reason on any refusal. Every verb that writes to a run first checks the run's
 // digest sidecar and reports an outside edit of its ledger or trace once (lib/run-check.js, ADR 0227).
 // `root` and `dod-line` touch no ledger: `root` resolves a run root's absolute
@@ -61,6 +61,7 @@ const libCandidates = () => require('../lib/candidates.js');
 const libScopeBranch = () => require('../lib/scope-branch.js');
 const libScopeCheckout = () => require('../lib/scope-checkout.js');
 const libDenial = () => require('../lib/denial.js');
+const libConsent = () => require('../lib/consent.js');
 const libDrivePath = () => require('../lib/drive-path.js');
 const libRunLock = () => require('../lib/run-lock.js');
 const libRedEvidence = () => require('../lib/red-evidence.js');
@@ -510,6 +511,13 @@ function run(argv, cwd, stdinJson) {
       const root = path.resolve(cwd, libDrivePath().drivePath(takeRoot(args)));
       if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) fail(`denial: --root "${root}" is not a directory`);
       libDenial().verbDenial(root, args);
+      break;
+    }
+    // Reads the run trace and its digest and writes nothing: the operator's carried merge consent, `carried` or `none` (ADR 0266, INV-0196).
+    case 'consent': {
+      const root = path.resolve(cwd, libDrivePath().drivePath(takeRoot(args)));
+      if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) fail(`consent: --root "${root}" is not a directory`);
+      libConsent().verbConsent(root, args);
       break;
     }
     // Reads the ledger, the run trace, git, and a check-status file and writes nothing (INV-0196); `verbRedEvidence` takes `--root` itself.
