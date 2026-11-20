@@ -47,3 +47,23 @@ it (triage #327).
 
 Each rewritten reference keeps every rule of its old text, except where a paragraph below names a settled conflict.
 A paragraph per rewritten file states what the rewrite added, removed, and settled.
+
+**`plan-contract.md`.** Added: a condition head and a bold label for each concept; the anchor-line distinctness rule
+stated once, as **Distinct notations**, in place of the copy each anchor-line paragraph carried. Removed: the reasons
+for the durable release signal, for the operator's confirmation of an unreleased feature, for recording an anchor
+dependency sparingly, and for keeping it apart from a slice's `depends-on`, which ADR 0034, ADR 0040, and ADR 0042
+carry; the reason the epic's tags start in plan notation, which ADR 0209 carries. Settled: the `mechanical` warrant
+gate named a full-suite run at `/superdev:review`'s exit, while `review-scope-mode.md` runs no full suite and takes
+the full-suite evidence `/superdev:ship` reads (ADR 0255). The gate now names that full-suite evidence.
+
+**`store-records.md`.** Added: **The writer**, **Read before write**, and **Best-effort** as separate concepts under
+`## Triage record`, each condition at its head. Removed: the restated deferral definition (what defers and the three
+never-defer cases) and the close-only-if-not-absorbed rule, which now point to `scope-findings.md`'s `## Deferred
+findings`. Every reader of the triage record section that defers or closes a record also reads that owner: the full
+tier's fix cycle, `review-scope-mode.md`, and `scope-findings.md` itself, so no copy stays. Also removed: the reasons
+the trigger command writes the record and an uncertain match creates one, which ADR 0144 and ADR 0145 carry, and the
+`triage #505` provenance note. Settled: nothing.
+
+**`assignee.md`.** Added: **Resolving the assignee** and **A bad assignee never costs the run its issues**, each with
+its cases as a list. Removed: the reasons for the untracked file and for the single retry, which ADR 0010, ADR 0073,
+and ADR 0207 carry. Settled: nothing.
