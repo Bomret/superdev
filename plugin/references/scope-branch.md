@@ -1,310 +1,256 @@
 # Scope branch work
 
-This reference owns the work done on the scope branch: the content test that decides whether a base holds
-a branch's work (`## Containment`), how a run cuts or reuses the branch (`## Cutting the scope branch`),
-how it reaches the remote (`## Pushing the scope branch`), and how the remote base comes into it
-(`## Bringing the scope branch to base`). The run basics every command reads live in `scope-mode.md`,
-which names the branch and its checkout. A section here is read by the step that cites it.
+Applies to every step that cites a section of this file: the content test for whether a base holds a branch's work,
+cutting or reusing the branch, preparing a worktree, pushing the branch, and bringing the remote base into it. Read
+the cited section. `scope-mode.md` names the branch and its checkout.
 
 ## Containment
 
-`scope-mode.md`'s `## The scope branch` finds the branch. This section decides the other question every caller of it
-asks: does `<base>` already hold that branch's work. The answer is about **content**, because a
-squash-merge rewrites a branch's commits into one new commit and leaves not one of them reachable from
-base, however completely base holds the result. A scope branch has reached base when merging
-it into base would change nothing: `git merge-tree --write-tree <base> <branch>` yields base's own tree.
+**The question.** Applies to every caller that asks whether `<base>` already holds a scope branch's work. The answer
+is about content: a branch has reached base when merging it into base would change nothing, that is when `git
+merge-tree --write-tree <base> <branch>` yields base's own tree. `scope-mode.md`'s `## The scope branch` finds the
+branch.
 
-**`scope.js contained` carries the test.** Call
-`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" contained <base> <branch>`. It runs the tree comparison, then the
-neighbouring questions a base that moved on raises: whether base's history took the branch's patch (ADR 0082) and
-whether a commit base gained holds the branch (ADR 0248). A not-contained answer against a local base refetches
-`<base>` from the remote and retests against what the fetch brought (the second pass), because the clone learns nothing of a
-squash-merge until something fetches (ADR 0065). `--remote <remote>` names the remote; without it the verb reads
-the `Remote:` value of `docs/agents/code-management.md` at the repository's top level, from any directory of it, and
-with neither it refuses with exit 1.
+**`scope.js contained` carries the test.** Applies to every containment question. Run `node
+"${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" contained <base> <branch>`. It runs the tree comparison, then asks whether
+base's history took the branch's patch (ADR 0082) and whether a commit base gained holds the branch (ADR 0248). A
+not-contained answer against a local base refetches `<base>` from the remote and retests against what the fetch
+brought, the second pass (ADR 0065).
 
-The first line is the verdict, and its exit status tells it apart in a script:
+- `--remote <remote>` names the remote. Without it the verb reads the `Remote:` value of
+  `docs/agents/code-management.md` at the repository's top level, from any directory of it. With neither it refuses
+  with exit 1.
 
-- **`contained`** (exit 0). Base holds every byte of the branch's work, whether it arrived by squash-merge, by a
-  merge commit, or by fast-forward, and whether or not base has moved on since.
-- **`not-contained`** (exit 3). The branch carries content base does not hold, or no step could answer: every path
+**The verdict.** Applies to reading the verb's output. The first line is the verdict, and its exit status tells it
+apart in a script:
+
+- **`contained`** (exit 0) → base holds every byte of the branch's work, whether it arrived by squash-merge, merge
+  commit, or fast-forward, and whether or not base has moved on since.
+- **`not-contained`** (exit 3) → the branch carries content base does not hold, or no step could answer. Every path
   that cannot answer reads not contained, never contained (INV-0003).
-- **`could-not-resolve`** (exit 4). `<branch>` names no ref this repository can find. A branch that never existed
-  and one that has not landed call for different warnings, so the caller tells them apart.
+- **`could-not-resolve`** (exit 4) → `<branch>` names no ref this repository can find. The caller tells a branch that
+  never existed from one that has not landed.
 
-Further lines follow, three always and two optional, and each says how far to trust the verdict:
+**The trust lines.** Applies to the lines after the verdict, three always and two optional:
 
 - **`base <full sha>`** names the commit judged against: the commit the refetch brought where it ran, `<base>`
   resolved otherwise.
 - **`remote <name>`** names the remote the refetch used.
-- **`judged local`** or **`judged refetched`**. `refetched` means the verdict came from the retest against the
-  fetched base. `local` means the refetch did not run or brought no base.
-- **`fallback ancestor`** appears where the git lacks `merge-tree --write-tree` (it needs git 2.38, 2022-10-02) and
-  the verb judged by ancestry alone, the older and weaker signal. The caller says the fallback route was taken.
-- **`refetch timed-out`** or **`refetch failed`** appears beside a `not-contained` verdict whose refetch ran out
-  of time or failed (the bound is `code-host.pushTimeoutMs` of `.superdev/info.json`). The verdict is the local
-  one and says nothing about the branch (INV-0009): the caller says the second pass did not run and acts on an
-  answer named as local.
+- **`judged local`** or **`judged refetched`**. `refetched` means the verdict came from the retest against the fetched
+  base. `local` means the refetch did not run or brought no base.
+- **`fallback ancestor`** appears where git lacks `merge-tree --write-tree` (git 2.38 or later has it) and the verb
+  judged by ancestry alone. The caller says the fallback route was taken.
+- **`refetch timed-out`** or **`refetch failed`** appears beside a `not-contained` verdict whose refetch ran out of
+  time or failed (the bound is `code-host.pushTimeoutMs` of `.superdev/info.json`). The verdict is the local one and
+  says nothing about the branch (INV-0009). The caller says the second pass did not run and acts on an answer named as
+  local.
 
-**The caller keeps the judgment.** The verb names a verdict. Which `<base>` to hand, what each verdict and
-marker means for the step, and whether a missing branch counts as finished (below) stay with the caller's own step.
+**The caller keeps the judgment.** Applies to every caller of the verb. Which `<base>` to hand, what each verdict and
+marker means for the step, and whether a missing branch counts as finished stay with the caller's own step. A branch
+that is gone is finished with just as a contained one is, and each caller states which of the two it reads and what
+it does with each.
 
-**A base that takes the branch's work and then reverts it in a way that also conflicts with base's own
-later edits reads contained.** The work stays reachable from base's history, so deleting the branch
-destroys nothing unique, and retracting a knowledge-base page published for a reverted feature is the
-operator's own act. A revert that does not conflict never reaches the probe — the tree comparison settles
-it on its own, and which way depends on how the work arrived: reverting a true merge commit leaves the
-branch an ancestor of base still, so the tree comparison finds base's own tree unchanged and reads
-contained; reverting a squash-merge leaves the branch's tip outside base's history entirely, so re-merging
-it reapplies content the revert just removed and the tree comparison reads not contained.
+**`<base>` is the caller's.** Applies to choosing `<base>`. `hooks/scope-prune.js` uses `HEAD`, the current branch,
+which is safe only because the invoking checkout stays off the scope branch at every tier. `## Cutting the scope
+branch` and `skills/publish-kb/SKILL.md` §3 use the base branch named in `docs/agents/code-management.md`. A ref that
+already holds the branch's content reads contained.
 
-**`hooks/scope-prune.js` runs the local test alone and never fetches.** It is a `Stop` hook firing on every
-finished turn, and a stale base defers a reap that the seven-day TTL has already delayed — the safe
-direction, and the same best-effort posture that keeps the hook silent below.
+**A reverted base.** Applies to a base that took the branch's work and then reverted it.
 
-**`hooks/scope-prune.js` is the one caller that says nothing on any path**, the `fallback ancestor` route
-included: it is best-effort and silent by contract. Its own fallback is `git branch --merged`, the equivalent
-older, weaker signal in the hook's own git call — it just never announces taking it.
+- A revert that also conflicts with base's own later edits reads contained: the work stays reachable from base's
+  history. Retracting a knowledge-base page published for the reverted feature is the operator's own act.
+- A revert that does not conflict is settled by the tree comparison alone. Reverting a true merge commit reads
+  contained. Reverting a squash-merge reads not contained.
 
-**The test writes tree objects into the object database.** The verb changes no ref, index, working tree,
-ledger, or trace; the refetch writes `FETCH_HEAD` and fetched objects, and moves no remote-tracking ref. A caller that fires on every turn reaches
-the test only for a scope it would otherwise act on, behind its own cheaper filters — `hooks/scope-prune.js`
-mirrors this test in JavaScript and orders its filters exactly that way.
+**The Stop hook's containment.** Applies to `hooks/scope-prune.js`. It runs the local test alone and never fetches. It
+says nothing on any path, the `fallback ancestor` route included, and its own fallback is `git branch --merged`. It
+mirrors the test in JavaScript and reaches it only for a scope it would otherwise act on, behind its cheaper filters.
 
-**Absence stands beside containment, unchanged.** A branch that is gone is finished with just as a
-contained one is, for the hosts that do delete a branch on merge. Each caller states which of the two it
-reads and what it does with each.
-
-**`<base>` is whatever the caller resolves it to, and this section does not pick one.**
-`hooks/scope-prune.js` uses `HEAD` — the current branch, exactly as `git branch --merged` with no argument
-already meant; `## Cutting the scope branch` below and `skills/publish-kb/SKILL.md` §3 use the base
-branch named in `docs/agents/code-management.md`. The test only ever compares the tree its caller hands
-it, so a ref that already holds the branch's content reads contained whether or not it is what the caller
-means by "landed." `HEAD` is safe for `hooks/scope-prune.js` on that basis, and only because the
-invoking checkout stays off the scope branch at every tier: were `HEAD` ever the branch itself,
-`git merge-tree --write-tree HEAD <branch>` would yield `HEAD`'s own tree and the branch would read
-contained however little of its work base actually holds.
+**What the test writes.** Applies to every run of the verb. The test writes tree objects into the object database. The
+verb changes no ref, index, working tree, ledger, or trace. The refetch writes `FETCH_HEAD` and fetched objects, and
+moves no remote-tracking ref.
 
 ## Cutting the scope branch
 
-Run init computes this run's **run kind** — `CONTEXT.md`'s glossary names both
-values — and hands it to the execution playbook; `/superdev:plan`'s `scope.js open` computes the same value for its
-own cut, ahead of any slice run: no live ledger is `fresh`, a `planned` ledger is `resumed`. Every caller acts on that value instead of deriving it a
-second time from git state. One call cuts or reuses the branch at every run kind, into the same
-**scopetree** — `<run-root>/scopetree` — at both tiers: the invoking checkout is never switched.
+**The run kind.** Applies to every cut. Run init computes this run's **run kind** (`CONTEXT.md`) and hands it to the
+execution playbook. `/superdev:plan`'s `scope.js open` computes the same value for its own cut: no live ledger is
+`fresh`, a `planned` ledger is `resumed`. Act on that value, never on a second reading of git state.
 
-- **`fresh`** — no ledger existed, so the run itself has never cut this branch before. Cut it from
-  `<base>`: `git worktree add <run-root>/scopetree -b <type>/<scope> <base>`. **The name already
-  exists** — a squash-merging host leaves a scope's branch standing after its pull request merges, and
-  `hooks/scope-prune.js` reaps it only alongside its run root, so a taken name is
-  the ordinary case in such a repository, not an error (closes triage #417): `-b` fails rather than reset
-  it, which is the safe outcome, and the branch is then decided rather than stopped on unconditionally —
-  contained in `<base>` and reused, or not contained and stopped, per `## Containment` above: the same
-  test that decides a scope is finished with, contained in `<base>`, or gone entirely.
-  `/superdev:plan`'s cut is `scope.js open`, which applies this rule in `lib/plan-open.js` and prints
-  `not-contained`, `dirty`, or `held` where the rule stops; plan acts on the printed outcome. A `not-contained`
-  stop whose refetch ended without a base ends on the same `refetch timed-out` or `refetch failed` line `## Containment`
-  names for the `contained` verb.
-  - **Gone** — `<branch>` does not verify: nothing survives to reuse, so the `-b` cut above is the whole
-    step.
-  - **Present** — decide with `## Containment` above, which owns the test. **Contained** —
-    the content already landed, so reuse loses nothing: work in the scopetree, per `scope-mode.md`'s `## The scope
-    checkout` — creating it with `git worktree add <run-root>/scopetree <branch>` when
-    absent, and stopping first when a different worktree holds the branch, the same stop `resumed` takes —
-    then **check the scopetree is clean**: `git -C <run-root>/scopetree status --porcelain`
-    returns nothing. The content is already landed on `<base>` or on the base the second pass fetched, and
-    the containment proof above covers the branch's committed history, never the index or
-    the working tree, so a dirty scopetree could lose an uncommitted change the test never vouched for.
-    **Dirty** — name what `status --porcelain` reported and stop, cutting nothing. **`--unattended` →
-    block**, per `scope-mode.md`'s `## Unattended`. **Clean** — **re-point it to `<base>` with `git reset --hard <base>`**
-    inside it. `git merge --ff-only <base>` exits 128 on a squash-merged branch, because base is no
-    descendant of it and a fast-forward has no ancestor to walk. **Not contained** — content lives only on
-    that branch: print `git log <base>..<branch> --oneline` so the operator sees what is at risk, ask, and
-    print `git branch -m <branch> <branch>-<date>` as the remedy. **`--unattended` → block**, per
+**One scopetree.** Applies to every run kind and tier. One call cuts or reuses the branch into the same
+**scopetree**, `<run-root>/scopetree`. The invoking checkout is never switched.
+
+**`fresh`.** Applies to a run with no ledger. Cut the branch from `<base>`: `git worktree add <run-root>/scopetree -b
+<type>/<scope> <base>`. Where the name already exists, `-b` fails, and the branch is decided by the cases below.
+
+- **Gone** → `<branch>` does not verify. The `-b` cut is the whole step.
+- **Present and contained** (`## Containment`) → work in the scopetree, per `scope-mode.md`'s `## The scope checkout`:
+  create it with `git worktree add <run-root>/scopetree <branch>` when absent, and stop first when a different
+  worktree holds the branch, the same stop `resumed` takes. Then check the scopetree is clean: `git -C
+  <run-root>/scopetree status --porcelain` returns nothing.
+  - **Dirty** → name what `status --porcelain` reported and stop, cutting nothing. **`--unattended` → block**, per
     `scope-mode.md`'s `## Unattended`.
+  - **Clean** → re-point it to `<base>` with `git reset --hard <base>` inside it. `git merge --ff-only <base>` exits
+    128 on a squash-merged branch.
+- **Present and not contained** → print `git log <base>..<branch> --oneline` for the operator, ask, and print `git
+  branch -m <branch> <branch>-<date>` as the remedy. **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`.
 
-  A host that squash-merges and deletes the branch reads gone; one that squash-merges without deleting
-  reads present and contained, and is reused — the ordinary outcome there. What still reaches the
-  question is a branch carrying real work base never took.
-- **`resumed`** — the branch holds unmerged work by design, so no containment test runs and nothing is
-  cut. A **`planned`** ledger is one instance of this run kind: `/superdev:plan` already cut,
-  and where the name was taken, decided and re-pointed the branch under the rule `fresh` follows above, so
-  run init cuts nothing, tests no containment, and re-points nothing either — it moves the stage past
-  `planned` and works in the scopetree already there. The branch may carry unmerged slice work, for a run
-  already in flight, or nothing at all beyond `/superdev:plan`'s own design-docs commit, for one just
-  handed off. Read `<branch>` from the ledger's own line — `scope.js get branch --root <run-root>`,
-  verified with `git rev-parse --verify <branch>` — never by rebuilding `<type>/<scope>` and never from a
-  `guess` or `guess-remote` verdict of `scope.js branch`, which can name a foreign branch.
-  **A name that does not verify locally is fetched before anything else**: `git fetch
-  <remote> <branch>` (`<remote>` from `docs/agents/code-management.md`) — a fresh clone, or a ledger just
-  adopted from the anchor's snapshot, holds no scope branch until this runs. **Verify the fetch's own
-  ref afterwards, `git rev-parse --verify <remote>/<branch>`, never the bare name a second time**: fetching
-  one ref only ever populates the remote-tracking ref `refs/remotes/<remote>/<branch>`, never a local
-  `refs/heads/<branch>`, so the pre-fetch check above and this one deliberately verify two different refs.
-  A `resumed` branch is expected to exist, so a name whose remote-tracking ref still does not verify — the
-  fetch found nothing either — is a stop, naming the branch it looked for, not a guess.
-  **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`. `git worktree add <run-root>/scopetree
-  <branch>` below still names the bare branch, not the remote-tracking ref: it DWIM-creates the local
-  branch from the sole matching remote-tracking ref the moment one exists. Create or reattach the
-  scopetree, at both tiers, whenever it is absent — because `/superdev:wrap-up` already removed it, or
-  because this checkout never held it (a resumed run adopted from the anchor on a fresh clone) — and
-  otherwise work in the one already there. The run's own lock stays as it is: no hook refuses that
-  `git worktree add`, and `/superdev:implement`'s entry liveness check already passed.
+**Plan's cut.** Applies to `/superdev:plan`. Its cut is `scope.js open`, which applies the `fresh` rule in
+`lib/plan-open.js` and prints `not-contained`, `dirty`, or `held` where the rule stops. Plan acts on the printed
+outcome. A `not-contained` stop whose refetch ended without a base ends on the same `refetch timed-out` or `refetch
+failed` line `## Containment` names.
 
-**Prepare the scopetree** once this step leaves it in place, at every run kind and tier: run
-`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <run-root>/scopetree` before its first test run, per
-`## Preparing a worktree` below. A failing preparation stops the step, and `--unattended` blocks.
+**`resumed`.** Applies to a run whose ledger exists, a `planned` ledger included. Cut nothing and run no containment
+test. A `planned` ledger's branch was already cut, and where the name was taken, decided and re-pointed by
+`/superdev:plan`, so run init re-points nothing either and moves the stage past `planned`.
 
-**No forcing flag, at any run kind.** `git switch -C` and `git worktree add -B` reset the branch to
-`<base>` and leave every slice already merged into it unreachable from any ref, while the ledger still
-records those slices as `merged` — nothing in the run rebuilds what it lost. Two re-pointings
-are permitted, and no third. **Fast-forwarding to `<base>`.** And **`git reset --hard <base>` on a branch
-`## Containment` has just proved contained** — that proof is the precondition, never a general
-permission: containment establishes that the content is already landed, on `<base>` or on the base the
-second pass fetched, so the commits the reset discards carry nothing to lose. A branch that
-has not passed the test in this run keeps the
-whole rule.
+1. Read `<branch>` from the ledger, `scope.js get branch --root <run-root>`, and verify it with `git rev-parse
+   --verify <branch>`. Never rebuild `<type>/<scope>`, and never take a `guess` or `guess-remote` verdict of
+   `scope.js branch`.
+2. A name that does not verify locally is fetched before anything else: `git fetch <remote> <branch>` (`<remote>` from
+   `docs/agents/code-management.md`). Then verify the fetch's own ref, `git rev-parse --verify <remote>/<branch>`,
+   never the bare name a second time.
+3. A remote-tracking ref that still does not verify is a stop, naming the branch it looked for. **`--unattended` →
+   block**, per `scope-mode.md`'s `## Unattended`.
+4. Create or reattach the scopetree with `git worktree add <run-root>/scopetree <branch>`, naming the bare branch, at
+   both tiers, whenever it is absent. Otherwise work in the one already there. The run's own lock stays as it is.
 
-**Every stop above writes nothing.** No run starts and no ledger entry is written. None is a degraded
-pass either: `scope-findings.md`'s `## Degraded passes` records work done a lesser way, and here no work happens.
+**Prepare the scopetree.** Applies once the cut leaves the scopetree in place, at every run kind and tier. Prepare it
+per `## Preparing a worktree`.
+
+**No forcing flag, at any run kind.** Applies to every move of the scope branch. Never use `git switch -C` or `git
+worktree add -B`. Two re-pointings are permitted, and no third: fast-forwarding to `<base>`, and `git reset --hard
+<base>` on a branch `## Containment` has just proved contained in this run.
+
+**Every stop writes nothing.** Applies to every stop in this section. No run starts and no ledger entry is written.
+None is a degraded pass.
 
 ## Preparing a worktree
 
-Every worktree superdev creates or reuses for a test run is prepared before its first test run: the
-scopetree at implement start, fresh or resumed, at both tiers; each slicetree, a reused one included; a scopetree
-`scope-mode.md`'s `## The scope checkout` recreates; and the scopetree again at review start, because a merged slice
-can add a dependency. Reviewer worktrees under `/tmp` and ship's deploy tree run no test and are not prepared.
+**Which trees.** Applies to every worktree superdev creates or reuses for a test run: the scopetree at implement
+start, fresh or resumed, at both tiers; each slicetree, a reused one included; a scopetree `scope-mode.md`'s `## The
+scope checkout` recreates; and the scopetree again at review start. Prepare each before its first test run. Reviewer
+worktrees under `/tmp` and ship's deploy tree run no test and are not prepared.
 
-Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <tree>` in the controller's own Bash call, its `timeout`
-set to 600000, the Bash tool's maximum. The verb runs the **Prepare command** (CONTEXT.md) that `<tree>`'s own
-`docs/agents/verification.md` states, at `<tree>`'s root, and is no test run.
+**The call.** Applies to every tree to prepare. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <tree>` in
+the controller's own Bash call, its `timeout` set to 600000. The verb runs the **Prepare command** (CONTEXT.md) that
+`<tree>`'s own `docs/agents/verification.md` states, at `<tree>`'s root, and is no test run.
 
 - **Exit 0** → continue. With no `## Prepare command` section the verb prints one note naming `/superdev:setup`;
-  repeat it once in the run's report. A `prepare: skipped` note means the tree was already prepared and nothing
-  since needs the command again.
-- **Exit 3** → the command failed, was ended by a signal, could not start, or changed a tracked file. A tracked edit
-  the tree already held before the command is no such change. Stop the
-  step, naming the command and the reason the verb printed, and dispatch nothing into that tree. **`--unattended` → block**, per `scope-mode.md`'s
-  `## Unattended`.
+  repeat it once in the run's report. A `prepare: skipped` note means the tree was already prepared.
+- **Exit 3** → the command failed, was ended by a signal, could not start, or changed a tracked file; a tracked edit
+  the tree held before the command is no such change. Stop the step, naming the command and the reason the verb
+  printed, and dispatch nothing into that tree. **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`.
 - **Exit 1** → the verb refused the path. Stop the same way, naming its message.
 
 ## Pushing the scope branch
 
-`/superdev:plan` puts the scope branch on the remote at the end of every plan run, so a `resumed` run on
-another machine finds it there. `/superdev:submit-pr` and `/superdev:ship` push later
-in the chain, and no other command pushes a scope branch. Plan pushes before any slice runs, so the branch
-it pushes holds the design captures and nothing a slice built.
+**Who pushes.** Applies to every push of a scope branch. `/superdev:plan` pushes it at the end of every plan run,
+before any slice runs. `/superdev:submit-pr` and `/superdev:ship` push later in the chain. No other command pushes a
+scope branch.
 
-Run the push in the controller's own Bash call, from the invoking checkout:
+**The push.** Applies to plan's push. Run it in the controller's own Bash call, from the invoking checkout:
 
 ```sh
 node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" push --root <run-root> --remote <remote> --base <base>
 ```
 
-`<remote>` is the `Remote:` value of `docs/agents/code-management.md`, and `<base>` is that document's base
-branch. **No `Remote:` value** → skip the push, say once that the branch stays local, and name no default
-remote in its place.
+`<remote>` is the `Remote:` value of `docs/agents/code-management.md`, and `<base>` is that document's base branch.
+**No `Remote:` value** → skip the push, say once that the branch stays local, and name no default remote.
 
-The verb reads the branch from the ledger's `**Branch:**` line, fetches the remote branch, and decides the
-**push mode** (`CONTEXT.md`) from the remote tip it fetched:
+**The push mode.** Applies to the verb's decision. It reads the branch from the ledger's `**Branch:**` line, fetches
+the remote branch, and decides the **push mode** (`CONTEXT.md`) from the remote tip it fetched:
 
-- **No remote branch, or a remote tip that is an ancestor of the local tip** → a plain push with an upstream
-  set. It prints `pushed`.
-- **A remote tip that `## Containment` proves contained in `<base>`** → a push through
-  `--force-with-lease` naming that exact tip, so a remote that moved since the fetch rejects it.
-  It prints `overwritten`.
-- **Any other remote tip** → no push. It prints `refused` and the remote tip's commits that the base the
-  containment test judged does not hold, the base refetched from the remote when the refetch ran.
+- **No remote branch, or a remote tip that is an ancestor of the local tip** → a plain push with an upstream set. It
+  prints `pushed`.
+- **A remote tip that `## Containment` proves contained in `<base>`** → a push through `--force-with-lease` naming
+  that exact tip. It prints `overwritten`.
+- **Any other remote tip** → no push. It prints `refused` and the remote tip's commits that the judged base does not
+  hold, the base refetched from the remote when the refetch ran.
 
-Every case the verb cannot decide pushes nothing: `unreachable` and `credential-rejected` (a failed fetch, the
-containment test's refetch of `<base>` included, read under the C locale), `timed-out` (a git call its own bound ended, the refetch of `<base>`
-included, which carries no verdict, the line names the bound in milliseconds and its key, `code-host.pushTimeoutMs`), and `push-failed` (the remote rejected the push, a moved lease
-included). The verb exits 0 on `pushed` and `overwritten`, 3 on every outcome that pushed nothing, and 1 on a
-usage refusal, a `**Branch:**` line naming `<base>` included, so it never pushes base. It writes nothing to the
-ledger.
+**Undecided outcomes.** Applies to every case the verb cannot decide. It pushes nothing and prints one of:
+`unreachable` and `credential-rejected` (a failed fetch, the containment refetch of `<base>` included, read under the
+C locale), `timed-out` (a git call its own bound ended, the refetch included; the line names the bound in milliseconds
+and its key, `code-host.pushTimeoutMs`), or `push-failed` (the remote rejected the push, a moved lease included).
 
-**The push is best-effort**, as the snapshot publish is (`run-state.md`'s `## Publishing run state`). An outcome that pushed
-nothing is reported once in the command's output: the outcome word, the `git push -u <remote> <branch>` line
-the verb printed for the operator to run by hand, and the consequence — until the branch is on the remote,
-`/superdev:implement` on another machine stops at its `resumed` fetch. On `refused`, the report also lists
-the commits the verb printed, and names no command that would overwrite them. The command then continues
-as if the push had succeeded: no ledger stage, step, or published snapshot changes because of it.
+- The verb exits 0 on `pushed` and `overwritten`, 3 on every outcome that pushed nothing, and 1 on a usage refusal.
+- A `**Branch:**` line naming `<base>` is a usage refusal, so the verb never pushes base.
+- It writes nothing to the ledger.
+
+**The push is best-effort.** Applies to an outcome that pushed nothing. Report it once in the command's output: the
+outcome word, the `git push -u <remote> <branch>` line the verb printed for the operator, and the consequence that
+`/superdev:implement` on another machine stops at its `resumed` fetch until the branch is on the remote. On `refused`,
+also list the commits the verb printed, and name no command that would overwrite them. Then continue as if the push
+had succeeded: no ledger stage, step, or published snapshot changes because of it.
 
 ## Bringing the scope branch to base
 
-Both execution playbooks run this step right after their own write of `scope-mode.md`'s `## The run lock` and before their first
-slice, on every `/superdev:implement` invocation and at every run kind.
-`/superdev:review` runs it too, on a live scope run at every stage before `shipped`, `submitted` included, after its scope
-checkout and run lock and before its preparation and first dispatch, and again itself, never through a fix implementer,
-before its stage write or its leave-alone, and at a fix cycle's end when the scope branch no longer holds the base tip (`review-scope-mode.md`'s **The moved base** concept). Review pushes
-nothing: at `submitted`, `/superdev:ship` pushes the merged tip. The step runs no test suite: the full-suite evidence `/superdev:ship` takes
-verifies every merge it makes, implement's and the review's own alike. It brings
-the remote's `<base>` tip into the scope branch, so slices build on what the pull request targets rather
-than on whatever `<base>` the branch was cut from. `/superdev:plan`'s own cut never reads it. `<remote>`
-and `<base>` come from `docs/agents/code-management.md`; `<branch>` is the scope branch the playbook's
-branch step left you on.
+**Who runs it.** Applies to both execution playbooks and `/superdev:review`. Each playbook runs this step right after
+its write of `scope-mode.md`'s `## The run lock` and before its first slice, on every `/superdev:implement`
+invocation and at every run kind. `/superdev:review` runs it on a live scope run at every stage before `shipped`,
+`submitted` included: after its scope checkout and run lock and before its preparation and first dispatch; again
+itself, never through a fix implementer, before its stage write or its leave-alone; and at a fix cycle's end when the
+scope branch no longer holds the base tip (`review-scope-mode.md`'s **The moved base** concept).
 
-1. **Check the scopetree first.** `git -C <run-root>/scopetree status --porcelain` returns nothing, and
-   `git -C <run-root>/scopetree rev-parse -q --verify MERGE_HEAD` finds no unfinished merge. Anything
-   else → name what you found and stop, discarding nothing and dispatching no slice. **`--unattended` →
-   block**, per `scope-mode.md`'s `## Unattended`. One exception, at the `lite` tier only (`scope.js tier --root <run-root>` prints `tier: lite`): the scopetree is dirty, no merge is
-   unfinished, and a slice is `in-progress`. That dirt is the slice's own work. At the full tier
-   slices work in their own slicetrees, so any dirty scopetree stops. Skip the whole base step, name the skip in the
-   report, and leave the work to the playbook's `## Resume`; the next invocation brings the base in.
-2. **Fetch the remote base.** Run `GIT_TERMINAL_PROMPT=0 git fetch <remote> <base>` through the Bash
-   tool with its `timeout` set to 120000 ms: a missing credential fails the fetch instead of prompting,
-   and a stalled remote ends it. Capture `<tip>` at once with `git rev-parse FETCH_HEAD`, because step 3
-   overwrites `FETCH_HEAD`. A fetch the timeout killed carries no verdict and counts as failed.
-3. **Fast-forward the local `<base>` ref, and nothing more.** Run
-   `git fetch . <tip>:refs/heads/<base>`. This is the only local-git write to `<base>` superdev makes: it
-   moves a ref, writes no commit, and touches no working tree. Git refuses it when `<base>` is checked
-   out in any worktree, or when the update is not a fast-forward (verified 2026-10-05, git 2.54.0: exit
-   128, `fatal: refusing to fetch into branch 'refs/heads/<base>' checked out at …`). A refusal is not a
-   failure: skip it, leave the local `<base>` where it was, and name the refusal in the run's report. A
-   local `<base>` already at `<tip>` needs no word. Step 4 runs either way.
-4. **Bring `<tip>` in, and record it.** **Move every numbering collision first**:
-   run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" collisions --base <tip> --branch <branch>
-   --range-base <range-base>`, with `<range-base>` per `scope-mode.md`'s `## The scope's range base` and one `--also <ref>`
-   for each other live plan run's scope branch (the runs `scope.js candidates --stage planned,implementing,merged,reviewed,documented-unreviewed,documented,submitted,shipped,closed` names per `scope-mode.md`'s `## Resolving an empty argument` → *Run-root enumeration*, this run's own slug left out; each branch read with `scope.js get branch --root <run-root>`) whose ref resolves:
-   `git rev-parse --verify <ref>` succeeds. A run root whose branch no longer resolves gets no `--also`,
-   so it never stops this run. It compares numbers, so it finds a collision git never reports as a conflict.
-   Exit 0 → nothing collides. Exit 1 → for each line it prints, move this scope's ADR file or invariant
-   entry to the printed next number, update every citation of the old number on the scope branch, commit
-   that in the scopetree, and name each renumber, old and new, in the run's report. A renumber resolves
-   and asks nothing, so an unattended run renumbers the same way. Exit 2 → the check could not run: name
-   its message and stop, dispatching no slice, never reading it as no collision; on exit 2,
-   **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`. **Then find the citations the renumber missed**: after the
-   renumber commit and before the merge, run
-   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" citations --range-base <range-base> --branch <branch> <id>…`
-   with every old id the renumber moved, each as `collisions` printed it. It prints one `<path>:<line> <id>`
-   line per line the scope branch added that still cites an old number. Exit 0 → none. Exit 1 → fix each named
-   line to the new number, commit, and run it again, until it exits 0 or prints only kept lines. A line the controller judges a
-   legitimate citation of the old number goes to the operator when attended, who fixes or keeps it, and
-   **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`. Exit 2 → the check could not run: name its message and
-   stop, as a collision check that cannot run stops, dispatching no slice. The base is merged once the verb
-   exits 0, or once every line it still prints is one the attended operator kept. A collisions
-   check that printed nothing moved no number, so no old id exists and this verb does not run. Then the merge: `git -C <run-root>/scopetree merge-base --is-ancestor <tip> <branch>`
-   succeeds → nothing to merge. Otherwise run `git -C <run-root>/scopetree merge <tip>`, `<run-root>`
-   spelled out as the real absolute path in the command text, never a shell variable: `hooks/run-trace.js` and
-   `hooks/merge-guard.js` read the command text alone. **A conflict** — `MERGE_HEAD` still set → resolve it by intent, per
-   `${CLAUDE_PLUGIN_ROOT}/references/merge-conflicts.md`, and conclude it with
-   `git -C <run-root>/scopetree merge --continue`. Plan's design-docs commit
-   and other scopes edit the same glossary, ADR, and invariant files, so most of these conflicts are
-   additive. Report every renumber that file's numbering-collision rule made, old and new. A
-   winner-picking overlap is the one case it escalates: list the conflicting files
-   (`git -C <run-root>/scopetree diff --name-only --diff-filter=U`), run
-   `git -C <run-root>/scopetree merge --abort`, and stop: the scopetree is clean again, no slice is
-   dispatched, and the operator resolves the conflict. **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`.
-   Once `<tip>` is in the scope branch, whether merged now or already there, record it with
-   `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base set <tip> --root <run-root>`: the local `<base>`
-   may still lack `<tip>`, and `scope-mode.md`'s `## The scope's range base` reads the record. Then go to the first
-   slice, or, for `/superdev:review`, to its preparation and then its first dispatch, whatever the suite record reads: a red,
-   denied, or absent record asks nothing, stops nothing, and blocks no unattended run.
+- The step runs no test suite. The full-suite evidence `/superdev:ship` takes verifies every merge it makes.
+- Review pushes nothing here. At `submitted`, `/superdev:ship` pushes the merged tip.
+- `/superdev:plan`'s own cut never reads this step.
+- `<remote>` and `<base>` come from `docs/agents/code-management.md`. `<branch>` is the scope branch the playbook's
+  branch step left you on.
 
-**A base that cannot be fetched is a degraded pass.** No `<remote>` configured, a failed or killed fetch,
-or a remote that does not carry `<base>` → skip steps 2 and 3, run step 4 with the local `<base>`
-in place of `<tip>`, record no `**Base:**` line, and record the reason with `scope.js degraded add`, after
-`scope.js get degraded --root <run-root>` shows no entry for the
-same reason: repeated offline invocations add one entry. It is the second shape in
-`scope-findings.md`'s `## Degraded passes`: record and continue, attended or unattended alike. `/superdev:submit-pr` carries the
-entry into the pull request body.
+1. **Check the scopetree first.** `git -C <run-root>/scopetree status --porcelain` returns nothing, and `git -C
+   <run-root>/scopetree rev-parse -q --verify MERGE_HEAD` finds no unfinished merge.
+   - **Anything else** → name what you found and stop, discarding nothing and dispatching no slice. **`--unattended`
+     → block**, per `scope-mode.md`'s `## Unattended`.
+   - **The lite exception** (`scope.js tier --root <run-root>` prints `tier: lite`): the scopetree is dirty, no merge
+     is unfinished, and a slice is `in-progress` → skip the whole base step, name the skip in the report, and leave
+     the work to the playbook's `## Resume`. The next invocation brings the base in. At the full tier any dirty
+     scopetree stops.
+2. **Fetch the remote base.** Run `GIT_TERMINAL_PROMPT=0 git fetch <remote> <base>` through the Bash tool with its
+   `timeout` set to 120000 ms. Capture `<tip>` at once with `git rev-parse FETCH_HEAD`, because step 3 overwrites
+   `FETCH_HEAD`. A fetch the timeout killed carries no verdict and counts as failed.
+3. **Fast-forward the local `<base>` ref, and nothing more.** Run `git fetch . <tip>:refs/heads/<base>`. This is the
+   only local-git write to `<base>` superdev makes: it moves a ref, writes no commit, and touches no working tree.
+   - Git refuses it when `<base>` is checked out in any worktree, or when the update is not a fast-forward (verified
+     2026-10-05, git 2.54.0: exit 128, `fatal: refusing to fetch into branch 'refs/heads/<base>' checked out at …`).
+     A refusal is no failure: leave the local `<base>` where it was, and name the refusal in the run's report.
+   - A local `<base>` already at `<tip>` needs no word. Step 4 runs either way.
+4. **Bring `<tip>` in, and record it.**
+   1. **Find the numbering collisions.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" collisions --base <tip>
+      --branch <branch> --range-base <range-base>`, with `<range-base>` per `scope-mode.md`'s `## The scope's range
+      base`. Add one `--also <ref>` for each other run's scope branch that `scope.js candidates --stage
+      planned,implementing,merged,reviewed,documented-unreviewed,documented,submitted,shipped,closed` names (per
+      `scope-mode.md`'s `## Resolving an empty argument` → *Run-root enumeration*, this run's own slug left out, each
+      branch read with `scope.js get branch --root <run-root>`) whose ref resolves with `git rev-parse --verify
+      <ref>`.
+      - Exit 0 → nothing collides.
+      - Exit 1 → renumber each printed line per `merge-conflicts.md`'s numbering-collision rule, and commit it in the
+        scopetree. A renumber asks nothing, so an unattended run renumbers the same way.
+      - Exit 2 → the check could not run. Name its message and stop, dispatching no slice; never read it as no
+        collision. **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`.
+   2. **Find the citations the renumber missed.** Only after a renumber commit, and before the merge, run `node
+      "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" citations --range-base <range-base> --branch <branch> <id>…` with every
+      old id the renumber moved, each as `collisions` printed it. It prints one `<path>:<line> <id>` line per line the
+      scope branch added that still cites an old number.
+      - Exit 0 → none.
+      - Exit 1 → fix each named line to the new number, commit, and run it again, until it exits 0 or prints only kept
+        lines. A line you judge a legitimate citation of the old number goes to the attended operator, who fixes or
+        keeps it. **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`.
+      - Exit 2 → the check could not run. Name its message and stop, dispatching no slice. **`--unattended` →
+        block**, per `scope-mode.md`'s `## Unattended`.
+   3. **Merge.** `git -C <run-root>/scopetree merge-base --is-ancestor <tip> <branch>` succeeds → nothing to merge.
+      Otherwise run `git -C <run-root>/scopetree merge <tip>`, `<run-root>` spelled out as the real absolute path. A
+      conflict, `MERGE_HEAD` still set, is resolved, concluded, or escalated per `merge-conflicts.md`.
+   4. **Record the tip.** Once `<tip>` is in the scope branch, merged now or already there, run `node
+      "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base set <tip> --root <run-root>`. `scope-mode.md`'s `## The scope's
+      range base` reads the record.
+   5. **Go on.** Go to the first slice, or, for `/superdev:review`, to its preparation and then its first dispatch,
+      whatever the suite record reads. A red, denied, or absent suite record asks nothing, stops nothing, and blocks no
+      unattended run.
+
+**A base that cannot be fetched is a degraded pass.** Applies to no `<remote>` configured, a failed or killed fetch, or
+a remote that does not carry `<base>`. Skip steps 2 and 3, run step 4 with the local `<base>` in place of `<tip>`, and
+record no `**Base:**` line. Record the reason with `scope.js degraded add` after `scope.js get degraded --root
+<run-root>` shows no entry for the same reason, the second shape in `scope-findings.md`'s `## Degraded passes`.
+
+- Record and continue, attended or unattended alike.
+- `/superdev:submit-pr` carries the entry into the pull request body.

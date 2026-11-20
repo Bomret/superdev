@@ -209,9 +209,9 @@ end of this document names the files that own each subtree's contracts.
     in one prompt, and the dispatch is the later, more specific instruction, so it wins a conflict
     ([`CONTEXT.md`](CONTEXT.md) → *Dispatch prose*, ADR 0035). An edit to a contract in `agents/` also
     edits the `skills/` sentence that dispatches it, and a review reads the two together.
-  - **Write each agent body and each listed skill file as prompt concepts.** The convention is in
-    [`CONTEXT.md`](CONTEXT.md) → *Prompt concept* and *Main sentence*, and in ADR 0169 and ADR 0190.
-    The glossary's *Prompt concept* entry lists the governed skill files. An edit to `plugin/agents/`
+  - **Write each agent body and each listed file as prompt concepts.** The convention is in
+    [`CONTEXT.md`](CONTEXT.md) → *Prompt concept* and *Main sentence*, and in ADR 0169, ADR 0190, and ADR 0270.
+    The glossary's *Prompt concept* entry lists the governed files, skill files and references alike. An edit to `plugin/agents/`
     or to a listed file keeps every concept's invariants. A review checks the **No overlap** invariant (ADR 0170) and
     judges the form of each added or edited sentence by named sections of the writing standard (ADR 0269), through the review
     lenses [`plugin/references/AGENTS.md`](plugin/references/AGENTS.md) routes. Each lens states its grades and where

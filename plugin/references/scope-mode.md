@@ -1,296 +1,294 @@
 # Scope mode
 
-`/superdev:review`, `/superdev:document`, and `/superdev:submit-pr` share one rule. Each reads this
-file at runtime and keeps only what is specific to it: the stage it reads or writes, and what it prints
-next.
+Applies to every command that works on a scope run. Read the section your command cites at runtime, and keep only
+what is specific to your command: the stage it reads or writes, and what it prints next.
 
-This file holds the run basics: the scope slug, the change type, a live scope run, resolving an empty
-argument, the scope branch, the scope checkout, the run lock, the scope's range base, `## Unattended`, the
-verification ceiling, and the stage rule. The other sections moved into four files by job. A
-citation of one of them written against this file, with the section's heading, leads here, to the file that holds it:
+## Section map
 
-- **`scope-branch.md`** — `## Containment`, `## Cutting the scope branch`, `## Pushing the scope branch`,
-  `## Bringing the scope branch to base`.
-- **`run-state.md`** — `## The ledger`, `## Publishing run state`.
+**Where each section lives.** Applies to a citation of a scope-run section written against this file. Each list item
+names the file that holds the sections it maps. Read a mapped section from the file its item names.
+
+- **`scope-mode.md`** — `## The scope slug`, `## The change type`, `## A live scope run`, `## Resolving an empty
+  argument`, `## The scope branch`, `## The scope checkout`, `## The run lock`, `## The scope's range base`,
+  `## Unattended`, `## Verification ceiling`, and `## The stage never moves backwards`.
+- **`scope-branch.md`** — `## Containment`, `## Cutting the scope branch`, `## Preparing a worktree`,
+  `## Pushing the scope branch`, and `## Bringing the scope branch to base`.
+- **`run-state.md`** — `## The ledger` and `## Publishing run state`.
 - **`scope-findings.md`** — `## Degraded passes`, `## Unresolved defects`, `## Deferred findings`,
-  `## Warm cycles`, `## Observations`.
+  `## Warm cycles`, and `## Observations`.
 - **`shipped-run.md`** — `## Reading the posture at the merge commit`, `## Routing a shipped run`,
-  `## Adopting a shipped original`, `## Staged pages at close`.
+  `## Adopting a shipped original`, and `## Staged pages at close`.
 
-**Several sections have a wider audience than these three.** `/superdev:implement` and both
-execution playbooks read `## Unattended`, `scope-findings.md`'s `## Degraded passes`, `## The run lock`, `## The scope
-checkout`, and `scope-branch.md`'s `## Bringing the scope branch to
-base` (`/superdev:review` also reads it) and `## The scope's range base`. `/superdev:implement`
-reads `## The scope slug`, which sends it to `## The change type`. `run-state.md`'s `## The ledger` is read by
-`/superdev:implement`, `/superdev:status`, and `/superdev:submit-pr` besides `/superdev:review`. `##
-Resolving an empty argument` is read by `/superdev:implement`, `/superdev:review`, and
-`/superdev:submit-pr` on their own empty-argument entrance. `/superdev:plan` reads `scope-branch.md`'s `## Cutting the scope
-branch`, `## Containment`, and this file's `## The run lock` for its own cut. A run is unattended from its
-first command, so the token cannot wait for the stage where the other rules begin.
+**Who reads what.** Applies to a command deciding which scope-run sections it reads. `/superdev:review`,
+`/superdev:document`, and `/superdev:submit-pr` read the whole rule. The other readers are these:
+
+| Reader | Sections |
+|---|---|
+| `/superdev:implement` and both execution playbooks | `scope-mode.md`'s `## Unattended`, `## The run lock`, `## The scope checkout`, `## The scope's range base`, and `## The scope slug` with `## The change type`; `scope-findings.md`'s `## Degraded passes`; `scope-branch.md`'s `## Bringing the scope branch to base` |
+| `/superdev:review` | also `scope-branch.md`'s `## Bringing the scope branch to base` |
+| `/superdev:implement`, `/superdev:status`, `/superdev:submit-pr`, `/superdev:review` | `run-state.md`'s `## The ledger` |
+| `/superdev:implement`, `/superdev:review`, `/superdev:submit-pr`, on an empty argument | `scope-mode.md`'s `## Resolving an empty argument` |
+| `/superdev:plan`, for its own cut | `scope-branch.md`'s `## Cutting the scope branch` and `## Containment`; `scope-mode.md`'s `## The run lock` |
+
+A run is unattended from its first command, so every reader applies `## Unattended` from that command on.
 
 ## The scope slug
 
-A scope slug must match `[a-zA-Z0-9][a-zA-Z0-9_-]*`. It becomes the second segment of a branch name
-(`<type>/<slug>`, per `## The change type`) and a run-root path segment (`.superdev/scopes/<scope>/`).
-Every source it comes from — a feature label resolved from the slice store, an epic's feature label read
-off a tracker anchor — is external input with no such guarantee: a stray `/`, a leading `-`, `..`, a
-space, or `~` are all legal label characters and none are safe in either place.
+**The charset.** Applies to every scope slug, from any source. A slug matches `[a-zA-Z0-9][a-zA-Z0-9_-]*`. It becomes
+the second segment of a branch name (`<type>/<slug>`, per `## The change type`) and a run-root path segment
+(`.superdev/scopes/<scope>/`).
 
-**Validate both segments.** A feature label is `<type>/<slug>`, and the whole label becomes the branch
-name, so the type reaches `git worktree add … -b` exactly as the slug does.
+**Validate both segments.** Applies to every feature label `<type>/<slug>`, which is external input. The whole label
+becomes the branch name, so validate both segments before you build anything from it.
 
-- **The slug** — what follows the first `/` — matches the charset above.
-- **The type** — what precedes it — is one of the eleven in `## The change type`, matched exactly.
-  A label leading with `-x` reaches git as an option. A type outside the set makes `hooks/scope-prune.js`
-  misread a live, unmerged branch as gone, one of the three conditions a scope needs to be prunable,
-  alongside the staleness TTL and a `closed` stage.
+- **The slug**, what follows the first `/`, matches the charset.
+- **The type**, what precedes it, is one of the change types in `## The change type`, matched exactly.
 
-**Either segment failing is the same stop.** Say which one failed and why, and build no branch and no
-path out of the label. A label with no `/`, or an empty segment on either side, fails here too.
+**Either segment failing is the same stop.** Applies to a label whose slug or type fails, a label with no `/`, and a
+label with an empty segment on either side. Say which segment failed and why. Build no branch and no path out of the
+label.
 
 ## The change type
 
-A scope branch is `<type>/<slug>`. `<type>` is the **change type**: the Conventional Commits type of the
-work, one of `feat`, `fix`, `refactor`, `docs`, `perf`, `test`, `build`, `ci`, `chore`, `style`,
-`revert`. It leads the feature label the slice store carries, so a run reads the type off that label
-instead of choosing one. `/superdev:plan` picks it when it writes the plan.
+**The type.** Applies to every scope branch `<type>/<slug>`. `<type>` is the **change type**: the Conventional Commits
+type of the work, one of `feat`, `fix`, `refactor`, `docs`, `perf`, `test`, `build`, `ci`, `chore`, `style`,
+`revert`. `/superdev:plan` picks it when it writes the plan, and it leads the feature label the slice store carries;
+a run reads it off that label.
 
-The scope branch is the feature label verbatim. The run root is keyed on the slug alone
-(`.superdev/scopes/<scope>/`), so every command finds a run root from a scope slug without knowing the type.
+**Branch and run root.** Applies to every scope run. The scope branch is the feature label verbatim. The run root is
+keyed on the slug alone (`.superdev/scopes/<scope>/`), so every command finds a run root from a scope slug without the
+type.
 
 ## A live scope run
 
-A range or a scope slug names a live run when two conditions hold: its head is the scope branch
-`<type>/<scope>`, and a run root exists for that scope. A run root is a `.superdev/scopes/*/` directory
-holding a `ledger.md`.
+**What is live.** Applies to a range or a scope slug. It names a live run when its head is the scope branch
+`<type>/<scope>` and a run root exists for that scope. A run root is a `.superdev/scopes/*/` directory holding a
+`ledger.md`.
 
-Capture `<run-root>` with `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js root <scope>`'s printed absolute
-path — the repository's main working tree, whichever checkout the command runs from. Build no
-path against the invoking checkout's own cwd. Address every artifact by that absolute path:
-`<run-root>/ledger.md`, `<run-root>/dod.md`, `<run-root>/run.lock`.
+**The run-root path.** Applies to every run-root artifact. Capture `<run-root>` from `node
+${CLAUDE_PLUGIN_ROOT}/scripts/scope.js root <scope>`'s printed absolute path, the repository's main working tree
+whichever checkout the command runs from. Build no path against the invoking checkout's own cwd. Address every
+artifact by that absolute path: `<run-root>/ledger.md`, `<run-root>/dod.md`, `<run-root>/run.lock`.
 
 ## Resolving an empty argument
 
-A command that takes a scope argument and accepts it empty names its own **candidate set** (CONTEXT.md).
-This section owns the one cascade that resolves whichever set a caller hands it:
+**The cascade.** Applies to a command that takes a scope argument and accepts it empty. The command names its own
+**candidate set** (CONTEXT.md), and this cascade resolves it.
 
-- **Exactly one candidate** — use it.
-- **Several candidates** — list each one with its stage, and ask the operator which one to use.
-  **`--unattended`** → block instead of asking, per `## Unattended`, naming the candidates found.
-- **No candidate** — report that none exists, together with every run root the repository does hold and
-  that run root's own stage, and stop. Never guess at a subject nothing named.
+- **Exactly one candidate** → use it.
+- **Several candidates** → list each one with its stage, and ask the operator which one to use. **`--unattended`** →
+  block instead of asking, per `## Unattended`, naming the candidates found.
+- **No candidate** → report that none exists, with every run root the repository holds and its stage, and stop. Never
+  guess at a subject nothing named.
 
-A caller may add its own step after a no-candidate result, in place of the stop. That step still
-reports every run root with its stage before it acts: `/superdev:review` reads standing code of the whole
-repository there.
+**A caller's own no-candidate step.** Applies to a caller that adds a step after a no-candidate result. The step
+replaces the stop, and it still reports every run root with its stage before it acts. `/superdev:review` reads standing
+code of the whole repository there.
 
-**Run-root enumeration.** A run root is a `.superdev/scopes/*/` directory holding a `ledger.md`, per
-`## A live scope run`. The calling command names the stages that qualify — `/superdev:submit-pr`
-names every stage but `shipped` and `closed`, `/superdev:review` names `merged` and `documented-unreviewed`.
-Ask for the verdict instead of computing it:
-`node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js candidates --stage <stage>[,<stage>]`. The call scans the main
-working tree's run roots from any checkout, reads each ledger, writes nothing, and prints one verdict:
+**Run-root enumeration.** Applies to a caller whose candidate set is run roots at named stages. The calling command
+names the qualifying stages: `/superdev:submit-pr` names every stage but `shipped` and `closed`, and `/superdev:review`
+names `merged` and `documented-unreviewed`. Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js candidates --stage
+<stage>[,<stage>]`, which scans the main working tree's run roots from any checkout, writes nothing, and prints one
+verdict:
 
-- **`one <slug> <stage>`** — exactly one candidate. Use it.
-- **`several`** — then one `<slug> <stage>` line per candidate. List them and ask the operator, or block under `--unattended`, per the cascade above.
-- **`none`** — then one `<slug> <stage>` line per run root the repository holds, the stage reading
-  `absent` where the ledger names none and `unreadable` where it cannot be read or names a stage outside the
-  ledger's stages. Report them and stop.
+- **`one <slug> <stage>`** → exactly one candidate. Use it.
+- **`several`** → one `<slug> <stage>` line per candidate follows. List them and ask the operator, or block under
+  `--unattended`, per the cascade.
+- **`none`** → one `<slug> <stage>` line per run root the repository holds follows, the stage reading `absent` where
+  the ledger names none and `unreadable` where it cannot be read or names a stage outside the ledger's stages. Report
+  them and stop.
+- A run root whose directory name fails the `## The scope slug` charset is left out of every verdict.
+- A run root whose stage reads `absent` or `unreadable` never qualifies.
+- A `--stage` name outside the ledger's stages is refused with exit 1 and no verdict.
 
-A run root whose directory name fails `## The scope slug` charset is left out of every verdict.
+**`/superdev:implement`'s set.** Applies to implement's empty argument. Its candidate set is the features whose slices
+are ready, read from the slice store and handed straight to the cascade, with no run-root enumeration.
 
-A run root whose stage reads `absent` or `unreadable` never qualifies. A stage name outside the ledger's
-stages is refused with exit 1 and no verdict. `/superdev:implement` reads its candidate set from the slice
-store (the features whose slices are ready) and hands that set straight to this cascade, so the call
-never enumerates run roots on its behalf.
-
-**A caller that cannot ask stops and lists instead.** `plugin/scripts/publish-kb.js` has no interview
-loop behind it. With several candidates, or none, it refuses and lists them, the same shape this
-section's several-candidate and no-candidate branches print.
+**A caller that cannot ask stops and lists instead.** Applies to `plugin/scripts/publish-kb.js`, which has no
+interview loop. With several candidates or none, it refuses and lists them, in the shape the several-candidate and
+no-candidate branches print.
 
 ## The scope branch
 
-A scope slug does not name its branch: the type leads and the slug follows, and nothing recovers a type
-from a slug. Ask for the verdict instead of computing it:
-`node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js branch --root <run-root>`. The call reads the ledger and git,
-writes nothing, and prints one line.
+**The verb.** Applies to every command that needs a run's scope branch. Run `node
+${CLAUDE_PLUGIN_ROOT}/scripts/scope.js branch --root <run-root>`; compute nothing yourself. It reads the ledger and
+git, writes nothing, and prints one line:
 
-- **`ledger <branch>`** — the ledger's `**Branch:**` line names a local branch. This is the answer. A tag, a
-  SHA, or a name run init wrote and never cut does not count, and falls through to the scan.
-- **`guess <branch>`** — no such branch, and exactly one local branch has the run root's slug as its last
-  segment and a change type as its leading segment. **Say which route you took**, because this one is a guess.
-- **`guess-remote <branch>`** — the one match exists only as a remote-tracking ref. Say so with the guess.
-- **`ambiguous <branch> <branch>…`** — several branches match, such as two runs whose slugs differ only by
-  change type. The scan cannot separate them. Stop and name every branch to the operator.
-- **`none`** — nothing matches. Say so and stop, rather than proceeding against whatever HEAD happens to be.
-- **`git-failed <reason>`** — git could not list the branches. This is no `none`. Stop and name the reason.
+- **`ledger <branch>`** → the ledger's `**Branch:**` line names a local branch. This is the answer. A tag, a SHA, or a
+  name run init wrote and never cut does not count, and falls through to the scan.
+- **`guess <branch>`** → no such branch, and exactly one local branch has the run root's slug as its last segment and
+  a change type as its leading segment. **Say which route you took.**
+- **`guess-remote <branch>`** → the one match exists only as a remote-tracking ref. Say so with the guess.
+- **`ambiguous <branch> <branch>…`** → several branches match. Stop and name every branch to the operator.
+- **`none`** → nothing matches. Say so and stop.
+- **`git-failed <reason>`** → git could not list the branches. Stop and name the reason; this is no `none`.
 
-The Stop hook's prune and the knowledge-base publish's containment check apply the same shape rule
-(`lib/scope-branch.js`): where two branches match, the hook prunes, reaps, and deletes nothing for that scope,
-and the publish refuses naming both.
+**The shared shape rule.** Applies to the Stop hook's prune and the knowledge-base publish's containment check. They
+apply the same rule (`lib/scope-branch.js`). Where two branches match, the hook prunes, reaps, and deletes nothing for
+that scope, and the publish refuses naming both.
 
 ## The scope checkout
 
-`<run-root>/scopetree` is the scope checkout, at both tiers. Run every git
-command that writes to the scope branch there — `git -C <run-root>/scopetree ...` — never in
-the invoking checkout, which stays wherever it was.
+**The scopetree.** Applies to every git command that writes to the scope branch, at both tiers. Run it in the scope
+checkout, `<run-root>/scopetree`, as `git -C <run-root>/scopetree ...`. The invoking checkout stays wherever it was.
 
-**The call.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" checkout --root <run-root>`. It resolves the scope branch itself
-(`## The scope branch`; a `guess` or `guess-remote` branch is the branch it checks, and its verdict does not name the route, so a
-command that reports the guess runs `branch` as well), reads `git worktree list` and the ledger's
-`**Stage:**`, and writes nothing. It prints one verdict:
+**The call.** Applies to every command that needs the scope checkout. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js"
+checkout --root <run-root>`. It resolves the scope branch itself (`## The scope branch`), reads `git worktree list`
+and the ledger's `**Stage:**`, writes nothing, and prints one verdict. A `guess` or `guess-remote` branch is the branch
+it checks, and its verdict does not name the route, so a command that reports the guess runs `branch` as well.
 
 - **`present <path>`** → git registers the scopetree on the scope branch. Work there.
-- **`absent`** → the scopetree is missing before `shipped`. Recreate it: `git worktree add <run-root>/scopetree <branch>`, the same call
-  the `resumed` run kind already makes. The run's own lock stays as it is: no hook refuses the call.
-  **Prepare the recreated scopetree** before its first test run:
-  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <run-root>/scopetree`, per `scope-branch.md`'s
-  `## Preparing a worktree`; a failing preparation stops the command, and `--unattended` blocks.
-- **`absent-terminal <stage>`** (`shipped` or `closed`) → `/superdev:wrap-up`'s cleanup, or an operator, removed it. No command
-  recreates it at `closed`, a terminal stage nothing removes scaffolding from. A read-only command (`/superdev:review`,
-  `/superdev:document`, `/superdev:verify-ship`, `/superdev:wrap-up`) says so and reviews or reconciles read-only, and recreates no
-  checkout. A writing command has nothing left to write to a shipped scope.
-  **The one exception is `/superdev:ship` itself, reading any `shipped` ledger.** Its §3 reads the posture
-  with `git show` from the invoking checkout, which needs no scope checkout. Ship recreates the checkout
-  as an `absent` verdict does, in one case only: a ledger whose `auto` deploy stopped mid-way, whose §5
-  detaches it. A `shipped` ledger with nothing left to deploy, or a posture other than `auto`, is
-  "already shipped". Ship recreates no checkout for it.
-- **`held-elsewhere <path>`** → another working tree holds the branch. Say so, naming the path, and stop, writing nothing, rather
-  than switching a checkout superdev does not own. A holder whose path holds a line break prints `held-elsewhere a working tree whose path
-  holds a line break` with no path: say so, and name no path.
-- **`unregistered <reason>`** → the scopetree path is a leftover directory, a detached or other-branch tree, a registration whose
-  directory is gone, or a registered scopetree whose path holds a line break. Say so with the reason and stop, writing nothing: the call recreates nothing over it, and the operator removes it.
-- **`none`, `ambiguous <b> <b>…`, or `git-failed <reason>`** → the scope branch itself is unresolved, per `## The scope branch`'s
-  reading of those verdicts.
+- **`absent`** → the scopetree is missing before `shipped`. Recreate it with `git worktree add <run-root>/scopetree
+  <branch>`, leaving the run's lock as it is, and prepare it per `scope-branch.md`'s `## Preparing a worktree`.
+- **`absent-terminal <stage>`** (`shipped` or `closed`) → wrap-up's cleanup or an operator removed it. A read-only
+  command (`/superdev:review`, `/superdev:document`, `/superdev:verify-ship`, `/superdev:wrap-up`) says so, reviews
+  or reconciles read-only, and recreates no checkout. A writing command has nothing left to write to a shipped scope.
+  No command recreates it at `closed`.
+- **`held-elsewhere <path>`** → another working tree holds the branch. Say so, naming the path, and stop, writing
+  nothing. A holder whose path holds a line break prints `held-elsewhere a working tree whose path holds a line break`
+  with no path: say so, and name no path.
+- **`unregistered <reason>`** → the scopetree path is a leftover directory, a detached or other-branch tree, a
+  registration whose directory is gone, or a registered scopetree whose path holds a line break. Say so with the reason
+  and stop, writing nothing. The operator removes it.
+- **`none`, `ambiguous <b> <b>…`, or `git-failed <reason>`** → the scope branch itself is unresolved. Act as
+  `## The scope branch` states for that verdict.
+
+**Ship's exception.** Applies to `/superdev:ship` reading a `shipped` ledger with an `absent-terminal` verdict. Its
+§3 reads the posture with `git show` from the invoking checkout, with no scope checkout. Ship recreates the checkout
+as an `absent` verdict does in one case only: a ledger whose `auto` deploy stopped mid-way, which its §5 detaches. A
+`shipped` ledger with nothing left to deploy, or a posture other than `auto`, is "already shipped", and ship
+recreates no checkout for it.
 
 ## The run lock
 
-**`/superdev:implement`'s own entry into an existing run root consults liveness before its first write**, because a second, independent invocation can redispatch onto a scope already
-mid-implementation. `run-init.md`'s entry step runs `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" lock --root <run-root>`
-before `dod.md` is written or the ledger's stage moves. The verb reads the ledger's stage and the lock, writes nothing (it
-leaves the lock's mtime as it was), and prints one verdict line. The age is whole minutes rounded to the nearest, written `<n>m`:
+**Implement's liveness check.** Applies to `/superdev:implement`'s own entry into an existing run root. Before
+`dod.md` is written or the ledger's stage moves, `run-init.md`'s entry step runs `node
+"${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" lock --root <run-root>`. The verb reads the ledger's stage and the lock,
+writes nothing, leaves the lock's mtime as it was, and prints one verdict line, the age in whole minutes rounded to the
+nearest and written `<n>m`:
 
-- **`proceed planned`** — stage `planned`, any lock age (a lock that is no regular file refuses at every stage, this one included): `/superdev:plan` cut this and nobody has implemented a slice yet.
-  This is the ordinary hand-off, not a collision: proceed, exactly as the rest of this section describes.
-- **`proceed absent`** and **`proceed stale <age>`** — no lock, or a lock an hour old or older, at any other stage: proceed, exactly as the rest of this section
-  describes.
-- **`live <age> <stage> <lock content>`** — a lock under an hour old at any other stage, a lock dated in the future
-  included: a live implement run (`CONTEXT.md`). Attended: name the lock's age and content and the ledger's stage, and ask whether to
-  continue. Unattended: block, per `## Unattended` below.
+- **`proceed planned`** → stage `planned`, any lock age: `/superdev:plan` cut this and nobody has implemented a slice
+  yet. Proceed.
+- **`proceed absent`** and **`proceed stale <age>`** → no lock, or a lock an hour old or older, at any other stage.
+  Proceed.
+- **`live <age> <stage> <lock content>`** → a lock under an hour old at any other stage, a lock dated in the future
+  included: a live implement run (`CONTEXT.md`). Attended: name the lock's age and content and the ledger's stage, and
+  ask whether to continue. Unattended: block, per `## Unattended`.
+- **A lock that is no regular file, or cannot be read**, at any stage, `planned` included → the verb refuses with one
+  line naming it. Surface that line and stop.
 
-A lock that is no regular file, or that cannot be read, makes the verb refuse with one line naming it; surface that line and stop.
 The verb applies the one-hour bound and the future-date reading `scope.js open` applies.
 
-**This check governs `/superdev:implement`'s own entry alone.** `/superdev:review`,
-`/superdev:document`, `/superdev:submit-pr`, and `/superdev:ship` skip it: each enters at the chain's
-designed hand-off, with a fresh lock by construction.
+**Only implement checks.** Applies to `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`, and
+`/superdev:ship`. Each skips the liveness check. Each enters at the chain's designed hand-off.
 
-The check does not cover these:
+**What the check does not cover.** Applies to a reader judging a `live` or `stale` verdict.
 
-- A run that writes no trace line for over an hour, such as a read-only reviewer dispatch that long: its lock goes stale while it works.
+- A run that writes no trace line for over an hour, such as a long read-only reviewer dispatch: its lock goes stale
+  while it works.
 - A session end: its closing trace lines leave the lock fresh for an hour after the session stopped.
 - Another session's work in the run's trees: its trace lines keep the run's lock fresh too.
-- An identity scheme in the lock's content: it stays freeform text a human reads, where the check asks, to judge self from another session.
-- The `planned`-stage window: two `/superdev:implement` invocations that both enter while the stage reads `planned` both proceed. Only the stage's advance to `implementing` in `run-init.md` closes it.
+- An identity scheme: the lock's content stays freeform text a human reads to judge self from another session.
+- The `planned`-stage window: two implement invocations that both enter while the stage reads `planned` both proceed.
+  Only the stage's advance to `implementing` in `run-init.md` closes it.
 
-**`/superdev:plan` checks through `scope.js open`, unaffected by the rule above.** Each plan run writes a
-nonce of its own into the lock, `plan <nonce>`, and passes it back on its later calls. `open` stops with
-`locked` on a lock under an hour old that names another nonce: with no live ledger, any such lock; on a
-`planned` ledger, only while the ledger's step stands, the rule `/superdev:status` applies to a run live in
-another session.
+**Plan's check.** Applies to `/superdev:plan`, which checks through `scope.js open` and not through the liveness check.
+Each plan run writes a nonce of its own into the lock, `plan <nonce>`, and passes it back on its later calls. `open`
+stops with `locked` on a lock under an hour old that names another nonce: with no live ledger, on any such lock; on a
+`planned` ledger, only while the ledger's step stands.
 
-**Write `<run-root>/run.lock` once `scope-branch.md`'s `## Cutting the scope branch` has cut the scopetree, at both
-tiers**, and once `/superdev:plan` has made its own cut. Refresh the file if it already exists, the case a `resumed` run finds, once
-`/superdev:implement`'s own liveness check above has passed. The execution playbooks and `/superdev:plan` each write the lock
-into the run root right after their own cut. Plan's `scope.js open` writes it, refreshes it on plan's §6 call, and checks it itself. **On a `resumed` run, the liveness check above is what tells a live second
-`/superdev:implement` invocation from this run's own stale or absent lock.** The playbook's own Resume
-section only reconciles the ledger against `git log` and performs no liveness check.
+**Writing the lock.** Applies to the execution playbooks and `/superdev:plan`, right after their own cut. Write
+`<run-root>/run.lock` into the run root once `scope-branch.md`'s `## Cutting the scope branch` has cut or reused the
+scopetree, at both tiers, using the absolute run-init `<run-root>` path in the invoking checkout. Refresh the file if
+it already exists, the case a `resumed` run finds, once implement's liveness check has passed.
 
-**Every other caller — `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`, `/superdev:ship`,
-`/superdev:verify-ship`, `/superdev:wrap-up` — only ever refreshes this file. Never create it.** A tail command reaches a scope only after an execution playbook, or
-`/superdev:plan`, already ran, so a missing lock there means no live run to refresh.
+- Plan's `scope.js open` writes the lock, refreshes it on plan's §6 call, and checks it itself.
+- On a `resumed` run, the liveness check at run init is the one lock read. The playbook's own **Resume** step makes
+  no lock read of its own and only reconciles the ledger against `git log`.
 
-The lock's mtime marks the run as live across the whole chain. A lock older
-than an hour is dead (`scope.js open` and implement's entry check read that bound). Each command in the chain refreshes the mtime at its own step, and every line written to the run's
-`trace.log` refreshes it too: the run-trace hook's edit, run, and dispatch lines and the `scope.js` verbs'
-lines keep a working run live between those steps. That refresh creates no lock and leaves its content as it is.
+**Leave the lock in place.** Applies to an execution playbook at its end. Leave `<run-root>/run.lock` standing when
+the run finishes. The lock spans the whole chain, and `/superdev:wrap-up` removes it once the run is closed.
+
+**Every other caller only refreshes.** Applies to `/superdev:review`, `/superdev:document`, `/superdev:submit-pr`,
+`/superdev:ship`, `/superdev:verify-ship`, and `/superdev:wrap-up`. Each refreshes the lock's mtime at its own step.
+Never create the lock: a missing lock there means no live run to refresh.
+
+**Liveness by mtime.** Applies to every reader of the lock. The lock's mtime marks the run as live across the whole
+chain, and a lock older than an hour is dead. Every line written to the run's `trace.log` refreshes it too, from the
+run-trace hook's edit, run, and dispatch lines and the `scope.js` verbs' lines; that refresh creates no lock and
+leaves its content as it is.
 
 ## The scope's range base
 
-The **range base** is the commit every range of a scope's own work starts from: review's range, the doc
-pass, run handoff's `BASE`, resume's cross-check, and ship's `deployment.md` diff are all
-`<range-base>..<branch>`. It is the newer of two candidates: `merge-base(<base>, <branch>)`,
-and the tip the base step recorded in the `**Base:**` header (`run-state.md`'s `## The ledger`), when that record
-resolves to a commit and is an ancestor of `<branch>`. The newer candidate is the one the other is an
-ancestor of. With no usable record, or with two candidates where neither holds the other, the range base
-is `merge-base(<base>, <branch>)`.
+**The range base.** Applies to every range of a scope's own work: review's range, the doc pass, run handoff's `BASE`,
+resume's cross-check, and ship's `deployment.md` diff, each `<range-base>..<branch>`. The range base is the newer of
+two candidates: `merge-base(<base>, <branch>)`, and the tip the base step recorded in the `**Base:**` header
+(`run-state.md`'s `## The ledger`) where that record resolves to a commit and is an ancestor of `<branch>`. The newer
+candidate is the one the other is an ancestor of.
 
-The record keeps a merged remote tip out of a scope's range while the local `<base>` lacks it
-(the usual setup, where git refuses to fast-forward a checked-out `<base>`). The local `<base>` may also
-run ahead of the record, after a later pull or a ship that merged a newer base, and `merge-base` is the
-newer candidate then. One limit stays: when the local `<base>` holds commits never pushed and a merge
-brought it into `<branch>` (ship §4 or the degraded path) while a tip is on record, the two candidates are
-incomparable, the fallback applies, and the recorded tip's remote
-commits can enter the range.
+- **No usable record, or two candidates where neither holds the other** → the range base is `merge-base(<base>,
+  <branch>)`.
+- **The known limit:** when the local `<base>` holds commits never pushed and a merge brought it into `<branch>` (ship
+  §4 or the degraded path) while a tip is on record, the candidates are incomparable, and the recorded tip's remote
+  commits can enter the range.
 
-**Compute it with the verb, never by hand.** On a live scope run:
-`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base resolve --branch <branch> --base <base> --root <run-root>`
-prints it. An ad-hoc range with no run root has no record, so `merge-base(<base>, <branch>)` is its
-base. Containment (`scope-branch.md`'s `## Containment`) asks a different question, whether the branch's work is in
-`<base>`, and `scope.js contained` answers it.
+**Compute it with the verb, never by hand.** Applies to a live scope run. Run `node
+"${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" base resolve --branch <branch> --base <base> --root <run-root>`. An ad-hoc
+range with no run root has no record, so `merge-base(<base>, <branch>)` is its base.
+
+**Containment is another question.** Applies to a caller asking whether the branch's work is in `<base>`. Ask
+`scope.js contained`, per `scope-branch.md`'s `## Containment`.
 
 ## Unattended
 
-`--unattended` in a command's arguments means nobody is watching this invocation. Whoever invokes a
-chain command passes it. It is an argument and never a run-root field, so it cannot outlive the run
-that passed it: the next command a maintainer types after an interrupted unattended run
-asks its questions as usual.
+**The token.** Applies to `--unattended` in a command's arguments. It means nobody is watching this invocation.
+Whoever invokes a chain command passes it, and it is an argument, never a run-root field. The next command a
+maintainer types after an interrupted unattended run asks its questions as usual.
 
-**Take it out before parsing anything else.** The token is never part of the range, the area path, or the
-scope slug a command resolves from its remaining arguments.
+**Take it out before parsing anything else.** Applies to every command that accepts the token. The token is never part
+of the range, the area path, or the scope slug a command resolves from its remaining arguments.
 
-**A command carrying the token never asks a question, and never starts an interview command** (e.g.
-`/superdev:setup`, `/superdev:plan`) **either**: nobody is there to answer. At each stop where it would otherwise do either:
+**No question and no interview.** Applies to a command carrying the token, at each stop where it would ask a question
+or start an interview command (such as `/superdev:setup` or `/superdev:plan`).
 
-- **A standing answer is written at that stop** → take it. Each stop states its own, next to the question
-  it replaces.
-- **No standing answer is written** → **block**, and stop. This catch-all keeps a question added later
-  from stalling a whole run: an unanswerable stop costs one scope anchor, not the run.
+- **A standing answer is written at that stop** → take it. Each stop states its own, next to the question it replaces.
+- **No standing answer is written** → **block**, and stop.
 
-**Blocking** means: move the slice, where one is in play, and the scope anchor to `blocked` per the
-status map in `docs/agents/issue-tracker.md`; comment on the anchor naming the stop reached and why; then
-stop, leaving the scope branch standing and unshipped. A command whose step stands runs `scope.js step block`
-before that stop, per `run-state.md`'s `## The ledger` exit rule. **A block at the denial cap names
-`scope.js degraded reset-denials` in that comment**, beside the quoted refusal, so the maintainer who
-fixes the cause finds the way back (`scope-findings.md`'s `## Degraded passes` states it in
-full: the reset call plus clearing the `blocked` label this same procedure just wrote). A store with no
-comment concept records the same reason in the anchor's body. Both writes are best-effort, as every
-status write is: the ledger drives control flow, so a failed write is logged and the block still holds.
+**Blocking.** Applies to every block.
 
-**Without the token nothing changes.** Every command asks exactly what it asks today, in the same words.
+1. Move the slice, where one is in play, and the scope anchor to `blocked`, per the status map in
+   `docs/agents/issue-tracker.md`.
+2. Comment on the anchor naming the stop reached and why. A store with no comment concept records the same reason in
+   the anchor's body. **A block at the denial cap names `scope.js degraded reset-denials` in that comment**, beside the
+   quoted refusal (`scope-findings.md`'s `## Degraded passes`).
+3. A command whose step stands runs `scope.js step block` before the stop, per `run-state.md`'s `## The ledger`.
+4. Stop, leaving the scope branch standing and unshipped.
+
+Both store writes are best-effort: a failed write is logged, and the block still holds.
+
+**Without the token nothing changes.** Applies to every command run without `--unattended`. It asks exactly what it
+asks attended, in the same words.
 
 ## Verification ceiling
 
-**Verifying a Definition-of-Done criterion observes.** It changes no system outside the repository. A criterion needing a deploy, a migration, or any other outward-facing change to
-verify stays unticked, with a note naming what it needs, for the operator to verify after merge.
+**Verifying a Definition-of-Done criterion observes.** Applies to every criterion. Verifying it changes no system
+outside the repository. A criterion that needs a deploy, a migration, or any other outward-facing change to verify
+stays unticked, with a note naming what it needs, for the operator to verify after merge.
 
 ## The stage never moves backwards
 
-These writers move the ledger's `**Stage:**` line — `/superdev:review`, `/superdev:document`, run handoff
-(`merged`), `/superdev:submit-pr` (`submitted`), `/superdev:ship` (`shipped`), and `/superdev:wrap-up` (`closed`) — all through `scope.js
-stage set`, which enforces every rule in this section in code and refuses a write that breaks one: **a
-stage write never undoes completed work.**
+**The rank rule.** Applies to every write of the ledger's `**Stage:**` line: `/superdev:review`, `/superdev:document`,
+run handoff (`merged`), `/superdev:submit-pr` (`submitted`), `/superdev:ship` (`shipped`), and `/superdev:wrap-up`
+(`closed`), each through `scope.js stage set`. **A stage write never undoes completed work.** `stage set` enforces every
+rule of this section in code and refuses a write that breaks one.
 
-- `shipped` stops `/superdev:ship` from merging a second time.
-  A later command overwriting the stage with an earlier one would disarm that check.
-- `closed` is the terminal stage: nothing outranks it, `stage set` refuses any move out of it, and `hooks/scope-prune.js` reaps only a run root that reads it.
-- `shipped` is not terminal.
-- `submitted` is an ordinary in-flight stage: `/superdev:submit-pr`'s own stage gate, not the rank rule, keeps a second run from opening a
+- `shipped` stops `/superdev:ship` from merging a second time, and no later command overwrites it with an earlier
+  stage. `shipped` is not terminal.
+- `closed` is the terminal stage: nothing outranks it, `stage set` refuses any move out of it, and
+  `hooks/scope-prune.js` reaps only a run root that reads it.
+- `submitted` is an ordinary in-flight stage. `/superdev:submit-pr`'s own stage gate keeps a second run from opening a
   second pull request.
-- `documented` is not terminal either, since `documented → submitted → shipped` is the chain's own last move.
+- `documented` is not terminal: `documented → submitted → shipped` is the chain's last move.
 
-The rule protects work that is still valid, not the ordering of the values. One move that reads as
-backwards is sanctioned, because it records a fact rather than a distance: `/superdev:review` writes
-`reviewed` over `documented-unreviewed` when its fix loop landed commits. The doc pass really did run,
-and those commits made it stale. The stage is one scalar, so it cannot say "reviewed and documented, but
-documented too early"; `reviewed` is the value that gets the doc pass re-run.
+**The sanctioned move.** Applies to `/superdev:review` when its fix loop landed commits on a `documented-unreviewed`
+run. It writes `reviewed` over `documented-unreviewed`. `reviewed` is the value that gets the doc pass run again.
