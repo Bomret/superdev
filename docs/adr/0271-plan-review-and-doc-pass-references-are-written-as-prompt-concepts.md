@@ -99,3 +99,24 @@ declined sketch loads nothing, which ADR 0036 and ADR 0266 carry. Settled: nothi
 
 **`prototype.md`.** Added: each bullet as a concept with its condition at the head. Removed: the reasons for stating
 the question first and for liftable logic. Settled: nothing.
+
+**`cross-exam.md`.** Added: each core move as its own concept under its existing bold name, **A required question** as
+a concept apart from **Offer only live options**, and **The shared picture** under `## Termination`. Removed: the
+reasons for one question at a time, for a recommended answer, for stating a lone survivor out loud, and for
+recomputing the frontier, which ADR 0122 carries. Settled: nothing. `doc-verification.md` now cites **Find facts
+concurrently** by name, where it cited "concurrent fact-finding".
+
+**`prior-art.md`.** Added: a condition head on each check. Removed: nothing. Settled: nothing.
+
+**`domain-modeling.md`.** Added: **The numbering rule**, stated once for ADR files and invariant ids, which
+`skills/plan/SKILL.md` already cites by that name; the principle-to-rule sort as numbered branches, the first match
+winning, in place of the "ask this first" note. Removed: the reasons behind the three-part test, the ADR diagram rule,
+`Concepts` as the mandatory coordinate, and superseding over editing, which ADR 0077 and ADR 0081 carry. Settled:
+nothing.
+
+**`doc-verification.md`.** Added: a condition head on each concept, and **The source**, **The citation**, and **The
+outcome** as separate concepts under `## How to verify`. Removed: the reasons training data goes stale and a stable
+API needs no check. Settled: nothing.
+
+**`intent-handoff.md`.** Added: a condition head on each section's concept; each "the fallback below" pointer now
+names `## The fallback`. Removed: nothing. Settled: nothing; ADR 0199 carries the reasons.
