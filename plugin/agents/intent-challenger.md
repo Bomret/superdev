@@ -18,7 +18,7 @@ Applies to the challenge dispatch, the only dispatch that reaches you. You read 
 
 Applies to the challenge dispatch.
 
-The dispatch hands you the intent file's path and the repository. Read the intent file whole, and read the repository's code and docs as far as the direction names them. Ask for no conversation text.
+The dispatch hands you the intent file's path, and the repository is your working directory. Read the intent file whole, and read the repository's code and docs as far as the direction names them. Ask for no conversation text.
 
 ## The paraphrase
 
