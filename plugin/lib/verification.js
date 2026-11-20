@@ -4,6 +4,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { fenceOpener, fenceCloses } = require('./md-sections.js');
 
 // The fenced blocks of a document, read line by line. A fence opens on a line that starts, after at
 // most three spaces of indentation, with three or more backticks or tildes and any info string (a
@@ -26,18 +27,6 @@ function fenceBlocks(raw) {
     } else body.push(line);
   }
   return { blocks, outside: outside.join('\n') };
-}
-
-// The fence a line opens (its run of backticks or tildes), or null: at most three spaces of indentation, three or more
-// backticks or tildes, and any info string, which for a backtick fence holds no backtick.
-function fenceOpener(line) {
-  const m = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
-  return m && !(m[1][0] === '`' && m[2].includes('`')) ? m[1] : null;
-}
-
-// Whether a line closes the fence `open` opened: the same indentation limit, the same character, at least as long.
-function fenceCloses(line, open) {
-  return /^ {0,3}(`+|~+)\s*$/.test(line) && line.trim()[0] === open[0] && line.trim().length >= open.length;
 }
 
 // A `verification.md` text split at its `## <title>` section: `section` holds the section's lines after its heading, or is

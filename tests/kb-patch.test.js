@@ -299,3 +299,19 @@ assert.throws(
 }
 
 console.log('kb-patch tests ok');
+
+// --- one fence rule: a backtick line whose info string holds a backtick, or a tab-indented line, is text. ---
+{
+  const liveFence = '# P\n\n## A\n\n```js```\n\n## B\n\nbody b\n\n```bash\nx\n```\n\n## C\n\nc\n';
+  const out = merge(liveFence, staged('## A', 'new a.'));
+  assert.ok(out.includes('## B\n\nbody b') && out.includes('## C'), 'an inline ```js``` span opens no fence: sibling sections survive');
+  assert.ok(out.includes('new a.'), 'the section is replaced');
+  const tabLive = '# P\n\n## A\n\n\t```\nold\n\n## B\n\nbody b\n';
+  const tabOut = merge(tabLive, staged('## A', 'new a.'));
+  assert.ok(tabOut.includes('## B\n\nbody b') && tabOut.includes('new a.'), 'a tab-indented ``` opens no fence');
+  assert.throws(
+    () => merge('# P\n\n## A\n\n```\ncode\n\t```\n\n## B\n\nb\n', staged('## A', 'new a.')),
+    /unterminated fenced code block/,
+    'a page whose only closer is tab-indented is refused',
+  );
+}

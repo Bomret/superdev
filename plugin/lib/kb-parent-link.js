@@ -10,7 +10,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { maskFencedLines } = require('./md-sections.js');
+const { maskFencedLines, fenceOpener, fenceCloses } = require('./md-sections.js');
 const { runVerb, spawnFailure, exited, runFind, writeTempBody } = require('./kb-backend.js');
 
 // A list item opens with at most three spaces of indent (four or more is indented code) and is not a
@@ -53,8 +53,6 @@ const indentWidth = (l) => columnOf(l.match(/^\s*/)[0]);
 // The column a list item's content starts at: its indent, marker, and the whitespace after the marker.
 const contentColumn = (l) => columnOf(l.match(NESTED_ITEM_RE)[0]);
 const ATX_HEADING = /^ {0,3}#{1,6}(?:[ \t]|$)/;
-const FENCE_OPEN = /^\s{0,3}(`{3,}|~{3,})/;
-const FENCE_CLOSE = /^\s{0,3}(`{3,}|~{3,})\s*$/;
 
 // The index of the last line the list item at `at` carries before `end`, or `at` when it carries none. A carried
 // line is a nested item, a continuation line, or a fenced code block opened at least at the item's content column,
@@ -71,15 +69,14 @@ function carriedEnd(masked, raw, at, end) {
     const l = raw[j];
     if (fence) {
       last = j;
-      const closer = l.match(FENCE_CLOSE);
-      if (closer && closer[1][0] === fence[0] && closer[1].length >= fence.length) fence = null;
+      if (fenceCloses(l, fence)) fence = null;
       continue;
     }
     if (!l.trim()) continue;
     if (!masked[j].trim()) {
       // a fence opener, read by the rule `maskFencedLines` reads it with
       if (indentWidth(l) < column) break;
-      fence = l.match(FENCE_OPEN)[1];
+      fence = fenceOpener(l);
       last = j;
       paragraph = false;
       continue;

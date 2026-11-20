@@ -158,6 +158,12 @@ const matchFile = (text) => {
   assert.deepEqual(lines, ['settled\tmet\t01\t-\ta'], 'a line outside the section or inside a fence is no criterion');
 }
 
+// A body whose only fence closer is tab-indented is unterminated.
+{
+  const r = dodOpen('## Definition of Done\n- [ ] a — 01\n```\n- [ ] fenced — 01\n\t```\n');
+  assert.ok(!r.ok && /unterminated/.test(r.err) && r.out === '', 'a tab-indented closer leaves the fence open: ' + r.err);
+}
+
 // Refusals and the no-criteria line.
 {
   let r = call(['dod-open', '--root', runRoot()]);
