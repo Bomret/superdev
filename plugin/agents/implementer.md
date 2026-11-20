@@ -147,7 +147,11 @@ Run only the tests that verify your work, and make each run answer a question no
 
 ### Edit tools
 
-Applies to every dispatch. The run trace reads an edit tool call as the edit it is. Edit files through `Edit` and `Write` and never through a script.
+Applies to every dispatch. The run trace reads an edit tool call as the edit it is. Edit files through `Edit` and `Write` and never through a script. A write made through Bash, such as `sed -i`, a script, or a shell redirect into a file, leaves no `edit` line in the run trace.
+
+- A change inside a file: `Edit`, with enough surrounding text to make the old string unique.
+- The same text at several places in one file: `Edit` with `replace_all`.
+- A new file, or a file you rewrite whole: `Write`.
 
 ### Test design
 
@@ -185,7 +189,7 @@ Your tests must fail without your change. Prove it before you report. Once your 
 - `pass-to-pass`: your tests pass without your change, so they do not check it. Strengthen them, commit, and run the verb again over the same range.
 - `pass-to-pass` on a range in one of the three unclosable cases: on a `pass-to-pass` outcome, read `${CLAUDE_PLUGIN_ROOT}/references/fail-to-pass.md`'s `### Unclosable Pass-to-pass`, which lists them. In such a case, stop strengthening, keep the outcome line, and report the case with the reason that case names. The reviewer judges the case.
 - `unknown`: the verb could not judge. A failing first run means a test of yours fails at your tip: fix it and run the verb again. Name any other `unknown` in your report with the reason the verb printed; a `prepare=` reason means the repository's prepare command did not succeed in the verb's worktree, no verdict on your tests.
-- Run every test run in the foreground with Bash's `timeout` at its ceiling, 600000 ms unless `BASH_MAX_TIMEOUT_MS` raises it. Only a run that can outlast the ceiling runs in the background, and you wait for its end. Run the verb in the background when two runs of your range's test files can outlast the ceiling, and wait for its end.
+- Run every test run in the foreground with Bash's `timeout` at its ceiling, 600000 ms unless `BASH_MAX_TIMEOUT_MS` raises it. Only a run that can outlast the ceiling runs in the background, and you wait for its end. Run the verb in the background when two runs of your range's test files can outlast the ceiling, and wait for its end. Write each run's exit status into its output file, and wait out a run Claude Code moves to the background, as `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## The two commands` states.
 - Your report carries the outcome line, or the reason your range needs none.
 
 ## A failing test your slice did not cause
