@@ -39,8 +39,8 @@ const path = require('node:path');
 // `lib/git-spawn.js` owns the git calls: `gitThrow` is argv-based (no shell), so a repo-derived value (branch
 // name, slicetree path) containing a quote/backtick/$() can't break out and inject, `parseBranchList` reads
 // the `git branch` listing, and `listWorktrees` reads the registered working trees NUL-separated, so a path holding a
-// newline stays whole. No fallback: a hook that cannot run git sweeps nothing, so a failed load, or a module
-// missing any of the three names, leaves all three null and main() sweeps nothing, silently. The names are taken only
+// newline stays whole on a git of 2.36 or later. No fallback: a hook that cannot run git sweeps nothing.
+// So a failed load, or a module missing any of the three names, leaves all three null and main() sweeps nothing, silently. The names are taken only
 // once the module carries all three, so a partial module reads as an unloaded one. `git` is the name this hook
 // calls `gitThrow` by.
 let git = null;

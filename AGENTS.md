@@ -483,7 +483,7 @@ This root owns every other subtree directly:
   and the scripts require them as well. No hook and no script requires `scope.js`. `scope-prune.js` and `slicetree-sweep.js` both
   `require` `../lib/ledger.js` for their ledger-header reader (ADR 0022) and `../lib/git-spawn.js` for the git calls the two Stop hooks
   share (the spawn, the throwing call, and the `git branch` list parse; a module missing any of them reads as unloaded). `slicetree-sweep.js`
-  also takes the working-tree listing `listWorktrees` there, which keeps a path holding a newline whole (INV-0197). A module missing it
+  also takes the working-tree listing `listWorktrees` there, which keeps a path holding a newline whole on a git of 2.36 or later (INV-0197). A module missing it
   reads as unloaded, and a listing that throws or fails sweeps nothing (INV-0159). `run-trace.js` takes each of
   `../lib/trace-log.js`, `run-tree.js`, and `dispatch.js` through a `require` of its own (ADR 0117, INV-0159).
   `scope-prune.js` takes the containment probe `baseHistoryHasPatch` and the third tier `baseCommitHoldsBranch` off `../lib/containment.js` through a `require` of its own (ADR 0082, ADR 0248). It also takes `shapeMatches` and `parseBranchRefs` off `../lib/scope-branch.js` through a guarded `require`, and a module missing either reads as unloaded, so the hook prunes nothing. `tree-guard.js`, `scope-prune.js`, and `slicetree-sweep.js` each require

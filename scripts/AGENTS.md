@@ -38,11 +38,11 @@ a ledger's header lines, bullets, and table rows), `refusal.js` (the refusal err
 `containment.js` (`testContainment`, `judgeContainment`, `refetchMark`, `baseHistoryHasPatch`, `baseCommitHoldsBranch`), `main-work-tree.js` (`mainWorkTree`, `scopesDirFor`, `mainTreePath`), and
 `trace-log.js` (`appendTrace`, `readTrace`, `traceField`, `untraceField`). The root [`AGENTS.md`](../AGENTS.md) *Structure* names every module and its
 responsibility. `git-spawn.js`'s `existsAt` is the shared existence check at a commit: `true` for a path the commit holds, an empty
-file included, `false` for one it does not, and `null` where git cannot say. It reads no blob, so a file of any size answers, and a
+file included. It returns `false` for a path the commit does not hold. It returns `null` where git cannot say. It reads no blob, so a file of any size answers, and a
 directory or submodule entry answers `true`. `fileAt` reads a file's text at a commit, `''` for an empty or absent file, and takes
-`existsAt` where `show` fails. Both read the path literally, `--literal-pathspecs` under `literalEnv`, the environment without
-`GIT_GLOB_PATHSPECS`, `GIT_NOGLOB_PATHSPECS`, and `GIT_ICASE_PATHSPECS`, which git refuses beside it: `:foo` is that file, never
-pathspec magic, and `a*` is that file, never a glob. At startup `scope.js` loads only `refusal.js`, `ledger.js`, and `trace-log.js`. Every other module
+`existsAt` where `show` fails. Both read the path literally, with the flag `--literal-pathspecs`. They run under `literalEnv`, the
+environment without `GIT_GLOB_PATHSPECS`, `GIT_NOGLOB_PATHSPECS`, and `GIT_ICASE_PATHSPECS`, because git refuses those beside the flag.
+A path `:foo` is that file, never pathspec magic. A path `a*` is that file, never a glob. At startup `scope.js` loads only `refusal.js`, `ledger.js`, and `trace-log.js`. Every other module
 loads when a verb that uses it runs, through an accessor that names the module in a literal `require`, so the
 `--related` require scan still reaches it. `scope.js` exports only the names a requirer uses. A name it re-exports from a
 lazily loaded module is a getter that returns that module's own value. No module requires an entry point. `scope.js` owns the ledger's schema through `ledger.js` and is the only `ledger.md` read and write path in the chain:
@@ -285,8 +285,8 @@ the reviewer's judgment, so the outcome line records it (ADR 0188). The verb ref
 `docs/agents/verification.md`. It creates a throwaway worktree detached at `<tip>`. In a run root the worktree sits beside
 `slicetrees/`, outside every tree the run trace attributes a run to. Outside a run root it sits under `.superdev/`, which
 the verb git-ignores first through the repository's `info/exclude`. The verb's git calls inside the worktree read every path
-literally, `--literal-pathspecs` under `literalEnv` of `git-spawn.js`, so an operator environment that sets a global pathspec mode
-changes no outcome.
+literally, `--literal-pathspecs` under `literalEnv` of `git-spawn.js`.
+So an operator environment that sets a global pathspec mode changes no outcome.
 
 Where the tip's `## Prepare command` section states a command, the verb runs it at the worktree's root before each run, the
 second time after the put-back, through `runPrepare` of `lib/prepare.js` (ADR 0218). It reads the section once, from the tip,
@@ -343,8 +343,8 @@ at its ceiling (600000 ms, or the higher `BASH_MAX_TIMEOUT_MS`), and in the back
 outlast that ceiling (`references/test-selection.md`, ADR 0232).
 
 `prepare <tree>` runs the **Prepare command** (CONTEXT.md, ADR 0218) at the root of `<tree>`, which must be the root of a
-working tree that `listWorktrees` of `lib/git-spawn.js` lists for the invoking repository, a path holding a newline included; any
-other path is refused with exit 1, and so is every path where git cannot list the working trees. It reads
+working tree that `listWorktrees` of `lib/git-spawn.js` lists for the invoking repository, a path holding a newline included on a git of 2.36 or later. Any
+other path is refused with exit 1. So is every path where git cannot list the working trees. It reads
 `docs/agents/verification.md` from `<tree>` itself, through `prepareCommandOf` of `lib/verification.js`. With no
 `## Prepare command` section it prints one note on stderr naming the section and `/superdev:setup`, runs nothing, and exits 0.
 With `none` it exits 0 silently. A command runs through `runPrepare` of `lib/prepare.js` in a process group of its own, its
@@ -541,7 +541,7 @@ writes a ledger line, a trace line, or a digest, and none runs a test. A usage r
   alone on a clean tree or inside a focused run's path set. A record with no failed file is covered by a focused run over every path
   of the scope's range. Where the focused fence repeats the full fence, a record with no failed file is covered by two kinds of run
   instead. One is a passing full-class run on a clean tree. The other is a passing `path` run of each test file changed since that
-  is still present, which `existsAt` of `git-spawn.js` decides. A record with no failed file also takes the tip as its closer, printed `covered <sha> by <tip> clean-tip`. That
+  is still present. `existsAt` of `git-spawn.js` decides that. A record with no failed file also takes the tip as its closer, printed `covered <sha> by <tip> clean-tip`. That
   needs three conditions. The focused fence repeats the full fence. No test file changed from the red commit to the tip. No run at
   the tip failed or reads `unknown` in result or commit. The review judges that line (ADR 0255). The CI pair adds `ci: <verdict> <sha>`
   through `ciJudgment` of `ci.js`. For a failed head at or behind the tip, it adds `ci-failed <check> <link> <sha>` per failed named
