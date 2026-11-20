@@ -578,8 +578,10 @@ writes a ledger line, a trace line, or a digest, and none runs a test. A usage r
   `ledger step set|clear|block` lines of `trace.log` after the last `step set submit`. `carried` means the latest `step set ship`
   there ended in a `step block` naming `ship`. A ship step that ended in a `step clear`, a `step set`, or a block naming no ship
   withdraws it, and a `step clear` that ends another step leaves it. An absent, empty, or unreadable trace, a trace with no
-  submit step, and a trace that differs from the digest sidecar print `none`. Read-only verbs skip `checkRun`, so the verb
-  compares the trace with its digest itself and records nothing. `/superdev:review` and `/superdev:document` ask it before
+  submit step, a trace that differs from the digest sidecar, and a trace with a `tamper trace.log` line after the last
+  `step set submit` print `none`. Read-only verbs skip `checkRun`, so the verb compares the trace with its digest itself and
+  records nothing. A writing verb's `checkRun` seals a trace edited outside `scope.js` again and records that tamper line, so
+  the line withdraws the consent where the digest no longer shows the edit. `/superdev:review` and `/superdev:document` ask it before
   they start `/superdev:ship` on a scope at `submitted`. The code lives in `plugin/lib/consent.js`, over `readTrace` and
   `run-digest.js`'s `readSide` and `stateOf`.
 - **`route --root <run-root> [--merge <sha>] [--target <name>]… [--repair open|closed <key>]… [--repairs-failed|--repairs-none]`**

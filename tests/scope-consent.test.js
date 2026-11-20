@@ -17,7 +17,9 @@ const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-consent
 process.on('exit', () => fs.rmSync(dir, { recursive: true, force: true }));
 
 // One ledger trace line per step event, in the layout `lib/trace-log.js` writes.
-const line = (fields) => `2026-11-20T12:00:00.000Z scope main ledger ${fields}\n`;
+const line = (fields) => fields === 'tamper-trace'
+  ? '2026-11-20T12:00:00.000Z scope main tamper trace.log\n'
+  : `2026-11-20T12:00:00.000Z scope main ledger ${fields}\n`;
 const SUBMIT = ['step set submit', 'step clear'];
 const SHIP_BLOCKED = ['step set ship', 'step block ship'];
 
@@ -71,6 +73,18 @@ assert.strictEqual(verdict(rootWith([...SUBMIT, 'step set ship', 'step block']))
 
 // None: a trace that differs from its digest sidecar.
 assert.strictEqual(verdict(rootWith([...SUBMIT, ...SHIP_BLOCKED], { digest: 'wrong' })), 'none', 'a trace that differs from its digest carries nothing');
+
+// None: a forged trace a writing verb re-sealed. The hand append is followed by one writing call, whose digest check records a
+// `tamper trace.log` line and seals the trace again; that line after the last submit step withdraws the consent.
+{
+  const root = rootWith(SUBMIT);
+  fs.appendFileSync(path.join(root, 'trace.log'), [...SUBMIT, ...SHIP_BLOCKED].map(line).join(''));
+  const r = call(['step', 'clear', '--root', root]);
+  assert.ok(r.ok, `step clear should not refuse: ${r.err}`);
+  assert.strictEqual(verdict(root), 'none', 'a tamper line naming trace.log after the last submit carries nothing');
+}
+// Carried: a tamper line before the last submit step leaves the consent read after it.
+assert.strictEqual(verdict(rootWith(['tamper-trace', ...SUBMIT, ...SHIP_BLOCKED])), 'carried', 'a tamper line before the last submit leaves the consent');
 
 // Refusals: a missing --root, a non-directory --root, and an extra argument each exit 1.
 const refused = (argv) => {
