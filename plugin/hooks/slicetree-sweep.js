@@ -106,9 +106,7 @@ function standsIn(dir, wt) {
 function selectRemovable(trees, mergedSet, workedSet, scopeRoot) {
   const prefix = norm(scopeRoot).replace(/\/?$/, '/');
   const out = [];
-  for (const tree of trees) {
-    const wt = tree.path;
-    const br = tree.branch;
+  for (const { path: wt, branch: br } of trees) {
     if (!wt || !br) continue; // detached — skip
     const nwt = norm(wt);
     if (!nwt.startsWith(prefix)) continue; // only this scope's own slicetrees
@@ -179,12 +177,13 @@ function main(sessionCwd) {
       tips.set(b, sha);
       if (git(['rev-list', '-n1', b, '--not', def], cwd)) worked.add(b);
     }
-    // Listed once per run, for every scope below.
-    ({ trees } = listWorktrees(cwd));
+    // Listed once per run, for every scope below. A listing git cannot produce never reads as an empty list → sweep nothing.
+    const listed = listWorktrees(cwd);
+    if (listed.failure) return;
+    trees = listed.trees;
   } catch {
     return; // not a git repo / detached HEAD → bail quietly
   }
-  if (!Array.isArray(trees)) return; // a listing git cannot produce never reads as an empty list → sweep nothing
 
   const scopesRoot = path.join(superdevRoot, 'scopes');
   let scopeNames;
