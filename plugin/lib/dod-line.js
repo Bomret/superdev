@@ -49,10 +49,11 @@ const DOD_NOTE_VERDICT_RE = '(?:met|not met|ceiling|accepted)';
 // text begins `[ ] <criterion>`").
 // Trailing whitespace is tolerated on either shape (an editor's or a store's own habit) and dropped
 // only where a matched line is actually rewritten — an untouched line keeps its own trailing bytes.
-const DOD_LINE_RE = /^(\s*(?:-\s*)?)\[[ xX]\]\s*(.*)$/;
-const DOD_WITH_NOTE_TAG_RE = new RegExp(`^(.+?) — (${DOD_TAG_PATTERN}) — (${DOD_NOTE_VERDICT_RE}): (.*?)\\s*$`);
-const DOD_WITH_NOTE_NO_TAG_RE = new RegExp(`^(.+?) — (${DOD_NOTE_VERDICT_RE}): (.*?)\\s*$`);
-const DOD_NO_NOTE_TAG_RE = new RegExp(`^(.+) — (${DOD_TAG_PATTERN})\\s*$`);
+// `[^\n\r]` stands for every `.`: a Unicode line or paragraph separator inside a line is text, not a line end.
+const DOD_LINE_RE = /^(\s*(?:-\s*)?)\[[ xX]\]\s*([^\n\r]*)$/;
+const DOD_WITH_NOTE_TAG_RE = new RegExp(`^([^\\n\\r]+?) — (${DOD_TAG_PATTERN}) — (${DOD_NOTE_VERDICT_RE}): ([^\\n\\r]*?)\\s*$`);
+const DOD_WITH_NOTE_NO_TAG_RE = new RegExp(`^([^\\n\\r]+?) — (${DOD_NOTE_VERDICT_RE}): ([^\\n\\r]*?)\\s*$`);
+const DOD_NO_NOTE_TAG_RE = new RegExp(`^([^\\n\\r]+) — (${DOD_TAG_PATTERN})\\s*$`);
 // The `## Definition of Done` heading — any level, up to 3 leading spaces (CommonMark's own ATX limit)
 // — that scopes body-mode matching to the checklist section alone (triage #679's C.3): a checkbox that
 // happens to repeat a DoD criterion's text elsewhere in the same document is never a match candidate.
@@ -81,6 +82,11 @@ function collapseWhitespace(s) {
 // below. Each reading also carries the note's `verdict` label (`met`, `not met`, `ceiling`, `accepted`) and its `note`
 // text, both empty where the line carries no note. An empty array only when the line carries no task-list marker at all.
 function parseDodLineReadings(line) {
+  // Shortest criterion first, so a note quoting another line's tag-and-verdict text never outranks the line's own reading.
+  return readDodLine(line).sort((a, b) => a.criterion.length - b.criterion.length);
+}
+
+function readDodLine(line) {
   const m = line.match(DOD_LINE_RE);
   if (!m) return [];
   const [, prefix, rest] = m;
@@ -188,6 +194,7 @@ function takeOption(args, flag) {
   const i = args.indexOf(flag);
   if (i < 0) return undefined;
   const value = args[i + 1];
+  if (value === undefined || value.startsWith('--')) fail(`${flag} needs a value`);
   args.splice(i, 2);
   return value;
 }
@@ -216,6 +223,7 @@ function verbDodLine(args, stdinRaw) {
   if (args.includes('--match')) fail('dod-line reads the criterion text from a file: give --match-file <path>');
   if (args.includes('--note')) fail('dod-line reads the note from a file: give --note-file <path>');
 
+  if (args.length) fail(`dod-line takes no argument "${args[0]}"`);
   if (matchFile === undefined) fail('dod-line needs --match-file <path>');
   const resolvedMatch = readOptionFile('--match-file', matchFile);
   if (!resolvedMatch) fail('dod-line needs --match-file <path> to hold the criterion text');
@@ -224,6 +232,7 @@ function verbDodLine(args, stdinRaw) {
   }
   if (noteFile === undefined) fail('dod-line needs --note-file <path>');
   const resolvedNote = readOptionFile('--note-file', noteFile);
+  if (/[\u2028\u2029]/.test(resolvedNote)) fail('dod-line --note-file must not hold a Unicode line or paragraph separator — it would split the line in a reader that breaks on one');
   if (/[\n\r]/.test(resolvedNote)) fail('dod-line --note-file must not hold a newline — it would inject a free-text line into the body');
   // The verb writes the verdict's own label itself, so a note already opening with it would carry it twice.
   const ownLabel = `${DOD_VERDICTS[verdict].label}:`;

@@ -167,6 +167,14 @@ try {
     assert.strictEqual(res.stdout, '');
   }
 
+  // A mistyped flag, a flag with no value or another flag as its value, and an unknown argument refuse and print no body.
+  {
+    for (const args of [['--mapfile', '/nonexistent'], ['--map-file'], ['--map-file', '--line'], ['--bogus'], ['--map-file', mapFile(['01 #9']), 'extra']]) {
+      const r = call(['dod-tags', ...args], section('- [ ] A works — 01'));
+      assert.ok(!r.ok && r.out === '', 'dod-tags refuses ' + args.join(' '));
+    }
+  }
+
   console.log('scope-dod-tags: ok');
 } finally {
   fs.rmSync(fileDir, { recursive: true, force: true });

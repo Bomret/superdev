@@ -197,6 +197,11 @@ try {
   // bullets with `, ` corrupts a comma-bearing bullet on the read side; `get` must not do that. A
   // fresh scope, added last, so it doesn't show up in an earlier `status` scan of `tmp` that asserts no
   // scope carries an unresolved line.
+  // An anchor title holding a Unicode line or paragraph separator records and reads back.
+  const sepJson = JSON.stringify({ anchor: '#2 — a\u2028b\u2029c', slices: [{ id: '01', issue: '#2', title: 'a', type: 'behavior' }] });
+  assert.ok(call(['init', 'feat/sep-anchor', 'planned'], sepJson).ok);
+  assert.strictEqual(call(['get', 'anchor', '--root', path.join(tmp, '.superdev', 'scopes', 'sep-anchor')]).out, '#2 — a b c');
+
   const commaJson = JSON.stringify({ anchor: '#1 — anchor', slices: [{ id: '01', issue: '#1', title: 'a', type: 'behavior' }] });
   assert.ok(call(['init', 'feat/comma-bullet', 'planned'], commaJson).ok);
   const commaRoot = path.join(tmp, '.superdev', 'scopes', 'comma-bullet');

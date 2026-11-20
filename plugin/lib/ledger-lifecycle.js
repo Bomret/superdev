@@ -188,7 +188,7 @@ function verbInit(cwd, label, stage, stdinJson, log = console.log, checked = fal
     `**Branch:** ${label}`,
     // Not sanitizeCell: the Anchor is a header line, not a table cell, and no header reader
     // unescapes `\|` — only the one-line shape matters here.
-    `**Anchor:** ${spec.anchor.replace(/(\r\n|\r|\n)+/g, ' ')}`,
+    `**Anchor:** ${spec.anchor.replace(/(\r\n|[\r\n\u2028\u2029])+/g, ' ')}`,
     '',
     '| id | issue | title | type | depends-on | status | range |',
     '|---|---|---|---|---|---|---|',

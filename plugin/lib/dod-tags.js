@@ -58,6 +58,8 @@ function refuse(problems) {
 function verbDodTags(args, stdinRaw) {
   const mapFile = takeOption(args, '--map-file');
   const lineMode = args.includes('--line');
+  if (lineMode) args.splice(args.indexOf('--line'), 1);
+  if (args.length) fail(`dod-tags takes no argument "${args[0]}"`);
   const map = mapFile === undefined ? null : readTagMap(mapFile);
   if (!stdinRaw || !stdinRaw.trim()) fail('dod-tags refused: the input is empty');
 

@@ -195,3 +195,9 @@ assert.deepEqual(route(setup({ dod: SETTLED }), ''), ['verify-ship'], 'an empty 
   assert.deepEqual(fs.readdirSync(s.root).sort(), before, 'no file is added to the run root');
   assert.strictEqual(fs.readFileSync(path.join(s.root, 'dod.md'), 'utf8'), dodBefore);
 }
+
+// A not-met note quoting another line's tag-and-verdict text keeps the line's own verdict: it is open, not settled.
+{
+  const quoting = '## Definition of Done\n\n- [ ] Retries are capped — not met: earlier note read "x — 3 — met: y"\n';
+  assert.deepEqual(route(setup({ dod: quoting }), quoting), ['verify-ship'], 'a quoted met verdict settles nothing');
+}
