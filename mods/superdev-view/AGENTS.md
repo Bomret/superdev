@@ -8,8 +8,8 @@ what it draws, how to install it, and how its tests run.
 
 ## Ownership
 
-This document owns the mod's behaviour contract, its working steps, its place in the repository, and the
-fixture pins that couple it to `scope.js` and `plugin/hooks/run-trace.js`. Nothing under `plugin/` requires
+This document owns the mod's behaviour contract and its working steps. It also owns the mod's place in the
+repository and the fixture pins that couple it to `scope.js` and `plugin/hooks/run-trace.js`. Nothing under `plugin/` requires
 the mod, and the root marketplace does not list it, so no adopter install carries it. Paths below that start
 with `hooks/` name files in this folder. Paths that start with `plugin/` or `tests/` name files from the
 repository root.
@@ -139,7 +139,7 @@ reads only the mod's shared fixture files. The focused command runs them when a 
 clock instead of the kit's 5 s default: the bound counts time a case spends descheduled and only catches a hang.
 
 `hooks/parse.ts` reads the ledger, the run trace, and the Definition-of-Done lines that `scope.js` and
-`plugin/hooks/run-trace.js` write, and one fixture file and one pin hold each coupling:
+`plugin/hooks/run-trace.js` write. One fixture file and one pin hold each coupling:
 
 - The ledger pin in `tests/scope-ledger.test.js` asserts that `scope.js` writes the lines in
   `hooks/ledger-fixtures.ts`.

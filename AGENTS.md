@@ -38,7 +38,7 @@ No prerequisite plugins.
 .github/workflows/     — the CI workflows, each stating what it runs in its own header. The template-tests
                          workflow runs the knowledge-base template suite on Linux, macOS, and Windows
                          (Git Bash) for every pull request to `main` (ADR 0212). The full-suite workflow
-                         runs `node scripts/run-tests.js` on Linux for every pull request to `main`, and
+                         runs `node scripts/run-tests.js` on Linux for every pull request to `main`.
                          `docs/agents/verification.md` → CI names its check
 plugin/                — the SHIPPED tree: everything a user's install copies, nothing else
   .claude-plugin/
@@ -118,9 +118,12 @@ end of this document names the files that own each subtree's contracts.
   document cites the owner instead of restating the contract, and its Child DOX Index names the owner of each
   subtree. A contract this document alone states moves to its owner before it leaves here.
 - **A growing set is described by the rule that fills it, never enumerated.** A directory is the list of its
-  members. This document names no lib module, test suite or suite topic, agent, skill, hook, or reference, and
-  states the rule each directory follows instead, so adding a member leaves it unedited. The rule extends
-  **Prose states no count of a growing set** (ADR 0064) from numerals to member lists.
+  members. This document names no lib module, test suite or suite topic, agent, skill, hook, or reference file.
+  It states the rule each directory follows instead, so adding a member leaves it unedited. Citing one skill
+  command as the actor of a rule is no enumeration. A path to one owning index, such as
+  `plugin/references/AGENTS.md` or `docs/known-issues.md`, is none either, and a reference file inside
+  `plugin/references/` is one. The rule extends **Prose states no count of a growing set** (ADR 0064) from
+  numerals to member lists.
 - **Every shipped executable has a suite in `tests/`, named for it.** Add one for any new hook or
   script. `node scripts/run-tests.js` runs every `tests/*.test.js` suite under
   `node`, which matches the production runtime. The suites and the tail run concurrently, as many at once as
@@ -213,9 +216,9 @@ end of this document names the files that own each subtree's contracts.
   - **Write each agent body and each listed file as prompt concepts.** The convention is in
     [`CONTEXT.md`](CONTEXT.md) → *Prompt concept* and *Main sentence*, and in ADR 0169, ADR 0190, and ADR 0270.
     The glossary's *Prompt concept* entry lists the governed files, skill files and references alike. An edit to `plugin/agents/`
-    or to a listed file keeps every concept's invariants. A review checks the **No overlap** invariant (ADR 0170) and
-    judges the form of each added or edited sentence by named sections of the writing standard (ADR 0269), through the review
-    lenses [`plugin/references/AGENTS.md`](plugin/references/AGENTS.md) routes. Each lens states its grades and where
+    or to a listed file keeps every concept's invariants. A review checks the **No overlap** invariant (ADR 0170).
+    It also judges the form of each added or edited sentence by named sections of the writing standard (ADR 0269).
+    The review lenses [`plugin/references/AGENTS.md`](plugin/references/AGENTS.md) routes carry both checks. Each lens states its grades and where
     a reviewer reads it.
   - **Prose states no count of a growing set.** "The eight shipped hooks" reads as a fact and is a
     hostage: adding a hook makes it false in every document repeating it, and nothing fails. Name the

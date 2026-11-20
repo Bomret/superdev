@@ -72,8 +72,8 @@ GH_TOKEN=$(gh auth token) bunx semantic-release --no-ci --dry-run
 
 ## The shipped tree's attribution
 
-`plugin/LICENSE` and `plugin/NOTICE` are copies of the root `LICENSE` and `NOTICE`, so the shipped tree, which an
-install copies alone, carries its own attribution. An edit to a root file is made to its copy too.
+`plugin/LICENSE` and `plugin/NOTICE` are copies of the root `LICENSE` and `NOTICE`, so the shipped tree carries its own
+attribution. An install copies the shipped tree alone. An edit to a root file is made to its copy too.
 
 ## Baseline
 
