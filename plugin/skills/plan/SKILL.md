@@ -212,7 +212,7 @@ A triage record already written is amended instead, through the store's own `## 
 **The readiness check.** Applies to every plan, a new plan, an append, and a repair, at every size, a single-slice plan included, once §3 and §4 have drafted every slice's `spec` and `acceptance` and before the breakdown. Write the slice draft, then dispatch `superdev:slice-readiness-reviewer` with an explicit `model: opus`. Hand it the paths of the draft, the slice draft, and the scopetree, and no interview text.
 
 - On an append, the draft is the amended Definition of Done, and the slice draft also lists the feature's existing slices.
-- With no run open yet, no scopetree exists: hand the repository's path and a base ref in its place: `<remote>/<base>` where a `Remote:` value exists, `<base>` otherwise, the ref `scope.js open` cuts the scope branch from.
+- With no run open yet, no scopetree exists: hand the repository's path and `<base>` in its place, the base branch `scope.js open` receives as `--base`.
 
 **Settling readiness findings.** Applies to every finding the readiness check returns. Settle it by editing the slice text, or reject it. A finding that is a real open design decision becomes one interview question under `references/cross-exam.md`'s rules, and under `--unattended` that question is an unattended block. A finding the repository shows wrong, such as a contradicted name the code shows right, is rejected with a reason drawn from the repository, and the breakdown shows it as `rejected: <reason>`, with no slice edit.
 
