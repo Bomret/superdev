@@ -49,7 +49,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          wrap-up, upgrade, status, publish-kb, review-tests, sweep
   agents/              — the subagents (*.md): implementer, slice-reviewer, simplicity-reviewer,
                          final-reviewer, doc-writer, doc-reader, test-auditor,
-                         test-gap-auditor
+                         test-gap-auditor, slice-readiness-reviewer, intent-challenger
   hooks/               — the deterministic Node hooks + hooks.json: merge-guard,
                          tree-guard, run-trace (with the model guard), slicetree-sweep, scope-prune, update-check
   lib/                 — every module: code that no hook registration and no prose step runs (ADR 0151).
@@ -474,6 +474,15 @@ This root owns every other subtree directly:
   `.superdev/brainstorm/` file only where the record cannot be written whole. `/superdev:plan` offers the
   open records on any checkout and closes the one it planned from, or keeps it open with a comment naming
   what it planned (ADR 0199, INV-0178).
+  Two read-only agents read a text with none of the conversation that wrote it, and each opens with a
+  paraphrase of it (ADR 0264). `/superdev:plan` dispatches `slice-readiness-reviewer` before it shows the
+  breakdown, on every plan kind and size. It reads the drafted slices and Definition of Done as their
+  implementer and reports an open decision that changes what a slice's acceptance observes or what another
+  slice or a consumer relies on. It also reports a named interface or file the code contradicts, an acceptance
+  line two readers would verify differently, and a slice three or more others depend on directly. Plan settles
+  every finding before the approval. `/superdev:brainstorm` dispatches `intent-challenger` at §4 on the
+  chosen direction, which reports false compromises and migration or rollback hazards. A dispatch of either
+  with no result after one retry reads `not run`, and the controller applies no lens itself (INV-0197).
 - `plugin/hooks/`. Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working
   rules, Hooks are CommonJS** and **Every shipped executable has a suite in `tests/`, named for it**.
   This is the strongest future child-doc candidate, if its rules outgrow this root. Of the
