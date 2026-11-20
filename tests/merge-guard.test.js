@@ -90,7 +90,9 @@ assert.equal(decide(sub('gh pr m 3')).block, false, 'gh has no m alias');
 assert.ok(!/require\(/.test(fs.readFileSync(hookPath, 'utf8').replace(/^\s*\/\/.*$/gm, '').replace(/require\.main/g, '')), 'merge-guard.js requires no module');
 
 // A long line with many lead words and no verb answers in linear time: 10x the input costs ~10x when linear and ~100x
-// when quadratic, so the 50x ceiling falsifies only the latter (ADR 0149).
+// when quadratic, so the 50x ceiling falsifies only the latter (ADR 0149). Catastrophic backtracking is qualitative, so
+// a loose ceiling falsifies what a tight one did: keep the ceiling and loosen it rather than drop it (root AGENTS.md,
+// working rule "A duration assertion is legitimate only against a same-run baseline, or a qualitative ceiling").
 {
   const { timePair } = require('./linear-time');
   const run = (n) => {

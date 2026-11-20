@@ -5,8 +5,8 @@
 // `scripts/drift-check.js` walks this array and does nothing else.
 //
 // A check tests a mechanical fact (a link or section target resolves, a number is unique, a file or
-// command exists, a property of code or configuration holds) or forbids a form in shipped prose (ADR
-// 0153). `scripts/AGENTS.md` carries one table row per check, keyed by its `id`.
+// command exists, a property of code or configuration holds) or forbids a form in shipped prose or in the
+// root AGENTS.md (ADR 0153). `scripts/AGENTS.md` carries one table row per check, keyed by its `id`.
 
 const { scanContract } = require('./lib');
 const {
@@ -46,6 +46,7 @@ const {
   scanNoCiWait,
   scanDeriveNoDod,
   scanInvariantRegisterJoin,
+  scanRootNoInventory,
 } = require('./scanners');
 const {
   ADR_STATUSES,
@@ -301,6 +302,12 @@ module.exports = [
     id: 'scope-review-no-full-run',
     ok: 'no scope-review document instructs a full or whole-repo run outside the ad-hoc clause the operator asks for: ship takes the full-suite evidence (ADR 0255, INV-0193)',
     run: scanScopeReviewNoFullRun,
+    format: contractGap,
+  },
+  {
+    id: 'root-no-inventory',
+    ok: 'the root AGENTS.md names no lib module, test suite, or superdev agent: it describes each growing set by its rule',
+    run: scanRootNoInventory,
     format: contractGap,
   },
 ];

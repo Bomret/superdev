@@ -70,6 +70,11 @@ Dry run (computes the next version and notes, changes nothing):
 GH_TOKEN=$(gh auth token) bunx semantic-release --no-ci --dry-run
 ```
 
+## The shipped tree's attribution
+
+`plugin/LICENSE` and `plugin/NOTICE` are copies of the root `LICENSE` and `NOTICE`, so the shipped tree carries its own
+attribution. An install copies the shipped tree alone. An edit to a root file is made to its copy too.
+
 ## Baseline
 
 Release history starts at the tag **`v0.2.0`**. The next release increments from there based on the

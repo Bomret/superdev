@@ -77,7 +77,8 @@ Git Bash. Some backends also need `jq`, `gh`, `tea`, or an API token.
 ```
 
 The install pins the latest release tag. Both commands write to your **user** settings, so run them once
-per machine. A repository cannot enable the plugin for you.
+per machine. A repository cannot enable the plugin for you: Claude Code declines a network marketplace
+declared at project scope, so a clone never enables a plugin nobody asked for.
 
 Then, in each repo, run `/superdev:setup` once, then `/superdev:plan` and `/superdev:implement`.
 
@@ -90,6 +91,9 @@ git clone https://github.com/Bomret/superdev.git
 cd superdev
 claude --plugin-dir ./plugin
 ```
+
+A checkout loaded this way runs its working tree, not the release, so a half-edited guardrail hook fires on
+the very run that edits it.
 
 ## Learn more
 
