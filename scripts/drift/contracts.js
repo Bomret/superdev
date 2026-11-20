@@ -584,8 +584,8 @@ const IMPLEMENT_NO_FULL_RUN_PATTERNS = [
   /\b(?:full|whole-repo)\s+(?:test\s+)?(?:command|suite)(?:\s+[\w-]+){0,2}?\s+(?:re-?)?runs\b/gi,
 ];
 
-// INV-0157: a failing test in a scope review's suite run is the failing-run concept's Critical finding and joins the fix
-// list, so the review's observation concept, whose defects never join it, names no suite run as a source. The entry is the
+// INV-0157: a failing test in red evidence the scope review reads is the red-evidence concept's Critical finding and joins
+// the fix list, so the review's observation concept, whose defects never join it, names no suite run as a source. The entry is the
 // document and the one section of it the check reads.
 const OBSERVATION_NO_SUITE_RUN_DOC = [path.join('references', 'review-scope-mode.md'), '### 4.3 Observations'];
 // A suite, test, entry, exit, focused, or full run, a §4.2 citation, and a failing test or run.

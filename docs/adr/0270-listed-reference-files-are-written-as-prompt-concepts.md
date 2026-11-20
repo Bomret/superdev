@@ -91,3 +91,20 @@ which ADR 0082 and ADR 0167 carry. Settled: nothing.
 
 **`merge-conflicts.md`.** Added: the conflicting-file listing and the stop after `merge --abort`, from
 `scope-branch.md`'s step 4, so this file owns the whole escalation. Removed: nothing. Settled: nothing.
+
+**`run-state.md`.** Added: **The run-state ref** under `## Publishing run state`, moved from `run-handoff.md`, because
+the send rule governs every command's step end; **The step line**, **The step closer**, **The Minor queue**, **The
+deploy record**, and **The suite record** concepts under `## The ledger`, so each header bullet names its line and its
+concept holds the rules. Removed: the reasons for the PR record, the per-slice publish ban, and the machine-owned
+section, which ADR 0042 and ADR 0236 carry. Settled: nothing.
+
+**`scope-findings.md`.** Added: a condition head per concept. Removed: the sweep's re-review rule and its self-check
+from `## Warm cycles`, which `implement-full-minor-sweep.md`'s `## Minor sweep` and `agents/slice-reviewer.md` own; the
+restated read-before-write rule of `## Observations`, which points to `store-records.md`'s `## Triage record`; the
+asymmetry argument for an uncertain match, which triage #505 records. Settled: `## Observations`
+said the controller runs the scope review's suite runs, while ADR 0255 removed every suite run from the scope review.
+The scope review runs no suite, and a failing test in red evidence the review reads is its Critical finding; the
+drift comments that repeated the old claim read the same way.
+
+**`shipped-run.md`.** Added: a condition head per concept. Removed: the reasons for the route verb and for the
+adopt `--shipped` refusal, which ADR 0263 carries. Settled: nothing.
