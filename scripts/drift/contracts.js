@@ -372,7 +372,7 @@ const SOURCE_SECTION_CONTRACTS = [
     path.join('references', 'prompt-concept-overlap.md'),
     /^#{2,3}\s+Prompt-concept overlap\s*$/m,
     'carry the `## Prompt-concept overlap` section, which `references/review-scope-mode.md`, ' +
-      '`references/AGENTS.md`, `CONTEXT.md`, and the root `AGENTS.md` cite',
+      '`references/AGENTS.md`, and `CONTEXT.md` cite',
   ],
   [
     path.join('references', 'prompt-prose-form.md'),
