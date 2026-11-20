@@ -2,15 +2,16 @@
 
 ## Test gaps
 
-**`test-gap-auditor` alone reads this section**, and it sits outside `review-checklist.md`'s
-`## Anti-patterns` for the reason `test-cost.md`'s `## Test cost` does: the lenses below are judged over
-standing code and the whole list of test files, which only a test audit's gap audit holds. A diff-scoped
-reviewer judges new behaviour against its acceptance criteria through **happy-path-only suite** instead.
-`review-checklist.md`'s `## Binding rules` bind every lens below.
+**Its reader.** Applies to `test-gap-auditor` alone. It judges these lenses over standing code and the whole list of
+test files. `review-checklist.md`'s `## Binding rules` bind every lens of this section.
+
+- A diff-scoped reviewer judges new behaviour against its acceptance criteria through `review-checklist.md`'s
+  **Happy-path-only suite** instead.
+
+**The gap lenses.** Applies to every symbol in the audited batch. Report each gap by these rules.
 
 - **Untested** — a symbol no test reaches. In a file some test reaches, name the file, the line, and the
-  symbol. A file no test reaches at all is one finding for the file, listing its exported symbols, so a
-  repository with few tests gets a bounded report.
+  symbol. A file no test reaches at all is one finding for the file, listing its exported symbols.
 - **Missing case** — a symbol whose tests leave an argument class or scenario untested: null, empty,
   negative, out of range, invalid, or a failure path. Name the symbol and the one case. "More edge cases"
   names no case and is no finding.

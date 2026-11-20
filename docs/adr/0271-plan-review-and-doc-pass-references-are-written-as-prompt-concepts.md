@@ -158,3 +158,21 @@ runs, the fail-to-pass run, and the report, and hands only the model, the workin
 `implementer.md`'s `### Sibling surfaces` already owned for the inline fix dispatch; the "below" pointers. Settled: the
 separate-Bash-calls rule lived only in this dispatch, so it moved into `implementer.md`'s `### Running tests` for the
 inline fix dispatch before the dispatch dropped it. ADR 0228 carries the reasons.
+
+**`prompt-concept-overlap.md`.** Added: **The gate** and **The subject** as separate concepts in place of the one
+opening paragraph; the dispatch-sentence and not-an-overlap cases as lists. Removed: nothing. The test, the grades,
+the Minor and Important severities, the gate, and the subject read the same in substance; ADR 0170 carries the
+reasons. Settled: nothing.
+
+**`prompt-prose-form.md`.** Added: **The gate**, **The subject**, **Lines judged**, **Applied sections**, **Exempt
+sections**, **Precedence**, and **The finding** as concepts with their condition at the head. Removed: nothing. The
+applied and exempt section lists keep every heading `scripts/drift/contracts.js`'s `PROMPT_PROSE_FORM_CITED` pins, and
+the Minor grade, gate, and subject stand; ADR 0269 carries the reasons. Settled: nothing.
+
+**`test-cost.md`.** Added: a condition head for the section's reader and its lenses. Removed: the reasons the section
+sits outside `review-checklist.md`'s `## Anti-patterns` and a dead test costs every run. Settled: nothing.
+
+**`test-gaps.md`.** Added: a condition head for the section's reader and its lenses; the pointer to **Happy-path-only
+suite** now names `review-checklist.md`. Removed: the reasons the section sits outside `## Anti-patterns` and a
+file-level finding bounds the report. `## Test gaps` stays the section only `test-gap-auditor` reads. Settled:
+nothing.
