@@ -32,12 +32,17 @@ reports, which names the bound and `code-host.pushTimeoutMs`; `lib/run-state-ref
 `scope.js` owns the CLI and the verbs, and requires only modules from `plugin/lib/` (ADR 0151). Each verb's code lives in
 a module of its own: the ledger verbs in `ledger-lifecycle.js` and `ledger-records.js`, `suite` and `base` and `get` in
 `suite-base-get.js`, `test` in `test-verb.js`, `publish` with `adopt` in `run-state.js`, `open` in `plan-open.js`, `dod-merge` in `dod-merge.js` (with `mergeDod`, the per-line merge `fetchRunState` also uses, ADR 0206), and `dod-line`, `dod-tags`, `dod-check`, `ci`, `fail-to-pass`, `fail-to-pass-check`, `prepare`,
-`citations`, `collisions`, `source-set`, `untraced`, `push`, `discard`, `status`, `section`, `tier`, `dod-open`, `contained`, `red-evidence`, `candidates`, `denial`, and `route` each in the module of its name. `branch` is `scope-branch.js`'s `resolveScopeBranch`, `checkout` is `scope-checkout.js`'s `scopeCheckout`, and `lock` is `run-lock.js`'s `verbLock`; `run-lock.js` also holds the run lock's reader and one-hour bound that `plan-open.js` shares. `run-roots.js` holds the one scan of `.superdev/scopes/*/` that `status` and `candidates` share. `trace` and `windows` live in `scope.js` over `trace-window.js` (`readRunTrace`, `sliceOf`, `editPath`, `windowsOf`, `windowIndexes`, `traceFlags`), the one window derivation `trace --window`, `untraced --window`, and `fail-to-pass-check --window` share, and `traceFlags` is the flag parser `trace`, `windows`, `untraced`, and `fail-to-pass-check` share. The run-state ref (`refs/superdev/<scope>`, ADR 0202) is `run-state-ref.js`: `pushRunState` at a step end (`step clear`, `step block`, or a `stage set` that closes the standing step, except `stage set closed`), `fetchRunState` inside `adopt`, and `deleteRunState` behind `run-state delete`. It takes `gitCall` from `push.js` and `parseRemote` from `kb-containment.js`. The vocabulary beneath them is `ledger.js` (the stage rank and the readers and writers of
+`citations`, `collisions`, `source-set`, `untraced`, `push`, `discard`, `status`, `section`, `tier`, `dod-open`, `contained`, `red-evidence`, `candidates`, `denial`, `consent`, and `route` each in the module of its name. `branch` is `scope-branch.js`'s `resolveScopeBranch`, `checkout` is `scope-checkout.js`'s `scopeCheckout`, and `lock` is `run-lock.js`'s `verbLock`; `run-lock.js` also holds the run lock's reader and one-hour bound that `plan-open.js` shares. `run-roots.js` holds the one scan of `.superdev/scopes/*/` that `status` and `candidates` share. `trace` and `windows` live in `scope.js` over `trace-window.js` (`readRunTrace`, `sliceOf`, `editPath`, `windowsOf`, `windowIndexes`, `traceFlags`), the one window derivation `trace --window`, `untraced --window`, and `fail-to-pass-check --window` share, and `traceFlags` is the flag parser `trace`, `windows`, `untraced`, and `fail-to-pass-check` share. The run-state ref (`refs/superdev/<scope>`, ADR 0202) is `run-state-ref.js`: `pushRunState` at a step end (`step clear`, `step block`, or a `stage set` that closes the standing step, except `stage set closed`), `fetchRunState` inside `adopt`, and `deleteRunState` behind `run-state delete`. It takes `gitCall` from `push.js` and `parseRemote` from `kb-containment.js`. The vocabulary beneath them is `ledger.js` (the stage rank and the readers and writers of
 a ledger's header lines, bullets, and table rows), `refusal.js` (the refusal error `fail`), `verification.js` (`verificationCommands`,
-`verificationCommandsOf`, `prepareCommandOf`, `namedChecksOf`, `isTestPath`), `git-spawn.js` (`gitSpawn`, `gitThrow`, `parseBranchList`, `resolveCommit`, `refResolves`, `fileAt`, `listWorktrees`),
+`verificationCommandsOf`, `prepareCommandOf`, `namedChecksOf`, `isTestPath`), `git-spawn.js` (`gitSpawn`, `gitThrow`, `parseBranchList`, `resolveCommit`, `refResolves`, `literalEnv`, `existsAt`, `fileAt`, `listWorktrees`),
 `containment.js` (`testContainment`, `judgeContainment`, `refetchMark`, `baseHistoryHasPatch`, `baseCommitHoldsBranch`), `main-work-tree.js` (`mainWorkTree`, `scopesDirFor`, `mainTreePath`), and
 `trace-log.js` (`appendTrace`, `readTrace`, `traceField`, `untraceField`). The root [`AGENTS.md`](../AGENTS.md) *Structure* names every module and its
-responsibility. At startup `scope.js` loads only `refusal.js`, `ledger.js`, and `trace-log.js`. Every other module
+responsibility. `git-spawn.js`'s `existsAt` is the shared existence check at a commit: `true` for a path the commit holds, an empty
+file included. It returns `false` for a path the commit does not hold. It returns `null` where git cannot say. It reads no blob, so a file of any size answers, and a
+directory or submodule entry answers `true`. `fileAt` reads a file's text at a commit, `''` for an empty or absent file, and takes
+`existsAt` where `show` fails. `fileAt`'s `show <commit>:<path>` read is literal by its syntax. `existsAt` reads the path with the flag
+`--literal-pathspecs`. It runs under `literalEnv`, the environment without `GIT_GLOB_PATHSPECS`, `GIT_NOGLOB_PATHSPECS`, and `GIT_ICASE_PATHSPECS`, because git refuses those beside the flag.
+A path `:foo` is that file, never pathspec magic. A path `a*` is that file, never a glob. At startup `scope.js` loads only `refusal.js`, `ledger.js`, and `trace-log.js`. Every other module
 loads when a verb that uses it runs, through an accessor that names the module in a literal `require`, so the
 `--related` require scan still reaches it. `scope.js` exports only the names a requirer uses. A name it re-exports from a
 lazily loaded module is a getter that returns that module's own value. No module requires an entry point. `scope.js` owns the ledger's schema through `ledger.js` and is the only `ledger.md` read and write path in the chain:
@@ -99,11 +104,11 @@ from the record. Markdown-only commits from that commit up to the tip then carry
 configuration at its own two commits. The walk takes children before parents.
 
 `suite rerun <test-file> <triage-ref>` writes the ledger's one `**Rerun:**` header, `<file> @ <tip> <ref>`. The tip is the
-checkout's HEAD, and the file is a root-relative blob at it. The verb refuses `--whole`. A tip that already carries a
+checkout's HEAD, and the file is a root-relative blob at it, its path read literally as `existsAt` reads one. The verb refuses `--whole`. A tip that already carries a
 record refuses a second one. A record for another tip is replaced.
 
 `suite failed <test-file>...` writes the ledger's one `**Failed:**` header, `<file>... @ <tip>`: the test files a full
-run at the tip failed in. The tip is the checkout's HEAD, and each file is a root-relative blob at it. The verb refuses
+run at the tip failed in. The tip is the checkout's HEAD, and each file is a root-relative blob at it, its path read literally. The verb refuses
 `--whole`, no file, and a token holding whitespace. A record for another tip is replaced.
 Its trace line names the root-relative paths the record holds, not the arguments as typed. `get failed` prints the record back, `<file>... @ <sha>`, or nothing on a ledger with no record.
 
@@ -279,7 +284,9 @@ writes it to run every test file the range adds or modifies, and the verb reads 
 the reviewer's judgment, so the outcome line records it (ADR 0188). The verb refuses a missing or empty command. The test paths come from `<tip>`'s own
 `docs/agents/verification.md`. It creates a throwaway worktree detached at `<tip>`. In a run root the worktree sits beside
 `slicetrees/`, outside every tree the run trace attributes a run to. Outside a run root it sits under `.superdev/`, which
-the verb git-ignores first through the repository's `info/exclude`.
+the verb git-ignores first through the repository's `info/exclude`. The verb's git calls inside the worktree read every path
+literally, `--literal-pathspecs` under `literalEnv` of `git-spawn.js`.
+So an operator environment that sets a global pathspec mode changes no outcome.
 
 Where the tip's `## Prepare command` section states a command, the verb runs it at the worktree's root before each run, the
 second time after the put-back, through `runPrepare` of `lib/prepare.js` (ADR 0218). It reads the section once, from the tip,
@@ -336,7 +343,8 @@ at its ceiling (600000 ms, or the higher `BASH_MAX_TIMEOUT_MS`), and in the back
 outlast that ceiling (`references/test-selection.md`, ADR 0232).
 
 `prepare <tree>` runs the **Prepare command** (CONTEXT.md, ADR 0218) at the root of `<tree>`, which must be the root of a
-working tree that `git worktree list` names for the invoking repository; any other path is refused with exit 1. It reads
+working tree that `listWorktrees` of `lib/git-spawn.js` lists for the invoking repository. A path holding a newline counts on a git of 2.36 or later. Any
+other path is refused with exit 1. So is every path where git cannot list the working trees. It reads
 `docs/agents/verification.md` from `<tree>` itself, through `prepareCommandOf` of `lib/verification.js`. With no
 `## Prepare command` section it prints one note on stderr naming the section and `/superdev:setup`, runs nothing, and exits 0.
 With `none` it exits 0 silently. A command runs through `runPrepare` of `lib/prepare.js` in a process group of its own, its
@@ -362,7 +370,7 @@ holds the setup they share and is no suite. The `test` verb's cases split over `
 first-moment-term, install, kill, late-fork, record, refusals, tree) and the `fail-to-pass` verb's over `scope-fail-to-pass-<topic>` (bound,
 concurrency, environment, interrupt, prepare, reuse, signals, trace, verdict, watcher), and the `prepare` verb's is `scope-prepare`. The rest: `scope-ledger` (init, stage, step, slice, the bullet and header records, get, status, and the ledger-fixtures pin),
 `scope-ledger-header` (`readLedgerHeader`), `scope-suite` (the suite and base records), `scope-dod-line` (the `dod-line` verb and the dod-fixtures pin), `scope-dod-tags` (the `dod-tags` verb), `scope-dod-check` (the `dod-check` verb), `scope-dod-merge` (the `dod-merge` verb), `scope-publish-adopt` (`publish`, `adopt`, and the
-`maskFencedLines` pin), `scope-trace` (the run trace, `appendTrace`, its `run.lock` refresh, and the `trace` filters), `scope-windows` (the `windows` verb and `trace --window`), `scope-digest` (the digest check), `scope-untraced` (the `untraced` verb), `scope-fail-to-pass-check` (the `fail-to-pass-check` verb), `scope-section`, `scope-tier`, `scope-dod-open`, `scope-contained`, `scope-red-evidence`, `scope-branch`, `scope-checkout`, `scope-lock`, `scope-denial`, `scope-route`, and `scope-candidates` (the verb of each name), `scope-staging` (`staging` and its `--count` and `--line` forms), `scope-dod-gate` (the Definition-of-Done check on entering `implementing`), `scope-root-base` (`root`, `staging`, `base` from a linked worktree),
+`maskFencedLines` pin), `scope-trace` (the run trace, `appendTrace`, its `run.lock` refresh, and the `trace` filters), `scope-windows` (the `windows` verb and `trace --window`), `scope-digest` (the digest check), `scope-untraced` (the `untraced` verb), `scope-fail-to-pass-check` (the `fail-to-pass-check` verb), `scope-section`, `scope-tier`, `scope-dod-open`, `scope-contained`, `scope-red-evidence`, `scope-branch`, `scope-checkout`, `scope-lock`, `scope-denial`, `scope-consent`, `scope-route`, and `scope-candidates` (the verb of each name), `scope-staging` (`staging` and its `--count` and `--line` forms), `scope-dod-gate` (the Definition-of-Done check on entering `implementing`), `scope-root-base` (`root`, `staging`, `base` from a linked worktree),
 `scope-containment`, `scope-citations-collisions`, `scope-source-set`, `scope-ci`, `scope-push`, `scope-open`, `scope-help`, and `scope-stdin` (every verb that reads piped input receives it through the CLI). A focused run for `scope.js`, or for a module it requires, selects
 every suite that reaches it (`run-tests.js`, below).
 
@@ -442,8 +450,8 @@ digest, and none runs a test. Each grading verb prints a verdict or the trace li
   such as a `lite` slice, prints `no window: slice <id> has no implementer dispatch`. `trace-window.js`'s `windowsOf` derives each
   **Window** by position in the file, never by timestamp: a run starts at an implementer `dispatch` line or a `dispatch-resume` of one.
   It ends at the first boundary line after its `dispatch-end` (any outcome), or after its start when no end of its own follows.
-  With no such boundary line, it runs to the trace's end. A boundary line is a `dispatch` line of the run's own slice, or a
-  `dispatch-resume` of a reviewer's dispatch of that slice. A root with no `ledger.md` is refused.
+  With no such boundary line, it runs to the trace's end. A boundary line is a `dispatch` line of the run's own slice, except one of
+  `slice-readiness-reviewer` or `intent-challenger`, or a `dispatch-resume` of a reviewer's dispatch of that slice. A root with no `ledger.md` is refused.
   The agent type matches on the name part of a plugin-scoped type.
 - **`trace`** prints every recorded line that passes the filters given, byte-identical and in file order. `--slice`, `--kind` (a comma
   list of `edit`, `run`, `dispatch`, `dispatch-bind`, `dispatch-end`, `dispatch-resume`, `ledger`, `fail-to-pass`, `tamper`, or the
@@ -473,7 +481,7 @@ digest, and none runs a test. Each grading verb prints a verdict or the trace li
 `tests/scope-windows.test.js`, `tests/scope-trace.test.js`, `tests/scope-untraced.test.js`, and `tests/scope-fail-to-pass-check.test.js`
 hold their cases.
 
-`section`, `tier`, `dod-open`, `contained`, `red-evidence`, `branch`, `checkout`, `lock`, `route`, `denial`, and `candidates` are read-only decision verbs (ADR 0262, ADR 0263, INV-0195, INV-0196). A verb reads the ledger, `dod.md`, the run trace, git, and the files of the main working tree's `.superdev/`. A verb takes a slice-store or code-host result its caller fetched, handed over as a flag or on stdin. A verb makes no backend call itself (ADR 0263). A
+`section`, `tier`, `dod-open`, `contained`, `red-evidence`, `branch`, `checkout`, `lock`, `route`, `denial`, `consent`, and `candidates` are read-only decision verbs (ADR 0262, ADR 0263, INV-0195, INV-0196). A verb reads the ledger, `dod.md`, the run trace, git, and the files of the main working tree's `.superdev/`. A verb takes a slice-store or code-host result its caller fetched, handed over as a flag or on stdin. A verb makes no backend call itself (ADR 0263). A
 table or procedure whose every branch the ledger, `dod.md`, the run trace, a reference, or git decides lives in the verb, and a
 reference names the verb and the judgment the agent keeps. Each prints a verdict or the lines or section its caller named. None
 writes a ledger line, a trace line, or a digest, and none runs a test. A usage refusal exits 1 and prints nothing on stdout.
@@ -533,7 +541,7 @@ writes a ledger line, a trace line, or a digest, and none runs a test. A usage r
   alone on a clean tree or inside a focused run's path set. A record with no failed file is covered by a focused run over every path
   of the scope's range. Where the focused fence repeats the full fence, a record with no failed file is covered by two kinds of run
   instead. One is a passing full-class run on a clean tree. The other is a passing `path` run of each test file changed since that
-  is still present. A record with no failed file also takes the tip as its closer, printed `covered <sha> by <tip> clean-tip`. That
+  is still present. `existsAt` of `git-spawn.js` decides that. A record with no failed file also takes the tip as its closer, printed `covered <sha> by <tip> clean-tip`. That
   needs three conditions. The focused fence repeats the full fence. No test file changed from the red commit to the tip. No run at
   the tip failed or reads `unknown` in result or commit. The review judges that line (ADR 0255). The CI pair adds `ci: <verdict> <sha>`
   through `ciJudgment` of `ci.js`. For a failed head at or behind the tip, it adds `ci-failed <check> <link> <sha>` per failed named
@@ -546,7 +554,7 @@ writes a ledger line, a trace line, or a digest, and none runs a test. A usage r
   - one of `--ci-head` and `--ci-file` without the other;
   - a branch that resolves to no commit;
   - an unreadable suite record or `--ci-file`;
-  - any git read that fails.
+  - any git read that fails, an existence check git cannot answer naming the path and the commit.
 
   The code lives in `plugin/lib/red-evidence.js`, over the readers `suite-base-get.js` exports.
 
@@ -566,6 +574,16 @@ writes a ledger line, a trace line, or a digest, and none runs a test. A usage r
   `inline`, or `block implementer | unknown-tier | authored | second-denial`. `<pass>` is `implementer`, `fix`, `final-reviewer`,
   `slice-reviewer`, or `doc-reader`. It refuses an unknown pass and a verification pass with no denial recorded since the last
   reset. The code lives in `plugin/lib/denial.js`, over `tierOf` and `denialCount`.
+- **`consent --root <run-root>`** prints the operator's carried merge consent: `carried` or `none` (ADR 0268). It reads the
+  `ledger step set|clear|block` lines of `trace.log` after the last `step set submit`. `carried` means the latest `step set ship`
+  there ended in a `step block` naming `ship`. A ship step that ended in a `step clear`, a `step set`, or a block naming no ship
+  withdraws it, and a `step clear` that ends another step leaves it. An absent, empty, or unreadable trace, a trace with no
+  submit step, a trace that differs from the digest sidecar, and a trace with a `tamper trace.log` line after the last
+  `step set submit` print `none`. Read-only verbs skip `checkRun`, so the verb compares the trace with its digest itself and
+  records nothing. A writing verb's `checkRun` seals a trace edited outside `scope.js` again and records that tamper line, so
+  the line withdraws the consent where the digest no longer shows the edit. `/superdev:review` and `/superdev:document` ask it before
+  they start `/superdev:ship` on a scope at `submitted`. The code lives in `plugin/lib/consent.js`, over `readTrace` and
+  `run-digest.js`'s `readSide` and `stateOf`.
 - **`route --root <run-root> [--merge <sha>] [--target <name>]… [--repair open|closed <key>]… [--repairs-failed|--repairs-none]`**
   reads the anchor's Definition of Done on stdin and prints a shipped run's route: `repair`, `re-verify`, `verify-ship`, `wrap-up`,
   or `needs-repairs`, with `repair <key> is open` lines and a `hand-sync` line where a `dod.md` line has no matching anchor line.
@@ -1201,7 +1219,7 @@ path, when that document is missing. A check that walks a directory reads whatev
 |-------|---------------|-------|
 | `reference` | every `references/*.md` path that `skills/`, `agents/`, or `references/` names exists | structural |
 | `heading-citation` | every "`<file>.md`'s `## Heading`" citation (heading level two to four) in `skills/`, `agents/`, or `references/` prose names a heading the cited file carries at that level. A line break in a citation reads as one space, so a wrapped heading matches. A heading matches by `md-sections.js`'s `headingKeyOf`, the key `scope.js section` matches by. A heading inside a fenced block is no heading. A cited file with an unterminated fence is one gap, whatever it is cited for. A bare file name resolves in `references/`, then `agents/`, then the repository root. A file that resolves nowhere is a finding too. The exception is a `references/<name>.md` path, which the `reference` check reports. A section-map entry (a list item of a file name and its headings) counts as a citation of each heading it lists | structural |
-| `source-sections` | `plan-contract.md`, `plan-authoring.md`, `store-records.md`, `test-selection.md`, `content-types.md`, `controlled-prose.md`, `review-checklist.md`, `review-design-lenses.md`, `prompt-concept-overlap.md`, and `scope-branch.md`'s `## Pushing the scope branch`, and each agent body another file cites by heading, still carry each section a reader is sent to, by heading | structural |
+| `source-sections` | `plan-contract.md`, `plan-authoring.md`, `store-records.md`, `test-selection.md`, `content-types.md`, `controlled-prose.md`, `review-checklist.md`, `review-design-lenses.md`, `prompt-concept-overlap.md`, `prompt-prose-form.md`, and `scope-branch.md`'s `## Pushing the scope branch`, and each agent body another file cites by heading, still carry each section a reader is sent to, by heading. The row also fails when `controlled-prose.md` carries a `##` heading outside the set `prompt-prose-form.md` lists as applied or exempt | structural |
 | `command-resolution` | every `/superdev:<name>` a skill or agent names has a `skills/<name>/SKILL.md` | structural |
 | `governed-skill-files` | every backticked path in `CONTEXT.md`'s **Prompt concept** entry, the list of governed skill files, names a file (ADR 0190) | structural |
 | `audit-set-globs` | `docs/agents/documentation.md` carries `## Audit set`, and every pattern listed there matches a file | structural |
@@ -1215,9 +1233,10 @@ path, when that document is missing. A check that walks a directory reads whatev
 | `change-type` | `references/scope-mode.md`, `hooks/scope-prune.js`, `CONTEXT.md`, and `lib/ledger.js` carry the same change-type set | structural |
 | `no-second-reader` | no file under `plugin/hooks/` builds a ledger-header regex of its own, and no file under `plugin/lib/` other than `ledger.js` does (ADR 0022) | prohibition |
 | `shell-spawn` | no file under `plugin/hooks/`, `plugin/scripts/`, or `plugin/lib/` starts a shell by absolute path, starts `bash`, or uses Node's default shell (INV-0153) | prohibition |
+| `worktree-list-one-parser` | no file at the top level of `plugin/hooks/`, `plugin/scripts/`, or `plugin/lib/` other than `lib/git-spawn.js` spawns `git worktree list` (a `'worktree', 'list'` argument pair outside a comment), so `listWorktrees` stays the one reader of the working trees (INV-0198) | prohibition |
 | `test-seams` | no JavaScript file at any depth of `plugin/` names a file of the repository's `tests/` directory by base name or by a `tests/` path that carries a glob (`tests/scope-*.test.js`), and none reads `process.env.NAME`, `process.env['NAME']`, or a destructured `NAME` that no Markdown document under `plugin/` names, unless `NAME` starts with `CLAUDE_`; none uses a `SUPERDEV_` name on any object, `process.env` or an alias or passed-in one (a property, a bracket, a destructuring, an object key plain, quoted, computed by a literal, or shorthand, a `const`, `let`, or `var` binding, or a `NAME=` prefix; a key built by concatenation or held in a variable matches no form), and no Markdown file under `plugin/` names a `SUPERDEV_` identifier, with `SUPERDEV_TEXT_EOF` allowed by name and a document naming a `SUPERDEV_` variable allowing none (ADR 0207, INV-0180); a classifier glob such as `**/tests/` or `**/tests/**` names no file (INV-0156, ADR 0154) | prohibition |
 | `containment-delegation` | `lib/kb-containment.js` imports and calls `lib/containment.js`'s `testContainment` (ADR 0053) | structural |
-| `past-pr-skills` | the skills a chain start reaches (review, document, submit-pr, ship, verify-ship, wrap-up), plus publish-kb, carry no `disable-model-invocation: true`, neither verify-ship nor wrap-up names `--unattended`, and ship, verify-ship, and `references/response-shapes.md` name no `--from-ship` (INV-0066, INV-0093, ADR 0253) | structural |
+| `past-pr-skills` | the skills a chain start reaches (review, document, submit-pr, ship, verify-ship, wrap-up), plus publish-kb, carry no `disable-model-invocation: true`, neither verify-ship nor wrap-up names `--unattended`, ship, verify-ship, and `references/response-shapes.md` name no `--from-ship`, and every line of `references/review-scope-mode.md` and `skills/document/SKILL.md` that starts `/superdev:ship` names `scope.js consent` (INV-0066, INV-0093, ADR 0253, ADR 0268) | structural |
 | `no-offer-start` | no file of the shipped tree, `AGENTS.md` included, names `start_session` or the removed offer's marker line; the bare word "offer" stays free, so plan's intent and triage offers pass (ADR 0253) | prohibition |
 | `no-ci-wait` | no Markdown file of the shipped tree names a wait or a poll on CI: a `--watch` flag (`gh pr checks --watch`), `gh run watch`, or a line pairing `sleep` with a check or a status; shipped code is not scanned (INV-0192, ADR 0255) | prohibition |
 | `no-base-branch-commit` | no file under `skills/` or `references/` instructs a commit, a push, or a merge to the base branch, other than ship's host-API merge (INV-0001) | prohibition |

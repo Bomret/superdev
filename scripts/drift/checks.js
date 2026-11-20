@@ -24,6 +24,7 @@ const {
   scanUnmappedPathsForms,
   scanHookLedgerParsers,
   scanShellSpawn,
+  scanWorktreeListParsers,
   scanTestSeams,
   scanNoForceMerge,
   scanConflictConclusionNoCommit,
@@ -165,6 +166,12 @@ module.exports = [
     format: contractGap,
   },
   {
+    id: 'worktree-list-one-parser',
+    ok: 'no shipped executable other than lib/git-spawn.js spawns `git worktree list` (INV-0198)',
+    run: scanWorktreeListParsers,
+    format: contractGap,
+  },
+  {
     id: 'test-seams',
     ok: 'no shipped JavaScript names a superdev test file, reads an environment variable no shipped document names (outside CLAUDE_), or reads or sets a SUPERDEV_ one, and no shipped Markdown names one (ADR 0207)',
     run: scanTestSeams,
@@ -178,7 +185,7 @@ module.exports = [
   ),
   {
     id: 'past-pr-skills',
-    ok: 'review, document, submit-pr, ship, verify-ship, wrap-up, and publish-kb carry no `disable-model-invocation: true`, neither verify-ship nor wrap-up names `--unattended`, and no `--from-ship` remains (INV-0066, INV-0093)',
+    ok: 'review, document, submit-pr, ship, verify-ship, wrap-up, and publish-kb carry no `disable-model-invocation: true`, neither verify-ship nor wrap-up names `--unattended`, no `--from-ship` remains, and every start of ship in review-scope-mode.md and document names `scope.js consent` (INV-0066, INV-0093, ADR 0268)',
     run: scanPastPrSkills,
     format: contractGap,
   },

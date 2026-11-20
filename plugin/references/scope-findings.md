@@ -242,7 +242,7 @@ its blind pass is gone. Its dispatch hands each unclosable finding the last re-r
 with its range, its case, and its reason, as quoted data, and the reviewer restates each with its mark re-judged
 against the current range (`references/implement-full-minor-sweep.md`, `## Minor sweep`).
 
-**The loop's other rules hold.** A warm cycle counts toward the 3-cycle cap. A re-review left with only Minor Prompt-concept overlap findings ends the loop.
+**The loop's other rules hold.** A warm cycle counts toward the 3-cycle cap. A re-review left with only Minor Prompt-concept overlap or Prompt-prose form findings ends the loop.
 
 **The cycle's window in the run trace** ends at the next `dispatch` line, whatever its agent type or slice, or
 the next reviewer `dispatch-resume` line (one whose first field is the `tool_use_id` of a `final-reviewer`, `slice-reviewer`, or `simplicity-reviewer` `dispatch` line)

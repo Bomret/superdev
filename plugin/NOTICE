@@ -45,9 +45,10 @@ Adapted into superdev:
                       minimised repro, ranked hypotheses, tagged instrumentation)
   - prototype       → references/prototype.md (throwaway-prototype discipline: one
                       stated question, liftable logic, throwaway-branch capture),
-                      references/design-sketch.md (self-contained single-file rule)
-  - improve-codebase-architecture → references/design-sketch.md (card structure and
-                                    style direction)
+                      references/design-sketch.md (single-file rule)
+  - improve-codebase-architecture → references/design-sketch.md (page structure,
+                                    before/after diagrams, Problem / Solution / Wins
+                                    fields, diagram patterns, style direction)
   - writing-for-agents → AGENTS.md (repository root) prompt-architecture rules (prompt the
                          positive, demanding completion criteria, hiding later steps only across a
                          context boundary, front-loaded descriptions)

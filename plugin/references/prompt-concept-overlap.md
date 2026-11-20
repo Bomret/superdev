@@ -1,10 +1,10 @@
-# Prompt-concept overlap — the overlap test for governed prompt prose
+# Sentence-pair review lens
 
 ## Prompt-concept overlap
 
-Applies to a review subject, a change or standing code, that includes a governed body or a reference
-section a governed body directs its reader to read, in a repository whose glossary (`CONTEXT.md`) defines
-**Prompt concept**. A governed body is an agent body, or a skill file the glossary's **Prompt concept**
+Applies to a review subject that includes a governed body or a reference section a governed body directs
+its reader to read, in a repository whose glossary (`CONTEXT.md`) defines **Prompt concept**. The subject
+is a change or standing code. A governed body is an agent body, or a skill file the glossary's **Prompt concept**
 entry lists. Read the governed set from that entry. A repository whose glossary has no such entry gets no
 finding from this section, and its reviewers leave this file unread. `review-checklist.md`'s `## Binding rules` bind every lens below.
 

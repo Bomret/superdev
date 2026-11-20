@@ -83,6 +83,15 @@ Applies to the direction the user leans toward. Find the **smallest end-to-end v
 
 **The unknowns.** Applies to the chosen direction. Name the assumptions, the risks, and the constraints (technical, organizational, timeline).
 
+**The intent challenge.** Applies once the intent file states the chosen direction. Dispatch `superdev:intent-challenger` with an explicit `model: opus`, and hand it the intent file's path and nothing else. Compare its paraphrase with the intent file, and write each finding it returns, and a paraphrase that misstates the intent as a finding of your own, into the intent file under **Still-open decisions**.
+
+- The intent file gains no section for the challenge. §5's headings stay the set.
+- Keep the outcome for the report: the findings, none found, or `not run` with its reason.
+
+**A failed challenge.** Applies when the challenge dispatch returns no result, or a reply without its paraphrase. Dispatch it once more. A second failure reads `not run` with its reason, and you continue without applying its lenses yourself.
+
+**A challenge again.** Applies when the direction changes after its challenge, and to a resumed draft past §4. Challenge the direction again before §6's readiness test.
+
 **The prototype.** Applies to an unknown the conversation cannot settle, such as "does this state model feel right" or "which of these two shapes survives real data". Offer the detour, and run it by `${CLAUDE_PLUGIN_ROOT}/references/prototype.md`. The intent carries the decision.
 
 - The codebase carries nothing.

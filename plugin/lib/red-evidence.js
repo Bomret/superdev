@@ -38,15 +38,12 @@ function sameFenceChanges(g, c, from) {
   return { list: since.filter((p) => isTestPath(config, p)) };
 }
 
-// Whether the file `p` exists at commit `c`. A git error refuses. `fileAt` reads an absent file as '' and an unreadable one as
-// null, and an empty file reads as '' too, so only `ls-tree` tells an empty file from an absent one.
-function existsAt(g, c, p) {
-  const text = g.fileAt(c, p);
-  if (text === null) fail(`red-evidence: git could not read ${p} at ${c}`);
-  if (text !== '') return true;
-  const listed = gitSpawn(['ls-tree', '--full-tree', '--name-only', c, '--', p], g.cwd);
-  if (listed.status !== 0) fail(`red-evidence: git could not list ${p} at ${c}: ${(listed.stderr || '').trim() || `git exited ${listed.status}`}`);
-  return Boolean(listed.stdout.trim());
+// Whether the file `p` exists at commit `c`, an empty file included, read literally through the shared existence check. Where git
+// cannot say, the verb refuses, naming the path and the commit.
+function existsOrRefuse(g, c, p) {
+  const there = g.exists(c, p);
+  if (there === null) fail(`red-evidence: git could not tell whether ${p} exists at ${c}`);
+  return there;
 }
 
 // Whether the runs recorded at commit `c` cover the red record `from` whose failed test files are `files`: no failed run at `c`,
@@ -65,7 +62,7 @@ function covers(g, events, c, from, files, resolveBase) {
     return Boolean(paths) && coverageRefusal(g, paths, focused) === null;
   }
   if (!events.some((e) => RUN_KINDS.includes(e.fields[0]) && e.fields[2] === c && e.fields[1] === 'pass' && e.fields[3] === 'clean')) return false;
-  return same.list.filter((p) => existsAt(g, c, p)).every((p) => pathRunPassed(g, events, c, p));
+  return same.list.filter((p) => existsOrRefuse(g, c, p)).every((p) => pathRunPassed(g, events, c, p));
 }
 
 // ADR 0255's clean-tip exception, offered for the branch tip `tip` only: where the focused fence repeats the full fence, no

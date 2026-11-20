@@ -1,6 +1,6 @@
 'use strict';
 
-// The scanners over the shipped executables' source text: hook ledger-header parsers and shell-starting spawn forms.
+// The scanners over the shipped executables' source text: hook ledger-header parsers, shell-starting spawn forms, and `git worktree list` spawns.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -55,8 +55,8 @@ const SHELL_SPAWN_FORMS = [
 ];
 const CHILD_PROCESS = String.raw`require\(\s*['"](?:node:)?child_process['"]\s*\)`;
 
-function scanShellSpawn(root) {
-  const offenders = [];
+// Every non-test `.js` or `.mjs` file at the top level of the shipped `hooks/`, `scripts/`, and `lib/` dirs, as `{ dir, name, raw }`.
+function* shippedSources(root) {
   for (const dir of ['hooks', 'scripts', 'lib']) {
     let names = [];
     try {
@@ -64,44 +64,66 @@ function scanShellSpawn(root) {
     } catch {
       continue; // no such dir → nothing to scan
     }
-    for (const name of names) {
-      const raw = fs.readFileSync(path.join(docPath(root, dir), name), 'utf8');
-      // Only comments that start a line or follow whitespace are stripped, so a `/*` inside a string or a
-      // `//` comment never deletes live code.
-      const text = stripComments(raw);
-      const forms = new Set(SHELL_SPAWN_FORMS.filter(([, re]) => re.test(text)).map(([form]) => form));
-      // `exec` and `execSync` count only from child_process: referenced or called directly, through a namespace,
-      // or as a bare (maybe aliased) require, static import, or dynamic import binding.
-      const namespaces = [
-        ...text.matchAll(new RegExp(String.raw`(\w+)\s*=\s*${CHILD_PROCESS}`, 'g')),
-        ...text.matchAll(/\bimport\s+(?:\*\s+as\s+)?(\w+)\s+from\s+['"](?:node:)?child_process['"]/g),
-      ].map((m) => m[1]);
-      const imports = [
-        ...text.matchAll(new RegExp(String.raw`\{([^}]*)\}\s*=\s*${CHILD_PROCESS}`, 'g')),
-        ...text.matchAll(/\bimport\s*\{([^}]*)\}\s*from\s*['"](?:node:)?child_process['"]/g),
-        ...text.matchAll(/\{([^}]*)\}\s*=\s*await\s+import\(\s*['"](?:node:)?child_process['"]\s*\)/g),
-        ...text.matchAll(/\bimport\(\s*['"](?:node:)?child_process['"]\s*\)\s*\.then\(\s*\(?\s*\{([^}]*)\}/g),
-      ];
-      // The binding itself is cut out of the text, so only a later reference (a call or a pass-along) counts.
-      let rest = text;
-      for (const m of imports) rest = rest.replace(m[0], '');
-      for (const [, form, alias] of imports.flatMap((m) => m[1].split(',')).map((s) => s.trim().match(/^(exec(?:Sync)?)(?:\s*:\s*|\s+as\s+)?(\w+)?$/)).filter(Boolean)) {
-        if (new RegExp(String.raw`(?<![.\w])${alias || form}\b`).test(rest)) forms.add(form);
-      }
-      // A `.exec` or `.execSync` member of the require is a start whether called or only passed along.
-      for (const m of text.matchAll(new RegExp(String.raw`${CHILD_PROCESS}\s*\.(exec(?:Sync)?)\b`, 'g'))) forms.add(m[1]);
-      for (const n of namespaces) {
-        for (const m of text.matchAll(new RegExp(String.raw`\b${n}\.(exec(?:Sync)?)\b`, 'g'))) forms.add(m[1]);
-      }
-      for (const form of forms) {
-        offenders.push({
-          source: path.join(dir, name),
-          expectation: `start a shell only as \`sh\` with \`-c\` for an operator command (${form}) — INV-0153, ADR 0150`,
-        });
-      }
+    for (const name of names) yield { dir, name, raw: fs.readFileSync(path.join(docPath(root, dir), name), 'utf8') };
+  }
+}
+
+function scanShellSpawn(root) {
+  const offenders = [];
+  for (const { dir, name, raw } of shippedSources(root)) {
+    // Only comments that start a line or follow whitespace are stripped, so a `/*` inside a string or a
+    // `//` comment never deletes live code.
+    const text = stripComments(raw);
+    const forms = new Set(SHELL_SPAWN_FORMS.filter(([, re]) => re.test(text)).map(([form]) => form));
+    // `exec` and `execSync` count only from child_process: referenced or called directly, through a namespace,
+    // or as a bare (maybe aliased) require, static import, or dynamic import binding.
+    const namespaces = [
+      ...text.matchAll(new RegExp(String.raw`(\w+)\s*=\s*${CHILD_PROCESS}`, 'g')),
+      ...text.matchAll(/\bimport\s+(?:\*\s+as\s+)?(\w+)\s+from\s+['"](?:node:)?child_process['"]/g),
+    ].map((m) => m[1]);
+    const imports = [
+      ...text.matchAll(new RegExp(String.raw`\{([^}]*)\}\s*=\s*${CHILD_PROCESS}`, 'g')),
+      ...text.matchAll(/\bimport\s*\{([^}]*)\}\s*from\s*['"](?:node:)?child_process['"]/g),
+      ...text.matchAll(/\{([^}]*)\}\s*=\s*await\s+import\(\s*['"](?:node:)?child_process['"]\s*\)/g),
+      ...text.matchAll(/\bimport\(\s*['"](?:node:)?child_process['"]\s*\)\s*\.then\(\s*\(?\s*\{([^}]*)\}/g),
+    ];
+    // The binding itself is cut out of the text, so only a later reference (a call or a pass-along) counts.
+    let rest = text;
+    for (const m of imports) rest = rest.replace(m[0], '');
+    for (const [, form, alias] of imports.flatMap((m) => m[1].split(',')).map((s) => s.trim().match(/^(exec(?:Sync)?)(?:\s*:\s*|\s+as\s+)?(\w+)?$/)).filter(Boolean)) {
+      if (new RegExp(String.raw`(?<![.\w])${alias || form}\b`).test(rest)) forms.add(form);
+    }
+    // A `.exec` or `.execSync` member of the require is a start whether called or only passed along.
+    for (const m of text.matchAll(new RegExp(String.raw`${CHILD_PROCESS}\s*\.(exec(?:Sync)?)\b`, 'g'))) forms.add(m[1]);
+    for (const n of namespaces) {
+      for (const m of text.matchAll(new RegExp(String.raw`\b${n}\.(exec(?:Sync)?)\b`, 'g'))) forms.add(m[1]);
+    }
+    for (const form of forms) {
+      offenders.push({
+        source: path.join(dir, name),
+        expectation: `start a shell only as \`sh\` with \`-c\` for an operator command (${form}) — INV-0153, ADR 0150`,
+      });
     }
   }
   return offenders;
 }
 
-module.exports = { scanHookLedgerParsers, scanShellSpawn };
+// INV-0198: `lib/git-spawn.js`'s `listWorktrees` is the one shipped reader of the registered working trees, so no other file
+// at the top level of `plugin/hooks/`, `plugin/scripts/`, or `plugin/lib/` spawns `git worktree list`: a second parser could
+// split a newline path.
+const WORKTREE_LIST_SPAWN = /['"`]worktree['"`]\s*,\s*['"`]list['"`]/;
+function scanWorktreeListParsers(root) {
+  const offenders = [];
+  for (const { dir, name, raw } of shippedSources(root)) {
+    if (dir === 'lib' && name === 'git-spawn.js') continue; // the module that owns `listWorktrees`
+    if (WORKTREE_LIST_SPAWN.test(stripComments(raw))) {
+      offenders.push({
+        source: path.join(dir, name),
+        expectation: 'read the working trees through `lib/git-spawn.js`\'s `listWorktrees` — it spawns `git worktree list` itself (INV-0198)',
+      });
+    }
+  }
+  return offenders;
+}
+
+module.exports = { scanHookLedgerParsers, scanShellSpawn, scanWorktreeListParsers };

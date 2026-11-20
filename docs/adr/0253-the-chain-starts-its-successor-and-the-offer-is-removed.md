@@ -17,6 +17,9 @@ longer pause between implement and submit-pr. [ADR 0157](0157-every-chain-comman
 Ship stays model-invocable, and ship still starts verify-ship. [ADR 0224](0224-verify-ship-starts-wrap-up-when-every-line-settles.md),
 whose wrap-up ends the chain on its Next block and makes no offer.
 
+**Amended by:** [ADR 0268](0268-the-repair-loop-after-a-ship-refusal-chains-to-ship.md), which lets review and document on a
+scope at `submitted` start their successor, and start ship under carried consent.
+
 ## Context
 
 Every covered command ends with an offer to start its successor (ADR 0157). In the Claude desktop app the

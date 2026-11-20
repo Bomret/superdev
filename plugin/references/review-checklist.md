@@ -63,6 +63,16 @@ Every smell is a labelled judgment call ("possible feature envy"), never a hard 
   statuses only and cannot see two cases: a test of a symbol the change introduces fails before the change
   at compile, import, or name lookup in every language, and a weak test beside a discriminating one leaves
   the whole change reading `fail-to-pass`. Read the assertions of both.
+- **Overclaiming check** — a test or a drift check whose name, assertion message, or the criterion it is
+  cited for claims more than the input it feeds and the property it asserts. The probe: reconstruct the
+  input the check feeds and the property it asserts, state both in the finding, and compare them with the
+  claim. A check named "rejects every malformed header" that feeds one header missing its colon, or a drift
+  check cited for "every link resolves" that reads one directory, is this smell. A check that exercises the
+  code but asserts a narrower property than it claims is this smell; a check that passes whatever the code
+  does is **Tautological test**. A finding names one of the two smells, never both. Tautological test's two
+  exclusions hold here too: a check that two sources agree, and a pin on text whose only runtime reader is a
+  person or a model. This smell lies outside `test-auditor`'s three test lenses: a review applies it, and
+  the test audit does not.
 - **Happy-path-only suite** — new behaviour whose tests exercise only the success path, with no assertion
   for the failure and boundary cases named in its acceptance criteria. Name the specific uncovered case,
   not a vague "add more tests."

@@ -1,7 +1,7 @@
 name: template-tests
 
 # Runs the knowledge-base template suite on each operating system (ADR 0212).
-# The full suite stays a local run.
+# The full suite runs on Linux alone, in full-suite.yml.
 
 on:
   pull_request:

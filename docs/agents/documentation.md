@@ -46,8 +46,10 @@ only the prose an agent writes or rewrites, so untouched text is never reformatt
 scope rule. The reference material below them is not exempt.
 
 The plugin's own prompt prose in `plugin/skills/`, `plugin/agents/`, and the non-`AGENTS.md` files in
-`plugin/references/` sits outside the standard's `## Scope` list, and root `AGENTS.md`'s prompt-architecture
-rules govern it instead. Those files appear in the `## Audit set` below for claim grounding, which is a
+`plugin/references/` sits outside the standard's `## Scope` list. Root `AGENTS.md`'s prompt-architecture
+rules govern it, and a review applies the controlled-prose sections that
+`plugin/references/prompt-prose-form.md` cites to its governed bodies and the reference sections they direct
+their reader to read. Those files appear in the `## Audit set` below for claim grounding, which is a
 separate pass from the writing standard.
 
 ### Declare per language

@@ -39,7 +39,9 @@ No prerequisite plugins.
                          `source` is a `git-subdir` entry with `path` `plugin` and `ref` `v<version>`, so
                          an install copies only the shipped tree below, as the release tag holds it
 .github/workflows/     — `template-tests.yml`: runs `tests/publish-kb-templates.test.js` on Linux, macOS,
-                         and Windows (Git Bash) for every pull request to `main` (ADR 0212)
+                         and Windows (Git Bash) for every pull request to `main` (ADR 0212).
+                         `full-suite.yml`: runs `node scripts/run-tests.js` on Linux for every pull request to
+                         `main`; its `full-suite` check is the named CI check in `docs/agents/verification.md`
 plugin/                — the SHIPPED tree: everything a user's install copies, nothing else
   .claude-plugin/
     plugin.json        — plugin manifest (name, version, author); version is the SINGLE source of truth.
@@ -49,7 +51,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          wrap-up, upgrade, status, publish-kb, review-tests, sweep
   agents/              — the subagents (*.md): implementer, slice-reviewer, simplicity-reviewer,
                          final-reviewer, doc-writer, doc-reader, test-auditor,
-                         test-gap-auditor
+                         test-gap-auditor, slice-readiness-reviewer, intent-challenger
   hooks/               — the deterministic Node hooks + hooks.json: merge-guard,
                          tree-guard, run-trace (with the model guard), slicetree-sweep, scope-prune, update-check
   lib/                 — every module: code that no hook registration and no prose step runs (ADR 0151).
@@ -68,7 +70,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          `run-check.js` (the check every verb that writes to a run makes before its write,
                          which records a `tamper` trace line, ADR 0227); `untraced.js` (the `untraced` verb).
                          Verdict verbs (ADR 0263): `scope-branch.js` (`branch`), `scope-checkout.js` (`checkout`), `run-lock.js` (`lock`, and the lock reader `plan-open.js` shares),
-                         `denial.js` (`denial`), `route.js` (`route`), `candidates.js` (`candidates`), and `run-roots.js` (the run-root scan `status` and `candidates` share).
+                         `denial.js` (`denial`), `consent.js` (`consent`), `route.js` (`route`), `candidates.js` (`candidates`), and `run-roots.js` (the run-root scan `status` and `candidates` share).
                          Read-only grading (ADR 0261): `trace-window.js` (the one **Window** derivation, the slice and
                          edit-path comparison, and the flag parser the trace verbs share) and `fail-to-pass-check.js` (the `fail-to-pass-check` verb).
                          Read-only decision verbs (ADR 0262): `section.js` (one markdown section), `tier.js` (the execution tier),
@@ -100,7 +102,8 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          run-state, scope-findings, and shipped-run, authoring
                          disciplines, intent handoff, prior-art audit, design sketch, diagnosis, prototype, merge-conflicts,
                          review-checklist with its split lens files (review-design-lenses, review-coverage, fail-to-pass,
-                         untraced-writes, dependency-verification, prompt-concept-overlap, test-cost, test-gaps),
+                         untraced-writes, dependency-verification, prompt-concept-overlap, prompt-prose-form, test-cost,
+                         test-gaps),
                          review-scope-mode with its branch files (review-scope-holds, review-scope-denials,
                          review-scope-base, review-scope-deferrals, review-scope-coverage), review-inline-fix, dod-ticks,
                          response-shapes); its own AGENTS.md routes them
@@ -116,7 +119,7 @@ tests/                 — one suite per shipped executable (the hooks, `scope.j
                          point's suite is split flat by topic into `tests/<entry>-<topic>.test.js` over one
                          `<entry>-setup.js` that is no suite (ADR 0139, ADR 0151): `scope-*` (ledger,
                          ledger-header, `suite-*` (record, carry, complete, rerun, config, failed), dod-line, dod-tags, dod-check, dod-merge, publish-adopt, trace, windows, digest, untraced, fail-to-pass-check, root-base, containment,
-                         citations-collisions, source-set, ci, push, open, help, stdin, discard, prepare, branch, checkout, lock, candidates, denial, route, staging, `test-verb-*`, `fail-to-pass-*`, over `scope-setup.js`),
+                         citations-collisions, source-set, ci, push, open, help, stdin, discard, prepare, branch, checkout, lock, candidates, denial, consent, route, staging, `test-verb-*`, `fail-to-pass-*`, over `scope-setup.js`),
                          `run-trace*` (dispatch, guards, model, paths, over `run-trace-setup.js`), `publish-kb*` (containment, guard, `parent-link-*`,
                          patch, publish, read, scope, templates, timeout, over `publish-kb-setup.js`),
                          and `scope-prune*` (containment, guards, main, reap, over `scope-prune-setup.js`);
@@ -249,8 +252,9 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
   it to prose they write. This repo uses `controlled`
   ([`references/controlled-prose.md`](plugin/references/controlled-prose.md), ADR 0012). Its own
   `## Scope` section states where it applies: the `AGENTS.md` tree, `README.md`, ADR text, glossary
-  entries, knowledge-base pages, and report text. Prompt prose is outside it, and has its own rules
-  below.
+  entries, knowledge-base pages, and report text. Prompt prose is outside that list, and has its own rules
+  below. A review still applies named sections of the standard to governed prompt prose, through the
+  **Prompt-prose form** lens.
 - **Prompt prose follows the prompt-architecture rules.** They govern `skills/`, `agents/`, and
   `references/` prose:
   - **Prompt the positive.** Steering by prohibition drags the forbidden behaviour into context and makes
@@ -279,8 +283,10 @@ depend on each other is stated once, in the **Child DOX Index** at the end of th
     [`CONTEXT.md`](CONTEXT.md) → *Prompt concept* and *Main sentence*, and in ADR 0169 and ADR 0190.
     The glossary's *Prompt concept* entry lists the governed skill files. An edit to `plugin/agents/`
     or to a listed file keeps every concept's invariants. A review checks the **No overlap** invariant with the test and grades in
-    `references/prompt-concept-overlap.md`'s `## Prompt-concept overlap` (ADR 0170). A reviewer reads that file only
-    where the reviewed repository's `CONTEXT.md` defines **Prompt concept**.
+    `references/prompt-concept-overlap.md`'s `## Prompt-concept overlap` (ADR 0170). The review also judges the form of each
+    added or edited sentence by the controlled-prose sections `references/prompt-prose-form.md`'s
+    `## Prompt-prose form` cites by heading, and every such finding is Minor (ADR 0269). A reviewer reads either
+    file only where the reviewed repository's `CONTEXT.md` defines **Prompt concept**.
   - **Prose states no count of a growing set.** "The eight shipped hooks" reads as a fact and is a
     hostage: adding a hook makes it false in every document repeating it, and nothing fails. Name the
     set, or name its members, and keep a numeral only where the number is the fact — a cap, a
@@ -312,7 +318,8 @@ does not read (ADR 0197). It also covers the classifier's denial of ship's own m
 directory a Bash command ended in, which run-trace works around with a PreToolUse stash (ADR 0159), and the
 desktop app's wrap-up guidance that competes with the chain start, which the start answers by being the first
 action of the closing (ADR 0253). It also covers Code Mode, which refuses a tool call from code when a PreToolUse
-hook gives no decision, and fires UserPromptSubmit at the end of each piece of code. Read it before you change subagent prose or the unattended block.
+hook gives no decision, and fires UserPromptSubmit at the end of each piece of code. It also covers a subagent's foreground Bash call that
+Claude Code moves to the background after 180 s, which a subagent waits out through an exit line in the run's output file (ADR 0264). Read it before you change subagent prose or the unattended block.
 
 ## Common commands
 
@@ -406,7 +413,10 @@ This root owns every other subtree directly:
   message with that block (ADR 0113). A chain command starts its own successor through the Skill tool in the
   same turn, per that file's `## The chain start` (ADR 0253): implement starts review, a clean scope review
   starts document, and document on a reviewed scope starts submit-pr, each with the arguments its Next block
-  would print and no question first. The start is the first action of the closing. The starter first closes
+  would print and no question first. On a scope at `submitted`, the repair loop after a ship refusal, a clean scope
+  review starts document when it unticked the `docs` line and ship otherwise, and document starts ship. Each start of
+  ship there needs **Carried consent**: `scope.js consent` prints `carried` when the latest ship step after the scope's
+  last submit step ended blocked. `none`, an unattended run, and an ad-hoc review print ship instead (ADR 0268). The start is the first action of the closing. The starter first closes
   its step and publishes. It prints no Next block on that exit. It prints nothing after the started command
   returns. A step-scoped bar of the starter ends at the start. A `Blocked:` line, a `First:` wait, a refusal,
   a non-clean verdict, or a failed start ends the chain on the stopping command's Next block. An ad-hoc run
@@ -427,8 +437,11 @@ This root owns every other subtree directly:
   Absorbs line names, then the scope anchor, and takes the run down. No skill carries
   `disable-model-invocation: true`. Ship, verify-ship, and wrap-up start only when the operator typed the
   command, asked for it, another session's brief asked for it, or the command before them started it: ship on
-  the yes to submit-pr's ship question, verify-ship and wrap-up on ship's routes, and wrap-up at verify-ship's
-  settled exit. Ship started from another session's brief asks the operator one yes first, because a brief is
+  the yes to submit-pr's ship question or on carried consent from a clean review or document pass at `submitted`,
+  verify-ship and wrap-up on ship's routes, and wrap-up at verify-ship's settled exit. A ship started on carried consent
+  keeps every gate and ask it has when typed, and asks once before the merge where its deploy gate shows a changed
+  posture, target, or named-check list. A declined question whether to merge with unresolved entries (a defect) standing clears ship's step, which withdraws the
+  consent. Ship started from another session's brief asks the operator one yes first, because a brief is
   never merge consent (ADR 0253). Ship refuses `--unattended` (INV-0093). A criterion verify-ship observes false routes to `/superdev:plan`'s
   repair choice, which plans a `fix` feature on its own anchor, linked to the original by a `**Repairs:**`
   line (ADR 0124).
@@ -474,13 +487,21 @@ This root owns every other subtree directly:
   `.superdev/brainstorm/` file only where the record cannot be written whole. `/superdev:plan` offers the
   open records on any checkout and closes the one it planned from, or keeps it open with a comment naming
   what it planned (ADR 0199, INV-0178).
+  `/superdev:plan` dispatches `slice-readiness-reviewer` before it shows the breakdown, which checks the drafted
+  slices for open decisions, contradicted names, ambiguous acceptance, and split candidates.
+  `/superdev:brainstorm` dispatches `intent-challenger` at §4, which checks the chosen direction for false
+  compromises and migration or rollback hazards. A dispatch of either with no result after one retry reads
+  `not run`, and the controller applies no lens itself (INV-0197). [`CONTEXT.md`](CONTEXT.md) → *Slice
+  readiness check* and *Intent challenge*, and ADR 0265, state the rest.
 - `plugin/hooks/`. Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working
   rules, Hooks are CommonJS** and **Every shipped executable has a suite in `tests/`, named for it**.
   This is the strongest future child-doc candidate, if its rules outgrow this root. Of the
   hooks, `scope-prune.js`, `slicetree-sweep.js`, `run-trace.js`, and `tree-guard.js` depend on modules in `plugin/lib/`,
   and the scripts require them as well. No hook and no script requires `scope.js`. `scope-prune.js` and `slicetree-sweep.js` both
   `require` `../lib/ledger.js` for their ledger-header reader (ADR 0022) and `../lib/git-spawn.js` for the git calls the two Stop hooks
-  share (the spawn, the throwing call, and the `git branch` list parse; a module missing any of them reads as unloaded). `run-trace.js` takes each of
+  share (the spawn, the throwing call, and the `git branch` list parse; a module missing any of them reads as unloaded). `slicetree-sweep.js`
+  also takes the working-tree listing `listWorktrees` there, which keeps a path holding a newline whole on a git of 2.36 or later (INV-0198). A module missing it
+  reads as unloaded, and a listing that throws or fails sweeps nothing (INV-0159). `run-trace.js` takes each of
   `../lib/trace-log.js`, `run-tree.js`, and `dispatch.js` through a `require` of its own (ADR 0117, INV-0159).
   `scope-prune.js` takes the containment probe `baseHistoryHasPatch` and the third tier `baseCommitHoldsBranch` off `../lib/containment.js` through a `require` of its own (ADR 0082, ADR 0248). It also takes `shapeMatches` and `parseBranchRefs` off `../lib/scope-branch.js` through a guarded `require`, and a module missing either reads as unloaded, so the hook prunes nothing. `tree-guard.js`, `scope-prune.js`, and `slicetree-sweep.js` each require
   `../lib/main-work-tree.js` for the main-working-tree resolver `mainWorkTree`. The two Stop hooks run every git call in the main working tree. A session standing in a scopetree therefore reads the main tree's `HEAD`. `slicetree-sweep.js` skips the slicetree the session stands in. With no resolver, both hooks sweep and prune nothing. `scope-prune.js` also removes an empty `.superdev/kb-pending/<scope>/` directory whose run root is gone (INV-0076, INV-0122). `tree-guard.js` denies a dispatched implementer's Edit, Write, or

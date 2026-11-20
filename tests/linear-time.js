@@ -21,10 +21,15 @@ const cpuNs = () => {
 function measure(run, small, big) {
   run(small);
   run(big);
+  // The repeat count is how many runs of the small input the thread clock needs to advance 10 ms. A clock that steps in
+  // whole milliseconds (Linux) reads one short run as zero, so the count comes from the runs, never from one run's reading.
+  // A clock that does not advance at all stops the count at 10000.
   const t0 = cpuNs();
-  run(small);
-  // A calibration below the clock's 1 µs resolution reads zero; it counts as 1 µs, so the repeat count stays bounded.
-  const reps = Math.max(1, Math.ceil(10e6 / Math.max(1000, cpuNs() - t0)));
+  let reps = 0;
+  do {
+    run(small);
+    reps++;
+  } while (cpuNs() - t0 < 10e6 && reps < 10000);
   const sample = (input) => {
     const t = cpuNs();
     for (let k = 0; k < reps; k++) run(input);

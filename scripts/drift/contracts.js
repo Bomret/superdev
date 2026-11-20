@@ -6,6 +6,25 @@
 
 const path = require('node:path');
 
+const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// The `controlled-prose.md` headings `prompt-prose-form.md` cites as applied or exempt, beside `## Modes` and
+// `## Self-check`, which carry rows of their own (ADR 0269).
+const PROMPT_PROSE_FORM_CITED = [
+  'Scope',
+  'Words',
+  'Verbs',
+  'Sentences',
+  'Definitions',
+  'Procedures (strict mode)',
+  'Descriptive text (relaxed mode)',
+  'Safety and error text (strict mode)',
+  'Headings, lists, tables, and references',
+  'Punctuation',
+  'How to count words',
+  'Declare per language',
+];
+
 const REFERENCE_PATTERN = /(?:\$\{CLAUDE_PLUGIN_ROOT\}\/)?references\/([a-zA-Z0-9_-]+\.md)/g;
 
 // The execution/controller docs whose instructions are followed with a scopetree or slicetree as cwd (or
@@ -312,6 +331,23 @@ const SOURCE_SECTION_CONTRACTS = [
     /^#{2,3}\s+Self-check\s*$/m,
     'carry the `## Self-check` section — what `doc-reader` verifies prose against (ADR 0012)',
   ],
+  // Every other controlled-prose heading `prompt-prose-form.md` cites as applied or exempt (ADR 0269).
+  ...PROMPT_PROSE_FORM_CITED.map((heading) => [
+    path.join('references', 'controlled-prose.md'),
+    new RegExp(`^#{2,3}\\s+${escapeRegExp(heading)}\\s*$`, 'm'),
+    `carry the \`## ${heading}\` section, which \`references/prompt-prose-form.md\` cites by heading (ADR 0269)`,
+  ]),
+  // No `##` heading outside the set `prompt-prose-form.md` sorts into its applied and exempt lists (ADR 0269).
+  // The `\n` lookahead fails on scanContract's whitespace-normalized second try, so only the raw text can pass.
+  [
+    path.join('references', 'controlled-prose.md'),
+    new RegExp(
+      `^(?=[\\s\\S]*\\n)(?![\\s\\S]*\\n##[ \\t]+(?!(?:${['Modes', 'Self-check', ...PROMPT_PROSE_FORM_CITED]
+        .map(escapeRegExp)
+        .join('|')})[ \\t\\r]*(?:\\n|$)))`,
+    ),
+    'carry no `##` heading beyond the ones `references/prompt-prose-form.md` lists as applied or exempt (ADR 0269)',
+  ],
   [
     path.join('references', 'review-checklist.md'),
     /^#{2,3}\s+Anti-patterns\s*$/m,
@@ -337,6 +373,12 @@ const SOURCE_SECTION_CONTRACTS = [
     /^#{2,3}\s+Prompt-concept overlap\s*$/m,
     'carry the `## Prompt-concept overlap` section, which `references/review-scope-mode.md`, ' +
       '`references/AGENTS.md`, `CONTEXT.md`, and the root `AGENTS.md` cite',
+  ],
+  [
+    path.join('references', 'prompt-prose-form.md'),
+    /^#{2,3}\s+Prompt-prose form\s*$/m,
+    'carry the `## Prompt-prose form` section, which `final-reviewer` and `slice-reviewer` read and ' +
+      '`references/review-scope-mode.md` cites (ADR 0269)',
   ],
   [
     path.join('references', 'scope-branch.md'),

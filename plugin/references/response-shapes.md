@@ -46,7 +46,11 @@ Applies to every exit of a chain command: `/superdev:implement`, `/superdev:revi
 `/superdev:submit-pr`, `/superdev:ship`, and `/superdev:verify-ship`. Each starts its own successor, and only
 that one: implement starts review, review starts document, document starts submit-pr, submit-pr starts ship
 on the yes to its ship question, ship starts verify-ship or wrap-up on those routes, and verify-ship starts
-wrap-up at its settled exit. Its own skill names the exit that starts.
+wrap-up at its settled exit. On a scope at `submitted`, the repair loop after a ship refusal: review starts
+document when it unticked the `docs` line and ship otherwise, and document starts ship. Each start of ship
+there asks `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" consent --root <run-root>` first, and starts only on
+`carried` in an attended run; `none` and an unattended run print ship instead. Its own skill names the exit
+that starts.
 
 **When it starts.** Every condition holds:
 
@@ -86,6 +90,9 @@ one-line bullets. It carries no paragraph of prose.
 3. **`### Rejected`.** One bullet per rejected direction, as `- **<direction>:** <one line on why it lost>`.
 4. **`### Still open`.** One one-line bullet per decision left open.
 5. **`### Findings`.** One one-line bullet per fact the discovery found in the code or the docs.
-6. **The Next block**, per `## The Next block` above.
+6. **`### Intent challenge`.** The challenge outcome on every exit that reached §4: one bullet per finding,
+   `- none found`, or `- not run: <reason>`.
+7. **The Next block**, per `## The Next block` above.
 
-Leave out a section with no bullet. The Next block is always present.
+Leave out a section with no bullet. `### Intent challenge` always has a bullet once the brainstorm reached §4. The
+Next block is always present.

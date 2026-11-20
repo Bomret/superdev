@@ -1,6 +1,8 @@
 'use strict';
 
-// git-spawn.js: the git calls the hooks and scripts share, the raw spawn and its commit-resolving reads, the throwing call, the `git branch` list parse, and the `git worktree list` parse.
+// git-spawn.js: the git calls the hooks and scripts share. It holds the raw spawn and its commit-resolving reads,
+// the literal path reads at a commit (existence and file text), the throwing call, the `git branch` list parse,
+// and the `git worktree list` parse.
 
 const { spawnSync, execFileSync } = require('child_process');
 
@@ -43,20 +45,38 @@ function refResolves(ref, cwd) {
   return resolveCommit(ref, cwd) !== null;
 }
 
+// The environment of a git call that reads its paths literally: the process environment without the global pathspec modes.
+// Git exits 128 when one of them meets `--literal-pathspecs` (verified on git 2.54).
+function literalEnv() {
+  const env = { ...process.env };
+  for (const mode of ['GIT_GLOB_PATHSPECS', 'GIT_NOGLOB_PATHSPECS', 'GIT_ICASE_PATHSPECS']) delete env[mode];
+  return env;
+}
+
+// Whether a commit holds a path: `true` where it does, an empty file included, `false` where it does not.
+// `null` where git cannot say (any nonzero exit). `rel` is a path from the tree root, read literally.
+// `:foo` is that file and never pathspec magic, and `a*` is that file and never a glob.
+// `--full-tree` stops `ls-tree` resolving it against `cwd`, which can be any subdirectory of the checkout.
+// It reads no blob, so a file of any size answers. A directory or submodule entry answers `true`.
+function existsAt(commit, rel, cwd) {
+  const listed = gitSpawn(['--literal-pathspecs', 'ls-tree', '--full-tree', '--name-only', commit, '--', rel], cwd, { env: literalEnv() });
+  if (listed.status !== 0) return null;
+  return listed.stdout !== '';
+}
+
 // A file's text at a commit: '' where the commit has no such file, null where git cannot say. The tip's own
-// `docs/agents/verification.md` is read this way, never a working tree's. `rel` is a path from the tree root: `--full-tree`
-// stops `ls-tree` resolving it against `cwd`, which can be any subdirectory of the checkout (`commit:rel` is root-relative already).
-// `show` answers a file that is there in one call; only where it fails does `ls-tree` tell an absent file from a git that cannot say.
+// `docs/agents/verification.md` is read this way, never a working tree's. `rel` is a path from the tree root (`commit:rel` is
+// root-relative already). `show` answers a file that is there in one call; only where it fails does `existsAt` tell an absent
+// file from a git that cannot say.
 function fileAt(commit, rel, cwd) {
   const shown = gitSpawn(['show', `${commit}:${rel}`], cwd);
   if (shown.status === 0) return shown.stdout;
-  const listed = gitSpawn(['ls-tree', '--full-tree', '--name-only', commit, '--', rel], cwd);
-  return listed.status === 0 && !listed.stdout.trim() ? '' : null;
+  return existsAt(commit, rel, cwd) === false ? '' : null;
 }
 
 // The registered working trees as `{ path, branch, detached }` (`branch` the short name, null where none), or `{ failure }` with the
-// reason git cannot list them. `-z` ends each field with a NUL, so a path holding a newline stays whole; a git older than 2.36
-// refuses `-z`, and the listing then reads the newline-split form, which cannot keep such a path whole.
+// reason git cannot list them. `-z` ends each field with a NUL, so a path holding a newline stays whole.
+// A git older than 2.36 refuses `-z`, and the listing then reads the newline-split form, which cannot keep such a path whole.
 function listWorktrees(cwd) {
   let res = spawnSync('git', ['worktree', 'list', '--porcelain', '-z'], { cwd, encoding: 'utf8' });
   let sep = '\0';
@@ -82,4 +102,4 @@ function listWorktrees(cwd) {
   return { trees };
 }
 
-module.exports = { gitSpawn, gitThrow, parseBranchList, resolveCommit, refResolves, fileAt, listWorktrees };
+module.exports = { gitSpawn, gitThrow, parseBranchList, resolveCommit, refResolves, literalEnv, existsAt, fileAt, listWorktrees };

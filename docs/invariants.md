@@ -461,9 +461,9 @@ Paths: plugin/references/plan-contract.md, plugin/skills/implement/SKILL.md, plu
 
 Class: process
 Concepts: Design sketch, Component, Epic
-Statement: A design sketch is written only when the operator asks, after the grounding and before decomposition, and blocks until approved. It is self-contained HTML with inline CSS and no JavaScript or network. It stays git-ignored and unreconciled, and never reaches the epic or the pull request.
+Statement: A design sketch is written only when the operator asks, after the grounding and before decomposition, and blocks until approved. It is one HTML file with inline CSS whose only script is Mermaid at one pinned version from jsDelivr, and it makes no other network request. It stays git-ignored and unreconciled, and never reaches the epic or the pull request.
 Breaks: silently
-Check: none — the ADR rejected a pin on cost
+Check: none — ADR 0036 rejected a pin on cost
 Paths: plugin/skills/plan/SKILL.md, plugin/references/design-sketch.md
 
 ### INV-0055
@@ -776,16 +776,16 @@ Paths: plugin/skills/ship/**, plugin/references/code-management-*.md, plugin/scr
 
 Class: process
 Concepts: Unattended run, Stage
-Statement: Only the operator's answer moves a scope past its open pull request: the operator types `/superdev:ship`, asks for it, or answers yes to the one ship question `/superdev:submit-pr` asks, which it asks only where `docs/agents/verification.md` at the tip names no CI checks and the open recorded a pull request number. Where it names CI checks, submit-pr asks no ship question and its Next block names `/superdev:ship` to run once the named checks are green (ADR 0255). The ship question names the pull request, says nobody has reviewed it, and says a yes merges it now. Every unattended run ends at `/superdev:submit-pr`, which asks no ship question on it. `/superdev:ship`, `/superdev:verify-ship`, and `/superdev:wrap-up` each carry no unattended mode, and ship refuses an `--unattended` argument. No model starts any of the three unless the operator typed the command, asked for it, or answered yes to submit-pr's ship question, or another session's brief asked for it, or, for verify-ship and wrap-up, ship started it on its route, or, for wrap-up, verify-ship started it at its exit where every Definition-of-Done line is settled, no line waits for a hand-sync of the anchor's criterion text, and the anchor's lines were read. Ship started from another session's brief asks the operator one yes confirming the command before any write, and a brief is never merge consent. A started command keeps every gate and every ask it has when typed, and none of the three asks an extra question on any other start. The three skills' descriptions and their own gates carry that bound, because the platform does not (ADR 0096, ADR 0106, ADR 0132, ADR 0157, ADR 0224, ADR 0230, ADR 0253).
+Statement: Only the operator's answer moves a scope past its open pull request: the operator types `/superdev:ship`, asks for it, or answers yes to the one ship question `/superdev:submit-pr` asks, which it asks only where `docs/agents/verification.md` at the tip names no CI checks and the open recorded a pull request number. Where it names CI checks, submit-pr asks no ship question and its Next block names `/superdev:ship` to run once the named checks are green (ADR 0255). The ship question names the pull request, says nobody has reviewed it, and says a yes merges it now. Every unattended run ends at `/superdev:submit-pr`, which asks no ship question on it. `/superdev:ship`, `/superdev:verify-ship`, and `/superdev:wrap-up` each carry no unattended mode, and ship refuses an `--unattended` argument. No model starts any of the three unless the operator typed the command, asked for it, or answered yes to submit-pr's ship question, or another session's brief asked for it, or, for ship, a clean scope review or a document pass on a scope at `submitted` started it where the run trace shows carried consent (the latest ship step after the scope's last submit step ended blocked, which a declined question whether to merge with unresolved entries standing never leaves), or, for verify-ship and wrap-up, ship started it on its route, or, for wrap-up, verify-ship started it at its exit where every Definition-of-Done line is settled, no line waits for a hand-sync of the anchor's criterion text, and the anchor's lines were read. Ship started from another session's brief asks the operator one yes confirming the command before any write, and a brief is never merge consent. A started command keeps every gate and every ask it has when typed, and none of the three asks an extra question on any other start, except the one deploy-gate ask a ship started under carried consent makes where its deploy gate shows a changed posture, target, or named-check list (ADR 0268). The three skills' descriptions and their own gates carry that bound, because the platform does not (ADR 0096, ADR 0106, ADR 0132, ADR 0157, ADR 0224, ADR 0230, ADR 0253, ADR 0268).
 Breaks: silently
 Check: scripts/drift-check.js `past-pr-skills` — neither verify-ship nor wrap-up names `--unattended`, and none of ship, verify-ship, and `plugin/references/response-shapes.md` names `--from-ship`; final-reviewer's invariant compliance judges ship's refusal, the ship question, and the start conditions; partial: nothing stops a model that ignores a description
-Paths: plugin/references/response-shapes.md, plugin/skills/submit-pr/**, plugin/skills/ship/**, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**
+Paths: plugin/references/response-shapes.md, plugin/skills/submit-pr/**, plugin/references/review-scope-mode.md, plugin/skills/document/**, plugin/skills/ship/**, plugin/skills/verify-ship/**, plugin/skills/wrap-up/**
 
 ### INV-0094
 
 Class: process
 Concepts: 3-strike fix loop, Stage
-Statement: A Minor finding never holds a scope's stage and never blocks a run. The scope review and the full tier's per-slice review fix every listed finding, Minors included, until the review lists none or the 3-cycle cap is reached. A full-tier slice review that leaves only Minor findings ends the slice's loop instead: the slice merges, and its Minors go to the Minor queue, which the Minor sweep fixes before run handoff (ADR 0174, INV-0171). The scope review also ends its loop when a re-review leaves only Minor Prompt-concept overlap findings and no broken criterion, and the per-slice review has no such exit (ADR 0170). At the cap, a remainder of only Minor findings advances the stage, merges the slice into the Minor queue, or ends the Minor sweep, and the sweep's and the scope review's leftover Minors leave no record outside the report. A Minor finding whose remedy adds a capability the Definition of Done never named is a deferred finding, like one of any other severity (ADR 0035).
+Statement: A Minor finding never holds a scope's stage and never blocks a run. The scope review and the full tier's per-slice review fix every listed finding, Minors included, until the review lists none or the 3-cycle cap is reached. A full-tier slice review that leaves only Minor findings ends the slice's loop instead: the slice merges, and its Minors go to the Minor queue, which the Minor sweep fixes before run handoff (ADR 0174, INV-0171). The scope review also ends its loop when a re-review leaves only Minor Prompt-concept overlap or Prompt-prose form findings and no broken criterion. The per-slice review has no such exit (ADR 0170, ADR 0269). At the cap, a remainder of only Minor findings advances the stage, merges the slice into the Minor queue, or ends the Minor sweep, and the sweep's and the scope review's leftover Minors leave no record outside the report. A Minor finding whose remedy adds a capability the Definition of Done never named is a deferred finding, like one of any other severity (ADR 0035).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/skills/review/**, plugin/references/review-scope-*.md, plugin/references/implement-full.md, plugin/agents/final-reviewer.md, plugin/agents/slice-reviewer.md, plugin/references/implement-full-fix-cycle.md, plugin/references/implement-full-minor-sweep.md
@@ -1557,3 +1557,22 @@ Statement: A read-only grading or decision verb prints a verdict, or the filtere
 Breaks: silently
 Check: none — the property is a reading of output meaning; each verb's suite pins its verdict lines
 Paths: plugin/scripts/scope.js
+
+### INV-0197
+
+Class: architecture
+Concepts: Slice readiness check, Intent challenge
+Statement: A slice readiness check or an intent challenge whose dispatch ends without a result, after its one retry, reads as `not run` with its reason, never as a check that found nothing, and the controller that dispatched it never applies its lens itself (ADR 0265).
+Breaks: silently
+Check: none — the rule is prompt prose, and no drift check asserts how a positive clause is worded (ADR 0153); review reads the plan and brainstorm prose beside the two agent bodies
+Paths: plugin/skills/plan/SKILL.md, plugin/skills/brainstorm/SKILL.md, plugin/agents/slice-readiness-reviewer.md, plugin/agents/intent-challenger.md
+
+### INV-0198
+
+Class: correctness
+Concepts: Slicetree, Scopetree, Prepare command, Guardrail
+Statement: Every shipped reader of a repository's registered working trees takes them from `listWorktrees`, which reads `git worktree list --porcelain -z`. It keeps a working-tree path holding a newline whole on a git of 2.36 or later, the first that supports the NUL-separated listing. No other shipped hook or module spawns `git worktree list` and parses its text.
+Breaks: silently
+Check: scripts/drift-check.js `worktree-list-one-parser` — no file at the top level of `plugin/hooks/`, `plugin/scripts/`, or `plugin/lib/` other than `plugin/lib/git-spawn.js` spawns `'worktree', 'list'`
+Symbols: listWorktrees
+Paths: plugin/lib/git-spawn.js, plugin/hooks/slicetree-sweep.js, plugin/lib/prepare.js, plugin/lib/scope-checkout.js, plugin/lib/plan-open.js

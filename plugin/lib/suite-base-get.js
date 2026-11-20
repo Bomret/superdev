@@ -9,7 +9,7 @@ const {
   SUITE_RESULTS, readLines, headerRe, getHeader, readBullets, insertHeader, writeLines, tableRowIndexes, splitRow,
 } = require('./ledger.js');
 const { isTestPath, completeSelector, verificationCommandsOf, prepareCommandOf, configuredTestPaths } = require('./verification.js');
-const { gitSpawn, resolveCommit, fileAt } = require('./git-spawn.js');
+const { gitSpawn, resolveCommit, fileAt, existsAt, literalEnv } = require('./git-spawn.js');
 const { readTrace, decodePaths, untraceField } = require('./trace-log.js');
 const { denialCount } = require('./ledger-records.js');
 const { rootRelative, lazyToplevel } = require('./run-tree.js');
@@ -122,10 +122,11 @@ function upsertHeader(root, name, value) {
 }
 
 // `file` as typed (`./x`, relative to a subdirectory, absolute), reduced to a root-relative path that is a blob at `tip`;
-// refuses a file the tip does not hold.
+// refuses a file the tip does not hold. The path is read literally: `:foo` is that file and never pathspec magic, and `a*` is
+// that file and never a glob.
 function tipBlob(cwd, file, tip) {
   const rel = rootRelative(path.resolve(cwd, file), lazyToplevel(cwd));
-  const listed = rel ? gitSpawn(['ls-tree', '--full-tree', tip, '--', rel], cwd) : null;
+  const listed = rel ? gitSpawn(['--literal-pathspecs', 'ls-tree', '--full-tree', tip, '--', rel], cwd, { env: literalEnv() }) : null;
   if (!listed || listed.status !== 0 || !/^\d+ blob /.test(listed.stdout)) fail(`${file} is not a file at the tip ${tip}`);
   return rel;
 }
@@ -359,7 +360,7 @@ function changedPaths(cwd, from, to) {
 }
 
 // The git reads of one `suite reusable` or `base resolve` call, each asked of git once per call: the commit a ref resolves to,
-// a file's text at a commit, the paths changed between two commits, whether one commit is an ancestor of another, and the tree
+// a file's text at a commit, whether a file exists at a commit, the paths changed between two commits, whether one commit is an ancestor of another, and the tree
 // root. No such call writes to the repository, so a repeated read has the first one's answer.
 function gitReads(cwd) {
   const memo = new Map();
@@ -371,6 +372,7 @@ function gitReads(cwd) {
     cwd,
     commit: (ref) => once(`commit ${ref}`, () => resolveCommit(ref, cwd)),
     fileAt: (commit, rel) => once(`file ${commit} ${rel}`, () => fileAt(commit, rel, cwd)),
+    exists: (commit, rel) => once(`exists ${commit} ${rel}`, () => existsAt(commit, rel, cwd)),
     changed: (from, to) => once(`changed ${from} ${to}`, () => changedPaths(cwd, from, to)),
     // true or false for git's answer (exit 0 or 1); the git error's text, a string, for any other exit.
     ancestry: (a, b) => once(`ancestor ${a} ${b}`, () => {

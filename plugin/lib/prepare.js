@@ -6,7 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { fail } = require('./refusal.js');
-const { gitSpawn } = require('./git-spawn.js');
+const { gitSpawn, listWorktrees } = require('./git-spawn.js');
 const { drivePath } = require('./drive-path.js');
 const { prepareCommandOf } = require('./verification.js');
 const { superviseRuns } = require('./run-supervision.js');
@@ -70,10 +70,10 @@ async function verbPrepare(cwd, args) {
   const tree = path.resolve(cwd, drivePath(args[0]));
   let real;
   try { real = fs.realpathSync(tree); } catch { fail(`prepare: "${args[0]}" does not exist`); }
-  const list = gitSpawn(['worktree', 'list', '--porcelain'], cwd);
-  if (list.status !== 0) fail('prepare: git could not list the working trees of this repository');
-  const trees = list.stdout.split('\n').filter((l) => l.startsWith('worktree ')).map((l) => {
-    const p = drivePath(l.slice('worktree '.length));
+  const listed = listWorktrees(cwd);
+  if (listed.failure) fail('prepare: git could not list the working trees of this repository');
+  const trees = listed.trees.map((t) => {
+    const p = drivePath(t.path);
     try { return fs.realpathSync(p); } catch { return path.resolve(p); }
   });
   if (!trees.includes(real)) fail(`prepare: "${args[0]}" is no working tree of this repository`);

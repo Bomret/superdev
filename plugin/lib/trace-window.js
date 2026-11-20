@@ -25,6 +25,8 @@ const { fail } = require('./refusal.js');
 //   position in the file, never by timestamp.
 
 const REVIEWERS = new Set(['final-reviewer', 'slice-reviewer', 'simplicity-reviewer']);
+// The plan-time and brainstorm-time readers: no dispatch of theirs bounds a window (ADR 0265).
+const READERS = new Set(['slice-readiness-reviewer', 'intent-challenger']);
 
 // The run trace of `root`; an absent file reads as an empty trace.
 function readRunTrace(root) {
@@ -51,12 +53,13 @@ const agentName = (type) => untraceField(type || '').split(':').pop();
 // dispatch (the `dispatch` line with the same tool_use_id) is an implementer's. It ends at the first boundary line after its
 // own `dispatch-end` (any outcome; an end with no outcome reads completed), or after its start when no end of its own follows
 // before the dispatch's next run, or it runs to the trace's end. A boundary line is a line of the same slice that is a
-// `dispatch` line, or a `dispatch-resume` of a reviewer's dispatch.
+// `dispatch` line of any agent but `slice-readiness-reviewer` and `intent-challenger`, or a `dispatch-resume` of a reviewer's
+// dispatch.
 function windowsOf(events, slice) {
   const typeOf = new Map();
   for (const e of events) if (e.kind === 'dispatch' && !typeOf.has(e.fields[1])) typeOf.set(e.fields[1], agentName(e.fields[0]));
   const startsRun = (e) => (e.kind === 'dispatch' ? agentName(e.fields[0]) === 'implementer' : e.kind === 'dispatch-resume' && typeOf.get(e.fields[0]) === 'implementer');
-  const boundary = (e) => sliceOf(e) === slice && (e.kind === 'dispatch' || (e.kind === 'dispatch-resume' && REVIEWERS.has(typeOf.get(e.fields[0]))));
+  const boundary = (e) => sliceOf(e) === slice && ((e.kind === 'dispatch' && !READERS.has(agentName(e.fields[0]))) || (e.kind === 'dispatch-resume' && REVIEWERS.has(typeOf.get(e.fields[0]))));
   const idOf = (e) => (e.kind === 'dispatch' ? e.fields[1] : e.fields[0]);
   const out = [];
   events.forEach((e, start) => {

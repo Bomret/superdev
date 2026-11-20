@@ -93,7 +93,7 @@ Scope with `git diff --stat` over the named subject first. Go file by file or sl
 
 Applies to every review dispatch.
 
-Read `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` and `${CLAUDE_PLUGIN_ROOT}/references/review-design-lenses.md`. Apply their anti-pattern, design-smell, vulnerability-class, reuse-audit, and consistency lenses throughout the checks below. Name the specific smell or class and never write "code quality" or "security concerns" alone. Where the repository's `CONTEXT.md` defines **Prompt concept** (`grep -n '^\*\*Prompt concept\*\*' CONTEXT.md` prints a line), also read `${CLAUDE_PLUGIN_ROOT}/references/prompt-concept-overlap.md` and apply its lens.
+Read `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` and `${CLAUDE_PLUGIN_ROOT}/references/review-design-lenses.md`. Apply their anti-pattern, design-smell, vulnerability-class, reuse-audit, and consistency lenses throughout the checks below. Name the specific smell or class and never write "code quality" or "security concerns" alone. Where the repository's `CONTEXT.md` defines **Prompt concept** (`grep -n '^\*\*Prompt concept\*\*' CONTEXT.md` prints a line), also read `${CLAUDE_PLUGIN_ROOT}/references/prompt-concept-overlap.md` and `${CLAUDE_PLUGIN_ROOT}/references/prompt-prose-form.md` and apply their lenses.
 
 - Apply `## Binding rules` in `${CLAUDE_PLUGIN_ROOT}/references/review-checklist.md` to every finding.
 - A finding judges the subject. Read outside the subject wherever the subject's code or a finding leads you.
@@ -233,7 +233,7 @@ Read every line in `dod.md`, whatever its checkbox or note. Give each line exact
 
 - **holds**: a line noted `met:` the branch still satisfies, or an open line the branch already meets.
 - **broken**: a line noted `met:` the branch no longer satisfies, or an open line still unmet. Give the reason. An `accepted:` line the branch still does not meet is no `broken` line.
-- A line that only **Prompt-concept overlap** findings of Minor grade leave unmet is `holds` and no `broken` line, a line naming the No overlap invariant or the prompt-concept invariants included. Report those findings under Minor.
+- A line that only **Prompt-concept overlap** or **Prompt-prose form** findings of Minor grade leave unmet is `holds` and no `broken` line, a line naming the No overlap invariant or the prompt-concept invariants included. Report those findings under Minor.
 - **ceiling**: a line only a deploy or another outward-facing change can verify. Give the partial evidence you gathered and the outward-facing change it needs.
 - **accepted**: a line noted `accepted:` whose criterion the branch still does not meet. An attended operator decided it stands accepted as unmet. Report it. It is no finding and does not hold the stage.
 - **doc pass**: a line tagged `docs` whose `AGENTS.md` text the branch does not yet state. The doc pass reconciles that text after this review and settles the line. Report it. It is no finding, no `broken` line, and no `ceiling` line, and it suppresses no ceiling note. A `docs` line the branch already meets is `holds`.
@@ -297,7 +297,7 @@ Applies to a derive dispatch.
 
 `/superdev:plan`'s dispatch hands you the interview's settled problem statement and solution shape as text. It also hands the **paths** of the files the solution shape changes. It hands you no Definition of Done.
 
-- Read no Definition of Done and no run-root file, by any route. That rules out the plan's draft and the slice store's epic.
+- Read no Definition of Done, no slice draft, and no run-root file, by any route. That rules out the plan's draft, the plan's slice draft (`.superdev/slice-draft-<slug>.md`, which carries each slice's `acceptance`), and the slice store's epic.
 - The plan may still be pinning its Definition of Done while you work.
 - There is no diff, no range, and no ledger.
 
