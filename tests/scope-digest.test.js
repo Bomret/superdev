@@ -421,6 +421,12 @@ async function main() {
     assert.ok(at((l) => l[3] === 'tamper') < ledgerAt, `${label}: the tamper line comes before the ledger write`);
     assert.strictEqual(warnings(write(f)).length, 0, `${label}: a later writer records no second tamper`);
     assert.deepStrictEqual(tampers(f), ['ledger.md'], `${label}: still one tamper line`);
+    // A second call at the same tip finds the header current, so it accepts without writing and traces no ledger line.
+    const reusableLines = () => traceText(f).split('\n').filter((l) => l.split(' ')[3] === 'ledger' && l.split(' ')[4] === 'suite' && l.split(' ')[5] === 'reusable').length;
+    assert.strictEqual(reusableLines(), 1, `${label}: one ledger line before the second call`);
+    const again = sc(f, ['suite', '--root', f.root, ...argv]);
+    assert.strictEqual(again.status, 0, `${label}, second call: ${again.stderr}`);
+    assert.strictEqual(reusableLines(), 1, `${label}: an accept that writes no header traces no ledger line`);
   }
 
   // #gone: no hook registration or module named ledger-guard or ledger-writes remains.
