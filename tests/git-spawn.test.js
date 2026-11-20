@@ -110,13 +110,14 @@ assert.equal(parseBranchList('a\na\n').size, 1, 'the parse is a set of names');
   gitThrow(['worktree', 'lock', '--reason', 'held by a test', locked], repo);
   gitThrow(['worktree', 'add', '-q', '-b', 'slice/gone', gone], repo);
   fs.rmSync(gone, { recursive: true, force: true });
-  const entries = (listing) => listing.trees.map(({ path: p, branch }) => [p, branch]);
+  // Git orders the linked trees itself, so the entries compare sorted.
+  const entries = (listing) => listing.trees.map(({ path: p, branch }) => [p, branch]).sort();
   const expected = [
     [repo, 'main'],
     [linked, 'slice/linked'],
     [locked, 'slice/locked'],
     [gone, 'slice/gone'],
-  ];
+  ].sort();
 
   assert.deepEqual(entries(listWorktrees(repo)), expected, 'a locked and a prunable working tree each read as one entry, and no extra entry appears');
 
