@@ -108,6 +108,49 @@ try {
   assert.ok(!callIn(['suite', 'failed', 'two words', '--root', rt], f.repo).ok, 'a spaced token refuses');
   assert.ok(!ledgerOf(rt).includes('**Failed:**'), 'a refused verb writes no record');
 
+  // `suite failed` and `suite rerun` read a test file's name literally: `:foo.test.js` is that file and never pathspec magic,
+  // and `a[b].test.js` is that file and never a glob over `ab.test.js`. Commit O holds only `foo.test.js` and `ab.test.js`;
+  // commit L holds only `:foo.test.js` and `a[b].test.js`. A global pathspec mode in the environment changes no answer.
+  {
+    const lit = make();
+    g(['checkout', '-q', '-b', 'only-plain'], lit.repo);
+    fs.writeFileSync(path.join(lit.repo, 'foo.test.js'), 'foo\n');
+    fs.writeFileSync(path.join(lit.repo, 'ab.test.js'), 'ab\n');
+    g(['add', '.'], lit.repo);
+    g(['commit', '-q', '-m', 'plain names'], lit.repo);
+    g(['checkout', '-q', '-b', 'only-literal', lit.T], lit.repo);
+    fs.writeFileSync(path.join(lit.repo, ':foo.test.js'), 'colon\n');
+    fs.writeFileSync(path.join(lit.repo, 'a[b].test.js'), 'bracket\n');
+    g(['add', '.'], lit.repo);
+    g(['commit', '-q', '-m', 'literal names'], lit.repo);
+    const L = g(['rev-parse', 'HEAD'], lit.repo);
+    const at = (branch, argv) => {
+      g(['checkout', '-q', branch], lit.repo);
+      try { return callIn(argv, lit.repo); } finally { g(['checkout', '-q', 'feat'], lit.repo); }
+    };
+    for (const mode of [null, 'GIT_GLOB_PATHSPECS', 'GIT_ICASE_PATHSPECS']) {
+      const label = mode ? ` under ${mode}=1` : '';
+      if (mode) process.env[mode] = '1';
+      try {
+        for (const name of [':foo.test.js', 'a[b].test.js']) {
+          let x = lit.root([]);
+          let res = at('only-literal', ['suite', 'failed', name, '--root', x]);
+          assert.ok(res.ok, `suite failed records ${name} the tip holds${label}: ${res.err || ''}`);
+          assert.ok(ledgerOf(x).includes(`**Failed:** ${name} @ ${L}\n`), `the record names ${name}${label}: ${ledgerOf(x)}`);
+          res = at('only-plain', ['suite', 'failed', name, '--root', x = lit.root([])]);
+          assert.ok(!res.ok && res.err.includes(`${name} is not a file at the tip`), `suite failed refuses ${name} where the tip holds only its plain sibling${label}: ${JSON.stringify(res)}`);
+          res = at('only-literal', ['suite', 'rerun', name, '#9', '--root', x = lit.root([])]);
+          assert.ok(res.ok, `suite rerun records ${name} the tip holds${label}: ${res.err || ''}`);
+          assert.ok(ledgerOf(x).includes(`**Rerun:** ${name} @ ${L} #9\n`), `the rerun record names ${name}${label}: ${ledgerOf(x)}`);
+          res = at('only-plain', ['suite', 'rerun', name, '#9', '--root', x = lit.root([])]);
+          assert.ok(!res.ok && res.err.includes(`${name} is not a file at the tip`), `suite rerun refuses ${name} where the tip holds only its plain sibling${label}: ${JSON.stringify(res)}`);
+        }
+      } finally {
+        if (mode) delete process.env[mode];
+      }
+    }
+  }
+
   // Every shortfall stays red.
   const red = (lines, why, files = ['tests/a.test.js', 'tests/b.test.js']) => {
     const x = f.root(lines);

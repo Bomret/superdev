@@ -9,7 +9,7 @@ const { fail } = require('./refusal.js');
 const { ledgerPath, splitLines, tableRowIndexes, splitRow } = require('./ledger.js');
 const { isTestPath, prepareCommandOf } = require('./verification.js');
 const { runPrepare } = require('./prepare.js');
-const { gitSpawn, resolveCommit, fileAt } = require('./git-spawn.js');
+const { gitSpawn, resolveCommit, fileAt, literalEnv } = require('./git-spawn.js');
 const { PROBE_MAX_BUFFER } = require('./containment.js');
 const { mainWorkTree } = require('./main-work-tree.js');
 const { appendTrace, readTrace, encodePaths, decodePaths, untraceField } = require('./trace-log.js');
@@ -249,7 +249,8 @@ async function verbFailToPass(cwd, args) {
   }
   process.on('exit', cleanup);
   // `--literal-pathspecs`: a changed path named `*.cfg` is that file, and never a glob over the test files it would also match.
-  const git = (gitArgs, input) => spawnSync('git', [...noHooks, '--literal-pathspecs', ...gitArgs], { cwd: dir, input, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+  // `literalEnv` drops the global pathspec modes git refuses beside it.
+  const git = (gitArgs, input) => spawnSync('git', [...noHooks, '--literal-pathspecs', ...gitArgs], { cwd: dir, input, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], env: literalEnv() });
   const step = (what, gitArgs, input) => { const r = git(gitArgs, input); if (r.status !== 0) fail(`fail-to-pass: git could not ${what}: ${r.stderr.trim()}`); };
   // The command runs in its own process group, which an interrupt ends with it. `limitMs`, where given, bounds the run: its
   // group is killed when the bound expires, and `expired` says so. The result carries the run's own duration in `ms`. A

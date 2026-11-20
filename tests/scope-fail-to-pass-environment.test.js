@@ -57,6 +57,16 @@ const { f2pFixture, verif } = require('./scope-setup');
     git(s.repo, ['config', 'diff.relative', 'true']);
     r = s.run(s.range, { cwd: path.join(s.tree, 'docs') });
     assert.equal(r.stdout.trim(), 'fail-to-pass control=0,put-back=1', `a \`diff.relative\` config does not narrow the changed paths: ${r.stderr}`);
+    git(s.repo, ['config', '--unset', 'diff.relative']);
+
+    // An operator environment that sets a global pathspec mode gives the same outcome: git refuses such a mode beside the
+    // verb's `--literal-pathspecs`, so the verb's git calls run without it.
+    for (const mode of ['GIT_GLOB_PATHSPECS', 'GIT_NOGLOB_PATHSPECS', 'GIT_ICASE_PATHSPECS']) {
+      fs.rmSync(path.join(s.root, 'trace.log'), { force: true });
+      fs.rmSync(path.join(s.root, 'digest.json'), { force: true });
+      r = s.run(s.range, { env: { [mode]: '1' } });
+      assert.equal(r.stdout.trim(), 'fail-to-pass control=0,put-back=1', `a ${mode}=1 environment gives the same outcome: ${r.stderr}`);
+    }
 
     s = scenario({
       base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
