@@ -594,11 +594,11 @@ _Avoid: "coverage audit" (it measures no line coverage)_
 **Test-auditor**: read-only. Prices a whole test tree in one pass against a duration table, naming what each test costs against what it proves. Dispatched once, over the whole swept set, by `/superdev:review-tests` (ADR 0066).
 
 **Test-gap-auditor**: read-only. Reads a batch of source files with the list of test files, and reports each `untested` symbol or `missing case`, naming the symbol and the case. Dispatched by `/superdev:review-tests`, one per batch, in parallel (ADR 0162).
+_Avoid: "test reviewer" (review is the code-review family; this prices cost, not correctness)_
 
 **Slice-readiness-reviewer**: read-only, fresh context. Reads a plan's drafted slices and Definition of Done as the implementer who must build them. Dispatched by `/superdev:plan` before it shows the breakdown. What it reports is the **Slice readiness check** (ADR 0264).
 
 **Intent-challenger**: read-only, fresh context. Reads the direction a brainstorm leans toward. Dispatched by `/superdev:brainstorm` at §4. What it reports is the **Intent challenge** (ADR 0264).
-_Avoid: "test reviewer" (review is the code-review family; this prices cost, not correctness)_
 
 **Dispatch prose**: the text a command sends to a subagent, as distinct from that subagent's own body. Both reach the model in one prompt, and the dispatch is the later, more specific instruction, so it wins a conflict between them. A behaviour contract stated in an agent body therefore also has to hold in every dispatch that reaches it (ADR 0035).
 _Avoid: "the prompt" (ambiguous between the two halves)_
