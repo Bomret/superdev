@@ -18,18 +18,21 @@ const hookPath = require.resolve('../plugin/hooks/slicetree-sweep.js');
 const { selectRemovable, main, git } = require(hookPath);
 
 const root = '/repo/.superdev/scopes/self-improvements';
-const porcelain = [
-  'worktree /repo\nHEAD a\nbranch refs/heads/main',
-  'worktree /repo/.superdev/scopes/self-improvements/slicetrees/2\nHEAD b\nbranch refs/heads/slice/self-improvements/2',
-  'worktree /repo/.superdev/scopes/self-improvements/slicetrees/4\nHEAD c\nbranch refs/heads/slice/self-improvements/4',
-  'worktree /repo/.superdev/scopes/self-improvements/slicetrees/5\nHEAD d\nbranch refs/heads/slice/self-improvements/5',
-].join('\n\n');
+// `listWorktrees`' entries: `{ path, branch, detached }`, `branch` the short name.
+const tree = (p, branch) => ({ path: p, branch, detached: branch === null });
+const trees = [
+  tree('/repo', 'main'),
+  tree('/repo/.superdev/scopes/self-improvements/slicetrees/2', 'slice/self-improvements/2'),
+  tree('/repo/.superdev/scopes/self-improvements/slicetrees/3', null),
+  tree('/repo/.superdev/scopes/self-improvements/slicetrees/4', 'slice/self-improvements/4'),
+  tree('/repo/.superdev/scopes/self-improvements/slicetrees/5', 'slice/self-improvements/5'),
+];
 const merged = new Set(['main', 'slice/self-improvements/2', 'slice/self-improvements/4']);
 const worked = new Set(['slice/self-improvements/2', 'slice/self-improvements/5']);
-// #2: merged AND worked → remove. #4: merged but NOT worked (fresh) → skip (the bug).
+// #2: merged AND worked → remove. #3: detached → skip. #4: merged but NOT worked (fresh) → skip (the bug).
 // #5: worked but NOT merged → skip.
 assert.deepEqual(
-  selectRemovable(porcelain, merged, worked, root),
+  selectRemovable(trees, merged, worked, root),
   [{ wt: '/repo/.superdev/scopes/self-improvements/slicetrees/2', br: 'slice/self-improvements/2' }],
   'only the merged-AND-worked slice is swept'
 );
@@ -37,7 +40,7 @@ assert.deepEqual(
 // Windows: git prints `C:/…`, Node builds `C:\…`; the compare ignores separator and drive-letter case,
 // and matches on a separator boundary only.
 {
-  const wp = (p) => `worktree ${p}\nHEAD b\nbranch refs/heads/slice/s/01`;
+  const wp = (p) => [tree(p, 'slice/s/01')];
   const m = new Set(['slice/s/01']);
   const own = 'C:/repo/.superdev/scopes/s/slicetrees/01';
   for (const sr of ['C:\\repo\\.superdev\\scopes\\s', 'c:\\repo\\.superdev\\scopes\\s', 'C:\\repo\\.superdev\\scopes\\s\\']) {
@@ -61,13 +64,25 @@ assert.deepEqual(
 // POSIX paths compare as written: a backslash is a legal name character there, not a separator.
 assert.deepEqual(
   selectRemovable(
-    'worktree /repo/.superdev/scopes/s\\x/slicetrees/01\nHEAD b\nbranch refs/heads/slice/s/01',
+    [tree('/repo/.superdev/scopes/s\\x/slicetrees/01', 'slice/s/01')],
     new Set(['slice/s/01']),
     new Set(['slice/s/01']),
     '/repo/.superdev/scopes/s'
   ),
   [],
   'a backslash-named POSIX sibling directory is never inside scope s'
+);
+
+// A path holding a newline is one entry, judged as a whole path, and returned exactly as git printed it.
+assert.deepEqual(
+  selectRemovable(
+    [tree('/re\npo/.superdev/scopes/s/slicetrees/01', 'slice/s/01'), tree('/re', 'slice/s/02')],
+    new Set(['slice/s/01', 'slice/s/02']),
+    new Set(['slice/s/01', 'slice/s/02']),
+    '/re\npo/.superdev/scopes/s'
+  ),
+  [{ wt: '/re\npo/.superdev/scopes/s/slicetrees/01', br: 'slice/s/01' }],
+  'a newline path is selected whole, and its fragment before the newline is not'
 );
 
 // --- real-repo smoke: main() end to end, so a broken git invocation inside its try/catch can't
@@ -150,6 +165,24 @@ assert.deepEqual(
     );
     assert.ok(fs.existsSync(wtFresh), 'a slice with no commits beyond base is left for its implementer');
     assert.ok(fs.existsSync(wtOther), 'a worked slice never folded into its own scope branch is left alone');
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+
+  // #newline-checkout: a checkout whose path holds a newline. The listing keeps each path whole, so its merged,
+  // worked slicetree is removed and its slice branch deleted (triage #277).
+  {
+    const repo = copyFixture(repoTemplate(), 'ws-nl\nx-');
+    git(['branch', 'scope/nl'], repo);
+    makeScope(repo, 'nl', '**Branch:** scope/nl\n');
+    const wt = path.join(repo, '.superdev/scopes/nl/slicetrees/1');
+    git(['worktree', 'add', '-q', '-b', 'slice/nl/1', wt], repo);
+    fs.writeFileSync(path.join(wt, 's1.txt'), 'y\n');
+    git(['add', '.'], wt);
+    git(['commit', '-q', '-m', 's1'], wt);
+    fold(repo, 'scope/nl', 'slice/nl/1');
+    main(repo);
+    assert.ok(!fs.existsSync(wt), 'the merged, worked slicetree under a newline path is removed');
+    assert.equal(git(['branch', '--list', 'slice/nl/1'], repo), '', 'and its slice branch is deleted');
     fs.rmSync(repo, { recursive: true, force: true });
   }
 
@@ -364,8 +397,9 @@ assert.deepEqual(
     fs.rmSync(repo, { recursive: true, force: true });
   }
 
-  // #git-spawn-posture: the hook takes `gitThrow` and `parseBranchList` from `../lib/git-spawn.js` (INV-0159).
-  // With the module unloadable, with one of the two missing, or with one of them throwing, the hook sweeps
+  // #git-spawn-posture: the hook takes `gitThrow`, `parseBranchList`, and `listWorktrees` from `../lib/git-spawn.js`
+  // (INV-0159). With the module unloadable, with one of them missing, with one of them throwing, or with `listWorktrees`
+  // returning a failure, the hook sweeps
   // nothing, exits 0, and says nothing. Each case runs the fixture beside a pass-through control stub that does
   // sweep it, and confirms its own stub loaded before it asserts. Each case copies the hook to its own path,
   // because `require` caches by path.
@@ -450,7 +484,16 @@ assert.deepEqual(
     assert.equal(unloadable.loaded, true, 'the stub at ../lib/git-spawn.js loaded before it threw');
     assert.equal(unloadable.stands, true, 'a hook whose git-spawn throws on load sweeps nothing');
 
-    for (const fn of ['gitThrow', 'parseBranchList']) {
+    // A listing git cannot produce never reads as an empty list: nothing sweeps.
+    const failed = run(
+      'listWorktrees fails',
+      "module.exports = { ...real, listWorktrees() { fs.writeFileSync(CALLED, 'x'); return { failure: 'worktree list exited with status 128' }; } };"
+    );
+    assert.equal(failed.loaded, true, 'the stub whose listWorktrees fails loaded');
+    assert.equal(failed.called, true, 'the failing listWorktrees was called');
+    assert.equal(failed.stands, true, 'a hook whose listWorktrees fails sweeps nothing');
+
+    for (const fn of ['gitThrow', 'parseBranchList', 'listWorktrees']) {
       const missing = run(`${fn} missing`, `const m = { ...real };\ndelete m.${fn};\nmodule.exports = m;`);
       assert.equal(missing.loaded, true, `the stub missing ${fn} loaded`);
       assert.equal(missing.stands, true, `a hook whose git-spawn carries no ${fn} sweeps nothing`);
@@ -547,6 +590,23 @@ assert.deepEqual(
     assert.equal(merged.length, 1, `one --merged query, for the live scope alone: ${merged.join(' | ')}`);
     assert.match(merged[0], /scope\/live/, 'the query is the live scope\'s');
     assert.ok(!fs.existsSync(wt), 'the live scope still sweeps its merged slicetree');
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+
+  // #one-listing: the hook lists the working trees once per run, whatever the number of scopes.
+  {
+    const repo = makeRepo();
+    for (const s of ['one', 'two', 'three']) {
+      git(['branch', `scope/${s}`], repo);
+      makeScope(repo, s, `**Branch:** scope/${s}\n`);
+      const wt = path.join(repo, `.superdev/scopes/${s}/slicetrees/1`);
+      git(['worktree', 'add', '-q', '-b', `slice/${s}/1`, wt], repo);
+    }
+    const trace = path.join(repo, 'git-trace.log');
+    process.env.GIT_TRACE = trace;
+    try { main(repo); } finally { delete process.env.GIT_TRACE; }
+    const listings = fs.readFileSync(trace, 'utf8').split('\n').filter((l) => / trace: built-in: git worktree list /.test(l));
+    assert.equal(listings.length, 1, `one working-tree listing for three scopes: ${listings.join(' | ')}`);
     fs.rmSync(repo, { recursive: true, force: true });
   }
 

@@ -1566,3 +1566,13 @@ Statement: A slice readiness check or an intent challenge whose dispatch ends wi
 Breaks: silently
 Check: none — the rule is prompt prose, and no drift check asserts how a positive clause is worded (ADR 0153); review reads the plan and brainstorm prose beside the two agent bodies
 Paths: plugin/skills/plan/SKILL.md, plugin/skills/brainstorm/SKILL.md, plugin/agents/slice-readiness-reviewer.md, plugin/agents/intent-challenger.md
+
+### INV-0198
+
+Class: correctness
+Concepts: Slicetree, Scopetree, Prepare command, Guardrail
+Statement: Every shipped reader of a repository's registered working trees takes them from `listWorktrees`, which reads `git worktree list --porcelain -z`. It keeps a working-tree path holding a newline whole on a git of 2.36 or later, the first that supports the NUL-separated listing. No other shipped hook or module spawns `git worktree list` and parses its text.
+Breaks: silently
+Check: scripts/drift-check.js `worktree-list-one-parser` — no file at the top level of `plugin/hooks/`, `plugin/scripts/`, or `plugin/lib/` other than `plugin/lib/git-spawn.js` spawns `'worktree', 'list'`
+Symbols: listWorktrees
+Paths: plugin/lib/git-spawn.js, plugin/hooks/slicetree-sweep.js, plugin/lib/prepare.js, plugin/lib/scope-checkout.js, plugin/lib/plan-open.js

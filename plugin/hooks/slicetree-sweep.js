@@ -37,17 +37,23 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 // `lib/git-spawn.js` owns the git calls: `gitThrow` is argv-based (no shell), so a repo-derived value (branch
-// name, slicetree path) containing a quote/backtick/$() can't break out and inject, and `parseBranchList` reads
-// the `git branch` listing. No fallback: a hook that cannot run git sweeps nothing, so a failed load, or a module
-// missing either name, leaves both null and main() sweeps nothing, silently. The names are taken only once the
-// module carries both, so a partial module reads as an unloaded one. `git` is the name this hook
+// name, slicetree path) containing a quote/backtick/$() can't break out and inject, `parseBranchList` reads
+// the `git branch` listing, and `listWorktrees` reads the registered working trees NUL-separated, so a path holding a
+// newline stays whole on a git of 2.36 or later. No fallback: a hook that cannot run git sweeps nothing.
+// So a failed load, or a module missing any of the three names, leaves all three null and main() sweeps nothing, silently. The names are taken only
+// once the module carries all three, so a partial module reads as an unloaded one. `git` is the name this hook
 // calls `gitThrow` by.
 let git = null;
 let parseBranchList = null;
+let listWorktrees = null;
 try {
   const gitModule = require('../lib/git-spawn.js');
-  if (typeof gitModule.gitThrow === 'function' && typeof gitModule.parseBranchList === 'function') {
-    ({ gitThrow: git, parseBranchList } = gitModule);
+  if (
+    typeof gitModule.gitThrow === 'function' &&
+    typeof gitModule.parseBranchList === 'function' &&
+    typeof gitModule.listWorktrees === 'function'
+  ) {
+    ({ gitThrow: git, parseBranchList, listWorktrees } = gitModule);
   }
 } catch {
   // Left null. main() checks these before doing anything below.
@@ -91,19 +97,17 @@ function standsIn(dir, wt) {
   return d.startsWith(w);
 }
 
-// Pure: from `git worktree list --porcelain` text, the merged-branch set, the worked-branch
+// Pure: from `listWorktrees`' `{ path, branch, detached }` entries, the merged-branch set, the worked-branch
 // set, and the absolute path to ONE scope's own directory (`.superdev/scopes/<scope>`), return the
 // {wt, br} entries safe to remove for that scope. `mergedSet` is that scope's own branch's merge
-// state, so the porcelain scan must stay inside that same scope's directory too — scanning the whole
+// state, so the scan must stay inside that same scope's directory too — scanning the whole
 // `.superdev/` tree here would let a sibling scope's slicetree be judged by this scope's `mergedSet`,
 // sweeping it whenever its slice branch happens to be an ancestor of this scope's branch as well.
-function selectRemovable(porcelain, mergedSet, workedSet, scopeRoot) {
+function selectRemovable(trees, mergedSet, workedSet, scopeRoot) {
   const prefix = norm(scopeRoot).replace(/\/?$/, '/');
   const out = [];
-  for (const block of porcelain.split('\n\n')) {
-    const wt = (block.match(/^worktree (.+)$/m) || [])[1];
-    const br = (block.match(/^branch refs\/heads\/(.+)$/m) || [])[1];
-    if (!wt || !br) continue; // detached or main worktree — skip
+  for (const { path: wt, branch: br } of trees) {
+    if (!wt || !br) continue; // detached — skip
     const nwt = norm(wt);
     if (!nwt.startsWith(prefix)) continue; // only this scope's own slicetrees
     if (path.posix.basename(path.posix.dirname(nwt)) !== 'slicetrees') continue; // .../<scope>/slicetrees/<id>
@@ -150,7 +154,7 @@ try {
 const RESOLVE_BOUND_MS = 5000;
 
 function main(sessionCwd) {
-  if (!readLedgerHeader || !git || !parseBranchList || typeof mainWorkTree !== 'function') return; // shared reader, git module, or resolver unavailable → sweep nothing, say nothing
+  if (!readLedgerHeader || !git || !parseBranchList || !listWorktrees || typeof mainWorkTree !== 'function') return; // shared reader, git module, or resolver unavailable → sweep nothing, say nothing
   // Every git call below runs in the main working tree, so a session standing in a scopetree reads the main tree's
   // `HEAD`, not the scope branch.
   const cwd = mainWorkTree(sessionCwd, { timeout: RESOLVE_BOUND_MS });
@@ -160,7 +164,7 @@ function main(sessionCwd) {
   const def = defaultBranch(cwd);
   if (!def) return; // can't establish a base → don't risk sweeping
 
-  let worked, tips, porcelain;
+  let worked, tips, trees;
   try {
     // slice branches with ≥1 commit not in the default branch = genuinely worked
     worked = new Set();
@@ -173,7 +177,10 @@ function main(sessionCwd) {
       tips.set(b, sha);
       if (git(['rev-list', '-n1', b, '--not', def], cwd)) worked.add(b);
     }
-    porcelain = git(['worktree', 'list', '--porcelain'], cwd);
+    // Listed once per run, for every scope below. A listing git cannot produce never reads as an empty list → sweep nothing.
+    const listed = listWorktrees(cwd);
+    if (listed.failure) return;
+    trees = listed.trees;
   } catch {
     return; // not a git repo / detached HEAD → bail quietly
   }
@@ -194,8 +201,8 @@ function main(sessionCwd) {
   const toRemove = [];
   const any = { has: () => true };
   for (const scope of scopeNames) {
-    // A scope with no slicetree in the porcelain list has nothing to sweep, so it costs no git call: a closed run, a lite run.
-    if (!selectRemovable(porcelain, any, any, path.join(scopesRoot, scope)).length) continue;
+    // A scope with no slicetree in the working-tree list has nothing to sweep, so it costs no git call: a closed run, a lite run.
+    if (!selectRemovable(trees, any, any, path.join(scopesRoot, scope)).length) continue;
     const branch = scopeBranch(path.join(scopesRoot, scope));
     if (!branch) continue; // unreadable ledger, or no Branch line → sweep nothing for this scope
 
@@ -213,7 +220,7 @@ function main(sessionCwd) {
     // test said, so it is not worked for this scope.
     const workedHere = new Set([...worked].filter((b) => !mainline.has(tips.get(b))));
 
-    toRemove.push(...selectRemovable(porcelain, merged, workedHere, path.join(scopesRoot, scope)));
+    toRemove.push(...selectRemovable(trees, merged, workedHere, path.join(scopesRoot, scope)));
   }
 
   for (const { wt, br } of toRemove) {

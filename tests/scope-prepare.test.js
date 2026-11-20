@@ -225,6 +225,30 @@ try {
   }
   assert.deepEqual(logged(), [], 'no refusal ran anything');
 
+  // A working tree whose path holds a newline is accepted and prepared at its root; the directory named by the part of
+  // that path before the newline is no working tree, so it is refused and nothing runs in it.
+  const nlTree = path.join(D, 'nl\nfrag');
+  git(repo, ['worktree', 'add', '-q', '-b', 'nl', nlTree]);
+  fs.writeFileSync(path.join(nlTree, 'docs', 'agents', 'verification.md'), verification(section('`echo "nl ran" >> "$P_LOG"`')));
+  git(nlTree, ['commit', '-q', '-am', 'nl']);
+  const fragment = path.join(D, 'nl');
+  fs.mkdirSync(path.join(fragment, 'docs', 'agents'), { recursive: true });
+  fs.writeFileSync(path.join(fragment, 'docs', 'agents', 'verification.md'), verification(section('`echo "fragment ran" >> "$P_LOG"`')));
+  r = prepare(fragment, { env });
+  assert.equal(r.status, 1, `the fragment before the newline is refused: ${r.stderr}`);
+  assert.match(r.stderr, /is no working tree of this repository/);
+  assert.deepEqual(logged(), [], 'nothing ran in the fragment');
+  r = prepare(nlTree, { env });
+  assert.equal(r.status, 0, `a working tree whose path holds a newline is accepted: ${r.stderr}`);
+  assert.deepEqual(logged(), ['nl ran'], "the newline tree's own command ran");
+  fs.rmSync(log);
+
+  // A listing git cannot produce, from a directory outside any repository, keeps its refusal.
+  r = prepare(nlTree, { env: { ...env, GIT_CEILING_DIRECTORIES: D }, cwd: plain });
+  assert.equal(r.status, 1, r.stderr);
+  assert.match(r.stderr, /^prepare: git could not list the working trees of this repository$/m);
+  assert.deepEqual(logged(), [], 'nothing ran when the listing failed');
+
   // An interrupt ends every process the command started.
   const pid = path.join(D, 'pid');
   const mark = path.join(D, 'mark');
