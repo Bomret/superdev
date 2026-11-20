@@ -36,8 +36,8 @@ a module of its own: the ledger verbs in `ledger-lifecycle.js` and `ledger-recor
 a ledger's header lines, bullets, and table rows), `refusal.js` (the refusal error `fail`), `verification.js` (`verificationCommands`,
 `verificationCommandsOf`, `prepareCommandOf`, `namedChecksOf`, `isTestPath`), `git-spawn.js` (`gitSpawn`, `gitThrow`, `parseBranchList`, `resolveCommit`, `refResolves`, `literalEnv`, `existsAt`, `fileAt`, `listWorktrees`),
 `containment.js` (`testContainment`, `judgeContainment`, `refetchMark`, `baseHistoryHasPatch`, `baseCommitHoldsBranch`), `main-work-tree.js` (`mainWorkTree`, `scopesDirFor`, `mainTreePath`), and
-`trace-log.js` (`appendTrace`, `readTrace`, `traceField`, `untraceField`). The root [`AGENTS.md`](../AGENTS.md) *Structure* names every module and its
-responsibility. `git-spawn.js`'s `existsAt` is the shared existence check at a commit: `true` for a path the commit holds, an empty
+`trace-log.js` (`appendTrace`, `readTrace`, `traceField`, `untraceField`). Each `plugin/lib/` module opens with its file name and a colon naming its one
+responsibility, so the directory is the list of modules. `git-spawn.js`'s `existsAt` is the shared existence check at a commit: `true` for a path the commit holds, an empty
 file included. It returns `false` for a path the commit does not hold. It returns `null` where git cannot say. It reads no blob, so a file of any size answers, and a
 directory or submodule entry answers `true`. `fileAt` reads a file's text at a commit, `''` for an empty or absent file, and takes
 `existsAt` where `show` fails. `fileAt`'s `show <commit>:<path>` read is literal by its syntax. `existsAt` reads the path with the flag
@@ -165,7 +165,7 @@ tiers it keeps, silently. A module requires no entry point, so a `require` of a 
 guards its own CLI entry with `require.main === module`. `hooks/run-trace.js` takes
 the trace writer `appendTrace` from `trace-log.js`,
 the tree locator `locate` and the test-path classifier `isTestPath` (ADR 0128) from `run-tree.js`,
-and the dispatch readers from `dispatch.js`. The hook reads no Bash command (ADR 0227). Each `require` has its own guard, and a module that fails to load
+and the dispatch readers from `dispatch.js`. The hook reads no Bash command (ADR 0227). One `try` guards the three `require`s, and a module that fails to load
 leaves the hook recording nothing (ADR 0117, INV-0159). Its model guard, which denies a modelless dispatch to a superdev
 agent on PreToolUse(Agent), requires no module, so a failed load leaves the deny in force (ADR 0245). `hooks/tree-guard.js` takes `mainWorkTree` from `main-work-tree.js` (ADR 0148). `publish-kb.js` reaches
 the containment test `testContainment` from `containment.js`, which refetches the base before it answers not contained (ADR 0053,
@@ -427,7 +427,8 @@ and `tests/scope-open.test.js` holds its cases.
 `ledger.md`, `trace.log`, and `run.lock`, then removes the run root when that leaves it empty. It refuses, removing nothing, a
 missing `--root`, a root that does not resolve (after `..`, symlinks, and a drive path) to `<main working tree>/.superdev/scopes/<scope>`,
 and a run whose stage is later than `planned`. An absent file or an absent root exits 0. `/superdev:plan`'s label revision calls
-it. The code lives in `plugin/lib/discard.js`, and `tests/scope-discard.test.js` holds its cases.
+it. The code lives in `plugin/lib/discard.js`, and `tests/scope-discard.test.js` holds its cases. `plugin/lib/drive-path.js`, the
+MSYS drive-path translator, is the only path helper `discard.js` and `prepare.js` share (ADR 0150).
 
 ### Run digest (ADR 0227)
 

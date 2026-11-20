@@ -8,9 +8,9 @@ what it draws, how to install it, and how its tests run.
 
 ## Ownership
 
-This document owns the mod's behaviour contract and its working steps. The root
-[`AGENTS.md`](../../AGENTS.md) owns the mod's place in the repository: that no adopter install carries it,
-and the fixture pins that couple it to `scope.js` and `plugin/hooks/run-trace.js`. Paths below that start
+This document owns the mod's behaviour contract, its working steps, its place in the repository, and the
+fixture pins that couple it to `scope.js` and `plugin/hooks/run-trace.js`. Nothing under `plugin/` requires
+the mod, and the root marketplace does not list it, so no adopter install carries it. Paths below that start
 with `hooks/` name files in this folder. Paths that start with `plugin/` or `tests/` name files from the
 repository root.
 
@@ -136,9 +136,21 @@ that the mod is read from its folder and has nothing to update.
 The mod's own tests run under `claude plugin test mods/superdev-view`. `node scripts/run-tests.js` runs none of them and
 reads only the mod's shared fixture files. The focused command runs them when a changed path is under
 `mods/superdev-view/`. Each pane test case imports `test` from `hooks/testkit.ts`, which bounds a case at 60 s of wall
-clock instead of the kit's 5 s default: the bound counts time a case spends descheduled and only catches a hang. The fixture
-pins that couple `hooks/parse.ts` to the ledger, the run trace, and the Definition-of-Done lines are stated in the root
-[`AGENTS.md`](../../AGENTS.md), in the `mods/superdev-view/` entry of its Child DOX Index.
+clock instead of the kit's 5 s default: the bound counts time a case spends descheduled and only catches a hang. 
+
+`hooks/parse.ts` reads the ledger, the run trace, and the Definition-of-Done lines that `scope.js` and
+`plugin/hooks/run-trace.js` write, and one fixture file and one pin hold each coupling:
+
+- The ledger pin in `tests/scope-ledger.test.js` asserts that `scope.js` writes the lines in
+  `hooks/ledger-fixtures.ts`.
+- The trace pin in `tests/run-trace-dispatch.test.js` asserts that `plugin/hooks/run-trace.js` writes the lines in
+  `hooks/trace-fixtures.ts`.
+- The DoD line pin in `tests/scope-dod-line.test.js` asserts that `scope.js dod-line` writes the lines in
+  `hooks/dod-fixtures.ts`, one per verdict, tagged and untagged (INV-0190). `tests/scope-dod-open.test.js` also reads
+  `hooks/dod-fixtures.ts` and asserts that `scope.js dod-open` agrees with `dod-line` on every line in it.
+
+`hooks/parse.test.ts` parses each fixture file. A change to the ledger, trace, or DoD line layout fails one of these
+suites, so the change updates `hooks/parse.ts` and the fixture file together.
 
 ## Child DOX Index
 
