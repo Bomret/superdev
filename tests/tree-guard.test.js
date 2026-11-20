@@ -2,6 +2,12 @@
 
 // Suite for plugin/hooks/tree-guard.js (ADR 0148, INV-0152): a dispatched implementer's file-tool write into a checkout of a
 // repository that holds a superdev run, outside its main working tree's `.superdev/`, is refused.
+//
+// Cause of the earlier intermittent failure at "control: the counted write ... is denied" (triage #340): the hook bounds each git
+// call and fails open past it (INV-0009). Under CPU and process-spawn starvation, which the concurrent runner supplies, a counted
+// call (git behind the counting shim's `sh` hop) outlasted that bound, `decide` passed the write, and the control read the pass as
+// a missing denial. The counted block now tells a bound-killed call (a shim start with no end) from a verdict and measures that
+// decision again, so the suite gives the same verdict alone and under load.
 
 require('./fixture-git');
 const assert = require('node:assert');
@@ -197,22 +203,33 @@ const { decide } = require(path.join(pluginRoot, 'hooks', 'tree-guard.js'));
   }
 }
 
-// An implementer decision costs at most three git calls (ADR 0148), counted through a PATH shim that logs each call and runs the
-// real git. A count, never a duration (ADR 0086).
+// An implementer decision costs at most three git calls (ADR 0148), counted through a PATH shim that logs the start and the end
+// of each call and runs the real git. A count, never a duration (ADR 0086). The hook bounds each git call (`GIT_BOUND_MS`) and
+// fails open past it (INV-0009), so a call the bound killed ends no verdict: its shim logs a start and no end. A decision
+// with such a call is measured again, up to `ATTEMPTS` times, and a decision no attempt completed fails naming the missing verdict.
 {
+  const ATTEMPTS = 5;
   const realGit = cp.execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
   const shim = path.join(fx.base, 'count-shim');
   const calls = path.join(fx.base, 'git-calls');
   fs.mkdirSync(shim);
-  fs.writeFileSync(path.join(shim, 'git'), `#!/bin/sh\necho x >> '${calls}'\nexec '${realGit}' "$@"\n`, { mode: 0o755 });
+  fs.writeFileSync(path.join(shim, 'git'), `#!/bin/sh\necho start >> '${calls}'\n'${realGit}' "$@"\ns=$?\necho end >> '${calls}'\nexit $s\n`, { mode: 0o755 });
   const savedPath = process.env.PATH;
   process.env.PATH = `${shim}${path.delimiter}${savedPath}`;
-  const count = () => fs.readFileSync(calls, 'utf8').split('\n').filter(Boolean).length;
+  const log = () => fs.readFileSync(calls, 'utf8').split('\n').filter(Boolean);
   try {
     for (const target of [path.join(fx.main, 'a.txt'), path.join(fx.main, '.git', 'config')]) {
-      fs.writeFileSync(calls, '');
-      assert.equal(decide(implementerWrite(target, fx.main)).block, true, `control: the counted write to ${target} is denied`);
-      assert.ok(count() >= 1 && count() <= 3, `an implementer decision runs at most three git calls, ran ${count()} for ${target}`);
+      let decided = null;
+      for (let attempt = 0; attempt < ATTEMPTS && !decided; attempt++) {
+        fs.writeFileSync(calls, '');
+        const r = decide(implementerWrite(target, fx.main));
+        const lines = log();
+        const started = lines.filter((l) => l === 'start').length;
+        if (lines.filter((l) => l === 'end').length === started) decided = { r, started };
+      }
+      assert.ok(decided, `the decision for ${target} had a git call the hook's bound killed in each of ${ATTEMPTS} attempts: no verdict`);
+      assert.equal(decided.r.block, true, `control: the counted write to ${target} is denied`);
+      assert.ok(decided.started >= 1 && decided.started <= 3, `an implementer decision runs at most three git calls, ran ${decided.started} for ${target}`);
     }
   } finally {
     process.env.PATH = savedPath;
