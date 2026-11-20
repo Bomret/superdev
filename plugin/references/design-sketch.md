@@ -301,9 +301,9 @@ flowchart TB
 ```
 
 Write each Mermaid block's source flush left, because Mermaid reads its indentation. Give each node a short id and its
-component name as the label. Quote a label that holds punctuation: `A["scope.js dod-line"]`. Mermaid reads the
-block's HTML, so write `<`, `>`, and `&` inside a Mermaid block as `&lt;`, `&gt;`, and `&amp;`:
-`A["Map&lt;K,V&gt;"]` keeps its type parameters.
+component name as the label. Quote a label that holds punctuation: `A["scope.js dod-line"]`. Write an angle
+bracket inside a label as Mermaid's entity code `#lt;` or `#gt;`: `A["Map#lt;K,V#gt;"]` keeps its type parameters.
+Mermaid sanitizes every label as HTML, so a label written with `<` or `&lt;` loses the bracketed text.
 
 **Drop a whole section whose list is empty** — a plan with no decision worth a card carries no `Decisions` heading.
 Order the component cards added, then changed, then deleted.
