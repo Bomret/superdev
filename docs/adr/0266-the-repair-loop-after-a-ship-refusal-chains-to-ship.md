@@ -25,7 +25,9 @@ refusal writes a `ledger step block ship` line.
    submit step ended blocked. A later ship step that ended any other way withdraws it. The clean exits of
    review and document do not withdraw it. A read-only `scope.js` verb decides it from the run root, so a
    start behaves the same after `/clear` or in a new session (INV-0172). An absent or unreadable trace, a
-   trace with no submit step, and a trace that differs from its digest carry no consent. Without carried
+   trace with no submit step, and a trace that differs from its digest carry no consent. A writing `scope.js`
+   verb seals a trace edited outside `scope.js` again and records a `tamper trace.log` line, so a trace with
+   that line after the last submit step carries no consent either. Without carried
    consent, review and document print `/superdev:ship` as before.
 4. **Declining ship's entries-standing question withdraws consent.** That exit clears the step instead of
    blocking it, so the verb never reads a decline as consent.
@@ -70,4 +72,6 @@ flowchart LR
 - Known limits. The trace records no caller, so a subagent that runs `scope.js step set ship` and
   `step block` itself writes a consent the verb accepts. A trace append that fails is silent, so a lost
   withdrawal line reads as consent. An adopted run keeps a local trace over the ref's newer one. A merge
-  call the permission classifier denies stops ship each time a repair starts it again.
+  call the permission classifier denies stops ship each time a repair starts it again. A run that declined
+  ship's entries-standing question under an earlier release recorded `step block` with the ship step
+  standing, so after an upgrade it reads as carried consent, and a clean review starts ship.
