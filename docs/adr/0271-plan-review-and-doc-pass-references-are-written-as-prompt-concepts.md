@@ -184,3 +184,8 @@ a "below" pointer. Removed: the reasons the content-type lens weighs more on the
 costs only precision, a remote write waits for publish, and a slugged filename and a section filename prevent an
 overwrite, which ADR 0031, ADR 0119, ADR 0219, and ADR 0229 carry. No dispatch lives in this file, so no agent body
 gained a contract. Settled: nothing.
+
+**`response-shapes.md`.** Added: a bold label and condition head on each concept; under `## The chain start`, **The
+successors**, **The repair loop at `submitted`**, and **A typed command** as separate concepts in place of one
+paragraph. Removed: the "above" and "below" pointers. `## The Next block` and `## The chain start` keep their headings
+and every rule they held; ADR 0113, ADR 0253, and ADR 0268 carry the reasons. Settled: nothing.
