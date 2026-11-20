@@ -206,9 +206,11 @@ const { shq } = require('./spawn-verdict');
     const hungPidFile = path.join(hungOrigin, 'uploadpack.pid');
     const hungScript = path.join(hungOrigin, 'hang.sh');
     // git runs the upload-pack setting through the shell, so the setting is one `shq` word too.
+    // The script ends once the killed git is gone: its own parent changes where that shell execs it (macOS), and its
+    // parent's parent changes where the shell stays between git and the script (dash on Linux).
     fs.writeFileSync(
       hungScript,
-      `#!/bin/sh\n${pidLine(shq(hungPidFile))}\nP=$PPID; i=0; while [ "$(ps -o ppid= -p $$ | tr -d ' ')" = "$P" ] && [ $i -lt ${Math.ceil(fetchBound() / 100) * 4 + 100} ]; do sleep 0.1; i=$((i+1)); done\n`,
+      `#!/bin/sh\n${pidLine(shq(hungPidFile))}\nP=$PPID; G=$(ps -o ppid= -p $P | tr -d ' '); i=0; while [ "$(ps -o ppid= -p $$ | tr -d ' ')" = "$P" ] && [ "$(ps -o ppid= -p $P | tr -d ' ')" = "$G" ] && [ $i -lt ${Math.ceil(fetchBound() / 100) * 4 + 100} ]; do sleep 0.1; i=$((i+1)); done\n`,
       { mode: 0o755 }
     );
     gitTest(['config', 'remote.origin.uploadpack', shq(hungScript)], hungRepo);

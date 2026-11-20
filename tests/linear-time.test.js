@@ -70,12 +70,11 @@ const lock = new Int32Array(new SharedArrayBuffer(4));
   assert.ok(big < small, `a child process's work reached a reading: ${small} ns in this thread, ${big} ns in a child`);
 }
 
-// A run too short for the thread clock to see reads as zero when the repeat count is calibrated; the count stays bounded
-// by the clock's microsecond resolution (10 ms / 1 µs), never one repeat per nanosecond of a reading that was zero. The
-// thread clock is held still for this case, so the calibration reads zero on every run, every pair reads zero, which is at
-// the ceiling, and all three attempts run.
+// A thread clock that never advances still ends the calibration: the repeat count stops at 10000 runs, so each attempt
+// makes two warm-up calls, at most 10000 calibration calls, and six samples of at most 10000 calls. The thread clock is
+// held still for this case, so every pair reads zero, which is at the ceiling, and all three attempts run.
 {
-  const bound = 3 * (3 + 6 * 10000);
+  const bound = 3 * (2 + 10000 + 6 * 10000);
   const real = process.threadCpuUsage;
   process.threadCpuUsage = () => ({ user: 0, system: 0 });
   let calls = 0;
