@@ -25,7 +25,7 @@ const { fail } = require('./refusal.js');
 //   position in the file, never by timestamp.
 
 const REVIEWERS = new Set(['final-reviewer', 'slice-reviewer', 'simplicity-reviewer']);
-// The plan-time and brainstorm-time readers: no dispatch of theirs bounds a window (ADR 0264).
+// The plan-time and brainstorm-time readers: no dispatch of theirs bounds a window (ADR 0265).
 const READERS = new Set(['slice-readiness-reviewer', 'intent-challenger']);
 
 // The run trace of `root`; an absent file reads as an empty trace.

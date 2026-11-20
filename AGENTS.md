@@ -481,7 +481,7 @@ This root owns every other subtree directly:
   `/superdev:brainstorm` dispatches `intent-challenger` at §4, which checks the chosen direction for false
   compromises and migration or rollback hazards. A dispatch of either with no result after one retry reads
   `not run`, and the controller applies no lens itself (INV-0197). [`CONTEXT.md`](CONTEXT.md) → *Slice
-  readiness check* and *Intent challenge*, and ADR 0264, state the rest.
+  readiness check* and *Intent challenge*, and ADR 0265, state the rest.
 - `plugin/hooks/`. Claude Code hooks, the plugin's deterministic guardrails. Governed by **Working
   rules, Hooks are CommonJS** and **Every shipped executable has a suite in `tests/`, named for it**.
   This is the strongest future child-doc candidate, if its rules outgrow this root. Of the

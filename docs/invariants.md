@@ -1562,7 +1562,7 @@ Paths: plugin/scripts/scope.js
 
 Class: architecture
 Concepts: Slice readiness check, Intent challenge
-Statement: A slice readiness check or an intent challenge whose dispatch ends without a result, after its one retry, reads as `not run` with its reason, never as a check that found nothing, and the controller that dispatched it never applies its lens itself (ADR 0264).
+Statement: A slice readiness check or an intent challenge whose dispatch ends without a result, after its one retry, reads as `not run` with its reason, never as a check that found nothing, and the controller that dispatched it never applies its lens itself (ADR 0265).
 Breaks: silently
 Check: none — the rule is prompt prose, and no drift check asserts how a positive clause is worded (ADR 0153); review reads the plan and brainstorm prose beside the two agent bodies
 Paths: plugin/skills/plan/SKILL.md, plugin/skills/brainstorm/SKILL.md, plugin/agents/slice-readiness-reviewer.md, plugin/agents/intent-challenger.md

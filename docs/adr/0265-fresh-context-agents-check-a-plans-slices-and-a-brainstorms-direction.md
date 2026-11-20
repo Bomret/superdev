@@ -1,4 +1,4 @@
-# 0264: Fresh-context agents check a plan's slices and a brainstorm's direction
+# 0265: Fresh-context agents check a plan's slices and a brainstorm's direction
 
 **Status:** Accepted
 
