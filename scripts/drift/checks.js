@@ -185,7 +185,7 @@ module.exports = [
   ),
   {
     id: 'past-pr-skills',
-    ok: 'review, document, submit-pr, ship, verify-ship, wrap-up, and publish-kb carry no `disable-model-invocation: true`, neither verify-ship nor wrap-up names `--unattended`, and no `--from-ship` remains (INV-0066, INV-0093)',
+    ok: 'review, document, submit-pr, ship, verify-ship, wrap-up, and publish-kb carry no `disable-model-invocation: true`, neither verify-ship nor wrap-up names `--unattended`, no `--from-ship` remains, and every start of ship in review-scope-mode.md and document names `scope.js consent` (INV-0066, INV-0093, ADR 0266)',
     run: scanPastPrSkills,
     format: contractGap,
   },

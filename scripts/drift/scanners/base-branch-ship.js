@@ -172,7 +172,8 @@ function scanShipNoOpensPr(root) {
 // forbidden forms, no wording (ADR 0153): each of MODEL_INVOCABLE_SKILLS carries no `disable-model-invocation: true`
 // in its frontmatter, since the Skill tool cannot start such a skill (INV-0066); verify-ship and wrap-up name no
 // `--unattended` token, since every unattended run ends at submit-pr (INV-0093) — ship names it only to
-// refuse it; and the removed `--from-ship` path stays out of ship, verify-ship, and response-shapes.md.
+// refuse it; the removed `--from-ship` path stays out of ship, verify-ship, and response-shapes.md; and every line of
+// review-scope-mode.md and document's skill that starts `/superdev:ship` also names `scope.js consent` (ADR 0266).
 // MODEL_INVOCABLE_SKILLS: the chain-start targets plus publish-kb, which INV-0066 also keeps model-invocable.
 const MODEL_INVOCABLE_SKILLS = ['review', 'document', 'submit-pr', 'ship', 'verify-ship', 'wrap-up', 'publish-kb'];
 const NO_UNATTENDED_SKILLS = ['verify-ship', 'wrap-up'];
@@ -181,6 +182,10 @@ const NO_FROM_SHIP_DOCS = [
   path.join('skills', 'verify-ship', 'SKILL.md'),
   path.join('references', 'response-shapes.md'),
 ];
+// SHIP_STARTERS: the files whose repair-loop exits start ship. A line holding a ship start must name the consent verb.
+const SHIP_STARTERS = [path.join('references', 'review-scope-mode.md'), path.join('skills', 'document', 'SKILL.md')];
+const SHIP_START = /\bstart(?:s|ed)? `\/superdev:ship\b/;
+const CONSENT_VERB = /scope\.js"? consent\b/;
 
 function scanPastPrSkills(root) {
   const gaps = [];
@@ -217,6 +222,14 @@ function scanPastPrSkills(root) {
     if (present(source) && /--from-ship/.test(read(source))) {
       gaps.push({ source, expectation: 'name no `--from-ship` path: a started verify-ship runs exactly as a typed one (ADR 0157)' });
     }
+  }
+  for (const source of SHIP_STARTERS) {
+    if (!present(source)) continue;
+    read(source).split('\n').forEach((text, i) => {
+      if (SHIP_START.test(text) && !CONSENT_VERB.test(text)) {
+        gaps.push({ source, line: i + 1, expectation: 'name `scope.js consent` on every line that starts `/superdev:ship`: a start needs carried consent (ADR 0266, INV-0093)' });
+      }
+    });
   }
   return gaps;
 }

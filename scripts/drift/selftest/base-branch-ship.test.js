@@ -272,6 +272,16 @@ module.exports = ({ assert, fixture, found }) => {
   for (const rel of ['skills/ship/SKILL.md', 'skills/verify-ship/SKILL.md', 'references/response-shapes.md']) {
     assert.equal(pastPr({ [rel]: openSkill('Add `--from-ship` to the call.') }).length, 1, `${rel} naming --from-ship is caught`);
   }
+  // A start of ship from review or document names the consent verb on the same line (ADR 0266).
+  for (const rel of ['references/review-scope-mode.md', 'skills/document/SKILL.md']) {
+    assert.equal(pastPr({ [rel]: openSkill('- **Submitted** → start `/superdev:ship <scope>`.') }).length, 1, `${rel}: a ship start without scope.js consent is caught`);
+    assert.equal(
+      pastPr({ [rel]: openSkill('- **Submitted** → ask `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" consent --root <run-root>` first. `carried` → start `/superdev:ship <scope>`.') }).length,
+      0,
+      `${rel}: a ship start beside scope.js consent is clean`,
+    );
+    assert.equal(pastPr({ [rel]: openSkill('- **Submitted** → print `/superdev:ship <scope>`.') }).length, 0, `${rel}: a printed ship is no start`);
+  }
 
   // --- no-offer-start (ADR 0253): no shipped file names the session tool or the offer's marker line;
   // the bare word "offer" stays free ---
