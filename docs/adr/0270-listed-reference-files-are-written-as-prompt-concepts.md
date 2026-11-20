@@ -67,3 +67,10 @@ passing-test step per increment and a fail-to-pass control taken from the last o
 `agents/implementer.md`'s `### Running tests`, and `implement-lite.md` named one test-path run per increment before
 the code and one focused run as the last check. The second rule holds: an increment makes one run, and the focused
 run over the changed-path set is the work unit's last check.
+
+**`dod-ticks.md`.** Added: `### A docs line`, `### A holds tick`, and `### Document and verify-ship` under
+`## The mapping gate`, so `scope.js section` still reads every rule of the gate's old span; the anchor sync named as
+the step that copies implement's and run handoff's ticks onto the anchor. Removed: the reasons each case gives for
+its rule, which ADR 0206, ADR 0247, and ADR 0256 carry. Settled: a `dod.md` with no tags at all on a ledger listing
+more than one slice was stated only in `implement-lite.md`, while `run-handoff.md` credited it to this file. `**No
+tags at all.**` now states both ledger cases: every line settles as if it read `scope` at run handoff's handoff pass.
