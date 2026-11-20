@@ -46,7 +46,11 @@ Applies to every exit of a chain command: `/superdev:implement`, `/superdev:revi
 `/superdev:submit-pr`, `/superdev:ship`, and `/superdev:verify-ship`. Each starts its own successor, and only
 that one: implement starts review, review starts document, document starts submit-pr, submit-pr starts ship
 on the yes to its ship question, ship starts verify-ship or wrap-up on those routes, and verify-ship starts
-wrap-up at its settled exit. Its own skill names the exit that starts.
+wrap-up at its settled exit. On a scope at `submitted`, the repair loop after a ship refusal: review starts
+document when it unticked the `docs` line and ship otherwise, and document starts ship. Each start of ship
+there asks `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" consent --root <run-root>` first, and starts only on
+`carried` in an attended run; `none` and an unattended run print ship instead. Its own skill names the exit
+that starts.
 
 **When it starts.** Every condition holds:
 
