@@ -34,10 +34,15 @@ a module of its own: the ledger verbs in `ledger-lifecycle.js` and `ledger-recor
 `suite-base-get.js`, `test` in `test-verb.js`, `publish` with `adopt` in `run-state.js`, `open` in `plan-open.js`, `dod-merge` in `dod-merge.js` (with `mergeDod`, the per-line merge `fetchRunState` also uses, ADR 0206), and `dod-line`, `dod-tags`, `dod-check`, `ci`, `fail-to-pass`, `fail-to-pass-check`, `prepare`,
 `citations`, `collisions`, `source-set`, `untraced`, `push`, `discard`, `status`, `section`, `tier`, `dod-open`, `contained`, `red-evidence`, `candidates`, `denial`, and `route` each in the module of its name. `branch` is `scope-branch.js`'s `resolveScopeBranch`, `checkout` is `scope-checkout.js`'s `scopeCheckout`, and `lock` is `run-lock.js`'s `verbLock`; `run-lock.js` also holds the run lock's reader and one-hour bound that `plan-open.js` shares. `run-roots.js` holds the one scan of `.superdev/scopes/*/` that `status` and `candidates` share. `trace` and `windows` live in `scope.js` over `trace-window.js` (`readRunTrace`, `sliceOf`, `editPath`, `windowsOf`, `windowIndexes`, `traceFlags`), the one window derivation `trace --window`, `untraced --window`, and `fail-to-pass-check --window` share, and `traceFlags` is the flag parser `trace`, `windows`, `untraced`, and `fail-to-pass-check` share. The run-state ref (`refs/superdev/<scope>`, ADR 0202) is `run-state-ref.js`: `pushRunState` at a step end (`step clear`, `step block`, or a `stage set` that closes the standing step, except `stage set closed`), `fetchRunState` inside `adopt`, and `deleteRunState` behind `run-state delete`. It takes `gitCall` from `push.js` and `parseRemote` from `kb-containment.js`. The vocabulary beneath them is `ledger.js` (the stage rank and the readers and writers of
 a ledger's header lines, bullets, and table rows), `refusal.js` (the refusal error `fail`), `verification.js` (`verificationCommands`,
-`verificationCommandsOf`, `prepareCommandOf`, `namedChecksOf`, `isTestPath`), `git-spawn.js` (`gitSpawn`, `gitThrow`, `parseBranchList`, `resolveCommit`, `refResolves`, `fileAt`, `listWorktrees`),
+`verificationCommandsOf`, `prepareCommandOf`, `namedChecksOf`, `isTestPath`), `git-spawn.js` (`gitSpawn`, `gitThrow`, `parseBranchList`, `resolveCommit`, `refResolves`, `literalEnv`, `existsAt`, `fileAt`, `listWorktrees`),
 `containment.js` (`testContainment`, `judgeContainment`, `refetchMark`, `baseHistoryHasPatch`, `baseCommitHoldsBranch`), `main-work-tree.js` (`mainWorkTree`, `scopesDirFor`, `mainTreePath`), and
 `trace-log.js` (`appendTrace`, `readTrace`, `traceField`, `untraceField`). The root [`AGENTS.md`](../AGENTS.md) *Structure* names every module and its
-responsibility. At startup `scope.js` loads only `refusal.js`, `ledger.js`, and `trace-log.js`. Every other module
+responsibility. `git-spawn.js`'s `existsAt` is the shared existence check at a commit: `true` for a path the commit holds, an empty
+file included, `false` for one it does not, and `null` where git cannot say. It reads no blob, so a file of any size answers, and a
+directory or submodule entry answers `true`. `fileAt` reads a file's text at a commit, `''` for an empty or absent file, and takes
+`existsAt` where `show` fails. Both read the path literally, `--literal-pathspecs` under `literalEnv`, the environment without
+`GIT_GLOB_PATHSPECS`, `GIT_NOGLOB_PATHSPECS`, and `GIT_ICASE_PATHSPECS`, which git refuses beside it: `:foo` is that file, never
+pathspec magic, and `a*` is that file, never a glob. At startup `scope.js` loads only `refusal.js`, `ledger.js`, and `trace-log.js`. Every other module
 loads when a verb that uses it runs, through an accessor that names the module in a literal `require`, so the
 `--related` require scan still reaches it. `scope.js` exports only the names a requirer uses. A name it re-exports from a
 lazily loaded module is a getter that returns that module's own value. No module requires an entry point. `scope.js` owns the ledger's schema through `ledger.js` and is the only `ledger.md` read and write path in the chain:
@@ -99,11 +104,11 @@ from the record. Markdown-only commits from that commit up to the tip then carry
 configuration at its own two commits. The walk takes children before parents.
 
 `suite rerun <test-file> <triage-ref>` writes the ledger's one `**Rerun:**` header, `<file> @ <tip> <ref>`. The tip is the
-checkout's HEAD, and the file is a root-relative blob at it. The verb refuses `--whole`. A tip that already carries a
+checkout's HEAD, and the file is a root-relative blob at it, its path read literally as `existsAt` reads one. The verb refuses `--whole`. A tip that already carries a
 record refuses a second one. A record for another tip is replaced.
 
 `suite failed <test-file>...` writes the ledger's one `**Failed:**` header, `<file>... @ <tip>`: the test files a full
-run at the tip failed in. The tip is the checkout's HEAD, and each file is a root-relative blob at it. The verb refuses
+run at the tip failed in. The tip is the checkout's HEAD, and each file is a root-relative blob at it, its path read literally. The verb refuses
 `--whole`, no file, and a token holding whitespace. A record for another tip is replaced.
 Its trace line names the root-relative paths the record holds, not the arguments as typed. `get failed` prints the record back, `<file>... @ <sha>`, or nothing on a ledger with no record.
 
@@ -279,7 +284,9 @@ writes it to run every test file the range adds or modifies, and the verb reads 
 the reviewer's judgment, so the outcome line records it (ADR 0188). The verb refuses a missing or empty command. The test paths come from `<tip>`'s own
 `docs/agents/verification.md`. It creates a throwaway worktree detached at `<tip>`. In a run root the worktree sits beside
 `slicetrees/`, outside every tree the run trace attributes a run to. Outside a run root it sits under `.superdev/`, which
-the verb git-ignores first through the repository's `info/exclude`.
+the verb git-ignores first through the repository's `info/exclude`. The verb's git calls inside the worktree read every path
+literally, `--literal-pathspecs` under `literalEnv` of `git-spawn.js`, so an operator environment that sets a global pathspec mode
+changes no outcome.
 
 Where the tip's `## Prepare command` section states a command, the verb runs it at the worktree's root before each run, the
 second time after the put-back, through `runPrepare` of `lib/prepare.js` (ADR 0218). It reads the section once, from the tip,
@@ -336,7 +343,8 @@ at its ceiling (600000 ms, or the higher `BASH_MAX_TIMEOUT_MS`), and in the back
 outlast that ceiling (`references/test-selection.md`, ADR 0232).
 
 `prepare <tree>` runs the **Prepare command** (CONTEXT.md, ADR 0218) at the root of `<tree>`, which must be the root of a
-working tree that `git worktree list` names for the invoking repository; any other path is refused with exit 1. It reads
+working tree that `listWorktrees` of `lib/git-spawn.js` lists for the invoking repository, a path holding a newline included; any
+other path is refused with exit 1, and so is every path where git cannot list the working trees. It reads
 `docs/agents/verification.md` from `<tree>` itself, through `prepareCommandOf` of `lib/verification.js`. With no
 `## Prepare command` section it prints one note on stderr naming the section and `/superdev:setup`, runs nothing, and exits 0.
 With `none` it exits 0 silently. A command runs through `runPrepare` of `lib/prepare.js` in a process group of its own, its
@@ -533,7 +541,7 @@ writes a ledger line, a trace line, or a digest, and none runs a test. A usage r
   alone on a clean tree or inside a focused run's path set. A record with no failed file is covered by a focused run over every path
   of the scope's range. Where the focused fence repeats the full fence, a record with no failed file is covered by two kinds of run
   instead. One is a passing full-class run on a clean tree. The other is a passing `path` run of each test file changed since that
-  is still present. A record with no failed file also takes the tip as its closer, printed `covered <sha> by <tip> clean-tip`. That
+  is still present, which `existsAt` of `git-spawn.js` decides. A record with no failed file also takes the tip as its closer, printed `covered <sha> by <tip> clean-tip`. That
   needs three conditions. The focused fence repeats the full fence. No test file changed from the red commit to the tip. No run at
   the tip failed or reads `unknown` in result or commit. The review judges that line (ADR 0255). The CI pair adds `ci: <verdict> <sha>`
   through `ciJudgment` of `ci.js`. For a failed head at or behind the tip, it adds `ci-failed <check> <link> <sha>` per failed named
@@ -546,7 +554,7 @@ writes a ledger line, a trace line, or a digest, and none runs a test. A usage r
   - one of `--ci-head` and `--ci-file` without the other;
   - a branch that resolves to no commit;
   - an unreadable suite record or `--ci-file`;
-  - any git read that fails.
+  - any git read that fails, an existence check git cannot answer naming the path and the commit.
 
   The code lives in `plugin/lib/red-evidence.js`, over the readers `suite-base-get.js` exports.
 

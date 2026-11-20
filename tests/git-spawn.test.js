@@ -1,6 +1,7 @@
 'use strict';
 
-// Suite for plugin/lib/git-spawn.js: the throwing git call and the `git branch` list parse the two Stop hooks share.
+// Suite for plugin/lib/git-spawn.js: the throwing git call and the `git branch` list parse the two Stop hooks share, and the literal
+// path reads at a commit, `existsAt` and `fileAt`.
 
 require('./fixture-git');
 const assert = require('node:assert');
