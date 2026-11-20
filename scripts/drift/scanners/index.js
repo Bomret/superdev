@@ -17,4 +17,5 @@ module.exports = {
   ...require('./marketplace-readme'),
   ...require('./base-branch-ship'),
   ...require('./register-join'),
+  ...require('./root-inventory'),
 };

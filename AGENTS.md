@@ -222,7 +222,7 @@ end of this document names the files that own each subtree's contracts.
     threshold, or a fixed arity (ADR 0064).
 - **A new drift check tests a mechanical fact or forbids a form** (ADR 0153). A mechanical fact is a link
   or section target that resolves, a number that is unique, a file or command that exists, or a property
-  of code or configuration. A forbidden form is text shipped prose must never contain. No drift check
+  of code or configuration. A forbidden form is text shipped prose or this document must never contain. No drift check
   asserts how a positive clause is worded, and none compares a value with a comment.
 - **ADRs and invariants govern production assets only.** An ADR in `docs/adr/` and an entry in
   `docs/invariants.md` state a rule that constrains a production asset: a file under `plugin/`,
