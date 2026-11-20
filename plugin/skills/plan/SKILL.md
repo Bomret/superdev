@@ -18,7 +18,9 @@ Applies to every start. You turn an intent into **independently-green vertical s
 - **The scopetree**: `<run-root>/scopetree`, the checkout of the scope branch.
 - **`<remote>`**: the `Remote:` value of `docs/agents/code-management.md`. **`<base>`**: that document's base branch.
 - **The draft**: `.superdev/dod-draft-<slug>.md` in the invoking checkout, `<slug>` being the feature label's slug.
+- **The slice draft**: `.superdev/slice-draft-<slug>.md` in the invoking checkout, beside the draft. It holds every drafted slice with its `id`, `title`, `depends-on`, `test-applicability`, `spec`, and `acceptance`.
 - **The derive dispatch**: §1's background dispatch of `superdev:final-reviewer` in derive mode.
+- **The readiness check**: §5's dispatch of `superdev:slice-readiness-reviewer` over the draft and the slice draft.
 - **The scope anchor**: the epic on a multi-slice feature, the lone slice on a single-slice one.
 - **An unattended block**: a stop that counts as a block under `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section.
 
@@ -87,7 +89,7 @@ A new-feature plan loads neither reference.
 **The derive dispatch.** Applies once the problem, the solution shape, and the list of files it changes are settled. Start it before the Definition-of-Done passes below ("in every configuration?", reachability, deploy targets, release risk), and keep interviewing while it runs. On an append, the dispatched intent is the extension.
 
 - **Dispatch `superdev:final-reviewer` in derive mode** in the background (`run_in_background: true`), with an explicit `model: opus` (a hook blocks any dispatch to a superdev subagent that omits one). Hand it the settled problem statement and solution shape as text, and the **paths** of the existing files the solution shape changes, which you list before the dispatch. With no such file, tell it to skip the class pass.
-- Hand it no Definition of Done, by path or by text, on every plan kind, so the derivation stays blind to it. A repair's problem statement may quote the original feature's observed line, which is not this plan's Definition of Done.
+- Hand it no Definition of Done and no slice draft, by path or by text, on every plan kind, so the derivation stays blind to both. A repair's problem statement may quote the original feature's observed line, which is not this plan's Definition of Done.
 - Tell it to name the failure-mode classes in the changed code, each with a cited file, and to derive from the handed intent, grounding each class in the files it reads itself, never in the dispatch's description of them. It returns every derived criterion and failure-mode class, each with a one-line reason and a lean (criterion or non-goal).
 
 **A changed intent after the dispatch.** Applies to a change to the problem or the solution shape after the derive dispatch started. Start a new background dispatch. Settle only the result of the dispatch made against the current problem and solution shape, whatever order results arrive in, and ignore a superseded dispatch's result.
@@ -167,7 +169,7 @@ The `not-contained`, `dirty`, and `held` stops write nothing.
 1. `git worktree remove <run-root>/scopetree`.
 2. `git branch -D <old-type>/<old-slug>`.
 3. `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" discard --root <old-run-root>`, which removes its ledger, run trace, and lock, and the run root when that leaves it empty.
-4. Delete `.superdev/dod-draft-<old-slug>.md` if the derive pass wrote one.
+4. Delete `.superdev/dod-draft-<old-slug>.md` if the derive pass wrote one, and `.superdev/slice-draft-<old-slug>.md` if this plan wrote one.
 
 A triage record already written is amended instead, through the store's own `## Triage record` section (best-effort), so its provenance names the revised label and branch.
 
@@ -207,11 +209,23 @@ A triage record already written is amended instead, through the store's own `## 
 
 ## 5. Quiz the user
 
+**The readiness check.** Applies to every plan, a new plan, an append, and a repair, at every size, a single-slice plan included, once §3 and §4 have drafted every slice's `spec` and `acceptance` and before the breakdown. Write the slice draft, then dispatch `superdev:slice-readiness-reviewer` with an explicit `model: opus`. Hand it the paths of the draft, the slice draft, and the scopetree, and no interview text.
+
+- On an append, the draft is the amended Definition of Done, and the slice draft also lists the feature's existing slices.
+- With no run open yet, no scopetree exists: hand the repository's path and `<base>` in its place, the base branch `scope.js open` receives as `--base`.
+
+**Settling readiness findings.** Applies to every finding the readiness check returns. Settle it by editing the slice text, or reject it. A finding that is a real open design decision becomes one interview question under `references/cross-exam.md`'s rules, and under `--unattended` that question is an unattended block. A finding the repository shows wrong, such as a contradicted name the code shows right, is rejected with a reason drawn from the repository, and the breakdown shows it as `rejected: <reason>`, with no slice edit.
+
+**A changed slice set.** Applies when a slice is split, merged, added, or dropped, or its `depends-on` changes, after the readiness check read the slices. Rewrite the slice draft and run the readiness check again before the approval. An edit to a slice's text alone runs no new check.
+
+**A readiness check with no result.** Applies when the readiness dispatch ends without a result, because the permission classifier denied it, it failed, it was stopped, or a session end lost it, and to a reply without its paraphrase. Dispatch it once more. A second failure puts `readiness check: not run — <reason>` in the breakdown, and you continue without applying its lens yourself.
+
 **Grounding readout.** Applies before you present the decomposition. For each file you opened while grounding it, state what it says about the proposal itself, apart from the question you opened it for.
 
 **The breakdown.** Applies to every plan. Present it as a numbered list: per slice, title, `depends-on`, and the Definition of Done criteria it covers, the same tags §3 wrote. Where the store document allows more than one slice type, add each slice's type, picked by the configured "use for" lines and falling back to the default.
 
 - **Extending a feature** → present only the **new** slices.
+- **The readiness check** → show its paraphrase and how you settled each finding beside the breakdown, or its `readiness check: not run — <reason>` line, so the one approval covers both.
 - **A plan that earns a `## Slice graph`** (plan-authoring.md's *Epic visuals* → *When to write them*) → show it here too.
 
 **Approval.** Applies to the breakdown. Ask: is the granularity right? are the dependencies correct? should any slice split or merge? Iterate until they approve.
@@ -250,7 +264,7 @@ A triage record already written is amended instead, through the store's own `## 
 
 **A missing Intent call.** Applies to a plan document that states no **Record the Intent line** call. Write no line and name `/superdev:setup`, whose re-run offers the call. A failed Intent write is reported once, and the filed scope stands.
 
-**Deleting the draft.** Applies once the Definition of Done is durably in the slice store. Delete the draft.
+**Deleting the draft.** Applies once the Definition of Done is durably in the slice store. Delete the draft and the slice draft.
 
 **Settling the seeded intent.** Applies to a plan started from an intent record or a local intent file, once the scope is filed (a new plan or an append) and every `Rejected direction` and every `Load-bearing commitment` it carried has a durable home (§2) or was resolved out loud. Ask once: is the intent fully planned? Settle only the intent the user picked, and leave every other intent untouched.
 

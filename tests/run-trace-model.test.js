@@ -24,6 +24,12 @@ assert.equal(d({ subagent_type: 'superdev:doc-writer' }).block, true, 'doc-write
 assert.equal(d({ subagent_type: 'superdev:doc-reader' }).block, true, 'doc-reader is ours, no model');
 assert.equal(d({ subagent_type: 'doc-reader', model: 'sonnet' }).block, false, 'doc-reader + model → allow');
 assert.equal(d({ subagent_type: 'superdev:test-gap-auditor' }).block, true, 'test-gap-auditor is ours, no model');
+for (const name of ['slice-readiness-reviewer', 'intent-challenger']) {
+  for (const type of [name, `superdev:${name}`]) {
+    assert.equal(d({ subagent_type: type }).block, true, `${type} is ours, no model → block`);
+    assert.equal(d({ subagent_type: type, model: 'opus' }).block, false, `${type} + model → allow`);
+  }
+}
 assert.equal(d({ subagent_type: 'Explore' }).block, false, 'not ours → allow');
 assert.equal(d({ subagent_type: 'implementer' }, 'Bash').block, false, 'wrong tool → allow');
 
