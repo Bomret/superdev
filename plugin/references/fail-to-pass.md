@@ -8,9 +8,9 @@ How a reviewer grades a fail-to-pass run. `implementer.md`'s `### Fail-to-pass r
 (an `unknown` tier reads as `lite`, INV-0056) and on fix cycles on either tier, and `slice-reviewer` on the full tier.
 `review-checklist.md`'s `## Binding rules` bind the grading.
 
-**The outcome line.** Applies to every `fail-to-pass` trace line. A fail-to-pass run tests a `behavior` change at its
-tip, then again with its non-test files put back. Its outcome line names the range, the outcome (`fail-to-pass`,
-`pass-to-pass`, `unknown`), a reason, and the command, and it is no test run.
+**The outcome line.** Applies to every `fail-to-pass` trace line. A fail-to-pass run tests a `behavior` change twice: at
+its tip, and with its non-test files put back. Its outcome line names the range, the outcome (`fail-to-pass`,
+`pass-to-pass`, `unknown`), a reason, and the command. It is no test run.
 
 - **A reason reading `settled-from-trace`** → a `fail-to-pass` outcome the verb wrote with no run, from a trace that
   already showed each test file fail before the change and pass after it (ADR 0251).
@@ -19,8 +19,7 @@ tip, then again with its non-test files put back. Its outcome line names the ran
 
 **One call per range.** Applies to every range under review. Get its mechanical verdict with one call:
 `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" fail-to-pass-check <base>..<tip> --slice <id|scope> [--window <dispatch id>] --root <run-root>`.
-`--window` names a full-tier slice's or a fix cycle's implementer dispatch, from `scope.js windows`. A `lite` slice passes
-none, and its whole trace counts. The verb prints exactly one line:
+The verb prints exactly one line:
 
 | Verdict | Meaning | Your judgment |
 |---|---|---|
@@ -31,6 +30,9 @@ none, and its whole trace counts. The verb prints exactly one line:
 | `missing` | The range changes a test-path file, not only by deletion, and another file, and no outcome line covers it. | **Missing fail-to-pass run**. |
 | `test-only` | The range changes only test-path files, and no outcome line covers it. | **Behaviour judgment**. |
 | `no-test-change` | The range changes other files and no test-path file, or deletes test-path files only, and no outcome line covers it. | **Behaviour judgment**. |
+
+- **`--window`** → names a full-tier slice's or a fix cycle's implementer dispatch, from `scope.js windows`.
+- **A `lite` slice** → passes no `--window`, and its whole trace counts.
 
 **Coverage from the base.** Applies to an outcome line from the slice's base to a range's tip. It covers that range,
 so the verdict of a fix cycle's range reads the implementer's run from the slice's base.
@@ -116,13 +118,18 @@ another kind blocks at the cap.
 
 ### An `unknown` outcome
 
-**What it records.** Applies to every `unknown` line. It records a run that could not judge: the tests failed against
-the changed code, a run outlasted its bound or ended by a signal, a command could not start, or a prepare command
-failed. Its `control=`, `bound=`, `start-failed:<code>`, and `prepare=` fields name which.
+**What it records.** Applies to every `unknown` line. It records a run that could not judge. Its `control=`, `bound=`,
+`start-failed:<code>`, and `prepare=` fields name which of these cases it was:
+
+- the tests failed against the changed code;
+- a run outlasted its bound or ended by a signal;
+- a command could not start;
+- a prepare command failed.
 
 **The reviewer's part.** Applies to every `unknown` verdict. Name it in your report with its slice and reason, raise
-no finding, and start no fix cycle. An `unknown` line covers a range, so the range draws no `missing` verdict, and only
-a `fail-to-pass` or `pass-to-pass` line decides the verdict over it.
+no finding, and start no fix cycle.
 
+- An `unknown` line covers a range, so the range draws no `missing` verdict.
+- Only a `fail-to-pass` or `pass-to-pass` line decides the verdict over the range.
 - The controller captures the observation `scope-findings.md`'s `## Observations` owns.
 

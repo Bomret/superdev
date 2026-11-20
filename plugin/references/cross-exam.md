@@ -9,8 +9,8 @@ slicing or brief-writing. Keep going until the design tree is exhausted and you 
 
 ## Core moves
 
-**One question at a time.** Applies to every question you ask. Ask one, wait for the answer, then ask the next. Never
-batch questions.
+**One question at a time.** Applies to every question you ask. Ask one and wait for its answer before you ask the next.
+Never batch questions.
 
 **A recommended answer every time.** Applies to every question, except the no-survivor case of **Offer only live
 options**. State your best answer and its reasoning, so the user reacts to a concrete position: "I'd do X because Y —
@@ -44,8 +44,9 @@ check it). **Offer at most two options.**
 
 **A required question.** Applies to a question a skill requires by name: a release, new, extend, or repair, the
 feature to extend, the deploy target, where a found defect goes, a brainstorm draft choice, a setup choice,
-submit-pr's ship question. It keeps its fixed option set, outside the two-option cap, and is asked every time. An
-option in that set that can name no saving states why, and stays.
+submit-pr's ship question. It keeps its fixed option set, outside the two-option cap, and is asked every time.
+
+- **An option in that set that can name no saving** → states why, and stays.
 
 **Walk the design tree, branch by branch.** Applies to the order of your questions. Ask a decision that constrains
 others first, and never ask a downstream question whose answer a still-open upstream decision would change. Finish a
@@ -60,8 +61,9 @@ work, what calls Z. Read the code. Ask the user only what the code cannot answer
 
 **Find facts concurrently.** Applies to a frontier question that needs a fact from the environment that takes real
 digging. Dispatch a background sub-agent to find it, and keep interviewing. Only the questions downstream of that
-exploration wait for its report, and you ask the rest of the frontier now.
+exploration wait for its report.
 
+- **The rest of the frontier** → ask it now.
 - **Downstream** → a question any of whose options rests on a claim the exploration would check.
 
 **Surface, never smuggle.** Applies to every assumption and every answer. State assumptions out loud.

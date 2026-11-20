@@ -122,8 +122,10 @@ one, and ask what later decision it constrains. Then sort it by the first branch
 - A rationale such as "the record is why this is a binary and not `curl`" belongs in no register; the rule under it,
   *every call that reaches the service writes a record*, is an entry with `Breaks: silently` and a test.
 
-**The mood branch is guidance.** Applies to branch 5. Nothing enforces its rate: a single run sees one plan, and a run
-that sorts every commitment there has mis-sorted. Reading the rate across runs is a human's job.
+**The mood branch is guidance.** Applies to branch 5. Nothing enforces its rate. Reading the rate across runs is a
+human's job.
+
+- **A single run** → sees one plan, and a run that sorts every commitment there has mis-sorted.
 
 **Both sources.** Applies to every commitment `/superdev:plan` meets. A commitment plan originates in its own
 interview and a commitment a seeded intent carried in its `## Load-bearing commitments` section
@@ -150,10 +152,10 @@ it.
 ### Revise in place
 
 **Revise in place.** Applies to a later answer that changes a decision you already recorded. Bring the record into
-line where that decision lives, and never leave the store holding two contradictory decisions. The treatment splits
-by home, and inside the ADR home by how much of the decision stands: an **overturned** decision is superseded, and a
-decision that **stands with a narrow qualification** is amended.
+line where that decision lives, and never leave the store holding two contradictory decisions.
 
+- **The treatment** → splits by home, and inside the ADR home by how much of the decision stands: an **overturned**
+  decision is superseded, and a decision that **stands with a narrow qualification** is amended.
 - **A glossary entry is revised in place.** Rewrite the entry to state current truth, and keep exactly one entry per
   term.
 - **An invariant register entry is revised in place, the same way.** Find the existing entry by the `Concepts` it

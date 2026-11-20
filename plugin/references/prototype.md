@@ -19,8 +19,9 @@ never serial rebuilds.
 
 **Capture, then throw away.** Applies once the prototype answers its question. Fold the validated decision into the
 intent, and from there the plan. Commit the prototype itself to a throwaway branch off the base, never onto the base
-branch, and leave a pointer to that branch where the decision landed.
+branch.
 
+- **A pointer to that branch** → leave it where the decision landed.
 - The base branch keeps only the validated decision.
 
 **A decision-rich snippet may enter the plan.** Applies to a prototype-produced snippet that encodes a decision more

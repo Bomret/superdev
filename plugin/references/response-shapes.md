@@ -1,7 +1,9 @@
 # Response shapes
 
 A **Response shape** is a fixed layout for a message a command shows the operator. This file defines each one, and
-each `##` section is the anchor a citation names. A skill cites the shape it uses and restates none of it.
+each `##` section is the anchor a citation names.
+
+- **A skill** → cites the shape it uses and restates none of it.
 
 ## The Next block
 
@@ -54,11 +56,12 @@ successor, and only that one. Its own skill names the exit that starts.
 - submit-pr starts ship on the yes to its ship question.
 - ship starts verify-ship or wrap-up on those routes, and verify-ship starts wrap-up at its settled exit.
 
-**The repair loop at `submitted`.** Applies to a scope at `submitted`, after a ship refusal. Review starts document
-when it unticked the `docs` line, and ship otherwise, and document starts ship. Each start of ship there asks `node
-"${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" consent --root <run-root>` first, and starts only on `carried` in an attended
-run.
+**The repair loop at `submitted`.** Applies to a scope at `submitted`, after a ship refusal. Each start of ship there
+asks `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" consent --root <run-root>` first, and starts only on `carried` in
+an attended run.
 
+- **Review** → starts document when it unticked the `docs` line, and ship otherwise.
+- **Document** → starts ship.
 - **`none`, or an unattended run** → print ship instead of starting it.
 
 **When it starts.** Applies to every exit of a chain command. It starts only when every condition holds. Every other

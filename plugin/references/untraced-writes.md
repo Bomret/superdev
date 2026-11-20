@@ -4,8 +4,9 @@
 
 **Its readers.** Applies to `slice-reviewer` and `final-reviewer`. The run trace records an edit only from an Edit,
 Write, or NotebookEdit tool call, and a test run only from `scope.js test` and `scope.js fail-to-pass`. Read the
-commits, which show every change, against the trace. `review-checklist.md`'s `## Binding rules` bind every lens of
-this section.
+commits, which show every change, against the trace.
+
+- `review-checklist.md`'s `## Binding rules` bind every lens of this section.
 
 **A window.** Applies to every window this section names. A **window** is the stretch of the trace one run of an
 `implementer` dispatch covers, for one slice or `scope` (`CONTEXT.md` → *Window*). List a slice's windows with `node
@@ -41,9 +42,9 @@ commits, and to `final-reviewer` (an `unknown` tier reads as `lite`, INV-0056) f
   for it.
 
 **Grading a listed path.** Applies to every path the listing prints. Read its change under the lenses as a hunk of the
-diff, and give it the severity the entry it falls under states. A write through a shell is no defect of its own: a
-`git mv`, a formatter, and a generator are ordinary.
+diff, and give it the severity the entry it falls under states.
 
+- **A write through a shell** → no defect of its own: a `git mv`, a formatter, and a generator are ordinary.
 - `fail-to-pass-check` (`fail-to-pass.md`'s `### The verdict`) reads every path the range's commits change, a listed
   one included.
 

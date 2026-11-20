@@ -1,8 +1,9 @@
 # Plan: repair
 
 The **repair** branch of `/superdev:plan`: plan a `fix` feature for a shipped scope whose Definition of Done holds a
-line observed false. `skills/plan/SKILL.md` §0 reads this only when the operator picks repair. The repair is a new
-feature with its own anchor, label, branch, and run, and it appends nothing to the original.
+line observed false. `skills/plan/SKILL.md` §0 reads this only when the operator picks repair.
+
+- **The repair** → a new feature with its own anchor, label, branch, and run. It appends nothing to the original.
 
 ## The store gate
 
@@ -17,10 +18,11 @@ section.
 
 **Shipped run roots.** Applies to the candidate list. List every run root at stage `shipped` with `node
 "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" candidates --stage shipped` (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s
-`## Resolving an empty argument` → *Run-root enumeration*; its `one` and `several` lines name them, and `none` means
-no run is shipped). Keep each one whose `<run-root>/dod.md` holds at least one `not met:` note `/superdev:verify-ship`
-observed, listed by `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-open --root <run-root>`.
+`## Resolving an empty argument` → *Run-root enumeration*). Keep each one whose `<run-root>/dod.md` holds at least one
+`not met:` note `/superdev:verify-ship` observed, listed by `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-open
+--root <run-root>`.
 
+- **The listing** → its `one` and `several` lines name the run roots, and `none` means no run is shipped.
 - **A candidate** → a row labelled `not-met` whose fourth field reads `repair-citation`
   (`${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s **The repair citation**), whatever its box.
 - **Never a candidate** → any other row, a `not met:` note written before merge, or a `closed` run.
@@ -61,9 +63,9 @@ or anchor whose only `not met:` notes are unobserved, name `/superdev:verify-shi
 
 **The seed.** Applies to the picked scope. Its observed `not met:` lines, with the observation each note carries, seed
 §1 as its intent. The repair is a `fix` feature, so `plan-authoring.md`'s `### A fix feature's reproduction` places
-its red-capable reproduction of what the observation showed. Its Definition of Done carries its own criteria and none
-of the original's.
+its red-capable reproduction of what the observation showed.
 
+- **Its Definition of Done** → carries its own criteria and none of the original's.
 - Only the original's own `/superdev:verify-ship` settles the original's line, once the repair has shipped.
 
 ## The label

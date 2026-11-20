@@ -4,8 +4,9 @@
 
 **The gate.** Applies to a review in a repository whose glossary (`CONTEXT.md`) defines **Prompt concept**. A
 repository whose glossary has no such entry gets no finding from this section, and its reviewers leave this file
-unread. The repository's `## Writing standard` value plays no part in this gate. `review-checklist.md`'s `## Binding
-rules` bind every lens of this section.
+unread. The repository's `## Writing standard` value plays no part in this gate.
+
+- `review-checklist.md`'s `## Binding rules` bind every lens of this section.
 
 **The subject.** Applies to a review subject, a change or standing code. The subject is the one
 `prompt-concept-overlap.md`'s `## Prompt-concept overlap` names. Read the governed set from the glossary's **Prompt
@@ -43,8 +44,9 @@ glossary-drift finding (`review-design-lenses.md`'s `## Consistency`) once, as t
 - An `AGENTS.md` file stays under the writing standard alone, and this lens judges none of its lines.
 
 **The finding.** Applies to every finding of this lens. Grade it **Minor**. Label it **Prompt-prose form**, and cite
-the line's `file:line` and the controlled-prose heading or the per-language answer it breaks. A line whose broken
-section you cannot name is no finding.
+the line's `file:line` and the controlled-prose heading or the per-language answer it breaks.
+
+- **A line whose broken section you cannot name** → no finding.
 
 | Line | Verdict |
 |---|---|

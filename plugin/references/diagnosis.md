@@ -5,9 +5,12 @@
 
 # Diagnosis discipline
 
-A defect's fix starts at its cause, never at its symptom. `/superdev:plan` applies this when the feature's change
-type is `fix`; the `implementer` applies it on a dispatch that repairs a defect; `/superdev:review`'s fix loop
-(`review-scope-mode.md`'s `### 4.7 Fix cycles`) applies it to a finding whose cause is not yet established.
+A defect's fix starts at its cause, never at its symptom. These readers apply it:
+
+- **`/superdev:plan`** → when the feature's change type is `fix`.
+- **The `implementer`** → on a dispatch that repairs a defect.
+- **`/superdev:review`'s fix loop** (`review-scope-mode.md`'s `### 4.7 Fix cycles`) → to a finding whose cause is not
+  yet established.
 
 **A proven cause skips the loop.** Applies to a defect whose cause is already proven, a RED test in hand that
 reproduces it. Go straight to the fix.
@@ -31,9 +34,9 @@ when every remaining element is load-bearing.
 ## Ranked hypotheses, before testing any
 
 **Rank first.** Applies once the repro is minimal. Write **3–5 ranked hypotheses** for the cause before testing any
-one of them. Show the ranked list to the user, and proceed with your own ranking without blocking on a reply. Test in
-rank order, cheapest evidence first.
+one of them. Show the ranked list to the user, and proceed with your own ranking without blocking on a reply.
 
+- **Testing** → in rank order, cheapest evidence first.
 - **Unattended** → proceed the same way.
 
 ## Tagged instrumentation
@@ -52,5 +55,6 @@ green, the ordinary TDD loop from there.
 ## Redact
 
 **Redact every secret.** Applies to every captured artifact or command output you quote. Write `<REDACTED>` in each
-secret's place, and quote only the lines that carry the signal. Build the repro loop against environment variables,
-so the credential stays in the environment.
+secret's place, and quote only the lines that carry the signal.
+
+- **The repro loop** → build it against environment variables, so the credential stays in the environment.

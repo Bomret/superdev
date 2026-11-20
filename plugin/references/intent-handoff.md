@@ -43,8 +43,9 @@ finding, every `disputed` finding, and every observation a sweep carries takes t
    the matching seed.
 2. **Create the record.** Make the **Create it** call with the whole intent file as the body, every section,
    **Rejected directions** and **Load-bearing commitments** included, and the intent's heading as the title. The
-   frontmatter stays out of the body. Pass the body as a file or a quoted heredoc, as the store document's call
-   states, so no intent text reaches a shell unquoted.
+   frontmatter stays out of the body.
+   - **The body** → pass it as a file or a quoted heredoc, as the store document's call states, so no intent text
+     reaches a shell unquoted.
 3. **Confirm it.** The create's read-back carries the store's intent signal. Anything else → `## The fallback`, naming
    the cause: a failed or refused call, a denied call, a read-back that lost the signal, or a body the store truncated
    or refused because of its size.

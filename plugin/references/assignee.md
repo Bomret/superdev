@@ -20,12 +20,13 @@ that account.
 **Not a slice field.** Applies to the slice schema. The assignee gains **no row in `plan-contract.md`'s `## Fields`
 table**. It is operator configuration, a property of the store and the run.
 
-**`displayName`.** Applies to the `displayName` key. It is display-only: `/superdev:setup` writes it for a reader of
-the file, and no issue-tracker call reads it. A missing or wrong name never changes who is assigned.
+**`displayName`.** Applies to the `displayName` key. It is display-only. `/superdev:setup` writes it for a reader of
+the file, and no issue-tracker call reads it.
+
+- **A missing or wrong name** → never changes who is assigned.
 
 **The file's keys.** Applies to every read and write of the file. The file holds one object per role. Every key is
-optional, and a missing file, role, or key takes its default. `/superdev:setup` writes a key by merging it into the
-file, so every key already there stays.
+optional, and a missing file, role, or key takes its default.
 
 | Role | Key | Holds | Default | Valid range |
 |------|-----|-------|---------|-------------|
@@ -37,12 +38,14 @@ file, so every key already there stays.
 | `knowledge-base` | `timeoutMs` | the bound of each knowledge-base backend command, in milliseconds | `30000` | a whole number, 1 to 2147483647 |
 | `knowledge-base` | `teaLogin` | the `tea` login a Forgejo wiki's commands use | absent: one matching login is used, several stop the command | a login name `tea login list` reports |
 
+- **A `/superdev:setup` write** → merges the key into the file, so every key already there stays.
 - **A time bound outside its range** → it reads as absent and is named once on stderr.
 - **A knowledge-base backend command** reads the whole `knowledge-base` section as `operator` in its `$1` values file.
 
 **The file is untracked.** Applies to the file itself. `.superdev/` is git-ignored, so the file never reaches the
-repository. It holds identifiers, display names, and time bounds, never credentials. A token stays in the environment
-variable the active `docs/agents/issue-tracker.md` names.
+repository. It holds identifiers, display names, and time bounds, never credentials.
+
+- **A token** → stays in the environment variable the active `docs/agents/issue-tracker.md` names.
 
 **Read it from the main checkout.** Applies to every read of the file. Read it at `<main checkout>/.superdev/info.json`
 from every checkout, a linked worktree included, never from a path relative to the working directory. `scope.js root`

@@ -1,8 +1,10 @@
 # Plan contract
 
 The **logical schema** every superdev slice carries, and the generic contracts every store document specialises.
-`/superdev:plan` writes it, and `/superdev:implement` reads it. `plan-authoring.md` holds the rules a plan is
-written by, and `store-records.md` holds the triage record and the intent record.
+`/superdev:plan` writes it, and `/superdev:implement` reads it.
+
+- **The rules a plan is written by** → `plan-authoring.md` holds them.
+- **The triage record and the intent record** → `store-records.md` holds them.
 
 ## Fields
 
@@ -22,9 +24,12 @@ maps the same fields onto its own issue bodies, links, and statuses.
 **The global Definition of Done.** Applies to every plan. The plan carries one global Definition of Done block, the
 acceptance criteria for the whole feature. `/implement`'s run init and the final review read it.
 
-**The epic is optional.** Applies to a plan's slice count. A plan with a single slice carries no epic: that slice's
-`acceptance` is the global Definition of Done, and the slice is its own scope anchor. A plan with two or more slices
-carries a global Definition of Done (the epic) beside the per-slice `acceptance` fields.
+**The epic is optional.** Applies to a plan's slice count.
+
+- **A plan with a single slice** → carries no epic: that slice's `acceptance` is the global Definition of Done, and the
+  slice is its own scope anchor.
+- **A plan with two or more slices** → carries a global Definition of Done (the epic) beside the per-slice
+  `acceptance` fields.
 
 ### Criterion tags
 
@@ -35,10 +40,11 @@ describing the scope's code. The tag decides which criteria a slice's report can
 - **`scope`** marks a sweep, a preservation claim, or a scope-wide check `/implement`'s run handoff settles.
 - **A single-slice feature** carries no tags: every criterion is its lone slice's.
 
-**The `docs` tag.** Applies to a criterion tagged `docs`. The doc pass settles it: no slice's report ticks it, the
-scope review never holds the stage on it, and `/superdev:document` judges it after its pass (`references/dod-ticks.md`).
-`docs` stands alone, like `scope`, and is never combined with slice ids.
+**The `docs` tag.** Applies to a criterion tagged `docs`. The doc pass settles it, and `/superdev:document` judges it
+after its pass (`references/dod-ticks.md`). `docs` stands alone like `scope`, never combined with slice ids.
 
+- **A slice's report** → never ticks it.
+- **The scope review** → never holds the stage on it.
 - **A criterion mixing `AGENTS.md` text with another deliverable** → split it into two criteria, one tagged `docs`.
 - **A criterion a `docs` slice delivers as `AGENTS.md` text**, such as a restructuring of the hierarchy, keeps that
   slice's tag.
@@ -120,10 +126,11 @@ never a plan field and never persisted.
 ## Scope anchor
 
 **The scope anchor.** Applies to every feature. A feature's **scope anchor** is its root: a multi-slice plan's root has
-slices beneath it, and a single-slice plan's root is its own lone slice. A consumer that needs a feature's scope-level
-signal reads the active `docs/agents/issue-tracker.md`'s own `## Scope anchor` section. That section owns the backend
-mechanism: recognising an anchor, listing the candidates, listing the slices beneath one, telling an anchor that is
-itself a slice, and reading an anchor's own dependencies.
+slices beneath it, and a single-slice plan's root is its own lone slice.
+
+- **A consumer that needs a feature's scope-level signal** → reads the active `docs/agents/issue-tracker.md`'s own
+  `## Scope anchor` section. That section owns the backend mechanism: recognising an anchor, listing the candidates,
+  listing the slices beneath one, telling an anchor that is itself a slice, and reading an anchor's own dependencies.
 
 **The open candidate wins.** Applies to a candidate listing that spans every state. The open candidate is the anchor.
 `Ambiguous` is two or more *open* candidates, never a closed one beside a single open one. A single closed candidate

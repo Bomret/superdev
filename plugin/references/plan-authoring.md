@@ -107,9 +107,9 @@ name no command superdev runs to verify it. A rollback criterion states what an 
 
 **Parked questions.** Applies to a load-bearing decision a multi-slice plan's interview could not resolve. Write it
 to the epic's `## Parked questions` section the moment it is parked (`cross-exam.md`'s termination rule permits ending
-an interview this way). It is advisory: `/implement` never reads it, nothing gates on it, and it adds no lifecycle
-status.
+an interview this way). It is advisory.
 
+- **Advisory** → `/implement` never reads it, nothing gates on it, and it adds no lifecycle status.
 - **A single-slice plan** parks nothing: an unresolved load-bearing decision there means the plan is not
   single-slice yet.
 
@@ -122,9 +122,10 @@ section. It is advisory: `/implement` never reads it.
 ## Epic visuals (optional, epic-only)
 
 **The two visuals.** Applies to an epic whose plan shape defeats a numbered list. `/plan` may add `## Slice graph`
-and `## Touch map`, both for human readers and both **advisory**: `/implement` never reads them, no review agent
-gates on them, and neither adds a lifecycle status. They are markdown only, and the epic carries no HTML.
+and `## Touch map`, both for human readers and both **advisory**. They are markdown only, and the epic carries no
+HTML.
 
+- **Advisory** → `/implement` never reads them, no review agent gates on them, and neither adds a lifecycle status.
 - The design sketch (`design-sketch.md`) is a separate, throwaway file outside the epic.
 
 **`## Slice graph`.** Applies to the graph section. Draw a mermaid `flowchart LR` of the plan's `depends-on` DAG, one
@@ -144,8 +145,7 @@ flowchart LR
 
 **`## Touch map`.** Applies to the map section. Write a fenced plain-text tree of the files the plan touches, naming
 the slices that touch each one and marking every file that slices **able to run in parallel** both edit. It is
-evidence for the dependency order, never an instruction: no slice `spec` gains a file path, and an implementer that
-touches a file the map did not predict has done nothing wrong.
+evidence for the dependency order, never an instruction.
 
 ````markdown
 ## Touch map
@@ -163,6 +163,9 @@ src/
 `02` and `03` are the only pair with no dependency path between them, so `index.ts` is the only
 collision — every other file is touched by one slice, or by slices the graph already orders.
 ````
+
+- **Never an instruction** → no slice `spec` gains a file path, and an implementer that touches a file the map did not
+  predict has done nothing wrong.
 
 ### When to write them
 
@@ -206,7 +209,6 @@ invocation that reproduces the defect and has run once (`diagnosis.md`'s `## The
 the first acceptance criterion of a `behavior` slice. Every other `behavior` slice of the feature depends on that
 slice, directly or through other slices. This dependency is the one exception to the slice rules' `depends-on` rule.
 
-- **The exception holds even where the other `behavior` slice could be green without the reproduction slice.**
 - **A defect nobody can reproduce yet** → building that command is the work of that slice.
 - **A `fix` feature with no `behavior` slice** → its first slice's `spec` states why no command reproduces the defect,
   and the feature carries no red-capable criterion.
@@ -227,9 +229,9 @@ expand–contract in place of tracer-bullet slices:
 
 **The integration branch.** Applies to a wide refactor whose batches cannot stay green alone. Green is promised at
 one node instead of per slice. The epic carries an `## Integration branch` section naming `integration/<scope>`, and
-the full playbook merges every slice into that branch, which keeps the scope branch green between invocations. A
-final **integrate-and-verify** slice, depending on every batch, merges `integration/<scope>` into the scope branch.
+the full playbook merges every slice into that branch, which keeps the scope branch green between invocations.
 
+- **A final integrate-and-verify slice**, depending on every batch, merges `integration/<scope>` into the scope branch.
 - The full-suite evidence `/superdev:ship` takes verifies that merge.
 
 ## Append mode
@@ -251,9 +253,9 @@ criteria to it, each tagged with the new slices' ids, which continue the running
 
 **Extending a single-slice feature creates the epic first.** Applies to an append onto a feature with no epic. Copy
 the lone slice's `acceptance` into a new epic as the global Definition of Done, amend it with the new criteria, and
-leave the lone slice byte-identical. The anchor lines are the exception to byte-identical: each moves to the new epic
-and leaves the lone slice.
+leave the lone slice byte-identical.
 
+- **The anchor lines** → the exception to byte-identical: each moves to the new epic and leaves the lone slice.
 - The moving lines are the anchor dependency, the deploy line, the Repairs line, the Absorbs line, and the Intent line
   (`plan-contract.md`'s `## Scope anchor`). Nothing else about the slice changes.
 - Two slices under one feature label with no epic is the shape a store's `## Scope anchor` section calls

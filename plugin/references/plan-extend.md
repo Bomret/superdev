@@ -1,8 +1,10 @@
 # Plan: extend
 
 The **extend** branch of `/superdev:plan`: add slices to a feature that already has them. `skills/plan/SKILL.md` §0
-reads this only when the operator picks extend. `plan-authoring.md`'s `## Append mode` owns the invariants an append
-holds, and this file owns the steps that apply them.
+reads this only when the operator picks extend.
+
+- **The invariants an append holds** → `plan-authoring.md`'s `## Append mode` owns them.
+- **The steps that apply them** → this file owns them.
 
 ## Load the feature
 
@@ -13,8 +15,7 @@ Definition of Done.
 ## Refuse on any signal
 
 **The refusal.** Applies to every extend, once the feature is loaded. Refuse to extend, and write nothing, on any one
-signal in the list. Name the signal that fired and what clears it. No override argument exists: fixing the state is
-the only escape.
+signal in the list. Name the signal that fired and what clears it.
 
 - **An active run.** The store holds a slice `in-progress`, `in-review`, or `blocked`. Clears once that slice leaves
   the state.
@@ -32,6 +33,8 @@ the only escape.
     from the same file, as data.
   - A failed read of that body refuses.
   - A snapshot-less store, or an anchor body with no `## Run state` section, carries no signal: say which.
+
+**No override.** Applies to every refusal. No override argument exists. Fixing the state is the only escape.
 
 **Name the remedy.** Applies to every refusal a stage, a done anchor, or a snapshot raised. Name the remedy
 `plan-authoring.md`'s `## Append mode` gives.

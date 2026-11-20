@@ -11,7 +11,7 @@ concept, not the request's wording** (the glossary's terms, the code's own names
   built.
 
 **Prior rejection.** Applies when `.out-of-scope/` exists. Read `.out-of-scope/*.md`, and surface every entry that
-resembles this request **by concept, not keyword** ("night theme" matches `dark-mode.md`). A match is a decision
-already made: present it, and proceed only when the user explicitly overturns it.
+resembles this request **by concept, not keyword** ("night theme" matches `dark-mode.md`).
 
+- **A match** → a decision already made: present it, and proceed only when the user explicitly overturns it.
 - `docs/agents/documentation.md` → *Rejected requests* owns the convention.
