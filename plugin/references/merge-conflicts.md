@@ -1,35 +1,37 @@
 # Merge-conflict resolution
 
-How a controller resolves a conflicted merge, in the DAG loop and in the base merge
-`scope-branch.md`'s `## Bringing the scope branch to base` runs before the first slice and at `/superdev:review`'s entry. The rule
-is intent, not text: a hunk is resolved by what each side **meant**, and each side's intent has a primary
-source — its slice's `spec`, its progress log, its commit messages. In the base merge, the scope side's
-sources are its own commit messages and its slices' `spec`s, and the base side's are the base commits'
-own messages.
+**Resolve by intent.** Applies to a controller's conflicted merge: in the DAG loop, and in the base merge of
+`scope-branch.md`'s `## Bringing the scope branch to base`. Resolve each hunk by what each side **meant**, read from
+that side's primary sources. In the DAG loop those are each slice's `spec`, progress log, and commit messages. In the
+base merge the scope side's are its own commit messages and its slices' `spec`s, and the base side's are the base
+commits' own messages.
 
-- **Trace both sides to their sources first.** Read what each slice was building before touching the
-  hunk; a resolution from the conflict markers alone is a guess.
-- **Additive conflicts take the union.** Independent slices usually conflict because each *added*
-  something to the same place — list/enum/`switch` entries, attributes, test methods, doc bullets. The
-  correct result keeps every addition from both sides, dropping nothing: never delete a sibling's test
+- **Trace both sides to their sources first.** Read what each side was building before you touch the hunk. A
+  resolution from the conflict markers alone is a guess.
+- **Additive conflicts take the union.** Where each side added something to the same place (list, enum, or `switch`
+  entries, attributes, test methods, doc bullets), keep every addition from both sides. Never delete a sibling's test
   to make the merge compile.
-- **Compatible intents compose.** Two sides that changed the same lines for different, non-competing
-  reasons (one renamed a parameter, the other added a guard) both survive: write the version that
-  honours both specs, and say so in one line.
-- **A numbering collision moves this scope's number.** An ADR file or an invariant register entry this
-  scope added, whose number the other side also took, takes the next number free on both sides, and on
-  every other live plan run (`skills/plan/SKILL.md`'s shared-identifier check). A collision is found by
-  number, whether or not git reports a conflict. `scope.js collisions` finds each one and prints its
-  next free number. Update every citation of the old number on the scope branch in
-  the same resolution, and name each renumber, old and new, in the report. In the base merge, base's
-  number never moves: it has already landed.
-- **Conclude a resolved conflict with `git -C <run-root>/scopetree merge --continue`.** Stage the
-  resolution first, and spell `<run-root>` out as the real absolute path in the command text:
-  `hooks/run-trace.js` and `hooks/merge-guard.js` read the command text alone.
-- **Never invent new behaviour in a resolution.** The merged result does only what the two sides'
-  sources already claim; a "better" third version is a drive-by change wearing a conflict as cover.
-- **A genuine winner-picking overlap escalates.** The same decision decided two incompatible ways —
-  where honouring one spec means violating the other — is not the controller's to guess:
-  `git -C <run-root>/scopetree merge --abort` and escalate to the human, and
-  **`--unattended` → block** (`scope-mode.md`'s **Unattended** section). This is narrower than "the same
-  lines conflict": compatible intents on the same lines compose above; only competing intents escalate.
+- **Compatible intents compose.** Where two sides changed the same lines for different, non-competing reasons, write
+  the version that honours both specs, and say so in one line.
+- **Never invent new behaviour in a resolution.** The merged result does only what the two sides' sources already
+  claim.
+
+**A numbering collision moves this scope's number.** Applies to an ADR file or an invariant register entry this scope
+added, whose number another side also took, whether or not git reports a conflict. `scope.js collisions` finds each
+collision and prints the next number free on both sides and on every other live plan run (`skills/plan/SKILL.md`'s
+shared-identifier check). Move this scope's file or entry to that number, update every citation of the old number on
+the scope branch in the same resolution, and name each renumber, old and new, in the report.
+
+- In the base merge, base's number never moves.
+
+**Conclude a resolved conflict with `git -C <run-root>/scopetree merge --continue`.** Applies to every resolved
+conflict. Stage the resolution first. Spell `<run-root>` out as the real absolute path in the command text, never as a
+shell variable: `hooks/run-trace.js` and `hooks/merge-guard.js` read the command text alone.
+
+**A genuine winner-picking overlap escalates.** Applies to the same decision made two incompatible ways, where
+honouring one spec violates the other. Compatible intents on the same lines compose instead.
+
+1. List the conflicting files: `git -C <run-root>/scopetree diff --name-only --diff-filter=U`.
+2. Run `git -C <run-root>/scopetree merge --abort`. The scopetree is clean again.
+3. Stop, dispatching no slice, and escalate to the operator, who resolves the conflict. **`--unattended` → block**
+   (`scope-mode.md`'s `## Unattended`).

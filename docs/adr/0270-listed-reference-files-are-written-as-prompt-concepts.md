@@ -74,3 +74,20 @@ the step that copies implement's and run handoff's ticks onto the anchor. Remove
 its rule, which ADR 0206, ADR 0247, and ADR 0256 carry. Settled: a `dod.md` with no tags at all on a ledger listing
 more than one slice was stated only in `implement-lite.md`, while `run-handoff.md` credited it to this file. `**No
 tags at all.**` now states both ledger cases: every line settles as if it read `scope` at run handoff's handoff pass.
+
+**`scope-mode.md`.** Added: a `## Section map` heading whose list names the file that holds each mapped section, this
+file included, and a reader table in place of the paragraph on the wider audience; `## The run lock` now owns writing
+the lock with the absolute run-init path, leaving it in place at a playbook's end, and the playbook's **Resume** making
+no lock read of its own. Removed: the reasons behind the slug charset, the range base's two candidates, the unattended
+catch-all, and the sanctioned backwards stage move, which ADR 0016, ADR 0120, and ADR 0203 carry. Settled:
+`implement/SKILL.md` said nothing in this file but `## Unattended` applied to implement, while both playbooks cite
+`## The run lock`, `## The scope checkout`, and `## The scope's range base`. The skill now names those three sections.
+
+**`scope-branch.md`.** Added: numbered sub-steps under step 4 of `## Bringing the scope branch to base`, and numbered
+steps for the `resumed` cut. Removed: the numbering-collision, `merge --continue`, and abort-and-escalate rules of
+step 4, which `merge-conflicts.md` owns and step 4 cites; the restated prepare stop at `## Cutting the scope branch`,
+which `## Preparing a worktree` owns; the history of the taken-name case and the reasons for the forcing-flag rule,
+which ADR 0082 and ADR 0167 carry. Settled: nothing.
+
+**`merge-conflicts.md`.** Added: the conflicting-file listing and the stop after `merge --abort`, from
+`scope-branch.md`'s step 4, so this file owns the whole escalation. Removed: nothing. Settled: nothing.

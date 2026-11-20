@@ -79,7 +79,7 @@ Applies to the `lite` tier. Its playbook runs the documentation pass in the same
 
 ## Config + input
 
-**`--unattended`.** Applies before anything else. Take it out of `$ARGUMENTS`, wherever it sits. Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section and follow it wherever this command or its playbook asks a question or starts an interview command (`/superdev:setup`, `/superdev:plan`). Nothing else in that file applies here.
+**`--unattended`.** Applies before anything else. Take it out of `$ARGUMENTS`, wherever it sits. Read `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section and follow it wherever this command or its playbook asks a question or starts an interview command (`/superdev:setup`, `/superdev:plan`). The playbook reads that file's `## The run lock`, `## The scope checkout`, and `## The scope's range base` where it cites them.
 
 **The config.** Applies to every start. Read `docs/agents/issue-tracker.md` (slice store), `docs/agents/code-management.md` (code host), `docs/agents/documentation.md` (documentation convention), `docs/agents/knowledge-base.md` (optional KB), and `docs/agents/verification.md` (test command).
 
