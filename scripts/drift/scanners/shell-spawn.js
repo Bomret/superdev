@@ -108,7 +108,7 @@ function scanShellSpawn(root) {
   return offenders;
 }
 
-// INV-0197: `lib/git-spawn.js`'s `listWorktrees` is the one shipped reader of the registered working trees, so no other file
+// INV-0198: `lib/git-spawn.js`'s `listWorktrees` is the one shipped reader of the registered working trees, so no other file
 // at the top level of `plugin/hooks/`, `plugin/scripts/`, or `plugin/lib/` spawns `git worktree list`: a second parser could
 // split a newline path.
 const WORKTREE_LIST_SPAWN = /['"`]worktree['"`]\s*,\s*['"`]list['"`]/;
@@ -119,7 +119,7 @@ function scanWorktreeListParsers(root) {
     if (WORKTREE_LIST_SPAWN.test(stripComments(raw))) {
       offenders.push({
         source: path.join(dir, name),
-        expectation: 'read the working trees through `lib/git-spawn.js`\'s `listWorktrees` — it spawns `git worktree list` itself (INV-0197)',
+        expectation: 'read the working trees through `lib/git-spawn.js`\'s `listWorktrees` — it spawns `git worktree list` itself (INV-0198)',
       });
     }
   }

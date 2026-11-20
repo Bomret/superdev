@@ -1558,7 +1558,7 @@ Breaks: silently
 Check: none — the property is a reading of output meaning; each verb's suite pins its verdict lines
 Paths: plugin/scripts/scope.js
 
-### INV-0197
+### INV-0198
 
 Class: correctness
 Concepts: Slicetree, Scopetree, Prepare command, Guardrail

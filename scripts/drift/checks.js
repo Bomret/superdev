@@ -167,7 +167,7 @@ module.exports = [
   },
   {
     id: 'worktree-list-one-parser',
-    ok: 'no shipped executable other than lib/git-spawn.js spawns `git worktree list` (INV-0197)',
+    ok: 'no shipped executable other than lib/git-spawn.js spawns `git worktree list` (INV-0198)',
     run: scanWorktreeListParsers,
     format: contractGap,
   },

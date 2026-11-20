@@ -6,7 +6,7 @@
 const { scanHookLedgerParsers, scanShellSpawn, scanWorktreeListParsers } = require('../scanners');
 
 module.exports = ({ assert, path, fixture }) => {
-  // --- worktree-list-one-parser: only lib/git-spawn.js spawns `git worktree list` (INV-0197) ---
+  // --- worktree-list-one-parser: only lib/git-spawn.js spawns `git worktree list` (INV-0198) ---
 
   const listSpawn = "const r = spawnSync('git', ['worktree', 'list', '--porcelain'], { cwd });\n";
   for (const rel of ['hooks/rogue.js', 'lib/rogue.js', 'scripts/rogue.js']) {
