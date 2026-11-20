@@ -203,10 +203,10 @@ try {
     assert.ok(!fs.existsSync(path.join(root, 'trace.log')));
   }
 
-  // This repository's own `## CI` section reads as no named checks, never as the malformed both-`none`-and-a-name.
+  // This repository's own `## CI` section names the full-suite workflow's one check, never the malformed both-`none`-and-a-name.
   {
     const own = fs.readFileSync(path.join(__dirname, '..', 'docs', 'agents', 'verification.md'), 'utf8');
-    assert.deepEqual(namedChecksOf(own), { state: 'none' });
+    assert.deepEqual(namedChecksOf(own), { state: 'named', names: ['full-suite'] });
   }
 
   console.log('scope-ci: ok');

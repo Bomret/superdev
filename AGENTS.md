@@ -39,7 +39,9 @@ No prerequisite plugins.
                          `source` is a `git-subdir` entry with `path` `plugin` and `ref` `v<version>`, so
                          an install copies only the shipped tree below, as the release tag holds it
 .github/workflows/     — `template-tests.yml`: runs `tests/publish-kb-templates.test.js` on Linux, macOS,
-                         and Windows (Git Bash) for every pull request to `main` (ADR 0212)
+                         and Windows (Git Bash) for every pull request to `main` (ADR 0212).
+                         `full-suite.yml`: runs `node scripts/run-tests.js` on Linux for every pull request to
+                         `main`; its `full-suite` check is the named CI check in `docs/agents/verification.md`
 plugin/                — the SHIPPED tree: everything a user's install copies, nothing else
   .claude-plugin/
     plugin.json        — plugin manifest (name, version, author); version is the SINGLE source of truth.
