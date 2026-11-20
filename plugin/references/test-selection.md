@@ -45,7 +45,13 @@ A redirect into the working tree leaves an untracked file, and on a passing run 
 Only a run that can outlast the ceiling runs through the runner in the background, and you wait for
 its end before acting on it.** **`scope.js fail-to-pass` follows the same rule:** it runs its command twice, after a
 prepare where one is configured, so run it in the background when two runs of the range's test files can outlast the ceiling,
-and wait for its end before you read its outcome. A verb the ceiling kills writes no outcome line. The run trace records a run made outside the runner as `unknown` whenever its
+and wait for its end before you read its outcome. A verb the ceiling kills writes no outcome line.
+**A subagent writes each run's exit status into its output file, and waits out a run Claude Code moves to the background.**
+Inside a dispatched subagent, Claude Code moves a foreground Bash call to the background after about 180 s, whatever its
+`timeout`, and stops it when the subagent's run ends. So a subagent redirects every test run and fail-to-pass run to a file outside the
+working tree and appends the exit status, as in `<run> > "$f" 2>&1; echo "exit=$?" >> "$f"`. When the call returns as moved to the
+background, wait with `timeout 170 sh -c 'until grep -q "^exit=" "$f"; do sleep 5; done'`, repeated until the file holds the
+`exit=` line, then read the file. Start no second copy of a moved run, and end no turn while it runs. The run trace records a run made outside the runner as `unknown` whenever its
 exit status does not reflect the test. An `unknown` run is no passing run, so `scope.js suite reusable` never
 reuses it and the suite runs again at the next gate. The whole-repo command is the third command
 (`## Whole-repo command` below), and `scope.js suite reusable` reads its runs too.
