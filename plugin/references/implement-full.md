@@ -115,9 +115,8 @@ Applies until every slice is `merged`. Run the steps below in order, and repeat.
    - the path to `<run-root>/dod.md`, never its text, and the exact **listed lines**: the `dod.md` lines
      `dod-ticks.md`'s `## The mapping gate` matches to this slice's own `id`.
 
-   Tell it to build only this slice and report on those listed lines. `agents/implementer.md` owns the rest, and the
-   dispatch restates none of it: `### Defect repair` (a `fix` change type starts the slice at
-   `references/diagnosis.md`), `### Running tests`, `### Fail-to-pass run`, `### A dependency you add`, `### Edit
+   `agents/implementer.md` owns the rest, and the dispatch restates none of it: `## Scope of the work`, `### Defect
+   repair` (a `fix` change type starts a `behavior` slice at `references/diagnosis.md`), `### Running tests`, `### Fail-to-pass run`, `### A dependency you add`, `### Edit
    tools`, `## A failing test your slice did not cause`, `## Documentation`, `## Self-check`, and `## Report`.
 
    **Pilot the first wave.** Applies to a fresh scope with nothing merged yet. Dispatch a single slice first and take
@@ -130,9 +129,10 @@ Applies until every slice is `merged`. Run the steps below in order, and repeat.
 
    **A tiny slice is yours.** Applies to a `docs` slice and to a `mechanical` slice whose `spec` names a single file.
    It gets no implementer dispatch and takes no place under the cap: build it yourself in its own slicetree, cut and
-   prepared per `## Branch model`'s **A slicetree per slice**. Work as `agents/implementer.md` states for a slice dispatch of its `test-applicability`, its
-   `### Defect repair` included on a `fix` feature, with `<run-root>/slicetrees/<id>` as the tree of every edit, run,
-   and commit (`git -C`).
+   prepared per `## Branch model`'s **A slicetree per slice**. Work by these `agents/implementer.md` sections:
+   `## Scope of the work`, `## Test applicability`, `## Surgical edits`, `### Edit tools`, `### Defect repair`,
+   `### Running tests`, `### Fail-to-pass run`, `## Documentation`, and `## A failing test your slice did not cause`.
+   `<run-root>/slicetrees/<id>` is the tree of every edit, run, and commit (`git -C`).
    - Seed its progress log, write no `dispatch:` line, and append your own outcome line once it is committed.
    - Commit on `slice/<scope>/<id>` (Conventional Commits). It invents no test.
    - A failing test the slice did not cause is named in your report, never fixed.

@@ -235,7 +235,8 @@ scope branch no longer holds the base tip (`review-scope-mode.md`'s **The moved 
       - Exit 1 → fix each named line to the new number, commit, and run it again, until it exits 0 or prints only kept
         lines. A line you judge a legitimate citation of the old number goes to the attended operator, who fixes or
         keeps it. **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`.
-      - Exit 2 → the check could not run. Name its message and stop, dispatching no slice.
+      - Exit 2 → the check could not run. Name its message and stop, dispatching no slice. **`--unattended` →
+        block**, per `scope-mode.md`'s `## Unattended`.
    3. **Merge.** `git -C <run-root>/scopetree merge-base --is-ancestor <tip> <branch>` succeeds → nothing to merge.
       Otherwise run `git -C <run-root>/scopetree merge <tip>`, `<run-root>` spelled out as the real absolute path. A
       conflict, `MERGE_HEAD` still set, is resolved, concluded, or escalated per `merge-conflicts.md`.

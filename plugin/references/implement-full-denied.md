@@ -13,9 +13,13 @@ on judgment.
 `scope.js denial implementer` (or `fix`), with `--unattended` on an unattended run, for the verdict.
 
 - `block implementer` → block.
-- `inline` → build the slice or the fix yourself in its slicetree, as `implement-full.md`'s **A tiny slice is yours**
-  states, `agents/implementer.md`'s `### Defect repair` included on a `fix` feature and on a fix. Then continue the
-  loop at DAG loop step 3.
+- `inline` → build the work yourself by the `agents/implementer.md` sections `implement-full.md`'s **A tiny slice is
+  yours** names, with `### The loop` for a `behavior` slice and `### RED-test rule` and `### Sibling surfaces` for a
+  fix.
+  - **A slice build or a slice fix** → build it in its slicetree, as **A tiny slice is yours** states. Then continue
+    the loop at DAG loop step 3.
+  - **A sweep fix** → build it in the scopetree, with `## The sweep fix dispatch` too. Then continue the sweep at
+    `implement-full-minor-sweep.md`'s step 2, **The sweep's self-check**.
 
 **A denied `slice-reviewer`.** Applies to this tier's one verification dispatch. Write it with `scope.js degraded
 add-denial -`, the classifier's refusal piped through a quoted heredoc, then ask `scope.js denial slice-reviewer`, with

@@ -35,8 +35,8 @@ the scope tip the cycle began from, when the cycle starts, then run these steps 
    - the `<run-root>/dod.md` path, read-only, with no listed lines;
    - the range base from `scope.js base resolve`, for the same-defect search over `<range-base>..HEAD`.
 
-   Tell it to fix the list and to bring every sibling surface into agreement, reporting each place it checked and
-   each it changed. `agents/implementer.md` owns the rest: `## The sweep fix dispatch`, `### Sibling surfaces`, `### Running tests`,
+   Tell it to fix the list and to work its sibling surfaces, per `skills/implement/SKILL.md`'s **Sibling surfaces**.
+   `agents/implementer.md` owns the rest: `## The sweep fix dispatch`, `### Sibling surfaces`, `### Running tests`,
    `### Fail-to-pass run`, `### A dependency you add`, `### Edit tools`, `## A failing test your slice did not cause`,
    `## Self-check`, and `## Report`.
    - **A warm cycle.** A cycle whose list holds only Minor findings continues the previous sweep implementer through
@@ -94,7 +94,8 @@ scopetree's commits since that base and the log's last entry to see which of its
 
 - A log with no cycle line starts cycle 1.
 - A cycle whose re-review verdict is in the log ended.
-- Cycle 3 ended with only the findings the cap's Minor outcome names → that outcome applies at once.
+- Cycle 3 ended with a verdict **The sweep's end.** settles without a block (clean, only unclosable findings, or
+  Minors left) → that outcome applies at once.
 
 **A sweep that stands blocked.** Applies where cycle 3 ended with a Critical or Important finding left.
 

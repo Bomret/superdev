@@ -28,8 +28,8 @@ or Important finding outside the deferred and unclosable ones.
 - the progress-log path and the heading of its self-check entry, `Self-check — fix cycle <n>`;
 - for a **Pass-to-pass** finding, that finding's original base.
 
-Tell it to fix every finding on the list and to bring every sibling surface into agreement, reporting each place it
-checked and each it changed. `agents/implementer.md` owns the rest: `### Defect repair`, `### RED-test rule`,
+Tell it to fix every finding on the list and to work its sibling surfaces, which `skills/implement/SKILL.md`'s
+**Sibling surfaces** requires every fix dispatch to say. `agents/implementer.md` owns the rest: `### Defect repair`, `### RED-test rule`,
 `### Sibling surfaces`, `### Running tests`, `### Fail-to-pass run` (its run over `<base>..HEAD`, a **Pass-to-pass** or
 **Missing fail-to-pass run** finding's answer included), `### A dependency you add`, `### Edit tools`, `## A failing
 test your slice did not cause`, `## Documentation`, `## Self-check`, and `## Report`.

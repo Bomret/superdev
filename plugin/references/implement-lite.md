@@ -39,9 +39,10 @@ already marks `merged`. A slice the store already reports as merged seeds `merge
 built.
 
 **The change type.** Applies to a feature whose change type is `fix`, the prefix of the ledger's `**Branch:**` line
-(`scope.js get branch --root <run-root>`). Start each slice at `${CLAUDE_PLUGIN_ROOT}/references/diagnosis.md`: run its
-loop (`## The red-capable command (the gate)` to `## Redact`) before the slice's first RED test. A `spec` that hands a
-proven cause goes straight to the RED test.
+(`scope.js get branch --root <run-root>`). Start each `behavior` slice at `${CLAUDE_PLUGIN_ROOT}/references/diagnosis.md`:
+run its loop (`## The red-capable command (the gate)` to `## Redact`) before the slice's first RED test. A `spec` that
+hands a proven cause goes straight to the RED test. A `docs` or `mechanical` slice skips the loop, as
+`agents/implementer.md`'s `### Defect repair` states.
 
 **The build discipline.** Applies to every slice. Read its `spec` and `acceptance`, then carry the disciplines an
 implementer subagent carries, because no agent body is loaded on this tier:

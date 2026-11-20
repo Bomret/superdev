@@ -40,9 +40,6 @@ read, so the lens and the glossary disagree on that case (triage #56).
 - **A dispatch sentence also pairs with the agent's reference sections.** In a listed skill or reference
   file, a sentence the controller relays to an agent forms a pair with the agent body it reaches and with
   each reference section that body directs its reader to read.
-- **The rollout runs in two scopes.** This scope rewrites the execution playbooks, the run basics, test
-  selection, and the Definition-of-Done ticks. A later scope rewrites the plan, review-lens, and
-  documentation-pass references.
 
 ## Considered options
 
@@ -133,14 +130,18 @@ own; the restated lock write, prepare stop, and merge-conflict rules, which `sco
 this ADR records: a pilot surfaces a systemic problem on one slice before parallel slicetrees repeat it, and the cap
 bounds cost and the merge queue without changing `depends-on` order. Settled: the dispatch never handed the change type, so a `fix` feature's slice skipped the diagnosis
 loop the implementer's `### Defect repair` states for it (triage #39); the dispatch now hands it, and the controller's
-own build of a tiny slice applies it.
+own build of a tiny slice applies it. Settled: the diagnosis loop demands a red-capable repro and a RED test, while a
+`docs` or `mechanical` slice writes no test. `### Defect repair` now applies to a `behavior` slice of a `fix` feature
+only, and a `docs` or `mechanical` slice skips the loop; a reviewer finding a fix dispatch hands still runs it. The
+tiny-slice build names the `agents/implementer.md` sections it works by, in place of the whole slice-dispatch contract.
 
 **`implement-full-resume.md`.** Added: numbered steps, and the change type read from the recorded branch. Removed:
 the restated lock-read rule, which `scope-mode.md`'s `## The run lock` owns, and the restated prepare stop. Settled:
 a resumed run hands the change type from the ledger's `**Branch:**` line, never a reconstructed one.
 
-**`implement-full-denied.md`.** Added: the `inline` verdict for a denied implementer or fix, which builds the work as a
-tiny slice is built, diagnosis loop included. Removed: nothing. Settled: `implement/SKILL.md` blocked a denied
+**`implement-full-denied.md`.** Added: the `inline` verdict for a denied implementer or fix, which builds the work by
+the sections a tiny slice is built by: a slice build or slice fix in its slicetree, resuming at DAG loop step 3, and a
+sweep fix in the scopetree, resuming at the sweep's self-check step. Removed: nothing. Settled: `implement/SKILL.md` blocked a denied
 authoring dispatch under `--unattended` with no verdict call, while this file asked `scope.js denial`. Both now ask
 `scope.js denial` and act on its verdict.
 
@@ -163,4 +164,5 @@ lite controller carries inline, since it loads no agent body. Removed: the resta
 `scope-findings.md`'s `## Observations` owns; the tag-to-slice mapping and its multi-slice untagged case, which
 `dod-ticks.md`'s `## The mapping gate` owns; and the restated lock, prepare, base-step, and observation rules, which
 `scope-mode.md`, `scope-branch.md`, and `scope-findings.md` own. Settled: the lite inline build never applied the
-diagnosis loop a `fix` feature's slice takes on the full tier (triage #39); it now does.
+diagnosis loop a `fix` feature's slice takes on the full tier (triage #39); it now does for a `behavior` slice, and a
+`docs` or `mechanical` slice skips the loop as on the full tier.
