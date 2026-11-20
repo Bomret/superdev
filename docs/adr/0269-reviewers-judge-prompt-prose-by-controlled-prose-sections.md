@@ -1,4 +1,4 @@
-# 0268: Reviewers judge prompt prose by controlled-prose sections
+# 0269: Reviewers judge prompt prose by controlled-prose sections
 
 **Status:** Accepted
 
