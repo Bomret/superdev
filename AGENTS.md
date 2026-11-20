@@ -70,7 +70,7 @@ plugin/                — the SHIPPED tree: everything a user's install copies,
                          `run-check.js` (the check every verb that writes to a run makes before its write,
                          which records a `tamper` trace line, ADR 0227); `untraced.js` (the `untraced` verb).
                          Verdict verbs (ADR 0263): `scope-branch.js` (`branch`), `scope-checkout.js` (`checkout`), `run-lock.js` (`lock`, and the lock reader `plan-open.js` shares),
-                         `denial.js` (`denial`), `route.js` (`route`), `candidates.js` (`candidates`), and `run-roots.js` (the run-root scan `status` and `candidates` share).
+                         `denial.js` (`denial`), `consent.js` (`consent`), `route.js` (`route`), `candidates.js` (`candidates`), and `run-roots.js` (the run-root scan `status` and `candidates` share).
                          Read-only grading (ADR 0261): `trace-window.js` (the one **Window** derivation, the slice and
                          edit-path comparison, and the flag parser the trace verbs share) and `fail-to-pass-check.js` (the `fail-to-pass-check` verb).
                          Read-only decision verbs (ADR 0262): `section.js` (one markdown section), `tier.js` (the execution tier),
@@ -118,7 +118,7 @@ tests/                 — one suite per shipped executable (the hooks, `scope.j
                          point's suite is split flat by topic into `tests/<entry>-<topic>.test.js` over one
                          `<entry>-setup.js` that is no suite (ADR 0139, ADR 0151): `scope-*` (ledger,
                          ledger-header, `suite-*` (record, carry, complete, rerun, config, failed), dod-line, dod-tags, dod-check, dod-merge, publish-adopt, trace, windows, digest, untraced, fail-to-pass-check, root-base, containment,
-                         citations-collisions, source-set, ci, push, open, help, stdin, discard, prepare, branch, checkout, lock, candidates, denial, route, staging, `test-verb-*`, `fail-to-pass-*`, over `scope-setup.js`),
+                         citations-collisions, source-set, ci, push, open, help, stdin, discard, prepare, branch, checkout, lock, candidates, denial, consent, route, staging, `test-verb-*`, `fail-to-pass-*`, over `scope-setup.js`),
                          `run-trace*` (dispatch, guards, model, paths, over `run-trace-setup.js`), `publish-kb*` (containment, guard, `parent-link-*`,
                          patch, publish, read, scope, templates, timeout, over `publish-kb-setup.js`),
                          and `scope-prune*` (containment, guards, main, reap, over `scope-prune-setup.js`);
@@ -409,7 +409,10 @@ This root owns every other subtree directly:
   message with that block (ADR 0113). A chain command starts its own successor through the Skill tool in the
   same turn, per that file's `## The chain start` (ADR 0253): implement starts review, a clean scope review
   starts document, and document on a reviewed scope starts submit-pr, each with the arguments its Next block
-  would print and no question first. The start is the first action of the closing. The starter first closes
+  would print and no question first. On a scope at `submitted`, the repair loop after a ship refusal, a clean scope
+  review starts document when it unticked the `docs` line and ship otherwise, and document starts ship. Each start of
+  ship there needs **Carried consent**: `scope.js consent` prints `carried` when the latest ship step after the scope's
+  last submit step ended blocked. `none`, an unattended run, and an ad-hoc review print ship instead (ADR 0266). The start is the first action of the closing. The starter first closes
   its step and publishes. It prints no Next block on that exit. It prints nothing after the started command
   returns. A step-scoped bar of the starter ends at the start. A `Blocked:` line, a `First:` wait, a refusal,
   a non-clean verdict, or a failed start ends the chain on the stopping command's Next block. An ad-hoc run
@@ -430,8 +433,11 @@ This root owns every other subtree directly:
   Absorbs line names, then the scope anchor, and takes the run down. No skill carries
   `disable-model-invocation: true`. Ship, verify-ship, and wrap-up start only when the operator typed the
   command, asked for it, another session's brief asked for it, or the command before them started it: ship on
-  the yes to submit-pr's ship question, verify-ship and wrap-up on ship's routes, and wrap-up at verify-ship's
-  settled exit. Ship started from another session's brief asks the operator one yes first, because a brief is
+  the yes to submit-pr's ship question or on carried consent from a clean review or document pass at `submitted`,
+  verify-ship and wrap-up on ship's routes, and wrap-up at verify-ship's settled exit. A ship started on carried consent
+  keeps every gate and ask it has when typed, and asks once before the merge where its deploy gate shows a changed
+  posture, target, or named-check list. A declined entries-standing question clears ship's step, which withdraws the
+  consent. Ship started from another session's brief asks the operator one yes first, because a brief is
   never merge consent (ADR 0253). Ship refuses `--unattended` (INV-0093). A criterion verify-ship observes false routes to `/superdev:plan`'s
   repair choice, which plans a `fix` feature on its own anchor, linked to the original by a `**Repairs:**`
   line (ADR 0124).
