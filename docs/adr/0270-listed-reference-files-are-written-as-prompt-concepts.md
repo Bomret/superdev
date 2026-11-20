@@ -121,3 +121,25 @@ ledger`; and the reasons for the content-identity revert, the rotation, and the 
 Observations`; the restated tick rules, which point to `dod-ticks.md`; and the verification-ceiling copy. Settled:
 the handoff pass credited the multi-slice untagged case to `dod-ticks.md`, which did not state it; `dod-ticks.md`'s
 `## The mapping gate` now states it, and the pass cites it.
+
+**`implement-full.md`.** Added: **The implementer dispatch** and **The slice-reviewer dispatch** as named concepts in
+DAG loop steps 2 and 3, each listing the values a dispatch hands and naming the `agents/implementer.md` and
+`agents/slice-reviewer.md` sections that own the rest; the feature's change type in the implementer dispatch, read
+from the ledger's recorded branch, with `agents/implementer.md`'s `## What the dispatch hands you` naming it; the
+controller's own scopetree commits beside the rule that it builds no slice there. Removed: the restated test-run,
+fail-to-pass, dependency, edit-tool, inherited-failure, self-check, and report contracts, which those agent sections
+own; the restated lock write, prepare stop, and merge-conflict rules, which `scope-mode.md`, `scope-branch.md`, and
+`merge-conflicts.md` own; the reason for the post-merge tick, which ADR 0091 carries; and the reasons for the pilot wave and the cap, which
+this ADR records: a pilot surfaces a systemic problem on one slice before parallel slicetrees repeat it, and the cap
+bounds cost and the merge queue without changing `depends-on` order. Settled: the dispatch never handed the change type, so a `fix` feature's slice skipped the diagnosis
+loop the implementer's `### Defect repair` states for it (triage #39); the dispatch now hands it, and the controller's
+own build of a tiny slice applies it.
+
+**`implement-full-resume.md`.** Added: numbered steps, and the change type read from the recorded branch. Removed:
+the restated lock-read rule, which `scope-mode.md`'s `## The run lock` owns, and the restated prepare stop. Settled:
+a resumed run hands the change type from the ledger's `**Branch:**` line, never a reconstructed one.
+
+**`implement-full-denied.md`.** Added: the `inline` verdict for a denied implementer or fix, which builds the work as a
+tiny slice is built, diagnosis loop included. Removed: nothing. Settled: `implement/SKILL.md` blocked a denied
+authoring dispatch under `--unattended` with no verdict call, while this file asked `scope.js denial`. Both now ask
+`scope.js denial` and act on its verdict.

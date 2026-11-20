@@ -33,6 +33,7 @@ Applies to every dispatch.
 - A slice dispatch hands a progress-log path. A fix dispatch may hand one.
 - The slice dispatch and the review fix dispatch hand the `<run-root>/dod.md` path and the listed lines: the Definition-of-Done criteria each names (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`, `## The mapping gate`). A review fix dispatch may list none. The slice fix dispatch hands neither.
 - A slice dispatch and a slice fix dispatch name `<base>`, the commit the slice branch was cut from.
+- A slice dispatch names the feature's change type. A `fix` change type makes the slice a defect repair (`### Defect repair`).
 - A sweep fix dispatch hands the sweep log path as its progress log, and the `<run-root>/dod.md` path read-only with no listed line. It names `<sweep-base>`, the scope branch's tip when the sweep began, as a full commit.
 - A review fix dispatch names `<cycle-base>`, the scope branch's tip before the dispatch, as a full commit, and hands `<base-branch>`, the scope's base branch.
 - An inline fix dispatch names `<cycle-base>`, the reviewed tip the fix branch was cut from, as a full commit. It hands no `dod.md`, no run root, and no progress log.
