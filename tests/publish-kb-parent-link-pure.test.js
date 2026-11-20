@@ -367,4 +367,14 @@ const withB = (extra) => HOME.replace('- [B](B)\n', `- [B](B)\n${extra}\n`);
   }
 }
 
+// a ```js``` line and a tab-indented ``` line in a section are text: the link lands as for plain text
+{
+  const { addParentLink } = require(publishKbPath);
+  const lineFor = () => ({ ok: true, line: '- [C](c)' });
+  for (const text of ['```js```', '\t```']) {
+    const out = addParentLink(`## Guides\n\n- [A](a)\n  ${text}\n\n## Other\n`, 'Guides', lineFor, 'C');
+    assert.ok(out.ok && out.body.includes('- [C](c)'), `${JSON.stringify(text)} in a section: the link is placed, no throw`);
+  }
+}
+
 console.log('publish-kb-parent-link-pure.test.js: all assertions passed');
