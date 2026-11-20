@@ -136,7 +136,7 @@ that the mod is read from its folder and has nothing to update.
 The mod's own tests run under `claude plugin test mods/superdev-view`. `node scripts/run-tests.js` runs none of them and
 reads only the mod's shared fixture files. The focused command runs them when a changed path is under
 `mods/superdev-view/`. Each pane test case imports `test` from `hooks/testkit.ts`, which bounds a case at 60 s of wall
-clock instead of the kit's 5 s default: the bound counts time a case spends descheduled and only catches a hang. 
+clock instead of the kit's 5 s default: the bound counts time a case spends descheduled and only catches a hang.
 
 `hooks/parse.ts` reads the ledger, the run trace, and the Definition-of-Done lines that `scope.js` and
 `plugin/hooks/run-trace.js` write, and one fixture file and one pin hold each coupling:

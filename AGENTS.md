@@ -13,12 +13,12 @@ No prerequisite plugins.
 |------|------------|
 | Understand the plugin, install, updating | [`README.md`](README.md) |
 | Cut a release | [`RELEASING.md`](RELEASING.md) |
-| Slice schema, lifecycle and status | the reference [`plugin/references/AGENTS.md`](plugin/references/AGENTS.md) routes it to |
+| Slice schema, lifecycle and status | the reference that owns it, routed by [`plugin/references/AGENTS.md`](plugin/references/AGENTS.md) |
 | Domain language (ubiquitous terms) | [`CONTEXT.md`](CONTEXT.md) |
 | Architecture decisions (why it is built this way) | [`docs/adr/`](docs/adr/) |
 | In-repo documentation convention (this AGENTS.md hierarchy) | [`docs/agents/documentation.md`](docs/agents/documentation.md) |
 | Writing standard for docs | the standard [`docs/agents/documentation.md`](docs/agents/documentation.md) names |
-| What kind of information a doc owes its reader | the reference [`plugin/references/AGENTS.md`](plugin/references/AGENTS.md) routes it to |
+| What kind of information a doc owes its reader | the reference that owns it, routed by [`plugin/references/AGENTS.md`](plugin/references/AGENTS.md) |
 | Add or adjust a backend (slice store, code host, KB) | the seeds in [`plugin/references/`](plugin/references/), routed by its `AGENTS.md` |
 | Attribution and license | [`NOTICE`](NOTICE), [`LICENSE`](LICENSE) |
 
@@ -157,7 +157,8 @@ end of this document names the files that own each subtree's contracts.
   suite (`node tests/<suite>.test.js`), or `node scripts/run-tests.js --related <paths>`. A prose-only change needs the `--related` tail alone. The full
   `node scripts/run-tests.js` runs at most once per branch, before its pull request, and only when the change touches
   code a focused run cannot reach. Parallel agents never each run the full suite. Shipped prose holds adopters' runs to
-  the same rule, in the reference [`plugin/references/AGENTS.md`](plugin/references/AGENTS.md) routes test selection to.
+  the same rule. [`plugin/references/AGENTS.md`](plugin/references/AGENTS.md) routes test selection to the reference
+  that states it.
 - **Shipped code carries no test seam** (ADR 0154). Under `plugin/`, no environment variable, parameter,
   default, export, or comment exists for a test's sake. A suite reaches behaviour through the shipped
   entry points and the real inputs they take, and a suite that needs a different bound or remote builds
@@ -230,7 +231,7 @@ end of this document names the files that own each subtree's contracts.
   constrains a production asset and the setup together is an ADR or an invariant too. A rule that constrains
   only this repository's build, test, documentation, or release setup (`tests/`, `scripts/`, `.github/`,
   `package.json`, `release.config.cjs`, the docs conventions) is a working rule here or in
-  `scripts/AGENTS.md`. The reference [`plugin/references/AGENTS.md`](plugin/references/AGENTS.md) routes domain modeling to states the rule.
+  `scripts/AGENTS.md`. [`plugin/references/AGENTS.md`](plugin/references/AGENTS.md) routes domain modeling to the reference that states the rule.
 - **Platform-dependent claims carry dated verification.** An ADR, or an entry in
   [`docs/known-issues.md`](docs/known-issues.md),
   states a claim about Claude Code behaviour. When you re-check that claim, record a dated update naming
