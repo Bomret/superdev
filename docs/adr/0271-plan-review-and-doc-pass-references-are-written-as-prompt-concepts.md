@@ -135,3 +135,26 @@ reason **Convention drift** matches what is there. Settled: nothing.
 **`simplicity-lens.md`.** Added: **Prose in the diff** as its own concept under `## Scope of the lens`. Removed: the
 sentence that length is no justification of its own, which **Judge discipline**'s remaining rule carries. Settled:
 nothing.
+
+**`fail-to-pass.md`.** Added: a bold label and condition head on each concept; **The mark** with its re-judge,
+warm re-review, claimed-case, and Missing-run rules as a list. Removed: the "below" pointers in the verdict table and
+the judgments, and the reason a `settled-from-trace` line counts, which ADR 0251 carries. The seven verdict heads keep
+the words `fail-to-pass-check.js` prints. Settled: nothing.
+
+**`untraced-writes.md`.** Added: **Grading a listed path** as its own concept. Removed: the reason a shell write
+leaves no `edit` line, and the restated rule that a `lite` `behavior` slice records a range, which `implement-lite.md`
+owns. Settled: nothing.
+
+**`dependency-verification.md`.** Added: the cases of **Unverified dependency** as a list. Removed: the reason the
+section sits outside `review-checklist.md`'s `## Anti-patterns`. Settled: nothing.
+
+**`review-coverage.md`.** Added: the cases of **Unreviewed slice** as a list. Removed: the reason a non-`completed`
+end reviewed nothing. Settled: nothing.
+
+**`review-inline-fix.md`.** Added: a bold label and condition head on each step's concept; the dispatch now names the
+`agents/implementer.md` sections that own the RED-test rule, the sibling surfaces and same-defect instances, the test
+runs, the fail-to-pass run, and the report, and hands only the model, the working directory, the findings with
+`<cycle-base>`, and the no-run-root values. Removed: the restated sibling-surface and same-defect rules, which
+`implementer.md`'s `### Sibling surfaces` already owned for the inline fix dispatch; the "below" pointers. Settled: the
+separate-Bash-calls rule lived only in this dispatch, so it moved into `implementer.md`'s `### Running tests` for the
+inline fix dispatch before the dispatch dropped it. ADR 0228 carries the reasons.
