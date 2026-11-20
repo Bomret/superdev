@@ -9,7 +9,7 @@ const {
   SUITE_RESULTS, readLines, headerRe, getHeader, readBullets, insertHeader, writeLines, tableRowIndexes, splitRow,
 } = require('./ledger.js');
 const { isTestPath, completeSelector, verificationCommandsOf, prepareCommandOf, configuredTestPaths } = require('./verification.js');
-const { gitSpawn, resolveCommit, fileAt, literalEnv } = require('./git-spawn.js');
+const { gitSpawn, resolveCommit, fileAt, existsAt, literalEnv } = require('./git-spawn.js');
 const { readTrace, decodePaths, untraceField } = require('./trace-log.js');
 const { denialCount } = require('./ledger-records.js');
 const { rootRelative, lazyToplevel } = require('./run-tree.js');
@@ -360,7 +360,7 @@ function changedPaths(cwd, from, to) {
 }
 
 // The git reads of one `suite reusable` or `base resolve` call, each asked of git once per call: the commit a ref resolves to,
-// a file's text at a commit, the paths changed between two commits, whether one commit is an ancestor of another, and the tree
+// a file's text at a commit, whether a file exists at a commit, the paths changed between two commits, whether one commit is an ancestor of another, and the tree
 // root. No such call writes to the repository, so a repeated read has the first one's answer.
 function gitReads(cwd) {
   const memo = new Map();
@@ -372,6 +372,7 @@ function gitReads(cwd) {
     cwd,
     commit: (ref) => once(`commit ${ref}`, () => resolveCommit(ref, cwd)),
     fileAt: (commit, rel) => once(`file ${commit} ${rel}`, () => fileAt(commit, rel, cwd)),
+    exists: (commit, rel) => once(`exists ${commit} ${rel}`, () => existsAt(commit, rel, cwd)),
     changed: (from, to) => once(`changed ${from} ${to}`, () => changedPaths(cwd, from, to)),
     // true or false for git's answer (exit 0 or 1); the git error's text, a string, for any other exit.
     ancestry: (a, b) => once(`ancestor ${a} ${b}`, () => {

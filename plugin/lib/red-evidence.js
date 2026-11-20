@@ -11,7 +11,7 @@ const { fail } = require('./refusal.js');
 const { readLines, getHeader } = require('./ledger.js');
 const { drivePath } = require('./drive-path.js');
 const { traceFlags } = require('./trace-window.js');
-const { gitSpawn, existsAt } = require('./git-spawn.js');
+const { gitSpawn } = require('./git-spawn.js');
 const { isTestPath, verificationCommandsOf } = require('./verification.js');
 const { VERIFICATION, gitReads, runEvents, rangeBase, failedRuns, failedRecord, coverageRefusal, pathRunPassed, parseSuiteRecord, ancestorOrRefuse } = require('./suite-base-get.js');
 
@@ -41,7 +41,7 @@ function sameFenceChanges(g, c, from) {
 // Whether the file `p` exists at commit `c`, an empty file included, read literally through the shared existence check. Where git
 // cannot say, the verb refuses, naming the path and the commit.
 function existsOrRefuse(g, c, p) {
-  const there = existsAt(c, p, g.cwd);
+  const there = g.exists(c, p);
   if (there === null) fail(`red-evidence: git could not tell whether ${p} exists at ${c}`);
   return there;
 }
