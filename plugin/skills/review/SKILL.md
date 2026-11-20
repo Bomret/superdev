@@ -159,8 +159,8 @@ Review a change end to end. §1 decides the mode.
 - **A scope review** → `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md`'s `## 2. Review` decides the `simplicity:` skip first, and the rules below decide every other subject.
 - **A standing-code target** (§1's standing-code shape) → `final-reviewer` alone, reporting `` not dispatched — standing code, no diff to review ``.
 - **A tiny diff** (a handful of lines) → `final-reviewer` alone.
+- **Prompt prose** is the text a model loads as instructions: a skill, an agent body, a reference either one reads, a `docs/agents/` file, a `CLAUDE.md` or `AGENTS.md`. It counts as code for these rules, so a diff that changes it is never docs-only.
 - **Nothing plausible to cut** (a diff that changes only human-facing docs, such as a README, an ADR, or a glossary, or a diff already lean) → skip `simplicity-reviewer`.
-- **Prompt prose** (a file a model loads as instructions: a skill, an agent body, a reference either one reads, a `CLAUDE.md` or `AGENTS.md`) counts as code for these rules, so a diff that changes it gets the `simplicity-reviewer` dispatch.
 - **`final-reviewer`** is never skipped.
 
 **The reviewers' integration limit.** Applies to both reviewer dispatches. Ask neither reviewer to integrate. `plugin/hooks/merge-guard.js` denies a subagent's Bash call that runs a command below. The controller's own calls pass.

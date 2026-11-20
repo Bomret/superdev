@@ -567,7 +567,7 @@ _Avoid: "template" alone (a knowledge base's **Backend command contract** templa
 **Next block**: the `### Next` section that closes a covered command's last message, holding the next command and one line on what it does, defined once in `references/response-shapes.md` (ADR 0113, INV-0111).
 _Avoid: "handoff" (run handoff is the closing procedure of an execution playbook), "call to action"_
 
-_Avoid: "prompt" (prompt prose is the text of a skill or agent), "auto-continue" (nothing continues without the operator's yes)_
+_Avoid: "prompt" (**Prompt prose** is the instruction text a model loads), "auto-continue" (nothing continues without the operator's yes)_
 
 ## Roles
 
@@ -602,6 +602,8 @@ _Avoid: "test reviewer" (review is the code-review family; this prices cost, not
 
 **Dispatch prose**: the text a command sends to a subagent, as distinct from that subagent's own body. Both reach the model in one prompt, and the dispatch is the later, more specific instruction, so it wins a conflict between them. A behaviour contract stated in an agent body therefore also has to hold in every dispatch that reaches it (ADR 0035).
 _Avoid: "the prompt" (ambiguous between the two halves)_
+
+**Prompt prose**: the text a model loads as instructions: a skill, an agent body, a reference either one reads, a `docs/agents/` file, a `CLAUDE.md` or `AGENTS.md`. A README, an ADR, this glossary, and a knowledge-base page are human-facing docs. `/superdev:review`'s skip rules count prompt prose as code, so `simplicity-reviewer` reads a diff that changes it (ADR 0267).
 
 **Prompt concept**: the unit of prompt prose in a **governed body**: an agent body, or a skill file this entry lists. The listed skill files are `plugin/skills/review/SKILL.md`, `plugin/references/review-scope-mode.md` with its branch files `plugin/references/review-scope-holds.md`, `plugin/references/review-scope-denials.md`, `plugin/references/review-scope-base.md`, `plugin/references/review-scope-deferrals.md`, `plugin/references/review-scope-coverage.md`, `plugin/skills/ship/SKILL.md`, `plugin/skills/submit-pr/SKILL.md`, `plugin/skills/document/SKILL.md`, `plugin/skills/verify-ship/SKILL.md`, `plugin/skills/wrap-up/SKILL.md`, `plugin/skills/implement/SKILL.md`, `plugin/skills/plan/SKILL.md`, `plugin/skills/setup/SKILL.md`, `plugin/skills/status/SKILL.md`, `plugin/skills/brainstorm/SKILL.md`, `plugin/skills/upgrade/SKILL.md`, `plugin/skills/publish-kb/SKILL.md`, `plugin/skills/review-tests/SKILL.md`, and `plugin/skills/sweep/SKILL.md` (ADR 0190). It is a rule set with a clear boundary. Each one holds seven invariants:
 

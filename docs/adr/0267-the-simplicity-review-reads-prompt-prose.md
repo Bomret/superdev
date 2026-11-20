@@ -11,18 +11,19 @@ branch for a case that never occurs costs context each time.
 
 A trial on 2026-11-20 dispatched `simplicity-reviewer` by hand on two prose-heavy commits. On `aa31e1ec`, a rewrite
 of `references/design-sketch.md`, five of nine findings were rules the file states twice or a rule for a reader who
-never loads it. On `32daaefc`, two of its prose findings were real restatements. Two others would cut a pattern
-every agent body shares, or the agent-side half of a contract the dispatch prose repeats, and the warranted-cut
-rule declines both.
+never loads it. On `32daaefc`, three of its prose findings were real restatements, one of them a dispatch sentence
+that repeats its agent body's contract unchanged. One other would cut a pattern every agent body shares, and the
+warranted-cut rule declines it.
 
 ## Decision
 
 - The skip covers a diff that changes only human-facing docs (a README, an ADR, a glossary), and a diff already
   lean.
-- Prompt prose counts as code for the skip rules: a skill, an agent body, a reference either one reads, a
-  `CLAUDE.md` or `AGENTS.md`. A diff that changes it gets the `simplicity-reviewer` dispatch.
-- `references/simplicity-lens.md` applies its `delete:`, `shrink:`, and `yagni:` tags to prose, and names a
-  contract stated in an agent body and again in its dispatch prose as no duplicate.
+- **Prompt prose** (`CONTEXT.md`) counts as code for the skip rules, so a diff that changes it is never docs-only.
+  The tiny-diff and already-lean skips still apply to it.
+- `references/simplicity-lens.md` applies its tags to prose. A dispatch sentence that repeats its agent body's
+  contract unchanged is a duplicate, the same pair `references/prompt-concept-overlap.md` grades as an overlap. One
+  that adds a condition, an exception, or a different effect is not.
 
 ## Consequences
 
