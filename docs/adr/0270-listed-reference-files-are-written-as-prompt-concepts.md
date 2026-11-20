@@ -155,3 +155,12 @@ two rules the slice loop adds. Settled: nothing.
 **`implement-full-minor-sweep.md`.** Added: a step for the sweep's self-check and the rule that the sweep's re-review
 is always a fresh `slice-reviewer`, both moved from `scope-findings.md`'s `## Warm cycles`, so `## Minor sweep` owns
 them. Removed: the restated self-check items, which `agents/implementer.md`'s `## Self-check` owns. Settled: nothing.
+
+**`implement-lite.md`.** Added: **The change type**, which starts each slice of a `fix` feature at
+`references/diagnosis.md`, the change type read from the ledger's recorded branch; a named concept per discipline the
+lite controller carries inline, since it loads no agent body. Removed: the restated test-run rules, which
+`test-selection.md`'s `## The two commands` and `## The changed-path set` own; the `unknown` reasons and bounds, which
+`scope-findings.md`'s `## Observations` owns; the tag-to-slice mapping and its multi-slice untagged case, which
+`dod-ticks.md`'s `## The mapping gate` owns; and the restated lock, prepare, base-step, and observation rules, which
+`scope-mode.md`, `scope-branch.md`, and `scope-findings.md` own. Settled: the lite inline build never applied the
+diagnosis loop a `fix` feature's slice takes on the full tier (triage #39); it now does.
