@@ -1,7 +1,7 @@
 'use strict';
 
 // consent.js: the `consent` verb, the operator's carried merge consent for a scope, read from its run trace. It reads the run
-// root and writes nothing (ADR 0263, ADR 0266, INV-0196).
+// root and writes nothing (ADR 0263, ADR 0268, INV-0196).
 
 const path = require('path');
 const { fail } = require('./refusal.js');

@@ -412,7 +412,7 @@ This root owns every other subtree directly:
   would print and no question first. On a scope at `submitted`, the repair loop after a ship refusal, a clean scope
   review starts document when it unticked the `docs` line and ship otherwise, and document starts ship. Each start of
   ship there needs **Carried consent**: `scope.js consent` prints `carried` when the latest ship step after the scope's
-  last submit step ended blocked. `none`, an unattended run, and an ad-hoc review print ship instead (ADR 0266). The start is the first action of the closing. The starter first closes
+  last submit step ended blocked. `none`, an unattended run, and an ad-hoc review print ship instead (ADR 0268). The start is the first action of the closing. The starter first closes
   its step and publishes. It prints no Next block on that exit. It prints nothing after the started command
   returns. A step-scoped bar of the starter ends at the start. A `Blocked:` line, a `First:` wait, a refusal,
   a non-clean verdict, or a failed start ends the chain on the stopping command's Next block. An ad-hoc run

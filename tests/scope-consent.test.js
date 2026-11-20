@@ -1,6 +1,6 @@
 'use strict';
 
-// Suite for plugin/scripts/scope.js's `consent` verb (ADR 0266): the operator's carried merge consent, read from a run root's
+// Suite for plugin/scripts/scope.js's `consent` verb (ADR 0268): the operator's carried merge consent, read from a run root's
 // trace.log and its digest sidecar. The verb only reads, so every case writes its own run root in one temporary directory and
 // checks that the root holds the same files and bytes afterwards.
 

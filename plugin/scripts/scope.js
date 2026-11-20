@@ -513,7 +513,7 @@ function run(argv, cwd, stdinJson) {
       libDenial().verbDenial(root, args);
       break;
     }
-    // Reads the run trace and its digest and writes nothing: the operator's carried merge consent, `carried` or `none` (ADR 0266, INV-0196).
+    // Reads the run trace and its digest and writes nothing: the operator's carried merge consent, `carried` or `none` (ADR 0268, INV-0196).
     case 'consent': {
       const root = path.resolve(cwd, libDrivePath().drivePath(takeRoot(args)));
       if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) fail(`consent: --root "${root}" is not a directory`);
