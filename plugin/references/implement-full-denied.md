@@ -14,10 +14,11 @@ on judgment.
 
 - `block implementer` → block.
 - `inline` → build the work yourself by the `agents/implementer.md` sections `implement-full.md`'s **A tiny slice is
-  yours** names, with `### The loop` for a `behavior` slice and `### RED-test rule` and `### Sibling surfaces` for a
-  fix.
-  - **A slice build or a slice fix** → build it in its slicetree, as **A tiny slice is yours** states. Then continue
-    the loop at DAG loop step 3.
+  yours** names, with `### RED-test rule` and `### Sibling surfaces` for a fix. `### The loop` applies to a `behavior`
+  slice and to a fix whose finding names failing behaviour.
+  - **A slice build or a slice fix** → build it in its slicetree, cut and prepared per `implement-full.md`'s `## Branch
+    model` **A slicetree per slice**. Append the `## Self-check` entry under the heading the dispatch would have named
+    (`Self-check — build`, or `Self-check — fix cycle <n>`). Then continue the loop at DAG loop step 3.
   - **A sweep fix** → build it in the scopetree, with `## The sweep fix dispatch` too. Then continue the sweep at
     `implement-full-minor-sweep.md`'s step 2, **The sweep's self-check**.
 

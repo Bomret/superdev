@@ -130,7 +130,7 @@ own; the restated lock write, prepare stop, and merge-conflict rules, which `sco
 this ADR records: a pilot surfaces a systemic problem on one slice before parallel slicetrees repeat it, and the cap
 bounds cost and the merge queue without changing `depends-on` order. Settled: the dispatch never handed the change type, so a `fix` feature's slice skipped the diagnosis
 loop the implementer's `### Defect repair` states for it (triage #39); the dispatch now hands it, and the controller's
-own build of a tiny slice applies it. Settled: the diagnosis loop demands a red-capable repro and a RED test, while a
+own build of a tiny slice names `### Defect repair`, which a `docs` or `mechanical` slice skips. Settled: the diagnosis loop demands a red-capable repro and a RED test, while a
 `docs` or `mechanical` slice writes no test. `### Defect repair` now applies to a `behavior` slice of a `fix` feature
 only, and a `docs` or `mechanical` slice skips the loop; a reviewer finding a fix dispatch hands still runs it. The
 tiny-slice build names the `agents/implementer.md` sections it works by, in place of the whole slice-dispatch contract.
@@ -140,7 +140,7 @@ the restated lock-read rule, which `scope-mode.md`'s `## The run lock` owns, and
 a resumed run hands the change type from the ledger's `**Branch:**` line, never a reconstructed one.
 
 **`implement-full-denied.md`.** Added: the `inline` verdict for a denied implementer or fix, which builds the work by
-the sections a tiny slice is built by: a slice build or slice fix in its slicetree, resuming at DAG loop step 3, and a
+the sections a tiny slice is built by: a slice build or slice fix in its slicetree with its self-check entry, resuming at DAG loop step 3, and a
 sweep fix in the scopetree, resuming at the sweep's self-check step. Removed: nothing. Settled: `implement/SKILL.md` blocked a denied
 authoring dispatch under `--unattended` with no verdict call, while this file asked `scope.js denial`. Both now ask
 `scope.js denial` and act on its verdict.
