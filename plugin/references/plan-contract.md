@@ -6,7 +6,7 @@ written by, and `store-records.md` holds the triage record and the intent record
 
 ## Fields
 
-**The slice fields.** Applies to every slice a plan writes. Each slice carries the fields below. Each issue backend
+**The slice fields.** Applies to every slice a plan writes. Each slice carries the fields in this table. Each issue backend
 maps the same fields onto its own issue bodies, links, and statuses.
 
 | Field | Meaning | Consumed by |
@@ -89,7 +89,7 @@ never from its box. The stage gate does not hold on it.
 
 ## Slice lifecycle & status
 
-**The canonical lifecycle.** Applies to every slice `/implement` drives. Each slice moves through the states below.
+**The canonical lifecycle.** Applies to every slice `/implement` drives. Each slice moves through the states in this table.
 Every backend maps them onto its own statuses, and an issue tracker records its statuses and transitions in
 `issue-tracker.md`.
 
@@ -266,7 +266,7 @@ Commits type of the work, which `scope-mode.md`'s `## The change type` lists and
 
 ## Issue-backend mapping (general)
 
-**One issue per slice.** Applies to a slice store that is an issue tracker. Map the fields as below. The exact
+**One issue per slice.** Applies to a slice store that is an issue tracker. Map the fields as this list states. The exact
 commands and vocabulary live in the active `docs/agents/issue-tracker.md`, and the calls only `/superdev:plan` makes
 (issue creation, the anchor-line writes, append mode) in `docs/agents/issue-tracker-plan.md`.
 
