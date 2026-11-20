@@ -130,7 +130,7 @@ Applies until every slice is `merged`. Run the steps below in order, and repeat.
 
    **A tiny slice is yours.** Applies to a `docs` slice and to a `mechanical` slice whose `spec` names a single file.
    It gets no implementer dispatch and takes no place under the cap: build it yourself in its own slicetree, cut and
-   prepared as above. Work as `agents/implementer.md` states for a slice dispatch of its `test-applicability`, its
+   prepared per `## Branch model`'s **A slicetree per slice**. Work as `agents/implementer.md` states for a slice dispatch of its `test-applicability`, its
    `### Defect repair` included on a `fix` feature, with `<run-root>/slicetrees/<id>` as the tree of every edit, run,
    and commit (`git -C`).
    - Seed its progress log, write no `dispatch:` line, and append your own outcome line once it is committed.
