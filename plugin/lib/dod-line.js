@@ -25,9 +25,13 @@ const { maskFencedLines } = require('./md-sections.js');
 // all"). A line with no note takes its tag from the *rightmost* ` — <tag>` at the end of the line,
 // greedily handing everything else to the criterion: that is what keeps a criterion carrying its own
 // " — " (`plan-authoring.md`'s own worked example, "Reachable: none — entrance unchanged; … — scope")
-// intact. A line with a note instead splits at the *leftmost* ` — <tag> — <verdict>: ` boundary, because
-// the note itself is free text and may contain that same shape (a re-write's own earlier note, say) —
-// everything past the leftmost boundary is the note, however many look-alike dashes it carries. Where
+// intact. A line with a note offers both
+// shapes, ` — <tag> — <verdict>: ` and the untagged ` — <verdict>: `, each at its leftmost boundary, and the
+// reading with the *shortest* criterion wins, because the note is free text and may quote that same shape
+// (a re-write's own earlier note, say): everything past the winning boundary is the note, however many
+// look-alike dashes it carries. The order has one ambiguity. A tagged line whose criterion itself holds
+// ` — met: ` (`- [ ] A — met: b — 01 — not met: n`) reads `A` / untagged / `met`, the same reading an untagged
+// line with a quoted tag-and-verdict note gets, since the two shapes cannot be told apart. Where
 // no valid tag suffix exists in either shape, the whole rest of the line is the criterion and the tag is
 // empty — rendered with no ` — <tag>` segment at all.
 //

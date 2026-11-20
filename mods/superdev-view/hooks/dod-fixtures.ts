@@ -33,3 +33,12 @@ export const DOD_OPEN_LINES: string[] = [
   '- [x] the widget renders — 01 — not met: the note',
   '- [x] the widget renders — ceiling: the note',
 ]
+
+// Lines the shortest-criterion rule reads (plugin/lib/dod-line.js): an untagged line whose note quotes a tag and a
+// verdict reads open at its own label, and a line holding U+2028 is one line that counts in the total. The first two
+// are `dod-open` and `route` readings too, pinned in tests/scope-dod-open.test.js and tests/scope-route.test.js.
+export const DOD_SHORTEST_LINES: string[] = [
+  '- [ ] Retries are capped — not met: earlier note read "x — 3 — met: y"',
+  '- [ ] Retries are capped — 3 — not met: see — met: y',
+  '- [ ] Cr\u2028it — 01 — met: n\u2029ote',
+]

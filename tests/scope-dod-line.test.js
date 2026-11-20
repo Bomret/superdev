@@ -673,6 +673,9 @@ try {
     assert.deepStrictEqual([e1.criterion, e1.tag, e1.verdict], ['Retries are capped', '', 'not met']);
     const e2 = parseDodLineReadings('- [ ] Crit — 01 — not met: see — 02 — met: x')[0];
     assert.deepStrictEqual([e2.criterion, e2.tag, e2.verdict], ['Crit', '01', 'not met']);
+    // The shortest-first order cannot tell a tagged line whose criterion holds ` — met: ` from E1: it reads as E1.
+    const amb = parseDodLineReadings('- [ ] A — met: b — 01 — not met: n')[0];
+    assert.deepStrictEqual([amb.criterion, amb.tag, amb.verdict], ['A', '', 'met']);
     const sep = parseDodLineReadings('- [ ] Cr\u2028it — 01 — not met: n\u2029ote')[0];
     assert.deepStrictEqual([sep.criterion, sep.tag, sep.verdict, sep.note], ['Cr\u2028it', '01', 'not met', 'n\u2029ote']);
   }

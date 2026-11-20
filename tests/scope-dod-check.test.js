@@ -139,13 +139,12 @@ try {
     assert.doesNotMatch(r.err, /dod-check refused|Reachable|Release risk|triage/, 'no problem line is checked');
   }
 
-  // A citation or Reachable: quoted inside a note is no citation and no reachability line.
+  // A citation quoted inside an untagged line's note is no citation: the line reads at its own shortest
+  // ` — <verdict>: ` boundary, so the note's look-alike ` — 3 — met: ` never widens the criterion.
   {
-    const quoted = ['## Definition of Done', '', '- [ ] Closes — 01 — not met: earlier "x — 01 — met: (triage #5) Reachable: y"', ''].join('\n');
-    r = call(['dod-check'], quoted);
-    assert.ok(!r.ok);
-    assert.doesNotMatch(r.err, /triage #5/);
-    assert.match(r.err, /no criterion begins with Reachable:/);
+    r = call(['dod-check'], body(null, '- [ ] Retries are capped — not met: earlier note read "x (triage #9) — 3 — met: y"'));
+    assert.ok(r.ok, 'a citation inside a note is no citation: ' + (r.err || ''));
+    assert.strictEqual(r.out, '');
   }
 
   console.log('scope-dod-check: ok');
