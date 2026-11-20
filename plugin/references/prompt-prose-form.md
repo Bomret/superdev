@@ -1,18 +1,18 @@
-# Prompt-prose form: the controlled-prose lens for governed prompt prose
+# Writing-standard review lens
 
 ## Prompt-prose form
 
-Applies to a review subject, a change or standing code, that includes a governed body or a reference
-section a governed body directs its reader to read, in a repository whose glossary (`CONTEXT.md`) defines
-**Prompt concept**. The subject is the one `prompt-concept-overlap.md`'s `## Prompt-concept overlap` names.
+Applies to a review subject that includes a governed body or a reference section a governed body directs
+its reader to read, in a repository whose glossary (`CONTEXT.md`) defines **Prompt concept**. The subject
+is a change or standing code. The subject is the one `prompt-concept-overlap.md`'s `## Prompt-concept overlap` names.
 Read the governed set from the glossary's **Prompt concept** entry. A change that edits only such a
 reference section is in the subject with no governed body in the diff. A repository whose glossary has no
 such entry gets no finding from this section, and its reviewers leave this file unread. The repository's
 `## Writing standard` value plays no part in this gate. `review-checklist.md`'s `## Binding rules` bind
 every lens below.
 
-- **Lines judged.** On a change (a scope review, an ad-hoc range, or an inline-fix re-review), judge the
-  prompt-prose lines the change adds or edits. On standing code, judge the whole subject.
+- **Lines judged.** On a change, judge the prompt-prose lines the change adds or edits. A scope review, an
+  ad-hoc range, and an inline-fix re-review each judge a change. On standing code, judge the whole subject.
 - **Applied sections.** Judge each line by these sections of `controlled-prose.md`, cited by heading:
   `## Words`, `## Verbs`, `## Sentences` without its word-limit rule, `## Definitions`,
   `## Procedures (strict mode)` for its rules and never for strict mode's word limit,
