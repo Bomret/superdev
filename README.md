@@ -61,7 +61,7 @@ flowchart LR
 ```
 
 `/superdev:ship`, `/superdev:verify-ship`, and `/superdev:wrap-up` start only when you type the command,
-ask for it, or the command before them starts them. Ship starts on your yes to submit-pr's ship question, which submit-pr asks only where no CI checks are recorded.
+ask for it, or the command before them starts them. Ship also starts on your yes to submit-pr's ship question, which submit-pr asks only where no CI checks are recorded, and on carried consent: after a ship refusal you typed, a clean review or document pass on the submitted scope starts ship again.
 When verify-ship settles every Definition-of-Done line, it starts `/superdev:wrap-up` itself in the same
 turn. A fully verified scope then closes without another prompt.
 Wrap-up still runs every check and asks every question it asks when you type it.
