@@ -38,7 +38,7 @@ try {
   // left null: record() records nothing
 }
 
-const OURS = /^(superdev[:_-])?(implementer|slice-reviewer|simplicity-reviewer|final-reviewer|doc-writer|doc-reader|test-auditor|test-gap-auditor)$/;
+const OURS = /^(superdev[:_-])?(implementer|slice-reviewer|simplicity-reviewer|final-reviewer|doc-writer|doc-reader|test-auditor|test-gap-auditor|slice-readiness-reviewer|intent-challenger)$/;
 
 function decide(input) {
   if (!input || input.tool_name !== 'Agent') return { block: false };

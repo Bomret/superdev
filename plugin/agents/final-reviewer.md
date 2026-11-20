@@ -297,7 +297,7 @@ Applies to a derive dispatch.
 
 `/superdev:plan`'s dispatch hands you the interview's settled problem statement and solution shape as text. It also hands the **paths** of the files the solution shape changes. It hands you no Definition of Done.
 
-- Read no Definition of Done and no run-root file, by any route. That rules out the plan's draft and the slice store's epic.
+- Read no Definition of Done, no slice draft, and no run-root file, by any route. That rules out the plan's draft, the plan's slice draft (`.superdev/slice-draft-<slug>.md`, which carries each slice's `acceptance`), and the slice store's epic.
 - The plan may still be pinning its Definition of Done while you work.
 - There is no diff, no range, and no ledger.
 

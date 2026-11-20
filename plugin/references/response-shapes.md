@@ -86,6 +86,9 @@ one-line bullets. It carries no paragraph of prose.
 3. **`### Rejected`.** One bullet per rejected direction, as `- **<direction>:** <one line on why it lost>`.
 4. **`### Still open`.** One one-line bullet per decision left open.
 5. **`### Findings`.** One one-line bullet per fact the discovery found in the code or the docs.
-6. **The Next block**, per `## The Next block` above.
+6. **`### Intent challenge`.** The challenge outcome on every exit that reached §4: one bullet per finding,
+   `- none found`, or `- not run: <reason>`.
+7. **The Next block**, per `## The Next block` above.
 
-Leave out a section with no bullet. The Next block is always present.
+Leave out a section with no bullet. `### Intent challenge` always has a bullet once the brainstorm reached §4. The
+Next block is always present.

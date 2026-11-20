@@ -450,8 +450,8 @@ digest, and none runs a test. Each grading verb prints a verdict or the trace li
   such as a `lite` slice, prints `no window: slice <id> has no implementer dispatch`. `trace-window.js`'s `windowsOf` derives each
   **Window** by position in the file, never by timestamp: a run starts at an implementer `dispatch` line or a `dispatch-resume` of one.
   It ends at the first boundary line after its `dispatch-end` (any outcome), or after its start when no end of its own follows.
-  With no such boundary line, it runs to the trace's end. A boundary line is a `dispatch` line of the run's own slice, or a
-  `dispatch-resume` of a reviewer's dispatch of that slice. A root with no `ledger.md` is refused.
+  With no such boundary line, it runs to the trace's end. A boundary line is a `dispatch` line of the run's own slice, except one of
+  `slice-readiness-reviewer` or `intent-challenger`, or a `dispatch-resume` of a reviewer's dispatch of that slice. A root with no `ledger.md` is refused.
   The agent type matches on the name part of a plugin-scoped type.
 - **`trace`** prints every recorded line that passes the filters given, byte-identical and in file order. `--slice`, `--kind` (a comma
   list of `edit`, `run`, `dispatch`, `dispatch-bind`, `dispatch-end`, `dispatch-resume`, `ledger`, `fail-to-pass`, `tamper`, or the
