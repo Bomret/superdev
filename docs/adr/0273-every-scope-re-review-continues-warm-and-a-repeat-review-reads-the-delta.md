@@ -26,7 +26,8 @@ cycle caused outside its own range sat in code that range reaches.
   severity mix. Its subject is the cycle's range plus its **Reach**, and it re-judges every Definition-of-Done
   criterion they touch; every other criterion keeps its recorded verdict. A fresh whole-range reviewer runs only when
   the resume fails, is denied, or ends other than `completed`. A conflict-resolving base merge is reviewed the same
-  way, its `git show --remerge-diff` as the changed range.
+  way, its `git show --remerge-diff` as the changed range, or the whole scope range on a git older than 2.36, which
+  cannot show a remerge-diff.
 - **A clean scope review records its tip.** The clean exit of a review that leaves no finding standing except
   deferred ones, the stage line written or left alone, records the **Reviewed tip**: the scope tip and a digest of `dod.md`'s criterion texts and tags. The
   final verdict counts whether it was warm or fresh. An exit that makes the standing-defect writes clears the record.
