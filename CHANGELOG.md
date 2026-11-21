@@ -1,3 +1,15 @@
+# [0.114.0](https://github.com/Bomret/superdev/compare/v0.113.2...v0.114.0) (2026-11-21)
+
+
+### Features
+
+* **hooks:** alert the operator at a blocking stop ([#367](https://github.com/Bomret/superdev/issues/367)) ([c8b7e87](https://github.com/Bomret/superdev/commit/c8b7e87d54a76c777f65cd5ddd6caacc4c0b18e5))
+
+
+### Performance Improvements
+
+* **review:** warm re-review for every fix cycle and delta review on a repeat invocation ([e4e8b49](https://github.com/Bomret/superdev/commit/e4e8b492a443cf95b90f7148a6d316ed0b93809e)), closes [#366](https://github.com/Bomret/superdev/issues/366) [#365](https://github.com/Bomret/superdev/issues/365) [#364](https://github.com/Bomret/superdev/issues/364) [#363](https://github.com/Bomret/superdev/issues/363) [#367](https://github.com/Bomret/superdev/issues/367)
+
 ## [0.113.2](https://github.com/Bomret/superdev/compare/v0.113.1...v0.113.2) (2026-11-21)
 
 
