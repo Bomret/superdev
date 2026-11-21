@@ -52,8 +52,7 @@ const REMERGE_MIN = [2, 36];
 // `GIT_BOUND_MS`, and a call that fails or outlasts it reads as `whole git-failed`, never as a delta (INV-0009).
 function verbReviewedCheck(cwd, root, branch, base) {
   const lines = readLines(root);
-  const verdict = judge(cwd, root, lines, branch, base);
-  console.log(verdict);
+  console.log(judge(cwd, root, lines, branch, base));
 }
 
 function judge(cwd, root, lines, branch, base) {

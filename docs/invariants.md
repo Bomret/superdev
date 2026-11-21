@@ -470,10 +470,10 @@ Paths: plugin/skills/plan/SKILL.md, plugin/references/design-sketch.md
 
 Class: process
 Concepts: Tier, Simplicity-reviewer, Final-reviewer, Execution playbook
-Statement: Every scope gets an over-engineering pass. A full-tier scope whose every slice is `behavior` gets it per slice in `implement-full.md`, from each slice's first `slice-reviewer` review, so `/superdev:review` skips simplicity-reviewer there. Every other scope gets it whole-scope from `/superdev:review`, under the skip rules a lite scope takes. Its findings gate nothing on their own, and each cut the controller warrants joins the review's fix set as a Minor; only the entry review gets the pass, and on a delta review it reads the delta (ADR 0228, ADR 0272).
+Statement: Every scope gets an over-engineering pass. A full-tier scope whose every slice is `behavior` gets it per slice in `implement-full.md`, from each slice's first `slice-reviewer` review, so `/superdev:review` skips simplicity-reviewer there. Every other scope gets it whole-scope from `/superdev:review`, under the skip rules a lite scope takes. Its findings gate nothing on their own, and each cut the controller warrants joins the review's fix set as a Minor; only the entry review gets the pass, and on a delta review it reads only the scope's own delta, the paths the delta's non-merge first-parent commits change, never a change a base merge brought in (ADR 0228, ADR 0272).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/skills/review/SKILL.md, plugin/references/review-scope-*.md, plugin/references/implement-full.md
+Paths: plugin/skills/review/SKILL.md, plugin/references/review-scope-*.md, plugin/references/implement-full.md, plugin/agents/simplicity-reviewer.md
 
 ### INV-0056
 
@@ -1147,7 +1147,7 @@ Paths: plugin/hooks/merge-guard.js
 
 Class: process
 Concepts: Final-reviewer, Warm re-review, Reach, Delta review
-Statement: The scope review's `final-reviewer` reads the whole scope range on an invocation's entry dispatch, unless that invocation runs a delta review, and on a fresh dispatch after a resume that failed, was denied, or ended other than `completed`. Every fix cycle's re-review, whatever the fix list's severity mix, continues the `final-reviewer` whose verdict it fixes and reads the cycle's range plus its reach; a conflict-resolving base merge's re-review reads that merge's remerge-diff plus its reach the same way. Each such re-review re-judges every Definition-of-Done criterion its subject or reach touches, and every other criterion keeps its recorded verdict (ADR 0272). The continued reviewer restates each unclosable Pass-to-pass finding of its last verdict with its slice or range, its case, and its reason, its mark re-judged against the cycle's range, and the combined verdict reads the restated findings (ADR 0193).
+Statement: The scope review's `final-reviewer` reads the whole scope range on an invocation's entry dispatch, unless that invocation runs a delta review, and on a fresh dispatch after a resume that failed, was denied, or ended other than `completed`. Every fix cycle's re-review, whatever the fix list's severity mix, continues the `final-reviewer` whose verdict it fixes and reads the cycle's range plus its reach; a conflict-resolving base merge's re-review reads that merge's remerge-diff plus its reach the same way, or the whole scope range on a git older than 2.36. Each such re-review re-judges every Definition-of-Done criterion its subject or reach touches, and every other criterion keeps its recorded verdict (ADR 0272). The continued reviewer restates each unclosable Pass-to-pass finding of its last verdict with its slice or range, its case, and its reason, its mark re-judged against the cycle's range, and the combined verdict reads the restated findings (ADR 0193).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it; the subject a dispatch hands is prose the controller follows
 Paths: plugin/agents/final-reviewer.md, plugin/skills/review/**, plugin/references/review-scope-*.md, plugin/references/scope-mode.md, plugin/references/scope-findings.md
@@ -1590,7 +1590,7 @@ Paths: plugin/hooks/scope-prune.js, plugin/lib/containment.js
 
 Class: safety
 Concepts: Reviewed tip, Delta review, Ledger
-Statement: A scope review records a reviewed tip only on a stage write that leaves no finding standing except deferred ones, and an exit that makes the standing-defect writes clears it. A later invocation runs a delta review only when the recorded tip is an ancestor of the scope branch tip, the digest of `dod.md`'s criterion texts and tags equals the recorded one, and git can show a merge's remerge-diff; no record, a tip that is no ancestor, a changed digest, an unreadable record, or an older git reads the whole range (ADR 0272).
+Statement: A scope review records a reviewed tip only on a clean exit that leaves no finding standing except deferred ones, the stage line written or left alone, and an exit that makes the standing-defect writes clears it. A later invocation runs a delta review only when the recorded tip is an ancestor of the scope branch tip, the digest of `dod.md`'s criterion texts and tags equals the recorded one, and git can show a merge's remerge-diff; no record, a tip that is no ancestor, a changed digest, an unreadable record, or an older git reads the whole range (ADR 0272).
 Breaks: silently
 Check: the suite of `scope.js reviewed` — each whole-range fallback, the delta and unchanged cases, a digest unmoved by ticks and notes, and a ledger without the header
-Paths: plugin/scripts/scope.js, plugin/lib/reviewed-tip.js, plugin/lib/ledger.js
+Paths: plugin/scripts/scope.js, plugin/lib/reviewed-tip.js, plugin/lib/ledger.js, plugin/references/review-scope-*.md
