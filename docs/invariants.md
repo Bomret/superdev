@@ -32,7 +32,7 @@ Concepts: Containment, Scope branch, Base branch
 Statement: A containment test answers contained only on positive evidence that base holds the branch's work — an equal tree against base or against a commit in base's history, or a patch id base's history carries. Every path that cannot answer, whether a failed git call, an exhausted bound, or an unresolved ref, answers not contained.
 Breaks: silently
 Check: tests/scope-containment.test.js, tests/scope-prune-containment.test.js, tests/scope-prune-guards.test.js — each failure path asserted to answer not contained
-Symbols: testContainment, judgeContainment, baseHistoryHasPatch, baseCommitHoldsBranch, containedInBase
+Symbols: testContainment, judgeContainment, baseHistoryHasPatch, baseCommitHoldsBranch, patchInBaseHistory, commitInBaseHistory, containedInBase
 Paths: plugin/lib/containment.js, plugin/lib/git-spawn.js, plugin/hooks/scope-prune.js, plugin/references/scope-mode.md, plugin/references/scope-branch.md
 
 ### INV-0004
@@ -1584,4 +1584,4 @@ Concepts: Scope branch, Run root, Containment
 Statement: `hooks/scope-prune.js` records a scope branch that its containment test found not contained, naming the base commit and the branch commit it tested. While both commits still equal the ones recorded, a later Stop skips the test for that scope and reaps nothing. A change of either commit, or a record that cannot be read, runs the test again. Only a decisive answer is recorded: a git call that failed is never recorded as not contained. The record never stands in the way of a branch that is gone. The record never counts toward the run root's staleness clock, so it neither defers nor hastens a reap (ADR 0007).
 Breaks: silently
 Check: tests/scope-prune-containment.test.js — a second Stop on an unchanged not-contained scope runs no containment git call, a moved base or branch reruns the test and reaps once the branch is contained, an unreadable record reruns the test, and a run root whose only fresh file is the record still reaps
-Paths: plugin/hooks/scope-prune.js
+Paths: plugin/hooks/scope-prune.js, plugin/lib/containment.js
