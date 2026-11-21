@@ -1,3 +1,10 @@
+## [0.113.2](https://github.com/Bomret/superdev/compare/v0.113.1...v0.113.2) (2026-11-21)
+
+
+### Bug Fixes
+
+* **hooks:** guardrail hooks and their docs claim only what the guards enforce ([3ec1e6f](https://github.com/Bomret/superdev/commit/3ec1e6f8e0f0a4109dcac280884c755e28e70360))
+
 ## [0.113.1](https://github.com/Bomret/superdev/compare/v0.113.0...v0.113.1) (2026-11-21)
 
 
