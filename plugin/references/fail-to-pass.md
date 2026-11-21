@@ -102,8 +102,8 @@ one case, and (c) whenever the non-test changes only restructure or remove. It s
 
 - **Every dispatch** → re-judge the mark against the current range, earlier cycles included. A later change adding
   behaviour outside the test paths makes it closable.
-- **A re-review of the latest cycle's range alone** (the warm re-review, the Minor sweep's) → restate each unclosable
-  finding the last verdict listed, mark re-judged (`scope-findings.md`'s `## Warm cycles`).
+- **A re-review of the latest cycle's range** (the warm re-review with its reach, the Minor sweep's) → restate each
+  unclosable finding the last verdict listed, mark re-judged (`scope-findings.md`'s `## Warm cycles`).
 - **An implementer's or the lite controller's claimed case** is input to check, never a verdict.
 - **A Missing fail-to-pass run finding** never carries the mark.
 

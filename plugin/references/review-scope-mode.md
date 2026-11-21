@@ -41,16 +41,18 @@ Rare branches live in files of their own, each read only when its branch fires: 
 
 - **Summary**: the scope anchor's title, from the `anchor` field of the `scope.js state` call the skill's §1 made (`${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## The ledger`). The field reads `absent` → say so in one line and hand a diff-derived summary.
 - **Acceptance**: the path `<run-root>/dod.md`, as §1 states.
-- **Range**: the whole scope range `<range-base>..<branch>` on every dispatch, a re-review after a fix cycle included.
+- **Range**: the whole scope range `<range-base>..<branch>` on the entry dispatch and on a fresh dispatch after a resume that failed, was denied, or ended other than `completed`. Every other re-review takes **The warm re-review**'s subject in its place.
 - **Tier and run root**: the `tier:` line of `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" tier --root <run-root>` (`full`, `lite`, or `unknown`; `unknown` withholds no check, INV-0056: the reviewer grades every slice's recorded range as on `lite`), and `<run-root>`.
 - **Fix-cycle range**: a re-review hands the cycle's range `<cycle-base>..<cycle-tip>` as full commits. `<cycle-tip>` is the scope tip once you accept the cycle's report, before any merge of §4.1's **The moved base**.
 - **Untraced writes**: the reviewer runs `scope.js untraced` over the range of each window `fail-to-pass.md`'s `## Fail-to-pass run` gives the final reviewer, the `lite` slices with a recorded range and the scope's fix cycles with commits, a fix cycle's call naming its dispatch id from `scope.js windows --slice scope` as `--window` and a `lite` slice's call none, and grades the listing, per `${CLAUDE_PLUGIN_ROOT}/references/untraced-writes.md`'s `## Untraced writes`. The dispatch hands the run root and the ranges above and no listing, because the verb reads git and the trace itself. A `run full` or `run whole` line inside an implementer window is a Minor **Implementer suite run** finding.
 - **Fail-to-pass verdicts**: the reviewer runs `scope.js fail-to-pass-check` over each `lite` slice's recorded range and each fix cycle's range, per `${CLAUDE_PLUGIN_ROOT}/references/fail-to-pass.md`'s `### The verdict`, and keeps the judgments that section names. The dispatch hands no verdict, because the verb reads git and the trace itself.
 - **Suite result and red evidence**: as the next concept states.
 
-**The re-review after a warm cycle.** Applies to the re-review of a fix cycle whose list held only Minor findings. Message the reviewer of the fixed verdict with SendMessage. Name the cycle's range as full commits, per the **Fix-cycle range** above. That range is its subject in place of the whole range.
+**The warm re-review.** Applies to the re-review after every fix cycle, whatever the severity mix of its fix list, cycle 1 included, and to the re-review of a conflict-resolving base merge (`review-scope-base.md`'s `## The base merge`). Continue the `final-reviewer` whose verdict the cycle fixes through SendMessage; cycle 1 continues the entry review's `final-reviewer`. Name the cycle's range as full commits, per the **Fix-cycle range** above. That range plus its **Reach** is its subject in place of the whole range, as `final-reviewer`'s **Warm re-review subject** and **Reach** state.
 
-- `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Warm cycles` owns when the reviewer resumes and when it dispatches fresh.
+- **The resume fails, is denied, or ends other than `completed`** → dispatch a fresh `final-reviewer` with the whole range, per **Range**. The run trace records the failed resume as it records any run.
+- **The resumed run's own end comes first.** Wait for its `dispatch-end` before you read its verdict, as for a fresh dispatch.
+- **The resume message** carries what `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Warm cycles` **The resume message** names for a reviewer, each listed finding's text as quoted data to close or keep.
 - The continued reviewer restates each unclosable **Pass-to-pass** finding of its last verdict, its mark re-judged against the cycle's range. §3's combined verdict and §4.7's early escape read the restated findings.
 
 **The suite result.** Applies to every dispatch of `final-reviewer` in a scope review. `final-reviewer`'s `### Suite run` owns the result's handling.
@@ -63,7 +65,7 @@ Rare branches live in files of their own, each read only when its branch fires: 
 - **The tier call.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" tier --root <run-root>`. Its `simplicity:` line decides the skip. The verb derives it from the ledger's rows and stores nothing (INV-0056): `skip` is a `full` scope whose every slice is `behavior`, and `dispatch` is every other scope, an `unknown` tier included.
 - **`simplicity: skip`** → dispatch `final-reviewer` alone and skip `superdev:simplicity-reviewer`, reporting `` not dispatched — full tier, every slice `behavior` ``.
 - **`simplicity: dispatch`** → takes no skip from this concept. The skill's skip rules decide it, and the pass's findings go through the existing fix loop.
-- **Only the entry review dispatches it**, on every `/superdev:review` invocation. A fix cycle's re-review and a warm re-review get no over-engineering pass, so a cut never starts the next cycle.
+- **Only the entry review dispatches it**, on every `/superdev:review` invocation. A warm re-review and its fresh fallback get no over-engineering pass, so a cut never starts the next cycle.
 - Each cut it recommends is warranted or declined by the skill's §2 warranted-cut concept. A warranted cut joins the findings as a Minor.
 
 **The slice reviewer for an Unreviewed slice.** Applies to §4.6's **Unreviewed slice** branch. Its `superdev:slice-reviewer` dispatch departs from the skill's exclusion of `slice-reviewer`, and `review-scope-coverage.md`'s `## An Unreviewed slice finding` states it and its report contract.
@@ -254,9 +256,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - **Sibling surfaces**: require the implementer to bring each sibling surface in its own checkout into agreement with the rule or behaviour its fix changes, and to report each place it checked and each it changed. It reports a place outside its checkout, the `AGENTS.md` hierarchy, and the knowledge base unedited.
 - **Same-defect instances**: require the implementer to fix every other instance of the defect a finding names within the files the scope changes, the paths changed over `<range-base>..HEAD`, and to name each in its report. It reports an instance outside those files as an observation, unfixed. The re-review reads each instance the report names.
 
-**A warm cycle.** Applies to a cycle whose list holds only Minor findings, warranted cuts included. Run it per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Warm cycles`. The re-review's subject is §2's warm re-review range.
-
-- `scope-findings.md`'s `## Warm cycles` owns when a resume gives way to a fresh dispatch, the wait, what each resume message carries, and the continued `final-reviewer`.
+**A warm cycle.** Applies to a cycle whose list holds only Minor findings, warranted cuts included. Continue its implementer per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Warm cycles`, which owns when a resume gives way to a fresh dispatch, the wait, and what each resume message carries. Every cycle's re-review, a warm cycle's included, is §2's **The warm re-review**.
 
 **The report check.** Applies to each fix implementer's report, before the re-review.
 
@@ -264,7 +264,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - **The grep.** Before the re-review, grep the checkout for the key phrase of the rule the fix changed, in its old wording and its new, and compare the hits with the report's checked list. A hit in a file the list does not name is a missed sibling surface: send the report back, naming the hit, in the same cycle.
 - A hit in the `AGENTS.md` hierarchy or the knowledge base is named in your report instead. A hit in `CHANGELOG.md` is release history and needs no change.
 
-**The re-review and the cap.** Applies after the implementer returns. Re-review per §2 after each cycle.
+**The re-review and the cap.** Applies after the implementer returns. Re-review per §2's **The warm re-review** after each cycle.
 
 - The loop ends when the re-review lists no finding in the fix list, when its only remaining Critical or Important findings are unclosable or deferred, or when the **3-strike cap** is reached.
 - **The early escape: only unclosable Pass-to-pass findings remain among the Critical or Important ones, beside any deferred ones**, at any cycle the first verdict included → the scope proceeds under §3's combined verdict, with no further cycle. This holds attended and unattended, and neither blocks nor asks. Minors beside them are still fixed first, per §4.6.

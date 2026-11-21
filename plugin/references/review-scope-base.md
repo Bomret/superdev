@@ -6,7 +6,7 @@ Applies to a scope-mode `/superdev:review` when §4.1's **The moved base** check
 
 **The merge.** Applies at a stage before `shipped`, `submitted` included, when the branch lacks the tip. Run the base step of §4.1's **The base** yourself, with every rule it names, resolving a conflict per `${CLAUDE_PLUGIN_ROOT}/references/merge-conflicts.md`. Then run §4.1's **The preparation** again, resolve `<range-base>` again with `scope.js base resolve`, and hand every later dispatch the range from that value. Ship's full-suite evidence covers the merged tip.
 
-- **A merge that resolved a conflict** → `final-reviewer` reviews the resolution before §4.10's stage write or its leave-alone. The next re-review is a fresh whole-range dispatch per §2, never a warm resume. Before that write or leave-alone with no re-review due, dispatch one, handing the merge's range `<pre-merge-tip>..<merge-tip>` as full commits as its fix-cycle range. Its findings go through §4.6 and §4.7 as any re-review's do.
+- **A merge that resolved a conflict** → `final-reviewer` reviews the resolution before §4.10's stage write or its leave-alone. Its subject is the merge's `git show --remerge-diff <merge-tip>` plus its **Reach**, never the whole scope range (`final-reviewer`'s **Warm re-review subject**). It is §2's **The warm re-review** when this invocation has a live `final-reviewer`, and a fresh `final-reviewer` dispatch handed that subject and the merge's range `<pre-merge-tip>..<merge-tip>` as full commits otherwise. Its findings go through §4.6 and §4.7 as any re-review's do.
 - **A merge with no conflict** → no re-review. Ship's full-suite evidence verifies it.
 - **Neither a base merge nor its re-review counts as a fix cycle** toward §4.7's cap.
 
