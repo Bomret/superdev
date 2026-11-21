@@ -35,9 +35,9 @@ No prerequisite plugins.
   marketplace.json     — single-plugin marketplace manifest (deliberately NO version field); its
                          `source` is a `git-subdir` entry with `path` `plugin` and `ref` `v<version>`, so
                          an install copies only the shipped tree below, as the release tag holds it
-.github/workflows/     — the CI workflows, each stating what it runs in its own header. The template-tests
-                         workflow runs the knowledge-base template suite on Linux, macOS, and Windows
-                         (Git Bash) for every pull request to `main` (ADR 0212). The full-suite workflow
+.github/workflows/     — the CI workflows, each stating what it runs in its own header. The cross-platform
+                         workflow runs the knowledge-base template suite and the write-fence suite on Linux, macOS, and
+                         Windows (Git Bash) for every pull request to `main` (ADR 0212, INV-0152). The full-suite workflow
                          runs `node scripts/run-tests.js` on Linux for every pull request to `main`.
                          `docs/agents/verification.md` → CI names its check
 plugin/                — the SHIPPED tree: everything a user's install copies, nothing else

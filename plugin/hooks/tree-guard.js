@@ -7,7 +7,7 @@
 //
 // The guard fails open: a call it cannot judge passes. That covers unreadable hook
 // input, a git call that fails or exceeds its bound, an unreadable run directory, a main working tree it cannot determine, and a
-// `lib/main-work-tree.js` that will not load. A misdirected write into a checkout shows in `git status` and reverts easily. A write into a git
+// `lib/main-work-tree.js` that will not load, and a drive or UNC root that does not exist. A misdirected write into a checkout shows in `git status` and reverts easily. A write into a git
 // directory never shows there, which is why the guard refuses one whenever it can judge the call. A transient git failure must
 // not stop every implementer write in a run (ADR 0148, INV-0009).
 
@@ -79,7 +79,10 @@ const lstat = (p) => {
     return null;
   }
 };
-const segments = (p) => p.split(path.sep).filter((s) => s && s !== '.');
+// The root (`/`, `C:\`, `\\server\share\`) is taken off before the split, so no drive or share is ever a segment. Windows takes `\` and
+// `/` as separators.
+const SEPARATORS = process.platform === 'win32' ? /[\\/]+/ : /\/+/;
+const segments = (p) => p.slice(path.parse(p).root.length).split(SEPARATORS).filter((s) => s && s !== '.');
 function landing(abs) {
   const todo = segments(abs);
   let at = path.parse(abs).root; // the walk so far: no `..`, every symlink in it followed
@@ -103,7 +106,11 @@ function landing(abs) {
   }
   let anc = at;
   let st;
-  while (!(st = lstat(anc))) anc = path.dirname(anc);
+  while (!(st = lstat(anc))) {
+    // A root that does not exist (an unmapped drive, an unknown share) has no ancestor: no verdict, and the write passes.
+    if (path.dirname(anc) === anc) throw new Error('root does not exist');
+    anc = path.dirname(anc);
+  }
   const real = fs.realpathSync.native(anc);
   const dir = st.isDirectory() ? real : path.dirname(real);
   return { file: path.join(real, path.relative(anc, at)), dir };
