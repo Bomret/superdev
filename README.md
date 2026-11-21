@@ -24,10 +24,10 @@ docs to a knowledge base. It needs no other plugin.
   verify-ship, and wrap-up. `/superdev:ship` takes the full-suite evidence for the head it merges.
   The evidence is every named CI check green. Where no checks are named, it is a local run of the full suite.
   Every other exit prints the next command for you to type.
-- Deterministic hooks hold the rules a prompt cannot. A subagent's command that merges or pushes is denied,
-  though a deliberately obfuscated command (`G=git; $G push`) gets through. An implementer's Edit, Write, or
-  NotebookEdit is refused when it targets another checkout of a repository that holds a run, outside
-  `.superdev/`, or that repository's git directory. `scope.js` reports an outside edit of a run's ledger or trace, and
+- Deterministic hooks hold the rules a prompt cannot. A subagent's command that merges or pushes is denied.
+  A deliberately obfuscated command, such as `G=git; $G push`, gets through. An implementer's Edit, Write, or
+  NotebookEdit is refused in another checkout of a repository that holds a run, outside its `.superdev/`. The
+  same fence covers that repository's git directory. `scope.js` reports an outside edit of a run's ledger or trace, and
   the review grades an untraced write.
 - Backends are pluggable. Slices live in GitHub Issues, Jira, Forgejo or Codeberg Issues, or a tracker you
   describe. Docs can go to a knowledge base such as a GitHub Wiki or Confluence.

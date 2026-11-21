@@ -35,7 +35,7 @@ a module of its own: the ledger verbs in `ledger-lifecycle.js` and `ledger-recor
 `citations`, `collisions`, `source-set`, `untraced`, `push`, `discard`, `status`, `section`, `tier`, `dod-open`, `contained`, `red-evidence`, `candidates`, `denial`, `consent`, and `route` each in the module of its name. `branch` is `scope-branch.js`'s `resolveScopeBranch`, `checkout` is `scope-checkout.js`'s `scopeCheckout`, and `lock` is `run-lock.js`'s `verbLock`; `run-lock.js` also holds the run lock's reader and one-hour bound that `plan-open.js` shares. `run-roots.js` holds the one scan of `.superdev/scopes/*/` that `status` and `candidates` share. `trace` and `windows` live in `scope.js` over `trace-window.js` (`readRunTrace`, `sliceOf`, `editPath`, `windowsOf`, `windowIndexes`, `traceFlags`), the one window derivation `trace --window`, `untraced --window`, and `fail-to-pass-check --window` share, and `traceFlags` is the flag parser `trace`, `windows`, `untraced`, and `fail-to-pass-check` share. The run-state ref (`refs/superdev/<scope>`, ADR 0202) is `run-state-ref.js`: `pushRunState` at a step end (`step clear`, `step block`, or a `stage set` that closes the standing step, except `stage set closed`), `fetchRunState` inside `adopt`, and `deleteRunState` behind `run-state delete`. It takes `gitCall` from `push.js` and `parseRemote` from `kb-containment.js`. The vocabulary beneath them is `ledger.js` (the stage rank and the readers and writers of
 a ledger's header lines, bullets, and table rows), `refusal.js` (the refusal error `fail`), `verification.js` (`verificationCommands`,
 `verificationCommandsOf`, `prepareCommandOf`, `namedChecksOf`, `isTestPath`), `git-spawn.js` (`gitSpawn`, `gitThrow`, `parseBranchList`, `resolveCommit`, `refResolves`, `literalEnv`, `existsAt`, `fileAt`, `listWorktrees`),
-`containment.js` (`testContainment`, `judgeContainment`, `refetchMark`, `baseHistoryHasPatch`, `baseCommitHoldsBranch`), `main-work-tree.js` (`mainWorkTree`, `scopesDirFor`, `mainTreePath`), and
+`containment.js` (`testContainment`, `judgeContainment`, `refetchMark`, `baseHistoryHasPatch`, `baseCommitHoldsBranch`, `patchInBaseHistory`, `commitInBaseHistory`), `main-work-tree.js` (`mainWorkTree`, `scopesDirFor`, `mainTreePath`), and
 `trace-log.js` (`appendTrace`, `readTrace`, `traceField`, `untraceField`). Each `plugin/lib/` module opens with its file name and a colon naming its one
 responsibility, so the directory is the list of modules. `git-spawn.js`'s `existsAt` is the shared existence check at a commit: `true` for a path the commit holds, an empty
 file included. It returns `false` for a path the commit does not hold. It returns `null` where git cannot say. It reads no blob, so a file of any size answers, and a
@@ -157,9 +157,10 @@ refresh leaves the append's result as it was.
 `readLedgerHeader`, and no hook and no sibling script requires `scope.js`: each requires the module that
 holds what it uses. `readLedgerHeader`, the per-header ledger-line reader, lives in `plugin/lib/ledger.js`,
 and `hooks/scope-prune.js` and `hooks/slicetree-sweep.js` both require it there instead of carrying their own
-regex. `hooks/scope-prune.js` requires `baseHistoryHasPatch` — the containment probe (ADR 0082) — and
-`baseCommitHoldsBranch` — the third tier (ADR 0248) — from `plugin/lib/containment.js` through a `require` of
-its own, and they fall back differently from the reader: the reader missing stops that hook's sweep outright,
+regex. `hooks/scope-prune.js` requires `patchInBaseHistory` — the containment probe (ADR 0082) — and
+`commitInBaseHistory` — the third tier (ADR 0248) — from `plugin/lib/containment.js` through a `require` of
+its own. Each answers `true`, `false`, or `null` for a failed git call, so the hook records only a decisive not-contained
+answer (INV-0199); `baseHistoryHasPatch` and `baseCommitHoldsBranch` are their boolean forms, which read `null` as `false`. The tiers fall back differently from the reader: the reader missing stops that hook's sweep outright,
 while a tier missing, because its module cannot load or lacks that tier, narrows its containment test to the
 tiers it keeps, silently. A module requires no entry point, so a `require` of a module runs no CLI code, and `scope.js`
 guards its own CLI entry with `require.main === module`. `hooks/run-trace.js` takes
