@@ -31,7 +31,7 @@ Rare branches live in files of their own, each read only when its branch fires: 
 - `step clear`.
 - A stage write.
 - `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step block --root <run-root>`.
-  - A blocked stop, a refusal, a `First:` wait, and a review exit without a clean verdict each run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" reviewed clear --root <run-root>` and then `step block` (INV-0200).
+  - A blocked stop, a refusal, a `First:` wait, and a review exit without a clean verdict each run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" reviewed clear --root <run-root>` and then `step block` (INV-0201).
 
 **The snapshot.** Applies to every exit after the `step set review` call. When this review made a ledger write `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` lists, publish the snapshot once per that section, as the exit's last act: after its closer and after every ledger write the exit makes past it, such as §4.10's `docs clear` and `docs` untick entries. No other step of this review publishes.
 
@@ -127,7 +127,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 
 **The preparation.** Applies at a stage before `shipped`, `submitted` included, after the base step and before §4.2's red evidence, so the tree is ready before the first fix cycle runs a test in it. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <run-root>/scopetree` in the controller's own Bash call, per `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Preparing a worktree`: a merged slice or the base step can add a dependency. A failing preparation stops the review, naming the command and its exit. **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`.
 
-**The reviewed-tip check.** Applies on every invocation, after the base step and the `<range-base>` resolve where they run, and before §4.2's red evidence. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" reviewed check --root <run-root> --branch <branch> --base <base>` and route on its one line (ADR 0272, INV-0200).
+**The reviewed-tip check.** Applies on every invocation, after the base step and the `<range-base>` resolve where they run, and before §4.2's red evidence. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" reviewed check --root <run-root> --branch <branch> --base <base>` and route on its one line (ADR 0273, INV-0201).
 
 - **`whole <reason>`** → the whole-range review §2 states. The report names the reason in one line.
 - **`delta <sha> <old-range-base>`** → the **Delta review**. The entry `final-reviewer` dispatch is fresh and hands `<sha>` and `<old-range-base>` as full commits. Its subject is the first-parent commits `<sha>..<branch>`, each base merge among them as `git show --remerge-diff`, the **Reach** of the base's own changes `<old-range-base>..<range-base>` kept to hits inside files the scope range `<range-base>..<branch>` changes, and the **Reach** of the delta (`final-reviewer`'s **Delta review subject**). It re-judges only the criteria those touch. Fix cycles continue that reviewer per §2's **The warm re-review**.
@@ -318,7 +318,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - **`documented`, `submitted`, `shipped`, or `closed`** → leave the line alone and say so in one line.
 - **Anything else** → write `reviewed`.
 
-**The reviewed tip.** Applies to every clean-verdict exit, after the stage write or the leave-alone and before the step clear (ADR 0272, INV-0200). `<judged tip>` is the scope tip the final verdict judged: the entry dispatch's `<branch>` tip, the last re-review's `<cycle-tip>`, a conflict-resolving merge's `<merge-tip>`, or `<sha>` on `unchanged`. A conflict-free base merge §4.1's **The moved base** made after that verdict leaves it as it stood, and the next invocation's delta reads that merge.
+**The reviewed tip.** Applies to every clean-verdict exit, after the stage write or the leave-alone and before the step clear (ADR 0273, INV-0201). `<judged tip>` is the scope tip the final verdict judged: the entry dispatch's `<branch>` tip, the last re-review's `<cycle-tip>`, a conflict-resolving merge's `<merge-tip>`, or `<sha>` on `unchanged`. A conflict-free base merge §4.1's **The moved base** made after that verdict leaves it as it stood, and the next invocation's delta reads that merge.
 
 - **A route that leaves no finding standing except deferred ones**: a clean first verdict, a clean re-review, a fix list §4.6's criterion question leaves empty, and `unchanged` with no red evidence → run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" reviewed set --root <run-root> --branch <branch> --tip <judged tip>`, whether the stage line was written or left alone.
 - **A refused `reviewed set`** (as with no `dod.md` in the run root) → report it in one line and go on to the step clear. The next invocation reads the whole range.

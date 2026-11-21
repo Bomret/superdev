@@ -284,7 +284,7 @@ function run(argv, cwd, stdinJson) {
         return v;
       };
       const branch = take('--branch');
-      // Reads the ledger, dod.md, and git and writes nothing: no trace event, no digest seal (INV-0200).
+      // Reads the ledger, dod.md, and git and writes nothing: no trace event, no digest seal (INV-0201).
       if (sub === 'check') {
         const base = take('--base');
         if (!branch) fail('reviewed check needs --branch <branch>');

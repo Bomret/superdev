@@ -1,6 +1,6 @@
 'use strict';
 
-// Suite for plugin/scripts/scope.js's reviewed-tip verbs (ADR 0272, INV-0200): `reviewed set`, `reviewed clear`, and
+// Suite for plugin/scripts/scope.js's reviewed-tip verbs (ADR 0273, INV-0201): `reviewed set`, `reviewed clear`, and
 // `get reviewed`, the ledger's `**Reviewed:**` record of the scope tip a clean scope review judged beside a digest of
 // `dod.md`'s criterion texts and tags. The git repository is built once and copied per case.
 

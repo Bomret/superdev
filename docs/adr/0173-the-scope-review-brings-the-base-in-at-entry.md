@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 
-**Amended by:** [ADR 0272](0272-every-scope-re-review-continues-warm-and-a-repeat-review-reads-the-delta.md).
+**Amended by:** [ADR 0273](0273-every-scope-re-review-continues-warm-and-a-repeat-review-reads-the-delta.md).
 
 **Amended by:** [ADR 0192](0192-the-full-suite-runs-once-after-review-comes-back-clean.md), under which the review's base merge at entry is verified by its exit run, not its entry.
 

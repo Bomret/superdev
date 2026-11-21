@@ -67,7 +67,7 @@ title, `test-applicability` type, dependencies, `plan-contract.md` status, and c
   `<sha> <digest>` or `absent`. Each write that changes the ledger appends a `ledger reviewed set <sha> <digest>` or
   `ledger reviewed clear` trace line. `reviewed check --branch <branch> --base <base-ref>` reads it without writing and
   prints one verdict: `delta <sha> <old range base>`, `unchanged <sha>`, or `whole <reason>`. A ledger with no such line
-  has no reviewed tip on record, and `reviewed check` reads it as `whole no-record` (ADR 0272, INV-0200).
+  has no reviewed tip on record, and `reviewed check` reads it as `whole no-record` (ADR 0273, INV-0201).
 
 **The step line.** Applies to every write and read of `**Step:**`. Write it with `step set <name>` as the step starts,
 and read it with `get step`, which prints `none` when the line is absent. `scope.js` refuses any other name and leaves

@@ -308,16 +308,16 @@ _Avoid: "backlog", "deferred Minors" (a deferred finding is a different thing, w
 **Warm cycle**: a fix cycle whose fix list holds only Minor findings, run by continuing the loop's previous fix implementer through SendMessage instead of dispatching a fresh one. The **Minor sweep**'s re-review is always a fresh `slice-reviewer` (ADR 0174).
 _Avoid: "resume" (a resumed run is a run kind)_
 
-**Warm re-review**: a scope review's re-review after any fix cycle, or after a conflict-resolving base merge, made by continuing the `final-reviewer` whose verdict it follows. Its subject is the cycle's range, or the merge's remerge-diff, plus its **Reach**. It restates each unclosable Pass-to-pass finding of its last verdict with its mark re-judged (ADR 0272, ADR 0193, INV-0143).
+**Warm re-review**: a scope review's re-review after any fix cycle, or after a conflict-resolving base merge, made by continuing the `final-reviewer` whose verdict it follows. Its subject is the cycle's range, or the merge's remerge-diff, plus its **Reach**. It restates each unclosable Pass-to-pass finding of its last verdict with its mark re-judged (ADR 0273, ADR 0193, INV-0143).
 _Avoid: "incremental review", "partial review"_
 
-**Reach**: the code and prose a changed range bears on: every tracked file that names a changed file's path, a changed `## ` heading or bold concept label, or a changed exported or defined symbol, read at the enclosing concept or function. A warm re-review and a delta review read it beside their range (ADR 0272).
+**Reach**: the code and prose a changed range bears on: every tracked file that names a changed file's path, a changed `## ` heading or bold concept label, or a changed exported or defined symbol, read at the enclosing concept or function. A warm re-review and a delta review read it beside their range (ADR 0273).
 _Avoid: "blast radius", "impact set"_
 
-**Reviewed tip**: the ledger's record of the scope tip a clean scope review judged, beside a digest of `dod.md`'s criterion texts and tags. It is the start of a later **Delta review** (ADR 0272, INV-0200).
+**Reviewed tip**: the ledger's record of the scope tip a clean scope review judged, beside a digest of `dod.md`'s criterion texts and tags. It is the start of a later **Delta review** (ADR 0273, INV-0201).
 _Avoid: "last reviewed commit", "review checkpoint"_
 
-**Delta review**: a scope review that reads only what changed since the **Reviewed tip** and its **Reach**, a base merge read as its conflict resolution plus the reach of the base's own changes inside the scope's files. Every other criterion keeps its recorded verdict (ADR 0272, INV-0200).
+**Delta review**: a scope review that reads only what changed since the **Reviewed tip** and its **Reach**, a base merge read as its conflict resolution plus the reach of the base's own changes inside the scope's files. Every other criterion keeps its recorded verdict (ADR 0273, INV-0201).
 _Avoid: "incremental review", "diff review"_
 
 **Sibling surface**: another place in a checkout that states the same rule or behaviour as the text a fix changes, such as a reference, a glossary entry, an ADR, a code comment, or a test. A fix that leaves one stating the old rule is incomplete. The `AGENTS.md` hierarchy and the knowledge base are exceptions: a fix reports them and the doc pass edits them. `CHANGELOG.md` is release history and is no sibling surface.

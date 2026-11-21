@@ -1,6 +1,6 @@
 'use strict';
 
-// Suite for plugin/scripts/scope.js's `reviewed check` (ADR 0272, INV-0200): the read-only verdict on a recorded
+// Suite for plugin/scripts/scope.js's `reviewed check` (ADR 0273, INV-0201): the read-only verdict on a recorded
 // reviewed tip, `delta <sha> <old range base>`, `unchanged <sha>`, or `whole <reason>`. Each case runs the real CLI in
 // a child process from a copy of one fixture repository. A case that needs git itself to answer differently runs the
 // CLI with a `git` wrapper first on PATH, built in the fixture, that answers one call its own way and hands every other

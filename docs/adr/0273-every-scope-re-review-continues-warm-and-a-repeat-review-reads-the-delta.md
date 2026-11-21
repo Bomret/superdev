@@ -1,4 +1,4 @@
-# 0272: Every scope re-review continues warm, and a repeat review reads the delta
+# 0273: Every scope re-review continues warm, and a repeat review reads the delta
 
 **Status:** Accepted
 

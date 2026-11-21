@@ -1,6 +1,6 @@
 'use strict';
 
-// reviewed-tip.js: the reviewed-tip record (ADR 0272, INV-0200): the ledger's `**Reviewed:** <sha> <digest>` header that
+// reviewed-tip.js: the reviewed-tip record (ADR 0273, INV-0201): the ledger's `**Reviewed:** <sha> <digest>` header that
 // `reviewed set` writes and `reviewed clear` removes, the digest of `dod.md`'s criterion texts and tags it carries, and
 // `reviewed check`, the read-only verdict a scope review takes from the record.
 
