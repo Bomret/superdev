@@ -73,6 +73,7 @@ function passed(r, label) {
   const f = transcript([prompt('review the scope'), skill('superdev:review', 'feat/x'), text('Asking.')]);
   const r = run(ask(f), 'first ask');
   denied(r, 'first ask in an attended superdev wait');
+  assert.match(r.stderr, /no secret/, 'the deny tells the model to put no secret in the alert');
   assert.match(r.stderr, /same question/, 'the deny asks for the same question again');
   assert.match(r.stderr, /no option/, 'the deny tells the model to choose no option itself');
   assert.match(r.stderr, /ToolSearch/, 'the deny says how to load the deferred tool');
@@ -179,6 +180,7 @@ const attended = () => transcript([prompt('go'), skill('superdev:review', 'feat/
   const f = attended();
   const r = run(stop(f, blocked), 'blocked');
   denied(r, 'a Blocked: Next block in an attended wait blocks the stop');
+  assert.match(r.stderr, /no secret/, 'the block tells the model to put no secret in the alert');
   assert.match(r.stderr, /no further text/, 'the block tells the model to add no text after the Next block');
   denied(run(stop(f, first), 'first'), 'a First: Next block with CRLF line ends blocks the stop');
   denied(run(stop(f, noFence), 'no fence'), 'a First: line in a Next block with no fence blocks the stop');
@@ -228,4 +230,71 @@ const attended = () => transcript([prompt('go'), skill('superdev:review', 'feat/
   denied(viaRegistration(stopCommands[0], stop(attended(), blocked), 'registered stop'), 'the registered command blocks the stop');
 }
 
-console.log('operator-alert: ok');
+// ---- Read cost ----
+
+{
+  // The decision's cost grows linearly with the transcript. timePair (tests/linear-time.js) reads the CPU time of its own
+  // thread, and the hook runs in a child process, so its reading would hold only the spawn. The pin reads the child's own
+  // main-thread CPU time instead, through a `-r` preload this suite writes, and keeps timePair's rules: a same-run
+  // baseline (a near-empty transcript's startup cost, subtracted), best of three samples, a ratio-4 input pair against a
+  // ceiling of 10 between linear (4) and quadratic (16) growth, and up to three attempts so a load spike decides nothing.
+  const preload = path.join(tmp, 'thread-cpu.js');
+  fs.writeFileSync(preload,
+    "process.on('exit', () => { const u = process.threadCpuUsage(); require('fs').writeSync(1, String(u.user + u.system)); });\n");
+  const block = [text('x'.repeat(200)), (() => {
+    const b = toolUse('Bash', { command: 'ls' });
+    return [b.entry, result(b.tid, 'y'.repeat(500))];
+  })()].flat().map((e) => JSON.stringify(e)).join('\n') + '\n';
+  const head = [prompt('go'), skill('superdev:review', 'feat/x')].map((e) => JSON.stringify(e)).join('\n') + '\n';
+  const sized = (k) => {
+    const file = path.join(tmp, `cost${k}.jsonl`);
+    fs.writeFileSync(file, head + block.repeat(k));
+    return file;
+  };
+  const files = { base: sized(1), small: sized(8000), big: sized(32000) };
+  const cpuUs = (file) => {
+    const r = cp.spawnSync(process.execPath, ['-r', preload, hookPath], { input: JSON.stringify(ask(file)), encoding: 'utf8', timeout: 60000 });
+    assertSpawnDecided(r, 'read cost');
+    denied(r, 'read cost: the sized transcript decides the full path');
+    return Number(r.stdout);
+  };
+  const best = (file) => Math.min(cpuUs(file), cpuUs(file), cpuUs(file));
+  const CEILING = 10;
+  let small;
+  let big;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const base = best(files.base);
+    small = best(files.small) - base;
+    big = best(files.big) - base;
+    if (big < small * CEILING) break;
+  }
+  assert.ok(small > 0, `read cost: the small transcript costs more than startup (${small} us)`);
+  assert.ok(big < small * CEILING, `read cost must grow linearly: 8000 blocks took ${small} us, 32000 took ${big} us`);
+}
+
+// ---- Stdin bound ----
+
+const held = new Promise((resolve, reject) => {
+  // Stdin that never closes passes at the hook's 5 s bound: exit 0, no output. The suite asserts the outcome only.
+  const child = cp.spawn(process.execPath, [hookPath], { stdio: ['pipe', 'pipe', 'pipe'], timeout: 60000 });
+  let out = '';
+  let err = '';
+  child.stdout.on('data', (c) => (out += c));
+  child.stderr.on('data', (c) => (err += c));
+  child.stdin.write(JSON.stringify(ask(attended())).slice(0, 20));
+  child.on('error', reject);
+  child.on('close', (status, signal) => {
+    try {
+      assert.strictEqual(signal, null, 'stdin held open: the hook ended by its own bound, not the suite\'s kill');
+      passed({ status, stdout: out, stderr: err }, 'stdin held open');
+      resolve();
+    } catch (e) {
+      reject(e);
+    }
+  });
+});
+
+held.then(() => console.log('operator-alert: ok'), (e) => {
+  console.error(e);
+  process.exitCode = 1;
+});
