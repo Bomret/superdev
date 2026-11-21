@@ -11,8 +11,10 @@
 // It reads the session transcript (`transcript_path`, JSONL). A session is attended when its newest superdev start, a
 // Skill tool call naming `superdev:*` or a typed `/superdev:` command, carries no `--unattended` among its arguments. A
 // wait starts at the operator's newest input: a typed prompt, or a non-error answer to an AskUserQuestion. A
-// PushNotification call since then, or an earlier stop of this hook (its marker in an error tool result), releases the
-// wait. A call carrying `agent_id`, a missing or unreadable transcript, malformed input, or the 5 s bound passes.
+// PushNotification call since then, or an earlier deny of this hook, releases the wait. That deny is an error result of
+// an AskUserQuestion call whose text opens with `PreToolUse:AskUserQuestion hook error: [<command>]: ` and the marker;
+// the marker anywhere else, in another tool's output or in a typed prompt, releases nothing. A call carrying
+// `agent_id`, a missing or unreadable transcript, malformed input, or stdin that does not close within 5 s passes.
 // The Stop path decides from `last_assistant_message` before it opens the transcript.
 
 const fs = require('fs');
@@ -31,8 +33,10 @@ const STOP_REASON =
   `PushNotification tool once (${LOAD}), with ${MESSAGE}. Then end the turn: write no further text, make no other ` +
   'tool call, and start no command.';
 
-// Text a user entry carries that is no operator input: harness notices, command output, and this hook's own reasons.
+// Text a user entry carries that is no operator input: harness notices and command output.
 const NOT_INPUT = /^\s*<(task-notification|system-reminder|local-command-)/;
+// This hook's own deny as the error result of an AskUserQuestion call: Claude Code prefixes the hook's stderr.
+const DENIAL = new RegExp(`^\\s*PreToolUse:AskUserQuestion hook error: \\[[^\\n]*\\]: ${MARKER}`);
 
 function textOf(content) {
   if (typeof content === 'string') return content;
@@ -76,19 +80,16 @@ function readSession(file) {
       for (const b of content) {
         if (!b || b.type !== 'tool_result') continue;
         const body = textOf(b.content);
+        if (!askIds.has(b.tool_use_id)) continue;
         if (b.is_error) {
-          if (body.includes(MARKER)) released = true;
-        } else if (askIds.has(b.tool_use_id)) {
+          if (DENIAL.test(body)) released = true;
+        } else {
           released = false; // the operator answered: a new wait starts
         }
       }
       continue;
     }
     const t = textOf(content);
-    if (t.includes(MARKER)) {
-      released = true;
-      continue;
-    }
     if (NOT_INPUT.test(t)) continue;
     released = false; // a typed prompt: a new wait starts
     if (/^\s*<command-(message|name)>/.test(t)) {
@@ -129,7 +130,8 @@ function decide(input) {
 }
 
 function main() {
-  // A hook that cannot finish lets the call and the stop through: exit 0 at the bound.
+  // Stdin that does not close within 5 s lets the call and the stop through: exit 0. The transcript read is synchronous,
+  // so the bound covers the wait for stdin only.
   setTimeout(() => process.exit(0), 5000).unref();
   let raw = '';
   process.stdin.setEncoding('utf8');

@@ -103,6 +103,19 @@ function passed(r, label) {
 }
 {
   const f = transcript([prompt('go'), skill('superdev:review', 'feat/x'), push(),
+    prompt('why did it say "superdev: operator alert — this question waits on the operator"?')]);
+  denied(run(ask(f), 'quoted reason'), 'a typed prompt quoting the reason starts a new wait like any prompt');
+}
+{
+  const b = toolUse('Bash', { command: 'grep -rn "superdev: operator alert" tests && false' });
+  const c = toolUse('Bash', { command: 'grep -n "hook error" tests/operator-alert.test.js && false' });
+  const f = transcript([prompt('go'), skill('superdev:review', 'feat/x'), b.entry,
+    result(b.tid, 'Exit code 1\ntests/x.js:3: superdev: operator alert — …', true), c.entry,
+    result(c.tid, 'PreToolUse:AskUserQuestion hook error: [node "/x/hooks/operator-alert.js"]: superdev: operator alert — …', true)]);
+  denied(run(ask(f), 'bash error'), 'a failing tool call whose output carries the marker releases no wait');
+}
+{
+  const f = transcript([prompt('go'), skill('superdev:review', 'feat/x'), push(),
     prompt('<task-notification>\n<task-id>a1</task-id>\n</task-notification>'),
     prompt('<system-reminder>x</system-reminder>'), prompt('<local-command-stdout>x</local-command-stdout>'),
     { type: 'user', isCompactSummary: true, message: { role: 'user', content: 'This session is being continued…' } },
