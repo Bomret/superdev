@@ -129,7 +129,7 @@ _Avoid: "replay" (ADR 0118 uses it for re-running reviewers on earlier slices), 
 skips it on a tree it already prepared whose every tracked change since is Markdown (ADR 0238).
 _Avoid: "setup command" (`/superdev:setup` owns "setup"), "install step" (the command can do more than install)_
 
-**Warrant**: the justification a piece of work carries. It scales both cost (which model a dispatch uses) and rigor (which review gates run). Derived from a slice's test-applicability and complexity, never a plan field. A `behavior` slice warrants more than a `mechanical` one. A hook blocks any dispatch that omits an explicit model, so cost stays warrant-scaled.
+**Warrant**: the justification a piece of work carries. It scales both cost (which model a dispatch uses) and rigor (which review gates run). Derived from a slice's test-applicability and complexity, never a plan field. A `behavior` slice warrants more than a `mechanical` one. A hook blocks a dispatch to one of superdev's own agents that omits an explicit model, so cost stays warrant-scaled.
 _Avoid: "priority", "estimate", "weight"_
 
 **Warranted cut**: a cut the simplicity lens recommends (through `simplicity-reviewer` or a slice's first review) the controller accepts because it honours the rules the repository documents for itself, by the rule `/superdev:review`'s warranted-cut concept states; the controller names each cut it declines with the rule it would break. A warranted cut joins the review's fix set as a Minor finding, in the full tier's per-slice loop, in scope review, and in ad-hoc review alike. Only the entry review gets the over-engineering pass, so a cut never starts the next cycle (ADR 0228). Distinct from **Warrant**, the justification that scales a piece of work's cost and rigor.

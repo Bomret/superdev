@@ -259,7 +259,8 @@ parent has already exited is outside the tree `taskkill /t` walks, so it can out
 - `scope.js test` records the test command's exit status, for a test command in POSIX syntax and for a
   focused command over quoted paths.
 - `scope.js fail-to-pass` kills a run that exceeds its bound and leaves no worktree behind.
-- The Stop hook sweeps a merged slicetree, and the scope is reaped.
+- The Stop hook sweeps a merged slicetree. It reaps a scope whose ledger reads `closed`, whose run root has sat
+  unchanged past the seven-day staleness window, and whose scope branch is contained in base or gone.
 - A `/c/…` path in a command locates the ledger.
 - `core.hooksPath=/dev/null` disables git hooks under Git for Windows.
 
