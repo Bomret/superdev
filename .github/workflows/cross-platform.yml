@@ -1,0 +1,36 @@
+name: cross-platform
+
+# Runs two suites on each operating system for every pull request to `main`: the knowledge-base template suite
+# (`tests/publish-kb-templates.test.js`, ADR 0212) and the write-fence suite (`tests/tree-guard.test.js`, INV-0152).
+# On Windows the fence suite runs its native-path cases (backslash, forward slash, lower-case drive, 8.3 name,
+# junction, unmapped drive, UNC root) and asserts that they ran, so a fence that lets a guarded write through on any of
+# the three systems fails its check. The full suite runs on Linux alone, in full-suite.yml.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  cross-platform:
+    name: cross-platform (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+      # Puts Git Bash's sh first on PATH, so the suites' spawn of `sh` reaches it from native Node.
+      - if: runner.os == 'Windows'
+        run: cygpath -w /usr/bin >> "$GITHUB_PATH"
+      - run: node tests/publish-kb-templates.test.js
+      - run: node tests/tree-guard.test.js

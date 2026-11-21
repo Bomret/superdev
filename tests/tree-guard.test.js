@@ -119,8 +119,9 @@ assert.equal(
 assert.equal(registeredHooksDeny('Edit', { ...implementerWrite(path.join(fx.main, 'a.txt'), fx.main), tool_name: 'Edit' }), true, 'an implementer Edit into the main checkout is denied by the registered hooks');
 
 // The reproduction for the child process: a git shim holds the hook's first git call past its bound, so the child fails open and
-// exits 0 although the write is denied. That reads as no verdict, and the registered-hooks check measures it again.
-{
+// exits 0 although the write is denied. That reads as no verdict, and the registered-hooks check measures it again. The shim is a
+// `#!/bin/sh` script named `git`, which Node's `spawnSync('git')` never runs on Windows: POSIX-only machinery.
+if (process.platform !== 'win32') {
   const realGit = cp.execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
   const shim = path.join(fx.base, 'child-hold-shim');
   const flag = path.join(fx.base, 'child-hold-flag');
@@ -269,8 +270,9 @@ for (const target of [path.join(fx.main, 'a.txt'), path.join(fx.main, '.git', 'c
 
 // The reproduction of the intermittent failure, made deterministic: a git shim that holds one designated call past the hook's
 // bound before it does anything (the call a starved spawn leaves killed before its first line ran). The hook fails open on that
-// call, so the decision carries no verdict and is measured again. Each target is a denial the suite asserts.
-{
+// call, so the decision carries no verdict and is measured again. Each target is a denial the suite asserts. POSIX-only: the
+// `#!/bin/sh` shim named `git` never runs on Windows.
+if (process.platform !== 'win32') {
   const realGit = cp.execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
   const shim = path.join(fx.base, 'hold-shim');
   const flag = path.join(fx.base, 'hold-flag');
@@ -304,21 +306,24 @@ for (const target of [path.join(fx.main, 'a.txt'), path.join(fx.main, '.git', 'c
   assert.equal(runMeasured(hook, write), 2, 'control: the hook process denies an implementer write into the main checkout');
   assert.equal(run(hook, '{not json'), 0, 'unreadable hook input passes');
 
-  // A git call past its bound carries no verdict (INV-0009).
-  const slow = path.join(fx.base, 'slow-git');
-  fs.mkdirSync(slow);
-  const marker = path.join(slow, 'called');
-  fs.writeFileSync(path.join(slow, 'git'), `#!/bin/sh\necho git >> '${marker}'\nexec sleep 5\n`, { mode: 0o755 });
-  assert.equal(run(hook, write, { PATH: `${slow}${path.delimiter}${process.env.PATH}` }), 0, 'a git call past its bound passes');
-  assert.ok(fs.existsSync(marker), 'the hook reached the slow git stub');
+  // A git call past its bound carries no verdict (INV-0009). POSIX-only: a `#!/bin/sh` shim named `git`, and `chmod 0o000`
+  // below, do nothing on Windows.
+  if (process.platform !== 'win32') {
+    const slow = path.join(fx.base, 'slow-git');
+    fs.mkdirSync(slow);
+    const marker = path.join(slow, 'called');
+    fs.writeFileSync(path.join(slow, 'git'), `#!/bin/sh\necho git >> '${marker}'\nexec sleep 5\n`, { mode: 0o755 });
+    assert.equal(run(hook, write, { PATH: `${slow}${path.delimiter}${process.env.PATH}` }), 0, 'a git call past its bound passes');
+    assert.ok(fs.existsSync(marker), 'the hook reached the slow git stub');
 
-  // An unreadable run directory.
-  const scopes = path.join(fx.main, '.superdev', 'scopes');
-  fs.chmodSync(scopes, 0o000);
-  try {
-    assert.equal(run(hook, write), 0, 'an unreadable run directory passes');
-  } finally {
-    fs.chmodSync(scopes, 0o755);
+    // An unreadable run directory.
+    const scopes = path.join(fx.main, '.superdev', 'scopes');
+    fs.chmodSync(scopes, 0o000);
+    try {
+      assert.equal(run(hook, write), 0, 'an unreadable run directory passes');
+    } finally {
+      fs.chmodSync(scopes, 0o755);
+    }
   }
 
   // A helper module that will not load: the hook copied away from its `../lib/main-work-tree.js`.
@@ -385,6 +390,46 @@ for (const target of [path.join(fx.main, 'a.txt'), path.join(fx.main, '.git', 'c
     assert.equal(denied(path.join(upper, 'a.txt')), true, 'a differently cased path to the main checkout is denied');
     assert.equal(denied(path.join(upper, '.SUPERDEV', 'scopes', 's', 'slicetrees', '01', 'a.txt')), false, 'a differently cased path into the slicetree passes');
   }
+}
+
+// Windows spellings of a target (INV-0152): the cases below run on win32 only, and the suite asserts there that every one ran, so
+// no platform guard skips them silently. Each is a write by the implementer; a denied one is measured through `decideM`.
+if (process.platform === 'win32') {
+  let ran = 0;
+  const target = (file) => implementerWrite(file, fx.slicetree);
+  const deniedWin = (file, label) => {
+    ran++;
+    assert.equal(decideM(target(file)).block, true, `${label}: a write into the main checkout is denied: ${file}`);
+  };
+  const main = fx.main;
+  deniedWin(main.replace(/\//g, '\\') + '\\a.txt', 'backslash');
+  deniedWin(main.replace(/\\/g, '/') + '/a.txt', 'forward slash');
+  deniedWin(main[0].toLowerCase() + main.slice(1) + '\\a.txt', 'lower-case drive');
+  deniedWin(main.replace(/\\/g, '/') + '/sub/../a.txt', 'forward slash with `..`');
+  // The runner's temp directory is spelled as an 8.3 name; the fixture's real path is the long one.
+  deniedWin(path.join(os.tmpdir(), path.basename(fx.base), 'main', 'a.txt'), `8.3 temp name (${os.tmpdir()})`);
+  // A junction whose target is an absolute Windows path.
+  fs.symlinkSync(main, path.join(fx.slicetree, 'junction'), 'junction');
+  deniedWin(path.join(fx.slicetree, 'junction', 'a.txt'), 'junction');
+  deniedWin(path.join(fx.slicetree, 'junction', 'new', 'f.txt'), 'new file behind a junction');
+  // A UNC admin share, where the runner allows it: optional, so it is outside the count.
+  const admin = `\\\\localhost\\${main[0]}$\\${main.slice(3)}\\a.txt`;
+  if (fs.existsSync(admin)) assert.equal(decideM(target(admin)).block, true, `a UNC admin share spelling is denied: ${admin}`);
+  // A write to a drive or share that does not exist passes, and the hook child finishes on its own: it runs under a bound far
+  // above its own 5 s exit, and a child stuck in the ancestor walk is killed by that bound and fails here (INV-0009).
+  const free = 'ZYXWVUTSRQPONMLKJIHGFED'.split('').find((l) => !fs.existsSync(`${l}:\\`));
+  const hook = path.join(pluginRoot, 'hooks', 'tree-guard.js');
+  for (const [label, file] of [
+    ['an unmapped drive', `${free}:\\x\\a.txt`],
+    ['a UNC root on a host with no DNS entry', '\\\\superdev-no-such-host.invalid\\share\\x\\a.txt'],
+  ]) {
+    ran++;
+    const r = cp.spawnSync(process.execPath, [hook], { input: JSON.stringify(target(file)), encoding: 'utf8', timeout: 60000 });
+    assertSpawnDecided(r, label);
+    assert.equal(r.status, 0, `${label}: the write passes: ${file}`);
+    assert.equal(decide(target(file)).block, false, `${label}: the decision passes in process: ${file}`);
+  }
+  assert.equal(ran, 9, `every native-path case ran (${ran} of 9)`);
 }
 
 // A `.superdev` that is a symlink to a directory outside the main checkout still holds the run and its slicetrees.
