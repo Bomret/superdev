@@ -207,15 +207,10 @@ function containedInBase(branch, cwd) {
 const RECORD = 'not-contained';
 const RECORD_LINE = /^([0-9a-f]{40,64}) ([0-9a-f]{40,64})\n?$/;
 
-function commitOf(ref, cwd) {
-  const read = gitSpawn(['rev-parse', '--verify', '--quiet', '--end-of-options', `${ref}^{commit}`], cwd);
-  return read.status === 0 ? read.stdout.trim() || null : null;
-}
-
 function testRecorded(ref, cwd, runRoot) {
   const file = path.join(runRoot, RECORD);
-  const base = commitOf('HEAD', cwd);
-  const tip = base && commitOf(ref, cwd);
+  const base = resolveCommit('HEAD', cwd);
+  const tip = base && resolveCommit(ref, cwd);
   if (tip) {
     let held = null;
     try {
@@ -317,16 +312,22 @@ try {
 }
 
 // `lib/git-spawn.js` owns the git calls (the status-reading spawn, the throwing call, the `git branch` list
-// parse). No fallback: a hook that cannot run git must never conclude a scope is finished with, so a failed
-// load, or a module missing any of the three, leaves all three null and main() prunes nothing, silently. The
-// names are taken only once the module carries every one, so a partial module reads as an unloaded one.
+// parse, the commit a ref resolves to). No fallback: a hook that cannot run git must never conclude a scope is
+// finished with, so a failed load, or a module missing any of the four, leaves all four null and main() prunes
+// nothing, silently. The names are taken only once the module carries every one, so a partial module reads as
+// an unloaded one.
 let gitSpawn = null;
 let gitThrow = null;
 let parseBranchList = null;
+let resolveCommit = null;
 try {
   const gitModule = require('../lib/git-spawn.js');
-  if ([gitModule.gitSpawn, gitModule.gitThrow, gitModule.parseBranchList].every((f) => typeof f === 'function')) {
-    ({ gitSpawn, gitThrow, parseBranchList } = gitModule);
+  if (
+    [gitModule.gitSpawn, gitModule.gitThrow, gitModule.parseBranchList, gitModule.resolveCommit].every(
+      (f) => typeof f === 'function'
+    )
+  ) {
+    ({ gitSpawn, gitThrow, parseBranchList, resolveCommit } = gitModule);
   }
 } catch {
   // Left null. main() checks these before doing anything below.
@@ -455,7 +456,7 @@ const RESOLVE_BOUND_MS = 5000;
 
 function main(sessionCwd) {
   // shared reader, git module, or resolver unavailable → prune nothing, say nothing
-  if (!readLedgerHeader || !shapeMatches || !parseBranchRefs || !gitSpawn || !gitThrow || !parseBranchList || typeof mainWorkTree !== 'function') return;
+  if (!readLedgerHeader || !shapeMatches || !parseBranchRefs || !gitSpawn || !gitThrow || !parseBranchList || !resolveCommit || typeof mainWorkTree !== 'function') return;
   // The main working tree is the root of every git call below, `HEAD` included, so a session standing in a
   // scopetree does not read the scope branch as `HEAD`. `cwd` names it for the rest of this function.
   const cwd = mainWorkTree(sessionCwd, { timeout: RESOLVE_BOUND_MS });

@@ -236,12 +236,13 @@ for (const [skewName, containmentBody] of [
   fs.rmSync(repo, { recursive: true, force: true });
 }
 
-// #git-spawn-posture: the hook takes `gitSpawn`, `gitThrow`, and `parseBranchList` from `../lib/git-spawn.js`
-// (INV-0159). With the module unloadable, with one of the three missing, or with one of them throwing, the
-// hook prunes nothing, exits 0, and says nothing. Each case runs beside a pass-through control stub that prunes
-// the same fixture, and confirms its own stub loaded before it asserts. A git whose `merge-tree` fails shims the
-// pre-2.38 path, so every one of the three functions is reached on every run. Each case copies the hook to its
-// own path, because `require` caches by path.
+// #git-spawn-posture: the hook takes `gitSpawn`, `gitThrow`, `parseBranchList`, and `resolveCommit` from
+// `../lib/git-spawn.js` (INV-0159). With the module unloadable, with one of the four missing, or with one of the
+// first three throwing, the hook prunes nothing, exits 0, and says nothing. Each case runs beside a pass-through
+// control stub that prunes the same fixture, and confirms its own stub loaded before it asserts. A git whose
+// `merge-tree` fails shims the pre-2.38 path, so each of the first three functions is reached on every run;
+// `resolveCommit` serves only the `--write-tree` path, so only its missing case runs here. Each case copies the
+// hook to its own path, because `require` caches by path.
 {
   const realGitSpawn = JSON.stringify(require.resolve('../plugin/lib/git-spawn.js'));
   const shimDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-posture-shim-'));
@@ -321,6 +322,10 @@ for (const [skewName, containmentBody] of [
     assert.equal(throwing.called, true, `the throwing ${fn} was called`);
     assert.equal(throwing.stands, true, `a hook whose ${fn} throws prunes nothing`);
   }
+
+  const noResolve = run('resolveCommit missing', 'const m = { ...real };\ndelete m.resolveCommit;\nmodule.exports = m;');
+  assert.equal(noResolve.loaded, true, 'the stub missing resolveCommit loaded');
+  assert.equal(noResolve.stands, true, 'a hook whose git-spawn carries no resolveCommit prunes nothing');
   fs.rmSync(shimDir, { recursive: true, force: true });
 }
 
