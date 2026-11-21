@@ -254,6 +254,36 @@ const decideM = (input) => measure(input).r;
   assert.equal(decideM(implementerWrite(path.join(modules, 'hooks', 'pre-commit'), fx.main)).block, true, "a write to a submodule's gitdir hooks is denied");
 }
 
+// Every spelling of the implementer's agent type that run-trace's `OURS` accepts for superdev's agents is fenced: `implementer`
+// bare or after a `superdev:`, `superdev_`, or `superdev-` prefix (INV-0152). Another plugin's implementer, a prefix or suffix
+// around the name, and every other superdev agent pass.
+const ACCEPTED = ['superdev:implementer', 'superdev_implementer', 'superdev-implementer', 'implementer'];
+const REJECTED = ['other:implementer', 'xsuperdev:implementer', 'superdev:implementerx', 'superdev:slice-reviewer'];
+{
+  const linked = path.join(fx.base, 'linked-spellings');
+  git(['worktree', 'add', '-q', '-b', 'linked-spellings', linked], fx.main);
+  const targets = [
+    [path.join(fx.main, 'a.txt'), fx.main, 'the main checkout'],
+    [path.join(linked, 'a.txt'), linked, 'another linked working tree'],
+    [path.join(fx.main, '.git', 'config'), fx.main, 'the main .git/config'],
+  ];
+  for (const agentType of ACCEPTED) {
+    for (const [file, cwd, where] of targets) {
+      assert.equal(decideM({ ...implementerWrite(file, cwd), agent_type: agentType }).block, true, `a ${agentType} write into ${where} is denied`);
+    }
+  }
+}
+
+// tree-guard and run-trace agree on which implementer spellings are superdev's: a spelling `OURS` accepts is fenced, and one it
+// rejects passes (INV-0152).
+{
+  const { OURS } = require(path.join(pluginRoot, 'hooks', 'run-trace.js'));
+  const target = path.join(fx.main, 'a.txt');
+  for (const agentType of [...ACCEPTED, 'other:implementer', 'xsuperdev:implementer', 'superdev:implementerx']) {
+    assert.equal(decideM({ ...implementerWrite(target, fx.main), agent_type: agentType }).block, OURS.test(agentType), `tree-guard and run-trace's OURS agree on ${agentType}`);
+  }
+}
+
 // The controller, every other agent type, and a subagent call naming no agent type pass, and the guard runs no git to decide them.
 // POSIX-only: the `#!/bin/sh` shim named `git` never runs on Windows, so the no-git assertion would pass vacuously there.
 if (process.platform !== 'win32') {
@@ -270,6 +300,8 @@ if (process.platform !== 'win32') {
       { label: 'the doc-writer', input: { ...implementerWrite(target, fx.main), agent_type: 'superdev:doc-writer' } },
       { label: 'a general-purpose subagent', input: { ...implementerWrite(target, fx.main), agent_type: 'general-purpose' } },
       { label: 'a subagent naming no agent type', input: { ...implementerWrite(target, fx.main), agent_type: undefined } },
+      { label: 'a non-string agent type', input: { ...implementerWrite(target, fx.main), agent_type: ['superdev:implementer'] } },
+      ...REJECTED.map((t) => ({ label: `agent type ${t}`, input: { ...implementerWrite(target, fx.main), agent_type: t } })),
     ];
     for (const { label, input } of callers) assert.equal(decide(input).block, false, `${label} passes`);
     assert.equal(fs.existsSync(marker), false, 'the guard ran no git for a caller other than the implementer');

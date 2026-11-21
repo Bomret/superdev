@@ -28,7 +28,7 @@ input itself, so the `agent_type` value in the hook input was not observed direc
 **Decision.**
 
 - **A guardrail denies the write before it lands.** `plugin/hooks/tree-guard.js` runs at PreToolUse on
-  `Edit|Write|NotebookEdit`. It denies a `superdev:implementer` call whose target lies in a working tree
+  `Edit|Write|NotebookEdit`. It denies an implementer call whose target lies in a working tree
   of a repository that holds a superdev run, outside that repository's main-working-tree `.superdev/`
   directory. A repository holds a run when a readable `ledger.md` sits under its `.superdev/scopes/<slug>/`.
   It also denies such a call whose target lies in a git directory under the `.git/` directory of a main
