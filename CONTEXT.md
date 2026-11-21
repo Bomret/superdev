@@ -572,7 +572,7 @@ _Avoid: "handoff" (run handoff is the closing procedure of an execution playbook
 
 _Avoid: "prompt" (**Prompt prose** is the instruction text a model loads), "auto-continue" (nothing continues without the operator's yes)_
 
-**Operator alert**: the one `PushNotification` a session that ran a superdev command attended sends once per wait on the operator, a wait starting at the operator's last prompt or answer, when a command stops at an `AskUserQuestion` or at a Next block carrying a `Blocked:` or `First:` line. It names the scope and what the stop waits on. `hooks/operator-alert.js` makes the model send it (ADR 0272).
+**Operator alert**: a `PushNotification` that an attended superdev session sends once per wait on the operator. A wait starts at the operator's last prompt or answer. The alert fires when a command stops at an `AskUserQuestion` or at a Next block carrying a `Blocked:` or `First:` line. It names the scope and what the stop waits on. `hooks/operator-alert.js` makes the model send it (ADR 0272).
 _Avoid: "notification" alone (Claude Code's own alerts, which a `Notification` hook receives), "ping"_
 
 ## Roles

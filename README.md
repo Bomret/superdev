@@ -29,7 +29,7 @@ docs to a knowledge base. It needs no other plugin.
   NotebookEdit is refused in another checkout of a repository that holds a run, outside its `.superdev/`. The
   same fence covers that repository's git directory. `scope.js` reports an outside edit of a run's ledger or trace, and
   the review grades an untraced write.
-- When an attended command stops on you, with a question or a `Blocked:` or `First:` line, a hook prompts the
+- An attended command can stop on you with a question or a `Blocked:` or `First:` line. A hook then prompts the
   model to send you a notification that names the scope and what it waits on. The model may skip it, and Claude
   Code sends nothing while you are at the terminal.
 - Backends are pluggable. Slices live in GitHub Issues, Jira, Forgejo or Codeberg Issues, or a tracker you

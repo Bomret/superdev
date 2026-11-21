@@ -1,20 +1,24 @@
 #!/usr/bin/env node
 'use strict';
 
-// operator-alert: deterministic hook that makes the model send the operator alert at a blocking stop of an attended
-// superdev session (ADR 0272, INV-0200). No hook can raise a notification itself, so the hook stops the model once per
-// wait and its reason asks the model to call the PushNotification tool. The tool skips the send when the operator is at
-// the terminal, and the model may skip the call: the hook prompts an alert, it never delivers one.
-// Events: PreToolUse on AskUserQuestion, which it denies; Stop, which it blocks when the last message's last Next block
-// carries a `Blocked:` or `First:` line before its fence (references/response-shapes.md), and passes under
+// operator-alert: a deterministic hook that makes the model send the operator alert at a blocking stop of an attended
+// superdev session (ADR 0272, INV-0200).
+// No hook can raise a notification itself. The hook stops the model once per wait instead. Its reason asks the model
+// to call the PushNotification tool. The tool skips the send when the operator is at the terminal. The model may
+// skip the call. The hook prompts an alert and never delivers one.
+// Events: PreToolUse on AskUserQuestion, which it denies. Stop, which it blocks when the last message's last Next
+// block carries a `Blocked:` or `First:` line before its fence (references/response-shapes.md). Stop passes under
 // `stop_hook_active`. A stop is exit 2 with the reason on stderr.
-// It reads the session transcript (`transcript_path`, JSONL). A session is attended when its newest superdev start, a
-// Skill tool call naming `superdev:*` or a typed `/superdev:` command, carries no `--unattended` among its arguments. A
-// wait starts at the operator's newest input: a typed prompt, or a non-error answer to an AskUserQuestion. A
-// PushNotification call since then, or an earlier deny of this hook, releases the wait. That deny is an error result of
-// an AskUserQuestion call whose text opens with `PreToolUse:AskUserQuestion hook error: [<command>]: ` and the marker;
-// the marker anywhere else, in another tool's output or in a typed prompt, releases nothing. A call carrying
-// `agent_id`, a missing or unreadable transcript, malformed input, or stdin that does not close within 5 s passes.
+// The hook reads the session transcript (`transcript_path`, JSONL). A session is attended when its newest superdev
+// start carries no `--unattended` among its arguments. That start is a Skill tool call naming `superdev:*` or a typed
+// `/superdev:` command.
+// A wait starts at the operator's newest input: a typed prompt, or a non-error answer to an AskUserQuestion. A
+// PushNotification call since then releases the wait. So does an earlier deny of this hook.
+// That deny is an error result of an AskUserQuestion call. Its text opens with
+// `PreToolUse:AskUserQuestion hook error: [<command>]: ` and the marker. The marker anywhere else releases nothing,
+// in another tool's output or in a typed prompt.
+// These pass: a call carrying `agent_id`, a missing or unreadable transcript, malformed input, and stdin that does
+// not close within 5 s.
 // The Stop path decides from `last_assistant_message` before it opens the transcript.
 
 const fs = require('fs');

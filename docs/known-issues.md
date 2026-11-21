@@ -352,7 +352,7 @@ calls ran past 185 s and none moved at 180 s. The documentation read that day
 (`https://code.claude.com/docs/en/tools-reference.md`, `https://code.claude.com/docs/en/sub-agents.md`,
 `https://code.claude.com/docs/en/env-vars.md`) names no 180 s limit.
 
-## No hook can alert the operator, and AskUserQuestion raises no alert of its own
+## Operator alert at a blocking stop
 
 A command that stops on an `AskUserQuestion`, or on a Next block that carries a `Blocked:` or `First:` line, waits
 for an operator who may have walked away. Claude Code's own alerts do not cover it. A `Notification` hook receives
