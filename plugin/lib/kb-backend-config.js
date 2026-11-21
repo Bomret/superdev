@@ -43,6 +43,7 @@ function parseCommandsTemplates(sectionText) {
       }
     }
     // The first closed fenced block, read through the shared fence rule (`md-sections.js`): tilde fences and longer openers too.
+    // A fence the subsection opens and never closes refuses, naming the verb, rather than reading as a verb with no template.
     let open = null;
     const body = [];
     for (const line of lines.slice(start + 1, end)) {
@@ -55,6 +56,7 @@ function parseCommandsTemplates(sectionText) {
         body.push(line);
       }
     }
+    if (open !== null && templates[verb] === undefined) fail(`unterminated fenced code block in ### ${verb}`);
   }
   return templates;
 }
