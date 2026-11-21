@@ -17,7 +17,9 @@
 //
 // simplicity: a command built at run time (`G=git; $G push`) slips past. This is a deterministic guardrail against the
 // model's normal output, not a sandbox; airtight subagent isolation is the platform's job (see AGENTS.md known issues).
-// The text of a commit message that holds a verb is denied too, so the denial names the heredoc form that passes.
+// The text of a commit message that holds a verb is denied too, so the denial names the heredoc form that passes. The same
+// `/` boundary denies a path or ref segment that is a verb word (`git add src/push/notify.ts`, `git log feat/merge`), so the
+// denial also names that case and its rewrites: a parent directory whose path holds no verb segment, or the controller.
 
 const LEAD = /(?<![^\s/\\"'`;&|(])(git|gh|tea|scope\.js)(?![\w-])/i;
 const TEA = /(?<![^\s/\\"'`;&|(])tea(?![\w-])/i;
@@ -29,7 +31,10 @@ const INTEGRATE =
   "`rebase`, or `pull` (or `m` after `tea`) is the controller's job — commit on your slice branch and report your status. " +
   'A commit message or PR body that holds one of those words passes when written through a heredoc on the lines after the ' +
   "command (`git commit -F - <<'EOF'`, then the message, then `EOF`), as long as no line of it holds one of those lead " +
-  'words followed by one of those verbs. (merge-guard)';
+  'words followed by one of those verbs. A verb word that is a segment of a path or ref after a lead word denies the line too ' +
+  '(`git add src/push/notify.ts`, `git log feat/merge`): name the file through a parent directory whose path holds no verb ' +
+  'segment (`git add src/`), or, for a ref or any command that cannot be rewritten so, leave the command to the controller. ' +
+  '(merge-guard)';
 
 function integrates(cmd) {
   for (const line of cmd.replace(/\\\r?\n/g, ' ').split(/\r?\n/)) {
