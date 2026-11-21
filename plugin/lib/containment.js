@@ -67,16 +67,19 @@ function supportsWriteTree(cwd) {
 
 // One local test against whatever `base` the caller hands (a branch name on the first pass,
 // `FETCH_HEAD` on the second) — the tree comparison ADR 0053 states, or the ancestry fallback for a
-// git without `--write-tree`. Three answers, because the second tier runs on only one of the two
-// negatives (ADR 0082):
+// git without `--write-tree`. Four answers, because the history tiers run on only the two that leave the
+// question open (ADR 0082), and the third tier tells a conflict from a failure:
 //   'contained'    — base already holds every byte of the branch's work
 //   'differs'      — the merge is clean and would still change base, so the branch carries content
 //                    base does not hold; decisive, and the probe never runs
-//   'inconclusive' — the comparison could not settle it: a conflict, an unreadable tree, or the
+//   'conflict'     — the merge conflicts (`merge-tree` exit 1): base does not hold the branch as it stands,
+//                    though its history still may
+//   'inconclusive' — the comparison could not settle it: a failed `merge-tree`, an unreadable tree, or the
 //                    ancestry fallback, which a squash-merge defeats by construction
 function containedAgainst(ref, base, cwd, writeTreeSupported) {
   if (writeTreeSupported) {
     const merged = gitSpawn(['merge-tree', '--write-tree', '--end-of-options', base, ref], cwd);
+    if (merged.status === 1) return 'conflict';
     if (merged.status !== 0) return 'inconclusive';
     // `--verify` ahead of `--end-of-options`: bare `rev-parse` echoes an unrecognized flag back on
     // stdout instead of treating it as the end-of-options marker, which would corrupt the tree-hash
@@ -214,18 +217,9 @@ function commitInBaseHistory(cwd, base, branch) {
   const candidates = listed.stdout.split('\n').map((line) => line.trim()).filter(Boolean);
   let decided = true;
   for (const commit of candidates) {
-    const merged = gitSpawn(['merge-tree', '--write-tree', '--end-of-options', commit, branch], cwd);
-    if (merged.status === 1) continue;
-    if (merged.status !== 0) {
-      decided = false;
-      continue;
-    }
-    const tree = gitSpawn(['rev-parse', '--verify', '--quiet', '--end-of-options', commit + '^{tree}'], cwd);
-    if (tree.status !== 0) {
-      decided = false;
-      continue;
-    }
-    if (merged.stdout.trim() === tree.stdout.trim()) return true;
+    const answer = containedAgainst(branch, commit, cwd, true);
+    if (answer === 'contained') return true;
+    if (answer === 'inconclusive') decided = false;
   }
   return decided ? false : null;
 }
@@ -236,7 +230,7 @@ function baseCommitHoldsBranch(cwd, base, branch) {
   return commitInBaseHistory(cwd, base, branch) === true;
 }
 
-// The second tier, then the third where `--write-tree` runs: the answer an inconclusive comparison takes.
+// The second tier, then the third where `--write-tree` runs: the answer a conflicted or inconclusive comparison takes.
 function heldInHistory(cwd, base, ref, writeTreeSupported) {
   return baseHistoryHasPatch(cwd, base, ref) || (writeTreeSupported && baseCommitHoldsBranch(cwd, base, ref));
 }
@@ -264,7 +258,7 @@ function judgeContainment(cwd, base, branch, remote = 'origin', { fetchTimeoutMs
   fallback = !writeTreeSupported;
   const local = containedAgainst(ref, base, cwd, writeTreeSupported);
   if (local === 'contained') return result('contained');
-  if (local === 'inconclusive' && heldInHistory(cwd, base, ref, writeTreeSupported)) return result('contained');
+  if (local !== 'differs' && heldInHistory(cwd, base, ref, writeTreeSupported)) return result('contained');
 
   // Not contained against the local base — refetch before answering (ADR 0065). A fetch that fails
   // (no remote configured, an unreachable host, a rejected credential) leaves the local verdict
@@ -299,7 +293,7 @@ function judgeContainment(cwd, base, branch, remote = 'origin', { fetchTimeoutMs
   const fetchedBase = head.status === 0 ? head.stdout.trim() : 'FETCH_HEAD';
   const fresh = containedAgainst(ref, fetchedBase, cwd, writeTreeSupported);
   if (fresh === 'contained') return result('contained', fetched, fetchedBase);
-  if (fresh === 'inconclusive' && heldInHistory(cwd, fetchedBase, ref, writeTreeSupported)) return result('contained', fetched, fetchedBase);
+  if (fresh !== 'differs' && heldInHistory(cwd, fetchedBase, ref, writeTreeSupported)) return result('contained', fetched, fetchedBase);
   return result('not-contained', fetched, fetchedBase);
 }
 
