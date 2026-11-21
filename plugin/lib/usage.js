@@ -29,6 +29,7 @@ function usage() {
     '  pr set <n>|clear   --root <run-root>          <n> is a pull-request number, "#" optional',
     '  reviewed set --branch <b> [--tip <sha>]   --root <run-root>   records the reviewed tip (the branch tip, or --tip, an ancestor of it) and the digest of dod.md\'s criteria (ADR 0272)',
     '  reviewed clear   --root <run-root>   removes the reviewed-tip record; none is no error',
+    '  reviewed check --branch <b> --base <base-ref>   --root <run-root>   one verdict line, read-only: delta <sha> <old range base>, unchanged <sha>, or whole <reason> (ADR 0272)',
     '  deploy set <target> pending|deployed|failed [--exit <n>]   --root <run-root>',
     '  deploy get   --root <run-root>      one line per recorded target, first-recorded order, or "absent"',
     '  suite set <green|red|denied|none> <sha> [--whole]   --root <run-root>',

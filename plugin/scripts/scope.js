@@ -274,7 +274,7 @@ function run(argv, cwd, stdinJson) {
         if (libReviewedTip().verbReviewedClear(root)) ledgerEvent = { root, fields: ['reviewed', 'clear'] };
         break;
       }
-      if (sub !== 'set') fail(`unknown reviewed subcommand "${sub}" — use set|clear`);
+      if (sub !== 'set' && sub !== 'check') fail(`unknown reviewed subcommand "${sub}" — use set|clear|check`);
       const take = (flag) => {
         const i = args.indexOf(flag);
         if (i < 0) return undefined;
@@ -284,6 +284,15 @@ function run(argv, cwd, stdinJson) {
         return v;
       };
       const branch = take('--branch');
+      // Reads the ledger, dod.md, and git and writes nothing: no trace event, no digest seal (INV-0200).
+      if (sub === 'check') {
+        const base = take('--base');
+        if (!branch) fail('reviewed check needs --branch <branch>');
+        if (!base) fail('reviewed check needs --base <base-ref>');
+        if (args.length > 1) fail(`reviewed check: unrecognized argument "${args[1]}"`);
+        libReviewedTip().verbReviewedCheck(cwd, root, branch, base);
+        break;
+      }
       const tip = take('--tip');
       if (!branch) fail('reviewed set needs --branch <branch>');
       if (args.length > 1) fail(`reviewed set: unrecognized argument "${args[1]}"`);

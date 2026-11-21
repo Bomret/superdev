@@ -13,7 +13,7 @@ edits or parses the file directly.
 - `stage`, `step`, `slice`, `degraded add|add-denial|reset-denials`, `unresolved add|clear`, `deferred
   add|resolve`, `minors add|clear`, `docs set|clear`, `pr set|clear`, `reviewed set|clear`, `deploy set`, `suite set|rerun|failed`, `suite reusable` where it records a run at the tip, and
   `base set` move it.
-- `get`, `state`, `status`, and `deploy get` read it back.
+- `get`, `state`, `status`, `deploy get`, and `reviewed check` read it back.
 
 **A write made any other way.** Applies to every verb that writes to the run. `scope.js` keeps a digest of the ledger
 and of the run trace in `<run-root>/digest.json`. The next verb that writes to the run reports a change made any
@@ -65,7 +65,9 @@ title, `test-applicability` type, dependencies, `plan-contract.md` status, and c
   or holds no criterion. A tick, an untick, a note, and the line endings leave the digest unchanged. Removed with
   `reviewed clear`, which succeeds and changes nothing when the line is absent. Read with `get reviewed`, which prints
   `<sha> <digest>` or `absent`. Each write that changes the ledger appends a `ledger reviewed set <sha> <digest>` or
-  `ledger reviewed clear` trace line. A ledger with no such line has no reviewed tip on record (ADR 0272, INV-0200).
+  `ledger reviewed clear` trace line. `reviewed check --branch <branch> --base <base-ref>` reads it without writing and
+  prints one verdict: `delta <sha> <old range base>`, `unchanged <sha>`, or `whole <reason>`. A ledger with no such line
+  has no reviewed tip on record, and `reviewed check` reads it as `whole no-record` (ADR 0272, INV-0200).
 
 **The step line.** Applies to every write and read of `**Step:**`. Write it with `step set <name>` as the step starts,
 and read it with `get step`, which prints `none` when the line is absent. `scope.js` refuses any other name and leaves

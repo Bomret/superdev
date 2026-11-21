@@ -90,7 +90,7 @@ const { sliceJson, scopePath, run, writeDod } = require('./scope-setup');
         'candidates',
         // discard removes the run trace with the ledger, so it leaves no line to append to (ADR 0208).
         'discard']);
-      const readOnlySub = /^\s+(deploy get|suite reusable|base resolve)\b/;
+      const readOnlySub = /^\s+(deploy get|suite reusable|base resolve|reviewed check)\b/;
       const usageVerbs = new Set(usageText.split('\n').slice(1)
         .filter((l) => /^ {2}[^-\s]/.test(l) && !readOnlySub.test(l))
         .map((l) => l.trim().split(/\s+/)[0])

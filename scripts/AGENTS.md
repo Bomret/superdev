@@ -49,7 +49,7 @@ lazily loaded module is a getter that returns that module's own value. No module
 `open <type>/<slug> --base <base-ref> [--remote <remote>] [--lock <nonce>]`, `init`, `stage set`, `slice`, `degraded add|add-denial|reset-denials`, `unresolved add|clear`,
 `deferred add|resolve`, `minors add <slice-id>|clear`,
 `docs set <value>|clear`, `pr set <n>|clear`,
-`reviewed set --branch <b> [--tip <sha>]|clear` (`reviewed-tip.js`),
+`reviewed set --branch <b> [--tip <sha>]|clear` (`reviewed-tip.js`), `reviewed check --branch <b> --base <ref>` (read-only: no trace line, no digest seal),
 `deploy set <target> pending|deployed|failed [--exit <n>]`, `deploy get`,
 `suite set <green|red|denied|none> <sha> [--whole]`,
 `suite reusable --branch <b> [--whole] [--base <base-branch>]`, `suite rerun <test-file> <triage-ref>`, `suite failed <test-file>...`,
