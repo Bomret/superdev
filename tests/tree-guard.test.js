@@ -238,7 +238,8 @@ const decideM = (input) => measure(input).r;
 }
 
 // The controller, every other agent type, and a subagent call naming no agent type pass, and the guard runs no git to decide them.
-{
+// POSIX-only: the `#!/bin/sh` shim named `git` never runs on Windows, so the no-git assertion would pass vacuously there.
+if (process.platform !== 'win32') {
   const shim = path.join(fx.base, 'shim');
   const marker = path.join(fx.base, 'git-ran');
   fs.mkdirSync(shim);
@@ -312,9 +313,14 @@ if (process.platform !== 'win32') {
     const slow = path.join(fx.base, 'slow-git');
     fs.mkdirSync(slow);
     const marker = path.join(slow, 'called');
-    fs.writeFileSync(path.join(slow, 'git'), `#!/bin/sh\necho git >> '${marker}'\nexec sleep 5\n`, { mode: 0o755 });
-    assert.equal(run(hook, write, { PATH: `${slow}${path.delimiter}${process.env.PATH}` }), 0, 'a git call past its bound passes');
-    assert.ok(fs.existsSync(marker), 'the hook reached the slow git stub');
+    const held = path.join(slow, 'held');
+    // The first spawn is held before it writes the marker, as a starved spawn killed before its first line is.
+    fs.writeFileSync(path.join(slow, 'git'), `#!/bin/sh\nif mkdir '${held}' 2>/dev/null; then exec sleep 5; fi\necho git >> '${marker}'\nexec sleep 5\n`, { mode: 0o755 });
+    // A spawn killed before the shim's first line leaves no marker and carries no verdict: the child runs again.
+    for (let attempt = 1; attempt <= ATTEMPTS && !fs.existsSync(marker); attempt++) {
+      assert.equal(run(hook, write, { PATH: `${slow}${path.delimiter}${process.env.PATH}` }), 0, 'a git call past its bound passes');
+    }
+    assert.ok(fs.existsSync(marker), `the hook reached the slow git stub in one of ${ATTEMPTS} attempts`);
 
     // An unreadable run directory.
     const scopes = path.join(fx.main, '.superdev', 'scopes');
@@ -397,17 +403,21 @@ if (process.platform !== 'win32') {
 if (process.platform === 'win32') {
   let ran = 0;
   const target = (file) => implementerWrite(file, fx.slicetree);
+  // `ran` counts a case only after its assertion held, so a case that never reached it leaves the count short.
   const deniedWin = (file, label) => {
-    ran++;
     assert.equal(decideM(target(file)).block, true, `${label}: a write into the main checkout is denied: ${file}`);
+    ran++;
   };
   const main = fx.main;
   deniedWin(main.replace(/\//g, '\\') + '\\a.txt', 'backslash');
   deniedWin(main.replace(/\\/g, '/') + '/a.txt', 'forward slash');
   deniedWin(main[0].toLowerCase() + main.slice(1) + '\\a.txt', 'lower-case drive');
   deniedWin(main.replace(/\\/g, '/') + '/sub/../a.txt', 'forward slash with `..`');
-  // The runner's temp directory is spelled as an 8.3 name; the fixture's real path is the long one.
-  deniedWin(path.join(os.tmpdir(), path.basename(fx.base), 'main', 'a.txt'), `8.3 temp name (${os.tmpdir()})`);
+  // An 8.3 spelling of the main checkout, derived through `cmd`'s `%~s` expansion; the fixture's real path is the long one. A
+  // volume without 8.3 names yields no distinct spelling, and the case then fails here instead of repeating the backslash case.
+  const short = cp.execFileSync('cmd', ['/d', '/c', `for %I in ("${main}") do @echo %~sI`], { encoding: 'utf8' }).trim();
+  assert.notEqual(short.toLowerCase(), main.toLowerCase(), `the volume gives the main checkout a distinct 8.3 spelling: ${short}`);
+  deniedWin(path.join(short, 'a.txt'), `8.3 name (${short})`);
   // A junction whose target is an absolute Windows path.
   fs.symlinkSync(main, path.join(fx.slicetree, 'junction'), 'junction');
   deniedWin(path.join(fx.slicetree, 'junction', 'a.txt'), 'junction');
@@ -416,18 +426,20 @@ if (process.platform === 'win32') {
   const admin = `\\\\localhost\\${main[0]}$\\${main.slice(3)}\\a.txt`;
   if (fs.existsSync(admin)) assert.equal(decideM(target(admin)).block, true, `a UNC admin share spelling is denied: ${admin}`);
   // A write to a drive or share that does not exist passes, and the hook child finishes on its own: it runs under a bound far
-  // above its own 5 s exit, and a child stuck in the ancestor walk is killed by that bound and fails here (INV-0009).
+  // above its own 5 s exit, and a child stuck in the ancestor walk is killed by that bound and fails here (INV-0009). Only that
+  // termination is asserted. The hook ends itself with `process.exit(0)` at its own bound, so a lookup the exit timer cut short
+  // and one that fell open on its own read the same, and no absolute elapsed ceiling holds (ADR 0086, the root `AGENTS.md`).
   const free = 'ZYXWVUTSRQPONMLKJIHGFED'.split('').find((l) => !fs.existsSync(`${l}:\\`));
   const hook = path.join(pluginRoot, 'hooks', 'tree-guard.js');
   for (const [label, file] of [
     ['an unmapped drive', `${free}:\\x\\a.txt`],
     ['a UNC root on a host with no DNS entry', '\\\\superdev-no-such-host.invalid\\share\\x\\a.txt'],
   ]) {
-    ran++;
     const r = cp.spawnSync(process.execPath, [hook], { input: JSON.stringify(target(file)), encoding: 'utf8', timeout: 60000 });
     assertSpawnDecided(r, label);
     assert.equal(r.status, 0, `${label}: the write passes: ${file}`);
     assert.equal(decide(target(file)).block, false, `${label}: the decision passes in process: ${file}`);
+    ran++;
   }
   assert.equal(ran, 9, `every native-path case ran (${ran} of 9)`);
 }

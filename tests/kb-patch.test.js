@@ -298,8 +298,6 @@ assert.throws(
   fs.rmSync(dir, { recursive: true, force: true });
 }
 
-console.log('kb-patch tests ok');
-
 // --- one fence rule: a backtick line whose info string holds a backtick, or a tab-indented line, is text. ---
 {
   const liveFence = '# P\n\n## A\n\n```js```\n\n## B\n\nbody b\n\n```bash\nx\n```\n\n## C\n\nc\n';
@@ -315,3 +313,5 @@ console.log('kb-patch tests ok');
     'a page whose only closer is tab-indented is refused',
   );
 }
+
+console.log('kb-patch tests ok');

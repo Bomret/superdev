@@ -6,11 +6,8 @@ const fs = require('fs');
 const path = require('path');
 const { fenceOpener, fenceCloses } = require('./md-sections.js');
 
-// The fenced blocks of a document, read line by line. A fence opens on a line that starts, after at
-// most three spaces of indentation, with three or more backticks or tildes and any info string (a
-// backtick fence's info string holds no backtick, so an inline span such as ```x``` is no opener). It
-// closes on a line with the same indentation limit, of the same character, at least as long as the
-// opener. `blocks` holds each closed block's body, `outside` the text between blocks. An unclosed
+// The fenced blocks of a document, read line by line through `md-sections.js`'s `fenceOpener` and
+// `fenceCloses`. `blocks` holds each closed block's body, `outside` the text between blocks. An unclosed
 // fence yields no block.
 function fenceBlocks(raw) {
   const blocks = [];

@@ -256,6 +256,7 @@ const { findCollisions } = require(scopePath);
   fs.mkdirSync(path.join(repo, 'sub'), { recursive: true });
   const top = fromDir(repo);
   assertSpawnDecided(top, 'collisions CLI, top level');
+  assert.equal(top.status, 1, 'run from the top level → exit 1');
   for (const dir of ['docs', 'sub']) {
     res = fromDir(path.join(repo, dir));
     assertSpawnDecided(res, `collisions CLI, from ${dir}`);
@@ -265,6 +266,7 @@ const { findCollisions } = require(scopePath);
   res = fromDir(path.join(repo, '.git'));
   assertSpawnDecided(res, 'collisions CLI, inside .git');
   assert.equal(res.status, 2, 'no checkout top level → exit 2');
+  assert.match(res.stderr, /no checkout top level/, 'naming the refusal');
 
   // A repository with no ADR directory and no invariant register has nothing to compare.
   const bare = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-collisions-bare-')));

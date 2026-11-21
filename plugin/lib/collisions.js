@@ -61,8 +61,7 @@ function registerEntries(ref, cwd) {
 // a directory with no top level (inside `.git/`) refuses.
 function checkoutTop(cwd) {
   const top = lazyToplevel(cwd);
-  const raw = top();
-  const root = top.failed ? '' : drivePath(raw);
+  const root = drivePath(top());
   if (!root) throw collisionRefusal('collisions: no checkout top level here');
   return root;
 }

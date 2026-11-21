@@ -1,6 +1,6 @@
 'use strict';
 
-// md-sections.js: the markdown section rules, the fence masking and the heading-keyed section merge that `kb-patch.js`, the Definition-of-Done edit, and the run-state adopt share (ADR 0022, ADR 0027).
+// md-sections.js: the markdown section rules, the fence rule (`fenceOpener`, `fenceCloses`) every markdown reader shares, the fence masking, and the heading-keyed section merge that `kb-patch.js`, the Definition-of-Done edit, and the run-state adopt share (ADR 0022, ADR 0027).
 
 const { fail } = require('./refusal.js');
 

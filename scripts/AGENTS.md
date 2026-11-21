@@ -637,7 +637,9 @@ re-write always leaves it unchanged, and the new note always replaces whatever n
 unmet criterion stands accepted as unmet (ADR 0095) — the box stays unticked, since the criterion is
 honestly unmet. Refuses, printing nothing, on zero matching lines, on two or more (which one to edit
 cannot be resolved — a line offering two readings counts once), on a `--verdict` outside the four named
-values, on a missing `--match-file` or `--note-file`, or on an inline `--match` or `--note`.
+values, on a missing `--match-file` or `--note-file`, on an inline `--match` or `--note`, on an unknown
+argument, on a flag with no value or a value that starts with `--`, or on a note holding a U+2028 or U+2029
+separator.
 
 `dod-tags [--map-file <path>] [--line]` is the criterion-tag rewrite (ADR 0209, INV-0182), in
 `plugin/lib/dod-tags.js`. It touches no ledger and makes no store call. It reads an anchor body on stdin and
@@ -649,7 +651,8 @@ through `dod-line.js`'s own line, tag, and section rules. Without `--map-file` i
 and prints one checklist line, for a Jira ADF text node. It refuses, printing nothing and naming every
 offending line, when an unjudged checklist line carries no tag `dod-line` reads, a tag names a slice id the
 map lacks, or a tag joins `scope` or `docs` with other entries. It also refuses a map with a duplicate id or a
-reference not in store notation, empty input, and a body with no `## Definition of Done` section.
+reference not in store notation, empty input, a body with no `## Definition of Done` section, an unknown
+argument, and a flag with no value or a value that starts with `--`.
 `/superdev:plan` runs it on the drafted Definition of Done before it creates the epic, and as the producer
 of each store's tag-rewrite body edit. `tests/scope-dod-tags.test.js` holds its cases.
 

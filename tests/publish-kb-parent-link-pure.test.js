@@ -373,7 +373,8 @@ const withB = (extra) => HOME.replace('- [B](B)\n', `- [B](B)\n${extra}\n`);
   const lineFor = () => ({ ok: true, line: '- [C](c)' });
   for (const text of ['```js```', '\t```']) {
     const out = addParentLink(`## Guides\n\n- [A](a)\n  ${text}\n\n## Other\n`, 'Guides', lineFor, 'C');
-    assert.ok(out.ok && out.body.includes('- [C](c)'), `${JSON.stringify(text)} in a section: the link is placed, no throw`);
+    assert.ok(out.ok, `${JSON.stringify(text)} in a section: no throw`);
+    assert.equal(out.body, `## Guides\n\n- [A](a)\n  ${text}\n- [C](c)\n\n## Other\n`, `${JSON.stringify(text)} in a section: the link lands as for plain text`);
   }
 }
 
