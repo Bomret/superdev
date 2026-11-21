@@ -2,7 +2,7 @@
 'use strict';
 
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
-// Verbs: open, init, stage, step, slice, degraded, unresolved, deferred, minors, docs, pr, deploy, suite, base, discard, get, state, status,
+// Verbs: open, init, stage, step, slice, degraded, unresolved, deferred, minors, docs, pr, reviewed, deploy, suite, base, discard, get, state, status,
 // publish, adopt, run-state, trace, windows, untraced, fail-to-pass-check, collisions, citations, source-set, push, root, staging, dod-merge, dod-line, dod-tags, dod-check, ci, section, tier, dod-open, contained, red-evidence, branch, checkout, lock, route, denial, consent, candidates; `main()` also runs test, fail-to-pass, and prepare. Exit
 // nonzero with a one-line stderr reason on any refusal. Every verb that writes to a run first checks the run's
 // digest sidecar and reports an outside edit of its ledger or trace once (lib/run-check.js, ADR 0227).
@@ -66,6 +66,7 @@ const libDrivePath = () => require('../lib/drive-path.js');
 const libRunLock = () => require('../lib/run-lock.js');
 const libRedEvidence = () => require('../lib/red-evidence.js');
 const libRoute = () => require('../lib/route.js');
+const libReviewedTip = () => require('../lib/reviewed-tip.js');
 const libUsage = () => require('../lib/usage.js');
 
 // --- root: the verbs over `lib/main-work-tree.js`'s run-root resolver (ADR 0080) -----------------
@@ -160,7 +161,7 @@ function takeRoot(args) {
 }
 
 // The run root a verb writes to, or null for a verb that only reads (`get`, `state`, `publish`, `trace`, `windows`, `status`,
-// `base resolve`, `deploy get`) or writes no run file (`discard`, `push`, `run-state delete`). `init` and `open` find their
+// `base resolve`, `deploy get`, `reviewed check`) or writes no run file (`discard`, `push`, `run-state delete`). `init` and `open` find their
 // root themselves: `init` checks it in `lib/ledger-lifecycle.js`'s `verbInit`, and `open` in `lib/plan-open.js`'s `verbOpen`, once for every path it takes; `test` and `fail-to-pass` check it in their own verbs.
 // Every other verb of this CLI that writes to a run names its root with `--root`, and is checked here, once.
 function writtenRoot(verb, args) {
@@ -169,6 +170,7 @@ function writtenRoot(verb, args) {
   const rest = args.filter((_, i) => i !== at && i !== at + 1);
   const writes = ['stage', 'step', 'slice', 'degraded', 'unresolved', 'deferred', 'minors', 'docs', 'pr', 'adopt', 'dod-merge'].includes(verb)
     || ((verb === 'deploy' || verb === 'base') && rest[0] === 'set')
+    || (verb === 'reviewed' && (rest[0] === 'set' || rest[0] === 'clear'))
     || verb === 'suite';
   return writes ? args[at + 1] : null;
 }
@@ -262,6 +264,40 @@ function run(argv, cwd, stdinJson) {
       const root = takeRoot(args);
       const changed = libLedgerRecords().verbPr(root, args[0], args[1]);
       if (changed) ledgerEvent = { root, fields: ['pr', args[0], ...(args[1] ? [args[1]] : [])] };
+      break;
+    }
+    case 'reviewed': {
+      const root = takeRoot(args);
+      const sub = args[0];
+      if (sub === 'clear') {
+        if (args.length > 1) fail(`reviewed clear: unrecognized argument "${args[1]}"`);
+        if (libReviewedTip().verbReviewedClear(root)) ledgerEvent = { root, fields: ['reviewed', 'clear'] };
+        break;
+      }
+      if (sub !== 'set' && sub !== 'check') fail(`unknown reviewed subcommand "${sub}" — use set|clear|check`);
+      const take = (flag) => {
+        const i = args.indexOf(flag);
+        if (i < 0) return undefined;
+        const v = args[i + 1];
+        if (!v) fail(`${flag} needs a value`);
+        args.splice(i, 2);
+        return v;
+      };
+      const branch = take('--branch');
+      // Reads the ledger, dod.md, and git and writes nothing: no trace event, no digest seal (INV-0201).
+      if (sub === 'check') {
+        const base = take('--base');
+        if (!branch) fail('reviewed check needs --branch <branch>');
+        if (!base) fail('reviewed check needs --base <base-ref>');
+        if (args.length > 1) fail(`reviewed check: unrecognized argument "${args[1]}"`);
+        libReviewedTip().verbReviewedCheck(cwd, root, branch, base);
+        break;
+      }
+      const tip = take('--tip');
+      if (!branch) fail('reviewed set needs --branch <branch>');
+      if (args.length > 1) fail(`reviewed set: unrecognized argument "${args[1]}"`);
+      const rec = libReviewedTip().verbReviewedSet(cwd, root, branch, tip);
+      if (rec) ledgerEvent = { root, fields: ['reviewed', 'set', rec.commit, rec.digest] };
       break;
     }
     case 'deploy': {
@@ -554,7 +590,7 @@ function isBulletStdinInvocation(argv) {
 
 // `--help` / `-h` asks for usage unless it is the value of a flag that takes one or the text of a bullet
 // verb (`unresolved add -h`): those are data, and usage text standing in for them would be written on.
-const VALUE_FLAGS = ['--sha', '--root', '--range', '--exit', '--branch', '--slice', '--match', '--match-file', '--note', '--note-file', '--verdict', '--map-file', '--base', '--ci-head', '--ci-file'];
+const VALUE_FLAGS = ['--sha', '--root', '--range', '--exit', '--branch', '--tip', '--slice', '--match', '--match-file', '--note', '--note-file', '--verdict', '--map-file', '--base', '--ci-head', '--ci-file'];
 function asksForHelp(argv) {
   // After `test --` every word belongs to the command.
   if (argv[0] === 'test' && argv.includes('--')) argv = argv.slice(0, argv.indexOf('--'));

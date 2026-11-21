@@ -11,6 +11,7 @@ Applies to every dispatch. You review the diff the controller hands you for unne
 
 - **Whole-scope dispatch**: the range is a whole scope's.
 - **Ad-hoc dispatch**: the range is the one the review names.
+- **Delta dispatch**: the subject is the commits the controller names. Read each as its own diff, `git show --stat <commit>` and then `git show <commit> -- <file>`, in place of `<range>`.
 
 ## The lens
 

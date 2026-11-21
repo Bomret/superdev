@@ -574,7 +574,7 @@ function verbGet(root, field) {
     console.log(getHeader(readLines(root), 'Step') || 'none');
     return;
   }
-  const names = { stage: 'Stage', branch: 'Branch', anchor: 'Anchor', docs: 'Docs', pr: 'PR' };
+  const names = { stage: 'Stage', branch: 'Branch', anchor: 'Anchor', docs: 'Docs', pr: 'PR', reviewed: 'Reviewed' };
   const name = names[field];
   if (!name) fail(`unknown field "${field}" — use ${GET_FIELDS.join('|')}`);
   const v = getHeader(readLines(root), name);
@@ -585,7 +585,7 @@ function verbGet(root, field) {
 // `verbGet` itself, so the two cannot drift. A slice row that does not carry the 7 columns is named under `malformed`
 // and every other row and field still prints. List fields stay arrays in `--json`, `failed` as the failed test files; the others are one string.
 // `GET_FIELDS` is the one field list: `get`'s refusal names it and `state` reads each member.
-const GET_FIELDS = ['stage', 'step', 'branch', 'anchor', 'docs', 'pr', 'slices', 'unresolved', 'degraded', 'deferred', 'minors', 'denials', 'suite', 'failed'];
+const GET_FIELDS = ['stage', 'step', 'branch', 'anchor', 'docs', 'pr', 'reviewed', 'slices', 'unresolved', 'degraded', 'deferred', 'minors', 'denials', 'suite', 'failed'];
 const STATE_LISTS = ['unresolved', 'degraded', 'deferred', 'minors', 'failed'];
 function verbState(root, json) {
   const read = (field) => {

@@ -5,13 +5,13 @@
   by Dietrich Gebert (https://github.com/DietrichGebert). Credit to its author.
 -->
 
-The over-engineering lens `simplicity-reviewer` applies to a whole scope's range and `slice-reviewer` applies to a slice's range on its first review. The diff's best outcome is getting shorter.
+The over-engineering lens `simplicity-reviewer` applies to a whole scope's range, or to a scope's delta commits on a delta review, and `slice-reviewer` applies to a slice's range on its first review. The diff's best outcome is getting shorter.
 
 ## Scope of the lens
 
 Applies to every dispatch.
 
-Flag unnecessary complexity and nothing else: correctness, security, and performance belong to a separate reviewer. Obtain the diff with the `git diff <range>` the controller gives you.
+Flag unnecessary complexity and nothing else: correctness, security, and performance belong to a separate reviewer. Obtain the diff with the `git diff <range>` the controller gives you, or read each commit the controller names with `git show <commit>`.
 
 **Prose in the diff.** Applies to every prose hunk. Tag a rule nothing reaches `delete:`, a rule the diff states twice or restates where another file owns it `shrink:`, and a branch for a case that never occurs `yagni:`.
 

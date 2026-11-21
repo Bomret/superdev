@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0273](0273-every-scope-re-review-continues-warm-and-a-repeat-review-reads-the-delta.md).
+
 **Amended by:** [ADR 0260](0260-the-scope-review-merges-a-moved-base-at-submitted-too.md), under which the
 review merges a moved base at `submitted` as it does at earlier stages.
 

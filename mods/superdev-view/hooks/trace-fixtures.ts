@@ -39,3 +39,11 @@ export const TRACE_LINES: string[] = /* trace:start */ [
   "04 main dispatch-end superdev:slice-reviewer tu4 completed",
   "scope main ledger step block review"
 ] /* trace:end */
+
+// The trace lines scope.js writes for `reviewed set` and `reviewed clear` (ADR 0273), each without its leading timestamp.
+// tests/scope-reviewed.test.js asserts scope.js writes exactly these lines, with its own sha and digest in the set line's
+// place; parse.test.ts asserts `eventLog` draws the same entries with them as without them (INV-0144).
+export const TRACE_REVIEWED_LINES: string[] = /* trace-reviewed:start */ [
+  "scope main ledger reviewed set 0123456789abcdef0123456789abcdef01234567 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "scope main ledger reviewed clear"
+] /* trace-reviewed:end */

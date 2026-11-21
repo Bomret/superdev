@@ -7,6 +7,7 @@ Applies to a scope-mode `/superdev:review` when the permission classifier denies
 **The entry.** Applies beside the skill's degraded-pass step, on a live run. Write the `**Degraded:**` entry per `## Degraded passes` with `scope.js degraded add-denial -`. Pipe the classifier's refusal through a quoted heredoc and never a shell argument.
 
 - Ask `scope.js denial final-reviewer [--unattended]` for the verdict, per that section's `**The verdict**`: `inline` → review inline as §3's report says, and a `block …` verdict blocks instead of reviewing inline again.
+- **An inline review records no reviewed tip.** Its exit runs `scope.js reviewed clear --root <run-root>` in place of §4.10's `reviewed set`, so the next invocation reads the whole range (INV-0201).
 
 ## A denied simplicity-reviewer dispatch
 

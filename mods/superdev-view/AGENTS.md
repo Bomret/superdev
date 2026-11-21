@@ -143,6 +143,9 @@ clock instead of the kit's 5 s default: the bound counts time a case spends desc
 
 - The ledger pin in `tests/scope-ledger.test.js` asserts that `scope.js` writes the lines in
   `hooks/ledger-fixtures.ts`.
+- The reviewed-tip pin in `tests/scope-reviewed.test.js` asserts that `scope.js` writes the ledger in
+  `hooks/ledger-fixtures.ts`'s `LEDGER_REVIEWED_LINES` and the trace lines in `hooks/trace-fixtures.ts`'s
+  `TRACE_REVIEWED_LINES`, with its own sha and digest in the record's place.
 - The trace pin in `tests/run-trace-dispatch.test.js` asserts that `plugin/hooks/run-trace.js` writes the lines in
   `hooks/trace-fixtures.ts`.
 - The DoD line pin in `tests/scope-dod-line.test.js` asserts that `scope.js dod-line` writes the lines in

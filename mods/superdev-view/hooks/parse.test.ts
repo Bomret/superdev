@@ -1,8 +1,8 @@
 import { test, expect } from 'claude-code/testing'
 import { closedAt, eventLog, frontmatter, header, intent, progress, queuedMinors, slices, untrace } from './parse'
 import { DOD_LOOKALIKE_LINES, DOD_OPEN_LINES, DOD_SHORTEST_LINES, DOD_WRITTEN_LINES } from './dod-fixtures'
-import { LEDGER_LINES, LEDGER_QUEUE_LINES, LEDGER_STEP_LINES } from './ledger-fixtures'
-import { TRACE_LINES } from './trace-fixtures'
+import { LEDGER_LINES, LEDGER_QUEUE_LINES, LEDGER_REVIEWED_LINES, LEDGER_STEP_LINES } from './ledger-fixtures'
+import { TRACE_LINES, TRACE_REVIEWED_LINES } from './trace-fixtures'
 
 test('a header the ledger lacks reads empty', () => {
   expect(header(LEDGER_LINES.join('\n'), 'PR')).toBe('')
@@ -113,6 +113,17 @@ const STEPPED = [
   `${at('11:18:00')} scope main ledger stage set closed`,
 ]
 const heads = (log: ReturnType<typeof eventLog>) => log.entries.filter(e => e.kind === 'command').map(e => e.kind === 'command' && [e.name, e.isDone, e.ms])
+
+test('a ledger and a trace carrying a reviewed-tip record draw the same entries as without it (INV-0144)', () => {
+  const step = LEDGER_STEP_LINES.join('\n')
+  const reviewed = LEDGER_REVIEWED_LINES.join('\n')
+  for (const name of ['Stage', 'Branch', 'Anchor', 'Step', 'PR']) expect(header(reviewed, name)).toBe(header(step, name))
+  expect(slices(reviewed)).toEqual(slices(step))
+  expect(queuedMinors(reviewed)).toEqual(queuedMinors(step))
+  const i = STEPPED.findIndex(l => l.endsWith('scope main ledger step clear'))
+  const withRecord = [...STEPPED.slice(0, i + 1), ...TRACE_REVIEWED_LINES.map(l => `${at('10:14:00')} ${l}`), ...STEPPED.slice(i + 1)]
+  expect(eventLog(LEDGER_CLOSED, withRecord.join('\n'), t('12:00:00'))).toEqual(eventLog(LEDGER_CLOSED, STEPPED.join('\n'), t('12:00:00')))
+})
 
 test('a trace with step lines draws each started command, done with its duration, waits between them, and closed at the end', () => {
   const log = eventLog(LEDGER_CLOSED, STEPPED.join('\n'), t('12:00:00'))

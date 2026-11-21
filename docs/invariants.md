@@ -470,10 +470,10 @@ Paths: plugin/skills/plan/SKILL.md, plugin/references/design-sketch.md
 
 Class: process
 Concepts: Tier, Simplicity-reviewer, Final-reviewer, Execution playbook
-Statement: Every scope gets an over-engineering pass. A full-tier scope whose every slice is `behavior` gets it per slice in `implement-full.md`, from each slice's first `slice-reviewer` review, so `/superdev:review` skips simplicity-reviewer there. Every other scope gets it whole-scope from `/superdev:review`, under the skip rules a lite scope takes. Its findings gate nothing on their own, and each cut the controller warrants joins the review's fix set as a Minor; only the entry review gets the pass (ADR 0228).
+Statement: Every scope gets an over-engineering pass. A full-tier scope whose every slice is `behavior` gets it per slice in `implement-full.md`, from each slice's first `slice-reviewer` review, so `/superdev:review` skips simplicity-reviewer there. Every other scope gets it whole-scope from `/superdev:review`, under the skip rules a lite scope takes. Its findings gate nothing on their own, and each cut the controller warrants joins the review's fix set as a Minor; only the entry review gets the pass, and on a delta review it reads only the scope's own delta, the delta's non-merge first-parent commits each as its own diff, never a change a base merge brought in (ADR 0228, ADR 0273).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
-Paths: plugin/skills/review/SKILL.md, plugin/references/review-scope-*.md, plugin/references/implement-full.md
+Paths: plugin/skills/review/SKILL.md, plugin/references/review-scope-*.md, plugin/references/implement-full.md, plugin/agents/simplicity-reviewer.md
 
 ### INV-0056
 
@@ -992,7 +992,7 @@ Paths: plugin/skills/ship/SKILL.md, plugin/skills/verify-ship/SKILL.md, plugin/s
 
 Class: process
 Concepts: Base branch, Scope branch, Scopetree, Run kind
-Statement: Every `/superdev:implement` invocation, at both execution tiers and every run kind, brings the base into the scope branch after the run lock is written and before the first slice starts (the one exception: at the `lite` tier a dirty scopetree with an `in-progress` slice skips the step, and the next invocation runs it). `/superdev:review` on a live scope run at a stage before `shipped`, `submitted` included, brings the base in the same way before §4.2's red evidence, which runs no test, and again before its stage write or its leave-alone, and at each fix cycle's end when the scope branch lacks the fetched base tip; a merge that resolved a conflict takes a whole-range `final-reviewer` re-review before that write or leave-alone, and neither the merge nor that re-review counts as a fix cycle. It merges no base at `shipped` or `closed` (ADR 0173, ADR 0221, ADR 0260). It merges the fetched remote base tip whether or not the local base could advance to it, and records that tip in the ledger's `**Base:**` header. Every range of the scope's own commits starts from the range base `scope.js base resolve` prints, the newer of `merge-base(<base>, <branch>)` and the recorded tip. A base that cannot be fetched is a degraded pass: the local base is merged and no tip is recorded (ADR 0120).
+Statement: Every `/superdev:implement` invocation, at both execution tiers and every run kind, brings the base into the scope branch after the run lock is written and before the first slice starts (the one exception: at the `lite` tier a dirty scopetree with an `in-progress` slice skips the step, and the next invocation runs it). `/superdev:review` on a live scope run at a stage before `shipped`, `submitted` included, brings the base in the same way before §4.2's red evidence, which runs no test, and again before its stage write or its leave-alone, and at each fix cycle's end when the scope branch lacks the fetched base tip; a merge that resolved a conflict takes a `final-reviewer` re-review of its conflict resolution plus its reach before that write or leave-alone (ADR 0273), and neither the merge nor that re-review counts as a fix cycle. It merges no base at `shipped` or `closed` (ADR 0173, ADR 0221, ADR 0260). It merges the fetched remote base tip whether or not the local base could advance to it, and records that tip in the ledger's `**Base:**` header. Every range of the scope's own commits starts from the range base `scope.js base resolve` prints, the newer of `merge-base(<base>, <branch>)` and the recorded tip. A base that cannot be fetched is a degraded pass: the local base is merged and no tip is recorded (ADR 0120).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/scope-mode.md, plugin/references/scope-branch.md, plugin/references/implement-lite.md, plugin/references/implement-full.md, plugin/skills/review/**, plugin/references/review-scope-*.md, plugin/scripts/scope.js, plugin/lib/suite-base-get.js
@@ -1146,10 +1146,10 @@ Paths: plugin/hooks/merge-guard.js
 ### INV-0143
 
 Class: process
-Concepts: Final-reviewer, Slice-reviewer, Review cycle
-Statement: The scope review's `final-reviewer` reads the whole scope range on every dispatch, its re-reviews after a fix cycle included, because a full-tier slice re-review reads only its fix cycle's range (ADR 0137). The one exception is the re-review after a fix cycle whose fix list held only Minor findings: it reads that cycle's own range, because the verdict it follows already read the whole range and found nothing blocking outside unclosable Pass-to-pass findings (ADR 0174). It restates each such finding of that verdict with its slice or range, its case, and its reason, its mark re-judged against the cycle's range, and the combined verdict reads the restated findings (ADR 0193).
+Concepts: Final-reviewer, Warm re-review, Reach, Delta review
+Statement: The scope review's `final-reviewer` reads the whole scope range on an invocation's entry dispatch, unless that invocation runs a delta review, and on a fresh dispatch after a resume that failed, was denied, or ended other than `completed`. Every fix cycle's re-review, whatever the fix list's severity mix, continues the `final-reviewer` whose verdict it fixes and reads the cycle's range plus its reach; a conflict-resolving base merge's re-review reads that merge's remerge-diff plus its reach the same way, or the whole scope range on a git older than 2.36. Each such re-review re-judges every Definition-of-Done criterion its subject or reach touches, and every other criterion keeps its recorded verdict (ADR 0273). The continued reviewer restates each unclosable Pass-to-pass finding of its last verdict with its slice or range, its case, and its reason, its mark re-judged against the cycle's range, and the combined verdict reads the restated findings (ADR 0193).
 Breaks: silently
-Check: none — final-reviewer's invariant compliance judges it
+Check: none — final-reviewer's invariant compliance judges it; the subject a dispatch hands is prose the controller follows
 Paths: plugin/agents/final-reviewer.md, plugin/skills/review/**, plugin/references/review-scope-*.md, plugin/references/scope-mode.md, plugin/references/scope-findings.md
 
 ### INV-0144
@@ -1594,3 +1594,12 @@ Statement: `hooks/operator-alert.js` stops the main session at most once per wai
 Breaks: silently
 Check: tests/operator-alert.test.js — a first ask in an attended superdev wait is denied. A re-ask after the denial or after a PushNotification call passes. A question after an answered question is denied again. A failing tool call whose output carries the marker, or a typed prompt quoting the reason, releases no wait. An unattended newest start, a mention, or a subagent call passes. A Blocked: or First: Next block blocks once and passes under stop_hook_active. A plain Next block or a Blocked: inside the fence passes. A missing or unreadable transcript passes
 Paths: plugin/hooks/operator-alert.js, plugin/hooks/hooks.json
+
+### INV-0201
+
+Class: safety
+Concepts: Reviewed tip, Delta review, Ledger
+Statement: A scope review records a reviewed tip only on a clean exit that leaves no finding standing except deferred ones, the stage line written or left alone, and an exit that makes the standing-defect writes clears it. A later invocation runs a delta review only when the recorded tip is an ancestor of the scope branch tip, the digest of `dod.md`'s criterion texts and tags equals the recorded one, and git can show a merge's remerge-diff; no record, a tip that is no ancestor, a changed digest, an unreadable record, or an older git reads the whole range (ADR 0273).
+Breaks: silently
+Check: the suite of `scope.js reviewed` — each whole-range fallback, the delta and unchanged cases, a digest unmoved by ticks and notes, and a ledger without the header
+Paths: plugin/scripts/scope.js, plugin/lib/reviewed-tip.js, plugin/lib/ledger.js, plugin/references/review-scope-*.md

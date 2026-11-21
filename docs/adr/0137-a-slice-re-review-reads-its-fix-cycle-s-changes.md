@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0273](0273-every-scope-re-review-continues-warm-and-a-repeat-review-reads-the-delta.md).
+
 **Amended by:** [ADR 0174](0174-minor-only-verdicts-batch-their-fixes-and-continue-warm.md).
 
 **Context.** In the full tier, a slice re-review reads the whole slice again, the same subject as the

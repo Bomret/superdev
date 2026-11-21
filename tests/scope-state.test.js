@@ -12,7 +12,7 @@ const cp = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { tmp, call, sliceJson, scopePath, cleanup, writeDod, scopeRoot } = require('./scope-setup');
 
-const FIELDS = ['stage', 'step', 'branch', 'anchor', 'docs', 'pr', 'slices', 'unresolved', 'degraded', 'deferred', 'minors', 'denials', 'suite', 'failed'];
+const FIELDS = ['stage', 'step', 'branch', 'anchor', 'docs', 'pr', 'reviewed', 'slices', 'unresolved', 'degraded', 'deferred', 'minors', 'denials', 'suite', 'failed'];
 const LISTS = ['slices', 'unresolved', 'degraded', 'deferred', 'minors', 'failed'];
 
 const spawnState = (args, env) => {
