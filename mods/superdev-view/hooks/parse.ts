@@ -42,17 +42,23 @@ export const closedAt = (trace: string): number | null => {
 
 // DoD progress by the note rule (plugin/references/dod-ticks.md, ADR 0247, INV-0190): every checklist line counts
 // toward the total, and a line is done only when its verdict note is `met:` or `accepted:`, whatever its checkbox
-// shows. The note label is read as plugin/lib/dod-line.js reads it: the tagged form first, then the untagged one,
-// each at its leftmost boundary, the label matched whole. The mod installs from its own folder and cannot require
+// shows. The note label is read as plugin/lib/dod-line.js reads it: the tagged and the untagged form each at its
+// leftmost boundary, the reading with the shorter criterion winning, the label matched whole, and `[^\n\r]` standing
+// for every `.` so a U+2028 or U+2029 inside a line is text. The mod installs from its own folder and cannot require
 // plugin/lib/, so it carries the reading itself; hooks/dod-fixtures.ts pins it to the lines scope.js writes, and
 // tests/scope-dod-line.test.js asserts DOD_TAG and DOD_LABEL match dod-line.js's tag and verdict patterns.
 const DOD_TAG = '(?:scope|docs|(?:#?\\d+|[A-Z][A-Z0-9_]*-\\d+)(?:,\\s*(?:#?\\d+|[A-Z][A-Z0-9_]*-\\d+))*)'
 const DOD_LABEL = '(met|not met|ceiling|accepted)'
-const DOD_NOTE_TAGGED = new RegExp(`^.+? — ${DOD_TAG} — ${DOD_LABEL}: `)
-const DOD_NOTE_UNTAGGED = new RegExp(`^.+? — ${DOD_LABEL}: `)
+const DOD_NOTE_TAGGED = new RegExp(`^([^\\n\\r]+?) — ${DOD_TAG} — ${DOD_LABEL}: `)
+const DOD_NOTE_UNTAGGED = new RegExp(`^([^\\n\\r]+?) — ${DOD_LABEL}: `)
 export const progress = (md: string) => {
-  const labels = md.split(/\r?\n/).map(l => /^\s*- \[[ xX]\]\s*(.*)$/.exec(l)?.[1]).filter((r): r is string => r !== undefined)
-    .map(r => (DOD_NOTE_TAGGED.exec(r) ?? DOD_NOTE_UNTAGGED.exec(r))?.[1])
+  const labels = md.split(/\r?\n/).map(l => /^\s*- \[[ xX]\]\s*([^\n\r]*)$/.exec(l)?.[1]).filter((r): r is string => r !== undefined)
+    .map(r => {
+      const tagged = DOD_NOTE_TAGGED.exec(r)
+      const untagged = DOD_NOTE_UNTAGGED.exec(r)
+      const read = tagged && untagged && untagged[1]!.length < tagged[1]!.length ? untagged : (tagged ?? untagged)
+      return read?.[2]
+    })
   return {
     done: labels.filter(l => l === 'met' || l === 'accepted').length,
     total: labels.length,

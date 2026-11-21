@@ -73,7 +73,7 @@ under the recorded rerun. A `red` record at an ancestor of the tip also qualifie
 ADR 0186): the latest full or whole run the run trace records at the tip passed on a clean tree, whoever wrote it, a
 fail-to-pass control run included. `--whole` takes only a whole run there. A record at the tip that is not green decides
 by the third route alone. The fourth route writes the run it accepts as the record, `green @ <tip>`, with ` whole` where
-the latest whole run at the tip passed, and leaves a record that already reads so untouched. No other route writes.
+the latest whole run at the tip passed, and leaves a record that already reads so untouched. No other route writes. A write is a ledger write: `writtenRoot` checks the run digest first, and the `Suite` header change traces one `ledger suite reusable <branch>` line (`--whole` appended where the record is whole). A reuse that leaves the record untouched traces nothing.
 
 The **Markdown-only carry** (ADR 0128) holds when every path changed since the record ends in `.md`. No such path is a
 test path. A changed `docs/agents/verification.md` carries only where its **Run configuration** (CONTEXT.md) is the same
@@ -437,7 +437,7 @@ wrote them, under `digest.lock`, a lock created exclusively whose holder removes
 `LOCK_STALE_MS`. Neither file is pushed with the run state. `run-check.js`'s `checkRun(root)` compares both files with the digest
 before a verb writes to the run: `scope.js` calls it once from `writtenRoot` for every verb that names `--root` and writes
 (`stage`, `step`, `slice`, `degraded`, `unresolved`, `deferred`, `minors`, `docs`, `pr`, `adopt`, `dod-merge`, `deploy set`,
-`base set`, `suite` other than `reusable`), and `init`, `open`, `test`, and `fail-to-pass` call it in their own verbs. A file that
+`base set`, every `suite` subcommand), and `init`, `open`, `test`, and `fail-to-pass` call it in their own verbs. A file that
 differs, or that was deleted while its digest was present, prints one stderr warning naming the file and appends a `tamper <file>`
 trace line. The digest then seals what is on disk and the verb goes on. A file with no digest is sealed and reported on no stream.
 No hook refuses an edit of either file. The code lives in `plugin/lib/run-digest.js` and `plugin/lib/run-check.js`, and
@@ -637,7 +637,9 @@ re-write always leaves it unchanged, and the new note always replaces whatever n
 unmet criterion stands accepted as unmet (ADR 0095) — the box stays unticked, since the criterion is
 honestly unmet. Refuses, printing nothing, on zero matching lines, on two or more (which one to edit
 cannot be resolved — a line offering two readings counts once), on a `--verdict` outside the four named
-values, on a missing `--match-file` or `--note-file`, or on an inline `--match` or `--note`.
+values, on a missing `--match-file` or `--note-file`, on an inline `--match` or `--note`, on an unknown
+argument, on a flag with no value or a value that starts with `--`, or on a note holding a U+2028 or U+2029
+separator.
 
 `dod-tags [--map-file <path>] [--line]` is the criterion-tag rewrite (ADR 0209, INV-0182), in
 `plugin/lib/dod-tags.js`. It touches no ledger and makes no store call. It reads an anchor body on stdin and
@@ -649,7 +651,8 @@ through `dod-line.js`'s own line, tag, and section rules. Without `--map-file` i
 and prints one checklist line, for a Jira ADF text node. It refuses, printing nothing and naming every
 offending line, when an unjudged checklist line carries no tag `dod-line` reads, a tag names a slice id the
 map lacks, or a tag joins `scope` or `docs` with other entries. It also refuses a map with a duplicate id or a
-reference not in store notation, empty input, and a body with no `## Definition of Done` section.
+reference not in store notation, empty input, a body with no `## Definition of Done` section, an unknown
+argument, and a flag with no value or a value that starts with `--`.
 `/superdev:plan` runs it on the drafted Definition of Done before it creates the epic, and as the producer
 of each store's tag-rewrite body edit. `tests/scope-dod-tags.test.js` holds its cases.
 
@@ -869,7 +872,7 @@ publishes nothing, since a local backend keeps its pages as repository files (AD
 backend with no `## Commands` section refuses and names `/superdev:setup`. A remote backend that
 carries one parses its five `### <verb>` subsections, `find`, `read`, `create`, `update`, and
 `delete`, by heading name, never by position. A fenced block inserted or removed elsewhere therefore
-never shifts which template a later verb reads. Each template runs under `sh -c`, `sh` resolved from PATH (ADR 0150). Every value
+never shifts which template a later verb reads. A subsection whose fence opens and never closes refuses with `unterminated fenced code block in ### <verb>`, and a tilde fence or a longer opener reads through `md-sections.js`'s fence rule like every other Markdown reader. Each template runs under `sh -c`, `sh` resolved from PATH (ADR 0150). Every value
 passes to it as one JSON file named by `$1`, never interpolated into the command string. The file holds the call's values, the
 `find` result's fields under `found`, and the `knowledge-base` section of the operator configuration under `operator`. A title carrying
 a quote, a `$`, a backtick, or a newline therefore reaches the backend unchanged and starts no shell of

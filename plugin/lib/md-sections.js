@@ -1,6 +1,6 @@
 'use strict';
 
-// md-sections.js: the markdown section rules, the fence masking and the heading-keyed section merge that `kb-patch.js`, the Definition-of-Done edit, and the run-state adopt share (ADR 0022, ADR 0027).
+// md-sections.js: the markdown section rules, the fence rule (`fenceOpener`, `fenceCloses`) every markdown reader shares, the fence masking, and the heading-keyed section merge that `kb-patch.js`, the Definition-of-Done edit, and the run-state adopt share (ADR 0022, ADR 0027).
 
 const { fail } = require('./refusal.js');
 
@@ -60,6 +60,18 @@ function readLines(text) {
   return text.replace(/\r\n/g, '\n').split('\n');
 }
 
+// The fence a line opens (its run of backticks or tildes), or null: at most three spaces of indentation, three or more
+// backticks or tildes, and any info string, which for a backtick fence holds no backtick.
+function fenceOpener(line) {
+  const m = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+  return m && !(m[1][0] === '`' && m[2].includes('`')) ? m[1] : null;
+}
+
+// Whether a line closes the fence `open` opened: the same indentation limit, the same character, at least as long.
+function fenceCloses(line, open) {
+  return /^ {0,3}(`+|~+)\s*$/.test(line) && line.trim()[0] === open[0] && line.trim().length >= open.length;
+}
+
 // maskFencedLines(): a parallel array where every line inside a fenced code block (including the
 // fence markers themselves) is blanked, so a `#`/`~~~` shown *inside* an example is never read as a
 // heading — not in the staged body, not in the live section being replaced, and not by the `hits`
@@ -76,15 +88,14 @@ function maskFencedLines(lines, source, verb = 'merged') {
   let fence = null;
   const masked = lines.map((line) => {
     if (fence === null) {
-      const marker = line.match(/^\s{0,3}(`{3,}|~{3,})/);
-      if (!marker) return line;
-      fence = { char: marker[1][0], len: marker[1].length };
+      const opener = fenceOpener(line);
+      if (!opener) return line;
+      fence = opener;
       return '';
     }
     // CommonMark: a closing fence is the marker alone — a shown ```bash opener inside the open
     // block is content, not a closer.
-    const closer = line.match(/^\s{0,3}(`{3,}|~{3,})\s*$/);
-    if (closer && closer[1][0] === fence.char && closer[1].length >= fence.len) fence = null;
+    if (fenceCloses(line, fence)) fence = null;
     return '';
   });
   if (fence !== null) fail(`${source} has an unterminated fenced code block — nothing is ${verb}`);
@@ -200,4 +211,4 @@ function merge(liveText, stagedText) {
   return `${live.slice(0, start).concat(body, gap, tail).join('\n')}`;
 }
 
-module.exports = { maskFencedLines, merge, headingKeyOf, headingLevel, hasSetextHeading, readLines };
+module.exports = { fenceOpener, fenceCloses, maskFencedLines, merge, headingKeyOf, headingLevel, hasSetextHeading, readLines };

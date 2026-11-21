@@ -235,4 +235,8 @@ assertWellFormed(toStorage('__~~<\\***)&\\_~~*  '), 'a fuzz-found crossed-tag in
   }
 }
 
+
+for (const [md, what] of [['```js```\ntext\n', 'a ```js``` line'], ['\t```\ntext\n', 'a tab-indented ``` line']]) {
+  assert.ok(!toStorage(md).includes('structured-macro') && toStorage(md).includes('text'), `${what} opens no code block, the rest converts as text`);
+}
 console.log('md-to-storage.test.js: all assertions passed');

@@ -16,7 +16,8 @@
 // simplicity: emphasis matching backtracks on a paragraph of unclosed markers (~1.5 s at 32 KB of `**a `).
 // Staged pages are far smaller; cap the paragraph length or scan linearly if one ever is not.
 
-const FENCE = /^ {0,3}(`{3,}|~{3,})/;
+const { fenceOpener, fenceCloses } = require('./md-sections.js');
+
 const HEADING = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/;
 const HR = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/;
 const QUOTE = /^ {0,3}> ?/;
@@ -109,7 +110,7 @@ function isTableStart(lines, i) {
 
 function startsBlock(lines, i) {
   const l = lines[i];
-  return FENCE.test(l) || HEADING.test(l) || HR.test(l) || QUOTE.test(l) || ITEM.test(l) || isTableStart(lines, i);
+  return fenceOpener(l) || HEADING.test(l) || HR.test(l) || QUOTE.test(l) || ITEM.test(l) || isTableStart(lines, i);
 }
 
 function indentOf(line) {
@@ -170,12 +171,12 @@ function blocks(lines) {
       continue;
     }
     let m;
-    if ((m = l.match(FENCE))) {
-      const close = new RegExp(`^ {0,3}${m[1][0]}{${m[1].length},}[ \\t]*$`);
-      const info = l.slice(m[0].length).trim().split(/\s+/)[0];
+    const open = fenceOpener(l);
+    if (open) {
+      const info = l.slice(l.indexOf(open) + open.length).trim().split(/\s+/)[0];
       const code = [];
       i++;
-      while (i < lines.length && !close.test(lines[i])) code.push(lines[i++]);
+      while (i < lines.length && !fenceCloses(lines[i], open)) code.push(lines[i++]);
       if (i++ >= lines.length) while (code.length && code[code.length - 1] === '') code.pop();
       const language = /^[\w+#.-]+$/.test(info) ? `<ac:parameter ac:name="language">${info}</ac:parameter>` : '';
       const text = code.join('\n').replace(/]]>/g, ']]]]><![CDATA[>');

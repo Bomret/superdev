@@ -39,6 +39,12 @@ try {
     assert.ok(t.out.includes('- [x] x — #1388, #1396 — met: seen'), t.out);
   }
 
+  // A body whose only fence closer is tab-indented is unterminated and refused.
+  {
+    r = call(['dod-tags', '--map-file', mapFile(['01 #1388'])], section('- [ ] x — 01', '```', 'y', '\t```'));
+    assert.ok(!r.ok && /unterminated fenced code block/.test(r.err), 'a tab-indented closer refuses: ' + r.err);
+  }
+
   // A mixed tag rewrites the id and keeps the reference; Jira keys work the same.
   {
     r = call(['dod-tags', '--map-file', mapFile(['01 #1388'])], section('- [ ] x — 01, #1390'));
@@ -165,6 +171,14 @@ try {
     assertSpawnDecided(res, 'scope.js dod-tags refusal');
     assert.notStrictEqual(res.status, 0);
     assert.strictEqual(res.stdout, '');
+  }
+
+  // A mistyped flag, a flag with no value or another flag as its value, and an unknown argument refuse and print no body.
+  {
+    for (const args of [['--mapfile', '/nonexistent'], ['--map-file'], ['--map-file', '--line'], ['--bogus'], ['--map-file', mapFile(['01 #9']), 'extra']]) {
+      const r = call(['dod-tags', ...args], section('- [ ] A works — 01'));
+      assert.ok(!r.ok && r.out === '', 'dod-tags refuses ' + args.join(' '));
+    }
   }
 
   console.log('scope-dod-tags: ok');

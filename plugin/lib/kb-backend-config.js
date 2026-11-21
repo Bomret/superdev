@@ -6,6 +6,7 @@
 const { fail } = require('./refusal.js');
 const { timeoutMs } = require('./kb-backend.js');
 const { operatorSection } = require('./operator-config.js');
+const { fenceOpener, fenceCloses } = require('./md-sections.js');
 
 const VERBS = ['find', 'read', 'create', 'update', 'delete'];
 
@@ -41,9 +42,21 @@ function parseCommandsTemplates(sectionText) {
         break;
       }
     }
-    const sub = lines.slice(start + 1, end).join('\n');
-    const fence = sub.match(/```[^\n]*\n([\s\S]*?)```/);
-    if (fence) templates[verb] = fence[1].replace(/\n$/, '');
+    // The first closed fenced block, read through the shared fence rule (`md-sections.js`): tilde fences and longer openers too.
+    // A fence the subsection opens and never closes refuses, naming the verb, rather than reading as a verb with no template.
+    let open = null;
+    const body = [];
+    for (const line of lines.slice(start + 1, end)) {
+      if (open === null) {
+        open = fenceOpener(line);
+      } else if (fenceCloses(line, open)) {
+        templates[verb] = body.join('\n');
+        break;
+      } else {
+        body.push(line);
+      }
+    }
+    if (open !== null && templates[verb] === undefined) fail(`unterminated fenced code block in ### ${verb}`);
   }
   return templates;
 }

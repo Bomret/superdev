@@ -31,6 +31,20 @@ assert.equal(
   assert.equal(t.create, undefined, 'a verb with no subsection is simply absent');
 }
 
+// --- parseCommandsTemplates: the shared fence rule (md-sections.js), tilde fences and longer openers included ---------------
+{
+  const section = '### find\n\n~~~sh\nFIND_CMD\n~~~\n\n### read\n\n````sh\nREAD ```x``` CMD\n````\n';
+  const t = parseCommandsTemplates(section);
+  assert.deepEqual([t.find, t.read], ['FIND_CMD', 'READ ```x``` CMD'], 'a tilde fence and a longer backtick opener each yield their whole template');
+}
+
+// --- parseCommandsTemplates: a template fence never closed inside its verb's section refuses, naming that verb ---------------
+assert.throws(
+  () => parseCommandsTemplates('### find\n\n```sh\nFIND_CMD\n\n### read\n\n```sh\nREAD_CMD\n```\n'),
+  (e) => e.isRefusal && /unterminated fenced code block in ### find/.test(e.message),
+  'an unterminated template fence refuses with its own cause, not a missing verb',
+);
+
 // --- parseStagedPage: frontmatter + quoting -----------------------------------------------------
 {
   const p = parseStagedPage('---\ntitle: Plain title\naction: upsert\n---\nbody.\n');

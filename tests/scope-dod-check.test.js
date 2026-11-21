@@ -139,6 +139,20 @@ try {
     assert.doesNotMatch(r.err, /dod-check refused|Reachable|Release risk|triage/, 'no problem line is checked');
   }
 
+  // A body whose only fence closer is tab-indented is unterminated.
+  {
+    r = call(['dod-check'], ['## Definition of Done', '', '- [ ] a (triage #2) — 01', '', '```', 'x', '\t```'].join('\n'));
+    assert.ok(!r.ok && /unterminated fenced code block/.test(r.err), 'a tab-indented closer refuses');
+  }
+
+  // A citation quoted inside an untagged line's note is no citation: the line reads at its own shortest
+  // ` — <verdict>: ` boundary, so the note's look-alike ` — 3 — met: ` never widens the criterion.
+  {
+    r = call(['dod-check'], body(null, '- [ ] Retries are capped — not met: earlier note read "x (triage #9) — 3 — met: y"'));
+    assert.ok(r.ok, 'a citation inside a note is no citation: ' + (r.err || ''));
+    assert.strictEqual(r.out, '');
+  }
+
   console.log('scope-dod-check: ok');
 } finally {
   cleanup();

@@ -203,3 +203,13 @@ const doc = put(
   call(['section', 'test-selection.md'], '## Complete selector\n', repoDir);
   assert.equal(git(), gitBefore, 'the git state is unchanged');
 }
+
+// one fence rule: a ```js``` line and a tab-indented ``` line open no fence, so the next heading still ends the section
+{
+  const f = put('fence-rule.md', '## A\na1\n```js```\n\t```\n## B\nb1\n```x\nc\n```\n');
+  const r = section(f, '## A');
+  assert.ok(r.ok && r.out.includes('a1') && !r.out.includes('b1'), 'section A ends at ## B: ' + (r.err || r.out));
+  const bad = put('fence-bad.md', '## A\n```\ncode\n\t```\n## B\n');
+  const u = section(bad, '## A');
+  assert.ok(!u.ok && /unterminated/.test(u.err), 'a tab-indented closer is refused');
+}

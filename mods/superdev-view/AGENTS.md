@@ -45,7 +45,7 @@ slice, and its counts. The `DoD n/m` count, on a scope row and on the scope page
 rule (`plugin/references/dod-ticks.md`'s `## The note rule`, INV-0190): `m` is every checklist line of the
 scope's `dod.md`, and `n` is the lines whose verdict note is `met:` or `accepted:`, whatever their checkbox shows.
 A bare tick, an unjudged line, and a line noted `not met:` or `ceiling:` count as open. `progress` in
-`hooks/parse.ts` reads the note label as `plugin/lib/dod-line.js` reads it. The closed scopes follow as dim rows, the most recently closed first, by the
+`hooks/parse.ts` reads the note label as `plugin/lib/dod-line.js` reads it: of the tagged and untagged note boundaries, the one leaving the shorter criterion wins, and a U+2028 or U+2029 inside a line is text, not a line end. The closed scopes follow as dim rows, the most recently closed first, by the
 trace's `ledger stage set closed` line. A closed scope whose trace has no such line comes last. The card
 shows the five most recently closed scopes. A fold below them shows the rest on a press and folds them
 again, and its state lives in the `sections` atom like a card's. The other
