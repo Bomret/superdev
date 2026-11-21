@@ -23,6 +23,7 @@ Applies to a scope-mode `/superdev:review` at the moment `${CLAUDE_PLUGIN_ROOT}/
 
 - Write the `**Unresolved:**` entry with a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) piped to `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add - --root <run-root>` (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`).
 - **At a `submitted` stage**, also invalidate the tip's suite record with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" suite set none <sha> --root <run-root>`, `<sha>` being the scope branch's current tip.
+- Clear the reviewed tip with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" reviewed clear --root <run-root>`, so the next invocation reads the whole range (INV-0200).
 - Leave the stage where it is.
 
 ## At the cap

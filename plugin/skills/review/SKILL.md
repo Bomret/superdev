@@ -9,7 +9,7 @@ argument-hint: "[BASE..HEAD | branch | path | scope-slug | (empty, or the top-le
 Review a change end to end. §1 decides the mode.
 
 - **Ad-hoc**: a spot-check, a pre-PR pass, a second opinion on someone else's branch, or `/superdev:sweep`'s code leg under `--chained`. No plan stands behind it, and §3 keeps it read-only, except the inline fix the operator agrees to.
-- **Scope**: the range is a live superdev scope branch, the whole-scope review gate of the implement chain. It reviews against that run's Definition of Done, drives the fix loop over every finding, asking only fix-or-accept per broken criterion, and hands off to `/superdev:document`. `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md` owns everything that differs.
+- **Scope**: the range is a live superdev scope branch, the whole-scope review gate of the implement chain. It reviews against that run's Definition of Done, the whole scope range or, on a repeat invocation, the delta since the last clean verdict's reviewed tip, drives the fix loop over every finding, asking only fix-or-accept per broken criterion, and hands off to `/superdev:document`. `${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md` owns everything that differs.
 
 **Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
 

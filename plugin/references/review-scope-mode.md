@@ -31,7 +31,7 @@ Rare branches live in files of their own, each read only when its branch fires: 
 - `step clear`.
 - A stage write.
 - `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step block --root <run-root>`.
-  - A blocked stop, a refusal, a `First:` wait, and a review exit without a clean verdict each run `step block` first.
+  - A blocked stop, a refusal, a `First:` wait, and a review exit without a clean verdict each run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" reviewed clear --root <run-root>` and then `step block` (INV-0200).
 
 **The snapshot.** Applies to every exit after the `step set review` call. When this review made a ledger write `${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## Publishing run state` lists, publish the snapshot once per that section, as the exit's last act: after its closer and after every ledger write the exit makes past it, such as §4.10's `docs clear` and `docs` untick entries. No other step of this review publishes.
 
@@ -41,7 +41,7 @@ Rare branches live in files of their own, each read only when its branch fires: 
 
 - **Summary**: the scope anchor's title, from the `anchor` field of the `scope.js state` call the skill's §1 made (`${CLAUDE_PLUGIN_ROOT}/references/run-state.md`'s `## The ledger`). The field reads `absent` → say so in one line and hand a diff-derived summary.
 - **Acceptance**: the path `<run-root>/dod.md`, as §1 states.
-- **Range**: the whole scope range `<range-base>..<branch>` on the entry dispatch and on a fresh dispatch after a resume that failed, was denied, or ended other than `completed`. Every other re-review takes **The warm re-review**'s subject in its place.
+- **Range**: the whole scope range `<range-base>..<branch>` on the entry dispatch and on a fresh dispatch after a resume that failed, was denied, or ended other than `completed`. A delta review's entry dispatch takes §4.1's **The reviewed-tip check** subject, and every other re-review takes **The warm re-review**'s subject in its place.
 - **Tier and run root**: the `tier:` line of `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" tier --root <run-root>` (`full`, `lite`, or `unknown`; `unknown` withholds no check, INV-0056: the reviewer grades every slice's recorded range as on `lite`), and `<run-root>`.
 - **Fix-cycle range**: a re-review hands the cycle's range `<cycle-base>..<cycle-tip>` as full commits. `<cycle-tip>` is the scope tip once you accept the cycle's report, before any merge of §4.1's **The moved base**.
 - **Untraced writes**: the reviewer runs `scope.js untraced` over the range of each window `fail-to-pass.md`'s `## Fail-to-pass run` gives the final reviewer, the `lite` slices with a recorded range and the scope's fix cycles with commits, a fix cycle's call naming its dispatch id from `scope.js windows --slice scope` as `--window` and a `lite` slice's call none, and grades the listing, per `${CLAUDE_PLUGIN_ROOT}/references/untraced-writes.md`'s `## Untraced writes`. The dispatch hands the run root and the ranges above and no listing, because the verb reads git and the trace itself. A `run full` or `run whole` line inside an implementer window is a Minor **Implementer suite run** finding.
@@ -66,6 +66,7 @@ Rare branches live in files of their own, each read only when its branch fires: 
 - **`simplicity: skip`** → dispatch `final-reviewer` alone and skip `superdev:simplicity-reviewer`, reporting `` not dispatched — full tier, every slice `behavior` ``.
 - **`simplicity: dispatch`** → takes no skip from this concept. The skill's skip rules decide it, and the pass's findings go through the existing fix loop.
 - **Only the entry review dispatches it**, on every `/superdev:review` invocation. A warm re-review and its fresh fallback get no over-engineering pass, so a cut never starts the next cycle.
+- **A delta review** → its subject is the delta range `<sha>..<branch>`. **`unchanged`** → it is not dispatched (INV-0055).
 - Each cut it recommends is warranted or declined by the skill's §2 warranted-cut concept. A warranted cut joins the findings as a Minor.
 
 **The slice reviewer for an Unreviewed slice.** Applies to §4.6's **Unreviewed slice** branch. Its `superdev:slice-reviewer` dispatch departs from the skill's exclusion of `slice-reviewer`, and `review-scope-coverage.md`'s `## An Unreviewed slice finding` states it and its report contract.
@@ -126,6 +127,13 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 
 **The preparation.** Applies at a stage before `shipped`, `submitted` included, after the base step and before §4.2's red evidence, so the tree is ready before the first fix cycle runs a test in it. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" prepare <run-root>/scopetree` in the controller's own Bash call, per `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Preparing a worktree`: a merged slice or the base step can add a dependency. A failing preparation stops the review, naming the command and its exit. **`--unattended` → block**, per `scope-mode.md`'s `## Unattended`.
 
+**The reviewed-tip check.** Applies on every invocation, after the base step and the `<range-base>` resolve where they run, and before §4.2's red evidence. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" reviewed check --root <run-root> --branch <branch> --base <base>` and route on its one line (ADR 0272, INV-0200).
+
+- **`whole <reason>`** → the whole-range review §2 states. The report names the reason in one line.
+- **`delta <sha> <old-range-base>`** → the **Delta review**. The entry `final-reviewer` dispatch is fresh and hands `<sha>` and `<old-range-base>` as full commits. Its subject is the first-parent commits `<sha>..<branch>`, each base merge among them as `git show --remerge-diff`, the **Reach** of the base's own changes `<old-range-base>..<range-base>` kept to hits inside files the scope range `<range-base>..<branch>` changes, and the **Reach** of the delta (`final-reviewer`'s **Delta review subject**). It re-judges only the criteria those touch. Fix cycles continue that reviewer per §2's **The warm re-review**.
+- **`unchanged <sha>` with no red evidence** (§4.2) → dispatch neither `final-reviewer` nor `simplicity-reviewer`. State that the recorded verdict stands at `<sha>`. Still run the anchor sync, the anchor check, §4.1's **The moved base**, and §4.10's anchor re-sync and **The stage hold**, so an open criterion holds the stage.
+- **`unchanged <sha>` with red evidence** → the fix loop runs over the red findings. Cycle 1's re-review is a fresh `final-reviewer` whose subject is the cycle's range plus its **Reach**, because no reviewer stands to continue.
+
 **The moved base.** Applies before §4.10's stage write or its leave-alone, and when each fix cycle ends, at every stage the review accepts. The base may move while the review runs. Fetch `<base>` per `scope-branch.md`'s `## Bringing the scope branch to base` (its fetch step) and read from git whether the scope branch holds the base tip: `git -C <run-root>/scopetree merge-base --is-ancestor <tip> <branch>`, `<tip>` being the fetched base tip as a full commit.
 
 - **The branch holds the tip** → continue.
@@ -136,7 +144,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 
 ### 4.2 Red evidence
 
-**The red evidence.** Applies once per invocation, in the scope checkout, after §4.1 and before the first `final-reviewer` dispatch. Run no test. Each red the reading finds is a Critical finding in the fix list, even when `final-reviewer` returns none. §2's dispatches and the `simplicity-reviewer` dispatch go out at once after the reading.
+**The red evidence.** Applies once per invocation, in the scope checkout, after §4.1 and before the first `final-reviewer` dispatch. Run no test. Each red the reading finds is a Critical finding in the fix list, even when `final-reviewer` returns none. §2's dispatches and the `simplicity-reviewer` dispatch go out at once after the reading, except on §4.1's **The reviewed-tip check** `unchanged` route, which dispatches neither.
 
 - **The call.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" red-evidence --root <run-root> --branch <branch> --base <base>` in the scope checkout. It reads the ledger's suite and failed records and the run trace, and writes nothing. Where the `## CI` section of `docs/agents/verification.md` at the tip names a check, and the `pr` field records a pull request, read that pull request per `docs/agents/code-management.md`'s `## Merge` section for its `head.sha`, take that document's `## Check status` read for `head.sha` into a file, and add `--ci-head <head.sha> --ci-file <file>`.
 - **A line `red <sha> files=<files>`** → a red-evidence finding naming that commit and those test files. A record that names no test file leaves `files=` empty.
@@ -301,7 +309,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - A line already reported as unpaired stays in the report's one hand-sync list.
 - Run §4.1's `**The anchor check.**` again on the re-read lines before each stage write, so the stage write's `unresolved clear` never clears a hold the anchor still earns. A refusal or a failed read there takes `review-scope-holds.md`'s `## The anchor check's refusals`, its stage-write branch.
 
-**The stage write.** Applies on every route that advances the stage, and only then: a clean first verdict, a clean re-review, a fix list §4.6's criterion question leaves empty, a re-review left with only Minor **Prompt-concept overlap** or **Prompt-prose form** findings and no broken criterion, only Minor findings left at the cap, and a ready combined verdict of §3 whose remaining findings are only deferred, or at any cycle only unclosable **Pass-to-pass** beside deferred ones, a warm re-review's restated ones included, or at the cap **Pass-to-pass** or **Missing fail-to-pass run**. No red-evidence finding stands on any of them. Clear any standing `**Unresolved:**` entry with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. Read the stage with `scope.js get stage`. Write `**Stage:**` with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set <value> --root <run-root>` per the cases below.
+**The stage write.** Applies on every route that advances the stage, and only then: a clean first verdict, a clean re-review, §4.1's `unchanged` route with no red evidence, a fix list §4.6's criterion question leaves empty, a re-review left with only Minor **Prompt-concept overlap** or **Prompt-prose form** findings and no broken criterion, only Minor findings left at the cap, and a ready combined verdict of §3 whose remaining findings are only deferred, or at any cycle only unclosable **Pass-to-pass** beside deferred ones, a warm re-review's restated ones included, or at the cap **Pass-to-pass** or **Missing fail-to-pass run**. No red-evidence finding stands on any of them. Clear any standing `**Unresolved:**` entry with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`. Read the stage with `scope.js get stage`. Write `**Stage:**` with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set <value> --root <run-root>` per the cases below.
 
 - The clear changes nothing when no entry stands.
 - A stage write never undoes completed work, and the verb refuses a write that breaks that.
@@ -309,6 +317,12 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - **`documented-unreviewed`, a fix cycle landed commits** → write `reviewed`.
 - **`documented`, `submitted`, `shipped`, or `closed`** → leave the line alone and say so in one line.
 - **Anything else** → write `reviewed`.
+
+**The reviewed tip.** Applies to every clean-verdict exit, after the stage write or the leave-alone and before the step clear (ADR 0272, INV-0200). `<judged tip>` is the scope tip the final verdict judged: the entry dispatch's `<branch>` tip, the last re-review's `<cycle-tip>`, a conflict-resolving merge's `<merge-tip>`, or `<sha>` on `unchanged`. A conflict-free base merge §4.1's **The moved base** made after that verdict leaves it as it stood, and the next invocation's delta reads that merge.
+
+- **A route that leaves no finding standing except deferred ones**: a clean first verdict, a clean re-review, a fix list §4.6's criterion question leaves empty, and `unchanged` with no red evidence → run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" reviewed set --root <run-root> --branch <branch> --tip <judged tip>`, whether the stage line was written or left alone.
+- **A refused `reviewed set`** (as with no `dod.md` in the run root) → report it in one line and go on to the step clear. The next invocation reads the whole range.
+- **A route that takes the stage write while a finding stands**: Minors left at the cap, a Prompt-concept or Prompt-prose remainder, an unclosable **Pass-to-pass** finding, or **Missing fail-to-pass run** at the cap → run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" reviewed clear --root <run-root>` in place of `reviewed set`.
 
 **The step clear.** Applies to every clean-verdict exit, after the stage write or the leave-alone. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" step clear --root <run-root>`.
 
