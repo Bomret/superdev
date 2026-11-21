@@ -56,6 +56,9 @@ A deliberately obfuscated command passes every guard, and no review counts that 
 one-line commit message holding an integration verb after `git` is denied. A heredoc message passes only while no
 line of it holds a lead word followed by a verb. merge-guard also denies some ordinary subagent commands that
 integrate nothing and that the earlier word-reading guard allowed: `git stash push -u -m <tag>`, a command naming a
-branch that ends in `/merge` or `/push` (`git log feat/merge`), and a search for the text (`grep -rn "git push"
-plugin`). A subagent rewrites such a command, and the controller runs it where needed. A run whose own trace lines keep its
+branch that ends in `/merge` or `/push` (`git log feat/merge`), a path with a verb as one of its segments
+(`git add src/push/notify.ts`), and a search for the text (`grep -rn "git push"
+plugin`). The `/` boundary stays, because it is what denies `gh api -X PUT repos/o/r/pulls/1/merge`. A subagent
+rewrites such a command, naming a file through a parent directory whose path holds no verb segment, and the controller runs it where needed. The
+denial message names the path case and that rewrite, so a subagent does not retry the same command. A run whose own trace lines keep its
 lock fresh no longer blocks itself on a scopetree recreate.
