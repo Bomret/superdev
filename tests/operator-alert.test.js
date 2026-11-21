@@ -230,6 +230,29 @@ const attended = () => transcript([prompt('go'), skill('superdev:review', 'feat/
   denied(viaRegistration(stopCommands[0], stop(attended(), blocked), 'registered stop'), 'the registered command blocks the stop');
 }
 
+// ---- Stdin bound ----
+
+// Spawned before the synchronous read-cost measurements so its 5 s bound overlaps them. Its assertions run at the end.
+const held = new Promise((resolve, reject) => {
+  // Stdin that never closes passes at the hook's 5 s bound: exit 0, no output. The suite asserts the outcome only.
+  const child = cp.spawn(process.execPath, [hookPath], { stdio: ['pipe', 'pipe', 'pipe'], timeout: 60000 });
+  let out = '';
+  let err = '';
+  child.stdout.on('data', (c) => (out += c));
+  child.stderr.on('data', (c) => (err += c));
+  child.stdin.write(JSON.stringify(ask(attended())).slice(0, 20));
+  child.on('error', reject);
+  child.on('close', (status, signal) => {
+    try {
+      assert.strictEqual(signal, null, 'stdin held open: the hook ended by its own bound, not the suite\'s kill');
+      passed({ status, stdout: out, stderr: err }, 'stdin held open');
+      resolve();
+    } catch (e) {
+      reject(e);
+    }
+  });
+});
+
 // ---- Read cost ----
 
 {
@@ -271,28 +294,6 @@ const attended = () => transcript([prompt('go'), skill('superdev:review', 'feat/
   assert.ok(small > 0, `read cost: the small transcript costs more than startup (${small} us)`);
   assert.ok(big < small * CEILING, `read cost must grow linearly: 8000 blocks took ${small} us, 32000 took ${big} us`);
 }
-
-// ---- Stdin bound ----
-
-const held = new Promise((resolve, reject) => {
-  // Stdin that never closes passes at the hook's 5 s bound: exit 0, no output. The suite asserts the outcome only.
-  const child = cp.spawn(process.execPath, [hookPath], { stdio: ['pipe', 'pipe', 'pipe'], timeout: 60000 });
-  let out = '';
-  let err = '';
-  child.stdout.on('data', (c) => (out += c));
-  child.stderr.on('data', (c) => (err += c));
-  child.stdin.write(JSON.stringify(ask(attended())).slice(0, 20));
-  child.on('error', reject);
-  child.on('close', (status, signal) => {
-    try {
-      assert.strictEqual(signal, null, 'stdin held open: the hook ended by its own bound, not the suite\'s kill');
-      passed({ status, stdout: out, stderr: err }, 'stdin held open');
-      resolve();
-    } catch (e) {
-      reject(e);
-    }
-  });
-});
 
 held.then(() => console.log('operator-alert: ok'), (e) => {
   console.error(e);
