@@ -305,8 +305,20 @@ _Avoid: "backlog", "deferred Minors" (a deferred finding is a different thing, w
 
 **Minor sweep**: the one fix loop a full-tier run gives its **Minor queue**, after the last slice merges and before run handoff. One fix carries every queued Minor, a slice review over the sweep's range judges it, and it runs under the **3-strike fix loop**'s slice rules. A Critical or Important finding left at its cap blocks the run, and an attended `/superdev:implement` run reopens it for 3 more cycles from the scope branch's tip (ADR 0174).
 
-**Warm cycle**: a fix cycle whose fix list holds only Minor findings, run by continuing the loop's previous fix implementer through SendMessage instead of dispatching a fresh one. In scope review it also continues the `final-reviewer` whose verdict it fixes, the entry review's on cycle 1. The **Minor sweep**'s re-review is always a fresh `slice-reviewer`. A scope review's re-review after a warm cycle reads that cycle's own range, and restates each unclosable Pass-to-pass finding of its last verdict with its mark re-judged (ADR 0174, ADR 0193, INV-0143).
+**Warm cycle**: a fix cycle whose fix list holds only Minor findings, run by continuing the loop's previous fix implementer through SendMessage instead of dispatching a fresh one. The **Minor sweep**'s re-review is always a fresh `slice-reviewer` (ADR 0174).
 _Avoid: "resume" (a resumed run is a run kind)_
+
+**Warm re-review**: a scope review's re-review after any fix cycle, or after a conflict-resolving base merge, made by continuing the `final-reviewer` whose verdict it follows. Its subject is the cycle's range, or the merge's remerge-diff, plus its **Reach**. It restates each unclosable Pass-to-pass finding of its last verdict with its mark re-judged (ADR 0272, ADR 0193, INV-0143).
+_Avoid: "incremental review", "partial review"_
+
+**Reach**: the code and prose a changed range bears on: every tracked file that names a changed file's path, a changed `## ` heading or bold concept label, or a changed exported or defined symbol, read at the enclosing concept or function. A warm re-review and a delta review read it beside their range (ADR 0272).
+_Avoid: "blast radius", "impact set"_
+
+**Reviewed tip**: the ledger's record of the scope tip a clean scope review judged, beside a digest of `dod.md`'s criterion texts and tags. It is the start of a later **Delta review** (ADR 0272, INV-0200).
+_Avoid: "last reviewed commit", "review checkpoint"_
+
+**Delta review**: a scope review that reads only what changed since the **Reviewed tip** and its **Reach**, a base merge read as its conflict resolution plus the reach of the base's own changes inside the scope's files. Every other criterion keeps its recorded verdict (ADR 0272, INV-0200).
+_Avoid: "incremental review", "diff review"_
 
 **Sibling surface**: another place in a checkout that states the same rule or behaviour as the text a fix changes, such as a reference, a glossary entry, an ADR, a code comment, or a test. A fix that leaves one stating the old rule is incomplete. The `AGENTS.md` hierarchy and the knowledge base are exceptions: a fix reports them and the doc pass edits them. `CHANGELOG.md` is release history and is no sibling surface.
 _Avoid: "sweep" (that names `/superdev:sweep`'s whole-tree pass), "duplicate" (a sibling surface can be a deliberate restatement)_
