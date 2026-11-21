@@ -25,6 +25,10 @@
 // the stage gate is the second, independent signal (ADR 0013, ADR 0045, ADR 0106). A run root an older
 // version left at `shipped` has both scopetree and slicetrees already gone, yet stays unreaped until an
 // operator runs `/superdev:wrap-up` on it and moves the stage to `closed`.
+// A decisive not-contained answer is remembered in `<run root>/not-contained`, one line naming the base commit (`HEAD`)
+// and the commit of the ref `merge-tree` read, so a later Stop skips the containment test while both commits stay the
+// same (INV-0199). A moved base or branch, or a record that is missing, empty, malformed, or unreadable, reruns it. The
+// record never counts toward the staleness clock, and a gone branch reaps whatever record stands.
 // simplicity: TTL is one flat value for every scope; a per-scope override would need its own config
 // knob — add one if varying retention actually comes up, but YAGNI for now.
 // Best-effort and silent: any git error, or no .superdev/scopes/ → no-op.
@@ -32,7 +36,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days from the newest file mtime in the run root, `.DS_Store` aside
+const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days from the newest file mtime in the run root, `.DS_Store` and the not-contained record aside
 
 // A scope branch is `<type>/<scope>` (`references/scope-mode.md`, `## The scope branch`); `lib/scope-branch.js` owns the shape
 // rule and returns every match. It is loaded below through a guarded require. A pre-CLI ledger with no `**Branch:**` line
@@ -139,7 +143,7 @@ function selectPrunable(scopeNames, isContained, mtimeOf, stageOf, allBranchSet,
     const branch = resolveBranch(allBranchSet, scope, branchOf(scope));
     if (branch === AMBIGUOUS) continue; // two branches match the shape → no way to tell which is this scope's
     // Gone → finished with. Present → only contained content counts as landed.
-    if (branch !== null && !isContained(branch)) continue;
+    if (branch !== null && !isContained(branch, scope)) continue;
     out.push(scope);
   }
   return out;
@@ -157,15 +161,20 @@ function selectPrunable(scopeNames, isContained, mtimeOf, stageOf, allBranchSet,
 // anything.
 //
 // A base that edits the branch's files after taking its work conflicts on a branch it holds in full, so
-// the conflict alone is no answer (ADR 0082). `baseHistoryHasPatch` — the probe `lib/containment.js`
+// the conflict alone is no answer (ADR 0082). `patchInBaseHistory` — the probe `lib/containment.js`
 // exports, required below — asks whether base's history holds a commit whose diff is this branch's own
 // cumulative diff, and a match is what a reap needs: the work sits in base's history, so deleting the
-// branch loses nothing. Where no patch id matches, `baseCommitHoldsBranch` (ADR 0248) runs this same tree
+// branch loses nothing. Where no patch id matches, `commitInBaseHistory` (ADR 0248) runs this same tree
 // comparison against each commit base gained since the fork point that touches the branch's paths, which
 // reads a squash-merge onto a moved base contained. Each one absent leaves the tiers before it as the whole
 // test, both absent leave the tree comparison alone, and a failed
 // `rev-parse` below, or `git` itself missing or broken, answers false the same way — fail closed, the
 // direction everywhere else in this hook takes too.
+//
+// It answers `true`, `false`, or `null`. `false` is decisive: a `merge-tree` that exited 0 or 1, and every
+// tier present answering a decisive `false`, so the same two commits always give it. `null` is a not
+// contained that decided nothing: a `merge-tree` that exited otherwise, a failed `rev-parse`, or a tier
+// whose git call failed. Only `false` is recorded (`testRecorded` below).
 //
 // The mirror stops at the local test. That section's second pass fetches the base and retests against
 // `FETCH_HEAD` before it answers not contained, and names this hook as the one caller that never does
@@ -174,12 +183,57 @@ function selectPrunable(scopeNames, isContained, mtimeOf, stageOf, allBranchSet,
 function containedInBase(branch, cwd) {
   const merged = gitSpawn(['merge-tree', '--write-tree', 'HEAD', branch], cwd);
   if (merged.status !== 0) {
-    if (baseHistoryHasPatch && baseHistoryHasPatch(cwd, 'HEAD', branch)) return true;
-    return baseCommitHoldsBranch ? baseCommitHoldsBranch(cwd, 'HEAD', branch) : false;
+    let decided = merged.status === 1;
+    for (const tier of [patchInBaseHistory, commitInBaseHistory]) {
+      if (!tier) continue;
+      const held = tier(cwd, 'HEAD', branch);
+      if (held === true) return true;
+      if (held !== false) decided = false;
+    }
+    return decided ? false : null;
   }
   const baseTree = gitSpawn(['rev-parse', 'HEAD^{tree}'], cwd);
-  if (baseTree.status !== 0) return false;
+  if (baseTree.status !== 0) return null;
   return merged.stdout.trim() === baseTree.stdout.trim();
+}
+
+// The not-contained record (INV-0199): a file named `not-contained` in the scope's run root holding one line, the base
+// commit (`HEAD`) and the commit of the ref `merge-tree` read, separated by a space. While both commits still equal the
+// recorded ones, the containment test is skipped and the branch reads not contained. A moved base or branch, a commit that
+// cannot be read, or a record that is missing, empty, malformed, or unreadable runs the test again. Only a decisive `false`
+// from `containedInBase` writes it, and a failed write changes nothing else. The record sits inside the containment test,
+// which only a present branch reaches, so a gone branch reaps whatever record stands. `newestMtimeMs` leaves it out of the
+// staleness clock, and the reap removes it with the run root.
+const RECORD = 'not-contained';
+const RECORD_LINE = /^([0-9a-f]{40,64}) ([0-9a-f]{40,64})\n?$/;
+
+function commitOf(ref, cwd) {
+  const read = gitSpawn(['rev-parse', '--verify', '--quiet', '--end-of-options', `${ref}^{commit}`], cwd);
+  return read.status === 0 ? read.stdout.trim() || null : null;
+}
+
+function testRecorded(ref, cwd, runRoot) {
+  const file = path.join(runRoot, RECORD);
+  const base = commitOf('HEAD', cwd);
+  const tip = base && commitOf(ref, cwd);
+  if (tip) {
+    let held = null;
+    try {
+      held = RECORD_LINE.exec(fs.readFileSync(file, 'utf8'));
+    } catch {
+      /* missing or unreadable: run the test */
+    }
+    if (held && held[1] === base && held[2] === tip) return false;
+  }
+  const answer = containedInBase(ref, cwd);
+  if (answer === false && tip) {
+    try {
+      fs.writeFileSync(file, `${base} ${tip}\n`);
+    } catch {
+      /* unwritable: the next Stop runs the test again */
+    }
+  }
+  return answer === true;
 }
 
 // `--write-tree` needs git 2.38 (2022-10-02). Probing costs one `merge-tree` of `HEAD` with itself,
@@ -192,7 +246,7 @@ function supportsWriteTree(cwd) {
 // The branch predicate `selectPrunable` calls, built lazily so nothing here runs until a scope has
 // already passed the TTL and stage gates. Both the `--write-tree` support check and the older-git
 // fallback set are memoised: a repository with nothing prunable makes no git call at all, and one with
-// several prunable scopes probes support once. `baseHistoryHasPatch` (ADR 0082) and `baseCommitHoldsBranch`
+// several prunable scopes probes support once. `patchInBaseHistory` (ADR 0082) and `commitInBaseHistory`
 // (ADR 0248) are not memoised here — they run once per prunable branch that conflicts, inside
 // `containedInBase`.
 //
@@ -202,16 +256,16 @@ function supportsWriteTree(cwd) {
 // path never reaches `containedInBase`, so the second tier is unreachable on a git this old here — unlike
 // `lib/containment.js`'s own `--is-ancestor` fallback, a different primitive that does reach the probe.
 //
-// `qualify` (`qualifyBranchRefs` above, or the identity default) resolves a bare branch name to what
+// `qualify` (built from `qualifyBranchRefs` above) resolves a bare branch name to what
 // `git merge-tree` can actually find before the containment test ever sees it — the ancestry fallback
 // skips it, because `git branch --merged` never lists a remote-tracking ref by any name at all, qualified
 // or not.
-function makeContainmentTest(cwd, qualify = (name) => name) {
+function makeContainmentTest(cwd, qualify, scopesRoot) {
   let supported = null;
   let mergedSet = null;
-  return (branch) => {
+  return (branch, scope) => {
     if (supported === null) supported = supportsWriteTree(cwd);
-    if (supported) return containedInBase(qualify(branch), cwd);
+    if (supported) return testRecorded(qualify(branch), cwd, path.join(scopesRoot, scope));
     if (mergedSet === null) mergedSet = readMergedSet(cwd);
     return mergedSet.has(branch);
   };
@@ -228,14 +282,14 @@ function readMergedSet(cwd) {
 // width, newline crossing, normalisation — and none of those fixes travelled back. There is one reader
 // now, and no fallback: a fallback is the second reader again, and the second reader is the defect.
 //
-// `baseHistoryHasPatch` and `baseCommitHoldsBranch` come from `lib/containment.js` through their own require,
+// `patchInBaseHistory` and `commitInBaseHistory` come from `lib/containment.js` through their own require,
 // and they fall back differently from the ledger reader (ADR 0082, ADR 0248): the reader missing stops the
 // sweep outright, while a missing tier only narrows the containment test to the tiers it keeps. That `try`
 // covers the version-skewed install as well as the failed load: a module that lacks a tier leaves it `null`,
 // exactly as a throwing `require` leaves both, and the reader stays loaded.
 let readLedgerHeader = null;
-let baseHistoryHasPatch = null;
-let baseCommitHoldsBranch = null;
+let patchInBaseHistory = null;
+let commitInBaseHistory = null;
 try {
   ({ readLedgerHeader } = require('../lib/ledger.js'));
 } catch {
@@ -243,7 +297,7 @@ try {
   // a hook that cannot read a stage must never conclude a scope is finished with.
 }
 try {
-  ({ baseHistoryHasPatch = null, baseCommitHoldsBranch = null } = require('../lib/containment.js'));
+  ({ patchInBaseHistory = null, commitInBaseHistory = null } = require('../lib/containment.js'));
 } catch {
   // Left null. The containment test below falls back to the tree comparison alone, silently.
 }
@@ -315,6 +369,7 @@ function newestMtimeMs(dir) {
   let newest = null;
   for (const name of fs.readdirSync(dir)) {
     if (name === '.DS_Store') continue; // Finder writes it on a browse, which is no activity of the run (triage #916)
+    if (name === RECORD) continue; // the not-contained record is the hook's own write, no activity of the run (INV-0199)
     const stat = fs.statSync(path.join(dir, name));
     if (!stat.isFile()) continue; // a scopetree/ or slicetrees/ dir here means an interrupted run — skip below
     if (newest === null || stat.mtimeMs > newest) newest = stat.mtimeMs;
@@ -430,7 +485,7 @@ function main(sessionCwd) {
 
   const prunable = selectPrunable(
     scopeNames,
-    makeContainmentTest(cwd, (name) => branchRefs.get(name) || name),
+    makeContainmentTest(cwd, (name) => branchRefs.get(name) || name, scopesRoot),
     (scope) => {
       try {
         return newestMtimeMs(path.join(scopesRoot, scope));

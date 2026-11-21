@@ -131,7 +131,7 @@ for (const [skewName, containmentBody] of [
   const throwGitSpawnMarker = passThroughGitSpawn(path.join(throwDir, 'lib'));
   fs.writeFileSync(
     path.join(throwDir, 'lib', 'containment.js'),
-    `module.exports = { baseHistoryHasPatch() { require('fs').writeFileSync(${JSON.stringify(probeMarker)}, 'x'); throw new Error('boom'); } };\n`
+    `module.exports = { patchInBaseHistory() { require('fs').writeFileSync(${JSON.stringify(probeMarker)}, 'x'); throw new Error('boom'); } };\n`
   );
   const throwRepo = makeConflictingSquashRepo('fix/probe-throws');
   const throwScopeDir = makeScope(throwRepo, 'probe-throws', '**Stage:** closed\n**Branch:** fix/probe-throws\n');

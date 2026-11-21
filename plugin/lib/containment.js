@@ -99,8 +99,8 @@ const PROBE_COMMIT_CAP = 1000;
 const PROBE_MAX_BUFFER = 256 * 1024 * 1024;
 
 // `git patch-id --stable` over `input`, returning the set of patch ids it hashed. One id per commit
-// for a `git log -p` stream, and exactly one for a plain diff. Empty on any failure, and on an empty
-// diff, which reads as "no id to match" at both call sites.
+// for a `git log -p` stream, and exactly one for a plain diff. Empty on an empty diff, which reads as
+// "no id to match" at both call sites, and `null` on a failed call, which answers nothing.
 function patchIds(input, cwd) {
   // stdin is `pipe` here alone: `gitSpawn`'s own default ignores it, and every other call in this
   // module writes nothing to git.
@@ -109,7 +109,7 @@ function patchIds(input, cwd) {
     stdio: ['pipe', 'pipe', 'ignore'],
     maxBuffer: PROBE_MAX_BUFFER,
   });
-  if (hashed.status !== 0) return new Set();
+  if (hashed.status !== 0) return null;
   return new Set(
     hashed.stdout
       .split('\n')
@@ -119,8 +119,10 @@ function patchIds(input, cwd) {
 }
 
 // The opening both history tiers share: the merge base of `base` and `branch`, and the range of commits
-// base gained since it. `null` on a failed `merge-base` or `rev-list --count`, an unreadable count, an
-// empty range, or a range past the cap, which each tier reads as `false` (INV-0003).
+// base gained since it. `NO_RANGE` on an empty range or a range past the cap, a decisive answer each
+// tier reads as `false`. `null` on a failed `merge-base` or `rev-list --count`, or an unreadable count:
+// no answer, which each tier passes on as `null` and its boolean form reads as `false` (INV-0003).
+const NO_RANGE = Symbol('no range');
 function cappedRange(cwd, base, branch) {
   const found = gitSpawn(['merge-base', '--end-of-options', base, branch], cwd);
   if (found.status !== 0) return null;
@@ -132,29 +134,33 @@ function cappedRange(cwd, base, branch) {
   const counted = gitSpawn(['rev-list', '--count', '--end-of-options', range], cwd);
   if (counted.status !== 0) return null;
   const gained = Number(counted.stdout.trim());
-  if (!Number.isInteger(gained) || gained < 1 || gained > PROBE_COMMIT_CAP) return null;
+  if (!Number.isInteger(gained)) return null;
+  if (gained < 1 || gained > PROBE_COMMIT_CAP) return NO_RANGE;
   return { mergeBase, range };
 }
 
-// The second tier (ADR 0082). Whether base's history holds a commit whose diff equals the branch's
-// cumulative diff from their merge base — the neighbouring, exactly decidable question the first tier
-// cannot answer once base has edited the branch's files after taking its work. `hooks/scope-prune.js`
-// is the second caller, which is why this is exported rather than kept private to `testContainment`.
+// The second tier (ADR 0082), answering `true`, `false`, or `null`. Whether base's history holds a commit
+// whose diff equals the branch's cumulative diff from their merge base — the neighbouring, exactly
+// decidable question the first tier cannot answer once base has edited the branch's files after taking
+// its work. `false` is decisive: the same two commits always give it. `null` means a git call failed or
+// a count could not be read, so nothing was decided. `hooks/scope-prune.js` reads the three answers to
+// record only a decisive one (INV-0199).
 //
-// Fails closed throughout, per INV-0003: a failed `merge-base`, `diff`, `patch-id`, `rev-list`, or
-// `log`, an unreadable count, or a range past the cap each answer `false`, leaving the first tier's
-// verdict standing. `--end-of-options` opens every revision-taking call for the same reason the rest
-// of this module carries it — neither ref is required to have come from trusted config.
-function baseHistoryHasPatch(cwd, base, branch) {
+// `--end-of-options` opens every revision-taking call for the same reason the rest of this module carries
+// it — neither ref is required to have come from trusted config.
+function patchInBaseHistory(cwd, base, branch) {
   const capped = cappedRange(cwd, base, branch);
-  if (!capped) return false;
+  if (capped === NO_RANGE) return false;
+  if (!capped) return null;
   const { mergeBase, range } = capped;
 
   const diffed = gitSpawn(['diff', '--end-of-options', mergeBase, branch], cwd, {
     maxBuffer: PROBE_MAX_BUFFER,
   });
-  if (diffed.status !== 0) return false;
-  const [wanted] = patchIds(diffed.stdout, cwd);
+  if (diffed.status !== 0) return null;
+  const ids = patchIds(diffed.stdout, cwd);
+  if (!ids) return null;
+  const [wanted] = ids;
   if (!wanted) return false;
 
   // One `log -p` piped into one `patch-id`, never a subprocess pair per commit: measured at 0.12s
@@ -162,28 +168,39 @@ function baseHistoryHasPatch(cwd, base, branch) {
   const walked = gitSpawn(['log', '-p', '--no-color', '--end-of-options', range], cwd, {
     maxBuffer: PROBE_MAX_BUFFER,
   });
-  if (walked.status !== 0) return false;
-  return patchIds(walked.stdout, cwd).has(wanted);
+  if (walked.status !== 0) return null;
+  const held = patchIds(walked.stdout, cwd);
+  return held ? held.has(wanted) : null;
 }
 
-// The third tier. Whether a commit base gained since the merge base holds the branch in its own tree:
-// the tree comparison above, run against each such commit that touches a path the branch changed. A
-// squash-merge onto a base that moved first carries diff context the branch's cumulative diff lacks, so
-// the patch ids differ and the second tier misses it; the squash commit itself still holds every byte of
-// the branch. Needs `--write-tree`, and fails closed the same way: a failed `merge-base`, `diff`,
-// `rev-list`, or comparison answers `false`. The second tier's count gates it, so a range past the cap
-// compares no candidate, and the candidates run oldest first, so the squash commit, which sits near the
-// merge base, is compared before the later commits that edit the same paths. Exported for
-// `hooks/scope-prune.js`, which calls it only where `--write-tree` runs.
-function baseCommitHoldsBranch(cwd, base, branch) {
+// The second tier as a boolean, failing closed per INV-0003: a failed `merge-base`, `diff`, `patch-id`,
+// `rev-list`, or `log`, an unreadable count, or a range past the cap each answer `false`, leaving the
+// first tier's verdict standing. `hooks/scope-prune.js` is the second caller, which is why the tiers are
+// exported rather than kept private to `testContainment`.
+function baseHistoryHasPatch(cwd, base, branch) {
+  return patchInBaseHistory(cwd, base, branch) === true;
+}
+
+// The third tier, answering `true`, `false`, or `null` as the second does. Whether a commit base gained
+// since the merge base holds the branch in its own tree: the tree comparison above, run against each such
+// commit that touches a path the branch changed. A squash-merge onto a base that moved first carries diff
+// context the branch's cumulative diff lacks, so the patch ids differ and the second tier misses it; the
+// squash commit itself still holds every byte of the branch. Needs `--write-tree`. The second tier's count
+// gates it, so a range past the cap compares no candidate, and the candidates run oldest first, so the
+// squash commit, which sits near the merge base, is compared before the later commits that edit the same
+// paths. A candidate whose `merge-tree` conflicts (exit 1) does not hold the branch; any other failure,
+// or an unreadable tree, answers `null`. Exported for `hooks/scope-prune.js`, which calls it only where
+// `--write-tree` runs.
+function commitInBaseHistory(cwd, base, branch) {
   const capped = cappedRange(cwd, base, branch);
-  if (!capped) return false;
+  if (capped === NO_RANGE) return false;
+  if (!capped) return null;
   const { mergeBase, range } = capped;
 
   const changed = gitSpawn(['diff', '--name-only', '--no-renames', '-z', '--end-of-options', mergeBase, branch], cwd, {
     maxBuffer: PROBE_MAX_BUFFER,
   });
-  if (changed.status !== 0) return false;
+  if (changed.status !== 0) return null;
   const paths = changed.stdout.split('\0').filter(Boolean);
   if (paths.length === 0) return false;
 
@@ -193,9 +210,30 @@ function baseCommitHoldsBranch(cwd, base, branch) {
     cwd,
     { maxBuffer: PROBE_MAX_BUFFER }
   );
-  if (listed.status !== 0) return false;
+  if (listed.status !== 0) return null;
   const candidates = listed.stdout.split('\n').map((line) => line.trim()).filter(Boolean);
-  return candidates.some((commit) => containedAgainst(branch, commit, cwd, true) === 'contained');
+  let decided = true;
+  for (const commit of candidates) {
+    const merged = gitSpawn(['merge-tree', '--write-tree', '--end-of-options', commit, branch], cwd);
+    if (merged.status === 1) continue;
+    if (merged.status !== 0) {
+      decided = false;
+      continue;
+    }
+    const tree = gitSpawn(['rev-parse', '--verify', '--quiet', '--end-of-options', commit + '^{tree}'], cwd);
+    if (tree.status !== 0) {
+      decided = false;
+      continue;
+    }
+    if (merged.stdout.trim() === tree.stdout.trim()) return true;
+  }
+  return decided ? false : null;
+}
+
+// The third tier as a boolean, failing closed the same way: a failed `merge-base`, `diff`, `rev-list`,
+// or comparison answers `false`.
+function baseCommitHoldsBranch(cwd, base, branch) {
+  return commitInBaseHistory(cwd, base, branch) === true;
 }
 
 // The second tier, then the third where `--write-tree` runs: the answer an inconclusive comparison takes.
@@ -273,4 +311,13 @@ function refetchMark(judged) {
   return judged.refetch.signal != null ? 'refetch timed-out' : 'refetch failed';
 }
 
-module.exports = { testContainment, judgeContainment, refetchMark, baseHistoryHasPatch, baseCommitHoldsBranch, PROBE_MAX_BUFFER };
+module.exports = {
+  testContainment,
+  judgeContainment,
+  refetchMark,
+  baseHistoryHasPatch,
+  baseCommitHoldsBranch,
+  patchInBaseHistory,
+  commitInBaseHistory,
+  PROBE_MAX_BUFFER,
+};
