@@ -413,10 +413,15 @@ if (process.platform === 'win32') {
   deniedWin(main.replace(/\\/g, '/') + '/a.txt', 'forward slash');
   deniedWin(main[0].toLowerCase() + main.slice(1) + '\\a.txt', 'lower-case drive');
   deniedWin(main.replace(/\\/g, '/') + '/sub/../a.txt', 'forward slash with `..`');
-  // An 8.3 spelling of the main checkout, derived through `cmd`'s `%~s` expansion; the fixture's real path is the long one. A
-  // volume without 8.3 names yields no distinct spelling, and the case then fails here instead of repeating the backslash case.
-  const short = cp.execFileSync('cmd', ['/d', '/c', `for %I in ("${main}") do @echo %~sI`], { encoding: 'utf8' }).trim();
+  // An 8.3 spelling of the main checkout, derived through `cmd`'s `%~s` expansion; the fixture's real path is the long one. The
+  // command line goes to cmd verbatim, wrapped in one outer quote pair that `/s` strips: without `windowsVerbatimArguments`
+  // libuv escapes every inner `"` as `\"`, and `%~sI` then expands a garbled literal. A volume without 8.3 names yields no
+  // distinct spelling, and a garbled derivation names a path that does not exist or resolves elsewhere; each fails here with its
+  // own message instead of as a false "not denied".
+  const short = cp.execFileSync('cmd', ['/d', '/s', '/c', `"for %I in ("${main}") do @echo %~sI"`], { encoding: 'utf8', windowsVerbatimArguments: true }).trim();
   assert.notEqual(short.toLowerCase(), main.toLowerCase(), `the volume gives the main checkout a distinct 8.3 spelling: ${short}`);
+  assert.ok(fs.existsSync(short), `the derived 8.3 spelling exists: ${short}`);
+  assert.equal(fs.realpathSync.native(short).toLowerCase(), fs.realpathSync.native(main).toLowerCase(), `the derived 8.3 spelling names the main checkout: ${short}`);
   deniedWin(path.join(short, 'a.txt'), `8.3 name (${short})`);
   // A junction whose target is an absolute Windows path.
   fs.symlinkSync(main, path.join(fx.slicetree, 'junction'), 'junction');
