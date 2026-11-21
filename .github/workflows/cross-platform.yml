@@ -4,7 +4,8 @@ name: cross-platform
 # (`tests/publish-kb-templates.test.js`, ADR 0212) and the write-fence suite (`tests/tree-guard.test.js`, INV-0152).
 # On Windows the fence suite runs its native-path cases (backslash, forward slash, lower-case drive, 8.3 name,
 # junction, unmapped drive, UNC root) and asserts that they ran, so a fence that lets a guarded write through on any of
-# the three systems fails its check. The full suite runs on Linux alone, in full-suite.yml.
+# the three systems fails its check. The UNC admin-share case runs and counts where the runner offers the share, and
+# prints `skipped: no admin share at <path>` to the job log where it does not. The full suite runs on Linux alone, in full-suite.yml.
 
 on:
   pull_request:

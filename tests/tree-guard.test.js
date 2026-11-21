@@ -70,17 +70,39 @@ const implementerWrite = (file, cwd) => ({
 // fails "no verdict" when every attempt holds a kill. The record lives in the suite's own temporary directory. Forward slashes keep
 // the `--require` path intact through `NODE_OPTIONS` on Windows.
 const ATTEMPTS = 5;
+
+// Runs `attempt` up to `ATTEMPTS` times and returns its first result that carries a verdict, anything but `undefined`. Every attempt
+// without one fails "no verdict", naming `killed`: the call the bound killed each time.
+function untilVerdict(killed, attempt) {
+  for (let n = 1; n <= ATTEMPTS; n++) {
+    const r = attempt(n);
+    if (r !== undefined) return r;
+  }
+  return assert.fail(`${killed} in each of ${ATTEMPTS} attempts: no verdict`);
+}
+
 const preload = path.join(__dirname, 'spawn-kill-record.js').replace(/\\/g, '/');
 let childRuns = 0;
 function measureChild(label, spawn) {
-  for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+  return untilVerdict(`${label}: a git call the hook's bound killed`, () => {
     const killFile = path.join(fx.base, `kills-${childRuns++}`);
     const nodeOptions = `${process.env.NODE_OPTIONS ? process.env.NODE_OPTIONS + ' ' : ''}--require "${preload}"`;
     const r = spawn({ NODE_OPTIONS: nodeOptions, SPAWN_KILL_FILE: killFile });
     assertSpawnDecided(r, label);
-    if (!fs.existsSync(killFile)) return r;
-  }
-  return assert.fail(`${label}: a git call the hook's bound killed in each of ${ATTEMPTS} attempts: no verdict`);
+    return fs.existsSync(killFile) ? undefined : r;
+  });
+}
+
+// A `#!/bin/sh` script named `git` in a new directory `<name>-shim` under the fixture base. The first call it gets creates the
+// directory `<name>-flag` and is held past the hook's bound before it does anything else; every later call runs the real git.
+// Node's `spawnSync('git')` never runs such a script on Windows: POSIX-only machinery.
+function holdShim(name) {
+  const realGit = cp.execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
+  const shim = path.join(fx.base, `${name}-shim`);
+  const flag = path.join(fx.base, `${name}-flag`);
+  fs.mkdirSync(shim);
+  fs.writeFileSync(path.join(shim, 'git'), `#!/bin/sh\nif mkdir '${flag}' 2>/dev/null; then exec sleep 30; fi\nexec '${realGit}' "$@"\n`, { mode: 0o755 });
+  return { shim, flag };
 }
 
 // Runs every PreToolUse hook hooks.json registers for `tool`, the way Claude Code would, and reports whether any denied the call.
@@ -119,14 +141,10 @@ assert.equal(
 assert.equal(registeredHooksDeny('Edit', { ...implementerWrite(path.join(fx.main, 'a.txt'), fx.main), tool_name: 'Edit' }), true, 'an implementer Edit into the main checkout is denied by the registered hooks');
 
 // The reproduction for the child process: a git shim holds the hook's first git call past its bound, so the child fails open and
-// exits 0 although the write is denied. That reads as no verdict, and the registered-hooks check measures it again. The shim is a
-// `#!/bin/sh` script named `git`, which Node's `spawnSync('git')` never runs on Windows: POSIX-only machinery.
+// exits 0 although the write is denied. That reads as no verdict, and the registered-hooks check measures it again. POSIX-only:
+// the shim is `holdShim`'s.
 if (process.platform !== 'win32') {
-  const realGit = cp.execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
-  const shim = path.join(fx.base, 'child-hold-shim');
-  const flag = path.join(fx.base, 'child-hold-flag');
-  fs.mkdirSync(shim);
-  fs.writeFileSync(path.join(shim, 'git'), `#!/bin/sh\nif mkdir '${flag}' 2>/dev/null; then exec sleep 30; fi\nexec '${realGit}' "$@"\n`, { mode: 0o755 });
+  const { shim, flag } = holdShim('child-hold');
   const denied = registeredHooksDeny('Write', implementerWrite(path.join(fx.main, 'a.txt'), fx.main), { PATH: `${shim}${path.delimiter}${process.env.PATH}` });
   assert.ok(fs.existsSync(flag), 'the shim held the hook child\'s first git call');
   assert.equal(denied, true, 'a hook child whose first git call the bound killed is measured again and denies the write');
@@ -145,12 +163,11 @@ const { decide } = require(path.join(pluginRoot, 'hooks', 'tree-guard.js'));
 // The bound kill, observed where it happens: every git call `decide` makes, in order, with whether the bound (or any signal) ended it.
 // A decision holding a killed call carries no verdict, so `measure` runs it again. A decision with no killed call is final.
 function measure(input) {
-  for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+  return untilVerdict(`the decision for ${input.tool_input.file_path || input.tool_input.notebook_path} had a git call the hook's bound killed`, (attempt) => {
     gitCalls.length = 0;
     const r = decide(input);
-    if (!gitCalls.some((c) => c.killed)) return { r, git: gitCalls.length, attempts: attempt };
-  }
-  return assert.fail(`the decision for ${input.tool_input.file_path || input.tool_input.notebook_path} had a git call the hook's bound killed in each of ${ATTEMPTS} attempts: no verdict`);
+    return gitCalls.some((c) => c.killed) ? undefined : { r, git: gitCalls.length, attempts: attempt };
+  });
 }
 const decideM = (input) => measure(input).r;
 
@@ -272,13 +289,9 @@ for (const target of [path.join(fx.main, 'a.txt'), path.join(fx.main, '.git', 'c
 // The reproduction of the intermittent failure, made deterministic: a git shim that holds one designated call past the hook's
 // bound before it does anything (the call a starved spawn leaves killed before its first line ran). The hook fails open on that
 // call, so the decision carries no verdict and is measured again. Each target is a denial the suite asserts. POSIX-only: the
-// `#!/bin/sh` shim named `git` never runs on Windows.
+// shim is `holdShim`'s.
 if (process.platform !== 'win32') {
-  const realGit = cp.execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
-  const shim = path.join(fx.base, 'hold-shim');
-  const flag = path.join(fx.base, 'hold-flag');
-  fs.mkdirSync(shim);
-  fs.writeFileSync(path.join(shim, 'git'), `#!/bin/sh\nif mkdir '${flag}' 2>/dev/null; then exec sleep 30; fi\nexec '${realGit}' "$@"\n`, { mode: 0o755 });
+  const { shim, flag } = holdShim('hold');
   const savedPath = process.env.PATH;
   process.env.PATH = `${shim}${path.delimiter}${savedPath}`;
   try {
@@ -395,6 +408,8 @@ if (process.platform !== 'win32') {
   if (fs.existsSync(upper)) {
     assert.equal(denied(path.join(upper, 'a.txt')), true, 'a differently cased path to the main checkout is denied');
     assert.equal(denied(path.join(upper, '.SUPERDEV', 'scopes', 's', 'slicetrees', '01', 'a.txt')), false, 'a differently cased path into the slicetree passes');
+  } else {
+    console.log(`skipped: the filesystem distinguishes letter case at ${upper}`);
   }
 }
 
@@ -427,9 +442,16 @@ if (process.platform === 'win32') {
   fs.symlinkSync(main, path.join(fx.slicetree, 'junction'), 'junction');
   deniedWin(path.join(fx.slicetree, 'junction', 'a.txt'), 'junction');
   deniedWin(path.join(fx.slicetree, 'junction', 'new', 'f.txt'), 'new file behind a junction');
-  // A UNC admin share, where the runner allows it: optional, so it is outside the count.
-  const admin = `\\\\localhost\\${main[0]}$\\${main.slice(3)}\\a.txt`;
-  if (fs.existsSync(admin)) assert.equal(decideM(target(admin)).block, true, `a UNC admin share spelling is denied: ${admin}`);
+  // A UNC admin share. A runner may offer none, so the case counts where the share exists and prints its skip to the job log
+  // where it does not: the log shows which happened, and the expected count follows it.
+  let expected = 9;
+  const share = `\\\\localhost\\${main[0]}$\\${main.slice(3)}`;
+  if (fs.existsSync(path.join(share, 'a.txt'))) {
+    expected++;
+    deniedWin(path.join(share, 'a.txt'), 'UNC admin share');
+  } else {
+    console.log(`skipped: no admin share at ${share}`);
+  }
   // A write to a drive or share that does not exist passes, and the hook child finishes on its own: it runs under a bound far
   // above its own 5 s exit, and a child stuck in the ancestor walk is killed by that bound and fails here (INV-0009). Only that
   // termination is asserted. The hook ends itself with `process.exit(0)` at its own bound, so a lookup the exit timer cut short
@@ -446,7 +468,7 @@ if (process.platform === 'win32') {
     assert.equal(decide(target(file)).block, false, `${label}: the decision passes in process: ${file}`);
     ran++;
   }
-  assert.equal(ran, 9, `every native-path case ran (${ran} of 9)`);
+  assert.equal(ran, expected, `every native-path case ran (${ran} of ${expected})`);
 }
 
 // A `.superdev` that is a symlink to a directory outside the main checkout still holds the run and its slicetrees.
