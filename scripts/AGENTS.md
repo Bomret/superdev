@@ -160,9 +160,7 @@ and `hooks/scope-prune.js` and `hooks/slicetree-sweep.js` both require it there 
 regex. `hooks/scope-prune.js` requires `patchInBaseHistory` — the containment probe (ADR 0082) — and
 `commitInBaseHistory` — the third tier (ADR 0248) — from `plugin/lib/containment.js` through a `require` of
 its own. Each answers `true`, `false`, or `null` for a failed git call, so the hook records only a decisive not-contained
-answer (INV-0199); `baseHistoryHasPatch` and `baseCommitHoldsBranch` are their boolean forms, which read `null` as `false`. The tiers fall back differently from the reader: the reader missing stops that hook's sweep outright,
-while a tier missing, because its module cannot load or lacks that tier, narrows its containment test to the
-tiers it keeps, silently. A module requires no entry point, so a `require` of a module runs no CLI code, and `scope.js`
+answer (INV-0199). `baseHistoryHasPatch` and `baseCommitHoldsBranch` are their boolean forms, which read `null` as `false`. The tiers fall back differently from the reader. The reader missing stops that hook's sweep outright. A tier missing narrows the containment test to the tiers the hook keeps, silently. A tier is missing when its module cannot load or lacks it. A module requires no entry point, so a `require` of a module runs no CLI code, and `scope.js`
 guards its own CLI entry with `require.main === module`. `hooks/run-trace.js` takes
 the trace writer `appendTrace` from `trace-log.js`,
 the tree locator `locate` and the test-path classifier `isTestPath` (ADR 0128) from `run-tree.js`,

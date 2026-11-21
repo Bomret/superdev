@@ -54,7 +54,7 @@ input itself, so the `agent_type` value in the hook input was not observed direc
   naming no agent type pass without a git call. The guard reads the implementer under each spelling the run
   trace accepts for superdev's own agents: `implementer` bare or after a `superdev:`, `superdev_`, or
   `superdev-` prefix. The hook input's `agent_type` value was never observed directly, so a spelling the
-  guard missed would turn the fence off with no signal. Another plugin's `implementer` passes. A project-local agent named plain `implementer` is fenced, as the run trace
+  guard misses turns the fence off with no signal. Another plugin's `implementer` passes. A project-local agent named plain `implementer` is fenced, as the run trace
   already counts it as superdev's.
 
 **Consequences.** A misdirected file-tool write by an implementer no longer lands in a checkout or in its repository's git directory. The

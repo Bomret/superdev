@@ -168,8 +168,9 @@ function selectPrunable(scopeNames, isContained, mtimeOf, stageOf, allBranchSet,
 // comparison against each commit base gained since the fork point that touches the branch's paths, which
 // reads a squash-merge onto a moved base contained. Each one absent leaves the tiers before it as the whole
 // test, both absent leave the tree comparison alone, and a failed
-// `rev-parse` below, or `git` itself missing or broken, answers false the same way — fail closed, the
-// direction everywhere else in this hook takes too.
+// `rev-parse` below, or `git` itself missing or broken, answers `null`. The caller reads only `true` as
+// contained, so the hook reaps nothing on either — fail closed, the direction everywhere else in this hook
+// takes too.
 //
 // It answers `true`, `false`, or `null`. `false` is decisive: a `merge-tree` that exited 0 or 1, and every
 // tier present answering a decisive `false`, so the same two commits always give it. `null` is a not

@@ -59,6 +59,6 @@ integrate nothing and that the earlier word-reading guard allowed: `git stash pu
 branch that ends in `/merge` or `/push` (`git log feat/merge`), a path with a verb as one of its segments
 (`git add src/push/notify.ts`), and a search for the text (`grep -rn "git push"
 plugin`). The `/` boundary stays, because it is what denies `gh api -X PUT repos/o/r/pulls/1/merge`. A subagent
-rewrites such a command, naming a file through a parent directory whose path holds no verb segment, and the controller runs it where needed. The
+rewrites such a command and names the file through a parent directory whose path holds no verb segment. The controller runs it where needed. The
 denial message names the path case and that rewrite, so a subagent does not retry the same command. A run whose own trace lines keep its
 lock fresh no longer blocks itself on a scopetree recreate.
