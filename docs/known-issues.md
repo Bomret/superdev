@@ -374,7 +374,8 @@ and call `PushNotification` (ADR 0272). It reads the session transcript for that
 - An `AskUserQuestion` answer is a `user` entry whose content holds a `tool_result` block with that call's
   `tool_use_id`.
 - A PreToolUse hook's deny lands as a `tool_result` with `is_error` set, whose text carries the hook's stderr after
-  `PreToolUse:<tool> hook error: [<command>]: `.
+  `PreToolUse:<tool> hook error: [<command>]: `. The hook takes such a result of an `AskUserQuestion` call, opening
+  with that prefix and its marker, as its own earlier deny; the marker in any other text releases no wait.
 - A compact summary carries `isCompactSummary`. Notices from the harness and other sessions carry `isMeta`, or open
   with `<task-notification>`, `<system-reminder>`, or `<local-command-`.
 - The Stop input carries `last_assistant_message` and `stop_hook_active`.

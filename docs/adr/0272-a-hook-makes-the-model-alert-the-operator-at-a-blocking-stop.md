@@ -28,15 +28,19 @@ code.claude.com/docs (`hooks.md#notification`, `tools-reference.md`, `remote-con
   transcript, by a Skill tool call or a typed `/superdev:` command, carries no `--unattended`. A mention of a
   command in prose or tool output is no start. A subagent's call carries `agent_id` and passes.
 - **It denies or blocks once per wait.** A wait starts at the operator's last input: a typed prompt, or an answer to
-  an `AskUserQuestion`. A `PushNotification` call since then, or an earlier denial or block of this hook since then,
-  lets the stop pass. A review loop that asks again after a long fix cycle therefore alerts again. The PreToolUse
+  an `AskUserQuestion`. A `PushNotification` call since then, or an earlier denial of this hook since then, lets the
+  stop pass. The hook knows its denial as the error result of an `AskUserQuestion` call whose text opens with
+  `PreToolUse:AskUserQuestion hook error: [<command>]: ` and the hook's marker. The marker anywhere else, in another
+  tool's output or in a typed prompt, releases nothing, and a typed prompt starts a new wait. A Stop block passes its
+  own re-entry through `stop_hook_active`. A review loop that asks again after a long fix cycle therefore alerts again. The PreToolUse
   deny tells the model to send the alert and ask the same question again, choosing no option itself. The Stop block
   applies only to a last message whose Next block carries a `Blocked:` or `First:` line, and it tells the model to send the alert
   and end the turn with no further text.
 - **The alert names the scope and what the stop waits on.** The model writes the message, because only the model
   knows both.
-- **Any failure passes.** An unreadable transcript, a missing field, any error, or the hook's own time bound gives
-  no decision. The Stop path tests the last message for a Next block before it reads the transcript.
+- **Any failure passes.** An unreadable transcript, a missing field, any error, or hook input whose stdin does not
+  close within 5 s gives no decision. The transcript read is synchronous, so the 5 s bound covers only the wait for
+  stdin. The Stop path tests the last message for a Next block before it reads the transcript.
 - **The docs claim a prompt, not a delivery.** The model may skip the call, and the tool skips the send when the
   operator is at the terminal.
 
