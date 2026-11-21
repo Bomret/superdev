@@ -570,6 +570,9 @@ _Avoid: "template" alone (a knowledge base's **Backend command contract** templa
 **Next block**: the `### Next` section that closes a covered command's last message, holding the next command and one line on what it does, defined once in `references/response-shapes.md` (ADR 0113, INV-0111).
 _Avoid: "handoff" (run handoff is the closing procedure of an execution playbook), "call to action"_
 
+**Operator alert**: the one `PushNotification` a session that ran a superdev command attended sends once per wait on the operator, a wait starting at the operator's last prompt or answer, when a command stops at an `AskUserQuestion` or at a Next block carrying a `Blocked:` or `First:` line. It names the scope and what the stop waits on. `hooks/operator-alert.js` makes the model send it (ADR 0272).
+_Avoid: "notification" alone (Claude Code's own alerts, which a `Notification` hook receives), "ping"_
+
 _Avoid: "prompt" (**Prompt prose** is the instruction text a model loads), "auto-continue" (nothing continues without the operator's yes)_
 
 ## Roles
