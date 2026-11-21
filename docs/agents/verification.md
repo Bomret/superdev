@@ -82,5 +82,5 @@ their own cost, time each one alone (`## One-suite run`).
 
 The full-suite workflow under .github/workflows runs the full command on Linux for every pull request to main, and its
 one job reports the check run named above. /superdev:ship merges when that check is green on the head it merges, and
-runs no local suite (ADR 0255). The template-tests workflow runs one suite on three platforms and counts for nothing
-here. This explanation carries no backtick span, because every span in this section reads as a check name.
+runs no local suite (ADR 0255). The cross-platform workflow runs the knowledge-base template suite and the write-fence suite on three platforms and
+counts for nothing here. This explanation carries no backtick span, because every span in this section reads as a check name.
