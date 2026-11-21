@@ -3,7 +3,9 @@
 
 // tree-guard: deterministic PreToolUse(Edit|Write|NotebookEdit) guard (ADR 0148, INV-0152).
 // A dispatched implementer works in the slicetree its dispatch named. A file-tool write it aims at a checkout of a repository
-// that holds a superdev run, or at that repository's git directory, is denied.
+// that holds a superdev run, or at that repository's git directory, is denied. The hook input's `agent_type` names the
+// implementer as `implementer` bare or after a `superdev:`, `superdev_`, or `superdev-` prefix, the spellings run-trace's
+// `OURS` accepts; every other agent type, another plugin's `implementer` included, passes without a git call.
 //
 // The guard fails open: a call it cannot judge passes. That covers unreadable hook
 // input, a git call that fails or exceeds its bound, an unreadable run directory, a main working tree it cannot determine,
@@ -57,8 +59,12 @@ function underRunGit(p) {
   return path.basename(at) === '.git' && holdsRun(path.dirname(at));
 }
 
+// The implementer's agent type in every spelling run-trace's `OURS` accepts for it: `implementer` bare or after a `superdev:`,
+// `superdev_`, or `superdev-` prefix, matched case-sensitively. Kept here rather than imported (INV-0159).
+const IMPLEMENTER = /^(superdev[:_-])?implementer$/;
+
 function decide(input) {
-  if (!input || input.agent_type !== 'superdev:implementer') return { block: false };
+  if (!input || typeof input.agent_type !== 'string' || !IMPLEMENTER.test(input.agent_type)) return { block: false };
   if (!mainWorkTree) return { block: false };
   try {
     return judge(input);

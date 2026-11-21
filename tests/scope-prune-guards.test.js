@@ -131,7 +131,7 @@ for (const [skewName, containmentBody] of [
   const throwGitSpawnMarker = passThroughGitSpawn(path.join(throwDir, 'lib'));
   fs.writeFileSync(
     path.join(throwDir, 'lib', 'containment.js'),
-    `module.exports = { baseHistoryHasPatch() { require('fs').writeFileSync(${JSON.stringify(probeMarker)}, 'x'); throw new Error('boom'); } };\n`
+    `module.exports = { patchInBaseHistory() { require('fs').writeFileSync(${JSON.stringify(probeMarker)}, 'x'); throw new Error('boom'); } };\n`
   );
   const throwRepo = makeConflictingSquashRepo('fix/probe-throws');
   const throwScopeDir = makeScope(throwRepo, 'probe-throws', '**Stage:** closed\n**Branch:** fix/probe-throws\n');
@@ -236,12 +236,13 @@ for (const [skewName, containmentBody] of [
   fs.rmSync(repo, { recursive: true, force: true });
 }
 
-// #git-spawn-posture: the hook takes `gitSpawn`, `gitThrow`, and `parseBranchList` from `../lib/git-spawn.js`
-// (INV-0159). With the module unloadable, with one of the three missing, or with one of them throwing, the
-// hook prunes nothing, exits 0, and says nothing. Each case runs beside a pass-through control stub that prunes
-// the same fixture, and confirms its own stub loaded before it asserts. A git whose `merge-tree` fails shims the
-// pre-2.38 path, so every one of the three functions is reached on every run. Each case copies the hook to its
-// own path, because `require` caches by path.
+// #git-spawn-posture: the hook takes `gitSpawn`, `gitThrow`, `parseBranchList`, and `resolveCommit` from
+// `../lib/git-spawn.js` (INV-0159). With the module unloadable, with one of the four missing, or with one of the
+// four throwing, the hook prunes nothing, exits 0, and says nothing. Each case runs beside a pass-through control
+// stub that prunes the same fixture, and confirms its own stub loaded before it asserts. A git whose `merge-tree`
+// fails shims the pre-2.38 path, so each of the first three functions is reached on every run. `resolveCommit`
+// serves only the `--write-tree` path, so its throwing case and a control of its own run on the real git. Each
+// case copies the hook to its own path, because `require` caches by path.
 {
   const realGitSpawn = JSON.stringify(require.resolve('../plugin/lib/git-spawn.js'));
   const shimDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-posture-shim-'));
@@ -254,7 +255,8 @@ for (const [skewName, containmentBody] of [
 
   // Runs the hook copied beside stubs, `gitSpawnBody` standing in for `../lib/git-spawn.js` (null: absent).
   // Returns whether the stub loaded, whether the function it overrides was called, and whether the scope stands.
-  function run(caseName, gitSpawnBody) {
+  // `shimmed` false runs the real git, whose `merge-tree --write-tree` reaches the containment test.
+  function run(caseName, gitSpawnBody, shimmed = true) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-posture-'));
     fs.mkdirSync(path.join(dir, 'hooks'));
     fs.mkdirSync(path.join(dir, 'lib'));
@@ -281,7 +283,7 @@ for (const [skewName, containmentBody] of [
       input: JSON.stringify({ cwd: repo }),
       encoding: 'utf8',
       timeout: 15000,
-      env: { ...process.env, PATH: shimDir + path.delimiter + process.env.PATH },
+      env: shimmed ? { ...process.env, PATH: shimDir + path.delimiter + process.env.PATH } : process.env,
     });
     assertSpawnDecided(ran, `spawning scope-prune.js (${caseName})`);
     assert.equal(ran.status, 0, `the hook exits 0 (${caseName})`);
@@ -321,6 +323,22 @@ for (const [skewName, containmentBody] of [
     assert.equal(throwing.called, true, `the throwing ${fn} was called`);
     assert.equal(throwing.stands, true, `a hook whose ${fn} throws prunes nothing`);
   }
+
+  const noResolve = run('resolveCommit missing', 'const m = { ...real };\ndelete m.resolveCommit;\nmodule.exports = m;');
+  assert.equal(noResolve.loaded, true, 'the stub missing resolveCommit loaded');
+  assert.equal(noResolve.stands, true, 'a hook whose git-spawn carries no resolveCommit prunes nothing');
+
+  const realControl = run('control on the real git', 'module.exports = real;', false);
+  assert.equal(realControl.stands, false, 'on the real git the control prunes the fixture scope through the containment test');
+
+  const resolveThrows = run(
+    'resolveCommit throws',
+    "module.exports = { ...real, resolveCommit() { fs.writeFileSync(CALLED, 'x'); throw new Error('boom'); } };",
+    false
+  );
+  assert.equal(resolveThrows.loaded, true, 'the stub whose resolveCommit throws loaded');
+  assert.equal(resolveThrows.called, true, 'the throwing resolveCommit was called');
+  assert.equal(resolveThrows.stands, true, 'a hook whose resolveCommit throws prunes nothing');
   fs.rmSync(shimDir, { recursive: true, force: true });
 }
 

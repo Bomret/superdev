@@ -165,7 +165,7 @@ Review a change end to end. §1 decides the mode.
 
 **The reviewers' integration limit.** Applies to both reviewer dispatches. Ask neither reviewer to integrate. `plugin/hooks/merge-guard.js` denies a subagent's Bash call that runs a command below. The controller's own calls pass.
 
-- `git merge`, `git push`, `git rebase`, `git pull`, or `git subtree push`, whatever git option or inline alias reaches it;
+- `git merge`, `git push`, `git rebase`, `git pull`, or `git subtree push`;
 - `scope.js push`;
 - `gh pr merge` or `tea pr merge` (tea's `pulls` and `pull` names for `pr` included);
 - a `gh api` or `tea api` write to a pull request's `/merge` endpoint.

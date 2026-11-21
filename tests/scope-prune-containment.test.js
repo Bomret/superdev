@@ -177,6 +177,145 @@ const { main } = hook;
     fs.rmSync(failRepo, { recursive: true, force: true });
   }
 
+  // #not-contained-record: INV-0199. A closed, stale scope whose branch conflicts with base and is not contained pays the
+  // containment test once per base commit and branch commit. Every git call is counted through a fake git that logs its
+  // arguments; nothing is timed (ADR 0086).
+  {
+    const RECORD = 'not-contained';
+    const TIER = /^(merge-base|diff|log|patch-id|rev-list) /;
+    // A branch that edits a line base rewrote its own way, never taken: merge-tree conflicts, and no tier holds it.
+    const unheld = (branch) => {
+      const dir = makeRepo();
+      fs.writeFileSync(path.join(dir, 'app.txt'), 'l1\nl2\nl3\n');
+      gitTest(['add', '.'], dir);
+      gitTest(['commit', '-q', '-m', 'app'], dir);
+      makeWorkBranch(dir, branch, 'app.txt', 'l1\nBRANCH\nl3\n');
+      fs.writeFileSync(path.join(dir, 'app.txt'), 'l1\nBASE\nl3\n');
+      gitTest(['commit', '-q', '-am', 'base writes its own line'], dir);
+      return dir;
+    };
+    // One Stop with every git call logged; returns the logged argument lines.
+    const stop = (repo, extra = '') => {
+      const log = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-prune-gitlog-')), 'log');
+      fs.writeFileSync(log, '');
+      withFakeGit(`printf '%s\\n' "$*" >> "${log}"\n${extra}`, () => main(repo));
+      const lines = fs.readFileSync(log, 'utf8').split('\n').filter(Boolean);
+      fs.rmSync(path.dirname(log), { recursive: true, force: true });
+      return lines;
+    };
+    const testedBranch = (lines, branch) => lines.some((l) => l === `merge-tree --write-tree HEAD ${branch}`);
+    const tierCalls = (lines) => lines.filter((l) => TIER.test(l));
+    const takeBranchLine = (repo) => {
+      fs.writeFileSync(path.join(repo, 'app.txt'), 'l1\nBRANCH\nl3\n');
+      gitTest(['commit', '-q', '-am', 'base takes the branch line'], repo);
+    };
+
+    // The red-capable case: the second Stop on unchanged commits runs no merge-tree of the branch and no tier call.
+    const repo = unheld('fix/unheld-rec');
+    const scopeDir = makeScope(repo, 'unheld-rec', '**Stage:** closed\n**Branch:** fix/unheld-rec\n');
+    const first = stop(repo);
+    assert.ok(testedBranch(first, 'fix/unheld-rec'), 'the first Stop runs the containment test');
+    assert.equal(fs.existsSync(scopeDir), true, 'a not-contained scope stands');
+    const second = stop(repo);
+    assert.equal(testedBranch(second, 'fix/unheld-rec'), false, 'the second Stop on unchanged commits runs no merge-tree of the branch');
+    assert.deepEqual(tierCalls(second), [], 'and no tier call');
+    assert.equal(fs.existsSync(path.join(scopeDir, RECORD)), true, 'the first Stop recorded the decisive not-contained answer');
+    assert.equal(fs.existsSync(scopeDir), true, 'and reaps nothing');
+
+    // A moved branch commit reruns the test.
+    gitTest(['checkout', '-q', 'fix/unheld-rec'], repo);
+    fs.writeFileSync(path.join(repo, 'other.txt'), 'o\n');
+    gitTest(['add', 'other.txt'], repo);
+    gitTest(['commit', '-q', '-m', 'branch moves'], repo);
+    gitTest(['checkout', '-q', 'main'], repo);
+    assert.ok(testedBranch(stop(repo), 'fix/unheld-rec'), 'a moved branch commit reruns the test');
+    assert.equal(testedBranch(stop(repo), 'fix/unheld-rec'), false, 'and the new answer is recorded in turn');
+
+    // A moved base commit reruns the test, and a branch now contained is reaped. The record is the run root's newest file,
+    // and it does not hold off the reap.
+    takeBranchLine(repo);
+    gitTest(['checkout', '-q', 'fix/unheld-rec', '--', 'other.txt'], repo);
+    gitTest(['commit', '-q', '-m', 'base takes the branch file'], repo);
+    assert.ok(testedBranch(stop(repo), 'fix/unheld-rec'), 'a moved base commit reruns the test');
+    assert.equal(fs.existsSync(scopeDir), false, 'a branch now contained is reaped, the fresh record notwithstanding');
+    fs.rmSync(repo, { recursive: true, force: true });
+
+    // A branch deleted after the record was written is reaped.
+    {
+      const goneRepo = unheld('fix/gone-rec');
+      const goneDir = makeScope(goneRepo, 'gone-rec', '**Stage:** closed\n**Branch:** fix/gone-rec\n');
+      stop(goneRepo);
+      assert.equal(fs.existsSync(path.join(goneDir, RECORD)), true, 'control: the record was written');
+      gitTest(['branch', '-D', 'fix/gone-rec'], goneRepo);
+      stop(goneRepo);
+      assert.equal(fs.existsSync(goneDir), false, 'a gone branch is reaped whatever record its run root holds');
+      fs.rmSync(goneRepo, { recursive: true, force: true });
+    }
+
+    // A missing, empty, malformed, or unreadable record reruns the test.
+    for (const [label, spoil] of [
+      ['missing', (f) => fs.rmSync(f)],
+      ['empty', (f) => fs.writeFileSync(f, '')],
+      ['malformed', (f) => fs.writeFileSync(f, 'not a record\n')],
+      ['unreadable', (f) => { fs.rmSync(f); fs.mkdirSync(f); }],
+    ]) {
+      const r = unheld(`fix/spoil-${label}`);
+      const d = makeScope(r, `spoil-${label}`, `**Stage:** closed\n**Branch:** fix/spoil-${label}\n`);
+      stop(r);
+      spoil(path.join(d, RECORD));
+      assert.ok(testedBranch(stop(r), `fix/spoil-${label}`), `a ${label} record reruns the test`);
+      assert.equal(fs.existsSync(d), true, `and a ${label} record reaps nothing`);
+      fs.rmSync(r, { recursive: true, force: true });
+    }
+
+    // A failed git call in the containment test writes no record, and the next Stop reruns the test.
+    for (const [label, fail] of [
+      ['merge-tree', 'if [ "$1" = "merge-tree" ] && [ "$4" != "HEAD" ]; then exit 3; fi'],
+      ['merge-base', 'if [ "$1" = "merge-base" ]; then exit 3; fi'],
+      ['patch-id', 'if [ "$1" = "patch-id" ]; then exit 3; fi'],
+      ['commit read', 'case "$*" in *"^{commit}"*) exit 3;; esac'],
+    ]) {
+      const r = unheld('fix/failed-call');
+      const d = makeScope(r, 'failed-call', '**Stage:** closed\n**Branch:** fix/failed-call\n');
+      stop(r, fail);
+      assert.equal(fs.existsSync(path.join(d, RECORD)), false, `a failed ${label} writes no record`);
+      assert.equal(fs.existsSync(d), true, `and a failed ${label} reaps nothing`);
+      assert.ok(testedBranch(stop(r), 'fix/failed-call'), `and the next Stop after a failed ${label} reruns the test`);
+      fs.rmSync(r, { recursive: true, force: true });
+    }
+
+    // An unwritable run root leaves the hook's verdicts unchanged: every Stop runs the test and reaps nothing.
+    if (typeof process.getuid !== 'function' || process.getuid() !== 0) {
+      const r = unheld('fix/readonly-rec');
+      const d = makeScope(r, 'readonly-rec', '**Stage:** closed\n**Branch:** fix/readonly-rec\n');
+      fs.chmodSync(d, 0o555);
+      try {
+        for (const n of [1, 2]) {
+          assert.ok(testedBranch(stop(r), 'fix/readonly-rec'), `Stop ${n} on an unwritable run root runs the test`);
+          assert.equal(fs.existsSync(d), true, `and Stop ${n} reaps nothing`);
+        }
+      } finally {
+        fs.chmodSync(d, 0o755);
+      }
+      assert.equal(fs.existsSync(path.join(d, RECORD)), false, 'and no record was written');
+      takeBranchLine(r);
+      stop(r);
+      assert.equal(fs.existsSync(d), false, 'a contained branch is reaped as without a record');
+      fs.rmSync(r, { recursive: true, force: true });
+    }
+
+    // A repository with nothing prunable makes no containment git call: no merge-tree and no commit read.
+    {
+      const r = unheld('fix/fresh-rec');
+      const d = makeScope(r, 'fresh-rec', '**Stage:** closed\n**Branch:** fix/fresh-rec\n');
+      fs.utimesSync(path.join(d, 'ledger.md'), new Date(), new Date());
+      const lines = stop(r);
+      assert.deepEqual(lines.filter((l) => l.startsWith('merge-tree') || l.includes('^{commit}') || TIER.test(l)), [], 'nothing prunable runs no containment git call');
+      assert.equal(fs.existsSync(path.join(d, RECORD)), false, 'and writes no record');
+      fs.rmSync(r, { recursive: true, force: true });
+    }
+  }
+
   // #no-write-tree-support: a git older than 2.38 has no `--write-tree`, and the hook must prune
   // exactly what it prunes today rather than error. Shimmed rather than version-gated, because the
   // property under test is the fallback path, not this machine's git. Both arms are asserted from one

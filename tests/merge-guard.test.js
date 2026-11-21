@@ -86,6 +86,20 @@ assert.equal(decide(sub('gh pr m 3')).block, false, 'gh has no m alias');
   assert.match(reason, /as long as no line of it holds/, 'the denial states the heredoc passes only without a lead word and verb on one line');
 }
 
+// A verb word that is a path or ref segment denies its line, and the denial names that case and its rewrites (INV-0141): a
+// parent directory whose path holds no verb segment, or the controller for a ref or a command that cannot be rewritten so.
+for (const cmd of ['git add src/push/notify.ts', 'git log feat/merge']) {
+  const r = decide(sub(cmd));
+  assert.equal(r.block, true, `${cmd} is denied`);
+  assert.match(r.reason, /segment of a path or ref/, `the denial for ${cmd} names the path or ref segment case`);
+  assert.match(r.reason, /parent directory whose path holds no verb segment/, `the denial for ${cmd} names the parent-directory rewrite`);
+  assert.match(r.reason, /leave the command to the controller/, `the denial for ${cmd} names the controller rewrite`);
+  assert.ok(r.reason.includes("git commit -F - <<'EOF'"), `the denial for ${cmd} still names the heredoc form`);
+  assert.match(r.reason, /as long as no line of it holds/, `the denial for ${cmd} still names the heredoc limit`);
+}
+assert.equal(decide(sub('git add src/')).block, false, 'the parent-directory rewrite passes');
+assert.equal(decide(sub('git add src/push')).block, true, 'a parent directory still holding a verb segment stays denied');
+
 // merge-guard requires no module (ADR 0227).
 assert.ok(!/require\(/.test(fs.readFileSync(hookPath, 'utf8').replace(/^\s*\/\/.*$/gm, '').replace(/require\.main/g, '')), 'merge-guard.js requires no module');
 

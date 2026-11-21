@@ -28,7 +28,7 @@ input itself, so the `agent_type` value in the hook input was not observed direc
 **Decision.**
 
 - **A guardrail denies the write before it lands.** `plugin/hooks/tree-guard.js` runs at PreToolUse on
-  `Edit|Write|NotebookEdit`. It denies a `superdev:implementer` call whose target lies in a working tree
+  `Edit|Write|NotebookEdit`. It denies an implementer call whose target lies in a working tree
   of a repository that holds a superdev run, outside that repository's main-working-tree `.superdev/`
   directory. A repository holds a run when a readable `ledger.md` sits under its `.superdev/scopes/<slug>/`.
   It also denies such a call whose target lies in a git directory under the `.git/` directory of a main
@@ -51,7 +51,11 @@ input itself, so the `agent_type` value in the hook input was not observed direc
   the guard refuses one whenever it can judge the call. The guard backstops both, and a transient git
   failure must not stop every implementer write in a run (INV-0009).
 - **Only the implementer, and only the file tools.** Every other agent type, the controller, and a call
-  naming no agent type pass without a git call.
+  naming no agent type pass without a git call. The guard reads the implementer under each spelling the run
+  trace accepts for superdev's own agents: `implementer` bare or after a `superdev:`, `superdev_`, or
+  `superdev-` prefix. The hook input's `agent_type` value was never observed directly, so a spelling the
+  guard misses turns the fence off with no signal. Another plugin's `implementer` passes. A project-local agent named plain `implementer` is fenced, as the run trace
+  already counts it as superdev's.
 
 **Consequences.** A misdirected file-tool write by an implementer no longer lands in a checkout or in its repository's git directory. The
 guard does not cover the following:
