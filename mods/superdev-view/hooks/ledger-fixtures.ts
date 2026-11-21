@@ -51,3 +51,21 @@ export const LEDGER_QUEUE_LINES: string[] = /* ledger-queue:start */ [
   "| 01 | #10 | Draw the tiles | behavior | — | merged | a1b2c3d..e4f5a6b |",
   ""
 ] /* ledger-queue:end */
+
+// The ledger of LEDGER_STEP_LINES after `reviewed set` (ADR 0272): the `**Reviewed:** <sha> <digest>` record lands after the
+// last appended header. tests/scope-reviewed.test.js asserts scope.js writes exactly these lines, with its own sha and digest
+// in the record's place; parse.test.ts asserts the pane reads them as it reads LEDGER_STEP_LINES (INV-0144).
+export const LEDGER_REVIEWED_LINES: string[] = /* ledger-reviewed:start */ [
+  "# Ledger — view",
+  "",
+  "**Stage:** merged",
+  "**Branch:** feat/view",
+  "**Anchor:** #9 — Show the pane",
+  "**Step:** review",
+  "**Reviewed:** 0123456789abcdef0123456789abcdef01234567 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "",
+  "| id | issue | title | type | depends-on | status | range |",
+  "|---|---|---|---|---|---|---|",
+  "| 01 | #10 | Draw the tiles | behavior | — | merged | a1b2c3d..e4f5a6b |",
+  ""
+] /* ledger-reviewed:end */

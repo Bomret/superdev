@@ -11,7 +11,7 @@ edits or parses the file directly.
 
 - `init` creates the document.
 - `stage`, `step`, `slice`, `degraded add|add-denial|reset-denials`, `unresolved add|clear`, `deferred
-  add|resolve`, `minors add|clear`, `docs set|clear`, `pr set|clear`, `deploy set`, `suite set|rerun|failed`, `suite reusable` where it records a run at the tip, and
+  add|resolve`, `minors add|clear`, `docs set|clear`, `pr set|clear`, `reviewed set|clear`, `deploy set`, `suite set|rerun|failed`, `suite reusable` where it records a run at the tip, and
   `base set` move it.
 - `get`, `state`, `status`, and `deploy get` read it back.
 
@@ -58,6 +58,14 @@ title, `test-applicability` type, dependencies, `plan-contract.md` status, and c
   `## Bringing the scope branch to base`), as a full commit. Written with `base set <sha>`, which refuses a sha that
   does not resolve to a commit. Read only through `base resolve` (`scope-mode.md`'s `## The scope's range base`). A
   ledger with no such line has no merged tip on record.
+- **`**Reviewed:** <sha> <digest>`** — the **reviewed tip** (CONTEXT.md): the scope tip a clean scope review judged, as
+  a full commit, beside a SHA-256 digest of `dod.md`'s criterion texts and tags in file order. Written with `reviewed
+  set --branch <branch> [--tip <sha>]`, which records `--tip` or the branch tip, refuses a `--tip` that is no ancestor
+  of the branch tip, and computes the digest itself. It refuses, writing nothing, when `dod.md` is missing, unreadable,
+  or holds no criterion. A tick, an untick, a note, and the line endings leave the digest unchanged. Removed with
+  `reviewed clear`, which succeeds and changes nothing when the line is absent. Read with `get reviewed`, which prints
+  `<sha> <digest>` or `absent`. Each write that changes the ledger appends a `ledger reviewed set <sha> <digest>` or
+  `ledger reviewed clear` trace line. A ledger with no such line has no reviewed tip on record (ADR 0272, INV-0200).
 
 **The step line.** Applies to every write and read of `**Step:**`. Write it with `step set <name>` as the step starts,
 and read it with `get step`, which prints `none` when the line is absent. `scope.js` refuses any other name and leaves
@@ -146,7 +154,7 @@ suite` and `get failed`, which print nothing on an absent line.
 **A command publishes once, at its end.** Applies to every command that made one of these ledger writes: `init`'s
 first write of `**Stage:**`, `stage set`, `degraded add`, `degraded add-denial`, `degraded reset-denials`,
 `unresolved add`, `unresolved clear`, `deferred add`, `deferred resolve`, `minors add`, `minors clear`, `docs set`,
-`docs clear`, `pr set`, `pr clear`, `suite set`, every `suite reusable` that exits 0, and `deploy set`. It publishes the snapshot once, as the last act of
+`docs clear`, `pr set`, `pr clear`, `reviewed set`, `reviewed clear`, `suite set`, every `suite reusable` that exits 0, and `deploy set`. It publishes the snapshot once, as the last act of
 the exit that ends it: after the exit's closer (`## The ledger`'s **The step closer**) and after any ledger write the
 exit makes past that closer. A write site records its write and goes on, and the one publish carries every write the
 command made.
