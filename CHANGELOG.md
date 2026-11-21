@@ -1,3 +1,10 @@
+## [0.113.1](https://github.com/Bomret/superdev/compare/v0.113.0...v0.113.1) (2026-11-21)
+
+
+### Bug Fixes
+
+* shipped superdev paths that fail silently refuse or protect instead ([#353](https://github.com/Bomret/superdev/issues/353)) ([fd738cf](https://github.com/Bomret/superdev/commit/fd738cfc905a0f94b260cb9d20c2b0fd1625a6d3))
+
 # [0.113.0](https://github.com/Bomret/superdev/compare/v0.112.0...v0.113.0) (2026-11-20)
 
 
