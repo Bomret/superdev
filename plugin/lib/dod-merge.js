@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const { splitLines } = require('./ledger.js');
 const { parseDodLineReadings, dodLineHasNote, collapseWhitespace } = require('./dod-line.js');
-const { fail } = require('./refusal.js');
+const { fail, readPresent } = require('./refusal.js');
 
 // `base` decides the criteria and their order. A base checklist line with no note takes the line of `other` it
 // pairs with by criterion text, when exactly one line pairs and that line carries a note. Every other base line
@@ -32,12 +32,7 @@ function mergeDod(base, other) {
 function verbDodMerge(root, anchorText) {
   if (!anchorText.trim()) fail('dod-merge needs the Definition of Done on stdin');
   const file = path.join(root, 'dod.md');
-  let local = null;
-  try {
-    local = fs.readFileSync(file, 'utf8');
-  } catch (e) {
-    if (e.code !== 'ENOENT') throw e;
-  }
+  const local = readPresent(file, 'utf8');
   const { text, kept } = local === null ? { text: anchorText, kept: 0 } : mergeDod(anchorText, local);
   fs.mkdirSync(root, { recursive: true });
   fs.writeFileSync(file, text);

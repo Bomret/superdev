@@ -4,10 +4,10 @@
 
 const fs = require('fs');
 const path = require('path');
-const { fail } = require('./refusal.js');
+const { fail, readPresent } = require('./refusal.js');
 const { dodCriterionLines } = require('./dod-line.js');
 
-// Refuses, writing nothing, while the run root's dod.md is missing, empty, not a regular file, holds an unterminated fence,
+// Refuses, writing nothing, while the run root's dod.md is missing, unreadable, empty, not a regular file, holds an unterminated fence,
 // or holds no criterion line. A criterion line is read the way `dod-line` reads a body (`dodCriterionLines`).
 function checkDodWritten(root) {
   const file = path.join(root, 'dod.md');
@@ -21,7 +21,8 @@ function checkDodWritten(root) {
     throw e;
   }
   if (!st.isFile()) refuse('is not a regular file');
-  const text = fs.readFileSync(file, 'utf8');
+  const text = readPresent(file, 'utf8');
+  if (text === null) refuse('is missing');
   if (!text.trim()) refuse('is empty');
   let found;
   try {

@@ -105,8 +105,9 @@ for (const [how, re, brk] of ledgerBreaks) {
 {
   const { repo, root } = sealed();
   const dod = path.join(root, 'dod.md');
+  execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'c1'], { cwd: repo });
+  assert.strictEqual(sc(repo, ['reviewed', 'set', '--branch', 'main', '--root', root]).status, 0, 'reviewed set records a tip');
   const breaks = [['a directory', () => { fs.rmSync(dod); fs.mkdirSync(dod); }]];
-  const cases = [];
   if (canBlockReads) breaks.push(['mode 000', () => fs.chmodSync(dod, 0)]);
   const restore = () => { fs.rmSync(dod, { recursive: true, force: true }); fs.writeFileSync(dod, dodText); };
   for (const [how, brk] of breaks) {
@@ -120,7 +121,6 @@ for (const [how, re, brk] of ledgerBreaks) {
     refused(sc(repo, ['stage', 'set', 'implementing', '--root', root]), /dod\.md/, 'stage set implementing with an unreadable dod.md');
     fs.chmodSync(dod, 0o644);
   }
-  void cases;
 }
 
 // --- fail-to-pass and the scope-branch header read refuse on an unreadable ledger ---------------------------------------------
@@ -154,7 +154,9 @@ for (const id of ['.', 'a\u0000b', 'a\nb', 'a\u007fb', 'a\u001fb']) {
   const env = JSON.stringify({ anchor: '#1 — a', slices: [{ id, issue: '#1', title: 't', type: 'behavior' }] });
   refused(sc(repo, ['init', 'feat/x', 'planned'], env), /slice id/, `init with slice id ${JSON.stringify(id)}`);
   const { repo: r2, root } = sealed();
-  refused(sc(r2, ['slice', id, 'in-progress', '--root', root]), /slice id/, `slice with id ${JSON.stringify(id)}`);
+  // In-process: a NUL byte cannot travel in an argument vector.
+  const r = require('./scope-setup').call(['slice', id, 'in-progress', '--root', root], '', r2);
+  assert.ok(!r.ok && /slice id/.test(r.err), `slice with id ${JSON.stringify(id)} is refused: ${r.err}`);
 }
 {
   const { repo, root } = sealed();

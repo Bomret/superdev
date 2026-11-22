@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const { inProgressSlices } = require('./ledger.js');
+const { readPresent } = require('./refusal.js');
 const { isTestPath: testPathOf } = require('./verification.js');
 const { drivePath } = require('./drive-path.js');
 const { gitSpawn } = require('./git-spawn.js');
@@ -27,13 +28,15 @@ function isTestPath(tree, rel) {
 }
 
 // Where an absolute path lands: { runRoot, tree, rel, slice } under a run root's slicetree or
-// scopetree, else null. A run root is a `.superdev/scopes/<slug>` directory holding a readable ledger.
-function locate(abs) {
+// scopetree, else null. A run root is a `.superdev/scopes/<slug>` directory holding a readable ledger. `locate` reads a ledger
+// that cannot be read as no run root, for the hook that must never fail; `locateStrict` refuses on a ledger present but unreadable
+// and returns null only for an absent one.
+function locateWith(abs, readLedger) {
   const m = /^(.*?\/\.superdev\/scopes\/[^/]+)\/(?:slicetrees\/([^/]+)|(scopetree))\/(.+)$/.exec(abs.replace(/\\/g, '/'));
   if (!m) return null;
   const [, runRoot, id, scopetree, rel] = m;
-  let ledger;
-  try { ledger = fs.readFileSync(path.join(runRoot, 'ledger.md'), 'utf8'); } catch { return null; }
+  const ledger = readLedger(path.join(runRoot, 'ledger.md'));
+  if (ledger === null) return null;
   let slice = id;
   let tree = path.join(runRoot, 'slicetrees', id || '');
   if (scopetree) {
@@ -42,6 +45,14 @@ function locate(abs) {
     tree = path.join(runRoot, 'scopetree');
   }
   return { runRoot, tree, rel, slice };
+}
+
+function locate(abs) {
+  return locateWith(abs, (file) => { try { return fs.readFileSync(file, 'utf8'); } catch { return null; } });
+}
+
+function locateStrict(abs) {
+  return locateWith(abs, (file) => readPresent(file, 'utf8'));
 }
 
 // The absolute path an Edit, Write, or NotebookEdit tool path names, resolved once and normalized. The hook runs after the tool,
@@ -110,4 +121,4 @@ function rootRelative(p, top) {
   return s === '.' ? '' : s;
 }
 
-module.exports = { relDir, rootRelative, lazyToplevel, locate, toolTarget, isTestPath, treeState, gitOut, GIT_BOUND_MS };
+module.exports = { relDir, rootRelative, lazyToplevel, locate, locateStrict, toolTarget, isTestPath, treeState, gitOut, GIT_BOUND_MS };

@@ -5,7 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { fail } = require('./refusal.js');
+const { fail, readPresent } = require('./refusal.js');
 const { ledgerPath, splitLines, tableRowIndexes, splitRow } = require('./ledger.js');
 const { isTestPath, prepareCommandOf } = require('./verification.js');
 const { runPrepare } = require('./prepare.js');
@@ -82,8 +82,9 @@ function outcomeOf(e) {
 // The id of the ledger row whose range cell names exactly `base..tip`, each side read as a commit (a row may carry
 // abbreviated ones), or null.
 function sliceOfRange(root, base, tip, cwd) {
-  let lines;
-  try { lines = splitLines(fs.readFileSync(ledgerPath(root), 'utf8')); } catch { return null; }
+  const text = readPresent(ledgerPath(root), 'utf8');
+  if (text === null) return null;
+  const lines = splitLines(text);
   for (const i of tableRowIndexes(lines)) {
     const cells = splitRow(lines[i]);
     const [lo, hi, ...more] = (cells[6] || '').split('..');
@@ -200,7 +201,7 @@ async function verbFailToPass(cwd, args) {
   // need in the worktree itself (ADR 0218). Outside a run root it sits under `.superdev/`, and no line
   // is written, `.superdev/` is git-ignored first through the repository's `info/exclude` (no file of the checkout changes), and
   // a `.superdev/` this call created is removed at exit. `mkdtemp` makes the directory unique to this invocation, so parallel runs never share one.
-  const at = require('./run-tree.js').locate(path.join(cwd, 'x'));
+  const at = require('./run-tree.js').locateStrict(path.join(cwd, 'x'));
   // The run's digest is checked before this verb reads the trace or writes a line to it (ADR 0227).
   if (at) checkRun(at.runRoot);
   // One ledger read names the slice the outcome line and the control run's `run` line carry (ADR 0175).
