@@ -2,10 +2,10 @@
 
 // ledger.js: the ledger's vocabulary and line primitives (ADR 0022): the constants, the stage rank, and the readers and writers of `ledger.md`'s header lines, bullets, and table rows.
 
-const fs = require('fs');
 const path = require('path');
-const { fail } = require('./refusal.js');
+const { fail, readPresent } = require('./refusal.js');
 const { stateOf, readSide, writeSide, withRunLock } = require('./run-digest.js');
+const { writeFileAtomic } = require('./atomic-write.js');
 
 // references/scope-mode.md `## The change type` — the eleven Conventional Commits types.
 const CHANGE_TYPES = ['feat', 'fix', 'refactor', 'docs', 'perf', 'test', 'build', 'ci', 'chore', 'style', 'revert'];
@@ -60,13 +60,8 @@ function ledgerPath(root) {
 }
 
 function readLines(root) {
-  let raw;
-  try {
-    raw = fs.readFileSync(ledgerPath(root), 'utf8');
-  } catch (e) {
-    if (e.code === 'ENOENT') fail(`no ledger at ${ledgerPath(root)}`);
-    throw e;
-  }
+  const raw = readPresent(ledgerPath(root), 'utf8');
+  if (raw === null) fail(`no ledger at ${ledgerPath(root)}`);
   return splitLines(raw);
 }
 
@@ -82,14 +77,13 @@ function splitLines(raw) {
 function writeLines(root, lines) {
   // Atomic write: a reader (or a concurrent scope.js invocation) never observes a partially
   // written ledger.md — write to a temp file in the same directory, then rename over it.
-  // The digest is updated with the write, under the digest lock, so the file and its digest change together. The verb that
+  // The digest is updated with the write, under the digest lock, so the file and its digest change together. A verb that reads the
+  // ledger and writes it back holds that lock across both (INV-0202), and this hold nests inside it. The verb that
   // calls this has already checked the run's digest (scope.js `run()`, `verbInit`, `verbOpen`), so an outside edit was reported before this write replaces it (ADR 0227).
   const target = ledgerPath(root);
-  const tmpFile = `${target}.tmp-${process.pid}-${Date.now()}`;
   const content = Buffer.from(lines.join('\n'), 'utf8');
   withRunLock(root, () => {
-    fs.writeFileSync(tmpFile, content);
-    fs.renameSync(tmpFile, target);
+    writeFileAtomic(target, content);
     const side = readSide(root);
     side.ledger = stateOf(content);
     writeSide(root, side);
@@ -242,11 +236,12 @@ function splitRow(line) {
   return parts.slice(1, parts.length - 1).map((c) => c.trim().replace(/\\\|/g, '|'));
 }
 
-// One rule for every slice id before it becomes part of a `reports/<id>/` path: an id that is empty, absolute,
-// or holds a path separator or a `..` segment is refused, naming the id (triage #1342).
+// One rule for every slice id before it becomes part of a `reports/<id>/` path: an id that is empty, absolute, `.` or `..`,
+// or holds a path separator or a control character (U+0000-U+001F, U+007F) is refused, naming the id (triage #1342).
 function checkSliceId(id) {
-  if (typeof id !== 'string' || id.trim() === '' || /[\\/]/.test(id) || id === '..') {
-    fail(`slice id "${id}" is refused: a slice id is non-empty and holds no path separator and no ".." segment`);
+  if (typeof id !== 'string' || id.trim() === '' || /[\\/\u0000-\u001f\u007f]/.test(id) || id === '.' || id === '..') {
+    const shown = String(id).replace(/[\u0000-\u001f\u007f]/g, (c) => `\\x${c.charCodeAt(0).toString(16).padStart(2, '0')}`);
+    fail(`slice id "${shown}" is refused: a slice id is non-empty, is neither "." nor "..", and holds no path separator and no control character`);
   }
   return id;
 }
@@ -254,5 +249,5 @@ function checkSliceId(id) {
 module.exports = {
   checkSliceId, CHANGE_TYPES, SLUG_RE, SLICE_STATUSES, SUITE_RESULTS, STAGES, stageMoveAllowed,
   ledgerPath, readLines, splitLines, writeLines, headerRe, getHeader, readLedgerHeader, inProgressSlices,
-  readBullets, insertHeader, setHeader, tableRowIndexes, sanitizeCell, splitRow,
+  APPENDED_HEADERS, readBullets, insertHeader, setHeader, tableRowIndexes, sanitizeCell, splitRow,
 };

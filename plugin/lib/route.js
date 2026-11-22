@@ -8,7 +8,9 @@
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { fail } = require('./refusal.js');
+const { fail, readPresent } = require('./refusal.js');
+const { takeOption } = require('./options.js');
+const { fileAt } = require('./git-spawn.js');
 const { parseDodLineReadings, dodCriterionLines, collapseWhitespace } = require('./dod-line.js');
 const { readCriterion } = require('./dod-open.js');
 const { readDeployRecord } = require('./ledger-records.js');
@@ -32,7 +34,8 @@ function parseFlags(args) {
     else if (flag === '--repairs-none') out.none = true;
     else if (flag === '--target') out.targets.push(checkName(flag, args[++i]));
     else if (flag === '--merge') {
-      out.merge = checkName(flag, args[++i]);
+      out.merge = checkName(flag, takeOption(args.slice(i), flag, 'route '));
+      i += 1;
       if (!/^[0-9a-fA-F]{7,64}$/.test(out.merge)) fail('route --merge takes a commit hash');
     } else if (flag === '--repair') {
       const state = args[++i];
@@ -49,9 +52,9 @@ function postureAt(cwd, merge) {
   if (!merge) return 'none';
   const has = spawnSync('git', ['cat-file', '-e', `${merge}^{commit}`], { cwd, encoding: 'utf8' });
   if (has.error || has.status !== 0) fail(`route: merge commit ${merge} is not in this repository; fetch base first`);
-  const shown = spawnSync('git', ['show', `${merge}:docs/agents/deployment.md`], { cwd, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
-  if (shown.error || shown.status !== 0) return 'none';
-  const m = POSTURE_RE.exec(shown.stdout);
+  const text = fileAt(merge, 'docs/agents/deployment.md', cwd);
+  if (text === null) fail(`route: git cannot read docs/agents/deployment.md at ${merge}`);
+  const m = POSTURE_RE.exec(text);
   return m ? m[1] : 'none';
 }
 
@@ -87,13 +90,8 @@ const verdictOf = (line) => parseDodLineReadings(line)[0].verdict;
 function verbRoute(cwd, root, args, anchorText) {
   const flags = parseFlags(args);
   const posture = postureAt(cwd, flags.merge);
-  // One read of dod.md serves the criteria and the pairing: null where it is missing, unreadable, fence-broken, or holds no criterion line.
-  let dodText = null;
-  try {
-    dodText = fs.readFileSync(path.join(root, 'dod.md'), 'utf8');
-  } catch (e) {
-    if (!e.code) throw e;
-  }
+  // One read of dod.md serves the criteria and the pairing: null where it is missing, fence-broken, or holds no criterion line.
+  const dodText = readPresent(path.join(root, 'dod.md'), 'utf8');
   const dodLines = dodText === null ? null : criterionLinesOrNull(dodText, 'dod.md');
   const anchor = criterionLinesOrNull(anchorText, 'the anchor');
   const fromDod = dodLines !== null;

@@ -2,9 +2,9 @@
 
 // scope-branch.js: the shape rule that names a scope's branch, and the branch listing it reads. `scope.js`'s `branch` verb prints the verdict (ADR 0263, INV-0196).
 
-const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { readPresent } = require('./refusal.js');
 const { CHANGE_TYPES, readLedgerHeader } = require('./ledger.js');
 
 // The shape rule: a scope branch is `<type>/<scope>`, the leading segment a change type and the last segment the scope's slug.
@@ -55,13 +55,11 @@ function parseBranchRefs(refLines) {
   return { local, remote };
 }
 
-// The ledger header `name` of the run root `root`, or null where the ledger is missing or unreadable or holds no such line.
+// The ledger header `name` of the run root `root`, or null where the ledger is missing or holds no such line. A ledger present but
+// unreadable refuses.
 function readHeaderOrNull(root, name) {
-  try {
-    return readLedgerHeader(fs.readFileSync(path.join(root, 'ledger.md'), 'utf8'), name);
-  } catch {
-    return null;
-  }
+  const text = readPresent(path.join(root, 'ledger.md'), 'utf8');
+  return text === null ? null : readLedgerHeader(text, name);
 }
 
 // The scope's branch verdict as data, for the run root `root` (its directory name is the scope slug), read in `cwd`:

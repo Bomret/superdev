@@ -5,6 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const { fail } = require('./refusal.js');
+const { underRunLock } = require('./run-digest.js');
 const {
   SUITE_RESULTS, readLines, headerRe, getHeader, readBullets, insertHeader, writeLines, tableRowIndexes, splitRow,
 } = require('./ledger.js');
@@ -110,7 +111,7 @@ function verbSuite(cwd, root, sub, result, sha, whole) {
 }
 
 // Writes `value` as the ledger's one `**<name>:**` record, in place or as a new header line.
-function upsertHeader(root, name, value) {
+const upsertHeader = underRunLock(function upsertHeader(root, name, value) {
   const lines = readLines(root);
   const at = lines.findIndex((l) => headerRe(name).test(l));
   if (at >= 0) {
@@ -119,7 +120,7 @@ function upsertHeader(root, name, value) {
     return;
   }
   writeLines(root, insertHeader(lines, name, value));
-}
+});
 
 // `file` as typed (`./x`, relative to a subdirectory, absolute), reduced to a root-relative path that is a blob at `tip`;
 // refuses a file the tip does not hold. The path is read literally: `:foo` is that file and never pathspec magic, and `a*` is

@@ -4,6 +4,7 @@
 
 const { gitSpawn, resolveCommit } = require('./git-spawn.js');
 const { fail } = require('./refusal.js');
+const { takeOption, takeRootOption } = require('./options.js');
 const { readLines, getHeader } = require('./ledger.js');
 const { judgeContainment } = require('./containment.js');
 const { operatorBoundMs } = require('./operator-config.js');
@@ -36,12 +37,13 @@ function gitCall(args, cwd, network) {
 function parseArgs(args) {
   const opts = {};
   const flags = { '--root': 'root', '--remote': 'remote', '--base': 'base' };
-  for (let i = 0; i < args.length; i += 2) {
-    const key = flags[args[i]];
-    if (!key) fail(`push: unrecognized argument "${args[i]}"`);
-    if (args[i + 1] === undefined || args[i + 1] === '') fail(`push: ${args[i]} needs a value`);
-    if (opts[key] !== undefined) fail(`push: ${args[i]} given twice`);
-    opts[key] = args[i + 1];
+  const ownFlag = (v) => Object.hasOwn(flags, v);
+  const rest = [...args];
+  while (rest.length) {
+    const flag = rest[0];
+    if (!ownFlag(flag)) fail(`push: unrecognized argument "${flag}"`);
+    // A remote or base is free text that may start with `--` and reaches git as an operand; `--root` is a path, so any option-shaped word refuses.
+    opts[flags[flag]] = flag === '--root' ? takeRootOption(rest, 'push: ') : takeOption(rest, flag, 'push: ', ownFlag);
   }
   for (const flag of Object.keys(flags)) if (opts[flags[flag]] === undefined) fail(`push needs ${flag} <value>`);
   return opts;

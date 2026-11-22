@@ -3,6 +3,7 @@
 // md-sections.js: the markdown section rules, the fence rule (`fenceOpener`, `fenceCloses`) every markdown reader shares, the fence masking, and the heading-keyed section merge that `kb-patch.js`, the Definition-of-Done edit, and the run-state adopt share (ADR 0022, ADR 0027).
 
 const { fail } = require('./refusal.js');
+const { splitFrontmatter } = require('./kb-frontmatter.js');
 
 // A markdown ATX heading: up to 3 leading spaces (CommonMark's own limit — a fourth space makes it
 // an indented code block, not a heading), 1-6 `#`, a space, then the text. Setext headings
@@ -105,10 +106,9 @@ function maskFencedLines(lines, source, verb = 'merged') {
 // YAML frontmatter is the staged file's envelope (title, action), never part of the page body.
 function stripFrontmatter(text) {
   const t = text.replace(/\r\n/g, '\n');
-  if (!t.startsWith('---\n')) return t;
-  const end = t.indexOf('\n---', 3);
-  if (end === -1) return t; // unterminated → treat the whole file as body; the no-heading refusal catches it
-  return t.slice(t.indexOf('\n', end + 1) + 1);
+  const split = splitFrontmatter(t);
+  if (!split) return t; // unterminated → treat the whole file as body; the no-heading refusal catches it
+  return t.slice(split.bodyAt);
 }
 
 // The staged section: its first heading, and everything until the next heading of the same or

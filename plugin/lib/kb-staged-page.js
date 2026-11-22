@@ -8,6 +8,8 @@
 // below (CONTEXT.md → *Staged page*).
 
 const fs = require('fs');
+const { splitFrontmatter } = require('./kb-frontmatter.js');
+const { writeFileAtomic } = require('./atomic-write.js');
 
 // A minimal YAML scalar reader: a double-quoted value is decoded through JSON (double-quoted YAML
 // escapes — \", \\, \n — coincide with JSON's), so a title carrying a quote or a real newline
@@ -31,13 +33,11 @@ function parseScalar(raw) {
 
 function parseStagedPage(text) {
   const t = text.replace(/\r\n/g, '\n');
-  if (!t.startsWith('---\n')) return null;
-  const end = t.indexOf('\n---', 3);
-  if (end === -1) return null;
-  const fm = t.slice(4, end);
-  const body = t.slice(t.indexOf('\n', end + 1) + 1);
+  const split = splitFrontmatter(t);
+  if (!split) return null;
+  const body = t.slice(split.bodyAt);
   const data = {};
-  for (const line of fm.split('\n')) {
+  for (const line of split.fm.split('\n')) {
     const m = line.match(/^([A-Za-z_][\w-]*):\s*(.*)$/);
     if (m) data[m[1]] = parseScalar(m[2]);
   }
@@ -59,9 +59,8 @@ function parseStagedPage(text) {
 // disk, so a later run's `find` seeing the page land reads it as this run's own retry (ADR 0130)
 // rather than someone else's page (INV-0091), with no `read` call needed to tell the two apart.
 //
-// Atomic write, the way `scope.js`'s `writeLines` writes its ledger: a temp file in the same
-// directory, then a rename over the staged file, so a reader never observes a half-written marker.
-// Any fs error here (a read-only staging directory, say) is caught and reported rather than thrown:
+// Written through `writeFileAtomic`, as `scope.js`'s `writeLines` writes its ledger, so a reader never
+// observes a half-written marker and a failed write leaves no temporary file. Any fs error here (a read-only staging directory, say) is caught and reported rather than thrown:
 // `publishUpsert` never sends the `create` it precedes when the marker itself could not be written.
 function markStagedCreate(filePath) {
   let raw;
@@ -71,25 +70,17 @@ function markStagedCreate(filePath) {
     return { ok: false, reason: 'could not write the retry marker' };
   }
   const t = raw.replace(/\r\n/g, '\n');
-  if (!t.startsWith('---\n')) return { ok: true };
-  const end = t.indexOf('\n---', 3);
-  if (end === -1) return { ok: true };
+  const split = splitFrontmatter(t);
+  if (!split) return { ok: true };
   // Already marked: a retry re-marks ahead of every `create` call it sends, so writing
   // unconditionally would append a fresh line on each one instead of leaving the first attempt's own
   // timestamp alone.
-  if (/^created-by-publish:/m.test(t.slice(4, end))) return { ok: true };
-  const marked = `${t.slice(0, end)}\ncreated-by-publish: ${new Date().toISOString()}${t.slice(end)}`;
-  const tmpFile = `${filePath}.tmp-${process.pid}-${Date.now()}`;
+  if (/^created-by-publish:/m.test(split.fm)) return { ok: true };
+  const marked = `${t.slice(0, split.closeAt)}created-by-publish: ${new Date().toISOString()}\n${t.slice(split.closeAt)}`;
   try {
-    fs.writeFileSync(tmpFile, marked, 'utf8');
-    fs.renameSync(tmpFile, filePath);
+    writeFileAtomic(filePath, marked);
     return { ok: true };
   } catch {
-    try {
-      fs.unlinkSync(tmpFile);
-    } catch {
-      // the write itself already failed — a stray temp file must not mask that
-    }
     return { ok: false, reason: 'could not write the retry marker' };
   }
 }
@@ -102,16 +93,16 @@ function markStagedCreate(filePath) {
 function restageLiveHash(filePath, hash) {
   try {
     const raw = fs.readFileSync(filePath, 'utf8');
-    const head = raw.match(/^---\r?\n[\s\S]*?\r?\n---/);
-    if (!head) return;
-    const rewritten = /^live-hash:/m.test(head[0])
-      ? head[0].replace(/^live-hash:[^\r\n]*/m, `live-hash: ${hash}`)
-      : head[0].replace(/\r?\n---$/, (close) => `${close.startsWith('\r') ? '\r\n' : '\n'}live-hash: ${hash}${close}`);
-    const tmpFile = `${filePath}.tmp-${process.pid}-${Date.now()}`;
-    fs.writeFileSync(tmpFile, rewritten + raw.slice(head[0].length), 'utf8');
-    fs.renameSync(tmpFile, filePath);
+    const split = splitFrontmatter(raw);
+    if (!split) return;
+    const head = raw.slice(0, split.closeAt);
+    const eol = raw.startsWith('---\r\n') ? '\r\n' : '\n';
+    const rewritten = /^live-hash:/m.test(split.fm)
+      ? head.replace(/^live-hash:[^\r\n]*/m, `live-hash: ${hash}`)
+      : `${head}live-hash: ${hash}${eol}`;
+    writeFileAtomic(filePath, rewritten + raw.slice(split.closeAt));
   } catch {
-    // the file keeps its old hash: the next run refuses with the live-hash reason, naming the page
+    // the file keeps its old hash, and no temporary file: the next run refuses with the live-hash reason, naming the page
   }
 }
 

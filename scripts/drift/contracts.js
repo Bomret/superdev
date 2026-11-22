@@ -220,9 +220,9 @@ const KB_BACKEND_CALL_MARKERS = [
 ];
 
 // ADR 0022: `lib/ledger.js` owns the ledger's schema, and since it exports `readLedgerHeader` that
-// ownership means one implementation rather than one per consumer. `hooks/scope-prune.js` used to carry
-// its own `**Name:**` regex, and it drifted on four axes while being hardened against defects on its
-// delete path — every difference arrived as a well-intentioned local fix, and none travelled back.
+// ownership means one implementation rather than one per consumer. A consumer that carries its own
+// `**Name:**` regex drifts from the shared reader: each local fix lands in that copy alone, and none
+// travels back.
 //
 // The primary guard against that drift restarting is the orphan test in `hooks/scope-prune.js
 // --selftest` (`#reader-unavailable` and its shared-reader agreement vectors): it exercises the real
@@ -426,20 +426,20 @@ const SOURCE_SECTION_CONTRACTS = [
 ];
 
 // ADR 0053, ADR 0069: `plugin/lib/kb-containment.js`'s `checkContainment` delegates the containment test
-// to `lib/containment.js`'s exported `testContainment`, `require`d and called directly, rather than reimplementing
+// to `lib/containment.js`'s exported `testContainment` or `judgeContainment` (the same test, with the verdict's detail and a refetch bound), `require`d and called directly, rather than reimplementing
 // its own ancestry test — the ADR's decision that the test is stated once. A raw `git merge-base
 // --is-ancestor` in its place answers "not merged" on every squash-merged scope. The pattern requires both
-// the `require` destructure and a call site, so a `testContainment` imported but never called fails too.
+// the `require` destructure and a call site, so a function imported but never called fails too.
 // It cannot see a script that keeps the real call *and* grows a second, redundant ancestry test beside it.
 const CONTAINMENT_DELEGATION_CONTRACTS = [
   [
     path.join('lib', 'kb-containment.js'),
     {
       test: (text) =>
-        /\{[^}]*\btestContainment\b[^}]*\}\s*=\s*require\(['"]\.\/containment\.js['"]\)/.test(text) &&
-        /\btestContainment\(/.test(text),
+        /\{[^}]*\b(?:testContainment|judgeContainment)\b[^}]*\}\s*=\s*require\(['"]\.\/containment\.js['"]\)/.test(text) &&
+        /\b(?:testContainment|judgeContainment)\(/.test(text),
     },
-    "delegate the containment test to lib/containment.js's exported `testContainment` — imported and called " +
+    "delegate the containment test to lib/containment.js's exported `testContainment` or `judgeContainment` — imported and called " +
       'directly — rather than reimplementing the ancestry check itself (ADR 0053)',
   ],
 ];

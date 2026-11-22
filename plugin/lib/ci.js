@@ -6,7 +6,7 @@
 const path = require('path');
 const { fail } = require('./refusal.js');
 const { resolveCommit, fileAt } = require('./git-spawn.js');
-const { drivePath } = require('./drive-path.js');
+const { takeOption, takeRootOption } = require('./options.js');
 const { namedChecksOf } = require('./verification.js');
 
 // The exit status of each **CI verdict**. A usage refusal exits 1.
@@ -31,19 +31,11 @@ function judge(reports) {
 // `<pending|finished|failed><TAB><name><TAB><state>[<TAB><link>]` line per named check that is not green, and sets the
 // verdict's exit status.
 function verbCi(cwd, args, input) {
-  const take = (flag) => {
-    const i = args.indexOf(flag);
-    if (i < 0) return undefined;
-    const v = args[i + 1];
-    if (!v) fail(`ci: ${flag} needs a value`);
-    args.splice(i, 2);
-    return v;
-  };
-  const sha = take('--sha');
-  const root = take('--root');
+  const sha = takeOption(args, '--sha', 'ci: ', (v) => v === '--root');
+  const root = takeRootOption(args, 'ci: ');
   if (!sha) fail('ci needs --sha <sha>');
   if (args.length) fail(`ci: unrecognized argument "${args[0]}"`);
-  const repo = root ? path.resolve(cwd, drivePath(root)) : cwd;
+  const repo = root ? path.resolve(cwd, root) : cwd;
   const judged = ciJudgment(repo, sha, input);
   console.log(`ci: ${judged.kind} ${judged.at}${judged.reason ? ' ' + judged.reason : ''}`);
   process.exitCode = EXIT[judged.kind];

@@ -49,7 +49,7 @@ const EXPORTS = {
   'hooks/scope-prune.js': ['TTL_MS', 'branchNamesFrom', 'main', 'readBranch', 'readHeader', 'readStage', 'selectPrunable'],
   'hooks/slicetree-sweep.js': ['git', 'main', 'selectRemovable'],
   'hooks/tree-guard.js': ['decide'],
-  'hooks/update-check.js': ['cmpVersion'],
+  'hooks/update-check.js': [],
   'scripts/kb-patch.js': ['merge'],
   'scripts/publish-kb.js': ['addParentLink', 'classifyBackend', 'hashBody', 'parseBaseBranch',
     'parseCommandsTemplates', 'parseRemote', 'parseStagedPage', 'removeParentLink', 'resolveMainCheckout', 'run', 'runFind',

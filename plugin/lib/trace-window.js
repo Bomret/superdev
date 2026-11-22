@@ -8,6 +8,7 @@ const path = require('path');
 const { readTrace, untraceField } = require('./trace-log.js');
 const { rootRelative } = require('./run-tree.js');
 const { fail } = require('./refusal.js');
+const { takeOption } = require('./options.js');
 
 // The domain shapes, named as CONTEXT.md names them.
 //
@@ -100,21 +101,18 @@ function windowIndexes(events, id, slice, refuse) {
   return set;
 }
 
-// The flag parser of the read-only trace verbs. Returns `{ flags, positional }`: the value of each of `names` given, each at
-// most once and never empty or starting with `--`, and the arguments that start with no `--` where `takesPositional` holds.
+// The flag parser of the read-only trace verbs. Returns `{ flags, positional }`: the value of each of `names` given, read through
+// `takeOption`, so each at most once and never empty or starting with `--`, and the arguments that start with no `--` where `takesPositional` holds.
 // Any other argument is refused, every message naming `verb`.
 function traceFlags(verb, args, names, takesPositional) {
   const flags = {};
   const positional = [];
-  for (let i = 0; i < args.length; i++) {
-    const a = args[i];
-    if (takesPositional && !a.startsWith('--')) { positional.push(a); continue; }
+  const rest = [...args];
+  while (rest.length) {
+    const a = rest[0];
+    if (takesPositional && !a.startsWith('--')) { positional.push(rest.shift()); continue; }
     if (!names.includes(a)) fail(`${verb}: unrecognized argument "${a}"`);
-    const v = args[i + 1];
-    if (v === undefined || v === '' || v.startsWith('--')) fail(`${verb}: ${a} needs a value`);
-    if (a in flags) fail(`${verb}: ${a} given twice`);
-    flags[a] = v;
-    i++;
+    flags[a] = takeOption(rest, a, `${verb}: `);
   }
   return { flags, positional };
 }

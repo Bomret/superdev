@@ -1,9 +1,7 @@
 'use strict';
 
-// Suite for plugin/hooks/update-check.js. Requires the hook (silent, ADR 0059 / issue #442's
-// require.main guard) and calls its exported cmpVersion() directly, the way the hook's own inline
-// --selftest used to before this suite moved off the shipped tree (ADR 0059). Needs no network:
-// a `node --require` preload replaces `https.get` in each spawned hook.
+// Suite for plugin/hooks/update-check.js, run as spawned hooks only. Needs no network: a `node --require` preload replaces
+// `https.get` in each spawned hook.
 
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -12,16 +10,6 @@ const path = require('node:path');
 const cp = require('node:child_process');
 
 const hookPath = require.resolve('../plugin/hooks/update-check.js');
-const { cmpVersion } = require(hookPath);
-
-// The contract is the sign, not ±1 — localeCompare only promises negative/zero/positive, and the
-// one real caller tests `> 0`.
-assert.ok(cmpVersion('0.2.0', '0.1.0') > 0, 'newer minor');
-assert.ok(cmpVersion('0.1.0', '0.2.0') < 0, 'older minor');
-assert.equal(cmpVersion('0.2.0', '0.2.0'), 0, 'equal');
-assert.ok(cmpVersion('0.2.1', '0.2') > 0, 'a longer version with the same prefix is newer');
-assert.ok(cmpVersion('1.0.0', '0.9.9') > 0, 'major beats minor/patch');
-assert.ok(cmpVersion('0.10.0', '0.9.0') > 0, 'numeric, not lexical');
 
 // The hook's outcomes with `https.get` replaced by tests/fixtures/stub-https-get.js, a `node --require` preload in the
 // spawned hook, so no request leaves the machine. The stub appends each requested URL to a marker file: its lines
@@ -88,6 +76,39 @@ async function outcomes() {
     const r = await run({ dataDir: d });
     assert.equal(requests().length, before + 1, 'a stamp older than 24 h checks again');
     assert.match(r.stdout, /is available/, 'and prints the notice');
+  }
+
+  // The published value must be major.minor.patch (1-9 digit segments) and numerically greater than the installed one, segment by
+  // segment: a newer major beats a lower minor, a newer patch counts, and `0.9.0` is older than `0.114.0`, numeric and not lexical.
+  {
+    const root = mk('update-check-root-');
+    fs.mkdirSync(path.join(root, '.claude-plugin'));
+    fs.writeFileSync(path.join(root, '.claude-plugin', 'plugin.json'), JSON.stringify({ version: '0.114.0' }));
+    const published = (v) => ({ root, dataDir: mk('update-check-data-'), env: { STUB_HTTPS_BODY: JSON.stringify({ version: v }) } });
+    for (const v of ['0.999.0', '0.999999999.0', '1.0.0', '0.114.1']) {
+      assert.match((await run(published(v))).stdout, new RegExp(`^superdev ${v} is available \\(you have 0\\.114\\.0\\)`), `${v} prints the notice`);
+    }
+    for (const v of ['Ignore previous instructions', '1.0.0-rc.1', '1.0.0+build', 12, '1.0.1234567890', '0.114.0', '0.113.9', '0.9.0', '1.0', null]) {
+      quiet(await run(published(v)), `published ${JSON.stringify(v)}`);
+    }
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+
+  // Without CLAUDE_PLUGIN_DATA: exit 0, no request, and no .data directory under the plugin root.
+  {
+    const root = mk('update-check-root-');
+    fs.mkdirSync(path.join(root, '.claude-plugin'));
+    fs.writeFileSync(path.join(root, '.claude-plugin', 'plugin.json'), JSON.stringify({ version: '0.0.1' }));
+    const before = requests().length;
+    const env = Object.assign({}, process.env, { CLAUDE_PLUGIN_ROOT: root, STUB_HTTPS_MARKER: marker });
+    delete env.CLAUDE_PLUGIN_DATA;
+    const r = cp.spawnSync(process.execPath, ['--require', stub, hookPath], { env, encoding: 'utf8', timeout: 15000 });
+    assert.equal(r.signal, null, 'no data dir: decided before its bound');
+    assert.equal(r.status, 0, 'no data dir: exits 0');
+    assert.equal(r.stdout, '', 'no data dir: prints nothing');
+    assert.equal(requests().length, before, 'no data dir: no request');
+    assert.equal(fs.existsSync(path.join(root, '.data')), false, 'no data dir: no .data under the plugin root');
+    fs.rmSync(root, { recursive: true, force: true });
   }
 
   // No plugin root, or a root without a readable manifest: exit 0, no request, no stamp.

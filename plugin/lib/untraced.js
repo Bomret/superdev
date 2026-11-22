@@ -8,6 +8,7 @@ const { gitSpawn } = require('./git-spawn.js');
 const { lazyToplevel } = require('./run-tree.js');
 const { readRunTrace, sliceOf, editPath, windowIndexes, traceFlags } = require('./trace-window.js');
 const { fail } = require('./refusal.js');
+const { drivePath } = require('./drive-path.js');
 
 const STATUS = { A: 'added', M: 'modified', T: 'modified', D: 'deleted', R: 'renamed' };
 
@@ -71,7 +72,7 @@ function netChanges(range, cwd, verb) {
 function verbUntraced(cwd, args) {
   for (const flag of ['--from', '--until']) if (args.includes(flag)) fail(`untraced: ${flag} is no flag of untraced; name the window by its dispatch with --window <dispatch id>`);
   const { flags, positional: rest } = traceFlags('untraced', args, ['--root', '--slice', '--window'], true);
-  const root = flags['--root'];
+  const root = flags['--root'] === undefined ? undefined : drivePath(flags['--root']);
   const slice = flags['--slice'];
   const window = flags['--window'];
   if (!root) fail('untraced needs --root <run-root>');

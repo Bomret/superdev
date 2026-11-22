@@ -197,6 +197,18 @@ module.exports = ({ assert, path, fixture, found }) => {
     0,
     'delegating to testContainment yields zero gaps',
   );
+  assert.equal(
+    scanContract(
+      fixture({
+        'lib/kb-containment.js':
+          "const { judgeContainment } = require('./containment.js');\n\n" +
+          'const verdict = judgeContainment(mainCheckout, base, branch, undefined, { fetchTimeoutMs }).verdict;\n',
+      }),
+      CONTAINMENT_DELEGATION_CONTRACTS,
+    ).length,
+    0,
+    'delegating to judgeContainment yields zero gaps',
+  );
 
   // --- scanContract(): a clause the table spells with single spaces is met across a line break, and a
   // document the table names that is not there is a missing-document gap ---
