@@ -277,8 +277,8 @@ stays unticked, with a note naming what it needs, for the operator to verify aft
 
 ## The stage never moves backwards
 
-**The rank rule.** Applies to every write of the ledger's `**Stage:**` line: `/superdev:review`, `/superdev:document`,
-run handoff (`merged`), `/superdev:submit-pr` (`submitted`), `/superdev:ship` (`shipped`), and `/superdev:wrap-up`
+**The rank rule.** Applies to every write of the ledger's `**Stage:**` line: run init (`stage set implementing`, on a
+`planned` ledger), `/superdev:review`, `/superdev:document`, run handoff (`merged`), `/superdev:submit-pr` (`submitted`), `/superdev:ship` (`shipped`), and `/superdev:wrap-up`
 (`closed`), each through `scope.js stage set`. **A stage write never undoes completed work.** `stage set` enforces every
 rule of this section in code and refuses a write that breaks one.
 

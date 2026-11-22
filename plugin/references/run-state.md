@@ -148,8 +148,10 @@ stopped.
   `## The carry run`).
 
 **An older ledger.** Applies to a ledger written before a header line existed. It carries none of that line, and
-`scope.js` parses it unchanged. `get` reports an absent header line as `absent`, never as a parse error, except `get
-suite` and `get failed`, which print nothing on an absent line.
+`scope.js` parses it unchanged. `get`, and `state`, which prints what `get` prints for each field, reports an absent
+header line as a value and never as a parse error: `none` for `step`, `0` for `denials`, nothing for `suite`,
+`failed`, `slices`, and the bullet lists (`unresolved`, `degraded`, `deferred`, `minors`), and `absent` for every other
+field.
 
 ## Publishing run state
 
@@ -205,7 +207,7 @@ snapshot-less. Skip the whole mechanism: no read call, no `publish`, and no writ
 **An ad-hoc run has no run root.** Applies to a command run with no run root. Publish nothing and report nothing.
 
 **The run-state ref.** Applies to every step end that changes state: a `scope.js step clear` that changes the ledger,
-a `scope.js step block`, or a `scope.js stage set` that closes the standing step, except `stage set closed`. The verb
+a `scope.js step block` with a step standing, or a `scope.js stage set` that closes the standing step, except `stage set closed`. The verb
 sends the run root's `trace.log`, `reports/`, `interfaces.md`, and `dod.md` to `refs/superdev/<scope>` of the remote
 the `**Remote:**` line of `docs/agents/code-management.md` names, and prints one `run-state:` line. Read the line and
 continue.
