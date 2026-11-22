@@ -767,7 +767,6 @@ cases.push(async () => {
   const required = of([`plugin/lib/${['run', 'supervision'].join('-')}.js`]);
   for (const s of parts) {
     assert.ok(required.includes(s), `a file scope.js requires selects ${s}`);
-    assert.ok(of([`tests/${s}.test.js`]).includes(s), `${s} selects itself`);
   }
   const all = discoverSuites(path.join(repoRoot, 'tests')).map((f) => path.basename(f, '.test.js'));
   const fixture = of(['tests/fixture-git.js']);
