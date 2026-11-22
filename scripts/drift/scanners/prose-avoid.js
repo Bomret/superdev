@@ -311,7 +311,9 @@ function scanDeployRunnerExclusivity(root) {
 // `test focused` with no path"). A negation of another word, as in "with no delay run the full suite" or "Do not skip
 // running the full command", excuses nothing. Fenced examples are masked first.
 // simplicity: shape-based, and its ceiling is `RUN_NEGATION`'s word order plus that code-span list.
-const FULL_RUN_NEGATION = new RegExp(`(?:\\bno\\b|${RUN_NEGATION})${/\s*(?:(?:a\s+|an\s+|the\s+)?`[^`]*`(?:\s+with\s+no\s+path)?\s*,\s*(?:(?:or|and|nor)\s+)?)*(?:a\s+|an\s+|the\s+)?["'`]?\s*$/.source}`, 'i');
+// The tail after the negation: any list of code spans it heads, then an article and an opening quote or backtick.
+const FULL_RUN_NEGATION_TAIL = String.raw`\s*(?:(?:a\s+|an\s+|the\s+)?\`[^\`]*\`(?:\s+with\s+no\s+path)?\s*,\s*(?:(?:or|and|nor)\s+)?)*(?:a\s+|an\s+|the\s+)?["'\`]?\s*$`;
+const FULL_RUN_NEGATION = new RegExp(String.raw`(?:\bno\b|${RUN_NEGATION})${FULL_RUN_NEGATION_TAIL}`, 'i');
 // A section runs from its heading to the next heading of its own level or a higher one, `#` excepted. Both are
 // found on fence-masked lines, so a heading shown inside a fenced example neither starts nor ends a section; the
 // raw lines between them are returned, and the caller masks that text once.
