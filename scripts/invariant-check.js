@@ -6,8 +6,8 @@
 // entry that breaks the register's format rules (a present but empty Paths or Symbols field, a
 // silent-break dash with no reason after it included), names a Paths glob, a symbol, or a Check path
 // that resolves to nothing, carries a symbol with an empty name segment, or names a Check path that is a
-// glob or leads outside the root, and every INV-NNNN cited outside the register, the changelog, and
-// docs/adr/ that names no entry — one line per failure naming the id and the field. It reports and
+// glob or leads outside the root (an absolute path rooted at `/`, `~/`, or a drive included), and
+// every INV-NNNN cited outside the register, the changelog, and docs/adr/ that names no entry — one line per failure naming the id and the field. It reports and
 // selects nothing: /superdev:plan and final-reviewer still read the register
 // whole (INV-0088). Pure Node with no shell-out, so it runs on every OS the maintainer uses.
 
@@ -255,8 +255,11 @@ function symbolFailures(entry, governed, files, read) {
 }
 
 // A path-shaped token in `Check:` — segments joined by `/`, ending in a file extension — names a
-// file under root. Drift ids and quoted test names are prose, and stay unchecked.
-const CHECK_PATH = /(?:^|[^\w./-])((?:[\w.-]+\/)+[\w-][\w.-]*\.[A-Za-z0-9]{1,5})(?![\w/])/g;
+// file under root. A token rooted at `/`, at `~/`, or at a drive (`C:/`, `C:\`) is absolute and
+// leads outside the repository. Drift ids and quoted test names are prose, and stay unchecked.
+const CHECK_ABSOLUTE = /^(?:\/|~\/|[A-Za-z]:[/\\])/;
+const CHECK_PATH =
+  /(?:^|[^\w./-])((?:(?:\/|~\/|[A-Za-z]:[/\\])(?:[\w.-]+[/\\])*|(?:[\w.-]+\/)+)[\w-][\w.-]*\.[A-Za-z0-9]{1,5})(?![\w/])/g;
 
 // A path-shaped token carrying a glob character: `Check:` names literal files, and a glob there is
 // reported rather than expanded. A token needs a `/` to be path-shaped, so bold prose such as
@@ -273,7 +276,7 @@ function checkPathFailures(entry, root) {
   }
   for (const m of check.matchAll(CHECK_PATH)) {
     const rel = path.relative(path.resolve(root), path.resolve(root, m[1]));
-    if (rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) {
+    if (CHECK_ABSOLUTE.test(m[1]) || rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) {
       failures.push({ id: entry.id, field: 'Check', reason: `\`${m[1]}\` leads outside the repository` });
     } else if (!fs.existsSync(path.join(root, m[1]))) {
       failures.push({ id: entry.id, field: 'Check', reason: `\`${m[1]}\` names no file` });

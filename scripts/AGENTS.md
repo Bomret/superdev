@@ -1206,7 +1206,8 @@ It checks these kinds of rule:
   anywhere but the register when the entry carries no `Paths:` line; an empty `Paths:` line governs no file and never
   widens that scope. A dotted symbol matches on its last segment, and a symbol with an empty segment (`foo.`, `a..b`,
   empty backticks) fails, because its pattern would match any file. Every path-shaped token in `Check:` names a file
-  inside the root: a path that leads outside it (`../x.js`) fails even when the file exists, and a path-shaped token
+  inside the root: a path that leads outside it (`../x.js`) fails even when the file exists, an absolute path, rooted
+  at `/`, at `~/`, or at a drive (`C:/`, `C:\`), fails the same way, and a path-shaped token
   holding a glob character (`*`, `?`, `[`, `{`) fails, because `Check:` names literal files and the validator expands
   no glob there. A token needs a `/` to be path-shaped, so bold prose such as `**Branch:**` is no glob. Drift ids and
   quoted test names are prose and stay unchecked.

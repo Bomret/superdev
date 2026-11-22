@@ -962,4 +962,28 @@ for (const statement of ['Bestellung ändert sich nie', '注文は不変']) {
   assert.doesNotMatch(r.stdout, /^INV-0008: /m, 'a Check: naming a folder inside the repository keeps its passing verdict');
 }
 
+// --- an absolute Check: path, rooted at `/`, at `~/`, or at a drive, leads outside the repository. ---
+{
+  const r = failuresFor(
+    {
+      ...TREE,
+      'docs/invariants.md': register(
+        entry('INV-0001', withField('Check', 'tests/order.test.js and /etc/passwd.js')),
+        entry('INV-0002', withField('Check', 'tests/order.test.js and ~/x/y.js')),
+        entry('INV-0003', withField('Check', 'tests/order.test.js and C:/Windows/x.js')),
+        entry('INV-0004', withField('Check', 'tests/order.test.js and C:\\Windows\\x.js')),
+        entry('INV-0005', withField('Check', 'tests/order.test.js, src/billing.js:12, and https://example.com/a.js')),
+      ),
+    },
+    'absolute check paths',
+  );
+  assert.equal(r.status, 1, `an absolute Check: path fails (got: ${r.out})`);
+  assert.match(r.out, /^INV-0001: Check: `\/etc\/passwd\.js` leads outside the repository$/m, 'a `/`-rooted path is reported');
+  assert.match(r.out, /^INV-0002: Check: `~\/x\/y\.js` leads outside the repository$/m, 'a `~/`-rooted path is reported');
+  assert.match(r.out, /^INV-0003: Check: `C:\/Windows\/x\.js` leads outside the repository$/m, 'a forward-slash drive path is reported');
+  assert.match(r.out, /^INV-0004: Check: `C:\\Windows\\x\.js` leads outside the repository$/m, 'a backslash drive path is reported');
+  assert.doesNotMatch(r.out, /^INV-000[1-4]: Check: `tests\/order\.test\.js`/m, 'the relative neighbour keeps passing');
+  assert.doesNotMatch(r.out, /^INV-0005: /m, 'relative paths and a URL in a Check: value pass');
+}
+
 console.log('invariant-check tests ok');
