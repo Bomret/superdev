@@ -181,7 +181,7 @@ module.exports = [
   table(
     'containment-delegation',
     CONTAINMENT_DELEGATION_CONTRACTS,
-    "lib/kb-containment.js delegates its containment check to lib/containment.js's testContainment rather than " +
+    "lib/kb-containment.js delegates its containment check to lib/containment.js's testContainment or judgeContainment rather than " +
       'reimplementing the ancestry test itself',
   ),
   {

@@ -24,7 +24,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { fail } = require('../lib/refusal.js');
+const { fail, readPresent } = require('../lib/refusal.js');
 const { resolveMainCheckout, listPendingScopes, resolveScope } = require('../lib/kb-staging.js');
 const { parseCommandsTemplates, classifyBackend, liveTemplates } = require('../lib/kb-backend-config.js');
 const { parseStagedPage } = require('../lib/kb-staged-page.js');
@@ -59,12 +59,7 @@ function run(argv, cwd) {
   const resolvedScope = resolveScope(pending, scope);
 
   const docPath = path.join(mainCheckout, 'docs', 'agents', 'knowledge-base.md');
-  let docText = null;
-  try {
-    docText = fs.readFileSync(docPath, 'utf8');
-  } catch (e) {
-    if (e.code !== 'ENOENT') throw e;
-  }
+  const docText = readPresent(docPath, 'utf8');
   const backend = classifyBackend(docText);
   if (backend.kind === 'local' || backend.kind === 'none') fail(backend.reason);
   if (backend.kind === 'unconfigured') {
@@ -78,6 +73,7 @@ function run(argv, cwd) {
   let unmerged = false;
   const containment = checkContainment(mainCheckout, resolvedScope);
   if (containment.performed && !containment.ok) {
+    if (containment.unreadable) fail(`${containment.message} — nothing published`);
     if (!allowUnmerged) {
       fail(`${containment.message} — nothing published (pass --allow-unmerged to publish anyway)`);
     }
@@ -85,8 +81,7 @@ function run(argv, cwd) {
   }
 
   const scopeDir = path.join(stagingRoot, resolvedScope);
-  const files = fs
-    .readdirSync(scopeDir)
+  const files = fs.readdirSync(scopeDir)
     .filter((f) => f.endsWith('.md'))
     .sort();
   const results = processStagedFiles(

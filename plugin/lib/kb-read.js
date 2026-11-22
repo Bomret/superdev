@@ -8,9 +8,8 @@
 // `hash` is the sha256 of `read`'s stdout normalised for CRLF and a trailing newline, so two reads
 // of an unchanged page agree.
 
-const fs = require('fs');
 const path = require('path');
-const { fail } = require('./refusal.js');
+const { fail, readPresent } = require('./refusal.js');
 const { resolveMainCheckout } = require('./kb-staging.js');
 const { classifyBackend, liveTemplates } = require('./kb-backend-config.js');
 const { runFind, runVerb, spawnFailure, exited, hashBody } = require('./kb-backend.js');
@@ -36,12 +35,7 @@ function readPage(title, templates) {
 function runReadEntry(cwd, title) {
   const mainCheckout = resolveMainCheckout(cwd);
   const docPath = path.join(mainCheckout, 'docs', 'agents', 'knowledge-base.md');
-  let docText = null;
-  try {
-    docText = fs.readFileSync(docPath, 'utf8');
-  } catch (e) {
-    if (e.code !== 'ENOENT') throw e;
-  }
+  const docText = readPresent(docPath, 'utf8');
   const backend = classifyBackend(docText);
   if (backend.kind === 'local' || backend.kind === 'none') fail(backend.reason);
   if (backend.kind === 'unconfigured') {

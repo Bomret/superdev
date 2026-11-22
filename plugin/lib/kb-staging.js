@@ -27,10 +27,17 @@ function listPendingScopes(stagingRoot) {
     dirents = fs.readdirSync(stagingRoot, { withFileTypes: true });
   } catch (e) {
     if (e.code === 'ENOENT') return counts;
-    throw e;
+    return fail(`${stagingRoot} cannot be read (${e.code || e.message})`);
   }
   for (const d of dirents.filter((e) => e.isDirectory())) {
-    const n = fs.readdirSync(path.join(stagingRoot, d.name)).filter((f) => f.endsWith('.md')).length;
+    const dir = path.join(stagingRoot, d.name);
+    let names;
+    try {
+      names = fs.readdirSync(dir);
+    } catch (e) {
+      return fail(`${dir} cannot be read (${e.code || e.message})`);
+    }
+    const n = names.filter((f) => f.endsWith('.md')).length;
     if (n > 0) counts.set(d.name, n);
   }
   return counts;
