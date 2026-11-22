@@ -158,9 +158,14 @@ try {
   }
 
   // #not-contained: the name exists with commits base never took — the commits and the rename remedy are named,
-  // and nothing is written.
+  // and nothing is written. The code-management document names the remote every refetch below reaches (INV-0203).
   {
     const f = fixture();
+    const codeMgmt = (remote) => {
+      fs.mkdirSync(path.join(f.repo, 'docs', 'agents'), { recursive: true });
+      fs.writeFileSync(path.join(f.repo, 'docs', 'agents', 'code-management.md'), `# Code host\n\n- **Remote:** \`${remote}\`\n`);
+    };
+    codeMgmt('origin');
     git(['checkout', '-q', '-b', BRANCH], f.repo);
     commit(f.repo, 'work.md', 'w\n', 'real work');
     git(['checkout', '-q', 'main'], f.repo);
@@ -178,6 +183,17 @@ try {
     assert.strictEqual(failed.status, 3, `a failed refetch exits 3: ${failed.out}`);
     assert.strictEqual(failed.word, 'not-contained');
     assert.strictEqual(failed.out.trimEnd().split('\n').pop(), 'refetch failed', `a failed refetch is marked: ${failed.out}`);
+    // A configured remote of any name is the one the refetch reaches: an unreachable `upstream` is marked failed while the
+    // reachable `origin` stands beside it. An explicit `--remote` wins over the configured value.
+    git(['remote', 'add', 'upstream', path.join(f.repo, '..', 'no-such-upstream')], f.repo);
+    codeMgmt('upstream');
+    const viaUpstream = open(f);
+    assert.strictEqual(viaUpstream.status, 3, `exits 3: ${viaUpstream.out}`);
+    assert.strictEqual(viaUpstream.out.trimEnd().split('\n').pop(), 'refetch failed', `the configured upstream is refetched: ${viaUpstream.out}`);
+    const explicit = open(f, ['--remote', 'origin']);
+    assert.strictEqual(explicit.status, 3, `exits 3: ${explicit.out}`);
+    assert.doesNotMatch(explicit.out, /^refetch /m, `an explicit --remote origin wins over the configured upstream: ${explicit.out}`);
+    codeMgmt('origin');
     // The refetch runs under the operator's `code-host.pushTimeoutMs` bound (`.superdev/info.json`), the bound `contained`
     // takes. A bound this run measured, under a remote that stalls past it but ends well short of the 60 s default: the
     // configured bound ends the refetch, so the stop is marked timed-out rather than failed.
@@ -201,6 +217,20 @@ try {
     assert.strictEqual(late.status, 3, `a late refetch still answers not-contained: ${late.out}`);
     assert.doesNotMatch(late.out, /^refetch /m, `a refetch within the configured bound brings the base: ${late.out}`);
     assert.ok(!fs.existsSync(f.root), 'nothing is written');
+  }
+
+  // #no-configured-remote (INV-0203): no `--remote` and no `Remote:` value — `open` reaches no remote, though one named
+  // `origin` exists, and judges against the local base, so the stop carries no refetch mark.
+  {
+    const f = fixture();
+    git(['remote', 'set-url', 'origin', path.join(f.repo, '..', 'no-such-remote')], f.repo);
+    git(['checkout', '-q', '-b', BRANCH], f.repo);
+    commit(f.repo, 'work.md', 'w\n', 'real work');
+    git(['checkout', '-q', 'main'], f.repo);
+    const r = open(f);
+    assert.strictEqual(r.status, 3, `exits 3: ${r.out}`);
+    assert.strictEqual(r.word, 'not-contained', `stops not-contained: ${r.out}`);
+    assert.doesNotMatch(r.out, /^refetch /m, `no refetch ran: ${r.out}`);
   }
 
   // #dirty: a contained branch whose scopetree holds an uncommitted change stops before the reset.

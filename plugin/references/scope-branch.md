@@ -99,7 +99,9 @@ execution playbook. `/superdev:plan`'s `scope.js open` computes the same value f
 
 **Plan's cut.** Applies to `/superdev:plan`. Its cut is `scope.js open`, which applies the `fresh` rule in
 `lib/plan-open.js` and prints `not-contained`, `dirty`, or `held` where the rule stops. Plan acts on the printed
-outcome. A `not-contained` stop whose refetch ended without a base ends on the same `refetch timed-out` or `refetch
+outcome. Its containment refetch takes the remote as `scope.js contained` does: `--remote` where given, else the
+`Remote:` value of `docs/agents/code-management.md`, else none, which refetches nothing and judges against the local
+base. A `not-contained` stop whose refetch ended without a base ends on the same `refetch timed-out` or `refetch
 failed` line `## Containment` names.
 
 **`resumed`.** Applies to a run whose ledger exists, a `planned` ledger included. Cut nothing and run no containment

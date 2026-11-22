@@ -75,7 +75,7 @@ const { shq } = require('./spawn-verdict');
     'no fetch has run yet in this fixture'
   );
   assert.strictEqual(
-    testContainment(unmergedRepo, 'main', 'fix/unmerged'),
+    testContainment(unmergedRepo, 'main', 'fix/unmerged', 'origin'),
     'not-contained',
     'content living only on the branch reads not contained'
   );
@@ -169,7 +169,7 @@ const { shq } = require('./spawn-verdict');
   };
   let noRemoteVerdict;
   try {
-    noRemoteVerdict = testContainment(noRemoteRepo, 'main', 'fix/noremote');
+    noRemoteVerdict = testContainment(noRemoteRepo, 'main', 'fix/noremote', 'origin');
   } finally {
     process.stderr.write = origNoRemoteStderrWrite;
   }

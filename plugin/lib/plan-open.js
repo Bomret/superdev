@@ -12,6 +12,7 @@ const { takeOption } = require('./options.js');
 const { readLines, getHeader, ledgerPath } = require('./ledger.js');
 const { gitSpawn, refResolves, listWorktrees } = require('./git-spawn.js');
 const { judgeContainment, refetchMark } = require('./containment.js');
+const { resolveRemote } = require('./kb-containment.js');
 const { pushTimeoutMs } = require('./push.js');
 const { mainWorkTree } = require('./main-work-tree.js');
 const { verbInit, verbStep, validateLabel } = require('./ledger-lifecycle.js');
@@ -28,7 +29,7 @@ const PENDING_ANCHOR = 'pending';
 function parseArgs(args) {
   const label = args[0];
   if (!label || label.startsWith('--')) fail('open needs a <type>/<slug> label');
-  const opts = { label, remote: 'origin' };
+  const opts = { label };
   const flags = { '--base': 'base', '--remote': 'remote', '--lock': 'lock' };
   const rest = args.slice(1);
   while (rest.length) {
@@ -162,7 +163,7 @@ function verbOpen(cwd, args) {
   if (existing) {
     outcome = fs.existsSync(scopetree) ? { word: 'existing' } : attach(cwd, label, scopetree) || { word: 'existing' };
   } else {
-    outcome = cut(cwd, label, base, remote, scopetree);
+    outcome = cut(cwd, label, base, resolveRemote(cwd, remote), scopetree);
   }
   if (outcome.exitCode) return report(outcome);
 

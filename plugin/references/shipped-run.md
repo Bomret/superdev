@@ -12,8 +12,8 @@ states what it does with the result.
 1. **The merge commit.** Read the pull request by the ledger's `**PR:**` number, per `docs/agents/code-management.md`'s
    `## Merge` section, and take its `merge_commit_sha`. A ledger with no `**PR:**` header (`scope.js get pr` prints
    `absent`, as a `push-only` run's does) has no merge commit and reads as posture `none`.
-2. **The posture.** Fetch base (`git fetch origin <base>`) when the checkout lacks that commit; a fetch moves no
-   checkout. Read `git show <merge-commit-sha>:docs/agents/deployment.md` from the invoking checkout, never the working
+2. **The posture.** Fetch base (`git fetch <remote> <base>`, `<remote>` the `Remote:` value of
+   `docs/agents/code-management.md`) when the checkout lacks that commit; a fetch moves no checkout. Read `git show <merge-commit-sha>:docs/agents/deployment.md` from the invoking checkout, never the working
    tree. **No such file, or a document with no `Posture:` line, reads as posture `none`.**
 3. **The listed targets.** Read the anchor's `**Deploy:**` line, per `docs/agents/issue-tracker.md`. No such line, or
    `**Deploy:** none`, lists no target.

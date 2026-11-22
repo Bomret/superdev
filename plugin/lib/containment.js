@@ -235,12 +235,12 @@ function heldInHistory(cwd, base, ref, writeTreeSupported) {
   return baseHistoryHasPatch(cwd, base, ref) || (writeTreeSupported && baseCommitHoldsBranch(cwd, base, ref));
 }
 
-// The exported test. `remote` is the name `docs/agents/code-management.md` config names; a caller with
-// no such config passes its own default. Never throws, and safe on any `base`/`branch` string, not only
+// The exported test. `remote` is the name `docs/agents/code-management.md` config names, or a remote the caller
+// passed explicitly; a caller with neither passes null, and the test reaches no remote (INV-0203). Never throws, and safe on any `base`/`branch` string, not only
 // one sourced from trusted config: an option-shaped value (`--upload-pack=...`, `-C<path>`) never runs
 // as an argument to any git subcommand this function calls, and a genuinely unreachable `remote` degrades
 // to the local verdict within `FETCH_TIMEOUT_MS` rather than blocking on the network indefinitely.
-function testContainment(cwd, base, branch, remote = 'origin') {
+function testContainment(cwd, base, branch, remote) {
   return judgeContainment(cwd, base, branch, remote).verdict;
 }
 
@@ -248,8 +248,8 @@ function testContainment(cwd, base, branch, remote = 'origin') {
 // INV-0009): `verdict`, `refetch` (the refetch's spawn result, or null when no refetch ran), `judgedBase`
 // (the base the verdict was judged against: `base`, or the commit id the refetch brought), and `fallback` (true when
 // the git lacks `--write-tree` and the ancestry fallback judged). `fetchTimeoutMs` replaces the refetch's bound. A
-// `remote` of null runs no refetch and answers from the local base alone.
-function judgeContainment(cwd, base, branch, remote = 'origin', { fetchTimeoutMs = FETCH_TIMEOUT_MS } = {}) {
+// `remote` of null, or none passed, runs no refetch and answers from the local base alone (INV-0203).
+function judgeContainment(cwd, base, branch, remote, { fetchTimeoutMs = FETCH_TIMEOUT_MS } = {}) {
   let fallback = false;
   const result = (verdict, refetch = null, judgedBase = base) => ({ verdict, refetch, judgedBase, fallback });
   const ref = qualifyBranch(branch, cwd);
@@ -260,7 +260,7 @@ function judgeContainment(cwd, base, branch, remote = 'origin', { fetchTimeoutMs
   const local = containedAgainst(ref, base, cwd, writeTreeSupported);
   if (local === 'contained') return result('contained');
   if (local !== 'differs' && heldInHistory(cwd, base, ref, writeTreeSupported)) return result('contained');
-  if (remote === null) return result('not-contained');
+  if (remote == null) return result('not-contained');
 
   // Not contained against the local base — refetch before answering (ADR 0065). A fetch that fails
   // (no remote configured, an unreachable host, a rejected credential) leaves the local verdict

@@ -11,7 +11,7 @@ Code lives on GitHub. Use the `gh` CLI for push + pull requests. `gh` infers the
 
 ## Conventions
 
-- **Push the scope branch**: `git push -u origin <scope-branch>`.
+- **Push the scope branch**: `git push -u <remote> <scope-branch>`, `<remote>` the **Remote** value above.
 - **Open the PR** (default draft):
   `gh pr create --draft --base <base> --head <scope-branch> --title "<title>" --body-file <file>`.
   Use a body file (heredoc) built per `/superdev:submit-pr`'s body rules.
