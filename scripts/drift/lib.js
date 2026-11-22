@@ -57,10 +57,20 @@ function normalizeWhitespace(text) {
 // name its files relative to the plugin root — skills/…, agents/…, hooks/…, references/…,
 // scripts/scope.js — while root-level docs (CONTEXT.md, scripts/AGENTS.md, docs/) resolve at
 // the repo root. Fixtures build plugin-relative paths directly under their tmp root, so the direct
-// path is tried first and plugin/ is the fallback; the two never both exist for one file.
+// path is tried first and plugin/ is the fallback. A file exists under one of the two; a directory can
+// exist under both (`scripts/` and `plugin/scripts/`), so a walk of a shipped directory goes through
+// shippedDir() instead.
 function docPath(root, ...rel) {
   const direct = path.join(root, ...rel);
   return fs.existsSync(direct) ? direct : path.join(root, 'plugin', ...rel);
+}
+
+// shippedDir(): where a shipped executable directory (`hooks`, `scripts`, `lib`) lives under a root.
+// `<root>/plugin/<dir>` wins when it exists, so this repository's maintainer `scripts/` never stands in
+// for the shipped `plugin/scripts/`; a fixture with no `plugin/` falls back to `<root>/<dir>`.
+function shippedDir(root, dir) {
+  const shipped = path.join(root, 'plugin', dir);
+  return fs.existsSync(shipped) ? shipped : path.join(root, dir);
 }
 
 // readDoc(): one document's text, or null when it is not there.
@@ -142,6 +152,7 @@ function stripComments(raw) {
 
 module.exports = {
   docPath,
+  shippedDir,
   stripComments,
   readDoc,
   missingDoc,

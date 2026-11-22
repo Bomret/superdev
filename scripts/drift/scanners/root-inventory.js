@@ -6,7 +6,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { docPath, missingDoc } = require('../lib');
+const { docPath, shippedDir, missingDoc } = require('../lib');
 
 const ROOT_DOC = 'AGENTS.md';
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -22,7 +22,7 @@ const NAME_SETS = [
   {
     kind: 'lib module',
     dir: 'plugin/lib',
-    list: (root) => fs.readdirSync(docPath(root, 'lib')).filter((f) => f.endsWith('.js')),
+    list: (root) => fs.readdirSync(shippedDir(root, 'lib')).filter((f) => f.endsWith('.js')),
     patterns: SEGMENT,
   },
   {
