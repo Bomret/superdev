@@ -1603,3 +1603,12 @@ Statement: A scope review records a reviewed tip only on a clean exit that leave
 Breaks: silently
 Check: the suite of `scope.js reviewed` — each whole-range fallback, the delta and unchanged cases, a digest unmoved by ticks and notes, and a ledger without the header
 Paths: plugin/scripts/scope.js, plugin/lib/reviewed-tip.js, plugin/lib/ledger.js, plugin/references/review-scope-*.md
+
+### INV-0202
+
+Class: safety
+Concepts: Ledger, Run root
+Statement: Every `scope.js` verb that changes a run's ledger reads it and writes it back inside one hold of the run's `digest.lock`, so two verbs changing one ledger at once each land their change and neither loses the other's row or header. A verb never waits on a hold its own process already has, and a hold is broken only when the process its token names is dead or the lock is far older than any hold.
+Breaks: silently
+Check: tests/scope-ledger.test.js — concurrent ledger writers each land their change; a single writer never breaks its own lock; a live holder's lock is waited for
+Paths: plugin/lib/ledger.js, plugin/lib/ledger-lifecycle.js, plugin/lib/ledger-records.js, plugin/lib/reviewed-tip.js, plugin/lib/suite-base-get.js, plugin/lib/run-digest.js
