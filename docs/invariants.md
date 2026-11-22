@@ -814,7 +814,7 @@ Class: process
 Concepts: Deploy posture, Deploy target, Scope anchor
 Statement: Only `/superdev:ship` runs a deploy target's command. It runs one only under the repository's `auto` deploy posture, only after the pull request has merged, and only in a tree checked out at the merge commit. No other command and no unattended run deploys (ADR 0101).
 Breaks: silently
-Check: scripts/drift-check.js `deploy-runner-exclusivity` — no skill, agent, or reference, ship's skill and plugin/references/deployment.md excepted, names a deploy target's command as something it runs, unless ship is the subject running it; final-reviewer's invariant compliance judges the auto, after-merge, and merge-commit conditions
+Check: scripts/drift-check.js `deploy-runner-exclusivity` — no skill, agent, or reference names a deploy target's command as something it runs, unless ship is the subject running it, and ship's skill and plugin/references/deployment.md are excepted; final-reviewer's invariant compliance judges the auto, after-merge, and merge-commit conditions
 Paths: plugin/skills/ship/**, plugin/references/deployment.md, plugin/skills/verify-ship/**
 
 ### INV-0099
