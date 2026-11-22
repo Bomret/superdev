@@ -867,4 +867,99 @@ for (const statement of ['Bestellung ändert sich nie', '注文は不変']) {
   }
 }
 
+// --- #342 F92: a field that is present but empty names nothing, and is reported; an absent one is not. ---
+{
+  const r = failuresFor(
+    {
+      ...TREE,
+      'docs/invariants.md': register(
+        entry('INV-0001', [...GOOD, 'Paths:']),
+        entry('INV-0002', [...withField('Paths', 'src/**'), 'Symbols:']),
+        entry('INV-0003', [...GOOD, 'Symbols: invoiceTotal']),
+      ),
+    },
+    'empty Paths and Symbols',
+  );
+  assert.equal(r.status, 1, `an empty Paths or Symbols field fails (got: ${r.out})`);
+  assert.match(r.out, /^INV-0001: Paths: /m, 'an empty Paths: names the entry and the field');
+  assert.match(r.out, /^INV-0002: Symbols: /m, 'an empty Symbols: beside a non-empty Paths: names the entry and the field');
+  assert.doesNotMatch(r.out, /^INV-0003: /m, 'an entry with no Paths: line still passes');
+}
+
+// --- #342 F92: a symbol with an empty name segment names nothing; its pattern would match any file. ---
+{
+  const r = failuresFor(
+    {
+      ...TREE,
+      'docs/invariants.md': register(
+        entry('INV-0001', [...GOOD, 'Symbols: invoiceTotal.']),
+        entry('INV-0002', [...GOOD, 'Symbols: Billing..decided']),
+        entry('INV-0003', [...GOOD, 'Symbols: invoiceTotal, ``']),
+        entry('INV-0004', [...GOOD, 'Symbols: `Billing.invoiceTotal`']),
+      ),
+    },
+    'empty symbol segment',
+  );
+  assert.equal(r.status, 1, `a symbol with an empty segment fails (got: ${r.out})`);
+  for (const id of ['INV-0001', 'INV-0002', 'INV-0003']) {
+    assert.match(r.out, new RegExp(`^${id}: Symbols: .*empty`, 'm'), `${id}'s empty symbol segment names the entry and the field`);
+  }
+  assert.doesNotMatch(r.out, /^INV-0004: /m, 'a dotted symbol whose segments all carry a name passes');
+}
+
+// --- #342 F92: a silent-break reason after the dash carries a word; bare `silently` still passes. ---
+{
+  const withBreaks = (value) => GOOD.map((l) => (l.startsWith('Breaks:') ? `Breaks: ${value}` : l));
+  const r = failuresFor(
+    {
+      'CONTEXT.md': GLOSSARY,
+      'docs/invariants.md': register(
+        entry('INV-0001', withBreaks('silently —')),
+        entry('INV-0002', withBreaks('silently — .')),
+        entry('INV-0003', withBreaks('silently')),
+        entry('INV-0004', withBreaks('silently — a reader trusts the total')),
+      ),
+    },
+    'empty Breaks reason',
+  );
+  assert.equal(r.status, 1, `a dash with no words after it fails (got: ${r.out})`);
+  assert.match(r.out, /^INV-0001: Breaks: /m, 'a dash with nothing after it names the entry and the field');
+  assert.match(r.out, /^INV-0002: Breaks: /m, 'a dash followed by punctuation alone names the entry and the field');
+  assert.doesNotMatch(r.out, /^INV-0003: /m, 'a bare `Breaks: silently` passes');
+  assert.doesNotMatch(r.out, /^INV-0004: /m, 'a reason that carries words passes');
+}
+
+// --- #342 F92: a Check: path is a literal file inside the repository. A glob-shaped one, or one that leads
+// outside the root, is reported; bold prose inside the value and a directory inside the repo are not. ---
+{
+  const withCheck = (value) => GOOD.map((l) => (l.startsWith('Check:') ? `Check: ${value}` : l));
+  const outer = repo({ 'x.test.js': '' });
+  const root = path.join(outer, 'repo');
+  for (const [rel, content] of Object.entries({
+    ...TREE,
+    'docs/invariants.md': register(
+      entry('INV-0001', withCheck('tests/*.test.js — every suite')),
+      entry('INV-0002', withCheck('tests/order.test.?s — the order suite')),
+      entry('INV-0003', withCheck('tests/[ab].test.js — two suites')),
+      entry('INV-0004', withCheck('tests/{order,x}.test.js — two suites')),
+      entry('INV-0005', withCheck('../x.test.js — a file beside the repository')),
+      entry('INV-0006', withCheck('tests/order.test.js — a `**Branch:**` line naming base refused')),
+      entry('INV-0007', withCheck('tests/order.test.js — the order suite')),
+      entry('INV-0008', withCheck('plugin/skills/plan — the plan skill folder')),
+    ),
+  })) {
+    fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
+    fs.writeFileSync(path.join(root, rel), content);
+  }
+  const r = inProcess(root);
+  assert.equal(r.status, 1, `a glob-shaped or outside Check: path fails (got: ${r.stdout})`);
+  for (const id of ['INV-0001', 'INV-0002', 'INV-0003', 'INV-0004']) {
+    assert.match(r.stdout, new RegExp(`^${id}: Check: .*glob`, 'm'), `${id}'s glob-shaped path names the entry and the field`);
+  }
+  assert.match(r.stdout, /^INV-0005: Check: .*outside the repository/m, 'a path leading outside the root is reported though the file exists');
+  assert.doesNotMatch(r.stdout, /^INV-0006: /m, 'bold `**Branch:**` prose in a Check: value is no glob');
+  assert.doesNotMatch(r.stdout, /^INV-0007: /m, 'a literal path inside the repository passes');
+  assert.doesNotMatch(r.stdout, /^INV-0008: /m, 'a Check: naming a folder inside the repository keeps its passing verdict');
+}
+
 console.log('invariant-check tests ok');
