@@ -14,8 +14,12 @@ states what it does with the result.
    `absent`, as a `push-only` run's does) has no merge commit and reads as posture `none`.
 2. **The posture.** Fetch base (`git fetch <remote> <base>`, `<remote>` the `Remote:` value of
    `docs/agents/code-management.md`) when the checkout lacks that commit; a fetch moves no checkout. With no `Remote:`
-   value, fetch nothing and name the missing value: a commit the checkout lacks then shows no file. Read `git show <merge-commit-sha>:docs/agents/deployment.md` from the invoking checkout, never the working
-   tree. **No such file, or a document with no `Posture:` line, reads as posture `none`.**
+   value, fetch nothing. Read `git show <merge-commit-sha>:docs/agents/deployment.md` from the invoking checkout, never
+   the working tree. **At a commit the checkout holds, no such file, or a document with no `Posture:` line, reads as
+   posture `none`.** A merge commit the checkout still lacks, because no `Remote:` value let it be fetched or the fetch
+   failed, gives no posture: stop and name the missing commit, and the missing `Remote:` value where that is the cause.
+   A file git cannot read at that commit stops the same way. `scope.js route` refuses both cases rather than read them
+   as `none`, which would send a `manual` run to wrap-up.
 3. **The listed targets.** Read the anchor's `**Deploy:**` line, per `docs/agents/issue-tracker.md`. No such line, or
    `**Deploy:** none`, lists no target.
 4. **The deploy record.** Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deploy get --root <run-root>`. A
