@@ -249,5 +249,5 @@ function checkSliceId(id) {
 module.exports = {
   checkSliceId, CHANGE_TYPES, SLUG_RE, SLICE_STATUSES, SUITE_RESULTS, STAGES, stageMoveAllowed,
   ledgerPath, readLines, splitLines, writeLines, headerRe, getHeader, readLedgerHeader, inProgressSlices,
-  readBullets, insertHeader, setHeader, tableRowIndexes, sanitizeCell, splitRow,
+  APPENDED_HEADERS, readBullets, insertHeader, setHeader, tableRowIndexes, sanitizeCell, splitRow,
 };

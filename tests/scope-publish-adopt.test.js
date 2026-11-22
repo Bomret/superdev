@@ -510,6 +510,36 @@ try {
     r = call(['minors', 'add', bad, '--root', okRoot]);
     assert.ok(!r.ok && /slice id/.test(r.err), `minors add refuses ${JSON.stringify(bad)}: ${r.err}`);
   }
+  // adopt refuses what the ledger's own writers refuse (#380): a status outside the slice lifecycle, a repeated
+  // slice id, a PR, Docs, or Deploy value its writer refuses, and a repeated header line. Nothing is written.
+  const payloadFor = (name, { head = '', rows = ['| 01 | #1 | one | behavior | — | merged | — |'] } = {}) =>
+    '## Run state\n\n<!-- superdev:run-state -->\n\n**Stage:** planned\n' + `**Branch:** feat/${name}\n` + head + '**Anchor:** #1 — anchor\n\n' +
+    '| id | issue | title | type | depends-on | status | range |\n|---|---|---|---|---|---|---|\n' + rows.join('\n') + '\n<!-- /superdev:run-state -->\n';
+  const refusals = [
+    ['badstatus', { rows: ['| 01 | #1 | one | behavior | — | done | — |'] }, /01.*done|done.*01/],
+    ['dupid', { rows: ['| 01 | #1 | one | behavior | — | merged | — |', '| 01 | #2 | two | behavior | — | todo | — |'] }, /01/],
+    ['prurl', { head: '**PR:** https://x/pull/3\n' }, /pr set value/],
+    ['prword', { head: '**PR:** three\n' }, /pr set value/],
+    ['prparen', { head: '**PR:** #3 (merged)\n' }, /pr set value/],
+    ['docsws', { head: '**Docs:** inline pass\n' }, /whitespace/],
+    ['deploybad', { head: '**Deploy:** pve gone\n' }, /deploy record/],
+    ['dupstage', { head: '**Stage:** planned\n' }, /Stage/],
+  ];
+  for (const [name, opts, re] of refusals) {
+    const refRoot = path.join(tmp, 'adopted-elsewhere', name);
+    r = call(['adopt', '--root', refRoot], payloadFor(name, opts));
+    assert.ok(!r.ok && re.test(r.err), `adopt refuses ${name}: ` + (r.err || ''));
+    assert.ok(!fs.existsSync(path.join(refRoot, 'ledger.md')), `adopt writes nothing for ${name}`);
+  }
+  const okPayloads = [['okpr', '**PR:** #3\n'], ['okpr2', '**PR:** 3\n'], ['okdocs', '**Docs:** inline\n'], ['okdeploy', '**Deploy:** pve deployed, proxy failed exit 2\n']];
+  for (const [name, head] of okPayloads) {
+    const okRoot2 = path.join(tmp, 'adopted-elsewhere', name);
+    r = call(['adopt', '--root', okRoot2], payloadFor(name, { head }));
+    assert.ok(r.ok, `adopt accepts ${name}: ` + (r.err || ''));
+  }
+  const shippedDupRoot = path.join(tmp, 'adopted-elsewhere', 'shipped-dup');
+  r = call(['adopt', '--shipped', '--root', shippedDupRoot], shippedBody.replace('shipped-snapshot', 'shipped-dup').replace('**Anchor:**', '**PR:** three\n**Anchor:**'));
+  assert.ok(!r.ok && /pr set value/.test(r.err), 'adopt --shipped applies the same checks: ' + (r.err || ''));
 } finally {
   cleanup();
 }
