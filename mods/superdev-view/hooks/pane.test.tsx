@@ -166,3 +166,116 @@ test('a render before the first scan draws the scanning note', async ($, on) => 
   const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'terminal', ...P })
   expect(await ui.find({ type: 'Text', text: /^Scanning \.superdev…$/ })).toBeDefined()
 })
+
+test('a .superdev listing denied after the existence check keeps the last snapshot, and the next good scan updates it', async ($, on) => {
+  const { files, lists } = repo()
+  const clock = fakeRepo(on, files, lists)
+  on('command.register', async () => ({ value: undefined as never }))
+  on('session.start', async () => ({ cwd: '/r' }) as never)
+  await $.session.start({ cwd: '/r' } as never)
+  await clock.settle()
+  const top = lists[ROOT]!
+  delete lists[ROOT]
+  await $.command.run(runCommand)
+  const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'terminal', ...P })
+  expect(await ui.find({ key: 'scope-a' })).toBeDefined()
+  lists[ROOT] = top
+  lists[`${ROOT}/scopes`] = [d('a'), d('b'), d('c')]
+  files[`${ROOT}/scopes/c/ledger.md`] = ledger('implementing', [['01', 'todo']])
+  lists[`${ROOT}/scopes/c`] = []
+  await clock.advance(3000)
+  await ui.redraw()
+  expect(await ui.find({ key: 'scope-c' })).toBeDefined()
+})
+
+// A gate on the scans: each scan's existence check of the root waits on the gate the test holds, and the test counts the
+// scans that started.
+const gated = () => {
+  let started = 0
+  const gates: (() => void)[] = []
+  const hold = async (path: string) => {
+    if (path !== ROOT) return
+    started++
+    await new Promise<void>(open => gates.push(open))
+  }
+  return { hold, started: () => started, open: () => gates.shift()?.() }
+}
+
+test('scan requests while a scan runs start exactly one more scan, once the running one ends', async ($, on) => {
+  const { files, lists } = repo()
+  const g = gated()
+  const clock = fakeRepo(on, files, lists, '/r', g.hold)
+  const first = $.command.run(runCommand)
+  await clock.settle()
+  expect(g.started()).toBe(1)
+  const second = $.command.run(runCommand)
+  const third = $.command.run(runCommand)
+  await clock.settle()
+  expect(g.started()).toBe(1)
+  g.open()
+  await first
+  await clock.settle()
+  expect(g.started()).toBe(2)
+  g.open()
+  await Promise.all([second, third])
+  await clock.settle()
+  expect(g.started()).toBe(2)
+})
+
+test('the command resolves only after a scan that started after its request has finished', async ($, on) => {
+  const { files, lists } = repo()
+  const g = gated()
+  const clock = fakeRepo(on, files, lists, '/r', g.hold)
+  void $.command.run(runCommand)
+  await clock.settle()
+  let isDone = false
+  const second = $.command.run(runCommand).then(() => { isDone = true })
+  g.open()
+  await clock.settle()
+  expect(isDone).toBe(false)
+  g.open()
+  await second
+  expect(g.started()).toBe(2)
+})
+
+test('a scope press during a held scan shows that scope from a scan that started after the press', async ($, on) => {
+  const { files, lists } = repo()
+  const g = gated()
+  const clock = fakeRepo(on, files, lists, '/r', g.hold)
+  const first = $.command.run(runCommand)
+  await clock.settle()
+  g.open()
+  await first
+  const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'terminal', ...P })
+  const held = $.command.run(runCommand)
+  await clock.settle()
+  files[`${A}/ledger.md`] = ledger('implementing', [['01', 'in-progress'], ['02', 'todo']])
+  let isPressed = false
+  const press = ui.press(scopeLink('a')).then(() => { isPressed = true })
+  await clock.settle()
+  g.open()
+  await held
+  await clock.settle()
+  expect(isPressed).toBe(false)
+  expect(g.started()).toBe(3)
+  g.open()
+  await press
+  await ui.redraw()
+  expect(await ui.find({ key: 'back' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^DoD 0\/0/ })).toBeDefined()
+})
+
+for (const step of ['session.cwd', 'fs.exists', 'process.run', 'fs.list'] as const)
+  test(`a scan whose ${step} fails releases the single flight and runs the queued follow-up`, async ($, on) => {
+    const { files, lists } = repo()
+    const failing = new Set<string>([step])
+    const clock = fakeRepo(on, files, lists, '/r', undefined, {}, true, failing)
+    await $.command.run(runCommand)
+    const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'terminal', ...P })
+    if (step !== 'process.run') expect(await ui.find({ type: 'Text', text: /^Scanning \.superdev…$/ })).toBeDefined()
+    failing.clear()
+    await $.command.run(runCommand)
+    await clock.settle()
+    await ui.redraw()
+    expect(await ui.find({ key: 'scope-a' })).toBeDefined()
+  })

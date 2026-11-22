@@ -131,7 +131,7 @@ async function store($: EngineInterface, next: Snapshot): Promise<void> {
 // The main working tree holds `.superdev/` (a scopetree or linked worktree has none of its own).
 // Only the items superdev's docs define are read: info.json, brainstorm/, scopes/, kb-pending/,
 // design/, dod-draft-<slug>.md. Anything else in the folder is ignored.
-async function scan($: EngineInterface): Promise<void> {
+async function scanOnce($: EngineInterface): Promise<void> {
   const cwd = await $.session.cwd()
   const git = await $.process
     .run(['git', 'rev-parse', '--path-format=absolute', '--git-common-dir'], { cwd })
@@ -185,6 +185,23 @@ async function scan($: EngineInterface): Promise<void> {
   await store($, { root, assignees, intents, scopes, kbPending, designs, drafts })
 }
 
+// At most one scan runs at a time. A request while one runs queues one follow-up, which starts once the running scan
+// ends, and every later request in that window shares it; each request so resolves after a scan that started after it.
+// A scan that fails at any step stores nothing, so the pane keeps the last snapshot, and the flight is still released.
+let running: Promise<void> | null = null
+let queued: Promise<void> | null = null
+function scan($: EngineInterface): Promise<void> {
+  if (running === null) {
+    running = scanOnce($).catch(() => undefined).finally(() => { running = null })
+    return running
+  }
+  queued ??= running.then(() => {
+    queued = null
+    return scan($)
+  })
+  return queued
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'superdev-view', description: 'Show the .superdev folder in a pane' })
@@ -222,7 +239,7 @@ export const register: Register = on => {
     const open = all.find(s => s.name === pick)
     const back = () => void update($, selected, () => null)
     // A closed scope's page needs its trace, which the scan reads only once the scope is picked.
-    const choose = (name: string) => () => void update($, selected, () => name).then(() => scan($))
+    const choose = (name: string) => () => update($, selected, () => name).then(() => scan($))
     // One log line: a row of sibling Text parts, cut to one row. Desktop wraps a Text holding a nested Text at the
     // nested child, so no part nests another. Only the part marked `shrink` gives up room; a `grow` spacer
     // pushes the parts after it to the right edge.

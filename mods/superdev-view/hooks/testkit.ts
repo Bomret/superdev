@@ -29,20 +29,22 @@ export const ledger = (stage: string, rows: ([string, string] | [string, string,
 // HOME is `/r`, so the pane shows the root as `~/.superdev`.
 // `mtimes` answers `fs.stat` for the paths it names (a held `run.lock`); `hasRoot` false is a repository with no `.superdev`.
 // `hold` runs before an existence check answers, so a test can keep one waiting.
+// `failing` names the engine calls (`session.cwd`, `fs.exists`, `process.run`, `fs.list`) that fail while they are in it.
 // Hands back a held clock: the pane's hooks leave their bookkeeping running, and `settle()` lets it finish
 // before a test looks.
-export const fakeRepo = (on: On, files: Record<string, string>, lists: Record<string, Entry[]>, cwd = '/r', hold?: (path: string) => Promise<void>, mtimes: Record<string, number> = {}, hasRoot = true) => {
-  on('session.cwd', async () => ({ value: cwd }))
+export const fakeRepo = (on: On, files: Record<string, string>, lists: Record<string, Entry[]>, cwd = '/r', hold?: (path: string) => Promise<void>, mtimes: Record<string, number> = {}, hasRoot = true, failing: Set<string> = new Set()) => {
+  on('session.cwd', async () => (failing.has('session.cwd') ? { deny: 'EIO' } : { value: cwd }))
   on('env.get', async () => ({ value: '/r' }))
-  on('process.run', async (_$, e) => ({
+  on('process.run', async (_$, e) => failing.has('process.run') ? { deny: 'EIO' } : ({
     value: { exitCode: e.argv.includes('--git-common-dir') && e.init?.cwd === cwd ? 0 : 1, stdout: '/r/.git\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
   }))
   on('fs.exists', async (_$, e) => {
     await hold?.(e.path)
+    if (failing.has('fs.exists')) return { deny: 'EIO' }
     return { value: (hasRoot && e.path === R) || e.path in files }
   })
   on('fs.list', async (_$, e) => {
-    const l = lists[e.path]
+    const l = failing.has('fs.list') ? undefined : lists[e.path]
     return l ? { value: l } : { deny: 'ENOENT' }
   })
   on('fs.read', async (_$, e) => {
