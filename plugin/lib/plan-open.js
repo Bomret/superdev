@@ -33,7 +33,7 @@ function parseArgs(args) {
   for (let i = 1; i < args.length; i += 2) {
     const key = flags[args[i]];
     if (!key) fail(`open: unrecognized argument "${args[i]}"`);
-    if (args[i + 1] === undefined || args[i + 1] === '' || flags[args[i + 1]]) fail(`open: ${args[i]} needs a value`);
+    if (args[i + 1] === undefined || args[i + 1] === '' || args[i + 1].startsWith('--')) fail(`open: ${args[i]} needs a value`);
     if (seen.has(key)) fail(`open: ${args[i]} given twice`);
     seen.add(key);
     opts[key] = args[i + 1];

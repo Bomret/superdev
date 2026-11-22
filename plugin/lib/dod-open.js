@@ -6,8 +6,8 @@
 const fs = require('fs');
 const path = require('path');
 const { fail } = require('./refusal.js');
-const { takeRootOption } = require('./options.js');
-const { parseDodLineReadings, dodCriterionLines, takeOption } = require('./dod-line.js');
+const { takeOption, takeRootOption } = require('./options.js');
+const { parseDodLineReadings, dodCriterionLines } = require('./dod-line.js');
 
 // The citation `/superdev:verify-ship` ends a `not met:` note with (references/shipped-run.md's `## Routing a shipped run`).
 const OBSERVED_RE = /\(observed(?:; after ([^)]*))?\)$/;

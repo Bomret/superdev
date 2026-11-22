@@ -255,6 +255,6 @@ function dodLineHasNote(line) {
 }
 
 module.exports = {
-  verbDodLine, parseDodLineReadings, dodLineHasNote, collapseWhitespace, dodSectionRange, dodCriterionLines, takeOption, readOptionFile,
+  verbDodLine, parseDodLineReadings, dodLineHasNote, collapseWhitespace, dodSectionRange, dodCriterionLines, readOptionFile,
   DOD_LINE_RE, DOD_NO_NOTE_TAG_RE,
 };

@@ -7,8 +7,9 @@ const { fail } = require('./refusal.js');
 const { splitLines } = require('./ledger.js');
 const { maskFencedLines } = require('./md-sections.js');
 const {
-  dodLineHasNote, dodSectionRange, takeOption, readOptionFile, DOD_LINE_RE, DOD_NO_NOTE_TAG_RE,
+  dodLineHasNote, dodSectionRange, readOptionFile, DOD_LINE_RE, DOD_NO_NOTE_TAG_RE,
 } = require('./dod-line.js');
+const { takeOption } = require('./options.js');
 
 const SLICE_ID_RE = /^\d+$/;
 const STORE_REF_RE = /^(?:#\d+|[A-Z][A-Z0-9_]*-\d+)$/;

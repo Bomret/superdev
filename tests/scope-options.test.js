@@ -95,9 +95,14 @@ for (const option of ['--root', '--remote', '--base']) {
   // A remote or base may be option-shaped text that runs nothing (tests/scope-push.test.js), so only the verb's own options stand in a value's place.
   refuses(['push', option, option === '--root' ? '--remote' : '--root'], option, 'push flag as value');
 }
+// `--root` is a path, never free text: any option-shaped word in its place refuses, the verb's own options or not.
+refuses(['push', '--root', '--tag', 'x', '--remote', 'o', '--base', 'm'], '--root', 'push root as unknown flag');
 for (const option of ['--base', '--remote', '--lock']) {
   refuses(['open', 'feat/x', '--base', 'main', '--remote', 'o', '--lock', 'ab', option, 'cd'], option, 'open repeat');
   refuses(['open', 'feat/x', '--base', 'main', option, option === '--lock' ? '--remote' : '--lock'], option, 'open flag as value');
+}
+for (const option of ['--base', '--remote']) {
+  refuses(['open', 'feat/x', '--base', 'main', option, '--tag'], option, 'open unknown flag as value');
 }
 refuses(['open', 'feat/x', '--base', 'main', '--lock', 'Session1'], '--lock', 'open uppercase nonce');
 refuses(['open', 'feat/x', '--base', 'main', '--lock', 'ab\n'], '--lock', 'open newline nonce');
@@ -133,17 +138,22 @@ refuses(['open', 'feat/x', '--base', 'main', '--lock', 'ab\n'], '--lock', 'open 
     const rel = 'C:/.superdev/scopes/x';
     const msys = '/c/.superdev/scopes/x';
     for (const argv of [
-      (r) => ['stage', 'implementing', '--root', r], // a writing verb, digest-checked
+      (r) => ['stage', 'set', 'implementing', '--root', r], // a writing verb, digest-checked
       (r) => ['state', '--root', r], // a reading verb
       (r) => ['dod-open', '--root', r], // a lib reader
+      (r) => ['push', '--root', r, '--remote', 'origin', '--base', 'main'], // a verb that reads `--root` itself
       (r) => ['untraced', '--root', r, '--slice', '01', 'HEAD..HEAD'],
       (r) => ['fail-to-pass-check', '--root', r, '--slice', '01', 'HEAD..HEAD'],
     ]) {
       const a = outcome(run, argv(rel));
       const b = outcome(run, argv(msys));
       assert.strictEqual(b.ok, a.ok, `${argv(rel)[0]}: /c/ and C:/ agree: ${a.out} | ${b.out}`);
-      assert.ok(!/no ledger|is not a directory|holds no ledger/.test(b.out), `${argv(rel)[0]}: /c/ reaches the run: ${b.out}`);
+      assert.ok(!/no ledger|is not a directory|holds no ledger|carries no \*\*Branch/.test(b.out), `${argv(rel)[0]}: /c/ reaches the run: ${b.out}`);
     }
+    // A real write under the `/c/` spelling reaches the same run.
+    const written = outcome(run, ['stage', 'set', 'implementing', '--root', msys]);
+    assert.strictEqual(written.ok, true, `stage set via /c/ succeeds: ${written.out}`);
+    assert.match(fs.readFileSync(path.join(runRoot, 'ledger.md'), 'utf8'), /\*\*Stage:\*\* implementing/, 'the /c/ write reached the run');
     const ci = (r) => outcome(run, ['ci', '--sha', 'HEAD', '--root', r]);
     assert.strictEqual(ci('/c/repo').out, ci('C:/repo').out, 'ci: /c/ and C:/ name the same repository');
     assert.ok(/ci: cannot-judge [0-9a-f]{40}/.test(ci('/c/repo').out), `ci resolved HEAD in the repository: ${ci('/c/repo').out}`);
@@ -176,6 +186,10 @@ refuses(['open', 'feat/x', '--base', 'main', '--lock', 'ab\n'], '--lock', 'open 
   assert.notStrictEqual(bad.status, 0, 'a non-hex nonce refuses');
   assert.ok(bad.err.includes('--lock'), `names --lock: ${bad.err}`);
   assert.ok(!fs.existsSync(lock), 'no run.lock is written');
+  const upper = open('--lock', 'ABCDEF');
+  assert.notStrictEqual(upper.status, 0, 'an uppercase-only nonce refuses');
+  assert.ok(upper.err.includes('--lock'), `names --lock: ${upper.err}`);
+  assert.ok(!fs.existsSync(lock), 'no run.lock is written for the uppercase nonce');
   const first = open();
   assert.strictEqual(first.status, 0, `first open: ${first.err}`);
   assert.match(first.nonce, /^[0-9a-f]+$/, 'the printed nonce is hexadecimal');

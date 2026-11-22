@@ -165,7 +165,7 @@ function writtenRoot(verb, args) {
   const at = args.indexOf('--root');
   if (at < 0) return null;
   const rest = args.filter((_, i) => i !== at && i !== at + 1);
-  const writes =['stage', 'step', 'slice', 'degraded', 'unresolved', 'deferred', 'minors', 'docs', 'pr', 'adopt', 'dod-merge'].includes(verb)
+  const writes = ['stage', 'step', 'slice', 'degraded', 'unresolved', 'deferred', 'minors', 'docs', 'pr', 'adopt', 'dod-merge'].includes(verb)
     || ((verb === 'deploy' || verb === 'base') && rest[0] === 'set')
     || (verb === 'reviewed' && (rest[0] === 'set' || rest[0] === 'clear'))
     || verb === 'suite';
