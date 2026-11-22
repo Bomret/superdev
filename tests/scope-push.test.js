@@ -241,23 +241,16 @@ try {
     undecided('a rejected credential', f, 'credential-rejected', { PATH: `${bin}${path.delimiter}${process.env.PATH}` });
   }
 
-  // #fetch-bound: an upload-pack that stalls past the verb's own bound; the killed fetch carries no verdict.
-  {
-    const f = fixture();
-    git(['config', 'remote.origin.uploadpack', 'sleep 3;'], f.repo);
-    writeOperatorConfig(f.repo, { 'code-host': { pushTimeoutMs: 500 } });
-    const r = undecided('a fetch its bound ended', f, 'timed-out');
-    assert.match(r.out, /bound of 500 ms \(code-host\.pushTimeoutMs in \.superdev\/info\.json/, `names the bound and the key that sets it: ${r.out}`);
-  }
-
-  // #fetch-bound-worktree: the same bound, with `info.json` only in the main checkout, read by a verb run from a linked worktree.
+  // #fetch-bound-worktree: an upload-pack that stalls past the verb's own bound; the killed fetch carries no verdict. The
+  // bound sits in `info.json` only in the main checkout, read by a verb run from a linked worktree.
   {
     const f = fixture();
     git(['config', 'remote.origin.uploadpack', 'sleep 3;'], f.repo);
     writeOperatorConfig(f.repo, { 'code-host': { pushTimeoutMs: 500 } });
     const wt = path.join(tmp('scope-push-wt-'), 'tree');
     git(['worktree', 'add', '-q', '--detach', wt], f.repo);
-    undecided('a fetch its bound ended, run from a linked worktree', { ...f, cwd: wt }, 'timed-out');
+    const r = undecided('a fetch its bound ended, run from a linked worktree', { ...f, cwd: wt }, 'timed-out');
+    assert.match(r.out, /bound of 500 ms \(code-host\.pushTimeoutMs in \.superdev\/info\.json/, `names the bound and the key that sets it: ${r.out}`);
   }
 
   // A git on PATH whose fetch of base runs `action` and forwards every other call, the branch fetch included, to
