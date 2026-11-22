@@ -24,8 +24,8 @@ function endRun(pid, { signal = 'SIGKILL' } = {}) {
 // renames the file back when a live holder took the lock meanwhile. The lock directory stays in place throughout, so no
 // `mkdir` succeeds while another run holds it. A lock with no pid file is a holder between its `mkdir` and its pid write,
 // and is stale after 10 s: a waiter then claims it by creating the pid file, which the holder also creates exclusively. A pid file that is
-// empty, unparseable, zero, or negative names no holder and is reclaimed the same way once the lock is older than 10 s: one waiter wins it by the
-// same rename and removes the lock. A wait past 120 s runs `fn` unlocked rather than refusing. The watcher runs this function as
+// empty, unparseable, zero, or negative names no holder and is reclaimed the same way once the lock and the file are both older than 10 s: one waiter wins it by the
+// same rename and removes the lock, and a file younger than that is a fresh holder's, renamed back. A wait past 120 s runs `fn` unlocked rather than refusing. The watcher runs this function as
 // source text, so it names nothing outside itself but `process`, `Date`, and `Atomics`.
 // simplicity: a polling lock; pids are not proof of identity (a pid reused by an unrelated process keeps a dead holder's lock
 // until the wait expires); upgrade: a lock file with a process start time.
@@ -41,34 +41,24 @@ function withWorktreeLock(cwd, fn) {
   const writePid = () => fs.writeFileSync(pidFile, String(process.pid), { flag: 'wx' });
   const takeOver = () => {
     const pid = ownerOf(lock);
-    if (pid > 0) {
-      if (alive(pid)) return false;
-      const won = `${pidFile}.taken-${process.pid}`;
-      try { fs.renameSync(pidFile, won); } catch { return false; }
-      let owner;
-      try { owner = Number(fs.readFileSync(won, 'utf8')); } catch { return false; }
-      if (owner === pid) {
-        fs.rmSync(lock, { recursive: true, force: true });
-        return false;
-      }
-      try { fs.renameSync(won, pidFile); } catch { /* the lock's owner already left */ }
-      return false;
-    }
-    try { if (Date.now() - fs.statSync(lock).mtimeMs <= 10000) return false; } catch { return false; }
+    if (pid > 0 && alive(pid)) return false;
+    const aged = () => { try { return Date.now() - fs.statSync(lock).mtimeMs > 10000; } catch { return false; } };
+    if (!(pid > 0) && !aged()) return false;
     if (pid === null) {
       try { writePid(); return true; } catch { return false; }
     }
-    // An owner record that is empty, unparseable, zero, or negative names no holder: past the grace one waiter wins the file by
-    // renaming it and removes the lock when the won file still names no holder, or renames it back when a holder wrote a pid meanwhile.
+    // One waiter wins the pid file by renaming it. The lock goes when the won file is still the record this waiter judged: the
+    // dead pid, or a no-holder record whose own mtime is past the grace (a fresh holder's file was created after the judgment).
+    // Otherwise the file goes back and the waiter waits on.
     const won = `${pidFile}.taken-${process.pid}`;
     try { fs.renameSync(pidFile, won); } catch { return false; }
-    let owner;
-    try { owner = Number(fs.readFileSync(won, 'utf8')); } catch { return false; }
-    if (owner > 0) {
-      try { fs.renameSync(won, pidFile); } catch { /* the lock's owner already left */ }
-      return false;
-    }
-    fs.rmSync(lock, { recursive: true, force: true });
+    let same = false;
+    try {
+      same = pid > 0 ? Number(fs.readFileSync(won, 'utf8')) === pid
+        : !(Number(fs.readFileSync(won, 'utf8')) > 0) && Date.now() - fs.statSync(won).mtimeMs > 10000;
+    } catch { return false; }
+    if (same) fs.rmSync(lock, { recursive: true, force: true });
+    else try { fs.renameSync(won, pidFile); } catch { /* the lock's owner already left */ }
     return false;
   };
   const until = Date.now() + 120000;

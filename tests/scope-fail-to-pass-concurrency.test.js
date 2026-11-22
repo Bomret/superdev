@@ -155,9 +155,13 @@ for (let i = 0; i < 3; i++) withWorktreeLock(${JSON.stringify(s.repo)}, () => {
 
       // A lock whose owner record is empty, unparseable, zero, or negative is a holder's that never wrote a pid. Older than the
       // grace (its mtime set back past it) one waiter reclaims it and proceeds; younger, or owned by a live pid, it is left alone.
-      const lockedRun = (record, ageMs, { waiters = 1, bound = 120000 } = {}) => {
+      const lockedRun = (record, ageMs, { waiters = 1, bound = 120000, fileAgeMs = ageMs } = {}) => {
         fs.mkdirSync(staleLock);
-        if (record !== null) fs.writeFileSync(path.join(staleLock, 'pid'), record);
+        if (record !== null) {
+          fs.writeFileSync(path.join(staleLock, 'pid'), record);
+          const fileWhen = new Date(Date.now() - fileAgeMs);
+          fs.utimesSync(path.join(staleLock, 'pid'), fileWhen, fileWhen);
+        }
         const when = new Date(Date.now() - ageMs);
         fs.utimesSync(staleLock, when, when);
         fs.rmSync(marker, { force: true });
@@ -183,8 +187,11 @@ withWorktreeLock(${JSON.stringify(s.repo)}, () => {
         fs.rmSync(staleLock, { recursive: true, force: true });
         return { crowd, runs, left };
       };
+      let reclaimMs = 0;
       for (const record of ['', 'x', '0', '-1']) {
+        const t0 = process.hrtime.bigint();
         const got = lockedRun(record, 60000);
+        reclaimMs = Math.max(reclaimMs, Number(process.hrtime.bigint() - t0) / 1e6);
         assertSpawnDecided(got.crowd, `the waiter on owner record ${JSON.stringify(record)}`);
         assert.deepEqual(got.runs, ['locked'], `owner record ${JSON.stringify(record)} past the grace is reclaimed and the waiter proceeds holding the lock`);
         assert.ok(!got.left, 'and no lock stays');
@@ -195,10 +202,15 @@ withWorktreeLock(${JSON.stringify(s.repo)}, () => {
         assert.deepEqual(got.runs, Array(6).fill('locked'), 'each of several waiters runs, all inside the lock');
         assert.ok(!fs.existsSync(overlapLog), 'and no two held it at once');
       }
-      // Inside the grace, or held by a live pid, the waiter stays out: the bounded run ends by the bound with no entry made.
-      for (const [record, ageMs] of [['', 1000], ['x', 1000], [String(process.pid), 60000]]) {
-        const got = lockedRun(record, ageMs, { bound: 2500 });
-        assert.deepEqual(got.runs, [], `owner record ${JSON.stringify(record)} aged ${ageMs} ms is never taken from its holder`);
+      // Inside the grace, held by a live pid, or recorded in a file younger than the grace (a fresh holder's, under a lock directory
+      // that is old), the waiter stays out: its bounded run ends by the bound with no entry made and the lock still in place. The
+      // bound is a multiple of the slowest reclaim this run timed, and the run must end by that bound, so a waiter that never
+      // reached the lock cannot pass.
+      for (const [record, ageMs, fileAgeMs] of [['', 1000], ['x', 1000], [String(process.pid), 60000], ['', 60000, 0], ['x', 60000, 0]]) {
+        const got = lockedRun(record, ageMs, { bound: Math.max(2500, reclaimMs * 10), fileAgeMs });
+        assert.ok(got.crowd.error && got.crowd.error.code === 'ETIMEDOUT', 'the waiter was still waiting at the bound');
+        assert.deepEqual(got.runs, [], `owner record ${JSON.stringify(record)} aged ${ageMs} ms (file ${fileAgeMs ?? ageMs} ms) is never taken from its holder`);
+        assert.ok(got.left, 'and its lock stays');
       }
     }
   } finally {
