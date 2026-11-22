@@ -405,6 +405,15 @@ try {
     assert.strictEqual(again.word, 'reused', `reuses the branch and scopetree: ${again.out}`);
   }
 
+  {
+    // superdev-view reads a never-ended run under a run lock this old as `lock stale`. The mod cannot require
+    // plugin/lib/, so it carries the bound itself, as a product of numerals; it must equal the run lock's own.
+    const parseSrc = fs.readFileSync(path.join(__dirname, '..', 'mods', 'superdev-view', 'hooks', 'parse.ts'), 'utf8');
+    const expr = /^const LOCK_STALE_MS = ([0-9e.]+(?: \* [0-9e.]+)*)$/m.exec(parseSrc);
+    assert.ok(expr, 'parse.ts defines LOCK_STALE_MS as a product of numerals');
+    assert.strictEqual(expr[1].split(' * ').reduce((a, n) => a * Number(n), 1), STALENESS_MS, 'parse.ts LOCK_STALE_MS equals run-lock.js STALENESS_MS');
+  }
+
   console.log('scope-open: all checks passed');
 } finally {
   for (const dir of made) fs.rmSync(dir, { recursive: true, force: true });
