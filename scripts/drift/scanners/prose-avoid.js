@@ -209,11 +209,12 @@ function scanBackgroundRuleNamesLimit(root) {
 }
 
 // A negation of the run itself: `no` directly before the hit, or `not`, `never`, `nor`, or `without` directly before it or
-// before one run verb that heads it ("never calls `scope.js test`"), an `ever` intensifier allowed ("Never, ever run").
-// A negation of any other word ("Without fail run …", "Do not skip running …") excuses nothing.
+// before one run verb that heads it ("never calls `scope.js test`"), an `ever` intensifier allowed ("Never, ever run")
+// and an infinitive `to` allowed before the verb ("Remember not to run …").
+// A negation of any other word ("Without fail run …", "Do not skip running …", "Do not forget to run …") excuses nothing.
 // simplicity: shape-based, and its ceiling is that word order. A negation the sentence states after the hit ("the full
 // command is never run") or further back than one run verb walks past the excuse, and the hit fires as written.
-const RUN_NEGATION = String.raw`\b(?:not|never|nor|without)\b,?(?:\s+ever\b,?)?(?:\s+(?:re-?)?(?:run|runs|running|call|calls|calling|start|starts|starting|invoke|invokes|invoking|execute|executes|executing))?`;
+const RUN_NEGATION = String.raw`\b(?:not|never|nor|without)\b,?(?:\s+ever\b,?)?(?:\s+to\b)?(?:\s+(?:re-?)?(?:run|runs|running|call|calls|calling|start|starts|starting|invoke|invokes|invoking|execute|executes|executing))?`;
 const NO_TEST_RUN_NEGATION = new RegExp(String.raw`(?:\bno\b|${RUN_NEGATION})\s*["'\`]?\s*$`, 'i');
 
 // ADR 0189, INV-0175: `/superdev:document` (its skill, its doc agents, and `references/doc-pass.md`) and
