@@ -29,8 +29,11 @@ height. A legend square is Text in its bar's fill. The terminal has no Svg and d
 The main working tree follows the rule of `plugin/lib/main-work-tree.js`'s `mainWorkTree`. The pane asks git for
 the shared git directory in the session's cwd. When that directory's own `config` sets `core.worktree`, the main
 working tree is the checkout that value names, resolved against the git directory. A submodule takes this branch.
-Otherwise the main working tree is the git directory's parent. A cwd outside a git repository, or a failed git
-call, reads the cwd itself.
+Otherwise the main working tree is the git directory's parent. A path that opens with a drive, as git on Windows
+prints it (`C:/Users/x/.git`), is absolute, and the main working tree keeps the drive as its first segment. A cwd
+outside a git repository, or a failed git call, reads the cwd itself. The pane keeps the main working tree and the
+session checkout git answered for a cwd in memory, so a rescan from an unchanged cwd makes no git call. A failed git
+call keeps nothing, and the next scan asks git again.
 
 The overview opens with the assignee line, which names the issue-tracker account of `info.json` and no other
 role. The line shows the `issue-tracker` role's `displayName`, trimmed, when that is a string with a non-blank

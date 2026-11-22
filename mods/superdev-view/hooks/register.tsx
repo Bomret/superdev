@@ -130,11 +130,17 @@ async function store($: EngineInterface, next: Snapshot): Promise<void> {
   if (JSON.stringify(await read($, snapshot)) !== JSON.stringify(next)) await update($, snapshot, () => next)
 }
 
+// One git call in `cwd`, undefined when it cannot start.
+const git = ($: EngineInterface, args: string[], cwd: string) => $.process.run(['git', ...args], { cwd }).catch(() => undefined)
 // One git call's trimmed output in `cwd`, or null when it fails.
 const gitOut = async ($: EngineInterface, args: string[], cwd: string) => {
-  const r = await $.process.run(['git', ...args], { cwd }).catch(() => undefined)
+  const r = await git($, args, cwd)
   return r?.exitCode === 0 ? r.stdout.trim() : null
 }
+// The main working tree and the session checkout's top level each cwd answered, so a rescan from an unchanged cwd
+// spawns no git call. A failed call stores nothing and is asked again on the next scan.
+const mainTrees = new Map<string, string>()
+const topLevels = new Map<string, string>()
 // `rel` resolved against the absolute directory `base`, its `.` and `..` segments folded. A path that opens with
 // `/` or with a drive (`C:/`, as git on Windows prints it) is absolute, and a drive stays the path's first segment.
 function resolvePath(base: string, rel: string): string {
@@ -151,21 +157,29 @@ function resolvePath(base: string, rel: string): string {
 // `core.worktree` names, resolved against that directory (a submodule's), else the directory's parent. Null outside
 // a git repository.
 async function mainWorkTree($: EngineInterface, cwd: string): Promise<string | null> {
+  const known = mainTrees.get(cwd)
+  if (known !== undefined) return known
   const gitDir = await gitOut($, ['rev-parse', '--path-format=absolute', '--git-common-dir'], cwd)
   if (gitDir === null) return null
   const dir = gitDir.replace(/\/$/, '')
-  const worktree = await gitOut($, ['config', '--file', `${dir}/config`, '--get', 'core.worktree'], cwd)
-  return worktree ? resolvePath(dir, worktree) : resolvePath(dir, '..')
+  const r = await git($, ['config', '--file', `${dir}/config`, '--get', 'core.worktree'], cwd)
+  const worktree = r?.exitCode === 0 ? r.stdout.trim() : ''
+  const main = worktree ? resolvePath(dir, worktree) : resolvePath(dir, '..')
+  // `git config --get` exits 1 for an unset key, which is an answer; any other failure is asked again.
+  if (r?.exitCode === 0 || r?.exitCode === 1) mainTrees.set(cwd, main)
+  return main
 }
 
 // The session checkout's `.superdev`, when the session's checkout is another tree than the main one; null when it is
 // the main tree, when `--show-toplevel` fails, or when it has no `.superdev`. The trees compare as real paths.
 async function sessionCheckout($: EngineInterface, cwd: string, main: string): Promise<string | null> {
-  const top = await gitOut($, ['rev-parse', '--show-toplevel'], cwd)
-  if (top === null) return null
-  const real = (p: string) => $.fs.stat(p, { resolve: true }).then(s => s.realPath ?? p).catch(() => p).then(r => r.replace(/(.)\/+$/, '$1'))
+  const answered = topLevels.get(cwd) ?? (await gitOut($, ['rev-parse', '--show-toplevel'], cwd))
+  if (answered === null) return null
+  topLevels.set(cwd, answered)
+  const top = answered.replace(/(.)\/+$/, '$1')
+  const real = (p: string) => $.fs.stat(p, { resolve: true }).then(s => s.realPath ?? p).catch(() => p)
   if ((await real(top)) === (await real(main))) return null
-  const dir = `${top.replace(/(.)\/+$/, '$1')}/.superdev`
+  const dir = `${top}/.superdev`
   return (await $.fs.exists(dir).catch(() => false)) ? dir : null
 }
 

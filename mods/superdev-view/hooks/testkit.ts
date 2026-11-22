@@ -32,14 +32,16 @@ export const ledger = (stage: string, rows: ([string, string] | [string, string,
 // `failing` names the engine calls (`session.cwd`, `fs.exists`, `process.run`, `fs.list`) that fail while they are in it.
 // `git` shapes the repository git answers for: `commonDir`, the shared git directory (`/r/.git` when not given);
 // `worktree`, the `core.worktree` its config sets, if any; `toplevel`, the session checkout `--show-toplevel` answers
-// (none when not given, so that call fails); `realPaths`, where `fs.stat` with `resolve` lands a path.
+// (none when not given, so that call fails); `realPaths`, where `fs.stat` with `resolve` lands a path; `runs`, an array
+// each process call's argv is pushed onto, failed calls included.
 // Hands back a held clock: the pane's hooks leave their bookkeeping running, and `settle()` lets it finish
 // before a test looks.
-export const fakeRepo = (on: On, files: Record<string, string>, lists: Record<string, Entry[]>, cwd = '/r', hold?: (path: string) => Promise<void>, mtimes: Record<string, number> = {}, hasRoot = true, failing: Set<string> = new Set(), git: { commonDir?: string; worktree?: string; toplevel?: string; realPaths?: Record<string, string> } = {}) => {
+export const fakeRepo = (on: On, files: Record<string, string>, lists: Record<string, Entry[]>, cwd = '/r', hold?: (path: string) => Promise<void>, mtimes: Record<string, number> = {}, hasRoot = true, failing: Set<string> = new Set(), git: { commonDir?: string; worktree?: string; toplevel?: string; realPaths?: Record<string, string>; runs?: string[][] } = {}) => {
   on('session.cwd', async () => (failing.has('session.cwd') ? { deny: 'EIO' } : { value: cwd }))
   on('env.get', async () => ({ value: '/r' }))
   const commonDir = git.commonDir ?? '/r/.git'
   on('process.run', async (_$, e) => {
+    git.runs?.push([...e.argv])
     if (failing.has('process.run')) return { deny: 'EIO' }
     const answer = (out: string | undefined) => ({ value: { exitCode: out === undefined ? 1 : 0, stdout: `${out ?? ''}\n`, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
     const a = e.argv
