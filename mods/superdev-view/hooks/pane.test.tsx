@@ -293,3 +293,76 @@ test('a session in a submodule reads the submodule checkout, which its git direc
   expect(await ui.find({ key: 'scope-s' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^~\/sub$/ })).toBeDefined()
 })
+
+// A main tree at /r with a draft `m`, a draft `both`, and a sketch `ms`; a linked worktree at /w.
+const W = '/w/.superdev'
+const twoTrees = (main: { design?: boolean; drafts?: boolean } = {}) => {
+  const files: Record<string, string> = {
+    [`${ROOT}/dod-draft-m.md`]: '- [ ] a\n',
+    [`${ROOT}/dod-draft-both.md`]: '- [ ] a\n',
+    [W]: '',
+    [`${W}/dod-draft-x.md`]: '- [ ] a\n- [ ] b\n',
+    [`${W}/dod-draft-both.md`]: '- [ ] a\n- [ ] b\n- [ ] c\n',
+  }
+  const top = [...(main.drafts === false ? [] : [d('dod-draft-m.md'), d('dod-draft-both.md')].map(e => ({ ...e, kind: 'file' as const }))), ...(main.design === false ? [] : [d('design')])]
+  const lists: Record<string, ReturnType<typeof d>[]> = {
+    [ROOT]: top as ReturnType<typeof d>[],
+    [`${ROOT}/design`]: [{ ...d('ms.html'), kind: 'file' as never }],
+    [W]: [{ ...d('dod-draft-x.md'), kind: 'file' as never }, { ...d('dod-draft-both.md'), kind: 'file' as never }, d('design')],
+    [`${W}/design`]: [{ ...d('y.html'), kind: 'file' as never }],
+  }
+  if (main.drafts === false) { delete files[`${ROOT}/dod-draft-m.md`]; delete files[`${ROOT}/dod-draft-both.md`] }
+  return { files, lists }
+}
+const cards = async ($: Parameters<Parameters<typeof test>[1]>[0]) => {
+  const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'terminal', ...P })
+  for (const key of ['section-design', 'section-drafts']) if (await ui.find({ key })) await ui.press({ key })
+  const drafts = (await ui.findAll({ type: 'Box' })).map(b => b.key).filter((k): k is string => !!k && /^draft-.+-row$/.test(k))
+  const counts = await Promise.all(drafts.map(async k => (await ui.find({ key: k.replace(/-row$/, '-value') }))?.text))
+  const designs = (await ui.findAll({ type: 'Box' })).map(b => b.key).filter((k): k is string => !!k && /^design-.+-row$/.test(k))
+  await ui.unmount()
+  return { drafts: drafts.map((k, n) => `${k.replace(/^draft-|-row$/g, '')} ${counts[n]}`), designs: designs.map(k => k.replace(/^design-|-row$/g, '')) }
+}
+
+test("a session in a linked worktree lists that checkout's drafts and sketches beside the main tree's, its copy winning a shared slug", async ($, on) => {
+  const { files, lists } = twoTrees()
+  fakeRepo(on, files, lists, '/w', undefined, {}, true, new Set(), { toplevel: '/w' })
+  await $.command.run(runCommand)
+  const got = await cards($)
+  expect([...got.drafts].sort()).toEqual(['both 3 criteria', 'm 1 criteria', 'x 2 criteria'])
+  expect([...got.designs].sort()).toEqual(['ms', 'y'])
+})
+
+const MAIN_ONLY = { drafts: ['both 1 criteria', 'm 1 criteria'], designs: ['ms'] }
+const sorted = (got: { drafts: string[]; designs: string[] }) => ({ drafts: [...got.drafts].sort(), designs: [...got.designs].sort() })
+for (const [what, cwd, git, change] of [
+  ['a session in the main tree', '/r', { toplevel: '/r' }, undefined],
+  ['a main tree spelled with a trailing slash', '/r', { toplevel: '/r/' }, undefined],
+  ['a main tree reached through a symlink', '/link', { toplevel: '/link', realPaths: { '/link': '/r', '/r': '/r' } }, undefined],
+  ['a linked worktree with no .superdev', '/w', { toplevel: '/w' }, 'absent'],
+  ['a linked worktree whose .superdev cannot be listed', '/w', { toplevel: '/w' }, 'unlisted'],
+  ['a failing --show-toplevel', '/w', {}, undefined],
+] as const)
+  test(`${what} lists the main tree's drafts and sketches only, each once`, async ($, on) => {
+    const { files, lists } = twoTrees()
+    if (change === 'absent') delete files[W]
+    if (change === 'unlisted') delete lists[W]
+    // Through the symlink's spelling the folder lists a draft `z`, which a second read of the main tree would show.
+    files['/link/.superdev'] = ''
+    files['/link/.superdev/dod-draft-z.md'] = '- [ ] a\n'
+    lists['/link/.superdev'] = [{ ...d('dod-draft-z.md'), kind: 'file' as never }]
+    fakeRepo(on, files, lists, cwd, undefined, {}, true, new Set(), git)
+    await $.command.run(runCommand)
+    expect(sorted(await cards($))).toEqual(MAIN_ONLY)
+  })
+
+for (const [what, main, drafts, designs] of [
+  ['no design folder', { design: false }, ['both 3 criteria', 'm 1 criteria', 'x 2 criteria'], ['y']],
+  ['no drafts', { drafts: false }, ['both 3 criteria', 'x 2 criteria'], ['ms', 'y']],
+] as const)
+  test(`the session checkout's drafts and sketches show when the main tree has ${what}`, async ($, on) => {
+    const { files, lists } = twoTrees(main)
+    fakeRepo(on, files, lists, '/w', undefined, {}, true, new Set(), { toplevel: '/w' })
+    await $.command.run(runCommand)
+    expect(sorted(await cards($))).toEqual({ drafts: [...drafts], designs: [...designs] })
+  })

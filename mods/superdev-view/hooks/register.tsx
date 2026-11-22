@@ -153,6 +153,31 @@ async function mainWorkTree($: EngineInterface, cwd: string): Promise<string | n
   return worktree ? resolvePath(dir, worktree) : resolvePath(dir, '..')
 }
 
+// The session checkout's `.superdev`, when the session's checkout is another tree than the main one; null when it is
+// the main tree, when `--show-toplevel` fails, or when it has no `.superdev`. The trees compare as real paths.
+async function sessionCheckout($: EngineInterface, cwd: string, main: string): Promise<string | null> {
+  const top = await gitOut($, ['rev-parse', '--show-toplevel'], cwd)
+  if (top === null) return null
+  const real = (p: string) => $.fs.stat(p, { resolve: true }).then(s => s.realPath ?? p).catch(() => p).then(r => r.replace(/(.)\/+$/, '$1'))
+  if ((await real(top)) === (await real(main))) return null
+  const dir = `${top.replace(/(.)\/+$/, '$1')}/.superdev`
+  return (await $.fs.exists(dir).catch(() => false)) ? dir : null
+}
+
+// One `.superdev` folder's Design sketches (null with no `design/` folder) and DoD drafts, from its top-level entries.
+async function sketchesAndDrafts($: EngineInterface, root: string, top: Map<string, string>): Promise<{ designs: string[] | null; drafts: Draft[] }> {
+  const designs = top.get('design') === 'dir'
+    ? (await $.fs.list(`${root}/design`).catch(() => [])).filter(f => f.kind === 'file' && f.name.endsWith('.html')).map(f => f.name.replace(/\.html$/, ''))
+    : null
+  const drafts: Draft[] = await Promise.all(
+    [...top].filter(([n, k]) => k === 'file' && /^dod-draft-.+\.md$/.test(n)).map(async ([n]) => ({
+      slug: n.replace(/^dod-draft-|\.md$/g, ''),
+      dod: progress(await $.fs.read(`${root}/${n}`).catch(() => '')),
+    })),
+  )
+  return { designs, drafts }
+}
+
 // The main working tree holds `.superdev/` (a scopetree or linked worktree has none of its own).
 // Only the items superdev's docs define are read: info.json, brainstorm/, scopes/, kb-pending/,
 // design/, dod-draft-<slug>.md. Anything else in the folder is ignored.
@@ -197,13 +222,12 @@ async function scanOnce($: EngineInterface): Promise<void> {
       })),
     ))).flat()
   }
-  const designs = top.get('design') === 'dir' ? (await files('design', '.html')).map(f => f.name.replace(/\.html$/, '')) : null
-  const drafts: Draft[] = await Promise.all(
-    [...top].filter(([n, k]) => k === 'file' && /^dod-draft-.+\.md$/.test(n)).map(async ([n]) => ({
-      slug: n.replace(/^dod-draft-|\.md$/g, ''),
-      dod: progress(await $.fs.read(`${root}/${n}`).catch(() => '')),
-    })),
-  )
+  const own = await sketchesAndDrafts($, root, top)
+  // A linked worktree's own drafts and sketches join the main tree's, its copy winning a slug both hold.
+  const checkout = await sessionCheckout($, cwd, main)
+  const theirs = checkout === null ? null : await $.fs.list(checkout).then(l => sketchesAndDrafts($, checkout, new Map(l.map(t => [t.name, t.kind])))).catch(() => null)
+  const designs = theirs?.designs ? [...new Set([...(own.designs ?? []), ...theirs.designs])] : own.designs
+  const drafts = theirs ? [...new Map([...own.drafts, ...theirs.drafts].map(x => [x.slug, x])).values()] : own.drafts
   await store($, { root, assignees, intents, scopes, kbPending, designs, drafts })
 }
 
