@@ -295,6 +295,17 @@ test('a session in a submodule reads the submodule checkout, which its git direc
   expect(await ui.find({ type: 'Text', text: /^~\/sub$/ })).toBeDefined()
 })
 
+// Git on Windows prints the shared git directory with its drive, `C:/Users/x/.git`.
+const WIN = 'C:/Users/x/.superdev'
+test('a git directory with a drive letter reads the main tree under that drive, with no leading slash', async ($, on) => {
+  const files: Record<string, string> = { [WIN]: '', [`${WIN}/scopes/s/ledger.md`]: ledger('implementing', [['01', 'todo']]) }
+  const lists: Record<string, ReturnType<typeof d>[]> = { [WIN]: [d('scopes')], [`${WIN}/scopes`]: [d('s')], [`${WIN}/scopes/s`]: [] }
+  fakeRepo(on, files, lists, 'C:/Users/x', undefined, {}, false, new Set(), { commonDir: 'C:/Users/x/.git' })
+  await $.command.run(runCommand)
+  const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'terminal', ...P })
+  expect(await ui.find({ type: 'Text', text: /^C:\/Users\/x$/ })).toBeDefined()
+})
+
 // A main tree at /r with a draft `m`, a draft `both`, and a sketch `ms`; a linked worktree at /w.
 const W = '/w/.superdev'
 const twoTrees = (main: { design?: boolean; drafts?: boolean } = {}) => {

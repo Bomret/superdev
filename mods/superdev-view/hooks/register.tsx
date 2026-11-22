@@ -134,14 +134,17 @@ const gitOut = async ($: EngineInterface, args: string[], cwd: string) => {
   const r = await $.process.run(['git', ...args], { cwd }).catch(() => undefined)
   return r?.exitCode === 0 ? r.stdout.trim() : null
 }
-// `rel` resolved against the absolute directory `base`, its `.` and `..` segments folded.
+// `rel` resolved against the absolute directory `base`, its `.` and `..` segments folded. A path that opens with
+// `/` or with a drive (`C:/`, as git on Windows prints it) is absolute, and a drive stays the path's first segment.
 function resolvePath(base: string, rel: string): string {
+  const path = /^(\/|[A-Za-z]:\/)/.test(rel) ? rel : `${base}/${rel}`
+  const drive = /^[A-Za-z]:(?=\/)/.exec(path)?.[0] ?? ''
   const out: string[] = []
-  for (const seg of (rel.startsWith('/') ? rel : `${base}/${rel}`).split('/')) {
+  for (const seg of path.slice(drive.length).split('/')) {
     if (seg === '..') out.pop()
     else if (seg !== '' && seg !== '.') out.push(seg)
   }
-  return `/${out.join('/')}`
+  return `${drive}/${out.join('/')}`
 }
 // The main working tree, by `plugin/lib/main-work-tree.js`'s rule: the checkout the shared git directory's own
 // `core.worktree` names, resolved against that directory (a submodule's), else the directory's parent. Null outside
