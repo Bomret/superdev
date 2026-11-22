@@ -1603,3 +1603,12 @@ Statement: A scope review records a reviewed tip only on a clean exit that leave
 Breaks: silently
 Check: the suite of `scope.js reviewed` — each whole-range fallback, the delta and unchanged cases, a digest unmoved by ticks and notes, and a ledger without the header
 Paths: plugin/scripts/scope.js, plugin/lib/reviewed-tip.js, plugin/lib/ledger.js, plugin/references/review-scope-*.md
+
+### INV-0203
+
+Class: architecture
+Concepts: Scope branch, Containment, Code host
+Statement: Every superdev step that reaches a remote, a push of the scope branch, a fetch of base, or a containment refetch, names the `Remote:` value of `docs/agents/code-management.md` or a remote its caller passed explicitly. With neither, the step reaches no remote and says so; no step falls back to a remote named `origin`.
+Breaks: silently
+Check: tests/scope-open.test.js — `open` with no `--remote` refetches from the configured remote, and with no `Remote:` value refetches nothing; tests/publish-kb-containment.test.js — no `Remote:` value judges locally with no refetch; tests/scope-contained.test.js — the configured remote and the no-remote local verdict
+Paths: plugin/lib/plan-open.js, plugin/lib/contained.js, plugin/lib/containment.js, plugin/lib/kb-containment.js, plugin/skills/ship/SKILL.md, plugin/references/shipped-run.md, plugin/references/scope-branch.md, plugin/references/code-management-*.md
