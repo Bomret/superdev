@@ -1078,7 +1078,11 @@ Node v26.12.1, against about 375 s for the suites run one after another. A `test
 paths reach, matching by name, so a deleted path maps like any other. A suite is reached when its own text
 names the changed file (its basename, or its bare stem between path or quote delimiters), when the shipped
 file its name pins (`plugin/hooks/<name>.js`, `plugin/lib/<name>.js`, `plugin/scripts/<name>.js`, or `scripts/<name>.js`) is the
-changed file or requires it, or the suite file itself requires it, or when the path is the suite itself. A suite split off another
+changed file or requires it, or the suite file itself requires it, or when the path is the suite itself. A path under
+`scripts/drift/` is the exception to the naming rule: only a suite that requires it, directly or through its pinned
+file, or whose text holds its full repository-relative path (`scripts/drift/lib.js`) reaches it, because its basename
+and stem (`lib`, `checks`, `adr`) are common path segments. A drift path no suite reaches selects no suite and never
+every suite, because the drift selftest runs in the tail. A suite split off another
 (`tests/scope-ledger.test.js`, with no `scope-ledger.js` entry point shipped) pins the file of the longest
 `-`-delimited prefix of its name that pins one (`plugin/scripts/scope.js`), and an exact pin wins. A test helper reaches every suite that names
 it. A basename more than one file of the tree carries (`AGENTS.md`, `hooks.json`; a nested checkout such as a linked
@@ -1106,7 +1110,7 @@ other `path.dirname(...)` names its literal tail, which matches that tail at any
 it may select a suite for a directory the suite does not scan and never misses one it does. A call whose leading
 directory is any other computed value (a variable, `os.tmpdir()`) builds a path in a fixture tree and names nothing. A directory built from
 computed expressions with no literal segment names nothing. The directory rule never applies to a code path. A `.md` path no
-suite names, directly or by directory, and a path under `scripts/drift/`, reach no suite, because the drift selftest sits in the tail. A code path no rule places runs every suite, except a deleted one no suite names, which reaches no suite, except the repository-root release tooling
+suite names, directly or by directory, reaches no suite. A code path no rule places runs every suite, except a deleted one no suite names, which reaches no suite, except the repository-root release tooling
 (`release.config.cjs`, `package.json`, `bun.lock`, the `RELEASE_TOOLING` list), which reaches only the suites that name it,
 because semantic-release and Bun read it and no suite's code under test does. An empty list runs the tail alone and exits 0. A path under
 `mods/superdev-view/` places itself: it adds `claude plugin test mods/superdev-view` before the tail, and runs no

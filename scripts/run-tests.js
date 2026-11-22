@@ -244,9 +244,10 @@ function under({ segs, anchored }, rel) {
 // `tests/`), from that pinned file or from the suite file itself, or when the changed path is the suite itself. A `.md` path also reaches a suite whose text names a directory
 // holding it (`namedDirs`), because a suite may list or scan a directory; a code path never takes the
 // directory rule, so one no rule places keeps making every suite run, except a `RELEASE_TOOLING` path, which no
-// suite's code under test reads. A `.md` path no suite names, like a
-// `scripts/drift/` path (the drift selftest sits in the tail), reaches no suite. Paths are matched by
-// name, so a deleted path maps like any other.
+// suite's code under test reads. A `.md` path no suite names reaches no suite. A `scripts/drift/` path is placed only by
+// a suite that requires it (directly, or through the walk from its pinned file) or whose text holds its full
+// repository-relative path, never by its basename or stem, and one no suite places reaches no suite, because the drift
+// selftest runs in the tail. Paths are matched by name, so a deleted path maps like any other.
 // shortcut: `require` is read by regex, transitively from the file a suite pins and from the suite itself, wherever the
 // call sits; a dynamic require reaches no suite and, for an otherwise unplaced path, falls back to every suite.
 function selectSuites(root, suites, paths) {
@@ -262,7 +263,15 @@ function selectSuites(root, suites, paths) {
   const chosen = new Set();
   for (const raw of paths) {
     const rel = path.posix.normalize(raw.split(path.sep).join('/'));
-    if (rel.startsWith('scripts/drift/')) continue;
+    // A drift path is placed only by a require or by its full repository-relative path: its basename and stem
+    // (`lib`, `checks`, `adr`) are common path segments. One no suite places reaches none, because the drift
+    // selftest runs in the tail.
+    if (rel.startsWith('scripts/drift/')) {
+      suites.forEach((file, i) => {
+        if (requires[i].has(rel) || texts[i].includes(rel)) chosen.add(i);
+      });
+      continue;
+    }
     const base = path.posix.basename(rel);
     const stem = base.replace(/\.js$/, '');
     const named = new RegExp(`(?<![\\w-])${escapeRe(base)}(?![\\w-])|(?<=[/'"\`])${escapeRe(stem)}(?=[/'"\`])`, 'g');
