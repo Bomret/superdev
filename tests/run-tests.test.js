@@ -680,6 +680,34 @@ cases.push(async () => {
   }
 }
 
+// #342 F50: `--related` takes repository-relative file paths. An absolute path in any spelling, one leading outside the
+// repository, and one naming an existing folder are refused with their reason; a backslash path is normalized.
+{
+  const root = tree({ 'plugin/lib/x.js': '', 'tests/a.test.js': '' });
+  fs.symlinkSync(path.join(root, 'plugin'), path.join(root, 'linked'));
+  const at = (paths) => parseArgs(['--related', ...paths], root);
+  for (const [p, reason] of [
+    ['/etc/x.js', 'absolute'],
+    [path.join(root, 'plugin', 'lib', 'x.js'), 'absolute'],
+    ['C:\\repo\\x.js', 'absolute'],
+    ['C:/repo/x.js', 'absolute'],
+    ['/c/repo/x.js', 'absolute'],
+    ['\\\\host\\share\\x.js', 'absolute'],
+    ['../x.js', 'outside the repository'],
+    ['plugin/../../x.js', 'outside the repository'],
+    ['plugin', 'a folder'],
+    ['plugin/lib/', 'a folder'],
+    ['.', 'a folder'],
+    ['linked', 'a folder'],
+  ]) {
+    assert.deepStrictEqual(at([p]), { refused: p, reason }, `${p} is refused as ${reason}`);
+  }
+  assert.deepStrictEqual(at(['plugin\\lib\\x.js']), ['plugin/lib/x.js'], 'a backslash path is normalized to forward slashes');
+  assert.deepStrictEqual(at(['plugin/lib/gone.js']), ['plugin/lib/gone.js'], 'a path that does not exist maps like a deleted file');
+  assert.deepStrictEqual(at(['tests/a.test.js', '../x.js']), { refused: '../x.js', reason: 'outside the repository' }, 'one refused path refuses the whole call');
+  assert.deepStrictEqual(at([]), [], 'an empty list is still the tail alone');
+}
+
 // The CLI, driven end to end from a copy of the runner in a fixture tree (its root comes from `__dirname`), so a
 // regression starts the fixture's steps, never this repository's suites. Every step appends its name to <root>/log.
 {
@@ -744,6 +772,22 @@ cases.push(async () => {
     assert.strictEqual(r.stderr.split('\n')[0], `run-tests: unknown argument: ${named}`, `${JSON.stringify(args)} names the argument`);
     assert.ok(r.stderr.includes('--related <path>...'), `${JSON.stringify(args)} prints the usage on stderr`);
     assert.strictEqual(r.stdout, '', `${JSON.stringify(args)} prints nothing on stdout`);
+    assert.strictEqual(r.steps, '', `${JSON.stringify(args)} starts no step`);
+    assert.strictEqual(r.recorded, false, `${JSON.stringify(args)} records no durations`);
+  }
+  for (const [args, named, reason] of [
+    [['--related', path.join(root, 'tests', 'a.test.js')], path.join(root, 'tests', 'a.test.js'), 'absolute'],
+    [['--related', 'tests/a.test.js', '../x.js'], '../x.js', 'outside the repository'],
+    [['--related', 'tests'], 'tests', 'a folder'],
+  ]) {
+    const r = cli(args);
+    assert.strictEqual(r.status, 2, `${JSON.stringify(args)} exits 2`);
+    assert.strictEqual(
+      r.stderr.split('\n')[0],
+      `run-tests: --related takes repository-relative file paths: ${named} (${reason})`,
+      `${JSON.stringify(args)} names the path, the form, and the reason`,
+    );
+    assert.match(r.stderr, /absolute.*outside the repository.*folder/s, `${JSON.stringify(args)} prints a usage naming the refused forms`);
     assert.strictEqual(r.steps, '', `${JSON.stringify(args)} starts no step`);
     assert.strictEqual(r.recorded, false, `${JSON.stringify(args)} records no durations`);
   }

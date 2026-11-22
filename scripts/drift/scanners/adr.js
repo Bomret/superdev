@@ -17,11 +17,11 @@ function adrNames(root) {
   }
 }
 
-// scanAdrStatus(): every `docs/adr/*.md` carrying no recognised status line.
+// scanAdrStatus(): every `docs/adr/*.md` carrying no recognised status line outside a fenced example.
 function scanAdrStatus(root) {
   return adrNames(root)
     .filter((n) => n.endsWith('.md'))
-    .filter((n) => !ADR_STATUS_PATTERN.test(fs.readFileSync(path.join(root, ADR_DIR, n), 'utf8')))
+    .filter((n) => !ADR_STATUS_PATTERN.test(maskFences(fs.readFileSync(path.join(root, ADR_DIR, n), 'utf8'))))
     .map((n) => ({ source: path.join(ADR_DIR, n) }));
 }
 
@@ -50,21 +50,28 @@ const ADR_RELATION_REVERSE = {
   'Superseded by': 'Supersedes',
 };
 
-// adrRelationHeaders() reads one ADR's header region from fence-masked text: the lines after the
-// `**Status:**` line up to the body, which starts at the first `## ` heading or bold `**Context`
-// paragraph. An ADR with no `**Status:**` line has no header region. A header is a bold `**Label:**`
-// line plus its continuation lines up to the next blank line. Returns the headers, each
-// `{ label, text }` with the continuation lines joined by a space.
+// adrRelationHeaders() reads one ADR's header block from fence-masked text: the lines after its `# `
+// title, or from the first line when it has none, up to the body, which starts at the first `## ` heading
+// or bold `**Context` paragraph. A relation header above `**Status:**` and one below it both count; above
+// it, only a relation label (`ADR_RELATION_REVERSE`) opens a header, so other bold metadata such as
+// `**Date:**` stays unread, while below it every bold label does. The `**Status:**` line itself is no
+// header. An ADR with no `**Status:**` line has no header block. A header is a bold `**Label:**` line plus its continuation lines up to the next blank line.
+// Returns the headers, each `{ label, text }` with the continuation lines joined by a space.
 function adrRelationHeaders(masked) {
   const headers = [];
   let open = null;
   const lines = masked.split('\n');
-  const status = lines.findIndex((l) => l.startsWith('**Status:**'));
-  if (status < 0) return headers;
-  for (const line of lines.slice(status + 1)) {
+  if (!lines.some((l) => l.startsWith('**Status:**'))) return headers;
+  const title = lines.findIndex((l) => /^# /.test(l));
+  let belowStatus = false;
+  for (const line of lines.slice(title + 1)) {
     if (/^## |^\*\*Context/.test(line)) break;
     const label = line.match(/^\*\*([^*]+?):\*\*/);
-    if (label) headers.push((open = { label: label[1], text: line }));
+    if (label && label[1] === 'Status') {
+      belowStatus = true;
+      open = null;
+    } else if (label && !belowStatus && !ADR_RELATION_REVERSE[label[1]]) open = null;
+    else if (label) headers.push((open = { label: label[1], text: line }));
     else if (!line.trim()) open = null;
     else if (open) open.text += ` ${line.trim()}`;
   }

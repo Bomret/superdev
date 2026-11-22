@@ -198,8 +198,9 @@ const NO_FROM_SHIP_DOCS = [
   path.join('references', 'response-shapes.md'),
 ];
 // SHIP_STARTERS: the files whose repair-loop exits start ship. A line holding a ship start must name the consent verb.
-// SHIP_START matches a start written with the backticked command, in any case, the form both files use; a start that names
-// ship another way is outside the fact.
+// SHIP_START matches a start written with the backticked command, in any case, the form both files use.
+// simplicity: shape-based, and its ceiling is that form. A start that names ship another way ("hand off to ship") walks
+// past.
 const SHIP_STARTERS = [path.join('references', 'review-scope-mode.md'), path.join('skills', 'document', 'SKILL.md')];
 const SHIP_START = /\bstart(?:s|ed)? `\/superdev:ship\b/i;
 const CONSENT_VERB = /scope\.js"? consent\b/;
@@ -221,7 +222,8 @@ function scanPastPrSkills(root) {
   for (const name of MODEL_INVOCABLE_SKILLS) {
     const source = path.join('skills', name, 'SKILL.md');
     if (!present(source)) continue;
-    const fm = read(source).match(/^---\n([\s\S]*?)\n---(?:\n|$)/);
+    // CRLF reads as LF, so a skill saved with Windows line endings is held to the rule too.
+    const fm = read(source).replace(/\r\n/g, '\n').match(/^---\n([\s\S]*?)\n---(?:\n|$)/);
     if (fm !== null && /^disable-model-invocation:\s*true\s*$/m.test(fm[1])) {
       gaps.push({
         source,
@@ -275,9 +277,15 @@ function scanNoOfferStart(root) {
 
 // scanNoCiWait(): no shipped prose names a wait or a poll on CI (ADR 0255, INV-0192). A forbidden form (ADR 0153): a
 // `--watch` flag (`gh pr checks --watch`, `gh run watch --watch`), `gh run watch`, and a line pairing `sleep` with a check
-// or a status, the shape of a sleep-and-reread loop. It walks every Markdown file of the shipped tree; the code under it
-// sleeps for its own lock, never on CI.
+// or a status, the shape of a sleep-and-reread loop. A shell loop written over several lines, from its `until` or
+// `while … do` line through its `done`, is read as one line, so `until gh pr checks …; do` / `sleep 30` / `done` is caught
+// as its one-line form is. It walks every Markdown file of the shipped tree; the code under it sleeps for its own lock,
+// never on CI.
+// simplicity: shape-based, and its ceiling is those forms: a wait phrased in prose ("check again in a minute") or a
+// loop whose sleep and check sit past its `done`, or past CI_WAIT_LOOP_LINES, walks past.
 const CI_WAIT_FORMS = [/--watch\b/, /\bgh run watch\b/, /\bsleep\b.*\b(?:checks?|status(?:es)?)\b/i, /\b(?:checks?|status(?:es)?)\b.*\bsleep\b/i];
+const CI_WAIT_LOOP_OPENER = /\b(?:until|while)\b.*(?:;\s*do\b|\bdo\s*$)/;
+const CI_WAIT_LOOP_LINES = 30;
 function scanNoCiWait(root) {
   const tree = path.join(root, 'plugin');
   const gaps = [];
@@ -290,7 +298,9 @@ function scanNoCiWait(root) {
   for (const rel of files) {
     const lines = fs.readFileSync(path.join(tree, rel), 'utf8').split('\n');
     lines.forEach((line, i) => {
-      if (CI_WAIT_FORMS.some((form) => form.test(line))) gaps.push({ source: rel, line: i + 1 });
+      const end = CI_WAIT_LOOP_OPENER.test(line) ? lines.slice(i, i + CI_WAIT_LOOP_LINES).findIndex((l) => /\bdone\b/.test(l)) : -1;
+      const text = lines.slice(i, end === -1 ? i + 1 : i + end + 1).join(' ');
+      if (CI_WAIT_FORMS.some((form) => form.test(text))) gaps.push({ source: rel, line: i + 1 });
     });
   }
   return gaps;

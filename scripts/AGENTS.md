@@ -817,8 +817,8 @@ when a setext underline falls inside the live region about to be dropped, rather
 swallowing that section into the replaced one. `extractSection()` applies the identical `hasSetextHeading()`
 check to the **staged** body's own section, refusing there too, rather than accept a shape it merges
 cleanly today and then refuses to ever patch again. That failure belongs on the staged file, which
-a doc pass re-runs, not on the live page it would otherwise strand. Heading detection runs on fence-masked lines (matches
-`scripts/drift/lib.js`'s `maskFences`, including its at-least-as-long closing-fence rule), so a
+a doc pass re-runs, not on the live page it would otherwise strand. Heading detection runs on fence-masked lines, by
+`md-sections.js`'s `fenceOpener` and `fenceCloses`. `scripts/drift/lib.js`'s `maskFences` reads through the same rule, so a
 `#` or `~~~` shown *inside* a fenced code example is never read as a heading, in the staged body, in the
 live section being replaced, or by the duplicate-heading scan. An unterminated fence in either input
 refuses instead of guessing where it would have closed, because it would otherwise mask every line
@@ -1135,7 +1135,20 @@ The runner accepts three forms: no argument (the full run), `--related` as the f
 asks for help, ahead of any refusal. Every other argument is refused: an unknown flag (`--relatd`, `--related=a.js`), a
 word before `--related`, and after it a dash-led word (a second `--related`, `-`, `--`) or an empty path. A dash-led
 path therefore cannot be passed, and no `--` separator exists. A refusal prints `run-tests: unknown argument: <arg>`
-and the usage on stderr, and exits 2. An empty argument is named `(empty argument)`. Help and a refusal start no step and write no recorded durations.
+and the usage on stderr, and exits 2. An empty argument is named `(empty argument)`.
+
+`--related` takes repository-relative file paths. A backslash separator reads as a forward slash on every host (ADR
+0150), so `plugin\lib\x.js` selects what `plugin/lib/x.js` selects. A path that does not exist maps like a deleted
+file.
+
+The runner refuses three kinds of path. The first is an absolute path in any spelling: POSIX `/…`, a Windows drive
+`C:\…` or `C:/…`, a Git Bash drive `/c/…`, or a network share `\\host\…`. The second is a path that leads outside the
+repository, such as `../x.js`. The third is a path naming an existing folder, which includes `.` and a symlink to a
+folder. One such path refuses the whole call.
+
+The refusal prints `run-tests: --related takes repository-relative file paths: <arg> (<reason>)`. `<reason>` is
+`absolute`, `outside the repository`, or `a folder`. The usage follows on stderr, and the exit code is 2. Help and a
+refusal start no step and write no recorded durations.
 
 Its suite is `tests/run-tests.test.js`, which calls `discoverSuites`, `selectSuites`, `parseArgs`, and
 `runAll` against throwaway trees it removes at the end. It drives the CLI end to end from a copy of the runner in a
@@ -1158,11 +1171,13 @@ It checks these kinds of rule:
 
 - **Format.** `Class`, `Concepts`, `Statement` and `Breaks` are present. `Class` and `Statement` each
   carry a word once unquoted: a letter or a digit, in any script. `-`, `—` or `_` fails as carrying no
-  word. `Concepts`, and `Paths` or `Symbols` when present, each name at least one comma-separated item
-  once trimmed. A bare `,` fails as naming no concept, path, or symbol. A `Breaks:`
+  word. `Concepts`, and `Paths` or `Symbols` when their line is present, each name at least one comma-separated item
+  once trimmed. An empty `Paths:` or `Symbols:` line and a bare `,` fail as naming no concept, path, or symbol. An entry
+  with no `Paths:` line passes. A `Breaks:`
   value is `silently` or `loudly`, matched case-insensitively, optionally followed by ` — ` and a
   reason and nothing else — anchored, so `loudly, silently` fails rather than passing as loudly and
-  skipping the `Check:` requirement; any other shape fails too. A `Breaks: silently` entry carries
+  skipping the `Check:` requirement. Any other shape fails too. A reason after the dash carries a word. `silently —`
+  and `silently — .` fail as carrying no reason, and a bare `silently` passes. A `Breaks: silently` entry carries
   `Check:`, its backticks stripped before the check, and the three ways it can fail each name a
   different reason: missing fails as naming no proof at all, and `` `none` `` (bare or backticked)
   with no reason fails as needing the reason nothing cheaply tests it. `none` wrapped in any other
@@ -1192,8 +1207,20 @@ It checks these kinds of rule:
 - **Resolution.** Every `Concepts` value equals a glossary term — the bold text opening a line, or a `- `/`* `
   list item, of any `CONTEXT.md` the walk reaches, so a multi-context repository needs no map parser. Every `Paths` glob
   matches a file. Every `Symbols` value appears as a whole word in the files the entry's `Paths` match, or
-  anywhere but the register when the entry names none. A dotted symbol matches on its last segment. Every path-shaped
-  token in `Check:` names a file; drift ids and quoted test names are prose and stay unchecked.
+  anywhere but the register when the entry carries no `Paths:` line. An empty `Paths:` line governs no file and never
+  widens that scope. A dotted symbol matches on its last segment. A symbol with an empty segment fails, because its
+  pattern would match any file. `foo.`, `a..b`, and empty backticks are such symbols. Every path-shaped token in
+  `Check:` names a file inside the root, and four kinds of token fail.
+  - A path that leads outside the root, such as `../x.js`, fails even when the file exists.
+  - An absolute path fails the same way. It is rooted at `/`, at `~/`, or at a drive (`C:/`, `C:\`).
+  - A path rooted at a variable fails once, as starting at a variable. `${CLAUDE_PLUGIN_ROOT}/scripts/a.js`,
+    `$HOME/a.js`, and `$(cmd)/a.js` are such paths.
+  - A path-shaped token holding a glob character (`*`, `?`, `[`, `{`) fails, because `Check:` names literal files and
+    the validator expands no glob there.
+
+  A token needs a `/` to be path-shaped, so bold prose such as `**Branch:**` is no glob. Bold markers around a path
+  (`**scripts/a.js**`) and link syntax (`[scripts/a.js](scripts/a.js)`) are no glob characters. Drift ids and quoted
+  test names are prose and stay unchecked.
 - **Citations.** Every `INV-NNNN` cited in a walked file names an entry the register carries, so
   retiring or renumbering an entry cannot leave its citations silently stale. A citation is `INV-` and
   four digits. No letter, combining mark, or digit, in any script, may sit directly before `INV-`, and no digit after the
@@ -1208,7 +1235,7 @@ The walk prunes `.git/`, `node_modules/`, `.superdev/` and `.claude/` — the la
 no `.gitignore`: an ignored file outside the pruned directories still counts toward `Concepts`,
 `Paths`, `Symbols` and citations. Parsing `.gitignore`, or shelling out to `git ls-files`, is out of scope — the
 CLI is deliberately pure Node with no shell-out. It builds relative paths with `/` itself, so
-a glob matches the same files on every OS. `globMatcher` is its own: the CLI does not call `fs.globSync`, which needs Node 22. The validator filters and ranks no entry — `/superdev:plan` and
+a glob matches the same files on every OS. `globMatcher` is its own, because its semantics are what the register's `Paths:` field means. `**` spans segments, `*` and `?` stay inside one, and braces and character classes are literal. The validator filters and ranks no entry — `/superdev:plan` and
 `final-reviewer` still read the register whole (INV-0088) — and nothing under `plugin/` requires it
 (INV-0051). Its suite, `tests/invariant-check.test.js`, runs the CLI against throwaway repositories under
 the OS temp dir, every spawn through `assertSpawnDecided` (INV-0009).
@@ -1224,8 +1251,8 @@ live beside it, in `scripts/drift/`.
 | `drift/checks.js` | the **registry**, one entry per check: `id`, `run`, its `ok` phrase, and how one gap prints, plus `contracts` on a table-driven check |
 | `drift/contracts.js` | the contract tables and patterns. Data only |
 | `drift/scanners/` | the bespoke scanners, every check whose assertion is more than one pattern over one document. `index.js` is the barrel `checks.js` and the selftest require. One file per topic holds the scanners: `references.js`, `adr.js`, `prose-avoid.js`, `shell-spawn.js`, `base-branch-ship.js`, `marketplace-readme.js`, `register-join.js`, `root-inventory.js`, and `test-seams.js`. `walkers.js` holds the document walks and the absence-check shape they share |
-| `drift/lib.js` | what they share: `maskFences`, `maskedSentences`, `normalizeWhitespace`, `docPath`, `readDoc`, `missingDoc`, `observeContracts`, `scanContract`, and `stripComments` |
-| `drift/selftest/` | `index.js` (the `fixture` helper, `found`, `realRoot`, temp-dir cleanup, and the coverage assertion) plus one suite per scanner topic (`references`, `adr`, `prose-avoid`, `shell-spawn`, `base-branch-ship`, `marketplace-readme`, `register-join`, `root-inventory`, `test-seams`), `contracts` (the table-driven checks), `checks` (every registered check against an empty tree), `observation` (the coverage observation itself), `drift-check` (`runChecks` and the registry wiring), and `coverage.js`, the coverage verdict helper |
+| `drift/lib.js` | what they share: `maskFences`, `maskedSentences`, `normalizeWhitespace`, `docPath`, `readDoc`, `missingDoc`, `observeContracts`, `scanContract`, and `stripComments`. `maskFences` blanks every fenced block to spaces, keeping each line's length, and reads fences only through `plugin/lib/md-sections.js`'s `fenceOpener` and `fenceCloses`. An unclosed fence masks to end of file. `scanContract` runs a table of `[document, pattern, expectation]` rows against fence-masked text. A row carrying a fourth element `{ fenced: true }` tests the unmasked text, for a heading that exists only inside a fenced template. `stripComments` removes `//` and `/* … */` comments wherever they sit, and an unclosed block comment runs to end of file. It keeps a comment marker inside a string, a template literal, or a regular-expression literal |
+| `drift/selftest/` | `index.js` (the `fixture` helper, `found`, `realRoot`, temp-dir cleanup, and the coverage assertion) plus one suite per scanner topic, named for its file in `drift/scanners/`. Further suites are `lib.test.js` (the shared helpers), `contracts` (the table-driven checks), `checks` (every registered check against an empty tree), `observation` (the coverage observation itself), and `drift-check` (`runChecks` and the registry wiring). `coverage.js` is the coverage verdict helper |
 
 Every check tests a mechanical fact — a link or section target resolves, a number is unique, a file or
 command exists, a property of code or configuration holds — or forbids a form in shipped prose or in the root `AGENTS.md` (ADR 0153).
@@ -1242,8 +1269,8 @@ path, when that document is missing. A check that walks a directory reads whatev
 | `audit-set-globs` | `docs/agents/documentation.md` carries `## Audit set`, and every pattern listed there matches a file | structural |
 | `marketplace-source` | each `.claude-plugin/marketplace.json` source resolves to a tree carrying `.claude-plugin/plugin.json`; a `git-subdir` source names this repository's clone URL and pins `ref` to `v` plus that tree's version | structural |
 | `adr-numbers` | no two ADRs in `docs/adr/` share a number | structural |
-| `adr-status` | every ADR carries a `**Status:**` line with a recognised value | structural |
-| `adr-relations` | Every ADR link (link text `ADR NNNN`) in a relation header names an existing ADR that carries the reverse header. Every other `AGENTS.md` link in a `**Superseded by:**` header names an existing file, where a setup decision moved to a working rule. A header whose links are all such `AGENTS.md` links needs no ADR link, even where its prose mentions an ADR. `**Status:** Superseded` goes with `**Superseded by:**`. | structural |
+| `adr-status` | every ADR carries a `**Status:**` line with a recognised value outside a fenced example | structural |
+| `adr-relations` | A relation header sits anywhere in an ADR's header block, from its title to its body, above or below `**Status:**`. Above it only the relation labels open a header. Every ADR link (link text `ADR NNNN`) in a relation header names an existing ADR that carries the reverse header. Every other `AGENTS.md` link in a `**Superseded by:**` header names an existing file, where a setup decision moved to a working rule. A header whose links are all such `AGENTS.md` links needs no ADR link, even where its prose mentions an ADR. `**Status:** Superseded` goes with `**Superseded by:**`. | structural |
 | `invariant-register-join` | every drift id a `docs/invariants.md` `Check:` line names is registered, and every invariant a contract row cites covers that row's document in its `Paths:` | structural |
 | `run-root` | the execution documents address run-root artifacts by `<run-root>/…`, never by a checkout-relative `.superdev/scopes/<scope>/…` path | prohibition |
 | `scopetree-run-root` | `skills/ship/SKILL.md`, `skills/document/SKILL.md`, and `scripts/publish-kb.js` address another run's scopetree by `<run-root>/scopetree`, never by a checkout-relative path (ADR 0080) | prohibition |
@@ -1253,11 +1280,11 @@ path, when that document is missing. A check that walks a directory reads whatev
 | `worktree-list-one-parser` | no file at the top level of `plugin/hooks/`, `plugin/scripts/`, or `plugin/lib/` other than `lib/git-spawn.js` spawns `git worktree list` (a `'worktree', 'list'` argument pair outside a comment), so `listWorktrees` stays the one reader of the working trees (INV-0198) | prohibition |
 | `test-seams` | no JavaScript file at any depth of `plugin/` names a file of the repository's `tests/` directory by base name or by a `tests/` path that carries a glob (`tests/scope-*.test.js`), and none reads `process.env.NAME`, `process.env['NAME']`, or a destructured `NAME` that no Markdown document under `plugin/` names, unless `NAME` starts with `CLAUDE_`; none uses a `SUPERDEV_` name on any object, `process.env` or an alias or passed-in one (a property, a bracket, a destructuring, an object key plain, quoted, computed by a literal, or shorthand, a `const`, `let`, or `var` binding, or a `NAME=` prefix; a key built by concatenation or held in a variable matches no form), and no Markdown file under `plugin/` names a `SUPERDEV_` identifier, with `SUPERDEV_TEXT_EOF` allowed by name and a document naming a `SUPERDEV_` variable allowing none (ADR 0207, INV-0180); a classifier glob such as `**/tests/` or `**/tests/**` names no file (INV-0156, ADR 0154) | prohibition |
 | `containment-delegation` | `lib/kb-containment.js` imports and calls `lib/containment.js`'s `testContainment` or `judgeContainment` (ADR 0053) | structural |
-| `past-pr-skills` | the skills a chain start reaches (review, document, submit-pr, ship, verify-ship, wrap-up), plus publish-kb, carry no `disable-model-invocation: true`, neither verify-ship nor wrap-up names `--unattended`, ship, verify-ship, and `references/response-shapes.md` name no `--from-ship`, and every line of `references/review-scope-mode.md` and `skills/document/SKILL.md` that starts `/superdev:ship` names `scope.js consent` (INV-0066, INV-0093, ADR 0253, ADR 0268) | structural |
+| `past-pr-skills` | the skills a chain start reaches (review, document, submit-pr, ship, verify-ship, wrap-up), plus publish-kb, carry no `disable-model-invocation: true` in their frontmatter, where CRLF reads as LF. Neither verify-ship nor wrap-up names `--unattended`. Ship, verify-ship, and `references/response-shapes.md` name no `--from-ship`. Every line of `references/review-scope-mode.md` and `skills/document/SKILL.md` that starts `/superdev:ship` names `scope.js consent` (INV-0066, INV-0093, ADR 0253, ADR 0268) | structural |
 | `no-offer-start` | no file of the shipped tree, `AGENTS.md` included, names `start_session` or the removed offer's marker line; the bare word "offer" stays free, so plan's intent and triage offers pass (ADR 0253) | prohibition |
-| `no-ci-wait` | no Markdown file of the shipped tree names a wait or a poll on CI: a `--watch` flag (`gh pr checks --watch`), `gh run watch`, or a line pairing `sleep` with a check or a status; shipped code is not scanned (INV-0192, ADR 0255) | prohibition |
+| `no-ci-wait` | no Markdown file of the shipped tree names a wait or a poll on CI: a `--watch` flag (`gh pr checks --watch`), `gh run watch`, or a line pairing `sleep` with a check or a status. A shell loop written over several lines is read as one line, from its `until` or `while … do` line through its `done`, so a multi-line CI wait loop is caught. A local loop on a run file and one paging through results pass. Shipped code is not scanned (INV-0192, ADR 0255) | prohibition |
 | `no-base-branch-commit` | no file under `skills/` or `references/` instructs a commit, a push, or a merge to the base branch, other than ship's host-API merge (INV-0001) | prohibition |
-| `background-rule-names-limit` | no skill, agent, or reference, and no `AGENTS.md` in `plugin/skills/`, `plugin/agents/`, or `plugin/references/` (the shipped one is `plugin/references/AGENTS.md`), states the background rule against an unnamed Bash limit: "the Bash tool's time limit" or "the tool's limit", matched across a line wrap and a run of spaces, fenced examples masked, so the rule names the ceiling (600000 ms, or the higher `BASH_MAX_TIMEOUT_MS`) (ADR 0232) | prohibition |
+| `background-rule-names-limit` | no skill, agent, or reference, and no `AGENTS.md` at any depth under `plugin/skills/`, `plugin/agents/`, or `plugin/references/`, states the background rule against an unnamed Bash limit: "the Bash tool's time limit" or "the tool's limit", matched across a line wrap and a run of spaces, fenced examples masked, so the rule names the ceiling (600000 ms, or the higher `BASH_MAX_TIMEOUT_MS`). No `AGENTS.md` under those trees at all is reported as missing (ADR 0232) | prohibition |
 | `conflict-conclusion-no-commit` | no skill, agent, or reference concludes a resolved merge conflict with `git commit` (ADR 0123) | prohibition |
 | `dod-box-rule` | no skill, agent, or reference judges a Definition-of-Done line by its checkbox or calls a `ceiling:` line settled: the spellings "neither ticked nor `accepted`", "ticked or (noted) `accepted`", "a ticked line or an `accepted`", "ticked with no `ceiling`", "ticked, `ceiling:`, or `accepted`", "already-ticked line changes nothing", and "settled" said of a `ceiling:` line, each word joined by `\s+` so a line break matches, fenced examples masked; the documents are the prose directories read at scan time (ADR 0247, INV-0190) | prohibition |
 | `plugin-root-quoted` | no shipped markdown file, every skill, agent, and reference and `plugin/references/AGENTS.md` included, writes `node` followed by an unquoted `${CLAUDE_PLUGIN_ROOT}` or `$CLAUDE_PLUGIN_ROOT` path, whitespace and backticks between them, a line break included; fenced code is read too, since a fenced command is one an agent copies, so every call reads `node "${CLAUDE_PLUGIN_ROOT}/…"` and an install path holding a space stays one argument | prohibition |
@@ -1267,12 +1294,12 @@ path, when that document is missing. A check that walks a directory reads whatev
 | `github-wiki-gh-only` | neither the GitHub wiki seed nor `docs/agents/knowledge-base.md` names a token env var (`GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`) or an `Authorization` header | prohibition |
 | `kb-no-backend-call` | plan, document, `doc-writer`, and `doc-pass.md` carry no instruction that reaches a knowledge-base backend (ADR 0023) | prohibition |
 | `agent-tool-agnostic` | no agent under `agents/` names a concrete toolchain command | prohibition |
-| `deploy-runner-exclusivity` | no skill or agent but ship names a deploy target's command as something it runs (INV-0098) | prohibition |
+| `deploy-runner-exclusivity` | no skill, agent, or reference names a deploy target's command as something it runs, `skills/ship/SKILL.md` and `references/deployment.md` excepted. A hit passes when ship is its subject, directly before it in the same sentence ("`/superdev:ship` runs …", "Only ship runs …"). It also passes when the sentence denies the run. "Before you ship, run each deploy target's command yourself." is reported (INV-0098) | prohibition |
 | `ship-no-opens-pr` | no shipped surface attaches opening the pull request to `/superdev:ship` (ADR 0096) | prohibition |
 | `derive-no-dod` | plan's derive dispatch bullet hands `final-reviewer` no Definition of Done, and `final-reviewer`'s `## Derive mode` reads none (INV-0158, ADR 0158) | prohibition |
 | `unmapped-paths-form` | `skills/setup/SKILL.md` and `references/test-selection.md` propose no `{paths}` form to a runner that maps no source file to its tests (ADR 0074) | prohibition |
-| `doc-setup-no-test-run` | `skills/document/SKILL.md`, `skills/setup/SKILL.md`, `agents/doc-writer.md`, `agents/doc-reader.md`, and `references/doc-pass.md` instruct no test run: no `scope.js test` or `scope.js fail-to-pass` call, and no run of the full, focused, whole-repo, or affected command; a sentence stating that no test runs passes, its negation (`no`, `not`, `never`, `without`, `nor`) at most one word before the hit, past an opening quote or backtick (ADR 0189, INV-0175) | prohibition |
-| `implement-no-full-run` | implement's base step (`references/scope-branch.md`'s `## Bringing the scope branch to base` section alone), `references/run-handoff.md`, `references/implement-full.md` with its rare-branch files (`implement-full-resume.md`, `implement-full-fix-cycle.md`, `implement-full-denied.md`, `implement-full-minor-sweep.md`), and `references/implement-lite.md` instruct no full or whole-repo run: no `scope.js test full` or `scope.js test whole` call, no `test focused` with no path, no run, rerun, execution, or invocation of the full or whole-repo command or suite, no gate on one, and no such command or suite as the subject of `runs` up to two words later; a `no` directly before the hit or its article, a `not`, `never`, `nor`, or `without` at most one word before it, or a negation heading a list of code spans excuses it, and the rest of `scope-branch.md` stays unscanned (ADR 0192, INV-0128) | prohibition |
+| `doc-setup-no-test-run` | `skills/document/SKILL.md`, `skills/setup/SKILL.md`, `agents/doc-writer.md`, `agents/doc-reader.md`, and `references/doc-pass.md` instruct no test run: no `scope.js test` or `scope.js fail-to-pass` call, and no run of the full, focused, whole-repo, or affected command; a sentence stating that no test runs passes when its negation negates the run itself. That means `no` directly before the hit, or `not`, `never`, `nor`, or `without` directly before it or before one run verb heading it. An `ever` intensifier and an infinitive `to` may sit before the verb, past an opening quote or backtick, so "Remember not to run the full command" passes. "Without fail run the full command", "Do not skip running the full command", and "Do not forget to run the full command" are reported (ADR 0189, INV-0175) | prohibition |
+| `implement-no-full-run` | implement's base step (`references/scope-branch.md`'s `## Bringing the scope branch to base` section alone), `references/run-handoff.md`, `references/implement-full.md` with its rare-branch files (`implement-full-resume.md`, `implement-full-fix-cycle.md`, `implement-full-denied.md`, `implement-full-minor-sweep.md`), and `references/implement-lite.md` instruct no full or whole-repo run: no `scope.js test full` or `scope.js test whole` call, no `test focused` with no path, no run, rerun, execution, or invocation of the full or whole-repo command or suite, no gate on one, and no such command or suite as the subject of `runs` up to two words later; a negation of the run itself excuses it, by `doc-setup-no-test-run`'s rule. A `no` directly before the hit or its article does, and so does a `not`, `never`, `nor`, or `without` directly before it or before one run verb heading it. An `ever` intensifier and an infinitive `to` may sit before the verb, so "Remember not to run the full command" passes. A negation heading a list of code spans excuses it too. A negation of another word ("Do not skip running the full command", "Do not forget to run the full command") excuses nothing. The rest of `scope-branch.md` stays unscanned (ADR 0192, INV-0128) | prohibition |
 | `observation-no-suite-run` | `references/review-scope-mode.md`'s `### 4.3 Observations` section names no suite run as an observation's source: no suite, test, entry, exit, focused, or full run, no `§4.2` citation, and no failing test or failing run, so a failing test in a scope review's suite run joins the fix list; a missing section or document is a gap (INV-0157) | prohibition |
 | `scope-review-no-full-run` | every `references/review-scope-*.md` file, read at scan time, `skills/review/SKILL.md`, and `agents/final-reviewer.md` instruct no full or whole-repo run, by `implement-no-full-run`'s patterns and negation excuse: no `scope.js test full` or `test whole`, no `test focused` with no path, and no run of the full or whole-repo command or suite. The list item that opens `- **The operator asks for the full suite**`, the ad-hoc clause, is excused, and fenced examples are masked (ADR 0255, INV-0193, INV-0173) | prohibition |
 | `root-no-inventory` | the root `AGENTS.md`, read whole and unmasked so its fenced Structure tree counts, names no `plugin/lib/` module and no `tests/*.test.js` suite as a whole path segment, and no `plugin/agents/` agent: a hyphenated agent name as a whole segment, bare prose included, and an unhyphenated one backticked or as `superdev:<agent>`; each name set is read from disk at scan time, so a module, suite, or agent added later is caught with no edit to the check; a missing root is the missing-document finding, and a name directory that cannot be read or holds no name is a finding. Ceiling: an unhyphenated agent name outside backticks and outside `superdev:<agent>`, hook, skill, reference, and suite-topic names, and abbreviated forms, are not matched; hand review holds them | prohibition |

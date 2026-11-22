@@ -36,6 +36,11 @@ module.exports = ({ assert, path, fixture }) => {
     ['0098-a.md', '0100-c.md'],
     'both offenders reported, in filename order, and the compliant ADR is not',
   );
+  assert.equal(
+    scanAdrStatus(fixture({ 'docs/adr/0099-a.md': '# 0099 — A\n\n```markdown\n**Status:** Accepted\n```\n\n## Context\n' })).length,
+    1,
+    'a status line inside a fenced example is not the status line',
+  );
   assert.equal(scanAdrStatus(fixture({ 'docs/adr/README.txt': 'no status here' })).length, 0, 'a non-markdown file is skipped');
   assert.equal(scanAdrStatus(fixture({ 'README.md': '# repo\n' })).length, 0, 'an absent ADR tree holds nothing to scan');
 
@@ -56,6 +61,20 @@ module.exports = ({ assert, path, fixture }) => {
   assert.equal(scanAdrNumbers(fixture({ 'README.md': 'x\n' })).length, 0, 'no ADR directory passes');
 
   // --- adr-relations: a relation header pairs with the reverse header on its target (ADR 0156) ---
+
+  // A relation header above `**Status:**` is in the header block too, and is checked like one below it.
+  {
+    const above = scanAdrRelations(
+      fixture({
+        'docs/adr/0098-a.md': '# 0098 — A\n\n**Status:** Accepted\n\n## Context\n',
+        'docs/adr/0099-b.md': '# 0099 — B\n\n**Supersedes:** [ADR 0098](0098-a.md)\n\n**Status:** Accepted\n\n## Context\n',
+      }),
+    );
+    assert.ok(
+      above.some((g) => g.source === path.join('docs', 'adr', '0099-b.md') || g.source === path.join('docs', 'adr', '0098-a.md')),
+      `a relation header above the status line is checked (got: ${JSON.stringify(above)})`,
+    );
+  }
 
   const relAdr = (num, status, headers, body = '## Context\n\nSomething.\n') =>
     `# ${num}: A decision\n\n**Status:** ${status}\n\n${headers ? `${headers}\n\n` : ''}${body}`;
@@ -195,12 +214,12 @@ module.exports = ({ assert, path, fixture }) => {
   assert.deepEqual(
     relGaps(`# 0001: A decision\n\n**Date:** 2026-01-01\n\n**Status:** Accepted\n\n## Context\n\nx\n`, b2('')),
     [],
-    'a bold label before Status is not a header',
+    'a bold label before Status that is no relation label is not a header',
   );
-  assert.deepEqual(
-    relGaps(`# 0001: A decision\n\n**Amends:** ${toB}\n\n**Status:** Accepted\n\n## Context\n\nx\n`, b2('')),
-    [],
-    'a relation label before Status is not a header',
+  assert.equal(
+    relGaps(`# 0001: A decision\n\n**Amends:** ${toB}\n\n**Status:** Accepted\n\n## Context\n\nx\n`, b2('')).length,
+    1,
+    'a relation header before Status is read, and its missing reverse header reported',
   );
   assert.deepEqual(relGaps(a1('**Amends:** [INV-0017](../invariants.md), a rule'), b2('')), [], 'an INV target is skipped');
   assert.deepEqual(

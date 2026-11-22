@@ -293,6 +293,11 @@ module.exports = ({ assert, fixture, found }) => {
       `${name}: the key outside the frontmatter does not count`,
     );
   }
+  assert.equal(
+    pastPr({ 'skills/ship/SKILL.md': humanSkill('Body.').replace(/\n/g, '\r\n') }).length,
+    1,
+    'a skill with Windows line endings is held to the rule',
+  );
   assert.equal(pastPr({ 'skills/ship/SKILL.md': openSkill('It refuses an `--unattended` argument.') }).length, 0, 'ship may name --unattended to refuse it');
   for (const name of ['verify-ship', 'wrap-up']) {
     assert.equal(pastPr({ [`skills/${name}/SKILL.md`]: openSkill('Pass --unattended.') }).length, 1, `${name} naming --unattended is caught`);
@@ -342,5 +347,25 @@ module.exports = ({ assert, fixture, found }) => {
     noWait({ 'plugin/skills/ship/SKILL.md': 'A named check still pending refuses, naming the SHA.\n', 'plugin/lib/run-digest.js': 'sleep(5); // status\n' }).length,
     0,
     'a pending refusal and shipped code pass',
+  );
+  assert.equal(
+    noWait({ 'plugin/skills/ship/SKILL.md': '```sh\nuntil gh pr checks 12; do\n  sleep 30\ndone\n```\n' }).length,
+    1,
+    'a CI wait loop written over several lines is caught',
+  );
+  assert.equal(
+    noWait({ 'plugin/skills/ship/SKILL.md': '```sh\nwhile ! gh pr checks 12; do\n\n  sleep 30\ndone\n```\n' }).length,
+    1,
+    'a CI wait loop whose loop and sleep lines a blank line separates is caught',
+  );
+  assert.equal(
+    noWait({
+      'plugin/references/test-selection.md':
+        "wait with `timeout 170 sh -c 'until grep -q \"^exit=\" \"$f\"; do sleep 5;\ndone'`, repeated until the file holds the line.\n",
+      'plugin/references/knowledge-base-forgejo.md':
+        '```sh\nwhile :; do\n  status=$?\n  [ \"$status\" -eq 0 ] && exit 0\n  p=$((p + 1))\ndone\n```\n',
+    }).length,
+    0,
+    'a local loop on a run file and a pagination loop pass',
   );
 };

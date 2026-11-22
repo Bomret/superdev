@@ -535,9 +535,9 @@ function run(argv, cwd, stdinJson) {
   if (handoffRoot) console.log(libRunStateRef().pushRunState(handoffRoot, cwd));
 }
 
-// True for `unresolved add -`, `deferred add -`, and `degraded add -` (any `--root <path>` position
-// tolerated), which is what tells `main()` to wait on stdin before dispatching — the same sentinel
-// `resolveBulletText` reads once the ledger root is known.
+// True for `unresolved add -`, `deferred add -`, `deferred resolve -`, `degraded add -`, `degraded add-denial -`, and
+// `degraded reset-denials -` (any `--root <path>` position tolerated), which is what tells `main()` to wait on stdin
+// before dispatching — the same sentinel `resolveBulletText` reads once the ledger root is known.
 const BULLET_STDIN_VERBS = ['degraded', 'unresolved', 'deferred'];
 function isBulletStdinInvocation(argv) {
   if (!BULLET_STDIN_VERBS.includes(argv[0])) return false;

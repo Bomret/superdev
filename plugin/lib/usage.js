@@ -90,7 +90,7 @@ function usage() {
     '                                     note; exits 0, 1 (a refusal), 3 (the',
     '                                     command failed, was ended by a signal, could not start, or changed a tracked file, each named),',
     '                                     or 128 plus the signal number',
-    '  status                             scans <cwd>/.superdev/scopes/*/',
+    '  status                             scans the main working tree\'s .superdev/scopes/*/',
     '  candidates --stage <stage>[,<stage>]   prints the empty-argument verdict over the run roots:',
     '                                     `one <slug> <stage>`, `several` and a `<slug> <stage>` line each,',
     '                                     or `none` and every run root with its stage (`absent` or',
