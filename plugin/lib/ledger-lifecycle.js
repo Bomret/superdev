@@ -11,7 +11,7 @@ const {
 } = require('./ledger.js');
 const { mainWorkTree } = require('./main-work-tree.js');
 const { appendTrace } = require('./trace-log.js');
-const { readSide, writeSide, withRunLock } = require('./run-digest.js');
+const { readSide, writeSide, withRunLock, underRunLock } = require('./run-digest.js');
 const { checkRun } = require('./run-check.js');
 const { checkDodWritten } = require('./dod-gate.js');
 
@@ -227,11 +227,11 @@ function verbStage(root, sub, value) {
     if (at >= 0) {
       lines.splice(at, 1);
       closed = true;
-      // The trace records the clear as a `step clear` line, so the review-step window reads step lines alone.
-      appendTrace(root, { kind: 'ledger', fields: ['step', 'clear'] });
     }
   }
   writeLines(root, setHeader(lines, 'Stage', value));
+  // The trace records the clear as a `step clear` line, so the review-step window reads step lines alone. It follows the write, so a failed write leaves no line.
+  if (closed) appendTrace(root, { kind: 'ledger', fields: ['step', 'clear'] });
   return closed;
 }
 
@@ -286,4 +286,4 @@ function verbSlice(root, id, status, range) {
   fail(`no slice row with id "${id}" in ${ledgerPath(root)}`);
 }
 
-module.exports = { verbInit, verbStage, verbStep, verbSlice, validateLabel, STEPS };
+module.exports = { verbInit, verbStage: underRunLock(verbStage), verbStep: underRunLock(verbStep), verbSlice: underRunLock(verbSlice), validateLabel, STEPS };

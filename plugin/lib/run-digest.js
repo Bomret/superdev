@@ -6,23 +6,22 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { readPresent } = require('./refusal.js');
+const { writeFileAtomic } = require('./atomic-write.js');
 
 // `<run-root>/digest.json` is one JSON object: `ledger` and `trace` are each `{ size, sha256 }` of the whole file as scope.js and the hooks
 // last wrote it. A key that is absent seals nothing, so the first check of that file seals it and reports nothing. An unreadable
 // sidecar reads as an empty one. The sidecar and its lock are never pushed with the run state.
 const SIDECAR = 'digest.json';
-// `<run-root>/digest.lock` is created exclusively, holds its owner's token, and is removed by that owner when it is done. A
-// holder keeps it for milliseconds, so a lock older than LOCK_STALE_MS belongs to a killed process and is broken. A process
-// waits at most LOCK_WAIT_MS in all, across every lock it takes, and breaks a lock it would wait on past that. A hook event is
-// one process, so its appends, however many lines, land within that bound, well inside the hook's 5 s limit.
+// `<run-root>/digest.lock` is created exclusively, holds its owner's token (`<pid>-<uuid>`), and is removed by that owner when it is
+// done. A holder keeps it for milliseconds. A waiter breaks it only when the process its token names is dead, or when it is older
+// than LOCK_STALE_MS, far above any hold; it waits for a live holder without a budget. A process that holds a root's lock and takes
+// it again runs inside its own hold, so no verb waits on itself.
 const LOCK = 'digest.lock';
-const LOCK_STALE_MS = 2000;
-const LOCK_WAIT_MS = 2000;
+const LOCK_STALE_MS = 30000;
 
 const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
-// simplicity: one budget per process; ceiling: a process that outlives its budget breaks any contended lock at once, which at
-// worst yields a false tamper report; upgrade: reset the budget per hook event or per verb.
-let waited = 0;
+// The roots this process holds the lock of.
+const heldRoots = new Set();
 
 // The file's bytes, or null when it is absent or unreadable.
 function readBytes(file) {
@@ -63,14 +62,10 @@ function readSide(root) {
 
 // Atomic, like the ledger write. A failure is silent: the work this records must not fail for its digest.
 function writeSide(root, side) {
-  const target = path.join(root, SIDECAR);
-  const tmp = `${target}.tmp-${process.pid}-${Date.now()}`;
   try {
-    fs.writeFileSync(tmp, JSON.stringify(side) + '\n', 'utf8');
-    fs.renameSync(tmp, target);
+    writeFileAtomic(path.join(root, SIDECAR), JSON.stringify(side) + '\n');
   } catch {
     // simplicity: silent by design; ceiling: a lost sidecar write leaves the old digest, which the next check reports as a tamper; upgrade: surface the error if that bites
-    try { fs.rmSync(tmp, { force: true }); } catch { /* nothing to clean */ }
   }
 }
 
@@ -82,14 +77,36 @@ function lockAge(lock) {
   }
 }
 
-// simplicity: two waiters that both judge one stale lock can each move it aside, and the later move may take a lock the first waiter
-// just created; ceiling: two holders at once for a few milliseconds, which at worst yields one false tamper report; upgrade: a lock directory with an owner record.
-function breakLock(lock) {
+// The pid a lock's token names, or null for an empty or malformed token.
+function tokenPid(token) {
+  const m = /^(\d+)-/.exec(token);
+  return m ? Number(m[1]) : null;
+}
+
+// Whether no process has this pid. EPERM means a live process of another user.
+function isDead(pid) {
+  try {
+    process.kill(pid, 0);
+    return false;
+  } catch (e) {
+    return e.code === 'ESRCH';
+  }
+}
+
+// Moves the lock aside and removes it, when it still holds `token`. A lock another holder took in between is put back.
+// simplicity: two waiters that both judge one dead holder can each move aside; ceiling: the later move may take a lock the first
+// waiter just created and put it back with a link, so two holders overlap for a few milliseconds at worst; upgrade: a lock directory with an owner record.
+function breakLock(lock, token) {
   const aside = `${lock}.broken-${process.pid}-${Date.now()}`;
   try {
     fs.renameSync(lock, aside);
-    fs.rmSync(aside, { force: true });
-  } catch { /* the holder released it first */ }
+  } catch { return; /* the holder released it first */ }
+  try {
+    if (fs.readFileSync(aside, 'utf8') !== token) {
+      try { fs.linkSync(aside, lock); } catch { /* another holder took the lock again: the displaced one stands */ }
+    }
+  } catch { /* unreadable: removed below */ }
+  try { fs.rmSync(aside, { force: true }); } catch { /* nothing to clean */ }
 }
 
 // Removes the lock only while it still holds `token`: a holder whose lock was broken must not remove the next holder's.
@@ -100,8 +117,11 @@ function releaseLock(lock, token) {
   } catch { /* the lock is already gone */ }
 }
 
-// Runs `fn` holding the run's lock. A root the lock cannot be created in (absent, read-only) runs `fn` unlocked.
+// Runs `fn` holding the run's lock. A root the lock cannot be created in (absent, read-only) runs `fn` unlocked. A process that
+// already holds the root's lock runs `fn` inside that hold.
 function withRunLock(root, fn) {
+  const key = path.resolve(root);
+  if (heldRoots.has(key)) return fn();
   const lock = path.join(root, LOCK);
   const token = `${process.pid}-${crypto.randomUUID()}`;
   let held = false;
@@ -115,18 +135,24 @@ function withRunLock(root, fn) {
     } catch (e) {
       if (e.code !== 'EEXIST') break;
     }
-    if (lockAge(lock) > LOCK_STALE_MS || waited >= LOCK_WAIT_MS) breakLock(lock);
-    else {
-      const from = Date.now();
-      sleep(5);
-      waited += Math.max(5, Date.now() - from);
-    }
+    let seen = '';
+    try { seen = fs.readFileSync(lock, 'utf8'); } catch { /* released: the next attempt takes it */ }
+    const pid = tokenPid(seen);
+    if (lockAge(lock) > LOCK_STALE_MS || (pid !== null && isDead(pid))) breakLock(lock, seen);
+    else sleep(5);
   }
+  if (held) heldRoots.add(key);
   try {
     return fn();
   } finally {
-    if (held) releaseLock(lock, token);
+    if (held) {
+      heldRoots.delete(key);
+      releaseLock(lock, token);
+    }
   }
 }
 
-module.exports = { SIDECAR, LOCK, readBytes, readSealed, stateOf, sameState, readSide, writeSide, withRunLock };
+// `fn` over `(root, ...args)`, each call inside one hold of the root's lock: a verb's read of the ledger and its write back.
+const underRunLock = (fn) => (root, ...args) => withRunLock(root, () => fn(root, ...args));
+
+module.exports = { SIDECAR, LOCK, underRunLock, readBytes, readSealed, stateOf, sameState, readSide, writeSide, withRunLock };

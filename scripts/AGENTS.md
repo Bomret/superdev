@@ -433,8 +433,9 @@ MSYS drive-path translator, is the only path helper `discard.js` and `prepare.js
 ### Run digest (ADR 0227)
 
 `run-digest.js` keeps `<run-root>/digest.json`, the size and sha256 of `ledger.md` and `trace.log` as `scope.js` and the hooks last
-wrote them, under `digest.lock`, a lock created exclusively whose holder removes it and whose stale holder's lock is broken after
-`LOCK_STALE_MS`. Neither file is pushed with the run state. `run-check.js`'s `checkRun(root)` compares both files with the digest
+wrote them, under `digest.lock`, a lock created exclusively whose holder removes it. A waiter breaks a lock when the process its
+token names is dead, or when it is older than `LOCK_STALE_MS` (30 s), and waits for a live holder without a budget. A process that
+holds a root's lock and takes it again runs inside its own hold. Neither file is pushed with the run state. `run-check.js`'s `checkRun(root)` compares both files with the digest
 before a verb writes to the run: `scope.js` calls it once from `writtenRoot` for every verb that names `--root` and writes
 (`stage`, `step`, `slice`, `degraded`, `unresolved`, `deferred`, `minors`, `docs`, `pr`, `adopt`, `dod-merge`, `deploy set`,
 `base set`, every `suite` subcommand), and `init`, `open`, `test`, and `fail-to-pass` call it in their own verbs. A file that

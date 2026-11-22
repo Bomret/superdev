@@ -8,6 +8,7 @@ const path = require('path');
 const { splitLines } = require('./ledger.js');
 const { parseDodLineReadings, dodLineHasNote, collapseWhitespace } = require('./dod-line.js');
 const { fail, readPresent } = require('./refusal.js');
+const { writeFileAtomic } = require('./atomic-write.js');
 
 // `base` decides the criteria and their order. A base checklist line with no note takes the line of `other` it
 // pairs with by criterion text, when exactly one line pairs and that line carries a note. Every other base line
@@ -35,7 +36,7 @@ function verbDodMerge(root, anchorText) {
   const local = readPresent(file, 'utf8');
   const { text, kept } = local === null ? { text: anchorText, kept: 0 } : mergeDod(anchorText, local);
   fs.mkdirSync(root, { recursive: true });
-  fs.writeFileSync(file, text);
+  writeFileAtomic(file, text);
   console.log(`dod-merge: kept ${kept} verdict${kept === 1 ? '' : 's'} from the existing dod.md`);
 }
 
