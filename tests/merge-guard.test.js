@@ -2,7 +2,8 @@
 
 // Suite for plugin/hooks/merge-guard.js (ADR 0227). The hook is one raw-text check over a subagent's Bash command.
 // The suite requires the hook (silent, require.main guard) and calls its exported decide(), and spawns it once
-// for the hook's stdin and exit-code contract.
+// for the hook's stdin and exit-code contract. A CRLF command, a backslash continuation before a CRLF included, is judged line by
+// line as its LF form is.
 
 const assert = require('node:assert');
 const cp = require('node:child_process');
@@ -46,10 +47,16 @@ const DENIED = [
   'grep -rn "git push" plugin',
   // A heredoc line that itself holds a lead word and a verb is denied.
   "git commit -F - <<'EOF'\nfix: run git push later\nEOF",
+  // A CRLF command is judged as its LF form: a backslash continuation before a CRLF joins, and a CRLF line with a verb is denied.
+  'git \\\r\npush',
+  'git add -A\r\ngit commit -m x\r\ngit push',
 ];
 const ALLOWED = [
   'git add src/push.ts',
   "git commit -F - <<'EOF'\nfix: merge the lists\nEOF",
+  // CRLF lines are judged one by one, as their LF forms are: a harmless second line and a CRLF heredoc message stay allowed.
+  'git add -A\r\ngrep -n merge file.md',
+  "git commit -F - <<'EOF'\r\nfix: merge the lists\r\nEOF",
   'grep -n merge file.md',
   'node scope.js dod-merge',
   'node tests/merge-guard.test.js',

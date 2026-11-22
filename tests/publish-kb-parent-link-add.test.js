@@ -2,7 +2,7 @@
 
 // Suite for plugin/scripts/publish-kb.js: the add path of the parent link under `- **Hierarchy:** links`
 // (ADR 0168, INV-0170): a published page is linked into its parent's live body, where the link lands, which
-// existing link shapes count as the page's link, and the patch and republish routes. No case here hangs a
+// existing link shapes count as the page's link, a `links.` bullet read as `links`, and the patch and republish routes. No case here hangs a
 // backend verb, so the file times no spawn. Shared fixtures live in tests/publish-kb-setup.js.
 
 const assert = require('node:assert');
@@ -49,6 +49,20 @@ for (const eol of ['\n', '\r\n']) {
     assert.equal(captures(dir, 'create')[0].values.parentId, undefined, 'links does not nest');
   });
 }
+
+// a Hierarchy bullet with trailing punctuation (`links.`) behaves as the bare `links`: the page is linked into its parent, unlike
+// the `nested` default
+withCapture((stateFile, dir) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, linksDoc().replace('- **Hierarchy:** links', '- **Hierarchy:** links.'));
+  putHome(stateFile);
+  stageLinked(repo, 'child.md', 'Child');
+
+  const res = call(['--scope', 'demo'], repo);
+  assert.ok(res.ok, `expected success, got: ${res.err}`);
+  assert.equal(readState(stateFile).Home.body, HOME.replace('- [B](B)\n', '- [B](B)\n- [Child](Child) — desc\n'), '`links.` links the page into its parent');
+  assert.equal(captures(dir, 'update').length, 1, 'the parent is updated once');
+});
 
 // a parent that already lists the page by its title, in any target spelling, is not written; which link shapes count
 // is proven in-process in tests/publish-kb-parent-link-pure.test.js

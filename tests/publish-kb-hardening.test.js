@@ -1,7 +1,7 @@
 'use strict';
 
 // Suite for plugin/scripts/publish-kb.js and its lib/kb-*.js modules: refusal on an unreadable input file, the containment refetch
-// bound, report sanitizing, and the one frontmatter splitter. Shared fixtures live in tests/publish-kb-setup.js.
+// bound, report sanitizing, the one frontmatter splitter, and a retry marker on a page that cannot be read. Shared fixtures live in tests/publish-kb-setup.js.
 
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -133,6 +133,20 @@ withState(() => {
   fs.writeFileSync(g, '---\r\ntitle: T\r\n----\r\n---\r\nbody\r\n');
   restageLiveHash(g, 'abc');
   assert.equal(fs.readFileSync(g, 'utf8'), '---\r\ntitle: T\r\n----\r\nlive-hash: abc\r\n---\r\nbody\r\n');
+}
+
+// --- a retry marker on a page that cannot be read reports a failure and writes nothing ----------------------
+{
+  const dir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'kb-fm-'));
+  const missing = path.join(dir, 'missing.md');
+  const folder = path.join(dir, 'folder.md');
+  fs.mkdirSync(folder);
+  for (const [label, p] of [['a missing page', missing], ['a directory', folder]]) {
+    assert.deepStrictEqual(markStagedCreate(p), { ok: false, reason: 'could not write the retry marker' }, `${label} reports a failure`);
+  }
+  assert.ok(!fs.existsSync(missing), 'no page is created');
+  assert.deepStrictEqual(fs.readdirSync(dir), ['folder.md'], 'no temporary file remains');
+  assert.deepStrictEqual(fs.readdirSync(folder), [], 'nothing is written into the directory');
 }
 
 // --- a restage whose rename fails leaves the page intact and no temporary file --------------------------

@@ -1,7 +1,8 @@
 'use strict';
 
 // Suite for plugin/scripts/publish-kb.js: backend configuration refusals and scope selection — a
-// missing `## Commands` section, a local or none backend, a missing verb, the pending-scope listing,
+// missing `## Commands` section, a local or none backend, a missing verb, the pending-scope listing (a plain file in the
+// staging root and a page-less scope folder left out, a staging root that cannot be read refused),
 // the `--scope` argument, and the report's body-free text. Shared fixtures live in
 // tests/publish-kb-setup.js.
 
@@ -71,6 +72,41 @@ withState(() => {
   assert.match(res.err, /beta: 2 staged pages/);
   assert.ok(fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'alpha', 'a.md')), 'nothing is published');
   assert.ok(fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'beta', 'b1.md')));
+});
+
+// --- a plain file in the staging root and a scope folder holding no page are not listed: one real scope still resolves on its own
+for (const [label, put] of [
+  ['a plain file in the staging root', (root) => fs.writeFileSync(path.join(root, 'notes.txt'), 'x\n')],
+  ['a scope folder holding no page', (root) => {
+    fs.mkdirSync(path.join(root, 'empty'));
+    fs.writeFileSync(path.join(root, 'empty', 'notes.txt'), 'x\n');
+  }],
+]) {
+  withState((stateFile) => {
+    const repo = makeRepo();
+    writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+    stagePage(repo, 'demo', 'p.md', 'title: Demo Page\naction: upsert');
+    put(path.join(repo, '.superdev', 'kb-pending'));
+    const res = call([], repo);
+    assert.ok(res.ok, `${label}: the one real scope resolves, got: ${res.err}`);
+    assert.ok(Object.hasOwn(JSON.parse(fs.readFileSync(stateFile, 'utf8')), 'Demo Page'), `${label}: the real scope's page is published`);
+  });
+}
+
+// --- a page-less scope folder alone reports no staged pages; a staging root that is a plain file refuses naming its code ----------
+withState(() => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  fs.mkdirSync(path.join(repo, '.superdev', 'kb-pending', 'empty'), { recursive: true });
+  const alone = call([], repo);
+  assert.equal(alone.ok, false);
+  assert.match(alone.err, /No staged knowledge-base pages in this repo\./, 'a page-less scope folder alone counts as no staged pages');
+
+  fs.rmSync(path.join(repo, '.superdev', 'kb-pending'), { recursive: true });
+  fs.writeFileSync(path.join(repo, '.superdev', 'kb-pending'), 'x\n');
+  const unreadable = call([], repo);
+  assert.equal(unreadable.ok, false);
+  assert.match(unreadable.err, /kb-pending cannot be read \(ENOTDIR\)/, 'a staging root that is a plain file refuses naming its code');
 });
 
 // --- --scope naming a slug with no staged pages says so and stops; an invalid slug names why ---
