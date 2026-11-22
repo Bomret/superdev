@@ -6,7 +6,8 @@
 const fs = require('fs');
 const path = require('path');
 const { fail } = require('./refusal.js');
-const { parseDodLineReadings, dodCriterionLines, takeOption } = require('./dod-line.js');
+const { takeOption, takeRootOption } = require('./options.js');
+const { parseDodLineReadings, dodCriterionLines } = require('./dod-line.js');
 
 // The citation `/superdev:verify-ship` ends a `not met:` note with (references/shipped-run.md's `## Routing a shipped run`).
 const OBSERVED_RE = /\(observed(?:; after ([^)]*))?\)$/;
@@ -46,8 +47,8 @@ function listCriteria(root) {
 // criterion, then `stage-hold: yes|no`. `--tag docs` prints the open `docs` lines alone.
 function verbDodOpen(args) {
   const rest = [...args];
-  const root = takeOption(rest, '--root');
-  if (!root || root.startsWith('--')) fail('dod-open needs --root <run-root>');
+  const root = takeRootOption(rest);
+  if (!root) fail('dod-open needs --root <run-root>');
   const hasTag = rest.includes('--tag');
   const tagFilter = takeOption(rest, '--tag');
   if (hasTag && tagFilter !== 'docs') fail('dod-open --tag takes docs');

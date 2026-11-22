@@ -71,7 +71,7 @@ try {
   refuses(['bogus'], /^unknown verb "bogus"\nusage:/);
   refuses([], /^unknown verb ""\nusage:/);
   refuses(['stage', 'set', 'planned'], /missing --root/);
-  refuses(['stage', 'set', 'planned', '--root'], /--root needs a path/);
+  refuses(['stage', 'set', 'planned', '--root'], /--root needs a value/);
   refuses(['init'], /init needs a <type>\/<slug> label/);
   refuses(['slice', ...R], /slice needs <id> <status>/);
   refuses(['slice', '01', 'merged', ...R, '--range'], /--range needs a value/);

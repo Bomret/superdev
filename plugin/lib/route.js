@@ -32,6 +32,7 @@ function parseFlags(args) {
     else if (flag === '--repairs-none') out.none = true;
     else if (flag === '--target') out.targets.push(checkName(flag, args[++i]));
     else if (flag === '--merge') {
+      if (out.merge !== null) fail('route --merge given twice');
       out.merge = checkName(flag, args[++i]);
       if (!/^[0-9a-fA-F]{7,64}$/.test(out.merge)) fail('route --merge takes a commit hash');
     } else if (flag === '--repair') {

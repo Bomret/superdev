@@ -36,6 +36,7 @@ function verbSourceSet(cwd, args) {
   const tests = args.includes('--tests');
   if (args.filter((a) => a === '--tests').length > 1) fail('source-set: --tests given twice');
   if (tests && args.length > 1) fail('source-set: --tests takes no path; the test-file list is never narrowed');
+  if (args.length > 1) fail(`source-set takes at most one path; got ${args.length}`);
   const scope = tests ? undefined : args[0];
   if (scope !== undefined && !fs.existsSync(path.resolve(cwd, scope))) fail(`source-set: no such path "${scope}"`);
   const top = gitSpawn(['rev-parse', '--show-toplevel'], cwd);
