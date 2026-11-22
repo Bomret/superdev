@@ -179,7 +179,7 @@ async function sketchesAndDrafts($: EngineInterface, root: string, top: Map<stri
   return { designs, drafts }
 }
 
-// The main working tree holds `.superdev/` (a scopetree or linked worktree has none of its own).
+// The main working tree holds `.superdev/`. A linked worktree adds only its own DoD drafts and design sketches.
 // Only the items superdev's docs define are read: info.json, brainstorm/, scopes/, kb-pending/,
 // design/, dod-draft-<slug>.md. Anything else in the folder is ignored.
 async function scanOnce($: EngineInterface): Promise<void> {

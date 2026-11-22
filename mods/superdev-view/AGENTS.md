@@ -9,7 +9,7 @@ what it draws, how to install it, and how its tests run.
 ## Ownership
 
 This document owns the mod's behaviour contract and its working steps. It also owns the mod's place in the
-repository and the fixture pins that couple it to `scope.js` and `plugin/hooks/run-trace.js`. Nothing under `plugin/` requires
+repository and the fixture pins that couple it to `scope.js`, `plugin/hooks/run-trace.js`, and `plugin/lib/run-lock.js`. Nothing under `plugin/` requires
 the mod, and the root marketplace does not list it, so no adopter install carries it. Paths below that start
 with `hooks/` name files in this folder. Paths that start with `plugin/` or `tests/` name files from the
 repository root.
@@ -26,10 +26,18 @@ host's own text size. An Svg in the pane holds no text, because the surface scal
 pane's width, and text inside a scaled drawing shrinks with it. An Svg draws only a bar, at a fixed
 height. A legend square is Text in its bar's fill. The terminal has no Svg and draws the same bars as colored glyphs, one glyph per slice in a scope's bar.
 
-The overview opens with the assignee line, one entry per `info.json` role. An entry shows the role's
-`displayName`, trimmed, when that is a string with a non-blank value, and the role's `assignee` identifier
-otherwise, so a blank name falls back like an absent one. The line keeps to one row: a long name is cut
-at its end. The mod never asks the slice store for a name: `/superdev:setup` writes it into the file.
+The main working tree follows the rule of `plugin/lib/main-work-tree.js`'s `mainWorkTree`. The pane asks git for
+the shared git directory in the session's cwd. When that directory's own `config` sets `core.worktree`, the main
+working tree is the checkout that value names, resolved against the git directory. A submodule takes this branch.
+Otherwise the main working tree is the git directory's parent. A cwd outside a git repository, or a failed git
+call, reads the cwd itself.
+
+The overview opens with the assignee line, which names the issue-tracker account of `info.json` and no other
+role. The line shows the `issue-tracker` role's `displayName`, trimmed, when that is a string with a non-blank
+value. Otherwise it shows the role's `assignee` identifier, when that is a non-blank string. An `assignee` of
+`none` draws no line, whatever `displayName` holds. No such value draws no line, and neither does an `info.json`
+that is unreadable, malformed, or no JSON object. The line keeps to one row: a long name is cut at its end. The
+mod never asks the slice store for a name: `/superdev:setup` writes it into the file.
 Below it, the path line names the main working tree, without the trailing `/.superdev`, and with the home
 directory as `~`. A long path is cut at its start.
 
@@ -49,11 +57,16 @@ A bare tick, an unjudged line, and a line noted `not met:` or `ceiling:` count a
 trace's `ledger stage set closed` line. A closed scope whose trace has no such line comes last. The card
 shows the five most recently closed scopes. A fold below them shows the rest on a press and folds them
 again, and its state lives in the `sections` atom like a card's. The other
-cards draw one row per item, the label on the left and its value on the right. A scope row's name is a
+cards draw one row per item, the label on the left and its value on the right. When the session checkout
+(`git rev-parse --show-toplevel`) is another tree than the main working tree, the DoD drafts and Design sketches
+cards also list that checkout's own `.superdev/dod-draft-*.md` and `.superdev/design/*.html` files. For a slug
+that both trees hold, the card lists the session checkout's copy. The pane compares the two trees as real paths
+and reads nothing else from the session checkout. A scope row's name is a
 Markdown link without a button's chrome. The pane answers a press on it and opens the scope page, the
 scope run's event log, oldest first. No surface opens the link's URL. `eventLog` in `hooks/parse.ts` reads the
-scope's ledger and `trace.log` to build it. `queuedMinors` in the same file reads the ledger's `**Minors:**`
-bullets (the Minor queue, ADR 0174). No surface draws the queue.
+scope's ledger, `trace.log`, and the `run.lock` mtime to build it. `queuedMinors` in the same file reads the
+ledger's `**Minors:**` bullets (the Minor queue, ADR 0174). The scope page draws the queue as one dim line under its
+DoD line, `Minors queued: <id>, <id>`, cut to one row. An empty queue draws no line.
 
 A header line opens each chain command the trace records as started. Its mark is done, stopped, or
 running, and only the running header carries the elapsed time. Every command starts at its
@@ -72,7 +85,9 @@ Between the headers the log draws these lines:
 - one line per dispatch run, at the run's start time. An ended run shows its outcome and duration, from its
   `dispatch-end` line. The pane draws no review verdict: the run trace records none (ADR 0197), and a `verdict` or
   `final-verdict` line in a trace an older release wrote draws nothing. A run with no recorded end shows
-  `running` and the time from its start to the scan's now, so each rescan advances it. A run that a
+  `running` and the time from its start to the scan's now, so each rescan advances it. When the scope's `run.lock`
+  is an hour old or older at the scan's now, or absent, such a run shows `lock stale` and no time instead.
+  `LOCK_STALE_MS` in `hooks/parse.ts` holds that bound, the run lock's own staleness threshold. A run that a
   `dispatch-resume` line reopened is marked `resumed`.
 - one group per slice that a trace line names.
 - a wait of a minute or more between two commands.
@@ -89,7 +104,8 @@ The group's header row shows these parts in order: the open mark, a time, the st
 and the title. The time is the first `in-progress` time, or the first line's time when none exists. The
 status mark comes from the latest `ledger slice` line of the run trace that names the slice. It is ✓
 for `merged`, ✗ for `blocked`, and ▶ for `in-progress`, and absent for any other status. `review ×N`
-counts the slice's completed slice-reviewer dispatches. A merged or blocked slice then shows the time
+counts the slice's completed slice-reviewer dispatches. A dispatch is a slice-reviewer dispatch when the text after
+the last `:` of its agent type is `slice-reviewer`, whatever prefix comes before it. A merged or blocked slice then shows the time
 from its first start to its last end, and an `in-progress` slice shows `running` and the time from its
 first start. A merged group starts closed, unless it holds a run with no recorded end. Every other group
 starts open. The open mark is a Button beside the row's Text parts. A press writes the `groups` plugin
@@ -99,7 +115,8 @@ group's own lines start from the day of its header time.
 
 One dispatch can have several runs, because a `dispatch-resume` line reopens it. A dispatch can have a
 run with no recorded end. A slice can have started and not ended. One line above the log counts those
-dispatches and slices when any exist. One line after the log
+dispatches and slices when any exist. That line and the overview row's `N running` count leave out a dispatch
+whose run reads `lock stale`. They still count a started slice, because the ledger records it. One line after the log
 names the commands still ahead, when any remain, or `closed` once the scope has closed. That ahead line
 is absent when the trace records no command yet, when the trace predates the step lines and is past
 `implement`, and when no command is left.
@@ -113,6 +130,12 @@ header it is the title, and a header with an empty title draws no title part. On
 line inside a group it is the status. On a stage, wait, date, or ahead line it is the label after the
 time and mark. A slice summary line is one dim part that shrinks. A wait, date, or ahead line has only
 that label part.
+
+The pane rescans every 3 s, on the `/superdev-view` command, and on a press on a scope row. At most one scan runs
+at a time. A request while a scan runs queues one follow-up scan, which starts when the running scan ends. Every
+later request in that window shares the follow-up. The command and a scope press therefore resolve only after a
+scan that started after their own request. A scan that fails at any step stores nothing, so the pane keeps the
+last snapshot until the next good scan. Before the first good scan, the pane shows its scanning notice.
 
 The scan reads a closed scope's whole trace while its page is open. Otherwise it reads that trace once, for
 the close time, and keeps the time in memory, because a closed trace does not change. The scope stays in the list until
@@ -152,8 +175,16 @@ clock instead of the kit's 5 s default: the bound counts time a case spends desc
   `hooks/dod-fixtures.ts`, one per verdict, tagged and untagged (INV-0190). `tests/scope-dod-open.test.js` also reads
   `hooks/dod-fixtures.ts` and asserts that `scope.js dod-open` agrees with `dod-line` on every line in it.
 
+- The lock pin in `tests/scope-open.test.js` asserts that `LOCK_STALE_MS` in `hooks/parse.ts` equals
+  `plugin/lib/run-lock.js`'s `STALENESS_MS`.
+
 `hooks/parse.test.ts` parses each fixture file. A change to the ledger, trace, or DoD line layout fails one of these
 suites, so the change updates `hooks/parse.ts` and the fixture file together.
+
+To type-check the mod, copy the main checkout's `mods/superdev-view/.claude-plugin/types/` into the working
+checkout's same path, then run `npx -y -p typescript@5.6.3 tsc --noEmit -p mods/superdev-view/tsconfig.json`. The
+tsconfig extends `.claude-plugin/types/tsconfig.json`, which exists only once the engine has loaded the mod. The
+directory is gitignored, so nothing from it is committed. No CI job and no `run-tests.js` step runs the type check.
 
 ## Child DOX Index
 
