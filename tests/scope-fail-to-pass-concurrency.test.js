@@ -152,6 +152,54 @@ for (let i = 0; i < 3; i++) withWorktreeLock(${JSON.stringify(s.repo)}, () => {
       }
       assert.ok(!fs.existsSync(overlapLog), 'no two waiters held the lock at once: ' + (fs.existsSync(overlapLog) ? fs.readFileSync(overlapLog, 'utf8') : ''));
       assert.ok(!fs.existsSync(staleLock), 'and no lock stays');
+
+      // A lock whose owner record is empty, unparseable, zero, or negative is a holder's that never wrote a pid. Older than the
+      // grace (its mtime set back past it) one waiter reclaims it and proceeds; younger, or owned by a live pid, it is left alone.
+      const lockedRun = (record, ageMs, { waiters = 1, bound = 120000 } = {}) => {
+        fs.mkdirSync(staleLock);
+        if (record !== null) fs.writeFileSync(path.join(staleLock, 'pid'), record);
+        const when = new Date(Date.now() - ageMs);
+        fs.utimesSync(staleLock, when, when);
+        fs.rmSync(marker, { force: true });
+        fs.rmSync(overlapLog, { force: true });
+        const ran = path.join(D, 'lock-ran');
+        fs.rmSync(ran, { force: true });
+        const body = `const fs=require('fs');const {withWorktreeLock}=require(${JSON.stringify(lockLib)});
+withWorktreeLock(${JSON.stringify(s.repo)}, () => {
+  const held = fs.existsSync(${JSON.stringify(path.join(staleLock, 'pid'))}) ? fs.readFileSync(${JSON.stringify(path.join(staleLock, 'pid'))}, 'utf8') : '';
+  fs.appendFileSync(${JSON.stringify(ran)}, held === String(process.pid) ? 'locked\\n' : 'unlocked\\n');
+  try { fs.writeFileSync(${JSON.stringify(marker)}, '', { flag: 'wx' }); } catch { fs.appendFileSync(${JSON.stringify(overlapLog)}, 'overlap\\n'); return; }
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
+  fs.rmSync(${JSON.stringify(marker)});
+});`;
+        // One waiter runs as the child itself, so the bound ends it; a crowd runs under `sh`, which waits for all of them.
+        const crowd = waiters === 1
+          ? spawnSync(process.execPath, ['-e', body], { encoding: 'utf8', timeout: bound })
+          : spawnSync('sh', ['-c', `for i in $(seq ${waiters}); do node -e "$HOLDER" & done; wait`], {
+            env: { ...process.env, HOLDER: body }, encoding: 'utf8', timeout: bound,
+          });
+        const runs = fs.existsSync(ran) ? fs.readFileSync(ran, 'utf8').trim().split('\n').filter(Boolean) : [];
+        const left = fs.existsSync(staleLock);
+        fs.rmSync(staleLock, { recursive: true, force: true });
+        return { crowd, runs, left };
+      };
+      for (const record of ['', 'x', '0', '-1']) {
+        const got = lockedRun(record, 60000);
+        assertSpawnDecided(got.crowd, `the waiter on owner record ${JSON.stringify(record)}`);
+        assert.deepEqual(got.runs, ['locked'], `owner record ${JSON.stringify(record)} past the grace is reclaimed and the waiter proceeds holding the lock`);
+        assert.ok(!got.left, 'and no lock stays');
+      }
+      {
+        const got = lockedRun('', 60000, { waiters: 6 });
+        assertSpawnDecided(got.crowd, 'the crowd on an empty owner record');
+        assert.deepEqual(got.runs, Array(6).fill('locked'), 'each of several waiters runs, all inside the lock');
+        assert.ok(!fs.existsSync(overlapLog), 'and no two held it at once');
+      }
+      // Inside the grace, or held by a live pid, the waiter stays out: the bounded run ends by the bound with no entry made.
+      for (const [record, ageMs] of [['', 1000], ['x', 1000], [String(process.pid), 60000]]) {
+        const got = lockedRun(record, ageMs, { bound: 2500 });
+        assert.deepEqual(got.runs, [], `owner record ${JSON.stringify(record)} aged ${ageMs} ms is never taken from its holder`);
+      }
     }
   } finally {
     done();
