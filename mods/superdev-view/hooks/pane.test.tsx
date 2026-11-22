@@ -23,7 +23,7 @@ const PANE = {
 test('clicking an active scope shows its log, back returns', async ($, on) => {
   on('session.cwd', async () => ({ value: '/r' }))
   on('env.get', async () => ({ value: undefined }))
-  on('process.run', async () => ({ value: { exitCode: 0, stdout: '/r/.git\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
+  on('process.run', async (_$, e) => ({ value: { exitCode: e.argv.includes('--git-common-dir') ? 0 : 1, stdout: '/r/.git\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
   on('fs.exists', async (_$, e) => ({ value: e.path === R }))
   on('fs.list', async (_$, e) => {
     const l = LISTS[e.path]
@@ -61,7 +61,7 @@ test('a rescan with nothing changed writes no snapshot, so the pane does not red
   })
   on('session.cwd', async () => ({ value: '/r' }))
   on('env.get', async () => ({ value: undefined }))
-  on('process.run', async () => ({ value: { exitCode: 0, stdout: '/r/.git\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
+  on('process.run', async (_$, e) => ({ value: { exitCode: e.argv.includes('--git-common-dir') ? 0 : 1, stdout: '/r/.git\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
   on('fs.exists', async (_$, e) => ({ value: e.path === R }))
   on('fs.list', async (_$, e) => {
     const l = LISTS[e.path]
@@ -279,3 +279,17 @@ for (const step of ['session.cwd', 'fs.exists', 'process.run', 'fs.list'] as con
     await ui.redraw()
     expect(await ui.find({ key: 'scope-a' })).toBeDefined()
   })
+
+// --- the main working tree and the session checkout ---
+
+const SUB = '/r/sub/.superdev'
+test('a session in a submodule reads the submodule checkout, which its git directory\'s core.worktree names', async ($, on) => {
+  // The folder's own entry in `files` makes it exist; the fixture's own root, /r/.superdev, does not.
+  const files: Record<string, string> = { [SUB]: '', [`${SUB}/scopes/s/ledger.md`]: ledger('implementing', [['01', 'todo']]) }
+  const lists: Record<string, ReturnType<typeof d>[]> = { [SUB]: [d('scopes')], [`${SUB}/scopes`]: [d('s')], [`${SUB}/scopes/s`]: [] }
+  fakeRepo(on, files, lists, '/r/sub', undefined, {}, false, new Set(), { commonDir: '/r/.git/modules/sub', worktree: '../../../sub' })
+  await $.command.run(runCommand)
+  const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'terminal', ...P })
+  expect(await ui.find({ key: 'scope-s' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^~\/sub$/ })).toBeDefined()
+})

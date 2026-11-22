@@ -128,15 +128,37 @@ async function store($: EngineInterface, next: Snapshot): Promise<void> {
   if (JSON.stringify(await read($, snapshot)) !== JSON.stringify(next)) await update($, snapshot, () => next)
 }
 
+// One git call's trimmed output in `cwd`, or null when it fails.
+const gitOut = async ($: EngineInterface, args: string[], cwd: string) => {
+  const r = await $.process.run(['git', ...args], { cwd }).catch(() => undefined)
+  return r?.exitCode === 0 ? r.stdout.trim() : null
+}
+// `rel` resolved against the absolute directory `base`, its `.` and `..` segments folded.
+function resolvePath(base: string, rel: string): string {
+  const out: string[] = []
+  for (const seg of (rel.startsWith('/') ? rel : `${base}/${rel}`).split('/')) {
+    if (seg === '..') out.pop()
+    else if (seg !== '' && seg !== '.') out.push(seg)
+  }
+  return `/${out.join('/')}`
+}
+// The main working tree, by `plugin/lib/main-work-tree.js`'s rule: the checkout the shared git directory's own
+// `core.worktree` names, resolved against that directory (a submodule's), else the directory's parent. Null outside
+// a git repository.
+async function mainWorkTree($: EngineInterface, cwd: string): Promise<string | null> {
+  const gitDir = await gitOut($, ['rev-parse', '--path-format=absolute', '--git-common-dir'], cwd)
+  if (gitDir === null) return null
+  const dir = gitDir.replace(/\/$/, '')
+  const worktree = await gitOut($, ['config', '--file', `${dir}/config`, '--get', 'core.worktree'], cwd)
+  return worktree ? resolvePath(dir, worktree) : resolvePath(dir, '..')
+}
+
 // The main working tree holds `.superdev/` (a scopetree or linked worktree has none of its own).
 // Only the items superdev's docs define are read: info.json, brainstorm/, scopes/, kb-pending/,
 // design/, dod-draft-<slug>.md. Anything else in the folder is ignored.
 async function scanOnce($: EngineInterface): Promise<void> {
   const cwd = await $.session.cwd()
-  const git = await $.process
-    .run(['git', 'rev-parse', '--path-format=absolute', '--git-common-dir'], { cwd })
-    .catch(() => undefined)
-  const main = git?.exitCode === 0 ? git.stdout.trim().replace(/\/\.git\/?$/, '') : cwd
+  const main = (await mainWorkTree($, cwd)) ?? cwd
   const root = `${main}/.superdev`
   const empty = { root, assignees: null, intents: null, scopes: null, kbPending: null, designs: null, drafts: [] }
   if (!(await $.fs.exists(root))) {
