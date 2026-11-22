@@ -224,6 +224,24 @@ try {
     assert.notStrictEqual(refAt(f.origin, 'refs/heads/main'), null, 'the remote base stays');
   }
 
+  // #option-shaped: an option-shaped ledger branch, remote, or base reaches git as a name, never as an option. The
+  // ledger branch and the base name no ref, so nothing is deleted; the remote names no repository, so the remote branch
+  // and its tracking ref stay, and only the contained local ref goes. The base stays in every case.
+  for (const [label, branch, extra, kept] of [
+    ['a ledger branch --upload-pack=x', '--upload-pack=x', ['--base', 'main', '--remote', 'origin'], allRefs],
+    ['a ledger branch -D', '-D', ['--base', 'main', '--remote', 'origin'], allRefs],
+    ['a --remote --foo', BRANCH, ['--base', 'main', '--remote', '--foo'], (f) => [trackingTip(f), remoteTip(f)]],
+    ['a --base --foo', BRANCH, ['--base', '--foo', '--remote', 'origin'], allRefs],
+  ]) {
+    const f = fixture({ ledger: `# Ledger\n\n**Branch:** ${branch}\n` });
+    const before = kept(f);
+    const r = spawnSync(process.execPath, [scopePath, 'branch', 'delete', '--root', f.root, ...extra], { cwd: f.repo, encoding: 'utf8', timeout: 120000 });
+    assert.notStrictEqual(r.status, 0, `${label} exits nonzero: ${r.stdout} ${r.stderr}`);
+    assert.deepStrictEqual(kept(f), before, `${label} deletes no ref past the contained local one: ${r.stdout}`);
+    assert.notStrictEqual(refAt(f.repo, 'refs/heads/main'), null, `${label} keeps the local base`);
+    assert.notStrictEqual(refAt(f.origin, 'refs/heads/main'), null, `${label} keeps the remote base`);
+  }
+
   // #local-gone: a local branch deleted by hand: the resolved remote's tracking ref is judged and the remote delete is
   // leased on its tip; a tracking ref of another remote, here one base does not contain, is never judged.
   {

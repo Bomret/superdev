@@ -469,9 +469,8 @@ function run(argv, cwd, stdinJson) {
       break;
     // Reads the ledger and git and writes nothing: one scope-branch verdict, `--root` names the run to read (INV-0196).
     // Prints `ledger <b>`, `guess <b>`, `guess-remote <b>`, `ambiguous <b> <b>…`, `none`, or `git-failed <reason>`; every verdict exits 0 and the caller judges it.
-    // `branch delete` deletes: a contained scope branch, locally, as its remote-tracking ref, and on the remote, and no run
-    // file (ADR 0274, INV-0204). It exits 0 when every ref is deleted or gone, 3 when the containment gate refused, 4 when a ref
-    // was kept or failed. `delete` is peeled off only as the first word, so `branch --root delete` still names a root.
+    // `branch delete` deletes a contained scope branch locally, as its remote-tracking ref, and on the remote (ADR 0274).
+    // `delete` is peeled off only as the first word, so `branch --root delete` still names a root.
     case 'branch': {
       if (args[0] === 'delete') {
         libBranchDelete().verbBranchDelete(cwd, args.slice(1));
