@@ -165,6 +165,21 @@ try {
     assert.strictEqual(remoteTip(f), moved, 'the remote keeps its commits');
   }
 
+  // #hook-declined: a remote whose pre-receive hook declines the delete reads failed, never kept-moved: only git's own
+  // lease rejection reads moved.
+  {
+    const f = fixture();
+    const before = remoteTip(f);
+    const hook = path.join(f.origin, 'hooks', 'pre-receive');
+    fs.mkdirSync(path.dirname(hook), { recursive: true });
+    fs.writeFileSync(hook, '#!/bin/sh\necho "protected branch" >&2\nexit 1\n');
+    fs.chmodSync(hook, 0o755);
+    const r = del(f);
+    assert.strictEqual(r.status, 4, `exits 4: ${r.out} ${r.err}`);
+    assert.strictEqual(r.lines.remote.word, 'failed', `a declined push reads failed: ${r.out}`);
+    assert.strictEqual(remoteTip(f), before, 'the remote branch stays');
+  }
+
   // #not-contained: a not-contained branch deletes nothing; the verdict is printed, exit 3 (INV-0204).
   {
     const f = fixture();

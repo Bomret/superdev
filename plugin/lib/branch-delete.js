@@ -128,7 +128,9 @@ function deleteRemote(cwd, remote, branch, tested) {
   if (tip !== tested) return `remote kept-moved ${remote} ${branch} is at ${tip}, past the tested tip ${tested}; ${byHand(tip)}`;
   const pushed = gitCall(['push', `--force-with-lease=${ref}:${tested}`, '--delete', '--end-of-options', remote, ref], cwd, true);
   if (pushed.status === 0 && pushed.signal == null) return `remote deleted ${remote} ${branch} was ${tested}`;
-  if (pushed.signal == null && /stale info|\(fetch first\)|rejected/.test(pushed.stderr || '') && !CREDENTIAL_RE.test(pushed.stderr || '')) {
+  // Only git's own lease rejection reads moved: a `[rejected]` line with `stale info` or `fetch first`. A `[remote
+  // rejected]` line, such as a declining pre-receive hook or a protected branch, reads failed.
+  if (pushed.signal == null && /^\s*! \[rejected\].*\((stale info|fetch first)\)/m.test(pushed.stderr || '')) {
     return `remote kept-moved ${remote} ${branch} moved past the tested tip ${tested} before the push: ${lastLine(pushed)}; ${byHand('<its tip>')}`;
   }
   return failed('push', pushed, tested);
