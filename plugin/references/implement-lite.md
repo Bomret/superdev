@@ -96,8 +96,10 @@ none) and another file, and its test-path changes are not all deletions.
 
 - **The command** names every test file the range adds or modifies, and runs from the tree root.
 - **The control.** A final `test path` run of those files from the tree root at the committed tip, with the exact
-  command the verb then takes, is reused as the verb's control; the verb runs only the second run and skips its first
-  preparation. After a final focused run, the verb settles from the trace or runs its own control.
+  command the verb then takes, is reused as the verb's control when the tip's `docs/agents/verification.md` carries a
+  `## Prepare command` section holding a command or `none`; the verb then runs only the second run and skips its first
+  preparation. Without that section the verb runs its own control. After a final focused run, the verb settles from
+  the trace or runs its own control.
 - **A range whose test-path changes are all deletions** and that adds behaviour outside the test paths: write a test
   for that behaviour, then run the verb.
 - **Background.** Run the verb in the background when two runs of the range's test files can outlast the ceiling, and

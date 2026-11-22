@@ -217,7 +217,7 @@ Applies to a scope dispatch, before you open `<run-root>/dod.md`.
 
 Write your own list of criteria first, in three steps. Your list is no second Definition of Done, because a controller ticks that one and you never do.
 
-1. Read the one-line intent and the slice list in `<run-root>/ledger.md`. Read nothing else: not the diff, not `dod.md`, not the slice bodies.
+1. Read the `**Anchor:**` line, the anchor's key and title, and the slice table in `<run-root>/ledger.md`. Read nothing else: not the diff, not `dod.md`, not the slice bodies.
 2. Write the acceptance criteria this feature ought to have, including the failure and boundary cases the intent implies. State the list in your response before you open `dod.md`.
 3. Open `<run-root>/dod.md` and the diff, and review as the rest of `## Review dispatches` and `## Scope dispatch` directs.
 
@@ -257,7 +257,7 @@ Judge the slices as one integrated change against the plan. Find the seam where 
 
 Applies to a scope dispatch.
 
-Read the trace with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --root <run-root>`, narrowed with `--slice <id|scope>`, `--kind <kind>[,<kind>]`, `--window <dispatch id>`, or `--last <n>` to the lines a section asks for. Hooks wrote it. List a slice's or the scope's implementer windows with `scope.js windows --slice <id|scope> --root <run-root>`. Read `${CLAUDE_PLUGIN_ROOT}/references/review-coverage.md`, `${CLAUDE_PLUGIN_ROOT}/references/fail-to-pass.md`, and `${CLAUDE_PLUGIN_ROOT}/references/untraced-writes.md`, and apply their sections below to what it holds.
+Read the trace with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --root <run-root>`, narrowed with `--slice <id|scope>`, `--kind <kind>[,<kind>]`, `--window <dispatch id>`, or `--last <n>` to the lines a section asks for. Hooks wrote its dispatch and edit lines, and `scope.js` its `run`, `ledger`, and `fail-to-pass` lines. List a slice's or the scope's implementer windows with `scope.js windows --slice <id|scope> --root <run-root>`. Read `${CLAUDE_PLUGIN_ROOT}/references/review-coverage.md`, `${CLAUDE_PLUGIN_ROOT}/references/fail-to-pass.md`, and `${CLAUDE_PLUGIN_ROOT}/references/untraced-writes.md`, and apply their sections below to what it holds.
 
 - The dispatch names the tier and the run root.
 - A trace line's second field is its slice: the slice id, or `scope`.

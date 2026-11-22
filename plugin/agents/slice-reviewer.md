@@ -63,7 +63,7 @@ Settle your verdict before you open the progress log (`## Reading the progress l
 
 - The evidence is the `spec`, the `acceptance` criteria, and the diff, read through Lens 1 and Lens 2, the recorded runs included.
 - The blind findings are Strengths, Issues, and the uncovered-input section of the output.
-- The slice's run-trace lines belong to the blind pass, because hooks wrote them. Read them next (`## Run-trace findings`).
+- The slice's run-trace lines belong to the blind pass, because the tooling wrote them and the implementer's report wrote none: hooks wrote the dispatch and edit lines, and `scope.js` the `run`, `ledger`, and `fail-to-pass` lines. Read them next (`## Run-trace findings`).
 
 ## Run-trace findings
 
