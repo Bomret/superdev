@@ -304,7 +304,7 @@ test('a git directory with a drive letter reads the main tree under that drive, 
   expect(await ui.find({ type: 'Text', text: 'no .superdev folder (C:/Users/x/.superdev)' })).toBeDefined()
 })
 
-// Each case takes a cwd of its own: the trees a scan found stay known per cwd for the module's life.
+// The kit loads the hooks module afresh for each case, so the trees a scan keeps per cwd last for one case only.
 test('a rescan from an unchanged cwd spawns no git call', async ($, on) => {
   const { files, lists } = repo()
   const runs: string[][] = []
