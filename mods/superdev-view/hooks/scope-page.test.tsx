@@ -83,7 +83,8 @@ test('the scope page draws the run as one oldest-first log, with no wave, scope-
       `${hm(at('10:06:00'))} ■ implement · 06:00`,
       '⋯ 04:00',
       expect.stringMatching(new RegExp(`^${hm(at('10:10:00'))} ● review \\d+:\\d\\d:\\d\\d$`)),
-      expect.stringMatching(new RegExp(`^${hm(at('10:11:00'))} ▶ final-reviewer scope · running \\d+:\\d\\d:\\d\\d$`)),
+      // The fixture holds no run lock, so the never-ended final-reviewer reads `lock stale`.
+      `${hm(at('10:11:00'))} ▶ final-reviewer scope · lock stale`,
       '○ document · submit · ship · wrap-up',
     ])
     await ui.press({ key: 'back' })
@@ -176,7 +177,7 @@ test('no log line nests a Text in a Text, and each colored part keeps its color,
     `${at('10:14:00')} 02 main ledger slice 02 blocked`,
     `${at('10:15:00')} scope main dispatch superdev:implementer i9 Fix s1`,
   ])
-  fakeRepo(on, files, lists)
+  fakeRepo(on, files, lists, '/r', undefined, held())
   await $.command.run(runCommand)
   for (const surface of SURFACES) {
     const ui = await open($, surface)
@@ -234,7 +235,7 @@ test('in every log line only the shrink part shrinks, and every other part keeps
 
 test('an absent outcome or resume leaves no empty part and no stray separator', async ($, on) => {
   const { files, lists } = repo()
-  fakeRepo(on, files, lists)
+  fakeRepo(on, files, lists, '/r', undefined, held())
   await $.command.run(runCommand)
   const ui = await open($, 'terminal')
   const rows = await logRows(ui)
@@ -340,3 +341,38 @@ test('a merged slice draws one closed group; pressing its open mark shows its li
   expect((await ui.find({ key: 'toggle-01' }))?.props).toMatchObject({ label: '▾' })
   expect((await ui.find({ key: 'toggle-02' }))?.props).toMatchObject({ label: '▸' })
 })
+
+// TRACE ends on a never-ended scope-level final-reviewer; NEVER_IN_SLICE has one inside slice 02's in-progress group.
+const NEVER_IN_SLICE = [...TRACE.slice(0, 2), `${at('10:00:30')} 02 main ledger slice 02 in-progress`, `${at('10:01:00')} 02 main dispatch superdev:implementer i1 Build s1`]
+const LOCKS = [
+  ['two hours old', () => ({ [`${A}/run.lock`]: Date.now() - 2 * 3600e3 }), true],
+  ['absent', () => ({}), true],
+  ['five minutes old', () => ({ [`${A}/run.lock`]: Date.now() - 5 * 60e3 }), false],
+] as const
+for (const [what, lock, isStale] of LOCKS) {
+  test(`a never-ended scope-level dispatch under a run lock ${what} draws ${isStale ? 'lock stale with no time and no running line' : 'running and its elapsed time'}, on every surface`, async ($, on) => {
+    const { files, lists } = repo(TRACE, 'merged')
+    fakeRepo(on, files, lists, '/r', undefined, lock())
+    await $.command.run(runCommand)
+    for (const surface of SURFACES) {
+      const ui = await open($, surface)
+      const row = (await logRows(ui)).find(r => r.text.includes('▶ final-reviewer scope'))
+      expect(row?.text).toMatch(isStale ? / · lock stale$/ : / · running \d+:\d\d:\d\d$/)
+      expect(!!(await ui.find({ type: 'Text', text: /^● 1 running$/ }))).toBe(!isStale)
+      await ui.unmount()
+    }
+  })
+  test(`a never-ended dispatch in an in-progress slice's group under a run lock ${what} draws ${isStale ? 'lock stale' : 'running'} on its run line, and the group header keeps running`, async ($, on) => {
+    const { files, lists } = repo(NEVER_IN_SLICE, 'implementing')
+    files[`${A}/ledger.md`] = ledger('implementing', [['01', 'merged'], ['02', 'in-progress', '01']])
+    fakeRepo(on, files, lists, '/r', undefined, lock())
+    await $.command.run(runCommand)
+    for (const surface of SURFACES) {
+      const ui = await open($, surface)
+      const rows = (await logRows(ui)).map(r => r.text)
+      expect(rows.find(r => r.includes('▶ implementer'))).toMatch(isStale ? / · lock stale$/ : / · running \d+:\d\d:\d\d$/)
+      expect(rows.find(r => / 02 Slice 02/.test(r))).toMatch(/ · running \d+:\d\d:\d\d$/)
+      await ui.unmount()
+    }
+  })
+}

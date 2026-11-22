@@ -340,14 +340,14 @@ export const register: Register = on => {
         }
         case 'run': {
           // One line per dispatch run, at its start: an ended run carries its outcome and duration, a running one its elapsed
-          // time. Inside a slice group the slice id goes unsaid.
+          // time, or `lock stale` in its place under a stale run lock. Inside a slice group the slice id goes unsaid.
           const agent = isInGroup ? ` ${type(e.type)}` : ` ${type(e.type)} ${e.slice}`
           if (!e.isEnded) return row(key, [
             { text: `${hm(e.at)} ` },
             { text: '▶', color: 'green' },
             { text: agent, shrink: true },
             e.isResumed && { text: ' · resumed' },
-            { text: ` · running ${clock(e.ms)}` },
+            { text: e.isLockStale ? ' · lock stale' : ` · running ${clock(e.ms)}`, color: e.isLockStale ? 'yellow' : undefined },
           ], isInGroup)
           const outcome = e.outcome !== '' && e.outcome !== 'completed' ? e.outcome : ''
           return row(key, [
