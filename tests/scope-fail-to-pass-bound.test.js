@@ -9,12 +9,17 @@ require('./fixture-git');
 // temporary directory (root AGENTS.md, *Every shipped executable has a suite in `tests/`, named for it*).
 
 const assert = require('node:assert');
+const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { assertSpawnDecided } = require('./spawn-verdict');
 const { f2pFixture, verif, writeOperatorConfig } = require('./scope-setup');
 
-const { failToPassBoundMs } = require('../plugin/lib/fail-to-pass.js');
+const { failToPassBoundMs, failToPassFloorMs, failToPassControlMs } = require('../plugin/lib/fail-to-pass.js');
+
+// A directory outside any repository, with no operator configuration: each reader's default.
+const noConfig = fs.mkdtempSync(path.join(os.tmpdir(), 'f2p-bound-noconfig-'));
 
 // Every case runs at the default floor of the bound unless its fixture's `.superdev/info.json` sets its own (ADR 0142, ADR 0207).
 // A set environment variable of the removed name changes nothing.
@@ -69,36 +74,19 @@ process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS = '1';
     assert.equal(slow.out.stdout.trim(), 'fail-to-pass control=0,put-back=1', slow.out.stderr);
 
     // The bound has a floor (ADR 0142, #1059). A control that finishes in milliseconds would give a bound shorter than the
-    // delays a loaded machine adds. The floor setting's parsing is proven in-process over `failToPassFloorMs`: an unset or
-    // empty value says nothing, a rejected one (not a number, zero, negative, above 2147483647, the longest
-    // delay Node's timer holds) falls back to 10 000 ms and is named once on stderr. An unset, empty, or whitespace-only value
-    // (trimmed to empty) falls back silently. `5s` is the non-numeric one, because a leading-digit parse would read it as 5 ms.
-    const floorOf = (config, from = 'tree') => {
+    // delays a loaded machine adds. The floor is `verification.failToPassFloorMs`, 10 000 ms by default; the parse rules of
+    // every operator bound are proven once, in tests/operator-config.test.js. A process run from the linked worktree reads
+    // the main checkout's value, which proves the section and key. The default is read in process with the removed
+    // variable set, which changes nothing.
+    const floorOf = (config) => {
       const b = scenario({ base: { 'src.txt': 'a\n' }, tip: { 'src.txt': 'b\n' } });
-      if (config !== undefined) writeOperatorConfig(b.repo, config);
-      const r = spawnSync(process.execPath, ['-e', "console.log(require(process.argv[1]).failToPassFloorMs(process.cwd()))", path.resolve(__dirname, '../plugin/lib/fail-to-pass.js')], { cwd: from === 'repo' ? b.repo : b.tree, encoding: 'utf8', timeout: 20000, killSignal: 'SIGKILL', env: { ...process.env, SUPERDEV_FAIL_TO_PASS_FLOOR_MS: '1' } });
+      writeOperatorConfig(b.repo, config);
+      const r = spawnSync(process.execPath, ['-e', "console.log(require(process.argv[1]).failToPassFloorMs(process.cwd()))", path.resolve(__dirname, '../plugin/lib/fail-to-pass.js')], { cwd: b.tree, encoding: 'utf8', timeout: 20000, killSignal: 'SIGKILL', env: { ...process.env, SUPERDEV_FAIL_TO_PASS_FLOOR_MS: '1' } });
       assertSpawnDecided(r, 'floor reader');
       return { floor: Number(r.stdout.trim()), err: r.stderr };
     };
-    const info = (value) => ({ verification: { failToPassFloorMs: value } });
-    for (const [label, config] of [['no file', undefined], ['invalid JSON', '{nope'], ['no section', {}], ['no key', { verification: {} }]]) {
-      const got = floorOf(config);
-      assert.equal(got.floor, 10000, `the floor for ${label}`);
-      assert.equal(got.err, '', `${label} says nothing on stderr`);
-    }
-    for (const value of [1500, 2147483647]) {
-      const got = floorOf(info(value));
-      assert.equal(got.floor, value, `the floor for ${value}`);
-      assert.equal(got.err, '');
-    }
-    // The same file read from the main checkout and from the linked worktree gives the same floor.
-    assert.equal(floorOf(info(1500), 'repo').floor, 1500, 'the floor read from the main checkout');
-    assert.equal(floorOf(info(1500), 'tree').floor, 1500, 'the floor read from the linked worktree');
-    for (const value of ['1500', 1500.5, 0, -5, null, {}, 2147483648]) {
-      const got = floorOf(info(value));
-      assert.equal(got.floor, 10000, `the floor for ${JSON.stringify(value)} reads as absent`);
-      assert.equal((got.err.match(/verification\.failToPassFloorMs/g) || []).length, 1, `a rejected value is named once on stderr (${JSON.stringify(value)}): ${got.err}`);
-    }
+    assert.deepEqual(floorOf({ verification: { failToPassFloorMs: 1500 } }), { floor: 1500, err: '' }, 'the floor read from the linked worktree');
+    assert.equal(failToPassFloorMs(noConfig), 10000, 'the default floor, whatever the removed variable holds');
     // One verb row: the setting reaches the verb run from a linked worktree. A hanging run after a fast control is killed at the floor it names, never earlier.
     const atFloor = bounded(0.01, 1500);
     const floorBound = /^unknown control=0,put-back=SIGKILL,bound=(\d+)ms$/.exec(atFloor.out.stdout.trim());
@@ -126,23 +114,22 @@ process.env.SUPERDEV_FAIL_TO_PASS_FLOOR_MS = '1';
     assertGone('no process the expired control started keeps running', path.join(ctl.dir, 'pid'), path.join(ctl.dir, 'child'));
     assert.ok(ctlElapsed < 1500 * 10, `the verb ran ${ctlElapsed}ms against a configured control bound of 1500ms`);
 
-    // The control bound's reader: 300 000 ms with no configuration, the configured value, and a rejected one named once.
+    // The control bound's reader: a process run from the linked worktree reads `verification.failToPassControlMs` from the
+    // main checkout, and the default, read in process, is 300 000 ms.
     const controlOf = (config) => {
       const b = scenario({ base: { 'src.txt': 'a\n' }, tip: { 'src.txt': 'b\n' } });
-      if (config !== undefined) writeOperatorConfig(b.repo, config);
+      writeOperatorConfig(b.repo, config);
       const r = spawnSync(process.execPath, ['-e', "console.log(require(process.argv[1]).failToPassControlMs(process.cwd()))", path.resolve(__dirname, '../plugin/lib/fail-to-pass.js')], { cwd: b.tree, encoding: 'utf8', timeout: 20000, killSignal: 'SIGKILL' });
       assertSpawnDecided(r, 'control bound reader');
       return { ms: Number(r.stdout.trim()), err: r.stderr };
     };
-    assert.deepEqual(controlOf(undefined), { ms: 300000, err: '' }, 'the default control bound is 5 minutes');
     assert.deepEqual(controlOf({ verification: { failToPassControlMs: 2000 } }), { ms: 2000, err: '' });
-    const rejected = controlOf({ verification: { failToPassControlMs: 0 } });
-    assert.equal(rejected.ms, 300000);
-    assert.equal((rejected.err.match(/verification\.failToPassControlMs/g) || []).length, 1, rejected.err);
+    assert.equal(failToPassControlMs(noConfig), 300000, 'the default control bound is 5 minutes');
     const help = spawnSync(process.execPath, [path.resolve(__dirname, '../plugin/scripts/scope.js'), 'help'], { encoding: 'utf8', timeout: 20000, killSignal: 'SIGKILL' });
     assertSpawnDecided(help, 'scope.js help');
     assert.match(help.stdout + help.stderr, /first run is bounded\s+at 300000 ms \(`verification\.failToPassControlMs` sets it/, 'the help names the control bound, its default, and the key');
   } finally {
     done();
+    fs.rmSync(noConfig, { recursive: true, force: true });
   }
 }
