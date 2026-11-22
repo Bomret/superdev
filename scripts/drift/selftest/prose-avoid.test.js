@@ -314,6 +314,9 @@ module.exports = ({ assert, path, fixture, found }) => {
     assert.equal(noRun({ [rel]: 'Setup never runs the full command.\n' }).length, 0, `${rel}: a negated run of the full command passes`);
     assert.equal(noRun({ [rel]: 'Setup never runs the test command.\n' }).length, 0, `${rel}: a negated run of the test command passes`);
     assert.equal(noRun({ [rel]: 'Do not forget to run the full command.\n' }).length, 1, `${rel}: a negated other verb does not excuse a run`);
+    assert.equal(noRun({ [rel]: 'Without fail run the full command.\n' }).length, 1, `${rel}: a negation of another word does not excuse a run`);
+    assert.equal(noRun({ [rel]: 'Do not skip running the full command.\n' }).length, 1, `${rel}: a negated skip does not excuse a run`);
+    assert.equal(noRun({ [rel]: 'Never, ever run the full command.\n' }).length, 0, `${rel}: an intensified negation of the run passes`);
     assert.equal(noRun({ [rel]: '```\nscope.js test full\n```\n' }).length, 0, `${rel}: a fenced example is masked`);
   }
   assert.equal(
@@ -389,6 +392,9 @@ module.exports = ({ assert, path, fixture, found }) => {
       `${rel}: a nor-list negation passes`,
     );
     assert.equal(noFull({ [rel]: 'If no record is green, run the full command.\n' }).length, 1, `${rel}: a distant no does not excuse a run`);
+    assert.equal(noFull({ [rel]: 'Without fail run the full command.\n' }).length, 1, `${rel}: a negation of another word does not excuse a run`);
+    assert.equal(noFull({ [rel]: 'Do not skip running the full command.\n' }).length, 1, `${rel}: a negated skip does not excuse a run`);
+    assert.equal(noFull({ [rel]: 'Never, ever run the full command.\n' }).length, 0, `${rel}: an intensified negation of the run passes`);
     assert.equal(noFull({ [rel]: 'Never mind the record: run `test full` now.\n' }).length, 1, `${rel}: a negation before a colon break does not excuse a run`);
     assert.equal(noFull({ [rel]: '```\nscope.js test full\n```\n' }).length, 0, `${rel}: a fenced example is masked`);
   }

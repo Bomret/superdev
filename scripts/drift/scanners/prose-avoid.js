@@ -208,11 +208,18 @@ function scanBackgroundRuleNamesLimit(root) {
   return gaps;
 }
 
+// A negation of the run itself: `no` directly before the hit, or `not`, `never`, `nor`, or `without` directly before it or
+// before one run verb that heads it ("never calls `scope.js test`"), an `ever` intensifier allowed ("Never, ever run").
+// A negation of any other word ("Without fail run …", "Do not skip running …") excuses nothing.
+// simplicity: shape-based, and its ceiling is that word order. A negation the sentence states after the hit ("the full
+// command is never run") or further back than one run verb walks past the excuse, and the hit fires as written.
+const RUN_NEGATION = String.raw`\b(?:not|never|nor|without)\b,?(?:\s+ever\b,?)?(?:\s+(?:re-?)?(?:run|runs|running|call|calls|calling|start|starts|starting|invoke|invokes|invoking|execute|executes|executing))?`;
+const NO_TEST_RUN_NEGATION = new RegExp(String.raw`(?:\bno\b|${RUN_NEGATION})\s*["'\`]?\s*$`, 'i');
+
 // ADR 0189, INV-0175: `/superdev:document` (its skill, its doc agents, and `references/doc-pass.md`) and
-// `/superdev:setup` instruct no test run. A statement that
-// the skill runs none passes: a negation (`no`, `not`, `never`, `without`, `nor`) at most one word
-// before the hit (and an opening quote or backtick), in the same sentence, excuses it. Fenced examples are masked first. See `NO_TEST_RUN_PATTERNS`'s own comment
-// for the ceiling.
+// `/superdev:setup` instruct no test run. A statement that the skill runs none passes: a negation of the run itself
+// (`RUN_NEGATION`, an opening quote or backtick allowed after it), in the same sentence, excuses it. Fenced examples are
+// masked first. See `NO_TEST_RUN_PATTERNS`'s own comment for the ceiling.
 function scanDocSetupNoTestRun(root) {
   const gaps = [];
   for (const rel of NO_TEST_RUN_DOCS) {
@@ -225,7 +232,7 @@ function scanDocSetupNoTestRun(root) {
     for (const pattern of NO_TEST_RUN_PATTERNS) {
       for (const hit of masked.matchAll(pattern)) {
         const sentence = masked.slice(0, hit.index).split(/[.!?]\s|\n\s*\n/).pop();
-        if (/\b(?:no|not|never|nor|without)\b(?:\s+\w+){0,1}\s*["'`]?\s*$/i.test(sentence)) continue;
+        if (NO_TEST_RUN_NEGATION.test(sentence)) continue;
         gaps.push({
           source: rel,
           expectation:
@@ -295,12 +302,12 @@ function scanDeployRunnerExclusivity(root) {
 }
 
 // ADR 0192, INV-0128: implement runs no full or whole-repo suite, so its base step (`scope-branch.md`'s section alone), run
-// handoff, and both execution playbooks instruct none. A negation in the same sentence or clause excuses the hit: `no`
-// directly before it, or `not`, `never`, `nor`, or `without` at most one word (the negated verb) before it. One heading a
-// list of code spans excuses it too ("never `test full`, `test whole`, or a `test focused` with no path"). A `no` a word
-// away negates that word, as in "with no delay run the full suite", and excuses nothing. Fenced examples are masked first.
-const FULL_RUN_NEGATION =
-  /(?:\bno\b|\b(?:not|never|nor|without)\b(?:\s+\w+){0,1})\s*(?:(?:a\s+|an\s+|the\s+)?`[^`]*`(?:\s+with\s+no\s+path)?\s*,\s*(?:(?:or|and|nor)\s+)?)*(?:a\s+|an\s+|the\s+)?["'`]?\s*$/i;
+// handoff, and both execution playbooks instruct none. A negation of the run itself (`RUN_NEGATION`) in the same sentence
+// or clause excuses the hit. One heading a list of code spans excuses it too ("never `test full`, `test whole`, or a
+// `test focused` with no path"). A negation of another word, as in "with no delay run the full suite" or "Do not skip
+// running the full command", excuses nothing. Fenced examples are masked first.
+// simplicity: shape-based, and its ceiling is `RUN_NEGATION`'s word order plus that code-span list.
+const FULL_RUN_NEGATION = new RegExp(`(?:\\bno\\b|${RUN_NEGATION})${/\s*(?:(?:a\s+|an\s+|the\s+)?`[^`]*`(?:\s+with\s+no\s+path)?\s*,\s*(?:(?:or|and|nor)\s+)?)*(?:a\s+|an\s+|the\s+)?["'`]?\s*$/.source}`, 'i');
 // A section runs from its heading to the next heading of its own level or a higher one, `#` excepted. Both are
 // found on fence-masked lines, so a heading shown inside a fenced example neither starts nor ends a section; the
 // raw lines between them are returned, and the caller masks that text once.

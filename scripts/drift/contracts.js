@@ -558,11 +558,11 @@ const GITHUB_WIKI_GH_ONLY_MARKERS = [
 // fail-to-pass` call, "run(s) the full / focused / whole-repo / affected command", or "run(s) the test command".
 // simplicity: shape-based, and its ceiling is those two shapes, read in unfenced prose. A paraphrase
 // ("execute the suite", "start the affected form") walks past, and so does an instruction inside a fence.
-// A negation excuses a hit only within one word before it (an opening quote or backtick may sit between):
-// "never runs the full command" and "never calls `scope.js test`" pass, "If no focused command exists, run
-// the full command" does not. A negation further back, or one the sentence states after the hit ("the full
-// command is never run"), walks past or fires as written. A negated word that is no run verb right before
-// the hit still excuses it ("Do not skip running the full command" passes); "Do not forget to run ..." fires.
+// A negation excuses a hit only when it negates the run itself (`scanners/prose-avoid.js`'s `RUN_NEGATION`):
+// "never runs the full command", "never calls `scope.js test`", and "Never, ever run the full command" pass;
+// "If no focused command exists, run the full command", "Without fail run the full command", and "Do not skip
+// running the full command" fire. A negation the sentence states after the hit ("the full command is never
+// run") fires as written.
 const NO_TEST_RUN_DOCS = [
   path.join('skills', 'document', 'SKILL.md'),
   path.join('skills', 'setup', 'SKILL.md'),
