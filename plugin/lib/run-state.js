@@ -8,7 +8,7 @@ const { fail } = require('./refusal.js');
 const { checkSliceId, SLICE_STATUSES, STAGES, APPENDED_HEADERS, headerRe, ledgerPath, readLines, splitLines, writeLines, getHeader, readBullets, tableRowIndexes, splitRow } = require('./ledger.js');
 const { maskFencedLines } = require('./md-sections.js');
 const { validateLabel, STEPS } = require('./ledger-lifecycle.js');
-const { checkDocsValue, checkPrValue, parseDeployRecord } = require('./ledger-records.js');
+const { checkDocsValue, checkPrValue, checkDeployValue } = require('./ledger-records.js');
 const { checkDodWritten } = require('./dod-gate.js');
 
 // scope.js performs no store I/O here — slice-store I/O stays in-agent (ADR 0022). `publish`
@@ -122,7 +122,7 @@ function adoptLines(root, body, shipped = false) {
   const raw = (name) => { const m = payload.map((l) => l.match(headerRe(name))).find(Boolean); return m ? m[1].trim() : null; };
   if (raw('PR')) checkPrValue(raw('PR'));
   if (raw('Docs')) checkDocsValue(raw('Docs'));
-  if (raw('Deploy')) parseDeployRecord(raw('Deploy'));
+  if (raw('Deploy')) checkDeployValue(raw('Deploy'));
   // A `**Minors:**` bullet names a slice by id (`minors add` enforces it). The anchor body is editable by anyone
   // with issue access and the controller derives `reports/<id>/progress.md` from the bullet, so adopt refuses
   // any bullet the payload's slice table does not hold, the way it refuses an unknown stage.

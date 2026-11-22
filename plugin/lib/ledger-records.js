@@ -243,12 +243,27 @@ function renderDeployRecord(records) {
   return records.map((r) => `${r.target} ${r.state}${r.exit !== undefined ? ` exit ${r.exit}` : ''}`).join(', ');
 }
 
-function verbDeploySet(root, target, state, exitCode) {
+// One deploy entry's own rules, the ones `deploy set` enforces on its arguments.
+function checkDeployEntry(target, state, exitCode) {
   if (!target) fail('deploy set needs a <target>');
   if (!/^[^\s,]+$/.test(target)) fail(`target "${target}" must be one word`);
   if (!DEPLOY_STATES.includes(state)) fail(`unknown deploy state "${state}" — use ${DEPLOY_STATES.join('|')}`);
   if (exitCode !== undefined && state !== 'failed') fail('--exit belongs only with failed');
   if (exitCode !== undefined && !/^\d+$/.test(exitCode)) fail(`--exit value must be a number — got "${exitCode}"`);
+}
+
+// A whole `**Deploy:**` value under the writer's rules: each entry passes `checkDeployEntry`, and a target appears once.
+function checkDeployValue(value) {
+  const seen = new Set();
+  for (const r of parseDeployRecord(value)) {
+    checkDeployEntry(r.target, r.state, r.exit);
+    if (seen.has(r.target)) fail(`deploy record names target "${r.target}" more than once`);
+    seen.add(r.target);
+  }
+}
+
+function verbDeploySet(root, target, state, exitCode) {
+  checkDeployEntry(target, state, exitCode);
   const lines = readLines(root);
   const records = parseDeployRecord(getHeader(lines, 'Deploy'));
   const idx = records.findIndex((r) => r.target === target);
@@ -285,7 +300,7 @@ function verbDeployGet(root) {
 
 module.exports = {
   BULLET_STDIN_SUBS, DENIAL_PREFIX, RESET_PREFIX, denialCount,
-  resolveBulletText, verbDeployGet, readDeployRecord, checkDocsValue, checkPrValue, parseDeployRecord,
+  resolveBulletText, verbDeployGet, readDeployRecord, checkDocsValue, checkPrValue, checkDeployValue,
   verbDegraded: underRunLock(verbDegraded), verbUnresolved: underRunLock(verbUnresolved), verbDeferred: underRunLock(verbDeferred),
   verbMinors: underRunLock(verbMinors), verbDocs: underRunLock(verbDocs), verbPr: underRunLock(verbPr), verbDeploySet: underRunLock(verbDeploySet),
 };

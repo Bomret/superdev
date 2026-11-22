@@ -517,13 +517,16 @@ try {
     '| id | issue | title | type | depends-on | status | range |\n|---|---|---|---|---|---|---|\n' + rows.join('\n') + '\n<!-- /superdev:run-state -->\n';
   const refusals = [
     ['badstatus', { rows: ['| 01 | #1 | one | behavior | — | done | — |'] }, /01.*done|done.*01/],
-    ['dupid', { rows: ['| 01 | #1 | one | behavior | — | merged | — |', '| 01 | #2 | two | behavior | — | todo | — |'] }, /01/],
+    ['dupid', { rows: ['| 01 | #1 | one | behavior | — | merged | — |', '| 01 | #2 | two | behavior | — | todo | — |'] }, /slice id "01" in more than one row/],
     ['prurl', { head: '**PR:** https://x/pull/3\n' }, /pr set value/],
     ['prword', { head: '**PR:** three\n' }, /pr set value/],
     ['prparen', { head: '**PR:** #3 (merged)\n' }, /pr set value/],
     ['docsws', { head: '**Docs:** inline pass\n' }, /whitespace/],
     ['deploybad', { head: '**Deploy:** pve gone\n' }, /deploy record/],
-    ['dupstage', { head: '**Stage:** planned\n' }, /Stage/],
+    ['deployexit', { head: '**Deploy:** pve deployed exit 2\n' }, /--exit belongs only with failed/],
+    ['deploydup', { head: '**Deploy:** pve deployed, pve failed\n' }, /deploy record names target "pve" more than once/],
+    ['deploycomma', { head: '**Deploy:** a,b deployed\n' }, /target "a,b" must be one word/],
+    ['dupstage', { head: '**Stage:** planned\n' }, /more than one \*\*Stage:\*\* line/],
   ];
   for (const [name, opts, re] of refusals) {
     const refRoot = path.join(tmp, 'adopted-elsewhere', name);
