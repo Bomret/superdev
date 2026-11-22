@@ -1234,7 +1234,7 @@ path, when that document is missing. A check that walks a directory reads whatev
 | `invariant-register-join` | every drift id a `docs/invariants.md` `Check:` line names is registered, and every invariant a contract row cites covers that row's document in its `Paths:` | structural |
 | `run-root` | the execution documents address run-root artifacts by `<run-root>/…`, never by a checkout-relative `.superdev/scopes/<scope>/…` path | prohibition |
 | `scopetree-run-root` | `skills/ship/SKILL.md`, `skills/document/SKILL.md`, and `scripts/publish-kb.js` address another run's scopetree by `<run-root>/scopetree`, never by a checkout-relative path (ADR 0080) | prohibition |
-| `change-type` | `references/scope-mode.md`, `hooks/scope-prune.js`, `CONTEXT.md`, and `lib/ledger.js` carry the same change-type set | structural |
+| `change-type` | `references/scope-mode.md`, `CONTEXT.md`, and `lib/ledger.js` carry the same change-type set, each in its own frame, so a copy with an extra or a missing type fails | structural |
 | `no-second-reader` | no file under `plugin/hooks/` builds a ledger-header regex of its own, and no file under `plugin/lib/` other than `ledger.js` does (ADR 0022) | prohibition |
 | `shell-spawn` | no file under `plugin/hooks/`, `plugin/scripts/`, or `plugin/lib/` starts a shell by absolute path, starts `bash`, or uses Node's default shell (INV-0153) | prohibition |
 | `worktree-list-one-parser` | no file at the top level of `plugin/hooks/`, `plugin/scripts/`, or `plugin/lib/` other than `lib/git-spawn.js` spawns `git worktree list` (a `'worktree', 'list'` argument pair outside a comment), so `listWorktrees` stays the one reader of the working trees (INV-0198) | prohibition |

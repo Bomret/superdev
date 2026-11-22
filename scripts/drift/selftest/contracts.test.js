@@ -26,14 +26,22 @@ module.exports = ({ assert, path, fixture, found }) => {
     assert.equal(gaps.length, 1, `flags ${label}`);
     assert.equal(gaps[0].source, path.join(...rel.split('/')), `names ${rel}`);
   }
-  assert.equal(
-    changeType({
-      'CONTEXT.md':
-        '**Change type** — one of `feat`, `fix`, `refactor`,\n`docs`, `perf`, `test`, `build`, `ci`,\n`chore`, `style`, or\n`revert`.\n',
-    }).length,
-    0,
-    'a re-wrapped but correct glossary line stays clean',
-  );
+  // Each copy in its own frame: an extra type at either end, or a missing one, fails; a re-wrap at every comma passes.
+  const q = (t) => `\`${t}\``;
+  const sq = (t) => `'${t}'`;
+  const copies = [
+    ['references/scope-mode.md', (ts) => `one of ${ts.map(q).join(', ')}.\n`],
+    ['CONTEXT.md', (ts) => `the codebase: ${ts.slice(0, -1).map(q).join(', ')}, or ${q(ts[ts.length - 1])}.\n`],
+    ['lib/ledger.js', (ts) => `const CHANGE_TYPES = [${ts.map(sq).join(', ')}];\n`],
+  ];
+  const types = ['feat', 'fix', 'refactor', 'docs', 'perf', 'test', 'build', 'ci', 'chore', 'style', 'revert'];
+  for (const [rel, frame] of copies) {
+    assert.equal(changeType({ [rel]: frame(types) }).length, 0, `${rel}: the exact set passes`);
+    assert.equal(changeType({ [rel]: frame(types).replace(/, /g, ',\n') }).length, 0, `${rel}: a re-wrap after every comma passes`);
+    assert.equal(changeType({ [rel]: frame([...types, 'wip']) }).length, 1, `${rel}: a type appended after revert fails`);
+    assert.equal(changeType({ [rel]: frame(['wip', ...types]) }).length, 1, `${rel}: a type inserted before feat fails`);
+    assert.equal(changeType({ [rel]: frame(types.filter((t) => t !== 'perf')) }).length, 1, `${rel}: a removed type fails`);
+  }
 
   // --- source-sections: each canonical reference still carries the sections its readers are sent to ---
 

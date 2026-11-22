@@ -113,25 +113,26 @@ const HEADING_SPAN_PATTERN = /`(#{2,4})\s+([^`]+)`/g;
 // check. The type set the prose lists and that set are one fact in two syntaxes. A set narrower than the
 // prose leaves a run root behind forever on the missing type — silent, because nothing reports a prune that
 // never ran. A set wider than the prose prunes a live run's ledger off a branch superdev never cut.
+// Each pattern is anchored to its copy's own frame, from the text before the first type to the mark after
+// the last, so only the exact set in order passes. Every separator tolerates a line break, so a re-wrap
+// at any comma still passes.
 const CHANGE_TYPE_CONTRACTS = [
   [
     path.join('references', 'scope-mode.md'),
-    /`feat`, `fix`, `refactor`, `docs`, `perf`, `test`, `build`, `ci`, `chore`,\s*`style`, `revert`/,
+    /\bone of `feat`,\s*`fix`,\s*`refactor`,\s*`docs`,\s*`perf`,\s*`test`,\s*`build`,\s*`ci`,\s*`chore`,\s*`style`,\s*`revert`\./,
     'list the change types as `feat`, `fix`, `refactor`, `docs`, `perf`, `test`, `build`, `ci`, `chore`, `style`, `revert` — the set `lib/ledger.js` owns and `lib/scope-branch.js` matches',
   ],
-  // The glossary restates the set for a reader, which makes it a third copy of one fact. Every separator
-  // tolerates a line break, so a re-wrap at any comma passes while the same eleven types, in order, are
-  // still required.
+  // The glossary restates the set for a reader, which makes it a third copy of one fact.
   [
     'CONTEXT.md',
-    /`feat`,\s*`fix`,\s*`refactor`,\s*`docs`,\s*`perf`,\s*`test`,\s*`build`,\s*`ci`,\s*`chore`,\s*`style`,\s*or\s+`revert`/,
+    /\bcodebase:\s+`feat`,\s*`fix`,\s*`refactor`,\s*`docs`,\s*`perf`,\s*`test`,\s*`build`,\s*`ci`,\s*`chore`,\s*`style`,\s*or\s+`revert`\./,
     'list the same change types the **Change type** glossary entry names — the set `references/scope-mode.md` owns',
   ],
   // `lib/ledger.js` holds the set `scope.js` validates every `init` label against, so it is a fourth copy —
   // executable, but still one fact that must not fork.
   [
     path.join('lib', 'ledger.js'),
-    /'feat', 'fix', 'refactor', 'docs', 'perf', 'test', 'build', 'ci', 'chore', 'style', 'revert'/,
+    /\bCHANGE_TYPES = \['feat',\s*'fix',\s*'refactor',\s*'docs',\s*'perf',\s*'test',\s*'build',\s*'ci',\s*'chore',\s*'style',\s*'revert'\];/,
     'keep CHANGE_TYPES equal to the set `references/scope-mode.md` lists',
   ],
 ];
