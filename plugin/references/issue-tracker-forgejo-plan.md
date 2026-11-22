@@ -24,10 +24,21 @@ ids, **Read every label write back**) this document uses.
   Omit `-a` when the assignee resolves to `none`, and pass no `-L`. Capture the new issue's `<n>` from the
   URL `tea` prints, which ends in `/issues/<n>`, as the slice's `id`. Then add its labels by id and read
   them back.
-- **Record a dependency (`depends-on`):** use the native
-  `tea api -i -X POST '/repos/{owner}/{repo}/issues/<index>/dependencies'` when the dependencies unit is
-  enabled. When it answers 404 (unit disabled), append a `**Depends on:** #<blocker>` line to the issue
-  body through **Edit an issue's body**.
+- **Record a dependency (`depends-on`):** the path issue `<index>` is the blocked slice, and the body names
+  its blocker as an `IssueMeta` (Forgejo `modules/structs/issue.go`, checked 2026-11-22: `owner`, `repo`,
+  and `index` as a number). Build it with `jq -n --arg o "<owner>" --arg r "<repo>" --argjson i <blocker>
+  '{owner: $o, repo: $r, index: $i}' > "$c"`, then send
+  `tea api -i -X POST '/repos/{owner}/{repo}/issues/<index>/dependencies' -d @"$c"` and read the HTTP
+  status from stderr. `201` records the edge.
+  - **Any other status** → read the repository's setting with `tea api '/repos/{owner}/{repo}'` and take
+    `internal_tracker.enable_issue_dependencies` (Forgejo `modules/structs/repo.go`, checked 2026-11-22).
+    Only a value of `false` is positive evidence that the unit is disabled: then append a `**Depends on:**
+    #<blocker>` line to the blocked issue's body through **Edit an issue's body**.
+  - **Every other case** (the setting reads `true`, is absent, or cannot be read; a 404 also means a missing
+    or unreadable blocker or no write permission) → a failed dependency write. **Not best-effort:**
+    `/implement` reads blockers from the native listing and cannot detect a lost edge. Name every failed
+    edge as a slice-id pair and end `/plan` reporting failure, with no `**Depends on:**` line written in its
+    place.
 - **Parallel-safe creation order:** create the epic first (slices reference `#<epic>`), then all slice
   creates in parallel, then the labels and the `depends-on` writes in parallel once every `<n>` is known.
 

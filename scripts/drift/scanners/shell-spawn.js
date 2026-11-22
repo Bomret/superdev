@@ -5,7 +5,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { docPath, stripComments } = require('../lib');
+const { shippedDir, stripComments } = require('../lib');
 const { HOOK_HEADER_REGEX } = require('../contracts');
 
 // ADR 0022: no hook parses a ledger header itself; see HOOK_HEADER_REGEX's note for what it catches.
@@ -13,7 +13,7 @@ function scanHookLedgerParsers(root) {
   const offenders = [];
   // `lib` holds the modules the hooks load, so a parser moved there is read as well.
   for (const sub of ['hooks', 'lib']) {
-    const dir = docPath(root, sub);
+    const dir = shippedDir(root, sub);
     let names = [];
     try {
       names = fs.readdirSync(dir).filter((f) => f.endsWith('.js'));
@@ -60,11 +60,11 @@ function* shippedSources(root) {
   for (const dir of ['hooks', 'scripts', 'lib']) {
     let names = [];
     try {
-      names = fs.readdirSync(docPath(root, dir)).filter((f) => /\.m?js$/.test(f) && !f.endsWith('.test.js'));
+      names = fs.readdirSync(shippedDir(root, dir)).filter((f) => /\.m?js$/.test(f) && !f.endsWith('.test.js'));
     } catch {
       continue; // no such dir → nothing to scan
     }
-    for (const name of names) yield { dir, name, raw: fs.readFileSync(path.join(docPath(root, dir), name), 'utf8') };
+    for (const name of names) yield { dir, name, raw: fs.readFileSync(path.join(shippedDir(root, dir), name), 'utf8') };
   }
 }
 

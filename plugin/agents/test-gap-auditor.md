@@ -1,7 +1,7 @@
 ---
 name: test-gap-auditor
 description: Test-gap auditor. Reads a batch of source files against the repository's test files and reports untested symbols and missing cases. Read-only; dispatched by a test audit.
-tools: Read, Grep
+tools: Read, Grep, Bash
 model: sonnet
 ---
 
@@ -73,7 +73,7 @@ Where the batch holds no gap, say `No test gaps in this batch.` and stop. Invent
 
 Applies to the gap-audit dispatch.
 
-You write nothing and run nothing. Your tools are Read and Grep: read the batch, search the test files, and report.
+You change no part of the working tree, index, HEAD, or branches, and run no merge, push, rebase, or pull. Read the batch, search the test files, run read-only commands such as the cited-section read, and report.
 
 - `/superdev:plan` is where a finding becomes work.
 

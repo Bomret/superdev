@@ -463,9 +463,43 @@ const picked = (root, paths) =>
   assert.deepStrictEqual(picked(root, ['plugin/hooks/alpha.js', 'src/x.js']), all, 'one unplaceable path among placed ones runs every suite');
   assert.deepStrictEqual(picked(root, [['release', 'config', 'cjs'].join('.'), 'package.json', ['bun', 'lock'].join('.')]), [], 'release tooling no suite names selects no suite');
   assert.deepStrictEqual(picked(root, ['README.md', 'docs/adr/0001-x.md']), [], 'a prose-only change set selects no suite');
-  assert.deepStrictEqual(picked(root, ['scripts/drift/contracts.js']), [], 'a drift path selects the drift selftest, which the tail runs');
+  assert.deepStrictEqual(picked(root, ['scripts/drift/contracts.js']), [], 'a drift path no rule places selects no suite: the drift selftest runs in the tail');
   assert.deepStrictEqual(picked(root, []), [], 'an empty list selects no suite');
   assert.deepStrictEqual(picked(root, ['plugin/hooks/deleted-gone.md']), [], 'a deleted path maps by name like any other');
+}
+
+// A drift path is placed only by a suite that requires it, directly or through the require walk, or whose text holds its
+// full repository-relative path. Its basename and stem are common path segments, so neither places it, and a drift path
+// no rule places selects no suite rather than every suite.
+{
+  const root = tree({
+    'scripts/drift/lib.js': '',
+    'scripts/drift/scanners/lonely.js': '',
+    'tests/req.test.js': suite('req') + "\nrequire('../scripts/drift/lib.js');\n",
+    'tests/full.test.js': suite('full') + "\nconst f = 'scripts/drift/lib.js';\n",
+    'tests/base.test.js': suite('base') + "\nconst f = 'lib.js';\n",
+    'tests/seg.test.js': suite('seg') + "\nconst f = 'plugin/lib/x.js'; const g = 'drift/lib';\n",
+    'tests/lib.test.js': suite('lib'),
+  });
+  assert.deepStrictEqual(picked(root, ['scripts/drift/lib.js']).sort(), ['full', 'req'], 'a drift path selects exactly the suites requiring it or naming its full path');
+  assert.deepStrictEqual(picked(root, ['scripts/drift/scanners/lonely.js']), [], 'an unreferenced drift path selects no suite and never every suite');
+}
+
+// The require walk continues through a drift file, so a suite reaching a drift file only through another drift file
+// is selected.
+{
+  const root = tree({
+    'scripts/drift/a.js': "require('./b.js');\n",
+    'scripts/drift/b.js': '',
+    'tests/via.test.js': suite('via') + "\nrequire('../scripts/drift/a.js');\n",
+  });
+  assert.deepStrictEqual(picked(root, ['scripts/drift/b.js']), ['via'], 'a drift file required through another drift file selects the suite');
+}
+
+// The real repository: a drift module a suite requires reaches that suite.
+{
+  const real = (rel) => selectSuites(repoRoot, discoverSuites(path.join(repoRoot, 'tests')), [rel]).map((f) => path.basename(f, '.test.js'));
+  assert.ok(real('scripts/drift/contracts.js').includes('scope-section'), 'scripts/drift/contracts.js reaches tests/scope-section.test.js, which requires it');
 }
 
 // A `.md` path reaches the suites whose text names it, the way a code path does, and never the every-suite fallback.

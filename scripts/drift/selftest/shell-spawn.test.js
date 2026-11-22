@@ -22,6 +22,21 @@ module.exports = ({ assert, path, fixture }) => {
   );
   assert.equal(scanWorktreeListParsers(fixture({ 'README.md': '# repo\n' })).length, 0, 'no executable dir holds nothing to scan');
 
+  // A repository carries the maintainer `scripts/` at its root beside the shipped `plugin/scripts/`: the
+  // shipped one is read, and its gap stays plugin-relative.
+  const bothScripts = { 'scripts/rogue.js': '// clean\n', 'plugin/scripts/rogue.js': listSpawn };
+  const pluginGaps = scanWorktreeListParsers(fixture(bothScripts));
+  assert.equal(pluginGaps.length, 1, 'flags plugin/scripts/rogue.js beside a clean root scripts/rogue.js');
+  assert.equal(pluginGaps[0].source, path.join('scripts', 'rogue.js'), 'names the shipped file plugin-relative');
+  const pluginSpawnGaps = scanShellSpawn(fixture({ 'scripts/rogue.js': '// clean\n', 'plugin/scripts/rogue.js': "spawnSync('bash', ['-c', cmd]);\n" }));
+  assert.equal(pluginSpawnGaps.length, 1, 'shell-spawn flags plugin/scripts/rogue.js beside a clean root scripts/rogue.js');
+  assert.equal(pluginSpawnGaps[0].source, path.join('scripts', 'rogue.js'), 'shell-spawn names the shipped file plugin-relative');
+  const hookGaps = scanHookLedgerParsers(
+    fixture({ 'lib/rogue.js': '// clean\n', 'plugin/lib/rogue.js': 'const re = new RegExp(`\\\\*\\\\*${name}:\\\\*\\\\*`);' }),
+  );
+  assert.equal(hookGaps.length, 1, 'no-second-reader flags plugin/lib/rogue.js beside a clean root lib/rogue.js');
+  assert.equal(hookGaps[0].source, path.join('lib', 'rogue.js'), 'no-second-reader names the shipped file plugin-relative');
+
   // --- no-second-reader: no hook carries a ledger-header regex of its own (ADR 0022) ---
 
   for (const [label, src] of [

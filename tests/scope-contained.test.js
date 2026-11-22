@@ -109,11 +109,27 @@ function contained(repo, args, env = {}) {
   assertSpawnDecided(fromSub, 'scope.js contained from a subdirectory');
   assert.strictEqual(fromSub.stdout.split('\n')[2], 'remote upstream', `a subdirectory call finds the Remote: value: ${fromSub.stdout}${fromSub.stderr}`);
 
+}
+
+// #no-remote: with no --remote and no Remote: value the verb judges against the local base, fetches from no remote, and
+// prints `remote none`. A configured `origin` is never contacted: it points at an unreachable URL, and no FETCH_HEAD and
+// no refetch mark appear.
+{
+  const repo = fixture();
   fs.rmSync(path.join(repo, 'docs', 'agents', 'code-management.md'));
-  const refused = contained(repo, ['main', 'fix/open']);
-  assert.strictEqual(refused.status, 1, 'no --remote and no Remote: value refuses with exit 1');
-  assert.strictEqual(refused.out, '', 'a refusal prints nothing on stdout');
-  assert.match(refused.err, /^contained: .*--remote/, `the refusal names --remote: ${refused.err}`);
+  git(['remote', 'set-url', 'origin', 'https://unreachable.invalid/x.git'], repo);
+  const fetchHead = path.join(repo, '.git', 'FETCH_HEAD');
+  fs.rmSync(fetchHead, { force: true });
+  const mainTip = git(['rev-parse', 'main'], repo);
+
+  const squashed = contained(repo, ['main', 'fix/squashed']);
+  assert.deepStrictEqual(squashed.lines, ['contained', `base ${mainTip}`, 'remote none', 'judged local'], `a squash-merged branch with no remote: ${squashed.out}${squashed.err}`);
+  assert.strictEqual(squashed.status, 0, 'contained with no remote exits 0');
+
+  const open = contained(repo, ['main', 'fix/open']);
+  assert.deepStrictEqual(open.lines, ['not-contained', `base ${mainTip}`, 'remote none', 'judged local'], `an unmerged branch with no remote: ${open.out}${open.err}`);
+  assert.strictEqual(open.status, 3, 'not-contained with no remote exits 3');
+  assert.ok(!fs.existsSync(fetchHead), 'no remote was fetched: no FETCH_HEAD');
 }
 
 // #refetch: a refetch that brought the base reads `judged refetched` with the fetched commit as the base, and a

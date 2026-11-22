@@ -4,7 +4,7 @@
 // fails, naming the path, when that document is missing. A check that walks a directory reads whatever
 // the directory holds, so an empty tree gives it nothing to report. Run by ./index.js.
 
-const { docPath } = require('../lib');
+const { docPath, shippedDir } = require('../lib');
 const CHECKS = require('../checks');
 const { formatGap } = require('../../drift-check');
 
@@ -48,7 +48,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // A directory walker passes vacuously when its directory is gone, so every directory the walkers read
   // must exist in the real repository.
   const walkedDirs = [
-    ...['skills', 'agents', 'references', 'hooks', 'scripts', 'lib'].map((dir) => docPath(realRoot, dir)),
+    ...['skills', 'agents', 'references'].map((dir) => docPath(realRoot, dir)),
+    ...['hooks', 'scripts', 'lib'].map((dir) => shippedDir(realRoot, dir)),
     path.join(realRoot, 'docs', 'adr'),
     path.join(realRoot, 'tests'),
     path.join(realRoot, 'plugin'),

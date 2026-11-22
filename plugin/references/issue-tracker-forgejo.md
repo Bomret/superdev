@@ -27,10 +27,13 @@ and writing anchor lines, live in `docs/agents/issue-tracker-plan.md`, written f
 - `title` ↔ issue title. `spec` ↔ issue body ("What to build"). `acceptance` ↔ a `- [ ]` checklist in the
   body.
 - `test-applicability` ↔ a label: `behavior` | `mechanical` | `docs`.
-- `depends-on` ↔ a `**Depends on:** #<n>` line in the issue body, one per blocker, when the instance's
-  native issue-dependencies unit is disabled, and the native dependency when it is enabled.
-  `tea api -i -X POST '/repos/{owner}/{repo}/issues/<index>/dependencies'` answers 404 when the unit is
-  off.
+- `depends-on` ↔ the native dependency when the repository's issue-dependencies unit is enabled, and a
+  `**Depends on:** #<n>` line in the issue body, one per blocker, when it is disabled. The unit is disabled
+  only where `tea api '/repos/{owner}/{repo}'` reads `internal_tracker.enable_issue_dependencies` as
+  `false`; the write and its refusals are `docs/agents/issue-tracker-plan.md`'s **Record a dependency**.
+- **List a slice's native blockers:** `tea api -i '/repos/{owner}/{repo}/issues/<index>/dependencies?page=<p>&limit=50'`,
+  paged from `page=1` until a page returns fewer than 50 entries. Each entry is an issue: its `number` is a
+  blocker's `#<n>`.
 - **Anchor lines** (each optional) ↔ body lines in the **anchor's own** body, the epic on a multi-slice
   feature, the lone slice on a single-slice one. Each names one relation, never confused with another
   anchor line or with `**Depends on:** #<n>`:
@@ -261,7 +264,7 @@ closed once the slice's commit lands on the scope branch.
 ## When a skill says "load slices from the store"
 
 List the feature's issues by label (**List feature slices**), read each, and reconstruct slice fields from
-the mapping above, each slice's blockers parsed from its `**Depends on:**` body lines, or the native
-dependency listing when the unit is enabled. Fan the per-slice reads out in parallel. No `epic`-labelled
+the mapping above, each slice's blockers parsed from its `**Depends on:**` body lines, or read through
+**List a slice's native blockers**, every page, when the unit is enabled. Fan the per-slice reads out in parallel. No `epic`-labelled
 issue among the results (single-slice feature) → the global DoD is the lone slice issue's own
 `acceptance`.

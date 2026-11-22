@@ -529,9 +529,10 @@ writes a ledger line, a trace line, or a digest, and none runs a test. A usage r
   `judged local|refetched`. It adds `fallback ancestor` where the git lacks `merge-tree --write-tree`. It adds `refetch timed-out` or
   `refetch failed` (`refetchMark` of `containment.js`) where the refetch ended without a base. A `not-contained` answer there is
   no verdict on the work (INV-0003, INV-0009). Only `--remote` is an option, so an option-shaped operand stays an operand. The remote
-  defaults to the `Remote:` value of `docs/agents/code-management.md` read at the repository top level. The refetch is bounded by
+  defaults to the `Remote:` value of `docs/agents/code-management.md` read at the repository top level. With neither, it judges
+  against the local base alone, runs no fetch, and prints `remote none` and `judged local`. The refetch is bounded by
   `code-host.pushTimeoutMs` of the operator configuration and writes no remote-tracking ref (`--refmap=`). Exit 0 is `contained`, 3
-  `not-contained`, 4 `could-not-resolve`, and 1 a usage refusal, including no remote from either source. It writes tree objects,
+  `not-contained`, 4 `could-not-resolve`, and 1 a usage refusal. It writes tree objects,
   fetched commit objects, and `FETCH_HEAD`. It writes no ledger, trace, ref, index, or working tree. The code lives in
   `plugin/lib/contained.js`.
 - **`red-evidence --root <run-root> --branch <branch> --base <base-ref> [--ci-head <sha> --ci-file <path>]`** reads what
@@ -1078,7 +1079,12 @@ Node v26.12.1, against about 375 s for the suites run one after another. A `test
 paths reach, matching by name, so a deleted path maps like any other. A suite is reached when its own text
 names the changed file (its basename, or its bare stem between path or quote delimiters), when the shipped
 file its name pins (`plugin/hooks/<name>.js`, `plugin/lib/<name>.js`, `plugin/scripts/<name>.js`, or `scripts/<name>.js`) is the
-changed file or requires it, or the suite file itself requires it, or when the path is the suite itself. A suite split off another
+changed file or requires it, or the suite file itself requires it, or when the path is the suite itself. A path under
+`scripts/drift/` is the exception to the naming rule, because its basename and stem (`lib`, `checks`, `adr`) are
+common path segments. Two kinds of suite reach it. The first requires it, directly, through its pinned file, or through
+the modules the walk follows. Those modules are `plugin/lib/` files, `scripts/drift/` files, and non-suite files under
+`tests/`. The second holds its full repository-relative path (`scripts/drift/lib.js`) in its text. A drift path no suite reaches selects no suite and never
+every suite, because the drift selftest runs in the tail. A suite split off another
 (`tests/scope-ledger.test.js`, with no `scope-ledger.js` entry point shipped) pins the file of the longest
 `-`-delimited prefix of its name that pins one (`plugin/scripts/scope.js`), and an exact pin wins. A test helper reaches every suite that names
 it. A basename more than one file of the tree carries (`AGENTS.md`, `hooks.json`; a nested checkout such as a linked
@@ -1106,7 +1112,7 @@ other `path.dirname(...)` names its literal tail, which matches that tail at any
 it may select a suite for a directory the suite does not scan and never misses one it does. A call whose leading
 directory is any other computed value (a variable, `os.tmpdir()`) builds a path in a fixture tree and names nothing. A directory built from
 computed expressions with no literal segment names nothing. The directory rule never applies to a code path. A `.md` path no
-suite names, directly or by directory, and a path under `scripts/drift/`, reach no suite, because the drift selftest sits in the tail. A code path no rule places runs every suite, except a deleted one no suite names, which reaches no suite, except the repository-root release tooling
+suite names, directly or by directory, reaches no suite. A code path no rule places runs every suite, except a deleted one no suite names, which reaches no suite, except the repository-root release tooling
 (`release.config.cjs`, `package.json`, `bun.lock`, the `RELEASE_TOOLING` list), which reaches only the suites that name it,
 because semantic-release and Bun read it and no suite's code under test does. An empty list runs the tail alone and exits 0. A path under
 `mods/superdev-view/` places itself: it adds `claude plugin test mods/superdev-view` before the tail, and runs no
@@ -1234,7 +1240,7 @@ path, when that document is missing. A check that walks a directory reads whatev
 | `invariant-register-join` | every drift id a `docs/invariants.md` `Check:` line names is registered, and every invariant a contract row cites covers that row's document in its `Paths:` | structural |
 | `run-root` | the execution documents address run-root artifacts by `<run-root>/…`, never by a checkout-relative `.superdev/scopes/<scope>/…` path | prohibition |
 | `scopetree-run-root` | `skills/ship/SKILL.md`, `skills/document/SKILL.md`, and `scripts/publish-kb.js` address another run's scopetree by `<run-root>/scopetree`, never by a checkout-relative path (ADR 0080) | prohibition |
-| `change-type` | `references/scope-mode.md`, `hooks/scope-prune.js`, `CONTEXT.md`, and `lib/ledger.js` carry the same change-type set | structural |
+| `change-type` | `references/scope-mode.md`, `CONTEXT.md`, and `lib/ledger.js` carry the same change-type set, each in its own frame, so a copy with an extra or a missing type fails | structural |
 | `no-second-reader` | no file under `plugin/hooks/` builds a ledger-header regex of its own, and no file under `plugin/lib/` other than `ledger.js` does (ADR 0022) | prohibition |
 | `shell-spawn` | no file under `plugin/hooks/`, `plugin/scripts/`, or `plugin/lib/` starts a shell by absolute path, starts `bash`, or uses Node's default shell (INV-0153) | prohibition |
 | `worktree-list-one-parser` | no file at the top level of `plugin/hooks/`, `plugin/scripts/`, or `plugin/lib/` other than `lib/git-spawn.js` spawns `git worktree list` (a `'worktree', 'list'` argument pair outside a comment), so `listWorktrees` stays the one reader of the working trees (INV-0198) | prohibition |
@@ -1247,7 +1253,7 @@ path, when that document is missing. A check that walks a directory reads whatev
 | `background-rule-names-limit` | no skill, agent, or reference, and no `AGENTS.md` in `plugin/skills/`, `plugin/agents/`, or `plugin/references/` (the shipped one is `plugin/references/AGENTS.md`), states the background rule against an unnamed Bash limit: "the Bash tool's time limit" or "the tool's limit", matched across a line wrap and a run of spaces, fenced examples masked, so the rule names the ceiling (600000 ms, or the higher `BASH_MAX_TIMEOUT_MS`) (ADR 0232) | prohibition |
 | `conflict-conclusion-no-commit` | no skill, agent, or reference concludes a resolved merge conflict with `git commit` (ADR 0123) | prohibition |
 | `dod-box-rule` | no skill, agent, or reference judges a Definition-of-Done line by its checkbox or calls a `ceiling:` line settled: the spellings "neither ticked nor `accepted`", "ticked or (noted) `accepted`", "a ticked line or an `accepted`", "ticked with no `ceiling`", "ticked, `ceiling:`, or `accepted`", "already-ticked line changes nothing", and "settled" said of a `ceiling:` line, each word joined by `\s+` so a line break matches, fenced examples masked; the documents are the prose directories read at scan time (ADR 0247, INV-0190) | prohibition |
-| `code-management-no-force` | no code-management document sends `force_merge: true` or `--admin` on a merge (INV-0092) | prohibition |
+| `code-management-no-force` | no code-management document sends `force_merge: true` or `--admin` on a merge, in prose or in a fenced code block. A `never` right before the option excuses it (INV-0092) | prohibition |
 | `forgejo-tea-only` | no Forgejo backend document names a token env var, an `Authorization` header, or a curl call (ADR 0111) | prohibition |
 | `github-wiki-gh-only` | neither the GitHub wiki seed nor `docs/agents/knowledge-base.md` names a token env var (`GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`) or an `Authorization` header | prohibition |
 | `kb-no-backend-call` | plan, document, `doc-writer`, and `doc-pass.md` carry no instruction that reaches a knowledge-base backend (ADR 0023) | prohibition |

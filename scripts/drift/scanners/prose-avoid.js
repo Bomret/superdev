@@ -78,7 +78,8 @@ const scanUnmappedPathsForms = (root) =>
 // carries. A `never` sitting right before the match — "Never pass `--admin`", "this seed never sends
 // `force_merge`" — is the seed's own caution naming the option to forbid it, not an instruction to send
 // it, so it is excluded the same way `scanNoBaseBranchCommit`'s `negated()` excludes a "never commit …
-// to the base branch" caution.
+// to the base branch" caution. The scan reads the unmasked text: a fenced example is an invocation an
+// agent copies, so a fenced call is a gap and a fenced `# never pass --admin` is a caution.
 function scanNoForceMerge(root) {
   const gaps = [];
   for (const rel of NO_FORCE_MERGE_DOCS) {
@@ -87,11 +88,10 @@ function scanNoForceMerge(root) {
       gaps.push(missingDoc(rel));
       continue;
     }
-    const masked = maskFences(text);
     for (const [pattern, expectation] of NO_FORCE_MERGE_PATTERNS) {
       const re = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`);
-      for (const hit of masked.matchAll(re)) {
-        const before = masked.slice(Math.max(0, hit.index - NEVER_NEGATION_WINDOW), hit.index);
+      for (const hit of text.matchAll(re)) {
+        const before = text.slice(Math.max(0, hit.index - NEVER_NEGATION_WINDOW), hit.index);
         if (!/\bnever\b/i.test(before)) gaps.push({ source: rel, expectation: expectation(hit) });
       }
     }

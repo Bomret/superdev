@@ -67,6 +67,22 @@ module.exports = ({ assert, path, fixture, found }) => {
     0,
     'the same caution shape passes for the GitHub option',
   );
+  // a fenced invocation is an invocation; a fenced caution is still a caution
+  assert.equal(
+    noForce({ 'docs/agents/code-management.md': '```sh\ngh pr merge 42 --squash --admin\n```\n' }).length,
+    1,
+    'catches a fenced `--admin` invocation',
+  );
+  assert.equal(
+    noForce({ 'docs/agents/code-management.md': '```json\n{"force_merge": true}\n```\n' }).length,
+    1,
+    'catches a fenced `"force_merge": true`',
+  );
+  assert.equal(
+    noForce({ 'docs/agents/code-management.md': '```sh\n# never pass --admin\n```\n' }).length,
+    0,
+    'a fenced caution is not an invocation',
+  );
 
   // --- conflict-conclusion-no-commit (ADR 0123) ---
 

@@ -247,7 +247,8 @@ function testContainment(cwd, base, branch, remote = 'origin') {
 // The same test, returning what a caller that must tell an undecided verdict apart needs beside it (`push.js`,
 // INV-0009): `verdict`, `refetch` (the refetch's spawn result, or null when no refetch ran), `judgedBase`
 // (the base the verdict was judged against: `base`, or the commit id the refetch brought), and `fallback` (true when
-// the git lacks `--write-tree` and the ancestry fallback judged). `fetchTimeoutMs` replaces the refetch's bound.
+// the git lacks `--write-tree` and the ancestry fallback judged). `fetchTimeoutMs` replaces the refetch's bound. A
+// `remote` of null runs no refetch and answers from the local base alone.
 function judgeContainment(cwd, base, branch, remote = 'origin', { fetchTimeoutMs = FETCH_TIMEOUT_MS } = {}) {
   let fallback = false;
   const result = (verdict, refetch = null, judgedBase = base) => ({ verdict, refetch, judgedBase, fallback });
@@ -259,6 +260,7 @@ function judgeContainment(cwd, base, branch, remote = 'origin', { fetchTimeoutMs
   const local = containedAgainst(ref, base, cwd, writeTreeSupported);
   if (local === 'contained') return result('contained');
   if (local !== 'differs' && heldInHistory(cwd, base, ref, writeTreeSupported)) return result('contained');
+  if (remote === null) return result('not-contained');
 
   // Not contained against the local base — refetch before answering (ADR 0065). A fetch that fails
   // (no remote configured, an unreachable host, a rejected credential) leaves the local verdict
