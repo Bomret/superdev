@@ -1,3 +1,13 @@
+## [0.114.1](https://github.com/Bomret/superdev/compare/v0.114.0...v0.114.1) (2026-11-22)
+
+
+### Bug Fixes
+
+* **drift:** enforce the sweep's unenforced drift checks and repair run-time prose breaks ([#378](https://github.com/Bomret/superdev/issues/378)) ([71ce8e6](https://github.com/Bomret/superdev/commit/71ce8e6429553acf3fdcafaf065768e5916a548e))
+* **drift:** report what drift, invariant-check, and --related passed silently ([#415](https://github.com/Bomret/superdev/issues/415)) ([2963f92](https://github.com/Bomret/superdev/commit/2963f922ffa9d03640ff6eaef6cdc06d06ecf26f))
+* **scope:** every remote step uses the configured Remote:, and shipped prose states what the code does ([#404](https://github.com/Bomret/superdev/issues/404)) ([516eb20](https://github.com/Bomret/superdev/commit/516eb2010bd506a41e30a45a19b6df8e2630eb8c)), closes [#369](https://github.com/Bomret/superdev/issues/369) [#3](https://github.com/Bomret/superdev/issues/3)
+* **scope:** refuse malformed run-state input, keep ledger writes intact, harden publish-kb and update-check ([#388](https://github.com/Bomret/superdev/issues/388)) ([ba38767](https://github.com/Bomret/superdev/commit/ba38767183190279428e9daf1034878e06c36329))
+
 # [0.114.0](https://github.com/Bomret/superdev/compare/v0.113.2...v0.114.0) (2026-11-21)
 
 
