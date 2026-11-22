@@ -3,7 +3,9 @@
 // Selftest suite: every registered check, against an empty tree. A check that reads a named document
 // fails, naming the path, when that document is missing. A check that walks a directory reads whatever
 // the directory holds, so an empty tree gives it nothing to report. `formatGap` prints a missing document by its path and
-// every other gap shape, an unresolved heading citation included, by its check's own message. Run by ./index.js.
+// the check's id. Every other gap shape is pinned to the exact line it prints: each of the heading-citation check's three
+// messages, each check's own message, and the shared contract-gap message for every registered check that prints it. A
+// check given its own message gets its line in OWN_LINES below. Run by ./index.js.
 
 const { docPath, shippedDir } = require('../lib');
 const CHECKS = require('../checks');
@@ -47,7 +49,7 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     }
   }
 
-  // Every other gap shape prints its check's own message, naming where the gap is.
+  // Each heading-citation message names the citing document and the cited file.
   const byId = (id) => CHECKS.find((c) => c.id === id);
   const citing = path.join('skills', 'foo', 'SKILL.md');
   const headingCitation = byId('heading-citation');
@@ -59,8 +61,61 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
   // A cited file that resolves nowhere is reported by the cited file and the citing document, never as the citing document missing.
   const [unresolved] = citationGaps("See `nowhere.md`'s `## X`.\n");
   assert.equal(formatGap(headingCitation, unresolved), `${citing} cites nowhere.md, which resolves to no file`, 'an unresolved citation names the cited file and the citing document');
-  assert.equal(formatGap(byId('no-ci-wait'), { source: 'skills/x/SKILL.md', line: 7 }).split(' ')[0], 'plugin/skills/x/SKILL.md:7', 'a no-ci-wait gap prints plugin/<source>:<line>');
-  assert.equal(formatGap(byId('no-offer-start'), { source: 'plugin/skills/x/SKILL.md', line: 3 }).split(' ')[0], 'plugin/skills/x/SKILL.md:3', 'a no-offer-start gap prints <source>:<line>');
+
+  // Each check with a message of its own, a gap carrying the fields its scanner emits, and the exact line it prints.
+  const OWN_LINES = {
+    reference: [
+      { source: 'skills/foo/SKILL.md', reference: 'references/gone.md' },
+      'missing references/gone.md — referenced by skills/foo/SKILL.md',
+    ],
+    'command-resolution': [
+      { source: 'agents/x.md', command: '/superdev:gone' },
+      'agents/x.md names `/superdev:gone`, which has no file under skills/',
+    ],
+    'adr-status': [
+      { source: 'docs/adr/0001-x.md' },
+      'docs/adr/0001-x.md states no status — expected `**Status:** <Accepted | Proposed | Superseded | Rejected>` on its own line, so a decision nothing implements cannot read as one the code honours',
+    ],
+    'invariant-register-join': [
+      { message: 'INV-0001: Check: `gone` is not a registered drift-check id' },
+      'INV-0001: Check: `gone` is not a registered drift-check id',
+    ],
+    'run-root': [
+      { source: 'skills/implement/SKILL.md', match: '.superdev/scopes/x/dod.md' },
+      'checkout-relative run-root path `.superdev/scopes/x/dod.md` in skills/implement/SKILL.md — use `<run-root>/…`',
+    ],
+    'scopetree-run-root': [
+      { source: 'skills/ship/SKILL.md', match: '.superdev/scopes/x/scopetree' },
+      'checkout-relative scopetree path `.superdev/scopes/x/scopetree` in skills/ship/SKILL.md — use `<run-root>/scopetree`',
+    ],
+    'no-offer-start': [
+      { source: 'skills/x/SKILL.md', line: 3 },
+      'skills/x/SKILL.md:3 names `start_session` or the offer marker line — superdev starts no session and makes no offer (ADR 0253)',
+    ],
+    'no-ci-wait': [
+      { source: 'skills/x/SKILL.md', line: 7 },
+      'plugin/skills/x/SKILL.md:7 names a wait or a poll on CI — superdev never waits on a check; ship refuses as pending instead (INV-0192, ADR 0255)',
+    ],
+    'no-base-branch-commit': [
+      { source: 'skills/x/SKILL.md', line: 9 },
+      'skills/x/SKILL.md:9 instructs a commit, a push, or a merge to the base branch — no superdev command reaches the base branch that way (INV-0001, docs/invariants.md)',
+    ],
+  };
+  for (const [id, [gap, line]] of Object.entries(OWN_LINES)) {
+    assert.ok(byId(id), `${id} is a registered check`);
+    assert.equal(formatGap(byId(id), gap), line, `${id}: a gap prints the check's own message`);
+  }
+  // Every other registered check prints the shared contract-gap message. A check given a message of its own fails here
+  // until its line joins OWN_LINES.
+  const contractGap = { source: 'references/x.md', expectation: 'carry `## Y`' };
+  for (const check of CHECKS) {
+    if (check.id === 'heading-citation' || check.id in OWN_LINES) continue;
+    assert.equal(
+      formatGap(check, contractGap),
+      'references/x.md no longer meets its contract — expected it to carry `## Y`',
+      `${check.id}: a gap prints the shared contract-gap message`,
+    );
+  }
 
   // A directory walker passes vacuously when its directory is gone, so every directory the walkers read
   // must exist in the real repository.

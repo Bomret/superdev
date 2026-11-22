@@ -1252,7 +1252,7 @@ live beside it, in `scripts/drift/`.
 | `drift/contracts.js` | the contract tables and patterns. Data only |
 | `drift/scanners/` | the bespoke scanners, every check whose assertion is more than one pattern over one document. `index.js` is the barrel `checks.js` and the selftest require. One file per topic holds the scanners: `references.js`, `adr.js`, `prose-avoid.js`, `shell-spawn.js`, `base-branch-ship.js`, `marketplace-readme.js`, `register-join.js`, `root-inventory.js`, and `test-seams.js`. `walkers.js` holds the document walks and the absence-check shape they share |
 | `drift/lib.js` | what they share: `maskFences`, `maskedSentences`, `normalizeWhitespace`, `docPath`, `readDoc`, `missingDoc`, `observeContracts`, `scanContract`, and `stripComments`. `maskFences` blanks every fenced block to spaces, keeping each line's length, and reads fences only through `plugin/lib/md-sections.js`'s `fenceOpener` and `fenceCloses`. An unclosed fence masks to end of file. `scanContract` runs a table of `[document, pattern, expectation]` rows against fence-masked text. A row carrying a fourth element `{ fenced: true }` tests the unmasked text, for a heading that exists only inside a fenced template. `stripComments` removes `//` and `/* … */` comments wherever they sit, and an unclosed block comment runs to end of file. It keeps a comment marker inside a string, a template literal, or a regular-expression literal |
-| `drift/selftest/` | `index.js` (the `fixture` helper, `found`, `realRoot`, temp-dir cleanup, and the coverage assertion) plus one suite per scanner topic, named for its file in `drift/scanners/`. Further suites are `lib.test.js` (the shared helpers), `contracts` (the table-driven checks), `checks` (every registered check against an empty tree, and `formatGap`'s printed line for each gap shape), `observation` (the coverage observation itself), and `drift-check` (`runChecks` and the registry wiring). `coverage.js` is the coverage verdict helper |
+| `drift/selftest/` | `index.js` (the `fixture` helper, `found`, `realRoot`, temp-dir cleanup, and the coverage assertion) plus one suite per scanner topic, named for its file in `drift/scanners/`. Further suites are `lib.test.js` (the shared helpers), `contracts` (the table-driven checks), `checks` (every registered check against an empty tree, and the exact line `formatGap` prints for each gap shape of every registered check), `observation` (the coverage observation itself), and `drift-check` (`runChecks` and the registry wiring). `coverage.js` is the coverage verdict helper |
 
 Every check tests a mechanical fact — a link or section target resolves, a number is unique, a file or
 command exists, a property of code or configuration holds — or forbids a form in shipped prose or in the root `AGENTS.md` (ADR 0153).
@@ -1328,6 +1328,8 @@ path, when that document is missing. A check that walks a directory reads whatev
   entry in the `drift/checks.js` registry, one row in the table above keyed on its own `id`, and its own
   cases in the `drift/selftest/` suite of its topic: its seeded violation, a clean fixture, and, when it reads a
   named document, the missing-document case the registry-wide selftest asserts. No check enforces the row. A review judges the row and the selftest cases.
+  A check whose gap prints a message of its own, rather than the shared contract-gap message, also adds that exact line
+  to the `checks` suite, which fails until it does.
 
 ## Verification
 
