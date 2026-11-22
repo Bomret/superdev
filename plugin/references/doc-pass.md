@@ -242,7 +242,8 @@ merges the section into the live page by its heading.
 - **The body** → an ATX heading (`#` … `######`), at the level the outline entry names and never the page's own title,
   as the very first line; nothing above it, nothing after it but that section's own content up to the next heading of
   the same or higher level, no setext (underlined) heading anywhere in it, and no fenced code block left open.
-  `scripts/kb-patch.js` refuses a file that breaks any of these and leaves it staged for you to fix.
+  `scripts/kb-patch.js` refuses a file with no heading, content before the heading, more than one section, a setext
+  heading, or an open fence, and leaves it staged for you to fix. The heading's level and title are yours to keep.
 - **A page the outline does not mark** stays `upsert`: you own it end to end.
 - **Removing one section of an aggregate page** is not yours: `patch` replaces or appends, and `delete` removes a whole
   page.

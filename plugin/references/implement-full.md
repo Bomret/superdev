@@ -122,8 +122,7 @@ Applies until every slice is `merged`. Run the steps below in order, and repeat.
    **Pilot the first wave.** Applies to a fresh scope with nothing merged yet. Dispatch a single slice first and take
    it through review and merge before you fill the cap. From the next wave on, fill the cap.
 
-   **The concurrency cap.** Applies to every wave. Run at most **max-concurrent-implementers** at once (default
-   **4**; raise it once a piloted scope earns trust, lower it for a heavier model or a tighter budget). A runnable
+   **The concurrency cap.** Applies to every wave. Run at most **4** implementers at once, a fixed cap. A runnable
    set over the cap goes in **waves**: fill the cap, and backfill from the remaining runnable set as each
    implementer's step 3 completes. The cap changes no `depends-on` semantics.
 

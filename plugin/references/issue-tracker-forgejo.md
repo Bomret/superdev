@@ -208,7 +208,8 @@ and nothing else: no feature label, no status label, no `epic` label, and no tri
 - **List them.**
   `tea api -i '/repos/{owner}/{repo}/issues?state=open&type=issues&sort=oldest&page=<p>&limit=50'`
   (paged), keeping the issues the rule above matches. `type=issues` excludes pull requests at the server.
-  The order is oldest first.
+  Forgejo honours `sort=oldest`, so the order is oldest first. Gitea's issue list documents no `sort` parameter, so on
+  Gitea the order is not guaranteed: read every page, then sort by `created_at` or `number` yourself.
 - **Read its age.** The issue's own `created_at` field.
 
 ## Run state

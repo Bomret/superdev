@@ -34,9 +34,9 @@ The check-status read below degrades the same way: print the exact `gh api` call
 
 - **Read the pull request**: `gh pr view <number> --json state,mergeable,headRefOid,mergeCommit` (or
   `GET /repos/<owner>/<repo>/pulls/<pull_number>` for `state`, `merged`, `merge_commit_sha`, `head.sha`,
-  and `mergeable`). GitHub computes `mergeable` asynchronously and answers `null` while it does;
-  re-read up to 3 times with a short pause and, if it is still `null`, report it as **unknown** — never
-  as mergeable.
+  and `mergeable`). GitHub computes `mergeable` asynchronously: while it does, REST answers `null` and
+  `gh pr view --json mergeable` answers `UNKNOWN`. Both read as not yet known: re-read up to 3 times with a short
+  pause and, if it is still not known, report it as **unknown** — never as mergeable.
 - **Read the draft state**: `gh pr view <number> --json isDraft --jq .isDraft` prints `true` for a draft.
 - **Mark ready**: `gh pr ready <number>` takes a draft pull request out of draft. GitHub refuses to merge a
   draft, so `/superdev:ship` calls it before the merge under the merge consent.

@@ -105,8 +105,8 @@ verdict:
 are ready, read from the slice store and handed straight to the cascade, with no run-root enumeration.
 
 **A caller that cannot ask stops and lists instead.** Applies to `scripts/publish-kb.js`, which has no
-interview loop. With several candidates or none, it refuses and lists them, in the shape the several-candidate and
-no-candidate branches print.
+interview loop. With several pending staging scopes it refuses and lists each as `<slug>: <n> staged page(s)`, and with
+none it refuses with `No staged knowledge-base pages in this repo.`, in its own shape and not the cascade's.
 
 ## The scope branch
 

@@ -55,7 +55,7 @@ it does with each.
 
 **`<base>` is the caller's.** Applies to choosing `<base>`. `hooks/scope-prune.js` uses `HEAD`, the current branch,
 which is safe only because the invoking checkout stays off the scope branch at every tier. `## Cutting the scope
-branch` and `skills/publish-kb/SKILL.md` §3 use the base branch named in `docs/agents/code-management.md`. A ref that
+branch` and `skills/publish-kb/SKILL.md` §2 use the base branch named in `docs/agents/code-management.md`. A ref that
 already holds the branch's content reads contained.
 
 **A reverted base.** Applies to a base that took the branch's work and then reverted it.
