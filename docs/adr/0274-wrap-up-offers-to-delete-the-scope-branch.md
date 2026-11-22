@@ -21,7 +21,9 @@ reap of the local ref as it is.
   reads the ledger's `**Branch:**` line, tests containment itself, and deletes only a contained branch. The
   prose asks and calls the verb; it carries no git deletion of its own.
 - **The remote delete is leased** on the tip the containment test judged. A remote branch that moved since
-  keeps its commits and is reported. A remote branch already gone counts as deleted.
+  keeps its commits and is reported. A remote branch already gone counts as deleted. The remote-tracking ref
+  is deleted only once the remote branch reads deleted or gone, so a kept remote branch keeps its pointer
+  in the clone.
 - **A failed delete never blocks the close.** The anchor is closed before the ask, so the verb reports
   what it could not delete and the stage write still runs.
 - **The ask follows the tree removal**, because git refuses to delete a branch a worktree has checked out.

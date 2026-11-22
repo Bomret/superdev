@@ -1,7 +1,8 @@
 'use strict';
 
 // branch-delete.js: the `branch delete` verb, which deletes a run's scope branch that base contains, locally, as its
-// remote-tracking ref, and on the remote, leased on the tip the containment test judged (ADR 0274, INV-0204).
+// remote-tracking ref, and on the remote, leased on the tip the containment test judged (ADR 0274, INV-0204). The
+// remote-tracking ref is deleted only once the remote branch reads deleted or gone.
 
 const fs = require('fs');
 const { gitSpawn, resolveCommit } = require('./git-spawn.js');
@@ -83,11 +84,15 @@ function verbBranchDelete(cwd, args) {
     return;
   }
 
-  const lines = [
-    deleteLocal(cwd, branch, localTip),
-    deleteTracking(remote, named, trackingRef, trackingTip, cwd),
-    remote ? deleteRemote(cwd, remote, branch, tested) : 'remote not-reached no remote is configured or given',
-  ];
+  // The remote goes first, so the tracking ref is deleted only once the remote branch reads deleted or gone; a kept
+  // remote branch keeps its tracking ref as the clone's pointer to it. The printed order stays local, tracking, remote.
+  const local = deleteLocal(cwd, branch, localTip);
+  const remoteLine = remote ? deleteRemote(cwd, remote, branch, tested) : 'remote not-reached no remote is configured or given';
+  const remoteWord = remoteLine.split(' ')[1];
+  const tracking = trackingTip && !['deleted', 'gone'].includes(remoteWord)
+    ? `tracking not-reached ${trackingRef} is kept beside the remote branch, which reads ${remoteWord}`
+    : deleteTracking(remote, named, trackingRef, trackingTip, cwd);
+  const lines = [local, tracking, remoteLine];
   console.log([...head, ...lines].join('\n'));
   if (!lines.every((l) => DONE_WORDS.includes(l.split(' ')[1]))) process.exitCode = KEPT_EXIT;
 }

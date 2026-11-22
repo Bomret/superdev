@@ -149,6 +149,7 @@ try {
     assert.ok(r.lines.remote.line.includes(tested) && r.lines.remote.line.includes(moved), `names both tips: ${r.out}`);
     assert.match(r.out, /git push/, `names the command to run by hand: ${r.out}`);
     assert.strictEqual(remoteTip(f), moved, 'the remote keeps its commits');
+    assert.strictEqual(trackingTip(f), tested, 'the tracking ref stays beside the kept remote branch');
   }
 
   // #lease-rejected: a remote that moves between the read and the push rejects the lease, which reads kept-moved.
@@ -290,14 +291,18 @@ try {
     assert.notStrictEqual(localTip(f), null, 'the local ref stays');
   }
 
-  // A remote the verb cannot reach: the remote line names its outcome and the hand command, never deleted, exit 4.
+  // A remote the verb cannot reach: the remote line names its outcome and the hand command, never deleted, exit 4. The
+  // tracking ref stays as the clone's pointer to the surviving remote branch.
   const unreached = (label, f, word, env) => {
     const before = remoteTip(f);
+    const tracking = trackingTip(f);
     const r = del(f, ['--remote', 'origin'], env);
     assert.strictEqual(r.status, 4, `${label} exits 4: ${r.out} ${r.err}`);
     assert.strictEqual(r.lines.remote.word, word, `${label} reads ${word}: ${r.out}`);
     assert.match(r.lines.remote.line, /git push/, `${label} names the command to run by hand: ${r.out}`);
     assert.strictEqual(remoteTip(f), before, `${label} deletes no remote branch`);
+    assert.strictEqual(trackingTip(f), tracking, `${label} keeps the tracking ref: ${r.out}`);
+    assert.strictEqual(r.lines.tracking.word, 'not-reached', `${label} reads the tracking line not-reached: ${r.out}`);
     return r;
   };
 
