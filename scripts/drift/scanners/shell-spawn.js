@@ -71,8 +71,8 @@ function* shippedSources(root) {
 function scanShellSpawn(root) {
   const offenders = [];
   for (const { dir, name, raw } of shippedSources(root)) {
-    // Only comments that start a line or follow whitespace are stripped, so a `/*` inside a string or a
-    // `//` comment never deletes live code.
+    // `stripComments` leaves a comment marker inside a string, a template literal, or a regular expression in
+    // place, so a `/*` in code never deletes live code.
     const text = stripComments(raw);
     const forms = new Set(SHELL_SPAWN_FORMS.filter(([, re]) => re.test(text)).map(([form]) => form));
     // `exec` and `execSync` count only from child_process: referenced or called directly, through a namespace,

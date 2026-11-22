@@ -1,8 +1,8 @@
 'use strict';
 
 // drift-check contract data: the tables and patterns every check asserts against, and nothing else.
-// A `[document, pattern, expectation]` row is read by `lib.js`’s scanContract(); the element
-// lists and lone patterns are read by the bespoke scanners in `scanners/`.
+// A `[document, pattern, expectation]` row, or one carrying a fourth element `{ fenced: true }`, is read by
+// `lib.js`’s scanContract(); the element lists and lone patterns are read by the bespoke scanners in `scanners/`.
 
 const path = require('node:path');
 
@@ -224,8 +224,8 @@ const KB_BACKEND_CALL_MARKERS = [
 // `**Name:**` regex drifts from the shared reader: each local fix lands in that copy alone, and none
 // travels back.
 //
-// The primary guard against that drift restarting is the orphan test in `hooks/scope-prune.js
-// --selftest` (`#reader-unavailable` and its shared-reader agreement vectors): it exercises the real
+// The primary guard against that drift restarting is the orphan test in `tests/scope-prune-guards.test.js`
+// (`#reader-unavailable`): it exercises the real
 // reader against real input and fails the moment a hook stops using it. This regex is a fast literal-
 // shape tripwire only, not a substitute — it looks for the ledger's header marker being *built as a
 // pattern* — an escaped `**`, a short run, a colon, then an escaped `**` again — and a self-contained

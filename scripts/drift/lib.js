@@ -130,27 +130,73 @@ function scanContract(root, contracts) {
   return gaps;
 }
 
-// Cuts a trailing `//` comment (at the line start or after whitespace) unless it sits inside a quoted string.
-function stripLineComment(line) {
-  let quote = null;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (quote) {
-      if (c === '\\') i++;
-      else if (c === quote) quote = null;
-    } else if (c === '"' || c === "'" || c === '`') quote = c;
-    else if (c === '/' && line[i + 1] === '/' && (i === 0 || /\s/.test(line[i - 1]))) return line.slice(0, i);
-  }
-  return line;
-}
+// A `/` after one of these characters, or after one of REGEX_KEYWORDS, opens a regular-expression literal;
+// after anything else it divides.
+const REGEX_AFTER = new Set(['', '(', ',', '=', ':', '[', '!', '&', '|', '?', '{', '}', ';', '+', '-', '*', '%', '<', '>', '~', '^']);
+const REGEX_KEYWORDS = /\b(?:return|typeof|instanceof|in|of|new|delete|void|throw|case|do|else|yield|await)$/;
 
-// The text without its block comments and trailing line comments (see `stripLineComment`).
+// The text without its comments: a `//` comment to its line end, and a `/* … */` comment wherever it sits, an
+// unclosed one to end of file. A comment marker inside a quoted string, a template literal (one spanning lines
+// included), or a regular-expression literal is code, and stays. A block comment keeps its line breaks, so the
+// code after it stays on its own line.
 function stripComments(raw) {
-  return raw
-    .replace(/^[ \t]*\/\*[\s\S]*?\*\//gm, '')
-    .split('\n')
-    .map(stripLineComment)
-    .join('\n');
+  let out = '';
+  let last = ''; // the last character of code that is not whitespace
+  let i = 0;
+  const copyQuoted = (close, multiline) => {
+    out += raw[i++];
+    while (i < raw.length) {
+      const c = raw[i];
+      if (c === '\\') {
+        out += raw.slice(i, i + 2);
+        i += 2;
+        continue;
+      }
+      out += c;
+      i++;
+      if (c === close || (!multiline && c === '\n')) break;
+    }
+  };
+  while (i < raw.length) {
+    const c = raw[i];
+    const next = raw[i + 1];
+    if (c === '"' || c === "'") {
+      copyQuoted(c, false);
+      last = c;
+    } else if (c === '`') {
+      copyQuoted('`', true);
+      last = c;
+    } else if (c === '/' && next === '/') {
+      while (i < raw.length && raw[i] !== '\n') i++;
+    } else if (c === '/' && next === '*') {
+      const end = raw.indexOf('*/', i + 2);
+      const stop = end === -1 ? raw.length : end + 2;
+      out += raw.slice(i, stop).replace(/[^\n]/g, '');
+      i = stop;
+    } else if (c === '/' && (REGEX_AFTER.has(last) || REGEX_KEYWORDS.test(out.trimEnd()))) {
+      let inClass = false;
+      out += raw[i++];
+      while (i < raw.length && raw[i] !== '\n') {
+        const r = raw[i];
+        if (r === '\\') {
+          out += raw.slice(i, i + 2);
+          i += 2;
+          continue;
+        }
+        out += r;
+        i++;
+        if (r === '[') inClass = true;
+        else if (r === ']') inClass = false;
+        else if (r === '/' && !inClass) break;
+      }
+      last = '/';
+    } else {
+      out += c;
+      i++;
+      if (!/\s/.test(c)) last = c;
+    }
+  }
+  return out;
 }
 
 module.exports = {

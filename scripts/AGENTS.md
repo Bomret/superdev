@@ -817,8 +817,8 @@ when a setext underline falls inside the live region about to be dropped, rather
 swallowing that section into the replaced one. `extractSection()` applies the identical `hasSetextHeading()`
 check to the **staged** body's own section, refusing there too, rather than accept a shape it merges
 cleanly today and then refuses to ever patch again. That failure belongs on the staged file, which
-a doc pass re-runs, not on the live page it would otherwise strand. Heading detection runs on fence-masked lines (matches
-`scripts/drift/lib.js`'s `maskFences`, including its at-least-as-long closing-fence rule), so a
+a doc pass re-runs, not on the live page it would otherwise strand. Heading detection runs on fence-masked lines, by
+`md-sections.js`'s `fenceOpener` and `fenceCloses`, the rule `scripts/drift/lib.js`'s `maskFences` also reads through, so a
 `#` or `~~~` shown *inside* a fenced code example is never read as a heading, in the staged body, in the
 live section being replaced, or by the duplicate-heading scan. An unterminated fence in either input
 refuses instead of guessing where it would have closed, because it would otherwise mask every line
@@ -1241,7 +1241,7 @@ live beside it, in `scripts/drift/`.
 | `drift/checks.js` | the **registry**, one entry per check: `id`, `run`, its `ok` phrase, and how one gap prints, plus `contracts` on a table-driven check |
 | `drift/contracts.js` | the contract tables and patterns. Data only |
 | `drift/scanners/` | the bespoke scanners, every check whose assertion is more than one pattern over one document. `index.js` is the barrel `checks.js` and the selftest require. One file per topic holds the scanners: `references.js`, `adr.js`, `prose-avoid.js`, `shell-spawn.js`, `base-branch-ship.js`, `marketplace-readme.js`, `register-join.js`, `root-inventory.js`, and `test-seams.js`. `walkers.js` holds the document walks and the absence-check shape they share |
-| `drift/lib.js` | what they share: `maskFences`, `maskedSentences`, `normalizeWhitespace`, `docPath`, `readDoc`, `missingDoc`, `observeContracts`, `scanContract`, and `stripComments` |
+| `drift/lib.js` | what they share: `maskFences`, `maskedSentences`, `normalizeWhitespace`, `docPath`, `readDoc`, `missingDoc`, `observeContracts`, `scanContract`, and `stripComments`. `maskFences` blanks every fenced block to spaces, keeping each line's length, and reads fences only through `plugin/lib/md-sections.js`'s `fenceOpener` and `fenceCloses`; an unclosed fence masks to end of file. `scanContract` runs a table of `[document, pattern, expectation]` rows against fence-masked text; a row carrying a fourth element `{ fenced: true }` tests the unmasked text, for a heading that exists only inside a fenced template. `stripComments` removes `//` and `/* … */` comments wherever they sit, an unclosed block comment to end of file, and keeps a comment marker inside a string, a template literal, or a regular-expression literal |
 | `drift/selftest/` | `index.js` (the `fixture` helper, `found`, `realRoot`, temp-dir cleanup, and the coverage assertion) plus one suite per scanner topic (`references`, `adr`, `prose-avoid`, `shell-spawn`, `base-branch-ship`, `marketplace-readme`, `register-join`, `root-inventory`, `test-seams`), `contracts` (the table-driven checks), `checks` (every registered check against an empty tree), `observation` (the coverage observation itself), `drift-check` (`runChecks` and the registry wiring), and `coverage.js`, the coverage verdict helper |
 
 Every check tests a mechanical fact — a link or section target resolves, a number is unique, a file or
@@ -1259,8 +1259,8 @@ path, when that document is missing. A check that walks a directory reads whatev
 | `audit-set-globs` | `docs/agents/documentation.md` carries `## Audit set`, and every pattern listed there matches a file | structural |
 | `marketplace-source` | each `.claude-plugin/marketplace.json` source resolves to a tree carrying `.claude-plugin/plugin.json`; a `git-subdir` source names this repository's clone URL and pins `ref` to `v` plus that tree's version | structural |
 | `adr-numbers` | no two ADRs in `docs/adr/` share a number | structural |
-| `adr-status` | every ADR carries a `**Status:**` line with a recognised value | structural |
-| `adr-relations` | Every ADR link (link text `ADR NNNN`) in a relation header names an existing ADR that carries the reverse header. Every other `AGENTS.md` link in a `**Superseded by:**` header names an existing file, where a setup decision moved to a working rule. A header whose links are all such `AGENTS.md` links needs no ADR link, even where its prose mentions an ADR. `**Status:** Superseded` goes with `**Superseded by:**`. | structural |
+| `adr-status` | every ADR carries a `**Status:**` line with a recognised value outside a fenced example | structural |
+| `adr-relations` | A relation header sits anywhere in an ADR's header block, from its title to its body, above or below `**Status:**`; above it only the relation labels open a header. Every ADR link (link text `ADR NNNN`) in a relation header names an existing ADR that carries the reverse header. Every other `AGENTS.md` link in a `**Superseded by:**` header names an existing file, where a setup decision moved to a working rule. A header whose links are all such `AGENTS.md` links needs no ADR link, even where its prose mentions an ADR. `**Status:** Superseded` goes with `**Superseded by:**`. | structural |
 | `invariant-register-join` | every drift id a `docs/invariants.md` `Check:` line names is registered, and every invariant a contract row cites covers that row's document in its `Paths:` | structural |
 | `run-root` | the execution documents address run-root artifacts by `<run-root>/…`, never by a checkout-relative `.superdev/scopes/<scope>/…` path | prohibition |
 | `scopetree-run-root` | `skills/ship/SKILL.md`, `skills/document/SKILL.md`, and `scripts/publish-kb.js` address another run's scopetree by `<run-root>/scopetree`, never by a checkout-relative path (ADR 0080) | prohibition |
