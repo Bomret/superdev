@@ -1155,8 +1155,8 @@ Paths: plugin/agents/final-reviewer.md, plugin/skills/review/**, plugin/referenc
 ### INV-0144
 
 Class: architecture
-Concepts: Run trace, Ledger
-Statement: superdev-view draws only facts the ledger and the run trace state. A fact the run files lack is not drawn, never derived by the mod from order, timing, or a dispatch description (ADR 0140, ADR 0197).
+Concepts: Run trace, Ledger, Run lock
+Statement: superdev-view draws only facts the ledger, the run trace, and the run lock state. A fact the run files lack is not drawn, never derived by the mod from order, timing, or a dispatch description (ADR 0140, ADR 0197).
 Breaks: silently
 Check: none — a heuristic can enter the mod's parser in any form, and no cheap test tells a reading from a derivation; a reviewer of a `mods/superdev-view/` change applies it.
 Paths: mods/superdev-view/hooks/**
