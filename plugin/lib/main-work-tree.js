@@ -13,10 +13,9 @@ const { fail } = require('./refusal.js');
 // worktree list` reports the git directory itself for a submodule, which is why it is not the source).
 // This is what keeps a plan's scopetree, a slicetree, and the main checkout
 // all naming the same run root for one scope. `verbInit` and `verbStatus` resolve their own run-root
-// paths through this same function (review finding, ADR 0080) — building them from `cwd` directly, as
-// `verbRoot` alone used to, is exactly the divergence that leaves a ledger `init` writes from inside a
-// scopetree or slicetree invisible to a `root <slug>` call — or a `status` scan — made from the main
-// working tree.
+// paths through this same function (ADR 0080): a path built from `cwd` directly would leave a ledger `init`
+// writes from inside a scopetree or slicetree invisible to a `root <slug>` call — or a `status` scan — made
+// from the main working tree.
 //
 // Returns `null` rather than failing when `cwd` is not inside a git repository: `init` and `status`
 // both tolerate that (a `status` scan of a plain, non-superdev directory reports "no runs found" rather
