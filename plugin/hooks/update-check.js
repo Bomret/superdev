@@ -9,7 +9,7 @@
 // segment; any other value (prerelease, build metadata, non-string, text) prints nothing.
 // Throttled to one network check per 24h via a stamp file under CLAUDE_PLUGIN_DATA, so it never
 // adds latency to a routine session start. Without CLAUDE_PLUGIN_DATA (always exported by a Claude
-// Code plugin hook, which places it outside the plugin root) it makes no request and writes no file, and it writes only under CLAUDE_PLUGIN_DATA.
+// Code plugin hook, which places it outside the plugin root) it makes no request and writes no file.
 
 const fs = require('node:fs');
 const path = require('node:path');

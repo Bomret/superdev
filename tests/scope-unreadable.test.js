@@ -133,11 +133,11 @@ for (const [how, re, brk] of ledgerBreaks) {
   assert.throws(() => readHeaderOrNull(root, 'Branch'), (e) => e.isRefusal && /ledger\.md/.test(e.message), 'the header read refuses');
 }
 {
-  // The scope-branch header read, through the CLI: `stage set` resolves the scope branch from the ledger header.
-  const { root } = sealed();
+  // The scope-branch header read, through the CLI: `branch` and `checkout` read the ledger header with `readHeaderOrNull`.
+  const { repo, root } = sealed();
   fs.rmSync(path.join(root, 'ledger.md'));
   fs.mkdirSync(path.join(root, 'ledger.md'));
-  refused(sc(path.dirname(path.dirname(path.dirname(root))), ['stage', 'set', 'implementing', '--root', root]), /ledger\.md/, 'stage set with a directory ledger');
+  for (const verb of ['branch', 'checkout']) refused(sc(repo, [verb, '--root', root]), /ledger\.md/, `${verb} with a directory ledger`);
 }
 {
   // `test` locates the run root strictly: an unreadable ledger refuses and the command never runs.
