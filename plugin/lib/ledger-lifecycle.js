@@ -148,7 +148,8 @@ function verbInit(cwd, label, stage, stdinJson, log = console.log, checked = fal
   }
 
   const seenIds = new Set();
-  const rows = spec.slices.map((s) => {
+  const rows = spec.slices.map((s, n) => {
+    if (s === null || typeof s !== 'object' || Array.isArray(s)) fail(`slice row ${n + 1} is not an object — expected {"id", "issue", "title", "type"}`);
     for (const k of ['id', 'issue', 'title', 'type']) {
       if (typeof s[k] !== 'string' || !s[k]) fail(`slice row missing "${k}"`);
     }

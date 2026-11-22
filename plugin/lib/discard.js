@@ -3,11 +3,11 @@
 // discard.js: the `discard` verb (ADR 0208, INV-0181), the one sanctioned removal of a run's ledger and run trace. It removes
 // `ledger.md`, `trace.log`, `run.lock`, and the digest sidecar and its lock from a run root that is `<main working tree>/.superdev/scopes/<scope>`, then removes the
 // run root when that leaves it empty. It refuses a run whose stage is later than `planned`, and removes nothing on a refusal.
-// An absent file or an absent root is no error.
+// An absent file or an absent root is no error. A root that is no directory, or a ledger present but unreadable, refuses and removes nothing.
 
 const fs = require('fs');
 const path = require('path');
-const { fail } = require('./refusal.js');
+const { fail, readPresent } = require('./refusal.js');
 const { readLedgerHeader } = require('./ledger.js');
 const { mainWorkTree } = require('./main-work-tree.js');
 const { drivePath } = require('./drive-path.js');
@@ -28,9 +28,10 @@ function verbDiscard(cwd, rootArg) {
   const root = realish(path.resolve(cwd, drivePath(rootArg)));
   if (path.dirname(root) !== scopes) fail(`discard: ${rootArg} is no run root: it must be ${scopes}${path.sep}<scope>`);
   if (!fs.existsSync(root)) return;
-  const ledger = path.join(root, 'ledger.md');
-  if (fs.existsSync(ledger)) {
-    const stage = readLedgerHeader(fs.readFileSync(ledger, 'utf8'), 'Stage');
+  if (!fs.statSync(root).isDirectory()) fail(`discard: ${root} is not a directory`);
+  const ledgerText = readPresent(path.join(root, 'ledger.md'), 'utf8');
+  if (ledgerText !== null) {
+    const stage = readLedgerHeader(ledgerText, 'Stage');
     if (stage && stage !== 'planned') fail(`discard: the run at ${root} is at stage ${stage}; discard removes only a run at planned`);
   }
   for (const f of RUN_FILES) fs.rmSync(path.join(root, f), { force: true });

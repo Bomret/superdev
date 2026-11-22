@@ -4,7 +4,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { fail } = require('./refusal.js');
+const { fail, readPresent } = require('./refusal.js');
 const { stateOf, readSide, writeSide, withRunLock } = require('./run-digest.js');
 
 // references/scope-mode.md `## The change type` — the eleven Conventional Commits types.
@@ -60,13 +60,8 @@ function ledgerPath(root) {
 }
 
 function readLines(root) {
-  let raw;
-  try {
-    raw = fs.readFileSync(ledgerPath(root), 'utf8');
-  } catch (e) {
-    if (e.code === 'ENOENT') fail(`no ledger at ${ledgerPath(root)}`);
-    throw e;
-  }
+  const raw = readPresent(ledgerPath(root), 'utf8');
+  if (raw === null) fail(`no ledger at ${ledgerPath(root)}`);
   return splitLines(raw);
 }
 
@@ -242,11 +237,12 @@ function splitRow(line) {
   return parts.slice(1, parts.length - 1).map((c) => c.trim().replace(/\\\|/g, '|'));
 }
 
-// One rule for every slice id before it becomes part of a `reports/<id>/` path: an id that is empty, absolute,
-// or holds a path separator or a `..` segment is refused, naming the id (triage #1342).
+// One rule for every slice id before it becomes part of a `reports/<id>/` path: an id that is empty, absolute, `.` or `..`,
+// or holds a path separator or a control character (U+0000-U+001F, U+007F) is refused, naming the id (triage #1342).
 function checkSliceId(id) {
-  if (typeof id !== 'string' || id.trim() === '' || /[\\/]/.test(id) || id === '..') {
-    fail(`slice id "${id}" is refused: a slice id is non-empty and holds no path separator and no ".." segment`);
+  if (typeof id !== 'string' || id.trim() === '' || /[\\/\u0000-\u001f\u007f]/.test(id) || id === '.' || id === '..') {
+    const shown = String(id).replace(/[\u0000-\u001f\u007f]/g, (c) => `\\x${c.charCodeAt(0).toString(16).padStart(2, '0')}`);
+    fail(`slice id "${shown}" is refused: a slice id is non-empty, is neither "." nor "..", and holds no path separator and no control character`);
   }
   return id;
 }

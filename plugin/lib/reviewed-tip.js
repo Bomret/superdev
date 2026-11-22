@@ -7,7 +7,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { fail } = require('./refusal.js');
+const { fail, readPresent } = require('./refusal.js');
 const { readLines, writeLines, headerRe, insertHeader, getHeader } = require('./ledger.js');
 const { gitSpawn, resolveCommit } = require('./git-spawn.js');
 const { GIT_BOUND_MS } = require('./run-tree.js');
@@ -49,7 +49,8 @@ const REMERGE_MIN = [2, 36];
 
 // `reviewed check`: one verdict line, read from the ledger, `dod.md`, and git, writing nothing. `delta <sha> <old range
 // base>` and `unchanged <sha>` where the record still holds; `whole <reason>` otherwise. Each git call is bounded by
-// `GIT_BOUND_MS`, and a call that fails or outlasts it reads as `whole git-failed`, never as a delta (INV-0009).
+// `GIT_BOUND_MS`, and a call that fails or outlasts it reads as `whole git-failed`, never as a delta (INV-0009). An absent `dod.md` reads as
+// `whole dod-unreadable`; a ledger or `dod.md` present but unreadable refuses with one line naming the file.
 function verbReviewedCheck(cwd, root, branch, base) {
   const lines = readLines(root);
   console.log(judge(cwd, root, lines, branch, base));
@@ -86,12 +87,8 @@ function judge(cwd, root, lines, branch, base) {
     const last = walk.out.trim().split('\n').pop().split(' ');
     if (last[1] !== sha) return 'whole rewritten';
   }
-  let text;
-  try {
-    text = fs.readFileSync(path.join(root, 'dod.md'), 'utf8');
-  } catch {
-    return 'whole dod-unreadable';
-  }
+  const text = readPresent(path.join(root, 'dod.md'), 'utf8');
+  if (text === null) return 'whole dod-unreadable';
   let now;
   try {
     now = criteriaDigest(text);
