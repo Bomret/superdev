@@ -62,7 +62,7 @@ const libScopeBranch = () => require('../lib/scope-branch.js');
 const libScopeCheckout = () => require('../lib/scope-checkout.js');
 const libDenial = () => require('../lib/denial.js');
 const libConsent = () => require('../lib/consent.js');
-const libDrivePath = () => require('../lib/drive-path.js');
+const libOptions = () => require('../lib/options.js');
 const libRunLock = () => require('../lib/run-lock.js');
 const libRedEvidence = () => require('../lib/red-evidence.js');
 const libRoute = () => require('../lib/route.js');
@@ -152,11 +152,8 @@ function verbCollisions(cwd, args) {
 // --- CLI ---------------------------------------------------------------------
 
 function takeRoot(args) {
-  const i = args.indexOf('--root');
-  if (i < 0) fail('missing --root <run-root> (the absolute run-root path)');
-  const root = args[i + 1];
-  if (!root) fail('--root needs a path');
-  args.splice(i, 2);
+  const root = libOptions().takeRootOption(args);
+  if (root === undefined) fail('missing --root <run-root> (the absolute run-root path)');
   return root;
 }
 
@@ -166,13 +163,13 @@ function takeRoot(args) {
 // Every other verb of this CLI that writes to a run names its root with `--root`, and is checked here, once.
 function writtenRoot(verb, args) {
   const at = args.indexOf('--root');
-  if (at < 0 || !args[at + 1]) return null;
+  if (at < 0) return null;
   const rest = args.filter((_, i) => i !== at && i !== at + 1);
-  const writes = ['stage', 'step', 'slice', 'degraded', 'unresolved', 'deferred', 'minors', 'docs', 'pr', 'adopt', 'dod-merge'].includes(verb)
+  const writes =['stage', 'step', 'slice', 'degraded', 'unresolved', 'deferred', 'minors', 'docs', 'pr', 'adopt', 'dod-merge'].includes(verb)
     || ((verb === 'deploy' || verb === 'base') && rest[0] === 'set')
     || (verb === 'reviewed' && (rest[0] === 'set' || rest[0] === 'clear'))
     || verb === 'suite';
-  return writes ? args[at + 1] : null;
+  return writes ? libOptions().takeRootOption(args.slice()) : null;
 }
 
 function run(argv, cwd, stdinJson) {
@@ -212,13 +209,7 @@ function run(argv, cwd, stdinJson) {
     }
     case 'slice': {
       const root = takeRoot(args);
-      let range;
-      const ri = args.indexOf('--range');
-      if (ri >= 0) {
-        range = args[ri + 1];
-        if (!range) fail('--range needs a value');
-        args.splice(ri, 2);
-      }
+      const range = libOptions().takeOption(args, '--range');
       if (!args[0] || !args[1]) fail('slice needs <id> <status>');
       libLedgerLifecycle().verbSlice(root, args[0], args[1], range);
       ledgerEvent = { root, slice: args[0], fields: ['slice', args[0], args[1], ...(range ? [range] : [])] };
@@ -275,14 +266,7 @@ function run(argv, cwd, stdinJson) {
         break;
       }
       if (sub !== 'set' && sub !== 'check') fail(`unknown reviewed subcommand "${sub}" — use set|clear|check`);
-      const take = (flag) => {
-        const i = args.indexOf(flag);
-        if (i < 0) return undefined;
-        const v = args[i + 1];
-        if (!v) fail(`${flag} needs a value`);
-        args.splice(i, 2);
-        return v;
-      };
+      const take = (flag) => libOptions().takeOption(args, flag);
       const branch = take('--branch');
       // Reads the ledger, dod.md, and git and writes nothing: no trace event, no digest seal (INV-0201).
       if (sub === 'check') {
@@ -308,13 +292,7 @@ function run(argv, cwd, stdinJson) {
         break;
       }
       if (sub !== 'set') fail(`unknown deploy subcommand "${sub}" — use set|get`);
-      let exitCode;
-      const ei = args.indexOf('--exit');
-      if (ei >= 0) {
-        exitCode = args[ei + 1];
-        if (exitCode === undefined) fail('--exit needs a value');
-        args.splice(ei, 2);
-      }
+      const exitCode = libOptions().takeOption(args, '--exit');
       libLedgerRecords().verbDeploySet(root, args[1], args[2], exitCode);
       ledgerEvent = { root, fields: ['deploy', 'set', args[1], args[2], ...(exitCode !== undefined ? ['--exit', exitCode] : [])] };
       break;
@@ -328,21 +306,9 @@ function run(argv, cwd, stdinJson) {
         args.splice(wi, 1);
       }
       if (args[0] === 'reusable') {
-        let branch;
-        const bi = args.indexOf('--branch');
-        if (bi >= 0) {
-          branch = args[bi + 1];
-          if (!branch) fail('--branch needs a value');
-          args.splice(bi, 2);
-        }
+        const branch = libOptions().takeOption(args, '--branch');
         if (!branch) fail('suite reusable needs --branch <branch>');
-        let base;
-        const bsi = args.indexOf('--base');
-        if (bsi >= 0) {
-          base = args[bsi + 1];
-          if (!base) fail('--base needs a value');
-          args.splice(bsi, 2);
-        }
+        const base = libOptions().takeOption(args, '--base');
         // Everything but the leading `reusable` must already be stripped — an unrecognized flag (a
         // mistyped `--whole`) left over here would silently drop the whole-repo gate instead of
         // refusing it, and a no-kind record would then pass a `--whole` check it must fail (INV-0017).
@@ -374,14 +340,7 @@ function run(argv, cwd, stdinJson) {
     }
     case 'base': {
       const root = takeRoot(args);
-      const take = (flag) => {
-        const i = args.indexOf(flag);
-        if (i < 0) return undefined;
-        const v = args[i + 1];
-        if (!v) fail(`${flag} needs a value`);
-        args.splice(i, 2);
-        return v;
-      };
+      const take = (flag) => libOptions().takeOption(args, flag);
       if (args[0] === 'resolve') {
         const branch = take('--branch');
         const base = take('--base');
@@ -510,7 +469,7 @@ function run(argv, cwd, stdinJson) {
     // Reads the ledger and git and writes nothing: one scope-branch verdict, `--root` names the run to read (INV-0196).
     // Prints `ledger <b>`, `guess <b>`, `guess-remote <b>`, `ambiguous <b> <b>…`, `none`, or `git-failed <reason>`; every verdict exits 0 and the caller judges it.
     case 'branch': {
-      const root = path.resolve(cwd, libDrivePath().drivePath(takeRoot(args)));
+      const root = path.resolve(cwd, takeRoot(args));
       if (args.length) fail(`branch: unrecognized argument "${args[0]}"`);
       if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) fail(`branch: --root "${root}" is not a directory`);
       const r = libScopeBranch().resolveScopeBranch(cwd, root);
@@ -521,7 +480,7 @@ function run(argv, cwd, stdinJson) {
     // Prints `present <path>`, `absent`, `absent-terminal <stage>`, `held-elsewhere <path>`, `unregistered <reason>`, or a branch verdict; every verdict exits 0.
     // A path holding a line break is never printed: a scopetree there is `unregistered`, a holder there is `held-elsewhere` with no path.
     case 'checkout': {
-      const root = path.resolve(cwd, libDrivePath().drivePath(takeRoot(args)));
+      const root = path.resolve(cwd, takeRoot(args));
       if (args.length) fail(`checkout: unrecognized argument "${args[0]}"`);
       if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) fail(`checkout: --root "${root}" is not a directory`);
       const r = libScopeCheckout().scopeCheckout(cwd, root);
@@ -530,7 +489,7 @@ function run(argv, cwd, stdinJson) {
     }
     // Reads the ledger's stage and the run lock's mtime and content and writes nothing, no trace line included, so the verb never refreshes the lock it measures (INV-0186, INV-0196).
     case 'lock': {
-      const root = path.resolve(cwd, libDrivePath().drivePath(takeRoot(args)));
+      const root = path.resolve(cwd, takeRoot(args));
       if (args.length) fail(`lock: unrecognized argument "${args[0]}"`);
       if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) fail(`lock: --root "${root}" is not a directory`);
       libRunLock().verbLock(root);
@@ -538,21 +497,21 @@ function run(argv, cwd, stdinJson) {
     }
     // Reads `dod.md`, the ledger, git, and the anchor's Definition of Done on stdin, and writes nothing: a shipped run's route (ADR 0263, INV-0196).
     case 'route': {
-      const root = path.resolve(cwd, libDrivePath().drivePath(takeRoot(args)));
+      const root = path.resolve(cwd, takeRoot(args));
       if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) fail(`route: --root "${root}" is not a directory`);
       libRoute().verbRoute(cwd, root, args, stdinJson);
       break;
     }
     // Reads the ledger and writes nothing: one verdict for a denied dispatch the caller already recorded (INV-0196). Prints `inline` or `block <reason>`.
     case 'denial': {
-      const root = path.resolve(cwd, libDrivePath().drivePath(takeRoot(args)));
+      const root = path.resolve(cwd, takeRoot(args));
       if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) fail(`denial: --root "${root}" is not a directory`);
       libDenial().verbDenial(root, args);
       break;
     }
     // Reads the run trace and its digest and writes nothing: the operator's carried merge consent, `carried` or `none` (ADR 0268, INV-0196).
     case 'consent': {
-      const root = path.resolve(cwd, libDrivePath().drivePath(takeRoot(args)));
+      const root = path.resolve(cwd, takeRoot(args));
       if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) fail(`consent: --root "${root}" is not a directory`);
       libConsent().verbConsent(root, args);
       break;

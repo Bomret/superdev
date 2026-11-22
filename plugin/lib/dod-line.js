@@ -4,6 +4,7 @@
 
 const fs = require('fs');
 const { fail } = require('./refusal.js');
+const { takeOption } = require('./options.js');
 const { splitLines } = require('./ledger.js');
 const { maskFencedLines } = require('./md-sections.js');
 
@@ -192,15 +193,6 @@ function transformDodLines(lines, match, verdict, note) {
   const out = lines.slice();
   out[i] = `${renderDodLine(prefix, criterion, tag, verdict)} — ${DOD_VERDICTS[verdict].label}: ${note}`;
   return out;
-}
-
-function takeOption(args, flag) {
-  const i = args.indexOf(flag);
-  if (i < 0) return undefined;
-  const value = args[i + 1];
-  if (value === undefined || value.startsWith('--')) fail(`${flag} needs a value`);
-  args.splice(i, 2);
-  return value;
 }
 
 // A caller-supplied file's text, one trailing newline stripped, exactly as `--line` mode already

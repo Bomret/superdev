@@ -33,12 +33,13 @@ function parseArgs(args) {
   for (let i = 1; i < args.length; i += 2) {
     const key = flags[args[i]];
     if (!key) fail(`open: unrecognized argument "${args[i]}"`);
-    if (args[i + 1] === undefined || args[i + 1] === '') fail(`open: ${args[i]} needs a value`);
+    if (args[i + 1] === undefined || args[i + 1] === '' || flags[args[i + 1]]) fail(`open: ${args[i]} needs a value`);
     if (seen.has(key)) fail(`open: ${args[i]} given twice`);
     seen.add(key);
     opts[key] = args[i + 1];
   }
   if (!opts.base) fail('open needs --base <base-ref>');
+  if (opts.lock !== undefined && !/^[0-9a-f]+$/.test(opts.lock)) fail('open: --lock takes lowercase hexadecimal, the nonce a first open prints');
   return opts;
 }
 

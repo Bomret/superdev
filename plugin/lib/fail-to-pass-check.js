@@ -6,6 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const { fail } = require('./refusal.js');
+const { drivePath } = require('./drive-path.js');
 const { gitSpawn, resolveCommit, fileAt } = require('./git-spawn.js');
 const { isTestPath } = require('./verification.js');
 const { readRunTrace, sliceOf, windowIndexes, traceFlags } = require('./trace-window.js');
@@ -26,7 +27,7 @@ const { outcomeOf } = require('./fail-to-pass.js');
 
 function verbFailToPassCheck(cwd, args) {
   const { flags, positional } = traceFlags('fail-to-pass-check', args, ['--slice', '--window', '--root'], true);
-  const root = flags['--root'];
+  const root = flags['--root'] === undefined ? undefined : drivePath(flags['--root']);
   const slice = flags['--slice'];
   if (!root) fail('fail-to-pass-check needs --root <run-root>');
   if (!slice) fail('fail-to-pass-check needs --slice <id|scope>');

@@ -39,7 +39,7 @@ function parseArgs(args) {
   for (let i = 0; i < args.length; i += 2) {
     const key = flags[args[i]];
     if (!key) fail(`push: unrecognized argument "${args[i]}"`);
-    if (args[i + 1] === undefined || args[i + 1] === '') fail(`push: ${args[i]} needs a value`);
+    if (args[i + 1] === undefined || args[i + 1] === '' || flags[args[i + 1]]) fail(`push: ${args[i]} needs a value`);
     if (opts[key] !== undefined) fail(`push: ${args[i]} given twice`);
     opts[key] = args[i + 1];
   }
