@@ -181,6 +181,11 @@ module.exports = ({ assert, path, fixture, found }) => {
     'a denial in a document other than verify-ship is not flagged',
   );
   assert.equal(
+    scanDeployRunnerExclusivity(fixture({ 'skills/document/SKILL.md': "Remember not to run a deploy target's command.\n" })).length,
+    0,
+    'a denial with an infinitive to before the run is not flagged',
+  );
+  assert.equal(
     scanDeployRunnerExclusivity(fixture({ 'skills/verify-ship/SKILL.md': "It runs each target's deploy command itself.\n" })).length,
     1,
     'a non-denial in verify-ship is flagged',

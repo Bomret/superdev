@@ -292,8 +292,8 @@ function scanDeployRunnerExclusivity(root) {
       for (const hit of masked.matchAll(DEPLOY_RUNNER_PATTERN)) {
         const before = masked.slice(Math.max(0, hit.index - DEPLOY_RUNNER_ATTRIBUTION_WINDOW), hit.index).split(/[.!?]\s/).pop();
         if (SHIP_SUBJECT.test(before)) continue;
-        // A denial — "runs no target's command", "never runs a target's command" — claims no run.
-        if (/\b(?:never|not|no)\s+$/i.test(before) || /^run(?:s|ning)?\s+(?:no|not|never)\b/i.test(hit[0])) continue;
+        // A denial — "runs no target's command", "never runs a target's command", "not to run …" — claims no run.
+        if (/\b(?:never|not|no)\s+(?:to\s+)?$/i.test(before) || /^run(?:s|ning)?\s+(?:no|not|never)\b/i.test(hit[0])) continue;
         gaps.push({
           source,
           expectation:
