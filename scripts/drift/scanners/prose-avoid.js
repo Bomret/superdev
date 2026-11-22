@@ -280,15 +280,17 @@ function scanDeployRunnerExclusivity(root) {
 // away negates that word, as in "with no delay run the full suite", and excuses nothing. Fenced examples are masked first.
 const FULL_RUN_NEGATION =
   /(?:\bno\b|\b(?:not|never|nor|without)\b(?:\s+\w+){0,1})\s*(?:(?:a\s+|an\s+|the\s+)?`[^`]*`(?:\s+with\s+no\s+path)?\s*,\s*(?:(?:or|and|nor)\s+)?)*(?:a\s+|an\s+|the\s+)?["'`]?\s*$/i;
-// A section runs from its heading to the next heading of its own level or a higher one, `#` excepted: a fenced shell
-// comment reads like a level-one heading.
+// A section runs from its heading to the next heading of its own level or a higher one, `#` excepted. Both are
+// found on fence-masked lines, so a heading shown inside a fenced example neither starts nor ends a section; the
+// raw lines between them are returned, and the caller masks that text once.
 function sectionText(text, heading) {
   const lines = text.split('\n');
-  const start = lines.findIndex((line) => line.trim() === heading);
+  const masked = maskFences(text).split('\n');
+  const start = masked.findIndex((line) => line.trim() === heading);
   if (start === -1) return null;
   const level = heading.match(/^#+/)[0].length;
   const next = new RegExp(`^#{2,${level}} `);
-  const end = lines.findIndex((line, i) => i > start && next.test(line));
+  const end = masked.findIndex((line, i) => i > start && next.test(line));
   return lines.slice(start, end === -1 ? lines.length : end).join('\n');
 }
 function scanImplementNoFullRun(root) {

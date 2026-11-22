@@ -449,6 +449,18 @@ module.exports = ({ assert, path, fixture, found }) => {
     [],
     'observation-no-suite-run: a concept naming only the report and a fix cycle passes, and the sections around it stay unscanned',
   );
+  // A fenced `## ` line inside the section neither ends it, and a fenced copy of the heading does not start it.
+  assert.ok(
+    noSuiteRun('```sh\n## a shell comment\n```\n\nApplies to a defect a suite run surfaces.\n').length >= 1,
+    'observation-no-suite-run: a fenced `## ` line does not end the section before the text after it',
+  );
+  assert.deepEqual(
+    scanObservationNoSuiteRun(
+      fixture({ 'references/review-scope-mode.md': '# Review in scope mode\n\n```markdown\n### 4.3 Observations\n```\n\nA suite run.\n' }),
+    ),
+    [{ source: reviewScope, expectation: 'carry a `### 4.3 Observations` section for observation-no-suite-run to scan' }],
+    'observation-no-suite-run: a heading shown only inside a fence is no section',
+  );
   assert.deepEqual(
     scanObservationNoSuiteRun(fixture({ 'references/review-scope-mode.md': '# Review in scope mode\n\n### 4.2 The suite gate\n\nText.\n' })),
     [{ source: reviewScope, expectation: 'carry a `### 4.3 Observations` section for observation-no-suite-run to scan' }],
