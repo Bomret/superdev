@@ -207,8 +207,14 @@ withWorktreeLock(${JSON.stringify(s.repo)}, () => {
       // that is old), the waiter stays out: its bounded run ends by the bound with no entry made and the lock still in place. The
       // bound is a multiple of the slowest reclaim this run timed. The ETIMEDOUT check rejects a waiter that exited early (one that
       // took the lock and ran); it cannot tell a waiter held back by the lock from one whose startup alone outlasted the bound.
+      // A no-holder lock or record younger than the ten-second grace becomes takeable once it ages past it, so a correct waiter
+      // takes it after 10000 ms less its age: the bound stays a second short of that, from the younger of the lock's and the
+      // record's ages. A live pid's lock has no such window, because its holder keeps it for as long as it lives.
+      const sameRunBound = Math.max(2500, reclaimMs * 10);
+      const youngBound = (youngestAgeMs) => Math.min(sameRunBound, 10000 - youngestAgeMs - 1000);
       for (const [record, ageMs, fileAgeMs] of [['', 1000], ['x', 1000], [String(process.pid), 60000], ['', 60000, 0], ['x', 60000, 0]]) {
-        const got = lockedRun(record, ageMs, { bound: Math.max(2500, reclaimMs * 10), fileAgeMs });
+        const bound = record === String(process.pid) ? sameRunBound : youngBound(Math.min(ageMs, fileAgeMs ?? ageMs));
+        const got = lockedRun(record, ageMs, { bound, fileAgeMs });
         assert.ok(got.crowd.error && got.crowd.error.code === 'ETIMEDOUT', 'the waiter was still waiting at the bound');
         assert.deepEqual(got.runs, [], `owner record ${JSON.stringify(record)} aged ${ageMs} ms (file ${fileAgeMs ?? ageMs} ms) is never taken from its holder`);
         assert.ok(got.left, 'and its lock stays');
@@ -223,7 +229,7 @@ withWorktreeLock(${JSON.stringify(s.repo)}, () => {
         assert.ok(!got.left, 'and no lock stays');
       }
       {
-        const got = lockedRun(null, 1000, { bound: Math.max(2500, reclaimMs * 10) });
+        const got = lockedRun(null, 1000, { bound: youngBound(1000) });
         assert.ok(got.crowd.error && got.crowd.error.code === 'ETIMEDOUT', 'the waiter on a fresh owner-less lock was still waiting at the bound');
         assert.deepEqual(got.runs, [], 'a fresh owner-less lock is never taken from its holder');
         assert.ok(got.left, 'and its lock stays');
