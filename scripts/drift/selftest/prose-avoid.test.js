@@ -511,7 +511,23 @@ module.exports = ({ assert, path, fixture, found }) => {
 
   // --- background-rule-names-limit (ADR 0232): the background rule names the Bash ceiling, never an unnamed limit ---
 
-  const limit = (files) => found(scanBackgroundRuleNamesLimit(fixture(files)));
+  const agentsDoc = { 'references/AGENTS.md': '# References\n' };
+  const limit = (files) => found(scanBackgroundRuleNamesLimit(fixture({ ...agentsDoc, ...files })));
+  assert.deepEqual(
+    scanBackgroundRuleNamesLimit(fixture({ 'references/x.md': 'Text.\n' })),
+    [{ source: 'an AGENTS.md under skills/, agents/, or references/', missing: true }],
+    'background-rule-names-limit: no shipped AGENTS.md at all is one gap',
+  );
+  assert.equal(
+    limit({ 'references/sub/AGENTS.md': 'run in the background when a suite outlasts the Bash tool\'s time limit\n' }).length,
+    1,
+    'background-rule-names-limit: a nested AGENTS.md under a shipped tree is read',
+  );
+  assert.equal(
+    found(scanBackgroundRuleNamesLimit(fixture({ 'agents/sub/AGENTS.md': '# Agents\n' }))).length,
+    0,
+    'background-rule-names-limit: one AGENTS.md anywhere under a shipped tree is enough; no fixed name is required',
+  );
   for (const [text, label] of [
     ['A suite longer than the Bash tool\'s time limit runs in the background.\n', 'one line'],
     ['A suite longer than the Bash tool\'s time\nlimit runs in the background.\n', 'wrapped after "time"'],

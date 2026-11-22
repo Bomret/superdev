@@ -139,12 +139,30 @@ function scanDodBoxRule(root) {
   return gaps;
 }
 
-// Every shipped markdown file: the skill, agent, and reference prose, and an `AGENTS.md` any of those directories holds
-// (`references/AGENTS.md`), which `proseDocuments` leaves out. An absent `AGENTS.md` is skipped.
+const SHIPPED_PROSE_DIRS = ['skills', 'agents', 'references'];
+
+// Every `AGENTS.md` that exists at any depth under the shipped skill, agent, and reference trees, which
+// `proseDocuments` leaves out.
+function shippedAgentsDocs(root) {
+  const docs = [];
+  for (const dir of SHIPPED_PROSE_DIRS) {
+    let entries;
+    try {
+      entries = fs.readdirSync(docPath(root, dir), { recursive: true, withFileTypes: true });
+    } catch {
+      continue; // no such dir → nothing to read
+    }
+    for (const entry of entries) {
+      if (!entry.isFile() || entry.name !== 'AGENTS.md') continue;
+      docs.push(path.join(dir, path.relative(docPath(root, dir), path.join(entry.parentPath ?? entry.path, entry.name))));
+    }
+  }
+  return docs.sort();
+}
+
+// Every shipped markdown file: the skill, agent, and reference prose, and every `AGENTS.md` under those trees.
 function shippedMarkdown(root) {
-  const dirs = ['skills', 'agents', 'references'];
-  const agentsDocs = dirs.map((dir) => path.join(dir, 'AGENTS.md')).filter((rel) => readDoc(root, rel) !== null);
-  return [...proseDocuments(root, dirs).map(([rel]) => rel), ...agentsDocs];
+  return [...proseDocuments(root, SHIPPED_PROSE_DIRS).map(([rel]) => rel), ...shippedAgentsDocs(root)];
 }
 
 // Every match of a forbidden form in the shipped markdown, fences included: a fenced command is one an agent copies.
@@ -167,12 +185,15 @@ const scanPluginPrefixPath = (root) =>
   scanShippedMarkdownForm(root, PLUGIN_PREFIX_PATH_PATTERN, (hit) =>
     `name a shipped path relative to the plugin root — \`${hit}\` carries the repository's \`plugin/\` prefix, which no install holds`);
 
-// ADR 0232: no shipped skill, agent, or reference, and no shipped AGENTS.md beside them, states the background rule
-// against an unnamed Bash limit. Fences are masked and whitespace runs, line wraps included, are normalized before the match.
+// ADR 0232: no shipped skill, agent, or reference, and no shipped AGENTS.md at any depth beside them, states the
+// background rule against an unnamed Bash limit. Fences are masked and whitespace runs, line wraps included, are
+// normalized before the match. No shipped AGENTS.md at all is one gap, so a moved or renamed one is never passed over.
 function scanBackgroundRuleNamesLimit(root) {
   const gaps = [];
-  const shippedAgentsDocs = ['skills', 'agents', 'references'].map((dir) => [path.join(dir, 'AGENTS.md')]);
-  for (const [rel] of [...proseDocuments(root, ['skills', 'agents', 'references']), ...shippedAgentsDocs]) {
+  if (shippedAgentsDocs(root).length === 0) {
+    gaps.push(missingDoc('an AGENTS.md under skills/, agents/, or references/'));
+  }
+  for (const rel of shippedMarkdown(root)) {
     const text = readDoc(root, rel);
     if (text === null) continue;
     for (const hit of normalizeWhitespace(maskFences(text)).matchAll(UNNAMED_BASH_LIMIT_PATTERN)) {

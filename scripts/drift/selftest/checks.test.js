@@ -24,7 +24,6 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'agent-tool-agnostic',
     'deploy-runner-exclusivity',
     'ship-no-opens-pr',
-    'background-rule-names-limit',
     'dod-box-rule',
     'plugin-root-quoted',
     'plugin-prefix-path',
