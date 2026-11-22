@@ -6,6 +6,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { fenceOpener, fenceCloses } = require('../../plugin/lib/md-sections.js');
 
 // maskFences(): the same text with every fenced code block blanked to spaces. Line lengths and newlines
 // are preserved, so every offset into the masked text is the same offset into the original. A `#` comment
@@ -18,25 +19,23 @@ function maskFences(text) {
 }
 
 // fenceLines(): every line of the text, tagged with its place in the fenced blocks. `role` is `text`
-// outside a fence, and `open`, `body`, or `close` on a fence's lines; `fence` is the block's `{ char,
-// len, tag }` (the same object on every line of one block, `tag` the info string's first word). A fence
-// closes only on a bare marker line of the same character and at least the opening length, so a
-// differently tagged marker line inside an open fence is body. An unterminated fence runs to end of file.
+// outside a fence, and `open`, `body`, or `close` on a fence's lines. Fences are read only through
+// `plugin/lib/md-sections.js`'s `fenceOpener` and `fenceCloses`, the rule every shipped markdown reader
+// shares, so drift keeps no fence pattern of its own. A line's trailing `\r` is left out of the reading, so a
+// CRLF file reads as its LF form. An unterminated fence runs to end of file.
 function fenceLines(text) {
-  let fence = null;
+  let open = null;
   return text.split('\n').map((line) => {
-    const marker = line.match(/^\s{0,3}(`{3,}|~{3,})\s*(\S*)/);
-    if (fence === null) {
-      if (!marker) return { line, fence: null, role: 'text' };
-      fence = { char: marker[1][0], len: marker[1].length, tag: marker[2] };
-      return { line, fence, role: 'open' };
+    const bare = line.replace(/\r$/, '');
+    if (open === null) {
+      open = fenceOpener(bare);
+      return { line, role: open === null ? 'text' : 'open' };
     }
-    const block = fence;
-    if (marker && !marker[2] && marker[1][0] === block.char && marker[1].length >= block.len) {
-      fence = null;
-      return { line, fence: block, role: 'close' };
+    if (fenceCloses(bare, open)) {
+      open = null;
+      return { line, role: 'close' };
     }
-    return { line, fence: block, role: 'body' };
+    return { line, role: 'body' };
   });
 }
 
