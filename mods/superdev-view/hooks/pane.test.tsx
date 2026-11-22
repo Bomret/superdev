@@ -54,7 +54,7 @@ test('clicking an active scope shows its log, back returns', async ($, on) => {
 
 // A run with no end draws its elapsed time, which a rescan advances, so this trace ends every run.
 test('a rescan with nothing changed writes no snapshot, so the pane does not redraw', async ($, on) => {
-  const files = { ...FILES, [`${S}/trace.log`]: `${FILES[`${S}/trace.log`]}\n2026-01-01T00:00:03Z 01 main dispatch-end superdev:implementer tu1 completed` }
+  const files: Record<string, string> = { ...FILES, [`${S}/trace.log`]: `${FILES[`${S}/trace.log`]}\n2026-01-01T00:00:03Z 01 main dispatch-end superdev:implementer tu1 completed` }
   let writes = 0
   on('state.set', async ($, e, next) => {
     if (e.key === 'snapshot') writes++
@@ -82,7 +82,7 @@ test('a rescan with nothing changed writes no snapshot, so the pane does not red
 
 test('the mod registers no hook on a subagent spawn, a tool call, a model step, or a turn end (INV-0135)', async () => {
   const events: string[] = []
-  register(((event: string) => { events.push(event) }) as never)
+  register(((event: string) => { events.push(event) }) as never, {} as never)
   expect(events.filter(e => ['agent.spawn', 'tool.call', 'turn.step', 'turn.complete', 'ui.message'].includes(e))).toEqual([])
   expect(events).toContain('ui.render')
 })

@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register } from 'claude-code'
+import type { EngineInterface, Register, RenderChildren } from 'claude-code'
 
 import type { Draft, Intent, KbPage, LogEntry, Scope, Snapshot } from '../types'
 import { closedAt, eventLog, frontmatter, header, intent, progress, queuedMinors, slices } from './parse'
@@ -411,7 +411,7 @@ export const register: Register = on => {
     const isAllClosed = opened['closed-all'] ?? false
     // A section: a card with a rounded, dim border. Its header row holds the Button with the open mark and name, which gives
     // up width in a narrow pane, and the value on the right, which stays whole; then its body while open.
-    const section = (id: string, name: string, value: string, isOpenByDefault: boolean, body: () => unknown) => {
+    const section = (id: string, name: string, value: string, isOpenByDefault: boolean, body: () => RenderChildren) => {
       const isOpen = opened[id] ?? isOpenByDefault
       return (
         <Box key={`card-${id}`} flexDirection="column" borderStyle="round" borderDimColor paddingX={1}>

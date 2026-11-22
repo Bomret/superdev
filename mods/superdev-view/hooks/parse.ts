@@ -200,7 +200,10 @@ export const eventLog = (ledger: string, trace: string, now: number, lockMtime: 
         close(at)
         if (isStepless && hasImplementEnded) draw({ kind: 'stage', at, stage: b })
       } else if (verb === 'step' && a === 'set' && b) {
-        if (fallback && fallback.name === b && !fallback.isDone && last === fallback) fallback.at = at
+        // Casts, not narrowings: `startFallback` and `draw` set `fallback` and `last` from closures, which the checker's
+        // flow analysis misses.
+        const fb = fallback as Extract<LogEntry, { kind: 'command' }> | null
+        if (fb && fb.name === b && !fb.isDone && (last as LogEntry | null) === fb) fb.at = at
         else begin(at, b)
         seenSteps.add(b)
         fallback = null
