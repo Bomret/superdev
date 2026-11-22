@@ -212,9 +212,8 @@ scope branch no longer holds the base tip (`review-scope-mode.md`'s **The moved 
      scopetree stops.
 2. **Fetch the remote base.** Run `GIT_TERMINAL_PROMPT=0 git fetch <remote> <base>` through the Bash tool with its
    `timeout` set to 120000 ms. Capture `<tip>` at once with `git rev-parse FETCH_HEAD`, because step 3 overwrites
-   `FETCH_HEAD`. A fetch the timeout killed carries no verdict and counts as failed. With no `Remote:` value, fetch
-   nothing, name the missing `Remote:` value in the run's report, take `<tip>` from `git rev-parse <base>`, and skip
-   step 3.
+   `FETCH_HEAD`. A fetch the timeout killed carries no verdict and counts as failed. With no `Remote:` value, take
+   **A base that cannot be fetched is a degraded pass**.
 3. **Fast-forward the local `<base>` ref, and nothing more.** Run `git fetch . <tip>:refs/heads/<base>`. This is the
    only local-git write to `<base>` superdev makes: it moves a ref, writes no commit, and touches no working tree.
    - Git refuses it when `<base>` is checked out in any worktree, or when the update is not a fast-forward (verified
