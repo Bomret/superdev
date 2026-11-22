@@ -3,7 +3,7 @@
 
 // scope.js: the run-state CLI (ADR 0022). Owns every ledger.md write and read in the chain.
 // Verbs: open, init, stage, step, slice, degraded, unresolved, deferred, minors, docs, pr, reviewed, deploy, suite, base, discard, get, state, status,
-// publish, adopt, run-state, trace, windows, untraced, fail-to-pass-check, collisions, citations, source-set, push, root, staging, dod-merge, dod-line, dod-tags, dod-check, ci, section, tier, dod-open, contained, red-evidence, branch, checkout, lock, route, denial, consent, candidates; `main()` also runs test, fail-to-pass, and prepare. Exit
+// publish, adopt, run-state, trace, windows, untraced, fail-to-pass-check, collisions, citations, source-set, push, root, staging, dod-merge, dod-line, dod-tags, dod-check, ci, section, tier, dod-open, contained, red-evidence, branch (the read-only `branch --root` and the deleting `branch delete`), checkout, lock, route, denial, consent, candidates; `main()` also runs test, fail-to-pass, and prepare. Exit
 // nonzero with a one-line stderr reason on any refusal. Every verb that writes to a run first checks the run's
 // digest sidecar and reports an outside edit of its ledger or trace once (lib/run-check.js, ADR 0227).
 // `root` and `dod-line` touch no ledger: `root` resolves a run root's absolute
@@ -59,6 +59,7 @@ const libDodOpen = () => require('../lib/dod-open.js');
 const libContained = () => require('../lib/contained.js');
 const libCandidates = () => require('../lib/candidates.js');
 const libScopeBranch = () => require('../lib/scope-branch.js');
+const libBranchDelete = () => require('../lib/branch-delete.js');
 const libScopeCheckout = () => require('../lib/scope-checkout.js');
 const libDenial = () => require('../lib/denial.js');
 const libConsent = () => require('../lib/consent.js');
@@ -468,7 +469,14 @@ function run(argv, cwd, stdinJson) {
       break;
     // Reads the ledger and git and writes nothing: one scope-branch verdict, `--root` names the run to read (INV-0196).
     // Prints `ledger <b>`, `guess <b>`, `guess-remote <b>`, `ambiguous <b> <b>…`, `none`, or `git-failed <reason>`; every verdict exits 0 and the caller judges it.
+    // `branch delete` deletes: a contained scope branch, locally, as its remote-tracking ref, and on the remote, and no run
+    // file (ADR 0274, INV-0204). It exits 0 when every ref is deleted or gone, 3 when the containment gate refused, 4 when a ref
+    // was kept or failed. `delete` is peeled off only as the first word, so `branch --root delete` still names a root.
     case 'branch': {
+      if (args[0] === 'delete') {
+        libBranchDelete().verbBranchDelete(cwd, args.slice(1));
+        break;
+      }
       const root = path.resolve(cwd, takeRoot(args));
       if (args.length) fail(`branch: unrecognized argument "${args[0]}"`);
       if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) fail(`branch: --root "${root}" is not a directory`);
