@@ -122,13 +122,13 @@ const CHANGE_TYPE_CONTRACTS = [
     /\bone of `feat`,\s*`fix`,\s*`refactor`,\s*`docs`,\s*`perf`,\s*`test`,\s*`build`,\s*`ci`,\s*`chore`,\s*`style`,\s*`revert`\./,
     'list the change types as `feat`, `fix`, `refactor`, `docs`, `perf`, `test`, `build`, `ci`, `chore`, `style`, `revert` — the set `lib/ledger.js` owns and `lib/scope-branch.js` matches',
   ],
-  // The glossary restates the set for a reader, which makes it a third copy of one fact.
+  // The glossary restates the set for a reader, which makes it a second copy of one fact.
   [
     'CONTEXT.md',
     /\bcodebase:\s+`feat`,\s*`fix`,\s*`refactor`,\s*`docs`,\s*`perf`,\s*`test`,\s*`build`,\s*`ci`,\s*`chore`,\s*`style`,\s*or\s+`revert`\./,
     'list the same change types the **Change type** glossary entry names — the set `references/scope-mode.md` owns',
   ],
-  // `lib/ledger.js` holds the set `scope.js` validates every `init` label against, so it is a fourth copy —
+  // `lib/ledger.js` holds the set `scope.js` validates every `init` label against, so it is a third copy —
   // executable, but still one fact that must not fork.
   [
     path.join('lib', 'ledger.js'),
