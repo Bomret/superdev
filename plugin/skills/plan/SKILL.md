@@ -164,12 +164,17 @@ The `not-contained`, `dirty`, and `held` stops write nothing.
 
 **A capture before the label.** Applies to a capture that crystallises before §1 settles the feature label. Hold it in the conversation until the label exists. Then open the run and write it.
 
-**A label revised before §6.** Applies to a feature label revised before §6 writes to the store; an append never revises a picked label. Undo the old label's setup in this order, then run `open` under the revised label and re-write every capture already held:
+**A label revised before §6.** Applies to a feature label revised before §6 writes to the store; an append never revises a picked label. The captures already written carry over as one saved diff: save them, undo the old label's setup, run `open` under the revised label, and apply the diff there. Run the steps in this order, and stop at the first step that fails:
 
-1. `git worktree remove <run-root>/scopetree`.
-2. `git branch -D <old-type>/<old-slug>`.
-3. `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" discard --root <old-run-root>`, which removes its ledger, run trace, and lock, and the run root when that leaves it empty.
-4. Delete `.superdev/dod-draft-<old-slug>.md` if the derive pass wrote one, and `.superdev/slice-draft-<old-slug>.md` if this plan wrote one.
+1. **Stage.** `git -C <run-root>/scopetree add -A`, so a new file such as an ADR counts.
+2. **Save.** `git -C <run-root>/scopetree diff --cached --binary > .superdev/captures-<old-slug>.patch`, in the main working tree beside the drafts, outside both the scopetree and the old run root.
+3. **Check the save.** The save exited 0, and the file is non-empty whenever `git -C <run-root>/scopetree diff --cached --quiet` exits 1. A save that fails the check removes nothing: name the file and stop.
+4. `git worktree remove --force <run-root>/scopetree`.
+5. `git branch -D <old-type>/<old-slug>`.
+6. `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" discard --root <old-run-root>`, which removes its ledger, run trace, and lock, and the run root when that leaves it empty.
+7. Delete `.superdev/dod-draft-<old-slug>.md` if the derive pass wrote one, and `.superdev/slice-draft-<old-slug>.md` if this plan wrote one.
+8. Run `open` under the revised label.
+9. **Apply.** An empty saved file skips this step. Otherwise run `git -C <new-run-root>/scopetree apply --index .superdev/captures-<old-slug>.patch`, then delete the file. An apply that fails (the new `open` may cut from a moved base or reuse a branch) keeps the file: name it to the operator.
 
 A triage record already written is amended instead, through the store's own `## Triage record` section (best-effort), so its provenance names the revised label and branch.
 
