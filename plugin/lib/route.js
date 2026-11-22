@@ -9,6 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const { fail, readPresent } = require('./refusal.js');
+const { takeOption } = require('./options.js');
 const { fileAt } = require('./git-spawn.js');
 const { parseDodLineReadings, dodCriterionLines, collapseWhitespace } = require('./dod-line.js');
 const { readCriterion } = require('./dod-open.js');
@@ -33,8 +34,8 @@ function parseFlags(args) {
     else if (flag === '--repairs-none') out.none = true;
     else if (flag === '--target') out.targets.push(checkName(flag, args[++i]));
     else if (flag === '--merge') {
-      if (out.merge !== null) fail('route --merge given twice');
-      out.merge = checkName(flag, args[++i]);
+      out.merge = checkName(flag, takeOption(args.slice(i), flag, 'route '));
+      i += 1;
       if (!/^[0-9a-fA-F]{7,64}$/.test(out.merge)) fail('route --merge takes a commit hash');
     } else if (flag === '--repair') {
       const state = args[++i];
