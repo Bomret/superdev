@@ -13,9 +13,9 @@ node scripts/run-tests.js --related {paths}
 **The focused command runs the tail and only the suites the change set reaches.** The tail is the invariant
 register check, the drift selftest, drift-check, and plugin validation, and it always runs. A suite runs when its
 own text names a changed file, or when relative `require` edges, walked transitively through modules (`plugin/lib/`
-files and non-suite files under `tests/`), lead from the file its name pins (a hook, a `plugin/lib/` module, or a
+files, `scripts/drift/` files, and non-suite files under `tests/`), lead from the file its name pins (a hook, a `plugin/lib/` module, or a
 script) or from the suite file itself to one. A shared setup file a suite requires therefore reaches that suite. A path under
-`scripts/drift/` reaches only the suites that require it, directly or through the file their name pins, and the suites
+`scripts/drift/` reaches only the suites that require it, directly or through that walk, and the suites
 whose text holds its full repository-relative path, never one that names only its basename or stem. One no suite
 reaches selects no suite, because the drift selftest in the tail covers it. A `.md` path reaches the suites whose code names
 it as a string outside a comment, in a path anchored at `__dirname` or written as a `./` or `../` path, and a suite whose text names a directory holding it from `__dirname` or as a `./` or `../` path. It reaches no suite when none

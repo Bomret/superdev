@@ -1080,8 +1080,9 @@ paths reach, matching by name, so a deleted path maps like any other. A suite is
 names the changed file (its basename, or its bare stem between path or quote delimiters), when the shipped
 file its name pins (`plugin/hooks/<name>.js`, `plugin/lib/<name>.js`, `plugin/scripts/<name>.js`, or `scripts/<name>.js`) is the
 changed file or requires it, or the suite file itself requires it, or when the path is the suite itself. A path under
-`scripts/drift/` is the exception to the naming rule: only a suite that requires it, directly or through its pinned
-file, or whose text holds its full repository-relative path (`scripts/drift/lib.js`) reaches it, because its basename
+`scripts/drift/` is the exception to the naming rule: only a suite that requires it, directly, through its pinned
+file, or through the modules the walk follows (`plugin/lib/` files, `scripts/drift/` files, and non-suite files under
+`tests/`), or whose text holds its full repository-relative path (`scripts/drift/lib.js`) reaches it, because its basename
 and stem (`lib`, `checks`, `adr`) are common path segments. A drift path no suite reaches selects no suite and never
 every suite, because the drift selftest runs in the tail. A suite split off another
 (`tests/scope-ledger.test.js`, with no `scope-ledger.js` entry point shipped) pins the file of the longest

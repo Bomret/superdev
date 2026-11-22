@@ -468,7 +468,7 @@ const picked = (root, paths) =>
   assert.deepStrictEqual(picked(root, ['plugin/hooks/deleted-gone.md']), [], 'a deleted path maps by name like any other');
 }
 
-// A drift path is placed only by a suite that requires it, directly or through its pinned file, or whose text holds its
+// A drift path is placed only by a suite that requires it, directly or through the require walk, or whose text holds its
 // full repository-relative path. Its basename and stem are common path segments, so neither places it, and a drift path
 // no rule places selects no suite rather than every suite.
 {
@@ -483,6 +483,17 @@ const picked = (root, paths) =>
   });
   assert.deepStrictEqual(picked(root, ['scripts/drift/lib.js']).sort(), ['full', 'req'], 'a drift path selects exactly the suites requiring it or naming its full path');
   assert.deepStrictEqual(picked(root, ['scripts/drift/scanners/lonely.js']), [], 'an unreferenced drift path selects no suite and never every suite');
+}
+
+// The require walk continues through a drift file, so a suite reaching a drift file only through another drift file
+// is selected.
+{
+  const root = tree({
+    'scripts/drift/a.js': "require('./b.js');\n",
+    'scripts/drift/b.js': '',
+    'tests/via.test.js': suite('via') + "\nrequire('../scripts/drift/a.js');\n",
+  });
+  assert.deepStrictEqual(picked(root, ['scripts/drift/b.js']), ['via'], 'a drift file required through another drift file selects the suite');
 }
 
 // The real repository: a drift module a suite requires reaches that suite.
