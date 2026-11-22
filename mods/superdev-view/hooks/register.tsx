@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Draft, Intent, KbPage, LogEntry, Scope, Snapshot } from '../types'
-import { closedAt, eventLog, frontmatter, header, intent, progress, slices } from './parse'
+import { closedAt, eventLog, frontmatter, header, intent, progress, queuedMinors, slices } from './parse'
 
 const PANE = 'superdev-view'
 const snapshot = atom({ plugin: 'superdev-view', key: 'snapshot' } as const, null)
@@ -107,6 +107,7 @@ async function scanScope($: EngineInterface, dir: string, name: string, isOpen: 
     lockMtime: lock ? lock.mtimeMs : null,
     dod: progress(dod),
     slices: slices(ledger),
+    minors: queuedMinors(ledger),
     log: eventLog(ledger, trace, Date.now(), lock ? lock.mtimeMs : null),
     closedAt: closedTimes.get(name) ?? null,
   }
@@ -395,6 +396,7 @@ export const register: Register = on => {
           <Text dimColor>
             DoD {open.dod.done}/{open.dod.total}{open.lockMtime !== null ? ` · lock ${age(now - open.lockMtime)}` : ''}
           </Text>
+          {open.minors.length > 0 && <Text dimColor wrap="truncate-end">Minors queued: {open.minors.join(', ')}</Text>}
           {log.running > 0 && <Text color="green">● {log.running} running</Text>}
           <Box key="log" flexDirection="column">
             {log.entries.flatMap((e, n) => (e.kind === 'slice' ? group(e) : [logLine(e, `log-${n}`)]))}

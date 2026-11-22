@@ -376,3 +376,27 @@ for (const [what, lock, isStale] of LOCKS) {
     }
   })
 }
+
+for (const stage of ['merged', 'closed'])
+  test(`a ${stage} scope's page draws its Minor queue as one dim line under the DoD line, on every surface`, async ($, on) => {
+    const { files, lists } = repo(TRACE, stage)
+    files[`${A}/ledger.md`] = `${ledger(stage, [['01', 'merged'], ['02', 'merged', '01'], ['03', 'merged']])}\n**Minors:**\n- 01\n- 03\n`
+    fakeRepo(on, files, lists)
+    await $.command.run(runCommand)
+    for (const surface of SURFACES) {
+      const ui = await open($, surface)
+      const texts = (await ui.findAll({ type: 'Text' })).map(t => t.text)
+      const line = await ui.find({ type: 'Text', text: /^Minors queued: / })
+      expect([line?.text, line?.props.dimColor, line?.props.wrap]).toEqual(['Minors queued: 01, 03', true, 'truncate-end'])
+      expect(texts.indexOf('Minors queued: 01, 03')).toBe(texts.findIndex(t => t.startsWith('DoD ')) + 1)
+      await ui.unmount()
+    }
+  })
+
+test('a ledger with no Minor queue draws no Minors line', async ($, on) => {
+  const { files, lists } = repo()
+  fakeRepo(on, files, lists)
+  await $.command.run(runCommand)
+  const ui = await open($, 'desktop')
+  expect(await ui.find({ type: 'Text', text: /Minors/ })).toBeUndefined()
+})

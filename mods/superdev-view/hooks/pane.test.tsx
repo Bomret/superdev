@@ -367,3 +367,15 @@ for (const [what, main, drafts, designs] of [
     await $.command.run(runCommand)
     expect(sorted(await cards($))).toEqual({ drafts: [...drafts], designs: [...designs] })
   })
+
+for (const [what, mtimes, count] of [['a stale', () => ({ [`${A}/run.lock`]: Date.now() - 2 * 3600e3 }), 0], ['a held', () => ({ [`${A}/run.lock`]: Date.now() }), 1]] as const)
+  test(`the overview's running count ${count ? 'counts' : 'leaves out'} a never-ended dispatch under ${what} run lock`, async ($, on) => {
+    const { files, lists } = repo()
+    files[`${A}/ledger.md`] = ledger('implementing', [['01', 'todo']])
+    files[`${A}/trace.log`] = '2026-01-01T00:00:00Z scope main dispatch superdev:final-reviewer f1 Final s1'
+    delete files[`${ROOT}/scopes/b/ledger.md`]
+    fakeRepo(on, files, lists, '/r', undefined, mtimes())
+    await $.command.run(runCommand)
+    const ui = await $.ui.mount({ plugin: 'superdev-view', surface: 'terminal', ...P })
+    expect(await ui.find({ type: 'Text', text: new RegExp(`^0/1 slices · DoD 0/0 · ${count} running · lock `) })).toBeDefined()
+  })

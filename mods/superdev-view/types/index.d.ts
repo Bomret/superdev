@@ -40,6 +40,8 @@ export type Scope = {
   lockMtime: number | null
   dod: Progress
   slices: Slice[]
+  // The run's Minor queue: the slice ids under the ledger's `**Minors:**` line, empty with none.
+  minors: string[]
   log: EventLog
   // When the trace records the closed stage write; null for an open scope or a trace with none.
   closedAt: number | null
