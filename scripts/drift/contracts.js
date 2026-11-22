@@ -387,7 +387,8 @@ const SOURCE_SECTION_CONTRACTS = [
     'carry the `## Pushing the scope branch` section, which `skills/plan/SKILL.md` §6 cites (ADR 0167)',
   ],
   // Agent-body headings another file cites by name. A template heading counts: the review scope-mode
-  // reference and `dod-ticks.md` send their reader to the section the agent's output carries under it.
+  // reference and `dod-ticks.md` send their reader to the section the agent's output carries under it, so
+  // the rows for headings that exist only inside the fenced output template carry `{ fenced: true }`.
   [
     path.join('agents', 'final-reviewer.md'),
     /^#{2,3}\s+Judge every criterion\s*$/m,
@@ -397,16 +398,19 @@ const SOURCE_SECTION_CONTRACTS = [
     path.join('agents', 'final-reviewer.md'),
     /^#{2,3}\s+Criteria\s*$/m,
     'carry the `### Criteria` output section, which `references/review-scope-mode.md` and `dod-ticks.md` cite',
+    { fenced: true },
   ],
   [
     path.join('agents', 'final-reviewer.md'),
     /^#{2,3}\s+Ceiling\s*$/m,
     'carry the `### Ceiling` output section, which `references/review-scope-mode.md` cites',
+    { fenced: true },
   ],
   [
     path.join('agents', 'final-reviewer.md'),
     /^#{2,3}\s+Fail-to-pass unknown\b/m,
     'carry the `### Fail-to-pass unknown` output section, which `references/review-scope-mode.md` carries through',
+    { fenced: true },
   ],
   [
     path.join('agents', 'slice-reviewer.md'),

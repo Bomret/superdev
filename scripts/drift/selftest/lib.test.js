@@ -4,9 +4,9 @@
 // (`maskFences`, which reads fences by `plugin/lib/md-sections.js`'s rule) and the comment stripper
 // (`stripComments`). Run by ./index.js.
 
-const { maskFences } = require('../lib');
+const { maskFences, scanContract } = require('../lib');
 
-module.exports = ({ assert }) => {
+module.exports = ({ assert, fixture }) => {
   const masks = (text, what) => !maskFences(text).includes(what);
 
   // --- the fence rule is md-sections.js's: each spelling the two readers used to disagree on ---
@@ -33,5 +33,17 @@ module.exports = ({ assert }) => {
     maskFences('a\r\n```\r\n# x\r\n```\r\nb\r\n').replace(/\r/g, ''),
     maskFences('a\n```\n# x\n```\nb\n'),
     'a CRLF file masks like its LF form',
+  );
+
+  // --- a contract row tests fence-masked text; a `{ fenced: true }` row tests the fenced template too ---
+  const doc = { 'skills/x/SKILL.md': '# X\n\n```markdown\n### Criteria\n```\n' };
+  const plain = [['skills/x/SKILL.md', /^### Criteria$/m, 'carries a Criteria heading']];
+  const fenced = [['skills/x/SKILL.md', /^### Criteria$/m, 'its template carries a Criteria heading', { fenced: true }]];
+  assert.equal(scanContract(fixture(doc), plain).length, 1, 'a heading inside a fence does not satisfy a plain row');
+  assert.equal(scanContract(fixture(doc), fenced).length, 0, 'a `{ fenced: true }` row reads the fenced template');
+  assert.equal(
+    scanContract(fixture({ 'skills/x/SKILL.md': '# X\n\n### Criteria\n' }), plain).length,
+    0,
+    'a heading outside any fence still satisfies a plain row',
   );
 };

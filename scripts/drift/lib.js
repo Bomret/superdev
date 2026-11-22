@@ -103,8 +103,11 @@ function observeContracts(fn) {
 }
 
 // scanContract() is pure over a root dir and a contract table: reads each document the table names and
-// reports the expectations it no longer meets, and a document it cannot read as missing. A row's
-// pattern is anything with a `test(text)` method.
+// reports the expectations it no longer meets, and a document it cannot read as missing. A row is
+// `[document, pattern, expectation]` or `[document, pattern, expectation, { fenced: true }]`; its pattern
+// is anything with a `test(text)` method. A row tests the document's fence-masked text (`maskFences`), so
+// a heading or clause shown only inside a fenced example does not satisfy it. A row carrying
+// `{ fenced: true }` tests the unmasked text instead: its document's fenced template is what it checks.
 //
 // A pattern that misses the raw text is retried against the whitespace-normalized text. The documents are
 // hard-wrapped, so a clause a table spells with single spaces straddles a line break in the real file; the
@@ -113,12 +116,13 @@ function observeContracts(fn) {
 function scanContract(root, contracts) {
   if (contractObserver) contractObserver(root, contracts);
   const gaps = [];
-  for (const [rel, pattern, expectation] of contracts) {
-    const text = readDoc(root, rel);
-    if (text === null) {
+  for (const [rel, pattern, expectation, { fenced = false } = {}] of contracts) {
+    const raw = readDoc(root, rel);
+    if (raw === null) {
       gaps.push(missingDoc(rel));
       continue;
     }
+    const text = fenced ? raw : maskFences(raw);
     if (!pattern.test(text) && !pattern.test(normalizeWhitespace(text))) {
       gaps.push({ source: rel, expectation });
     }
