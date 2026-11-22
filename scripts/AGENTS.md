@@ -1077,7 +1077,7 @@ once every step ends (ADR 0150).
 
 The suites carry a requirement the runner relies on: a suite builds each fixture repository once per process
 (`templateOnce` in `tests/fixture-git.js`) and copies it per case (`copyFixture`), so no case rebuilds it. Measured
-cost, including the machine and the Node build, is in `docs/agents/verification.md`: about 89 s for the full run on
+cost, including the machine and the Node build, is in `docs/agents/verification.md`: about 90 s for the full run on
 Node v26.12.1, against about 375 s for the suites run one after another. A `tests/` directory holding no suite prints
 `no suite found` and exits nonzero.
 
