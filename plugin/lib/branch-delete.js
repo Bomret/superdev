@@ -108,7 +108,7 @@ function deleteLocal(cwd, branch, tip) {
 
 function deleteTracking(remote, named, ref, tip, cwd) {
   if (!remote) return 'tracking not-reached no remote is configured or given';
-  if (!named) return `tracking gone ${remote} is a URL, which keeps no remote-tracking ref`;
+  if (!named) return `tracking gone ${remote} names no configured remote, so it keeps no remote-tracking ref`;
   if (!tip) return `tracking gone ${ref}`;
   const r = gitCall(['update-ref', '-d', '--end-of-options', ref], cwd);
   if (r.status === 0) return `tracking deleted ${ref} was ${tip}`;
