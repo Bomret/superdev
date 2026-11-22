@@ -11,8 +11,10 @@ const fs = require('fs');
 const path = require('path');
 const { readLedgerHeader } = require('./ledger.js');
 const { listBranches, shapeMatches } = require('./scope-branch.js');
-const { testContainment } = require('./containment.js');
 const { refResolves } = require('./git-spawn.js');
+const { judgeContainment } = require('./containment.js');
+const { pushTimeoutMs } = require('./push.js');
+const { readPresent } = require('./refusal.js');
 
 // The shape scan `lib/scope-branch.js` owns, which `hooks/scope-prune.js` applies too: every match over the local and
 // remote-tracking names. Returns `{ branch }` (null when none matches), `{ ambiguous }` naming every match when several do, or
@@ -66,7 +68,7 @@ function parseBaseBranch(docText) {
 // repo that ships it. `readLedgerHeader`'s own `normalizeHeaderValue` (lib/ledger.js) already cuts a
 // single-token header value to its first whitespace-delimited token before stripping markup this way;
 // this mirrors that. Absent or unparseable -> null: unlike a missing base branch, a missing remote is
-// not a refusal — the caller falls back to `testContainment`'s own `origin` default.
+// not a refusal — the caller falls back to `judgeContainment`'s own `origin` default.
 function parseRemote(docText) {
   if (!docText) return null;
   const m = docText.match(/^-\s*\*\*Remote:?\*\*:?\s*(.+)$/m);
@@ -76,21 +78,23 @@ function parseRemote(docText) {
   return value || null;
 }
 
-// The check itself. Never throws, never publishes or deletes anything on its own — `run()` decides
+// The check itself. Never throws (an unreadable `code-management.md` is a refusal message, not an exception), and the refetch
+// takes the operator's `code-host.pushTimeoutMs` through `push.js`'s reader, the built-in bound when unset (INV-0003, INV-0009), never publishes or deletes anything on its own — `run()` decides
 // what a refusal means. `{ performed: false }` for `_adhoc`. Otherwise `{ performed: true, ok, ...
 // }`: `ok: true` on a contained branch, and on a scope whose branch and run root are both reaped
 // (ADR 0071). `ok: false` with a `message` naming the branch (when one
 // resolved) and what was found — "no base branch configured", "cannot list branches",
-// "no branch resolved", "not contained", or "names no ref this repository can find" (`testContainment`'s own
+// "no branch resolved", "not contained", or "names no ref this repository can find" (`judgeContainment`'s own
 // `'could-not-resolve'`, kept distinct from not-contained per slice #494's interface note, so a
 // branch that never existed never reads as one that simply hasn't landed yet).
 function checkContainment(mainCheckout, scope) {
   if (scope === '_adhoc') return { performed: false };
   let codeMgmtText = null;
   try {
-    codeMgmtText = fs.readFileSync(path.join(mainCheckout, 'docs', 'agents', 'code-management.md'), 'utf8');
+    codeMgmtText = readPresent(path.join(mainCheckout, 'docs', 'agents', 'code-management.md'), 'utf8');
   } catch (e) {
-    if (e.code !== 'ENOENT') throw e;
+    if (!e.isRefusal) throw e;
+    return { performed: true, ok: false, message: e.message };
   }
   const base = parseBaseBranch(codeMgmtText);
   if (!base) {
@@ -116,7 +120,7 @@ function checkContainment(mainCheckout, scope) {
     return { performed: true, ok: false, message: `no branch resolved for scope "${scope}"` };
   }
   const remote = parseRemote(codeMgmtText);
-  const verdict = remote ? testContainment(mainCheckout, base, branch, remote) : testContainment(mainCheckout, base, branch);
+  const verdict = judgeContainment(mainCheckout, base, branch, remote || undefined, { fetchTimeoutMs: pushTimeoutMs(mainCheckout) }).verdict;
   if (verdict === 'contained') return { performed: true, ok: true };
   const what = verdict === 'could-not-resolve' ? 'names no ref this repository can find' : `is not contained in ${base}`;
   return { performed: true, ok: false, message: `scope branch "${branch}" ${what}` };

@@ -24,7 +24,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { fail } = require('../lib/refusal.js');
+const { fail, readPresent } = require('../lib/refusal.js');
 const { resolveMainCheckout, listPendingScopes, resolveScope } = require('../lib/kb-staging.js');
 const { parseCommandsTemplates, classifyBackend, liveTemplates } = require('../lib/kb-backend-config.js');
 const { parseStagedPage } = require('../lib/kb-staged-page.js');
@@ -59,12 +59,7 @@ function run(argv, cwd) {
   const resolvedScope = resolveScope(pending, scope);
 
   const docPath = path.join(mainCheckout, 'docs', 'agents', 'knowledge-base.md');
-  let docText = null;
-  try {
-    docText = fs.readFileSync(docPath, 'utf8');
-  } catch (e) {
-    if (e.code !== 'ENOENT') throw e;
-  }
+  const docText = readPresent(docPath, 'utf8');
   const backend = classifyBackend(docText);
   if (backend.kind === 'local' || backend.kind === 'none') fail(backend.reason);
   if (backend.kind === 'unconfigured') {
@@ -85,8 +80,13 @@ function run(argv, cwd) {
   }
 
   const scopeDir = path.join(stagingRoot, resolvedScope);
-  const files = fs
-    .readdirSync(scopeDir)
+  let listing;
+  try {
+    listing = fs.readdirSync(scopeDir);
+  } catch (e) {
+    fail(`${scopeDir} cannot be read (${e.code || e.message})`);
+  }
+  const files = listing
     .filter((f) => f.endsWith('.md'))
     .sort();
   const results = processStagedFiles(
