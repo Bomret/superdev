@@ -201,3 +201,23 @@ assert.deepEqual(route(setup({ dod: SETTLED }), ''), ['verify-ship'], 'an empty 
   const quoting = '## Definition of Done\n\n- [ ] Retries are capped — not met: earlier note read "x — 3 — met: y"\n';
   assert.deepEqual(route(setup({ dod: quoting }), quoting), ['verify-ship'], 'a quoted met verdict settles nothing');
 }
+
+// An unreadable dod.md refuses where an absent one falls back to the anchor.
+{
+  const s = setup();
+  fs.mkdirSync(path.join(s.root, 'dod.md'));
+  const r = refused(s, SETTLED);
+  assert.match(r.err, /dod\.md cannot be read/, 'an unreadable dod.md refuses naming the file');
+  assert.equal(r.out.trim(), '', 'and routes nowhere');
+}
+
+// A deployment.md that git cannot read at the merge commit refuses with one line and routes nowhere.
+{
+  const s = setup({ dod: SETTLED });
+  const blob = git(['rev-parse', `${s.manual}:docs/agents/deployment.md`], s.repo);
+  fs.rmSync(path.join(s.repo, '.git', 'objects', blob.slice(0, 2), blob.slice(2)));
+  const r = refused(s, SETTLED, '--merge', s.manual);
+  assert.equal(r.out.trim(), '', 'a git read failure routes nowhere');
+  assert.equal(r.err.trim().split('\n').length, 1, 'with one line');
+  assert.match(r.err, /deployment\.md/, 'naming the file');
+}
