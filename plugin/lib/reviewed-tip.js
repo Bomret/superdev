@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { fail, readPresent } = require('./refusal.js');
+const { underRunLock, withRunLock } = require('./run-digest.js');
 const { readLines, writeLines, headerRe, insertHeader, getHeader } = require('./ledger.js');
 const { gitSpawn, resolveCommit } = require('./git-spawn.js');
 const { GIT_BOUND_MS } = require('./run-tree.js');
@@ -129,14 +130,16 @@ function verbReviewedSet(cwd, root, branch, tip) {
     if (r.status !== 0) fail(`reviewed set: could not tell whether --tip "${tip}" is an ancestor of the tip of "${branch}"`);
   }
   const value = `${commit} ${digest}`;
-  const lines = readLines(root);
-  const at = lines.findIndex((l) => headerRe('Reviewed').test(l));
-  const line = `**Reviewed:** ${value}`;
-  if (at >= 0 && lines[at] === line) return null;
-  if (at >= 0) lines[at] = line;
-  else insertHeader(lines, 'Reviewed', value);
-  writeLines(root, lines);
-  return { commit, digest };
+  return withRunLock(root, () => {
+    const lines = readLines(root);
+    const at = lines.findIndex((l) => headerRe('Reviewed').test(l));
+    const line = `**Reviewed:** ${value}`;
+    if (at >= 0 && lines[at] === line) return null;
+    if (at >= 0) lines[at] = line;
+    else insertHeader(lines, 'Reviewed', value);
+    writeLines(root, lines);
+    return { commit, digest };
+  });
 }
 
 // `reviewed clear`: removes the header. True when the ledger changed; no header is no error and changes nothing.
@@ -149,4 +152,4 @@ function verbReviewedClear(root) {
   return true;
 }
 
-module.exports = { verbReviewedSet, verbReviewedClear, verbReviewedCheck };
+module.exports = { verbReviewedSet, verbReviewedClear: underRunLock(verbReviewedClear), verbReviewedCheck };

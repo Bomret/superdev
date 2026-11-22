@@ -3,6 +3,7 @@
 // ledger-records.js: the verbs that record one fact on a ledger header or bullet line, `degraded`, `unresolved`, `deferred`, `minors`, `docs`, `pr`, and `deploy`.
 
 const { fail } = require('./refusal.js');
+const { underRunLock } = require('./run-digest.js');
 const { checkSliceId, ledgerPath, readLines, writeLines, headerRe, getHeader, insertHeader, readBullets, tableRowIndexes, splitRow } = require('./ledger.js');
 
 // The write half of `readBullets`: append one bullet under `**<name>:**`, creating that line beside
@@ -274,5 +275,7 @@ function verbDeployGet(root) {
 
 module.exports = {
   BULLET_STDIN_SUBS, DENIAL_PREFIX, RESET_PREFIX, denialCount,
-  resolveBulletText, verbDegraded, verbUnresolved, verbDeferred, verbMinors, verbDocs, verbPr, verbDeploySet, verbDeployGet, readDeployRecord,
+  resolveBulletText, verbDeployGet, readDeployRecord,
+  verbDegraded: underRunLock(verbDegraded), verbUnresolved: underRunLock(verbUnresolved), verbDeferred: underRunLock(verbDeferred),
+  verbMinors: underRunLock(verbMinors), verbDocs: underRunLock(verbDocs), verbPr: underRunLock(verbPr), verbDeploySet: underRunLock(verbDeploySet),
 };
