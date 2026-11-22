@@ -4,7 +4,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { readSealed, stateOf, sameState, readSide, writeSide, withRunLock } = require('./run-digest.js');
+const { readBytes, readSealed, stateOf, sameState, readSide, writeSide, withRunLock } = require('./run-digest.js');
 const { traceLine } = require('./trace-log.js');
 
 const FILES = [['ledger.md', 'ledger'], ['trace.log', 'trace']];
@@ -12,14 +12,14 @@ const FILES = [['ledger.md', 'ledger'], ['trace.log', 'trace']];
 // Compares `ledger.md` and `trace.log` of `root` with the run's digest. A file that differs, a file deleted while its digest is
 // present, and a trace with a foreign append each print one warning on stderr naming the file and append a `tamper <file>` trace
 // line. The digest then seals what is on disk and the verb goes on. A file with no digest, as in a run an older release wrote, is
-// sealed and reported on no stream. A file present but unreadable refuses before any report, trace line, or digest write. The check holds the digest lock, so no reader sees a file new under an old digest.
+// sealed and reported on no stream. A ledger present but unreadable refuses before any report, trace line, or digest write. The check holds the digest lock, so no reader sees a file new under an old digest.
 function checkRun(root) {
   withRunLock(root, () => {
     const side = readSide(root);
     const tampered = [];
     let changed = false;
     for (const [name, key] of FILES) {
-      const now = stateOf(readSealed(path.join(root, name)));
+      const now = stateOf((name === 'ledger.md' ? readSealed : readBytes)(path.join(root, name)));
       if (sameState(side[key], now)) continue;
       if (side[key]) tampered.push(name);
       changed = true;
@@ -33,7 +33,7 @@ function checkRun(root) {
       try { fs.appendFileSync(trace, traceLine({ kind: 'tamper', fields: [name] })); } catch { /* the run has no writable trace: the warning stands */ }
     }
     if (tampered.length) {
-      const now = stateOf(readSealed(trace));
+      const now = stateOf(readBytes(trace));
       if (now) side.trace = now;
     }
     writeSide(root, side);

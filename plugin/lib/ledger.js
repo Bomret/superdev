@@ -241,7 +241,8 @@ function splitRow(line) {
 // or holds a path separator or a control character (U+0000-U+001F, U+007F) is refused, naming the id (triage #1342).
 function checkSliceId(id) {
   if (typeof id !== 'string' || id.trim() === '' || /[\\/\u0000-\u001f\u007f]/.test(id) || id === '.' || id === '..') {
-    fail(`slice id ${JSON.stringify(id)} is refused: a slice id is non-empty, is neither "." nor "..", and holds no path separator and no control character`);
+    const shown = String(id).replace(/[\u0000-\u001f\u007f]/g, (c) => `\\x${c.charCodeAt(0).toString(16).padStart(2, '0')}`);
+    fail(`slice id "${shown}" is refused: a slice id is non-empty, is neither "." nor "..", and holds no path separator and no control character`);
   }
   return id;
 }

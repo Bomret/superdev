@@ -125,7 +125,12 @@ function verbOpen(cwd, args) {
   // The check runs once, before any path that writes. A refusal, the `locked` stop, and a cut or attach stop write no file of the run.
   // A run that passes them writes `run.lock`, writes the ledger through `verbInit` or `verbStep`, and writes the trace with
   // `appendTrace` beside each; a repeat call with the same nonce at step `plan` writes `run.lock` alone.
-  checkRun(root);
+  try {
+    checkRun(root);
+  } catch (e) {
+    if (e.isRefusal) fail(`open: ${e.message}`);
+    throw e;
+  }
 
   let stage = null;
   let step = null;

@@ -33,7 +33,7 @@ function readBytes(file) {
   }
 }
 
-// The file's bytes, or null when it is absent. A file present but unreadable refuses (`readPresent`), so a sealed file that cannot
+// The file's bytes, or null when it is absent. A file present but unreadable refuses (`readPresent`), so a sealed ledger that cannot
 // be read is never taken for a deleted one.
 function readSealed(file) {
   return readPresent(file);
