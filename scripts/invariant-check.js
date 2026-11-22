@@ -6,10 +6,10 @@
 // entry that breaks the register's format rules (a present but empty Paths or Symbols field, a
 // silent-break dash with no reason after it included), names a Paths glob, a symbol, or a Check path
 // that resolves to nothing, carries a symbol with an empty name segment, or names a Check path that is a
-// glob or leads outside the root (an absolute path rooted at `/`, `~/`, or a drive included), and
-// every INV-NNNN cited outside the register, the changelog, and docs/adr/ that names no entry — one line per failure naming the id and the field. It reports and
-// selects nothing: /superdev:plan and final-reviewer still read the register
-// whole (INV-0088). Pure Node with no shell-out, so it runs on every OS the maintainer uses.
+// glob, leads outside the root (an absolute path rooted at `/`, `~/`, or a drive included), or starts
+// at a variable, and every INV-NNNN cited outside the register, the changelog, and docs/adr/ that
+// names no entry — one line per failure naming the id and the field. It reports and selects nothing:
+// /superdev:plan and final-reviewer still read the register whole (INV-0088). Pure Node with no shell-out, so it runs on every OS the maintainer uses.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -269,9 +269,18 @@ const CHECK_GLOB = /(?:^|[^\w./*?[\]{},-])((?:[\w.*?[\]{},-]+\/)+[\w.*?[\]{},-]*
 const MD_LINK = /\[([^\]]*)\]\(([^)\s]*)\)/g;
 const MD_BOLD = /(^|[^\w./*?[\]{},-])\*\*([^*\s](?:\S*?[^*\s])?)\*\*(?![\w./*?[\]{},-])/g;
 
+// A path rooted at a variable (`${CLAUDE_PLUGIN_ROOT}/scripts/a.js`, `$HOME/a.js`, `$(cmd)/a.js`) is reported once,
+// as starting at a variable, and masked before the glob and path scans, so its braces read as no glob and its
+// tail as no absolute path.
+const CHECK_VARIABLE = /\$(?:\{[^}]*\}|\([^)]*\)|\w+)[/\\][\w./\\-]*/g;
+
 function checkPathFailures(entry, root) {
   const failures = [];
-  const check = entry.fields.Check || '';
+  const raw = entry.fields.Check || '';
+  for (const m of raw.matchAll(CHECK_VARIABLE)) {
+    failures.push({ id: entry.id, field: 'Check', reason: `\`${m[0]}\` starts at a variable; name the path from the repository root` });
+  }
+  const check = raw.replace(CHECK_VARIABLE, ' ');
   const unwrapped = check.replace(MD_LINK, '$1 $2').replace(MD_BOLD, '$1$2');
   for (const m of unwrapped.matchAll(CHECK_GLOB)) {
     if (/[*?[{]/.test(m[1]) && /\w/.test(m[1])) {

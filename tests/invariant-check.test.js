@@ -986,6 +986,37 @@ for (const statement of ['Bestellung ändert sich nie', '注文は不変']) {
   assert.doesNotMatch(r.out, /^INV-0005: /m, 'relative paths and a URL in a Check: value pass');
 }
 
+// --- a Check: path rooted at a variable gives one failure naming the whole token, neither a glob nor an absolute path. ---
+{
+  const r = failuresFor(
+    {
+      ...TREE,
+      'docs/invariants.md': register(
+        entry('INV-0001', withField('Check', 'tests/order.test.js and ${CLAUDE_PLUGIN_ROOT}/scripts/a.js')),
+        entry('INV-0002', withField('Check', 'tests/order.test.js and $(git rev-parse --show-toplevel)/scripts/a.js')),
+        entry('INV-0003', withField('Check', 'tests/order.test.js and $HOME/scripts/a.js')),
+      ),
+    },
+    'variable-rooted check paths',
+  );
+  const lines = (id) => r.out.split('\n').filter((l) => l.startsWith(`${id}: `));
+  assert.deepEqual(
+    lines('INV-0001'),
+    ['INV-0001: Check: `${CLAUDE_PLUGIN_ROOT}/scripts/a.js` starts at a variable; name the path from the repository root'],
+    'a ${VAR}-rooted path gives one failure',
+  );
+  assert.deepEqual(
+    lines('INV-0002'),
+    ['INV-0002: Check: `$(git rev-parse --show-toplevel)/scripts/a.js` starts at a variable; name the path from the repository root'],
+    'a $(…)-rooted path gives one failure',
+  );
+  assert.deepEqual(
+    lines('INV-0003'),
+    ['INV-0003: Check: `$HOME/scripts/a.js` starts at a variable; name the path from the repository root'],
+    'a $VAR-rooted path gives one failure',
+  );
+}
+
 // --- a bold path or a markdown link naming a path in a Check: value is no glob; a real glob still is. ---
 {
   const r = failuresFor(
