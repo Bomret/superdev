@@ -335,6 +335,8 @@ for (const [what, info, drawn] of [
   ['a display name with no identifier draws the name', '{"issue-tracker":{"displayName":"Stefan Reichel"}}', '🪪 Stefan Reichel'],
   ['an identifier of none draws no line, whatever the display name holds', '{"issue-tracker":{"assignee":"none","displayName":"Stefan Reichel"}}', '~'],
   ['an identifier of none alone draws no line', '{"issue-tracker":{"assignee":"none"}}', '~'],
+  ['an identifier of none padded with spaces draws no line', '{"issue-tracker":{"assignee":" none ","displayName":"Stefan Reichel"}}', '~'],
+  ['an identifier padded with spaces draws the identifier trimmed', '{"issue-tracker":{"assignee":"  stefan  "}}', '🪪 stefan'],
   ['a blank identifier draws no line', '{"issue-tracker":{"assignee":"  "}}', '~'],
   ['a non-string identifier draws no line', '{"issue-tracker":{"assignee":42}}', '~'],
   ['no issue-tracker role draws no line', '{"code-host":{"assignee":"stefan"}}', '~'],

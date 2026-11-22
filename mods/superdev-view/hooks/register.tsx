@@ -113,15 +113,16 @@ async function scanScope($: EngineInterface, dir: string, name: string, isOpen: 
   }
 }
 
-// The issue-tracker account's name for the assignee line, '' for none: its display name, else its identifier. An
-// identifier of `none` names no account, whatever the display name holds. Every other role adds nothing.
+// The issue-tracker account's name for the assignee line, '' for none: its display name, else its identifier, each
+// trimmed. An identifier of `none` names no account, whatever the display name holds. Every other role adds nothing.
 function issueTrackerName(info: unknown): string {
   const role = info !== null && typeof info === 'object' && !Array.isArray(info) ? (info as Record<string, unknown>)['issue-tracker'] : undefined
   if (role === null || typeof role !== 'object' || Array.isArray(role)) return ''
   const { assignee, displayName } = role as { assignee?: unknown; displayName?: unknown }
-  if (assignee === 'none') return ''
+  const id = typeof assignee === 'string' ? assignee.trim() : ''
+  if (id === 'none') return ''
   if (typeof displayName === 'string' && displayName.trim() !== '') return displayName.trim()
-  return typeof assignee === 'string' && assignee.trim() !== '' ? assignee : ''
+  return id
 }
 
 // Writes the snapshot only when it changed: every snapshot write redraws the pane.

@@ -34,8 +34,8 @@ call, reads the cwd itself.
 
 The overview opens with the assignee line, which names the issue-tracker account of `info.json` and no other
 role. The line shows the `issue-tracker` role's `displayName`, trimmed, when that is a string with a non-blank
-value. Otherwise it shows the role's `assignee` identifier, when that is a non-blank string. An `assignee` of
-`none` draws no line, whatever `displayName` holds. No such value draws no line, and neither does an `info.json`
+value. Otherwise it shows the role's `assignee` identifier, trimmed, when that is a non-blank string. An `assignee` of
+`none`, with or without surrounding spaces, draws no line, whatever `displayName` holds. No such value draws no line, and neither does an `info.json`
 that is unreadable, malformed, or no JSON object. The line keeps to one row: a long name is cut at its end. The
 mod never asks the slice store for a name: `/superdev:setup` writes it into the file.
 Below it, the path line names the main working tree, without the trailing `/.superdev`, and with the home
