@@ -204,7 +204,7 @@ lands the same way whether or not this store carries a snapshot.
 - **Tick a criterion:** write the criterion text and the judgment's note each to their own file, through
   a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`), never as a shell-interpolated argument. Then edit the anchor
   body through **Edit an issue's body**, with
-  `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js dod-line --match-file <path> --verdict
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-line --match-file <path> --verdict
   met|not-met|ceiling|accepted --note-file <path>` as the producer, reading the markdown body file on
   stdin. On no matching line it prints nothing and exits 1, so the gate stops the edit. **Best-effort:** a
   failed write is reported once per run and never stops the run; `dod.md` stays authoritative.

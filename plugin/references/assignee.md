@@ -48,9 +48,9 @@ repository. It holds identifiers, display names, and time bounds, never credenti
 - **A token** → stays in the environment variable the active `docs/agents/issue-tracker.md` names.
 
 **Read it from the main checkout.** Applies to every read of the file. Read it at `<main checkout>/.superdev/info.json`
-from every checkout, a linked worktree included, never from a path relative to the working directory. `scope.js root`
-resolves the main checkout: the parent of `git rev-parse --git-common-dir`, or the checkout that directory's
-`core.worktree` names inside a submodule.
+from every checkout, a linked worktree included, never from a path relative to the working directory. The main
+checkout is the parent of `git rev-parse --git-common-dir`, or the checkout that directory's `core.worktree` names
+inside a submodule. `scope.js root <slug>` prints a run root and resolves no main checkout.
 
 **Resolving the assignee.** Applies to every issue create.
 

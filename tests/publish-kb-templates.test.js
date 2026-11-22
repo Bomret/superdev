@@ -1,7 +1,7 @@
 'use strict';
 
 // Suite for plugin/scripts/publish-kb.js: the real backend templates this repository ships —
-// `docs/agents/knowledge-base.md`, the Forgejo wiki seed, and the Confluence seed — run through
+// `docs/agents/knowledge-base.md`, the Forgejo wiki seed, the Confluence seed, and the GitHub wiki seed — run through
 // `classifyBackend` against stubbed `gh`, `tea`, and `curl` commands and a local wiki repository,
 // pinning which exit code each template produces.
 
@@ -14,7 +14,7 @@ const { classifyBackend } = require('../plugin/scripts/publish-kb.js');
 
 // --- the real `### find` template in docs/agents/knowledge-base.md separates "genuinely absent"
 // from a jq failure that is not absence, and reads every listing page before it answers 3. The runFind-level mapping (exit 3 -> absent, anything else -> unknown) is
-// already pinned above (`find exited 5` and the JSON-array case) — this pins the template text
+// already pinned in tests/publish-kb-publish.test.js (`find exited 5` and the JSON-array case) — this pins the template text
 // itself, the thing that decides which of those exit codes a real find call actually produces.
 // The Forgejo wiki seed carries the same templates once its placeholders are filled, so both documents
 // run through the same pins.

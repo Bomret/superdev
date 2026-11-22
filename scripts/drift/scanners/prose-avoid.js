@@ -29,6 +29,8 @@ const {
   OBSERVATION_NO_SUITE_RUN_PATTERN,
   SCOPE_REVIEW_NO_FULL_RUN_DOCS,
   SCOPE_REVIEW_OPERATOR_ASKED,
+  PLUGIN_ROOT_UNQUOTED_PATTERN,
+  PLUGIN_PREFIX_PATH_PATTERN,
 } = require('../contracts');
 const { proseDocuments, scanDocsAvoid, walkFiles, NEVER_NEGATION_WINDOW } = require('./walkers');
 
@@ -136,6 +138,34 @@ function scanDodBoxRule(root) {
   }
   return gaps;
 }
+
+// Every shipped markdown file: the skill, agent, and reference prose, and an `AGENTS.md` any of those directories holds
+// (`references/AGENTS.md`), which `proseDocuments` leaves out. An absent `AGENTS.md` is skipped.
+function shippedMarkdown(root) {
+  const dirs = ['skills', 'agents', 'references'];
+  const agentsDocs = dirs.map((dir) => path.join(dir, 'AGENTS.md')).filter((rel) => readDoc(root, rel) !== null);
+  return [...proseDocuments(root, dirs).map(([rel]) => rel), ...agentsDocs];
+}
+
+// Every match of a forbidden form in the shipped markdown, fences included: a fenced command is one an agent copies.
+function scanShippedMarkdownForm(root, pattern, expectation) {
+  const gaps = [];
+  for (const rel of shippedMarkdown(root)) {
+    const text = readDoc(root, rel);
+    for (const hit of text.matchAll(pattern)) gaps.push({ source: rel, expectation: expectation(normalizeWhitespace(hit[0])) });
+  }
+  return gaps;
+}
+
+// No shipped `node` call leaves the plugin-root path unquoted, a line break between `node` and the path included.
+const scanPluginRootQuoted = (root) =>
+  scanShippedMarkdownForm(root, PLUGIN_ROOT_UNQUOTED_PATTERN, (hit) =>
+    `quote the plugin-root path, \`node "\${CLAUDE_PLUGIN_ROOT}/…"\`, so a path holding a space stays one argument — \`${hit}\` leaves it unquoted`);
+
+// No shipped prose names a path with this repository's `plugin/` prefix.
+const scanPluginPrefixPath = (root) =>
+  scanShippedMarkdownForm(root, PLUGIN_PREFIX_PATH_PATTERN, (hit) =>
+    `name a shipped path relative to the plugin root — \`${hit}\` carries the repository's \`plugin/\` prefix, which no install holds`);
 
 // ADR 0232: no shipped skill, agent, or reference, and no shipped AGENTS.md beside them, states the background rule
 // against an unnamed Bash limit. Fences are masked and whitespace runs, line wraps included, are normalized before the match.
@@ -355,4 +385,6 @@ module.exports = {
   scanObservationNoSuiteRun,
   scanBackgroundRuleNamesLimit,
   scanDodBoxRule,
+  scanPluginRootQuoted,
+  scanPluginPrefixPath,
 };

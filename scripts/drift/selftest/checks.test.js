@@ -26,6 +26,8 @@ module.exports = ({ assert, fs, path, fixture, realRoot }) => {
     'ship-no-opens-pr',
     'background-rule-names-limit',
     'dod-box-rule',
+    'plugin-root-quoted',
+    'plugin-prefix-path',
     'no-offer-start',
     'no-ci-wait',
   ]);

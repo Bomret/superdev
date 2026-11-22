@@ -25,7 +25,7 @@ function refName(scope) {
 }
 
 // The `Remote:` value of the repository's `docs/agents/code-management.md`: `{ remote }`, or `{ note }` naming why none.
-function resolveRemote(repo) {
+function configuredRemote(repo) {
   let text;
   try {
     text = fs.readFileSync(path.join(repo, 'docs', 'agents', 'code-management.md'), 'utf8');
@@ -105,7 +105,7 @@ function pushRunState(root, cwd) {
     const repo = top.stdout.trim();
     const ref = refName(scope);
     if (!ref) return `run-state: not sent, "${scope}" is no usable ref name`;
-    const { remote, note } = resolveRemote(repo);
+    const { remote, note } = configuredRemote(repo);
     if (!remote) return `run-state: not sent, ${note}`;
     const tip = buildCommit(root, repo, scope);
     const seen = lastSeenTip(repo, remote, scope);
@@ -166,7 +166,7 @@ function fetchRunState(root, cwd) {
     const repo = top.stdout.trim();
     const ref = refName(scope);
     if (!ref) return `run-state: not fetched, "${scope}" is no usable ref name`;
-    const { remote, note } = resolveRemote(repo);
+    const { remote, note } = configuredRemote(repo);
     if (!remote) return `run-state: not fetched, ${note}`;
     const local = ['trace.log', 'reports'].filter((n) => lstatOrNull(path.join(root, n)));
     if (local.length) return `run-state: kept the local ${local.join(' and ')}, unpack skipped, dod.md stays the local copy; the next send refuses until the remote ref is read`;
@@ -246,7 +246,7 @@ function deleteRunState(root, cwd) {
     const repo = top.stdout.trim();
     const ref = refName(scope);
     if (!ref) return `run-state: not deleted, "${scope}" is no usable ref name`;
-    const { remote, note } = resolveRemote(repo);
+    const { remote, note } = configuredRemote(repo);
     if (!remote) return `run-state: not deleted, ${note}`;
     const sent = gitCall(['push', '--delete', '--end-of-options', remote, ref], repo, true);
     if (sent.signal != null) return `run-state: not deleted, the call was ${boundEnded(repo, sent.signal)}`;

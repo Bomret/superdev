@@ -2,13 +2,10 @@
 
 // contained.js: the `contained` verb, which prints the containment verdict of a branch against a base and how it was judged (ADR 0053, ADR 0065, INV-0195).
 
-const fs = require('fs');
-const path = require('path');
 const { fail } = require('./refusal.js');
-const { gitSpawn, resolveCommit } = require('./git-spawn.js');
-const { drivePath } = require('./drive-path.js');
+const { resolveCommit } = require('./git-spawn.js');
 const { judgeContainment, refetchMark } = require('./containment.js');
-const { parseRemote } = require('./kb-containment.js');
+const { resolveRemote } = require('./kb-containment.js');
 const { pushTimeoutMs } = require('./push.js');
 
 // Each verdict's exit status. A usage refusal exits 1. `not-contained` and `could-not-resolve` stay apart so a caller
@@ -33,18 +30,6 @@ function parseArgs(args) {
   return { base: operands[0], branch: operands[1], remote };
 }
 
-// The `Remote:` value of `docs/agents/code-management.md` at the repository's top level, so a call from a subdirectory
-// reads the same document; the current directory where git cannot name the top level. Null where none is read.
-function configuredRemote(cwd) {
-  const top = gitSpawn(['rev-parse', '--show-toplevel'], cwd);
-  const root = top.status === 0 && top.stdout.trim() ? drivePath(top.stdout.trim()) : cwd;
-  try {
-    return parseRemote(fs.readFileSync(path.join(root, 'docs', 'agents', 'code-management.md'), 'utf8'));
-  } catch {
-    return null;
-  }
-}
-
 // Prints the verdict, `base <full sha>` (the base judged against: the refetched one when the refetch ran), `remote <name>`
 // (`remote none` where no remote is named, which runs no refetch),
 // and `judged local|refetched`, then `fallback ancestor` where the git lacks `--write-tree`, and `refetch timed-out` or
@@ -52,7 +37,7 @@ function configuredRemote(cwd) {
 // index, or working tree: the test writes tree objects and the refetch writes fetched commit objects and `FETCH_HEAD`.
 function verbContained(cwd, args) {
   const { base, branch, remote: given } = parseArgs(args);
-  const remote = given || configuredRemote(cwd) || null;
+  const remote = resolveRemote(cwd, given);
   const judged = judgeContainment(cwd, base, branch, remote, { fetchTimeoutMs: pushTimeoutMs(cwd) });
   const refetched = judged.refetch !== null && judged.refetch.status === 0;
   const lines = [

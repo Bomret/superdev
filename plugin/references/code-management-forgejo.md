@@ -21,7 +21,7 @@ where one performs the operation, `tea api` where none does.
   way a missing `tea` does (*Degrade* below).
 - **A deciding `tea api` call passes `-i`** and reads the HTTP status from stderr, because `tea api` exits
   0 on a 4xx or 5xx answer.
-- **Push**: `git push -u origin <scope-branch>`.
+- **Push**: `git push -u <remote> <scope-branch>`, `<remote>` the **Remote** value above.
 - **Open PR**: `tea pr create --login <login> --repo <owner>/<repo> --base <base> --head <scope-branch>
   --title "$title" --description-file -`, the body on stdin, `title` set from a quoted heredoc
   (`title=$(cat <<'SUPERDEV_TEXT_EOF' … SUPERDEV_TEXT_EOF)`) so a backtick or `$(` in it stays literal. The `draft` posture adds `--draft`, which

@@ -186,7 +186,7 @@ end of this document names the files that own each subtree's contracts.
 - **Docs follow a writing standard.** `docs/agents/documentation.md` names it, and the doc agents apply
   it to prose they write. This repo uses `controlled`
   (ADR 0012). The standard's own `## Scope` section states where it applies: the `AGENTS.md` tree, `README.md`, ADR text, glossary
-  entries, knowledge-base pages, and report text. Prompt prose is outside that list, and has its own rules
+  entries, knowledge-base pages, report text, and comment text a doc pass rewrites in a code file. Prompt prose is outside that list, and has its own rules
   below. A review still applies named sections of the standard to governed prompt prose, through the
   **Prompt-prose form** lens.
 - **Prompt prose follows the prompt-architecture rules.** They govern `skills/`, `agents/`, and

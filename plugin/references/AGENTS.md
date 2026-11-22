@@ -90,8 +90,8 @@ body-link hierarchy and `<host>` and `<owner>/<repo>` placeholders), and `knowle
 proposes a topic-shaped outline of explicit entries in its backend's hierarchy. Each carries the **Every
 outline entry names a topic page** rule (ADR 0229, INV-0188). `/superdev:setup` question D writes `docs/agents/knowledge-base.md`
 from the chosen one, and its seed-gap pass compares a configured document with it. `/superdev:publish-kb`
-runs the configured templates, and `tests/publish-kb-templates.test.js` runs the Confluence and Forgejo
-seeds' templates. The `forgejo-tea-only` drift check reads both Forgejo slice-store seeds and the other Forgejo seeds, and the `github-wiki-gh-only` drift check reads the GitHub wiki seed.
+runs the configured templates, and `tests/publish-kb-templates.test.js` runs the Confluence, Forgejo, and
+GitHub wiki seeds' templates. The `forgejo-tea-only` drift check reads both Forgejo slice-store seeds and the other Forgejo seeds, and the `github-wiki-gh-only` drift check reads the GitHub wiki seed.
 Adding a slice-store, code-host, or knowledge-base seed is the **Backends are pluggable** rule in the root
 doc.
 

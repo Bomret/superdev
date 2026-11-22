@@ -134,7 +134,9 @@ echo '{"anchor": "<key> — <title>", "slices": [{"id": "01", "issue": "…", "t
 
 - `init` takes the entry stage as its own argument, with no default. This path names `implementing`.
 - The call validates both label segments and the entry stage, and refuses when `<run-root>/ledger.md` exists at any
-  stage other than `planned`. A `dod.md` already there is fine.
+  stage other than `planned` and `closed`: a `shipped` ledger with its own message naming verify-ship and wrap-up, and
+  any other stage, a ledger with no `**Stage:**` line included, as an existing ledger. Over a `closed` ledger it rotates
+  (**A ledger present**). A `dod.md` already there is fine.
 - It ensures `.superdev/` is git-ignored and writes the slice table, `**Stage:** implementing`, `**Branch:**
   <type>/<scope>`, and the `**Anchor:**` line: the anchor's key and title per the store's `## Scope anchor` contract.
 
@@ -142,13 +144,15 @@ echo '{"anchor": "<key> — <title>", "slices": [{"id": "01", "issue": "…", "t
 state --root <run-root>`, its `stage` and `slices` fields. A `malformed` entry names a slice row the ledger cannot
 read: stop and report it.
 
-- **`closed`** → run `init` directly. It rotates the existing ledger aside to `ledger-closed-<date>.md` (`date
-  +%FT%H%M%S`), and the run's `trace.log` to `trace-closed-<date>.log` under the same name stem, before writing the
-  fresh one. A rotation never overwrites an existing file, and nothing is deleted.
+- **`closed`** → run `init` directly. It rotates the existing ledger aside to `ledger-closed-<stamp>.md`, and the
+  run's `trace.log` to `trace-closed-<stamp>.log` under the same name stem, before writing the fresh one. `<stamp>` is
+  the UTC time as `YYYY-MM-DDTHHMMSS`, `toISOString()` with its colons removed, and `-2`, `-3`, … is appended while
+  either the ledger name or the trace name is taken. A rotation never overwrites an existing file, and nothing is
+  deleted.
   - A trace that cannot be moved stops `init` with the closed ledger in place.
   - A ledger that cannot be moved puts the trace back and stops `init` with both files in place.
   - A trace that cannot go back either stops `init` with the ledger in place, naming the stranded
-    `trace-closed-<date>.log` to move back to `trace.log` by hand.
+    `trace-closed-<stamp>.log` to move back to `trace.log` by hand.
 - **`planned` with at least one slice row** → skip `init` and move the stage forward before your playbook's first
   dispatch: `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set implementing --root <run-root>`. Then go to your
   playbook.

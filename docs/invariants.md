@@ -1612,3 +1612,12 @@ Statement: Every `scope.js` verb that changes a run's ledger reads it and writes
 Breaks: silently
 Check: tests/scope-ledger-write.test.js — concurrent ledger writers each land their change; a planned re-init racing a `step set` loses neither; of two adopts at once one writes and one refuses; a nested hold reuses its outer hold's lock and breaks nothing; tests/scope-digest.test.js — a live holder's lock is waited for, a dead holder's fresh lock is broken at once
 Paths: plugin/lib/ledger.js, plugin/lib/ledger-lifecycle.js, plugin/lib/run-state.js, plugin/lib/ledger-records.js, plugin/lib/reviewed-tip.js, plugin/lib/suite-base-get.js, plugin/lib/run-digest.js, plugin/lib/atomic-write.js, plugin/lib/dod-merge.js
+
+### INV-0203
+
+Class: architecture
+Concepts: Scope branch, Containment, Code host
+Statement: Every superdev step that reaches a remote, a push of the scope branch, a fetch of base, or a containment refetch, names the `Remote:` value of `docs/agents/code-management.md` or a remote its caller passed explicitly. With neither, the step reaches no remote; no step falls back to a remote named `origin`.
+Breaks: silently
+Check: tests/scope-open.test.js — `open` with no `--remote` refetches from the configured remote, and with no `Remote:` value refetches nothing; tests/publish-kb-containment.test.js — no `Remote:` value judges locally with no refetch; tests/scope-contained.test.js — the configured remote and the no-remote local verdict
+Paths: plugin/lib/plan-open.js, plugin/lib/contained.js, plugin/lib/containment.js, plugin/lib/kb-containment.js, plugin/skills/ship/SKILL.md, plugin/references/shipped-run.md, plugin/references/scope-branch.md, plugin/references/code-management-*.md

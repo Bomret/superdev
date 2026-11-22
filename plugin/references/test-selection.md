@@ -303,7 +303,7 @@ the gate runs the full command or refuses. Ship's CI path takes no carry, and im
      its result as the gate states.
    - **Ship's local suite gate** runs the full command, or the whole-repo command where one is configured, after its
      standing-finding check.
-   - **Ship's push gate** refuses and runs no full command.
+   - **Ship's push gate** takes the local full run on the tip, and pushes nothing on a failing carry or a red, denied, or unfinished run.
 
 **The record stays.** Applies to a tip reached by carry. Write no suite record for it: the record stays at A, and the
 next gate judges its own tip from A.

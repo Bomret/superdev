@@ -156,6 +156,8 @@ Applies to every start past §1. Read the stage and the pull request number with
 
 ## 4. Base moved, then the merge
 
+**The remote.** Applies before §4's first step. `<remote>` in every push and fetch below is the `Remote:` value of `docs/agents/code-management.md`. No `Remote:` value → refuse before any push or fetch: run `step block`, name the missing `Remote:` value, merge nothing, and point at `/superdev:setup`.
+
 **The pre-merge tip.** Applies before the merge. Capture the tip as `<pre-merge-tip>`; §3's deploy gate read the deployment document at this commit.
 
 **Numbering collisions.** Applies before the base merge. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" collisions --base <base> --branch <branch> --range-base <range-base>`, with one `--also <ref>` for each other live plan run's scope branch whose ref resolves, as `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Bringing the scope branch to base`, step 4, chooses them.
@@ -181,7 +183,7 @@ Applies to every start past §1. Read the stage and the pull request number with
 - **A listed target the `## Targets` table now lacks** → refuse: name it, and merge nothing.
 - **The deployment document differs between `<pre-merge-tip>` and the merged tip** (`git -C <run-root>/scopetree diff <pre-merge-tip> <branch> -- docs/agents/deployment.md` finds anything) → print the changed posture and target lines, sourced from base's document, here, before anything merges on the host.
 
-**The push.** Applies to every run that reaches it, whether or not base moved. Compare the tip with the `head.sha` §3 read. To push, print `git -C <run-root>/scopetree log <head-sha-just-compared>..<branch> --oneline`, and go on even when that log fails with "unknown revision". Then run `git push origin <scope-branch>` per `docs/agents/code-management.md`, a push of the **scope branch**, never of base.
+**The push.** Applies to every run that reaches it, whether or not base moved. Compare the tip with the `head.sha` §3 read. To push, print `git -C <run-root>/scopetree log <head-sha-just-compared>..<branch> --oneline`, and go on even when that log fails with "unknown revision". Then run `git push <remote> <scope-branch>` per `docs/agents/code-management.md`, a push of the **scope branch**, never of base.
 
 - **Identical** → nothing to push.
 - **They differ, on the CI path** → push. An accepted push refuses as pending: run `step block`, merge nothing, name the new SHA the named checks have not reported on, and print `/superdev:ship <scope>` to run once they are green. A rejected push takes **The push result**.
@@ -191,7 +193,7 @@ Applies to every start past §1. Read the stage and the pull request number with
 
 - **Rejected, non-fast-forward** → the pull request's head carries commits this scope branch lacks. Refuse: name that gap and merge nothing. Put fetching those commits into the scope branch on a `First:` line, and print `/superdev:review <scope>` as the next command, then `/superdev:ship <scope>` again.
 - **Rejected for any other reason** (authentication, a pre-receive hook, the network) → relay git's error and merge nothing. Stop.
-- **Accepted, on the local path** → repeat the PR read until its `head.sha` equals the tip just pushed, at most 3 times with a short pause, the bound `plugin/references/code-management-github.md` uses for a `null` `mergeable`. Still different → the equality check refuses.
+- **Accepted, on the local path** → repeat the PR read until its `head.sha` equals the tip just pushed, at most 3 times with a short pause, the bound `references/code-management-github.md` uses for a `mergeable` not yet known. Still different → the equality check refuses.
 
 **The equality check.** Applies before the merge. The freshest `head.sha`, from the read after a push or from §3 without one, must equal the tip: on the local path, the tip `suite reusable` accepted, the carry covered, or the local run passed; on the CI path, the local tip. They differ → refuse: name both shas, and merge nothing.
 
@@ -228,11 +230,11 @@ Applies to every start past §1. Read the stage and the pull request number with
 
 **The stage write.** Applies after the merge commit is found. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" stage set shipped --root <run-root>` unless the stage already reads `shipped`.
 
-**The deploy posture.** Applies after the stage write. Only ship runs a target's command, only under `auto`, only after the merge, only in a tree detached at the merge commit. Read the posture and the anchor's `**Deploy:**` line fresh here, never reused from §3 or §4, at the merge commit, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Reading the posture at the merge commit`. Read through the scope checkout: `git -C <run-root>/scopetree fetch origin <base>` when the commit is missing, then `git -C <run-root>/scopetree show <merge-commit-sha>:docs/agents/deployment.md`.
+**The deploy posture.** Applies after the stage write. Only ship runs a target's command, only under `auto`, only after the merge, only in a tree detached at the merge commit. Read the posture and the anchor's `**Deploy:**` line fresh here, never reused from §3 or §4, at the merge commit, per `${CLAUDE_PLUGIN_ROOT}/references/shipped-run.md`'s `## Reading the posture at the merge commit`. Read through the scope checkout: `git -C <run-root>/scopetree fetch <remote> <base>` when the commit is missing, then `git -C <run-root>/scopetree show <merge-commit-sha>:docs/agents/deployment.md`.
 
 - **`none`, a `**Deploy:** none` line, or no `**Deploy:**` line** → deploy nothing. Say so in one line and go to **Hand off**.
 - **`manual`** → print each listed target's command not already recorded `deployed`, in listed order. Record each with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deploy set <target> pending --root <run-root>`, and go to **Hand off**.
-- **`auto`** → run `git -C <run-root>/scopetree fetch origin <base>`, then `git -C <run-root>/scopetree checkout --detach <merge-commit-sha>`. Never switch or pull the invoking checkout. Take **The unshown deployment document**.
+- **`auto`** → run `git -C <run-root>/scopetree fetch <remote> <base>`, then `git -C <run-root>/scopetree checkout --detach <merge-commit-sha>`. Never switch or pull the invoking checkout. Take **The unshown deployment document**.
 
 **The unshown deployment document.** Applies under `auto`, before any target runs. Diff `git -C <run-root>/scopetree diff <tested-head> <merge-commit-sha> -- docs/agents/deployment.md`, with `<tested-head>` the `head.sha` just read, to catch a base change landing between §4's gate and the squash.
 

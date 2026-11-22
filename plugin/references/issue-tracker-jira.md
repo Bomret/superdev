@@ -280,7 +280,7 @@ a live shape that differs.
   ```
 
   It takes the paragraph whose joined text starts `[ ] ` or `[x] ` and holds the criterion out of `"$b"`
-  with `jq -er` into its own file, and runs `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js dod-line --line
+  with `jq -er` into its own file, and runs `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-line --line
   --match-file <path> --verdict met|not-met|ceiling|accepted --note-file <path>` on that file. Only when
   `dod-line` exits 0 with non-empty output does a second `jq --rawfile o <path>` replace that paragraph's
   content with the output, splitting it on backticks back into text nodes with `code` marks:

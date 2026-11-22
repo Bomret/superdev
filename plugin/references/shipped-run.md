@@ -12,9 +12,14 @@ states what it does with the result.
 1. **The merge commit.** Read the pull request by the ledger's `**PR:**` number, per `docs/agents/code-management.md`'s
    `## Merge` section, and take its `merge_commit_sha`. A ledger with no `**PR:**` header (`scope.js get pr` prints
    `absent`, as a `push-only` run's does) has no merge commit and reads as posture `none`.
-2. **The posture.** Fetch base (`git fetch origin <base>`) when the checkout lacks that commit; a fetch moves no
-   checkout. Read `git show <merge-commit-sha>:docs/agents/deployment.md` from the invoking checkout, never the working
-   tree. **No such file, or a document with no `Posture:` line, reads as posture `none`.**
+2. **The posture.** Fetch base (`git fetch <remote> <base>`, `<remote>` the `Remote:` value of
+   `docs/agents/code-management.md`) when the checkout lacks that commit; a fetch moves no checkout. With no `Remote:`
+   value, fetch nothing. Read `git show <merge-commit-sha>:docs/agents/deployment.md` from the invoking checkout, never
+   the working tree. **At a commit the checkout holds, no such file, or a document with no `Posture:` line, reads as
+   posture `none`.** A merge commit the checkout still lacks, because no `Remote:` value let it be fetched or the fetch
+   failed, gives no posture: stop and name the missing commit, and the missing `Remote:` value where that is the cause.
+   A file git cannot read at that commit stops the same way. `scope.js route` refuses both cases rather than read them
+   as `none`, which would send a `manual` run to wrap-up.
 3. **The listed targets.** Read the anchor's `**Deploy:**` line, per `docs/agents/issue-tracker.md`. No such line, or
    `**Deploy:** none`, lists no target.
 4. **The deploy record.** Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deploy get --root <run-root>`. A
@@ -38,7 +43,8 @@ backend call and writes nothing. Hand it what you read from the store, as data:
 
 1. **The anchor's Definition of Done** on stdin, read through the store document's anchor read: the checklist
    `dod-merge` takes. The verb pairs its lines with `dod.md`'s per `dod-ticks.md`'s `## Pairing dod.md with the
-   anchor`. An anchor that cannot be read hands an empty stdin, and the route is `verify-ship`.
+   anchor`. An anchor that cannot be read hands an empty stdin, and the route is `verify-ship` only when `dod.md` holds no
+   observed `not met:` line carrying a repair citation; such lines route to a repair first.
 2. **The deploy facts.** `--merge <sha>` names the merge commit, read per `## Reading the posture at the merge commit`
    steps 1 and 2. A ledger with no `**PR:**` header hands no `--merge`, and the verb reads posture `none`. Add one
    `--target <name>` per target the anchor's `**Deploy:**` line lists, read per that section's step 3. The verb reads

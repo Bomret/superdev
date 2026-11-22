@@ -474,6 +474,18 @@ const DOD_BOX_RULE_PATTERNS = [
   /\balready-ticked\s+line\s+changes\s+nothing\b/gi,
 ];
 
+// A shipped `node` call keeps the plugin-root path one argument, so an install path holding a space still reaches
+// one file: `node "${CLAUDE_PLUGIN_ROOT}/…"`. The form refused is `node` followed by whitespace and backticks alone, a
+// line break included, then an unquoted `${CLAUDE_PLUGIN_ROOT}` or `$CLAUDE_PLUGIN_ROOT`. simplicity: the ceiling is
+// that adjacency; a call that puts another word between `node` and the path walks past.
+const PLUGIN_ROOT_UNQUOTED_PATTERN = /\bnode[\s`]+\$\{?CLAUDE_PLUGIN_ROOT\b/g;
+
+// Shipped prose names a shipped file relative to the plugin root, the tree an install copies, so a path written with this
+// repository's `plugin/` prefix resolves nowhere in an install. The form refused is `plugin/` before one of the shipped
+// directories, with no word character, `.`, `/`, or `-` before it: `.claude-plugin/` and a URL's `/plugin/` path stay
+// out. simplicity: the ceiling is the six directory names below.
+const PLUGIN_PREFIX_PATH_PATTERN = /(?<![\w./-])plugin\/(?:hooks|references|scripts|skills|agents|lib)\//g;
+
 // ADR 0232: the background rule names the Bash ceiling (600000 ms, or the higher `BASH_MAX_TIMEOUT_MS`), never
 // "the Bash tool's time limit" or "the tool's limit", which read against the 120000 ms default. Whitespace runs
 // and line wraps are normalized before the match. simplicity: the two spellings below are the ceiling; a
@@ -633,6 +645,8 @@ module.exports = {
   CONFLICT_COMMIT_CONCLUSION_PATTERNS,
   DOD_BOX_RULE_PATTERNS,
   UNNAMED_BASH_LIMIT_PATTERN,
+  PLUGIN_ROOT_UNQUOTED_PATTERN,
+  PLUGIN_PREFIX_PATH_PATTERN,
   NO_FORCE_MERGE_DOCS,
   NO_FORCE_MERGE_PATTERNS,
   TEA_ONLY_DOCS,

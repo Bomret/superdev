@@ -168,8 +168,10 @@ the tree locator `locate` and the test-path classifier `isTestPath` (ADR 0128) f
 and the dispatch readers from `dispatch.js`. The hook reads no Bash command (ADR 0227). One `try` guards the three `require`s, and a module that fails to load
 leaves the hook recording nothing (ADR 0117, INV-0159). Its model guard, which denies a modelless dispatch to a superdev
 agent on PreToolUse(Agent), requires no module, so a failed load leaves the deny in force (ADR 0245). `hooks/tree-guard.js` takes `mainWorkTree` from `main-work-tree.js` (ADR 0148). `publish-kb.js` reaches
-the containment verdict `judgeContainment` from `containment.js`, which refetches the base before it answers not contained (ADR 0053,
-ADR 0065). It takes `refResolves` from `git-spawn.js`. It takes `readLedgerHeader`, `SLUG_RE`, and `CHANGE_TYPES` from `ledger.js`. It takes `pushTimeoutMs` from `push.js` and `readPresent` from `refusal.js`. All of these arrive through its `lib/kb-*.js` modules. The containment refetch is bounded by `code-host.pushTimeoutMs` (default 60000 ms through `push.js`'s reader). `base set` appends a `ledger`
+the containment verdict `judgeContainment` from `containment.js`, which refetches the base from the `Remote:` value of
+`docs/agents/code-management.md` before it answers not contained, and judges against the local base with no refetch where
+that document names no remote (ADR 0053, ADR 0065, INV-0203). It takes `gitSpawn` and `refResolves` from `git-spawn.js`
+and `drivePath` from `drive-path.js`. It takes `readLedgerHeader`, `SLUG_RE`, and `CHANGE_TYPES` from `ledger.js`. It takes `pushTimeoutMs` from `push.js` and `readPresent` from `refusal.js`. All of these arrive through its `lib/kb-*.js` modules. The containment refetch is bounded by `code-host.pushTimeoutMs` (default 60000 ms through `push.js`'s reader). `base set` appends a `ledger`
 trace event like every other ledger-writing verb. Normalisation is per
 header: `Stage` and `Branch` are single tokens,
 cut to the first whitespace-delimited token and stripped of markup and trailing punctuation.
@@ -416,7 +418,10 @@ and the step as their own verbs would, prints `root <run-root>` and `lock <nonce
 exits 3 on `locked` (a lock under an hour old that names another nonce, on a `planned` ledger only while its step
 stands), `not-contained`, `dirty` (the scopetree's `status --porcelain`), and `held` (another worktree holds the branch).
 A `not-contained` refusal prints the commits base lacks and a `git branch -m` remedy. Where the refetch of the base ended
-without one, it prints a last line `refetch timed-out` or `refetch failed`. `code-host.pushTimeoutMs` bounds the refetch. A ledger at a later stage, a `planned` ledger
+without one, it prints a last line `refetch timed-out` or `refetch failed`. The refetch names `--remote` where given, else
+the `Remote:` value of `docs/agents/code-management.md` at the repository top level, through `kb-containment.js`'s
+`resolveRemote`, the resolution `contained` shares; with neither it refetches nothing and judges against the local base
+(INV-0203). `code-host.pushTimeoutMs` bounds the refetch. A ledger at a later stage, a `planned` ledger
 naming another branch, a missing `--base`, and a failed git call exit 1. A run lock that is no regular file (a
 directory, a symlink, or another kind) or that cannot be read, and a ledger that cannot be read, exit 1 before the cut
 and write nothing. A lock write that fails after the cut exits 1 and names the branch and scopetree already set up, and
@@ -1255,6 +1260,8 @@ path, when that document is missing. A check that walks a directory reads whatev
 | `background-rule-names-limit` | no skill, agent, or reference, and no `AGENTS.md` in `plugin/skills/`, `plugin/agents/`, or `plugin/references/` (the shipped one is `plugin/references/AGENTS.md`), states the background rule against an unnamed Bash limit: "the Bash tool's time limit" or "the tool's limit", matched across a line wrap and a run of spaces, fenced examples masked, so the rule names the ceiling (600000 ms, or the higher `BASH_MAX_TIMEOUT_MS`) (ADR 0232) | prohibition |
 | `conflict-conclusion-no-commit` | no skill, agent, or reference concludes a resolved merge conflict with `git commit` (ADR 0123) | prohibition |
 | `dod-box-rule` | no skill, agent, or reference judges a Definition-of-Done line by its checkbox or calls a `ceiling:` line settled: the spellings "neither ticked nor `accepted`", "ticked or (noted) `accepted`", "a ticked line or an `accepted`", "ticked with no `ceiling`", "ticked, `ceiling:`, or `accepted`", "already-ticked line changes nothing", and "settled" said of a `ceiling:` line, each word joined by `\s+` so a line break matches, fenced examples masked; the documents are the prose directories read at scan time (ADR 0247, INV-0190) | prohibition |
+| `plugin-root-quoted` | no shipped markdown file, every skill, agent, and reference and `plugin/references/AGENTS.md` included, writes `node` followed by an unquoted `${CLAUDE_PLUGIN_ROOT}` or `$CLAUDE_PLUGIN_ROOT` path, whitespace and backticks between them, a line break included; fenced code is read too, since a fenced command is one an agent copies, so every call reads `node "${CLAUDE_PLUGIN_ROOT}/…"` and an install path holding a space stays one argument | prohibition |
+| `plugin-prefix-path` | no shipped markdown file, `plugin/references/AGENTS.md` included, names a path with this repository's `plugin/` prefix before `hooks/`, `references/`, `scripts/`, `skills/`, `agents/`, or `lib/`; a prefix after a word character, `.`, `/`, or `-` is left alone, so `.claude-plugin/plugin.json` and a URL's `/plugin/` path pass; fenced code is read too | prohibition |
 | `code-management-no-force` | no code-management document sends `force_merge: true` or `--admin` on a merge, in prose or in a fenced code block. A `never` right before the option excuses it (INV-0092) | prohibition |
 | `forgejo-tea-only` | no Forgejo backend document names a token env var, an `Authorization` header, or a curl call (ADR 0111) | prohibition |
 | `github-wiki-gh-only` | neither the GitHub wiki seed nor `docs/agents/knowledge-base.md` names a token env var (`GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`) or an `Authorization` header | prohibition |

@@ -40,7 +40,7 @@ Applies to every start past §1. Find the scope checkout.
 
 ## 3. Stage gate
 
-**The stage.** Applies to every start past §2. Take the `stage` field of the `scope.js state` call §2 made, where `absent` means no line.
+**The stage.** Applies to every start past §2. Take the `stage` field of the one `scope.js state` call **Role and terms** names under `<branch>`, where `absent` means no line.
 
 - **`shipped`** → report that the scope is already shipped and stop. Open no pull request.
 - **`closed`** → report that the scope is already closed and stop, with no push and no pull request.
@@ -63,7 +63,7 @@ Applies to every start past §1. Find the scope checkout.
 
 **The missing-step answer.** Applies to an ask of **A missing step**. Declined → stop and print the missing command. Confirmed → proceed, and record in the report that the scope was submitted without it.
 
-**Entries standing.** Applies after **A missing step**. Read every bullet from the `unresolved` field of the `scope.js state` call §2 made, one bullet per line, never through the cwd-dependent `status`, per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Unresolved defects` section.
+**Entries standing.** Applies after **A missing step**. Read every bullet from the `unresolved` field of the one `scope.js state` call **Role and terms** names under `<branch>`, one bullet per line, never through the cwd-dependent `status`, per `${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Unresolved defects` section.
 
 - **No output** → proceed silently.
 - **Output present, attended** → name every bullet and ask once whether to submit with it standing. Declined → stop, open no pull request, and write nothing further. Confirmed → proceed, and record in the report that the scope was submitted with the defect standing.
@@ -82,6 +82,8 @@ Applies to every start past §1. Find the scope checkout.
 - **Both `none` and a name** → a configuration error that `scope.js ci` cannot judge and ship refuses. Report it in the body's `## Full suite` section and the report, point at `/superdev:setup`, and ask no ship question.
 
 ## 5. Pull request
+
+**The remote.** Applies before §5's push. No `Remote:` value in `docs/agents/code-management.md` → refuse before any push: run `step block`, name the missing `Remote:` value, open no pull request, and point at `/superdev:setup`.
 
 **The open.** Applies to every run past §4. Per `docs/agents/code-management.md`, push the scope branch, then open the pull request at the configured posture, with a body built from the Definition of Done and the slice list. No host CLI or API access → degrade exactly as that document says: push, then print the compare URL and the ready-to-run call. Report the pull-request URL.
 

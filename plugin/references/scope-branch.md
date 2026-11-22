@@ -55,7 +55,7 @@ it does with each.
 
 **`<base>` is the caller's.** Applies to choosing `<base>`. `hooks/scope-prune.js` uses `HEAD`, the current branch,
 which is safe only because the invoking checkout stays off the scope branch at every tier. `## Cutting the scope
-branch` and `skills/publish-kb/SKILL.md` §3 use the base branch named in `docs/agents/code-management.md`. A ref that
+branch` and `skills/publish-kb/SKILL.md` §2 use the base branch named in `docs/agents/code-management.md`. A ref that
 already holds the branch's content reads contained.
 
 **A reverted base.** Applies to a base that took the branch's work and then reverted it.
@@ -99,7 +99,9 @@ execution playbook. `/superdev:plan`'s `scope.js open` computes the same value f
 
 **Plan's cut.** Applies to `/superdev:plan`. Its cut is `scope.js open`, which applies the `fresh` rule in
 `lib/plan-open.js` and prints `not-contained`, `dirty`, or `held` where the rule stops. Plan acts on the printed
-outcome. A `not-contained` stop whose refetch ended without a base ends on the same `refetch timed-out` or `refetch
+outcome. Its containment refetch takes the remote as `scope.js contained` does: `--remote` where given, else the
+`Remote:` value of `docs/agents/code-management.md`, else none, which refetches nothing and judges against the local
+base. A `not-contained` stop whose refetch ended without a base ends on the same `refetch timed-out` or `refetch
 failed` line `## Containment` names.
 
 **`resumed`.** Applies to a run whose ledger exists, a `planned` ledger included. Cut nothing and run no containment
@@ -111,7 +113,7 @@ test. A `planned` ledger's branch was already cut, and where the name was taken,
    `scope.js branch`.
 2. A name that does not verify locally is fetched before anything else: `git fetch <remote> <branch>` (`<remote>` from
    `docs/agents/code-management.md`). Then verify the fetch's own ref, `git rev-parse --verify <remote>/<branch>`,
-   never the bare name a second time.
+   never the bare name a second time. With no `Remote:` value, fetch nothing and take step 3's stop.
 3. A remote-tracking ref that still does not verify is a stop, naming the branch it looked for. **`--unattended` →
    block**, per `scope-mode.md`'s `## Unattended`.
 4. Create or reattach the scopetree with `git worktree add <run-root>/scopetree <branch>`, naming the bare branch, at
@@ -210,7 +212,8 @@ scope branch no longer holds the base tip (`review-scope-mode.md`'s **The moved 
      scopetree stops.
 2. **Fetch the remote base.** Run `GIT_TERMINAL_PROMPT=0 git fetch <remote> <base>` through the Bash tool with its
    `timeout` set to 120000 ms. Capture `<tip>` at once with `git rev-parse FETCH_HEAD`, because step 3 overwrites
-   `FETCH_HEAD`. A fetch the timeout killed carries no verdict and counts as failed.
+   `FETCH_HEAD`. A fetch the timeout killed carries no verdict and counts as failed. With no `Remote:` value, take
+   **A base that cannot be fetched is a degraded pass**.
 3. **Fast-forward the local `<base>` ref, and nothing more.** Run `git fetch . <tip>:refs/heads/<base>`. This is the
    only local-git write to `<base>` superdev makes: it moves a ref, writes no commit, and touches no working tree.
    - Git refuses it when `<base>` is checked out in any worktree, or when the update is not a fast-forward (verified

@@ -277,5 +277,5 @@ any one shipped signal alone, and names the remedy. A failed read of the anchor 
   <scope>` first.
 
 **The run root's stage.** Applies to an append onto a feature with a run root. A `planned` run root takes the append,
-which revises the plan before any slice ran. A run root from `implementing` through `documented` refuses, with the same
-new-feature remedy.
+which revises the plan before any slice ran. A run root at every stage from `implementing` on refuses, `submitted`,
+`shipped`, and `closed` included, with the same new-feature remedy.

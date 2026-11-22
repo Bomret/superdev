@@ -52,7 +52,7 @@ Review a change end to end. §1 decides the mode.
 **Untracked files.** Applies before the range resolves. Run `git add -N :/` with the repo-root pathspec. A plain `.` covers only the current directory.
 
 - **Files cannot be included** → check `git status --porcelain` and say so in the range announcement.
-- **`--chained`** → run no `git add -N :/`.
+- **`--chained`** → run no `git add -N :/`. Untracked files are then outside the range: say so in the range announcement.
 
 **The ref shape test.** Applies to every ref candidate: a branch name, or each non-empty half of a range. The argument is user input and never command text.
 
@@ -163,7 +163,7 @@ Review a change end to end. §1 decides the mode.
 - **Nothing plausible to cut** (a diff that changes only human-facing docs, such as a README, an ADR, or a glossary, or a diff already lean) → skip `simplicity-reviewer`.
 - **`final-reviewer`** is never skipped.
 
-**The reviewers' integration limit.** Applies to both reviewer dispatches. Ask neither reviewer to integrate. `plugin/hooks/merge-guard.js` denies a subagent's Bash call that runs a command below. The controller's own calls pass.
+**The reviewers' integration limit.** Applies to both reviewer dispatches. Ask neither reviewer to integrate. `hooks/merge-guard.js` denies a subagent's Bash call that runs a command below. The controller's own calls pass.
 
 - `git merge`, `git push`, `git rebase`, `git pull`, or `git subtree push`;
 - `scope.js push`;

@@ -17,6 +17,7 @@ Applies to a scope-mode `/superdev:review` when the permission classifier denies
 
 **The entry.** Applies when the classifier denies §4.7's fix implementer dispatch. Follow `## Degraded passes`. Write the `**Degraded:**` entry either way with `scope.js degraded add`.
 
-- The fix implementer is an authoring dispatch and none of the three the cap counts.
+- The fix implementer is an authoring dispatch, none of the three verification passes the denial cap counts
+  (`final-reviewer`, `slice-reviewer`, `doc-reader`).
 - **Attended** → apply the fix inline yourself and say so in §3's report.
-- **Unattended** → `scope.js denial fix --unattended` prints `block implementer`: **block there** instead of the `--unattended → fix` rule of §4.6.
+- **Unattended** → `scope.js denial fix --unattended` prints `block implementer`: **block there** instead of fixing the list §4.6 builds "attended and `--unattended` alike".

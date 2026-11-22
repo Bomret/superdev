@@ -348,6 +348,37 @@ withState((stateFile) => {
   fs.rmSync(remoteDir, { recursive: true, force: true });
 });
 
+// --- no Remote: value judges the scope branch locally and fetches nothing (INV-0203) ----------------
+// The same squash-merged shape as above, on a remote named `origin`, and a code-management document with no
+// Remote bullet. A refetch of `origin` would find the work contained; the check fetches nothing, so the local
+// verdict, not contained, stands.
+withState(() => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+
+  git(['checkout', '-q', '-b', 'feat/noremote'], repo);
+  fs.writeFileSync(path.join(repo, 'noremote-only.txt'), 'x\n');
+  git(['add', 'noremote-only.txt'], repo);
+  git(['commit', '-q', '-m', 'work on feat/noremote'], repo);
+  git(['checkout', '-q', 'main'], repo);
+
+  const remoteDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-remote-'));
+  git(['init', '-q', '--bare', '-b', 'main'], remoteDir);
+  git(['remote', 'add', 'origin', remoteDir], repo);
+  git(['merge', '--squash', 'feat/noremote'], repo);
+  git(['commit', '-q', '-m', 'feat: noremote (#1)'], repo);
+  git(['push', '-q', 'origin', 'main:main'], repo);
+  git(['reset', '-q', '--hard', 'HEAD^'], repo);
+
+  const page = stagePage(repo, 'noremote', 'p.md', 'title: No Remote Page\naction: upsert');
+
+  const res = call(['--scope', 'noremote'], repo);
+  assert.equal(res.ok, false, `no configured remote judges locally, where the branch is not contained: ${res.out}`);
+  assert.match(res.err, /feat\/noremote" is not contained in main/, 'the refusal is the local verdict');
+  assert.ok(fs.existsSync(page || path.join(repo, '.superdev', 'kb-pending', 'noremote', 'p.md')), 'the staged page is not deleted');
+  fs.rmSync(remoteDir, { recursive: true, force: true });
+});
+
 // --- a branch listing git could not produce never reads as an absent branch (INV-0194) ------------
 // A `git` shim first on PATH fails only `for-each-ref`, the way tests/scope-prune-main.test.js's does,
 // so the shipped code runs unchanged. `body` is the shell text the shim runs for a call whose arguments

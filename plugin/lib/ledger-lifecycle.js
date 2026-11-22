@@ -40,9 +40,10 @@ const INIT_ENTRY_STAGES = ['planned', 'implementing'];
 
 // `init` owns a closed ledger's rotation (ADR 0079/0080, ADR 0106): `scope.js` is the sole ledger read and write path
 // (ADR 0022), the rotation is a ledger operation, and `references/run-init.md` merely describes it
-// rather than instructing a reader to perform it by hand. Renamed aside to `ledger-<stage>-<date>.md`,
-// `date +%FT%H%M%S` precision — fine enough that two same-day rotations essentially never collide, and
-// the loop below still never overwrites one that does. Nothing is deleted, so ADR 0007's seven-day
+// rather than instructing a reader to perform it by hand. Renamed aside to `ledger-<stage>-<stamp>.md`, the
+// stamp the UTC time as `YYYY-MM-DDTHHMMSS` (`toISOString()`, colons removed) — fine enough that two same-day
+// rotations essentially never collide, and the loop below appends `-2`, `-3`, … while either the ledger
+// name or the trace name is taken, so it never overwrites one that does. Nothing is deleted, so ADR 0007's seven-day
 // trail and `scope-prune`'s contained-or-gone reap rule (ADR 0053) both stand unchanged. The run's
 // `trace.log` moves aside first, to `trace-<stage>-<date>.log` under the same name stem, so the new run's
 // trace holds only its own lines. A trace that cannot be moved stops init with the ledger still in place;

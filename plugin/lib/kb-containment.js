@@ -1,7 +1,8 @@
 'use strict';
 
 // kb-containment.js: resolves a staged scope's branch and checks that base contains it, so a publish
-// run never ships pages for work no reader can reach.
+// run never ships pages for work no reader can reach. It also holds `resolveRemote`, the remote lookup a containment
+// refetch takes, which `plan-open.js` and `contained.js` import from it.
 //
 // Publishing pages for a scope whose work no reader can reach is worth a warning, and never a
 // block: every containment verdict below only ever refuses (naming what it found) unless `--allow-unmerged`
@@ -15,7 +16,8 @@ const fs = require('fs');
 const path = require('path');
 const { readLedgerHeader } = require('./ledger.js');
 const { listBranches, shapeMatches } = require('./scope-branch.js');
-const { refResolves } = require('./git-spawn.js');
+const { gitSpawn, refResolves } = require('./git-spawn.js');
+const { drivePath } = require('./drive-path.js');
 const { judgeContainment } = require('./containment.js');
 const { pushTimeoutMs } = require('./push.js');
 const { readPresent } = require('./refusal.js');
@@ -72,7 +74,7 @@ function parseBaseBranch(docText) {
 // repo that ships it. `readLedgerHeader`'s own `normalizeHeaderValue` (lib/ledger.js) already cuts a
 // single-token header value to its first whitespace-delimited token before stripping markup this way;
 // this mirrors that. Absent or unparseable -> null: unlike a missing base branch, a missing remote is
-// not a refusal — the caller falls back to `judgeContainment`'s own `origin` default.
+// not a refusal.
 function parseRemote(docText) {
   if (!docText) return null;
   const m = docText.match(/^-\s*\*\*Remote:?\*\*:?\s*(.+)$/m);
@@ -80,6 +82,21 @@ function parseRemote(docText) {
   const token = m[1].trim().split(/\s+/)[0];
   const value = token.replace(/^`+/, '').replace(/[`.,;:]+$/, '');
   return value || null;
+}
+
+// The remote a containment refetch names (INV-0203): `given`, the caller's explicit `--remote`, where one is passed;
+// otherwise the `Remote:` value of `docs/agents/code-management.md` at the repository's top level, so a call from a
+// subdirectory reads the same document, and the current directory where git cannot name the top level. Null where
+// neither names one: the caller then reaches no remote.
+function resolveRemote(cwd, given) {
+  if (given) return given;
+  const top = gitSpawn(['rev-parse', '--show-toplevel'], cwd);
+  const root = top.status === 0 && top.stdout.trim() ? drivePath(top.stdout.trim()) : cwd;
+  try {
+    return parseRemote(fs.readFileSync(path.join(root, 'docs', 'agents', 'code-management.md'), 'utf8'));
+  } catch {
+    return null;
+  }
 }
 
 // The check itself. Never throws (an unreadable `code-management.md` is a refusal message with `unreadable: true`, not an
@@ -124,10 +141,10 @@ function checkContainment(mainCheckout, scope) {
     return { performed: true, ok: false, message: `no branch resolved for scope "${scope}"` };
   }
   const remote = parseRemote(codeMgmtText);
-  const verdict = judgeContainment(mainCheckout, base, branch, remote || undefined, { fetchTimeoutMs: pushTimeoutMs(mainCheckout) }).verdict;
+  const verdict = judgeContainment(mainCheckout, base, branch, remote, { fetchTimeoutMs: pushTimeoutMs(mainCheckout) }).verdict;
   if (verdict === 'contained') return { performed: true, ok: true };
   const what = verdict === 'could-not-resolve' ? 'names no ref this repository can find' : `is not contained in ${base}`;
   return { performed: true, ok: false, message: `scope branch "${branch}" ${what}` };
 }
 
-module.exports = { parseBaseBranch, parseRemote, checkContainment };
+module.exports = { parseBaseBranch, parseRemote, resolveRemote, checkContainment };
