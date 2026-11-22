@@ -148,10 +148,9 @@ stopped.
   `## The carry run`).
 
 **An older ledger.** Applies to a ledger written before a header line existed. It carries none of that line, and
-`scope.js` parses it unchanged. `get`, and `state`, which prints what `get` prints for each field, reports an absent
-header line as a value and never as a parse error: `none` for `step`, `0` for `denials`, nothing for `suite`,
-`failed`, `slices`, and the bullet lists (`unresolved`, `degraded`, `deferred`, `minors`), and `absent` for every other
-field.
+`scope.js` parses it unchanged. `get` reports an absent header line as a value and never as a parse error: `none` for
+`step`, `0` for `denials`, nothing for `suite`, `failed`, `slices`, and the bullet lists (`unresolved`, `degraded`,
+`deferred`, `minors`), and `absent` for every other field. `state` prints what `get` prints for each field.
 
 ## Publishing run state
 

@@ -113,7 +113,7 @@ test. A `planned` ledger's branch was already cut, and where the name was taken,
    `scope.js branch`.
 2. A name that does not verify locally is fetched before anything else: `git fetch <remote> <branch>` (`<remote>` from
    `docs/agents/code-management.md`). Then verify the fetch's own ref, `git rev-parse --verify <remote>/<branch>`,
-   never the bare name a second time.
+   never the bare name a second time. With no `Remote:` value, fetch nothing and take step 3's stop.
 3. A remote-tracking ref that still does not verify is a stop, naming the branch it looked for. **`--unattended` →
    block**, per `scope-mode.md`'s `## Unattended`.
 4. Create or reattach the scopetree with `git worktree add <run-root>/scopetree <branch>`, naming the bare branch, at
@@ -212,7 +212,9 @@ scope branch no longer holds the base tip (`review-scope-mode.md`'s **The moved 
      scopetree stops.
 2. **Fetch the remote base.** Run `GIT_TERMINAL_PROMPT=0 git fetch <remote> <base>` through the Bash tool with its
    `timeout` set to 120000 ms. Capture `<tip>` at once with `git rev-parse FETCH_HEAD`, because step 3 overwrites
-   `FETCH_HEAD`. A fetch the timeout killed carries no verdict and counts as failed.
+   `FETCH_HEAD`. A fetch the timeout killed carries no verdict and counts as failed. With no `Remote:` value, fetch
+   nothing, name the missing `Remote:` value in the run's report, take `<tip>` from `git rev-parse <base>`, and skip
+   step 3.
 3. **Fast-forward the local `<base>` ref, and nothing more.** Run `git fetch . <tip>:refs/heads/<base>`. This is the
    only local-git write to `<base>` superdev makes: it moves a ref, writes no commit, and touches no working tree.
    - Git refuses it when `<base>` is checked out in any worktree, or when the update is not a fast-forward (verified

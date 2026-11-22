@@ -1,7 +1,8 @@
 'use strict';
 
 // kb-containment.js: resolves a staged scope's branch and checks that base contains it, so a publish
-// run never ships pages for work no reader can reach.
+// run never ships pages for work no reader can reach. It also holds `resolveRemote`, the remote lookup a containment
+// refetch takes, which `plan-open.js` and `contained.js` import from it.
 //
 // Publishing pages for a scope whose work no reader can reach is worth a warning, and never a
 // block: every containment verdict below only ever refuses (naming what it found) unless `--allow-unmerged`
@@ -73,7 +74,7 @@ function parseBaseBranch(docText) {
 // repo that ships it. `readLedgerHeader`'s own `normalizeHeaderValue` (lib/ledger.js) already cuts a
 // single-token header value to its first whitespace-delimited token before stripping markup this way;
 // this mirrors that. Absent or unparseable -> null: unlike a missing base branch, a missing remote is
-// not a refusal — the caller passes null on, and the containment test judges locally with no refetch (INV-0203).
+// not a refusal.
 function parseRemote(docText) {
   if (!docText) return null;
   const m = docText.match(/^-\s*\*\*Remote:?\*\*:?\s*(.+)$/m);

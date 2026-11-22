@@ -235,8 +235,8 @@ function heldInHistory(cwd, base, ref, writeTreeSupported) {
   return baseHistoryHasPatch(cwd, base, ref) || (writeTreeSupported && baseCommitHoldsBranch(cwd, base, ref));
 }
 
-// The exported test. `remote` is the name `docs/agents/code-management.md` config names, or a remote the caller
-// passed explicitly; a caller with neither passes null, and the test reaches no remote (INV-0203). Never throws, and safe on any `base`/`branch` string, not only
+// The exported test. `remote` is the configured or explicit remote, or null for none (INV-0203). Never throws, and
+// safe on any `base`/`branch` string, not only
 // one sourced from trusted config: an option-shaped value (`--upload-pack=...`, `-C<path>`) never runs
 // as an argument to any git subcommand this function calls, and a genuinely unreachable `remote` degrades
 // to the local verdict within `FETCH_TIMEOUT_MS` rather than blocking on the network indefinitely.

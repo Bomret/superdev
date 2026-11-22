@@ -83,6 +83,8 @@ Applies to every start past §1. Find the scope checkout.
 
 ## 5. Pull request
 
+**The remote.** Applies before §5's push. No `Remote:` value in `docs/agents/code-management.md` → refuse before any push: run `step block`, name the missing `Remote:` value, open no pull request, and point at `/superdev:setup`.
+
 **The open.** Applies to every run past §4. Per `docs/agents/code-management.md`, push the scope branch, then open the pull request at the configured posture, with a body built from the Definition of Done and the slice list. No host CLI or API access → degrade exactly as that document says: push, then print the compare URL and the ready-to-run call. Report the pull-request URL.
 
 **The number.** Applies the moment the pull request opens. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" pr set <n> --root <run-root>`, `<n>` the number the host's own open call returned. Degraded to the compare-URL fallback → record nothing. `pr clear` need not run.
