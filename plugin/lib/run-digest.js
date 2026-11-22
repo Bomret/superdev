@@ -20,8 +20,8 @@ const LOCK = 'digest.lock';
 const LOCK_STALE_MS = 30000;
 
 const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
-// The roots this process holds the lock of, each with its nesting depth.
-const heldRoots = new Map();
+// The roots this process holds the lock of.
+const heldRoots = new Set();
 
 // The file's bytes, or null when it is absent or unreadable.
 function readBytes(file) {
@@ -121,14 +121,7 @@ function releaseLock(lock, token) {
 // already holds the root's lock runs `fn` inside that hold.
 function withRunLock(root, fn) {
   const key = path.resolve(root);
-  if (heldRoots.has(key)) {
-    heldRoots.set(key, heldRoots.get(key) + 1);
-    try {
-      return fn();
-    } finally {
-      heldRoots.set(key, heldRoots.get(key) - 1);
-    }
-  }
+  if (heldRoots.has(key)) return fn();
   const lock = path.join(root, LOCK);
   const token = `${process.pid}-${crypto.randomUUID()}`;
   let held = false;
@@ -148,7 +141,7 @@ function withRunLock(root, fn) {
     if (lockAge(lock) > LOCK_STALE_MS || (pid !== null && isDead(pid))) breakLock(lock, seen);
     else sleep(5);
   }
-  if (held) heldRoots.set(key, 1);
+  if (held) heldRoots.add(key);
   try {
     return fn();
   } finally {

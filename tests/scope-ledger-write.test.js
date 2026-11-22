@@ -12,7 +12,6 @@ const { scopePath, sliceJson, writeDod } = require('./scope-setup');
 const { assertSpawnDecided } = require('./spawn-verdict');
 
 const digestPath = require.resolve('../plugin/lib/run-digest.js');
-const atomicPath = require.resolve('../plugin/lib/atomic-write.js');
 const made = [];
 
 function fixture() {
@@ -71,15 +70,21 @@ async function main() {
     assert.strictEqual(next.stderr, '', 'the digest matches the ledger the writers left');
   }
 
-  // A single write holds the lock once and meets no tamper: a nested hold returns at once, and the digest follows the ledger.
+  // A nested hold runs inside its outer hold: the lock file stays the outer holder's own (same token, never moved aside), the inner
+  // exit leaves it in place, the outer exit removes it, and the digest follows the ledger. A hold that waits on itself never returns.
   {
     const f = fixture();
-    const code = `const { withRunLock } = require(${JSON.stringify(digestPath)}); let n = 0;` +
-      `withRunLock(${JSON.stringify(f.root)}, () => withRunLock(${JSON.stringify(f.root)}, () => { n++; })); process.exit(n === 1 ? 0 : 3);`;
+    const lockFile = path.join(f.root, 'digest.lock');
+    const code = `const fs = require('fs'); const { withRunLock } = require(${JSON.stringify(digestPath)}); const lock = ${JSON.stringify(lockFile)}; const root = ${JSON.stringify(f.root)};` +
+      `const seen = []; const ino = () => fs.statSync(lock).ino;` +
+      `withRunLock(root, () => { const token = fs.readFileSync(lock, 'utf8'); const i0 = ino();` +
+      `withRunLock(root, () => { seen.push(fs.readFileSync(lock, 'utf8') === token && ino() === i0); });` +
+      `seen.push(fs.existsSync(lock) && fs.readFileSync(lock, 'utf8') === token && ino() === i0); });` +
+      `seen.push(!fs.existsSync(lock)); console.log(JSON.stringify(seen));`;
     const r = spawnSync(process.execPath, ['-e', code], { encoding: 'utf8', timeout: 20000, killSignal: 'SIGKILL' });
     assertSpawnDecided(r, 'nested hold');
-    assert.strictEqual(r.status, 0, 'a nested hold ran inside its own hold');
-    assert.ok(!fs.existsSync(path.join(f.root, 'digest.lock')), 'the nested hold released the lock');
+    assert.strictEqual(r.status, 0, 'the nested hold returned: ' + r.stderr);
+    assert.deepStrictEqual(JSON.parse(r.stdout), [true, true, true], 'inside the inner hold and after it the outer lock stands unmoved; after the outer hold it is gone');
     const w = sc(f, ['pr', 'set', '#7', '--root', f.root]);
     assert.strictEqual(w.status, 0, w.stderr);
     assert.strictEqual(sc(f, ['pr', 'set', '#8', '--root', f.root]).stderr, '', 'no tamper after a single write');
@@ -133,6 +138,7 @@ async function main() {
     made.push(dir);
     const target = path.join(dir, 'ledger.md');
     fs.mkdirSync(path.join(target, 'inner'), { recursive: true });
+    const atomicPath = require.resolve('../plugin/lib/atomic-write.js');
     const code = `const { writeFileAtomic } = require(${JSON.stringify(atomicPath)}); try { writeFileAtomic(${JSON.stringify(target)}, 'x'); process.exit(3); } catch { process.exit(0); }`;
     const r = spawnSync(process.execPath, ['-e', code], { timeout: 20000, killSignal: 'SIGKILL' });
     assertSpawnDecided(r, 'refused rename');

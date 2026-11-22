@@ -281,27 +281,35 @@ async function main() {
     fs.utimesSync(lock, old, old);
     assert.strictEqual(append().status, 0, 'an append lands over an old lock');
     assert.ok(!fs.existsSync(lock), 'the old lock is gone');
-    // A holder killed with its lock fresh: its token names a dead process, so the append breaks the lock at once.
+    // A holder killed with its lock fresh: its token names a dead process, so the append breaks the lock at once, long before the
+    // stale age. The child records the lock's age at the moment it is moved aside; a waiter with no dead-process check breaks it only at the stale age.
     const holder = spawn(process.execPath, ['-e', `require('fs').writeFileSync(${JSON.stringify(lock)}, process.pid + '-tok', { flag: 'wx' }); console.log('held'); setInterval(() => {}, 1000);`], { stdio: ['ignore', 'pipe', 'ignore'] });
     await new Promise((resolve) => holder.stdout.once('data', resolve));
     holder.kill('SIGKILL');
     await new Promise((resolve) => holder.on('exit', resolve));
     assert.ok(fs.existsSync(lock), 'the killed holder left its lock');
-    assert.strictEqual(append().status, 0, 'an append lands behind the killed holder\'s lock');
+    const code = `const fs = require('fs'); const lock = ${JSON.stringify(lock)}; let age = null; const rename = fs.renameSync;` +
+      `fs.renameSync = (a, b) => { if (a === lock && age === null) age = Date.now() - fs.statSync(a).mtimeMs; return rename(a, b); };` +
+      `const ok = require(${JSON.stringify(traceLogPath)}).appendTrace(${JSON.stringify(f.root)}, { kind: 'edit', fields: ['impl', 'late'] }); console.log(JSON.stringify({ ok, age }));`;
+    const dead = spawnSync(process.execPath, ['-e', code], { encoding: 'utf8', timeout: 90000, killSignal: 'SIGKILL' });
+    assertSpawnDecided(dead, 'append behind a dead holder');
+    const { ok, age } = JSON.parse(dead.stdout);
+    assert.ok(ok, 'an append lands behind the killed holder\'s lock');
+    assert.ok(age !== null && age < 15000, `the dead holder's lock was broken while young (age ${age} ms, half the stale age bounds it)`);
     assert.strictEqual(traceText(f).split('\n').filter((l) => l.includes(' edit impl late')).length, 2, 'both appends landed');
     assert.ok(!fs.existsSync(lock), 'the lock was broken and released');
     assert.strictEqual(write(f).stderr, '', 'no tamper after the broken lock');
   }
 
-  // #lock-live: a lock a live process holds, younger than the stale age, is waited for and never broken: the append lands only
-  // after the holder's last act inside its hold. No duration is asserted.
+  // #lock-live: a lock a live process holds, younger than the stale age, is waited for with no budget and never broken: the holder
+  // holds past the 2 s wait budget the lock once had, and the append lands only after the holder's last act inside its hold. No duration is asserted.
   {
     const f = fixture();
     const marker = path.join(f.root, 'holder-done');
     const digestPath = require.resolve('../plugin/lib/run-digest.js');
     const holder = spawn(process.execPath, ['-e',
       `const fs = require('fs'); const { withRunLock } = require(${JSON.stringify(digestPath)});` +
-      `withRunLock(${JSON.stringify(f.root)}, () => { console.log('held'); Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1500); fs.writeFileSync(${JSON.stringify(marker)}, 'x'); });`], { stdio: ['ignore', 'pipe', 'ignore'] });
+      `withRunLock(${JSON.stringify(f.root)}, () => { console.log('held'); Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 3000); fs.writeFileSync(${JSON.stringify(marker)}, 'x'); });`], { stdio: ['ignore', 'pipe', 'ignore'] });
     await new Promise((resolve) => holder.stdout.once('data', resolve));
     const code = `const fs = require('fs'); const ok = require(${JSON.stringify(traceLogPath)}).appendTrace(${JSON.stringify(f.root)}, { kind: 'edit', fields: ['impl', 'waited'] });` +
       `console.log(ok && fs.existsSync(${JSON.stringify(marker)}) ? 'after' : 'before');`;
