@@ -82,7 +82,7 @@ module.exports = [
     ok: "every \"`<file>.md`'s `## Heading`\" citation and every section map entry names a heading the file carries",
     run: scanHeadingCitations,
     format: (c) =>
-      c.missing
+      c.unresolved
         ? `${c.source} cites ${c.cited}, which resolves to no file`
         : c.unterminated
         ? `${c.source} cites ${c.cited}, which holds an unterminated code fence, so its headings cannot be read`

@@ -1,8 +1,9 @@
 'use strict';
 
 // Suite for plugin/scripts/scope.js's `discard` verb (ADR 0208, INV-0181): the one sanctioned removal of a run's ledger and run trace.
-// It removes `ledger.md`, `trace.log`, and `run.lock`, then the run root when that leaves it empty, and refuses a root outside the
-// main working tree's `.superdev/scopes/<scope>/` and a run whose stage is later than `planned`.
+// It removes `ledger.md`, `trace.log`, `run.lock`, and the digest sidecar `digest.json` and its lock `digest.lock`, each fixture
+// writing them in their production shapes, then the run root when that leaves it empty, and refuses a root outside the main
+// working tree's `.superdev/scopes/<scope>/` and a run whose stage is later than `planned`.
 
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -24,13 +25,16 @@ const call = (argv) => {
     throw e;
   }
 };
-const RUN_FILES = ['ledger.md', 'trace.log', 'run.lock'];
+const RUN_FILES = ['ledger.md', 'trace.log', 'run.lock', 'digest.json', 'digest.lock'];
 function makeRun(scope, stage, extra) {
   const root = path.join(scopes, scope);
   fs.mkdirSync(root, { recursive: true });
   fs.writeFileSync(path.join(root, 'ledger.md'), `# Ledger — ${scope}\n\n**Stage:** ${stage}\n`);
   fs.writeFileSync(path.join(root, 'trace.log'), 'x\n');
   fs.writeFileSync(path.join(root, 'run.lock'), 'plan n\n');
+  // The digest sidecar is one JSON object, and its lock a plain file holding its owner's token (run-digest.js).
+  fs.writeFileSync(path.join(root, 'digest.json'), JSON.stringify({ ledger: { size: 1, sha256: 'a' }, trace: { size: 2, sha256: 'b' } }) + '\n');
+  fs.writeFileSync(path.join(root, 'digest.lock'), '123-00000000-0000-0000-0000-000000000000');
   for (const e of extra || []) {
     if (e.endsWith('/')) fs.mkdirSync(path.join(root, e), { recursive: true });
     else fs.writeFileSync(path.join(root, e), 'x\n');

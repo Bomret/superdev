@@ -1,7 +1,7 @@
 'use strict';
 
-// Selftest suite: the scanners over the base-branch, ship, and derive wording (`scanners/base-branch-ship.js`).
-// Run by ./index.js.
+// Selftest suite: the scanners over the base-branch, ship, and derive wording (`scanners/base-branch-ship.js`), the CI-wait
+// forms in every spelling of a check or status word included. Run by ./index.js.
 
 const {
   scanNoBaseBranchCommit,
@@ -343,6 +343,15 @@ module.exports = ({ assert, fixture, found }) => {
   assert.equal(noWait({ 'plugin/skills/ship/SKILL.md': 'Run `gh pr checks 12 --watch` until it settles.\n' }).length, 1, 'gh pr checks --watch is caught');
   assert.equal(noWait({ 'plugin/references/code-management-github.md': 'Then `gh run watch <id>`.\n' }).length, 1, 'gh run watch is caught');
   assert.equal(noWait({ 'plugin/skills/review/SKILL.md': 'sleep 30 and read the check status again.\n' }).length, 1, 'a sleep-and-reread loop is caught');
+  // A capitalized or plural check or status word is caught, the sleep before it and after it.
+  for (const [label, text] of [
+    ['Checks, the sleep before', 'sleep 30, then read the Checks again.\n'],
+    ['Statuses, the sleep before', 'sleep 30, then read the Statuses again.\n'],
+    ['Checks, the sleep after', 'Read the Checks, then sleep 30.\n'],
+    ['Statuses, the sleep after', 'Read the Statuses, then sleep 30.\n'],
+  ]) {
+    assert.equal(noWait({ 'plugin/skills/ship/SKILL.md': text }).length, 1, `a wait over ${label} is caught`);
+  }
   assert.equal(
     noWait({ 'plugin/skills/ship/SKILL.md': 'A named check still pending refuses, naming the SHA.\n', 'plugin/lib/run-digest.js': 'sleep(5); // status\n' }).length,
     0,

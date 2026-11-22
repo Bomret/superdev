@@ -5,7 +5,8 @@
 require('./fixture-git');
 
 // Suite for plugin/scripts/scope.js's `fail-to-pass` verb (ADR 0134, ADR 0182): the environment a run reads, the test paths and
-// the checkout it runs from, the hooks it never runs, and a command that cannot start. Every scenario writes only inside the
+// the checkout it runs from, the hooks it never runs, a command that cannot start, a git that cannot put the files back or clear
+// what the first run left, and a run trace that cannot take the control run line or the outcome line. Every scenario writes only inside the
 // fixture's own temporary directory (root AGENTS.md, *Every shipped executable has a suite in `tests/`, named for it*).
 
 const assert = require('node:assert');
@@ -98,6 +99,41 @@ const { f2pFixture, verif } = require('./scope-setup');
     assert.deepEqual(s.trace(), tracedBefore, 'an error writes no outcome line');
     assert.deepEqual(leftover(s), [], 'an error leaves no worktree directory');
     assert.deepEqual([checkout(s.repo), checkout(s.tree)], before, 'and the checkout as it was');
+
+    // A git that cannot clear what the first run left, on the exact `reset` or `clean` call the verb makes between the runs, is an
+    // error: exit 1 naming the step, no outcome line, no worktree, and the checkout as it was. Each starts from an empty trace.
+    for (const [label, shape] of [['reset', '--literal-pathspecs reset -q --hard '], ['clean', '--literal-pathspecs clean -ffdxq']]) {
+      s = scenario({
+        base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
+        tip: { 'src.txt': 'b\n', 'tests/t.sh': probe + 'grep -q b src.txt\n' },
+      });
+      before = [checkout(s.repo), checkout(s.tree)];
+      const clearShim = path.join(s.dir, 'bin');
+      fs.mkdirSync(clearShim);
+      fs.writeFileSync(path.join(clearShim, 'git'), `#!/bin/sh\ncase "$*" in *${JSON.stringify(shape)}*) echo 'shim: ${label} refused' >&2; exit 1;; esac\nexec ${realGit} "$@"\n`, { mode: 0o755 });
+      r = s.run(s.range, { env: { PATH: clearShim + path.delimiter + process.env.PATH } });
+      assert.equal(r.status, 1, `a failed ${label} exits 1: ` + r.stdout + r.stderr);
+      assert.match(r.stderr, new RegExp(`could not clear what the first run left: shim: ${label} refused`), `the error names the clear step (${label})`);
+      assert.deepEqual(s.ran(), ['docs|src.txt|tests|'], `the control ran and the second run did not (${label})`);
+      assert.deepEqual(s.trace(), [], `a failed ${label} writes no outcome line`);
+      assert.deepEqual(leftover(s), [], `a failed ${label} leaves no worktree directory`);
+      assert.deepEqual([checkout(s.repo), checkout(s.tree)], before, `and the checkout as it was (${label})`);
+    }
+
+    // A trace that cannot take a line after the verb's gates passed: each run of the command replaces `trace.log` with a
+    // directory, so the control run line and the outcome line both fail to append. The verb still exits 0, prints the outcome,
+    // and warns once for each line.
+    s = scenario({
+      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD) },
+      tip: { 'src.txt': 'b\n', 'tests/t.sh': probe + 'grep -q b src.txt\n' },
+      cmd: `T="$F2P_DIR/repo/.superdev/scopes/demo/trace.log"; rm -f "$T"; mkdir -p "$T"; ${CMD}`,
+    });
+    r = s.run(s.range);
+    assert.equal(r.status, 0, 'a failed append still exits 0: ' + r.stderr);
+    assert.equal(r.stdout.trim(), 'fail-to-pass control=0,put-back=1', 'the outcome is printed');
+    assert.match(r.stderr, /fail-to-pass: the control run line could not be written to the run trace/, 'the control run line failure is warned');
+    assert.match(r.stderr, /fail-to-pass: the outcome line could not be written to the run trace/, 'the outcome line failure is warned');
+    assert.ok(fs.statSync(path.join(s.root, 'trace.log')).isDirectory(), 'the trace the command replaced holds no line');
 
     // Run from the repository's main checkout, outside every run tree, the verb runs and records nothing.
     s = scenario({

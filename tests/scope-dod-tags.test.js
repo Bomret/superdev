@@ -1,7 +1,7 @@
 'use strict';
 
 // Suite for plugin/scripts/scope.js's `dod-tags` verb: the criterion-tag rewrite into store notation, the
-// check mode without a map, `--line` mode, and the refusals (ADR 0209, INV-0182). The shared directory and
+// check mode without a map, `--line` mode, and the refusals, an unreadable --map-file among them (ADR 0209, INV-0182). The shared directory and
 // `call` come from tests/scope-setup.js.
 
 const assert = require('node:assert');
@@ -179,6 +179,17 @@ try {
       const r = call(['dod-tags', ...args], section('- [ ] A works — 01'));
       assert.ok(!r.ok && r.out === '', 'dod-tags refuses ' + args.join(' '));
     }
+  }
+
+  // A --map-file that cannot be read (a directory where the file belongs) refuses naming the option and the path, and prints no
+  // rewritten section.
+  {
+    const unreadable = path.join(fileDir, 'a-directory');
+    fs.mkdirSync(unreadable);
+    const r = call(['dod-tags', '--map-file', unreadable], section('- [ ] A works — 01'));
+    assert.ok(!r.ok, 'an unreadable --map-file refuses');
+    assert.ok(r.err.includes(`--map-file could not read "${unreadable}"`), 'the refusal names --map-file and its path: ' + r.err);
+    assert.strictEqual(r.out, '', 'an unreadable --map-file prints no rewritten section');
   }
 
   console.log('scope-dod-tags: ok');
