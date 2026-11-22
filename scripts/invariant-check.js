@@ -263,13 +263,17 @@ const CHECK_PATH =
 
 // A path-shaped token carrying a glob character: `Check:` names literal files, and a glob there is
 // reported rather than expanded. A token needs a `/` to be path-shaped, so bold prose such as
-// `**Branch:**` is no glob.
+// `**Branch:**` is no glob. Markdown is unwrapped first: bold markers around a token
+// (`**scripts/a.js**`) and link syntax (`[scripts/a.js](scripts/a.js)`) are no glob characters.
 const CHECK_GLOB = /(?:^|[^\w./*?[\]{},-])((?:[\w.*?[\]{},-]+\/)+[\w.*?[\]{},-]*)/g;
+const MD_LINK = /\[([^\]]*)\]\(([^)\s]*)\)/g;
+const MD_BOLD = /(^|[^\w./*?[\]{},-])\*\*([^*\s](?:\S*?[^*\s])?)\*\*(?![\w./*?[\]{},-])/g;
 
 function checkPathFailures(entry, root) {
   const failures = [];
   const check = entry.fields.Check || '';
-  for (const m of check.matchAll(CHECK_GLOB)) {
+  const unwrapped = check.replace(MD_LINK, '$1 $2').replace(MD_BOLD, '$1$2');
+  for (const m of unwrapped.matchAll(CHECK_GLOB)) {
     if (/[*?[{]/.test(m[1]) && /\w/.test(m[1])) {
       failures.push({ id: entry.id, field: 'Check', reason: `\`${m[1]}\` is a glob; name literal files` });
     }

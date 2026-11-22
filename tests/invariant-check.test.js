@@ -986,4 +986,24 @@ for (const statement of ['Bestellung ändert sich nie', '注文は不変']) {
   assert.doesNotMatch(r.out, /^INV-0005: /m, 'relative paths and a URL in a Check: value pass');
 }
 
+// --- a bold path or a markdown link naming a path in a Check: value is no glob; a real glob still is. ---
+{
+  const r = failuresFor(
+    {
+      ...TREE,
+      'docs/invariants.md': register(
+        entry('INV-0001', withField('Check', '**tests/order.test.js** — the order suite')),
+        entry('INV-0002', withField('Check', '[tests/order.test.js](tests/order.test.js) — the order suite')),
+        entry('INV-0003', withField('Check', '**tests/*.test.js** — every suite')),
+        entry('INV-0004', withField('Check', '[every suite](tests/*.test.js)')),
+      ),
+    },
+    'bold and linked check paths',
+  );
+  assert.doesNotMatch(r.out, /^INV-0001: /m, 'a bold path is no glob');
+  assert.doesNotMatch(r.out, /^INV-0002: /m, 'a markdown link whose text is a path is no glob');
+  assert.match(r.out, /^INV-0003: Check: `tests\/\*\.test\.js` is a glob/m, 'a bold glob is still reported');
+  assert.match(r.out, /^INV-0004: Check: `tests\/\*\.test\.js` is a glob/m, 'a link target holding a glob is still reported');
+}
+
 console.log('invariant-check tests ok');

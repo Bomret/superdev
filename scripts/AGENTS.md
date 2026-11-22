@@ -1209,7 +1209,8 @@ It checks these kinds of rule:
   inside the root: a path that leads outside it (`../x.js`) fails even when the file exists, an absolute path, rooted
   at `/`, at `~/`, or at a drive (`C:/`, `C:\`), fails the same way, and a path-shaped token
   holding a glob character (`*`, `?`, `[`, `{`) fails, because `Check:` names literal files and the validator expands
-  no glob there. A token needs a `/` to be path-shaped, so bold prose such as `**Branch:**` is no glob. Drift ids and
+  no glob there. A token needs a `/` to be path-shaped, so bold prose such as `**Branch:**` is no glob, and bold
+  markers around a path (`**scripts/a.js**`) and link syntax (`[scripts/a.js](scripts/a.js)`) are no glob characters. Drift ids and
   quoted test names are prose and stay unchecked.
 - **Citations.** Every `INV-NNNN` cited in a walked file names an entry the register carries, so
   retiring or renumbering an entry cannot leave its citations silently stale. A citation is `INV-` and
