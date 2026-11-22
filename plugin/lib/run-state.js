@@ -135,6 +135,9 @@ function adoptLines(root, body, shipped = false) {
 }
 
 function verbAdopt(root, body, shipped) {
+  const exists = () => { if (fs.existsSync(ledgerPath(root))) fail(`ledger already exists: ${ledgerPath(root)}`); };
+  // A standing ledger refuses before the payload is read; the check repeats inside the hold below, where it decides.
+  exists();
   const lines = adoptLines(root, body, shipped);
   // A snapshot at `implementing` or later needs the Definition of Done run init wrote from the anchor (triage #4).
   // `--shipped` writes its `dod.md` after the adopt (shipped-run.md's `## Adopting a shipped original`), so it passes.
@@ -142,7 +145,7 @@ function verbAdopt(root, body, shipped) {
   fs.mkdirSync(root, { recursive: true });
   // The absence check and the write share one hold (INV-0202), so of two adopts at once one writes and the other refuses.
   withRunLock(root, () => {
-    if (fs.existsSync(ledgerPath(root))) fail(`ledger already exists: ${ledgerPath(root)}`);
+    exists();
     writeLines(root, lines);
   });
 }
