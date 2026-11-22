@@ -352,42 +352,17 @@ calls ran past 185 s and none moved at 180 s. The documentation read that day
 (`https://code.claude.com/docs/en/tools-reference.md`, `https://code.claude.com/docs/en/sub-agents.md`,
 `https://code.claude.com/docs/en/env-vars.md`) names no 180 s limit.
 
-## Operator alert at a blocking stop
+## No alert on a pending AskUserQuestion
 
-A command that stops on an `AskUserQuestion`, or on a Next block that carries a `Blocked:` or `First:` line, waits
-for an operator who may have walked away. Claude Code's own alerts do not cover it. A `Notification` hook receives
-the alerts Claude Code sends (`permission_prompt` after about six seconds, `idle_prompt` about 60 seconds after a
-turn ends, and others), and `AskUserQuestion` is not among their triggers. A hook cannot create or change an alert,
-and no hook output raises one. The `PushNotification` tool sends a desktop notification, and a phone push under
-Remote Control. Only the model can call it, and it is a deferred tool. Its input is a `message`, under 200
-characters, and an optional `status` of `proactive`. It skips the send when the operator is at the terminal, and
-the operator's own push settings govern it.
+A command that stops on an `AskUserQuestion` waits for an operator who may have walked away. Claude Code's own
+alerts do not cover it. A `Notification` hook receives the alerts Claude Code sends (`permission_prompt` after about
+six seconds, `idle_prompt` about 60 seconds after a turn ends, and others), and `AskUserQuestion` is not among their
+triggers. A hook cannot create or change an alert, and no hook output raises one.
 
-**Mitigation (implemented):** `hooks/operator-alert.js` denies an attended superdev session's `AskUserQuestion`
-call, or blocks its Stop on a `Blocked:` or `First:` Next block, once per wait. Its reason asks the model to load
-and call `PushNotification` (ADR 0272). It reads the session transcript for that, and relies on these shapes:
+**Mitigation:** none shipped. superdev raises no alert of its own (ADR 0275).
 
-- A typed prompt is a `user` entry with string content and no `isMeta`. A typed slash command opens with
-  `<command-message>`, carries `<command-name>/superdev:<name></command-name>`, and carries `<command-args>` when
-  it has arguments. The skill body it expands to is a separate `isMeta` entry.
-- A Skill tool call is an `assistant` `tool_use` block named `Skill`, with input `skill` and `args`.
-- An `AskUserQuestion` answer is a `user` entry whose content holds a `tool_result` block with that call's
-  `tool_use_id`.
-- A PreToolUse hook's deny lands as a `tool_result` with `is_error` set, whose text carries the hook's stderr after
-  `PreToolUse:<tool> hook error: [<command>]: `. The hook takes such a result of an `AskUserQuestion` call, opening
-  with that prefix and its marker, as its own earlier deny; the marker in any other text releases no wait.
-- A compact summary carries `isCompactSummary`. Notices from the harness and other sessions carry `isMeta`, or open
-  with `<task-notification>`, `<system-reminder>`, or `<local-command-`.
-- The Stop input carries `last_assistant_message` and `stop_hook_active`.
-
-The shape of a Stop hook's block reason in the transcript is not observed. The hook detects its own Stop re-entry
-through `stop_hook_active` alone. A resumed session's new transcript may lack the superdev start, and the hook then
-passes.
-
-**Fix required at:** Claude Code, an alert on a pending `AskUserQuestion`. Until then the hook's prompt stands.
+**Fix required at:** Claude Code, an alert on a pending `AskUserQuestion`.
 
 Verified 2026-11-21, on Claude Code 2.1.327 in the desktop app, against code.claude.com/docs (`hooks.md#notification`,
-`hooks.md#stop`, `tools-reference.md`, `remote-control.md`), the `PushNotification` tool schema a session loaded,
-and this repository's own session transcripts: a typed `/superdev:status` entry, a `Skill` call to `superdev:plan`
-with its `args`, `AskUserQuestion` answers, `merge-guard.js` denials as `is_error` results, and a compact-summary
-entry.
+`tools-reference.md`): the `Notification` hook's triggers name no pending `AskUserQuestion`, and no hook output
+raises an alert.

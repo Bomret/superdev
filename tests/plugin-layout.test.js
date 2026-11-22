@@ -42,6 +42,10 @@ assert.ok(!/test-guard/.test(fs.readFileSync(path.join(plugin, 'hooks', 'hooks.j
 assert.ok(!fs.existsSync(path.join(plugin, 'hooks', 'run-lock.js')), 'no run-lock hook');
 assert.ok(!/run-lock/.test(fs.readFileSync(path.join(plugin, 'hooks', 'hooks.json'), 'utf8')), 'hooks.json registers no run-lock');
 
+// superdev sends no operator alert: no hook denies an AskUserQuestion or blocks a Stop to prompt a PushNotification (ADR 0275).
+assert.ok(!fs.existsSync(path.join(plugin, 'hooks', 'operator-alert.js')), 'no operator-alert hook');
+assert.ok(!/operator-alert/.test(fs.readFileSync(path.join(plugin, 'hooks', 'hooks.json'), 'utf8')), 'hooks.json registers no operator-alert');
+
 // The export names of each entry point, sorted. A dropped or added export fails here.
 const EXPORTS = {
   'hooks/merge-guard.js': ['decide'],
@@ -170,17 +174,8 @@ for (const [rel, mods] of Object.entries(RE_EXPORTS)) {
   git(['merge', '--no-ff', '-q', '-m', 'merge slice', 'slice/guard/1'], foldTree);
   git(['worktree', 'remove', foldTree], sweepRepo);
 
-  // An attended superdev session's transcript: a typed prompt, then a Skill call naming a superdev command.
-  const alertTranscript = path.join(tmp, 'alert.jsonl');
-  fs.writeFileSync(alertTranscript, [
-    { type: 'user', message: { role: 'user', content: 'review it' } },
-    { type: 'assistant', message: { role: 'assistant', content: [{ type: 'tool_use', id: 't1', name: 'Skill', input: { skill: 'superdev:review', args: 'feat/x' } }] } },
-  ].map((e) => JSON.stringify(e)).join('\n') + '\n');
-
   // Each entry: the payload, the env, and the check on the result and the world after the run.
   const DIRECT = {
-    'operator-alert.js': { input: { hook_event_name: 'PreToolUse', tool_name: 'AskUserQuestion', tool_input: {}, transcript_path: alertTranscript },
-      check: (r) => { assert.strictEqual(r.status, 2, 'denies the first ask of an attended superdev wait'); assert.match(r.stderr, /superdev: operator alert/); } },
     'merge-guard.js': { input: { agent_id: 'a1', tool_input: { command: 'git merge scope' } },
       check: (r) => { assert.strictEqual(r.status, 2, 'blocks a subagent merge'); assert.match(r.stderr, /subagents must not integrate/); } },
     'run-trace.js': { input: { hook_event_name: 'PostToolUse', tool_name: 'Edit', tool_input: { file_path: path.join(slicetree, 'x.js') }, cwd: runRepo },
