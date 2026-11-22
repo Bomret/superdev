@@ -12,14 +12,13 @@ const { checkSliceId, ledgerPath, readLines, writeLines, headerRe, getHeader, in
 // names the invoked subcommand verbatim (`degraded add`, `degraded reset-denials`, …), so a refusal
 // names what the caller actually typed rather than a sibling subcommand's shape; `noun` names what the
 // missing text is called there — `reset-denials` takes a reason, everything else a bullet.
-// `unresolved add -`, `deferred add -`, `degraded add -`, `degraded add-denial -`, and `degraded
-// reset-denials -` read their bullet text from stdin instead of a shell-interpolated argument
-// (triage #680): the sentinel `-` as the sole word past the subcommand means "read stdin," one
-// trailing newline stripped, exactly as `dod-line`'s own stdin path already strips it. `add-denial`
-// quotes a classifier's own refusal text, and `reset-denials` an operator's own reason, either of
-// which can carry a quote, a backtick, or a `$(` just as easily as any other bullet text. Any other
-// subcommand, or any other shape of these subcommands' own arguments, keeps joining its positional
-// words with spaces as it always has.
+// `unresolved add -`, `deferred add -`, `deferred resolve -`, `degraded add -`, `degraded add-denial -`, and
+// `degraded reset-denials -` (every sentinel `BULLET_STDIN_SUBS` holds, for the record kinds that take it) read their
+// bullet text from stdin instead of a shell-interpolated argument (triage #680): the sentinel `-` as the sole word past
+// the subcommand means "read stdin," one trailing newline stripped, as `dod-line`'s own stdin path strips it.
+// `add-denial` quotes a classifier's own refusal text, and `reset-denials` an operator's own reason, either of which
+// can carry a quote, a backtick, or a `$(` just as easily as any other bullet text. Any other subcommand, or any other
+// shape of these subcommands' own arguments, joins its positional words with spaces.
 const BULLET_STDIN_SUBS = ['add', 'add-denial', 'reset-denials', 'resolve'];
 function resolveBulletText(sub, rest, stdinJson) {
   if (BULLET_STDIN_SUBS.includes(sub) && rest.length === 1 && rest[0] === '-') return stdinJson.replace(/\r?\n$/, '');

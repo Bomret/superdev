@@ -9,7 +9,8 @@
 // `run-tests: <label>: <ms> ms` line, so a test audit ranks measured cost. The first failure ends the steps still
 // running with their processes, starts no further step, and exits nonzero, naming what failed. `--related <path>...` runs the tail plus only the
 // suites the changed paths reach (`selectSuites`), and the mod suite when a path is under `MOD_DIR`. `-h` or `--help`
-// prints the usage and exits 0; any other argument is refused with exit 2 (`parseArgs`), and neither starts a step.
+// prints the usage and exits 0; any other argument is refused with exit 2 (`parseArgs`), and so is a `--related` path
+// that is absolute, leads outside the repository, or names a folder; neither help nor a refusal starts a step.
 // Pure Node, no shell.
 
 const fs = require('node:fs');
@@ -307,14 +308,39 @@ function selectSuites(root, suites, paths) {
   return suites.filter((_, i) => chosen.has(i));
 }
 
-// Returns undefined (the full run), the `--related` path list, `{ help: true }`, or `{ refused: <arg> }`.
-function parseArgs(argv) {
+// Returns undefined (the full run), the `--related` path list, `{ help: true }`, `{ refused: <arg> }` for an argument
+// the runner does not accept, or `{ refused: <arg>, reason }` for a `--related` path that is not a repository-relative
+// file path. Backslash separators read as forward slashes on every host (ADR 0150), so a Windows drive (`C:\…`), a
+// Git Bash drive (`/c/…`), and a network share (`\\host\…`) are all absolute. `root` is the repository the paths are
+// relative to; a path naming an existing folder there, a symlink to one included, is refused. One refused path refuses
+// the whole call.
+function parseArgs(argv, root = path.join(__dirname, '..')) {
   if (argv.includes('--help') || argv.includes('-h')) return { help: true };
   if (argv.length === 0) return undefined;
   if (argv[0] !== '--related') return { refused: argv[0] };
   const paths = argv.slice(1);
   const bad = paths.find((p) => p === '' || p.startsWith('-'));
-  return bad === undefined ? paths : { refused: bad };
+  if (bad !== undefined) return { refused: bad };
+  const relative = [];
+  for (const raw of paths) {
+    const p = raw.replace(/\\/g, '/');
+    const rel = path.posix.normalize(p);
+    let reason;
+    if (p.startsWith('/') || /^[A-Za-z]:/.test(p)) reason = 'absolute';
+    else if (rel === '..' || rel.startsWith('../')) reason = 'outside the repository';
+    else if (isFolder(path.join(root, rel))) reason = 'a folder';
+    if (reason) return { refused: raw, reason };
+    relative.push(p);
+  }
+  return relative;
+}
+
+function isFolder(file) {
+  try {
+    return fs.statSync(file).isDirectory();
+  } catch {
+    return false;
+  }
 }
 
 const USAGE = [
@@ -322,6 +348,7 @@ const USAGE = [
   '       node scripts/run-tests.js --related <path>... the tail and the suites the paths reach',
   '       node scripts/run-tests.js -h | --help         this text',
   '--related comes first; every other argument, a dash-led or empty path included, is refused.',
+  '--related takes repository-relative file paths: an absolute path, one outside the repository, or a folder is refused.',
 ].join('\n');
 
 // Ends a step's whole process group (each step is spawned as a group leader), so no process the step started outlives it.
@@ -487,6 +514,9 @@ if (require.main === module) {
   const parsed = parseArgs(process.argv.slice(2));
   if (parsed && parsed.help) {
     process.stdout.write(`${USAGE}\n`);
+  } else if (parsed && parsed.reason) {
+    process.stderr.write(`run-tests: --related takes repository-relative file paths: ${parsed.refused} (${parsed.reason})\n${USAGE}\n`);
+    process.exitCode = 2;
   } else if (parsed && 'refused' in parsed) {
     process.stderr.write(`run-tests: unknown argument: ${parsed.refused === '' ? '(empty argument)' : parsed.refused}\n${USAGE}\n`);
     process.exitCode = 2;

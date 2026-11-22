@@ -6,6 +6,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { fenceOpener, fenceCloses } = require('../../plugin/lib/md-sections.js');
 
 // maskFences(): the same text with every fenced code block blanked to spaces. Line lengths and newlines
 // are preserved, so every offset into the masked text is the same offset into the original. A `#` comment
@@ -18,25 +19,23 @@ function maskFences(text) {
 }
 
 // fenceLines(): every line of the text, tagged with its place in the fenced blocks. `role` is `text`
-// outside a fence, and `open`, `body`, or `close` on a fence's lines; `fence` is the block's `{ char,
-// len, tag }` (the same object on every line of one block, `tag` the info string's first word). A fence
-// closes only on a bare marker line of the same character and at least the opening length, so a
-// differently tagged marker line inside an open fence is body. An unterminated fence runs to end of file.
+// outside a fence, and `open`, `body`, or `close` on a fence's lines. Fences are read only through
+// `plugin/lib/md-sections.js`'s `fenceOpener` and `fenceCloses`, the rule every shipped markdown reader
+// shares, so drift keeps no fence pattern of its own. A line's trailing `\r` is left out of the reading, so a
+// CRLF file reads as its LF form. An unterminated fence runs to end of file.
 function fenceLines(text) {
-  let fence = null;
+  let open = null;
   return text.split('\n').map((line) => {
-    const marker = line.match(/^\s{0,3}(`{3,}|~{3,})\s*(\S*)/);
-    if (fence === null) {
-      if (!marker) return { line, fence: null, role: 'text' };
-      fence = { char: marker[1][0], len: marker[1].length, tag: marker[2] };
-      return { line, fence, role: 'open' };
+    const bare = line.replace(/\r$/, '');
+    if (open === null) {
+      open = fenceOpener(bare);
+      return { line, role: open === null ? 'text' : 'open' };
     }
-    const block = fence;
-    if (marker && !marker[2] && marker[1][0] === block.char && marker[1].length >= block.len) {
-      fence = null;
-      return { line, fence: block, role: 'close' };
+    if (fenceCloses(bare, open)) {
+      open = null;
+      return { line, role: 'close' };
     }
-    return { line, fence: block, role: 'body' };
+    return { line, role: 'body' };
   });
 }
 
@@ -104,8 +103,11 @@ function observeContracts(fn) {
 }
 
 // scanContract() is pure over a root dir and a contract table: reads each document the table names and
-// reports the expectations it no longer meets, and a document it cannot read as missing. A row's
-// pattern is anything with a `test(text)` method.
+// reports the expectations it no longer meets, and a document it cannot read as missing. A row is
+// `[document, pattern, expectation]` or `[document, pattern, expectation, { fenced: true }]`; its pattern
+// is anything with a `test(text)` method. A row tests the document's fence-masked text (`maskFences`), so
+// a heading or clause shown only inside a fenced example does not satisfy it. A row carrying
+// `{ fenced: true }` tests the unmasked text instead: its document's fenced template is what it checks.
 //
 // A pattern that misses the raw text is retried against the whitespace-normalized text. The documents are
 // hard-wrapped, so a clause a table spells with single spaces straddles a line break in the real file; the
@@ -114,12 +116,13 @@ function observeContracts(fn) {
 function scanContract(root, contracts) {
   if (contractObserver) contractObserver(root, contracts);
   const gaps = [];
-  for (const [rel, pattern, expectation] of contracts) {
-    const text = readDoc(root, rel);
-    if (text === null) {
+  for (const [rel, pattern, expectation, { fenced = false } = {}] of contracts) {
+    const raw = readDoc(root, rel);
+    if (raw === null) {
       gaps.push(missingDoc(rel));
       continue;
     }
+    const text = fenced ? raw : maskFences(raw);
     if (!pattern.test(text) && !pattern.test(normalizeWhitespace(text))) {
       gaps.push({ source: rel, expectation });
     }
@@ -127,27 +130,73 @@ function scanContract(root, contracts) {
   return gaps;
 }
 
-// Cuts a trailing `//` comment (at the line start or after whitespace) unless it sits inside a quoted string.
-function stripLineComment(line) {
-  let quote = null;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (quote) {
-      if (c === '\\') i++;
-      else if (c === quote) quote = null;
-    } else if (c === '"' || c === "'" || c === '`') quote = c;
-    else if (c === '/' && line[i + 1] === '/' && (i === 0 || /\s/.test(line[i - 1]))) return line.slice(0, i);
-  }
-  return line;
-}
+// A `/` after one of these characters, or after one of REGEX_KEYWORDS, opens a regular-expression literal;
+// after anything else it divides.
+const REGEX_AFTER = new Set(['', '(', ',', '=', ':', '[', '!', '&', '|', '?', '{', '}', ';', '+', '-', '*', '%', '<', '>', '~', '^']);
+const REGEX_KEYWORDS = /\b(?:return|typeof|instanceof|in|of|new|delete|void|throw|case|do|else|yield|await)$/;
 
-// The text without its block comments and trailing line comments (see `stripLineComment`).
+// The text without its comments: a `//` comment to its line end, and a `/* … */` comment wherever it sits, an
+// unclosed one to end of file. A comment marker inside a quoted string, a template literal (one spanning lines
+// included), or a regular-expression literal is code, and stays. A block comment keeps its line breaks, so the
+// code after it stays on its own line.
 function stripComments(raw) {
-  return raw
-    .replace(/^[ \t]*\/\*[\s\S]*?\*\//gm, '')
-    .split('\n')
-    .map(stripLineComment)
-    .join('\n');
+  let out = '';
+  let last = ''; // the last character of code that is not whitespace
+  let i = 0;
+  const copyQuoted = (close, multiline) => {
+    out += raw[i++];
+    while (i < raw.length) {
+      const c = raw[i];
+      if (c === '\\') {
+        out += raw.slice(i, i + 2);
+        i += 2;
+        continue;
+      }
+      out += c;
+      i++;
+      if (c === close || (!multiline && c === '\n')) break;
+    }
+  };
+  while (i < raw.length) {
+    const c = raw[i];
+    const next = raw[i + 1];
+    if (c === '"' || c === "'") {
+      copyQuoted(c, false);
+      last = c;
+    } else if (c === '`') {
+      copyQuoted('`', true);
+      last = c;
+    } else if (c === '/' && next === '/') {
+      while (i < raw.length && raw[i] !== '\n') i++;
+    } else if (c === '/' && next === '*') {
+      const end = raw.indexOf('*/', i + 2);
+      const stop = end === -1 ? raw.length : end + 2;
+      out += raw.slice(i, stop).replace(/[^\n]/g, '');
+      i = stop;
+    } else if (c === '/' && (REGEX_AFTER.has(last) || REGEX_KEYWORDS.test(out.trimEnd()))) {
+      let inClass = false;
+      out += raw[i++];
+      while (i < raw.length && raw[i] !== '\n') {
+        const r = raw[i];
+        if (r === '\\') {
+          out += raw.slice(i, i + 2);
+          i += 2;
+          continue;
+        }
+        out += r;
+        i++;
+        if (r === '[') inClass = true;
+        else if (r === ']') inClass = false;
+        else if (r === '/' && !inClass) break;
+      }
+      last = '/';
+    } else {
+      out += c;
+      i++;
+      if (!/\s/.test(c)) last = c;
+    }
+  }
+  return out;
 }
 
 module.exports = {

@@ -139,12 +139,30 @@ function scanDodBoxRule(root) {
   return gaps;
 }
 
-// Every shipped markdown file: the skill, agent, and reference prose, and an `AGENTS.md` any of those directories holds
-// (`references/AGENTS.md`), which `proseDocuments` leaves out. An absent `AGENTS.md` is skipped.
+const SHIPPED_PROSE_DIRS = ['skills', 'agents', 'references'];
+
+// Every `AGENTS.md` that exists at any depth under the shipped skill, agent, and reference trees, which
+// `proseDocuments` leaves out.
+function shippedAgentsDocs(root) {
+  const docs = [];
+  for (const dir of SHIPPED_PROSE_DIRS) {
+    let entries;
+    try {
+      entries = fs.readdirSync(docPath(root, dir), { recursive: true, withFileTypes: true });
+    } catch {
+      continue; // no such dir → nothing to read
+    }
+    for (const entry of entries) {
+      if (!entry.isFile() || entry.name !== 'AGENTS.md') continue;
+      docs.push(path.join(dir, path.relative(docPath(root, dir), path.join(entry.parentPath ?? entry.path, entry.name))));
+    }
+  }
+  return docs.sort();
+}
+
+// Every shipped markdown file: the skill, agent, and reference prose, and every `AGENTS.md` under those trees.
 function shippedMarkdown(root) {
-  const dirs = ['skills', 'agents', 'references'];
-  const agentsDocs = dirs.map((dir) => path.join(dir, 'AGENTS.md')).filter((rel) => readDoc(root, rel) !== null);
-  return [...proseDocuments(root, dirs).map(([rel]) => rel), ...agentsDocs];
+  return [...proseDocuments(root, SHIPPED_PROSE_DIRS).map(([rel]) => rel), ...shippedAgentsDocs(root)];
 }
 
 // Every match of a forbidden form in the shipped markdown, fences included: a fenced command is one an agent copies.
@@ -167,12 +185,15 @@ const scanPluginPrefixPath = (root) =>
   scanShippedMarkdownForm(root, PLUGIN_PREFIX_PATH_PATTERN, (hit) =>
     `name a shipped path relative to the plugin root — \`${hit}\` carries the repository's \`plugin/\` prefix, which no install holds`);
 
-// ADR 0232: no shipped skill, agent, or reference, and no shipped AGENTS.md beside them, states the background rule
-// against an unnamed Bash limit. Fences are masked and whitespace runs, line wraps included, are normalized before the match.
+// ADR 0232: no shipped skill, agent, or reference, and no shipped AGENTS.md at any depth beside them, states the
+// background rule against an unnamed Bash limit. Fences are masked and whitespace runs, line wraps included, are
+// normalized before the match. No shipped AGENTS.md at all is one gap, so a moved or renamed one is never passed over.
 function scanBackgroundRuleNamesLimit(root) {
   const gaps = [];
-  const shippedAgentsDocs = ['skills', 'agents', 'references'].map((dir) => [path.join(dir, 'AGENTS.md')]);
-  for (const [rel] of [...proseDocuments(root, ['skills', 'agents', 'references']), ...shippedAgentsDocs]) {
+  if (shippedAgentsDocs(root).length === 0) {
+    gaps.push(missingDoc('an AGENTS.md under skills/, agents/, or references/'));
+  }
+  for (const rel of shippedMarkdown(root)) {
     const text = readDoc(root, rel);
     if (text === null) continue;
     for (const hit of normalizeWhitespace(maskFences(text)).matchAll(UNNAMED_BASH_LIMIT_PATTERN)) {
@@ -187,11 +208,20 @@ function scanBackgroundRuleNamesLimit(root) {
   return gaps;
 }
 
+// A negation of the run itself: `no` directly before the hit, or `not`, `never`, `nor`, or `without` directly before it or
+// before one run verb that heads it ("never runs the full command", "never calls `scope.js test`"), an `ever` intensifier
+// allowed ("Never, ever run") and an infinitive `to` allowed before the verb ("Remember not to run …").
+// A negation of any other word ("Without fail run …", "Do not skip running …", "Do not forget to run …") excuses
+// nothing, and neither does a `no` further back ("If no focused command exists, run the full command").
+// simplicity: shape-based, and its ceiling is that word order. A negation the sentence states after the hit ("the full
+// command is never run") or further back than one run verb walks past the excuse, and the hit fires as written.
+const RUN_NEGATION = String.raw`\b(?:not|never|nor|without)\b,?(?:\s+ever\b,?)?(?:\s+to\b)?(?:\s+(?:re-?)?(?:run|runs|running|call|calls|calling|start|starts|starting|invoke|invokes|invoking|execute|executes|executing))?`;
+const NO_TEST_RUN_NEGATION = new RegExp(String.raw`(?:\bno\b|${RUN_NEGATION})\s*["'\`]?\s*$`, 'i');
+
 // ADR 0189, INV-0175: `/superdev:document` (its skill, its doc agents, and `references/doc-pass.md`) and
-// `/superdev:setup` instruct no test run. A statement that
-// the skill runs none passes: a negation (`no`, `not`, `never`, `without`, `nor`) at most one word
-// before the hit (and an opening quote or backtick), in the same sentence, excuses it. Fenced examples are masked first. See `NO_TEST_RUN_PATTERNS`'s own comment
-// for the ceiling.
+// `/superdev:setup` instruct no test run. A statement that the skill runs none passes: a negation of the run itself
+// (`RUN_NEGATION`, an opening quote or backtick allowed after it), in the same sentence, excuses it. Fenced examples are
+// masked first. See `NO_TEST_RUN_PATTERNS`'s own comment for the ceiling.
 function scanDocSetupNoTestRun(root) {
   const gaps = [];
   for (const rel of NO_TEST_RUN_DOCS) {
@@ -204,7 +234,7 @@ function scanDocSetupNoTestRun(root) {
     for (const pattern of NO_TEST_RUN_PATTERNS) {
       for (const hit of masked.matchAll(pattern)) {
         const sentence = masked.slice(0, hit.index).split(/[.!?]\s|\n\s*\n/).pop();
-        if (/\b(?:no|not|never|nor|without)\b(?:\s+\w+){0,1}\s*["'`]?\s*$/i.test(sentence)) continue;
+        if (NO_TEST_RUN_NEGATION.test(sentence)) continue;
         gaps.push({
           source: rel,
           expectation:
@@ -234,12 +264,15 @@ const DEPLOY_RUNNER_EXEMPT_FILES = new Set([
   path.join('references', 'deployment.md'),
 ]);
 const DEPLOY_RUNNER_PATTERN = /\brun(?:s|ning)?\b[\s\S]{0,40}?\btarget'?s?\b[\s\S]{0,25}?\bcommand\b/gi;
-// A mention attributed to ship within this many characters ahead of the match — "`/superdev:ship` runs
-// each target's command" — describes ship's own job rather than claiming this document's own, so it is
-// not the shape this check exists to catch.
-// simplicity: shape-based, and its ceiling is the "run(s) … target's … command" shape. A claim phrased
-// another way ("execute the deploy step", "deploy it yourself") walks past.
+// A hit whose subject is the ship command — "`/superdev:ship` runs each target's command", "Only ship runs …" —
+// describes ship's own job rather than claiming this document's own, so it is not the shape this check exists to
+// catch. The subject sits directly before the hit, in the same sentence: "Before you ship, run …" names ship as no
+// subject, and a ship mention in an earlier sentence excuses nothing.
+// simplicity: shape-based, and its ceiling is the "run(s) … target's … command" shape with ship directly before it.
+// A claim phrased another way ("execute the deploy step", "deploy it yourself") walks past, and so does a subject
+// separated from its verb ("ship, after the merge, runs …"), which is reported.
 const DEPLOY_RUNNER_ATTRIBUTION_WINDOW = 60;
+const SHIP_SUBJECT = /(?:`\/superdev:ship`|\/superdev:ship|\bship)\s+$/i;
 
 function scanDeployRunnerExclusivity(root) {
   const gaps = [];
@@ -257,10 +290,10 @@ function scanDeployRunnerExclusivity(root) {
       const text = fs.readFileSync(path.join(dirPath, rel), 'utf8');
       const masked = maskFences(text);
       for (const hit of masked.matchAll(DEPLOY_RUNNER_PATTERN)) {
-        const before = masked.slice(Math.max(0, hit.index - DEPLOY_RUNNER_ATTRIBUTION_WINDOW), hit.index);
-        if (/\bship\b/i.test(before)) continue;
-        // A denial — "runs no target's command", "never runs a target's command" — claims no run.
-        if (/\b(?:never|not|no)\s+$/i.test(before) || /^run(?:s|ning)?\s+(?:no|not|never)\b/i.test(hit[0])) continue;
+        const before = masked.slice(Math.max(0, hit.index - DEPLOY_RUNNER_ATTRIBUTION_WINDOW), hit.index).split(/[.!?]\s/).pop();
+        if (SHIP_SUBJECT.test(before)) continue;
+        // A denial — "runs no target's command", "never runs a target's command", "not to run …" — claims no run.
+        if (/\b(?:never|not|no)\s+(?:to\s+)?$/i.test(before) || /^run(?:s|ning)?\s+(?:no|not|never)\b/i.test(hit[0])) continue;
         gaps.push({
           source,
           expectation:
@@ -274,21 +307,25 @@ function scanDeployRunnerExclusivity(root) {
 }
 
 // ADR 0192, INV-0128: implement runs no full or whole-repo suite, so its base step (`scope-branch.md`'s section alone), run
-// handoff, and both execution playbooks instruct none. A negation in the same sentence or clause excuses the hit: `no`
-// directly before it, or `not`, `never`, `nor`, or `without` at most one word (the negated verb) before it. One heading a
-// list of code spans excuses it too ("never `test full`, `test whole`, or a `test focused` with no path"). A `no` a word
-// away negates that word, as in "with no delay run the full suite", and excuses nothing. Fenced examples are masked first.
-const FULL_RUN_NEGATION =
-  /(?:\bno\b|\b(?:not|never|nor|without)\b(?:\s+\w+){0,1})\s*(?:(?:a\s+|an\s+|the\s+)?`[^`]*`(?:\s+with\s+no\s+path)?\s*,\s*(?:(?:or|and|nor)\s+)?)*(?:a\s+|an\s+|the\s+)?["'`]?\s*$/i;
-// A section runs from its heading to the next heading of its own level or a higher one, `#` excepted: a fenced shell
-// comment reads like a level-one heading.
+// handoff, and both execution playbooks instruct none. A negation of the run itself (`RUN_NEGATION`) in the same sentence
+// or clause excuses the hit. One heading a list of code spans excuses it too ("never `test full`, `test whole`, or a
+// `test focused` with no path"). A negation of another word, as in "with no delay run the full suite" or "Do not skip
+// running the full command", excuses nothing. Fenced examples are masked first.
+// simplicity: shape-based, and its ceiling is `RUN_NEGATION`'s word order plus that code-span list.
+// The tail after the negation: any list of code spans it heads, then an article and an opening quote or backtick.
+const FULL_RUN_NEGATION_TAIL = String.raw`\s*(?:(?:a\s+|an\s+|the\s+)?\`[^\`]*\`(?:\s+with\s+no\s+path)?\s*,\s*(?:(?:or|and|nor)\s+)?)*(?:a\s+|an\s+|the\s+)?["'\`]?\s*$`;
+const FULL_RUN_NEGATION = new RegExp(String.raw`(?:\bno\b|${RUN_NEGATION})${FULL_RUN_NEGATION_TAIL}`, 'i');
+// A section runs from its heading to the next heading of its own level or a higher one, `#` excepted. Both are
+// found on fence-masked lines, so a heading shown inside a fenced example neither starts nor ends a section; the
+// raw lines between them are returned, and the caller masks that text once.
 function sectionText(text, heading) {
   const lines = text.split('\n');
-  const start = lines.findIndex((line) => line.trim() === heading);
+  const masked = maskFences(text).split('\n');
+  const start = masked.findIndex((line) => line.trim() === heading);
   if (start === -1) return null;
   const level = heading.match(/^#+/)[0].length;
   const next = new RegExp(`^#{2,${level}} `);
-  const end = lines.findIndex((line, i) => i > start && next.test(line));
+  const end = masked.findIndex((line, i) => i > start && next.test(line));
   return lines.slice(start, end === -1 ? lines.length : end).join('\n');
 }
 function scanImplementNoFullRun(root) {

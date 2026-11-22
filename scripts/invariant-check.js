@@ -3,11 +3,13 @@
 
 // invariant-check: the maintainer-only validator for a repository's invariant register (ADR 0093).
 // `node scripts/invariant-check.js --root <dir>` reads <dir>/docs/invariants.md and reports every
-// entry that breaks the register's format rules, or names a Paths glob, a symbol, or a Check path
-// that resolves to nothing, and every INV-NNNN cited outside the register, the changelog, and
-// docs/adr/ that names no entry — one line per failure naming the id and the field. It reports and
-// selects nothing: /superdev:plan and final-reviewer still read the register
-// whole (INV-0088). Pure Node with no shell-out, so it runs on every OS the maintainer uses.
+// entry that breaks the register's format rules (a present but empty Paths or Symbols field, a
+// silent-break dash with no reason after it included), names a Paths glob, a symbol, or a Check path
+// that resolves to nothing, carries a symbol with an empty name segment, or names a Check path that is a
+// glob, leads outside the root (an absolute path rooted at `/`, `~/`, or a drive included), or starts
+// at a variable, and every INV-NNNN cited outside the register, the changelog, and docs/adr/ that
+// names no entry — one line per failure naming the id and the field. It reports and selects nothing:
+// /superdev:plan and final-reviewer still read the register whole (INV-0088). Pure Node with no shell-out, so it runs on every OS the maintainer uses.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -100,6 +102,8 @@ function parseEntries(text) {
 
 const MANDATORY = ['Class', 'Concepts', 'Statement', 'Breaks'];
 
+const has = (entry, key) => Object.prototype.hasOwnProperty.call(entry.fields, key);
+
 // A value carries a word when it holds a letter or a digit, in any script. `\w` would count `_` as one,
 // so `Check: _` would read as naming a proof (#741).
 const hasWord = (s) => /[\p{L}\p{N}]/u.test(s);
@@ -119,14 +123,18 @@ function formatFailures(entries) {
         failures.push({ id: e.id, field: key, reason: 'carries no word' });
       }
     }
+    // A field that is present but empty names nothing: an empty `Paths:` or `Symbols:` is reported, an
+    // absent one is not.
     for (const [key, noun] of [['Concepts', 'concept'], ['Paths', 'path'], ['Symbols', 'symbol']]) {
-      if (e.fields[key] && list(e.fields[key]).length === 0) {
+      if (has(e, key) && list(e.fields[key]).length === 0) {
         failures.push({ id: e.id, field: key, reason: `names no ${noun}` });
       }
     }
     const breaks = e.fields.Breaks || '';
     if (breaks && !/^(silently|loudly)(\s+—.*)?$/i.test(breaks)) {
       failures.push({ id: e.id, field: 'Breaks', reason: 'is neither `silently` nor `loudly`' });
+    } else if (/—/.test(breaks) && !hasWord(breaks.slice(breaks.indexOf('—') + 1))) {
+      failures.push({ id: e.id, field: 'Breaks', reason: 'carries no reason after its dash' });
     }
     if (/^silently\b/i.test(breaks)) {
       const proof = unquote(e.fields.Check || '');
@@ -190,7 +198,9 @@ function conceptFailures(entries, terms) {
 
 // A `Paths` glob as a predicate over repo-relative paths: `**` spans segments, `*` and `?` stay
 // inside one. Matching runs on forward slashes, so a path carrying backslash separators matches
-// the same glob. fs.globSync would do this, but it needs Node 22 and package.json supports 20.8.1.
+// the same glob. The repository requires Node 24 or later (`package.json`'s `engines.node`), where
+// `fs.globSync` exists; the matcher stays hand-rolled because its semantics are what the register's
+// `Paths:` field means: `**` spanning segments, `*` and `?` inside one, and no braces or character classes.
 function globMatcher(glob) {
   let source = '';
   for (let i = 0; i < glob.length; i++) {
@@ -222,15 +232,22 @@ function governedFiles(entry, files) {
 }
 
 // A symbol resolves when its last dotted segment appears as a whole word in a governed file: the
-// entry's `Paths` files, or every walked file but the register itself when it names no `Paths`.
+// entry's `Paths` files, or every walked file but the register itself when it carries no `Paths:` line.
+// An empty `Paths:` line governs no file, so it never widens the scope to the whole repository.
 function symbolFailures(entry, governed, files, read) {
   const failures = [];
-  const scope = entry.fields.Paths ? [...governed] : files.filter((f) => f !== REGISTER_PATH);
+  const scoped = has(entry, 'Paths');
+  const scope = scoped ? [...governed] : files.filter((f) => f !== REGISTER_PATH);
   for (const symbol of list(entry.fields.Symbols).map(unquote)) {
+    // An empty segment would build a pattern that matches any file, so the symbol is reported instead.
+    if (symbol.split('.').some((segment) => !segment)) {
+      failures.push({ id: entry.id, field: 'Symbols', reason: `\`${symbol}\` has an empty name segment` });
+      continue;
+    }
     const word = symbol.split('.').pop().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const re = new RegExp(`(^|[^A-Za-z0-9_$])${word}($|[^A-Za-z0-9_$])`, 'm');
     if (!scope.some((f) => re.test(read(f)))) {
-      const where = entry.fields.Paths ? "the entry's Paths files" : 'the repository';
+      const where = scoped ? "the entry's Paths files" : 'the repository';
       failures.push({ id: entry.id, field: 'Symbols', reason: `\`${symbol}\` appears nowhere in ${where}` });
     }
   }
@@ -238,13 +255,43 @@ function symbolFailures(entry, governed, files, read) {
 }
 
 // A path-shaped token in `Check:` — segments joined by `/`, ending in a file extension — names a
-// file under root. Drift ids and quoted test names are prose, and stay unchecked.
-const CHECK_PATH = /(?:^|[^\w./-])((?:[\w.-]+\/)+[\w-][\w.-]*\.[A-Za-z0-9]{1,5})(?![\w/])/g;
+// file under root. A token rooted at `/`, at `~/`, or at a drive (`C:/`, `C:\`) is absolute and
+// leads outside the repository. Drift ids and quoted test names are prose, and stay unchecked.
+const CHECK_ABSOLUTE = /^(?:\/|~\/|[A-Za-z]:[/\\])/;
+const CHECK_PATH =
+  /(?:^|[^\w./-])((?:(?:\/|~\/|[A-Za-z]:[/\\])(?:[\w.-]+[/\\])*|(?:[\w.-]+\/)+)[\w-][\w.-]*\.[A-Za-z0-9]{1,5})(?![\w/])/g;
+
+// A path-shaped token carrying a glob character: `Check:` names literal files, and a glob there is
+// reported rather than expanded. A token needs a `/` to be path-shaped, so bold prose such as
+// `**Branch:**` is no glob. Markdown is unwrapped first: bold markers around a token
+// (`**scripts/a.js**`) and link syntax (`[scripts/a.js](scripts/a.js)`) are no glob characters.
+const CHECK_GLOB = /(?:^|[^\w./*?[\]{},-])((?:[\w.*?[\]{},-]+\/)+[\w.*?[\]{},-]*)/g;
+const MD_LINK = /\[([^\]]*)\]\(([^)\s]*)\)/g;
+const MD_BOLD = /(^|[^\w./*?[\]{},-])\*\*([^*\s](?:\S*?[^*\s])?)\*\*(?![\w./*?[\]{},-])/g;
+
+// A path rooted at a variable (`${CLAUDE_PLUGIN_ROOT}/scripts/a.js`, `$HOME/a.js`, `$(cmd)/a.js`) is reported once,
+// as starting at a variable, and masked before the glob and path scans, so its braces read as no glob and its
+// tail as no absolute path.
+const CHECK_VARIABLE = /\$(?:\{[^}]*\}|\([^)]*\)|\w+)[/\\][\w./\\-]*/g;
 
 function checkPathFailures(entry, root) {
   const failures = [];
-  for (const m of (entry.fields.Check || '').matchAll(CHECK_PATH)) {
-    if (!fs.existsSync(path.join(root, m[1]))) {
+  const raw = entry.fields.Check || '';
+  for (const m of raw.matchAll(CHECK_VARIABLE)) {
+    failures.push({ id: entry.id, field: 'Check', reason: `\`${m[0]}\` starts at a variable; name the path from the repository root` });
+  }
+  const check = raw.replace(CHECK_VARIABLE, ' ');
+  const unwrapped = check.replace(MD_LINK, '$1 $2').replace(MD_BOLD, '$1$2');
+  for (const m of unwrapped.matchAll(CHECK_GLOB)) {
+    if (/[*?[{]/.test(m[1]) && /\w/.test(m[1])) {
+      failures.push({ id: entry.id, field: 'Check', reason: `\`${m[1]}\` is a glob; name literal files` });
+    }
+  }
+  for (const m of check.matchAll(CHECK_PATH)) {
+    const rel = path.relative(path.resolve(root), path.resolve(root, m[1]));
+    if (CHECK_ABSOLUTE.test(m[1]) || rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) {
+      failures.push({ id: entry.id, field: 'Check', reason: `\`${m[1]}\` leads outside the repository` });
+    } else if (!fs.existsSync(path.join(root, m[1]))) {
       failures.push({ id: entry.id, field: 'Check', reason: `\`${m[1]}\` names no file` });
     }
   }

@@ -1,8 +1,8 @@
 'use strict';
 
 // drift-check contract data: the tables and patterns every check asserts against, and nothing else.
-// A `[document, pattern, expectation]` row is read by `lib.js`’s scanContract(); the element
-// lists and lone patterns are read by the bespoke scanners in `scanners/`.
+// A `[document, pattern, expectation]` row, or one carrying a fourth element `{ fenced: true }`, is read by
+// `lib.js`’s scanContract(); the element lists and lone patterns are read by the bespoke scanners in `scanners/`.
 
 const path = require('node:path');
 
@@ -224,8 +224,8 @@ const KB_BACKEND_CALL_MARKERS = [
 // `**Name:**` regex drifts from the shared reader: each local fix lands in that copy alone, and none
 // travels back.
 //
-// The primary guard against that drift restarting is the orphan test in `hooks/scope-prune.js
-// --selftest` (`#reader-unavailable` and its shared-reader agreement vectors): it exercises the real
+// The primary guard against that drift restarting is the orphan test in `tests/scope-prune-guards.test.js`
+// (`#reader-unavailable`): it exercises the real
 // reader against real input and fails the moment a hook stops using it. This regex is a fast literal-
 // shape tripwire only, not a substitute — it looks for the ledger's header marker being *built as a
 // pattern* — an escaped `**`, a short run, a colon, then an escaped `**` again — and a self-contained
@@ -387,7 +387,8 @@ const SOURCE_SECTION_CONTRACTS = [
     'carry the `## Pushing the scope branch` section, which `skills/plan/SKILL.md` §6 cites (ADR 0167)',
   ],
   // Agent-body headings another file cites by name. A template heading counts: the review scope-mode
-  // reference and `dod-ticks.md` send their reader to the section the agent's output carries under it.
+  // reference and `dod-ticks.md` send their reader to the section the agent's output carries under it, so
+  // the rows for headings that exist only inside the fenced output template carry `{ fenced: true }`.
   [
     path.join('agents', 'final-reviewer.md'),
     /^#{2,3}\s+Judge every criterion\s*$/m,
@@ -397,16 +398,19 @@ const SOURCE_SECTION_CONTRACTS = [
     path.join('agents', 'final-reviewer.md'),
     /^#{2,3}\s+Criteria\s*$/m,
     'carry the `### Criteria` output section, which `references/review-scope-mode.md` and `dod-ticks.md` cite',
+    { fenced: true },
   ],
   [
     path.join('agents', 'final-reviewer.md'),
     /^#{2,3}\s+Ceiling\s*$/m,
     'carry the `### Ceiling` output section, which `references/review-scope-mode.md` cites',
+    { fenced: true },
   ],
   [
     path.join('agents', 'final-reviewer.md'),
     /^#{2,3}\s+Fail-to-pass unknown\b/m,
     'carry the `### Fail-to-pass unknown` output section, which `references/review-scope-mode.md` carries through',
+    { fenced: true },
   ],
   [
     path.join('agents', 'slice-reviewer.md'),
@@ -554,11 +558,8 @@ const GITHUB_WIKI_GH_ONLY_MARKERS = [
 // fail-to-pass` call, "run(s) the full / focused / whole-repo / affected command", or "run(s) the test command".
 // simplicity: shape-based, and its ceiling is those two shapes, read in unfenced prose. A paraphrase
 // ("execute the suite", "start the affected form") walks past, and so does an instruction inside a fence.
-// A negation excuses a hit only within one word before it (an opening quote or backtick may sit between):
-// "never runs the full command" and "never calls `scope.js test`" pass, "If no focused command exists, run
-// the full command" does not. A negation further back, or one the sentence states after the hit ("the full
-// command is never run"), walks past or fires as written. A negated word that is no run verb right before
-// the hit still excuses it ("Do not skip running the full command" passes); "Do not forget to run ..." fires.
+// A negation excuses a hit only when it negates the run itself; `scanners/prose-avoid.js`'s `RUN_NEGATION` comment
+// states the forms that pass and the forms that fire.
 const NO_TEST_RUN_DOCS = [
   path.join('skills', 'document', 'SKILL.md'),
   path.join('skills', 'setup', 'SKILL.md'),
@@ -588,6 +589,8 @@ const IMPLEMENT_NO_FULL_RUN_DOCS = [
 // A `scope.js test full|whole` call, the bare `test full|whole` verb in a code span, a `test focused` call with no path
 // after it, a run, rerun, execution, or invocation of the full or whole-repo command or suite, a gate on one, and the full
 // or whole-repo command or suite as the subject of `runs` up to two words later ("the full suite run-handoff runs").
+// simplicity: shape-based, and its ceiling is those shapes, read in unfenced prose. A paraphrase ("kick off every
+// suite", "start the complete run") walks past, and so does a subject more than two words ahead of `runs`.
 const IMPLEMENT_NO_FULL_RUN_PATTERNS = [
   /scope\.js["'`]?\s+test\s+(?:full|whole)\b/gi,
   /`test\s+(?:full|whole)`/gi,
@@ -603,6 +606,8 @@ const IMPLEMENT_NO_FULL_RUN_PATTERNS = [
 // document and the one section of it the check reads.
 const OBSERVATION_NO_SUITE_RUN_DOC = [path.join('references', 'review-scope-mode.md'), '### 4.3 Observations'];
 // A suite, test, entry, exit, focused, or full run, a §4.2 citation, and a failing test or run.
+// simplicity: shape-based, and its ceiling is those words. A source named another way ("the red evidence", "what CI
+// reported") walks past.
 const OBSERVATION_NO_SUITE_RUN_PATTERN = /\b(?:suite|test|entry|exit|focused|full)\s+runs?\b|§\s*4\.2\b|\bfailing\s+(?:tests?|runs?)\b/gi;
 
 // ADR 0255, INV-0193: review prose instructs no full or whole-repo run, by IMPLEMENT_NO_FULL_RUN_PATTERNS, outside the ad-hoc

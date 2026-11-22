@@ -181,6 +181,11 @@ module.exports = ({ assert, path, fixture, found }) => {
     'a denial in a document other than verify-ship is not flagged',
   );
   assert.equal(
+    scanDeployRunnerExclusivity(fixture({ 'skills/document/SKILL.md': "Remember not to run a deploy target's command.\n" })).length,
+    0,
+    'a denial with an infinitive to before the run is not flagged',
+  );
+  assert.equal(
     scanDeployRunnerExclusivity(fixture({ 'skills/verify-ship/SKILL.md': "It runs each target's deploy command itself.\n" })).length,
     1,
     'a non-denial in verify-ship is flagged',
@@ -189,6 +194,21 @@ module.exports = ({ assert, path, fixture, found }) => {
     scanDeployRunnerExclusivity(fixture({ 'skills/setup/SKILL.md': 'Only `/superdev:ship` runs each target\'s command, and only under `auto`.\n' })).length,
     0,
     'a mention attributed to ship is not a claim to run one itself',
+  );
+  assert.equal(
+    scanDeployRunnerExclusivity(fixture({ 'skills/setup/SKILL.md': 'Only ship runs a target\'s command.\n' })).length,
+    0,
+    'ship as the subject running the deploy passes',
+  );
+  assert.equal(
+    scanDeployRunnerExclusivity(fixture({ 'skills/setup/SKILL.md': "Before you ship, run each deploy target's command yourself.\n" })).length,
+    1,
+    'a ship mention that is not the subject running the deploy excuses nothing',
+  );
+  assert.equal(
+    scanDeployRunnerExclusivity(fixture({ 'skills/setup/SKILL.md': "Then ship merges. Run each target's command.\n" })).length,
+    1,
+    'a ship mention in a prior sentence does not excuse the next sentence',
   );
   assert.equal(
     scanDeployRunnerExclusivity(fixture({ 'skills/document/SKILL.md': '```\nThis command runs each target\'s deploy command itself.\n```\n' })).length,
@@ -314,6 +334,10 @@ module.exports = ({ assert, path, fixture, found }) => {
     assert.equal(noRun({ [rel]: 'Setup never runs the full command.\n' }).length, 0, `${rel}: a negated run of the full command passes`);
     assert.equal(noRun({ [rel]: 'Setup never runs the test command.\n' }).length, 0, `${rel}: a negated run of the test command passes`);
     assert.equal(noRun({ [rel]: 'Do not forget to run the full command.\n' }).length, 1, `${rel}: a negated other verb does not excuse a run`);
+    assert.equal(noRun({ [rel]: 'Remember not to run the full command.\n' }).length, 0, `${rel}: a negated infinitive run passes`);
+    assert.equal(noRun({ [rel]: 'Without fail run the full command.\n' }).length, 1, `${rel}: a negation of another word does not excuse a run`);
+    assert.equal(noRun({ [rel]: 'Do not skip running the full command.\n' }).length, 1, `${rel}: a negated skip does not excuse a run`);
+    assert.equal(noRun({ [rel]: 'Never, ever run the full command.\n' }).length, 0, `${rel}: an intensified negation of the run passes`);
     assert.equal(noRun({ [rel]: '```\nscope.js test full\n```\n' }).length, 0, `${rel}: a fenced example is masked`);
   }
   assert.equal(
@@ -389,6 +413,11 @@ module.exports = ({ assert, path, fixture, found }) => {
       `${rel}: a nor-list negation passes`,
     );
     assert.equal(noFull({ [rel]: 'If no record is green, run the full command.\n' }).length, 1, `${rel}: a distant no does not excuse a run`);
+    assert.equal(noFull({ [rel]: 'Without fail run the full command.\n' }).length, 1, `${rel}: a negation of another word does not excuse a run`);
+    assert.equal(noFull({ [rel]: 'Do not skip running the full command.\n' }).length, 1, `${rel}: a negated skip does not excuse a run`);
+    assert.equal(noFull({ [rel]: 'Do not forget to run the full command.\n' }).length, 1, `${rel}: a negated other verb does not excuse a run`);
+    assert.equal(noFull({ [rel]: 'Remember not to run the full command.\n' }).length, 0, `${rel}: a negated infinitive run passes`);
+    assert.equal(noFull({ [rel]: 'Never, ever run the full command.\n' }).length, 0, `${rel}: an intensified negation of the run passes`);
     assert.equal(noFull({ [rel]: 'Never mind the record: run `test full` now.\n' }).length, 1, `${rel}: a negation before a colon break does not excuse a run`);
     assert.equal(noFull({ [rel]: '```\nscope.js test full\n```\n' }).length, 0, `${rel}: a fenced example is masked`);
   }
@@ -449,6 +478,18 @@ module.exports = ({ assert, path, fixture, found }) => {
     [],
     'observation-no-suite-run: a concept naming only the report and a fix cycle passes, and the sections around it stay unscanned',
   );
+  // A fenced `## ` line inside the section neither ends it, and a fenced copy of the heading does not start it.
+  assert.ok(
+    noSuiteRun('```sh\n## a shell comment\n```\n\nApplies to a defect a suite run surfaces.\n').length >= 1,
+    'observation-no-suite-run: a fenced `## ` line does not end the section before the text after it',
+  );
+  assert.deepEqual(
+    scanObservationNoSuiteRun(
+      fixture({ 'references/review-scope-mode.md': '# Review in scope mode\n\n```markdown\n### 4.3 Observations\n```\n\nA suite run.\n' }),
+    ),
+    [{ source: reviewScope, expectation: 'carry a `### 4.3 Observations` section for observation-no-suite-run to scan' }],
+    'observation-no-suite-run: a heading shown only inside a fence is no section',
+  );
   assert.deepEqual(
     scanObservationNoSuiteRun(fixture({ 'references/review-scope-mode.md': '# Review in scope mode\n\n### 4.2 The suite gate\n\nText.\n' })),
     [{ source: reviewScope, expectation: 'carry a `### 4.3 Observations` section for observation-no-suite-run to scan' }],
@@ -499,7 +540,23 @@ module.exports = ({ assert, path, fixture, found }) => {
 
   // --- background-rule-names-limit (ADR 0232): the background rule names the Bash ceiling, never an unnamed limit ---
 
-  const limit = (files) => found(scanBackgroundRuleNamesLimit(fixture(files)));
+  const agentsDoc = { 'references/AGENTS.md': '# References\n' };
+  const limit = (files) => found(scanBackgroundRuleNamesLimit(fixture({ ...agentsDoc, ...files })));
+  assert.deepEqual(
+    scanBackgroundRuleNamesLimit(fixture({ 'references/x.md': 'Text.\n' })),
+    [{ source: 'an AGENTS.md under skills/, agents/, or references/', missing: true }],
+    'background-rule-names-limit: no shipped AGENTS.md at all is one gap',
+  );
+  assert.equal(
+    limit({ 'references/sub/AGENTS.md': 'run in the background when a suite outlasts the Bash tool\'s time limit\n' }).length,
+    1,
+    'background-rule-names-limit: a nested AGENTS.md under a shipped tree is read',
+  );
+  assert.equal(
+    found(scanBackgroundRuleNamesLimit(fixture({ 'agents/sub/AGENTS.md': '# Agents\n' }))).length,
+    0,
+    'background-rule-names-limit: one AGENTS.md anywhere under a shipped tree is enough; no fixed name is required',
+  );
   for (const [text, label] of [
     ['A suite longer than the Bash tool\'s time limit runs in the background.\n', 'one line'],
     ['A suite longer than the Bash tool\'s time\nlimit runs in the background.\n', 'wrapped after "time"'],

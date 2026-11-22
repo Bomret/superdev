@@ -60,8 +60,8 @@ const {
 // The printer most checks share. A gap is `{ source, expectation }`.
 const contractGap = (g) => `${g.source} no longer meets its contract — expected it to ${g.expectation}`;
 
-// A table-driven check: the whole assertion is a `[document, pattern, expectation]` table run through
-// scanContract().
+// A table-driven check: the whole assertion is a table of `[document, pattern, expectation]` rows, a row
+// optionally carrying `{ fenced: true }`, run through scanContract().
 const table = (id, contracts, ok) => ({
   id,
   contracts,
@@ -266,7 +266,7 @@ module.exports = [
   },
   {
     id: 'deploy-runner-exclusivity',
-    ok: "no skill or agent but ship names a deploy target's command as something it runs (INV-0098)",
+    ok: "no skill, agent, or reference but ship's own names a deploy target's command as something it runs (INV-0098)",
     run: scanDeployRunnerExclusivity,
     format: contractGap,
   },
