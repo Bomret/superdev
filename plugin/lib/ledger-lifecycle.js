@@ -111,6 +111,12 @@ function verbInit(cwd, label, stage, stdinJson, log = console.log, checked = fal
   const root = path.join(workTree, '.superdev', 'scopes', slug);
   // `init` names no `--root`, so it checks the run's digest itself, once, before it reads or writes a file of the run (ADR 0227).
   if (!checked) checkRun(root);
+  // The read of a standing ledger and the write of the new one share one hold (INV-0202), so a `step set` lands before the
+  // read or after the write. A run root that does not exist yet takes no lock, and holds no ledger another verb could change.
+  return withRunLock(root, () => writeInit(root, workTree, slug, label, stage, stdinJson, log));
+}
+
+function writeInit(root, workTree, slug, label, stage, stdinJson, log) {
   // The real double-init signal is an existing ledger.md, not the run-root directory: run init
   // writes dod.md into the run root before calling init, so the directory legitimately exists
   // on every fresh run. A ledger at stage `planned` is the one exception (ADR 0079): it names a

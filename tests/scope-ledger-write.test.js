@@ -42,6 +42,59 @@ function together(f, argvs) {
   })));
 }
 
+// Orders a race between two scope.js processes with a preload this function writes into `cwd` and loads into the two children
+// alone. The first stops at `pause`: `read`, right after it reads the ledger text, or `absent`, right after it finds no ledger.
+// The second then runs until it exits or finds the run's lock held, and only then does the first go on. Resolves with both results.
+async function ordered(cwd, pause, firstArgv, firstInput, secondArgv, secondInput = '') {
+  const paused = path.join(cwd, 'order-paused');
+  const go = path.join(cwd, 'order-go');
+  const blocked = path.join(cwd, 'order-blocked');
+  const preload = path.join(cwd, 'order.js');
+  fs.writeFileSync(preload, `const fs = require('fs'); const role = process.env.ORDER_ROLE;
+const readFileSync = fs.readFileSync; const existsSync = fs.existsSync; const openSync = fs.openSync;
+const nap = () => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5);
+const hold = () => {
+  if (existsSync(${JSON.stringify(paused)})) return;
+  fs.writeFileSync(${JSON.stringify(paused)}, '');
+  while (!existsSync(${JSON.stringify(go)})) nap();
+};
+if (role === 'read') fs.readFileSync = function (file, enc) {
+  const out = readFileSync.apply(fs, arguments);
+  if (String(file).endsWith('ledger.md') && enc === 'utf8') hold();
+  return out;
+};
+if (role === 'absent') fs.existsSync = function (file) {
+  const out = existsSync.apply(fs, arguments);
+  if (String(file).endsWith('ledger.md') && !out) hold();
+  return out;
+};
+if (role === 'second') fs.openSync = function (file) {
+  try { return openSync.apply(fs, arguments); } catch (e) {
+    if (e.code === 'EEXIST' && String(file).endsWith('digest.lock')) fs.writeFileSync(${JSON.stringify(blocked)}, '');
+    throw e;
+  }
+};
+`);
+  const child = (role, argv, input) => {
+    const p = spawn(process.execPath, ['-r', preload, scopePath, ...argv], { cwd, env: { ...process.env, ORDER_ROLE: role }, stdio: ['pipe', 'ignore', 'pipe'] });
+    p.stdin.end(input);
+    let stderr = '';
+    p.stderr.on('data', (d) => { stderr += d; });
+    const guard = setTimeout(() => p.kill('SIGKILL'), 120000);
+    const out = new Promise((resolve) => p.on('exit', (status, signal) => { clearTimeout(guard); resolve({ status, signal, stderr }); }));
+    out.done = false;
+    out.then(() => { out.done = true; });
+    return out;
+  };
+  const until = async (done) => { while (!done()) await new Promise((r) => setTimeout(r, 10)); };
+  const first = child(pause, firstArgv, firstInput);
+  await until(() => fs.existsSync(paused) || first.done);
+  const second = child('second', secondArgv, secondInput);
+  await until(() => second.done || fs.existsSync(blocked));
+  fs.writeFileSync(go, '');
+  return Promise.all([first, second]);
+}
+
 const ledgerText = (f) => fs.readFileSync(path.join(f.root, 'ledger.md'), 'utf8');
 const leftovers = (f) => fs.readdirSync(f.root).filter((n) => n.includes('.tmp-'));
 const rootUser = typeof process.getuid === 'function' && process.getuid() === 0;
@@ -68,6 +121,30 @@ async function main() {
     assert.ok(!fs.existsSync(path.join(f.root, 'digest.lock')), 'no lock left');
     const next = sc(f, ['docs', 'set', 'last', '--root', f.root]);
     assert.strictEqual(next.stderr, '', 'the digest matches the ledger the writers left');
+  }
+
+  // A re-init over a `planned` ledger racing a `step set` loses neither: the new ledger's anchor lands, and so does the step.
+  {
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-ledger-write-'));
+    made.push(cwd);
+    const f = { cwd, root: path.join(cwd, '.superdev', 'scopes', 'demo') };
+    assert.strictEqual(sc(f, ['init', 'feat/demo', 'planned'], sliceJson).status, 0, 'planned init');
+    const spec = JSON.stringify({ ...JSON.parse(sliceJson), anchor: '#512' });
+    const rs = await ordered(cwd, 'read', ['init', 'feat/demo', 'planned'], spec, ['step', 'set', 'review', '--root', f.root]);
+    for (const r of rs) assert.strictEqual(r.status, 0, r.stderr);
+    const text = ledgerText(f);
+    assert.ok(text.includes('**Anchor:** #512') && text.includes('**Step:** review'), `the re-init and the step both landed:\n${text}`);
+  }
+
+  // Two adopts into one run root at once: one writes the ledger and the other refuses, so neither replaces the other's ledger.
+  {
+    const f = fixture();
+    const body = sc(f, ['publish', '--root', f.root]).stdout;
+    const root = path.join(f.cwd, 'adopted', 'demo');
+    writeDod(root);
+    const rs = await ordered(f.cwd, 'absent', ['adopt', '--root', root], body, ['adopt', '--root', root], body);
+    assert.deepStrictEqual(rs.map((r) => r.status === 0).sort(), [false, true], `one adopt writes, one refuses: ${rs.map((r) => r.stderr).join(' | ')}`);
+    assert.match(rs.find((r) => r.status !== 0).stderr, /ledger already exists/);
   }
 
   // A nested hold runs inside its outer hold: the lock file stays the outer holder's own (same token, never moved aside), the inner
