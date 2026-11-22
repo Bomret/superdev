@@ -1,6 +1,6 @@
 'use strict';
 
-// atomic-write.js: writes a run-root file through a temporary file in the same directory renamed over the target, and removes the temporary file when the write or the rename fails.
+// atomic-write.js: writes a file whole, such as a run-root file or a staged knowledge-base page, through a temporary file in the same directory renamed over the target, and removes the temporary file when the write or the rename fails.
 
 const fs = require('fs');
 
