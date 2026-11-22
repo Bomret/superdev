@@ -5,7 +5,6 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { readPresent } = require('./refusal.js');
 const { writeFileAtomic } = require('./atomic-write.js');
 
 // `<run-root>/digest.json` is one JSON object: `ledger` and `trace` are each `{ size, sha256 }` of the whole file as scope.js and the hooks
@@ -30,12 +29,6 @@ function readBytes(file) {
   } catch {
     return null;
   }
-}
-
-// The file's bytes, or null when it is absent. A file present but unreadable refuses (`readPresent`), so a sealed ledger that cannot
-// be read is never taken for a deleted one.
-function readSealed(file) {
-  return readPresent(file);
 }
 
 // The digest of some bytes, or null for no file.
@@ -155,4 +148,4 @@ function withRunLock(root, fn) {
 // `fn` over `(root, ...args)`, each call inside one hold of the root's lock: a verb's read of the ledger and its write back.
 const underRunLock = (fn) => (root, ...args) => withRunLock(root, () => fn(root, ...args));
 
-module.exports = { SIDECAR, LOCK, underRunLock, readBytes, readSealed, stateOf, sameState, readSide, writeSide, withRunLock };
+module.exports = { SIDECAR, LOCK, underRunLock, readBytes, stateOf, sameState, readSide, writeSide, withRunLock };

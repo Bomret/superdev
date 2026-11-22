@@ -204,8 +204,8 @@ withWorktreeLock(${JSON.stringify(s.repo)}, () => {
       }
       // Inside the grace, held by a live pid, or recorded in a file younger than the grace (a fresh holder's, under a lock directory
       // that is old), the waiter stays out: its bounded run ends by the bound with no entry made and the lock still in place. The
-      // bound is a multiple of the slowest reclaim this run timed, and the run must end by that bound, so a waiter that never
-      // reached the lock cannot pass.
+      // bound is a multiple of the slowest reclaim this run timed. The ETIMEDOUT check rejects a waiter that exited early (one that
+      // took the lock and ran); it cannot tell a waiter held back by the lock from one whose startup alone outlasted the bound.
       for (const [record, ageMs, fileAgeMs] of [['', 1000], ['x', 1000], [String(process.pid), 60000], ['', 60000, 0], ['x', 60000, 0]]) {
         const got = lockedRun(record, ageMs, { bound: Math.max(2500, reclaimMs * 10), fileAgeMs });
         assert.ok(got.crowd.error && got.crowd.error.code === 'ETIMEDOUT', 'the waiter was still waiting at the bound');

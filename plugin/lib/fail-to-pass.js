@@ -80,7 +80,7 @@ function outcomeOf(e) {
 }
 
 // The id of the ledger row whose range cell names exactly `base..tip`, each side read as a commit (a row may carry
-// abbreviated ones), or null.
+// abbreviated ones), or null when the ledger is absent or no row matches. A ledger present but unreadable refuses (`readPresent`).
 function sliceOfRange(root, base, tip, cwd) {
   const text = readPresent(ledgerPath(root), 'utf8');
   if (text === null) return null;

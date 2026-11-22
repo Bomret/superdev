@@ -4,8 +4,9 @@
 
 const fs = require('fs');
 const path = require('path');
-const { readBytes, readSealed, stateOf, sameState, readSide, writeSide, withRunLock } = require('./run-digest.js');
+const { readBytes, stateOf, sameState, readSide, writeSide, withRunLock } = require('./run-digest.js');
 const { traceLine } = require('./trace-log.js');
+const { readPresent } = require('./refusal.js');
 
 const FILES = [['ledger.md', 'ledger'], ['trace.log', 'trace']];
 
@@ -19,7 +20,7 @@ function checkRun(root) {
     const tampered = [];
     let changed = false;
     for (const [name, key] of FILES) {
-      const now = stateOf((name === 'ledger.md' ? readSealed : readBytes)(path.join(root, name)));
+      const now = stateOf((name === 'ledger.md' ? readPresent : readBytes)(path.join(root, name)));
       if (sameState(side[key], now)) continue;
       if (side[key]) tampered.push(name);
       changed = true;

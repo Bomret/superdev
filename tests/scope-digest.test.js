@@ -295,7 +295,8 @@ async function main() {
     assertSpawnDecided(dead, 'append behind a dead holder');
     const { ok, age } = JSON.parse(dead.stdout);
     assert.ok(ok, 'an append lands behind the killed holder\'s lock');
-    assert.ok(age !== null && age < 15000, `the dead holder's lock was broken while young (age ${age} ms, half the stale age bounds it)`);
+    const staleMs = Number(/const LOCK_STALE_MS = (\d+)/.exec(fs.readFileSync(require.resolve('../plugin/lib/run-digest.js'), 'utf8'))[1]);
+    assert.ok(age !== null && age < staleMs / 2, `the dead holder's lock was broken while young (age ${age} ms, half the stale age bounds it)`);
     assert.strictEqual(traceText(f).split('\n').filter((l) => l.includes(' edit impl late')).length, 2, 'both appends landed');
     assert.ok(!fs.existsSync(lock), 'the lock was broken and released');
     assert.strictEqual(write(f).stderr, '', 'no tamper after the broken lock');

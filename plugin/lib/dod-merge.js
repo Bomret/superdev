@@ -29,7 +29,8 @@ function mergeDod(base, other) {
 }
 
 // Writes the anchor's Definition of Done to `<run-root>/dod.md`, keeping each verdict an existing copy carries
-// on a line the anchor leaves without a note.
+// on a line the anchor leaves without a note. An absent `dod.md` is written from the anchor with no verdict kept; a `dod.md`
+// present but unreadable refuses (`readPresent`), so its verdicts are never overwritten.
 function verbDodMerge(root, anchorText) {
   if (!anchorText.trim()) fail('dod-merge needs the Definition of Done on stdin');
   const file = path.join(root, 'dod.md');

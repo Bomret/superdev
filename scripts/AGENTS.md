@@ -169,7 +169,7 @@ and the dispatch readers from `dispatch.js`. The hook reads no Bash command (ADR
 leaves the hook recording nothing (ADR 0117, INV-0159). Its model guard, which denies a modelless dispatch to a superdev
 agent on PreToolUse(Agent), requires no module, so a failed load leaves the deny in force (ADR 0245). `hooks/tree-guard.js` takes `mainWorkTree` from `main-work-tree.js` (ADR 0148). `publish-kb.js` reaches
 the containment verdict `judgeContainment` from `containment.js`, which refetches the base before it answers not contained (ADR 0053,
-ADR 0065), `refResolves` from `git-spawn.js`, and `readLedgerHeader`, `SLUG_RE`, `CHANGE_TYPES` from `ledger.js`, through its `lib/kb-*.js` modules. `base set` appends a `ledger`
+ADR 0065), `refResolves` from `git-spawn.js`, and `readLedgerHeader`, `SLUG_RE`, `CHANGE_TYPES` from `ledger.js`, `pushTimeoutMs` from `push.js`, and `readPresent` from `refusal.js`, through its `lib/kb-*.js` modules. The containment refetch is bounded by `code-host.pushTimeoutMs` (default 60000 ms through `push.js`'s reader). `base set` appends a `ledger`
 trace event like every other ledger-writing verb. Normalisation is per
 header: `Stage` and `Branch` are single tokens,
 cut to the first whitespace-delimited token and stripped of markup and trailing punctuation.
@@ -435,8 +435,8 @@ MSYS drive-path translator, is the only path helper `discard.js` and `prepare.js
 `run-digest.js` keeps `<run-root>/digest.json`, the size and sha256 of `ledger.md` and `trace.log` as `scope.js` and the hooks last
 wrote them, under `digest.lock`, a lock created exclusively whose holder removes it. A waiter breaks a lock when the process its
 token names is dead, or when it is older than `LOCK_STALE_MS` (30 s), and waits for a live holder without a budget. A process that
-holds a root's lock and takes it again runs inside its own hold. Neither file is pushed with the run state. `run-check.js`'s `checkRun(root)` compares both files with the digest
-before a verb writes to the run: `scope.js` calls it once from `writtenRoot` for every verb that names `--root` and writes
+holds a root's lock and takes it again runs inside its own hold. Neither file is pushed with the run state. `run-check.js`'s
+`checkRun(root)` compares both files with the digest before a verb writes to the run: `scope.js` calls it once from `writtenRoot` for every verb that names `--root` and writes
 (`stage`, `step`, `slice`, `degraded`, `unresolved`, `deferred`, `minors`, `docs`, `pr`, `adopt`, `dod-merge`, `deploy set`,
 `base set`, every `suite` subcommand), and `init`, `open`, `test`, and `fail-to-pass` call it in their own verbs. A file that
 differs, or that was deleted while its digest was present, prints one stderr warning naming the file and appends a `tamper <file>`

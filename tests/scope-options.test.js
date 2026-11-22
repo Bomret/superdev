@@ -150,10 +150,12 @@ refuses(['open', 'feat/x', '--base', 'main', '--lock', 'ab\n'], '--lock', 'open 
       assert.strictEqual(b.ok, a.ok, `${argv(rel)[0]}: /c/ and C:/ agree: ${a.out} | ${b.out}`);
       assert.ok(!/no ledger|is not a directory|holds no ledger|carries no \*\*Branch/.test(b.out), `${argv(rel)[0]}: /c/ reaches the run: ${b.out}`);
     }
-    // A real write under the `/c/` spelling reaches the same run.
-    const written = outcome(run, ['stage', 'set', 'implementing', '--root', msys]);
-    assert.strictEqual(written.ok, true, `stage set via /c/ succeeds: ${written.out}`);
-    assert.match(fs.readFileSync(path.join(runRoot, 'ledger.md'), 'utf8'), /\*\*Stage:\*\* implementing/, 'the /c/ write reached the run');
+    // A real write under the `/c/` spelling reaches the same run: it sets a Step no earlier `C:/` call wrote.
+    const ledgerText = () => fs.readFileSync(path.join(runRoot, 'ledger.md'), 'utf8');
+    assert.doesNotMatch(ledgerText(), /\*\*Step:\*\* review/, 'the C:/ calls left no review step');
+    const written = outcome(run, ['step', 'set', 'review', '--root', msys]);
+    assert.strictEqual(written.ok, true, `step set via /c/ succeeds: ${written.out}`);
+    assert.match(ledgerText(), /\*\*Step:\*\* review/, 'the /c/ write reached the run');
     const ci = (r) => outcome(run, ['ci', '--sha', 'HEAD', '--root', r]);
     assert.strictEqual(ci('/c/repo').out, ci('C:/repo').out, 'ci: /c/ and C:/ name the same repository');
     assert.ok(/ci: cannot-judge [0-9a-f]{40}/.test(ci('/c/repo').out), `ci resolved HEAD in the repository: ${ci('/c/repo').out}`);
