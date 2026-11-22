@@ -2,8 +2,9 @@
 
 // A `node --require` preload for a spawned update-check hook: it replaces `https.get`, so the hook reaches no network.
 // STUB_HTTPS_MARKER names a file that gains one line per call, the requested URL, which proves the stub ran.
-// STUB_HTTPS_MODE picks the answer: `newer` (version 9.0.0), `500`, `html`, or `hang` (no answer: the request's
-// `timeout` event fires on the next tick, so no real timeout is waited out). A `hang` call whose `opts.timeout` is missing
+// STUB_HTTPS_MODE picks the answer: `newer` (version 9.0.0), `500`, `html`, `hang` (no answer: the request's
+// `timeout` event fires on the next tick, so no real timeout is waited out), or `error` (the request emits an `error`, a network
+// failure, on the next tick, once the caller has attached its listeners). A `hang` call whose `opts.timeout` is missing
 // or not a finite positive number throws before it records the call, so a hook that stopped bounding its request fails.
 // STUB_HTTPS_BODY, when set, is the exact response body (mode `newer` only).
 // It starts no shell and no process.
@@ -23,6 +24,10 @@ https.get = (url, opts, cb) => {
   req.destroy = () => {};
   if (mode === 'hang') {
     setImmediate(() => req.emit('timeout'));
+    return req;
+  }
+  if (mode === 'error') {
+    setImmediate(() => req.emit('error', Object.assign(new Error('getaddrinfo ENOTFOUND raw.githubusercontent.com'), { code: 'ENOTFOUND' })));
     return req;
   }
   const res = new EventEmitter();

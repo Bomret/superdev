@@ -8,14 +8,15 @@ require('./fixture-git');
 // fallback silently. A whole number from 1 to 2147483647 is the bound. Every other value gives the fallback and is named
 // once on stderr, silent after, because the module notes each `<section>.<key>` once per process; each rejected value
 // therefore reads its own key. One case reads the file from a linked worktree, so the main working tree's file is what
-// counts. Each caller's section, key, and default are proven by that caller's own suite.
+// counts. A section that is an array or a string reads, through `operatorSection`, as an empty section. Each caller's section, key,
+// and default are proven by that caller's own suite.
 
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const { operatorBoundMs } = require('../plugin/lib/operator-config.js');
+const { operatorBoundMs, operatorSection } = require('../plugin/lib/operator-config.js');
 
 const made = [];
 const git = (args, cwd) => execFileSync('git', args, { cwd, stdio: 'ignore' });
@@ -53,6 +54,14 @@ try {
   // #silent-fallback: no file, invalid JSON, no section, and no key give the fallback and say nothing.
   for (const [label, info] of [['no file', undefined], ['invalid JSON', '{nope'], ['no section', {}], ['no key', { s: {} }]]) {
     assert.deepStrictEqual(read(repoWith(info), 's', 'k', 1234), { ms: 1234, err: '' }, label);
+  }
+
+  // #section-shape: a section that is an array or a string reads as an empty section, so no key leaks out of it: `'0'` on
+  // `[500]` and `'length'` on `"12345"` give the fallback silently.
+  for (const [label, value, key] of [['an array section', [500], '0'], ['a string section', '12345', 'length']]) {
+    const repo = repoWith({ s: value });
+    assert.deepStrictEqual(operatorSection(repo, 's'), {}, `${label} reads as an empty section`);
+    assert.deepStrictEqual(read(repo, 's', key, 1234), { ms: 1234, err: '' }, `${label}: ${key} gives the fallback silently`);
   }
 
   // #valid-range: both ends of the range set the bound, silently.

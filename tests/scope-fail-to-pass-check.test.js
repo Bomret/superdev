@@ -1,7 +1,8 @@
 'use strict';
 
 // Suite for plugin/scripts/scope.js's `fail-to-pass-check` verb (ADR 0261): a range's mechanical fail-to-pass verdict from the run
-// trace and git. The fixtures are real git commits and raw trace lines; the suite runs in temporary directories.
+// trace and git, and its refusals: each malformed invocation by its own message, and a tip whose verification configuration git
+// lists but cannot show. The fixtures are real git commits and raw trace lines; the suite runs in temporary directories.
 
 require('./fixture-git');
 const assert = require('node:assert');
@@ -117,6 +118,44 @@ const any = [edit('src/a.js')];
   assert.ok(!bad.ok && /nowhere/.test(bad.err), 'an unresolvable side is refused naming it');
   const back = check(repo, `${c1}..${c0}`, root);
   assert.ok(!back.ok && /ancestor/.test(back.err), 'a base that is no ancestor of the tip is refused');
+}
+
+// #refusals: each malformed invocation is refused by its own message, every other input valid.
+{
+  const range = `${c0}..${c1}`;
+  const root = runOf(any);
+  const refused = (argv, re, why) => {
+    const r = call(['fail-to-pass-check', ...argv], '', repo);
+    assert.ok(!r.ok, `refused: ${why}`);
+    assert.match(r.err, re, `the refusal names its cause: ${why}`);
+  };
+  refused([range, '--slice', '01'], /needs --root <run-root>/, 'no --root');
+  refused([range, '--root', root], /needs --slice <id\|scope>/, 'no --slice');
+  refused(['--slice', '01', '--root', root], /needs one <base>\.\.<tip> range/, 'no positional');
+  refused([range, range, '--slice', '01', '--root', root], /needs one <base>\.\.<tip> range/, 'two positionals');
+  for (const bad of [`..${c1}`, `${c0}..`, `${c0}..${c1}..${c1}`]) refused([bad, '--slice', '01', '--root', root], new RegExp(`"${bad.replace(/\./g, '\\.')}" is no <base>\\.\\.<tip> range`), `the range ${bad}`);
+  const noLedger = path.join(dir, 'no-ledger', '.superdev', 'scopes', 'demo');
+  fs.mkdirSync(noLedger, { recursive: true });
+  fs.writeFileSync(path.join(noLedger, 'trace.log'), any.join('\n') + '\n');
+  refused([range, '--slice', '01', '--root', noLedger], /holds no ledger\.md, so it is no run root/, 'a run root holding no ledger');
+}
+
+// #tip-config: a tip whose verification configuration git lists but cannot show is refused by its own message; the trace holds slice
+// lines and no covering outcome, so no earlier verdict returns first. A tip with no verification document gives a verdict.
+{
+  assert.equal(verdict(repo, `${c0}..${c1}`, runOf(any)), 'missing', 'a tip with no verification document gives a verdict');
+  const r5 = repoOf('tip-config');
+  put(r5, 'src/a.js', 'a0\n');
+  const base = commit(r5, 'base');
+  put(r5, 'src/a.js', 'a1\n');
+  put(r5, 'tests/a.test.js', 't\n');
+  put(r5, 'docs/agents/verification.md', '# V\n\n## Test paths\n\n- `tests/`\n');
+  const tip = commit(r5, 'tip with a verification document');
+  const blob = git(r5, 'rev-parse', `${tip}:docs/agents/verification.md`);
+  fs.rmSync(path.join(r5, '.git', 'objects', blob.slice(0, 2), blob.slice(2)));
+  const r = check(r5, `${base}..${tip}`, runOf(any));
+  assert.ok(!r.ok, 'a tip configuration git cannot show is refused');
+  assert.match(r.err, /could not read the tip's verification configuration/, 'the refusal names the unreadable configuration');
 }
 
 // #first-parent: a merged-in base commit adds no change.

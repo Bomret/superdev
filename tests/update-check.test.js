@@ -1,7 +1,7 @@
 'use strict';
 
 // Suite for plugin/hooks/update-check.js, run as spawned hooks. Needs no network: a `node --require` preload replaces
-// `https.get` in each spawned hook. One in-process case proves that preload refuses a request with no bound.
+// `https.get` in each spawned hook, and answers a newer version, a non-200, a non-JSON body, no answer, or a network error. One in-process case proves that preload refuses a request with no bound.
 
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -126,8 +126,8 @@ async function outcomes() {
     fs.rmSync(bare, { recursive: true, force: true });
   }
 
-  // A version fetch that answers non-200, non-JSON, or never: quiet exit 0, and the check is stamped.
-  for (const [label, mode] of [['a non-200 answer', '500'], ['a non-JSON answer', 'html'], ['no answer', 'hang']]) {
+  // A version fetch that answers non-200, non-JSON, never, or fails with a network error: quiet exit 0, and the check is stamped.
+  for (const [label, mode] of [['a non-200 answer', '500'], ['a non-JSON answer', 'html'], ['no answer', 'hang'], ['a network error', 'error']]) {
     const d = mk('update-check-data-');
     const before = requests().length;
     quiet(await run({ dataDir: d, mode }), label);

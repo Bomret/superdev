@@ -5,7 +5,8 @@
 require('./fixture-git');
 
 // Suite for plugin/scripts/scope.js's `fail-to-pass` verb (ADR 0134, #1315): runs at the same time in one run root, and the
-// lock over the repository's worktree registry. Every scenario writes only inside the fixture's own temporary directory
+// lock over the repository's worktree registry: a dead holder's lock taken over however fresh, and a no-holder pid record or a
+// lock with no pid file taken over once older than ten seconds and left alone while younger. Every scenario writes only inside the fixture's own temporary directory
 // (root AGENTS.md, *Every shipped executable has a suite in `tests/`, named for it*).
 
 const assert = require('node:assert');
@@ -206,10 +207,31 @@ withWorktreeLock(${JSON.stringify(s.repo)}, () => {
       // that is old), the waiter stays out: its bounded run ends by the bound with no entry made and the lock still in place. The
       // bound is a multiple of the slowest reclaim this run timed. The ETIMEDOUT check rejects a waiter that exited early (one that
       // took the lock and ran); it cannot tell a waiter held back by the lock from one whose startup alone outlasted the bound.
+      // A no-holder lock or record younger than the ten-second grace becomes takeable once it ages past it, so a correct waiter
+      // takes it after 10000 ms less its age: the bound stays a second short of that, from the younger of the lock's and the
+      // record's ages. A live pid's lock has no such window, because its holder keeps it for as long as it lives.
+      const sameRunBound = Math.max(2500, reclaimMs * 10);
+      const youngBound = (youngestAgeMs) => Math.min(sameRunBound, 10000 - youngestAgeMs - 1000);
       for (const [record, ageMs, fileAgeMs] of [['', 1000], ['x', 1000], [String(process.pid), 60000], ['', 60000, 0], ['x', 60000, 0]]) {
-        const got = lockedRun(record, ageMs, { bound: Math.max(2500, reclaimMs * 10), fileAgeMs });
+        const bound = record === String(process.pid) ? sameRunBound : youngBound(Math.min(ageMs, fileAgeMs ?? ageMs));
+        const got = lockedRun(record, ageMs, { bound, fileAgeMs });
         assert.ok(got.crowd.error && got.crowd.error.code === 'ETIMEDOUT', 'the waiter was still waiting at the bound');
         assert.deepEqual(got.runs, [], `owner record ${JSON.stringify(record)} aged ${ageMs} ms (file ${fileAgeMs ?? ageMs} ms) is never taken from its holder`);
+        assert.ok(got.left, 'and its lock stays');
+      }
+      // A lock directory with no pid file is a holder's between its `mkdir` and its pid write. Older than ten seconds, a single
+      // waiter takes it over by writing its own pid file, runs inside it, and leaves no lock; younger, it is left alone until the
+      // same-run bound, and the lock stays.
+      {
+        const got = lockedRun(null, 60000);
+        assertSpawnDecided(got.crowd, 'the waiter on a lock with no pid file');
+        assert.deepEqual(got.runs, ['locked'], 'an owner-less lock past ten seconds is taken over and the waiter proceeds holding it');
+        assert.ok(!got.left, 'and no lock stays');
+      }
+      {
+        const got = lockedRun(null, 1000, { bound: youngBound(1000) });
+        assert.ok(got.crowd.error && got.crowd.error.code === 'ETIMEDOUT', 'the waiter on a fresh owner-less lock was still waiting at the bound');
+        assert.deepEqual(got.runs, [], 'a fresh owner-less lock is never taken from its holder');
         assert.ok(got.left, 'and its lock stays');
       }
     }
