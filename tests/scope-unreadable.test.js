@@ -133,6 +133,44 @@ for (const [how, re, brk] of ledgerBreaks) {
   assert.throws(() => readHeaderOrNull(root, 'Branch'), (e) => e.isRefusal && /ledger\.md/.test(e.message), 'the header read refuses');
 }
 {
+  // The scope-branch header read, through the CLI: `stage set` resolves the scope branch from the ledger header.
+  const { root } = sealed();
+  fs.rmSync(path.join(root, 'ledger.md'));
+  fs.mkdirSync(path.join(root, 'ledger.md'));
+  refused(sc(path.dirname(path.dirname(path.dirname(root))), ['stage', 'set', 'implementing', '--root', root]), /ledger\.md/, 'stage set with a directory ledger');
+}
+{
+  // `test` locates the run root strictly: an unreadable ledger refuses and the command never runs.
+  const { root } = sealed();
+  const tree = path.join(root, 'scopetree');
+  fs.mkdirSync(tree, { recursive: true });
+  fs.rmSync(path.join(root, 'ledger.md'));
+  fs.mkdirSync(path.join(root, 'ledger.md'));
+  const marker = path.join(root, 'ran');
+  const r = spawnSync(process.execPath, [scopePath, 'test', 'path', 't.sh', '--', `touch ${JSON.stringify(marker)}`], { cwd: tree, encoding: 'utf8', timeout: 60000, killSignal: 'SIGKILL' });
+  assertSpawnDecided(r, 'scope.js test path');
+  refused(r, /ledger\.md/, 'test path with a directory ledger');
+  assert.ok(!fs.existsSync(marker), 'the command did not run');
+}
+if (canBlockReads) {
+  const { f2pFixture, verif } = require('./scope-setup');
+  const { CMD, scenario, done } = f2pFixture();
+  try {
+    const s = scenario({
+      base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD, '\n## Prepare command\n\n`none`\n') },
+      tip: { 'src.txt': 'b\n', 'tests/t.sh': 'grep -q b src.txt\n' },
+    });
+    fs.chmodSync(path.join(s.root, 'ledger.md'), 0);
+    try {
+      refused(s.run(s.range), /ledger\.md.*EACCES/, 'fail-to-pass with an unreadable ledger');
+    } finally {
+      fs.chmodSync(path.join(s.root, 'ledger.md'), 0o644);
+    }
+  } finally {
+    done();
+  }
+}
+{
   const { f2pFixture, verif } = require('./scope-setup');
   const { CMD, scenario, done } = f2pFixture();
   try {
