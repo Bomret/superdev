@@ -13,6 +13,7 @@ const { spawnSync, execFileSync } = require('node:child_process');
 const { scopePath, writeOperatorConfig } = require('./scope-setup');
 const { copyFixture, templateOnce } = require('./fixture-git');
 const { assertSpawnDecided } = require('./spawn-verdict');
+const { verbBranchDelete } = require('../plugin/lib/branch-delete.js');
 
 const BRANCH = 'feat/delete-me';
 const made = [];
@@ -108,6 +109,9 @@ const notContained = (f) => {
 };
 
 try {
+  // #module: the verb's module exports the entry `scope.js branch delete` calls.
+  assert.strictEqual(typeof verbBranchDelete, 'function', 'lib/branch-delete.js exports verbBranchDelete');
+
   // #contained: a contained branch with a configured remote: every ref is gone, every line reads deleted, exit 0.
   // The remote comes from the `Remote:` value of code-management.md, with no `--remote` given.
   {
