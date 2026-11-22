@@ -262,12 +262,15 @@ const DEPLOY_RUNNER_EXEMPT_FILES = new Set([
   path.join('references', 'deployment.md'),
 ]);
 const DEPLOY_RUNNER_PATTERN = /\brun(?:s|ning)?\b[\s\S]{0,40}?\btarget'?s?\b[\s\S]{0,25}?\bcommand\b/gi;
-// A mention attributed to ship within this many characters ahead of the match — "`/superdev:ship` runs
-// each target's command" — describes ship's own job rather than claiming this document's own, so it is
-// not the shape this check exists to catch.
-// simplicity: shape-based, and its ceiling is the "run(s) … target's … command" shape. A claim phrased
-// another way ("execute the deploy step", "deploy it yourself") walks past.
+// A hit whose subject is the ship command — "`/superdev:ship` runs each target's command", "Only ship runs …" —
+// describes ship's own job rather than claiming this document's own, so it is not the shape this check exists to
+// catch. The subject sits directly before the hit, in the same sentence: "Before you ship, run …" names ship as no
+// subject, and a ship mention in an earlier sentence excuses nothing.
+// simplicity: shape-based, and its ceiling is the "run(s) … target's … command" shape with ship directly before it.
+// A claim phrased another way ("execute the deploy step", "deploy it yourself") walks past, and so does a subject
+// separated from its verb ("ship, after the merge, runs …"), which is reported.
 const DEPLOY_RUNNER_ATTRIBUTION_WINDOW = 60;
+const SHIP_SUBJECT = /(?:`\/superdev:ship`|\/superdev:ship|\bship)\s+$/i;
 
 function scanDeployRunnerExclusivity(root) {
   const gaps = [];
@@ -285,8 +288,8 @@ function scanDeployRunnerExclusivity(root) {
       const text = fs.readFileSync(path.join(dirPath, rel), 'utf8');
       const masked = maskFences(text);
       for (const hit of masked.matchAll(DEPLOY_RUNNER_PATTERN)) {
-        const before = masked.slice(Math.max(0, hit.index - DEPLOY_RUNNER_ATTRIBUTION_WINDOW), hit.index);
-        if (/\bship\b/i.test(before)) continue;
+        const before = masked.slice(Math.max(0, hit.index - DEPLOY_RUNNER_ATTRIBUTION_WINDOW), hit.index).split(/[.!?]\s/).pop();
+        if (SHIP_SUBJECT.test(before)) continue;
         // A denial — "runs no target's command", "never runs a target's command" — claims no run.
         if (/\b(?:never|not|no)\s+$/i.test(before) || /^run(?:s|ning)?\s+(?:no|not|never)\b/i.test(hit[0])) continue;
         gaps.push({

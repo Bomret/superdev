@@ -266,7 +266,7 @@ module.exports = [
   },
   {
     id: 'deploy-runner-exclusivity',
-    ok: "no skill or agent but ship names a deploy target's command as something it runs (INV-0098)",
+    ok: "no skill, agent, or reference but ship's own names a deploy target's command as something it runs (INV-0098)",
     run: scanDeployRunnerExclusivity,
     format: contractGap,
   },

@@ -191,6 +191,21 @@ module.exports = ({ assert, path, fixture, found }) => {
     'a mention attributed to ship is not a claim to run one itself',
   );
   assert.equal(
+    scanDeployRunnerExclusivity(fixture({ 'skills/setup/SKILL.md': 'Only ship runs a target\'s command.\n' })).length,
+    0,
+    'ship as the subject running the deploy passes',
+  );
+  assert.equal(
+    scanDeployRunnerExclusivity(fixture({ 'skills/setup/SKILL.md': "Before you ship, run each deploy target's command yourself.\n" })).length,
+    1,
+    'a ship mention that is not the subject running the deploy excuses nothing',
+  );
+  assert.equal(
+    scanDeployRunnerExclusivity(fixture({ 'skills/setup/SKILL.md': "Then ship merges. Run each target's command.\n" })).length,
+    1,
+    'a ship mention in a prior sentence does not excuse the next sentence',
+  );
+  assert.equal(
     scanDeployRunnerExclusivity(fixture({ 'skills/document/SKILL.md': '```\nThis command runs each target\'s deploy command itself.\n```\n' })).length,
     0,
     'a fenced example is not flagged',

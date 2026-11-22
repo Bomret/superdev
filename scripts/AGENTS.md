@@ -1284,7 +1284,7 @@ path, when that document is missing. A check that walks a directory reads whatev
 | `github-wiki-gh-only` | neither the GitHub wiki seed nor `docs/agents/knowledge-base.md` names a token env var (`GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`) or an `Authorization` header | prohibition |
 | `kb-no-backend-call` | plan, document, `doc-writer`, and `doc-pass.md` carry no instruction that reaches a knowledge-base backend (ADR 0023) | prohibition |
 | `agent-tool-agnostic` | no agent under `agents/` names a concrete toolchain command | prohibition |
-| `deploy-runner-exclusivity` | no skill or agent but ship names a deploy target's command as something it runs (INV-0098) | prohibition |
+| `deploy-runner-exclusivity` | no skill, agent, or reference names a deploy target's command as something it runs, `skills/ship/SKILL.md` and `references/deployment.md` excepted. A hit passes when ship is its subject, directly before it in the same sentence ("`/superdev:ship` runs …", "Only ship runs …"), or when it denies the run; "Before you ship, run each deploy target's command yourself." is reported (INV-0098) | prohibition |
 | `ship-no-opens-pr` | no shipped surface attaches opening the pull request to `/superdev:ship` (ADR 0096) | prohibition |
 | `derive-no-dod` | plan's derive dispatch bullet hands `final-reviewer` no Definition of Done, and `final-reviewer`'s `## Derive mode` reads none (INV-0158, ADR 0158) | prohibition |
 | `unmapped-paths-form` | `skills/setup/SKILL.md` and `references/test-selection.md` propose no `{paths}` form to a runner that maps no source file to its tests (ADR 0074) | prohibition |
