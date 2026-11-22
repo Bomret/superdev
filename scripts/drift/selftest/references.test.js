@@ -1,7 +1,8 @@
 'use strict';
 
 // Selftest suite: the scanners that resolve what prose points at (`scanners/references.js`) — referenced
-// documents, run-root paths, and command names. Run by ./index.js.
+// documents, run-root paths, command names reported once per document, and heading citations resolved through
+// `references/`, `agents/`, and the repository root. Run by ./index.js.
 
 const { scan, scanRunRootPaths, scanScopetreeRunRootPaths, scanCommandRefs, scanGovernedSkillFiles, scanHeadingCitations } = require('../scanners');
 
@@ -130,6 +131,17 @@ module.exports = ({ assert, path, fixture, found }) => {
     'each source naming a missing command is reported',
   );
 
+  assert.deepEqual(
+    scanCommandRefs(fixture({ 'skills/implement/SKILL.md': 'Then `/superdev:ship`, and later `/superdev:ship <scope>`.\n' })).map((g) => g.command),
+    ['/superdev:ship'],
+    'one missing command a document names twice is reported once',
+  );
+  assert.equal(
+    scanCommandRefs(fixture({ 'skills/implement/SKILL.md': '`/superdev:ship`, `/superdev:ship`.\n', 'agents/doc-writer.md': '`/superdev:ship`.\n' })).length,
+    2,
+    'and once more for a further document',
+  );
+
   // --- governed-skill-files (ADR 0190, ADR 0270): every backticked path in CONTEXT.md's **Prompt concept** entry exists ---
 
   const entry =
@@ -200,7 +212,7 @@ module.exports = ({ assert, path, fixture, found }) => {
   assert.equal(missing.length, 1, 'a bare file name that resolves nowhere fails');
   assert.equal(missing[0].source, path.join('skills', 'foo', 'SKILL.md'), 'names the citing file');
   assert.equal(missing[0].cited, 'nowhere.md', 'names the cited file');
-  assert.equal(missing[0].missing, true, 'marks the file as missing');
+  assert.equal(missing[0].unresolved, true, 'marks the cited file as unresolved');
   assert.deepEqual(
     cited("See `references/nowhere.md`'s `## X`.\n"),
     [],
@@ -208,7 +220,7 @@ module.exports = ({ assert, path, fixture, found }) => {
   );
   const prefixed = cited("See `other/references/target.md`'s `## Plain heading`.\n");
   assert.equal(prefixed.length, 1, 'a prefixed .../references/<name>.md path that resolves nowhere fails, though references/target.md exists');
-  assert.equal(prefixed[0].missing, true, 'marks the prefixed file as missing');
+  assert.equal(prefixed[0].unresolved, true, 'marks the prefixed file as unresolved');
 
   // A section map lists a file's headings after its bold file name: "- **`<file>.md`** — `## A`, `## B`."
   assert.deepEqual(
@@ -224,7 +236,17 @@ module.exports = ({ assert, path, fixture, found }) => {
     const joined = cited(`- **\`target.md\`** — \`## Plain heading\`, ${joiner} \`## Renamed heading\`.\n`);
     assert.deepEqual(joined.map((g) => g.heading), ['## Renamed heading'], `a section map span after "${joiner}" is checked too`);
   }
-  assert.equal(cited('- **`nowhere.md`** — `## X`.\n')[0].missing, true, 'a section map naming no file fails');
+  assert.equal(cited('- **`nowhere.md`** — `## X`.\n')[0].unresolved, true, 'a section map naming no file fails');
+
+  // A bare file name absent from references/ resolves through agents/, then the repository root; references/ wins a tie.
+  const resolved = (files) => scanHeadingCitations(fixture({ 'skills/foo/SKILL.md': "See `x.md`'s `## Ref` and `x.md`'s `## Agent`.\n", ...files }));
+  assert.deepEqual(resolved({ 'agents/x.md': '# X\n\n## Ref\n\n## Agent\n' }), [], 'a bare name resolves through agents/');
+  assert.deepEqual(resolved({ 'x.md': '# X\n\n## Ref\n\n## Agent\n' }), [], 'a bare name resolves through the repository root');
+  assert.deepEqual(
+    resolved({ 'references/x.md': '# X\n\n## Ref\n', 'agents/x.md': '# X\n\n## Agent\n' }).map((g) => [g.cited, g.heading]),
+    [['x.md', '## Agent']],
+    'references/ wins a tie: its headings decide',
+  );
 
   // A heading with an internal run of spaces matches as the verb matches it: exactly, so a citation copying it passes
   // and one that collapses the run fails.

@@ -1,11 +1,11 @@
 'use strict';
 
 // Selftest suite: the scanners over the repository's own entry documents (`scanners/marketplace-readme.js`) —
-// the marketplace manifest and the documentation audit set. Run by ./index.js.
+// the marketplace manifest, a plugin entry with no source or a null one included, and the documentation audit set. Run by ./index.js.
 
 const { scanMarketplaceSource, scanAuditSetGlobs } = require('../scanners');
 
-module.exports = ({ assert, path, fixture }) => {
+module.exports = ({ assert, fs, path, fixture }) => {
   // --- marketplace-source: the manifest's source resolves to the shipped tree (ADR 0032, ADR 0131) ---
 
   const mkManifest = (source) => JSON.stringify({ name: 'm', plugins: [{ name: 'p', source }] });
@@ -53,6 +53,18 @@ module.exports = ({ assert, path, fixture }) => {
     scanMarketplaceSource(fixture({ '.claude-plugin/marketplace.json': mkManifest({ source: 'github', repo: 'o/r' }) })).length >= 1,
     'an object source of another shape is a gap',
   );
+  // A plugin entry with no source, or a null one, gives the url gap and the path gap, and the scan throws nothing.
+  for (const [label, body] of [
+    ['no source', JSON.stringify({ name: 'm', plugins: [{ name: 'p' }] })],
+    ['a null source', mkManifest(null)],
+  ]) {
+    const root = fixture({ '.claude-plugin/marketplace.json': body });
+    const gaps = scanMarketplaceSource(root);
+    assert.equal(gaps.length, 2, `${label} gives two gaps`);
+    assert.match(gaps[0].expectation, /git-subdir` url/, `${label}: the url gap`);
+    assert.match(gaps[1].expectation, /git-subdir` path/, `${label}: the path gap`);
+    assert.deepEqual(fs.readdirSync(root).filter((e) => e === 'undefined' || e === 'null'), [], `${label}: the fixture holds no directory named for the absent path`);
+  }
   const unparsable = scanMarketplaceSource(fixture({ '.claude-plugin/marketplace.json': '{ not json' }));
   assert.equal(unparsable.length, 1, 'an unparsable manifest is a gap');
   assert.match(unparsable[0].expectation, /JSON/, 'the gap says the manifest is no JSON');

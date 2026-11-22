@@ -2,7 +2,8 @@
 
 // Suite for scripts/run-tests.js, the maintainer-only test runner. Every case builds a
 // throwaway tree under the OS temp dir, so the runner is exercised on suites this repository does not
-// carry.
+// carry. The duration cache's cases, a corrupt, null, or string cache and a cache folder that cannot be created, use that
+// tree's own `node_modules/`, never the repository's.
 
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -133,6 +134,25 @@ cases.push(async () => {
   const second = await go(root, [], undefined, { parallelism: 1 });
   assert.strictEqual(second.status, 0, second.out);
   assert.strictEqual(logOf(root), 'd\nb\nc\na\n', 'unrecorded first, then longest first');
+});
+
+// A duration cache that is corrupt, `null`, or a string reads as empty, and one that cannot be written loses only the
+// ordering: every suite runs and the run exits 0, leaving a valid cache, with no index keys from a string, where it can write one.
+cases.push(async () => {
+  const labels = ['tests/a.test.js', 'tests/b.test.js'];
+  for (const [label, text] of [['a corrupt cache', '{nope'], ['a null cache', 'null'], ['a string cache', '"abcd"']]) {
+    const root = tree({ 'tests/a.test.js': suite('a'), 'tests/b.test.js': suite('b'), 'node_modules/.cache/run-tests.json': text });
+    const r = await go(root, [], undefined, { parallelism: 1 });
+    assert.strictEqual(r.status, 0, `${label}: ${r.out}`);
+    assert.strictEqual(logOf(root), 'a\nb\n', `${label} runs every suite in discovery order`);
+    const written = JSON.parse(fs.readFileSync(path.join(root, 'node_modules', '.cache', 'run-tests.json'), 'utf8'));
+    assert.deepStrictEqual(Object.keys(written).sort(), labels, `${label} is replaced by a valid cache of this run's suites`);
+  }
+  const root = tree({ 'tests/a.test.js': suite('a'), 'tests/b.test.js': suite('b'), 'node_modules/.cache': 'a plain file\n' });
+  const r = await go(root, [], undefined, { parallelism: 1 });
+  assert.strictEqual(r.status, 0, `a cache folder that cannot be created: ${r.out}`);
+  assert.strictEqual(logOf(root), 'a\nb\n', 'a cache folder that cannot be created still runs every suite');
+  assert.strictEqual(fs.readFileSync(path.join(root, 'node_modules', '.cache'), 'utf8'), 'a plain file\n', 'and the file in its place is left as it was');
 });
 
 // Every discovered suite and every tail step runs, each prints one wall-clock line, and a step passes through the

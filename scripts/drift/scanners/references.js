@@ -99,7 +99,8 @@ function scanGovernedSkillFiles(root) {
 // one space, so a heading wrapped across a line break matches; a run of spaces within a line stays, as the verb reads it.
 // A cited file with an unterminated fence is one gap (`unterminated`), whatever it is cited for. A bare file name resolves the way the other checks
 // resolve one: `references/<name>`, then `agents/<name>`, then the repository root; a name with a `/` resolves
-// from the plugin root, then the repository root. A file that resolves nowhere is a finding here, except a
+// from the plugin root, then the repository root. A file that resolves nowhere is a finding here (`unresolved`, naming the cited
+// file and the citing document), except a
 // `references/<name>.md` path, which the `reference` check already reports. A section map entry,
 // "- **`<file>.md`** — `## A`, `## B`.", is a citation of each heading it lists. A heading matches by `md-sections.js`'s `headingKeyOf`, the key `scope.js section` matches by, and a heading inside a fenced block is no heading, so the check and the verb agree.
 function scanHeadingCitations(root) {
@@ -133,7 +134,7 @@ function scanHeadingCitations(root) {
   const check = (source, name, spans) => {
     const cited = resolve(name);
     if (cited === undefined) {
-      if (!/^references\/[a-zA-Z0-9_-]+\.md$/.test(name)) gaps.push({ source, cited: name, missing: true });
+      if (!/^references\/[a-zA-Z0-9_-]+\.md$/.test(name)) gaps.push({ source, cited: name, unresolved: true });
       return;
     }
     const { unterminated, keys } = headings(cited);
