@@ -168,8 +168,10 @@ the tree locator `locate` and the test-path classifier `isTestPath` (ADR 0128) f
 and the dispatch readers from `dispatch.js`. The hook reads no Bash command (ADR 0227). One `try` guards the three `require`s, and a module that fails to load
 leaves the hook recording nothing (ADR 0117, INV-0159). Its model guard, which denies a modelless dispatch to a superdev
 agent on PreToolUse(Agent), requires no module, so a failed load leaves the deny in force (ADR 0245). `hooks/tree-guard.js` takes `mainWorkTree` from `main-work-tree.js` (ADR 0148). `publish-kb.js` reaches
-the containment verdict `judgeContainment` from `containment.js`, which refetches the base before it answers not contained (ADR 0053,
-ADR 0065). It takes `refResolves` from `git-spawn.js`. It takes `readLedgerHeader`, `SLUG_RE`, and `CHANGE_TYPES` from `ledger.js`. It takes `pushTimeoutMs` from `push.js` and `readPresent` from `refusal.js`. All of these arrive through its `lib/kb-*.js` modules. The containment refetch is bounded by `code-host.pushTimeoutMs` (default 60000 ms through `push.js`'s reader). `base set` appends a `ledger`
+the containment verdict `judgeContainment` from `containment.js`, which refetches the base from the `Remote:` value of
+`docs/agents/code-management.md` before it answers not contained, and judges against the local base with no refetch where
+that document names no remote (ADR 0053, ADR 0065, INV-0203). It takes `gitSpawn` and `refResolves` from `git-spawn.js`
+and `drivePath` from `drive-path.js`. It takes `readLedgerHeader`, `SLUG_RE`, and `CHANGE_TYPES` from `ledger.js`. It takes `pushTimeoutMs` from `push.js` and `readPresent` from `refusal.js`. All of these arrive through its `lib/kb-*.js` modules. The containment refetch is bounded by `code-host.pushTimeoutMs` (default 60000 ms through `push.js`'s reader). `base set` appends a `ledger`
 trace event like every other ledger-writing verb. Normalisation is per
 header: `Stage` and `Branch` are single tokens,
 cut to the first whitespace-delimited token and stripped of markup and trailing punctuation.
@@ -416,7 +418,10 @@ and the step as their own verbs would, prints `root <run-root>` and `lock <nonce
 exits 3 on `locked` (a lock under an hour old that names another nonce, on a `planned` ledger only while its step
 stands), `not-contained`, `dirty` (the scopetree's `status --porcelain`), and `held` (another worktree holds the branch).
 A `not-contained` refusal prints the commits base lacks and a `git branch -m` remedy. Where the refetch of the base ended
-without one, it prints a last line `refetch timed-out` or `refetch failed`. `code-host.pushTimeoutMs` bounds the refetch. A ledger at a later stage, a `planned` ledger
+without one, it prints a last line `refetch timed-out` or `refetch failed`. The refetch names `--remote` where given, else
+the `Remote:` value of `docs/agents/code-management.md` at the repository top level, through `kb-containment.js`'s
+`resolveRemote`, the resolution `contained` shares; with neither it refetches nothing and judges against the local base
+(INV-0203). `code-host.pushTimeoutMs` bounds the refetch. A ledger at a later stage, a `planned` ledger
 naming another branch, a missing `--base`, and a failed git call exit 1. A run lock that is no regular file (a
 directory, a symlink, or another kind) or that cannot be read, and a ledger that cannot be read, exit 1 before the cut
 and write nothing. A lock write that fails after the cut exits 1 and names the branch and scopetree already set up, and
