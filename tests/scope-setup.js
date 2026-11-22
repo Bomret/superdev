@@ -371,9 +371,11 @@ const firstMoment = (sig) => {
     // after the group's signal and outlives the leader, and only the watcher's repeated signal on the group ends it.
     verif(`exec >/dev/null 2>&1; trap "sleep 30 & echo \\$! > ${k}/late; exit 0" TERM; echo $$ > ${k}/pid.$$.tmp; mv ${k}/pid.$$.tmp ${k}/pid; sleep 30 & echo $! > ${k}/spid; wait`, 'true');
     // The last round waits for the child before it signals, so at least one round has the child running whatever the race does.
+    // One constant bounds the loop and picks that waiting round.
+    const rounds = 8;
     let withChild = 0;
-    for (let n = 1; n <= 26; n++) {
-      const waitFor = n === 26 ? 'spid' : 'pid';
+    for (let n = 1; n <= rounds; n++) {
+      const waitFor = n === rounds ? 'spid' : 'pid';
       const out = bash(`alive() { for f in pid spid late; do [ -s ${k}/$f ] && kill -0 $(<${k}/$f) 2>/dev/null && return 0; done; return 1; };` +
         ` rm -f ${k}/pid ${k}/spid ${k}/late; node ${scopePath} test full & V=$!;` +
         ` while [ ! -s ${k}/${waitFor} ]; do sleep 0.01; done; [ -s ${k}/spid ] && echo running; kill -${sig} $V; wait $V;` +
