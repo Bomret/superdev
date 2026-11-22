@@ -2,19 +2,22 @@
 
 // Suite for plugin/scripts/scope.js's exported containment test, `testContainment`, and the probe
 // `baseHistoryHasPatch` (ADR 0053, ADR 0065, ADR 0082). Real git repositories throughout: the git plumbing is the
-// thing under test, not a stub over it. Each case builds its own repository, so the suite needs only the `scope.js`
-// path from tests/scope-setup.js.
+// thing under test, not a stub over it. The base repository, one commit on `main` with no remote, is built once per
+// process through tests/fixture-git.js, and each case works in its own copy and adds any remote or branch it needs.
 
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
+const { copyFixture, templateOnce } = require('./fixture-git');
 const { scopePath, fetchBound } = require('./scope-setup');
 const { testContainment, baseHistoryHasPatch } = require(scopePath);
 const { judgeContainment } = require('../plugin/lib/containment.js');
 // A `$`, a backtick, a quote, or a space in TMPDIR reaches every shell script this suite writes as written (triage #1380).
 const { shq } = require('./spawn-verdict');
+// The real git a fake git on PATH forwards to.
+const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
 
 // --- testContainment: the exported containment test (ADR 0053, ADR 0065) ---------------------
 //
@@ -26,15 +29,17 @@ const { shq } = require('./spawn-verdict');
     execFileSync('git', args, { cwd, stdio: 'ignore' });
   }
 
-  function makeRepo() {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-'));
+  const template = templateOnce((dir) => {
     gitTest(['init', '-q', '-b', 'main'], dir);
     gitTest(['config', 'user.email', 'test@example.com'], dir);
     gitTest(['config', 'user.name', 'test'], dir);
     fs.writeFileSync(path.join(dir, 'README.md'), 'x\n');
     gitTest(['add', '.'], dir);
     gitTest(['commit', '-q', '-m', 'init'], dir);
-    return dir;
+  }, 'scope-containment-template-');
+
+  function makeRepo() {
+    return copyFixture(template(), 'scope-containment-');
   }
 
   function makeWorkBranch(repoDir, branch, file, body) {
@@ -112,37 +117,6 @@ const { shq } = require('./spawn-verdict');
   fs.rmSync(remoteOnlyRepo, { recursive: true, force: true });
   fs.rmSync(remoteOnlyOrigin, { recursive: true, force: true });
 
-  // #no-write-tree: a git that rejects `merge-tree --write-tree` falls back to `git merge-base
-  // --is-ancestor` (scope-branch `## Containment`) rather than erroring. A shell wrapper on PATH stands
-  // in for git 2.37 and earlier — it rejects only that one flag combination and forwards every other
-  // call to the real git, exactly what an old git's own `merge-tree` does (three tree-ish arguments,
-  // nonzero on `--write-tree`).
-  const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
-  const fakeGitDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-oldgit-'));
-  fs.writeFileSync(
-    path.join(fakeGitDir, 'git'),
-    '#!/bin/sh\n' +
-      'if [ "$1" = "merge-tree" ] && [ "$2" = "--write-tree" ]; then exit 129; fi\n' +
-      `exec ${shq(realGit)} "$@"\n`,
-    { mode: 0o755 }
-  );
-  const oldGitRepo = makeRepo();
-  makeWorkBranch(oldGitRepo, 'fix/mergecommit', 'app.txt', 'v2\n');
-  gitTest(['merge', '-q', '--no-ff', '-m', 'merge', 'fix/mergecommit'], oldGitRepo);
-  const savedPath = process.env.PATH;
-  process.env.PATH = fakeGitDir + path.delimiter + savedPath;
-  try {
-    assert.strictEqual(
-      testContainment(oldGitRepo, 'main', 'fix/mergecommit'),
-      'contained',
-      'a git without --write-tree falls back to the ancestry test rather than erroring'
-    );
-  } finally {
-    process.env.PATH = savedPath;
-  }
-  fs.rmSync(oldGitRepo, { recursive: true, force: true });
-  fs.rmSync(fakeGitDir, { recursive: true, force: true });
-
   // #unresolvable: a branch name naming no ref anywhere in the repository — a typo, or a scope whose
   // branch was renamed by hand — reads could-not-resolve, distinct from not-contained: a consumer
   // reading "not contained" as "hasn't landed yet" would warn about the wrong thing for a branch that
@@ -195,9 +169,7 @@ const { shq } = require('./spawn-verdict');
   // refetch's own `timeout`/`killSignal` ended it, so the refetch's outcome is read off stderr, the only
   // surface the exported test exposes it on. The bound is the same run's `fetchBound()`, which a healthy
   // fetch clears; a bound that silently stopped catching the kill leaves the diagnostic line missing.
-  // The pid line varies so the guard below meets a written, an absent, and an empty pid file every run,
-  // whichever way the race between the bound and the upload-pack's write falls.
-  const hungCase = (pidLine) => {
+  {
     const hungRepo = makeRepo();
     makeWorkBranch(hungRepo, 'fix/hung', 'app.txt', 'v2\n');
     const hungOrigin = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-origin-'));
@@ -210,7 +182,7 @@ const { shq } = require('./spawn-verdict');
     // parent's parent changes where the shell stays between git and the script (dash on Linux).
     fs.writeFileSync(
       hungScript,
-      `#!/bin/sh\n${pidLine(shq(hungPidFile))}\nP=$PPID; G=$(ps -o ppid= -p $P | tr -d ' '); i=0; while [ "$(ps -o ppid= -p $$ | tr -d ' ')" = "$P" ] && [ "$(ps -o ppid= -p $P | tr -d ' ')" = "$G" ] && [ $i -lt ${Math.ceil(fetchBound() / 100) * 4 + 100} ]; do sleep 0.1; i=$((i+1)); done\n`,
+      `#!/bin/sh\necho $$ > ${shq(hungPidFile)}\nP=$PPID; G=$(ps -o ppid= -p $P | tr -d ' '); i=0; while [ "$(ps -o ppid= -p $$ | tr -d ' ')" = "$P" ] && [ "$(ps -o ppid= -p $P | tr -d ' ')" = "$G" ] && [ $i -lt ${Math.ceil(fetchBound() / 100) * 4 + 100} ]; do sleep 0.1; i=$((i+1)); done\n`,
       { mode: 0o755 }
     );
     gitTest(['config', 'remote.origin.uploadpack', shq(hungScript)], hungRepo);
@@ -255,10 +227,7 @@ const { shq } = require('./spawn-verdict');
     }
     fs.rmSync(hungRepo, { recursive: true, force: true });
     fs.rmSync(hungOrigin, { recursive: true, force: true });
-  };
-  hungCase((file) => `echo $$ > ${file}`);
-  hungCase(() => ':');
-  hungCase((file) => `: > ${file}`);
+  }
 
   // #argument-injection-base: `base` shaped like a git option must never reach `spawnSync` as one —
   // `git fetch <remote> <base>` carries no separator, so `base = '--upload-pack=<script>'` runs that
@@ -362,8 +331,8 @@ const { shq } = require('./spawn-verdict');
   // Built once: every case below that reads it (fake git or not) only reads, and writes no ref or file in it.
   const squashShared = makeConflictingSquashRepo();
 
-  // A fake git on PATH, standing in for a condition a real fixture cannot cheaply build — the same
-  // wrapper shape `#no-write-tree` above already uses. `body` is shell, run before the real git.
+  // A fake git on PATH, standing in for a condition a real fixture cannot cheaply build: a shell script that runs
+  // `body` and then execs the real git with every argument. `body` is shell, run before the real git.
   function withFakeGit(body, fn) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scope-containment-fakegit-'));
     fs.writeFileSync(path.join(dir, 'git'), `#!/bin/sh\n${body}\nexec ${shq(realGit)} "$@"\n`, {

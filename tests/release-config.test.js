@@ -43,11 +43,12 @@ for (const [i, file, current, expected] of [
 // a breaking change gives a minor bump
 assert.deepStrictEqual(plugin('@semantic-release/commit-analyzer').releaseRules, [{ breaking: true, release: 'minor' }]);
 
-// the release commit's assets
+// the release commit's assets: every file the release rewrites, plus the changelog, as a set. The literal targets pinned
+// above are the independent check, so a target changed without the matching asset change fails here.
 assert.deepStrictEqual(
-  plugin('@semantic-release/git').assets,
-  ['CHANGELOG.md', 'plugin/.claude-plugin/plugin.json', '.claude-plugin/marketplace.json'],
-  'the git assets'
+  [...plugin('@semantic-release/git').assets].sort(),
+  [...new Set(['CHANGELOG.md', ...replacements.flatMap((r) => r.files)])].sort(),
+  'the git assets are the replacement targets and the changelog'
 );
 
 console.log('release-config: ok');

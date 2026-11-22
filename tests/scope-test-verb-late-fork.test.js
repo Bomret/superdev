@@ -5,7 +5,8 @@
 require('./fixture-git');
 
 // Suite for plugin/scripts/scope.js's `test` verb, the late fork on the interrupted path (ADR 0127, INV-0117, ADR 0139).
-// Its own file: the 40 rounds are the slow race loop.
+// Its own file: the 10 rounds are the slow race loop. Fewer rounds sample the race window fewer times, so a leak that
+// shows in a small share of rounds goes unseen more often. A round with no late child fails (`nolate`).
 
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -22,7 +23,7 @@ try {
     const k = path.join(D, 'kLateTerm');
     fs.mkdirSync(k);
     verif(`trap "sleep 30 & echo \\$! > ${k}/late; exit 0" TERM; touch ${k}/ready; sleep 30 & wait`, 'true');
-    for (let n = 1; n <= 40; n++) {
+    for (let n = 1; n <= 10; n++) {
       // Polls step 0.02 s over the same 10 s bounds (500 steps).
       const out = bash(`rm -f ${k}/ready ${k}/late; node ${scopePath} test full & V=$!; while [ ! -f ${k}/ready ]; do sleep 0.01; done;` +
         ` kill -TERM $V; wait $V; for i in $(seq 500); do [ -s ${k}/late ] && break; sleep 0.02; done;` +

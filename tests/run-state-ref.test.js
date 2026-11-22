@@ -1,7 +1,8 @@
 'use strict';
 
 // Suite for the run-state push of `scope.js step clear` and `step block` (ADR 0202, INV-0179, INV-0009). Real
-// repositories and a real bare remote throughout. Each case builds its own fixture.
+// repositories and a real bare remote throughout. The repository and its remote are built once per process, and each case
+// works in its own copy.
 
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -180,21 +181,8 @@ try {
     assert.match(r2.stdout, /run-state: not sent/);
   }
 
-  // #hung: a pre-push hook outlasts the bound.
-  {
-    const f = fixture();
-    const hook = path.join(f.repo, '.git', 'hooks', 'pre-push');
-    fs.writeFileSync(hook, '#!/bin/sh\nexec sleep 8\n');
-    fs.chmodSync(hook, 0o755);
-    writeOperatorConfig(f.repo, { 'code-host': { pushTimeoutMs: 1500 } });
-    const r = step(f, 'clear');
-    assert.strictEqual(r.status, 0);
-    assert.match(r.stdout, /bound of 1500 ms \(code-host\.pushTimeoutMs in \.superdev\/info\.json/);
-    assert.strictEqual(remoteTip(f), null);
-    assert.doesNotMatch(ledgerOf(f), /\*\*Step:\*\*/);
-  }
-
-  // #hung-worktree: the same bound, with `info.json` only in the main checkout, read by a step run from a linked worktree.
+  // #hung-worktree: a pre-push hook outlasts the bound, with `info.json` only in the main checkout, read by a step run
+  // from a linked worktree. The step names the configured bound and still clears the step.
   {
     const f = fixture();
     const hook = path.join(f.repo, '.git', 'hooks', 'pre-push');
@@ -205,10 +193,11 @@ try {
     made.push(wtDir);
     const wt = path.join(wtDir, 'tree');
     git(['worktree', 'add', '-q', '--detach', wt], f.repo);
-    const r = step({ ...f, repo: wt });
+    const r = step({ ...f, repo: wt }, 'clear');
     assert.strictEqual(r.status, 0);
-    assert.match(r.stdout, /bound/);
+    assert.match(r.stdout, /bound of 1500 ms \(code-host\.pushTimeoutMs in \.superdev\/info\.json/);
     assert.strictEqual(remoteTip(f), null);
+    assert.doesNotMatch(ledgerOf(f), /\*\*Step:\*\*/);
   }
 
   // #no-doc and #no-remote-value: nothing pushed, one note.

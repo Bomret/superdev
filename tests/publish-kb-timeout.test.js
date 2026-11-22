@@ -28,7 +28,7 @@ const {
   hangingVerbDoc,
   failingVerbDoc,
 } = require('./publish-kb-setup');
-const { hashBody } = require(publishKbPath);
+const { hashBody, timeoutMs } = require(publishKbPath);
 
 // The bound every hanging-verb block below runs under, taken from this run's own healthy spawns.
 const HANG_MS = hangBound();
@@ -67,35 +67,30 @@ for (const verb of ['create', 'update', 'delete']) {
   });
 }
 
-// --- the operator configuration's `knowledge-base.timeoutMs` parses (ADR 0207) -------------------
-// Each reading is a process run from a linked worktree of the repository, so the main working tree's file is what it reads.
+// --- the operator configuration's `knowledge-base.timeoutMs` (ADR 0207) -------------------------
+// A process run from a linked worktree reads the main working tree's value, which proves the section and key. The default,
+// 30 000 ms, is read in process with the removed variable set, which changes nothing. The parse rules of every operator bound
+// are proven once, in tests/operator-config.test.js.
 {
-  const readBound = (config) => {
-    const repo = makeRepo();
-    if (config !== undefined) writeOperatorConfig(repo, config);
-    else fs.rmSync(path.join(repo, '.superdev', 'info.json'));
-    const tree = path.join(repo, 'wt');
-    git(['worktree', 'add', '-q', '--detach', tree], repo);
-    const r = spawnSync(process.execPath, ['-e', 'console.log(require(process.argv[1]).timeoutMs(process.cwd()))', publishKbPath], {
-      cwd: tree, encoding: 'utf8', timeout: 20000, killSignal: 'SIGKILL', env: { ...process.env, SUPERDEV_PUBLISH_KB_TIMEOUT_MS: '1' },
-    });
-    assertSpawnDecided(r, 'timeoutMs reader');
-    return { ms: Number(r.stdout.trim()), err: r.stderr };
-  };
-  for (const [label, config] of [['no file', undefined], ['invalid JSON', '{nope'], ['no section', {}], ['no key', { 'knowledge-base': {} }]]) {
-    const got = readBound(config);
-    assert.equal(got.ms, 30000, `${label} keeps the default`);
-    assert.equal(got.err, '', `${label} says nothing on stderr`);
-  }
-  for (const ms of [250, 2147483647]) {
-    const got = readBound({ 'knowledge-base': { timeoutMs: ms } });
-    assert.equal(got.ms, ms, 'a whole number from 1 to 2147483647 sets the bound');
-    assert.equal(got.err, '');
-  }
-  for (const bad of ['250', 1.5, 0, -5, null, {}, 2147483648]) {
-    const got = readBound({ 'knowledge-base': { timeoutMs: bad } });
-    assert.equal(got.ms, 30000, `${JSON.stringify(bad)} reads as absent`);
-    assert.equal((got.err.match(/knowledge-base\.timeoutMs/g) || []).length, 1, `${JSON.stringify(bad)} is named once on stderr: ${got.err}`);
+  const repo = makeRepo();
+  writeOperatorConfig(repo, { 'knowledge-base': { timeoutMs: 250 } });
+  const tree = path.join(repo, 'wt');
+  git(['worktree', 'add', '-q', '--detach', tree], repo);
+  const r = spawnSync(process.execPath, ['-e', 'console.log(require(process.argv[1]).timeoutMs(process.cwd()))', publishKbPath], {
+    cwd: tree, encoding: 'utf8', timeout: 20000, killSignal: 'SIGKILL', env: { ...process.env, SUPERDEV_PUBLISH_KB_TIMEOUT_MS: '1' },
+  });
+  assertSpawnDecided(r, 'timeoutMs reader');
+  assert.deepEqual({ ms: Number(r.stdout.trim()), err: r.stderr }, { ms: 250, err: '' }, 'the bound read from the linked worktree');
+
+  const noConfig = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-timeout-noconfig-'));
+  const saved = process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS;
+  process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = '1';
+  try {
+    assert.equal(timeoutMs(noConfig), 30000, 'the default bound, whatever the removed variable holds');
+  } finally {
+    if (saved === undefined) delete process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS;
+    else process.env.SUPERDEV_PUBLISH_KB_TIMEOUT_MS = saved;
+    fs.rmSync(noConfig, { recursive: true, force: true });
   }
 }
 

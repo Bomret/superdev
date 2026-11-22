@@ -2,7 +2,9 @@
 
 // A `node --require` preload for a spawned update-check hook: it replaces `https.get`, so the hook reaches no network.
 // STUB_HTTPS_MARKER names a file that gains one line per call, the requested URL, which proves the stub ran.
-// STUB_HTTPS_MODE picks the answer: `newer` (version 9.0.0), `500`, `html`, or `hang` (no answer until the request's timeout).
+// STUB_HTTPS_MODE picks the answer: `newer` (version 9.0.0), `500`, `html`, or `hang` (no answer: the request's
+// `timeout` event fires on the next tick, so no real timeout is waited out). A `hang` call whose `opts.timeout` is missing
+// or not a finite positive number throws before it records the call, so a hook that stopped bounding its request fails.
 // STUB_HTTPS_BODY, when set, is the exact response body (mode `newer` only).
 // It starts no shell and no process.
 
@@ -11,12 +13,16 @@ const https = require('node:https');
 const { EventEmitter } = require('node:events');
 
 https.get = (url, opts, cb) => {
+  const mode = process.env.STUB_HTTPS_MODE || 'newer';
+  if (mode === 'hang') {
+    const t = opts && opts.timeout;
+    if (typeof t !== 'number' || !Number.isFinite(t) || t <= 0) throw new Error(`stub-https-get: a hang request carries no bound (timeout ${t})`);
+  }
   fs.appendFileSync(process.env.STUB_HTTPS_MARKER, `${url}\n`);
   const req = new EventEmitter();
   req.destroy = () => {};
-  const mode = process.env.STUB_HTTPS_MODE || 'newer';
   if (mode === 'hang') {
-    setTimeout(() => req.emit('timeout'), opts.timeout);
+    setImmediate(() => req.emit('timeout'));
     return req;
   }
   const res = new EventEmitter();

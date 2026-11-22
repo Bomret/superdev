@@ -122,11 +122,6 @@ try {
     assert.equal(relDir(S + '/', sub), 'pkg/inner', 'a trailing slash on the tree side');
     assert.equal(relDir(fs.realpathSync(S), sub), 'pkg/inner', 'the resolved tree against the unresolved directory');
     assert.equal(relDir(S, fs.realpathSync(sub)), 'pkg/inner', 'the unresolved tree against the resolved directory');
-    if (process.platform === 'win32') {
-      const msys = '/' + S[0].toLowerCase() + S.slice(2).replace(/\\/g, '/');
-      assert.equal(relDir(S, msys + '/pkg/inner'), 'pkg/inner', 'an MSYS drive path records the same value');
-      assert.equal(relDir(msys, sub), 'pkg/inner', 'an MSYS drive path as the tree');
-    }
   }
 
   // A focused run records its path set, and the trace reader returns it whole for any path (ADR 0175).

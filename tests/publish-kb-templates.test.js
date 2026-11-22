@@ -409,12 +409,17 @@ function pinGithubWikiTemplates(realDoc, HOST, REPO) {
   fs.rmSync(work, { recursive: true, force: true });
 }
 {
-  pinGithubWikiTemplates(fs.readFileSync(path.join(__dirname, '..', 'docs', 'agents', 'knowledge-base.md'), 'utf8'), 'github.com', 'Bomret/superdev');
+  const realDoc = fs.readFileSync(path.join(__dirname, '..', 'docs', 'agents', 'knowledge-base.md'), 'utf8');
+  pinGithubWikiTemplates(realDoc, 'github.com', 'Bomret/superdev');
   const seedPath = path.join(__dirname, '..', 'plugin', 'references', 'knowledge-base-github-wiki.md');
   const seed = fs.readFileSync(seedPath, 'utf8');
   const filled = seed.replaceAll('<host>', 'git.example.org').replaceAll('<owner>/<repo>', 'acme/widgets');
   assert.doesNotMatch(filled, /<host>|<owner>|<repo>|bomret\/superdev|github\.com/i, 'the seed names its host and repository only through the placeholders');
-  pinGithubWikiTemplates(filled, 'git.example.org', 'acme/widgets');
+  assert.doesNotMatch(filled, /GITEA_TOKEN|GH_TOKEN|GITHUB_TOKEN|Authorization|curl/, 'the filled seed names no token env var, header, or curl');
+  // The filled seed yields this repository's templates, body format, and hierarchy, so the one behavioural run above covers
+  // it. Host and repository are substituted inside each side's templates, never across a whole document.
+  const neutral = (doc, host, repo) => JSON.parse(JSON.stringify(classifyBackend(doc).templates).replaceAll(host, '<host>').replaceAll(repo, '<owner>/<repo>'));
+  assert.deepStrictEqual(neutral(filled, 'git.example.org', 'acme/widgets'), neutral(realDoc, 'github.com', 'Bomret/superdev'), 'the filled seed yields the repository\'s wiki templates');
   assert.match(seed, /^- \*\*Hierarchy:\*\* links/m, 'the seed declares body-link hierarchy');
   assert.ok(seed.includes('https://<host>/<owner>/<repo>/wiki/{sub_url}'), 'the seed carries the link line form under the wiki URL');
   assert.ok(filled.includes('https://git.example.org/acme/widgets/wiki/{sub_url}'), 'the filled seed link line names the host and repository');

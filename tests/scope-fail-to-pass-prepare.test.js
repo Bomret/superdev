@@ -16,6 +16,7 @@ const { assertSpawnDecided } = require('./spawn-verdict');
 const { f2pFixture, testVerbFixture, verif, writeOperatorConfig, scopePath } = require('./scope-setup');
 
 const { appendTrace } = require(scopePath);
+const { prepareCommandOf } = require('../plugin/lib/verification.js');
 
 // A `## Prepare command` section holding `body`.
 const section = (body) => `\n## Prepare command\n\n${body}\n`;
@@ -65,18 +66,22 @@ const prepared = (s) => {
 
     // A traced passing control is reused only where the tip states a prepare command or `none`; a reused control's put-back run
     // is still prepared. With the section absent, malformed, written as a fence, or only inside a fence, the control runs.
+    // Every form's state is asserted in process on `prepareCommandOf`; one form per state also runs the verb for real.
     const runs = (sc) => (fs.existsSync(sc.log) ? fs.readFileSync(sc.log, 'utf8').split('\n').filter(Boolean).length : 0);
     const fence = '```';
-    for (const [label, extra, reused, preps] of [
-      ['`none`', section('`none`'), true, 0],
-      ['the bare word none', section('none'), true, 0],
-      ['a command', section('`echo p >> "$F2P_DIR/prep"`'), true, 1],
-      ['no section', '', false, 0],
-      ['a section of prose', section('Run the installer first.'), false, 0],
-      ['a section holding only a fence', section(`${fence}sh\necho p >> "$F2P_DIR/prep"\n${fence}`), false, 0],
-      ['a heading inside a fence', `\n${fence}md\n## Prepare command\n\n\`none\`\n${fence}\n`, false, 0],
-      ['an uppercase NONE', section('`NONE`'), false, 0],
+    const prep = 'echo p >> "$F2P_DIR/prep"';
+    for (const [label, extra, state, real, reused, preps] of [
+      ['`none`', section('`none`'), { state: 'none' }, true, true, 0],
+      ['the bare word none', section('none'), { state: 'none' }, false],
+      ['a command', section(`\`${prep}\``), { state: 'command', command: prep }, true, true, 1],
+      ['no section', '', { state: 'absent' }, true, false, 0],
+      ['a section of prose', section('Run the installer first.'), { state: 'absent' }, false],
+      ['a section holding only a fence', section(`${fence}sh\n${prep}\n${fence}`), { state: 'absent' }, false],
+      ['a heading inside a fence', `\n${fence}md\n## Prepare command\n\n\`none\`\n${fence}\n`, { state: 'absent' }, false],
+      ['an uppercase NONE', section('`NONE`'), { state: 'command', command: 'NONE' }, true],
     ]) {
+      assert.deepStrictEqual(prepareCommandOf(verif(CMD, CMD, extra)), state, `${label}: its prepare state`);
+      if (!real) continue;
       s = scenario({
         base: { 'src.txt': 'a\n', 'docs/agents/verification.md': verif(CMD, CMD, extra) },
         tip: { 'src.txt': 'b\n', 'tests/t.sh': probe + 'grep -q b src.txt\n' },

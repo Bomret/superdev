@@ -1,7 +1,8 @@
 'use strict';
 
 // Suite for the run-state fetch of `scope.js adopt` (ADR 0202, INV-0179, INV-0009). Real repositories and a
-// real bare remote throughout. Each case builds its own fixture.
+// real bare remote throughout. The seeded repository, its remote, and a clone of that remote are built once per
+// process and copied per case.
 
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -38,20 +39,25 @@ const template = templateOnce((dir) => {
   git(['commit', '-q', '-m', 'init'], repo);
   git(['remote', 'add', 'origin', origin], repo);
   git(['push', '-q', 'origin', 'main'], repo);
+  const clone = path.join(dir, 'clone');
+  git(['clone', '-q', origin, clone], dir);
+  fs.writeFileSync(path.join(dir, 'body.md'), seed({ a: repo, rootA: path.join(repo, '.superdev', 'scopes', SCOPE) }));
 }, 'run-state-adopt-template-');
 
-// `a`: the machine that ran the scope and pushed its state. `b`: a fresh clone of the remote.
+// `a`: the machine that ran the scope and pushed its state. `b`: a fresh clone of the remote. `body`: the snapshot `a`
+// published, the anchor body an adopt reads.
 function fixture() {
   const copy = copyFixture(template(), 'run-state-adopt-');
   made.push(copy);
   const origin = path.join(copy, 'origin');
   const a = path.join(copy, 'repo');
-  git(['remote', 'set-url', 'origin', origin], a);
   const b = path.join(copy, 'clone');
-  git(['clone', '-q', origin, b], copy);
+  git(['remote', 'set-url', 'origin', origin], a);
+  git(['remote', 'set-url', 'origin', origin], b);
   const rootA = path.join(a, '.superdev', 'scopes', SCOPE);
   const rootB = path.join(b, '.superdev', 'scopes', SCOPE);
-  return { a, b, origin, rootA, rootB };
+  const body = fs.readFileSync(path.join(copy, 'body.md'), 'utf8');
+  return { a, b, origin, rootA, rootB, body };
 }
 
 function run(args, cwd, input, env = {}) {
@@ -62,7 +68,8 @@ function run(args, cwd, input, env = {}) {
   return r;
 }
 
-// Machine A holds a ledger, a trace, reports, and an interface file, and has pushed them. Returns the snapshot.
+// Machine A holds a ledger, a trace, reports, and an interface file, and has pushed them. Returns the snapshot. The
+// template runs it once.
 function seed(f) {
   const r = run(['init', `feat/${SCOPE}`, 'planned'], f.a, sliceJson);
   assert.strictEqual(r.status, 0, r.stderr);
@@ -101,7 +108,7 @@ try {
   // #fresh-clone: the ref's files come back byte for byte, and the next push succeeds.
   {
     const f = fixture();
-    const body = seed(f);
+    const { body } = f;
     const r = run(['adopt', '--root', f.rootB], f.b, body);
     assert.strictEqual(r.status, 0, r.stderr);
     assert.match(r.stdout, /run-state: fetched/, r.stdout);
@@ -123,7 +130,7 @@ try {
   // another machine; a noted anchor line, a review verdict, wins over the ref's older one (ADR 0206).
   {
     const f = fixture();
-    const body = seed(f);
+    const { body } = f;
     fs.writeFileSync(path.join(f.rootA, 'dod.md'), '- [x] works — S1 — met: the test passes\n- [ ] fast — S1 — not met: 3 s\n');
     assert.match(pushRunState(f.rootA, f.a), /run-state: sent/);
     fs.mkdirSync(f.rootB, { recursive: true });
@@ -137,7 +144,7 @@ try {
   // #stale-stage: a .run-state-* staging directory a killed adopt left in the root is removed.
   {
     const f = fixture();
-    const body = seed(f);
+    const { body } = f;
     fs.mkdirSync(path.join(f.rootB, '.run-state-old', 'reports'), { recursive: true });
     fs.writeFileSync(path.join(f.rootB, '.run-state-old', 'reports', 'x'), 'x\n');
     const r = run(['adopt', '--root', f.rootB], f.b, body);
@@ -149,7 +156,7 @@ try {
   // #keep-local-interfaces: a local interfaces.md stays, the unpack names it, and the rest still unpacks.
   {
     const f = fixture();
-    const body = seed(f);
+    const { body } = f;
     fs.mkdirSync(f.rootB, { recursive: true });
     fs.writeFileSync(path.join(f.rootB, 'interfaces.md'), 'local\n');
     const r = run(['adopt', '--root', f.rootB], f.b, body);
@@ -163,7 +170,7 @@ try {
   // #no-ref: no ref on the remote adopts as before, with one note.
   {
     const f = fixture();
-    const body = seed(f);
+    const { body } = f;
     git(['update-ref', '-d', ref], f.origin);
     const r = run(['adopt', '--root', f.rootB], f.b, body);
     assert.strictEqual(r.status, 0, r.stderr);
@@ -175,7 +182,7 @@ try {
   // #no-remote: no `Remote:` value adopts as before, with one note.
   {
     const f = fixture();
-    const body = seed(f);
+    const { body } = f;
     fs.writeFileSync(path.join(f.b, 'docs', 'agents', 'code-management.md'), '# CM\n');
     const r = run(['adopt', '--root', f.rootB], f.b, body);
     assert.strictEqual(r.status, 0, r.stderr);
@@ -186,7 +193,7 @@ try {
   // #keep-local: a local trace.log keeps, the unpack is skipped and said, and the next push refuses.
   {
     const f = fixture();
-    const body = seed(f);
+    const { body } = f;
     fs.mkdirSync(f.rootB, { recursive: true });
     fs.writeFileSync(path.join(f.rootB, 'trace.log'), 'local\n');
     const r = run(['adopt', '--root', f.rootB], f.b, body);
@@ -200,7 +207,7 @@ try {
   // #keep-local-reports: a local reports/ keeps the same way.
   {
     const f = fixture();
-    const body = seed(f);
+    const { body } = f;
     fs.mkdirSync(path.join(f.rootB, 'reports'), { recursive: true });
     const r = run(['adopt', '--root', f.rootB], f.b, body);
     assert.match(r.stdout, /run-state: kept/, r.stdout);
@@ -221,7 +228,7 @@ try {
     };
     for (const [name, mk] of Object.entries(bad)) {
       const f = fixture();
-      const body = seed(f);
+      const { body } = f;
       plant(f, mk(f, blobSha(f, 'x\n')));
       const outside = path.join(f.b, '.superdev', 'scopes');
       const r = run(['adopt', '--root', f.rootB], f.b, body);
@@ -231,25 +238,11 @@ try {
     }
   }
 
-  // #hung: a remote that outlasts the bound ends within it, and adopt reports it.
+  // #hung-worktree: a remote that outlasts the bound ends within it, and adopt reports it, with `info.json` only in the main
+  // checkout, read by an adopt run from a linked worktree.
   {
     const f = fixture();
-    const body = seed(f);
-    const hang = path.join(f.b, 'hang.sh');
-    fs.writeFileSync(hang, '#!/bin/sh\nexec sleep 8\n');
-    fs.chmodSync(hang, 0o755);
-    git(['config', 'remote.origin.uploadpack', hang], f.b);
-    writeOperatorConfig(f.b, { 'code-host': { pushTimeoutMs: 1500 } });
-    const r = run(['adopt', '--root', f.rootB], f.b, body);
-    assert.strictEqual(r.status, 0, r.stderr);
-    assert.match(r.stdout, /bound/, r.stdout);
-    assert.deepStrictEqual(listing(f.rootB), ['ledger.md']);
-  }
-
-  // #hung-worktree: the same bound, with `info.json` only in the main checkout, read by an adopt run from a linked worktree.
-  {
-    const f = fixture();
-    const body = seed(f);
+    const { body } = f;
     const hang = path.join(f.b, 'hang.sh');
     fs.writeFileSync(hang, '#!/bin/sh\nexec sleep 8\n');
     fs.chmodSync(hang, 0o755);

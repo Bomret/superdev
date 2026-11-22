@@ -1,7 +1,7 @@
 'use strict';
 
-// Suite for plugin/hooks/update-check.js, run as spawned hooks only. Needs no network: a `node --require` preload replaces
-// `https.get` in each spawned hook.
+// Suite for plugin/hooks/update-check.js, run as spawned hooks. Needs no network: a `node --require` preload replaces
+// `https.get` in each spawned hook. One in-process case proves that preload refuses a request with no bound.
 
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -136,6 +136,25 @@ async function outcomes() {
   }
 
   fs.rmSync(pluginRoot, { recursive: true, force: true });
+}
+
+// The stub's `hang` mode refuses a request that carries no bound, so the "no answer" row above fails for a hook that
+// stopped bounding its request. Loaded in process, with `https.get` restored afterwards.
+{
+  const https = require('node:https');
+  const original = https.get;
+  const savedMode = process.env.STUB_HTTPS_MODE;
+  process.env.STUB_HTTPS_MODE = 'hang';
+  try {
+    require('./fixtures/stub-https-get.js');
+    for (const opts of [{}, { timeout: 0 }, { timeout: Infinity }, { timeout: '2000' }]) {
+      assert.throws(() => https.get(PUBLISHED, opts, () => {}), /carries no bound/, `a hang request with ${JSON.stringify(opts)} is refused`);
+    }
+  } finally {
+    https.get = original;
+    if (savedMode === undefined) delete process.env.STUB_HTTPS_MODE;
+    else process.env.STUB_HTTPS_MODE = savedMode;
+  }
 }
 
 outcomes().then(
