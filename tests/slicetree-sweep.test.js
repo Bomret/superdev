@@ -96,14 +96,15 @@ assert.deepEqual(
 
   // The repository is built once into a template and copied for each case (`copyFixture` returns a real path: git
   // prints resolved worktree paths, and macOS's tmpdir is a symlink).
-  const repoTemplate = templateOnce((dir) => {
-    git(['init', '-q', '-b', 'main'], dir);
+  function initRepo(dir, initialBranch) {
+    git(['init', '-q', '-b', initialBranch], dir);
     git(['config', 'user.email', 'test@example.com'], dir);
     git(['config', 'user.name', 'test'], dir);
     fs.writeFileSync(path.join(dir, 'base.txt'), 'x\n');
     git(['add', '.'], dir);
     git(['commit', '-q', '-m', 'base'], dir);
-  }, 'ws-template-');
+  }
+  const repoTemplate = templateOnce((dir) => initRepo(dir, 'main'), 'ws-template-');
   function makeRepo() {
     return copyFixture(repoTemplate(), 'ws-');
   }
@@ -126,6 +127,45 @@ assert.deepEqual(
     git(['merge', '--no-ff', '-q', '-m', `merge ${sliceBranch}`, sliceBranch], wt);
     git(['worktree', 'remove', wt], repoDir);
     fs.rmSync(tmp, { recursive: true, force: true });
+  }
+
+  // Gives scope `scope` of `repoDir` a worked slice folded into `scope/<scope>`, its slicetree still standing.
+  function foldedSlice(repoDir, scope) {
+    git(['branch', `scope/${scope}`], repoDir);
+    makeScope(repoDir, scope, `**Branch:** scope/${scope}\n`);
+    const wt = path.join(repoDir, `.superdev/scopes/${scope}/slicetrees/1`);
+    git(['worktree', 'add', '-q', '-b', `slice/${scope}/1`, wt], repoDir);
+    fs.writeFileSync(path.join(wt, 'w.txt'), 'y\n');
+    git(['add', '.'], wt);
+    git(['commit', '-q', '-m', 'work'], wt);
+    fold(repoDir, `scope/${scope}`, `slice/${scope}/1`);
+    return wt;
+  }
+
+  // Copies a template that holds linked slicetrees, then repairs both directions of each link, so a sweep in the copy
+  // never touches the template's slicetrees. Asserts that no link of the copy still names the template.
+  function copyWithSlicetrees(template, relTrees) {
+    const repo = copyFixture(template, 'ws-');
+    const wts = relTrees.map((t) => path.join(repo, t));
+    git(['worktree', 'repair', ...wts], repo);
+    for (const wt of wts) assert.ok(!fs.readFileSync(path.join(wt, '.git'), 'utf8').includes(template), `${wt}: its .git file names the copy`);
+    for (const admin of fs.readdirSync(path.join(repo, '.git', 'worktrees'))) {
+      const gitdir = fs.readFileSync(path.join(repo, '.git', 'worktrees', admin, 'gitdir'), 'utf8');
+      assert.ok(!gitdir.includes(template), `worktree ${admin}: its gitdir names the copy`);
+    }
+    return { repo, wts };
+  }
+
+  // A repository whose scope `folded` holds one worked slice folded into its scope branch; `two` adds scope `other` in
+  // the same state. Each variant is built once per process and copied per case.
+  const foldedTemplates = {
+    one: templateOnce((dir) => { initRepo(dir, 'main'); foldedSlice(dir, 'folded'); }, 'ws-folded-one-template-'),
+    two: templateOnce((dir) => { initRepo(dir, 'main'); foldedSlice(dir, 'folded'); foldedSlice(dir, 'other'); }, 'ws-folded-two-template-'),
+  };
+  function foldedRepo(twoScopes = false) {
+    const rel = ['.superdev/scopes/folded/slicetrees/1'].concat(twoScopes ? ['.superdev/scopes/other/slicetrees/1'] : []);
+    const { repo, wts } = copyWithSlicetrees(foldedTemplates[twoScopes ? 'two' : 'one'](), rel);
+    return { repo, wt: wts[0], wtOther: path.join(repo, '.superdev/scopes/other/slicetrees/1') };
   }
 
   // #two-scopes-independent: `demo`'s slice/1 is folded onto scope/demo and worked → swept. `demo`'s
@@ -408,8 +448,8 @@ assert.deepEqual(
     const realGitSpawn = JSON.stringify(require.resolve('../plugin/lib/git-spawn.js'));
 
     // Runs the hook copied beside stubs, `gitSpawnBody` standing in for `../lib/git-spawn.js` (null: absent).
-    // `twoScopes` adds a second scope `other` with its own folded slice, so a per-scope failure shows whether
-    // the hook skips that scope or abandons the run.
+    // The fixture is `foldedRepo`'s scope `folded`. `twoScopes` adds a second scope `other` with its own folded slice, so
+    // a per-scope failure shows whether the hook skips that scope or abandons the run.
     function run(caseName, gitSpawnBody, twoScopes = false) {
       const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ws-posture-')));
       fs.mkdirSync(path.join(dir, 'hooks'));
@@ -431,25 +471,7 @@ assert.deepEqual(
           `const fs = require('fs');\nfs.writeFileSync(${JSON.stringify(loaded)}, 'x');\nconst CALLED = ${JSON.stringify(called)};\nconst real = require(${realGitSpawn});\n${gitSpawnBody}\n`
         );
       }
-      const repo = makeRepo();
-      git(['branch', 'scope/posture'], repo);
-      makeScope(repo, 'posture', '**Branch:** scope/posture\n');
-      const wt = path.join(repo, '.superdev/scopes/posture/slicetrees/1');
-      git(['worktree', 'add', '-q', '-b', 'slice/posture/1', wt], repo);
-      fs.writeFileSync(path.join(wt, 'w.txt'), 'y\n');
-      git(['add', '.'], wt);
-      git(['commit', '-q', '-m', 'work'], wt);
-      fold(repo, 'scope/posture', 'slice/posture/1');
-      const wtOther = path.join(repo, '.superdev/scopes/other/slicetrees/1');
-      if (twoScopes) {
-        git(['branch', 'scope/other'], repo);
-        makeScope(repo, 'other', '**Branch:** scope/other\n');
-        git(['worktree', 'add', '-q', '-b', 'slice/other/1', wtOther], repo);
-        fs.writeFileSync(path.join(wtOther, 'w.txt'), 'y\n');
-        git(['add', '.'], wtOther);
-        git(['commit', '-q', '-m', 'work'], wtOther);
-        fold(repo, 'scope/other', 'slice/other/1');
-      }
+      const { repo, wt, wtOther } = foldedRepo(twoScopes);
       const ran = cp.spawnSync(process.execPath, [path.join(dir, 'hooks', 'slicetree-sweep.js')], {
         input: JSON.stringify({ cwd: repo }), encoding: 'utf8', timeout: 15000,
       });
@@ -511,22 +533,21 @@ assert.deepEqual(
   // The default branch (the base a slice must have commits beyond) resolves from origin/HEAD, then
   // `main`, then `master`; with none the sweep removes nothing. Each scenario folds one worked slice
   // into its scope branch, so only the resolved default branch decides whether it is swept.
+  // The scenario's repository is built once per initial branch and copied per call.
+  const scenarioTemplates = {};
   function sweepScenario(initialBranch, prepare, afterSweep) {
-    const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ws-def-')));
-    git(['init', '-q', '-b', initialBranch], repo);
-    git(['config', 'user.email', 'test@example.com'], repo);
-    git(['config', 'user.name', 'test'], repo);
-    fs.writeFileSync(path.join(repo, 'base.txt'), 'x\n');
-    git(['add', '.'], repo);
-    git(['commit', '-q', '-m', 'base'], repo);
-    git(['branch', 'scope/d'], repo);
-    makeScope(repo, 'd', '**Branch:** scope/d\n');
-    const wt = path.join(repo, '.superdev/scopes/d/slicetrees/1');
-    git(['worktree', 'add', '-q', '-b', 'slice/d/1', wt], repo);
-    fs.writeFileSync(path.join(wt, 's1.txt'), 'y\n');
-    git(['add', '.'], wt);
-    git(['commit', '-q', '-m', 's1'], wt);
-    fold(repo, 'scope/d', 'slice/d/1');
+    scenarioTemplates[initialBranch] ||= templateOnce((dir) => {
+      initRepo(dir, initialBranch);
+      git(['branch', 'scope/d'], dir);
+      makeScope(dir, 'd', '**Branch:** scope/d\n');
+      const t = path.join(dir, '.superdev/scopes/d/slicetrees/1');
+      git(['worktree', 'add', '-q', '-b', 'slice/d/1', t], dir);
+      fs.writeFileSync(path.join(t, 's1.txt'), 'y\n');
+      git(['add', '.'], t);
+      git(['commit', '-q', '-m', 's1'], t);
+      fold(dir, 'scope/d', 'slice/d/1');
+    }, `ws-def-${initialBranch}-template-`);
+    const { repo, wts: [wt] } = copyWithSlicetrees(scenarioTemplates[initialBranch](), ['.superdev/scopes/d/slicetrees/1']);
     if (prepare) prepare(repo);
     main(repo);
     const gone = !fs.existsSync(wt);
@@ -634,15 +655,7 @@ assert.deepEqual(
           `require('fs').writeFileSync(${JSON.stringify(loaded)}, 'x');\nconst real = require(${realResolver});\n${resolverBody}\n`
         );
       }
-      const repo = makeRepo();
-      git(['branch', 'scope/resolver'], repo);
-      makeScope(repo, 'resolver', '**Branch:** scope/resolver\n');
-      const wt = path.join(repo, '.superdev/scopes/resolver/slicetrees/1');
-      git(['worktree', 'add', '-q', '-b', 'slice/resolver/1', wt], repo);
-      fs.writeFileSync(path.join(wt, 'w.txt'), 'y\n');
-      git(['add', '.'], wt);
-      git(['commit', '-q', '-m', 'work'], wt);
-      fold(repo, 'scope/resolver', 'slice/resolver/1');
+      const { repo, wt } = foldedRepo();
       const ran = cp.spawnSync(process.execPath, [path.join(dir, 'hooks', 'slicetree-sweep.js')], {
         input: JSON.stringify({ cwd: repo }), encoding: 'utf8', timeout: 15000,
       });

@@ -1,7 +1,7 @@
 'use strict';
 
 // Fixture repositories commit regardless of the maintainer's global git config.
-require('./fixture-git');
+const { copyFixture, templateOnce } = require('./fixture-git');
 
 // Suite for plugin/scripts/scope.js's `red-evidence` verb: the scope review's red-evidence reading (`references/review-scope-mode.md`'s
 // `### 4.2 Red evidence`). It reads the ledger's suite and failed records, the run trace, and a check-status file, and writes nothing.
@@ -46,21 +46,31 @@ const commit = (repo, file, text, msg) => {
 };
 
 // A repository whose `feat` branch holds R (a range commit), then M and T on top of it, and a side commit S off R's ancestry.
+// One template per distinct argument set, built once per process with its own commit SHAs in `shas.json`, and copied per
+// call.
+const templates = new Map();
 function make(focused = 'node focus.js {paths}', extra = '') {
-  const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scope-red-')));
+  const key = JSON.stringify([focused, extra]);
+  if (!templates.has(key)) {
+    templates.set(key, templateOnce((repo) => {
+      g(['init', '-q', '-b', 'main'], repo);
+      fs.writeFileSync(path.join(repo, '.gitignore'), '.superdev/\n');
+      commit(repo, 'docs/agents/verification.md', VERIF(focused, extra), 'base');
+      commit(repo, 'tests/a.test.js', 'a\n', 'tests');
+      const B = g(['rev-parse', 'HEAD'], repo);
+      g(['checkout', '-q', '-b', 'feat'], repo);
+      const R = commit(repo, 'src/x.js', 'x\n', 'range');
+      const M = commit(repo, 'src/x.js', 'fixed\n', 'fix');
+      const T = commit(repo, 'src/y.js', 'y\n', 'more');
+      g(['checkout', '-q', '-b', 'side', B], repo);
+      const S = commit(repo, 'src/z.js', 'z\n', 'side');
+      g(['checkout', '-q', 'feat'], repo);
+      fs.writeFileSync(path.join(repo, '.git', 'shas.json'), JSON.stringify({ B, R, M, T, S }));
+    }, 'scope-red-template-'));
+  }
+  const repo = copyFixture(templates.get(key)(), 'scope-red-');
   made.push(repo);
-  g(['init', '-q', '-b', 'main'], repo);
-  fs.writeFileSync(path.join(repo, '.gitignore'), '.superdev/\n');
-  commit(repo, 'docs/agents/verification.md', VERIF(focused, extra), 'base');
-  commit(repo, 'tests/a.test.js', 'a\n', 'tests');
-  const B = g(['rev-parse', 'HEAD'], repo);
-  g(['checkout', '-q', '-b', 'feat'], repo);
-  const R = commit(repo, 'src/x.js', 'x\n', 'range');
-  const M = commit(repo, 'src/x.js', 'fixed\n', 'fix');
-  const T = commit(repo, 'src/y.js', 'y\n', 'more');
-  g(['checkout', '-q', '-b', 'side', B], repo);
-  const S = commit(repo, 'src/z.js', 'z\n', 'side');
-  g(['checkout', '-q', 'feat'], repo);
+  const { B, R, M, T, S } = JSON.parse(fs.readFileSync(path.join(repo, '.git', 'shas.json'), 'utf8'));
   let n = 0;
   // A run root: `header` lines (`Suite`, `Failed`) and trace run lines.
   const root = (header, lines = []) => {
