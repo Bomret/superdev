@@ -198,8 +198,9 @@ const NO_FROM_SHIP_DOCS = [
   path.join('references', 'response-shapes.md'),
 ];
 // SHIP_STARTERS: the files whose repair-loop exits start ship. A line holding a ship start must name the consent verb.
-// SHIP_START matches a start written with the backticked command, in any case, the form both files use; a start that names
-// ship another way is outside the fact.
+// SHIP_START matches a start written with the backticked command, in any case, the form both files use.
+// simplicity: shape-based, and its ceiling is that form. A start that names ship another way ("hand off to ship") walks
+// past.
 const SHIP_STARTERS = [path.join('references', 'review-scope-mode.md'), path.join('skills', 'document', 'SKILL.md')];
 const SHIP_START = /\bstart(?:s|ed)? `\/superdev:ship\b/i;
 const CONSENT_VERB = /scope\.js"? consent\b/;

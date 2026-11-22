@@ -592,6 +592,8 @@ const IMPLEMENT_NO_FULL_RUN_DOCS = [
 // A `scope.js test full|whole` call, the bare `test full|whole` verb in a code span, a `test focused` call with no path
 // after it, a run, rerun, execution, or invocation of the full or whole-repo command or suite, a gate on one, and the full
 // or whole-repo command or suite as the subject of `runs` up to two words later ("the full suite run-handoff runs").
+// simplicity: shape-based, and its ceiling is those shapes, read in unfenced prose. A paraphrase ("kick off every
+// suite", "start the complete run") walks past, and so does a subject more than two words ahead of `runs`.
 const IMPLEMENT_NO_FULL_RUN_PATTERNS = [
   /scope\.js["'`]?\s+test\s+(?:full|whole)\b/gi,
   /`test\s+(?:full|whole)`/gi,
@@ -607,6 +609,8 @@ const IMPLEMENT_NO_FULL_RUN_PATTERNS = [
 // document and the one section of it the check reads.
 const OBSERVATION_NO_SUITE_RUN_DOC = [path.join('references', 'review-scope-mode.md'), '### 4.3 Observations'];
 // A suite, test, entry, exit, focused, or full run, a §4.2 citation, and a failing test or run.
+// simplicity: shape-based, and its ceiling is those words. A source named another way ("the red evidence", "what CI
+// reported") walks past.
 const OBSERVATION_NO_SUITE_RUN_PATTERN = /\b(?:suite|test|entry|exit|focused|full)\s+runs?\b|§\s*4\.2\b|\bfailing\s+(?:tests?|runs?)\b/gi;
 
 // ADR 0255, INV-0193: review prose instructs no full or whole-repo run, by IMPLEMENT_NO_FULL_RUN_PATTERNS, outside the ad-hoc
