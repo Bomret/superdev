@@ -16,7 +16,8 @@ const { pushTimeoutMs } = require('./push.js');
 const EXIT = { contained: 0, 'not-contained': 3, 'could-not-resolve': 4 };
 
 // `contained <base> <branch> [--remote <remote>]`: only `--remote` is an option, so an option-shaped `<base>` or
-// `<branch>` stays an operand. The remote defaults to the `Remote:` value of `docs/agents/code-management.md`.
+// `<branch>` stays an operand. The remote defaults to the `Remote:` value of `docs/agents/code-management.md`; with
+// neither, the verb judges locally and prints `remote none`.
 function parseArgs(args) {
   const operands = [];
   let remote;
@@ -45,20 +46,22 @@ function configuredRemote(cwd) {
   }
 }
 
-// Prints the verdict, `base <full sha>` (the base judged against: the refetched one when the refetch ran), `remote <name>`,
+// Prints the verdict, `base <full sha>` (the base judged against: the refetched one when the refetch ran), `remote <name>`
+// (`remote none` where no remote is named, which runs no refetch),
 // and `judged local|refetched`, then `fallback ancestor` where the git lacks `--write-tree`, and `refetch timed-out` or
 // `refetch failed` where the refetch ended without a base to judge. Writes no ledger, trace, or digest, and changes no ref,
 // index, or working tree: the test writes tree objects and the refetch writes fetched commit objects and `FETCH_HEAD`.
 function verbContained(cwd, args) {
   const { base, branch, remote: given } = parseArgs(args);
-  const remote = given || configuredRemote(cwd);
-  if (!remote) fail('contained: no remote; pass --remote <remote> or give docs/agents/code-management.md a Remote: value');
+  // No remote named either way: judge against the local base alone. A null remote skips the refetch, so the
+  // absence never falls through to `judgeContainment`'s `origin` default.
+  const remote = given || configuredRemote(cwd) || null;
   const judged = judgeContainment(cwd, base, branch, remote, { fetchTimeoutMs: pushTimeoutMs(cwd) });
   const refetched = judged.refetch !== null && judged.refetch.status === 0;
   const lines = [
     judged.verdict,
     `base ${resolveCommit(judged.judgedBase, cwd) || 'unresolved'}`,
-    `remote ${remote}`,
+    `remote ${remote || 'none'}`,
     `judged ${refetched ? 'refetched' : 'local'}`,
   ];
   if (judged.fallback) lines.push('fallback ancestor');

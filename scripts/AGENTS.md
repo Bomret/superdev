@@ -529,9 +529,10 @@ writes a ledger line, a trace line, or a digest, and none runs a test. A usage r
   `judged local|refetched`. It adds `fallback ancestor` where the git lacks `merge-tree --write-tree`. It adds `refetch timed-out` or
   `refetch failed` (`refetchMark` of `containment.js`) where the refetch ended without a base. A `not-contained` answer there is
   no verdict on the work (INV-0003, INV-0009). Only `--remote` is an option, so an option-shaped operand stays an operand. The remote
-  defaults to the `Remote:` value of `docs/agents/code-management.md` read at the repository top level. The refetch is bounded by
+  defaults to the `Remote:` value of `docs/agents/code-management.md` read at the repository top level. With neither, it judges
+  against the local base alone, runs no fetch, and prints `remote none` and `judged local`. The refetch is bounded by
   `code-host.pushTimeoutMs` of the operator configuration and writes no remote-tracking ref (`--refmap=`). Exit 0 is `contained`, 3
-  `not-contained`, 4 `could-not-resolve`, and 1 a usage refusal, including no remote from either source. It writes tree objects,
+  `not-contained`, 4 `could-not-resolve`, and 1 a usage refusal. It writes tree objects,
   fetched commit objects, and `FETCH_HEAD`. It writes no ledger, trace, ref, index, or working tree. The code lives in
   `plugin/lib/contained.js`.
 - **`red-evidence --root <run-root> --branch <branch> --base <base-ref> [--ci-head <sha> --ci-file <path>]`** reads what

@@ -66,7 +66,7 @@ Read the stage and the pull request number with one `node "${CLAUDE_PLUGIN_ROOT}
 **The pull request is not merged.** Applies to every gate.
 
 - **The `pr` field of §2's `state` read prints a number** → read that pull request by index per `docs/agents/code-management.md`'s `## Merge` section. Take its `merged` field.
-- **`absent`** (the `push-only` posture opened no pull request) → test the scope branch's containment in base with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" contained <base> <scope-branch>` (`${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Containment` states its lines). Take `<scope-branch>` from the `branch` field of the `scope.js state` call §2 made. `<base>` is the base branch `docs/agents/code-management.md` names. Only a first line of `contained` counts as merged.
+- **`absent`** (the `push-only` posture opened no pull request) → test the scope branch's containment in base with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" contained <base> <scope-branch>` (`${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Containment` states its lines). Take `<scope-branch>` from the `branch` field of the `scope.js state` call §2 made. `<base>` is the base branch `docs/agents/code-management.md` names. Only a first line of `contained` counts as merged. A repository with no remote configured gets a `remote none` verdict judged against the local base, and that verdict counts as it reads.
 - **Unknown** (a failed host read, or any other containment verdict) → not merged.
 
 **A Definition-of-Done line is unsettled.** Applies to every gate. Judge settledness from `<run-root>/dod.md`. Read the anchor's Definition-of-Done lines per `docs/agents/issue-tracker.md` only when `dod.md` is missing.

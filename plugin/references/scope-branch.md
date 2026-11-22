@@ -18,8 +18,10 @@ not-contained answer against a local base refetches `<base>` from the remote and
 brought, the second pass (ADR 0065).
 
 - `--remote <remote>` names the remote. Without it the verb reads the `Remote:` value of
-  `docs/agents/code-management.md` at the repository's top level, from any directory of it. With neither it refuses
-  with exit 1.
+  `docs/agents/code-management.md` at the repository's top level, from any directory of it.
+- **No remote** → with neither, the verb judges against the local `<base>` alone, fetches from no remote, and prints
+  `remote none` and `judged local`. That verdict is authoritative: `contained` is positive local evidence, and
+  `not-contained` is the local answer with no second pass to run.
 
 **The verdict.** Applies to reading the verb's output. The first line is the verdict, and its exit status tells it
 apart in a script:
@@ -35,9 +37,10 @@ apart in a script:
 
 - **`base <full sha>`** names the commit judged against: the commit the refetch brought where it ran, `<base>`
   resolved otherwise.
-- **`remote <name>`** names the remote the refetch used.
+- **`remote <name>`** names the remote the refetch used, and **`remote none`** that no remote was named, so no refetch
+  ran.
 - **`judged local`** or **`judged refetched`**. `refetched` means the verdict came from the retest against the fetched
-  base. `local` means the refetch did not run or brought no base.
+  base. `local` means the refetch did not run, brought no base, or had no remote to fetch from.
 - **`fallback ancestor`** appears where git lacks `merge-tree --write-tree` (git 2.38 or later has it) and the verb
   judged by ancestry alone. The caller says the fallback route was taken.
 - **`refetch timed-out`** or **`refetch failed`** appears beside a `not-contained` verdict whose refetch ran out of
