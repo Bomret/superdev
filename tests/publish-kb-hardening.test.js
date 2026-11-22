@@ -6,7 +6,6 @@
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
 const { publishKbPath, git, makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState, writeOperatorConfig } = require('./publish-kb-setup');
 const { parseStagedPage } = require(publishKbPath);
 const { markStagedCreate, restageLiveHash } = require('../plugin/lib/kb-staged-page.js');
@@ -31,6 +30,19 @@ for (const name of ['knowledge-base.md', 'code-management.md']) {
     assert.ok(!fs.existsSync(stateFile), 'nothing published');
   });
 }
+withState((stateFile) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  stagePage(repo, 'demo', 'p.md', 'title: P\naction: upsert');
+  const target = path.join(repo, 'docs', 'agents', 'code-management.md');
+  fs.rmSync(target, { force: true });
+  fs.mkdirSync(target);
+  const res = call(['--scope', 'demo', '--allow-unmerged'], repo);
+  assert.equal(res.ok, false, '--allow-unmerged does not override an unreadable code-management.md');
+  assert.match(res.err, /code-management\.md cannot be read \(EISDIR\)/, 'the refusal names the file');
+  assert.ok(fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'p.md')), 'the staged page stays');
+  assert.ok(!fs.existsSync(stateFile), 'nothing published');
+});
 withState(() => {
   const repo = makeRepo();
   writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
@@ -48,13 +60,14 @@ withState(() => {
   }
 });
 
-// --- the containment refetch takes code-host.pushTimeoutMs ----------------------------------------
-withState(() => {
+// --- the containment refetch takes code-host.pushTimeoutMs, and push.js's reader default when unset -----
+// An unmerged scope whose remote's upload-pack hangs for `hangSeconds`; the hang records only that it ran to its end.
+function hangingRemoteRepo(scope, hangSeconds) {
   const repo = makeRepo();
   writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
-  stagePage(repo, 'bound', 'p.md', 'title: P\naction: upsert');
+  stagePage(repo, scope, 'p.md', 'title: P\naction: upsert');
   fs.writeFileSync(path.join(repo, 'docs', 'agents', 'code-management.md'), '- **Base branch:** main\n');
-  git(['checkout', '-q', 'feat/bound'], repo);
+  git(['checkout', '-q', `feat/${scope}`], repo);
   fs.writeFileSync(path.join(repo, 'branch-only.txt'), 'x\n');
   git(['add', 'branch-only.txt'], repo);
   git(['commit', '-q', '-m', 'branch-only work'], repo);
@@ -62,14 +75,25 @@ withState(() => {
   git(['remote', 'add', 'origin', repo], repo);
   const done = path.join(repo, '..', `done-${path.basename(repo)}`);
   const hang = path.join(repo, '..', `hang-${path.basename(repo)}.sh`);
-  // The upload-pack outlives the configured bound by seconds and records only a hang that ran to its end.
-  fs.writeFileSync(hang, `#!/bin/sh\nsleep 3\ntouch '${done}'\n`, { mode: 0o755 });
+  fs.writeFileSync(hang, `#!/bin/sh\nsleep ${hangSeconds}\ntouch '${done}'\n`, { mode: 0o755 });
   git(['config', 'remote.origin.uploadpack', `'${hang}'`], repo);
+  return { repo, done };
+}
+withState(() => {
+  // A hang a hundred times the configured bound: only the kill at that bound ends it before the marker.
+  const { repo, done } = hangingRemoteRepo('bound', 60);
   writeOperatorConfig(repo, { 'code-host': { pushTimeoutMs: 200 }, 'knowledge-base': { timeoutMs: 600000 } });
   const res = call(['--scope', 'bound'], repo);
   assert.equal(res.ok, false, 'not contained refuses');
   assert.match(res.err, /not contained/);
   assert.ok(!fs.existsSync(done), 'the refetch ended at the configured bound, before the hang finished');
+});
+withState(() => {
+  // Unset: the bound is push.js's reader default (60 s), not containment's own 5 s fetch bound, so a hang past 5 s still completes.
+  const { repo, done } = hangingRemoteRepo('unset', 7);
+  const res = call(['--scope', 'unset'], repo);
+  assert.equal(res.ok, false, 'not contained refuses');
+  assert.ok(fs.existsSync(done), 'the refetch outlived containment\'s 5 s bound and ran to the hang\'s end');
 });
 
 // --- the report strips escapes, control characters, and bidi controls -------------------------------

@@ -439,7 +439,7 @@ const CONTAINMENT_DELEGATION_CONTRACTS = [
         /\{[^}]*\b(?:testContainment|judgeContainment)\b[^}]*\}\s*=\s*require\(['"]\.\/containment\.js['"]\)/.test(text) &&
         /\b(?:testContainment|judgeContainment)\(/.test(text),
     },
-    "delegate the containment test to lib/containment.js's exported `testContainment` — imported and called " +
+    "delegate the containment test to lib/containment.js's exported `testContainment` or `judgeContainment` — imported and called " +
       'directly — rather than reimplementing the ancestry check itself (ADR 0053)',
   ],
 ];

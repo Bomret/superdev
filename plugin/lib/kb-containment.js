@@ -4,8 +4,12 @@
 // run never ships pages for work no reader can reach.
 //
 // Publishing pages for a scope whose work no reader can reach is worth a warning, and never a
-// block: every outcome below only ever refuses (naming what it found) unless `--allow-unmerged`
-// overrides it, and `_adhoc` — which carries no branch at all — skips the check entirely.
+// block: every containment verdict below only ever refuses (naming what it found) unless `--allow-unmerged`
+// overrides it, and `_adhoc` — which carries no branch at all — skips the check entirely. An unreadable
+// `code-management.md` is no verdict: it returns `unreadable: true`, which `--allow-unmerged` does not override.
+// The refetch is bounded by `code-host.pushTimeoutMs` through the reader in `lib/push.js`, whose default is
+// 60000 ms when the key is unset (the bound the `scope.js` push verb's own containment call takes), and not by
+// `containment.js`'s 5000 ms `FETCH_TIMEOUT_MS`, which applies only to a caller that passes no bound (INV-0003, INV-0009).
 
 const fs = require('fs');
 const path = require('path');
@@ -78,8 +82,8 @@ function parseRemote(docText) {
   return value || null;
 }
 
-// The check itself. Never throws (an unreadable `code-management.md` is a refusal message, not an exception), and the refetch
-// takes the operator's `code-host.pushTimeoutMs` through `push.js`'s reader, the built-in bound when unset (INV-0003, INV-0009), never publishes or deletes anything on its own — `run()` decides
+// The check itself. Never throws (an unreadable `code-management.md` is a refusal message with `unreadable: true`, not an
+// exception), and never publishes or deletes anything on its own — `run()` decides
 // what a refusal means. `{ performed: false }` for `_adhoc`. Otherwise `{ performed: true, ok, ...
 // }`: `ok: true` on a contained branch, and on a scope whose branch and run root are both reaped
 // (ADR 0071). `ok: false` with a `message` naming the branch (when one
@@ -94,7 +98,7 @@ function checkContainment(mainCheckout, scope) {
     codeMgmtText = readPresent(path.join(mainCheckout, 'docs', 'agents', 'code-management.md'), 'utf8');
   } catch (e) {
     if (!e.isRefusal) throw e;
-    return { performed: true, ok: false, message: e.message };
+    return { performed: true, ok: false, unreadable: true, message: e.message };
   }
   const base = parseBaseBranch(codeMgmtText);
   if (!base) {

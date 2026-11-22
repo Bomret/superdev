@@ -73,6 +73,7 @@ function run(argv, cwd) {
   let unmerged = false;
   const containment = checkContainment(mainCheckout, resolvedScope);
   if (containment.performed && !containment.ok) {
+    if (containment.unreadable) fail(`${containment.message} — nothing published`);
     if (!allowUnmerged) {
       fail(`${containment.message} — nothing published (pass --allow-unmerged to publish anyway)`);
     }
@@ -80,13 +81,7 @@ function run(argv, cwd) {
   }
 
   const scopeDir = path.join(stagingRoot, resolvedScope);
-  let listing;
-  try {
-    listing = fs.readdirSync(scopeDir);
-  } catch (e) {
-    fail(`${scopeDir} cannot be read (${e.code || e.message})`);
-  }
-  const files = listing
+  const files = fs.readdirSync(scopeDir)
     .filter((f) => f.endsWith('.md'))
     .sort();
   const results = processStagedFiles(
