@@ -112,6 +112,17 @@ async function scanScope($: EngineInterface, dir: string, name: string, isOpen: 
   }
 }
 
+// The issue-tracker account's name for the assignee line, '' for none: its display name, else its identifier. An
+// identifier of `none` names no account, whatever the display name holds. Every other role adds nothing.
+function issueTrackerName(info: unknown): string {
+  const role = info !== null && typeof info === 'object' && !Array.isArray(info) ? (info as Record<string, unknown>)['issue-tracker'] : undefined
+  if (role === null || typeof role !== 'object' || Array.isArray(role)) return ''
+  const { assignee, displayName } = role as { assignee?: unknown; displayName?: unknown }
+  if (assignee === 'none') return ''
+  if (typeof displayName === 'string' && displayName.trim() !== '') return displayName.trim()
+  return typeof assignee === 'string' && assignee.trim() !== '' ? assignee : ''
+}
+
 // Writes the snapshot only when it changed: every snapshot write redraws the pane.
 async function store($: EngineInterface, next: Snapshot): Promise<void> {
   if (JSON.stringify(await read($, snapshot)) !== JSON.stringify(next)) await update($, snapshot, () => next)
@@ -138,8 +149,8 @@ async function scan($: EngineInterface): Promise<void> {
 
   let assignees: Snapshot['assignees'] = null
   if (top.get('info.json') === 'file') {
-    const info = await $.fs.read(`${root}/info.json`).then(t => JSON.parse(t) as Record<string, { assignee?: string; displayName?: unknown }>).catch(() => ({}))
-    assignees = Object.entries(info).map(([role, v]) => ({ role, who: (typeof v?.displayName === 'string' && v.displayName.trim()) || (v?.assignee ?? '') }))
+    const who = await $.fs.read(`${root}/info.json`).then(t => issueTrackerName(JSON.parse(t) as unknown)).catch(() => '')
+    if (who !== '') assignees = [{ role: 'issue-tracker', who }]
   }
   const intents: Intent[] | null = top.get('brainstorm') === 'dir'
     ? await Promise.all((await files('brainstorm', '.md')).map(async f => intent(f.name.replace(/\.md$/, ''), await $.fs.read(`${root}/brainstorm/${f.name}`).catch(() => ''))))
