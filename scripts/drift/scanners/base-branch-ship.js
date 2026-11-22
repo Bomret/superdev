@@ -298,14 +298,9 @@ function scanNoCiWait(root) {
   for (const rel of files) {
     const lines = fs.readFileSync(path.join(tree, rel), 'utf8').split('\n');
     lines.forEach((line, i) => {
-      if (CI_WAIT_FORMS.some((form) => form.test(line))) {
-        gaps.push({ source: rel, line: i + 1 });
-        return;
-      }
-      if (!CI_WAIT_LOOP_OPENER.test(line)) return;
-      const end = lines.slice(i, i + CI_WAIT_LOOP_LINES).findIndex((l) => /\bdone\b/.test(l));
-      const loop = lines.slice(i, end === -1 ? i + 1 : i + end + 1).join(' ');
-      if (CI_WAIT_FORMS.some((form) => form.test(loop))) gaps.push({ source: rel, line: i + 1 });
+      const end = CI_WAIT_LOOP_OPENER.test(line) ? lines.slice(i, i + CI_WAIT_LOOP_LINES).findIndex((l) => /\bdone\b/.test(l)) : -1;
+      const text = lines.slice(i, end === -1 ? i + 1 : i + end + 1).join(' ');
+      if (CI_WAIT_FORMS.some((form) => form.test(text))) gaps.push({ source: rel, line: i + 1 });
     });
   }
   return gaps;
