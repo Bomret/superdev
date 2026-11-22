@@ -77,9 +77,10 @@ function requiredBy(root, rel) {
 }
 
 // Every file `rel` reaches through relative `require` edges, as candidate paths (see `requiredBy`). The walk
-// continues through a module (a file under `plugin/lib/` or `scripts/drift/`) or a shared suite setup file (a non-suite
-// file under `tests/`), and stops at any other file, a hook or script having a suite of its own. A visited set ends a
-// cycle; a candidate that is no readable file has no edges, so a missing target adds only itself.
+// continues through a module or a shared suite setup file. A module is a file under `plugin/lib/` or `scripts/drift/`.
+// A setup file is a non-suite file under `tests/`. The walk stops at any other file, such as a hook or script that has
+// a suite of its own. A visited set ends a cycle. A candidate that is no readable file has no edges, so a missing target
+// adds only itself.
 const isModule = (rel) =>
   rel.startsWith('plugin/lib/') || rel.startsWith('scripts/drift/') || (rel.startsWith('tests/') && !rel.endsWith('.test.js'));
 function reachedBy(root, rel) {
@@ -241,14 +242,15 @@ function under({ segs, anchored }, rel) {
 // delimiters; a basename another file of the tree shares counts only with a directory part, `namesShared`; a `.md`
 // basename counts only where it ends a string outside a comment, in a path anchored the way a named directory is,
 // `anchoredString`, so a citation, a sentence of fixture text, or a fixture tree's path is no read), when the file its name pins (`pinnedBy`) is the changed file, when the changed file is reached by
-// relative `require` edges, walked transitively through modules (`plugin/lib/` files, `scripts/drift/` files, and
-// non-suite files under `tests/`), from that pinned file or from the suite file itself, or when the changed path is the suite itself. A `.md` path also reaches a suite whose text names a directory
+// relative `require` edges. The walk is transitive through modules: `plugin/lib/` files, `scripts/drift/` files, and
+// non-suite files under `tests/`. It starts from that pinned file or from the suite file itself. A suite also
+// reaches the changed path when the path is the suite itself. A `.md` path also reaches a suite whose text names a directory
 // holding it (`namedDirs`), because a suite may list or scan a directory; a code path never takes the
 // directory rule, so one no rule places keeps making every suite run, except a `RELEASE_TOOLING` path, which no
 // suite's code under test reads. A `.md` path no suite names reaches no suite. A `scripts/drift/` path is placed only by
-// a suite that requires it (directly, or through the walk from the suite or its pinned file) or whose text holds its full
-// repository-relative path, never by its basename or stem, and one no suite places reaches no suite, because the drift
-// selftest runs in the tail. Paths are matched by name, so a deleted path maps like any other.
+// a suite that requires it, directly or through the walk from the suite or its pinned file. A suite whose text holds
+// its full repository-relative path places it too. Its basename or stem places it never. A path no suite places
+// reaches no suite, because the drift selftest runs in the tail. Paths are matched by name, so a deleted path maps like any other.
 // shortcut: `require` is read by regex, transitively from the file a suite pins and from the suite itself, wherever the
 // call sits; a dynamic require reaches no suite and, for an otherwise unplaced path, falls back to every suite.
 function selectSuites(root, suites, paths) {

@@ -55,10 +55,11 @@ function baseNamePattern(name) {
 // negated(): true when a `never` sits right next to the instruction — either right before the
 // *target* (the text between verb and target ends in "never", the shape `never onto the base
 // branch` carries) or right before the *verb* itself (the text before the verb ends in "never", the
-// shape `Never commit … to the base branch` carries). Either shape is a caution; a `never` anywhere
-// else in the window (an earlier aside, an unrelated clause) is not. A verb that closes a verb list
-// (`Never commit, push, or merge …`) shares the list's `never`: the earlier verbs and their list
-// separators (a comma, `or`, `and`, `nor`) are stripped from the text before it first.
+// shape `Never commit … to the base branch` carries). Either shape is a caution. A `never` anywhere
+// else in the window, such as an earlier aside or an unrelated clause, is not.
+// A verb that closes a verb list (`Never commit, push, or merge …`) shares the list's `never`.
+// The earlier verbs are stripped from the text before it, along with their list separators.
+// A list separator is a comma, `or`, `and`, or `nor`.
 const VERB_LIST_TAIL = new RegExp(`(?:${BASE_BRANCH_VERB}(?:\\s*,)?\\s*(?:\\b(?:or|and|nor)\\b\\s*)?)+$`, 'i');
 function negated(beforeVerbText, betweenText) {
   const before = beforeVerbText.slice(-200).replace(VERB_LIST_TAIL, '');
@@ -103,11 +104,11 @@ function scanNoBaseBranchCommit(root) {
         lineOffsets.push(offset);
         offset += l.length + 1;
       }
-      // Every sliding window re-finds the same physical match for as long as it stays in range, and
-      // several verbs (`Commit and push … to the base branch`) can reach one target, so dedup on the
-      // target's absolute end offset — never on "the first hit in this file" — is what reports each
-      // instance once and still lets a real violation later in the file be reported instead of being
-      // masked by an earlier one, negated or not.
+      // Every sliding window re-finds the same physical match for as long as it stays in range.
+      // Several verbs (`Commit and push … to the base branch`) can also reach one target.
+      // So dedup on the target's absolute end offset, never on the first hit in this file.
+      // That reports each instance once. A real violation later in the file is still reported,
+      // and an earlier one, negated or not, masks none.
       const reportedAt = new Set();
       for (let i = 0; i < lines.length; i++) {
         const window = lines.slice(i, i + BASE_BRANCH_COMMIT_WINDOW).join('\n');

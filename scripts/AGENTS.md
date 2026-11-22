@@ -1080,10 +1080,10 @@ paths reach, matching by name, so a deleted path maps like any other. A suite is
 names the changed file (its basename, or its bare stem between path or quote delimiters), when the shipped
 file its name pins (`plugin/hooks/<name>.js`, `plugin/lib/<name>.js`, `plugin/scripts/<name>.js`, or `scripts/<name>.js`) is the
 changed file or requires it, or the suite file itself requires it, or when the path is the suite itself. A path under
-`scripts/drift/` is the exception to the naming rule: only a suite that requires it, directly, through its pinned
-file, or through the modules the walk follows (`plugin/lib/` files, `scripts/drift/` files, and non-suite files under
-`tests/`), or whose text holds its full repository-relative path (`scripts/drift/lib.js`) reaches it, because its basename
-and stem (`lib`, `checks`, `adr`) are common path segments. A drift path no suite reaches selects no suite and never
+`scripts/drift/` is the exception to the naming rule, because its basename and stem (`lib`, `checks`, `adr`) are
+common path segments. Two kinds of suite reach it. The first requires it, directly, through its pinned file, or through
+the modules the walk follows. Those modules are `plugin/lib/` files, `scripts/drift/` files, and non-suite files under
+`tests/`. The second holds its full repository-relative path (`scripts/drift/lib.js`) in its text. A drift path no suite reaches selects no suite and never
 every suite, because the drift selftest runs in the tail. A suite split off another
 (`tests/scope-ledger.test.js`, with no `scope-ledger.js` entry point shipped) pins the file of the longest
 `-`-delimited prefix of its name that pins one (`plugin/scripts/scope.js`), and an exact pin wins. A test helper reaches every suite that names
@@ -1253,7 +1253,7 @@ path, when that document is missing. A check that walks a directory reads whatev
 | `background-rule-names-limit` | no skill, agent, or reference, and no `AGENTS.md` in `plugin/skills/`, `plugin/agents/`, or `plugin/references/` (the shipped one is `plugin/references/AGENTS.md`), states the background rule against an unnamed Bash limit: "the Bash tool's time limit" or "the tool's limit", matched across a line wrap and a run of spaces, fenced examples masked, so the rule names the ceiling (600000 ms, or the higher `BASH_MAX_TIMEOUT_MS`) (ADR 0232) | prohibition |
 | `conflict-conclusion-no-commit` | no skill, agent, or reference concludes a resolved merge conflict with `git commit` (ADR 0123) | prohibition |
 | `dod-box-rule` | no skill, agent, or reference judges a Definition-of-Done line by its checkbox or calls a `ceiling:` line settled: the spellings "neither ticked nor `accepted`", "ticked or (noted) `accepted`", "a ticked line or an `accepted`", "ticked with no `ceiling`", "ticked, `ceiling:`, or `accepted`", "already-ticked line changes nothing", and "settled" said of a `ceiling:` line, each word joined by `\s+` so a line break matches, fenced examples masked; the documents are the prose directories read at scan time (ADR 0247, INV-0190) | prohibition |
-| `code-management-no-force` | no code-management document sends `force_merge: true` or `--admin` on a merge, in prose or in a fenced code block; a `never` right before the option excuses it (INV-0092) | prohibition |
+| `code-management-no-force` | no code-management document sends `force_merge: true` or `--admin` on a merge, in prose or in a fenced code block. A `never` right before the option excuses it (INV-0092) | prohibition |
 | `forgejo-tea-only` | no Forgejo backend document names a token env var, an `Authorization` header, or a curl call (ADR 0111) | prohibition |
 | `github-wiki-gh-only` | neither the GitHub wiki seed nor `docs/agents/knowledge-base.md` names a token env var (`GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`) or an `Authorization` header | prohibition |
 | `kb-no-backend-call` | plan, document, `doc-writer`, and `doc-pass.md` carry no instruction that reaches a knowledge-base backend (ADR 0023) | prohibition |

@@ -19,7 +19,7 @@ brought, the second pass (ADR 0065).
 
 - `--remote <remote>` names the remote. Without it the verb reads the `Remote:` value of
   `docs/agents/code-management.md` at the repository's top level, from any directory of it.
-- **No remote** → with neither, the verb judges against the local `<base>` alone, fetches from no remote, and prints
+- **No remote** → with no `--remote` and no `Remote:` value, the verb judges against the local `<base>` alone, fetches from no remote, and prints
   `remote none` and `judged local`. That verdict is authoritative: `contained` is positive local evidence, and
   `not-contained` is the local answer with no second pass to run.
 
