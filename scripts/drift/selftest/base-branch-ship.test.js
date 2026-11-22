@@ -123,6 +123,15 @@ module.exports = ({ assert, fixture, found }) => {
     1,
     'a verb inside the excused match\'s span is tried as its own start',
   );
+  // a `never` before a verb list excuses every verb in the list
+  assert.equal(noBase({ 'references/prototype.md': 'Never commit or push to the base branch.\n' }).length, 0, 'a never before `commit or push` excuses both verbs');
+  assert.equal(
+    noBase({ 'references/prototype.md': 'Never commit, push, or merge to the base branch.\n' }).length,
+    0,
+    'a never before `commit, push, or merge` excuses every verb',
+  );
+  // several verbs aimed at one target are one instance
+  assert.equal(noBase({ 'skills/plan/SKILL.md': 'Commit and push the docs to the base branch.\n' }).length, 1, 'two verbs on one target are reported once');
   // one physical instance, re-found by every window that holds it, is reported once
   assert.equal(
     noBase({ 'skills/plan/SKILL.md': 'One.\nTwo.\nThree.\nCommit the docs to the base branch.\nFive.\nSix.\n' }).length,

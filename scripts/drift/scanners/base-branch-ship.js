@@ -56,10 +56,14 @@ function baseNamePattern(name) {
 // *target* (the text between verb and target ends in "never", the shape `never onto the base
 // branch` carries) or right before the *verb* itself (the text before the verb ends in "never", the
 // shape `Never commit … to the base branch` carries). Either shape is a caution; a `never` anywhere
-// else in the window (an earlier aside, an unrelated clause) is not.
+// else in the window (an earlier aside, an unrelated clause) is not. A verb that closes a verb list
+// (`Never commit, push, or merge …`) shares the list's `never`: the earlier verbs and their list
+// separators (a comma, `or`, `and`, `nor`) are stripped from the text before it first.
+const VERB_LIST_TAIL = new RegExp(`(?:${BASE_BRANCH_VERB}(?:\\s*,)?\\s*(?:\\b(?:or|and|nor)\\b\\s*)?)+$`, 'i');
 function negated(beforeVerbText, betweenText) {
+  const before = beforeVerbText.slice(-200).replace(VERB_LIST_TAIL, '');
   return (
-    /\bnever\b\s*$/i.test(beforeVerbText.slice(-NEVER_NEGATION_WINDOW)) ||
+    /\bnever\b\s*$/i.test(before.slice(-NEVER_NEGATION_WINDOW)) ||
     /\bnever\b/i.test(betweenText.slice(-NEVER_NEGATION_WINDOW))
   );
 }
@@ -99,10 +103,11 @@ function scanNoBaseBranchCommit(root) {
         lineOffsets.push(offset);
         offset += l.length + 1;
       }
-      // Every sliding window re-finds the same physical match for as long as it stays in range, so
-      // dedup on the match's absolute offset — never on "the first hit in this file" — is what lets
-      // a real violation later in the file still get reported instead of being masked by an earlier
-      // one, negated or not.
+      // Every sliding window re-finds the same physical match for as long as it stays in range, and
+      // several verbs (`Commit and push … to the base branch`) can reach one target, so dedup on the
+      // target's absolute end offset — never on "the first hit in this file" — is what reports each
+      // instance once and still lets a real violation later in the file be reported instead of being
+      // masked by an earlier one, negated or not.
       const reportedAt = new Set();
       for (let i = 0; i < lines.length; i++) {
         const window = lines.slice(i, i + BASE_BRANCH_COMMIT_WINDOW).join('\n');
@@ -114,12 +119,13 @@ function scanNoBaseBranchCommit(root) {
             const match = pattern.exec(window);
             if (!match) continue;
             const absIndex = lineOffsets[i] + match.index;
-            if (reportedAt.has(absIndex)) continue;
+            const targetEnd = absIndex + match[0].length;
+            if (reportedAt.has(targetEnd)) continue;
             if (negated(masked.slice(0, absIndex), match[1])) continue;
             // Tested against the whole document from the match's own absolute offset forward, never
             // against `window` alone: the admission wording can sit just past the window's edge.
             if (isShipMergeAdmitFile && SHIP_MERGE_ADMIT_PATTERN.test(masked.slice(absIndex, absIndex + 200))) continue;
-            reportedAt.add(absIndex);
+            reportedAt.add(targetEnd);
             const lineOffset = window.slice(0, match.index).split('\n').length - 1;
             gaps.push({ source, line: i + 1 + lineOffset });
           }
