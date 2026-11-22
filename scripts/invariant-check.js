@@ -196,8 +196,9 @@ function conceptFailures(entries, terms) {
 
 // A `Paths` glob as a predicate over repo-relative paths: `**` spans segments, `*` and `?` stay
 // inside one. Matching runs on forward slashes, so a path carrying backslash separators matches
-// the same glob. The matcher stays hand-rolled because its semantics are what the register's `Paths:`
-// field means: `**` spanning segments, `*` and `?` inside one, and no braces or character classes.
+// the same glob. The repository requires Node 24 or later (`package.json`'s `engines.node`), where
+// `fs.globSync` exists; the matcher stays hand-rolled because its semantics are what the register's
+// `Paths:` field means: `**` spanning segments, `*` and `?` inside one, and no braces or character classes.
 function globMatcher(glob) {
   let source = '';
   for (let i = 0; i < glob.length; i++) {
