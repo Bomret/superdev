@@ -415,6 +415,7 @@ function pinGithubWikiTemplates(realDoc, HOST, REPO) {
   const seed = fs.readFileSync(seedPath, 'utf8');
   const filled = seed.replaceAll('<host>', 'git.example.org').replaceAll('<owner>/<repo>', 'acme/widgets');
   assert.doesNotMatch(filled, /<host>|<owner>|<repo>|bomret\/superdev|github\.com/i, 'the seed names its host and repository only through the placeholders');
+  assert.doesNotMatch(filled, /GITEA_TOKEN|GH_TOKEN|GITHUB_TOKEN|Authorization|curl/, 'the filled seed names no token env var, header, or curl');
   // The filled seed yields this repository's templates, body format, and hierarchy, so the one behavioural run above covers
   // it. Host and repository are substituted inside each side's templates, never across a whole document.
   const neutral = (doc, host, repo) => JSON.parse(JSON.stringify(classifyBackend(doc).templates).replaceAll(host, '<host>').replaceAll(repo, '<owner>/<repo>'));
