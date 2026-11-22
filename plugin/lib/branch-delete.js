@@ -27,7 +27,7 @@ function parseArgs(args) {
   while (rest.length) {
     const flag = rest[0];
     if (!ownFlag(flag)) fail(`branch delete: unrecognized argument "${flag}"`);
-    // A remote or base is free text that may start with `--` and reaches git as an operand; `--root` is a path.
+    // A remote or base is free text that may start with `--` and reaches git as an operand. `--root` is a path.
     opts[flags[flag]] = flag === '--root' ? takeRootOption(rest, 'branch delete: ') : takeOption(rest, flag, 'branch delete: ', ownFlag);
   }
   if (opts.root === undefined) fail('branch delete needs --root <run-root>');
@@ -84,7 +84,7 @@ function verbBranchDelete(cwd, args) {
     return;
   }
 
-  // The remote goes first, so the tracking ref is deleted only once the remote branch reads deleted or gone; a kept
+  // The remote goes first, so the tracking ref is deleted only once the remote branch reads deleted or gone. A kept
   // remote branch keeps its tracking ref as the clone's pointer to it. The printed order stays local, tracking, remote.
   const local = deleteLocal(cwd, branch, localTip);
   const remoteLine = remote ? deleteRemote(cwd, remote, branch, tested) : 'remote not-reached no remote is configured or given';

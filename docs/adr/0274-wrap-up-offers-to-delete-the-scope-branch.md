@@ -8,14 +8,14 @@ point 3, whose cleanup kept the scope branch.
 
 **Context.** `/superdev:wrap-up` closes a shipped scope and removes its scopetree and slicetrees, and its
 cleanup keeps the scope branch. `hooks/scope-prune.js` deletes the local ref and its remote-tracking copies
-seven days after the run reads `closed`, once base contains the branch (ADR 0071). Nothing in superdev
-deletes the branch on the remote. A host that deletes a pull request's head branch on merge removes it
-there; a host configured otherwise keeps one dead remote branch per shipped feature, and the operator
-deletes each by hand.
+once the run's stage reads `closed`, its run root has sat untouched for more than seven days, and base
+contains the branch (ADR 0071). Nothing in superdev deletes the branch on the remote. A host that deletes a
+pull request's head branch on merge removes it there. A host configured otherwise keeps one dead remote
+branch per shipped feature, and the operator deletes each by hand.
 
-**Decision.** Wrap-up asks the operator once, in its cleanup, whether to delete the scope branch, local and
-remote together, now. It asks only when base contains the branch, and a no keeps both, leaving the prune's
-reap of the local ref as it is.
+**Decision.** Wrap-up asks the operator one question in its cleanup: delete the scope branch now? A yes
+deletes the local and the remote branch together. Wrap-up asks only when base contains the branch. A no keeps
+both and leaves the prune's reap of the local ref as it is.
 
 - **The check lives in code.** `scope.js branch delete --root <run-root> --base <base> [--remote <remote>]`
   reads the ledger's `**Branch:**` line, tests containment itself, and deletes only a contained branch. The
@@ -28,9 +28,9 @@ reap of the local ref as it is.
   what it could not delete and the stage write still runs.
 - **The ask follows the tree removal**, because git refuses to delete a branch a worktree has checked out.
 
-**Why.** The containment proof wrap-up's gate already relies on is the proof a delete needs, and the
-operator is present at that moment. Asking keeps a branch the operator still wants, such as one a later
-feature will reuse by name, and the lease keeps a delete from taking commits nobody tested.
+**Why.** The containment proof wrap-up's gate already relies on is the proof a delete needs. The operator
+is present at that moment. Asking keeps a branch the operator still wants, such as one a later feature
+will reuse by name. The lease keeps a delete from taking commits nobody tested.
 
 **Considered options.** *Two asks, local and remote apart.* Rejected: an operator who keeps one ref and
 deletes the other is rare, and the prune already reaps a kept local ref. *Delete on the merged check alone.*
@@ -40,6 +40,6 @@ as the model follows it, and a verb gets a suite. *Delete without asking.* Rejec
 still matter to the operator, and a remote delete is outward-facing.
 
 **Consequences.** Wrap-up's **No extra question** rule names this ask as its one exception. A deleted
-branch reads gone to the prune, which then reaps the run root on its TTL with no containment test
-(ADR 0053). A branch deleted in error is recovered from the reflog locally, and from the host only where it
-keeps deleted branches.
+branch reads gone to the prune, which then reaps the run root after its seven-day staleness limit with no
+containment test (ADR 0053). The operator recovers a branch deleted in error from the reflog locally, and
+from the host only where it keeps deleted branches.
