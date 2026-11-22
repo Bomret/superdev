@@ -484,6 +484,7 @@ const UNNAMED_BASH_LIMIT_PATTERN = /\btool['’]s\s+(?:time\s+)?limit\b/gi;
 // protection and required approvals, which is exactly what a pinned merge must never do. This is a
 // shape-based absence check: it catches an actual invocation, not the option's name used to say it is
 // forbidden (`this seed never sends it`), so a paraphrased way of setting the same field walks past it.
+// Fenced code blocks are read too: a fenced call is an invocation, and a fenced `never` is a caution.
 // simplicity: shape-based, and its ceiling is the two spellings below.
 const NO_FORCE_MERGE_DOCS = [
   path.join('references', 'code-management-forgejo.md'),
