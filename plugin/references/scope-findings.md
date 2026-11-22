@@ -18,7 +18,7 @@ is never a stage value and never a failure of the code. Two shapes occur:
 §2 `simplicity-reviewer`. A denial of it records nothing.
 
 **The verdict.** Applies to a denied dispatch on a live scope run, after the denial is recorded. Run `node
-${CLAUDE_PLUGIN_ROOT}/scripts/scope.js denial <pass> [--unattended] --root <run-root>`, with `<pass>` one of
+"${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" denial <pass> [--unattended] --root <run-root>`, with `<pass>` one of
 `implementer`, `fix`, `final-reviewer`, `slice-reviewer`, or `doc-reader`, and `--unattended` on an unattended run. It
 prints one verdict line:
 
@@ -40,7 +40,7 @@ unattended alike. A denied authoring dispatch (`doc-writer`) follows its skill's
 `--unattended`.
 
 **Recording a denial.** Applies to a denied verification dispatch on a live run. Pipe the bullet through a quoted
-heredoc (`<<'SUPERDEV_TEXT_EOF'`) to `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js degraded add-denial - --root
+heredoc (`<<'SUPERDEV_TEXT_EOF'`) to `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" degraded add-denial - --root
 <run-root>`, which prefixes it `denied: `, before asking for the verdict. The bullet quotes the classifier's refusal
 text beside the name of the pass, newlines flattened to spaces, cut at about 200 characters with an ellipsis.
 
@@ -50,13 +50,13 @@ text beside the name of the pass, newlines flattened to spaces, cut at about 200
 - A denied Bash command or authoring dispatch takes plain `degraded add`.
 
 **Resetting the count is a human act.** Applies to the denial count. No chain command resets it. After addressing the
-cause, the human pipes a reason through a quoted heredoc to `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js degraded
+cause, the human pipes a reason through a quoted heredoc to `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" degraded
 reset-denials - --root <run-root>`, which refuses without one, and clears the `blocked` label off the scope anchor and
 every slice it marked, per the status map in `docs/agents/issue-tracker.md`. The count runs from the last reset
 marker, and every bullet stays.
 
 **The entry.** Applies to every degraded pass on a live run. Write a bullet to the `**Degraded:**` line of
-`<run-root>/ledger.md` with `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js degraded add '<text>' --root <run-root>`, which
+`<run-root>/ledger.md` with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" degraded add '<text>' --root <run-root>`, which
 creates the line or appends to it. Each bullet names the pass, why it degraded, and the date:
 
 ```markdown
@@ -81,7 +81,7 @@ block reached at that cap, a Definition-of-Done criterion the doc pass's own re-
 
 **Write it where the run gives up.** Applies to every unresolved defect. A command writes the entry at the point the
 run gives up on it, never where the defect first appears. Pipe each bullet through a quoted heredoc
-(`<<'SUPERDEV_TEXT_EOF'`) to `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js unresolved add - --root <run-root>`, which
+(`<<'SUPERDEV_TEXT_EOF'`) to `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved add - --root <run-root>`, which
 creates the `**Unresolved:**` line when absent and appends when present. Each bullet names the defect, where it stands,
 and the date:
 
@@ -94,7 +94,7 @@ and the date:
 - A run with nothing to report carries no such line at all, never a present and empty one.
 
 **`unresolved clear` drops the whole line.** Applies to a run that resumes, fixes the defect, and re-verifies the
-scope green. Clear the record with `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js unresolved clear --root <run-root>`.
+scope green. Clear the record with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" unresolved clear --root <run-root>`.
 Clearing is wholesale, never per bullet. On a ledger with no such line it succeeds and changes nothing.
 
 ## Deferred findings
@@ -116,7 +116,7 @@ whatever the finding's severity.
 
 **Deferring a finding.** Applies to every finding that defers. Run these steps in order.
 
-1. **Skip a duplicate.** Read `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js get deferred --root <run-root>` and skip a
+1. **Skip a duplicate.** Read `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" get deferred --root <run-root>` and skip a
    finding the line already carries.
 2. **Match an open record.** List the open triage records and follow `store-records.md`'s `## Triage record`
    read-before-write rule. A matching record stands in for a new one. A store document that defines no triage record
@@ -124,7 +124,7 @@ whatever the finding's severity.
 3. **Create the triage record** otherwise, per the active `docs/agents/issue-tracker.md`'s `## Triage record` section.
    The write is best-effort: a failure is reported once per run, and the bullet is still written.
 4. **Write the bullet.** Pipe it through a quoted heredoc (`<<'SUPERDEV_TEXT_EOF'`) to `node
-   ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js deferred add - --root <run-root>`, which creates the `**Deferred:**` line in
+   "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deferred add - --root <run-root>`, which creates the `**Deferred:**` line in
    `<run-root>/ledger.md` or appends to it. The bullet names the finding, why no criterion covers it, the triage
    record's reference, and the date:
 
@@ -144,7 +144,7 @@ a capability keeps it deferred. Once the fix implementer's report names the fixi
 longer lists the finding, resolve it in this order:
 
 1. **Remove the bullet.** Pipe the exact text `get deferred` printed, through a quoted heredoc
-   (`<<'SUPERDEV_TEXT_EOF'`), to `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js deferred resolve - --root <run-root>`.
+   (`<<'SUPERDEV_TEXT_EOF'`), to `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" deferred resolve - --root <run-root>`.
    It removes every identical bullet, and the line once none remains. Text that matches no bullet is refused, and the
    ledger stays unchanged.
 2. **Close its triage record**, when the bullet names one, through the active `docs/agents/issue-tracker.md`'s `##

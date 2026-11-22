@@ -84,7 +84,7 @@ Operator configuration, not a slice field (`assignee.md` → *Assignee*). The id
 `scope`, or `docs`) when it creates the Epic. Once every slice issue exists, the controller rewrites each
 slice-id tag into its `key`, in the same parallel step as **Link a dependency**, each rewrite a
 description edit through **Edit an issue's body** whose producer is
-`node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js dod-tags --map-file <path>`, the map file holding one
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-tags --map-file <path>`, the map file holding one
 `<id> <PROJ>-<n>` pair per slice. A tag naming several slices becomes `<PROJ>-<n>, <PROJ>-<m>`, never
 bracketed. A `scope` tag stays `scope`, and a `docs` tag `docs`. The controller types no store tag itself.
 On an ADF description the verb runs per checklist paragraph, as `dod-line` does in

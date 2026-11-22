@@ -18,6 +18,8 @@ const {
   scanScopeReviewNoFullRun,
   scanBackgroundRuleNamesLimit,
   scanDodBoxRule,
+  scanPluginRootQuoted,
+  scanPluginPrefixPath,
 } = require('../scanners');
 
 module.exports = ({ assert, path, fixture, found }) => {
@@ -575,5 +577,55 @@ module.exports = ({ assert, path, fixture, found }) => {
     boxRule({ 'references/plan-contract.md': '```\n- [x] <criterion> — met: <evidence> neither ticked nor `accepted:`\n```\n' }).length,
     0,
     'dod-box-rule: a fenced line-format example is masked',
+  );
+
+  // --- plugin-root-quoted: every shipped `node` call keeps the plugin-root path one argument ---
+
+  const rootQuoted = (files) => found(scanPluginRootQuoted(fixture(files)));
+  for (const [text, label] of [
+    ['Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js state`.\n', 'an unquoted ${CLAUDE_PLUGIN_ROOT} path'],
+    ['Run `node\n${CLAUDE_PLUGIN_ROOT}/scripts/scope.js state`.\n', 'a line break inside the backticks'],
+    ['Run `node`\n`${CLAUDE_PLUGIN_ROOT}/scripts/scope.js state`.\n', 'a line break between two backtick spans'],
+    ['Run `node $CLAUDE_PLUGIN_ROOT/scripts/scope.js state`.\n', 'an unquoted $CLAUDE_PLUGIN_ROOT path'],
+    ['```sh\nnode ${CLAUDE_PLUGIN_ROOT}/scripts/kb-patch.js a b\n```\n', 'a fenced command'],
+  ]) {
+    assert.equal(rootQuoted({ 'references/run-state.md': text }).length, 1, `plugin-root-quoted: flags ${label}`);
+  }
+  assert.equal(
+    rootQuoted({
+      'references/run-state.md': 'Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" state`, then `node\n"${CLAUDE_PLUGIN_ROOT}/scripts/kb-patch.js"`.\n',
+      'skills/plan/SKILL.md': 'The plugin root is `${CLAUDE_PLUGIN_ROOT}`, and Node runs every hook.\n',
+    }).length,
+    0,
+    'plugin-root-quoted: a quoted path and a bare mention pass',
+  );
+  assert.deepEqual(
+    rootQuoted({
+      'references/AGENTS.md': 'Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js`.\n',
+      'agents/implementer.md': 'Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js`.\n',
+      'skills/ship/SKILL.md': 'Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js`.\n',
+    }).map((gap) => gap.source).sort(),
+    ['agents/implementer.md', 'references/AGENTS.md', 'skills/ship/SKILL.md'],
+    'plugin-root-quoted: references/AGENTS.md, an agent, and a skill are each read',
+  );
+
+  // --- plugin-prefix-path: shipped prose names a shipped path without the repository's plugin/ prefix ---
+
+  const prefixed = (files) => found(scanPluginPrefixPath(fixture(files)));
+  for (const dir of ['hooks/merge-guard.js', 'references/doc-pass.md', 'scripts/publish-kb.js', 'skills/ship/SKILL.md', 'agents/implementer.md', 'lib/route.js']) {
+    assert.equal(prefixed({ 'skills/review/SKILL.md': `The guard is \`plugin/${dir}\`.\n` }).length, 1, `plugin-prefix-path: flags plugin/${dir}`);
+  }
+  assert.equal(
+    prefixed({
+      'skills/review/SKILL.md':
+        'The manifest is `.claude-plugin/plugin.json`. See https://github.com/Bomret/superdev/blob/main/plugin/references/x.md and `hooks/merge-guard.js`.\n',
+    }).length,
+    0,
+    'plugin-prefix-path: .claude-plugin/plugin.json, a URL, and an unprefixed path pass',
+  );
+  assert.equal(
+    prefixed({ 'references/AGENTS.md': 'Each lens lives in `plugin/references/x.md`.\n' }).length,
+    1,
+    'plugin-prefix-path: references/AGENTS.md is read',
   );
 };

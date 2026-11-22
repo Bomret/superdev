@@ -245,7 +245,7 @@ store's own notation. The write **replaces** the line's previous note and never 
 
 - **A target state equal to the line's current state**, a `not met:` judgment on a line already unticked say → replace
   only the note, and leave the marker as it was.
-- `scope.js dod-line` (`scripts/AGENTS.md` → *scope.js, the run-state CLI*) is the one line edit. Every store runs it
+- `scope.js dod-line` (`references/dod-ticks.md`, its verdict write) is the one line edit. Every store runs it
   on the checklist text its own read extracted, through its own gated body-edit rule.
 
 **Tags into store notation.** Applies to `/superdev:plan` §6. It writes each criterion's tag in this file's notation,

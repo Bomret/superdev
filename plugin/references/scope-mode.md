@@ -66,7 +66,7 @@ type.
 `ledger.md`.
 
 **The run-root path.** Applies to every run-root artifact. Capture `<run-root>` from `node
-${CLAUDE_PLUGIN_ROOT}/scripts/scope.js root <scope>`'s printed absolute path, the repository's main working tree
+"${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" root <scope>`'s printed absolute path, the repository's main working tree
 whichever checkout the command runs from. Build no path against the invoking checkout's own cwd. Address every
 artifact by that absolute path: `<run-root>/ledger.md`, `<run-root>/dod.md`, `<run-root>/run.lock`.
 
@@ -87,7 +87,7 @@ code of the whole repository there.
 
 **Run-root enumeration.** Applies to a caller whose candidate set is run roots at named stages. The calling command
 names the qualifying stages: `/superdev:submit-pr` names every stage but `shipped` and `closed`, and `/superdev:review`
-names `merged` and `documented-unreviewed`. Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js candidates --stage
+names `merged` and `documented-unreviewed`. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" candidates --stage
 <stage>[,<stage>]`, which scans the main working tree's run roots from any checkout, writes nothing, and prints one
 verdict:
 
@@ -104,14 +104,14 @@ verdict:
 **`/superdev:implement`'s set.** Applies to implement's empty argument. Its candidate set is the features whose slices
 are ready, read from the slice store and handed straight to the cascade, with no run-root enumeration.
 
-**A caller that cannot ask stops and lists instead.** Applies to `plugin/scripts/publish-kb.js`, which has no
+**A caller that cannot ask stops and lists instead.** Applies to `scripts/publish-kb.js`, which has no
 interview loop. With several candidates or none, it refuses and lists them, in the shape the several-candidate and
 no-candidate branches print.
 
 ## The scope branch
 
 **The verb.** Applies to every command that needs a run's scope branch. Run `node
-${CLAUDE_PLUGIN_ROOT}/scripts/scope.js branch --root <run-root>`; compute nothing yourself. It reads the ledger and
+"${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" branch --root <run-root>`; compute nothing yourself. It reads the ledger and
 git, writes nothing, and prints one line:
 
 - **`ledger <branch>`** → the ledger's `**Branch:**` line names a local branch. This is the answer. A tag, a SHA, or a

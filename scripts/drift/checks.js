@@ -30,6 +30,8 @@ const {
   scanConflictConclusionNoCommit,
   scanBackgroundRuleNamesLimit,
   scanDodBoxRule,
+  scanPluginRootQuoted,
+  scanPluginPrefixPath,
   scanTeaOnly,
   scanGithubWikiGhOnly,
   scanDeployRunnerExclusivity,
@@ -218,6 +220,18 @@ module.exports = [
     id: 'dod-box-rule',
     ok: 'no shipped prose judges a Definition-of-Done line by its checkbox or calls a `ceiling:` line settled (INV-0190)',
     run: scanDodBoxRule,
+    format: contractGap,
+  },
+  {
+    id: 'plugin-root-quoted',
+    ok: 'every shipped `node` call quotes the plugin-root path',
+    run: scanPluginRootQuoted,
+    format: contractGap,
+  },
+  {
+    id: 'plugin-prefix-path',
+    ok: "no shipped prose names a path with the repository's `plugin/` prefix",
+    run: scanPluginPrefixPath,
     format: contractGap,
   },
   {

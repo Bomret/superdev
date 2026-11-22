@@ -193,7 +193,7 @@ Applies to every start past §1. Read the stage and the pull request number with
 
 - **Rejected, non-fast-forward** → the pull request's head carries commits this scope branch lacks. Refuse: name that gap and merge nothing. Put fetching those commits into the scope branch on a `First:` line, and print `/superdev:review <scope>` as the next command, then `/superdev:ship <scope>` again.
 - **Rejected for any other reason** (authentication, a pre-receive hook, the network) → relay git's error and merge nothing. Stop.
-- **Accepted, on the local path** → repeat the PR read until its `head.sha` equals the tip just pushed, at most 3 times with a short pause, the bound `plugin/references/code-management-github.md` uses for a `null` `mergeable`. Still different → the equality check refuses.
+- **Accepted, on the local path** → repeat the PR read until its `head.sha` equals the tip just pushed, at most 3 times with a short pause, the bound `references/code-management-github.md` uses for a `null` `mergeable`. Still different → the equality check refuses.
 
 **The equality check.** Applies before the merge. The freshest `head.sha`, from the read after a push or from §3 without one, must equal the tip: on the local path, the tip `suite reusable` accepted, the carry covered, or the local run passed; on the CI path, the local tip. They differ → refuse: name both shas, and merge nothing.
 

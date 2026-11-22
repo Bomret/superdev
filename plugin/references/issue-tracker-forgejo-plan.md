@@ -87,7 +87,7 @@ every slice** in `tea issues create`'s `-a`, never a follow-up pass.
 `scope`, or `docs`) when it creates the epic. Once every slice issue exists, the controller rewrites each
 slice-id tag into `#<n>`, in the same parallel step as **Record a dependency**, each rewrite a body edit
 through **Edit an issue's body** whose producer is
-`node ${CLAUDE_PLUGIN_ROOT}/scripts/scope.js dod-tags --map-file <path>`, the map file holding one
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-tags --map-file <path>`, the map file holding one
 `<id> #<n>` pair per slice. A tag naming several slices becomes `#<n>, #<m>`, never bracketed. The
 controller types no store tag itself. `dod-tags` refuses, printing nothing, on any unjudged line whose tag
 `dod-line` cannot read or whose slice id the map lacks, so the gate stops the edit.

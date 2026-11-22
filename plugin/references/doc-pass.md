@@ -83,7 +83,7 @@ from the standard's *Declare per language* section as the repository answered it
 decides the feature has reached its readers.
 
 **The read.** Applies to an existing non-aggregate page you are about to stage an `upsert` for. Read it through the
-read entry `plugin/scripts/publish-kb.js` exposes, under the same time bound as every other backend call. A read needs
+read entry `scripts/publish-kb.js` exposes, under the same time bound as every other backend call. A read needs
 the same credential a write would.
 
 - **No credential configured, or no `read` command in the backend** → the read is unavailable, handled as `## Pass 2
