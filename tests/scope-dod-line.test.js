@@ -1,7 +1,8 @@
 'use strict';
 
 // Suite for plugin/scripts/scope.js's `dod-line` verb: the Definition-of-Done checklist line editor, body and
-// --line modes, tagged and untagged criteria, the four verdicts, and the fail-closed refusals. The shared
+// --line modes, tagged and untagged criteria, the four verdicts, and the fail-closed refusals, an unreadable --match-file or
+// --note-file among them. The shared
 // directory and `call` come from tests/scope-setup.js.
 
 const assert = require('node:assert');
@@ -449,6 +450,19 @@ try {
     assert.ok(!r.ok, 'dod-line --match -h refuses with a non-zero exit');
     assert.ok(/--match-file/.test(r.err), 'the refusal names --match-file: ' + r.err);
     assert.strictEqual(r.out, '', 'dod-line --match -h prints no usage');
+
+    // An option file that cannot be read (a directory where the file belongs) refuses naming the option and the path, apart from
+    // the empty-file and missing-flag refusals, and prints nothing.
+    const unreadable = path.join(dir, 'a-directory');
+    fs.mkdirSync(unreadable);
+    r = rawCall(['dod-line', '--match-file', unreadable, '--verdict', 'met', '--note-file', notePath], body);
+    assert.ok(!r.ok, 'an unreadable --match-file refuses');
+    assert.ok(r.err.includes(`--match-file could not read "${unreadable}"`), 'the refusal names --match-file and its path: ' + r.err);
+    assert.strictEqual(r.out, '', 'an unreadable --match-file prints nothing');
+    r = rawCall(['dod-line', '--match-file', matchPath, '--verdict', 'met', '--note-file', unreadable], body);
+    assert.ok(!r.ok, 'an unreadable --note-file refuses');
+    assert.ok(r.err.includes(`--note-file could not read "${unreadable}"`), 'the refusal names --note-file and its path: ' + r.err);
+    assert.strictEqual(r.out, '', 'an unreadable --note-file prints nothing');
 
     fs.rmSync(dir, { recursive: true, force: true });
   }

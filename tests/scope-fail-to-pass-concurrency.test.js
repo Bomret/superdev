@@ -5,7 +5,8 @@
 require('./fixture-git');
 
 // Suite for plugin/scripts/scope.js's `fail-to-pass` verb (ADR 0134, #1315): runs at the same time in one run root, and the
-// lock over the repository's worktree registry. Every scenario writes only inside the fixture's own temporary directory
+// lock over the repository's worktree registry: a dead holder's lock taken over however fresh, and a no-holder pid record or a
+// lock with no pid file taken over once older than ten seconds and left alone while younger. Every scenario writes only inside the fixture's own temporary directory
 // (root AGENTS.md, *Every shipped executable has a suite in `tests/`, named for it*).
 
 const assert = require('node:assert');
@@ -210,6 +211,21 @@ withWorktreeLock(${JSON.stringify(s.repo)}, () => {
         const got = lockedRun(record, ageMs, { bound: Math.max(2500, reclaimMs * 10), fileAgeMs });
         assert.ok(got.crowd.error && got.crowd.error.code === 'ETIMEDOUT', 'the waiter was still waiting at the bound');
         assert.deepEqual(got.runs, [], `owner record ${JSON.stringify(record)} aged ${ageMs} ms (file ${fileAgeMs ?? ageMs} ms) is never taken from its holder`);
+        assert.ok(got.left, 'and its lock stays');
+      }
+      // A lock directory with no pid file is a holder's between its `mkdir` and its pid write. Older than ten seconds, a single
+      // waiter takes it over by writing its own pid file, runs inside it, and leaves no lock; younger, it is left alone until the
+      // same-run bound, and the lock stays.
+      {
+        const got = lockedRun(null, 60000);
+        assertSpawnDecided(got.crowd, 'the waiter on a lock with no pid file');
+        assert.deepEqual(got.runs, ['locked'], 'an owner-less lock past ten seconds is taken over and the waiter proceeds holding it');
+        assert.ok(!got.left, 'and no lock stays');
+      }
+      {
+        const got = lockedRun(null, 1000, { bound: Math.max(2500, reclaimMs * 10) });
+        assert.ok(got.crowd.error && got.crowd.error.code === 'ETIMEDOUT', 'the waiter on a fresh owner-less lock was still waiting at the bound');
+        assert.deepEqual(got.runs, [], 'a fresh owner-less lock is never taken from its holder');
         assert.ok(got.left, 'and its lock stays');
       }
     }

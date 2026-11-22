@@ -1,7 +1,8 @@
 'use strict';
 
 // Suite for plugin/lib/git-spawn.js: the throwing git call and the `git branch` list parse the two Stop hooks share, and the literal
-// path reads at a commit, `existsAt` and `fileAt`, and the working-tree listing `listWorktrees`.
+// path reads at a commit, `existsAt` and `fileAt`, and the working-tree listing `listWorktrees`, its `-z` fallback included, and its
+// failure when git cannot start or is ended by a signal on the first listing or on its fallback.
 
 require('./fixture-git');
 const assert = require('node:assert');
@@ -136,6 +137,45 @@ assert.equal(parseBranchList('a\na\n').size, 1, 'the parse is a set of names');
   }
   assert.deepEqual(entries(fallback), expected, 'a git that refuses -z falls back to the newline-split listing with the same entries');
   fs.rmSync(shim, { recursive: true, force: true });
+
+  // A listing git cannot run comes back as a failure naming the cause. `withPath` runs it with `dir` alone on PATH.
+  const withPath = (dirOnPath) => {
+    process.env.PATH = dirOnPath;
+    try {
+      return listWorktrees(repo);
+    } finally {
+      process.env.PATH = savedPath;
+    }
+  };
+  const noGit = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'git-spawn-nogit-')));
+  assert.deepEqual(withPath(noGit), { failure: 'worktree list could not start (ENOENT)' }, 'a PATH holding no git fails naming ENOENT, with cwd a real directory');
+  fs.rmSync(noGit, { recursive: true, force: true });
+
+  // A shim that logs each call's arguments, then kills itself with SIGKILL on the exact listing shape given and refuses `-z` with 129
+  // where `refuseZ` is set. Every other call runs the real git.
+  const signalShim = (killArgs, refuseZ) => {
+    const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'git-spawn-kill-')));
+    const log = path.join(d, 'calls.log');
+    const refuse = refuseZ ? `[ "$*" = "worktree list --porcelain -z" ] && exit 129\n` : '';
+    fs.writeFileSync(
+      path.join(d, 'git'),
+      `#!/bin/sh\necho "$*" >> ${JSON.stringify(log)}\n${refuse}[ "$*" = ${JSON.stringify(killArgs)} ] && kill -KILL $$\nexec ${JSON.stringify(realGit)} "$@"\n`,
+      { mode: 0o755 }
+    );
+    return { d, log };
+  };
+  {
+    const { d, log } = signalShim('worktree list --porcelain -z', false);
+    assert.deepEqual(withPath(`${d}${path.delimiter}${savedPath}`), { failure: 'worktree list was ended by signal SIGKILL' }, 'a git killed on the -z listing fails naming the signal');
+    assert.deepEqual(fs.readFileSync(log, 'utf8').trim().split('\n'), ['worktree list --porcelain -z'], 'a signal on the -z listing makes no fallback call');
+    fs.rmSync(d, { recursive: true, force: true });
+  }
+  {
+    const { d, log } = signalShim('worktree list --porcelain', true);
+    assert.deepEqual(withPath(`${d}${path.delimiter}${savedPath}`), { failure: 'worktree list was ended by signal SIGKILL' }, 'a git killed on the fallback listing fails naming the signal');
+    assert.deepEqual(fs.readFileSync(log, 'utf8').trim().split('\n'), ['worktree list --porcelain -z', 'worktree list --porcelain'], 'the -z refusal reached the fallback');
+    fs.rmSync(d, { recursive: true, force: true });
+  }
   fs.rmSync(base, { recursive: true, force: true });
 }
 
