@@ -16,8 +16,7 @@ const { pushTimeoutMs } = require('./push.js');
 const EXIT = { contained: 0, 'not-contained': 3, 'could-not-resolve': 4 };
 
 // `contained <base> <branch> [--remote <remote>]`: only `--remote` is an option, so an option-shaped `<base>` or
-// `<branch>` stays an operand. The remote defaults to the `Remote:` value of `docs/agents/code-management.md`; with
-// neither, the verb judges locally and prints `remote none`.
+// `<branch>` stays an operand. The remote defaults to the `Remote:` value of `docs/agents/code-management.md`.
 function parseArgs(args) {
   const operands = [];
   let remote;
@@ -53,8 +52,6 @@ function configuredRemote(cwd) {
 // index, or working tree: the test writes tree objects and the refetch writes fetched commit objects and `FETCH_HEAD`.
 function verbContained(cwd, args) {
   const { base, branch, remote: given } = parseArgs(args);
-  // No remote named either way: judge against the local base alone. A null remote skips the refetch, so the
-  // absence never falls through to `judgeContainment`'s `origin` default.
   const remote = given || configuredRemote(cwd) || null;
   const judged = judgeContainment(cwd, base, branch, remote, { fetchTimeoutMs: pushTimeoutMs(cwd) });
   const refetched = judged.refetch !== null && judged.refetch.status === 0;

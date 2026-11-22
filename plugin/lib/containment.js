@@ -260,7 +260,6 @@ function judgeContainment(cwd, base, branch, remote = 'origin', { fetchTimeoutMs
   const local = containedAgainst(ref, base, cwd, writeTreeSupported);
   if (local === 'contained') return result('contained');
   if (local !== 'differs' && heldInHistory(cwd, base, ref, writeTreeSupported)) return result('contained');
-  // A null remote names none: the local verdict stands, and nothing is fetched.
   if (remote === null) return result('not-contained');
 
   // Not contained against the local base — refetch before answering (ADR 0065). A fetch that fails
