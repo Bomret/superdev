@@ -66,7 +66,7 @@ function hangingRemoteRepo(scope, hangSeconds) {
   const repo = makeRepo();
   writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
   stagePage(repo, scope, 'p.md', 'title: P\naction: upsert');
-  fs.writeFileSync(path.join(repo, 'docs', 'agents', 'code-management.md'), '- **Base branch:** main\n');
+  fs.writeFileSync(path.join(repo, 'docs', 'agents', 'code-management.md'), '- **Base branch:** main\n- **Remote:** origin\n');
   git(['checkout', '-q', `feat/${scope}`], repo);
   fs.writeFileSync(path.join(repo, 'branch-only.txt'), 'x\n');
   git(['add', 'branch-only.txt'], repo);
