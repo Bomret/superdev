@@ -3,8 +3,10 @@
 
 // invariant-check: the maintainer-only validator for a repository's invariant register (ADR 0093).
 // `node scripts/invariant-check.js --root <dir>` reads <dir>/docs/invariants.md and reports every
-// entry that breaks the register's format rules, or names a Paths glob, a symbol, or a Check path
-// that resolves to nothing, and every INV-NNNN cited outside the register, the changelog, and
+// entry that breaks the register's format rules (a present but empty Paths or Symbols field, a
+// silent-break dash with no reason after it included), names a Paths glob, a symbol, or a Check path
+// that resolves to nothing, carries a symbol with an empty name segment, or names a Check path that is a
+// glob or leads outside the root, and every INV-NNNN cited outside the register, the changelog, and
 // docs/adr/ that names no entry — one line per failure naming the id and the field. It reports and
 // selects nothing: /superdev:plan and final-reviewer still read the register
 // whole (INV-0088). Pure Node with no shell-out, so it runs on every OS the maintainer uses.
