@@ -558,11 +558,8 @@ const GITHUB_WIKI_GH_ONLY_MARKERS = [
 // fail-to-pass` call, "run(s) the full / focused / whole-repo / affected command", or "run(s) the test command".
 // simplicity: shape-based, and its ceiling is those two shapes, read in unfenced prose. A paraphrase
 // ("execute the suite", "start the affected form") walks past, and so does an instruction inside a fence.
-// A negation excuses a hit only when it negates the run itself (`scanners/prose-avoid.js`'s `RUN_NEGATION`):
-// "never runs the full command", "never calls `scope.js test`", and "Never, ever run the full command" pass;
-// "If no focused command exists, run the full command", "Without fail run the full command", and "Do not skip
-// running the full command" fire. A negation the sentence states after the hit ("the full command is never
-// run") fires as written.
+// A negation excuses a hit only when it negates the run itself; `scanners/prose-avoid.js`'s `RUN_NEGATION` comment
+// states the forms that pass and the forms that fire.
 const NO_TEST_RUN_DOCS = [
   path.join('skills', 'document', 'SKILL.md'),
   path.join('skills', 'setup', 'SKILL.md'),
