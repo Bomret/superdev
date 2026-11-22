@@ -35,9 +35,12 @@ const BASE_BRANCH_VERB = '\\b(?:commit(?:s|ted|ting)?|push(?:es|ed|ing)?|merge(?
 const SHIP_MERGE_ADMIT_FILE = path.join('skills', 'ship', 'SKILL.md');
 const SHIP_MERGE_ADMIT_PATTERN = /host'?s merge API/i;
 const CODE_MANAGEMENT_DOC = path.join('docs', 'agents', 'code-management.md');
+// Sticky (`y`): the scan sets `lastIndex` to each verb position in turn and matches there, so every verb
+// in a window is tried as a start, one inside an earlier match's lazy span included.
 function verbTargetPattern(targetSource) {
-  return new RegExp(`${BASE_BRANCH_VERB}([\\s\\S]{0,150}?)(?:${targetSource})`, 'i');
+  return new RegExp(`${BASE_BRANCH_VERB}([\\s\\S]{0,150}?)(?:${targetSource})`, 'iy');
 }
+const BASE_BRANCH_VERB_POSITIONS = new RegExp(BASE_BRANCH_VERB, 'gi');
 const BASE_BRANCH_PHRASE_PATTERN = verbTargetPattern('\\bbase branch\\b');
 
 // The base's own configured name is a git target only in an unambiguous shape — backtick-quoted (like
@@ -103,18 +106,23 @@ function scanNoBaseBranchCommit(root) {
       const reportedAt = new Set();
       for (let i = 0; i < lines.length; i++) {
         const window = lines.slice(i, i + BASE_BRANCH_COMMIT_WINDOW).join('\n');
-        for (const pattern of patterns) {
-          const match = pattern.exec(window);
-          if (!match) continue;
-          const absIndex = lineOffsets[i] + match.index;
-          if (reportedAt.has(absIndex)) continue;
-          if (negated(masked.slice(0, absIndex), match[1])) continue;
-          // Tested against the whole document from the match's own absolute offset forward, never
-          // against `window` alone: the admission wording can sit just past the window's edge.
-          if (isShipMergeAdmitFile && SHIP_MERGE_ADMIT_PATTERN.test(masked.slice(absIndex, absIndex + 200))) continue;
-          reportedAt.add(absIndex);
-          const lineOffset = window.slice(0, match.index).split('\n').length - 1;
-          gaps.push({ source, line: i + 1 + lineOffset });
+        // matchAll() iterates a fresh copy of the verb regex, and each sticky pattern's `lastIndex` is set
+        // before its one exec, so no position carries over from another window or file.
+        for (const { index: verbAt } of window.matchAll(BASE_BRANCH_VERB_POSITIONS)) {
+          for (const pattern of patterns) {
+            pattern.lastIndex = verbAt;
+            const match = pattern.exec(window);
+            if (!match) continue;
+            const absIndex = lineOffsets[i] + match.index;
+            if (reportedAt.has(absIndex)) continue;
+            if (negated(masked.slice(0, absIndex), match[1])) continue;
+            // Tested against the whole document from the match's own absolute offset forward, never
+            // against `window` alone: the admission wording can sit just past the window's edge.
+            if (isShipMergeAdmitFile && SHIP_MERGE_ADMIT_PATTERN.test(masked.slice(absIndex, absIndex + 200))) continue;
+            reportedAt.add(absIndex);
+            const lineOffset = window.slice(0, match.index).split('\n').length - 1;
+            gaps.push({ source, line: i + 1 + lineOffset });
+          }
         }
       }
     }

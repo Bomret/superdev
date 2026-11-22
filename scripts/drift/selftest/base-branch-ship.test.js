@@ -111,6 +111,25 @@ module.exports = ({ assert, fixture, found }) => {
   assert.equal(offenders5lc.length, 1, 'the later real violation is reported, not masked by the earlier caution');
   assert.equal(offenders5lc[0].line, 3, 'names the line the real violation starts on');
 
+  // an excused match earlier on the same line hides no later real one
+  const sameLine = noBase({
+    'references/prototype.md': 'Never commit to the base branch by hand; push to the base branch once review passes.\n',
+  });
+  assert.equal(sameLine.length, 1, 'the push after an excused commit on the same line is reported');
+  assert.equal(sameLine[0].line, 1, 'names the line both sit on');
+  // a verb inside an excused match's lazy span is tried on its own
+  assert.equal(
+    noBase({ 'references/prototype.md': 'Never commit the docs, and merge the scope branch to the base branch.\n' }).length,
+    1,
+    'a verb inside the excused match\'s span is tried as its own start',
+  );
+  // one physical instance, re-found by every window that holds it, is reported once
+  assert.equal(
+    noBase({ 'skills/plan/SKILL.md': 'One.\nTwo.\nThree.\nCommit the docs to the base branch.\nFive.\nSix.\n' }).length,
+    1,
+    'one physical instance is reported once',
+  );
+
   // `merge` is a base-branch verb too (ADR 0096); ship's own host-API merge is the one admitted site
   assert.equal(noBase({ 'skills/plan/SKILL.md': 'Merge the finished work straight into the base branch yourself.\n' }).length, 1, 'flags a merge-to-base instruction outside ship');
   assert.equal(
