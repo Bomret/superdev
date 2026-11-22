@@ -35,6 +35,9 @@ const repo = (trace: string[] = TRACE, stage = 'merged') => ({
   lists: { [R]: [dir('scopes')], [`${R}/scopes`]: [dir('a')], [A]: [] } as Record<string, ReturnType<typeof dir>[]>,
 })
 
+// A run lock touched now: a live run, so a run with no recorded end reads `running`, not `lock stale`.
+const held = () => ({ [`${A}/run.lock`]: Date.now() })
+
 const open = async ($: Engine, surface: (typeof SURFACES)[number]) => {
   const ui = await $.ui.mount({ plugin: 'superdev-view', surface, ...PANE })
   if (await ui.find({ key: 'scope-a' })) await ui.press(scopeLink('a'))
@@ -90,7 +93,7 @@ test('the scope page draws the run as one oldest-first log, with no wave, scope-
 
 test('a line above the log counts the running dispatches, and is absent when none runs', async ($, on) => {
   const { files, lists } = repo()
-  fakeRepo(on, files, lists)
+  fakeRepo(on, files, lists, '/r', undefined, held())
   await $.command.run(runCommand)
   const ui = await open($, 'desktop')
   expect(await ui.find({ type: 'Text', text: /^● 1 running$/ })).toBeDefined()
@@ -151,7 +154,7 @@ test("the log draws agents from the run trace alone: another session's dispatch 
     `${at('10:00:00')} 02 main dispatch superdev:implementer i1 Build s1`,
     `${at('10:01:00')} 02 main dispatch superdev:implementer i2 Build s9`,
   ])
-  const clock = fakeRepo(on, files, lists)
+  const clock = fakeRepo(on, files, lists, '/r', undefined, held())
   on('agent.spawn', async () => ({ model: 'sonnet', agentId: 'ag7' }))
   await $.command.run(runCommand)
   await $.agent.spawn({ tool_use_id: 'tu7', prompt: `${A}/slicetrees/02`, description: 'Live', subagentType: 'superdev:implementer', provider: { plugin: 'engine', tier: 'core' }, parentModel: 'opus', background: false, fork: false })

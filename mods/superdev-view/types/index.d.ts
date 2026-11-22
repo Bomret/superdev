@@ -14,7 +14,7 @@ export type LogEntry =
   | { kind: 'wait'; at: number; ms: number }
   | { kind: 'stage'; at: number; stage: string }
   | { kind: 'tamper'; at: number; file: string }
-  | { kind: 'run'; at: number; type: string; slice: string; isResumed: boolean; isEnded: boolean; ms: number; outcome: string }
+  | { kind: 'run'; at: number; type: string; slice: string; isResumed: boolean; isEnded: boolean; ms: number; outcome: string; isLockStale?: true }
   | { kind: 'slice'; at: number; id: string; title: string; status: string; ms?: number; isRunning: boolean; review: number; isOpenByDefault: boolean; entries: LogEntry[] }
   | { kind: 'sliceEnd'; at: number; status: string; ms?: number }
   | ({ kind: 'sliceSummary'; at: number; id: string } & SliceSummary)

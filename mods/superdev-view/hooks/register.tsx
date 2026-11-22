@@ -107,7 +107,7 @@ async function scanScope($: EngineInterface, dir: string, name: string, isOpen: 
     lockMtime: lock ? lock.mtimeMs : null,
     dod: progress(dod),
     slices: slices(ledger),
-    log: eventLog(ledger, trace, Date.now()),
+    log: eventLog(ledger, trace, Date.now(), lock ? lock.mtimeMs : null),
     closedAt: closedTimes.get(name) ?? null,
   }
 }

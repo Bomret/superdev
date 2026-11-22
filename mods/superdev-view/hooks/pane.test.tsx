@@ -33,7 +33,8 @@ test('clicking an active scope shows its log, back returns', async ($, on) => {
     const f = FILES[e.path]
     return f === undefined ? { deny: 'ENOENT' } : { value: f }
   })
-  on('fs.stat', async () => ({ deny: 'ENOENT' }))
+  // A run lock touched now: the never-ended implementer reads `running`, not `lock stale`.
+  on('fs.stat', async (_$, e) => (e.path === `${S}/run.lock` ? { value: { mtimeMs: Date.now() } as never } : { deny: 'ENOENT' }))
   on('ui.open', async () => ({ value: { isPlaced: true as const } }))
   await $.command.run({ command: 'superdev-view', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: false, columns: 120 } })
 
@@ -41,7 +42,7 @@ test('clicking an active scope shows its log, back returns', async ($, on) => {
     const ui = await $.ui.mount({ plugin: 'superdev-view', surface, ...PANE })
     expect(await ui.find({ key: 'back' })).toBeUndefined()
     await ui.press(scopeLink('pin'))
-    expect(await ui.find({ type: 'Text', text: /^DoD 0\/0$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^DoD 0\/0 · lock \d+s$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^● 1 running$/ })).toBeDefined()
     expect(await ui.find({ type: 'Box', key: 'log' })).toBeDefined()
     await ui.press({ key: 'back' })
