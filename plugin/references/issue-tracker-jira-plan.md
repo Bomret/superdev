@@ -102,16 +102,20 @@ body mode.
 
 - **Create only new records; never edit, close, or delete a merged slice.** Append fires new
   `POST <base>/rest/api/3/issue` calls for the new slices alone. It never transitions or edits an issue
-  a prior run merged (no `fields` PUT, no transition to a closed status, no relabel). A merged issue's
-  `key` is a satisfied `depends-on` "is blocked by" target for a new one.
+  a prior run merged (no `fields` PUT, no transition to a closed status, no relabel), except the former lone
+  slice's parent link under a new Epic (next rule). A merged issue's `key` is a satisfied `depends-on` "is
+  blocked by" target for a new one.
 - **Create the Epic first when none exists.** A feature whose lone issue has no `fields.parent` has no
   Epic yet. Append creates the Epic first through **Create the Epic**, with the *Scope anchor* role's type
   picked by its "use for" lines, else its default, named by id, and the *Repository component* where one
   is configured, its description holding the lone slice's `acceptance` checklist as the global DoD. Then
-  it sets every new slice issue's parent to it. The lone issue is never edited, with one exception: each
-  anchor line it carries (`**Blocked by feature:**`, `**Deploy:**`, `**Repairs:**`, `**Absorbs:**`,
-  `**Intent:**`) **migrates to the new Epic's own description** and is removed from the lone issue, since
-  the Epic is the anchor now.
+  it sets every new slice issue's parent to it, and the former lone slice's too, open or closed:
+  `PUT <base>/rest/api/3/issue/<lone-key>` with `{ "fields": { "parent": {"key":"<epic>"} } }`, sent through
+  the **Transport** rule, so the Epic stays the feature's one root. That link is best-effort: log a rejection
+  with Jira's answer and carry on. The lone issue is never edited, with two exceptions: each anchor line it
+  carries (`**Blocked by feature:**`, `**Deploy:**`, `**Repairs:**`, `**Absorbs:**`, `**Intent:**`)
+  **migrates to the new Epic's own description** and is removed from the lone issue, and it gains the Epic as
+  its parent, since the Epic is the anchor now.
 - **Amend the Epic's own description, the one sanctioned edit.** One edit through **Edit an issue's
   body** folds the interview's new criteria into the Epic's Definition of Done in place, and deletes a
   resolved parked question's line from the description's Parked questions block.

@@ -102,14 +102,18 @@ line whose tag `dod-line` cannot read or whose slice id the map lacks, so the ga
 
 - **Create only new records; never edit, close, or delete a merged slice.** Append creates issues for the
   new slices alone. It never `PATCH`es or closes an issue a prior run merged, and never rewrites its
-  labels, sub-issue link, or `blocked_by` dependency. A merged issue's `number` is a satisfied
-  `depends-on` root for a new one.
+  labels, sub-issue link, or `blocked_by` dependency. The one link it adds is the former lone slice's
+  parent link under a new epic (next rule). A merged issue's `number` is a satisfied `depends-on` root for a
+  new one.
 - **Create the epic first when none exists.** A feature whose lone issue has no sub-issue parent has no
   epic yet. Append creates the epic issue first, its body holding the lone slice's `acceptance` checklist
-  as the global DoD, then links every new slice as its sub-issue. The lone issue is never edited, with one
-  exception: its `**Blocked by feature:**`, `**Deploy:**`, `**Repairs:**`, `**Absorbs:**`, and
-  `**Intent:**` lines **migrate to the new epic's own body** and are removed from the lone issue, since the
-  epic is the anchor now.
+  as the global DoD, then links every new slice as its sub-issue. It also links the former lone slice, open
+  or closed, under the new epic: `POST /repos/<owner>/<repo>/issues/<epic-number>/sub_issues` with
+  `{ "sub_issue_id": <the lone slice's global id> }`, so the epic stays the feature's one root. That link is
+  best-effort like every sub-issue link: log a failure and carry on. The lone issue is never edited, with two
+  exceptions: its `**Blocked by feature:**`, `**Deploy:**`, `**Repairs:**`, `**Absorbs:**`, and
+  `**Intent:**` lines **migrate to the new epic's own body** and are removed from the lone issue, and it
+  gains the epic as its sub-issue parent, since the epic is the anchor now.
 - **Amend the epic's own body, the one sanctioned edit.** One edit through **Edit an issue's body** folds
   the interview's new criteria into the epic's Definition of Done in place, and deletes a resolved parked
   question's line from its `## Parked questions` section.
