@@ -38,6 +38,7 @@ module.exports = ({ assert, path, fixture, found }) => {
   for (const [rel, frame] of copies) {
     assert.equal(changeType({ [rel]: frame(types) }).length, 0, `${rel}: the exact set passes`);
     assert.equal(changeType({ [rel]: frame(types).replace(/, /g, ',\n') }).length, 0, `${rel}: a re-wrap after every comma passes`);
+    assert.equal(changeType({ [rel]: frame(types).replace(/ /g, '\n') }).length, 0, `${rel}: a re-wrap at every space, after \`of\` and around \`=\` included, passes`);
     assert.equal(changeType({ [rel]: frame([...types, 'wip']) }).length, 1, `${rel}: a type appended after revert fails`);
     assert.equal(changeType({ [rel]: frame(['wip', ...types]) }).length, 1, `${rel}: a type inserted before feat fails`);
     assert.equal(changeType({ [rel]: frame(types.filter((t) => t !== 'perf')) }).length, 1, `${rel}: a removed type fails`);
