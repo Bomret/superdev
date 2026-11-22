@@ -1135,7 +1135,16 @@ The runner accepts three forms: no argument (the full run), `--related` as the f
 asks for help, ahead of any refusal. Every other argument is refused: an unknown flag (`--relatd`, `--related=a.js`), a
 word before `--related`, and after it a dash-led word (a second `--related`, `-`, `--`) or an empty path. A dash-led
 path therefore cannot be passed, and no `--` separator exists. A refusal prints `run-tests: unknown argument: <arg>`
-and the usage on stderr, and exits 2. An empty argument is named `(empty argument)`. Help and a refusal start no step and write no recorded durations.
+and the usage on stderr, and exits 2. An empty argument is named `(empty argument)`.
+
+`--related` takes repository-relative file paths. A backslash separator reads as a forward slash on every host (ADR
+0150), so `plugin\lib\x.js` selects what `plugin/lib/x.js` selects. A path that does not exist maps like a deleted
+file. The runner refuses an absolute path in any spelling (POSIX `/…`, a Windows drive `C:\…` or `C:/…`, a Git Bash
+drive `/c/…`, a network share `\\host\…`), a path that leads outside the repository (`../x.js`), and a path naming
+an existing folder, `.` and a symlink to a folder included. One such path refuses the whole call. The refusal prints
+`run-tests: --related takes repository-relative file paths: <arg> (<reason>)`, `<reason>` being `absolute`, `outside
+the repository`, or `a folder`, then the usage on stderr, and exits 2. Help and a refusal start no step and write no
+recorded durations.
 
 Its suite is `tests/run-tests.test.js`, which calls `discoverSuites`, `selectSuites`, `parseArgs`, and
 `runAll` against throwaway trees it removes at the end. It drives the CLI end to end from a copy of the runner in a
@@ -1158,11 +1167,13 @@ It checks these kinds of rule:
 
 - **Format.** `Class`, `Concepts`, `Statement` and `Breaks` are present. `Class` and `Statement` each
   carry a word once unquoted: a letter or a digit, in any script. `-`, `—` or `_` fails as carrying no
-  word. `Concepts`, and `Paths` or `Symbols` when present, each name at least one comma-separated item
-  once trimmed. A bare `,` fails as naming no concept, path, or symbol. A `Breaks:`
+  word. `Concepts`, and `Paths` or `Symbols` when their line is present, each name at least one comma-separated item
+  once trimmed. An empty `Paths:` or `Symbols:` line and a bare `,` fail as naming no concept, path, or symbol; an entry
+  with no `Paths:` line passes. A `Breaks:`
   value is `silently` or `loudly`, matched case-insensitively, optionally followed by ` — ` and a
   reason and nothing else — anchored, so `loudly, silently` fails rather than passing as loudly and
-  skipping the `Check:` requirement; any other shape fails too. A `Breaks: silently` entry carries
+  skipping the `Check:` requirement; any other shape fails too. A reason after the dash carries a word: `silently —`
+  and `silently — .` fail as carrying no reason, while a bare `silently` passes. A `Breaks: silently` entry carries
   `Check:`, its backticks stripped before the check, and the three ways it can fail each name a
   different reason: missing fails as naming no proof at all, and `` `none` `` (bare or backticked)
   with no reason fails as needing the reason nothing cheaply tests it. `none` wrapped in any other
@@ -1192,8 +1203,13 @@ It checks these kinds of rule:
 - **Resolution.** Every `Concepts` value equals a glossary term — the bold text opening a line, or a `- `/`* `
   list item, of any `CONTEXT.md` the walk reaches, so a multi-context repository needs no map parser. Every `Paths` glob
   matches a file. Every `Symbols` value appears as a whole word in the files the entry's `Paths` match, or
-  anywhere but the register when the entry names none. A dotted symbol matches on its last segment. Every path-shaped
-  token in `Check:` names a file; drift ids and quoted test names are prose and stay unchecked.
+  anywhere but the register when the entry carries no `Paths:` line; an empty `Paths:` line governs no file and never
+  widens that scope. A dotted symbol matches on its last segment, and a symbol with an empty segment (`foo.`, `a..b`,
+  empty backticks) fails, because its pattern would match any file. Every path-shaped token in `Check:` names a file
+  inside the root: a path that leads outside it (`../x.js`) fails even when the file exists, and a path-shaped token
+  holding a glob character (`*`, `?`, `[`, `{`) fails, because `Check:` names literal files and the validator expands
+  no glob there. A token needs a `/` to be path-shaped, so bold prose such as `**Branch:**` is no glob. Drift ids and
+  quoted test names are prose and stay unchecked.
 - **Citations.** Every `INV-NNNN` cited in a walked file names an entry the register carries, so
   retiring or renumbering an entry cannot leave its citations silently stale. A citation is `INV-` and
   four digits. No letter, combining mark, or digit, in any script, may sit directly before `INV-`, and no digit after the
@@ -1208,7 +1224,8 @@ The walk prunes `.git/`, `node_modules/`, `.superdev/` and `.claude/` — the la
 no `.gitignore`: an ignored file outside the pruned directories still counts toward `Concepts`,
 `Paths`, `Symbols` and citations. Parsing `.gitignore`, or shelling out to `git ls-files`, is out of scope — the
 CLI is deliberately pure Node with no shell-out. It builds relative paths with `/` itself, so
-a glob matches the same files on every OS. `globMatcher` is its own: the CLI does not call `fs.globSync`, which needs Node 22. The validator filters and ranks no entry — `/superdev:plan` and
+a glob matches the same files on every OS. `globMatcher` is its own, because its semantics are what the register's `Paths:` field means: `**` spans segments,
+`*` and `?` stay inside one, and braces and character classes are literal. The validator filters and ranks no entry — `/superdev:plan` and
 `final-reviewer` still read the register whole (INV-0088) — and nothing under `plugin/` requires it
 (INV-0051). Its suite, `tests/invariant-check.test.js`, runs the CLI against throwaway repositories under
 the OS temp dir, every spawn through `assertSpawnDecided` (INV-0009).
