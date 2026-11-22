@@ -26,7 +26,7 @@ function parseArgs(args) {
       continue;
     }
     if (remote !== undefined) fail('contained: --remote given twice');
-    if (!args[i + 1]) fail('contained: --remote needs a value');
+    if (!args[i + 1] || args[i + 1].startsWith('--')) fail('contained: --remote needs a value');
     remote = args[++i];
   }
   if (operands.length !== 2) fail('contained needs <base> <branch> [--remote <remote>]');

@@ -5,10 +5,12 @@
 const fs = require('fs');
 const path = require('path');
 const { fail } = require('./refusal.js');
-const { checkSliceId, STAGES, ledgerPath, readLines, splitLines, writeLines, getHeader, readBullets, tableRowIndexes, splitRow } = require('./ledger.js');
+const { checkSliceId, SLICE_STATUSES, STAGES, APPENDED_HEADERS, headerRe, ledgerPath, readLines, splitLines, writeLines, getHeader, readBullets, tableRowIndexes, splitRow } = require('./ledger.js');
 const { maskFencedLines } = require('./md-sections.js');
 const { validateLabel, STEPS } = require('./ledger-lifecycle.js');
+const { checkDocsValue, checkPrValue, checkDeployValue } = require('./ledger-records.js');
 const { checkDodWritten } = require('./dod-gate.js');
+const { withRunLock } = require('./run-digest.js');
 
 // scope.js performs no store I/O here — slice-store I/O stays in-agent (ADR 0022). `publish`
 // renders the ledger as a single `## Run state` section; `adopt` reverses that, reconstructing a
@@ -108,8 +110,20 @@ function adoptLines(root, body, shipped = false) {
   for (const i of tableRowIndexes(payload)) {
     const cells = splitRow(payload[i]);
     if (cells.length !== 7) fail('run-state payload carries a slice row without the 7 ledger columns');
-    sliceIds.push(checkSliceId(cells[0]));
+    const id = checkSliceId(cells[0]);
+    if (!SLICE_STATUSES.includes(cells[5])) fail(`run-state payload's slice row "${id}" has unknown status "${cells[5]}" (${SLICE_STATUSES.join(', ')})`);
+    if (sliceIds.includes(id)) fail(`run-state payload names slice id "${id}" in more than one row`);
+    sliceIds.push(id);
   }
+  // The writers' own value rules, applied to each header's raw text before getHeader's token normalization, and a header line
+  // the ledger's writers would never write twice.
+  for (const name of [...APPENDED_HEADERS, 'Degraded', 'Unresolved', 'Deferred', 'Minors']) {
+    if (payload.filter((l) => headerRe(name).test(l)).length > 1) fail(`run-state payload carries more than one **${name}:** line`);
+  }
+  const raw = (name) => { const m = payload.map((l) => l.match(headerRe(name))).find(Boolean); return m ? m[1].trim() : null; };
+  if (raw('PR')) checkPrValue(raw('PR'));
+  if (raw('Docs')) checkDocsValue(raw('Docs'));
+  if (raw('Deploy')) checkDeployValue(raw('Deploy'));
   // A `**Minors:**` bullet names a slice by id (`minors add` enforces it). The anchor body is editable by anyone
   // with issue access and the controller derives `reports/<id>/progress.md` from the bullet, so adopt refuses
   // any bullet the payload's slice table does not hold, the way it refuses an unknown stage.
@@ -121,13 +135,19 @@ function adoptLines(root, body, shipped = false) {
 }
 
 function verbAdopt(root, body, shipped) {
-  if (fs.existsSync(ledgerPath(root))) fail(`ledger already exists: ${ledgerPath(root)}`);
+  const exists = () => { if (fs.existsSync(ledgerPath(root))) fail(`ledger already exists: ${ledgerPath(root)}`); };
+  // A standing ledger refuses before the payload is read; the check repeats inside the hold below, where it decides.
+  exists();
   const lines = adoptLines(root, body, shipped);
   // A snapshot at `implementing` or later needs the Definition of Done run init wrote from the anchor (triage #4).
   // `--shipped` writes its `dod.md` after the adopt (shipped-run.md's `## Adopting a shipped original`), so it passes.
   if (!shipped && STAGES.indexOf(getHeader(lines, 'Stage')) > STAGES.indexOf('planned')) checkDodWritten(root);
   fs.mkdirSync(root, { recursive: true });
-  writeLines(root, lines);
+  // The absence check and the write share one hold (INV-0202), so of two adopts at once one writes and the other refuses.
+  withRunLock(root, () => {
+    exists();
+    writeLines(root, lines);
+  });
 }
 
 module.exports = { publishText, verbPublish, verbAdopt };

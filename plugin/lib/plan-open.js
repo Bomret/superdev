@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { fail } = require('./refusal.js');
+const { takeOption } = require('./options.js');
 const { readLines, getHeader, ledgerPath } = require('./ledger.js');
 const { gitSpawn, refResolves, listWorktrees } = require('./git-spawn.js');
 const { judgeContainment, refetchMark } = require('./containment.js');
@@ -29,16 +30,14 @@ function parseArgs(args) {
   if (!label || label.startsWith('--')) fail('open needs a <type>/<slug> label');
   const opts = { label, remote: 'origin' };
   const flags = { '--base': 'base', '--remote': 'remote', '--lock': 'lock' };
-  const seen = new Set();
-  for (let i = 1; i < args.length; i += 2) {
-    const key = flags[args[i]];
-    if (!key) fail(`open: unrecognized argument "${args[i]}"`);
-    if (args[i + 1] === undefined || args[i + 1] === '') fail(`open: ${args[i]} needs a value`);
-    if (seen.has(key)) fail(`open: ${args[i]} given twice`);
-    seen.add(key);
-    opts[key] = args[i + 1];
+  const rest = args.slice(1);
+  while (rest.length) {
+    const flag = rest[0];
+    if (!Object.hasOwn(flags, flag)) fail(`open: unrecognized argument "${flag}"`);
+    opts[flags[flag]] = takeOption(rest, flag, 'open: ');
   }
   if (!opts.base) fail('open needs --base <base-ref>');
+  if (opts.lock !== undefined && !/^[0-9a-f]+$/.test(opts.lock)) fail('open: --lock takes lowercase hexadecimal, the nonce a first open prints');
   return opts;
 }
 
@@ -125,7 +124,12 @@ function verbOpen(cwd, args) {
   // The check runs once, before any path that writes. A refusal, the `locked` stop, and a cut or attach stop write no file of the run.
   // A run that passes them writes `run.lock`, writes the ledger through `verbInit` or `verbStep`, and writes the trace with
   // `appendTrace` beside each; a repeat call with the same nonce at step `plan` writes `run.lock` alone.
-  checkRun(root);
+  try {
+    checkRun(root);
+  } catch (e) {
+    if (e.isRefusal) fail(`open: ${e.message}`);
+    throw e;
+  }
 
   let stage = null;
   let step = null;

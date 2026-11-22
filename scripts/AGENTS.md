@@ -168,8 +168,8 @@ the tree locator `locate` and the test-path classifier `isTestPath` (ADR 0128) f
 and the dispatch readers from `dispatch.js`. The hook reads no Bash command (ADR 0227). One `try` guards the three `require`s, and a module that fails to load
 leaves the hook recording nothing (ADR 0117, INV-0159). Its model guard, which denies a modelless dispatch to a superdev
 agent on PreToolUse(Agent), requires no module, so a failed load leaves the deny in force (ADR 0245). `hooks/tree-guard.js` takes `mainWorkTree` from `main-work-tree.js` (ADR 0148). `publish-kb.js` reaches
-the containment test `testContainment` from `containment.js`, which refetches the base before it answers not contained (ADR 0053,
-ADR 0065), `refResolves` from `git-spawn.js`, and `readLedgerHeader`, `SLUG_RE`, `CHANGE_TYPES` from `ledger.js`, through its `lib/kb-*.js` modules. `base set` appends a `ledger`
+the containment verdict `judgeContainment` from `containment.js`, which refetches the base before it answers not contained (ADR 0053,
+ADR 0065). It takes `refResolves` from `git-spawn.js`. It takes `readLedgerHeader`, `SLUG_RE`, and `CHANGE_TYPES` from `ledger.js`. It takes `pushTimeoutMs` from `push.js` and `readPresent` from `refusal.js`. All of these arrive through its `lib/kb-*.js` modules. The containment refetch is bounded by `code-host.pushTimeoutMs` (default 60000 ms through `push.js`'s reader). `base set` appends a `ledger`
 trace event like every other ledger-writing verb. Normalisation is per
 header: `Stage` and `Branch` are single tokens,
 cut to the first whitespace-delimited token and stripped of markup and trailing punctuation.
@@ -433,9 +433,11 @@ MSYS drive-path translator, is the only path helper `discard.js` and `prepare.js
 ### Run digest (ADR 0227)
 
 `run-digest.js` keeps `<run-root>/digest.json`, the size and sha256 of `ledger.md` and `trace.log` as `scope.js` and the hooks last
-wrote them, under `digest.lock`, a lock created exclusively whose holder removes it and whose stale holder's lock is broken after
-`LOCK_STALE_MS`. Neither file is pushed with the run state. `run-check.js`'s `checkRun(root)` compares both files with the digest
-before a verb writes to the run: `scope.js` calls it once from `writtenRoot` for every verb that names `--root` and writes
+wrote them, under `digest.lock`, a lock created exclusively whose holder removes it. A waiter breaks `digest.lock` when the process its
+token names is dead. A waiter also breaks `digest.lock` when the lock is older than `LOCK_STALE_MS` (30 s). A waiter waits for a live holder without a budget. A process that
+holds a root's lock and takes it again runs inside its own hold. Neither file is pushed with the run state. `run-check.js`'s
+`checkRun(root)` compares both files with the digest before a verb writes to the run: `scope.js` calls it once from
+`writtenRoot` for every verb that names `--root` and writes
 (`stage`, `step`, `slice`, `degraded`, `unresolved`, `deferred`, `minors`, `docs`, `pr`, `adopt`, `dod-merge`, `deploy set`,
 `base set`, every `suite` subcommand), and `init`, `open`, `test`, and `fail-to-pass` call it in their own verbs. A file that
 differs, or that was deleted while its digest was present, prints one stderr warning naming the file and appends a `tamper <file>`
@@ -858,7 +860,7 @@ report, and keeps no publishing mechanics of its own. It resolves the main check
 directory, a scopetree or a submodule included, through `mainWorkTree` from `plugin/lib/main-work-tree.js`
 (`lib/kb-staging.js`). `publish-kb.js` is the CLI: it reads the arguments, wires the `lib/kb-*.js` modules together, and prints the report.
 `kb-staging.js` holds the staging root and scope selection, `kb-backend-config.js` the backend classification and command templates (`parseBullet` reads the `Body format` and `Hierarchy` bullets),
-`kb-staged-page.js` the staged-page parse, the `created-by-publish` marker, and the `live-hash` rewrite (`restageLiveHash`), `kb-backend.js` the template runner and the
+`kb-frontmatter.js` the one frontmatter splitter, `kb-staged-page.js` the staged-page parse, the `created-by-publish` marker, and the `live-hash` rewrite (`restageLiveHash`), `kb-backend.js` the template runner and the
 `upsert`, `delete`, and `patch` of one page, `kb-apply.js` the per-file application by title group, `kb-parent-link.js` the parent-link
 edit under `- **Hierarchy:** links`, `kb-containment.js` the merge check,
 `kb-read.js` the `--read` entry, and `kb-report.js` the report. They take `SLUG_RE` and `CHANGE_TYPES` from `plugin/lib/ledger.js`,
@@ -1023,8 +1025,8 @@ without a resolving branch is the real unreachable case, and still refuses. A br
 ways. `git for-each-ref` can exit non-zero, end by a signal, fail to start, or end in another spawn error such
 as ENOBUFS. Any of these is no absent branch. The check refuses and names how git failed, whether or not the run
 root survives (INV-0194). A ledger `**Branch:**` line that resolves never runs the listing. `checkContainment`
-delegates the ancestry test to `plugin/lib/containment.js`'s exported `testContainment` instead of reimplementing it.
-`--allow-unmerged` overrides the refusal once the operator confirms. `_adhoc`, the literal value
+delegates the ancestry test to `plugin/lib/containment.js`'s exported `judgeContainment` (or `testContainment`) instead of reimplementing it.
+`--allow-unmerged` overrides a containment refusal once the operator confirms. It does not override the refusal of an unreadable `code-management.md`. `_adhoc`, the literal value
 `/superdev:document` writes for a doc pass outside a live scope, skips the check entirely. The report
 a run prints never carries a page's body, only filenames, titles, and reasons.
 
@@ -1245,7 +1247,7 @@ path, when that document is missing. A check that walks a directory reads whatev
 | `shell-spawn` | no file under `plugin/hooks/`, `plugin/scripts/`, or `plugin/lib/` starts a shell by absolute path, starts `bash`, or uses Node's default shell (INV-0153) | prohibition |
 | `worktree-list-one-parser` | no file at the top level of `plugin/hooks/`, `plugin/scripts/`, or `plugin/lib/` other than `lib/git-spawn.js` spawns `git worktree list` (a `'worktree', 'list'` argument pair outside a comment), so `listWorktrees` stays the one reader of the working trees (INV-0198) | prohibition |
 | `test-seams` | no JavaScript file at any depth of `plugin/` names a file of the repository's `tests/` directory by base name or by a `tests/` path that carries a glob (`tests/scope-*.test.js`), and none reads `process.env.NAME`, `process.env['NAME']`, or a destructured `NAME` that no Markdown document under `plugin/` names, unless `NAME` starts with `CLAUDE_`; none uses a `SUPERDEV_` name on any object, `process.env` or an alias or passed-in one (a property, a bracket, a destructuring, an object key plain, quoted, computed by a literal, or shorthand, a `const`, `let`, or `var` binding, or a `NAME=` prefix; a key built by concatenation or held in a variable matches no form), and no Markdown file under `plugin/` names a `SUPERDEV_` identifier, with `SUPERDEV_TEXT_EOF` allowed by name and a document naming a `SUPERDEV_` variable allowing none (ADR 0207, INV-0180); a classifier glob such as `**/tests/` or `**/tests/**` names no file (INV-0156, ADR 0154) | prohibition |
-| `containment-delegation` | `lib/kb-containment.js` imports and calls `lib/containment.js`'s `testContainment` (ADR 0053) | structural |
+| `containment-delegation` | `lib/kb-containment.js` imports and calls `lib/containment.js`'s `testContainment` or `judgeContainment` (ADR 0053) | structural |
 | `past-pr-skills` | the skills a chain start reaches (review, document, submit-pr, ship, verify-ship, wrap-up), plus publish-kb, carry no `disable-model-invocation: true`, neither verify-ship nor wrap-up names `--unattended`, ship, verify-ship, and `references/response-shapes.md` name no `--from-ship`, and every line of `references/review-scope-mode.md` and `skills/document/SKILL.md` that starts `/superdev:ship` names `scope.js consent` (INV-0066, INV-0093, ADR 0253, ADR 0268) | structural |
 | `no-offer-start` | no file of the shipped tree, `AGENTS.md` included, names `start_session` or the removed offer's marker line; the bare word "offer" stays free, so plan's intent and triage offers pass (ADR 0253) | prohibition |
 | `no-ci-wait` | no Markdown file of the shipped tree names a wait or a poll on CI: a `--watch` flag (`gh pr checks --watch`), `gh run watch`, or a line pairing `sleep` with a check or a status; shipped code is not scanned (INV-0192, ADR 0255) | prohibition |

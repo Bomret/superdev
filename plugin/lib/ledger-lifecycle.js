@@ -11,7 +11,7 @@ const {
 } = require('./ledger.js');
 const { mainWorkTree } = require('./main-work-tree.js');
 const { appendTrace } = require('./trace-log.js');
-const { readSide, writeSide, withRunLock } = require('./run-digest.js');
+const { readSide, writeSide, withRunLock, underRunLock } = require('./run-digest.js');
 const { checkRun } = require('./run-check.js');
 const { checkDodWritten } = require('./dod-gate.js');
 
@@ -111,6 +111,12 @@ function verbInit(cwd, label, stage, stdinJson, log = console.log, checked = fal
   const root = path.join(workTree, '.superdev', 'scopes', slug);
   // `init` names no `--root`, so it checks the run's digest itself, once, before it reads or writes a file of the run (ADR 0227).
   if (!checked) checkRun(root);
+  // The read of a standing ledger and the write of the new one share one hold (INV-0202), so a `step set` lands before the
+  // read or after the write. A run root that does not exist yet takes no lock, and holds no ledger another verb could change.
+  return withRunLock(root, () => writeInit(root, workTree, slug, label, stage, stdinJson, log));
+}
+
+function writeInit(root, workTree, slug, label, stage, stdinJson, log) {
   // The real double-init signal is an existing ledger.md, not the run-root directory: run init
   // writes dod.md into the run root before calling init, so the directory legitimately exists
   // on every fresh run. A ledger at stage `planned` is the one exception (ADR 0079): it names a
@@ -148,7 +154,8 @@ function verbInit(cwd, label, stage, stdinJson, log = console.log, checked = fal
   }
 
   const seenIds = new Set();
-  const rows = spec.slices.map((s) => {
+  const rows = spec.slices.map((s, n) => {
+    if (s === null || typeof s !== 'object' || Array.isArray(s)) fail(`slice row ${n + 1} is not an object — expected {"id", "issue", "title", "type"}`);
     for (const k of ['id', 'issue', 'title', 'type']) {
       if (typeof s[k] !== 'string' || !s[k]) fail(`slice row missing "${k}"`);
     }
@@ -226,11 +233,11 @@ function verbStage(root, sub, value) {
     if (at >= 0) {
       lines.splice(at, 1);
       closed = true;
-      // The trace records the clear as a `step clear` line, so the review-step window reads step lines alone.
-      appendTrace(root, { kind: 'ledger', fields: ['step', 'clear'] });
     }
   }
   writeLines(root, setHeader(lines, 'Stage', value));
+  // The trace records the clear as a `step clear` line, so the review-step window reads step lines alone. It follows the write, so a failed write leaves no line.
+  if (closed) appendTrace(root, { kind: 'ledger', fields: ['step', 'clear'] });
   return closed;
 }
 
@@ -285,4 +292,4 @@ function verbSlice(root, id, status, range) {
   fail(`no slice row with id "${id}" in ${ledgerPath(root)}`);
 }
 
-module.exports = { verbInit, verbStage, verbStep, verbSlice, validateLabel, STEPS };
+module.exports = { verbInit, verbStage: underRunLock(verbStage), verbStep: underRunLock(verbStep), verbSlice: underRunLock(verbSlice), validateLabel, STEPS };

@@ -3,6 +3,7 @@
 // A `node --require` preload for a spawned update-check hook: it replaces `https.get`, so the hook reaches no network.
 // STUB_HTTPS_MARKER names a file that gains one line per call, the requested URL, which proves the stub ran.
 // STUB_HTTPS_MODE picks the answer: `newer` (version 9.0.0), `500`, `html`, or `hang` (no answer until the request's timeout).
+// STUB_HTTPS_BODY, when set, is the exact response body (mode `newer` only).
 // It starts no shell and no process.
 
 const fs = require('node:fs');
@@ -23,7 +24,7 @@ https.get = (url, opts, cb) => {
   res.resume = () => {};
   setImmediate(() => {
     cb(res);
-    res.emit('data', mode === 'html' ? '<html>nope</html>' : JSON.stringify({ version: '9.0.0' }));
+    res.emit('data', mode === 'html' ? '<html>nope</html>' : process.env.STUB_HTTPS_BODY || JSON.stringify({ version: '9.0.0' }));
     res.emit('end');
   });
   return req;

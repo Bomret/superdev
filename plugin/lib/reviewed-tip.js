@@ -7,7 +7,8 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { fail } = require('./refusal.js');
+const { fail, readPresent } = require('./refusal.js');
+const { underRunLock, withRunLock } = require('./run-digest.js');
 const { readLines, writeLines, headerRe, insertHeader, getHeader } = require('./ledger.js');
 const { gitSpawn, resolveCommit } = require('./git-spawn.js');
 const { GIT_BOUND_MS } = require('./run-tree.js');
@@ -49,7 +50,8 @@ const REMERGE_MIN = [2, 36];
 
 // `reviewed check`: one verdict line, read from the ledger, `dod.md`, and git, writing nothing. `delta <sha> <old range
 // base>` and `unchanged <sha>` where the record still holds; `whole <reason>` otherwise. Each git call is bounded by
-// `GIT_BOUND_MS`, and a call that fails or outlasts it reads as `whole git-failed`, never as a delta (INV-0009).
+// `GIT_BOUND_MS`, and a call that fails or outlasts it reads as `whole git-failed`, never as a delta (INV-0009). An absent `dod.md` reads as
+// `whole dod-unreadable`; a ledger or `dod.md` present but unreadable refuses with one line naming the file.
 function verbReviewedCheck(cwd, root, branch, base) {
   const lines = readLines(root);
   console.log(judge(cwd, root, lines, branch, base));
@@ -86,12 +88,8 @@ function judge(cwd, root, lines, branch, base) {
     const last = walk.out.trim().split('\n').pop().split(' ');
     if (last[1] !== sha) return 'whole rewritten';
   }
-  let text;
-  try {
-    text = fs.readFileSync(path.join(root, 'dod.md'), 'utf8');
-  } catch {
-    return 'whole dod-unreadable';
-  }
+  const text = readPresent(path.join(root, 'dod.md'), 'utf8');
+  if (text === null) return 'whole dod-unreadable';
   let now;
   try {
     now = criteriaDigest(text);
@@ -132,14 +130,16 @@ function verbReviewedSet(cwd, root, branch, tip) {
     if (r.status !== 0) fail(`reviewed set: could not tell whether --tip "${tip}" is an ancestor of the tip of "${branch}"`);
   }
   const value = `${commit} ${digest}`;
-  const lines = readLines(root);
-  const at = lines.findIndex((l) => headerRe('Reviewed').test(l));
-  const line = `**Reviewed:** ${value}`;
-  if (at >= 0 && lines[at] === line) return null;
-  if (at >= 0) lines[at] = line;
-  else insertHeader(lines, 'Reviewed', value);
-  writeLines(root, lines);
-  return { commit, digest };
+  return withRunLock(root, () => {
+    const lines = readLines(root);
+    const at = lines.findIndex((l) => headerRe('Reviewed').test(l));
+    const line = `**Reviewed:** ${value}`;
+    if (at >= 0 && lines[at] === line) return null;
+    if (at >= 0) lines[at] = line;
+    else insertHeader(lines, 'Reviewed', value);
+    writeLines(root, lines);
+    return { commit, digest };
+  });
 }
 
 // `reviewed clear`: removes the header. True when the ledger changed; no header is no error and changes nothing.
@@ -152,4 +152,4 @@ function verbReviewedClear(root) {
   return true;
 }
 
-module.exports = { verbReviewedSet, verbReviewedClear, verbReviewedCheck };
+module.exports = { verbReviewedSet, verbReviewedClear: underRunLock(verbReviewedClear), verbReviewedCheck };

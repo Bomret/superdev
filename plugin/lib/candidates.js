@@ -5,6 +5,7 @@
 
 const path = require('path');
 const { fail } = require('./refusal.js');
+const { takeOption } = require('./options.js');
 const { readLines, getHeader, SLUG_RE, STAGES } = require('./ledger.js');
 const { scanRunRoots } = require('./run-roots.js');
 
@@ -12,10 +13,9 @@ const { scanRunRoots } = require('./run-roots.js');
 // stage. A run root whose ledger names no stage reads `absent`, and one whose ledger cannot be read or names a stage outside the ledger's
 // stages reads `unreadable`: neither qualifies. A run root whose directory name fails the slug charset is left out, so every slug is one token.
 function verbCandidates(cwd, args) {
-  const i = args.indexOf('--stage');
-  if (i < 0 || !args[i + 1]) fail('candidates: --stage <stage>[,<stage>] is required');
-  const wanted = args[i + 1].split(',');
-  args.splice(i, 2);
+  const stage = takeOption(args, '--stage', 'candidates: ');
+  if (stage === undefined) fail('candidates: --stage <stage>[,<stage>] is required');
+  const wanted = stage.split(',');
   if (args.length) fail(`candidates: unrecognized argument "${args[0]}"`);
   const unknown = wanted.find((s) => !STAGES.includes(s));
   if (unknown !== undefined) fail(`candidates: unknown stage "${unknown}" (stages: ${STAGES.join(', ')})`);

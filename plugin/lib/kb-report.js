@@ -3,13 +3,21 @@
 // kb-report.js: renders a publish run's per-page results as the report text on stdout.
 
 // A page's body never appears here — every line names a filename/title/reason, never stdout a
-// backend returned. The one exception is a `link kept in parent` line, which prints a line of the live
-// parent body with its control characters and escape sequences stripped.
-const printable = (s) => s.replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, '').replace(/[\u0000-\u0008\u000a-\u001f\u007f-\u009f]/g, '');
+// backend returned. Every field that carries outside text (reason, title, filename, fix, parent, kept) passes through
+// `printable`, this report's one definition of what text may reach the terminal: it strips terminal escape sequences (CSI and OSC),
+// the C0 and C1 control characters, DEL, U+2028 and U+2029, and the bidirectional overrides, embeddings, isolates, and marks.
+// Routing keeps its own definition (`lib/route.js`).
+const printable = (v) =>
+  String(v ?? '')
+    .replace(/\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)?/g, '')
+    .replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, '')
+    .replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029\u200e\u200f\u061c\u202a-\u202e\u2066-\u2069]/g, '');
 function renderReport(scope, backendKind, results, unmerged = false) {
   const lines = [`scope: ${scope}`, `backend: ${backendKind}`];
   if (unmerged) lines.push('unmerged: the scope branch was not confirmed contained — published with --allow-unmerged');
-  for (const r of results) {
+  for (const raw of results) {
+    const r = { ...raw };
+    for (const k of ['title', 'reason', 'filename', 'fix', 'parent']) if (r[k] !== undefined) r[k] = printable(r[k]);
     if (r.kind === 'created' || r.kind === 'updated') lines.push(`published (${r.kind}): ${r.title}`);
     else if (r.kind === 'deleted') lines.push(`deleted: ${r.title}`);
     else if (r.kind === 'already-absent') lines.push(`already absent, done: ${r.title}`);

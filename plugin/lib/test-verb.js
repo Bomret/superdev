@@ -53,11 +53,11 @@ function changedSince(verb, ref, top) {
 // carries to the remote, so a secret belongs in the environment. Outside every run tree the command runs and nothing is written.
 // simplicity: a command that changes its own process group escapes the group kill; upgrade: a cgroup or subreaper if one bites.
 function verbTest(cwd, args) {
-  const { locate, treeState, relDir, isTestPath } = require('./run-tree.js');
+  const { locateStrict, treeState, relDir, isTestPath } = require('./run-tree.js');
   let kind = args[0];
   let command;
   let files = [];
-  const at = locate(path.join(cwd, 'x'));
+  const at = locateStrict(path.join(cwd, 'x'));
   let runCwd = cwd;
   // The tree a configured kind runs in outside every run tree: the repository's, else the cwd.
   const topOf = () => {

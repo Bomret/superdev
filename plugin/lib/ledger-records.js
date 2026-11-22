@@ -3,6 +3,7 @@
 // ledger-records.js: the verbs that record one fact on a ledger header or bullet line, `degraded`, `unresolved`, `deferred`, `minors`, `docs`, `pr`, and `deploy`.
 
 const { fail } = require('./refusal.js');
+const { underRunLock } = require('./run-digest.js');
 const { checkSliceId, ledgerPath, readLines, writeLines, headerRe, getHeader, insertHeader, readBullets, tableRowIndexes, splitRow } = require('./ledger.js');
 
 // The write half of `readBullets`: append one bullet under `**<name>:**`, creating that line beside
@@ -156,6 +157,11 @@ function verbMinors(root, sub, id, argc) {
 // dispatch; `/superdev:review`'s fix loop clears it when its fix cycles land commits,
 // because those commits made the pass stale. The value names the pass rather than merely marking presence,
 // so another arrangement can record its own kind without a second header.
+// The Docs value `docs set` accepts, shared with `adopt` so a published snapshot meets the writer's own rule.
+function checkDocsValue(value) {
+  if (/\s/.test(value)) fail('docs set value must not contain whitespace — "get docs" only reads back the first token');
+}
+
 function verbDocs(root, sub, value) {
   const lines = readLines(root);
   const at = lines.findIndex((l) => headerRe('Docs').test(l));
@@ -169,7 +175,7 @@ function verbDocs(root, sub, value) {
   if (!value) fail('docs set needs a value');
   // `Docs` is a TOKEN_HEADERS entry: `get docs` reads back only the first whitespace-delimited
   // token, so a value with internal whitespace would write something `get docs` can never round-trip.
-  if (/\s/.test(value)) fail('docs set value must not contain whitespace — "get docs" only reads back the first token');
+  checkDocsValue(value);
   if (at >= 0) {
     lines[at] = `**Docs:** ${value}`;
     writeLines(root, lines);
@@ -185,6 +191,13 @@ function verbDocs(root, sub, value) {
 // requests on the host under the same head, and a lookup by branch alone could adopt one of those
 // instead (INV-0092). A ledger from before this header existed carries no line, and parses unchanged —
 // `get pr` reports `absent`, the same as any other missing optional header (run-state.md's `## The ledger`).
+// The PR value `pr set` accepts, as the `#<n>` it renders; shared with `adopt`.
+function checkPrValue(value) {
+  const digits = value.replace(/^#/, '');
+  if (!/^\d+$/.test(digits)) fail(`pr set value must be a number, optionally led by "#" — got "${value}"`);
+  return `#${digits}`;
+}
+
 function verbPr(root, sub, value) {
   const lines = readLines(root);
   const at = lines.findIndex((l) => headerRe('PR').test(l));
@@ -196,9 +209,7 @@ function verbPr(root, sub, value) {
   }
   if (sub !== 'set') fail(`unknown pr subcommand "${sub}" — use set|clear`);
   if (!value) fail('pr set needs a value');
-  const digits = value.replace(/^#/, '');
-  if (!/^\d+$/.test(digits)) fail(`pr set value must be a number, optionally led by "#" — got "${value}"`);
-  const rendered = `#${digits}`;
+  const rendered = checkPrValue(value);
   if (at >= 0) {
     lines[at] = `**PR:** ${rendered}`;
     writeLines(root, lines);
@@ -232,12 +243,27 @@ function renderDeployRecord(records) {
   return records.map((r) => `${r.target} ${r.state}${r.exit !== undefined ? ` exit ${r.exit}` : ''}`).join(', ');
 }
 
-function verbDeploySet(root, target, state, exitCode) {
+// One deploy entry's own rules, the ones `deploy set` enforces on its arguments.
+function checkDeployEntry(target, state, exitCode) {
   if (!target) fail('deploy set needs a <target>');
   if (!/^[^\s,]+$/.test(target)) fail(`target "${target}" must be one word`);
   if (!DEPLOY_STATES.includes(state)) fail(`unknown deploy state "${state}" — use ${DEPLOY_STATES.join('|')}`);
   if (exitCode !== undefined && state !== 'failed') fail('--exit belongs only with failed');
   if (exitCode !== undefined && !/^\d+$/.test(exitCode)) fail(`--exit value must be a number — got "${exitCode}"`);
+}
+
+// A whole `**Deploy:**` value under the writer's rules: each entry passes `checkDeployEntry`, and a target appears once.
+function checkDeployValue(value) {
+  const seen = new Set();
+  for (const r of parseDeployRecord(value)) {
+    checkDeployEntry(r.target, r.state, r.exit);
+    if (seen.has(r.target)) fail(`deploy record names target "${r.target}" more than once`);
+    seen.add(r.target);
+  }
+}
+
+function verbDeploySet(root, target, state, exitCode) {
+  checkDeployEntry(target, state, exitCode);
   const lines = readLines(root);
   const records = parseDeployRecord(getHeader(lines, 'Deploy'));
   const idx = records.findIndex((r) => r.target === target);
@@ -274,5 +300,7 @@ function verbDeployGet(root) {
 
 module.exports = {
   BULLET_STDIN_SUBS, DENIAL_PREFIX, RESET_PREFIX, denialCount,
-  resolveBulletText, verbDegraded, verbUnresolved, verbDeferred, verbMinors, verbDocs, verbPr, verbDeploySet, verbDeployGet, readDeployRecord,
+  resolveBulletText, verbDeployGet, readDeployRecord, checkDocsValue, checkPrValue, checkDeployValue,
+  verbDegraded: underRunLock(verbDegraded), verbUnresolved: underRunLock(verbUnresolved), verbDeferred: underRunLock(verbDeferred),
+  verbMinors: underRunLock(verbMinors), verbDocs: underRunLock(verbDocs), verbPr: underRunLock(verbPr), verbDeploySet: underRunLock(verbDeploySet),
 };
