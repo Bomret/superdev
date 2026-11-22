@@ -22,7 +22,6 @@ Applies to every start. You turn an intent into **independently-green vertical s
 - **The derive dispatch**: §1's background dispatch of `superdev:final-reviewer` in derive mode.
 - **The readiness check**: §5's dispatch of `superdev:slice-readiness-reviewer` over the draft and the slice draft.
 - **The scope anchor**: the epic on a multi-slice feature, the lone slice on a single-slice one.
-- **An unattended block**: a stop that counts as a block under `${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s **Unattended** section.
 
 **Cited sections.** Applies to every cited `## <heading>` section of a document. Read it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" section <path>` and the heading on stdin through a quoted heredoc.
 
@@ -149,8 +148,8 @@ A new-feature plan loads neither reference.
 |---|---|
 | `cut`, `reused`, or `existing` | Write that capture, and every capture after it (`CONTEXT.md`, every `docs/adr/` file, `docs/invariants.md`), into the scopetree. Nothing this step writes lands in the invoking checkout. |
 | `locked` | Another plan session holds this feature: stop, naming the lock it printed. |
-| `not-contained` | Show the commits it printed, ask, and name the rename remedy it printed. Where its last line is `refetch timed-out` or `refetch failed`, the refetch ended without a base, so the answer is the local one and carries no verdict on the branch (INV-0003, INV-0009): say the second pass did not run, name that line, and ask with the answer named as local. `--unattended` → an unattended block. |
-| `dirty` or `held` | Name what it printed and stop. `--unattended` → an unattended block. |
+| `not-contained` | Show the commits it printed, ask, and name the rename remedy it printed. Where its last line is `refetch timed-out` or `refetch failed`, the refetch ended without a base, so the answer is the local one and carries no verdict on the branch (INV-0003, INV-0009): say the second pass did not run, name that line, and ask with the answer named as local. |
+| `dirty` or `held` | Name what it printed and stop. |
 
 The `not-contained`, `dirty`, and `held` stops write nothing.
 
@@ -219,7 +218,7 @@ A triage record already written is amended instead, through the store's own `## 
 - On an append, the draft is the amended Definition of Done, and the slice draft also lists the feature's existing slices.
 - With no run open yet, no scopetree exists: hand the repository's path and `<base>` in its place, the base branch `scope.js open` receives as `--base`.
 
-**Settling readiness findings.** Applies to every finding the readiness check returns. Settle it by editing the slice text, or reject it. A finding that is a real open design decision becomes one interview question under `references/cross-exam.md`'s rules, and under `--unattended` that question is an unattended block. A finding the repository shows wrong, such as a contradicted name the code shows right, is rejected with a reason drawn from the repository, and the breakdown shows it as `rejected: <reason>`, with no slice edit.
+**Settling readiness findings.** Applies to every finding the readiness check returns. Settle it by editing the slice text, or reject it. A finding that is a real open design decision becomes one interview question under `references/cross-exam.md`'s rules. A finding the repository shows wrong, such as a contradicted name the code shows right, is rejected with a reason drawn from the repository, and the breakdown shows it as `rejected: <reason>`, with no slice edit.
 
 **A changed slice set.** Applies when a slice is split, merged, added, or dropped, or its `depends-on` changes, after the readiness check read the slices. Rewrite the slice draft and run the readiness check again before the approval. An edit to a slice's text alone runs no new check.
 
@@ -247,7 +246,7 @@ A triage record already written is amended instead, through the store's own `## 
 
 **Tag checks.** Applies to a plan with two or more slices. Before the epic is created, pipe the drafted body through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-tags` with no map: it checks that every unjudged line carries a tag `dod-line` reads, and a refusal names each line to fix before anything is written. Once every slice issue exists, the plan document's tag rewrite runs `dod-tags --map-file <path>` as the producer of its body edit, the map holding one `<id> <reference>` pair per slice, so every store tag comes from the verb.
 
-**The anchor check.** Applies to every plan kind, a new plan, an append, and a repair, and to a single-slice plan, whose lone slice carries the Definition of Done. Before any store write, pipe the drafted anchor body through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-check`, beside the tag checks above. The drafted body carries the Definition of Done and the drafted anchor-only lines below, the Absorbs line included. On an append it carries the whole amended Definition of Done and the revised Absorbs line. A refusal names each problem on its own line: fix each named line in the draft and run the check again, and write nothing to the store until it passes. The fix asks no question, so a `--unattended` plan makes it the same way and writes nothing to the store until the check passes.
+**The anchor check.** Applies to every plan kind, a new plan, an append, and a repair, and to a single-slice plan, whose lone slice carries the Definition of Done. Before any store write, pipe the drafted anchor body through `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" dod-check`, beside the tag checks above. The drafted body carries the Definition of Done and the drafted anchor-only lines below, the Absorbs line included. On an append it carries the whole amended Definition of Done and the revised Absorbs line. A refusal names each problem on its own line: fix each named line in the draft and run the check again, and write nothing to the store until it passes.
 
 **Epic visuals.** Applies to an epic. Apply plan-authoring.md's *Epic visuals* → *When to write them* and write `## Slice graph` and/or `## Touch map` into the epic body, the touch map from §4's file list. Say which you wrote and why, in one line, in the verdict format that section shows. Fix a genuine dependency error the drawing exposes, and re-cut nothing for looks.
 
@@ -277,7 +276,6 @@ A triage record already written is amended instead, through the store's own `## 
 |---|---|---|
 | Fully planned | Make the store's **Close it** call with a comment naming the scope anchor, the feature label, and every finding id this scope planned as `#<record> F<n>`. **Close it** posts that comment itself. | Delete it. |
 | Not fully planned | Post a comment naming the scope anchor, the feature label, and what this scope planned, with every finding id it planned as `#<record> F<n>`. Leave the record open, so the next plan offers it again. | Keep it. |
-| `--unattended` | Take not fully planned, and ask nothing. | Take not fully planned, and ask nothing. |
 
 **A failed settle.** Applies to a comment or close that fails. Report it once. The filed scope stands, its records, ledger, and branch as written, and a record already closed is no error.
 
@@ -289,13 +287,14 @@ A triage record already written is amended instead, through the store's own `## 
 
 **The ledger.** Applies to every plan, from the invoking checkout. Run `scope.js init <type>/<scope> planned` with the JSON envelope `${CLAUDE_PLUGIN_ROOT}/references/run-init.md`'s `## Run init — definition of done + ledger (always first)` section pipes to it, `{"anchor": "<key> — <title>", "slices": [...]}`. Carry the anchor this plan created or amended and every slice this plan wrote, each row's `status` field `todo`; it overwrites the `planned` ledger `open` wrote and keeps the plan step.
 
-**The push.** Applies to every plan run: fresh and append, attended and unattended. Per `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Pushing the scope branch`, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" push --root <run-root> --remote <remote> --base <base>` in your own Bash call. With no `Remote:` value, print that section's one note and run no push. An outcome that pushed nothing gets that section's one report in this command's output, and the run goes on to the release question unchanged.
+**The push.** Applies to every plan run: fresh and append. Per `${CLAUDE_PLUGIN_ROOT}/references/scope-branch.md`'s `## Pushing the scope branch`, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" push --root <run-root> --remote <remote> --base <base>` in your own Bash call. With no `Remote:` value, print that section's one note and run no push. An outcome that pushed nothing gets that section's one report in this command's output, and the run goes on to the release question unchanged.
 
 **The release question.** Applies to every store. `plan-contract.md`'s *Release* section owns what a release is, and the store document's `## Release` section owns this backend's signal and the call that applies it. List every slice this plan wrote (key, title, type, `depends-on`), and ask one question: **release this feature for execution now, or leave the release to a human later?**
 
 - **Release now** → apply the signal to the scope anchor, and say it is applied.
 - **Later, except on an append** → apply nothing. Name what a human does to release it, the signal and where it goes, and say that `/superdev:implement` asks for confirmation until then.
-- **Later, on an append** → remove the signal from the scope anchor through the `## Release` section's own **Remove** call, and say it is removed. Name what a human does to release it, and say that `/superdev:implement` asks for confirmation until then.
+- **Later, on an append, with a Remove call** → remove the signal from the scope anchor through the `## Release` section's own **Remove** call, and say it is removed. Name what a human does to release it, and say that `/superdev:implement` asks for confirmation until then.
+- **Later, on an append, with no Remove call** (the store document's `## Release` section carries none, or the document has no `## Release` section) → remove nothing. Say the release signal stays on the scope anchor, that `/superdev:implement` treats the feature as released until a human removes it, and tell the operator to run `/superdev:setup`, whose re-run offers the missing call.
 
 **The release answer.** Applies to the release question. The answer is the user's, so **wait for it**; an authorization to run the whole chain unattended is not that answer. A correction the user names on seeing the list is applied to the store before the question is put again.
 

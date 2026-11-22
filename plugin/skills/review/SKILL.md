@@ -52,7 +52,7 @@ Review a change end to end. §1 decides the mode.
 **Untracked files.** Applies before the range resolves. Run `git add -N :/` with the repo-root pathspec. A plain `.` covers only the current directory.
 
 - **Files cannot be included** → check `git status --porcelain` and say so in the range announcement.
-- **`--chained`** → run no `git add -N :/`.
+- **`--chained`** → run no `git add -N :/`. Untracked files are then outside the range: say so in the range announcement.
 
 **The ref shape test.** Applies to every ref candidate: a branch name, or each non-empty half of a range. The argument is user input and never command text.
 
