@@ -31,9 +31,12 @@ first failing step ends the steps still running, which print one `cancelled` lin
 
 **Measured cost, 2026-11-22.** The machine is the maintainer's 8-core Apple M1 (4 performance and 4 efficiency
 cores). The Node build is the official Node.js v26.12.1 build from nodejs.org, installed through fnm. One full run at
-commit `c24d2572` took 90 s wall clock. Under concurrency, the longest step was `scope-fail-to-pass-concurrency` (24 s).
-On 2026-10-26, at commit `b382c879`, the suites run alone one after another took about 375 s of wall clock and about
-330 s of CPU time together, and the linear-time pins (`tests/linear-time.js`) about 70 s of that wall clock. A focused
+commit `c24d2572` took 90 s wall clock, read from the runner's `run-tests: <label>: <ms> ms` lines. Under concurrency,
+the longest step was `scope-fail-to-pass-concurrency` (24 s). Later commits changed suites and scripts, so the figure
+dates that commit alone, and `node scripts/run-tests.js` reproduces it. The sequential figures below were measured on
+2026-10-26 at commit `b382c879` and not measured again on 2026-11-22: the suites run alone one after another took
+about 375 s of wall clock and about 330 s of CPU time together, and the linear-time pins (`tests/linear-time.js`)
+about 70 s of that wall clock. A focused
 run for a change set whose `.md` paths no suite names runs the tail alone, about 2 s.
 
 ## Prepare command
