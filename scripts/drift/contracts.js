@@ -220,9 +220,9 @@ const KB_BACKEND_CALL_MARKERS = [
 ];
 
 // ADR 0022: `lib/ledger.js` owns the ledger's schema, and since it exports `readLedgerHeader` that
-// ownership means one implementation rather than one per consumer. `hooks/scope-prune.js` used to carry
-// its own `**Name:**` regex, and it drifted on four axes while being hardened against defects on its
-// delete path — every difference arrived as a well-intentioned local fix, and none travelled back.
+// ownership means one implementation rather than one per consumer. A consumer that carries its own
+// `**Name:**` regex drifts from the shared reader: each local fix lands in that copy alone, and none
+// travels back.
 //
 // The primary guard against that drift restarting is the orphan test in `hooks/scope-prune.js
 // --selftest` (`#reader-unavailable` and its shared-reader agreement vectors): it exercises the real

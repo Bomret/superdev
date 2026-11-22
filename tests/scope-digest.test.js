@@ -303,7 +303,7 @@ async function main() {
   }
 
   // #lock-live: a lock a live process holds, younger than the stale age, is waited for with no budget and never broken: the holder
-  // holds past the 2 s wait budget the lock once had, and the append lands only after the holder's last act inside its hold. No duration is asserted.
+  // holds for 3 s, and the append lands only after the holder's last act inside its hold. No duration is asserted.
   {
     const f = fixture();
     const marker = path.join(f.root, 'holder-done');
