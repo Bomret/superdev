@@ -68,6 +68,10 @@ When verify-ship settles every Definition-of-Done line, it starts `/superdev:wra
 turn. A fully verified scope then closes without another prompt.
 Wrap-up still runs every check and asks every question it asks when you type it.
 
+Work that would carry no `behavior` slice, such as a rename or a prose fix, can leave the chain: brainstorm at its
+hand-off and plan on a new plan offer to do it inline, in its own worktree on an `inline/<slug>` branch, with no
+slice store record, scope branch, or pull request.
+
 ## Install
 
 Prerequisites: Claude Code, and `node` on PATH. superdev runs on macOS, Linux, WSL, and native Windows with

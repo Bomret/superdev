@@ -1630,3 +1630,12 @@ Statement: Every CLI the shipped tree carries under `plugin/scripts/` answers `-
 Breaks: silently
 Check: tests/scope-help.test.js — the full usage, a verb's entries, and a subcommand's entries, each with exit 0 and no stdin read; tests/publish-kb.test.js — usage with exit 0 outside any repository; tests/kb-patch.test.js — usage with exit 0 and no page read
 Paths: plugin/scripts/**, plugin/lib/usage.js
+
+### INV-0206
+
+Class: process
+Concepts: Inline off-ramp, Slice store, Code host
+Statement: An inline off-ramp writes no slice, epic, intent record, scope branch, or pull request to the slice store or the code host, and edits no tracked file in the invoking checkout, nor switches its branch: its work runs in its own worktree on its own branch under the ignored `.superdev/`. The only store write it makes is the settle comment or close on an intent record the plan was seeded from.
+Breaks: silently
+Check: none — final-reviewer's invariant compliance judges it
+Paths: plugin/references/inline-offramp.md, plugin/skills/brainstorm/SKILL.md, plugin/skills/plan/SKILL.md
