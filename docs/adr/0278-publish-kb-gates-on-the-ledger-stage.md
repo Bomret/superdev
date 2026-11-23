@@ -3,7 +3,9 @@
 **Status:** Accepted
 
 **Amends:** [ADR 0053](0053-containment-not-ancestry-decides-that-a-scope-branch-reached-base.md), whose
-containment test `/superdev:publish-kb` no longer runs.
+containment test `/superdev:publish-kb` no longer runs, and
+[ADR 0191](0191-plan-stages-no-knowledge-base-page.md), whose Context names that containment test as the
+publish's guard.
 
 ## Context
 
