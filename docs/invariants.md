@@ -1621,3 +1621,12 @@ Statement: Every superdev step that reaches a remote, a push of the scope branch
 Breaks: silently
 Check: tests/scope-open.test.js — `open` with no `--remote` refetches from the configured remote, and with no `Remote:` value refetches nothing; tests/publish-kb-containment.test.js — no `Remote:` value judges locally with no refetch; tests/scope-contained.test.js — the configured remote and the no-remote local verdict
 Paths: plugin/lib/plan-open.js, plugin/lib/contained.js, plugin/lib/containment.js, plugin/lib/kb-containment.js, plugin/skills/ship/SKILL.md, plugin/references/shipped-run.md, plugin/references/scope-branch.md, plugin/references/code-management-*.md
+
+### INV-0204
+
+Class: architecture
+Concepts: Shipped tree
+Statement: Every CLI the shipped tree carries under `plugin/scripts/` answers `--help` or `-h` with its usage on stdout and exit 0, reading no stdin and acting on nothing else: no ledger, repository, backend, or file is read or written. The token is data, never a help request, where it is the value of a flag that takes one or the free text a verb takes.
+Breaks: silently
+Check: tests/scope-help.test.js — the full usage, a verb's entries, and a subcommand's entries, each with exit 0 and no stdin read; tests/publish-kb.test.js — usage with exit 0 outside any repository; tests/kb-patch.test.js — usage with exit 0 and no page read
+Paths: plugin/scripts/**, plugin/lib/usage.js
