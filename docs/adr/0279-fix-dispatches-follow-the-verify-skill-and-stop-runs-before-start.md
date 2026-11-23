@@ -30,4 +30,4 @@ runs. A Stop before Start that fails is a concern, and nothing starts.
 **Consequences.** A verify skill's Stop must succeed with no instance running and act on its own checkout's instance
 alone, which the scaffold states, because sibling slicetrees verify in parallel. A follower starts the skill only on a
 tree with no uncommitted change, so the first Stop never removes its own work, and the clean-tree baseline is read
-after that Stop. The ad-hoc review's inline Minor fix carries no skill path.
+after that Stop. `review-inline-fix.md` names no skill path, so the ad-hoc review's inline Minor fix follows none.
