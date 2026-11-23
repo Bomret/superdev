@@ -206,9 +206,10 @@ for (const argv of [['--allow-unmerge'], ['extra'], ['--scope']]) {
 }
 
 // --- `--scope --read`: `--read` is the scope's value, so no read entry runs and the publish path refuses ---
+// The backend configures `read`, so a read entry would reach the backend.
 withCapture((stateFile, dir) => {
   const repo = makeRepo();
-  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', ['find', 'read', 'create', 'update', 'delete']));
   stagePage(repo, 'demo', 'p.md', 'title: P\naction: upsert');
 
   const res = call(['--scope', '--read'], repo);
