@@ -56,6 +56,11 @@ implementer subagent carries, because no agent body is loaded on this tier:
 - **Every acceptance criterion gets at least one increment.** On a `behavior` slice each criterion, its failure and
   boundary cases included, is the RED test of its own increment.
 - **A `mechanical` or `docs` slice** needs no new test: the existing suite is its net.
+- **The verify skill.** On a `behavior` slice, with a skill path the run read (`skills/implement/SKILL.md`'s **The
+  config**), follow `verify-skill.md`'s `## Following the skill` before the slice's `merged` write, its Stop run on
+  every exit. Your report to yourself quotes what you observed per acceptance item, and backs the slice's DoD ticks.
+  An observation that contradicts an acceptance item is a RED step. `none`, an absent section, and a `mechanical` or
+  `docs` slice change nothing here.
 
 **Domain shapes.** Applies to a slice whose `spec` names domain shapes. Declare them before its first RED test. The
 fields are yours, and a shape whose term `CONTEXT.md` lacks is reported rather than invented. A `spec`-named shape is
