@@ -5,7 +5,7 @@
 function usage() {
   return [
     'usage: node scope.js <verb> …   (ledger CLI — the only ledger.md write path)',
-    '  --help, -h                         this text, with any verb; reads no stdin',
+    '  --help, -h                         after <verb> [<sub>], that verb\'s or subcommand\'s entries; alone, every entry; reads no stdin',
     '  open <type>/<slug> --base <base-ref> [--remote <remote>] [--lock <nonce>]',
     '                                     sets up or rejoins a plan run: cuts or reuses the scope branch into the scopetree,',
     '                                     writes run.lock, an empty planned ledger when none exists, and the plan step; prints',
@@ -226,4 +226,45 @@ function usage() {
   ].join('\n');
 }
 
-module.exports = { usage };
+// The literal words of an entry's syntax head: its first line after the verb token, up to the first run of two or
+// more spaces or the first token starting with `-` or `[`, split on `|`, every `<…>` placeholder removed by nesting
+// depth (`<exit|signal|start-failed:<code>|dirty>` is one placeholder).
+function headWords(firstLine, verb) {
+  const head = firstLine.slice(2 + verb.length).split(/ {2,}/)[0];
+  const words = [];
+  for (const token of head.split(' ').filter(Boolean)) {
+    if (token.startsWith('-') || token.startsWith('[')) break;
+    let depth = 0;
+    let literal = '';
+    for (const ch of token) {
+      if (ch === '<') depth++;
+      else if (ch === '>' && depth > 0) depth--;
+      else if (depth === 0) literal += ch;
+    }
+    words.push(...literal.split('|').filter(Boolean));
+  }
+  return words;
+}
+
+// The help a `<verb> [<sub>] --help` request prints: the header, then the verb's entries, or only those whose syntax
+// head names <sub>. An entry starts at a line indented exactly two spaces whose first token is the verb, and runs
+// through the lines indented deeper. No verb, or a verb with no entry, prints the whole usage; a <sub> naming no
+// entry prints every entry of the verb.
+function helpText(verb, sub) {
+  const text = usage();
+  if (!verb) return text;
+  const lines = text.split('\n');
+  const entries = [];
+  let current = null;
+  for (const line of lines.slice(2)) {
+    if (/^ {2}[^ ]/.test(line)) {
+      current = line.slice(2).split(' ')[0] === verb ? [line] : null;
+      if (current) entries.push(current);
+    } else if (current) current.push(line);
+  }
+  if (entries.length === 0) return text;
+  const named = sub ? entries.filter((e) => headWords(e[0], verb).includes(sub)) : [];
+  return [...lines.slice(0, 2), ...(named.length ? named : entries).flat()].join('\n');
+}
+
+module.exports = { usage, helpText };
