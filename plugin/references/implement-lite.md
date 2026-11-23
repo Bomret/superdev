@@ -75,6 +75,8 @@ started.
 base commit. Name it in your report. Fix none, block on none, and count no strike for it; the scope review's fix loop
 repairs it.
 
+**A flaky test.** Applies to a test that both passes and fails at one commit with nothing changed, seen within the slice's own runs. Follow `agents/implementer.md`'s `## A flaky test`, with the slice base as `<range-start>`. A flaky test the slice did not touch is named as an inherited failure, and you record it as an observation yourself (**Observations** below).
+
 **Observations.** Applies to a defect you meet that no slice of this scope covers and the scope did not cause. Capture
 it now, per `scope-findings.md`'s `## Observations`.
 

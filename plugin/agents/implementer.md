@@ -206,6 +206,17 @@ A test your slice did not cause also fails at your base commit before your first
 - Every other test your work reaches goes green as usual.
 - A red-suite fix dispatch makes the failing tests your task: a review fix dispatch whose finding is red evidence, a red suite record or a failed named check. A slice fix dispatch, a sweep fix dispatch, and an inline fix dispatch do not.
 
+## A flaky test
+
+Applies to every dispatch.
+
+A test is flaky when it both passes and fails at one commit with nothing changed. You see it within the runs you already make, and you make no extra run to hunt it (`${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## Every run answers a question`).
+
+- **A flaky test your range adds or modifies** is never skipped, slept around, or retried until green. Find its root cause and fix it.
+- **No root cause found** → delete a test your range added, or put back a test your range modified as it stood at `<range-start>` (`### Fail-to-pass run`). Report why as a concern.
+- **An acceptance item that removal leaves without a test** is `not covered` (`## Self-check`): write a stable test for it, or report it untested.
+- **A flaky test your range did not touch** is an inherited failure (INV-0157), named as `## A failing test your slice did not cause` states. It need not fail at your base, since a flaky test may pass there. Report it as an observation (`${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Observations`), and the controller records it.
+
 ## Deep modules and domain language
 
 Applies to every dispatch that writes code.
@@ -344,6 +355,7 @@ Return the report only to the controller that dispatched you. You never talk to 
 - One line per listed line (`### Listed lines`).
 - On a slice dispatch and a slice fix dispatch: the cross-slice interfaces you decided (a name, a signature, a file's role a later slice builds on), or `interfaces: none`.
 - Each failing test your slice did not cause, with how you established it (`## A failing test your slice did not cause`).
+- Each flaky test you met, with what you did about it (`## A flaky test`).
 - The `AGENTS.md`-hierarchy and knowledge-base places you left unedited (`## Documentation`).
 - On a fix dispatch: the rule you applied to each finding (`### RED-test rule`), each place you checked and each you changed (`### Sibling surfaces`), each same-defect instance you fixed, each such instance outside the scope's changed files as an observation, and each place outside your checkout left unedited.
 - On a dispatch that repairs a defect: the ranked hypotheses your diagnosis wrote, in rank order (`### Defect repair`).
