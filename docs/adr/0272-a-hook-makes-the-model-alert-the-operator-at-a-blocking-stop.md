@@ -1,6 +1,8 @@
 # 0272: A hook makes the model alert the operator at a blocking stop
 
-**Status:** Accepted
+**Status:** Superseded
+
+**Superseded by:** [ADR 0275](0275-superdev-sends-no-operator-alert.md), which removes the hook.
 
 ## Context
 
