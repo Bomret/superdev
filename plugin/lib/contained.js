@@ -5,7 +5,7 @@
 const { fail } = require('./refusal.js');
 const { resolveCommit } = require('./git-spawn.js');
 const { judgeContainment, refetchMark } = require('./containment.js');
-const { resolveRemote } = require('./kb-containment.js');
+const { resolveRemote } = require('./remote.js');
 const { pushTimeoutMs } = require('./push.js');
 
 // Each verdict's exit status. A usage refusal exits 1. `not-contained` and `could-not-resolve` stay apart so a caller

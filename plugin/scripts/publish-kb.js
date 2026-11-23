@@ -36,7 +36,6 @@ const { parseStagedPage } = require('../lib/kb-staged-page.js');
 const { hashBody, timeoutMs, runFind } = require('../lib/kb-backend.js');
 const { processStagedFiles } = require('../lib/kb-apply.js');
 const { addParentLink, removeParentLink } = require('../lib/kb-parent-link.js');
-const { parseBaseBranch, parseRemote } = require('../lib/kb-containment.js');
 const { checkGate } = require('../lib/kb-gate.js');
 const { runReadEntry } = require('../lib/kb-read.js');
 const { renderReport } = require('../lib/kb-report.js');
@@ -141,8 +140,6 @@ module.exports = {
   runFind,
   addParentLink,
   removeParentLink,
-  parseBaseBranch,
-  parseRemote,
   timeoutMs,
   hashBody,
   run,

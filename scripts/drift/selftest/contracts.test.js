@@ -1,7 +1,7 @@
 'use strict';
 
 // Selftest suite: the table-driven checks, which run through `lib.js`'s scanContract() over the tables in
-// `contracts.js` — change-type, source-sections, and containment-delegation. Run by ./index.js.
+// `contracts.js` — change-type and source-sections. Run by ./index.js.
 
 const { scanContract } = require('../lib');
 const {
@@ -9,7 +9,6 @@ const {
   SOURCE_SECTION_CONTRACTS,
   SPECIALISING_SECTIONS,
   specialisingGenericRows,
-  CONTAINMENT_DELEGATION_CONTRACTS,
 } = require('../contracts');
 
 module.exports = ({ assert, path, fixture, found }) => {
@@ -158,57 +157,6 @@ module.exports = ({ assert, path, fixture, found }) => {
   assert.equal(newMemberRow[0], path.join('references', 'plan-contract.md'), 'the derived row pins the generic document');
   assert.match('# c\n\n## Provisional shape\n', newMemberRow[1], "the derived row matches the new member's own heading");
   assert.match(newMemberRow[2], /Provisional shape/, 'the derived row names the new member in its expectation');
-
-  // --- containment-delegation (ADR 0053, ADR 0069): lib/kb-containment.js imports and calls lib/containment.js's
-  // testContainment rather than reimplementing the ancestry check ---
-
-  const cdOwnTest = scanContract(
-    fixture({
-      'lib/kb-containment.js':
-        'function checkContainment(mainCheckout, scope) {\n' +
-        "  const res = spawnSync('git', ['merge-base', '--is-ancestor', branch, base], { cwd: mainCheckout });\n" +
-        '  return { performed: true, ok: res.status === 0 };\n' +
-        '}\n',
-    }),
-    CONTAINMENT_DELEGATION_CONTRACTS,
-  );
-  assert.equal(cdOwnTest.length, 1, 'flags a kb-containment.js that reimplements the ancestry check itself');
-  assert.equal(cdOwnTest[0].source, path.join('lib', 'kb-containment.js'), 'names kb-containment.js');
-  assert.equal(
-    scanContract(
-      fixture({ 'lib/kb-containment.js': "const { testContainment } = require('./containment.js');\n// containment is checked some other way below\n" }),
-      CONTAINMENT_DELEGATION_CONTRACTS,
-    ).length,
-    1,
-    'an imported but never-called testContainment is not a delegation',
-  );
-  assert.equal(
-    scanContract(
-      fixture({
-        'lib/kb-containment.js':
-          "const { testContainment } = require('./containment.js');\n\n" +
-          'function checkContainment(mainCheckout, scope) {\n' +
-          '  const verdict = testContainment(mainCheckout, base, branch);\n' +
-          "  return { performed: true, ok: verdict === 'contained' };\n" +
-          '}\n',
-      }),
-      CONTAINMENT_DELEGATION_CONTRACTS,
-    ).length,
-    0,
-    'delegating to testContainment yields zero gaps',
-  );
-  assert.equal(
-    scanContract(
-      fixture({
-        'lib/kb-containment.js':
-          "const { judgeContainment } = require('./containment.js');\n\n" +
-          'const verdict = judgeContainment(mainCheckout, base, branch, undefined, { fetchTimeoutMs }).verdict;\n',
-      }),
-      CONTAINMENT_DELEGATION_CONTRACTS,
-    ).length,
-    0,
-    'delegating to judgeContainment yields zero gaps',
-  );
 
   // --- scanContract(): a clause the table spells with single spaces is met across a line break, and a
   // document the table names that is not there is a missing-document gap ---

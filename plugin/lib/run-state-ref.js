@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { gitSpawn } = require('./git-spawn.js');
 const { gitCall, lastLine, boundEnded } = require('./push.js');
-const { parseRemote } = require('./kb-containment.js');
+const { parseRemote } = require('./remote.js');
 const { mergeDod } = require('./dod-merge.js');
 const { readBytes, stateOf, readSide, writeSide, withRunLock } = require('./run-digest.js');
 
