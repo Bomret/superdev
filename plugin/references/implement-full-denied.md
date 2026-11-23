@@ -15,8 +15,9 @@ on judgment.
 - `block implementer` → block.
 - `inline` → build the work yourself by the `agents/implementer.md` sections `implement-full.md`'s **A tiny slice is
   yours** names, with `### RED-test rule` and `### Sibling surfaces` for a fix. `### The loop` applies to a `behavior`
-  slice and to a fix whose finding names failing behaviour. On a `behavior` slice build or slice fix with a skill path,
-  follow `agents/implementer.md`'s `## The verify skill` as the implementer would, before the self-check.
+  slice and to a fix whose finding names failing behaviour. On a `behavior` slice build or slice fix, or a sweep fix, with a
+  skill path, follow `agents/implementer.md`'s `## The verify skill` as the implementer would, before the self-check,
+  the sweep's self-check on a sweep fix.
   - **A slice build or a slice fix** → build it in its slicetree, cut and prepared per `implement-full.md`'s `## Branch
     model` **A slicetree per slice**. Append the `## Self-check` entry under the heading the dispatch would have named
     (`Self-check — build`, or `Self-check — fix cycle <n>`). Then continue the loop at DAG loop step 3.

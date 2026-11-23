@@ -18,7 +18,7 @@ compaction, or an interruption mid-loop. Reconcile state with the steps below, t
    - `<branch>` is the ledger's `**Branch:**` line, read in `implement-full.md`'s branch step, never rebuilt as
      `<type>/<scope>`.
    - The change type the implementer dispatch hands is that branch's prefix.
-   - The verify skill's path a `behavior` slice's dispatch or resume hands is read again from
+   - The verify skill's path a `behavior` slice's dispatch or resume, and a resumed sweep's fix and re-review, hand is read again from
      `docs/agents/verification.md`'s `## Verify skill`, never from memory (`skills/implement/SKILL.md`'s **The
      config**).
    - A `malformed` entry names a slice row the ledger cannot read: resolve it before dispatching.

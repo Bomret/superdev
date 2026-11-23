@@ -37,7 +37,7 @@ Applies to every dispatch.
 - A slice dispatch names the feature's change type. A `fix` change type makes a `behavior` slice a defect repair (`### Defect repair`).
 - A sweep fix dispatch hands the sweep log path as its progress log, and the `<run-root>/dod.md` path read-only with no listed line. It names `<sweep-base>`, the scope branch's tip when the sweep began, as a full commit.
 - A review fix dispatch names `<cycle-base>`, the scope branch's tip before the dispatch, as a full commit, and hands `<base-branch>`, the scope's base branch.
-- A review fix dispatch hands the verify skill's path, or `none` (`## The verify skill`).
+- A review fix dispatch and a sweep fix dispatch hand the verify skill's path, or `none` (`## The verify skill`).
 - An inline fix dispatch names `<cycle-base>`, the reviewed tip the fix branch was cut from, as a full commit. It hands no `dod.md`, no run root, and no progress log.
 
 ## Scope of the work
@@ -221,9 +221,9 @@ A test is flaky when it both passes and fails at one commit with nothing changed
 
 ## The verify skill
 
-Applies to a slice dispatch and a slice fix dispatch on a `behavior` slice, and to a review fix dispatch, that hand a skill path other than `none`.
+Applies to a slice dispatch and a slice fix dispatch on a `behavior` slice, and to a review fix dispatch and a sweep fix dispatch, that hand a skill path other than `none`.
 
-Follow `${CLAUDE_PLUGIN_ROOT}/references/verify-skill.md`'s `## Following the skill` against your own change, before your self-check or report, its **Stop on every exit** included. A `mechanical` or `docs` slice changes nothing here. A review fix dispatch follows it only when a finding in its list changes behaviour, by that file's **Who follows it**.
+Follow `${CLAUDE_PLUGIN_ROOT}/references/verify-skill.md`'s `## Following the skill` against your own change, before your self-check or report, its **Stop on every exit** included. A `mechanical` or `docs` slice changes nothing here. A review fix dispatch or a sweep fix dispatch follows it only when a finding in its list changes behaviour, by that file's **Who follows it**.
 
 ## Deep modules and domain language
 
@@ -343,7 +343,7 @@ Before you report, walk your work against the whole slice range (`<base>..HEAD`,
 - Mark an item `covered` only where the entry quotes what the item demands beside what the work does. Where the `spec` or the dispatch cites a reference artifact (a design-system component, a mockup, an interface record), quote the demand from that artifact itself. A file, test, or commit pointer locates the evidence and proves nothing alone.
 - On a slice fix dispatch and a sweep fix dispatch, quote each finding's claim beside what the work now does.
 - On a `behavior` slice, and on a sweep fix for each finding whose fix changes behaviour, name for each `covered` item one plausible wrong implementation that its test rejects.
-- Where you followed a verify skill (`## The verify skill`), quote per acceptance item you exercised what you observed in the running app. An item the skill cannot reach is `not observable`. An observation that contradicts an item makes it `not covered`.
+- Where you followed a verify skill (`## The verify skill`), quote per acceptance item you exercised what you observed in the running app, or on a sweep fix dispatch per behaviour-changing finding. An item the skill cannot reach is `not observable`, with its reason. An observation that contradicts an item makes it `not covered`.
 - Mark an item `not observable`, with its reason, where no tool the repository offers can observe it after you tried them. Observing changes nothing outside the repository, and the instance a verify skill starts for your checkout counts as inside. This mark is distinct from a dependency your log names as unverified (`### A dependency you add`).
 - Mark every other item `not covered`.
 - On a `behavior` slice, read the run trace (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --slice <id> --kind edit,run --root <run-root>`) and confirm that a failing test came before each change. The log still carries no RED or GREEN line: the entry holds the confirmation only.
