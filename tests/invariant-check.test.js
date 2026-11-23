@@ -76,12 +76,29 @@ const register = (...entries) => `# Invariant register\n\n${entries.join('\n')}`
   assert.match(fileRoot.stderr, /usage/i, 'a --root naming a file prints usage');
   assert.strictEqual(fileRoot.stdout, '', 'a refused --root checks nothing');
 
+  // --help / -h prints the usage on stdout and checks nothing, even beside an unknown argument; as --root's value it
+  // is a root naming no directory.
+  for (const args of [['--help'], ['-h'], ['--bogus', '--help']]) {
+    const r = run(args, args.join(' '));
+    assert.strictEqual(r.status, 0, `${args.join(' ')} exits 0`);
+    assert.match(r.stdout, /^usage: node scripts\/invariant-check\.js/, `${args.join(' ')} prints the usage on stdout`);
+    assert.strictEqual(r.stderr, '');
+  }
+  const helpRoot = run(['--root', '-h'], '--root -h');
+  assert.strictEqual(helpRoot.status, 2, '--root -h exits 2');
+  assert.match(helpRoot.stderr, /usage/i, '--root -h prints the usage on stderr');
+  assert.strictEqual(helpRoot.stdout, '');
+
   const empty = repo({ 'CONTEXT.md': GLOSSARY });
   const r3 = run(['--root', empty], 'no register');
   assert.equal(r3.status, 0, 'a repository with no register passes');
   assert.match(r3.stdout, /no register/i, 'and says no register was found');
 
   const clean = repo({ 'CONTEXT.md': GLOSSARY, 'docs/invariants.md': register(entry('INV-0001', GOOD)) });
+  const unknown = run(['--root', clean, '--bogus'], 'an unknown argument');
+  assert.strictEqual(unknown.status, 2, 'an unknown argument exits 2');
+  assert.match(unknown.stderr, /usage/i, 'an unknown argument prints the usage on stderr');
+  assert.strictEqual(unknown.stdout, '', 'an unknown argument checks nothing');
   const r4 = run(['--root', clean], 'clean register');
   assert.equal(r4.status, 0, `a register meeting every rule exits 0 (got: ${r4.stdout}${r4.stderr})`);
   assert.equal(r4.stdout.trim().split('\n').length, 1, 'a clean run prints one summary line');

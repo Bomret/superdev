@@ -286,9 +286,27 @@ assert.throws(
     assert.equal(r.stderr, `kb-patch: ${message}\n`);
     assert.equal(r.stdout, '');
   };
+  const usage = 'usage: node kb-patch.js <live-page.md> <staged-page.md>';
 
-  refused(cli(), 'usage: kb-patch.js <live-page.md> <staged-page.md>');
-  refused(cli(livePage), 'usage: kb-patch.js <live-page.md> <staged-page.md>');
+  // --help / -h anywhere prints the usage on stdout and exits 0, reading no page, even beside an unknown argument.
+  for (const args of [['--help'], ['-h'], [path.join(dir, 'missing.md'), '-h'], ['--bogus', '-h']]) {
+    const r = cli(...args);
+    assert.equal(r.status, 0, `${args.join(' ')} exits 0: ${r.stderr}`);
+    assert.ok(r.stdout.startsWith(usage), `${args.join(' ')} prints the usage: ${r.stdout}`);
+    assert.equal(r.stderr, '');
+  }
+
+  // A missing page path, a third argument, or a flag other than the help tokens: the usage on stderr, no merge.
+  const withUsage = (r, first) => {
+    assert.equal(r.status, 1, `exits 1: ${r.stderr}`);
+    assert.equal(r.stdout, '', 'prints no merge');
+    assert.ok(r.stderr.startsWith(`kb-patch: ${first}`) && r.stderr.includes(usage), `names the refusal and the usage: ${r.stderr}`);
+  };
+  withUsage(cli(), usage);
+  withUsage(cli(livePage), usage);
+  withUsage(cli(livePage, stagedPage, path.join(dir, 'c.md')), 'unrecognized argument');
+  withUsage(cli('--bogus', stagedPage), 'unrecognized argument "--bogus"');
+  assert.equal(cli(livePage, stagedPage).status, 0, 'two page paths still print the merge');
   const missing = path.join(dir, 'missing.md');
   refused(cli(missing, stagedPage), `cannot read the live page at ${missing}`);
   refused(cli(livePage, missing), `cannot read the staged page at ${missing}`);

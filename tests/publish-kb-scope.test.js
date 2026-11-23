@@ -3,13 +3,13 @@
 // Suite for plugin/scripts/publish-kb.js: backend configuration refusals and scope selection — a
 // missing `## Commands` section, a local or none backend, a missing verb, the pending-scope listing (a plain file in the
 // staging root and a page-less scope folder left out, a staging root that cannot be read refused),
-// the `--scope` argument, and the report's body-free text. Shared fixtures live in
+// the `--scope` argument, an argument publish-kb does not take, and the report's body-free text. Shared fixtures live in
 // tests/publish-kb-setup.js.
 
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
-const { makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState } = require('./publish-kb-setup');
+const { makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState, withCapture } = require('./publish-kb-setup');
 
 // --- no ## Commands section: nothing published, refusal names /superdev:setup ----------------
 withState(() => {
@@ -169,12 +169,13 @@ withState((stateFile) => {
   const staged = path.join(repo, '.superdev', 'kb-pending', 'demo', 'p.md');
 
   for (const [args, message] of [
-    [['--read'], 'publish-kb: --read needs a title\n'],
-    [['--scope'], 'publish-kb: --scope needs a value\n'],
+    [['--read'], 'publish-kb: --read needs a title\nusage: node publish-kb.js'],
+    [['--scope'], 'publish-kb: --scope needs a value\nusage: node publish-kb.js'],
+    [['extra'], 'publish-kb: unrecognized argument "extra"\nusage: node publish-kb.js'],
   ]) {
     const r = cli(repo, ...args);
     assert.equal(r.status, 1, `${args} exits 1`);
-    assert.equal(r.stderr, message);
+    assert.ok(r.stderr.startsWith(message), `${args} names the refusal and the usage on stderr: ${r.stderr}`);
     assert.equal(r.stdout, '', `${args} prints nothing`);
     assert.ok(fs.existsSync(staged), `${args} leaves the page staged`);
   }
@@ -188,5 +189,33 @@ withState((stateFile) => {
   assert.equal(r.stdout, '');
   assert.ok(fs.existsSync(staged), 'the page stays staged');
 }
+
+// --- an argument publish-kb does not take: refused with the usage, nothing published -----------
+for (const argv of [['--allow-unmerge'], ['extra'], ['--scope']]) {
+  withCapture((stateFile, dir) => {
+    const repo = makeRepo();
+    writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+    stagePage(repo, 'demo', 'p.md', 'title: P\naction: upsert');
+
+    const res = call(argv, repo);
+    assert.equal(res.ok, false, `${argv.join(' ')} refuses`);
+    assert.match(res.err, /usage: node publish-kb\.js/, `${argv.join(' ')} names the usage: ${res.err}`);
+    assert.deepEqual(fs.existsSync(dir) ? fs.readdirSync(dir) : [], [], `${argv.join(' ')} calls no backend verb`);
+    assert.ok(fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'p.md')), 'the page stays staged');
+  });
+}
+
+// --- `--scope --read`: `--read` is the scope's value, so no read entry runs and the publish path refuses ---
+// The backend configures `read`, so a read entry would reach the backend.
+withCapture((stateFile, dir) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.', ['find', 'read', 'create', 'update', 'delete']));
+  stagePage(repo, 'demo', 'p.md', 'title: P\naction: upsert');
+
+  const res = call(['--scope', '--read'], repo);
+  assert.equal(res.ok, false, '--scope --read refuses');
+  assert.deepEqual(fs.existsSync(dir) ? fs.readdirSync(dir) : [], [], '--scope --read calls no backend verb');
+  assert.ok(fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'p.md')), 'the page stays staged');
+});
 
 console.log('publish-kb-scope.test.js: all assertions passed');

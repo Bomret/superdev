@@ -1621,3 +1621,12 @@ Statement: A superdev step deletes a scope branch only when base contains it, an
 Breaks: silently
 Check: tests/scope-branch-delete.test.js — a not-contained branch deletes nothing, a remote moved past the tested tip is kept, a remote already gone reads deleted, and no `--remote` deletes the local ref alone
 Paths: plugin/scripts/scope.js, plugin/lib/branch-delete.js, plugin/skills/wrap-up/SKILL.md, plugin/hooks/scope-prune.js
+
+### INV-0205
+
+Class: architecture
+Concepts: Shipped tree
+Statement: Every CLI the shipped tree carries under `plugin/scripts/` answers `--help` or `-h` with its usage on stdout and exit 0, reading no stdin and acting on nothing else: no ledger, repository, backend, or file is read or written. The token is data, never a help request, where it is the value of a flag that takes one or the free text a verb takes.
+Breaks: silently
+Check: tests/scope-help.test.js — the full usage, a verb's entries, and a subcommand's entries, each with exit 0 and no stdin read; tests/publish-kb.test.js — usage with exit 0 outside any repository; tests/kb-patch.test.js — usage with exit 0 and no page read
+Paths: plugin/scripts/**, plugin/lib/usage.js

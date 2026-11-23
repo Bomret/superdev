@@ -1,8 +1,9 @@
 'use strict';
 
 // Suite for plugin/scripts/scope.js's `--help` / `-h` handling: usage on stdout and exit 0 before any verb reads
-// stdin, and a `-h` that is a flag's value or a bullet's text read as data. The shared directory, `call`, and the
-// init payload come from tests/scope-setup.js.
+// stdin, the full usage or the cut a verb and subcommand name, the refusals that append the full usage, and a `-h`
+// that is a flag's value or a bullet's text read as data. The shared directory, `call`, and the init payload come
+// from tests/scope-setup.js.
 
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -47,6 +48,60 @@ try {
     assert.strictEqual(fs.readdirSync(tmp).join(','), ledgerBefore, '--help writes nothing');
   }
 
+  // `<verb> [<sub>] --help` prints the header and a cut of the usage: the verb's entries, or the entries whose
+  // syntax head names the subcommand. stdin is /dev/zero, so a help request that waits on stdin is killed.
+  {
+    const before = fs.readdirSync(tmp).join(',');
+    const endless = fs.openSync('/dev/zero', 'r');
+    const help = (argv) => {
+      const res = cp.spawnSync(process.execPath, [scopePath, ...argv], {
+        cwd: tmp,
+        stdio: [endless, 'pipe', 'pipe'],
+        encoding: 'utf8',
+        timeout: 30000,
+      });
+      assertSpawnDecided(res, argv.join(' '));
+      assert.strictEqual(res.status, 0, argv.join(' ') + ' exits 0: ' + res.stderr);
+      return res.stdout;
+    };
+    // The first line of each entry: indented exactly two spaces, the `--help, -h` header line left out.
+    const entries = (out) => out.split('\n').filter((l) => /^ {2}[^ -]/.test(l)).map((l) => l.trim());
+    const full = require('../plugin/lib/usage.js').usage();
+    try {
+      let out = help(['reviewed', '--help']);
+      assert.ok(out.startsWith('usage: node scope.js'), 'reviewed --help prints the header first: ' + out);
+      assert.match(out, /^ {2}--help, -h +after <verb> \[<sub>\], that verb's or subcommand's entries; alone, every entry; reads no stdin$/m, 'reviewed --help prints the --help line');
+      assert.deepStrictEqual(entries(out).map((l) => l.split(/\s+/).slice(0, 2).join(' ')), ['reviewed set', 'reviewed clear', 'reviewed check'], 'reviewed --help prints the three reviewed entries alone: ' + out);
+
+      // A subcommand narrows to the entries whose syntax head names it, continuation lines included.
+      const heads = (argv) => entries(help(argv)).map((l) => l.split(/ {2,}/)[0]);
+      assert.deepStrictEqual(heads(['reviewed', 'check', '--help']), ['reviewed check --branch <b> --base <base-ref>'], 'reviewed check --help');
+      out = help(['test', 'focused', '--help']);
+      assert.deepStrictEqual(entries(out).map((l) => l.split(/ {2,}/)[0]), ['test focused [<path>…]', 'test focused --since <ref>'], 'test focused --help: ' + out);
+      assert.match(out, /^ {37}files git does not ignore/m, 'test focused --help keeps the continuation lines');
+      assert.deepStrictEqual(heads(['unresolved', 'clear', '--help']), ['unresolved add <text>|clear'], 'unresolved clear --help');
+      assert.deepStrictEqual(heads(['reviewed', 'bogus', '--help']).length, 3, 'a subcommand naming no entry prints every entry of the verb');
+      assert.deepStrictEqual(heads(['test', 'full', '--help']), ['test full|whole'], 'test full --help prints no test focused entry');
+      // Description prose and placeholders are no syntax-head words: `red` only sits inside `<green|red|…>` and the description.
+      assert.deepStrictEqual(heads(['suite', 'red', '--help']), entries(full).filter((l) => l.startsWith('suite ')).map((l) => l.split(/ {2,}/)[0]), 'suite red --help prints every suite entry');
+
+      // A verb matches whole: no longer verb sharing its start.
+      assert.deepStrictEqual(heads(['fail-to-pass', '--help']), ['fail-to-pass <base>..<tip> -- <command>'], 'fail-to-pass --help prints no fail-to-pass-check entry');
+      assert.deepStrictEqual(heads(['pr', '--help']), ['pr set <n>|clear'], 'pr --help prints no prepare, publish, or push entry');
+
+      // A value flag's value is skipped when finding the subcommand.
+      assert.deepStrictEqual(heads(['reviewed', '--root', '/x', 'check', '-h']), ['reviewed check --branch <b> --base <base-ref>'], 'reviewed --root /x check -h');
+
+      // No verb in first position, an unknown verb, or none at all prints the full usage.
+      for (const argv of [['--help'], ['-h'], ['nosuchverb', '--help'], ['--root', '/x', 'trace', '--help']]) {
+        assert.strictEqual(help(argv), full + '\n', argv.join(' ') + ' prints the full usage');
+      }
+    } finally {
+      fs.closeSync(endless);
+    }
+    assert.strictEqual(fs.readdirSync(tmp).join(','), before, 'a help request writes nothing');
+  }
+
   // A `-h` / `--help` that is a flag's value or a bullet's text is data, not a request for usage: inside a
   // store's gated body-edit chain the usage text would pass `[ -s ]` and replace the anchor body.
   {
@@ -55,6 +110,27 @@ try {
     // The note file is named `-h` and holds `-h`, so the flag's value and the note text are both the word.
     fs.writeFileSync(path.join(tmp, '-h'), '-h', 'utf8');
     fs.writeFileSync(path.join(tmp, 'match-x.txt'), 'x', 'utf8');
+    // Every value-taking flag the usage names skips its values, `--repair` its two.
+    for (const argv of [['trace', '--kind', '-h', '--root', '/x'], ['route', '--repair', 'open', '-h', '--root', '/x']]) {
+      const r = spawnScope(argv, '');
+      assertSpawnDecided(r, argv.join(' '));
+      assert.ok(!r.stdout.includes('usage:'), argv.join(' ') + ' prints no usage: ' + r.stdout);
+    }
+
+    // The refusals that print the usage print all of it, and `test`'s argument refusal still finds its line.
+    const fullUsage = require('../plugin/lib/usage.js').usage();
+    for (const argv of [['nosuchverb'], ['run-state']]) {
+      const r = spawnScope(argv, '');
+      assertSpawnDecided(r, argv.join(' '));
+      assert.strictEqual(r.status, 1, argv.join(' ') + ' refuses');
+      assert.ok(r.stderr.includes(fullUsage), argv.join(' ') + ' appends the full usage: ' + r.stderr);
+    }
+    {
+      const r = spawnScope(['test', 'bogus'], '');
+      assertSpawnDecided(r, 'test bogus');
+      assert.match(r.stderr, /test: unrecognized arguments \(test full\|whole /, 'test refusal names its usage line: ' + r.stderr);
+    }
+
     let res = spawnScope(['dod-line', '--match-file', 'match-x.txt', '--verdict', 'met', '--note-file', '-h'], '- [ ] x — 01\n');
     assertSpawnDecided(res, 'dod-line --note-file -h');
     assert.strictEqual(res.status, 0, 'dod-line --note-file -h exits 0: ' + res.stderr);

@@ -556,17 +556,30 @@ function isBulletStdinInvocation(argv) {
 
 // `--help` / `-h` asks for usage unless it is the value of a flag that takes one or the text of a bullet
 // verb (`unresolved add -h`): those are data, and usage text standing in for them would be written on.
-const VALUE_FLAGS = ['--sha', '--root', '--range', '--exit', '--branch', '--tip', '--slice', '--match', '--match-file', '--note', '--note-file', '--verdict', '--map-file', '--base', '--ci-head', '--ci-file'];
+const VALUE_FLAGS = ['--sha', '--root', '--range', '--exit', '--branch', '--tip', '--slice', '--match', '--match-file', '--note', '--note-file', '--verdict', '--map-file', '--base', '--ci-head', '--ci-file', '--remote', '--lock', '--kind', '--window', '--last', '--stage', '--range-base', '--also', '--merge', '--target', '--repair', '--tag', '--since'];
+// How many values a flag of VALUE_FLAGS takes: `--repair` reads two (`open|closed <key>`), every other flag one.
+const flagArity = (flag) => (flag === '--repair' ? 2 : 1);
 function asksForHelp(argv) {
   // After `test --` every word belongs to the command.
   if (argv[0] === 'test' && argv.includes('--')) argv = argv.slice(0, argv.indexOf('--'));
   const rest = [];
   for (let i = 0; i < argv.length; i++) {
-    if (VALUE_FLAGS.includes(argv[i])) i++;
+    if (VALUE_FLAGS.includes(argv[i])) i += flagArity(argv[i]);
     else rest.push(argv[i]);
   }
   if (BULLET_STDIN_VERBS.includes(rest[0]) && libLedgerRecords().BULLET_STDIN_SUBS.includes(rest[1]) && rest[2] !== '-') rest.length = 2; // `-` reads stdin: no text on the command line
   return rest.includes('--help') || rest.includes('-h');
+}
+
+// The verb and subcommand a help request names: the verb is argv[0], the token `run()` dispatches on, and none when a
+// flag stands first; the subcommand is the first later token that is no flag, each flag's values skipped.
+function helpTarget(argv) {
+  if (!argv[0] || argv[0].startsWith('-')) return [];
+  for (let i = 1; i < argv.length; i++) {
+    if (VALUE_FLAGS.includes(argv[i])) i += flagArity(argv[i]);
+    else if (!argv[i].startsWith('-')) return [argv[0], argv[i]];
+  }
+  return [argv[0]];
 }
 
 // The verbs `run()` hands the whole stdin text to; `main()` reads stdin for these alone, plus a bullet verb given `-`.
@@ -576,7 +589,7 @@ function main() {
   const argv = process.argv.slice(2);
   // Checked before any verb reads stdin, so `dod-line --help` and its stdin siblings never wait on input.
   if (asksForHelp(argv)) {
-    console.log(libUsage().usage());
+    console.log(libUsage().helpText(...helpTarget(argv)));
     return;
   }
   const needsStdin = STDIN_VERBS.includes(argv[0]) || isBulletStdinInvocation(argv);

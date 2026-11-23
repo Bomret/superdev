@@ -58,8 +58,22 @@ lazily loaded module is a getter that returns that module's own value. No module
 `state [--json] --root <run-root>` (every field `get` names in one read-only call, from the ledger alone: no git, no trace line, no digest seal; `--json` prints one object with list fields as arrays and `failed` as the failed test files, its `@ <sha>` staying in `get failed` and the text output; `suite-base-get.js`'s `verbState`),
 `status` (which renders the whole `/superdev:status` report), `trace [--slice <id|scope>] [--kind <kind>[,<kind>]] [--window <dispatch id>] [--last <n>]` (prints the run trace's lines, filtered, read-only), `windows --slice <id|scope>` (read-only), `untraced <base>..<tip> --slice <id|scope> [--window <dispatch id>] --root <run-root>` (read-only), `fail-to-pass-check <base>..<tip> --slice <id|scope> [--window <dispatch id>] --root <run-root>` (read-only), `section <file>` (read-only, the heading line on stdin), `tier --root <run-root>` (read-only), `dod-open --root <run-root> [--tag docs]` (read-only), `contained <base> <branch> [--remote <remote>]` (read-only), `branch --root <run-root>`, `checkout --root <run-root>`, `lock --root <run-root>`, `denial <pass> [--unattended] --root <run-root>`, and `route --root <run-root> …` (each read-only), `candidates --stage <stage>[,<stage>]` (read-only, no run root), `red-evidence --root <run-root> --branch <branch> --base <base-ref> [--ci-head <sha> --ci-file <path>]` (read-only), `publish`, `adopt`, `root <slug>`,
 `staging <scope> [--count|--line]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `citations --range-base <ref> --branch <ref> <id>…`, `source-set [<path>]`, `source-set --tests`, `push --root <run-root> --remote <remote> --base <base-ref>`, `dod-merge --root <run-root>`, `dod-line`, `dod-tags [--map-file <path>] [--line]`, `dod-check`, `ci --sha <sha> [--root <path>]`, `fail-to-pass <base>..<tip> -- <command>`, `prepare <tree>`, and `test`.
-`--help` or `-h`, alone or after any verb, prints the usage and exits 0, except that a flag's value, or the text after `add`, `add-denial`, `reset-denials`, or `resolve`, is data and never a help request. It is checked before any verb
-reads stdin or touches a ledger, so a stdin verb such as `dod-line` never waits on input for it.
+`--help` or `-h` prints help and exits 0. A flag's value, or the text after `add`, `add-denial`, `reset-denials`, or `resolve`, is data and never a help request.
+The CLI checks for help before any verb reads stdin or touches a ledger.
+An unknown verb, or no verb, refuses with exit 1 and appends the full usage on stderr. `run-state` without `delete` refuses the same way.
+A stdin verb such as `dod-line` therefore never waits on input for it.
+`lib/usage.js` holds the usage text once. `usage()` returns all of it, and the refusals that print usage append it whole.
+`helpText(verb, sub)` returns a cut of the same lines: the header and the `--help, -h` line, then the verb's **entries**.
+An entry starts at a line indented exactly two spaces whose first token is the verb, and runs through the lines indented deeper.
+The verb is `argv[0]` and matches whole, so `pr --help` prints no `prepare`, `publish`, or `push` entry.
+The subcommand is the first later token that is no flag, after the values of every value-taking flag (`--repair` takes two).
+A subcommand narrows the cut to the entries whose **syntax head** names it as a literal word.
+The syntax head is the entry's first line after the verb.
+It ends at a run of two spaces or at the first token that starts with `-` or `[`.
+The CLI splits the head's words on `|`.
+A `<…>` placeholder holds no literal word, and that includes nested placeholders.
+A subcommand that names no entry prints every entry of the verb.
+No verb, a flag in first position, or a verb with no entry prints the whole usage.
 `suite set` writes the **suite record** (CONTEXT.md) — the last full-suite run's result and the commit
 it ran on, as `**Suite:** <result> @ <sha>` — refusing a sha that does not resolve to a commit in the
 repository; `get suite` prints `<result> <sha>` back, or nothing on a ledger with no record (INV-0017).
@@ -797,6 +811,9 @@ stdout, and writes nothing. `/superdev:publish-kb` holds the backend credential 
 `agents/doc-writer.md` stages the section and reaches no backend at all (ADR 0023). The merge lives
 in code rather than in the command's prose so that a reader-facing page is not edited by a model
 reading it. Its rules (`maskFencedLines`, `merge`, `headingKeyOf`) live in `plugin/lib/md-sections.js`, and `kb-patch.js` is their CLI.
+It takes exactly two page paths. `--help` or `-h` anywhere prints its usage on stdout and exits 0, reading no page.
+A missing page path, a third argument, or another flag-shaped argument refuses with the usage on stderr, exits 1, and prints no merge.
+A page path that starts with `-` is passed as `./-x.md`.
 
 The staged section names itself by the **first ATX heading in its body**, spanning to the next
 heading of the same or higher level, so a sub-heading belongs to the section and a sibling ends it.
@@ -874,6 +891,10 @@ This is what makes `.superdev/kb-pending/` resolve against the repository root, 
 deep, from inside `.superdev/scopes/<scope>/scopetree`. `--scope <slug>` selects which pending scope to
 publish. Left out, the script publishes the one pending scope there is. It refuses when there is more
 than one pending scope or none, and names every pending scope with its staged-page count on refusal.
+`--help` or `-h` anywhere among the arguments prints the usage and exits 0 before any repository or backend is read.
+As the value of `--read` or `--scope` it is data, and so is any other flag's name there: `--scope --read` selects the scope `--read`, which the scope-slug check refuses. Before `run()` reads the repository, it refuses every argument it does not take.
+These are an unknown flag, a stray word, and `--read` or `--scope` with no value. The refusal names the
+argument, appends the usage, and exits 1. `--scope=x` is such an unknown argument.
 
 It classifies `docs/agents/knowledge-base.md`'s `- **Backend:**` bullet. A `local` or `none` value
 publishes nothing, since a local backend keeps its pages as repository files (ADR 0023). A remote
@@ -1164,8 +1185,10 @@ failure, `<id>: <field>: <reason>`, then a summary, and exits 1 on any failure. 
 file at all exits 0 and says so; a register file that exists but parses to zero entries — an empty
 file, a file whose encoding reads as garbage (a UTF-16LE file, since the CLI never sniffs an encoding),
 or one whose every heading is blockquoted or indented — fails instead, as `(register): id: no
-\`### INV-NNNN\` entry found`, rather than passing as "0 entries hold". A missing or non-directory
-`--root` exits 2 with usage.
+\`### INV-NNNN\` entry found`, rather than passing as "0 entries hold". `--help` or `-h` prints the usage on
+stdout and exits 0, checking nothing. As `--root`'s value it is a root, so `--root -h` is refused like any root that is
+no directory. A missing or non-directory `--root`, or any argument other than `--root <dir>`, exits 2 with the usage
+on stderr and checks nothing.
 
 It checks these kinds of rule:
 
@@ -1243,7 +1266,9 @@ the OS temp dir, every spawn through `assertSpawnDecided` (INV-0009).
 ### drift-check.js, the mechanical-fact and forbidden-form checks (ADR 0153)
 
 `drift-check.js` is the entry point only: it walks the check registry and reports. The checks themselves
-live beside it, in `scripts/drift/`.
+live beside it, in `scripts/drift/`. A plain run exits 0 with no drift and 1 with drift. `--selftest` runs the
+selftests instead. `--help` or `-h` anywhere prints the usage, naming `--selftest`, and exits 0 running nothing. Any
+other argument exits 2 with the usage on stderr, running no check and no selftest.
 
 | File | Owns |
 |------|------|
@@ -1315,6 +1340,9 @@ path, when that document is missing. A check that walks a directory reads whatev
 - A module holds one responsibility and opens with its file name and a colon. A suite tests through the entry point, and a large entry point's
   suite splits flat by topic into `tests/<entry>-<topic>.test.js` over one `tests/<entry>-setup.js` that is no suite. A copy of a helper
   merges into `lib/git-spawn.js` or `lib/refusal.js` only when its behavior is identical (ADR 0151).
+- Every CLI here and in `plugin/scripts/` answers `--help` and `-h` with its usage and exit 0, doing nothing else.
+  The token is data where it is a flag's value. Each CLI keeps one usage text that its help and its usage
+  refusals both print, so the two never disagree. A shipped CLI's help also reads no stdin (INV-0205).
 - The shipped scripts each have a suite in `tests/`, same convention as the hooks (ADR 0059).
   `drift-check.js` is maintainer-only and keeps its inline `--selftest`. `invariant-check.js` is
   maintainer-only too, and has its suite in `tests/` like a shipped script, because it takes no part in
