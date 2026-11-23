@@ -7,7 +7,9 @@
 // `drift/checks.js`; this file walks that registry and reports.
 //
 // `--selftest` runs the checks' own tests (drift/selftest/). Plain invocation runs them against this
-// repository, reports every failed check (a check that throws included), then exits nonzero.
+// repository, reports every failed check (a check that throws included), then exits nonzero. `--help` or `-h`
+// anywhere prints the usage and exits 0; any other argument prints the usage on stderr and exits 2. Either runs
+// no check and no selftest.
 
 const path = require('node:path');
 
@@ -52,8 +54,21 @@ function main() {
 
 module.exports = { runChecks, formatGap };
 
+const USAGE = [
+  'usage: node scripts/drift-check.js [--selftest]',
+  '  (no flag)    runs every registered check against this repository; exits 0 (no drift) or 1 (drift found)',
+  '  --selftest   runs the checks\' own tests (scripts/drift/selftest/) instead',
+  '  --help, -h   this text; runs nothing',
+].join('\n');
+
 if (require.main === module) {
-  if (process.argv[2] === '--selftest') {
+  const args = process.argv.slice(2);
+  if (args.includes('--help') || args.includes('-h')) {
+    console.log(USAGE);
+  } else if (args.some((a) => a !== '--selftest')) {
+    console.error(USAGE);
+    process.exit(2);
+  } else if (args.includes('--selftest')) {
     require('./drift/selftest');
   } else {
     main();

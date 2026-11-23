@@ -10,11 +10,13 @@
 // at a variable, and every INV-NNNN cited outside the register, the changelog, and docs/adr/ that
 // names no entry — one line per failure naming the id and the field. It reports and selects nothing:
 // /superdev:plan and final-reviewer still read the register whole (INV-0088). Pure Node with no shell-out, so it runs on every OS the maintainer uses.
+// `--help` or `-h` prints the usage on stdout and exits 0, checking nothing, except as `--root`'s value; any other
+// argument, like a root that is no directory, prints the usage on stderr and exits 2.
 
 const fs = require('node:fs');
 const path = require('node:path');
 
-const USAGE = 'usage: node scripts/invariant-check.js --root <repository-dir>';
+const USAGE = 'usage: node scripts/invariant-check.js --root <repository-dir> | --help';
 const REGISTER = path.join('docs', 'invariants.md');
 // The register as a forward-slash repository path, the form `walk` returns and `Paths:` globs match.
 const REGISTER_PATH = REGISTER.replace(/\\/g, '/');
@@ -347,9 +349,17 @@ function check(root) {
 }
 
 function main(argv) {
-  const at = argv.indexOf('--root');
-  const root = at === -1 ? null : argv[at + 1];
-  if (!root || !fs.existsSync(root) || !fs.statSync(root).isDirectory()) {
+  // `--help` / `-h` is a help request except as `--root`'s value; any argument other than `--root <dir>` refuses.
+  let root = null;
+  let unknown = false;
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === '--root') root = argv[++i] ?? null;
+    else if (argv[i] === '--help' || argv[i] === '-h') {
+      process.stdout.write(`${USAGE}\n`);
+      return 0;
+    } else unknown = true;
+  }
+  if (unknown || !root || !fs.existsSync(root) || !fs.statSync(root).isDirectory()) {
     process.stderr.write(`${USAGE}\n`);
     return 2;
   }

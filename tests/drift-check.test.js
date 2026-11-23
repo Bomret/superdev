@@ -1,7 +1,8 @@
 'use strict';
 
 // Suite for scripts/drift-check.js's CLI: a plain run reports every failed check, a check that throws
-// included, then exits 1; a clean run exits 0; `--selftest` dispatches to the selftests. The registry and
+// included, then exits 1; a clean run exits 0; `--selftest` dispatches to the selftests; `--help` prints the usage
+// and an unknown argument refuses with it, exit 2, each running nothing. The registry and
 // the selftest are replaced in the child by a preload (`node -r`), so the cases run no real check.
 
 const assert = require('node:assert');
@@ -58,6 +59,22 @@ try {
   assert.strictEqual(selftest.status, 0);
   assert.match(selftest.stdout, /SELFTEST-DISPATCHED/, '--selftest runs the selftests');
   assert.ok(!selftest.stderr.includes('gap in'), '--selftest runs no check');
+
+  // --help / -h anywhere prints the usage, naming --selftest, and runs no check and no selftest.
+  for (const args of [['--help'], ['-h'], ['--selftest', '--help']]) {
+    const r = run(args, {}, args.join(' '));
+    assert.strictEqual(r.status, 0, `${args.join(' ')} exits 0`);
+    assert.match(r.stdout, /^usage: node scripts\/drift-check\.js/, `${args.join(' ')} prints the usage`);
+    assert.match(r.stdout, /--selftest/, `${args.join(' ')} names --selftest`);
+    assert.ok(!r.stdout.includes('SELFTEST-DISPATCHED') && !r.stderr.includes('gap in') && !r.stdout.includes('drift-check ok'), `${args.join(' ')} runs no check`);
+  }
+  // Any other argument refuses with the usage on stderr and exit 2, running no check and no selftest.
+  for (const args of [['--bogus'], ['extra'], ['--selftest', 'extra']]) {
+    const r = run(args, {}, args.join(' '));
+    assert.strictEqual(r.status, 2, `${args.join(' ')} exits 2`);
+    assert.match(r.stderr, /usage: node scripts\/drift-check\.js/, `${args.join(' ')} prints the usage on stderr`);
+    assert.ok(!r.stdout.includes('SELFTEST-DISPATCHED') && !r.stderr.includes('gap in'), `${args.join(' ')} runs no check`);
+  }
 } finally {
   fs.rmSync(dir, { recursive: true, force: true });
 }
