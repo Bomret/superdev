@@ -1,19 +1,19 @@
 'use strict';
 
-// Suite for plugin/scripts/publish-kb.js and its lib/kb-*.js modules: refusal on an unreadable input file, the containment refetch
-// bound, report sanitizing, the one frontmatter splitter, and a retry marker on a page that cannot be read. Shared fixtures live in tests/publish-kb-setup.js.
+// Suite for plugin/scripts/publish-kb.js and its lib/kb-*.js modules: refusal on an unreadable input file, an unreadable
+// run root or ledger refusing past --allow-unmerged, report sanitizing, the one frontmatter splitter, and a retry marker on a page that cannot be read. Shared fixtures live in tests/publish-kb-setup.js.
 
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
-const { publishKbPath, git, makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState, writeOperatorConfig } = require('./publish-kb-setup');
+const { publishKbPath, makeRepo, commandsDoc, writeKbDoc, stagePage, call, withState } = require('./publish-kb-setup');
 const { parseStagedPage } = require(publishKbPath);
 const { markStagedCreate, restageLiveHash } = require('../plugin/lib/kb-staged-page.js');
 const { renderReport } = require('../plugin/lib/kb-report.js');
 const { merge } = require('../plugin/lib/md-sections.js');
 
 // --- an unreadable input refuses with one line and publishes nothing ---------------------------
-for (const name of ['knowledge-base.md', 'code-management.md']) {
+for (const name of ['knowledge-base.md']) {
   withState((stateFile) => {
     const repo = makeRepo();
     writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
@@ -21,7 +21,6 @@ for (const name of ['knowledge-base.md', 'code-management.md']) {
     const target = path.join(repo, 'docs', 'agents', name);
     fs.rmSync(target, { force: true });
     fs.mkdirSync(target);
-    if (name !== 'knowledge-base.md') writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
     const res = call(['--scope', 'demo'], repo);
     assert.equal(res.ok, false, `${name} that is a directory refuses`);
     assert.match(res.err, new RegExp(`${name} cannot be read \\(EISDIR\\)`), 'one line naming the file and code');
@@ -30,19 +29,27 @@ for (const name of ['knowledge-base.md', 'code-management.md']) {
     assert.ok(!fs.existsSync(stateFile), 'nothing published');
   });
 }
-withState((stateFile) => {
-  const repo = makeRepo();
-  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
-  stagePage(repo, 'demo', 'p.md', 'title: P\naction: upsert');
-  const target = path.join(repo, 'docs', 'agents', 'code-management.md');
-  fs.rmSync(target, { force: true });
-  fs.mkdirSync(target);
-  const res = call(['--scope', 'demo', '--allow-unmerged'], repo);
-  assert.equal(res.ok, false, '--allow-unmerged does not override an unreadable code-management.md');
-  assert.match(res.err, /code-management\.md cannot be read \(EISDIR\)/, 'the refusal names the file');
-  assert.ok(fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'p.md')), 'the staged page stays');
-  assert.ok(!fs.existsSync(stateFile), 'nothing published');
-});
+// An unreadable ledger, or a run root that is a dangling symlink, refuses naming the error, even under --allow-unmerged.
+for (const [label, breakIt, code] of [
+  ['a ledger that is a directory', (root) => fs.mkdirSync(path.join(root, 'ledger.md'), { recursive: true }), 'EISDIR'],
+  ['a dangling symlink run root', (root) => fs.symlinkSync(path.join(root, '..', 'gone'), root), 'ENOENT'],
+]) {
+  withState((stateFile) => {
+    const repo = makeRepo();
+    writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+    stagePage(repo, 'demo', 'p.md', 'title: P\naction: upsert');
+    const root = path.join(repo, '.superdev', 'scopes', 'demo');
+    fs.mkdirSync(path.dirname(root), { recursive: true });
+    breakIt(root);
+    for (const argv of [['--scope', 'demo'], ['--scope', 'demo', '--allow-unmerged']]) {
+      const res = call(argv, repo);
+      assert.equal(res.ok, false, `${label} refuses (${argv.join(' ')})`);
+      assert.match(res.err, new RegExp(`\\(${code}\\) — nothing published$`), `${label}: names the error, not overridable: ${res.err}`);
+      assert.ok(fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'p.md')), 'the staged page stays');
+      assert.ok(!fs.existsSync(stateFile), 'nothing published');
+    }
+  });
+}
 withState(() => {
   const repo = makeRepo();
   writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
@@ -58,42 +65,6 @@ withState(() => {
   } finally {
     fs.chmodSync(dir, 0o755);
   }
-});
-
-// --- the containment refetch takes code-host.pushTimeoutMs, and push.js's reader default when unset -----
-// An unmerged scope whose remote's upload-pack hangs for `hangSeconds`; the hang records only that it ran to its end.
-function hangingRemoteRepo(scope, hangSeconds) {
-  const repo = makeRepo();
-  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
-  stagePage(repo, scope, 'p.md', 'title: P\naction: upsert');
-  fs.writeFileSync(path.join(repo, 'docs', 'agents', 'code-management.md'), '- **Base branch:** main\n- **Remote:** origin\n');
-  git(['checkout', '-q', `feat/${scope}`], repo);
-  fs.writeFileSync(path.join(repo, 'branch-only.txt'), 'x\n');
-  git(['add', 'branch-only.txt'], repo);
-  git(['commit', '-q', '-m', 'branch-only work'], repo);
-  git(['checkout', '-q', 'main'], repo);
-  git(['remote', 'add', 'origin', repo], repo);
-  const done = path.join(repo, '..', `done-${path.basename(repo)}`);
-  const hang = path.join(repo, '..', `hang-${path.basename(repo)}.sh`);
-  fs.writeFileSync(hang, `#!/bin/sh\nsleep ${hangSeconds}\ntouch '${done}'\n`, { mode: 0o755 });
-  git(['config', 'remote.origin.uploadpack', `'${hang}'`], repo);
-  return { repo, done };
-}
-withState(() => {
-  // A hang a hundred times the configured bound: only the kill at that bound ends it before the marker.
-  const { repo, done } = hangingRemoteRepo('bound', 60);
-  writeOperatorConfig(repo, { 'code-host': { pushTimeoutMs: 200 }, 'knowledge-base': { timeoutMs: 600000 } });
-  const res = call(['--scope', 'bound'], repo);
-  assert.equal(res.ok, false, 'not contained refuses');
-  assert.match(res.err, /not contained/);
-  assert.ok(!fs.existsSync(done), 'the refetch ended at the configured bound, before the hang finished');
-});
-withState(() => {
-  // Unset: the bound is push.js's reader default (60 s), not containment's own 5 s fetch bound, so a hang past 5 s still completes.
-  const { repo, done } = hangingRemoteRepo('unset', 7);
-  const res = call(['--scope', 'unset'], repo);
-  assert.equal(res.ok, false, 'not contained refuses');
-  assert.ok(fs.existsSync(done), 'the refetch outlived containment\'s 5 s bound and ran to the hang\'s end');
 });
 
 // --- the report strips escapes, control characters, and bidi controls -------------------------------

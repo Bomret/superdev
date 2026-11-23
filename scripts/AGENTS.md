@@ -884,7 +884,7 @@ directory, a scopetree or a submodule included, through `mainWorkTree` from `plu
 `kb-staging.js` holds the staging root and scope selection, `kb-backend-config.js` the backend classification and command templates (`parseBullet` reads the `Body format` and `Hierarchy` bullets),
 `kb-frontmatter.js` the one frontmatter splitter, `kb-staged-page.js` the staged-page parse, the `created-by-publish` marker, and the `live-hash` rewrite (`restageLiveHash`), `kb-backend.js` the template runner and the
 `upsert`, `delete`, and `patch` of one page, `kb-apply.js` the per-file application by title group, `kb-parent-link.js` the parent-link
-edit under `- **Hierarchy:** links`, `kb-containment.js` the merge check,
+edit under `- **Hierarchy:** links`, `kb-gate.js` the publish gate, `kb-containment.js` the `code-management.md` parsers the CLI exports,
 `kb-read.js` the `--read` entry, and `kb-report.js` the report. They take `SLUG_RE` and `CHANGE_TYPES` from `plugin/lib/ledger.js`,
 `refResolves` from `plugin/lib/git-spawn.js`, and `fail` from `plugin/lib/refusal.js`, and carry no copy of any of them.
 This is what makes `.superdev/kb-pending/` resolve against the repository root, not one level too
@@ -1041,19 +1041,15 @@ and sends `update` directly (ADR 0130), never the hash guard and never a `read` 
 `upsert` `find` reports existing, carrying no marker, is refused exactly as before: only a page this
 run itself just created skips the guard.
 
-Before publishing, `checkContainment` refuses a scope whose branch is not confirmed merged into
-`docs/agents/code-management.md`'s base branch. It resolves the branch from the ledger's
-`**Branch:**` header, falling back to the same branch-shape scan `hooks/scope-prune.js` applies. A scope
-whose branch and run root are both gone reads as contained rather than as a refusal: `hooks/scope-prune.js`
-reaps the two together, and gates that reap on the branch already reading contained in base or gone, so
-their joint absence is the fully-reaped steady state a publish meets (ADR 0071). A run root that survives
-without a resolving branch is the real unreachable case, and still refuses. A branch listing can fail in four
-ways. `git for-each-ref` can exit non-zero, end by a signal, fail to start, or end in another spawn error such
-as ENOBUFS. Any of these is no absent branch. The check refuses and names how git failed, whether or not the run
-root survives (INV-0194). A ledger `**Branch:**` line that resolves never runs the listing. `checkContainment`
-delegates the ancestry test to `plugin/lib/containment.js`'s exported `judgeContainment` (or `testContainment`) instead of reimplementing it.
-`--allow-unmerged` overrides a containment refusal once the operator confirms. It does not override the refusal of an unreadable `code-management.md`. `_adhoc`, the literal value
-`/superdev:document` writes for a doc pass outside a live scope, skips the check entirely. The report
+Before publishing, `kb-gate.js`'s `checkGate` reads the scope's run root and its ledger's `**Stage:**` line through
+`lib/ledger.js`'s `readLedgerHeader`, the reader `hooks/scope-prune.js` uses (ADR 0278, INV-0207). A run root that is gone
+(`lstat` answers ENOENT), or a ledger at `shipped` or `closed`, publishes. A stage below `shipped` refuses, naming the stage
+and `/superdev:ship <scope>`. A missing ledger, a ledger with no `**Stage:**` line, or a stage outside the stage vocabulary
+refuses, naming what it read. `--allow-unmerged` overrides each of these once the operator confirms, and the report then
+carries its `unmerged:` line. Any other read error of the run root or the ledger, a dangling symlink run root included,
+refuses naming the error, and `--allow-unmerged` does not override it. The gate runs no git command and reads no
+`docs/agents/code-management.md`. `_adhoc`, the literal value
+`/superdev:document` writes for a doc pass outside a live scope, skips the gate entirely. The report
 a run prints never carries a page's body, only filenames, titles, and reasons.
 
 The module guards its CLI entry with `require.main === module`. It exports `resolveMainCheckout`, `classifyBackend`,
@@ -1064,7 +1060,7 @@ The module guards its CLI entry with `require.main === module`. It exports `reso
 (ADR 0151): `publish-kb` (the pure readers and the pin that the publish code keeps no copy of what `lib/` owns), `publish-kb-scope` (backend
 configuration refusals and scope selection), `publish-kb-publish` (`upsert` and `delete` end to end), `publish-kb-patch`, `publish-kb-guard` (the live-hash
 guard, the storage body, and `parent:`), `publish-kb-parent-link-<topic>` (the parent link under `- **Hierarchy:** links`: add, delete, hang-add, hang-delete, placeholder, pure, and refused;
-`pure` calls `addParentLink` and `removeParentLink` directly to pin the link-line readers), `publish-kb-containment`, `publish-kb-read`, `publish-kb-timeout`, and `publish-kb-templates` (the backend templates this repository ships).
+`pure` calls `addParentLink` and `removeParentLink` directly to pin the link-line readers), `publish-kb-gate` (the publish gate), `publish-kb-containment`, `publish-kb-read`, `publish-kb-timeout`, and `publish-kb-templates` (the backend templates this repository ships).
 
 ### run-tests.js, the suite runner
 

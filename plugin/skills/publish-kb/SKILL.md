@@ -33,10 +33,11 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/publish-kb.js" [--scope <slug>]
 
 **More than one pending scope.** Applies when no `--scope` was given and the script exits nonzero listing every pending scope with its page count on stderr. Relay that list and ask which one to publish, without guessing. Once the operator answers, re-invoke the script with `--scope <the chosen slug>`.
 
-**An unmerged scope.** Applies when the scope branch is not contained in base, a surviving run root names no branch that resolves, or git could not list the branches, and the refusal ends with `— nothing published (pass --allow-unmerged to publish anyway)`. A scope whose branch and run root are both reaped publishes silently instead. Ask once, naming exactly what the script found.
+**An unmerged scope.** Applies when the refusal ends with `— nothing published (pass --allow-unmerged to publish anyway)`. The script publishes a scope whose run root is gone or whose ledger reads `shipped` or `closed`, and refuses this way for a run root whose ledger stands at a stage below `shipped`, is missing, carries no `**Stage:**` line, or reads a stage outside the stage vocabulary. Ask once, naming exactly what the script read.
 
+- **A stage below `shipped`** → offer `/superdev:ship <scope>` first, the step that records the merge, and `--allow-unmerged` as the alternative.
+- **`--allow-unmerged` confirmed** → re-invoke the same command with `--allow-unmerged` added.
 - **Declined** → publish nothing, delete nothing, and report that.
-- **Confirmed** → re-invoke the same command with `--allow-unmerged` added.
 
 ## 3. Every other refusal
 
@@ -44,6 +45,7 @@ Applies to every refusal outside §2. Relay the script's stderr reason and stop,
 
 - No knowledge-base configuration, or a `local`/`none` backend — nothing to publish.
 - `docs/agents/knowledge-base.md` carries no `## Commands` section — relay the refusal and its `/superdev:setup` pointer.
+- A run root or ledger the script cannot read — the refusal names the read error and ends with `— nothing published` alone, and `--allow-unmerged` does not lift it.
 - An unresolvable `--scope`, an unresolvable staging root, or any other reason the script names.
 
 ## 4. Report
