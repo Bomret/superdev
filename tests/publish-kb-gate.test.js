@@ -138,6 +138,26 @@ withState(() => {
   }
   assert.deepStrictEqual(spawned, [], 'the gate spawns no child process');
 }
+// The patch above misses a module that binds `spawnSync` at load, so no module the gate reaches requires child_process.
+{
+  const literal = /require\(\s*['"]([^'"]+)['"]\s*\)/g;
+  const seen = new Set();
+  const external = new Set();
+  const walk = (file) => {
+    if (seen.has(file)) return;
+    seen.add(file);
+    const text = fs.readFileSync(file, 'utf8');
+    const specs = [...text.matchAll(literal)].map((m) => m[1]);
+    assert.equal(specs.length, (text.match(/\brequire\(/g) || []).length, `${file}: every require names a literal`);
+    for (const s of specs) {
+      if (s.startsWith('.')) walk(require.resolve(path.resolve(path.dirname(file), s)));
+      else external.add(s.replace(/^node:/, ''));
+    }
+  };
+  walk(require.resolve('../plugin/lib/kb-gate.js'));
+  assert.ok(seen.size > 1, 'the walk follows the gate into its requires');
+  assert.equal(external.has('child_process'), false, `no module the gate reaches requires child_process: ${[...seen].join(', ')}`);
+}
 
 // --- --help and the report describe the ledger gate, nothing of a branch ---------------------------------------
 {
