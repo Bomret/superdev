@@ -57,7 +57,7 @@ Paths: plugin/skills/plan/**, plugin/references/plan-contract.md, plugin/referen
 
 Class: architecture
 Concepts: Definition of Done (DoD), Verification ceiling, Scope branch
-Statement: Verifying a Definition-of-Done criterion observes. It changes no system outside the repository. An item that needs an outward-facing change to verify stays unticked, with a note, for the operator to verify after merge. After the merge, `/superdev:verify-ship` observes the deployed system read-only and runs no deploy target's command (ADR 0106).
+Statement: Verifying a Definition-of-Done criterion observes. It changes no system outside the repository. An app instance a verify skill starts for one checkout, with the state that instance alone owns, counts as inside; state shared with the main checkout or with a third-party service counts as outside (ADR 0277). An item that needs an outward-facing change to verify stays unticked, with a note, for the operator to verify after merge. After the merge, `/superdev:verify-ship` observes the deployed system read-only and runs no deploy target's command (ADR 0106).
 Breaks: silently
 Check: none — final-reviewer's invariant compliance judges it
 Paths: plugin/references/scope-mode.md, plugin/agents/final-reviewer.md, plugin/agents/implementer.md, plugin/skills/review/**, plugin/references/review-scope-*.md, plugin/skills/implement/**, plugin/skills/document/**, plugin/references/run-handoff.md, plugin/references/dod-ticks.md, plugin/skills/verify-ship/**
