@@ -34,8 +34,24 @@ module.exports = {
             countMatches: true,
           },
           {
-            // The marketplace source pins the release tag (ADR 0131), so the release commit
-            // names its own tag.
+            // The superdev-view mod is versioned with the plugin (ADR 0276), so an install's
+            // cached copy changes with every release.
+            files: ['mods/superdev-view/.claude-plugin/plugin.json'],
+            from: '"version": ".*"',
+            to: '"version": "${nextRelease.version}"',
+            results: [
+              {
+                file: 'mods/superdev-view/.claude-plugin/plugin.json',
+                hasChanged: true,
+                numMatches: 1,
+                numReplacements: 1,
+              },
+            ],
+            countMatches: true,
+          },
+          {
+            // Each marketplace source pins the release tag (ADR 0131, ADR 0276), so the release
+            // commit names its own tag.
             files: ['.claude-plugin/marketplace.json'],
             from: '"ref": "v[^"]*"',
             to: '"ref": "v${nextRelease.version}"',
@@ -43,8 +59,8 @@ module.exports = {
               {
                 file: '.claude-plugin/marketplace.json',
                 hasChanged: true,
-                numMatches: 1,
-                numReplacements: 1,
+                numMatches: 2,
+                numReplacements: 2,
               },
             ],
             countMatches: true,
@@ -62,7 +78,12 @@ module.exports = {
     [
       '@semantic-release/git',
       {
-        assets: ['CHANGELOG.md', 'plugin/.claude-plugin/plugin.json', '.claude-plugin/marketplace.json'],
+        assets: [
+          'CHANGELOG.md',
+          'plugin/.claude-plugin/plugin.json',
+          'mods/superdev-view/.claude-plugin/plugin.json',
+          '.claude-plugin/marketplace.json',
+        ],
         message: 'chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}',
       },
     ],

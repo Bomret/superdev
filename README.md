@@ -84,6 +84,13 @@ declared at project scope, so a clone never enables a plugin nobody asked for.
 
 Then, in each repo, run `/superdev:setup` once, then `/superdev:plan` and `/superdev:implement`.
 
+Optionally, install the superdev-view pane, a live view of the repository's `.superdev/` folder: its scopes and
+each scope run's event log. It needs Claude Code 2.1.287 or later, and installing it installs superdev too.
+
+```
+/plugin install superdev-view@superdev
+```
+
 To update, run `/superdev:upgrade`, then `/reload-plugins`.
 
 To hack on superdev itself, load a clone's working tree:

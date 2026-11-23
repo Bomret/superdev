@@ -5,6 +5,9 @@
 **Amends:** [ADR 0032](0032-the-shipped-tree-lives-in-the-plugin-subdirectory.md), whose Decision
 points the marketplace source at the relative path `./plugin`.
 
+**Amended by:** [ADR 0276](0276-superdev-view-ships-as-a-marketplace-entry-that-depends-on-superdev.md), which
+adds a second pinned entry for the superdev-view mod.
+
 **Context.** ADR 0032 points `marketplace.json`'s plugin source at the relative path `./plugin`. A
 relative source carries no ref of its own: it resolves inside whatever commit of the marketplace
 repository Claude Code fetched, and that is the tip of `main`. A pull request merges to `main` some time
