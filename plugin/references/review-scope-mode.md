@@ -14,6 +14,8 @@ Rare branches live in files of their own, each read only when its branch fires: 
 
 **The test command.** Applies to every test run of a scope review. The review starts no full-suite or whole-repo run (ADR 0255, INV-0193). Its fix cycles run focused, path, and fail-to-pass runs, and the scope's full-suite evidence is taken at `/superdev:ship`, through the named checks or a local run. Before the first reviews, see §4.2's red evidence.
 
+**The verify skill.** Applies to a scope review's fix loop. Read `docs/agents/verification.md`'s `## Verify skill` section once per run, per `${CLAUDE_PLUGIN_ROOT}/references/verify-skill.md`'s `## The section`, and read it again after a compaction or a resume rather than from memory. An absent section or `none` blocks nothing, `--unattended` included.
+
 ## 1. Range
 
 **The acceptance.** Applies once the skill's §1 resolved the range.
@@ -259,6 +261,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - **Working directory**: the scope checkout, where its fix commits must land.
 - **Findings**: the list, with `<cycle-base>` and the bases the previous concept names.
 - **Range-base input**: `<base>`, handed as `<base-branch>` for the implementer's `scope.js base resolve`.
+- **Verify skill**: the path §0 read, or `none`, on every fresh dispatch, a fresh dispatch after a failed, denied, or model-changing resume included. The implementer's `## The verify skill` owns when it follows it.
 - **Red-evidence findings**: a red-evidence finding that names no failed test file, a failed named check or a red record whose `failed` field prints none, widens the cycle's final focused run to `test focused --since <range-base>`, and where the focused fence repeats the full fence the cycle's final `test path --since <cycle-base>` run closes it instead. A red-evidence finding that names failed test files adds a `test path` run of each of them at the cycle's tip, in either fence configuration. Both follow the runs §4.2's `red-evidence` call reads as covering a record, and `${CLAUDE_PLUGIN_ROOT}/references/test-selection.md`'s `## The changed-path set`. Name the finding as red evidence and hand the range-base input above.
 - **Definition of Done**: the `<run-root>/dod.md` path plus exactly the lines this cycle unticked or found broken, a listed-lines case of `${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`'s mapping gate.
 - **Sibling surfaces**: require the implementer to bring each sibling surface in its own checkout into agreement with the rule or behaviour its fix changes, and to report each place it checked and each it changed. It reports a place outside its checkout, the `AGENTS.md` hierarchy, and the knowledge base unedited.
@@ -271,6 +274,7 @@ line each, with the follow-up `/superdev:plan`. Omit this section when there is 
 - **A report defect** → send the report back to the implementer in the same cycle. These are defects: no checked-and-changed list of sibling surfaces; a listed line with no met, not met, or ceiling line (`dod-ticks.md`'s note rule); a range that needs an outcome line and has none.
 - **The grep.** Before the re-review, grep the checkout for the key phrase of the rule the fix changed, in its old wording and its new, and compare the hits with the report's checked list. A hit in a file the list does not name is a missed sibling surface: send the report back, naming the hit, in the same cycle.
 - A hit in the `AGENTS.md` hierarchy or the knowledge base is named in your report instead. A hit in `CHANGELOG.md` is release history and needs no change.
+- **The observation check.** With a skill path other than `none`, mark each finding behavior-changing or not by `${CLAUDE_PLUGIN_ROOT}/references/verify-skill.md`'s **A behavior-changing finding**, reading the files the cycle's commits touched over `<cycle-base>..<cycle-tip>`. A finding you marked behavior-changing whose report carries neither an observation nor a `not observable` reason is a report defect: send it back in the same cycle, whatever the fixer called the finding. With `none`, send nothing back for this.
 
 **The re-review and the cap.** Applies after the implementer returns. Re-review per §2's **The warm re-review** after each cycle.
 

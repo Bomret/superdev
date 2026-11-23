@@ -25,6 +25,7 @@ Review a change end to end. §1 decides the mode.
 **The config reads.** Applies to every run. Every file below is optional. A missing file costs the command only its hint.
 
 - `docs/agents/code-management.md` → the **base branch** to diff against, default `main`.
+- `docs/agents/verification.md`'s `## Verify skill` → the **verify skill**'s path a live scope's fix loop hands (`${CLAUDE_PLUGIN_ROOT}/references/review-scope-mode.md`'s `## 0. Config`).
 - `docs/agents/verification.md` → the **test command**. The controller runs it and hands `final-reviewer` the result and never the command: §2's focused run states the ad-hoc run.
 
 ## 1. Range

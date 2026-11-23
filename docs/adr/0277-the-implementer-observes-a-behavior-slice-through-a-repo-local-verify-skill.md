@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+**Amended by:** [ADR 0279](0279-fix-dispatches-follow-the-verify-skill-and-stop-runs-before-start.md),
+which extends the skill to the scope review's and the Minor sweep's fix dispatches and runs its Stop before its Start.
+
 **Context.** The implementer proves a slice through tests alone. Green tests do not show that the feature works for
 its user, and that surfaces only after the merge, in `/superdev:verify-ship` or by hand. The implementer has no
 Skill tool. A subagent's `skills:` frontmatter preloads a skill by a fixed name, a plugin agent resolving a
