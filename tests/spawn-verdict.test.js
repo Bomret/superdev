@@ -118,7 +118,8 @@ const { assertSpawnDecided, boundFromSamples, shq } = require('./spawn-verdict')
 // require adds nothing.
 {
   const probe = "require('./tests/fixture-git');require('./tests/fixture-git');" +
-    "const e=process.env;console.log([e.GIT_CONFIG_COUNT,e.GIT_CONFIG_KEY_0,e.GIT_CONFIG_KEY_1,e.GIT_CONFIG_VALUE_1].join());";
+    "const e=process.env;console.log([e.GIT_CONFIG_COUNT,e.GIT_CONFIG_KEY_0,e.GIT_CONFIG_KEY_1,e.GIT_CONFIG_VALUE_1," +
+    "e.GIT_CONFIG_KEY_2,e.GIT_CONFIG_VALUE_2,e.GIT_CONFIG_KEY_3,e.GIT_CONFIG_VALUE_3].join());";
   const r = spawnSync(process.execPath, ['-e', probe], {
     cwd: require('node:path').join(__dirname, '..'),
     encoding: 'utf8',
@@ -126,5 +127,6 @@ const { assertSpawnDecided, boundFromSamples, shq } = require('./spawn-verdict')
     env: { ...process.env, GIT_FIXTURE_GPGSIGN: '', GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'safe.directory', GIT_CONFIG_VALUE_0: '*' },
   });
   assertSpawnDecided(r, 'fixture-git probe');
-  assert.equal(r.stdout.trim(), '2,safe.directory,commit.gpgsign,false', 'fixture-git keeps KEY_0 and appends gpgsign at index 1');
+  assert.equal(r.stdout.trim(), '4,safe.directory,commit.gpgsign,false,maintenance.auto,false,gc.auto,0',
+    'fixture-git keeps KEY_0 and appends gpgsign, maintenance.auto, and gc.auto from index 1');
 }
