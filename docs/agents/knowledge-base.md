@@ -40,8 +40,8 @@ This outline is a living skeleton. `/superdev:document` extends it.
   - `Guide: Sweep a repository`
 - **Topics.** One page per subject an adopter looks up: what superdev does there, where you meet it, and
   how to configure it. Parent: `Home`, section `Topics`:
-  - `Planning a feature`: the plan interview, its criteria, design sketch and visuals, intent and triage
-    records, the invariant register, and repairs.
+  - `Planning a feature`: the plan interview, its criteria, design sketch and visuals, the inline off-ramp,
+    intent and triage records, the invariant register, and repairs.
   - `The command chain`: the commands, the order they run in, the chain start of the next one, response
     shapes, the operator configuration, and Windows.
   - `Scope runs`: the scope branch and its worktrees, the run lock, the run root, run state, the guards,
