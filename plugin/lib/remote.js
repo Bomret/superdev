@@ -1,7 +1,7 @@
 'use strict';
 
 // remote.js: the remote a superdev step reaches, read from the `Remote:` bullet of `docs/agents/code-management.md`
-// (INV-0203). `plan-open.js`, `contained.js`, `branch-delete.js`, and `run-state-ref.js` import it.
+// (INV-0203), for any step that fetches from or pushes to it.
 
 const fs = require('fs');
 const path = require('path');

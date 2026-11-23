@@ -4,8 +4,8 @@
 
 const { gitSpawn, refResolves } = require('./git-spawn.js');
 
-// `references/scope-branch.md` `## Containment`. Exported for `hooks/scope-prune.js`, `lib/plan-open.js`, `lib/branch-delete.js`,
-// `lib/push.js`, and `lib/fail-to-pass.js` to `require`; `lib/contained.js` prints it as the `contained` verb, and this touches no ledger.
+// `references/scope-branch.md` `## Containment`. Exported for any hook, script, or module that judges containment; the
+// `contained` verb prints it, and this touches no ledger.
 //
 // A Containment verdict is one of three strings:
 //   'contained'         — base already holds every byte of branch's work
