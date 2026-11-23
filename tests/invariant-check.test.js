@@ -76,8 +76,9 @@ const register = (...entries) => `# Invariant register\n\n${entries.join('\n')}`
   assert.match(fileRoot.stderr, /usage/i, 'a --root naming a file prints usage');
   assert.strictEqual(fileRoot.stdout, '', 'a refused --root checks nothing');
 
-  // --help / -h prints the usage on stdout and checks nothing; as --root's value it is a root naming no directory.
-  for (const args of [['--help'], ['-h']]) {
+  // --help / -h prints the usage on stdout and checks nothing, even beside an unknown argument; as --root's value it
+  // is a root naming no directory.
+  for (const args of [['--help'], ['-h'], ['--bogus', '--help']]) {
     const r = run(args, args.join(' '));
     assert.strictEqual(r.status, 0, `${args.join(' ')} exits 0`);
     assert.match(r.stdout, /^usage: node scripts\/invariant-check\.js/, `${args.join(' ')} prints the usage on stdout`);

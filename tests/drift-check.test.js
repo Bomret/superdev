@@ -60,8 +60,9 @@ try {
   assert.match(selftest.stdout, /SELFTEST-DISPATCHED/, '--selftest runs the selftests');
   assert.ok(!selftest.stderr.includes('gap in'), '--selftest runs no check');
 
-  // --help / -h anywhere prints the usage, naming --selftest, and runs no check and no selftest.
-  for (const args of [['--help'], ['-h'], ['--selftest', '--help']]) {
+  // --help / -h anywhere prints the usage, naming --selftest, and runs no check and no selftest; it wins over an
+  // unknown argument beside it.
+  for (const args of [['--help'], ['-h'], ['--selftest', '--help'], ['--bogus', '--help']]) {
     const r = run(args, {}, args.join(' '));
     assert.strictEqual(r.status, 0, `${args.join(' ')} exits 0`);
     assert.match(r.stdout, /^usage: node scripts\/drift-check\.js/, `${args.join(' ')} prints the usage`);

@@ -288,8 +288,8 @@ assert.throws(
   };
   const usage = 'usage: node kb-patch.js <live-page.md> <staged-page.md>';
 
-  // --help / -h anywhere prints the usage on stdout and exits 0, reading no page.
-  for (const args of [['--help'], ['-h'], [path.join(dir, 'missing.md'), '-h']]) {
+  // --help / -h anywhere prints the usage on stdout and exits 0, reading no page, even beside an unknown argument.
+  for (const args of [['--help'], ['-h'], [path.join(dir, 'missing.md'), '-h'], ['--bogus', '-h']]) {
     const r = cli(...args);
     assert.equal(r.status, 0, `${args.join(' ')} exits 0: ${r.stderr}`);
     assert.ok(r.stdout.startsWith(usage), `${args.join(' ')} prints the usage: ${r.stdout}`);

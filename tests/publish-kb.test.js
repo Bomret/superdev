@@ -109,7 +109,8 @@ assert.throws(
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-help-'));
   try {
     const cli = (...a) => spawnSync(process.execPath, [publishKbPath, ...a], { cwd: dir, encoding: 'utf8' });
-    for (const argv of [['--help'], ['-h'], ['--scope', 'x', '--help'], ['--allow-unmerged', '-h']]) {
+    // A help request wins over an unknown argument beside it.
+    for (const argv of [['--help'], ['-h'], ['--scope', 'x', '--help'], ['--allow-unmerged', '-h'], ['extra', '--help']]) {
       const r = cli(...argv);
       assert.equal(r.status, 0, `${argv.join(' ')} exits 0 outside a repository`);
       assert.match(r.stdout, /^usage: node publish-kb\.js/, `${argv.join(' ')} prints the usage`);
