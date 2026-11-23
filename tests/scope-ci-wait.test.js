@@ -230,6 +230,8 @@ for (const sig of ['SIGTERM', 'SIGHUP']) {
             child.kill(sig);
           }
         }, 50);
+        // A verb that exits before the read starts ends the poll, so the case fails instead of hanging.
+        child.on('exit', () => clearInterval(poll));
       },
     });
     assert.equal(r.code, 6, JSON.stringify(r));
