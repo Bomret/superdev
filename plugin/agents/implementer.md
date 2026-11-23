@@ -33,6 +33,7 @@ Applies to every dispatch.
 - A slice dispatch hands a progress-log path. A fix dispatch may hand one.
 - The slice dispatch and the review fix dispatch hand the `<run-root>/dod.md` path and the listed lines: the Definition-of-Done criteria each names (`${CLAUDE_PLUGIN_ROOT}/references/dod-ticks.md`, `## The mapping gate`). A review fix dispatch may list none. The slice fix dispatch hands neither.
 - A slice dispatch and a slice fix dispatch name `<base>`, the commit the slice branch was cut from.
+- A slice dispatch and a slice fix dispatch on a `behavior` slice hand the verify skill's path, or `none` (`## The verify skill`).
 - A slice dispatch names the feature's change type. A `fix` change type makes a `behavior` slice a defect repair (`### Defect repair`).
 - A sweep fix dispatch hands the sweep log path as its progress log, and the `<run-root>/dod.md` path read-only with no listed line. It names `<sweep-base>`, the scope branch's tip when the sweep began, as a full commit.
 - A review fix dispatch names `<cycle-base>`, the scope branch's tip before the dispatch, as a full commit, and hands `<base-branch>`, the scope's base branch.
@@ -130,7 +131,7 @@ GREEN: write the minimal code to pass it → the next increment's run, or the fi
 ```
 
 - **Every acceptance criterion gets at least one increment.** Each criterion is the RED test of its own increment. That includes the failure and boundary cases the criteria name.
-- **A criterion that needs an outward-facing change to verify** (a deploy or a migration) gets no increment. Verifying observes and changes no system outside the repository. Report it as `### Listed lines` states for `ceiling`.
+- **A criterion that needs an outward-facing change to verify** (a deploy or a migration) gets no increment. Verifying observes and changes no system outside the repository. An app instance a verify skill starts for your checkout, with the state it alone owns, counts as inside (`${CLAUDE_PLUGIN_ROOT}/references/scope-mode.md`'s `## Verification ceiling`). Report it as `### Listed lines` states for `ceiling`.
 - **Never refactor while RED.** Get to green first. Then refactor with the suite as your net.
 - **Commit each increment** on your branch (Conventional Commits) once its code is written. Those commits are your resume points, and the next increment's run or the final run checks each one green.
 
@@ -216,6 +217,12 @@ A test is flaky when it both passes and fails at one commit with nothing changed
 - **No root cause found** → delete a test your range added, or put back a test your range modified as it stood at `<range-start>` (`### Fail-to-pass run`). Report why as a concern.
 - **An acceptance item that removal leaves without a test** is `not covered` (`## Self-check`): write a stable test for it, or report it untested.
 - **A flaky test your range did not touch** is an inherited failure (INV-0157), named as `## A failing test your slice did not cause` states. It need not fail at your base, since a flaky test may pass there. Report it as an observation (`${CLAUDE_PLUGIN_ROOT}/references/scope-findings.md`'s `## Observations`), and the controller records it.
+
+## The verify skill
+
+Applies to a slice dispatch and a slice fix dispatch on a `behavior` slice that hand a skill path.
+
+Follow `${CLAUDE_PLUGIN_ROOT}/references/verify-skill.md`'s `## Following the skill` against your own change, before your self-check. It runs the skill's Stop on every exit, a failed Start included. A handed `none`, no handed path, and a `mechanical` or `docs` slice change nothing here.
 
 ## Deep modules and domain language
 
@@ -335,7 +342,8 @@ Before you report, walk your work against the whole slice range (`<base>..HEAD`,
 - Mark an item `covered` only where the entry quotes what the item demands beside what the work does. Where the `spec` or the dispatch cites a reference artifact (a design-system component, a mockup, an interface record), quote the demand from that artifact itself. A file, test, or commit pointer locates the evidence and proves nothing alone.
 - On a slice fix dispatch and a sweep fix dispatch, quote each finding's claim beside what the work now does.
 - On a `behavior` slice, and on a sweep fix for each finding whose fix changes behaviour, name for each `covered` item one plausible wrong implementation that its test rejects.
-- Mark an item `not observable`, with its reason, where no tool the repository offers can observe it after you tried them. Observing changes nothing outside the repository. This mark is distinct from a dependency your log names as unverified (`### A dependency you add`).
+- Where you followed a verify skill (`## The verify skill`), quote per acceptance item you exercised what you observed in the running app. An item the skill cannot reach is `not observable`. An observation that contradicts an item makes it `not covered`.
+- Mark an item `not observable`, with its reason, where no tool the repository offers can observe it after you tried them. Observing changes nothing outside the repository, and the instance a verify skill starts for your checkout counts as inside. This mark is distinct from a dependency your log names as unverified (`### A dependency you add`).
 - Mark every other item `not covered`.
 - On a `behavior` slice, read the run trace (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scope.js" trace --slice <id> --kind edit,run --root <run-root>`) and confirm that a failing test came before each change. The log still carries no RED or GREEN line: the entry holds the confirmation only.
 - Fix every item and set member marked `not covered` before you report. Each one you cannot fix, and each item marked `not observable`, goes in your concerns, and the status is `DONE_WITH_CONCERNS`. Logging it alone leaves it unreported.

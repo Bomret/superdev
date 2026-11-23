@@ -113,7 +113,11 @@ Applies until every slice is `merged`. Run the steps below in order, and repeat.
    - its progress-log path, seeded first, and the heading of its self-check entry, `Self-check — build`;
    - the global constraints, and the interface file path (`<run-root>/interfaces.md`);
    - the path to `<run-root>/dod.md`, never its text, and the exact **listed lines**: the `dod.md` lines
-     `dod-ticks.md`'s `## The mapping gate` matches to this slice's own `id`.
+     `dod-ticks.md`'s `## The mapping gate` matches to this slice's own `id`;
+   - on a `behavior` slice, the verify skill's path, or `none` (`verify-skill.md`'s `## The section`). Every route
+     that dispatches or resumes the implementer on that slice hands the same value: this dispatch, a re-dispatch after
+     NEEDS_CONTEXT or BLOCKED, a slice fix dispatch, and a SendMessage resume. A `mechanical` or `docs` slice, a tiny
+     slice, a review, and a sweep fix dispatch hand none.
 
    `agents/implementer.md` owns the rest, and the dispatch restates none of it: `## Scope of the work`, `### Defect
    repair` (a `fix` change type starts a `behavior` slice at `references/diagnosis.md`), `### Running tests`, `### Fail-to-pass run`, `### A dependency you add`, `### Edit

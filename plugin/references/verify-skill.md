@@ -1,6 +1,6 @@
 # Verify skill
 
-**The verify skill.** Applies to every reader of this file. A repository's **verify skill** (CONTEXT.md) holds the procedure to start, drive, inspect, and stop its running app (ADR 0277). This file owns where its path is recorded, what the file holds, and what setup does with it.
+**The verify skill.** Applies to every reader of this file. A repository's **verify skill** (CONTEXT.md) holds the procedure to start, drive, inspect, and stop its running app (ADR 0277). This file owns where its path is recorded, what the file holds, how a builder follows it, and what setup does with it.
 
 ## The section
 
@@ -49,6 +49,25 @@ disable-model-invocation: true
 ## Untracked inputs
 ## May touch
 ````
+
+## Following the skill
+
+**Who follows it.** Applies to whoever builds or fixes a `behavior` slice with a skill path handed: the implementer on a slice dispatch or a slice fix dispatch, and the controller building the slice inline. Follow it against your own change after your final test run and before your self-check or report. Following the skill is no test run (INV-0017 governs test runs alone).
+
+**Read it.** Applies before the first step. Read the skill file from your checkout by the handed path, as plain text.
+
+- **The file is missing from your checkout**, or lacks a `## Start` or `## Stop` heading → a concern, and the report is `DONE_WITH_CONCERNS`. It never reads as `none`.
+- **A section the slice needs holds an unresolved `TODO`** → the same concern.
+
+**Start, drive, inspect.** Applies once the file reads whole. Start the app in the background (Bash `run_in_background`) and wait for the readiness check its `## Start` names. Drive it and inspect what it did against each acceptance item of the slice, by its `## Drive` and `## Inspect`. Keep each observation as you saw it, for the self-check to quote.
+
+**Stop on every exit.** Applies to every way the work ends: `DONE`, a concern, `BLOCKED`, `NEEDS_CONTEXT`, a failed Start, and a timeout. Run the skill's `## Stop` before you report.
+
+**Untracked inputs.** Applies to every input the skill's `## Untracked inputs` names. It comes through the environment or by the skill's own instruction. Never print, quote, or commit its value.
+
+**A clean tree.** Applies once the app ran. The tracked tree is as clean as before Start, and you commit nothing the app wrote.
+
+**The verification ceiling.** Applies to every step. The instance the skill starts for your checkout, with the state it alone owns, is inside the ceiling (`scope-mode.md`'s `## Verification ceiling`). Skip a step that would touch state outside the skill's `## May touch`, or state shared with the main checkout or a third-party service. The item that step would observe reads `not observable`.
 
 ## Setup runs no step
 
