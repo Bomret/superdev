@@ -23,8 +23,9 @@
 // recorded, never overrides one that was.
 //
 // `--help` / `-h` prints the usage and exits 0, reading no repository and calling no backend, except as the
-// value of `--read` or `--scope`, where it is data. Any other argument it does not take, or a flag missing its
-// value, refuses with the usage before the repository is read.
+// value of `--read` or `--scope`, where it is data. The argument after `--read` or `--scope` is always that flag's
+// value, another flag's name included, so `--scope --read` selects the scope `--read`. Any other argument it does
+// not take, or a flag missing its value, refuses with the usage before the repository is read.
 
 const fs = require('fs');
 const path = require('path');

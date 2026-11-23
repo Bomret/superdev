@@ -205,4 +205,16 @@ for (const argv of [['--allow-unmerge'], ['extra'], ['--scope']]) {
   });
 }
 
+// --- `--scope --read`: `--read` is the scope's value, so no read entry runs and the publish path refuses ---
+withCapture((stateFile, dir) => {
+  const repo = makeRepo();
+  writeKbDoc(repo, commandsDoc('- **Backend:** Some Wiki.'));
+  stagePage(repo, 'demo', 'p.md', 'title: P\naction: upsert');
+
+  const res = call(['--scope', '--read'], repo);
+  assert.equal(res.ok, false, '--scope --read refuses');
+  assert.deepEqual(fs.existsSync(dir) ? fs.readdirSync(dir) : [], [], '--scope --read calls no backend verb');
+  assert.ok(fs.existsSync(path.join(repo, '.superdev', 'kb-pending', 'demo', 'p.md')), 'the page stays staged');
+});
+
 console.log('publish-kb-scope.test.js: all assertions passed');
