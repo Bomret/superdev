@@ -31,8 +31,9 @@ against the repository's own register, the `drift-check.js` selftest, `drift-che
      and is one of superdev's own change types.
 2. Update `CHANGELOG.md` and bump the version in `plugin/.claude-plugin/plugin.json`, via
    `semantic-release-replace-plugin`. `plugin.json` is the single source of truth, and `marketplace.json`
-   carries no version. The same step rewrites the `ref` of `marketplace.json`'s source to `vX.Y.Z`, so the
-   release commit names its own tag (ADR 0131). A rewrite that matches nothing fails the release.
+   carries no version. The same step sets `mods/superdev-view/.claude-plugin/plugin.json`'s version to
+   `X.Y.Z` and rewrites the `ref` of each `marketplace.json` source to `vX.Y.Z`, so the release commit names
+   its own tag (ADR 0131, ADR 0276). A rewrite that matches fewer fields than it expects fails the release.
 3. Commit `chore(release): X.Y.Z [skip ci]` with the release notes, tag `vX.Y.Z`, and push.
 4. Publish a **GitHub Release** with the generated notes.
 

@@ -15,6 +15,18 @@
         "ref": "v0.116.0"
       },
       "category": "productivity"
+    },
+    {
+      "name": "superdev-view",
+      "description": "Pane of the repository's .superdev folder: scopes, and each scope run's event log. Installs superdev with it.",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/Bomret/superdev.git",
+        "path": "mods/superdev-view",
+        "ref": "v0.116.0"
+      },
+      "dependencies": ["superdev"],
+      "category": "productivity"
     }
   ]
 }

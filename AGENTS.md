@@ -32,9 +32,11 @@ No prerequisite plugins.
                          `settings.json`; `README.md` → Install carries the operator steps, and
                          `.claude/settings.local.json` stays gitignored
 .claude-plugin/
-  marketplace.json     — single-plugin marketplace manifest (deliberately NO version field); its
-                         `source` is a `git-subdir` entry with `path` `plugin` and `ref` `v<version>`, so
-                         an install copies only the shipped tree below, as the release tag holds it
+  marketplace.json     — marketplace manifest (deliberately NO version field) listing `superdev` and the
+                         optional `superdev-view` mod, which depends on it (ADR 0276). Each `source` is a
+                         `git-subdir` entry with `ref` `v<version>`: `superdev`'s `path` `plugin` copies only
+                         the shipped tree below, `superdev-view`'s copies only `mods/superdev-view`, both as
+                         the release tag holds them
 .github/workflows/     — the CI workflows, each stating what it runs in its own header. The cross-platform
                          workflow runs the knowledge-base template suite and the write-fence suite on Linux, macOS, and
                          Windows (Git Bash) for every pull request to `main` (ADR 0212, INV-0152). The full-suite workflow
@@ -67,7 +69,8 @@ docs/agents/           — superdev's own backend config (dogfooded: this repo's
 docs/invariants.md     — the invariant register
 docs/known-issues.md   — Claude Code platform behaviour superdev works around, each entry with its
                          shipped mitigation and dated verification
-mods/                  — maintainer-only Claude Code mods, never shipped; each mod's own AGENTS.md owns it
+mods/                  — Claude Code mods; each mod's own AGENTS.md owns it and states whether the root
+                         marketplace lists it
 scripts/               — the maintainer-only CLIs `node scripts/run-tests.js` runs; `scripts/AGENTS.md` owns them
 release.config.cjs     — semantic-release config (semantic-release-replace-plugin bumps plugin.json and
                          the marketplace source's `ref`)
@@ -175,7 +178,8 @@ end of this document names the files that own each subtree's contracts.
   `semantic-release-replace-plugin` bump it on release. `marketplace.json` carries no version, which
   avoids a double pin where `plugin.json` would silently win. Its source's `ref` names the release tag,
   `v` followed by that version, and the same release step rewrites it (ADR 0131). Never hand-edit it
-  either.
+  either. The same step sets `mods/superdev-view/.claude-plugin/plugin.json`'s version to the release
+  version and rewrites that mod's `ref` (ADR 0276), so never hand-edit those either.
 - **Claude Code is superdev's only harness** (ADR 0102). Skills, agents, and references name Claude
   Code's features, tools, and frontmatter directly. Prose is not written harness-neutral for
   portability.

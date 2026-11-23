@@ -27,16 +27,22 @@ const plugin = (name) => base.config.plugins.find((p) => (Array.isArray(p) ? p[0
 
 // version and marketplace ref rewrites on the real files
 const { replacements } = plugin('semantic-release-replace-plugin');
+const version = (j) => [`"version": "${j.version}"`];
 for (const [i, file, current, expected] of [
-  [0, 'plugin/.claude-plugin/plugin.json', (j) => `"version": "${j.version}"`, '"version": "9.8.7"'],
-  [1, '.claude-plugin/marketplace.json', (j) => `"ref": "${j.plugins[0].source.ref}"`, '"ref": "v9.8.7"'],
+  [0, 'plugin/.claude-plugin/plugin.json', version, '"version": "9.8.7"'],
+  [1, 'mods/superdev-view/.claude-plugin/plugin.json', version, '"version": "9.8.7"'],
+  [2, '.claude-plugin/marketplace.json', (j) => j.plugins.map((p) => `"ref": "${p.source.ref}"`), '"ref": "v9.8.7"'],
 ]) {
   const r = replacements[i];
   assert.deepStrictEqual(r.files, [file], `replacement ${i} targets ${file}`);
   const text = fs.readFileSync(path.join(root, file), 'utf8');
   const matches = text.match(new RegExp(r.from, 'gm')) || [];
-  // the match is exactly the current field text, so the pattern cannot over-match
-  assert.deepStrictEqual(matches, [current(JSON.parse(text))], `${file}: the pattern matches exactly the current field`);
+  // the matches are exactly the current fields, so the pattern cannot over-match
+  const fields = current(JSON.parse(text));
+  assert.deepStrictEqual(matches, fields, `${file}: the pattern matches exactly the current fields`);
+  // the release fails unless every field is rewritten, so the expected counts follow the file
+  assert.deepStrictEqual(r.results, [{ file, hasChanged: true, numMatches: fields.length, numReplacements: fields.length }],
+    `${file}: the expected rewrite count`);
   assert.strictEqual(r.to.replace('${nextRelease.version}', '9.8.7'), expected, `${file}: the replacement text`);
 }
 

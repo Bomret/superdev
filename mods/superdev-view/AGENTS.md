@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`mods/superdev-view/` is a maintainer-only Claude Code mod, a hooks module (`hooks/register.tsx`) that
+`mods/superdev-view/` is an optional Claude Code mod that adopters install beside superdev, a hooks module (`hooks/register.tsx`) that
 draws a pane of the main working tree's `.superdev/` folder. This document states what the pane reads,
 what it draws, how to install it, and how its tests run.
 
@@ -10,7 +10,10 @@ what it draws, how to install it, and how its tests run.
 
 This document owns the mod's behaviour contract and its working steps. It also owns the mod's place in the
 repository and the fixture pins that couple it to `scope.js`, `plugin/hooks/run-trace.js`, and `plugin/lib/run-lock.js`. Nothing under `plugin/` requires
-the mod, and the root marketplace does not list it, so no adopter install carries it. Paths below that start
+the mod. The root marketplace lists it as `superdev-view`, a `git-subdir` entry pinned to the release tag that
+depends on `superdev`, so installing it installs superdev too, and installing superdev installs no pane (ADR 0276).
+An install copies this folder alone, so the folder carries its own `LICENSE` and `NOTICE`, and every file the mod
+loads lives in it. The release sets `.claude-plugin/plugin.json`'s version to the release version. Paths below that start
 with `hooks/` name files in this folder. Paths that start with `plugin/` or `tests/` name files from the
 repository root.
 
@@ -148,8 +151,11 @@ records it and to the slice that trace line names. Therefore `plugin/lib/dispatc
 
 ## Work Guidance
 
-Install the mod into a session with `/plugin marketplace add <repo>/mods/superdev-view`, then
-`/plugin install superdev-view@superdev-view` and `/reload-plugins`. The mod's marketplace lists it with
+An adopter installs the release with `/plugin install superdev-view@superdev` from the root marketplace.
+
+A maintainer installs the working tree into a session with `/plugin marketplace add <repo>/mods/superdev-view`, then
+`/plugin install superdev-view@superdev-view` and `/reload-plugins`. Install one of the two, never both, because
+both load the same module. The mod's own marketplace lists it with
 the relative source `./`, so Claude Code loads it in place from this folder. An edit here, a `git pull`
 included, takes effect at the next session start or `/reload-plugins`, with no raise of the `version` in
 `.claude-plugin/plugin.json` and no `claude plugin update`
