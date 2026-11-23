@@ -60,6 +60,7 @@ lazily loaded module is a getter that returns that module's own value. No module
 `staging <scope> [--count|--line]`, `collisions --base <ref> --branch <ref> --range-base <ref> [--also <ref> …]`, `citations --range-base <ref> --branch <ref> <id>…`, `source-set [<path>]`, `source-set --tests`, `push --root <run-root> --remote <remote> --base <base-ref>`, `dod-merge --root <run-root>`, `dod-line`, `dod-tags [--map-file <path>] [--line]`, `dod-check`, `ci --sha <sha> [--root <path>]`, `fail-to-pass <base>..<tip> -- <command>`, `prepare <tree>`, and `test`.
 `--help` or `-h` prints help and exits 0. A flag's value, or the text after `add`, `add-denial`, `reset-denials`, or `resolve`, is data and never a help request.
 The CLI checks for help before any verb reads stdin or touches a ledger.
+An unknown verb, or no verb, refuses with exit 1 and appends the full usage on stderr. `run-state` without `delete` refuses the same way.
 A stdin verb such as `dod-line` therefore never waits on input for it.
 `lib/usage.js` holds the usage text once. `usage()` returns all of it, and the refusals that print usage append it whole.
 `helpText(verb, sub)` returns a cut of the same lines: the header and the `--help, -h` line, then the verb's **entries**.
@@ -891,7 +892,7 @@ deep, from inside `.superdev/scopes/<scope>/scopetree`. `--scope <slug>` selects
 publish. Left out, the script publishes the one pending scope there is. It refuses when there is more
 than one pending scope or none, and names every pending scope with its staged-page count on refusal.
 `--help` or `-h` anywhere among the arguments prints the usage and exits 0 before any repository or backend is read.
-As the value of `--read` or `--scope` it is data. Before `run()` reads the repository, it refuses every argument it does not take.
+As the value of `--read` or `--scope` it is data, and so is any other flag's name there: `--scope --read` selects the scope `--read`, which the scope-slug check refuses. Before `run()` reads the repository, it refuses every argument it does not take.
 These are an unknown flag, a stray word, and `--read` or `--scope` with no value. The refusal names the
 argument, appends the usage, and exits 1. `--scope=x` is such an unknown argument.
 
