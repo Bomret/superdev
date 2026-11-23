@@ -29,10 +29,20 @@ for (const name of ['knowledge-base.md']) {
     assert.ok(!fs.existsSync(stateFile), 'nothing published');
   });
 }
-// An unreadable ledger, or a run root that is a dangling symlink, refuses naming the error, even under --allow-unmerged.
+// An unreadable ledger, or a run root or `.superdev/scopes` that is a dangling symlink, refuses naming the error, even
+// under --allow-unmerged.
 for (const [label, breakIt, code] of [
   ['a ledger that is a directory', (root) => fs.mkdirSync(path.join(root, 'ledger.md'), { recursive: true }), 'EISDIR'],
   ['a dangling symlink run root', (root) => fs.symlinkSync(path.join(root, '..', 'gone'), root), 'ENOENT'],
+  [
+    'a dangling symlink .superdev/scopes',
+    (root) => {
+      const scopes = path.dirname(root);
+      fs.rmSync(scopes, { recursive: true });
+      fs.symlinkSync(path.join(scopes, '..', 'gone'), scopes);
+    },
+    'ENOENT',
+  ],
 ]) {
   withState((stateFile) => {
     const repo = makeRepo();

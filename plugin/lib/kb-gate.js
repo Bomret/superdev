@@ -13,19 +13,23 @@ function checkGate(mainCheckout, scope) {
   const rel = path.join('.superdev', 'scopes', scope);
   const root = path.join(mainCheckout, rel);
   const unreadable = (what, e) => ({ ok: false, overridable: false, message: `${what} cannot be read (${e.code})` });
-  // Only `lstat`'s ENOENT reads as gone: a symlink run root is followed, so a dangling one is unreadable, never absent.
-  let st;
-  try {
-    st = fs.lstatSync(root);
-  } catch (e) {
-    if (e.code === 'ENOENT') return { ok: true };
-    return unreadable(rel, e);
-  }
-  if (st.isSymbolicLink()) {
+  // `.superdev`, `.superdev/scopes`, then the run root: only `lstat`'s ENOENT on one of them reads as gone. A symlink
+  // among them is followed, so a dangling one is unreadable, never absent.
+  for (const p of [path.dirname(path.dirname(rel)), path.dirname(rel), rel]) {
+    const abs = path.join(mainCheckout, p);
+    let st;
     try {
-      fs.statSync(root);
+      st = fs.lstatSync(abs);
     } catch (e) {
-      return unreadable(rel, e);
+      if (e.code === 'ENOENT') return { ok: true };
+      return unreadable(p, e);
+    }
+    if (st.isSymbolicLink()) {
+      try {
+        fs.statSync(abs);
+      } catch (e) {
+        return unreadable(p, e);
+      }
     }
   }
   let text;
