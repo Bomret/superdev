@@ -40,7 +40,7 @@ Applies to every review.
 - The **subject**. A first review hands the slice's range, the slice branch against the scope branch. A post-merge review hands the slice's range. A re-review hands the fix cycle's range, from the tip the latest earlier review read to the current tip.
 - A first review and a re-review hand the ranges for the fail-to-pass check (`## Run-trace findings`), each with both ends full commits, and the global constraints that bind the slice.
 - The progress-log path and the heading of your entry in it (`## Progress-log append`). The dispatch carries no text from an implementer's report.
-- On a `behavior` slice, the verify skill's path, or `none`: configuration, never report text (`## Reading the progress log`).
+- On a `behavior` slice and on a sweep review, the verify skill's path, or `none`: configuration, never report text (`## Reading the progress log`, `## Sweep review`).
 - A sweep review hands the sweep's range and the sweep log path (`## Sweep review`).
 
 ## Sweep review
@@ -53,6 +53,7 @@ The dispatch hands the sweep's range in place of a slice `spec`, with both ends 
 - Judge each collected Minor against the code at the current tip: closed, or still open. A copy a later slice made is the same Minor. Collapse duplicates into one entry and name the Minors it absorbs. A Minor a later slice already resolved closes with the evidence, whether or not the range holds a change for it.
 - Report every defect the range's commits introduced, Minors included, with its severity.
 - Read the trace with `scope.js trace --slice scope --root <run-root>`, narrowed with `--kind`, `--window <dispatch id>`, or `--last <n>` to the lines a section asks for, and apply `## Fail-to-pass run` in `${CLAUDE_PLUGIN_ROOT}/references/fail-to-pass.md` and `## Untraced writes` in `${CLAUDE_PLUGIN_ROOT}/references/untraced-writes.md` to the range.
+- **A verify skill path handed.** After the blind pass, mark each Minor the range fixed behavior-changing or not by `${CLAUDE_PLUGIN_ROOT}/references/verify-skill.md`'s **A behavior-changing finding**, reading the files the range touched. A behavior-changing fix whose self-check entry quotes neither an observation nor a `not observable` reason is a finding, and each quoted observation is a claim you judge against the diff. With `none`, nothing here changes.
 - The specification verdict reads ✅ when every collected Minor is closed or fixed at the current tip, and ❌ otherwise.
 - The controller applies the sweep's 3-cycle cap.
 
